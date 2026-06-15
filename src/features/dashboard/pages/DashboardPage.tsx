@@ -214,10 +214,6 @@ export function DashboardPage() {
   return (
     <main className="page dashboard-page--centered">
       <div className="dashboard-menu-shell">
-        <header className="page-header dashboard-page__header">
-          <h1>메뉴</h1>
-        </header>
-
         {imHealthErr ? (
           <p className="status status--error" style={{ maxWidth: 420, margin: '0 auto 12px' }}>
             {imHealthErr}

@@ -166,17 +166,23 @@
 /* ── Mobile: single-row toolbar + map-first layout ── */
 
 .customers-map-page--mobile {
-  gap: 6px;
-  padding: 6px 10px 8px;
-  min-height: 100dvh;
-  min-height: 100vh;
+  position: relative;
+  gap: 0;
+  padding: 0;
+  min-height: calc(100dvh - 48px);
+  min-height: calc(100vh - 48px);
 }
 
 .customer-map-mobile-toolbar {
+  position: absolute;
+  top: max(10px, env(safe-area-inset-top, 0px));
+  left: max(10px, env(safe-area-inset-left, 0px));
+  right: max(10px, env(safe-area-inset-right, 0px));
+  z-index: 7;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
-  flex-shrink: 0;
+  gap: 8px;
+  pointer-events: auto;
 }
 
 .customer-map-mobile-toolbar-btn {
@@ -195,6 +201,11 @@
 
 .customer-map-mobile-filter-panel,
 .customer-map-mobile-search-panel {
+  position: absolute;
+  left: max(10px, env(safe-area-inset-left, 0px));
+  right: max(10px, env(safe-area-inset-right, 0px));
+  top: calc(max(10px, env(safe-area-inset-top, 0px)) + 48px);
+  z-index: 8;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -243,24 +254,12 @@
 
 .customers-map-page--mobile .customers-map-page__map-wrap {
   flex: 1 1 auto;
-  min-height: max(70dvh, calc(100dvh - 108px));
-  min-height: max(70vh, calc(100vh - 108px));
-  height: calc(100dvh - 108px);
-  height: calc(100vh - 108px);
-}
-
-.customers-map-page--mobile.customers-map-page--filter-open .customers-map-page__map-wrap {
-  min-height: max(65dvh, calc(100dvh - 196px));
-  min-height: max(65vh, calc(100vh - 196px));
-  height: calc(100dvh - 196px);
-  height: calc(100vh - 196px);
-}
-
-.customers-map-page--mobile.customers-map-page--search-open .customers-map-page__map-wrap {
-  min-height: max(68dvh, calc(100dvh - 156px));
-  min-height: max(68vh, calc(100vh - 156px));
-  height: calc(100dvh - 156px);
-  height: calc(100vh - 156px);
+  min-height: calc(100dvh - 48px);
+  min-height: calc(100vh - 48px);
+  height: calc(100dvh - 48px);
+  height: calc(100vh - 48px);
+  border: 0;
+  border-radius: 0;
 }
 
 .customers-map-page--mobile .customers-map-page__unmapped-panel {
