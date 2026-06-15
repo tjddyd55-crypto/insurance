@@ -254,9 +254,29 @@
   margin: 0;
 }
 
-.insurer-news-page--pc .insurer-news-list-searchbar {
-  margin: 0 0 14px;
+/* Newsletter list (원수사/손해사정사 조회) — 검색창 ↔ 카드 목록 간격 (PC/Mobile 공통) */
+.insurer-news-page--pc .page-header__title-row,
+.insurer-news-page.insurer-news-page--mobile .page-header__title-row {
+  margin-bottom: 0;
+}
+
+.insurer-news-page .insurer-news-list-searchbar.insurer-news-filters {
+  gap: 0;
+  margin-bottom: 16px;
   padding: 0;
+}
+
+.insurer-news-page .insurer-news-list-searchbar + .news-grid,
+.insurer-news-page .insurer-news-list-searchbar + .insurer-news-empty {
+  margin-top: 0;
+}
+
+.insurer-news-page .insurer-news-list-searchbar + .news-grid {
+  padding-top: 0;
+}
+
+.insurer-news-page .insurer-news-list-searchbar + .insurer-news-empty {
+  padding: 16px;
 }
 
 .pc-root .insurer-news-page .news-grid,
@@ -977,8 +997,6 @@
 
   .insurer-news-page.insurer-news-page--mobile .insurer-news-list-searchbar {
     display: flex;
-    margin: 0 0 14px;
-    padding: 0;
   }
 
   .insurer-news-page.insurer-news-page--mobile .insurer-news-search,
