@@ -242,6 +242,28 @@
   line-height: 1.5;
 }
 
+.insurer-news-page--pc {
+  padding-top: 16px;
+}
+
+.insurer-news-page--pc .page-header {
+  margin: 0 0 12px;
+}
+
+.insurer-news-page--pc .page-header__title-row h1 {
+  margin: 0;
+}
+
+.insurer-news-page--pc .insurer-news-list-searchbar {
+  margin: 0 0 14px;
+  padding: 0;
+}
+
+.pc-root .insurer-news-page .news-grid,
+.insurer-news-page--pc .news-grid {
+  padding: 0;
+}
+
 .insurer-news-list-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -938,7 +960,7 @@
     width: 100%;
     max-width: none;
     margin-inline: 0;
-    padding: 20px 16px 40px;
+    padding: 12px 16px 40px;
     box-sizing: border-box;
   }
 
@@ -951,10 +973,6 @@
     margin: 0;
     font-size: 1.65rem;
     line-height: 1.25;
-  }
-
-  .insurer-news-page.insurer-news-page--mobile .insurer-news-muted {
-    margin: 8px 0 12px;
   }
 
   .insurer-news-page.insurer-news-page--mobile .insurer-news-list-searchbar {

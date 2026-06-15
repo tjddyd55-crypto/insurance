@@ -19,7 +19,6 @@ export default function InsurerManagerNewsListMobileView({
   items,
   error,
   title,
-  subtitle,
   emptyMessage,
   openPathPrefix,
   searchQuery,
@@ -30,11 +29,10 @@ export default function InsurerManagerNewsListMobileView({
 
   return (
     <main className="page page--with-back insurer-news-page insurer-news-page--mobile user-page">
-      <header className="page-header page-header--has-inline-back" style={{ marginBottom: 16 }}>
+      <header className="page-header page-header--has-inline-back">
         <div className="page-header__title-row">
           <h1>{title}</h1>
         </div>
-        <p className="insurer-news-muted">{subtitle}</p>
       </header>
       <div className="insurer-news-filters insurer-news-list-searchbar">
         <label className="insurer-news-search">
