@@ -390,6 +390,13 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     ],
   )
 
+  useEffect(() => {
+    if (!listIsNarrowed || expandedIdRef.current == null) {
+      return
+    }
+    setExpandedId(null)
+  }, [listIsNarrowed, setExpandedId])
+
   const applyConsultationFilter = useCallback(() => {
     if (consultationFilterDraft === 'no_since' && !consultationCutoffDraft.trim()) {
       setConsultationFilterMessage('기준 날짜를 선택해 주세요.')
@@ -1054,21 +1061,6 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           mobileCopyFeedbackTimerRef.current = null
         }, 4500)
       }
-      const scrollCopyUi = () => {
-        if (isMobile) {
-          document
-            .getElementById(`customer-${rec.id}-copy-feedback`)
-            ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-          return
-        }
-        document.getElementById('customers-page-status')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-      }
-      queueMicrotask(() => {
-        requestAnimationFrame(() => {
-          scrollCopyUi()
-          window.setTimeout(scrollCopyUi, 120)
-        })
-      })
     },
     [isMobile],
   )

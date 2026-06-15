@@ -222,7 +222,7 @@ export async function listCustomerForms(
 export async function searchCustomers(
   token: string,
   q: string,
-  options?: { scopeGaId?: number | null },
+  options?: { scopeGaId?: number | null; limit?: number },
 ): Promise<CustomerRecord[]> {
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
@@ -232,7 +232,8 @@ export async function searchCustomers(
   if (trimmed) {
     query.set('q', trimmed)
   }
-  query.set('limit', '20')
+  const limit = options?.limit
+  query.set('limit', String(limit != null && Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 20))
   const sga = options?.scopeGaId
   if (sga != null && Number.isFinite(Number(sga)) && Number(sga) > 0) {
     query.set('scope_ga_id', String(sga))

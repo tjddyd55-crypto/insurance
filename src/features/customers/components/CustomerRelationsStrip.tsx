@@ -1,7 +1,7 @@
 import { type CSSProperties, type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { useConfirmDialog } from '../../../components/dialog'
 import { FormButton, FormInput } from '../../../components/form'
-import { listCustomers } from '../api/customersApi'
+import { listCustomers, searchCustomers } from '../api/customersApi'
 import {
   createCustomerRelation,
   deleteCustomerRelation,
@@ -87,39 +87,41 @@ export function CustomerRelationsStrip({
     if (!modalOpen || !token?.trim()) {
       return
     }
+    const q = searchQ.trim()
     let cancelled = false
-    void (async () => {
-      setSearchBusy(true)
-      try {
-        const { customers } = await listCustomers(token, 500)
-        if (cancelled) {
-          return
+    const handle = window.setTimeout(() => {
+      void (async () => {
+        setSearchBusy(true)
+        try {
+          const customers = q
+            ? await searchCustomers(token, q, { limit: 50 })
+            : (await listCustomers(token, 500)).customers
+          if (cancelled) {
+            return
+          }
+          setSearchPool(customers)
+        } catch (e) {
+          if (!cancelled) {
+            setSearchPool([])
+            setError(e instanceof Error ? e.message : '검색에 실패했습니다.')
+          }
+        } finally {
+          if (!cancelled) {
+            setSearchBusy(false)
+          }
         }
-        setSearchPool(customers)
-      } catch (e) {
-        if (!cancelled) {
-          setSearchPool([])
-          setError(e instanceof Error ? e.message : '검색에 실패했습니다.')
-        }
-      } finally {
-        if (!cancelled) {
-          setSearchBusy(false)
-        }
-      }
-    })()
+      })()
+    }, q ? 180 : 0)
     return () => {
       cancelled = true
+      window.clearTimeout(handle)
     }
-  }, [modalOpen, token])
+  }, [modalOpen, searchQ, token])
 
   const hits = useMemo(() => {
-    const q = searchQ.trim()
-    const rows = q
-      ? searchPool.filter((c) => c.name.includes(q) || (c.phone ?? '').includes(q))
-      : searchPool
     const out: CustomerRecord[] = []
     const seen = new Set<number>()
-    for (const row of rows) {
+    for (const row of searchPool) {
       if (row.id === customerId) {
         continue
       }
@@ -130,7 +132,7 @@ export function CustomerRelationsStrip({
       out.push(row)
     }
     return out
-  }, [customerId, searchPool, searchQ])
+  }, [customerId, searchPool])
 
   const linkTo = async (target: CustomerRecord) => {
     if (!token?.trim()) {

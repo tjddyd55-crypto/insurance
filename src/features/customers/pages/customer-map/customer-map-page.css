@@ -165,10 +165,15 @@
 
 /* ── Mobile: single-row toolbar + map-first layout ── */
 
+.mobile-root .workspace-main.workspace-main--app .app-main-content:has(.customers-map-page--mobile) {
+  padding: 0 !important;
+}
+
 .customers-map-page--mobile {
   position: relative;
   gap: 0;
   padding: 0;
+  width: 100%;
   min-height: calc(100dvh - 48px);
   min-height: calc(100vh - 48px);
 }
