@@ -14,7 +14,7 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: 24px 20px 64px;
-  color: #0f172a;
+  color: var(--text-primary, var(--text-main, #111827));
 }
 
 /* 좌표 편집 — 좌우 여백을 줄이고 가로를 최대한 PDF 미리보기에 할당 */
@@ -40,16 +40,16 @@
 }
 
 .pdf-engine-page__error {
-  color: #b91c1c;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  color: var(--danger-text, #991b1b);
+  background: var(--danger-bg, #fef2f2);
+  border: 1px solid var(--danger-border, #fecaca);
   border-radius: 8px;
   padding: 10px 12px;
   margin-bottom: 12px;
 }
 
 .pdf-engine-page__hint {
-  color: #475569;
+  color: var(--text-secondary, var(--text-sub, #6b7280));
   font-size: 13px;
   margin: 0 0 12px;
 }
@@ -129,10 +129,10 @@
 }
 
 .pdf-engine-editor__panel {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-default, #e5e7eb);
   border-radius: 10px;
   padding: 16px;
-  background: #fff;
+  background: var(--bg-card, #ffffff);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -155,9 +155,9 @@
   overflow-x: auto;
   overflow-y: auto;
   padding: 10px;
-  background: #f1f5f9;
+  background: var(--bg-soft, #f1f5f9);
   border-radius: 10px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-default, #e5e7eb);
   box-sizing: border-box;
 }
 
@@ -193,22 +193,23 @@
   justify-content: space-between;
   gap: 10px;
   padding: 10px 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-default, #e5e7eb);
   border-radius: 8px;
-  background: #fff;
+  background: var(--bg-card, #ffffff);
+  color: var(--text-primary, var(--text-main, #111827));
   cursor: pointer;
   text-align: left;
   box-sizing: border-box;
 }
 
 .pdf-engine-editor__field-card:focus {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--input-focus-border, var(--primary, #16a34a));
   outline-offset: 1px;
 }
 
 .pdf-engine-editor__field-card--active {
-  border-color: #3b82f6;
-  background: #eff6ff;
+  border-color: var(--primary-border, var(--input-focus-border, #16a34a));
+  background: var(--primary-soft, #dcfce7);
 }
 
 .pdf-engine-editor__field-card-main {
@@ -267,7 +268,7 @@
   flex-direction: column;
   gap: 4px;
   font-size: 13px;
-  color: #334155;
+  color: var(--text-secondary, var(--text-sub, #6b7280));
   flex: 1 1 140px;
 }
 
@@ -302,7 +303,7 @@
 .pdf-engine-editor__config-divider {
   margin: 16px 0;
   border: 0;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--border-default, #e5e7eb);
 }
 
 .pdf-engine-editor__config-block--add-field .pdf-engine-editor__panel-title,
@@ -314,7 +315,7 @@
   margin: 0 0 8px;
   font-size: 14px;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--text-primary, var(--text-main, #111827));
   line-height: 1.4;
 }
 
@@ -334,12 +335,12 @@
 .pdf-engine-editor__label input,
 .pdf-engine-editor__label select,
 .pdf-engine-editor__label textarea {
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border-default, #e5e7eb);
   border-radius: 6px;
   padding: 6px 8px;
   font-size: 14px;
-  color: #0f172a;
-  background: #fff;
+  color: var(--text-primary, var(--text-main, #111827));
+  background: var(--bg-card, #ffffff);
 }
 
 .pdf-engine-editor__fields {
@@ -357,16 +358,16 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-default, #e5e7eb);
   border-radius: 8px;
   padding: 8px 10px;
   cursor: pointer;
-  background: #fff;
+  background: var(--bg-card, #ffffff);
 }
 
 .pdf-engine-editor__field-item--active {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+  border-color: var(--primary-border, var(--primary, #16a34a));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary, #16a34a) 18%, transparent);
 }
 
 .pdf-engine-editor__field-item-row {
@@ -379,12 +380,12 @@
 .pdf-engine-editor__field-key {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
-  color: #2563eb;
+  color: var(--primary-active, var(--primary, #16a34a));
 }
 
 .pdf-engine-editor__field-meta {
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-secondary, var(--text-sub, #6b7280));
 }
 
 .pdf-engine-editor__overlay {
@@ -457,17 +458,17 @@
   margin-left: 6px;
   padding: 0 6px;
   border-radius: 4px;
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--danger-bg, #fef2f2);
+  color: var(--danger-text, #991b1b);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 11px;
   font-weight: 600;
 }
 
 .pdf-engine-editor__btn {
-  border: 1px solid #cbd5e1;
-  background: #fff;
-  color: #0f172a;
+  border: 1px solid var(--btn-secondary-border, var(--border-default, #e5e7eb));
+  background: var(--btn-secondary-surface, var(--bg-card, #ffffff));
+  color: var(--btn-secondary-text, var(--text-primary, #111827));
   border-radius: 6px;
   padding: 6px 12px;
   font-size: 13px;
@@ -475,27 +476,27 @@
 }
 
 .pdf-engine-editor__btn:hover {
-  background: #f1f5f9;
+  background: var(--btn-secondary-hover-bg, var(--bg-soft, #f1f5f9));
 }
 
 .pdf-engine-editor__btn--primary {
-  background: #2563eb;
-  color: #fff;
-  border-color: #2563eb;
+  background: var(--primary, #16a34a);
+  color: var(--text-on-primary, #ffffff);
+  border-color: var(--primary, #16a34a);
 }
 
 .pdf-engine-editor__btn--primary:hover {
-  background: #1d4ed8;
+  background: var(--primary-hover, var(--primary, #16a34a));
 }
 
 .pdf-engine-editor__btn--danger {
-  color: #b91c1c;
-  border-color: #fecaca;
-  background: #fff;
+  color: var(--danger-text, #991b1b);
+  border-color: var(--danger-border, #fecaca);
+  background: var(--danger-bg, #fef2f2);
 }
 
 .pdf-engine-editor__btn--danger:hover {
-  background: #fef2f2;
+  background: var(--danger-hover-bg, #fee2e2);
 }
 
 .pdf-engine-editor__btn--sm {
@@ -505,15 +506,15 @@
 }
 
 .pdf-engine-editor__btn--ghost-danger {
-  color: #94a3b8;
-  border-color: #334155;
+  color: var(--danger-text, #991b1b);
+  border-color: var(--danger-border, #fecaca);
   background: transparent;
 }
 
 .pdf-engine-editor__btn--ghost-danger:hover {
-  color: #fca5a5;
-  border-color: #7f1d1d;
-  background: rgba(127, 29, 29, 0.12);
+  color: var(--danger-text, #991b1b);
+  border-color: var(--danger-hover-border, var(--danger-border, #fecaca));
+  background: var(--danger-bg, #fef2f2);
 }
 
 .pdf-engine-editor__btn:disabled {
@@ -557,19 +558,19 @@
 
 .pdf-engine-form__label-required::after {
   content: ' *';
-  color: #dc2626;
+  color: var(--danger, #dc2626);
 }
 
 .pdf-engine-form__input,
 .pdf-engine-form__textarea,
 .pdf-engine-form__select {
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border-default, #e5e7eb);
   border-radius: 8px;
   padding: 10px 12px;
   font-size: 15px;
   width: 100%;
-  background: #fff;
-  color: #0f172a;
+  background: var(--bg-card, #ffffff);
+  color: var(--text-primary, var(--text-main, #111827));
 }
 
 .pdf-engine-form__textarea {
@@ -584,8 +585,8 @@
 }
 
 .pdf-engine-form__primary {
-  background: #2563eb;
-  color: #fff;
+  background: var(--primary, #16a34a);
+  color: var(--text-on-primary, #ffffff);
   border: none;
   border-radius: 8px;
   padding: 10px 18px;
@@ -605,8 +606,8 @@
   display: inline-block;
   margin-left: 8px;
   padding: 2px 8px;
-  background: #e0e7ff;
-  color: #3730a3;
+  background: var(--primary-soft, #dcfce7);
+  color: var(--primary-active, #166534);
   border-radius: 999px;
   font-size: 11px;
   font-weight: 600;
@@ -688,15 +689,15 @@
 }
 
 .pdf-engine-issuance-list__head {
-  background: #f9fafb;
+  background: var(--bg-soft, #f1f5f9);
   font-weight: 600;
-  color: #374151;
-  border-bottom: 1px solid #e5e7eb;
+  color: var(--text-secondary, var(--text-sub, #6b7280));
+  border-bottom: 1px solid var(--border-default, #e5e7eb);
 }
 
 .pdf-engine-issuance-list__row {
-  background: white;
-  border-bottom: 1px solid #f3f4f6;
+  background: var(--bg-card, #ffffff);
+  border-bottom: 1px solid var(--border-default, #e5e7eb);
 }
 
 .pdf-engine-issuance-list__row:last-child {
@@ -714,7 +715,7 @@
 .pdf-engine-form__checkbox-row input[type='checkbox'] {
   width: 18px;
   height: 18px;
-  accent-color: #2563eb;
+  accent-color: var(--primary, #16a34a);
 }
 
 .pdf-engine-form__radio-group {
@@ -728,14 +729,14 @@
   align-items: center;
   gap: 6px;
   font-size: 14px;
-  color: #0f172a;
+  color: var(--text-primary, var(--text-main, #111827));
   cursor: pointer;
 }
 
 .pdf-engine-form__radio-item input[type='radio'] {
   flex-shrink: 0;
   margin: 0;
-  accent-color: #2563eb;
+  accent-color: var(--primary, #16a34a);
 }
 
 /* 편집 페이지의 헤더(제목 + 메타) 영역. 목록 제목과 일관된 간격을 유지한다. */
@@ -763,15 +764,15 @@
 }
 
 .pdf-engine-doc-list__item {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-default, #e5e7eb);
   border-radius: 10px;
-  background: #fff;
+  background: var(--bg-card, #ffffff);
   transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 .pdf-engine-doc-list__item:hover {
-  border-color: #2563eb;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.12);
+  border-color: var(--primary-border, var(--primary, #16a34a));
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--primary, #16a34a) 12%, transparent);
 }
 
 .pdf-engine-doc-list__link {
@@ -794,11 +795,11 @@
   padding: 16px 4px 48px;
   box-sizing: border-box;
   background: transparent;
-  color: var(--text-primary, #f8fafc);
+  color: var(--text-primary, #111827);
 }
 
 .pdf-engine-page.pdf-engine-page--workspace-embedded .pdf-engine-page__title {
-  color: var(--text-primary, #f8fafc);
+  color: var(--text-primary, #111827);
 }
 
 .pdf-engine-page.pdf-engine-page--workspace-embedded .pdf-engine-page__hint {
@@ -806,7 +807,7 @@
 }
 
 .pdf-engine-page.pdf-engine-page--workspace-embedded .pdf-engine-page__hint a {
-  color: var(--link, #60a5fa);
+  color: var(--link, var(--primary, #16a34a));
 }
 
 .pdf-engine-page.pdf-engine-page--workspace-embedded .pdf-engine-doc-list {
@@ -1005,7 +1006,7 @@
 }
 
 .pdf-applicant-side-zoom__btn:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--input-focus-border, var(--primary, #16a34a));
   outline-offset: 2px;
 }
 
@@ -1174,11 +1175,11 @@
 }
 
 .pdf-applicant-form-panel__field--active .pdf-engine-form__label {
-  color: #60a5fa;
+  color: var(--primary-active, var(--primary, #16a34a));
 }
 
 .pdf-applicant-form-panel__field--active {
-  border-left: 2px solid #3b82f6;
+  border-left: 2px solid var(--primary, #16a34a);
   padding-left: 10px;
   margin-left: -12px;
   border-radius: 2px;
@@ -1280,11 +1281,11 @@
 }
 
 .pdf-engine-editor__mapping-table-row--active {
-  background: rgba(59, 130, 246, 0.12);
+  background: var(--primary-soft, #dcfce7);
 }
 
 .pdf-engine-editor__mapping-table-summary {
-  color: #93c5fd;
+  color: var(--primary-active, var(--primary, #16a34a));
 }
 
 .pdf-engine-mapping-controls {
@@ -1300,7 +1301,7 @@
 .pdf-engine-mapping-controls__label-text {
   display: block;
   margin-bottom: 4px;
-  color: #cbd5e1;
+  color: var(--text-secondary, var(--text-sub, #6b7280));
   font-size: 12px;
 }
 
@@ -1514,13 +1515,13 @@
 .pdf-applicant-form__customer-search-error {
   margin: 0;
   font-size: 12px;
-  color: #ef4444;
+  color: var(--danger, #dc2626);
 }
 
 .pdf-applicant-form__customer-search-empty {
   margin: 0;
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--text-muted, var(--text-secondary, #9ca3af));
 }
 
 .pdf-applicant-form__customer-search-list {
@@ -1539,21 +1540,21 @@
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  border: 1px solid #334155;
+  border: 1px solid var(--border-default, #e5e7eb);
   border-radius: 8px;
-  background: #1f2937;
+  background: var(--bg-card, #ffffff);
 }
 
 .pdf-applicant-form__customer-search-name {
   flex: 1;
   min-width: 0;
   font-size: 13px;
-  color: #f8fafc;
+  color: var(--text-primary, var(--text-main, #111827));
 }
 
 .pdf-applicant-form__customer-search-phone {
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--text-secondary, var(--text-sub, #6b7280));
 }
 
 .pdf-applicant-form__customer-search-pick {
