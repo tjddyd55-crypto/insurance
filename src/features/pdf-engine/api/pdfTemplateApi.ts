@@ -191,7 +191,7 @@ export function getAdminPdfTemplate(
 export function patchAdminPdfTemplate(
   token: string,
   id: number,
-  patch: { title?: string; description?: string; isActive?: boolean },
+  patch: { gaId?: number | null; title?: string; description?: string; isActive?: boolean },
 ): Promise<{ template: PdfTemplateSummary | null }> {
   return apiRequest(`/api/admin/pdf-templates/${id}`, {
     method: 'PATCH',

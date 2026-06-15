@@ -95,6 +95,17 @@ function parseTemplateId(raw) {
   return n
 }
 
+function parseTemplateGaIdForPatch(raw) {
+  if (raw === null || raw === '' || raw === undefined) {
+    return { ok: true, value: null }
+  }
+  const n = Number(raw)
+  if (!Number.isInteger(n) || n < 1) {
+    return { ok: false, value: null }
+  }
+  return { ok: true, value: n }
+}
+
 function requireSuperAdmin(req, res, isSuperAdminRole) {
   if (!req.user || !isSuperAdminRole(req.user.role)) {
     res.status(403).json({ message: '전체 관리자 권한이 필요합니다.' })
@@ -516,6 +527,14 @@ export function registerPdfTemplateApi(apiRouter, deps) {
     }
     const body = req.body && typeof req.body === 'object' ? req.body : {}
     const patch = {}
+    if (Object.prototype.hasOwnProperty.call(body, 'gaId')) {
+      const parsed = parseTemplateGaIdForPatch(body.gaId)
+      if (!parsed.ok) {
+        res.status(400).json({ message: 'gaId 가 올바르지 않습니다.' })
+        return
+      }
+      patch.gaId = parsed.value
+    }
     if (typeof body.title === 'string') {
       const v = body.title.trim()
       if (!v) {

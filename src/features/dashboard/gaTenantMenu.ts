@@ -16,12 +16,6 @@ export type DynamicNewsletterBoardMenuItem = {
   slug: string
 }
 
-/** 전역 스티키 메모 — `/memo` 정식 메뉴 (플로팅 FAB 아님) */
-export const MEMO_MENU_ITEM: GaTenantMenuItem = Object.freeze({
-  label: '메모',
-  path: '/memo',
-})
-
 /**
  * 대시보드·사이드바·드로어 공용 메뉴 엔트리.
  *
@@ -58,7 +52,6 @@ export const GA_TENANT_ESSENTIAL_MENU: GaTenantMenuItem[] = [
 
 /** 원수사 담당자 — 본인 회사 소식지 */
 export const INSURER_MANAGER_MENU: GaTenantMenuItem[] = [
-  MEMO_MENU_ITEM,
   { label: '원수사 소식지 조회', path: '/insurer/news' },
   { label: '원수사 소식지 업로드', path: '/insurer/news/upload' },
   { label: '보험사 설계사이트', path: '/insurance/insurer-sites' },
@@ -66,7 +59,6 @@ export const INSURER_MANAGER_MENU: GaTenantMenuItem[] = [
 
 /** 손해사정사 담당자 — 본인 회사 뉴스 */
 export const LOSS_ADJUSTER_MENU: GaTenantMenuItem[] = [
-  MEMO_MENU_ITEM,
   { label: '손해사정사 뉴스 조회', path: '/adjuster/news' },
   { label: '손해사정사 뉴스 업로드', path: '/adjuster/news/upload' },
   { label: '보험사 설계사이트', path: '/insurance/insurer-sites' },
@@ -74,7 +66,6 @@ export const LOSS_ADJUSTER_MENU: GaTenantMenuItem[] = [
 
 /** GA_STAFF 전용 — 원수사 관리만(다른 GA 메뉴와 merge 금지) */
 export const GA_STAFF_MENU: GaTenantMenuItem[] = [
-  MEMO_MENU_ITEM,
   { label: '원수사 연락처 관리', path: '/insurance/company-registry' },
   { label: '원수사 담당자 관리', path: '/insurer-managers' },
   { label: '손해사정사 계정 관리', path: '/loss-adjusters' },
@@ -90,7 +81,7 @@ export const BASE_GA_MENU: GaTenantMenuItem[] = []
  *
  * ## 구조 — 카테고리 섹션 (USER/GA_ADMIN 공통)
  *
- *   1. 할일 및 알림 · 할일 · 알림 · 메모
+ *   1. 할일 및 알림 · 할일 · 알림
  *   2. 고객관리 · 고객리스트 · 고객소식지 · 청구관리
  *   3. 소식지 · 원수사소식지 · 손해사정사 소식지 · 세무사 소식지(개발중 플레이스홀더, 요구 목록에 없어서도 기존 연결 유지)
  *   4. 신청서 · 신청서 작성 · 신청서 작성내역 · 렌트(사고대차)(개발중)
@@ -163,7 +154,6 @@ export function buildGaTenantDashboardMenu(
     { type: 'section', label: '할일 및 알림' },
     { type: 'link', label: '할일', path: '/todos' },
     { type: 'link', label: '알림', path: '/notifications' },
-    { type: 'link', label: MEMO_MENU_ITEM.label, path: MEMO_MENU_ITEM.path },
 
     { type: 'section', label: '고객관리' },
     { type: 'link', label: '고객리스트', path: '/customers' },
@@ -227,12 +217,6 @@ export function buildGaTenantDashboardMenu(
  *  - `teamMenuManageVisible`: 팀 소유자 여부.
  *      - `true` 면 `/team/files` 바로 다음에 "팀 관리" 를 주입.
  *      - 자리를 고정해 사이드바·대시보드·드로어 모두 같은 위치에 나타나게 한다.
- *
- * ## 메모 진입 정책 (2026-06)
- *
- * 전역 스티키 메모는 **정식 메뉴 `/memo`** 로만 진입한다 (PC 상단·모바일 드로어 공통).
- * 플로팅 FAB·우측 오버레이 패널은 사용하지 않는다. 고객별 메모(`/customers/:id/memos`)와
- * 별개이다.
  *
  * ## 반환 타입
  *

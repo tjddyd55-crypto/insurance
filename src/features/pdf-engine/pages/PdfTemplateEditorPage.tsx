@@ -227,6 +227,8 @@ type LoadState =
 
 function EditTemplateFlow({ token, templateId }: { token: string; templateId: number }) {
   const [state, setState] = useState<LoadState>({ status: 'loading' })
+  const [gaList, setGaList] = useState<GaCompanyRow[]>([])
+  const [gaId, setGaId] = useState<'' | number>('')
   const [fields, setFields] = useState<PdfFieldSpec[]>([])
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -235,6 +237,15 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
   const [savingFields, setSavingFields] = useState(false)
   const [fieldsDirty, setFieldsDirty] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!token) return
+    listGaCompanies(token)
+      .then(setGaList)
+      .catch(() => {
+        /* GA 목록 실패 시에도 기존 템플릿 편집은 가능해야 한다. */
+      })
+  }, [token])
 
   const load = useCallback(async () => {
     if (!token) return
@@ -246,6 +257,7 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
       const { fields: normalizedFields, keysChanged } = normalizePdfFieldKeys(coerced)
       setFields(normalizedFields)
       setFieldsDirty(keysChanged)
+      setGaId(detail.template.gaId ?? '')
       setTitle(detail.template.title)
       setDescription(detail.template.description ?? '')
       setIsActive(detail.template.isActive)
@@ -343,11 +355,23 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
     try {
       /* 메타(title/description/isActive) → 필드 순서로 저장.
          필드 저장이 실패해도 메타는 반영되도록 분리. */
-      await patchAdminPdfTemplate(token, templateId, {
+      const metaResult = await patchAdminPdfTemplate(token, templateId, {
+        gaId: gaId === '' ? null : Number(gaId),
         title: title.trim(),
         description: description.trim(),
         isActive,
       })
+      if (metaResult.template) {
+        setGaId(metaResult.template.gaId ?? '')
+        setState((prev) =>
+          prev.status === 'ready'
+            ? {
+                ...prev,
+                template: metaResult.template as PdfTemplateSummary,
+              }
+            : prev,
+        )
+      }
       const fieldsResult = await persistFields({ silent: true })
       const completeToast = handleSaveCompleteToast(fieldsResult)
       if (completeToast) {
@@ -417,6 +441,17 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
       </div>
 
       <section className="pdf-engine-form pdf-engine-form--inline">
+        <label className="pdf-engine-editor__label">
+          소속 GA (미지정이면 전 GA 공용)
+          <FormSelect
+            value={gaId === '' ? '' : String(gaId)}
+            options={[
+              { value: '', label: '(공용)' },
+              ...gaList.map((g) => ({ value: String(g.id), label: `${g.name} (${g.code})` })),
+            ]}
+            onChange={(e) => setGaId(e.target.value === '' ? '' : Number(e.target.value))}
+          />
+        </label>
         <label className="pdf-engine-editor__label">
           문서 제목
           <FormInput type="text" value={title} onChange={(e) => setTitle(e.target.value)} />
