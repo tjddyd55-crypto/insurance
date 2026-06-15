@@ -23,6 +23,41 @@ function requireGaForNotifications(req, res) {
 const NOTIFICATIONS_LIST_LIMIT_DEFAULT = 20
 const NOTIFICATIONS_LIST_LIMIT_MAX = 50
 
+const NOTIFICATION_SETTING_COLUMNS = [
+  'customer_claim_message',
+  'new_customer_registered',
+  'insurer_news_uploaded',
+  'car_renewal_one_month',
+  'insurer_contact_updated',
+]
+
+function mapNotificationSettingsRow(row) {
+  return {
+    customerClaimMessage: row?.customer_claim_message !== false,
+    newCustomerRegistered: row?.new_customer_registered !== false,
+    insurerNewsUploaded: row?.insurer_news_uploaded !== false,
+    carRenewalOneMonth: row?.car_renewal_one_month !== false,
+    insurerContactUpdated: row?.insurer_contact_updated !== false,
+  }
+}
+
+function normalizeNotificationSettingsPatch(body) {
+  const out = {}
+  const map = {
+    customerClaimMessage: 'customer_claim_message',
+    newCustomerRegistered: 'new_customer_registered',
+    insurerNewsUploaded: 'insurer_news_uploaded',
+    carRenewalOneMonth: 'car_renewal_one_month',
+    insurerContactUpdated: 'insurer_contact_updated',
+  }
+  for (const [key, column] of Object.entries(map)) {
+    if (Object.prototype.hasOwnProperty.call(body ?? {}, key)) {
+      out[column] = body[key] === true
+    }
+  }
+  return out
+}
+
 function parsePositiveIntLocal(value) {
   const n = Number(value)
   return Number.isInteger(n) && n > 0 ? n : null
@@ -37,6 +72,79 @@ function parsePositiveIntLocal(value) {
  */
 export function registerNotificationsApi(apiRouter, ctx) {
   const { pool, requireAuth, handleDbError } = ctx
+
+  apiRouter.get('/notifications/settings', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaForNotifications(req, res)
+      if (gaId == null) {
+        return
+      }
+      const r = await safeQuery(
+        pool,
+        `
+        INSERT INTO notification_settings (user_id, ga_id)
+        VALUES ($1, $2)
+        ON CONFLICT (user_id, ga_id) DO UPDATE
+        SET updated_at = notification_settings.updated_at
+        RETURNING ${NOTIFICATION_SETTING_COLUMNS.join(', ')}
+        `,
+        [userId, gaId],
+      )
+      res.json({ settings: mapNotificationSettingsRow(r.rows[0]) })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.patch('/notifications/settings', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaForNotifications(req, res)
+      if (gaId == null) {
+        return
+      }
+      const patch = normalizeNotificationSettingsPatch(req.body)
+      const patchEntries = Object.entries(patch)
+      if (patchEntries.length === 0) {
+        res.status(400).json({ message: '변경할 알림 설정이 없습니다.' })
+        return
+      }
+      const insertValues = NOTIFICATION_SETTING_COLUMNS.map((column) =>
+        Object.prototype.hasOwnProperty.call(patch, column) ? patch[column] : true,
+      )
+      const updateSets = patchEntries.map(([column]) => {
+        const columnIndex = NOTIFICATION_SETTING_COLUMNS.indexOf(column)
+        return `${column} = $${3 + columnIndex}`
+      })
+      const r = await safeQuery(
+        pool,
+        `
+        INSERT INTO notification_settings (
+          user_id,
+          ga_id,
+          ${NOTIFICATION_SETTING_COLUMNS.join(', ')}
+        )
+        VALUES ($1, $2, ${NOTIFICATION_SETTING_COLUMNS.map((_, index) => `$${3 + index}`).join(', ')})
+        ON CONFLICT (user_id, ga_id) DO UPDATE
+        SET ${updateSets.join(', ')}, updated_at = NOW()
+        RETURNING ${NOTIFICATION_SETTING_COLUMNS.join(', ')}
+        `,
+        [userId, gaId, ...insertValues],
+      )
+      res.json({ settings: mapNotificationSettingsRow(r.rows[0]) })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
 
   apiRouter.get('/notifications/unread-count', requireAuth, async (req, res) => {
     try {

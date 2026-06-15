@@ -1,12 +1,16 @@
-import type { Dispatch, RefObject, SetStateAction } from 'react'
+import { useState, type Dispatch, RefObject, SetStateAction } from 'react'
 import { FormButton, FormInput, FormSelect } from '../../../components/form'
 import {
   CUSTOMER_INFLOW_SOURCE_FILTER_OPTIONS,
   CUSTOMER_LIST_SORT_OPTIONS,
   type CustomerListSortValue,
 } from '../config/customerInflowSource.config'
+import {
+  CUSTOMER_CONSULTATION_FILTER_OPTIONS,
+  type CustomerConsultationFilterValue,
+} from '../config/customerConsultationFilter.config'
 
-export type CustomerConsultationFilter = '' | 'none' | 'has' | 'no_since'
+export type CustomerConsultationFilter = CustomerConsultationFilterValue
 
 type CustomerSortType = 'age' | 'car' | 'recent' | null
 
@@ -39,6 +43,7 @@ type FilterPanelProps = {
   advancedFiltersActive: boolean
   applyQuickFilter: (type: 'AGE_UNDER_30_MALE' | 'AGE_OVER_40_FEMALE') => void
   resetAdvancedFilters: () => void
+  resetAllFilters: () => void
   consultationFilter: CustomerConsultationFilter
   setConsultationFilter: Dispatch<SetStateAction<CustomerConsultationFilter>>
   consultationCutoffDate: string
@@ -119,6 +124,7 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
     advancedFiltersActive,
     applyQuickFilter,
     resetAdvancedFilters,
+    resetAllFilters,
     consultationFilter,
     setConsultationFilter,
     consultationCutoffDate,
@@ -137,10 +143,20 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
     consultationFilterMessage,
   } = props
 
+  const [showConsultationDetailFilters, setShowConsultationDetailFilters] = useState(
+    () => !!(consultationFrom.trim() || consultationTo.trim() || listSort),
+  )
+
+  const detailFiltersActive = !!(consultationFrom.trim() || consultationTo.trim() || listSort)
+
   return (
     <>
-      <div className="customers-advanced-filters customers-advanced-filters--consultation" role="search" aria-label="상담·유입 필터">
-        <div className="customers-advanced-filters__grid">
+      <div
+        className="customers-advanced-filters customers-advanced-filters--consultation customers-advanced-filters--consultation-primary"
+        role="search"
+        aria-label="상담·유입 필터"
+      >
+        <div className="customers-advanced-filters__grid customers-advanced-filters__grid--consultation-primary">
           <label className="customers-advanced-filters__field">
             <span>유입 경로</span>
             <FormSelect
@@ -150,41 +166,79 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
             />
           </label>
           <label className="customers-advanced-filters__field">
-            <span>상담 상태</span>
+            <span>상담 여부</span>
             <FormSelect
               value={consultationFilter}
               onChange={(e) =>
                 setConsultationFilter(e.target.value as CustomerConsultationFilter)
               }
-              options={[
-                { value: '', label: '전체' },
-                { value: 'none', label: '상담 내역 없음' },
-                { value: 'has', label: '상담 내역 있음' },
-                { value: 'no_since', label: '이 날짜 이후 상담 없음' },
-              ]}
+              options={CUSTOMER_CONSULTATION_FILTER_OPTIONS}
             />
           </label>
           {consultationFilter === 'no_since' ? (
             <label className="customers-advanced-filters__field">
-              <span>기준일</span>
+              <span>기준 날짜</span>
               <FormInput
                 type="date"
                 value={consultationCutoffDate}
                 onChange={(e) => setConsultationCutoffDate(e.target.value)}
-                aria-label="기준일 — 이후 상담 없는 고객"
+                aria-label="기준 날짜 — 선택 날짜 이후 상담 없는 고객"
               />
             </label>
           ) : null}
-          <label className="customers-advanced-filters__field">
-            <span>상담 내용 검색</span>
-            <FormInput
-              type="search"
-              value={consultationKeyword}
-              onChange={(e) => setConsultationKeyword(e.target.value)}
-              placeholder="키워드 (예: 부재, 다음주)"
-              aria-label="상담 내용 키워드"
-            />
-          </label>
+        </div>
+        <div className="customers-advanced-filters__quick filter-group customer-filter-panel-actions">
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            size="sm"
+            className="customer-filter-chip"
+            onClick={onApplyConsultationFilter}
+          >
+            필터 적용
+          </FormButton>
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            size="sm"
+            className="customer-filter-chip"
+            onClick={resetAllFilters}
+          >
+            필터 초기화
+          </FormButton>
+        </div>
+        {consultationFilterMessage ? (
+          <p className="customer-filter-controls__loading text-[var(--text-secondary)]" role="status">
+            {consultationFilterMessage}
+          </p>
+        ) : null}
+      </div>
+
+      <div
+        className="customers-advanced-filters customers-advanced-filters--consultation-keyword"
+        role="search"
+        aria-label="상담 내용 고급 검색"
+      >
+        <p className="customers-advanced-filters__section-hint">고급 조건</p>
+        <label className="customers-advanced-filters__field customers-advanced-filters__field--wide">
+          <span>상담 내용 검색</span>
+          <FormInput
+            type="search"
+            value={consultationKeyword}
+            onChange={(e) => setConsultationKeyword(e.target.value)}
+            placeholder="키워드 (예: 부재, 다음주)"
+            aria-label="상담 내용 키워드"
+          />
+        </label>
+      </div>
+
+      <details
+        className={`customers-advanced-filters__details${showConsultationDetailFilters || detailFiltersActive ? ' customers-advanced-filters__details--open' : ''}`}
+        open={showConsultationDetailFilters || detailFiltersActive}
+        onToggle={(e) => setShowConsultationDetailFilters((e.currentTarget as HTMLDetailsElement).open)}
+      >
+        <summary className="customers-advanced-filters__details-summary">상세 필터</summary>
+        <div className="customers-advanced-filters__grid customers-advanced-filters__grid--consultation-detail">
           <label className="customers-advanced-filters__field">
             <span>상담일 시작</span>
             <FormInput
@@ -212,23 +266,7 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
             />
           </label>
         </div>
-        <div className="customers-advanced-filters__quick filter-group customer-filter-panel-actions">
-          <FormButton
-            htmlType="button"
-            variant="secondary"
-            size="sm"
-            className="customer-filter-chip"
-            onClick={onApplyConsultationFilter}
-          >
-            필터 적용
-          </FormButton>
-        </div>
-        {consultationFilterMessage ? (
-          <p className="customer-filter-controls__loading text-[var(--text-secondary)]" role="status">
-            {consultationFilterMessage}
-          </p>
-        ) : null}
-      </div>
+      </details>
 
       <div className="customer-filter-controls__stack">
         <label className="customer-filter-controls__deep-row">

@@ -136,28 +136,28 @@
   overflow: hidden;
 }
 
-.news-card__overlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 8px;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+.news-card__meta {
+  padding: 8px 2px 0;
   box-sizing: border-box;
   text-align: left;
 }
 
+.news-card__meta-name,
 .news-card__overlay-name {
   font-size: 0.875rem;
   font-weight: 600;
-  color: #fff;
+  color: var(--text-main);
   line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+.news-card__meta-date,
 .news-card__overlay-date {
   margin-top: 2px;
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.82);
+  color: var(--text-sub);
   line-height: 1.35;
   font-variant-numeric: tabular-nums;
 }
@@ -184,7 +184,6 @@
 .assessor-news-card.news-card--mobile .card-content {
   position: relative;
   flex: 0 0 auto;
-  aspect-ratio: 3 / 4;
   width: 100%;
   border: 1px solid var(--border) !important;
   border-radius: 12px !important;
@@ -192,9 +191,14 @@
   overflow: hidden;
 }
 
+.assessor-news-card.news-card--mobile .card-content > img,
+.assessor-news-card.news-card--mobile .card-content > .news-card__placeholder {
+  aspect-ratio: 3 / 4;
+}
+
 .news-card.news-card--mobile .news-card__mobile-image {
   width: 100%;
-  height: 100%;
+  height: auto;
   display: block;
   object-fit: cover;
   border-radius: 10px;
@@ -203,7 +207,7 @@
 
 .news-card.news-card--mobile .news-card__placeholder {
   width: 100%;
-  height: 100%;
+  height: auto;
   border-radius: 10px;
   background: var(--bg-soft);
   border: 1px solid var(--border);

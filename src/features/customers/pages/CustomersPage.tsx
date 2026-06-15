@@ -95,6 +95,7 @@ import {
   INVITE_COPY_POINTER_DEBOUNCE_MS,
 } from '../utils/customerInviteClipboard'
 import { coerceCustomersStatePayload } from '../utils/customerStateGuards'
+import { dedupeCustomersById } from '../utils/customerSearchDedupe'
 import {
   CUSTOMER_LIST_PATH,
   CUSTOMER_CREATE_MODE_QUERY,
@@ -327,7 +328,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
 
   const ssnDupHighlightByCustomerIdPrevRef = useRef<Map<number, CustomerSsnDupHighlight>>(new Map())
   const ssnDupHighlightByCustomerId = useMemo(() => {
-    const built = buildSsnDuplicateHighlightByCustomerId(customers)
+    const built = buildSsnDuplicateHighlightByCustomerId(dedupeCustomersById(customers))
     const prev = ssnDupHighlightByCustomerIdPrevRef.current
     const next = new Map<number, CustomerSsnDupHighlight>()
     for (const [id, hi] of built) {
@@ -342,13 +343,15 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
 
   const keywordFilteredCustomers = useMemo(() => {
     if (advSearchHits != null) {
-      return advSearchHits
+      return dedupeCustomersById(advSearchHits)
     }
     const q = keyword.trim()
     if (!q) {
-      return customers
+      return dedupeCustomersById(customers)
     }
-    return customers.filter((c) => c.name.includes(q) || (c.phone ?? '').includes(q))
+    return dedupeCustomersById(
+      customers.filter((c) => c.name.includes(q) || (c.phone ?? '').includes(q)),
+    )
   }, [customers, keyword, advSearchHits])
 
   const filteredCustomers = useMemo(() => {
@@ -390,12 +393,45 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     ],
   )
 
+  const listFilterSignature = useMemo(
+    () =>
+      JSON.stringify({
+        keyword: keyword.trim(),
+        advancedFilters,
+        favoriteOnly,
+        hasAdvancedSearchHits: advSearchHits != null,
+        consultationFilter: appliedConsultationFilter,
+        consultationKeyword: appliedConsultationKeyword.trim(),
+        consultationFrom: appliedConsultationFrom.trim(),
+        consultationTo: appliedConsultationTo.trim(),
+        inflowSource: appliedInflowSource.trim(),
+        listSort: appliedListSort,
+      }),
+    [
+      keyword,
+      advancedFilters,
+      favoriteOnly,
+      advSearchHits,
+      appliedConsultationFilter,
+      appliedConsultationKeyword,
+      appliedConsultationFrom,
+      appliedConsultationTo,
+      appliedInflowSource,
+      appliedListSort,
+    ],
+  )
+  const previousListFilterSignatureRef = useRef(listFilterSignature)
+
   useEffect(() => {
-    if (!listIsNarrowed || expandedIdRef.current == null) {
+    if (previousListFilterSignatureRef.current === listFilterSignature) {
       return
     }
-    setExpandedId(null)
-  }, [listIsNarrowed, setExpandedId])
+    previousListFilterSignatureRef.current = listFilterSignature
+    pinnedListCustomerIdRef.current = null
+    mapEntryExpandPendingRef.current = null
+    setPinnedWorkspaceCustomer(null)
+    rawSetExpandedId(null)
+  }, [listFilterSignature])
 
   const applyConsultationFilter = useCallback(() => {
     if (consultationFilterDraft === 'no_since' && !consultationCutoffDraft.trim()) {
@@ -421,6 +457,35 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     inflowSourceDraft,
     listSortDraft,
   ])
+
+  const resetAllCustomerFilters = useCallback(() => {
+    setSearchInput('')
+    setDeepSearch(false)
+    setAdvSearchHits(null)
+    setFavoriteOnly(false)
+    setSortType(null)
+    setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS })
+    setConsultationFilterDraft('')
+    setConsultationCutoffDraft('')
+    setConsultationKeywordDraft('')
+    setConsultationFromDraft('')
+    setConsultationToDraft('')
+    setInflowSourceDraft('')
+    setListSortDraft('')
+    setAppliedConsultationFilter('')
+    setAppliedConsultationCutoff('')
+    setAppliedConsultationKeyword('')
+    setAppliedConsultationFrom('')
+    setAppliedConsultationTo('')
+    setAppliedInflowSource('')
+    setAppliedListSort('')
+    setConsultationFilterMessage('')
+    pinnedListCustomerIdRef.current = null
+    mapEntryExpandPendingRef.current = null
+    pendingMapExpandIdRef.current = null
+    setPinnedWorkspaceCustomer(null)
+    setExpandedId(null)
+  }, [setExpandedId])
 
   const sortedCustomers = useMemo(() => {
     const copy = [...filteredCustomers]
@@ -480,22 +545,31 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
 
   /** 상세 화면 고객이 검색·필터에 걸려 숨겨지지 않도록 목록 상단에 고정 */
   const listCustomersToRender = useMemo(() => {
+    const base = dedupeCustomersById(sortedCustomers)
+    if (listIsNarrowed) {
+      return base
+    }
     const pinId = activeListCustomerId
     if (pinId == null) {
-      return sortedCustomers
+      return base
     }
-    if (sortedCustomers.some((c) => c.id === pinId)) {
-      return sortedCustomers
+    if (base.some((c) => c.id === pinId)) {
+      return base
     }
     const pinned =
       pinnedWorkspaceCustomer?.id === pinId
         ? pinnedWorkspaceCustomer
         : customers.find((c) => c.id === pinId)
     if (!pinned) {
-      return sortedCustomers
+      return base
     }
-    return [pinned, ...sortedCustomers]
-  }, [activeListCustomerId, sortedCustomers, pinnedWorkspaceCustomer, customers])
+    return dedupeCustomersById([pinned, ...base])
+  }, [activeListCustomerId, sortedCustomers, pinnedWorkspaceCustomer, customers, listIsNarrowed])
+
+  const visibleListCount = useMemo(
+    () => listCustomersToRender.length,
+    [listCustomersToRender.length],
+  )
 
   const allVisibleIds = useMemo(
     () => listCustomersToRender.map((c) => String(c.id)),
@@ -1515,7 +1589,11 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     </header>
   )
 
-  const listLoadTruncated = !isLoading && customersTotalCount > customers.length
+  const loadedUniqueCustomerCount = useMemo(
+    () => dedupeCustomersById(customers).length,
+    [customers],
+  )
+  const listLoadTruncated = !isLoading && customersTotalCount > loadedUniqueCustomerCount
 
   const listBodyNode = (
     <section className="list-section" style={{ marginTop: 0 }}>
@@ -1532,6 +1610,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           advancedFiltersActive={advancedFiltersActive}
           applyQuickFilter={applyQuickFilter}
           resetAdvancedFilters={() => setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS })}
+          resetAllFilters={resetAllCustomerFilters}
           consultationFilter={consultationFilterDraft}
           setConsultationFilter={setConsultationFilterDraft}
           consultationCutoffDate={consultationCutoffDraft}
@@ -1556,12 +1635,12 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           <p className="customers-filter-result customers-page__result-count" role="status" aria-live="polite">
             검색·필터 결과:{' '}
             <span className="customers-page__result-count-strong">
-              <strong>{listIsNarrowed ? sortedCustomers.length : customersTotalCount}</strong>명
+              <strong>{visibleListCount}</strong>명
             </span>
           </p>
           {listLoadTruncated ? (
             <p className="customers-page__result-limit-notice" role="status">
-              전체 {customersTotalCount}명 중 {customers.length}명 표시 중입니다. 검색어를 입력해 좁혀 주세요.
+              전체 {customersTotalCount}명 중 {loadedUniqueCustomerCount}명 표시 중입니다. 검색어를 입력해 좁혀 주세요.
             </p>
           ) : null}
         </>
@@ -1594,7 +1673,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         <ul className="record-list customer-expand-list customer-list customers-page__customer-list">
           {listCustomersToRender.map((c) => (
             <CustomerListCard
-              key={c.id}
+              key={String(c.id)}
               customer={c}
               ssnDupHighlight={ssnDupHighlightByCustomerId.get(c.id)}
               isSelectMode={isSelectMode}

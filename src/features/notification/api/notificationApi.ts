@@ -12,6 +12,14 @@ export type NotificationRow = {
   createdAt: string
 }
 
+export type NotificationSettings = {
+  customerClaimMessage: boolean
+  newCustomerRegistered: boolean
+  insurerNewsUploaded: boolean
+  carRenewalOneMonth: boolean
+  insurerContactUpdated: boolean
+}
+
 export async function fetchNotifications(
   token: string,
   limit = 20,
@@ -45,5 +53,28 @@ export async function markNotificationRead(token: string, id: string): Promise<{
     method: 'PATCH',
     token,
     body: JSON.stringify({}),
+  })
+}
+
+export async function fetchNotificationSettings(
+  token: string,
+): Promise<{ settings: NotificationSettings }> {
+  if (!token?.trim()) {
+    throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  return apiRequest<{ settings: NotificationSettings }>('/api/notifications/settings', { token })
+}
+
+export async function patchNotificationSettings(
+  token: string,
+  settings: Partial<NotificationSettings>,
+): Promise<{ settings: NotificationSettings }> {
+  if (!token?.trim()) {
+    throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  return apiRequest<{ settings: NotificationSettings }>('/api/notifications/settings', {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify(settings),
   })
 }

@@ -527,6 +527,10 @@ export interface AdminUserRow {
   role: UserRole
   status: EntityStatus
   created_at: string
+  referrer_user_id: string | null
+  referrer_username: string | null
+  referrer_display_name: string | null
+  referrer_ga_company_name: string | null
 }
 
 /** 슈퍼 관리자 — GA 담당자(GA_ADMIN/GA_STAFF) 전용. 비밀번호는 관리 목적 평문(일반 유저와 무관). */

@@ -3850,9 +3850,16 @@ apiRouter.get('/admin/users', requireAuth, requireSuperAdmin, async (req, res) =
         u.username,
         u.role,
         u.status,
-        u.created_at
+        u.created_at,
+        rr.referrer_user_id,
+        ref_u.username AS referrer_username,
+        ref_u.display_name AS referrer_display_name,
+        ref_g.name AS referrer_ga_company_name
       FROM users u
       INNER JOIN ga_companies g ON g.id = u.ga_id
+      LEFT JOIN referral_relationships rr ON rr.referred_user_id = u.id
+      LEFT JOIN users ref_u ON ref_u.id = rr.referrer_user_id AND ref_u.is_deleted = false
+      LEFT JOIN ga_companies ref_g ON ref_g.id = ref_u.ga_id AND ref_g.is_deleted = false
       WHERE u.is_deleted = false AND g.is_deleted = false
         AND ($1::int IS NULL OR u.ga_id = $1::int)
       ORDER BY g.name ASC, u.username ASC
@@ -3868,6 +3875,12 @@ apiRouter.get('/admin/users', requireAuth, requireSuperAdmin, async (req, res) =
       role: normalizeUserRole(row.role),
       status: String(row.status ?? 'active').toLowerCase(),
       created_at: toIsoString(row.created_at),
+      referrer_user_id: row.referrer_user_id != null ? String(row.referrer_user_id) : null,
+      referrer_username: row.referrer_username != null ? String(row.referrer_username) : null,
+      referrer_display_name:
+        row.referrer_display_name != null ? String(row.referrer_display_name).trim() : null,
+      referrer_ga_company_name:
+        row.referrer_ga_company_name != null ? String(row.referrer_ga_company_name) : null,
     }))
     res.json(rows)
   } catch (error) {

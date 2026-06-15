@@ -74,6 +74,13 @@ export function NewsCard({ item, onOpen, onDelete, deleteBusy, variant }: Props)
     </div>
   )
 
+  const cardMeta = (
+    <div className="news-card__meta">
+      <div className="news-card__meta-name">{companyName}</div>
+      <div className="news-card__meta-date">{dateLabel}</div>
+    </div>
+  )
+
   const media = isMobile ? (
     <>
       {shouldShowImage ? (
@@ -87,10 +94,6 @@ export function NewsCard({ item, onOpen, onDelete, deleteBusy, variant }: Props)
       ) : null}
       {shouldShowTextPreview ? textPreviewPlaceholder : null}
       {shouldShowImageFailed ? imageLoadFailedPlaceholder : null}
-      <div className="news-card__overlay">
-        <div className="news-card__overlay-name">{companyName}</div>
-        <div className="news-card__overlay-date">{dateLabel}</div>
-      </div>
     </>
   ) : (
     <div className="news-card__media">
@@ -99,10 +102,6 @@ export function NewsCard({ item, onOpen, onDelete, deleteBusy, variant }: Props)
       ) : (
         textPreviewPlaceholder
       )}
-      <div className="news-card__overlay">
-        <div className="news-card__overlay-name">{companyName}</div>
-        <div className="news-card__overlay-date">{dateLabel}</div>
-      </div>
     </div>
   )
 
@@ -121,9 +120,13 @@ export function NewsCard({ item, onOpen, onDelete, deleteBusy, variant }: Props)
         tabIndex={0}
       >
         {media}
+        {cardMeta}
       </div>
     ) : (
-      <div className="card-content">{media}</div>
+      <div className="card-content">
+        {media}
+        {cardMeta}
+      </div>
     )
 
   const deleteFooter =

@@ -165,8 +165,12 @@
 
 /* ── Mobile: single-row toolbar + map-first layout ── */
 
+.mobile-root .workspace-main.workspace-main--app:has(.customers-map-page--mobile),
 .mobile-root .workspace-main.workspace-main--app .app-main-content:has(.customers-map-page--mobile) {
   padding: 0 !important;
+  margin: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
 }
 
 .customers-map-page--mobile {
@@ -174,8 +178,10 @@
   gap: 0;
   padding: 0;
   width: 100%;
+  max-width: none;
   min-height: calc(100dvh - 48px);
   min-height: calc(100vh - 48px);
+  overflow: hidden;
 }
 
 .customer-map-mobile-toolbar {
@@ -263,6 +269,8 @@
   min-height: calc(100vh - 48px);
   height: calc(100dvh - 48px);
   height: calc(100vh - 48px);
+  width: 100%;
+  margin: 0;
   border: 0;
   border-radius: 0;
 }
