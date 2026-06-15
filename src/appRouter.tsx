@@ -101,6 +101,7 @@ import { LossAdjusterNewsletterHubPage } from './features/insurer-news/pages/Los
 import { LossAdjusterNewsletterPortalLayout } from './features/insurer-news/pages/LossAdjusterNewsletterPortalLayout'
 import { NewsletterBoardAdminPage } from './features/insurer-news/pages/NewsletterBoardAdminPage'
 import MemoRoutePage from './features/memo/pages/MemoRoutePage'
+import PublicAccountRestrictedPage from './features/common/PublicAccountRestrictedPage'
 import MyStoragePage from './features/storage/pages/MyStoragePage'
 import TodosWorkspacePage from './features/todos/pages/TodosWorkspacePage'
 import NotificationsPlaceholderPage from './features/todos/pages/NotificationsPlaceholderPage'
@@ -205,6 +206,7 @@ export const appRouter = createBrowserRouter([
                 element: <AppWorkspaceLayout />,
                 children: [
           { path: 'dashboard', element: <DashboardPage /> },
+          { path: 'public-account-restricted', element: <PublicAccountRestrictedPage /> },
           { path: 'contacts/manage', element: <Navigate to="/insurance/company-registry" replace /> },
           { path: 'updates', element: <Navigate to="/insurance/history" replace /> },
           {

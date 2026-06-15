@@ -15,3 +15,32 @@ export function normalizeGaCompanyCode(raw: string | null | undefined): string {
 export function isGeneralGaUser(gaCode: string | null | undefined): boolean {
   return normalizeGaCompanyCode(gaCode) === GENERAL_GA_CODE
 }
+
+/** GA 표시명이 공용/GENERAL 계열인지 (코드 없이 이름만 공용인 경우 포함) */
+export function isPublicGeneralGaName(gaName: string | null | undefined): boolean {
+  const trimmed = String(gaName ?? '').trim()
+  if (!trimmed) {
+    return false
+  }
+  const upper = trimmed.toUpperCase()
+  if (upper === 'GENERAL' || trimmed === '공용') {
+    return true
+  }
+  return trimmed.includes('공용')
+}
+
+export type PublicGeneralAccountLike = {
+  gaCode?: string | null
+  gaName?: string | null
+}
+
+/**
+ * 공용 테스트 계정 여부 — GENERAL 코드 또는 공용/GENERAL 계열 GA 이름.
+ * role=USER 단독으로는 판정하지 않는다.
+ */
+export function isPublicGeneralAccount(user: PublicGeneralAccountLike | null | undefined): boolean {
+  if (!user) {
+    return false
+  }
+  return isGeneralGaUser(user.gaCode) || isPublicGeneralGaName(user.gaName)
+}

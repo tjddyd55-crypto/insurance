@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { FormButton } from '../components/form'
 import ResponsiveLayout from '../components/ResponsiveLayout'
 import PCHeader from '../components/layout/PCHeader'
 import { useAuth } from '../features/auth/AuthProvider'
+import { PublicAccountGaOnlyOutletGuard } from '../features/auth/PublicAccountGaOnlyOutletGuard'
 import { formatGaBannerLabel, shouldShowGaTenantChrome } from '../navigation/gaTenantBarShared'
 import { buildAppMenuForSession } from '../features/dashboard/gaTenantMenu'
 import { isSpecialNewsletterAccount } from '../features/auth/roleGuards'
@@ -448,7 +449,7 @@ function AppWorkspaceLayoutMobileShell() {
         data-page-stack-depth={String(mobilePageStack.length)}
       >
         <ExpiredBanner />
-        <Outlet />
+        <PublicAccountGaOnlyOutletGuard />
       </main>
     </div>
   )
@@ -498,7 +499,7 @@ function AppWorkspaceLayoutPCShell() {
               .join(' ')}
           >
             <ExpiredBanner />
-            <Outlet />
+            <PublicAccountGaOnlyOutletGuard />
           </div>
         </div>
       </div>
