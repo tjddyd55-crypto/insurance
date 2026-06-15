@@ -74,7 +74,7 @@ export default function PdfTemplateListPage() {
 
       {/* 내부 식별자(code) 컬럼은 의도적으로 노출하지 않는다.
           관리자는 "제목 + 소속 GA + 상태" 만으로 템플릿을 식별한다. */}
-      <table className="pdf-engine-table">
+      <table className="pdf-engine-table pdf-engine-template-table">
         <thead>
           <tr>
             <th style={{ width: 80 }}>ID</th>
@@ -94,28 +94,28 @@ export default function PdfTemplateListPage() {
           ) : null}
           {rows.map((r) => (
             <tr key={r.id}>
-              <td>{r.id}</td>
-              <td>
+              <td data-label="ID">{r.id}</td>
+              <td data-label="제목" className="pdf-engine-template-table__title-cell">
                 <strong>{r.title}</strong>
                 {r.description ? (
                   <div className="pdf-engine-editor__field-meta">{r.description}</div>
                 ) : null}
               </td>
-              <td>
+              <td data-label="GA">
                 {r.gaId == null ? (
                   <span className="pdf-engine-badge">공용</span>
                 ) : (
                   <span>{r.gaName ?? `GA#${r.gaId}`}</span>
                 )}
               </td>
-              <td>
+              <td data-label="상태">
                 {r.isActive ? (
                   <span className="pdf-engine-badge">활성</span>
                 ) : (
                   <span className="pdf-engine-badge pdf-engine-badge--muted">비활성</span>
                 )}
               </td>
-              <td>
+              <td data-label="작업" className="pdf-engine-template-table__actions">
                 <Link
                   to={`/admin/pdf-templates/${r.id}`}
                   className="pdf-engine-editor__btn"

@@ -80,6 +80,10 @@
   background: #f8fafc;
 }
 
+.pdf-engine-template-table__actions {
+  white-space: nowrap;
+}
+
 .pdf-engine-badge {
   display: inline-block;
   font-size: 12px;
@@ -97,6 +101,90 @@
 .pdf-engine-badge--danger {
   background: #fee2e2;
   color: #991b1b;
+}
+
+@media (max-width: 767px) {
+  .pdf-engine-page {
+    padding: 20px 16px 48px;
+  }
+
+  .pdf-engine-page__title {
+    font-size: 1.65rem;
+    line-height: 1.25;
+    margin-bottom: 16px;
+  }
+
+  .pdf-engine-page__toolbar {
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  .pdf-engine-template-table,
+  .pdf-engine-template-table thead,
+  .pdf-engine-template-table tbody,
+  .pdf-engine-template-table tr,
+  .pdf-engine-template-table th,
+  .pdf-engine-template-table td {
+    display: block;
+  }
+
+  .pdf-engine-template-table {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .pdf-engine-template-table thead {
+    display: none;
+  }
+
+  .pdf-engine-template-table tr {
+    padding: 14px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border-default, #e5e7eb);
+    border-radius: 10px;
+    background: var(--bg-card, #fff);
+  }
+
+  .pdf-engine-template-table tr:hover td {
+    background: transparent;
+  }
+
+  .pdf-engine-template-table td {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    min-height: 36px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-muted, #eef2f7);
+    word-break: keep-all;
+  }
+
+  .pdf-engine-template-table td:last-child {
+    border-bottom: 0;
+  }
+
+  .pdf-engine-template-table td::before {
+    content: attr(data-label);
+    color: var(--text-secondary, #64748b);
+    font-size: 0.82rem;
+    font-weight: 700;
+  }
+
+  .pdf-engine-template-table__title-cell strong {
+    display: block;
+    line-height: 1.45;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+
+  .pdf-engine-template-table__actions {
+    white-space: normal;
+  }
+
+  .pdf-engine-template-table__actions .pdf-engine-editor__btn {
+    margin: 0 8px 0 0 !important;
+  }
 }
 
 /* ─── 에디터 ────────────────────────────────────────────────────── */
