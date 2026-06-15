@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { FormInput } from '../../../../components/form'
 import { NewsletterList } from '../../components/NewsletterList'
 import type { InsurerManagerNewsListViewProps } from './insurerManagerNewsListViewProps'
 
@@ -21,6 +22,9 @@ export default function InsurerManagerNewsListMobileView({
   subtitle,
   emptyMessage,
   openPathPrefix,
+  searchQuery,
+  onSearchQueryChange,
+  noSearchResults,
 }: InsurerManagerNewsListViewProps) {
   const navigate = useNavigate()
 
@@ -32,12 +36,25 @@ export default function InsurerManagerNewsListMobileView({
         </div>
         <p className="insurer-news-muted">{subtitle}</p>
       </header>
+      <div className="insurer-news-filters insurer-news-list-searchbar">
+        <label className="insurer-news-search">
+          <span className="sr-only">소식지 검색</span>
+          <FormInput
+            type="search"
+            value={searchQuery}
+            onChange={(e) => onSearchQueryChange(e.target.value)}
+            placeholder="제목, 내용, 회사명, 날짜 검색"
+            aria-label="소식지 검색"
+          />
+        </label>
+      </div>
       {error ? <div className="insurer-news-empty">{error}</div> : null}
       <NewsletterList
         items={items}
         emptyMessage={emptyMessage}
         variant="mobile"
         onOpenItem={(id) => navigate(`${openPathPrefix}/${id}`)}
+        noSearchResults={noSearchResults}
       />
     </main>
   )

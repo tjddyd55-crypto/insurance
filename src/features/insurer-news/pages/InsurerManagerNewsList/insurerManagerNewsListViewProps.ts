@@ -31,4 +31,7 @@ export type InsurerManagerNewsListViewProps = {
   channel: NewsChannel
   /** 'manager' | 'ga' — 상세 API 라우팅 스위치. PC 가 사용. */
   fetchScope: 'manager' | 'ga'
+  searchQuery: string
+  onSearchQueryChange: (value: string) => void
+  noSearchResults: boolean
 }
