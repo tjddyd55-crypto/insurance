@@ -3977,50 +3977,50 @@ div.cta-button.customers-page__action-btn[role='button'] {
   min-height: 1.5rem;
 }
 
-.notifications-settings-page {
+.notifications-page {
   color: var(--text-primary);
 }
 
-.notifications-settings-page__header h1 {
+.notifications-page__header h1 {
   margin: 0;
   font-size: 1.25rem;
   font-weight: 700;
 }
 
-.notifications-settings-page__header p {
-  margin: 8px 0 0;
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-}
-
-.notifications-settings-page__panel {
+.notifications-page__panel {
   display: grid;
   gap: 8px;
   max-width: 680px;
   margin-top: 16px;
-}
-
-.notifications-settings-page__row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  min-height: 52px;
-  padding: 12px 14px;
   border: 1px solid var(--border-default);
   border-radius: 8px;
   background: var(--bg-card);
+  overflow: hidden;
 }
 
-.notifications-settings-page__label {
-  min-width: 0;
-  font-size: 0.95rem;
-  font-weight: 600;
-  line-height: 1.35;
+.notifications-page__panel ul {
+  max-height: none !important;
 }
 
-.notifications-settings-page--mobile .notifications-settings-page__row {
-  align-items: flex-start;
+.notifications-page__empty {
+  margin: 0;
+  padding: 16px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.notifications-page--mobile {
+  padding: 20px 16px 48px;
+}
+
+.notifications-page--mobile .notifications-page__header h1 {
+  font-size: 1.65rem;
+  line-height: 1.25;
+}
+
+.notifications-page--mobile .notifications-page__panel {
+  max-width: none;
+  margin-top: 14px;
 }
 
 /* ======================================================================

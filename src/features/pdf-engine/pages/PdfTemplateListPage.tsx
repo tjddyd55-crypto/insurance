@@ -116,21 +116,19 @@ export default function PdfTemplateListPage() {
                 )}
               </td>
               <td data-label="작업" className="pdf-engine-template-table__actions">
-                <Link
-                  to={`/admin/pdf-templates/${r.id}`}
-                  className="pdf-engine-editor__btn"
-                  style={{ marginRight: 8 }}
-                >
-                  수정
-                </Link>
-                <FormButton
-                  htmlType="button"
-                  variant="danger"
-                  className="pdf-engine-editor__btn pdf-engine-editor__btn--danger"
-                  onClick={() => void handleDelete(r.id, r.title)}
-                >
-                  삭제
-                </FormButton>
+                <div className="pdf-engine-template-table__action-buttons">
+                  <Link to={`/admin/pdf-templates/${r.id}`} className="pdf-engine-editor__btn">
+                    수정
+                  </Link>
+                  <FormButton
+                    htmlType="button"
+                    variant="danger"
+                    className="pdf-engine-editor__btn pdf-engine-editor__btn--danger"
+                    onClick={() => void handleDelete(r.id, r.title)}
+                  >
+                    삭제
+                  </FormButton>
+                </div>
               </td>
             </tr>
           ))}
