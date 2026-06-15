@@ -1378,9 +1378,8 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   justify-content: flex-start;
   gap: 8px;
   padding: 0 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: var(--bg-main);
-  background: #1f2937;
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-card);
   box-sizing: border-box;
 }
 
@@ -2650,6 +2649,11 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   padding-right: max(12px, env(safe-area-inset-right, 0px));
 }
 
+.mobile-root .dashboard-page--centered.page {
+  padding-top: calc(4px + env(safe-area-inset-top, 0px));
+  padding-bottom: 24px;
+}
+
 .dashboard-page--centered {
   display: flex;
   flex-direction: column;
@@ -2668,6 +2672,19 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   flex-direction: column;
   align-items: stretch;
   gap: clamp(12px, 2vw, 18px);
+}
+
+.mobile-root .dashboard-menu-shell {
+  gap: 8px;
+}
+
+.mobile-root .dashboard-page--centered .dashboard-menu-card {
+  gap: 10px;
+}
+
+.mobile-root .dashboard-page--centered .menu-card {
+  gap: 12px;
+  padding: 14px;
 }
 
 .dashboard-page__header {
@@ -4759,6 +4776,23 @@ div.cta-button.customers-page__action-btn[role='button'] {
 .customers-page .customer-detail-action-button {
   flex-shrink: 0;
   white-space: nowrap;
+}
+
+.customers-page .customer-card-expanded-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+.customers-page .customer-card-expanded-header__name {
+  min-width: 0;
+}
+
+.customers-page .customer-card-expanded-header .customer-detail-action-bar {
+  width: auto;
+  flex-wrap: nowrap;
 }
 
 .customers-page--pc .customer-detail-action-bar--pc-save-cancel-row {
@@ -8846,7 +8880,7 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 }
 
 .customers-page--mobile .customer-detail-toolbar {
-  align-items: flex-start !important;
+  align-items: center !important;
   gap: 8px !important;
   margin-bottom: 8px !important;
 }

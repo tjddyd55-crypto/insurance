@@ -172,49 +172,7 @@ export default function CustomerMapShell({
 
   return (
     <main className={pageClassName}>
-      {isMobile ? (
-        <div className="customer-map-mobile-toolbar" role="toolbar" aria-label="고객 지도 도구">
-          <FormButton
-            htmlType="button"
-            type="button"
-            variant="secondary"
-            className="customer-map-mobile-toolbar-btn"
-            onClick={onCurrentLocation}
-          >
-            내 위치
-          </FormButton>
-          <FormButton
-            htmlType="button"
-            type="button"
-            variant={showUnmappedList ? 'primary' : 'secondary'}
-            className="customer-map-mobile-toolbar-btn"
-            aria-expanded={showUnmappedList}
-            onClick={onToggleUnmappedList}
-          >
-            미표시
-          </FormButton>
-          <FormButton
-            htmlType="button"
-            type="button"
-            variant={showFilterPanel ? 'primary' : 'secondary'}
-            className="customer-map-mobile-toolbar-btn"
-            aria-expanded={showFilterPanel}
-            onClick={toggleFilterPanel}
-          >
-            필터
-          </FormButton>
-          <FormButton
-            htmlType="button"
-            type="button"
-            variant={showSearchPanel ? 'primary' : 'secondary'}
-            className="customer-map-mobile-toolbar-btn"
-            aria-expanded={showSearchPanel}
-            onClick={toggleSearchPanel}
-          >
-            검색
-          </FormButton>
-        </div>
-      ) : (
+      {!isMobile ? (
         <>
           <header className="customers-map-page__header">
             <h1 className="customers-map-page__title">고객 지도</h1>
@@ -251,43 +209,6 @@ export default function CustomerMapShell({
             </div>
           </div>
         </>
-      )}
-
-      {isMobile && showFilterPanel ? (
-        <div className="customer-map-mobile-filter-panel" role="region" aria-label="지도 필터">
-          {radiusFilterControls}
-          <FormButton
-            htmlType="button"
-            type="button"
-            variant="secondary"
-            className="customer-map-mobile-panel-close"
-            onClick={() => setShowFilterPanel(false)}
-          >
-            닫기
-          </FormButton>
-        </div>
-      ) : null}
-
-      {isMobile && showSearchPanel ? (
-        <div className="customer-map-mobile-search-panel" role="search" aria-label="고객 검색">
-          <FormInput
-            type="search"
-            value={keyword}
-            onChange={(e) => onKeywordChange(e.target.value)}
-            placeholder="이름 · 연락처 · 주소 검색"
-            className="customer-map-mobile-search-input"
-            autoFocus
-          />
-          <FormButton
-            htmlType="button"
-            type="button"
-            variant="secondary"
-            className="customer-map-mobile-panel-close"
-            onClick={() => setShowSearchPanel(false)}
-          >
-            닫기
-          </FormButton>
-        </div>
       ) : null}
 
       {focusNotice ? (
@@ -306,6 +227,84 @@ export default function CustomerMapShell({
       {!isMobile ? unmappedPanel : null}
 
       <div className="customers-map-page__map-wrap">
+        {isMobile ? (
+          <div className="customer-map-mobile-toolbar" role="toolbar" aria-label="고객 지도 도구">
+            <FormButton
+              htmlType="button"
+              type="button"
+              variant="secondary"
+              className="customer-map-mobile-toolbar-btn"
+              onClick={onCurrentLocation}
+            >
+              내 위치
+            </FormButton>
+            <FormButton
+              htmlType="button"
+              type="button"
+              variant={showUnmappedList ? 'primary' : 'secondary'}
+              className="customer-map-mobile-toolbar-btn"
+              aria-expanded={showUnmappedList}
+              onClick={onToggleUnmappedList}
+            >
+              미표시
+            </FormButton>
+            <FormButton
+              htmlType="button"
+              type="button"
+              variant={showFilterPanel ? 'primary' : 'secondary'}
+              className="customer-map-mobile-toolbar-btn"
+              aria-expanded={showFilterPanel}
+              onClick={toggleFilterPanel}
+            >
+              필터
+            </FormButton>
+            <FormButton
+              htmlType="button"
+              type="button"
+              variant={showSearchPanel ? 'primary' : 'secondary'}
+              className="customer-map-mobile-toolbar-btn"
+              aria-expanded={showSearchPanel}
+              onClick={toggleSearchPanel}
+            >
+              검색
+            </FormButton>
+          </div>
+        ) : null}
+        {isMobile && showFilterPanel ? (
+          <div className="customer-map-mobile-filter-panel" role="region" aria-label="지도 필터">
+            {radiusFilterControls}
+            <FormButton
+              htmlType="button"
+              type="button"
+              variant="secondary"
+              className="customer-map-mobile-panel-close"
+              onClick={() => setShowFilterPanel(false)}
+            >
+              닫기
+            </FormButton>
+          </div>
+        ) : null}
+        {isMobile && showSearchPanel ? (
+          <div className="customer-map-mobile-search-panel" role="search" aria-label="고객 검색">
+            <FormInput
+              type="search"
+              value={keyword}
+              onChange={(e) => onKeywordChange(e.target.value)}
+              placeholder="이름 · 연락처 · 주소 검색"
+              className="customer-map-mobile-search-input"
+              autoFocus
+            />
+            <FormButton
+              htmlType="button"
+              type="button"
+              variant="secondary"
+              className="customer-map-mobile-panel-close"
+              onClick={() => setShowSearchPanel(false)}
+            >
+              닫기
+            </FormButton>
+          </div>
+        ) : null}
         {isMobile ? unmappedPanel : null}
         <MapProviderLoader>
           {({ provider, clientKey, ready, error: sdkError, errorCode }) => {
