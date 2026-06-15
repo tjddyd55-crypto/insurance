@@ -96,16 +96,21 @@
   }
 
   .customers-page--mobile .customer-card-expanded-header {
-    align-items: flex-start;
-    gap: 10px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
   }
 
   .customers-page--mobile .customer-card-expanded-header__name {
-    flex: 1 1 100%;
+    min-width: 0;
+    width: auto;
+    flex: initial;
   }
 
   .customers-page--mobile .customer-card-expanded-header .customer-detail-action-bar {
-    width: 100%;
+    width: auto;
+    flex-wrap: nowrap;
     justify-content: flex-end;
   }
 
