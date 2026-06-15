@@ -63,10 +63,12 @@ export async function createTemplate(pool, input) {
 export async function getTemplateById(pool, id) {
   const q = makeQuery(pool)
   const { rows } = await q(
-    `SELECT id, ga_id, code, title, description, storage_key, page_count,
-            is_active, created_by_user_id, created_at, updated_at
-       FROM pdf_templates
-       WHERE id = $1
+    `SELECT t.id, t.ga_id, t.code, t.title, t.description, t.storage_key, t.page_count,
+            t.is_active, t.created_by_user_id, t.created_at, t.updated_at,
+            g.name AS ga_name, g.code AS ga_code
+       FROM pdf_templates t
+       LEFT JOIN ga_companies g ON g.id = t.ga_id
+       WHERE t.id = $1
        LIMIT 1`,
     [id],
   )
@@ -109,11 +111,15 @@ export async function listTemplates(pool, filter) {
 /**
  * @param {import('pg').Pool} pool
  * @param {number} id
- * @param {{ title?: string, description?: string, isActive?: boolean }} patch
+ * @param {{ gaId?: number | null, title?: string, description?: string, isActive?: boolean }} patch
  */
 export async function updateTemplateMeta(pool, id, patch) {
   const sets = []
   const params = []
+  if (patch.gaId !== undefined) {
+    params.push(patch.gaId)
+    sets.push(`ga_id = $${params.length}`)
+  }
   if (patch.title !== undefined) {
     params.push(patch.title)
     sets.push(`title = $${params.length}`)
