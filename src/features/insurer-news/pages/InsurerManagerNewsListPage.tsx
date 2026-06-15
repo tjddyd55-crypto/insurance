@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
 import GaRegistrationRequiredNotice from '../../../components/GaRegistrationRequiredNotice'
 import { useAuth } from '../../auth/AuthProvider'
@@ -63,6 +63,7 @@ export function InsurerManagerNewsListPage({
 
   const [items, setItems] = useState<NewsletterItem[]>([])
   const [error, setError] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     if (isGeneralTenant || !token?.trim() || !gaCode || (requiresCompanyScope && companyId == null)) {
@@ -107,12 +108,26 @@ export function InsurerManagerNewsListPage({
     )
   }
 
-  const handleItemDeleted = useCallback((newsletterId: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== newsletterId))
-  }, [])
+  const filteredItems = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) {
+      return items
+    }
+    return items.filter((item) => {
+      const haystack = [
+        item.insurerName,
+        item.title,
+        item.summary,
+        item.publishedAt,
+      ]
+        .map((value) => String(value ?? '').toLowerCase())
+        .join('\n')
+      return haystack.includes(q)
+    })
+  }, [items, searchQuery])
 
   const viewProps: InsurerManagerNewsListViewProps = {
-    items,
+    items: filteredItems,
     error,
     title,
     subtitle,
@@ -120,7 +135,9 @@ export function InsurerManagerNewsListPage({
     openPathPrefix,
     channel,
     fetchScope,
-    onItemDeleted: handleItemDeleted,
+    searchQuery,
+    onSearchQueryChange: setSearchQuery,
+    noSearchResults: searchQuery.trim() !== '' && filteredItems.length === 0,
   }
 
   return (

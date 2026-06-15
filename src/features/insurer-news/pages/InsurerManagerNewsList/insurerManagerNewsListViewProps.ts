@@ -31,6 +31,7 @@ export type InsurerManagerNewsListViewProps = {
   channel: NewsChannel
   /** 'manager' | 'ga' — 상세 API 라우팅 스위치. PC 가 사용. */
   fetchScope: 'manager' | 'ga'
-  /** 삭제 성공 후 목록 state 에서 제거 */
-  onItemDeleted?: (newsletterId: string) => void
+  searchQuery: string
+  onSearchQueryChange: (value: string) => void
+  noSearchResults: boolean
 }

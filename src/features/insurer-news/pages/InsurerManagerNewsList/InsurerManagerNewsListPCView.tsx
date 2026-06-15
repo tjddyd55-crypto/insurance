@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react'
-import { FormButton } from '../../../../components/form'
+import { FormButton, FormInput } from '../../../../components/form'
 import { useAuth } from '../../../auth/AuthProvider'
-import { useNewsletterDelete } from '../../hooks/useNewsletterDelete'
 import { NewsletterList } from '../../components/NewsletterList'
 import {
   getNewsletterDetail,
@@ -10,7 +9,7 @@ import {
 import type { NewsletterDetail, NewsletterItem } from '../../types'
 import type { InsurerManagerNewsListViewProps } from './insurerManagerNewsListViewProps'
 import { buildInsurerNewsGalleryUrls } from '../../utils/buildInsurerNewsGalleryUrls'
-import { resolveNewsletterHeroViewUrl } from '../../utils/resolveNewsletterAttachmentViewUrl'
+import { resolveInsurerNewsListCardImageUrl } from '../../utils/resolveInsurerNewsImageUrl'
 
 const ZOOM_MIN = 0.5
 const ZOOM_MAX = 3
@@ -41,11 +40,11 @@ export default function InsurerManagerNewsListPCView({
   emptyMessage,
   channel,
   fetchScope,
-  onItemDeleted,
+  searchQuery,
+  onSearchQueryChange,
+  noSearchResults,
 }: InsurerManagerNewsListViewProps) {
   const { user, token } = useAuth()
-  const { canDelete, deleteNewsletter, busyId, error: deleteError, notice, confirmDialog } =
-    useNewsletterDelete(channel)
   const gaCode = user?.gaCode ?? ''
   const companyId = user?.companyId
 
@@ -110,7 +109,7 @@ export default function InsurerManagerNewsListPCView({
         attachments: selectedDetail.attachments,
       })[0] ?? ''
     : selectedItem
-      ? resolveNewsletterHeroViewUrl(selectedItem)
+      ? resolveInsurerNewsListCardImageUrl(selectedItem)
       : ''
 
   const modalGalleryUrls = selectedDetail
@@ -120,22 +119,8 @@ export default function InsurerManagerNewsListPCView({
         attachments: selectedDetail.attachments,
       })
     : selectedItem
-      ? [resolveNewsletterHeroViewUrl(selectedItem)].filter(Boolean)
+      ? [resolveInsurerNewsListCardImageUrl(selectedItem)].filter(Boolean)
       : []
-
-  const deleteTarget = selectedDetail ?? selectedItem
-  const showDeleteInModal = Boolean(deleteTarget && canDelete(deleteTarget))
-  const modalDeleteBusy = Boolean(deleteTarget && busyId === deleteTarget.id)
-
-  const handleModalDelete = () => {
-    if (!deleteTarget) {
-      return
-    }
-    void deleteNewsletter(deleteTarget, () => {
-      onItemDeleted?.(deleteTarget.id)
-      closeDetailModal()
-    })
-  }
 
   return (
     <main className="page page--with-back insurer-news-page insurer-news-page--pc user-page">
@@ -145,22 +130,25 @@ export default function InsurerManagerNewsListPCView({
         </div>
         <p className="insurer-news-muted">{subtitle}</p>
       </header>
+      <div className="insurer-news-filters insurer-news-list-searchbar">
+        <label className="insurer-news-search">
+          <span className="sr-only">소식지 검색</span>
+          <FormInput
+            type="search"
+            value={searchQuery}
+            onChange={(e) => onSearchQueryChange(e.target.value)}
+            placeholder="제목, 내용, 회사명, 날짜 검색"
+            aria-label="소식지 검색"
+          />
+        </label>
+      </div>
       {error ? <div className="insurer-news-empty">{error}</div> : null}
-      {notice ? (
-        <p className="status" role="status" style={{ marginBottom: 12 }}>
-          {notice}
-        </p>
-      ) : null}
-      {deleteError ? (
-        <p className="status status--error" role="alert" style={{ marginBottom: 12 }}>
-          {deleteError}
-        </p>
-      ) : null}
       <NewsletterList
         items={items}
         emptyMessage={emptyMessage}
         variant="pc"
         onOpenItem={openDetailModal}
+        noSearchResults={noSearchResults}
       />
       {selectedItem ? (
         <div className="news-modal" role="dialog" aria-modal="true" onClick={closeDetailModal}>
@@ -192,19 +180,6 @@ export default function InsurerManagerNewsListPCView({
                 >
                   다운로드
                 </a>
-              ) : null}
-              {showDeleteInModal ? (
-                <FormButton
-                  htmlType="button"
-                  variant="danger"
-                  size="sm"
-                  className="filter-button"
-                  loading={modalDeleteBusy}
-                  disabled={modalDeleteBusy}
-                  onClick={handleModalDelete}
-                >
-                  삭제
-                </FormButton>
               ) : null}
               <FormButton
                 htmlType="button"
@@ -238,7 +213,6 @@ export default function InsurerManagerNewsListPCView({
           </div>
         </div>
       ) : null}
-      {confirmDialog}
     </main>
   )
 }

@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { useNewsletterDelete } from '../../hooks/useNewsletterDelete'
+import { FormInput } from '../../../../components/form'
 import { NewsletterList } from '../../components/NewsletterList'
 import type { InsurerManagerNewsListViewProps } from './insurerManagerNewsListViewProps'
 
@@ -22,12 +22,11 @@ export default function InsurerManagerNewsListMobileView({
   subtitle,
   emptyMessage,
   openPathPrefix,
-  channel,
-  onItemDeleted,
+  searchQuery,
+  onSearchQueryChange,
+  noSearchResults,
 }: InsurerManagerNewsListViewProps) {
   const navigate = useNavigate()
-  const { canDelete, deleteNewsletter, busyId, error: deleteError, notice, confirmDialog } =
-    useNewsletterDelete(channel)
 
   return (
     <main className="page page--with-back insurer-news-page insurer-news-page--mobile user-page">
@@ -37,33 +36,26 @@ export default function InsurerManagerNewsListMobileView({
         </div>
         <p className="insurer-news-muted">{subtitle}</p>
       </header>
+      <div className="insurer-news-filters insurer-news-list-searchbar">
+        <label className="insurer-news-search">
+          <span className="sr-only">소식지 검색</span>
+          <FormInput
+            type="search"
+            value={searchQuery}
+            onChange={(e) => onSearchQueryChange(e.target.value)}
+            placeholder="제목, 내용, 회사명, 날짜 검색"
+            aria-label="소식지 검색"
+          />
+        </label>
+      </div>
       {error ? <div className="insurer-news-empty">{error}</div> : null}
-      {notice ? (
-        <p className="status" role="status" style={{ marginBottom: 12 }}>
-          {notice}
-        </p>
-      ) : null}
-      {deleteError ? (
-        <p className="status status--error" role="alert" style={{ marginBottom: 12 }}>
-          {deleteError}
-        </p>
-      ) : null}
       <NewsletterList
         items={items}
         emptyMessage={emptyMessage}
         variant="mobile"
         onOpenItem={(id) => navigate(`${openPathPrefix}/${id}`)}
-        canDeleteItem={canDelete}
-        onDeleteItem={
-          onItemDeleted
-            ? (item) => {
-                void deleteNewsletter(item, () => onItemDeleted(item.id))
-              }
-            : undefined
-        }
-        deleteBusyId={busyId}
+        noSearchResults={noSearchResults}
       />
-      {confirmDialog}
     </main>
   )
 }
