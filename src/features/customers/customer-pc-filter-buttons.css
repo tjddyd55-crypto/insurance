@@ -102,6 +102,21 @@
   align-items: center;
 }
 
+.customers-page--pc .customer-card-expanded-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+.customers-page--pc .customer-card-expanded-header .customer-detail-action-bar {
+  width: auto;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+}
+
 /* 복사/수정/삭제: 의미 클래스에 직접 박스 높이 */
 .customers-page--pc .customer-expand-detail .customer-detail-action-button {
   height: 32px;
