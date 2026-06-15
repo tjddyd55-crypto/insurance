@@ -78,7 +78,7 @@ export function pdfFieldSpecsForSavePayload(fields: PdfFieldSpec[]): PdfFieldSav
 }
 
 export function normalizePdfFieldDataMapping(
-  raw: Partial<PdfFieldDataMapping> | string | null | undefined,
+  raw: (Partial<PdfFieldDataMapping> & Record<string, unknown>) | string | null | undefined,
 ): PdfFieldDataMapping {
   if (raw == null || raw === '') {
     return { ...DEFAULT_PDF_FIELD_DATA_MAPPING }
@@ -108,9 +108,19 @@ export function normalizePdfFieldDataMapping(
   if (typeof raw !== 'object') {
     return { ...DEFAULT_PDF_FIELD_DATA_MAPPING }
   }
-  const typeRaw = raw.dataSourceType === 'customer' ? 'customer' : 'manual'
+  /*
+   * 저장 포맷은 camelCase 이다. 다만 서버/DB에서 레거시 snake_case JSON 이
+   * 섞여 내려와도 편집 화면이 manual 로 되돌아가지 않게 같은 alias 계약을 둔다.
+   */
+  const dataSourceTypeRaw = raw.dataSourceType ?? raw.data_source_type
+  const customerFieldKeyRaw = raw.customerFieldKey ?? raw.customer_field_key
+  const customerFieldLabelRaw = raw.customerFieldLabel ?? raw.customer_field_label
+  const fallbackTextRaw = raw.fallbackText ?? raw.fallback_text
+  const transformTypeRaw = raw.transformType ?? raw.transform_type
+
+  const typeRaw = dataSourceTypeRaw === 'customer' ? 'customer' : 'manual'
   let customerFieldKey =
-    typeof raw.customerFieldKey === 'string' ? raw.customerFieldKey.trim() : null
+    typeof customerFieldKeyRaw === 'string' ? customerFieldKeyRaw.trim() : null
   if (customerFieldKey === 'dob') {
     customerFieldKey = 'birthDate'
   }
@@ -118,16 +128,16 @@ export function normalizePdfFieldDataMapping(
     customerFieldKey = null
   }
   const customerFieldLabel =
-    typeof raw.customerFieldLabel === 'string' && raw.customerFieldLabel.trim()
-      ? raw.customerFieldLabel.trim()
+    typeof customerFieldLabelRaw === 'string' && customerFieldLabelRaw.trim()
+      ? customerFieldLabelRaw.trim()
       : customerFieldKey
         ? labelForCustomerPdfFieldKey(customerFieldKey)
         : null
   const fallbackText =
-    typeof raw.fallbackText === 'string' ? raw.fallbackText.trim().slice(0, 500) : null
+    typeof fallbackTextRaw === 'string' ? fallbackTextRaw.trim().slice(0, 500) : null
   const transformType =
-    typeof raw.transformType === 'string' && raw.transformType.trim()
-      ? raw.transformType.trim().slice(0, 40)
+    typeof transformTypeRaw === 'string' && transformTypeRaw.trim()
+      ? transformTypeRaw.trim().slice(0, 40)
       : null
 
   if (typeRaw !== 'customer') {

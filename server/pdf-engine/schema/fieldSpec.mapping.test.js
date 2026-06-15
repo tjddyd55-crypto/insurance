@@ -17,6 +17,14 @@ const CUSTOMER_MAPPING_JSON = JSON.stringify({
   transformType: null,
 })
 
+const SNAKE_CASE_CUSTOMER_MAPPING_JSON = JSON.stringify({
+  data_source_type: 'customer',
+  customer_field_key: 'carInsuranceExpiryDate',
+  customer_field_label: '자동차보험 만기일',
+  fallback_text: null,
+  transform_type: null,
+})
+
 const MANUAL_MAPPING = {
   dataSourceType: 'manual',
   customerFieldKey: null,
@@ -195,7 +203,33 @@ test('mergePdfFieldCustomerMappings: stale payload without dataMapping preserves
   assert.equal(mergedFields[0].placements[0].x, 99)
 })
 
+test('parseFieldDataMapping: accepts legacy snake_case stored JSON', () => {
+  const parsed = parseFieldDataMapping(SNAKE_CASE_CUSTOMER_MAPPING_JSON)
+  assert.equal(parsed.dataSourceType, 'customer')
+  assert.equal(parsed.customerFieldKey, 'carInsuranceExpiryDate')
+  assert.equal(parsed.customerFieldLabel, '자동차보험 만기일')
+})
+
+test('fieldSpecWithDbMapping: restores legacy snake_case customer mapping from DB row value', () => {
+  const base = normalizeFieldSpec(baseRawField(), 0)
+  const restored = fieldSpecWithDbMapping(base, SNAKE_CASE_CUSTOMER_MAPPING_JSON)
+  assert.equal(restored.dataMapping.dataSourceType, 'customer')
+  assert.equal(restored.dataMapping.customerFieldKey, 'carInsuranceExpiryDate')
+})
+
+test('mergePdfFieldCustomerMappings: preserves legacy snake_case existing customer_mapping', () => {
+  const rawFields = [baseRawField()]
+  const normalizedFields = normalizeFieldSpecList(rawFields)
+  const { mergedFields, preservedCount } = mergePdfFieldCustomerMappings({
+    existingRows: [{ field_key: 'expiry_date', customer_mapping: SNAKE_CASE_CUSTOMER_MAPPING_JSON }],
+    rawFields,
+    normalizedFields,
+  })
+  assert.equal(preservedCount, 1)
+  assert.equal(mergedFields[0].dataMapping.customerFieldKey, 'carInsuranceExpiryDate')
+})
+
 test('hasCustomerFieldMapping: accepts snake_case stored JSON', () => {
-  assert.equal(hasCustomerFieldMapping(CUSTOMER_MAPPING_JSON), true)
+  assert.equal(hasCustomerFieldMapping(SNAKE_CASE_CUSTOMER_MAPPING_JSON), true)
   assert.equal(hasCustomerFieldMapping(MANUAL_MAPPING), false)
 })
