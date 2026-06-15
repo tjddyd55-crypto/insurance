@@ -276,14 +276,11 @@ function contractSignatureAdminMenuIfEnabled(role: string | undefined): GaTenant
 }
 
 const SUPER_ADMIN_BASE: GaTenantMenuItem[] = [
-  MEMO_MENU_ITEM,
-  { label: '플랫폼 관리', path: '/admin/platform' },
   { label: 'GA 관리', path: '/admin/ga' },
   { label: '담당자 관리', path: '/admin/delegates' },
   { label: '유저 관리', path: '/admin/users' },
   { label: '결제·구독 관리', path: '/admin/billing/manage' },
   { label: '운영 통계', path: '/admin/analytics' },
-  { label: '고객 지도', path: '/customers/map' },
   { label: '기능 요청 관리', path: '/internal/admin/feature-requests' },
   { label: '보험사 설계사이트 관리', path: '/admin/insurer-sites' },
   { label: '소식지 메뉴 관리', path: '/admin/newsletter-boards' },
