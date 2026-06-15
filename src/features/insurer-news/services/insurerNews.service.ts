@@ -3,7 +3,14 @@ import { listCompanyDirectory } from '../../company-registry/api/companyRegistry
 import { isNewsletterInCompanyScope } from '../lib/insurerNewsCompanyScope'
 import { cdnUrlForObjectKey } from '../lib/insurerNewsCdn'
 import { validateInsurerNewsFile } from '../utils/validateInsurerNewsFile'
-import type { InsurerSummary, LocalAttachmentDraft, NewsChannel, NewsletterDetail, NewsletterItem } from '../types'
+import type {
+  InsurerSummary,
+  LocalAttachmentDraft,
+  NewsChannel,
+  NewsletterBoard,
+  NewsletterDetail,
+  NewsletterItem,
+} from '../types'
 
 type PublishContextApi = {
   gaCode: string
@@ -30,6 +37,40 @@ function sortByPublishedDesc(items: NewsletterItem[]): NewsletterItem[] {
 export type InsurerNewsFeedResponse = {
   newsletters: NewsletterItem[]
   insurers: InsurerSummary[]
+}
+
+export type DynamicNewsletterBoardFeedResponse = {
+  board: NewsletterBoard
+  newsletters: NewsletterItem[]
+}
+
+export async function listVisibleNewsletterBoards(token?: string | null): Promise<NewsletterBoard[]> {
+  if (!token?.trim()) {
+    return []
+  }
+  return apiRequest<NewsletterBoard[]>('/api/insurer-news/boards', { token })
+}
+
+export async function listAdminNewsletterBoards(token: string): Promise<NewsletterBoard[]> {
+  return apiRequest<NewsletterBoard[]>('/api/admin/newsletter-boards', { token })
+}
+
+export async function createNewsletterBoard(
+  token: string,
+  input: { label: string; isPublic: boolean },
+): Promise<NewsletterBoard> {
+  return apiRequest<NewsletterBoard>('/api/admin/newsletter-boards', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(input),
+  })
+}
+
+export async function deleteNewsletterBoard(token: string, boardId: string): Promise<void> {
+  await apiRequest<void>(`/api/admin/newsletter-boards/${encodeURIComponent(boardId)}`, {
+    method: 'DELETE',
+    token,
+  })
 }
 
 async function fetchPublishContextApi(token: string, options?: { channel?: NewsChannel }): Promise<PublishContextApi> {
@@ -141,6 +182,41 @@ export async function getAllPublishedForGa(
   }
   const { newsletters } = await fetchInsurerNewsFeed(gaCode, token, { limit: 500, channel: options?.channel })
   return sortByPublishedDesc(newsletters)
+}
+
+export async function getDynamicNewsletterBoardFeed(
+  boardSlug: string,
+  token?: string | null,
+): Promise<DynamicNewsletterBoardFeedResponse | null> {
+  if (!token?.trim() || !boardSlug.trim()) {
+    return null
+  }
+  try {
+    return await apiRequest<DynamicNewsletterBoardFeedResponse>(
+      `/api/insurer-news/boards/${encodeURIComponent(boardSlug.trim())}/newsletters?limit=500`,
+      { token },
+    )
+  } catch {
+    return null
+  }
+}
+
+export async function getDynamicNewsletterBoardDetail(
+  boardSlug: string,
+  newsletterId: string,
+  token?: string | null,
+): Promise<NewsletterDetail | null> {
+  if (!token?.trim() || !boardSlug.trim() || !newsletterId.trim()) {
+    return null
+  }
+  try {
+    return await apiRequest<NewsletterDetail>(
+      `/api/insurer-news/boards/${encodeURIComponent(boardSlug.trim())}/newsletters/${encodeURIComponent(newsletterId.trim())}`,
+      { token },
+    )
+  } catch {
+    return null
+  }
 }
 
 /**

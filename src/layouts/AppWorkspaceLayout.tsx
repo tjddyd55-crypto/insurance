@@ -9,6 +9,8 @@ import { buildAppMenuForSession } from '../features/dashboard/gaTenantMenu'
 import { ExpiredBanner } from '../features/subscription/components/ExpiredBanner'
 import PlatformModeSwitcher from '../features/platform/components/PlatformModeSwitcher'
 import { fetchTeamMembers } from '../features/team/api/teamApi'
+import { listVisibleNewsletterBoards } from '../features/insurer-news/services/insurerNews.service'
+import type { DynamicNewsletterBoardMenuItem } from '../features/dashboard/gaTenantMenu'
 import useIsMobile from '../hooks/useIsMobile'
 import { useBackButtonClose } from '../hooks/useBackButtonClose'
 import { isUserWorkspacePath } from '../features/user-ui/isUserWorkspacePath'
@@ -25,6 +27,9 @@ function isActivePath(pathname: string, itemPath: string): boolean {
   }
   if (itemPath === '/portal/adjuster-news') {
     return pathname === '/portal/adjuster-news' || pathname.startsWith('/portal/adjuster-news/')
+  }
+  if (itemPath.startsWith('/portal/boards/')) {
+    return pathname === itemPath || pathname.startsWith(`${itemPath}/`)
   }
   if (itemPath === '/contacts/manage') {
     return pathname === '/contacts/manage' || pathname === '/insurance/company-registry'
@@ -186,6 +191,7 @@ function AppWorkspaceLayoutMobileShell() {
   const [mobileSelectedCustomer, setMobileSelectedCustomer] = useState<string | null>(extractCustomerIdFromPath(location.pathname))
   const [mobilePageStack, setMobilePageStack] = useState<string[]>(() => [location.pathname])
   const [teamMenuManageVisible, setTeamMenuManageVisible] = useState(false)
+  const [dynamicNewsletterBoards, setDynamicNewsletterBoards] = useState<DynamicNewsletterBoardMenuItem[]>([])
 
   /*
    * Mobile 드로어 메뉴 구성.
@@ -203,10 +209,12 @@ function AppWorkspaceLayoutMobileShell() {
   const sidebarItems = useMemo(() => {
     return buildAppMenuForSession(user?.role, user?.gaCode, user?.gaName, {
       teamMenuManageVisible,
+      dynamicNewsletterBoards,
       subscriptionExpired: user?.subscription?.effectiveStatus === 'EXPIRED',
     })
   }, [
     teamMenuManageVisible,
+    dynamicNewsletterBoards,
     user?.role,
     user?.gaCode,
     user?.gaName,
@@ -249,6 +257,31 @@ function AppWorkspaceLayoutMobileShell() {
       cancelled = true
     }
   }, [token, user?.id, user?.role, user?.teamId])
+
+  useEffect(() => {
+    let cancelled = false
+    if (!token?.trim() || (user?.role !== 'USER' && user?.role !== 'GA_ADMIN' && user?.role !== 'GA_STAFF')) {
+      setDynamicNewsletterBoards([])
+      return () => {
+        cancelled = true
+      }
+    }
+    void listVisibleNewsletterBoards(token)
+      .then((boards) => {
+        if (cancelled) {
+          return
+        }
+        setDynamicNewsletterBoards(boards.map((board) => ({ label: board.label, slug: board.slug })))
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDynamicNewsletterBoards([])
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [token, user?.role])
 
   const tenantChrome = shouldShowGaTenantChrome(isAuthenticated, user?.gaId, location.pathname)
   const isNewsManager = user?.role === 'INSURER_MANAGER' || user?.role === 'LOSS_ADJUSTER'

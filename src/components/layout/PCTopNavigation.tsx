@@ -2,8 +2,13 @@ import { useEffect, useMemo, useState, type RefObject } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { FormButton } from '../form'
 import { useAuth } from '../../features/auth/AuthProvider'
-import { buildAppMenuForSession, type GaTenantDashboardMenuEntry } from '../../features/dashboard/gaTenantMenu'
+import {
+  buildAppMenuForSession,
+  type DynamicNewsletterBoardMenuItem,
+  type GaTenantDashboardMenuEntry,
+} from '../../features/dashboard/gaTenantMenu'
 import { fetchTeamMembers } from '../../features/team/api/teamApi'
+import { listVisibleNewsletterBoards } from '../../features/insurer-news/services/insurerNews.service'
 import { NotificationBell } from '../../features/notification/components/NotificationBell'
 import { isActivePcNavigationPath } from './pcNavigationUtils'
 import './pc-top-navigation.css'
@@ -53,6 +58,7 @@ export default function PCTopNavigation({
   const location = useLocation()
   const { user, token } = useAuth()
   const [teamMenuManageVisible, setTeamMenuManageVisible] = useState(false)
+  const [dynamicNewsletterBoards, setDynamicNewsletterBoards] = useState<DynamicNewsletterBoardMenuItem[]>([])
   const [openGroupLabel, setOpenGroupLabel] = useState<string | null>(null)
 
   useEffect(() => {
@@ -92,13 +98,40 @@ export default function PCTopNavigation({
     }
   }, [token, user?.id, user?.role, user?.teamId])
 
+  useEffect(() => {
+    let cancelled = false
+    if (!token?.trim() || (user?.role !== 'USER' && user?.role !== 'GA_ADMIN' && user?.role !== 'GA_STAFF')) {
+      setDynamicNewsletterBoards([])
+      return () => {
+        cancelled = true
+      }
+    }
+    void listVisibleNewsletterBoards(token)
+      .then((boards) => {
+        if (cancelled) {
+          return
+        }
+        setDynamicNewsletterBoards(boards.map((board) => ({ label: board.label, slug: board.slug })))
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDynamicNewsletterBoards([])
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [token, user?.role])
+
   const items = useMemo(() => {
     return buildAppMenuForSession(user?.role, user?.gaCode, user?.gaName, {
       teamMenuManageVisible,
+      dynamicNewsletterBoards,
       subscriptionExpired: user?.subscription?.effectiveStatus === 'EXPIRED',
     })
   }, [
     teamMenuManageVisible,
+    dynamicNewsletterBoards,
     user?.role,
     user?.gaCode,
     user?.gaName,

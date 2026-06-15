@@ -3,10 +3,15 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { FormButton } from '../../../components/form'
 import { fetchInsurerManagersHealth, type InsurerManagersHealth } from '../../auth/authApi'
 import { fetchTeamMembers } from '../../team/api/teamApi'
+import { listVisibleNewsletterBoards } from '../../insurer-news/services/insurerNews.service'
 import { useAuth } from '../../auth/AuthProvider'
 import { isGaStaffReadOnlyUi } from '../../auth/roleGuards'
 import { Button, Modal } from '../../../components/ui'
-import { buildAppMenuForSession, type GaTenantDashboardMenuEntry } from '../gaTenantMenu'
+import {
+  buildAppMenuForSession,
+  type DynamicNewsletterBoardMenuItem,
+  type GaTenantDashboardMenuEntry,
+} from '../gaTenantMenu'
 
 type MenuEntry = GaTenantDashboardMenuEntry
 
@@ -26,6 +31,9 @@ function pathIsActive(pathname: string, itemPath: string): boolean {
   }
   if (itemPath === '/portal/adjuster-news') {
     return pathname === '/portal/adjuster-news' || pathname.startsWith('/portal/adjuster-news/')
+  }
+  if (itemPath.startsWith('/portal/boards/')) {
+    return pathname === itemPath || pathname.startsWith(`${itemPath}/`)
   }
   if (itemPath === '/contacts/manage') {
     return pathname === '/contacts/manage' || pathname === '/insurance/company-registry'
@@ -72,6 +80,9 @@ function pathIsActive(pathname: string, itemPath: string): boolean {
   }
   if (itemPath === '/profile') {
     return pathname === '/profile'
+  }
+  if (itemPath === '/memo') {
+    return pathname === '/memo' || pathname.startsWith('/memo/')
   }
   if (itemPath.startsWith('/internal/')) {
     return pathname === itemPath || pathname.startsWith(`${itemPath}/`)
@@ -138,6 +149,7 @@ export function DashboardPage() {
   const [imHealthErr, setImHealthErr] = useState('')
   const [imHealth, setImHealth] = useState<InsurerManagersHealth | null>(null)
   const [teamMenuManageVisible, setTeamMenuManageVisible] = useState(false)
+  const [dynamicNewsletterBoards, setDynamicNewsletterBoards] = useState<DynamicNewsletterBoardMenuItem[]>([])
   const [preparingNoticeOpen, setPreparingNoticeOpen] = useState(false)
 
   const loadImHealth = useCallback(async () => {
@@ -196,6 +208,31 @@ export function DashboardPage() {
     }
   }, [token, user?.id, user?.teamId, role])
 
+  useEffect(() => {
+    let cancelled = false
+    if (!token?.trim() || (role !== 'USER' && role !== 'GA_ADMIN' && role !== 'GA_STAFF')) {
+      setDynamicNewsletterBoards([])
+      return () => {
+        cancelled = true
+      }
+    }
+    void listVisibleNewsletterBoards(token)
+      .then((boards) => {
+        if (cancelled) {
+          return
+        }
+        setDynamicNewsletterBoards(boards.map((board) => ({ label: board.label, slug: board.slug })))
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDynamicNewsletterBoards([])
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [token, role])
+
   /*
    * 대시보드 메뉴 — `buildAppMenuForSession` 단일 진실 원천 호출.
    *
@@ -208,8 +245,9 @@ export function DashboardPage() {
   const menuItems = useMemo<MenuEntry[]>(() => {
     return buildAppMenuForSession(role, user?.gaCode, user?.gaName, {
       teamMenuManageVisible,
+      dynamicNewsletterBoards,
     })
-  }, [role, user?.gaCode, user?.gaName, teamMenuManageVisible])
+  }, [role, user?.gaCode, user?.gaName, teamMenuManageVisible, dynamicNewsletterBoards])
 
   return (
     <main className="page dashboard-page--centered">

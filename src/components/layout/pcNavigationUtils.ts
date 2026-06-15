@@ -11,6 +11,9 @@ export function isActivePcNavigationPath(pathname: string, itemPath: string): bo
   if (itemPath === '/portal/adjuster-news') {
     return pathname === '/portal/adjuster-news' || pathname.startsWith('/portal/adjuster-news/')
   }
+  if (itemPath.startsWith('/portal/boards/')) {
+    return pathname === itemPath || pathname.startsWith(`${itemPath}/`)
+  }
   if (itemPath === '/contacts/manage') {
     return pathname === '/contacts/manage' || pathname === '/insurance/company-registry'
   }

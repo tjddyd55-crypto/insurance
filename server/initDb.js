@@ -2048,6 +2048,30 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS newsletter_boards (
+      id TEXT PRIMARY KEY,
+      ga_id INTEGER REFERENCES ga_companies(id) ON DELETE CASCADE,
+      slug TEXT NOT NULL,
+      label TEXT NOT NULL,
+      is_public BOOLEAN NOT NULL DEFAULT false,
+      created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      is_deleted BOOLEAN NOT NULL DEFAULT false,
+      deleted_at TIMESTAMPTZ
+    )
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_newsletter_boards_active_slug
+    ON newsletter_boards(slug)
+    WHERE is_deleted = false
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_newsletter_boards_visible
+    ON newsletter_boards(is_public, ga_id, is_deleted)
+  `)
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS insurance_company_newsletter_attachments (
       id TEXT PRIMARY KEY,
       newsletter_id TEXT NOT NULL REFERENCES insurance_company_newsletters(id) ON DELETE CASCADE,
