@@ -4795,6 +4795,12 @@ div.cta-button.customers-page__action-btn[role='button'] {
   flex-wrap: nowrap;
 }
 
+.customers-page .customer-detail-secondary-action-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: -4px 0 8px;
+}
+
 .customers-page--pc .customer-detail-action-bar--pc-save-cancel-row {
   flex-wrap: nowrap;
 }
