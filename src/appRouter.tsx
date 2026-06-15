@@ -91,12 +91,15 @@ import { NewsletterRecentPage } from './features/insurer-news/pages/NewsletterRe
 import { InsurerManagerNewsDetailPage } from './features/insurer-news/pages/InsurerManagerNewsDetailPage'
 import { InsurerManagerNewsListPage } from './features/insurer-news/pages/InsurerManagerNewsListPage'
 import { InsurerManagerNewsUploadPage } from './features/insurer-news/pages/InsurerManagerNewsUploadPage'
+import { DynamicNewsletterBoardDetailPage } from './features/insurer-news/pages/DynamicNewsletterBoardDetailPage'
+import { DynamicNewsletterBoardPage } from './features/insurer-news/pages/DynamicNewsletterBoardPage'
 import { LossAdjusterManagerNewsDetailPage } from './features/insurer-news/pages/LossAdjusterManagerNewsDetailPage'
 import { LossAdjusterManagerNewsListPage } from './features/insurer-news/pages/LossAdjusterManagerNewsListPage'
 import { LossAdjusterManagerNewsUploadPage } from './features/insurer-news/pages/LossAdjusterManagerNewsUploadPage'
 import { LossAdjusterNewsletterDetailPage } from './features/insurer-news/pages/LossAdjusterNewsletterDetailPage'
 import { LossAdjusterNewsletterHubPage } from './features/insurer-news/pages/LossAdjusterNewsletterHubPage'
 import { LossAdjusterNewsletterPortalLayout } from './features/insurer-news/pages/LossAdjusterNewsletterPortalLayout'
+import { NewsletterBoardAdminPage } from './features/insurer-news/pages/NewsletterBoardAdminPage'
 import MemoRoutePage from './features/memo/pages/MemoRoutePage'
 import MyStoragePage from './features/storage/pages/MyStoragePage'
 import TodosWorkspacePage from './features/todos/pages/TodosWorkspacePage'
@@ -248,6 +251,8 @@ export const appRouter = createBrowserRouter([
                   { path: ':newsletterId', element: <LossAdjusterNewsletterDetailPage /> },
                 ],
               },
+              { path: 'portal/boards/:boardSlug', element: <DynamicNewsletterBoardPage /> },
+              { path: 'portal/boards/:boardSlug/:newsletterId', element: <DynamicNewsletterBoardDetailPage /> },
               {
                 element: <GaCarInsuranceRoute />,
                 children: [
@@ -309,6 +314,7 @@ export const appRouter = createBrowserRouter([
               { path: 'admin/delegates', element: <GaDelegateManagementPage /> },
               { path: 'admin/create-staff', element: <Navigate to="/admin/delegates" replace /> },
               { path: 'admin/users', element: <UserManagementPage /> },
+              { path: 'admin/newsletter-boards', element: <NewsletterBoardAdminPage /> },
               {
                 element: <SuperAdminRoute />,
                 children: [

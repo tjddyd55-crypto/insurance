@@ -8,6 +8,18 @@ export type NewsChannel = 'INSURER' | 'LOSS_ADJUSTER'
 
 export type UploadStatus = 'pending' | 'uploading' | 'completed' | 'failed'
 
+export interface NewsletterBoard {
+  id: string
+  slug: string
+  label: string
+  isPublic: boolean
+  gaId: number | null
+  gaCode: string | null
+  gaName: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 /** 보험사 요약 (GA 스코프 목록용) */
 export interface InsurerSummary {
   /** 내부 코드 — 스토리지 경로 segment, UI 비노출 권장 */

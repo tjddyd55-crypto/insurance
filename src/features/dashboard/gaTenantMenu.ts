@@ -9,6 +9,11 @@ import { canAccessContractSignatureAdminConsole } from '../contracts/testConsole
 
 export type GaTenantMenuItem = { label: string; path: string }
 
+export type DynamicNewsletterBoardMenuItem = {
+  label: string
+  slug: string
+}
+
 /** 전역 스티키 메모 — `/memo` 정식 메뉴 (플로팅 FAB 아님) */
 export const MEMO_MENU_ITEM: GaTenantMenuItem = Object.freeze({
   label: '메모',
@@ -111,6 +116,7 @@ const DEV_BADGE = '개발중'
 type BuildGaTenantDashboardMenuOptions = {
   /** USER 역할에게만 신청서 아래 「전자서명」 블록을 붙인다. */
   includeUserContractSignatures?: boolean
+  dynamicNewsletterBoards?: DynamicNewsletterBoardMenuItem[]
 }
 
 export function buildGaTenantDashboardMenu(
@@ -118,7 +124,7 @@ export function buildGaTenantDashboardMenu(
   gaName: string | undefined,
   options: BuildGaTenantDashboardMenuOptions = {},
 ): GaTenantDashboardMenuEntry[] {
-  const { includeUserContractSignatures = false } = options
+  const { includeUserContractSignatures = false, dynamicNewsletterBoards = [] } = options
 
   void gaCode
   void gaName
@@ -168,7 +174,11 @@ export function buildGaTenantDashboardMenu(
     { type: 'section', label: '소식지' },
     { type: 'link', label: '원수사소식지', path: '/portal/newsletters' },
     { type: 'link', label: '손해사정사 소식지', path: '/portal/adjuster-news' },
-    { type: 'link', label: '세무사 소식지', path: '#', disabled: true, badge: DEV_BADGE },
+    ...dynamicNewsletterBoards.map((board) => ({
+      type: 'link' as const,
+      label: board.label,
+      path: `/portal/boards/${encodeURIComponent(board.slug)}`,
+    })),
 
     { type: 'section', label: '신청서' },
     ...applicationItems,
@@ -227,6 +237,7 @@ export function buildGaTenantDashboardMenu(
  */
 export type AppMenuBuildOptions = {
   teamMenuManageVisible?: boolean
+  dynamicNewsletterBoards?: DynamicNewsletterBoardMenuItem[]
   /**
    * 구독 만료(EXPIRED) 유저에게만 메뉴를 화이트리스트 정책으로 필터링한다.
    * EXPIRED_ALLOW_FRONTEND_PATHS 에 해당하지 않는 링크는 제거되고,
@@ -273,6 +284,7 @@ const SUPER_ADMIN_BASE: GaTenantMenuItem[] = [
   { label: '고객 지도', path: '/customers/map' },
   { label: '기능 요청 관리', path: '/internal/admin/feature-requests' },
   { label: '보험사 설계사이트 관리', path: '/admin/insurer-sites' },
+  { label: '소식지 메뉴 관리', path: '/admin/newsletter-boards' },
   { label: 'PDF 문서 템플릿', path: '/admin/pdf-templates' },
 ]
 
@@ -306,6 +318,7 @@ export function buildAppMenuForSession(
 ): GaTenantDashboardMenuEntry[] {
   const {
     teamMenuManageVisible = false,
+    dynamicNewsletterBoards = [],
     subscriptionExpired = false,
   } = options
 
@@ -323,11 +336,20 @@ export function buildAppMenuForSession(
       return itemsToEntries(LOSS_ADJUSTER_MENU)
     }
     if (role === 'GA_STAFF') {
-      return itemsToEntries([CONTRACT_SIGNATURE_USER_SEND, CONTRACT_SIGNATURE_USER_HISTORY, ...GA_STAFF_MENU])
+      return itemsToEntries([
+        CONTRACT_SIGNATURE_USER_SEND,
+        CONTRACT_SIGNATURE_USER_HISTORY,
+        ...GA_STAFF_MENU,
+        ...dynamicNewsletterBoards.map((board) => ({
+          label: board.label,
+          path: `/portal/boards/${encodeURIComponent(board.slug)}`,
+        })),
+      ])
     }
     if (role === 'GA_ADMIN' || role === 'USER') {
       const entries = buildGaTenantDashboardMenu(gaCode, gaName, {
         includeUserContractSignatures: role === 'USER',
+        dynamicNewsletterBoards,
       })
       if (role === 'GA_ADMIN') {
         const testEntry = contractSignatureAdminMenuIfEnabled('GA_ADMIN')
@@ -335,6 +357,7 @@ export function buildAppMenuForSession(
           entries.push({ type: 'link', label: testEntry.label, path: testEntry.path })
         }
         entries.push(
+          { type: 'link', label: '소식지 메뉴 관리', path: '/admin/newsletter-boards' },
           { type: 'divider' },
           { type: 'link', label: AUDIT_LOG_ENTRY.label, path: AUDIT_LOG_ENTRY.path },
         )
