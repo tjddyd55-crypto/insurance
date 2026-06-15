@@ -173,7 +173,6 @@
   position: relative;
   gap: 0;
   padding: 0;
-  width: 100%;
   min-height: calc(100dvh - 48px);
   min-height: calc(100vh - 48px);
 }
