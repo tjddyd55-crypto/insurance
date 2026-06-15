@@ -50,12 +50,12 @@ main.contract-signature-console.contract-signature-flow--mobile .contract-mobile
 }
 
 main.contract-signature-console.contract-signature-flow--mobile .contract-mobile-step--active {
-  border-color: rgba(59, 130, 246, 0.55);
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2);
+  border-color: color-mix(in srgb, var(--primary, #16a34a) 55%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary, #16a34a) 20%, transparent);
 }
 
 main.contract-signature-console.contract-signature-flow--mobile .contract-mobile-step--completed {
-  border-color: rgba(34, 197, 94, 0.35);
+  border-color: color-mix(in srgb, var(--primary, #16a34a) 35%, transparent);
 }
 
 main.contract-signature-console.contract-signature-flow--mobile .contract-mobile-step__head {
@@ -89,13 +89,13 @@ main.contract-signature-console.contract-signature-flow--mobile .contract-mobile
 }
 
 main.contract-signature-console.contract-signature-flow--mobile .contract-mobile-step__badge--active {
-  background: rgba(59, 130, 246, 0.2);
-  color: #93c5fd;
+  background: var(--primary-soft, color-mix(in srgb, var(--primary, #16a34a) 16%, transparent));
+  color: var(--primary-active, var(--primary, #16a34a));
 }
 
 main.contract-signature-console.contract-signature-flow--mobile .contract-mobile-step__badge--done {
-  background: rgba(34, 197, 94, 0.18);
-  color: #86efac;
+  background: var(--primary-soft, color-mix(in srgb, var(--primary, #16a34a) 16%, transparent));
+  color: var(--primary-active, var(--primary, #16a34a));
 }
 
 main.contract-signature-console.contract-signature-flow--mobile .contract-mobile-step__badge--locked {
@@ -161,7 +161,7 @@ main.contract-signature-console.contract-signature-flow--mobile .contract-send-m
 
 main.contract-signature-console.contract-signature-flow--mobile
   .contract-send-mobile-customer-result-card:focus-visible {
-  outline: 2px solid rgba(96, 165, 250, 0.85);
+  outline: 2px solid var(--input-focus-border, var(--primary, #16a34a));
   outline-offset: 2px;
 }
 
@@ -204,8 +204,8 @@ main.contract-signature-console.contract-signature-flow--mobile .contract-send-m
   border-radius: 12px;
   margin-top: 8px;
   margin-bottom: 4px;
-  border: 1px solid rgba(96, 165, 250, 0.55);
-  background: color-mix(in srgb, rgba(59, 130, 246, 0.08) 35%, var(--bg-card));
+  border: 1px solid color-mix(in srgb, var(--primary, #16a34a) 45%, var(--border));
+  background: color-mix(in srgb, var(--primary-soft, #dcfce7) 45%, var(--bg-card));
   box-sizing: border-box;
   width: 100%;
   max-width: 100%;
@@ -324,14 +324,14 @@ main.contract-signature-console.contract-signature-flow--mobile .contract-send-m
 }
 
 main.contract-signature-console.contract-signature-flow--mobile .contract-send-mobile-template-card:focus-visible {
-  outline: 2px solid rgba(96, 165, 250, 0.85);
+  outline: 2px solid var(--input-focus-border, var(--primary, #16a34a));
   outline-offset: 2px;
 }
 
 main.contract-signature-console.contract-signature-flow--mobile .contract-send-mobile-template-card--selected {
-  border-color: rgba(96, 165, 250, 0.85);
-  background: color-mix(in srgb, rgba(59, 130, 246, 0.12) 45%, var(--bg-card));
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
+  border-color: color-mix(in srgb, var(--primary, #16a34a) 70%, var(--border));
+  background: color-mix(in srgb, var(--primary-soft, #dcfce7) 55%, var(--bg-card));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary, #16a34a) 24%, transparent);
 }
 
 main.contract-signature-console.contract-signature-flow--mobile .contract-send-mobile-template-card__title {
