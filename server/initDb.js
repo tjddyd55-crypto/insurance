@@ -2070,6 +2070,45 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_newsletter_boards_visible
     ON newsletter_boards(is_public, ga_id, is_deleted)
   `)
+  await pool.query(`
+    ALTER TABLE newsletter_boards
+    ADD COLUMN IF NOT EXISTS content_scope TEXT NOT NULL DEFAULT 'ga'
+  `)
+  await pool.query(`
+    UPDATE newsletter_boards
+    SET content_scope = CASE WHEN is_public = true THEN 'global' ELSE 'ga' END
+    WHERE content_scope IS NULL OR content_scope = ''
+  `)
+  await pool.query(`
+    UPDATE newsletter_boards
+    SET ga_id = NULL
+    WHERE ga_id IS NOT NULL
+  `)
+
+  await pool.query(`
+    ALTER TABLE insurance_company_newsletters
+    ALTER COLUMN ga_id DROP NOT NULL
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS public_board_writer_accounts (
+      id TEXT PRIMARY KEY,
+      login_id TEXT NOT NULL,
+      password_hash TEXT NOT NULL,
+      name TEXT NOT NULL DEFAULT '',
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      allowed_board_ids TEXT[],
+      created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      last_login_at TIMESTAMPTZ
+    )
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_public_board_writer_login_active
+    ON public_board_writer_accounts(LOWER(TRIM(login_id)))
+    WHERE is_active = true
+  `)
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS insurance_company_newsletter_attachments (

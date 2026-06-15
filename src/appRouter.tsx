@@ -102,6 +102,9 @@ import { LossAdjusterNewsletterPortalLayout } from './features/insurer-news/page
 import { NewsletterBoardAdminPage } from './features/insurer-news/pages/NewsletterBoardAdminPage'
 import MemoRoutePage from './features/memo/pages/MemoRoutePage'
 import PublicAccountRestrictedPage from './features/common/PublicAccountRestrictedPage'
+import { PublicBoardWriterAdminPage } from './features/insurer-news/pages/PublicBoardWriterAdminPage'
+import { PublicBoardWriterLoginPage } from './features/insurer-news/pages/PublicBoardWriterLoginPage'
+import { PublicBoardWriterWorkspacePage } from './features/insurer-news/pages/PublicBoardWriterWorkspacePage'
 import MyStoragePage from './features/storage/pages/MyStoragePage'
 import TodosWorkspacePage from './features/todos/pages/TodosWorkspacePage'
 import NotificationsPlaceholderPage from './features/todos/pages/NotificationsPlaceholderPage'
@@ -140,6 +143,8 @@ export const appRouter = createBrowserRouter([
     children: [
       { index: true, element: <PublicHomeEntry /> },
       { path: 'login', element: <LoginPage /> },
+      { path: 'public-board-writer/login', element: <PublicBoardWriterLoginPage /> },
+      { path: 'public-board-writer/workspace', element: <PublicBoardWriterWorkspacePage /> },
       { path: 'register', element: <RegisterPage signupIndustry="insurance" /> },
       { path: 'password-reset', element: <PasswordResetPage /> },
       { path: 'signup', element: <Navigate to="/signup/insurance" replace /> },
@@ -370,6 +375,7 @@ export const appRouter = createBrowserRouter([
               { path: 'admin/create-staff', element: <Navigate to="/admin/delegates" replace /> },
               { path: 'admin/users', element: <UserManagementPage /> },
               { path: 'admin/newsletter-boards', element: <NewsletterBoardAdminPage /> },
+              { path: 'admin/public-board-writers', element: <PublicBoardWriterAdminPage /> },
               {
                 element: <SuperAdminRoute />,
                 children: [

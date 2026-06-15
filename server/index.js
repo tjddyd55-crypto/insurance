@@ -93,6 +93,7 @@ import { logSecurityEvent, writeSecurityAudit } from './lib/securityAudit.js'
 import { recordSuccessfulUserLoginSession, resolveMinConcurrentSessionCapForUser } from './lib/authSessions.js'
 import { registerConsentApi } from './registerConsentApi.js'
 import { registerInsurerNewsApi } from './registerInsurerNewsApi.js'
+import { registerPublicBoardWriterApi } from './registerPublicBoardWriterApi.js'
 import { registerSignatureApi } from './registerSignatureApi.js'
 import { registerClientLogRoutes } from './routes/client-log.js'
 import { registerVersionRoutes } from './routes/version.js'
@@ -1424,6 +1425,14 @@ registerInsurerNewsApi(apiRouter, {
   parseGaId,
   resolveTenantGaIdForRequest,
   jwtSecret: JWT_SECRET,
+})
+
+registerPublicBoardWriterApi(apiRouter, {
+  pool,
+  requireAuth,
+  handleDbError,
+  jwtSecret: JWT_SECRET,
+  bcrypt,
 })
 
 function normalizeInviteCode(raw) {

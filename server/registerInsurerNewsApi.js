@@ -2,6 +2,26 @@ import { randomUUID } from 'node:crypto'
 import jwt from 'jsonwebtoken'
 import { safeQuery, systemQuery } from './utils/dbSafeQuery.js'
 import {
+  buildDynamicBoardPostGaFilter,
+  buildDynamicBoardPostGaFilterBare,
+  contentScopeFromLegacyIsPublic,
+  isGlobalContentScope,
+  mapNewsletterBoardDto,
+  normalizeContentScope,
+} from './lib/newsletterBoardScope.js'
+import {
+  GA_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL,
+  GA_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL,
+  INSERT_NEWSLETTER_BOARD_SQL,
+  NEWSLETTER_BOARD_BY_SLUG_SQL,
+  NEWSLETTER_BOARD_DUPLICATE_SLUG_SQL,
+  NEWSLETTER_BOARDS_VISIBLE_LIST_SQL,
+  SUPER_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL,
+  SUPER_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL,
+  SUPER_ADMIN_NEWSLETTER_BOARDS_LIST_SQL,
+} from './lib/newsletterBoardAdminSql.js'
+import { insertDynamicBoardNewsletter } from './lib/dynamicBoardNewsletterWrite.js'
+import {
   buildNewsletterBoardDuplicateSlugSql,
   GA_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL,
   GA_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL,
@@ -801,52 +821,17 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
   }
 
   function mapNewsletterBoard(row) {
-    return {
-      id: String(row.id),
-      slug: String(row.slug ?? ''),
-      label: String(row.label ?? ''),
-      isPublic: Boolean(row.is_public),
-      gaId: row.ga_id == null ? null : Number(row.ga_id),
-      gaCode: row.ga_code == null ? null : String(row.ga_code),
-      gaName: row.ga_name == null ? null : String(row.ga_name),
-      createdAt: toIso(row.created_at),
-      updatedAt: toIso(row.updated_at),
-    }
+    return mapNewsletterBoardDto(row)
   }
 
-  async function resolveNewsletterBoardTenantGaId(req, isPublic) {
-    if (isPublic) {
-      return null
-    }
-    const gaId = await resolveTenantGaIdForRequest(pool, req)
-    if (!Number.isInteger(gaId) || gaId < 1) {
-      throw Object.assign(new Error('GA 컨텍스트를 확인할 수 없습니다.'), { httpStatus: 400 })
-    }
-    return gaId
+  function canWriteGaScopedDynamicBoard(req) {
+    const role = String(req.user?.role ?? '')
+    return role === 'USER' || role === 'GA_ADMIN' || role === 'SUPER_ADMIN'
   }
 
   async function loadVisibleNewsletterBoard(req, boardSlug) {
     const slug = slugifyNewsletterBoard(boardSlug)
-    const tenantGaId = effectiveTenantGaId(req)
-    const params = [slug]
-    let visibilitySql = 'b.is_public = true'
-    if (Number.isInteger(tenantGaId) && tenantGaId > 0) {
-      params.push(tenantGaId)
-      visibilitySql = `(b.is_public = true OR b.ga_id = $${params.length})`
-    }
-    const r = await safeQuery(
-      pool,
-      `
-      SELECT b.*, g.code AS ga_code, g.name AS ga_name
-      FROM newsletter_boards b
-      LEFT JOIN ga_companies g ON g.id = b.ga_id
-      WHERE b.slug = $1
-        AND b.is_deleted = false
-        AND ${visibilitySql}
-      LIMIT 1
-      `,
-      params,
-    )
+    const r = await safeQuery(pool, NEWSLETTER_BOARD_BY_SLUG_SQL, [slug])
     return r.rowCount ? r.rows[0] : null
   }
 
@@ -1477,25 +1462,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
 
   apiRouter.get('/insurer-news/boards', requireAuth, forbidInsurerOnFeed, async (req, res) => {
     try {
-      const tenantGaId = effectiveTenantGaId(req)
-      const params = []
-      let visibilitySql = 'b.is_public = true'
-      if (Number.isInteger(tenantGaId) && tenantGaId > 0) {
-        params.push(tenantGaId)
-        visibilitySql = `(b.is_public = true OR b.ga_id = $${params.length})`
-      }
-      const r = await safeQuery(
-        pool,
-        `
-        SELECT b.*, g.code AS ga_code, g.name AS ga_name
-        FROM newsletter_boards b
-        LEFT JOIN ga_companies g ON g.id = b.ga_id
-        WHERE b.is_deleted = false
-          AND ${visibilitySql}
-        ORDER BY b.is_public DESC, b.created_at ASC, b.label ASC
-        `,
-        params,
-      )
+      const r = await safeQuery(pool, NEWSLETTER_BOARDS_VISIBLE_LIST_SQL, [])
       res.json(r.rows.map(mapNewsletterBoard))
     } catch (eBoards) {
       handleDbError(eBoards, req, res)
@@ -1508,31 +1475,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         res.status(403).json({ message: '소식지 메뉴 관리 권한이 없습니다.' })
         return
       }
-      const params = []
-      if (isSuperAdminRole(req.user?.role)) {
-        const r = await systemQuery(pool, SUPER_ADMIN_NEWSLETTER_BOARDS_LIST_SQL, params)
-        res.json(r.rows.map(mapNewsletterBoard))
-        return
-      }
-      const tenantGaId = await resolveTenantGaIdForRequest(pool, req)
-      if (!Number.isInteger(tenantGaId) || tenantGaId < 1) {
-        res.status(400).json({ message: 'GA 컨텍스트를 확인할 수 없습니다.' })
-        return
-      }
-      params.push(tenantGaId)
-      const scopeSql = `(b.is_public = true OR b.ga_id = $${params.length})`
-      const r = await safeQuery(
-        pool,
-        `
-        SELECT b.*, g.code AS ga_code, g.name AS ga_name
-        FROM newsletter_boards b
-        LEFT JOIN ga_companies g ON g.id = b.ga_id
-        WHERE b.is_deleted = false
-          AND ${scopeSql}
-        ORDER BY b.is_public DESC, b.created_at ASC, b.label ASC
-        `,
-        params,
-      )
+      const r = await safeQuery(pool, SUPER_ADMIN_NEWSLETTER_BOARDS_LIST_SQL, [])
       res.json(r.rows.map(mapNewsletterBoard))
     } catch (eBoardsAdmin) {
       handleDbError(eBoardsAdmin, req, res)
@@ -1547,7 +1490,13 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       }
       const body = req.body && typeof req.body === 'object' ? req.body : {}
       const label = String(body.label ?? '').trim()
-      const isPublic = Boolean(body.isPublic)
+      const isPublicLegacy =
+        body.isPublic != null
+          ? Boolean(body.isPublic)
+          : body.contentScope != null
+            ? normalizeContentScope(body.contentScope) === 'global'
+            : false
+      const contentScope = contentScopeFromLegacyIsPublic(isPublicLegacy)
       if (!label) {
         res.status(400).json({ message: '메뉴 이름을 입력해 주세요.' })
         return
@@ -1556,22 +1505,12 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         res.status(400).json({ message: '메뉴 이름은 40자 이하로 입력해 주세요.' })
         return
       }
-      if (isPublic && !isSuperAdminRole(req.user?.role)) {
-        res.status(403).json({ message: '공용 게시판은 최고 관리자만 만들 수 있습니다.' })
+      if (contentScope === 'global' && !isSuperAdminRole(req.user?.role)) {
+        res.status(403).json({ message: '전체 공용 게시판은 최고 관리자만 만들 수 있습니다.' })
         return
       }
       const slug = slugifyNewsletterBoard(label)
-      const gaId = await resolveNewsletterBoardTenantGaId(req, isPublic)
-      const duplicateSql = buildNewsletterBoardDuplicateSlugSql(isPublic)
-      if (!isPublic && (!Number.isInteger(gaId) || gaId < 1)) {
-        res.status(400).json({ message: 'GA 컨텍스트를 확인할 수 없습니다.' })
-        return
-      }
-      const dupe = await safeQuery(
-        pool,
-        duplicateSql.sql,
-        isPublic ? duplicateSql.params(slug) : duplicateSql.params(slug, gaId),
-      )
+      const dupe = await safeQuery(pool, NEWSLETTER_BOARD_DUPLICATE_SLUG_SQL, [slug])
       if (dupe.rowCount > 0) {
         res.status(409).json({ message: '같은 이름의 소식지 메뉴가 이미 있습니다.' })
         return
@@ -1579,22 +1518,18 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       const id = randomUUID()
       const r = await safeQuery(
         pool,
-        `
-        INSERT INTO newsletter_boards (id, ga_id, slug, label, is_public, created_by_user_id)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING *
-        `,
-        [id, gaId, slug, label, isPublic, String(req.user?.id ?? '') || null],
+        INSERT_NEWSLETTER_BOARD_SQL,
+        [
+          id,
+          slug,
+          label,
+          contentScope === 'global',
+          contentScope,
+          String(req.user?.id ?? '') || null,
+        ],
       )
       const row = r.rows[0]
-      const gaRow = row.ga_id == null
-        ? { rows: [{ ga_code: null, ga_name: null }], rowCount: 1 }
-        : await systemQuery(
-            pool,
-            `SELECT code AS ga_code, name AS ga_name FROM ga_companies WHERE id = $1`,
-            [row.ga_id],
-          )
-      res.status(201).json(mapNewsletterBoard({ ...row, ...(gaRow.rows[0] ?? {}) }))
+      res.status(201).json(mapNewsletterBoard({ ...row, ga_code: null, ga_name: null }))
     } catch (eBoardsCreate) {
       handleDbError(eBoardsCreate, req, res)
     }
@@ -1612,39 +1547,76 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         return
       }
       const isSuperAdmin = isSuperAdminRole(req.user?.role)
-      let tenantGaId = null
-      if (!isSuperAdmin) {
-        tenantGaId = await resolveTenantGaIdForRequest(pool, req)
-        if (!Number.isInteger(tenantGaId) || tenantGaId < 1) {
-          res.status(400).json({ message: 'GA 컨텍스트를 확인할 수 없습니다.' })
-          return
-        }
-      }
       let boardRes
       if (isSuperAdmin) {
         boardRes = await systemQuery(pool, SUPER_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL, [boardId])
       } else {
-        boardRes = await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL, [boardId, tenantGaId])
+        boardRes = await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL, [boardId])
       }
       if (boardRes.rowCount === 0) {
         res.status(404).json({ message: '소식지 메뉴를 찾을 수 없습니다.' })
         return
       }
       const board = boardRes.rows[0]
-      if (!isSuperAdmin) {
-        if (board.is_public || Number(board.ga_id) !== tenantGaId) {
-          res.status(403).json({ message: '이 소식지 메뉴를 삭제할 권한이 없습니다.' })
-          return
-        }
+      if (!isSuperAdmin && isGlobalContentScope(board.content_scope)) {
+        res.status(403).json({ message: '전체 공용 게시판 메뉴는 최고 관리자만 삭제할 수 있습니다.' })
+        return
       }
       if (isSuperAdmin) {
         await systemQuery(pool, SUPER_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL, [boardId])
       } else {
-        await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL, [boardId, tenantGaId])
+        await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL, [boardId])
       }
       res.status(204).send()
     } catch (eBoardsDelete) {
       handleDbError(eBoardsDelete, req, res)
+    }
+  })
+
+  apiRouter.post('/insurer-news/boards/:boardSlug/newsletters', requireAuth, forbidInsurerOnFeed, async (req, res) => {
+    try {
+      if (!canWriteGaScopedDynamicBoard(req)) {
+        res.status(403).json({ message: '게시글 작성 권한이 없습니다.' })
+        return
+      }
+      const board = await loadVisibleNewsletterBoard(req, req.params.boardSlug)
+      if (!board) {
+        res.status(404).json({ message: '소식지 메뉴를 찾을 수 없습니다.' })
+        return
+      }
+      if (isGlobalContentScope(board.content_scope)) {
+        res.status(403).json({ message: '전체 공용 게시판 글은 공용 작성자 계정으로만 작성할 수 있습니다.' })
+        return
+      }
+      const tenantGaId = effectiveTenantGaId(req)
+      if (!Number.isInteger(tenantGaId) || tenantGaId < 1) {
+        res.status(400).json({ message: 'GA 컨텍스트를 확인할 수 없습니다.' })
+        return
+      }
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      const bodyText = String(body.bodyText ?? '')
+      const statusRaw = String(body.status ?? 'PUBLISHED').toUpperCase()
+      const status = statusRaw === 'DRAFT' ? 'DRAFT' : 'PUBLISHED'
+      const row = await insertDynamicBoardNewsletter(pool, {
+        board,
+        gaId: tenantGaId,
+        bodyText,
+        status,
+        publisherId: String(req.user?.id ?? ''),
+      })
+      res.status(201).json({
+        id: String(row.id),
+        status: String(row.status),
+        bodyText: String(row.body_text ?? ''),
+      })
+    } catch (eBoardWrite) {
+      if (eBoardWrite && typeof eBoardWrite === 'object' && 'httpStatus' in eBoardWrite) {
+        res
+          .status(Number(eBoardWrite.httpStatus) || 400)
+          .json({ message: eBoardWrite instanceof Error ? eBoardWrite.message : '요청을 처리할 수 없습니다.' })
+        return
+      }
+      handleDbError(eBoardWrite, req, res)
     }
   })
 
@@ -1657,12 +1629,11 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       }
       const rawLimit = Number(req.query.limit ?? 500)
       const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(500, Math.floor(rawLimit))) : 500
-      const params = [String(board.slug), limit]
-      let scopeSql = ''
-      if (!board.is_public) {
-        params.push(Number(board.ga_id))
-        scopeSql = `AND n.ga_id = $${params.length}`
-      }
+      const params = [String(board.slug)]
+      const postFilter = buildDynamicBoardPostGaFilter(board, effectiveTenantGaId(req), params.length + 1)
+      params.push(...postFilter.params)
+      params.push(limit)
+      const limitIdx = params.length
       const nRes = await safeQuery(
         pool,
         `
@@ -1681,24 +1652,29 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
             WHERE a.newsletter_id = n.id AND a.mime_type <> 'application/pdf'
             ORDER BY a.sort_order ASC LIMIT 1) AS hero_attachment_id
         FROM insurance_company_newsletters n
-        INNER JOIN ga_companies g ON g.id = n.ga_id
+        LEFT JOIN ga_companies g ON g.id = n.ga_id
         WHERE n.status = 'PUBLISHED'
           AND LOWER(TRIM(n.payload->>'dynamicBoardSlug')) = $1
-          ${scopeSql}
+          ${postFilter.sql}
           AND COALESCE((n.payload->>'customerVisible')::boolean, false) = false
           AND COALESCE(NULLIF(TRIM(n.payload->>'insurerSlug'), ''), '') <> 'customer-news'
           AND UPPER(COALESCE(NULLIF(TRIM(n.payload->>'insurerCode'), ''), '')) <> 'CUSTOMER_NEWS'
         ORDER BY n.created_at DESC
-        LIMIT $2
+        LIMIT $${limitIdx}
         `,
         params,
       )
+      const tenantGaId = effectiveTenantGaId(req)
+      const gaCodeUpper = isGlobalContentScope(board.content_scope)
+        ? 'GLOBAL'
+        : (await resolveGaIdFromCodeParam(req.user?.gaCode) ? String(req.user?.gaCode ?? '').trim().toUpperCase() : '')
+      const accessGaId = isGlobalContentScope(board.content_scope) ? tenantGaId : Number(board.ga_id ?? tenantGaId)
       const newsletters = nRes.rows.map((row) =>
         mapNewsletterListRow(
           row,
-          String(row.ga_code_join ?? '').trim().toUpperCase(),
+          String(row.ga_code_join ?? gaCodeUpper ?? '').trim().toUpperCase() || 'GLOBAL',
           req,
-          buildAttachmentAccessContext(req, Number(row.ga_id)),
+          buildAttachmentAccessContext(req, accessGaId),
         ),
       )
       res.json({ board: mapNewsletterBoard(board), newsletters })
@@ -1715,11 +1691,8 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         return
       }
       const params = [String(req.params.newsletterId ?? ''), String(board.slug)]
-      let scopeSql = ''
-      if (!board.is_public) {
-        params.push(Number(board.ga_id))
-        scopeSql = `AND ga_id = $${params.length}`
-      }
+      const postFilter = buildDynamicBoardPostGaFilterBare(board, effectiveTenantGaId(req), params.length + 1)
+      params.push(...postFilter.params)
       const nRes = await safeQuery(
         pool,
         `
@@ -1728,7 +1701,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         WHERE id = $1
           AND LOWER(TRIM(payload->>'dynamicBoardSlug')) = $2
           AND status = 'PUBLISHED'
-          ${scopeSql}
+          ${postFilter.sql}
           AND COALESCE((payload->>'customerVisible')::boolean, false) = false
           AND COALESCE(NULLIF(TRIM(payload->>'insurerSlug'), ''), '') <> 'customer-news'
           AND UPPER(COALESCE(NULLIF(TRIM(payload->>'insurerCode'), ''), '')) <> 'CUSTOMER_NEWS'
@@ -1740,8 +1713,24 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         return
       }
       const row = nRes.rows[0]
-      const attRes = await safeQuery(pool, SQL_ATTACHMENTS_BY_NEWSLETTER_GA, [row.id, row.ga_id])
-      res.json(mapNewsletterDetail(row, attRes.rows, req, buildAttachmentAccessContext(req, Number(row.ga_id))))
+      let attRes
+      if (row.ga_id == null) {
+        attRes = await safeQuery(
+          pool,
+          `
+          SELECT a.*
+          FROM insurance_company_newsletter_attachments a
+          INNER JOIN insurance_company_newsletters n ON n.id = a.newsletter_id AND n.ga_id IS NULL
+          WHERE a.newsletter_id = $1
+          ORDER BY a.sort_order ASC
+          `,
+          [row.id],
+        )
+      } else {
+        attRes = await safeQuery(pool, SQL_ATTACHMENTS_BY_NEWSLETTER_GA, [row.id, Number(row.ga_id)])
+      }
+      const attGaId = row.ga_id == null ? effectiveTenantGaId(req) : Number(row.ga_id)
+      res.json(mapNewsletterDetail(row, attRes.rows, req, buildAttachmentAccessContext(req, attGaId)))
     } catch (eBoardDetail) {
       handleDbError(eBoardDetail, req, res)
     }
