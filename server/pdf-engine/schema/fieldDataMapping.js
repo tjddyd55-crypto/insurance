@@ -102,11 +102,22 @@ export function parseFieldDataMapping(raw) {
  */
 export function normalizeFieldDataMapping(raw) {
   const src = raw && typeof raw === 'object' ? /** @type {Record<string, unknown>} */ (raw) : {}
-  const typeRaw = typeof src.dataSourceType === 'string' ? src.dataSourceType.trim().toLowerCase() : ''
+  /*
+   * 저장 포맷은 camelCase 이지만, 운영 DB에는 초기 실험 버전에서 만든
+   * snake_case JSON 이 남아 있을 수 있다. reload/replace 저장 시 이 값을
+   * manual 로 오판하면 고객 데이터 매핑이 "시간이 지나 풀리는" 현상이 된다.
+   */
+  const dataSourceTypeRaw = src.dataSourceType ?? src.data_source_type
+  const customerFieldKeyRaw = src.customerFieldKey ?? src.customer_field_key
+  const customerFieldLabelRaw = src.customerFieldLabel ?? src.customer_field_label
+  const fallbackTextRaw = src.fallbackText ?? src.fallback_text
+  const transformTypeRaw = src.transformType ?? src.transform_type
+
+  const typeRaw = typeof dataSourceTypeRaw === 'string' ? dataSourceTypeRaw.trim().toLowerCase() : ''
   const dataSourceType = typeRaw === 'customer' ? 'customer' : 'manual'
 
   let customerFieldKey =
-    typeof src.customerFieldKey === 'string' ? src.customerFieldKey.trim() : null
+    typeof customerFieldKeyRaw === 'string' ? customerFieldKeyRaw.trim() : null
   if (customerFieldKey === 'dob') {
     customerFieldKey = 'birthDate'
   }
@@ -115,16 +126,16 @@ export function normalizeFieldDataMapping(raw) {
   }
 
   const customerFieldLabel =
-    typeof src.customerFieldLabel === 'string' && src.customerFieldLabel.trim()
-      ? src.customerFieldLabel.trim().slice(0, 80)
+    typeof customerFieldLabelRaw === 'string' && customerFieldLabelRaw.trim()
+      ? customerFieldLabelRaw.trim().slice(0, 80)
       : null
 
   const fallbackText =
-    typeof src.fallbackText === 'string' ? src.fallbackText.trim().slice(0, 500) : null
+    typeof fallbackTextRaw === 'string' ? fallbackTextRaw.trim().slice(0, 500) : null
 
   const transformType =
-    typeof src.transformType === 'string' && src.transformType.trim()
-      ? src.transformType.trim().slice(0, 40)
+    typeof transformTypeRaw === 'string' && transformTypeRaw.trim()
+      ? transformTypeRaw.trim().slice(0, 40)
       : null
 
   if (dataSourceType !== 'customer') {
