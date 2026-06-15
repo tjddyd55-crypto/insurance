@@ -44,7 +44,7 @@ type InsurerManagerNewsListPageProps = {
 export function InsurerManagerNewsListPage({
   channel = 'INSURER',
   title = '원수사 소식지 조회',
-  subtitle = '소속 원수사에 등록된 소식지만 표시됩니다.',
+  subtitle = '',
   openPathPrefix = '/insurer/news',
   emptyMessage = '등록된 소식지가 없습니다.',
   fetchScope = 'manager',
