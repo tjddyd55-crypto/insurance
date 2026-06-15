@@ -393,12 +393,45 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     ],
   )
 
+  const listFilterSignature = useMemo(
+    () =>
+      JSON.stringify({
+        keyword: keyword.trim(),
+        advancedFilters,
+        favoriteOnly,
+        hasAdvancedSearchHits: advSearchHits != null,
+        consultationFilter: appliedConsultationFilter,
+        consultationKeyword: appliedConsultationKeyword.trim(),
+        consultationFrom: appliedConsultationFrom.trim(),
+        consultationTo: appliedConsultationTo.trim(),
+        inflowSource: appliedInflowSource.trim(),
+        listSort: appliedListSort,
+      }),
+    [
+      keyword,
+      advancedFilters,
+      favoriteOnly,
+      advSearchHits,
+      appliedConsultationFilter,
+      appliedConsultationKeyword,
+      appliedConsultationFrom,
+      appliedConsultationTo,
+      appliedInflowSource,
+      appliedListSort,
+    ],
+  )
+  const previousListFilterSignatureRef = useRef(listFilterSignature)
+
   useEffect(() => {
-    if (!listIsNarrowed || expandedIdRef.current == null) {
+    if (previousListFilterSignatureRef.current === listFilterSignature) {
       return
     }
-    setExpandedId(null)
-  }, [listIsNarrowed, setExpandedId])
+    previousListFilterSignatureRef.current = listFilterSignature
+    pinnedListCustomerIdRef.current = null
+    mapEntryExpandPendingRef.current = null
+    setPinnedWorkspaceCustomer(null)
+    rawSetExpandedId(null)
+  }, [listFilterSignature])
 
   const applyConsultationFilter = useCallback(() => {
     if (consultationFilterDraft === 'no_since' && !consultationCutoffDraft.trim()) {
@@ -424,6 +457,35 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     inflowSourceDraft,
     listSortDraft,
   ])
+
+  const resetAllCustomerFilters = useCallback(() => {
+    setSearchInput('')
+    setDeepSearch(false)
+    setAdvSearchHits(null)
+    setFavoriteOnly(false)
+    setSortType(null)
+    setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS })
+    setConsultationFilterDraft('')
+    setConsultationCutoffDraft('')
+    setConsultationKeywordDraft('')
+    setConsultationFromDraft('')
+    setConsultationToDraft('')
+    setInflowSourceDraft('')
+    setListSortDraft('')
+    setAppliedConsultationFilter('')
+    setAppliedConsultationCutoff('')
+    setAppliedConsultationKeyword('')
+    setAppliedConsultationFrom('')
+    setAppliedConsultationTo('')
+    setAppliedInflowSource('')
+    setAppliedListSort('')
+    setConsultationFilterMessage('')
+    pinnedListCustomerIdRef.current = null
+    mapEntryExpandPendingRef.current = null
+    pendingMapExpandIdRef.current = null
+    setPinnedWorkspaceCustomer(null)
+    setExpandedId(null)
+  }, [setExpandedId])
 
   const sortedCustomers = useMemo(() => {
     const copy = [...filteredCustomers]
@@ -484,6 +546,9 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   /** 상세 화면 고객이 검색·필터에 걸려 숨겨지지 않도록 목록 상단에 고정 */
   const listCustomersToRender = useMemo(() => {
     const base = dedupeCustomersById(sortedCustomers)
+    if (listIsNarrowed) {
+      return base
+    }
     const pinId = activeListCustomerId
     if (pinId == null) {
       return base
@@ -499,7 +564,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       return base
     }
     return dedupeCustomersById([pinned, ...base])
-  }, [activeListCustomerId, sortedCustomers, pinnedWorkspaceCustomer, customers])
+  }, [activeListCustomerId, sortedCustomers, pinnedWorkspaceCustomer, customers, listIsNarrowed])
 
   const visibleListCount = useMemo(
     () => listCustomersToRender.length,
@@ -1545,6 +1610,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           advancedFiltersActive={advancedFiltersActive}
           applyQuickFilter={applyQuickFilter}
           resetAdvancedFilters={() => setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS })}
+          resetAllFilters={resetAllCustomerFilters}
           consultationFilter={consultationFilterDraft}
           setConsultationFilter={setConsultationFilterDraft}
           consultationCutoffDate={consultationCutoffDraft}

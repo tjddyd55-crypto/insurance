@@ -2746,6 +2746,21 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS notification_settings (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id),
+      customer_claim_message BOOLEAN NOT NULL DEFAULT true,
+      new_customer_registered BOOLEAN NOT NULL DEFAULT true,
+      insurer_news_uploaded BOOLEAN NOT NULL DEFAULT true,
+      car_renewal_one_month BOOLEAN NOT NULL DEFAULT true,
+      insurer_contact_updated BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (user_id, ga_id)
+    )
+  `)
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS customer_consultations (
       id SERIAL PRIMARY KEY,
       customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,

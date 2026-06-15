@@ -930,7 +930,7 @@ export default function ClaimRequestsPage() {
                   htmlType="button"
                   className={`w-full text-left rounded-lg px-2 py-2 border ${
                     selectedCustomerId === customer.customerId
-                      ? 'border-blue-500 bg-blue-50/60'
+                      ? 'border-[var(--brand-primary)] bg-[var(--brand-soft)] text-[var(--text-primary)]'
                       : 'border-transparent hover:border-[var(--border-default)]'
                   }`}
                   onClick={() => setSelectedCustomerId(customer.customerId)}

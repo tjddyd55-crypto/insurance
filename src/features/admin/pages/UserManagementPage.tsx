@@ -66,6 +66,18 @@ function StatusBadge({ status }: { status: EntityStatus }) {
   )
 }
 
+function formatReferrer(row: AdminUserRow): string {
+  const displayName = String(row.referrer_display_name ?? '').trim()
+  const username = String(row.referrer_username ?? '').trim()
+  const gaName = String(row.referrer_ga_company_name ?? '').trim()
+  if (!displayName && !username) {
+    return '—'
+  }
+  const name = displayName || username
+  const userSuffix = displayName && username ? ` (${username})` : ''
+  return gaName ? `${name}${userSuffix} / ${gaName}` : `${name}${userSuffix}`
+}
+
 const EDIT_ROLE_OPTIONS: { value: UserRole; label: string }[] = [
   { value: 'USER', label: 'USER (일반)' },
   { value: 'GA_ADMIN', label: 'GA_ADMIN (GA 관리자)' },
@@ -233,6 +245,7 @@ export default function UserManagementPage() {
         <td>{r.ga_company_name}</td>
         <td>{displayName || '—'}</td>
         <td>{r.username}</td>
+        <td>{formatReferrer(r)}</td>
         <td>{r.role}</td>
         <td>
           <StatusBadge status={st} />
@@ -282,6 +295,10 @@ export default function UserManagementPage() {
         <div className="admin-user-card__row">
           <span className="admin-user-card__label">아이디</span>
           <span className="admin-user-card__value">{r.username}</span>
+        </div>
+        <div className="admin-user-card__row">
+          <span className="admin-user-card__label">추천인</span>
+          <span className="admin-user-card__value">{formatReferrer(r)}</span>
         </div>
         <div className="admin-user-card__row">
           <span className="admin-user-card__label">역할</span>
@@ -357,6 +374,7 @@ export default function UserManagementPage() {
                 <th scope="col">GA</th>
                 <th scope="col">이름</th>
                 <th scope="col">아이디</th>
+                <th scope="col">추천인</th>
                 <th scope="col">역할</th>
                 <th scope="col">상태</th>
                 <th scope="col" className="admin-table-cell--actions">
@@ -367,7 +385,7 @@ export default function UserManagementPage() {
             <tbody>
               {rows.length === 0 && !isLoading ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: '20px 14px', color: 'var(--text-sub)' }}>
+                  <td colSpan={7} style={{ padding: '20px 14px', color: 'var(--text-sub)' }}>
                     표시할 사용자가 없습니다.
                   </td>
                 </tr>

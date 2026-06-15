@@ -16,7 +16,7 @@ import { useAuth } from '../../auth/AuthProvider'
 import { useNotes } from '../hooks/useNotes'
 import { loadMemoUiSnapshot, patchMemoUiCanvas } from '../memoUiStorage'
 
-const ROUTED_MEMO_CANVAS_MIN_HEIGHT = 2400
+const ROUTED_MEMO_DRAG_EXTENSION = 1200
 
 type MemoWorkspaceContextValue = ReturnType<typeof useNotes> & {
   token: string | undefined
@@ -154,8 +154,7 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
       width: el.clientWidth,
       height: Math.max(
         el.scrollHeight,
-        el.clientHeight,
-        routedPage ? ROUTED_MEMO_CANVAS_MIN_HEIGHT : 0,
+        el.clientHeight + (routedPage ? ROUTED_MEMO_DRAG_EXTENSION : 0),
       ),
     }
   }, [routedPage])
@@ -182,8 +181,13 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
       return n.y + h
     })
     const maxY = Math.max(...bottoms)
-    return Math.max(maxY + 100, routedPage ? ROUTED_MEMO_CANVAS_MIN_HEIGHT : 0)
-  }, [notes, hiddenNotes, routedPage])
+    const canvasBottom = maxY + 80
+    const viewportHeight = workspaceRef.current?.clientHeight ?? 0
+    if (routedPage && canvasBottom <= viewportHeight) {
+      return undefined
+    }
+    return canvasBottom
+  }, [notes, hiddenNotes, routedPage, workspaceSizeTick])
 
   useEffect(() => {
     if (notes.length === 0 || draggingNoteId != null) {
@@ -358,18 +362,11 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
 
     if (routedPage) {
       requestAnimationFrame(() => {
-        if (ensureRoutedNoteVisible(created.id, { center: true })) {
-          return
-        }
-        const { width, height } = getWorkspaceBounds()
-        if (width <= 0 || height <= 0) {
-          scrollCanvasToNote(created.id)
-          return
-        }
+        const workspace = workspaceRef.current
+        const { width } = getWorkspaceBounds()
         const noteWidth = Math.max(200, Number(created.width) || 200)
-        const noteHeight = Math.max(150, Number(created.height) || 160)
-        const x = Math.max(20, Math.round((width - noteWidth) / 2))
-        const y = Math.max(20, Math.round((height - noteHeight) / 2))
+        const x = Math.max(20, Math.min(100, Math.max(20, width - noteWidth - 20)))
+        const y = Math.max(20, (workspace?.scrollTop ?? 0) + 20)
         updatePosition(created.id, x, y)
         scrollCanvasToNote(created.id)
       })
@@ -377,7 +374,6 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
   }, [
     addNote,
     bringToFront,
-    ensureRoutedNoteVisible,
     getWorkspaceBounds,
     restoreNote,
     routedPage,

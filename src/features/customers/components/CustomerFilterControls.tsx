@@ -43,6 +43,7 @@ type FilterPanelProps = {
   advancedFiltersActive: boolean
   applyQuickFilter: (type: 'AGE_UNDER_30_MALE' | 'AGE_OVER_40_FEMALE') => void
   resetAdvancedFilters: () => void
+  resetAllFilters: () => void
   consultationFilter: CustomerConsultationFilter
   setConsultationFilter: Dispatch<SetStateAction<CustomerConsultationFilter>>
   consultationCutoffDate: string
@@ -123,6 +124,7 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
     advancedFiltersActive,
     applyQuickFilter,
     resetAdvancedFilters,
+    resetAllFilters,
     consultationFilter,
     setConsultationFilter,
     consultationCutoffDate,
@@ -194,6 +196,15 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
             onClick={onApplyConsultationFilter}
           >
             필터 적용
+          </FormButton>
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            size="sm"
+            className="customer-filter-chip"
+            onClick={resetAllFilters}
+          >
+            필터 초기화
           </FormButton>
         </div>
         {consultationFilterMessage ? (
