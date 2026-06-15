@@ -185,7 +185,7 @@ const CustomerListCard = memo(function CustomerListCard({
   crmIndustryTemplate,
 }: CustomerListCardProps) {
   const isMobile = variant === 'mobile'
-  /** 확장 헤더 액션: 보기에서는 수정/삭제만 고객명 오른쪽에 고정, 수정 중에는 저장/취소만 */
+  /** 확장 헤더 액션: PC는 복사/수정/삭제, 모바일은 수정/삭제를 고객명 오른쪽에 고정한다. */
   const isEditingThisCard = editingId === c.id && Boolean(editForm)
   const [mobileInfoExpanded, setMobileInfoExpanded] = useState(false)
   const validCustomerId =
@@ -552,21 +552,6 @@ const CustomerListCard = memo(function CustomerListCard({
                     )}
                   </div>
                 </div>
-                {!isMobile && !isEditingThisCard ? (
-                  <div className="customer-detail-secondary-action-row" aria-label="고객 보조 작업">
-                    <FormButton
-                      htmlType="button"
-                      variant="secondary"
-                      size="sm"
-                      className="customer-detail-action-button customer-detail-action-button--copy"
-                      title="카톡 복사 형식으로 복사"
-                      aria-label="복사"
-                      onClick={() => void onCopyCustomer(c)}
-                    >
-                      복사
-                    </FormButton>
-                  </div>
-                ) : null}
                 {editingId === c.id && editForm ? (
                   <CustomerEditForm
                     customerId={c.id}
