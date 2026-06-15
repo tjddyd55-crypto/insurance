@@ -2,6 +2,14 @@ import { randomUUID } from 'node:crypto'
 import jwt from 'jsonwebtoken'
 import { safeQuery, systemQuery } from './utils/dbSafeQuery.js'
 import {
+  buildNewsletterBoardDuplicateSlugSql,
+  GA_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL,
+  GA_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL,
+  SUPER_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL,
+  SUPER_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL,
+  SUPER_ADMIN_NEWSLETTER_BOARDS_LIST_SQL,
+} from './lib/newsletterBoardAdminSql.js'
+import {
   consentGetBuffer,
   consentPutInsurerAttachment,
   getR2InsurerAttachmentsCacheControl,
@@ -1501,16 +1509,18 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         return
       }
       const params = []
-      let scopeSql = 'true'
-      if (!isSuperAdminRole(req.user?.role)) {
-        const tenantGaId = await resolveTenantGaIdForRequest(pool, req)
-        if (!Number.isInteger(tenantGaId) || tenantGaId < 1) {
-          res.status(400).json({ message: 'GA 컨텍스트를 확인할 수 없습니다.' })
-          return
-        }
-        params.push(tenantGaId)
-        scopeSql = `(b.is_public = true OR b.ga_id = $${params.length})`
+      if (isSuperAdminRole(req.user?.role)) {
+        const r = await systemQuery(pool, SUPER_ADMIN_NEWSLETTER_BOARDS_LIST_SQL, params)
+        res.json(r.rows.map(mapNewsletterBoard))
+        return
       }
+      const tenantGaId = await resolveTenantGaIdForRequest(pool, req)
+      if (!Number.isInteger(tenantGaId) || tenantGaId < 1) {
+        res.status(400).json({ message: 'GA 컨텍스트를 확인할 수 없습니다.' })
+        return
+      }
+      params.push(tenantGaId)
+      const scopeSql = `(b.is_public = true OR b.ga_id = $${params.length})`
       const r = await safeQuery(
         pool,
         `
@@ -1552,16 +1562,15 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       }
       const slug = slugifyNewsletterBoard(label)
       const gaId = await resolveNewsletterBoardTenantGaId(req, isPublic)
+      const duplicateSql = buildNewsletterBoardDuplicateSlugSql(isPublic)
+      if (!isPublic && (!Number.isInteger(gaId) || gaId < 1)) {
+        res.status(400).json({ message: 'GA 컨텍스트를 확인할 수 없습니다.' })
+        return
+      }
       const dupe = await safeQuery(
         pool,
-        `
-        SELECT id
-        FROM newsletter_boards
-        WHERE slug = $1
-          AND is_deleted = false
-        LIMIT 1
-        `,
-        [slug],
+        duplicateSql.sql,
+        isPublic ? duplicateSql.params(slug) : duplicateSql.params(slug, gaId),
       )
       if (dupe.rowCount > 0) {
         res.status(409).json({ message: '같은 이름의 소식지 메뉴가 이미 있습니다.' })
@@ -1580,7 +1589,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       const row = r.rows[0]
       const gaRow = row.ga_id == null
         ? { rows: [{ ga_code: null, ga_name: null }], rowCount: 1 }
-        : await safeQuery(
+        : await systemQuery(
             pool,
             `SELECT code AS ga_code, name AS ga_name FROM ga_companies WHERE id = $1`,
             [row.ga_id],
@@ -1602,40 +1611,37 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         res.status(400).json({ message: '게시판 ID가 없습니다.' })
         return
       }
-      const boardRes = await safeQuery(
-        pool,
-        `
-        SELECT *
-        FROM newsletter_boards
-        WHERE id = $1
-          AND is_deleted = false
-        LIMIT 1
-        `,
-        [boardId],
-      )
+      const isSuperAdmin = isSuperAdminRole(req.user?.role)
+      let tenantGaId = null
+      if (!isSuperAdmin) {
+        tenantGaId = await resolveTenantGaIdForRequest(pool, req)
+        if (!Number.isInteger(tenantGaId) || tenantGaId < 1) {
+          res.status(400).json({ message: 'GA 컨텍스트를 확인할 수 없습니다.' })
+          return
+        }
+      }
+      let boardRes
+      if (isSuperAdmin) {
+        boardRes = await systemQuery(pool, SUPER_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL, [boardId])
+      } else {
+        boardRes = await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL, [boardId, tenantGaId])
+      }
       if (boardRes.rowCount === 0) {
         res.status(404).json({ message: '소식지 메뉴를 찾을 수 없습니다.' })
         return
       }
       const board = boardRes.rows[0]
-      if (!isSuperAdminRole(req.user?.role)) {
-        const tenantGaId = await resolveTenantGaIdForRequest(pool, req)
+      if (!isSuperAdmin) {
         if (board.is_public || Number(board.ga_id) !== tenantGaId) {
           res.status(403).json({ message: '이 소식지 메뉴를 삭제할 권한이 없습니다.' })
           return
         }
       }
-      await safeQuery(
-        pool,
-        `
-        UPDATE newsletter_boards
-        SET is_deleted = true,
-            deleted_at = NOW(),
-            updated_at = NOW()
-        WHERE id = $1
-        `,
-        [boardId],
-      )
+      if (isSuperAdmin) {
+        await systemQuery(pool, SUPER_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL, [boardId])
+      } else {
+        await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL, [boardId, tenantGaId])
+      }
       res.status(204).send()
     } catch (eBoardsDelete) {
       handleDbError(eBoardsDelete, req, res)
