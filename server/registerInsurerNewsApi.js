@@ -22,14 +22,6 @@ import {
 } from './lib/newsletterBoardAdminSql.js'
 import { insertDynamicBoardNewsletter } from './lib/dynamicBoardNewsletterWrite.js'
 import {
-  buildNewsletterBoardDuplicateSlugSql,
-  GA_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL,
-  GA_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL,
-  SUPER_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL,
-  SUPER_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL,
-  SUPER_ADMIN_NEWSLETTER_BOARDS_LIST_SQL,
-} from './lib/newsletterBoardAdminSql.js'
-import {
   consentGetBuffer,
   consentPutInsurerAttachment,
   getR2InsurerAttachmentsCacheControl,
