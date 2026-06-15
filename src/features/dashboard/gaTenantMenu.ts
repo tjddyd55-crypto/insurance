@@ -6,6 +6,8 @@
 
 import { isAllowedForExpiredFrontend } from '../subscription/expiredAllowlist'
 import { canAccessContractSignatureAdminConsole } from '../contracts/testConsole/contractSignatureTestConsoleFlags'
+import { isPublicGeneralAccount } from '../auth/generalGa'
+import { applyPublicAccountMenuPathRestrictions } from '../auth/publicAccountRestrictedRoutes'
 
 export type GaTenantMenuItem = { label: string; path: string }
 
@@ -389,9 +391,15 @@ export function buildAppMenuForSession(
   })()
 
   if (!subscriptionExpired) {
-    return withTeam
+    return applyPublicAccountMenuPathRestrictions(
+      withTeam,
+      isPublicGeneralAccount({ gaCode, gaName }),
+    )
   }
-  return filterMenuForExpired(withTeam)
+  return applyPublicAccountMenuPathRestrictions(
+    filterMenuForExpired(withTeam),
+    isPublicGeneralAccount({ gaCode, gaName }),
+  )
 }
 
 function filterMenuForExpired(
