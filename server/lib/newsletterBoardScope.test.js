@@ -41,15 +41,16 @@ test('canUserAccessBoardMenu — ga owner match', () => {
   assert.equal(canUserAccessBoardMenu({ board_scope: 'global' }, 3), true)
   assert.equal(canUserAccessBoardMenu({ board_scope: 'ga', owner_ga_id: 3 }, 3), true)
   assert.equal(canUserAccessBoardMenu({ board_scope: 'ga', owner_ga_id: 3 }, 4), false)
-  assert.equal(canUserAccessBoardMenu({ board_scope: 'ga', owner_ga_id: null }, 4), true)
+  assert.equal(canUserAccessBoardMenu({ board_scope: 'ga', owner_ga_id: null }, 4), false)
+})
+
+test('visible list SQL — strict ga owner, no NULL owner', () => {
+  assert.match(NEWSLETTER_BOARDS_VISIBLE_LIST_SQL, /owner_ga_id\s*=\s*\$1/i)
+  assert.doesNotMatch(NEWSLETTER_BOARDS_VISIBLE_LIST_SQL, /owner_ga_id\s+IS\s+NULL/i)
 })
 
 test('global duplicate slug SQL uses board_scope', () => {
   assert.match(GLOBAL_NEWSLETTER_BOARD_DUPLICATE_SLUG_SQL, /board_scope\s*=\s*'global'/i)
-})
-
-test('visible list SQL filters by tenant ga', () => {
-  assert.match(NEWSLETTER_BOARDS_VISIBLE_LIST_SQL, /owner_ga_id\s*=\s*\$1/i)
 })
 
 test('GA admin board lookup scopes owner ga', () => {
