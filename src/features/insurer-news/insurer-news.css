@@ -463,9 +463,26 @@
   align-items: center;
 }
 
-.insurer-news-search {
+.insurer-news-filters:not(.insurer-news-list-searchbar) .insurer-news-search {
   flex: 1 1 200px;
   min-width: 0;
+}
+
+.insurer-news-list-searchbar.insurer-news-filters {
+  display: block;
+  gap: 0;
+  height: auto;
+  min-height: 0;
+}
+
+.insurer-news-list-searchbar .insurer-news-search,
+.insurer-news-list-searchbar .insurer-news-searchbar {
+  display: block;
+  flex: none;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
 }
 
 .insurer-news-search input {
@@ -1024,6 +1041,13 @@
   .insurer-news-page.insurer-news-page--mobile .insurer-news-searchbar,
   .insurer-news-page.insurer-news-page--mobile .insurer-news-search input {
     width: 100%;
+  }
+
+  .insurer-news-page.insurer-news-page--mobile .insurer-news-list-searchbar .insurer-news-search,
+  .insurer-news-page.insurer-news-page--mobile .insurer-news-list-searchbar .insurer-news-searchbar {
+    flex: none;
+    height: auto;
+    min-height: 0;
   }
 
   .mobile-root .insurer-news-page .news-grid,
