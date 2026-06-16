@@ -1,4 +1,4 @@
-import { systemQuery } from './utils/dbSafeQuery.js'
+import { systemQuery } from '../utils/dbSafeQuery.js'
 import { BOARD_SCOPE_GLOBAL, BOARD_SCOPE_GA, isGlobalBoardScope } from './newsletterBoardScope.js'
 
 export const BOARD_WRITER_JWT_KIND = 'BOARD_WRITER'

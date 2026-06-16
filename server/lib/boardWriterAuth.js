@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken'
-import { BOARD_WRITER_JWT_KIND, PUBLIC_BOARD_WRITER_JWT_KIND } from './lib/boardWriterService.js'
+import { BOARD_WRITER_JWT_KIND, PUBLIC_BOARD_WRITER_JWT_KIND } from './boardWriterService.js'
 
 /**
  * @param {string} jwtSecret
