@@ -3,6 +3,7 @@ import { MONTHLY_BASIC_PLAN_CODE } from './policy.js'
 import { calculateInvoicePricing, getDefaultBillingPlan } from './pricing.js'
 import { resolveBillingPlanForUser } from './planResolver.js'
 import { calculateVatIncludedPrice } from '../lib/pricingPolicy.js'
+import { calculateDiscountedTotalAmount } from '../lib/pricingPolicy.js'
 import { getPaymentSettingsPublic } from './paymentSettings.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 
@@ -76,6 +77,7 @@ export async function listInvoicesForUser(executor, userId, opts = {}) {
     `
     SELECT
       id, plan_code, base_amount, referral_discount_amount, referee_first_month_discount_amount,
+      promotion_code_id, promotion_discount_amount,
       discount_amount, final_amount, status, billing_period_start, billing_period_end,
       due_at, paid_at, created_at
     FROM payment_invoices
@@ -109,6 +111,7 @@ export async function listInvoicesAdmin(executor, opts = {}) {
     SELECT
       pi.id, pi.user_id, u.display_name, u.username,
       pi.plan_code, pi.base_amount, pi.referral_discount_amount, pi.referee_first_month_discount_amount,
+      pi.promotion_code_id, pi.promotion_discount_amount,
       pi.discount_amount, pi.final_amount, pi.status, pi.billing_period_start, pi.billing_period_end,
       pi.due_at, pi.paid_at, pi.created_at
     FROM payment_invoices pi
@@ -131,6 +134,8 @@ function mapInvoiceRow(row) {
   const finalAmountStored = Number(row.final_amount ?? 0)
   const referralDiscountAmount = Number(row.referral_discount_amount ?? 0)
   const refereeFirstMonthDiscountAmount = Number(row.referee_first_month_discount_amount ?? 0)
+  const promotionDiscountAmount = Number(row.promotion_discount_amount ?? 0)
+  const promotionCodeId = row.promotion_code_id == null ? null : Number(row.promotion_code_id)
   const discountAmountStored = Number(row.discount_amount ?? 0)
 
   const isLegacySupplyPricing =
@@ -146,6 +151,8 @@ function mapInvoiceRow(row) {
       vatAmount: legacyPriced.vatAmount,
       referralDiscountAmount,
       refereeFirstMonthDiscountAmount,
+      promotionCodeId,
+      promotionDiscountAmount,
       discountAmount: calculateVatIncludedPrice(baseAmountStored).totalAmount - legacyPriced.totalAmount,
       finalSupplyAmount: finalAmountStored,
       finalAmount: legacyPriced.totalAmount,
@@ -159,7 +166,7 @@ function mapInvoiceRow(row) {
     }
   }
 
-  const supplyDiscountAmount = referralDiscountAmount + refereeFirstMonthDiscountAmount
+  const supplyDiscountAmount = referralDiscountAmount + refereeFirstMonthDiscountAmount + promotionDiscountAmount
   const defaultPlan = getDefaultBillingPlan()
   const baseSupplyAmount =
     baseAmountStored === defaultPlan.totalAmount
@@ -175,6 +182,8 @@ function mapInvoiceRow(row) {
     vatAmount: priced.vatAmount,
     referralDiscountAmount,
     refereeFirstMonthDiscountAmount,
+    promotionCodeId,
+    promotionDiscountAmount,
     discountAmount: discountAmountStored,
     finalSupplyAmount: priced.supplyAmount,
     finalAmount: finalAmountStored,
@@ -230,6 +239,8 @@ export async function createPendingInvoice(executor, userId, options = {}) {
       base_amount,
       referral_discount_amount,
       referee_first_month_discount_amount,
+      promotion_code_id,
+      promotion_discount_amount,
       discount_amount,
       final_amount,
       status,
@@ -237,7 +248,7 @@ export async function createPendingInvoice(executor, userId, options = {}) {
       billing_period_end,
       due_at
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, $9, $10)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', $10, $11, $12)
     RETURNING id
     `,
     [
@@ -246,6 +257,8 @@ export async function createPendingInvoice(executor, userId, options = {}) {
       pricing.baseAmount,
       pricing.referralDiscountAmount,
       pricing.refereeFirstMonthDiscountAmount,
+      pricing.promotionCodeId,
+      pricing.promotionDiscountAmount,
       pricing.discountAmount,
       pricing.finalAmount,
       periodStart,
@@ -255,6 +268,40 @@ export async function createPendingInvoice(executor, userId, options = {}) {
   )
 
   const invoiceId = Number(ins.rows[0].id)
+
+  if (pricing.promotionCodeId != null && Number(pricing.promotionDiscountAmount ?? 0) > 0) {
+    const baseTotal = calculateDiscountedTotalAmount(pricing.baseSupplyAmount, 0).totalAmount
+    const promoOnlyTotal = calculateDiscountedTotalAmount(
+      pricing.baseSupplyAmount,
+      Number(pricing.promotionDiscountAmount ?? 0),
+    ).totalAmount
+    const promoDiscountTotal = Math.max(baseTotal - promoOnlyTotal, 0)
+    await systemQuery(
+      executor,
+      `
+      INSERT INTO promotion_code_redemptions (
+        promotion_code_id,
+        user_id,
+        invoice_id,
+        original_amount,
+        discount_amount,
+        final_amount,
+        applied_month_index
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `,
+      [
+        pricing.promotionCodeId,
+        userId,
+        invoiceId,
+        pricing.baseAmount,
+        promoDiscountTotal,
+        pricing.finalAmount,
+        Math.max(1, Number(pricing.promotionMonthIndex ?? 1) || 1),
+      ],
+    )
+  }
+
   const rows = await listInvoicesForUser(executor, userId, { limit: 1 })
   const created = rows.find((row) => row.id === invoiceId) ?? rows[0]
   return { invoice: created, pricing, planSource: resolved.source, paymentMode: settings.mode }

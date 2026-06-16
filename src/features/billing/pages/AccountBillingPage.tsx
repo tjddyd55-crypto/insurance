@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { FormButton } from '../../../components/form'
+import { FormButton, FormInput } from '../../../components/form'
 import { StatusMessage } from '../../../components/feedback'
 import { useAuth } from '../../auth/AuthProvider'
+import {
+  applyPromotionOrReferralCode,
+  fetchPromotionCodeMe,
+  validatePromotionOrReferralCode,
+  type PromotionCodeMeResponse,
+} from '../../promotions/promotionApi'
 import {
   BILLING_STATUS_LABEL,
   createBillingInvoice,
@@ -21,6 +27,10 @@ export default function AccountBillingPage() {
   const { token } = useAuth()
   const [me, setMe] = useState<BillingMeResponse | null>(null)
   const [invoices, setInvoices] = useState<BillingInvoice[]>([])
+  const [appliedCode, setAppliedCode] = useState<PromotionCodeMeResponse | null>(null)
+  const [codeInput, setCodeInput] = useState('')
+  const [codeHint, setCodeHint] = useState('')
+  const [codeError, setCodeError] = useState('')
   const [loadError, setLoadError] = useState('')
   const [actionError, setActionError] = useState('')
   const [actionInfo, setActionInfo] = useState('')
@@ -30,9 +40,14 @@ export default function AccountBillingPage() {
     if (!token?.trim()) return
     setLoadError('')
     try {
-      const [billingMe, invoiceRes] = await Promise.all([fetchBillingMe(token), fetchBillingInvoices(token)])
+      const [billingMe, invoiceRes, codeMe] = await Promise.all([
+        fetchBillingMe(token),
+        fetchBillingInvoices(token),
+        fetchPromotionCodeMe(token),
+      ])
       setMe(billingMe)
       setInvoices(invoiceRes.invoices)
+      setAppliedCode(codeMe)
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : '결제 정보를 불러오지 못했습니다.')
     }
@@ -41,6 +56,65 @@ export default function AccountBillingPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    const raw = codeInput.trim().toUpperCase().replace(/\s+/g, '')
+    if (!raw || appliedCode?.applied) {
+      setCodeHint('')
+      setCodeError('')
+      return
+    }
+
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const data = await validatePromotionOrReferralCode(raw)
+          if (cancelled) return
+          if (data.valid) {
+            setCodeHint(data.benefitSummary ?? data.message ?? '적용 가능한 코드입니다.')
+            setCodeError('')
+          } else {
+            setCodeHint('')
+            setCodeError(data.message ?? '사용할 수 없는 코드입니다.')
+          }
+        } catch {
+          if (cancelled) return
+          setCodeHint('')
+          setCodeError('코드 확인에 실패했습니다.')
+        }
+      })()
+    }, 400)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [codeInput, appliedCode?.applied])
+
+  const onApplyCode = async () => {
+    if (!token?.trim() || busy || appliedCode?.applied) return
+    const raw = codeInput.trim()
+    if (!raw) {
+      setCodeError('코드를 입력해 주세요.')
+      return
+    }
+    setBusy(true)
+    setActionError('')
+    setActionInfo('')
+    setCodeError('')
+    try {
+      const result = await applyPromotionOrReferralCode(token, raw)
+      setActionInfo(result.benefitSummary ?? result.message ?? '코드가 적용되었습니다.')
+      setCodeInput('')
+      setCodeHint('')
+      await load()
+    } catch (e) {
+      setCodeError(e instanceof Error ? e.message : '코드 적용에 실패했습니다.')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const onCreateInvoice = async () => {
     if (!token?.trim() || busy) return
@@ -96,6 +170,37 @@ export default function AccountBillingPage() {
       ) : null}
 
       {loadError ? <StatusMessage tone="error" message={loadError} /> : null}
+
+      <section className="card auth-card billing-page__card">
+        <h2 className="billing-page__section-title">추천/할인 코드</h2>
+        {appliedCode?.applied ? (
+          <dl className="billing-page__meta">
+            <dt>적용 코드</dt>
+            <dd>{appliedCode.code ?? '—'}</dd>
+            <dt>혜택</dt>
+            <dd>{appliedCode.benefitSummary ?? '할인이 다음 결제부터 반영됩니다.'}</dd>
+          </dl>
+        ) : (
+          <>
+            <label className="field">
+              <span className="field__label">코드 입력</span>
+              <FormInput
+                value={codeInput}
+                onChange={(e) => setCodeInput(e.target.value.toUpperCase().replace(/\s+/g, ''))}
+                autoComplete="off"
+                placeholder="가입 시 입력하지 않았다면 여기서 적용할 수 있습니다"
+              />
+            </label>
+            {codeHint ? <p className="status">{codeHint}</p> : null}
+            {codeError ? <StatusMessage tone="error" message={codeError} /> : null}
+            <div className="billing-page__actions">
+              <FormButton htmlType="button" variant="secondary" disabled={busy} onClick={() => void onApplyCode()}>
+                코드 적용
+              </FormButton>
+            </div>
+          </>
+        )}
+      </section>
 
       {me ? (
         <section className="card auth-card billing-page__card">
