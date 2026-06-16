@@ -37,6 +37,7 @@ import {
   type ReferralBillingPolicyAdmin,
 } from '../api/billingApi'
 import { formatPricingBreakdown, formatReferralDiscountPolicySummary } from '../pricingPolicy'
+import PromotionCodesAdminSection from '../components/PromotionCodesAdminSection'
 import {
   normalizePaymentMode,
   normalizePaymentProvider,
@@ -50,6 +51,7 @@ const TABS = [
   { id: 'users', label: '구독 사용자' },
   { id: 'invoices', label: '결제/청구 내역' },
   { id: 'referral', label: '할인·추천인 정책' },
+  { id: 'promotions', label: '프로모션 코드' },
   { id: 'payment', label: '결제 연동 설정' },
 ] as const
 
@@ -615,6 +617,22 @@ export default function AdminBillingManagePage() {
             ) : null}
           </section>
         </>
+      ) : null}
+
+      {activeTab === 'promotions' ? (
+        <PromotionCodesAdminSection
+          token={token ?? ''}
+          busy={busy}
+          setBusy={setBusy}
+          onInfo={(message) => {
+            setActionInfo(message)
+            setActionError('')
+          }}
+          onError={(message) => {
+            setActionError(message)
+            setActionInfo('')
+          }}
+        />
       ) : null}
 
       {activeTab === 'payment' ? (

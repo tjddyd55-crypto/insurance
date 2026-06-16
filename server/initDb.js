@@ -3490,6 +3490,7 @@ export async function initDb() {
   await ensurePublicCustomerInviteSessionsSchema(pool)
   await ensureReferralSchema(pool)
   await ensureBillingSchema(pool)
+  await ensurePromotionCodeSchema(pool)
 
   console.log(`[initDb] 완료 (${Date.now() - startedAt}ms)`)
 }
@@ -3542,6 +3543,126 @@ async function ensureReferralSchema(executor) {
 
   const { backfillReferralCodesForExistingUsers } = await import('./referrals/referralService.js')
   await backfillReferralCodesForExistingUsers(executor)
+}
+
+/**
+ * 프로모션 코드 (관리자 발급) — 기존 referral_codes/relationships 와 독립.
+ *
+ * - code 는 대소문자 구분 없이 unique 를 보장하기 위해 code_normalized 를 별도로 저장한다.
+ * - user 1명당 1개의 프로모션 코드만 적용(초기 정책). stackable 은 범위 제외.
+ * - 실제 invoice 적용 내역은 promotion_code_redemptions 로 기록한다.
+ */
+async function ensurePromotionCodeSchema(executor) {
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS promotion_codes (
+      id BIGSERIAL PRIMARY KEY,
+      code TEXT NOT NULL,
+      code_normalized TEXT NOT NULL UNIQUE,
+      code_type TEXT NOT NULL DEFAULT 'discount',
+      discount_type TEXT NOT NULL,
+      discount_amount INTEGER,
+      discount_percent INTEGER,
+      duration_months INTEGER,
+      starts_at TIMESTAMPTZ,
+      ends_at TIMESTAMPTZ,
+      max_uses INTEGER,
+      used_count INTEGER NOT NULL DEFAULT 0,
+      per_account_limit INTEGER NOT NULL DEFAULT 1,
+      owner_name TEXT,
+      owner_type TEXT NOT NULL DEFAULT 'normal',
+      memo TEXT,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      deleted_at TIMESTAMPTZ,
+      created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT promotion_codes_code_type_check CHECK (code_type IN ('referral', 'discount', 'influencer')),
+      CONSTRAINT promotion_codes_discount_type_check CHECK (
+        discount_type IN (
+          'first_month_fixed',
+          'recurring_fixed',
+          'first_month_percent',
+          'recurring_percent',
+          'first_month_free'
+        )
+      ),
+      CONSTRAINT promotion_codes_owner_type_check CHECK (owner_type IN ('normal', 'influencer', 'partner', 'admin')),
+      CONSTRAINT promotion_codes_discount_amount_nonneg CHECK (discount_amount IS NULL OR discount_amount >= 0),
+      CONSTRAINT promotion_codes_discount_percent_range CHECK (discount_percent IS NULL OR (discount_percent >= 0 AND discount_percent <= 100)),
+      CONSTRAINT promotion_codes_duration_months_nonneg CHECK (duration_months IS NULL OR duration_months >= 0),
+      CONSTRAINT promotion_codes_max_uses_nonneg CHECK (max_uses IS NULL OR max_uses >= 0),
+      CONSTRAINT promotion_codes_used_count_nonneg CHECK (used_count >= 0),
+      CONSTRAINT promotion_codes_per_account_limit_pos CHECK (per_account_limit >= 1)
+    )
+  `)
+
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_promotion_codes_active
+    ON promotion_codes (is_active, deleted_at)
+  `)
+
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_promotion_codes_owner
+    ON promotion_codes (owner_type, owner_name)
+    WHERE deleted_at IS NULL
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS promotion_code_accounts (
+      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      promotion_code_id BIGINT NOT NULL REFERENCES promotion_codes(id) ON DELETE RESTRICT,
+      code_normalized TEXT NOT NULL,
+      applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_promotion_code_accounts_code
+    ON promotion_code_accounts (promotion_code_id, applied_at DESC)
+  `)
+
+  // payment_invoices 에 프로모션 코드 적용 정보를 붙인다 (기존 추천인 할인 컬럼과 공존).
+  await executor.query(`
+    ALTER TABLE payment_invoices
+    ADD COLUMN IF NOT EXISTS promotion_code_id BIGINT REFERENCES promotion_codes(id) ON DELETE SET NULL
+  `)
+  await executor.query(`
+    ALTER TABLE payment_invoices
+    ADD COLUMN IF NOT EXISTS promotion_discount_amount INTEGER NOT NULL DEFAULT 0
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_payment_invoices_promotion_code
+    ON payment_invoices (promotion_code_id)
+    WHERE promotion_code_id IS NOT NULL
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS promotion_code_redemptions (
+      id BIGSERIAL PRIMARY KEY,
+      promotion_code_id BIGINT NOT NULL REFERENCES promotion_codes(id) ON DELETE RESTRICT,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      subscription_id BIGINT REFERENCES billing_subscriptions(id) ON DELETE SET NULL,
+      invoice_id BIGINT REFERENCES payment_invoices(id) ON DELETE SET NULL,
+      original_amount INTEGER NOT NULL,
+      discount_amount INTEGER NOT NULL,
+      final_amount INTEGER NOT NULL,
+      applied_month_index INTEGER NOT NULL DEFAULT 1,
+      applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT promotion_code_redemptions_amounts_nonneg CHECK (
+        original_amount >= 0 AND discount_amount >= 0 AND final_amount >= 0
+      ),
+      CONSTRAINT promotion_code_redemptions_month_index_pos CHECK (applied_month_index >= 1)
+    )
+  `)
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_promotion_code_redemptions_invoice_once
+    ON promotion_code_redemptions (promotion_code_id, invoice_id)
+    WHERE invoice_id IS NOT NULL
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_promotion_code_redemptions_user
+    ON promotion_code_redemptions (user_id, applied_at DESC)
+  `)
 }
 
 /** 월 이용료·가상 결제 — PG live 연동은 추후 */

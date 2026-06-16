@@ -22,13 +22,16 @@ export async function fetchReferralSummary(token: string): Promise<ReferralSumma
 
 export async function validateReferralCodeForSignup(
   referralCode: string,
-): Promise<{ valid: boolean; message?: string }> {
+): Promise<{ valid: boolean; message?: string; benefitSummary?: string; source?: string }> {
   const code = referralCode.trim().toUpperCase().replace(/\s+/g, '')
   if (!code) {
     return { valid: true }
   }
-  return apiRequest<{ valid: boolean; message?: string }>('/api/auth/validate-referral-code', {
-    method: 'POST',
-    body: JSON.stringify({ referral_code: code }),
-  })
+  return apiRequest<{ valid: boolean; message?: string; benefitSummary?: string; source?: string }>(
+    '/api/auth/validate-referral-code',
+    {
+      method: 'POST',
+      body: JSON.stringify({ referral_code: code }),
+    },
+  )
 }

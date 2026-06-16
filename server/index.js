@@ -11,12 +11,15 @@ import { initDb } from './initDb.js'
 import { registerAuthAccountSmsApi } from './registerAuthAccountSmsApi.js'
 import { registerUserProfileApi } from './registerUserProfileApi.js'
 import { registerReferralApi } from './registerReferralApi.js'
+import { registerPromotionCodesApi } from './registerPromotionCodesApi.js'
+import { registerAdminPromotionCodesApi } from './registerAdminPromotionCodesApi.js'
 import { registerBillingApi } from './registerBillingApi.js'
 import {
   createReferralRelationship,
-  validateReferralCodeForSignup,
 } from './referrals/referralService.js'
 import { ensureReferralCodeForUser, normalizeReferralCode } from './referrals/referralCode.js'
+import { validatePromotionOrReferralCode } from './promotions/validatePromotionOrReferral.js'
+import { applyPromotionCodeToAccount } from './promotions/promotionService.js'
 import { readPolicyActive } from './subscription/appSettings.js'
 import { registerCustomerExtraApi } from './apis/customerExtraApi.js'
 import { registerTeamApi } from './apis/teamApi.js'
@@ -1486,6 +1489,19 @@ registerReferralApi(apiRouter, {
   handleDbError,
 })
 
+registerPromotionCodesApi(apiRouter, {
+  pool,
+  requireAuth,
+  handleDbError,
+})
+
+registerAdminPromotionCodesApi(apiRouter, {
+  pool,
+  requireAuth,
+  requireSuperAdmin,
+  handleDbError,
+})
+
 registerBillingApi(apiRouter, {
   pool,
   requireAuth,
@@ -2178,22 +2194,10 @@ async function handleRegister(req, res) {
       ? resolveDevSignupPhoneForStorage(phoneNorm, normalizedUsername)
       : phoneNorm
 
-    const referralCodeNorm = normalizeReferralCode(referralCodeSnake ?? referralCodeCamel ?? '')
-    /** @type {{ referrerUserId: string; code: string } | null} */
-    let referralForSignup = null
-    if (referralCodeNorm) {
-      const referralCheck = await validateReferralCodeForSignup(pool, referralCodeNorm)
-      if (!referralCheck.ok) {
-        res.status(400).json({ message: referralCheck.message })
-        return
-      }
-      if (referralCheck.referrerUserId && referralCheck.code) {
-        referralForSignup = {
-          referrerUserId: referralCheck.referrerUserId,
-          code: referralCheck.code,
-        }
-      }
-    }
+    const promotionOrReferralRaw = referralCodeSnake ?? referralCodeCamel ?? ''
+    const promotionOrReferralNorm = normalizeReferralCode(promotionOrReferralRaw)
+    const promotionOrReferral =
+      promotionOrReferralNorm ? await validatePromotionOrReferralCode(pool, promotionOrReferralNorm) : null
 
     const passwordHash = await bcrypt.hash(password, 10)
     const id = randomUUID()
@@ -2250,28 +2254,55 @@ async function handleRegister(req, res) {
       }
 
       await ensureReferralCodeForUser(client, id)
-      if (referralForSignup) {
-        const policyActive = await readPolicyActive()
-        try {
-          await createReferralRelationship(client, {
-            referredUserId: id,
-            referrerUserId: referralForSignup.referrerUserId,
-            code: referralForSignup.code,
-            policyActive,
-          })
-          await ensureReferralCodeForUser(client, referralForSignup.referrerUserId)
-        } catch (referralErr) {
+      if (promotionOrReferralNorm) {
+        if (!promotionOrReferral || promotionOrReferral.ok !== true) {
           await client.query('ROLLBACK')
           client.release()
-          if (referralErr?.message === 'referral_self_not_allowed') {
-            res.status(400).json({ message: '본인 추천 코드는 사용할 수 없습니다.' })
-            return
+          res.status(400).json({ message: promotionOrReferral?.message ?? '사용할 수 없는 코드입니다.' })
+          return
+        }
+
+        if (promotionOrReferral.source === 'legacy_referral' && promotionOrReferral.legacy) {
+          const policyActive = await readPolicyActive()
+          try {
+            await createReferralRelationship(client, {
+              referredUserId: id,
+              referrerUserId: promotionOrReferral.legacy.referrerUserId,
+              code: promotionOrReferral.legacy.code,
+              policyActive,
+            })
+            await ensureReferralCodeForUser(client, promotionOrReferral.legacy.referrerUserId)
+          } catch (referralErr) {
+            await client.query('ROLLBACK')
+            client.release()
+            if (referralErr?.message === 'referral_self_not_allowed') {
+              res.status(400).json({ message: '본인 추천 코드는 사용할 수 없습니다.' })
+              return
+            }
+            if (referralErr?.message === 'referral_already_applied') {
+              res.status(409).json({ message: '이미 추천 코드가 적용된 계정입니다.' })
+              return
+            }
+            throw referralErr
           }
-          if (referralErr?.message === 'referral_already_applied') {
-            res.status(409).json({ message: '이미 추천 코드가 적용된 계정입니다.' })
-            return
+        }
+
+        if (promotionOrReferral.source === 'promotion_code' && promotionOrReferral.promo) {
+          try {
+            await applyPromotionCodeToAccount(client, { userId: id, promo: promotionOrReferral.promo })
+          } catch (promotionErr) {
+            await client.query('ROLLBACK')
+            client.release()
+            if (promotionErr?.message === 'promotion_already_applied') {
+              res.status(409).json({ message: '이미 코드가 적용된 계정입니다.' })
+              return
+            }
+            if (promotionErr?.message === 'promotion_max_uses') {
+              res.status(400).json({ message: '사용 횟수가 모두 소진된 코드입니다.' })
+              return
+            }
+            throw promotionErr
           }
-          throw referralErr
         }
       }
 

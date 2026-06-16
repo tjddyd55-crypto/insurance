@@ -10,6 +10,11 @@ import { readPolicyActive } from '../subscription/appSettings.js'
 import { computeReferralRelationshipStatus } from '../referrals/referralStatus.js'
 import { resolveBillingPlanForUser } from './planResolver.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
+import {
+  calculatePromotionDiscountForMonth,
+  countPaidInvoices,
+  getAppliedPromotionForUser,
+} from '../promotions/promotionService.js'
 
 /**
  * @param {import('pg').Pool | import('pg').PoolClient} executor
@@ -143,7 +148,24 @@ export async function calculateInvoicePricing(executor, userId, options = {}) {
     refereeFirstMonthDiscountAmount = REFEREE_FIRST_MONTH_DISCOUNT_AMOUNT
   }
 
-  const supplyDiscountAmount = referralDiscountAmount + refereeFirstMonthDiscountAmount
+  const paidInvoiceCount = await countPaidInvoices(executor, userId)
+  const promotionMonthIndex = paidInvoiceCount + 1
+  const appliedPromotion = await getAppliedPromotionForUser(executor, userId)
+  const now = new Date()
+  const promotionEligible =
+    appliedPromotion != null &&
+    appliedPromotion.isActive === true &&
+    (appliedPromotion.startsAt == null || now >= new Date(appliedPromotion.startsAt)) &&
+    (appliedPromotion.endsAt == null || now <= new Date(appliedPromotion.endsAt))
+  const promotionCalc = promotionEligible
+    ? calculatePromotionDiscountForMonth(appliedPromotion, {
+        baseSupplyAmount,
+        monthIndex: promotionMonthIndex,
+      })
+    : { promotionDiscountSupplyAmount: 0, applicable: false }
+  const promotionDiscountAmount = promotionCalc.promotionDiscountSupplyAmount
+
+  const supplyDiscountAmount = referralDiscountAmount + refereeFirstMonthDiscountAmount + promotionDiscountAmount
   const finalPriced = calculateDiscountedTotalAmount(baseSupplyAmount, supplyDiscountAmount)
 
   return {
@@ -155,11 +177,14 @@ export async function calculateInvoicePricing(executor, userId, options = {}) {
     vatAmount: finalPriced.vatAmount,
     referralDiscountAmount,
     refereeFirstMonthDiscountAmount,
+    promotionCodeId: promotionEligible ? appliedPromotion.id : null,
+    promotionDiscountAmount,
     discountAmount: basePriced.totalAmount - finalPriced.totalAmount,
     finalSupplyAmount: finalPriced.supplyAmount,
     finalAmount: finalPriced.totalAmount,
     activeReferralCount,
     appliedReferralCount,
+    promotionMonthIndex,
   }
 }
 
