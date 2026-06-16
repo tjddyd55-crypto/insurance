@@ -66,7 +66,7 @@ export function InsurerManagerNewsDetailPage({
   }
   if (!canFetch) {
     return (
-      <main className="page page--with-back insurer-news-page">
+      <main className="page page--with-back insurer-news-page user-page">
         <div className="insurer-news-empty" role="status">
           {newsletterId ? '소식지를 불러올 수 없습니다.' : '잘못된 경로입니다.'}
         </div>
@@ -76,7 +76,7 @@ export function InsurerManagerNewsDetailPage({
 
   if (loading) {
     return (
-      <main className="page page--with-back insurer-news-page">
+      <main className="page page--with-back insurer-news-page user-page">
         <div className="insurer-news-empty" role="status">
           불러오는 중…
         </div>
@@ -86,7 +86,7 @@ export function InsurerManagerNewsDetailPage({
 
   if (!detail) {
     return (
-      <main className="page page--with-back insurer-news-page">
+      <main className="page page--with-back insurer-news-page user-page">
         <div className="insurer-news-empty" role="status">
           {newsletterId ? '소식지를 찾을 수 없거나 접근 권한이 없습니다.' : '잘못된 경로입니다.'}
         </div>
@@ -130,7 +130,7 @@ export function InsurerManagerNewsDetailPage({
   }
 
   return (
-    <main className="page page--with-back insurer-news-page">
+    <main className="page page--with-back insurer-news-page user-page">
       <article className="insurer-news-detail-article">
         <header style={{ marginBottom: 16 }}>
           <p className="insurer-news-muted" style={{ margin: '0 0 4px', fontSize: 14 }}>

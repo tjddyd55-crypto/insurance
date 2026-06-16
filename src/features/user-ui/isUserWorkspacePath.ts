@@ -30,6 +30,7 @@ const USER_UI_SHELL_PATTERNS: RegExp[] = [
   /^\/insurance\/insurer-sites$/,
   /^\/insurer-managers$/,
   /^\/loss-adjusters$/,
+  /^\/contracts\/signatures(\/|$)/,
 ]
 
 export function isAdminWorkspacePath(pathname: string): boolean {

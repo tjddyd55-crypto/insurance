@@ -298,7 +298,7 @@ export default function ContractSignatureHistoryPage({
   return (
     <main
       className={
-        'contract-signature-console contract-signature-history-page user-page' +
+        'page page--with-back contract-signature-console contract-signature-history-page user-page' +
         (historyMobile ? ' contract-signature-flow--mobile' : '') +
         (embeddedInCustomerWorkspace ? ' contract-signature-history-page--workspace' : '')
       }

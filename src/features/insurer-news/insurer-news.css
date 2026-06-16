@@ -297,7 +297,7 @@
 
 .insurer-news-page .insurer-news-list-searchbar + .insurer-news-empty,
 .insurer-news-page .insurer-news-searchbar + .insurer-news-empty {
-  padding: 16px;
+  padding: 16px 0;
 }
 
 .pc-root .insurer-news-page .news-grid,
@@ -716,13 +716,19 @@
   border-radius: 0;
 }
 
-/* 소식지 상세: 상단 텍스트(패딩) + 이미지 풀폭(.page 좌우 패딩 상쇄) */
-.insurer-news-detail-article {
+/* 소식지 상세: PC — 이미지 풀폭용 negative margin (모바일은 @767 에서 리셋) */
+.pc-root .insurer-news-detail-article {
   overflow-x: hidden;
   margin-left: -12px;
   margin-right: -12px;
   width: calc(100% + 24px);
   max-width: none;
+  box-sizing: border-box;
+}
+
+.insurer-news-detail-article {
+  overflow-x: hidden;
+  max-width: 100%;
   box-sizing: border-box;
 }
 
@@ -1012,20 +1018,21 @@
   color: var(--danger);
 }
 
-/* ─── 모바일 폭 정리 (보험 CRM — feature root scoped) ─────────────── */
+/* ─── 모바일 폭 정리 (보험 CRM — customers-page--mobile gutter SSOT) ─── */
 @media (max-width: 767px) {
   .mobile-root .insurer-news-page,
   .insurer-news-page.insurer-news-page--mobile {
     width: 100%;
     max-width: none;
     margin-inline: 0;
-    padding: 12px 16px 40px;
+    padding: 0;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
     box-sizing: border-box;
   }
 
   .insurer-news-page.insurer-news-page--mobile .page-header,
   .insurer-news-page.insurer-news-page--mobile .page-header--has-inline-back {
-    margin: 0 0 12px !important;
+    margin: 0 0 12px;
   }
 
   .insurer-news-page.insurer-news-page--mobile .page-header__title-row h1 {
@@ -1061,47 +1068,38 @@
     max-width: none;
     min-width: 0;
     margin: 0;
-    padding-inline: 12px;
-    padding-bottom: 12px;
+    padding: 0;
     box-sizing: border-box;
-  }
-
-  .mobile-root .insurer-news-page .assessor-news-card .news-card__meta,
-  .insurer-news-page.insurer-news-page--mobile .assessor-news-card .news-card__meta {
-    padding-left: 12px;
-    padding-right: 12px;
   }
 
   .mobile-root .insurer-news-page .news-card,
   .mobile-root .insurer-news-page .news-card.news-card--mobile,
   .insurer-news-page.insurer-news-page--mobile .news-card {
     width: 100%;
-    max-width: none;
+    max-width: 100%;
     min-width: 0;
     box-sizing: border-box;
   }
 
-  .mobile-root .insurer-news-page .insurer-news-detail-article {
-    margin-inline: -16px;
-    width: calc(100% + 32px);
+  .mobile-root .insurer-news-page .insurer-news-detail-article,
+  .insurer-news-page.insurer-news-page--mobile .insurer-news-detail-article {
+    margin-inline: 0;
+    width: 100%;
+    max-width: 100%;
   }
 
-  /*
-   * 상세 본문: article negative margin 은 이미지 풀폭용.
-   * 제목·날짜·본문·첨부 목록만 page 거터(16px)와 동일한 좌우 패딩 복원.
-   * (고객앱 .insurer-news-detail-text / 개인메시지 모달 16px 기준)
-   */
-  .mobile-root .insurer-news-page .insurer-news-detail-article > header,
-  .insurer-news-page.insurer-news-page--mobile .insurer-news-detail-article > header,
-  .mobile-root .insurer-news-page .insurer-news-detail-article .insurer-news-detail-body,
-  .insurer-news-page.insurer-news-page--mobile .insurer-news-detail-article .insurer-news-detail-body,
-  .mobile-root .insurer-news-page .insurer-news-detail-article > section,
-  .insurer-news-page.insurer-news-page--mobile .insurer-news-detail-article > section {
-    padding-left: 16px;
-    padding-right: 16px;
-    box-sizing: border-box;
+  .mobile-root .insurer-news-page .insurer-news-detail-body,
+  .insurer-news-page.insurer-news-page--mobile .insurer-news-detail-body,
+  .mobile-root .insurer-news-page .insurer-news-gallery,
+  .insurer-news-page.insurer-news-page--mobile .insurer-news-gallery {
     max-width: 100%;
     overflow-wrap: anywhere;
     word-break: keep-all;
+  }
+
+  .mobile-root .insurer-news-page .insurer-news-gallery img,
+  .insurer-news-page.insurer-news-page--mobile .insurer-news-gallery img {
+    max-width: 100%;
+    height: auto;
   }
 }

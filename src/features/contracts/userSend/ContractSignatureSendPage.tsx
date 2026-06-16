@@ -951,7 +951,7 @@ export default function ContractSignatureSendPage() {
   }
 
   const mainClass =
-    'contract-signature-console user-page' +
+    'page page--with-back contract-signature-console user-page' +
     (isMobileFlow ? ' contract-signature-flow--mobile' : '')
 
   const senderFields = selectedTpl?.senderFieldsForSend ?? []
