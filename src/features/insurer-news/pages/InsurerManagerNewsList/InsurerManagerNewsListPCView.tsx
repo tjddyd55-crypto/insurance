@@ -129,7 +129,7 @@ export default function InsurerManagerNewsListPCView({
         </div>
       </header>
       <div className="insurer-news-filters insurer-news-list-searchbar">
-        <label className="insurer-news-search">
+        <label className="insurer-news-search insurer-news-searchbar">
           <span className="sr-only">소식지 검색</span>
           <FormInput
             type="search"
