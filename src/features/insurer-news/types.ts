@@ -12,13 +12,19 @@ export interface NewsletterBoard {
   id: string
   slug: string
   label: string
+  description?: string | null
+  /** system | global | ga */
+  boardScope: 'system' | 'global' | 'ga'
   /** global = 전체 공용 게시글, ga = GA별 분리 게시글 */
   contentScope: 'global' | 'ga'
-  /** @deprecated contentScope 사용 */
+  /** @deprecated boardScope 사용 */
   isPublic: boolean
+  ownerGaId?: number | null
   gaId: number | null
   gaCode: string | null
   gaName: string | null
+  sortOrder?: number
+  isActive?: boolean
   createdAt: string
   updatedAt: string
 }

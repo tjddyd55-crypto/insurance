@@ -1,9 +1,21 @@
 /**
- * 동적 소식지 게시판 — 메뉴(전역)와 게시글(content) 스코프 분리 SSOT.
+ * 동적 소식지 게시판 — board_scope SSOT (system / global / ga).
+ * content_scope · is_public 은 하위 호환용.
  */
+
+export const BOARD_SCOPE_SYSTEM = 'system'
+export const BOARD_SCOPE_GLOBAL = 'global'
+export const BOARD_SCOPE_GA = 'ga'
 
 export const CONTENT_SCOPE_GLOBAL = 'global'
 export const CONTENT_SCOPE_GA = 'ga'
+
+/** @param {unknown} raw */
+export function normalizeBoardScope(raw) {
+  const v = String(raw ?? '').trim().toLowerCase()
+  if (v === BOARD_SCOPE_SYSTEM || v === BOARD_SCOPE_GLOBAL) return v
+  return BOARD_SCOPE_GA
+}
 
 /** @param {unknown} raw */
 export function normalizeContentScope(raw) {
@@ -23,24 +35,78 @@ export function isGlobalContentScope(scope) {
 }
 
 /**
- * 게시판 row → API DTO.
- * board/menu 정의는 항상 전역(ga_id IS NULL)이다.
+ * @param {Record<string, unknown>} row
+ */
+export function boardScopeFromBoard(row) {
+  if (row.board_scope != null && String(row.board_scope).trim() !== '') {
+    return normalizeBoardScope(row.board_scope)
+  }
+  if (isGlobalContentScope(row.content_scope ?? row.is_public)) {
+    return BOARD_SCOPE_GLOBAL
+  }
+  return BOARD_SCOPE_GA
+}
+
+/**
+ * @param {Record<string, unknown>} board
+ */
+export function isGlobalBoardScope(board) {
+  return boardScopeFromBoard(board) === BOARD_SCOPE_GLOBAL
+}
+
+/**
+ * @param {Record<string, unknown>} board
+ */
+export function isGaBoardScope(board) {
+  return boardScopeFromBoard(board) === BOARD_SCOPE_GA
+}
+
+/**
+ * @param {Record<string, unknown>} board
+ */
+export function isSystemBoardScope(board) {
+  return boardScopeFromBoard(board) === BOARD_SCOPE_SYSTEM
+}
+
+/**
+ * @param {Record<string, unknown>} board
+ * @param {number | null | undefined} tenantGaId
+ */
+export function canUserAccessBoardMenu(board, tenantGaId) {
+  const scope = boardScopeFromBoard(board)
+  if (scope === BOARD_SCOPE_GLOBAL) return true
+  if (scope === BOARD_SCOPE_SYSTEM) return true
+  const ownerGaId = board.owner_ga_id == null ? null : Number(board.owner_ga_id)
+  if (!Number.isInteger(ownerGaId) || ownerGaId < 1) {
+    return true
+  }
+  const gaId = Number(tenantGaId)
+  return Number.isInteger(gaId) && gaId >= 1 && gaId === ownerGaId
+}
+
+/**
  * @param {Record<string, unknown>} row
  */
 export function mapNewsletterBoardDto(row) {
-  const contentScope = normalizeContentScope(
-    row.content_scope ?? (row.is_public ? CONTENT_SCOPE_GLOBAL : CONTENT_SCOPE_GA),
-  )
+  const boardScope = boardScopeFromBoard(row)
+  const contentScope =
+    boardScope === BOARD_SCOPE_GLOBAL ? CONTENT_SCOPE_GLOBAL : CONTENT_SCOPE_GA
+  const ownerGaId = row.owner_ga_id == null ? null : Number(row.owner_ga_id)
   return {
     id: String(row.id),
     slug: String(row.slug ?? ''),
     label: String(row.label ?? ''),
+    description: row.description == null ? null : String(row.description),
+    boardScope,
     contentScope,
-    /** @deprecated contentScope 사용 */
-    isPublic: contentScope === CONTENT_SCOPE_GLOBAL,
-    gaId: null,
-    gaCode: null,
-    gaName: null,
+    /** @deprecated boardScope 사용 */
+    isPublic: boardScope === BOARD_SCOPE_GLOBAL,
+    ownerGaId: Number.isInteger(ownerGaId) && ownerGaId > 0 ? ownerGaId : null,
+    gaId: Number.isInteger(ownerGaId) && ownerGaId > 0 ? ownerGaId : null,
+    gaCode: row.ga_code == null ? null : String(row.ga_code),
+    gaName: row.ga_name == null ? null : String(row.ga_name),
+    sortOrder: Number(row.sort_order ?? 0) || 0,
+    isActive: row.is_active == null ? true : Boolean(row.is_active),
     createdAt: toIso(row.created_at),
     updatedAt: toIso(row.updated_at),
   }
@@ -59,35 +125,50 @@ function toIso(v) {
 }
 
 /**
- * 동적 게시판 글 목록/상세용 ga_id 필터.
- * @param {{ content_scope?: unknown, contentScope?: unknown, is_public?: boolean }} board
+ * @param {Record<string, unknown>} board
  * @param {number | null | undefined} tenantGaId
- * @param {number} paramIndex — SQL placeholder 시작 번호 ($n)
+ * @param {number} paramIndex
  */
-export function buildDynamicBoardPostGaFilter(board, tenantGaId, paramIndex) {
-  if (isGlobalContentScope(board.content_scope ?? board.contentScope ?? board.is_public)) {
-    return { sql: 'AND n.ga_id IS NULL', params: [] }
+export function resolveBoardPostGaId(board, tenantGaId) {
+  if (isGlobalBoardScope(board)) {
+    return null
+  }
+  const ownerGaId = board.owner_ga_id == null ? null : Number(board.owner_ga_id)
+  if (Number.isInteger(ownerGaId) && ownerGaId > 0) {
+    return ownerGaId
   }
   const gaId = Number(tenantGaId)
   if (!Number.isInteger(gaId) || gaId < 1) {
+    return null
+  }
+  return gaId
+}
+
+/**
+ * @param {Record<string, unknown>} board
+ * @param {number | null | undefined} tenantGaId
+ * @param {number} paramIndex
+ */
+export function buildDynamicBoardPostGaFilter(board, tenantGaId, paramIndex) {
+  if (isGlobalBoardScope(board)) {
+    return { sql: 'AND n.ga_id IS NULL', params: [] }
+  }
+  const gaId = resolveBoardPostGaId(board, tenantGaId)
+  if (gaId == null) {
     return { sql: 'AND FALSE', params: [] }
   }
   return { sql: `AND n.ga_id = $${paramIndex}`, params: [gaId] }
 }
 
 /**
- * 게시글 단건 상세용 ga_id 필터 (테이블 alias 없음).
- * @param {{ content_scope?: unknown, contentScope?: unknown, is_public?: boolean }} board
+ * @param {Record<string, unknown>} board
  * @param {number | null | undefined} tenantGaId
  * @param {number} paramIndex
  */
 export function buildDynamicBoardPostGaFilterBare(board, tenantGaId, paramIndex) {
-  if (isGlobalContentScope(board.content_scope ?? board.contentScope ?? board.is_public)) {
-    return { sql: 'AND ga_id IS NULL', params: [] }
+  const built = buildDynamicBoardPostGaFilter(board, tenantGaId, paramIndex)
+  return {
+    sql: built.sql.replace(/\bn\./g, ''),
+    params: built.params,
   }
-  const gaId = Number(tenantGaId)
-  if (!Number.isInteger(gaId) || gaId < 1) {
-    return { sql: 'AND FALSE', params: [] }
-  }
-  return { sql: `AND ga_id = $${paramIndex}`, params: [gaId] }
 }

@@ -3491,8 +3491,137 @@ export async function initDb() {
   await ensureReferralSchema(pool)
   await ensureBillingSchema(pool)
   await ensurePromotionCodeSchema(pool)
+  await ensureNewsletterBoardScopeSchema(pool)
 
   console.log(`[initDb] 완료 (${Date.now() - startedAt}ms)`)
+}
+
+/**
+ * newsletter_boards board_scope SSOT + board_writer_accounts 마이그레이션.
+ * 기존 게시글·원수사/손해사정사 데이터는 삭제하지 않는다.
+ */
+async function ensureNewsletterBoardScopeSchema(executor) {
+  await executor.query(`
+    ALTER TABLE newsletter_boards
+    ADD COLUMN IF NOT EXISTS board_scope TEXT NOT NULL DEFAULT 'ga'
+  `)
+  await executor.query(`
+    ALTER TABLE newsletter_boards
+    ADD COLUMN IF NOT EXISTS owner_ga_id INTEGER REFERENCES ga_companies(id) ON DELETE CASCADE
+  `)
+  await executor.query(`
+    ALTER TABLE newsletter_boards
+    ADD COLUMN IF NOT EXISTS description TEXT
+  `)
+  await executor.query(`
+    ALTER TABLE newsletter_boards
+    ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0
+  `)
+  await executor.query(`
+    ALTER TABLE newsletter_boards
+    ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true
+  `)
+
+  await executor.query(`
+    UPDATE newsletter_boards
+    SET board_scope = CASE
+      WHEN content_scope = 'global' THEN 'global'
+      ELSE 'ga'
+    END
+    WHERE board_scope IS NULL OR board_scope = '' OR board_scope NOT IN ('system', 'global', 'ga')
+  `)
+
+  await executor.query(`
+    UPDATE newsletter_boards
+    SET is_public = (board_scope = 'global'),
+        content_scope = CASE WHEN board_scope = 'global' THEN 'global' ELSE 'ga' END
+    WHERE board_scope IN ('global', 'ga')
+  `)
+
+  await executor.query(`DROP INDEX IF EXISTS idx_newsletter_boards_active_slug`)
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_newsletter_boards_active_slug_scope
+    ON newsletter_boards (slug, COALESCE(owner_ga_id, 0))
+    WHERE is_deleted = false AND board_scope IN ('global', 'ga')
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_newsletter_boards_scope_owner
+    ON newsletter_boards (board_scope, owner_ga_id, is_deleted)
+    WHERE is_deleted = false
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS board_writer_accounts (
+      id TEXT PRIMARY KEY,
+      login_id TEXT NOT NULL,
+      password_hash TEXT NOT NULL,
+      name TEXT NOT NULL DEFAULT '',
+      writer_scope TEXT NOT NULL DEFAULT 'global',
+      owner_ga_id INTEGER REFERENCES ga_companies(id) ON DELETE CASCADE,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      last_login_at TIMESTAMPTZ,
+      CONSTRAINT board_writer_accounts_scope_check CHECK (writer_scope IN ('global', 'ga')),
+      CONSTRAINT board_writer_accounts_ga_scope_owner CHECK (
+        (writer_scope = 'global' AND owner_ga_id IS NULL)
+        OR (writer_scope = 'ga' AND owner_ga_id IS NOT NULL)
+      )
+    )
+  `)
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_board_writer_login_active
+    ON board_writer_accounts (LOWER(TRIM(login_id)))
+    WHERE is_active = true
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS board_writer_permissions (
+      id BIGSERIAL PRIMARY KEY,
+      writer_account_id TEXT NOT NULL REFERENCES board_writer_accounts(id) ON DELETE CASCADE,
+      board_id TEXT NOT NULL REFERENCES newsletter_boards(id) ON DELETE CASCADE,
+      can_create BOOLEAN NOT NULL DEFAULT true,
+      can_edit_own BOOLEAN NOT NULL DEFAULT true,
+      can_delete_own BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (writer_account_id, board_id)
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_board_writer_permissions_board
+    ON board_writer_permissions (board_id)
+  `)
+
+  await executor.query(`
+    INSERT INTO board_writer_accounts (
+      id, login_id, password_hash, name, writer_scope, owner_ga_id,
+      is_active, created_by_user_id, created_at, updated_at, last_login_at
+    )
+    SELECT
+      p.id,
+      p.login_id,
+      p.password_hash,
+      p.name,
+      'global',
+      NULL,
+      p.is_active,
+      p.created_by_user_id,
+      p.created_at,
+      p.updated_at,
+      p.last_login_at
+    FROM public_board_writer_accounts p
+  ON CONFLICT (id) DO NOTHING
+  `)
+
+  await executor.query(`
+    INSERT INTO board_writer_permissions (writer_account_id, board_id, can_create, can_edit_own, can_delete_own)
+    SELECT p.id, unnest(p.allowed_board_ids), true, true, true
+    FROM public_board_writer_accounts p
+    WHERE p.allowed_board_ids IS NOT NULL
+      AND cardinality(p.allowed_board_ids) > 0
+    ON CONFLICT (writer_account_id, board_id) DO NOTHING
+  `)
 }
 
 /** 추천코드·추천 관계 — 결제 할인은 추후 결제 모듈에서 연동 */

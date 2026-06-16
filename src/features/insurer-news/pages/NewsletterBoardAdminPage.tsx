@@ -1,23 +1,30 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
 import { useConfirmDialog } from '../../../components/dialog'
 import { useAuth } from '../../auth/AuthProvider'
 import {
-  createNewsletterBoard,
+  createGlobalNewsletterBoard,
+  createGaNewsletterBoard,
   deleteNewsletterBoard,
   listAdminNewsletterBoards,
 } from '../services/insurerNews.service'
 import type { NewsletterBoard } from '../types'
 import NewsletterBoardAdminMobileView from './NewsletterBoardAdmin/NewsletterBoardAdminMobileView'
 import NewsletterBoardAdminPCView from './NewsletterBoardAdmin/NewsletterBoardAdminPCView'
-import type { NewsletterBoardAdminViewProps } from './NewsletterBoardAdmin/newsletterBoardAdminViewProps'
+import type {
+  NewsletterBoardAdminViewProps,
+  NewsletterBoardCreateMode,
+} from './NewsletterBoardAdmin/newsletterBoardAdminViewProps'
 
 export function NewsletterBoardAdminPage() {
   const { user, token } = useAuth()
   const role = user?.role ?? ''
   const [boards, setBoards] = useState<NewsletterBoard[]>([])
   const [label, setLabel] = useState('')
-  const [isPublic, setIsPublic] = useState(false)
+  const [description, setDescription] = useState('')
+  const [createMode, setCreateMode] = useState<NewsletterBoardCreateMode>(
+    role === 'SUPER_ADMIN' ? 'global' : 'ga',
+  )
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -36,7 +43,7 @@ export function NewsletterBoardAdminPage() {
       setBoards(await listAdminNewsletterBoards(token))
       setError('')
     } catch (e) {
-      setError(e instanceof Error ? e.message : '소식지 메뉴를 불러오지 못했습니다.')
+      setError(e instanceof Error ? e.message : '게시판 목록을 불러오지 못했습니다.')
     } finally {
       setLoading(false)
     }
@@ -46,6 +53,15 @@ export function NewsletterBoardAdminPage() {
     void loadBoards()
   }, [loadBoards])
 
+  const globalBoards = useMemo(
+    () => boards.filter((b) => b.boardScope === 'global' || b.contentScope === 'global'),
+    [boards],
+  )
+  const gaBoards = useMemo(
+    () => boards.filter((b) => b.boardScope === 'ga' || (b.boardScope !== 'global' && b.contentScope === 'ga')),
+    [boards],
+  )
+
   const handleCreate = () => {
     if (!token?.trim() || busy) {
       return
@@ -54,12 +70,16 @@ export function NewsletterBoardAdminPage() {
       setBusy(true)
       setError('')
       try {
-        const created = await createNewsletterBoard(token, { label: label.trim(), isPublic })
+        const payload = { label: label.trim(), description: description.trim() || null }
+        const created =
+          role === 'SUPER_ADMIN' && createMode === 'global'
+            ? await createGlobalNewsletterBoard(token, payload)
+            : await createGaNewsletterBoard(token, payload)
         setBoards((prev) => [...prev, created])
         setLabel('')
-        setIsPublic(false)
+        setDescription('')
       } catch (e) {
-        setError(e instanceof Error ? e.message : '소식지 메뉴 추가에 실패했습니다.')
+        setError(e instanceof Error ? e.message : '게시판 추가에 실패했습니다.')
       } finally {
         setBusy(false)
       }
@@ -72,8 +92,8 @@ export function NewsletterBoardAdminPage() {
     }
     void (async () => {
       const ok = await confirm({
-        title: '소식지 메뉴 삭제',
-        message: `"${board.label}" 메뉴를 삭제하시겠습니까? 기존 글은 삭제하지 않고 메뉴에서만 제외됩니다.`,
+        title: '게시판 삭제',
+        message: `"${board.label}" 게시판을 삭제하시겠습니까? 기존 글은 삭제하지 않고 메뉴에서만 제외됩니다.`,
         tone: 'danger',
       })
       if (!ok) {
@@ -85,7 +105,7 @@ export function NewsletterBoardAdminPage() {
         await deleteNewsletterBoard(token, board.id)
         setBoards((prev) => prev.filter((item) => item.id !== board.id))
       } catch (e) {
-        setError(e instanceof Error ? e.message : '소식지 메뉴 삭제에 실패했습니다.')
+        setError(e instanceof Error ? e.message : '게시판 삭제에 실패했습니다.')
       } finally {
         setBusy(false)
       }
@@ -95,7 +115,7 @@ export function NewsletterBoardAdminPage() {
   if (!canManage) {
     return (
       <main className="page page--with-back newsletter-board-admin-page">
-        <div className="insurer-news-empty">소식지 메뉴 관리 권한이 없습니다.</div>
+        <div className="insurer-news-empty">게시판 관리 권한이 없습니다.</div>
       </main>
     )
   }
@@ -103,13 +123,17 @@ export function NewsletterBoardAdminPage() {
   const viewProps: NewsletterBoardAdminViewProps = {
     role,
     boards,
+    globalBoards,
+    gaBoards,
     label,
-    isPublic,
+    description,
+    createMode,
     loading,
     busy,
     error,
     onLabelChange: setLabel,
-    onPublicChange: setIsPublic,
+    onDescriptionChange: setDescription,
+    onCreateModeChange: setCreateMode,
     onCreate: handleCreate,
     onDelete: handleDelete,
   }

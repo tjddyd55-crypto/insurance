@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto'
-import { isGlobalContentScope } from './newsletterBoardScope.js'
+import { isGlobalBoardScope, resolveBoardPostGaId } from './newsletterBoardScope.js'
 
 /**
  * 동적 소식지 게시판 글 INSERT 공통 로직.
  * @param {import('pg').PoolClient | import('pg').Pool} executor
  * @param {{
- *   board: { slug: string, label: string, content_scope?: string, contentScope?: string },
+ *   board: Record<string, unknown>,
  *   gaId: number | null,
  *   bodyText: string,
  *   status: 'DRAFT' | 'PUBLISHED',
@@ -16,15 +16,13 @@ export async function insertDynamicBoardNewsletter(executor, input) {
   const { board, gaId, bodyText, status, publisherId } = input
   const slug = String(board.slug ?? '').trim()
   const label = String(board.label ?? '').trim() || slug
-  const global = isGlobalContentScope(board.content_scope ?? board.contentScope)
+  const global = isGlobalBoardScope(board)
+  const resolvedGaId = global ? null : resolveBoardPostGaId(board, gaId)
   if (global && gaId != null) {
     throw Object.assign(new Error('전체 공용 게시글은 ga_id 없이 저장해야 합니다.'), { httpStatus: 400 })
   }
-  if (!global) {
-    const gaNum = Number(gaId)
-    if (!Number.isInteger(gaNum) || gaNum < 1) {
-      throw Object.assign(new Error('GA 컨텍스트가 없습니다.'), { httpStatus: 400 })
-    }
+  if (!global && resolvedGaId == null) {
+    throw Object.assign(new Error('GA 컨텍스트가 없습니다.'), { httpStatus: 400 })
   }
   const id = randomUUID()
   const nowIso = new Date().toISOString()
@@ -47,7 +45,7 @@ export async function insertDynamicBoardNewsletter(executor, input) {
     `,
     [
       id,
-      global ? null : Number(gaId),
+      global ? null : resolvedGaId,
       label,
       status,
       String(bodyText ?? ''),

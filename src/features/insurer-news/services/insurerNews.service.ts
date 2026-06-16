@@ -55,19 +55,36 @@ export async function listAdminNewsletterBoards(token: string): Promise<Newslett
   return apiRequest<NewsletterBoard[]>('/api/admin/newsletter-boards', { token })
 }
 
-export async function createNewsletterBoard(
+export async function createGlobalNewsletterBoard(
   token: string,
-  input: { label: string; isPublic?: boolean; contentScope?: 'global' | 'ga' },
+  input: { label: string; description?: string | null; sortOrder?: number },
 ): Promise<NewsletterBoard> {
-  const body =
-    input.contentScope != null
-      ? { label: input.label, contentScope: input.contentScope }
-      : { label: input.label, isPublic: Boolean(input.isPublic) }
-  return apiRequest<NewsletterBoard>('/api/admin/newsletter-boards', {
+  return apiRequest<NewsletterBoard>('/api/admin/newsletter-boards/global', {
     method: 'POST',
     token,
-    body: JSON.stringify(body),
+    body: JSON.stringify(input),
   })
+}
+
+export async function createGaNewsletterBoard(
+  token: string,
+  input: { label: string; description?: string | null; sortOrder?: number },
+): Promise<NewsletterBoard> {
+  return apiRequest<NewsletterBoard>('/api/ga-admin/newsletter-boards', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(input),
+  })
+}
+
+export async function createNewsletterBoard(
+  token: string,
+  input: { label: string; isPublic?: boolean; contentScope?: 'global' | 'ga'; boardScope?: 'global' | 'ga' },
+): Promise<NewsletterBoard> {
+  if (input.boardScope === 'global' || input.contentScope === 'global' || input.isPublic) {
+    return createGlobalNewsletterBoard(token, { label: input.label })
+  }
+  return createGaNewsletterBoard(token, { label: input.label })
 }
 
 export async function deleteNewsletterBoard(token: string, boardId: string): Promise<void> {
