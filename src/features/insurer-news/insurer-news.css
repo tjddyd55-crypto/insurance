@@ -300,6 +300,12 @@
   padding: 16px;
 }
 
+.pc-root .insurer-news-page .news-grid,
+.insurer-news-page--pc .news-grid {
+  padding-inline: 16px;
+  padding-bottom: 16px;
+}
+
 .insurer-news-list-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1055,7 +1061,15 @@
     max-width: none;
     min-width: 0;
     margin: 0;
+    padding-inline: 12px;
+    padding-bottom: 12px;
     box-sizing: border-box;
+  }
+
+  .mobile-root .insurer-news-page .assessor-news-card .news-card__meta,
+  .insurer-news-page.insurer-news-page--mobile .assessor-news-card .news-card__meta {
+    padding-left: 12px;
+    padding-right: 12px;
   }
 
   .mobile-root .insurer-news-page .news-card,
