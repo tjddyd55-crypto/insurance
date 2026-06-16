@@ -1085,4 +1085,23 @@
     margin-inline: -16px;
     width: calc(100% + 32px);
   }
+
+  /*
+   * 상세 본문: article negative margin 은 이미지 풀폭용.
+   * 제목·날짜·본문·첨부 목록만 page 거터(16px)와 동일한 좌우 패딩 복원.
+   * (고객앱 .insurer-news-detail-text / 개인메시지 모달 16px 기준)
+   */
+  .mobile-root .insurer-news-page .insurer-news-detail-article > header,
+  .insurer-news-page.insurer-news-page--mobile .insurer-news-detail-article > header,
+  .mobile-root .insurer-news-page .insurer-news-detail-article .insurer-news-detail-body,
+  .insurer-news-page.insurer-news-page--mobile .insurer-news-detail-article .insurer-news-detail-body,
+  .mobile-root .insurer-news-page .insurer-news-detail-article > section,
+  .insurer-news-page.insurer-news-page--mobile .insurer-news-detail-article > section {
+    padding-left: 16px;
+    padding-right: 16px;
+    box-sizing: border-box;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: keep-all;
+  }
 }
