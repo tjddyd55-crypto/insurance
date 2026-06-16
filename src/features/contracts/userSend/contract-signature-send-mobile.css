@@ -7,16 +7,21 @@
 /* 공통: 모바일 콘솔 main */
 main.contract-signature-console.contract-signature-flow--mobile {
   overflow-x: hidden;
-  max-width: 100vw;
+  max-width: 100%;
   box-sizing: border-box;
+}
+
+main.contract-signature-console.contract-signature-flow--mobile.page {
+  padding: 0;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
 }
 
 main.contract-signature-console.contract-signature-flow--mobile .contract-signature-console__container {
   width: 100%;
   max-width: 100%;
   margin-inline: 0;
-  padding-inline: 16px;
-  padding-block: 1rem;
+  padding-inline: 0;
+  padding-block: 1rem 0;
   box-sizing: border-box;
 }
 
