@@ -254,28 +254,49 @@
   margin: 0;
 }
 
-/* Newsletter list (원수사/손해사정사 조회) — 검색창 ↔ 카드 목록 간격 (PC/Mobile 공통) */
+/* Newsletter list (원수사/손해사정사 조회) — 검색 label flex: 1 1 200px 가 column flex 에서 높이 200px 로 늘어나는 문제 차단 */
 .insurer-news-page--pc .page-header__title-row,
 .insurer-news-page.insurer-news-page--mobile .page-header__title-row {
   margin-bottom: 0;
 }
 
 .insurer-news-page .insurer-news-list-searchbar.insurer-news-filters {
+  display: block;
   gap: 0;
-  margin-bottom: 16px;
+  height: auto;
+  min-height: 0;
+  margin: 0 0 16px;
   padding: 0;
 }
 
-.insurer-news-page .insurer-news-list-searchbar + .news-grid,
-.insurer-news-page .insurer-news-list-searchbar + .insurer-news-empty {
-  margin-top: 0;
+.insurer-news-page .insurer-news-search,
+.insurer-news-page .insurer-news-searchbar {
+  display: block;
+  flex: none;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
 }
 
-.insurer-news-page .insurer-news-list-searchbar + .news-grid {
+.insurer-news-page--pc .insurer-news-searchbar {
+  margin-bottom: 0;
+}
+
+.insurer-news-page.insurer-news-page--mobile .insurer-news-searchbar {
+  margin-bottom: 0;
+}
+
+.insurer-news-page .insurer-news-list-searchbar + .news-grid,
+.insurer-news-page .insurer-news-list-searchbar + .insurer-news-empty,
+.insurer-news-page .insurer-news-searchbar + .news-grid,
+.insurer-news-page .insurer-news-searchbar + .insurer-news-empty {
+  margin-top: 0;
   padding-top: 0;
 }
 
-.insurer-news-page .insurer-news-list-searchbar + .insurer-news-empty {
+.insurer-news-page .insurer-news-list-searchbar + .insurer-news-empty,
+.insurer-news-page .insurer-news-searchbar + .insurer-news-empty {
   padding: 16px;
 }
 
@@ -996,10 +1017,11 @@
   }
 
   .insurer-news-page.insurer-news-page--mobile .insurer-news-list-searchbar {
-    display: flex;
+    display: block;
   }
 
   .insurer-news-page.insurer-news-page--mobile .insurer-news-search,
+  .insurer-news-page.insurer-news-page--mobile .insurer-news-searchbar,
   .insurer-news-page.insurer-news-page--mobile .insurer-news-search input {
     width: 100%;
   }
