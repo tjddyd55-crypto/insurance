@@ -78,7 +78,7 @@ export function canUserAccessBoardMenu(board, tenantGaId) {
   if (scope === BOARD_SCOPE_SYSTEM) return true
   const ownerGaId = board.owner_ga_id == null ? null : Number(board.owner_ga_id)
   if (!Number.isInteger(ownerGaId) || ownerGaId < 1) {
-    return true
+    return false
   }
   const gaId = Number(tenantGaId)
   return Number.isInteger(gaId) && gaId >= 1 && gaId === ownerGaId

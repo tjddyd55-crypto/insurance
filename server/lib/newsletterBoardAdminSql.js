@@ -38,10 +38,7 @@ export const NEWSLETTER_BOARDS_VISIBLE_LIST_SQL = `
       b.board_scope = 'global'
       OR (
         b.board_scope = 'ga'
-        AND (
-          b.owner_ga_id IS NULL
-          OR b.owner_ga_id = $1
-        )
+        AND b.owner_ga_id = $1
       )
     )
   ORDER BY

@@ -13,6 +13,45 @@
 const LENIENT_ENV = process.env.LENIENT_DB_RESPONSES === '1'
 
 /**
+ * newsletter_boards 테넌트 가시성 쿼리 — ga_id 컬럼 대신 owner_ga_id + board_scope 로 스코프.
+ * - global: board_scope = 'global' (전 GA 공용, 의도된 예외)
+ * - ga: board_scope = 'ga' AND owner_ga_id = $n (NULL owner 허용 금지)
+ *
+ * @param {string} sql
+ * @returns {boolean}
+ */
+export function sqlHasNewsletterBoardTenantVisibilityScope(sql) {
+  const s = String(sql)
+  if (/owner_ga_id\s+IS\s+NULL/i.test(s)) {
+    return false
+  }
+  const hasOwnerGaParam = /owner_ga_id\s*=\s*\$\d+/i.test(s)
+  if (!hasOwnerGaParam) {
+    return false
+  }
+  const hasGlobalBranch = /board_scope\s*=\s*'global'/i.test(s)
+  const hasGaBranch = /board_scope\s*=\s*'ga'/i.test(s)
+  if (hasGlobalBranch && hasGaBranch) {
+    return true
+  }
+  if (hasGaBranch) {
+    return true
+  }
+  return false
+}
+
+/**
+ * @param {string} sql
+ * @returns {boolean}
+ */
+function sqlHasTenantGaFilter(sql) {
+  if (/\bga_id\b/i.test(sql)) {
+    return true
+  }
+  return sqlHasNewsletterBoardTenantVisibilityScope(sql)
+}
+
+/**
  * @param {unknown} v
  * @returns {number | null}
  */
@@ -98,7 +137,7 @@ export async function safeQuery(executor, text, params, options = {}) {
     values.push(tid)
   }
 
-  if (!allowUnscoped && !/\bga_id\b/i.test(sql)) {
+  if (!allowUnscoped && !sqlHasTenantGaFilter(sql)) {
     console.warn('[GA FILTER MISSING]', { sql: sql.slice(0, 800).trim() })
     const msg = `GA 필터 없는 쿼리 실행 금지: ${sql.slice(0, 200).trim()}`
     if (lenient) {
