@@ -1,70 +1,111 @@
 /**
- * newsletter_boards 관리 API용 SQL.
- * 메뉴 정의는 전역(ga_id IS NULL) — safeQuery는 ga_id IS NULL 조건으로 스코프를 명시한다.
+ * newsletter_boards 관리 API용 SQL — board_scope SSOT.
  */
 
-/** 전역 메뉴 slug 중복 검사 */
-export const NEWSLETTER_BOARD_DUPLICATE_SLUG_SQL = `
+/** global 게시판 slug 중복 */
+export const GLOBAL_NEWSLETTER_BOARD_DUPLICATE_SLUG_SQL = `
   SELECT id
   FROM newsletter_boards
   WHERE slug = $1
     AND is_deleted = false
-    AND ga_id IS NULL
+    AND board_scope = 'global'
   LIMIT 1
 `
 
-/** 사용자·관리자 — 활성 전역 메뉴 목록 */
+/** GA 게시판 slug 중복 (동일 GA 내) */
+export const GA_NEWSLETTER_BOARD_DUPLICATE_SLUG_SQL = `
+  SELECT id
+  FROM newsletter_boards
+  WHERE slug = $1
+    AND is_deleted = false
+    AND board_scope = 'ga'
+    AND owner_ga_id = $2
+  LIMIT 1
+`
+
+/** @deprecated GLOBAL_NEWSLETTER_BOARD_DUPLICATE_SLUG_SQL 사용 */
+export const NEWSLETTER_BOARD_DUPLICATE_SLUG_SQL = GLOBAL_NEWSLETTER_BOARD_DUPLICATE_SLUG_SQL
+
+/** 사용자 메뉴 — global + 접근 가능한 ga 보드 */
 export const NEWSLETTER_BOARDS_VISIBLE_LIST_SQL = `
-  SELECT b.*, NULL::text AS ga_code, NULL::text AS ga_name
+  SELECT b.*, gc.code AS ga_code, gc.name AS ga_name
   FROM newsletter_boards b
+  LEFT JOIN ga_companies gc ON gc.id = b.owner_ga_id
   WHERE b.is_deleted = false
-    AND b.ga_id IS NULL
+    AND COALESCE(b.is_active, true) = true
+    AND b.board_scope IN ('global', 'ga')
+    AND (
+      b.board_scope = 'global'
+      OR (
+        b.board_scope = 'ga'
+        AND (
+          b.owner_ga_id IS NULL
+          OR b.owner_ga_id = $1
+        )
+      )
+    )
   ORDER BY
-    CASE WHEN b.content_scope = 'global' THEN 0 ELSE 1 END,
+    CASE WHEN b.board_scope = 'global' THEN 0 ELSE 1 END,
+    COALESCE(b.sort_order, 0) ASC,
     b.created_at ASC,
     b.label ASC
 `
 
-/** slug로 전역 메뉴 조회 */
+/** slug로 보드 조회 (접근 검증은 애플리케이션 레이어) */
 export const NEWSLETTER_BOARD_BY_SLUG_SQL = `
-  SELECT b.*, NULL::text AS ga_code, NULL::text AS ga_name
+  SELECT b.*, gc.code AS ga_code, gc.name AS ga_name
   FROM newsletter_boards b
+  LEFT JOIN ga_companies gc ON gc.id = b.owner_ga_id
   WHERE b.slug = $1
     AND b.is_deleted = false
-    AND b.ga_id IS NULL
+    AND COALESCE(b.is_active, true) = true
+    AND b.board_scope IN ('global', 'ga')
   LIMIT 1
 `
 
-/** SUPER_ADMIN: 소식지 메뉴 관리 목록 — 전역 메뉴 정의 전체 */
+/** SUPER_ADMIN: global + ga 전체 목록 */
 export const SUPER_ADMIN_NEWSLETTER_BOARDS_LIST_SQL = `
-  SELECT b.*, NULL::text AS ga_code, NULL::text AS ga_name
+  SELECT b.*, gc.code AS ga_code, gc.name AS ga_name
   FROM newsletter_boards b
+  LEFT JOIN ga_companies gc ON gc.id = b.owner_ga_id
   WHERE b.is_deleted = false
-    AND b.ga_id IS NULL
+    AND b.board_scope IN ('global', 'ga')
   ORDER BY
-    CASE WHEN b.content_scope = 'global' THEN 0 ELSE 1 END,
+    CASE b.board_scope WHEN 'global' THEN 0 WHEN 'ga' THEN 1 ELSE 2 END,
+    COALESCE(b.sort_order, 0) ASC,
     b.created_at ASC,
     b.label ASC
 `
 
-/** SUPER_ADMIN: 게시판 관리 화면에서 메뉴 삭제 권한 검증을 위한 전역 조회 */
+/** GA_ADMIN: 자기 GA ga 보드만 */
+export const GA_ADMIN_NEWSLETTER_BOARDS_LIST_SQL = `
+  SELECT b.*, gc.code AS ga_code, gc.name AS ga_name
+  FROM newsletter_boards b
+  LEFT JOIN ga_companies gc ON gc.id = b.owner_ga_id
+  WHERE b.is_deleted = false
+    AND b.board_scope = 'ga'
+    AND b.owner_ga_id = $1
+  ORDER BY COALESCE(b.sort_order, 0) ASC, b.created_at ASC, b.label ASC
+`
+
 export const SUPER_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL = `
-  SELECT *
-  FROM newsletter_boards
-  WHERE id = $1
-    AND is_deleted = false
-    AND ga_id IS NULL
+  SELECT b.*, gc.code AS ga_code, gc.name AS ga_name
+  FROM newsletter_boards b
+  LEFT JOIN ga_companies gc ON gc.id = b.owner_ga_id
+  WHERE b.id = $1
+    AND b.is_deleted = false
+    AND b.board_scope IN ('global', 'ga')
   LIMIT 1
 `
 
-/** GA 관리자: GA별 분리(content_scope=ga) 메뉴만 삭제 가능 */
 export const GA_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL = `
-  SELECT *
-  FROM newsletter_boards
-  WHERE id = $1
-    AND is_deleted = false
-    AND ga_id IS NULL
-    AND content_scope = 'ga'
+  SELECT b.*, gc.code AS ga_code, gc.name AS ga_name
+  FROM newsletter_boards b
+  LEFT JOIN ga_companies gc ON gc.id = b.owner_ga_id
+  WHERE b.id = $1
+    AND b.is_deleted = false
+    AND b.board_scope = 'ga'
+    AND b.owner_ga_id = $2
   LIMIT 1
 `
 
@@ -72,25 +113,61 @@ export const SUPER_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL = `
   UPDATE newsletter_boards
   SET is_deleted = true,
       deleted_at = NOW(),
-      updated_at = NOW()
+      updated_at = NOW(),
+      is_active = false
   WHERE id = $1
-    AND ga_id IS NULL
+    AND board_scope IN ('global', 'ga')
 `
 
 export const GA_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL = `
   UPDATE newsletter_boards
   SET is_deleted = true,
       deleted_at = NOW(),
-      updated_at = NOW()
+      updated_at = NOW(),
+      is_active = false
   WHERE id = $1
-    AND ga_id IS NULL
-    AND content_scope = 'ga'
+    AND board_scope = 'ga'
+    AND owner_ga_id = $2
 `
 
-export const INSERT_NEWSLETTER_BOARD_SQL = `
+export const DISABLE_NEWSLETTER_BOARD_SQL = `
+  UPDATE newsletter_boards
+  SET is_active = false, updated_at = NOW()
+  WHERE id = $1
+    AND is_deleted = false
+  RETURNING *
+`
+
+export const INSERT_GLOBAL_NEWSLETTER_BOARD_SQL = `
   INSERT INTO newsletter_boards (
-    id, ga_id, slug, label, is_public, content_scope, created_by_user_id
+    id, ga_id, slug, label, description, sort_order, is_active,
+    is_public, content_scope, board_scope, owner_ga_id, created_by_user_id
   )
-  VALUES ($1, NULL, $2, $3, $4, $5, $6)
+  VALUES ($1, NULL, $2, $3, $4, $5, $6, true, 'global', 'global', NULL, $7)
+  RETURNING *
+`
+
+export const INSERT_GA_NEWSLETTER_BOARD_SQL = `
+  INSERT INTO newsletter_boards (
+    id, ga_id, slug, label, description, sort_order, is_active,
+    is_public, content_scope, board_scope, owner_ga_id, created_by_user_id
+  )
+  VALUES ($1, NULL, $2, $3, $4, $5, $6, false, 'ga', 'ga', $7, $8)
+  RETURNING *
+`
+
+/** @deprecated INSERT_GLOBAL_NEWSLETTER_BOARD_SQL / INSERT_GA_NEWSLETTER_BOARD_SQL 사용 */
+export const INSERT_NEWSLETTER_BOARD_SQL = INSERT_GLOBAL_NEWSLETTER_BOARD_SQL
+
+export const PATCH_NEWSLETTER_BOARD_SQL = `
+  UPDATE newsletter_boards
+  SET
+    label = COALESCE($2, label),
+    description = COALESCE($3, description),
+    sort_order = COALESCE($4, sort_order),
+    is_active = COALESCE($5, is_active),
+    updated_at = NOW()
+  WHERE id = $1
+    AND is_deleted = false
   RETURNING *
 `

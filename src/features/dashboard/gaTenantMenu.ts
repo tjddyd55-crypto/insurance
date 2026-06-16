@@ -267,7 +267,7 @@ const SUPER_ADMIN_BASE: GaTenantMenuItem[] = [
   { label: '운영 통계', path: '/admin/analytics' },
   { label: '기능 요청 관리', path: '/internal/admin/feature-requests' },
   { label: '보험사 설계사이트 관리', path: '/admin/insurer-sites' },
-  { label: '소식지 메뉴 관리', path: '/admin/newsletter-boards' },
+  { label: '소식지·게시판 관리', path: '/admin/newsletter-boards' },
   { label: 'PDF 문서 템플릿', path: '/admin/pdf-templates' },
 ]
 
@@ -340,7 +340,7 @@ export function buildAppMenuForSession(
           entries.push({ type: 'link', label: testEntry.label, path: testEntry.path })
         }
         entries.push(
-          { type: 'link', label: '소식지 메뉴 관리', path: '/admin/newsletter-boards' },
+          { type: 'link', label: 'GA전용게시판 관리', path: '/admin/newsletter-boards' },
           { type: 'divider' },
           { type: 'link', label: AUDIT_LOG_ENTRY.label, path: AUDIT_LOG_ENTRY.path },
         )

@@ -4,18 +4,26 @@ import { safeQuery, systemQuery } from './utils/dbSafeQuery.js'
 import {
   buildDynamicBoardPostGaFilter,
   buildDynamicBoardPostGaFilterBare,
+  canUserAccessBoardMenu,
   contentScopeFromLegacyIsPublic,
+  isGlobalBoardScope,
   isGlobalContentScope,
   mapNewsletterBoardDto,
+  normalizeBoardScope,
   normalizeContentScope,
 } from './lib/newsletterBoardScope.js'
 import {
+  DISABLE_NEWSLETTER_BOARD_SQL,
   GA_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL,
   GA_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL,
-  INSERT_NEWSLETTER_BOARD_SQL,
+  GA_ADMIN_NEWSLETTER_BOARDS_LIST_SQL,
+  GA_NEWSLETTER_BOARD_DUPLICATE_SLUG_SQL,
+  GLOBAL_NEWSLETTER_BOARD_DUPLICATE_SLUG_SQL,
+  INSERT_GA_NEWSLETTER_BOARD_SQL,
+  INSERT_GLOBAL_NEWSLETTER_BOARD_SQL,
   NEWSLETTER_BOARD_BY_SLUG_SQL,
-  NEWSLETTER_BOARD_DUPLICATE_SLUG_SQL,
   NEWSLETTER_BOARDS_VISIBLE_LIST_SQL,
+  PATCH_NEWSLETTER_BOARD_SQL,
   SUPER_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL,
   SUPER_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL,
   SUPER_ADMIN_NEWSLETTER_BOARDS_LIST_SQL,
@@ -737,7 +745,75 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
   async function loadVisibleNewsletterBoard(req, boardSlug) {
     const slug = slugifyNewsletterBoard(boardSlug)
     const r = await safeQuery(pool, NEWSLETTER_BOARD_BY_SLUG_SQL, [slug])
-    return r.rowCount ? r.rows[0] : null
+    if (!r.rowCount) return null
+    const board = r.rows[0]
+    const tenantGaId = effectiveTenantGaId(req)
+    if (!canUserAccessBoardMenu(board, tenantGaId)) {
+      return null
+    }
+    return board
+  }
+
+  function parseBoardFormBody(body) {
+    const src = body && typeof body === 'object' ? body : {}
+    return {
+      label: String(src.label ?? '').trim(),
+      description: src.description == null ? null : String(src.description).trim() || null,
+      sortOrder:
+        src.sortOrder == null && src.sort_order == null
+          ? 0
+          : Math.round(Number(src.sortOrder ?? src.sort_order ?? 0) || 0),
+      isActive: src.isActive == null && src.is_active == null ? true : Boolean(src.isActive ?? src.is_active),
+    }
+  }
+
+  async function createNewsletterBoardRecord({
+    boardScope,
+    ownerGaId,
+    label,
+    description,
+    sortOrder,
+    isActive,
+    createdByUserId,
+  }) {
+    const slug = slugifyNewsletterBoard(label)
+    if (boardScope === 'global') {
+      const dupe = await safeQuery(pool, GLOBAL_NEWSLETTER_BOARD_DUPLICATE_SLUG_SQL, [slug])
+      if (dupe.rowCount > 0) {
+        return { error: { status: 409, message: '같은 slug의 공용게시판이 이미 있습니다.' } }
+      }
+      const id = randomUUID()
+      const r = await safeQuery(pool, INSERT_GLOBAL_NEWSLETTER_BOARD_SQL, [
+        id,
+        slug,
+        label,
+        description,
+        sortOrder,
+        isActive,
+        createdByUserId,
+      ])
+      return { row: r.rows[0] }
+    }
+    const gaId = Number(ownerGaId)
+    if (!Number.isInteger(gaId) || gaId < 1) {
+      return { error: { status: 400, message: 'GA 정보를 확인할 수 없습니다.' } }
+    }
+    const dupe = await safeQuery(pool, GA_NEWSLETTER_BOARD_DUPLICATE_SLUG_SQL, [slug, gaId])
+    if (dupe.rowCount > 0) {
+      return { error: { status: 409, message: '같은 slug의 GA전용게시판이 이미 있습니다.' } }
+    }
+    const id = randomUUID()
+    const r = await safeQuery(pool, INSERT_GA_NEWSLETTER_BOARD_SQL, [
+      id,
+      slug,
+      label,
+      description,
+      sortOrder,
+      isActive,
+      gaId,
+      createdByUserId,
+    ])
+    return { row: r.rows[0] }
   }
 
   /** 매니저·스태프 조회 채널 */
@@ -1432,7 +1508,9 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
 
   apiRouter.get('/insurer-news/boards', requireAuth, forbidInsurerOnFeed, async (req, res) => {
     try {
-      const r = await safeQuery(pool, NEWSLETTER_BOARDS_VISIBLE_LIST_SQL, [])
+      const tenantGaId = effectiveTenantGaId(req)
+      const gaId = Number.isInteger(tenantGaId) && tenantGaId > 0 ? tenantGaId : 0
+      const r = await safeQuery(pool, NEWSLETTER_BOARDS_VISIBLE_LIST_SQL, [gaId])
       res.json(r.rows.map(mapNewsletterBoard))
     } catch (eBoards) {
       handleDbError(eBoards, req, res)
@@ -1445,10 +1523,88 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         res.status(403).json({ message: '소식지 메뉴 관리 권한이 없습니다.' })
         return
       }
-      const r = await safeQuery(pool, SUPER_ADMIN_NEWSLETTER_BOARDS_LIST_SQL, [])
+      const isSuperAdmin = isSuperAdminRole(req.user?.role)
+      const r = isSuperAdmin
+        ? await safeQuery(pool, SUPER_ADMIN_NEWSLETTER_BOARDS_LIST_SQL, [])
+        : await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARDS_LIST_SQL, [effectiveTenantGaId(req)])
       res.json(r.rows.map(mapNewsletterBoard))
     } catch (eBoardsAdmin) {
       handleDbError(eBoardsAdmin, req, res)
+    }
+  })
+
+  apiRouter.get('/ga-admin/newsletter-boards', requireAuth, async (req, res) => {
+    try {
+      if (String(req.user?.role ?? '') !== 'GA_ADMIN') {
+        res.status(403).json({ message: 'GA 관리자만 이용할 수 있습니다.' })
+        return
+      }
+      const r = await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARDS_LIST_SQL, [effectiveTenantGaId(req)])
+      res.json(r.rows.map(mapNewsletterBoard))
+    } catch (eGaBoards) {
+      handleDbError(eGaBoards, req, res)
+    }
+  })
+
+  apiRouter.post('/admin/newsletter-boards/global', requireAuth, async (req, res) => {
+    try {
+      if (!isSuperAdminRole(req.user?.role)) {
+        res.status(403).json({ message: '공용게시판은 최고 관리자만 생성할 수 있습니다.' })
+        return
+      }
+      const form = parseBoardFormBody(req.body)
+      if (!form.label) {
+        res.status(400).json({ message: '게시판명을 입력해 주세요.' })
+        return
+      }
+      if (form.label.length > 40) {
+        res.status(400).json({ message: '게시판명은 40자 이하로 입력해 주세요.' })
+        return
+      }
+      const created = await createNewsletterBoardRecord({
+        boardScope: 'global',
+        ownerGaId: null,
+        ...form,
+        createdByUserId: String(req.user?.id ?? '') || null,
+      })
+      if (created.error) {
+        res.status(created.error.status).json({ message: created.error.message })
+        return
+      }
+      res.status(201).json(mapNewsletterBoard(created.row))
+    } catch (eGlobalCreate) {
+      handleDbError(eGlobalCreate, req, res)
+    }
+  })
+
+  apiRouter.post('/ga-admin/newsletter-boards', requireAuth, async (req, res) => {
+    try {
+      if (String(req.user?.role ?? '') !== 'GA_ADMIN') {
+        res.status(403).json({ message: 'GA 관리자만 GA전용게시판을 생성할 수 있습니다.' })
+        return
+      }
+      const form = parseBoardFormBody(req.body)
+      if (!form.label) {
+        res.status(400).json({ message: '게시판명을 입력해 주세요.' })
+        return
+      }
+      if (form.label.length > 40) {
+        res.status(400).json({ message: '게시판명은 40자 이하로 입력해 주세요.' })
+        return
+      }
+      const created = await createNewsletterBoardRecord({
+        boardScope: 'ga',
+        ownerGaId: effectiveTenantGaId(req),
+        ...form,
+        createdByUserId: String(req.user?.id ?? '') || null,
+      })
+      if (created.error) {
+        res.status(created.error.status).json({ message: created.error.message })
+        return
+      }
+      res.status(201).json(mapNewsletterBoard(created.row))
+    } catch (eGaCreate) {
+      handleDbError(eGaCreate, req, res)
     }
   })
 
@@ -1459,49 +1615,151 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         return
       }
       const body = req.body && typeof req.body === 'object' ? req.body : {}
-      const label = String(body.label ?? '').trim()
+      const boardScopeRaw = body.boardScope ?? body.board_scope
       const isPublicLegacy =
         body.isPublic != null
           ? Boolean(body.isPublic)
           : body.contentScope != null
             ? normalizeContentScope(body.contentScope) === 'global'
             : false
-      const contentScope = contentScopeFromLegacyIsPublic(isPublicLegacy)
-      if (!label) {
-        res.status(400).json({ message: '메뉴 이름을 입력해 주세요.' })
+      const resolvedScope =
+        boardScopeRaw != null
+          ? normalizeBoardScope(boardScopeRaw)
+          : isPublicLegacy
+            ? 'global'
+            : 'ga'
+      if (resolvedScope === 'global') {
+        if (!isSuperAdminRole(req.user?.role)) {
+          res.status(403).json({ message: '공용게시판은 최고 관리자만 생성할 수 있습니다.' })
+          return
+        }
+        const form = parseBoardFormBody(body)
+        const created = await createNewsletterBoardRecord({
+          boardScope: 'global',
+          ownerGaId: null,
+          ...form,
+          createdByUserId: String(req.user?.id ?? '') || null,
+        })
+        if (created.error) {
+          res.status(created.error.status).json({ message: created.error.message })
+          return
+        }
+        res.status(201).json(mapNewsletterBoard(created.row))
         return
       }
-      if (label.length > 40) {
-        res.status(400).json({ message: '메뉴 이름은 40자 이하로 입력해 주세요.' })
+      if (String(req.user?.role ?? '') !== 'GA_ADMIN') {
+        res.status(403).json({ message: 'GA전용게시판은 GA 관리자만 생성할 수 있습니다.' })
         return
       }
-      if (contentScope === 'global' && !isSuperAdminRole(req.user?.role)) {
-        res.status(403).json({ message: '전체 공용 게시판은 최고 관리자만 만들 수 있습니다.' })
+      const form = parseBoardFormBody(body)
+      const created = await createNewsletterBoardRecord({
+        boardScope: 'ga',
+        ownerGaId: effectiveTenantGaId(req),
+        ...form,
+        createdByUserId: String(req.user?.id ?? '') || null,
+      })
+      if (created.error) {
+        res.status(created.error.status).json({ message: created.error.message })
         return
       }
-      const slug = slugifyNewsletterBoard(label)
-      const dupe = await safeQuery(pool, NEWSLETTER_BOARD_DUPLICATE_SLUG_SQL, [slug])
-      if (dupe.rowCount > 0) {
-        res.status(409).json({ message: '같은 이름의 소식지 메뉴가 이미 있습니다.' })
-        return
-      }
-      const id = randomUUID()
-      const r = await safeQuery(
-        pool,
-        INSERT_NEWSLETTER_BOARD_SQL,
-        [
-          id,
-          slug,
-          label,
-          contentScope === 'global',
-          contentScope,
-          String(req.user?.id ?? '') || null,
-        ],
-      )
-      const row = r.rows[0]
-      res.status(201).json(mapNewsletterBoard({ ...row, ga_code: null, ga_name: null }))
+      res.status(201).json(mapNewsletterBoard(created.row))
     } catch (eBoardsCreate) {
       handleDbError(eBoardsCreate, req, res)
+    }
+  })
+
+  apiRouter.patch('/admin/newsletter-boards/:boardId', requireAuth, async (req, res) => {
+    try {
+      if (!isSuperAdminRole(req.user?.role)) {
+        res.status(403).json({ message: '공용게시판 수정은 최고 관리자만 가능합니다.' })
+        return
+      }
+      const boardId = String(req.params.boardId ?? '').trim()
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      const boardRes = await systemQuery(pool, SUPER_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL, [boardId])
+      if (boardRes.rowCount === 0) {
+        res.status(404).json({ message: '게시판을 찾을 수 없습니다.' })
+        return
+      }
+      const r = await systemQuery(pool, PATCH_NEWSLETTER_BOARD_SQL, [
+        boardId,
+        body.label == null ? null : String(body.label).trim(),
+        body.description == null ? null : String(body.description).trim(),
+        body.sortOrder == null && body.sort_order == null
+          ? null
+          : Math.round(Number(body.sortOrder ?? body.sort_order ?? 0) || 0),
+        body.isActive == null && body.is_active == null ? null : Boolean(body.isActive ?? body.is_active),
+      ])
+      res.json(mapNewsletterBoard(r.rows[0]))
+    } catch (ePatch) {
+      handleDbError(ePatch, req, res)
+    }
+  })
+
+  apiRouter.patch('/ga-admin/newsletter-boards/:boardId', requireAuth, async (req, res) => {
+    try {
+      if (String(req.user?.role ?? '') !== 'GA_ADMIN') {
+        res.status(403).json({ message: 'GA 관리자만 수정할 수 있습니다.' })
+        return
+      }
+      const boardId = String(req.params.boardId ?? '').trim()
+      const gaId = effectiveTenantGaId(req)
+      const boardRes = await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL, [boardId, gaId])
+      if (boardRes.rowCount === 0) {
+        res.status(404).json({ message: '게시판을 찾을 수 없습니다.' })
+        return
+      }
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      const r = await safeQuery(pool, PATCH_NEWSLETTER_BOARD_SQL, [
+        boardId,
+        body.label == null ? null : String(body.label).trim(),
+        body.description == null ? null : String(body.description).trim(),
+        body.sortOrder == null && body.sort_order == null
+          ? null
+          : Math.round(Number(body.sortOrder ?? body.sort_order ?? 0) || 0),
+        body.isActive == null && body.is_active == null ? null : Boolean(body.isActive ?? body.is_active),
+      ])
+      res.json(mapNewsletterBoard(r.rows[0]))
+    } catch (eGaPatch) {
+      handleDbError(eGaPatch, req, res)
+    }
+  })
+
+  apiRouter.post('/admin/newsletter-boards/:boardId/disable', requireAuth, async (req, res) => {
+    try {
+      if (!isSuperAdminRole(req.user?.role)) {
+        res.status(403).json({ message: '공용게시판 비활성화는 최고 관리자만 가능합니다.' })
+        return
+      }
+      const boardId = String(req.params.boardId ?? '').trim()
+      const r = await systemQuery(pool, DISABLE_NEWSLETTER_BOARD_SQL, [boardId])
+      if (r.rowCount === 0) {
+        res.status(404).json({ message: '게시판을 찾을 수 없습니다.' })
+        return
+      }
+      res.json(mapNewsletterBoard(r.rows[0]))
+    } catch (eDisable) {
+      handleDbError(eDisable, req, res)
+    }
+  })
+
+  apiRouter.post('/ga-admin/newsletter-boards/:boardId/disable', requireAuth, async (req, res) => {
+    try {
+      if (String(req.user?.role ?? '') !== 'GA_ADMIN') {
+        res.status(403).json({ message: 'GA 관리자만 비활성화할 수 있습니다.' })
+        return
+      }
+      const boardId = String(req.params.boardId ?? '').trim()
+      const gaId = effectiveTenantGaId(req)
+      const boardRes = await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL, [boardId, gaId])
+      if (boardRes.rowCount === 0) {
+        res.status(404).json({ message: '게시판을 찾을 수 없습니다.' })
+        return
+      }
+      const r = await safeQuery(pool, DISABLE_NEWSLETTER_BOARD_SQL, [boardId])
+      res.json(mapNewsletterBoard(r.rows[0]))
+    } catch (eGaDisable) {
+      handleDbError(eGaDisable, req, res)
     }
   })
 
@@ -1517,25 +1775,26 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         return
       }
       const isSuperAdmin = isSuperAdminRole(req.user?.role)
+      const gaId = effectiveTenantGaId(req)
       let boardRes
       if (isSuperAdmin) {
         boardRes = await systemQuery(pool, SUPER_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL, [boardId])
       } else {
-        boardRes = await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL, [boardId])
+        boardRes = await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL, [boardId, gaId])
       }
       if (boardRes.rowCount === 0) {
         res.status(404).json({ message: '소식지 메뉴를 찾을 수 없습니다.' })
         return
       }
       const board = boardRes.rows[0]
-      if (!isSuperAdmin && isGlobalContentScope(board.content_scope)) {
-        res.status(403).json({ message: '전체 공용 게시판 메뉴는 최고 관리자만 삭제할 수 있습니다.' })
+      if (!isSuperAdmin && isGlobalBoardScope(board)) {
+        res.status(403).json({ message: '공용게시판은 최고 관리자만 삭제할 수 있습니다.' })
         return
       }
       if (isSuperAdmin) {
         await systemQuery(pool, SUPER_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL, [boardId])
       } else {
-        await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL, [boardId])
+        await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL, [boardId, gaId])
       }
       res.status(204).send()
     } catch (eBoardsDelete) {
@@ -1554,13 +1813,21 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         res.status(404).json({ message: '소식지 메뉴를 찾을 수 없습니다.' })
         return
       }
-      if (isGlobalContentScope(board.content_scope)) {
-        res.status(403).json({ message: '전체 공용 게시판 글은 공용 작성자 계정으로만 작성할 수 있습니다.' })
+      if (isGlobalBoardScope(board)) {
+        res.status(403).json({ message: '공용게시판 글은 게시판 작성자 계정으로만 작성할 수 있습니다.' })
         return
       }
       const tenantGaId = effectiveTenantGaId(req)
       if (!Number.isInteger(tenantGaId) || tenantGaId < 1) {
         res.status(400).json({ message: 'GA 컨텍스트를 확인할 수 없습니다.' })
+        return
+      }
+      if (isGaBoardScope(board) && board.owner_ga_id != null && Number(board.owner_ga_id) !== tenantGaId) {
+        res.status(403).json({ message: '다른 GA 게시판에는 글을 작성할 수 없습니다.' })
+        return
+      }
+      if (isGaBoardScope(board) && board.owner_ga_id != null) {
+        res.status(403).json({ message: 'GA전용게시판 글은 게시판 작성자 계정으로만 작성할 수 있습니다.' })
         return
       }
       const body = req.body && typeof req.body === 'object' ? req.body : {}
