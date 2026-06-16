@@ -300,11 +300,6 @@
   padding: 16px;
 }
 
-.pc-root .insurer-news-page .news-grid,
-.insurer-news-page--pc .news-grid {
-  padding: 0;
-}
-
 .insurer-news-list-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1059,7 +1054,6 @@
     width: 100%;
     max-width: none;
     min-width: 0;
-    padding: 0;
     margin: 0;
     box-sizing: border-box;
   }
