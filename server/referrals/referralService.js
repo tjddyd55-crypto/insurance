@@ -106,6 +106,194 @@ export async function createReferralRelationship(client, input) {
 }
 
 /**
+ * 가입 시 legacy 추천 코드 적용과 동일한 결과로 관계를 보정한다.
+ * - 이미 동일 referrer+code 이면 status 만 재계산(멱등).
+ * - 다른 referrer 가 있으면 UPDATE (referred_user_id UNIQUE).
+ * - 없으면 createReferralRelationship 재사용.
+ *
+ * @param {import('pg').PoolClient} client
+ * @param {{
+ *   referredUserId: string;
+ *   referrerUserId: string;
+ *   code: string;
+ *   policyActive: boolean;
+ * }} input
+ * @returns {Promise<'noop' | 'created' | 'updated'>}
+ */
+export async function repairReferralRelationship(client, input) {
+  const referredUserId = String(input.referredUserId ?? '').trim()
+  const referrerUserId = String(input.referrerUserId ?? '').trim()
+  const code = normalizeReferralCode(input.code)
+
+  if (!referredUserId || !referrerUserId || !code) {
+    throw new Error('referral_relationship_invalid_input')
+  }
+  if (referrerUserId === referredUserId) {
+    throw new Error('referral_self_not_allowed')
+  }
+
+  const existingRes = await systemQuery(
+    client,
+    `
+    SELECT id, referrer_user_id, referred_user_id, code, status
+    FROM referral_relationships
+    WHERE referred_user_id = $1
+    LIMIT 1
+    `,
+    [referredUserId],
+  )
+  const existing = existingRes.rows[0]
+
+  const referredRes = await systemQuery(
+    client,
+    `
+    SELECT id, role, status, is_deleted, subscription_plan, subscription_started_at, subscription_expires_at
+    FROM users
+    WHERE id = $1 AND is_deleted = false
+    LIMIT 1
+    `,
+    [referredUserId],
+  )
+  const referredRow = referredRes.rows[0]
+  if (!referredRow) {
+    throw new Error('referral_referred_user_not_found')
+  }
+
+  const status = computeReferralRelationshipStatus(referredRow, input.policyActive)
+  const nowActive = status === 'active'
+  const nowInactive = status === 'inactive'
+
+  if (!existing) {
+    await createReferralRelationship(client, {
+      referredUserId,
+      referrerUserId,
+      code,
+      policyActive: input.policyActive,
+    })
+    return 'created'
+  }
+
+  const sameReferrer = String(existing.referrer_user_id) === referrerUserId
+  const sameCode = normalizeReferralCode(existing.code) === code
+  const sameStatus = String(existing.status ?? '').toLowerCase() === status
+
+  if (sameReferrer && sameCode && sameStatus) {
+    return 'noop'
+  }
+
+  await systemQuery(
+    client,
+    `
+    UPDATE referral_relationships
+    SET referrer_user_id = $2,
+        code = $3,
+        status = $4,
+        activated_at = CASE
+          WHEN $5 THEN COALESCE(activated_at, NOW())
+          ELSE NULL
+        END,
+        deactivated_at = CASE
+          WHEN $6 THEN COALESCE(deactivated_at, NOW())
+          ELSE NULL
+        END,
+        updated_at = NOW()
+    WHERE referred_user_id = $1
+    `,
+    [referredUserId, referrerUserId, code, status, nowActive, nowInactive],
+  )
+  return 'updated'
+}
+
+/**
+ * @param {import('pg').Pool | import('pg').PoolClient} executor
+ * @param {string} username
+ */
+export async function loadUserReferralAuditByUsername(executor, username) {
+  const login = String(username ?? '').trim()
+  if (!login) {
+    return null
+  }
+  const userRes = await systemQuery(
+    executor,
+    `
+    SELECT
+      u.id,
+      u.username,
+      u.display_name,
+      u.role,
+      u.status,
+      u.ga_id,
+      g.name AS ga_name,
+      g.code AS ga_code
+    FROM users u
+    LEFT JOIN ga_companies g ON g.id = u.ga_id
+    WHERE LOWER(TRIM(u.username)) = LOWER(TRIM($1))
+      AND u.is_deleted = false
+    LIMIT 1
+    `,
+    [login],
+  )
+  const user = userRes.rows[0]
+  if (!user) {
+    return null
+  }
+
+  const ownCodeRes = await systemQuery(
+    executor,
+    `SELECT code, created_at FROM referral_codes WHERE owner_user_id = $1 LIMIT 1`,
+    [user.id],
+  )
+
+  const relRes = await systemQuery(
+    executor,
+    `
+    SELECT
+      rr.id,
+      rr.referrer_user_id,
+      rr.referred_user_id,
+      rr.code,
+      rr.status,
+      rr.created_at,
+      rr.activated_at,
+      rr.deactivated_at,
+      ref_u.username AS referrer_username,
+      ref_u.display_name AS referrer_display_name
+    FROM referral_relationships rr
+    LEFT JOIN users ref_u ON ref_u.id = rr.referrer_user_id AND ref_u.is_deleted = false
+    WHERE rr.referred_user_id = $1
+    LIMIT 1
+    `,
+    [user.id],
+  )
+
+  const asReferrerRes = await systemQuery(
+    executor,
+    `
+    SELECT
+      rr.id,
+      rr.referred_user_id,
+      u.username AS referred_username,
+      u.display_name AS referred_display_name,
+      rr.code,
+      rr.status,
+      rr.created_at
+    FROM referral_relationships rr
+    INNER JOIN users u ON u.id = rr.referred_user_id AND u.is_deleted = false
+    WHERE rr.referrer_user_id = $1
+    ORDER BY rr.created_at ASC, rr.id ASC
+    `,
+    [user.id],
+  )
+
+  return {
+    user,
+    ownReferralCode: ownCodeRes.rows[0] ?? null,
+    referredBy: relRes.rows[0] ?? null,
+    referredUsers: asReferrerRes.rows,
+  }
+}
+
+/**
  * @param {import('pg').Pool | import('pg').PoolClient} executor
  * @param {string} userId
  */
