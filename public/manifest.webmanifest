@@ -1,6 +1,6 @@
 {
-  "name": "보험 고객앱",
-  "short_name": "고객앱",
+  "name": "ONE FC",
+  "short_name": "ONE FC",
   "start_url": "/customer-app",
   "scope": "/",
   "display": "standalone",
