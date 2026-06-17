@@ -334,6 +334,107 @@ main.contract-signature-console .contract-signature-console__detail-dialog {
   box-shadow: var(--shadow-modal, 0 8px 24px rgba(0, 0, 0, 0.35));
 }
 
+main.contract-signature-console .contract-signature-console__detail-dialog--edit {
+  width: min(1080px, calc(100vw - 32px));
+  max-width: 1080px;
+  max-height: 86vh;
+  padding: 0;
+  overflow: hidden;
+}
+
+main.contract-signature-console .contract-signature-console__edit-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 1rem 1.25rem;
+}
+
+main.contract-signature-console .contract-signature-console__edit-field {
+  margin-bottom: 0.75rem;
+  min-width: 0;
+}
+
+main.contract-signature-console .contract-signature-console__edit-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.8125rem;
+  color: var(--text-main);
+}
+
+main.contract-signature-console .contract-signature-console__edit-control {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+main.contract-signature-console .contract-signature-console__edit-meta-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  main.contract-signature-console .contract-signature-console__edit-meta-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  }
+}
+
+main.contract-signature-console .contract-signature-console__edit-field-table-wrap {
+  width: 100%;
+  min-width: 0;
+  overflow-x: visible;
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--bg-card);
+}
+
+main.contract-signature-console .contract-signature-console__field-settings-table th,
+main.contract-signature-console .contract-signature-console__field-settings-table td {
+  vertical-align: middle;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+main.contract-signature-console .contract-signature-console__field-settings-table .form-input,
+main.contract-signature-console .contract-signature-console__field-settings-table .form-select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+main.contract-signature-console .contract-signature-console__field-settings-col-name {
+  width: 16%;
+}
+
+main.contract-signature-console .contract-signature-console__field-settings-col-type {
+  width: 10%;
+}
+
+main.contract-signature-console .contract-signature-console__field-settings-col-required {
+  width: 8%;
+}
+
+main.contract-signature-console .contract-signature-console__field-settings-col-role {
+  width: 28%;
+}
+
+main.contract-signature-console .contract-signature-console__field-settings-col-fixed {
+  width: 38%;
+}
+
+main.contract-signature-console .contract-signature-console__detail-actions--edit {
+  flex-shrink: 0;
+  margin-top: 0;
+  padding: 0.75rem 1.25rem 1rem;
+  border-top: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
 main.contract-signature-console .contract-signature-console__detail-actions {
   display: flex;
   flex-wrap: wrap;
