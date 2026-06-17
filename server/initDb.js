@@ -4186,7 +4186,7 @@ async function ensureSignatureSchema(executor) {
  *   - 이 마이그레이션만 단독 배포해도 기존 기능에 영향이 없다.
  *   - UI·API 가 아직 없으므로 테이블은 존재만 하고 트래픽은 0.
  */
-async function ensurePdfTemplateSchema(executor) {
+export async function ensurePdfTemplateSchema(executor) {
   await executor.query(`
     CREATE TABLE IF NOT EXISTS pdf_templates (
       id SERIAL PRIMARY KEY,
@@ -4256,9 +4256,6 @@ async function ensurePdfTemplateSchema(executor) {
   await executor.query(`
     ALTER TABLE pdf_template_fields
     ADD COLUMN IF NOT EXISTS input_role TEXT NOT NULL DEFAULT 'customer'
-  `)
-  await executor.query(`
-    UPDATE pdf_template_fields SET customer_mapping = NULL
   `)
   await executor.query(`
     UPDATE pdf_template_fields SET input_role = 'customer' WHERE field_type::text = 'signature'
