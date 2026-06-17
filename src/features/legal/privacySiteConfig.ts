@@ -7,10 +7,10 @@ export const privacySiteConfig = {
   documentTitle: '개인정보처리방침',
   /** 검색·미리보기용 (120자 내 권장) */
   metaDescription:
-    '보험 신청·고객 관리 서비스의 개인정보 수집·이용, 보관, 파기 및 정보주체 권리 안내입니다.',
+    'ONE FC의 개인정보 수집·이용, 보관, 파기 및 정보주체 권리 안내입니다.',
   metaRobots: 'index, follow',
   /** 서비스·앱 명칭 (문서 내 표기) */
-  serviceName: '보험 신청·고객관리 서비스',
+  serviceName: 'ONE FC',
   /** 법적 운영자 상호(예: 회사명) */
   operatorLegalName: '(주)○○○',
   /** 대표자 성명 (필요 시 문서에 반영) */

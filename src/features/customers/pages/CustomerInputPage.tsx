@@ -10,10 +10,11 @@ import {
   getCustomerFormValidationError,
   type CustomerFormState,
 } from '../../../components/customer/CustomerForm'
+import { APP_HTML_TITLE } from '../../../config/appBrand'
 import { REGISTER_LINK_PAGE_DESC, REGISTER_LINK_PAGE_TITLE } from '../lib/customerInviteRegistrationMeta'
 import { inviteCustomerApiRowToFormState } from '../utils/inviteCustomerApiRowToFormState'
 
-const DEFAULT_APP_HTML_TITLE = '보험 신청·고객관리'
+const DEFAULT_APP_HTML_TITLE = APP_HTML_TITLE
 const DEFAULT_HTML_DESCRIPTION = '보험 신청·고객 관리 서비스.'
 
 type InviteSessionResp =

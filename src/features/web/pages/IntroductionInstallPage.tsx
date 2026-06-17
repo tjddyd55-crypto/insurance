@@ -132,7 +132,7 @@ export function IntroductionInstallPage() {
     <main className="intro-install">
       <section className="intro-install-hero">
         <div className="intro-v2-shell">
-          <h1>보험 신청·고객관리<br />설치 및 업로드 안내</h1>
+          <h1>ONE FC<br />설치 및 업로드 안내</h1>
           <p>보험 FC 업무용 프로그램 설치 안내</p>
           <p>PC 버전 또는 모바일 APK를 설치하고</p>
           <p>연락처 엑셀 파일을 작성해 업로드하세요</p>

@@ -1,3 +1,4 @@
+import { APP_DISPLAY_NAME } from '../../../../config/appBrand'
 import { useLoginController } from '../../hooks/useLoginController'
 import LoginForm from './LoginForm'
 import LoginAppDownloadFooter from './LoginAppDownloadFooter'
@@ -8,7 +9,7 @@ import LoginPageVersionFooter from './LoginPageVersionFooter'
  *
  * 레이아웃:
  *  - 2-column split (`auth-page--login-split`)
- *  - 좌측: Insurance CRM 브랜드 사이드바
+ *  - 좌측: ONE FC 브랜드 사이드바
  *  - 우측: 로그인 폼 카드
  *
  * 책임:
@@ -28,7 +29,7 @@ export default function LoginPagePCView() {
     <main className="auth-page auth-page--login-split">
       <aside className="auth-login-sidebar" aria-label="로그인 안내">
         <div className="auth-login-sidebar__inner">
-          <h2 className="auth-login-sidebar__brand">Insurance CRM</h2>
+          <h2 className="auth-login-sidebar__brand">{APP_DISPLAY_NAME}</h2>
           <p className="auth-login-sidebar__copy">
             고객 관리 · 상담 기록 · 파일 작업을 한 화면에서 이어서 처리합니다.
           </p>

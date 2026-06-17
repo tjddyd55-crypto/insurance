@@ -3,6 +3,7 @@ import { FormButton } from './form'
 import { useLayoutEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../features/auth/AuthProvider'
+import { APP_DISPLAY_NAME } from '../config/appBrand'
 import { formatGaBannerLabel, shouldShowGaTenantChrome } from '../navigation/gaTenantBarShared'
 
 /**
@@ -10,7 +11,7 @@ import { formatGaBannerLabel, shouldShowGaTenantChrome } from '../navigation/gaT
  * 표시되는 기본 브랜드 문구. 로그인 후에는 `formatGaBannerLabel` 로 사용자 소속
  * GA 이름이 표시된다(하드코딩 없음).
  */
-const APP_TITLE = 'FC-OA'
+const APP_TITLE = APP_DISPLAY_NAME
 const BACK_LABEL = '\uB4A4\uB85C\uAC00\uAE30'
 
 export function ElectronTitleBar() {
