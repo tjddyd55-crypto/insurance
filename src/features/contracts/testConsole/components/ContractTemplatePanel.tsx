@@ -752,184 +752,224 @@ export function ContractTemplatePanel({
       ) : null}
 
       {modal?.kind === 'edit' ? (
-        <div
-          className="contract-signature-console__detail-backdrop"
-          role="presentation"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              closeModal()
-            }
-          }}
-        >
+        <div className="contract-signature-console__detail-backdrop" role="presentation">
           <div
-            className="contract-signature-console__detail-dialog"
-            style={{ maxHeight: '92vh', overflowY: 'auto' }}
+            className="contract-signature-console__detail-dialog contract-signature-console__detail-dialog--edit"
             role="dialog"
             aria-modal="true"
             aria-label="템플릿 수정"
           >
-            <h3 className="contract-signature-console__subsection-title" style={{ marginTop: 0 }}>
-              전자서명 템플릿 수정
-            </h3>
-            <p className="contract-signature-console__body-text" style={{ marginBottom: 12 }}>
-              {detail && resolveTemplateMode(detail) === 'confirmation_only'
-                ? '무좌표 전자확인서 템플릿입니다. 확인서에 표시할 동적 항목만 편집합니다. PDF 좌표 필드는 사용하지 않습니다.'
-                : '선택한 PDF 템플릿의 필드별 입력 방식을 설정합니다. 고객 입력은 고객이 작성하고, 발송자 입력은 발송자가 보내기 전에 작성하며, 고정 출력은 모든 발송 건에 동일하게 출력됩니다.'}
-            </p>
-            <div style={{ marginBottom: 10 }}>
-              <div className="contract-signature-console__body-text" style={{ marginBottom: 6 }}>
-                템플릿 제목
+            <div className="contract-signature-console__edit-body">
+              <h3 className="contract-signature-console__subsection-title" style={{ marginTop: 0 }}>
+                전자서명 템플릿 수정
+              </h3>
+              <p className="contract-signature-console__body-text" style={{ marginBottom: 12 }}>
+                {detail && resolveTemplateMode(detail) === 'confirmation_only'
+                  ? '무좌표 전자확인서 템플릿입니다. 확인서에 표시할 동적 항목만 편집합니다. PDF 좌표 필드는 사용하지 않습니다.'
+                  : '선택한 PDF 템플릿의 필드별 입력 방식을 설정합니다. 고객 입력은 고객이 작성하고, 발송자 입력은 발송자가 보내기 전에 작성하며, 고정 출력은 모든 발송 건에 동일하게 출력됩니다.'}
+              </p>
+              <div className="contract-signature-console__edit-field">
+                <label className="contract-signature-console__edit-label" htmlFor="contract-template-edit-title">
+                  템플릿 제목
+                </label>
+                <FormInput
+                  id="contract-template-edit-title"
+                  className="contract-signature-console__edit-control"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  disabled={busy}
+                />
               </div>
-              <FormInput value={editTitle} onChange={(e) => setEditTitle(e.target.value)} disabled={busy} />
-            </div>
-            <div style={{ marginBottom: 10 }}>
-              <div className="contract-signature-console__body-text" style={{ marginBottom: 6 }}>
-                설명
+              <div className="contract-signature-console__edit-field">
+                <label className="contract-signature-console__edit-label" htmlFor="contract-template-edit-description">
+                  설명
+                </label>
+                <FormTextarea
+                  id="contract-template-edit-description"
+                  className="contract-signature-console__edit-control"
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  disabled={busy}
+                  rows={4}
+                />
               </div>
-              <FormTextarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} disabled={busy} rows={4} />
+              {detailLoading ? (
+                <p className="contract-signature-console__body-text">불러오는 중…</p>
+              ) : detail ? (
+                <>
+                  {resolveTemplateMode(detail) === 'confirmation_only' ? (
+                    <>
+                      <div className="contract-signature-console__edit-field">
+                        <label className="contract-signature-console__edit-label" htmlFor="contract-template-edit-mode">
+                          템플릿 모드(변경 불가)
+                        </label>
+                        <FormInput
+                          id="contract-template-edit-mode"
+                          className="contract-signature-console__edit-control"
+                          value={templateModeShortLabel(resolveTemplateMode(detail))}
+                          readOnly
+                          disabled
+                        />
+                      </div>
+                      <ContractTemplateConfirmationFieldsSection
+                        token={token}
+                        role={role}
+                        tenantGaId={tenantGaId}
+                        templateId={detail.id}
+                        disabled={busy}
+                        onError={onError}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <div className="contract-signature-console__edit-meta-row">
+                        <div className="contract-signature-console__edit-field" style={{ marginBottom: 0 }}>
+                          <label className="contract-signature-console__edit-label" htmlFor="contract-template-edit-mode">
+                            템플릿 모드(변경 불가)
+                          </label>
+                          <FormInput
+                            id="contract-template-edit-mode"
+                            className="contract-signature-console__edit-control"
+                            value={templateModeShortLabel(resolveTemplateMode(detail))}
+                            readOnly
+                            disabled
+                          />
+                        </div>
+                        <div className="contract-signature-console__edit-field" style={{ marginBottom: 0 }}>
+                          <label className="contract-signature-console__edit-label" htmlFor="contract-template-edit-pdf">
+                            연결 PDF 템플릿
+                          </label>
+                          <FormInput
+                            id="contract-template-edit-pdf"
+                            className="contract-signature-console__edit-control"
+                            value={
+                              detail.pdfEngine?.title ??
+                              (detail.pdfTemplateId != null ? `PDF #${detail.pdfTemplateId}` : '—')
+                            }
+                            readOnly
+                            disabled={busy}
+                          />
+                        </div>
+                      </div>
+                      <h4 className="contract-signature-console__subsection-title" style={{ fontSize: '1rem', marginTop: 16 }}>
+                        필드 입력 방식 설정
+                      </h4>
+                      <ul className="contract-signature-console__hint" style={{ fontSize: 12, margin: '0 0 8px', paddingLeft: 18 }}>
+                        <li>
+                          <strong>고객 입력</strong>: 고객이 전자서명 화면에서 직접 입력합니다.
+                        </li>
+                        <li>
+                          <strong>발송자 입력</strong>: 발송자가 고객에게 보내기 전에 입력하며, 고객은 수정할 수 없습니다.
+                        </li>
+                        <li>
+                          <strong>고정 출력</strong>: 모든 발송 건에 동일하게 출력되는 값입니다.
+                        </li>
+                      </ul>
+                      <p className="contract-signature-console__hint" style={{ marginBottom: 8 }}>
+                        손사인 필드는 고객 입력으로 고정됩니다.
+                      </p>
+                      <p className="contract-signature-console__hint" style={{ marginBottom: 8 }}>
+                        고정 출력 값은 모든 고객에게 동일하게 문서에 반영됩니다. 발송자 입력 값은 유저/FC가 전자서명을 발송할 때
+                        입력합니다. 고객 입력 값은 고객이 전자서명 링크에서 직접 입력합니다.
+                      </p>
+                      {detail.pdfTemplateId == null ? (
+                        <p className="contract-signature-console__inline-warning">
+                          연결된 PDF가 없어 필드 입력 방식을 설정할 수 없습니다.
+                        </p>
+                      ) : fieldSettingsDraft.length === 0 ? (
+                        <p className="contract-signature-console__hint">연결 PDF에 좌표 필드가 없습니다.</p>
+                      ) : (
+                        <div className="contract-signature-console__edit-field-table-wrap">
+                          <table className="pdf-engine-table contract-signature-console__template-table contract-signature-console__field-settings-table">
+                            <thead>
+                              <tr>
+                                <th className="contract-signature-console__field-settings-col-name">필드명</th>
+                                <th className="contract-signature-console__field-settings-col-type">타입</th>
+                                <th className="contract-signature-console__field-settings-col-required">필수</th>
+                                <th className="contract-signature-console__field-settings-col-role">입력 방식</th>
+                                <th className="contract-signature-console__field-settings-col-fixed">고정 출력값</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {fieldSettingsDraft.map((row) => {
+                                const meta = detail.fieldInputSettings.find((x) => x.fieldKey === row.fieldKey)
+                                const isSig = meta?.fieldType === 'signature'
+                                return (
+                                  <tr key={row.fieldKey}>
+                                    <td>{meta?.label ?? row.fieldKey}</td>
+                                    <td>{pdfFieldTypeLabel(meta?.fieldType ?? '')}</td>
+                                    <td>{meta?.required ? 'Y' : '—'}</td>
+                                    <td>
+                                      {isSig ? (
+                                        <div>
+                                          <span className="contract-signature-console__body-text">고객 입력</span>
+                                          <p
+                                            className="contract-signature-console__hint"
+                                            style={{ marginTop: 4, marginBottom: 0 }}
+                                          >
+                                            손사인 필드는 고객이 직접 입력합니다.
+                                          </p>
+                                        </div>
+                                      ) : (
+                                        <FormSelect
+                                          className="contract-signature-console__edit-control"
+                                          value={row.inputRole}
+                                          disabled={busy}
+                                          options={CONTRACT_FIELD_ROLE_OPTIONS}
+                                          onChange={(e) => {
+                                            const v = e.target.value
+                                            if (v !== 'customer' && v !== 'sender' && v !== 'fixed') {
+                                              return
+                                            }
+                                            setFieldSettingsDraft((prev) =>
+                                              prev.map((r) =>
+                                                r.fieldKey === row.fieldKey
+                                                  ? {
+                                                      ...r,
+                                                      inputRole: v,
+                                                      fixedValue: v === 'fixed' ? r.fixedValue : '',
+                                                    }
+                                                  : r,
+                                              ),
+                                            )
+                                          }}
+                                        />
+                                      )}
+                                    </td>
+                                    <td>
+                                      {!isSig && row.inputRole === 'fixed' ? (
+                                        <FormInput
+                                          className="contract-signature-console__edit-control"
+                                          value={row.fixedValue}
+                                          disabled={busy}
+                                          onChange={(e) =>
+                                            setFieldSettingsDraft((prev) =>
+                                              prev.map((r) =>
+                                                r.fieldKey === row.fieldKey ? { ...r, fixedValue: e.target.value } : r,
+                                              ),
+                                            )
+                                          }
+                                          placeholder="고정 출력 내용"
+                                        />
+                                      ) : (
+                                        <span className="contract-signature-console__muted">—</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </>
+              ) : (
+                <p className="contract-signature-console__body-text">표시할 데이터가 없습니다.</p>
+              )}
             </div>
-            {detailLoading ? (
-              <p className="contract-signature-console__body-text">불러오는 중…</p>
-            ) : detail ? (
-              <>
-                <div style={{ marginBottom: 10 }}>
-                  <div className="contract-signature-console__body-text" style={{ marginBottom: 6 }}>
-                    템플릿 모드(변경 불가)
-                  </div>
-                  <FormInput value={templateModeShortLabel(resolveTemplateMode(detail))} readOnly disabled />
-                </div>
-                {resolveTemplateMode(detail) === 'confirmation_only' ? (
-                  <ContractTemplateConfirmationFieldsSection
-                    token={token}
-                    role={role}
-                    tenantGaId={tenantGaId}
-                    templateId={detail.id}
-                    disabled={busy}
-                    onError={onError}
-                  />
-                ) : (
-                  <>
-                <div style={{ marginBottom: 10 }}>
-                  <div className="contract-signature-console__body-text" style={{ marginBottom: 6 }}>
-                    연결 PDF 템플릿
-                  </div>
-                  <FormInput
-                    value={detail.pdfEngine?.title ?? (detail.pdfTemplateId != null ? `PDF #${detail.pdfTemplateId}` : '—')}
-                    readOnly
-                    disabled={busy}
-                  />
-                </div>
-                <h4 className="contract-signature-console__subsection-title" style={{ fontSize: '1rem', marginTop: 16 }}>
-                  필드 입력 방식 설정
-                </h4>
-                <ul className="contract-signature-console__hint" style={{ fontSize: 12, margin: '0 0 8px', paddingLeft: 18 }}>
-                  <li>
-                    <strong>고객 입력</strong>: 고객이 전자서명 화면에서 직접 입력합니다.
-                  </li>
-                  <li>
-                    <strong>발송자 입력</strong>: 발송자가 고객에게 보내기 전에 입력하며, 고객은 수정할 수 없습니다.
-                  </li>
-                  <li>
-                    <strong>고정 출력</strong>: 모든 발송 건에 동일하게 출력되는 값입니다.
-                  </li>
-                </ul>
-                <p className="contract-signature-console__hint" style={{ marginBottom: 8 }}>
-                  손사인 필드는 고객 입력으로 고정됩니다.
-                </p>
-                <p className="contract-signature-console__hint" style={{ marginBottom: 8 }}>
-                  고정 출력 값은 모든 고객에게 동일하게 문서에 반영됩니다. 발송자 입력 값은 유저/FC가 전자서명을 발송할 때
-                  입력합니다. 고객 입력 값은 고객이 전자서명 링크에서 직접 입력합니다.
-                </p>
-                {detail.pdfTemplateId == null ? (
-                  <p className="contract-signature-console__inline-warning">연결된 PDF가 없어 필드 입력 방식을 설정할 수 없습니다.</p>
-                ) : fieldSettingsDraft.length === 0 ? (
-                  <p className="contract-signature-console__hint">연결 PDF에 좌표 필드가 없습니다.</p>
-                ) : (
-                  <div className="contract-signature-console__scroll-x" style={{ marginBottom: 12 }}>
-                    <table className="pdf-engine-table contract-signature-console__template-table">
-                      <thead>
-                        <tr>
-                          <th>필드명</th>
-                          <th>타입</th>
-                          <th>필수</th>
-                          <th>입력 방식</th>
-                          <th>고정 출력값</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {fieldSettingsDraft.map((row) => {
-                          const meta = detail.fieldInputSettings.find((x) => x.fieldKey === row.fieldKey)
-                          const isSig = meta?.fieldType === 'signature'
-                          return (
-                            <tr key={row.fieldKey}>
-                              <td>{meta?.label ?? row.fieldKey}</td>
-                              <td>{pdfFieldTypeLabel(meta?.fieldType ?? '')}</td>
-                              <td>{meta?.required ? 'Y' : '—'}</td>
-                              <td style={{ minWidth: 180 }}>
-                                {isSig ? (
-                                  <div>
-                                    <span className="contract-signature-console__body-text">고객 입력</span>
-                                    <p className="contract-signature-console__hint" style={{ marginTop: 4, marginBottom: 0 }}>
-                                      손사인 필드는 고객이 직접 입력합니다.
-                                    </p>
-                                  </div>
-                                ) : (
-                                  <FormSelect
-                                    value={row.inputRole}
-                                    disabled={busy}
-                                    options={CONTRACT_FIELD_ROLE_OPTIONS}
-                                    onChange={(e) => {
-                                      const v = e.target.value
-                                      if (v !== 'customer' && v !== 'sender' && v !== 'fixed') {
-                                        return
-                                      }
-                                      setFieldSettingsDraft((prev) =>
-                                        prev.map((r) =>
-                                          r.fieldKey === row.fieldKey
-                                            ? {
-                                                ...r,
-                                                inputRole: v,
-                                                fixedValue: v === 'fixed' ? r.fixedValue : '',
-                                              }
-                                            : r,
-                                        ),
-                                      )
-                                    }}
-                                  />
-                                )}
-                              </td>
-                              <td style={{ minWidth: 160 }}>
-                                {!isSig && row.inputRole === 'fixed' ? (
-                                  <FormInput
-                                    value={row.fixedValue}
-                                    disabled={busy}
-                                    onChange={(e) =>
-                                      setFieldSettingsDraft((prev) =>
-                                        prev.map((r) =>
-                                          r.fieldKey === row.fieldKey ? { ...r, fixedValue: e.target.value } : r,
-                                        ),
-                                      )
-                                    }
-                                    placeholder="고정 출력 내용"
-                                  />
-                                ) : (
-                                  <span className="contract-signature-console__muted">—</span>
-                                )}
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-                  </>
-                )}
-              </>
-            ) : (
-              <p className="contract-signature-console__body-text">표시할 데이터가 없습니다.</p>
-            )}
-            <div className="contract-signature-console__detail-actions">
+            <div className="contract-signature-console__detail-actions contract-signature-console__detail-actions--edit">
               <FormButton htmlType="button" variant="secondary" size="sm" disabled={busy} onClick={closeModal}>
                 취소
               </FormButton>
