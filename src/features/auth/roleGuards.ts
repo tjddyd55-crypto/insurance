@@ -7,6 +7,20 @@ export function isInsuranceOpsRole(role: string | undefined): role is UserRole {
   return role != null && (INSURANCE_OPS_ROLES as readonly string[]).includes(role)
 }
 
+/** PDF 좌표 템플릿 관리 — GA 테넌트 관리자·스태프 + 플랫폼 관리자 */
+export const PDF_TEMPLATE_ADMIN_ROLES: UserRole[] = ['SUPER_ADMIN', 'GA_ADMIN', 'GA_STAFF']
+
+export function canUsePdfTemplateAdminRoutes(role: string | undefined): boolean {
+  return role != null && (PDF_TEMPLATE_ADMIN_ROLES as readonly string[]).includes(role)
+}
+
+/** 소식지·게시판 메뉴 관리 — GA 테넌트 관리자·스태프 + 플랫폼 관리자 */
+export const NEWSLETTER_BOARD_ADMIN_ROLES: UserRole[] = ['SUPER_ADMIN', 'GA_ADMIN', 'GA_STAFF']
+
+export function canUseNewsletterBoardAdminRoutes(role: string | undefined): boolean {
+  return role != null && (NEWSLETTER_BOARD_ADMIN_ROLES as readonly string[]).includes(role)
+}
+
 /** 동의서 템플릿 관리(등록/수정) — GA_STAFF 제외 */
 export const CONSENT_TEMPLATE_ADMIN_ROLES: UserRole[] = ['GA_ADMIN', 'SUPER_ADMIN']
 

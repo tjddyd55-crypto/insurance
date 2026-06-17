@@ -79,6 +79,7 @@ import PlatformRegistriesPage from './features/platform/pages/registries/Platfor
 import InsurerSitesPage from './features/insurer-sites/pages/InsurerSitesPage'
 import PrivacyPolicyPage from './features/legal/PrivacyPolicyPage'
 import { SuperAdminRoute } from './features/auth/SuperAdminRoute'
+import { PdfTemplateAdminRoute } from './features/auth/PdfTemplateAdminRoute'
 import { InsurerManagerOnlyRoute } from './features/auth/InsurerManagerOnlyRoute'
 import { RequireNotInsurerManagerRoute } from './features/auth/RequireNotInsurerManagerRoute'
 import { AuditLogReaderRoute } from './features/auth/AuditLogReaderRoute'
@@ -407,9 +408,9 @@ export const appRouter = createBrowserRouter([
                 ],
               },
               {
-                /* PDF 좌표 기반 문서 자동화 — SUPER_ADMIN 전용.
+                /* PDF 좌표 기반 문서 자동화 — SUPER_ADMIN · GA_ADMIN · GA_STAFF.
                    권한 게이트는 서버 라우터에서도 이중으로 확인한다. */
-                element: <SuperAdminRoute />,
+                element: <PdfTemplateAdminRoute />,
                 children: [
                   { path: 'admin/pdf-templates', element: <PdfTemplateListPage /> },
                   { path: 'admin/pdf-templates/new', element: <PdfTemplateEditorPage /> },

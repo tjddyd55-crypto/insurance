@@ -3,7 +3,7 @@
  *
  * 아키텍처:
  *   - HTTP 입출력만 담당. 도메인 로직은 server/pdf-engine/* 에 위임한다.
- *   - 관리자 쓰기: 업로드·필드 정의 → SUPER_ADMIN 전용.
+ *   - 관리자 쓰기: 업로드·필드 정의 → SUPER_ADMIN · GA_ADMIN · GA_STAFF (GA 스코프).
  *   - 사용자 읽기/발급: 본인 GA 또는 공용(ga_id IS NULL) 템플릿만 허용.
  *
  * 라우트 일람:
@@ -114,6 +114,40 @@ function requireSuperAdmin(req, res, isSuperAdminRole) {
   return true
 }
 
+function isPdfTemplateAdminRole(role) {
+  const r = String(role ?? '')
+  return r === 'SUPER_ADMIN' || r === 'GA_ADMIN' || r === 'GA_STAFF'
+}
+
+function requirePdfTemplateAdmin(req, res) {
+  if (!req.user || !isPdfTemplateAdminRole(req.user.role)) {
+    res.status(403).json({ message: 'PDF 템플릿 관리 권한이 필요합니다.' })
+    return false
+  }
+  return true
+}
+
+function resolveTenantGaIdForPdfAdmin(req) {
+  const gaId = Number(req.user?.gaId)
+  return Number.isInteger(gaId) && gaId > 0 ? gaId : null
+}
+
+function assertCanMutatePdfTemplate(req, res, template, isSuperAdminRole) {
+  if (!template) {
+    res.status(404).json({ message: '템플릿을 찾을 수 없습니다.' })
+    return false
+  }
+  if (!canAccessTemplateForUser(template, req.user ?? null, isSuperAdminRole)) {
+    res.status(404).json({ message: '템플릿을 찾을 수 없습니다.' })
+    return false
+  }
+  if (!isSuperAdminRole(req.user?.role) && template.ga_id == null) {
+    res.status(403).json({ message: '공용 템플릿은 최고 관리자만 수정할 수 있습니다.' })
+    return false
+  }
+  return true
+}
+
 /**
  * SUPER_ADMIN 전용 라우트의 미들웨어 체인 선두에 배치.
  * multer 같은 리소스 소비형 파서가 비인가 요청을 처리하지 않도록, 권한 체크를 파싱 앞에서 수행한다.
@@ -121,6 +155,13 @@ function requireSuperAdmin(req, res, isSuperAdminRole) {
 function makeRequireSuperAdminMw(isSuperAdminRole) {
   return (req, res, next) => {
     if (!requireSuperAdmin(req, res, isSuperAdminRole)) return
+    next()
+  }
+}
+
+function makeRequirePdfTemplateAdminMw() {
+  return (req, res, next) => {
+    if (!requirePdfTemplateAdmin(req, res)) return
     next()
   }
 }
@@ -278,7 +319,7 @@ function sanitizePdfFontOverrides(fields, raw) {
  */
 export function registerPdfTemplateApi(apiRouter, deps) {
   const { pool, requireAuth, isSuperAdminRole, handleDbError } = deps
-  const requireSuperAdminMw = makeRequireSuperAdminMw(isSuperAdminRole)
+  const requirePdfTemplateAdminMw = makeRequirePdfTemplateAdminMw()
 
   // ─── 관리자 라우트 ────────────────────────────────────────────────
 
@@ -286,7 +327,7 @@ export function registerPdfTemplateApi(apiRouter, deps) {
     '/admin/pdf-templates/upload',
     requireAuth,
     /* 권한을 multer 앞에 두어 비인가 요청이 25MB 멀티파트 파싱을 강제하지 못하게 한다. */
-    requireSuperAdminMw,
+    requirePdfTemplateAdminMw,
     (req, res, next) => {
       uploadPdf.single('pdf')(req, res, (err) => {
         if (err) {
@@ -303,9 +344,16 @@ export function registerPdfTemplateApi(apiRouter, deps) {
         return
       }
       const gaIdRaw = req.body?.gaId
-      const gaId =
+      let gaId =
         gaIdRaw == null || gaIdRaw === '' || gaIdRaw === 'null' ? null : Number(gaIdRaw)
-      if (gaId != null && (!Number.isInteger(gaId) || gaId < 1)) {
+      if (!isSuperAdminRole(req.user?.role)) {
+        const tenantGaId = resolveTenantGaIdForPdfAdmin(req)
+        if (!tenantGaId) {
+          res.status(403).json({ message: '소속 GA 정보가 없습니다.' })
+          return
+        }
+        gaId = tenantGaId
+      } else if (gaId != null && (!Number.isInteger(gaId) || gaId < 1)) {
         res.status(400).json({ message: 'gaId 가 올바르지 않습니다.' })
         return
       }
@@ -329,12 +377,19 @@ export function registerPdfTemplateApi(apiRouter, deps) {
   )
 
   apiRouter.post('/admin/pdf-templates', requireAuth, async (req, res) => {
-    if (!requireSuperAdmin(req, res, isSuperAdminRole)) return
+    if (!requirePdfTemplateAdmin(req, res)) return
     const body = req.body && typeof req.body === 'object' ? req.body : {}
     const gaIdRaw = body.gaId
-    const gaId =
+    let gaId =
       gaIdRaw == null || gaIdRaw === '' || gaIdRaw === 'null' ? null : Number(gaIdRaw)
-    if (gaId != null && (!Number.isInteger(gaId) || gaId < 1)) {
+    if (!isSuperAdminRole(req.user?.role)) {
+      const tenantGaId = resolveTenantGaIdForPdfAdmin(req)
+      if (!tenantGaId) {
+        res.status(403).json({ message: '소속 GA 정보가 없습니다.' })
+        return
+      }
+      gaId = tenantGaId
+    } else if (gaId != null && (!Number.isInteger(gaId) || gaId < 1)) {
       res.status(400).json({ message: 'gaId 가 올바르지 않습니다.' })
       return
     }
@@ -375,9 +430,14 @@ export function registerPdfTemplateApi(apiRouter, deps) {
   })
 
   apiRouter.get('/admin/pdf-templates', requireAuth, async (req, res) => {
-    if (!requireSuperAdmin(req, res, isSuperAdminRole)) return
+    if (!requirePdfTemplateAdmin(req, res)) return
     try {
-      const rows = await listTemplates(pool, { gaId: null, includeInactive: true })
+      const rows = isSuperAdminRole(req.user?.role)
+        ? await listTemplates(pool, { gaId: null, includeInactive: true })
+        : await listTemplates(pool, {
+            gaId: resolveTenantGaIdForPdfAdmin(req),
+            includeInactive: true,
+          })
       res.json({ templates: rows.map(templateToDto) })
     } catch (error) {
       handleDbError(res, error)
@@ -385,7 +445,7 @@ export function registerPdfTemplateApi(apiRouter, deps) {
   })
 
   apiRouter.get('/admin/pdf-templates/:id', requireAuth, async (req, res) => {
-    if (!requireSuperAdmin(req, res, isSuperAdminRole)) return
+    if (!requirePdfTemplateAdmin(req, res)) return
     const id = parseTemplateId(req.params.id)
     if (!id) {
       res.status(400).json({ message: 'id 가 올바르지 않습니다.' })
@@ -393,10 +453,7 @@ export function registerPdfTemplateApi(apiRouter, deps) {
     }
     try {
       const row = await getTemplateById(pool, id)
-      if (!row) {
-        res.status(404).json({ message: '템플릿을 찾을 수 없습니다.' })
-        return
-      }
+      if (!assertCanMutatePdfTemplate(req, res, row, isSuperAdminRole)) return
       const fields = await listFields(pool, id)
       res.json({
         template: templateToDto(row),
@@ -408,7 +465,7 @@ export function registerPdfTemplateApi(apiRouter, deps) {
   })
 
   apiRouter.patch('/admin/pdf-templates/:id', requireAuth, async (req, res) => {
-    if (!requireSuperAdmin(req, res, isSuperAdminRole)) return
+    if (!requirePdfTemplateAdmin(req, res)) return
     const id = parseTemplateId(req.params.id)
     if (!id) {
       res.status(400).json({ message: 'id 가 올바르지 않습니다.' })
@@ -417,6 +474,10 @@ export function registerPdfTemplateApi(apiRouter, deps) {
     const body = req.body && typeof req.body === 'object' ? req.body : {}
     const patch = {}
     if (Object.prototype.hasOwnProperty.call(body, 'gaId')) {
+      if (!isSuperAdminRole(req.user?.role)) {
+        res.status(403).json({ message: '소속 GA는 변경할 수 없습니다.' })
+        return
+      }
       const parsed = parseTemplateGaIdForPatch(body.gaId)
       if (!parsed.ok) {
         res.status(400).json({ message: 'gaId 가 올바르지 않습니다.' })
@@ -440,6 +501,8 @@ export function registerPdfTemplateApi(apiRouter, deps) {
     }
 
     try {
+      const existing = await getTemplateById(pool, id)
+      if (!assertCanMutatePdfTemplate(req, res, existing, isSuperAdminRole)) return
       await updateTemplateMeta(pool, id, patch)
       const row = await getTemplateById(pool, id)
       res.json({ template: row ? templateToDto(row) : null })
@@ -449,7 +512,7 @@ export function registerPdfTemplateApi(apiRouter, deps) {
   })
 
   apiRouter.put('/admin/pdf-templates/:id/fields', requireAuth, async (req, res) => {
-    if (!requireSuperAdmin(req, res, isSuperAdminRole)) return
+    if (!requirePdfTemplateAdmin(req, res)) return
     const id = parseTemplateId(req.params.id)
     if (!id) {
       res.status(400).json({ message: 'id 가 올바르지 않습니다.' })
@@ -464,10 +527,7 @@ export function registerPdfTemplateApi(apiRouter, deps) {
         }
       }
       const template = await getTemplateById(pool, id)
-      if (!template) {
-        res.status(404).json({ message: '템플릿을 찾을 수 없습니다.' })
-        return
-      }
+      if (!assertCanMutatePdfTemplate(req, res, template, isSuperAdminRole)) return
       /* placements 의 page 값이 실제 페이지 수를 넘지 않는지 재검증(스키마만으로 모자람). */
       for (const f of fields) {
         for (const p of f.placements) {
@@ -499,7 +559,7 @@ export function registerPdfTemplateApi(apiRouter, deps) {
   })
 
   apiRouter.get('/admin/pdf-templates/:id/file', requireAuth, async (req, res) => {
-    if (!requireSuperAdmin(req, res, isSuperAdminRole)) return
+    if (!requirePdfTemplateAdmin(req, res)) return
     const id = parseTemplateId(req.params.id)
     if (!id) {
       res.status(400).json({ message: 'id 가 올바르지 않습니다.', code: 'invalid-id' })
@@ -530,6 +590,7 @@ export function registerPdfTemplateApi(apiRouter, deps) {
       })
       return
     }
+    if (!assertCanMutatePdfTemplate(req, res, template, isSuperAdminRole)) return
     try {
       const buf = await getTemplateObject(template.storage_key)
       /*
@@ -576,7 +637,7 @@ export function registerPdfTemplateApi(apiRouter, deps) {
   })
 
   apiRouter.delete('/admin/pdf-templates/:id', requireAuth, async (req, res) => {
-    if (!requireSuperAdmin(req, res, isSuperAdminRole)) return
+    if (!requirePdfTemplateAdmin(req, res)) return
     const id = parseTemplateId(req.params.id)
     if (!id) {
       res.status(400).json({ message: 'id 가 올바르지 않습니다.' })
@@ -584,10 +645,7 @@ export function registerPdfTemplateApi(apiRouter, deps) {
     }
     try {
       const template = await getTemplateById(pool, id)
-      if (!template) {
-        res.status(404).json({ message: '템플릿을 찾을 수 없습니다.' })
-        return
-      }
+      if (!assertCanMutatePdfTemplate(req, res, template, isSuperAdminRole)) return
       /*
        * 스토리지 먼저 지우고 DB 를 지운다.
        * 스토리지 삭제가 실패하면 DB row 를 남겨두고 에러를 반환해야 orphan 객체를 재시도로 정리할 수 있다.
