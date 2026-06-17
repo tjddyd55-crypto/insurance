@@ -17,6 +17,30 @@
   color: var(--text-primary, var(--text-main, #111827));
 }
 
+/*
+ * PC 목록(/application/documents): 모바일 SSOT용 main.page.user-page 가 좌우 padding 을 0 으로
+ * 덮어써 본문이 viewport 왼쪽에 붙는 회귀 복구. 모바일 규칙은 @media (max-width: 767px) / ssot.css 유지.
+ */
+@media (min-width: 768px) {
+  .user-app-shell main.page.user-page.pdf-engine-page:not(.pdf-document-detail-page--mobile):not(
+      .pdf-engine-page--editor
+    ) {
+    padding-inline: 20px;
+    max-width: 1200px;
+    margin-inline: auto;
+    box-sizing: border-box;
+  }
+
+  .user-app-shell
+    main.page.user-page.pdf-engine-page.pdf-engine-page--workspace-embedded:not(
+      .pdf-document-detail-page--mobile
+    ) {
+    padding-inline: 4px;
+    max-width: none;
+    margin-inline: 0;
+  }
+}
+
 /* 좌표 편집 — 좌우 여백을 줄이고 가로를 최대한 PDF 미리보기에 할당 */
 .pdf-engine-page--editor {
   max-width: none;
