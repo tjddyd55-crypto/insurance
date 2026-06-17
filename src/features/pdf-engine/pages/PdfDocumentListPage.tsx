@@ -64,7 +64,7 @@ export default function PdfDocumentListPage() {
 
   return (
     <main
-      className={`pdf-engine-page user-page${isWorkspaceEmbedded ? ' pdf-engine-page--workspace-embedded' : ''}`}
+      className={`page page--with-back pdf-engine-page user-page${isWorkspaceEmbedded ? ' pdf-engine-page--workspace-embedded' : ''}`}
     >
       <h1 className="pdf-engine-page__title">신청서 작성</h1>
       <p className="pdf-engine-page__hint">

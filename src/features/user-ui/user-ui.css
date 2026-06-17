@@ -13,6 +13,7 @@
    * 페이지 본문은 customers-page.page 와 같이 좌우 padding 0 — 중복 gutter 금지.
    */
   --user-mobile-content-gutter: var(--mobile-h-padding);
+  --user-mobile-content-inset: calc(var(--mobile-h-padding) * 2);
 }
 
 .user-app-shell .app-main-content {

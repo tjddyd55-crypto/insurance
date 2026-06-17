@@ -101,7 +101,7 @@ export default function ClaimRequestsPersonalMobileView({
 
   return (
     <main
-      className={`page claim-requests-page claim-requests-page--mobile claim-requests-personal-mobile page--with-back content-wrapper ${CUSTOMER_WORKSPACE_MOBILE_SCOPE_CLASS}`}
+      className={`page claim-requests-page claim-requests-page--mobile claim-requests-personal-mobile page--with-back user-page ${CUSTOMER_WORKSPACE_MOBILE_SCOPE_CLASS}`}
     >
       {errorMessage ? (
         <p className="status status--error" role="alert">

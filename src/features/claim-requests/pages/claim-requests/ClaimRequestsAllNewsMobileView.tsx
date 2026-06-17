@@ -82,7 +82,7 @@ export default function ClaimRequestsAllNewsMobileView({
   const selectedFiles = selectedNews?.attachments?.filter((attachment) => attachment.kind !== 'image') ?? []
 
   return (
-    <main className="page claim-requests-page claim-requests-page--mobile claim-requests-all-news-mobile page--with-back content-wrapper">
+    <main className="page claim-requests-page claim-requests-page--mobile claim-requests-all-news-mobile page--with-back user-page">
       {errorMessage ? <p className="status status--error" role="alert">{errorMessage}</p> : null}
       {resultMessage ? <p className="status" role="status">{resultMessage}</p> : null}
 
