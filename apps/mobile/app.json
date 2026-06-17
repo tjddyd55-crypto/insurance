@@ -22,7 +22,7 @@
       "minSdkVersion": 24,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#003D1F"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
