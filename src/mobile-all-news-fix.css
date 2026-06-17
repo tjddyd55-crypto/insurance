@@ -15,7 +15,7 @@
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
     overscroll-behavior-y: contain !important;
-    padding: 14px 16px calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 12px var(--mobile-h-padding) calc(96px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   .claim-requests-all-news-mobile {

@@ -1,0 +1,70 @@
+/**
+ * 모바일 유저 content gutter SSOT — customers-page--mobile 기준.
+ * shell(.content-wrapper--mobile) + .page @768px = 각 var(--mobile-h-padding) → 실효 inset 16px.
+ * 레거시 mobile-* fix CSS 보다 나중에 로드해 padding 충돌을 정리한다.
+ */
+@media (max-width: 767px) {
+  /* pdf/contract shell padding:0 해제 → shell gutter 복원 */
+  .mobile-workspace-content.content-wrapper--mobile.user-app-shell:has(> main.pdf-engine-page),
+  .mobile-workspace-content.content-wrapper--mobile.user-app-shell:has(> main.contract-signature-console),
+  .mobile-workspace-content.content-wrapper--mobile.user-app-shell:has(> main.application-form-page) {
+    padding-left: max(var(--mobile-h-padding), env(safe-area-inset-left, 0px));
+    padding-right: max(var(--mobile-h-padding), env(safe-area-inset-right, 0px));
+  }
+
+  /* 고객소식지(all-news) shell padding SSOT */
+  .mobile-root.mobile-workspace-layout:has(.claim-requests-all-news-mobile)
+    .mobile-workspace-content.content-wrapper--mobile.user-app-shell {
+    padding-left: max(var(--mobile-h-padding), env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(var(--mobile-h-padding), env(safe-area-inset-right, 0px)) !important;
+    padding-top: 12px !important;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  /* claim-requests — mobile-ui-foundation 10px page pad → SSOT 8px */
+  .user-app-shell .claim-requests-page--mobile.page,
+  .user-app-shell .workspace-mobile-outlet-modal__body > .page.claim-requests-page--mobile {
+    padding-left: max(var(--mobile-h-padding), env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(var(--mobile-h-padding), env(safe-area-inset-right, 0px)) !important;
+    padding-top: calc(12px + env(safe-area-inset-top, 0px)) !important;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  /* ui-polish claim-requests page padding — 좌우는 index .page SSOT, 상하만 유지 */
+  .user-app-shell .claim-requests-page--mobile.page {
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* pdf-engine list/detail — page 좌우 gutter SSOT (16px inline 제거) */
+  .user-app-shell main.page.pdf-engine-page,
+  .user-app-shell main.user-page.pdf-engine-page.page,
+  main.user-page.pdf-engine-page.pdf-document-detail-page--mobile.page,
+  .mobile-root .pdf-engine-page.pdf-document-detail-page--mobile.page {
+    padding-left: max(var(--mobile-h-padding), env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(var(--mobile-h-padding), env(safe-area-inset-right, 0px)) !important;
+  }
+
+  .user-app-shell main.page.pdf-engine-page:not(.pdf-document-detail-page--mobile),
+  .user-app-shell main.user-page.pdf-engine-page.page:not(.pdf-document-detail-page--mobile) {
+    padding-top: 12px;
+    padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .user-app-shell main.page.pdf-document-detail-page--mobile,
+  main.user-page.pdf-engine-page.pdf-document-detail-page--mobile.page {
+    padding-top: calc(12px + env(safe-area-inset-top, 0px)) !important;
+    padding-bottom: calc(86px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  /* fixed 미리보기 dock — content inset(16px)과 버튼 좌우선 정렬 */
+  .pdf-document-detail-page__mobile-preview-dock {
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding-inline: max(var(--user-mobile-content-inset), env(safe-area-inset-left, 0px))
+      max(var(--user-mobile-content-inset), env(safe-area-inset-right, 0px));
+  }
+}

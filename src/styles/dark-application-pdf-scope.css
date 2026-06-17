@@ -52,13 +52,9 @@ main.insurance-dark-forms .pdf-engine-preview__frame {
   padding: 0;
 }
 
-.mobile-workspace-content:has(> main.pdf-engine-page),
-.mobile-workspace-content:has(> main.contract-signature-console),
-.mobile-workspace-content:has(> main.application-form-page) {
-  padding: 0;
-}
+/* shell gutter 는 content-wrapper--mobile SSOT — pdf/contract 전용 padding:0 제거 (user-mobile-layout-ssot.css) */
 
-/* 레거시 신청서 작성/수정 — 모바일 좌우 거터 (user-page) */
+/* 레거시 신청서 작성/수정 — 모바일 좌우 거터 (user-page + shell SSOT) */
 @media (max-width: 767px) {
   main.user-page.application-form-page.page {
     width: 100%;
@@ -66,13 +62,13 @@ main.insurance-dark-forms .pdf-engine-preview__frame {
     margin-inline: 0;
     padding-top: calc(12px + env(safe-area-inset-top, 0px));
     padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
-    padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px)) !important;
+    padding-inline: 0;
     box-sizing: border-box;
   }
 
   .workspace-mobile-outlet-modal__body > main.user-page.application-form-page.page,
   .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope > main.user-page.application-form-page.page {
     padding-top: 12px;
-    padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px)) !important;
+    padding-inline: 0;
   }
 }

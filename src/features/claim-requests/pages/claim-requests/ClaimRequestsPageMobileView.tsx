@@ -117,7 +117,7 @@ export default function ClaimRequestsPageMobileView(props: ClaimRequestsPageMobi
   const slotMode = hasSlotContent(props)
 
   return (
-    <main className="page claim-requests-page claim-requests-page--mobile page--with-back content-wrapper space-y-4">
+    <main className="page claim-requests-page claim-requests-page--mobile page--with-back user-page space-y-4">
       {slotMode ? (
         <>
           {props.linkSection}

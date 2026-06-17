@@ -1056,7 +1056,7 @@ export default function PdfDocumentDetailPage() {
     sourcePrefill.kind === 'loading'
   ) {
     return (
-      <main className="pdf-engine-page pdf-document-detail-page pdf-document-detail-page--mobile page--with-back user-page">
+      <main className="page page--with-back pdf-engine-page pdf-document-detail-page pdf-document-detail-page--mobile user-page">
         <div className="pdf-engine-page__toolbar">
           <Link to={listPath} className="pdf-engine-editor__btn">
             ← 문서 목록
@@ -1073,7 +1073,7 @@ export default function PdfDocumentDetailPage() {
     sourcePrefill.kind === 'error'
   ) {
     return (
-      <main className="pdf-engine-page pdf-document-detail-page pdf-document-detail-page--mobile page--with-back user-page">
+      <main className="page page--with-back pdf-engine-page pdf-document-detail-page pdf-document-detail-page--mobile user-page">
         <div className="pdf-engine-page__toolbar">
           <Link to={listPath} className="pdf-engine-editor__btn">
             ← 문서 목록
