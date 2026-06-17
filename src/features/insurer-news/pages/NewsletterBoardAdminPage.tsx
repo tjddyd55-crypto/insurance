@@ -30,7 +30,7 @@ export function NewsletterBoardAdminPage() {
   const [error, setError] = useState('')
   const { confirm, confirmDialog } = useConfirmDialog()
 
-  const canManage = role === 'SUPER_ADMIN' || role === 'GA_ADMIN'
+  const canManage = role === 'SUPER_ADMIN' || role === 'GA_ADMIN' || role === 'GA_STAFF'
 
   const loadBoards = useCallback(async () => {
     if (!token?.trim() || !canManage) {

@@ -6,6 +6,10 @@
 
 import { isAllowedForExpiredFrontend } from '../subscription/expiredAllowlist'
 import { canAccessContractSignatureAdminConsole } from '../contracts/testConsole/contractSignatureTestConsoleFlags'
+import {
+  canUseNewsletterBoardAdminRoutes,
+  canUsePdfTemplateAdminRoutes,
+} from '../auth/roleGuards'
 import { isPublicGeneralAccount } from '../auth/generalGa'
 import { applyPublicAccountMenuPathRestrictions } from '../auth/publicAccountRestrictedRoutes'
 
@@ -254,6 +258,36 @@ const CONTRACT_SIGNATURE_ADMIN_MENU: GaTenantMenuItem = {
   path: '/admin/contract-signatures',
 }
 
+const PDF_TEMPLATE_ADMIN_MENU: GaTenantMenuItem = {
+  label: 'PDF 문서 템플릿',
+  path: '/admin/pdf-templates',
+}
+
+function buildGaTenantAdminMenuEntries(role: string | undefined): GaTenantDashboardMenuEntry[] {
+  const entries: GaTenantDashboardMenuEntry[] = []
+  if (canUsePdfTemplateAdminRoutes(role)) {
+    entries.push({
+      type: 'link',
+      label: PDF_TEMPLATE_ADMIN_MENU.label,
+      path: PDF_TEMPLATE_ADMIN_MENU.path,
+    })
+  }
+  const signatureAdmin = contractSignatureAdminMenuIfEnabled(role)
+  if (signatureAdmin) {
+    entries.push({ type: 'link', label: signatureAdmin.label, path: signatureAdmin.path })
+  }
+  if (canUseNewsletterBoardAdminRoutes(role)) {
+    const newsletterLabel =
+      role === 'SUPER_ADMIN'
+        ? '소식지·게시판 관리'
+        : role === 'GA_ADMIN'
+          ? 'GA전용게시판 관리'
+          : '소식지관리'
+    entries.push({ type: 'link', label: newsletterLabel, path: '/admin/newsletter-boards' })
+  }
+  return entries
+}
+
 function contractSignatureAdminMenuIfEnabled(role: string | undefined): GaTenantMenuItem | null {
   if (!canAccessContractSignatureAdminConsole(role)) {
     return null
@@ -321,7 +355,8 @@ export function buildAppMenuForSession(
       return itemsToEntries(LOSS_ADJUSTER_MENU)
     }
     if (role === 'GA_STAFF') {
-      return itemsToEntries([
+      const adminEntries = buildGaTenantAdminMenuEntries(role)
+      const operational = itemsToEntries([
         CONTRACT_SIGNATURE_USER_SEND,
         CONTRACT_SIGNATURE_USER_HISTORY,
         ...GA_STAFF_MENU,
@@ -330,6 +365,10 @@ export function buildAppMenuForSession(
           path: `/portal/boards/${encodeURIComponent(board.slug)}`,
         })),
       ])
+      if (!adminEntries.length) {
+        return operational
+      }
+      return [...adminEntries, { type: 'divider' }, ...operational]
     }
     if (role === 'GA_ADMIN' || role === 'USER') {
       const entries = buildGaTenantDashboardMenu(gaCode, gaName, {
@@ -337,12 +376,8 @@ export function buildAppMenuForSession(
         dynamicNewsletterBoards,
       })
       if (role === 'GA_ADMIN') {
-        const testEntry = contractSignatureAdminMenuIfEnabled('GA_ADMIN')
-        if (testEntry) {
-          entries.push({ type: 'link', label: testEntry.label, path: testEntry.path })
-        }
+        entries.push(...buildGaTenantAdminMenuEntries('GA_ADMIN'))
         entries.push(
-          { type: 'link', label: 'GA전용게시판 관리', path: '/admin/newsletter-boards' },
           { type: 'divider' },
           { type: 'link', label: AUDIT_LOG_ENTRY.label, path: AUDIT_LOG_ENTRY.path },
         )

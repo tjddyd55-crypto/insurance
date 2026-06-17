@@ -7,10 +7,10 @@ export function isContractSignatureTestMenuEnabled(): boolean {
   return import.meta.env.VITE_ENABLE_CONTRACT_SIGNATURE_TEST_MENU !== 'false'
 }
 
-/** SUPER_ADMIN · GA_ADMIN 만 — 스태프/일반 고객·원수사 채널은 제외 */
+/** SUPER_ADMIN · GA_ADMIN · GA_STAFF — 일반 USER·원수사 채널은 제외 */
 export function canAccessContractSignatureTestConsole(role: string | undefined): boolean {
   const r = role ?? ''
-  return r === 'SUPER_ADMIN' || r === 'GA_ADMIN'
+  return r === 'SUPER_ADMIN' || r === 'GA_ADMIN' || r === 'GA_STAFF'
 }
 
 /** 메뉴·라우트 가드 공통: 환경 비활성이 아니고 역할이 허용된 경우만 */

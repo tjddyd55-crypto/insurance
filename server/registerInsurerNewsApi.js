@@ -817,7 +817,12 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
 
   function canManageNewsletterBoards(req) {
     const role = String(req.user?.role ?? '')
-    return role === 'SUPER_ADMIN' || role === 'GA_ADMIN'
+    return role === 'SUPER_ADMIN' || role === 'GA_ADMIN' || role === 'GA_STAFF'
+  }
+
+  function isGaNewsletterBoardManagerRole(role) {
+    const r = String(role ?? '')
+    return r === 'GA_ADMIN' || r === 'GA_STAFF'
   }
 
   function mapNewsletterBoard(row) {
@@ -1557,7 +1562,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
 
   apiRouter.get('/ga-admin/newsletter-boards', requireAuth, async (req, res) => {
     try {
-      if (String(req.user?.role ?? '') !== 'GA_ADMIN') {
+      if (!isGaNewsletterBoardManagerRole(req.user?.role)) {
         res.status(403).json({ message: 'GA 관리자만 이용할 수 있습니다.' })
         return
       }
@@ -1601,7 +1606,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
 
   apiRouter.post('/ga-admin/newsletter-boards', requireAuth, async (req, res) => {
     try {
-      if (String(req.user?.role ?? '') !== 'GA_ADMIN') {
+      if (!isGaNewsletterBoardManagerRole(req.user?.role)) {
         res.status(403).json({ message: 'GA 관리자만 GA전용게시판을 생성할 수 있습니다.' })
         return
       }
@@ -1669,7 +1674,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         res.status(201).json(mapNewsletterBoard(created.row))
         return
       }
-      if (String(req.user?.role ?? '') !== 'GA_ADMIN') {
+      if (!isGaNewsletterBoardManagerRole(req.user?.role)) {
         res.status(403).json({ message: 'GA전용게시판은 GA 관리자만 생성할 수 있습니다.' })
         return
       }
@@ -1720,7 +1725,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
 
   apiRouter.patch('/ga-admin/newsletter-boards/:boardId', requireAuth, async (req, res) => {
     try {
-      if (String(req.user?.role ?? '') !== 'GA_ADMIN') {
+      if (!isGaNewsletterBoardManagerRole(req.user?.role)) {
         res.status(403).json({ message: 'GA 관리자만 수정할 수 있습니다.' })
         return
       }
@@ -1767,7 +1772,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
 
   apiRouter.post('/ga-admin/newsletter-boards/:boardId/disable', requireAuth, async (req, res) => {
     try {
-      if (String(req.user?.role ?? '') !== 'GA_ADMIN') {
+      if (!isGaNewsletterBoardManagerRole(req.user?.role)) {
         res.status(403).json({ message: 'GA 관리자만 비활성화할 수 있습니다.' })
         return
       }
