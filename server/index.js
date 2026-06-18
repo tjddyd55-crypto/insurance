@@ -6155,12 +6155,9 @@ async function ensureInviteRegistrationCanCreate(pool, req, res, { refUserId, re
     res.status(409).json({
       success: false,
       code: 'ALREADY_SUBMITTED',
-      message:
-        Date.now() < ded
-          ? '이미 등록 정보가 있습니다. 수정은 아래 수정하기로 진행해 주세요.'
-          : '이미 등록이 완료되었습니다.',
+      message: '이미 등록 세션이 있습니다. 페이지를 다시 열어 주세요.',
       editableUntil: new Date(ded).toISOString(),
-      canEdit: Date.now() < ded,
+      canEdit: false,
     })
     return false
   }
