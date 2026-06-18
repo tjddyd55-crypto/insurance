@@ -7,7 +7,6 @@ import type { ReactNode } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
 import { FormButton } from '../../../components/form'
-import Modal from '../../../components/ui/Modal'
 import { ApiError, resolveAbsoluteApiUrl } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
 import { getCustomerById, searchCustomers } from '../../customers/api/customersApi'
@@ -23,6 +22,7 @@ import {
 import { mergedInitialValues, splitPdfSnapshot } from '../components/PdfTemplateForm'
 import PdfDocumentApplicantPCView from './pdf-document/PdfDocumentApplicantPCView'
 import PdfDocumentApplicantMobileView from './pdf-document/PdfDocumentApplicantMobileView'
+import PdfDocumentResultPreviewModal from '../components/PdfDocumentResultPreviewModal'
 import type {
   PdfDocumentApplicantViewProps,
   PdfSelectedCustomerSummary,
@@ -1108,70 +1108,16 @@ export default function PdfDocumentDetailPage() {
         Mobile={PdfDocumentApplicantMobileView}
         viewProps={applicantViewProps}
       />
-      <Modal
+      <PdfDocumentResultPreviewModal
         open={previewOpen}
-        onClose={() => {
-          if (saving) return
-          closePreview()
-        }}
-        closeOnBackdrop={false}
-        closeOnEsc={false}
-        ariaLabel={`PDF 결과 미리보기 · ${resultPdfFilename}`}
-        panelClassName="pdf-engine-preview-modal"
-      >
-        <div className="pdf-engine-preview">
-          <header className="pdf-engine-preview__header">
-            <h3>결과 미리보기</h3>
-            <div
-              className="pdf-engine-preview__filename-chip"
-              title={resultPdfFilename}
-              aria-label={`발급 PDF 파일명 ${resultPdfFilename}`}
-            >
-              {resultPdfFilename}
-            </div>
-            <p className="pdf-engine-preview__subtitle">
-              미리보기는 서버 인라인 URL로 열립니다. 「다운로드」로 PDF 파일을 받을 수 있으며, 발급 이력은 다운로드 시 저장됩니다.
-            </p>
-          </header>
-          {previewError ? <div className="pdf-engine-page__error">{previewError}</div> : null}
-          <div className="pdf-engine-preview__frame-wrap">
-            {previewUrl ? (
-              <iframe title={resultPdfFilename} src={previewUrl} className="pdf-engine-preview__frame" />
-            ) : (
-              <p className="pdf-engine-page__hint">미리보기 파일을 준비하지 못했습니다.</p>
-            )}
-          </div>
-          <div className="pdf-engine-preview__actions">
-            <FormButton
-              htmlType="button"
-              variant="secondary"
-              className="pdf-engine-editor__btn"
-              onClick={closePreview}
-              disabled={saving}
-            >
-              수정하기
-            </FormButton>
-            <FormButton
-              htmlType="button"
-              variant="primary"
-              className="pdf-engine-editor__btn pdf-engine-editor__btn--primary"
-              onClick={handleDownloadFromPreview}
-              disabled={saving || !previewValues}
-            >
-              {saving ? '다운로드 중…' : '다운로드'}
-            </FormButton>
-            <FormButton
-              htmlType="button"
-              variant="secondary"
-              className="pdf-engine-editor__btn"
-              onClick={closePreview}
-              disabled={saving}
-            >
-              닫기
-            </FormButton>
-          </div>
-        </div>
-      </Modal>
+        saving={saving}
+        canDownload={previewValues != null}
+        resultPdfFilename={resultPdfFilename}
+        previewUrl={previewUrl}
+        previewError={previewError}
+        onClose={closePreview}
+        onDownload={() => void handleDownloadFromPreview()}
+      />
     </>
   )
 }
