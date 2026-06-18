@@ -33,6 +33,9 @@ describe('news detail viewer modal', () => {
     assert.match(css, /\.news-detail-viewer-scroll[\s\S]*overflow:\s*auto/)
     assert.match(css, /\.news-detail-viewer-panel[\s\S]*overflow:\s*hidden/)
     assert.match(css, /\.news-detail-viewer-backdrop[\s\S]*overflow:\s*hidden/)
+    assert.match(css, /\.news-detail-viewer-panel[\s\S]*height:\s*90vh/)
+    assert.doesNotMatch(css, /\.news-detail-viewer-panel[\s\S]*height:\s*auto/)
+    assert.doesNotMatch(css, /\.news-detail-viewer-panel[\s\S]*fit-content/)
   })
 
   it('is adopted by insurer and customer news list views', () => {
