@@ -1854,6 +1854,20 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   margin-top: 20px;
 }
 
+.invite-registration-page .customer-input-card-head,
+.customers-page .customer-input-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.invite-registration-page .customer-input-remove-btn,
+.customers-page .customer-input-remove-btn {
+  flex-shrink: 0;
+}
+
 .page-header-notice {
   margin: 6px 0 0;
   color: #ef4444;
