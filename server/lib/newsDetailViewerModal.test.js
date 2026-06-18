@@ -43,7 +43,20 @@ describe('news detail viewer modal', () => {
     const customerSrc = fs.readFileSync(customerNewsPath, 'utf8')
     assert.match(insurerSrc, /NewsDetailViewerModal/)
     assert.match(customerSrc, /NewsDetailViewerModal/)
+    assert.match(insurerSrc, /onZoomChange/)
+    assert.match(customerSrc, /onZoomChange/)
     assert.equal(insurerSrc.includes('className="news-modal"'), false)
     assert.equal(customerSrc.includes('className="customer-news-modal"'), false)
+  })
+
+  it('supports mobile pinch zoom via non-passive touch listener', () => {
+    const modalSrc = fs.readFileSync(modalPath, 'utf8')
+    assert.match(modalSrc, /useNewsDetailViewerPinchZoom/)
+    const hookSrc = fs.readFileSync(
+      path.join(process.cwd(), 'src/components/news-detail-viewer/useNewsDetailViewerPinchZoom.ts'),
+      'utf8',
+    )
+    assert.match(hookSrc, /passive:\s*false/)
+    assert.match(hookSrc, /getTouchDistance/)
   })
 })

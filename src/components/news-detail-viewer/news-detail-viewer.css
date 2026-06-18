@@ -42,6 +42,7 @@
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
+  touch-action: pan-x pan-y;
   padding: 20px;
   background: var(--bg-main, #f8fafc);
   text-align: left;
