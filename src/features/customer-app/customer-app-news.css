@@ -482,15 +482,33 @@
 
 /* 목록 모달: 갤러리 풀폭 · 본문만 패딩 */
 
-.customer-news-modal .news-detail-scroll {
+.customer-app-shell .news-detail-viewer-scroll {
   padding: 0;
+  background: var(--bg-card);
+}
+
+.customer-app-shell .news-detail-viewer-header {
+  background: #1f2937;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.customer-app-shell .news-detail-viewer-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  box-sizing: border-box;
+}
+
+.customer-app-shell .news-detail-viewer-status,
+.customer-app-shell .news-detail-viewer-scroll .news-text,
+.customer-app-shell .news-detail-viewer-scroll .rich-text-content {
+  color: var(--text-main);
 }
 
 .customer-app-news-modal__text-zoom {
   padding: 16px 16px 20px;
 }
 
-.customer-news-modal .customer-app-news-gallery--in-modal .customer-app-news-gallery__slide img {
+.news-detail-viewer-scroll .customer-app-news-gallery--in-modal .customer-app-news-gallery__slide img {
   background: #000000;
 }
 
