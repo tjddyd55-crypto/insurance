@@ -97,6 +97,10 @@ import {
 import { coerceCustomersStatePayload } from '../utils/customerStateGuards'
 import { dedupeCustomersById } from '../utils/customerSearchDedupe'
 import {
+  mergeCustomerRecordInList,
+  resolveCustomerCardKeepOpenId,
+} from '../utils/customerListOpenState'
+import {
   CUSTOMER_LIST_PATH,
   CUSTOMER_CREATE_MODE_QUERY,
   buildCustomerWorkspacePath,
@@ -644,7 +648,9 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     } catch (error) {
       setStatusText(error instanceof Error ? error.message : '목록을 불러오지 못했습니다.')
     } finally {
-      setIsLoading(false)
+      if (!options?.silent) {
+        setIsLoading(false)
+      }
     }
   }, [
     token,
@@ -828,8 +834,10 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   /** URL path/query 의 고객 id → 좌측 리스트 expandedId 동기화 */
   useEffect(() => {
     if (activeListCustomerId == null) {
-      pinnedListCustomerIdRef.current = null
-      setPinnedWorkspaceCustomer(null)
+      if (expandedIdRef.current == null) {
+        pinnedListCustomerIdRef.current = null
+        setPinnedWorkspaceCustomer(null)
+      }
       return
     }
 
@@ -1041,7 +1049,11 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
               fields: {},
             },
           }
-      await updateCustomer(token, activeEditingId, {
+      const keepOpenCustomerId = resolveCustomerCardKeepOpenId(
+        activeEditingId,
+        expandedIdRef.current,
+      )
+      const updatedCustomer = await updateCustomer(token, activeEditingId, {
         name,
         ssn: activeEditForm.ssn,
         phone: activeEditForm.phone,
@@ -1085,17 +1097,31 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           '고객 정보는 수정했습니다. 자동차 정보 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.',
         )
         cancelEdit()
-        await loadCustomers()
+        mergeCustomerInList(updatedCustomer)
+        if (keepOpenCustomerId != null) {
+          keepCustomerCardOpen(keepOpenCustomerId)
+        }
+        await loadCustomers({ silent: true })
+        if (keepOpenCustomerId != null) {
+          keepCustomerCardOpen(keepOpenCustomerId)
+        }
         return
       }
       setStatusText('고객 정보를 수정했습니다.')
       cancelEdit()
-      await loadCustomers()
+      mergeCustomerInList(updatedCustomer)
+      if (keepOpenCustomerId != null) {
+        keepCustomerCardOpen(keepOpenCustomerId)
+      }
+      await loadCustomers({ silent: true })
+      if (keepOpenCustomerId != null) {
+        keepCustomerCardOpen(keepOpenCustomerId)
+      }
     } catch (error) {
       const msg = error instanceof Error ? error.message : '수정에 실패했습니다.'
       setStatusText(msg)
     }
-  }, [token, user?.role, cancelEdit, loadCustomers])
+  }, [token, user?.role, cancelEdit, loadCustomers, mergeCustomerInList, keepCustomerCardOpen])
 
   const handleEditSaveRequest = useCallback(async () => {
     if (editSavingRef.current) {
