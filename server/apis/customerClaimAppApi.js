@@ -30,6 +30,13 @@ import {
   validateCustomerNewsMessageCreateInput,
   validateCustomerNewsMessageUpload,
 } from '../lib/customerNewsMessageAttachments.js'
+import {
+  buildClaimBundleDownloadName,
+  buildClaimFilesPdfBuffer,
+  buildContentDisposition as buildClaimBundleContentDisposition,
+  loadAgentClaimRequestBundleFiles,
+  pipeClaimFilesZip,
+} from '../lib/claimRequestFileBundle.js'
 
 const CUSTOMER_APP_TOKEN_KIND = 'CUSTOMER_APP'
 const CUSTOMER_APP_TOKEN_EXPIRES_IN = '180d'
@@ -1427,6 +1434,70 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         },
       })
     } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  const respondAgentClaimRequestBundleDownload = async (req, res, kind) => {
+    const requestId = parsePositiveInt(req.params.requestId)
+    if (requestId == null) {
+      res.status(400).json({ message: '유효한 requestId가 필요합니다.' })
+      return
+    }
+    const agentId = String(req.user?.id ?? '').trim()
+    if (!agentId) {
+      res.status(401).json({ message: '로그인이 필요합니다.' })
+      return
+    }
+    const customerId = parsePositiveInt(req.query.customerId)
+    const bundle = await loadAgentClaimRequestBundleFiles(pool, {
+      agentId,
+      requestId,
+      customerId,
+    })
+    for (const file of bundle.files) {
+      const storageKey = String(file.storageKey ?? '').trim()
+      if (!storageKey || !assertClaimStorageKeyScope(storageKey, agentId, bundle.customerId)) {
+        res.status(403).json({ message: '허용되지 않은 파일 경로입니다.' })
+        return
+      }
+    }
+    const downloadName = buildClaimBundleDownloadName(bundle.customerName, requestId, kind)
+    if (kind === 'zip') {
+      res.setHeader('Content-Type', 'application/zip')
+      res.setHeader('Content-Disposition', buildClaimBundleContentDisposition(downloadName, 'attachment'))
+      await pipeClaimFilesZip(res, bundle.files, (key) => consentGetBuffer(key))
+      return
+    }
+    const buffer = await buildClaimFilesPdfBuffer(bundle.files, (key) => consentGetBuffer(key))
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', buildClaimBundleContentDisposition(downloadName, 'attachment'))
+    res.setHeader('Content-Length', String(buffer.length))
+    res.end(buffer)
+  }
+
+  apiRouter.get('/agent/customer-claim-requests/:requestId/files.zip', requireAuth, async (req, res) => {
+    try {
+      await respondAgentClaimRequestBundleDownload(req, res, 'zip')
+    } catch (error) {
+      const status = Number(error?.httpStatus)
+      if (Number.isInteger(status) && status >= 400 && status < 600) {
+        res.status(status).json({ message: String(error.message ?? '다운로드에 실패했습니다.') })
+        return
+      }
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.get('/agent/customer-claim-requests/:requestId/files.pdf', requireAuth, async (req, res) => {
+    try {
+      await respondAgentClaimRequestBundleDownload(req, res, 'pdf')
+    } catch (error) {
+      const status = Number(error?.httpStatus)
+      if (Number.isInteger(status) && status >= 400 && status < 600) {
+        res.status(status).json({ message: String(error.message ?? '다운로드에 실패했습니다.') })
+        return
+      }
       handleDbError(error, req, res)
     }
   })

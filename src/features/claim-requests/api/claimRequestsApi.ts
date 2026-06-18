@@ -171,6 +171,70 @@ export async function downloadClaimRequestFile(token: string, file: ClaimRequest
   }
 }
 
+async function fetchClaimRequestBundleBlob(
+  token: string,
+  requestId: number,
+  customerId: number,
+  kind: 'zip' | 'pdf',
+): Promise<{ blob: Blob; fileName: string | null }> {
+  if (!token?.trim()) {
+    throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  const suffix = kind === 'zip' ? 'files.zip' : 'files.pdf'
+  const url = resolveApiUrl(
+    `/api/agent/customer-claim-requests/${requestId}/${suffix}?customerId=${encodeURIComponent(String(customerId))}`,
+  )
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token.trim()}`,
+    },
+  })
+  if (!response.ok) {
+    let message = kind === 'zip' ? 'ZIP 다운로드에 실패했습니다.' : 'PDF 다운로드에 실패했습니다.'
+    try {
+      const payload = (await response.json()) as { message?: string }
+      if (payload?.message) {
+        message = payload.message
+      }
+    } catch {
+      const text = await response.text().catch(() => '')
+      if (text.trim()) {
+        message = text.trim()
+      }
+    }
+    throw new ApiError(message, response.status)
+  }
+  return {
+    blob: await response.blob(),
+    fileName: parseContentDispositionFilename(response.headers.get('Content-Disposition')),
+  }
+}
+
+export async function downloadClaimRequestFilesZip(
+  token: string,
+  requestId: number,
+  customerId: number,
+  fallbackFileName: string,
+): Promise<void> {
+  const { blob, fileName } = await fetchClaimRequestBundleBlob(token, requestId, customerId, 'zip')
+  const objectUrl = URL.createObjectURL(blob)
+  triggerBrowserDownload(objectUrl, fileName ?? fallbackFileName)
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000)
+}
+
+export async function downloadClaimRequestFilesPdf(
+  token: string,
+  requestId: number,
+  customerId: number,
+  fallbackFileName: string,
+): Promise<void> {
+  const { blob, fileName } = await fetchClaimRequestBundleBlob(token, requestId, customerId, 'pdf')
+  const objectUrl = URL.createObjectURL(blob)
+  triggerBrowserDownload(objectUrl, fileName ?? fallbackFileName)
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000)
+}
+
 export interface ClaimRequestStatusLogItem {
   id: number
   fromStatus: ClaimRequestStatus | null

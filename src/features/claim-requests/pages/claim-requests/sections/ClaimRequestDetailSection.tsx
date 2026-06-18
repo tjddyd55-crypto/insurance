@@ -1,4 +1,5 @@
 import { FormButton, FormSelect, FormTextarea } from '../../../../../components/form'
+import ClaimRequestAttachmentBundleActions from '../../../components/ClaimRequestAttachmentBundleActions'
 import ClaimRequestFileActions from '../../../components/ClaimRequestFileActions'
 import type {
   ClaimRequestDetail,
@@ -20,6 +21,10 @@ type ClaimRequestDetailSectionProps = {
   onUpdateStatus: () => MaybePromise
   onOpenFile: (file: ClaimRequestFileItem) => MaybePromise
   onDownloadFile: (file: ClaimRequestFileItem) => MaybePromise
+  onDownloadZip?: () => MaybePromise
+  onDownloadPdf?: () => MaybePromise
+  zipBusy?: boolean
+  pdfBusy?: boolean
   useNativeFileLinks?: boolean
   formatDateTime: (iso: string | null) => string
   statusLabel: (status: ClaimRequestStatus) => string
@@ -37,6 +42,10 @@ export default function ClaimRequestDetailSection({
   onUpdateStatus,
   onOpenFile,
   onDownloadFile,
+  onDownloadZip,
+  onDownloadPdf,
+  zipBusy = false,
+  pdfBusy = false,
   useNativeFileLinks = false,
   formatDateTime,
   statusLabel,
@@ -62,6 +71,10 @@ export default function ClaimRequestDetailSection({
         onUpdateStatus={onUpdateStatus}
         onOpenFile={onOpenFile}
         onDownloadFile={onDownloadFile}
+        onDownloadZip={onDownloadZip}
+        onDownloadPdf={onDownloadPdf}
+        zipBusy={zipBusy}
+        pdfBusy={pdfBusy}
         useNativeFileLinks={useNativeFileLinks}
         formatDateTime={formatDateTime}
         statusLabel={statusLabel}
@@ -86,6 +99,10 @@ export function ClaimRequestDetailBody({
   onUpdateStatus,
   onOpenFile,
   onDownloadFile,
+  onDownloadZip,
+  onDownloadPdf,
+  zipBusy = false,
+  pdfBusy = false,
   useNativeFileLinks = false,
   formatDateTime,
   statusLabel,
@@ -122,7 +139,18 @@ export function ClaimRequestDetailBody({
       </div>
 
       <div className="claim-requests-page__detail-section">
-        <div className="claim-requests-page__detail-subtitle">첨부 파일</div>
+        <div className="claim-requests-page__attachment-header">
+          <div className="claim-requests-page__detail-subtitle">첨부 파일</div>
+          {onDownloadZip && onDownloadPdf ? (
+            <ClaimRequestAttachmentBundleActions
+              fileCount={detail.files.length}
+              zipBusy={zipBusy}
+              pdfBusy={pdfBusy}
+              onDownloadZip={onDownloadZip}
+              onDownloadPdf={onDownloadPdf}
+            />
+          ) : null}
+        </div>
         {detail.files.length === 0 ? (
           <div className="claim-requests-page__detail-empty">첨부 파일이 없습니다.</div>
         ) : (
