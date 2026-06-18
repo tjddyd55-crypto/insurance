@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Insurance Customer",
+    "name": "ONE FC",
     "slug": "insurance-customer",
     "version": "1.0.1",
     "orientation": "portrait",
@@ -19,7 +19,7 @@
     },
     "android": {
       "package": "com.insurance.customer",
-      "versionCode": 2,
+      "versionCode": 3,
       "adaptiveIcon": {
         "foregroundImage": "../mobile/assets/adaptive-icon.png",
         "backgroundColor": "#003D1F"
