@@ -6139,7 +6139,7 @@ async function ensureInviteRegistrationCanCreate(pool, req, res, { refUserId, re
     `
     SELECT s.ref_user_id, s.ga_id, s.first_submitted_at
     FROM public_customer_invite_sessions s
-    JOIN customers c ON c.id = s.customer_id AND c.deleted_at IS NULL
+    JOIN customers c ON c.id = s.customer_id AND c.ga_id = s.ga_id AND c.deleted_at IS NULL
     WHERE s.secret_token = $1
     LIMIT 1
     `,
@@ -6447,7 +6447,7 @@ apiRouter.get('/customer/external-invite-session', async (req, res) => {
       `
       SELECT s.customer_id, s.ref_user_id, s.ga_id, s.first_submitted_at, s.registered_count
       FROM public_customer_invite_sessions s
-      INNER JOIN customers c ON c.id = s.customer_id AND c.deleted_at IS NULL
+      INNER JOIN customers c ON c.id = s.customer_id AND c.ga_id = s.ga_id AND c.deleted_at IS NULL
       WHERE s.secret_token = $1
       LIMIT 1
       `,
@@ -6460,53 +6460,10 @@ apiRouter.get('/customer/external-invite-session', async (req, res) => {
     const row = sess.rows[0]
     const registeredCount = Math.max(1, Number(row.registered_count ?? 1))
     const deadlineMs = editableDeadlineMsFromFirstSubmitted(row.first_submitted_at)
-    const canEdit = Date.now() < deadlineMs
-    if (!canEdit) {
-      res.json({
-        hasSubmission: true,
-        locked: true,
-        editableUntil: new Date(deadlineMs).toISOString(),
-        canEdit: false,
-        registeredCount,
-      })
-      return
-    }
-    if (registeredCount > 1) {
-      res.json({
-        hasSubmission: true,
-        locked: false,
-        editableUntil: new Date(deadlineMs).toISOString(),
-        canEdit: false,
-        registeredCount,
-      })
-      return
-    }
-    const cust = await safeQuery(
-      pool,
-      `
-      SELECT
-        id, user_id, name, birth_date, ssn, phone, carrier, address, height, weight, job, driving, medical,
-        car_number, car_model, car_year, renewal_date,
-        gender, insurance_age, next_age_date, is_driver, car_type, notes,
-        is_favorite, created_at,
-        crm_extension
-      FROM customers
-      WHERE id = $1 AND deleted_at IS NULL
-      LIMIT 1
-      `,
-      [row.customer_id],
-    )
-    if (cust.rowCount === 0) {
-      res.json({ hasSubmission: false })
-      return
-    }
     res.json({
       hasSubmission: true,
-      locked: false,
-      editableUntil: new Date(deadlineMs).toISOString(),
-      canEdit: true,
       registeredCount,
-      customer: mapCustomerRow(cust.rows[0]),
+      editableUntil: new Date(deadlineMs).toISOString(),
     })
   } catch (error) {
     handleDbError(error, req, res)
@@ -6526,7 +6483,7 @@ apiRouter.patch('/customer/external-invite-registration', async (req, res) => {
       `
       SELECT s.customer_id, s.ref_user_id, s.ga_id, s.first_submitted_at
       FROM public_customer_invite_sessions s
-      INNER JOIN customers c ON c.id = s.customer_id AND c.deleted_at IS NULL
+      INNER JOIN customers c ON c.id = s.customer_id AND c.ga_id = s.ga_id AND c.deleted_at IS NULL
       WHERE s.secret_token = $1
       LIMIT 1
       `,
@@ -6581,8 +6538,8 @@ apiRouter.patch('/customer/external-invite-registration', async (req, res) => {
 
     const prevAddrRow = await safeQuery(
       pool,
-      `SELECT address FROM customers WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
-      [customerId],
+      `SELECT address FROM customers WHERE id = $1 AND user_id = $2 AND ga_id = $3 AND deleted_at IS NULL LIMIT 1`,
+      [customerId, refAgentId, refGaPk],
     )
     const previousInviteAddress = prevAddrRow.rows[0]?.address
 

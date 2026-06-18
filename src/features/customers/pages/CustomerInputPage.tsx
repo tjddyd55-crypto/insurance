@@ -12,7 +12,6 @@ import {
 } from '../../../components/customer/CustomerForm'
 import { APP_HTML_TITLE } from '../../../config/appBrand'
 import { REGISTER_LINK_PAGE_DESC, REGISTER_LINK_PAGE_TITLE } from '../lib/customerInviteRegistrationMeta'
-import { inviteCustomerApiRowToFormState } from '../utils/inviteCustomerApiRowToFormState'
 import {
   closePublicCustomerRegistration,
   getPublicCustomerRegistrationCloseFallbackMessage,
@@ -25,11 +24,7 @@ type InviteSessionResp =
   | { hasSubmission: false }
   | {
       hasSubmission: true
-      locked: boolean
-      editableUntil: string
-      canEdit: boolean
       registeredCount?: number
-      customer?: Record<string, unknown>
     }
 
 type CustomerInputFormItem = {
@@ -41,11 +36,6 @@ const INVITE_BATCH_MAX = 10
 
 function createFormItem(localId: string): CustomerInputFormItem {
   return { localId, values: createEmptyCustomerForm() }
-}
-
-function pickInviteEditableUntilIso(iso?: string | null): string {
-  if (typeof iso === 'string' && iso.trim()) return iso.trim()
-  return new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString()
 }
 
 type Props = {
@@ -69,30 +59,11 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [inviteSessionBusy, setInviteSessionBusy] = useState(inviteRegistrationFlow)
-  /** 초대 초대 플로우: 작성 vs 완료 */
   const [inviteUiPhase, setInviteUiPhase] = useState<'form' | 'complete'>('form')
-  const [inviteSubmitKind, setInviteSubmitKind] = useState<'create' | 'update'>('create')
-
-  const [editableUntilIso, setEditableUntilIso] = useState<string | null>(null)
-  const [inviteLockedPermanent, setInviteLockedPermanent] = useState(false)
-  const [inviteJustUpdated, setInviteJustUpdated] = useState(false)
   const [inviteCloseBanner, setInviteCloseBanner] = useState(false)
   const [inviteRegisteredCount, setInviteRegisteredCount] = useState(1)
 
   const inviteCloseFallbackMessage = getPublicCustomerRegistrationCloseFallbackMessage()
-
-  /** 서버 시간 기준 — 클라 추정 금지, 응답의 editableUntil만 사용 */
-  const resolveEditableUntilIso = (
-    iso: string | null | undefined,
-    fallbackDeadlineMs?: number | null,
-  ): string => {
-    if (typeof iso === 'string' && iso.trim()) return iso.trim()
-    if (fallbackDeadlineMs != null && Number.isFinite(fallbackDeadlineMs)) {
-      return new Date(fallbackDeadlineMs).toISOString()
-    }
-    /* 최후 폴백(이론상 응답 누락 방지용) — 실제 차단은 서버 */
-    return new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString()
-  }
 
   const updateFormAt = useCallback((localId: string, next: CustomerFormState) => {
     setForms((prev) => prev.map((row) => (row.localId === localId ? { ...row, values: next } : row)))
@@ -159,29 +130,13 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
     [forms, handleRemoveForm],
   )
 
-  const applyInviteCompleteState = useCallback(
-    ({
-      editableIso,
-      canEditNow,
-      justUpdated,
-      registeredCount = 1,
-    }: {
-      editableIso?: string | null
-      canEditNow: boolean
-      justUpdated: boolean
-      registeredCount?: number
-    }) => {
-      setEditableUntilIso(pickInviteEditableUntilIso(editableIso))
-      setInviteLockedPermanent(registeredCount === 1 ? !canEditNow : false)
-      setInviteJustUpdated(justUpdated)
-      setInviteRegisteredCount(Math.max(1, registeredCount))
-      setInviteUiPhase('complete')
-      setNotice('')
-      setInviteCloseBanner(false)
-      setFormErrors({})
-    },
-    [],
-  )
+  const applyInviteCompleteState = useCallback((registeredCount: number) => {
+    setInviteRegisteredCount(Math.max(1, registeredCount))
+    setInviteUiPhase('complete')
+    setNotice('')
+    setInviteCloseBanner(false)
+    setFormErrors({})
+  }, [])
 
   const handleInviteClose = useCallback(() => {
     setInviteCloseBanner(false)
@@ -208,32 +163,10 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
         if (canceled) return
         if (!payload?.hasSubmission) {
           setInviteUiPhase('form')
-          setInviteSubmitKind('create')
-          setInviteLockedPermanent(false)
-          setEditableUntilIso(null)
           return
         }
         const p = payload as Extract<InviteSessionResp, { hasSubmission: true }>
-        const registeredCount = Math.max(1, Number(p.registeredCount ?? 1))
-        const deadlineMs = Date.parse(p.editableUntil)
-        const canNow = Boolean(p.canEdit) && Number.isFinite(deadlineMs) && Date.now() < deadlineMs
-        const locked = Boolean(p.locked) || !canNow || registeredCount > 1
-
-        setInviteSubmitKind(registeredCount > 1 ? 'create' : 'update')
-        if (!locked && registeredCount === 1 && p.customer != null && typeof p.customer === 'object') {
-          try {
-            setForms([{ localId: 'customer-form-1', values: inviteCustomerApiRowToFormState(p.customer) }])
-          } catch {
-            setForms([createFormItem('customer-form-1')])
-          }
-        }
-
-        applyInviteCompleteState({
-          editableIso: p.editableUntil,
-          canEditNow: canNow && registeredCount === 1,
-          justUpdated: false,
-          registeredCount,
-        })
+        applyInviteCompleteState(Math.max(1, Number(p.registeredCount ?? 1)))
       } catch {
         if (!canceled) setNotice('세션을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.')
       } finally {
@@ -370,55 +303,6 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
 
     try {
       if (inviteRegistrationFlow) {
-        if (inviteSubmitKind === 'update') {
-          const payload = customerFormStateToSavePayload(forms[0].values)
-          const res = await fetch(resolveApiUrl('/api/customer/external-invite-registration'), {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify(payload),
-          })
-          let errBody: Record<string, unknown> = {}
-          if (!res.ok) {
-            try {
-              errBody = (await res.json()) as Record<string, unknown>
-            } catch {
-              errBody = {}
-            }
-            const msg =
-              typeof errBody.message === 'string'
-                ? errBody.message
-                : `수정 저장에 실패했습니다 (${res.status})`
-            const codeStr = typeof errBody.code === 'string' ? errBody.code : ''
-            setNotice(msg)
-            if (codeStr === 'EDIT_WINDOW_CLOSED') {
-              setInviteLockedPermanent(true)
-              applyInviteCompleteState({
-                editableIso: editableUntilIso,
-                canEditNow: false,
-                justUpdated: false,
-                registeredCount: 1,
-              })
-            }
-            return
-          }
-
-          const raw = (await res.json()) as Record<string, unknown>
-          const inv = raw.inviteRegistration as { editableUntil?: string } | undefined
-          const until =
-            typeof inv?.editableUntil === 'string' ? inv.editableUntil : editableUntilIso ?? null
-          const deadlineMs = until != null ? Date.parse(until) : NaN
-          const canNow = Number.isFinite(deadlineMs) && Date.now() < deadlineMs
-          applyInviteCompleteState({
-            editableIso: until,
-            canEditNow: canNow,
-            justUpdated: true,
-            registeredCount: 1,
-          })
-          return
-        }
-
-        /* create — 단일·다건 모두 batch API 사용 */
         const customersPayload = forms.map((item) => customerFormStateToSavePayload(item.values))
         const res = await fetch(resolveApiUrl('/api/customer/external-invite-registration/batch'), {
           method: 'POST',
@@ -440,15 +324,7 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
             j = {}
           }
           if (String(j.code ?? '') === 'ALREADY_SUBMITTED') {
-            const untilIso = typeof j.editableUntil === 'string' ? j.editableUntil : null
-            const canNow = j.canEdit === true
-            setInviteSubmitKind('update')
-            applyInviteCompleteState({
-              editableIso: untilIso,
-              canEditNow: canNow,
-              justUpdated: false,
-              registeredCount: 1,
-            })
+            applyInviteCompleteState(Math.max(1, Number(j.registeredCount ?? 1)))
             setNotice('')
             return
           }
@@ -493,19 +369,13 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
         }
 
         const raw = (await res.json()) as Record<string, unknown>
-        const inv = raw.inviteRegistration as { editableUntil?: string; registeredCount?: number } | undefined
-        const untilIso = typeof inv?.editableUntil === 'string' ? inv.editableUntil : null
-        const createdCount = Math.max(1, Number(raw.createdCount ?? inv?.registeredCount ?? forms.length))
-        const deadlineMs = untilIso != null ? Date.parse(untilIso) : NaN
-        const canNow = Number.isFinite(deadlineMs) && Date.now() < deadlineMs
+        const createdCount = Math.max(0, Number(raw.createdCount ?? 0))
+        if (raw.ok !== true || createdCount < 1) {
+          setNotice('저장에 실패했습니다.')
+          return
+        }
 
-        setInviteSubmitKind(createdCount > 1 ? 'create' : 'update')
-        applyInviteCompleteState({
-          editableIso: untilIso,
-          canEditNow: canNow && createdCount === 1,
-          justUpdated: false,
-          registeredCount: createdCount,
-        })
+        applyInviteCompleteState(createdCount)
         return
       }
 
@@ -623,48 +493,15 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
 
   /** 초대 전용 완료 */
   if (inviteRegistrationFlow && inviteUiPhase === 'complete') {
-    const deadlineMs = editableUntilIso != null ? Date.parse(editableUntilIso) : NaN
-    const withinWindow =
-      inviteRegisteredCount === 1 &&
-      Number.isFinite(deadlineMs) &&
-      inviteLockedPermanent === false &&
-      Date.now() < deadlineMs
-    const isBatchComplete = inviteRegisteredCount > 1
-
     return (
       <main className="page invite-registration-page">
         <header className="page-header">
-          <h1>{inviteLockedPermanent ? '등록 정보' : '전송 완료'}</h1>
-          {inviteJustUpdated ? (
-            <>
-              <p className="invite-registration-complete__lead">수정이 완료되었습니다.</p>
-              <p className="page-header-hint">수정은 전송 후 3시간 이내에만 가능합니다.</p>
-              <p className="page-header-hint">담당자가 확인 후 연락드리겠습니다.</p>
-            </>
-          ) : inviteLockedPermanent ? (
-            <>
-              <p className="invite-registration-complete__lead">
-                {isBatchComplete ? '등록이 완료되었습니다.' : '이미 등록이 완료되었습니다.'}
-              </p>
-              {isBatchComplete ? (
-                <p className="page-header-hint">총 {inviteRegisteredCount}명이 등록되었습니다.</p>
-              ) : null}
-              {!isBatchComplete ? <p className="page-header-hint">수정 가능 시간이 지났습니다.</p> : null}
-              <p className="page-header-hint">
-                {isBatchComplete ? '담당자가 확인 후 연락드리겠습니다.' : '수정이 필요하면 담당자에게 연락해 주세요.'}
-              </p>
-            </>
-          ) : (
-            <>
-              <p className="invite-registration-complete__lead">등록이 완료되었습니다.</p>
-              {isBatchComplete ? (
-                <p className="page-header-hint">총 {inviteRegisteredCount}명이 등록되었습니다.</p>
-              ) : (
-                <p className="page-header-hint">수정은 전송 후 3시간 이내에만 가능합니다.</p>
-              )}
-              <p className="page-header-hint">담당자가 확인 후 연락드리겠습니다.</p>
-            </>
-          )}
+          <h1>전송 완료</h1>
+          <p className="invite-registration-complete__lead">등록이 완료되었습니다.</p>
+          {inviteRegisteredCount > 1 ? (
+            <p className="page-header-hint">총 {inviteRegisteredCount}명이 등록되었습니다.</p>
+          ) : null}
+          <p className="page-header-hint">담당자가 확인 후 연락드리겠습니다.</p>
         </header>
 
         {inviteCloseBanner ? (
@@ -674,21 +511,6 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
         ) : null}
 
         <div className="invite-registration-complete__actions">
-          {withinWindow ? (
-            <FormButton
-              variant="secondary"
-              htmlType="button"
-              onClick={() => {
-                setInviteUiPhase('form')
-                setInviteSubmitKind('update')
-                setInviteJustUpdated(false)
-                setInviteCloseBanner(false)
-                setNotice('')
-              }}
-            >
-              수정하기
-            </FormButton>
-          ) : null}
           <FormButton variant="secondary" htmlType="button" onClick={handleInviteClose}>
             닫기
           </FormButton>
@@ -809,9 +631,9 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
           onClick={handleSubmit}
           style={{ marginTop: 8 }}
           loading={isSubmitting}
-          loadingText={inviteSubmitKind === 'update' ? '수정 저장 중…' : '전송 중…'}
+          loadingText="전송 중…"
         >
-          {inviteRegistrationFlow && inviteSubmitKind === 'update' ? '수정 전송' : '전송'}
+          전송
         </FormButton>
       </div>
     </main>
