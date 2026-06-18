@@ -73,6 +73,7 @@ import {
   readCookieFromHeader,
 } from './lib/customerInviteRegistrationPublic.js'
 import { stringifyCrmExtensionForDb } from './lib/customerCrmExtension.js'
+import { validateExternalInviteBatchCustomers } from './lib/externalInviteBatchRegistration.js'
 import { buildCustomerRowVisibilityWhere, resolveCustomerApiAccessScope } from './lib/customerAccessScope.js'
 import {
   assertCustomerRowAccessibleByVisibility,
@@ -5944,224 +5945,241 @@ function logExternalCreateError(reason, details = {}) {
   console.warn('[external-create-error]', { reason, ...details })
 }
 
-apiRouter.post('/customer/external-create', async (req, res) => {
-  try {
-    const data = req.body ?? {}
-    const refUsername = String(data.refUsername ?? '').trim()
-    const refUserIdLegacy = String(data.refUserId ?? data.ref_user_id ?? '').trim()
-    const gaFromBodyRaw = String(data.gaCode ?? data.ga ?? data.ga_code ?? '').trim()
+/**
+ * 외부 고객 등록 — ref/GA 컨텍스트 해석 (external-create·batch 공용).
+ * @returns {Promise<{ refUserId: string, refGaId: number } | null>}
+ */
+async function resolveExternalCreateRefContext(pool, data, res) {
+  const refUsername = String(data.refUsername ?? '').trim()
+  const refUserIdLegacy = String(data.refUserId ?? data.ref_user_id ?? '').trim()
+  const gaFromBodyRaw = String(data.gaCode ?? data.ga ?? data.ga_code ?? '').trim()
 
-    let refUserId = ''
-    let refGaId = null
+  let refUserId = ''
+  let refGaId = null
 
-    if (refUsername) {
-      const gaCodeNorm = normalizeInviteCode(gaFromBodyRaw)
-      if (!gaCodeNorm) {
-        logExternalCreateError('MISSING_GA_CODE', { refUsername, gaCode: gaFromBodyRaw || null })
-        res.status(400).json({ message: '잘못된 접근입니다' })
-        return
-      }
+  if (refUsername) {
+    const gaCodeNorm = normalizeInviteCode(gaFromBodyRaw)
+    if (!gaCodeNorm) {
+      logExternalCreateError('MISSING_GA_CODE', { refUsername, gaCode: gaFromBodyRaw || null })
+      res.status(400).json({ message: '잘못된 접근입니다' })
+      return null
+    }
 
-      const userByName = await systemQuery(
+    const userByName = await systemQuery(
+      pool,
+      `SELECT id, role, ga_id FROM users WHERE username = $1 AND is_deleted = false`,
+      [refUsername],
+    )
+    if (userByName.rowCount === 0) {
+      logExternalCreateError('REF_USER_NOT_FOUND', { refUsername, gaCode: gaCodeNorm })
+      res.status(400).json({ message: '유효하지 않은 소개 링크입니다.' })
+      return null
+    }
+    if (normalizeUserRole(userByName.rows[0].role) !== 'USER') {
+      logExternalCreateError('REF_USER_NOT_ALLOWED_ROLE', {
+        refUsername,
+        gaCode: gaCodeNorm,
+        refUserId: String(userByName.rows[0].id),
+        role: userByName.rows[0].role,
+      })
+      res.status(400).json({ message: '고객 정보를 받을 수 있는 계정이 아닙니다.' })
+      return null
+    }
+    const userGaId = parseGaId(userByName.rows[0].ga_id)
+    if (userGaId == null) {
+      logExternalCreateError('REF_USER_NO_GA', { refUsername, gaCode: gaCodeNorm, refUserId: String(userByName.rows[0].id) })
+      res.status(400).json({ message: '소개 계정에 GA가 연결되지 않았습니다.' })
+      return null
+    }
+
+    const gaRow = await systemQuery(
+      pool,
+      `SELECT id, status FROM ga_companies WHERE code = $1 AND is_deleted = false`,
+      [gaCodeNorm],
+    )
+    if (gaRow.rowCount === 0) {
+      logExternalCreateError('GA_CODE_UNKNOWN', { refUsername, gaCode: gaCodeNorm, refUserId: String(userByName.rows[0].id) })
+      res.status(400).json({ message: '잘못된 접근입니다' })
+      return null
+    }
+    if (String(gaRow.rows[0].status ?? '').toLowerCase() !== 'active') {
+      logExternalCreateError('GA_INACTIVE', {
+        refUsername,
+        gaCode: gaCodeNorm,
+        refUserId: String(userByName.rows[0].id),
+        gaId: gaRow.rows[0].id,
+        status: gaRow.rows[0].status,
+      })
+      res.status(400).json({ message: '잘못된 접근입니다' })
+      return null
+    }
+    const gaIdFromCode = parseGaId(gaRow.rows[0].id)
+    if (gaIdFromCode == null || gaIdFromCode !== userGaId) {
+      logExternalCreateError('GA_MISMATCH', {
+        refUsername,
+        gaCode: gaCodeNorm,
+        refUserId: String(userByName.rows[0].id),
+        userGaId,
+        gaIdFromCode: gaIdFromCode ?? null,
+      })
+      res.status(400).json({ message: '잘못된 접근입니다' })
+      return null
+    }
+
+    refUserId = String(userByName.rows[0].id)
+    refGaId = gaIdFromCode
+  } else if (refUserIdLegacy) {
+    const userRow = await systemQuery(pool, `SELECT id, role, ga_id FROM users WHERE id = $1`, [refUserIdLegacy])
+    if (userRow.rowCount === 0) {
+      logExternalCreateError('REF_USER_ID_NOT_FOUND', { refUserId: refUserIdLegacy, gaCode: gaFromBodyRaw || null })
+      res.status(400).json({ message: '유효하지 않은 소개 링크입니다.' })
+      return null
+    }
+    if (normalizeUserRole(userRow.rows[0].role) !== 'USER') {
+      logExternalCreateError('REF_USER_ID_NOT_ALLOWED_ROLE', {
+        refUserId: refUserIdLegacy,
+        gaCode: gaFromBodyRaw || null,
+        role: userRow.rows[0].role,
+      })
+      res.status(400).json({ message: '고객 정보를 받을 수 있는 계정이 아닙니다.' })
+      return null
+    }
+    refGaId = parseGaId(userRow.rows[0].ga_id)
+    if (refGaId == null) {
+      logExternalCreateError('REF_USER_ID_NO_GA', { refUserId: refUserIdLegacy, gaCode: gaFromBodyRaw || null })
+      res.status(400).json({ message: '소개 계정에 GA가 연결되지 않았습니다.' })
+      return null
+    }
+
+    if (gaFromBodyRaw) {
+      const gaFromBody = normalizeInviteCode(gaFromBodyRaw)
+      const gaRowRef = await systemQuery(
         pool,
-        `SELECT id, role, ga_id FROM users WHERE username = $1 AND is_deleted = false`,
-        [refUsername],
-      )
-      if (userByName.rowCount === 0) {
-        logExternalCreateError('REF_USER_NOT_FOUND', { refUsername, gaCode: gaCodeNorm })
-        res.status(400).json({ message: '유효하지 않은 소개 링크입니다.' })
-        return
-      }
-      if (normalizeUserRole(userByName.rows[0].role) !== 'USER') {
-        logExternalCreateError('REF_USER_NOT_ALLOWED_ROLE', {
-          refUsername,
-          gaCode: gaCodeNorm,
-          refUserId: String(userByName.rows[0].id),
-          role: userByName.rows[0].role,
-        })
-        res.status(400).json({ message: '고객 정보를 받을 수 있는 계정이 아닙니다.' })
-        return
-      }
-      const userGaId = parseGaId(userByName.rows[0].ga_id)
-      if (userGaId == null) {
-        logExternalCreateError('REF_USER_NO_GA', { refUsername, gaCode: gaCodeNorm, refUserId: String(userByName.rows[0].id) })
-        res.status(400).json({ message: '소개 계정에 GA가 연결되지 않았습니다.' })
-        return
-      }
-
-      const gaRow = await systemQuery(
-        pool,
-        `SELECT id, status FROM ga_companies WHERE code = $1 AND is_deleted = false`,
-        [gaCodeNorm],
-      )
-      if (gaRow.rowCount === 0) {
-        logExternalCreateError('GA_CODE_UNKNOWN', { refUsername, gaCode: gaCodeNorm, refUserId: String(userByName.rows[0].id) })
-        res.status(400).json({ message: '잘못된 접근입니다' })
-        return
-      }
-      if (String(gaRow.rows[0].status ?? '').toLowerCase() !== 'active') {
-        logExternalCreateError('GA_INACTIVE', {
-          refUsername,
-          gaCode: gaCodeNorm,
-          refUserId: String(userByName.rows[0].id),
-          gaId: gaRow.rows[0].id,
-          status: gaRow.rows[0].status,
-        })
-        res.status(400).json({ message: '잘못된 접근입니다' })
-        return
-      }
-      const gaIdFromCode = parseGaId(gaRow.rows[0].id)
-      if (gaIdFromCode == null || gaIdFromCode !== userGaId) {
-        logExternalCreateError('GA_MISMATCH', {
-          refUsername,
-          gaCode: gaCodeNorm,
-          refUserId: String(userByName.rows[0].id),
-          userGaId,
-          gaIdFromCode: gaIdFromCode ?? null,
-        })
-        res.status(400).json({ message: '잘못된 접근입니다' })
-        return
-      }
-
-      refUserId = String(userByName.rows[0].id)
-      refGaId = gaIdFromCode
-    } else if (refUserIdLegacy) {
-      const userRow = await systemQuery(pool, `SELECT id, role, ga_id FROM users WHERE id = $1`, [refUserIdLegacy])
-      if (userRow.rowCount === 0) {
-        logExternalCreateError('REF_USER_ID_NOT_FOUND', { refUserId: refUserIdLegacy, gaCode: gaFromBodyRaw || null })
-        res.status(400).json({ message: '유효하지 않은 소개 링크입니다.' })
-        return
-      }
-      if (normalizeUserRole(userRow.rows[0].role) !== 'USER') {
-        logExternalCreateError('REF_USER_ID_NOT_ALLOWED_ROLE', {
-          refUserId: refUserIdLegacy,
-          gaCode: gaFromBodyRaw || null,
-          role: userRow.rows[0].role,
-        })
-        res.status(400).json({ message: '고객 정보를 받을 수 있는 계정이 아닙니다.' })
-        return
-      }
-      refGaId = parseGaId(userRow.rows[0].ga_id)
-      if (refGaId == null) {
-        logExternalCreateError('REF_USER_ID_NO_GA', { refUserId: refUserIdLegacy, gaCode: gaFromBodyRaw || null })
-        res.status(400).json({ message: '소개 계정에 GA가 연결되지 않았습니다.' })
-        return
-      }
-
-      if (gaFromBodyRaw) {
-        const gaFromBody = normalizeInviteCode(gaFromBodyRaw)
-        const gaRowRef = await systemQuery(
-          pool,
-          `
+        `
           SELECT code FROM ga_companies
           WHERE id = $1 AND is_deleted = false
           LIMIT 1
           `,
-          [refGaId],
-        )
-        const refCodeNorm = normalizeInviteCode(gaRowRef.rows[0]?.code ?? '')
-        if (!refCodeNorm || refCodeNorm !== gaFromBody) {
-          logExternalCreateError('LEGACY_GA_BODY_MISMATCH', {
-            refUserId: refUserIdLegacy,
-            gaCode: gaFromBody,
-            refGaId,
-            expectedCodeNorm: refCodeNorm || null,
-          })
-          res.status(400).json({ message: 'GA 정보가 초대 링크와 일치하지 않습니다.' })
-          return
-        }
-      }
-
-      refUserId = refUserIdLegacy
-    } else {
-      logExternalCreateError('MISSING_REF', { gaCode: gaFromBodyRaw || null })
-      res.status(400).json({ message: '소개 링크 정보가 없습니다.' })
-      return
-    }
-
-    const inviteRegistration = Boolean(data.inviteRegistration ?? data.invite_registration)
-    if (inviteRegistration) {
-      /* GA 초대 /customer/register 전용 — refUsername·GA 검증 분기만 허용 */
-      if (!refUsername) {
-        logExternalCreateError('INVITE_REG_REQUIRES_USERNAME', {})
-        res.status(400).json({ message: '잘못된 접근입니다.' })
-        return
-      }
-      const secureInviteCookie = RUNNING_IN_PRODUCTION
-      const incomingTok = readCookieFromHeader(req.headers.cookie, PUBLIC_INVITE_REG_COOKIE)
-      if (incomingTok) {
-        const exist = await safeQuery(
-          pool,
-          `
-          SELECT s.ref_user_id, s.ga_id, s.first_submitted_at
-          FROM public_customer_invite_sessions s
-          JOIN customers c ON c.id = s.customer_id AND c.deleted_at IS NULL
-          WHERE s.secret_token = $1
-          LIMIT 1
-          `,
-          [incomingTok],
-        )
-        if (exist.rowCount > 0) {
-          const er = exist.rows[0]
-          const sameScope = String(er.ref_user_id) === refUserId && Number(er.ga_id) === Number(refGaId)
-          if (sameScope) {
-            const ded = editableDeadlineMsFromFirstSubmitted(er.first_submitted_at)
-            res.status(409).json({
-              success: false,
-              code: 'ALREADY_SUBMITTED',
-              message:
-                Date.now() < ded
-                  ? '이미 등록 정보가 있습니다. 수정은 아래 수정하기로 진행해 주세요.'
-                  : '이미 등록이 완료되었습니다.',
-              editableUntil: new Date(ded).toISOString(),
-              canEdit: Date.now() < ded,
-            })
-            return
-          }
-          res.append('Set-Cookie', buildInviteRegClearCookieHeader({ secure: secureInviteCookie }))
-        }
+        [refGaId],
+      )
+      const refCodeNorm = normalizeInviteCode(gaRowRef.rows[0]?.code ?? '')
+      if (!refCodeNorm || refCodeNorm !== gaFromBody) {
+        logExternalCreateError('LEGACY_GA_BODY_MISMATCH', {
+          refUserId: refUserIdLegacy,
+          gaCode: gaFromBody,
+          refGaId,
+          expectedCodeNorm: refCodeNorm || null,
+        })
+        res.status(400).json({ message: 'GA 정보가 초대 링크와 일치하지 않습니다.' })
+        return null
       }
     }
 
-    const name = String(data.name ?? '').trim()
-    if (!name) {
-      res.status(400).json({ message: '이름은 필수입니다' })
-      return
-    }
+    refUserId = refUserIdLegacy
+  } else {
+    logExternalCreateError('MISSING_REF', { gaCode: gaFromBodyRaw || null })
+    res.status(400).json({ message: '소개 링크 정보가 없습니다.' })
+    return null
+  }
 
-    const ssn = String(data.ssn ?? '').trim()
+  return { refUserId, refGaId }
+}
 
-    let isDriver = null
-    if (data.isDriver === true || data.is_driver === true) {
-      isDriver = true
-    } else if (data.isDriver === false || data.is_driver === false) {
-      isDriver = false
-    }
-    const carType = String(data.carType ?? data.car_type ?? '').trim()
+/**
+ * 초대 등록 세션 쿠키가 이미 있으면 ALREADY_SUBMITTED 응답.
+ * @returns {Promise<boolean>} 계속 생성 가능하면 true
+ */
+async function ensureInviteRegistrationCanCreate(pool, req, res, { refUserId, refGaId, refUsername }) {
+  if (!refUsername) {
+    logExternalCreateError('INVITE_REG_REQUIRES_USERNAME', {})
+    res.status(400).json({ message: '잘못된 접근입니다.' })
+    return false
+  }
+  const secureInviteCookie = RUNNING_IN_PRODUCTION
+  const incomingTok = readCookieFromHeader(req.headers.cookie, PUBLIC_INVITE_REG_COOKIE)
+  if (!incomingTok) {
+    return true
+  }
+  const exist = await safeQuery(
+    pool,
+    `
+    SELECT s.ref_user_id, s.ga_id, s.first_submitted_at
+    FROM public_customer_invite_sessions s
+    JOIN customers c ON c.id = s.customer_id AND c.deleted_at IS NULL
+    WHERE s.secret_token = $1
+    LIMIT 1
+    `,
+    [incomingTok],
+  )
+  if (exist.rowCount === 0) {
+    return true
+  }
+  const er = exist.rows[0]
+  const sameScope = String(er.ref_user_id) === refUserId && Number(er.ga_id) === Number(refGaId)
+  if (sameScope) {
+    const ded = editableDeadlineMsFromFirstSubmitted(er.first_submitted_at)
+    res.status(409).json({
+      success: false,
+      code: 'ALREADY_SUBMITTED',
+      message:
+        Date.now() < ded
+          ? '이미 등록 정보가 있습니다. 수정은 아래 수정하기로 진행해 주세요.'
+          : '이미 등록이 완료되었습니다.',
+      editableUntil: new Date(ded).toISOString(),
+      canEdit: Date.now() < ded,
+    })
+    return false
+  }
+  res.append('Set-Cookie', buildInviteRegClearCookieHeader({ secure: secureInviteCookie }))
+  return true
+}
 
-    const { age: insuranceAge, nextAgeDate: nextAgeDateObj } = calculateInsuranceInfoFromRrn(ssn)
-    const nextAgeSql = nextAgeDateToSqlDate(nextAgeDateObj)
+/**
+ * @param {import('pg').Pool | import('pg').PoolClient} executor
+ */
+async function insertCustomerFromExternalBody(executor, data, refUserId, refGaId) {
+  const name = String(data.name ?? '').trim()
+  if (!name) {
+    const error = new Error('이름은 필수입니다')
+    // @ts-expect-error custom
+    error.httpStatus = 400
+    throw error
+  }
 
-    const genderRaw = String(data.gender ?? '').trim()
-    const gender = genderRaw === 'male' || genderRaw === 'female' ? genderRaw : ''
+  const ssn = String(data.ssn ?? '').trim()
 
-    const notes = normalizeCustomerNotesInput(data.notes)
-    const driving =
-      isDriver === true ? '운전함' : isDriver === false ? '운전 안함' : String(data.driving ?? '').trim()
+  let isDriver = null
+  if (data.isDriver === true || data.is_driver === true) {
+    isDriver = true
+  } else if (data.isDriver === false || data.is_driver === false) {
+    isDriver = false
+  }
+  const carType = String(data.carType ?? data.car_type ?? '').trim()
 
-    const carNumber = String(data.carNumber ?? data.car_number ?? '').trim()
-    const carModel = String(data.carModel ?? data.car_model ?? '').trim()
-    const carYear = String(data.carYear ?? data.car_year ?? '').trim()
-    const renewalDateRaw = normalizeExpiryDate(String(data.renewalDate ?? data.renewal_date ?? ''))
-    const renewalDateSql = renewalDateRaw || null
+  const { age: insuranceAge, nextAgeDate: nextAgeDateObj } = calculateInsuranceInfoFromRrn(ssn)
+  const nextAgeSql = nextAgeDateToSqlDate(nextAgeDateObj)
 
-    const birthRaw = String(data.birthDate ?? data.birth_date ?? '').trim()
-    const birthDateSql = birthRaw ? normalizeExpiryDate(birthRaw.slice(0, 10)) || null : null
+  const genderRaw = String(data.gender ?? '').trim()
+  const gender = genderRaw === 'male' || genderRaw === 'female' ? genderRaw : ''
 
-    const crmExtSql = stringifyCrmExtensionForDb(data.crmExtension ?? data.crm_extension)
+  const notes = normalizeCustomerNotesInput(data.notes)
+  const driving =
+    isDriver === true ? '운전함' : isDriver === false ? '운전 안함' : String(data.driving ?? '').trim()
 
-    const inserted = await safeQuery(pool,
-      `
+  const carNumber = String(data.carNumber ?? data.car_number ?? '').trim()
+  const carModel = String(data.carModel ?? data.car_model ?? '').trim()
+  const carYear = String(data.carYear ?? data.car_year ?? '').trim()
+  const renewalDateRaw = normalizeExpiryDate(String(data.renewalDate ?? data.renewal_date ?? ''))
+  const renewalDateSql = renewalDateRaw || null
+
+  const birthRaw = String(data.birthDate ?? data.birth_date ?? '').trim()
+  const birthDateSql = birthRaw ? normalizeExpiryDate(birthRaw.slice(0, 10)) || null : null
+
+  const crmExtSql = stringifyCrmExtensionForDb(data.crmExtension ?? data.crm_extension)
+
+  const inserted = await safeQuery(
+    executor,
+    `
       INSERT INTO customers (
         user_id, ga_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
         gender, insurance_age, next_age_date, is_driver, car_type,
@@ -6177,40 +6195,67 @@ apiRouter.post('/customer/external-create', async (req, res) => {
         is_favorite, created_at,
         crm_extension
       `,
-      [
+    [
+      refUserId,
+      refGaId,
+      name,
+      ssn,
+      String(data.phone ?? '').trim(),
+      String(data.carrier ?? '').trim(),
+      String(data.address ?? '').trim(),
+      String(data.height ?? '').trim(),
+      String(data.weight ?? '').trim(),
+      String(data.job ?? '').trim(),
+      driving,
+      String(data.medical ?? '').trim(),
+      gender,
+      insuranceAge,
+      nextAgeSql,
+      isDriver,
+      carType,
+      carNumber,
+      carModel,
+      carYear,
+      renewalDateSql,
+      JSON.stringify(notes),
+      birthDateSql,
+      crmExtSql,
+    ],
+  )
+
+  return inserted.rows[0]
+}
+
+apiRouter.post('/customer/external-create', async (req, res) => {
+  try {
+    const data = req.body ?? {}
+    const refContext = await resolveExternalCreateRefContext(pool, data, res)
+    if (!refContext) {
+      return
+    }
+    const { refUserId, refGaId } = refContext
+
+    const inviteRegistration = Boolean(data.inviteRegistration ?? data.invite_registration)
+    if (inviteRegistration) {
+      const refUsername = String(data.refUsername ?? '').trim()
+      const canCreate = await ensureInviteRegistrationCanCreate(pool, req, res, {
         refUserId,
         refGaId,
-        name,
-        ssn,
-        String(data.phone ?? '').trim(),
-        String(data.carrier ?? '').trim(),
-        String(data.address ?? '').trim(),
-        String(data.height ?? '').trim(),
-        String(data.weight ?? '').trim(),
-        String(data.job ?? '').trim(),
-        driving,
-        String(data.medical ?? '').trim(),
-        gender,
-        insuranceAge,
-        nextAgeSql,
-        isDriver,
-        carType,
-        carNumber,
-        carModel,
-        carYear,
-        renewalDateSql,
-        JSON.stringify(notes),
-        birthDateSql,
-        crmExtSql,
-      ],
-    )
+        refUsername,
+      })
+      if (!canCreate) {
+        return
+      }
+    }
+
+    const insertedRow = await insertCustomerFromExternalBody(pool, data, refUserId, refGaId)
 
     void recordAnalyticsEvent(pool, { userId: refUserId, gaId: refGaId, eventType: 'customer_created' })
     void tryGeocodeCustomerOnSave(pool, {
-      customerId: inserted.rows[0].id,
+      customerId: insertedRow.id,
       userId: refUserId,
       gaId: refGaId,
-      address: inserted.rows[0].address,
+      address: insertedRow.address,
     })
 
     let inviteSessionMeta = null
@@ -6219,11 +6264,11 @@ apiRouter.post('/customer/external-create', async (req, res) => {
       const sessIns = await safeQuery(
         pool,
         `
-        INSERT INTO public_customer_invite_sessions (secret_token, customer_id, ref_user_id, ga_id)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO public_customer_invite_sessions (secret_token, customer_id, ref_user_id, ga_id, registered_count)
+        VALUES ($1, $2, $3, $4, 1)
         RETURNING first_submitted_at
         `,
-        [newTok, inserted.rows[0].id, refUserId, refGaId],
+        [newTok, insertedRow.id, refUserId, refGaId],
       )
       const firstSubmittedAt = sessIns.rows[0].first_submitted_at
       const deadlineMs = editableDeadlineMsFromFirstSubmitted(firstSubmittedAt)
@@ -6240,11 +6285,108 @@ apiRouter.post('/customer/external-create', async (req, res) => {
 
     res.status(201).json({
       success: true,
-      data: mapCustomerRow(inserted.rows[0]),
+      data: mapCustomerRow(insertedRow),
       ...(inviteSessionMeta ? { inviteRegistration: inviteSessionMeta } : {}),
     })
   } catch (error) {
+    const status = Number(error?.httpStatus)
+    if (Number.isInteger(status) && status >= 400 && status < 600) {
+      res.status(status).json({ message: String(error.message ?? '저장에 실패했습니다.') })
+      return
+    }
     handleDbError(error, req, res)
+  }
+})
+
+apiRouter.post('/customer/external-invite-registration/batch', async (req, res) => {
+  const client = await pool.connect()
+  try {
+    const data = req.body ?? {}
+    const refUsername = String(data.refUsername ?? '').trim()
+    const gaCode = String(data.gaCode ?? data.ga ?? data.ga_code ?? '').trim()
+    const refContext = await resolveExternalCreateRefContext(
+      pool,
+      { refUsername, gaCode, ga: gaCode },
+      res,
+    )
+    if (!refContext) {
+      return
+    }
+    const { refUserId, refGaId } = refContext
+
+    const canCreate = await ensureInviteRegistrationCanCreate(pool, req, res, {
+      refUserId,
+      refGaId,
+      refUsername,
+    })
+    if (!canCreate) {
+      return
+    }
+
+    const validated = validateExternalInviteBatchCustomers(data.customers)
+    if (!validated.ok) {
+      res.status(400).json({ ok: false, errors: validated.errors })
+      return
+    }
+
+    await client.query('BEGIN')
+    /** @type {Array<{ id: number, name: string }>} */
+    const created = []
+    for (const customerData of validated.customers) {
+      const insertedRow = await insertCustomerFromExternalBody(client, customerData, refUserId, refGaId)
+      created.push({ id: Number(insertedRow.id), name: String(insertedRow.name ?? '') })
+      void recordAnalyticsEvent(pool, { userId: refUserId, gaId: refGaId, eventType: 'customer_created' })
+      void tryGeocodeCustomerOnSave(pool, {
+        customerId: insertedRow.id,
+        userId: refUserId,
+        gaId: refGaId,
+        address: insertedRow.address,
+      })
+    }
+
+    const newTok = randomBytes(32).toString('hex')
+    const sessIns = await client.query(
+      `
+      INSERT INTO public_customer_invite_sessions (secret_token, customer_id, ref_user_id, ga_id, registered_count)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING first_submitted_at
+      `,
+      [newTok, created[0].id, refUserId, refGaId, created.length],
+    )
+    await client.query('COMMIT')
+
+    const firstSubmittedAt = sessIns.rows[0].first_submitted_at
+    const deadlineMs = editableDeadlineMsFromFirstSubmitted(firstSubmittedAt)
+    const maxAgeSec = Math.max(0, Math.ceil((deadlineMs - Date.now()) / 1000))
+    res.append(
+      'Set-Cookie',
+      buildInviteRegSetCookieHeader(newTok, maxAgeSec, { secure: RUNNING_IN_PRODUCTION }),
+    )
+
+    res.status(201).json({
+      ok: true,
+      createdCount: created.length,
+      customers: created,
+      inviteRegistration: {
+        editableUntil: new Date(deadlineMs).toISOString(),
+        canEdit: Date.now() < deadlineMs,
+        registeredCount: created.length,
+      },
+    })
+  } catch (error) {
+    try {
+      await client.query('ROLLBACK')
+    } catch {
+      // ignore rollback failure
+    }
+    const status = Number(error?.httpStatus)
+    if (Number.isInteger(status) && status >= 400 && status < 600) {
+      res.status(status).json({ message: String(error.message ?? '저장에 실패했습니다.') })
+      return
+    }
+    handleDbError(error, req, res)
+  } finally {
+    client.release()
   }
 })
 
@@ -6269,7 +6411,7 @@ apiRouter.get('/customer/external-invite-session', async (req, res) => {
     const sess = await safeQuery(
       pool,
       `
-      SELECT s.customer_id, s.ref_user_id, s.ga_id, s.first_submitted_at
+      SELECT s.customer_id, s.ref_user_id, s.ga_id, s.first_submitted_at, s.registered_count
       FROM public_customer_invite_sessions s
       INNER JOIN customers c ON c.id = s.customer_id AND c.deleted_at IS NULL
       WHERE s.secret_token = $1
@@ -6282,6 +6424,7 @@ apiRouter.get('/customer/external-invite-session', async (req, res) => {
       return
     }
     const row = sess.rows[0]
+    const registeredCount = Math.max(1, Number(row.registered_count ?? 1))
     const deadlineMs = editableDeadlineMsFromFirstSubmitted(row.first_submitted_at)
     const canEdit = Date.now() < deadlineMs
     if (!canEdit) {
@@ -6290,6 +6433,17 @@ apiRouter.get('/customer/external-invite-session', async (req, res) => {
         locked: true,
         editableUntil: new Date(deadlineMs).toISOString(),
         canEdit: false,
+        registeredCount,
+      })
+      return
+    }
+    if (registeredCount > 1) {
+      res.json({
+        hasSubmission: true,
+        locked: false,
+        editableUntil: new Date(deadlineMs).toISOString(),
+        canEdit: false,
+        registeredCount,
       })
       return
     }
@@ -6317,6 +6471,7 @@ apiRouter.get('/customer/external-invite-session', async (req, res) => {
       locked: false,
       editableUntil: new Date(deadlineMs).toISOString(),
       canEdit: true,
+      registeredCount,
       customer: mapCustomerRow(cust.rows[0]),
     })
   } catch (error) {

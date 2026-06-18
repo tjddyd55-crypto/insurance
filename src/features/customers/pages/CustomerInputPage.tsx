@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { FormButton } from '../../../components/form'
 import { PublicPageBackButton } from '../../../components/PublicPageBackButton'
@@ -28,8 +28,20 @@ type InviteSessionResp =
       locked: boolean
       editableUntil: string
       canEdit: boolean
+      registeredCount?: number
       customer?: Record<string, unknown>
     }
+
+type CustomerInputFormItem = {
+  localId: string
+  values: CustomerFormState
+}
+
+const INVITE_BATCH_MAX = 10
+
+function createFormItem(localId: string): CustomerInputFormItem {
+  return { localId, values: createEmptyCustomerForm() }
+}
 
 function pickInviteEditableUntilIso(iso?: string | null): string {
   if (typeof iso === 'string' && iso.trim()) return iso.trim()
@@ -48,7 +60,13 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
   const isRegisterPathOnly = location.pathname.includes('/customer/register')
 
   const [notice, setNotice] = useState('')
-  const [customers, setCustomers] = useState<CustomerFormState[]>(() => [createEmptyCustomerForm()])
+  const nextFormIdRef = useRef(0)
+  const createNextFormItem = useCallback((): CustomerInputFormItem => {
+    nextFormIdRef.current += 1
+    return createFormItem(`customer-form-${nextFormIdRef.current}`)
+  }, [])
+  const [forms, setForms] = useState<CustomerInputFormItem[]>(() => [createFormItem('customer-form-1')])
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [inviteSessionBusy, setInviteSessionBusy] = useState(inviteRegistrationFlow)
   /** 초대 초대 플로우: 작성 vs 완료 */
@@ -59,7 +77,7 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
   const [inviteLockedPermanent, setInviteLockedPermanent] = useState(false)
   const [inviteJustUpdated, setInviteJustUpdated] = useState(false)
   const [inviteCloseBanner, setInviteCloseBanner] = useState(false)
-  const [inviteAdditionalBusy, setInviteAdditionalBusy] = useState(false)
+  const [inviteRegisteredCount, setInviteRegisteredCount] = useState(1)
 
   const inviteCloseFallbackMessage = getPublicCustomerRegistrationCloseFallbackMessage()
 
@@ -76,67 +94,94 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
     return new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString()
   }
 
-  const updateCustomerAt = useCallback((index: number, next: CustomerFormState) => {
-    setCustomers((prev) => prev.map((row, i) => (i === index ? next : row)))
+  const updateFormAt = useCallback((localId: string, next: CustomerFormState) => {
+    setForms((prev) => prev.map((row) => (row.localId === localId ? { ...row, values: next } : row)))
+    setFormErrors((prev) => {
+      if (!prev[localId]) {
+        return prev
+      }
+      const { [localId]: _removed, ...rest } = prev
+      return rest
+    })
   }, [])
+
+  const handleAddForm = useCallback(() => {
+    setForms((prev) => {
+      if (prev.length >= INVITE_BATCH_MAX) {
+        setNotice('한 번에 최대 10명까지 등록할 수 있습니다.')
+        return prev
+      }
+      const nextItem = createNextFormItem()
+      window.setTimeout(() => {
+        document.getElementById(nextItem.localId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 100)
+      setNotice('')
+      return [...prev, nextItem]
+    })
+  }, [createNextFormItem])
 
   const addCustomerRow = useCallback(() => {
-    setCustomers((prev) => [...prev, createEmptyCustomerForm()])
+    if (forms.length >= INVITE_BATCH_MAX) {
+      setNotice('한 번에 최대 10명까지 등록할 수 있습니다.')
+      return
+    }
+    const nextItem = createNextFormItem()
+    setForms((prev) => [...prev, nextItem])
     window.setTimeout(() => {
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+      document.getElementById(nextItem.localId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 100)
+  }, [createNextFormItem, forms.length])
+
+  const handleRemoveForm = useCallback((localId: string) => {
+    setForms((prev) => {
+      if (prev.length <= 1 || prev[0]?.localId === localId) {
+        return prev
+      }
+      return prev.filter((row) => row.localId !== localId)
+    })
+    setFormErrors((prev) => {
+      if (!prev[localId]) {
+        return prev
+      }
+      const { [localId]: _removed, ...rest } = prev
+      return rest
+    })
   }, [])
 
-  const removeCustomerAt = useCallback((index: number) => {
-    setCustomers((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)))
-  }, [])
+  const removeCustomerAt = useCallback(
+    (index: number) => {
+      const target = forms[index]
+      if (!target || index === 0) {
+        return
+      }
+      handleRemoveForm(target.localId)
+    },
+    [forms, handleRemoveForm],
+  )
 
   const applyInviteCompleteState = useCallback(
     ({
       editableIso,
       canEditNow,
       justUpdated,
+      registeredCount = 1,
     }: {
       editableIso?: string | null
       canEditNow: boolean
       justUpdated: boolean
+      registeredCount?: number
     }) => {
       setEditableUntilIso(pickInviteEditableUntilIso(editableIso))
-      setInviteLockedPermanent(!canEditNow)
+      setInviteLockedPermanent(registeredCount === 1 ? !canEditNow : false)
       setInviteJustUpdated(justUpdated)
+      setInviteRegisteredCount(Math.max(1, registeredCount))
       setInviteUiPhase('complete')
       setNotice('')
       setInviteCloseBanner(false)
+      setFormErrors({})
     },
     [],
   )
-
-  const resetInviteRegistrationForAdditionalEntry = useCallback(() => {
-    setCustomers([createEmptyCustomerForm()])
-    setInviteUiPhase('form')
-    setInviteSubmitKind('create')
-    setInviteLockedPermanent(false)
-    setEditableUntilIso(null)
-    setInviteJustUpdated(false)
-    setInviteCloseBanner(false)
-    setNotice('')
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [])
-
-  const handleAdditionalRegistration = useCallback(async () => {
-    setInviteAdditionalBusy(true)
-    try {
-      await fetch(resolveApiUrl('/api/customer/external-invite-session/reset'), {
-        method: 'POST',
-        credentials: 'include',
-      })
-    } catch {
-      /* 쿠키 해제 실패해도 폼 초기화는 진행 — 서버가 ALREADY_SUBMITTED 로 안내할 수 있음 */
-    } finally {
-      setInviteAdditionalBusy(false)
-    }
-    resetInviteRegistrationForAdditionalEntry()
-  }, [resetInviteRegistrationForAdditionalEntry])
 
   const handleInviteClose = useCallback(() => {
     setInviteCloseBanner(false)
@@ -169,23 +214,25 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
           return
         }
         const p = payload as Extract<InviteSessionResp, { hasSubmission: true }>
+        const registeredCount = Math.max(1, Number(p.registeredCount ?? 1))
         const deadlineMs = Date.parse(p.editableUntil)
         const canNow = Boolean(p.canEdit) && Number.isFinite(deadlineMs) && Date.now() < deadlineMs
-        const locked = Boolean(p.locked) || !canNow
+        const locked = Boolean(p.locked) || !canNow || registeredCount > 1
 
-        setInviteSubmitKind('update')
-        if (!locked && p.customer != null && typeof p.customer === 'object') {
+        setInviteSubmitKind(registeredCount > 1 ? 'create' : 'update')
+        if (!locked && registeredCount === 1 && p.customer != null && typeof p.customer === 'object') {
           try {
-            setCustomers([inviteCustomerApiRowToFormState(p.customer)])
+            setForms([{ localId: 'customer-form-1', values: inviteCustomerApiRowToFormState(p.customer) }])
           } catch {
-            setCustomers([createEmptyCustomerForm()])
+            setForms([createFormItem('customer-form-1')])
           }
         }
 
         applyInviteCompleteState({
           editableIso: p.editableUntil,
-          canEditNow: canNow,
+          canEditNow: canNow && registeredCount === 1,
           justUpdated: false,
+          registeredCount,
         })
       } catch {
         if (!canceled) setNotice('세션을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.')
@@ -287,24 +334,36 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
     }
   }, [inviteRegistrationFlow, location.pathname, location.search])
 
+  const scrollToForm = useCallback((localId: string) => {
+    window.setTimeout(() => {
+      document.getElementById(localId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 50)
+  }, [])
+
   async function handleSubmit() {
     if (!refParam) {
       setNotice('잘못된 접근입니다.')
       return
     }
 
-    if (inviteRegistrationFlow && customers.length > 1) {
-      setNotice('초대 링크에서는 한 명의 고객 정보만 등록할 수 있습니다.')
-      return
-    }
-
-    for (let i = 0; i < customers.length; i += 1) {
-      const msg = getCustomerFormValidationError(customers[i])
+    const nextErrors: Record<string, string> = {}
+    let firstErrorLocalId: string | null = null
+    for (const item of forms) {
+      const msg = getCustomerFormValidationError(item.values)
       if (msg) {
-        setNotice(`${i + 1}번째 고객: ${msg}`)
-        return
+        nextErrors[item.localId] = msg
+        if (!firstErrorLocalId) {
+          firstErrorLocalId = item.localId
+        }
       }
     }
+    if (firstErrorLocalId) {
+      setFormErrors(nextErrors)
+      setNotice('입력 내용을 확인해 주세요.')
+      scrollToForm(firstErrorLocalId)
+      return
+    }
+    setFormErrors({})
 
     setIsSubmitting(true)
     setNotice('전송 중…')
@@ -312,7 +371,7 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
     try {
       if (inviteRegistrationFlow) {
         if (inviteSubmitKind === 'update') {
-          const payload = customerFormStateToSavePayload(customers[0])
+          const payload = customerFormStateToSavePayload(forms[0].values)
           const res = await fetch(resolveApiUrl('/api/customer/external-invite-registration'), {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -338,6 +397,7 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
                 editableIso: editableUntilIso,
                 canEditNow: false,
                 justUpdated: false,
+                registeredCount: 1,
               })
             }
             return
@@ -353,24 +413,23 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
             editableIso: until,
             canEditNow: canNow,
             justUpdated: true,
+            registeredCount: 1,
           })
           return
         }
 
-        /* create */
-        const payload = customerFormStateToSavePayload(customers[0])
-        const body: Record<string, unknown> = {
-          ...payload,
-          inviteRegistration: true,
-          refUsername: refParam,
-          gaCode: inviteGaCode,
-          ga: inviteGaCode,
-        }
-        const res = await fetch(resolveApiUrl('/api/customer/external-create'), {
+        /* create — 단일·다건 모두 batch API 사용 */
+        const customersPayload = forms.map((item) => customerFormStateToSavePayload(item.values))
+        const res = await fetch(resolveApiUrl('/api/customer/external-invite-registration/batch'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify(body),
+          body: JSON.stringify({
+            refUsername: refParam,
+            gaCode: inviteGaCode,
+            ga: inviteGaCode,
+            customers: customersPayload,
+          }),
         })
 
         if (res.status === 409) {
@@ -388,6 +447,7 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
               editableIso: untilIso,
               canEditNow: canNow,
               justUpdated: false,
+              registeredCount: 1,
             })
             setNotice('')
             return
@@ -403,31 +463,55 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
           } catch {
             errBody = {}
           }
+          const batchErrors = Array.isArray(errBody.errors)
+            ? (errBody.errors as Array<{ index?: number; message?: string }>)
+            : null
+          if (batchErrors && batchErrors.length > 0) {
+            const mappedErrors: Record<string, string> = {}
+            let firstBatchErrorId: string | null = null
+            for (const err of batchErrors) {
+              const index = Number(err.index)
+              const item = forms[index]
+              const message = String(err.message ?? '입력값을 확인해 주세요.')
+              if (item) {
+                mappedErrors[item.localId] = message
+                if (!firstBatchErrorId) {
+                  firstBatchErrorId = item.localId
+                }
+              }
+            }
+            setFormErrors(mappedErrors)
+            if (firstBatchErrorId) {
+              scrollToForm(firstBatchErrorId)
+            }
+            setNotice('입력 내용을 확인해 주세요.')
+            return
+          }
           const errMsgRaw = typeof errBody.message === 'string' ? errBody.message : undefined
-          const errMsgFallback = typeof errBody.error === 'string' ? errBody.error : undefined
-          const errMsg = errMsgRaw ?? errMsgFallback ?? '저장 실패'
-          setNotice(errMsg)
+          setNotice(errMsgRaw ?? '저장 실패')
           return
         }
 
         const raw = (await res.json()) as Record<string, unknown>
-        const inv = raw.inviteRegistration as { editableUntil?: string } | undefined
+        const inv = raw.inviteRegistration as { editableUntil?: string; registeredCount?: number } | undefined
         const untilIso = typeof inv?.editableUntil === 'string' ? inv.editableUntil : null
+        const createdCount = Math.max(1, Number(raw.createdCount ?? inv?.registeredCount ?? forms.length))
         const deadlineMs = untilIso != null ? Date.parse(untilIso) : NaN
         const canNow = Number.isFinite(deadlineMs) && Date.now() < deadlineMs
 
-        setInviteSubmitKind('update')
+        setInviteSubmitKind(createdCount > 1 ? 'create' : 'update')
         applyInviteCompleteState({
           editableIso: untilIso,
-          canEditNow: canNow,
+          canEditNow: canNow && createdCount === 1,
           justUpdated: false,
+          registeredCount: createdCount,
         })
         return
       }
 
       /* --- 기존 /customer/input 등 다건 전송 플로 (내부 CRM 영향 없음) --- */
-      for (let i = 0; i < customers.length; i += 1) {
-        const payload = customerFormStateToSavePayload(customers[i])
+      for (let i = 0; i < forms.length; i += 1) {
+        const payload = customerFormStateToSavePayload(forms[i].values)
         const body: Record<string, unknown> = { ...payload }
         const isLegacyRegisterRoute = location.pathname.includes('/customer/register')
 
@@ -474,7 +558,8 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
         }
       }
 
-      setCustomers([createEmptyCustomerForm()])
+      setForms([createFormItem('customer-form-1')])
+      setFormErrors({})
       setNotice('정보가 전송되었습니다.')
     } catch (e) {
       setNotice(e instanceof Error ? e.message : '전송에 실패했습니다.')
@@ -540,7 +625,11 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
   if (inviteRegistrationFlow && inviteUiPhase === 'complete') {
     const deadlineMs = editableUntilIso != null ? Date.parse(editableUntilIso) : NaN
     const withinWindow =
-      Number.isFinite(deadlineMs) && inviteLockedPermanent === false && Date.now() < deadlineMs
+      inviteRegisteredCount === 1 &&
+      Number.isFinite(deadlineMs) &&
+      inviteLockedPermanent === false &&
+      Date.now() < deadlineMs
+    const isBatchComplete = inviteRegisteredCount > 1
 
     return (
       <main className="page invite-registration-page">
@@ -554,15 +643,25 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
             </>
           ) : inviteLockedPermanent ? (
             <>
-              <p className="invite-registration-complete__lead">이미 등록이 완료되었습니다.</p>
-              <p className="page-header-hint">수정 가능 시간이 지났습니다.</p>
-              <p className="page-header-hint">수정이 필요하면 담당자에게 연락해 주세요.</p>
+              <p className="invite-registration-complete__lead">
+                {isBatchComplete ? '등록이 완료되었습니다.' : '이미 등록이 완료되었습니다.'}
+              </p>
+              {isBatchComplete ? (
+                <p className="page-header-hint">총 {inviteRegisteredCount}명이 등록되었습니다.</p>
+              ) : null}
+              {!isBatchComplete ? <p className="page-header-hint">수정 가능 시간이 지났습니다.</p> : null}
+              <p className="page-header-hint">
+                {isBatchComplete ? '담당자가 확인 후 연락드리겠습니다.' : '수정이 필요하면 담당자에게 연락해 주세요.'}
+              </p>
             </>
           ) : (
             <>
               <p className="invite-registration-complete__lead">등록이 완료되었습니다.</p>
-              <p className="page-header-hint">추가로 등록할 고객이 있으면 아래 버튼을 눌러 주세요.</p>
-              <p className="page-header-hint">수정은 전송 후 3시간 이내에만 가능합니다.</p>
+              {isBatchComplete ? (
+                <p className="page-header-hint">총 {inviteRegisteredCount}명이 등록되었습니다.</p>
+              ) : (
+                <p className="page-header-hint">수정은 전송 후 3시간 이내에만 가능합니다.</p>
+              )}
               <p className="page-header-hint">담당자가 확인 후 연락드리겠습니다.</p>
             </>
           )}
@@ -575,18 +674,6 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
         ) : null}
 
         <div className="invite-registration-complete__actions">
-          <FormButton
-            variant="primary"
-            htmlType="button"
-            disabled={inviteAdditionalBusy}
-            loading={inviteAdditionalBusy}
-            loadingText="준비 중…"
-            onClick={() => {
-              void handleAdditionalRegistration()
-            }}
-          >
-            추가 등록
-          </FormButton>
           {withinWindow ? (
             <FormButton
               variant="secondary"
@@ -647,16 +734,33 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
       </header>
 
       <div className="external-input-body">
-        {customers.map((row, index) => (
-          <div key={index} className="customer-card">
+        {forms.map((item, index) => (
+          <div key={item.localId} id={item.localId} className="customer-card">
             <div className="customer-title">고객 {index + 1}</div>
             <CustomerFormFields
-              form={row}
-              onFormChange={(next) => updateCustomerAt(index, next)}
-              radioSuffix={`external-${index}`}
+              form={item.values}
+              onFormChange={(next) => updateFormAt(item.localId, next)}
+              radioSuffix={`external-${item.localId}`}
               onStatusMessage={setNotice}
             />
-            {!inviteRegistrationFlow && customers.length > 1 ? (
+            {formErrors[item.localId] ? (
+              <p className="page-header-notice" role="alert">
+                {formErrors[item.localId]}
+              </p>
+            ) : null}
+            {inviteRegistrationFlow && forms.length > 1 && index > 0 ? (
+              <div style={{ marginTop: 12 }}>
+                <FormButton
+                  className="button button--secondary"
+                  htmlType="button"
+                  variant="secondary"
+                  onClick={() => handleRemoveForm(item.localId)}
+                >
+                  삭제
+                </FormButton>
+              </div>
+            ) : null}
+            {!inviteRegistrationFlow && forms.length > 1 && index > 0 ? (
               <div style={{ marginTop: 12 }}>
                 <FormButton
                   className="button button--secondary"
@@ -671,13 +775,31 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
           </div>
         ))}
 
-        {!inviteRegistrationFlow ? (
+        {inviteRegistrationFlow ? (
           <div className="add-btn-wrap">
-            <FormButton className="button button--secondary" htmlType="button" variant="secondary" onClick={addCustomerRow}>
+            <FormButton
+              className="button button--secondary"
+              htmlType="button"
+              variant="secondary"
+              disabled={forms.length >= INVITE_BATCH_MAX}
+              onClick={handleAddForm}
+            >
+              + 추가
+            </FormButton>
+          </div>
+        ) : (
+          <div className="add-btn-wrap">
+            <FormButton
+              className="button button--secondary"
+              htmlType="button"
+              variant="secondary"
+              disabled={forms.length >= INVITE_BATCH_MAX}
+              onClick={addCustomerRow}
+            >
               + 고객 추가
             </FormButton>
           </div>
-        ) : null}
+        )}
 
         <FormButton
           className="button button--primary button--full"

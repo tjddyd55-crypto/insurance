@@ -3857,8 +3857,13 @@ async function ensurePublicCustomerInviteSessionsSchema(executor) {
       customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
       ref_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       ga_id INTEGER NOT NULL REFERENCES ga_companies(id) ON DELETE CASCADE,
-      first_submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      first_submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      registered_count INTEGER NOT NULL DEFAULT 1
     )
+  `)
+  await executor.query(`
+    ALTER TABLE public_customer_invite_sessions
+    ADD COLUMN IF NOT EXISTS registered_count INTEGER NOT NULL DEFAULT 1
   `)
   await executor.query(`
     CREATE INDEX IF NOT EXISTS idx_public_customer_invite_sessions_customer
