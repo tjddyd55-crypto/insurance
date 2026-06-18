@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { FormButton } from '../../../components/form'
+import NewsDetailMobileZoomScroll from '../../../components/news-detail-viewer/NewsDetailMobileZoomScroll'
 import { useAuth } from '../../auth/AuthProvider'
 import { NewsletterAttachmentList } from '../components/NewsletterAttachmentList'
 import { NewsletterImageGallery } from '../components/NewsletterImageGallery'
@@ -87,13 +88,15 @@ export function DynamicNewsletterBoardDetailPage() {
             {formatInsurerNewsDateTime(detail.publishedAt)}
           </time>
         </header>
-        <div className="insurer-news-detail-body" style={{ marginBottom: 8 }}>
-          {detail.bodyText || '본문이 없습니다.'}
-        </div>
-        {galleryUrls.length > 0 ? (
-          <NewsletterImageGallery imageUrls={galleryUrls} altBase="소식지 이미지" resolveUrls />
-        ) : null}
-        <NewsletterAttachmentList attachments={detail.attachments} />
+        <NewsDetailMobileZoomScroll>
+          <div className="insurer-news-detail-body news-text" style={{ marginBottom: 8 }}>
+            {detail.bodyText || '본문이 없습니다.'}
+          </div>
+          {galleryUrls.length > 0 ? (
+            <NewsletterImageGallery imageUrls={galleryUrls} altBase="소식지 이미지" resolveUrls />
+          ) : null}
+          <NewsletterAttachmentList attachments={detail.attachments} />
+        </NewsDetailMobileZoomScroll>
       </article>
     </main>
   )

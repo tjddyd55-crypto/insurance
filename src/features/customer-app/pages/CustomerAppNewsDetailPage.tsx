@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
+import NewsDetailMobileZoomScroll from '../../../components/news-detail-viewer/NewsDetailMobileZoomScroll'
 import RichTextContent from '../../../components/rich-text/RichTextContent'
 import CustomerAppNewsAttachmentList from '../components/CustomerAppNewsAttachmentList'
 import CustomerAppNewsImageGallery from '../components/CustomerAppNewsImageGallery'
@@ -86,29 +87,31 @@ export default function CustomerAppNewsDetailPage() {
               {formatDateTime(detail.updatedAt)}
             </time>
           </header>
-          <div className="customer-app-news-detail__gallery">
-            <CustomerAppNewsImageGallery
-              imageUrls={buildCustomerNewsGalleryUrls({
-                heroImageUrl: detail.heroImageUrl,
-                attachments: detail.attachments ?? [],
-              })}
-              altBase="고객 소식지 이미지"
-              slideActions={gallerySlideActions}
-              appToken={session?.appToken ?? ''}
-            />
-          </div>
-          {hasBodyContent ? (
-            <RichTextContent
-              value={detail.content || ''}
-              className="insurer-news-detail-body insurer-news-detail-text rich-text-content"
-              emptyText=""
-            />
-          ) : null}
-          <div className="insurer-news-detail-after">
-            {session ? (
-              <CustomerAppNewsAttachmentList attachments={detail.attachments ?? []} appToken={session.appToken} />
+          <NewsDetailMobileZoomScroll>
+            <div className="customer-app-news-detail__gallery">
+              <CustomerAppNewsImageGallery
+                imageUrls={buildCustomerNewsGalleryUrls({
+                  heroImageUrl: detail.heroImageUrl,
+                  attachments: detail.attachments ?? [],
+                })}
+                altBase="고객 소식지 이미지"
+                slideActions={gallerySlideActions}
+                appToken={session?.appToken ?? ''}
+              />
+            </div>
+            {hasBodyContent ? (
+              <RichTextContent
+                value={detail.content || ''}
+                className="insurer-news-detail-body insurer-news-detail-text rich-text-content news-text"
+                emptyText=""
+              />
             ) : null}
-          </div>
+            <div className="insurer-news-detail-after">
+              {session ? (
+                <CustomerAppNewsAttachmentList attachments={detail.attachments ?? []} appToken={session.appToken} />
+              ) : null}
+            </div>
+          </NewsDetailMobileZoomScroll>
         </article>
       ) : null}
     </>
