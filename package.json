@@ -94,7 +94,7 @@
   },
   "build": {
     "appId": "com.insurance.app",
-    "productName": "InsuranceApp",
+    "productName": "ONE FC",
     "directories": {
       "output": "release"
     },
@@ -105,12 +105,18 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "electron/assets/app-icon.ico",
-      "signAndEditExecutable": false
+      "icon": "electron/assets/app-icon.ico"
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "ONE FC",
+      "uninstallDisplayName": "ONE FC",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "installerIcon": "electron/assets/app-icon.ico",
+      "uninstallerIcon": "electron/assets/app-icon.ico",
+      "installerHeaderIcon": "electron/assets/app-icon.ico"
     },
     "publish": [
       {

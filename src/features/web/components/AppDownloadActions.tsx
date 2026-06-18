@@ -1,7 +1,12 @@
-export const DESKTOP_DOWNLOAD_URL =
-  'https://cdn.platform-assets.com/insurance/download/InsuranceApp%20Setup%201.0.242.exe'
-export const MOBILE_DOWNLOAD_URL =
-  'https://cdn.platform-assets.com/insurance/download/insurance-mobile-1.0.2-build3-252b6273.apk'
+const DOWNLOAD_CACHE_BUST = 'v=20260618-2'
+
+export const DESKTOP_DOWNLOAD_URL = `https://cdn.platform-assets.com/insurance/download/one-fc-pc.exe?${DOWNLOAD_CACHE_BUST}`
+
+/** 유저(고객)용 Android APK — R2: insurance/download/one-fc-user.apk */
+export const USER_ANDROID_APK_DOWNLOAD_URL = `https://cdn.platform-assets.com/insurance/download/one-fc-user.apk?${DOWNLOAD_CACHE_BUST}`
+
+/** @deprecated USER_ANDROID_APK_DOWNLOAD_URL 사용 — 로그인 CTA 호환 alias */
+export const MOBILE_DOWNLOAD_URL = USER_ANDROID_APK_DOWNLOAD_URL
 
 type AppDownloadActionsProps = {
   className?: string
@@ -24,8 +29,8 @@ export function AppDownloadActions({ className = '', layout = 'row' }: AppDownlo
       aria-label="앱 다운로드"
     >
       <div className="app-download-actions__buttons">
-        <DownloadLink href={DESKTOP_DOWNLOAD_URL} label="PC버전 다운로드" />
-        <DownloadLink href={MOBILE_DOWNLOAD_URL} label="모바일버전 다운로드" />
+        <DownloadLink href={DESKTOP_DOWNLOAD_URL} label="PC 프로그램 다운로드" />
+        <DownloadLink href={USER_ANDROID_APK_DOWNLOAD_URL} label="모바일 앱 다운로드" />
       </div>
     </section>
   )

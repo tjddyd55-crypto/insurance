@@ -4,6 +4,8 @@ const path = require('path')
 const semver = require('semver')
 const { autoUpdater } = require('electron-updater')
 
+const APP_USER_MODEL_ID = 'com.insurance.app'
+
 const DEFAULT_PRODUCTION_APP_URL = 'https://insurance-production-7bd8.up.railway.app'
 const DEFAULT_VERSION_CHECK_URL = `${DEFAULT_PRODUCTION_APP_URL}/api/version`
 const VERSION_CHECK_URL = process.env.VERSION_CHECK_URL?.trim() || DEFAULT_VERSION_CHECK_URL
@@ -387,7 +389,11 @@ function scheduleAutoUpdateCheck() {
 }
 
 app.whenReady().then(() => {
-  console.log('[InsuranceApp] Current app version:', app.getVersion())
+  if (process.platform === 'win32') {
+    app.setAppUserModelId(APP_USER_MODEL_ID)
+  }
+  app.setName('ONE FC')
+  console.log('[ONE FC] Current app version:', app.getVersion())
   registerVersionIpc()
   registerWindowControlsIpc()
   registerAutoUpdaterIpc()

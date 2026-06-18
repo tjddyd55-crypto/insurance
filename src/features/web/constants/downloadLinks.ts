@@ -1,4 +1,8 @@
-import { DESKTOP_DOWNLOAD_URL, MOBILE_DOWNLOAD_URL } from '../components/AppDownloadActions'
+import {
+  DESKTOP_DOWNLOAD_URL,
+  MOBILE_DOWNLOAD_URL,
+  USER_ANDROID_APK_DOWNLOAD_URL,
+} from '../components/AppDownloadActions'
 
 export type DownloadLinkMap = {
   pc: string
@@ -10,7 +14,7 @@ export type DownloadLinkMap = {
 const DEFAULT_DOWNLOAD_LINKS: DownloadLinkMap = Object.freeze({
   pc: DESKTOP_DOWNLOAD_URL,
   fcMobile: MOBILE_DOWNLOAD_URL,
-  customerApp: 'https://cdn.platform-assets.com/insurer/download/customer-app-release.apk',
+  customerApp: USER_ANDROID_APK_DOWNLOAD_URL,
   sampleExcel: '',
 })
 
