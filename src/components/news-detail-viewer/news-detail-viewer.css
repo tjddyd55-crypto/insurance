@@ -14,10 +14,12 @@
 .news-detail-viewer-panel {
   width: 90%;
   max-width: 1000px;
+  height: 90vh;
   max-height: calc(100vh - 48px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  flex-shrink: 0;
   background: var(--bg-card, #ffffff);
   border: 1px solid var(--border-default, #e5e7eb);
   border-radius: 12px;
@@ -45,6 +47,10 @@
   text-align: left;
 }
 
+.news-detail-viewer-scroll > .news-detail-viewer-status {
+  padding: 0;
+}
+
 .news-detail-viewer-status {
   margin: 0;
   padding: 16px 20px;
@@ -54,9 +60,10 @@
 }
 
 .news-detail-zoom-scope {
+  flex: 0 0 auto;
   min-width: 100%;
+  max-width: none;
   box-sizing: border-box;
-  overflow: visible;
   transform-origin: top left;
 }
 
@@ -102,7 +109,7 @@
 
 .customer-app-shell .news-detail-viewer-panel {
   width: min(100vw, 1000px);
-  height: min(100vh, 100%);
+  height: 100vh;
   max-height: 100vh;
 }
 
