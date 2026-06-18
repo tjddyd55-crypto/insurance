@@ -382,6 +382,9 @@ export interface PdfIssuanceSummary {
   templateTitle: string
   byteLength: number
   createdAt: string
+  customerId: number | null
+  customerLabel: string | null
+  vehicleSnapshot: Record<string, unknown> | null
 }
 
 /** 단건 조회(JSON) — `values_snapshot` 기반 「내용 불러오기」용. 접근 규칙은 `/file` 과 동일. */
@@ -393,13 +396,23 @@ export interface PdfIssuanceDetail {
   gaId: number | null
   userId: string | null
   createdAt: string
+  customerId: number | null
+  customerLabel: string | null
+  customerSnapshot: Record<string, unknown> | null
+  vehicleSnapshot: Record<string, unknown> | null
   valuesSnapshot: Record<string, string>
 }
 
 export function listPdfIssuances(
   token: string,
+  options?: { customerId?: number | null },
 ): Promise<{ issuances: PdfIssuanceSummary[] }> {
-  return apiRequest('/api/pdf-issuances', { method: 'GET', token })
+  const customerId = options?.customerId
+  const qs =
+    customerId != null && Number.isInteger(customerId) && customerId >= 1
+      ? `?customerId=${customerId}`
+      : ''
+  return apiRequest(`/api/pdf-issuances${qs}`, { method: 'GET', token })
 }
 
 export function getPdfIssuance(
@@ -493,6 +506,16 @@ export async function renderPdfTemplate(
     fontSizes?: Record<string, number>
     customerId?: number
     overwriteCustomerMapping?: boolean
+    issuanceCustomerId?: number
+    customerSnapshot?: { id: number; name: string; phone?: string }
+    vehicleSnapshot?: {
+      id: number
+      carNumber: string
+      carModel: string
+      carYear: string
+      carType?: string
+      renewalDate?: string | null
+    }
   },
 ): Promise<Blob> {
   const query = options?.preview ? '?preview=1' : ''
@@ -502,6 +525,16 @@ export async function renderPdfTemplate(
     fontSizes?: Record<string, number>
     customerId?: number
     overwriteCustomerMapping?: boolean
+    issuanceCustomerId?: number
+    customerSnapshot?: { id: number; name: string; phone?: string }
+    vehicleSnapshot?: {
+      id: number
+      carNumber: string
+      carModel: string
+      carYear: string
+      carType?: string
+      renewalDate?: string | null
+    }
   } = {
     values,
   }
@@ -514,6 +547,19 @@ export async function renderPdfTemplate(
   }
   if (options?.overwriteCustomerMapping === true) {
     payload.overwriteCustomerMapping = true
+  }
+  if (
+    options?.issuanceCustomerId != null &&
+    Number.isInteger(options.issuanceCustomerId) &&
+    options.issuanceCustomerId >= 1
+  ) {
+    payload.issuanceCustomerId = options.issuanceCustomerId
+  }
+  if (options?.customerSnapshot) {
+    payload.customerSnapshot = options.customerSnapshot
+  }
+  if (options?.vehicleSnapshot) {
+    payload.vehicleSnapshot = options.vehicleSnapshot
   }
   let res: Response
   try {

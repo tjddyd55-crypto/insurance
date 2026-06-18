@@ -49,6 +49,16 @@ import { DEFAULT_PDF_FIELD_DATA_MAPPING } from '../types'
 import { usePdfDocumentsWorkspacePaths } from '../utils/pdfCustomerWorkspacePaths'
 import { buildPdfIssuanceDisplayFilename } from '../utils/pdfIssuanceFilename'
 import {
+  buildPdfIssuanceSaveAttribution,
+  parsePdfCustomerSummaryFromUnknown,
+  resolveIssuanceAttributionForDownload,
+  resolvePdfCustomerStatusMessage,
+  resolvePdfIssuanceLoadWarning,
+  resolvePdfIssuanceUnassignedNotice,
+  resolvePdfMappingCustomerId,
+  type PdfIssuanceSaveAttribution,
+} from '../utils/pdfIssuanceAttribution'
+import {
   buildApplicationCustomerSearchQuery,
   extractCustomerSearchHintsFromPdfForm,
   logApplicationCustomerAutoMatchDebug,
@@ -109,7 +119,12 @@ type SourcePrefillState =
   | { kind: 'none' }
   | { kind: 'loading' }
   | { kind: 'error'; message: string }
-  | { kind: 'ready'; values: Record<string, string> }
+  | {
+      kind: 'ready'
+      values: Record<string, string>
+      loadWarning: string | null
+      unassignedNotice: string | null
+    }
 
 /** fetch 응답 Blob 이 빈 타입이어도 뷰어·다운로드가 PDF 로 인식하도록 고정한다. */
 function coercePdfBlob(blob: Blob): Blob {
@@ -185,10 +200,14 @@ export default function PdfDocumentDetailPage() {
   const [overwriteCustomerOnLoad, setOverwriteCustomerOnLoad] = useState(false)
   const [customerLoadHint, setCustomerLoadHint] = useState<string | null>(null)
   const [cachedCustomer, setCachedCustomer] = useState<CustomerRecord | null>(null)
-  /** 검색 결과에서 “선택”한 고객 후보 — 아직 신청서 필드에 반영 전 */
+  /** 검색 결과에서 “선택”한 고객 후보 */
   const [selectedCustomerCandidate, setSelectedCustomerCandidate] =
     useState<PdfSelectedCustomerSummary | null>(null)
-  /** “선택 고객 데이터 불러오기”로 실제 반영된 고객 */
+  /** 발급 이력 customer_id 귀속 기준 */
+  const [attributionCustomer, setAttributionCustomer] = useState<PdfSelectedCustomerSummary | null>(
+    null,
+  )
+  /** “고객 데이터 불러오기”로 필드에 자동입력된 고객 */
   const [appliedCustomer, setAppliedCustomer] = useState<PdfSelectedCustomerSummary | null>(null)
   const [showCustomerSearch, setShowCustomerSearch] = useState(false)
   const [customerSearchQuery, setCustomerSearchQuery] = useState('')
@@ -204,12 +223,51 @@ export default function PdfDocumentDetailPage() {
   const [customerCarsFetchComplete, setCustomerCarsFetchComplete] = useState(false)
   const hasAttemptedAutoMatchRef = useRef(false)
   const hasManualCustomerInteractionRef = useRef(false)
+  const previewIssuanceAttributionRef = useRef<PdfIssuanceSaveAttribution>({})
+  const attributionCustomerRef = useRef<PdfSelectedCustomerSummary | null>(null)
+  const appliedCustomerRef = useRef<PdfSelectedCustomerSummary | null>(null)
+  const appliedCustomerCarRef = useRef<number | null>(null)
+  const customerCarsRef = useRef<CustomerCarRecord[]>([])
 
   const hasCarPdfMapping = state.status === 'ready' && hasCarMappedFields(state.fields)
 
+  const mappingCustomerId = useMemo(
+    () => resolvePdfMappingCustomerId(appliedCustomer),
+    [appliedCustomer],
+  )
+
+  useEffect(() => {
+    attributionCustomerRef.current = attributionCustomer
+  }, [attributionCustomer])
+
+  useEffect(() => {
+    appliedCustomerRef.current = appliedCustomer
+  }, [appliedCustomer])
+
+  useEffect(() => {
+    appliedCustomerCarRef.current = appliedCustomerCar
+  }, [appliedCustomerCar])
+
+  useEffect(() => {
+    customerCarsRef.current = customerCars
+  }, [customerCars])
+
   const effectiveCustomerId = useMemo(
-    () => appliedCustomer?.id ?? workspaceCustomerIdFromRoute ?? null,
-    [appliedCustomer, workspaceCustomerIdFromRoute],
+    () =>
+      attributionCustomer?.id ??
+      appliedCustomer?.id ??
+      workspaceCustomerIdFromRoute ??
+      null,
+    [attributionCustomer, appliedCustomer, workspaceCustomerIdFromRoute],
+  )
+
+  const customerStatusMessage = useMemo(
+    () =>
+      resolvePdfCustomerStatusMessage({
+        attributionCustomer,
+        appliedCustomer,
+      }),
+    [attributionCustomer, appliedCustomer],
   )
 
   const closePreview = () => {
@@ -313,7 +371,16 @@ export default function PdfDocumentDetailPage() {
           })
           return
         }
-        setSourcePrefill({ kind: 'ready', values: res.issuance.valuesSnapshot })
+        setSourcePrefill({
+          kind: 'ready',
+          values: res.issuance.valuesSnapshot,
+          loadWarning: resolvePdfIssuanceLoadWarning({
+            issuanceCustomerId: res.issuance.customerId,
+            issuanceCustomerLabel: res.issuance.customerLabel,
+            contextCustomerId: attributionCustomer?.id ?? workspaceCustomerIdFromRoute ?? null,
+          }),
+          unassignedNotice: resolvePdfIssuanceUnassignedNotice(res.issuance.customerId),
+        })
       })
       .catch((e) => {
         if (cancelled) return
@@ -328,7 +395,7 @@ export default function PdfDocumentDetailPage() {
     return () => {
       cancelled = true
     }
-  }, [token, state.status, templateId, sourceIssuanceId])
+  }, [token, state.status, templateId, sourceIssuanceId, workspaceCustomerIdFromRoute, attributionCustomer?.id])
 
   useEffect(() => {
     if (state.status !== 'ready') return
@@ -352,16 +419,16 @@ export default function PdfDocumentDetailPage() {
   const workspaceCustomerLabel = displayCustomerLabel.trim() || null
 
   const loadCustomerButtonLabel = useMemo(() => {
-    if (selectedCustomerCandidate) return '선택 고객 데이터 불러오기'
-    if (workspaceCustomerIdFromRoute != null) return '현재 고객 데이터 불러오기'
+    if (attributionCustomer != null) return '현재 고객 데이터 불러오기'
     return '고객 검색해서 불러오기'
-  }, [selectedCustomerCandidate, workspaceCustomerIdFromRoute])
+  }, [attributionCustomer])
 
   const effectiveCustomerLabelForFilename = useMemo(() => {
     if (appliedCustomer?.name?.trim()) return appliedCustomer.name.trim()
+    if (attributionCustomer?.name?.trim()) return attributionCustomer.name.trim()
     if (selectedCustomerCandidate?.name?.trim()) return selectedCustomerCandidate.name.trim()
     return displayCustomerLabel.trim()
-  }, [appliedCustomer, selectedCustomerCandidate, displayCustomerLabel])
+  }, [appliedCustomer, attributionCustomer, selectedCustomerCandidate, displayCustomerLabel])
 
   const resultPdfFilename = useMemo(() => {
     if (state.status !== 'ready') return '고객_신청서.pdf'
@@ -375,13 +442,33 @@ export default function PdfDocumentDetailPage() {
   const scopeGaId = user?.gaId ?? null
 
   const customerRecordToSearchSummary = useCallback(
-    (row: CustomerRecord): PdfSelectedCustomerSummary => ({
-      id: row.id,
-      name: row.name?.trim() || `고객 #${row.id}`,
-      phone: (row.phone || row.phoneNumber || '').trim() || undefined,
-    }),
+    (row: CustomerRecord): PdfSelectedCustomerSummary =>
+      parsePdfCustomerSummaryFromUnknown(row) ?? {
+        id: row.id,
+        name: row.name?.trim() || `고객 #${row.id}`,
+        phone: (row.phone || row.phoneNumber || '').trim() || undefined,
+      },
     [],
   )
+
+  useEffect(() => {
+    if (!token?.trim()) return
+    if (workspaceCustomerIdFromRoute == null) return
+    let cancelled = false
+    getCustomerById(token, workspaceCustomerIdFromRoute)
+      .then((row) => {
+        if (cancelled || !row) return
+        const summary = customerRecordToSearchSummary(row)
+        setAttributionCustomer(summary)
+        attributionCustomerRef.current = summary
+      })
+      .catch(() => {
+        if (cancelled) return
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [token, workspaceCustomerIdFromRoute, customerRecordToSearchSummary])
 
   const loadCustomerIntoApplicantForm = useCallback(
     async (customerId: number, appliedSummary?: PdfSelectedCustomerSummary | null) => {
@@ -404,7 +491,11 @@ export default function PdfDocumentDetailPage() {
         setCachedCustomer(customer)
         const summary =
           appliedSummary ?? customerRecordToSearchSummary(customer)
+        setSelectedCustomerCandidate(null)
+        setAttributionCustomer(summary)
+        attributionCustomerRef.current = summary
         setAppliedCustomer(summary)
+        appliedCustomerRef.current = summary
         didApplyCustomer = true
         logSelectedCustomerDataLoaded(customerId)
         const fields = state.fields
@@ -568,6 +659,9 @@ export default function PdfDocumentDetailPage() {
     if (appliedCustomer != null) {
       return
     }
+    if (attributionCustomer != null) {
+      return
+    }
     if (selectedCustomerCandidate != null) {
       return
     }
@@ -605,6 +699,8 @@ export default function PdfDocumentDetailPage() {
         }
         const summary = customerRecordToSearchSummary(match.customer)
         setSelectedCustomerCandidate(summary)
+        setAttributionCustomer(summary)
+        attributionCustomerRef.current = summary
         await loadCustomerIntoApplicantForm(match.customer.id, summary)
       } catch {
         // 수동 검색으로 fallback
@@ -619,6 +715,7 @@ export default function PdfDocumentDetailPage() {
     token,
     workspaceCustomerIdFromRoute,
     appliedCustomer,
+    attributionCustomer,
     selectedCustomerCandidate,
     sourceIssuanceId,
     sourcePrefill.kind,
@@ -634,24 +731,36 @@ export default function PdfDocumentDetailPage() {
     (customer: PdfSelectedCustomerSummary) => {
       hasManualCustomerInteractionRef.current = true
       hasAttemptedAutoMatchRef.current = true
-      setSelectedCustomerCandidate(customer)
+      const normalized =
+        parsePdfCustomerSummaryFromUnknown(customer) ??
+        (Number.isInteger(customer.id) && customer.id >= 1 ? customer : null)
+      if (normalized == null) {
+        setCustomerSearchError('고객 정보를 확인할 수 없습니다. 다시 선택해 주세요.')
+        return
+      }
+      setSelectedCustomerCandidate(normalized)
+      setAttributionCustomer(normalized)
+      attributionCustomerRef.current = normalized
       setCachedCustomer(null)
       setCustomerCars([])
       setSelectedCustomerCarCandidate(null)
+      setAppliedCustomer(null)
+      appliedCustomerRef.current = null
       setAppliedCustomerCar(null)
       setCarApplyHint(null)
       setCustomerCarsFetchComplete(false)
       setShowCustomerSearch(false)
       setCustomerSearchError(null)
-      setCustomerLoadHint('「선택 고객 데이터 불러오기」를 눌러 신청서에 반영하세요.')
-      logManualCustomerCandidateSelected(customer.id)
+      setCustomerLoadHint('「현재 고객 데이터 불러오기」를 눌러 신청서 필드에 반영하세요.')
+      logManualCustomerCandidateSelected(normalized.id)
     },
     [],
   )
 
-  const handleClearSelectedCustomer = useCallback(() => {
+  const handleClearSelectedCustomer = useCallback(async () => {
     setSelectedCustomerCandidate(null)
     setAppliedCustomer(null)
+    appliedCustomerRef.current = null
     setCachedCustomer(null)
     setCustomerCars([])
     setSelectedCustomerCarCandidate(null)
@@ -659,27 +768,59 @@ export default function PdfDocumentDetailPage() {
     setCarApplyHint(null)
     setCustomerCarsFetchComplete(false)
     setCustomerLoadHint(null)
-  }, [])
+    if (workspaceCustomerIdFromRoute != null && token?.trim()) {
+      try {
+        const row = await getCustomerById(token, workspaceCustomerIdFromRoute)
+        if (row) {
+          const summary = customerRecordToSearchSummary(row)
+          setAttributionCustomer(summary)
+          attributionCustomerRef.current = summary
+          return
+        }
+      } catch {
+        // fall through
+      }
+    }
+    setAttributionCustomer(null)
+    attributionCustomerRef.current = null
+  }, [token, workspaceCustomerIdFromRoute, customerRecordToSearchSummary])
 
   const handleLoadCustomerData = useCallback(async () => {
     if (!token?.trim()) return
-    if (selectedCustomerCandidate != null) {
-      await loadCustomerIntoApplicantForm(
-        selectedCustomerCandidate.id,
-        selectedCustomerCandidate,
-      )
-      return
+    let target = attributionCustomer ?? selectedCustomerCandidate
+    if (
+      target == null &&
+      workspaceCustomerIdFromRoute != null &&
+      Number.isInteger(workspaceCustomerIdFromRoute) &&
+      workspaceCustomerIdFromRoute >= 1
+    ) {
+      target = {
+        id: workspaceCustomerIdFromRoute,
+        name:
+          workspaceCustomerLabel?.trim() ||
+          fallbackCustomerLabel.trim() ||
+          `고객 #${workspaceCustomerIdFromRoute}`,
+      }
+      setAttributionCustomer(target)
+      attributionCustomerRef.current = target
     }
-    if (workspaceCustomerIdFromRoute != null) {
-      await loadCustomerIntoApplicantForm(workspaceCustomerIdFromRoute)
+    if (target != null && Number.isInteger(target.id) && target.id >= 1) {
+      if (attributionCustomerRef.current?.id !== target.id) {
+        setAttributionCustomer(target)
+        attributionCustomerRef.current = target
+      }
+      await loadCustomerIntoApplicantForm(target.id, target)
       return
     }
     setShowCustomerSearch(true)
-    setCustomerLoadHint('고객을 검색해서 선택한 뒤 데이터를 불러올 수 있습니다.')
+    setCustomerLoadHint('먼저 고객을 선택해 주세요.')
   }, [
     token,
+    attributionCustomer,
     selectedCustomerCandidate,
     workspaceCustomerIdFromRoute,
+    workspaceCustomerLabel,
+    fallbackCustomerLabel,
     loadCustomerIntoApplicantForm,
   ])
 
@@ -693,10 +834,18 @@ export default function PdfDocumentDetailPage() {
       })
       setSubmitting(true)
       try {
+        previewIssuanceAttributionRef.current = buildPdfIssuanceSaveAttribution(
+          attributionCustomerRef.current,
+          appliedCustomerRef.current,
+          appliedCustomerCarRef.current,
+          customerCarsRef.current,
+        )
         const { previewUrl: relUrl } = await requestPdfRenderPreviewUrl(token, templateId, values, {
           fontSizes: Object.keys(persistFonts).length > 0 ? persistFonts : undefined,
           displayFilename: previewFilename,
-          customerId: effectiveCustomerId ?? undefined,
+          customerId:
+            resolvePdfMappingCustomerId(appliedCustomerRef.current) ??
+            previewIssuanceAttributionRef.current.issuanceCustomerId,
           overwriteCustomerMapping: overwriteCustomerOnLoad,
         })
         setPreviewUrl(resolveAbsoluteApiUrl(relUrl))
@@ -716,38 +865,62 @@ export default function PdfDocumentDetailPage() {
         setSubmitting(false)
       }
     },
-    [token, templateId, state, effectiveCustomerLabelForFilename, effectiveCustomerId, overwriteCustomerOnLoad],
+    [token, templateId, state, effectiveCustomerLabelForFilename, mappingCustomerId, overwriteCustomerOnLoad],
   )
 
-  const handleSaveFromPreview = async () => {
+  const handleDownloadFromPreview = async () => {
     if (!token || state.status !== 'ready' || !previewValues) return
     setSaving(true)
     setPreviewError(null)
     try {
+      const liveAttribution = buildPdfIssuanceSaveAttribution(
+        attributionCustomerRef.current,
+        appliedCustomerRef.current,
+        appliedCustomerCarRef.current,
+        customerCarsRef.current,
+      )
+      const attribution = resolveIssuanceAttributionForDownload(
+        liveAttribution,
+        previewIssuanceAttributionRef.current,
+      )
+      const mappingId =
+        resolvePdfMappingCustomerId(appliedCustomerRef.current) ??
+        (attribution.issuanceCustomerId != null ? attribution.issuanceCustomerId : undefined)
       const blobRaw = await renderPdfTemplate(token, templateId, previewValues, {
         fontSizes: Object.keys(previewFonts).length > 0 ? previewFonts : undefined,
-        customerId: effectiveCustomerId ?? undefined,
+        customerId: mappingId,
         overwriteCustomerMapping: overwriteCustomerOnLoad,
+        ...attribution,
       })
       triggerDownload(coercePdfBlob(blobRaw), resultPdfFilename)
-      closePreview()
     } catch (e) {
-      const message = e instanceof ApiError ? e.message : 'PDF 저장에 실패했습니다.'
+      const message = e instanceof ApiError ? e.message : 'PDF 다운로드에 실패했습니다.'
       setPreviewError(message)
     } finally {
       setSaving(false)
     }
   }
 
-  const prefillBanner = useMemo<ReactNode>(
-    () =>
-      sourcePrefill.kind === 'ready' ? (
+  const prefillBanner = useMemo<ReactNode>(() => {
+    if (sourcePrefill.kind !== 'ready') return null
+    return (
+      <>
         <div className="pdf-engine-prefill-banner" role="status">
           과거 작성한 신청서에서 불러온 내용입니다. 수정 후 다시 출력하면 새 발급 이력으로 저장됩니다.
         </div>
-      ) : null,
-    [sourcePrefill.kind],
-  )
+        {sourcePrefill.unassignedNotice ? (
+          <div className="pdf-engine-prefill-banner pdf-engine-prefill-banner--notice" role="status">
+            {sourcePrefill.unassignedNotice}
+          </div>
+        ) : null}
+        {sourcePrefill.loadWarning ? (
+          <div className="pdf-engine-prefill-banner pdf-engine-prefill-banner--warning" role="status">
+            {sourcePrefill.loadWarning}
+          </div>
+        ) : null}
+      </>
+    )
+  }, [sourcePrefill])
 
   const applicantViewProps = useMemo<PdfDocumentApplicantViewProps | null>(() => {
     if (state.status !== 'ready') return null
@@ -762,6 +935,9 @@ export default function PdfDocumentDetailPage() {
       submitting,
       workspaceCustomerId: workspaceCustomerIdFromRoute,
       workspaceCustomerLabel,
+      attributionCustomer,
+      appliedCustomer,
+      customerStatusMessage,
       selectedCustomer: selectedCustomerCandidate,
       effectiveCustomerId,
       loadCustomerButtonLabel,
@@ -818,6 +994,8 @@ export default function PdfDocumentDetailPage() {
     handleSubmitApplicant,
     workspaceCustomerIdFromRoute,
     workspaceCustomerLabel,
+    attributionCustomer,
+    customerStatusMessage,
     selectedCustomerCandidate,
     effectiveCustomerId,
     loadCustomerButtonLabel,
@@ -936,6 +1114,8 @@ export default function PdfDocumentDetailPage() {
           if (saving) return
           closePreview()
         }}
+        closeOnBackdrop={false}
+        closeOnEsc={false}
         ariaLabel={`PDF 결과 미리보기 · ${resultPdfFilename}`}
         panelClassName="pdf-engine-preview-modal"
       >
@@ -950,7 +1130,7 @@ export default function PdfDocumentDetailPage() {
               {resultPdfFilename}
             </div>
             <p className="pdf-engine-preview__subtitle">
-              미리보기는 서버 인라인 URL로 열립니다. 저장·뷰어 내부 다운로드 파일명은 위와 같이 맞춰집니다.
+              미리보기는 서버 인라인 URL로 열립니다. 「다운로드」로 PDF 파일을 받을 수 있으며, 발급 이력은 다운로드 시 저장됩니다.
             </p>
           </header>
           {previewError ? <div className="pdf-engine-page__error">{previewError}</div> : null}
@@ -975,10 +1155,19 @@ export default function PdfDocumentDetailPage() {
               htmlType="button"
               variant="primary"
               className="pdf-engine-editor__btn pdf-engine-editor__btn--primary"
-              onClick={handleSaveFromPreview}
+              onClick={handleDownloadFromPreview}
               disabled={saving || !previewValues}
             >
-              {saving ? '저장 중…' : '저장하기'}
+              {saving ? '다운로드 중…' : '다운로드'}
+            </FormButton>
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              className="pdf-engine-editor__btn"
+              onClick={closePreview}
+              disabled={saving}
+            >
+              닫기
             </FormButton>
           </div>
         </div>

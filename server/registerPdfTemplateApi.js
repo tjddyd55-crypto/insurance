@@ -221,6 +221,117 @@ function parseBodyCustomerId(body) {
   return n
 }
 
+/** 발급 이력 귀속용 — mapping 용 customerId 와 분리. 이름 매칭·추론 없음. */
+function parseBodyIssuanceCustomerId(body) {
+  if (!body || typeof body !== 'object') return null
+  const raw = body.issuanceCustomerId
+  const n = Number(raw)
+  if (!Number.isInteger(n) || n < 1) return null
+  return n
+}
+
+function parseBodyCustomerSnapshot(body) {
+  if (!body || typeof body !== 'object') return null
+  const raw = body.customerSnapshot
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const id = Number(raw.id)
+  if (!Number.isInteger(id) || id < 1) return null
+  const name = String(raw.name ?? '').trim()
+  const phoneRaw = raw.phone
+  const phone =
+    phoneRaw == null || phoneRaw === '' ? undefined : String(phoneRaw).trim()
+  return {
+    id,
+    name,
+    ...(phone ? { phone } : {}),
+  }
+}
+
+function parseBodyVehicleSnapshot(body) {
+  if (!body || typeof body !== 'object') return null
+  const raw = body.vehicleSnapshot
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const id = Number(raw.id)
+  if (!Number.isInteger(id) || id < 1) return null
+  return {
+    id,
+    carNumber: String(raw.carNumber ?? '').trim(),
+    carModel: String(raw.carModel ?? '').trim(),
+    carYear: String(raw.carYear ?? '').trim(),
+    carType: String(raw.carType ?? '').trim() || undefined,
+    renewalDate:
+      raw.renewalDate == null || raw.renewalDate === ''
+        ? null
+        : String(raw.renewalDate).trim(),
+  }
+}
+
+function parseQueryCustomerId(raw) {
+  if (raw == null || raw === '') return null
+  const n = Number(raw)
+  if (!Number.isInteger(n) || n < 1) return null
+  return n
+}
+
+function customerSnapshotName(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const name = String(raw.name ?? '').trim()
+  return name || null
+}
+
+function issuanceValuesSnapshotToDto(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return {}
+  }
+  const out = {}
+  for (const [k, v] of Object.entries(raw)) {
+    const key = String(k)
+    if (v == null) {
+      out[key] = ''
+    } else if (typeof v === 'string') {
+      out[key] = v
+    } else if (typeof v === 'number' || typeof v === 'boolean') {
+      out[key] = String(v)
+    } else {
+      out[key] = JSON.stringify(v)
+    }
+  }
+  return out
+}
+
+function issuanceSummaryDto(row) {
+  const customerId = row.customer_id ?? null
+  let customerLabel = null
+  if (customerId != null) {
+    customerLabel =
+      customerSnapshotName(row.customer_snapshot) ||
+      (row.customer_name ? String(row.customer_name).trim() : null)
+  }
+  return {
+    id: row.id,
+    templateId: row.template_id,
+    userId: row.user_id,
+    gaId: row.ga_id,
+    templateCode: row.template_code,
+    templateTitle: row.template_title,
+    byteLength: row.byte_length,
+    createdAt: row.created_at,
+    customerId,
+    customerLabel,
+    vehicleSnapshot: row.vehicle_snapshot ?? null,
+  }
+}
+
+function issuanceDetailDto(row) {
+  const summary = issuanceSummaryDto(row)
+  return {
+    ...summary,
+    valuesSnapshot: issuanceValuesSnapshotToDto(row.values_snapshot),
+    customerSnapshot: row.customer_snapshot ?? null,
+    vehicleSnapshot: row.vehicle_snapshot ?? null,
+  }
+}
+
 /**
  * @param {import('pg').Pool} pool
  * @param {import('express').Request} req
@@ -837,6 +948,9 @@ export function registerPdfTemplateApi(apiRouter, deps) {
                   _pdf_fs: JSON.stringify(fontOverrides),
                 }
               : { ...validation.normalized }
+          const issuanceCustomerId = parseBodyIssuanceCustomerId(req.body)
+          const customerSnapshot = parseBodyCustomerSnapshot(req.body)
+          const vehicleSnapshot = parseBodyVehicleSnapshot(req.body)
           const row = await createIssuance(pool, {
             templateId: template.id,
             userId: req.user?.id ?? null,
@@ -846,6 +960,11 @@ export function registerPdfTemplateApi(apiRouter, deps) {
             storageKey,
             valuesSnapshot,
             byteLength: rendered.length ?? rendered.byteLength ?? 0,
+            customerId: issuanceCustomerId,
+            customerSnapshot:
+              issuanceCustomerId != null && customerSnapshot ? customerSnapshot : null,
+            vehicleSnapshot:
+              issuanceCustomerId != null && vehicleSnapshot ? vehicleSnapshot : null,
           })
           issuanceId = row?.id ?? null
         } catch (archiveError) {
@@ -1003,22 +1122,17 @@ export function registerPdfTemplateApi(apiRouter, deps) {
   apiRouter.get('/pdf-issuances', requireAuth, async (req, res) => {
     try {
       const isSuper = isSuperAdminRole(req.user?.role)
+      const filterCustomerId = parseQueryCustomerId(req.query.customerId)
       const rows = isSuper
-        ? await listIssuancesAll(pool, { limit: 200 })
+        ? await listIssuancesAll(pool, { limit: 200, customerId: filterCustomerId })
         : req.user?.id
-          ? await listIssuancesByUser(pool, String(req.user.id), { limit: 200 })
+          ? await listIssuancesByUser(pool, String(req.user.id), {
+              limit: 200,
+              customerId: filterCustomerId,
+            })
           : []
       res.json({
-        issuances: rows.map((row) => ({
-          id: row.id,
-          templateId: row.template_id,
-          userId: row.user_id,
-          gaId: row.ga_id,
-          templateCode: row.template_code,
-          templateTitle: row.template_title,
-          byteLength: row.byte_length,
-          createdAt: row.created_at,
-        })),
+        issuances: rows.map((row) => issuanceSummaryDto(row)),
       })
     } catch (error) {
       handleDbError(res, error)
@@ -1029,26 +1143,6 @@ export function registerPdfTemplateApi(apiRouter, deps) {
    * 발급 단건 메타 + 입력값 스냅샷 — "내용 불러오기"(재편집 후 재발급) 용도.
    * 다운로드(`/file`) 와 같은 소유 규칙: SUPER_ADMIN 또는 user_id 일치만 valuesSnapshot 노출.
    */
-  function issuanceValuesSnapshotToDto(raw) {
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-      return {}
-    }
-    const out = {}
-    for (const [k, v] of Object.entries(raw)) {
-      const key = String(k)
-      if (v == null) {
-        out[key] = ''
-      } else if (typeof v === 'string') {
-        out[key] = v
-      } else if (typeof v === 'number' || typeof v === 'boolean') {
-        out[key] = String(v)
-      } else {
-        out[key] = JSON.stringify(v)
-      }
-    }
-    return out
-  }
-
   apiRouter.get('/pdf-issuances/:id', requireAuth, async (req, res) => {
     const id = Number(req.params.id)
     if (!Number.isInteger(id) || id < 1) {
@@ -1068,16 +1162,7 @@ export function registerPdfTemplateApi(apiRouter, deps) {
         return
       }
       res.json({
-        issuance: {
-          id: row.id,
-          templateId: row.template_id,
-          templateCode: row.template_code,
-          templateTitle: row.template_title,
-          gaId: row.ga_id,
-          userId: row.user_id,
-          createdAt: row.created_at,
-          valuesSnapshot: issuanceValuesSnapshotToDto(row.values_snapshot),
-        },
+        issuance: issuanceDetailDto(row),
       })
     } catch (error) {
       handleDbError(res, error)
