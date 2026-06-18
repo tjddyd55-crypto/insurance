@@ -7,6 +7,7 @@
 @import './features/admin/admin-ui.css';
 @import './features/user-ui/user-ui.css';
 @import './features/insurer-news/insurer-news.css';
+@import './components/news-detail-viewer/news-detail-viewer.css';
 @import './features/web/web.css';
 @import './styles/dark-application-pdf-scope.css';
 

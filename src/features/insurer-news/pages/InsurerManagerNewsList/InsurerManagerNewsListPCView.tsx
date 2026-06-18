@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react'
-import { FormButton, FormInput } from '../../../../components/form'
+import NewsDetailViewerModal from '../../../../components/news-detail-viewer/NewsDetailViewerModal'
+import NewsDetailZoomContent from '../../../../components/news-detail-viewer/NewsDetailZoomContent'
+import { FormInput } from '../../../../components/form'
 import { useAuth } from '../../../auth/AuthProvider'
 import { NewsletterList } from '../../components/NewsletterList'
 import {
@@ -148,69 +150,40 @@ export default function InsurerManagerNewsListPCView({
         onOpenItem={openDetailModal}
         noSearchResults={noSearchResults}
       />
-      {selectedItem ? (
-        <div className="news-modal" role="dialog" aria-modal="true" onClick={closeDetailModal}>
-          <div className="news-modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <FormButton
-                htmlType="button"
-                variant="action"
-                className="filter-button"
-                onClick={() => setZoom((v) => Math.min(v + ZOOM_STEP, ZOOM_MAX))}
-              >
-                ＋
-              </FormButton>
-              <FormButton
-                htmlType="button"
-                variant="action"
-                className="filter-button"
-                onClick={() => setZoom((v) => Math.max(v - ZOOM_STEP, ZOOM_MIN))}
-              >
-                －
-              </FormButton>
-              {heroDownloadUrl ? (
-                <a
-                  href={heroDownloadUrl}
-                  download
-                  className="button filter-button download-btn"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  다운로드
-                </a>
-              ) : null}
-              <FormButton
-                htmlType="button"
-                variant="action"
-                className="filter-button close-btn"
-                onClick={closeDetailModal}
-              >
-                ✕
-              </FormButton>
-            </div>
-
-            <div className="modal-body">
-              {detailLoading ? <div className="modal-text">소식지 상세를 불러오는 중입니다…</div> : null}
-              {!detailLoading && detailError ? <div className="modal-text">{detailError}</div> : null}
-              {!detailLoading && !detailError ? (
-                <div className="news-detail-scroll">
-                  <div
-                    className="news-detail-zoom-scope"
-                    style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}
-                  >
-                    {(selectedDetail?.bodyText?.trim() || selectedItem.summary?.trim()) ? (
-                      <div className="news-text">{selectedDetail?.bodyText?.trim() || selectedItem.summary}</div>
-                    ) : null}
-                    {modalGalleryUrls.map((url) => (
-                      <img key={url} src={url} alt="" />
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <NewsDetailViewerModal
+        open={selectedItem != null}
+        onClose={closeDetailModal}
+        zoom={zoom}
+        onZoomIn={() => setZoom((v) => Math.min(v + ZOOM_STEP, ZOOM_MAX))}
+        onZoomOut={() => setZoom((v) => Math.max(v - ZOOM_STEP, ZOOM_MIN))}
+        zoomControlVariant="symbols"
+        closeLabel="✕"
+        loading={detailLoading}
+        error={detailError || null}
+        ariaLabel={selectedItem?.title ? `소식지 · ${selectedItem.title}` : '소식지 상세'}
+        headerActions={
+          heroDownloadUrl ? (
+            <a
+              href={heroDownloadUrl}
+              download
+              className="button filter-button download-btn"
+              target="_blank"
+              rel="noreferrer"
+            >
+              다운로드
+            </a>
+          ) : null
+        }
+      >
+        <NewsDetailZoomContent zoom={zoom}>
+          {(selectedDetail?.bodyText?.trim() || selectedItem?.summary?.trim()) ? (
+            <div className="news-text">{selectedDetail?.bodyText?.trim() || selectedItem?.summary}</div>
+          ) : null}
+          {modalGalleryUrls.map((url) => (
+            <img key={url} src={url} alt="" />
+          ))}
+        </NewsDetailZoomContent>
+      </NewsDetailViewerModal>
     </main>
   )
 }

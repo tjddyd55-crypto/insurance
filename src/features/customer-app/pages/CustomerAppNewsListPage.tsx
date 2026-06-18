@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
-import { FormButton } from '../../../components/form'
+import NewsDetailViewerModal from '../../../components/news-detail-viewer/NewsDetailViewerModal'
+import NewsDetailZoomContent from '../../../components/news-detail-viewer/NewsDetailZoomContent'
 import RichTextContent from '../../../components/rich-text/RichTextContent'
 import {
   getCustomerNewsDetail,
@@ -143,70 +144,40 @@ export default function CustomerAppNewsListPage() {
           최신 업데이트: {formatDateTime(rows[0]?.updatedAt ?? null)}
         </div>
       ) : null}
-      {selectedItem ? (
-        <div className="customer-news-modal" role="dialog" aria-modal="true" onClick={closeModal}>
-          <div className="customer-news-modal-content" onClick={(event) => event.stopPropagation()}>
-            <div className="modal-header">
-              <FormButton
-                htmlType="button"
-                variant="action"
-                className="filter-button customer-news-modal-control"
-                onClick={() => setZoom((value) => Math.min(value + 0.2, 3))}
-              >
-                확대
-              </FormButton>
-              <FormButton
-                htmlType="button"
-                variant="action"
-                className="filter-button customer-news-modal-control"
-                onClick={() => setZoom((value) => Math.max(value - 0.2, 0.5))}
-              >
-                축소
-              </FormButton>
-              <FormButton
-                htmlType="button"
-                variant="action"
-                className="filter-button close-btn customer-news-modal-close"
-                onClick={closeModal}
-              >
-                닫기
-              </FormButton>
-            </div>
-            <div className="modal-body">
-              {detailLoading ? <div className="modal-text">소식지 상세를 불러오는 중입니다…</div> : null}
-              {!detailLoading && detailError ? <div className="modal-text">{detailError}</div> : null}
-              {!detailLoading && !detailError ? (
-                <div className="news-detail-scroll">
-                  <CustomerAppNewsImageGallery
-                    className="customer-app-news-gallery--in-modal"
-                    imageUrls={buildCustomerNewsGalleryUrls({
-                      heroImageUrl: selectedDetail?.heroImageUrl ?? selectedItem.heroImageUrl,
-                      attachments: selectedDetail?.attachments ?? [],
-                    })}
-                    altBase="소식지 이미지"
-                  />
-                  <div
-                    className="news-detail-zoom-scope customer-app-news-modal__text-zoom"
-                    style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}
-                  >
-                    <RichTextContent
-                      value={selectedDetail?.content?.trim() || selectedItem.summary || ''}
-                      className="news-text rich-text-content"
-                      emptyText="본문이 없습니다."
-                    />
-                    {selectedDetail?.attachments?.length && session ? (
-                      <CustomerAppNewsAttachmentList
-                        attachments={selectedDetail.attachments}
-                        appToken={session.appToken}
-                      />
-                    ) : null}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <NewsDetailViewerModal
+        open={selectedItem != null}
+        onClose={closeModal}
+        zoom={zoom}
+        onZoomIn={() => setZoom((value) => Math.min(value + 0.2, 3))}
+        onZoomOut={() => setZoom((value) => Math.max(value - 0.2, 0.5))}
+        zoomControlVariant="labels"
+        closeLabel="닫기"
+        loading={detailLoading}
+        error={detailError || null}
+        ariaLabel={selectedItem?.title ? `소식지 · ${selectedItem.title}` : '소식지 상세'}
+      >
+        <NewsDetailZoomContent zoom={zoom} className="customer-app-news-modal__text-zoom">
+          <CustomerAppNewsImageGallery
+            className="customer-app-news-gallery--in-modal"
+            imageUrls={buildCustomerNewsGalleryUrls({
+              heroImageUrl: selectedDetail?.heroImageUrl ?? selectedItem?.heroImageUrl,
+              attachments: selectedDetail?.attachments ?? [],
+            })}
+            altBase="소식지 이미지"
+          />
+          <RichTextContent
+            value={selectedDetail?.content?.trim() || selectedItem?.summary || ''}
+            className="news-text rich-text-content"
+            emptyText="본문이 없습니다."
+          />
+          {selectedDetail?.attachments?.length && session ? (
+            <CustomerAppNewsAttachmentList
+              attachments={selectedDetail.attachments}
+              appToken={session.appToken}
+            />
+          ) : null}
+        </NewsDetailZoomContent>
+      </NewsDetailViewerModal>
     </>
   )
 }

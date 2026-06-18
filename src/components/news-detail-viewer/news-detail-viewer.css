@@ -1,0 +1,111 @@
+/* 소식지·뉴스 상세 인라인 뷰어 모달 — PC/고객앱 공통 */
+
+.news-detail-viewer-backdrop {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.news-detail-viewer-panel {
+  width: 90%;
+  max-width: 1000px;
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-default, #e5e7eb);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
+}
+
+.news-detail-viewer-header {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-card, #ffffff);
+  border-bottom: 1px solid var(--border-default, #e5e7eb);
+}
+
+.news-detail-viewer-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 20px;
+  background: var(--bg-main, #f8fafc);
+  text-align: left;
+}
+
+.news-detail-viewer-status {
+  margin: 0;
+  padding: 16px 20px;
+  color: var(--text-primary, #111827);
+  text-align: left;
+  white-space: pre-wrap;
+}
+
+.news-detail-zoom-scope {
+  min-width: 100%;
+  box-sizing: border-box;
+  overflow: visible;
+  transform-origin: top left;
+}
+
+.news-detail-zoom-scope .news-text,
+.news-detail-zoom-scope .rich-text-content {
+  font-size: calc(1rem * var(--news-zoom, 1));
+  line-height: 1.6;
+}
+
+.news-detail-zoom-scope .news-text {
+  color: var(--text-primary, #111827);
+  white-space: pre-wrap;
+}
+
+.news-detail-zoom-scope img {
+  width: 100%;
+  height: auto;
+  margin-top: 12px;
+  border-radius: 8px;
+}
+
+.news-detail-viewer-header .close-btn {
+  color: var(--text-primary, #111827);
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.news-detail-viewer-header .customer-news-modal-control {
+  min-width: 64px;
+}
+
+.news-detail-viewer-header .customer-news-modal-close {
+  min-width: 88px;
+  font-size: 1rem;
+}
+
+.mobile-root .news-detail-viewer-panel {
+  width: 100vw;
+  height: 100vh;
+  max-height: 100vh;
+  border-radius: 0;
+}
+
+.customer-app-shell .news-detail-viewer-panel {
+  width: min(100vw, 1000px);
+  height: min(100vh, 100%);
+  max-height: 100vh;
+}
+
+.customer-app-shell .news-detail-viewer-scroll .rich-text-content a {
+  word-break: break-word;
+}
