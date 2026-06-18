@@ -6282,6 +6282,17 @@ apiRouter.post('/customer/external-create', async (req, res) => {
   }
 })
 
+/** 초대 등록 완료 후 같은 링크로 추가 등록 — HttpOnly 세션 쿠키만 해제(기존 고객 row 유지). */
+apiRouter.post('/customer/external-invite-session/reset', async (req, res) => {
+  try {
+    const secureInviteCookie = RUNNING_IN_PRODUCTION
+    res.append('Set-Cookie', buildInviteRegClearCookieHeader({ secure: secureInviteCookie }))
+    res.json({ success: true })
+  } catch (error) {
+    handleDbError(error, req, res)
+  }
+})
+
 apiRouter.get('/customer/external-invite-session', async (req, res) => {
   try {
     const token = readCookieFromHeader(req.headers.cookie, PUBLIC_INVITE_REG_COOKIE)

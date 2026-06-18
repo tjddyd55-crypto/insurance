@@ -2,7 +2,7 @@
  * FC/USER 전자문서 발송 내역 — 본인이 발송한 세션만 조회.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { FormButton, FormInput, FormSelect } from '../../../components/form'
 import { useConfirmDialog } from '../../../components/dialog'
 import { useMediaQuery } from '../../../hooks/useMediaQuery'
@@ -10,7 +10,6 @@ import '../../pdf-engine/pdf-engine.css'
 import '../testConsole/contract-signature-console.css'
 import '../userSend/contract-signature-send-mobile.css'
 import { useAuth } from '../../auth/AuthProvider'
-import { canAccessContractSignatureUserSend } from '../testConsole/contractSignatureTestConsoleFlags'
 import { ApiError } from '../../../lib/apiClient'
 import type { SendSessionDetail } from '../testConsole/contractSignatureTestConsoleClient'
 import {
@@ -55,7 +54,7 @@ export default function ContractSignatureHistoryPage({
   const navigate = useNavigate()
   const params = useParams<{ customerId?: string }>()
   const [searchParams] = useSearchParams()
-  const { token, user } = useAuth()
+  const { token } = useAuth()
   const { confirm, confirmDialog } = useConfirmDialog()
   const t = token?.trim() ?? ''
   const historyMobile = useMediaQuery(HISTORY_MOBILE_MQ)
@@ -286,13 +285,6 @@ export default function ContractSignatureHistoryPage({
       return
     }
     void runCancel(detail.id)
-  }
-
-  if (user && !canAccessContractSignatureUserSend(user.role)) {
-    if (embeddedInCustomerWorkspace && scopedCustomerId != null) {
-      return <Navigate to={`/customers/${scopedCustomerId}/files`} replace />
-    }
-    return <Navigate to="/dashboard" replace />
   }
 
   return (

@@ -13,6 +13,10 @@ import {
 import { APP_HTML_TITLE } from '../../../config/appBrand'
 import { REGISTER_LINK_PAGE_DESC, REGISTER_LINK_PAGE_TITLE } from '../lib/customerInviteRegistrationMeta'
 import { inviteCustomerApiRowToFormState } from '../utils/inviteCustomerApiRowToFormState'
+import {
+  closePublicCustomerRegistration,
+  getPublicCustomerRegistrationCloseFallbackMessage,
+} from '../utils/closePublicCustomerRegistration'
 
 const DEFAULT_APP_HTML_TITLE = APP_HTML_TITLE
 const DEFAULT_HTML_DESCRIPTION = '보험 신청·고객 관리 서비스.'
@@ -30,19 +34,6 @@ type InviteSessionResp =
 function pickInviteEditableUntilIso(iso?: string | null): string {
   if (typeof iso === 'string' && iso.trim()) return iso.trim()
   return new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString()
-}
-
-function tryWindowClose(onCannotClose?: () => void) {
-  try {
-    window.close()
-  } catch {
-    /* empty */
-  }
-  window.setTimeout(() => {
-    if (typeof document !== 'undefined' && document.visibilityState !== 'hidden') {
-      onCannotClose?.()
-    }
-  }, 420)
 }
 
 type Props = {
@@ -68,6 +59,9 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
   const [inviteLockedPermanent, setInviteLockedPermanent] = useState(false)
   const [inviteJustUpdated, setInviteJustUpdated] = useState(false)
   const [inviteCloseBanner, setInviteCloseBanner] = useState(false)
+  const [inviteAdditionalBusy, setInviteAdditionalBusy] = useState(false)
+
+  const inviteCloseFallbackMessage = getPublicCustomerRegistrationCloseFallbackMessage()
 
   /** 서버 시간 기준 — 클라 추정 금지, 응답의 editableUntil만 사용 */
   const resolveEditableUntilIso = (
@@ -97,7 +91,6 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
     setCustomers((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)))
   }, [])
 
-  /** 완료 화면 상태 공통 적용 — inviteRegistrationFlow 전용 */
   const applyInviteCompleteState = useCallback(
     ({
       editableIso,
@@ -117,6 +110,40 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
     },
     [],
   )
+
+  const resetInviteRegistrationForAdditionalEntry = useCallback(() => {
+    setCustomers([createEmptyCustomerForm()])
+    setInviteUiPhase('form')
+    setInviteSubmitKind('create')
+    setInviteLockedPermanent(false)
+    setEditableUntilIso(null)
+    setInviteJustUpdated(false)
+    setInviteCloseBanner(false)
+    setNotice('')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
+
+  const handleAdditionalRegistration = useCallback(async () => {
+    setInviteAdditionalBusy(true)
+    try {
+      await fetch(resolveApiUrl('/api/customer/external-invite-session/reset'), {
+        method: 'POST',
+        credentials: 'include',
+      })
+    } catch {
+      /* 쿠키 해제 실패해도 폼 초기화는 진행 — 서버가 ALREADY_SUBMITTED 로 안내할 수 있음 */
+    } finally {
+      setInviteAdditionalBusy(false)
+    }
+    resetInviteRegistrationForAdditionalEntry()
+  }, [resetInviteRegistrationForAdditionalEntry])
+
+  const handleInviteClose = useCallback(() => {
+    setInviteCloseBanner(false)
+    closePublicCustomerRegistration({
+      onCannotClose: () => setInviteCloseBanner(true),
+    })
+  }, [])
 
   /** GET 세션 초기 로드 */
   useEffect(() => {
@@ -533,7 +560,8 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
             </>
           ) : (
             <>
-              <p className="invite-registration-complete__lead">전송이 완료되었습니다.</p>
+              <p className="invite-registration-complete__lead">등록이 완료되었습니다.</p>
+              <p className="page-header-hint">추가로 등록할 고객이 있으면 아래 버튼을 눌러 주세요.</p>
               <p className="page-header-hint">수정은 전송 후 3시간 이내에만 가능합니다.</p>
               <p className="page-header-hint">담당자가 확인 후 연락드리겠습니다.</p>
             </>
@@ -542,11 +570,23 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
 
         {inviteCloseBanner ? (
           <p className="invite-registration-complete__muted" role="status">
-            창을 닫아 주세요.
+            {inviteCloseFallbackMessage}
           </p>
         ) : null}
 
         <div className="invite-registration-complete__actions">
+          <FormButton
+            variant="primary"
+            htmlType="button"
+            disabled={inviteAdditionalBusy}
+            loading={inviteAdditionalBusy}
+            loadingText="준비 중…"
+            onClick={() => {
+              void handleAdditionalRegistration()
+            }}
+          >
+            추가 등록
+          </FormButton>
           {withinWindow ? (
             <FormButton
               variant="secondary"
@@ -562,14 +602,7 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
               수정하기
             </FormButton>
           ) : null}
-          <FormButton
-            variant="primary"
-            htmlType="button"
-            onClick={() => {
-              setInviteCloseBanner(false)
-              tryWindowClose(() => setInviteCloseBanner(true))
-            }}
-          >
+          <FormButton variant="secondary" htmlType="button" onClick={handleInviteClose}>
             닫기
           </FormButton>
         </div>
