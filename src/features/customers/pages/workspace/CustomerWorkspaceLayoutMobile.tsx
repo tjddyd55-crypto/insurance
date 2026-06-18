@@ -12,6 +12,20 @@ const RECENT_CUSTOMER_LIMIT = 5
 const RECENT_CUSTOMER_SCROLL_RETRY_LIMIT = 12
 const RECENT_CUSTOMER_SCROLL_RETRY_DELAY_MS = 40
 
+/** 모바일 상세 모달 헤더 — 신청서·개인메시지·청구·메모에서는 지도 버튼을 숨긴다. */
+function shouldShowMobileOutletMapButton(pathname: string): boolean {
+  if (pathname.includes('/application-documents')) {
+    return false
+  }
+  if (pathname.includes('/memos')) {
+    return false
+  }
+  if (pathname.includes('/claim-requests')) {
+    return false
+  }
+  return true
+}
+
 function resolveMobileSheetTitle(pathname: string, search: string): string {
   if (pathname.includes('/claim-requests')) {
     const tab = new URLSearchParams(search).get('claimTab')
@@ -168,6 +182,8 @@ export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLa
 
   if (isMobileDetailRoute && outlet) {
     const title = resolveMobileSheetTitle(location.pathname, location.search)
+    const showMapButton =
+      props.selectedCustomerId != null && shouldShowMobileOutletMapButton(location.pathname)
     return (
       <Modal
         open
@@ -176,8 +192,8 @@ export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLa
         panelClassName="workspace-mobile-outlet-modal"
       >
         <div className="workspace-mobile-outlet-modal__header">
-          <div className="workspace-mobile-outlet-modal__header-actions">
-            {props.selectedCustomerId ? (
+          {showMapButton ? (
+            <div className="workspace-mobile-outlet-modal__header-actions">
               <FormButton
                 htmlType="button"
                 variant="secondary"
@@ -186,10 +202,10 @@ export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLa
               >
                 지도에서 보기
               </FormButton>
-            ) : (
-              <span className="workspace-mobile-outlet-modal__spacer" aria-hidden />
-            )}
-          </div>
+            </div>
+          ) : (
+            <span className="workspace-mobile-outlet-modal__spacer" aria-hidden />
+          )}
           <h2 className="workspace-mobile-outlet-modal__title">{title}</h2>
           <CustomerWorkspaceCloseButton onClick={handleClose} />
         </div>
