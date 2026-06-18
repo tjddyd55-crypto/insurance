@@ -97,7 +97,7 @@ import {
 import { coerceCustomersStatePayload } from '../utils/customerStateGuards'
 import { dedupeCustomersById } from '../utils/customerSearchDedupe'
 import {
-  mergeCustomerRecordInList,
+  mergeCustomerInList,
   resolveCustomerCardKeepOpenId,
 } from '../utils/customerListOpenState'
 import {
@@ -607,7 +607,23 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     onEnterExcelSelectMode,
   })
 
-  const loadCustomers = useCallback(async () => {
+  const mergeCustomerInListState = useCallback((updated: CustomerRecord) => {
+    setCustomers((prev) => mergeCustomerInList(prev, updated))
+    setAdvSearchHits((hits) =>
+      hits == null ? hits : mergeCustomerInList(hits, updated),
+    )
+    setPinnedWorkspaceCustomer((prev) => (prev?.id === updated.id ? updated : prev))
+  }, [])
+
+  const keepCustomerCardOpen = useCallback(
+    (customerId: number) => {
+      pinnedListCustomerIdRef.current = customerId
+      applyListCustomerExpand(customerId, false)
+    },
+    [applyListCustomerExpand],
+  )
+
+  const loadCustomers = useCallback(async (options?: { silent?: boolean }) => {
     if (!token || user?.role !== 'USER') {
       setIsLoading(false)
       setCustomersTotalCount(0)
@@ -617,7 +633,9 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       setStatusText('기준 날짜를 선택해 주세요.')
       return
     }
-    setIsLoading(true)
+    if (!options?.silent) {
+      setIsLoading(true)
+    }
     try {
       const listOpts: Parameters<typeof listCustomers>[1] = { limit: CUSTOMER_LIST_FETCH_LIMIT }
       if (appliedConsultationFilter === 'none' || appliedConsultationFilter === 'has') {
@@ -1097,7 +1115,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           '고객 정보는 수정했습니다. 자동차 정보 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.',
         )
         cancelEdit()
-        mergeCustomerInList(updatedCustomer)
+        mergeCustomerInListState(updatedCustomer)
         if (keepOpenCustomerId != null) {
           keepCustomerCardOpen(keepOpenCustomerId)
         }
@@ -1109,7 +1127,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       }
       setStatusText('고객 정보를 수정했습니다.')
       cancelEdit()
-      mergeCustomerInList(updatedCustomer)
+      mergeCustomerInListState(updatedCustomer)
       if (keepOpenCustomerId != null) {
         keepCustomerCardOpen(keepOpenCustomerId)
       }
@@ -1121,7 +1139,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       const msg = error instanceof Error ? error.message : '수정에 실패했습니다.'
       setStatusText(msg)
     }
-  }, [token, user?.role, cancelEdit, loadCustomers, mergeCustomerInList, keepCustomerCardOpen])
+  }, [token, user?.role, cancelEdit, loadCustomers, mergeCustomerInListState, keepCustomerCardOpen])
 
   const handleEditSaveRequest = useCallback(async () => {
     if (editSavingRef.current) {

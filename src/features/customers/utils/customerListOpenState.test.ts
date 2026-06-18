@@ -1,22 +1,42 @@
 import { describe, expect, it } from 'vitest'
 import type { CustomerRecord } from '../api/customersApi'
 import {
-  mergeCustomerRecordInList,
+  mergeCustomerInList,
   resolveCustomerCardKeepOpenId,
 } from './customerListOpenState'
 
 function makeCustomer(id: number, name: string): CustomerRecord {
-  return { id, name } as CustomerRecord
+  return { id, name, phone: '010' } as CustomerRecord
 }
 
-describe('mergeCustomerRecordInList', () => {
-  it('replaces only the matching customer id', () => {
+describe('mergeCustomerInList', () => {
+  it('merges only the matching customer id', () => {
     const rows = [makeCustomer(1, 'A'), makeCustomer(2, 'B')]
-    const updated = makeCustomer(2, 'B-updated')
-    expect(mergeCustomerRecordInList(rows, updated)).toEqual([
+    const updated = { ...makeCustomer(2, 'B-updated'), phone: '010-9999' }
+    expect(mergeCustomerInList(rows, updated)).toEqual([
       makeCustomer(1, 'A'),
-      makeCustomer(2, 'B-updated'),
+      { id: 2, name: 'B-updated', phone: '010-9999' },
     ])
+  })
+
+  it('keeps other customers unchanged', () => {
+    const rows = [makeCustomer(10, 'X'), makeCustomer(20, 'Y')]
+    const updated = makeCustomer(10, 'X-new')
+    expect(mergeCustomerInList(rows, updated)).toEqual([
+      makeCustomer(10, 'X-new'),
+      makeCustomer(20, 'Y'),
+    ])
+  })
+
+  it('compares string and numeric ids safely', () => {
+    const rows = [{ id: 42, name: 'old' } as CustomerRecord]
+    const updated = { id: '42', name: 'new' } as unknown as CustomerRecord
+    expect(mergeCustomerInList(rows, updated)).toEqual([{ id: '42', name: 'new' }])
+  })
+
+  it('returns the original list when updated customer has no id', () => {
+    const rows = [makeCustomer(1, 'A')]
+    expect(mergeCustomerInList(rows, { name: 'orphan' } as CustomerRecord)).toBe(rows)
   })
 })
 
