@@ -279,10 +279,10 @@ function buildGaTenantAdminMenuEntries(role: string | undefined): GaTenantDashbo
   if (canUseNewsletterBoardAdminRoutes(role)) {
     const newsletterLabel =
       role === 'SUPER_ADMIN'
-        ? '소식지·게시판 관리'
+        ? '소식지 관리'
         : role === 'GA_ADMIN'
-          ? 'GA전용게시판 관리'
-          : '소식지관리'
+          ? 'GA전용 소식지 관리'
+          : '소식지 관리'
     entries.push({ type: 'link', label: newsletterLabel, path: '/admin/newsletter-boards' })
   }
   return entries
@@ -303,7 +303,7 @@ const SUPER_ADMIN_BASE: GaTenantMenuItem[] = [
   { label: '운영 통계', path: '/admin/analytics' },
   { label: '기능 요청 관리', path: '/internal/admin/feature-requests' },
   { label: '보험사 설계사이트 관리', path: '/admin/insurer-sites' },
-  { label: '소식지·게시판 관리', path: '/admin/newsletter-boards' },
+  { label: '소식지 관리', path: '/admin/newsletter-boards' },
   { label: 'PDF 문서 템플릿', path: '/admin/pdf-templates' },
 ]
 

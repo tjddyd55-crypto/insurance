@@ -43,7 +43,7 @@ export function NewsletterBoardAdminPage() {
       setBoards(await listAdminNewsletterBoards(token))
       setError('')
     } catch (e) {
-      setError(e instanceof Error ? e.message : '게시판 목록을 불러오지 못했습니다.')
+      setError(e instanceof Error ? e.message : '소식지 목록을 불러오지 못했습니다.')
     } finally {
       setLoading(false)
     }
@@ -79,7 +79,7 @@ export function NewsletterBoardAdminPage() {
         setLabel('')
         setDescription('')
       } catch (e) {
-        setError(e instanceof Error ? e.message : '게시판 추가에 실패했습니다.')
+        setError(e instanceof Error ? e.message : '소식지 추가에 실패했습니다.')
       } finally {
         setBusy(false)
       }
@@ -92,8 +92,8 @@ export function NewsletterBoardAdminPage() {
     }
     void (async () => {
       const ok = await confirm({
-        title: '게시판 삭제',
-        message: `"${board.label}" 게시판을 삭제하시겠습니까? 기존 글은 삭제하지 않고 메뉴에서만 제외됩니다.`,
+        title: '소식지 삭제',
+        message: `"${board.label}" 소식지를 삭제하시겠습니까? 기존 글은 삭제하지 않고 메뉴에서만 제외됩니다.`,
         tone: 'danger',
       })
       if (!ok) {
@@ -105,7 +105,7 @@ export function NewsletterBoardAdminPage() {
         await deleteNewsletterBoard(token, board.id)
         setBoards((prev) => prev.filter((item) => item.id !== board.id))
       } catch (e) {
-        setError(e instanceof Error ? e.message : '게시판 삭제에 실패했습니다.')
+        setError(e instanceof Error ? e.message : '소식지 삭제에 실패했습니다.')
       } finally {
         setBusy(false)
       }
@@ -115,7 +115,7 @@ export function NewsletterBoardAdminPage() {
   if (!canManage) {
     return (
       <main className="page page--with-back newsletter-board-admin-page">
-        <div className="insurer-news-empty">게시판 관리 권한이 없습니다.</div>
+        <div className="insurer-news-empty">소식지 관리 권한이 없습니다.</div>
       </main>
     )
   }
