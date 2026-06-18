@@ -29,13 +29,18 @@ describe('public account restricted paths', () => {
     expect(isPublicAccountGaOnlyMenuPath('/application/documents')).toBe(true)
     expect(isPublicAccountGaOnlyMenuPath('/contracts/signatures/send')).toBe(true)
     expect(isPublicAccountGaOnlyMenuPath('/team/files')).toBe(true)
-    expect(isPublicAccountGaOnlyMenuPath('/portal/newsletters')).toBe(false)
+    expect(isPublicAccountGaOnlyMenuPath('/portal/newsletters')).toBe(true)
+    expect(isPublicAccountGaOnlyMenuPath('/portal/adjuster-news')).toBe(true)
+    expect(isPublicAccountGaOnlyMenuPath('/portal/boards/global-test')).toBe(false)
     expect(isPublicAccountGaOnlyMenuPath('/dashboard')).toBe(false)
   })
 
-  it('blocks direct url paths including customer workspace', () => {
+  it('blocks direct url paths including customer workspace and newsletters', () => {
     expect(isPublicAccountGaOnlyPath('/application')).toBe(true)
     expect(isPublicAccountGaOnlyPath('/application/documents/history')).toBe(true)
+    expect(isPublicAccountGaOnlyPath('/portal/newsletters/123')).toBe(true)
+    expect(isPublicAccountGaOnlyPath('/portal/adjuster-news/recent')).toBe(true)
+    expect(isPublicAccountGaOnlyPath('/portal/boards/global-test')).toBe(false)
     expect(isPublicAccountGaOnlyPath('/contract-signatures')).toBe(false)
     expect(isPublicAccountGaOnlyPath('/customers/12/application-documents')).toBe(true)
     expect(isPublicAccountGaOnlyPath('/customers/12/signatures')).toBe(true)

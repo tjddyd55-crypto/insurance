@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { FormButton } from '../../../components/form'
 import NewsDetailMobileZoomScroll from '../../../components/news-detail-viewer/NewsDetailMobileZoomScroll'
+import GaRequiredNotice from '../../../components/access/GaRequiredNotice'
 import { useAuth } from '../../auth/AuthProvider'
+import { isPublicGeneralAccount } from '../../auth/generalGa'
 import { NewsletterAttachmentList } from '../components/NewsletterAttachmentList'
 import { NewsletterImageGallery } from '../components/NewsletterImageGallery'
 import { getDynamicNewsletterBoardDetail } from '../services/insurerNews.service'
@@ -12,7 +14,8 @@ import { formatInsurerNewsDateTime } from '../utils/formatInsurerNewsDate'
 
 export function DynamicNewsletterBoardDetailPage() {
   const { boardSlug = '', newsletterId = '' } = useParams<{ boardSlug: string; newsletterId: string }>()
-  const { token } = useAuth()
+  const { user, token } = useAuth()
+  const isPublicAccount = isPublicGeneralAccount(user)
   const navigate = useNavigate()
   const [detail, setDetail] = useState<NewsletterDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -42,6 +45,10 @@ export function DynamicNewsletterBoardDetailPage() {
       cancelled = true
     }
   }, [boardSlug, newsletterId, token])
+
+  if (isPublicAccount && !loading && !detail) {
+    return <GaRequiredNotice />
+  }
 
   if (loading) {
     return (

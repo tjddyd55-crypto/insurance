@@ -14,6 +14,8 @@ const PUBLIC_ACCOUNT_GA_ONLY_PREFIXES: readonly string[] = Object.freeze([
   '/team',
   '/my-forms',
   '/app/auto-insurance',
+  '/portal/newsletters',
+  '/portal/adjuster-news',
 ])
 
 const PUBLIC_ACCOUNT_GA_ONLY_CUSTOMER_RE =
