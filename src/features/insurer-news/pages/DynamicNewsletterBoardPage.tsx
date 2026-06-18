@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
+import GaRequiredNotice from '../../../components/access/GaRequiredNotice'
 import { useAuth } from '../../auth/AuthProvider'
+import { isPublicGeneralAccount } from '../../auth/generalGa'
 import { getDynamicNewsletterBoardFeed } from '../services/insurerNews.service'
 import type { NewsletterBoard, NewsletterItem } from '../types'
+import { isGaOnlyNewsletterBoard } from '../utils/newsletterBoardScope'
 import DynamicNewsletterBoardMobileView from './DynamicNewsletterBoard/DynamicNewsletterBoardMobileView'
 import DynamicNewsletterBoardPCView from './DynamicNewsletterBoard/DynamicNewsletterBoardPCView'
 import type { DynamicNewsletterBoardViewProps } from './DynamicNewsletterBoard/dynamicNewsletterBoardViewProps'
 
 export function DynamicNewsletterBoardPage() {
   const { boardSlug = '' } = useParams<{ boardSlug: string }>()
-  const { token } = useAuth()
+  const { user, token } = useAuth()
+  const isPublicAccount = isPublicGeneralAccount(user)
   const [board, setBoard] = useState<NewsletterBoard | null>(null)
   const [items, setItems] = useState<NewsletterItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -73,6 +77,13 @@ export function DynamicNewsletterBoardPage() {
         .includes(q),
     )
   }, [items, searchQuery])
+
+  const showGaRequiredNotice =
+    isPublicAccount && !loading && (Boolean(error) || !board || (board != null && isGaOnlyNewsletterBoard(board)))
+
+  if (showGaRequiredNotice) {
+    return <GaRequiredNotice />
+  }
 
   const viewProps: DynamicNewsletterBoardViewProps = {
     board,

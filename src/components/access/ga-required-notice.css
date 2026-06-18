@@ -1,4 +1,4 @@
-.public-account-restricted-page__card {
+.ga-required-notice-page__card {
   margin-top: 16px;
   padding: 24px;
   display: grid;
@@ -10,7 +10,7 @@
   color: #111827;
 }
 
-.public-account-restricted-page__title {
+.ga-required-notice-page__title {
   margin: 0;
   font-size: 1.125rem;
   font-weight: 600;
@@ -18,16 +18,30 @@
   line-height: 1.45;
 }
 
-.public-account-restricted-page__text {
+.ga-required-notice-page__text {
   margin: 0;
   font-size: 0.9375rem;
   line-height: 1.65;
   color: #6b7280;
 }
 
-.public-account-restricted-page__actions {
+.ga-required-notice-page__actions {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 4px;
+}
+
+@media (max-width: 768px) {
+  .ga-required-notice-page__card {
+    max-width: none;
+  }
+
+  .ga-required-notice-page__actions {
+    flex-direction: column;
+  }
+
+  .ga-required-notice-page__actions .button {
+    width: 100%;
+  }
 }

@@ -3,9 +3,9 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useConfirmDialog } from '../../../components/dialog'
 import NewsDetailMobileZoomScroll from '../../../components/news-detail-viewer/NewsDetailMobileZoomScroll'
-import GaRegistrationRequiredNotice from '../../../components/GaRegistrationRequiredNotice'
+import GaRequiredNotice from '../../../components/access/GaRequiredNotice'
 import { useAuth } from '../../auth/AuthProvider'
-import { isGeneralGaUser } from '../../auth/generalGa'
+import { isPublicGeneralAccount } from '../../auth/generalGa'
 import { NewsletterAttachmentList } from '../components/NewsletterAttachmentList'
 import { NewsletterImageGallery } from '../components/NewsletterImageGallery'
 import { deleteManagerNewsletter, getNewsletterDetail, getNewsletterDetailForInsurerManager } from '../services/insurerNews.service'
@@ -27,10 +27,10 @@ export function InsurerManagerNewsDetailPage({
   const navigate = useNavigate()
   const gaCode = user?.gaCode ?? ''
   const companyId = user?.companyId
-  const isGeneralTenant = isGeneralGaUser(gaCode)
+  const isPublicAccount = isPublicGeneralAccount(user)
   const requiresCompanyScope = detailScope === 'manager' && channel !== 'LOSS_ADJUSTER'
   const canFetch =
-    !isGeneralTenant &&
+    !isPublicAccount &&
     Boolean(token?.trim() && gaCode && (!requiresCompanyScope || companyId != null) && newsletterId)
   const [detail, setDetail] = useState<NewsletterDetail | null>(null)
   const { confirm, confirmDialog } = useConfirmDialog()
@@ -58,8 +58,8 @@ export function InsurerManagerNewsDetailPage({
     }
   }, [canFetch, detailScope, channel, token, gaCode, companyId, newsletterId, requiresCompanyScope])
 
-  if (isGeneralTenant) {
-    return <GaRegistrationRequiredNotice />
+  if (isPublicAccount) {
+    return <GaRequiredNotice />
   }
 
   if (!gaCode || (requiresCompanyScope && companyId == null)) {
