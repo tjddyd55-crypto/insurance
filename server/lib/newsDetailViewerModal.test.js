@@ -59,4 +59,29 @@ describe('news detail viewer modal', () => {
     assert.match(hookSrc, /passive:\s*false/)
     assert.match(hookSrc, /getTouchDistance/)
   })
+
+  it('applies pinch zoom to mobile route detail pages', () => {
+    const mobileScrollPath = path.join(process.cwd(), 'src/components/news-detail-viewer/NewsDetailMobileZoomScroll.tsx')
+    const mobileScrollSrc = fs.readFileSync(mobileScrollPath, 'utf8')
+    assert.match(mobileScrollSrc, /useNewsDetailViewerPinchZoom/)
+    assert.match(mobileScrollSrc, /NewsDetailZoomContent/)
+
+    const insurerDetailPath = path.join(
+      process.cwd(),
+      'src/features/insurer-news/pages/InsurerManagerNewsDetailPage.tsx',
+    )
+    const customerDetailPath = path.join(process.cwd(), 'src/features/customer-app/pages/CustomerAppNewsDetailPage.tsx')
+    const boardDetailPath = path.join(
+      process.cwd(),
+      'src/features/insurer-news/pages/DynamicNewsletterBoardDetailPage.tsx',
+    )
+
+    assert.match(fs.readFileSync(insurerDetailPath, 'utf8'), /NewsDetailMobileZoomScroll/)
+    assert.match(fs.readFileSync(customerDetailPath, 'utf8'), /NewsDetailMobileZoomScroll/)
+    assert.match(fs.readFileSync(boardDetailPath, 'utf8'), /NewsDetailMobileZoomScroll/)
+
+    const css = fs.readFileSync(cssPath, 'utf8')
+    assert.match(css, /\.news-detail-mobile-scroll[\s\S]*overflow-x:\s*auto/)
+    assert.match(css, /\.news-detail-mobile-scroll[\s\S]*touch-action:\s*pan-x pan-y/)
+  })
 })
