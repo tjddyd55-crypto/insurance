@@ -1,20 +1,30 @@
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { randomUUID } from 'node:crypto'
-import { safeQuery, systemQuery } from './utils/dbSafeQuery.js'
+import { systemQuery } from './utils/dbSafeQuery.js'
 import { isSuperAdminRole } from './lib/rbacScope.js'
 import { createRequireBoardWriterAuth } from './lib/boardWriterAuth.js'
 import {
   assertBoardAssignableToWriterScope,
   assertWriterBoardAccess,
   BOARD_WRITER_JWT_KIND,
+  grantAllGaBoardsToWriter,
+  grantAllGlobalBoardsToWriter,
   listAllowedBoardIdsForWriter,
   listBoardsForWriter,
+  loadNewsletterBoardBySlug,
   mapBoardWriterRow,
   replaceWriterBoardPermissions,
 } from './lib/boardWriterService.js'
-import { insertDynamicBoardNewsletter } from './lib/dynamicBoardNewsletterWrite.js'
-import { NEWSLETTER_BOARD_BY_SLUG_SQL } from './lib/newsletterBoardAdminSql.js'
+import {
+  createBoardWriterNewsletter,
+  deleteBoardWriterNewsletter,
+  listBoardWriterNewsletters,
+  loadBoardWriterNewsletterById,
+  presignBoardWriterAttachment,
+  resolveBoardWriterStorageGaCode,
+  updateBoardWriterNewsletter,
+} from './lib/boardWriterNewsletters.js'
 
 export { BOARD_WRITER_JWT_KIND, PUBLIC_BOARD_WRITER_JWT_KIND } from './lib/boardWriterService.js'
 export { createRequirePublicBoardWriterAuth } from './lib/boardWriterAuth.js'
@@ -29,11 +39,32 @@ const WRITER_TOKEN_EXPIRES_IN = '12h'
  *   handleDbError: Function
  *   jwtSecret: string
  *   bcrypt: typeof import('bcryptjs')
+ *   withTransaction: Function
  * }} ctx
  */
 export function registerPublicBoardWriterApi(apiRouter, ctx) {
-  const { pool, requireAuth, handleDbError, jwtSecret, bcrypt: bcryptLib } = ctx
+  const { pool, requireAuth, handleDbError, jwtSecret, bcrypt: bcryptLib, withTransaction } = ctx
   const requireBoardWriterAuth = createRequireBoardWriterAuth(jwtSecret)
+
+  async function loadBoardForWriter(req, res) {
+    const boardSlug = String(req.params.boardSlug ?? '').trim()
+    const writerId = String(req.boardWriter?.id ?? '')
+    const board = await loadNewsletterBoardBySlug(pool, boardSlug)
+    if (!board) {
+      res.status(404).json({ message: '소식지를 찾을 수 없습니다.' })
+      return null
+    }
+    const access = await assertWriterBoardAccess(pool, writerId, board)
+    if (!access.ok) {
+      res.status(access.status).json({ message: access.message })
+      return null
+    }
+    return { board, writer: access.writer }
+  }
+
+  function writerOwnerGaId(writer) {
+    return writer.owner_ga_id == null ? null : Number(writer.owner_ga_id)
+  }
 
   async function loginWriter(req, res) {
     try {
@@ -137,39 +168,61 @@ export function registerPublicBoardWriterApi(apiRouter, ctx) {
   apiRouter.get('/board-writer/boards', requireBoardWriterAuth, listWriterBoards)
   apiRouter.get('/public-board-writer/boards', requireBoardWriterAuth, listWriterBoards)
 
-  async function createWriterPost(req, res) {
+  async function listWriterNewsletters(req, res) {
     try {
-      const boardSlug = String(req.params.boardSlug ?? '').trim()
-      const writerId = String(req.boardWriter?.id ?? '')
-      const boardRes = await safeQuery(pool, NEWSLETTER_BOARD_BY_SLUG_SQL, [boardSlug])
-      if (boardRes.rowCount === 0) {
-        res.status(404).json({ message: '게시판을 찾을 수 없습니다.' })
+      const loaded = await loadBoardForWriter(req, res)
+      if (!loaded) {
         return
       }
-      const board = boardRes.rows[0]
-      const access = await assertWriterBoardAccess(pool, writerId, board)
-      if (!access.ok) {
-        res.status(access.status).json({ message: access.message })
+      const rows = await listBoardWriterNewsletters(pool, loaded.board, writerOwnerGaId(loaded.writer))
+      res.json(rows)
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  }
+
+  async function getWriterNewsletter(req, res) {
+    try {
+      const loaded = await loadBoardForWriter(req, res)
+      if (!loaded) {
+        return
+      }
+      const newsletterId = String(req.params.newsletterId ?? '').trim()
+      const detail = await loadBoardWriterNewsletterById(
+        pool,
+        loaded.board,
+        newsletterId,
+        writerOwnerGaId(loaded.writer),
+      )
+      if (!detail) {
+        res.status(404).json({ message: '소식을 찾을 수 없습니다.' })
+        return
+      }
+      res.json(detail)
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  }
+
+  async function createWriterPost(req, res) {
+    try {
+      const loaded = await loadBoardForWriter(req, res)
+      if (!loaded) {
         return
       }
       const body = req.body && typeof req.body === 'object' ? req.body : {}
       const bodyText = String(body.bodyText ?? '')
       const statusRaw = String(body.status ?? 'PUBLISHED').toUpperCase()
       const status = statusRaw === 'DRAFT' ? 'DRAFT' : 'PUBLISHED'
-      const gaId =
-        String(access.writer.writer_scope) === 'ga' ? Number(access.writer.owner_ga_id) : null
-      const row = await insertDynamicBoardNewsletter(pool, {
-        board,
-        gaId,
+      const detail = await createBoardWriterNewsletter(pool, withTransaction, {
+        board: loaded.board,
+        writerId: String(loaded.writer.id),
+        writerOwnerGaId: writerOwnerGaId(loaded.writer),
         bodyText,
         status,
-        publisherId: writerId,
+        attachments: Array.isArray(body.attachments) ? body.attachments : [],
       })
-      res.status(201).json({
-        id: String(row.id),
-        status: String(row.status),
-        bodyText: String(row.body_text ?? ''),
-      })
+      res.status(201).json(detail)
     } catch (e) {
       if (e && typeof e === 'object' && 'httpStatus' in e && typeof e.httpStatus === 'number') {
         res.status(e.httpStatus).json({ message: e instanceof Error ? e.message : '요청을 처리할 수 없습니다.' })
@@ -179,8 +232,91 @@ export function registerPublicBoardWriterApi(apiRouter, ctx) {
     }
   }
 
-  apiRouter.post('/board-writer/boards/:boardSlug/newsletters', requireBoardWriterAuth, createWriterPost)
-  apiRouter.post('/public-board-writer/boards/:boardSlug/newsletters', requireBoardWriterAuth, createWriterPost)
+  async function patchWriterNewsletter(req, res) {
+    try {
+      const loaded = await loadBoardForWriter(req, res)
+      if (!loaded) {
+        return
+      }
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      const statusRaw = String(body.status ?? 'PUBLISHED').toUpperCase()
+      const status = statusRaw === 'DRAFT' ? 'DRAFT' : 'PUBLISHED'
+      const detail = await updateBoardWriterNewsletter(pool, withTransaction, {
+        board: loaded.board,
+        newsletterId: String(req.params.newsletterId ?? '').trim(),
+        writerId: String(loaded.writer.id),
+        writerOwnerGaId: writerOwnerGaId(loaded.writer),
+        bodyText: String(body.bodyText ?? ''),
+        status,
+        attachments: Array.isArray(body.attachments) ? body.attachments : [],
+      })
+      res.json(detail)
+    } catch (e) {
+      if (e && typeof e === 'object' && 'httpStatus' in e && typeof e.httpStatus === 'number') {
+        res.status(e.httpStatus).json({ message: e instanceof Error ? e.message : '요청을 처리할 수 없습니다.' })
+        return
+      }
+      handleDbError(e, req, res)
+    }
+  }
+
+  async function deleteWriterNewsletter(req, res) {
+    try {
+      const loaded = await loadBoardForWriter(req, res)
+      if (!loaded) {
+        return
+      }
+      await deleteBoardWriterNewsletter(pool, withTransaction, {
+        board: loaded.board,
+        newsletterId: String(req.params.newsletterId ?? '').trim(),
+        writerId: String(loaded.writer.id),
+        writerOwnerGaId: writerOwnerGaId(loaded.writer),
+      })
+      res.status(204).send()
+    } catch (e) {
+      if (e && typeof e === 'object' && 'httpStatus' in e && typeof e.httpStatus === 'number') {
+        res.status(e.httpStatus).json({ message: e instanceof Error ? e.message : '요청을 처리할 수 없습니다.' })
+        return
+      }
+      handleDbError(e, req, res)
+    }
+  }
+
+  async function presignWriterAttachment(req, res) {
+    try {
+      const loaded = await loadBoardForWriter(req, res)
+      if (!loaded) {
+        return
+      }
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      const gaCode = await resolveBoardWriterStorageGaCode(pool, loaded.board)
+      const result = await presignBoardWriterAttachment(loaded.board, gaCode, {
+        fileName: String(body.fileName ?? 'file'),
+        contentType: String(body.contentType ?? 'application/octet-stream'),
+        sizeBytes: Number(body.sizeBytes ?? body.size ?? 0),
+      })
+      res.json(result)
+    } catch (e) {
+      if (e && typeof e === 'object' && 'httpStatus' in e && typeof e.httpStatus === 'number') {
+        res.status(e.httpStatus).json({ message: e instanceof Error ? e.message : '요청을 처리할 수 없습니다.' })
+        return
+      }
+      handleDbError(e, req, res)
+    }
+  }
+
+  const writerNewsletterRoutes = [
+    ['get', '/boards/:boardSlug/newsletters', listWriterNewsletters],
+    ['get', '/boards/:boardSlug/newsletters/:newsletterId', getWriterNewsletter],
+    ['post', '/boards/:boardSlug/newsletters', createWriterPost],
+    ['patch', '/boards/:boardSlug/newsletters/:newsletterId', patchWriterNewsletter],
+    ['delete', '/boards/:boardSlug/newsletters/:newsletterId', deleteWriterNewsletter],
+    ['post', '/boards/:boardSlug/attachments/presign', presignWriterAttachment],
+  ]
+  for (const [method, path, handler] of writerNewsletterRoutes) {
+    apiRouter[method](`/board-writer${path}`, requireBoardWriterAuth, handler)
+    apiRouter[method](`/public-board-writer${path}`, requireBoardWriterAuth, handler)
+  }
 
   apiRouter.get('/admin/board-writers', requireAuth, async (req, res) => {
     try {
@@ -277,6 +413,8 @@ export function registerPublicBoardWriterApi(apiRouter, ctx) {
       )
       if (boardIds.length > 0) {
         await replaceWriterBoardPermissions(pool, id, boardIds)
+      } else {
+        await grantAllGlobalBoardsToWriter(pool, id)
       }
       const allowedBoardIds = await listAllowedBoardIdsForWriter(pool, id)
       res.status(201).json(mapBoardWriterRow(ins.rows[0], allowedBoardIds))
@@ -443,6 +581,8 @@ export function registerPublicBoardWriterApi(apiRouter, ctx) {
       )
       if (boardIds.length > 0) {
         await replaceWriterBoardPermissions(pool, id, boardIds)
+      } else {
+        await grantAllGaBoardsToWriter(pool, id, gaId)
       }
       const allowedBoardIds = await listAllowedBoardIdsForWriter(pool, id)
       res.status(201).json(mapBoardWriterRow(ins.rows[0], allowedBoardIds))

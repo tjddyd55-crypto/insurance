@@ -1,4 +1,6 @@
 import { systemQuery } from '../utils/dbSafeQuery.js'
+import { adminNewsletterBoardQuery } from './newsletterBoardAdminQuery.js'
+import { NEWSLETTER_BOARD_BY_SLUG_SQL } from './newsletterBoardAdminSql.js'
 import { BOARD_SCOPE_GLOBAL, BOARD_SCOPE_GA, isGlobalBoardScope } from './newsletterBoardScope.js'
 
 export const BOARD_WRITER_JWT_KIND = 'BOARD_WRITER'
@@ -78,21 +80,21 @@ export async function assertWriterBoardAccess(executor, writerId, board) {
   const writerScope = String(writer.writer_scope ?? 'global')
   const boardScope = String(board.board_scope ?? '')
   if (writerScope === 'global' && boardScope !== BOARD_SCOPE_GLOBAL) {
-    return { ok: false, status: 403, message: '공용 작성자는 공용게시판만 작성할 수 있습니다.' }
+    return { ok: false, status: 403, message: '공용 작성자는 공용 소식지만 작성할 수 있습니다.' }
   }
   if (writerScope === 'ga') {
     if (boardScope !== BOARD_SCOPE_GA) {
-      return { ok: false, status: 403, message: 'GA 작성자는 GA전용게시판만 작성할 수 있습니다.' }
+      return { ok: false, status: 403, message: 'GA 작성자는 GA전용 소식지만 작성할 수 있습니다.' }
     }
     const ownerGaId = Number(writer.owner_ga_id)
     const boardOwnerGaId = Number(board.owner_ga_id)
     if (!Number.isInteger(ownerGaId) || ownerGaId !== boardOwnerGaId) {
-      return { ok: false, status: 403, message: '다른 GA 게시판에 접근할 수 없습니다.' }
+      return { ok: false, status: 403, message: '다른 GA 소식지에 접근할 수 없습니다.' }
     }
   }
   const allowed = await writerCanAccessBoard(executor, writerId, String(board.id))
   if (!allowed) {
-    return { ok: false, status: 403, message: '이 게시판에 대한 작성 권한이 없습니다.' }
+    return { ok: false, status: 403, message: '이 소식지에 대한 작성 권한이 없습니다.' }
   }
   return { ok: true, writer }
 }
@@ -137,16 +139,121 @@ export async function listBoardsForWriter(executor, writerId) {
 export async function replaceWriterBoardPermissions(executor, writerId, boardIds) {
   await systemQuery(executor, `DELETE FROM board_writer_permissions WHERE writer_account_id = $1`, [writerId])
   for (const boardId of boardIds) {
-    await systemQuery(
-      executor,
-      `
-      INSERT INTO board_writer_permissions (writer_account_id, board_id)
-      VALUES ($1, $2)
-      ON CONFLICT (writer_account_id, board_id) DO NOTHING
-      `,
-      [writerId, boardId],
-    )
+    await grantWriterBoardPermission(executor, writerId, boardId)
   }
+}
+
+/**
+ * @param {import('pg').Pool | import('pg').PoolClient} executor
+ * @param {string} writerId
+ * @param {string} boardId
+ */
+export async function grantWriterBoardPermission(executor, writerId, boardId) {
+  await systemQuery(
+    executor,
+    `
+    INSERT INTO board_writer_permissions (writer_account_id, board_id)
+    VALUES ($1, $2)
+    ON CONFLICT (writer_account_id, board_id) DO NOTHING
+    `,
+    [writerId, boardId],
+  )
+}
+
+/**
+ * @param {import('pg').Pool | import('pg').PoolClient} executor
+ */
+export async function listActiveGlobalBoardIds(executor) {
+  const r = await adminNewsletterBoardQuery(
+    executor,
+    `
+    SELECT id
+    FROM newsletter_boards
+    WHERE is_deleted = false
+      AND COALESCE(is_active, true) = true
+      AND board_scope = 'global'
+    ORDER BY created_at ASC
+    `,
+    [],
+  )
+  return r.rows.map((row) => String(row.id))
+}
+
+/**
+ * @param {import('pg').Pool | import('pg').PoolClient} executor
+ */
+export async function listActiveGlobalWriterIds(executor) {
+  const r = await systemQuery(
+    executor,
+    `
+    SELECT id
+    FROM board_writer_accounts
+    WHERE is_active = true
+      AND writer_scope = 'global'
+    ORDER BY created_at ASC
+    `,
+    [],
+  )
+  return r.rows.map((row) => String(row.id))
+}
+
+/**
+ * @param {import('pg').Pool | import('pg').PoolClient} executor
+ * @param {string} boardId
+ */
+export async function grantBoardToAllGlobalWriters(executor, boardId) {
+  const writerIds = await listActiveGlobalWriterIds(executor)
+  for (const writerId of writerIds) {
+    await grantWriterBoardPermission(executor, writerId, boardId)
+  }
+}
+
+/**
+ * @param {import('pg').Pool | import('pg').PoolClient} executor
+ * @param {string} writerId
+ */
+export async function grantAllGlobalBoardsToWriter(executor, writerId) {
+  const boardIds = await listActiveGlobalBoardIds(executor)
+  for (const boardId of boardIds) {
+    await grantWriterBoardPermission(executor, writerId, boardId)
+  }
+}
+
+/**
+ * @param {import('pg').Pool | import('pg').PoolClient} executor
+ * @param {string} writerId
+ * @param {number} ownerGaId
+ */
+export async function grantAllGaBoardsToWriter(executor, writerId, ownerGaId) {
+  const gaId = Number(ownerGaId)
+  if (!Number.isInteger(gaId) || gaId < 1) {
+    return
+  }
+  const r = await systemQuery(
+    executor,
+    `
+    SELECT id
+    FROM newsletter_boards
+    WHERE is_deleted = false
+      AND COALESCE(is_active, true) = true
+      AND board_scope = 'ga'
+      AND owner_ga_id = $1
+    ORDER BY created_at ASC
+    `,
+    [gaId],
+  )
+  for (const row of r.rows) {
+    await grantWriterBoardPermission(executor, writerId, String(row.id))
+  }
+}
+
+/**
+ * @param {import('pg').Pool | import('pg').PoolClient} executor
+ * @param {string} slug
+ */
+export async function loadNewsletterBoardBySlug(executor, slug) {
+  const r = await adminNewsletterBoardQuery(executor, NEWSLETTER_BOARD_BY_SLUG_SQL, [String(slug ?? '').trim()])
+  return r.rowCount > 0 ? r.rows[0] : null
 }
 
 /**
@@ -159,19 +266,19 @@ export async function assertBoardAssignableToWriterScope(executor, boardId, writ
     `SELECT * FROM newsletter_boards WHERE id = $1 AND is_deleted = false LIMIT 1`,
     [boardId],
   )
-  if (r.rowCount === 0) return { ok: false, message: '게시판을 찾을 수 없습니다.' }
+  if (r.rowCount === 0) return { ok: false, message: '소식지를 찾을 수 없습니다.' }
   const board = r.rows[0]
   if (writerScope === 'global') {
     if (!isGlobalBoardScope(board)) {
-      return { ok: false, message: '공용 작성자에는 공용게시판만 배정할 수 있습니다.' }
+      return { ok: false, message: '공용 작성자에는 공용 소식지만 배정할 수 있습니다.' }
     }
     return { ok: true, board }
   }
   if (String(board.board_scope) !== BOARD_SCOPE_GA) {
-    return { ok: false, message: 'GA 작성자에는 GA전용게시판만 배정할 수 있습니다.' }
+    return { ok: false, message: 'GA 작성자에는 GA전용 소식지만 배정할 수 있습니다.' }
   }
   if (Number(board.owner_ga_id) !== Number(ownerGaId)) {
-    return { ok: false, message: '다른 GA 게시판은 배정할 수 없습니다.' }
+    return { ok: false, message: '다른 GA 소식지는 배정할 수 없습니다.' }
   }
   return { ok: true, board }
 }

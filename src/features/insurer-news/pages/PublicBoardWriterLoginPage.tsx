@@ -24,7 +24,7 @@ export function PublicBoardWriterLoginPage() {
       try {
         const res = await loginPublicBoardWriter(loginId.trim(), password)
         setPublicBoardWriterToken(res.token)
-        navigate('/public-board-writer/workspace', { replace: true })
+        navigate('/board-writer/workspace', { replace: true })
       } catch (e) {
         setError(e instanceof Error ? e.message : '로그인에 실패했습니다.')
       } finally {
@@ -36,8 +36,8 @@ export function PublicBoardWriterLoginPage() {
   return (
     <main className="page public-board-writer-login-page user-page">
       <section className="public-board-writer-card">
-        <h1>공용 게시판 작성자 로그인</h1>
-        <p>전체 공용 게시판 글 작성 전용 계정으로 로그인합니다. 일반 CRM 계정과 분리됩니다.</p>
+        <h1>소식지 작성자 로그인</h1>
+        <p>공용·GA전용 소식지 작성 전용 계정으로 로그인합니다. 일반 CRM 계정과 분리됩니다.</p>
         <label className="form-field">
           <span className="form-label">아이디</span>
           <FormInput value={loginId} onChange={(e) => setLoginId(e.target.value)} autoComplete="username" />

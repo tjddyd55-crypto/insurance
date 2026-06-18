@@ -20,7 +20,7 @@ export function createRequireBoardWriterAuth(jwtSecret) {
       const decoded = jwt.verify(token, jwtSecret)
       const kind = String(decoded.kind ?? '')
       if (kind !== BOARD_WRITER_JWT_KIND && kind !== PUBLIC_BOARD_WRITER_JWT_KIND) {
-        res.status(401).json({ message: '게시판 작성자 세션이 아닙니다.' })
+        res.status(401).json({ message: '소식지 작성자 세션이 아닙니다.' })
         return
       }
       const writerId = String(decoded.writerAccountId ?? decoded.writerId ?? decoded.sub ?? '').trim()

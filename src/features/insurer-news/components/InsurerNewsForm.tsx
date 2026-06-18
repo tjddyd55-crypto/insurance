@@ -31,6 +31,10 @@ type Props = {
   /** 저장 전 R2 업로드 후 CDN URL 기준으로 저장 */
   authToken: string | null
   channel?: NewsChannel
+  uploadAttachments?: (
+    token: string,
+    drafts: LocalAttachmentDraft[],
+  ) => Promise<LocalAttachmentDraft[]>
 }
 
 /** API 저장용 — 반드시 cdnUrl + objectKey (미리보기 blob 금지) */
@@ -97,6 +101,7 @@ export function InsurerNewsForm({
   newsletterId,
   authToken,
   channel = 'INSURER',
+  uploadAttachments,
 }: Props) {
   const form = useInsurerNewsForm(initial)
   const [submitError, setSubmitError] = useState('')
@@ -122,10 +127,12 @@ export function InsurerNewsForm({
     setBusyMessage('저장 중...')
 
     try {
-      const uploaded = await uploadNewsletterAttachments(authToken, form.attachments, {
-        presignInsurerCode: context.insurerCode,
-        channel,
-      })
+      const uploaded = uploadAttachments
+        ? await uploadAttachments(authToken, form.attachments)
+        : await uploadNewsletterAttachments(authToken, form.attachments, {
+            presignInsurerCode: context.insurerCode,
+            channel,
+          })
       form.replaceAttachments(uploaded)
       if (uploaded.some((a) => a.status === 'failed')) {
         setSubmitError('일부 파일 업로드에 실패했습니다. 실패한 항목을 확인한 뒤 다시 시도해 주세요.')
