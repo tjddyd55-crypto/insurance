@@ -7,6 +7,7 @@ import PCOnlySection from '../../../components/PCOnlySection'
 import useIsMobile from '../../../hooks/useIsMobile'
 import { NewsletterList } from '../../insurer-news/components/NewsletterList'
 import type { NewsletterItem } from '../../insurer-news/types'
+import ClaimRequestAttachmentBundleActions from '../components/ClaimRequestAttachmentBundleActions'
 import ClaimRequestFileActions from '../components/ClaimRequestFileActions'
 import { useAuth } from '../../auth/AuthProvider'
 import ClaimRequestsPageMobileView from './claim-requests/ClaimRequestsPageMobileView'
@@ -16,6 +17,8 @@ import {
   createCustomerNews,
   deleteCustomerNews,
   downloadClaimRequestFile,
+  downloadClaimRequestFilesPdf,
+  downloadClaimRequestFilesZip,
   getClaimRequestDetail,
   getCustomerAppLink,
   listAgentCustomerNews,
@@ -141,6 +144,8 @@ export default function ClaimRequestsPage() {
   const [newsHistoryPersonal, setNewsHistoryPersonal] = useState<AgentCustomerNewsItem[]>([])
   const [customerNewsDeletingId, setCustomerNewsDeletingId] = useState<string | null>(null)
   const [actionBusy, setActionBusy] = useState(false)
+  const [zipBusy, setZipBusy] = useState(false)
+  const [pdfBusy, setPdfBusy] = useState(false)
   const displayedCode = createdCode || linkStatus?.agentCode || linkStatus?.linkCode || ''
   const displayedLink = createdLink || linkStatus?.universalUrl || ''
 
@@ -611,6 +616,52 @@ export default function ClaimRequestsPage() {
     [token],
   )
 
+  const handleDownloadClaimFilesZip = useCallback(async () => {
+    if (!token?.trim()) {
+      setError('로그인이 필요합니다.')
+      return
+    }
+    if (!detail || detail.files.length === 0) {
+      return
+    }
+    setZipBusy(true)
+    try {
+      await downloadClaimRequestFilesZip(
+        token,
+        detail.id,
+        detail.customerId,
+        `청구자료_${detail.customerName}_${detail.id}.zip`,
+      )
+    } catch (downloadError) {
+      setError(downloadError instanceof Error ? downloadError.message : 'ZIP 다운로드에 실패했습니다.')
+    } finally {
+      setZipBusy(false)
+    }
+  }, [detail, token])
+
+  const handleDownloadClaimFilesPdf = useCallback(async () => {
+    if (!token?.trim()) {
+      setError('로그인이 필요합니다.')
+      return
+    }
+    if (!detail || detail.files.length === 0) {
+      return
+    }
+    setPdfBusy(true)
+    try {
+      await downloadClaimRequestFilesPdf(
+        token,
+        detail.id,
+        detail.customerId,
+        `청구자료_${detail.customerName}_${detail.id}.pdf`,
+      )
+    } catch (downloadError) {
+      setError(downloadError instanceof Error ? downloadError.message : 'PDF 다운로드에 실패했습니다.')
+    } finally {
+      setPdfBusy(false)
+    }
+  }, [detail, token])
+
   const claimDetailBody = (
     <>
       {detailLoading ? <div className="claim-requests-page__detail-empty">상세 불러오는 중…</div> : null}
@@ -643,7 +694,16 @@ export default function ClaimRequestsPage() {
           </div>
 
           <div className="claim-requests-page__detail-section">
-            <div className="claim-requests-page__detail-subtitle">첨부 파일</div>
+            <div className="claim-requests-page__attachment-header">
+              <div className="claim-requests-page__detail-subtitle">첨부 파일</div>
+              <ClaimRequestAttachmentBundleActions
+                fileCount={detail.files.length}
+                zipBusy={zipBusy}
+                pdfBusy={pdfBusy}
+                onDownloadZip={handleDownloadClaimFilesZip}
+                onDownloadPdf={handleDownloadClaimFilesPdf}
+              />
+            </div>
             {detail.files.length === 0 ? (
               <div className="claim-requests-page__detail-empty">첨부 파일이 없습니다.</div>
             ) : (

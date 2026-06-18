@@ -5,6 +5,8 @@ import { useAuth } from '../../../auth/AuthProvider'
 import {
   createCustomerAppLink,
   downloadClaimRequestFile,
+  downloadClaimRequestFilesPdf,
+  downloadClaimRequestFilesZip,
   getClaimRequestDetail,
   getCustomerAppLink,
   listClaimRequests,
@@ -116,6 +118,8 @@ export default function ClaimRequestsClaimsMobileStandalone() {
   const [statusMemo, setStatusMemo] = useState('')
   const [statusTarget, setStatusTarget] = useState<ClaimRequestStatus>('processing')
   const [actionBusy, setActionBusy] = useState(false)
+  const [zipBusy, setZipBusy] = useState(false)
+  const [pdfBusy, setPdfBusy] = useState(false)
 
   const displayedCode = createdCode || linkStatus?.agentCode || linkStatus?.linkCode || ''
   const displayedLink = createdLink || linkStatus?.universalUrl || ''
@@ -403,6 +407,52 @@ export default function ClaimRequestsClaimsMobileStandalone() {
     [token],
   )
 
+  const handleDownloadClaimFilesZip = useCallback(async () => {
+    if (!token?.trim()) {
+      setError('로그인이 필요합니다.')
+      return
+    }
+    if (!detail || detail.files.length === 0) {
+      return
+    }
+    setZipBusy(true)
+    try {
+      await downloadClaimRequestFilesZip(
+        token,
+        detail.id,
+        detail.customerId,
+        `청구자료_${detail.customerName}_${detail.id}.zip`,
+      )
+    } catch (downloadError) {
+      setError(downloadError instanceof Error ? downloadError.message : 'ZIP 다운로드에 실패했습니다.')
+    } finally {
+      setZipBusy(false)
+    }
+  }, [detail, token])
+
+  const handleDownloadClaimFilesPdf = useCallback(async () => {
+    if (!token?.trim()) {
+      setError('로그인이 필요합니다.')
+      return
+    }
+    if (!detail || detail.files.length === 0) {
+      return
+    }
+    setPdfBusy(true)
+    try {
+      await downloadClaimRequestFilesPdf(
+        token,
+        detail.id,
+        detail.customerId,
+        `청구자료_${detail.customerName}_${detail.id}.pdf`,
+      )
+    } catch (downloadError) {
+      setError(downloadError instanceof Error ? downloadError.message : 'PDF 다운로드에 실패했습니다.')
+    } finally {
+      setPdfBusy(false)
+    }
+  }, [detail, token])
+
   return (
     <ClaimRequestsClaimsMobileView
       feedbackSection={
@@ -443,6 +493,10 @@ export default function ClaimRequestsClaimsMobileStandalone() {
       onUpdateStatus={() => void handleUpdateStatus()}
       onOpenFile={(file) => void handleOpenClaimFile(file)}
       onDownloadFile={(file) => void handleDownloadClaimFile(file)}
+      onDownloadZip={() => void handleDownloadClaimFilesZip()}
+      onDownloadPdf={() => void handleDownloadClaimFilesPdf()}
+      zipBusy={zipBusy}
+      pdfBusy={pdfBusy}
       formatDateTime={formatDateTime}
       statusLabel={statusLabel}
       statusBadgeClass={statusBadgeClass}

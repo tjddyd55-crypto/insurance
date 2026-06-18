@@ -12084,6 +12084,27 @@ textarea.memo-sticky-note__textarea::placeholder {
   margin-bottom: 6px;
 }
 
+.claim-requests-page__attachment-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.claim-requests-page__attachment-header .claim-requests-page__detail-subtitle {
+  margin-bottom: 0;
+}
+
+.claim-requests-page__attachment-bundle-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
 .claim-requests-page__detail-meta,
 .claim-requests-page__detail-empty {
   margin-top: 4px;

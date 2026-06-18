@@ -55,6 +55,10 @@ type ClaimRequestsClaimsMobileViewProps = {
   onUpdateStatus: () => MaybePromise
   onOpenFile: NonNullable<Parameters<typeof ClaimRequestDetailBody>[0]>['onOpenFile']
   onDownloadFile: NonNullable<Parameters<typeof ClaimRequestDetailBody>[0]>['onDownloadFile']
+  onDownloadZip?: NonNullable<Parameters<typeof ClaimRequestDetailBody>[0]>['onDownloadZip']
+  onDownloadPdf?: NonNullable<Parameters<typeof ClaimRequestDetailBody>[0]>['onDownloadPdf']
+  zipBusy?: boolean
+  pdfBusy?: boolean
   formatDateTime: (iso: string | null) => string
   statusLabel: (status: ClaimRequestStatus) => string
   statusBadgeClass: (status: ClaimRequestStatus) => string
@@ -96,6 +100,10 @@ export default function ClaimRequestsClaimsMobileView({
   onUpdateStatus,
   onOpenFile,
   onDownloadFile,
+  onDownloadZip,
+  onDownloadPdf,
+  zipBusy = false,
+  pdfBusy = false,
   formatDateTime,
   statusLabel,
   statusBadgeClass,
@@ -177,6 +185,10 @@ export default function ClaimRequestsClaimsMobileView({
               onUpdateStatus={onUpdateStatus}
               onOpenFile={onOpenFile}
               onDownloadFile={onDownloadFile}
+              onDownloadZip={onDownloadZip}
+              onDownloadPdf={onDownloadPdf}
+              zipBusy={zipBusy}
+              pdfBusy={pdfBusy}
               useNativeFileLinks
               formatDateTime={formatDateTime}
               statusLabel={statusLabel}
