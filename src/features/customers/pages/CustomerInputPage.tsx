@@ -20,19 +20,21 @@ import {
 const DEFAULT_APP_HTML_TITLE = APP_HTML_TITLE
 const DEFAULT_HTML_DESCRIPTION = '보험 신청·고객 관리 서비스.'
 
-type InviteSessionResp =
-  | { hasSubmission: false }
-  | {
-      hasSubmission: true
-      registeredCount?: number
-    }
-
 type CustomerInputFormItem = {
   localId: string
   values: CustomerFormState
 }
 
 const INVITE_BATCH_MAX = 10
+
+function clearStaleInviteSessionCookie(): void {
+  void fetch(resolveApiUrl('/api/customer/external-invite-session/reset'), {
+    method: 'POST',
+    credentials: 'include',
+  }).catch(() => {
+    /* reset 실패해도 입력 폼 유지 */
+  })
+}
 
 function createFormItem(localId: string): CustomerInputFormItem {
   return { localId, values: createEmptyCustomerForm() }
@@ -58,7 +60,6 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
   const [forms, setForms] = useState<CustomerInputFormItem[]>(() => [createFormItem('customer-form-1')])
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [inviteSessionBusy, setInviteSessionBusy] = useState(inviteRegistrationFlow)
   const [inviteUiPhase, setInviteUiPhase] = useState<'form' | 'complete'>('form')
   const [inviteCloseBanner, setInviteCloseBanner] = useState(false)
   const [inviteRegisteredCount, setInviteRegisteredCount] = useState(1)
@@ -145,43 +146,14 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
     })
   }, [])
 
-  /** GET 세션 초기 로드 */
+  /** 링크 진입·새로고침 시 stale invite cookie만 제거. 완료 화면은 복원하지 않는다. */
   useEffect(() => {
     if (!(inviteRegistrationFlow && refParam && inviteGaCode)) {
-      setInviteSessionBusy(false)
       return undefined
     }
-    let canceled = false
-    void (async () => {
-      setInviteSessionBusy(true)
-      try {
-        const res = await fetch(resolveApiUrl('/api/customer/external-invite-session'), {
-          method: 'GET',
-          credentials: 'include',
-        })
-        const payload = (await res.json()) as InviteSessionResp
-        if (canceled) return
-        if (!payload?.hasSubmission) {
-          setInviteUiPhase('form')
-          return
-        }
-        const p = payload as Extract<InviteSessionResp, { hasSubmission: true }>
-        applyInviteCompleteState(Math.max(1, Number(p.registeredCount ?? 1)))
-      } catch {
-        if (!canceled) setNotice('세션을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.')
-      } finally {
-        if (!canceled) setInviteSessionBusy(false)
-      }
-    })()
-    return () => {
-      canceled = true
-    }
-  }, [
-    inviteGaCode,
-    inviteRegistrationFlow,
-    applyInviteCompleteState,
-    refParam,
-  ])
+    clearStaleInviteSessionCookie()
+    return undefined
+  }, [inviteGaCode, inviteRegistrationFlow, refParam])
 
   useEffect(() => {
     if (!inviteRegistrationFlow) return undefined
@@ -324,8 +296,8 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
             j = {}
           }
           if (String(j.code ?? '') === 'ALREADY_SUBMITTED') {
-            applyInviteCompleteState(Math.max(1, Number(j.registeredCount ?? 1)))
-            setNotice('')
+            clearStaleInviteSessionCookie()
+            setNotice('등록 세션이 남아 있습니다. 잠시 후 다시 전송해 주세요.')
             return
           }
           setNotice('이 요청으로는 등록을 완료할 수 없습니다.')
@@ -480,16 +452,6 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
     )
   }
 
-  if (inviteRegistrationFlow && inviteSessionBusy && refParam && inviteGaCode) {
-    return (
-      <main className="page invite-registration-page">
-        <header className="page-header">
-          <h1>고객 정보 입력</h1>
-          <p className="page-header-hint">불러오는 중입니다…</p>
-        </header>
-      </main>
-    )
-  }
 
   /** 초대 전용 완료 */
   if (inviteRegistrationFlow && inviteUiPhase === 'complete') {
