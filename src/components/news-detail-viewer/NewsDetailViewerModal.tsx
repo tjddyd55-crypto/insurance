@@ -1,12 +1,14 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { FormButton } from '../form'
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock'
+import { useNewsDetailViewerPinchZoom } from './useNewsDetailViewerPinchZoom'
 import './news-detail-viewer.css'
 
 export type NewsDetailViewerModalProps = {
   open: boolean
   onClose: () => void
   zoom: number
+  onZoomChange: (zoom: number) => void
   onZoomIn: () => void
   onZoomOut: () => void
   children: ReactNode
@@ -24,6 +26,7 @@ export default function NewsDetailViewerModal({
   open,
   onClose,
   zoom,
+  onZoomChange,
   onZoomIn,
   onZoomOut,
   children,
@@ -37,6 +40,10 @@ export default function NewsDetailViewerModal({
   panelClassName,
 }: NewsDetailViewerModalProps) {
   useBodyScrollLock(open)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const pinchEnabled = open && !loading && !error
+
+  useNewsDetailViewerPinchZoom(scrollRef, zoom, onZoomChange, pinchEnabled)
 
   useEffect(() => {
     if (!open) {
@@ -92,7 +99,7 @@ export default function NewsDetailViewerModal({
           </FormButton>
         </header>
 
-        <div className="news-detail-viewer-scroll">
+        <div ref={scrollRef} className="news-detail-viewer-scroll">
           {loading ? <div className="news-detail-viewer-status">{loadingMessage}</div> : null}
           {!loading && error ? <div className="news-detail-viewer-status">{error}</div> : null}
           {!loading && !error ? children : null}

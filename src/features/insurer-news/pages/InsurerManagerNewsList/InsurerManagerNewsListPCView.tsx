@@ -1,6 +1,10 @@
 import { useRef, useState } from 'react'
 import NewsDetailViewerModal from '../../../../components/news-detail-viewer/NewsDetailViewerModal'
 import NewsDetailZoomContent from '../../../../components/news-detail-viewer/NewsDetailZoomContent'
+import {
+  NEWS_DETAIL_VIEWER_ZOOM_STEP,
+  clampNewsDetailViewerZoom,
+} from '../../../../components/news-detail-viewer/newsDetailViewerZoom'
 import { FormInput } from '../../../../components/form'
 import { useAuth } from '../../../auth/AuthProvider'
 import { NewsletterList } from '../../components/NewsletterList'
@@ -13,9 +17,7 @@ import type { InsurerManagerNewsListViewProps } from './insurerManagerNewsListVi
 import { buildInsurerNewsGalleryUrls } from '../../utils/buildInsurerNewsGalleryUrls'
 import { resolveInsurerNewsListCardImageUrl } from '../../utils/resolveInsurerNewsImageUrl'
 
-const ZOOM_MIN = 0.5
-const ZOOM_MAX = 3
-const ZOOM_STEP = 0.2
+const ZOOM_STEP = NEWS_DETAIL_VIEWER_ZOOM_STEP
 
 /**
  * [PC 전용 View] 원수사 소식지 목록 — 데스크톱.
@@ -154,8 +156,9 @@ export default function InsurerManagerNewsListPCView({
         open={selectedItem != null}
         onClose={closeDetailModal}
         zoom={zoom}
-        onZoomIn={() => setZoom((v) => Math.min(v + ZOOM_STEP, ZOOM_MAX))}
-        onZoomOut={() => setZoom((v) => Math.max(v - ZOOM_STEP, ZOOM_MIN))}
+        onZoomChange={(next) => setZoom(clampNewsDetailViewerZoom(next))}
+        onZoomIn={() => setZoom((v) => clampNewsDetailViewerZoom(v + ZOOM_STEP))}
+        onZoomOut={() => setZoom((v) => clampNewsDetailViewerZoom(v - ZOOM_STEP))}
         zoomControlVariant="symbols"
         closeLabel="✕"
         loading={detailLoading}

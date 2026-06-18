@@ -3,6 +3,10 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
 import NewsDetailViewerModal from '../../../components/news-detail-viewer/NewsDetailViewerModal'
 import NewsDetailZoomContent from '../../../components/news-detail-viewer/NewsDetailZoomContent'
+import {
+  NEWS_DETAIL_VIEWER_ZOOM_STEP,
+  clampNewsDetailViewerZoom,
+} from '../../../components/news-detail-viewer/newsDetailViewerZoom'
 import RichTextContent from '../../../components/rich-text/RichTextContent'
 import {
   getCustomerNewsDetail,
@@ -148,8 +152,9 @@ export default function CustomerAppNewsListPage() {
         open={selectedItem != null}
         onClose={closeModal}
         zoom={zoom}
-        onZoomIn={() => setZoom((value) => Math.min(value + 0.2, 3))}
-        onZoomOut={() => setZoom((value) => Math.max(value - 0.2, 0.5))}
+        onZoomChange={(next) => setZoom(clampNewsDetailViewerZoom(next))}
+        onZoomIn={() => setZoom((value) => clampNewsDetailViewerZoom(value + NEWS_DETAIL_VIEWER_ZOOM_STEP))}
+        onZoomOut={() => setZoom((value) => clampNewsDetailViewerZoom(value - NEWS_DETAIL_VIEWER_ZOOM_STEP))}
         zoomControlVariant="labels"
         closeLabel="닫기"
         loading={detailLoading}
