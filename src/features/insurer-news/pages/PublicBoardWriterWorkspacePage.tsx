@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { FormButton } from '../../../components/form'
 import {
-  createPublicBoardWriterPost,
   fetchPublicBoardWriterMe,
   getPublicBoardWriterToken,
   listPublicBoardWriterBoards,
@@ -15,84 +14,78 @@ export function PublicBoardWriterWorkspacePage() {
   const navigate = useNavigate()
   const [boards, setBoards] = useState<PublicBoardWriterBoard[]>([])
   const [writerName, setWriterName] = useState('')
-  const [drafts, setDrafts] = useState<Record<string, string>>({})
-  const [busySlug, setBusySlug] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const token = getPublicBoardWriterToken()
     if (!token?.trim()) {
-      navigate('/public-board-writer/login', { replace: true })
+      navigate('/board-writer/login', { replace: true })
       return
     }
     void (async () => {
       try {
         const me = await fetchPublicBoardWriterMe(token)
+        const rows = await listPublicBoardWriterBoards(token)
         setWriterName(me.name || me.loginId)
-        setBoards(await listPublicBoardWriterBoards(token))
+        setBoards(rows)
         setError('')
+        if (rows.length === 1) {
+          navigate(`/board-writer/boards/${encodeURIComponent(rows[0].slug)}/news`, { replace: true })
+          return
+        }
       } catch {
         setPublicBoardWriterToken(null)
-        navigate('/public-board-writer/login', { replace: true })
+        navigate('/board-writer/login', { replace: true })
+      } finally {
+        setLoading(false)
       }
     })()
   }, [navigate])
 
-  const handlePublish = (board: PublicBoardWriterBoard) => {
-    const token = getPublicBoardWriterToken()
-    const bodyText = (drafts[board.slug] ?? '').trim()
-    if (!token || !bodyText || busySlug) {
-      return
-    }
-    void (async () => {
-      setBusySlug(board.slug)
-      setError('')
-      try {
-        await createPublicBoardWriterPost(token, board.slug, bodyText)
-        setDrafts((prev) => ({ ...prev, [board.slug]: '' }))
-      } catch (e) {
-        setError(e instanceof Error ? e.message : '게시글 저장에 실패했습니다.')
-      } finally {
-        setBusySlug('')
-      }
-    })()
-  }
-
   const handleLogout = () => {
     setPublicBoardWriterToken(null)
-    navigate('/public-board-writer/login', { replace: true })
+    navigate('/board-writer/login', { replace: true })
+  }
+
+  if (loading) {
+    return (
+      <main className="page public-board-writer-workspace-page user-page">
+        <div className="insurer-news-empty">불러오는 중…</div>
+      </main>
+    )
   }
 
   return (
     <main className="page public-board-writer-workspace-page user-page">
       <div className="public-board-writer-workspace">
         <section className="public-board-writer-card">
-          <h1>공용 게시판 작성</h1>
-          <p>{writerName ? `${writerName} 님` : '작성자'} — 전체 공용 게시판만 작성할 수 있습니다.</p>
+          <h1>소식지 작성</h1>
+          <p>{writerName ? `${writerName} 님` : '작성자'} — 할당된 소식지를 선택해 글을 작성합니다.</p>
           <FormButton htmlType="button" variant="secondary" onClick={handleLogout}>
             로그아웃
           </FormButton>
         </section>
         {error ? <p className="status status--error">{error}</p> : null}
-        {boards.length === 0 ? <div className="insurer-news-empty">작성 가능한 공용 게시판이 없습니다.</div> : null}
+        {boards.length === 0 ? (
+          <div className="insurer-news-empty">
+            작성 가능한 공용 소식지가 없습니다.
+            <br />
+            관리자에게 소식지 권한을 요청해 주세요.
+          </div>
+        ) : null}
         {boards.map((board) => (
           <section key={board.id} className="public-board-writer-board-item">
             <h3>{board.label}</h3>
-            <textarea
-              className="form-input"
-              rows={5}
-              placeholder="공용 게시글 내용"
-              value={drafts[board.slug] ?? ''}
-              onChange={(e) => setDrafts((prev) => ({ ...prev, [board.slug]: e.target.value }))}
-            />
-            <FormButton
-              htmlType="button"
-              variant="primary"
-              disabled={busySlug === board.slug || !(drafts[board.slug] ?? '').trim()}
-              onClick={() => handlePublish(board)}
+            <p className="insurer-news-muted" style={{ marginTop: 0 }}>
+              {board.boardScope === 'global' ? '공용 소식지' : 'GA전용 소식지'}
+            </p>
+            <Link
+              className="button button--primary"
+              to={`/board-writer/boards/${encodeURIComponent(board.slug)}/news`}
             >
-              {busySlug === board.slug ? '게시 중...' : '게시'}
-            </FormButton>
+              소식지 열기
+            </Link>
           </section>
         ))}
       </div>

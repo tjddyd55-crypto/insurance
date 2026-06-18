@@ -1437,6 +1437,7 @@ registerPublicBoardWriterApi(apiRouter, {
   handleDbError,
   jwtSecret: JWT_SECRET,
   bcrypt,
+  withTransaction,
 })
 
 function normalizeInviteCode(raw) {

@@ -106,6 +106,9 @@ import PublicAccountRestrictedPage from './features/common/PublicAccountRestrict
 import { PublicBoardWriterAdminPage } from './features/insurer-news/pages/PublicBoardWriterAdminPage'
 import { PublicBoardWriterLoginPage } from './features/insurer-news/pages/PublicBoardWriterLoginPage'
 import { PublicBoardWriterWorkspacePage } from './features/insurer-news/pages/PublicBoardWriterWorkspacePage'
+import { BoardWriterNewsListPage } from './features/insurer-news/pages/BoardWriterNewsListPage'
+import { BoardWriterNewsUploadPage } from './features/insurer-news/pages/BoardWriterNewsUploadPage'
+import { BoardWriterNewsDetailPage } from './features/insurer-news/pages/BoardWriterNewsDetailPage'
 import MyStoragePage from './features/storage/pages/MyStoragePage'
 import TodosWorkspacePage from './features/todos/pages/TodosWorkspacePage'
 import NotificationsPlaceholderPage from './features/todos/pages/NotificationsPlaceholderPage'
@@ -148,6 +151,9 @@ export const appRouter = createBrowserRouter([
       { path: 'board-writer/login', element: <PublicBoardWriterLoginPage /> },
       { path: 'public-board-writer/workspace', element: <PublicBoardWriterWorkspacePage /> },
       { path: 'board-writer/workspace', element: <PublicBoardWriterWorkspacePage /> },
+      { path: 'board-writer/boards/:boardSlug/news', element: <BoardWriterNewsListPage /> },
+      { path: 'board-writer/boards/:boardSlug/news/upload', element: <BoardWriterNewsUploadPage /> },
+      { path: 'board-writer/boards/:boardSlug/news/:newsletterId', element: <BoardWriterNewsDetailPage /> },
       { path: 'register', element: <RegisterPage signupIndustry="insurance" /> },
       { path: 'password-reset', element: <PasswordResetPage /> },
       { path: 'signup', element: <Navigate to="/signup/insurance" replace /> },

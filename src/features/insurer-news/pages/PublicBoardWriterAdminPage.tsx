@@ -17,6 +17,7 @@ export function PublicBoardWriterAdminPage() {
   const [loginId, setLoginId] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
+  const [selectedBoardIds, setSelectedBoardIds] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -32,7 +33,9 @@ export function PublicBoardWriterAdminPage() {
         listAdminNewsletterBoards(token),
       ])
       setWriters(writerRows)
-      setBoards(boardRows.filter((b) => b.contentScope === 'global' || b.isPublic))
+      const globalBoards = boardRows.filter((b) => b.boardScope === 'global' || b.contentScope === 'global' || b.isPublic)
+      setBoards(globalBoards)
+      setSelectedBoardIds((prev) => (prev.length > 0 ? prev : globalBoards.map((b) => b.id)))
       setError('')
     } catch (e) {
       setError(e instanceof Error ? e.message : '목록을 불러오지 못했습니다.')
@@ -42,6 +45,15 @@ export function PublicBoardWriterAdminPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  const toggleBoard = (boardId: string, checked: boolean) => {
+    setSelectedBoardIds((prev) => {
+      if (checked) {
+        return prev.includes(boardId) ? prev : [...prev, boardId]
+      }
+      return prev.filter((id) => id !== boardId)
+    })
+  }
 
   const handleCreate = () => {
     if (!token?.trim() || busy) {
@@ -55,6 +67,7 @@ export function PublicBoardWriterAdminPage() {
           loginId: loginId.trim(),
           password,
           name: name.trim() || loginId.trim(),
+          allowedBoardIds: selectedBoardIds,
         })
         setLoginId('')
         setPassword('')
@@ -81,7 +94,7 @@ export function PublicBoardWriterAdminPage() {
       <div className="public-board-writer-workspace">
         <section className="public-board-writer-card">
           <h1>공용 작성자 계정 관리</h1>
-          <p>전체 공용 게시판 글 작성 전용 계정을 생성합니다. 일반 GA 사용자와 분리됩니다.</p>
+          <p>공용 소식지 글 작성 전용 계정을 생성합니다. 일반 GA 사용자와 분리됩니다.</p>
         </section>
         <section className="public-board-writer-card">
           <h2 style={{ margin: 0, fontSize: '1.05rem' }}>계정 생성</h2>
@@ -97,6 +110,27 @@ export function PublicBoardWriterAdminPage() {
             <span className="form-label">비밀번호</span>
             <FormInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
           </label>
+          <div className="form-field">
+            <span className="form-label">작성 가능 소식지</span>
+            {boards.length === 0 ? (
+              <p className="insurer-news-muted">등록된 공용 소식지가 없습니다. 먼저 공용 소식지를 추가해 주세요.</p>
+            ) : (
+              <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
+                {boards.map((board) => (
+                  <li key={board.id} style={{ marginBottom: 8 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedBoardIds.includes(board.id)}
+                        onChange={(e) => toggleBoard(board.id, e.target.checked)}
+                      />
+                      <span>{board.label}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           <FormButton htmlType="button" variant="primary" disabled={busy} onClick={handleCreate}>
             계정 생성
           </FormButton>
@@ -112,11 +146,6 @@ export function PublicBoardWriterAdminPage() {
               </li>
             ))}
           </ul>
-          {boards.length > 0 ? (
-            <p className="insurer-news-muted" style={{ marginTop: 8 }}>
-              공용 게시판: {boards.map((b) => b.label).join(', ')}
-            </p>
-          ) : null}
         </section>
       </div>
     </main>

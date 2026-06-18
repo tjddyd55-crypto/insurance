@@ -1,4 +1,7 @@
 import { apiRequest } from '../../../lib/apiClient'
+import { cdnUrlForObjectKey } from '../lib/insurerNewsCdn'
+import type { LocalAttachmentDraft, NewsletterDetail, NewsletterItem } from '../types'
+import { validateInsurerNewsFile } from '../utils/validateInsurerNewsFile'
 
 const WRITER_TOKEN_KEY = 'insurance_public_board_writer_token'
 
@@ -6,6 +9,7 @@ export type PublicBoardWriterAccount = {
   id: string
   loginId: string
   name: string
+  writerScope?: string
   isActive: boolean
   allowedBoardIds: string[] | null
   createdAt: string
@@ -17,6 +21,7 @@ export type PublicBoardWriterBoard = {
   id: string
   slug: string
   label: string
+  boardScope: string
 }
 
 export function getPublicBoardWriterToken(): string | null {
@@ -39,34 +44,207 @@ export function setPublicBoardWriterToken(token: string | null) {
   }
 }
 
+function writerApiPath(path: string) {
+  return `/api/board-writer${path}`
+}
+
 export async function loginPublicBoardWriter(loginId: string, password: string) {
-  return apiRequest<{ token: string; writer: PublicBoardWriterAccount }>('/api/public-board-writer/login', {
+  return apiRequest<{ token: string; writer: PublicBoardWriterAccount }>('/api/board-writer/login', {
     method: 'POST',
     body: JSON.stringify({ loginId, password }),
   })
 }
 
 export async function fetchPublicBoardWriterMe(token: string) {
-  return apiRequest<PublicBoardWriterAccount>('/api/public-board-writer/me', { token })
+  return apiRequest<PublicBoardWriterAccount>(writerApiPath('/me'), { token })
 }
 
 export async function listPublicBoardWriterBoards(token: string) {
-  return apiRequest<PublicBoardWriterBoard[]>('/api/public-board-writer/boards', { token })
+  return apiRequest<PublicBoardWriterBoard[]>(writerApiPath('/boards'), { token })
 }
 
-export async function createPublicBoardWriterPost(
+export async function listBoardWriterNewsletters(token: string, boardSlug: string) {
+  return apiRequest<NewsletterItem[]>(writerApiPath(`/boards/${encodeURIComponent(boardSlug)}/newsletters`), {
+    token,
+  })
+}
+
+export async function getBoardWriterNewsletter(token: string, boardSlug: string, newsletterId: string) {
+  return apiRequest<NewsletterDetail>(
+    writerApiPath(`/boards/${encodeURIComponent(boardSlug)}/newsletters/${encodeURIComponent(newsletterId)}`),
+    { token },
+  )
+}
+
+export async function createBoardWriterNewsletter(
   token: string,
   boardSlug: string,
-  bodyText: string,
+  draft: NewsletterDetail,
 ) {
-  return apiRequest<{ id: string; status: string; bodyText: string }>(
-    `/api/public-board-writer/boards/${encodeURIComponent(boardSlug)}/newsletters`,
+  return apiRequest<NewsletterDetail>(writerApiPath(`/boards/${encodeURIComponent(boardSlug)}/newsletters`), {
+    method: 'POST',
+    token,
+    body: JSON.stringify({
+      bodyText: draft.bodyText,
+      status: draft.status,
+      attachments: draft.attachments.map((a) => ({
+        kind: a.kind,
+        url: a.url,
+        objectKey: a.objectKey,
+        fileName: a.fileName,
+        mimeType: a.mimeType,
+        size: a.size,
+        sortOrder: a.sortOrder,
+      })),
+    }),
+  })
+}
+
+export async function updateBoardWriterNewsletter(
+  token: string,
+  boardSlug: string,
+  newsletterId: string,
+  draft: NewsletterDetail,
+) {
+  return apiRequest<NewsletterDetail>(
+    writerApiPath(`/boards/${encodeURIComponent(boardSlug)}/newsletters/${encodeURIComponent(newsletterId)}`),
     {
-      method: 'POST',
+      method: 'PATCH',
       token,
-      body: JSON.stringify({ bodyText, status: 'PUBLISHED' }),
+      body: JSON.stringify({
+        bodyText: draft.bodyText,
+        status: draft.status,
+        attachments: draft.attachments.map((a) => ({
+          kind: a.kind,
+          url: a.url,
+          objectKey: a.objectKey,
+          fileName: a.fileName,
+          mimeType: a.mimeType,
+          size: a.size,
+          sortOrder: a.sortOrder,
+        })),
+      }),
     },
   )
+}
+
+export async function deleteBoardWriterNewsletter(token: string, boardSlug: string, newsletterId: string) {
+  await apiRequest<void>(
+    writerApiPath(`/boards/${encodeURIComponent(boardSlug)}/newsletters/${encodeURIComponent(newsletterId)}`),
+    { method: 'DELETE', token },
+  )
+}
+
+export async function uploadBoardWriterAttachments(
+  token: string,
+  boardSlug: string,
+  drafts: LocalAttachmentDraft[],
+): Promise<LocalAttachmentDraft[]> {
+  const out: LocalAttachmentDraft[] = []
+  for (const item of drafts) {
+    if (item.status === 'failed') {
+      out.push(item)
+      continue
+    }
+    if (item.cdnUrl && item.objectKey) {
+      out.push({ ...item, status: 'completed' })
+      continue
+    }
+    if (item.file.size === 0 && item.existingAttachmentId) {
+      if (!item.cdnUrl || !item.objectKey) {
+        out.push({
+          ...item,
+          status: 'failed',
+          errorMessage: '기존 첨부 메타가 없습니다. 페이지를 새로고침 후 다시 시도해 주세요.',
+        })
+        continue
+      }
+      out.push(item)
+      continue
+    }
+
+    const v = validateInsurerNewsFile(item.file)
+    if (!v.ok) {
+      out.push({ ...item, status: 'failed', errorMessage: v.message })
+      continue
+    }
+
+    const contentType = item.file.type || (v.kind === 'file' ? 'application/pdf' : 'image/jpeg')
+    try {
+      const presign = await apiRequest<{
+        uploadUrl: string
+        objectKey: string
+        putHeaders?: Record<string, string>
+      }>(writerApiPath(`/boards/${encodeURIComponent(boardSlug)}/attachments/presign`), {
+        method: 'POST',
+        token,
+        body: JSON.stringify({
+          fileName: item.file.name || 'file',
+          contentType,
+          sizeBytes: item.file.size,
+        }),
+      })
+
+      const putHeaders: Record<string, string> = {
+        'Content-Type': contentType,
+        ...(presign.putHeaders ?? {}),
+      }
+
+      let putOk = false
+      try {
+        const put = await fetch(presign.uploadUrl, {
+          method: 'PUT',
+          headers: putHeaders,
+          body: item.file,
+        })
+        putOk = put.ok
+      } catch {
+        putOk = false
+      }
+
+      if (!putOk) {
+        out.push({ ...item, status: 'failed', errorMessage: '파일 업로드에 실패했습니다.' })
+        continue
+      }
+
+      out.push({
+        ...item,
+        status: 'completed',
+        cdnUrl: cdnUrlForObjectKey(presign.objectKey),
+        objectKey: presign.objectKey,
+        mimeType: contentType,
+        sizeBytes: item.file.size,
+      })
+    } catch (e) {
+      out.push({
+        ...item,
+        status: 'failed',
+        errorMessage: e instanceof Error ? e.message : '업로드에 실패했습니다.',
+      })
+    }
+  }
+  return out
+}
+
+/** @deprecated createPublicBoardWriterPost — createBoardWriterNewsletter 사용 */
+export async function createPublicBoardWriterPost(token: string, boardSlug: string, bodyText: string) {
+  return createBoardWriterNewsletter(token, boardSlug, {
+    id: '',
+    gaCode: 'GLOBAL',
+    insurerCode: 'BOARD',
+    insurerName: '',
+    insurerSlug: `board-${boardSlug}`,
+    title: '',
+    summary: bodyText,
+    heroImageUrl: null,
+    publishedAt: new Date().toISOString(),
+    status: 'PUBLISHED',
+    hasImages: false,
+    hasPdf: false,
+    hasTextBody: bodyText.trim().length > 0,
+    bodyText,
+    attachments: [],
+  })
 }
 
 export async function listAdminPublicBoardWriters(token: string) {

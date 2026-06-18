@@ -30,6 +30,7 @@ import {
   SUPER_ADMIN_NEWSLETTER_BOARDS_LIST_SQL,
 } from './lib/newsletterBoardAdminSql.js'
 import { insertDynamicBoardNewsletter } from './lib/dynamicBoardNewsletterWrite.js'
+import { grantBoardToAllGlobalWriters } from './lib/boardWriterService.js'
 import {
   consentGetBuffer,
   consentPutInsurerAttachment,
@@ -885,6 +886,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         isActive,
         createdByUserId,
       ])
+      await grantBoardToAllGlobalWriters(pool, id)
       return { row: r.rows[0] }
     }
     const gaId = Number(ownerGaId)
