@@ -57,6 +57,8 @@ describe('news detail viewer modal', () => {
       'utf8',
     )
     assert.match(hookSrc, /passive:\s*false/)
+    assert.match(hookSrc, /event\.touches\.length !== 2/)
+    assert.match(hookSrc, /detachPinchMove/)
     assert.match(hookSrc, /getTouchDistance/)
   })
 
@@ -81,7 +83,7 @@ describe('news detail viewer modal', () => {
     assert.match(fs.readFileSync(boardDetailPath, 'utf8'), /NewsDetailMobileZoomScroll/)
 
     const css = fs.readFileSync(cssPath, 'utf8')
-    assert.match(css, /\.news-detail-mobile-scroll[\s\S]*overflow-x:\s*auto/)
-    assert.match(css, /\.news-detail-mobile-scroll[\s\S]*touch-action:\s*pan-x pan-y/)
+    assert.match(css, /\.news-detail-mobile-scroll[\s\S]*overflow:\s*auto/)
+    assert.match(css, /\.news-detail-mobile-scroll[\s\S]*touch-action:\s*auto/)
   })
 })

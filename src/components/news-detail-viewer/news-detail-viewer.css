@@ -48,14 +48,13 @@
   text-align: left;
 }
 
-/* 모바일·라우트 상세 페이지 — 모달 height 고정 없이 pinch + 가로 스크롤만 담당 */
+/* 모바일·라우트 상세 페이지 — pinch + 가로/세로 터치 스크롤 */
 .news-detail-mobile-scroll {
   width: 100%;
-  overflow-x: auto;
-  overflow-y: visible;
+  overflow: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  touch-action: pan-x pan-y;
+  touch-action: auto;
 }
 
 .news-detail-mobile-scroll .news-detail-zoom-scope {
