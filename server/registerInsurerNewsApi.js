@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import jwt from 'jsonwebtoken'
 import { safeQuery, systemQuery } from './utils/dbSafeQuery.js'
+import { adminNewsletterBoardQuery } from './lib/newsletterBoardAdminQuery.js'
 import {
   buildDynamicBoardPostGaFilter,
   buildDynamicBoardPostGaFilterBare,
@@ -783,12 +784,12 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
   }) {
     const slug = slugifyNewsletterBoard(label)
     if (boardScope === 'global') {
-      const dupe = await safeQuery(pool, GLOBAL_NEWSLETTER_BOARD_DUPLICATE_SLUG_SQL, [slug])
+      const dupe = await adminNewsletterBoardQuery(pool, GLOBAL_NEWSLETTER_BOARD_DUPLICATE_SLUG_SQL, [slug])
       if (dupe.rowCount > 0) {
-        return { error: { status: 409, message: '같은 slug의 공용게시판이 이미 있습니다.' } }
+        return { error: { status: 409, message: '같은 slug의 공용 소식지가 이미 있습니다.' } }
       }
       const id = randomUUID()
-      const r = await safeQuery(pool, INSERT_GLOBAL_NEWSLETTER_BOARD_SQL, [
+      const r = await adminNewsletterBoardQuery(pool, INSERT_GLOBAL_NEWSLETTER_BOARD_SQL, [
         id,
         slug,
         label,
@@ -1530,7 +1531,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       }
       const isSuperAdmin = isSuperAdminRole(req.user?.role)
       const r = isSuperAdmin
-        ? await safeQuery(pool, SUPER_ADMIN_NEWSLETTER_BOARDS_LIST_SQL, [])
+        ? await adminNewsletterBoardQuery(pool, SUPER_ADMIN_NEWSLETTER_BOARDS_LIST_SQL, [])
         : await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARDS_LIST_SQL, [effectiveTenantGaId(req)])
       res.json(r.rows.map(mapNewsletterBoard))
     } catch (eBoardsAdmin) {
@@ -1554,16 +1555,16 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
   apiRouter.post('/admin/newsletter-boards/global', requireAuth, async (req, res) => {
     try {
       if (!isSuperAdminRole(req.user?.role)) {
-        res.status(403).json({ message: '공용게시판은 최고 관리자만 생성할 수 있습니다.' })
+        res.status(403).json({ message: '공용 소식지는 최고 관리자만 생성할 수 있습니다.' })
         return
       }
       const form = parseBoardFormBody(req.body)
       if (!form.label) {
-        res.status(400).json({ message: '게시판명을 입력해 주세요.' })
+        res.status(400).json({ message: '소식지명을 입력해 주세요.' })
         return
       }
       if (form.label.length > 40) {
-        res.status(400).json({ message: '게시판명은 40자 이하로 입력해 주세요.' })
+        res.status(400).json({ message: '소식지명은 40자 이하로 입력해 주세요.' })
         return
       }
       const created = await createNewsletterBoardRecord({
@@ -1590,11 +1591,11 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       }
       const form = parseBoardFormBody(req.body)
       if (!form.label) {
-        res.status(400).json({ message: '게시판명을 입력해 주세요.' })
+        res.status(400).json({ message: '소식지명을 입력해 주세요.' })
         return
       }
       if (form.label.length > 40) {
-        res.status(400).json({ message: '게시판명은 40자 이하로 입력해 주세요.' })
+        res.status(400).json({ message: '소식지명은 40자 이하로 입력해 주세요.' })
         return
       }
       const created = await createNewsletterBoardRecord({
@@ -1635,7 +1636,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
             : 'ga'
       if (resolvedScope === 'global') {
         if (!isSuperAdminRole(req.user?.role)) {
-          res.status(403).json({ message: '공용게시판은 최고 관리자만 생성할 수 있습니다.' })
+          res.status(403).json({ message: '공용 소식지는 최고 관리자만 생성할 수 있습니다.' })
           return
         }
         const form = parseBoardFormBody(body)
@@ -1681,7 +1682,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       }
       const boardId = String(req.params.boardId ?? '').trim()
       const body = req.body && typeof req.body === 'object' ? req.body : {}
-      const boardRes = await systemQuery(pool, SUPER_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL, [boardId])
+      const boardRes = await adminNewsletterBoardQuery(pool, SUPER_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL, [boardId])
       if (boardRes.rowCount === 0) {
         res.status(404).json({ message: '게시판을 찾을 수 없습니다.' })
         return
@@ -1797,7 +1798,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         return
       }
       if (isSuperAdmin) {
-        await systemQuery(pool, SUPER_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL, [boardId])
+        await adminNewsletterBoardQuery(pool, SUPER_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL, [boardId])
       } else {
         await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL, [boardId, gaId])
       }
