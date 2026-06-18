@@ -16,14 +16,15 @@ import {
   closePublicCustomerRegistration,
   getPublicCustomerRegistrationCloseFallbackMessage,
 } from '../utils/closePublicCustomerRegistration'
+import {
+  INITIAL_CUSTOMER_FORM_ID_SEQ,
+  INITIAL_CUSTOMER_FORM_LOCAL_ID,
+  removeCustomerInputFormItem,
+  type CustomerInputFormItem,
+} from '../lib/customerInputFormQueue'
 
 const DEFAULT_APP_HTML_TITLE = APP_HTML_TITLE
 const DEFAULT_HTML_DESCRIPTION = '보험 신청·고객 관리 서비스.'
-
-type CustomerInputFormItem = {
-  localId: string
-  values: CustomerFormState
-}
 
 const INVITE_BATCH_MAX = 10
 
@@ -52,12 +53,14 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
   const isRegisterPathOnly = location.pathname.includes('/customer/register')
 
   const [notice, setNotice] = useState('')
-  const nextFormIdRef = useRef(0)
+  const nextFormIdRef = useRef(INITIAL_CUSTOMER_FORM_ID_SEQ)
   const createNextFormItem = useCallback((): CustomerInputFormItem => {
     nextFormIdRef.current += 1
     return createFormItem(`customer-form-${nextFormIdRef.current}`)
   }, [])
-  const [forms, setForms] = useState<CustomerInputFormItem[]>(() => [createFormItem('customer-form-1')])
+  const [forms, setForms] = useState<CustomerInputFormItem[]>(() => [
+    createFormItem(INITIAL_CUSTOMER_FORM_LOCAL_ID),
+  ])
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [inviteUiPhase, setInviteUiPhase] = useState<'form' | 'complete'>('form')
@@ -105,31 +108,10 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
   }, [createNextFormItem, forms.length])
 
   const handleRemoveForm = useCallback((localId: string) => {
-    setForms((prev) => {
-      if (prev.length <= 1 || prev[0]?.localId === localId) {
-        return prev
-      }
-      return prev.filter((row) => row.localId !== localId)
-    })
-    setFormErrors((prev) => {
-      if (!prev[localId]) {
-        return prev
-      }
-      const { [localId]: _removed, ...rest } = prev
-      return rest
-    })
+    setForms((prev) => removeCustomerInputFormItem(prev, localId))
+    setFormErrors({})
+    setNotice('')
   }, [])
-
-  const removeCustomerAt = useCallback(
-    (index: number) => {
-      const target = forms[index]
-      if (!target || index === 0) {
-        return
-      }
-      handleRemoveForm(target.localId)
-    },
-    [forms, handleRemoveForm],
-  )
 
   const applyInviteCompleteState = useCallback((registeredCount: number) => {
     setInviteRegisteredCount(Math.max(1, registeredCount))
@@ -400,7 +382,8 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
         }
       }
 
-      setForms([createFormItem('customer-form-1')])
+      nextFormIdRef.current = INITIAL_CUSTOMER_FORM_ID_SEQ
+      setForms([createFormItem(INITIAL_CUSTOMER_FORM_LOCAL_ID)])
       setFormErrors({})
       setNotice('정보가 전송되었습니다.')
     } catch (e) {
@@ -520,7 +503,23 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
       <div className="external-input-body">
         {forms.map((item, index) => (
           <div key={item.localId} id={item.localId} className="customer-card">
-            <div className="customer-title">고객 {index + 1}</div>
+            <div className="customer-input-card-head">
+              <div className="customer-title">고객 {index + 1}</div>
+              {index > 0 ? (
+                <FormButton
+                  className="button button--secondary customer-input-remove-btn"
+                  htmlType="button"
+                  variant="secondary"
+                  onClick={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    handleRemoveForm(item.localId)
+                  }}
+                >
+                  고객 {index + 1} 삭제
+                </FormButton>
+              ) : null}
+            </div>
             <CustomerFormFields
               form={item.values}
               onFormChange={(next) => updateFormAt(item.localId, next)}
@@ -531,30 +530,6 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
               <p className="page-header-notice" role="alert">
                 {formErrors[item.localId]}
               </p>
-            ) : null}
-            {inviteRegistrationFlow && forms.length > 1 && index > 0 ? (
-              <div style={{ marginTop: 12 }}>
-                <FormButton
-                  className="button button--secondary"
-                  htmlType="button"
-                  variant="secondary"
-                  onClick={() => handleRemoveForm(item.localId)}
-                >
-                  삭제
-                </FormButton>
-              </div>
-            ) : null}
-            {!inviteRegistrationFlow && forms.length > 1 && index > 0 ? (
-              <div style={{ marginTop: 12 }}>
-                <FormButton
-                  className="button button--secondary"
-                  htmlType="button"
-                  variant="secondary"
-                  onClick={() => removeCustomerAt(index)}
-                >
-                  이 고객 칸 삭제
-                </FormButton>
-              </div>
             ) : null}
           </div>
         ))}
