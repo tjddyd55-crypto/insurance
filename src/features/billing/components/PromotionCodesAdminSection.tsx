@@ -199,9 +199,9 @@ export default function PromotionCodesAdminSection({ token, busy, setBusy, onInf
   }, [formValues.discountAmount, formValues.discountPercent, formValues.discountType])
 
   return (
-    <>
-      <section className="card auth-card billing-page__card">
-        <div className="billing-page__section-head">
+    <div className="promotion-code-panel">
+      <section className="card auth-card billing-page__card promotion-code-card">
+        <div className="promotion-code-card-header billing-page__section-head">
           <h2 className="billing-page__section-title">프로모션 코드</h2>
           <FormButton htmlType="button" variant="secondary" disabled={busy} onClick={openCreate}>
             새 코드
@@ -247,24 +247,24 @@ export default function PromotionCodesAdminSection({ token, busy, setBusy, onInf
         )}
       </section>
 
-      <section className="card auth-card billing-page__card">
+      <section className="card auth-card billing-page__card promotion-code-card">
         <h2 className="billing-page__section-title">{formMode === 'create' ? '코드 생성' : '코드 수정'}</h2>
-        <div className="billing-page__form-grid">
-          <FieldWrapper label="코드">
+        <div className="promotion-code-form-grid">
+          <FieldWrapper label="코드" className="promotion-code-field">
             <FormInput
               value={formValues.code}
               onChange={(e) => setFormValues((prev) => ({ ...prev, code: e.target.value.toUpperCase() }))}
               placeholder="예: WELCOME2026"
             />
           </FieldWrapper>
-          <FieldWrapper label="코드 유형">
+          <FieldWrapper label="코드 유형" className="promotion-code-field">
             <FormSelect
               value={formValues.codeType}
               options={CODE_TYPE_OPTIONS}
               onChange={(e) => setFormValues((prev) => ({ ...prev, codeType: e.target.value as PromotionCodeType }))}
             />
           </FieldWrapper>
-          <FieldWrapper label="할인 유형">
+          <FieldWrapper label="할인 유형" className="promotion-code-field">
             <FormSelect
               value={formValues.discountType}
               options={DISCOUNT_TYPE_OPTIONS}
@@ -277,7 +277,7 @@ export default function PromotionCodesAdminSection({ token, busy, setBusy, onInf
             />
           </FieldWrapper>
           {needsAmount(formValues.discountType) ? (
-            <FieldWrapper label="할인 금액(공급가)">
+            <FieldWrapper label="할인 금액(공급가)" className="promotion-code-field">
               <FormInput
                 inputMode="numeric"
                 value={formValues.discountAmount ?? ''}
@@ -286,7 +286,7 @@ export default function PromotionCodesAdminSection({ token, busy, setBusy, onInf
             </FieldWrapper>
           ) : null}
           {needsPercent(formValues.discountType) ? (
-            <FieldWrapper label="할인율(%)">
+            <FieldWrapper label="할인율(%)" className="promotion-code-field">
               <FormInput
                 inputMode="numeric"
                 value={formValues.discountPercent ?? ''}
@@ -295,7 +295,7 @@ export default function PromotionCodesAdminSection({ token, busy, setBusy, onInf
             </FieldWrapper>
           ) : null}
           {needsDuration(formValues.discountType) ? (
-            <FieldWrapper label="적용 개월 수">
+            <FieldWrapper label="적용 개월 수" className="promotion-code-field">
               <FormInput
                 inputMode="numeric"
                 value={formValues.durationMonths ?? ''}
@@ -303,7 +303,7 @@ export default function PromotionCodesAdminSection({ token, busy, setBusy, onInf
               />
             </FieldWrapper>
           ) : null}
-          <FieldWrapper label="최대 사용 횟수 (비우면 무제한)">
+          <FieldWrapper label="최대 사용 횟수 (비우면 무제한)" className="promotion-code-field">
             <FormInput
               inputMode="numeric"
               value={formValues.maxUses ?? ''}
@@ -315,7 +315,7 @@ export default function PromotionCodesAdminSection({ token, busy, setBusy, onInf
               }
             />
           </FieldWrapper>
-          <FieldWrapper label="소유자 유형">
+          <FieldWrapper label="소유자 유형" className="promotion-code-field">
             <FormSelect
               value={formValues.ownerType}
               options={OWNER_TYPE_OPTIONS}
@@ -324,26 +324,28 @@ export default function PromotionCodesAdminSection({ token, busy, setBusy, onInf
               }
             />
           </FieldWrapper>
-          <FieldWrapper label="소유자/채널명">
+          <FieldWrapper label="소유자/채널명" className="promotion-code-field">
             <FormInput
               value={formValues.ownerName ?? ''}
               onChange={(e) => setFormValues((prev) => ({ ...prev, ownerName: e.target.value }))}
             />
           </FieldWrapper>
-          <FieldWrapper label="메모" className="billing-page__form-span-2">
+          <FieldWrapper label="메모" className="promotion-code-field promotion-code-field--full">
             <FormInput value={formValues.memo ?? ''} onChange={(e) => setFormValues((prev) => ({ ...prev, memo: e.target.value }))} />
           </FieldWrapper>
-        </div>
-        {discountPreview ? <p className="status">{discountPreview}</p> : null}
-        <div className="billing-page__actions">
-          <FormButton htmlType="button" variant="primary" disabled={busy} onClick={() => void onSubmit()}>
-            {formMode === 'create' ? '생성' : '저장'}
-          </FormButton>
+          {discountPreview ? (
+            <p className="promotion-code-preview promotion-code-field--full status">{discountPreview}</p>
+          ) : null}
+          <div className="promotion-code-actions promotion-code-field--full">
+            <FormButton htmlType="button" variant="primary" disabled={busy} onClick={() => void onSubmit()}>
+              {formMode === 'create' ? '생성' : '저장'}
+            </FormButton>
+          </div>
         </div>
       </section>
 
       {statsTarget ? (
-        <section className="card auth-card billing-page__card">
+        <section className="card auth-card billing-page__card promotion-code-card">
           <h2 className="billing-page__section-title">통계 · {statsTarget.promotion.code}</h2>
           <dl className="billing-page__meta">
             <dt>적용 계정</dt>
@@ -370,6 +372,6 @@ export default function PromotionCodesAdminSection({ token, busy, setBusy, onInf
           </FormButton>
         </section>
       ) : null}
-    </>
+    </div>
   )
 }

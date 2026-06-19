@@ -332,3 +332,82 @@
     align-self: stretch;
   }
 }
+
+/* 결제·구독 관리 — auth-card 420px 상한 해제 (로그인 카드 전용 규칙 오염 방지) */
+.billing-admin-page .auth-card {
+  max-width: none;
+}
+
+/* 프로모션 코드 탭 — 폼 레이아웃 */
+.billing-admin-page .promotion-code-panel {
+  width: 100%;
+  max-width: 960px;
+}
+
+.billing-admin-page .promotion-code-card {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 20px;
+  border-radius: 12px;
+}
+
+.billing-admin-page .promotion-code-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.billing-admin-page .promotion-code-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+  align-items: start;
+}
+
+.billing-admin-page .promotion-code-field {
+  min-width: 0;
+}
+
+.billing-admin-page .promotion-code-field .form-input,
+.billing-admin-page .promotion-code-field .form-select,
+.billing-admin-page .promotion-code-field .form-textarea {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.billing-admin-page .promotion-code-field--full {
+  grid-column: 1 / -1;
+}
+
+.billing-admin-page .promotion-code-preview {
+  margin: 0;
+}
+
+.billing-admin-page .promotion-code-actions {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 4px;
+}
+
+.billing-admin-page .promotion-code-actions .button {
+  min-width: 88px;
+}
+
+@media (max-width: 768px) {
+  .billing-admin-page .promotion-code-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .billing-admin-page .promotion-code-field--full {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .billing-admin-page .promotion-code-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
