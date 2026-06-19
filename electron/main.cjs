@@ -150,6 +150,19 @@ function registerAutoUpdaterIpc() {
       currentVersion: app.getVersion(),
     }
   })
+
+  /*
+   * 웹 buildId 변경 시 렌더러가 최신 원격 번들을 받도록 캐시 무시 새로고침.
+   * 일반 웹 배포는 이 경로로 반영하고, EXE 재설치는 shell 업데이트 전용이다.
+   */
+  ipcMain.handle('app:reload-ignoring-cache', () => {
+    const target = BrowserWindow.getFocusedWindow() ?? mainWindow
+    if (target && !target.isDestroyed()) {
+      target.webContents.reloadIgnoringCache()
+      return { ok: true }
+    }
+    return { ok: false, code: 'no-window' }
+  })
 }
 
 function wireAutoUpdaterEvents() {
@@ -358,35 +371,17 @@ function createWindow() {
 }
 
 /*
- * 자동 업데이트 체크는 "창이 콘텐츠를 완전히 로드한 뒤" 실행한다.
+ * shell(EXE) 자동 업데이트는 앱 시작 시 돌리지 않는다.
  *
- * 왜 지연이 필요한가:
- *   - 렌더러의 React 트리가 useDesktopUpdate 훅을 마운트하고 IPC 리스너를 달 시간을 확보.
- *   - 여전히 캐시(updateStateCache) 가 최종 안전망이지만, 첫 이벤트도 가능하면 직접 수신하는 게
- *     상태 일관성에 유리하다(이중 경로 설계).
- *   - did-finish-load 는 렌더러가 DOM 을 모두 올린 시점이고, 거기에 1.5 초 버퍼를 둔다.
+ * 이유:
+ *   - 패키지 앱은 원격 web shell(loadURL) 이므로 일반 웹 배포는 buildId 비교 + 새로고침으로 반영한다.
+ *   - main push 마다 GitHub 릴리스 EXE 가 올라가 autoUpdater 가 항상 update-available 을 내 보내,
+ *     웹 변경만으로도 "EXE 다운로드" 모달이 뜨는 회귀가 있었다.
  *
- * 왜 checkForUpdates 인가(checkForUpdatesAndNotify 가 아니라):
- *   - AndNotify 는 OS 네이티브 알림(Balloon/Notification Center) 을 띄우는데,
- *     이미 in-app 모달(DesktopUpdateDialog) 이 있으므로 알림이 중복된다.
- *   - 사용자는 앱 안에서 UX 를 일관되게 경험해야 한다 — 이중 경고는 오히려 혼란.
+ * shell 업데이트 경로:
+ *   - 서버 minVersion 정책(force-update) — checkForceUpdateFromServer
+ *   - 사용자 수동 "업데이트 확인" — DesktopUpdateSection / useDesktopUpdate.checkNow
  */
-function scheduleAutoUpdateCheck() {
-  if (!mainWindow) return
-  const wc = mainWindow.webContents
-  const start = () => {
-    setTimeout(() => {
-      void autoUpdater.checkForUpdates().catch((e) => {
-        console.warn('[auto-updater] initial check failed', e instanceof Error ? e.message : e)
-      })
-    }, 1500)
-  }
-  if (wc.isLoading()) {
-    wc.once('did-finish-load', start)
-  } else {
-    start()
-  }
-}
 
 app.whenReady().then(() => {
   if (process.platform === 'win32') {
@@ -402,7 +397,6 @@ app.whenReady().then(() => {
   if (app.isPackaged) {
     wireAutoUpdaterEvents()
     void checkForceUpdateFromServer()
-    scheduleAutoUpdateCheck()
   }
 
   app.on('activate', function () {

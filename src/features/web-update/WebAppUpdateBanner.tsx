@@ -1,31 +1,37 @@
 /**
- * 웹 새 버전 배너 (모바일 WebView·브라우저 공용).
+ * 웹 buildId 변경 안내 배너.
  *
- * `useWebAppUpdate` 가 새 배포를 감지하면 화면 상단에 작은 배너를 띄우고,
- * 사용자가 "새로고침" 을 누르면 문서를 reload 해 최신 번들을 받는다.
- * 데스크톱(Electron)은 자체 업데이트 UX 가 있으므로 이 배너는 렌더하지 않는다.
- *
- * 설계: 이 컴포넌트는 "상태 → 뷰" 매핑만 한다. 감지/비교 로직은 훅이 전담한다.
+ * Electron(원격 web shell) · 모바일 WebView · 브라우저 공통.
+ * shell(EXE) 업데이트는 DesktopUpdateDialog 가 별도로 담당한다.
  */
 
 import { useWebAppUpdate } from './useWebAppUpdate'
-import { isElectronApp } from '../../lib/isElectronApp'
 import FormButton from '../../components/form/FormButton'
 import './web-app-update-banner.css'
 
 export function WebAppUpdateBanner() {
-  const { updateReady, reload } = useWebAppUpdate()
+  const { updateReady, reload, dismissLater } = useWebAppUpdate()
 
-  if (isElectronApp() || !updateReady) {
+  if (!updateReady) {
     return null
   }
 
   return (
     <div className="web-app-update-banner" role="status" aria-live="polite">
-      <span className="web-app-update-banner__text">새 버전이 있습니다.</span>
-      <FormButton htmlType="button" variant="primary" size="sm" onClick={reload}>
-        새로고침
-      </FormButton>
+      <div className="web-app-update-banner__copy">
+        <span className="web-app-update-banner__title">업데이트가 있습니다.</span>
+        <span className="web-app-update-banner__text">
+          최신 화면을 적용하려면 새로고침해 주세요.
+        </span>
+      </div>
+      <div className="web-app-update-banner__actions">
+        <FormButton htmlType="button" variant="secondary" size="sm" onClick={dismissLater}>
+          나중에
+        </FormButton>
+        <FormButton htmlType="button" variant="primary" size="sm" onClick={reload}>
+          새로고침
+        </FormButton>
+      </div>
     </div>
   )
 }

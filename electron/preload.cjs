@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   installDownloadedUpdate: () => ipcRenderer.invoke('app:install-update'),
   /* 렌더러 마운트 시 main 에 캐시된 최신 상태를 한 번 당겨온다. 이벤트 유실 보호망. */
   getDesktopUpdateSnapshot: () => ipcRenderer.invoke('app:get-update-snapshot'),
+  reloadIgnoringCache: () => ipcRenderer.invoke('app:reload-ignoring-cache'),
   onUpdateError: (callback) => {
     if (typeof callback !== 'function') {
       return () => {}

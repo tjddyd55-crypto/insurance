@@ -30,6 +30,8 @@ export type DesktopCheckResult =
 
 export type DesktopActionResult = { ok: boolean; code?: string; message?: string }
 
+export type DesktopReloadResult = { ok: boolean; code?: string }
+
 /**
  * 앱 시작 직후 메인에 쌓여 있던 최신 상태를 한 번에 당겨오기 위한 스냅샷 형태.
  * 렌더러가 마운트될 때 이벤트를 이미 놓쳤어도 이 값으로 상태를 재구성할 수 있다.
@@ -53,6 +55,8 @@ declare global {
       downloadDesktopUpdate: () => Promise<DesktopActionResult>
       installDownloadedUpdate: () => Promise<DesktopActionResult>
       getDesktopUpdateSnapshot: () => Promise<DesktopUpdateSnapshot>
+      /** 웹 buildId 변경 시 캐시 무시 새로고침 — 일반 웹 배포 반영용. */
+      reloadIgnoringCache: () => Promise<DesktopReloadResult>
       onForceUpdate: (
         callback: (payload?: { minVersion?: string; latestVersion?: string; message?: string }) => void,
       ) => () => void
