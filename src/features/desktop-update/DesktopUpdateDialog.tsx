@@ -1,5 +1,8 @@
 /**
- * 전역 데스크톱 업데이트 다이얼로그.
+ * PC shell(EXE) 업데이트 다이얼로그.
+ *
+ * 일반 웹 배포(buildId 변경)는 WebAppUpdateBanner + 새로고침으로 반영한다.
+ * 이 다이얼로그는 electron-updater 기반 shell 업데이트(수동 확인·강제 정책) 전용이다.
  *
  * 표시 규칙:
  *   - Electron 환경이 아니면 렌더하지 않는다 (웹 브라우저엔 무의미).
