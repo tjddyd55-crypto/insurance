@@ -1,4 +1,4 @@
-const DOWNLOAD_CACHE_BUST = 'v=20260618-user-fixed'
+const DOWNLOAD_CACHE_BUST = 'v=1781884175110-desktop-6479384'
 
 export const DESKTOP_DOWNLOAD_URL = `https://cdn.platform-assets.com/insurance/download/one-fc-pc.exe?${DOWNLOAD_CACHE_BUST}`
 
