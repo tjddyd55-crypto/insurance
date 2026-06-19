@@ -6,11 +6,11 @@ import {
   PROMOTION_DISCOUNT_TYPE_LABEL,
   PROMOTION_OWNER_TYPE_LABEL,
   createAdminPromotionCode,
-  disableAdminPromotionCode,
   fetchAdminPromotionCodeStats,
   fetchAdminPromotionCodes,
   generateAdminPromotionCode,
   normalizePromotionCodeInput,
+  setAdminPromotionCodeStatus,
   updateAdminPromotionCode,
   type PromotionCodeAdminRow,
   type PromotionCodeFormInput,
@@ -174,16 +174,19 @@ export default function PromotionCodesAdminSection({ token, busy, setBusy, onInf
     }
   }
 
-  const onDisable = async (row: PromotionCodeAdminRow) => {
-    if (!token.trim() || busy || !row.isActive) return
+  const onSetActive = async (row: PromotionCodeAdminRow, nextActive: boolean) => {
+    if (!token.trim() || busy || row.isActive === nextActive) return
     setBusy(true)
     onError('')
     try {
-      await disableAdminPromotionCode(token, row.id)
-      onInfo(`코드 ${row.code} 가 비활성화되었습니다.`)
-      await load()
+      const updated = await setAdminPromotionCodeStatus(token, row.id, nextActive)
+      setCodes((current) => current.map((item) => (item.id === updated.id ? updated : item)))
+      if (statsTarget?.promotion.id === updated.id) {
+        setStatsTarget((current) => (current ? { ...current, promotion: updated } : current))
+      }
+      onInfo(`코드 ${updated.code} 가 ${nextActive ? '활성화' : '비활성화'}되었습니다.`)
     } catch (e) {
-      onError(e instanceof Error ? e.message : '비활성화에 실패했습니다.')
+      onError(e instanceof Error ? e.message : '상태 변경에 실패했습니다.')
     } finally {
       setBusy(false)
     }
@@ -253,10 +256,24 @@ export default function PromotionCodesAdminSection({ token, busy, setBusy, onInf
                     통계
                   </FormButton>
                   {row.isActive ? (
-                    <FormButton htmlType="button" variant="secondary" disabled={busy} onClick={() => void onDisable(row)}>
+                    <FormButton
+                      htmlType="button"
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => void onSetActive(row, false)}
+                    >
                       비활성화
                     </FormButton>
-                  ) : null}
+                  ) : (
+                    <FormButton
+                      htmlType="button"
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => void onSetActive(row, true)}
+                    >
+                      활성화
+                    </FormButton>
+                  )}
                 </div>
               </li>
             ))}

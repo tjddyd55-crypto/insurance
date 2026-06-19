@@ -159,6 +159,18 @@ export async function disableAdminPromotionCode(token: string, id: number): Prom
   return apiRequest(`/api/admin/promotion-codes/${id}/disable`, { method: 'POST', token })
 }
 
+export async function setAdminPromotionCodeStatus(
+  token: string,
+  id: number,
+  isActive: boolean,
+): Promise<PromotionCodeAdminRow> {
+  return apiRequest(`/api/admin/promotion-codes/${id}/status`, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify({ isActive }),
+  })
+}
+
 export async function fetchAdminPromotionCodeStats(
   token: string,
   id: number,
