@@ -4,6 +4,7 @@ import {
   getPromotionCodeAdmin,
   getPromotionCodeStatsAdmin,
   listPromotionCodesAdmin,
+  setPromotionCodeActiveAdmin,
   updatePromotionCodeAdmin,
 } from './promotions/promotionAdminService.js'
 import { generateUniquePromotionCodeAdmin } from './promotions/generatePromotionCode.js'
@@ -105,6 +106,22 @@ export function registerAdminPromotionCodesApi(apiRouter, ctx) {
   apiRouter.post('/admin/promotion-codes/:id/disable', requireAuth, requireSuperAdmin, async (req, res) => {
     try {
       const updated = await disablePromotionCodeAdmin(pool, req.params.id)
+      res.json(updated)
+    } catch (e) {
+      if (mapPromotionAdminError(e, res)) return
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.patch('/admin/promotion-codes/:id/status', requireAuth, requireSuperAdmin, async (req, res) => {
+    try {
+      const body = req.body ?? {}
+      const isActive = body.isActive ?? body.is_active
+      if (typeof isActive !== 'boolean') {
+        res.status(400).json({ message: 'isActive(boolean) 값이 필요합니다.' })
+        return
+      }
+      const updated = await setPromotionCodeActiveAdmin(pool, req.params.id, isActive)
       res.json(updated)
     } catch (e) {
       if (mapPromotionAdminError(e, res)) return

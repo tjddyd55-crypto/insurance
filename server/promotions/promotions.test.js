@@ -10,7 +10,7 @@ import {
   PROMOTION_CODE_AUTO_LENGTH,
   PROMOTION_CODE_GENERATE_MAX_ATTEMPTS,
 } from './generatePromotionCode.js'
-import { createPromotionCodeAdmin } from './promotionAdminService.js'
+import { createPromotionCodeAdmin, getPromotionCodeStatsAdmin, setPromotionCodeActiveAdmin } from './promotionAdminService.js'
 import { calculatePromotionDiscountForMonth } from './promotionService.js'
 import { normalizePromotionCode } from './promotionCode.js'
 import { validatePromotionOrReferralCode } from './validatePromotionOrReferral.js'
@@ -203,6 +203,140 @@ test('createPromotionCodeAdmin — inserts with created_by', async () => {
 
   assert.equal(created.code, 'NEW01')
   assert.equal(created.createdBy, 'admin-user')
+})
+
+const PROMO_ROW_STUB = {
+  id: 1,
+  code: 'STAT01',
+  code_normalized: 'STAT01',
+  code_type: 'discount',
+  discount_type: 'first_month_fixed',
+  discount_amount: 2000,
+  discount_percent: null,
+  duration_months: null,
+  starts_at: null,
+  ends_at: null,
+  max_uses: null,
+  used_count: 0,
+  per_account_limit: 1,
+  owner_name: null,
+  owner_type: 'normal',
+  memo: null,
+  is_active: true,
+  created_at: new Date(),
+  updated_at: new Date(),
+}
+
+test('getPromotionCodeStatsAdmin uses display_name/username instead of u.name', async () => {
+  const executed = []
+  const pool = {
+    query: async (sql, params) => {
+      const text = String(sql)
+      executed.push(text)
+      if (text.includes('FROM promotion_codes') && text.includes('WHERE id =')) {
+        return { rowCount: 1, rows: [{ ...PROMO_ROW_STUB }] }
+      }
+      if (text.includes('FROM promotion_code_accounts')) {
+        return { rowCount: 1, rows: [{ cnt: 2 }] }
+      }
+      if (text.includes('FROM promotion_code_redemptions') && text.includes('COUNT(1)')) {
+        return {
+          rowCount: 1,
+          rows: [{ redemption_count: 1, total_discount_amount: 2000, total_final_amount: 1300 }],
+        }
+      }
+      if (text.includes('FROM promotion_code_redemptions') && text.includes('display_name')) {
+        assert.equal(text.includes('u.name'), false)
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              id: 10,
+              user_id: 'user-1',
+              display_name: '홍길동',
+              username: 'hong',
+              invoice_id: null,
+              discount_amount: 2000,
+              final_amount: 1300,
+              applied_month_index: 1,
+              created_at: new Date(),
+            },
+          ],
+        }
+      }
+      return { rowCount: 0, rows: [] }
+    },
+  }
+
+  const stats = await getPromotionCodeStatsAdmin(pool, 1)
+  assert.equal(stats.accountCount, 2)
+  assert.equal(stats.recentRedemptions[0]?.userName, '홍길동')
+  assert.ok(executed.some((sql) => sql.includes('u.display_name') && sql.includes('u.username')))
+})
+
+test('getPromotionCodeStatsAdmin falls back to username then user id', async () => {
+  const pool = {
+    query: async (sql) => {
+      const text = String(sql)
+      if (text.includes('FROM promotion_codes') && text.includes('WHERE id =')) {
+        return { rowCount: 1, rows: [{ ...PROMO_ROW_STUB }] }
+      }
+      if (text.includes('FROM promotion_code_accounts')) {
+        return { rowCount: 1, rows: [{ cnt: 0 }] }
+      }
+      if (text.includes('FROM promotion_code_redemptions') && text.includes('COUNT(1)')) {
+        return {
+          rowCount: 1,
+          rows: [{ redemption_count: 1, total_discount_amount: 0, total_final_amount: 0 }],
+        }
+      }
+      if (text.includes('FROM promotion_code_redemptions') && text.includes('display_name')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              id: 11,
+              user_id: 'user-2',
+              display_name: '',
+              username: 'agent02',
+              invoice_id: null,
+              discount_amount: 0,
+              final_amount: 0,
+              applied_month_index: 1,
+              created_at: new Date(),
+            },
+          ],
+        }
+      }
+      return { rowCount: 0, rows: [] }
+    },
+  }
+
+  const stats = await getPromotionCodeStatsAdmin(pool, 1)
+  assert.equal(stats.recentRedemptions[0]?.userName, 'agent02')
+})
+
+test('setPromotionCodeActiveAdmin activates and deactivates', async () => {
+  const states = []
+  const pool = {
+    query: async (sql, params) => {
+      const text = String(sql)
+      if (text.includes('UPDATE promotion_codes')) {
+        states.push(params[1])
+        return {
+          rowCount: 1,
+          rows: [{ ...PROMO_ROW_STUB, is_active: params[1] }],
+        }
+      }
+      return { rowCount: 0, rows: [] }
+    },
+  }
+
+  const activated = await setPromotionCodeActiveAdmin(pool, 1, true)
+  assert.equal(activated.isActive, true)
+  const deactivated = await setPromotionCodeActiveAdmin(pool, 1, false)
+  assert.equal(deactivated.isActive, false)
+  assert.deepEqual(states, [true, false])
 })
 
 test('calculatePromotionDiscountForMonth — first_month_fixed', () => {

@@ -286,22 +286,31 @@ export async function updatePromotionCodeAdmin(pool, id, input) {
 /**
  * @param {import('pg').Pool} pool
  * @param {number} id
+ * @param {boolean} isActive
  */
-export async function disablePromotionCodeAdmin(pool, id) {
+export async function setPromotionCodeActiveAdmin(pool, id, isActive) {
   const promoId = Number(id)
   if (!Number.isFinite(promoId) || promoId <= 0) throw new Error('promotion_not_found')
   const r = await systemQuery(
     pool,
     `
     UPDATE promotion_codes
-    SET is_active = false, updated_at = NOW()
+    SET is_active = $2, updated_at = NOW()
     WHERE id = $1 AND deleted_at IS NULL
     RETURNING *
     `,
-    [promoId],
+    [promoId, Boolean(isActive)],
   )
   if (r.rowCount === 0) throw new Error('promotion_not_found')
   return toAdminDto(r.rows[0])
+}
+
+/**
+ * @param {import('pg').Pool} pool
+ * @param {number} id
+ */
+export async function disablePromotionCodeAdmin(pool, id) {
+  return setPromotionCodeActiveAdmin(pool, id, false)
 }
 
 /**
@@ -338,7 +347,8 @@ export async function getPromotionCodeStatsAdmin(pool, id) {
     SELECT
       pcr.id,
       pcr.user_id,
-      u.name AS user_name,
+      u.display_name,
+      u.username,
       pcr.invoice_id,
       pcr.discount_amount,
       pcr.final_amount,
@@ -360,15 +370,21 @@ export async function getPromotionCodeStatsAdmin(pool, id) {
     redemptionCount: Number(agg.redemption_count ?? 0),
     totalDiscountAmount: Number(agg.total_discount_amount ?? 0),
     totalFinalAmount: Number(agg.total_final_amount ?? 0),
-    recentRedemptions: recentR.rows.map((row) => ({
-      id: Number(row.id),
-      userId: String(row.user_id ?? ''),
-      userName: row.user_name == null ? null : String(row.user_name),
-      invoiceId: row.invoice_id == null ? null : Number(row.invoice_id),
-      discountAmount: Number(row.discount_amount ?? 0),
-      finalAmount: Number(row.final_amount ?? 0),
-      appliedMonthIndex: Number(row.applied_month_index ?? 1),
-      createdAt: row.created_at ?? null,
-    })),
+    recentRedemptions: recentR.rows.map((row) => {
+      const displayName = String(row.display_name ?? '').trim()
+      const username = String(row.username ?? '').trim()
+      const userId = String(row.user_id ?? '').trim()
+      const userName = displayName || username || userId || null
+      return {
+        id: Number(row.id),
+        userId,
+        userName,
+        invoiceId: row.invoice_id == null ? null : Number(row.invoice_id),
+        discountAmount: Number(row.discount_amount ?? 0),
+        finalAmount: Number(row.final_amount ?? 0),
+        appliedMonthIndex: Number(row.applied_month_index ?? 1),
+        createdAt: row.created_at ?? null,
+      }
+    }),
   }
 }
