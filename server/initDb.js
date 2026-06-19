@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs'
 import { randomUUID } from 'node:crypto'
+import { ensurePromotionCodesSchema } from './promotions/ensurePromotionCodesSchema.js'
 import pool from './db.js'
 import {
   runCompanyDirectorySanitize,
@@ -3491,6 +3492,8 @@ export async function initDb() {
   await ensureReferralSchema(pool)
   await ensureBillingSchema(pool)
   await ensurePromotionCodeSchema(pool)
+  await ensurePromotionCodesSchema(pool)
+  console.log('[initDb][promotion-codes] schema ensure 완료')
   await ensureNewsletterBoardScopeSchema(pool)
 
   console.log(`[initDb] 완료 (${Date.now() - startedAt}ms)`)
@@ -3702,7 +3705,7 @@ async function ensurePromotionCodeSchema(executor) {
       memo TEXT,
       is_active BOOLEAN NOT NULL DEFAULT true,
       deleted_at TIMESTAMPTZ,
-      created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       CONSTRAINT promotion_codes_code_type_check CHECK (code_type IN ('referral', 'discount', 'influencer')),

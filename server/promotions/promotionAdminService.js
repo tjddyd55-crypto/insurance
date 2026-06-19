@@ -26,7 +26,7 @@ function toAdminDto(row) {
     createdAt: row.created_at ?? null,
     updatedAt: row.updated_at ?? null,
     deletedAt: row.deleted_at ?? null,
-    createdBy: row.created_by ?? null,
+    createdBy: row.created_by ?? row.created_by_user_id ?? null,
   }
 }
 

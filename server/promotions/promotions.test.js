@@ -148,6 +148,63 @@ test('createPromotionCodeAdmin — rejects duplicate code with 409 error key', a
   )
 })
 
+test('createPromotionCodeAdmin — inserts with created_by', async () => {
+  const pool = {
+    query: async (sql, params) => {
+      const text = String(sql)
+      if (text.includes('promotion_codes') && text.includes('code_normalized') && text.includes('SELECT')) {
+        return { rowCount: 0, rows: [] }
+      }
+      if (text.includes('INSERT INTO promotion_codes')) {
+        assert.match(text, /created_by/)
+        assert.equal(params?.[15], 'admin-user')
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              id: 1,
+              code: params[0],
+              code_normalized: params[1],
+              code_type: params[2],
+              discount_type: params[3],
+              discount_amount: params[4],
+              discount_percent: params[5],
+              duration_months: params[6],
+              starts_at: params[7],
+              ends_at: params[8],
+              max_uses: params[9],
+              per_account_limit: params[10],
+              owner_name: params[11],
+              owner_type: params[12],
+              memo: params[13],
+              is_active: params[14],
+              created_by: params[15],
+              created_at: new Date(),
+              updated_at: new Date(),
+            },
+          ],
+        }
+      }
+      throw new Error(`unexpected_query: ${text}`)
+    },
+  }
+
+  const created = await createPromotionCodeAdmin(
+    pool,
+    {
+      code: 'NEW01',
+      codeType: 'discount',
+      discountType: 'first_month_fixed',
+      discountAmount: 2000,
+      ownerType: 'normal',
+    },
+    'admin-user',
+  )
+
+  assert.equal(created.code, 'NEW01')
+  assert.equal(created.createdBy, 'admin-user')
+})
+
 test('calculatePromotionDiscountForMonth — first_month_fixed', () => {
   const promo = {
     discountType: 'first_month_fixed',
