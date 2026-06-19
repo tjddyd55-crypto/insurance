@@ -117,8 +117,19 @@ export async function applyPromotionOrReferralCode(
   })
 }
 
+export function normalizePromotionCodeInput(value: string): string {
+  return value
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+    .slice(0, 32)
+}
+
 export async function fetchAdminPromotionCodes(token: string): Promise<{ codes: PromotionCodeAdminRow[] }> {
   return apiRequest('/api/admin/promotion-codes', { method: 'GET', token })
+}
+
+export async function generateAdminPromotionCode(token: string): Promise<{ code: string }> {
+  return apiRequest('/api/admin/promotion-codes/generate-code', { method: 'POST', token })
 }
 
 export async function createAdminPromotionCode(

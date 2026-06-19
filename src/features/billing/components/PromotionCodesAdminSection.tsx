@@ -9,6 +9,8 @@ import {
   disableAdminPromotionCode,
   fetchAdminPromotionCodeStats,
   fetchAdminPromotionCodes,
+  generateAdminPromotionCode,
+  normalizePromotionCodeInput,
   updateAdminPromotionCode,
   type PromotionCodeAdminRow,
   type PromotionCodeFormInput,
@@ -99,6 +101,7 @@ export default function PromotionCodesAdminSection({ token, busy, setBusy, onInf
   const [editingId, setEditingId] = useState<number | null>(null)
   const [formValues, setFormValues] = useState<PromotionCodeFormInput>(EMPTY_FORM)
   const [statsTarget, setStatsTarget] = useState<PromotionCodeStatsResponse | null>(null)
+  const [isGeneratingCode, setIsGeneratingCode] = useState(false)
 
   const load = useCallback(async () => {
     if (!token.trim()) return
@@ -125,6 +128,20 @@ export default function PromotionCodesAdminSection({ token, busy, setBusy, onInf
     setFormMode('edit')
     setEditingId(row.id)
     setFormValues(toFormValues(row))
+  }
+
+  const handleGeneratePromotionCode = async () => {
+    if (!token.trim() || isGeneratingCode) return
+    setIsGeneratingCode(true)
+    onError('')
+    try {
+      const result = await generateAdminPromotionCode(token)
+      setFormValues((prev) => ({ ...prev, code: result.code }))
+    } catch (e) {
+      onError(e instanceof Error ? e.message : '코드 자동생성에 실패했습니다.')
+    } finally {
+      setIsGeneratingCode(false)
+    }
   }
 
   const onSubmit = async () => {
@@ -251,11 +268,23 @@ export default function PromotionCodesAdminSection({ token, busy, setBusy, onInf
         <h2 className="billing-page__section-title">{formMode === 'create' ? '코드 생성' : '코드 수정'}</h2>
         <div className="promotion-code-form-grid">
           <FieldWrapper label="코드" className="promotion-code-field">
-            <FormInput
-              value={formValues.code}
-              onChange={(e) => setFormValues((prev) => ({ ...prev, code: e.target.value.toUpperCase() }))}
-              placeholder="예: WELCOME2026"
-            />
+            <div className="promotion-code-input-row">
+              <FormInput
+                value={formValues.code}
+                onChange={(e) =>
+                  setFormValues((prev) => ({ ...prev, code: normalizePromotionCodeInput(e.target.value) }))
+                }
+                placeholder="예: K7M4Q"
+              />
+              <FormButton
+                htmlType="button"
+                variant="secondary"
+                disabled={isGeneratingCode || busy}
+                onClick={() => void handleGeneratePromotionCode()}
+              >
+                {isGeneratingCode ? '생성 중…' : '자동생성'}
+              </FormButton>
+            </div>
           </FieldWrapper>
           <FieldWrapper label="코드 유형" className="promotion-code-field">
             <FormSelect

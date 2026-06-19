@@ -395,6 +395,22 @@
   min-width: 88px;
 }
 
+.billing-admin-page .promotion-code-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.billing-admin-page .promotion-code-input-row .form-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.billing-admin-page .promotion-code-input-row .button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 @media (max-width: 768px) {
   .billing-admin-page .promotion-code-form-grid {
     grid-template-columns: 1fr;
@@ -409,5 +425,16 @@
   .billing-admin-page .promotion-code-card-header {
     flex-direction: column;
     align-items: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .billing-admin-page .promotion-code-input-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .billing-admin-page .promotion-code-input-row .button {
+    width: 100%;
   }
 }
