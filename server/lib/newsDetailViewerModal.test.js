@@ -83,7 +83,8 @@ describe('news detail viewer modal', () => {
     assert.match(fs.readFileSync(boardDetailPath, 'utf8'), /NewsDetailMobileZoomScroll/)
 
     const css = fs.readFileSync(cssPath, 'utf8')
-    assert.match(css, /\.news-detail-mobile-scroll[\s\S]*overflow:\s*auto/)
-    assert.match(css, /\.news-detail-mobile-scroll[\s\S]*touch-action:\s*auto/)
+    assert.match(css, /\.news-detail-mobile-scroll[\s\S]*overflow-x:\s*auto/)
+    assert.match(css, /\.news-detail-mobile-scroll[\s\S]*overflow-y:\s*hidden/)
+    assert.match(css, /\.news-detail-mobile-scroll[\s\S]*touch-action:\s*pan-x pan-y/)
   })
 })
