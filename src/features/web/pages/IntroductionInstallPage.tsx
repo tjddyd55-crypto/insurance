@@ -129,7 +129,7 @@ export function IntroductionInstallPage() {
               PC 다운로드
             </a>
             <a href={DOWNLOAD_LINKS.fcMobile} download>
-              FC 모바일
+              모바일 APK 다운로드
             </a>
           </div>
         </div>
@@ -247,7 +247,7 @@ export function IntroductionInstallPage() {
           <p>프로그램 설치 -&gt; 샘플 다운로드 -&gt; 엑셀 작성 -&gt; 업로드</p>
           <div className="intro-install-cta__actions">
             <a href={DOWNLOAD_LINKS.pc} download>PC 다운로드</a>
-            <a href={DOWNLOAD_LINKS.fcMobile} download>FC 모바일</a>
+            <a href={DOWNLOAD_LINKS.fcMobile} download>모바일 APK 다운로드</a>
           </div>
         </div>
       </section>
