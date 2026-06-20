@@ -1,22 +1,34 @@
 ﻿/*
- * 웹 새 버전 배너. 다크 테마 토큰(dark-theme-colors 규칙) 기준.
- * z-index 는 확인 다이얼로그(10000) 보다 살짝 아래(9990) 로 두어,
- * 모달 위 확인창이 배너에 가리지 않게 한다. 평상시엔 최상단에 보인다.
+ * 웹 새 버전 안내 다이얼로그. 다크 테마 토큰(dark-theme-colors 규칙) 기준.
+ * z-index 는 확인 다이얼로그(10000) 보다 살짝 아래(9990).
  */
-.web-app-update-banner {
+.web-app-update-banner__overlay {
   position: fixed;
-  top: calc(env(safe-area-inset-top, 0px) + 10px);
-  left: 50%;
-  transform: translateX(-50%);
+  inset: 0;
   z-index: 9990;
   display: flex;
   align-items: center;
+  justify-content: center;
+  padding: 16px;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 16px);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  box-sizing: border-box;
+  background: rgba(2, 6, 23, 0.62);
+}
+
+.web-app-update-banner__dialog {
+  box-sizing: border-box;
+  width: min(420px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  padding: 24px;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   gap: 16px;
-  max-width: min(560px, calc(100vw - 24px));
-  padding: 12px 14px 12px 16px;
+  text-align: center;
   background: var(--bg-card);
   border: 1px solid var(--border-default);
-  border-radius: 12px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
   color: var(--text-main);
 }
@@ -25,24 +37,119 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  width: 100%;
   min-width: 0;
 }
 
 .web-app-update-banner__title {
-  font-size: 14px;
+  width: 100%;
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.4;
   font-weight: 700;
   color: var(--text-main);
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: normal;
 }
 
-.web-app-update-banner__text {
-  font-size: 13px;
+.web-app-update-banner__description {
+  width: 100%;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
   font-weight: 500;
   color: var(--text-muted);
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: normal;
 }
 
 .web-app-update-banner__actions {
+  width: 100%;
   display: flex;
+  justify-content: center;
   align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+
+.web-app-update-banner__button {
+  min-width: 112px;
+  min-height: 44px;
+}
+
+@media (max-width: 480px) {
+  .web-app-update-banner__dialog {
+    width: calc(100vw - 32px);
+    padding: 22px 20px;
+    border-radius: 18px;
+  }
+
+  .web-app-update-banner__title {
+    font-size: 18px;
+  }
+
+  .web-app-update-banner__description {
+    font-size: 14px;
+  }
+
+  .web-app-update-banner__actions {
+    gap: 10px;
+  }
+
+  .web-app-update-banner__button {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
+
+@media (min-width: 769px) {
+  .web-app-update-banner__overlay {
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
+    background: transparent;
+    pointer-events: none;
+  }
+
+  .web-app-update-banner__dialog {
+    pointer-events: auto;
+    width: min(560px, calc(100vw - 24px));
+    max-width: min(560px, calc(100vw - 24px));
+    padding: 12px 14px 12px 16px;
+    border-radius: 12px;
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+    text-align: left;
+  }
+
+  .web-app-update-banner__copy {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+  }
+
+  .web-app-update-banner__title {
+    font-size: 14px;
+    line-height: 1.35;
+  }
+
+  .web-app-update-banner__description {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .web-app-update-banner__actions {
+    width: auto;
+    flex-shrink: 0;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .web-app-update-banner__button {
+    min-width: auto;
+    min-height: auto;
+  }
 }
