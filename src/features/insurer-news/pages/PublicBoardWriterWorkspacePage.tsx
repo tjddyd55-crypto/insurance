@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { FormButton } from '../../../components/form'
 import {
+  clearPublicBoardWriterSession,
   fetchPublicBoardWriterMe,
   getPublicBoardWriterToken,
   listPublicBoardWriterBoards,
-  setPublicBoardWriterToken,
+  PUBLIC_BOARD_WRITER_EXIT_PATH,
   type PublicBoardWriterBoard,
 } from '../services/publicBoardWriter.service'
 import './public-board-writer.css'
@@ -20,7 +21,7 @@ export function PublicBoardWriterWorkspacePage() {
   useEffect(() => {
     const token = getPublicBoardWriterToken()
     if (!token?.trim()) {
-      navigate('/board-writer/login', { replace: true })
+      navigate(PUBLIC_BOARD_WRITER_EXIT_PATH, { replace: true })
       return
     }
     void (async () => {
@@ -35,8 +36,8 @@ export function PublicBoardWriterWorkspacePage() {
           return
         }
       } catch {
-        setPublicBoardWriterToken(null)
-        navigate('/board-writer/login', { replace: true })
+        clearPublicBoardWriterSession()
+        navigate(PUBLIC_BOARD_WRITER_EXIT_PATH, { replace: true })
       } finally {
         setLoading(false)
       }
@@ -44,8 +45,8 @@ export function PublicBoardWriterWorkspacePage() {
   }, [navigate])
 
   const handleLogout = () => {
-    setPublicBoardWriterToken(null)
-    navigate('/board-writer/login', { replace: true })
+    clearPublicBoardWriterSession()
+    navigate(PUBLIC_BOARD_WRITER_EXIT_PATH, { replace: true })
   }
 
   if (loading) {

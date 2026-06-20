@@ -62,3 +62,12 @@ test('board writer nav path helper builds upload under news route', () => {
   const viewPath = `/board-writer/boards/${encoded}/news`
   assert.equal(`${viewPath}/upload`, `/board-writer/boards/${encoded}/news/upload`)
 })
+
+test('public board writer session exit redirects to general login', () => {
+  const serviceSource = readFileSync(
+    path.join(repoRoot, 'src/features/insurer-news/services/publicBoardWriter.service.ts'),
+    'utf8',
+  )
+  assert.match(serviceSource, /PUBLIC_BOARD_WRITER_EXIT_PATH = '\/login'/)
+  assert.doesNotMatch(serviceSource, /PUBLIC_BOARD_WRITER_EXIT_PATH = '\/board-writer\/login'/)
+})
