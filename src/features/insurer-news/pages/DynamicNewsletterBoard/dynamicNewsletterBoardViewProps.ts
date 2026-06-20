@@ -1,6 +1,7 @@
 import type { NewsletterBoard, NewsletterItem } from '../../types'
 
 export type DynamicNewsletterBoardViewProps = {
+  boardSlug: string
   board: NewsletterBoard | null
   items: NewsletterItem[]
   error: string
