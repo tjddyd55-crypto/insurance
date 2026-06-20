@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom'
-import { AppDownloadActions } from '../AppDownloadActions'
 import {
-  INTRO_SERVICE_INQUIRY_PATH,
+  DESKTOP_DOWNLOAD_URL,
+  USER_ANDROID_APK_DOWNLOAD_URL,
+} from '../AppDownloadActions'
+import {
   introCustomerCapabilities,
   introFeatureImages,
   introMainHighlights,
@@ -9,25 +11,7 @@ import {
   introSupportCapabilities,
 } from '../../config/introductionFeatureContent'
 import { IntroFeatureImage } from './IntroFeatureImage'
-
-function ServiceInquiryButton({
-  className = '',
-  variant = 'primary',
-}: {
-  className?: string
-  variant?: 'primary' | 'white'
-}) {
-  const variantClass =
-    variant === 'white' ? 'intro-v2-btn intro-v2-btn--white' : 'intro-v2-btn intro-v2-btn--green'
-  return (
-    <Link
-      className={`${variantClass}${className ? ` ${className}` : ''}`}
-      to={INTRO_SERVICE_INQUIRY_PATH}
-    >
-      서비스 문의하기
-    </Link>
-  )
-}
+import { ServiceInquiryLink } from './ServiceInquiryLink'
 
 export function IntroductionFeatureShowcase() {
   return (
@@ -113,7 +97,7 @@ export function IntroductionFeatureShowcase() {
       <section className="intro-v2-inline-cta" aria-label="서비스 문의">
         <div className="intro-v2-shell intro-v2-inline-cta__inner">
           <p className="intro-v2-inline-cta__text">이런 기능이 필요하셨다면, 지금 바로 사용해보세요</p>
-          <ServiceInquiryButton variant="white" className="intro-v2-inline-cta__btn" />
+          <ServiceInquiryLink variant="white" className="intro-v2-inline-cta__btn" />
         </div>
       </section>
     </>
@@ -129,15 +113,22 @@ export function IntroductionFinalCta() {
           고객관리, 청구관리, 서류 작성, 고객 소통까지 필요한 기능을 한 곳에서 사용할 수 있습니다.
         </p>
         <div className="intro-v2-cta__actions">
-          <ServiceInquiryButton variant="white" />
-          <AppDownloadActions
-            className="intro-v2-download-actions intro-v2-download-actions--cta"
-            layout="row"
-          />
-          <Link
-            className="intro-v2-btn intro-v2-btn--white intro-v2-btn--outline"
-            to="/introduction/install"
+          <ServiceInquiryLink variant="cta-white" />
+          <a
+            className="intro-v2-cta__action intro-v2-cta__action--white"
+            href={DESKTOP_DOWNLOAD_URL}
+            download
           >
+            PC 프로그램 다운로드
+          </a>
+          <a
+            className="intro-v2-cta__action intro-v2-cta__action--white"
+            href={USER_ANDROID_APK_DOWNLOAD_URL}
+            download
+          >
+            모바일 앱 다운로드
+          </a>
+          <Link className="intro-v2-cta__action intro-v2-cta__action--outline" to="/introduction/install">
             설치 안내 보기
           </Link>
         </div>

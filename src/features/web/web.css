@@ -366,7 +366,7 @@
 
 .intro-v2-feature-image-card {
   margin: 0 auto;
-  max-width: 1120px;
+  max-width: 768px;
   border: 1px solid #e5e7eb;
   border-radius: 16px;
   background: #fff;
@@ -380,12 +380,13 @@
   height: auto;
   max-width: 100%;
   object-fit: contain;
+  image-rendering: auto;
   border-radius: 10px;
 }
 
 .intro-v2-privacy-note {
   margin: 14px auto 0;
-  max-width: 1120px;
+  max-width: 768px;
   font-size: 13px;
   line-height: 1.5;
   color: #9ca3af;
@@ -462,6 +463,15 @@
 
 .intro-v2-inline-cta__btn {
   flex-shrink: 0;
+  min-width: 190px;
+  height: 56px;
+  padding: 0 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .intro-v2-btn--green {
@@ -493,8 +503,43 @@
   gap: 12px;
 }
 
-.intro-v2-cta--features .intro-v2-cta__actions .intro-v2-btn {
-  min-width: 180px;
+.intro-v2-cta__action {
+  min-width: 190px;
+  height: 56px;
+  padding: 0 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  line-height: 1;
+  white-space: nowrap;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.intro-v2-cta__action--white {
+  background: #fff;
+  color: var(--primary);
+  border-color: #fff;
+}
+
+.intro-v2-cta__action--white:hover {
+  background: #f8fafc;
+}
+
+.intro-v2-cta__action--outline {
+  background: transparent;
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.65);
+}
+
+.intro-v2-cta__action--outline:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: #fff;
 }
 
 .intro-v2-cta {
@@ -569,7 +614,7 @@
 
   .intro-v2-inline-cta__btn {
     width: 100%;
-    text-align: center;
+    min-width: 0;
   }
 
   .intro-v2-cta__actions {
@@ -577,9 +622,9 @@
     align-items: stretch;
   }
 
-  .intro-v2-cta--features .intro-v2-cta__actions .intro-v2-btn,
-  .intro-v2-cta__actions .app-download-actions {
+  .intro-v2-cta__action {
     width: 100%;
+    min-width: 0;
   }
 
   .intro-v2-cta h2 {
@@ -704,8 +749,10 @@
 
 .intro-install-download-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 24px;
+  max-width: 920px;
+  margin: 0 auto;
 }
 
 .intro-install-download-card {
@@ -1023,8 +1070,7 @@
 }
 
 .intro-install-download-card--customer a[aria-disabled='true'],
-.intro-install-hero__actions a.is-customer[aria-disabled='true'],
-.intro-install-cta__actions a:nth-child(3)[aria-disabled='true'] {
+.intro-install-hero__actions a.is-customer[aria-disabled='true'] {
   background: var(--intro-btn-green-disabled-bg);
   color: var(--intro-btn-green-disabled-text);
 }
