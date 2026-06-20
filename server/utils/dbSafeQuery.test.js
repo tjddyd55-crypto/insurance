@@ -3,11 +3,16 @@ import assert from 'node:assert/strict'
 import { sqlHasNewsletterBoardTenantVisibilityScope } from './dbSafeQuery.js'
 import {
   GA_ADMIN_NEWSLETTER_BOARDS_LIST_SQL,
+  NEWSLETTER_BOARD_BY_SLUG_TENANT_SQL,
   NEWSLETTER_BOARDS_VISIBLE_LIST_SQL,
 } from '../lib/newsletterBoardAdminSql.js'
 
 test('newsletter board visibility scope — visible list SQL approved', () => {
   assert.equal(sqlHasNewsletterBoardTenantVisibilityScope(NEWSLETTER_BOARDS_VISIBLE_LIST_SQL), true)
+})
+
+test('newsletter board visibility scope — slug tenant SQL approved', () => {
+  assert.equal(sqlHasNewsletterBoardTenantVisibilityScope(NEWSLETTER_BOARD_BY_SLUG_TENANT_SQL), true)
 })
 
 test('newsletter board visibility scope — GA admin list SQL approved', () => {

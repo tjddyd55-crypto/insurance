@@ -48,8 +48,29 @@ export const NEWSLETTER_BOARDS_VISIBLE_LIST_SQL = `
     b.label ASC
 `
 
-/** slug로 보드 조회 (접근 검증은 애플리케이션 레이어) */
-export const NEWSLETTER_BOARD_BY_SLUG_SQL = `
+/** slug로 보드 조회 — portal/tenant (safeQuery, $1=slug $2=tenantGaId) */
+export const NEWSLETTER_BOARD_BY_SLUG_TENANT_SQL = `
+  SELECT b.*, gc.code AS ga_code, gc.name AS ga_name
+  FROM newsletter_boards b
+  LEFT JOIN ga_companies gc ON gc.id = b.owner_ga_id
+  WHERE b.slug = $1
+    AND b.is_deleted = false
+    AND COALESCE(b.is_active, true) = true
+    AND b.board_scope IN ('global', 'ga')
+    AND (
+      b.board_scope = 'global'
+      OR (
+        b.board_scope = 'ga'
+        AND b.owner_ga_id = $2
+      )
+    )
+  ORDER BY
+    CASE WHEN b.board_scope = 'global' THEN 0 ELSE 1 END,
+    b.created_at ASC
+`
+
+/** slug로 보드 후보 전체 — admin/systemQuery 전용 */
+export const NEWSLETTER_BOARD_BY_SLUG_ADMIN_SQL = `
   SELECT b.*, gc.code AS ga_code, gc.name AS ga_name
   FROM newsletter_boards b
   LEFT JOIN ga_companies gc ON gc.id = b.owner_ga_id
@@ -62,8 +83,11 @@ export const NEWSLETTER_BOARD_BY_SLUG_SQL = `
     b.created_at ASC
 `
 
-/** @deprecated NEWSLETTER_BOARD_BY_SLUG_SQL 과 동일 (후보 전체 반환) */
-export const NEWSLETTER_BOARDS_BY_SLUG_SQL = NEWSLETTER_BOARD_BY_SLUG_SQL
+/** @deprecated NEWSLETTER_BOARD_BY_SLUG_ADMIN_SQL 사용 */
+export const NEWSLETTER_BOARD_BY_SLUG_SQL = NEWSLETTER_BOARD_BY_SLUG_ADMIN_SQL
+
+/** @deprecated NEWSLETTER_BOARD_BY_SLUG_TENANT_SQL 사용 */
+export const NEWSLETTER_BOARDS_BY_SLUG_SQL = NEWSLETTER_BOARD_BY_SLUG_TENANT_SQL
 
 /** SUPER_ADMIN: global + ga 전체 목록 */
 export const SUPER_ADMIN_NEWSLETTER_BOARDS_LIST_SQL = `

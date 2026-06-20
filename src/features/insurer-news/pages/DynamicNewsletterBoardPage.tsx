@@ -53,6 +53,10 @@ export function DynamicNewsletterBoardPage() {
           setAccessForbidden(true)
           return
         }
+        if (result.kind === 'not_found') {
+          setError(result.message)
+          return
+        }
         setError(result.message)
       })
       .catch((e) => {

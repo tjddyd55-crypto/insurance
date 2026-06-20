@@ -1,6 +1,6 @@
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { adminNewsletterBoardQuery } from './newsletterBoardAdminQuery.js'
-import { NEWSLETTER_BOARD_BY_SLUG_SQL } from './newsletterBoardAdminSql.js'
+import { NEWSLETTER_BOARD_BY_SLUG_ADMIN_SQL } from './newsletterBoardAdminSql.js'
 import { normalizeNewsletterBoardSlug } from './newsletterBoardScope.js'
 import { BOARD_SCOPE_GLOBAL, BOARD_SCOPE_GA, isGlobalBoardScope } from './newsletterBoardScope.js'
 
@@ -254,7 +254,7 @@ export async function grantAllGaBoardsToWriter(executor, writerId, ownerGaId) {
  */
 export async function loadNewsletterBoardBySlug(executor, slug) {
   const normalized = normalizeNewsletterBoardSlug(slug)
-  const r = await adminNewsletterBoardQuery(executor, NEWSLETTER_BOARD_BY_SLUG_SQL, [normalized])
+  const r = await adminNewsletterBoardQuery(executor, NEWSLETTER_BOARD_BY_SLUG_ADMIN_SQL, [normalized])
   return r.rowCount > 0 ? r.rows[0] : null
 }
 
