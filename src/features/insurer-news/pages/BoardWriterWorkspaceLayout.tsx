@@ -10,9 +10,10 @@ import {
   type BoardWriterNavItem,
 } from '../config/boardWriterNavigation'
 import {
+  clearPublicBoardWriterSession,
   getPublicBoardWriterToken,
   listPublicBoardWriterBoards,
-  setPublicBoardWriterToken,
+  PUBLIC_BOARD_WRITER_EXIT_PATH,
   type PublicBoardWriterBoard,
 } from '../services/publicBoardWriter.service'
 import './board-writer-workspace.css'
@@ -151,7 +152,7 @@ export function BoardWriterWorkspaceLayout() {
   useEffect(() => {
     const token = getPublicBoardWriterToken()
     if (!token?.trim()) {
-      navigate('/board-writer/login', { replace: true })
+      navigate(PUBLIC_BOARD_WRITER_EXIT_PATH, { replace: true })
       return
     }
     if (!boardSlug.trim()) {
@@ -178,8 +179,8 @@ export function BoardWriterWorkspaceLayout() {
         }
       } catch {
         if (!cancelled) {
-          setPublicBoardWriterToken(null)
-          navigate('/board-writer/login', { replace: true })
+          clearPublicBoardWriterSession()
+          navigate(PUBLIC_BOARD_WRITER_EXIT_PATH, { replace: true })
         }
       } finally {
         if (!cancelled) {
@@ -200,8 +201,8 @@ export function BoardWriterWorkspaceLayout() {
   const labels = useMemo(() => (board ? buildBoardWriterNavLabels(board) : null), [board])
 
   const handleLogout = () => {
-    setPublicBoardWriterToken(null)
-    navigate('/board-writer/login', { replace: true })
+    clearPublicBoardWriterSession()
+    navigate(PUBLIC_BOARD_WRITER_EXIT_PATH, { replace: true })
   }
 
   if (loading) {

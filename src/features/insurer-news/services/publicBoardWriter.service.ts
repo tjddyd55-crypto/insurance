@@ -44,6 +44,13 @@ export function setPublicBoardWriterToken(token: string | null) {
   }
 }
 
+/** 작성자 세션 종료(로그아웃·만료) 후 이동 경로 — 일반 로그인 화면 */
+export const PUBLIC_BOARD_WRITER_EXIT_PATH = '/login'
+
+export function clearPublicBoardWriterSession() {
+  setPublicBoardWriterToken(null)
+}
+
 function writerApiPath(path: string) {
   return `/api/board-writer${path}`
 }

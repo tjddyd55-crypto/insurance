@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
 import {
+  clearPublicBoardWriterSession,
   getPublicBoardWriterToken,
   listBoardWriterNewsletters,
-  setPublicBoardWriterToken,
+  PUBLIC_BOARD_WRITER_EXIT_PATH,
 } from '../services/publicBoardWriter.service'
 import type { NewsletterItem } from '../types'
 import type { BoardWriterOutletContext } from './BoardWriterWorkspaceLayout'
@@ -24,7 +25,7 @@ export function BoardWriterNewsListPage() {
   useEffect(() => {
     const token = getPublicBoardWriterToken()
     if (!token?.trim()) {
-      navigate('/board-writer/login', { replace: true })
+      navigate(PUBLIC_BOARD_WRITER_EXIT_PATH, { replace: true })
       return
     }
     if (!boardSlug.trim() || board.slug !== boardSlug) {
@@ -42,8 +43,8 @@ export function BoardWriterNewsListPage() {
         }
       } catch {
         if (!cancelled) {
-          setPublicBoardWriterToken(null)
-          navigate('/board-writer/login', { replace: true })
+          clearPublicBoardWriterSession()
+          navigate(PUBLIC_BOARD_WRITER_EXIT_PATH, { replace: true })
         }
       } finally {
         if (!cancelled) {
