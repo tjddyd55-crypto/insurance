@@ -4,6 +4,7 @@ import { useAuth } from '../AuthProvider'
 import { login as loginApi } from '../authApi'
 import { resolveAuthLandingPath } from '../landing'
 import useIsMobile from '../../../hooks/useIsMobile'
+import { setPublicBoardWriterToken } from '../../insurer-news/services/publicBoardWriter.service'
 
 /**
  * 로그인 페이지가 소비하는 "일시적 플래시 메시지".
@@ -101,7 +102,12 @@ export function useLoginController(): UseLoginControllerResult {
     setIsSubmitting(true)
     try {
       const session = await loginApi(username, password)
-      login(session)
+      if (session.authKind === 'BOARD_WRITER') {
+        setPublicBoardWriterToken(session.token)
+        navigate(session.redirectPath || '/board-writer/workspace', { replace: true })
+        return
+      }
+      login({ token: session.token, user: session.user })
       navigate(resolveAuthLandingPath(isMobile, session.user.role), { replace: true })
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '로그인에 실패했습니다.')

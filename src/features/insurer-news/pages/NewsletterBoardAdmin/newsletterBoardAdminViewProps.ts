@@ -4,6 +4,7 @@ export type NewsletterBoardCreateMode = 'global' | 'ga'
 
 export type NewsletterBoardAdminViewProps = {
   role: string
+  token: string
   boards: NewsletterBoard[]
   globalBoards: NewsletterBoard[]
   gaBoards: NewsletterBoard[]
@@ -13,9 +14,12 @@ export type NewsletterBoardAdminViewProps = {
   loading: boolean
   busy: boolean
   error: string
+  selectedBoard: NewsletterBoard | null
   onLabelChange: (value: string) => void
   onDescriptionChange: (value: string) => void
   onCreateModeChange: (mode: NewsletterBoardCreateMode) => void
   onCreate: () => void
   onDelete: (board: NewsletterBoard) => void
+  onSelectBoard: (board: NewsletterBoard | null) => void
+  onWriterBusyChange: (busy: boolean) => void
 }

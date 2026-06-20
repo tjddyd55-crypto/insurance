@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { FormButton, FormInput } from '../../../../components/form'
 import type { NewsletterBoard } from '../../types'
 import type { NewsletterBoardAdminViewProps } from './newsletterBoardAdminViewProps'
+import { NewsletterBoardWriterPanel } from './NewsletterBoardWriterPanel'
 import './newsletter-board-admin.css'
 
 function boardScopeLabel(board: NewsletterBoard) {
@@ -11,6 +12,7 @@ function boardScopeLabel(board: NewsletterBoard) {
 
 export function NewsletterBoardAdminView({
   role,
+  token,
   globalBoards,
   gaBoards,
   label,
@@ -19,10 +21,13 @@ export function NewsletterBoardAdminView({
   loading,
   busy,
   error,
+  selectedBoard,
   onLabelChange,
   onDescriptionChange,
   onCreate,
   onDelete,
+  onSelectBoard,
+  onWriterBusyChange,
 }: NewsletterBoardAdminViewProps) {
   const isSuperAdmin = role === 'SUPER_ADMIN'
   const isGaAdmin = role === 'GA_ADMIN'
@@ -38,16 +43,14 @@ export function NewsletterBoardAdminView({
         </p>
         {isSuperAdmin ? (
           <div className="newsletter-board-admin-page__toolbar" style={{ marginTop: 14 }}>
-            <Link to="/admin/public-board-writers">
-              <FormButton htmlType="button" variant="secondary">
-                공용 작성자 계정 관리
-              </FormButton>
-            </Link>
             <Link to="/board-writer/login">
               <FormButton htmlType="button" variant="secondary">
                 소식지 작성자 로그인
               </FormButton>
             </Link>
+            <p className="newsletter-board-admin-page__help" style={{ margin: '8px 0 0' }}>
+              공용 소식지별 작성자 계정은 아래 목록에서 소식지를 선택해 관리합니다.
+            </p>
           </div>
         ) : (
           <div className="newsletter-board-admin-page__toolbar" style={{ marginTop: 14 }}>
@@ -113,7 +116,10 @@ export function NewsletterBoardAdminView({
           loading={loading}
           busy={busy}
           canDelete
+          canManageWriters
+          selectedBoardId={selectedBoard?.id ?? null}
           onDelete={onDelete}
+          onSelectBoard={onSelectBoard}
         />
       ) : null}
 
@@ -123,8 +129,21 @@ export function NewsletterBoardAdminView({
         loading={loading}
         busy={busy}
         canDelete={isGaAdmin || isSuperAdmin}
+        canManageWriters={isGaAdmin}
+        selectedBoardId={selectedBoard?.id ?? null}
         onDelete={onDelete}
+        onSelectBoard={onSelectBoard}
       />
+
+      {selectedBoard && token.trim() ? (
+        <NewsletterBoardWriterPanel
+          board={selectedBoard}
+          token={token}
+          role={role}
+          busy={busy}
+          onBusyChange={onWriterBusyChange}
+        />
+      ) : null}
     </>
   )
 }
@@ -135,18 +154,29 @@ function BoardTable({
   loading,
   busy,
   canDelete,
+  canManageWriters = false,
+  selectedBoardId,
   onDelete,
+  onSelectBoard,
 }: {
   title: string
   boards: NewsletterBoard[]
   loading: boolean
   busy: boolean
   canDelete: boolean
+  canManageWriters?: boolean
+  selectedBoardId: string | null
   onDelete: (board: NewsletterBoard) => void
+  onSelectBoard: (board: NewsletterBoard | null) => void
 }) {
   return (
     <section className="newsletter-board-admin-page__panel">
       <h2 className="newsletter-board-admin-page__panel-title">{title}</h2>
+      {canManageWriters ? (
+        <p className="newsletter-board-admin-page__help">
+          소식지 행을 클릭하거나 「작성자 관리」 버튼을 눌러 아래에서 작성자 계정을 관리합니다.
+        </p>
+      ) : null}
       {loading ? <div className="insurer-news-empty">불러오는 중...</div> : null}
       {!loading && boards.length === 0 ? <div className="insurer-news-empty">등록된 소식지가 없습니다.</div> : null}
       {!loading && boards.length > 0 ? (
@@ -162,27 +192,63 @@ function BoardTable({
               </tr>
             </thead>
             <tbody>
-              {boards.map((board) => (
-                <tr key={board.id}>
-                  <td>{board.label}</td>
-                  <td>
-                    <span className="newsletter-board-admin-page__scope-badge">{boardScopeLabel(board)}</span>
-                  </td>
-                  <td>{board.gaName ?? board.gaCode ?? '—'}</td>
-                  <td className="newsletter-board-admin-page__path">{`/portal/boards/${board.slug}`}</td>
-                  <td>
-                    <FormButton
-                      htmlType="button"
-                      variant="secondary"
-                      className="newsletter-board-admin-page__delete-btn"
-                      disabled={busy || !canDelete}
-                      onClick={() => onDelete(board)}
-                    >
-                      삭제
-                    </FormButton>
-                  </td>
-                </tr>
-              ))}
+              {boards.map((board) => {
+                const isSelected = selectedBoardId === board.id
+                return (
+                  <tr
+                    key={board.id}
+                    className={
+                      isSelected
+                        ? 'newsletter-board-admin-page__row newsletter-board-admin-page__row--selected newsletter-board-admin-page__row--clickable'
+                        : canManageWriters
+                          ? 'newsletter-board-admin-page__row newsletter-board-admin-page__row--clickable'
+                          : 'newsletter-board-admin-page__row'
+                    }
+                    onClick={() => {
+                      if (!canManageWriters) {
+                        return
+                      }
+                      onSelectBoard(isSelected ? null : board)
+                    }}
+                  >
+                    <td>{board.label}</td>
+                    <td>
+                      <span className="newsletter-board-admin-page__scope-badge">{boardScopeLabel(board)}</span>
+                    </td>
+                    <td>{board.gaName ?? board.gaCode ?? '—'}</td>
+                    <td className="newsletter-board-admin-page__path">{`/portal/boards/${board.slug}`}</td>
+                    <td>
+                      <div className="newsletter-board-admin-page__row-actions">
+                        {canManageWriters ? (
+                          <FormButton
+                            htmlType="button"
+                            variant={isSelected ? 'primary' : 'secondary'}
+                            disabled={busy}
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              onSelectBoard(isSelected ? null : board)
+                            }}
+                          >
+                            작성자 관리
+                          </FormButton>
+                        ) : null}
+                        <FormButton
+                          htmlType="button"
+                          variant="secondary"
+                          className="newsletter-board-admin-page__delete-btn"
+                          disabled={busy || !canDelete}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            onDelete(board)
+                          }}
+                        >
+                          삭제
+                        </FormButton>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

@@ -119,3 +119,114 @@
 .newsletter-board-admin-page__delete-btn:hover:not(:disabled) {
   background: #fef2f2;
 }
+
+.newsletter-board-admin-page__row--clickable {
+  cursor: pointer;
+}
+
+.newsletter-board-admin-page__row--clickable:hover {
+  background: #f9fafb;
+}
+
+.newsletter-board-admin-page__row--selected {
+  background: #eff6ff;
+}
+
+.newsletter-board-admin-page__row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.newsletter-board-admin-page__writer-panel {
+  margin-bottom: 16px;
+  padding: 20px 22px;
+  border-radius: 14px;
+  border: 1px solid #bfdbfe;
+  background: #f8fafc;
+}
+
+.newsletter-board-admin-page__writer-panel-head h3 {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+  color: #111827;
+}
+
+.newsletter-board-admin-page__writer-panel-path {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.newsletter-board-admin-page__writer-panel-section {
+  margin-top: 18px;
+}
+
+.newsletter-board-admin-page__writer-panel-section h4 {
+  margin: 0 0 12px;
+  font-size: 0.975rem;
+  color: #111827;
+}
+
+.newsletter-board-admin-page__writer-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.newsletter-board-admin-page__writer-inline {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.newsletter-board-admin-page__writer-inline .form-input {
+  flex: 1 1 auto;
+}
+
+.newsletter-board-admin-page__writer-check {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.8125rem;
+}
+
+.newsletter-board-admin-page__writer-check--ok {
+  color: #059669;
+}
+
+.newsletter-board-admin-page__writer-check--bad {
+  color: #b91c1c;
+}
+
+.newsletter-board-admin-page__writer-table-wrap {
+  overflow-x: auto;
+}
+
+.newsletter-board-admin-page__writer-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.newsletter-board-admin-page__writer-table th,
+.newsletter-board-admin-page__writer-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+  vertical-align: top;
+}
+
+.newsletter-board-admin-page__writer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .newsletter-board-admin-page__writer-form-grid {
+    grid-template-columns: 1fr;
+  }
+}

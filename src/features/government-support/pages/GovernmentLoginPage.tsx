@@ -24,7 +24,11 @@ export default function GovernmentLoginPage() {
     setError('')
     try {
       const res = await loginApi(username.trim(), password)
-      login(res.token, res.user)
+      if (res.authKind === 'BOARD_WRITER') {
+        setError('정부지원 CRM 계정이 아닙니다.')
+        return
+      }
+      login({ token: res.token, user: res.user })
       navigate('/government/workspace', { replace: true })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : '로그인에 실패했습니다.')

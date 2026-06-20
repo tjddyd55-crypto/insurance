@@ -25,6 +25,17 @@ import {
   resolveBoardWriterStorageGaCode,
   updateBoardWriterNewsletter,
 } from './lib/boardWriterNewsletters.js'
+import {
+  assertAdminCanManageBoardWriters,
+  authenticateBoardWriterCredentials,
+  createWriterAccountForBoard,
+  isWriterLoginIdTaken,
+  listWriterAccountsForBoard,
+  loadNewsletterBoardById,
+  patchWriterAccountForBoard,
+  resolveBoardWriterLandingPath,
+  signBoardWriterSessionToken,
+} from './lib/boardWriterAccountService.js'
 
 export { BOARD_WRITER_JWT_KIND, PUBLIC_BOARD_WRITER_JWT_KIND } from './lib/boardWriterService.js'
 export { createRequirePublicBoardWriterAuth } from './lib/boardWriterAuth.js'
@@ -71,53 +82,18 @@ export function registerPublicBoardWriterApi(apiRouter, ctx) {
       const body = req.body && typeof req.body === 'object' ? req.body : {}
       const loginId = String(body.loginId ?? body.username ?? '').trim()
       const password = String(body.password ?? '')
-      if (!loginId || !password) {
-        res.status(400).json({ message: '아이디와 비밀번호를 입력해 주세요.' })
+      const auth = await authenticateBoardWriterCredentials(pool, loginId, password, bcryptLib)
+      if (!auth.ok) {
+        res.status(auth.status).json({ message: auth.message })
         return
       }
-      const r = await systemQuery(
-        pool,
-        `
-        SELECT *
-        FROM board_writer_accounts
-        WHERE LOWER(TRIM(login_id)) = LOWER(TRIM($1))
-          AND is_active = true
-        LIMIT 1
-        `,
-        [loginId],
-      )
-      if (r.rowCount === 0) {
-        res.status(401).json({ message: '아이디 또는 비밀번호가 올바르지 않습니다.' })
-        return
-      }
-      const row = r.rows[0]
-      const match = await bcryptLib.compare(password, String(row.password_hash ?? ''))
-      if (!match) {
-        res.status(401).json({ message: '아이디 또는 비밀번호가 올바르지 않습니다.' })
-        return
-      }
-      const allowedBoardIds = await listAllowedBoardIdsForWriter(pool, String(row.id))
-      await systemQuery(
-        pool,
-        `UPDATE board_writer_accounts SET last_login_at = NOW(), updated_at = NOW() WHERE id = $1`,
-        [row.id],
-      )
-      const token = jwt.sign(
-        {
-          kind: BOARD_WRITER_JWT_KIND,
-          writerAccountId: String(row.id),
-          writerId: String(row.id),
-          loginId: String(row.login_id ?? ''),
-          writerScope: String(row.writer_scope ?? 'global'),
-          ownerGaId: row.owner_ga_id == null ? null : Number(row.owner_ga_id),
-          allowedBoardIds,
-          sub: String(row.id),
-          role: 'BOARD_WRITER',
-        },
-        jwtSecret,
-        { expiresIn: WRITER_TOKEN_EXPIRES_IN },
-      )
-      res.json({ token, writer: mapBoardWriterRow(row, allowedBoardIds) })
+      const redirectPath = await resolveBoardWriterLandingPath(pool, String(auth.row.id))
+      const token = signBoardWriterSessionToken(auth.row, auth.allowedBoardIds, jwtSecret)
+      res.json({
+        token,
+        writer: mapBoardWriterRow(auth.row, auth.allowedBoardIds),
+        redirectPath,
+      })
     } catch (e) {
       handleDbError(e, req, res)
     }
@@ -598,4 +574,170 @@ export function registerPublicBoardWriterApi(apiRouter, ctx) {
     }
     await patchWriter(req, res, 'ga', Number(req.user?.gaId))
   })
+
+  async function loadBoardWriterAdminContext(req, res) {
+    const boardId = String(req.params.boardId ?? '').trim()
+    const board = await loadNewsletterBoardById(pool, boardId)
+    const access = assertAdminCanManageBoardWriters(req.user, board)
+    if (!access.ok) {
+      res.status(access.status).json({ message: access.message })
+      return null
+    }
+    return { board, boardId, ...access }
+  }
+
+  apiRouter.get('/admin/newsletter-boards/:boardId/writer-accounts', requireAuth, async (req, res) => {
+    try {
+      const ctx = await loadBoardWriterAdminContext(req, res)
+      if (!ctx) {
+        return
+      }
+      const rows = await listWriterAccountsForBoard(pool, ctx.boardId)
+      res.json(rows)
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.get('/ga-admin/newsletter-boards/:boardId/writer-accounts', requireAuth, async (req, res) => {
+    try {
+      const ctx = await loadBoardWriterAdminContext(req, res)
+      if (!ctx) {
+        return
+      }
+      const rows = await listWriterAccountsForBoard(pool, ctx.boardId)
+      res.json(rows)
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
+  async function checkBoardWriterLoginId(req, res) {
+    try {
+      const ctx = await loadBoardWriterAdminContext(req, res)
+      if (!ctx) {
+        return
+      }
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      const loginId = String(body.loginId ?? req.query?.loginId ?? '').trim()
+      if (!loginId) {
+        res.status(400).json({ message: '아이디를 입력해 주세요.' })
+        return
+      }
+      const taken = await isWriterLoginIdTaken(pool, loginId)
+      res.json({ available: !taken, loginId })
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  }
+
+  apiRouter.post('/admin/newsletter-boards/:boardId/writer-accounts/check-login-id', requireAuth, checkBoardWriterLoginId)
+  apiRouter.post('/ga-admin/newsletter-boards/:boardId/writer-accounts/check-login-id', requireAuth, checkBoardWriterLoginId)
+
+  async function createBoardScopedWriter(req, res) {
+    try {
+      const ctx = await loadBoardWriterAdminContext(req, res)
+      if (!ctx) {
+        return
+      }
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      const created = await createWriterAccountForBoard(
+        pool,
+        {
+          boardId: ctx.boardId,
+          loginId: String(body.loginId ?? '').trim(),
+          password: String(body.password ?? ''),
+          displayName: String(body.displayName ?? body.name ?? '').trim(),
+          writerScope: ctx.writerScope,
+          ownerGaId: ctx.ownerGaId,
+          createdByUserId: String(req.user?.id ?? '') || null,
+        },
+        bcryptLib,
+      )
+      if (!created.ok) {
+        res.status(created.status).json({ message: created.message })
+        return
+      }
+      res.status(201).json(mapBoardWriterRow(created.row, created.allowedBoardIds))
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  }
+
+  apiRouter.post('/admin/newsletter-boards/:boardId/writer-accounts', requireAuth, createBoardScopedWriter)
+  apiRouter.post('/ga-admin/newsletter-boards/:boardId/writer-accounts', requireAuth, createBoardScopedWriter)
+
+  async function patchBoardScopedWriterPassword(req, res) {
+    try {
+      const ctx = await loadBoardWriterAdminContext(req, res)
+      if (!ctx) {
+        return
+      }
+      const accountId = String(req.params.accountId ?? '').trim()
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      const password = String(body.password ?? '').trim()
+      if (!password || password.length < 8) {
+        res.status(400).json({ message: '비밀번호는 8자 이상 입력해 주세요.' })
+        return
+      }
+      const patched = await patchWriterAccountForBoard(pool, accountId, ctx.boardId, { password }, bcryptLib)
+      if (!patched.ok) {
+        res.status(patched.status).json({ message: patched.message })
+        return
+      }
+      res.json(mapBoardWriterRow(patched.row, patched.allowedBoardIds))
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  }
+
+  async function patchBoardScopedWriterStatus(req, res) {
+    try {
+      const ctx = await loadBoardWriterAdminContext(req, res)
+      if (!ctx) {
+        return
+      }
+      const accountId = String(req.params.accountId ?? '').trim()
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      if (body.isActive == null) {
+        res.status(400).json({ message: 'isActive 값이 필요합니다.' })
+        return
+      }
+      const patched = await patchWriterAccountForBoard(
+        pool,
+        accountId,
+        ctx.boardId,
+        { isActive: Boolean(body.isActive) },
+        bcryptLib,
+      )
+      if (!patched.ok) {
+        res.status(patched.status).json({ message: patched.message })
+        return
+      }
+      res.json(mapBoardWriterRow(patched.row, patched.allowedBoardIds))
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  }
+
+  apiRouter.patch(
+    '/admin/newsletter-boards/:boardId/writer-accounts/:accountId/password',
+    requireAuth,
+    patchBoardScopedWriterPassword,
+  )
+  apiRouter.patch(
+    '/ga-admin/newsletter-boards/:boardId/writer-accounts/:accountId/password',
+    requireAuth,
+    patchBoardScopedWriterPassword,
+  )
+  apiRouter.patch(
+    '/admin/newsletter-boards/:boardId/writer-accounts/:accountId/status',
+    requireAuth,
+    patchBoardScopedWriterStatus,
+  )
+  apiRouter.patch(
+    '/ga-admin/newsletter-boards/:boardId/writer-accounts/:accountId/status',
+    requireAuth,
+    patchBoardScopedWriterStatus,
+  )
 }
