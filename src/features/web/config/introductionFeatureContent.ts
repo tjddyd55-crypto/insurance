@@ -1,4 +1,6 @@
-export const INTRO_SERVICE_INQUIRY_PATH = '/signup/insurance'
+export const INTRO_SERVICE_INQUIRY_HREF = 'tel:01022221382'
+export const INTRO_SERVICE_INQUIRY_ARIA_LABEL = '010-2222-1382로 전화 문의하기'
+export const INTRO_SERVICE_INQUIRY_TITLE = '010-2222-1382로 전화 문의'
 
 export const introMainHighlights = [
   '고객 통합 관리',

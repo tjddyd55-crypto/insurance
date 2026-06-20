@@ -103,7 +103,6 @@ const DOWNLOAD_CARDS = [
     buttonLabel: 'PC 다운로드',
     badge: '설계사용',
     icon: 'PC',
-    customer: false,
   },
   {
     key: 'fc',
@@ -113,17 +112,6 @@ const DOWNLOAD_CARDS = [
     buttonLabel: 'APK 다운로드',
     badge: '설계사용',
     icon: 'APK',
-    customer: false,
-  },
-  {
-    key: 'customer',
-    title: '고객앱 다운로드',
-    description: '고객이 소식 확인, 청구 요청, 자료 확인에 사용하는 전용 앱',
-    href: DOWNLOAD_LINKS.customerApp,
-    buttonLabel: '고객앱 다운로드',
-    badge: null,
-    icon: 'APP',
-    customer: true,
   },
 ] as const
 
@@ -143,9 +131,6 @@ export function IntroductionInstallPage() {
             <a href={DOWNLOAD_LINKS.fcMobile} download>
               FC 모바일
             </a>
-            <a className="is-customer" href={DOWNLOAD_LINKS.customerApp} target="_blank" rel="noreferrer">
-              고객앱
-            </a>
           </div>
         </div>
       </section>
@@ -158,24 +143,20 @@ export function IntroductionInstallPage() {
           </header>
           <div className="intro-install-download-grid">
             {DOWNLOAD_CARDS.map((card) => (
-              <article
-                key={card.key}
-                className={`intro-install-download-card${card.customer ? ' intro-install-download-card--customer' : ''}`}
-              >
+              <article key={card.key} className="intro-install-download-card">
                 <div className="intro-install-download-card__head">
-                  <div className={`intro-install-download-card__icon${card.customer ? ' is-customer' : ''}`}>
+                  <div className="intro-install-download-card__icon">
                     <span>{card.icon}</span>
                   </div>
                   <div className="intro-install-download-card__title-wrap">
                     <h3>{card.title}</h3>
-                    {card.badge ? <span className="intro-install-download-card__badge">{card.badge}</span> : null}
+                    {card.badge ? (
+                      <span className="intro-install-download-card__badge">{card.badge}</span>
+                    ) : null}
                   </div>
                 </div>
                 <p>{card.description}</p>
-                <a
-                  href={card.href}
-                  {...(card.customer ? { target: '_blank', rel: 'noreferrer' } : { download: true })}
-                >
+                <a href={card.href} download>
                   <span className="intro-install-download-card__btn-icon" aria-hidden="true">↓</span>
                   {card.buttonLabel}
                 </a>
@@ -265,9 +246,8 @@ export function IntroductionInstallPage() {
           <h2>설치와 업로드 순서 요약</h2>
           <p>프로그램 설치 -&gt; 샘플 다운로드 -&gt; 엑셀 작성 -&gt; 업로드</p>
           <div className="intro-install-cta__actions">
-            <a href={DOWNLOAD_LINKS.pc} target="_blank" rel="noreferrer">PC 다운로드</a>
-            <a href={DOWNLOAD_LINKS.fcMobile} target="_blank" rel="noreferrer">FC 모바일</a>
-            <a href={DOWNLOAD_LINKS.customerApp} target="_blank" rel="noreferrer">고객앱</a>
+            <a href={DOWNLOAD_LINKS.pc} download>PC 다운로드</a>
+            <a href={DOWNLOAD_LINKS.fcMobile} download>FC 모바일</a>
           </div>
         </div>
       </section>
