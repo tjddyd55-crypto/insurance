@@ -15,6 +15,7 @@ const USER_UI_SHELL_PATTERNS: RegExp[] = [
   /^\/customer\//,
   /^\/portal\/newsletters/,
   /^\/portal\/adjuster-news/,
+  /^\/portal\/boards/,
   /^\/application\/documents/,
   /^\/insurance\/contacts$/,
   /^\/contacts(\/|$)/,
