@@ -64,7 +64,8 @@
   }
 
   .pc-top-navigation__group:hover,
-  .pc-top-navigation__group--open {
+  .pc-top-navigation__group--open,
+  .pc-top-navigation__group--pinned {
     background: var(--bg-soft, #f1f5f9);
     color: var(--text-primary, #111827);
   }
