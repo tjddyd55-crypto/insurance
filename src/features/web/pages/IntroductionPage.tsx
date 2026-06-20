@@ -1,6 +1,10 @@
 import { Link } from 'react-router-dom'
 import { AppDownloadActions } from '../components/AppDownloadActions'
 import { BusinessInfoFooter } from '../components/BusinessInfoFooter'
+import {
+  IntroductionFeatureShowcase,
+  IntroductionFinalCta,
+} from '../components/introduction/IntroductionFeatureShowcase'
 
 export function IntroductionPage() {
   const structureItems = [
@@ -14,15 +18,6 @@ export function IntroductionPage() {
     { title: 'GA -> FC', desc: '공지 등록 -> 자동 전달' },
     { title: 'FC -> 고객', desc: '고객 등록 -> 상담 -> 파일 -> 청구' },
     { title: 'FC -> 고객', desc: '소식지 작성 -> 자동 전달' },
-  ] as const
-
-  const featureItems = [
-    { title: '고객관리', lines: ['고객 정보 통합', '보험 데이터 관리'] },
-    { title: '상담관리', lines: ['상담 기록', '히스토리 관리'] },
-    { title: '파일관리', lines: ['고객별 파일 저장', '클라우드 기반'] },
-    { title: '청구관리', lines: ['청구 서류 업로드', '진행 상태 관리'] },
-    { title: '소식지', lines: ['FC -> 고객 전달', 'GA -> FC 전달'] },
-    { title: '조직관리', lines: ['팀 관리', '내부 공유'] },
   ] as const
 
   const valueItems = [
@@ -52,6 +47,8 @@ export function IntroductionPage() {
           </div>
         </div>
       </section>
+
+      <IntroductionFeatureShowcase />
 
       <section className="intro-v2-section intro-v2-section--white">
         <div className="intro-v2-shell">
@@ -94,27 +91,6 @@ export function IntroductionPage() {
         </div>
       </section>
 
-      <section className="intro-v2-section intro-v2-section--soft">
-        <div className="intro-v2-shell">
-          <header className="intro-v2-title">
-            <h2>핵심 기능</h2>
-            <p>필요한 모든 기능이 한 곳에</p>
-          </header>
-          <div className="intro-v2-feature-grid">
-            {featureItems.map((item) => (
-              <article key={item.title} className="intro-v2-feature-card">
-                <h3>{item.title}</h3>
-                <div>
-                  {item.lines.map((line) => (
-                    <p key={line}>{line}</p>
-                  ))}
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
       <section className="intro-v2-section intro-v2-section--white">
         <div className="intro-v2-shell">
           <header className="intro-v2-title">
@@ -132,20 +108,7 @@ export function IntroductionPage() {
         </div>
       </section>
 
-      <section className="intro-v2-cta">
-        <div className="intro-v2-shell intro-v2-cta__inner">
-          <h2>
-            이 프로그램 하나로
-            <br />
-            보험 영업의 모든 업무가 해결됩니다.
-          </h2>
-          <p>이제 관리가 아니라 고객에 집중하세요.</p>
-          <AppDownloadActions className="intro-v2-download-actions intro-v2-download-actions--cta" layout="row" />
-          <Link className="intro-v2-btn intro-v2-btn--white" to="/introduction/install">
-            설치 안내 보기
-          </Link>
-        </div>
-      </section>
+      <IntroductionFinalCta />
       <BusinessInfoFooter />
     </main>
   )

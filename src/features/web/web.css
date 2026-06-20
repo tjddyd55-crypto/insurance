@@ -337,6 +337,166 @@
   font-size: 18px;
 }
 
+/* ── 기능 소개(홍보 이미지) 섹션 ── */
+
+.intro-v2-features-summary {
+  padding-top: 96px;
+}
+
+.intro-v2-highlight-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.intro-v2-highlight-chip {
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: 14px;
+  padding: 16px 18px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #111827;
+  text-align: center;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.intro-v2-feature-image-card {
+  margin: 0 auto;
+  max-width: 1120px;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.06);
+  padding: 12px;
+}
+
+.intro-v2-feature-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  object-fit: contain;
+  border-radius: 10px;
+}
+
+.intro-v2-privacy-note {
+  margin: 14px auto 0;
+  max-width: 1120px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #9ca3af;
+  text-align: center;
+}
+
+.intro-v2-capability-grid {
+  margin-top: 40px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.intro-v2-capability-grid--support {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.intro-v2-capability-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #fff;
+  padding: 20px 20px 18px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.intro-v2-capability-card__index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--intro-btn-green);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.intro-v2-capability-card h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.intro-v2-capability-card p {
+  margin: 8px 0 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: #6b7280;
+}
+
+.intro-v2-inline-cta {
+  padding: 0;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.intro-v2-inline-cta__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 28px 0;
+  color: #fff;
+}
+
+.intro-v2-inline-cta__text {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.intro-v2-inline-cta__btn {
+  flex-shrink: 0;
+}
+
+.intro-v2-btn--green {
+  background: var(--intro-btn-green);
+  color: #fff;
+  border: 1px solid var(--intro-btn-green);
+}
+
+.intro-v2-btn--green:hover {
+  background: var(--intro-btn-green-hover);
+  border-color: var(--intro-btn-green-hover);
+}
+
+.intro-v2-btn--outline {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+}
+
+.intro-v2-btn--outline:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: #fff;
+}
+
+.intro-v2-cta__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.intro-v2-cta--features .intro-v2-cta__actions .intro-v2-btn {
+  min-width: 180px;
+}
+
 .intro-v2-cta {
   padding: 128px 0;
   background: linear-gradient(156deg, var(--primary) 0%, var(--primary-active) 100%);
@@ -389,6 +549,37 @@
   .intro-v2-feature-grid,
   .intro-v2-value-grid {
     grid-template-columns: 1fr;
+  }
+
+  .intro-v2-highlight-list {
+    grid-template-columns: 1fr;
+  }
+
+  .intro-v2-capability-grid,
+  .intro-v2-capability-grid--support {
+    grid-template-columns: 1fr;
+  }
+
+  .intro-v2-inline-cta__inner {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+    padding: 24px 0;
+  }
+
+  .intro-v2-inline-cta__btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  .intro-v2-cta__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .intro-v2-cta--features .intro-v2-cta__actions .intro-v2-btn,
+  .intro-v2-cta__actions .app-download-actions {
+    width: 100%;
   }
 
   .intro-v2-cta h2 {
