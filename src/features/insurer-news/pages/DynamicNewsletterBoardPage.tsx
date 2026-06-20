@@ -99,6 +99,7 @@ export function DynamicNewsletterBoardPage() {
   }
 
   const viewProps: DynamicNewsletterBoardViewProps = {
+    boardSlug,
     board,
     items: filteredItems,
     error,

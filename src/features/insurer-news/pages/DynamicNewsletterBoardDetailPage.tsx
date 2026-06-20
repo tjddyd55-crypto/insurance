@@ -1,27 +1,34 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { FormButton } from '../../../components/form'
-import NewsDetailMobileZoomScroll from '../../../components/news-detail-viewer/NewsDetailMobileZoomScroll'
+import NewsDetailViewerModal from '../../../components/news-detail-viewer/NewsDetailViewerModal'
+import {
+  NEWS_DETAIL_VIEWER_ZOOM_STEP,
+  clampNewsDetailViewerZoom,
+} from '../../../components/news-detail-viewer/newsDetailViewerZoom'
 import GaRequiredNotice from '../../../components/access/GaRequiredNotice'
 import { useAuth } from '../../auth/AuthProvider'
 import { isPublicGeneralAccount } from '../../auth/generalGa'
-import { NewsletterAttachmentList } from '../components/NewsletterAttachmentList'
-import { NewsletterImageGallery } from '../components/NewsletterImageGallery'
 import { ApiError } from '../../../lib/apiClient'
+import {
+  buildInsurerNewsDetailHeroDownloadUrl,
+  InsurerNewsDetailViewerContent,
+} from '../components/InsurerNewsDetailViewerContent'
 import { getDynamicNewsletterBoardDetail } from '../services/insurerNews.service'
 import type { NewsletterDetail } from '../types'
-import { buildInsurerNewsGalleryUrls } from '../utils/buildInsurerNewsGalleryUrls'
-import { formatInsurerNewsDateTime } from '../utils/formatInsurerNewsDate'
+
+const ZOOM_STEP = NEWS_DETAIL_VIEWER_ZOOM_STEP
 
 export function DynamicNewsletterBoardDetailPage() {
   const { boardSlug = '', newsletterId = '' } = useParams<{ boardSlug: string; newsletterId: string }>()
   const { user, token } = useAuth()
   const isPublicAccount = isPublicGeneralAccount(user)
   const navigate = useNavigate()
+  const listPath = `/portal/boards/${encodeURIComponent(boardSlug)}`
   const [detail, setDetail] = useState<NewsletterDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [accessForbidden, setAccessForbidden] = useState(false)
   const [error, setError] = useState('')
+  const [zoom, setZoom] = useState(1)
 
   useEffect(() => {
     let cancelled = false
@@ -29,6 +36,7 @@ export function DynamicNewsletterBoardDetailPage() {
       setLoading(false)
       setDetail(null)
       setAccessForbidden(false)
+      setError('소식지를 불러올 수 없습니다.')
       return () => {
         cancelled = true
       }
@@ -36,10 +44,14 @@ export function DynamicNewsletterBoardDetailPage() {
     setLoading(true)
     setAccessForbidden(false)
     setError('')
+    setZoom(1)
     void getDynamicNewsletterBoardDetail(boardSlug, newsletterId, token)
       .then((row) => {
         if (!cancelled) {
           setDetail(row)
+          if (!row) {
+            setError('소식지를 찾을 수 없거나 접근 권한이 없습니다.')
+          }
         }
       })
       .catch((e) => {
@@ -73,61 +85,40 @@ export function DynamicNewsletterBoardDetailPage() {
     return <GaRequiredNotice />
   }
 
-  if (loading) {
-    return (
-      <main className="page page--with-back insurer-news-page">
-        <div className="insurer-news-empty" role="status">
-          불러오는 중...
-        </div>
-      </main>
-    )
-  }
+  const viewerError =
+    error ||
+    (!loading && !detail && !accessForbidden ? '소식지를 찾을 수 없거나 접근 권한이 없습니다.' : null)
 
-  if (!detail) {
-    return (
-      <main className="page page--with-back insurer-news-page">
-        <div className="insurer-news-empty" role="status">
-          {error || '소식지를 찾을 수 없거나 접근 권한이 없습니다.'}
-        </div>
-      </main>
-    )
-  }
-
-  const galleryUrls = buildInsurerNewsGalleryUrls({
-    heroImageUrl: detail.heroImageUrl,
-    heroImageObjectKey: detail.heroImageObjectKey,
-    attachments: detail.attachments,
-  })
+  const heroDownloadUrl = buildInsurerNewsDetailHeroDownloadUrl(detail, null)
 
   return (
-    <main className="page page--with-back insurer-news-page">
-      <article className="insurer-news-detail-article">
-        <header style={{ marginBottom: 16 }}>
-          <FormButton
-            htmlType="button"
-            variant="secondary"
-            className="button button--secondary"
-            onClick={() => navigate(`/portal/boards/${encodeURIComponent(boardSlug)}`)}
+    <NewsDetailViewerModal
+      open
+      onClose={() => navigate(listPath)}
+      zoom={zoom}
+      onZoomChange={(next) => setZoom(clampNewsDetailViewerZoom(next))}
+      onZoomIn={() => setZoom((value) => clampNewsDetailViewerZoom(value + ZOOM_STEP))}
+      onZoomOut={() => setZoom((value) => clampNewsDetailViewerZoom(value - ZOOM_STEP))}
+      zoomControlVariant="symbols"
+      closeLabel="✕"
+      loading={loading}
+      error={viewerError}
+      ariaLabel={detail?.title ? `소식지 · ${detail.title}` : '소식지 상세'}
+      headerActions={
+        heroDownloadUrl ? (
+          <a
+            href={heroDownloadUrl}
+            download
+            className="button filter-button download-btn"
+            target="_blank"
+            rel="noreferrer"
           >
-            목록으로
-          </FormButton>
-          <p className="insurer-news-muted" style={{ margin: '12px 0 4px', fontSize: 14 }}>
-            {detail.insurerName}
-          </p>
-          <time dateTime={detail.publishedAt} style={{ fontSize: '0.95rem' }}>
-            {formatInsurerNewsDateTime(detail.publishedAt)}
-          </time>
-        </header>
-        <NewsDetailMobileZoomScroll>
-          <div className="insurer-news-detail-body news-text" style={{ marginBottom: 8 }}>
-            {detail.bodyText || '본문이 없습니다.'}
-          </div>
-          {galleryUrls.length > 0 ? (
-            <NewsletterImageGallery imageUrls={galleryUrls} altBase="소식지 이미지" resolveUrls />
-          ) : null}
-          <NewsletterAttachmentList attachments={detail.attachments} />
-        </NewsDetailMobileZoomScroll>
-      </article>
-    </main>
+            다운로드
+          </a>
+        ) : null
+      }
+    >
+      {detail ? <InsurerNewsDetailViewerContent zoom={zoom} detail={detail} item={null} /> : null}
+    </NewsDetailViewerModal>
   )
 }
