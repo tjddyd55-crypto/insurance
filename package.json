@@ -102,6 +102,7 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
+      "shared/formatReleaseNotes.js",
       "package.json"
     ],
     "win": {
