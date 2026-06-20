@@ -2,38 +2,41 @@
 .customers-map-page--mobile {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  min-height: calc(100vh - 64px);
-  padding: 12px 16px 16px;
   background: var(--bg-main);
   color: var(--text-main);
 }
 
-.customers-map-page__title {
-  margin: 0;
-  font-size: 1.125rem;
-  color: var(--text-primary);
+.customers-map-page--pc {
+  gap: 6px;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  padding: 0;
 }
 
-.customers-map-page__header-summary {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  margin-top: 8px;
+.customers-map-page--pc.page--with-back {
+  padding-top: 0;
 }
 
 .customers-map-page__summary {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   color: var(--text-secondary);
-  line-height: 1.45;
+  line-height: 1.2;
 }
 
 .customers-map-page__toolbar {
   display: flex;
   flex-direction: column;
+  flex: 0 0 auto;
   gap: 6px;
+}
+
+.customers-map-page__toolbar-row--summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 .customers-map-page__toolbar-row {
@@ -120,7 +123,7 @@
 .customers-map-page__map-wrap {
   position: relative;
   flex: 1 1 auto;
-  min-height: 520px;
+  min-height: 0;
   border: 1px solid var(--border-default);
   border-radius: 12px;
   overflow: hidden;
@@ -128,11 +131,45 @@
 }
 
 .customers-map-page--pc .customers-map-page__map-wrap {
-  min-height: calc(100vh - 220px);
+  min-height: 280px;
 }
 
 .customers-map-page--pc.customers-map-page--unmapped-open .customers-map-page__map-wrap {
-  min-height: 360px;
+  min-height: 220px;
+}
+
+/* ── PC: workspace flex chain + compact content padding ── */
+
+.pc-root .app-main-content:has(.customers-map-page--pc) {
+  padding: 6px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.pc-root .workspace-main.workspace-main--app .app-main-content:has(.customers-map-page--pc) {
+  overflow: hidden;
+}
+
+.customers-map-page--pc .customers-map-page__unmapped-panel {
+  padding: 8px 10px;
+}
+
+.customers-map-page--pc .customers-map-page__unmapped-panel-head {
+  margin-bottom: 6px;
+}
+
+.customers-map-page--pc .customers-map-page__focus-notice {
+  padding: 6px 10px;
+  font-size: 0.8125rem;
+  flex-shrink: 0;
+}
+
+.customers-map-page--pc .customers-map-page__error,
+.customers-map-page--pc .customers-map-page__loading,
+.customers-map-page--pc .customers-map-page__bounds-loading {
+  flex-shrink: 0;
 }
 
 .customers-map-page--mobile.customers-map-page--unmapped-open .customers-map-page__map-wrap {
