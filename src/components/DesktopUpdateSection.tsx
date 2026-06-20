@@ -25,9 +25,11 @@ function statusToMessage(
     case 'checking':
       return '확인 중…'
     case 'available':
-      return newVersion ? `새 버전이 있습니다: ${newVersion}` : '새 버전이 있습니다.'
+      return newVersion
+        ? `새 PC 프로그램 버전이 있습니다: ${newVersion}. 설치가 필요합니다.`
+        : '새 PC 프로그램 버전이 있습니다. 설치가 필요합니다.'
     case 'not-available':
-      return '이미 최신 버전입니다.'
+      return 'PC 프로그램은 최신 버전입니다. 화면 업데이트는 자동 확인되며, 필요 시 새로고침 안내가 표시됩니다.'
     case 'downloading':
       return '다운로드 중…'
     case 'downloaded':
@@ -62,9 +64,10 @@ export function DesktopUpdateSection() {
 
   return (
     <div className="desktop-update-section">
-      <h2 className="desktop-update-section__title">데스크톱 앱 업데이트</h2>
+      <h2 className="desktop-update-section__title">PC 프로그램 업데이트</h2>
       <p className="desktop-update-section__hint">
-        GitHub 릴리스를 기준으로 업데이트를 확인합니다.
+        PC 프로그램(설치 파일) 업데이트만 확인합니다. 화면 업데이트는 자동으로 확인되며, 필요 시
+        새로고침 안내가 표시됩니다.
       </p>
 
       <div className="desktop-update-section__actions">

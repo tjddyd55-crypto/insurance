@@ -19,6 +19,7 @@
  */
 
 import { useDesktopUpdate } from './useDesktopUpdate'
+import { formatReleaseNotes } from '@insurance-shared/formatReleaseNotes.js'
 import { isElectronApp } from '../../lib/isElectronApp'
 import FormButton from '../../components/form/FormButton'
 import './DesktopUpdateDialog.css'
@@ -108,18 +109,21 @@ function AvailableView({
   return (
     <>
       <h2 id="desktop-update-dialog-title" className="desktop-update-dialog__title">
-        새 버전 업데이트가 있습니다
+        새 PC 프로그램 버전이 있습니다
       </h2>
       {version ? (
         <p className="desktop-update-dialog__subtitle">버전 {version}</p>
       ) : null}
       <p className="desktop-update-dialog__body">
-        지금 업데이트를 시작하시겠습니까? 다운로드가 완료되면 재시작 버튼이 나타납니다.
+        이 업데이트는 프로그램 자체 업데이트이며 설치가 필요합니다. 지금 업데이트를 시작하시겠습니까?
+        다운로드가 완료되면 재시작 버튼이 나타납니다.
       </p>
       {releaseNotes ? (
         <details className="desktop-update-dialog__notes">
           <summary>업데이트 내용 보기</summary>
-          <pre>{releaseNotes}</pre>
+          <pre className="desktop-update-dialog__notes-text">
+            {formatReleaseNotes(releaseNotes)}
+          </pre>
         </details>
       ) : null}
       <div className="desktop-update-dialog__actions">

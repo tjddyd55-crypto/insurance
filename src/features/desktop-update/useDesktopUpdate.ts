@@ -16,6 +16,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { formatReleaseNotes } from '@insurance-shared/formatReleaseNotes.js'
 import type { DesktopUpdatePayload } from '../../electron-window'
 import { isElectronApp } from '../../lib/isElectronApp'
 
@@ -86,11 +87,17 @@ function reduce(prev: DesktopUpdateState, payload: DesktopUpdatePayload): Deskto
         dismissedDownloaded: false,
       }
     case 'available':
+      const formattedNotes = payload.releaseNotes
+        ? formatReleaseNotes(payload.releaseNotes)
+        : null
       return {
         ...prev,
         status: 'available',
         newVersion: payload.version ?? null,
-        releaseNotes: payload.releaseNotes ?? null,
+        releaseNotes:
+          formattedNotes && formattedNotes !== '업데이트 내용이 없습니다.'
+            ? formattedNotes
+            : null,
         errorMessage: null,
       }
     case 'not-available':
