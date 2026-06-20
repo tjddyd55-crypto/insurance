@@ -120,28 +120,46 @@ export function NewsletterBoardAdminView({
           selectedBoardId={selectedBoard?.id ?? null}
           onDelete={onDelete}
           onSelectBoard={onSelectBoard}
+          writerPanel={
+            selectedBoard &&
+            token.trim() &&
+            globalBoards.some((board) => board.id === selectedBoard.id) ? (
+              <NewsletterBoardWriterPanel
+                board={selectedBoard}
+                token={token}
+                role={role}
+                busy={busy}
+                onBusyChange={onWriterBusyChange}
+              />
+            ) : null
+          }
         />
       ) : null}
 
-      <BoardTable
-        title={isGaAdmin ? 'GA전용 소식지 목록' : 'GA전용 소식지 현황'}
-        boards={gaBoards}
-        loading={loading}
-        busy={busy}
-        canDelete={isGaAdmin || isSuperAdmin}
-        canManageWriters={isGaAdmin}
-        selectedBoardId={selectedBoard?.id ?? null}
-        onDelete={onDelete}
-        onSelectBoard={onSelectBoard}
-      />
-
-      {selectedBoard && token.trim() ? (
-        <NewsletterBoardWriterPanel
-          board={selectedBoard}
-          token={token}
-          role={role}
+      {isGaAdmin ? (
+        <BoardTable
+          title="GA전용 소식지 목록"
+          boards={gaBoards}
+          loading={loading}
           busy={busy}
-          onBusyChange={onWriterBusyChange}
+          canDelete
+          canManageWriters
+          selectedBoardId={selectedBoard?.id ?? null}
+          onDelete={onDelete}
+          onSelectBoard={onSelectBoard}
+          writerPanel={
+            selectedBoard &&
+            token.trim() &&
+            gaBoards.some((board) => board.id === selectedBoard.id) ? (
+              <NewsletterBoardWriterPanel
+                board={selectedBoard}
+                token={token}
+                role={role}
+                busy={busy}
+                onBusyChange={onWriterBusyChange}
+              />
+            ) : null
+          }
         />
       ) : null}
     </>
@@ -158,6 +176,7 @@ function BoardTable({
   selectedBoardId,
   onDelete,
   onSelectBoard,
+  writerPanel = null,
 }: {
   title: string
   boards: NewsletterBoard[]
@@ -168,17 +187,12 @@ function BoardTable({
   selectedBoardId: string | null
   onDelete: (board: NewsletterBoard) => void
   onSelectBoard: (board: NewsletterBoard | null) => void
+  writerPanel?: React.ReactNode
 }) {
   return (
     <section className="newsletter-board-admin-page__panel">
       <h2 className="newsletter-board-admin-page__panel-title">{title}</h2>
-      {canManageWriters ? (
-        <p className="newsletter-board-admin-page__help">
-          소식지 행을 클릭하거나 「작성자 관리」 버튼을 눌러 아래에서 작성자 계정을 관리합니다.
-        </p>
-      ) : null}
       {loading ? <div className="insurer-news-empty">불러오는 중...</div> : null}
-      {!loading && boards.length === 0 ? <div className="insurer-news-empty">등록된 소식지가 없습니다.</div> : null}
       {!loading && boards.length > 0 ? (
         <div className="newsletter-board-admin-page__table-wrap">
           <table className="newsletter-board-admin-page__table">
@@ -253,6 +267,7 @@ function BoardTable({
           </table>
         </div>
       ) : null}
+      {writerPanel}
     </section>
   )
 }
