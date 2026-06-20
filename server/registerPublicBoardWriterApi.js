@@ -13,6 +13,7 @@ import {
   listAllowedBoardIdsForWriter,
   listBoardsForWriter,
   loadNewsletterBoardBySlug,
+  loadNewsletterBoardBySlugForWriter,
   mapBoardWriterRow,
   replaceWriterBoardPermissions,
 } from './lib/boardWriterService.js'
@@ -60,7 +61,7 @@ export function registerPublicBoardWriterApi(apiRouter, ctx) {
   async function loadBoardForWriter(req, res) {
     const boardSlug = String(req.params.boardSlug ?? '').trim()
     const writerId = String(req.boardWriter?.id ?? '')
-    const board = await loadNewsletterBoardBySlug(pool, boardSlug)
+    const board = await loadNewsletterBoardBySlugForWriter(pool, boardSlug, writerId)
     if (!board) {
       res.status(404).json({ message: '소식지를 찾을 수 없습니다.' })
       return null

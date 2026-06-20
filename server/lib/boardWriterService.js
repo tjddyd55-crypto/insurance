@@ -1,6 +1,7 @@
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { adminNewsletterBoardQuery } from './newsletterBoardAdminQuery.js'
 import { NEWSLETTER_BOARD_BY_SLUG_SQL } from './newsletterBoardAdminSql.js'
+import { normalizeNewsletterBoardSlug } from './newsletterBoardScope.js'
 import { BOARD_SCOPE_GLOBAL, BOARD_SCOPE_GA, isGlobalBoardScope } from './newsletterBoardScope.js'
 
 export const BOARD_WRITER_JWT_KIND = 'BOARD_WRITER'
@@ -252,7 +253,40 @@ export async function grantAllGaBoardsToWriter(executor, writerId, ownerGaId) {
  * @param {string} slug
  */
 export async function loadNewsletterBoardBySlug(executor, slug) {
-  const r = await adminNewsletterBoardQuery(executor, NEWSLETTER_BOARD_BY_SLUG_SQL, [String(slug ?? '').trim()])
+  const normalized = normalizeNewsletterBoardSlug(slug)
+  const r = await adminNewsletterBoardQuery(executor, NEWSLETTER_BOARD_BY_SLUG_SQL, [normalized])
+  return r.rowCount > 0 ? r.rows[0] : null
+}
+
+/**
+ * 작성자 권한이 있는 보드만 slug 로 조회한다.
+ *
+ * @param {import('pg').Pool | import('pg').PoolClient} executor
+ * @param {string} slug
+ * @param {string} writerId
+ */
+export async function loadNewsletterBoardBySlugForWriter(executor, slug, writerId) {
+  const normalized = normalizeNewsletterBoardSlug(slug)
+  const r = await systemQuery(
+    executor,
+    `
+    SELECT b.*, gc.code AS ga_code, gc.name AS ga_name
+    FROM newsletter_boards b
+    LEFT JOIN ga_companies gc ON gc.id = b.owner_ga_id
+    INNER JOIN board_writer_permissions p
+      ON p.board_id = b.id
+      AND p.writer_account_id = $2
+    WHERE b.slug = $1
+      AND b.is_deleted = false
+      AND COALESCE(b.is_active, true) = true
+      AND b.board_scope IN ('global', 'ga')
+    ORDER BY
+      CASE WHEN b.board_scope = 'global' THEN 0 ELSE 1 END,
+      b.created_at ASC
+    LIMIT 1
+    `,
+    [normalized, String(writerId ?? '').trim()],
+  )
   return r.rowCount > 0 ? r.rows[0] : null
 }
 

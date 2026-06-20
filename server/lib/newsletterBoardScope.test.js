@@ -9,6 +9,7 @@ import {
   isGlobalContentScope,
   normalizeBoardScope,
   normalizeContentScope,
+  normalizeNewsletterBoardSlug,
 } from './newsletterBoardScope.js'
 import {
   GA_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL,
@@ -17,6 +18,7 @@ import {
 } from './newsletterBoardAdminSql.js'
 
 test('board scope normalization', () => {
+  assert.equal(normalizeNewsletterBoardSlug('더도움노무사'), '더도움노무사')
   assert.equal(normalizeBoardScope('global'), 'global')
   assert.equal(normalizeBoardScope('ga'), 'ga')
   assert.equal(normalizeBoardScope('system'), 'system')
