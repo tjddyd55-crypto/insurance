@@ -54,8 +54,16 @@ export interface AuthUser {
 }
 
 export interface LoginResponse {
+  authKind?: 'STANDARD' | 'BOARD_WRITER'
   token: string
-  user: {
+  redirectPath?: string
+  writer?: {
+    id: string
+    loginId: string
+    name: string
+    isActive: boolean
+  }
+  user?: {
     id: string
     username: string
     role: UserRole
@@ -71,6 +79,18 @@ export interface LoginResponse {
     crm_dynamic_industry_template?: unknown
   }
 }
+
+export type LoginSessionResult =
+  | {
+      authKind: 'STANDARD'
+      token: string
+      user: AuthUser
+    }
+  | {
+      authKind: 'BOARD_WRITER'
+      token: string
+      redirectPath: string
+    }
 
 export type EntityStatus = 'active' | 'blocked' | 'inactive'
 
@@ -421,11 +441,21 @@ function parseLoginTenantCrm(raw: unknown): TenantCrmConfig | null {
   return raw as TenantCrmConfig
 }
 
-export async function login(username: string, password: string) {
+export async function login(username: string, password: string): Promise<LoginSessionResult> {
   const raw = await apiRequest<LoginResponse>('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify({ username: username.trim(), password }),
   })
+  if (raw.authKind === 'BOARD_WRITER') {
+    return {
+      authKind: 'BOARD_WRITER',
+      token: raw.token,
+      redirectPath: String(raw.redirectPath ?? '/board-writer/workspace'),
+    }
+  }
+  if (!raw.user) {
+    throw new Error('로그인 응답이 올바르지 않습니다.')
+  }
   const gaCode =
     typeof raw.user.ga_code === 'string' ? raw.user.ga_code.trim().toUpperCase() : ''
   const gaName = typeof raw.user.ga_name === 'string' ? raw.user.ga_name.trim() : ''
@@ -451,6 +481,7 @@ export async function login(username: string, password: string) {
   const tenantCrm = parseLoginTenantCrm(raw.user.tenant_crm)
 
   return {
+    authKind: 'STANDARD',
     token: raw.token,
     user: {
       id: raw.user.id,
@@ -469,7 +500,7 @@ export async function login(username: string, password: string) {
         ? { crmDynamicIndustryTemplate: raw.user.crm_dynamic_industry_template }
         : {}),
     },
-  } satisfies { token: string; user: AuthUser }
+  }
 }
 
 export type GaDelegateRole = 'GA_ADMIN' | 'GA_STAFF'

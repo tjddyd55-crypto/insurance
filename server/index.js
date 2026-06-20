@@ -48,6 +48,12 @@ import { purgeExpiredSmsVerificationCodes } from './services/purgeExpiredSmsCode
 import { normalizeKrMobile, validateKrMobileDigits } from './lib/phoneNormalize.js'
 import { resolveInsuranceCategoryForApi } from './lib/insuranceCompanyCategoryResolve.js'
 import { coerceMeritzFireToNonLifeCategory } from './lib/insuranceCompanyCategoryRules.js'
+import {
+  authenticateBoardWriterCredentials,
+  resolveBoardWriterLandingPath,
+  signBoardWriterSessionToken,
+} from './lib/boardWriterAccountService.js'
+import { mapBoardWriterRow } from './lib/boardWriterService.js'
 import { parseGaId } from './lib/parseGaId.js'
 import { isGeneralGaCompanyCode, resolveSignupGaCompany } from './lib/generalGa.js'
 import {
@@ -2416,6 +2422,27 @@ async function handleLogin(req, res) {
         }
       }
       if (!manager || !managerMeta) {
+        const writerAuth = await authenticateBoardWriterCredentials(
+          pool,
+          normalizedUsername,
+          password,
+          bcrypt,
+        )
+        if (writerAuth.ok) {
+          const redirectPath = await resolveBoardWriterLandingPath(pool, String(writerAuth.row.id))
+          const writerToken = signBoardWriterSessionToken(
+            writerAuth.row,
+            writerAuth.allowedBoardIds,
+            JWT_SECRET,
+          )
+          res.json({
+            authKind: 'BOARD_WRITER',
+            token: writerToken,
+            redirectPath,
+            writer: mapBoardWriterRow(writerAuth.row, writerAuth.allowedBoardIds),
+          })
+          return
+        }
         await auditLoginFailure(pool, normalizedUsername, 'unknown_user')
         res.status(401).json({
           error: 'Invalid credentials',

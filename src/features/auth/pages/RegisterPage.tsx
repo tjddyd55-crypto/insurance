@@ -504,7 +504,11 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
         })
       }
       const session = await loginApi(userTrim, password)
-      login(session)
+      if (session.authKind === 'BOARD_WRITER') {
+        navigate(session.redirectPath || '/board-writer/workspace', { replace: true })
+        return
+      }
+      login({ token: session.token, user: session.user })
       navigate('/dashboard', { replace: true })
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '회원가입에 실패했습니다.')

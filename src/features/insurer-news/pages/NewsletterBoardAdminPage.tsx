@@ -27,7 +27,9 @@ export function NewsletterBoardAdminPage() {
   )
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [writerBusy, setWriterBusy] = useState(false)
   const [error, setError] = useState('')
+  const [selectedBoard, setSelectedBoard] = useState<NewsletterBoard | null>(null)
   const { confirm, confirmDialog } = useConfirmDialog()
 
   const canManage = role === 'SUPER_ADMIN' || role === 'GA_ADMIN' || role === 'GA_STAFF'
@@ -104,6 +106,9 @@ export function NewsletterBoardAdminPage() {
       try {
         await deleteNewsletterBoard(token, board.id)
         setBoards((prev) => prev.filter((item) => item.id !== board.id))
+        if (selectedBoard?.id === board.id) {
+          setSelectedBoard(null)
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : '소식지 삭제에 실패했습니다.')
       } finally {
@@ -122,6 +127,7 @@ export function NewsletterBoardAdminPage() {
 
   const viewProps: NewsletterBoardAdminViewProps = {
     role,
+    token: token ?? '',
     boards,
     globalBoards,
     gaBoards,
@@ -129,13 +135,16 @@ export function NewsletterBoardAdminPage() {
     description,
     createMode,
     loading,
-    busy,
+    busy: busy || writerBusy,
     error,
+    selectedBoard,
     onLabelChange: setLabel,
     onDescriptionChange: setDescription,
     onCreateModeChange: setCreateMode,
     onCreate: handleCreate,
     onDelete: handleDelete,
+    onSelectBoard: setSelectedBoard,
+    onWriterBusyChange: setWriterBusy,
   }
 
   return (
