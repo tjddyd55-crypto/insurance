@@ -16,18 +16,18 @@ export default function DynamicNewsletterBoardMobileView({
   const navigate = useNavigate()
   const title = board?.label ?? '소식지'
 
+  const scopeLabel = board?.isPublic ? '공용 게시판' : 'GA 전용 게시판'
+
   return (
-    <main className="page page--with-back insurer-news-page insurer-news-page--mobile dynamic-newsletter-board-page dynamic-newsletter-board-page--mobile user-page">
-      <header className="page-header page-header--has-inline-back" style={{ marginBottom: 16 }}>
+    <main className="page page--with-back insurer-news-page insurer-news-page--mobile user-page">
+      <header className="page-header page-header--has-inline-back">
         <div className="page-header__title-row">
           <h1>{title}</h1>
+          {board ? <span className="insurer-news-page__board-scope">{scopeLabel}</span> : null}
         </div>
-        <p className="insurer-news-muted">
-          {board?.isPublic ? '공용 게시판' : 'GA 전용 게시판'}
-        </p>
       </header>
       <div className="insurer-news-filters insurer-news-list-searchbar">
-        <label className="insurer-news-search">
+        <label className="insurer-news-search insurer-news-searchbar">
           <span className="sr-only">소식지 검색</span>
           <FormInput
             type="search"
@@ -40,7 +40,7 @@ export default function DynamicNewsletterBoardMobileView({
       </div>
       {loading ? <div className="insurer-news-empty">불러오는 중...</div> : null}
       {error ? <div className="insurer-news-empty">{error}</div> : null}
-      {!loading && !error ? (
+      {!loading ? (
         <NewsletterList
           items={items}
           emptyMessage="등록된 소식지가 없습니다."
