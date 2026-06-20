@@ -58,14 +58,12 @@ export const GA_TENANT_ESSENTIAL_MENU: GaTenantMenuItem[] = [
 export const INSURER_MANAGER_MENU: GaTenantMenuItem[] = [
   { label: '원수사 소식지 조회', path: '/insurer/news' },
   { label: '원수사 소식지 업로드', path: '/insurer/news/upload' },
-  { label: '보험사 설계사이트', path: '/insurance/insurer-sites' },
 ]
 
 /** 손해사정사 담당자 — 본인 회사 뉴스 */
 export const LOSS_ADJUSTER_MENU: GaTenantMenuItem[] = [
   { label: '손해사정사 뉴스 조회', path: '/adjuster/news' },
   { label: '손해사정사 뉴스 업로드', path: '/adjuster/news/upload' },
-  { label: '보험사 설계사이트', path: '/insurance/insurer-sites' },
 ]
 
 /** GA_STAFF 전용 — 원수사 관리만(다른 GA 메뉴와 merge 금지) */
