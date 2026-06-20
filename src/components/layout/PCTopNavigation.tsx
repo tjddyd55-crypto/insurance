@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type RefObject } from 'react'
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { FormButton } from '../form'
 import { useAuth } from '../../features/auth/AuthProvider'
@@ -57,9 +57,11 @@ export default function PCTopNavigation({
   const navigate = useNavigate()
   const location = useLocation()
   const { user, token } = useAuth()
+  const menuRef = useRef<HTMLElement | null>(null)
   const [teamMenuManageVisible, setTeamMenuManageVisible] = useState(false)
   const [dynamicNewsletterBoards, setDynamicNewsletterBoards] = useState<DynamicNewsletterBoardMenuItem[]>([])
-  const [openGroupLabel, setOpenGroupLabel] = useState<string | null>(null)
+  const [hoveredGroupLabel, setHoveredGroupLabel] = useState<string | null>(null)
+  const [pinnedGroupLabel, setPinnedGroupLabel] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -123,6 +125,30 @@ export default function PCTopNavigation({
     }
   }, [token, user?.role])
 
+  useEffect(() => {
+    function handleDocumentMouseDown(event: MouseEvent) {
+      const target = event.target as Node | null
+      if (!target || menuRef.current?.contains(target)) {
+        return
+      }
+      setPinnedGroupLabel(null)
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setPinnedGroupLabel(null)
+        setHoveredGroupLabel(null)
+      }
+    }
+
+    document.addEventListener('mousedown', handleDocumentMouseDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleDocumentMouseDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [])
+
   const items = useMemo(() => {
     return buildAppMenuForSession(user?.role, user?.gaCode, user?.gaName, {
       teamMenuManageVisible,
@@ -146,40 +172,49 @@ export default function PCTopNavigation({
         !item.preparing &&
         item.path.trim() !== '' &&
         item.path !== '#' &&
-        isActivePcNavigationPath(location.pathname, item.path),
+        isActivePcNavigationPath(location.pathname, item.path, location.search),
       ),
     )
-  }, [groups, location.pathname])
+  }, [groups, location.pathname, location.search])
+
+  const openGroupLabel = hoveredGroupLabel ?? pinnedGroupLabel
   const openGroup = openGroupLabel
     ? groups.find((group) => group.label === openGroupLabel) ?? null
     : null
 
+  const closeSubMenus = () => {
+    setPinnedGroupLabel(null)
+    setHoveredGroupLabel(null)
+  }
+
   return (
     <nav
+      ref={menuRef}
       className="pc-top-navigation pc-top-navigation--dropdown"
       aria-label="PC 상단 주요 메뉴"
-      onMouseLeave={() => setOpenGroupLabel(null)}
-      onBlur={(event) => {
-        const nextFocusTarget = event.relatedTarget as Node | null
-        if (!nextFocusTarget || !event.currentTarget.contains(nextFocusTarget)) {
-          setOpenGroupLabel(null)
-        }
-      }}
+      onMouseLeave={() => setHoveredGroupLabel(null)}
     >
       <div className="pc-top-navigation__bar">
         <div className="pc-top-navigation__groups" role="menubar" aria-label="PC 업무 대분류 메뉴">
           {groups.map((group) => {
             const isActive = activeGroup?.label === group.label
-            const isOpen = openGroup?.label === group.label
+            const isOpen = openGroupLabel === group.label
+            const isPinned = pinnedGroupLabel === group.label
             return (
               <button
                 key={group.label}
                 type="button"
-                className={`pc-top-navigation__group${isActive ? ' pc-top-navigation__group--active' : ''}${isOpen ? ' pc-top-navigation__group--open' : ''}`}
+                className={`pc-top-navigation__group${isActive ? ' pc-top-navigation__group--active' : ''}${isOpen ? ' pc-top-navigation__group--open' : ''}${isPinned ? ' pc-top-navigation__group--pinned' : ''}`}
                 aria-haspopup="menu"
                 aria-expanded={isOpen}
-                onMouseEnter={() => setOpenGroupLabel(group.label)}
-                onFocus={() => setOpenGroupLabel(group.label)}
+                onMouseEnter={() => setHoveredGroupLabel(group.label)}
+                onFocus={() => setHoveredGroupLabel(group.label)}
+                onClick={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  setPinnedGroupLabel((current) => (current === group.label ? null : group.label))
+                  setHoveredGroupLabel(group.label)
+                }}
               >
                 {group.label}
               </button>
@@ -213,7 +248,7 @@ export default function PCTopNavigation({
                 !isDisabled &&
                 item.path.trim() !== '' &&
                 item.path !== '#' &&
-                isActivePcNavigationPath(location.pathname, item.path)
+                isActivePcNavigationPath(location.pathname, item.path, location.search)
 
               return (
                 <FormButton
@@ -232,7 +267,7 @@ export default function PCTopNavigation({
                       return
                     }
                     navigate(item.path)
-                    setOpenGroupLabel(null)
+                    closeSubMenus()
                   }}
                 >
                   <span className="pc-top-navigation__item-label">{item.label}</span>
