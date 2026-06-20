@@ -1,9 +1,18 @@
 name: Desktop Deploy
 
+# PC shell(EXE) 전용 — 일반 웹(React/CSS) main push에는 실행하지 않는다.
+# 웹 배포는 Railway + version.json buildId 새로고침으로 반영한다.
+
 on:
   push:
     branches:
       - main
+    paths:
+      - 'electron/**'
+      - 'src/electron-window.d.ts'
+      - '.github/workflows/deploy.yml'
+      - 'package.json'
+      - 'package-lock.json'
   workflow_dispatch:
 
 jobs:

@@ -3,6 +3,7 @@ const axios = require('axios')
 const path = require('path')
 const semver = require('semver')
 const { autoUpdater } = require('electron-updater')
+const { formatReleaseNotes } = require('../shared/formatReleaseNotes.js')
 
 const APP_USER_MODEL_ID = 'com.insurance.app'
 
@@ -197,13 +198,13 @@ function wireAutoUpdaterEvents() {
   autoUpdater.on('update-available', (info) => {
     console.log('update available', info?.version)
     sendClientLog({ type: 'update-available', version: info?.version ?? null })
+    const formattedNotes = info?.releaseNotes ? formatReleaseNotes(info.releaseNotes) : null
     sendDesktopUpdate({
       phase: 'available',
       version: info?.version ?? null,
       releaseDate: info?.releaseDate ?? null,
-      /* releaseNotes 는 Markdown/HTML 일 수 있어 UI 에서 단순 텍스트로 축약 렌더한다. */
       releaseNotes:
-        typeof info?.releaseNotes === 'string' ? info.releaseNotes : null,
+        formattedNotes && formattedNotes !== '업데이트 내용이 없습니다.' ? formattedNotes : null,
     })
   })
 
