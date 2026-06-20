@@ -836,13 +836,15 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
   }
 
   async function loadVisibleNewsletterBoard(req, boardSlug) {
-    const rows = await listNewsletterBoardsBySlug(pool, safeQuery, boardSlug)
-    return pickAccessibleNewsletterBoard(rows, effectiveTenantGaId(req))
+    const tenantGaId = effectiveTenantGaId(req)
+    const rows = await listNewsletterBoardsBySlug(pool, safeQuery, boardSlug, tenantGaId)
+    return pickAccessibleNewsletterBoard(rows, tenantGaId)
   }
 
   async function requireVisibleNewsletterBoard(req, res, boardSlug) {
-    const rows = await listNewsletterBoardsBySlug(pool, safeQuery, boardSlug)
-    const denial = classifyNewsletterBoardAccess(rows, effectiveTenantGaId(req))
+    const tenantGaId = effectiveTenantGaId(req)
+    const rows = await listNewsletterBoardsBySlug(pool, safeQuery, boardSlug, tenantGaId)
+    const denial = classifyNewsletterBoardAccess(rows, tenantGaId)
     if (denial === 'not_found') {
       res.status(404).json({ message: '소식지 메뉴를 찾을 수 없습니다.' })
       return null
@@ -854,7 +856,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       })
       return null
     }
-    return pickAccessibleNewsletterBoard(rows, effectiveTenantGaId(req))
+    return pickAccessibleNewsletterBoard(rows, tenantGaId)
   }
 
   function parseBoardFormBody(body) {

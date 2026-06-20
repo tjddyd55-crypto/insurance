@@ -1,10 +1,24 @@
-import { NEWSLETTER_BOARDS_BY_SLUG_SQL } from './newsletterBoardAdminSql.js'
+import { NEWSLETTER_BOARD_BY_SLUG_TENANT_SQL } from './newsletterBoardAdminSql.js'
 import {
   canUserAccessBoardMenu,
   isGaBoardScope,
   isGlobalBoardScope,
   normalizeNewsletterBoardSlug,
 } from './newsletterBoardScope.js'
+
+/**
+ * slug 조회용 tenantGaId 정규화 — safeQuery 바인딩용.
+ *
+ * @param {number | null | undefined} tenantGaId
+ * @returns {number | null}
+ */
+export function normalizeNewsletterBoardTenantGaId(tenantGaId) {
+  const gaId = Number(tenantGaId)
+  if (!Number.isInteger(gaId) || gaId < 1) {
+    return null
+  }
+  return gaId
+}
 
 /**
  * slug 로 조회된 후보 중 사용자가 접근 가능한 보드를 고른다.
@@ -52,11 +66,13 @@ export function classifyNewsletterBoardAccess(rows, tenantGaId) {
  * @param {import('pg').Pool | import('pg').PoolClient} executor
  * @param {(executor: import('pg').Pool | import('pg').PoolClient, sql: string, params: unknown[]) => Promise<{ rows?: Record<string, unknown>[] }>} queryFn
  * @param {unknown} rawSlug
+ * @param {number | null | undefined} tenantGaId
  * @returns {Promise<Record<string, unknown>[]>}
  */
-export async function listNewsletterBoardsBySlug(executor, queryFn, rawSlug) {
+export async function listNewsletterBoardsBySlug(executor, queryFn, rawSlug, tenantGaId) {
   const slug = normalizeNewsletterBoardSlug(rawSlug)
-  const r = await queryFn(executor, NEWSLETTER_BOARDS_BY_SLUG_SQL, [slug])
+  const scopedGaId = normalizeNewsletterBoardTenantGaId(tenantGaId)
+  const r = await queryFn(executor, NEWSLETTER_BOARD_BY_SLUG_TENANT_SQL, [slug, scopedGaId])
   return Array.isArray(r.rows) ? r.rows : []
 }
 

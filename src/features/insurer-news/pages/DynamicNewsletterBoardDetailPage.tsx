@@ -21,6 +21,7 @@ export function DynamicNewsletterBoardDetailPage() {
   const [detail, setDetail] = useState<NewsletterDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [accessForbidden, setAccessForbidden] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -34,6 +35,7 @@ export function DynamicNewsletterBoardDetailPage() {
     }
     setLoading(true)
     setAccessForbidden(false)
+    setError('')
     void getDynamicNewsletterBoardDetail(boardSlug, newsletterId, token)
       .then((row) => {
         if (!cancelled) {
@@ -41,8 +43,20 @@ export function DynamicNewsletterBoardDetailPage() {
         }
       })
       .catch((e) => {
-        if (!cancelled && e instanceof ApiError && e.status === 403) {
-          setAccessForbidden(true)
+        if (!cancelled && e instanceof ApiError) {
+          if (e.status === 403) {
+            setAccessForbidden(true)
+            return
+          }
+          if (e.status === 404) {
+            setError('게시판을 찾을 수 없습니다.')
+            return
+          }
+          if (e.status >= 500 || e.message === 'DB_ERROR') {
+            setError('일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.')
+            return
+          }
+          setError(e.message)
         }
       })
       .finally(() => {
@@ -73,7 +87,7 @@ export function DynamicNewsletterBoardDetailPage() {
     return (
       <main className="page page--with-back insurer-news-page">
         <div className="insurer-news-empty" role="status">
-          소식지를 찾을 수 없거나 접근 권한이 없습니다.
+          {error || '소식지를 찾을 수 없거나 접근 권한이 없습니다.'}
         </div>
       </main>
     )

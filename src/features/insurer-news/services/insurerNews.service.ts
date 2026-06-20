@@ -234,7 +234,13 @@ export async function getDynamicNewsletterBoardFeed(
         return { kind: 'forbidden' }
       }
       if (e.status === 404) {
-        return { kind: 'not_found', message: e.message }
+        return { kind: 'not_found', message: '게시판을 찾을 수 없습니다.' }
+      }
+      if (e.status >= 500 || e.message === 'DB_ERROR') {
+        return {
+          kind: 'error',
+          message: '일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.',
+        }
       }
       return { kind: 'error', message: e.message }
     }
