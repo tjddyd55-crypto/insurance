@@ -637,6 +637,14 @@
 }
 
 .intro-install {
+  --intro-btn-green: #10b981;
+  --intro-btn-green-hover: #059669;
+  --intro-btn-green-disabled-bg: #a7f3d0;
+  --intro-btn-green-disabled-text: #065f46;
+  --intro-btn-blue: #2563eb;
+  --intro-btn-blue-hover: #1d4ed8;
+  --intro-btn-blue-disabled-bg: #93c5fd;
+  --intro-btn-blue-disabled-text: #ffffff;
   height: 100%;
   min-height: 100vh;
   background: #ffffff;
@@ -675,8 +683,30 @@
 
 .intro-install-hero__actions a,
 .intro-install-download-card a,
-.intro-install-upload-box a,
 .intro-install-cta__actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  border-radius: 12px;
+  padding: 0 18px;
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 700;
+  text-decoration: none;
+  border: 1px solid var(--intro-btn-green);
+  background: var(--intro-btn-green);
+  color: #ffffff;
+  opacity: 1;
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+.intro-install-upload-box a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -689,21 +719,33 @@
   text-decoration: none;
   border: 1px solid transparent;
   background: var(--intro-btn-blue);
-  color: #efeffe;
+  color: #ffffff;
   transition: background-color 0.18s ease, box-shadow 0.18s ease, transform 0.12s ease;
 }
 
 .intro-install-hero__actions a:hover,
 .intro-install-download-card a:hover,
-.intro-install-upload-box a:hover,
 .intro-install-cta__actions a:hover {
+  background: var(--intro-btn-green-hover);
+  border-color: var(--intro-btn-green-hover);
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgba(16, 185, 129, 0.24);
+  transform: translateY(-1px);
+}
+
+.intro-install-upload-box a:hover {
   background: var(--intro-btn-blue-hover);
 }
 
 .intro-install-hero__actions a:focus-visible,
 .intro-install-download-card a:focus-visible,
-.intro-install-upload-box a:focus-visible,
 .intro-install-cta__actions a:focus-visible {
+  outline: 3px solid rgba(16, 185, 129, 0.28);
+  outline-offset: 3px;
+  box-shadow: none;
+}
+
+.intro-install-upload-box a:focus-visible {
   outline: 2px solid var(--intro-btn-blue-hover);
   outline-offset: 2px;
   box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.2);
@@ -835,14 +877,12 @@
 
 .intro-install-download-card a {
   width: 100%;
-  min-height: 48px;
+  min-height: 44px;
   margin-top: auto;
   padding: 0 18px;
   justify-content: center;
   gap: 8px;
-  border-radius: 14px;
-  background: var(--intro-btn-blue);
-  font-weight: 600;
+  border-radius: 12px;
 }
 
 .intro-install-download-card__btn-icon {
@@ -1003,24 +1043,13 @@
 }
 
 .intro-install-cta__actions a {
-  background: var(--intro-btn-outline-bg);
-  color: var(--intro-btn-outline-text);
-  border-color: var(--intro-btn-outline-border);
+  min-width: 190px;
 }
 
 .intro-install-cta__actions a:hover {
-  background: var(--intro-btn-outline-hover-bg);
-  border-color: var(--intro-btn-outline-hover-border);
-}
-
-.intro-install-cta__actions a:nth-child(3) {
-  background: var(--intro-btn-green);
-  color: #ffffff;
-  border-color: transparent;
-}
-
-.intro-install-cta__actions a:nth-child(3):hover {
   background: var(--intro-btn-green-hover);
+  border-color: var(--intro-btn-green-hover);
+  color: #ffffff;
 }
 
 .intro-business-footer {
@@ -1057,11 +1086,28 @@
 }
 
 .intro-v2-btn:disabled,
-.intro-install-prompt button:disabled,
+.intro-install-prompt button:disabled {
+  background: var(--intro-btn-blue-disabled-bg);
+  color: var(--intro-btn-blue-disabled-text);
+  border-color: transparent;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .intro-install-download-card a[aria-disabled='true'],
 .intro-install-hero__actions a[aria-disabled='true'],
-.intro-install-upload-box a[aria-disabled='true'],
 .intro-install-cta__actions a[aria-disabled='true'] {
+  background: var(--intro-btn-green-disabled-bg);
+  color: var(--intro-btn-green-disabled-text);
+  border-color: transparent;
+  cursor: not-allowed;
+  pointer-events: none;
+  opacity: 1;
+  box-shadow: none;
+  transform: none;
+}
+
+.intro-install-upload-box a[aria-disabled='true'] {
   background: var(--intro-btn-blue-disabled-bg);
   color: var(--intro-btn-blue-disabled-text);
   border-color: transparent;
