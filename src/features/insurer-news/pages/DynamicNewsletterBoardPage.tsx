@@ -19,6 +19,7 @@ export function DynamicNewsletterBoardPage() {
   const [items, setItems] = useState<NewsletterItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [accessForbidden, setAccessForbidden] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
@@ -26,6 +27,7 @@ export function DynamicNewsletterBoardPage() {
     if (!token?.trim() || !boardSlug.trim()) {
       setBoard(null)
       setItems([])
+      setAccessForbidden(false)
       setLoading(false)
       setError('소식지 메뉴를 불러올 수 없습니다.')
       return () => {
@@ -34,19 +36,24 @@ export function DynamicNewsletterBoardPage() {
     }
     setLoading(true)
     setError('')
+    setAccessForbidden(false)
     void getDynamicNewsletterBoardFeed(boardSlug, token)
-      .then((payload) => {
+      .then((result) => {
         if (cancelled) {
           return
         }
-        if (!payload) {
-          setBoard(null)
-          setItems([])
-          setError('소식지 메뉴를 찾을 수 없거나 접근 권한이 없습니다.')
+        if (result.kind === 'success') {
+          setBoard(result.board)
+          setItems(result.newsletters)
           return
         }
-        setBoard(payload.board)
-        setItems(payload.newsletters)
+        setBoard(null)
+        setItems([])
+        if (result.kind === 'forbidden') {
+          setAccessForbidden(true)
+          return
+        }
+        setError(result.message)
       })
       .catch((e) => {
         if (!cancelled) {
@@ -79,7 +86,9 @@ export function DynamicNewsletterBoardPage() {
   }, [items, searchQuery])
 
   const showGaRequiredNotice =
-    isPublicAccount && !loading && (Boolean(error) || !board || (board != null && isGaOnlyNewsletterBoard(board)))
+    isPublicAccount &&
+    !loading &&
+    (accessForbidden || (board != null && isGaOnlyNewsletterBoard(board)))
 
   if (showGaRequiredNotice) {
     return <GaRequiredNotice />

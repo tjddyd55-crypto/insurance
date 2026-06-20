@@ -7,6 +7,7 @@ import { useAuth } from '../../auth/AuthProvider'
 import { isPublicGeneralAccount } from '../../auth/generalGa'
 import { NewsletterAttachmentList } from '../components/NewsletterAttachmentList'
 import { NewsletterImageGallery } from '../components/NewsletterImageGallery'
+import { ApiError } from '../../../lib/apiClient'
 import { getDynamicNewsletterBoardDetail } from '../services/insurerNews.service'
 import type { NewsletterDetail } from '../types'
 import { buildInsurerNewsGalleryUrls } from '../utils/buildInsurerNewsGalleryUrls'
@@ -19,21 +20,29 @@ export function DynamicNewsletterBoardDetailPage() {
   const navigate = useNavigate()
   const [detail, setDetail] = useState<NewsletterDetail | null>(null)
   const [loading, setLoading] = useState(true)
+  const [accessForbidden, setAccessForbidden] = useState(false)
 
   useEffect(() => {
     let cancelled = false
     if (!token?.trim() || !boardSlug.trim() || !newsletterId.trim()) {
       setLoading(false)
       setDetail(null)
+      setAccessForbidden(false)
       return () => {
         cancelled = true
       }
     }
     setLoading(true)
+    setAccessForbidden(false)
     void getDynamicNewsletterBoardDetail(boardSlug, newsletterId, token)
       .then((row) => {
         if (!cancelled) {
           setDetail(row)
+        }
+      })
+      .catch((e) => {
+        if (!cancelled && e instanceof ApiError && e.status === 403) {
+          setAccessForbidden(true)
         }
       })
       .finally(() => {
@@ -46,7 +55,7 @@ export function DynamicNewsletterBoardDetailPage() {
     }
   }, [boardSlug, newsletterId, token])
 
-  if (isPublicAccount && !loading && !detail) {
+  if (isPublicAccount && !loading && accessForbidden) {
     return <GaRequiredNotice />
   }
 

@@ -29,6 +29,16 @@ export function contentScopeFromLegacyIsPublic(isPublicLegacy) {
   return isPublicLegacy ? CONTENT_SCOPE_GLOBAL : CONTENT_SCOPE_GA
 }
 
+/** 게시판 slug 정규화 — 생성·조회 공통 */
+export function normalizeNewsletterBoardSlug(label) {
+  const t = String(label ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+  const stripped = t.replace(/[^\w\u3131-\u318e\uac00-\ud7a3-]/g, '')
+  return stripped.slice(0, 64) || 'board'
+}
+
 /** @param {unknown} scope */
 export function isGlobalContentScope(scope) {
   return normalizeContentScope(scope) === CONTENT_SCOPE_GLOBAL

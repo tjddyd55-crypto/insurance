@@ -5,14 +5,19 @@ import { adminNewsletterBoardQuery } from './lib/newsletterBoardAdminQuery.js'
 import {
   buildDynamicBoardPostGaFilter,
   buildDynamicBoardPostGaFilterBare,
-  canUserAccessBoardMenu,
   contentScopeFromLegacyIsPublic,
   isGlobalBoardScope,
   isGlobalContentScope,
   mapNewsletterBoardDto,
   normalizeBoardScope,
   normalizeContentScope,
+  normalizeNewsletterBoardSlug,
 } from './lib/newsletterBoardScope.js'
+import {
+  classifyNewsletterBoardAccess,
+  listNewsletterBoardsBySlug,
+  pickAccessibleNewsletterBoard,
+} from './lib/newsletterBoardAccess.js'
 import {
   DISABLE_NEWSLETTER_BOARD_SQL,
   GA_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL,
@@ -22,7 +27,6 @@ import {
   GLOBAL_NEWSLETTER_BOARD_DUPLICATE_SLUG_SQL,
   INSERT_GA_NEWSLETTER_BOARD_SQL,
   INSERT_GLOBAL_NEWSLETTER_BOARD_SQL,
-  NEWSLETTER_BOARD_BY_SLUG_SQL,
   NEWSLETTER_BOARDS_VISIBLE_LIST_SQL,
   PATCH_NEWSLETTER_BOARD_SQL,
   SUPER_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL,
@@ -121,12 +125,7 @@ function slugifyCompanySegment(name) {
 
 /** @param {string} label */
 function slugifyNewsletterBoard(label) {
-  const t = String(label ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-  const stripped = t.replace(/[^\w\u3131-\u318e\uac00-\ud7a3-]/g, '')
-  return stripped.slice(0, 64) || 'board'
+  return normalizeNewsletterBoardSlug(label)
 }
 
 /** @param {string} name */
@@ -837,15 +836,25 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
   }
 
   async function loadVisibleNewsletterBoard(req, boardSlug) {
-    const slug = slugifyNewsletterBoard(boardSlug)
-    const r = await safeQuery(pool, NEWSLETTER_BOARD_BY_SLUG_SQL, [slug])
-    if (!r.rowCount) return null
-    const board = r.rows[0]
-    const tenantGaId = effectiveTenantGaId(req)
-    if (!canUserAccessBoardMenu(board, tenantGaId)) {
+    const rows = await listNewsletterBoardsBySlug(pool, safeQuery, boardSlug)
+    return pickAccessibleNewsletterBoard(rows, effectiveTenantGaId(req))
+  }
+
+  async function requireVisibleNewsletterBoard(req, res, boardSlug) {
+    const rows = await listNewsletterBoardsBySlug(pool, safeQuery, boardSlug)
+    const denial = classifyNewsletterBoardAccess(rows, effectiveTenantGaId(req))
+    if (denial === 'not_found') {
+      res.status(404).json({ message: '소식지 메뉴를 찾을 수 없습니다.' })
       return null
     }
-    return board
+    if (denial === 'access_denied') {
+      res.status(403).json({
+        message: '이 소식지에 접근할 권한이 없습니다.',
+        code: 'NEWSLETTER_BOARD_ACCESS_DENIED',
+      })
+      return null
+    }
+    return pickAccessibleNewsletterBoard(rows, effectiveTenantGaId(req))
   }
 
   function parseBoardFormBody(body) {
@@ -1889,9 +1898,8 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
 
   apiRouter.get('/insurer-news/boards/:boardSlug/newsletters', requireAuth, forbidInsurerOnFeed, async (req, res) => {
     try {
-      const board = await loadVisibleNewsletterBoard(req, req.params.boardSlug)
+      const board = await requireVisibleNewsletterBoard(req, res, req.params.boardSlug)
       if (!board) {
-        res.status(404).json({ message: '소식지 메뉴를 찾을 수 없습니다.' })
         return
       }
       const rawLimit = Number(req.query.limit ?? 500)
@@ -1952,9 +1960,8 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
 
   apiRouter.get('/insurer-news/boards/:boardSlug/newsletters/:newsletterId', requireAuth, forbidInsurerOnFeed, async (req, res) => {
     try {
-      const board = await loadVisibleNewsletterBoard(req, req.params.boardSlug)
+      const board = await requireVisibleNewsletterBoard(req, res, req.params.boardSlug)
       if (!board) {
-        res.status(404).json({ message: '소식지 메뉴를 찾을 수 없습니다.' })
         return
       }
       const params = [String(req.params.newsletterId ?? ''), String(board.slug)]

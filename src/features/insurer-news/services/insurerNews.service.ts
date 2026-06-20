@@ -1,4 +1,4 @@
-import { apiRequest, resolveApiUrl } from '../../../lib/apiClient'
+import { apiRequest, ApiError, resolveApiUrl } from '../../../lib/apiClient'
 import { listCompanyDirectory } from '../../company-registry/api/companyRegistryApi'
 import { isNewsletterInCompanyScope } from '../lib/insurerNewsCompanyScope'
 import { cdnUrlForObjectKey } from '../lib/insurerNewsCdn'
@@ -43,6 +43,12 @@ export type DynamicNewsletterBoardFeedResponse = {
   board: NewsletterBoard
   newsletters: NewsletterItem[]
 }
+
+export type DynamicNewsletterBoardFeedResult =
+  | { kind: 'success'; board: NewsletterBoard; newsletters: NewsletterItem[] }
+  | { kind: 'forbidden' }
+  | { kind: 'not_found'; message: string }
+  | { kind: 'error'; message: string }
 
 export async function listVisibleNewsletterBoards(token?: string | null): Promise<NewsletterBoard[]> {
   if (!token?.trim()) {
@@ -208,17 +214,34 @@ export async function getAllPublishedForGa(
 export async function getDynamicNewsletterBoardFeed(
   boardSlug: string,
   token?: string | null,
-): Promise<DynamicNewsletterBoardFeedResponse | null> {
+): Promise<DynamicNewsletterBoardFeedResult> {
   if (!token?.trim() || !boardSlug.trim()) {
-    return null
+    return { kind: 'error', message: '소식지 메뉴를 불러올 수 없습니다.' }
   }
   try {
-    return await apiRequest<DynamicNewsletterBoardFeedResponse>(
+    const payload = await apiRequest<DynamicNewsletterBoardFeedResponse>(
       `/api/insurer-news/boards/${encodeURIComponent(boardSlug.trim())}/newsletters?limit=500`,
       { token },
     )
-  } catch {
-    return null
+    return {
+      kind: 'success',
+      board: payload.board,
+      newsletters: payload.newsletters,
+    }
+  } catch (e) {
+    if (e instanceof ApiError) {
+      if (e.status === 403) {
+        return { kind: 'forbidden' }
+      }
+      if (e.status === 404) {
+        return { kind: 'not_found', message: e.message }
+      }
+      return { kind: 'error', message: e.message }
+    }
+    return {
+      kind: 'error',
+      message: e instanceof Error ? e.message : '소식지 목록을 불러오지 못했습니다.',
+    }
   }
 }
 
@@ -235,7 +258,10 @@ export async function getDynamicNewsletterBoardDetail(
       `/api/insurer-news/boards/${encodeURIComponent(boardSlug.trim())}/newsletters/${encodeURIComponent(newsletterId.trim())}`,
       { token },
     )
-  } catch {
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 403) {
+      throw e
+    }
     return null
   }
 }

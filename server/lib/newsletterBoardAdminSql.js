@@ -57,8 +57,13 @@ export const NEWSLETTER_BOARD_BY_SLUG_SQL = `
     AND b.is_deleted = false
     AND COALESCE(b.is_active, true) = true
     AND b.board_scope IN ('global', 'ga')
-  LIMIT 1
+  ORDER BY
+    CASE WHEN b.board_scope = 'global' THEN 0 ELSE 1 END,
+    b.created_at ASC
 `
+
+/** @deprecated NEWSLETTER_BOARD_BY_SLUG_SQL 과 동일 (후보 전체 반환) */
+export const NEWSLETTER_BOARDS_BY_SLUG_SQL = NEWSLETTER_BOARD_BY_SLUG_SQL
 
 /** SUPER_ADMIN: global + ga 전체 목록 */
 export const SUPER_ADMIN_NEWSLETTER_BOARDS_LIST_SQL = `
