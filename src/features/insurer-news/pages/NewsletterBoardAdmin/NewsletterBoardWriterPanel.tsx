@@ -30,8 +30,7 @@ export function NewsletterBoardWriterPanel({
   const [loginId, setLoginId] = useState('')
   const [password, setPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
-  const [loginIdChecked, setLoginIdChecked] = useState(false)
-  const [loginIdAvailable, setLoginIdAvailable] = useState<boolean | null>(null)
+  const [loginIdAvailability, setLoginIdAvailability] = useState<{ available: boolean } | null>(null)
   const [checkMessage, setCheckMessage] = useState('')
   const [error, setError] = useState('')
   const [resetPasswordById, setResetPasswordById] = useState<Record<string, string>>({})
@@ -61,8 +60,7 @@ export function NewsletterBoardWriterPanel({
     setLoginId('')
     setPassword('')
     setDisplayName('')
-    setLoginIdChecked(false)
-    setLoginIdAvailable(null)
+    setLoginIdAvailability(null)
     setCheckMessage('')
     setError('')
     setResetPasswordById({})
@@ -70,8 +68,7 @@ export function NewsletterBoardWriterPanel({
 
   const handleLoginIdChange = (value: string) => {
     setLoginId(value)
-    setLoginIdChecked(false)
-    setLoginIdAvailable(null)
+    setLoginIdAvailability(null)
     setCheckMessage('')
   }
 
@@ -84,12 +81,12 @@ export function NewsletterBoardWriterPanel({
       setError('')
       try {
         const result = await checkBoardWriterLoginId(token, role, board.id, loginId.trim())
-        setLoginIdChecked(true)
-        setLoginIdAvailable(result.available)
+        setLoginIdAvailability({ available: result.available })
         setCheckMessage(
           result.available ? '사용 가능한 아이디입니다.' : '이미 사용 중인 아이디입니다.',
         )
       } catch (e) {
+        setLoginIdAvailability(null)
         setError(e instanceof Error ? e.message : '아이디 중복 확인에 실패했습니다.')
       } finally {
         onBusyChange(false)
@@ -97,8 +94,14 @@ export function NewsletterBoardWriterPanel({
     })()
   }
 
+  const canCreateWriterAccount =
+    loginId.trim().length > 0 &&
+    password.trim().length > 0 &&
+    loginIdAvailability?.available === true &&
+    !busy
+
   const handleCreate = () => {
-    if (!token.trim() || busy || !loginIdChecked || !loginIdAvailable || !password.trim()) {
+    if (!canCreateWriterAccount) {
       return
     }
     void (async () => {
@@ -107,14 +110,13 @@ export function NewsletterBoardWriterPanel({
       try {
         await createBoardWriterAccountForBoard(token, role, board.id, {
           loginId: loginId.trim(),
-          password,
+          password: password.trim(),
           displayName: displayName.trim() || loginId.trim(),
         })
         setLoginId('')
         setPassword('')
         setDisplayName('')
-        setLoginIdChecked(false)
-        setLoginIdAvailable(null)
+        setLoginIdAvailability(null)
         setCheckMessage('')
         await loadWriters()
       } catch (e) {
@@ -127,7 +129,7 @@ export function NewsletterBoardWriterPanel({
 
   const handleResetPassword = (accountId: string) => {
     const nextPassword = resetPasswordById[accountId]?.trim() ?? ''
-    if (!nextPassword || nextPassword.length < 8 || busy) {
+    if (!nextPassword || busy) {
       return
     }
     void (async () => {
@@ -163,127 +165,115 @@ export function NewsletterBoardWriterPanel({
     })()
   }
 
-  const canCreate =
-    loginId.trim().length >= 3 &&
-    password.length >= 8 &&
-    loginIdChecked &&
-    loginIdAvailable === true &&
-    !busy
-
   return (
-    <div className="newsletter-board-admin-page__writer-panel">
-      <header className="newsletter-board-admin-page__writer-panel-head">
-        <div>
-          <h3>{board.label}</h3>
-          <p className="newsletter-board-admin-page__writer-panel-path">
-            경로: /portal/boards/{board.slug}
-          </p>
-        </div>
-      </header>
-
-      <section className="newsletter-board-admin-page__writer-panel-section">
-        <h4>작성자 계정 추가</h4>
-        <div className="newsletter-board-admin-page__writer-form-grid">
-          <label className="form-field">
-            <span className="form-label">아이디</span>
-            <div className="newsletter-board-admin-page__writer-inline">
-              <FormInput value={loginId} onChange={(event) => handleLoginIdChange(event.target.value)} />
-              <FormButton
-                htmlType="button"
-                variant="secondary"
-                disabled={busy || !loginId.trim()}
-                onClick={handleCheckLoginId}
-              >
-                중복 확인
-              </FormButton>
-            </div>
-            {checkMessage ? (
-              <span
-                className={
-                  loginIdAvailable
-                    ? 'newsletter-board-admin-page__writer-check newsletter-board-admin-page__writer-check--ok'
-                    : 'newsletter-board-admin-page__writer-check newsletter-board-admin-page__writer-check--bad'
-                }
-              >
-                {checkMessage}
-              </span>
-            ) : null}
-          </label>
-          <label className="form-field">
-            <span className="form-label">비밀번호</span>
-            <FormInput type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
-          </label>
-          <label className="form-field">
-            <span className="form-label">표시명</span>
-            <FormInput value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
-          </label>
-        </div>
-        <FormButton htmlType="button" variant="primary" disabled={!canCreate} onClick={handleCreate}>
-          작성자 계정 생성
-        </FormButton>
-      </section>
-
-      <section className="newsletter-board-admin-page__writer-panel-section">
-        <h4>등록된 작성자 계정</h4>
-        {loading ? <div className="insurer-news-empty">불러오는 중...</div> : null}
-        {!loading && writers.length === 0 ? (
-          <div className="insurer-news-empty">등록된 작성자 계정이 없습니다.</div>
-        ) : null}
-        {!loading && writers.length > 0 ? (
-          <div className="newsletter-board-admin-page__writer-table-wrap">
-            <table className="newsletter-board-admin-page__writer-table">
-              <thead>
-                <tr>
-                  <th>아이디</th>
-                  <th>표시명</th>
-                  <th>상태</th>
-                  <th>관리</th>
-                </tr>
-              </thead>
-              <tbody>
-                {writers.map((writer) => (
-                  <tr key={writer.id}>
-                    <td>{writer.loginId}</td>
-                    <td>{writer.name}</td>
-                    <td>{writer.isActive ? '활성' : '비활성'}</td>
-                    <td>
-                      <div className="newsletter-board-admin-page__writer-actions">
-                        <FormInput
-                          type="password"
-                          placeholder="새 비밀번호"
-                          value={resetPasswordById[writer.id] ?? ''}
-                          onChange={(event) =>
-                            setResetPasswordById((prev) => ({
-                              ...prev,
-                              [writer.id]: event.target.value,
-                            }))
-                          }
-                        />
-                        <FormButton
-                          htmlType="button"
-                          variant="secondary"
-                          disabled={busy || (resetPasswordById[writer.id]?.length ?? 0) < 8}
-                          onClick={() => handleResetPassword(writer.id)}
-                        >
-                          비밀번호 초기화
-                        </FormButton>
-                        <FormButton
-                          htmlType="button"
-                          variant="secondary"
-                          disabled={busy}
-                          onClick={() => handleToggleStatus(writer)}
-                        >
-                          {writer.isActive ? '비활성화' : '활성화'}
-                        </FormButton>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+    <div className="newsletter-board-writer-panel">
+      <h4 className="newsletter-board-writer-panel__title">작성자 계정 추가</h4>
+      <div className="newsletter-board-writer-panel__form">
+        <label className="form-field newsletter-board-writer-panel__field newsletter-board-writer-panel__field--login">
+          <span className="form-label">아이디</span>
+          <div className="newsletter-board-writer-panel__login-row">
+            <FormInput value={loginId} onChange={(event) => handleLoginIdChange(event.target.value)} />
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              disabled={busy || !loginId.trim()}
+              onClick={handleCheckLoginId}
+            >
+              중복 확인
+            </FormButton>
           </div>
-        ) : null}
-      </section>
+          {checkMessage ? (
+            <span
+              className={
+                loginIdAvailability?.available
+                  ? 'newsletter-board-writer-panel__check newsletter-board-writer-panel__check--ok'
+                  : 'newsletter-board-writer-panel__check newsletter-board-writer-panel__check--bad'
+              }
+            >
+              {checkMessage}
+            </span>
+          ) : null}
+        </label>
+        <label className="form-field newsletter-board-writer-panel__field">
+          <span className="form-label">비밀번호</span>
+          <FormInput type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
+        </label>
+        <label className="form-field newsletter-board-writer-panel__field">
+          <span className="form-label">표시명 (선택)</span>
+          <FormInput
+            value={displayName}
+            onChange={(event) => setDisplayName(event.target.value)}
+            placeholder="미입력 시 아이디 사용"
+          />
+        </label>
+        <div className="newsletter-board-writer-panel__submit">
+          <FormButton htmlType="button" variant="primary" disabled={!canCreateWriterAccount} onClick={handleCreate}>
+            작성자 계정 생성
+          </FormButton>
+        </div>
+      </div>
+
+      <h4 className="newsletter-board-writer-panel__title newsletter-board-writer-panel__title--list">
+        등록된 작성자 계정
+      </h4>
+      {loading ? <p className="newsletter-board-writer-panel__muted">불러오는 중...</p> : null}
+      {!loading && writers.length === 0 ? (
+        <p className="newsletter-board-writer-panel__muted">등록된 작성자 계정이 없습니다.</p>
+      ) : null}
+      {!loading && writers.length > 0 ? (
+        <div className="newsletter-board-writer-panel__table-wrap">
+          <table className="newsletter-board-writer-panel__table">
+            <thead>
+              <tr>
+                <th>아이디</th>
+                <th>표시명</th>
+                <th>상태</th>
+                <th>관리</th>
+              </tr>
+            </thead>
+            <tbody>
+              {writers.map((writer) => (
+                <tr key={writer.id}>
+                  <td>{writer.loginId}</td>
+                  <td>{writer.name}</td>
+                  <td>{writer.isActive ? '활성' : '비활성'}</td>
+                  <td>
+                    <div className="newsletter-board-writer-panel__actions">
+                      <FormInput
+                        type="password"
+                        placeholder="새 비밀번호"
+                        value={resetPasswordById[writer.id] ?? ''}
+                        onChange={(event) =>
+                          setResetPasswordById((prev) => ({
+                            ...prev,
+                            [writer.id]: event.target.value,
+                          }))
+                        }
+                      />
+                      <FormButton
+                        htmlType="button"
+                        variant="secondary"
+                        disabled={busy || !(resetPasswordById[writer.id]?.trim() ?? '')}
+                        onClick={() => handleResetPassword(writer.id)}
+                      >
+                        비밀번호 초기화
+                      </FormButton>
+                      <FormButton
+                        htmlType="button"
+                        variant="secondary"
+                        disabled={busy}
+                        onClick={() => handleToggleStatus(writer)}
+                      >
+                        {writer.isActive ? '비활성' : '활성화'}
+                      </FormButton>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
 
       {error ? <p className="status status--error">{error}</p> : null}
     </div>

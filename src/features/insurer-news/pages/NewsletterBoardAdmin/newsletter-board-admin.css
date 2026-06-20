@@ -138,95 +138,122 @@
   gap: 8px;
 }
 
-.newsletter-board-admin-page__writer-panel {
-  margin-bottom: 16px;
-  padding: 20px 22px;
-  border-radius: 14px;
-  border: 1px solid #bfdbfe;
-  background: #f8fafc;
+.newsletter-board-writer-panel {
+  margin-top: 12px;
+  padding: 16px 18px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
 }
 
-.newsletter-board-admin-page__writer-panel-head h3 {
-  margin: 0 0 6px;
-  font-size: 1.05rem;
+.newsletter-board-writer-panel__title {
+  margin: 0 0 10px;
+  font-size: 0.9375rem;
+  font-weight: 600;
   color: #111827;
 }
 
-.newsletter-board-admin-page__writer-panel-path {
-  margin: 0;
-  font-size: 0.875rem;
-  color: #6b7280;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+.newsletter-board-writer-panel__title--list {
+  margin-top: 16px;
 }
 
-.newsletter-board-admin-page__writer-panel-section {
-  margin-top: 18px;
-}
-
-.newsletter-board-admin-page__writer-panel-section h4 {
-  margin: 0 0 12px;
-  font-size: 0.975rem;
-  color: #111827;
-}
-
-.newsletter-board-admin-page__writer-form-grid {
+.newsletter-board-writer-panel__form {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 12px;
+  grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) minmax(180px, 0.8fr) auto;
+  gap: 8px;
+  align-items: end;
 }
 
-.newsletter-board-admin-page__writer-inline {
+.newsletter-board-writer-panel__field {
+  margin: 0;
+}
+
+.newsletter-board-writer-panel__field--login {
+  grid-column: 1 / -1;
+}
+
+.newsletter-board-writer-panel__login-row {
   display: flex;
   gap: 8px;
   align-items: center;
 }
 
-.newsletter-board-admin-page__writer-inline .form-input {
+.newsletter-board-writer-panel__login-row .form-input {
   flex: 1 1 auto;
+  min-width: 0;
 }
 
-.newsletter-board-admin-page__writer-check {
+.newsletter-board-writer-panel__check {
+  grid-column: 1 / -1;
   display: block;
-  margin-top: 6px;
+  margin-top: 4px;
   font-size: 0.8125rem;
 }
 
-.newsletter-board-admin-page__writer-check--ok {
+.newsletter-board-writer-panel__check--ok {
   color: #059669;
 }
 
-.newsletter-board-admin-page__writer-check--bad {
+.newsletter-board-writer-panel__check--bad {
   color: #b91c1c;
 }
 
-.newsletter-board-admin-page__writer-table-wrap {
+.newsletter-board-writer-panel__submit {
+  display: flex;
+  align-items: flex-end;
+}
+
+.newsletter-board-writer-panel__muted {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.newsletter-board-writer-panel__table-wrap {
   overflow-x: auto;
 }
 
-.newsletter-board-admin-page__writer-table {
+.newsletter-board-writer-panel__table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.875rem;
 }
 
-.newsletter-board-admin-page__writer-table th,
-.newsletter-board-admin-page__writer-table td {
+.newsletter-board-writer-panel__table th,
+.newsletter-board-writer-panel__table td {
   padding: 10px 8px;
   border-bottom: 1px solid #e5e7eb;
   text-align: left;
-  vertical-align: top;
+  vertical-align: middle;
+  color: #374151;
 }
 
-.newsletter-board-admin-page__writer-actions {
+.newsletter-board-writer-panel__table th {
+  font-weight: 600;
+  color: #111827;
+  background: #ffffff;
+}
+
+.newsletter-board-writer-panel__actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
 }
 
+.newsletter-board-writer-panel__actions .form-input {
+  min-width: 140px;
+  flex: 1 1 140px;
+  max-width: 200px;
+}
+
 @media (max-width: 768px) {
-  .newsletter-board-admin-page__writer-form-grid {
+  .newsletter-board-writer-panel__form {
     grid-template-columns: 1fr;
+  }
+
+  .newsletter-board-writer-panel__login-row {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
