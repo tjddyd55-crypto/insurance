@@ -20,6 +20,7 @@ import { copyTextToClipboard } from '../../../lib/clipboard'
 import { useAuth } from '../../auth/AuthProvider'
 import { isCarInsuranceFeatureEnabledForGa } from '../../dashboard/gaTenantMenu'
 import { canAccessContractSignatureUserSend } from '../../contracts/testConsole/contractSignatureTestConsoleFlags'
+import { buildContractSignatureSendPath } from '../../contracts/navigation/contractSignatureNavigation'
 import { deleteCustomer, getCustomerById, listCustomers, updateCustomer } from '../api/customersApi'
 import { listCustomerCars } from '../api/customerCarsApi'
 import type { CustomerRecord } from '../domain/types'
@@ -1351,15 +1352,15 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
 
   const handleOpenSignatures = useCallback(
     (customerId: number) => {
-      if (isMobile) {
-        openMobileModal('signatures', customerId)
-        return
-      }
-      const next = new URLSearchParams(searchParams)
-      next.set('customerId', String(customerId))
-      navigate(buildCustomerWorkspacePath({ customerId, tab: 'signatures', query: next }))
+      const returnTo = `${location.pathname}${location.search}`
+      navigate(
+        buildContractSignatureSendPath({
+          customerId,
+          returnTo,
+        }),
+      )
     },
-    [isMobile, navigate, openMobileModal, searchParams],
+    [location.pathname, location.search, navigate],
   )
 
   const handleOpenOnMap = useCallback(
