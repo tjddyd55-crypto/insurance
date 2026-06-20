@@ -17,21 +17,43 @@ export function WebAppUpdateBanner() {
   }
 
   return (
-    <div className="web-app-update-banner" role="status" aria-live="polite">
-      <div className="web-app-update-banner__copy">
-        <span className="web-app-update-banner__title">업데이트가 있습니다.</span>
-        <span className="web-app-update-banner__text">
-          최신 화면을 적용하려면 새로고침해 주세요.
-        </span>
-      </div>
-      <div className="web-app-update-banner__actions">
-        <FormButton htmlType="button" variant="secondary" size="sm" onClick={dismissLater}>
-          나중에
-        </FormButton>
-        <FormButton htmlType="button" variant="primary" size="sm" onClick={reload}>
-          새로고침
-        </FormButton>
-      </div>
+    <div className="web-app-update-banner__overlay" role="presentation">
+      <section
+        className="web-app-update-banner__dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="web-app-update-banner-title"
+        aria-describedby="web-app-update-banner-description"
+      >
+        <div className="web-app-update-banner__copy">
+          <h2 id="web-app-update-banner-title" className="web-app-update-banner__title">
+            업데이트가 있습니다.
+          </h2>
+          <p id="web-app-update-banner-description" className="web-app-update-banner__description">
+            최신 화면을 적용하려면 새로고침해 주세요.
+          </p>
+        </div>
+        <div className="web-app-update-banner__actions">
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            size="sm"
+            className="web-app-update-banner__button"
+            onClick={dismissLater}
+          >
+            나중에
+          </FormButton>
+          <FormButton
+            htmlType="button"
+            variant="primary"
+            size="sm"
+            className="web-app-update-banner__button"
+            onClick={reload}
+          >
+            새로고침
+          </FormButton>
+        </div>
+      </section>
     </div>
   )
 }
