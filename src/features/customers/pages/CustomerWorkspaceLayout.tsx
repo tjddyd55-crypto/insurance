@@ -9,6 +9,7 @@ import { getCustomerById } from '../api/customersApi'
 import { isGaCarInsuranceHubEnabled } from '../../dashboard/gaTenantMenu'
 import useIsMobile from '../../../hooks/useIsMobile'
 import { canAccessContractSignatureUserSend } from '../../contracts/testConsole/contractSignatureTestConsoleFlags'
+import { buildContractSignatureSendPath } from '../../contracts/navigation/contractSignatureNavigation'
 import CustomersPageContainer from './customers/CustomersPageContainer'
 import CustomerWorkspaceLayoutPC, { type CustomerWorkspaceLayoutPCProps } from './workspace/CustomerWorkspaceLayoutPC'
 import CustomerWorkspaceLayoutMobile from './workspace/CustomerWorkspaceLayoutMobile'
@@ -266,7 +267,13 @@ export default function CustomerWorkspaceLayout() {
     if (!selectedCustomerId) {
       return
     }
-    moveTo(`/customers/${selectedCustomerId}/signatures`)
+    const returnTo = `${location.pathname}${location.search}`
+    navigate(
+      buildContractSignatureSendPath({
+        customerId: selectedCustomerId,
+        returnTo,
+      }),
+    )
   }
 
   const handleClickViewOnMap = useCallback(() => {
