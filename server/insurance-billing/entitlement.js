@@ -1,8 +1,8 @@
 import {
-  INSURANCE_BILLING_ALLOWED_STATUSES,
   isInsuranceBillingEnabled,
   isInsuranceBillingEnforceAccess,
 } from './config.js'
+import { isInsuranceBillingEntitledStatus } from './subscriptionStatusPolicy.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { syncSubscriptionTrialExpiry } from './subscriptionLifecycle.js'
 
@@ -64,16 +64,7 @@ export async function getInsuranceBillingSubscription(executor, userId) {
   return syncSubscriptionTrialExpiry(executor, row)
 }
 
-/**
- * @param {string | null | undefined} status
- */
-export function isInsuranceBillingEntitledStatus(status) {
-  const normalized = String(status ?? '').trim().toLowerCase()
-  if (!normalized) {
-    return false
-  }
-  return INSURANCE_BILLING_ALLOWED_STATUSES.includes(normalized)
-}
+export { isInsuranceBillingEntitledStatus } from './subscriptionStatusPolicy.js'
 
 /**
  * @param {{ status?: string | null }} subscription

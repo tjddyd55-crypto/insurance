@@ -14,6 +14,8 @@ export const INSURANCE_BILLING_ALLOWED_STATUSES = [
   'legacy_active',
   'trial',
   'active',
+  'paid',
+  'free',
 ] as const
 
 export function isInsuranceBillingEntitledStatus(status: string | null | undefined): boolean {
