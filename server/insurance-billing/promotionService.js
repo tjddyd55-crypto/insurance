@@ -160,7 +160,8 @@ export async function getCheckoutSummary(executor, userId) {
   const subR = await systemQuery(
     executor,
     `
-    SELECT id, user_id, tenant_id, status, plan_code, billing_cycle, trial_ends_at, current_period_end
+    SELECT id, user_id, tenant_id, status, plan_code, billing_cycle,
+           trial_ends_at, current_period_end, next_billing_at
     FROM billing_subscriptions WHERE user_id = $1 LIMIT 1
     `,
     [userId],
@@ -204,6 +205,8 @@ export async function getCheckoutSummary(executor, userId) {
       : null,
     billingCycle,
     trialEndsAt: sub?.trial_ends_at ?? null,
+    currentPeriodEnd: sub?.current_period_end ?? null,
+    nextBillingAt: sub?.next_billing_at ?? null,
     referral: referral
       ? { code: referral.referral_code, status: referral.status }
       : null,

@@ -4,6 +4,8 @@ export type CheckoutSummary = {
   subscriptionStatus: string
   billingCycle: 'monthly' | 'yearly'
   trialEndsAt: string | null
+  currentPeriodEnd?: string | null
+  nextBillingAt?: string | null
   plan: {
     code: string
     name: string
