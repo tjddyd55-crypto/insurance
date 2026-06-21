@@ -109,3 +109,68 @@ export async function deleteAdminBillingPromotionCode(token: string, codeId: num
     },
   )
 }
+
+export type BillingPaymentStatusFilter = 'pending' | 'paid' | 'canceled' | 'failed' | 'all'
+
+export type BillingPaymentAdminItem = {
+  paymentId: string
+  userId: string
+  userName: string
+  username: string
+  tenantId: number | null
+  tenantName: string | null
+  subscriptionId: string | null
+  planName: string
+  planCode: string | null
+  billingCycle: string
+  amount: number
+  vatAmount: number
+  totalAmount: number
+  status: string
+  provider: string
+  promotionCode: string | null
+  referralCode: string | null
+  createdAt: string
+  paidAt: string | null
+  canceledAt?: string | null
+  cancelReason?: string | null
+}
+
+export async function fetchAdminBillingPayments(
+  token: string,
+  query: { status?: BillingPaymentStatusFilter; page?: number; limit?: number; userId?: string; tenantId?: number } = {},
+) {
+  const params = new URLSearchParams()
+  if (query.status) params.set('status', query.status)
+  if (query.page) params.set('page', String(query.page))
+  if (query.limit) params.set('limit', String(query.limit))
+  if (query.userId) params.set('userId', query.userId)
+  if (query.tenantId) params.set('tenantId', String(query.tenantId))
+  const suffix = params.toString() ? `?${params.toString()}` : ''
+  return apiRequest<{ items: BillingPaymentAdminItem[]; page: number; limit: number; total: number }>(
+    `/api/admin/billing/payments${suffix}`,
+    { token },
+  )
+}
+
+export async function fetchAdminBillingPaymentDetail(token: string, paymentId: string) {
+  return apiRequest<{ item: BillingPaymentAdminItem }>(`/api/admin/billing/payments/${paymentId}`, { token })
+}
+
+export async function approveAdminBillingPayment(token: string, paymentId: string) {
+  return apiRequest<{ ok: boolean; paymentId: number; subscriptionStatus: string }>(
+    `/api/admin/billing/payments/${paymentId}/approve`,
+    { method: 'POST', token, body: JSON.stringify({}) },
+  )
+}
+
+export async function cancelAdminBillingPayment(token: string, paymentId: string, cancelReason?: string) {
+  return apiRequest<{ ok: boolean; paymentId: number; status: string }>(
+    `/api/admin/billing/payments/${paymentId}/cancel`,
+    {
+      method: 'POST',
+      token,
+      body: JSON.stringify(cancelReason ? { cancelReason } : {}),
+    },
+  )
+}

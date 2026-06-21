@@ -1,4 +1,5 @@
 import { INSURANCE_BASIC_PLAN_CODE } from './config.js'
+import { enrichBillingManageSummary } from './billingSummaryService.js'
 import { syncSubscriptionTrialExpiry } from './subscriptionLifecycle.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 
@@ -201,7 +202,7 @@ export async function getCheckoutSummary(executor, userId) {
   )
   const referral = refR.rows[0]
 
-  return {
+  return enrichBillingManageSummary({
     subscriptionStatus: sub?.status ?? 'pending_payment',
     plan: plan
       ? {
@@ -223,5 +224,5 @@ export async function getCheckoutSummary(executor, userId) {
     referral: referral
       ? { code: referral.referral_code, status: referral.status }
       : null,
-  }
+  })
 }

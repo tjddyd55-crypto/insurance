@@ -23,6 +23,10 @@ export default function BillingSuccessPage() {
       setVerifyState('failed')
       return
     }
+    if (state.mode === 'pending') {
+      setVerifyState('verified')
+      return
+    }
     let cancelled = false
     void (async () => {
       try {
@@ -47,7 +51,7 @@ export default function BillingSuccessPage() {
     return () => {
       cancelled = true
     }
-  }, [token, state.trialEndsAt])
+  }, [token, state.trialEndsAt, state.mode])
 
   if (verifyState === 'loading') {
     return (
@@ -80,23 +84,38 @@ export default function BillingSuccessPage() {
   }
 
   const trialEndsAt = verifiedTrialEndsAt ?? state.trialEndsAt
+  const isPending = state.mode === 'pending'
 
   return (
     <main className="insurance-billing-page">
       <div className="insurance-billing-page__shell">
         <div className="insurance-billing-card">
-          <h1>{state.mode === 'paid' ? '결제가 완료되었습니다' : '무료 이용이 시작되었습니다'}</h1>
+          <h1>
+            {isPending
+              ? '결제 요청이 접수되었습니다'
+              : state.mode === 'paid'
+                ? '결제가 완료되었습니다'
+                : '무료 이용이 시작되었습니다'}
+          </h1>
           <p className="insurance-billing-plan-note">
-            {state.mode === 'paid'
-              ? '보험 CRM을 바로 사용할 수 있습니다.'
-              : '무료 이용 기간 동안 모든 기능을 사용할 수 있습니다.'}
+            {isPending
+              ? '관리자 승인 후 유료 이용이 시작됩니다. 승인 전까지 CRM 기능은 제한될 수 있습니다.'
+              : state.mode === 'paid'
+                ? '보험 CRM을 바로 사용할 수 있습니다.'
+                : '무료 이용 기간 동안 모든 기능을 사용할 수 있습니다.'}
           </p>
           {trialEndsAt ? (
             <div className="insurance-billing-notice">무료 종료일: {trialEndsAt.slice(0, 10)}</div>
           ) : null}
-          <Link to={landing} className="insurance-billing-cta">
-            CRM 시작하기
-          </Link>
+          {!isPending ? (
+            <Link to={landing} className="insurance-billing-cta">
+              CRM 시작하기
+            </Link>
+          ) : (
+            <Link to="/billing/manage" className="insurance-billing-cta">
+              결제 상태 확인
+            </Link>
+          )}
         </div>
       </div>
     </main>

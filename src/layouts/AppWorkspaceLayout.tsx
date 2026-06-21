@@ -17,6 +17,7 @@ import useIsMobile from '../hooks/useIsMobile'
 import { useBackButtonClose } from '../hooks/useBackButtonClose'
 import { isUserWorkspacePath } from '../features/user-ui/isUserWorkspacePath'
 import { isActivePcNavigationPath } from '../components/layout/pcNavigationUtils'
+import BillingStatusBadge from '../features/insurance-billing/components/BillingStatusBadge'
 
 /** B안 모드 랜딩에서도 PlatformModeSwitcher 노출 (appRouter 변경 없음). */
 function isPlatformAdminArea(pathname: string): boolean {
@@ -190,6 +191,7 @@ function AppWorkspaceLayoutMobileShell() {
             ☰
           </FormButton>
           <div className="title">{mobileTopbarTitle}</div>
+          <BillingStatusBadge />
         </header>
       ) : null}
 
@@ -241,6 +243,9 @@ function AppWorkspaceLayoutMobileShell() {
           role="presentation"
         >
           <nav className="mobile-workspace-drawer__nav" aria-label="모바일 주요 메뉴">
+            <div className="mobile-workspace-drawer__billing" role="presentation">
+              <BillingStatusBadge />
+            </div>
             {sidebarItems.map((item, index) => {
               if (item.type === 'divider') {
                 return null

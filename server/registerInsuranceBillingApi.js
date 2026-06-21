@@ -15,7 +15,14 @@ import {
 import {
   applyFreeMonthsPromotion,
   getBillingReferralForUser,
+  requestInsurancePayment,
 } from './insurance-billing/subscriptionLifecycle.js'
+import {
+  approveInsuranceBillingPaymentAdmin,
+  cancelInsuranceBillingPaymentAdmin,
+  getInsuranceBillingPaymentAdmin,
+  listInsuranceBillingPaymentsAdmin,
+} from './insurance-billing/paymentAdminService.js'
 import { getInsurancePaymentProvider } from './insurance-billing/providers/index.js'
 import {
   activateBillingPromotionCodeAdmin,
@@ -170,6 +177,51 @@ export function registerInsuranceBillingApi(apiRouter, ctx) {
       }
       if (code === 'subscription_not_found') {
         res.status(404).json({ message: '구독 정보를 찾을 수 없습니다.' })
+        return
+      }
+      if (code === 'payment_already_pending') {
+        res.status(409).json({ message: '이미 처리 대기 중인 결제 요청이 있습니다.' })
+        return
+      }
+      handleDbError(e, req, res)
+    } finally {
+      client.release()
+    }
+  })
+
+  apiRouter.post('/billing/payments/request', requireAuth, requireBillingEnabled, requireBillingSubject, async (req, res) => {
+    const client = await pool.connect()
+    try {
+      const userId = String(req.user?.id ?? '').trim()
+      const planCode = String(req.body?.planCode ?? req.body?.plan_code ?? 'insurance_basic').trim()
+      const billingCycle = String(req.body?.billingCycle ?? req.body?.billing_cycle ?? 'monthly').trim()
+      const promotionCode = req.body?.promotionCode ?? req.body?.promotion_code ?? null
+      await client.query('BEGIN')
+      const result = await requestInsurancePayment(client, {
+        userId,
+        planCode,
+        billingCycle,
+        promotionCode,
+      })
+      await client.query('COMMIT')
+      res.status(201).json({ ok: true, ...result })
+    } catch (e) {
+      try {
+        await client.query('ROLLBACK')
+      } catch {
+        /* */
+      }
+      const code = e?.message ?? ''
+      if (code === 'plan_not_found') {
+        res.status(404).json({ message: '요금제를 찾을 수 없습니다.' })
+        return
+      }
+      if (code === 'subscription_not_found') {
+        res.status(404).json({ message: '구독 정보를 찾을 수 없습니다.' })
+        return
+      }
+      if (code === 'payment_already_pending') {
+        res.status(409).json({ message: '이미 처리 대기 중인 결제 요청이 있습니다.' })
         return
       }
       handleDbError(e, req, res)
@@ -384,6 +436,112 @@ export function registerInsuranceBillingApi(apiRouter, ctx) {
         }
       },
     )
+
+    apiRouter.get('/admin/billing/payments', requireAuth, requireSuperAdmin, async (req, res) => {
+      try {
+        const result = await listInsuranceBillingPaymentsAdmin(pool, {
+          status: req.query?.status,
+          page: req.query?.page,
+          limit: req.query?.limit,
+          userId: req.query?.userId ?? req.query?.user_id,
+          tenantId: req.query?.tenantId ?? req.query?.tenant_id,
+        })
+        res.json(result)
+      } catch (e) {
+        if (e?.message === 'invalid_status_filter') {
+          res.status(400).json({ message: '유효하지 않은 상태 필터입니다.' })
+          return
+        }
+        handleDbError(e, req, res)
+      }
+    })
+
+    apiRouter.get('/admin/billing/payments/:paymentId', requireAuth, requireSuperAdmin, async (req, res) => {
+      try {
+        const item = await getInsuranceBillingPaymentAdmin(pool, req.params.paymentId)
+        res.json({ item })
+      } catch (e) {
+        const code = e?.message ?? ''
+        if (code === 'invalid_payment_id') {
+          res.status(400).json({ message: '유효하지 않은 결제 ID입니다.' })
+          return
+        }
+        if (code === 'payment_not_found') {
+          res.status(404).json({ message: '결제 요청을 찾을 수 없습니다.' })
+          return
+        }
+        handleDbError(e, req, res)
+      }
+    })
+
+    apiRouter.post('/admin/billing/payments/:paymentId/approve', requireAuth, requireSuperAdmin, async (req, res) => {
+      const client = await pool.connect()
+      try {
+        const paymentId = req.params.paymentId
+        const adminUserId = String(req.user?.id ?? '').trim()
+        await client.query('BEGIN')
+        const result = await approveInsuranceBillingPaymentAdmin(client, paymentId, adminUserId)
+        await client.query('COMMIT')
+        res.json({ ok: true, ...result })
+      } catch (e) {
+        try {
+          await client.query('ROLLBACK')
+        } catch {
+          /* */
+        }
+        const code = e?.message ?? ''
+        if (code === 'invalid_payment_id') {
+          res.status(400).json({ message: '유효하지 않은 결제 ID입니다.' })
+          return
+        }
+        if (code === 'payment_not_found') {
+          res.status(404).json({ message: '결제 요청을 찾을 수 없습니다.' })
+          return
+        }
+        if (code === 'payment_not_pending') {
+          res.status(409).json({ message: '대기 중인 결제 요청만 승인할 수 있습니다.' })
+          return
+        }
+        handleDbError(e, req, res)
+      } finally {
+        client.release()
+      }
+    })
+
+    apiRouter.post('/admin/billing/payments/:paymentId/cancel', requireAuth, requireSuperAdmin, async (req, res) => {
+      const client = await pool.connect()
+      try {
+        const paymentId = req.params.paymentId
+        const adminUserId = String(req.user?.id ?? '').trim()
+        const cancelReason = req.body?.cancelReason ?? req.body?.cancel_reason ?? null
+        await client.query('BEGIN')
+        const result = await cancelInsuranceBillingPaymentAdmin(client, paymentId, adminUserId, cancelReason)
+        await client.query('COMMIT')
+        res.json({ ok: true, ...result })
+      } catch (e) {
+        try {
+          await client.query('ROLLBACK')
+        } catch {
+          /* */
+        }
+        const code = e?.message ?? ''
+        if (code === 'invalid_payment_id') {
+          res.status(400).json({ message: '유효하지 않은 결제 ID입니다.' })
+          return
+        }
+        if (code === 'payment_not_found') {
+          res.status(404).json({ message: '결제 요청을 찾을 수 없습니다.' })
+          return
+        }
+        if (code === 'payment_not_pending') {
+          res.status(409).json({ message: '대기 중인 결제 요청만 취소할 수 있습니다.' })
+          return
+        }
+        handleDbError(e, req, res)
+      } finally {
+        client.release()
+      }
+    })
   }
 }
 
