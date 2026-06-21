@@ -44,7 +44,7 @@ export async function validateBillingPromotionCode(
   return apiRequest<PromotionValidateResult>('/api/billing/promotion-codes/validate', {
     method: 'POST',
     token,
-    body,
+    body: JSON.stringify(body),
   })
 }
 
@@ -74,7 +74,7 @@ export async function completeMockBillingPayment(
     {
       method: 'POST',
       token,
-      body,
+      body: JSON.stringify(body),
     },
   )
 }

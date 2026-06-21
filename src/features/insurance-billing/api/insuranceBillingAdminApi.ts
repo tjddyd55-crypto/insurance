@@ -56,7 +56,7 @@ export async function createAdminBillingPromotionCode(token: string, body: Billi
   return apiRequest<{ row: BillingPromotionCodeAdminRow }>('/api/admin/billing/promotion-codes', {
     method: 'POST',
     token,
-    body,
+    body: JSON.stringify(body),
   })
 }
 
@@ -68,7 +68,7 @@ export async function updateAdminBillingPromotionCode(
   return apiRequest<{ row: BillingPromotionCodeAdminRow }>(`/api/admin/billing/promotion-codes/${codeId}`, {
     method: 'PATCH',
     token,
-    body,
+    body: JSON.stringify(body),
   })
 }
 

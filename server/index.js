@@ -7555,6 +7555,13 @@ if (fs.existsSync(DIST_PATH)) {
 }
 
 app.use((error, _req, res, _next) => {
+  if (error?.type === 'entity.parse.failed') {
+    return res.status(400).json({
+      success: false,
+      code: 'INVALID_JSON',
+      message: '요청 형식이 올바르지 않습니다.',
+    })
+  }
   console.error(error)
   res.status(500).json({ message: '서버 오류가 발생했습니다.' })
 })
