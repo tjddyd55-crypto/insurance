@@ -93,10 +93,40 @@ export async function requestBillingPayment(
   )
 }
 
+export type BillingManageSubscription = {
+  status: string
+  planName: string
+  planCode: string
+  billingCycle: 'monthly' | 'yearly'
+  currentPeriodStart: string | null
+  currentPeriodEnd: string | null
+  nextBillingAt: string | null
+  trialStartedAt?: string | null
+  trialEndsAt?: string | null
+}
+
+export type BillingManagePayment = {
+  id: number
+  status: string
+  amount: number
+  vatAmount: number
+  totalAmount: number
+  billingCycle: string
+  provider: string
+  planCode: string | null
+  planName: string
+  paidAt: string | null
+  createdAt: string
+  canceledAt?: string | null
+}
+
+export type BillingManageSummaryResponse = {
+  summary: CheckoutSummary
+  subscription: BillingManageSubscription | null
+  payments: BillingManagePayment[]
+  referral: { code: string; status: string } | null
+}
+
 export async function fetchBillingManageSummary(token: string) {
-  return apiRequest<{
-    summary: CheckoutSummary
-    subscription: Record<string, unknown> | null
-    referral: Record<string, unknown> | null
-  }>('/api/billing/manage/summary', { token })
+  return apiRequest<BillingManageSummaryResponse>('/api/billing/manage/summary', { token })
 }

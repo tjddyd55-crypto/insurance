@@ -10,6 +10,13 @@ import {
   type PromotionCodeMeResponse,
 } from '../../promotions/promotionApi'
 import {
+  fetchBillingManageSummary,
+  type BillingManageSummaryResponse,
+} from '../../insurance-billing/api/insuranceBillingApi'
+import InsuranceBillingManagePanel from '../../insurance-billing/components/InsuranceBillingManagePanel'
+import { isInsuranceBillingEnabledClient } from '../../insurance-billing/insuranceBillingConfig'
+import '../../insurance-billing/insurance-billing.css'
+import {
   BILLING_STATUS_LABEL,
   createBillingInvoice,
   fetchBillingInvoices,
@@ -27,6 +34,8 @@ export default function AccountBillingPage() {
   const { token } = useAuth()
   const [me, setMe] = useState<BillingMeResponse | null>(null)
   const [invoices, setInvoices] = useState<BillingInvoice[]>([])
+  const [insuranceManage, setInsuranceManage] = useState<BillingManageSummaryResponse | null>(null)
+  const insuranceBillingEnabled = isInsuranceBillingEnabledClient()
   const [appliedCode, setAppliedCode] = useState<PromotionCodeMeResponse | null>(null)
   const [codeInput, setCodeInput] = useState('')
   const [codeHint, setCodeHint] = useState('')
@@ -40,18 +49,31 @@ export default function AccountBillingPage() {
     if (!token?.trim()) return
     setLoadError('')
     try {
+      const codeMePromise = fetchPromotionCodeMe(token)
+      if (insuranceBillingEnabled) {
+        const [manageSummary, codeMe] = await Promise.all([
+          fetchBillingManageSummary(token),
+          codeMePromise,
+        ])
+        setInsuranceManage(manageSummary)
+        setMe(null)
+        setInvoices([])
+        setAppliedCode(codeMe)
+        return
+      }
       const [billingMe, invoiceRes, codeMe] = await Promise.all([
         fetchBillingMe(token),
         fetchBillingInvoices(token),
-        fetchPromotionCodeMe(token),
+        codeMePromise,
       ])
+      setInsuranceManage(null)
       setMe(billingMe)
       setInvoices(invoiceRes.invoices)
       setAppliedCode(codeMe)
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : '결제 정보를 불러오지 못했습니다.')
     }
-  }, [token])
+  }, [token, insuranceBillingEnabled])
 
   useEffect(() => {
     void load()
@@ -202,7 +224,18 @@ export default function AccountBillingPage() {
         )}
       </section>
 
-      {me ? (
+      {insuranceBillingEnabled && insuranceManage ? (
+        <div className="billing-page__insurance-manage">
+          <InsuranceBillingManagePanel
+            summary={insuranceManage.summary}
+            subscription={insuranceManage.subscription}
+            payments={insuranceManage.payments}
+            showCheckoutLink
+          />
+        </div>
+      ) : null}
+
+      {!insuranceBillingEnabled && me ? (
         <section className="card auth-card billing-page__card">
           <h2 className="billing-page__section-title">현재 이용 상태</h2>
           <dl className="billing-page__meta">
@@ -235,6 +268,7 @@ export default function AccountBillingPage() {
         </section>
       ) : null}
 
+      {!insuranceBillingEnabled ? (
       <section className="card auth-card billing-page__card">
         <h2 className="billing-page__section-title">결제 내역</h2>
         {invoices.length === 0 ? (
@@ -265,8 +299,9 @@ export default function AccountBillingPage() {
           </ul>
         )}
       </section>
+      ) : null}
 
-      {me?.refundPolicyNotice?.length ? (
+      {me?.refundPolicyNotice?.length && !insuranceBillingEnabled ? (
         <section className="card auth-card billing-page__card">
           <h2 className="billing-page__section-title">환불 안내</h2>
           <ul className="billing-page__policy-list">

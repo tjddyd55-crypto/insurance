@@ -232,6 +232,50 @@ describe('insurance billing manage summary enrichment', () => {
   })
 })
 
+describe('insurance billing manage service', () => {
+  it('maps user payment rows including mock provider paid status', async () => {
+    const { mapUserPaymentRow } = await import('./billingManageService.js')
+    const mapped = mapUserPaymentRow({
+      id: 5,
+      status: 'paid',
+      amount: 8000,
+      vat_amount: 800,
+      total_amount: 8800,
+      billing_cycle: 'monthly',
+      provider: 'mock',
+      paid_at: '2026-06-21T00:00:00.000Z',
+      created_at: '2026-06-21T00:00:00.000Z',
+      canceled_at: null,
+      plan_code: 'insurance_basic',
+      plan_name: '보험 CRM 베이직',
+    })
+    assert.equal(mapped.id, 5)
+    assert.equal(mapped.status, 'paid')
+    assert.equal(mapped.totalAmount, 8800)
+    assert.equal(mapped.provider, 'mock')
+    assert.equal(mapped.planName, '보험 CRM 베이직')
+  })
+
+  it('builds subscription view with planName instead of FREE access code', async () => {
+    const { buildManageSubscriptionView } = await import('./billingManageService.js')
+    const view = buildManageSubscriptionView(
+      {
+        status: 'active_paid',
+        plan_code: 'insurance_basic',
+        billing_cycle: 'monthly',
+        current_period_start: '2026-06-21T00:00:00.000Z',
+        current_period_end: '2026-07-21T00:00:00.000Z',
+        next_billing_at: '2026-07-21T00:00:00.000Z',
+      },
+      { planName: '보험 CRM 베이직', planCode: 'insurance_basic', billingCycle: 'monthly' },
+    )
+    assert.equal(view.status, 'active_paid')
+    assert.equal(view.planName, '보험 CRM 베이직')
+    assert.equal(view.planCode, 'insurance_basic')
+    assert.equal(view.nextBillingAt, '2026-07-21T00:00:00.000Z')
+  })
+})
+
 describe('insurance billing API allowlist path normalization', () => {
   it('normalizes /backend mount paths to /api SSOT', () => {
     assert.equal(
