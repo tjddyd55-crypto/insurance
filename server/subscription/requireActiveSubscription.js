@@ -27,6 +27,7 @@ import { buildSubscriptionResponse } from './applyToResponseUser.js'
 import { readPolicyActive } from './appSettings.js'
 import { isSubscriptionSubjectRole } from './policy.js'
 import { isAllowedForExpiredApi } from './expiredAllowlist.js'
+import { resolveApiPolicyPath } from '../utils/apiPolicyPath.js'
 
 /**
  * @param {import('express').Request & { user?: { id: string; role: string } }} req
@@ -46,7 +47,7 @@ export async function enforceActiveSubscription(req, res, next) {
       return
     }
 
-    if (isAllowedForExpiredApi(req.path)) {
+    if (isAllowedForExpiredApi(resolveApiPolicyPath(req))) {
       next()
       return
     }
