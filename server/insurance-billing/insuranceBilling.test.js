@@ -272,7 +272,201 @@ describe('insurance billing manage service', () => {
     assert.equal(view.status, 'active_paid')
     assert.equal(view.planName, '보험 CRM 베이직')
     assert.equal(view.planCode, 'insurance_basic')
-    assert.equal(view.nextBillingAt, '2026-07-21T00:00:00.000Z')
+    assert.equal(view.nextBillingAt, '2026-07-21T00:00:00.000Z'    )
+  })
+})
+
+describe('insurance billing promotion redemption policy', () => {
+  it('rejects when user already redeemed any billing promotion', async () => {
+    const { assertUserBillingPromotionNotAlreadyUsed } = await import('./billingPromotionRedemptionPolicy.js')
+    const executor = {
+      query: async (sql) => {
+        if (String(sql).includes('billing_promotion_redemptions')) {
+          return { rows: [{ count: 1 }], rowCount: 1 }
+        }
+        return { rows: [], rowCount: 0 }
+      },
+    }
+    await assert.rejects(
+      () => assertUserBillingPromotionNotAlreadyUsed(executor, 'user-1'),
+      /promotion_already_used/,
+    )
+  })
+
+  it('rejects when subscription already has promotion_code_id', async () => {
+    const { assertUserBillingPromotionNotAlreadyUsed } = await import('./billingPromotionRedemptionPolicy.js')
+    const executor = {
+      query: async (sql) => {
+        if (String(sql).includes('billing_promotion_redemptions')) {
+          return { rows: [{ count: 0 }], rowCount: 1 }
+        }
+        if (String(sql).includes('billing_subscriptions')) {
+          return { rows: [{ promotion_code_id: 9 }], rowCount: 1 }
+        }
+        return { rows: [], rowCount: 0 }
+      },
+    }
+    await assert.rejects(
+      () => assertUserBillingPromotionNotAlreadyUsed(executor, 'user-1'),
+      /promotion_already_used/,
+    )
+  })
+
+  it('validateInsurancePromotionCode returns PROMOTION_ALREADY_USED for repeat attempt', async () => {
+    const { validateInsurancePromotionCode } = await import('./promotionService.js')
+    const { PROMOTION_ALREADY_USED_ERROR_CODE } = await import('./billingPromotionRedemptionPolicy.js')
+    const promoRow = {
+      id: 10,
+      code: 'UGGXAMJL',
+      type: 'free_months',
+      free_months: 3,
+      is_active: true,
+      deleted_at: null,
+      starts_at: null,
+      ends_at: null,
+      used_count: 0,
+      max_redemptions: null,
+      applies_to_plan_code: 'insurance_basic',
+      applies_to_product: 'insurance',
+    }
+    const executor = {
+      query: async (sql) => {
+        if (String(sql).includes('FROM billing_promotion_codes')) {
+          return { rows: [promoRow], rowCount: 1 }
+        }
+        if (String(sql).includes('billing_promotion_redemptions')) {
+          return { rows: [{ count: 1 }], rowCount: 1 }
+        }
+        if (String(sql).includes('billing_subscriptions')) {
+          return { rows: [], rowCount: 0 }
+        }
+        if (String(sql).includes('FROM billing_plans')) {
+          return {
+            rows: [
+              {
+                monthly_total: 8800,
+                yearly_total: 88000,
+                monthly_price: 8000,
+                yearly_price: 80000,
+              },
+            ],
+            rowCount: 1,
+          }
+        }
+        return { rows: [], rowCount: 0 }
+      },
+    }
+
+    const result = await validateInsurancePromotionCode(executor, {
+      code: 'OTHER-CODE',
+      userId: 'user-with-uggxamjl',
+    })
+    assert.equal(result.valid, false)
+    assert.equal(result.errorCode, PROMOTION_ALREADY_USED_ERROR_CODE)
+  })
+
+  it('validateInsurancePromotionCode allows promo when user only has referral history', async () => {
+    const { validateInsurancePromotionCode } = await import('./promotionService.js')
+    const promoRow = {
+      id: 10,
+      code: 'UGGXAMJL',
+      type: 'free_months',
+      free_months: 3,
+      is_active: true,
+      deleted_at: null,
+      starts_at: null,
+      ends_at: null,
+      used_count: 0,
+      max_redemptions: null,
+      applies_to_plan_code: 'insurance_basic',
+      applies_to_product: 'insurance',
+    }
+    const executor = {
+      query: async (sql) => {
+        if (String(sql).includes('FROM billing_promotion_codes')) {
+          return { rows: [promoRow], rowCount: 1 }
+        }
+        if (String(sql).includes('billing_promotion_redemptions')) {
+          return { rows: [{ count: 0 }], rowCount: 1 }
+        }
+        if (String(sql).includes('billing_subscriptions')) {
+          return { rows: [], rowCount: 0 }
+        }
+        if (String(sql).includes('FROM billing_plans')) {
+          return {
+            rows: [
+              {
+                monthly_total: 8800,
+                yearly_total: 88000,
+                monthly_price: 8000,
+                yearly_price: 80000,
+              },
+            ],
+            rowCount: 1,
+          }
+        }
+        return { rows: [], rowCount: 0 }
+      },
+    }
+
+    const result = await validateInsurancePromotionCode(executor, {
+      code: 'UGGXAMJL',
+      userId: 'new-user-with-referral-only',
+    })
+    assert.equal(result.valid, true)
+    assert.equal(result.code, 'UGGXAMJL')
+  })
+})
+
+describe('insurance billing referral discount count', () => {
+  it('counts only active_paid billing referrals', async () => {
+    const { countActivePaidReferrals } = await import('./subscriptionLifecycle.js')
+    const referrals = [
+      { status: 'pending' },
+      { status: 'active_paid' },
+      { status: 'active_paid' },
+      { status: 'ended' },
+    ]
+    const executor = {
+      query: async (sql) => {
+        if (String(sql).includes('FROM billing_referrals') && String(sql).includes('active_paid')) {
+          const count = referrals.filter((r) => r.status === 'active_paid').length
+          return { rows: [{ count }], rowCount: 1 }
+        }
+        return { rows: [], rowCount: 0 }
+      },
+    }
+    const count = await countActivePaidReferrals(executor, 'referrer-1')
+    assert.equal(count, 2)
+  })
+
+  it('excludes trialing referred users from referrer discount count', async () => {
+    const { countActivePaidReferrals, calculateReferrerDiscountAmount } = await import(
+      './subscriptionLifecycle.js'
+    )
+    const executor = {
+      query: async (sql) => {
+        if (String(sql).includes('FROM billing_referrals') && String(sql).includes('active_paid')) {
+          return { rows: [{ count: 0 }], rowCount: 1 }
+        }
+        return { rows: [], rowCount: 0 }
+      },
+    }
+    const trialingOnlyCount = await countActivePaidReferrals(executor, 'referrer-1')
+    assert.equal(trialingOnlyCount, 0)
+    assert.equal(calculateReferrerDiscountAmount(trialingOnlyCount), 0)
+
+    const activePaidExecutor = {
+      query: async (sql) => {
+        if (String(sql).includes('FROM billing_referrals') && String(sql).includes('active_paid')) {
+          return { rows: [{ count: 1 }], rowCount: 1 }
+        }
+        return { rows: [], rowCount: 0 }
+      },
+    }
+    const activePaidCount = await countActivePaidReferrals(activePaidExecutor, 'referrer-1')
+    assert.equal(activePaidCount, 1)
+    assert.equal(calculateReferrerDiscountAmount(activePaidCount), 1000)
   })
 })
 
