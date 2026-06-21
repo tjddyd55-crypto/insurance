@@ -211,3 +211,124 @@
   background: #ecfdf5;
   color: #047857;
 }
+
+.insurance-billing-manage-page .insurance-billing-manage-card {
+  margin-top: 16px;
+}
+
+.insurance-billing-manage-meta {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.insurance-billing-manage-meta__row {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.insurance-billing-manage-meta__row dt {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+.insurance-billing-manage-meta__row dd {
+  margin: 0;
+  color: #111827;
+  font-weight: 600;
+}
+
+.insurance-billing-status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.insurance-billing-status-badge--green {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.insurance-billing-status-badge--blue {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.insurance-billing-status-badge--orange {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.insurance-billing-status-badge--red {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.insurance-billing-status-badge--gray {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.insurance-billing-payment-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.insurance-billing-payment-item {
+  padding: 14px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.insurance-billing-payment-item__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.insurance-billing-payment-item__head strong {
+  font-size: 1rem;
+  color: #111827;
+}
+
+.insurance-billing-payment-item__sub {
+  margin: 8px 0 0;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+.insurance-billing-payment-item__muted {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 0.8125rem;
+}
+
+.billing-page__insurance-manage {
+  display: grid;
+  gap: 16px;
+}
+
+.billing-page__insurance-manage .insurance-billing-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.billing-page__insurance-manage .insurance-billing-card h2 {
+  margin: 0 0 16px;
+  font-size: 1.125rem;
+  color: #111827;
+}

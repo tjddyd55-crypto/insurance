@@ -17,6 +17,7 @@ import {
   getBillingReferralForUser,
   requestInsurancePayment,
 } from './insurance-billing/subscriptionLifecycle.js'
+import { buildBillingManageSummaryResponse } from './insurance-billing/billingManageService.js'
 import {
   approveInsuranceBillingPaymentAdmin,
   cancelInsuranceBillingPaymentAdmin,
@@ -233,12 +234,8 @@ export function registerInsuranceBillingApi(apiRouter, ctx) {
   apiRouter.get('/billing/manage/summary', requireAuth, requireBillingEnabled, requireBillingSubject, async (req, res) => {
     try {
       const userId = String(req.user?.id ?? '').trim()
-      const [summary, subscription, referral] = await Promise.all([
-        getCheckoutSummary(pool, userId),
-        getInsuranceBillingSubscription(pool, userId),
-        getBillingReferralForUser(pool, userId),
-      ])
-      res.json({ summary, subscription, referral })
+      const payload = await buildBillingManageSummaryResponse(pool, userId)
+      res.json(payload)
     } catch (e) {
       handleDbError(e, req, res)
     }
