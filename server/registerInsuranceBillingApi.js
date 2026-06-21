@@ -21,9 +21,13 @@ import {
   activateBillingPromotionCodeAdmin,
   createBillingPromotionCodeAdmin,
   deactivateBillingPromotionCodeAdmin,
+  getBillingPromotionCodeAdminById,
+  getBillingPromotionCodeStatsAdmin,
   listBillingPromotionCodesAdmin,
   parseCreateBillingPromotionInput,
+  parseUpdateBillingPromotionInput,
   softDeleteBillingPromotionCodeAdmin,
+  updateBillingPromotionCodeAdmin,
 } from './insurance-billing/promotionAdminService.js'
 import { isSubscriptionSubjectRole } from './subscription/policy.js'
 
@@ -238,6 +242,65 @@ export function registerInsuranceBillingApi(apiRouter, ctx) {
         const rows = await listBillingPromotionCodesAdmin(pool, { filter })
         res.json({ rows })
       } catch (e) {
+        handleDbError(e, req, res)
+      }
+    })
+
+    apiRouter.get('/admin/billing/promotion-codes/:codeId/stats', requireAuth, requireSuperAdmin, async (req, res) => {
+      try {
+        const codeId = Number(req.params.codeId)
+        if (!Number.isFinite(codeId) || codeId <= 0) {
+          res.status(400).json({ message: '유효하지 않은 코드 ID입니다.' })
+          return
+        }
+        const stats = await getBillingPromotionCodeStatsAdmin(pool, codeId)
+        res.json(stats)
+      } catch (e) {
+        if (e?.message === 'promotion_not_found') {
+          res.status(404).json({ message: '프로모션 코드를 찾을 수 없습니다.' })
+          return
+        }
+        handleDbError(e, req, res)
+      }
+    })
+
+    apiRouter.patch('/admin/billing/promotion-codes/:codeId', requireAuth, requireSuperAdmin, async (req, res) => {
+      try {
+        const codeId = Number(req.params.codeId)
+        if (!Number.isFinite(codeId) || codeId <= 0) {
+          res.status(400).json({ message: '유효하지 않은 코드 ID입니다.' })
+          return
+        }
+        const current = await getBillingPromotionCodeAdminById(pool, codeId)
+        if (!current) {
+          res.status(404).json({ message: '프로모션 코드를 찾을 수 없습니다.' })
+          return
+        }
+        const input = parseUpdateBillingPromotionInput({
+          ...req.body,
+          code: current.code,
+        })
+        const row = await updateBillingPromotionCodeAdmin(pool, {
+          codeId,
+          adminUserId: String(req.user?.id ?? ''),
+          code: current.code,
+          ...input,
+        })
+        res.json({ row })
+      } catch (e) {
+        const code = e?.message ?? ''
+        if (code === 'promotion_not_found') {
+          res.status(404).json({ message: '프로모션 코드를 찾을 수 없습니다.' })
+          return
+        }
+        if (code === 'promotion_deleted') {
+          res.status(409).json({ message: '삭제된 코드는 수정할 수 없습니다.' })
+          return
+        }
+        if (code === 'promotion_free_months_required' || code === 'promotion_free_months_max') {
+          res.status(400).json({ message: '무료 개월 수를 올바르게 입력해 주세요.' })
+          return
+        }
         handleDbError(e, req, res)
       }
     })

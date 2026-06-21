@@ -38,7 +38,6 @@ import {
 } from '../api/billingApi'
 import { formatPricingBreakdown, formatReferralDiscountPolicySummary } from '../pricingPolicy'
 import PromotionCodesAdminSection from '../components/PromotionCodesAdminSection'
-import BillingPromotionCodesAdminSection from '../components/BillingPromotionCodesAdminSection'
 import {
   normalizePaymentMode,
   normalizePaymentProvider,
@@ -46,24 +45,39 @@ import {
   PAYMENT_PROVIDER_OPTIONS,
 } from '../billingConfig'
 
+const PRICING_PRIORITY_NOTE =
+  '요금 적용 우선순위: ① 사용자별 예외 요금제 → ② GA 기본 요금제 → ③ 전체 기본 요금제 → ④ 프로모션 코드 → ⑤ 추천 할인'
+
 const TABS = [
   { id: 'plans', label: '요금제 관리' },
-  { id: 'ga-plans', label: 'GA별 요금제' },
-  { id: 'users', label: '구독 사용자' },
-  { id: 'invoices', label: '결제/청구 내역' },
-  { id: 'referral', label: '할인·추천인 정책' },
+  { id: 'ga-plans', label: 'GA 기본 요금' },
+  { id: 'users', label: '사용자별 구독/예외' },
+  { id: 'invoices', label: '결제 요청/청구 내역' },
+  { id: 'referral', label: '추천 할인 정책' },
   { id: 'promotions', label: '프로모션 코드' },
-  { id: 'billing-promotions', label: 'CRM 무료 코드' },
   { id: 'payment', label: '결제 연동 설정' },
 ] as const
 
 type TabId = (typeof TABS)[number]['id']
 
+const LEGACY_TAB_REDIRECTS: Record<string, TabId> = {
+  'billing-promotions': 'promotions',
+}
+
 export default function AdminBillingManagePage() {
   const { token, user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const tabParam = searchParams.get('tab')
-  const activeTab: TabId = TABS.some((t) => t.id === tabParam) ? (tabParam as TabId) : 'plans'
+  const legacyRedirect = tabParam ? LEGACY_TAB_REDIRECTS[tabParam] : undefined
+  const activeTab: TabId =
+    legacyRedirect ??
+    (TABS.some((t) => t.id === tabParam) ? (tabParam as TabId) : 'plans')
+
+  useEffect(() => {
+    if (legacyRedirect) {
+      setSearchParams({ tab: legacyRedirect }, { replace: true })
+    }
+  }, [legacyRedirect, setSearchParams])
 
   const [plans, setPlans] = useState<BillingPlanAdminRow[]>([])
   const [gaPlans, setGaPlans] = useState<GaBillingPlanAdminRow[]>([])
@@ -450,8 +464,12 @@ export default function AdminBillingManagePage() {
 
       {activeTab === 'ga-plans' ? (
         <section className="card auth-card billing-page__card">
-          <h2 className="billing-page__section-title">GA별 기본 요금제</h2>
-          <p className="status text-sm">저장 후 다음 invoice 생성부터 적용됩니다. 기존 청구서 금액은 변경되지 않습니다.</p>
+          <h2 className="billing-page__section-title">GA 기본 요금</h2>
+          <p className="status text-sm">
+            GA 단위 기본 요금제를 지정합니다. 소속 사용자는 예외가 없으면 이 요금제를 상속합니다. 저장 후 다음
+            invoice 생성부터 적용되며, 기존 청구서 금액은 변경되지 않습니다.
+          </p>
+          <p className="billing-page__invoice-sub billing-page__invoice-sub--muted">{PRICING_PRIORITY_NOTE}</p>
           <ul className="billing-page__invoice-list">
             {gaPlans.map((row) => (
               <li key={row.gaId} className="billing-page__invoice-item">
@@ -499,7 +517,12 @@ export default function AdminBillingManagePage() {
 
       {activeTab === 'users' ? (
         <section className="card auth-card billing-page__card">
-          <h2 className="billing-page__section-title">구독 사용자</h2>
+          <h2 className="billing-page__section-title">사용자별 구독/예외</h2>
+          <p className="status text-sm">
+            사용자별 현재 구독 상태와 예외 요금제를 관리합니다. 예외가 없으면 GA 기본 요금을 상속하며, 개별 예외가
+            있으면 GA 기본보다 우선 적용됩니다.
+          </p>
+          <p className="billing-page__invoice-sub billing-page__invoice-sub--muted">{PRICING_PRIORITY_NOTE}</p>
           <ul className="billing-page__invoice-list">
             {billingUsers.map((row) => (
               <li key={row.userId} className="billing-page__invoice-item">
@@ -509,7 +532,7 @@ export default function AdminBillingManagePage() {
                 </div>
                 <p className="billing-page__invoice-sub">
                   GA {row.gaName} ({row.gaCode}) · GA 기본 {row.gaDefaultPlanCode ?? '—'} · 사용자 예외{' '}
-                  {row.userOverridePlanCode ?? '없음'}
+                  {row.userOverridePlanCode ?? '없음 (GA 기본 상속)'}
                 </p>
                 <p className="billing-page__invoice-sub">
                   실제 적용: {row.displayPriceWithVatNote} ·{' '}
@@ -552,7 +575,7 @@ export default function AdminBillingManagePage() {
 
       {activeTab === 'invoices' ? (
         <section className="card auth-card billing-page__card">
-          <h2 className="billing-page__section-title">결제/청구 내역</h2>
+          <h2 className="billing-page__section-title">결제 요청/청구 내역</h2>
           {invoices.length === 0 ? (
             <p className="status text-sm">결제 내역이 없습니다.</p>
           ) : (
@@ -597,7 +620,7 @@ export default function AdminBillingManagePage() {
       {activeTab === 'referral' ? (
         <>
           <section className="card auth-card billing-page__card">
-            <h2 className="billing-page__section-title">할인·추천인 정책</h2>
+            <h2 className="billing-page__section-title">추천 할인 정책</h2>
             {referralPolicy ? (
               <dl className="billing-page__meta">
                 <dt>기본 월 공급가</dt>
@@ -623,22 +646,6 @@ export default function AdminBillingManagePage() {
 
       {activeTab === 'promotions' ? (
         <PromotionCodesAdminSection
-          token={token ?? ''}
-          busy={busy}
-          setBusy={setBusy}
-          onInfo={(message) => {
-            setActionInfo(message)
-            setActionError('')
-          }}
-          onError={(message) => {
-            setActionError(message)
-            setActionInfo('')
-          }}
-        />
-      ) : null}
-
-      {activeTab === 'billing-promotions' ? (
-        <BillingPromotionCodesAdminSection
           token={token ?? ''}
           busy={busy}
           setBusy={setBusy}

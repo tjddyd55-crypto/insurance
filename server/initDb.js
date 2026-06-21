@@ -4166,6 +4166,14 @@ async function ensureInsuranceBillingPhase1Schema(executor) {
     ALTER TABLE billing_promotion_codes
     ADD COLUMN IF NOT EXISTS deleted_by TEXT REFERENCES users(id) ON DELETE SET NULL
   `)
+  await executor.query(`
+    ALTER TABLE billing_promotion_codes
+    ADD COLUMN IF NOT EXISTS apply_scope TEXT NOT NULL DEFAULT 'all'
+  `)
+  await executor.query(`
+    ALTER TABLE billing_promotion_codes
+    ADD COLUMN IF NOT EXISTS admin_memo TEXT
+  `)
 
   await executor.query(`
     CREATE TABLE IF NOT EXISTS billing_promotion_redemptions (

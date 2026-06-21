@@ -1,59 +1,39 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { FieldWrapper, FormButton, FormInput, FormSelect } from '../../../components/form'
+import { useCallback, useEffect, useState } from 'react'
+import { FieldWrapper, FormButton, FormSelect } from '../../../components/form'
 import { StatusMessage } from '../../../components/feedback'
+import { ConfirmDialog } from '../../../components/dialog/ConfirmDialog'
 import {
-  PROMOTION_CODE_TYPE_LABEL,
-  PROMOTION_DISCOUNT_TYPE_LABEL,
-  PROMOTION_OWNER_TYPE_LABEL,
-  createAdminPromotionCode,
-  fetchAdminPromotionCodeStats,
-  fetchAdminPromotionCodes,
-  generateAdminPromotionCode,
-  normalizePromotionCodeInput,
-  setAdminPromotionCodeStatus,
-  updateAdminPromotionCode,
-  type PromotionCodeAdminRow,
-  type PromotionCodeFormInput,
-  type PromotionCodeStatsResponse,
-  type PromotionCodeType,
-  type PromotionDiscountType,
-  type PromotionOwnerType,
-} from '../../promotions/promotionApi'
-import { formatWon } from '../api/billingApi'
+  activateAdminBillingPromotionCode,
+  createAdminBillingPromotionCode,
+  deactivateAdminBillingPromotionCode,
+  deleteAdminBillingPromotionCode,
+  fetchAdminBillingPromotionCodeStats,
+  fetchAdminBillingPromotionCodes,
+  updateAdminBillingPromotionCode,
+  type BillingPromotionCodeAdminRow,
+  type BillingPromotionCodeStatsResponse,
+  type BillingPromotionListFilter,
+} from '../../insurance-billing/api/insuranceBillingAdminApi'
+import {
+  BILLING_PROMOTION_APPLY_TARGET_LABEL,
+  BILLING_PROMOTION_FREE_MONTHS_MAX,
+  BILLING_PROMOTION_FREE_MONTHS_MIN,
+  billingPromotionRowToFormValues,
+  buildBillingPromotionCreatePayload,
+  EMPTY_BILLING_PROMOTION_FORM,
+  formatBillingPromotionBenefitLabel,
+  generateBillingPromotionCodeCandidate,
+  type BillingPromotionApplyTarget,
+  type BillingPromotionFormValues,
+} from '../../insurance-billing/billingPromotionAdminForm'
+import PromotionCodeForm from './PromotionCodeForm'
 
-const CODE_TYPE_OPTIONS = (Object.keys(PROMOTION_CODE_TYPE_LABEL) as PromotionCodeType[]).map((value) => ({
-  value,
-  label: PROMOTION_CODE_TYPE_LABEL[value],
-}))
-
-const DISCOUNT_TYPE_OPTIONS = (Object.keys(PROMOTION_DISCOUNT_TYPE_LABEL) as PromotionDiscountType[]).map(
-  (value) => ({
-    value,
-    label: PROMOTION_DISCOUNT_TYPE_LABEL[value],
-  }),
-)
-
-const OWNER_TYPE_OPTIONS = (Object.keys(PROMOTION_OWNER_TYPE_LABEL) as PromotionOwnerType[]).map((value) => ({
-  value,
-  label: PROMOTION_OWNER_TYPE_LABEL[value],
-}))
-
-const EMPTY_FORM: PromotionCodeFormInput = {
-  code: '',
-  codeType: 'discount',
-  discountType: 'first_month_fixed',
-  discountAmount: 2000,
-  discountPercent: null,
-  durationMonths: null,
-  startsAt: null,
-  endsAt: null,
-  maxUses: null,
-  perAccountLimit: 1,
-  ownerName: '',
-  ownerType: 'normal',
-  memo: '',
-  isActive: true,
-}
+const FILTER_OPTIONS: { value: BillingPromotionListFilter; label: string }[] = [
+  { value: 'all', label: '전체' },
+  { value: 'active', label: '활성' },
+  { value: 'inactive', label: '비활성' },
+  { value: 'deleted', label: '삭제됨' },
+]
 
 type Props = {
   token: string
@@ -63,56 +43,32 @@ type Props = {
   onError: (message: string) => void
 }
 
-function needsAmount(discountType: PromotionDiscountType) {
-  return discountType.endsWith('_fixed')
-}
-
-function needsPercent(discountType: PromotionDiscountType) {
-  return discountType.endsWith('_percent')
-}
-
-function needsDuration(discountType: PromotionDiscountType) {
-  return discountType.startsWith('recurring_')
-}
-
-function toFormValues(row: PromotionCodeAdminRow): PromotionCodeFormInput {
-  return {
-    code: row.code,
-    codeType: row.codeType,
-    discountType: row.discountType,
-    discountAmount: row.discountAmount,
-    discountPercent: row.discountPercent,
-    durationMonths: row.durationMonths,
-    startsAt: row.startsAt,
-    endsAt: row.endsAt,
-    maxUses: row.maxUses,
-    perAccountLimit: row.perAccountLimit,
-    ownerName: row.ownerName ?? '',
-    ownerType: row.ownerType,
-    memo: row.memo ?? '',
-    isActive: row.isActive,
-  }
+function statusLabel(row: BillingPromotionCodeAdminRow) {
+  if (row.deletedAt) return '삭제됨'
+  return row.isActive ? '활성' : '비활성'
 }
 
 export default function PromotionCodesAdminSection({ token, busy, setBusy, onInfo, onError }: Props) {
-  const [codes, setCodes] = useState<PromotionCodeAdminRow[]>([])
+  const [filter, setFilter] = useState<BillingPromotionListFilter>('all')
+  const [rows, setRows] = useState<BillingPromotionCodeAdminRow[]>([])
   const [loadError, setLoadError] = useState('')
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const [formValues, setFormValues] = useState<PromotionCodeFormInput>(EMPTY_FORM)
-  const [statsTarget, setStatsTarget] = useState<PromotionCodeStatsResponse | null>(null)
-  const [isGeneratingCode, setIsGeneratingCode] = useState(false)
+  const [editingRow, setEditingRow] = useState<BillingPromotionCodeAdminRow | null>(null)
+  const [formValues, setFormValues] = useState<BillingPromotionFormValues>(EMPTY_BILLING_PROMOTION_FORM)
+  const [statsTarget, setStatsTarget] = useState<BillingPromotionCodeStatsResponse | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<BillingPromotionCodeAdminRow | null>(null)
+  const [deleteBusy, setDeleteBusy] = useState(false)
 
   const load = useCallback(async () => {
     if (!token.trim()) return
     setLoadError('')
     try {
-      const res = await fetchAdminPromotionCodes(token)
-      setCodes(res.codes)
+      const data = await fetchAdminBillingPromotionCodes(token, filter)
+      setRows(data.rows)
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : '프로모션 코드 목록을 불러오지 못했습니다.')
     }
-  }, [token])
+  }, [token, filter])
 
   useEffect(() => {
     void load()
@@ -120,50 +76,52 @@ export default function PromotionCodesAdminSection({ token, busy, setBusy, onInf
 
   const openCreate = () => {
     setFormMode('create')
-    setEditingId(null)
-    setFormValues(EMPTY_FORM)
+    setEditingRow(null)
+    setFormValues(EMPTY_BILLING_PROMOTION_FORM)
   }
 
-  const openEdit = (row: PromotionCodeAdminRow) => {
+  const openEdit = (row: BillingPromotionCodeAdminRow) => {
     setFormMode('edit')
-    setEditingId(row.id)
-    setFormValues(toFormValues(row))
+    setEditingRow(row)
+    setFormValues(billingPromotionRowToFormValues(row))
   }
 
-  const handleGeneratePromotionCode = async () => {
-    if (!token.trim() || isGeneratingCode) return
-    setIsGeneratingCode(true)
-    onError('')
-    try {
-      const result = await generateAdminPromotionCode(token)
-      setFormValues((prev) => ({ ...prev, code: result.code }))
-    } catch (e) {
-      onError(e instanceof Error ? e.message : '코드 자동생성에 실패했습니다.')
-    } finally {
-      setIsGeneratingCode(false)
-    }
+  const handleGenerateCode = () => {
+    setFormValues((prev) => ({ ...prev, code: generateBillingPromotionCodeCandidate() }))
   }
 
   const onSubmit = async () => {
     if (!token.trim() || busy) return
+    if (!formValues.code.trim()) {
+      onError('코드를 입력해 주세요.')
+      return
+    }
+    if (!formValues.name.trim()) {
+      onError('코드 이름을 입력해 주세요.')
+      return
+    }
+    if (formValues.discountType === 'free_months') {
+      const months = Math.floor(Number(formValues.freeMonths))
+      if (!Number.isFinite(months) || months < BILLING_PROMOTION_FREE_MONTHS_MIN) {
+        onError('무료 개월 수는 1 이상이어야 합니다.')
+        return
+      }
+      if (months > BILLING_PROMOTION_FREE_MONTHS_MAX) {
+        onError('무료 개월 수는 12 이하여야 합니다.')
+        return
+      }
+    }
+
     setBusy(true)
     onError('')
     try {
-      const payload: PromotionCodeFormInput = {
-        ...formValues,
-        code: formValues.code.trim().toUpperCase(),
-        ownerName: formValues.ownerName?.trim() || null,
-        memo: formValues.memo?.trim() || null,
-        discountAmount: needsAmount(formValues.discountType) ? Number(formValues.discountAmount) : null,
-        discountPercent: needsPercent(formValues.discountType) ? Number(formValues.discountPercent) : null,
-        durationMonths: needsDuration(formValues.discountType) ? Number(formValues.durationMonths) : null,
-      }
+      const payload = buildBillingPromotionCreatePayload(formValues)
       if (formMode === 'create') {
-        await createAdminPromotionCode(token, payload)
-        onInfo('프로모션 코드가 생성되었습니다.')
-      } else if (editingId != null) {
-        await updateAdminPromotionCode(token, editingId, payload)
-        onInfo('프로모션 코드가 수정되었습니다.')
+        await createAdminBillingPromotionCode(token, payload)
+        onInfo(`${payload.code} 프로모션 코드가 생성되었습니다.`)
+      } else if (editingRow) {
+        await updateAdminBillingPromotionCode(token, editingRow.id, payload)
+        onInfo(`${payload.code} 프로모션 코드가 수정되었습니다.`)
       }
       openCreate()
       await load()
@@ -174,30 +132,12 @@ export default function PromotionCodesAdminSection({ token, busy, setBusy, onInf
     }
   }
 
-  const onSetActive = async (row: PromotionCodeAdminRow, nextActive: boolean) => {
-    if (!token.trim() || busy || row.isActive === nextActive) return
-    setBusy(true)
-    onError('')
-    try {
-      const updated = await setAdminPromotionCodeStatus(token, row.id, nextActive)
-      setCodes((current) => current.map((item) => (item.id === updated.id ? updated : item)))
-      if (statsTarget?.promotion.id === updated.id) {
-        setStatsTarget((current) => (current ? { ...current, promotion: updated } : current))
-      }
-      onInfo(`코드 ${updated.code} 가 ${nextActive ? '활성화' : '비활성화'}되었습니다.`)
-    } catch (e) {
-      onError(e instanceof Error ? e.message : '상태 변경에 실패했습니다.')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const onShowStats = async (row: PromotionCodeAdminRow) => {
+  const onShowStats = async (row: BillingPromotionCodeAdminRow) => {
     if (!token.trim() || busy) return
     setBusy(true)
     onError('')
     try {
-      const stats = await fetchAdminPromotionCodeStats(token, row.id)
+      const stats = await fetchAdminBillingPromotionCodeStats(token, row.id)
       setStatsTarget(stats)
     } catch (e) {
       onError(e instanceof Error ? e.message : '통계를 불러오지 못했습니다.')
@@ -206,17 +146,54 @@ export default function PromotionCodesAdminSection({ token, busy, setBusy, onInf
     }
   }
 
-  const discountPreview = useMemo(() => {
-    const dt = formValues.discountType
-    if (dt === 'first_month_free') return '첫 달 무료'
-    if (needsAmount(dt) && formValues.discountAmount) {
-      return `${formatWon(Number(formValues.discountAmount))} 공급가 할인`
+  const onActivate = async (row: BillingPromotionCodeAdminRow) => {
+    setBusy(true)
+    onError('')
+    try {
+      await activateAdminBillingPromotionCode(token, row.id)
+      onInfo(`${row.code} 코드를 활성화했습니다.`)
+      await load()
+    } catch (e) {
+      onError(e instanceof Error ? e.message : '활성화에 실패했습니다.')
+    } finally {
+      setBusy(false)
     }
-    if (needsPercent(dt) && formValues.discountPercent) {
-      return `${formValues.discountPercent}% 할인`
+  }
+
+  const onDeactivate = async (row: BillingPromotionCodeAdminRow) => {
+    setBusy(true)
+    onError('')
+    try {
+      await deactivateAdminBillingPromotionCode(token, row.id)
+      onInfo(`${row.code} 코드를 비활성화했습니다.`)
+      await load()
+    } catch (e) {
+      onError(e instanceof Error ? e.message : '비활성화에 실패했습니다.')
+    } finally {
+      setBusy(false)
     }
-    return ''
-  }, [formValues.discountAmount, formValues.discountPercent, formValues.discountType])
+  }
+
+  const onConfirmDelete = async () => {
+    if (!deleteTarget) return
+    setDeleteBusy(true)
+    setBusy(true)
+    onError('')
+    try {
+      await deleteAdminBillingPromotionCode(token, deleteTarget.id)
+      onInfo(`${deleteTarget.code} 코드를 삭제했습니다.`)
+      setDeleteTarget(null)
+      if (editingRow?.id === deleteTarget.id) {
+        openCreate()
+      }
+      await load()
+    } catch (e) {
+      onError(e instanceof Error ? e.message : '삭제에 실패했습니다.')
+    } finally {
+      setDeleteBusy(false)
+      setBusy(false)
+    }
+  }
 
   return (
     <div className="promotion-code-panel">
@@ -228,50 +205,91 @@ export default function PromotionCodesAdminSection({ token, busy, setBusy, onInf
           </FormButton>
         </div>
         <p className="billing-page__invoice-sub billing-page__invoice-sub--muted">
-          기존 일반 추천코드(legacy)는 그대로 유지됩니다. 프로모션 코드가 우선 검증됩니다.
+          보험 CRM checkout(billing_promotion_codes) 기준 코드입니다. 무료/할인 코드 생성·수정·삭제는 이 탭에서
+          통합 관리합니다. soft delete 정책과 기존 사용 이력은 유지됩니다.
         </p>
+
+        <FieldWrapper label="목록 필터">
+          <FormSelect
+            value={filter}
+            options={FILTER_OPTIONS}
+            onChange={(e) => setFilter(e.target.value as BillingPromotionListFilter)}
+          />
+        </FieldWrapper>
+
         {loadError ? <StatusMessage tone="error" message={loadError} /> : null}
-        {codes.length === 0 ? (
-          <p className="status text-sm">등록된 프로모션 코드가 없습니다.</p>
+
+        {rows.length === 0 ? (
+          <p className="status text-sm">표시할 프로모션 코드가 없습니다.</p>
         ) : (
           <ul className="billing-page__invoice-list">
-            {codes.map((row) => (
+            {rows.map((row) => (
               <li key={row.id} className="billing-page__invoice-item">
                 <div className="billing-page__invoice-head">
                   <strong>
-                    {row.code} · {PROMOTION_DISCOUNT_TYPE_LABEL[row.discountType]}
+                    {row.code} · {row.name}
                   </strong>
-                  <span>{row.isActive ? '활성' : '비활성'}</span>
+                  <span>{statusLabel(row)}</span>
                 </div>
                 <p className="billing-page__invoice-sub">
-                  {PROMOTION_CODE_TYPE_LABEL[row.codeType]} · 사용 {row.usedCount}
-                  {row.maxUses != null ? ` / ${row.maxUses}` : ''}
-                  {row.ownerName ? ` · ${row.ownerName}` : ''}
+                  {formatBillingPromotionBenefitLabel(row)}
+                  {' · '}
+                  적용 대상{' '}
+                  {BILLING_PROMOTION_APPLY_TARGET_LABEL[row.applyScope as BillingPromotionApplyTarget] ?? row.applyScope}
+                  {' · '}
+                  사용 {row.usedCount}
+                  {row.maxRedemptions != null ? ` / ${row.maxRedemptions}` : ''}
                 </p>
                 <div className="billing-page__actions">
-                  <FormButton htmlType="button" variant="secondary" disabled={busy} onClick={() => openEdit(row)}>
-                    수정
-                  </FormButton>
-                  <FormButton htmlType="button" variant="secondary" disabled={busy} onClick={() => void onShowStats(row)}>
-                    통계
-                  </FormButton>
-                  {row.isActive ? (
-                    <FormButton
-                      htmlType="button"
-                      variant="secondary"
-                      disabled={busy}
-                      onClick={() => void onSetActive(row, false)}
-                    >
-                      비활성화
-                    </FormButton>
+                  {!row.deletedAt ? (
+                    <>
+                      <FormButton htmlType="button" variant="secondary" disabled={busy} onClick={() => openEdit(row)}>
+                        수정
+                      </FormButton>
+                      <FormButton
+                        htmlType="button"
+                        variant="secondary"
+                        disabled={busy}
+                        onClick={() => void onShowStats(row)}
+                      >
+                        통계
+                      </FormButton>
+                      {row.isActive ? (
+                        <FormButton
+                          htmlType="button"
+                          variant="secondary"
+                          disabled={busy}
+                          onClick={() => void onDeactivate(row)}
+                        >
+                          비활성화
+                        </FormButton>
+                      ) : (
+                        <FormButton
+                          htmlType="button"
+                          variant="secondary"
+                          disabled={busy}
+                          onClick={() => void onActivate(row)}
+                        >
+                          활성화
+                        </FormButton>
+                      )}
+                      <FormButton
+                        htmlType="button"
+                        variant="danger"
+                        disabled={busy}
+                        onClick={() => setDeleteTarget(row)}
+                      >
+                        삭제
+                      </FormButton>
+                    </>
                   ) : (
                     <FormButton
                       htmlType="button"
                       variant="secondary"
                       disabled={busy}
-                      onClick={() => void onSetActive(row, true)}
+                      onClick={() => void onShowStats(row)}
                     >
-                      활성화
+                      통계
                     </FormButton>
                   )}
                 </div>
@@ -283,111 +301,15 @@ export default function PromotionCodesAdminSection({ token, busy, setBusy, onInf
 
       <section className="card auth-card billing-page__card promotion-code-card">
         <h2 className="billing-page__section-title">{formMode === 'create' ? '코드 생성' : '코드 수정'}</h2>
-        <div className="promotion-code-form-grid">
-          <FieldWrapper label="코드" className="promotion-code-field">
-            <div className="promotion-code-input-row">
-              <FormInput
-                value={formValues.code}
-                onChange={(e) =>
-                  setFormValues((prev) => ({ ...prev, code: normalizePromotionCodeInput(e.target.value) }))
-                }
-                placeholder="예: K7M4Q"
-              />
-              <FormButton
-                htmlType="button"
-                variant="secondary"
-                disabled={isGeneratingCode || busy}
-                onClick={() => void handleGeneratePromotionCode()}
-              >
-                {isGeneratingCode ? '생성 중…' : '자동생성'}
-              </FormButton>
-            </div>
-          </FieldWrapper>
-          <FieldWrapper label="코드 유형" className="promotion-code-field">
-            <FormSelect
-              value={formValues.codeType}
-              options={CODE_TYPE_OPTIONS}
-              onChange={(e) => setFormValues((prev) => ({ ...prev, codeType: e.target.value as PromotionCodeType }))}
-            />
-          </FieldWrapper>
-          <FieldWrapper label="할인 유형" className="promotion-code-field">
-            <FormSelect
-              value={formValues.discountType}
-              options={DISCOUNT_TYPE_OPTIONS}
-              onChange={(e) =>
-                setFormValues((prev) => ({
-                  ...prev,
-                  discountType: e.target.value as PromotionDiscountType,
-                }))
-              }
-            />
-          </FieldWrapper>
-          {needsAmount(formValues.discountType) ? (
-            <FieldWrapper label="할인 금액(공급가)" className="promotion-code-field">
-              <FormInput
-                inputMode="numeric"
-                value={formValues.discountAmount ?? ''}
-                onChange={(e) => setFormValues((prev) => ({ ...prev, discountAmount: Number(e.target.value) }))}
-              />
-            </FieldWrapper>
-          ) : null}
-          {needsPercent(formValues.discountType) ? (
-            <FieldWrapper label="할인율(%)" className="promotion-code-field">
-              <FormInput
-                inputMode="numeric"
-                value={formValues.discountPercent ?? ''}
-                onChange={(e) => setFormValues((prev) => ({ ...prev, discountPercent: Number(e.target.value) }))}
-              />
-            </FieldWrapper>
-          ) : null}
-          {needsDuration(formValues.discountType) ? (
-            <FieldWrapper label="적용 개월 수" className="promotion-code-field">
-              <FormInput
-                inputMode="numeric"
-                value={formValues.durationMonths ?? ''}
-                onChange={(e) => setFormValues((prev) => ({ ...prev, durationMonths: Number(e.target.value) }))}
-              />
-            </FieldWrapper>
-          ) : null}
-          <FieldWrapper label="최대 사용 횟수 (비우면 무제한)" className="promotion-code-field">
-            <FormInput
-              inputMode="numeric"
-              value={formValues.maxUses ?? ''}
-              onChange={(e) =>
-                setFormValues((prev) => ({
-                  ...prev,
-                  maxUses: e.target.value.trim() === '' ? null : Number(e.target.value),
-                }))
-              }
-            />
-          </FieldWrapper>
-          <FieldWrapper label="소유자 유형" className="promotion-code-field">
-            <FormSelect
-              value={formValues.ownerType}
-              options={OWNER_TYPE_OPTIONS}
-              onChange={(e) =>
-                setFormValues((prev) => ({ ...prev, ownerType: e.target.value as PromotionOwnerType }))
-              }
-            />
-          </FieldWrapper>
-          <FieldWrapper label="소유자/채널명" className="promotion-code-field">
-            <FormInput
-              value={formValues.ownerName ?? ''}
-              onChange={(e) => setFormValues((prev) => ({ ...prev, ownerName: e.target.value }))}
-            />
-          </FieldWrapper>
-          <FieldWrapper label="메모" className="promotion-code-field promotion-code-field--full">
-            <FormInput value={formValues.memo ?? ''} onChange={(e) => setFormValues((prev) => ({ ...prev, memo: e.target.value }))} />
-          </FieldWrapper>
-          {discountPreview ? (
-            <p className="promotion-code-preview promotion-code-field--full status">{discountPreview}</p>
-          ) : null}
-          <div className="promotion-code-actions promotion-code-field--full">
-            <FormButton htmlType="button" variant="primary" disabled={busy} onClick={() => void onSubmit()}>
-              {formMode === 'create' ? '생성' : '저장'}
-            </FormButton>
-          </div>
-        </div>
+        <PromotionCodeForm
+          mode={formMode}
+          values={formValues}
+          busy={busy}
+          codeReadOnly={formMode === 'edit'}
+          onChange={setFormValues}
+          onGenerateCode={formMode === 'create' ? handleGenerateCode : undefined}
+          onSubmit={() => void onSubmit()}
+        />
       </section>
 
       {statsTarget ? (
@@ -396,17 +318,17 @@ export default function PromotionCodesAdminSection({ token, busy, setBusy, onInf
           <dl className="billing-page__meta">
             <dt>적용 계정</dt>
             <dd>{statsTarget.accountCount}명</dd>
-            <dt>청구 할인 적용</dt>
+            <dt>코드 사용</dt>
             <dd>{statsTarget.redemptionCount}건</dd>
-            <dt>누적 할인(공급가)</dt>
-            <dd>{formatWon(statsTarget.totalDiscountAmount)}</dd>
+            <dt>혜택</dt>
+            <dd>{formatBillingPromotionBenefitLabel(statsTarget.promotion)}</dd>
           </dl>
           {statsTarget.recentRedemptions.length > 0 ? (
             <ul className="billing-page__policy-list">
-              {statsTarget.recentRedemptions.map((row) => (
-                <li key={row.id}>
-                  {row.userName ?? row.userId} · 할인 {formatWon(row.discountAmount)} ·{' '}
-                  {row.createdAt ?? ''}
+              {statsTarget.recentRedemptions.map((item) => (
+                <li key={item.id}>
+                  {item.userId} · {item.redeemedAt ?? ''}
+                  {item.freeEndsAt ? ` · 무료 종료 ${item.freeEndsAt}` : ''}
                 </li>
               ))}
             </ul>
@@ -418,6 +340,25 @@ export default function PromotionCodesAdminSection({ token, busy, setBusy, onInf
           </FormButton>
         </section>
       ) : null}
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="프로모션 코드 삭제"
+        message={
+          deleteTarget
+            ? `이 프로모션 코드를 삭제하시겠습니까?\n\n코드: ${deleteTarget.code}\n\n삭제 후에는 사용자가 이 코드를 적용할 수 없습니다.\n기존 사용 이력은 보존됩니다.`
+            : ''
+        }
+        confirmLabel="삭제하기"
+        cancelLabel="취소"
+        tone="danger"
+        busy={deleteBusy}
+        onCancel={() => {
+          if (deleteBusy) return
+          setDeleteTarget(null)
+        }}
+        onConfirm={() => void onConfirmDelete()}
+      />
     </div>
   )
 }

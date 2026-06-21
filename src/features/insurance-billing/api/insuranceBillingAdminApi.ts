@@ -6,12 +6,16 @@ export type BillingPromotionCodeAdminRow = {
   name: string
   type: string
   freeMonths: number | null
+  amountOff: number | null
+  percentOff: number | null
   isActive: boolean
   usedCount: number
   maxRedemptions: number | null
   perUserLimit: number
   appliesToProduct: string
   appliesToPlanCode: string | null
+  applyScope: string
+  memo: string | null
   startsAt: string | null
   endsAt: string | null
   deletedAt: string | null
@@ -32,6 +36,20 @@ export type BillingPromotionCreatePayload = {
   appliesToProduct: 'insurance'
   appliesToPlanCode: string
   maxRedemptions?: number | null
+  applyScope?: string
+  memo?: string | null
+}
+
+export type BillingPromotionCodeStatsResponse = {
+  promotion: BillingPromotionCodeAdminRow
+  redemptionCount: number
+  accountCount: number
+  recentRedemptions: Array<{
+    id: number
+    userId: string
+    redeemedAt: string | null
+    freeEndsAt: string | null
+  }>
 }
 
 export async function createAdminBillingPromotionCode(token: string, body: BillingPromotionCreatePayload) {
@@ -39,6 +57,24 @@ export async function createAdminBillingPromotionCode(token: string, body: Billi
     method: 'POST',
     token,
     body,
+  })
+}
+
+export async function updateAdminBillingPromotionCode(
+  token: string,
+  codeId: number,
+  body: BillingPromotionCreatePayload,
+) {
+  return apiRequest<{ row: BillingPromotionCodeAdminRow }>(`/api/admin/billing/promotion-codes/${codeId}`, {
+    method: 'PATCH',
+    token,
+    body,
+  })
+}
+
+export async function fetchAdminBillingPromotionCodeStats(token: string, codeId: number) {
+  return apiRequest<BillingPromotionCodeStatsResponse>(`/api/admin/billing/promotion-codes/${codeId}/stats`, {
+    token,
   })
 }
 
