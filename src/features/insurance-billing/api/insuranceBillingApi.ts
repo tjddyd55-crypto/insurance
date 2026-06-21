@@ -1,4 +1,5 @@
 import { apiRequest } from '../../../lib/apiClient'
+import type { ApplyPromotionResponse } from '../billingApplyPromotion'
 
 export type CheckoutSummary = {
   subscriptionStatus: string
@@ -52,16 +53,10 @@ export async function applyBillingPromotionCode(
   token: string,
   body: { code: string; planCode?: string; billingCycle?: string },
 ) {
-  return apiRequest<{
-    ok: boolean
-    status?: string
-    trialEndsAt?: string
-    freeMonths?: number
-    message?: string
-  }>('/api/billing/checkout/apply-promotion', {
+  return apiRequest<ApplyPromotionResponse>('/api/billing/checkout/apply-promotion', {
     method: 'POST',
     token,
-    body,
+    body: JSON.stringify(body),
   })
 }
 

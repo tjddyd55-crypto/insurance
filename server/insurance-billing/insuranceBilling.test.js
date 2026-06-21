@@ -150,6 +150,34 @@ describe('insurance billing trial expiry helper', () => {
   })
 })
 
+describe('insurance billing apply promotion response', () => {
+  it('builds success payload with trialing subscription', async () => {
+    const { buildApplyPromotionSuccessPayload, isApplyPromotionTrialingSuccessPayload } = await import(
+      './applyPromotionResponse.js'
+    )
+    const payload = buildApplyPromotionSuccessPayload(
+      {
+        status: 'trialing',
+        trialEndsAt: '2026-09-16T00:00:00.000Z',
+        freeMonths: 3,
+      },
+      { code: 'YJASSET-FREE-3M' },
+    )
+    assert.equal(payload.success, true)
+    assert.equal(payload.subscription.status, 'trialing')
+    assert.equal(payload.subscription.trialEndsAt, '2026-09-16')
+    assert.equal(payload.promotion.code, 'YJASSET-FREE-3M')
+    assert.equal(payload.promotion.freeMonths, 3)
+    assert.equal(isApplyPromotionTrialingSuccessPayload(payload), true)
+  })
+
+  it('rejects incomplete apply promotion payload', async () => {
+    const { isApplyPromotionTrialingSuccessPayload } = await import('./applyPromotionResponse.js')
+    assert.equal(isApplyPromotionTrialingSuccessPayload({ success: true, subscription: { status: 'pending_payment' } }), false)
+    assert.equal(isApplyPromotionTrialingSuccessPayload({ ok: true, status: 'trialing' }), false)
+  })
+})
+
 describe('insurance billing API allowlist path normalization', () => {
   it('normalizes /backend mount paths to /api SSOT', () => {
     assert.equal(

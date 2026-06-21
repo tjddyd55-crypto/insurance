@@ -29,6 +29,9 @@ import {
   softDeleteBillingPromotionCodeAdmin,
   updateBillingPromotionCodeAdmin,
 } from './insurance-billing/promotionAdminService.js'
+import {
+  buildApplyPromotionSuccessPayload,
+} from './insurance-billing/applyPromotionResponse.js'
 import { isSubscriptionSubjectRole } from './subscription/policy.js'
 
 /**
@@ -115,13 +118,9 @@ export function registerInsuranceBillingApi(apiRouter, ctx) {
           billingCycle,
         })
         await client.query('COMMIT')
-        res.json({
-          ok: true,
-          status: applied.status,
-          trialEndsAt: applied.trialEndsAt,
-          freeMonths: applied.freeMonths,
-          message: `${applied.freeMonths}개월 무료 이용권이 적용되었습니다.`,
-        })
+        res.json(
+          buildApplyPromotionSuccessPayload(applied, { code: row.code }),
+        )
         return
       }
 
