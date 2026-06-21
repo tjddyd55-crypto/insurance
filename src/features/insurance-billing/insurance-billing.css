@@ -1,0 +1,202 @@
+.insurance-billing-page {
+  min-height: 100vh;
+  background: #f8fafc;
+  color: #111827;
+}
+
+.insurance-billing-page__shell {
+  width: min(1080px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 48px 0 64px;
+}
+
+.insurance-billing-page__title h1 {
+  margin: 0 0 12px;
+  font-size: clamp(1.75rem, 3vw, 2.25rem);
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.insurance-billing-page__title p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.insurance-billing-page__grid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 24px;
+  margin-top: 32px;
+}
+
+@media (max-width: 900px) {
+  .insurance-billing-page__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.insurance-billing-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+}
+
+.insurance-billing-card h2 {
+  margin: 0 0 16px;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.insurance-billing-plan-price {
+  font-size: 2rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+.insurance-billing-plan-note {
+  margin: 8px 0 0;
+  color: #6b7280;
+  font-size: 0.9375rem;
+}
+
+.insurance-billing-benefit-list {
+  margin: 16px 0 0;
+  padding-left: 18px;
+  color: #374151;
+  line-height: 1.7;
+}
+
+.insurance-billing-field {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.insurance-billing-field label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.insurance-billing-field input,
+.insurance-billing-field select {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  background: #fff;
+}
+
+.insurance-billing-summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 0.9375rem;
+}
+
+.insurance-billing-summary-row--total {
+  border-bottom: none;
+  padding-top: 16px;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.insurance-billing-notice {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.insurance-billing-notice--muted {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+  color: #4b5563;
+}
+
+.insurance-billing-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  margin-top: 16px;
+  border: none;
+  border-radius: 12px;
+  background: #10b981;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.insurance-billing-cta:hover {
+  background: #059669;
+}
+
+.insurance-billing-cta:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.insurance-billing-cta--secondary {
+  background: #fff;
+  color: #111827;
+  border: 1px solid #e5e7eb;
+}
+
+.insurance-billing-cta--secondary:hover {
+  background: #f9fafb;
+}
+
+.insurance-billing-banner {
+  margin-top: 24px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+  font-size: 0.875rem;
+}
+
+.insurance-billing-error {
+  margin-top: 12px;
+  color: #b91c1c;
+  font-size: 0.875rem;
+}
+
+.insurance-billing-cycle-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.insurance-billing-cycle-toggle button {
+  flex: 1;
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.insurance-billing-cycle-toggle button.is-active {
+  border-color: #10b981;
+  background: #ecfdf5;
+  color: #047857;
+}

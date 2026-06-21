@@ -14,6 +14,12 @@ import { registerReferralApi } from './registerReferralApi.js'
 import { registerPromotionCodesApi } from './registerPromotionCodesApi.js'
 import { registerAdminPromotionCodesApi } from './registerAdminPromotionCodesApi.js'
 import { registerBillingApi } from './registerBillingApi.js'
+import { registerInsuranceBillingApi, enforceInsuranceBillingEntitlement } from './registerInsuranceBillingApi.js'
+import {
+  bootstrapInsuranceBillingSubscriptionOnSignup,
+  createBillingReferralPending,
+  resolveTenantIdForUser,
+} from './insurance-billing/subscriptionLifecycle.js'
 import {
   createReferralRelationship,
 } from './referrals/referralService.js'
@@ -1038,7 +1044,9 @@ async function requireAuth(req, res, next) {
         return
       }
       req.gaId = parseGaId(req.user?.gaId)
-      await enforceActiveSubscription(req, res, next)
+      await enforceActiveSubscription(req, res, async () => {
+        await enforceInsuranceBillingEntitlement(req, res, next, pool)
+      })
       return
     }
 
@@ -1080,7 +1088,9 @@ async function requireAuth(req, res, next) {
     }
 
     req.gaId = parseGaId(req.user?.gaId)
-    await enforceActiveSubscription(req, res, next)
+    await enforceActiveSubscription(req, res, async () => {
+      await enforceInsuranceBillingEntitlement(req, res, next, pool)
+    })
   } catch (e) {
     const name = e && typeof e === 'object' && 'name' in e ? String(e.name) : ''
     if (name === 'JsonWebTokenError' || name === 'TokenExpiredError') {
@@ -1512,6 +1522,12 @@ registerBillingApi(apiRouter, {
   pool,
   requireAuth,
   requireSuperAdmin,
+  handleDbError,
+})
+
+registerInsuranceBillingApi(apiRouter, {
+  pool,
+  requireAuth,
   handleDbError,
 })
 
@@ -2277,6 +2293,12 @@ async function handleRegister(req, res) {
               policyActive,
             })
             await ensureReferralCodeForUser(client, promotionOrReferral.legacy.referrerUserId)
+            await createBillingReferralPending(client, {
+              referrerUserId: promotionOrReferral.legacy.referrerUserId,
+              referredUserId: id,
+              referralCode: promotionOrReferral.legacy.code,
+              tenantId: await resolveTenantIdForUser(client, id, gaId),
+            })
           } catch (referralErr) {
             await client.query('ROLLBACK')
             client.release()
@@ -2309,6 +2331,11 @@ async function handleRegister(req, res) {
             throw promotionErr
           }
         }
+      }
+
+      const isInsuranceCrmSignup = !tenantRegSignup || industrySignup === 'insurance'
+      if (isInsuranceCrmSignup) {
+        await bootstrapInsuranceBillingSubscriptionOnSignup(client, { userId: id, gaId })
       }
 
       await client.query('COMMIT')

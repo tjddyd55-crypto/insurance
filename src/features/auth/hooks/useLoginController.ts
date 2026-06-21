@@ -3,6 +3,9 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../AuthProvider'
 import { login as loginApi } from '../authApi'
 import { resolveAuthLandingPath } from '../landing'
+import { fetchCheckoutSummary } from '../../insurance-billing/api/insuranceBillingApi'
+import { isInsuranceBillingEnabledClient } from '../../insurance-billing/insuranceBillingConfig'
+import { resolveInsuranceBillingAuthPath } from '../../insurance-billing/insuranceBillingLanding'
 import useIsMobile from '../../../hooks/useIsMobile'
 import { setPublicBoardWriterToken } from '../../insurer-news/services/publicBoardWriter.service'
 
@@ -53,7 +56,7 @@ export type UseLoginControllerResult = {
 export function useLoginController(): UseLoginControllerResult {
   const navigate = useNavigate()
   const location = useLocation()
-  const { isAuthenticated, login, user } = useAuth()
+  const { isAuthenticated, login, user, token } = useAuth()
   const isMobile = useIsMobile()
   const flash = (location.state ?? {}) as LoginFlash
 
@@ -64,10 +67,32 @@ export function useLoginController(): UseLoginControllerResult {
   const [version, setVersion] = useState('')
 
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate(resolveAuthLandingPath(isMobile, user?.role), { replace: true })
+    if (!isAuthenticated) {
+      return
     }
-  }, [isAuthenticated, isMobile, navigate, user?.role])
+    const defaultPath = resolveAuthLandingPath(isMobile, user?.role)
+    if (!isInsuranceBillingEnabledClient() || user?.role !== 'USER' || !token?.trim()) {
+      navigate(defaultPath, { replace: true })
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      try {
+        const summary = await fetchCheckoutSummary(token)
+        if (cancelled) {
+          return
+        }
+        navigate(resolveInsuranceBillingAuthPath(defaultPath, summary.subscriptionStatus), { replace: true })
+      } catch {
+        if (!cancelled) {
+          navigate(defaultPath, { replace: true })
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [isAuthenticated, isMobile, navigate, token, user?.role])
 
   useEffect(() => {
     let cancelled = false
@@ -108,7 +133,17 @@ export function useLoginController(): UseLoginControllerResult {
         return
       }
       login({ token: session.token, user: session.user })
-      navigate(resolveAuthLandingPath(isMobile, session.user.role), { replace: true })
+      const defaultPath = resolveAuthLandingPath(isMobile, session.user.role)
+      if (isInsuranceBillingEnabledClient() && session.user.role === 'USER') {
+        try {
+          const summary = await fetchCheckoutSummary(session.token)
+          navigate(resolveInsuranceBillingAuthPath(defaultPath, summary.subscriptionStatus), { replace: true })
+          return
+        } catch {
+          /* checkout summary 실패 시 기본 랜딩 */
+        }
+      }
+      navigate(defaultPath, { replace: true })
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '로그인에 실패했습니다.')
     } finally {
