@@ -7,6 +7,7 @@ import {
   createBillingPromotionCodeAdmin,
   normalizePromotionListFilter,
   parseCreateBillingPromotionInput,
+  parseUpdateBillingPromotionInput,
   softDeleteBillingPromotionCodeAdmin,
 } from './promotionAdminService.js'
 
@@ -154,6 +155,8 @@ describe('billing promotion admin service', () => {
                 max_redemptions: params[6],
                 applies_to_plan_code: params[7],
                 applies_to_product: params[8],
+                apply_scope: params[9],
+                admin_memo: params[10],
                 is_active: true,
                 used_count: 0,
                 per_user_limit: 1,
@@ -185,13 +188,28 @@ describe('billing promotion admin service', () => {
       appliesToProduct: 'insurance',
       appliesToPlanCode: 'insurance_basic',
       maxRedemptions: null,
+      applyScope: 'all',
+      adminMemo: null,
     })
 
     assert.equal(row.code, 'FREE-3M')
     assert.equal(row.freeMonths, 3)
     assert.equal(inserts[0][2], 'free_months')
     assert.equal(inserts[0][3], 3)
-    assert.equal(inserts[0][4], null)
-    assert.equal(inserts[0][5], null)
+    assert.equal(inserts[0][9], 'all')
+  })
+
+  it('parseUpdateBillingPromotionInput keeps free_months payload', () => {
+    const parsed = parseUpdateBillingPromotionInput({
+      name: '수정된 3개월 무료',
+      type: 'free_months',
+      freeMonths: 3,
+      applyScope: 'test',
+      memo: 'QA only',
+    })
+    assert.equal(parsed.type, 'free_months')
+    assert.equal(parsed.freeMonths, 3)
+    assert.equal(parsed.applyScope, 'test')
+    assert.equal(parsed.adminMemo, 'QA only')
   })
 })
