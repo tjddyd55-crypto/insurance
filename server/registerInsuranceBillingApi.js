@@ -12,6 +12,7 @@ import {
   loadPromotionCodeRow,
   validateInsurancePromotionCode,
 } from './insurance-billing/promotionService.js'
+import { PROMOTION_ALREADY_USED_ERROR_CODE } from './insurance-billing/billingPromotionRedemptionPolicy.js'
 import {
   applyFreeMonthsPromotion,
   getBillingReferralForUser,
@@ -140,8 +141,12 @@ export function registerInsuranceBillingApi(apiRouter, ctx) {
       } catch {
         /* */
       }
-      if (e?.message === 'promotion_per_user_limit') {
-        res.status(409).json({ valid: false, message: '이미 사용한 코드입니다.' })
+      if (e?.message === 'promotion_already_used') {
+        res.status(409).json({
+          valid: false,
+          message: '이미 프로모션 코드를 사용한 계정입니다.',
+          errorCode: PROMOTION_ALREADY_USED_ERROR_CODE,
+        })
         return
       }
       handleDbError(e, req, res)

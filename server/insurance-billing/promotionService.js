@@ -1,6 +1,10 @@
 import { INSURANCE_BASIC_PLAN_CODE } from './config.js'
 import { enrichBillingManageSummary } from './billingSummaryService.js'
 import { syncSubscriptionTrialExpiry } from './subscriptionLifecycle.js'
+import {
+  assertUserBillingPromotionNotAlreadyUsed,
+  PROMOTION_ALREADY_USED_ERROR_CODE,
+} from './billingPromotionRedemptionPolicy.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 
 function normalizeCode(raw) {
@@ -67,26 +71,6 @@ export function validatePromotionCodeRow(row, ctx = {}) {
 
 /**
  * @param {import('pg').Pool | import('pg').PoolClient} executor
- * @param {{ userId: string; promotionCodeId: number; perUserLimit?: number }} params
- */
-export async function assertPromotionPerUserLimit(executor, params) {
-  const limit = Math.max(1, Number(params.perUserLimit ?? 1) || 1)
-  const r = await systemQuery(
-    executor,
-    `
-    SELECT COUNT(*)::int AS count
-    FROM billing_promotion_redemptions
-    WHERE user_id = $1 AND promotion_code_id = $2
-    `,
-    [params.userId, params.promotionCodeId],
-  )
-  if (Number(r.rows[0]?.count ?? 0) >= limit) {
-    throw new Error('promotion_per_user_limit')
-  }
-}
-
-/**
- * @param {import('pg').Pool | import('pg').PoolClient} executor
  * @param {{ code: string; planCode?: string; billingCycle?: string; userId?: string | null }} params
  */
 export async function validateInsurancePromotionCode(executor, params) {
@@ -104,13 +88,14 @@ export async function validateInsurancePromotionCode(executor, params) {
 
   if (params.userId) {
     try {
-      await assertPromotionPerUserLimit(executor, {
-        userId: params.userId,
-        promotionCodeId: Number(row.id),
-        perUserLimit: Number(row.per_user_limit ?? 1),
-      })
+      await assertUserBillingPromotionNotAlreadyUsed(executor, params.userId)
     } catch {
-      return { valid: false, code: row.code, message: '이미 사용한 코드입니다.' }
+      return {
+        valid: false,
+        code: row.code,
+        message: '이미 프로모션 코드를 사용한 계정입니다.',
+        errorCode: PROMOTION_ALREADY_USED_ERROR_CODE,
+      }
     }
   }
 

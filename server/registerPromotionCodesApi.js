@@ -10,6 +10,10 @@ import { ensureReferralCodeForUser } from './referrals/referralCode.js'
 import { readPolicyActive } from './subscription/appSettings.js'
 import { BASE_MONTHLY_PRICE } from './referrals/policy.js'
 import { userWasReferred } from './billing/pricing.js'
+import {
+  createBillingReferralPending,
+  resolveTenantIdForUser,
+} from './insurance-billing/subscriptionLifecycle.js'
 import { systemQuery } from './utils/dbSafeQuery.js'
 
 /**
@@ -133,20 +137,14 @@ export function registerPromotionCodesApi(apiRouter, ctx) {
     try {
       await client.query('BEGIN')
 
-      const existingPromo = await getAppliedPromotionForUser(client, uid)
-      if (existingPromo) {
-        await client.query('ROLLBACK')
-        res.status(409).json({ message: '이미 코드가 적용된 계정입니다.' })
-        return
-      }
-      const referred = await userWasReferred(client, uid)
-      if (referred) {
-        await client.query('ROLLBACK')
-        res.status(409).json({ message: '이미 추천/할인 코드가 적용된 계정입니다.' })
-        return
-      }
-
       if (check.source === 'promotion_code' && check.promo) {
+        const existingPromo = await getAppliedPromotionForUser(client, uid)
+        if (existingPromo) {
+          await client.query('ROLLBACK')
+          res.status(409).json({ message: '이미 코드가 적용된 계정입니다.' })
+          return
+        }
+
         await applyPromotionCodeToAccount(client, { userId: uid, promo: check.promo })
         await client.query('COMMIT')
         res.json({
@@ -160,6 +158,13 @@ export function registerPromotionCodesApi(apiRouter, ctx) {
       }
 
       if (check.source === 'legacy_referral' && check.legacy) {
+        const referred = await userWasReferred(client, uid)
+        if (referred) {
+          await client.query('ROLLBACK')
+          res.status(409).json({ message: '이미 추천 코드가 적용된 계정입니다.' })
+          return
+        }
+
         const policyActive = await readPolicyActive()
         await createReferralRelationship(client, {
           referredUserId: uid,
@@ -169,6 +174,12 @@ export function registerPromotionCodesApi(apiRouter, ctx) {
         })
         await ensureReferralCodeForUser(client, uid)
         await ensureReferralCodeForUser(client, check.legacy.referrerUserId)
+        await createBillingReferralPending(client, {
+          referrerUserId: check.legacy.referrerUserId,
+          referredUserId: uid,
+          referralCode: check.legacy.code,
+          tenantId: await resolveTenantIdForUser(client, uid, null),
+        })
         await client.query('COMMIT')
         res.json({
           ok: true,

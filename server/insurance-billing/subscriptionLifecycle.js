@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { INSURANCE_BASIC_PLAN_CODE, isInsuranceBillingEnabled } from './config.js'
+import { assertUserBillingPromotionNotAlreadyUsed } from './billingPromotionRedemptionPolicy.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { resolveTenantByGaId } from '../lib/crmPlatformMeta.js'
 
@@ -647,6 +648,8 @@ export async function requestInsurancePayment(client, params) {
  */
 export async function applyFreeMonthsPromotion(client, params) {
   const userId = String(params.userId ?? '').trim()
+  await assertUserBillingPromotionNotAlreadyUsed(client, userId)
+
   const promo = params.promotionRow
   const freeMonthsRaw = Number(promo.free_months ?? 0) || 0
   const freeMonths = Math.min(12, Math.max(1, Math.floor(freeMonthsRaw)))
