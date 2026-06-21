@@ -281,6 +281,9 @@ export const appRouter = createBrowserRouter([
           {
             element: <RequireActiveSubscription />,
             children: [
+              {
+                element: <AppWorkspaceLayout />,
+                children: [
               { path: 'billing/checkout', element: <BillingCheckoutPage /> },
               { path: 'billing/required', element: <BillingRequiredPage /> },
               { path: 'billing/success', element: <BillingSuccessPage /> },
@@ -288,9 +291,6 @@ export const appRouter = createBrowserRouter([
               { path: 'billing/manage', element: <BillingManagePage /> },
               {
                 element: <RequireInsuranceBillingEntitlement />,
-                children: [
-              {
-                element: <AppWorkspaceLayout />,
                 children: [
           { path: 'dashboard', element: <DashboardPage /> },
           { path: 'public-account-restricted', element: <PublicAccountRestrictedPage /> },

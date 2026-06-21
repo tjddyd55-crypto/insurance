@@ -13,6 +13,9 @@ import {
 /**
  * 보험 CRM 결제단 Phase 1 라우트 가드.
  * INSURANCE_BILLING_ENABLED + ENFORCE_ACCESS 가 켜진 경우에만 차단한다.
+ *
+ * AppWorkspaceLayout(상단바·메뉴·로그아웃) 바깥이 아니라, 레이아웃 안의 CRM 라우트만 감싼다.
+ * /billing/* 는 형제 라우트로 레이아웃을 유지한 채 접근 가능하다.
  */
 export function RequireInsuranceBillingEntitlement() {
   const { token, user } = useAuth()
