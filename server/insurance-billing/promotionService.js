@@ -22,6 +22,7 @@ export async function loadPromotionCodeRow(executor, params) {
     FROM billing_promotion_codes
     WHERE UPPER(code) = $1
       AND is_active = true
+      AND deleted_at IS NULL
     LIMIT 1
     `,
     [code],
@@ -35,7 +36,13 @@ export async function loadPromotionCodeRow(executor, params) {
  */
 export function validatePromotionCodeRow(row, ctx = {}) {
   if (!row) {
-    return { valid: false, message: '유효하지 않은 코드입니다.' }
+    return { valid: false, message: '사용할 수 없는 코드입니다.' }
+  }
+  if (row.deleted_at) {
+    return { valid: false, message: '사용할 수 없는 코드입니다.' }
+  }
+  if (!row.is_active) {
+    return { valid: false, message: '사용할 수 없는 코드입니다.' }
   }
   const now = new Date()
   if (row.starts_at && new Date(row.starts_at) > now) {
