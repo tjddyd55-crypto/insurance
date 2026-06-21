@@ -140,6 +140,12 @@ import GovernmentAdminHubPage from './features/government-support/pages/admin/Go
 import GovernmentAdminAgenciesPage from './features/government-support/pages/admin/GovernmentAdminAgenciesPage'
 import GovernmentPlaceholderPage from './features/government-support/components/GovernmentPlaceholderPage'
 import GovernmentProtectedRoute from './features/government-support/routes/GovernmentProtectedRoute'
+import BillingCheckoutPage from './features/insurance-billing/pages/BillingCheckoutPage'
+import BillingRequiredPage from './features/insurance-billing/pages/BillingRequiredPage'
+import BillingSuccessPage from './features/insurance-billing/pages/BillingSuccessPage'
+import BillingFailPage from './features/insurance-billing/pages/BillingFailPage'
+import BillingManagePage from './features/insurance-billing/pages/BillingManagePage'
+import { RequireInsuranceBillingEntitlement } from './features/insurance-billing/RequireInsuranceBillingEntitlement'
 
 export const appRouter = createBrowserRouter([
   {
@@ -275,6 +281,14 @@ export const appRouter = createBrowserRouter([
           {
             element: <RequireActiveSubscription />,
             children: [
+              { path: 'billing/checkout', element: <BillingCheckoutPage /> },
+              { path: 'billing/required', element: <BillingRequiredPage /> },
+              { path: 'billing/success', element: <BillingSuccessPage /> },
+              { path: 'billing/fail', element: <BillingFailPage /> },
+              { path: 'billing/manage', element: <BillingManagePage /> },
+              {
+                element: <RequireInsuranceBillingEntitlement />,
+                children: [
               {
                 element: <AppWorkspaceLayout />,
                 children: [
@@ -508,6 +522,8 @@ export const appRouter = createBrowserRouter([
               { path: 'insurance/general-request', element: <GeneralRequestPage /> },
               { path: 'reinsurer-contacts', element: <ReinsurerContactsPage /> },
               { path: 'insurance/print', element: <InsurancePrintPage /> },
+                ],
+              },
                 ],
               },
             ],

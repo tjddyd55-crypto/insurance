@@ -21,6 +21,11 @@ export const EXPIRED_ALLOW_FRONTEND_PATHS: readonly string[] = Object.freeze([
   '/account/billing',
   '/account/reset',
   '/feature-request',
+  '/billing/checkout',
+  '/billing/required',
+  '/billing/success',
+  '/billing/fail',
+  '/billing/manage',
 ])
 
 /**

@@ -14,6 +14,9 @@ import {
 } from '../authApi'
 import { FormButton, FormInput } from '../../../components/form'
 import { useAuth } from '../AuthProvider'
+import { resolveAuthLandingPath } from '../landing'
+import useIsMobile from '../../../hooks/useIsMobile'
+import { isInsuranceBillingEnabledClient } from '../../insurance-billing/insuranceBillingConfig'
 import { validateReferralCodeForSignup } from '../../referrals/referralApi'
 import {
   getSignupUsernameValidationError,
@@ -56,6 +59,7 @@ export type SignupIndustry = 'insurance' | 'gym' | 'government'
 
 export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?: SignupIndustry }) {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const [searchParams] = useSearchParams()
   const { isAuthenticated, login } = useAuth()
   const tenantCodeMode = signupIndustry === 'gym' || signupIndustry === 'government'
@@ -520,7 +524,11 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
         return
       }
       login({ token: session.token, user: session.user })
-      navigate('/dashboard', { replace: true })
+      if (signupIndustry === 'insurance' && isInsuranceBillingEnabledClient()) {
+        navigate('/billing/checkout', { replace: true })
+        return
+      }
+      navigate(resolveAuthLandingPath(isMobile, session.user?.role), { replace: true })
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '회원가입에 실패했습니다.')
     } finally {

@@ -3491,6 +3491,7 @@ export async function initDb() {
   await ensurePublicCustomerInviteSessionsSchema(pool)
   await ensureReferralSchema(pool)
   await ensureBillingSchema(pool)
+  await ensureInsuranceBillingPhase1Schema(pool)
   await ensurePromotionCodeSchema(pool)
   await ensurePromotionCodesSchema(pool)
   console.log('[initDb][promotion-codes] schema ensure 완료')
@@ -4016,6 +4017,245 @@ async function ensureBillingSchema(executor) {
   await executor.query(`
     CREATE INDEX IF NOT EXISTS idx_payment_transactions_invoice
     ON payment_transactions (invoice_id)
+  `)
+}
+
+/** 보험 CRM 결제단 Phase 1 — promotion/subscription/payment/referral 확장 */
+async function ensureInsuranceBillingPhase1Schema(executor) {
+  await executor.query(`
+    ALTER TABLE billing_plans
+    ADD COLUMN IF NOT EXISTS monthly_price INTEGER
+  `)
+  await executor.query(`
+    ALTER TABLE billing_plans
+    ADD COLUMN IF NOT EXISTS monthly_vat INTEGER
+  `)
+  await executor.query(`
+    ALTER TABLE billing_plans
+    ADD COLUMN IF NOT EXISTS monthly_total INTEGER
+  `)
+  await executor.query(`
+    ALTER TABLE billing_plans
+    ADD COLUMN IF NOT EXISTS yearly_price INTEGER
+  `)
+  await executor.query(`
+    ALTER TABLE billing_plans
+    ADD COLUMN IF NOT EXISTS yearly_vat INTEGER
+  `)
+  await executor.query(`
+    ALTER TABLE billing_plans
+    ADD COLUMN IF NOT EXISTS yearly_total INTEGER
+  `)
+  await executor.query(`
+    ALTER TABLE billing_plans
+    ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'KRW'
+  `)
+
+  await executor.query(`
+    INSERT INTO billing_plans (
+      code, name, amount, supply_amount, vat_rate, apply_vat, cycle, is_active,
+      monthly_price, monthly_vat, monthly_total, yearly_price, yearly_vat, yearly_total, currency
+    )
+    VALUES (
+      'insurance_basic', '보험 CRM 베이직', 8800, 8000, 0.1, true, 'monthly', true,
+      8000, 800, 8800, 80000, 8000, 88000, 'KRW'
+    )
+    ON CONFLICT (code) DO UPDATE SET
+      name = EXCLUDED.name,
+      amount = EXCLUDED.amount,
+      supply_amount = EXCLUDED.supply_amount,
+      monthly_price = EXCLUDED.monthly_price,
+      monthly_vat = EXCLUDED.monthly_vat,
+      monthly_total = EXCLUDED.monthly_total,
+      yearly_price = EXCLUDED.yearly_price,
+      yearly_vat = EXCLUDED.yearly_vat,
+      yearly_total = EXCLUDED.yearly_total,
+      currency = EXCLUDED.currency,
+      updated_at = NOW()
+  `)
+
+  await executor.query(`
+    ALTER TABLE billing_subscriptions
+    ADD COLUMN IF NOT EXISTS tenant_id BIGINT
+  `)
+  await executor.query(`
+    ALTER TABLE billing_subscriptions
+    ADD COLUMN IF NOT EXISTS billing_cycle TEXT NOT NULL DEFAULT 'monthly'
+  `)
+  await executor.query(`
+    ALTER TABLE billing_subscriptions
+    ADD COLUMN IF NOT EXISTS trial_started_at TIMESTAMPTZ
+  `)
+  await executor.query(`
+    ALTER TABLE billing_subscriptions
+    ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ
+  `)
+  await executor.query(`
+    ALTER TABLE billing_subscriptions
+    ADD COLUMN IF NOT EXISTS promotion_code_id BIGINT
+  `)
+  await executor.query(`
+    ALTER TABLE billing_subscriptions
+    ADD COLUMN IF NOT EXISTS cancel_at TIMESTAMPTZ
+  `)
+  await executor.query(`
+    ALTER TABLE billing_subscriptions
+    ADD COLUMN IF NOT EXISTS canceled_at TIMESTAMPTZ
+  `)
+
+  await executor.query(`
+    ALTER TABLE billing_subscriptions DROP CONSTRAINT IF EXISTS billing_subscriptions_status_check
+  `)
+  await executor.query(`
+    ALTER TABLE billing_subscriptions
+    ADD CONSTRAINT billing_subscriptions_status_check
+    CHECK (status IN (
+      'none', 'trial', 'active', 'past_due', 'cancelled', 'expired',
+      'pending_payment', 'trialing', 'active_paid', 'active_manual', 'legacy_active', 'blocked', 'canceled'
+    ))
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS billing_promotion_codes (
+      id BIGSERIAL PRIMARY KEY,
+      code TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL,
+      free_months INTEGER,
+      percent_off NUMERIC(5, 2),
+      amount_off INTEGER,
+      starts_at TIMESTAMPTZ,
+      ends_at TIMESTAMPTZ,
+      max_redemptions INTEGER,
+      used_count INTEGER NOT NULL DEFAULT 0,
+      per_user_limit INTEGER NOT NULL DEFAULT 1,
+      applies_to_plan_code TEXT,
+      applies_to_product TEXT NOT NULL DEFAULT 'insurance',
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT billing_promotion_codes_type_check CHECK (
+        type IN ('free_months', 'percent_off', 'amount_off', 'full_discount')
+      )
+    )
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS billing_promotion_redemptions (
+      id BIGSERIAL PRIMARY KEY,
+      promotion_code_id BIGINT NOT NULL REFERENCES billing_promotion_codes(id) ON DELETE RESTRICT,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      tenant_id BIGINT,
+      subscription_id BIGINT REFERENCES billing_subscriptions(id) ON DELETE SET NULL,
+      redeemed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      free_starts_at TIMESTAMPTZ,
+      free_ends_at TIMESTAMPTZ,
+      discount_snapshot_json JSONB NOT NULL DEFAULT '{}'::jsonb
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_billing_promotion_redemptions_user
+    ON billing_promotion_redemptions (user_id, redeemed_at DESC)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS billing_payments (
+      id BIGSERIAL PRIMARY KEY,
+      tenant_id BIGINT,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      subscription_id BIGINT REFERENCES billing_subscriptions(id) ON DELETE SET NULL,
+      provider TEXT NOT NULL DEFAULT 'mock',
+      provider_payment_key TEXT,
+      amount INTEGER NOT NULL DEFAULT 0,
+      vat_amount INTEGER NOT NULL DEFAULT 0,
+      total_amount INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'pending',
+      paid_at TIMESTAMPTZ,
+      failed_at TIMESTAMPTZ,
+      failure_reason TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT billing_payments_status_check CHECK (status IN ('pending', 'paid', 'failed', 'canceled'))
+    )
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS billing_referrals (
+      id BIGSERIAL PRIMARY KEY,
+      referrer_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      referred_user_id TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+      referred_tenant_id BIGINT,
+      referral_code TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      qualified_at TIMESTAMPTZ,
+      ended_at TIMESTAMPTZ,
+      CONSTRAINT billing_referrals_status_check CHECK (status IN ('pending', 'active_paid', 'ended', 'invalid'))
+    )
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS billing_referral_discounts (
+      id BIGSERIAL PRIMARY KEY,
+      referrer_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      subscription_id BIGINT REFERENCES billing_subscriptions(id) ON DELETE SET NULL,
+      billing_period TEXT NOT NULL,
+      active_paid_referral_count INTEGER NOT NULL DEFAULT 0,
+      discount_amount INTEGER NOT NULL DEFAULT 0,
+      applied_payment_id BIGINT REFERENCES billing_payments(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS billing_events (
+      id BIGSERIAL PRIMARY KEY,
+      tenant_id BIGINT,
+      user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      event_type TEXT NOT NULL,
+      payload_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_billing_events_user_created
+    ON billing_events (user_id, created_at DESC)
+  `)
+
+  await executor.query(`
+    INSERT INTO billing_promotion_codes (
+      code, name, type, free_months, applies_to_product, applies_to_plan_code, is_active
+    )
+    VALUES (
+      'YJASSET-FREE-3M', '영진에셋 3개월 무료', 'free_months', 3, 'insurance', 'insurance_basic', true
+    )
+    ON CONFLICT (code) DO UPDATE SET
+      name = EXCLUDED.name,
+      type = EXCLUDED.type,
+      free_months = EXCLUDED.free_months,
+      applies_to_product = EXCLUDED.applies_to_product,
+      applies_to_plan_code = EXCLUDED.applies_to_plan_code,
+      is_active = EXCLUDED.is_active,
+      updated_at = NOW()
+  `)
+
+  await executor.query(`
+    INSERT INTO billing_subscriptions (user_id, tenant_id, plan_code, status, billing_cycle, created_at, updated_at)
+    SELECT
+      u.id,
+      (
+        SELECT um.tenant_id FROM user_memberships um
+        WHERE um.user_id = u.id ORDER BY um.id ASC LIMIT 1
+      ),
+      'insurance_basic',
+      'legacy_active',
+      'monthly',
+      NOW(),
+      NOW()
+    FROM users u
+    WHERE u.is_deleted = false
+      AND u.role = 'USER'
+      AND NOT EXISTS (SELECT 1 FROM billing_subscriptions bs WHERE bs.user_id = u.id)
   `)
 }
 
