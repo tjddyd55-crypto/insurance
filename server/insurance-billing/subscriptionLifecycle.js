@@ -353,12 +353,22 @@ export async function createPendingInsurancePayment(client, params) {
   const billingCycle = String(params.billingCycle ?? 'monthly').trim().toLowerCase() === 'yearly' ? 'yearly' : 'monthly'
   const planCode = String(params.planCode ?? INSURANCE_BASIC_PLAN_CODE).trim()
 
+  const subR = await systemQuery(
+    client,
+    `SELECT id, tenant_id, status, plan_code FROM billing_subscriptions WHERE user_id = $1 LIMIT 1`,
+    [userId],
+  )
+  const sub = subR.rows[0]
+  if (!sub) {
+    throw new Error('subscription_not_found')
+  }
+
   const planR = await systemQuery(
     client,
     `
-    SELECT code, monthly_total, yearly_total, monthly_price, yearly_price
+    SELECT code, monthly_total, yearly_total, monthly_price, yearly_price, is_active
     FROM billing_plans
-    WHERE code = $1 AND is_active = true
+    WHERE code = $1
     LIMIT 1
     `,
     [planCode],
@@ -367,15 +377,9 @@ export async function createPendingInsurancePayment(client, params) {
   if (!plan) {
     throw new Error('plan_not_found')
   }
-
-  const subR = await systemQuery(
-    client,
-    `SELECT id, tenant_id, status FROM billing_subscriptions WHERE user_id = $1 LIMIT 1`,
-    [userId],
-  )
-  const sub = subR.rows[0]
-  if (!sub) {
-    throw new Error('subscription_not_found')
+  const subscriptionPlanCode = String(sub.plan_code ?? '').trim()
+  if (!plan.is_active && subscriptionPlanCode !== planCode) {
+    throw new Error('plan_not_found')
   }
 
   const pendingR = await systemQuery(
