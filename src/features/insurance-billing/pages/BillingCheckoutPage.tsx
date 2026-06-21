@@ -16,6 +16,10 @@ import {
   resolveBillingCheckoutMode,
   type BillingCheckoutMode,
 } from '../billingCheckoutViewState'
+import {
+  isApplyPromotionTrialingSuccess,
+  resolveApplyPromotionTrialEndsAt,
+} from '../billingApplyPromotion'
 import '../insurance-billing.css'
 
 function formatKrw(amount: number) {
@@ -94,7 +98,7 @@ export default function BillingCheckoutPage() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly')
   const [promoCode, setPromoCode] = useState('')
   const [promoMessage, setPromoMessage] = useState('')
-  const [promoApplied, setPromoApplied] = useState<{ freeMonths?: number; trialEndsAt?: string } | null>(null)
+  const [promoValidated, setPromoValidated] = useState<{ freeMonths?: number; trialEndsAt?: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -141,19 +145,19 @@ export default function BillingCheckoutPage() {
   const promoAllowed = canApplyPromotionCodeOnCheckout(checkoutMode)
 
   const displayAmount = useMemo(() => {
-    if (promoApplied) return 0
+    if (promoValidated) return 0
     if (!summary?.plan) return billingCycle === 'yearly' ? 88000 : 8800
     return billingCycle === 'yearly' ? summary.plan.yearlyTotal : summary.plan.monthlyTotal
-  }, [summary, billingCycle, promoApplied])
+  }, [summary, billingCycle, promoValidated])
 
   const ctaLabel = useMemo(() => {
     if (checkoutMode === 'trialing') return '결제수단 등록'
     if (checkoutMode === 'active_paid') return '결제 내역 보기'
     if (checkoutMode === 'legacy_entitled') return '내 결제 상태 보기'
-    if (promoApplied) return `${promoApplied.freeMonths ?? 3}개월 무료로 시작하기`
+    if (promoValidated?.freeMonths) return `${promoValidated.freeMonths}개월 무료로 시작하기`
     if (displayAmount === 0) return '무료로 시작하기'
     return '결제하기'
-  }, [checkoutMode, promoApplied, displayAmount])
+  }, [checkoutMode, promoValidated, displayAmount])
 
   const handleValidatePromo = async () => {
     if (!token?.trim() || !promoCode.trim() || !promoAllowed) return
@@ -167,16 +171,18 @@ export default function BillingCheckoutPage() {
       })
       if (!result.valid) {
         setPromoMessage(result.message ?? '유효하지 않은 코드입니다.')
-        setPromoApplied(null)
+        setPromoValidated(null)
         return
       }
       if (result.type === 'free_months' && result.freeMonths) {
         const freeMonths = result.freeMonths
-        setPromoApplied({ freeMonths, trialEndsAt: addMonthsPreviewIso(freeMonths) })
-        setPromoMessage(`${freeMonths}개월 무료 이용권이 적용되었습니다.`)
+        setPromoValidated({ freeMonths, trialEndsAt: addMonthsPreviewIso(freeMonths) })
+        setPromoMessage(
+          `${freeMonths}개월 무료 이용권을 사용할 수 있습니다. 아래 "${freeMonths}개월 무료로 시작하기" 버튼을 눌러 적용해 주세요.`,
+        )
         return
       }
-      setPromoApplied(null)
+      setPromoValidated(null)
       setPromoMessage(result.message ?? '사용 가능한 코드입니다.')
     } catch (e) {
       setError(e instanceof Error ? e.message : '코드 확인에 실패했습니다.')
@@ -194,24 +200,21 @@ export default function BillingCheckoutPage() {
     setSubmitting(true)
     setError('')
     try {
-      if (promoAllowed && promoCode.trim() && !promoApplied) {
+      if (promoAllowed && promoValidated && promoCode.trim()) {
         const applied = await applyBillingPromotionCode(token, {
           code: promoCode.trim(),
           planCode: summary?.plan?.code ?? 'insurance_basic',
           billingCycle,
         })
-        if (applied.status === 'trialing') {
-          setPromoApplied({
-            freeMonths: applied.freeMonths ?? promoApplied?.freeMonths,
-            trialEndsAt: applied.trialEndsAt,
-          })
-          navigate('/billing/success', { replace: true, state: { mode: 'trial', trialEndsAt: applied.trialEndsAt } })
+        if (!isApplyPromotionTrialingSuccess(applied)) {
+          setError(applied.message ?? '무료 이용권 적용이 완료되지 않았습니다.')
           return
         }
-      }
-
-      if (promoAllowed && (displayAmount === 0 || promoApplied)) {
-        navigate('/billing/success', { replace: true, state: { mode: 'trial' } })
+        const trialEndsAt = resolveApplyPromotionTrialEndsAt(applied)
+        navigate('/billing/success', {
+          replace: true,
+          state: { mode: 'trial', trialEndsAt },
+        })
         return
       }
 
@@ -220,8 +223,8 @@ export default function BillingCheckoutPage() {
         billingCycle,
       })
       navigate('/billing/success', { replace: true, state: { mode: 'paid' } })
-    } catch {
-      navigate('/billing/fail', { replace: true })
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : e instanceof Error ? e.message : '요청 처리에 실패했습니다.')
     } finally {
       setSubmitting(false)
     }
@@ -308,7 +311,11 @@ export default function BillingCheckoutPage() {
                     <input
                       id="billing-promo-code"
                       value={promoCode}
-                      onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                      onChange={(e) => {
+                        setPromoCode(e.target.value.toUpperCase())
+                        setPromoValidated(null)
+                        setPromoMessage('')
+                      }}
                       placeholder="무료 이용권이나 할인 코드 입력"
                     />
                     <button
@@ -352,11 +359,11 @@ export default function BillingCheckoutPage() {
                   </>
                 ) : null}
 
-                {promoApplied?.trialEndsAt ? (
+                {promoValidated?.trialEndsAt ? (
                   <div className="insurance-billing-notice">
-                    {promoApplied.freeMonths ?? 1}개월 무료 이용권이 적용되었습니다.
+                    {promoValidated.freeMonths ?? 1}개월 무료 이용권 미리보기
                     <br />
-                    무료 종료일: {formatDateLabel(promoApplied.trialEndsAt)}
+                    예상 무료 종료일: {formatDateLabel(promoValidated.trialEndsAt)}
                   </div>
                 ) : null}
 
