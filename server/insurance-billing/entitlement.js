@@ -5,6 +5,7 @@ import {
 import { isInsuranceBillingEntitledStatus } from './subscriptionStatusPolicy.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { syncSubscriptionTrialExpiry } from './subscriptionLifecycle.js'
+import { resolveApiPolicyPath } from '../utils/apiPolicyPath.js'
 
 const BILLING_API_ALLOW_PREFIXES = Object.freeze([
   '/api/auth/',
@@ -15,6 +16,8 @@ const BILLING_API_ALLOW_PREFIXES = Object.freeze([
   '/api/feature-request',
   '/api/feature-requests/',
   '/api/ga/validate',
+  '/api/public/',
+  '/api/health',
 ])
 
 /**
@@ -109,7 +112,8 @@ export async function enforceInsuranceBillingEntitlement(req, res, next, pool) {
       next()
       return
     }
-    if (isInsuranceBillingAllowlistedApi(req.path)) {
+    const policyPath = resolveApiPolicyPath(req)
+    if (isInsuranceBillingAllowlistedApi(policyPath)) {
       next()
       return
     }

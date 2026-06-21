@@ -7,6 +7,8 @@ import {
 import { isInsuranceBillingEntitledStatus } from './subscriptionStatusPolicy.js'
 import { calculateReferrerDiscountAmount, isTrialExpiredSubscription } from './subscriptionLifecycle.js'
 import { validatePromotionCodeRow } from './promotionService.js'
+import { isInsuranceBillingAllowlistedApi } from './entitlement.js'
+import { resolveApiPolicyPath } from '../utils/apiPolicyPath.js'
 import {
   BILLING_SUBSCRIPTION_STATUS_CHECK_VALUES,
   buildBillingSubscriptionStatusCheckConstraintSql,
@@ -143,5 +145,41 @@ describe('insurance billing trial expiry helper', () => {
       trial_ends_at: new Date(Date.now() + 86400000).toISOString(),
     })
     assert.equal(active, false)
+  })
+})
+
+describe('insurance billing API allowlist path normalization', () => {
+  it('normalizes /backend mount paths to /api SSOT', () => {
+    assert.equal(
+      resolveApiPolicyPath({ baseUrl: '/backend', path: '/billing/checkout/summary' }),
+      '/api/billing/checkout/summary',
+    )
+    assert.equal(
+      resolveApiPolicyPath({ baseUrl: '/api', path: '/billing/checkout/summary' }),
+      '/api/billing/checkout/summary',
+    )
+    assert.equal(
+      resolveApiPolicyPath({ baseUrl: '', path: '/billing/promotion-codes/validate' }),
+      '/api/billing/promotion-codes/validate',
+    )
+  })
+
+  it('allows billing checkout summary for pending users via normalized path', () => {
+    assert.equal(
+      isInsuranceBillingAllowlistedApi('/api/billing/checkout/summary'),
+      true,
+    )
+    assert.equal(
+      isInsuranceBillingAllowlistedApi(
+        resolveApiPolicyPath({ baseUrl: '/backend', path: '/billing/checkout/summary' }),
+      ),
+      true,
+    )
+    assert.equal(
+      isInsuranceBillingAllowlistedApi(
+        resolveApiPolicyPath({ baseUrl: '/backend', path: '/customers' }),
+      ),
+      false,
+    )
   })
 })

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { resolveAuthLandingPath } from '../../auth/landing'
 import useIsMobile from '../../../hooks/useIsMobile'
+import { ApiError } from '../../../lib/apiClient'
 import {
   applyBillingPromotionCode,
   completeMockBillingPayment,
@@ -60,6 +61,12 @@ function checkoutStatusBanner(mode: BillingCheckoutMode, summary: CheckoutSummar
           결제 시스템 전환 안내: 아래에서 요금제를 확인하고 필요 시 결제수단을 등록할 수 있습니다.
         </div>
       )
+    case 'pending_payment':
+      return (
+        <div className="insurance-billing-banner">
+          서비스 이용을 위해 결제가 필요합니다.
+        </div>
+      )
     case 'payment_required':
       return (
         <div className="insurance-billing-banner">
@@ -85,6 +92,7 @@ export default function BillingCheckoutPage() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [summaryLoadError, setSummaryLoadError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -96,12 +104,20 @@ export default function BillingCheckoutPage() {
     if (!token?.trim()) return
     setLoading(true)
     setError('')
+    setSummaryLoadError(null)
     try {
       const data = await fetchCheckoutSummary(token)
       setSummary(data)
       setBillingCycle(data.billingCycle === 'yearly' ? 'yearly' : 'monthly')
     } catch (e) {
-      setError(e instanceof Error ? e.message : '결제 정보를 불러오지 못했습니다.')
+      const status = e instanceof ApiError ? e.status : undefined
+      const code =
+        e instanceof ApiError
+          ? String(e.code ?? e.message ?? '').trim() || undefined
+          : undefined
+      console.error('[BillingCheckoutPage] checkout summary failed', { status, code, error: e })
+      setSummary(null)
+      setSummaryLoadError('결제 정보를 불러오지 못했습니다.')
     } finally {
       setLoading(false)
     }
@@ -211,6 +227,18 @@ export default function BillingCheckoutPage() {
         </div>
 
         {loading ? <p className="insurance-billing-plan-note">불러오는 중...</p> : null}
+        {summaryLoadError && !summary ? (
+          <div className="insurance-billing-load-error">
+            <p className="insurance-billing-error">{summaryLoadError}</p>
+            <button
+              type="button"
+              className="insurance-billing-cta insurance-billing-cta--secondary"
+              onClick={() => void load()}
+            >
+              다시 시도
+            </button>
+          </div>
+        ) : null}
         {error ? <p className="insurance-billing-error">{error}</p> : null}
 
         {!loading && summary ? (
