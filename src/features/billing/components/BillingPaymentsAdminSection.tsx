@@ -3,6 +3,7 @@ import { FieldWrapper, FormSelect } from '../../../components/form'
 import { StatusMessage } from '../../../components/feedback'
 import { ConfirmDialog } from '../../../components/dialog/ConfirmDialog'
 import Modal from '../../../components/ui/Modal'
+import { AdminDataCard } from '../../admin/components/layout'
 import {
   approveAdminBillingPayment,
   cancelAdminBillingPayment,
@@ -45,7 +46,9 @@ type Props = {
 function PaymentStatusBadge({ status }: { status: string }) {
   const normalized = String(status ?? '').toLowerCase()
   const label = PAYMENT_STATUS_LABEL[normalized] ?? status
-  return <span className={`billing-admin-payment-status billing-admin-payment-status--${normalized}`}>{label}</span>
+  return (
+    <span className={`billing-payments-admin-status billing-payments-admin-status--${normalized}`}>{label}</span>
+  )
 }
 
 function PaymentDetailBody({ item }: { item: BillingPaymentAdminItem }) {
@@ -169,94 +172,96 @@ export default function BillingPaymentsAdminSection({ token, busy, setBusy, onIn
   }
 
   return (
-    <section className="card auth-card billing-page__card billing-admin-payments-section">
-      <div className="billing-admin-payments-section__head">
-        <h2 className="billing-page__section-title">결제 요청/청구 내역</h2>
-        <FieldWrapper label="상태 필터" className="billing-admin-payments-section__filter">
-          <FormSelect
-            value={statusFilter}
-            options={STATUS_FILTER_OPTIONS}
-            onChange={(e) => setStatusFilter(e.target.value as BillingPaymentStatusFilter)}
-          />
-        </FieldWrapper>
-      </div>
+    <div className="billing-payments-admin-section">
+      <AdminDataCard
+        title="결제 요청/청구 내역"
+        actions={
+          <FieldWrapper label="상태 필터" className="billing-payments-admin-section__filter">
+            <FormSelect
+              value={statusFilter}
+              options={STATUS_FILTER_OPTIONS}
+              onChange={(e) => setStatusFilter(e.target.value as BillingPaymentStatusFilter)}
+            />
+          </FieldWrapper>
+        }
+      >
+        {loadError ? <StatusMessage tone="error" message={loadError} /> : null}
 
-      {loadError ? <StatusMessage tone="error" message={loadError} /> : null}
-
-      {items.length === 0 ? (
-        <p className="billing-admin-payments-section__empty">표시할 결제 내역이 없습니다.</p>
-      ) : (
-        <div className="billing-admin-payments-table-wrap">
-          <table className="billing-admin-payments-table">
-            <thead>
-              <tr>
-                <th>요청일</th>
-                <th>사용자명</th>
-                <th>아이디</th>
-                <th>소속 GA</th>
-                <th>요금제</th>
-                <th>결제주기</th>
-                <th>결제금액</th>
-                <th>상태</th>
-                <th>액션</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((row) => (
-                <tr key={row.paymentId}>
-                  <td>{formatBillingDate(row.createdAt)}</td>
-                  <td>{row.userName}</td>
-                  <td>{row.username}</td>
-                  <td>{row.tenantName ?? '—'}</td>
-                  <td>{row.planName}</td>
-                  <td>{BILLING_CYCLE_LABEL[row.billingCycle] ?? row.billingCycle}</td>
-                  <td>
-                    <strong className="billing-admin-payments-table__amount">{formatWon(row.totalAmount)}</strong>
-                    <span className="billing-admin-payments-table__amount-sub">
-                      공급가 {formatWon(row.amount)} · VAT {formatWon(row.vatAmount)}
-                    </span>
-                  </td>
-                  <td>
-                    <PaymentStatusBadge status={row.status} />
-                  </td>
-                  <td>
-                    <div className="billing-admin-payments-table__actions">
-                      {row.status === 'pending' ? (
-                        <>
-                          <button
-                            type="button"
-                            className="billing-admin-payments-btn billing-admin-payments-btn--approve"
-                            disabled={busy}
-                            onClick={() => setApproveTarget(row)}
-                          >
-                            승인
-                          </button>
-                          <button
-                            type="button"
-                            className="billing-admin-payments-btn billing-admin-payments-btn--cancel"
-                            disabled={busy}
-                            onClick={() => setCancelTarget(row)}
-                          >
-                            취소
-                          </button>
-                        </>
-                      ) : null}
-                      <button
-                        type="button"
-                        className="billing-admin-payments-btn billing-admin-payments-btn--detail"
-                        disabled={busy}
-                        onClick={() => void openDetail(row)}
-                      >
-                        상세
-                      </button>
-                    </div>
-                  </td>
+        {items.length === 0 ? (
+          <p className="billing-payments-admin-section__empty">표시할 결제 내역이 없습니다.</p>
+        ) : (
+          <div className="admin-data-table-wrap">
+            <table className="admin-data-table">
+              <thead>
+                <tr>
+                  <th>요청일</th>
+                  <th>사용자명</th>
+                  <th>아이디</th>
+                  <th>소속 GA</th>
+                  <th>요금제</th>
+                  <th>결제주기</th>
+                  <th>결제금액</th>
+                  <th>상태</th>
+                  <th className="admin-table-cell--actions">액션</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {items.map((row) => (
+                  <tr key={row.paymentId}>
+                    <td>{formatBillingDate(row.createdAt)}</td>
+                    <td>{row.userName}</td>
+                    <td>{row.username}</td>
+                    <td>{row.tenantName ?? '—'}</td>
+                    <td>{row.planName}</td>
+                    <td>{BILLING_CYCLE_LABEL[row.billingCycle] ?? row.billingCycle}</td>
+                    <td>
+                      <strong className="billing-payments-admin-section__amount">{formatWon(row.totalAmount)}</strong>
+                      <span className="billing-payments-admin-section__amount-sub">
+                        공급가 {formatWon(row.amount)} · VAT {formatWon(row.vatAmount)}
+                      </span>
+                    </td>
+                    <td>
+                      <PaymentStatusBadge status={row.status} />
+                    </td>
+                    <td className="admin-table-cell--actions">
+                      <div className="admin-table-actions billing-payments-admin-section__actions">
+                        {row.status === 'pending' ? (
+                          <>
+                            <button
+                              type="button"
+                              className="billing-payments-admin-btn billing-payments-admin-btn--approve"
+                              disabled={busy}
+                              onClick={() => setApproveTarget(row)}
+                            >
+                              승인
+                            </button>
+                            <button
+                              type="button"
+                              className="billing-payments-admin-btn billing-payments-admin-btn--cancel"
+                              disabled={busy}
+                              onClick={() => setCancelTarget(row)}
+                            >
+                              취소
+                            </button>
+                          </>
+                        ) : null}
+                        <button
+                          type="button"
+                          className="billing-payments-admin-btn billing-payments-admin-btn--detail"
+                          disabled={busy}
+                          onClick={() => void openDetail(row)}
+                        >
+                          상세
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </AdminDataCard>
 
       <Modal
         open={Boolean(detailItem)}
@@ -301,6 +306,6 @@ export default function BillingPaymentsAdminSection({ token, busy, setBusy, onIn
           setCancelTarget(null)
         }}
       />
-    </section>
+    </div>
   )
 }

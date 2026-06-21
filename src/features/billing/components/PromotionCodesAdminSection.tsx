@@ -26,6 +26,7 @@ import {
   type BillingPromotionApplyTarget,
   type BillingPromotionFormValues,
 } from '../../insurance-billing/billingPromotionAdminForm'
+import { AdminDataCard } from '../../admin/components/layout'
 import PromotionCodeForm from './PromotionCodeForm'
 
 const FILTER_OPTIONS: { value: BillingPromotionListFilter; label: string }[] = [
@@ -197,13 +198,15 @@ export default function PromotionCodesAdminSection({ token, busy, setBusy, onInf
 
   return (
     <div className="promotion-code-panel">
-      <section className="card auth-card billing-page__card promotion-code-card">
-        <div className="promotion-code-card-header billing-page__section-head">
-          <h2 className="billing-page__section-title">프로모션 코드</h2>
+      <AdminDataCard
+        className="promotion-code-card"
+        title="프로모션 코드"
+        actions={
           <FormButton htmlType="button" variant="secondary" disabled={busy} onClick={openCreate}>
             새 코드
           </FormButton>
-        </div>
+        }
+      >
         <p className="billing-page__invoice-sub billing-page__invoice-sub--muted">
           보험 CRM checkout(billing_promotion_codes) 기준 코드입니다. 무료/할인 코드 생성·수정·삭제는 이 탭에서
           통합 관리합니다. soft delete 정책과 기존 사용 이력은 유지됩니다.
@@ -297,10 +300,9 @@ export default function PromotionCodesAdminSection({ token, busy, setBusy, onInf
             ))}
           </ul>
         )}
-      </section>
+      </AdminDataCard>
 
-      <section className="card auth-card billing-page__card promotion-code-card">
-        <h2 className="billing-page__section-title">{formMode === 'create' ? '코드 생성' : '코드 수정'}</h2>
+      <AdminDataCard className="promotion-code-card" title={formMode === 'create' ? '코드 생성' : '코드 수정'}>
         <PromotionCodeForm
           mode={formMode}
           values={formValues}
@@ -310,11 +312,10 @@ export default function PromotionCodesAdminSection({ token, busy, setBusy, onInf
           onGenerateCode={formMode === 'create' ? handleGenerateCode : undefined}
           onSubmit={() => void onSubmit()}
         />
-      </section>
+      </AdminDataCard>
 
       {statsTarget ? (
-        <section className="card auth-card billing-page__card promotion-code-card">
-          <h2 className="billing-page__section-title">통계 · {statsTarget.promotion.code}</h2>
+        <AdminDataCard className="promotion-code-card" title={`통계 · ${statsTarget.promotion.code}`}>
           <dl className="billing-page__meta">
             <dt>적용 계정</dt>
             <dd>{statsTarget.accountCount}명</dd>
@@ -338,7 +339,7 @@ export default function PromotionCodesAdminSection({ token, busy, setBusy, onInf
           <FormButton htmlType="button" variant="secondary" onClick={() => setStatsTarget(null)}>
             닫기
           </FormButton>
-        </section>
+        </AdminDataCard>
       ) : null}
 
       <ConfirmDialog

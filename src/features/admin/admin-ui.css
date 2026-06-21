@@ -1,5 +1,101 @@
 /* 관리자 GA·유저 화면 공통: 반응형 테이블 / 카드 / 모달 입력 */
 
+.admin-page-shell {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.admin-page-shell__inner {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.admin-page-shell__header {
+  margin-bottom: 0;
+}
+
+.admin-page-shell__tabs {
+  margin-bottom: 16px;
+}
+
+.admin-tab-panel {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.admin-tab-panel--wide {
+  max-width: 1400px;
+}
+
+.admin-tab-panel--card {
+  max-width: 760px;
+}
+
+.admin-tab-panel--split {
+  max-width: 1200px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.admin-data-card {
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+  margin: 0 0 16px;
+  padding: 20px 24px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 16px;
+}
+
+.admin-data-card:last-child {
+  margin-bottom: 0;
+}
+
+.admin-data-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.admin-data-card__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.admin-data-card__actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.admin-data-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .admin-tab-panel--split {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-data-card {
+    padding: 16px;
+  }
+}
+
 .table-container {
   width: 100%;
   overflow-x: auto;
@@ -242,46 +338,42 @@
   border-color: var(--btn-danger-hover-border, #fca5a5);
 }
 
-/* 결제·구독 관리 — 카드/폼 row 정렬 */
-.billing-admin-page .billing-page__card {
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.billing-admin-page .billing-page__invoice-list {
+/* 결제·구독 관리 — AdminPageShell + AdminDataCard 기준 */
+.billing-admin-page .admin-data-card .billing-page__invoice-list {
   width: 100%;
 }
 
-.billing-admin-page .billing-page__invoice-item {
+.billing-admin-page .admin-data-card .billing-page__invoice-item {
   padding: 16px;
-  background: var(--bg-elevated, #ffffff);
+  background: var(--bg-elevated, var(--bg-soft));
 }
 
-.billing-admin-page .billing-page__invoice-head {
+.billing-admin-page .admin-data-card .billing-page__invoice-head {
   align-items: center;
   gap: 12px;
 }
 
-.billing-admin-page .billing-page__invoice-head strong {
+.billing-admin-page .admin-data-card .billing-page__invoice-head strong {
   font-weight: 600;
   color: var(--text-primary);
   min-width: 0;
   word-break: break-word;
 }
 
-.billing-admin-page .billing-page__invoice-head > span {
+.billing-admin-page .admin-data-card .billing-page__invoice-head > span {
   flex-shrink: 0;
   font-size: 13px;
   font-weight: 600;
   color: var(--text-sub);
 }
 
-.billing-admin-page .billing-page__invoice-sub {
+.billing-admin-page .admin-data-card .billing-page__invoice-sub {
   margin: 4px 0 0;
   line-height: 1.45;
+  color: var(--text-sub);
 }
 
-.billing-admin-page .billing-page__actions {
+.billing-admin-page .admin-data-card .billing-page__actions {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
@@ -290,20 +382,20 @@
   width: 100%;
 }
 
-.billing-admin-page .billing-page__actions .field {
+.billing-admin-page .admin-data-card .billing-page__actions .field {
   flex: 1 1 240px;
   min-width: min(100%, 240px);
   margin: 0;
   gap: 4px;
 }
 
-.billing-admin-page .billing-page__actions .field__label {
+.billing-admin-page .admin-data-card .billing-page__actions .field__label {
   font-size: 13px;
   font-weight: 600;
   color: var(--text-sub);
 }
 
-.billing-admin-page .billing-page__actions .form-select {
+.billing-admin-page .admin-data-card .billing-page__actions .form-select {
   width: 100%;
   min-height: 48px;
   height: 48px;
@@ -315,110 +407,52 @@
   box-sizing: border-box;
 }
 
-.billing-admin-page .billing-page__actions > .button {
+.billing-admin-page .admin-data-card .billing-page__actions > .button {
   flex: 0 0 auto;
   min-height: 48px;
   align-self: flex-end;
 }
 
-/* 결제·구독 관리 — auth-card 420px 상한 해제 (로그인 카드 전용 규칙 오염 방지) */
-.billing-admin-page .auth-card {
-  max-width: none;
+.billing-payments-admin-section .admin-data-table {
+  min-width: 980px;
 }
 
-.billing-admin-page {
-  width: 100%;
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
-.billing-admin-payments-section {
-  width: 100%;
-  max-width: 1400px;
-  padding: 20px 24px;
-}
-
-.billing-admin-payments-section__head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-}
-
-.billing-admin-payments-section__head .billing-page__section-title {
-  margin: 0;
-}
-
-.billing-admin-payments-section__filter {
+.billing-payments-admin-section__filter {
   min-width: 180px;
 }
 
-.billing-admin-payments-section__filter .form-select {
+.billing-payments-admin-section__filter .form-select {
   min-height: 40px;
 }
 
-.billing-admin-payments-section__empty {
+.billing-payments-admin-section__empty {
   margin: 0;
-  color: #94a3b8;
+  color: var(--text-sub);
   font-size: 14px;
 }
 
-.billing-admin-payments-table-wrap {
-  overflow-x: auto;
-  width: 100%;
-}
-
-.billing-admin-payments-table {
-  width: 100%;
-  min-width: 1080px;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-.billing-admin-payments-table th,
-.billing-admin-payments-table td {
-  padding: 12px 10px;
-  border-bottom: 1px solid #334155;
-  text-align: left;
-  vertical-align: middle;
-  color: #f8fafc;
-}
-
-.billing-admin-payments-table th {
-  color: #cbd5e1;
-  font-weight: 700;
-  white-space: nowrap;
-  background: #111827;
-}
-
-.billing-admin-payments-table tbody tr:hover {
-  background: rgba(31, 41, 55, 0.65);
-}
-
-.billing-admin-payments-table__amount {
+.billing-payments-admin-section__amount {
   display: block;
-  color: #f8fafc;
+  color: var(--text-primary);
   font-weight: 700;
 }
 
-.billing-admin-payments-table__amount-sub {
+.billing-payments-admin-section__amount-sub {
   display: block;
   margin-top: 4px;
-  color: #94a3b8;
+  color: var(--text-sub);
   font-size: 12px;
   font-weight: 500;
 }
 
-.billing-admin-payments-table__actions {
+.billing-payments-admin-section__actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
 }
 
-.billing-admin-payments-btn {
+.billing-payments-admin-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -432,44 +466,44 @@
   white-space: nowrap;
 }
 
-.billing-admin-payments-btn:disabled {
+.billing-payments-admin-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
 
-.billing-admin-payments-btn--approve {
+.billing-payments-admin-btn--approve {
   background: #10b981;
   border-color: #10b981;
   color: #ffffff;
 }
 
-.billing-admin-payments-btn--approve:hover:not(:disabled) {
+.billing-payments-admin-btn--approve:hover:not(:disabled) {
   background: #059669;
   border-color: #059669;
 }
 
-.billing-admin-payments-btn--cancel {
+.billing-payments-admin-btn--cancel {
   background: #fee2e2;
   border-color: #f87171;
   color: #b91c1c;
 }
 
-.billing-admin-payments-btn--cancel:hover:not(:disabled) {
+.billing-payments-admin-btn--cancel:hover:not(:disabled) {
   background: #fecaca;
 }
 
-.billing-admin-payments-btn--detail {
+.billing-payments-admin-btn--detail {
   background: transparent;
   border-color: #64748b;
-  color: #e2e8f0;
+  color: var(--text-primary);
 }
 
-.billing-admin-payments-btn--detail:hover:not(:disabled) {
-  background: #1f2937;
-  border-color: #94a3b8;
+.billing-payments-admin-btn--detail:hover:not(:disabled) {
+  background: var(--bg-soft);
+  border-color: var(--text-sub);
 }
 
-.billing-admin-payment-status {
+.billing-payments-admin-status {
   display: inline-flex;
   align-items: center;
   min-height: 28px;
@@ -481,19 +515,19 @@
   white-space: nowrap;
 }
 
-.billing-admin-payment-status--pending {
+.billing-payments-admin-status--pending {
   background: #f59e0b;
 }
 
-.billing-admin-payment-status--paid {
+.billing-payments-admin-status--paid {
   background: #16a34a;
 }
 
-.billing-admin-payment-status--canceled {
+.billing-payments-admin-status--canceled {
   background: #dc2626;
 }
 
-.billing-admin-payment-status--failed {
+.billing-payments-admin-status--failed {
   background: #991b1b;
 }
 
@@ -524,12 +558,12 @@
 
 
 @media (max-width: 480px) {
-  .billing-admin-page .billing-page__actions {
+  .billing-admin-page .admin-data-card .billing-page__actions {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .billing-admin-page .billing-page__actions > .button {
+  .billing-admin-page .admin-data-card .billing-page__actions > .button {
     width: 100%;
     align-self: stretch;
   }
@@ -538,21 +572,6 @@
 /* 프로모션 코드 탭 — 폼 레이아웃 */
 .billing-admin-page .promotion-code-panel {
   width: 100%;
-  max-width: 960px;
-}
-
-.billing-admin-page .promotion-code-card {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 20px;
-  border-radius: 12px;
-}
-
-.billing-admin-page .promotion-code-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
 }
 
 .billing-admin-page .promotion-code-form-grid {
@@ -615,13 +634,6 @@
 
   .billing-admin-page .promotion-code-field--full {
     grid-column: auto;
-  }
-}
-
-@media (max-width: 640px) {
-  .billing-admin-page .promotion-code-card-header {
-    flex-direction: column;
-    align-items: flex-start;
   }
 }
 

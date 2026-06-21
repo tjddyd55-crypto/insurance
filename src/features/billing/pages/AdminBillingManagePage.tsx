@@ -34,6 +34,8 @@ import {
 import { formatPricingBreakdown, formatReferralDiscountPolicySummary } from '../pricingPolicy'
 import PromotionCodesAdminSection from '../components/PromotionCodesAdminSection'
 import BillingPaymentsAdminSection from '../components/BillingPaymentsAdminSection'
+import { AdminDataCard, AdminPageShell, AdminTabPanel } from '../../admin/components/layout'
+import { BILLING_ADMIN_TAB_LAYOUT, BILLING_ADMIN_TABS, type BillingAdminTabId } from '../billingAdminTabLayout'
 import {
   normalizePaymentMode,
   normalizePaymentProvider,
@@ -44,19 +46,7 @@ import {
 const PRICING_PRIORITY_NOTE =
   '요금 적용 우선순위: ① 사용자별 예외 요금제 → ② GA 기본 요금제 → ③ 전체 기본 요금제 → ④ 프로모션 코드 → ⑤ 추천 할인'
 
-const TABS = [
-  { id: 'plans', label: '요금제 관리' },
-  { id: 'ga-plans', label: 'GA 기본 요금' },
-  { id: 'users', label: '사용자별 구독/예외' },
-  { id: 'invoices', label: '결제 요청/청구 내역' },
-  { id: 'referral', label: '추천 할인 정책' },
-  { id: 'promotions', label: '프로모션 코드' },
-  { id: 'payment', label: '결제 연동 설정' },
-] as const
-
-type TabId = (typeof TABS)[number]['id']
-
-const LEGACY_TAB_REDIRECTS: Record<string, TabId> = {
+const LEGACY_TAB_REDIRECTS: Record<string, BillingAdminTabId> = {
   'billing-promotions': 'promotions',
 }
 
@@ -65,9 +55,9 @@ export default function AdminBillingManagePage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const tabParam = searchParams.get('tab')
   const legacyRedirect = tabParam ? LEGACY_TAB_REDIRECTS[tabParam] : undefined
-  const activeTab: TabId =
+  const activeTab: BillingAdminTabId =
     legacyRedirect ??
-    (TABS.some((t) => t.id === tabParam) ? (tabParam as TabId) : 'plans')
+    (BILLING_ADMIN_TABS.some((t) => t.id === tabParam) ? (tabParam as BillingAdminTabId) : 'plans')
 
   useEffect(() => {
     if (legacyRedirect) {
@@ -105,7 +95,7 @@ export default function AdminBillingManagePage() {
   const [deactivateTarget, setDeactivateTarget] = useState<BillingPlanAdminRow | null>(null)
   const [deactivateBusy, setDeactivateBusy] = useState(false)
 
-  const setTab = (tab: TabId) => {
+  const setTab = (tab: BillingAdminTabId) => {
     setSearchParams({ tab }, { replace: true })
   }
 
@@ -341,37 +331,28 @@ export default function AdminBillingManagePage() {
   }
 
   return (
-    <main className="page page--with-back billing-admin-page">
-      <header className="page-header">
-        <h1>결제·구독 관리</h1>
-        <p>요금제 · GA 설정 · 구독 · 청구 · 추천인 할인 · 결제 연동</p>
-      </header>
-
-      <nav className="billing-admin-tabs" aria-label="결제·구독 관리 탭">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            className={`billing-admin-tabs__btn${activeTab === tab.id ? ' billing-admin-tabs__btn--active' : ''}`}
-            onClick={() => setTab(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </nav>
-
+    <AdminPageShell
+      className="billing-admin-page"
+      title="결제·구독 관리"
+      description="요금제 · GA 설정 · 구독 · 청구 · 추천인 할인 · 결제 연동"
+      tabs={BILLING_ADMIN_TABS}
+      activeTabId={activeTab}
+      onTabChange={(tabId) => setTab(tabId as BillingAdminTabId)}
+    >
       {loadError ? <StatusMessage tone="error" message={loadError} /> : null}
       {actionInfo ? <StatusMessage message={actionInfo} /> : null}
       {actionError ? <StatusMessage tone="error" message={actionError} /> : null}
 
-      {activeTab === 'plans' ? (
-        <section className="card auth-card billing-page__card">
-          <div className="billing-page__section-head">
-            <h2 className="billing-page__section-title">등록 요금제</h2>
-            <FormButton htmlType="button" variant="primary" disabled={busy} onClick={openCreatePlan}>
-              요금제 추가
-            </FormButton>
-          </div>
+      <AdminTabPanel variant={BILLING_ADMIN_TAB_LAYOUT[activeTab]}>
+        {activeTab === 'plans' ? (
+          <AdminDataCard
+            title="등록 요금제"
+            actions={
+              <FormButton htmlType="button" variant="primary" disabled={busy} onClick={openCreatePlan}>
+                요금제 추가
+              </FormButton>
+            }
+          >
           {plans.length === 0 ? (
             <p className="status text-sm">등록된 요금제가 없습니다.</p>
           ) : (
@@ -437,12 +418,11 @@ export default function AdminBillingManagePage() {
               ))}
             </ul>
           )}
-        </section>
-      ) : null}
+          </AdminDataCard>
+        ) : null}
 
-      {activeTab === 'ga-plans' ? (
-        <section className="card auth-card billing-page__card">
-          <h2 className="billing-page__section-title">GA 기본 요금</h2>
+        {activeTab === 'ga-plans' ? (
+          <AdminDataCard title="GA 기본 요금">
           <p className="status text-sm">
             GA 단위 기본 요금제를 지정합니다. 소속 사용자는 예외가 없으면 이 요금제를 상속합니다. 저장 후 다음
             invoice 생성부터 적용되며, 기존 청구서 금액은 변경되지 않습니다.
@@ -490,12 +470,11 @@ export default function AdminBillingManagePage() {
               </li>
             ))}
           </ul>
-        </section>
-      ) : null}
+          </AdminDataCard>
+        ) : null}
 
-      {activeTab === 'users' ? (
-        <section className="card auth-card billing-page__card">
-          <h2 className="billing-page__section-title">사용자별 구독/예외</h2>
+        {activeTab === 'users' ? (
+          <AdminDataCard title="사용자별 구독/예외">
           <p className="status text-sm">
             사용자별 현재 구독 상태와 예외 요금제를 관리합니다. 예외가 없으면 GA 기본 요금을 상속하며, 개별 예외가
             있으면 GA 기본보다 우선 적용됩니다.
@@ -548,11 +527,11 @@ export default function AdminBillingManagePage() {
               </li>
             ))}
           </ul>
-        </section>
-      ) : null}
+          </AdminDataCard>
+        ) : null}
 
-      {activeTab === 'invoices' ? (
-        <BillingPaymentsAdminSection
+        {activeTab === 'invoices' ? (
+          <BillingPaymentsAdminSection
           token={token ?? ''}
           busy={busy}
           setBusy={setBusy}
@@ -565,12 +544,10 @@ export default function AdminBillingManagePage() {
             setActionInfo('')
           }}
         />
-      ) : null}
+        ) : null}
 
-      {activeTab === 'referral' ? (
-        <>
-          <section className="card auth-card billing-page__card billing-referral-policy-section">
-            <h2 className="billing-page__section-title">추천 할인 정책</h2>
+        {activeTab === 'referral' ? (
+          <AdminDataCard title="추천 할인 정책" className="billing-referral-policy-section">
             {referralPolicy ? (
               <dl className="billing-page__meta billing-referral-policy-section__meta">
                 <dt>기본 월 공급가</dt>
@@ -631,11 +608,10 @@ export default function AdminBillingManagePage() {
                 </ul>
               </div>
             ) : null}
-          </section>
-        </>
-      ) : null}
+          </AdminDataCard>
+        ) : null}
 
-      {activeTab === 'promotions' ? (
+        {activeTab === 'promotions' ? (
         <PromotionCodesAdminSection
           token={token ?? ''}
           busy={busy}
@@ -649,12 +625,11 @@ export default function AdminBillingManagePage() {
             setActionInfo('')
           }}
         />
-      ) : null}
+        ) : null}
 
-      {activeTab === 'payment' ? (
-        <>
-          <section className="card auth-card billing-page__card">
-            <h2 className="billing-page__section-title">결제 모드</h2>
+        {activeTab === 'payment' ? (
+          <>
+            <AdminDataCard title="결제 모드">
             <FieldWrapper label="모드">
               <FormSelect
                 value={normalizePaymentMode(mode)}
@@ -673,10 +648,9 @@ export default function AdminBillingManagePage() {
               <span className="field__label">실결제 사용</span>
               <input type="checkbox" checked={isEnabled} onChange={(e) => setIsEnabled(e.target.checked)} />
             </label>
-          </section>
-          <section className="card auth-card billing-page__card">
-            <h2 className="billing-page__section-title">PG 키 (선택)</h2>
-            <p className="status text-sm">가상 결제 모드에서는 키 없이 운영할 수 있습니다.</p>
+            </AdminDataCard>
+            <AdminDataCard title="PG 키 (선택)">
+              <p className="status text-sm">가상 결제 모드에서는 키 없이 운영할 수 있습니다.</p>
             <FieldWrapper label="클라이언트 키 (새로 저장)">
               <FormInput value={clientKey} onChange={(e) => setClientKey(e.target.value)} autoComplete="off" />
             </FieldWrapper>
@@ -701,9 +675,10 @@ export default function AdminBillingManagePage() {
             </FormButton>
             {saveOk ? <StatusMessage message={saveOk} /> : null}
             {saveError ? <StatusMessage tone="error" message={saveError} /> : null}
-          </section>
-        </>
-      ) : null}
+            </AdminDataCard>
+          </>
+        ) : null}
+      </AdminTabPanel>
 
       <BillingPlanFormDialog
         open={planFormOpen}
@@ -739,10 +714,10 @@ export default function AdminBillingManagePage() {
           setDeactivateTarget(null)
         }}
       />
-    </main>
+    </AdminPageShell>
   )
 }
 
-export function AdminBillingLegacyRedirect({ tab }: { tab: TabId }) {
+export function AdminBillingLegacyRedirect({ tab }: { tab: BillingAdminTabId }) {
   return <Navigate to={`/admin/billing/manage?tab=${tab}`} replace />
 }
