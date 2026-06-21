@@ -4,6 +4,17 @@
   color: #111827;
 }
 
+.app-main-content--workspace-outlet-host .insurance-billing-page,
+.mobile-workspace-content .insurance-billing-page {
+  min-height: auto;
+  background: #f8fafc;
+}
+
+.app-main-content--workspace-outlet-host .insurance-billing-page__shell,
+.mobile-workspace-content .insurance-billing-page__shell {
+  padding: 24px 0 40px;
+}
+
 .insurance-billing-page__shell {
   width: min(1080px, calc(100% - 32px));
   margin: 0 auto;

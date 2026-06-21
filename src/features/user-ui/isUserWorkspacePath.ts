@@ -27,6 +27,7 @@ const USER_UI_SHELL_PATTERNS: RegExp[] = [
   /^\/dashboard(\/|$)/,
   /^\/claim-requests/,
   /^\/feature-request/,
+  /^\/billing(\/|$)/,
   /^\/team\/(files|members)/,
   /^\/insurance\/insurer-sites$/,
   /^\/insurer-managers$/,
