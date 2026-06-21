@@ -1,5 +1,154 @@
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { recordBillingEvent } from './subscriptionLifecycle.js'
+import { INSURANCE_BASIC_PLAN_CODE } from './config.js'
+
+export const BILLING_PROMOTION_FREE_MONTHS_MIN = 1
+export const BILLING_PROMOTION_FREE_MONTHS_MAX = 12
+
+function normalizePromotionCode(raw) {
+  return String(raw ?? '').trim().toUpperCase()
+}
+
+/**
+ * @param {object} body
+ */
+export function parseCreateBillingPromotionInput(body) {
+  const code = normalizePromotionCode(body?.code)
+  const name = String(body?.name ?? '').trim()
+  const type = String(body?.type ?? '').trim()
+  const appliesToProduct = String(body?.appliesToProduct ?? body?.applies_to_product ?? 'insurance').trim()
+  const appliesToPlanCode = String(body?.appliesToPlanCode ?? body?.applies_to_plan_code ?? INSURANCE_BASIC_PLAN_CODE).trim()
+  const maxRedemptionsRaw = body?.maxRedemptions ?? body?.max_redemptions
+  const maxRedemptions =
+    maxRedemptionsRaw == null || String(maxRedemptionsRaw).trim() === ''
+      ? null
+      : Number(maxRedemptionsRaw)
+
+  if (!code) {
+    throw new Error('promotion_code_required')
+  }
+  if (!name) {
+    throw new Error('promotion_name_required')
+  }
+  if (appliesToProduct !== 'insurance') {
+    throw new Error('promotion_product_invalid')
+  }
+  if (maxRedemptions != null && (!Number.isFinite(maxRedemptions) || maxRedemptions < 1)) {
+    throw new Error('promotion_max_redemptions_invalid')
+  }
+
+  if (type === 'free_months') {
+    const freeMonths = Number(body?.freeMonths ?? body?.free_months)
+    if (!Number.isFinite(freeMonths) || freeMonths < BILLING_PROMOTION_FREE_MONTHS_MIN) {
+      throw new Error('promotion_free_months_required')
+    }
+    if (freeMonths > BILLING_PROMOTION_FREE_MONTHS_MAX) {
+      throw new Error('promotion_free_months_max')
+    }
+    return {
+      code,
+      name,
+      type: 'free_months',
+      freeMonths: Math.floor(freeMonths),
+      percentOff: null,
+      amountOff: null,
+      appliesToProduct,
+      appliesToPlanCode,
+      maxRedemptions,
+    }
+  }
+
+  if (type === 'amount_off') {
+    const amountOff = Number(body?.amountOff ?? body?.amount_off)
+    if (!Number.isFinite(amountOff) || amountOff < 1) {
+      throw new Error('promotion_amount_off_required')
+    }
+    return {
+      code,
+      name,
+      type: 'amount_off',
+      freeMonths: null,
+      percentOff: null,
+      amountOff: Math.floor(amountOff),
+      appliesToProduct,
+      appliesToPlanCode,
+      maxRedemptions,
+    }
+  }
+
+  if (type === 'percent_off') {
+    const percentOff = Number(body?.percentOff ?? body?.percent_off)
+    if (!Number.isFinite(percentOff) || percentOff <= 0 || percentOff > 100) {
+      throw new Error('promotion_percent_off_required')
+    }
+    return {
+      code,
+      name,
+      type: 'percent_off',
+      freeMonths: null,
+      percentOff,
+      amountOff: null,
+      appliesToProduct,
+      appliesToPlanCode,
+      maxRedemptions,
+    }
+  }
+
+  throw new Error('promotion_type_invalid')
+}
+
+/**
+ * @param {import('pg').Pool | import('pg').PoolClient} executor
+ * @param {{ adminUserId: string } & ReturnType<typeof parseCreateBillingPromotionInput>} params
+ */
+export async function createBillingPromotionCodeAdmin(executor, params) {
+  const dup = await systemQuery(
+    executor,
+    `SELECT id FROM billing_promotion_codes WHERE UPPER(code) = $1 LIMIT 1`,
+    [params.code],
+  )
+  if (dup.rowCount > 0) {
+    throw new Error('promotion_code_duplicate')
+  }
+
+  const r = await systemQuery(
+    executor,
+    `
+    INSERT INTO billing_promotion_codes (
+      code, name, type, free_months, percent_off, amount_off,
+      max_redemptions, applies_to_plan_code, applies_to_product, is_active,
+      created_at, updated_at
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, NOW(), NOW())
+    RETURNING *
+    `,
+    [
+      params.code,
+      params.name,
+      params.type,
+      params.freeMonths,
+      params.percentOff,
+      params.amountOff,
+      params.maxRedemptions,
+      params.appliesToPlanCode,
+      params.appliesToProduct,
+    ],
+  )
+
+  const row = r.rows[0]
+  await recordBillingEvent(executor, {
+    userId: params.adminUserId,
+    eventType: 'promotion.admin.created',
+    payload: {
+      promotionCodeId: Number(row.id),
+      code: row.code,
+      type: row.type,
+      freeMonths: row.free_months,
+    },
+  })
+
+  return mapBillingPromotionCodeAdminRow(row)
+}
 
 /**
  * @param {string | null | undefined} raw

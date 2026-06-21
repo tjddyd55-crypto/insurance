@@ -29,6 +29,12 @@ function formatDateLabel(iso: string | null | undefined) {
   return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`
 }
 
+function addMonthsPreviewIso(months: number) {
+  const d = new Date()
+  d.setMonth(d.getMonth() + months)
+  return d.toISOString()
+}
+
 function checkoutStatusBanner(mode: BillingCheckoutMode, summary: CheckoutSummary) {
   switch (mode) {
     case 'trialing':
@@ -164,6 +170,13 @@ export default function BillingCheckoutPage() {
         setPromoApplied(null)
         return
       }
+      if (result.type === 'free_months' && result.freeMonths) {
+        const freeMonths = result.freeMonths
+        setPromoApplied({ freeMonths, trialEndsAt: addMonthsPreviewIso(freeMonths) })
+        setPromoMessage(`${freeMonths}개월 무료 이용권이 적용되었습니다.`)
+        return
+      }
+      setPromoApplied(null)
       setPromoMessage(result.message ?? '사용 가능한 코드입니다.')
     } catch (e) {
       setError(e instanceof Error ? e.message : '코드 확인에 실패했습니다.')
@@ -188,6 +201,10 @@ export default function BillingCheckoutPage() {
           billingCycle,
         })
         if (applied.status === 'trialing') {
+          setPromoApplied({
+            freeMonths: applied.freeMonths ?? promoApplied?.freeMonths,
+            trialEndsAt: applied.trialEndsAt,
+          })
           navigate('/billing/success', { replace: true, state: { mode: 'trial', trialEndsAt: applied.trialEndsAt } })
           return
         }
@@ -337,7 +354,7 @@ export default function BillingCheckoutPage() {
 
                 {promoApplied?.trialEndsAt ? (
                   <div className="insurance-billing-notice">
-                    3개월 무료 이용권이 적용되었습니다.
+                    {promoApplied.freeMonths ?? 1}개월 무료 이용권이 적용되었습니다.
                     <br />
                     무료 종료일: {formatDateLabel(promoApplied.trialEndsAt)}
                   </div>
