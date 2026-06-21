@@ -271,13 +271,15 @@ export function registerBillingApi(apiRouter, ctx) {
     res.json({
       baseMonthlySupplyAmount: BASE_MONTHLY_PRICE,
       referrerDiscountPerActiveReferral: REFERRER_DISCOUNT_PER_ACTIVE_REFERRAL,
-      refereeFirstMonthDiscountAmount: REFEREE_FIRST_MONTH_DISCOUNT_AMOUNT,
+      refereeFirstMonthDiscountAmount: 0,
       maxReferrerDiscountCount: MAX_REFERRER_DISCOUNT_COUNT,
       notes: [
-        '1. 정상 요금제(monthly_basic): 공급가 8,000원 · 1명째부터 추천인 1명당 공급가 1,000원 할인 · 8명 추천 시 무료',
-        '2. 할인 요금제(monthly_discount): 공급가 5,000원 · 1~3명까지는 추천인 할인 없음 · 4명째부터 추천인 1명당 공급가 1,000원 할인 · 8명 추천 시 무료',
-        '3. 할인은 공급가 기준으로 적용하고, 부가세는 할인 후 공급가에 적용합니다.',
-        '4. 기존 invoice 금액은 변경하지 않고, 다음 invoice 생성부터 적용됩니다.',
+        '1. 추천 할인은 추천한 사람에게만 적용됩니다.',
+        '2. 추천받은 가입자에게는 자동 할인이 제공되지 않습니다.',
+        '3. 추천받은 가입자는 결제 단계에서 별도 무료/할인 코드를 입력할 수 있습니다.',
+        '4. 추천받은 사용자가 active_paid 상태일 때만 추천 할인 카운트에 포함됩니다.',
+        '5. 무료 이용 중, 결제 대기, 미납, 해지 사용자는 추천 할인 대상에 포함되지 않습니다.',
+        '6. 할인은 현재 요금제 공급가를 초과할 수 없으며, 초과분은 환급 또는 이월되지 않습니다.',
       ],
     })
   })

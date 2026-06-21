@@ -47,7 +47,7 @@ export default function BillingStatusBadge() {
 
   if (loadState === 'loading' || loadState === 'idle') {
     return (
-      <span className="billing-status-badge billing-status-badge--muted" aria-live="polite">
+      <span className="billing-status-badge billing-status-badge--loading" aria-live="polite">
         상태 확인 중
       </span>
     )
@@ -65,7 +65,7 @@ export default function BillingStatusBadge() {
   return (
     <button
       type="button"
-      className={`billing-status-badge billing-status-badge--${view.tone}`}
+      className={`billing-status-badge billing-status-badge--${view.variant}`}
       onClick={() => navigate(view.href)}
       aria-label={`결제 상태: ${view.label}. 클릭하면 결제 정보로 이동합니다.`}
     >

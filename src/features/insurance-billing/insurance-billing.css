@@ -164,6 +164,17 @@
   cursor: not-allowed;
 }
 
+.insurance-billing-cta--primary {
+  background: #10b981;
+  color: #ffffff;
+  border: 1px solid #10b981;
+}
+
+.insurance-billing-cta--primary:hover {
+  background: #059669;
+  border-color: #059669;
+}
+
 .insurance-billing-cta--secondary {
   background: #fff;
   color: #111827;

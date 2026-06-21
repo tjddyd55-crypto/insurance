@@ -158,3 +158,12 @@ export function formatBillingCycleLabel(cycle: string | null | undefined) {
 export function formatKrw(amount: number) {
   return `${amount.toLocaleString('ko-KR')}원`
 }
+
+export function resolveManageCheckoutCtaLabel(status: string | null | undefined) {
+  const normalized = String(status ?? '').trim().toLowerCase()
+  if (normalized === 'active_paid' || normalized === 'paid') return '결제/요금제 변경'
+  if (normalized === 'trialing' || normalized === 'trial') return '결제/요금제 확인'
+  if (normalized === 'pending_payment' || normalized === 'pending') return '결제하러 가기'
+  if (['legacy_active', 'active', 'free'].includes(normalized)) return '요금제 확인'
+  return '결제/요금제 변경'
+}

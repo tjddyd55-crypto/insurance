@@ -1,55 +1,68 @@
 .billing-status-badge {
   display: inline-flex;
   align-items: center;
-  max-width: min(320px, 42vw);
-  padding: 6px 10px;
+  max-width: min(360px, 42vw);
+  min-height: 32px;
+  padding: 6px 14px;
   border-radius: 999px;
   border: 1px solid transparent;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.3;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   cursor: pointer;
-  background: #111827;
-  color: #e5e7eb;
+  opacity: 1;
 }
 
-.billing-status-badge--muted {
+.billing-status-badge--loading {
   cursor: default;
-  border-color: #334155;
-  color: #94a3b8;
+  background: #64748b;
+  border-color: #64748b;
+  color: #ffffff;
 }
 
-.billing-status-badge--green {
-  border-color: rgba(34, 197, 94, 0.35);
-  background: rgba(34, 197, 94, 0.12);
-  color: #bbf7d0;
+.billing-status-badge--pending {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
 }
 
-.billing-status-badge--blue {
-  border-color: rgba(59, 130, 246, 0.35);
-  background: rgba(59, 130, 246, 0.12);
-  color: #bfdbfe;
+.billing-status-badge--trialing {
+  background: #10b981;
+  border-color: #10b981;
+  color: #ffffff;
 }
 
-.billing-status-badge--orange {
-  border-color: rgba(249, 115, 22, 0.35);
-  background: rgba(249, 115, 22, 0.12);
-  color: #fed7aa;
+.billing-status-badge--active-paid {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #ffffff;
 }
 
-.billing-status-badge--red {
-  border-color: rgba(239, 68, 68, 0.35);
-  background: rgba(239, 68, 68, 0.12);
-  color: #fecaca;
+.billing-status-badge--legacy {
+  background: #475569;
+  border-color: #475569;
+  color: #ffffff;
 }
 
-.billing-status-badge--gray {
-  border-color: #334155;
-  background: #1f2937;
-  color: #cbd5e1;
+.billing-status-badge--expired {
+  background: #b91c1c;
+  border-color: #b91c1c;
+  color: #ffffff;
+}
+
+.billing-status-badge--past-due {
+  background: #f97316;
+  border-color: #f97316;
+  color: #ffffff;
+}
+
+.billing-status-badge--blocked {
+  background: #991b1b;
+  border-color: #991b1b;
+  color: #ffffff;
 }
 
 .pc-top-navigation__actions .billing-status-badge {

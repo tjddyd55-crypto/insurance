@@ -321,41 +321,207 @@
   align-self: flex-end;
 }
 
+/* 결제·구독 관리 — auth-card 420px 상한 해제 (로그인 카드 전용 규칙 오염 방지) */
+.billing-admin-page .auth-card {
+  max-width: none;
+}
+
+.billing-admin-page {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.billing-admin-payments-section {
+  width: 100%;
+  max-width: 1400px;
+  padding: 20px 24px;
+}
+
+.billing-admin-payments-section__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.billing-admin-payments-section__head .billing-page__section-title {
+  margin: 0;
+}
+
+.billing-admin-payments-section__filter {
+  min-width: 180px;
+}
+
+.billing-admin-payments-section__filter .form-select {
+  min-height: 40px;
+}
+
+.billing-admin-payments-section__empty {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 14px;
+}
+
 .billing-admin-payments-table-wrap {
   overflow-x: auto;
-  margin-top: 12px;
+  width: 100%;
 }
 
 .billing-admin-payments-table {
   width: 100%;
-  min-width: 960px;
+  min-width: 1080px;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .billing-admin-payments-table th,
 .billing-admin-payments-table td {
-  padding: 10px 8px;
-  border-bottom: 1px solid #1e293b;
+  padding: 12px 10px;
+  border-bottom: 1px solid #334155;
   text-align: left;
-  vertical-align: top;
-  color: #e5e7eb;
+  vertical-align: middle;
+  color: #f8fafc;
 }
 
 .billing-admin-payments-table th {
   color: #cbd5e1;
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
   background: #111827;
 }
 
 .billing-admin-payments-table tbody tr:hover {
-  background: rgba(31, 41, 55, 0.55);
+  background: rgba(31, 41, 55, 0.65);
 }
 
-.billing-admin-payments-table .billing-page__actions {
-  flex-wrap: nowrap;
+.billing-admin-payments-table__amount {
+  display: block;
+  color: #f8fafc;
+  font-weight: 700;
 }
+
+.billing-admin-payments-table__amount-sub {
+  display: block;
+  margin-top: 4px;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.billing-admin-payments-table__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.billing-admin-payments-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.billing-admin-payments-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.billing-admin-payments-btn--approve {
+  background: #10b981;
+  border-color: #10b981;
+  color: #ffffff;
+}
+
+.billing-admin-payments-btn--approve:hover:not(:disabled) {
+  background: #059669;
+  border-color: #059669;
+}
+
+.billing-admin-payments-btn--cancel {
+  background: #fee2e2;
+  border-color: #f87171;
+  color: #b91c1c;
+}
+
+.billing-admin-payments-btn--cancel:hover:not(:disabled) {
+  background: #fecaca;
+}
+
+.billing-admin-payments-btn--detail {
+  background: transparent;
+  border-color: #64748b;
+  color: #e2e8f0;
+}
+
+.billing-admin-payments-btn--detail:hover:not(:disabled) {
+  background: #1f2937;
+  border-color: #94a3b8;
+}
+
+.billing-admin-payment-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.billing-admin-payment-status--pending {
+  background: #f59e0b;
+}
+
+.billing-admin-payment-status--paid {
+  background: #16a34a;
+}
+
+.billing-admin-payment-status--canceled {
+  background: #dc2626;
+}
+
+.billing-admin-payment-status--failed {
+  background: #991b1b;
+}
+
+.billing-referral-policy-section__notes {
+  margin-top: 16px;
+}
+
+.billing-referral-policy-section__plans {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-default, #334155);
+}
+
+.billing-referral-policy-section__plans-title {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary, #f8fafc);
+}
+
+.billing-referral-policy-section__plan-note {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-sub, #94a3b8);
+  font-size: 13px;
+  font-weight: 500;
+}
+
 
 @media (max-width: 480px) {
   .billing-admin-page .billing-page__actions {
@@ -367,11 +533,6 @@
     width: 100%;
     align-self: stretch;
   }
-}
-
-/* 결제·구독 관리 — auth-card 420px 상한 해제 (로그인 카드 전용 규칙 오염 방지) */
-.billing-admin-page .auth-card {
-  max-width: none;
 }
 
 /* 프로모션 코드 탭 — 폼 레이아웃 */
