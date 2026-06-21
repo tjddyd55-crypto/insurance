@@ -4122,6 +4122,15 @@ async function ensureInsuranceBillingPhase1Schema(executor) {
   `)
 
   await executor.query(`
+    ALTER TABLE billing_promotion_codes
+    ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ
+  `)
+  await executor.query(`
+    ALTER TABLE billing_promotion_codes
+    ADD COLUMN IF NOT EXISTS deleted_by TEXT REFERENCES users(id) ON DELETE SET NULL
+  `)
+
+  await executor.query(`
     CREATE TABLE IF NOT EXISTS billing_promotion_redemptions (
       id BIGSERIAL PRIMARY KEY,
       promotion_code_id BIGINT NOT NULL REFERENCES billing_promotion_codes(id) ON DELETE RESTRICT,

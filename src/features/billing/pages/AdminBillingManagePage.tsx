@@ -38,6 +38,7 @@ import {
 } from '../api/billingApi'
 import { formatPricingBreakdown, formatReferralDiscountPolicySummary } from '../pricingPolicy'
 import PromotionCodesAdminSection from '../components/PromotionCodesAdminSection'
+import BillingPromotionCodesAdminSection from '../components/BillingPromotionCodesAdminSection'
 import {
   normalizePaymentMode,
   normalizePaymentProvider,
@@ -52,6 +53,7 @@ const TABS = [
   { id: 'invoices', label: '결제/청구 내역' },
   { id: 'referral', label: '할인·추천인 정책' },
   { id: 'promotions', label: '프로모션 코드' },
+  { id: 'billing-promotions', label: 'CRM 무료 코드' },
   { id: 'payment', label: '결제 연동 설정' },
 ] as const
 
@@ -621,6 +623,22 @@ export default function AdminBillingManagePage() {
 
       {activeTab === 'promotions' ? (
         <PromotionCodesAdminSection
+          token={token ?? ''}
+          busy={busy}
+          setBusy={setBusy}
+          onInfo={(message) => {
+            setActionInfo(message)
+            setActionError('')
+          }}
+          onError={(message) => {
+            setActionError(message)
+            setActionInfo('')
+          }}
+        />
+      ) : null}
+
+      {activeTab === 'billing-promotions' ? (
+        <BillingPromotionCodesAdminSection
           token={token ?? ''}
           busy={busy}
           setBusy={setBusy}

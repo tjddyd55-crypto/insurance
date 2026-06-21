@@ -1528,6 +1528,7 @@ registerBillingApi(apiRouter, {
 registerInsuranceBillingApi(apiRouter, {
   pool,
   requireAuth,
+  requireSuperAdmin,
   handleDbError,
 })
 

@@ -17,6 +17,12 @@ import {
   getBillingReferralForUser,
 } from './insurance-billing/subscriptionLifecycle.js'
 import { getInsurancePaymentProvider } from './insurance-billing/providers/index.js'
+import {
+  activateBillingPromotionCodeAdmin,
+  deactivateBillingPromotionCodeAdmin,
+  listBillingPromotionCodesAdmin,
+  softDeleteBillingPromotionCodeAdmin,
+} from './insurance-billing/promotionAdminService.js'
 import { isSubscriptionSubjectRole } from './subscription/policy.js'
 
 /**
@@ -27,7 +33,7 @@ import { isSubscriptionSubjectRole } from './subscription/policy.js'
  * @param {Function} ctx.handleDbError
  */
 export function registerInsuranceBillingApi(apiRouter, ctx) {
-  const { pool, requireAuth, handleDbError } = ctx
+  const { pool, requireAuth, requireSuperAdmin, handleDbError } = ctx
 
   function requireBillingEnabled(_req, res, next) {
     if (!isInsuranceBillingEnabled()) {
@@ -180,6 +186,99 @@ export function registerInsuranceBillingApi(apiRouter, ctx) {
       handleDbError(e, req, res)
     }
   })
+
+  if (typeof requireSuperAdmin === 'function') {
+    apiRouter.get('/admin/billing/promotion-codes', requireAuth, requireSuperAdmin, async (req, res) => {
+      try {
+        const filter = String(req.query?.filter ?? 'all')
+        const rows = await listBillingPromotionCodesAdmin(pool, { filter })
+        res.json({ rows })
+      } catch (e) {
+        handleDbError(e, req, res)
+      }
+    })
+
+    apiRouter.delete('/admin/billing/promotion-codes/:codeId', requireAuth, requireSuperAdmin, async (req, res) => {
+      try {
+        const codeId = Number(req.params.codeId)
+        if (!Number.isFinite(codeId) || codeId <= 0) {
+          res.status(400).json({ message: '유효하지 않은 코드 ID입니다.' })
+          return
+        }
+        const result = await softDeleteBillingPromotionCodeAdmin(pool, {
+          codeId,
+          adminUserId: String(req.user?.id ?? ''),
+        })
+        res.json(result)
+      } catch (e) {
+        if (e?.message === 'promotion_not_found') {
+          res.status(404).json({ message: '프로모션 코드를 찾을 수 없습니다.' })
+          return
+        }
+        handleDbError(e, req, res)
+      }
+    })
+
+    apiRouter.patch(
+      '/admin/billing/promotion-codes/:codeId/activate',
+      requireAuth,
+      requireSuperAdmin,
+      async (req, res) => {
+        try {
+          const codeId = Number(req.params.codeId)
+          if (!Number.isFinite(codeId) || codeId <= 0) {
+            res.status(400).json({ message: '유효하지 않은 코드 ID입니다.' })
+            return
+          }
+          const result = await activateBillingPromotionCodeAdmin(pool, {
+            codeId,
+            adminUserId: String(req.user?.id ?? ''),
+          })
+          res.json(result)
+        } catch (e) {
+          if (e?.message === 'promotion_not_found') {
+            res.status(404).json({ message: '프로모션 코드를 찾을 수 없습니다.' })
+            return
+          }
+          if (e?.message === 'promotion_deleted') {
+            res.status(409).json({ message: '삭제된 코드는 활성화할 수 없습니다.' })
+            return
+          }
+          handleDbError(e, req, res)
+        }
+      },
+    )
+
+    apiRouter.patch(
+      '/admin/billing/promotion-codes/:codeId/deactivate',
+      requireAuth,
+      requireSuperAdmin,
+      async (req, res) => {
+        try {
+          const codeId = Number(req.params.codeId)
+          if (!Number.isFinite(codeId) || codeId <= 0) {
+            res.status(400).json({ message: '유효하지 않은 코드 ID입니다.' })
+            return
+          }
+          const result = await deactivateBillingPromotionCodeAdmin(pool, {
+            codeId,
+            adminUserId: String(req.user?.id ?? ''),
+          })
+          res.json(result)
+        } catch (e) {
+          if (e?.message === 'promotion_not_found') {
+            res.status(404).json({ message: '프로모션 코드를 찾을 수 없습니다.' })
+            return
+          }
+          if (e?.message === 'promotion_deleted') {
+            res.status(409).json({ message: '삭제된 코드는 변경할 수 없습니다.' })
+            return
+          }
+          handleDbError(e, req, res)
+        }
+      },
+    )
+  }
 }
 
 export { enforceInsuranceBillingEntitlement }

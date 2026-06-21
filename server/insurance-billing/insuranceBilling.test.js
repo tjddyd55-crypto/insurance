@@ -83,6 +83,7 @@ describe('insurance billing promotion validate', () => {
   it('rejects inactive date window', () => {
     const row = {
       code: 'TEST',
+      is_active: true,
       starts_at: new Date(Date.now() + 86400000).toISOString(),
       ends_at: null,
       used_count: 0,
@@ -97,6 +98,7 @@ describe('insurance billing promotion validate', () => {
   it('accepts YJASSET style row shape', () => {
     const row = {
       code: 'YJASSET-FREE-3M',
+      is_active: true,
       starts_at: null,
       ends_at: null,
       used_count: 0,
@@ -106,6 +108,23 @@ describe('insurance billing promotion validate', () => {
     }
     const result = validatePromotionCodeRow(row, { planCode: 'insurance_basic' })
     assert.equal(result.valid, true)
+  })
+
+  it('rejects inactive promotion row', () => {
+    const result = validatePromotionCodeRow(
+      {
+        code: 'FREE-1M',
+        is_active: false,
+        starts_at: null,
+        ends_at: null,
+        used_count: 0,
+        max_redemptions: null,
+        applies_to_plan_code: 'insurance_basic',
+        applies_to_product: 'insurance',
+      },
+      { planCode: 'insurance_basic' },
+    )
+    assert.equal(result.valid, false)
   })
 })
 
