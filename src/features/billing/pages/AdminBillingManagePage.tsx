@@ -569,26 +569,67 @@ export default function AdminBillingManagePage() {
 
       {activeTab === 'referral' ? (
         <>
-          <section className="card auth-card billing-page__card">
+          <section className="card auth-card billing-page__card billing-referral-policy-section">
             <h2 className="billing-page__section-title">추천 할인 정책</h2>
             {referralPolicy ? (
-              <dl className="billing-page__meta">
+              <dl className="billing-page__meta billing-referral-policy-section__meta">
                 <dt>기본 월 공급가</dt>
                 <dd>{formatWon(referralPolicy.baseMonthlySupplyAmount)}</dd>
-                <dt>추천인 1명당 공급가 할인</dt>
-                <dd>{formatWon(referralPolicy.referrerDiscountPerActiveReferral)}</dd>
-                <dt>피추천인 1회차 공급가 할인</dt>
-                <dd>{formatWon(referralPolicy.refereeFirstMonthDiscountAmount)}</dd>
-                <dt>최대 추천인 할인 인원</dt>
-                <dd>{referralPolicy.maxReferrerDiscountCount}명</dd>
+                <dt>추천인 월 할인</dt>
+                <dd>유료 추천 1명당 {formatWon(referralPolicy.referrerDiscountPerActiveReferral)}</dd>
+                <dt>추천받은 가입자 혜택</dt>
+                <dd>자동 할인 없음</dd>
+                <dt>최대 추천 할인</dt>
+                <dd>현재 요금제 공급가 한도</dd>
+                <dt>기본 요금제 무료 기준</dt>
+                <dd>
+                  유료 추천 {Math.ceil(referralPolicy.baseMonthlySupplyAmount / referralPolicy.referrerDiscountPerActiveReferral)}명
+                </dd>
+                <dt>할인 적용 기준</dt>
+                <dd>추천받은 사용자가 active_paid 상태일 때</dd>
               </dl>
             ) : null}
-            {referralPolicy?.notes?.length ? (
-              <ul className="billing-page__policy-list">
-                {referralPolicy.notes.map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
+            <ul className="billing-page__policy-list billing-referral-policy-section__notes">
+              <li>추천 할인은 추천한 사람에게만 적용됩니다.</li>
+              <li>추천받은 가입자에게는 자동 할인이 제공되지 않습니다.</li>
+              <li>추천받은 가입자는 결제 단계에서 별도 무료/할인 코드를 입력할 수 있습니다.</li>
+              <li>추천받은 사용자가 실제 유료 결제를 완료한 경우에만 추천 할인 카운트에 포함됩니다.</li>
+              <li>무료 이용 중, 결제 대기, 미납, 해지 사용자는 추천 할인 대상에 포함되지 않습니다.</li>
+              <li>할인은 현재 요금제 공급가를 초과할 수 없으며, 초과분은 환급 또는 이월되지 않습니다.</li>
+            </ul>
+            {plans.filter((plan) => plan.allowsReferralDiscount !== false).length ? (
+              <div className="billing-referral-policy-section__plans">
+                <h3 className="billing-referral-policy-section__plans-title">요금제별 적용</h3>
+                <ul className="billing-page__policy-list">
+                  {plans
+                    .filter((plan) => plan.allowsReferralDiscount !== false)
+                    .map((plan) => {
+                      const unit = plan.referralDiscountUnitSupplyAmount ?? referralPolicy?.referrerDiscountPerActiveReferral ?? 1000
+                      const startCount = plan.referralDiscountStartCount ?? 1
+                      const freeCount =
+                        plan.freeReferralCount ??
+                        (plan.supplyAmount > 0 && unit > 0
+                          ? startCount + Math.ceil(plan.supplyAmount / unit) - 1
+                          : null)
+                      return (
+                        <li key={plan.dbCode}>
+                          <strong>{plan.label}</strong> ({formatWon(plan.supplyAmount)} 공급가)
+                          {startCount > 1
+                            ? ` · ${startCount}명 추천부터 할인 시작`
+                            : ' · 1명째부터 할인 적용'}
+                          {freeCount != null ? ` · ${freeCount}명 추천 시 무료` : null}
+                          {startCount > 1 ? (
+                            <span className="billing-referral-policy-section__plan-note">
+                              {' '}
+                              이 요금제는 {startCount}명 추천부터 할인이 시작됩니다. 유료 추천 1명당{' '}
+                              {formatWon(unit)}씩 할인되며, 요금제 공급가 한도까지만 적용됩니다.
+                            </span>
+                          ) : null}
+                        </li>
+                      )
+                    })}
+                </ul>
+              </div>
             ) : null}
           </section>
         </>

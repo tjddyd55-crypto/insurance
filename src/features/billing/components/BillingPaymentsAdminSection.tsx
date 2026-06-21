@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { FieldWrapper, FormButton, FormSelect } from '../../../components/form'
+import { FieldWrapper, FormSelect } from '../../../components/form'
 import { StatusMessage } from '../../../components/feedback'
 import { ConfirmDialog } from '../../../components/dialog/ConfirmDialog'
 import Modal from '../../../components/ui/Modal'
@@ -42,6 +42,12 @@ type Props = {
   onError: (message: string) => void
 }
 
+function PaymentStatusBadge({ status }: { status: string }) {
+  const normalized = String(status ?? '').toLowerCase()
+  const label = PAYMENT_STATUS_LABEL[normalized] ?? status
+  return <span className={`billing-admin-payment-status billing-admin-payment-status--${normalized}`}>{label}</span>
+}
+
 function PaymentDetailBody({ item }: { item: BillingPaymentAdminItem }) {
   return (
     <dl className="billing-page__meta">
@@ -66,7 +72,9 @@ function PaymentDetailBody({ item }: { item: BillingPaymentAdminItem }) {
         })}
       </dd>
       <dt>상태</dt>
-      <dd>{PAYMENT_STATUS_LABEL[item.status] ?? item.status}</dd>
+      <dd>
+        <PaymentStatusBadge status={item.status} />
+      </dd>
       <dt>프로모션 코드</dt>
       <dd>{item.promotionCode ?? '—'}</dd>
       <dt>추천인 코드</dt>
@@ -117,11 +125,11 @@ export default function BillingPaymentsAdminSection({ token, busy, setBusy, onIn
     void load()
   }, [load])
 
-  const openDetail = async (paymentId: string) => {
+  const openDetail = async (row: BillingPaymentAdminItem) => {
     if (!token.trim() || busy) return
     setBusy(true)
     try {
-      const data = await fetchAdminBillingPaymentDetail(token, paymentId)
+      const data = await fetchAdminBillingPaymentDetail(token, row.paymentId)
       setDetailItem(data.item)
     } catch (e) {
       onError(e instanceof Error ? e.message : '상세 정보를 불러오지 못했습니다.')
@@ -161,10 +169,10 @@ export default function BillingPaymentsAdminSection({ token, busy, setBusy, onIn
   }
 
   return (
-    <section className="card auth-card billing-page__card">
-      <div className="billing-page__section-head">
+    <section className="card auth-card billing-page__card billing-admin-payments-section">
+      <div className="billing-admin-payments-section__head">
         <h2 className="billing-page__section-title">결제 요청/청구 내역</h2>
-        <FieldWrapper label="상태 필터">
+        <FieldWrapper label="상태 필터" className="billing-admin-payments-section__filter">
           <FormSelect
             value={statusFilter}
             options={STATUS_FILTER_OPTIONS}
@@ -176,7 +184,7 @@ export default function BillingPaymentsAdminSection({ token, busy, setBusy, onIn
       {loadError ? <StatusMessage tone="error" message={loadError} /> : null}
 
       {items.length === 0 ? (
-        <p className="status text-sm">표시할 결제 내역이 없습니다.</p>
+        <p className="billing-admin-payments-section__empty">표시할 결제 내역이 없습니다.</p>
       ) : (
         <div className="billing-admin-payments-table-wrap">
           <table className="billing-admin-payments-table">
@@ -188,12 +196,8 @@ export default function BillingPaymentsAdminSection({ token, busy, setBusy, onIn
                 <th>소속 GA</th>
                 <th>요금제</th>
                 <th>결제주기</th>
-                <th>공급가</th>
-                <th>부가세</th>
-                <th>총 결제금액</th>
-                <th>결제 상태</th>
-                <th>프로모션 코드</th>
-                <th>추천인 코드</th>
+                <th>결제금액</th>
+                <th>상태</th>
                 <th>액션</th>
               </tr>
             </thead>
@@ -206,43 +210,45 @@ export default function BillingPaymentsAdminSection({ token, busy, setBusy, onIn
                   <td>{row.tenantName ?? '—'}</td>
                   <td>{row.planName}</td>
                   <td>{BILLING_CYCLE_LABEL[row.billingCycle] ?? row.billingCycle}</td>
-                  <td>{formatWon(row.amount)}</td>
-                  <td>{formatWon(row.vatAmount)}</td>
-                  <td>{formatWon(row.totalAmount)}</td>
-                  <td>{PAYMENT_STATUS_LABEL[row.status] ?? row.status}</td>
-                  <td>{row.promotionCode ?? '—'}</td>
-                  <td>{row.referralCode ?? '—'}</td>
                   <td>
-                    <div className="billing-page__actions">
+                    <strong className="billing-admin-payments-table__amount">{formatWon(row.totalAmount)}</strong>
+                    <span className="billing-admin-payments-table__amount-sub">
+                      공급가 {formatWon(row.amount)} · VAT {formatWon(row.vatAmount)}
+                    </span>
+                  </td>
+                  <td>
+                    <PaymentStatusBadge status={row.status} />
+                  </td>
+                  <td>
+                    <div className="billing-admin-payments-table__actions">
                       {row.status === 'pending' ? (
                         <>
-                          <FormButton
-                            htmlType="button"
-                            variant="primary"
+                          <button
+                            type="button"
+                            className="billing-admin-payments-btn billing-admin-payments-btn--approve"
                             disabled={busy}
                             onClick={() => setApproveTarget(row)}
                           >
                             승인
-                          </FormButton>
-                          <FormButton
-                            htmlType="button"
-                            variant="secondary"
+                          </button>
+                          <button
+                            type="button"
+                            className="billing-admin-payments-btn billing-admin-payments-btn--cancel"
                             disabled={busy}
                             onClick={() => setCancelTarget(row)}
                           >
                             취소
-                          </FormButton>
+                          </button>
                         </>
-                      ) : (
-                        <FormButton
-                          htmlType="button"
-                          variant="secondary"
-                          disabled={busy}
-                          onClick={() => void openDetail(row.paymentId)}
-                        >
-                          상세 보기
-                        </FormButton>
-                      )}
+                      ) : null}
+                      <button
+                        type="button"
+                        className="billing-admin-payments-btn billing-admin-payments-btn--detail"
+                        disabled={busy}
+                        onClick={() => void openDetail(row)}
+                      >
+                        상세
+                      </button>
                     </div>
                   </td>
                 </tr>

@@ -4,6 +4,7 @@ import {
   formatBillingCycleLabel,
   formatBillingDotDate,
   formatKrw,
+  resolveManageCheckoutCtaLabel,
   resolveNextBillingDate,
   resolvePaymentStatusLabel,
   resolvePaymentStatusTone,
@@ -37,6 +38,7 @@ export default function InsuranceBillingManagePanel({
   const planName = resolvePlanDisplayName(subscription, summary)
   const usagePeriod = resolveUsagePeriod(subscription, summary)
   const nextBillingDate = resolveNextBillingDate(subscription, summary)
+  const checkoutCtaLabel = resolveManageCheckoutCtaLabel(status)
 
   return (
     <>
@@ -63,8 +65,8 @@ export default function InsuranceBillingManagePanel({
           </div>
         </dl>
         {showCheckoutLink ? (
-          <Link to="/billing/checkout" className="insurance-billing-cta insurance-billing-cta--secondary">
-            결제/요금제 변경
+          <Link to="/billing/checkout" className="insurance-billing-cta insurance-billing-cta--primary">
+            {checkoutCtaLabel}
           </Link>
         ) : null}
       </section>
