@@ -9,6 +9,12 @@ import {
 import { resolveInsuranceCategoryForApi } from './lib/insuranceCompanyCategoryResolve.js'
 import { INSURER_SITES_SEED, insurerSiteBundledLogoPath } from './insurerSitesSeedData.js'
 import { ensureGeneralGaCompany } from './lib/generalGa.js'
+import {
+  assertSafeForMutatingScript,
+  isProductionDbTarget,
+  logMaskedDbFingerprint,
+} from './lib/dbEnvironmentGuard.js'
+import { buildBillingSubscriptionStatusCheckConstraintSql } from './insurance-billing/subscriptionStatusPolicy.js'
 
 /**
  * ⚠️ 디버그 전용: insurance_forms 등 user_id FK는 ON DELETE CASCADE 로 함께 정리됨.
@@ -3761,6 +3767,42 @@ async function ensurePromotionCodeSchema(executor) {
   `)
 }
 
+/** billing_subscriptions.status 분포 로그 (CHECK 적용 전) */
+async function logBillingSubscriptionStatusDistribution(executor) {
+  try {
+    const r = await executor.query(`
+      SELECT status, COUNT(*)::int AS count
+      FROM billing_subscriptions
+      GROUP BY status
+      ORDER BY status
+    `)
+    console.log('[initDb][billing_subscriptions] status distribution:', JSON.stringify(r.rows))
+  } catch (error) {
+    console.warn(
+      '[initDb][billing_subscriptions] status distribution skipped:',
+      error?.message ?? error,
+    )
+  }
+}
+
+/**
+ * billing_subscriptions_status_check — 기존 row 검증으로 서버가 죽지 않게 NOT VALID 적용.
+ * VALIDATE CONSTRAINT는 별도 마이그레이션에서 수행한다.
+ */
+async function ensureBillingSubscriptionsStatusCheckNotValid(executor) {
+  await logBillingSubscriptionStatusDistribution(executor)
+  await executor.query(`
+    ALTER TABLE billing_subscriptions DROP CONSTRAINT IF EXISTS billing_subscriptions_status_check
+  `)
+  const checkSql = buildBillingSubscriptionStatusCheckConstraintSql()
+  await executor.query(`
+    ALTER TABLE billing_subscriptions
+    ADD CONSTRAINT billing_subscriptions_status_check
+    ${checkSql}
+  `)
+  console.log('[initDb][billing_subscriptions] billing_subscriptions_status_check applied (NOT VALID)')
+}
+
 /** 월 이용료·가상 결제 — PG live 연동은 추후 */
 async function ensureBillingSchema(executor) {
   await executor.query(`
@@ -3909,14 +3951,7 @@ async function ensureBillingSchema(executor) {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `)
-  await executor.query(`
-    ALTER TABLE billing_subscriptions DROP CONSTRAINT IF EXISTS billing_subscriptions_status_check
-  `)
-  await executor.query(`
-    ALTER TABLE billing_subscriptions
-    ADD CONSTRAINT billing_subscriptions_status_check
-    CHECK (status IN ('none', 'trial', 'active', 'past_due', 'cancelled', 'expired'))
-  `)
+  await ensureBillingSubscriptionsStatusCheckNotValid(executor)
   await executor.query(`
     CREATE INDEX IF NOT EXISTS idx_billing_subscriptions_status
     ON billing_subscriptions (status)
@@ -4059,18 +4094,6 @@ async function ensureInsuranceBillingPhase1Schema(executor) {
   await executor.query(`
     ALTER TABLE billing_subscriptions
     ADD COLUMN IF NOT EXISTS canceled_at TIMESTAMPTZ
-  `)
-
-  await executor.query(`
-    ALTER TABLE billing_subscriptions DROP CONSTRAINT IF EXISTS billing_subscriptions_status_check
-  `)
-  await executor.query(`
-    ALTER TABLE billing_subscriptions
-    ADD CONSTRAINT billing_subscriptions_status_check
-    CHECK (status IN (
-      'none', 'trial', 'active', 'past_due', 'cancelled', 'expired',
-      'pending_payment', 'trialing', 'active_paid', 'active_manual', 'legacy_active', 'blocked', 'canceled'
-    ))
   `)
 
   await executor.query(`

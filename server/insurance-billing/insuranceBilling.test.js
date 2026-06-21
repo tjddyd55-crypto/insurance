@@ -4,9 +4,13 @@ import {
   isMockPaymentAllowed,
   parseEnvBool,
 } from './config.js'
-import { isInsuranceBillingEntitledStatus } from './entitlement.js'
+import { isInsuranceBillingEntitledStatus } from './subscriptionStatusPolicy.js'
 import { calculateReferrerDiscountAmount, isTrialExpiredSubscription } from './subscriptionLifecycle.js'
 import { validatePromotionCodeRow } from './promotionService.js'
+import {
+  BILLING_SUBSCRIPTION_STATUS_CHECK_VALUES,
+  buildBillingSubscriptionStatusCheckConstraintSql,
+} from './subscriptionStatusPolicy.js'
 
 describe('insurance billing config', () => {
   it('parseEnvBool defaults to false', () => {
@@ -22,6 +26,22 @@ describe('insurance billing config', () => {
     assert.equal(isInsuranceBillingEntitledStatus('pending_payment'), false)
   })
 
+  it('legacy active/free/paid are entitled', () => {
+    assert.equal(isInsuranceBillingEntitledStatus('active'), true)
+    assert.equal(isInsuranceBillingEntitledStatus('trial'), true)
+    assert.equal(isInsuranceBillingEntitledStatus('free'), true)
+    assert.equal(isInsuranceBillingEntitledStatus('paid'), true)
+  })
+
+  it('blocked statuses are not entitled', () => {
+    assert.equal(isInsuranceBillingEntitledStatus('pending'), false)
+    assert.equal(isInsuranceBillingEntitledStatus('expired'), false)
+    assert.equal(isInsuranceBillingEntitledStatus('blocked'), false)
+    assert.equal(isInsuranceBillingEntitledStatus('canceled'), false)
+    assert.equal(isInsuranceBillingEntitledStatus('inactive'), false)
+    assert.equal(isInsuranceBillingEntitledStatus('none'), false)
+  })
+
   it('referrer discount caps at 8000', () => {
     assert.equal(calculateReferrerDiscountAmount(3), 3000)
     assert.equal(calculateReferrerDiscountAmount(10), 8000)
@@ -33,6 +53,29 @@ describe('insurance billing config', () => {
     process.env.INSURANCE_BILLING_PROVIDER = 'mock'
     assert.equal(isMockPaymentAllowed(), false)
     process.env.NODE_ENV = prev
+  })
+})
+
+describe('billing subscription status check policy', () => {
+  it('CHECK list includes legacy and phase1 statuses', () => {
+    for (const status of [
+      'active',
+      'trial',
+      'free',
+      'pending_payment',
+      'trialing',
+      'active_paid',
+    ]) {
+      assert.equal(BILLING_SUBSCRIPTION_STATUS_CHECK_VALUES.includes(status), true, status)
+    }
+  })
+
+  it('buildBillingSubscriptionStatusCheckConstraintSql uses NOT VALID', () => {
+    const sql = buildBillingSubscriptionStatusCheckConstraintSql()
+    assert.match(sql, /NOT VALID/)
+    assert.match(sql, /'active'/)
+    assert.match(sql, /'free'/)
+    assert.match(sql, /'pending_payment'/)
   })
 })
 

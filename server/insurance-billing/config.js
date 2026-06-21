@@ -6,6 +6,12 @@
  * INSURANCE_BILLING_PROVIDER       — mock | toss (1차 mock)
  */
 
+import {
+  INSURANCE_BILLING_BLOCKED_STATUSES,
+  INSURANCE_BILLING_ENTITLED_STATUSES,
+  isInsuranceBillingEntitledStatus as isEntitledStatus,
+} from './subscriptionStatusPolicy.js'
+
 export const INSURANCE_BASIC_PLAN_CODE = 'insurance_basic'
 
 export function parseEnvBool(value, defaultValue = false) {
@@ -47,23 +53,11 @@ export function isMockPaymentAllowed() {
   return true
 }
 
-/** CRM 접근 허용 subscription status */
-export const INSURANCE_BILLING_ALLOWED_STATUSES = Object.freeze([
-  'trialing',
-  'active_paid',
-  'active_manual',
-  'legacy_active',
-  // 기존 billing_subscriptions 호환
-  'trial',
-  'active',
-])
+/** @deprecated 이름 호환 — subscriptionStatusPolicy.js 와 동일 */
+export const INSURANCE_BILLING_ALLOWED_STATUSES = INSURANCE_BILLING_ENTITLED_STATUSES
 
-export const INSURANCE_BILLING_BLOCKED_STATUSES = Object.freeze([
-  'pending_payment',
-  'expired',
-  'blocked',
-  'canceled',
-  'cancelled',
-  'past_due',
-  'none',
-])
+export { INSURANCE_BILLING_BLOCKED_STATUSES }
+
+export function isInsuranceBillingEntitledStatus(status) {
+  return isEntitledStatus(status)
+}
