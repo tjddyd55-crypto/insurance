@@ -10,6 +10,7 @@ import {
 import { fetchTeamMembers } from '../../features/team/api/teamApi'
 import { listVisibleNewsletterBoards } from '../../features/insurer-news/services/insurerNews.service'
 import { NotificationBell } from '../../features/notification/components/NotificationBell'
+import BillingStatusBadge from '../../features/insurance-billing/components/BillingStatusBadge'
 import { isActivePcNavigationPath } from './pcNavigationUtils'
 import './pc-top-navigation.css'
 
@@ -223,6 +224,7 @@ export default function PCTopNavigation({
         </div>
 
         <div className="pc-top-navigation__actions" aria-label="PC 상단 액션">
+          <BillingStatusBadge />
           {showNotification ? (
             <NotificationBell variant="workspaceHeader" boundaryRef={notificationBoundaryRef} />
           ) : null}

@@ -6,8 +6,8 @@ import useIsMobile from '../../../hooks/useIsMobile'
 import { ApiError } from '../../../lib/apiClient'
 import {
   applyBillingPromotionCode,
-  completeMockBillingPayment,
   fetchCheckoutSummary,
+  requestBillingPayment,
   validateBillingPromotionCode,
   type CheckoutSummary,
 } from '../api/insuranceBillingApi'
@@ -218,11 +218,11 @@ export default function BillingCheckoutPage() {
         return
       }
 
-      await completeMockBillingPayment(token, {
+      await requestBillingPayment(token, {
         planCode: summary?.plan?.code ?? 'insurance_basic',
         billingCycle,
       })
-      navigate('/billing/success', { replace: true, state: { mode: 'paid' } })
+      navigate('/billing/success', { replace: true, state: { mode: 'pending' } })
     } catch (e) {
       setError(e instanceof ApiError ? e.message : e instanceof Error ? e.message : '요청 처리에 실패했습니다.')
     } finally {

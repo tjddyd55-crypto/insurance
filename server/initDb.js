@@ -4213,6 +4213,34 @@ async function ensureInsuranceBillingPhase1Schema(executor) {
       CONSTRAINT billing_payments_status_check CHECK (status IN ('pending', 'paid', 'failed', 'canceled'))
     )
   `)
+  await executor.query(`
+    ALTER TABLE billing_payments
+    ADD COLUMN IF NOT EXISTS plan_code TEXT
+  `)
+  await executor.query(`
+    ALTER TABLE billing_payments
+    ADD COLUMN IF NOT EXISTS billing_cycle TEXT
+  `)
+  await executor.query(`
+    ALTER TABLE billing_payments
+    ADD COLUMN IF NOT EXISTS promotion_code TEXT
+  `)
+  await executor.query(`
+    ALTER TABLE billing_payments
+    ADD COLUMN IF NOT EXISTS referral_code TEXT
+  `)
+  await executor.query(`
+    ALTER TABLE billing_payments
+    ADD COLUMN IF NOT EXISTS canceled_at TIMESTAMPTZ
+  `)
+  await executor.query(`
+    ALTER TABLE billing_payments
+    ADD COLUMN IF NOT EXISTS cancel_reason TEXT
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_billing_payments_status_created
+    ON billing_payments (status, created_at DESC)
+  `)
 
   await executor.query(`
     CREATE TABLE IF NOT EXISTS billing_referrals (

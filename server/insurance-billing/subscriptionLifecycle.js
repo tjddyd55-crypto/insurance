@@ -327,10 +327,28 @@ export function calculateReferrerDiscountAmount(activePaidReferralCount) {
 }
 
 /**
- * @param {import('pg').PoolClient} client
- * @param {{ userId: string; billingCycle?: string; planCode?: string }} params
+ * @param {object} plan
+ * @param {string} billingCycle
  */
-export async function completeMockInsurancePayment(client, params) {
+export function resolvePlanPaymentAmounts(plan, billingCycle) {
+  const cycle = String(billingCycle ?? 'monthly').trim().toLowerCase() === 'yearly' ? 'yearly' : 'monthly'
+  const totalAmount =
+    cycle === 'yearly'
+      ? Number(plan.yearly_total ?? plan.amount ?? 88000)
+      : Number(plan.monthly_total ?? plan.amount ?? 8800)
+  const supplyAmount =
+    cycle === 'yearly'
+      ? Number(plan.yearly_price ?? 80000)
+      : Number(plan.monthly_price ?? plan.supply_amount ?? 8000)
+  const vatAmount = totalAmount - supplyAmount
+  return { billingCycle: cycle, totalAmount, supplyAmount, vatAmount }
+}
+
+/**
+ * @param {import('pg').PoolClient} client
+ * @param {{ userId: string; billingCycle?: string; planCode?: string; promotionCode?: string | null }} params
+ */
+export async function createPendingInsurancePayment(client, params) {
   const userId = String(params.userId ?? '').trim()
   const billingCycle = String(params.billingCycle ?? 'monthly').trim().toLowerCase() === 'yearly' ? 'yearly' : 'monthly'
   const planCode = String(params.planCode ?? INSURANCE_BASIC_PLAN_CODE).trim()
@@ -355,44 +373,122 @@ export async function completeMockInsurancePayment(client, params) {
     `SELECT id, tenant_id, status FROM billing_subscriptions WHERE user_id = $1 LIMIT 1`,
     [userId],
   )
-  let sub = subR.rows[0]
+  const sub = subR.rows[0]
   if (!sub) {
     throw new Error('subscription_not_found')
   }
 
-  const totalAmount =
-    billingCycle === 'yearly'
-      ? Number(plan.yearly_total ?? plan.amount ?? 88000)
-      : Number(plan.monthly_total ?? plan.amount ?? 8800)
-  const supplyAmount =
-    billingCycle === 'yearly'
-      ? Number(plan.yearly_price ?? 80000)
-      : Number(plan.monthly_price ?? plan.supply_amount ?? 8000)
-  const vatAmount = totalAmount - supplyAmount
+  const pendingR = await systemQuery(
+    client,
+    `
+    SELECT id FROM billing_payments
+    WHERE user_id = $1 AND status = 'pending'
+    LIMIT 1
+    `,
+    [userId],
+  )
+  if (pendingR.rowCount > 0) {
+    throw new Error('payment_already_pending')
+  }
 
-  const now = new Date()
-  const periodEnd =
-    billingCycle === 'yearly' ? addMonths(now, 12) : addMonths(now, 1)
+  const { totalAmount, supplyAmount, vatAmount } = resolvePlanPaymentAmounts(plan, billingCycle)
+
+  const refR = await systemQuery(
+    client,
+    `SELECT referral_code FROM billing_referrals WHERE referred_user_id = $1 LIMIT 1`,
+    [userId],
+  )
+  const referralCode = refR.rows[0]?.referral_code ? String(refR.rows[0].referral_code) : null
+  const promotionCode = params.promotionCode ? String(params.promotionCode).trim() : null
 
   const payIns = await systemQuery(
     client,
     `
     INSERT INTO billing_payments (
       tenant_id, user_id, subscription_id, provider, provider_payment_key,
-      amount, vat_amount, total_amount, status, paid_at, created_at, updated_at
+      plan_code, billing_cycle, promotion_code, referral_code,
+      amount, vat_amount, total_amount, status, created_at, updated_at
     )
-    VALUES ($1, $2, $3, 'mock', $4, $5, $6, $7, 'paid', NOW(), NOW(), NOW())
+    VALUES ($1, $2, $3, 'mock', $4, $5, $6, $7, $8, $9, $10, $11, 'pending', NOW(), NOW())
     RETURNING id
     `,
     [
       sub.tenant_id,
       userId,
       sub.id,
-      `mock_${randomUUID()}`,
+      `mock_req_${randomUUID()}`,
+      planCode,
+      billingCycle,
+      promotionCode,
+      referralCode,
       supplyAmount,
       vatAmount,
       totalAmount,
     ],
+  )
+
+  await recordBillingEvent(client, {
+    tenantId: sub.tenant_id,
+    userId,
+    eventType: 'payment.request.created',
+    payload: {
+      paymentId: payIns.rows[0]?.id,
+      billingCycle,
+      planCode,
+      totalAmount,
+    },
+  })
+
+  return {
+    paymentId: Number(payIns.rows[0]?.id),
+    status: 'pending',
+    subscriptionStatus: sub.status,
+    totalAmount,
+  }
+}
+
+/**
+ * @param {import('pg').PoolClient} client
+ * @param {{ paymentId: number | string; adminUserId?: string | null; source?: string }} params
+ */
+export async function finalizeInsurancePaymentAsPaid(client, params) {
+  const paymentId = Number(params.paymentId)
+  if (!Number.isFinite(paymentId) || paymentId <= 0) {
+    throw new Error('invalid_payment_id')
+  }
+
+  const payR = await systemQuery(
+    client,
+    `
+    SELECT *
+    FROM billing_payments
+    WHERE id = $1
+    FOR UPDATE
+    `,
+    [paymentId],
+  )
+  const payment = payR.rows[0]
+  if (!payment) {
+    throw new Error('payment_not_found')
+  }
+  if (String(payment.status) !== 'pending') {
+    throw new Error('payment_not_pending')
+  }
+
+  const userId = String(payment.user_id)
+  const billingCycle = String(payment.billing_cycle ?? 'monthly').trim().toLowerCase() === 'yearly' ? 'yearly' : 'monthly'
+  const planCode = String(payment.plan_code ?? INSURANCE_BASIC_PLAN_CODE).trim()
+  const now = new Date()
+  const periodEnd = billingCycle === 'yearly' ? addMonths(now, 12) : addMonths(now, 1)
+
+  await systemQuery(
+    client,
+    `
+    UPDATE billing_payments
+    SET status = 'paid', paid_at = NOW(), updated_at = NOW()
+    WHERE id = $1
+    `,
+    [paymentId],
   )
 
   await systemQuery(
@@ -418,29 +514,127 @@ export async function completeMockInsurancePayment(client, params) {
     referrerDiscount = await recordReferrerDiscountSnapshot(
       client,
       String(qualified.referrer_user_id),
-      Number(payIns.rows[0]?.id),
+      paymentId,
     )
   }
 
+  const eventType = params.source === 'admin' ? 'payment.admin.approved' : 'payment.mock.completed'
   await recordBillingEvent(client, {
-    tenantId: sub.tenant_id,
+    tenantId: payment.tenant_id,
     userId,
-    eventType: 'payment.mock.completed',
+    eventType,
     payload: {
-      paymentId: payIns.rows[0]?.id,
+      paymentId,
       billingCycle,
-      totalAmount,
+      totalAmount: Number(payment.total_amount ?? 0),
+      adminUserId: params.adminUserId ?? null,
       referralQualified: Boolean(qualified),
     },
   })
 
   return {
-    paymentId: Number(payIns.rows[0]?.id),
+    paymentId,
     subscriptionStatus: 'active_paid',
-    totalAmount,
+    totalAmount: Number(payment.total_amount ?? 0),
     referralQualified: Boolean(qualified),
     referrerDiscount,
   }
+}
+
+/**
+ * @param {import('pg').PoolClient} client
+ * @param {number | string} paymentId
+ * @param {string} adminUserId
+ */
+export async function approveInsurancePaymentAdmin(client, paymentId, adminUserId) {
+  return finalizeInsurancePaymentAsPaid(client, {
+    paymentId,
+    adminUserId: String(adminUserId ?? '').trim() || null,
+    source: 'admin',
+  })
+}
+
+/**
+ * @param {import('pg').PoolClient} client
+ * @param {number | string} paymentId
+ * @param {string} adminUserId
+ * @param {string | null | undefined} cancelReason
+ */
+export async function cancelInsurancePaymentAdmin(client, paymentId, adminUserId, cancelReason = null) {
+  const id = Number(paymentId)
+  if (!Number.isFinite(id) || id <= 0) {
+    throw new Error('invalid_payment_id')
+  }
+
+  const payR = await systemQuery(
+    client,
+    `
+    SELECT id, user_id, tenant_id, status
+    FROM billing_payments
+    WHERE id = $1
+    FOR UPDATE
+    `,
+    [id],
+  )
+  const payment = payR.rows[0]
+  if (!payment) {
+    throw new Error('payment_not_found')
+  }
+  if (String(payment.status) !== 'pending') {
+    throw new Error('payment_not_pending')
+  }
+
+  const reason = cancelReason ? String(cancelReason).trim() : null
+
+  await systemQuery(
+    client,
+    `
+    UPDATE billing_payments
+    SET
+      status = 'canceled',
+      canceled_at = NOW(),
+      cancel_reason = $2,
+      updated_at = NOW()
+    WHERE id = $1
+    `,
+    [id, reason],
+  )
+
+  await recordBillingEvent(client, {
+    tenantId: payment.tenant_id,
+    userId: payment.user_id,
+    eventType: 'payment.admin.canceled',
+    payload: {
+      paymentId: id,
+      adminUserId: String(adminUserId ?? '').trim() || null,
+      cancelReason: reason,
+    },
+  })
+
+  return {
+    paymentId: id,
+    status: 'canceled',
+  }
+}
+
+/**
+ * @param {import('pg').PoolClient} client
+ * @param {{ userId: string; billingCycle?: string; planCode?: string }} params
+ */
+export async function completeMockInsurancePayment(client, params) {
+  const created = await createPendingInsurancePayment(client, params)
+  return finalizeInsurancePaymentAsPaid(client, {
+    paymentId: created.paymentId,
+    source: 'mock',
+  })
+}
+
+/**
+ * @param {import('pg').PoolClient} client
+ * @param {{ userId: string; billingCycle?: string; planCode?: string; promotionCode?: string | null }} params
+ */
+export async function requestInsurancePayment(client, params) {
+  return createPendingInsurancePayment(client, params)
 }
 
 /**

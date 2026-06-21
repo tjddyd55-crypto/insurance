@@ -3,10 +3,15 @@ import type { ApplyPromotionResponse } from '../billingApplyPromotion'
 
 export type CheckoutSummary = {
   subscriptionStatus: string
+  status?: string
   billingCycle: 'monthly' | 'yearly'
   trialEndsAt: string | null
   currentPeriodEnd?: string | null
   nextBillingAt?: string | null
+  planName?: string
+  accessPlan?: string
+  isEntitled?: boolean
+  daysRemaining?: number | null
   plan: {
     code: string
     name: string
@@ -66,6 +71,20 @@ export async function completeMockBillingPayment(
 ) {
   return apiRequest<{ ok: boolean; subscriptionStatus: string; totalAmount: number }>(
     '/api/billing/mock-payments/complete',
+    {
+      method: 'POST',
+      token,
+      body: JSON.stringify(body),
+    },
+  )
+}
+
+export async function requestBillingPayment(
+  token: string,
+  body: { planCode?: string; billingCycle?: string; promotionCode?: string },
+) {
+  return apiRequest<{ ok: boolean; paymentId: number; status: string; subscriptionStatus: string; totalAmount: number }>(
+    '/api/billing/payments/request',
     {
       method: 'POST',
       token,

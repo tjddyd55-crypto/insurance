@@ -13,22 +13,17 @@ import {
   BILLING_PLAN_SOURCE_LABEL,
   BILLING_STATUS_LABEL,
   createAdminBillingPlan,
-  fetchAdminBillingInvoices,
   fetchAdminBillingPlans,
   fetchAdminBillingSettings,
   fetchAdminBillingUsers,
   fetchAdminGaBillingPlans,
   fetchAdminReferralBillingPolicy,
-  formatBillingDate,
   formatWon,
-  INVOICE_STATUS_LABEL,
-  mockPayAdminBillingInvoice,
   setAdminBillingPlanStatus,
   updateAdminBillingPlan,
   updateAdminBillingSettings,
   updateAdminGaBillingPlan,
   updateAdminUserBillingPlan,
-  type BillingInvoice,
   type BillingPlanAdminRow,
   type BillingUserAdminRow,
   type GaBillingPlanAdminRow,
@@ -38,6 +33,7 @@ import {
 } from '../api/billingApi'
 import { formatPricingBreakdown, formatReferralDiscountPolicySummary } from '../pricingPolicy'
 import PromotionCodesAdminSection from '../components/PromotionCodesAdminSection'
+import BillingPaymentsAdminSection from '../components/BillingPaymentsAdminSection'
 import {
   normalizePaymentMode,
   normalizePaymentProvider,
@@ -82,7 +78,6 @@ export default function AdminBillingManagePage() {
   const [plans, setPlans] = useState<BillingPlanAdminRow[]>([])
   const [gaPlans, setGaPlans] = useState<GaBillingPlanAdminRow[]>([])
   const [billingUsers, setBillingUsers] = useState<BillingUserAdminRow[]>([])
-  const [invoices, setInvoices] = useState<BillingInvoice[]>([])
   const [referralPolicy, setReferralPolicy] = useState<ReferralBillingPolicyAdmin | null>(null)
   const [settings, setSettings] = useState<PaymentSettingsAdmin | null>(null)
 
@@ -118,18 +113,16 @@ export default function AdminBillingManagePage() {
     if (!token?.trim() || user?.role !== 'SUPER_ADMIN') return
     setLoadError('')
     try {
-      const [planRes, gaRes, userRes, invRes, referralRes, settingsRes] = await Promise.all([
+      const [planRes, gaRes, userRes, referralRes, settingsRes] = await Promise.all([
         fetchAdminBillingPlans(token),
         fetchAdminGaBillingPlans(token),
         fetchAdminBillingUsers(token),
-        fetchAdminBillingInvoices(token),
         fetchAdminReferralBillingPolicy(token),
         fetchAdminBillingSettings(token),
       ])
       setPlans(planRes.plans)
       setGaPlans(gaRes.gaPlans)
       setBillingUsers(userRes.users)
-      setInvoices(invRes.invoices)
       setReferralPolicy(referralRes)
       setSettings(settingsRes)
       setMode(normalizePaymentMode(settingsRes.mode))
@@ -168,7 +161,6 @@ export default function AdminBillingManagePage() {
     () => buildBillingPlanSelectOptions(plans, selectedPlanCodes),
     [plans, selectedPlanCodes],
   )
-  const isVirtualMode = normalizePaymentMode(settings?.mode ?? mode) === 'virtual'
 
   const openCreatePlan = () => {
     setPlanFormMode('create')
@@ -332,20 +324,6 @@ export default function AdminBillingManagePage() {
       setSaveOk('결제 설정이 저장되었습니다.')
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : '저장에 실패했습니다.')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const onMockPay = async (invoiceId: number) => {
-    if (!token?.trim() || busy) return
-    setBusy(true)
-    setActionError('')
-    try {
-      await mockPayAdminBillingInvoice(token, invoiceId)
-      await load()
-    } catch (e) {
-      setActionError(e instanceof Error ? e.message : '가상 결제 처리에 실패했습니다.')
     } finally {
       setBusy(false)
     }
@@ -574,47 +552,19 @@ export default function AdminBillingManagePage() {
       ) : null}
 
       {activeTab === 'invoices' ? (
-        <section className="card auth-card billing-page__card">
-          <h2 className="billing-page__section-title">결제 요청/청구 내역</h2>
-          {invoices.length === 0 ? (
-            <p className="status text-sm">결제 내역이 없습니다.</p>
-          ) : (
-            <ul className="billing-page__invoice-list">
-              {invoices.slice(0, 50).map((row) => (
-                <li key={row.id} className="billing-page__invoice-item">
-                  <div className="billing-page__invoice-head">
-                    <strong>
-                      {row.userName ?? row.userId} · {formatWon(row.finalAmount)}
-                    </strong>
-                    <span>{INVOICE_STATUS_LABEL[row.status] ?? row.status}</span>
-                  </div>
-                  <p className="billing-page__invoice-sub">
-                    planCode {row.planCode} · {formatBillingDate(row.createdAt)}
-                  </p>
-                  {row.baseSupplyAmount != null && row.vatAmount != null ? (
-                    <p className="billing-page__invoice-sub billing-page__invoice-sub--muted">
-                      {formatPricingBreakdown({
-                        supplyAmount: row.finalSupplyAmount ?? row.baseSupplyAmount,
-                        vatAmount: row.vatAmount,
-                        totalAmount: row.finalAmount,
-                      })}
-                    </p>
-                  ) : null}
-                  {isVirtualMode && row.status === 'pending' ? (
-                    <FormButton
-                      htmlType="button"
-                      variant="secondary"
-                      disabled={busy}
-                      onClick={() => void onMockPay(row.id)}
-                    >
-                      가상 결제 완료 처리
-                    </FormButton>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        <BillingPaymentsAdminSection
+          token={token ?? ''}
+          busy={busy}
+          setBusy={setBusy}
+          onInfo={(message) => {
+            setActionInfo(message)
+            setActionError('')
+          }}
+          onError={(message) => {
+            setActionError(message)
+            setActionInfo('')
+          }}
+        />
       ) : null}
 
       {activeTab === 'referral' ? (

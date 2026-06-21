@@ -178,6 +178,60 @@ describe('insurance billing apply promotion response', () => {
   })
 })
 
+describe('insurance billing payment amounts', () => {
+  it('resolves monthly and yearly totals from plan row', async () => {
+    const { resolvePlanPaymentAmounts } = await import('./subscriptionLifecycle.js')
+    const plan = {
+      monthly_total: 8800,
+      monthly_price: 8000,
+      yearly_total: 88000,
+      yearly_price: 80000,
+    }
+    const monthly = resolvePlanPaymentAmounts(plan, 'monthly')
+    assert.equal(monthly.totalAmount, 8800)
+    assert.equal(monthly.supplyAmount, 8000)
+    assert.equal(monthly.vatAmount, 800)
+    const yearly = resolvePlanPaymentAmounts(plan, 'yearly')
+    assert.equal(yearly.totalAmount, 88000)
+    assert.equal(yearly.supplyAmount, 80000)
+    assert.equal(yearly.vatAmount, 8000)
+  })
+})
+
+describe('insurance billing manage summary enrichment', () => {
+  it('adds planName, accessPlan, isEntitled, daysRemaining', async () => {
+    const { enrichBillingManageSummary, computeDaysRemaining } = await import('./billingSummaryService.js')
+    const future = new Date(Date.now() + 10 * 86400000).toISOString()
+    const enriched = enrichBillingManageSummary({
+      subscriptionStatus: 'trialing',
+      plan: { code: 'insurance_basic', name: '보험 CRM 베이직' },
+      billingCycle: 'monthly',
+      trialEndsAt: future,
+      currentPeriodEnd: null,
+      nextBillingAt: null,
+      referral: null,
+    })
+    assert.equal(enriched.planName, '보험 CRM 베이직')
+    assert.equal(enriched.accessPlan, 'insurance_basic')
+    assert.equal(enriched.isEntitled, true)
+    assert.equal(typeof enriched.daysRemaining, 'number')
+    assert.equal(computeDaysRemaining(future) != null, true)
+  })
+
+  it('marks pending_payment as not entitled', async () => {
+    const { enrichBillingManageSummary } = await import('./billingSummaryService.js')
+    const enriched = enrichBillingManageSummary({
+      subscriptionStatus: 'pending_payment',
+      plan: null,
+      billingCycle: 'monthly',
+      trialEndsAt: null,
+      referral: null,
+    })
+    assert.equal(enriched.isEntitled, false)
+    assert.equal(enriched.status, 'pending_payment')
+  })
+})
+
 describe('insurance billing API allowlist path normalization', () => {
   it('normalizes /backend mount paths to /api SSOT', () => {
     assert.equal(
