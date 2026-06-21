@@ -134,6 +134,9 @@ export async function validateInsurancePromotionCode(executor, params) {
 
   if (type === 'free_months') {
     freeMonths = Number(row.free_months ?? 0)
+    if (freeMonths < 1 || freeMonths > 12) {
+      return { valid: false, code: row.code, message: '사용할 수 없는 코드입니다.' }
+    }
     finalAmount = 0
     discountAmount = baseAmount
   } else if (type === 'percent_off') {
@@ -155,7 +158,10 @@ export async function validateInsurancePromotionCode(executor, params) {
     freeMonths,
     discountAmount,
     finalAmount,
-    message: base.message,
+    message:
+      type === 'free_months' && freeMonths
+        ? `${freeMonths}개월 무료 이용권이 적용 가능합니다.`
+        : base.message,
   }
 }
 

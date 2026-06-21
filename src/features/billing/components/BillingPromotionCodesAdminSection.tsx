@@ -1,15 +1,30 @@
-import { useCallback, useEffect, useState } from 'react'
-import { FieldWrapper, FormButton, FormSelect } from '../../../components/form'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { FieldWrapper, FormButton, FormInput, FormSelect } from '../../../components/form'
 import { StatusMessage } from '../../../components/feedback'
 import { ConfirmDialog } from '../../../components/dialog/ConfirmDialog'
 import {
   activateAdminBillingPromotionCode,
+  createAdminBillingPromotionCode,
   deactivateAdminBillingPromotionCode,
   deleteAdminBillingPromotionCode,
   fetchAdminBillingPromotionCodes,
   type BillingPromotionCodeAdminRow,
   type BillingPromotionListFilter,
 } from '../../insurance-billing/api/insuranceBillingAdminApi'
+import {
+  BILLING_PROMOTION_DEFAULT_FREE_MONTHS,
+  BILLING_PROMOTION_DISCOUNT_UI_LABEL,
+  BILLING_PROMOTION_FREE_MONTHS_MAX,
+  BILLING_PROMOTION_FREE_MONTHS_MIN,
+  buildBillingPromotionCreatePayload,
+  buildBillingPromotionCreatePreview,
+  needsBillingPromotionAmountField,
+  needsBillingPromotionFreeMonthsField,
+  needsBillingPromotionPercentField,
+  normalizeBillingPromotionCodeInput,
+  type BillingPromotionCreateFormValues,
+  type BillingPromotionDiscountUiType,
+} from '../../insurance-billing/billingPromotionAdminForm'
 
 const FILTER_OPTIONS: { value: BillingPromotionListFilter; label: string }[] = [
   { value: 'all', label: '전체' },
@@ -17,6 +32,24 @@ const FILTER_OPTIONS: { value: BillingPromotionListFilter; label: string }[] = [
   { value: 'inactive', label: '비활성' },
   { value: 'deleted', label: '삭제됨' },
 ]
+
+const DISCOUNT_TYPE_OPTIONS = (
+  Object.keys(BILLING_PROMOTION_DISCOUNT_UI_LABEL) as BillingPromotionDiscountUiType[]
+).map((value) => ({
+  value,
+  label: BILLING_PROMOTION_DISCOUNT_UI_LABEL[value],
+}))
+
+const EMPTY_FORM: BillingPromotionCreateFormValues = {
+  code: '',
+  name: '',
+  discountType: 'free_months',
+  discountAmount: 2000,
+  discountPercent: 10,
+  freeMonths: BILLING_PROMOTION_DEFAULT_FREE_MONTHS,
+  maxRedemptions: null,
+  appliesToPlanCode: 'insurance_basic',
+}
 
 type Props = {
   token: string
@@ -31,12 +64,22 @@ function statusLabel(row: BillingPromotionCodeAdminRow) {
   return row.isActive ? '활성' : '비활성'
 }
 
+function rowBenefitLabel(row: BillingPromotionCodeAdminRow) {
+  if (row.type === 'free_months' && row.freeMonths != null) {
+    return `${row.freeMonths}개월 무료`
+  }
+  if (row.type === 'amount_off') return '정액 할인'
+  if (row.type === 'percent_off') return '정률 할인'
+  return row.type
+}
+
 export default function BillingPromotionCodesAdminSection({ token, busy, setBusy, onInfo, onError }: Props) {
   const [filter, setFilter] = useState<BillingPromotionListFilter>('all')
   const [rows, setRows] = useState<BillingPromotionCodeAdminRow[]>([])
   const [loadError, setLoadError] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<BillingPromotionCodeAdminRow | null>(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
+  const [formValues, setFormValues] = useState<BillingPromotionCreateFormValues>(EMPTY_FORM)
 
   const load = useCallback(async () => {
     if (!token.trim()) return
@@ -52,6 +95,50 @@ export default function BillingPromotionCodesAdminSection({ token, busy, setBusy
   useEffect(() => {
     void load()
   }, [load])
+
+  const previewText = useMemo(() => buildBillingPromotionCreatePreview(formValues), [formValues])
+
+  const freeMonthsPreview =
+    formValues.discountType === 'free_months'
+      ? `${Math.min(BILLING_PROMOTION_FREE_MONTHS_MAX, Math.max(BILLING_PROMOTION_FREE_MONTHS_MIN, Math.floor(formValues.freeMonths) || BILLING_PROMOTION_DEFAULT_FREE_MONTHS))}개월 무료`
+      : ''
+
+  const onCreate = async () => {
+    if (!token.trim() || busy) return
+    if (!formValues.code.trim()) {
+      onError('코드를 입력해 주세요.')
+      return
+    }
+    if (!formValues.name.trim()) {
+      onError('코드 이름을 입력해 주세요.')
+      return
+    }
+    if (needsBillingPromotionFreeMonthsField(formValues.discountType)) {
+      const months = Math.floor(Number(formValues.freeMonths))
+      if (!Number.isFinite(months) || months < BILLING_PROMOTION_FREE_MONTHS_MIN) {
+        onError('무료 개월 수는 1 이상이어야 합니다.')
+        return
+      }
+      if (months > BILLING_PROMOTION_FREE_MONTHS_MAX) {
+        onError('무료 개월 수는 12 이하여야 합니다.')
+        return
+      }
+    }
+
+    setBusy(true)
+    onError('')
+    try {
+      const payload = buildBillingPromotionCreatePayload(formValues)
+      await createAdminBillingPromotionCode(token, payload)
+      onInfo(`${payload.code} 코드가 생성되었습니다.`)
+      setFormValues(EMPTY_FORM)
+      await load()
+    } catch (e) {
+      onError(e instanceof Error ? e.message : '코드 생성에 실패했습니다.')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const onActivate = async (row: BillingPromotionCodeAdminRow) => {
     setBusy(true)
@@ -103,6 +190,104 @@ export default function BillingPromotionCodesAdminSection({ token, busy, setBusy
     <div className="promotion-code-panel">
       <section className="card auth-card billing-page__card promotion-code-card">
         <div className="promotion-code-card-header billing-page__section-head">
+          <h2 className="billing-page__section-title">코드 생성</h2>
+        </div>
+        <p className="billing-page__invoice-sub billing-page__invoice-sub--muted">
+          보험 CRM 결제단 무료/할인 코드를 생성합니다. N개월 무료는 결제 없이 trialing 상태로 시작합니다.
+        </p>
+        <div className="promotion-code-form-grid">
+          <FieldWrapper label="코드" className="promotion-code-field">
+            <FormInput
+              value={formValues.code}
+              onChange={(e) =>
+                setFormValues((prev) => ({ ...prev, code: normalizeBillingPromotionCodeInput(e.target.value) }))
+              }
+              placeholder="예: YJASSET-FREE-3M"
+            />
+          </FieldWrapper>
+          <FieldWrapper label="코드 이름" className="promotion-code-field">
+            <FormInput
+              value={formValues.name}
+              onChange={(e) => setFormValues((prev) => ({ ...prev, name: e.target.value }))}
+              placeholder="예: 영진에셋 3개월 무료"
+            />
+          </FieldWrapper>
+          <FieldWrapper label="할인 유형" className="promotion-code-field">
+            <FormSelect
+              value={formValues.discountType}
+              options={DISCOUNT_TYPE_OPTIONS}
+              onChange={(e) =>
+                setFormValues((prev) => ({
+                  ...prev,
+                  discountType: e.target.value as BillingPromotionDiscountUiType,
+                }))
+              }
+            />
+          </FieldWrapper>
+          {needsBillingPromotionAmountField(formValues.discountType) ? (
+            <FieldWrapper label="할인 금액(공급가)" className="promotion-code-field">
+              <FormInput
+                inputMode="numeric"
+                value={formValues.discountAmount}
+                onChange={(e) =>
+                  setFormValues((prev) => ({ ...prev, discountAmount: Number(e.target.value) || 0 }))
+                }
+              />
+            </FieldWrapper>
+          ) : null}
+          {needsBillingPromotionPercentField(formValues.discountType) ? (
+            <FieldWrapper label="할인율(%)" className="promotion-code-field">
+              <FormInput
+                inputMode="numeric"
+                value={formValues.discountPercent}
+                onChange={(e) =>
+                  setFormValues((prev) => ({ ...prev, discountPercent: Number(e.target.value) || 0 }))
+                }
+              />
+            </FieldWrapper>
+          ) : null}
+          {needsBillingPromotionFreeMonthsField(formValues.discountType) ? (
+            <FieldWrapper label="무료 개월 수" className="promotion-code-field">
+              <FormInput
+                inputMode="numeric"
+                min={BILLING_PROMOTION_FREE_MONTHS_MIN}
+                max={BILLING_PROMOTION_FREE_MONTHS_MAX}
+                value={formValues.freeMonths}
+                onChange={(e) =>
+                  setFormValues((prev) => ({ ...prev, freeMonths: Number(e.target.value) || 0 }))
+                }
+                placeholder="예: 3"
+              />
+              {freeMonthsPreview ? (
+                <p className="billing-page__invoice-sub billing-page__invoice-sub--muted">{freeMonthsPreview}</p>
+              ) : null}
+            </FieldWrapper>
+          ) : null}
+          <FieldWrapper label="최대 사용 횟수 (비우면 무제한)" className="promotion-code-field">
+            <FormInput
+              inputMode="numeric"
+              value={formValues.maxRedemptions ?? ''}
+              onChange={(e) =>
+                setFormValues((prev) => ({
+                  ...prev,
+                  maxRedemptions: e.target.value.trim() === '' ? null : Number(e.target.value),
+                }))
+              }
+            />
+          </FieldWrapper>
+          {previewText ? (
+            <p className="promotion-code-preview promotion-code-field--full status">{previewText}</p>
+          ) : null}
+          <div className="promotion-code-actions promotion-code-field--full">
+            <FormButton htmlType="button" variant="primary" disabled={busy} onClick={() => void onCreate()}>
+              생성
+            </FormButton>
+          </div>
+        </div>
+      </section>
+
+      <section className="card auth-card billing-page__card promotion-code-card">
+        <div className="promotion-code-card-header billing-page__section-head">
           <h2 className="billing-page__section-title">보험 CRM 무료 코드</h2>
         </div>
         <p className="billing-page__invoice-sub billing-page__invoice-sub--muted">
@@ -132,9 +317,7 @@ export default function BillingPromotionCodesAdminSection({ token, busy, setBusy
                   <span>{statusLabel(row)}</span>
                 </div>
                 <p className="billing-page__invoice-sub">
-                  {row.type === 'free_months' && row.freeMonths != null
-                    ? `${row.freeMonths}개월 무료`
-                    : row.type}
+                  {rowBenefitLabel(row)}
                   {' · '}
                   사용 {row.usedCount}
                   {row.maxRedemptions != null ? ` / ${row.maxRedemptions}` : ''}

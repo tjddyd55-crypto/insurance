@@ -450,7 +450,11 @@ export async function completeMockInsurancePayment(client, params) {
 export async function applyFreeMonthsPromotion(client, params) {
   const userId = String(params.userId ?? '').trim()
   const promo = params.promotionRow
-  const freeMonths = Math.max(1, Number(promo.free_months ?? 0) || 0)
+  const freeMonthsRaw = Number(promo.free_months ?? 0) || 0
+  const freeMonths = Math.min(12, Math.max(1, Math.floor(freeMonthsRaw)))
+  if (freeMonthsRaw < 1) {
+    throw new Error('promotion_free_months_invalid')
+  }
   const planCode = String(params.planCode ?? promo.applies_to_plan_code ?? INSURANCE_BASIC_PLAN_CODE).trim()
   const billingCycle = String(params.billingCycle ?? 'monthly').trim().toLowerCase() === 'yearly' ? 'yearly' : 'monthly'
 

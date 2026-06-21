@@ -4,7 +4,9 @@ import { validatePromotionCodeRow } from './promotionService.js'
 import {
   assertBillingPromotionCanActivate,
   buildPromotionListWhereClause,
+  createBillingPromotionCodeAdmin,
   normalizePromotionListFilter,
+  parseCreateBillingPromotionInput,
   softDeleteBillingPromotionCodeAdmin,
 } from './promotionAdminService.js'
 
@@ -78,5 +80,118 @@ describe('billing promotion admin service', () => {
     const second = await softDeleteBillingPromotionCodeAdmin(executor, { codeId: 1, adminUserId: 'admin-1' })
     assert.equal(second.success, true)
     assert.equal(second.alreadyDeleted, true)
+  })
+
+  it('parseCreateBillingPromotionInput accepts free_months payload', () => {
+    const parsed = parseCreateBillingPromotionInput({
+      code: 'YJASSET-FREE-3M',
+      name: '영진에셋 3개월 무료',
+      type: 'free_months',
+      freeMonths: 3,
+      appliesToProduct: 'insurance',
+      appliesToPlanCode: 'insurance_basic',
+    })
+    assert.equal(parsed.type, 'free_months')
+    assert.equal(parsed.freeMonths, 3)
+    assert.equal(parsed.amountOff, null)
+    assert.equal(parsed.percentOff, null)
+  })
+
+  it('parseCreateBillingPromotionInput maps first month free to free_months=1', () => {
+    const parsed = parseCreateBillingPromotionInput({
+      code: 'FREE-1M',
+      name: '첫 달 무료',
+      type: 'free_months',
+      freeMonths: 1,
+    })
+    assert.equal(parsed.freeMonths, 1)
+  })
+
+  it('parseCreateBillingPromotionInput rejects missing freeMonths', () => {
+    assert.throws(
+      () =>
+        parseCreateBillingPromotionInput({
+          code: 'FREE-X',
+          name: 'invalid',
+          type: 'free_months',
+        }),
+      /promotion_free_months_required/,
+    )
+  })
+
+  it('parseCreateBillingPromotionInput rejects freeMonths above 12', () => {
+    assert.throws(
+      () =>
+        parseCreateBillingPromotionInput({
+          code: 'FREE-13M',
+          name: 'too long',
+          type: 'free_months',
+          freeMonths: 13,
+        }),
+      /promotion_free_months_max/,
+    )
+  })
+
+  it('createBillingPromotionCodeAdmin inserts free_months row', async () => {
+    const inserts = []
+    const executor = {
+      query: async (sql, params) => {
+        if (String(sql).includes('SELECT id FROM billing_promotion_codes WHERE UPPER(code)')) {
+          return { rowCount: 0, rows: [] }
+        }
+        if (String(sql).includes('INSERT INTO billing_promotion_codes')) {
+          inserts.push(params)
+          return {
+            rows: [
+              {
+                id: 9,
+                code: params[0],
+                name: params[1],
+                type: params[2],
+                free_months: params[3],
+                percent_off: params[4],
+                amount_off: params[5],
+                max_redemptions: params[6],
+                applies_to_plan_code: params[7],
+                applies_to_product: params[8],
+                is_active: true,
+                used_count: 0,
+                per_user_limit: 1,
+                starts_at: null,
+                ends_at: null,
+                deleted_at: null,
+                deleted_by: null,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              },
+            ],
+          }
+        }
+        if (String(sql).includes('INSERT INTO billing_events')) {
+          return { rows: [] }
+        }
+        return { rows: [] }
+      },
+    }
+
+    const row = await createBillingPromotionCodeAdmin(executor, {
+      adminUserId: 'admin-1',
+      code: 'FREE-3M',
+      name: '3개월 무료',
+      type: 'free_months',
+      freeMonths: 3,
+      percentOff: null,
+      amountOff: null,
+      appliesToProduct: 'insurance',
+      appliesToPlanCode: 'insurance_basic',
+      maxRedemptions: null,
+    })
+
+    assert.equal(row.code, 'FREE-3M')
+    assert.equal(row.freeMonths, 3)
+    assert.equal(inserts[0][2], 'free_months')
+    assert.equal(inserts[0][3], 3)
+    assert.equal(inserts[0][4], null)
+    assert.equal(inserts[0][5], null)
   })
 })

@@ -22,6 +22,26 @@ export type BillingPromotionCodeAdminRow = {
 
 export type BillingPromotionListFilter = 'all' | 'active' | 'inactive' | 'deleted'
 
+export type BillingPromotionCreatePayload = {
+  code: string
+  name: string
+  type: 'free_months' | 'amount_off' | 'percent_off'
+  freeMonths?: number
+  amountOff?: number
+  percentOff?: number
+  appliesToProduct: 'insurance'
+  appliesToPlanCode: string
+  maxRedemptions?: number | null
+}
+
+export async function createAdminBillingPromotionCode(token: string, body: BillingPromotionCreatePayload) {
+  return apiRequest<{ row: BillingPromotionCodeAdminRow }>('/api/admin/billing/promotion-codes', {
+    method: 'POST',
+    token,
+    body,
+  })
+}
+
 export async function fetchAdminBillingPromotionCodes(token: string, filter: BillingPromotionListFilter = 'all') {
   const query = filter === 'all' ? '' : `?filter=${encodeURIComponent(filter)}`
   return apiRequest<{ rows: BillingPromotionCodeAdminRow[] }>(

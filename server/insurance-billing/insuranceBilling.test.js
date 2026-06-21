@@ -107,6 +107,8 @@ describe('insurance billing promotion validate', () => {
       max_redemptions: 100,
       applies_to_plan_code: 'insurance_basic',
       applies_to_product: 'insurance',
+      type: 'free_months',
+      free_months: 3,
     }
     const result = validatePromotionCodeRow(row, { planCode: 'insurance_basic' })
     assert.equal(result.valid, true)

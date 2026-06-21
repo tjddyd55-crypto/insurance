@@ -19,8 +19,10 @@ import {
 import { getInsurancePaymentProvider } from './insurance-billing/providers/index.js'
 import {
   activateBillingPromotionCodeAdmin,
+  createBillingPromotionCodeAdmin,
   deactivateBillingPromotionCodeAdmin,
   listBillingPromotionCodesAdmin,
+  parseCreateBillingPromotionInput,
   softDeleteBillingPromotionCodeAdmin,
 } from './insurance-billing/promotionAdminService.js'
 import { isSubscriptionSubjectRole } from './subscription/policy.js'
@@ -188,6 +190,48 @@ export function registerInsuranceBillingApi(apiRouter, ctx) {
   })
 
   if (typeof requireSuperAdmin === 'function') {
+    apiRouter.post('/admin/billing/promotion-codes', requireAuth, requireSuperAdmin, async (req, res) => {
+      try {
+        const input = parseCreateBillingPromotionInput(req.body)
+        const row = await createBillingPromotionCodeAdmin(pool, {
+          ...input,
+          adminUserId: String(req.user?.id ?? ''),
+        })
+        res.status(201).json({ row })
+      } catch (e) {
+        const code = e?.message ?? ''
+        if (code === 'promotion_code_required') {
+          res.status(400).json({ message: '코드를 입력해 주세요.' })
+          return
+        }
+        if (code === 'promotion_name_required') {
+          res.status(400).json({ message: '코드 이름을 입력해 주세요.' })
+          return
+        }
+        if (code === 'promotion_free_months_required') {
+          res.status(400).json({ message: '무료 개월 수는 1 이상이어야 합니다.' })
+          return
+        }
+        if (code === 'promotion_free_months_max') {
+          res.status(400).json({ message: '무료 개월 수는 12 이하여야 합니다.' })
+          return
+        }
+        if (code === 'promotion_code_duplicate') {
+          res.status(409).json({ message: '이미 사용 중인 코드입니다.' })
+          return
+        }
+        if (code === 'promotion_type_invalid') {
+          res.status(400).json({ message: '지원하지 않는 프로모션 유형입니다.' })
+          return
+        }
+        if (code === 'promotion_amount_off_required' || code === 'promotion_percent_off_required') {
+          res.status(400).json({ message: '할인 값을 올바르게 입력해 주세요.' })
+          return
+        }
+        handleDbError(e, req, res)
+      }
+    })
+
     apiRouter.get('/admin/billing/promotion-codes', requireAuth, requireSuperAdmin, async (req, res) => {
       try {
         const filter = String(req.query?.filter ?? 'all')
