@@ -1,13 +1,18 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import sharp from 'sharp'
+import { PDFDocument } from 'pdf-lib'
 import {
   CLAIM_BUNDLE_MAX_FILES,
   CLAIM_BUNDLE_MAX_TOTAL_BYTES,
   assertClaimBundleWithinLimits,
   buildClaimBundleAsciiFallbackName,
   buildClaimBundleDownloadName,
+  buildClaimFilesPdfBuffer,
   buildContentDisposition,
+  getPdfPageLayoutForImage,
   getPdfPageSizeForImage,
+  normalizeImageForPdf,
   normalizeClaimFileMime,
   resolveUniqueZipEntryNames,
   sanitizeDownloadFileNamePart,
@@ -89,4 +94,51 @@ test('getPdfPageSizeForImage — portrait vs landscape', () => {
   const landscape = getPdfPageSizeForImage(1200, 800)
   assert.ok(portrait[1] > portrait[0], 'portrait page height > width')
   assert.ok(landscape[0] > landscape[1], 'landscape page width > height')
+})
+
+test('getPdfPageLayoutForImage — height 기준 portrait/landscape', () => {
+  assert.equal(getPdfPageLayoutForImage(800, 1200), 'portrait')
+  assert.equal(getPdfPageLayoutForImage(1200, 800), 'landscape')
+  assert.equal(getPdfPageLayoutForImage(0, 0), 'portrait')
+})
+
+test('normalizeImageForPdf — EXIF orientation 6 반영 후 세로 크기', async () => {
+  const landscapePixels = await sharp({
+    create: { width: 1200, height: 800, channels: 3, background: '#ffffff' },
+  })
+    .jpeg()
+    .toBuffer()
+  const withExifOrientation6 = await sharp(landscapePixels).withMetadata({ orientation: 6 }).toBuffer()
+  const normalized = await normalizeImageForPdf(withExifOrientation6, 'image/jpeg')
+  assert.ok(normalized.height > normalized.width, 'EXIF rotate 후 세로가 더 길어야 함')
+})
+
+test('buildClaimFilesPdfBuffer — 세로 이미지는 portrait 페이지', async () => {
+  const portraitImage = await sharp({
+    create: { width: 800, height: 1200, channels: 3, background: '#ffffff' },
+  })
+    .jpeg()
+    .toBuffer()
+  const pdfBuffer = await buildClaimFilesPdfBuffer(
+    [{ fileName: 'portrait.jpg', contentType: 'image/jpeg', storageKey: 'k1', fileSize: portraitImage.length }],
+    async () => portraitImage,
+  )
+  const doc = await PDFDocument.load(pdfBuffer)
+  const { width, height } = doc.getPage(0).getSize()
+  assert.ok(height > width, '세로 이미지 → portrait page')
+})
+
+test('buildClaimFilesPdfBuffer — 가로 이미지는 landscape 페이지', async () => {
+  const landscapeImage = await sharp({
+    create: { width: 1200, height: 800, channels: 3, background: '#ffffff' },
+  })
+    .jpeg()
+    .toBuffer()
+  const pdfBuffer = await buildClaimFilesPdfBuffer(
+    [{ fileName: 'landscape.jpg', contentType: 'image/jpeg', storageKey: 'k1', fileSize: landscapeImage.length }],
+    async () => landscapeImage,
+  )
+  const doc = await PDFDocument.load(pdfBuffer)
+  const { width, height } = doc.getPage(0).getSize()
+  assert.ok(width > height, '가로 이미지 → landscape page')
 })
