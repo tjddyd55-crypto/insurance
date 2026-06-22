@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import {
   buildContentDisposition,
   buildClaimBundleDownloadName,
+  buildClaimBundleAsciiFallbackName,
   sanitizeDownloadFileNamePart,
 } from './claimRequestFileBundle.js'
 
@@ -16,9 +17,18 @@ function readSrc(relativePath) {
 }
 
 test('buildContentDisposition — attachment + UTF-8 filename*', () => {
-  const header = buildContentDisposition('정기원_20260619_원본파일.zip', 'attachment')
+  const header = buildContentDisposition(
+    '정기원_20260619_원본파일.zip',
+    'attachment',
+    'claim-files-20260619.zip',
+  )
   assert.match(header, /^attachment;/)
+  assert.match(header, /filename="claim-files-20260619\.zip"/)
   assert.match(header, /filename\*=UTF-8''/)
+})
+
+test('buildClaimBundleAsciiFallbackName — ASCII only', () => {
+  assert.equal(buildClaimBundleAsciiFallbackName('2026-06-19', 'pdf'), 'claim-files-20260619.pdf')
 })
 
 test('buildClaimBundleDownloadName — 고객명_날짜 suffix', () => {
@@ -71,6 +81,7 @@ test('세 화면이 공통 bundle API · 고객 청구페이지 열기 · 상세
   assert.match(api, /downloadBlobFile/)
   assert.match(api, /fetchClaimRequestBundleBlob/)
   assert.match(api, /buildClaimDownloadFileName/)
+  assert.match(api, /getClaimBundleDirectDownloadUrl|bundle-download-url/)
 })
 
 test('ClaimRequestAttachmentActions — 첨부 없을 때 disabled 라벨', () => {

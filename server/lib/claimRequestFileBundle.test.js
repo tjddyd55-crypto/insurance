@@ -4,8 +4,10 @@ import {
   CLAIM_BUNDLE_MAX_FILES,
   CLAIM_BUNDLE_MAX_TOTAL_BYTES,
   assertClaimBundleWithinLimits,
+  buildClaimBundleAsciiFallbackName,
   buildClaimBundleDownloadName,
   buildContentDisposition,
+  getPdfPageSizeForImage,
   normalizeClaimFileMime,
   resolveUniqueZipEntryNames,
   sanitizeDownloadFileNamePart,
@@ -67,7 +69,24 @@ test('sanitizeDownloadFileNamePart — 금지 문자 제거', () => {
 })
 
 test('buildContentDisposition — 한글 filename* 포함', () => {
-  const header = buildContentDisposition('정기원_20260619_청구서류.pdf', 'attachment')
+  const header = buildContentDisposition(
+    '정기원_20260619_청구서류.pdf',
+    'attachment',
+    'claim-files-20260619.pdf',
+  )
   assert.match(header, /^attachment;/)
+  assert.match(header, /filename="claim-files-20260619\.pdf"/)
   assert.match(header, /filename\*=UTF-8''%EC%A0%95%EA%B8%B0%EC%9B%90_20260619_%EC%B2%AD%EA%B5%AC%EC%84%9C%EB%A5%98\.pdf/)
+})
+
+test('buildClaimBundleAsciiFallbackName — ASCII fallback', () => {
+  assert.equal(buildClaimBundleAsciiFallbackName('2026-06-19T10:00:00.000Z', 'pdf'), 'claim-files-20260619.pdf')
+  assert.equal(buildClaimBundleAsciiFallbackName('2026-06-19T10:00:00.000Z', 'zip'), 'claim-files-20260619.zip')
+})
+
+test('getPdfPageSizeForImage — portrait vs landscape', () => {
+  const portrait = getPdfPageSizeForImage(800, 1200)
+  const landscape = getPdfPageSizeForImage(1200, 800)
+  assert.ok(portrait[1] > portrait[0], 'portrait page height > width')
+  assert.ok(landscape[0] > landscape[1], 'landscape page width > height')
 })

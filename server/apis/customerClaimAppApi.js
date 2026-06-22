@@ -31,6 +31,7 @@ import {
   validateCustomerNewsMessageUpload,
 } from '../lib/customerNewsMessageAttachments.js'
 import {
+  buildClaimBundleAsciiFallbackName,
   buildClaimBundleDownloadName,
   buildClaimFilesPdfBuffer,
   buildContentDisposition as buildClaimBundleContentDisposition,
@@ -42,6 +43,8 @@ const CUSTOMER_APP_TOKEN_KIND = 'CUSTOMER_APP'
 const CUSTOMER_APP_TOKEN_EXPIRES_IN = '180d'
 const CUSTOMER_CLAIM_FILE_ACCESS_TOKEN_KIND = 'CUSTOMER_CLAIM_FILE_ACCESS'
 const CUSTOMER_CLAIM_FILE_ACCESS_TOKEN_EXPIRES_IN = '15m'
+const CUSTOMER_CLAIM_BUNDLE_ACCESS_TOKEN_KIND = 'CUSTOMER_CLAIM_BUNDLE'
+const CUSTOMER_CLAIM_BUNDLE_ACCESS_TOKEN_EXPIRES_IN = '10m'
 const CUSTOMER_NEWS_ATTACHMENT_ACCESS_TOKEN_KIND = 'CUSTOMER_NEWS_ATTACHMENT_ACCESS'
 const CUSTOMER_NEWS_ATTACHMENT_ACCESS_TOKEN_EXPIRES_IN = '15m'
 const CUSTOMER_LINK_ACTIVE = 'active'
@@ -807,6 +810,87 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
   }
 
   /**
+   * @param {{
+   *  agentId: string
+   *  customerId: number
+   *  requestId: number
+   *  kind: 'pdf' | 'zip'
+   * }} payload
+   */
+  function signClaimBundleAccessToken(payload) {
+    return jwt.sign(
+      {
+        kind: CUSTOMER_CLAIM_BUNDLE_ACCESS_TOKEN_KIND,
+        agentId: payload.agentId,
+        customerId: payload.customerId,
+        requestId: payload.requestId,
+        bundleKind: payload.kind,
+      },
+      jwtSecret,
+      { expiresIn: CUSTOMER_CLAIM_BUNDLE_ACCESS_TOKEN_EXPIRES_IN },
+    )
+  }
+
+  /**
+   * @param {string} rawToken
+   */
+  function verifyClaimBundleAccessToken(rawToken) {
+    try {
+      const decoded = jwt.verify(rawToken, jwtSecret)
+      if (!decoded || typeof decoded !== 'object') {
+        return null
+      }
+      const payload = /** @type {{
+       *  kind?: unknown
+       *  agentId?: unknown
+       *  customerId?: unknown
+       *  requestId?: unknown
+       *  bundleKind?: unknown
+       * }} */ (decoded)
+      if (String(payload.kind ?? '') !== CUSTOMER_CLAIM_BUNDLE_ACCESS_TOKEN_KIND) {
+        return null
+      }
+      const agentId = String(payload.agentId ?? '').trim()
+      const customerId = parsePositiveInt(payload.customerId)
+      const requestId = parsePositiveInt(payload.requestId)
+      const bundleKind =
+        String(payload.bundleKind ?? '') === 'zip'
+          ? 'zip'
+          : String(payload.bundleKind ?? '') === 'pdf'
+            ? 'pdf'
+            : null
+      if (!agentId || customerId == null || requestId == null || !bundleKind) {
+        return null
+      }
+      return { agentId, customerId, requestId, kind: bundleKind }
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * @param {import('express').Request} req
+   * @param {{
+   *  agentId: string
+   *  customerId: number
+   *  requestId: number
+   *  kind: 'pdf' | 'zip'
+   * }} payload
+   */
+  function buildClaimBundleDownloadUrl(req, payload) {
+    const token = signClaimBundleAccessToken(payload)
+    const qs = new URLSearchParams({
+      customerId: String(payload.customerId),
+      accessToken: token,
+    })
+    const suffix = payload.kind === 'zip' ? 'files.zip' : 'files.pdf'
+    return buildAbsoluteBackendUrl(
+      req,
+      `/backend/agent/customer-claim-requests/${payload.requestId}/${suffix}?${qs.toString()}`,
+    )
+  }
+
+  /**
    * @param {import('express').Request} req
    * @param {{
    *  scope: 'agent' | 'customer'
@@ -1438,13 +1522,22 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
     }
   })
 
-  const respondAgentClaimRequestBundleDownload = async (req, res, kind) => {
+  const respondAgentClaimRequestBundleDownload = async (req, res, kind, auth = {}) => {
     const requestId = parsePositiveInt(req.params.requestId)
     if (requestId == null) {
       res.status(400).json({ message: '유효한 requestId가 필요합니다.' })
       return
     }
-    const agentId = String(req.user?.id ?? '').trim()
+    let agentId = String(auth.agentId ?? '').trim()
+    const accessToken = String(auth.accessToken ?? req.query.accessToken ?? '').trim()
+    if (!agentId && accessToken) {
+      const tokenPayload = verifyClaimBundleAccessToken(accessToken)
+      if (!tokenPayload || tokenPayload.requestId !== requestId || tokenPayload.kind !== kind) {
+        res.status(401).json({ message: '다운로드 토큰이 유효하지 않습니다.' })
+        return
+      }
+      agentId = tokenPayload.agentId
+    }
     if (!agentId) {
       res.status(401).json({ message: '로그인이 필요합니다.' })
       return
@@ -1462,27 +1555,69 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         return
       }
     }
-    const downloadName = buildClaimBundleDownloadName(
-      bundle.customerName,
-      bundle.submittedAt ?? bundle.createdAt,
-      kind,
-    )
+    const dateLike = bundle.submittedAt ?? bundle.createdAt
+    const downloadName = buildClaimBundleDownloadName(bundle.customerName, dateLike, kind)
+    const asciiFallback = buildClaimBundleAsciiFallbackName(dateLike, kind)
+    const disposition = buildClaimBundleContentDisposition(downloadName, 'attachment', asciiFallback)
     if (kind === 'zip') {
       res.setHeader('Content-Type', 'application/zip')
-      res.setHeader('Content-Disposition', buildClaimBundleContentDisposition(downloadName, 'attachment'))
+      res.setHeader('Content-Disposition', disposition)
       await pipeClaimFilesZip(res, bundle.files, (key) => consentGetBuffer(key))
       return
     }
     const buffer = await buildClaimFilesPdfBuffer(bundle.files, (key) => consentGetBuffer(key))
     res.setHeader('Content-Type', 'application/pdf')
-    res.setHeader('Content-Disposition', buildClaimBundleContentDisposition(downloadName, 'attachment'))
+    res.setHeader('Content-Disposition', disposition)
     res.setHeader('Content-Length', String(buffer.length))
     res.end(buffer)
   }
 
-  apiRouter.get('/agent/customer-claim-requests/:requestId/files.zip', requireAuth, async (req, res) => {
+  apiRouter.post('/agent/customer-claim-requests/:requestId/bundle-download-url', requireAuth, async (req, res) => {
     try {
-      await respondAgentClaimRequestBundleDownload(req, res, 'zip')
+      const requestId = parsePositiveInt(req.params.requestId)
+      const customerId = parsePositiveInt(req.body?.customerId ?? req.query.customerId)
+      const bundleKind = String(req.body?.kind ?? req.query.kind ?? '').trim() === 'zip' ? 'zip' : 'pdf'
+      const agentId = String(req.user?.id ?? '').trim()
+      if (requestId == null || customerId == null || !agentId) {
+        res.status(400).json({ message: '유효한 requestId와 customerId가 필요합니다.' })
+        return
+      }
+      const downloadUrl = buildClaimBundleDownloadUrl(req, {
+        agentId,
+        customerId,
+        requestId,
+        kind: bundleKind,
+      })
+      res.json({ success: true, data: { downloadUrl } })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.get('/agent/customer-claim-requests/:requestId/files.zip', async (req, res, next) => {
+    const accessToken = String(req.query.accessToken ?? '').trim()
+    if (!accessToken) {
+      next()
+      return
+    }
+    try {
+      await respondAgentClaimRequestBundleDownload(req, res, 'zip', { accessToken })
+    } catch (error) {
+      const status = Number(error?.httpStatus)
+      if (Number.isInteger(status) && status >= 400 && status < 600) {
+        res.status(status).json({ message: String(error.message ?? '다운로드에 실패했습니다.') })
+        return
+      }
+      handleDbError(error, req, res)
+    }
+  }, requireAuth, async (req, res) => {
+    try {
+      const agentId = String(req.user?.id ?? '').trim()
+      if (!agentId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      await respondAgentClaimRequestBundleDownload(req, res, 'zip', { agentId })
     } catch (error) {
       const status = Number(error?.httpStatus)
       if (Number.isInteger(status) && status >= 400 && status < 600) {
@@ -1493,9 +1628,30 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
     }
   })
 
-  apiRouter.get('/agent/customer-claim-requests/:requestId/files.pdf', requireAuth, async (req, res) => {
+  apiRouter.get('/agent/customer-claim-requests/:requestId/files.pdf', async (req, res, next) => {
+    const accessToken = String(req.query.accessToken ?? '').trim()
+    if (!accessToken) {
+      next()
+      return
+    }
     try {
-      await respondAgentClaimRequestBundleDownload(req, res, 'pdf')
+      await respondAgentClaimRequestBundleDownload(req, res, 'pdf', { accessToken })
+    } catch (error) {
+      const status = Number(error?.httpStatus)
+      if (Number.isInteger(status) && status >= 400 && status < 600) {
+        res.status(status).json({ message: String(error.message ?? '다운로드에 실패했습니다.') })
+        return
+      }
+      handleDbError(error, req, res)
+    }
+  }, requireAuth, async (req, res) => {
+    try {
+      const agentId = String(req.user?.id ?? '').trim()
+      if (!agentId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      await respondAgentClaimRequestBundleDownload(req, res, 'pdf', { agentId })
     } catch (error) {
       const status = Number(error?.httpStatus)
       if (Number.isInteger(status) && status >= 400 && status < 600) {

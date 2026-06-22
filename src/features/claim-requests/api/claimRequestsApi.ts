@@ -215,15 +215,41 @@ function resolveClaimBundleFallbackFileName(meta: ClaimBundleDownloadMeta, kind:
   })
 }
 
+async function getClaimBundleDirectDownloadUrl(
+  token: string,
+  requestId: number,
+  customerId: number,
+  kind: 'zip' | 'pdf',
+): Promise<string> {
+  const response = await apiRequest<{ success: true; data: { downloadUrl: string } }>(
+    `/api/agent/customer-claim-requests/${requestId}/bundle-download-url`,
+    {
+      method: 'POST',
+      token,
+      body: JSON.stringify({ customerId, kind }),
+    },
+  )
+  const url = String((response as { downloadUrl?: string }).downloadUrl ?? '').trim()
+  if (!url) {
+    throw new ApiError('다운로드 URL을 받지 못했습니다.', 502)
+  }
+  return resolveAbsoluteApiUrl(url)
+}
+
 export async function downloadClaimRequestFilesZip(
   token: string,
   requestId: number,
   customerId: number,
   meta: ClaimBundleDownloadMeta,
 ): Promise<void> {
+  if (shouldUseNativeAgentClaimFileLinks()) {
+    const url = await getClaimBundleDirectDownloadUrl(token, requestId, customerId, 'zip')
+    window.location.assign(url)
+    return
+  }
   const fallbackFileName = resolveClaimBundleFallbackFileName(meta, 'zip')
   const { blob, fileName } = await fetchClaimRequestBundleBlob(token, requestId, customerId, 'zip')
-  downloadBlobFile({ blob, fileName: fileName ?? fallbackFileName })
+  downloadBlobFile({ blob, fileName: fileName ?? fallbackFileName, preferOpenOnMobile: false })
 }
 
 export async function downloadClaimRequestFilesPdf(
@@ -232,9 +258,14 @@ export async function downloadClaimRequestFilesPdf(
   customerId: number,
   meta: ClaimBundleDownloadMeta,
 ): Promise<void> {
+  if (shouldUseNativeAgentClaimFileLinks()) {
+    const url = await getClaimBundleDirectDownloadUrl(token, requestId, customerId, 'pdf')
+    window.location.assign(url)
+    return
+  }
   const fallbackFileName = resolveClaimBundleFallbackFileName(meta, 'pdf')
   const { blob, fileName } = await fetchClaimRequestBundleBlob(token, requestId, customerId, 'pdf')
-  downloadBlobFile({ blob, fileName: fileName ?? fallbackFileName })
+  downloadBlobFile({ blob, fileName: fileName ?? fallbackFileName, preferOpenOnMobile: false })
 }
 
 /** 고객 청구 페이지 URL이 없으면 링크를 생성한 뒤 반환한다. */
