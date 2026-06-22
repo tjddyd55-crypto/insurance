@@ -450,13 +450,13 @@ export function ProfilePage() {
 
   return (
     <main className="page page--with-back profile-page">
-      <h1>{pageTitle}</h1>
+      <h1 className="profile-page__title">{pageTitle}</h1>
       <SubscriptionStatusCard subscription={user?.subscription ?? null} />
       <DesktopUpdateSection />
 
-      <section>
+      <section className="profile-page__section">
         <h2 className="profile-page__section-title">내 정보</h2>
-        <form className="auth-form" onSubmit={(e) => void onSubmit(e)}>
+        <form className="auth-form profile-page__form" onSubmit={(e) => void onSubmit(e)}>
               <label className="field">
                 <span className="field__label">이름</span>
                 <FormInput
@@ -488,26 +488,26 @@ export function ProfilePage() {
               </label>
 
               {phoneChangedPending ? (
-                <div className="field">
+                <div className="field profile-page__phone-verify">
                   <span className="field__label">휴대폰 변경 인증</span>
                   <div className="profile-page__phone-verify-row">
                     <FormButton
                       htmlType="button"
                       variant="secondary"
-                      className="button button--secondary"
+                      className="profile-page__btn profile-page__btn--outline"
                       onClick={() => void sendCode()}
                       disabled={submitting || resendLeft > 0}
                     >
                       {resendLeft > 0 ? `재요청 (${resendLeft}s)` : '인증번호 요청'}
                     </FormButton>
                     {secondsLeft > 0 ? (
-                      <span className="status" style={{ fontSize: '0.9rem' }}>
+                      <span className="profile-page__status profile-page__status--muted">
                         유효 시간 {secondsLeft}s
                       </span>
                     ) : null}
                   </div>
                   <FormInput
-                    style={{ marginTop: 8 }}
+                    className="profile-page__phone-code-input"
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
                     inputMode="numeric"
@@ -517,33 +517,32 @@ export function ProfilePage() {
                   <FormButton
                     htmlType="button"
                     variant="secondary"
-                    className="button button--secondary"
-                    style={{ marginTop: 8 }}
+                    className="profile-page__btn profile-page__btn--outline profile-page__verify-btn"
                     onClick={() => void verifyCode()}
                     disabled={submitting || code.trim().length !== 6}
                   >
                     인증 확인
                   </FormButton>
                   {phoneChangeProof ? (
-                    <p className="status" style={{ color: 'var(--success)' }}>
+                    <p className="profile-page__status profile-page__status--success">
                       인증 완료 — 저장 시 새 번호가 반영됩니다.
                     </p>
                   ) : null}
-                  {debugCodeHint ? <p className="status">{debugCodeHint}</p> : null}
+                  {debugCodeHint ? <p className="profile-page__status profile-page__status--muted">{debugCodeHint}</p> : null}
                 </div>
               ) : null}
 
-              <div className="field">
-                <Link to="/password-reset" className="button button--secondary button--full">
+              <div className="field profile-page__password-reset-field">
+                <Link to="/password-reset" className="profile-page__btn profile-page__btn--outline profile-page__btn--full">
                   비밀번호 재설정
                 </Link>
               </div>
 
-              {errorMessage ? <p className="status status--error">{errorMessage}</p> : null}
-              {infoMessage ? <p className="status">{infoMessage}</p> : null}
+              {errorMessage ? <p className="profile-page__status profile-page__status--error">{errorMessage}</p> : null}
+              {infoMessage ? <p className="profile-page__status">{infoMessage}</p> : null}
 
               <FormButton
-                className="button button--primary button--full profile-page__submit"
+                className="profile-page__btn profile-page__btn--primary profile-page__btn--full profile-page__submit"
                 htmlType="submit"
                 variant="primary"
                 disabled={savingProfile || (phoneChangedPending && !phoneChangeProof)}
@@ -553,13 +552,13 @@ export function ProfilePage() {
         </form>
       </section>
 
-      <section>
+      <section className="profile-page__section">
         <h2 className="profile-page__section-title">팀 관리</h2>
         <div className="profile-page__team-row">
               <FormButton
                 htmlType="button"
-                variant="action"
-                className={`cta-button profile-page__team-btn${hasTeam ? ' opacity-50 cursor-not-allowed' : ''}`}
+                variant="secondary"
+                className={`profile-page__btn profile-page__btn--outline profile-page__team-btn${hasTeam ? ' profile-page__btn--disabled' : ''}`}
                 aria-disabled={hasTeam}
                 onClick={() => {
                   if (hasTeam) {
@@ -573,13 +572,18 @@ export function ProfilePage() {
               >
                 팀 생성
               </FormButton>
-              <FormButton htmlType="button" variant="action" className="cta-button profile-page__team-btn" onClick={() => void copyTeamCode()}>
+              <FormButton
+                htmlType="button"
+                variant="secondary"
+                className="profile-page__btn profile-page__btn--outline profile-page__team-btn"
+                onClick={() => void copyTeamCode()}
+              >
                 {teamCodeCopied ? '복사됨 ✓' : '팀 코드 복사'}
               </FormButton>
               <FormButton
                 htmlType="button"
-                variant="action"
-                className={`cta-button profile-page__team-btn${hasTeam ? ' opacity-50 cursor-not-allowed' : ''}`}
+                variant="secondary"
+                className={`profile-page__btn profile-page__btn--outline profile-page__team-btn${hasTeam ? ' profile-page__btn--disabled' : ''}`}
                 aria-disabled={hasTeam}
                 onClick={() => {
                   if (hasTeam) {
@@ -595,49 +599,52 @@ export function ProfilePage() {
               </FormButton>
         </div>
         {teamCopyNotice ? (
-          <p className="status text-sm" role="status" style={{ marginTop: 8 }}>
+          <p className="profile-page__status profile-page__status--muted" role="status">
             {teamCopyNotice}
           </p>
         ) : null}
         {teamActionError ? (
-          <p className="status status--error text-sm" role="alert" style={{ marginTop: 8 }}>
+          <p className="profile-page__status profile-page__status--error" role="alert">
             {teamActionError}
           </p>
         ) : null}
         {teamActionInfo ? (
-          <p className="status text-sm" role="status" style={{ marginTop: 8 }}>
+          <p className="profile-page__status profile-page__status--muted" role="status">
             {teamActionInfo}
           </p>
         ) : null}
       </section>
 
-      <div className="section-divider" />
-
-      <section>
+      <section className="profile-page__section">
         <h2 className="profile-page__section-title">추천 코드</h2>
-        <div className="profile-page__team-row">
+        <div className="profile-page__team-row profile-page__team-row--referral">
           <div className="profile-page__referral-code-display">
             <span className="profile-page__referral-code-label">내 추천코드</span>
             <span className="profile-page__referral-code-value">{referralSummary?.referralCode ?? '—'}</span>
           </div>
-          <FormButton htmlType="button" variant="action" className="cta-button profile-page__team-btn" onClick={() => void copyReferralCode()}>
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            className="profile-page__btn profile-page__btn--outline profile-page__team-btn"
+            onClick={() => void copyReferralCode()}
+          >
             {referralCodeCopied ? '복사됨 ✓' : '복사'}
           </FormButton>
         </div>
         {referralCopyNotice ? (
-          <p className="status text-sm" role="status" style={{ marginTop: 8 }}>
+          <p className="profile-page__status profile-page__status--muted" role="status">
             {referralCopyNotice}
           </p>
         ) : null}
         {referralLoadError ? (
-          <p className="status status--error text-sm" role="alert" style={{ marginTop: 8 }}>
+          <p className="profile-page__status profile-page__status--error" role="alert">
             {referralLoadError}
           </p>
         ) : null}
-        <p className="status text-sm" style={{ marginTop: 8 }}>
+        <p className="profile-page__status profile-page__status--muted profile-page__status--spaced">
           추천받은 사용자가 유료 이용 중일 때만 할인 대상입니다.
         </p>
-        <p className="status text-sm">추천 할인은 최대 8명까지 적용됩니다.</p>
+        <p className="profile-page__status profile-page__status--muted">추천 할인은 최대 8명까지 적용됩니다.</p>
 
         <h3 className="profile-page__subsection-title">내가 추천한 사람</h3>
         {referralSummary?.referredUsers?.length ? (
@@ -651,25 +658,23 @@ export function ProfilePage() {
             ))}
           </ul>
         ) : (
-          <p className="status text-sm">아직 추천한 사용자가 없습니다.</p>
+          <p className="profile-page__status profile-page__status--muted">아직 추천한 사용자가 없습니다.</p>
         )}
       </section>
 
-      <div className="section-divider" />
-
-      <section>
+      <section className="profile-page__section">
         <h2 className="profile-page__section-title">결제 관리</h2>
-        <p className="status text-sm">월 이용료 구독 상태와 결제 내역을 확인할 수 있습니다.</p>
-        <Link to="/account/billing" className="button button--secondary button--full" style={{ marginTop: 8 }}>
+        <p className="profile-page__section-desc">월 이용료 구독 상태와 결제 내역을 확인할 수 있습니다.</p>
+        <Link to="/account/billing" className="profile-page__btn profile-page__btn--outline profile-page__btn--full profile-page__section-action">
           결제 관리로 이동
         </Link>
       </section>
 
-      <div className="section-divider" />
-
-      <section>
+      <section className="profile-page__section">
         <h2 className="profile-page__section-title">고객 데이터 업로드</h2>
-        <PCOnlySection>
+        <PCOnlySection
+          fallback={<div className="profile-page__pc-only-notice">해당 기능은 PC에서만 사용 가능합니다.</div>}
+        >
           <div className="profile-page__excel-toolbar">
             <CustomerExcelImportPanel
               token={token}
@@ -678,23 +683,23 @@ export function ProfilePage() {
               }}
             />
           </div>
-          <p className="status text-sm" style={{ marginTop: 8 }}>
+          <p className="profile-page__section-desc profile-page__section-desc--spaced">
             샘플 다운로드 후 양식에 맞게 작성한 파일을 업로드해 주세요.
           </p>
         </PCOnlySection>
       </section>
 
-      <div className="section-divider" />
-
-      <section>
+      <section className="profile-page__section">
         <h2 className="profile-page__section-title">GA 데이터 업로드</h2>
-        <PCOnlySection>
+        <PCOnlySection
+          fallback={<div className="profile-page__pc-only-notice">해당 기능은 PC에서만 사용 가능합니다.</div>}
+        >
           <div className="profile-page__excel-toolbar">
             <UserGaExcelManagePanel token={token} />
           </div>
-          <p className="status text-sm" style={{ marginTop: 8 }}>
+          <p className="profile-page__section-desc profile-page__section-desc--spaced">
             회사 DB 파일 업로드/조회는{' '}
-            <Link to="/storage" className="switch-text__action">
+            <Link to="/storage" className="profile-page__inline-link">
               내 저장공간
             </Link>
             에서 진행합니다.
@@ -702,15 +707,18 @@ export function ProfilePage() {
         </PCOnlySection>
       </section>
 
-      <Link
-        to="/account/reset"
-        className="button button--secondary button--full profile-page__account-reset"
-      >
-        계정 초기화
-      </Link>
+      <section className="profile-page__section profile-page__danger-section" aria-label="위험 작업">
+        <h2 className="profile-page__section-title profile-page__section-title--danger">계정 초기화</h2>
+        <p className="profile-page__section-desc profile-page__section-desc--danger">
+          저장된 고객·상담·파일 등 계정 데이터가 삭제됩니다. 되돌릴 수 없습니다.
+        </p>
+        <Link to="/account/reset" className="profile-page__btn profile-page__btn--danger profile-page__account-reset">
+          계정 초기화
+        </Link>
+      </section>
 
-      <div className="switch-text">
-        <Link to="/dashboard" className="switch-text__action">
+      <div className="profile-page__back-link">
+        <Link to="/dashboard" className="profile-page__inline-link">
           대시보드로
         </Link>
       </div>
@@ -805,7 +813,7 @@ export function ProfilePage() {
         <span className="profile-page__legal-sep" aria-hidden="true">
           ·
         </span>
-        <Link to="/account-deletion" className="profile-page__legal-link">
+        <Link to="/account-deletion" className="profile-page__legal-link profile-page__legal-link--danger">
           계정 삭제 요청
         </Link>
       </footer>

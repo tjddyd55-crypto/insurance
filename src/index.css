@@ -3070,47 +3070,53 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 
 .profile-page__team-row {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 10px;
   justify-content: flex-start;
+  align-items: stretch;
   width: 100%;
-  margin-bottom: 12px;
+  margin-bottom: 0;
   box-sizing: border-box;
 }
 
+.profile-page__team-row--referral {
+  align-items: stretch;
+}
+
 .profile-page__team-btn {
-  flex: 1 1 0;
-  min-width: 0;
+  flex: 1 1 calc(50% - 5px);
+  min-width: min(100%, 132px);
 }
 
 .profile-page__referral-code-display {
-  flex: 1 1 0;
+  flex: 1 1 180px;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 10px 12px;
-  border: 1px solid var(--border-default);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.03);
+  padding: 12px 14px;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  background: #1f2937;
 }
 
 .profile-page__referral-code-label {
   font-size: 12px;
-  color: var(--text-sub);
+  color: #94a3b8;
 }
 
 .profile-page__referral-code-value {
   font-size: 16px;
   font-weight: 600;
   letter-spacing: 0.08em;
-  color: var(--text-main);
+  color: #f8fafc;
 }
 
 .profile-page__subsection-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
-  color: var(--text-main);
-  margin: 16px 0 8px;
+  color: #f8fafc;
+  margin: 20px 0 10px;
 }
 
 .profile-page__referral-list {
@@ -3127,15 +3133,15 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   align-items: center;
   gap: 6px;
   font-size: 14px;
-  color: var(--text-main);
+  color: #e5e7eb;
 }
 
 .profile-page__referral-list-sep {
-  color: var(--text-sub);
+  color: #94a3b8;
 }
 
 .profile-page__referral-list-status {
-  color: var(--text-sub);
+  color: #94a3b8;
 }
 
 .billing-page__notice {
@@ -3302,20 +3308,44 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 }
 
 .profile-page__section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #f8fafc;
+  margin: 0 0 14px;
+  padding-bottom: 10px;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid #1e293b;
+}
+
+.profile-page__section-title--danger {
+  color: #fca5a5;
+  border-bottom-color: rgba(239, 68, 68, 0.28);
+}
+
+.profile-page__section-desc {
+  margin: 0 0 12px;
   font-size: 14px;
-  font-weight: 600;
-  color: var(--text-main);
-  margin: 28px 0 12px;
-  padding-bottom: 6px;
-  letter-spacing: 0.4px;
-  border-bottom: 1px solid var(--border-default);
+  line-height: 1.5;
+  color: #94a3b8;
+}
+
+.profile-page__section-desc--spaced {
+  margin-top: 12px;
+}
+
+.profile-page__section-desc--danger {
+  color: #f87171;
+}
+
+.profile-page__section-action {
+  margin-top: 4px;
 }
 
 .profile-page__legal-footer {
-  margin-top: 32px;
-  padding: 16px 0 calc(16px + env(safe-area-inset-bottom, 0px));
+  margin-top: clamp(24px, 4vh, 40px);
+  padding: 20px 0 calc(20px + env(safe-area-inset-bottom, 0px));
   text-align: center;
-  border-top: 1px solid var(--border-default);
+  border-top: 1px solid #1e293b;
   flex-shrink: 0;
   display: flex;
   flex-wrap: wrap;
@@ -3325,7 +3355,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 }
 
 .profile-page__legal-sep {
-  color: var(--text-secondary, #94a3b8);
+  color: #94a3b8;
   font-size: 13px;
   line-height: 1.4;
   user-select: none;
@@ -3336,17 +3366,44 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  padding: 8px 16px;
+  padding: 8px 14px;
   font-size: 13px;
-  color: var(--text-secondary, #94a3b8);
+  color: #94a3b8;
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+.profile-page__legal-link--danger {
+  color: #fca5a5;
+}
+
+.profile-page__inline-link {
+  color: #60a5fa;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.profile-page__back-link {
+  margin: 8px 0 0;
+  text-align: center;
 }
 
 .section-divider {
   height: 1px;
   background: rgba(255, 255, 255, 0.08);
   margin: 24px 0;
+}
+
+.profile-page__pc-only-notice {
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px dashed #334155;
+  border-radius: 12px;
+  text-align: left;
+  color: #94a3b8;
+  font-size: 14px;
+  line-height: 1.45;
+  background: #111827;
 }
 
 .mobile-disabled-box {
@@ -3360,9 +3417,9 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 
 .profile-page__excel-toolbar .customers-excel-import-panel {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
   width: 100%;
   max-width: none;
 }
@@ -3370,11 +3427,12 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 .profile-page__excel-toolbar .customers-excel-import-panel__row {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
+  align-items: stretch;
+  gap: 10px;
   flex: 1 1 auto;
   min-width: 0;
   max-width: 100%;
+  width: 100%;
 }
 
 .profile-page__excel-toolbar {
@@ -3406,6 +3464,88 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 .profile-page__excel-toolbar label {
   white-space: normal;
   word-break: keep-all;
+}
+
+.profile-page__excel-toolbar .link-btn,
+.profile-page__excel-toolbar .filter-button,
+.profile-page__excel-toolbar .customers-excel-import-panel__upload-btn,
+.profile-page__excel-toolbar .button.button--secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 12px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  box-sizing: border-box;
+  border: 1px solid #334155;
+  background: #111827;
+  color: #e5e7eb;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.profile-page__excel-toolbar .customers-excel-import-panel__fname {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 0 4px;
+  font-size: 13px;
+  color: #94a3b8;
+  white-space: normal;
+  word-break: break-all;
+}
+
+.profile-page__excel-toolbar .field > .flex {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+}
+
+.profile-page__excel-toolbar .field > .flex > label {
+  flex: 1 1 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  color: #cbd5e1;
+}
+
+.profile-page__excel-toolbar input[type='file'].form-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  background: #020617;
+  color: #e5e7eb;
+  font-size: 14px;
+  line-height: 1.25;
+  box-sizing: border-box;
+}
+
+.profile-page__excel-toolbar input[type='file'].form-input::file-selector-button {
+  margin-right: 12px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: #1f2937;
+  color: #e5e7eb;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.profile-page__excel-toolbar .field .text-sm {
+  font-size: 14px;
+  line-height: 1.45;
+  color: #94a3b8;
 }
 
 .profile-page__excel-preview-scroll {
@@ -3447,40 +3587,260 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 }
 
 .profile-page__account-reset {
-  margin-top: 16px;
-  display: block;
-  border: 1px solid var(--btn-danger-border);
-  color: var(--btn-danger-text);
-  background: var(--btn-danger-surface);
-  text-align: center;
-  text-decoration: none;
-  box-sizing: border-box;
-}
-
-.profile-page__account-reset:hover {
-  background: var(--btn-danger-hover-bg);
-  border-color: var(--btn-danger-hover-border);
+  margin-top: 4px;
+  width: 100%;
+  max-width: 100%;
 }
 
 .profile-page__submit {
   margin-top: 16px;
 }
 
-/* 프로필 전용: PC 기준 좌측 시작 + 섹션 간격 통일 */
+/* 프로필 전용: 모바일 카드 / PC 폼 섹션 */
 .profile-page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 0;
   width: 100%;
   min-width: 0;
+  max-width: 100%;
+  padding: clamp(16px, 4vw, 20px);
+  box-sizing: border-box;
+  overflow: visible;
+  color: #e5e7eb;
 }
 
-.profile-page > section {
+.profile-page__title {
   margin: 0 0 20px;
+  font-size: clamp(1.25rem, 4.5vw, 1.5rem);
+  font-weight: 700;
+  color: #f8fafc;
 }
 
-.profile-page > section:last-of-type {
+.profile-page__section {
+  margin-bottom: clamp(32px, 5vh, 48px);
+  padding: clamp(16px, 3.5vw, 20px);
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  background: #111827;
+  box-sizing: border-box;
+}
+
+.profile-page__section:last-of-type {
+  margin-bottom: clamp(24px, 4vh, 32px);
+}
+
+.profile-page__danger-section {
+  border-color: rgba(239, 68, 68, 0.28);
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.profile-page .auth-form,
+.profile-page__form {
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.profile-page .field {
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.profile-page .field:last-child {
   margin-bottom: 0;
+}
+
+.profile-page .field__label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.profile-page .form-input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px;
+  height: clamp(44px, 12vw, 48px);
+  padding: 0 clamp(12px, 3vw, 16px);
+  border: 1px solid #334155;
+  border-radius: 12px;
+  background: #020617;
+  color: #f8fafc;
+  font-size: clamp(0.9375rem, 4vw, 1rem);
+  line-height: 1.25;
+}
+
+.profile-page .form-input::placeholder {
+  color: #64748b;
+}
+
+.profile-page .form-input.field--readonly,
+.profile-page .form-input:read-only,
+.profile-page .form-input:disabled {
+  background: #1f2937;
+  color: #94a3b8;
+  border-color: #334155;
+  cursor: default;
+}
+
+.profile-page .form-input.field--editable:focus,
+.profile-page .form-input.field--editable:focus-visible {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.28);
+  outline: none;
+}
+
+.profile-page__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 12px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  box-sizing: border-box;
+  cursor: pointer;
+  border: 1px solid transparent;
+  font-size: 0.9375rem;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    opacity 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.profile-page__btn--full {
+  width: 100%;
+}
+
+.profile-page__btn--primary {
+  border-color: #16a34a;
+  background: #16a34a;
+  color: #ffffff;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .profile-page__btn--primary:hover:not(:disabled) {
+    background: #15803d;
+    border-color: #15803d;
+  }
+}
+
+.profile-page__btn--outline {
+  border-color: #334155;
+  background: #111827;
+  color: #e5e7eb;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .profile-page__btn--outline:hover:not(:disabled) {
+    background: #1f2937;
+    border-color: #475569;
+  }
+}
+
+.profile-page__btn--danger {
+  border-color: rgba(239, 68, 68, 0.45);
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .profile-page__btn--danger:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.55);
+    color: #fecaca;
+  }
+}
+
+.profile-page__btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.28);
+}
+
+.profile-page__btn--danger:focus-visible {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.28);
+}
+
+.profile-page__btn:disabled,
+.profile-page__btn--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.profile-page .profile-page__btn.button {
+  min-height: 44px;
+  height: auto;
+  padding: 0 16px;
+  border-radius: 12px;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.profile-page .profile-page__btn--primary.button--primary {
+  border-color: #16a34a;
+  background: #16a34a;
+  color: #ffffff;
+}
+
+.profile-page .profile-page__btn--outline.button--secondary {
+  border-color: #334155;
+  background: #111827;
+  color: #e5e7eb;
+}
+
+.profile-page__status {
+  margin: 10px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #e5e7eb;
+}
+
+.profile-page__status--muted {
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.profile-page__status--error {
+  color: #f87171;
+}
+
+.profile-page__status--success {
+  color: #4ade80;
+}
+
+.profile-page__status--spaced {
+  margin-top: 12px;
+}
+
+.profile-page__phone-verify {
+  margin-top: 4px;
+}
+
+.profile-page__phone-code-input {
+  margin-top: 10px;
+}
+
+.profile-page__verify-btn {
+  margin-top: 10px;
+  width: 100%;
+}
+
+.profile-page__password-reset-field {
+  margin-top: 4px;
 }
 
 .table-wrapper {
@@ -3501,18 +3861,91 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   min-width: 1200px;
 }
 
-.profile-page .auth-form {
+.profile-page__phone-verify-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
   min-width: 0;
   max-width: 100%;
 }
 
-.profile-page__phone-verify-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+@media (min-width: 769px) {
+  .profile-page {
+    max-width: min(100%, 1080px);
+    margin: 0 auto;
+    padding: 24px clamp(24px, 3vw, 32px) 32px;
+  }
+
+  .profile-page__section {
+    padding: 20px 24px;
+    background: transparent;
+  }
+
+  .profile-page__team-btn {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .profile-page__btn--full.profile-page__submit {
+    width: auto;
+    min-width: 160px;
+    max-width: 280px;
+  }
+
+  .profile-page__account-reset {
+    width: auto;
+    min-width: 160px;
+    max-width: 320px;
+  }
+
+  .profile-page__excel-toolbar .customers-excel-import-panel__row {
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  .profile-page__excel-toolbar .field > .flex {
+    flex-wrap: nowrap;
+    align-items: flex-end;
+  }
+}
+
+.pc-root .profile-page .form-input,
+.pc-root .profile-page .field__control {
+  min-height: 44px;
+  height: clamp(44px, 12vw, 48px);
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1px solid #334155;
+  background: #020617;
+  color: #f8fafc;
+  font-size: 0.9375rem;
+}
+
+.pc-root .profile-page .form-input.field--readonly,
+.pc-root .profile-page .form-input:read-only,
+.pc-root .profile-page .form-input:disabled {
+  background: #1f2937;
+  color: #94a3b8;
+}
+
+.pc-root .profile-page .form-input.field--editable:focus,
+.pc-root .profile-page .form-input.field--editable:focus-visible {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.28);
+}
+
+.pc-root .profile-page .profile-page__btn.button {
+  min-height: 44px;
+  height: auto;
+  padding: 0 16px;
+  border-radius: 12px;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
   align-items: center;
-  min-width: 0;
-  max-width: 100%;
+  justify-content: center;
+  text-align: center;
 }
 
 /*
@@ -11652,12 +12085,7 @@ textarea.memo-sticky-note__textarea::placeholder {
   height: 14px !important;
 }
 
-/* 부모 영역 풀기 */
-.profile-page {
-  overflow: visible !important;
-}
-
-/* 테이블 영역 */
+/* 부모 영역 풀기 — profile-page 스크롤은 app-main-content 가 담당 */
 .profile-page__excel-preview-scroll {
   overflow-x: auto !important;
   overflow-y: hidden;
