@@ -494,7 +494,7 @@ export function ProfilePage() {
                     <FormButton
                       htmlType="button"
                       variant="secondary"
-                      className="profile-page__btn profile-page__btn--outline-neutral"
+                      className="profile-page__btn"
                       onClick={() => void sendCode()}
                       disabled={submitting || resendLeft > 0}
                     >
@@ -517,7 +517,7 @@ export function ProfilePage() {
                   <FormButton
                     htmlType="button"
                     variant="secondary"
-                    className="profile-page__btn profile-page__btn--outline-neutral profile-page__verify-btn"
+                    className="profile-page__btn profile-page__verify-btn"
                     onClick={() => void verifyCode()}
                     disabled={submitting || code.trim().length !== 6}
                   >
@@ -533,7 +533,7 @@ export function ProfilePage() {
               ) : null}
 
               <div className="field profile-page__password-reset-field">
-                <Link to="/password-reset" className="profile-page__btn profile-page__btn--outline-green profile-page__btn--full">
+                <Link to="/password-reset" className="profile-page__btn button button--outline button--full">
                   비밀번호 재설정
                 </Link>
               </div>
@@ -542,7 +542,7 @@ export function ProfilePage() {
               {infoMessage ? <p className="profile-page__status">{infoMessage}</p> : null}
 
               <FormButton
-                className="profile-page__btn profile-page__btn--primary profile-page__btn--full profile-page__submit"
+                className="profile-page__btn button--full profile-page__submit"
                 htmlType="submit"
                 variant="primary"
                 disabled={savingProfile || (phoneChangedPending && !phoneChangeProof)}
@@ -557,8 +557,8 @@ export function ProfilePage() {
         <div className="profile-page__team-row">
               <FormButton
                 htmlType="button"
-                variant="secondary"
-                className={`profile-page__btn profile-page__btn--outline-green profile-page__team-btn${hasTeam ? ' profile-page__btn--disabled' : ''}`}
+                variant="action"
+                className={`profile-page__btn button--outline profile-page__team-btn${hasTeam ? ' profile-page__btn--disabled' : ''}`}
                 aria-disabled={hasTeam}
                 onClick={() => {
                   if (hasTeam) {
@@ -574,16 +574,16 @@ export function ProfilePage() {
               </FormButton>
               <FormButton
                 htmlType="button"
-                variant="secondary"
-                className="profile-page__btn profile-page__btn--outline-green profile-page__team-btn"
+                variant="action"
+                className="profile-page__btn button--outline profile-page__team-btn"
                 onClick={() => void copyTeamCode()}
               >
                 {teamCodeCopied ? '복사됨 ✓' : '팀 코드 복사'}
               </FormButton>
               <FormButton
                 htmlType="button"
-                variant="secondary"
-                className={`profile-page__btn profile-page__btn--outline-green profile-page__team-btn${hasTeam ? ' profile-page__btn--disabled' : ''}`}
+                variant="action"
+                className={`profile-page__btn button--outline profile-page__team-btn${hasTeam ? ' profile-page__btn--disabled' : ''}`}
                 aria-disabled={hasTeam}
                 onClick={() => {
                   if (hasTeam) {
@@ -624,8 +624,8 @@ export function ProfilePage() {
           </div>
           <FormButton
             htmlType="button"
-            variant="secondary"
-            className="profile-page__btn profile-page__btn--outline-green profile-page__team-btn"
+            variant="action"
+            className="profile-page__btn button--outline profile-page__team-btn"
             onClick={() => void copyReferralCode()}
           >
             {referralCodeCopied ? '복사됨 ✓' : '복사'}
@@ -665,7 +665,7 @@ export function ProfilePage() {
       <section className="profile-page__section">
         <h2 className="profile-page__section-title">결제 관리</h2>
         <p className="profile-page__section-desc">월 이용료 구독 상태와 결제 내역을 확인할 수 있습니다.</p>
-        <Link to="/account/billing" className="profile-page__btn profile-page__btn--outline-neutral profile-page__btn--full profile-page__section-action">
+        <Link to="/account/billing" className="profile-page__btn button button--secondary button--full profile-page__section-action">
           결제 관리로 이동
         </Link>
       </section>
@@ -712,7 +712,7 @@ export function ProfilePage() {
         <p className="profile-page__section-desc profile-page__section-desc--danger">
           저장된 고객·상담·파일 등 계정 데이터가 삭제됩니다. 되돌릴 수 없습니다.
         </p>
-        <Link to="/account/reset" className="profile-page__btn profile-page__btn--danger profile-page__account-reset">
+        <Link to="/account/reset" className="profile-page__btn button button--danger profile-page__account-reset">
           계정 초기화
         </Link>
       </section>
