@@ -165,14 +165,14 @@
 }
 
 .insurance-billing-cta--primary {
-  background: #10b981;
-  color: #ffffff;
-  border: 1px solid #10b981;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  border: 1px solid var(--btn-primary-bg);
 }
 
 .insurance-billing-cta--primary:hover {
-  background: #059669;
-  border-color: #059669;
+  background: var(--btn-primary-hover-bg);
+  border-color: var(--btn-primary-hover-bg);
 }
 
 .insurance-billing-cta--secondary {
@@ -223,6 +223,32 @@
   color: #047857;
 }
 
+.insurance-billing-manage-page.insurance-billing-page {
+  background: var(--bg-base);
+  color: var(--text-primary);
+}
+
+.app-main-content--workspace-outlet-host .insurance-billing-manage-page.insurance-billing-page,
+.mobile-workspace-content .insurance-billing-manage-page.insurance-billing-page {
+  background: var(--bg-base);
+}
+
+.insurance-billing-manage-page .insurance-billing-page__title p,
+.billing-page__insurance-manage .insurance-billing-plan-note {
+  color: var(--text-secondary);
+}
+
+.insurance-billing-manage-page .insurance-billing-error,
+.billing-page__insurance-manage .insurance-billing-error {
+  color: var(--danger);
+}
+
+.insurance-billing-manage-page .insurance-billing-manage-card,
+.billing-page__insurance-manage .insurance-billing-card {
+  background: var(--bg-surface);
+  border-color: var(--border-default);
+}
+
 .insurance-billing-manage-page .insurance-billing-manage-card {
   margin-top: 16px;
 }
@@ -242,13 +268,13 @@
 
 .insurance-billing-manage-meta__row dt {
   margin: 0;
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 0.875rem;
 }
 
 .insurance-billing-manage-meta__row dd {
   margin: 0;
-  color: #111827;
+  color: var(--text-primary);
   font-weight: 600;
 }
 
@@ -263,28 +289,28 @@
 }
 
 .insurance-billing-status-badge--green {
-  background: #ecfdf5;
-  color: #047857;
+  background: var(--primary-soft);
+  color: var(--primary-active);
 }
 
 .insurance-billing-status-badge--blue {
-  background: #eff6ff;
-  color: #1d4ed8;
+  background: var(--accent-car-bg);
+  color: var(--accent-car-text);
 }
 
 .insurance-billing-status-badge--orange {
-  background: #fff7ed;
-  color: #c2410c;
+  background: var(--accent-soft);
+  color: var(--warning-text);
 }
 
 .insurance-billing-status-badge--red {
-  background: #fef2f2;
-  color: #b91c1c;
+  background: var(--btn-danger-hover-bg);
+  color: var(--danger-text);
 }
 
 .insurance-billing-status-badge--gray {
-  background: #f3f4f6;
-  color: #4b5563;
+  background: var(--bg-soft);
+  color: var(--text-secondary);
 }
 
 .insurance-billing-payment-list {
@@ -297,9 +323,9 @@
 
 .insurance-billing-payment-item {
   padding: 14px 16px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-default);
   border-radius: 12px;
-  background: #fff;
+  background: var(--bg-surface);
 }
 
 .insurance-billing-payment-item__head {
@@ -311,18 +337,18 @@
 
 .insurance-billing-payment-item__head strong {
   font-size: 1rem;
-  color: #111827;
+  color: var(--text-primary);
 }
 
 .insurance-billing-payment-item__sub {
   margin: 8px 0 0;
-  color: #374151;
+  color: var(--text-secondary);
   font-size: 0.875rem;
 }
 
 .insurance-billing-payment-item__muted {
   margin: 4px 0 0;
-  color: #6b7280;
+  color: var(--text-muted);
   font-size: 0.8125rem;
 }
 
@@ -332,14 +358,13 @@
 }
 
 .billing-page__insurance-manage .insurance-billing-card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
   border-radius: 12px;
   padding: 20px;
 }
 
-.billing-page__insurance-manage .insurance-billing-card h2 {
+.billing-page__insurance-manage .insurance-billing-card h2,
+.insurance-billing-manage-card h2 {
   margin: 0 0 16px;
   font-size: 1.125rem;
-  color: #111827;
+  color: var(--text-primary);
 }
