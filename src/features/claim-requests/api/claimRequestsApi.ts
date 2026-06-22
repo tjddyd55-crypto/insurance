@@ -1,6 +1,7 @@
 import { ApiError, apiRequest, resolveAbsoluteApiUrl, resolveApiUrl } from '../../../lib/apiClient'
 import { downloadBlobFile, parseContentDispositionFilename } from '../../../utils/downloadBlobFile'
 import { getCustomerClaimPageUrl } from '../utils/customerClaimPageActions'
+import { buildClaimDownloadFileName } from '../utils/buildClaimDownloadFileName'
 import {
   resolveAgentClaimFileDownloadAuthHref,
   resolveAgentClaimFileOpenHref,
@@ -200,12 +201,27 @@ async function fetchClaimRequestBundleBlob(
   }
 }
 
+export type ClaimBundleDownloadMeta = {
+  customerName: string
+  submittedAt?: string | null
+  createdAt?: string | null
+}
+
+function resolveClaimBundleFallbackFileName(meta: ClaimBundleDownloadMeta, kind: 'zip' | 'pdf'): string {
+  return buildClaimDownloadFileName({
+    customerName: meta.customerName,
+    date: meta.submittedAt ?? meta.createdAt,
+    type: kind,
+  })
+}
+
 export async function downloadClaimRequestFilesZip(
   token: string,
   requestId: number,
   customerId: number,
-  fallbackFileName: string,
+  meta: ClaimBundleDownloadMeta,
 ): Promise<void> {
+  const fallbackFileName = resolveClaimBundleFallbackFileName(meta, 'zip')
   const { blob, fileName } = await fetchClaimRequestBundleBlob(token, requestId, customerId, 'zip')
   downloadBlobFile({ blob, fileName: fileName ?? fallbackFileName })
 }
@@ -214,8 +230,9 @@ export async function downloadClaimRequestFilesPdf(
   token: string,
   requestId: number,
   customerId: number,
-  fallbackFileName: string,
+  meta: ClaimBundleDownloadMeta,
 ): Promise<void> {
+  const fallbackFileName = resolveClaimBundleFallbackFileName(meta, 'pdf')
   const { blob, fileName } = await fetchClaimRequestBundleBlob(token, requestId, customerId, 'pdf')
   downloadBlobFile({ blob, fileName: fileName ?? fallbackFileName })
 }

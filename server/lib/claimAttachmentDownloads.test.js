@@ -3,7 +3,11 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { buildContentDisposition, buildClaimBundleDownloadName } from './claimRequestFileBundle.js'
+import {
+  buildContentDisposition,
+  buildClaimBundleDownloadName,
+  sanitizeDownloadFileNamePart,
+} from './claimRequestFileBundle.js'
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..')
 
@@ -12,20 +16,36 @@ function readSrc(relativePath) {
 }
 
 test('buildContentDisposition — attachment + UTF-8 filename*', () => {
-  const header = buildContentDisposition('청구자료_홍길동_35.zip', 'attachment')
+  const header = buildContentDisposition('정기원_20260619_원본파일.zip', 'attachment')
   assert.match(header, /^attachment;/)
   assert.match(header, /filename\*=UTF-8''/)
 })
 
-test('buildClaimBundleDownloadName — zip/pdf 확장자', () => {
-  assert.equal(buildClaimBundleDownloadName('홍길동', 35, 'zip'), '청구자료_홍길동_35.zip')
-  assert.equal(buildClaimBundleDownloadName('홍길동', 35, 'pdf'), '청구자료_홍길동_35.pdf')
+test('buildClaimBundleDownloadName — 고객명_날짜 suffix', () => {
+  assert.equal(
+    buildClaimBundleDownloadName('정기원', '2026-06-19T10:00:00.000Z', 'pdf'),
+    '정기원_20260619_청구서류.pdf',
+  )
+  assert.equal(
+    buildClaimBundleDownloadName('정기원', '2026-06-19T10:00:00.000Z', 'zip'),
+    '정기원_20260619_원본파일.zip',
+  )
+})
+
+test('sanitizeDownloadFileNamePart — 파일명 금지 문자 제거', () => {
+  assert.equal(sanitizeDownloadFileNamePart('A/B:C*'), 'ABC')
 })
 
 test('downloadBlobFile — empty blob 은 EMPTY_DOWNLOAD_FILE', () => {
   const src = readSrc('src/utils/downloadBlobFile.ts')
   assert.match(src, /blob\.size === 0/)
   assert.match(src, /EmptyDownloadFileError/)
+})
+
+test('downloadBlobFile — filename* 우선 파싱', () => {
+  const src = readSrc('src/utils/downloadBlobFile.ts')
+  assert.match(src, /filename\*/)
+  assert.match(src, /decodeURIComponent/)
 })
 
 test('세 화면이 공통 bundle API · 고객 청구페이지 열기 · 상세 UI 를 사용한다', () => {
@@ -50,6 +70,7 @@ test('세 화면이 공통 bundle API · 고객 청구페이지 열기 · 상세
 
   assert.match(api, /downloadBlobFile/)
   assert.match(api, /fetchClaimRequestBundleBlob/)
+  assert.match(api, /buildClaimDownloadFileName/)
 })
 
 test('ClaimRequestAttachmentActions — 첨부 없을 때 disabled 라벨', () => {

@@ -1462,7 +1462,11 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         return
       }
     }
-    const downloadName = buildClaimBundleDownloadName(bundle.customerName, requestId, kind)
+    const downloadName = buildClaimBundleDownloadName(
+      bundle.customerName,
+      bundle.submittedAt ?? bundle.createdAt,
+      kind,
+    )
     if (kind === 'zip') {
       res.setHeader('Content-Type', 'application/zip')
       res.setHeader('Content-Disposition', buildClaimBundleContentDisposition(downloadName, 'attachment'))
