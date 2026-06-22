@@ -3095,27 +3095,27 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   flex-direction: column;
   gap: 4px;
   padding: 12px 14px;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  background: #f8fafc;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-main);
 }
 
 .profile-page__referral-code-label {
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-secondary);
 }
 
 .profile-page__referral-code-value {
   font-size: 16px;
   font-weight: 600;
   letter-spacing: 0.08em;
-  color: #0f172a;
+  color: var(--text-primary);
 }
 
 .profile-page__subsection-title {
   font-size: 14px;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--text-primary);
   margin: 20px 0 10px;
 }
 
@@ -3133,15 +3133,15 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   align-items: center;
   gap: 6px;
   font-size: 14px;
-  color: #334155;
+  color: var(--text-main);
 }
 
 .profile-page__referral-list-sep {
-  color: #94a3b8;
+  color: var(--text-muted);
 }
 
 .profile-page__referral-list-status {
-  color: #94a3b8;
+  color: var(--text-muted);
 }
 
 .billing-page__notice {
@@ -3310,23 +3310,23 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 .profile-page__section-title {
   font-size: 16px;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-primary);
   margin: 0 0 14px;
   padding-bottom: 10px;
   letter-spacing: 0.02em;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border-default);
 }
 
 .profile-page__section-title--danger {
-  color: #dc2626;
-  border-bottom-color: #fecaca;
+  color: var(--danger);
+  border-bottom-color: var(--danger-border);
 }
 
 .profile-page__section-desc {
   margin: 0 0 12px;
   font-size: 14px;
   line-height: 1.5;
-  color: #64748b;
+  color: var(--text-secondary);
 }
 
 .profile-page__section-desc--spaced {
@@ -3334,7 +3334,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 }
 
 .profile-page__section-desc--danger {
-  color: #dc2626;
+  color: var(--danger-text);
 }
 
 .profile-page__section-action {
@@ -3345,7 +3345,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   margin-top: clamp(24px, 4vh, 40px);
   padding: 20px 0 calc(20px + env(safe-area-inset-bottom, 0px));
   text-align: center;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--border-default);
   flex-shrink: 0;
   display: flex;
   flex-wrap: wrap;
@@ -3355,7 +3355,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 }
 
 .profile-page__legal-sep {
-  color: #94a3b8;
+  color: var(--text-muted);
   font-size: 13px;
   line-height: 1.4;
   user-select: none;
@@ -3368,17 +3368,17 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   min-height: 44px;
   padding: 8px 14px;
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-secondary);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
 .profile-page__legal-link--danger {
-  color: #dc2626;
+  color: var(--danger-text);
 }
 
 .profile-page__inline-link {
-  color: #15803d;
+  color: var(--link);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -3397,13 +3397,13 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 .profile-page__pc-only-notice {
   margin: 0;
   padding: 14px 16px;
-  border: 1px dashed #cbd5e1;
-  border-radius: 12px;
+  border: 1px dashed var(--auth-input-border);
+  border-radius: var(--radius-lg);
   text-align: left;
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 14px;
   line-height: 1.45;
-  background: #f8fafc;
+  background: var(--bg-main);
 }
 
 .mobile-disabled-box {
@@ -3434,9 +3434,9 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   max-width: 100%;
   width: 100%;
   padding: 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  background: #f8fafc;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-main);
   box-sizing: border-box;
 }
 
@@ -3497,15 +3497,15 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 }
 
 .profile-page__excel-toolbar .customers-excel-import-panel > .link-btn {
-  border: 1px solid #16a34a;
-  background: #16a34a;
-  color: #ffffff;
+  border-color: var(--btn-primary-bg);
+  background-color: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .profile-page__excel-toolbar .customers-excel-import-panel > .link-btn:hover:not(:disabled) {
-    background: #15803d;
-    border-color: #15803d;
+    background-color: var(--btn-primary-hover-bg);
+    border-color: var(--btn-primary-hover-bg);
   }
 }
 
@@ -3515,9 +3515,9 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 .profile-page__excel-toolbar .customers-excel-import-panel__download,
 .profile-page__excel-toolbar .customers-excel-import-panel__fail-downloads .link-btn,
 .profile-page__excel-toolbar .customers-excel-import-panel__meta .link-btn {
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
-  color: #334155;
+  border-color: var(--btn-secondary-border);
+  background-color: var(--btn-secondary-surface);
+  color: var(--btn-secondary-text);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -3527,23 +3527,23 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   .profile-page__excel-toolbar .customers-excel-import-panel__download:hover:not(:disabled),
   .profile-page__excel-toolbar .customers-excel-import-panel__fail-downloads .link-btn:hover:not(:disabled),
   .profile-page__excel-toolbar .customers-excel-import-panel__meta .link-btn:hover:not(:disabled) {
-    background: #f8fafc;
-    border-color: #94a3b8;
+    background-color: var(--btn-secondary-hover-bg);
+    border-color: var(--btn-secondary-hover-border);
   }
 }
 
 .profile-page__excel-toolbar .customers-excel-import-panel__preview-actions .cta-button,
 .profile-page__excel-toolbar .field > .flex > .button.button--secondary {
-  border: 1px solid #16a34a;
-  background: #16a34a;
-  color: #ffffff;
+  border-color: var(--btn-primary-bg);
+  background-color: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .profile-page__excel-toolbar .customers-excel-import-panel__preview-actions .cta-button:hover:not(:disabled),
   .profile-page__excel-toolbar .field > .flex > .button.button--secondary:hover:not(:disabled) {
-    background: #15803d;
-    border-color: #15803d;
+    background-color: var(--btn-primary-hover-bg);
+    border-color: var(--btn-primary-hover-bg);
   }
 }
 
@@ -3554,7 +3554,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   max-width: 100%;
   padding: 0 4px;
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-secondary);
   white-space: normal;
   word-break: break-all;
 }
@@ -3566,9 +3566,9 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   gap: 10px;
   width: 100%;
   padding: 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  background: #f8fafc;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-main);
   box-sizing: border-box;
 }
 
@@ -3578,17 +3578,17 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   flex-direction: column;
   gap: 8px;
   font-size: 14px;
-  color: #334155;
+  color: var(--text-main);
 }
 
 .profile-page__excel-toolbar input[type='file'].form-input {
   width: 100%;
   min-height: 44px;
   padding: 10px 14px;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  background: #ffffff;
-  color: #64748b;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-lg);
+  background: var(--input-bg);
+  color: var(--text-secondary);
   font-size: 14px;
   line-height: 1.25;
   box-sizing: border-box;
@@ -3598,25 +3598,25 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   margin-right: 12px;
   min-height: 32px;
   padding: 0 12px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #334155;
+  border: 1px solid var(--btn-secondary-border);
+  border-radius: var(--radius-md);
+  background: var(--btn-secondary-surface);
+  color: var(--btn-secondary-text);
   font-weight: 600;
   cursor: pointer;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .profile-page__excel-toolbar input[type='file'].form-input::file-selector-button:hover {
-    background: #f8fafc;
-    border-color: #94a3b8;
+    background: var(--btn-secondary-hover-bg);
+    border-color: var(--btn-secondary-hover-border);
   }
 }
 
 .profile-page__excel-toolbar .field .text-sm {
   font-size: 14px;
   line-height: 1.45;
-  color: #64748b;
+  color: var(--text-secondary);
 }
 
 .profile-page__excel-preview-scroll {
@@ -3667,7 +3667,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   margin-top: 16px;
 }
 
-/* 프로필 전용: 라이트 그린 테마 */
+/* 프로필 전용: semantic token 기반 (src/styles/tokens.css SSOT) */
 .profile-page {
   display: flex;
   flex-direction: column;
@@ -3678,22 +3678,22 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   padding: clamp(16px, 4vw, 20px);
   box-sizing: border-box;
   overflow: visible;
-  color: #334155;
+  color: var(--text-main);
 }
 
 .profile-page__title {
   margin: 0 0 20px;
   font-size: clamp(1.25rem, 4.5vw, 1.5rem);
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-primary);
 }
 
 .profile-page__section {
   margin-bottom: clamp(32px, 5vh, 48px);
   padding: clamp(16px, 3.5vw, 20px);
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  background: #ffffff;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
   box-sizing: border-box;
 }
 
@@ -3702,8 +3702,8 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 }
 
 .profile-page__danger-section {
-  border-color: #fecaca;
-  background: #fef2f2;
+  border-color: var(--danger-border);
+  background: var(--danger-hover-bg);
 }
 
 .profile-page .auth-form,
@@ -3727,7 +3727,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 .profile-page .field__label {
   font-size: 14px;
   font-weight: 600;
-  color: #334155;
+  color: var(--text-main);
 }
 
 .profile-page .form-input {
@@ -3736,31 +3736,31 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   min-height: 44px;
   height: clamp(44px, 12vw, 48px);
   padding: 0 clamp(12px, 3vw, 16px);
-  border: 1px solid #cbd5e1;
-  border-radius: 12px;
-  background: #ffffff;
-  color: #334155;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-lg);
+  background: var(--input-bg);
+  color: var(--text-main);
   font-size: clamp(0.9375rem, 4vw, 1rem);
   line-height: 1.25;
 }
 
 .profile-page .form-input::placeholder {
-  color: #94a3b8;
+  color: var(--placeholder);
 }
 
 .profile-page .form-input.field--readonly,
 .profile-page .form-input:read-only,
 .profile-page .form-input:disabled {
-  background: #f8fafc;
-  color: #64748b;
-  border-color: #e2e8f0;
+  background: var(--disabled-bg);
+  color: var(--disabled-text);
+  border-color: var(--border-default);
   cursor: default;
 }
 
 .profile-page .form-input.field--editable:focus,
 .profile-page .form-input.field--editable:focus-visible {
-  border-color: #16a34a;
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.24);
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 3px var(--primary-soft);
   outline: none;
 }
 
@@ -3771,20 +3771,14 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   text-align: center;
   min-height: 44px;
   padding: 0 16px;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   font-weight: 700;
   line-height: 1;
   white-space: nowrap;
   text-decoration: none;
   box-sizing: border-box;
   cursor: pointer;
-  border: 1px solid transparent;
   font-size: 0.9375rem;
-  transition:
-    background-color 0.15s ease,
-    border-color 0.15s ease,
-    color 0.15s ease,
-    opacity 0.15s ease;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
 }
@@ -3793,72 +3787,12 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   width: 100%;
 }
 
-.profile-page__btn--primary {
-  border-color: #16a34a;
-  background: #16a34a;
-  color: #ffffff;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .profile-page__btn--primary:hover:not(:disabled):not(.profile-page__btn--disabled) {
-    background: #15803d;
-    border-color: #15803d;
-  }
-}
-
-.profile-page__btn--outline-green {
-  border-color: #86efac;
-  background: #ffffff;
-  color: #15803d;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .profile-page__btn--outline-green:hover:not(:disabled):not(.profile-page__btn--disabled) {
-    background: #f0fdf4;
-    border-color: #bbf7d0;
-  }
-}
-
-.profile-page__btn--outline-neutral {
-  border-color: #cbd5e1;
-  background: #ffffff;
-  color: #334155;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .profile-page__btn--outline-neutral:hover:not(:disabled):not(.profile-page__btn--disabled) {
-    background: #f8fafc;
-    border-color: #94a3b8;
-  }
-}
-
-.profile-page__btn--danger {
-  border-color: #dc2626;
-  background: #dc2626;
-  color: #ffffff;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .profile-page__btn--danger:hover:not(:disabled):not(.profile-page__btn--disabled) {
-    background: #b91c1c;
-    border-color: #b91c1c;
-  }
-}
-
-.profile-page__btn:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.24);
-}
-
-.profile-page__btn--danger:focus-visible {
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.24);
-}
-
-.profile-page__btn:disabled,
-.profile-page__btn--disabled {
-  background: #f1f5f9;
-  border-color: #e2e8f0;
-  color: #94a3b8;
+.profile-page .profile-page__btn--disabled.button,
+.profile-page .profile-page__btn--disabled.button--outline,
+.profile-page .profile-page__btn--disabled.button--secondary {
+  background: var(--btn-disabled-bg);
+  border-color: var(--btn-disabled-border);
+  color: var(--btn-disabled-text);
   opacity: 1;
   cursor: not-allowed;
   pointer-events: none;
@@ -3868,7 +3802,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   min-height: 44px;
   height: auto;
   padding: 0 16px;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   font-weight: 700;
   line-height: 1;
   display: inline-flex;
@@ -3877,42 +3811,24 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   text-align: center;
 }
 
-.profile-page .profile-page__btn--primary.button--primary {
-  border-color: #16a34a;
-  background: #16a34a;
-  color: #ffffff;
-}
-
-.profile-page .profile-page__btn--outline-green.button--secondary {
-  border-color: #86efac;
-  background: #ffffff;
-  color: #15803d;
-}
-
-.profile-page .profile-page__btn--outline-neutral.button--secondary {
-  border-color: #cbd5e1;
-  background: #ffffff;
-  color: #334155;
-}
-
 .profile-page__status {
   margin: 10px 0 0;
   font-size: 14px;
   line-height: 1.45;
-  color: #334155;
+  color: var(--text-main);
 }
 
 .profile-page__status--muted {
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
 .profile-page__status--error {
-  color: #dc2626;
+  color: var(--status-error);
 }
 
 .profile-page__status--success {
-  color: #16a34a;
+  color: var(--success);
 }
 
 .profile-page__status--spaced {
@@ -3972,7 +3888,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 
   .profile-page__section {
     padding: 20px 24px;
-    background: #ffffff;
+    background: var(--bg-surface);
   }
 
   .profile-page__team-btn {
@@ -4008,56 +3924,38 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   min-height: 44px;
   height: clamp(44px, 12vw, 48px);
   padding: 0 16px;
-  border-radius: 12px;
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
-  color: #334155;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--text-main);
   font-size: 0.9375rem;
 }
 
 .pc-root .profile-page .form-input.field--readonly,
 .pc-root .profile-page .form-input:read-only,
 .pc-root .profile-page .form-input:disabled {
-  background: #f8fafc;
-  color: #64748b;
-  border-color: #e2e8f0;
+  background: var(--disabled-bg);
+  color: var(--disabled-text);
+  border-color: var(--border-default);
 }
 
 .pc-root .profile-page .form-input.field--editable:focus,
 .pc-root .profile-page .form-input.field--editable:focus-visible {
-  border-color: #16a34a;
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.24);
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
 .pc-root .profile-page .profile-page__btn.button {
   min-height: 44px;
   height: auto;
   padding: 0 16px;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   font-weight: 700;
   line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   text-align: center;
-}
-
-.pc-root .profile-page .profile-page__btn--outline-green.button--secondary {
-  border-color: #86efac;
-  background: #ffffff;
-  color: #15803d;
-}
-
-.pc-root .profile-page .profile-page__btn--outline-neutral.button--secondary {
-  border-color: #cbd5e1;
-  background: #ffffff;
-  color: #334155;
-}
-
-.pc-root .profile-page .profile-page__btn--primary.button--primary {
-  border-color: #16a34a;
-  background: #16a34a;
-  color: #ffffff;
 }
 
 /*
