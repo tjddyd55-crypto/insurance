@@ -5,8 +5,10 @@ import {
   CLAIM_BUNDLE_MAX_TOTAL_BYTES,
   assertClaimBundleWithinLimits,
   buildClaimBundleDownloadName,
+  buildContentDisposition,
   normalizeClaimFileMime,
   resolveUniqueZipEntryNames,
+  sanitizeDownloadFileNamePart,
 } from './claimRequestFileBundle.js'
 
 test('normalizeClaimFileMime — 확장자 폴백', () => {
@@ -48,7 +50,24 @@ test('assertClaimBundleWithinLimits — 총 용량 초과', () => {
   )
 })
 
-test('buildClaimBundleDownloadName — 한글 고객명 포함', () => {
-  assert.equal(buildClaimBundleDownloadName('홍길동', 32, 'zip'), '청구자료_홍길동_32.zip')
-  assert.equal(buildClaimBundleDownloadName('홍길동', 32, 'pdf'), '청구자료_홍길동_32.pdf')
+test('buildClaimBundleDownloadName — 고객명+날짜 PDF/ZIP', () => {
+  assert.equal(
+    buildClaimBundleDownloadName('정기원', '2026-06-19T10:00:00.000Z', 'pdf'),
+    '정기원_20260619_청구서류.pdf',
+  )
+  assert.equal(
+    buildClaimBundleDownloadName('정기원', '2026-06-19T10:00:00.000Z', 'zip'),
+    '정기원_20260619_원본파일.zip',
+  )
+})
+
+test('sanitizeDownloadFileNamePart — 금지 문자 제거', () => {
+  assert.equal(sanitizeDownloadFileNamePart('홍:길*동?'), '홍길동')
+  assert.equal(sanitizeDownloadFileNamePart('   '), '고객')
+})
+
+test('buildContentDisposition — 한글 filename* 포함', () => {
+  const header = buildContentDisposition('정기원_20260619_청구서류.pdf', 'attachment')
+  assert.match(header, /^attachment;/)
+  assert.match(header, /filename\*=UTF-8''%EC%A0%95%EA%B8%B0%EC%9B%90_20260619_%EC%B2%AD%EA%B5%AC%EC%84%9C%EB%A5%98\.pdf/)
 })

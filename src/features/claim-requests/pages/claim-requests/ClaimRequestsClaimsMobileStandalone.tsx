@@ -422,12 +422,10 @@ export default function ClaimRequestsClaimsMobileStandalone() {
     }
     setZipBusy(true)
     try {
-      await downloadClaimRequestFilesZip(
-        token,
-        detail.id,
-        detail.customerId,
-        `청구자료_${detail.customerName}_${detail.id}.zip`,
-      )
+      await downloadClaimRequestFilesZip(token, detail.id, detail.customerId, {
+        customerName: detail.customerName,
+        submittedAt: detail.submittedAt,
+      })
     } catch (downloadError) {
       setError(downloadError instanceof Error ? downloadError.message : 'ZIP 다운로드에 실패했습니다.')
     } finally {
@@ -445,12 +443,10 @@ export default function ClaimRequestsClaimsMobileStandalone() {
     }
     setPdfBusy(true)
     try {
-      await downloadClaimRequestFilesPdf(
-        token,
-        detail.id,
-        detail.customerId,
-        `청구자료_${detail.customerName}_${detail.id}.pdf`,
-      )
+      await downloadClaimRequestFilesPdf(token, detail.id, detail.customerId, {
+        customerName: detail.customerName,
+        submittedAt: detail.submittedAt,
+      })
     } catch (downloadError) {
       setError(downloadError instanceof Error ? downloadError.message : 'PDF 다운로드에 실패했습니다.')
     } finally {

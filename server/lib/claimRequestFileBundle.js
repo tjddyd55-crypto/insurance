@@ -33,24 +33,47 @@ export function buildContentDisposition(fileNameRaw, mode = 'attachment') {
  * @param {string} raw
  */
 export function safeClaimBundleFilenameSegment(raw) {
-  return (
-    String(raw ?? '')
-      .trim()
-      .replace(/[\\/:*?"<>|]/g, '_')
-      .replace(/\s+/g, '_')
-      .slice(0, 80) || '고객'
-  )
+  return sanitizeDownloadFileNamePart(raw)
+}
+
+/**
+ * @param {unknown} value
+ */
+export function sanitizeDownloadFileNamePart(value) {
+  const cleaned = String(value ?? '')
+    .trim()
+    .replace(/[\\/:*?"<>|]/g, '')
+    .replace(/\s+/g, '_')
+    .slice(0, 40)
+  return cleaned || '고객'
+}
+
+/**
+ * @param {unknown} value
+ */
+export function formatDateForFileName(value) {
+  const date = value ? new Date(value) : new Date()
+  if (Number.isNaN(date.getTime())) {
+    return new Date().toISOString().slice(0, 10).replace(/-/g, '')
+  }
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}${month}${day}`
 }
 
 /**
  * @param {string} customerName
- * @param {number} requestId
+ * @param {unknown} dateLike submitted_at / created_at 등
  * @param {'zip'|'pdf'} kind
  */
-export function buildClaimBundleDownloadName(customerName, requestId, kind) {
-  const seg = safeClaimBundleFilenameSegment(customerName)
-  const ext = kind === 'zip' ? 'zip' : 'pdf'
-  return `청구자료_${seg}_${requestId}.${ext}`
+export function buildClaimBundleDownloadName(customerName, dateLike, kind) {
+  const safeName = sanitizeDownloadFileNamePart(customerName)
+  const dateText = formatDateForFileName(dateLike)
+  if (kind === 'pdf') {
+    return `${safeName}_${dateText}_청구서류.pdf`
+  }
+  return `${safeName}_${dateText}_원본파일.zip`
 }
 
 /**
@@ -324,6 +347,8 @@ export async function loadAgentClaimRequestBundleFiles(pool, { agentId, requestI
   return {
     customerId: resolvedCustomerId,
     customerName: String(requestRow.customer_name ?? ''),
+    submittedAt: requestRow.submitted_at ?? null,
+    createdAt: requestRow.created_at ?? null,
     files: filesResult.rows.map((row) => ({
       storageKey: String(row.storage_key ?? ''),
       fileName: String(row.file_name ?? ''),
