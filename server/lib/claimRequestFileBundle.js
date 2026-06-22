@@ -1,4 +1,5 @@
 import archiver from 'archiver'
+import sharp from 'sharp'
 import { PDFDocument, rgb } from 'pdf-lib'
 import { embedKoreanFont } from '../pdf-engine/renderer/fontProvider.js'
 
@@ -13,17 +14,20 @@ const NOTICE_FONT_SIZE = 11
 const NOTICE_LINE_HEIGHT = 16
 
 /**
- * @param {string} fileNameRaw
+ * @param {string} utf8FileName
  * @param {'inline'|'attachment'} mode
+ * @param {string} [asciiFallbackName]
  */
-export function buildContentDisposition(fileNameRaw, mode = 'attachment') {
-  const name = String(fileNameRaw ?? '').trim() || 'download'
+export function buildContentDisposition(utf8FileName, mode = 'attachment', asciiFallbackName) {
+  const name = String(utf8FileName ?? '').trim() || 'download'
   const ascii =
+    String(asciiFallbackName ?? '').trim() ||
     name
       .replace(/["\r\n\\]/g, '_')
       .replace(/[^\x20-\x7E]/g, '_')
       .trim()
-      .slice(0, 200) || 'download'
+      .slice(0, 200) ||
+    'download'
   const star = encodeURIComponent(name)
   const dispositionType = mode === 'attachment' ? 'attachment' : 'inline'
   return `${dispositionType}; filename="${ascii}"; filename*=UTF-8''${star}`
@@ -74,6 +78,24 @@ export function buildClaimBundleDownloadName(customerName, dateLike, kind) {
     return `${safeName}_${dateText}_청구서류.pdf`
   }
   return `${safeName}_${dateText}_원본파일.zip`
+}
+
+/**
+ * @param {unknown} dateLike
+ * @param {'zip'|'pdf'} kind
+ */
+export function buildClaimBundleAsciiFallbackName(dateLike, kind) {
+  const dateText = formatDateForFileName(dateLike)
+  return kind === 'pdf' ? `claim-files-${dateText}.pdf` : `claim-files-${dateText}.zip`
+}
+
+/**
+ * @param {number} width
+ * @param {number} height
+ */
+export function getPdfPageSizeForImage(width, height) {
+  const isPortrait = height >= width
+  return isPortrait ? [A4_W, A4_H] : [A4_H, A4_W]
 }
 
 /**
@@ -159,34 +181,62 @@ export function assertClaimBundleWithinLimits(files) {
 }
 
 /**
+ * EXIF orientation 반영 후 PDF embed 용 버퍼·크기를 반환한다.
+ * @param {Buffer} bytes
+ * @param {string} mime
+ */
+export async function normalizeImageForPdf(bytes, mime) {
+  const rotated = sharp(bytes).rotate()
+  const metadata = await rotated.metadata()
+  const width = Number(metadata.width ?? 1)
+  const height = Number(metadata.height ?? 1)
+  const normalizedMime = mime === 'image/png' ? 'image/png' : 'image/jpeg'
+  const buffer =
+    normalizedMime === 'image/png'
+      ? await rotated.png().toBuffer()
+      : await rotated.jpeg({ quality: 92 }).toBuffer()
+  return { buffer, width, height, mime: normalizedMime }
+}
+
+/**
  * @param {import('pdf-lib').PDFDocument} pdfDoc
  * @param {Buffer} bytes
+ * @param {string} mime
  */
-async function tryEmbedRaster(pdfDoc, bytes) {
+async function tryEmbedNormalizedRaster(pdfDoc, bytes, mime) {
+  let normalized
   try {
-    return await pdfDoc.embedPng(bytes)
+    normalized = await normalizeImageForPdf(bytes, mime)
   } catch {
-    try {
-      return await pdfDoc.embedJpg(bytes)
-    } catch {
-      return null
-    }
+    return null
+  }
+  try {
+    const image =
+      normalized.mime === 'image/png'
+        ? await pdfDoc.embedPng(normalized.buffer)
+        : await pdfDoc.embedJpg(normalized.buffer)
+    return { image, width: normalized.width, height: normalized.height }
+  } catch {
+    return null
   }
 }
 
 /**
  * @param {import('pdf-lib').PDFDocument} pdfDoc
  * @param {import('pdf-lib').PDFImage} image
+ * @param {number} displayWidth
+ * @param {number} displayHeight
  */
-function drawImageFitPage(pdfDoc, image) {
-  const page = pdfDoc.addPage([A4_W, A4_H])
-  const maxW = A4_W - IMAGE_MARGIN * 2
-  const maxH = A4_H - IMAGE_MARGIN * 2
-  const scale = Math.min(maxW / image.width, maxH / image.height, 1)
-  const width = image.width * scale
-  const height = image.height * scale
-  const x = (A4_W - width) / 2
-  const y = (A4_H - height) / 2
+function drawImageFitPage(pdfDoc, image, displayWidth, displayHeight) {
+  const [pageW, pageH] = getPdfPageSizeForImage(displayWidth, displayHeight)
+  const page = pdfDoc.addPage([pageW, pageH])
+  const maxW = pageW - IMAGE_MARGIN * 2
+  const maxH = pageH - IMAGE_MARGIN * 2
+  const scale = Math.min(maxW / displayWidth, maxH / displayHeight, 1)
+  const width = displayWidth * scale
+  const height = displayHeight * scale
+  const x = (pageW - width) / 2
+  const y = (pageH - height) / 2
   page.drawImage(image, { x, y, width, height })
 }
 
@@ -242,12 +292,12 @@ export async function buildClaimFilesPdfBuffer(files, readBuffer) {
     }
 
     if (mime === 'image/jpeg' || mime === 'image/png') {
-      const image = await tryEmbedRaster(pdfDoc, bytes)
-      if (!image) {
+      const embedded = await tryEmbedNormalizedRaster(pdfDoc, bytes, mime)
+      if (!embedded) {
         skipped.push(fileName)
         continue
       }
-      drawImageFitPage(pdfDoc, image)
+      drawImageFitPage(pdfDoc, embedded.image, embedded.width, embedded.height)
       includedPages += 1
       continue
     }
@@ -305,6 +355,8 @@ export async function loadAgentClaimRequestBundleFiles(pool, { agentId, requestI
     SELECT
       r.id,
       r.customer_id,
+      r.submitted_at,
+      r.created_at,
       COALESCE(NULLIF(TRIM(c.name), ''), '고객') AS customer_name
     FROM customer_claim_requests r
     INNER JOIN customers c ON c.id = r.customer_id
