@@ -237,9 +237,11 @@ async function tryEmbedNormalizedRaster(pdfDoc, bytes, mime) {
       normalized.mime === 'image/png'
         ? await pdfDoc.embedPng(normalized.buffer)
         : await pdfDoc.embedJpg(normalized.buffer)
-    const width = Number(image.width ?? normalized.width)
-    const height = Number(image.height ?? normalized.height)
-    return { image, width, height }
+    return {
+      image,
+      width: normalized.width,
+      height: normalized.height,
+    }
   } catch {
     return null
   }
