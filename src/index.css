@@ -3095,27 +3095,27 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   flex-direction: column;
   gap: 4px;
   padding: 12px 14px;
-  border: 1px solid #334155;
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
-  background: #1f2937;
+  background: #f8fafc;
 }
 
 .profile-page__referral-code-label {
   font-size: 12px;
-  color: #94a3b8;
+  color: #64748b;
 }
 
 .profile-page__referral-code-value {
   font-size: 16px;
   font-weight: 600;
   letter-spacing: 0.08em;
-  color: #f8fafc;
+  color: #0f172a;
 }
 
 .profile-page__subsection-title {
   font-size: 14px;
   font-weight: 600;
-  color: #f8fafc;
+  color: #0f172a;
   margin: 20px 0 10px;
 }
 
@@ -3133,7 +3133,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   align-items: center;
   gap: 6px;
   font-size: 14px;
-  color: #e5e7eb;
+  color: #334155;
 }
 
 .profile-page__referral-list-sep {
@@ -3310,23 +3310,23 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 .profile-page__section-title {
   font-size: 16px;
   font-weight: 700;
-  color: #f8fafc;
+  color: #0f172a;
   margin: 0 0 14px;
   padding-bottom: 10px;
   letter-spacing: 0.02em;
-  border-bottom: 1px solid #1e293b;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .profile-page__section-title--danger {
-  color: #fca5a5;
-  border-bottom-color: rgba(239, 68, 68, 0.28);
+  color: #dc2626;
+  border-bottom-color: #fecaca;
 }
 
 .profile-page__section-desc {
   margin: 0 0 12px;
   font-size: 14px;
   line-height: 1.5;
-  color: #94a3b8;
+  color: #64748b;
 }
 
 .profile-page__section-desc--spaced {
@@ -3334,7 +3334,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 }
 
 .profile-page__section-desc--danger {
-  color: #f87171;
+  color: #dc2626;
 }
 
 .profile-page__section-action {
@@ -3345,7 +3345,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   margin-top: clamp(24px, 4vh, 40px);
   padding: 20px 0 calc(20px + env(safe-area-inset-bottom, 0px));
   text-align: center;
-  border-top: 1px solid #1e293b;
+  border-top: 1px solid #e2e8f0;
   flex-shrink: 0;
   display: flex;
   flex-wrap: wrap;
@@ -3368,17 +3368,17 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   min-height: 44px;
   padding: 8px 14px;
   font-size: 13px;
-  color: #94a3b8;
+  color: #64748b;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
 .profile-page__legal-link--danger {
-  color: #fca5a5;
+  color: #dc2626;
 }
 
 .profile-page__inline-link {
-  color: #60a5fa;
+  color: #15803d;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -3397,13 +3397,13 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 .profile-page__pc-only-notice {
   margin: 0;
   padding: 14px 16px;
-  border: 1px dashed #334155;
+  border: 1px dashed #cbd5e1;
   border-radius: 12px;
   text-align: left;
-  color: #94a3b8;
+  color: #64748b;
   font-size: 14px;
   line-height: 1.45;
-  background: #111827;
+  background: #f8fafc;
 }
 
 .mobile-disabled-box {
@@ -3433,6 +3433,11 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   min-width: 0;
   max-width: 100%;
   width: 100%;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  box-sizing: border-box;
 }
 
 .profile-page__excel-toolbar {
@@ -3468,8 +3473,9 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 
 .profile-page__excel-toolbar .link-btn,
 .profile-page__excel-toolbar .filter-button,
+.profile-page__excel-toolbar .cta-button,
 .profile-page__excel-toolbar .customers-excel-import-panel__upload-btn,
-.profile-page__excel-toolbar .button.button--secondary {
+.profile-page__excel-toolbar .button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3481,11 +3487,64 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   line-height: 1;
   white-space: nowrap;
   box-sizing: border-box;
-  border: 1px solid #334155;
-  background: #111827;
-  color: #e5e7eb;
   font-size: 14px;
   text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.profile-page__excel-toolbar .customers-excel-import-panel > .link-btn {
+  border: 1px solid #16a34a;
+  background: #16a34a;
+  color: #ffffff;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .profile-page__excel-toolbar .customers-excel-import-panel > .link-btn:hover:not(:disabled) {
+    background: #15803d;
+    border-color: #15803d;
+  }
+}
+
+.profile-page__excel-toolbar .customers-excel-import-panel__row .link-btn,
+.profile-page__excel-toolbar .customers-excel-import-panel__upload-btn,
+.profile-page__excel-toolbar .customers-excel-import-panel__preview-actions .filter-button,
+.profile-page__excel-toolbar .customers-excel-import-panel__download,
+.profile-page__excel-toolbar .customers-excel-import-panel__fail-downloads .link-btn,
+.profile-page__excel-toolbar .customers-excel-import-panel__meta .link-btn {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .profile-page__excel-toolbar .customers-excel-import-panel__row .link-btn:hover:not(:disabled),
+  .profile-page__excel-toolbar .customers-excel-import-panel__upload-btn:hover:not(:disabled),
+  .profile-page__excel-toolbar .customers-excel-import-panel__preview-actions .filter-button:hover:not(:disabled),
+  .profile-page__excel-toolbar .customers-excel-import-panel__download:hover:not(:disabled),
+  .profile-page__excel-toolbar .customers-excel-import-panel__fail-downloads .link-btn:hover:not(:disabled),
+  .profile-page__excel-toolbar .customers-excel-import-panel__meta .link-btn:hover:not(:disabled) {
+    background: #f8fafc;
+    border-color: #94a3b8;
+  }
+}
+
+.profile-page__excel-toolbar .customers-excel-import-panel__preview-actions .cta-button,
+.profile-page__excel-toolbar .field > .flex > .button.button--secondary {
+  border: 1px solid #16a34a;
+  background: #16a34a;
+  color: #ffffff;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .profile-page__excel-toolbar .customers-excel-import-panel__preview-actions .cta-button:hover:not(:disabled),
+  .profile-page__excel-toolbar .field > .flex > .button.button--secondary:hover:not(:disabled) {
+    background: #15803d;
+    border-color: #15803d;
+  }
 }
 
 .profile-page__excel-toolbar .customers-excel-import-panel__fname {
@@ -3495,7 +3554,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   max-width: 100%;
   padding: 0 4px;
   font-size: 13px;
-  color: #94a3b8;
+  color: #64748b;
   white-space: normal;
   word-break: break-all;
 }
@@ -3506,6 +3565,11 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   align-items: stretch;
   gap: 10px;
   width: 100%;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  box-sizing: border-box;
 }
 
 .profile-page__excel-toolbar .field > .flex > label {
@@ -3514,17 +3578,17 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   flex-direction: column;
   gap: 8px;
   font-size: 14px;
-  color: #cbd5e1;
+  color: #334155;
 }
 
 .profile-page__excel-toolbar input[type='file'].form-input {
   width: 100%;
   min-height: 44px;
   padding: 10px 14px;
-  border: 1px solid #334155;
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
-  background: #020617;
-  color: #e5e7eb;
+  background: #ffffff;
+  color: #64748b;
   font-size: 14px;
   line-height: 1.25;
   box-sizing: border-box;
@@ -3534,18 +3598,25 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   margin-right: 12px;
   min-height: 32px;
   padding: 0 12px;
-  border: 1px solid #334155;
+  border: 1px solid #cbd5e1;
   border-radius: 8px;
-  background: #1f2937;
-  color: #e5e7eb;
+  background: #ffffff;
+  color: #334155;
   font-weight: 600;
   cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .profile-page__excel-toolbar input[type='file'].form-input::file-selector-button:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+  }
 }
 
 .profile-page__excel-toolbar .field .text-sm {
   font-size: 14px;
   line-height: 1.45;
-  color: #94a3b8;
+  color: #64748b;
 }
 
 .profile-page__excel-preview-scroll {
@@ -3596,7 +3667,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   margin-top: 16px;
 }
 
-/* 프로필 전용: 모바일 카드 / PC 폼 섹션 */
+/* 프로필 전용: 라이트 그린 테마 */
 .profile-page {
   display: flex;
   flex-direction: column;
@@ -3607,22 +3678,22 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   padding: clamp(16px, 4vw, 20px);
   box-sizing: border-box;
   overflow: visible;
-  color: #e5e7eb;
+  color: #334155;
 }
 
 .profile-page__title {
   margin: 0 0 20px;
   font-size: clamp(1.25rem, 4.5vw, 1.5rem);
   font-weight: 700;
-  color: #f8fafc;
+  color: #0f172a;
 }
 
 .profile-page__section {
   margin-bottom: clamp(32px, 5vh, 48px);
   padding: clamp(16px, 3.5vw, 20px);
-  border: 1px solid #1e293b;
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
-  background: #111827;
+  background: #ffffff;
   box-sizing: border-box;
 }
 
@@ -3631,8 +3702,8 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 }
 
 .profile-page__danger-section {
-  border-color: rgba(239, 68, 68, 0.28);
-  background: rgba(239, 68, 68, 0.06);
+  border-color: #fecaca;
+  background: #fef2f2;
 }
 
 .profile-page .auth-form,
@@ -3656,7 +3727,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 .profile-page .field__label {
   font-size: 14px;
   font-weight: 600;
-  color: #cbd5e1;
+  color: #334155;
 }
 
 .profile-page .form-input {
@@ -3665,31 +3736,31 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   min-height: 44px;
   height: clamp(44px, 12vw, 48px);
   padding: 0 clamp(12px, 3vw, 16px);
-  border: 1px solid #334155;
+  border: 1px solid #cbd5e1;
   border-radius: 12px;
-  background: #020617;
-  color: #f8fafc;
+  background: #ffffff;
+  color: #334155;
   font-size: clamp(0.9375rem, 4vw, 1rem);
   line-height: 1.25;
 }
 
 .profile-page .form-input::placeholder {
-  color: #64748b;
+  color: #94a3b8;
 }
 
 .profile-page .form-input.field--readonly,
 .profile-page .form-input:read-only,
 .profile-page .form-input:disabled {
-  background: #1f2937;
-  color: #94a3b8;
-  border-color: #334155;
+  background: #f8fafc;
+  color: #64748b;
+  border-color: #e2e8f0;
   cursor: default;
 }
 
 .profile-page .form-input.field--editable:focus,
 .profile-page .form-input.field--editable:focus-visible {
-  border-color: #22c55e;
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.28);
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.24);
   outline: none;
 }
 
@@ -3729,52 +3800,68 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .profile-page__btn--primary:hover:not(:disabled) {
+  .profile-page__btn--primary:hover:not(:disabled):not(.profile-page__btn--disabled) {
     background: #15803d;
     border-color: #15803d;
   }
 }
 
-.profile-page__btn--outline {
-  border-color: #334155;
-  background: #111827;
-  color: #e5e7eb;
+.profile-page__btn--outline-green {
+  border-color: #86efac;
+  background: #ffffff;
+  color: #15803d;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .profile-page__btn--outline:hover:not(:disabled) {
-    background: #1f2937;
-    border-color: #475569;
+  .profile-page__btn--outline-green:hover:not(:disabled):not(.profile-page__btn--disabled) {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+  }
+}
+
+.profile-page__btn--outline-neutral {
+  border-color: #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .profile-page__btn--outline-neutral:hover:not(:disabled):not(.profile-page__btn--disabled) {
+    background: #f8fafc;
+    border-color: #94a3b8;
   }
 }
 
 .profile-page__btn--danger {
-  border-color: rgba(239, 68, 68, 0.45);
-  background: rgba(239, 68, 68, 0.12);
-  color: #fca5a5;
+  border-color: #dc2626;
+  background: #dc2626;
+  color: #ffffff;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .profile-page__btn--danger:hover:not(:disabled) {
-    background: rgba(239, 68, 68, 0.2);
-    border-color: rgba(239, 68, 68, 0.55);
-    color: #fecaca;
+  .profile-page__btn--danger:hover:not(:disabled):not(.profile-page__btn--disabled) {
+    background: #b91c1c;
+    border-color: #b91c1c;
   }
 }
 
 .profile-page__btn:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.28);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.24);
 }
 
 .profile-page__btn--danger:focus-visible {
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.28);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.24);
 }
 
 .profile-page__btn:disabled,
 .profile-page__btn--disabled {
-  opacity: 0.5;
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #94a3b8;
+  opacity: 1;
   cursor: not-allowed;
+  pointer-events: none;
 }
 
 .profile-page .profile-page__btn.button {
@@ -3796,30 +3883,36 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   color: #ffffff;
 }
 
-.profile-page .profile-page__btn--outline.button--secondary {
-  border-color: #334155;
-  background: #111827;
-  color: #e5e7eb;
+.profile-page .profile-page__btn--outline-green.button--secondary {
+  border-color: #86efac;
+  background: #ffffff;
+  color: #15803d;
+}
+
+.profile-page .profile-page__btn--outline-neutral.button--secondary {
+  border-color: #cbd5e1;
+  background: #ffffff;
+  color: #334155;
 }
 
 .profile-page__status {
   margin: 10px 0 0;
   font-size: 14px;
   line-height: 1.45;
-  color: #e5e7eb;
+  color: #334155;
 }
 
 .profile-page__status--muted {
-  color: #94a3b8;
+  color: #64748b;
   font-size: 13px;
 }
 
 .profile-page__status--error {
-  color: #f87171;
+  color: #dc2626;
 }
 
 .profile-page__status--success {
-  color: #4ade80;
+  color: #16a34a;
 }
 
 .profile-page__status--spaced {
@@ -3879,7 +3972,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 
   .profile-page__section {
     padding: 20px 24px;
-    background: transparent;
+    background: #ffffff;
   }
 
   .profile-page__team-btn {
@@ -3916,23 +4009,24 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   height: clamp(44px, 12vw, 48px);
   padding: 0 16px;
   border-radius: 12px;
-  border: 1px solid #334155;
-  background: #020617;
-  color: #f8fafc;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
   font-size: 0.9375rem;
 }
 
 .pc-root .profile-page .form-input.field--readonly,
 .pc-root .profile-page .form-input:read-only,
 .pc-root .profile-page .form-input:disabled {
-  background: #1f2937;
-  color: #94a3b8;
+  background: #f8fafc;
+  color: #64748b;
+  border-color: #e2e8f0;
 }
 
 .pc-root .profile-page .form-input.field--editable:focus,
 .pc-root .profile-page .form-input.field--editable:focus-visible {
-  border-color: #22c55e;
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.28);
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.24);
 }
 
 .pc-root .profile-page .profile-page__btn.button {
@@ -3946,6 +4040,24 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   align-items: center;
   justify-content: center;
   text-align: center;
+}
+
+.pc-root .profile-page .profile-page__btn--outline-green.button--secondary {
+  border-color: #86efac;
+  background: #ffffff;
+  color: #15803d;
+}
+
+.pc-root .profile-page .profile-page__btn--outline-neutral.button--secondary {
+  border-color: #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+}
+
+.pc-root .profile-page .profile-page__btn--primary.button--primary {
+  border-color: #16a34a;
+  background: #16a34a;
+  color: #ffffff;
 }
 
 /*

@@ -494,7 +494,7 @@ export function ProfilePage() {
                     <FormButton
                       htmlType="button"
                       variant="secondary"
-                      className="profile-page__btn profile-page__btn--outline"
+                      className="profile-page__btn profile-page__btn--outline-neutral"
                       onClick={() => void sendCode()}
                       disabled={submitting || resendLeft > 0}
                     >
@@ -517,7 +517,7 @@ export function ProfilePage() {
                   <FormButton
                     htmlType="button"
                     variant="secondary"
-                    className="profile-page__btn profile-page__btn--outline profile-page__verify-btn"
+                    className="profile-page__btn profile-page__btn--outline-neutral profile-page__verify-btn"
                     onClick={() => void verifyCode()}
                     disabled={submitting || code.trim().length !== 6}
                   >
@@ -533,7 +533,7 @@ export function ProfilePage() {
               ) : null}
 
               <div className="field profile-page__password-reset-field">
-                <Link to="/password-reset" className="profile-page__btn profile-page__btn--outline profile-page__btn--full">
+                <Link to="/password-reset" className="profile-page__btn profile-page__btn--outline-green profile-page__btn--full">
                   비밀번호 재설정
                 </Link>
               </div>
@@ -558,7 +558,7 @@ export function ProfilePage() {
               <FormButton
                 htmlType="button"
                 variant="secondary"
-                className={`profile-page__btn profile-page__btn--outline profile-page__team-btn${hasTeam ? ' profile-page__btn--disabled' : ''}`}
+                className={`profile-page__btn profile-page__btn--outline-green profile-page__team-btn${hasTeam ? ' profile-page__btn--disabled' : ''}`}
                 aria-disabled={hasTeam}
                 onClick={() => {
                   if (hasTeam) {
@@ -575,7 +575,7 @@ export function ProfilePage() {
               <FormButton
                 htmlType="button"
                 variant="secondary"
-                className="profile-page__btn profile-page__btn--outline profile-page__team-btn"
+                className="profile-page__btn profile-page__btn--outline-green profile-page__team-btn"
                 onClick={() => void copyTeamCode()}
               >
                 {teamCodeCopied ? '복사됨 ✓' : '팀 코드 복사'}
@@ -583,7 +583,7 @@ export function ProfilePage() {
               <FormButton
                 htmlType="button"
                 variant="secondary"
-                className={`profile-page__btn profile-page__btn--outline profile-page__team-btn${hasTeam ? ' profile-page__btn--disabled' : ''}`}
+                className={`profile-page__btn profile-page__btn--outline-green profile-page__team-btn${hasTeam ? ' profile-page__btn--disabled' : ''}`}
                 aria-disabled={hasTeam}
                 onClick={() => {
                   if (hasTeam) {
@@ -625,7 +625,7 @@ export function ProfilePage() {
           <FormButton
             htmlType="button"
             variant="secondary"
-            className="profile-page__btn profile-page__btn--outline profile-page__team-btn"
+            className="profile-page__btn profile-page__btn--outline-green profile-page__team-btn"
             onClick={() => void copyReferralCode()}
           >
             {referralCodeCopied ? '복사됨 ✓' : '복사'}
@@ -665,7 +665,7 @@ export function ProfilePage() {
       <section className="profile-page__section">
         <h2 className="profile-page__section-title">결제 관리</h2>
         <p className="profile-page__section-desc">월 이용료 구독 상태와 결제 내역을 확인할 수 있습니다.</p>
-        <Link to="/account/billing" className="profile-page__btn profile-page__btn--outline profile-page__btn--full profile-page__section-action">
+        <Link to="/account/billing" className="profile-page__btn profile-page__btn--outline-neutral profile-page__btn--full profile-page__section-action">
           결제 관리로 이동
         </Link>
       </section>
