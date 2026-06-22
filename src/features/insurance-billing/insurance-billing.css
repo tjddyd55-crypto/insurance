@@ -1,13 +1,13 @@
 .insurance-billing-page {
   min-height: 100vh;
-  background: #f8fafc;
-  color: #111827;
+  background: var(--bg-base);
+  color: var(--text-primary);
 }
 
 .app-main-content--workspace-outlet-host .insurance-billing-page,
 .mobile-workspace-content .insurance-billing-page {
   min-height: auto;
-  background: #f8fafc;
+  background: var(--bg-base);
 }
 
 .app-main-content--workspace-outlet-host .insurance-billing-page__shell,
@@ -30,7 +30,7 @@
 
 .insurance-billing-page__title p {
   margin: 0;
-  color: #6b7280;
+  color: var(--text-secondary);
   font-size: 1rem;
   line-height: 1.6;
 }
@@ -49,35 +49,37 @@
 }
 
 .insurance-billing-card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
   border-radius: 16px;
   padding: 24px;
-  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+  box-shadow: 0 1px 2px var(--shadow-card);
 }
 
 .insurance-billing-card h2 {
   margin: 0 0 16px;
   font-size: 1.125rem;
   font-weight: 700;
+  color: var(--text-primary);
 }
 
 .insurance-billing-plan-price {
   font-size: 2rem;
   font-weight: 800;
   margin: 0;
+  color: var(--text-primary);
 }
 
 .insurance-billing-plan-note {
   margin: 8px 0 0;
-  color: #6b7280;
+  color: var(--text-secondary);
   font-size: 0.9375rem;
 }
 
 .insurance-billing-benefit-list {
   margin: 16px 0 0;
   padding-left: 18px;
-  color: #374151;
+  color: var(--text-primary);
   line-height: 1.7;
 }
 
@@ -90,7 +92,7 @@
 .insurance-billing-field label {
   font-size: 0.875rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-primary);
 }
 
 .insurance-billing-field input,
@@ -98,11 +100,12 @@
   width: 100%;
   box-sizing: border-box;
   min-height: 44px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--input-border);
   border-radius: 10px;
   padding: 10px 12px;
   font: inherit;
-  background: #fff;
+  background: var(--input-bg);
+  color: var(--text-primary);
 }
 
 .insurance-billing-summary-row {
@@ -110,8 +113,9 @@
   justify-content: space-between;
   gap: 12px;
   padding: 10px 0;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--border-subtle);
   font-size: 0.9375rem;
+  color: var(--text-primary);
 }
 
 .insurance-billing-summary-row--total {
@@ -125,17 +129,17 @@
   margin-top: 12px;
   padding: 12px 14px;
   border-radius: 10px;
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  color: #065f46;
+  background: var(--hint-bg);
+  border: 1px solid var(--hint-border);
+  color: var(--hint-text);
   font-size: 0.875rem;
   line-height: 1.5;
 }
 
 .insurance-billing-notice--muted {
-  background: #f9fafb;
-  border-color: #e5e7eb;
-  color: #4b5563;
+  background: var(--bg-soft);
+  border-color: var(--border-default);
+  color: var(--text-secondary);
 }
 
 .insurance-billing-cta {
@@ -147,8 +151,8 @@
   margin-top: 16px;
   border: none;
   border-radius: 12px;
-  background: #10b981;
-  color: #fff;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
   font-size: 1rem;
   font-weight: 700;
   cursor: pointer;
@@ -156,7 +160,7 @@
 }
 
 .insurance-billing-cta:hover {
-  background: #059669;
+  background: var(--btn-primary-hover-bg);
 }
 
 .insurance-billing-cta:disabled {
@@ -176,28 +180,29 @@
 }
 
 .insurance-billing-cta--secondary {
-  background: #fff;
-  color: #111827;
-  border: 1px solid #e5e7eb;
+  background: var(--btn-secondary-surface);
+  color: var(--btn-secondary-text);
+  border: 1px solid var(--btn-secondary-border);
 }
 
 .insurance-billing-cta--secondary:hover {
-  background: #f9fafb;
+  background: var(--btn-secondary-hover-bg);
+  border-color: var(--btn-secondary-hover-border);
 }
 
 .insurance-billing-banner {
   margin-top: 24px;
   padding: 14px 16px;
   border-radius: 12px;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  color: #1e40af;
+  background: var(--accent-car-bg);
+  border: 1px solid var(--border-default);
+  color: var(--accent-car-text);
   font-size: 0.875rem;
 }
 
 .insurance-billing-error {
   margin-top: 12px;
-  color: #b91c1c;
+  color: var(--danger-text);
   font-size: 0.875rem;
 }
 
@@ -211,16 +216,17 @@
   flex: 1;
   min-height: 40px;
   border-radius: 10px;
-  border: 1px solid #d1d5db;
-  background: #fff;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--text-primary);
   font-weight: 600;
   cursor: pointer;
 }
 
 .insurance-billing-cycle-toggle button.is-active {
-  border-color: #10b981;
-  background: #ecfdf5;
-  color: #047857;
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary-active);
 }
 
 .insurance-billing-manage-page.insurance-billing-page {

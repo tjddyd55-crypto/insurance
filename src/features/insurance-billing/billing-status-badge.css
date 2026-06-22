@@ -18,51 +18,51 @@
 
 .billing-status-badge--loading {
   cursor: default;
-  background: #64748b;
-  border-color: #64748b;
-  color: #ffffff;
+  background: var(--text-muted);
+  border-color: var(--text-muted);
+  color: var(--text-on-primary);
 }
 
 .billing-status-badge--pending {
-  background: #dc2626;
-  border-color: #dc2626;
-  color: #ffffff;
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--text-on-primary);
 }
 
 .billing-status-badge--trialing {
-  background: #10b981;
-  border-color: #10b981;
-  color: #ffffff;
+  background: var(--btn-primary-bg);
+  border-color: var(--btn-primary-bg);
+  color: var(--text-on-primary);
 }
 
 .billing-status-badge--active-paid {
-  background: #16a34a;
-  border-color: #16a34a;
-  color: #ffffff;
+  background: var(--btn-primary-active-bg);
+  border-color: var(--btn-primary-active-bg);
+  color: var(--text-on-primary);
 }
 
 .billing-status-badge--legacy {
-  background: #475569;
-  border-color: #475569;
-  color: #ffffff;
+  background: var(--text-primary);
+  border-color: var(--text-primary);
+  color: var(--text-on-primary);
 }
 
 .billing-status-badge--expired {
-  background: #b91c1c;
-  border-color: #b91c1c;
-  color: #ffffff;
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--text-on-primary);
 }
 
 .billing-status-badge--past-due {
-  background: #f97316;
-  border-color: #f97316;
-  color: #ffffff;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--warning-text);
 }
 
 .billing-status-badge--blocked {
-  background: #991b1b;
-  border-color: #991b1b;
-  color: #ffffff;
+  background: var(--expiry-danger-text);
+  border-color: var(--expiry-danger-text);
+  color: var(--text-on-primary);
 }
 
 .pc-top-navigation__actions .billing-status-badge {
