@@ -797,6 +797,12 @@ export function ProfilePage() {
           </div>
         </form>
       </Modal>
+
+      <footer className="profile-page__legal-footer">
+        <Link to="/privacy" className="profile-page__legal-link">
+          개인정보처리방침
+        </Link>
+      </footer>
     </main>
   )
 }

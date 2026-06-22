@@ -2252,7 +2252,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 
 .auth-page.auth-page--mobile-login .auth-page__version-footer {
   position: fixed;
-  bottom: 20px;
+  bottom: calc(36px + env(safe-area-inset-bottom, 0px));
   left: 0;
   width: 100%;
   box-sizing: border-box;
@@ -2263,11 +2263,35 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   z-index: 20;
 }
 
+.auth-page.auth-page--mobile-login .auth-page__privacy-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+  z-index: 22;
+  display: flex;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.auth-page.auth-page--mobile-login .auth-page__privacy-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 16px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-secondary, #94a3b8);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .auth-page.auth-page--mobile-login .auth-login-download-footer {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 44px;
+  bottom: calc(60px + env(safe-area-inset-bottom, 0px));
   z-index: 21;
   padding: 0 16px;
   box-sizing: border-box;
@@ -3060,6 +3084,25 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   padding-bottom: 6px;
   letter-spacing: 0.4px;
   border-bottom: 1px solid var(--border-default);
+}
+
+.profile-page__legal-footer {
+  margin-top: 32px;
+  padding: 16px 0 calc(16px + env(safe-area-inset-bottom, 0px));
+  text-align: center;
+  border-top: 1px solid var(--border-default);
+}
+
+.profile-page__legal-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 16px;
+  font-size: 13px;
+  color: var(--text-secondary, #94a3b8);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .section-divider {
