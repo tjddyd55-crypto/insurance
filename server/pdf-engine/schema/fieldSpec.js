@@ -62,6 +62,8 @@ const MAX_OPTION_LENGTH = 120
  *   fontSize: number | null,
  *   align: 'left' | 'center' | 'right',
  *   optionValue: string | null,
+ *   checkedValue: string | null,
+ *   checkboxStyle: 'check' | 'lines',
  * }} Placement
  */
 
@@ -108,6 +110,12 @@ function normalizeOptionValue(raw) {
   return trimmed
 }
 
+function normalizeCheckboxStyle(raw) {
+  const str = typeof raw === 'string' ? raw.trim().toLowerCase() : ''
+  if (str === 'lines') return 'lines'
+  return 'check'
+}
+
 function normalizePlacement(raw) {
   if (!raw || typeof raw !== 'object') {
     throw new Error('placement 은 객체여야 합니다.')
@@ -131,6 +139,11 @@ function normalizePlacement(raw) {
   const alignRaw = typeof src.align === 'string' ? src.align.trim().toLowerCase() : ''
   const align = ALLOWED_ALIGNS.includes(alignRaw) ? /** @type {'left'|'center'|'right'} */ (alignRaw) : 'left'
 
+  const optionFromRaw = normalizeOptionValue(src.optionValue)
+  const checkedFromRaw = normalizeOptionValue(src.checkedValue)
+  const checkedValue = checkedFromRaw ?? optionFromRaw
+  const optionValue = optionFromRaw ?? checkedFromRaw
+
   return {
     page,
     x: Math.round(x * 100) / 100,
@@ -139,7 +152,9 @@ function normalizePlacement(raw) {
     height: height != null ? Math.round(height * 100) / 100 : null,
     fontSize: fontSize != null ? Math.round(fontSize) : null,
     align,
-    optionValue: normalizeOptionValue(src.optionValue),
+    optionValue,
+    checkedValue,
+    checkboxStyle: normalizeCheckboxStyle(src.checkboxStyle),
   }
 }
 
@@ -221,36 +236,56 @@ export function normalizeFieldSpec(raw, fallbackOrder = 0) {
     inputRole = 'customer'
   }
 
-  /* checkbox/radio 만 options 를 저장한다. 다른 타입에서 온 options 는 무시해
-     DB 에 "의미 없는 옵션 잔재" 가 남지 않도록 한다. */
-  const options =
-    fieldTypeRaw === 'radio' || fieldTypeRaw === 'checkbox' ? normalizeOptions(src.options) : null
-  if ((fieldTypeRaw === 'radio' || fieldTypeRaw === 'checkbox') && options.length === 0) {
-    throw new Error(
-      `${fieldTypeRaw} 필드 "${fieldKey}" 는 최소 1개 이상의 옵션(세부 라벨)이 필요합니다.`,
-    )
-  }
-
   const placementsRaw = Array.isArray(src.placements) ? src.placements : []
   if (placementsRaw.length > MAX_PLACEMENTS_PER_FIELD) {
     throw new Error(`필드 ${fieldKey} 의 placement 수가 상한(${MAX_PLACEMENTS_PER_FIELD})을 초과했습니다.`)
   }
   const placements = placementsRaw.map((p) => normalizePlacement(p))
 
-  /* checkbox/radio placement 는 반드시 options 에 등록된 값과 매칭되어야 한다.
-     실수로 optionValue 를 비워둔 placement 는 "어떤 선택지에도 연결되지 않는 스탬프" 가
-     되어 렌더 시 아무 효과가 없으므로 여기서 막는다. */
-  if (fieldTypeRaw === 'radio' || fieldTypeRaw === 'checkbox') {
+  /* checkbox/radio 만 options 를 저장한다. 다른 타입에서 온 options 는 무시해
+     DB 에 "의미 없는 옵션 잔재" 가 남지 않도록 한다. */
+  const options =
+    fieldTypeRaw === 'radio' || fieldTypeRaw === 'checkbox'
+      ? src.options != null
+        ? normalizeOptions(src.options)
+        : []
+      : null
+  if (fieldTypeRaw === 'radio' && options.length === 0) {
+    throw new Error(`radio 필드 "${fieldKey}" 는 최소 1개 이상의 옵션(세부 라벨)이 필요합니다.`)
+  }
+  if (fieldTypeRaw === 'checkbox' && options.length === 0 && placements.length === 0) {
+    throw new Error(`checkbox 필드 "${fieldKey}" 는 최소 1개의 좌표(placement)가 필요합니다.`)
+  }
+
+  /* checkbox/radio placement 는 options 가 있을 때만 옵션 목록과 매칭 검증한다. */
+  if (fieldTypeRaw === 'radio') {
     const allowed = new Set(options)
     for (const p of placements) {
       if (p.optionValue == null) {
         throw new Error(
-          `${fieldTypeRaw} 필드 "${fieldKey}" 의 placement 에 optionValue 가 없습니다. 옵션 중 하나를 지정하세요.`,
+          `radio 필드 "${fieldKey}" 의 placement 에 optionValue 가 없습니다. 옵션 중 하나를 지정하세요.`,
         )
       }
       if (!allowed.has(p.optionValue)) {
         throw new Error(
-          `${fieldTypeRaw} 필드 "${fieldKey}" 의 placement.optionValue "${p.optionValue}" 가 옵션 목록에 없습니다.`,
+          `radio 필드 "${fieldKey}" 의 placement.optionValue "${p.optionValue}" 가 옵션 목록에 없습니다.`,
+        )
+      }
+    }
+  }
+
+  if (fieldTypeRaw === 'checkbox' && options.length > 0) {
+    const allowed = new Set(options)
+    for (const p of placements) {
+      const cv = p.checkedValue ?? p.optionValue
+      if (cv == null) {
+        throw new Error(
+          `checkbox 필드 "${fieldKey}" 의 placement 에 checked_value(optionValue) 가 없습니다.`,
+        )
+      }
+      if (!allowed.has(cv)) {
+        throw new Error(
+          `checkbox 필드 "${fieldKey}" 의 placement.checked_value "${cv}" 가 옵션 목록에 없습니다.`,
         )
       }
     }
@@ -331,33 +366,36 @@ export function normalizeFieldSpecList(raw) {
 function validateOneValue(field, rawStr) {
   switch (field.fieldType) {
     case 'checkbox': {
-      if (rawStr === '') return { ok: true, value: '[]' }
-      let parsed
+      if (rawStr === '') return { ok: true, value: '' }
+      if (rawStr === 'true' || rawStr === 'false') return { ok: true, value: rawStr }
       try {
-        parsed = JSON.parse(rawStr)
+        const parsed = JSON.parse(rawStr)
+        if (Array.isArray(parsed)) {
+          const allowed = new Set(field.options ?? [])
+          const normalized = []
+          const seen = new Set()
+          for (const item of parsed) {
+            if (typeof item !== 'string') {
+              return { ok: false, error: `"${field.label}" 선택값 형식이 올바르지 않습니다.` }
+            }
+            const v = item.trim()
+            if (!v) continue
+            if (allowed.size > 0 && !allowed.has(v)) {
+              return { ok: false, error: `"${field.label}" 의 선택값이 유효하지 않습니다.` }
+            }
+            if (seen.has(v)) continue
+            seen.add(v)
+            normalized.push(v)
+          }
+          return { ok: true, value: JSON.stringify(normalized) }
+        }
+        if (typeof parsed === 'boolean') {
+          return { ok: true, value: parsed ? 'true' : 'false' }
+        }
       } catch {
-        return { ok: false, error: `"${field.label}" 선택값 형식이 올바르지 않습니다.` }
+        /* plain string — checked_value 매칭용 */
       }
-      if (!Array.isArray(parsed)) {
-        return { ok: false, error: `"${field.label}" 선택값 형식이 올바르지 않습니다.` }
-      }
-      const allowed = new Set(field.options ?? [])
-      const normalized = []
-      const seen = new Set()
-      for (const item of parsed) {
-        if (typeof item !== 'string') {
-          return { ok: false, error: `"${field.label}" 선택값 형식이 올바르지 않습니다.` }
-        }
-        const v = item.trim()
-        if (!v) continue
-        if (!allowed.has(v)) {
-          return { ok: false, error: `"${field.label}" 의 선택값이 유효하지 않습니다.` }
-        }
-        if (seen.has(v)) continue
-        seen.add(v)
-        normalized.push(v)
-      }
-      return { ok: true, value: JSON.stringify(normalized) }
+      return { ok: true, value: rawStr }
     }
     case 'radio': {
       if (rawStr === '') return { ok: true, value: '' }
@@ -384,12 +422,16 @@ function isRequiredViolated(field, value) {
   /* 손사인은 계약 서명 플로우에서 파일/해시로 검증한다. PDF 텍스트 렌더 입력 맵에는 없다. */
   if (field.fieldType === 'signature') return false
   if (field.fieldType === 'checkbox') {
+    if (!value) return true
+    if (value === 'false') return true
+    if (value === 'true') return false
     try {
       const parsed = JSON.parse(value)
-      return !Array.isArray(parsed) || parsed.length === 0
+      if (Array.isArray(parsed)) return parsed.length === 0
     } catch {
-      return true
+      /* plain string counts as filled */
     }
+    return false
   }
   return !value
 }

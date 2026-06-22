@@ -50,16 +50,12 @@ export type PdfApplicantPreviewHandle = {
   scrollToField: (fieldKey: string) => void
 }
 
-function parseCheckboxJson(raw: string): string[] {
-  if (!raw) return []
-  try {
-    const p = JSON.parse(raw)
-    if (!Array.isArray(p)) return []
-    return p.filter((v): v is string => typeof v === 'string')
-  } catch {
-    return []
-  }
-}
+import {
+  CHECKBOX_MARK_GLYPH,
+  checkboxMarkFontSizePt,
+  isCheckboxPlacementChecked,
+  placementCheckedValue,
+} from '../lib/checkboxStampLogic'
 
 type PdfJsPage = Awaited<ReturnType<PDFDocumentProxy['getPage']>>
 type PdfPageRenderTask = ReturnType<PdfJsPage['render']>
@@ -82,10 +78,9 @@ function pageIndexForApplicantFocus(
   }
 
   if (field.fieldType === 'checkbox') {
-    const selected = parseCheckboxJson(values[field.fieldKey] ?? '')
-    for (const opt of selected) {
-      const pl = field.placements.find((p) => p.optionValue === opt)
-      if (pl && typeof pl.page === 'number') return pl.page
+    const raw = values[field.fieldKey] ?? ''
+    for (const pl of field.placements) {
+      if (isCheckboxPlacementChecked(raw, pl) && typeof pl.page === 'number') return pl.page
     }
     return field.placements[0]?.page ?? null
   }
@@ -390,41 +385,37 @@ const ApplicantPdfPageRow = forwardRef<HTMLDivElement | null, PageProps>(functio
         }
 
         if (cssBox && field.fieldType === 'checkbox') {
-          const ov = p.optionValue
-          const sel = ov && parseCheckboxJson(val).includes(ov)
-          const markSize = Math.min(cssBox.width, cssBox.height) * 0.85
+          const sel = isCheckboxPlacementChecked(val, p)
+          const markPt = checkboxMarkFontSizePt(p)
+          const markSize = pdfFontPtToCssPx(markPt, viewport)
           const left = cssBox.left + (cssBox.width - markSize) / 2
           const top = cssBox.top + (cssBox.height - markSize) / 2
 
           if (sel) {
             out.push(
-              <svg
+              <span
                 key={`${field.fieldKey}-${lp}-c`}
-                width={markSize}
-                height={markSize}
-                style={{ position: 'absolute', left, top, pointerEvents: 'none' }}
-                viewBox={`0 0 ${markSize} ${markSize}`}
+                style={{
+                  position: 'absolute',
+                  left,
+                  top,
+                  width: markSize,
+                  height: markSize,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: markSize * 0.92,
+                  lineHeight: 1,
+                  color: '#000',
+                  pointerEvents: 'none',
+                  fontFamily: '"Noto Sans KR", "Apple SD Gothic Neo", sans-serif',
+                }}
                 aria-hidden
               >
-                <line
-                  x1={markSize * 0.1}
-                  y1={markSize * 0.5}
-                  x2={markSize * 0.4}
-                  y2={markSize * 0.15}
-                  stroke="#000"
-                  strokeWidth={Math.max(1, markSize * 0.12)}
-                />
-                <line
-                  x1={markSize * 0.4}
-                  y1={markSize * 0.15}
-                  x2={markSize * 0.9}
-                  y2={markSize * 0.85}
-                  stroke="#000"
-                  strokeWidth={Math.max(1, markSize * 0.12)}
-                />
-              </svg>,
+                {CHECKBOX_MARK_GLYPH}
+              </span>,
             )
-          } else if (isHi && ov) {
+          } else if (isHi && placementCheckedValue(p)) {
             out.push(
               <div
                 key={`${field.fieldKey}-${lp}-ch`}

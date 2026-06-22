@@ -10,6 +10,11 @@ import {
   effectiveFontSizePt,
   wrapText,
 } from './pdfTextLayout.js'
+import {
+  CHECKBOX_MARK_GLYPH,
+  checkboxMarkFontSizePt,
+  isCheckboxPlacementChecked,
+} from './checkboxStampLogic.js'
 
 /** @typedef {import('../schema/fieldSpec.js').FieldSpec} FieldSpec */
 /** @typedef {FieldSpec['placements'][number]} Placement */
@@ -69,7 +74,24 @@ function stampMultiLine({ page, font, placement, value, overridesByFieldKey, fie
   })
 }
 
-/** checkbox 라디오·체크 표시 영역 안에 라인 마크. */
+/** checkbox: 박스 중앙에 ✓ 문자 (네모는 원본 PDF 에 있다고 가정). */
+function stampCheckMarkGlyph({ page, font, placement }) {
+  const boxW = placement.width && placement.width > 0 ? placement.width : DEFAULT_FONT_SIZE_PT
+  const boxH = placement.height && placement.height > 0 ? placement.height : DEFAULT_FONT_SIZE_PT
+  const fontSize = checkboxMarkFontSizePt(placement)
+  const textWidth = font.widthOfTextAtSize(CHECKBOX_MARK_GLYPH, fontSize)
+  const x = placement.x + (boxW - textWidth) / 2
+  const y = placement.y + (boxH - fontSize) / 2 + fontSize * 0.15
+  page.drawText(CHECKBOX_MARK_GLYPH, {
+    x,
+    y,
+    size: fontSize,
+    font,
+    color: STAMP_COLOR_BLACK,
+  })
+}
+
+/** @deprecated 레거시 라인 체크 — checkboxStyle 이 check 가 아닐 때만 사용. */
 function stampCheckMarkLines({ page, placement }) {
   const size =
     placement.fontSize && placement.fontSize > 0 ? placement.fontSize : DEFAULT_FONT_SIZE_PT
@@ -111,18 +133,14 @@ function stampRadioCircleOutline({ page, placement }) {
   })
 }
 
-function stampCheckbox({ page, placement, value }) {
-  if (!placement.optionValue) return
-  if (!value) return
-  let selected = []
-  try {
-    const parsed = JSON.parse(value)
-    if (!Array.isArray(parsed)) return
-    selected = parsed.filter((v) => typeof v === 'string')
-  } catch {
+function stampCheckbox({ page, font, placement, value }) {
+  if (!isCheckboxPlacementChecked(value, placement)) return
+  const style = placement.checkboxStyle === 'lines' ? 'lines' : 'check'
+  if (style === 'check') {
+    if (!font) return
+    stampCheckMarkGlyph({ page, font, placement })
     return
   }
-  if (!selected.includes(placement.optionValue)) return
   stampCheckMarkLines({ page, placement })
 }
 
@@ -156,7 +174,17 @@ function shouldSkipEmpty(fieldType, value) {
 }
 
 function needsFont(fieldType) {
-  return fieldType === 'text' || fieldType === 'textarea'
+  return fieldType === 'text' || fieldType === 'textarea' || fieldType === 'checkbox'
+}
+
+function fieldNeedsEmbeddedFont(field, values) {
+  if (field.fieldType === 'checkbox') {
+    const value = values[field.fieldKey] ?? ''
+    return field.placements.some((p) => isCheckboxPlacementChecked(value, p))
+  }
+  if (!needsFont(field.fieldType)) return false
+  const value = values[field.fieldKey] ?? ''
+  return !shouldSkipEmpty(field.fieldType, value)
 }
 
 async function stampSignatureField(pdfDoc, pages, field, pngBytes) {
@@ -205,11 +233,7 @@ export async function stampPdf(
     throw new Error('템플릿 PDF 에 페이지가 없습니다.')
   }
 
-  const hasTextStamp = fields.some((f) => {
-    if (!needsFont(f.fieldType)) return false
-    const v = values[f.fieldKey] ?? ''
-    return !shouldSkipEmpty(f.fieldType, v)
-  })
+  const hasTextStamp = fields.some((f) => fieldNeedsEmbeddedFont(f, values))
   const font = hasTextStamp ? await embedKoreanFont(pdfDoc) : null
 
   const overrides =

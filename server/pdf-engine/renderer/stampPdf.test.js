@@ -91,7 +91,63 @@ test('stampPdf: textarea 줄바꿈 옵션이 있어도 예외 없이 생성된�
   assert.ok(out instanceof Buffer)
 })
 
-test('stampPdf: checkbox 는 선택된 세부 라벨 좌표만 체크한다', async (t) => {
+test('stampPdf: checkbox boolean true 는 checked_value 없는 placement 에 체크', async (t) => {
+  if (!(await hasFont())) {
+    t.skip('한글 폰트 파일이 없어 skip')
+    return
+  }
+  const template = await buildBlankPdf()
+  const fields = normalizeFieldSpecList([
+    {
+      fieldKey: 'flag',
+      label: '플래그',
+      fieldType: 'checkbox',
+      required: false,
+      orderIndex: 0,
+      options: [],
+      placements: [{ page: 0, x: 100, y: 600, width: 14, height: 14 }],
+    },
+  ])
+  const on = await stampPdf(template, fields, { flag: 'true' })
+  const off = await stampPdf(template, fields, { flag: 'false' })
+  await PDFDocument.load(on)
+  await PDFDocument.load(off)
+  assert.ok(on.byteLength > off.byteLength)
+})
+
+test('stampPdf: checkbox checked_value 값 일치 시 체크', async (t) => {
+  if (!(await hasFont())) {
+    t.skip('한글 폰트 파일이 없어 skip')
+    return
+  }
+  const template = await buildBlankPdf()
+  const fields = normalizeFieldSpecList([
+    {
+      fieldKey: 'claim_type',
+      label: '유형',
+      fieldType: 'checkbox',
+      required: false,
+      orderIndex: 0,
+      options: [],
+      placements: [
+        {
+          page: 0,
+          x: 100,
+          y: 600,
+          width: 20,
+          height: 20,
+          checkedValue: 'outpatient',
+          optionValue: 'outpatient',
+        },
+      ],
+    },
+  ])
+  const match = await stampPdf(template, fields, { claim_type: 'outpatient' })
+  const miss = await stampPdf(template, fields, { claim_type: 'inpatient' })
+  assert.ok(match.byteLength > miss.byteLength)
+})
+
+test('stampPdf: checkbox 는 선택된 세부 라벨 좌표만 체크한다 (레거시 JSON 배열)', async (t) => {
   if (!(await hasFont())) {
     t.skip('한글 폰트 파일이 없어 skip')
     return

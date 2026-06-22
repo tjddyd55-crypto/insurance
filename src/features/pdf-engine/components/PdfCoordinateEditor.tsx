@@ -474,11 +474,8 @@ export function PdfCoordinateEditor({
         optionValue = activeOptionValue
       } else if (target?.fieldType === 'checkbox') {
         const opts = target.options ?? []
-        if (opts.length === 0) {
-          window.alert('선택형 필드에 옵션이 없습니다. 먼저 옵션을 1개 이상 추가해 주세요.')
-          return
-        }
-        optionValue = activeOptionValue && opts.includes(activeOptionValue) ? activeOptionValue : opts[0]
+        optionValue =
+          activeOptionValue && opts.includes(activeOptionValue) ? activeOptionValue : null
       }
       /* 드래그(박스) 결과가 오면 그 치수를, 단일 클릭이면 width/height = null 로 저장.
          서버는 null 일 때 단일 라인 렌더로 폴백하므로 양쪽 모두 안전. */
@@ -491,6 +488,8 @@ export function PdfCoordinateEditor({
         fontSize: null,
         align: 'center',
         optionValue,
+        checkedValue: optionValue,
+        checkboxStyle: target?.fieldType === 'checkbox' ? 'check' : null,
       }
 
       if (target?.fieldType === 'radio') {
@@ -865,6 +864,14 @@ export function PdfCoordinateEditor({
                 </p>
               ) : null}
 
+              {selectedField.fieldType === 'checkbox' ? (
+                <p className="pdf-engine-editor__hint" style={{ marginTop: 6 }}>
+                  PDF 위를 드래그해 체크박스 영역을 지정하세요. 옵션 목록 없이도 좌표만으로 boolean
+                  체크(checked_value 비움)가 가능합니다. 값 비교가 필요하면 좌표별 checked_value를
+                  설정하세요.
+                </p>
+              ) : null}
+
               {selectedField.fieldType === 'radio' || selectedField.fieldType === 'checkbox' ? (
                 <RadioOptionsEditor
                   options={selectedField.options ?? []}
@@ -957,6 +964,9 @@ export function PdfCoordinateEditor({
                         p.width != null && p.height != null ? '영역 박스' : '위치 표시'
                       const metaBits = [`페이지 ${p.page + 1}`, geomKind]
                       if (p.optionValue) metaBits.push(`"${p.optionValue}"`)
+                    if (p.checkedValue && p.checkedValue !== p.optionValue) {
+                      metaBits.push(`checked=${p.checkedValue}`)
+                    }
                       return (
                         <li
                           key={`${selectedField.fieldKey}-r-${String(p.optionValue ?? '')}`}
@@ -1000,6 +1010,9 @@ export function PdfCoordinateEditor({
                       p.width != null && p.height != null ? '영역 박스' : '위치 표시'
                     const metaBits = [`페이지 ${p.page + 1}`, geomKind]
                     if (p.optionValue) metaBits.push(`"${p.optionValue}"`)
+                    if (p.checkedValue && p.checkedValue !== p.optionValue) {
+                      metaBits.push(`checked=${p.checkedValue}`)
+                    }
                     return (
                       <li
                         key={`${selectedField.fieldKey}-p-${i}`}
@@ -1029,6 +1042,19 @@ export function PdfCoordinateEditor({
                   })}
                 </ul>
               )}
+
+              {selectedField.fieldType === 'checkbox' && selectedPlacement ? (
+                <CheckboxPlacementMetaEditor
+                  placement={selectedPlacement}
+                  onPatch={(patch) =>
+                    handlePatchPlacement(
+                      selectedField.fieldKey,
+                      selectedPlacementIndex as number,
+                      patch,
+                    )
+                  }
+                />
+              ) : null}
 
               {SHOW_PLACEMENT_NUMERIC_EDITOR && selectedPlacement ? (
                 <PlacementMetaEditor
@@ -1146,6 +1172,95 @@ export function PdfCoordinateEditor({
 interface PlacementMetaEditorProps {
   placement: PdfPlacement
   onPatch: (patch: Partial<PdfPlacement>) => void
+}
+
+function CheckboxPlacementMetaEditor({ placement, onPatch }: PlacementMetaEditorProps) {
+  const handleNumericChange = (key: 'width' | 'height' | 'fontSize') => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const parsed = parseOptionalPositive(e.target.value)
+    if (parsed === 'invalid') return
+    onPatch({ [key]: parsed } as Partial<PdfPlacement>)
+  }
+
+  const checkedRaw = placement.checkedValue ?? placement.optionValue ?? ''
+
+  return (
+    <div style={{ marginTop: 4 }}>
+      <h4 className="pdf-engine-editor__panel-title" style={{ marginTop: 8, fontSize: 13 }}>
+        체크박스 좌표 설정
+      </h4>
+      <div className="pdf-engine-editor__row">
+        <label className="pdf-engine-editor__label">
+          checked_value (선택)
+          <FormInput
+            value={checkedRaw}
+            onChange={(e) => {
+              const v = e.target.value.trim()
+              onPatch({
+                checkedValue: v || null,
+                optionValue: v || null,
+              })
+            }}
+            placeholder="비우면 boolean true 시 체크"
+          />
+        </label>
+        <label className="pdf-engine-editor__label">
+          checkbox_style
+          <select
+            className="pdf-engine-editor__input"
+            value={placement.checkboxStyle ?? 'check'}
+            onChange={(e) =>
+              onPatch({
+                checkboxStyle: e.target.value === 'lines' ? 'lines' : 'check',
+              })
+            }
+          >
+            <option value="check">check (✓)</option>
+            <option value="lines">lines (레거시)</option>
+          </select>
+        </label>
+      </div>
+      <div className="pdf-engine-editor__row">
+        <label className="pdf-engine-editor__label">
+          너비 (pt)
+          <FormInput
+            type="number"
+            min={0}
+            step={1}
+            value={numericInputValue(placement.width)}
+            onChange={handleNumericChange('width')}
+            placeholder="체크 크기 기준"
+          />
+        </label>
+        <label className="pdf-engine-editor__label">
+          높이 (pt)
+          <FormInput
+            type="number"
+            min={0}
+            step={1}
+            value={numericInputValue(placement.height)}
+            onChange={handleNumericChange('height')}
+            placeholder="체크 크기 기준"
+          />
+        </label>
+      </div>
+      <div className="pdf-engine-editor__row">
+        <label className="pdf-engine-editor__label">
+          글자 크기 (pt, 선택)
+          <FormInput
+            type="number"
+            min={0}
+            step={1}
+            value={numericInputValue(placement.fontSize)}
+            onChange={handleNumericChange('fontSize')}
+            placeholder="비우면 min(w,h)×0.8"
+          />
+        </label>
+      </div>
+      <p className="pdf-engine-editor__hint" style={{ margin: '4px 0 0' }}>
+        체크 표시는 박스 중앙에 ✓ 로 출력됩니다. 네모는 원본 PDF 를 사용합니다.
+      </p>
+    </div>
+  )
 }
 
 function PlacementMetaEditor({ placement, onPatch }: PlacementMetaEditorProps) {
