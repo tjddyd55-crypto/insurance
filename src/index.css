@@ -1385,13 +1385,15 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 }
 
 .mobile-topbar .menu-btn {
+  flex-shrink: 0;
   min-width: 0;
   font-size: 18px;
-  margin-right: 12px;
+  margin-right: 4px;
   line-height: 1;
 }
 
 .mobile-topbar .title {
+  flex: 1 1 auto;
   min-width: 0;
   font-size: 14px;
   font-weight: 600;

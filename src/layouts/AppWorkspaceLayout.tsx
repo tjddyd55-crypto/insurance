@@ -242,9 +242,6 @@ function AppWorkspaceLayoutMobileShell() {
           role="presentation"
         >
           <nav className="mobile-workspace-drawer__nav" aria-label="모바일 주요 메뉴">
-            <div className="mobile-workspace-drawer__billing" role="presentation">
-              <BillingStatusBadge />
-            </div>
             {sidebarItems.map((item, index) => {
               if (item.type === 'divider') {
                 return null

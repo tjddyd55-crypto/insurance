@@ -69,24 +69,14 @@
   max-width: min(360px, 34vw);
 }
 
-.mobile-workspace-drawer__billing {
-  padding: 8px 12px 12px;
-}
-
-.mobile-workspace-drawer__billing .billing-status-badge {
-  width: 100%;
-  max-width: none;
-  justify-content: center;
-}
-
 .mobile-topbar .billing-status-badge {
-  max-width: min(180px, 42vw);
+  flex-shrink: 0;
   margin-left: auto;
-  margin-right: 8px;
-}
-
-.mobile-topbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  max-width: none;
+  min-height: 28px;
+  padding: 4px 10px;
+  font-size: 11px;
+  line-height: 1.25;
+  overflow: visible;
+  text-overflow: clip;
 }
