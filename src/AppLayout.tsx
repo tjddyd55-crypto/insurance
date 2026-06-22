@@ -20,8 +20,18 @@ export function AppLayout() {
   const hideAppExitConfirm = isCustomerCreateMode(location.pathname, location.search ?? '')
   const hideMobileLoginTopChrome = !isAuthenticated && isMobile && location.pathname === '/login'
   const hidePublicIntroChrome = isIntroductionRoute
+  const isPublicLegalRoute =
+    location.pathname === '/privacy' ||
+    location.pathname === '/account-deletion' ||
+    location.pathname === '/privacy-policy'
 
-  const rootClass = ['app-root', isAuthenticated ? 'app-root--authenticated' : ''].filter(Boolean).join(' ')
+  const rootClass = [
+    'app-root',
+    isAuthenticated ? 'app-root--authenticated' : '',
+    isPublicLegalRoute ? 'app-root--public-legal' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   return (
     <div className={rootClass}>

@@ -128,6 +128,26 @@ body {
   min-height: 100%;
 }
 
+/*
+ * 공개 법률·정책 페이지(/privacy, /account-deletion) — 본문만 세로 스크롤.
+ * PC 로그인(:has(.auth-page--login-split)) 과 동일하게 셸은 overflow:hidden,
+ * 스크롤 축은 .legal-doc-page 한 곳으로 고정한다.
+ */
+.app-root.app-root--public-legal {
+  height: 100%;
+  min-height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+.app-root.app-root--public-legal .main-container {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 @media (min-width: 1024px) {
   .app-root:not(.app-root--authenticated):has(.auth-page--login-split) {
     display: flex;
@@ -8378,7 +8398,7 @@ a.contacts-public-auth__link {
   }
 }
 
-/* ——— 법률·정책 문서 (앱 스토어 심사용 /privacy) ——— */
+/* ——— 법률·정책 문서 (앱 스토어 심사용 /privacy, /account-deletion) ——— */
 .legal-doc-page {
   min-height: 100vh;
   min-height: 100dvh;
@@ -8388,6 +8408,23 @@ a.contacts-public-auth__link {
   color: var(--text-main);
   -webkit-user-select: text;
   user-select: text;
+}
+
+.app-root.app-root--public-legal .legal-doc-page {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* 모바일·Electron WebView: 셸 밖(body) 스크롤 방지, legal 본문만 스크롤 */
+html:has(.app-root--public-legal),
+body:has(.app-root--public-legal) {
+  height: 100%;
+  overflow: hidden;
 }
 
 .legal-doc {
