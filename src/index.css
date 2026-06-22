@@ -2284,7 +2284,17 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   width: 100%;
   box-sizing: border-box;
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: center;
+  gap: 0 4px;
+}
+
+.auth-page__privacy-sep {
+  color: var(--text-secondary, #94a3b8);
+  font-size: 13px;
+  line-height: 1.4;
+  user-select: none;
 }
 
 .auth-page.auth-page--login-split .auth-page__privacy-link {
@@ -2320,8 +2330,12 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   bottom: calc(4px + env(safe-area-inset-bottom, 0px));
   z-index: 22;
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: center;
+  gap: 0 4px;
   box-sizing: border-box;
+  padding: 0 8px;
 }
 
 .auth-page.auth-page--mobile-login .auth-page__privacy-link {
@@ -3142,6 +3156,18 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   text-align: center;
   border-top: 1px solid var(--border-default);
   flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0 4px;
+}
+
+.profile-page__legal-sep {
+  color: var(--text-secondary, #94a3b8);
+  font-size: 13px;
+  line-height: 1.4;
+  user-select: none;
 }
 
 .profile-page__legal-link {
