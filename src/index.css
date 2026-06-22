@@ -2228,7 +2228,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   align-items: stretch;
   justify-content: flex-start;
   flex: 1 1 auto;
-  min-height: 0;
+  min-height: 100dvh;
   max-height: 100dvh;
   width: 100%;
   box-sizing: border-box;
@@ -2237,12 +2237,40 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
   scroll-padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
-  padding: clamp(28px, 8dvh, 72px) clamp(12px, 4vw, 20px)
-    calc(20px + env(safe-area-inset-bottom, 0px));
+  padding: clamp(28px, 8dvh, 72px) clamp(12px, 4vw, 20px) 0;
   background: var(--bg-main);
   /* Android WebView 시스템 글자 크기 과확대 완화 (CSS만으로 1차 대응) */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+}
+
+.auth-page.auth-page--mobile-login .auth-page__mobile-login-card {
+  width: 100%;
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+}
+
+.auth-page.auth-page--mobile-login .auth-page__mobile-download {
+  flex: 0 0 auto;
+  width: 100%;
+  margin-top: clamp(18px, 2.5dvh, 32px);
+  box-sizing: border-box;
+}
+
+.auth-page.auth-page--mobile-login .auth-page__mobile-legal-footer {
+  flex: 0 0 auto;
+  width: 100%;
+  margin-top: auto;
+  padding-top: clamp(28px, 5dvh, 56px);
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(8px, 2dvh, 14px);
 }
 
 .auth-page.auth-page--mobile-login .auth-login-content {
@@ -2415,10 +2443,10 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   text-underline-offset: 2px;
 }
 
-.auth-page.auth-page--mobile-login .auth-page__version-footer {
+.auth-page.auth-page--mobile-login .auth-page__mobile-legal-footer .auth-page__version-footer {
   position: static;
   width: 100%;
-  margin-top: clamp(10px, 2.5dvh, 16px);
+  margin-top: 0;
   box-sizing: border-box;
   text-align: center;
   font-size: clamp(0.6875rem, 3vw, 0.75rem);
@@ -2427,10 +2455,10 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   flex-shrink: 0;
 }
 
-.auth-page.auth-page--mobile-login .auth-page__privacy-footer {
+.auth-page.auth-page--mobile-login .auth-page__mobile-legal-footer .auth-page__privacy-footer {
   position: static;
   width: 100%;
-  margin-top: clamp(4px, 1.5dvh, 10px);
+  margin-top: 0;
   z-index: 1;
   display: flex;
   flex-wrap: wrap;
@@ -2438,7 +2466,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   justify-content: center;
   gap: 0 4px;
   box-sizing: border-box;
-  padding: 0 clamp(8px, 3vw, 16px) env(safe-area-inset-bottom, 0px);
+  padding: 0 clamp(8px, 3vw, 16px);
   flex-shrink: 0;
 }
 
@@ -2460,10 +2488,10 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   font-size: clamp(0.75rem, 3.2vw, 0.8125rem);
 }
 
-.auth-page.auth-page--mobile-login .auth-login-download-footer {
+.auth-page.auth-page--mobile-login .auth-page__mobile-download .auth-login-download-footer {
   position: static;
   width: 100%;
-  margin-top: clamp(16px, 4dvh, 28px);
+  margin-top: 0;
   padding: 0;
   box-sizing: border-box;
   flex-shrink: 0;
@@ -2478,7 +2506,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   flex-direction: column;
   align-items: stretch;
   width: 100%;
-  gap: clamp(8px, 2.5vw, 10px);
+  gap: clamp(10px, 2.8vw, 14px);
 }
 
 .auth-page.auth-page--mobile-login .app-download-actions__link,
