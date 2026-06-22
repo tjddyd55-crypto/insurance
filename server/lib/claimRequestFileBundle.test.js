@@ -142,3 +142,26 @@ test('buildClaimFilesPdfBuffer — 가로 이미지는 landscape 페이지', asy
   const { width, height } = doc.getPage(0).getSize()
   assert.ok(width > height, '가로 이미지 → landscape page')
 })
+
+test('buildClaimFilesPdfBuffer — EXIF orientation 6 휴대폰 세로 사진은 portrait 페이지', async () => {
+  const landscapePixels = await sharp({
+    create: { width: 1200, height: 800, channels: 3, background: '#ffffff' },
+  })
+    .jpeg()
+    .toBuffer()
+  const phonePortraitExif = await sharp(landscapePixels).withMetadata({ orientation: 6 }).toBuffer()
+  const pdfBuffer = await buildClaimFilesPdfBuffer(
+    [
+      {
+        fileName: 'receipt.jpg',
+        contentType: 'image/jpeg',
+        storageKey: 'k1',
+        fileSize: phonePortraitExif.length,
+      },
+    ],
+    async () => phonePortraitExif,
+  )
+  const doc = await PDFDocument.load(pdfBuffer)
+  const { width, height } = doc.getPage(0).getSize()
+  assert.ok(height > width, 'EXIF rotate 후 세로 영수증 → portrait page')
+})
