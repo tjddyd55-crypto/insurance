@@ -26,7 +26,7 @@ export default function LoginPageMobileView() {
 
   return (
     <main className="auth-page auth-page--mobile-login">
-      <section className="auth-login-content">
+      <section className="auth-page__mobile-login-card auth-login-content">
         <LoginForm
           username={controller.username}
           password={controller.password}
@@ -39,9 +39,14 @@ export default function LoginPageMobileView() {
         />
       </section>
 
-      <LoginAppDownloadFooter />
-      <LoginPageVersionFooter version={controller.version} />
-      <LoginPrivacyFooter />
+      <section className="auth-page__mobile-download" aria-label="앱 다운로드">
+        <LoginAppDownloadFooter layout="stack" />
+      </section>
+
+      <footer className="auth-page__mobile-legal-footer">
+        <LoginPageVersionFooter version={controller.version} />
+        <LoginPrivacyFooter />
+      </footer>
     </main>
   )
 }
