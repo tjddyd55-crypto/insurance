@@ -12120,6 +12120,18 @@ textarea.memo-sticky-note__textarea::placeholder {
   margin-left: auto;
 }
 
+.claim-requests-page__attachment-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.claim-requests-page__attachment-actions-row--bundle {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .claim-requests-page__detail-meta,
 .claim-requests-page__detail-empty {
   margin-top: 4px;

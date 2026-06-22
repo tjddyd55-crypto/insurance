@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
 import { FormButton, FormSelect, FormTextarea } from '../../../components/form'
 import useIsMobile from '../../../hooks/useIsMobile'
 import { useAuth } from '../../auth/AuthProvider'
+import ClaimRequestAttachmentActions from '../components/ClaimRequestAttachmentActions'
 import {
   downloadClaimRequestFile,
+  downloadClaimRequestFilesPdf,
+  downloadClaimRequestFilesZip,
+  ensureCustomerClaimPageUrl,
   getClaimRequestDetail,
+  getCustomerAppLink,
+  getCustomerClaimPageUrl,
   listClaimRequests,
   openClaimRequestFile,
   type ClaimRequestDetail,
@@ -15,6 +20,7 @@ import {
   type ClaimRequestStatus,
   updateClaimRequestStatus,
 } from '../api/claimRequestsApi'
+import { openCustomerClaimPageUrl } from '../utils/customerClaimPageActions'
 
 const STATUS_OPTIONS: Array<{ value: ClaimRequestStatus | ''; label: string }> = [
   { value: '', label: '전체' },
@@ -80,7 +86,6 @@ function isImageFile(file: ClaimRequestFileItem): boolean {
 
 export default function ClaimInboxPage() {
   const { token } = useAuth()
-  const navigate = useNavigate()
   const isMobile = useIsMobile()
   const [rows, setRows] = useState<ClaimRequestListItem[]>([])
   const [total, setTotal] = useState(0)
@@ -93,6 +98,10 @@ export default function ClaimInboxPage() {
   const [statusTarget, setStatusTarget] = useState<ClaimRequestStatus>('processing')
   const [statusMemo, setStatusMemo] = useState('')
   const [actionBusy, setActionBusy] = useState(false)
+  const [zipBusy, setZipBusy] = useState(false)
+  const [pdfBusy, setPdfBusy] = useState(false)
+  const [customerClaimPageUrl, setCustomerClaimPageUrl] = useState('')
+  const [customerClaimPageBusy, setCustomerClaimPageBusy] = useState(false)
   const [statusNotice, setStatusNotice] = useState('')
   const [error, setError] = useState('')
   const mobileDetailOpenRef = useRef(false)
@@ -186,12 +195,84 @@ export default function ClaimInboxPage() {
     return () => window.clearTimeout(timer)
   }, [statusNotice])
 
-  const openCustomerClaimPage = useCallback((item: ClaimRequestListItem | ClaimRequestDetail | null) => {
-    if (!item?.customerId) {
+  useEffect(() => {
+    if (!token?.trim() || !detail?.customerId) {
+      setCustomerClaimPageUrl('')
       return
     }
-    navigate(`/customers/${item.customerId}/claim-requests?claimId=${item.id}`)
-  }, [navigate])
+    let cancelled = false
+    void getCustomerAppLink(token, detail.customerId)
+      .then((info) => {
+        if (!cancelled) {
+          setCustomerClaimPageUrl(getCustomerClaimPageUrl(info))
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCustomerClaimPageUrl('')
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [detail?.customerId, token])
+
+  const handleOpenCustomerClaimPage = useCallback(async () => {
+    if (!token?.trim() || !detail?.customerId) {
+      return
+    }
+    setCustomerClaimPageBusy(true)
+    setError('')
+    try {
+      const url = await ensureCustomerClaimPageUrl(token, detail.customerId)
+      setCustomerClaimPageUrl(url)
+      openCustomerClaimPageUrl(url)
+    } catch (openError) {
+      setError(openError instanceof Error ? openError.message : '고객 청구 페이지를 열지 못했습니다.')
+    } finally {
+      setCustomerClaimPageBusy(false)
+    }
+  }, [detail?.customerId, token])
+
+  const handleDownloadClaimFilesZip = useCallback(async () => {
+    if (!token?.trim() || !detail || detail.files.length === 0) {
+      return
+    }
+    setZipBusy(true)
+    setError('')
+    try {
+      await downloadClaimRequestFilesZip(
+        token,
+        detail.id,
+        detail.customerId,
+        `청구자료_${detail.customerName}_${detail.id}.zip`,
+      )
+    } catch (downloadError) {
+      setError(downloadError instanceof Error ? downloadError.message : 'ZIP 다운로드에 실패했습니다.')
+    } finally {
+      setZipBusy(false)
+    }
+  }, [detail, token])
+
+  const handleDownloadClaimFilesPdf = useCallback(async () => {
+    if (!token?.trim() || !detail || detail.files.length === 0) {
+      return
+    }
+    setPdfBusy(true)
+    setError('')
+    try {
+      await downloadClaimRequestFilesPdf(
+        token,
+        detail.id,
+        detail.customerId,
+        `청구자료_${detail.customerName}_${detail.id}.pdf`,
+      )
+    } catch (downloadError) {
+      setError(downloadError instanceof Error ? downloadError.message : 'PDF 다운로드에 실패했습니다.')
+    } finally {
+      setPdfBusy(false)
+    }
+  }, [detail, token])
 
   const openDetailModal = useCallback((row: ClaimRequestListItem) => {
     if (selectedId !== row.id) {
@@ -271,7 +352,7 @@ export default function ClaimInboxPage() {
     }
   }, [detail, loadDetail, loadRows, selectedId, statusMemo, statusTarget, token])
 
-  const renderDetailBody = (showCustomerPageButton: boolean) => {
+  const renderDetailBody = () => {
     if (detailLoading) {
       return <div className="claim-inbox__empty">상세를 불러오는 중…</div>
     }
@@ -292,13 +373,18 @@ export default function ClaimInboxPage() {
 
         {detail.memo ? <div className="claim-inbox__detail-memo">{detail.memo}</div> : null}
 
-        {showCustomerPageButton ? (
-          <div className="claim-inbox__detail-actions">
-            <FormButton htmlType="button" variant="primary" onClick={() => openCustomerClaimPage(detail)}>
-              고객 청구페이지 열기
-            </FormButton>
-          </div>
-        ) : null}
+        <ClaimRequestAttachmentActions
+          section="customerPage"
+          attachmentCount={detail.files.length}
+          customerClaimPageUrl={customerClaimPageUrl}
+          customerClaimPageBusy={customerClaimPageBusy}
+          onOpenCustomerClaimPage={handleOpenCustomerClaimPage}
+          onDownloadZip={handleDownloadClaimFilesZip}
+          onDownloadPdf={handleDownloadClaimFilesPdf}
+          zipBusy={zipBusy}
+          pdfBusy={pdfBusy}
+          variant={isMobile ? 'mobile' : 'desktop'}
+        />
 
         <div className="claim-inbox__detail-section claim-inbox__status-editor">
           <h3>상태 변경</h3>
@@ -322,7 +408,19 @@ export default function ClaimInboxPage() {
         </div>
 
         <div className="claim-inbox__detail-section">
-          <h3>첨부 파일</h3>
+          <div className="claim-inbox__attachment-header">
+            <h3>첨부 파일</h3>
+            <ClaimRequestAttachmentActions
+              section="bundle"
+              attachmentCount={detail.files.length}
+              onDownloadZip={handleDownloadClaimFilesZip}
+              onDownloadPdf={handleDownloadClaimFilesPdf}
+              zipBusy={zipBusy}
+              pdfBusy={pdfBusy}
+              variant={isMobile ? 'mobile' : 'desktop'}
+              showCustomerClaimPage={false}
+            />
+          </div>
           {detail.files.length === 0 ? <div className="claim-inbox__empty claim-inbox__empty--small">첨부 파일이 없습니다.</div> : null}
           {detail.files.length > 0 ? (
             <div className="claim-inbox__file-list">
@@ -454,7 +552,7 @@ export default function ClaimInboxPage() {
               <h2>상세 미리보기</h2>
               {selectedRow ? <span>#{selectedRow.id}</span> : null}
             </div>
-            {renderDetailBody(true)}
+            {renderDetailBody()}
           </section>
         ) : null}
       </section>
@@ -468,7 +566,7 @@ export default function ClaimInboxPage() {
               <button type="button" className="claim-inbox__modal-close" onClick={closeDetailModal}>닫기</button>
             </header>
             <div className="claim-inbox__modal-body">
-              {renderDetailBody(false)}
+              {renderDetailBody()}
             </div>
           </section>
         </div>

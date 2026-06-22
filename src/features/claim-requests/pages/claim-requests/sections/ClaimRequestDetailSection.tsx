@@ -1,5 +1,5 @@
 import { FormButton, FormSelect, FormTextarea } from '../../../../../components/form'
-import ClaimRequestAttachmentBundleActions from '../../../components/ClaimRequestAttachmentBundleActions'
+import ClaimRequestAttachmentActions from '../../../components/ClaimRequestAttachmentActions'
 import ClaimRequestFileActions from '../../../components/ClaimRequestFileActions'
 import type {
   ClaimRequestDetail,
@@ -26,6 +26,11 @@ type ClaimRequestDetailSectionProps = {
   zipBusy?: boolean
   pdfBusy?: boolean
   useNativeFileLinks?: boolean
+  customerClaimPageUrl?: string
+  customerClaimPageBusy?: boolean
+  onOpenCustomerClaimPage?: () => MaybePromise
+  showCustomerClaimPage?: boolean
+  attachmentActionsVariant?: 'desktop' | 'mobile' | 'compact'
   formatDateTime: (iso: string | null) => string
   statusLabel: (status: ClaimRequestStatus) => string
 }
@@ -47,6 +52,11 @@ export default function ClaimRequestDetailSection({
   zipBusy = false,
   pdfBusy = false,
   useNativeFileLinks = false,
+  customerClaimPageUrl = '',
+  customerClaimPageBusy = false,
+  onOpenCustomerClaimPage,
+  showCustomerClaimPage = true,
+  attachmentActionsVariant = 'desktop',
   formatDateTime,
   statusLabel,
 }: ClaimRequestDetailSectionProps) {
@@ -76,6 +86,11 @@ export default function ClaimRequestDetailSection({
         zipBusy={zipBusy}
         pdfBusy={pdfBusy}
         useNativeFileLinks={useNativeFileLinks}
+        customerClaimPageUrl={customerClaimPageUrl}
+        customerClaimPageBusy={customerClaimPageBusy}
+        onOpenCustomerClaimPage={onOpenCustomerClaimPage}
+        showCustomerClaimPage={showCustomerClaimPage}
+        attachmentActionsVariant={attachmentActionsVariant}
         formatDateTime={formatDateTime}
         statusLabel={statusLabel}
       />
@@ -104,6 +119,11 @@ export function ClaimRequestDetailBody({
   zipBusy = false,
   pdfBusy = false,
   useNativeFileLinks = false,
+  customerClaimPageUrl = '',
+  customerClaimPageBusy = false,
+  onOpenCustomerClaimPage,
+  showCustomerClaimPage = true,
+  attachmentActionsVariant = 'desktop',
   formatDateTime,
   statusLabel,
 }: ClaimRequestDetailBodyProps) {
@@ -138,16 +158,35 @@ export function ClaimRequestDetailBody({
         {detail.memo ? <div className="claim-requests-page__detail-text claim-requests-page__detail-text--memo">메모: {detail.memo}</div> : null}
       </div>
 
+      {onDownloadZip && onDownloadPdf ? (
+        <ClaimRequestAttachmentActions
+          section="customerPage"
+          attachmentCount={detail.files.length}
+          customerClaimPageUrl={customerClaimPageUrl}
+          customerClaimPageBusy={customerClaimPageBusy}
+          onOpenCustomerClaimPage={onOpenCustomerClaimPage}
+          showCustomerClaimPage={showCustomerClaimPage}
+          onDownloadZip={onDownloadZip}
+          onDownloadPdf={onDownloadPdf}
+          zipBusy={zipBusy}
+          pdfBusy={pdfBusy}
+          variant={attachmentActionsVariant}
+        />
+      ) : null}
+
       <div className="claim-requests-page__detail-section">
         <div className="claim-requests-page__attachment-header">
           <div className="claim-requests-page__detail-subtitle">첨부 파일</div>
           {onDownloadZip && onDownloadPdf ? (
-            <ClaimRequestAttachmentBundleActions
-              fileCount={detail.files.length}
-              zipBusy={zipBusy}
-              pdfBusy={pdfBusy}
+            <ClaimRequestAttachmentActions
+              section="bundle"
+              attachmentCount={detail.files.length}
               onDownloadZip={onDownloadZip}
               onDownloadPdf={onDownloadPdf}
+              zipBusy={zipBusy}
+              pdfBusy={pdfBusy}
+              variant={attachmentActionsVariant}
+              showCustomerClaimPage={false}
             />
           ) : null}
         </div>

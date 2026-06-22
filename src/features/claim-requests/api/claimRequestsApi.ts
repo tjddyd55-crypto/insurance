@@ -1,9 +1,14 @@
 import { ApiError, apiRequest, resolveAbsoluteApiUrl, resolveApiUrl } from '../../../lib/apiClient'
+import { downloadBlobFile, parseContentDispositionFilename } from '../../../utils/downloadBlobFile'
+import { getCustomerClaimPageUrl } from '../utils/customerClaimPageActions'
 import {
   resolveAgentClaimFileDownloadAuthHref,
   resolveAgentClaimFileOpenHref,
   shouldUseNativeAgentClaimFileLinks,
 } from '../utils/claimRequestFileActions'
+
+export { getCustomerClaimPageUrl }
+export { parseContentDispositionFilename }
 
 export type ClaimRequestStatus = 'requested' | 'processing' | 'done' | 'rejected' | 'canceled'
 
@@ -32,29 +37,6 @@ export interface ClaimRequestFileItem {
   uploadedAt: string | null
   url: string
   downloadUrl?: string
-}
-
-function parseContentDispositionFilename(headerValue: string | null): string | null {
-  if (!headerValue?.trim()) {
-    return null
-  }
-  const utf8Star = /filename\*\s*=\s*(?:UTF-8|utf-8)''([^;\s]+)/i.exec(headerValue)
-  if (utf8Star?.[1]) {
-    try {
-      return decodeURIComponent(utf8Star[1].trim())
-    } catch {
-      return null
-    }
-  }
-  const quoted = /filename\s*=\s*"((?:\\.|[^"\\])*)"/i.exec(headerValue)
-  if (quoted?.[1]) {
-    return quoted[1].replace(/\\(.)/g, '$1')
-  }
-  const plain = /filename\s*=\s*([^;\s]+)/i.exec(headerValue)
-  if (plain?.[1]) {
-    return plain[1].replace(/^["']|["']$/g, '')
-  }
-  return null
 }
 
 function isDirectCdnUrl(url: string): boolean {
@@ -205,8 +187,15 @@ async function fetchClaimRequestBundleBlob(
     }
     throw new ApiError(message, response.status)
   }
+  const blob = await response.blob()
+  if (!blob || blob.size === 0) {
+    throw new ApiError(
+      kind === 'zip' ? 'ZIP 파일이 비어 있습니다.' : 'PDF 파일이 비어 있습니다.',
+      502,
+    )
+  }
   return {
-    blob: await response.blob(),
+    blob,
     fileName: parseContentDispositionFilename(response.headers.get('Content-Disposition')),
   }
 }
@@ -218,9 +207,7 @@ export async function downloadClaimRequestFilesZip(
   fallbackFileName: string,
 ): Promise<void> {
   const { blob, fileName } = await fetchClaimRequestBundleBlob(token, requestId, customerId, 'zip')
-  const objectUrl = URL.createObjectURL(blob)
-  triggerBrowserDownload(objectUrl, fileName ?? fallbackFileName)
-  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000)
+  downloadBlobFile({ blob, fileName: fileName ?? fallbackFileName })
 }
 
 export async function downloadClaimRequestFilesPdf(
@@ -230,9 +217,27 @@ export async function downloadClaimRequestFilesPdf(
   fallbackFileName: string,
 ): Promise<void> {
   const { blob, fileName } = await fetchClaimRequestBundleBlob(token, requestId, customerId, 'pdf')
-  const objectUrl = URL.createObjectURL(blob)
-  triggerBrowserDownload(objectUrl, fileName ?? fallbackFileName)
-  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000)
+  downloadBlobFile({ blob, fileName: fileName ?? fallbackFileName })
+}
+
+/** 고객 청구 페이지 URL이 없으면 링크를 생성한 뒤 반환한다. */
+export async function ensureCustomerClaimPageUrl(token: string, customerId: number): Promise<string> {
+  if (!token?.trim()) {
+    throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  if (!Number.isInteger(customerId) || customerId <= 0) {
+    throw new ApiError('고객 ID가 필요합니다.', 400)
+  }
+  let info = await getCustomerAppLink(token, customerId)
+  let url = getCustomerClaimPageUrl(info)
+  if (!url) {
+    info = await createCustomerAppLink(token, customerId)
+    url = getCustomerClaimPageUrl(info)
+  }
+  if (!url) {
+    throw new ApiError('고객 청구 페이지 링크를 만들지 못했습니다.', 502)
+  }
+  return url
 }
 
 export interface ClaimRequestStatusLogItem {

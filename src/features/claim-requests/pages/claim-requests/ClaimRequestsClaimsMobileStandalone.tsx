@@ -7,8 +7,10 @@ import {
   downloadClaimRequestFile,
   downloadClaimRequestFilesPdf,
   downloadClaimRequestFilesZip,
+  ensureCustomerClaimPageUrl,
   getClaimRequestDetail,
   getCustomerAppLink,
+  getCustomerClaimPageUrl,
   listClaimRequests,
   openClaimRequestFile,
   type ClaimRequestDetail,
@@ -17,6 +19,7 @@ import {
   type CustomerAppLinkInfo,
   updateClaimRequestStatus,
 } from '../../api/claimRequestsApi'
+import { openCustomerClaimPageUrl } from '../../utils/customerClaimPageActions'
 import ClaimRequestsClaimsMobileView from './ClaimRequestsClaimsMobileView'
 
 const STATUS_OPTIONS: Array<{ value: ClaimRequestStatus; label: string }> = [
@@ -120,9 +123,11 @@ export default function ClaimRequestsClaimsMobileStandalone() {
   const [actionBusy, setActionBusy] = useState(false)
   const [zipBusy, setZipBusy] = useState(false)
   const [pdfBusy, setPdfBusy] = useState(false)
+  const [customerClaimPageBusy, setCustomerClaimPageBusy] = useState(false)
 
   const displayedCode = createdCode || linkStatus?.agentCode || linkStatus?.linkCode || ''
-  const displayedLink = createdLink || linkStatus?.universalUrl || ''
+  const customerClaimPageUrl = createdLink || getCustomerClaimPageUrl(linkStatus)
+  const displayedLink = customerClaimPageUrl
   const selectedRow = useMemo(() => rows.find((item) => item.id === selectedId) ?? null, [rows, selectedId])
   const latestDeviceLabel = useMemo(() => {
     if (detail?.deviceId?.trim()) {
@@ -453,6 +458,29 @@ export default function ClaimRequestsClaimsMobileStandalone() {
     }
   }, [detail, token])
 
+  const handleOpenCustomerClaimPage = useCallback(async () => {
+    if (!token?.trim()) {
+      setError('로그인이 필요합니다.')
+      return
+    }
+    const customerId = activeCustomerId ?? detail?.customerId ?? null
+    if (!customerId) {
+      setError('고객을 선택해 주세요.')
+      return
+    }
+    setCustomerClaimPageBusy(true)
+    setError('')
+    try {
+      const url = await ensureCustomerClaimPageUrl(token, customerId)
+      setCreatedLink(url)
+      openCustomerClaimPageUrl(url)
+    } catch (openError) {
+      setError(openError instanceof Error ? openError.message : '고객 청구 페이지를 열지 못했습니다.')
+    } finally {
+      setCustomerClaimPageBusy(false)
+    }
+  }, [activeCustomerId, detail?.customerId, token])
+
   return (
     <ClaimRequestsClaimsMobileView
       feedbackSection={
@@ -497,6 +525,9 @@ export default function ClaimRequestsClaimsMobileStandalone() {
       onDownloadPdf={() => void handleDownloadClaimFilesPdf()}
       zipBusy={zipBusy}
       pdfBusy={pdfBusy}
+      customerClaimPageUrl={customerClaimPageUrl}
+      customerClaimPageBusy={customerClaimPageBusy}
+      onOpenCustomerClaimPage={() => void handleOpenCustomerClaimPage()}
       formatDateTime={formatDateTime}
       statusLabel={statusLabel}
       statusBadgeClass={statusBadgeClass}
