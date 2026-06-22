@@ -129,6 +129,22 @@ body {
 }
 
 @media (min-width: 1024px) {
+  .app-root:not(.app-root--authenticated):has(.auth-page--login-split) {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 100dvh;
+    overflow: hidden;
+  }
+
+  .app-root:not(.app-root--authenticated):has(.auth-page--login-split) .main-container {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
   .app-root.app-root--authenticated {
     height: 100%;
     min-height: 100vh;
@@ -380,7 +396,12 @@ body {
   .app-workspace-layout-root .workspace-main.workspace-main--app .app-main-content {
     flex: 1 1 auto;
     min-height: 0;
-    overflow: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .pc-root.app-workspace-layout-root .app-main-content--workspace-outlet-host .profile-page {
+    padding-bottom: 24px;
   }
 
   .workspace-sidebar.workspace-sidebar--collapsed {
@@ -2157,8 +2178,11 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   align-items: stretch;
   justify-content: flex-start;
   padding: 0;
-  min-height: 100vh;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
   width: 100%;
+  overflow: hidden;
   background: var(--bg-main);
 }
 
@@ -2213,10 +2237,15 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 .auth-login-content {
   flex: 1 1 auto;
   min-width: 0;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px 20px;
+}
+
+.auth-page.auth-page--login-split .auth-login-content {
+  overflow-y: auto;
 }
 
 .auth-card.auth-card--login-split {
@@ -2248,6 +2277,27 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   font-size: 12px;
   color: #999;
   pointer-events: none;
+}
+
+.auth-page.auth-page--login-split .auth-page__privacy-footer {
+  position: static;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+}
+
+.auth-page.auth-page--login-split .auth-page__privacy-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 16px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-secondary, #94a3b8);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .auth-page.auth-page--mobile-login .auth-page__version-footer {
@@ -3091,6 +3141,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   padding: 16px 0 calc(16px + env(safe-area-inset-bottom, 0px));
   text-align: center;
   border-top: 1px solid var(--border-default);
+  flex-shrink: 0;
 }
 
 .profile-page__legal-link {
@@ -9317,17 +9368,18 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   align-items: stretch;
   gap: 0;
   width: 100%;
-  height: 100vh;
-  height: 100dvh;
-  min-height: 100vh;
-  min-height: 100dvh;
-  overflow: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+  max-height: none;
+  overflow: hidden;
 }
 
 .workspace-main.workspace-main--app {
   flex: 1 1 auto;
   min-width: 0;
-  overflow: auto;
+  min-height: 0;
+  overflow: hidden;
   background: var(--bg-main);
 }
 
