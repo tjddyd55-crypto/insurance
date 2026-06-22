@@ -59,6 +59,9 @@ type ClaimRequestsClaimsMobileViewProps = {
   onDownloadPdf?: NonNullable<Parameters<typeof ClaimRequestDetailBody>[0]>['onDownloadPdf']
   zipBusy?: boolean
   pdfBusy?: boolean
+  customerClaimPageUrl?: string
+  customerClaimPageBusy?: boolean
+  onOpenCustomerClaimPage?: () => MaybePromise
   formatDateTime: (iso: string | null) => string
   statusLabel: (status: ClaimRequestStatus) => string
   statusBadgeClass: (status: ClaimRequestStatus) => string
@@ -104,6 +107,9 @@ export default function ClaimRequestsClaimsMobileView({
   onDownloadPdf,
   zipBusy = false,
   pdfBusy = false,
+  customerClaimPageUrl = '',
+  customerClaimPageBusy = false,
+  onOpenCustomerClaimPage,
   formatDateTime,
   statusLabel,
   statusBadgeClass,
@@ -190,6 +196,10 @@ export default function ClaimRequestsClaimsMobileView({
               zipBusy={zipBusy}
               pdfBusy={pdfBusy}
               useNativeFileLinks
+              customerClaimPageUrl={customerClaimPageUrl}
+              customerClaimPageBusy={customerClaimPageBusy}
+              onOpenCustomerClaimPage={onOpenCustomerClaimPage}
+              attachmentActionsVariant="mobile"
               formatDateTime={formatDateTime}
               statusLabel={statusLabel}
             />

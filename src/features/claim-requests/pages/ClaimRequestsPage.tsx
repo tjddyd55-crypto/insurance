@@ -7,7 +7,7 @@ import PCOnlySection from '../../../components/PCOnlySection'
 import useIsMobile from '../../../hooks/useIsMobile'
 import { NewsletterList } from '../../insurer-news/components/NewsletterList'
 import type { NewsletterItem } from '../../insurer-news/types'
-import ClaimRequestAttachmentBundleActions from '../components/ClaimRequestAttachmentBundleActions'
+import ClaimRequestAttachmentActions from '../components/ClaimRequestAttachmentActions'
 import ClaimRequestFileActions from '../components/ClaimRequestFileActions'
 import { useAuth } from '../../auth/AuthProvider'
 import ClaimRequestsPageMobileView from './claim-requests/ClaimRequestsPageMobileView'
@@ -19,8 +19,10 @@ import {
   downloadClaimRequestFile,
   downloadClaimRequestFilesPdf,
   downloadClaimRequestFilesZip,
+  ensureCustomerClaimPageUrl,
   getClaimRequestDetail,
   getCustomerAppLink,
+  getCustomerClaimPageUrl,
   listAgentCustomerNews,
   listClaimRequests,
   listLinkedCustomers,
@@ -39,6 +41,7 @@ import {
   notifyCustomerAppLinkUpdated,
   resolveCustomerAppConnectionState,
 } from '../model/customerAppLinkConnection'
+import { openCustomerClaimPageUrl } from '../utils/customerClaimPageActions'
 
 const STATUS_OPTIONS: Array<{ value: ClaimRequestStatus; label: string }> = [
   { value: 'requested', label: '요청됨' },
@@ -146,8 +149,10 @@ export default function ClaimRequestsPage() {
   const [actionBusy, setActionBusy] = useState(false)
   const [zipBusy, setZipBusy] = useState(false)
   const [pdfBusy, setPdfBusy] = useState(false)
+  const [customerClaimPageBusy, setCustomerClaimPageBusy] = useState(false)
   const displayedCode = createdCode || linkStatus?.agentCode || linkStatus?.linkCode || ''
-  const displayedLink = createdLink || linkStatus?.universalUrl || ''
+  const customerClaimPageUrl = createdLink || getCustomerClaimPageUrl(linkStatus)
+  const displayedLink = customerClaimPageUrl
 
   const selectedRow = useMemo(() => rows.find((item) => item.id === selectedId) ?? null, [rows, selectedId])
   const latestDeviceLabel = useMemo(() => {
@@ -662,6 +667,29 @@ export default function ClaimRequestsPage() {
     }
   }, [detail, token])
 
+  const handleOpenCustomerClaimPage = useCallback(async () => {
+    if (!token?.trim()) {
+      setError('로그인이 필요합니다.')
+      return
+    }
+    const customerId = activeCustomerId ?? detail?.customerId ?? null
+    if (!customerId) {
+      setError('고객을 선택해 주세요.')
+      return
+    }
+    setCustomerClaimPageBusy(true)
+    setError('')
+    try {
+      const url = await ensureCustomerClaimPageUrl(token, customerId)
+      setCreatedLink(url)
+      openCustomerClaimPageUrl(url)
+    } catch (openError) {
+      setError(openError instanceof Error ? openError.message : '고객 청구 페이지를 열지 못했습니다.')
+    } finally {
+      setCustomerClaimPageBusy(false)
+    }
+  }, [activeCustomerId, detail?.customerId, token])
+
   const claimDetailBody = (
     <>
       {detailLoading ? <div className="claim-requests-page__detail-empty">상세 불러오는 중…</div> : null}
@@ -693,15 +721,31 @@ export default function ClaimRequestsPage() {
             {detail.memo ? <div className="claim-requests-page__detail-text claim-requests-page__detail-text--memo">메모: {detail.memo}</div> : null}
           </div>
 
+          <ClaimRequestAttachmentActions
+            section="customerPage"
+            attachmentCount={detail.files.length}
+            customerClaimPageUrl={customerClaimPageUrl}
+            customerClaimPageBusy={customerClaimPageBusy}
+            onOpenCustomerClaimPage={handleOpenCustomerClaimPage}
+            onDownloadZip={handleDownloadClaimFilesZip}
+            onDownloadPdf={handleDownloadClaimFilesPdf}
+            zipBusy={zipBusy}
+            pdfBusy={pdfBusy}
+            variant={isMobile ? 'mobile' : 'desktop'}
+          />
+
           <div className="claim-requests-page__detail-section">
             <div className="claim-requests-page__attachment-header">
               <div className="claim-requests-page__detail-subtitle">첨부 파일</div>
-              <ClaimRequestAttachmentBundleActions
-                fileCount={detail.files.length}
-                zipBusy={zipBusy}
-                pdfBusy={pdfBusy}
+              <ClaimRequestAttachmentActions
+                section="bundle"
+                attachmentCount={detail.files.length}
                 onDownloadZip={handleDownloadClaimFilesZip}
                 onDownloadPdf={handleDownloadClaimFilesPdf}
+                zipBusy={zipBusy}
+                pdfBusy={pdfBusy}
+                variant={isMobile ? 'mobile' : 'desktop'}
+                showCustomerClaimPage={false}
               />
             </div>
             {detail.files.length === 0 ? (

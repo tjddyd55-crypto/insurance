@@ -287,6 +287,29 @@
   gap: 8px;
 }
 
+.claim-inbox__detail-section h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.claim-inbox__attachment-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.claim-inbox__attachment-header h3 {
+  margin: 0;
+}
+
+.claim-inbox__attachment-header .claim-requests-page__attachment-bundle-actions {
+  margin-left: auto;
+}
+
 .claim-inbox__detail-section {
   display: flex;
   flex-direction: column;
