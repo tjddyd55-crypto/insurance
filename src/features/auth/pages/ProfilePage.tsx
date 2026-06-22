@@ -802,6 +802,12 @@ export function ProfilePage() {
         <Link to="/privacy" className="profile-page__legal-link">
           개인정보처리방침
         </Link>
+        <span className="profile-page__legal-sep" aria-hidden="true">
+          ·
+        </span>
+        <Link to="/account-deletion" className="profile-page__legal-link">
+          계정 삭제 요청
+        </Link>
       </footer>
     </main>
   )

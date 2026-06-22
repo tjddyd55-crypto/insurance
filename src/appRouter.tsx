@@ -78,6 +78,7 @@ import TenantModeLandingPage from './features/platform/pages/modes/TenantModeLan
 import PlatformRegistriesPage from './features/platform/pages/registries/PlatformRegistriesPage'
 import InsurerSitesPage from './features/insurer-sites/pages/InsurerSitesPage'
 import PrivacyPolicyPage from './features/legal/PrivacyPolicyPage'
+import AccountDeletionPage from './features/legal/AccountDeletionPage'
 import { SuperAdminRoute } from './features/auth/SuperAdminRoute'
 import { PdfTemplateAdminRoute } from './features/auth/PdfTemplateAdminRoute'
 import { InsurerManagerOnlyRoute } from './features/auth/InsurerManagerOnlyRoute'
@@ -167,6 +168,7 @@ export const appRouter = createBrowserRouter([
       { path: 'signup/government', element: <RegisterPage signupIndustry="government" /> },
       { path: 'privacy', element: <PrivacyPolicyPage /> },
       { path: 'privacy-policy', element: <Navigate to="/privacy" replace /> },
+      { path: 'account-deletion', element: <AccountDeletionPage /> },
       { path: 'introduction', element: <IntroductionPage /> },
       { path: 'introduction/install', element: <IntroductionInstallPage /> },
       { path: 'naver-map-smoke', element: <NaverMapSmokePage /> },
