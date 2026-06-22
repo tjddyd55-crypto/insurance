@@ -203,7 +203,9 @@ export async function replaceTemplateFields(pool, templateId, fields) {
       /* options 는 radio 에서만 의미가 있다. 다른 타입은 NULL 로 저장해
          "type 이 radio 가 아닌데 options 가 남아 있는" 비일관 상태를 원천 차단한다. */
       const optionsJson =
-        f.fieldType === 'radio' && Array.isArray(f.options) ? JSON.stringify(f.options) : null
+        (f.fieldType === 'radio' || f.fieldType === 'checkbox') && Array.isArray(f.options)
+          ? JSON.stringify(f.options)
+          : null
       const mappingSerialized = serializeFieldDataMapping(f.dataMapping)
       await client.query(
         `INSERT INTO pdf_template_fields

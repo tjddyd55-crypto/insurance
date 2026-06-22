@@ -120,7 +120,20 @@ test('normalizeFieldSpec: checkbox/radio 가 아닌 타입에 options 가 오면
   assert.equal(out.options, null)
 })
 
-test('normalizeFieldSpec: checkbox 는 options + placement.optionValue 를 필수로 가진다', () => {
+test('normalizeFieldSpec: checkbox 는 options 없이 placement 만으로도 허용', () => {
+  const out = normalizeFieldSpec(
+    makeField({
+      fieldKey: 'claim_flag',
+      fieldType: 'checkbox',
+      options: [],
+      placements: [{ page: 0, x: 1, y: 1, width: 12, height: 12 }],
+    }),
+  )
+  assert.deepEqual(out.options, [])
+  assert.equal(out.placements[0].checkboxStyle, 'check')
+})
+
+test('normalizeFieldSpec: checkbox options + placement.checked_value (레거시 optionValue)', () => {
   const out = normalizeFieldSpec(
     makeField({
       fieldType: 'checkbox',
@@ -128,7 +141,8 @@ test('normalizeFieldSpec: checkbox 는 options + placement.optionValue 를 필�
       placements: [{ page: 0, x: 1, y: 1, optionValue: '고객 동의' }],
     }),
   )
-  assert.deepEqual(out.options, ['고객 동의', '마케팅 동의'])
+  assert.equal(out.placements[0].optionValue, '고객 동의')
+  assert.equal(out.placements[0].checkedValue, '고객 동의')
 })
 
 test('normalizeFieldSpec: fieldKey 네이밍 규칙 위반', () => {
@@ -198,7 +212,7 @@ test('validateRenderValues: 통과 시 값은 trim 된 문자열 맵', () => {
   if (r.ok) assert.equal(r.normalized.name, '홍길동')
 })
 
-test('validateRenderValues: checkbox 는 JSON 배열 문자열만 허용', () => {
+test('validateRenderValues: checkbox 는 JSON 배열·boolean·plain string 허용', () => {
   const fields = [
     normalizeFieldSpec(
       makeField({
@@ -213,11 +227,12 @@ test('validateRenderValues: checkbox 는 JSON 배열 문자열만 허용', () =>
   assert.equal(validateRenderValues(fields, { agree: '["고객"]' }).ok, true)
   assert.equal(validateRenderValues(fields, { agree: '["고객","마케팅"]' }).ok, true)
   assert.equal(validateRenderValues(fields, { agree: '' }).ok, true)
-  assert.equal(validateRenderValues(fields, { agree: 'yes' }).ok, false)
+  assert.equal(validateRenderValues(fields, { agree: 'true' }).ok, true)
+  assert.equal(validateRenderValues(fields, { agree: 'outpatient' }).ok, true)
   assert.equal(validateRenderValues(fields, { agree: '["기타"]' }).ok, false)
 })
 
-test('validateRenderValues: checkbox required 는 최소 1개 이상 선택 시 통과', () => {
+test('validateRenderValues: checkbox required 는 true 또는 값이 있으면 통과', () => {
   const fields = [
     normalizeFieldSpec(
       makeField({
@@ -230,8 +245,11 @@ test('validateRenderValues: checkbox required 는 최소 1개 이상 선택 시 
     ),
   ]
   assert.equal(validateRenderValues(fields, { agree: '["고객"]' }).ok, true)
+  assert.equal(validateRenderValues(fields, { agree: 'true' }).ok, true)
+  assert.equal(validateRenderValues(fields, { agree: 'outpatient' }).ok, true)
   assert.equal(validateRenderValues(fields, { agree: '[]' }).ok, false)
   assert.equal(validateRenderValues(fields, { agree: '' }).ok, false)
+  assert.equal(validateRenderValues(fields, { agree: 'false' }).ok, false)
 })
 
 test('validateRenderValues: radio 는 options 중 하나여야 함', () => {

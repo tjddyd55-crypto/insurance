@@ -47,11 +47,12 @@ export interface PdfPlacement {
   fontSize: number | null
   align: 'left' | 'center' | 'right'
   /**
-   * radio 필드 전용 — 이 placement 가 대표하는 옵션 값.
-   * 렌더 시 선택된 값과 일치하는 placement 만 체크 마크가 그려진다.
-   * 다른 타입에서는 항상 null.
+   * radio/checkbox: 이 placement 가 대표하는 checked_value(레거시 optionValue 와 동일).
    */
   optionValue: string | null
+  checkedValue?: string | null
+  /** checkbox 전용 — 기본 check(✓). lines 는 레거시 라인 마크. */
+  checkboxStyle?: 'check' | 'lines' | null
 }
 
 export type PdfFieldDataSourceType = 'manual' | 'customer'
