@@ -3,6 +3,7 @@ import { useLoginController } from '../../hooks/useLoginController'
 import LoginForm from './LoginForm'
 import LoginAppDownloadFooter from './LoginAppDownloadFooter'
 import LoginPageVersionFooter from './LoginPageVersionFooter'
+import LoginPrivacyFooter from './LoginPrivacyFooter'
 
 /**
  * [PC View] 로그인 페이지.
@@ -50,6 +51,7 @@ export default function LoginPagePCView() {
           />
           <LoginAppDownloadFooter />
           <LoginPageVersionFooter version={controller.version} />
+          <LoginPrivacyFooter />
         </div>
       </section>
     </main>
