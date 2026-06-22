@@ -93,9 +93,26 @@ export function buildClaimBundleAsciiFallbackName(dateLike, kind) {
  * @param {number} width
  * @param {number} height
  */
+export function getPdfPageLayoutForImage(width, height) {
+  if (!width || !height) {
+    return 'portrait'
+  }
+  return height >= width ? 'portrait' : 'landscape'
+}
+
+/**
+ * @param {number} width
+ * @param {number} height
+ */
 export function getPdfPageSizeForImage(width, height) {
-  const isPortrait = height >= width
-  return isPortrait ? [A4_W, A4_H] : [A4_H, A4_W]
+  return getPdfPageLayoutForImage(width, height) === 'portrait' ? [A4_W, A4_H] : [A4_H, A4_W]
+}
+
+/**
+ * @param {string} mime
+ */
+export function isClaimRasterImageMime(mime) {
+  return mime === 'image/jpeg' || mime === 'image/png' || mime === 'image/webp'
 }
 
 /**
@@ -121,6 +138,9 @@ export function normalizeClaimFileMime(contentType, fileName) {
   }
   if (ext === 'png') {
     return 'image/png'
+  }
+  if (ext === 'webp') {
+    return 'image/webp'
   }
   if (ext === 'pdf') {
     return 'application/pdf'
@@ -182,20 +202,22 @@ export function assertClaimBundleWithinLimits(files) {
 
 /**
  * EXIF orientation 반영 후 PDF embed 용 버퍼·크기를 반환한다.
+ * width/height는 rotate 적용 후 toBuffer info 기준( metadata() 사용 금지 ).
  * @param {Buffer} bytes
  * @param {string} mime
  */
 export async function normalizeImageForPdf(bytes, mime) {
-  const rotated = sharp(bytes).rotate()
-  const metadata = await rotated.metadata()
-  const width = Number(metadata.width ?? 1)
-  const height = Number(metadata.height ?? 1)
-  const normalizedMime = mime === 'image/png' ? 'image/png' : 'image/jpeg'
-  const buffer =
-    normalizedMime === 'image/png'
-      ? await rotated.png().toBuffer()
-      : await rotated.jpeg({ quality: 92 }).toBuffer()
-  return { buffer, width, height, mime: normalizedMime }
+  const pipeline = sharp(bytes).rotate()
+  const keepPng = mime === 'image/png'
+  const output = keepPng
+    ? await pipeline.png().toBuffer({ resolveWithObject: true })
+    : await pipeline.jpeg({ quality: 92 }).toBuffer({ resolveWithObject: true })
+  return {
+    buffer: output.data,
+    width: output.info.width,
+    height: output.info.height,
+    mime: keepPng ? 'image/png' : 'image/jpeg',
+  }
 }
 
 /**
@@ -215,7 +237,9 @@ async function tryEmbedNormalizedRaster(pdfDoc, bytes, mime) {
       normalized.mime === 'image/png'
         ? await pdfDoc.embedPng(normalized.buffer)
         : await pdfDoc.embedJpg(normalized.buffer)
-    return { image, width: normalized.width, height: normalized.height }
+    const width = Number(image.width ?? normalized.width)
+    const height = Number(image.height ?? normalized.height)
+    return { image, width, height }
   } catch {
     return null
   }
@@ -228,16 +252,18 @@ async function tryEmbedNormalizedRaster(pdfDoc, bytes, mime) {
  * @param {number} displayHeight
  */
 function drawImageFitPage(pdfDoc, image, displayWidth, displayHeight) {
-  const [pageW, pageH] = getPdfPageSizeForImage(displayWidth, displayHeight)
+  const width = Number(displayWidth ?? image.width)
+  const height = Number(displayHeight ?? image.height)
+  const [pageW, pageH] = getPdfPageSizeForImage(width, height)
   const page = pdfDoc.addPage([pageW, pageH])
   const maxW = pageW - IMAGE_MARGIN * 2
   const maxH = pageH - IMAGE_MARGIN * 2
-  const scale = Math.min(maxW / displayWidth, maxH / displayHeight, 1)
-  const width = displayWidth * scale
-  const height = displayHeight * scale
-  const x = (pageW - width) / 2
-  const y = (pageH - height) / 2
-  page.drawImage(image, { x, y, width, height })
+  const scale = Math.min(maxW / width, maxH / height)
+  const drawW = width * scale
+  const drawH = height * scale
+  const x = (pageW - drawW) / 2
+  const y = (pageH - drawH) / 2
+  page.drawImage(image, { x, y, width: drawW, height: drawH })
 }
 
 /**
@@ -291,7 +317,7 @@ export async function buildClaimFilesPdfBuffer(files, readBuffer) {
       continue
     }
 
-    if (mime === 'image/jpeg' || mime === 'image/png') {
+    if (isClaimRasterImageMime(mime)) {
       const embedded = await tryEmbedNormalizedRaster(pdfDoc, bytes, mime)
       if (!embedded) {
         skipped.push(fileName)
