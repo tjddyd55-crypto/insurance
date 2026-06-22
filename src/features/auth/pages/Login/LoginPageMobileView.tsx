@@ -39,7 +39,7 @@ export default function LoginPageMobileView() {
         />
       </section>
 
-      <LoginAppDownloadFooter />
+      <LoginAppDownloadFooter layout="stack" />
       <LoginPageVersionFooter version={controller.version} />
       <LoginPrivacyFooter />
     </main>

@@ -148,6 +148,22 @@ body {
   flex-direction: column;
 }
 
+/* 모바일 로그인 — 셸은 고정, 본문(.auth-page--mobile-login)만 스크롤 */
+.app-root:not(.app-root--authenticated):has(.auth-page--mobile-login) {
+  height: 100%;
+  min-height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+.app-root:not(.app-root--authenticated):has(.auth-page--mobile-login) .main-container {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 @media (min-width: 1024px) {
   .app-root:not(.app-root--authenticated):has(.auth-page--login-split) {
     display: flex;
@@ -2208,18 +2224,87 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 
 .auth-page.auth-page--mobile-login {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  min-height: 100dvh;
-  padding: 16px 12px;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100dvh;
   width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  scroll-padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  padding: clamp(28px, 8dvh, 72px) clamp(12px, 4vw, 20px)
+    calc(20px + env(safe-area-inset-bottom, 0px));
   background: var(--bg-main);
+  /* Android WebView 시스템 글자 크기 과확대 완화 (CSS만으로 1차 대응) */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 .auth-page.auth-page--mobile-login .auth-login-content {
   width: 100%;
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
   padding: 0;
+  margin: 0;
+}
+
+.auth-page.auth-page--mobile-login .auth-card {
+  width: min(100%, 420px);
+  max-width: 420px;
+  margin: 0 auto;
+  flex-shrink: 0;
+  padding: clamp(16px, 4vw, 24px);
+  box-sizing: border-box;
+}
+
+.auth-page.auth-page--mobile-login .auth-card h1 {
+  margin: 0;
+  font-size: clamp(1.25rem, 5.2vw, 1.5rem);
+  line-height: 1.3;
+}
+
+.auth-page.auth-page--mobile-login .auth-notice {
+  font-size: clamp(0.8125rem, 3.6vw, 0.875rem);
+  line-height: 1.45;
+}
+
+.auth-page.auth-page--mobile-login .auth-form {
+  gap: clamp(10px, 2.8vw, 12px);
+}
+
+.auth-page.auth-page--mobile-login .field__label {
+  font-size: clamp(0.8125rem, 3.5vw, 0.875rem);
+}
+
+.auth-page.auth-page--mobile-login .auth-form .field input,
+.auth-page.auth-page--mobile-login .auth-form .form-input {
+  min-height: 44px;
+  max-height: 52px;
+  height: clamp(44px, 12vw, 48px);
+  padding: 0 clamp(10px, 3vw, 12px);
+  font-size: clamp(0.9375rem, 4vw, 1rem);
+  line-height: 1.25;
+  scroll-margin-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
+}
+
+.auth-page.auth-page--mobile-login .auth-form .button {
+  min-height: 44px;
+  max-height: 52px;
+  height: clamp(44px, 12vw, 48px);
+  padding: 0 clamp(12px, 3.5vw, 16px);
+  font-size: clamp(0.9375rem, 4vw, 1rem);
+  scroll-margin-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+}
+
+.auth-page.auth-page--mobile-login .switch-text,
+.auth-page.auth-page--mobile-login .switch-text__action {
+  font-size: clamp(0.8125rem, 3.5vw, 0.875rem);
 }
 
 .auth-login-sidebar {
@@ -2331,31 +2416,30 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 }
 
 .auth-page.auth-page--mobile-login .auth-page__version-footer {
-  position: fixed;
-  bottom: calc(36px + env(safe-area-inset-bottom, 0px));
-  left: 0;
+  position: static;
   width: 100%;
+  margin-top: clamp(10px, 2.5dvh, 16px);
   box-sizing: border-box;
   text-align: center;
-  font-size: 12px;
+  font-size: clamp(0.6875rem, 3vw, 0.75rem);
   color: #999;
   pointer-events: none;
-  z-index: 20;
+  flex-shrink: 0;
 }
 
 .auth-page.auth-page--mobile-login .auth-page__privacy-footer {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: calc(4px + env(safe-area-inset-bottom, 0px));
-  z-index: 22;
+  position: static;
+  width: 100%;
+  margin-top: clamp(4px, 1.5dvh, 10px);
+  z-index: 1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: 0 4px;
   box-sizing: border-box;
-  padding: 0 8px;
+  padding: 0 clamp(8px, 3vw, 16px) env(safe-area-inset-bottom, 0px);
+  flex-shrink: 0;
 }
 
 .auth-page.auth-page--mobile-login .auth-page__privacy-link {
@@ -2363,22 +2447,51 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  padding: 8px 16px;
-  font-size: 13px;
-  line-height: 1.4;
+  max-height: 48px;
+  padding: 8px clamp(8px, 3vw, 12px);
+  font-size: clamp(0.75rem, 3.2vw, 0.8125rem);
+  line-height: 1.35;
   color: var(--text-secondary, #94a3b8);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
+.auth-page.auth-page--mobile-login .auth-page__privacy-sep {
+  font-size: clamp(0.75rem, 3.2vw, 0.8125rem);
+}
+
 .auth-page.auth-page--mobile-login .auth-login-download-footer {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: calc(60px + env(safe-area-inset-bottom, 0px));
-  z-index: 21;
-  padding: 0 16px;
+  position: static;
+  width: 100%;
+  margin-top: clamp(16px, 4dvh, 28px);
+  padding: 0;
   box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.auth-page.auth-page--mobile-login .app-download-actions {
+  width: min(100%, 360px);
+  margin: 0 auto;
+}
+
+.auth-page.auth-page--mobile-login .app-download-actions__buttons {
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  gap: clamp(8px, 2.5vw, 10px);
+}
+
+.auth-page.auth-page--mobile-login .app-download-actions__link,
+.auth-page.auth-page--mobile-login .app-download-actions__item {
+  width: 100%;
+  max-width: none;
+  min-height: 44px;
+  max-height: 48px;
+  padding: 0 clamp(12px, 3.5vw, 16px);
+  font-size: clamp(0.8125rem, 3.5vw, 0.875rem);
+  line-height: 1.25;
+  white-space: normal;
+  text-align: center;
 }
 
 .app-download-actions {
