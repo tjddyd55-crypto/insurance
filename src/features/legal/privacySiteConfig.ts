@@ -15,9 +15,9 @@ export const privacySiteConfig = {
   /** 대표자 성명 (필요 시 문서에 반영) */
   representativeName: '박성용',
   /** 사업자등록번호 (선택, 공개 정책에 따라 기입) */
-  businessRegistrationNumber: '000-00-00000',
+  businessRegistrationNumber: '540-99-01608',
   /** 주소 */
-  address: '서울특별시 ○○구 ○○로 00, ○○빌딩 0층 (○○동)',
+  address: '서울특별시 광진구 천호대로 114길 39(능동) 202호',
   /** 개인정보 보호책임자 성명 */
   privacyOfficerName: '박성용',
   /** 소속/직책 */
