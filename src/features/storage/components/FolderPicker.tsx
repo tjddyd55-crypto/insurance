@@ -63,25 +63,31 @@ export default function FolderPicker({
       )}
 
       <Modal open={isOpen} onClose={onClose} ariaLabel="폴더 선택" panelClassName="storage-folder-sheet">
-        <div className="storage-folder-sheet__title">폴더 선택</div>
-        <div className="storage-folder-sheet__list">
-          {folders.map((folder) => {
-            const active = folder.id === selectedFolderId
-            return (
-              <FormButton
-                key={folder.id == null ? 'all' : String(folder.id)}
-                htmlType="button"
-                variant={active ? 'primary' : 'secondary'}
-                className="storage-folder-sheet__item"
-                onClick={() => {
-                  onSelect(folder.id)
-                  onClose()
-                }}
-              >
-                {folder.name}
-              </FormButton>
-            )
-          })}
+        <header className="storage-folder-sheet__header">
+          <h2 className="storage-folder-sheet__title">폴더 선택</h2>
+        </header>
+        <div className="storage-folder-sheet__body">
+          <div className="storage-folder-sheet__list" role="listbox" aria-label="폴더 목록">
+            {folders.map((folder) => {
+              const active = folder.id === selectedFolderId
+              return (
+                <FormButton
+                  key={folder.id == null ? 'all' : String(folder.id)}
+                  htmlType="button"
+                  variant={active ? 'primary' : 'secondary'}
+                  className={`storage-folder-sheet__item${active ? ' storage-folder-sheet__item--active' : ''}`}
+                  role="option"
+                  aria-selected={active}
+                  onClick={() => {
+                    onSelect(folder.id)
+                    onClose()
+                  }}
+                >
+                  {folder.name}
+                </FormButton>
+              )
+            })}
+          </div>
         </div>
       </Modal>
     </>

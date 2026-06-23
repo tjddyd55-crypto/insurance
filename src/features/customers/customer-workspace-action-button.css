@@ -226,9 +226,72 @@
     color: var(--btn-secondary-text);
   }
 
-  /* ── 작성/수정 모달 (portal · 메모/상담 공통) ──
+  /* ── 작성/수정 모달 (portal · 메모/상담/폴더 생성 공통) ──
    * textarea: .field--editable(#000) 보다 후행 규칙으로 입력칸 검정(#020617) 고정.
    * footer: CustomerWorkspaceMobileScope 안에서 목록 액션과 동일 button.customer-workspace-action-button 사용. */
+  .customer-ui-modal-panel.customer-workspace-form-modal .customer-workspace-form-modal__header,
+  .customer-workspace-mobile-scope .customer-workspace-form-modal__header {
+    flex: 0 0 auto;
+    margin-bottom: 12px;
+  }
+
+  .customer-ui-modal-panel.customer-workspace-form-modal .customer-workspace-form-modal__title,
+  .customer-workspace-mobile-scope .customer-workspace-form-modal__title {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.3;
+  }
+
+  .customer-ui-modal-panel.customer-workspace-form-modal .customer-workspace-form-modal__body,
+  .customer-workspace-mobile-scope .customer-workspace-form-modal__body {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .customer-ui-modal-panel.customer-workspace-form-modal .customer-workspace-form-modal__form,
+  .customer-workspace-mobile-scope .customer-workspace-form-modal__form {
+    margin: 0;
+  }
+
+  .customer-ui-modal-panel.customer-workspace-form-modal {
+    box-sizing: border-box;
+    min-height: 220px;
+    padding: 24px;
+  }
+
+  .customer-ui-modal-panel.customer-workspace-form-modal input.customer-workspace-form-modal__input,
+  .customer-workspace-mobile-scope input.customer-workspace-form-modal__input,
+  input.customer-workspace-form-modal__input {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 44px;
+    padding: 0 14px;
+    border: 1px solid var(--border-default);
+    border-radius: 12px;
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+    font-size: 15px;
+    line-height: 1.45;
+    letter-spacing: var(--customer-mobile-letter-base, 0.005em);
+  }
+
+  .customer-ui-modal-panel.customer-workspace-form-modal input.customer-workspace-form-modal__input::placeholder,
+  .customer-workspace-mobile-scope input.customer-workspace-form-modal__input::placeholder,
+  input.customer-workspace-form-modal__input::placeholder {
+    color: var(--placeholder);
+  }
+
+  .customer-ui-modal-panel.customer-workspace-form-modal input.customer-workspace-form-modal__input:focus,
+  .customer-workspace-mobile-scope input.customer-workspace-form-modal__input:focus,
+  input.customer-workspace-form-modal__input:focus {
+    outline: none;
+    border-color: var(--input-focus-border);
+    box-shadow: 0 0 0 3px var(--input-focus-ring);
+  }
+
   .customer-ui-modal-panel.customer-workspace-form-modal .customer-workspace-modal-actions,
   .customer-workspace-mobile-scope .customer-workspace-modal-actions {
     display: flex;

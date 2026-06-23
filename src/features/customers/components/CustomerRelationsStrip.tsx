@@ -1,6 +1,7 @@
-import { type CSSProperties, type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { useConfirmDialog } from '../../../components/dialog'
 import { FormButton, FormInput } from '../../../components/form'
+import Modal from '../../../components/ui/Modal'
 import { listCustomers, searchCustomers } from '../api/customersApi'
 import {
   createCustomerRelation,
@@ -21,14 +22,6 @@ type Props = {
   onOpenCustomer: (id: number, name?: string) => void
   /** 펼쳐져 보고 있는 고객 ID — 연계 칩과 같으면 강조 */
   focusedCustomerId: number | null
-}
-
-const chipWrap: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'stretch',
-  borderRadius: 8,
-  overflow: 'hidden',
-  flexShrink: 0,
 }
 
 function formatBirthYmdDotFromSsn(ssn: string | null | undefined): string {
@@ -220,13 +213,13 @@ export function CustomerRelationsStrip({
       </div>
       <div className="customer-detail-read__section-body">
         {loading ? (
-          <p style={{ fontSize: '0.9rem', color: '#666' }}>불러오는 중…</p>
+          <p className="customer-relations-strip__status customer-relations-strip__status--loading">불러오는 중…</p>
         ) : error ? (
-          <p style={{ color: '#b00020', fontSize: '0.9rem' }} role="alert">
+          <p className="customer-relations-strip__status customer-relations-strip__status--error" role="alert">
             {error}
           </p>
         ) : notice ? (
-          <p style={{ color: '#1f9d55', fontSize: '0.9rem' }} role="status">
+          <p className="customer-relations-strip__status customer-relations-strip__status--notice" role="status">
             {notice}
           </p>
         ) : null}
@@ -238,25 +231,12 @@ export function CustomerRelationsStrip({
             return (
               <div
                 key={r.relatedCustomerId}
-                className="related-customer-tag customer-relations-strip__chip-cell"
-                style={{
-                  ...chipWrap,
-                  border: isFocused ? '2px solid var(--primary)' : '1px solid var(--border-default)',
-                  boxShadow: isFocused ? '0 0 0 1px color-mix(in srgb, var(--primary) 20%, transparent)' : undefined,
-                  justifySelf: 'start',
-                }}
+                className={`related-customer-tag customer-relations-strip__chip-cell${isFocused ? ' customer-relations-strip__chip-cell--focused' : ''}`}
               >
                 <FormButton
                   htmlType="button"
                   variant="action"
                   className="filter-button related-customer-tag__name"
-                  style={{
-                    border: 'none',
-                    borderRadius: 0,
-                    minHeight: 0,
-                    padding: '6px 10px',
-                    fontSize: '0.875rem',
-                  }}
                   title={phoneTip}
                   onClick={() => onOpenCustomer(r.relatedCustomerId, r.relatedName)}
                 >
@@ -268,15 +248,6 @@ export function CustomerRelationsStrip({
                   className="delete-btn related-customer-tag__remove"
                   aria-label={`${displayName} 연결 해제`}
                   title="연결 해제"
-                  style={{
-                    border: 'none',
-                    borderRadius: 0,
-                    minWidth: 0,
-                    minHeight: 0,
-                    padding: '4px 8px',
-                    fontSize: '1rem',
-                    lineHeight: 1,
-                  }}
                   onClick={(e) => {
                     e.stopPropagation()
                     void unlink(r.relatedCustomerId)
@@ -288,60 +259,46 @@ export function CustomerRelationsStrip({
             )
           })}
         </div>
-        <p style={{ fontSize: '0.8rem', color: '#777', margin: '8px 0 0' }}>
+        <p className="customer-relations-strip__description">
           {customerName}님과 연결된 다른 고객입니다. 이름을 누르면 해당 고객 상세로 이동합니다. 칩에 마우스를 올리면 전화번호
           힌트가 표시됩니다.
         </p>
       </div>
 
-      {modalOpen ? (
-        <div
-          className="modal-overlay"
-          role="presentation"
-          onClick={(e) => {
-            /* 연계 고객 검색: 입력 유실 방지 — backdrop 클릭으로 닫지 않음(명시적 닫기만). */
-            e.stopPropagation()
-          }}
-          onKeyDown={(e) => {
-            if (e.key !== 'Escape' || linking) {
-              return
-            }
-            e.preventDefault()
-            void requestCloseRelationsModal()
-          }}
-        >
-          <div
-            className="modal customer-relations-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-label="연계 고객 검색"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="customer-relations-modal__header">
-              <h3 className="customer-relations-modal__title">고객 검색 후 연결</h3>
-            </div>
-            <div className="customer-relations-modal__search">
-              <form
-                className="customer-relations-modal__search-form"
-                onSubmit={(e: FormEvent) => {
-                  e.preventDefault()
-                }}
-              >
-                <FormInput
-                  type="search"
-                  className="search-input customer-relations-modal__search-input"
-                  placeholder="이름 또는 전화번호 검색"
-                  value={searchQ}
-                  onChange={(e) => setSearchQ(e.target.value)}
-                  autoFocus
-                  autoComplete="off"
-                />
-              </form>
-              {searchBusy ? (
-                <p className="customer-relations-modal__search-status">검색 중…</p>
-              ) : null}
-            </div>
-            <div className="customer-relations-modal__results">
+      <Modal
+        open={modalOpen}
+        onClose={() => void requestCloseRelationsModal()}
+        ariaLabel="고객 검색 후 연결"
+        panelClassName="customer-relations-modal"
+        closeOnBackdrop={false}
+        onEscapeRequest={() => void requestCloseRelationsModal()}
+      >
+        <header className="customer-relations-modal__header">
+          <h3 className="customer-relations-modal__title">고객 검색 후 연결</h3>
+        </header>
+        <div className="customer-relations-modal__body">
+          <div className="customer-relations-modal__search">
+            <form
+              className="customer-relations-modal__search-form"
+              onSubmit={(e: FormEvent) => {
+                e.preventDefault()
+              }}
+            >
+              <FormInput
+                type="search"
+                className="customer-relations-modal__search-input"
+                placeholder="이름 또는 전화번호 검색"
+                value={searchQ}
+                onChange={(e) => setSearchQ(e.target.value)}
+                autoFocus
+                autoComplete="off"
+              />
+            </form>
+            {searchBusy ? (
+              <p className="customer-relations-modal__search-status">검색 중…</p>
+            ) : null}
+          </div>
+          <div className="customer-relations-modal__results">
             {/* 모바일 리스트: '이름 / 생년월일 / 연락처' 3필드 고정.
                 한 행 안에서 정보 위계를 둘 레이아웃(이름=주요, 생년/연락처=보조)으로 두어
                 좁은 화면에서도 식별이 쉽도록 했다. 연결됨 상태는 상단 우측 배지. */}
@@ -443,20 +400,19 @@ export function CustomerRelationsStrip({
               </ul>
             </div>
             </div>
-            <div className="customer-relations-modal__footer">
-              <FormButton
-                htmlType="button"
-                variant="action"
-                className="filter-button"
-                disabled={linking}
-                onClick={() => void requestCloseRelationsModal()}
-              >
-                닫기
-              </FormButton>
-            </div>
           </div>
-        </div>
-      ) : null}
+        <footer className="customer-relations-modal__footer">
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            className="customer-relations-modal__close-btn"
+            disabled={linking}
+            onClick={() => void requestCloseRelationsModal()}
+          >
+            닫기
+          </FormButton>
+        </footer>
+      </Modal>
       {confirmDialog}
     </section>
   )
