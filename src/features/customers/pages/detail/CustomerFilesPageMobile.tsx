@@ -40,19 +40,23 @@ export default function CustomerFilesPageMobile({
           ariaLabel="고객 선택"
           panelClassName="storage-folder-sheet"
         >
-          <div className="storage-folder-sheet__title">고객 선택</div>
-          <div className="storage-folder-sheet__list">
+          <header className="storage-folder-sheet__header">
+            <h2 className="storage-folder-sheet__title">고객 선택</h2>
+          </header>
+          <div className="storage-folder-sheet__body">
+            <div className="storage-folder-sheet__list" role="listbox" aria-label="고객 목록">
             {customers.map((customer) => (
               <FormButton
                 key={customer.id}
                 htmlType="button"
                 variant={customer.id === customerId ? 'primary' : 'secondary'}
-                className="storage-folder-sheet__item"
+                className={`storage-folder-sheet__item${customer.id === customerId ? ' storage-folder-sheet__item--active' : ''}`}
                 onClick={() => onSelectCustomer(customer.id, customer.name)}
               >
                 {customer.name}
               </FormButton>
             ))}
+            </div>
           </div>
         </Modal>
       </>

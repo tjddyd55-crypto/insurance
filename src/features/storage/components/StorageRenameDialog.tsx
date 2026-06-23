@@ -42,6 +42,7 @@ export default function StorageRenameDialog({
 
   const formBody = (
     <form
+      className={useWorkspaceFooter ? 'customer-workspace-form-modal__form' : undefined}
       onSubmit={(event) => {
         event.preventDefault()
         if (saveDisabled || loading) {
@@ -50,7 +51,13 @@ export default function StorageRenameDialog({
         onSubmit()
       }}
     >
-      <FormInput value={value} onChange={(event) => onChange(event.target.value)} maxLength={120} autoFocus />
+      <FormInput
+        className={useWorkspaceFooter ? 'customer-workspace-form-modal__input' : undefined}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        maxLength={120}
+        autoFocus
+      />
       {useWorkspaceFooter ? null : storageFooter}
     </form>
   )
@@ -64,8 +71,10 @@ export default function StorageRenameDialog({
         closeOnBackdrop={false}
         usePortal
       >
-        <div className="text-lg font-semibold mb-3 text-[var(--text-primary)]">{title}</div>
-        {formBody}
+        <header className="customer-workspace-form-modal__header">
+          <h2 className="customer-workspace-form-modal__title">{title}</h2>
+        </header>
+        <div className="customer-workspace-form-modal__body">{formBody}</div>
         <CustomerWorkspaceFormModalFooter
           onCancel={onClose}
           onSave={onSubmit}
@@ -78,8 +87,10 @@ export default function StorageRenameDialog({
 
   return (
     <Modal open={open} onClose={onClose} ariaLabel={title} panelClassName="max-w-md" closeOnBackdrop={false}>
-      <div className="text-lg font-semibold mb-3 text-[var(--text-primary)]">{title}</div>
-      {formBody}
+      <header className="customer-workspace-form-modal__header">
+        <h2 className="customer-workspace-form-modal__title">{title}</h2>
+      </header>
+      <div className="customer-workspace-form-modal__body">{formBody}</div>
     </Modal>
   )
 }
