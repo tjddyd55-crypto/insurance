@@ -5662,25 +5662,20 @@ div.cta-button.customers-page__action-btn[role='button'] {
   margin-top: 12px;
 }
 
-.customer-edit-actions button {
-  flex: 1;
+.customer-edit-actions__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 0;
   min-width: 0;
-  height: 36px;
-  font-size: 13px;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-  font-weight: 600;
+  min-height: 44px;
+  padding: 0 16px;
+  text-align: center;
 }
 
-.customer-edit-actions .button-save {
-  background: var(--primary);
-  color: var(--text-on-primary);
-}
-
-.customer-edit-actions .button-cancel {
-  background: var(--bg-soft);
-  color: var(--text-main);
+.customer-edit-actions__btn.button--primary,
+.customer-edit-actions__btn.button--secondary {
+  border-radius: 12px;
 }
 
 /* 고객 등록·수정 폼 — 섹션 래퍼 */
@@ -11505,7 +11500,7 @@ textarea.memo-sticky-note__textarea::placeholder {
    아이콘 버튼은 `.customers-page--pc .customer-card__actions .icon-box button` 등으로만 제한한다.
    ========================= */
 
-.customers-page--mobile button:not(.customer-detail-action-button):not(.customer-mobile-action-btn):not(.customer-detail-toggle-btn):not(.customer-header-app-link-compact__copy):not(.customer-filter-chip):not(.customers-page__action-btn):not(.storage-file-list__action-button):not(.customer-workspace-action-button):not(.customer-workspace-action-icon-button):not(.ui-button):not(.linked-customer-chip__main):not(.linked-customer-chip__remove):not(.customer-relations-result-item),
+.customers-page--mobile button:not(.customer-detail-action-button):not(.customer-mobile-action-btn):not(.customer-detail-toggle-btn):not(.customer-header-app-link-compact__copy):not(.customer-filter-chip):not(.customers-page__action-btn):not(.storage-file-list__action-button):not(.customer-workspace-action-button):not(.customer-workspace-action-icon-button):not(.ui-button):not(.linked-customer-chip__main):not(.linked-customer-chip__remove):not(.customer-relations-result-item):not(.customer-edit-actions__btn),
 .customers-page--mobile a:not(.storage-file-list__action-button):not(.customer-workspace-action-button) {
   min-height: unset !important;
   height: auto !important;
