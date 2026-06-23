@@ -272,7 +272,7 @@ export default function CustomerEditForm({
         ) : null}
         <div className="customer-edit-actions">
           <FormButton
-            className="button-save"
+            className="customer-edit-actions__btn"
             htmlType="button"
             variant="primary"
             disabled={saving}
@@ -285,7 +285,7 @@ export default function CustomerEditForm({
             수정 저장
           </FormButton>
           <FormButton
-            className="button-cancel"
+            className="customer-edit-actions__btn"
             htmlType="button"
             variant="secondary"
             onClick={onCancelEdit}
