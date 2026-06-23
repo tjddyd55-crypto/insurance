@@ -64,6 +64,8 @@ export interface PdfFieldDataMapping {
   customerFieldLabel: string | null
   fallbackText: string | null
   transformType: string | null
+  /** true 일 때만 저장 — B 고객 데이터가 들어갈 좌표 */
+  useSecondaryCustomer?: boolean
 }
 
 export const DEFAULT_PDF_FIELD_DATA_MAPPING: PdfFieldDataMapping = {

@@ -14,6 +14,7 @@ import { isAllowedCustomerPdfFieldKey } from '../mapping/customerPdfFieldKeys.js
  *   customerFieldLabel: string | null,
  *   fallbackText: string | null,
  *   transformType: string | null,
+ *   useSecondaryCustomer?: boolean,
  * }} PdfFieldDataMapping
  */
 
@@ -37,6 +38,36 @@ export const DEFAULT_FIELD_DATA_MAPPING = Object.freeze({
  */
 export function defaultFieldDataMapping() {
   return { ...DEFAULT_FIELD_DATA_MAPPING }
+}
+
+/**
+ * @param {unknown} raw
+ * @returns {boolean | undefined}
+ */
+function readUseSecondaryCustomerFlag(raw) {
+  if (raw !== true && raw !== 'true' && raw !== 1 && raw !== '1') {
+    return undefined
+  }
+  return true
+}
+
+/**
+ * @param {PdfFieldDataMapping} mapping
+ * @returns {Record<string, unknown>}
+ */
+function customerMappingToStoredObject(mapping) {
+  /** @type {Record<string, unknown>} */
+  const out = {
+    dataSourceType: 'customer',
+    customerFieldKey: mapping.customerFieldKey,
+    customerFieldLabel: mapping.customerFieldLabel,
+    fallbackText: mapping.fallbackText,
+    transformType: mapping.transformType,
+  }
+  if (mapping.useSecondaryCustomer === true) {
+    out.useSecondaryCustomer = true
+  }
+  return out
 }
 
 /**
@@ -112,6 +143,9 @@ export function normalizeFieldDataMapping(raw) {
   const customerFieldLabelRaw = src.customerFieldLabel ?? src.customer_field_label
   const fallbackTextRaw = src.fallbackText ?? src.fallback_text
   const transformTypeRaw = src.transformType ?? src.transform_type
+  const useSecondaryCustomer = readUseSecondaryCustomerFlag(
+    src.useSecondaryCustomer ?? src.use_secondary_customer,
+  )
 
   const typeRaw = typeof dataSourceTypeRaw === 'string' ? dataSourceTypeRaw.trim().toLowerCase() : ''
   const dataSourceType = typeRaw === 'customer' ? 'customer' : 'manual'
@@ -148,13 +182,14 @@ export function normalizeFieldDataMapping(raw) {
     }
   }
 
-  return {
+  return customerMappingToStoredObject({
     dataSourceType: 'customer',
     customerFieldKey: customerFieldKey || null,
     customerFieldLabel,
     fallbackText,
     transformType,
-  }
+    useSecondaryCustomer,
+  })
 }
 
 /**
@@ -165,6 +200,9 @@ export function serializeFieldDataMapping(mapping) {
   const m = normalizeFieldDataMapping(mapping ?? defaultFieldDataMapping())
   if (m.dataSourceType === 'manual' && !m.fallbackText && !m.transformType) {
     return null
+  }
+  if (m.dataSourceType === 'customer') {
+    return JSON.stringify(customerMappingToStoredObject(m))
   }
   return JSON.stringify(m)
 }
