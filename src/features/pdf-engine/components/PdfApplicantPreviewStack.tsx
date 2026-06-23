@@ -54,7 +54,6 @@ import {
   CHECKBOX_MARK_GLYPH,
   checkboxMarkFontSizePt,
   isCheckboxPlacementChecked,
-  placementCheckedValue,
 } from '../lib/checkboxStampLogic'
 
 type PdfJsPage = Awaited<ReturnType<PDFDocumentProxy['getPage']>>
@@ -386,50 +385,39 @@ const ApplicantPdfPageRow = forwardRef<HTMLDivElement | null, PageProps>(functio
 
         if (cssBox && field.fieldType === 'checkbox') {
           const sel = isCheckboxPlacementChecked(val, p)
+          if (!sel) {
+            /* 미선택 체크박스 — 미리보기에 범위/placeholder 를 그리지 않는다 */
+            continue
+          }
           const markPt = checkboxMarkFontSizePt(p)
           const markSize = pdfFontPtToCssPx(markPt, viewport)
           const left = cssBox.left + (cssBox.width - markSize) / 2
           const top = cssBox.top + (cssBox.height - markSize) / 2
 
-          if (sel) {
-            out.push(
-              <span
-                key={`${field.fieldKey}-${lp}-c`}
-                style={{
-                  position: 'absolute',
-                  left,
-                  top,
-                  width: markSize,
-                  height: markSize,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: markSize * 0.92,
-                  lineHeight: 1,
-                  color: '#000',
-                  pointerEvents: 'none',
-                  fontFamily: '"Noto Sans KR", "Apple SD Gothic Neo", sans-serif',
-                }}
-                aria-hidden
-              >
-                {CHECKBOX_MARK_GLYPH}
-              </span>,
-            )
-          } else if (isHi && placementCheckedValue(p)) {
-            out.push(
-              <div
-                key={`${field.fieldKey}-${lp}-ch`}
-                style={{
-                  position: 'absolute',
-                  ...cssBox,
-                  outline: '2px solid rgba(59,130,246,0.95)',
-                  pointerEvents: 'none',
-                  borderRadius: 2,
-                }}
-                aria-hidden
-              />,
-            )
-          }
+          out.push(
+            <span
+              key={`${field.fieldKey}-${lp}-c`}
+              style={{
+                position: 'absolute',
+                left,
+                top,
+                width: markSize,
+                height: markSize,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: markSize * 0.92,
+                lineHeight: 1,
+                color: '#000',
+                pointerEvents: 'none',
+                fontFamily: '"Noto Sans KR", "Apple SD Gothic Neo", sans-serif',
+              }}
+              aria-hidden
+            >
+              {CHECKBOX_MARK_GLYPH}
+            </span>,
+          )
+          continue
         }
       }
     }
