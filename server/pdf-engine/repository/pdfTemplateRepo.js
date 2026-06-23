@@ -34,15 +34,21 @@ function makeQuery(executor) {
  *   storageKey: string,
  *   pageCount: number,
  *   createdByUserId: string | null,
+ *   sourcePdfMetadata?: object[] | null,
  * }} input
  */
 export async function createTemplate(pool, input) {
   const q = makeQuery(pool)
+  const metadataJson =
+    Array.isArray(input.sourcePdfMetadata) && input.sourcePdfMetadata.length > 0
+      ? JSON.stringify(input.sourcePdfMetadata)
+      : null
   const { rows } = await q(
     `INSERT INTO pdf_templates
-       (ga_id, code, title, description, storage_key, page_count, created_by_user_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
-     RETURNING id, ga_id, code, title, description, storage_key, page_count, is_active, created_at, updated_at`,
+       (ga_id, code, title, description, storage_key, page_count, created_by_user_id, source_pdf_metadata)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, CAST($8 AS jsonb))
+     RETURNING id, ga_id, code, title, description, storage_key, page_count, is_active,
+               source_pdf_metadata, created_at, updated_at`,
     [
       input.gaId,
       input.code,
@@ -51,6 +57,7 @@ export async function createTemplate(pool, input) {
       input.storageKey,
       input.pageCount,
       input.createdByUserId,
+      metadataJson,
     ],
   )
   return rows[0]
@@ -64,7 +71,7 @@ export async function getTemplateById(pool, id) {
   const q = makeQuery(pool)
   const { rows } = await q(
     `SELECT t.id, t.ga_id, t.code, t.title, t.description, t.storage_key, t.page_count,
-            t.is_active, t.created_by_user_id, t.created_at, t.updated_at,
+            t.is_active, t.source_pdf_metadata, t.created_by_user_id, t.created_at, t.updated_at,
             g.name AS ga_name, g.code AS ga_code
        FROM pdf_templates t
        LEFT JOIN ga_companies g ON g.id = t.ga_id

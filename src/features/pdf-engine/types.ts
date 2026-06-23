@@ -106,6 +106,13 @@ export interface PdfFieldSpec {
   placements: PdfPlacement[]
 }
 
+export interface PdfSourceFileMetadata {
+  fileName: string
+  startPage: number
+  endPage: number
+  pageCount: number
+}
+
 export interface PdfTemplateSummary {
   id: number
   gaId: number | null
@@ -115,6 +122,7 @@ export interface PdfTemplateSummary {
   title: string
   description: string
   pageCount: number
+  sourcePdfMetadata?: PdfSourceFileMetadata[] | null
   isActive: boolean
   createdAt: string
   updatedAt: string

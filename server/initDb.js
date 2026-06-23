@@ -4489,6 +4489,10 @@ export async function ensurePdfTemplateSchema(executor) {
     CREATE INDEX IF NOT EXISTS pdf_templates_ga_active_idx
     ON pdf_templates (ga_id, is_active)
   `)
+  await executor.query(`
+    ALTER TABLE pdf_templates
+    ADD COLUMN IF NOT EXISTS source_pdf_metadata JSONB
+  `)
 
   await executor.query(`
     CREATE TABLE IF NOT EXISTS pdf_template_fields (
