@@ -199,7 +199,7 @@ export function CustomerRelationsStrip({
         <h4 className="customer-relations-strip__title">연계 고객</h4>
         <button
           type="button"
-          className="customer-relations-strip__add-btn"
+          className="ui-button ui-button--sm ui-button--secondary"
           onClick={() => {
             setError('')
             setNotice('')
@@ -228,30 +228,33 @@ export function CustomerRelationsStrip({
             const phoneTip = r.relatedPhone?.trim() ? `전화: ${r.relatedPhone.trim()}` : `${displayName} (연결됨)`
             const isFocused = focusedCustomerId != null && focusedCustomerId === r.relatedCustomerId
             return (
-              <li
-                key={r.relatedCustomerId}
-                className={`customer-relations-chip${isFocused ? ' customer-relations-chip--focused' : ''}`}
-              >
-                <button
-                  type="button"
-                  className="customer-relations-chip__label"
-                  title={phoneTip}
-                  onClick={() => onOpenCustomer(r.relatedCustomerId, r.relatedName)}
+              <li key={r.relatedCustomerId} className="customer-relations-strip__chip-item">
+                <div
+                  className={`linked-customer-chip${isFocused ? ' linked-customer-chip--focused' : ''}`}
+                  role="group"
+                  aria-label={`연계 고객 ${displayName}`}
                 >
-                  {displayName}
-                </button>
-                <button
-                  type="button"
-                  className="customer-relations-chip__remove"
-                  aria-label={`${displayName} 연결 해제`}
-                  title="연결 해제"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    void unlink(r.relatedCustomerId)
-                  }}
-                >
-                  ×
-                </button>
+                  <button
+                    type="button"
+                    className="linked-customer-chip__main"
+                    title={phoneTip}
+                    onClick={() => onOpenCustomer(r.relatedCustomerId, r.relatedName)}
+                  >
+                    {displayName}
+                  </button>
+                  <button
+                    type="button"
+                    className="linked-customer-chip__remove"
+                    aria-label={`${displayName} 연계 해제`}
+                    title="연결 해제"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      void unlink(r.relatedCustomerId)
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
               </li>
             )
           })}
@@ -317,7 +320,7 @@ export function CustomerRelationsStrip({
                       <span className="customer-relations-result-item__main">
                         <span className="customer-relations-result-item__name">{h.name}</span>
                         {alreadyLinked ? (
-                          <span className="customer-relations-result-item__badge">연결됨</span>
+                          <span className="ui-status-badge ui-status-badge--success">연결됨</span>
                         ) : null}
                       </span>
                       <span className="customer-relations-result-item__sub">
@@ -404,7 +407,7 @@ export function CustomerRelationsStrip({
         <footer className="customer-relations-modal__footer">
           <button
             type="button"
-            className="customer-relations-modal__close-btn"
+            className="ui-button ui-button--md ui-button--secondary"
             disabled={linking}
             onClick={() => void requestCloseRelationsModal()}
           >

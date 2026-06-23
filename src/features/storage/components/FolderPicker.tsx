@@ -1,4 +1,8 @@
 import { FormButton, FormSelect } from '../../../components/form'
+
+function folderSheetOptionClass(active: boolean): string {
+  return `ui-button ui-button--md ui-button--full ${active ? 'ui-button--primary' : 'ui-button--secondary'}`
+}
 import Modal from '../../../components/ui/Modal'
 import { CustomerWorkspaceSecondaryActionButton } from '../../customers/components/CustomerWorkspaceActionButtons'
 import type { StorageActionVariant } from './StorageFileList'
@@ -71,11 +75,10 @@ export default function FolderPicker({
             {folders.map((folder) => {
               const active = folder.id === selectedFolderId
               return (
-                <FormButton
+                <button
                   key={folder.id == null ? 'all' : String(folder.id)}
-                  htmlType="button"
-                  variant={active ? 'primary' : 'secondary'}
-                  className={`storage-folder-sheet__item${active ? ' storage-folder-sheet__item--active' : ''}`}
+                  type="button"
+                  className={folderSheetOptionClass(active)}
                   role="option"
                   aria-selected={active}
                   onClick={() => {
@@ -84,7 +87,7 @@ export default function FolderPicker({
                   }}
                 >
                   {folder.name}
-                </FormButton>
+                </button>
               )
             })}
           </div>
