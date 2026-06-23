@@ -1,6 +1,6 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { useConfirmDialog } from '../../../components/dialog'
-import { FormButton, FormInput } from '../../../components/form'
+import { FormInput } from '../../../components/form'
 import Modal from '../../../components/ui/Modal'
 import { listCustomers, searchCustomers } from '../api/customersApi'
 import {
@@ -194,13 +194,12 @@ export function CustomerRelationsStrip({
   }, [confirm, linking, searchQ])
 
   return (
-    <section className="customer-relations-strip customer-detail-read__section customer-relations-strip--in-detail mt-5">
-      <div className="customer-detail-read__section-header customer-relations-strip__title-row">
-        <h4 className="customer-detail-read__section-title">연계 고객</h4>
-        <FormButton
-          htmlType="button"
-          variant="action"
-          className="filter-button customer-relations-strip__inline-add"
+    <section className="customer-relations-strip customer-relations-strip--in-detail">
+      <div className="customer-relations-strip__header">
+        <h4 className="customer-relations-strip__title">연계 고객</h4>
+        <button
+          type="button"
+          className="customer-relations-strip__add-btn"
           onClick={() => {
             setError('')
             setNotice('')
@@ -209,9 +208,9 @@ export function CustomerRelationsStrip({
           }}
         >
           + 추가
-        </FormButton>
+        </button>
       </div>
-      <div className="customer-detail-read__section-body">
+      <div className="customer-relations-strip__body">
         {loading ? (
           <p className="customer-relations-strip__status customer-relations-strip__status--loading">불러오는 중…</p>
         ) : error ? (
@@ -223,29 +222,27 @@ export function CustomerRelationsStrip({
             {notice}
           </p>
         ) : null}
-        <div className="customer-relations-strip__chip-grid">
+        <ul className="customer-relations-strip__chip-list">
           {relations.map((r) => {
             const displayName = r.relatedName?.trim() ? r.relatedName.trim() : '이름 미등록'
             const phoneTip = r.relatedPhone?.trim() ? `전화: ${r.relatedPhone.trim()}` : `${displayName} (연결됨)`
             const isFocused = focusedCustomerId != null && focusedCustomerId === r.relatedCustomerId
             return (
-              <div
+              <li
                 key={r.relatedCustomerId}
-                className={`related-customer-tag customer-relations-strip__chip-cell${isFocused ? ' customer-relations-strip__chip-cell--focused' : ''}`}
+                className={`customer-relations-chip${isFocused ? ' customer-relations-chip--focused' : ''}`}
               >
-                <FormButton
-                  htmlType="button"
-                  variant="action"
-                  className="filter-button related-customer-tag__name"
+                <button
+                  type="button"
+                  className="customer-relations-chip__label"
                   title={phoneTip}
                   onClick={() => onOpenCustomer(r.relatedCustomerId, r.relatedName)}
                 >
                   {displayName}
-                </FormButton>
-                <FormButton
-                  htmlType="button"
-                  variant="action"
-                  className="delete-btn related-customer-tag__remove"
+                </button>
+                <button
+                  type="button"
+                  className="customer-relations-chip__remove"
                   aria-label={`${displayName} 연결 해제`}
                   title="연결 해제"
                   onClick={(e) => {
@@ -254,11 +251,11 @@ export function CustomerRelationsStrip({
                   }}
                 >
                   ×
-                </FormButton>
-              </div>
+                </button>
+              </li>
             )
           })}
-        </div>
+        </ul>
         <p className="customer-relations-strip__description">
           {customerName}님과 연결된 다른 고객입니다. 이름을 누르면 해당 고객 상세로 이동합니다. 칩에 마우스를 올리면 전화번호
           힌트가 표시됩니다.
@@ -302,39 +299,42 @@ export function CustomerRelationsStrip({
             {/* 모바일 리스트: '이름 / 생년월일 / 연락처' 3필드 고정.
                 한 행 안에서 정보 위계를 둘 레이아웃(이름=주요, 생년/연락처=보조)으로 두어
                 좁은 화면에서도 식별이 쉽도록 했다. 연결됨 상태는 상단 우측 배지. */}
-            <ul className="related-list-mobile">
+            <ul className="customer-relations-result-list">
               {hits.map((h) => {
                 const alreadyLinked = relatedIdSet.has(h.id)
                 const disabled = linking || alreadyLinked
                 const birth = formatBirthYmdDotFromSsn(h.ssn)
                 const phone = formatCustomerPhoneUi(h.phone) || '-'
                 return (
-                  <li key={h.id} className="related-list-mobile__item">
-                    <FormButton
-                      htmlType="button"
-                      variant="action"
-                      className={`related-list-mobile__row${alreadyLinked ? ' related-list-mobile__row--linked' : ''}`}
+                  <li key={h.id} className="customer-relations-result-list__item">
+                    <button
+                      type="button"
+                      className={`customer-relations-result-item${alreadyLinked ? ' customer-relations-result-item--linked' : ''}`}
                       disabled={disabled}
                       onClick={() => void linkTo(h)}
                       aria-label={`${h.name} 연결`}
                     >
-                      <span className="related-list-mobile__main">
-                        <span className="related-list-mobile__name">{h.name}</span>
+                      <span className="customer-relations-result-item__main">
+                        <span className="customer-relations-result-item__name">{h.name}</span>
                         {alreadyLinked ? (
-                          <span className="related-list-mobile__badge">연결됨</span>
+                          <span className="customer-relations-result-item__badge">연결됨</span>
                         ) : null}
                       </span>
-                      <span className="related-list-mobile__sub">
-                        <span className="related-list-mobile__birth">{birth}</span>
-                        <span className="related-list-mobile__dot" aria-hidden>·</span>
-                        <span className="related-list-mobile__phone">{phone}</span>
+                      <span className="customer-relations-result-item__sub">
+                        <span className="customer-relations-result-item__birth">{birth}</span>
+                        <span className="customer-relations-result-item__dot" aria-hidden>
+                          ·
+                        </span>
+                        <span className="customer-relations-result-item__phone">{phone}</span>
                       </span>
-                    </FormButton>
+                    </button>
                   </li>
                 )
               })}
               {hits.length === 0 && !searchBusy ? (
-                <li className="related-list-mobile__empty">검색 결과가 없습니다.</li>
+                <li className="customer-relations-result-list__item customer-relations-result-list__empty">
+                  검색 결과가 없습니다.
+                </li>
               ) : null}
             </ul>
             {/* PC 테이블 뷰: 별도 '연결' 버튼을 두는 대신 **행 자체가 버튼**이 된다.
@@ -402,15 +402,14 @@ export function CustomerRelationsStrip({
             </div>
           </div>
         <footer className="customer-relations-modal__footer">
-          <FormButton
-            htmlType="button"
-            variant="secondary"
+          <button
+            type="button"
             className="customer-relations-modal__close-btn"
             disabled={linking}
             onClick={() => void requestCloseRelationsModal()}
           >
             닫기
-          </FormButton>
+          </button>
         </footer>
       </Modal>
       {confirmDialog}
