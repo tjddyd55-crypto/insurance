@@ -1,4 +1,5 @@
 import { CUSTOMER_PDF_FIELD_OPTIONS } from '../config/customerPdfFieldOptions'
+import { formatPdfFieldMappingDisplayName } from '../lib/formatPdfFieldDisplayName'
 import { normalizePdfFieldDataMapping } from '../lib/resolvePdfFieldValue'
 import type { PdfFieldDataMapping, PdfFieldDataSourceType } from '../types'
 
@@ -9,15 +10,7 @@ type Props = {
 }
 
 export function formatPdfFieldMappingSummary(mapping: PdfFieldDataMapping): string {
-  const m = normalizePdfFieldDataMapping(mapping)
-  if (m.dataSourceType === 'customer' && m.customerFieldKey) {
-    const label =
-      m.customerFieldLabel ||
-      CUSTOMER_PDF_FIELD_OPTIONS.find((o) => o.key === m.customerFieldKey)?.label ||
-      m.customerFieldKey
-    return `고객 데이터 · ${label}`
-  }
-  return '직접 입력'
+  return formatPdfFieldMappingDisplayName(mapping)
 }
 
 export function PdfFieldDataMappingControls({ mapping, compact = false, onChange }: Props) {

@@ -74,6 +74,7 @@ const MAX_OPTION_LENGTH = 120
  *   fieldType: typeof ALLOWED_FIELD_TYPES[number],
  *   required: boolean,
  *   orderIndex: number,
+ *   inputOrder: number | null,
  *   inputRole: 'customer' | 'sender' | 'disabled',
  *   dataMapping: import('./fieldDataMapping.js').PdfFieldDataMapping,
  *   customerMapping: null,
@@ -221,6 +222,8 @@ export function normalizeFieldSpec(raw, fallbackOrder = 0) {
   const required = Boolean(src.required)
   const orderIdxRaw = toFiniteNumberOrNull(src.orderIndex)
   const orderIndex = orderIdxRaw == null ? fallbackOrder : Math.max(0, Math.floor(orderIdxRaw))
+  const inputOrderRaw = toFiniteNumberOrNull(src.inputOrder ?? src.input_order)
+  const inputOrder = inputOrderRaw == null ? null : Math.max(0, Math.floor(inputOrderRaw))
 
   let inputRoleRaw =
     typeof src.inputRole === 'string' ? src.inputRole.trim().toLowerCase() : ''
@@ -301,6 +304,7 @@ export function normalizeFieldSpec(raw, fallbackOrder = 0) {
     fieldType: /** @type {FieldSpec['fieldType']} */ (fieldTypeRaw),
     required,
     orderIndex,
+    inputOrder,
     inputRole,
     dataMapping,
     customerMapping: null,

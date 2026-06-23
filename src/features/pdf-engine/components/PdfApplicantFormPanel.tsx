@@ -17,6 +17,7 @@ import {
   formatCustomerCarPickerSummary,
   formatCustomerCarRenewalYmd,
 } from '../lib/customerPdfCarOverlay'
+import { sortPdfFieldsByInputOrder } from '../lib/comparePdfFieldsByInputOrder'
 import type { PdfFieldSpec } from '../types'
 import type {
   PdfApplicantCarPickerUi,
@@ -72,7 +73,7 @@ export interface PdfApplicantFormPanelProps {
 }
 
 function customerFields(fields: PdfFieldSpec[]): PdfFieldSpec[] {
-  return [...fields].filter((f) => f.inputRole === 'customer').sort((a, b) => a.orderIndex - b.orderIndex)
+  return sortPdfFieldsByInputOrder(fields.filter((f) => f.inputRole === 'customer'))
 }
 
 function baselineFontPt(field: PdfFieldSpec): number {

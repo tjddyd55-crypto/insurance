@@ -161,10 +161,10 @@ export async function deleteTemplate(pool, id) {
 export async function listFields(pool, templateId) {
   const { rows } = await pool.query(
     `SELECT id, template_id, field_key, label, field_type, required, order_index,
-            input_role, customer_mapping, options, placements, created_at, updated_at
+            input_order, input_role, customer_mapping, options, placements, created_at, updated_at
        FROM pdf_template_fields
        WHERE template_id = $1
-       ORDER BY order_index ASC, id ASC`,
+       ORDER BY COALESCE(input_order, order_index) ASC, order_index ASC, id ASC`,
     [templateId],
   )
   return rows
@@ -209,9 +209,9 @@ export async function replaceTemplateFields(pool, templateId, fields) {
       const mappingSerialized = serializeFieldDataMapping(f.dataMapping)
       await client.query(
         `INSERT INTO pdf_template_fields
-           (template_id, field_key, label, field_type, required, order_index,
+           (template_id, field_key, label, field_type, required, order_index, input_order,
             input_role, customer_mapping, options, placements)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CAST($9 AS jsonb), CAST($10 AS jsonb))`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CAST($10 AS jsonb), CAST($11 AS jsonb))`,
         [
           templateId,
           f.fieldKey,
@@ -219,6 +219,7 @@ export async function replaceTemplateFields(pool, templateId, fields) {
           f.fieldType,
           f.required,
           f.orderIndex ?? i,
+          f.inputOrder ?? null,
           f.inputRole ?? 'customer',
           mappingSerialized,
           optionsJson,
