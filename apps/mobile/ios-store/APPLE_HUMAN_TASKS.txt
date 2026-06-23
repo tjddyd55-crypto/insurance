@@ -1,0 +1,35 @@
+Apple / EAS — 사람이 직접 해야 할 작업
+========================================
+
+1. Apple Developer Program
+   - 개인 또는 조직 계정 가입
+   - 조직이면 D-U-N-S 번호 확인
+
+2. App Store Connect
+   - 새 앱 생성: ONE FC
+   - Bundle ID: com.onefc.app (Developer 포털에서 App ID 등록 후 연결)
+   - SKU: onefc-ios
+
+3. EAS CLI 로그인·자격 증명
+   cd apps/mobile
+   eas login
+   eas build:configure   # 이미 eas.json 있으면 생략 가능
+   eas credentials       # iOS Distribution Certificate, Provisioning Profile
+
+4. 첫 iOS 프로덕션 빌드 (클라우드)
+   eas build --platform ios --profile production
+
+5. 제출 (빌드 성공 후)
+   eas submit --platform ios --profile production
+   또는 App Store Connect에서 수동 업로드
+
+6. App Privacy / 리뷰
+   - 데이터 수집 항목 설문
+   - 리뷰 계정: apple_review (PLAY_REVIEW tenant 재사용 검토)
+   - 실제 고객 데이터 없는 테스트 테넌트
+
+Git에 넣지 말 것:
+- Apple ID 비밀번호
+- App Store Connect API Key (.p8)
+- 인증서·프로비저닝 프로파일 파일
+- EAS secrets는 EAS 서버 또는 로컬 credentials만

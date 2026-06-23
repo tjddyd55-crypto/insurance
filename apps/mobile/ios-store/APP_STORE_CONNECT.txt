@@ -1,0 +1,33 @@
+App Store Connect 입력 정보 (ONE FC)
+====================================
+
+앱 이름: ONE FC
+Bundle ID: com.onefc.app
+SKU: onefc-ios
+기본 언어: 한국어
+가격: 무료
+
+개인정보처리방침 URL:
+https://insurance-production-7bd8.up.railway.app/privacy
+
+계정 삭제 URL (App Store Connect / 앱 내 링크):
+https://insurance-production-7bd8.up.railway.app/account-deletion
+
+카테고리 (권장 검토):
+- 주 카테고리: 비즈니스
+- 부 카테고리: 생산성 (선택)
+
+연령 등급:
+- 설문 후 확정 (금융·개인정보 처리 WebView 앱)
+
+App Review Information:
+- 데모 계정 ID/비밀번호 (OTP·결제 없이 로그인 가능)
+- 검토 메모: WebView 기반 설계사 CRM, 로그인 후 사용
+
+버전 정보 (초기):
+- Version: app.json expo.version (현재 1.0.2)
+- Build: ios.buildNumber (초기 1, EAS 빌드 시 증가)
+
+Android / iOS 식별자 (동일 값, 플랫폼별 독립):
+- Android package (Play Console): com.onefc.app
+- iOS Bundle ID (App Store Connect): com.onefc.app

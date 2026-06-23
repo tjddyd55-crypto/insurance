@@ -1,0 +1,35 @@
+App Store 제출 전 체크리스트 (ONE FC — apps/mobile)
+====================================================
+
+[EAS / Expo 설정]
+□ ios.bundleIdentifier = com.onefc.app
+□ ios.buildNumber 설정 (초기 "1", 이후 EAS autoIncrement)
+□ expo.version = Android 마케팅 버전과 동일 (현재 app.json 기준)
+□ eas.json production.ios.distribution = store
+□ EAS projectId 연결 (extra.eas.projectId)
+
+[Apple 계정 — 사람이 진행]
+□ Apple Developer Program 가입·활성
+□ App Store Connect 앱 생성 (Bundle ID com.onefc.app)
+□ EAS credentials: eas credentials (Distribution cert + Provisioning)
+□ eas build --platform ios --profile production 성공
+□ eas submit --platform ios --profile production (선택)
+
+[정책·콘텐츠]
+□ 개인정보처리방침: https://insurance-production-7bd8.up.railway.app/privacy
+□ 계정 삭제: https://insurance-production-7bd8.up.railway.app/account-deletion
+□ App Privacy (데이터 수집·연동) 작성
+□ 리뷰용 데모 계정 (apple_review 등) — 실고객 데이터 없음
+
+[권한]
+□ 카메라/사진 보관함 문구 (WebView 파일·이미지 첨부용)
+□ 위치·마이크·ATT 미사용 (미포함 유지)
+
+[품질]
+□ TestFlight 내부 테스트 설치
+□ 로그인·WebView·파일 첨부·뒤로가기·크래시 없음
+□ iPad 미지원(supportsTablet: false) 확인
+
+[스토어 그래픽]
+□ 1024×1024 앱 아이콘 (assets/icon.png)
+□ iPhone 스크린샷 최소 3장 (6.7" 등 Apple 요구 규격)

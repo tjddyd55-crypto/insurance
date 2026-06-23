@@ -13,8 +13,14 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.fchelper.app"
+      "supportsTablet": false,
+      "bundleIdentifier": "com.onefc.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "청구서류나 고객 관련 이미지를 촬영하여 첨부하기 위해 카메라 접근이 필요합니다.",
+        "NSPhotoLibraryUsageDescription": "청구서류나 고객 관련 파일을 첨부하기 위해 사진 보관함 접근이 필요합니다.",
+        "NSPhotoLibraryAddUsageDescription": "필요한 파일을 기기에 저장하기 위해 사진 보관함 저장 권한이 필요할 수 있습니다."
+      }
     },
     "android": {
       "package": "com.onefc.app",

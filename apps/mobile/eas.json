@@ -17,10 +17,14 @@
       }
     },
     "production": {
-      "autoIncrement": false,
       "channel": "main",
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "app-bundle",
+        "autoIncrement": false
+      },
+      "ios": {
+        "distribution": "store",
+        "autoIncrement": true
       }
     },
     "production-apk": {
@@ -31,6 +35,9 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {},
+      "android": {}
+    }
   }
 }
