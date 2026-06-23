@@ -4,17 +4,28 @@
 
 import { parseFieldDataMapping } from '../schema/fieldDataMapping.js'
 import { pickCustomerPdfFieldValue } from './customerPdfFieldKeys.js'
+import {
+  pickPdfMappingCustomerRecord,
+  readSecondaryCustomerRecord,
+} from './pickPdfMappingCustomerRecord.js'
 
 /**
  * @param {{
  *   field: { fieldKey?: string, dataMapping?: unknown, customerMapping?: unknown },
  *   manualValue?: unknown,
  *   customer?: Record<string, unknown> | null,
+ *   secondaryCustomer?: Record<string, unknown> | null,
  *   overwriteMode?: boolean,
  * }} input
  * @returns {string}
  */
-export function resolvePdfFieldValue({ field, manualValue, customer, overwriteMode = false }) {
+export function resolvePdfFieldValue({
+  field,
+  manualValue,
+  customer,
+  secondaryCustomer,
+  overwriteMode = false,
+}) {
   const manual = manualValue == null ? '' : String(manualValue).trim()
   const mapping = parseFieldDataMapping(field.dataMapping ?? field.customerMapping ?? null)
 
@@ -22,7 +33,13 @@ export function resolvePdfFieldValue({ field, manualValue, customer, overwriteMo
     return manual
   }
 
-  const fromCustomer = pickCustomerPdfFieldValue(customer, mapping.customerFieldKey)
+  const secondary = secondaryCustomer ?? readSecondaryCustomerRecord(customer)
+  const customerForMapping = pickPdfMappingCustomerRecord(
+    customer,
+    secondary,
+    mapping.useSecondaryCustomer,
+  )
+  const fromCustomer = pickCustomerPdfFieldValue(customerForMapping, mapping.customerFieldKey)
   const resolved = fromCustomer || mapping.fallbackText || ''
 
   if (overwriteMode) {
@@ -38,11 +55,13 @@ export function resolvePdfFieldValue({ field, manualValue, customer, overwriteMo
  * @param {Array<{ fieldKey: string, dataMapping?: unknown, customerMapping?: unknown }>} fields
  * @param {Record<string, unknown>} userValues
  * @param {Record<string, unknown> | null | undefined} customer
- * @param {{ overwriteMode?: boolean }} [opts]
+ * @param {{ overwriteMode?: boolean, secondaryCustomer?: Record<string, unknown> | null }} [opts]
  * @returns {Record<string, string>}
  */
 export function applyCustomerMappingToValues(fields, userValues, customer, opts = {}) {
   const overwriteMode = opts.overwriteMode === true
+  const secondaryCustomer =
+    opts.secondaryCustomer ?? readSecondaryCustomerRecord(customer ?? null)
   const out = { ...(userValues ?? {}) }
   for (const f of fields) {
     const key = f.fieldKey
@@ -56,6 +75,7 @@ export function applyCustomerMappingToValues(fields, userValues, customer, opts 
       field: f,
       manualValue: manual,
       customer,
+      secondaryCustomer,
       overwriteMode,
     })
     if (overwriteMode || !manual) {

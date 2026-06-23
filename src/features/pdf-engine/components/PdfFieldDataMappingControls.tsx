@@ -31,6 +31,7 @@ export function PdfFieldDataMappingControls({ mapping, compact = false, onChange
           dataSourceType: 'manual',
           customerFieldKey: null,
           customerFieldLabel: null,
+          useSecondaryCustomer: undefined,
         },
         { clearIntent: true },
       )
@@ -75,21 +76,43 @@ export function PdfFieldDataMappingControls({ mapping, compact = false, onChange
         </select>
       </label>
       {m.dataSourceType === 'customer' ? (
-        <label className="pdf-engine-editor__label pdf-engine-mapping-controls__customer-key">
-          {compact ? null : <span className="pdf-engine-mapping-controls__label-text">고객 데이터</span>}
-          <select
-            value={m.customerFieldKey ?? ''}
-            onChange={(e) => setCustomerKey(e.target.value)}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <option value="">— 선택 —</option>
-            {CUSTOMER_PDF_FIELD_OPTIONS.map((o) => (
-              <option key={o.key} value={o.key}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <>
+          <label className="pdf-engine-editor__label pdf-engine-mapping-controls__customer-key">
+            {compact ? null : <span className="pdf-engine-mapping-controls__label-text">고객 데이터</span>}
+            <select
+              value={m.customerFieldKey ?? ''}
+              onChange={(e) => setCustomerKey(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <option value="">— 선택 —</option>
+              {CUSTOMER_PDF_FIELD_OPTIONS.map((o) => (
+                <option key={o.key} value={o.key}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {m.customerFieldKey ? (
+            <label className="pdf-engine-editor__label pdf-engine-editor__label--checkbox-inline pdf-engine-mapping-controls__secondary">
+              <input
+                type="checkbox"
+                className="pdf-engine-editor__input--checkbox-inline"
+                checked={m.useSecondaryCustomer === true}
+                onChange={(e) =>
+                  onChange(
+                    {
+                      ...m,
+                      useSecondaryCustomer: e.target.checked ? true : undefined,
+                    },
+                    { clearIntent: false },
+                  )
+                }
+                onClick={(e) => e.stopPropagation()}
+              />
+              B 고객 데이터 자리
+            </label>
+          ) : null}
+        </>
       ) : null}
     </div>
   )

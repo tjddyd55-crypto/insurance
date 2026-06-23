@@ -117,6 +117,8 @@ export function normalizePdfFieldDataMapping(
   const customerFieldLabelRaw = raw.customerFieldLabel ?? raw.customer_field_label
   const fallbackTextRaw = raw.fallbackText ?? raw.fallback_text
   const transformTypeRaw = raw.transformType ?? raw.transform_type
+  const useSecondaryCustomer =
+    raw.useSecondaryCustomer === true || raw.use_secondary_customer === true ? true : undefined
 
   const typeRaw = dataSourceTypeRaw === 'customer' ? 'customer' : 'manual'
   let customerFieldKey =
@@ -149,19 +151,53 @@ export function normalizePdfFieldDataMapping(
       transformType,
     }
   }
-  return {
+  const result: PdfFieldDataMapping = {
     dataSourceType: 'customer',
     customerFieldKey,
     customerFieldLabel,
     fallbackText,
     transformType,
   }
+  if (useSecondaryCustomer === true) {
+    result.useSecondaryCustomer = true
+  }
+  return result
+}
+
+/** B 고객(secondaryCustomer / customerB) 레코드를 컨텍스트에서 읽는다. */
+export function readSecondaryCustomerRecord(
+  source: CustomerRecord | null | undefined | Record<string, unknown>,
+): CustomerRecord | null {
+  if (!source || typeof source !== 'object') {
+    return null
+  }
+  const bag = source as Record<string, unknown>
+  const nested =
+    (bag.secondaryCustomer as CustomerRecord | null | undefined) ??
+    (bag.customerB as CustomerRecord | null | undefined)
+  return nested && typeof nested === 'object' ? nested : null
+}
+
+/** useSecondaryCustomer 플래그에 따라 매핑 대상 고객 레코드를 고른다. */
+export function pickPdfMappingCustomerRecord(
+  primary: CustomerRecord | null | undefined,
+  secondary: CustomerRecord | null | undefined,
+  useSecondaryCustomer: boolean | undefined,
+): CustomerRecord | null {
+  if (useSecondaryCustomer !== true) {
+    return primary ?? null
+  }
+  if (secondary) {
+    return secondary
+  }
+  return primary ?? null
 }
 
 export function resolvePdfFieldValue(input: {
   field: Pick<PdfFieldSpec, 'dataMapping'>
   manualValue?: string | null
   customer?: CustomerRecord | null
+  secondaryCustomer?: CustomerRecord | null
   overwriteMode?: boolean
 }): string {
   const manual = (input.manualValue ?? '').trim()
@@ -171,7 +207,16 @@ export function resolvePdfFieldValue(input: {
     return manual
   }
 
-  const fromCustomer = pickCustomerPdfFieldValue(input.customer as CustomerRecord, mapping.customerFieldKey)
+  const secondary =
+    input.secondaryCustomer ?? readSecondaryCustomerRecord(input.customer ?? null)
+  const customerForMapping = pickPdfMappingCustomerRecord(
+    input.customer ?? null,
+    secondary,
+    mapping.useSecondaryCustomer,
+  )
+  const fromCustomer = customerForMapping
+    ? pickCustomerPdfFieldValue(customerForMapping, mapping.customerFieldKey)
+    : ''
   const resolved = fromCustomer || mapping.fallbackText || ''
 
   if (input.overwriteMode) {
@@ -187,10 +232,16 @@ export function applyCustomerDataToPdfValues(
   fields: PdfFieldSpec[],
   values: Record<string, string>,
   customer: CustomerRecord | null,
-  opts?: { overwriteMode?: boolean; skipCarMappedFields?: boolean },
+  opts?: {
+    overwriteMode?: boolean
+    skipCarMappedFields?: boolean
+    secondaryCustomer?: CustomerRecord | null
+  },
 ): Record<string, string> {
   const overwriteMode = opts?.overwriteMode === true
   const skipCarMappedFields = opts?.skipCarMappedFields === true
+  const secondaryCustomer =
+    opts?.secondaryCustomer ?? readSecondaryCustomerRecord(customer ?? null)
   const out = { ...values }
   for (const field of fields) {
     const m = normalizePdfFieldDataMapping(field.dataMapping)
@@ -208,6 +259,7 @@ export function applyCustomerDataToPdfValues(
       field,
       manualValue: manual,
       customer,
+      secondaryCustomer,
       overwriteMode,
     })
     if (overwriteMode || !manual) {

@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { parseFieldDataMapping } from '../schema/fieldDataMapping.js'
+import { parseFieldDataMapping, serializeFieldDataMapping } from '../schema/fieldDataMapping.js'
 import { applyCustomerMappingToValues, resolvePdfFieldValue } from './resolvePdfFieldValue.js'
 
 const sampleCustomer = {
@@ -110,4 +110,115 @@ test('applyCustomerMappingToValues: overwrite mode', () => {
     { overwriteMode: true },
   )
   assert.equal(out.customer_name, '홍길동')
+})
+
+test('resolvePdfFieldValue: useSecondaryCustomer without B customer falls back to primary', () => {
+  const field = {
+    dataMapping: {
+      dataSourceType: 'customer',
+      customerFieldKey: 'name',
+      customerFieldLabel: null,
+      fallbackText: null,
+      transformType: null,
+      useSecondaryCustomer: true,
+    },
+  }
+  assert.equal(resolvePdfFieldValue({ field, manualValue: '', customer: sampleCustomer }), '홍길동')
+})
+
+test('resolvePdfFieldValue: useSecondaryCustomer false uses primary', () => {
+  const field = {
+    dataMapping: {
+      dataSourceType: 'customer',
+      customerFieldKey: 'name',
+      customerFieldLabel: null,
+      fallbackText: null,
+      transformType: null,
+      useSecondaryCustomer: false,
+    },
+  }
+  const customerB = { name: '김길동', phone: '01099998888' }
+  assert.equal(
+    resolvePdfFieldValue({
+      field,
+      manualValue: '',
+      customer: sampleCustomer,
+      secondaryCustomer: customerB,
+    }),
+    '홍길동',
+  )
+})
+
+test('resolvePdfFieldValue: useSecondaryCustomer true uses B customer when present', () => {
+  const field = {
+    dataMapping: {
+      dataSourceType: 'customer',
+      customerFieldKey: 'name',
+      customerFieldLabel: null,
+      fallbackText: null,
+      transformType: null,
+      useSecondaryCustomer: true,
+    },
+  }
+  const customerB = { name: '김길동', phone: '01099998888' }
+  assert.equal(
+    resolvePdfFieldValue({
+      field,
+      manualValue: '',
+      customer: sampleCustomer,
+      secondaryCustomer: customerB,
+    }),
+    '김길동',
+  )
+})
+
+test('resolvePdfFieldValue: reads secondaryCustomer nested on customer object', () => {
+  const field = {
+    dataMapping: {
+      dataSourceType: 'customer',
+      customerFieldKey: 'name',
+      customerFieldLabel: null,
+      fallbackText: null,
+      transformType: null,
+      useSecondaryCustomer: true,
+    },
+  }
+  assert.equal(
+    resolvePdfFieldValue({
+      field,
+      manualValue: '',
+      customer: { ...sampleCustomer, secondaryCustomer: { name: '김길동' } },
+    }),
+    '김길동',
+  )
+})
+
+test('serializeFieldDataMapping: useSecondaryCustomer true roundtrip', () => {
+  const original = {
+    dataSourceType: 'customer',
+    customerFieldKey: 'name',
+    customerFieldLabel: '고객명',
+    fallbackText: null,
+    transformType: null,
+    useSecondaryCustomer: true,
+  }
+  const serialized = serializeFieldDataMapping(original)
+  const parsed = parseFieldDataMapping(serialized)
+  assert.equal(parsed.useSecondaryCustomer, true)
+  assert.equal(parsed.customerFieldKey, 'name')
+})
+
+test('serializeFieldDataMapping: unchecked omits useSecondaryCustomer', () => {
+  const original = {
+    dataSourceType: 'customer',
+    customerFieldKey: 'phone',
+    customerFieldLabel: '연락처',
+    fallbackText: null,
+    transformType: null,
+  }
+  const serialized = serializeFieldDataMapping(original)
+  assert.ok(serialized)
+  assert.equal(serialized.includes('useSecondaryCustomer'), false)
+  const parsed = parseFieldDataMapping(serialized)
+  assert.equal(parsed.useSecondaryCustomer, undefined)
 })
