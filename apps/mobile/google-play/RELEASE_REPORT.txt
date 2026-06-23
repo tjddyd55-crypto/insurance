@@ -6,7 +6,7 @@ FC Helper — Google Play 준비 작업 결과 보고
    D:\workspace\insurance-app\android\app\build\outputs\bundle\release\app-release.aab
 
 2) 패키지명
-   com.fchelper.app
+   com.onefc.app
 
 3) 버전 정보
    versionName: 1.0.0

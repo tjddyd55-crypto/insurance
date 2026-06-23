@@ -3,7 +3,7 @@ Google Play 제출 전 체크리스트 (FC Helper)
 
 [빌드]
 □ AAB: android/app/build/outputs/bundle/release/app-release.aab 생성됨
-□ 패키지명: com.fchelper.app
+□ 패키지명: com.onefc.app
 □ versionCode: 1 / versionName: 1.0.0 (다음 출시 시 code만 증가)
 □ 릴리즈 서명: debug 키 아님 (keystore.properties + play-upload.jks)
 
