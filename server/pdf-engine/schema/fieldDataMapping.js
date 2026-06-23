@@ -4,24 +4,12 @@
  */
 
 import { isAllowedCustomerPdfFieldKey } from '../mapping/customerPdfFieldKeys.js'
-import {
-  buildPdfMappingKey,
-  isKnownPdfMappingKey,
-  labelForPdfMappingItem,
-  parsePdfMappingKey,
-} from '../mapping/pdfFieldDataGroups.js'
 
 /** @typedef {'manual' | 'customer'} PdfFieldDataSourceType */
 
 /**
- * @typedef {'default_customer' | 'contractor' | 'insured' | 'claim' | 'payment' | 'manual'} PdfFieldDataGroupId
- */
-
-/**
  * @typedef {{
  *   dataSourceType: PdfFieldDataSourceType,
- *   dataGroup: PdfFieldDataGroupId | null,
- *   fieldKey: string | null,
  *   customerFieldKey: string | null,
  *   customerFieldLabel: string | null,
  *   fallbackText: string | null,
@@ -36,19 +24,8 @@ const LEGACY_MAPPING_KEYS = Object.freeze({
   address: 'address',
 })
 
-const DATA_GROUP_IDS = new Set([
-  'default_customer',
-  'contractor',
-  'insured',
-  'claim',
-  'payment',
-  'manual',
-])
-
 export const DEFAULT_FIELD_DATA_MAPPING = Object.freeze({
   dataSourceType: 'manual',
-  dataGroup: 'manual',
-  fieldKey: null,
   customerFieldKey: null,
   customerFieldLabel: null,
   fallbackText: null,
@@ -60,74 +37,6 @@ export const DEFAULT_FIELD_DATA_MAPPING = Object.freeze({
  */
 export function defaultFieldDataMapping() {
   return { ...DEFAULT_FIELD_DATA_MAPPING }
-}
-
-/**
- * @param {Record<string, unknown>} src
- * @returns {string | null}
- */
-function readDataGroupAlias(src) {
-  const v = src.dataGroup ?? src.dataRole ?? src.data_group ?? src.data_role
-  return typeof v === 'string' && v.trim() ? v.trim() : null
-}
-
-/**
- * @param {Record<string, unknown>} src
- * @returns {string | null}
- */
-function readFieldKeyAlias(src) {
-  const v = src.fieldKey ?? src.field_key
-  return typeof v === 'string' && v.trim() ? v.trim() : null
-}
-
-/**
- * @param {{
- *   customerFieldKey: string | null,
- *   dataGroup: PdfFieldDataGroupId | null,
- *   fieldKey: string | null,
- *   customerFieldLabel: string | null,
- * }} input
- */
-function enrichCustomerPdfFieldMapping(input) {
-  let customerFieldKey = input.customerFieldKey
-  let dataGroup = input.dataGroup
-  let fieldKey = input.fieldKey
-
-  if (
-    customerFieldKey &&
-    (isAllowedCustomerPdfFieldKey(customerFieldKey) || isKnownPdfMappingKey(customerFieldKey))
-  ) {
-    const parsed = parsePdfMappingKey(customerFieldKey)
-    dataGroup = parsed.dataGroup
-    fieldKey = parsed.fieldKey
-    customerFieldKey = parsed.customerFieldKey
-  } else if (dataGroup && dataGroup !== 'manual' && fieldKey) {
-    customerFieldKey = buildPdfMappingKey(dataGroup, fieldKey)
-  }
-
-  if (!customerFieldKey || dataGroup === 'manual') {
-    return {
-      dataGroup: 'manual',
-      fieldKey: null,
-      customerFieldKey: null,
-      customerFieldLabel: null,
-    }
-  }
-
-  const parsed = parsePdfMappingKey(customerFieldKey)
-  const resolvedGroup = dataGroup && dataGroup !== 'manual' ? dataGroup : parsed.dataGroup
-  const resolvedFieldKey = fieldKey ?? parsed.fieldKey
-  const customerFieldLabel =
-    input.customerFieldLabel ||
-    (resolvedFieldKey ? labelForPdfMappingItem(resolvedGroup, resolvedFieldKey) : null) ||
-    null
-
-  return {
-    dataGroup: resolvedGroup,
-    fieldKey: resolvedFieldKey,
-    customerFieldKey,
-    customerFieldLabel,
-  }
 }
 
 /**
@@ -165,17 +74,23 @@ export function parseFieldDataMapping(raw) {
 
   const legacyKey = LEGACY_MAPPING_KEYS[str]
   if (legacyKey) {
-    return normalizeFieldDataMapping({
+    return {
       dataSourceType: 'customer',
       customerFieldKey: legacyKey,
-    })
+      customerFieldLabel: null,
+      fallbackText: null,
+      transformType: null,
+    }
   }
 
-  if (isAllowedCustomerPdfFieldKey(str) || isKnownPdfMappingKey(str)) {
-    return normalizeFieldDataMapping({
+  if (isAllowedCustomerPdfFieldKey(str)) {
+    return {
       dataSourceType: 'customer',
       customerFieldKey: str,
-    })
+      customerFieldLabel: null,
+      fallbackText: null,
+      transformType: null,
+    }
   }
 
   return defaultFieldDataMapping()
@@ -187,13 +102,16 @@ export function parseFieldDataMapping(raw) {
  */
 export function normalizeFieldDataMapping(raw) {
   const src = raw && typeof raw === 'object' ? /** @type {Record<string, unknown>} */ (raw) : {}
+  /*
+   * 저장 포맷은 camelCase 이지만, 운영 DB에는 초기 실험 버전에서 만든
+   * snake_case JSON 이 남아 있을 수 있다. reload/replace 저장 시 이 값을
+   * manual 로 오판하면 고객 데이터 매핑이 "시간이 지나 풀리는" 현상이 된다.
+   */
   const dataSourceTypeRaw = src.dataSourceType ?? src.data_source_type
   const customerFieldKeyRaw = src.customerFieldKey ?? src.customer_field_key
   const customerFieldLabelRaw = src.customerFieldLabel ?? src.customer_field_label
   const fallbackTextRaw = src.fallbackText ?? src.fallback_text
   const transformTypeRaw = src.transformType ?? src.transform_type
-  const dataGroupRaw = readDataGroupAlias(src)
-  const fieldKeyRaw = readFieldKeyAlias(src)
 
   const typeRaw = typeof dataSourceTypeRaw === 'string' ? dataSourceTypeRaw.trim().toLowerCase() : ''
   const dataSourceType = typeRaw === 'customer' ? 'customer' : 'manual'
@@ -203,10 +121,9 @@ export function normalizeFieldDataMapping(raw) {
   if (customerFieldKey === 'dob') {
     customerFieldKey = 'birthDate'
   }
-
-  const dataGroup =
-    dataGroupRaw && DATA_GROUP_IDS.has(dataGroupRaw) ? /** @type {PdfFieldDataGroupId} */ (dataGroupRaw) : null
-  const fieldKey = fieldKeyRaw
+  if (customerFieldKey && !isAllowedCustomerPdfFieldKey(customerFieldKey)) {
+    customerFieldKey = null
+  }
 
   const customerFieldLabel =
     typeof customerFieldLabelRaw === 'string' && customerFieldLabelRaw.trim()
@@ -224,27 +141,6 @@ export function normalizeFieldDataMapping(raw) {
   if (dataSourceType !== 'customer') {
     return {
       dataSourceType: 'manual',
-      dataGroup: 'manual',
-      fieldKey: null,
-      customerFieldKey: null,
-      customerFieldLabel: null,
-      fallbackText,
-      transformType,
-    }
-  }
-
-  const enriched = enrichCustomerPdfFieldMapping({
-    customerFieldKey,
-    dataGroup,
-    fieldKey,
-    customerFieldLabel,
-  })
-
-  if (!enriched.customerFieldKey) {
-    return {
-      dataSourceType: 'manual',
-      dataGroup: 'manual',
-      fieldKey: null,
       customerFieldKey: null,
       customerFieldLabel: null,
       fallbackText,
@@ -254,7 +150,8 @@ export function normalizeFieldDataMapping(raw) {
 
   return {
     dataSourceType: 'customer',
-    ...enriched,
+    customerFieldKey: customerFieldKey || null,
+    customerFieldLabel,
     fallbackText,
     transformType,
   }

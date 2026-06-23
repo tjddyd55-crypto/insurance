@@ -3,7 +3,7 @@
  */
 
 import { parseFieldDataMapping } from '../schema/fieldDataMapping.js'
-import { pickMappedPdfFieldValue } from './pdfFieldDataGroups.js'
+import { pickCustomerPdfFieldValue } from './customerPdfFieldKeys.js'
 
 /**
  * @param {{
@@ -22,7 +22,7 @@ export function resolvePdfFieldValue({ field, manualValue, customer, overwriteMo
     return manual
   }
 
-  const fromCustomer = pickMappedPdfFieldValue(customer, mapping.customerFieldKey)
+  const fromCustomer = pickCustomerPdfFieldValue(customer, mapping.customerFieldKey)
   const resolved = fromCustomer || mapping.fallbackText || ''
 
   if (overwriteMode) {

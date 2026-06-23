@@ -3,15 +3,8 @@ import {
   isCustomerPdfCarFieldKey,
   isCustomerPdfFieldKey,
   labelForCustomerPdfFieldKey,
+  pickCustomerPdfFieldValue,
 } from '../config/customerPdfFieldOptions'
-import {
-  buildPdfMappingKey,
-  isKnownPdfMappingKey,
-  labelForPdfMappingItem,
-  parsePdfMappingKey,
-  pickMappedPdfFieldValue,
-  type PdfFieldDataGroupId,
-} from '../config/pdfFieldDataGroups'
 import type { PdfFieldDataMapping, PdfFieldSpec } from '../types'
 import { DEFAULT_PDF_FIELD_DATA_MAPPING } from '../types'
 
@@ -31,8 +24,6 @@ function legacyCustomerMappingFromString(str: string): PdfFieldDataMapping | nul
   }
   return {
     dataSourceType: 'customer',
-    dataGroup: 'default_customer',
-    fieldKey,
     customerFieldKey: fieldKey,
     customerFieldLabel: labelForCustomerPdfFieldKey(fieldKey),
     fallbackText: null,
@@ -86,60 +77,6 @@ export function pdfFieldSpecsForSavePayload(fields: PdfFieldSpec[]): PdfFieldSav
   })
 }
 
-function readDataGroupAlias(raw: Record<string, unknown>): string | null {
-  const v = raw.dataGroup ?? raw.dataRole ?? raw.data_group ?? raw.data_role
-  return typeof v === 'string' && v.trim() ? v.trim() : null
-}
-
-function readFieldKeyAlias(raw: Record<string, unknown>): string | null {
-  const v = raw.fieldKey ?? raw.field_key
-  return typeof v === 'string' && v.trim() ? v.trim() : null
-}
-
-function enrichCustomerPdfFieldMapping(input: {
-  customerFieldKey: string | null
-  dataGroup: PdfFieldDataGroupId | null
-  fieldKey: string | null
-  customerFieldLabel: string | null
-}): Pick<PdfFieldDataMapping, 'dataGroup' | 'fieldKey' | 'customerFieldKey' | 'customerFieldLabel'> {
-  let customerFieldKey = input.customerFieldKey
-  let dataGroup = input.dataGroup
-  let fieldKey = input.fieldKey
-
-  if (customerFieldKey && (isCustomerPdfFieldKey(customerFieldKey) || isKnownPdfMappingKey(customerFieldKey))) {
-    const parsed = parsePdfMappingKey(customerFieldKey)
-    dataGroup = parsed.dataGroup
-    fieldKey = parsed.fieldKey
-    customerFieldKey = parsed.customerFieldKey
-  } else if (dataGroup && dataGroup !== 'manual' && fieldKey) {
-    customerFieldKey = buildPdfMappingKey(dataGroup, fieldKey)
-  }
-
-  if (!customerFieldKey || dataGroup === 'manual') {
-    return {
-      dataGroup: 'manual',
-      fieldKey: null,
-      customerFieldKey: null,
-      customerFieldLabel: null,
-    }
-  }
-
-  const parsed = parsePdfMappingKey(customerFieldKey)
-  const resolvedGroup = (dataGroup && dataGroup !== 'manual' ? dataGroup : parsed.dataGroup) as PdfFieldDataGroupId
-  const resolvedFieldKey = fieldKey ?? parsed.fieldKey
-  const customerFieldLabel =
-    input.customerFieldLabel ||
-    (resolvedFieldKey ? labelForPdfMappingItem(resolvedGroup, resolvedFieldKey) : null) ||
-    null
-
-  return {
-    dataGroup: resolvedGroup,
-    fieldKey: resolvedFieldKey,
-    customerFieldKey,
-    customerFieldLabel,
-  }
-}
-
 export function normalizePdfFieldDataMapping(
   raw: (Partial<PdfFieldDataMapping> & Record<string, unknown>) | string | null | undefined,
 ): PdfFieldDataMapping {
@@ -180,8 +117,6 @@ export function normalizePdfFieldDataMapping(
   const customerFieldLabelRaw = raw.customerFieldLabel ?? raw.customer_field_label
   const fallbackTextRaw = raw.fallbackText ?? raw.fallback_text
   const transformTypeRaw = raw.transformType ?? raw.transform_type
-  const dataGroupRaw = readDataGroupAlias(raw)
-  const fieldKeyRaw = readFieldKeyAlias(raw)
 
   const typeRaw = dataSourceTypeRaw === 'customer' ? 'customer' : 'manual'
   let customerFieldKey =
@@ -189,16 +124,15 @@ export function normalizePdfFieldDataMapping(
   if (customerFieldKey === 'dob') {
     customerFieldKey = 'birthDate'
   }
-  const dataGroup =
-    dataGroupRaw && ['default_customer', 'contractor', 'insured', 'claim', 'payment', 'manual'].includes(dataGroupRaw)
-      ? (dataGroupRaw as PdfFieldDataGroupId)
-      : null
-  const fieldKey = fieldKeyRaw
-
+  if (customerFieldKey && !isCustomerPdfFieldKey(customerFieldKey)) {
+    customerFieldKey = null
+  }
   const customerFieldLabel =
     typeof customerFieldLabelRaw === 'string' && customerFieldLabelRaw.trim()
       ? customerFieldLabelRaw.trim()
-      : null
+      : customerFieldKey
+        ? labelForCustomerPdfFieldKey(customerFieldKey)
+        : null
   const fallbackText =
     typeof fallbackTextRaw === 'string' ? fallbackTextRaw.trim().slice(0, 500) : null
   const transformType =
@@ -209,37 +143,16 @@ export function normalizePdfFieldDataMapping(
   if (typeRaw !== 'customer') {
     return {
       dataSourceType: 'manual',
-      dataGroup: 'manual',
-      fieldKey: null,
       customerFieldKey: null,
       customerFieldLabel: null,
       fallbackText,
       transformType,
     }
   }
-
-  const enriched = enrichCustomerPdfFieldMapping({
-    customerFieldKey,
-    dataGroup,
-    fieldKey,
-    customerFieldLabel,
-  })
-
-  if (!enriched.customerFieldKey) {
-    return {
-      dataSourceType: 'manual',
-      dataGroup: 'manual',
-      fieldKey: null,
-      customerFieldKey: null,
-      customerFieldLabel: null,
-      fallbackText,
-      transformType,
-    }
-  }
-
   return {
     dataSourceType: 'customer',
-    ...enriched,
+    customerFieldKey,
+    customerFieldLabel,
     fallbackText,
     transformType,
   }
@@ -258,7 +171,7 @@ export function resolvePdfFieldValue(input: {
     return manual
   }
 
-  const fromCustomer = pickMappedPdfFieldValue(input.customer ?? null, mapping.customerFieldKey)
+  const fromCustomer = pickCustomerPdfFieldValue(input.customer as CustomerRecord, mapping.customerFieldKey)
   const resolved = fromCustomer || mapping.fallbackText || ''
 
   if (input.overwriteMode) {
@@ -285,9 +198,7 @@ export function applyCustomerDataToPdfValues(
       skipCarMappedFields &&
       m.dataSourceType === 'customer' &&
       m.customerFieldKey &&
-      m.dataGroup === 'default_customer' &&
-      m.fieldKey &&
-      isCustomerPdfCarFieldKey(m.fieldKey)
+      isCustomerPdfCarFieldKey(m.customerFieldKey)
     ) {
       continue
     }
@@ -317,13 +228,13 @@ export function overwriteCarMappedPdfValuesFromCustomer(
   const out = { ...values }
   for (const field of fields) {
     const m = normalizePdfFieldDataMapping(field.dataMapping)
-    if (m.dataSourceType !== 'customer' || !m.customerFieldKey || !m.fieldKey || !isCustomerPdfCarFieldKey(m.fieldKey)) {
+    if (m.dataSourceType !== 'customer' || !m.customerFieldKey || !isCustomerPdfCarFieldKey(m.customerFieldKey)) {
       continue
     }
     if (field.fieldType !== 'text' && field.fieldType !== 'textarea') continue
     const fk = field.fieldKey
     const manual = (out[fk] ?? '').trim()
-    const fromCust = pickMappedPdfFieldValue(mergedCustomerWithCarOverlay, m.customerFieldKey)
+    const fromCust = pickCustomerPdfFieldValue(mergedCustomerWithCarOverlay, m.customerFieldKey)
     const next = fromCust || m.fallbackText || ''
     if (overwriteMode || !manual) {
       out[fk] = next
