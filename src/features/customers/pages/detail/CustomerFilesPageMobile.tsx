@@ -45,17 +45,21 @@ export default function CustomerFilesPageMobile({
           </header>
           <div className="storage-folder-sheet__body">
             <div className="storage-folder-sheet__list" role="listbox" aria-label="고객 목록">
-            {customers.map((customer) => (
-              <FormButton
-                key={customer.id}
-                htmlType="button"
-                variant={customer.id === customerId ? 'primary' : 'secondary'}
-                className={`storage-folder-sheet__item${customer.id === customerId ? ' storage-folder-sheet__item--active' : ''}`}
-                onClick={() => onSelectCustomer(customer.id, customer.name)}
-              >
-                {customer.name}
-              </FormButton>
-            ))}
+            {customers.map((customer) => {
+              const active = customer.id === customerId
+              return (
+                <button
+                  key={customer.id}
+                  type="button"
+                  className={`ui-button ui-button--md ui-button--full ${active ? 'ui-button--primary' : 'ui-button--secondary'}`}
+                  role="option"
+                  aria-selected={active}
+                  onClick={() => onSelectCustomer(customer.id, customer.name)}
+                >
+                  {customer.name}
+                </button>
+              )
+            })}
             </div>
           </div>
         </Modal>
