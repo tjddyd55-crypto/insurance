@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { getDocument, type PDFDocumentProxy } from 'pdfjs-dist'
 import { FormButton } from '../../../../components/form'
+import { useBodyScrollLock } from '../../../../hooks/useBodyScrollLock'
 import { getPdfJsCmapAndStandardFontUrls } from '../../../../lib/pdfjs/pdfDocumentInitParams'
 import { setupPdfWorker } from '../../../../lib/pdfjs/setupWorker'
 import { copyPdfBytesForPdfJs } from '../../../pdf-engine/lib/pdfArrayBuffer'
@@ -93,19 +94,7 @@ export function PublicPdfPreviewModal({
     [fitMode, manualZoom],
   )
 
-  useEffect(() => {
-    if (!open) {
-      return
-    }
-    const prevOverflow = document.body.style.overflow
-    const prevHtmlOverflow = document.documentElement.style.overflow
-    document.documentElement.style.overflow = 'hidden'
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.documentElement.style.overflow = prevHtmlOverflow
-      document.body.style.overflow = prevOverflow
-    }
-  }, [open])
+  useBodyScrollLock(open, { lockDocumentElement: true })
 
   useLayoutEffect(() => {
     if (!open) {

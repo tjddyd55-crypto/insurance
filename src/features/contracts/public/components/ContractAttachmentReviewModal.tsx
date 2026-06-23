@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { FormButton } from '../../../../components/form'
+import { useBodyScrollLock } from '../../../../hooks/useBodyScrollLock'
 import {
   postContractPublicAttachmentConfirm,
   resolveContractAttachmentViewAbsUrl,
@@ -125,19 +126,7 @@ export function ContractAttachmentReviewModal({
     attachment != null &&
     isPdfAttachment(attachment.mimeType, attachment.displayFilename)
 
-  useEffect(() => {
-    if (!open || !attachment || pdfOpen) {
-      return
-    }
-    const prevOverflow = document.body.style.overflow
-    const prevHtmlOverflow = document.documentElement.style.overflow
-    document.documentElement.style.overflow = 'hidden'
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.documentElement.style.overflow = prevHtmlOverflow
-      document.body.style.overflow = prevOverflow
-    }
-  }, [open, attachment, pdfOpen])
+  useBodyScrollLock(open && attachment != null && !pdfOpen, { lockDocumentElement: true })
 
   if (!open || !attachment) {
     return null

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type TouchEvent } from 'react'
+import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock'
 
 type Props = {
   open: boolean
@@ -29,16 +30,7 @@ export default function CustomerAppNewsImageFullscreenOverlay({
     }
   }, [open, initialIndex, n])
 
-  useEffect(() => {
-    if (!open) {
-      return undefined
-    }
-    const prevOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = prevOverflow
-    }
-  }, [open])
+  useBodyScrollLock(open)
 
   const go = useCallback(
     (dir: -1 | 1) => {
