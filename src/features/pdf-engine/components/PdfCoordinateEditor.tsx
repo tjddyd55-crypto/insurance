@@ -616,8 +616,24 @@ export function PdfCoordinateEditor({
   /** 박스 모드로 드래그 픽을 받는다. 라디오는 활성 옵션이 있을 때만 허용한다. */
   const canvasClickEnabled = Boolean(selectedKey) && !radioPlacementBlocked
 
+  const placementsBeyondPageCount = useMemo(() => {
+    if (pageCount < 1) return 0
+    let count = 0
+    for (const f of fields) {
+      for (const p of f.placements) {
+        if (p.page >= pageCount) count += 1
+      }
+    }
+    return count
+  }, [fields, pageCount])
+
   return (
     <div className="pdf-engine-editor">
+      {placementsBeyondPageCount > 0 ? (
+        <p className="pdf-engine-page__error pdf-engine-editor__page-overflow-warning" role="alert">
+          기존 좌표 중 {placementsBeyondPageCount}개가 현재 PDF 페이지 수({pageCount})를 초과합니다.
+        </p>
+      ) : null}
       <aside className="pdf-engine-editor__panel pdf-engine-editor__panel--fields">
         <h3 className="pdf-engine-editor__panel-title">등록된 필드 ({fields.length})</h3>
         <p className="pdf-engine-editor__hint pdf-engine-editor__hint--input-order">

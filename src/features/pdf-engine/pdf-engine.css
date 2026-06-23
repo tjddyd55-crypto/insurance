@@ -1432,6 +1432,35 @@
   line-height: 1.45;
 }
 
+.pdf-engine-editor__page-overflow-warning {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+.pdf-engine-editor__label-hint {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 400;
+  color: #94a3b8;
+}
+
+.pdf-engine-upload-file-list {
+  margin: 0 0 16px;
+  padding: 10px 12px 10px 28px;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: #111827;
+  color: #e5e7eb;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.pdf-engine-upload-file-list li + li {
+  margin-top: 4px;
+}
+
 .pdf-engine-editor__config-mapping-name {
   margin: 0 0 8px;
   font-size: 13px;

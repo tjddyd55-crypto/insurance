@@ -27,7 +27,6 @@
  */
 
 import multer from 'multer'
-import { PDFDocument } from 'pdf-lib'
 import {
   fieldSpecWithDbMapping,
   normalizeFieldSpec,
@@ -70,6 +69,7 @@ import {
   getIssuanceObject,
   putIssuanceObject,
 } from './pdf-engine/storage/pdfIssuanceStorage.js'
+import { mergePdfUploadBuffers } from './pdf-engine/pdf/mergePdfBuffers.js'
 import { canAccessTemplateForUser } from './pdf-engine/security/templateAccess.js'
 import {
   getPdfPreviewEntry,
@@ -77,11 +77,16 @@ import {
   toSinglePathFilename,
 } from './lib/inlinePreviewTokens.js'
 
+const MAX_PDF_UPLOAD_FILES = 20
+const MAX_PDF_UPLOAD_BYTES_PER_FILE = 25 * 1024 * 1024
+const MAX_PDF_UPLOAD_BYTES_TOTAL = 50 * 1024 * 1024
+
 const uploadPdf = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 25 * 1024 * 1024 },
+  limits: { fileSize: MAX_PDF_UPLOAD_BYTES_PER_FILE },
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype !== 'application/pdf') {
+    const name = String(file.originalname ?? '').toLowerCase()
+    if (file.mimetype !== 'application/pdf' && !name.endsWith('.pdf')) {
       cb(new Error('PDF 파일만 업로드할 수 있습니다.'))
       return
     }
@@ -93,6 +98,27 @@ function parseTemplateId(raw) {
   const n = Number(raw)
   if (!Number.isInteger(n) || n < 1) return null
   return n
+}
+
+/**
+ * @param {unknown} raw
+ * @returns {Array<{ fileName: string, startPage: number, endPage: number, pageCount: number }> | null}
+ */
+function parseSourcePdfMetadataBody(raw) {
+  if (!Array.isArray(raw) || raw.length === 0) return null
+  const out = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue
+    const fileName = typeof item.fileName === 'string' ? item.fileName.trim() : ''
+    const startPage = Number(item.startPage)
+    const endPage = Number(item.endPage)
+    const pageCount = Number(item.pageCount)
+    if (!fileName || !Number.isInteger(startPage) || !Number.isInteger(endPage) || !Number.isInteger(pageCount)) {
+      continue
+    }
+    out.push({ fileName, startPage, endPage, pageCount })
+  }
+  return out.length > 0 ? out : null
 }
 
 function parseTemplateGaIdForPatch(raw) {
@@ -181,6 +207,7 @@ function templateToDto(row) {
     title: row.title,
     description: row.description ?? '',
     pageCount: row.page_count,
+    sourcePdfMetadata: Array.isArray(row.source_pdf_metadata) ? row.source_pdf_metadata : null,
     isActive: row.is_active,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -441,18 +468,31 @@ export function registerPdfTemplateApi(apiRouter, deps) {
     /* 권한을 multer 앞에 두어 비인가 요청이 25MB 멀티파트 파싱을 강제하지 못하게 한다. */
     requirePdfTemplateAdminMw,
     (req, res, next) => {
-      uploadPdf.single('pdf')(req, res, (err) => {
+      uploadPdf.array('pdf', MAX_PDF_UPLOAD_FILES)(req, res, (err) => {
         if (err) {
-          res.status(400).json({ message: err.message || 'PDF 업로드 실패' })
+          const msg =
+            err.code === 'LIMIT_FILE_COUNT'
+              ? `PDF는 최대 ${MAX_PDF_UPLOAD_FILES}개까지 업로드할 수 있습니다.`
+              : err.code === 'LIMIT_FILE_SIZE'
+                ? 'PDF 파일 크기가 제한을 초과했습니다.'
+                : err.message || 'PDF 업로드 실패'
+          res.status(400).json({ message: msg })
           return
         }
         next()
       })
     },
     async (req, res) => {
-      const file = req.file
-      if (!file || !file.buffer || file.buffer.length === 0) {
+      const files = Array.isArray(req.files) ? req.files : req.file ? [req.file] : []
+      if (files.length === 0) {
         res.status(400).json({ message: 'PDF 파일이 필요합니다.' })
+        return
+      }
+      const totalBytes = files.reduce((sum, f) => sum + (f.buffer?.length ?? 0), 0)
+      if (totalBytes > MAX_PDF_UPLOAD_BYTES_TOTAL) {
+        res.status(400).json({
+          message: `PDF 파일 총 용량은 ${Math.floor(MAX_PDF_UPLOAD_BYTES_TOTAL / (1024 * 1024))}MB를 초과할 수 없습니다.`,
+        })
         return
       }
       const gaIdRaw = req.body?.gaId
@@ -475,15 +515,33 @@ export function registerPdfTemplateApi(apiRouter, deps) {
       const STORAGE_KEY_SEED = 'upload'
 
       try {
-        /* 페이지 수 미리 계산 — 프론트에서 재요청하지 않아도 되게 서버가 고정. */
-        const doc = await PDFDocument.load(file.buffer)
-        const pageCount = doc.getPageCount()
+        const merged = await mergePdfUploadBuffers(
+          files.map((f, i) => ({
+            buffer: f.buffer,
+            fileName: f.originalname || `file-${i + 1}.pdf`,
+          })),
+        )
         const storageKey = buildTemplateStorageKey({ gaId, code: STORAGE_KEY_SEED })
-        await putTemplateObject(storageKey, file.buffer)
-        res.json({ storageKey, pageCount })
+        await putTemplateObject(storageKey, merged.mergedBuffer)
+        res.json({
+          storageKey,
+          pageCount: merged.pageCount,
+          sourcePdfMetadata: merged.sourcePdfMetadata,
+        })
       } catch (error) {
-        console.error('[pdf-templates] 업로드 실패', error)
-        res.status(500).json({ message: 'PDF 업로드에 실패했습니다.' })
+        const msg = error instanceof Error ? error.message : 'PDF 업로드에 실패했습니다.'
+        const status =
+          msg.includes('읽을 수 없습니다') ||
+          msg.includes('PDF 파일만') ||
+          msg.includes('빈 PDF') ||
+          msg.includes('병합') ||
+          msg.includes('페이지가 없습니다')
+            ? 400
+            : 500
+        if (status >= 500) {
+          console.error('[pdf-templates] 업로드 실패', error)
+        }
+        res.status(status).json({ message: msg })
       }
     },
   )
@@ -523,6 +581,7 @@ export function registerPdfTemplateApi(apiRouter, deps) {
       res.status(400).json({ message: 'pageCount 가 올바르지 않습니다.' })
       return
     }
+    const sourcePdfMetadata = parseSourcePdfMetadataBody(body.sourcePdfMetadata)
 
     try {
       /* code 자동 생성 + 충돌 재시도는 createTemplateWithAutoCode 에 일임한다.
@@ -534,6 +593,7 @@ export function registerPdfTemplateApi(apiRouter, deps) {
         storageKey,
         pageCount,
         createdByUserId: req.user?.id ?? null,
+        sourcePdfMetadata,
       })
       res.status(201).json({ template: templateToDto(row) })
     } catch (error) {

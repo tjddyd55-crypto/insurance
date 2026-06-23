@@ -81,9 +81,27 @@ function CreateTemplateFlow({
   const [gaId, setGaId] = useState<'' | number>('')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const handleFilesSelected = (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) {
+      setFiles([])
+      return
+    }
+    const selected = Array.from(fileList)
+    const invalid = selected.find(
+      (f) => f.type !== 'application/pdf' && !f.name.toLowerCase().endsWith('.pdf'),
+    )
+    if (invalid) {
+      setError('PDF 파일만 업로드할 수 있습니다.')
+      setFiles([])
+      return
+    }
+    setError(null)
+    setFiles(selected)
+  }
 
   useEffect(() => {
     if (!token) return
@@ -101,7 +119,7 @@ function CreateTemplateFlow({
       setError('문서 제목을 입력하세요.')
       return
     }
-    if (!file) {
+    if (files.length === 0) {
       setError('PDF 파일을 선택하세요.')
       return
     }
@@ -111,7 +129,7 @@ function CreateTemplateFlow({
       const gaIdValue = gaId === '' ? null : Number(gaId)
       const uploaded = await uploadAdminPdfTemplateFile(token, {
         gaId: gaIdValue,
-        file,
+        files,
       })
       const created = await createAdminPdfTemplate(token, {
         gaId: gaIdValue,
@@ -119,6 +137,7 @@ function CreateTemplateFlow({
         description: description.trim(),
         storageKey: uploaded.storageKey,
         pageCount: uploaded.pageCount,
+        sourcePdfMetadata: uploaded.sourcePdfMetadata,
       })
       onCreated(created.template.id)
     } catch (e) {
@@ -169,12 +188,25 @@ function CreateTemplateFlow({
         </label>
         <label className="pdf-engine-editor__label">
           PDF 파일
+          <span className="pdf-engine-editor__label-hint">
+            여러 PDF 파일 선택 가능 · 선택된 순서대로 병합됩니다.
+          </span>
           <FormInput
             type="file"
-            accept="application/pdf"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            accept="application/pdf,.pdf"
+            multiple
+            onChange={(e) => handleFilesSelected(e.target.files)}
           />
         </label>
+        {files.length > 0 ? (
+          <ol className="pdf-engine-upload-file-list" aria-label="선택된 PDF 파일">
+            {files.map((f, i) => (
+              <li key={`${f.name}-${f.size}-${i}`}>
+                {i + 1}. {f.name}
+              </li>
+            ))}
+          </ol>
+        ) : null}
         <FormButton
           htmlType="submit"
           variant="primary"

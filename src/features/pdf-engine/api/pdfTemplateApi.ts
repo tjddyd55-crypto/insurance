@@ -10,6 +10,7 @@ import { logger } from '../../../lib/logger'
 import type {
   PdfFieldSavePayload,
   PdfFieldSpec,
+  PdfSourceFileMetadata,
   PdfTemplateDetail,
   PdfTemplateSummary,
 } from '../types'
@@ -120,10 +121,19 @@ function authHeader(token: string | null | undefined): Record<string, string> {
 
 export async function uploadAdminPdfTemplateFile(
   token: string,
-  input: { gaId: number | null; file: File },
-): Promise<{ storageKey: string; pageCount: number }> {
+  input: { gaId: number | null; files: File[] },
+): Promise<{
+  storageKey: string
+  pageCount: number
+  sourcePdfMetadata?: PdfSourceFileMetadata[]
+}> {
+  if (!input.files.length) {
+    throw new ApiError('PDF 파일이 필요합니다.', 400)
+  }
   const fd = new FormData()
-  fd.append('pdf', input.file)
+  for (const file of input.files) {
+    fd.append('pdf', file)
+  }
   if (input.gaId != null) fd.append('gaId', String(input.gaId))
 
   let res: Response
@@ -136,7 +146,7 @@ export async function uploadAdminPdfTemplateFile(
   } catch (networkError) {
     logger.error('pdf-template.upload.network-failed', {
       gaId: input.gaId,
-      fileSize: input.file.size,
+      fileCount: input.files.length,
       error: networkError,
     })
     throw new ApiError('네트워크 오류로 업로드하지 못했습니다.', 0)
@@ -145,6 +155,7 @@ export async function uploadAdminPdfTemplateFile(
   const payload = (await res.json().catch(() => ({}))) as {
     storageKey?: string
     pageCount?: number
+    sourcePdfMetadata?: PdfSourceFileMetadata[]
     message?: string
   }
   if (!res.ok || !payload.storageKey) {
@@ -152,10 +163,15 @@ export async function uploadAdminPdfTemplateFile(
       status: res.status,
       serverMessage: payload.message ?? null,
       gaId: input.gaId,
+      fileCount: input.files.length,
     })
     throw new ApiError(payload.message ?? 'PDF 업로드 실패', res.status)
   }
-  return { storageKey: payload.storageKey, pageCount: Number(payload.pageCount) || 1 }
+  return {
+    storageKey: payload.storageKey,
+    pageCount: Number(payload.pageCount) || 1,
+    sourcePdfMetadata: Array.isArray(payload.sourcePdfMetadata) ? payload.sourcePdfMetadata : undefined,
+  }
 }
 
 export function createAdminPdfTemplate(
@@ -166,6 +182,7 @@ export function createAdminPdfTemplate(
     description: string
     storageKey: string
     pageCount: number
+    sourcePdfMetadata?: PdfSourceFileMetadata[]
   },
 ): Promise<{ template: PdfTemplateSummary }> {
   return apiRequest('/api/admin/pdf-templates', {
