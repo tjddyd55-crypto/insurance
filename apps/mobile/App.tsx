@@ -62,7 +62,7 @@ const CUSTOMER_REGISTER_PATH = '/customer/register';
 
 /** Android 패키지와 동일해야 함 (app.json android.package) */
 const ANDROID_PLAY_STORE_URL =
-  'https://play.google.com/store/apps/details?id=com.fchelper.app';
+  'https://play.google.com/store/apps/details?id=com.onefc.app';
 const SHOW_BUILD_INFO =
   __DEV__ || String(process.env.EXPO_PUBLIC_SHOW_BUILD_INFO ?? '').trim() === '1';
 

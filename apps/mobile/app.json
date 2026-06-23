@@ -17,7 +17,7 @@
       "bundleIdentifier": "com.fchelper.app"
     },
     "android": {
-      "package": "com.fchelper.app",
+      "package": "com.onefc.app",
       "versionCode": 4,
       "minSdkVersion": 24,
       "adaptiveIcon": {
