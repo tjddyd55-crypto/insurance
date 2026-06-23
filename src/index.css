@@ -5230,10 +5230,8 @@ div.cta-button.customers-page__action-btn[role='button'] {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 0;
   width: min(calc(100vw - 32px), 480px);
   max-width: none;
-  min-height: 280px;
   max-height: min(80vh, 640px);
   padding: 24px;
   overflow: hidden;
@@ -5294,7 +5292,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  min-height: 160px;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -5309,12 +5307,27 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 .customer-relations-modal__close-btn {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 44px;
   min-width: 64px;
   padding: 10px 16px;
   border-radius: 12px;
+  border: 1px solid var(--btn-secondary-border);
+  background: var(--btn-secondary-surface);
+  color: var(--btn-secondary-text);
   font-size: 15px;
   font-weight: 700;
+  font-family: inherit;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.customer-relations-modal__close-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 @media (max-width: 480px) {
@@ -5322,10 +5335,6 @@ div.cta-button.customers-page__action-btn[role='button'] {
   .customer-relations-strip .customer-relations-modal {
     width: calc(100vw - 32px);
     max-height: min(80vh, 640px);
-  }
-
-  .customer-relations-modal__results {
-    min-height: 180px;
   }
 }
 
@@ -5346,7 +5355,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
   display: block;
 }
 
-.customers-page--pc .customer-relations-strip .related-list-mobile {
+.customers-page--pc .customer-relations-strip .customer-relations-result-list {
   display: none;
 }
 
@@ -5471,8 +5480,8 @@ div.cta-button.customers-page__action-btn[role='button'] {
   font-size: 13px;
 }
 
-/* 연계 고객 검색 모달 — 모바일 리스트 (이름 / 생년월일 / 연락처 3필드) */
-.customer-relations-modal__results .related-list-mobile {
+/* 연계 고객 검색 모달 — 모바일 결과 리스트 (단일 container + divider) */
+.customer-relations-modal__results .customer-relations-result-list {
   list-style: none;
   flex: 1 1 auto;
   min-height: 0;
@@ -5484,63 +5493,58 @@ div.cta-button.customers-page__action-btn[role='button'] {
   background: var(--bg-elevated);
 }
 
-.related-list-mobile {
-  list-style: none;
-  margin: 8px 0 0;
+.customer-relations-result-list__item {
+  margin: 0;
   padding: 0;
-  max-height: 320px;
-  overflow-y: auto;
-  border: 1px solid var(--border-default);
-  border-radius: 12px;
-  background: var(--bg-elevated);
 }
 
-.related-list-mobile__item + .related-list-mobile__item {
-  border-top: 1px solid var(--border-default);
-}
-
-.related-list-mobile__row {
+.customer-relations-result-item {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
   width: 100%;
-  min-height: 56px;
+  box-sizing: border-box;
   padding: 12px 14px;
-  text-align: left;
   border: none;
+  border-bottom: 1px solid var(--border-default);
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+  text-align: left;
+  font-family: inherit;
   color: var(--text-primary);
+  cursor: pointer;
 }
 
-.customer-relations-modal__results .related-list-mobile__row {
-  min-height: 56px;
+.customer-relations-result-list__item:last-child .customer-relations-result-item,
+.customer-relations-result-list__empty {
+  border-bottom: none;
 }
 
-.related-list-mobile__row:hover:not(:disabled) {
+.customer-relations-result-item:hover:not(:disabled) {
   background: color-mix(in srgb, var(--brand-primary) 8%, transparent);
 }
 
-.related-list-mobile__row:disabled {
+.customer-relations-result-item:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
 
-.related-list-mobile__main {
+.customer-relations-result-item__main {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   font-weight: 700;
   font-size: 15px;
+  line-height: 1.3;
 }
 
-.related-list-mobile__name {
+.customer-relations-result-item__name {
   font-weight: 700;
 }
 
-.related-list-mobile__sub {
+.customer-relations-result-item__sub {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -5549,11 +5553,11 @@ div.cta-button.customers-page__action-btn[role='button'] {
   line-height: 1.4;
 }
 
-.related-list-mobile__dot {
+.customer-relations-result-item__dot {
   opacity: 0.55;
 }
 
-.related-list-mobile__badge {
+.customer-relations-result-item__badge {
   padding: 2px 8px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--brand-primary) 18%, transparent);
@@ -5563,8 +5567,8 @@ div.cta-button.customers-page__action-btn[role='button'] {
   line-height: 1.4;
 }
 
-.related-list-mobile__empty {
-  padding: 14px 12px;
+.customer-relations-result-list__empty {
+  padding: 14px;
   color: var(--text-sub);
   font-size: 13px;
   text-align: center;
@@ -6420,29 +6424,35 @@ div.cta-button.customers-page__action-btn[role='button'] {
   padding: 0.25rem 0 0.5rem;
 }
 
-.customer-relations-strip--in-detail .customer-detail-read__section-header {
-  margin-top: 0;
-}
-
-/* 연계 고객: 제목 행에 +추가, 칩은 wrap */
-.customer-relations-strip--in-detail .customer-relations-strip__title-row {
+.customer-relations-strip--in-detail .customer-relations-strip__header {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
   gap: 10px 12px;
+  margin-top: 1.125rem;
+  margin-bottom: 0.5rem;
 }
 
-.customer-relations-strip--in-detail .customer-relations-strip__title-row .customer-detail-read__section-title {
+.customer-relations-strip--in-detail .customer-relations-strip__title {
   flex: 1 1 auto;
   min-width: 0;
   margin: 0;
+  padding-left: 0.65rem;
+  border-left: 2px solid color-mix(in srgb, var(--text-main) 32%, transparent);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--text-main);
 }
 
-.customer-relations-strip--in-detail .customer-relations-strip__inline-add {
+.customer-relations-strip--in-detail .customer-relations-strip__add-btn {
   flex: 0 0 auto;
-  align-self: center;
-  min-height: 36px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
   padding: 0 12px;
   border-radius: 10px;
   font-size: 0.8125rem;
@@ -6451,10 +6461,12 @@ div.cta-button.customers-page__action-btn[role='button'] {
   border: 1px solid var(--border-default);
   background: var(--bg-card);
   color: var(--text-main);
+  font-family: inherit;
+  cursor: pointer;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .customer-relations-strip--in-detail .customer-relations-strip__inline-add:hover:not(:disabled) {
+  .customer-relations-strip--in-detail .customer-relations-strip__add-btn:hover:not(:disabled) {
     background: var(--bg-soft);
     border-color: var(--border-strong);
   }
@@ -6478,50 +6490,62 @@ div.cta-button.customers-page__action-btn[role='button'] {
   color: var(--brand, #1f9d55);
 }
 
-.customer-relations-strip--in-detail .customer-relations-strip__chip-grid {
+.customer-relations-strip--in-detail .customer-relations-strip__chip-list {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
   width: 100%;
-  overflow-x: visible;
-  align-content: flex-start;
-  margin-top: 4px;
 }
 
-.customer-relations-strip--in-detail .customer-relations-strip__chip-cell {
+.customer-relations-chip {
   display: inline-flex;
   align-items: stretch;
   flex-shrink: 0;
-  min-width: 0;
   max-width: 100%;
   border: 1px solid var(--border-default);
   border-radius: 999px;
   overflow: hidden;
-  justify-self: start;
 }
 
-.customer-relations-strip--in-detail .customer-relations-strip__chip-cell--focused {
+.customer-relations-chip--focused {
   border: 2px solid var(--primary);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 20%, transparent);
 }
 
-.customer-relations-strip--in-detail .related-customer-tag__name {
-  min-height: 34px;
+.customer-relations-chip__label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
   padding: 0 10px;
   border: none;
   border-radius: 0;
+  background: transparent;
+  color: var(--text-primary);
   font-size: 0.875rem;
   font-weight: 600;
+  font-family: inherit;
+  line-height: 1.2;
+  cursor: pointer;
 }
 
-.customer-relations-strip--in-detail .related-customer-tag__remove {
-  min-width: 34px;
-  min-height: 34px;
+.customer-relations-chip__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 32px;
   padding: 0 8px;
   border: none;
   border-radius: 0;
+  background: transparent;
+  color: var(--text-secondary);
   font-size: 1rem;
   line-height: 1;
+  font-family: inherit;
+  cursor: pointer;
 }
 
 .customer-relations-strip__description {
@@ -6536,7 +6560,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
     padding: 0.5rem 0 0.75rem;
   }
 
-  .customer-relations-strip--in-detail .customer-relations-strip__chip-grid {
+  .customer-relations-strip--in-detail .customer-relations-strip__chip-list {
     gap: 8px;
   }
 }
@@ -11739,7 +11763,6 @@ textarea.memo-sticky-note__textarea::placeholder {
   gap: 16px;
   width: min(calc(100vw - 32px), 420px);
   max-width: none;
-  min-height: 220px;
   padding: 24px;
   text-align: left;
 }
@@ -11756,17 +11779,14 @@ textarea.memo-sticky-note__textarea::placeholder {
 }
 
 .storage-folder-sheet__body {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
+  flex: 0 0 auto;
 }
 
 .storage-folder-sheet__list {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-height: 320px;
+  max-height: min(50vh, 320px);
   overflow-y: auto;
 }
 
@@ -11889,7 +11909,7 @@ textarea.memo-sticky-note__textarea::placeholder {
    아이콘 버튼은 `.customers-page--pc .customer-card__actions .icon-box button` 등으로만 제한한다.
    ========================= */
 
-.customers-page--mobile button:not(.customer-detail-action-button):not(.customer-mobile-action-btn):not(.customer-detail-toggle-btn):not(.customer-header-app-link-compact__copy):not(.customer-filter-chip):not(.customers-page__action-btn):not(.storage-file-list__action-button):not(.customer-workspace-action-button):not(.customer-workspace-action-icon-button),
+.customers-page--mobile button:not(.customer-detail-action-button):not(.customer-mobile-action-btn):not(.customer-detail-toggle-btn):not(.customer-header-app-link-compact__copy):not(.customer-filter-chip):not(.customers-page__action-btn):not(.storage-file-list__action-button):not(.customer-workspace-action-button):not(.customer-workspace-action-icon-button):not(.customer-relations-strip__add-btn):not(.customer-relations-chip__label):not(.customer-relations-chip__remove):not(.customer-relations-result-item):not(.customer-relations-modal__close-btn),
 .customers-page--mobile a:not(.storage-file-list__action-button):not(.customer-workspace-action-button) {
   min-height: unset !important;
   height: auto !important;
