@@ -1,5 +1,6 @@
 import { FormButton } from '../../../components/form'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock'
 import { SignaturePad, type SignaturePadHandle } from './SignaturePad'
 
 export interface SignatureModalProps {
@@ -25,19 +26,7 @@ export function SignatureModal({ open, onClose, onSave, title, saveLabel, descri
   const titleText = title?.trim() || '서명'
   const saveText = saveLabel?.trim() || '저장'
 
-  useEffect(() => {
-    if (!open) {
-      return
-    }
-    const prevHtmlOverflow = document.documentElement.style.overflow
-    const prevBodyOverflow = document.body.style.overflow
-    document.documentElement.style.overflow = 'hidden'
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.documentElement.style.overflow = prevHtmlOverflow
-      document.body.style.overflow = prevBodyOverflow
-    }
-  }, [open])
+  useBodyScrollLock(open, { lockDocumentElement: true })
 
   useEffect(() => {
     if (!open) {

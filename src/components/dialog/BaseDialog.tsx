@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { emitFocusDebug } from '../../lib/focusDebug'
 
 export type BaseDialogProps = {
   open: boolean
@@ -59,6 +60,14 @@ export function BaseDialog({
     panelPreset === 'largeForm'
       ? '!w-[min(1080px,92vw)] !max-w-none !max-h-[86vh] !min-h-0 !flex !flex-col !overflow-hidden !p-0'
       : 'w-[90%] max-w-md p-4'
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+    emitFocusDebug('modal-open', { ariaLabel, panelPreset })
+    return () => emitFocusDebug('modal-close', { ariaLabel, panelPreset })
+  }, [ariaLabel, open, panelPreset])
 
   useEffect(() => {
     if (!open) {

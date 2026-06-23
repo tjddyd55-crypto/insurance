@@ -9,6 +9,7 @@ import { isElectronApp } from './lib/isElectronApp'
 import { isCustomerCreateMode } from './navigation/backNavigationPolicy'
 import { GaSettingsProvider } from './features/ga-settings/GaSettingsProvider'
 import useIsMobile from './hooks/useIsMobile'
+import { FocusDebugLogger } from './components/debug/FocusDebugLogger'
 
 export function AppLayout() {
   const { isAuthenticated } = useAuth()
@@ -35,6 +36,7 @@ export function AppLayout() {
 
   return (
     <div className={rootClass}>
+      <FocusDebugLogger />
       {/*
        * Electron 에서는 로그인 여부와 무관하게 타이틀바를 노출한다.
        * 창 최소화/최대화/닫기 버튼은 비인증 상태에서도 제공되어야 하기 때문.
