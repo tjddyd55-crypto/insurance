@@ -27,6 +27,8 @@ const SNAKE_CASE_CUSTOMER_MAPPING_JSON = JSON.stringify({
 
 const MANUAL_MAPPING = {
   dataSourceType: 'manual',
+  dataGroup: 'manual',
+  fieldKey: null,
   customerFieldKey: null,
   customerFieldLabel: null,
   fallbackText: null,
@@ -65,6 +67,8 @@ test('normalizeFieldSpec: preserves customer dataMapping on save payload', () =>
   )
   assert.equal(f.dataMapping.dataSourceType, 'customer')
   assert.equal(f.dataMapping.customerFieldKey, 'name')
+  assert.equal(f.dataMapping.dataGroup, 'default_customer')
+  assert.equal(f.dataMapping.fieldKey, 'name')
 })
 
 test('parseFieldDataMapping: legacy dob string maps to birthDate', () => {

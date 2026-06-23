@@ -777,45 +777,9 @@ export function PdfCoordinateEditor({
                   onChange={(e) => handlePatchField(selectedField.fieldKey, { label: e.target.value })}
                 />
               </label>
-              {selectedField.fieldType === 'text' || selectedField.fieldType === 'textarea' ? (
-                <div className="pdf-engine-editor__mapping-block">
-                  <h4 className="pdf-engine-editor__panel-title" style={{ fontSize: 13, marginTop: 8 }}>
-                    고객 데이터 매핑
-                  </h4>
-                  <PdfFieldDataMappingControls
-                    mapping={selectedField.dataMapping}
-                    onChange={(dataMapping, options) =>
-                      handlePatchField(selectedField.fieldKey, {
-                        dataMapping,
-                        dataMappingClearIntent: options?.clearIntent === true,
-                      })
-                    }
-                  />
-                  <label className="pdf-engine-editor__label" style={{ marginTop: 8 }}>
-                    값 없을 때 기본 문구 (선택)
-                    <input
-                      type="text"
-                      value={selectedField.dataMapping.fallbackText ?? ''}
-                      onChange={(e) =>
-                        handlePatchField(selectedField.fieldKey, {
-                          dataMapping: {
-                            ...selectedField.dataMapping,
-                            fallbackText: e.target.value.trim() || null,
-                          },
-                        })
-                      }
-                      placeholder="고객 데이터가 비어 있을 때"
-                    />
-                  </label>
-                </div>
-              ) : (
-                <p className="pdf-engine-editor__hint">
-                  체크·라디오·서명 필드는 고객 데이터 자동 매핑을 지원하지 않습니다.
-                </p>
-              )}
               <div className="pdf-engine-editor__row pdf-engine-editor__row--type-required">
                 <label className="pdf-engine-editor__label pdf-engine-editor__label--field-type">
-                  타입
+                  필드 타입
                   <select
                     value={selectedField.fieldType}
                     onChange={(e) =>
@@ -843,6 +807,43 @@ export function PdfCoordinateEditor({
                   />
                 </label>
               </div>
+              {selectedField.fieldType === 'text' ||
+              selectedField.fieldType === 'textarea' ||
+              selectedField.fieldType === 'checkbox' ||
+              selectedField.fieldType === 'radio' ? (
+                <div className="pdf-engine-editor__mapping-block">
+                  <h4 className="pdf-engine-editor__panel-title" style={{ fontSize: 13, marginTop: 8 }}>
+                    데이터 매핑
+                  </h4>
+                  <PdfFieldDataMappingControls
+                    mapping={selectedField.dataMapping}
+                    onChange={(dataMapping, options) =>
+                      handlePatchField(selectedField.fieldKey, {
+                        dataMapping,
+                        dataMappingClearIntent: options?.clearIntent === true,
+                      })
+                    }
+                  />
+                  {selectedField.fieldType === 'text' || selectedField.fieldType === 'textarea' ? (
+                    <label className="pdf-engine-editor__label" style={{ marginTop: 8 }}>
+                      값 없을 때 기본 문구 (선택)
+                      <input
+                        type="text"
+                        value={selectedField.dataMapping.fallbackText ?? ''}
+                        onChange={(e) =>
+                          handlePatchField(selectedField.fieldKey, {
+                            dataMapping: {
+                              ...selectedField.dataMapping,
+                              fallbackText: e.target.value.trim() || null,
+                            },
+                          })
+                        }
+                        placeholder="고객 데이터가 비어 있을 때"
+                      />
+                    </label>
+                  ) : null}
+                </div>
+              ) : null}
 
               {selectedField.fieldType === 'signature' ? (
                 <p className="pdf-engine-editor__hint" style={{ marginTop: 6 }}>

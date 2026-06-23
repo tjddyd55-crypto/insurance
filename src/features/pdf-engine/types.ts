@@ -5,6 +5,10 @@
  * 필드 타입을 추가할 때는 서버 스키마 + 여기 + DB CHECK 제약(initDb) 을 같이 수정한다.
  */
 
+import type { PdfFieldDataGroupId } from './config/pdfFieldDataGroups'
+
+export type { PdfFieldDataGroupId }
+
 export const PDF_FIELD_TYPES = [
   'text',
   'textarea',
@@ -60,6 +64,10 @@ export type PdfFieldDataSourceType = 'manual' | 'customer'
 /** 템플릿에 저장되는 매핑 메타 — 실제 고객 값은 저장하지 않는다. */
 export interface PdfFieldDataMapping {
   dataSourceType: PdfFieldDataSourceType
+  /** UI 데이터 구분 — legacy 저장본에는 없을 수 있다. */
+  dataGroup: PdfFieldDataGroupId | null
+  /** 구분 내 항목 키 — legacy 저장본에는 없을 수 있다. */
+  fieldKey: string | null
   customerFieldKey: string | null
   customerFieldLabel: string | null
   fallbackText: string | null
@@ -68,6 +76,8 @@ export interface PdfFieldDataMapping {
 
 export const DEFAULT_PDF_FIELD_DATA_MAPPING: PdfFieldDataMapping = {
   dataSourceType: 'manual',
+  dataGroup: 'manual',
+  fieldKey: null,
   customerFieldKey: null,
   customerFieldLabel: null,
   fallbackText: null,

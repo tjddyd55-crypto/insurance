@@ -11,8 +11,9 @@ function isCarMappedInputField(f: PdfFieldSpec): boolean {
   const dm = resolvePdfFieldMappingRaw(f)
   return (
     dm.dataSourceType === 'customer' &&
-    !!dm.customerFieldKey &&
-    isCustomerPdfCarFieldKey(dm.customerFieldKey) &&
+    dm.dataGroup === 'default_customer' &&
+    !!dm.fieldKey &&
+    isCustomerPdfCarFieldKey(dm.fieldKey) &&
     (f.fieldType === 'text' || f.fieldType === 'textarea')
   )
 }

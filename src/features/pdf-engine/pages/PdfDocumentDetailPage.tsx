@@ -547,7 +547,7 @@ export default function PdfDocumentDetailPage() {
           const m = normalizePdfFieldDataMapping(f.dataMapping)
           if (m.dataSourceType !== 'customer' || !m.customerFieldKey) return false
           if (f.fieldType !== 'text' && f.fieldType !== 'textarea') return false
-          return !isCustomerPdfCarFieldKey(m.customerFieldKey)
+          return !(m.dataGroup === 'default_customer' && m.fieldKey && isCustomerPdfCarFieldKey(m.fieldKey))
         }).length
         const carHint =
           sortedCars.length > 0

@@ -1,6 +1,14 @@
-import { CUSTOMER_PDF_FIELD_OPTIONS } from '../config/customerPdfFieldOptions'
+import {
+  PDF_FIELD_DATA_GROUPS,
+  buildPdfMappingKey,
+  labelForPdfDataGroup,
+  labelForPdfMappingItem,
+  listPdfFieldItemsForGroup,
+  parsePdfMappingKey,
+  type PdfFieldDataGroupId,
+} from '../config/pdfFieldDataGroups'
 import { normalizePdfFieldDataMapping } from '../lib/resolvePdfFieldValue'
-import type { PdfFieldDataMapping, PdfFieldDataSourceType } from '../types'
+import type { PdfFieldDataMapping } from '../types'
 
 type Props = {
   mapping: PdfFieldDataMapping
@@ -11,24 +19,48 @@ type Props = {
 export function formatPdfFieldMappingSummary(mapping: PdfFieldDataMapping): string {
   const m = normalizePdfFieldDataMapping(mapping)
   if (m.dataSourceType === 'customer' && m.customerFieldKey) {
-    const label =
+    const groupLabel = labelForPdfDataGroup(m.dataGroup ?? parsePdfMappingKey(m.customerFieldKey).dataGroup)
+    const itemLabel =
       m.customerFieldLabel ||
-      CUSTOMER_PDF_FIELD_OPTIONS.find((o) => o.key === m.customerFieldKey)?.label ||
+      labelForPdfMappingItem(
+        (m.dataGroup ?? parsePdfMappingKey(m.customerFieldKey).dataGroup) as PdfFieldDataGroupId,
+        m.fieldKey ?? parsePdfMappingKey(m.customerFieldKey).fieldKey,
+      ) ||
       m.customerFieldKey
-    return `고객 데이터 · ${label}`
+    return groupLabel ? `${groupLabel} · ${itemLabel}` : itemLabel
   }
   return '직접 입력'
 }
 
+function resolvedGroupAndField(m: PdfFieldDataMapping): {
+  dataGroup: PdfFieldDataGroupId
+  fieldKey: string | null
+} {
+  if (m.dataGroup && m.dataGroup !== 'manual') {
+    return { dataGroup: m.dataGroup, fieldKey: m.fieldKey }
+  }
+  if (m.customerFieldKey) {
+    const parsed = parsePdfMappingKey(m.customerFieldKey)
+    if (parsed.dataGroup !== 'manual') {
+      return { dataGroup: parsed.dataGroup, fieldKey: parsed.fieldKey }
+    }
+  }
+  return { dataGroup: 'manual', fieldKey: null }
+}
+
 export function PdfFieldDataMappingControls({ mapping, compact = false, onChange }: Props) {
   const m = normalizePdfFieldDataMapping(mapping)
+  const { dataGroup, fieldKey } = resolvedGroupAndField(m)
+  const items = listPdfFieldItemsForGroup(dataGroup)
 
-  const setSource = (dataSourceType: PdfFieldDataSourceType) => {
-    if (dataSourceType === 'manual') {
+  const commitCustomerMapping = (nextGroup: PdfFieldDataGroupId, nextFieldKey: string | null) => {
+    if (nextGroup === 'manual') {
       onChange(
         {
           ...m,
           dataSourceType: 'manual',
+          dataGroup: 'manual',
+          fieldKey: null,
           customerFieldKey: null,
           customerFieldLabel: null,
         },
@@ -36,55 +68,67 @@ export function PdfFieldDataMappingControls({ mapping, compact = false, onChange
       )
       return
     }
-    const first = CUSTOMER_PDF_FIELD_OPTIONS[0]
+    const fk = nextFieldKey ?? items[0]?.fieldKey ?? null
+    if (!fk) {
+      return
+    }
+    const customerFieldKey = buildPdfMappingKey(nextGroup, fk)
     onChange(
       {
         ...m,
         dataSourceType: 'customer',
-        customerFieldKey: m.customerFieldKey ?? first?.key ?? null,
-        customerFieldLabel: m.customerFieldLabel ?? (first ? first.label : null),
+        dataGroup: nextGroup,
+        fieldKey: fk,
+        customerFieldKey,
+        customerFieldLabel: labelForPdfMappingItem(nextGroup, fk) || null,
       },
       { clearIntent: false },
     )
   }
 
-  const setCustomerKey = (customerFieldKey: string) => {
-    const opt = CUSTOMER_PDF_FIELD_OPTIONS.find((o) => o.key === customerFieldKey)
-    onChange(
-      {
-        ...m,
-        dataSourceType: 'customer',
-        customerFieldKey: opt?.key ?? null,
-        customerFieldLabel: opt?.label ?? null,
-      },
-      { clearIntent: false },
-    )
+  const setDataGroup = (nextGroup: PdfFieldDataGroupId) => {
+    if (nextGroup === 'manual') {
+      commitCustomerMapping('manual', null)
+      return
+    }
+    const first = listPdfFieldItemsForGroup(nextGroup)[0]
+    commitCustomerMapping(nextGroup, first?.fieldKey ?? null)
+  }
+
+  const setFieldKey = (nextFieldKey: string) => {
+    if (dataGroup === 'manual') {
+      return
+    }
+    commitCustomerMapping(dataGroup, nextFieldKey)
   }
 
   return (
     <div className={compact ? 'pdf-engine-mapping-controls pdf-engine-mapping-controls--compact' : 'pdf-engine-mapping-controls'}>
       <label className="pdf-engine-editor__label pdf-engine-mapping-controls__source">
-        {compact ? null : <span className="pdf-engine-mapping-controls__label-text">입력 방식</span>}
+        {compact ? null : <span className="pdf-engine-mapping-controls__label-text">데이터 구분</span>}
         <select
-          value={m.dataSourceType}
-          onChange={(e) => setSource(e.target.value === 'customer' ? 'customer' : 'manual')}
+          value={dataGroup}
+          onChange={(e) => setDataGroup(e.target.value as PdfFieldDataGroupId)}
           onClick={(e) => e.stopPropagation()}
         >
-          <option value="manual">직접 입력</option>
-          <option value="customer">고객 데이터</option>
+          {PDF_FIELD_DATA_GROUPS.map((g) => (
+            <option key={g.id} value={g.id}>
+              {g.label}
+            </option>
+          ))}
         </select>
       </label>
-      {m.dataSourceType === 'customer' ? (
+      {dataGroup !== 'manual' ? (
         <label className="pdf-engine-editor__label pdf-engine-mapping-controls__customer-key">
-          {compact ? null : <span className="pdf-engine-mapping-controls__label-text">고객 데이터</span>}
+          {compact ? null : <span className="pdf-engine-mapping-controls__label-text">항목</span>}
           <select
-            value={m.customerFieldKey ?? ''}
-            onChange={(e) => setCustomerKey(e.target.value)}
+            value={fieldKey ?? ''}
+            onChange={(e) => setFieldKey(e.target.value)}
             onClick={(e) => e.stopPropagation()}
           >
             <option value="">— 선택 —</option>
-            {CUSTOMER_PDF_FIELD_OPTIONS.map((o) => (
-              <option key={o.key} value={o.key}>
+            {items.map((o) => (
+              <option key={o.fieldKey} value={o.fieldKey}>
                 {o.label}
               </option>
             ))}
