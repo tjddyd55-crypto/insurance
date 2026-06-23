@@ -28,6 +28,13 @@ function makeField(overrides = {}) {
   }
 }
 
+test('normalizeFieldSpec: inputOrder optional null', () => {
+  const out = normalizeFieldSpec(makeField({ inputOrder: null }))
+  assert.equal(out.inputOrder, null)
+  const withOrder = normalizeFieldSpec(makeField({ inputOrder: 3 }))
+  assert.equal(withOrder.inputOrder, 3)
+})
+
 test('normalizeFieldSpec: 허용 타입(text/textarea/checkbox/radio/signature) 모두 통과', () => {
   for (const t of ALLOWED_FIELD_TYPES) {
     /* 선택형 필드는 options + placement.optionValue 가 있어야 하므로 별도 빌더 사용 */

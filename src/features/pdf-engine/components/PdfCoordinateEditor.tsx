@@ -23,8 +23,16 @@ import type { PdfFieldSpec, PdfFieldType, PdfPlacement } from '../types'
 import { DEFAULT_PDF_FIELD_DATA_MAPPING, PDF_FIELD_TYPE_LABELS, PDF_FIELD_TYPES } from '../types'
 import {
   PdfFieldDataMappingControls,
-  formatPdfFieldMappingSummary,
 } from './PdfFieldDataMappingControls'
+import {
+  displayInputOrderRank,
+  moveFieldInputOrder,
+  sortPdfFieldsByInputOrder,
+} from '../lib/comparePdfFieldsByInputOrder'
+import {
+  formatPdfFieldChipLabel,
+  formatPdfFieldMappingDisplayName,
+} from '../lib/formatPdfFieldDisplayName'
 import { genPdfFieldKeyFromLabel } from '../pdfFieldKey'
 import { PdfOverlayCanvas, type OverlayMark, type OverlayPick, type PdfOverlayDebugMeta } from './PdfOverlayCanvas'
 import FormInput from '../../../components/form/FormInput'
@@ -174,6 +182,15 @@ export function PdfCoordinateEditor({
 
   const existingKeys = useMemo(() => new Set(fields.map((f) => f.fieldKey)), [fields])
 
+  const fieldsByInputOrder = useMemo(() => sortPdfFieldsByInputOrder(fields), [fields])
+
+  const handleMoveInputOrder = useCallback(
+    (fieldKey: string, direction: -1 | 1) => {
+      onChange(moveFieldInputOrder(fields, fieldKey, direction))
+    },
+    [fields, onChange],
+  )
+
   /** 왼쪽 필드 목록의 placement 들을 overlay 마커로 변환.
       박스 placement 는 width/height 를 같이 넘겨 사각형 마커로 그려진다. */
   const marks: OverlayMark[] = useMemo(() => {
@@ -202,7 +219,7 @@ export function PdfCoordinateEditor({
           const markId = isPendingOverlay
             ? `${f.fieldKey}${MARK_ID_PENDING}`
             : `${f.fieldKey}${MARK_ID_IDX}${storageIdx}`
-          const baseLabel = f.label || `필드 ${f.orderIndex + 1}`
+          const baseLabel = formatPdfFieldChipLabel(f)
           const pendingSuffix = isPendingOverlay ? ' · 미저장' : ''
           const composedLabel = p.optionValue
             ? `${baseLabel} · ${p.optionValue}${pendingSuffix}`
@@ -233,7 +250,7 @@ export function PdfCoordinateEditor({
       for (let i = 0; i < f.placements.length; i += 1) {
         const p = f.placements[i]
         const isActivePlacement = isActiveField && i === selectedPlacementIndex
-        const baseLabel = f.label || `필드 ${f.orderIndex + 1}`
+        const baseLabel = formatPdfFieldChipLabel(f)
         const composedLabel = p.optionValue ? `${baseLabel} · ${p.optionValue}` : baseLabel
         out.push({
           id: `${f.fieldKey}${MARK_ID_IDX}${i}`,
@@ -603,13 +620,20 @@ export function PdfCoordinateEditor({
     <div className="pdf-engine-editor">
       <aside className="pdf-engine-editor__panel pdf-engine-editor__panel--fields">
         <h3 className="pdf-engine-editor__panel-title">등록된 필드 ({fields.length})</h3>
+        <p className="pdf-engine-editor__hint pdf-engine-editor__hint--input-order">
+          <strong>좌표 위치:</strong> PDF 위에서 드래그해 저장한 위치입니다.
+          <br />
+          <strong>입력 순서:</strong> 고객이 신청서를 작성할 때 보이는 입력 순서입니다. 좌표 위치와 입력
+          순서는 서로 다를 수 있습니다.
+        </p>
         {fields.length > 0 ? (
           <div className="pdf-engine-editor__mapping-table" role="table" aria-label="필드별 고객 데이터 매핑">
             <div className="pdf-engine-editor__mapping-table-head" role="row">
+              <span role="columnheader">순서</span>
               <span role="columnheader">필드명</span>
               <span role="columnheader">매핑</span>
             </div>
-            {fields.map((f) => (
+            {fieldsByInputOrder.map((f) => (
               <div
                 key={`map-${f.fieldKey}`}
                 role="row"
@@ -622,11 +646,14 @@ export function PdfCoordinateEditor({
                   setSelectedPlacementIndex(f.placements.length > 0 ? 0 : null)
                 }}
               >
+                <span role="cell" className="pdf-engine-editor__mapping-table-order">
+                  #{displayInputOrderRank(fields, f.fieldKey)}
+                </span>
                 <span role="cell" className="pdf-engine-editor__mapping-table-label">
                   {f.label}
                 </span>
                 <span role="cell" className="pdf-engine-editor__mapping-table-summary">
-                  {formatPdfFieldMappingSummary(f.dataMapping)}
+                  {formatPdfFieldMappingDisplayName(f.dataMapping)}
                 </span>
               </div>
             ))}
@@ -636,8 +663,11 @@ export function PdfCoordinateEditor({
           <p className="pdf-engine-editor__hint">아직 필드가 없습니다.</p>
         ) : (
           <div className="pdf-engine-editor__field-cards">
-            {fields.map((f) => {
+            {fieldsByInputOrder.map((f) => {
               const active = f.fieldKey === selectedKey
+              const rank = displayInputOrderRank(fields, f.fieldKey)
+              const canMoveUp = rank > 1
+              const canMoveDown = rank < fields.length
               const pickField = () => {
                 setSelectedKey(f.fieldKey)
                 if (f.fieldType === 'radio') {
@@ -667,11 +697,43 @@ export function PdfCoordinateEditor({
                     }
                   }}
                 >
+                  <div className="pdf-engine-editor__field-card-order">
+                    <span className="pdf-engine-editor__field-card-rank">#{rank}</span>
+                    <div className="pdf-engine-editor__field-card-order-actions">
+                      <button
+                        type="button"
+                        className="pdf-engine-editor__btn pdf-engine-editor__btn--order"
+                        disabled={!canMoveUp}
+                        aria-label={`${f.label} 입력 순서 위로`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleMoveInputOrder(f.fieldKey, -1)
+                        }}
+                      >
+                        ▲
+                      </button>
+                      <button
+                        type="button"
+                        className="pdf-engine-editor__btn pdf-engine-editor__btn--order"
+                        disabled={!canMoveDown}
+                        aria-label={`${f.label} 입력 순서 아래로`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleMoveInputOrder(f.fieldKey, 1)
+                        }}
+                      >
+                        ▼
+                      </button>
+                    </div>
+                  </div>
                   <div className="pdf-engine-editor__field-card-main">
                     <div className="pdf-engine-editor__field-card-title">{f.label}</div>
                     <div className="pdf-engine-editor__field-card-meta">
+                      매핑: {formatPdfFieldMappingDisplayName(f.dataMapping)}
+                    </div>
+                    <div className="pdf-engine-editor__field-card-meta">
                       {PDF_FIELD_TYPE_LABELS[f.fieldType]} · {f.required ? '필수' : '선택'} · 좌표{' '}
-                      {placementDisplayCount}개 · {formatPdfFieldMappingSummary(f.dataMapping)}
+                      {placementDisplayCount}개
                     </div>
                   </div>
                   <button
@@ -754,6 +816,13 @@ export function PdfCoordinateEditor({
             <>
               <h3 className="pdf-engine-editor__panel-title">선택한 필드 설정</h3>
               <p className="pdf-engine-editor__config-selected-name">{selectedField.label}</p>
+              {(selectedField.fieldType === 'text' || selectedField.fieldType === 'textarea') &&
+              selectedField.dataMapping.dataSourceType === 'customer' &&
+              selectedField.dataMapping.customerFieldKey ? (
+                <p className="pdf-engine-editor__config-mapping-name">
+                  현재 매핑: {formatPdfFieldMappingDisplayName(selectedField.dataMapping)}
+                </p>
+              ) : null}
               <div className="pdf-engine-editor__selected-save-row">
                 <button
                   type="button"

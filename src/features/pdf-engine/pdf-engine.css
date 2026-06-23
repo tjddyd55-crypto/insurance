@@ -1394,7 +1394,7 @@
 .pdf-engine-editor__mapping-table-head,
 .pdf-engine-editor__mapping-table-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 44px 1fr 1fr;
   gap: 8px;
   padding: 8px 10px;
   align-items: center;
@@ -1418,6 +1418,58 @@
 
 .pdf-engine-editor__mapping-table-summary {
   color: var(--primary-active, var(--primary, #16a34a));
+}
+
+.pdf-engine-editor__mapping-table-order {
+  font-weight: 600;
+  color: var(--text-secondary, #64748b);
+  font-variant-numeric: tabular-nums;
+}
+
+.pdf-engine-editor__hint--input-order {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.pdf-engine-editor__config-mapping-name {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+.pdf-engine-editor__field-card-order {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.pdf-engine-editor__field-card-rank {
+  font-size: 12px;
+  font-weight: 700;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+}
+
+.pdf-engine-editor__field-card-order-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pdf-engine-editor__btn--order {
+  min-width: 28px;
+  padding: 2px 6px;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.pdf-engine-editor__btn--order:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .pdf-engine-mapping-controls {

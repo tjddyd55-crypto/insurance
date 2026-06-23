@@ -195,6 +195,7 @@ function fieldRowToDto(row) {
       fieldType: row.field_type,
       required: row.required,
       orderIndex: row.order_index,
+      inputOrder: row.input_order != null ? Number(row.input_order) : null,
       inputRole: row.input_role,
       options: Array.isArray(row.options) ? row.options : null,
       placements: Array.isArray(row.placements) ? row.placements : [],

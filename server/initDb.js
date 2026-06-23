@@ -4598,6 +4598,14 @@ export async function ensurePdfTemplateSchema(executor) {
     CREATE INDEX IF NOT EXISTS pdf_template_fields_tpl_order_idx
     ON pdf_template_fields (template_id, order_index)
   `)
+  await executor.query(`
+    ALTER TABLE pdf_template_fields
+    ADD COLUMN IF NOT EXISTS input_order INTEGER
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS pdf_template_fields_tpl_input_order_idx
+    ON pdf_template_fields (template_id, input_order)
+  `)
 
   /*
    * 발급 이력(pdf_issuances) — Phase 2 마무리.

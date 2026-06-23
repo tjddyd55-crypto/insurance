@@ -19,6 +19,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ChangeEvent, FormEvent, ReactElement } from 'react'
 import { FormButton, FormInput, FormTextarea } from '../../../components/form'
+import { sortPdfFieldsByInputOrder } from '../lib/comparePdfFieldsByInputOrder'
 import type { PdfFieldSpec, PdfFieldType } from '../types'
 
 interface Props {
@@ -230,7 +231,7 @@ export function PdfTemplateForm({
   }, [fields, prefilledValues])
 
   const sortedFields = useMemo(() => {
-    return [...fields].filter(fieldIsCustomerFacing).sort((a, b) => a.orderIndex - b.orderIndex)
+    return sortPdfFieldsByInputOrder(fields.filter(fieldIsCustomerFacing))
   }, [fields])
 
   const setValue = (key: string) => (next: string) =>
