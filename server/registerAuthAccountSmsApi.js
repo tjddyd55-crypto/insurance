@@ -4,6 +4,10 @@ import { systemQuery } from './utils/dbSafeQuery.js'
 import { sendVerificationCode } from './services/smsService.js'
 import { consumeSmsVerificationCode } from './services/consumeSmsVerificationCode.js'
 import { runAccountResetDataOnClient } from './services/accountResetService.js'
+import {
+  assertAccountDeletionAllowed,
+  runAccountDeletionOnClient,
+} from './services/accountDeletionService.js'
 import { assertNotVerifyLocked, recordVerifyFailure, clearVerifyFailures } from './services/smsRateLimit.js'
 import { assertPhoneSms10MinLimit, recordPhoneSms10MinSend } from './services/smsPhoneWindowLimit.js'
 import { logSmsVerifyFailure } from './services/smsStructuredLog.js'
@@ -734,6 +738,65 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
       } catch {
         /* ignore */
       }
+      handleDbError(e, req, res)
+    } finally {
+      client.release()
+    }
+  })
+
+  apiRouter.post('/account/delete-request', requireAuth, requireEndUser, async (req, res) => {
+    const client = await pool.connect()
+    try {
+      const userId = String(req.user?.id ?? '').trim()
+      const actorGaId = parseGaId(req.user?.gaId)
+      if (actorGaId == null) {
+        res.status(400).json({ message: '세션 GA 정보가 올바르지 않습니다.' })
+        return
+      }
+
+      await client.query('BEGIN')
+      const uR = await client.query(
+        `
+        SELECT id, role, status, is_deleted
+        FROM users
+        WHERE id = $1 AND ga_id = $2
+        FOR UPDATE
+        `,
+        [userId, actorGaId],
+      )
+      const u = uR.rows[0]
+      const allowed = assertAccountDeletionAllowed(u)
+      if (!allowed.ok) {
+        await client.query('ROLLBACK')
+        const statusCode =
+          allowed.code === 'role_forbidden' || allowed.code === 'status_forbidden' ? 403 : 400
+        res.status(statusCode).json({ message: allowed.message })
+        return
+      }
+
+      const newUsername = `__deleted_${userId.replace(/-/g, '')}`
+      const randomPwdHash = await bcrypt.hash(randomUUID(), 10)
+
+      await runAccountDeletionOnClient(client, {
+        userId,
+        gaId: actorGaId,
+        newUsername,
+        passwordHash: randomPwdHash,
+      })
+      await client.query('COMMIT')
+
+      logSmsEvent('account_deletion_requested', { userId })
+      res.json({
+        ok: true,
+        message: '계정 삭제 요청이 접수되었습니다. 이용해 주셔서 감사합니다.',
+      })
+    } catch (e) {
+      try {
+        await client.query('ROLLBACK')
+      } catch {
+        /* ignore */
+      }
+      console.error('[account] delete-request', e)
       handleDbError(e, req, res)
     } finally {
       client.release()

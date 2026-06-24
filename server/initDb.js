@@ -1188,7 +1188,11 @@ export async function initDb() {
   await pool.query(`
     ALTER TABLE users
     ADD CONSTRAINT users_status_check
-    CHECK (status IN ('active', 'blocked', 'inactive', 'reset'))
+    CHECK (status IN ('active', 'blocked', 'inactive', 'reset', 'deletion_requested'))
+  `)
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS deletion_requested_at TIMESTAMPTZ
   `)
 
   /* 휴대폰 유니크는 운영 정책 확정 후 ADD CONSTRAINT ... UNIQUE (phone_number) 등으로 붙일 수 있음 */
