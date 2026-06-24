@@ -89,7 +89,6 @@ import {
 import {
   isCustomerWorkspaceSideDetailPath,
   parseWorkspaceCustomerIdFromPath,
-  resolveCustomerWorkspaceTab,
   parseSelectedCustomerId,
 } from '../utils/customerWorkspaceNavigation'
 import {
@@ -101,6 +100,7 @@ import {
   CUSTOMER_LIST_PATH,
   CUSTOMER_CREATE_MODE_QUERY,
   buildCustomerWorkspacePath,
+  PC_DEFAULT_CUSTOMER_WORKSPACE_TAB,
   buildCustomerListPath,
 } from '../utils/customerRoutePaths'
 import { navigateToCustomerOnMap } from '../utils/customerMapFocusNavigation'
@@ -713,18 +713,21 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       if (isMobile) {
         return
       }
-      const safeTab = resolveCustomerWorkspaceTab(location.pathname)
       const next = new URLSearchParams(searchParams)
       next.set('customerId', String(c.id))
       navigate(
-        buildCustomerWorkspacePath({ customerId: c.id, tab: safeTab, query: next }),
+        buildCustomerWorkspacePath({
+          customerId: c.id,
+          tab: PC_DEFAULT_CUSTOMER_WORKSPACE_TAB,
+          query: next,
+        }),
         {
           replace: true,
           state: { customerName: c.name },
         },
       )
     },
-    [isMobile, location.pathname, navigate, searchParams],
+    [isMobile, navigate, searchParams],
   )
 
   const handleOpenRelatedCustomer = useCallback(
@@ -750,16 +753,19 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         return
       }
 
-      const safeTab = resolveCustomerWorkspaceTab(location.pathname)
       navigate(
-        buildCustomerWorkspacePath({ customerId, tab: safeTab, query: next }),
+        buildCustomerWorkspacePath({
+          customerId,
+          tab: PC_DEFAULT_CUSTOMER_WORKSPACE_TAB,
+          query: next,
+        }),
         {
           replace: true,
           state: customerName?.trim() ? { customerName } : undefined,
         },
       )
     },
-    [isMobile, location.pathname, navigate, searchParams, setExpandedId],
+    [isMobile, navigate, searchParams, setExpandedId],
   )
 
   useEffect(() => {
