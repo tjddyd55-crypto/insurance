@@ -1,4 +1,44 @@
-/** @typedef {{ name?: string; position?: string; phone?: string }} HistoryContactLine */
+/** @typedef {{ name?: string; position?: string; phone?: string; displayOrder?: number; sortOrder?: number; orderIndex?: number; positionOrder?: number; sequence?: number; id?: number }} HistoryContactLine */
+
+const STAFF_ORDER_FIELD_KEYS = ['displayOrder', 'sortOrder', 'orderIndex', 'positionOrder', 'sequence']
+
+export function getStaffContactOrder(row) {
+  if (!row || typeof row !== 'object') {
+    return null
+  }
+  for (const key of STAFF_ORDER_FIELD_KEYS) {
+    const value = Number(row[key])
+    if (Number.isFinite(value)) {
+      return value
+    }
+  }
+  return null
+}
+
+/**
+ * staff 입력/저장 순서 기준 정렬. 직책명 정렬은 하지 않는다.
+ * @param {HistoryContactLine[]} rows
+ */
+export function sortCompanyContactsByInputOrder(rows) {
+  const list = Array.isArray(rows) ? rows : []
+  return list
+    .map((row, index) => ({ row, index }))
+    .sort((left, right) => {
+      const leftOrder = getStaffContactOrder(left.row)
+      const rightOrder = getStaffContactOrder(right.row)
+      if (leftOrder != null && rightOrder != null) {
+        return leftOrder - rightOrder
+      }
+      if (leftOrder != null) {
+        return -1
+      }
+      if (rightOrder != null) {
+        return 1
+      }
+      return left.index - right.index
+    })
+    .map((entry) => entry.row)
+}
 
 export function normalizeHistoryText(value) {
   return String(value ?? '').trim()
@@ -26,8 +66,8 @@ export function contactRoleKey(position) {
  * @param {HistoryContactLine[]} afterContacts
  */
 export function pairHistoryContacts(beforeContacts, afterContacts) {
-  const before = Array.isArray(beforeContacts) ? beforeContacts : []
-  const after = Array.isArray(afterContacts) ? afterContacts : []
+  const before = sortCompanyContactsByInputOrder(Array.isArray(beforeContacts) ? beforeContacts : [])
+  const after = sortCompanyContactsByInputOrder(Array.isArray(afterContacts) ? afterContacts : [])
 
   const beforeByRole = new Map()
   for (const row of before) {
@@ -62,8 +102,9 @@ export function pairHistoryContacts(beforeContacts, afterContacts) {
     })
   }
 
-  for (const [key, beforeRow] of beforeByRole) {
-    if (matchedBeforeKeys.has(key)) {
+  for (const beforeRow of before) {
+    const key = contactRoleKey(beforeRow.position)
+    if (key && matchedBeforeKeys.has(key)) {
       continue
     }
     const beforePos = normalizeHistoryText(beforeRow.position)
@@ -78,12 +119,6 @@ export function pairHistoryContacts(beforeContacts, afterContacts) {
       isNew: false,
     })
   }
-
-  pairs.sort((left, right) => {
-    const leftKey = contactRoleKey(left.after.position || left.before.position)
-    const rightKey = contactRoleKey(right.after.position || right.before.position)
-    return leftKey.localeCompare(rightKey, 'ko')
-  })
 
   return pairs
 }
