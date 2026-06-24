@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
+import useIsMobile from '../../../hooks/useIsMobile'
 import { useAuth } from '../../auth/AuthProvider'
 import type { TodoDto } from '../domain/todoTypes'
 import { completeTodo, listTodos, reopenTodo } from '../api/todosApi'
@@ -20,6 +21,7 @@ export function useTodosWorkspaceState() {
   const { token, user } = useAuth()
   const gaId = user?.gaId != null && Number.isFinite(Number(user.gaId)) ? Number(user.gaId) : null
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
 
   const [quick, setQuick] = useState<TodoQuickFilter>('open')
   const [relatedFilter, setRelatedFilter] = useState<TodoRelatedFilter>('any')
@@ -104,14 +106,20 @@ export function useTodosWorkspaceState() {
 
   const onRelatedNavigate = useCallback(
     (row: TodoDto) => {
-      const href = buildRelatedEntityHref(row.relatedEntityType, row.relatedEntityId)
+      const href = buildRelatedEntityHref(row.relatedEntityType, row.relatedEntityId, {
+        isMobile,
+      })
       if (href) {
-        navigate(href, { replace: false })
+        const customerName = row.customerName?.trim()
+        navigate(href, {
+          replace: false,
+          state: customerName ? { customerName } : undefined,
+        })
         return true
       }
       return false
     },
-    [navigate],
+    [isMobile, navigate],
   )
 
   return {
