@@ -146,6 +146,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   const [mobileCopyFeedback, setMobileCopyFeedback] = useState<{
     customerId: number
     message: string
+    tone: 'success' | 'error'
   } | null>(null)
   const mobileCopyFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -1130,7 +1131,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         if (mobileCopyFeedbackTimerRef.current != null) {
           window.clearTimeout(mobileCopyFeedbackTimerRef.current)
         }
-        setMobileCopyFeedback({ customerId: rec.id, message: msg })
+        setMobileCopyFeedback({ customerId: rec.id, message: msg, tone: ok ? 'success' : 'error' })
         mobileCopyFeedbackTimerRef.current = window.setTimeout(() => {
           setMobileCopyFeedback(null)
           mobileCopyFeedbackTimerRef.current = null

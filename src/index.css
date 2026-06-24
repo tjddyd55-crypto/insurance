@@ -9553,16 +9553,23 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 }
 
 .customers-page--mobile .customer-mobile-copy-feedback {
-  margin: 0 0 8px;
-  padding: 8px 10px;
-  border-radius: 10px;
-  border: 1px solid var(--border-default);
-  background: #1f2937;
-  color: var(--text-main);
-  font-size: 0.9rem;
+  margin: 10px 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 0.875rem;
   font-weight: 600;
   line-height: 1.35;
   text-align: center;
+  box-shadow: none;
+}
+
+.customers-page--mobile .customer-mobile-copy-feedback--success {
+  color: #16a34a;
+}
+
+.customers-page--mobile .customer-mobile-copy-feedback--error {
+  color: #dc2626;
 }
 
 .customers-page--mobile .customer-detail-feature-actions--mobile-grid-8 {
