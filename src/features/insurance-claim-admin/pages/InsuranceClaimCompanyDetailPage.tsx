@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
+import { logger } from '../../../lib/logger'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import {
@@ -20,6 +21,43 @@ import {
 import '../insurance-claim-admin.css'
 
 const PRIMARY_DOC_TYPES: InsuranceClaimDocumentType[] = ['claim_form', 'consent_form']
+const INPUT_DIAGNOSTIC_WINDOW_MS = 45_000
+
+function describeElement(element: Element | null): string {
+  if (!element) return 'null'
+  const tag = element.tagName.toLowerCase()
+  const id = element.id ? `#${element.id}` : ''
+  const classes = Array.from(element.classList).slice(0, 3).map((className) => `.${className}`).join('')
+  return `${tag}${id}${classes}`
+}
+
+function readInputDiagnosticSnapshot(target: HTMLElement) {
+  const root = document.getElementById('root')
+  const overlays = Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"]'))
+    .filter((element) => {
+      const style = window.getComputedStyle(element)
+      return style.display !== 'none' && style.visibility !== 'hidden'
+    })
+    .map((element) => {
+      const style = window.getComputedStyle(element)
+      return {
+        element: describeElement(element),
+        pointerEvents: style.pointerEvents,
+        zIndex: style.zIndex,
+      }
+    })
+
+  return {
+    target: describeElement(target),
+    activeElement: describeElement(document.activeElement),
+    documentHasFocus: document.hasFocus(),
+    bodyOverflow: document.body.style.overflow,
+    htmlOverflow: document.documentElement.style.overflow,
+    rootInert: root?.hasAttribute('inert') ?? false,
+    rootAriaHidden: root?.getAttribute('aria-hidden') ?? null,
+    overlays,
+  }
+}
 
 export default function InsuranceClaimCompanyDetailPage() {
   const { id: idParam } = useParams<{ id: string }>()
@@ -45,6 +83,36 @@ export default function InsuranceClaimCompanyDetailPage() {
   const [uploadFiles, setUploadFiles] = useState<File[]>([])
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
+  const inputDiagnosticUntilRef = useRef(0)
+  const inputDiagnosticFocusLoggedRef = useRef(false)
+
+  useEffect(() => {
+    const isActive = () => Date.now() < inputDiagnosticUntilRef.current
+    const isInput = (target: EventTarget | null): target is HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement =>
+      target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement
+
+    const onFocusIn = (event: FocusEvent) => {
+      if (!isActive() || inputDiagnosticFocusLoggedRef.current || !isInput(event.target)) return
+      inputDiagnosticFocusLoggedRef.current = true
+      logger.warn('insurance-claim.input-diagnostic.focus-received', readInputDiagnosticSnapshot(event.target))
+    }
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (!isActive() || !isInput(event.target)) return
+      const target = event.target
+      window.requestAnimationFrame(() => {
+        if (!isActive() || document.activeElement === target) return
+        logger.error('insurance-claim.input-diagnostic.focus-failed', readInputDiagnosticSnapshot(target))
+      })
+    }
+
+    document.addEventListener('focusin', onFocusIn, true)
+    document.addEventListener('pointerdown', onPointerDown, true)
+    return () => {
+      document.removeEventListener('focusin', onFocusIn, true)
+      document.removeEventListener('pointerdown', onPointerDown, true)
+    }
+  }, [])
 
   const load = useCallback(async () => {
     if (!token?.trim() || !Number.isInteger(companyId) || companyId < 1) return
@@ -89,6 +157,13 @@ export default function InsuranceClaimCompanyDetailPage() {
       })
       setCompany(res.company)
       setSaveInfo('저장되었습니다.')
+      inputDiagnosticUntilRef.current = Date.now() + INPUT_DIAGNOSTIC_WINDOW_MS
+      inputDiagnosticFocusLoggedRef.current = false
+      logger.warn('insurance-claim.input-diagnostic.session-started', {
+        companyId: company.id,
+        role: 'insurance_claim_admin',
+        windowMs: INPUT_DIAGNOSTIC_WINDOW_MS,
+      })
     } catch (e) {
       setError(e instanceof ApiError ? e.message : '저장에 실패했습니다.')
     } finally {
