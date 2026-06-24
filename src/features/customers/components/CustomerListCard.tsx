@@ -128,7 +128,7 @@ export type CustomerListCardProps = {
   onOpenMemos: (customerId: number) => void
   onOpenOnMap: (customerId: number) => void
   /** 모바일 카드 상단 복사 피드백(부모 `CustomersPage` 상태) */
-  mobileCopyFeedback: { customerId: number; message: string } | null
+  mobileCopyFeedback: { customerId: number; message: string; tone: 'success' | 'error' } | null
   onOpenRelatedCustomer: (customerId: number, customerName?: string) => void
   token: string | null
   onToggleFavorite: (c: CustomerRecord) => void | Promise<void>
@@ -443,7 +443,7 @@ const CustomerListCard = memo(function CustomerListCard({
                 {mobileCopyFeedback?.customerId === c.id ? (
                   <p
                     id={`customer-${c.id}-copy-feedback`}
-                    className="customer-mobile-copy-feedback"
+                    className={`customer-mobile-copy-feedback customer-mobile-copy-feedback--${mobileCopyFeedback.tone}`}
                     role="status"
                     aria-live="polite"
                   >
