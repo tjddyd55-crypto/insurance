@@ -116,6 +116,7 @@ import { registerDownloadRoutes } from './routes/downloads.js'
 import { seedInsuranceCompanyDirectory } from './seedInsuranceData.js'
 import { registerSubscriptionAdminApi } from './registerSubscriptionAdminApi.js'
 import { registerPdfTemplateApi } from './registerPdfTemplateApi.js'
+import { registerInsuranceClaimCompanyApi } from './registerInsuranceClaimCompanyApi.js'
 import { registerInsurerSitesApi } from './registerInsurerSitesApi.js'
 import { registerPlatformAdminApi } from './registerPlatformAdminApi.js'
 import { registerCrmCustomerTemplateAdminApi } from './registerCrmCustomerTemplateAdminApi.js'
@@ -1569,6 +1570,12 @@ registerPdfTemplateApi(apiRouter, {
   pool,
   requireAuth,
   isSuperAdminRole,
+  handleDbError,
+})
+
+registerInsuranceClaimCompanyApi(apiRouter, {
+  pool,
+  requireAuth,
   handleDbError,
 })
 

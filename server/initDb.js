@@ -3454,6 +3454,7 @@ export async function initDb() {
   await ensureSubscriptionSchema(pool)
   await ensureSignatureSchema(pool)
   await ensurePdfTemplateSchema(pool)
+  await ensureInsuranceClaimCompanySchema(pool)
   await ensureContractSelfSmsSchema(pool)
   await ensureInsurerSitesSchema(pool)
   await ensurePublicCustomerInviteSessionsSchema(pool)
@@ -5220,3 +5221,102 @@ async function seedConsentTemplatesIfNeeded() {
     console.error('[initDb] consent_templates 시드 실패:', e)
   }
 }
+
+const INSURANCE_CLAIM_COMPANY_TYPES = ['life', 'non_life', 'mutual', 'other']
+const INSURANCE_CLAIM_DOCUMENT_TYPES = ['claim_form', 'consent_form', 'extra_form']
+
+/**
+ * 보험청구 전용 보험회사 마스터·문서·좌표 스키마.
+ * 일반 pdf_templates 와 분리 — 관리자 청구관리 > 보험회사 설정 전용.
+ */
+export async function ensureInsuranceClaimCompanySchema(executor) {
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS insurance_companies (
+      id SERIAL PRIMARY KEY,
+      company_name TEXT NOT NULL,
+      company_type TEXT NOT NULL DEFAULT 'other',
+      fax_number TEXT DEFAULT '',
+      display_order INTEGER NOT NULL DEFAULT 0,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      memo TEXT DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`ALTER TABLE insurance_companies DROP CONSTRAINT IF EXISTS insurance_companies_type_check`)
+  await executor.query(`
+    ALTER TABLE insurance_companies
+    ADD CONSTRAINT insurance_companies_type_check
+    CHECK (company_type IN ('life', 'non_life', 'mutual', 'other'))
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS insurance_companies_type_order_idx
+    ON insurance_companies (company_type, display_order, company_name)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS insurance_company_claim_documents (
+      id SERIAL PRIMARY KEY,
+      insurance_company_id INTEGER NOT NULL REFERENCES insurance_companies(id) ON DELETE CASCADE,
+      document_type TEXT NOT NULL,
+      title TEXT NOT NULL DEFAULT '',
+      file_name TEXT DEFAULT '',
+      storage_key TEXT NOT NULL DEFAULT '',
+      page_count INTEGER NOT NULL DEFAULT 0,
+      source_pdf_metadata JSONB,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    ALTER TABLE insurance_company_claim_documents
+    DROP CONSTRAINT IF EXISTS insurance_company_claim_documents_type_check
+  `)
+  await executor.query(`
+    ALTER TABLE insurance_company_claim_documents
+    ADD CONSTRAINT insurance_company_claim_documents_type_check
+    CHECK (document_type IN ('claim_form', 'consent_form', 'extra_form'))
+  `)
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS insurance_company_claim_documents_company_type_uk
+    ON insurance_company_claim_documents (insurance_company_id, document_type)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS insurance_company_claim_document_fields (
+      id SERIAL PRIMARY KEY,
+      document_id INTEGER NOT NULL REFERENCES insurance_company_claim_documents(id) ON DELETE CASCADE,
+      field_key TEXT NOT NULL,
+      label TEXT NOT NULL,
+      field_type TEXT NOT NULL,
+      data_mapping JSONB,
+      options JSONB,
+      placements JSONB NOT NULL DEFAULT '[]'::jsonb,
+      order_index INTEGER NOT NULL DEFAULT 0,
+      input_order INTEGER,
+      required BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    ALTER TABLE insurance_company_claim_document_fields
+    DROP CONSTRAINT IF EXISTS insurance_company_claim_document_fields_type_check
+  `)
+  await executor.query(`
+    ALTER TABLE insurance_company_claim_document_fields
+    ADD CONSTRAINT insurance_company_claim_document_fields_type_check
+    CHECK (field_type IN ('text', 'textarea', 'checkbox', 'radio', 'signature'))
+  `)
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS insurance_company_claim_document_fields_doc_key_uk
+    ON insurance_company_claim_document_fields (document_id, field_key)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS insurance_company_claim_document_fields_doc_order_idx
+    ON insurance_company_claim_document_fields (document_id, COALESCE(input_order, order_index))
+  `)
+}
+
+export { INSURANCE_CLAIM_COMPANY_TYPES, INSURANCE_CLAIM_DOCUMENT_TYPES }

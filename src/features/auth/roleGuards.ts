@@ -14,6 +14,13 @@ export function canUsePdfTemplateAdminRoutes(role: string | undefined): boolean 
   return role != null && (PDF_TEMPLATE_ADMIN_ROLES as readonly string[]).includes(role)
 }
 
+/** 보험청구 보험회사 설정 — PDF 템플릿 관리와 동일 관리자 역할 */
+export const INSURANCE_CLAIM_ADMIN_ROLES: UserRole[] = ['SUPER_ADMIN', 'GA_ADMIN', 'GA_STAFF']
+
+export function canUseInsuranceClaimAdminRoutes(role: string | undefined): boolean {
+  return role != null && (INSURANCE_CLAIM_ADMIN_ROLES as readonly string[]).includes(role)
+}
+
 /** 소식지·게시판 메뉴 관리 — GA 테넌트 관리자·스태프 + 플랫폼 관리자 */
 export const NEWSLETTER_BOARD_ADMIN_ROLES: UserRole[] = ['SUPER_ADMIN', 'GA_ADMIN', 'GA_STAFF']
 
