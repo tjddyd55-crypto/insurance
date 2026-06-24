@@ -40,10 +40,12 @@ import {
   list as listClaimRequests,
   listByCustomerId,
   markGenerated,
+  markDownloaded,
   updateDraft,
 } from './insurance-claim/repository/insuranceClaimRequestRepo.js'
 import { stampPdf } from './pdf-engine/renderer/stampPdf.js'
 import { resolveInsuranceClaimFieldValues } from './insurance-claim/claimFieldValueResolver.js'
+import { pipeClaimFilesZip, buildClaimBundleDownloadName, buildContentDisposition } from './lib/claimRequestFileBundle.js'
 
 const MAX_PDF_UPLOAD_FILES = 20
 const MAX_PDF_UPLOAD_BYTES_PER_FILE = 25 * 1024 * 1024
@@ -246,6 +248,18 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
       }
       const updated = await markGenerated(pool, req.insuranceClaimGaId, id, { documents: generated, generatedAt: new Date().toISOString() })
       res.json({ request: updated })
+    } catch (error) { handleDbError(error, req, res) }
+  })
+
+  apiRouter.get('/insurance-claim/requests/:id/download', ...claimRequestMw, async (req, res) => {
+    try {
+      const request = await getClaimRequestById(pool, req.insuranceClaimGaId, parsePositiveInt(req.params.id))
+      const files = request?.generatedDocumentMetadata?.documents
+      if (!request || !Array.isArray(files) || files.length === 0) return res.status(404).json({ message: '생성된 청구 문서가 없습니다.' })
+      await markDownloaded(pool, req.insuranceClaimGaId, request.id)
+      res.status(200).setHeader('Content-Type', 'application/zip')
+      res.setHeader('Content-Disposition', buildContentDisposition(buildClaimBundleDownloadName(request.insuredSnapshot?.name, request.createdAt, 'zip')))
+      await pipeClaimFilesZip(res, files, getClaimDocumentObject)
     } catch (error) { handleDbError(error, req, res) }
   })
 
