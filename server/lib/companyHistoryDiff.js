@@ -150,3 +150,86 @@ export function isHistoryContactFieldChanged(field, beforeRow, afterRow, options
   }
   return false
 }
+
+/** @typedef {{
+ *   id?: string | number
+ *   companyId?: string
+ *   companyName?: string
+ *   category?: string
+ *   updatedAt?: string
+ *   savedAt?: string
+ *   before?: unknown
+ *   after?: unknown
+ * }} CompanyHistoryEntryLike */
+
+/**
+ * 화면 표시용 날짜 + 보험회사 그룹 키.
+ * @param {CompanyHistoryEntryLike} entry
+ */
+export function getHistoryCompanyGroupKey(entry) {
+  const displayDate = normalizeHistoryText(entry.updatedAt) || '날짜 없음'
+  const companyId = normalizeHistoryText(entry.companyId)
+  if (companyId) {
+    return `${displayDate}:${companyId}`
+  }
+  const category = normalizeHistoryText(entry.category)
+  const companyName = normalizeHistoryText(entry.companyName)
+  return `${displayDate}:${category}:${companyName}`
+}
+
+/**
+ * @param {CompanyHistoryEntryLike} left
+ * @param {CompanyHistoryEntryLike} right
+ * @returns {number} 양수면 left가 더 최신
+ */
+export function compareHistoryEntryRecency(left, right) {
+  const leftTime = new Date(left.savedAt ?? left.updatedAt ?? 0).getTime()
+  const rightTime = new Date(right.savedAt ?? right.updatedAt ?? 0).getTime()
+  if (leftTime !== rightTime) {
+    return leftTime - rightTime
+  }
+  return Number(left.id ?? 0) - Number(right.id ?? 0)
+}
+
+/**
+ * @param {CompanyHistoryEntryLike[]} entries
+ */
+export function pickLatestHistoryEntry(entries) {
+  const list = Array.isArray(entries) ? entries : []
+  if (list.length === 0) {
+    return null
+  }
+  return [...list].sort((left, right) => compareHistoryEntryRecency(right, left))[0]
+}
+
+/**
+ * 같은 날짜 + 같은 보험회사 이력은 최신 저장본 1건만 남긴다. DB 원본은 변경하지 않는다.
+ * @param {CompanyHistoryEntryLike[]} entries
+ */
+export function collapseCompanyHistoryByDateAndCompany(entries) {
+  const list = Array.isArray(entries) ? entries : []
+  const latestByGroup = new Map()
+
+  for (const entry of list) {
+    const key = getHistoryCompanyGroupKey(entry)
+    const prev = latestByGroup.get(key)
+    if (!prev || compareHistoryEntryRecency(entry, prev) > 0) {
+      latestByGroup.set(key, entry)
+    }
+  }
+
+  return [...latestByGroup.values()].sort((left, right) => {
+    const dateCmp = (right.updatedAt || '').localeCompare(left.updatedAt || '')
+    if (dateCmp !== 0) {
+      return dateCmp
+    }
+    const timeCmp = compareHistoryEntryRecency(right, left)
+    if (timeCmp !== 0) {
+      return timeCmp
+    }
+    return normalizeHistoryText(left.companyName).localeCompare(
+      normalizeHistoryText(right.companyName),
+      'ko',
+    )
+  })
+}
