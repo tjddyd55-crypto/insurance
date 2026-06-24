@@ -7,10 +7,10 @@ import {
   fieldSpecWithDbMapping,
   normalizeFieldSpec,
   normalizeFieldSpecList,
-} from '../pdf-engine/schema/fieldSpec.js'
-import { inputRoleFromPdfFieldRow } from '../pdf-engine/schema/inputRole.js'
-import { mergePdfFieldCustomerMappings } from '../pdf-engine/schema/fieldDataMapping.js'
-import { mergePdfUploadBuffers } from '../pdf-engine/pdf/mergePdfBuffers.js'
+} from './pdf-engine/schema/fieldSpec.js'
+import { inputRoleFromPdfFieldRow } from './pdf-engine/schema/inputRole.js'
+import { mergePdfFieldCustomerMappings } from './pdf-engine/schema/fieldDataMapping.js'
+import { mergePdfUploadBuffers } from './pdf-engine/pdf/mergePdfBuffers.js'
 import {
   buildClaimDocumentStorageKey,
   deleteClaimDocumentObject,
