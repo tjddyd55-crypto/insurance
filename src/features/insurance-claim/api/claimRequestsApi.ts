@@ -4,6 +4,7 @@ export type ClaimRequestDraft = {
   id: number
   customerId: number | null
   insuranceCompanyId: number
+  insuranceCompanyName?: string | null
   status: string
   insuredSnapshot: Record<string, string>
   contractorSnapshot: Record<string, string> | null
@@ -12,6 +13,8 @@ export type ClaimRequestDraft = {
   paymentData: Record<string, string>
   signatureData: Record<string, unknown>
   sourceClaimRequestId: number | null
+  createdAt?: string
+  updatedAt?: string
 }
 
 export type ClaimCompany = { id: number; companyName: string; faxNumber: string }
@@ -34,4 +37,12 @@ export async function updateClaimDraft(token: string, id: number, body: Omit<Cla
   return apiRequest<{ request: ClaimRequestDraft }>(`/api/insurance-claim/requests/${id}`, {
     method: 'PATCH', token, body: JSON.stringify(body),
   })
+}
+
+export async function listClaimRequests(token: string) {
+  return apiRequest<{ requests: ClaimRequestDraft[] }>('/api/insurance-claim/requests', { token })
+}
+
+export async function duplicateClaimRequest(token: string, id: number) {
+  return apiRequest<{ request: ClaimRequestDraft }>(`/api/insurance-claim/requests/${id}/duplicate`, { method: 'POST', token })
 }
