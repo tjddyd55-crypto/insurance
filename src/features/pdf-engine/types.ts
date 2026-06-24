@@ -82,6 +82,11 @@ export interface PdfFieldSpec {
   fieldType: PdfFieldType
   required: boolean
   orderIndex: number
+  /**
+   * 신청서 입력 화면 표시 순서. null 이면 orderIndex → placement(page,y,x) fallback.
+   * PDF 좌표 위치와 독립적이다.
+   */
+  inputOrder?: number | null
   /** 고객 공개 서명 단계 / 설계사 발송 전 입력 / 미사용 */
   inputRole: PdfInputRole
   /** 좌표 필드 ↔ 고객 데이터 매핑 (템플릿 저장용) */
@@ -101,6 +106,13 @@ export interface PdfFieldSpec {
   placements: PdfPlacement[]
 }
 
+export interface PdfSourceFileMetadata {
+  fileName: string
+  startPage: number
+  endPage: number
+  pageCount: number
+}
+
 export interface PdfTemplateSummary {
   id: number
   gaId: number | null
@@ -110,6 +122,7 @@ export interface PdfTemplateSummary {
   title: string
   description: string
   pageCount: number
+  sourcePdfMetadata?: PdfSourceFileMetadata[] | null
   isActive: boolean
   createdAt: string
   updatedAt: string

@@ -24,6 +24,7 @@ import {
   buildPdfDocumentDetailHref,
   usePdfDocumentsWorkspacePaths,
 } from '../utils/pdfCustomerWorkspacePaths'
+import { PdfEngineUserPageFrame } from '../components/PdfEngineUserPageFrame'
 import '../pdf-engine.css'
 
 /** Blob → 브라우저 다운로드 트리거. URL 누수 방지를 위해 즉시 revoke. */
@@ -118,7 +119,7 @@ export default function PdfIssuanceHistoryPage() {
   )
 
   return (
-    <main className="pdf-engine-page user-page">
+    <PdfEngineUserPageFrame embedded={workspaceCustomerId != null}>
       <h1 className="pdf-engine-page__title">과거 작성한 신청서</h1>
       <p className="pdf-engine-page__hint">
         발급 완료된 PDF를 다시 다운로드하거나, 과거 입력값을 불러와 수정한 뒤 새로 발급할 수 있습니다. 목록은
@@ -179,6 +180,6 @@ export default function PdfIssuanceHistoryPage() {
           ))}
         </div>
       ) : null}
-    </main>
+    </PdfEngineUserPageFrame>
   )
 }

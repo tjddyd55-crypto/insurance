@@ -17,6 +17,53 @@
   color: var(--text-primary, var(--text-main, #111827));
 }
 
+/* 목록·이력 — 공통 본문 컨테이너 (신청서 작성 / 과거 작성한 신청서 정렬 SSOT) */
+.pdf-engine-page:has(> .pdf-engine-page__content) {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.pdf-engine-page__content {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding: 24px 20px 64px;
+}
+
+/*
+ * PC 목록(/application/documents): 모바일 SSOT용 main.page.user-page 가 좌우 padding 을 0 으로
+ * 덮어써 본문이 viewport 왼쪽에 붙는 회귀 복구. 모바일 규칙은 @media (max-width: 767px) / ssot.css 유지.
+ * (목록·이력은 PdfEngineUserPageFrame + __content 로 정렬 — page 클래스 미사용)
+ */
+@media (min-width: 768px) {
+  .user-app-shell .pdf-engine-page__content {
+    width: min(100% - 40px, 1200px);
+    padding: 32px 20px 64px;
+  }
+
+  .user-app-shell main.page.user-page.pdf-engine-page:not(.pdf-document-detail-page--mobile):not(
+      .pdf-engine-page--editor
+    ) {
+    padding-inline: 20px;
+    max-width: 1200px;
+    margin-inline: auto;
+    box-sizing: border-box;
+  }
+
+  .user-app-shell
+    main.page.user-page.pdf-engine-page.pdf-engine-page--workspace-embedded:not(
+      .pdf-document-detail-page--mobile
+    ) {
+    padding-inline: 4px;
+    max-width: none;
+    margin-inline: 0;
+  }
+}
+
 /* 좌표 편집 — 좌우 여백을 줄이고 가로를 최대한 PDF 미리보기에 할당 */
 .pdf-engine-page--editor {
   max-width: none;
@@ -113,6 +160,15 @@
 @media (max-width: 767px) {
   .pdf-engine-page {
     padding: 12px 0 calc(48px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .pdf-engine-page__content {
+    width: 100%;
+    max-width: none;
+    margin-inline: 0;
+    padding: 12px max(var(--mobile-h-padding, 12px), env(safe-area-inset-right, 0px))
+      calc(48px + env(safe-area-inset-bottom, 0px))
+      max(var(--mobile-h-padding, 12px), env(safe-area-inset-left, 0px));
   }
 
   .pdf-engine-page__title {
@@ -898,10 +954,17 @@
 .pdf-engine-page.pdf-engine-page--workspace-embedded {
   max-width: none;
   margin: 0;
-  padding: 16px 4px 48px;
+  padding: 0;
   box-sizing: border-box;
   background: transparent;
   color: var(--text-primary, #111827);
+}
+
+.pdf-engine-page.pdf-engine-page--workspace-embedded .pdf-engine-page__content {
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+  padding: 16px 0 48px;
 }
 
 .pdf-engine-page.pdf-engine-page--workspace-embedded .pdf-engine-page__title {
@@ -1370,7 +1433,7 @@
 .pdf-engine-editor__mapping-table-head,
 .pdf-engine-editor__mapping-table-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 44px 1fr 1fr;
   gap: 8px;
   padding: 8px 10px;
   align-items: center;
@@ -1394,6 +1457,87 @@
 
 .pdf-engine-editor__mapping-table-summary {
   color: var(--primary-active, var(--primary, #16a34a));
+}
+
+.pdf-engine-editor__mapping-table-order {
+  font-weight: 600;
+  color: var(--text-secondary, #64748b);
+  font-variant-numeric: tabular-nums;
+}
+
+.pdf-engine-editor__hint--input-order {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.pdf-engine-editor__page-overflow-warning {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+.pdf-engine-editor__label-hint {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 400;
+  color: #94a3b8;
+}
+
+.pdf-engine-upload-file-list {
+  margin: 0 0 16px;
+  padding: 10px 12px 10px 28px;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: #111827;
+  color: #e5e7eb;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.pdf-engine-upload-file-list li + li {
+  margin-top: 4px;
+}
+
+.pdf-engine-editor__config-mapping-name {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+.pdf-engine-editor__field-card-order {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.pdf-engine-editor__field-card-rank {
+  font-size: 12px;
+  font-weight: 700;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+}
+
+.pdf-engine-editor__field-card-order-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pdf-engine-editor__btn--order {
+  min-width: 28px;
+  padding: 2px 6px;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.pdf-engine-editor__btn--order:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .pdf-engine-mapping-controls {

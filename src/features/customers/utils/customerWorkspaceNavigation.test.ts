@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   isCustomerWorkspaceSideDetailPath,
   parseWorkspaceCustomerIdFromPath,
+  resolveCustomerWorkspaceTab,
 } from './customerWorkspaceNavigation'
 
 describe('parseWorkspaceCustomerIdFromPath', () => {
@@ -21,5 +22,18 @@ describe('isCustomerWorkspaceSideDetailPath', () => {
   it('includes application-documents routes', () => {
     expect(isCustomerWorkspaceSideDetailPath('/customers/1/application-documents')).toBe(true)
     expect(isCustomerWorkspaceSideDetailPath('/customers/1/application-documents/history')).toBe(true)
+  })
+})
+
+describe('resolveCustomerWorkspaceTab', () => {
+  it('defaults to consultations when no workspace tab is in the path', () => {
+    expect(resolveCustomerWorkspaceTab('/customers')).toBe('consultations')
+    expect(resolveCustomerWorkspaceTab('/customers/12')).toBe('consultations')
+  })
+
+  it('keeps explicit memo and consultation tabs', () => {
+    expect(resolveCustomerWorkspaceTab('/customers/12/memos')).toBe('memos')
+    expect(resolveCustomerWorkspaceTab('/customers/12/consultations')).toBe('consultations')
+    expect(resolveCustomerWorkspaceTab('/customers/12/files')).toBe('files')
   })
 })

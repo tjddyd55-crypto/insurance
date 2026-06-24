@@ -34,15 +34,21 @@ function makeQuery(executor) {
  *   storageKey: string,
  *   pageCount: number,
  *   createdByUserId: string | null,
+ *   sourcePdfMetadata?: object[] | null,
  * }} input
  */
 export async function createTemplate(pool, input) {
   const q = makeQuery(pool)
+  const metadataJson =
+    Array.isArray(input.sourcePdfMetadata) && input.sourcePdfMetadata.length > 0
+      ? JSON.stringify(input.sourcePdfMetadata)
+      : null
   const { rows } = await q(
     `INSERT INTO pdf_templates
-       (ga_id, code, title, description, storage_key, page_count, created_by_user_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
-     RETURNING id, ga_id, code, title, description, storage_key, page_count, is_active, created_at, updated_at`,
+       (ga_id, code, title, description, storage_key, page_count, created_by_user_id, source_pdf_metadata)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, CAST($8 AS jsonb))
+     RETURNING id, ga_id, code, title, description, storage_key, page_count, is_active,
+               source_pdf_metadata, created_at, updated_at`,
     [
       input.gaId,
       input.code,
@@ -51,6 +57,7 @@ export async function createTemplate(pool, input) {
       input.storageKey,
       input.pageCount,
       input.createdByUserId,
+      metadataJson,
     ],
   )
   return rows[0]
@@ -64,7 +71,7 @@ export async function getTemplateById(pool, id) {
   const q = makeQuery(pool)
   const { rows } = await q(
     `SELECT t.id, t.ga_id, t.code, t.title, t.description, t.storage_key, t.page_count,
-            t.is_active, t.created_by_user_id, t.created_at, t.updated_at,
+            t.is_active, t.source_pdf_metadata, t.created_by_user_id, t.created_at, t.updated_at,
             g.name AS ga_name, g.code AS ga_code
        FROM pdf_templates t
        LEFT JOIN ga_companies g ON g.id = t.ga_id
@@ -161,10 +168,10 @@ export async function deleteTemplate(pool, id) {
 export async function listFields(pool, templateId) {
   const { rows } = await pool.query(
     `SELECT id, template_id, field_key, label, field_type, required, order_index,
-            input_role, customer_mapping, options, placements, created_at, updated_at
+            input_order, input_role, customer_mapping, options, placements, created_at, updated_at
        FROM pdf_template_fields
        WHERE template_id = $1
-       ORDER BY order_index ASC, id ASC`,
+       ORDER BY COALESCE(input_order, order_index) ASC, order_index ASC, id ASC`,
     [templateId],
   )
   return rows
@@ -209,9 +216,9 @@ export async function replaceTemplateFields(pool, templateId, fields) {
       const mappingSerialized = serializeFieldDataMapping(f.dataMapping)
       await client.query(
         `INSERT INTO pdf_template_fields
-           (template_id, field_key, label, field_type, required, order_index,
+           (template_id, field_key, label, field_type, required, order_index, input_order,
             input_role, customer_mapping, options, placements)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CAST($9 AS jsonb), CAST($10 AS jsonb))`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CAST($10 AS jsonb), CAST($11 AS jsonb))`,
         [
           templateId,
           f.fieldKey,
@@ -219,6 +226,7 @@ export async function replaceTemplateFields(pool, templateId, fields) {
           f.fieldType,
           f.required,
           f.orderIndex ?? i,
+          f.inputOrder ?? null,
           f.inputRole ?? 'customer',
           mappingSerialized,
           optionsJson,

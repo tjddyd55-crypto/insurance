@@ -1,7 +1,7 @@
 import type { NavigateFunction } from 'react-router-dom'
 import type { CustomerMapPersistedState } from '../config/customerMap.config'
 import { parseSelectedCustomerId } from './customerWorkspaceNavigation'
-import { buildCustomerListPath, buildCustomerWorkspacePath } from './customerRoutePaths'
+import { buildCustomerListPath, buildCustomerWorkspacePath, PC_DEFAULT_CUSTOMER_WORKSPACE_TAB } from './customerRoutePaths'
 
 export type CustomerMapDetailNavigationState = {
   from: 'customer-map'
@@ -51,7 +51,7 @@ export function openCustomerDetailFromMap(params: {
     return
   }
 
-  const safeTab = 'consultations'
+  const safeTab = PC_DEFAULT_CUSTOMER_WORKSPACE_TAB
   navigate(
     buildCustomerWorkspacePath({ customerId, tab: safeTab, query: next }),
     {

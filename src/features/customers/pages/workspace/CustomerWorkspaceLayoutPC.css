@@ -173,8 +173,15 @@
   box-sizing: border-box;
 }
 
+.customer-workspace-layout__right > .customer-workspace-layout__right-body > main.pdf-engine-page .pdf-engine-page__content {
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+  padding: 12px 0 32px;
+}
+
 .customer-workspace-layout__right > .customer-workspace-layout__right-body > main.pdf-engine-page.pdf-engine-page--workspace-embedded {
-  padding: 0 0 24px;
+  padding: 0;
 }
 
 .customer-workspace-layout__right > .customer-workspace-layout__right-body > main.contract-signature-console .contract-signature-console__container {
