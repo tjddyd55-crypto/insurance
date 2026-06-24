@@ -38,6 +38,8 @@ export interface CompanyUpdateHistoryItem {
   companyName: string
   category?: string
   updatedAt: string
+  /** 저장 시각(ISO). 같은 날 여러 저장본 중 최신 판별용 */
+  savedAt?: string
   updatedBy: string
   before: CompanyHistorySnapshot
   after: CompanyHistorySnapshot

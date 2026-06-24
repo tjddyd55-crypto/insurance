@@ -4895,13 +4895,16 @@ apiRouter.get('/company/recent-updates', requireAuth, async (req, res) => {
     const rows = result.rows.map((row) => {
       const ts = row.updated_at
       const d = ts instanceof Date ? ts : new Date(ts)
-      const dateStr = Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10)
+      const dateStr = Number.isNaN(d.getTime())
+        ? ''
+        : new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(d)
       return {
         id: String(row.id),
         companyId: row.company_id != null ? String(row.company_id) : '',
         companyName: row.company_name ?? '',
         category: row.category ?? '',
         updatedAt: dateStr,
+        savedAt: Number.isNaN(d.getTime()) ? '' : d.toISOString(),
         updatedBy: String(row.updated_by_username ?? '').trim() || '—',
         before: normalizeHistoryPayload(row.before_payload),
         after: normalizeHistoryPayload(row.after_payload),
