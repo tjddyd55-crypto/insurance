@@ -39,8 +39,12 @@ import {
   getById as getClaimRequestById,
   list as listClaimRequests,
   listByCustomerId,
+  markGenerated,
   updateDraft,
 } from './insurance-claim/repository/insuranceClaimRequestRepo.js'
+import { stampPdf } from './pdf-engine/renderer/stampPdf.js'
+import { resolveInsuranceClaimFieldValues } from './insurance-claim/claimFieldValueResolver.js'
+import { buildClaimDocumentStorageKey, getClaimDocumentObject, putClaimDocumentObject } from './insurance-claim/storage/claimDocumentStorage.js'
 
 const MAX_PDF_UPLOAD_FILES = 20
 const MAX_PDF_UPLOAD_BYTES_PER_FILE = 25 * 1024 * 1024
@@ -221,6 +225,28 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
       const request = await duplicateAsDraft(pool, req.insuranceClaimGaId, parsePositiveInt(req.params.id), parsePositiveInt(req.user?.id))
       if (!request) return res.status(404).json({ message: '청구 내역을 찾을 수 없습니다.' })
       res.status(201).json({ request })
+    } catch (error) { handleDbError(error, req, res) }
+  })
+
+  apiRouter.post('/insurance-claim/requests/:id/generate', ...claimRequestMw, async (req, res) => {
+    try {
+      const id = parsePositiveInt(req.params.id)
+      const request = await getClaimRequestById(pool, req.insuranceClaimGaId, id)
+      if (!request) return res.status(404).json({ message: '청구 내역을 찾을 수 없습니다.' })
+      if (request.status !== 'draft') return res.status(409).json({ message: 'draft 상태의 청구만 생성할 수 있습니다.' })
+      const generated = []
+      for (const type of ['claim_form', 'consent_form']) {
+        const document = await getActiveDocumentForCompany(pool, request.insuranceCompanyId, type)
+        if (!document) return res.status(400).json({ message: `${type === 'claim_form' ? '청구서' : '동의서'} PDF 설정이 필요합니다.` })
+        const fields = (await listDocumentFields(pool, document.id)).map(claimFieldRowToDto)
+        const values = resolveInsuranceClaimFieldValues(fields, request)
+        const rendered = await stampPdf(await getClaimDocumentObject(document.storageKey), fields, values)
+        const storageKey = buildClaimDocumentStorageKey({ companyId: request.insuranceCompanyId, documentType: `generated-${id}-${type}` })
+        await putClaimDocumentObject(storageKey, rendered)
+        generated.push({ documentType: type, storageKey, fileName: `${type === 'claim_form' ? '청구서' : '동의서'}.pdf`, contentType: 'application/pdf' })
+      }
+      const updated = await markGenerated(pool, req.insuranceClaimGaId, id, { documents: generated, generatedAt: new Date().toISOString() })
+      res.json({ request: updated })
     } catch (error) { handleDbError(error, req, res) }
   })
 
