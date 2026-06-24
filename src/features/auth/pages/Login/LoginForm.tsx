@@ -55,6 +55,11 @@ export default function LoginForm({
           계정이 초기화되었습니다. 서비스 이용이 필요하면 소속 GA에 새 계정 발급을 요청해 주세요.
         </p>
       ) : null}
+      {flash.accountDeleted ? (
+        <p className="auth-notice" role="status">
+          계정 삭제 요청이 접수되었습니다. 이용해 주셔서 감사합니다.
+        </p>
+      ) : null}
 
       <form className="auth-form" style={{ marginTop: '1rem' }} onSubmit={handleSubmit}>
         <label className="field">

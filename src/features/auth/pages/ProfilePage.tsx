@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
 import { normalizeKrMobile, validateKrMobileDigits } from '../../../lib/phoneNormalize'
 import { FormButton, FormInput } from '../../../components/form'
@@ -19,16 +19,26 @@ import { CustomerExcelImportPanel } from '../../customers/components/CustomerExc
 import PCOnlySection from '../../../components/PCOnlySection'
 import { SubscriptionStatusCard } from '../../subscription/components/SubscriptionStatusCard'
 import { fetchReferralSummary, type ReferralSummaryResponse } from '../../referrals/referralApi'
+import { requestAccountDeletion } from '../../account/services/accountDeleteApi'
+import { BaseDialog } from '../../../components/dialog/BaseDialog'
+import { DialogActions } from '../../../components/dialog/DialogActions'
 
 const CODE_TTL_SEC = 180
 const RESEND_COOLDOWN_SEC = 60
+const ACCOUNT_DELETE_CONFIRM_PHRASES = new Set(['삭제', '계정삭제'])
+
+function isAccountDeletePhraseValid(value: string): boolean {
+  const normalized = value.replace(/\s/g, '')
+  return ACCOUNT_DELETE_CONFIRM_PHRASES.has(normalized)
+}
 
 function canAccessMyInfoPage(role: string | undefined): boolean {
   return role === 'USER' || role === 'GA_ADMIN'
 }
 
 export function ProfilePage() {
-  const { token, user, login, isAuthenticated } = useAuth()
+  const navigate = useNavigate()
+  const { token, user, login, logout, isAuthenticated } = useAuth()
   const pageTitle = '내 정보 관리'
   const [me, setMe] = useState<MeResponse | null>(null)
   const [loadError, setLoadError] = useState('')
@@ -62,6 +72,11 @@ export function ProfilePage() {
   const [referralCodeCopied, setReferralCodeCopied] = useState(false)
   const [referralCopyNotice, setReferralCopyNotice] = useState('')
   const referralCopyFeedbackTimerRef = useRef<number | null>(null)
+
+  const [accountDeleteOpen, setAccountDeleteOpen] = useState(false)
+  const [accountDeletePhrase, setAccountDeletePhrase] = useState('')
+  const [accountDeleteError, setAccountDeleteError] = useState('')
+  const [accountDeleteBusy, setAccountDeleteBusy] = useState(false)
 
   const clearTeamCopyFeedbackTimer = () => {
     if (teamCopyFeedbackTimerRef.current != null) {
@@ -159,6 +174,47 @@ export function ProfilePage() {
       }, 1500)
     } catch {
       scheduleReferralCopyNotice('복사에 실패했습니다.', 2000)
+    }
+  }
+
+  const openAccountDeleteModal = () => {
+    setAccountDeletePhrase('')
+    setAccountDeleteError('')
+    setAccountDeleteOpen(true)
+  }
+
+  const closeAccountDeleteModal = () => {
+    if (accountDeleteBusy) {
+      return
+    }
+    setAccountDeleteOpen(false)
+    setAccountDeletePhrase('')
+    setAccountDeleteError('')
+  }
+
+  const submitAccountDeletion = async () => {
+    if (!token?.trim() || accountDeleteBusy) {
+      return
+    }
+    if (!isAccountDeletePhraseValid(accountDeletePhrase)) {
+      setAccountDeleteError('확인 문구를 정확히 입력해 주세요. (삭제 또는 계정삭제)')
+      return
+    }
+    setAccountDeleteBusy(true)
+    setAccountDeleteError('')
+    try {
+      await requestAccountDeletion(token)
+      setAccountDeleteOpen(false)
+      logout()
+      navigate('/login', { replace: true, state: { accountDeleted: true } })
+    } catch (error) {
+      const message =
+        error instanceof ApiError && error.message.trim()
+          ? error.message
+          : '계정 삭제 요청에 실패했습니다. 잠시 후 다시 시도해 주세요.'
+      setAccountDeleteError(message)
+    } finally {
+      setAccountDeleteBusy(false)
     }
   }
 
@@ -712,9 +768,29 @@ export function ProfilePage() {
         <p className="profile-page__section-desc profile-page__section-desc--danger">
           저장된 고객·상담·파일 등 계정 데이터가 삭제됩니다. 되돌릴 수 없습니다.
         </p>
-        <Link to="/account/reset" className="profile-page__btn button button--danger profile-page__account-reset">
-          계정 초기화
-        </Link>
+        <div className="profile-page__account-actions">
+          {user?.role === 'USER' ? (
+            <>
+              <Link
+                to="/account/reset"
+                className="profile-page__btn button button--danger profile-page__account-reset"
+              >
+                계정 초기화
+              </Link>
+              <button
+                type="button"
+                className="profile-page__btn account-delete-button profile-page__account-delete"
+                onClick={openAccountDeleteModal}
+              >
+                계정 삭제
+              </button>
+            </>
+          ) : (
+            <Link to="/account/reset" className="profile-page__btn button button--danger profile-page__account-reset">
+              계정 초기화
+            </Link>
+          )}
+        </div>
       </section>
 
       <div className="profile-page__back-link">
@@ -805,6 +881,60 @@ export function ProfilePage() {
           </div>
         </form>
       </Modal>
+
+      <BaseDialog
+        open={accountDeleteOpen}
+        onClose={closeAccountDeleteModal}
+        ariaLabel="계정 삭제"
+        closeOnBackdrop={false}
+        closeOnEsc={!accountDeleteBusy}
+        onEscapeRequest={closeAccountDeleteModal}
+        panelClassName="max-w-lg"
+        usePortal
+        overlayClassName="!z-[100100]"
+      >
+        <h3 className="text-lg font-semibold text-[var(--text-main)]">계정 삭제</h3>
+        <div className="mt-3 space-y-3 text-sm text-[var(--text-secondary)]">
+          <p>
+            계정을 삭제하면 로그인 계정과 이용 정보가 삭제 요청 처리됩니다. 고객·상담·파일 등 저장된 데이터도
+            함께 삭제되거나 관련 법령 및 정산/보관 필요 기간 동안 제한적으로 보관될 수 있습니다. 삭제 처리 후에는
+            이 계정으로 다시 로그인할 수 없습니다.
+          </p>
+          <p className="font-semibold text-[var(--text-main)]">정말 계정을 삭제하시겠습니까?</p>
+          <label className="block">
+            <span className="mb-1 block text-[var(--text-secondary)]">
+              계속하려면 아래에 <strong className="text-[var(--text-main)]">삭제</strong> 또는{' '}
+              <strong className="text-[var(--text-main)]">계정삭제</strong>를 입력하세요.
+            </span>
+            <FormInput
+              value={accountDeletePhrase}
+              onChange={(ev) => setAccountDeletePhrase(ev.target.value)}
+              autoComplete="off"
+              placeholder="삭제 또는 계정삭제"
+              disabled={accountDeleteBusy}
+            />
+          </label>
+          {accountDeleteError ? (
+            <p className="text-[var(--danger)]" role="alert">
+              {accountDeleteError}
+            </p>
+          ) : null}
+        </div>
+        <DialogActions className="user-modal-actions">
+          <Button type="button" variant="secondary" onClick={closeAccountDeleteModal} disabled={accountDeleteBusy}>
+            취소
+          </Button>
+          <Button
+            type="button"
+            variant="danger"
+            onClick={() => void submitAccountDeletion()}
+            disabled={accountDeleteBusy || !isAccountDeletePhraseValid(accountDeletePhrase)}
+            loading={accountDeleteBusy}
+          >
+            계정 삭제 요청
+          </Button>
+        </DialogActions>
+      </BaseDialog>
 
       <footer className="profile-page__legal-footer">
         <Link to="/privacy" className="profile-page__legal-link">

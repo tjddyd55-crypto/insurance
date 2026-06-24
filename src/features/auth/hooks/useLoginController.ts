@@ -17,6 +17,7 @@ import { setPublicBoardWriterToken } from '../../insurer-news/services/publicBoa
 type LoginFlash = {
   passwordReset?: boolean
   accountReset?: boolean
+  accountDeleted?: boolean
 }
 
 export type UseLoginControllerResult = {
