@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
 import { FormButton, FormSelect, FormTextarea } from '../../../components/form'
 import useIsMobile from '../../../hooks/useIsMobile'
@@ -8,10 +9,7 @@ import {
   downloadClaimRequestFile,
   downloadClaimRequestFilesPdf,
   downloadClaimRequestFilesZip,
-  ensureCustomerClaimPageUrl,
   getClaimRequestDetail,
-  getCustomerAppLink,
-  getCustomerClaimPageUrl,
   listClaimRequests,
   openClaimRequestFile,
   type ClaimRequestDetail,
@@ -20,7 +18,7 @@ import {
   type ClaimRequestStatus,
   updateClaimRequestStatus,
 } from '../api/claimRequestsApi'
-import { openCustomerClaimPageUrl } from '../utils/customerClaimPageActions'
+import { buildInternalCustomerClaimRoute } from '../utils/customerClaimPageActions'
 
 const STATUS_OPTIONS: Array<{ value: ClaimRequestStatus | ''; label: string }> = [
   { value: '', label: '전체' },
@@ -86,6 +84,7 @@ function isImageFile(file: ClaimRequestFileItem): boolean {
 
 export default function ClaimInboxPage() {
   const { token } = useAuth()
+  const navigate = useNavigate()
   const isMobile = useIsMobile()
   const [rows, setRows] = useState<ClaimRequestListItem[]>([])
   const [total, setTotal] = useState(0)
@@ -100,8 +99,6 @@ export default function ClaimInboxPage() {
   const [actionBusy, setActionBusy] = useState(false)
   const [zipBusy, setZipBusy] = useState(false)
   const [pdfBusy, setPdfBusy] = useState(false)
-  const [customerClaimPageUrl, setCustomerClaimPageUrl] = useState('')
-  const [customerClaimPageBusy, setCustomerClaimPageBusy] = useState(false)
   const [statusNotice, setStatusNotice] = useState('')
   const [error, setError] = useState('')
   const mobileDetailOpenRef = useRef(false)
@@ -195,44 +192,23 @@ export default function ClaimInboxPage() {
     return () => window.clearTimeout(timer)
   }, [statusNotice])
 
-  useEffect(() => {
-    if (!token?.trim() || !detail?.customerId) {
-      setCustomerClaimPageUrl('')
+  const handleOpenInternalCustomerClaim = useCallback(() => {
+    const customerId = detail?.customerId
+    if (!customerId) {
+      setError('연결된 고객 정보가 없어 청구관리 화면을 열 수 없습니다.')
       return
     }
-    let cancelled = false
-    void getCustomerAppLink(token, detail.customerId)
-      .then((info) => {
-        if (!cancelled) {
-          setCustomerClaimPageUrl(getCustomerClaimPageUrl(info))
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setCustomerClaimPageUrl('')
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [detail?.customerId, token])
-
-  const handleOpenCustomerClaimPage = useCallback(async () => {
-    if (!token?.trim() || !detail?.customerId) {
+    const route = buildInternalCustomerClaimRoute({
+      customerId,
+      claimRequestId: detail?.id ?? null,
+    })
+    if (!route) {
+      setError('청구관리 화면 경로를 만들지 못했습니다.')
       return
     }
-    setCustomerClaimPageBusy(true)
     setError('')
-    try {
-      const url = await ensureCustomerClaimPageUrl(token, detail.customerId)
-      setCustomerClaimPageUrl(url)
-      openCustomerClaimPageUrl(url)
-    } catch (openError) {
-      setError(openError instanceof Error ? openError.message : '고객 청구 페이지를 열지 못했습니다.')
-    } finally {
-      setCustomerClaimPageBusy(false)
-    }
-  }, [detail?.customerId, token])
+    navigate(route)
+  }, [detail?.customerId, detail?.id, navigate])
 
   const handleDownloadClaimFilesZip = useCallback(async () => {
     if (!token?.trim() || !detail || detail.files.length === 0) {
@@ -372,9 +348,9 @@ export default function ClaimInboxPage() {
         <ClaimRequestAttachmentActions
           section="customerPage"
           attachmentCount={detail.files.length}
-          customerClaimPageUrl={customerClaimPageUrl}
-          customerClaimPageBusy={customerClaimPageBusy}
-          onOpenCustomerClaimPage={handleOpenCustomerClaimPage}
+          customerPageTarget="crm-internal"
+          customerId={detail.customerId}
+          onOpenCustomerClaimPage={handleOpenInternalCustomerClaim}
           onDownloadZip={handleDownloadClaimFilesZip}
           onDownloadPdf={handleDownloadClaimFilesPdf}
           zipBusy={zipBusy}

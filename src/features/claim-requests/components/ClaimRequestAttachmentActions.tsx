@@ -9,6 +9,9 @@ export type ClaimRequestAttachmentActionsProps = {
   customerClaimPageUrl?: string
   customerClaimPageBusy?: boolean
   onOpenCustomerClaimPage?: () => void | Promise<void>
+  /** customer-app = 외부 고객앱 링크, crm-internal = CRM 고객 청구관리 */
+  customerPageTarget?: 'customer-app' | 'crm-internal'
+  customerId?: number | null
   onDownloadZip: () => void | Promise<void>
   onDownloadPdf: () => void | Promise<void>
   zipBusy?: boolean
@@ -20,7 +23,14 @@ export type ClaimRequestAttachmentActionsProps = {
   className?: string
 }
 
-function resolveLabels(variant: ClaimRequestAttachmentActionsVariant) {
+function resolveLabels(variant: ClaimRequestAttachmentActionsVariant, customerPageTarget: 'customer-app' | 'crm-internal') {
+  if (customerPageTarget === 'crm-internal') {
+    return {
+      customerPage: variant === 'mobile' ? '청구관리 열기' : '고객 청구관리 열기',
+      pdf: variant === 'mobile' ? 'PDF 다운로드' : 'PDF로 다운로드',
+      zip: variant === 'mobile' ? '전체 다운로드' : '원본 전체 다운로드',
+    }
+  }
   if (variant === 'mobile') {
     return {
       customerPage: '청구페이지 열기',
@@ -40,6 +50,8 @@ export default function ClaimRequestAttachmentActions({
   customerClaimPageUrl = '',
   customerClaimPageBusy = false,
   onOpenCustomerClaimPage,
+  customerPageTarget = 'customer-app',
+  customerId = null,
   onDownloadZip,
   onDownloadPdf,
   zipBusy = false,
@@ -49,10 +61,22 @@ export default function ClaimRequestAttachmentActions({
   section = 'all',
   className = '',
 }: ClaimRequestAttachmentActionsProps) {
-  const labels = resolveLabels(variant)
+  const labels = resolveLabels(variant, customerPageTarget)
   const bundleDisabled = attachmentCount <= 0 || zipBusy || pdfBusy
   const customerPageDisabled =
-    customerClaimPageBusy || !customerClaimPageUrl.trim() || !onOpenCustomerClaimPage
+    customerClaimPageBusy ||
+    !onOpenCustomerClaimPage ||
+    (customerPageTarget === 'customer-app' && !customerClaimPageUrl.trim()) ||
+    (customerPageTarget === 'crm-internal' && !(Number(customerId) > 0))
+
+  const customerPageTitle =
+    customerPageTarget === 'crm-internal'
+      ? customerPageDisabled && !customerClaimPageBusy
+        ? '연결된 고객 정보가 없어 청구관리 화면을 열 수 없습니다.'
+        : '고객관리 화면의 청구관리 섹션을 엽니다.'
+      : customerPageDisabled && !customerClaimPageBusy
+        ? '고객앱 연결 링크가 없습니다. 링크를 생성한 뒤 다시 시도해 주세요.'
+        : '고객이 청구 파일을 올리는 페이지를 엽니다.'
 
   const customerPageButton =
     showCustomerClaimPage && onOpenCustomerClaimPage ? (
@@ -63,12 +87,8 @@ export default function ClaimRequestAttachmentActions({
         className={variant === 'mobile' ? 'claim-requests-page__primary-action' : undefined}
         disabled={customerPageDisabled}
         loading={customerClaimPageBusy}
-        loadingText="링크 준비 중…"
-        title={
-          customerPageDisabled && !customerClaimPageBusy
-            ? '고객앱 연결 링크가 없습니다. 링크를 생성한 뒤 다시 시도해 주세요.'
-            : '고객이 청구 파일을 올리는 페이지를 엽니다.'
-        }
+        loadingText={customerPageTarget === 'crm-internal' ? '이동 중…' : '링크 준비 중…'}
+        title={customerPageTitle}
         onClick={() => void onOpenCustomerClaimPage()}
       >
         {labels.customerPage}

@@ -119,6 +119,7 @@ export default function ClaimRequestsPage() {
     }
     return parsePositiveInt(customerIdParam ?? null)
   }, [customerIdParam, searchParams])
+  const targetClaimId = useMemo(() => parsePositiveInt(searchParams.get('claimId')), [searchParams])
   const [activeTab, setActiveTab] = useState<'claims' | 'news-personal'>('claims')
   const [rows, setRows] = useState<ClaimRequestListItem[]>([])
   const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -214,7 +215,12 @@ export default function ClaimRequestsPage() {
       const rows = res.rows || []
       setRows(rows)
       if (rows.length > 0) {
-        setSelectedId((prev) => prev ?? rows[0].id)
+        setSelectedId((prev) => {
+          if (targetClaimId != null && rows.some((item) => item.id === targetClaimId)) {
+            return targetClaimId
+          }
+          return prev ?? rows[0].id
+        })
       } else {
         setSelectedId(null)
         setDetail(null)
@@ -224,7 +230,7 @@ export default function ClaimRequestsPage() {
     } finally {
       setLoading(false)
     }
-  }, [activeCustomerId, token])
+  }, [activeCustomerId, targetClaimId, token])
 
   const loadDetail = useCallback(async () => {
     if (!token || selectedId == null) {
