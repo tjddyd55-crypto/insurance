@@ -25,6 +25,7 @@ import {
   usePdfDocumentsWorkspacePaths,
 } from '../utils/pdfCustomerWorkspacePaths'
 import { resolveIssuanceCustomerDisplayLabel, formatVehicleSnapshotLabel } from '../utils/pdfIssuanceAttribution'
+import { PdfEngineUserPageFrame } from '../components/PdfEngineUserPageFrame'
 import '../pdf-engine.css'
 
 /** Blob → 브라우저 다운로드 트리거. URL 누수 방지를 위해 즉시 revoke. */
@@ -119,7 +120,7 @@ export default function PdfIssuanceHistoryPage() {
   )
 
   return (
-    <main className="pdf-engine-page user-page">
+    <PdfEngineUserPageFrame embedded={workspaceCustomerId != null}>
       <h1 className="pdf-engine-page__title">과거 작성한 신청서</h1>
       <p className="pdf-engine-page__hint">
         {workspaceCustomerId != null
@@ -196,6 +197,6 @@ export default function PdfIssuanceHistoryPage() {
           ))}
         </div>
       ) : null}
-    </main>
+    </PdfEngineUserPageFrame>
   )
 }
