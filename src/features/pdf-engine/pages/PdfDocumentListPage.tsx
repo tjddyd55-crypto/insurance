@@ -17,6 +17,7 @@ import {
   buildPdfDocumentDetailHref,
   usePdfDocumentsWorkspacePaths,
 } from '../utils/pdfCustomerWorkspacePaths'
+import { PdfEngineUserPageFrame } from '../components/PdfEngineUserPageFrame'
 import '../pdf-engine.css'
 
 export default function PdfDocumentListPage() {
@@ -63,9 +64,7 @@ export default function PdfDocumentListPage() {
   }, [token])
 
   return (
-    <main
-      className={`page page--with-back pdf-engine-page user-page${isWorkspaceEmbedded ? ' pdf-engine-page--workspace-embedded' : ''}`}
-    >
+    <PdfEngineUserPageFrame embedded={isWorkspaceEmbedded}>
       <h1 className="pdf-engine-page__title">신청서 작성</h1>
       <p className="pdf-engine-page__hint">
         PDF 템플릿 기반으로 작성 가능한 문서만 표시됩니다. 항목을 선택한 뒤 안내에 따라 입력하면 PDF로
@@ -102,6 +101,6 @@ export default function PdfDocumentListPage() {
           </li>
         ))}
       </ul>
-    </main>
+    </PdfEngineUserPageFrame>
   )
 }
