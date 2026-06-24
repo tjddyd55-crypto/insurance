@@ -15,6 +15,28 @@
 import { parseGaId } from '../lib/parseGaId.js'
 
 /**
+ * user_id + ga_id 스코프 업무 데이터 삭제 (계정 초기화·삭제 공통).
+ *
+ * @param {import('pg').PoolClient} client
+ * @param {{ userId: string, gaId: number }} params
+ */
+export async function deleteUserScopedBusinessDataOnClient(client, { userId, gaId }) {
+  const uid = String(userId ?? '').trim()
+  if (!uid) {
+    throw new Error('userId required')
+  }
+  const gid = parseGaId(gaId)
+  if (gid == null) {
+    throw new Error('gaId required')
+  }
+
+  await client.query('DELETE FROM insurance_forms WHERE user_id = $1 AND ga_id = $2', [uid, gid])
+  await client.query('DELETE FROM customers WHERE user_id = $1 AND ga_id = $2', [uid, gid])
+  await client.query('DELETE FROM feature_requests WHERE user_id = $1 AND ga_id = $2', [uid, gid])
+  await client.query('DELETE FROM sms_verification_codes WHERE user_id = $1', [uid])
+}
+
+/**
  * 이미 열린 트랜잭션 안에서 계정 초기화 데이터 삭제 + users 비활성화.
  *
  * @param {import('pg').PoolClient} client
@@ -35,10 +57,7 @@ export async function runAccountResetDataOnClient(client, { userId, gaId, newUse
     throw new Error('newUsername and passwordHash required')
   }
 
-  await client.query('DELETE FROM insurance_forms WHERE user_id = $1 AND ga_id = $2', [uid, gid])
-  await client.query('DELETE FROM customers WHERE user_id = $1 AND ga_id = $2', [uid, gid])
-  await client.query('DELETE FROM feature_requests WHERE user_id = $1 AND ga_id = $2', [uid, gid])
-  await client.query('DELETE FROM sms_verification_codes WHERE user_id = $1', [uid])
+  await deleteUserScopedBusinessDataOnClient(client, { userId: uid, gaId: gid })
 
   const up = await client.query(
     `

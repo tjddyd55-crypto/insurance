@@ -3663,6 +3663,45 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   max-width: 100%;
 }
 
+.profile-page__account-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.profile-page__account-actions .profile-page__account-reset,
+.profile-page__account-actions .profile-page__account-delete {
+  width: 100%;
+  max-width: 100%;
+}
+
+.profile-page .account-delete-button {
+  background: #ffffff;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+.profile-page .account-delete-button:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.profile-page .account-delete-button:focus,
+.profile-page .account-delete-button:focus-visible {
+  outline: none;
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.24);
+}
+
+.profile-page .account-delete-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .profile-page__submit {
   margin-top: 16px;
 }
@@ -3906,6 +3945,20 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
     width: auto;
     min-width: 160px;
     max-width: 320px;
+  }
+
+  .profile-page__account-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+
+  .profile-page__account-actions .profile-page__account-reset,
+  .profile-page__account-actions .profile-page__account-delete {
+    flex: 1 1 0;
+    min-width: min(100%, 160px);
+    max-width: 320px;
+    width: auto;
   }
 
   .profile-page__excel-toolbar .customers-excel-import-panel__row {
