@@ -33,6 +33,14 @@ import {
   updateInsuranceCompany,
   upsertCompanyDocument,
 } from './insurance-claim/repository/insuranceClaimCompanyRepo.js'
+import {
+  createDraft,
+  duplicateAsDraft,
+  getById as getClaimRequestById,
+  list as listClaimRequests,
+  listByCustomerId,
+  updateDraft,
+} from './insurance-claim/repository/insuranceClaimRequestRepo.js'
 
 const MAX_PDF_UPLOAD_FILES = 20
 const MAX_PDF_UPLOAD_BYTES_PER_FILE = 25 * 1024 * 1024
@@ -55,6 +63,34 @@ function parsePositiveInt(raw) {
   const n = Number(raw)
   if (!Number.isInteger(n) || n < 1) return null
   return n
+}
+
+function normalizeClaimRequestInput(body) {
+  const insuredSnapshot = body?.insuredSnapshot ?? body?.insured_snapshot
+  if (!insuredSnapshot || typeof insuredSnapshot !== 'object' || Array.isArray(insuredSnapshot)) {
+    const error = new Error('피보험자 정보(insured_snapshot)가 필요합니다.')
+    error.httpStatus = 400
+    throw error
+  }
+  const insuranceCompanyId = parsePositiveInt(body?.insuranceCompanyId ?? body?.insurance_company_id)
+  if (insuranceCompanyId == null) {
+    const error = new Error('보험회사를 선택해 주세요.')
+    error.httpStatus = 400
+    throw error
+  }
+  const contractorSameAsInsured = body?.contractorSameAsInsured ?? body?.contractor_same_as_insured
+  return {
+    customerId: parsePositiveInt(body?.customerId ?? body?.customer_id),
+    insuranceCompanyId,
+    insuredSnapshot,
+    contractorSnapshot: body?.contractorSnapshot ?? body?.contractor_snapshot ?? null,
+    contractorSameAsInsured: contractorSameAsInsured !== false,
+    claimData: body?.claimData ?? body?.claim_data ?? {},
+    paymentData: body?.paymentData ?? body?.payment_data ?? {},
+    signatureData: body?.signatureData ?? body?.signature_data ?? {},
+    selectedCustomerAttachmentIds: body?.selectedCustomerAttachmentIds ?? body?.selected_customer_attachment_ids ?? [],
+    additionalAttachmentMetadata: body?.additionalAttachmentMetadata ?? body?.additional_attachment_metadata ?? [],
+  }
 }
 
 function parseSourcePdfMetadataBody(raw) {
@@ -110,11 +146,91 @@ function claimFieldRowToDto(row) {
   }
 }
 
-export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth, handleDbError }) {
+export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth, handleDbError, resolveTenantGaIdForRequest }) {
   const adminMw = [requireAuth, (req, res, next) => {
     if (!requireInsuranceClaimAdmin(req, res)) return
     next()
   }]
+
+  const claimRequestMw = [requireAuth, async (req, res, next) => {
+    try {
+      const gaId = await resolveTenantGaIdForRequest(pool, req)
+      if (gaId == null) {
+        res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+        return
+      }
+      req.insuranceClaimGaId = gaId
+      next()
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  }]
+
+  apiRouter.post('/insurance-claim/requests', ...claimRequestMw, async (req, res) => {
+    try {
+      const input = normalizeClaimRequestInput(req.body)
+      const company = await getInsuranceCompanyById(pool, input.insuranceCompanyId)
+      if (!company?.isActive) {
+        res.status(400).json({ message: '사용 가능한 보험회사를 선택해 주세요.' })
+        return
+      }
+      const request = await createDraft(pool, {
+        ...input,
+        gaId: req.insuranceClaimGaId,
+        createdBy: parsePositiveInt(req.user?.id),
+      })
+      res.status(201).json({ request })
+    } catch (error) {
+      if (error?.httpStatus) {
+        res.status(error.httpStatus).json({ message: error.message })
+        return
+      }
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.get('/insurance-claim/requests', ...claimRequestMw, async (req, res) => {
+    try {
+      res.json({ requests: await listClaimRequests(pool, req.insuranceClaimGaId) })
+    } catch (error) { handleDbError(error, req, res) }
+  })
+
+  apiRouter.get('/insurance-claim/requests/:id', ...claimRequestMw, async (req, res) => {
+    try {
+      const request = await getClaimRequestById(pool, req.insuranceClaimGaId, parsePositiveInt(req.params.id))
+      if (!request) return res.status(404).json({ message: '청구 내역을 찾을 수 없습니다.' })
+      res.json({ request })
+    } catch (error) { handleDbError(error, req, res) }
+  })
+
+  apiRouter.patch('/insurance-claim/requests/:id', ...claimRequestMw, async (req, res) => {
+    try {
+      const input = normalizeClaimRequestInput(req.body)
+      const request = await updateDraft(pool, req.insuranceClaimGaId, parsePositiveInt(req.params.id), input)
+      if (!request) return res.status(404).json({ message: '청구 내역을 찾을 수 없습니다.' })
+      res.json({ request })
+    } catch (error) {
+      if (error?.code === 'CLAIM_REQUEST_NOT_DRAFT') return res.status(409).json({ message: error.message })
+      if (error?.httpStatus) return res.status(error.httpStatus).json({ message: error.message })
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.post('/insurance-claim/requests/:id/duplicate', ...claimRequestMw, async (req, res) => {
+    try {
+      const request = await duplicateAsDraft(pool, req.insuranceClaimGaId, parsePositiveInt(req.params.id), parsePositiveInt(req.user?.id))
+      if (!request) return res.status(404).json({ message: '청구 내역을 찾을 수 없습니다.' })
+      res.status(201).json({ request })
+    } catch (error) { handleDbError(error, req, res) }
+  })
+
+  apiRouter.get('/customers/:customerId/insurance-claim/requests', ...claimRequestMw, async (req, res) => {
+    try {
+      const customerId = parsePositiveInt(req.params.customerId)
+      if (customerId == null) return res.status(400).json({ message: '잘못된 고객 ID입니다.' })
+      res.json({ requests: await listByCustomerId(pool, req.insuranceClaimGaId, customerId) })
+    } catch (error) { handleDbError(error, req, res) }
+  })
 
   apiRouter.get('/admin/insurance-claim/companies', ...adminMw, async (req, res) => {
     try {

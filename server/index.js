@@ -1577,6 +1577,7 @@ registerInsuranceClaimCompanyApi(apiRouter, {
   pool,
   requireAuth,
   handleDbError,
+  resolveTenantGaIdForRequest,
 })
 
 registerInsurerSitesApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
