@@ -85,6 +85,7 @@ import { InsuranceClaimAdminRoute } from './features/auth/InsuranceClaimAdminRou
 import InsuranceClaimCompanyListPage from './features/insurance-claim-admin/pages/InsuranceClaimCompanyListPage'
 import InsuranceClaimCompanyDetailPage from './features/insurance-claim-admin/pages/InsuranceClaimCompanyDetailPage'
 import InsuranceClaimDocumentEditorPage from './features/insurance-claim-admin/pages/InsuranceClaimDocumentEditorPage'
+import ClaimRequestFormPage from './features/insurance-claim/pages/ClaimRequestFormPage'
 import { InsurerManagerOnlyRoute } from './features/auth/InsurerManagerOnlyRoute'
 import { RequireNotInsurerManagerRoute } from './features/auth/RequireNotInsurerManagerRoute'
 import { AuditLogReaderRoute } from './features/auth/AuditLogReaderRoute'
@@ -319,6 +320,8 @@ export const appRouter = createBrowserRouter([
               { path: 'application/documents', element: <PdfDocumentListPage /> },
               { path: 'application/documents/history', element: <PdfIssuanceHistoryPage /> },
               { path: 'application/documents/:id', element: <PdfDocumentDetailPage /> },
+              { path: 'insurance-claim/new', element: <ClaimRequestFormPage /> },
+              { path: 'insurance-claim/requests/:id', element: <ClaimRequestFormPage /> },
               { path: 'customers/map', element: <CustomerMapPage /> },
               {
                 path: 'customers',
