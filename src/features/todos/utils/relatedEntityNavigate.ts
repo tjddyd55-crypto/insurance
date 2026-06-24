@@ -10,7 +10,7 @@ export function buildRelatedEntityHref(
     case 'customer': {
       const id = Number(entityId.trim())
       if (!Number.isInteger(id) || id < 1) return null
-      return `/customers/${id}/memos`
+      return `/customers/${id}/consultations`
     }
     case 'document':
     case 'e_document':

@@ -42,7 +42,7 @@ export function parseWorkspaceCustomerIdFromPath(pathname: string): number | nul
  * 예:
  * - /customers/123/memos      → memos
  * - /customers/123/auto-form  → auto-form
- * - /customers/123            → files
+ * - /customers/123            → consultations
  */
 export function resolveCustomerWorkspaceTab(pathname: string): CustomerWorkspaceTab {
   if (pathname.includes('/claim-requests')) {
@@ -63,7 +63,13 @@ export function resolveCustomerWorkspaceTab(pathname: string): CustomerWorkspace
   if (pathname.includes('/auto-form')) {
     return 'auto-form'
   }
-  return 'files'
+  if (pathname.includes('/application-documents')) {
+    return 'application-documents'
+  }
+  if (pathname.includes('/files')) {
+    return 'files'
+  }
+  return 'consultations'
 }
 
 export function parseSelectedCustomerId(raw: string | null): number | null {
