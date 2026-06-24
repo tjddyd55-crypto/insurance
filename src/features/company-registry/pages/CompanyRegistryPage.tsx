@@ -35,6 +35,11 @@ const EMPTY_COMPANY_FIELDS: Omit<InsuranceCompanyFormState, 'id' | 'category' | 
   visitInfo: '',
 }
 
+const DEFAULT_STATUS_HELP =
+  '보험 종류·보험사를 선택하면 이미 저장된 동일 보험사 데이터가 있으면 자동으로 불러옵니다. 등록된 목록은 「연락처 조회」에서 확인할 수 있습니다.'
+
+const SAVE_SUCCESS_MESSAGE = '저장했습니다.'
+const SAVE_SUCCESS_CLEAR_MS = 3000
 const INPUT_DIAGNOSTIC_WINDOW_MS = 45_000
 
 function describeElement(element: Element | null): string {
@@ -83,6 +88,7 @@ export default function CompanyRegistryPage() {
 
   const [list, setList] = useState<CompanyDirectoryEntry[]>([])
   const [statusText, setStatusText] = useState('')
+  const [statusKind, setStatusKind] = useState<'idle' | 'success' | 'error'>('idle')
 
   const [selectedType, setSelectedType] = useState<InsuranceCategory | ''>('')
   const [selectedCompanyCode, setSelectedCompanyCode] = useState<string>('')
@@ -99,8 +105,34 @@ export default function CompanyRegistryPage() {
   const [isDeleting, setIsDeleting] = useState(false)
   /** 목록만 갱신됐을 때 사용자가 이미 칸을 수정 중이면 폼을 덮어쓰지 않음 */
   const pendingLocalEditRef = useRef(false)
+  const statusClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const inputDiagnosticUntilRef = useRef(0)
   const inputDiagnosticFocusLoggedRef = useRef(false)
+
+  const clearInlineStatusTimer = useCallback(() => {
+    if (statusClearTimerRef.current) {
+      window.clearTimeout(statusClearTimerRef.current)
+      statusClearTimerRef.current = null
+    }
+  }, [])
+
+  const showInlineStatus = useCallback(
+    (message: string, tone: 'success' | 'error', autoClearMs?: number) => {
+      clearInlineStatusTimer()
+      setStatusKind(tone)
+      setStatusText(message)
+      if (autoClearMs != null && autoClearMs > 0) {
+        statusClearTimerRef.current = window.setTimeout(() => {
+          setStatusKind('idle')
+          setStatusText('')
+          statusClearTimerRef.current = null
+        }, autoClearMs)
+      }
+    },
+    [clearInlineStatusTimer],
+  )
+
+  useEffect(() => () => clearInlineStatusTimer(), [clearInlineStatusTimer])
 
   useEffect(() => {
     const isActive = () => Date.now() < inputDiagnosticUntilRef.current
@@ -186,11 +218,10 @@ export default function CompanyRegistryPage() {
     try {
       const rows = await listCompanyDirectory(token)
       setList(rows)
-      setStatusText('')
     } catch (error) {
-      setStatusText(error instanceof Error ? error.message : '목록을 불러오지 못했습니다.')
+      showInlineStatus(error instanceof Error ? error.message : '목록을 불러오지 못했습니다.', 'error')
     }
-  }, [token])
+  }, [token, showInlineStatus])
 
   useEffect(() => {
     void loadList()
@@ -252,8 +283,9 @@ export default function CompanyRegistryPage() {
     const cat = resolveTabCategory(entry.category, entry.name)
     if (!cat || !isInsuranceCategory(cat)) {
       const { company: loaded, contacts: nextContacts } = formStateFromDirectoryEntry(entry)
-      setStatusText(
+      showInlineStatus(
         '보험 종류를 자동 인식하지 못했습니다. 아래에서「보험 종류」를 선택하면 같은 이름의 등록 데이터와 맞춰집니다.',
+        'error',
       )
       commitDirectorySelection('', entry.companyCode || nameTrim)
       prevSelectionRef.current = { type: '', companyCode: entry.companyCode || nameTrim }
@@ -261,9 +293,10 @@ export default function CompanyRegistryPage() {
       setContacts(nextContacts)
       return
     }
+    setStatusKind('idle')
     setStatusText('')
     commitDirectorySelection(cat, entry.companyCode)
-  }, [commitDirectorySelection])
+  }, [commitDirectorySelection, showInlineStatus])
 
   const addContactRow = () => {
     if (readOnlyUi) {
@@ -291,19 +324,21 @@ export default function CompanyRegistryPage() {
 
   const handleSave = async () => {
     if (!canMutate || !token) {
-      setStatusText('연락처 저장은 GA 스태프 이상만 가능합니다.')
+      showInlineStatus('연락처 저장은 GA 스태프 이상만 가능합니다.', 'error')
       return
     }
     if (!isInsuranceCategory(company.category)) {
-      setStatusText('보험 종류를 선택하세요.')
+      showInlineStatus('보험 종류를 선택하세요.', 'error')
       return
     }
     if (!company.name.trim()) {
-      setStatusText('보험사를 선택하세요.')
+      showInlineStatus('보험사를 선택하세요.', 'error')
       return
     }
 
     setIsSaving(true)
+    clearInlineStatusTimer()
+    setStatusKind('idle')
     setStatusText('')
     try {
       const body = {
@@ -325,11 +360,11 @@ export default function CompanyRegistryPage() {
       logger.warn('company-registry.input-diagnostic.session-started', {
         windowMs: INPUT_DIAGNOSTIC_WINDOW_MS,
       })
-      window.alert('저장했습니다.')
       pendingLocalEditRef.current = false
       await loadList()
+      showInlineStatus(SAVE_SUCCESS_MESSAGE, 'success', SAVE_SUCCESS_CLEAR_MS)
     } catch (error) {
-      setStatusText(error instanceof Error ? error.message : '저장에 실패했습니다.')
+      showInlineStatus(error instanceof Error ? error.message : '저장에 실패했습니다.', 'error')
     } finally {
       setIsSaving(false)
     }
@@ -337,7 +372,7 @@ export default function CompanyRegistryPage() {
 
   const handleHardDelete = async () => {
     if (!canMutate || !token || company.id == null) {
-      setStatusText('삭제는 GA 스태프 이상만 가능하며, 이미 등록된 보험사만 삭제할 수 있습니다.')
+      showInlineStatus('삭제는 GA 스태프 이상만 가능하며, 이미 등록된 보험사만 삭제할 수 있습니다.', 'error')
       return
     }
     const label = company.name.trim() || company.companyCode || `id ${company.id}`
@@ -355,6 +390,8 @@ export default function CompanyRegistryPage() {
       return
     }
     setIsDeleting(true)
+    clearInlineStatusTimer()
+    setStatusKind('idle')
     setStatusText('')
     try {
       await deleteHardCompanyMaster(company.id, token)
@@ -372,7 +409,7 @@ export default function CompanyRegistryPage() {
       })
       setContacts([{ ...EMPTY_CONTACT }])
     } catch (error) {
-      setStatusText(error instanceof Error ? error.message : '삭제에 실패했습니다.')
+      showInlineStatus(error instanceof Error ? error.message : '삭제에 실패했습니다.', 'error')
     } finally {
       setIsDeleting(false)
     }
@@ -396,9 +433,17 @@ export default function CompanyRegistryPage() {
 
       <header className="page-header">
         <h1>연락처 입력/관리</h1>
-        <p>
-          {statusText ||
-            '보험 종류·보험사를 선택하면 이미 저장된 동일 보험사 데이터가 있으면 자동으로 불러옵니다. 등록된 목록은 「연락처 조회」에서 확인할 수 있습니다.'}
+        <p
+          className={
+            statusKind === 'success'
+              ? 'company-registry-status company-registry-status--success'
+              : statusKind === 'error'
+                ? 'company-registry-status company-registry-status--error'
+                : undefined
+          }
+          role={statusKind === 'error' ? 'alert' : statusKind === 'success' ? 'status' : undefined}
+        >
+          {statusText || DEFAULT_STATUS_HELP}
         </p>
       </header>
 

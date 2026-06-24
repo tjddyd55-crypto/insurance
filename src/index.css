@@ -7392,6 +7392,16 @@ div.cta-button.customers-page__action-btn[role='button'] {
   max-width: 680px;
 }
 
+.company-registry-status--success {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.company-registry-status--error {
+  color: #dc2626;
+  font-weight: 600;
+}
+
 /* ——— 보험사 연락처 조회 (모바일·고령자 우선) ——— */
 .insurance-recent-updates-page .update-history {
   display: flex;
