@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { CompanyCard } from '../../company-registry/components/CompanyCard'
 import { getCompanyRecentUpdates } from '../../company-registry/api/companyRegistryApi'
 import { useAuth } from '../../auth/AuthProvider'
@@ -124,6 +125,10 @@ export function InsuranceUpdatesPage() {
 
   return (
     <main className="page page--with-back contacts-page insurance-recent-updates-page insurance-contacts-view company-directory-read-ui">
+
+      <Link className="insurer-contact-history-back" to="/insurance/contacts">
+        ← 원수사 연락처로 돌아가기
+      </Link>
 
       <header className="page-header">
         <h1>업데이트 현황</h1>

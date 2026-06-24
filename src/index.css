@@ -7480,9 +7480,36 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 .company-card--diff .value.changed,
-.company-card--diff .changed {
-  color: var(--danger);
-  font-weight: 600;
+.company-card--diff .contact-row .position.changed,
+.company-card--diff .contact-row .name.changed,
+.company-card--diff .contact-row .phone.changed {
+  color: #dc2626;
+  font-weight: 800;
+}
+
+.insurer-contact-history-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.insurer-contact-history-back:hover {
+  background: #f9fafb;
+}
+
+.insurance-recent-updates-page .page-header {
+  margin-top: 0;
 }
 
 .insurance-contacts-view.insurance-contacts-view {
