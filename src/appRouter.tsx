@@ -81,6 +81,10 @@ import PrivacyPolicyPage from './features/legal/PrivacyPolicyPage'
 import AccountDeletionPage from './features/legal/AccountDeletionPage'
 import { SuperAdminRoute } from './features/auth/SuperAdminRoute'
 import { PdfTemplateAdminRoute } from './features/auth/PdfTemplateAdminRoute'
+import { InsuranceClaimAdminRoute } from './features/auth/InsuranceClaimAdminRoute'
+import InsuranceClaimCompanyListPage from './features/insurance-claim-admin/pages/InsuranceClaimCompanyListPage'
+import InsuranceClaimCompanyDetailPage from './features/insurance-claim-admin/pages/InsuranceClaimCompanyDetailPage'
+import InsuranceClaimDocumentEditorPage from './features/insurance-claim-admin/pages/InsuranceClaimDocumentEditorPage'
 import { InsurerManagerOnlyRoute } from './features/auth/InsurerManagerOnlyRoute'
 import { RequireNotInsurerManagerRoute } from './features/auth/RequireNotInsurerManagerRoute'
 import { AuditLogReaderRoute } from './features/auth/AuditLogReaderRoute'
@@ -490,13 +494,22 @@ export const appRouter = createBrowserRouter([
                 ],
               },
               {
-                /* PDF 좌표 기반 문서 자동화 — SUPER_ADMIN · GA_ADMIN · GA_STAFF.
-                   권한 게이트는 서버 라우터에서도 이중으로 확인한다. */
                 element: <PdfTemplateAdminRoute />,
                 children: [
                   { path: 'admin/pdf-templates', element: <PdfTemplateListPage /> },
                   { path: 'admin/pdf-templates/new', element: <PdfTemplateEditorPage /> },
                   { path: 'admin/pdf-templates/:id', element: <PdfTemplateEditorPage /> },
+                ],
+              },
+              {
+                element: <InsuranceClaimAdminRoute />,
+                children: [
+                  { path: 'admin/claim/insurance-companies', element: <InsuranceClaimCompanyListPage /> },
+                  { path: 'admin/claim/insurance-companies/:id', element: <InsuranceClaimCompanyDetailPage /> },
+                  {
+                    path: 'admin/claim/insurance-companies/:id/documents/:documentId',
+                    element: <InsuranceClaimDocumentEditorPage />,
+                  },
                 ],
               },
               {
