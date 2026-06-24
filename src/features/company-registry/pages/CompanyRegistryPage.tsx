@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useConfirmDialog } from '../../../components/dialog'
 import { FieldWrapper, FormButton, FormInput, FormSelect } from '../../../components/form'
+import { logger } from '../../../lib/logger'
 import { useAuth } from '../../auth/AuthProvider'
 import { canMutateInsuranceDirectory, isInsuranceOpsRole } from '../../auth/roleGuards'
 import { deleteHardCompanyMaster, fullSaveCompanyDirectory, listCompanyDirectory } from '../api/companyRegistryApi'
@@ -34,6 +35,44 @@ const EMPTY_COMPANY_FIELDS: Omit<InsuranceCompanyFormState, 'id' | 'category' | 
   visitInfo: '',
 }
 
+const INPUT_DIAGNOSTIC_WINDOW_MS = 45_000
+
+function describeElement(element: Element | null): string {
+  if (!element) return 'null'
+  const tag = element.tagName.toLowerCase()
+  const id = element.id ? `#${element.id}` : ''
+  const classes = Array.from(element.classList).slice(0, 3).map((className) => `.${className}`).join('')
+  return `${tag}${id}${classes}`
+}
+
+function readInputDiagnosticSnapshot(target: HTMLElement) {
+  const root = document.getElementById('root')
+  const overlays = Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"]'))
+    .filter((element) => {
+      const style = window.getComputedStyle(element)
+      return style.display !== 'none' && style.visibility !== 'hidden'
+    })
+    .map((element) => {
+      const style = window.getComputedStyle(element)
+      return {
+        element: describeElement(element),
+        pointerEvents: style.pointerEvents,
+        zIndex: style.zIndex,
+      }
+    })
+
+  return {
+    target: describeElement(target),
+    activeElement: describeElement(document.activeElement),
+    documentHasFocus: document.hasFocus(),
+    bodyOverflow: document.body.style.overflow,
+    htmlOverflow: document.documentElement.style.overflow,
+    rootInert: root?.hasAttribute('inert') ?? false,
+    rootAriaHidden: root?.getAttribute('aria-hidden') ?? null,
+    overlays,
+  }
+}
+
 export default function CompanyRegistryPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { user, token, isAuthenticated } = useAuth()
@@ -60,6 +99,36 @@ export default function CompanyRegistryPage() {
   const [isDeleting, setIsDeleting] = useState(false)
   /** 목록만 갱신됐을 때 사용자가 이미 칸을 수정 중이면 폼을 덮어쓰지 않음 */
   const pendingLocalEditRef = useRef(false)
+  const inputDiagnosticUntilRef = useRef(0)
+  const inputDiagnosticFocusLoggedRef = useRef(false)
+
+  useEffect(() => {
+    const isActive = () => Date.now() < inputDiagnosticUntilRef.current
+    const isInput = (target: EventTarget | null): target is HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement =>
+      target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement
+
+    const onFocusIn = (event: FocusEvent) => {
+      if (!isActive() || inputDiagnosticFocusLoggedRef.current || !isInput(event.target)) return
+      inputDiagnosticFocusLoggedRef.current = true
+      logger.warn('company-registry.input-diagnostic.focus-received', readInputDiagnosticSnapshot(event.target))
+    }
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (!isActive() || !isInput(event.target)) return
+      const target = event.target
+      window.requestAnimationFrame(() => {
+        if (!isActive() || document.activeElement === target) return
+        logger.error('company-registry.input-diagnostic.focus-failed', readInputDiagnosticSnapshot(target))
+      })
+    }
+
+    document.addEventListener('focusin', onFocusIn, true)
+    document.addEventListener('pointerdown', onPointerDown, true)
+    return () => {
+      document.removeEventListener('focusin', onFocusIn, true)
+      document.removeEventListener('pointerdown', onPointerDown, true)
+    }
+  }, [])
 
   const companyOptions = useMemo((): InsuranceCompanyOption[] => {
     if (!selectedType) {
@@ -251,6 +320,11 @@ export default function CompanyRegistryPage() {
         contacts,
       }
       await fullSaveCompanyDirectory(body, token)
+      inputDiagnosticUntilRef.current = Date.now() + INPUT_DIAGNOSTIC_WINDOW_MS
+      inputDiagnosticFocusLoggedRef.current = false
+      logger.warn('company-registry.input-diagnostic.session-started', {
+        windowMs: INPUT_DIAGNOSTIC_WINDOW_MS,
+      })
       window.alert('저장했습니다.')
       pendingLocalEditRef.current = false
       await loadList()
