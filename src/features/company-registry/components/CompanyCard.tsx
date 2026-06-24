@@ -2,10 +2,12 @@ import { FormButton } from '../../../components/form'
 import { asTrimmedText, cleanPhone, formatPhone } from '../../contacts/utils/phone'
 import type { CompanyDirectoryEntry, CompanyHistorySnapshot } from '../domain/types'
 import { copyToClipboard } from '../utils/clipboard'
-
-function isFieldChanged(beforeVal: string | undefined | null, afterVal: string | undefined | null): boolean {
-  return (beforeVal ?? '') !== (afterVal ?? '')
-}
+import {
+  isHistoryContactFieldChanged,
+  isHistoryPhoneChanged,
+  isHistoryTextChanged,
+  pairHistoryContacts,
+} from '../../../../server/lib/companyHistoryDiff.js'
 
 function telHref(raw: string): string {
   const d = cleanPhone(raw)
@@ -199,10 +201,10 @@ export function CompanyCard(props: CompanyCardProps) {
   const systemPhone = asTrimmedText(after.system)
   const incallNumber = asTrimmedText(after.incall)
   const visitInfo = asTrimmedText(after.visitInfo)
-  const contactPairs = pairContacts(before.contacts ?? [], after.contacts ?? [])
+  const contactPairs = pairHistoryContacts(before.contacts ?? [], after.contacts ?? [])
 
   return (
-    <article className="company-card">
+    <article className="company-card company-card--diff">
       <div className="company-card__header">
         <h3 className="company-card__title">{companyName}</h3>
       </div>
@@ -210,7 +212,9 @@ export function CompanyCard(props: CompanyCardProps) {
       <div className="company-info-block">
         <div className="info-row">
           <span className="label">고객센터</span>
-          <span className={`value${isFieldChanged(before.customerCenter, after.customerCenter) ? ' changed' : ''}`}>
+          <span
+            className={`value${isHistoryPhoneChanged(before.customerCenter, after.customerCenter) ? ' changed' : ''}`}
+          >
             {customerCenter ? formatPhone(customerCenter) : '—'}
           </span>
           <div className="info-row-actions">
@@ -229,7 +233,7 @@ export function CompanyCard(props: CompanyCardProps) {
 
         <div className="info-row">
           <span className="label">전산문의</span>
-          <span className={`value${isFieldChanged(before.system, after.system) ? ' changed' : ''}`}>
+          <span className={`value${isHistoryPhoneChanged(before.system, after.system) ? ' changed' : ''}`}>
             {systemPhone ? formatPhone(systemPhone) : '—'}
           </span>
           <div className="info-row-actions">
@@ -248,7 +252,7 @@ export function CompanyCard(props: CompanyCardProps) {
 
         <div className="info-row">
           <span className="label">인콜</span>
-          <span className={`value${isFieldChanged(before.incall, after.incall) ? ' changed' : ''}`}>
+          <span className={`value${isHistoryPhoneChanged(before.incall, after.incall) ? ' changed' : ''}`}>
             {incallNumber ? formatPhone(incallNumber) : '—'}
           </span>
           <div className="info-row-actions">
@@ -268,7 +272,7 @@ export function CompanyCard(props: CompanyCardProps) {
         {visitInfo || asTrimmedText(before.visitInfo) ? (
           <div className="info-row">
             <span className="label">방문일</span>
-            <span className={`value${isFieldChanged(before.visitInfo, after.visitInfo) ? ' changed' : ''}`}>
+            <span className={`value${isHistoryTextChanged(before.visitInfo, after.visitInfo) ? ' changed' : ''}`}>
               {visitInfo || '—'}
             </span>
             <div className="info-row-actions" aria-hidden="true" />
@@ -289,9 +293,9 @@ export function CompanyCard(props: CompanyCardProps) {
             const position = hasAfter ? a.position : b.position
             const name = hasAfter ? a.name : b.name
             const phoneRaw = hasAfter ? a.phone : b.phone
-            const posCh = isFieldChanged(b.position, a.position)
-            const nameCh = isFieldChanged(b.name, a.name)
-            const phoneCh = isFieldChanged(b.phone, a.phone)
+            const posCh = isHistoryContactFieldChanged('position', b, a, { isNew: pair.isNew })
+            const nameCh = isHistoryContactFieldChanged('name', b, a, { isNew: pair.isNew })
+            const phoneCh = isHistoryContactFieldChanged('phone', b, a, { isNew: pair.isNew })
             const rowKey = `hist-${idx}-${position}-${name}-${phoneRaw}`
 
             return (
