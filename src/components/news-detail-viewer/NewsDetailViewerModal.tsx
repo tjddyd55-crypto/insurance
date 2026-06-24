@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { FormButton } from '../form'
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock'
+import { useBackButtonClose } from '../../hooks/useBackButtonClose'
 import { useNewsDetailViewerPinchZoom } from './useNewsDetailViewerPinchZoom'
 import './news-detail-viewer.css'
 
@@ -40,6 +41,7 @@ export default function NewsDetailViewerModal({
   panelClassName,
 }: NewsDetailViewerModalProps) {
   useBodyScrollLock(open)
+  useBackButtonClose(open, onClose)
   const scrollRef = useRef<HTMLDivElement>(null)
   const pinchEnabled = open && !loading && !error
 
