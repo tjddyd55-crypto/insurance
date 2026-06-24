@@ -89,6 +89,8 @@ export default function CompanyRegistryPage() {
   const [list, setList] = useState<CompanyDirectoryEntry[]>([])
   const [statusText, setStatusText] = useState('')
   const [statusKind, setStatusKind] = useState<'idle' | 'success' | 'error'>('idle')
+  const [saveFeedbackText, setSaveFeedbackText] = useState('')
+  const [saveFeedbackKind, setSaveFeedbackKind] = useState<'success' | 'error' | null>(null)
 
   const [selectedType, setSelectedType] = useState<InsuranceCategory | ''>('')
   const [selectedCompanyCode, setSelectedCompanyCode] = useState<string>('')
@@ -106,6 +108,7 @@ export default function CompanyRegistryPage() {
   /** 목록만 갱신됐을 때 사용자가 이미 칸을 수정 중이면 폼을 덮어쓰지 않음 */
   const pendingLocalEditRef = useRef(false)
   const statusClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const saveFeedbackClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const inputDiagnosticUntilRef = useRef(0)
   const inputDiagnosticFocusLoggedRef = useRef(false)
 
@@ -132,7 +135,33 @@ export default function CompanyRegistryPage() {
     [clearInlineStatusTimer],
   )
 
-  useEffect(() => () => clearInlineStatusTimer(), [clearInlineStatusTimer])
+  const clearSaveFeedbackTimer = useCallback(() => {
+    if (saveFeedbackClearTimerRef.current) {
+      window.clearTimeout(saveFeedbackClearTimerRef.current)
+      saveFeedbackClearTimerRef.current = null
+    }
+  }, [])
+
+  const showSaveFeedback = useCallback(
+    (message: string, tone: 'success' | 'error', autoClearMs?: number) => {
+      clearSaveFeedbackTimer()
+      setSaveFeedbackKind(tone)
+      setSaveFeedbackText(message)
+      if (autoClearMs != null && autoClearMs > 0) {
+        saveFeedbackClearTimerRef.current = window.setTimeout(() => {
+          setSaveFeedbackKind(null)
+          setSaveFeedbackText('')
+          saveFeedbackClearTimerRef.current = null
+        }, autoClearMs)
+      }
+    },
+    [clearSaveFeedbackTimer],
+  )
+
+  useEffect(() => () => {
+    clearInlineStatusTimer()
+    clearSaveFeedbackTimer()
+  }, [clearInlineStatusTimer, clearSaveFeedbackTimer])
 
   useEffect(() => {
     const isActive = () => Date.now() < inputDiagnosticUntilRef.current
@@ -338,8 +367,11 @@ export default function CompanyRegistryPage() {
 
     setIsSaving(true)
     clearInlineStatusTimer()
+    clearSaveFeedbackTimer()
     setStatusKind('idle')
     setStatusText('')
+    setSaveFeedbackKind(null)
+    setSaveFeedbackText('')
     try {
       const body = {
         company: {
@@ -362,9 +394,9 @@ export default function CompanyRegistryPage() {
       })
       pendingLocalEditRef.current = false
       await loadList()
-      showInlineStatus(SAVE_SUCCESS_MESSAGE, 'success', SAVE_SUCCESS_CLEAR_MS)
+      showSaveFeedback(SAVE_SUCCESS_MESSAGE, 'success', SAVE_SUCCESS_CLEAR_MS)
     } catch (error) {
-      showInlineStatus(error instanceof Error ? error.message : '저장에 실패했습니다.', 'error')
+      showSaveFeedback(error instanceof Error ? error.message : '저장에 실패했습니다.', 'error')
     } finally {
       setIsSaving(false)
     }
@@ -435,13 +467,11 @@ export default function CompanyRegistryPage() {
         <h1>연락처 입력/관리</h1>
         <p
           className={
-            statusKind === 'success'
-              ? 'company-registry-status company-registry-status--success'
-              : statusKind === 'error'
-                ? 'company-registry-status company-registry-status--error'
-                : undefined
+            statusKind === 'error'
+              ? 'company-registry-status company-registry-status--error'
+              : undefined
           }
-          role={statusKind === 'error' ? 'alert' : statusKind === 'success' ? 'status' : undefined}
+          role={statusKind === 'error' ? 'alert' : undefined}
         >
           {statusText || DEFAULT_STATUS_HELP}
         </p>
@@ -668,6 +698,15 @@ export default function CompanyRegistryPage() {
             >
               {company.id != null ? '수정 저장' : '신규 저장'}
             </FormButton>
+          ) : null}
+
+          {saveFeedbackText && saveFeedbackKind ? (
+            <p
+              className={`company-registry-save-feedback company-registry-save-feedback--${saveFeedbackKind}`}
+              role={saveFeedbackKind === 'error' ? 'alert' : 'status'}
+            >
+              {saveFeedbackText}
+            </p>
           ) : null}
 
           {!readOnlyUi && company.id != null ? (
