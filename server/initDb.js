@@ -15,6 +15,7 @@ import {
   logMaskedDbFingerprint,
 } from './lib/dbEnvironmentGuard.js'
 import { buildBillingSubscriptionStatusCheckConstraintSql } from './insurance-billing/subscriptionStatusPolicy.js'
+import { ensureOptionalUserForeignKey } from './lib/dbFkTypeGuard.js'
 
 /**
  * ⚠️ 디버그 전용: insurance_forms 등 user_id FK는 ON DELETE CASCADE 로 함께 정리됨.
@@ -5393,7 +5394,7 @@ export async function ensureInsuranceClaimCompanySchema(executor) {
       additional_attachment_metadata JSONB NOT NULL DEFAULT '[]'::jsonb,
       generated_document_metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
       source_claim_request_id INTEGER NULL REFERENCES insurance_claim_requests(id) ON DELETE SET NULL,
-      created_by INTEGER NULL REFERENCES users(id) ON DELETE SET NULL,
+      created_by INTEGER NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
@@ -5423,6 +5424,12 @@ export async function ensureInsuranceClaimCompanySchema(executor) {
   await executor.query(`CREATE INDEX IF NOT EXISTS insurance_claim_requests_ga_created_idx ON insurance_claim_requests (ga_id, created_at DESC)`)
   await executor.query(`CREATE INDEX IF NOT EXISTS insurance_claim_requests_customer_created_idx ON insurance_claim_requests (customer_id, created_at DESC)`)
   await executor.query(`CREATE INDEX IF NOT EXISTS insurance_claim_requests_source_idx ON insurance_claim_requests (source_claim_request_id)`)
+
+  await ensureOptionalUserForeignKey(executor, {
+    tableName: 'insurance_claim_requests',
+    columnName: 'created_by',
+    constraintName: 'insurance_claim_requests_created_by_fkey',
+  })
 }
 
 export { INSURANCE_CLAIM_COMPANY_TYPES, INSURANCE_CLAIM_DOCUMENT_TYPES }
