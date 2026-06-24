@@ -7,6 +7,7 @@ import {
   isHistoryPhoneChanged,
   isHistoryTextChanged,
   pairHistoryContacts,
+  sortCompanyContactsByInputOrder,
 } from '../../../../server/lib/companyHistoryDiff.js'
 
 function telHref(raw: string): string {
@@ -33,26 +34,6 @@ function renderPositionLabel(position: string | undefined | null) {
     )
   }
   return text
-}
-
-type ContactLine = { name: string; position: string; phone: string }
-
-function contactSortKey(c: ContactLine): string {
-  return `${c.position}\t${c.name}\t${c.phone}`
-}
-
-function pairContacts(beforeContacts: ContactLine[], afterContacts: ContactLine[]) {
-  const B = [...beforeContacts].sort((a, b) => contactSortKey(a).localeCompare(contactSortKey(b), 'ko'))
-  const A = [...afterContacts].sort((a, b) => contactSortKey(a).localeCompare(contactSortKey(b), 'ko'))
-  const len = Math.max(B.length, A.length)
-  const pairs: Array<{ before: ContactLine; after: ContactLine }> = []
-  for (let i = 0; i < len; i++) {
-    pairs.push({
-      before: B[i] ?? { position: '', name: '', phone: '' },
-      after: A[i] ?? { position: '', name: '', phone: '' },
-    })
-  }
-  return pairs
 }
 
 export type CompanyCardProps =
@@ -155,7 +136,7 @@ export function CompanyCard(props: CompanyCardProps) {
 
         {c.contacts?.length ? (
           <div className="company-contacts-block">
-            {c.contacts.map((p, idx) => {
+            {sortCompanyContactsByInputOrder(c.contacts).map((p, idx) => {
               const name = asTrimmedText(p.name)
               const position = asTrimmedText(p.position)
               const phoneRaw = asTrimmedText(p.phone)
