@@ -18,6 +18,14 @@ import {
   putClaimDocumentObject,
 } from './insurance-claim/storage/claimDocumentStorage.js'
 import {
+  buildClaimRequestAttachmentStorageKey,
+  buildClaimRequestSignatureStorageKey,
+  getClaimRequestAttachmentObject,
+  isGeneratedClaimDocumentKey,
+  putClaimRequestAttachmentObject,
+} from './insurance-claim/storage/claimRequestAttachmentStorage.js'
+import { buildInsuranceClaimDownloadFiles } from './insurance-claim/buildInsuranceClaimDownloadFiles.js'
+import {
   createInsuranceCompany,
   getActiveDocumentForCompany,
   getDocumentById,
@@ -45,7 +53,7 @@ import {
 } from './insurance-claim/repository/insuranceClaimRequestRepo.js'
 import { stampPdf } from './pdf-engine/renderer/stampPdf.js'
 import { resolveInsuranceClaimFieldValues } from './insurance-claim/claimFieldValueResolver.js'
-import { pipeClaimFilesZip, buildClaimBundleDownloadName, buildContentDisposition } from './lib/claimRequestFileBundle.js'
+import { buildClaimBundleDownloadName, buildContentDisposition } from './lib/claimRequestFileBundle.js'
 
 const MAX_PDF_UPLOAD_FILES = 20
 const MAX_PDF_UPLOAD_BYTES_PER_FILE = 25 * 1024 * 1024
@@ -58,6 +66,33 @@ const uploadPdf = multer({
     const name = String(file.originalname ?? '').toLowerCase()
     if (file.mimetype !== 'application/pdf' && !name.endsWith('.pdf')) {
       cb(new Error('PDF 파일만 업로드할 수 있습니다.'))
+      return
+    }
+    cb(null, true)
+  },
+})
+
+const MAX_CLAIM_ATTACHMENT_BYTES = 25 * 1024 * 1024
+
+const uploadClaimAttachment = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_CLAIM_ATTACHMENT_BYTES },
+})
+
+const uploadClaimSignature = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const name = String(file.originalname ?? '').toLowerCase()
+    const mime = String(file.mimetype ?? '').toLowerCase()
+    const ok =
+      mime.startsWith('image/') ||
+      name.endsWith('.png') ||
+      name.endsWith('.jpg') ||
+      name.endsWith('.jpeg') ||
+      name.endsWith('.webp')
+    if (!ok) {
+      cb(new Error('서명 파일은 이미지(PNG/JPG/WEBP)만 업로드할 수 있습니다.'))
       return
     }
     cb(null, true)
@@ -126,6 +161,29 @@ function requireInsuranceClaimAdmin(req, res) {
     return false
   }
   return true
+}
+
+async function assertCustomerInGa(pool, gaId, customerId) {
+  const { rows } = await pool.query(
+    `SELECT id FROM customers WHERE id = $1 AND ga_id = $2 LIMIT 1`,
+    [customerId, gaId],
+  )
+  if (!rows[0]) {
+    const error = new Error('고객을 찾을 수 없습니다.')
+    error.httpStatus = 404
+    throw error
+  }
+}
+
+async function readInsuranceClaimDownloadBuffer(storageKey) {
+  const key = String(storageKey ?? '').trim()
+  if (!key) {
+    throw new Error('storage key missing')
+  }
+  if (isGeneratedClaimDocumentKey(key)) {
+    return getClaimDocumentObject(key)
+  }
+  return getClaimRequestAttachmentObject(key)
 }
 
 function claimFieldRowToDto(row) {
@@ -254,13 +312,153 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
   apiRouter.get('/insurance-claim/requests/:id/download', ...claimRequestMw, async (req, res) => {
     try {
       const request = await getClaimRequestById(pool, req.insuranceClaimGaId, parsePositiveInt(req.params.id))
-      const files = request?.generatedDocumentMetadata?.documents
-      if (!request || !Array.isArray(files) || files.length === 0) return res.status(404).json({ message: '생성된 청구 문서가 없습니다.' })
+      const { files, skipped } = await buildInsuranceClaimDownloadFiles(pool, req.insuranceClaimGaId, request ?? {})
+      if (!request || files.length === 0) {
+        return res.status(404).json({ message: '생성된 청구 문서가 없습니다.' })
+      }
       await markDownloaded(pool, req.insuranceClaimGaId, request.id)
       res.status(200).setHeader('Content-Type', 'application/zip')
-      res.setHeader('Content-Disposition', buildContentDisposition(buildClaimBundleDownloadName(request.insuredSnapshot?.name, request.createdAt, 'zip')))
-      await pipeClaimFilesZip(res, files, getClaimDocumentObject)
-    } catch (error) { handleDbError(error, req, res) }
+      res.setHeader(
+        'Content-Disposition',
+        buildContentDisposition(buildClaimBundleDownloadName(request.insuredSnapshot?.name, request.createdAt, 'zip')),
+      )
+      const archive = (await import('archiver')).default('zip', { zlib: { level: 6 } })
+      const archiveDone = new Promise((resolve, reject) => {
+        archive.on('error', reject)
+        archive.on('end', resolve)
+      })
+      archive.pipe(res)
+      if (skipped.length > 0) {
+        archive.append(
+          `다음 파일은 포함하지 못했습니다.\n${skipped.map((name) => `- ${name}`).join('\n')}`,
+          { name: '_누락파일.txt' },
+        )
+      }
+      const missing = []
+      for (const file of files) {
+        try {
+          const buffer = await readInsuranceClaimDownloadBuffer(file.storageKey)
+          archive.append(buffer, { name: file.fileName })
+        } catch {
+          missing.push(file.fileName)
+        }
+      }
+      if (missing.length > 0) {
+        archive.append(
+          `다음 파일을 읽지 못했습니다.\n${missing.map((name) => `- ${name}`).join('\n')}`,
+          { name: '_읽기실패.txt' },
+        )
+      }
+      await archive.finalize()
+      await archiveDone
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.post(
+    '/insurance-claim/requests/:id/attachments/upload',
+    ...claimRequestMw,
+    uploadClaimAttachment.single('file'),
+    async (req, res) => {
+      try {
+        const id = parsePositiveInt(req.params.id)
+        const request = await getClaimRequestById(pool, req.insuranceClaimGaId, id)
+        if (!request) return res.status(404).json({ message: '청구 내역을 찾을 수 없습니다.' })
+        if (request.status !== 'draft') return res.status(409).json({ message: 'draft 상태의 청구만 첨부를 추가할 수 있습니다.' })
+        const file = req.file
+        if (!file?.buffer?.length) return res.status(400).json({ message: '파일을 선택해 주세요.' })
+        const fileName = String(file.originalname ?? 'attachment').trim() || 'attachment'
+        const storageKey = buildClaimRequestAttachmentStorageKey(id, fileName)
+        const contentType = String(file.mimetype ?? 'application/octet-stream')
+        await putClaimRequestAttachmentObject(storageKey, file.buffer, contentType)
+        res.json({
+          attachment: {
+            storageKey,
+            fileName,
+            contentType,
+            size: file.buffer.length,
+            uploadedAt: new Date().toISOString(),
+          },
+        })
+      } catch (error) {
+        handleDbError(error, req, res)
+      }
+    },
+  )
+
+  apiRouter.post(
+    '/insurance-claim/requests/:id/signatures/upload',
+    ...claimRequestMw,
+    uploadClaimSignature.single('file'),
+    async (req, res) => {
+      try {
+        const id = parsePositiveInt(req.params.id)
+        const role = String(req.body?.role ?? '').trim() === 'contractor' ? 'contractor' : 'insured'
+        const request = await getClaimRequestById(pool, req.insuranceClaimGaId, id)
+        if (!request) return res.status(404).json({ message: '청구 내역을 찾을 수 없습니다.' })
+        if (request.status !== 'draft') return res.status(409).json({ message: 'draft 상태의 청구만 서명을 변경할 수 있습니다.' })
+        const file = req.file
+        if (!file?.buffer?.length) return res.status(400).json({ message: '서명 이미지를 선택해 주세요.' })
+        const fileName = String(file.originalname ?? `${role}-signature.png`).trim() || `${role}-signature.png`
+        const storageKey = buildClaimRequestSignatureStorageKey(id, role, fileName)
+        const contentType = String(file.mimetype ?? 'image/png')
+        await putClaimRequestAttachmentObject(storageKey, file.buffer, contentType)
+        res.json({
+          signature: {
+            storageKey,
+            fileName,
+            contentType,
+            size: file.buffer.length,
+            signedAt: new Date().toISOString(),
+          },
+          role,
+        })
+      } catch (error) {
+        handleDbError(error, req, res)
+      }
+    },
+  )
+
+  apiRouter.get('/insurance-claim/customers/:customerId/app-attachments', ...claimRequestMw, async (req, res) => {
+    try {
+      const customerId = parsePositiveInt(req.params.customerId)
+      if (customerId == null) return res.status(400).json({ message: '잘못된 고객 ID입니다.' })
+      await assertCustomerInGa(pool, req.insuranceClaimGaId, customerId)
+      const { rows } = await pool.query(
+        `
+        SELECT
+          f.id,
+          f.file_name,
+          f.content_type,
+          f.file_size,
+          f.uploaded_at,
+          r.id AS request_id,
+          COALESCE(NULLIF(TRIM(r.title), ''), CONCAT('청구 #', r.id::text)) AS request_title
+        FROM customer_claim_request_files f
+        INNER JOIN customer_claim_requests r ON r.id = f.request_id
+        INNER JOIN customers c ON c.id = f.customer_id
+        WHERE f.customer_id = $1 AND c.ga_id = $2
+        ORDER BY f.uploaded_at DESC, f.id DESC
+        LIMIT 200
+        `,
+        [customerId, req.insuranceClaimGaId],
+      )
+      res.json({
+        attachments: rows.map((row) => ({
+          id: Number(row.id),
+          fileName: String(row.file_name ?? ''),
+          contentType: String(row.content_type ?? ''),
+          fileSize: Number(row.file_size ?? 0),
+          uploadedAt: row.uploaded_at ? new Date(row.uploaded_at).toISOString() : null,
+          requestId: Number(row.request_id),
+          requestTitle: String(row.request_title ?? ''),
+        })),
+      })
+    } catch (error) {
+      if (error?.httpStatus) return res.status(error.httpStatus).json({ message: error.message })
+      handleDbError(error, req, res)
+    }
   })
 
   apiRouter.get('/customers/:customerId/insurance-claim/requests', ...claimRequestMw, async (req, res) => {
