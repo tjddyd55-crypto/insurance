@@ -15,6 +15,7 @@ import {
   logMaskedDbFingerprint,
 } from './lib/dbEnvironmentGuard.js'
 import { buildBillingSubscriptionStatusCheckConstraintSql } from './insurance-billing/subscriptionStatusPolicy.js'
+import { ensureOptionalUserForeignKey } from './lib/dbFkTypeGuard.js'
 
 /**
  * ⚠️ 디버그 전용: insurance_forms 등 user_id FK는 ON DELETE CASCADE 로 함께 정리됨.
@@ -5317,6 +5318,60 @@ export async function ensureInsuranceClaimCompanySchema(executor) {
     CREATE INDEX IF NOT EXISTS insurance_company_claim_document_fields_doc_order_idx
     ON insurance_company_claim_document_fields (document_id, COALESCE(input_order, order_index))
   `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS insurance_claim_requests (
+      id SERIAL PRIMARY KEY,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id) ON DELETE RESTRICT,
+      customer_id INTEGER NULL REFERENCES customers(id) ON DELETE SET NULL,
+      insurance_company_id INTEGER NOT NULL REFERENCES insurance_companies(id) ON DELETE RESTRICT,
+      status TEXT NOT NULL DEFAULT 'draft',
+      insured_snapshot JSONB NOT NULL,
+      contractor_snapshot JSONB NULL,
+      contractor_same_as_insured BOOLEAN NOT NULL DEFAULT true,
+      claim_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+      payment_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+      signature_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+      selected_customer_attachment_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+      additional_attachment_metadata JSONB NOT NULL DEFAULT '[]'::jsonb,
+      generated_document_metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+      source_claim_request_id INTEGER NULL REFERENCES insurance_claim_requests(id) ON DELETE SET NULL,
+      created_by INTEGER NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS ga_id INTEGER`)
+  await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS customer_id INTEGER NULL`)
+  await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS insurance_company_id INTEGER`)
+  await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'draft'`)
+  await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS insured_snapshot JSONB`)
+  await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS contractor_snapshot JSONB`)
+  await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS contractor_same_as_insured BOOLEAN NOT NULL DEFAULT true`)
+  await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS claim_data JSONB NOT NULL DEFAULT '{}'::jsonb`)
+  await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS payment_data JSONB NOT NULL DEFAULT '{}'::jsonb`)
+  await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS signature_data JSONB NOT NULL DEFAULT '{}'::jsonb`)
+  await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS selected_customer_attachment_ids JSONB NOT NULL DEFAULT '[]'::jsonb`)
+  await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS additional_attachment_metadata JSONB NOT NULL DEFAULT '[]'::jsonb`)
+  await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS generated_document_metadata JSONB NOT NULL DEFAULT '{}'::jsonb`)
+  await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS source_claim_request_id INTEGER NULL`)
+  await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS created_by INTEGER NULL`)
+  await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`)
+  await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`)
+  await executor.query(`ALTER TABLE insurance_claim_requests DROP CONSTRAINT IF EXISTS insurance_claim_requests_status_check`)
+  await executor.query(`
+    ALTER TABLE insurance_claim_requests ADD CONSTRAINT insurance_claim_requests_status_check
+    CHECK (status IN ('draft', 'generated', 'downloaded', 'fax_ready', 'fax_sent', 'failed', 'cancelled'))
+  `)
+  await executor.query(`CREATE INDEX IF NOT EXISTS insurance_claim_requests_ga_created_idx ON insurance_claim_requests (ga_id, created_at DESC)`)
+  await executor.query(`CREATE INDEX IF NOT EXISTS insurance_claim_requests_customer_created_idx ON insurance_claim_requests (customer_id, created_at DESC)`)
+  await executor.query(`CREATE INDEX IF NOT EXISTS insurance_claim_requests_source_idx ON insurance_claim_requests (source_claim_request_id)`)
+
+  await ensureOptionalUserForeignKey(executor, {
+    tableName: 'insurance_claim_requests',
+    columnName: 'created_by',
+    constraintName: 'insurance_claim_requests_created_by_fkey',
+  })
 }
 
 export { INSURANCE_CLAIM_COMPANY_TYPES, INSURANCE_CLAIM_DOCUMENT_TYPES }
