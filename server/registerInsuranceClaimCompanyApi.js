@@ -245,9 +245,14 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
           res.status(400).json({ message: '업로드 용량 합계가 너무 큽니다.' })
           return
         }
-        const merged = await mergePdfUploadBuffers(files.map((f) => f.buffer))
+        const merged = await mergePdfUploadBuffers(
+          files.map((f) => ({
+            buffer: f.buffer,
+            fileName: String(f.originalname ?? 'document.pdf').trim() || 'document.pdf',
+          })),
+        )
         const storageKey = buildClaimDocumentStorageKey({ companyId, documentType })
-        await putClaimDocumentObject(storageKey, merged.buffer)
+        await putClaimDocumentObject(storageKey, merged.mergedBuffer)
         const title =
           String(req.body?.title ?? '').trim() ||
           (documentType === 'claim_form' ? '청구서' : documentType === 'consent_form' ? '동의서' : '추가서류')
