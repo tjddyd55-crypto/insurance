@@ -247,6 +247,20 @@
   max-width: 200px;
 }
 
+.newsletter-board-admin-page__edit-modal-title {
+  margin: 0 0 8px;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.newsletter-board-admin-page__edit-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
 @media (max-width: 768px) {
   .newsletter-board-writer-panel__form {
     grid-template-columns: 1fr;

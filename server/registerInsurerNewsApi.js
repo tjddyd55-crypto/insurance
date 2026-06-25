@@ -33,6 +33,7 @@ import {
   SUPER_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL,
   SUPER_ADMIN_NEWSLETTER_BOARDS_LIST_SQL,
 } from './lib/newsletterBoardAdminSql.js'
+import { parseBoardMetadataPatch } from './lib/newsletterBoardMetadata.js'
 import { insertDynamicBoardNewsletter } from './lib/dynamicBoardNewsletterWrite.js'
 import { grantBoardToAllGlobalWriters } from './lib/boardWriterService.js'
 import {
@@ -1700,10 +1701,15 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         res.status(404).json({ message: '게시판을 찾을 수 없습니다.' })
         return
       }
+      const parsed = parseBoardMetadataPatch(body)
+      if (!parsed.ok) {
+        res.status(parsed.status).json({ message: parsed.message })
+        return
+      }
       const r = await systemQuery(pool, PATCH_NEWSLETTER_BOARD_SQL, [
         boardId,
-        body.label == null ? null : String(body.label).trim(),
-        body.description == null ? null : String(body.description).trim(),
+        parsed.label,
+        parsed.description === undefined ? null : parsed.description,
         body.sortOrder == null && body.sort_order == null
           ? null
           : Math.round(Number(body.sortOrder ?? body.sort_order ?? 0) || 0),
@@ -1729,10 +1735,15 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         return
       }
       const body = req.body && typeof req.body === 'object' ? req.body : {}
+      const parsed = parseBoardMetadataPatch(body)
+      if (!parsed.ok) {
+        res.status(parsed.status).json({ message: parsed.message })
+        return
+      }
       const r = await safeQuery(pool, PATCH_NEWSLETTER_BOARD_SQL, [
         boardId,
-        body.label == null ? null : String(body.label).trim(),
-        body.description == null ? null : String(body.description).trim(),
+        parsed.label,
+        parsed.description === undefined ? null : parsed.description,
         body.sortOrder == null && body.sort_order == null
           ? null
           : Math.round(Number(body.sortOrder ?? body.sort_order ?? 0) || 0),

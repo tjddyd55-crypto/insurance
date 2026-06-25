@@ -100,6 +100,27 @@ export async function deleteNewsletterBoard(token: string, boardId: string): Pro
   })
 }
 
+export async function updateNewsletterBoard(
+  token: string,
+  boardId: string,
+  input: { label: string; description?: string | null },
+  options?: { role?: string },
+): Promise<NewsletterBoard> {
+  const role = String(options?.role ?? '').toUpperCase()
+  const path =
+    role === 'GA_ADMIN' || role === 'GA_STAFF'
+      ? `/api/ga-admin/newsletter-boards/${encodeURIComponent(boardId)}`
+      : `/api/admin/newsletter-boards/${encodeURIComponent(boardId)}`
+  return apiRequest<NewsletterBoard>(path, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify({
+      label: input.label.trim(),
+      description: input.description?.trim() ? input.description.trim() : null,
+    }),
+  })
+}
+
 async function fetchPublishContextApi(token: string, options?: { channel?: NewsChannel }): Promise<PublishContextApi> {
   const channel = normalizeChannel(options?.channel)
   const q = channel === DEFAULT_NEWS_CHANNEL ? '' : `?channel=${encodeURIComponent(channel)}`

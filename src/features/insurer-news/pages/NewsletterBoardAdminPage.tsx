@@ -7,10 +7,12 @@ import {
   createGaNewsletterBoard,
   deleteNewsletterBoard,
   listAdminNewsletterBoards,
+  updateNewsletterBoard,
 } from '../services/insurerNews.service'
 import type { NewsletterBoard } from '../types'
 import NewsletterBoardAdminMobileView from './NewsletterBoardAdmin/NewsletterBoardAdminMobileView'
 import NewsletterBoardAdminPCView from './NewsletterBoardAdmin/NewsletterBoardAdminPCView'
+import { NewsletterBoardEditModal } from './NewsletterBoardAdmin/NewsletterBoardEditModal'
 import type {
   NewsletterBoardAdminViewProps,
   NewsletterBoardCreateMode,
@@ -29,7 +31,11 @@ export function NewsletterBoardAdminPage() {
   const [busy, setBusy] = useState(false)
   const [writerBusy, setWriterBusy] = useState(false)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [selectedBoard, setSelectedBoard] = useState<NewsletterBoard | null>(null)
+  const [editingBoard, setEditingBoard] = useState<NewsletterBoard | null>(null)
+  const [editBusy, setEditBusy] = useState(false)
+  const [editError, setEditError] = useState('')
   const { confirm, confirmDialog } = useConfirmDialog()
 
   const canManage = role === 'SUPER_ADMIN' || role === 'GA_ADMIN' || role === 'GA_STAFF'
@@ -117,6 +123,62 @@ export function NewsletterBoardAdminPage() {
     })()
   }
 
+  const handleEdit = (board: NewsletterBoard) => {
+    if (busy || editBusy) {
+      return
+    }
+    setEditError('')
+    setEditingBoard(board)
+  }
+
+  const closeEditModal = () => {
+    if (editBusy) {
+      return
+    }
+    setEditingBoard(null)
+    setEditError('')
+  }
+
+  const handleEditRequestClose = () => {
+    if (editBusy) {
+      return
+    }
+    void (async () => {
+      const ok = await confirm({
+        title: '변경사항 취소',
+        message: '변경사항이 저장되지 않았습니다. 닫으시겠습니까?',
+      })
+      if (ok) {
+        closeEditModal()
+      }
+    })()
+  }
+
+  const handleEditSubmit = (input: { label: string; description: string }) => {
+    if (!token?.trim() || !editingBoard || editBusy) {
+      return
+    }
+    void (async () => {
+      setEditBusy(true)
+      setEditError('')
+      try {
+        const updated = await updateNewsletterBoard(token, editingBoard.id, input, { role })
+        setBoards((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
+        if (selectedBoard?.id === updated.id) {
+          setSelectedBoard(updated)
+        }
+        const isGlobal = editingBoard.boardScope === 'global' || editingBoard.contentScope === 'global'
+        setNotice(isGlobal ? '공용 소식지가 수정되었습니다.' : 'GA전용 소식지가 수정되었습니다.')
+        closeEditModal()
+        setError('')
+      } catch (e) {
+        setEditError(e instanceof Error ? e.message : '공용 소식지 수정에 실패했습니다.')
+      } finally {
+        setEditBusy(false)
+      }
+    })()
+  }
+
   if (!canManage) {
     return (
       <main className="page page--with-back newsletter-board-admin-page">
@@ -135,14 +197,16 @@ export function NewsletterBoardAdminPage() {
     description,
     createMode,
     loading,
-    busy: busy || writerBusy,
+    busy: busy || writerBusy || editBusy,
     error,
+    notice,
     selectedBoard,
     onLabelChange: setLabel,
     onDescriptionChange: setDescription,
     onCreateModeChange: setCreateMode,
     onCreate: handleCreate,
     onDelete: handleDelete,
+    onEdit: handleEdit,
     onSelectBoard: setSelectedBoard,
     onWriterBusyChange: setWriterBusy,
   }
@@ -153,6 +217,15 @@ export function NewsletterBoardAdminPage() {
         PC={NewsletterBoardAdminPCView}
         Mobile={NewsletterBoardAdminMobileView}
         viewProps={viewProps}
+      />
+      <NewsletterBoardEditModal
+        board={editingBoard}
+        open={editingBoard != null}
+        busy={editBusy}
+        error={editError}
+        onClose={closeEditModal}
+        onRequestClose={handleEditRequestClose}
+        onSubmit={handleEditSubmit}
       />
       {confirmDialog}
     </>
