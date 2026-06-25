@@ -153,6 +153,11 @@ export function buildGaTenantDashboardMenu(
     },
   ]
 
+  const insuranceClaimMenu: GaTenantDashboardMenuEntry[] = [
+    { type: 'section', label: '보험청구' },
+    { type: 'link', label: '보험청구', path: '/insurance-claim/requests' },
+  ]
+
   return [
     { type: 'section', label: '할일 및 알림' },
     { type: 'link', label: '할일', path: '/todos' },
@@ -181,6 +186,8 @@ export function buildGaTenantDashboardMenu(
     ...applicationItems,
 
     ...(includeUserContractSignatures ? userContractSignatures : []),
+
+    ...insuranceClaimMenu,
 
     { type: 'section', label: '팀관리' },
     { type: 'link', label: '팀원리스트', path: '/team/members' },

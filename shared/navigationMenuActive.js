@@ -69,3 +69,14 @@ export function matchClaimRequestsMenuPath(pathname, search, itemPath) {
 
   return currentClaimTab === menuClaimTab
 }
+
+/**
+ * @returns {boolean | null} null 이면 insurance-claim 규칙 대상이 아님
+ */
+export function matchInsuranceClaimMenuPath(pathname, itemPath) {
+  const { pathname: menuPathname } = splitMenuItemPath(itemPath)
+  if (menuPathname !== '/insurance-claim/requests') {
+    return null
+  }
+  return pathname === '/insurance-claim' || pathname.startsWith('/insurance-claim/')
+}

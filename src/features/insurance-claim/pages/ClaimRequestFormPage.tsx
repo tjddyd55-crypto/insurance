@@ -52,6 +52,17 @@ function normalizeSelectedIds(raw: unknown): number[] {
   return raw.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0)
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  draft: '초안',
+  generated: '생성 완료',
+  completed: '완료',
+  failed: '실패',
+}
+
+function formatStatus(status: string): string {
+  return STATUS_LABELS[status] ?? status
+}
+
 export default function ClaimRequestFormPage() {
   const { token } = useAuth()
   const navigate = useNavigate()
@@ -334,11 +345,11 @@ export default function ClaimRequestFormPage() {
   )
 
   return (
-    <main className="page insurance-claim-form">
+    <main className="page page--with-back insurance-claim-form">
       <header className="page-header">
         <h1>{requestId != null ? `보험청구 #${requestId}` : '보험청구 작성'}</h1>
         <p>고객 등록 없이 직접 입력할 수 있으며, 고객 불러오기는 입력 보조 기능입니다.</p>
-        {requestId != null ? <p className="insurance-claim-form__status">상태: {status}</p> : null}
+        {requestId != null ? <p className="insurance-claim-form__status">상태: {formatStatus(status)}</p> : null}
       </header>
 
       <section className="insurance-claim-form__section">
