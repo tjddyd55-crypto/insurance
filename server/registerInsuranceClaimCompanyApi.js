@@ -53,6 +53,11 @@ import {
 } from './insurance-claim/repository/insuranceClaimRequestRepo.js'
 import { stampPdf } from './pdf-engine/renderer/stampPdf.js'
 import { buildInsuranceClaimStampPayload } from './insurance-claim/buildInsuranceClaimStampPayload.js'
+import {
+  buildGeneratedDocumentMetadataEntry,
+  resolveConsentFormTargets,
+  validateConsentFormSignatures,
+} from './insurance-claim/consentFormGeneration.js'
 import { readInsuranceClaimDownloadBuffer } from './insurance-claim/readInsuranceClaimDownloadBuffer.js'
 import { buildClaimBundleDownloadName, buildContentDisposition } from './lib/claimRequestFileBundle.js'
 
@@ -283,23 +288,66 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
       const request = await getClaimRequestById(pool, req.insuranceClaimGaId, id)
       if (!request) return res.status(404).json({ message: '청구 내역을 찾을 수 없습니다.' })
       if (request.status !== 'draft') return res.status(409).json({ message: 'draft 상태의 청구만 생성할 수 있습니다.' })
-      const generated = []
-      for (const type of ['claim_form', 'consent_form']) {
-        const document = await getActiveDocumentForCompany(pool, request.insuranceCompanyId, type)
-        if (!document) return res.status(400).json({ message: `${type === 'claim_form' ? '청구서' : '동의서'} PDF 설정이 필요합니다.` })
-        const fields = (await listDocumentFields(pool, document.id)).map(claimFieldRowToDto)
-        const { values, signaturePngByFieldKey } = await buildInsuranceClaimStampPayload(fields, request, type)
-        const rendered = await stampPdf(
-          await getClaimDocumentObject(document.storageKey),
-          fields,
-          values,
-          signaturePngByFieldKey,
-        )
-        const storageKey = buildClaimDocumentStorageKey({ companyId: request.insuranceCompanyId, documentType: `generated-${id}-${type}` })
-        await putClaimDocumentObject(storageKey, rendered)
-        generated.push({ documentType: type, storageKey, fileName: `${type === 'claim_form' ? '청구서' : '동의서'}.pdf`, contentType: 'application/pdf' })
+
+      const signatureCheck = validateConsentFormSignatures(request)
+      if (!signatureCheck.ok) {
+        return res.status(400).json({ message: signatureCheck.message })
       }
-      const updated = await markGenerated(pool, req.insuranceClaimGaId, id, { documents: generated, generatedAt: new Date().toISOString() })
+
+      /** @type {Array<Record<string, unknown>>} */
+      const generated = []
+
+      const claimDocument = await getActiveDocumentForCompany(pool, request.insuranceCompanyId, 'claim_form')
+      if (!claimDocument) return res.status(400).json({ message: '청구서 PDF 설정이 필요합니다.' })
+      const claimFields = (await listDocumentFields(pool, claimDocument.id)).map(claimFieldRowToDto)
+      const claimPayload = await buildInsuranceClaimStampPayload(claimFields, request, 'claim_form')
+      const claimRendered = await stampPdf(
+        await getClaimDocumentObject(claimDocument.storageKey),
+        claimFields,
+        claimPayload.values,
+        claimPayload.signaturePngByFieldKey,
+      )
+      const claimStorageKey = buildClaimDocumentStorageKey({
+        companyId: request.insuranceCompanyId,
+        documentType: `generated-${id}-claim_form`,
+      })
+      await putClaimDocumentObject(claimStorageKey, claimRendered)
+      generated.push(buildGeneratedDocumentMetadataEntry('claim_form', '청구서', claimStorageKey))
+
+      const consentDocument = await getActiveDocumentForCompany(pool, request.insuranceCompanyId, 'consent_form')
+      if (!consentDocument) return res.status(400).json({ message: '동의서 PDF 설정이 필요합니다.' })
+      const consentFields = (await listDocumentFields(pool, consentDocument.id)).map(claimFieldRowToDto)
+      const consentTemplate = await getClaimDocumentObject(consentDocument.storageKey)
+
+      for (const target of resolveConsentFormTargets(request)) {
+        const consentPayload = await buildInsuranceClaimStampPayload(consentFields, request, 'consent_form', {
+          consentTarget: target.consentTarget,
+        })
+        const consentRendered = await stampPdf(
+          consentTemplate,
+          consentFields,
+          consentPayload.values,
+          consentPayload.signaturePngByFieldKey,
+        )
+        const consentStorageKey = buildClaimDocumentStorageKey({
+          companyId: request.insuranceCompanyId,
+          documentType: `generated-${id}-consent_form-${target.consentTarget}`,
+        })
+        await putClaimDocumentObject(consentStorageKey, consentRendered)
+        generated.push(
+          buildGeneratedDocumentMetadataEntry(
+            'consent_form',
+            target.label,
+            consentStorageKey,
+            target.consentTarget,
+          ),
+        )
+      }
+
+      const updated = await markGenerated(pool, req.insuranceClaimGaId, id, {
+        documents: generated,
+        generatedAt: new Date().toISOString(),
+      })
       res.json({ request: updated })
     } catch (error) { handleDbError(error, req, res) }
   })
