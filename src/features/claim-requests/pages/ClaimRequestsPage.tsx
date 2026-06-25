@@ -12,6 +12,7 @@ import useIsMobile from '../../../hooks/useIsMobile'
 import { NewsletterList } from '../../insurer-news/components/NewsletterList'
 import type { NewsletterItem } from '../../insurer-news/types'
 import { ClaimRequestDetailBody } from './claim-requests/sections/ClaimRequestDetailSection'
+import ClaimRequestListCard from '../components/ClaimRequestListCard'
 import { useAuth } from '../../auth/AuthProvider'
 import ClaimRequestsPageMobileView from './claim-requests/ClaimRequestsPageMobileView'
 import ClaimRequestsPagePCView from './claim-requests/ClaimRequestsPagePCView'
@@ -76,19 +77,6 @@ function statusBadgeClass(status: ClaimRequestStatus): string {
 function parsePositiveInt(raw: string | null): number | null {
   const n = Number(raw)
   return Number.isInteger(n) && n > 0 ? n : null
-}
-
-function claimListPreviewText(item: ClaimRequestListItem): string {
-  const memo = item.memo?.trim()
-  const title = item.title?.trim()
-  const raw = memo || title || ''
-  if (!raw) {
-    return '내용 없음'
-  }
-  if (raw.length <= 140) {
-    return raw
-  }
-  return `${raw.slice(0, 137)}…`
 }
 
 export default function ClaimRequestsPage() {
@@ -871,27 +859,15 @@ export default function ClaimRequestsPage() {
                 </div>
               ) : null}
               <div className="claim-requests-page__list">
-                {rows.map((item) => {
-                  const active = item.id === selectedId
-                  return (
-                    <FormButton
-                      key={item.id}
-                      htmlType="button"
-                      variant="action"
-                      className={`claim-requests-page__list-item${active ? ' claim-requests-page__list-item--active' : ''}`}
-                      onClick={() => handleSelectClaim(item.id)}
-                    >
-                      <div className="claim-requests-page__list-item-header">
-                        <span className="claim-requests-page__list-item-date">{formatDateTime(item.submittedAt)}</span>
-                        <span className={statusBadgeClass(item.status)}>{statusLabel(item.status)}</span>
-                      </div>
-                      <p className="claim-requests-page__list-item-body">{claimListPreviewText(item)}</p>
-                      <div className="claim-requests-page__list-item-meta">
-                        <span>첨부 {item.fileCount}개</span>
-                      </div>
-                    </FormButton>
-                  )
-                })}
+                {rows.map((item) => (
+                  <ClaimRequestListCard
+                    key={item.id}
+                    item={item}
+                    active={item.id === selectedId}
+                    formatDateTime={formatDateTime}
+                    onClick={() => handleSelectClaim(item.id)}
+                  />
+                ))}
               </div>
             </article>
 
