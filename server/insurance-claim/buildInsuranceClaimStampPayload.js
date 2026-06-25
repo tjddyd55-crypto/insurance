@@ -12,7 +12,8 @@ function isContractorSignatureField(field) {
 }
 
 /**
- * 동의서 PDF — checkbox 필드는 placement checkedValue 기준으로 모두 체크되도록 값을 채운다.
+ * 동의서 PDF — checkbox 필드는 consent_form 생성 시 항상 전체 체크.
+ * checkedValue 유무와 관계없이 모든 placement를 checked로 만든다.
  */
 export function applyConsentFormCheckboxValues(fields, values) {
   const out = { ...values }
@@ -25,25 +26,28 @@ export function applyConsentFormCheckboxValues(fields, values) {
       continue
     }
     const placements = Array.isArray(field.placements) ? field.placements : []
+    if (placements.length === 0) {
+      out[key] = 'true'
+      continue
+    }
     const checkedValues = [
       ...new Set(
-        placements
-          .map((placement) => placementCheckedValue(placement))
-          .filter((value) => value != null && String(value).trim() !== ''),
+        placements.map((placement) => {
+          const value = placementCheckedValue(placement)
+          return value != null && String(value).trim() !== '' ? String(value).trim() : 'true'
+        }),
       ),
     ]
     if (checkedValues.length === 1) {
       out[key] = checkedValues[0]
-    } else if (checkedValues.length > 1) {
-      out[key] = JSON.stringify(checkedValues)
     } else {
-      out[key] = 'true'
+      out[key] = JSON.stringify(checkedValues)
     }
   }
   return out
 }
 
-export async function loadInsuranceClaimSignaturePngs(fields, signatureData) {
+export async function loadInsuranceClaimSignaturePngs(fields, signatureData, consentTarget = null) {
   /** @type {Record<string, Buffer>} */
   const signaturePngByFieldKey = {}
   const insured = signatureData?.insuredSignature ?? null
@@ -57,7 +61,14 @@ export async function loadInsuranceClaimSignaturePngs(fields, signatureData) {
     if (!fieldKey) {
       continue
     }
-    const meta = isContractorSignatureField(field) ? contractor : insured
+    let meta
+    if (consentTarget === 'contractor') {
+      meta = contractor
+    } else if (consentTarget === 'insured') {
+      meta = insured
+    } else {
+      meta = isContractorSignatureField(field) ? contractor : insured
+    }
     const storageKey = String(meta?.storageKey ?? '').trim()
     if (!storageKey) {
       continue
@@ -79,12 +90,18 @@ export async function loadInsuranceClaimSignaturePngs(fields, signatureData) {
  * @param {import('../pdf-engine/schema/fieldSpec.js').FieldSpec[]} fields
  * @param {object} request
  * @param {'claim_form' | 'consent_form'} documentType
+ * @param {{ consentTarget?: 'insured' | 'contractor' | null }} [options]
  */
-export async function buildInsuranceClaimStampPayload(fields, request, documentType) {
-  let values = resolveInsuranceClaimFieldValues(fields, request, { documentType })
+export async function buildInsuranceClaimStampPayload(fields, request, documentType, options = {}) {
+  const consentTarget = options.consentTarget ?? null
+  let values = resolveInsuranceClaimFieldValues(fields, request, { documentType, consentTarget })
   if (documentType === 'consent_form') {
     values = applyConsentFormCheckboxValues(fields, values)
   }
-  const signaturePngByFieldKey = await loadInsuranceClaimSignaturePngs(fields, request.signatureData ?? {})
+  const signaturePngByFieldKey = await loadInsuranceClaimSignaturePngs(
+    fields,
+    request.signatureData ?? {},
+    documentType === 'consent_form' ? consentTarget : null,
+  )
   return { values, signaturePngByFieldKey }
 }

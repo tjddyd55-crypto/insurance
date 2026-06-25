@@ -78,7 +78,7 @@ test('동의서는 checkbox 외 텍스트 필드를 비운다', () => {
   assert.equal(values.payment_bank_name, '')
 })
 
-test('동의서 checkbox는 placement checkedValue 기준으로 모두 체크한다', () => {
+test('동의서 checkbox는 consent_form 생성 시 항상 전체 placement를 체크한다', () => {
   const values = applyConsentFormCheckboxValues(
     [
       {
@@ -86,10 +86,76 @@ test('동의서 checkbox는 placement checkedValue 기준으로 모두 체크한
         fieldType: 'checkbox',
         placements: [{ checkedValue: 'yes' }, { checkedValue: 'marketing' }],
       },
+      {
+        fieldKey: 'mixed',
+        fieldType: 'checkbox',
+        placements: [{ checkedValue: 'yes' }, {}],
+      },
       { fieldKey: 'simple', fieldType: 'checkbox', placements: [] },
     ],
     {},
   )
   assert.equal(values.agree_all, '["yes","marketing"]')
+  assert.equal(values.mixed, '["yes","true"]')
   assert.equal(values.simple, 'true')
+})
+
+test('동의서 consentTarget=insured — 성함/서명 대상은 피보험자 snapshot', () => {
+  const values = resolveInsuranceClaimFieldValues(
+    [
+      { fieldKey: 'name', dataMapping: { dataSourceType: 'customer', customerFieldKey: 'name', useSecondaryCustomer: true } },
+      { fieldKey: 'payment_bank_name' },
+      { fieldKey: 'claim_claim_type', fieldType: 'checkbox' },
+    ],
+    sampleInput,
+    { documentType: 'consent_form', consentTarget: 'insured' },
+  )
+  assert.equal(values.name, '피보험자')
+  assert.equal(values.payment_bank_name, '')
+  assert.notEqual('claim_claim_type' in values, true)
+})
+
+test('동의서 consentTarget=contractor — useSecondaryCustomer 무시하고 계약자 snapshot', () => {
+  const values = resolveInsuranceClaimFieldValues(
+    [
+      { fieldKey: 'name', dataMapping: { dataSourceType: 'customer', customerFieldKey: 'name', useSecondaryCustomer: true } },
+      { fieldKey: 'insured_name' },
+    ],
+    sampleInput,
+    { documentType: 'consent_form', consentTarget: 'contractor' },
+  )
+  assert.equal(values.name, '계약자')
+  assert.equal(values.insured_name, '계약자')
+})
+
+test('동의서 consentTarget=insured — contractorSameAsInsured=true면 계약자 좌표에도 피보험자 성함', () => {
+  const values = resolveInsuranceClaimFieldValues(
+    [{ fieldKey: 'contractor_name' }],
+    {
+      insuredSnapshot: { name: '홍길동' },
+      contractorSameAsInsured: true,
+      contractorSnapshot: null,
+    },
+    { documentType: 'consent_form', consentTarget: 'insured' },
+  )
+  assert.equal(values.contractor_name, '홍길동')
+})
+
+test('청구서 claim_form — 기존 필드 매핑 유지', () => {
+  const values = resolveInsuranceClaimFieldValues(
+    [
+      { fieldKey: 'insured_name' },
+      { fieldKey: 'contractor_name' },
+      { fieldKey: 'claim_claim_type', fieldType: 'radio' },
+      { fieldKey: 'payment_bank_name' },
+    ],
+    sampleInput,
+    { documentType: 'claim_form' },
+  )
+  assert.deepEqual(values, {
+    insured_name: '피보험자',
+    contractor_name: '계약자',
+    claim_claim_type: '질병',
+    payment_bank_name: '국민은행',
+  })
 })

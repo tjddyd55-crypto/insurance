@@ -4,25 +4,35 @@
  * @param {number} gaId
  * @param {import('./repository/insuranceClaimRequestRepo.js').InsuranceClaimRequestDto} request
  */
+
+function generatedDocumentZipBaseName(doc) {
+  const docType = doc?.type ?? doc?.documentType
+  if (docType === 'claim_form') {
+    return '청구서.pdf'
+  }
+  const label = String(doc?.label ?? '동의서').replace(/\s+/g, '_')
+  return `${label}.pdf`
+}
+
 export async function buildInsuranceClaimDownloadFiles(pool, gaId, request) {
   /** @type {Array<{ storageKey: string, fileName: string, contentType?: string }>} */
   const files = []
   /** @type {string[]} */
   const skipped = []
+  let order = 0
 
   const generated = Array.isArray(request.generatedDocumentMetadata?.documents)
     ? request.generatedDocumentMetadata.documents
     : []
-  generated.forEach((doc, index) => {
+  generated.forEach((doc) => {
     const storageKey = String(doc?.storageKey ?? '').trim()
     if (!storageKey) {
       return
     }
-    const order = String(index + 1).padStart(2, '0')
-    const label = doc.documentType === 'consent_form' ? '동의서' : '청구서'
+    order += 1
     files.push({
       storageKey,
-      fileName: `${order}_${label}.pdf`,
+      fileName: `${String(order).padStart(2, '0')}_${generatedDocumentZipBaseName(doc)}`,
       contentType: 'application/pdf',
       source: 'generated',
     })
@@ -33,10 +43,11 @@ export async function buildInsuranceClaimDownloadFiles(pool, gaId, request) {
     if (!storageKey) {
       continue
     }
+    order += 1
     const baseName = String(meta?.fileName ?? 'file').trim() || 'file'
     files.push({
       storageKey,
-      fileName: `추가첨부_${baseName}`,
+      fileName: `${String(order).padStart(2, '0')}_추가첨부_${baseName}`,
       contentType: String(meta?.contentType ?? 'application/octet-stream'),
       source: 'claim_attachment',
     })
@@ -75,7 +86,7 @@ export async function buildInsuranceClaimDownloadFiles(pool, gaId, request) {
       }
       files.push({
         storageKey: String(row.storage_key ?? ''),
-        fileName: `고객첨부_${String(row.file_name ?? 'file')}`,
+        fileName: `${String(++order).padStart(2, '0')}_고객첨부_${String(row.file_name ?? 'file')}`,
         contentType: String(row.content_type ?? 'application/octet-stream'),
         source: 'customer_app_attachment',
         agentId: String(row.agent_id ?? ''),

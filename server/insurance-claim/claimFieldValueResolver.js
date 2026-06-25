@@ -124,13 +124,57 @@ function applyConsentFormTextBlanking(fieldKey, fieldType, mapping, resolvedValu
   return ''
 }
 
+function resolveConsentFormFieldValues(fields, input, consentTarget) {
+  const insured = input.insuredSnapshot ?? {}
+  const contractor =
+    input.contractorSameAsInsured === false && input.contractorSnapshot
+      ? input.contractorSnapshot
+      : insured
+  const targetPerson = consentTarget === 'contractor' ? contractor : insured
+  /** @type {Record<string, string>} */
+  const out = {}
+
+  for (const field of fields) {
+    const key = String(field.fieldKey ?? '')
+    if (!key) {
+      continue
+    }
+    const fieldType = String(field.fieldType ?? 'text')
+    const mapping = field.dataMapping ?? {}
+
+    if (fieldType === 'signature' || fieldType === 'checkbox') {
+      continue
+    }
+
+    if (isPersonNameFieldKey(key, mapping?.customerFieldKey)) {
+      out[key] = valueByKey(targetPerson, 'name')
+      continue
+    }
+
+    if (mapping.dataSourceType === 'customer' && mapping.customerFieldKey === 'name') {
+      out[key] = valueByKey(targetPerson, 'name')
+      continue
+    }
+
+    out[key] = ''
+  }
+
+  return out
+}
+
 /**
  * @param {Array<{ fieldKey?: string, fieldType?: string, dataMapping?: object }>} fields
  * @param {object} input
- * @param {{ documentType?: 'claim_form' | 'consent_form' | null }} [options]
+ * @param {{ documentType?: 'claim_form' | 'consent_form' | null, consentTarget?: 'insured' | 'contractor' | null }} [options]
  */
 export function resolveInsuranceClaimFieldValues(fields, input, options = {}) {
   const documentType = options.documentType ?? null
+  const consentTarget = options.consentTarget ?? null
+
+  if (documentType === 'consent_form' && consentTarget) {
+    return resolveConsentFormFieldValues(fields, input, consentTarget)
+  }
+
   const insured = input.insuredSnapshot ?? {}
   const contractor =
     input.contractorSameAsInsured === false && input.contractorSnapshot
