@@ -1,5 +1,8 @@
 import type { CustomerAppLinkInfo } from '../api/claimRequestsApi'
 
+export { buildInternalCustomerClaimRoute, isCustomerAppClaimRoute } from '../../../../server/lib/internalCustomerClaimRoute.js'
+export { openCustomerClaimWorkspace } from '../../customers/utils/customerClaimWorkspaceNavigation'
+
 /** 고객앱 연결 URL — 고객이 청구 파일을 올리는 진입점 */
 export function getCustomerClaimPageUrl(info: CustomerAppLinkInfo | null | undefined): string {
   return String(info?.universalUrl ?? info?.connectUrl ?? '').trim()
