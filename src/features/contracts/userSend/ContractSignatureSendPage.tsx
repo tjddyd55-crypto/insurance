@@ -2,6 +2,7 @@
  * 전자서명 발송 — USER / GA_STAFF. 관리자 템플릿은 /admin/contract-signatures 에서만 관리.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type ReactElement, type KeyboardEvent, type ChangeEventHandler } from 'react'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
 import { useMediaQuery } from '../../../hooks/useMediaQuery'
 import '../../pdf-engine/pdf-engine.css'
@@ -9,7 +10,6 @@ import '../testConsole/contract-signature-console.css'
 import './contract-signature-send-mobile.css'
 import { useAuth } from '../../auth/AuthProvider'
 import { ApiError } from '../../../lib/apiClient'
-import { EvidenceStatusPanel } from '../testConsole/components/EvidenceStatusPanel'
 import { SendSessionPanel } from '../testConsole/components/SendSessionPanel'
 import type { CreateSendSessionResult, SendSessionDetail } from '../testConsole/contractSignatureTestConsoleClient'
 import {
@@ -29,6 +29,8 @@ import {
 } from './contractSignatureSendClient'
 import { SendAttachmentFileInput } from './SendAttachmentFileInput'
 import { ConfirmationOnlySendFieldsSection } from './ConfirmationOnlySendFieldsSection'
+import { getCustomerById } from '../../customers/api/customersApi'
+import { customerRecordToContractSendHit } from './customerRecordToContractSendHit'
 
 /**
  * 모바일 발송 단계에서 초록색(contract-mobile-step--completed)은
@@ -217,11 +219,78 @@ function mobileStepShell(
   )
 }
 
-export default function ContractSignatureSendPage() {
+function parseContractSendCustomerId(raw: string | null | undefined): number | null {
+  const n = Number(raw)
+  return Number.isInteger(n) && n > 0 ? n : null
+}
+
+type ContractSignatureSendPageProps = {
+  /** 고객 작업영역(`/customers/:id/signatures`)에서 주입 */
+  workspaceCustomerId?: number
+  embeddedInCustomerWorkspace?: boolean
+}
+
+function formatSendSectionTitle(embeddedInCustomerWorkspace: boolean, step: number, label: string): string {
+  return embeddedInCustomerWorkspace ? label : `${step}. ${label}`
+}
+
+function renderEmbeddedWorkspaceCustomerSummary(
+  selectedCustomer: UserContractCustomerSearchHit | null,
+  validationError: string | null,
+): ReactNode {
+  if (validationError) {
+    return (
+      <p className="contract-signature-console__inline-warning" role="status">
+        {validationError}
+      </p>
+    )
+  }
+  if (!selectedCustomer) {
+    return <p className="contract-signature-console__hint">고객 정보를 불러오는 중…</p>
+  }
+  const phone = selectedCustomer.hasPhone ? selectedCustomer.maskedPhone : '연락처 없음'
+  return (
+    <p className="contract-signature-console__workspace-customer-line">
+      선택 고객: <strong>{selectedCustomer.name}</strong>
+      <span className="contract-signature-console__workspace-customer-sep"> · </span>
+      {phone}
+      {!selectedCustomer.hasPhone ? (
+        <span className="contract-signature-console__hint--warning"> — 유효한 휴대폰 번호가 없어 발송할 수 없습니다.</span>
+      ) : null}
+    </p>
+  )
+}
+
+export default function ContractSignatureSendPage({
+  workspaceCustomerId,
+  embeddedInCustomerWorkspace: embeddedProp = false,
+}: ContractSignatureSendPageProps = {}) {
   const { token } = useAuth()
   const t = token?.trim() ?? ''
+  const params = useParams<{ customerId?: string }>()
+  const [searchParams] = useSearchParams()
+  const pathCustomerId = useMemo(
+    () => parseContractSendCustomerId(params.customerId ?? null),
+    [params.customerId],
+  )
+  const queryCustomerId = useMemo(
+    () => parseContractSendCustomerId(searchParams.get('customerId')),
+    [searchParams],
+  )
+  const embeddedInCustomerWorkspace =
+    embeddedProp || pathCustomerId != null || (workspaceCustomerId != null && workspaceCustomerId > 0)
+  const scopedCustomerId = useMemo(() => {
+    if (workspaceCustomerId != null && workspaceCustomerId > 0) {
+      return workspaceCustomerId
+    }
+    if (pathCustomerId != null) {
+      return pathCustomerId
+    }
+    return queryCustomerId
+  }, [pathCustomerId, queryCustomerId, workspaceCustomerId])
   const isMobileFlow = useMediaQuery(MOBILE_FLOW_MQ)
   const customerSearchInputRef = useRef<HTMLInputElement>(null)
+  const prefilledCustomerIdRef = useRef<number | null>(null)
 
   const [bootError, setBootError] = useState<string | null>(null)
   const [templates, setTemplates] = useState<UserContractTemplateItem[]>([])
@@ -283,6 +352,40 @@ export default function ContractSignatureSendPage() {
   useEffect(() => {
     void reloadTemplates()
   }, [reloadTemplates])
+
+  useEffect(() => {
+    if (!t || scopedCustomerId == null) {
+      return
+    }
+    if (prefilledCustomerIdRef.current === scopedCustomerId) {
+      return
+    }
+    let cancelled = false
+    void getCustomerById(t, scopedCustomerId)
+      .then((c) => {
+        if (cancelled) {
+          return
+        }
+        const hit = customerRecordToContractSendHit(c)
+        prefilledCustomerIdRef.current = scopedCustomerId
+        setSelectedCustomer(hit)
+        setCustomerQuery(hit.name)
+        setCustomerHits([hit])
+        setCustomerSearchExecuted(true)
+        setCustomerSearchValidationError(null)
+      })
+      .catch((e) => {
+        if (cancelled) {
+          return
+        }
+        setCustomerSearchValidationError(
+          e instanceof ApiError ? e.message : '고객 정보를 불러오지 못했습니다.',
+        )
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [t, scopedCustomerId])
 
   const executeCustomerSearch = useCallback(async () => {
     if (!t) {
@@ -348,7 +451,7 @@ export default function ContractSignatureSendPage() {
       const next = await getUserContractSendSessionDetail(t, sid)
       setSessionDetail(next)
     } catch (e) {
-      setSendError(e instanceof ApiError ? e.message : '세션 상태를 불러오지 못했습니다.')
+      setSendError(e instanceof ApiError ? e.message : '발송 상태를 불러오지 못했습니다.')
     } finally {
       setEvidenceLoading(false)
     }
@@ -552,14 +655,14 @@ export default function ContractSignatureSendPage() {
       setSessionDetail(next)
       setAttachmentDrafts([])
     } catch (e) {
-      setSendError(e instanceof ApiError ? e.message : '발송 세션 생성에 실패했습니다.')
+      setSendError(e instanceof ApiError ? e.message : '전자서명 발송에 실패했습니다.')
     } finally {
       setSendBusy(false)
     }
   }
 
   const inactiveTemplateHint =
-    selectedTpl != null && String(selectedTpl.status) !== 'active' ? 'active 템플릿만 발송할 수 있습니다.' : null
+    selectedTpl != null && String(selectedTpl.status) !== 'active' ? '사용 가능한 템플릿만 발송할 수 있습니다.' : null
 
   const sendSessionPanelHint =
     attachmentSendBlockHint ||
@@ -570,8 +673,8 @@ export default function ContractSignatureSendPage() {
         confirmationDraftValidationMessage ||
         (confirmationOnlySelected
           ? confirmationTemplateFields.length === 0
-            ? '이 템플릿에 등록된 확인서 항목이 없어 발송할 수 없습니다. 관리자 화면에서 항목을 추가해 주세요.'
-            : '무좌표 전자확인서는 공개 링크에서 내용 확인까지 지원합니다. 고객 전자서명·최종 완료는 이후 단계에서 제공됩니다.'
+            ? '이 템플릿에 등록된 확인서 항목이 없어 발송할 수 없습니다.'
+            : confirmationOnlyValuesMessage
           : null) ||
         (selectedCustomer != null && !selectedCustomer.hasPhone
           ? '선택한 고객에 유효한 휴대폰번호가 없습니다.'
@@ -652,10 +755,8 @@ export default function ContractSignatureSendPage() {
 
   const step1Active = !step1Complete
   const step2Active = step1Complete && !templatePickComplete
-  /** 3단계: 준비가 끝났고 아직 세션이 없을 때만 진행 중 */
+  /** 3단계: 준비가 끝났고 아직 발송 전일 때만 진행 중 */
   const step3Active = step3Ready && !currentSendSessionCreated
-  /** 4단계: 세션 생성 후에만 진행 중(3과 동시 active 금지) */
-  const step4Active = currentSendSessionCreated
 
   const processPickedAttachmentFiles = async (files: File[]) => {
     if (files.length === 0) {
@@ -907,19 +1008,24 @@ export default function ContractSignatureSendPage() {
 
   const mainClass =
     'page page--with-back contract-signature-console user-page' +
-    (isMobileFlow ? ' contract-signature-flow--mobile' : '')
+    (isMobileFlow ? ' contract-signature-flow--mobile' : '') +
+    (embeddedInCustomerWorkspace ? ' contract-signature-console--workspace' : '')
 
   const senderFields = selectedTpl?.senderFieldsForSend ?? []
 
   if (isMobileFlow) {
     return (
       <main className={mainClass}>
-        <div className="contract-signature-console__container">
-          <h1 className="contract-signature-console__title">전자서명 발송</h1>
-          <p className="contract-signature-console__lead">
-            본인에게 등록된 고객을 선택하고, 관리자가 활성화한 전자서명 템플릿으로 링크를 발송합니다. 휴대폰 번호는
-            고객 정보에서만 읽으며 임의 입력·전송은 할 수 없습니다.
-          </p>
+        <div className="contract-signature-console__container" id={embeddedInCustomerWorkspace ? 'customer-signature-send' : undefined}>
+          {!embeddedInCustomerWorkspace ? (
+            <>
+              <h1 className="contract-signature-console__title">전자서명 발송</h1>
+              <p className="contract-signature-console__lead">
+                본인에게 등록된 고객을 선택하고, 관리자가 활성화한 전자서명 템플릿으로 링크를 발송합니다. 휴대폰 번호는
+                고객 정보에서만 읽으며 임의 입력·전송은 할 수 없습니다.
+              </p>
+            </>
+          ) : null}
 
           {bootError ? (
             <div className="contract-signature-console__alert--danger" role="alert">
@@ -927,7 +1033,14 @@ export default function ContractSignatureSendPage() {
             </div>
           ) : null}
 
-          {mobileStepShell(
+          {embeddedInCustomerWorkspace ? (
+            <section className="contract-signature-console__section contract-signature-console__workspace-customer">
+              {renderEmbeddedWorkspaceCustomerSummary(selectedCustomer, customerSearchValidationError)}
+            </section>
+          ) : null}
+
+          {!embeddedInCustomerWorkspace
+            ? mobileStepShell(
             {
               title: '1. 내 고객 검색',
               desc: selectedCustomer
@@ -942,10 +1055,6 @@ export default function ContractSignatureSendPage() {
                 <p className="contract-send-mobile-selected-customer__heading">선택 고객</p>
                 <div className="contract-send-mobile-selected-customer__body">
                   <span className="contract-send-mobile-selected-customer__name">{selectedCustomer.name}</span>
-                  <span className="contract-send-mobile-selected-customer__line">
-                    고객 ID: {selectedCustomer.id}
-                    {selectedCustomer.customerCode?.trim() ? ` · 고객번호 ${selectedCustomer.customerCode}` : ''}
-                  </span>
                   <span className="contract-send-mobile-selected-customer__line">
                     {selectedCustomer.hasPhone ? selectedCustomer.maskedPhone : '휴대폰 —'}
                   </span>
@@ -1038,9 +1147,7 @@ export default function ContractSignatureSendPage() {
                         >
                           <span className="contract-send-mobile-customer-result-card__name">{c.name}</span>
                           <span className="contract-send-mobile-customer-result-card__meta">
-                            {c.customerCode?.trim()
-                              ? `고객번호 ${c.customerCode} · 고객 ID ${c.id}`
-                              : `고객 ID: ${c.id}`}
+                            {c.customerCode?.trim() ? `고객번호 ${c.customerCode}` : c.maskedPhone || '연락처 —'}
                           </span>
                           <span className="contract-send-mobile-customer-result-card__meta">
                             {c.hasPhone ? c.maskedPhone : '휴대폰 —'}
@@ -1057,11 +1164,11 @@ export default function ContractSignatureSendPage() {
                 ) : null}
               </>
             ),
-          )}
+          ) : null}
 
           {mobileStepShell(
             {
-              title: '2. 전자서명 템플릿 선택',
+              title: formatSendSectionTitle(embeddedInCustomerWorkspace, 2, '전자서명 양식 선택'),
               desc: selectedCustomer == null ? '먼저 고객을 검색해 선택해 주세요.' : null,
               active: step2Active,
               completed: step2Complete,
@@ -1070,8 +1177,6 @@ export default function ContractSignatureSendPage() {
             selectedCustomer == null ? null : (
               <div className="contract-send-mobile-template-list" role="list">
                 {templates.map((row) => {
-                  const isConfOnly = row.templateMode === 'confirmation_only'
-                  const noSig = !isConfOnly && row.signatureFieldCount < 1
                   const inactive = String(row.status) !== 'active'
                   const selected = selectedTemplateId === row.id
                   return (
@@ -1088,25 +1193,9 @@ export default function ContractSignatureSendPage() {
                       onClick={() => setSelectedTemplateId(row.id)}
                     >
                       <span className="contract-send-mobile-template-card__title">{row.title}</span>
-                      <span className="contract-send-mobile-template-card__mode">
-                        {isConfOnly ? '무좌표 전자확인서' : '좌표 기반 PDF'}
-                      </span>
-                      <span className="contract-send-mobile-template-card__pdf">
-                        PDF: {isConfOnly ? '무좌표 확인서' : row.pdfEngineTitle ?? '—'}
-                      </span>
-                      <span className="contract-send-mobile-template-card__stats">
-                        {isConfOnly
-                          ? '확인서 항목 템플릿'
-                          : `필드 ${row.pdfFieldCount}개 · 서명 필드 ${row.signatureFieldCount}개`}
-                      </span>
                       {inactive ? (
                         <span className="contract-send-mobile-template-card__warning" role="status">
-                          비활성 템플릿은 발송할 수 없습니다.
-                        </span>
-                      ) : null}
-                      {noSig ? (
-                        <span className="contract-send-mobile-template-card__warning" role="status">
-                          서명 필드가 없어 손사인 테스트가 제한될 수 있습니다.
+                          사용할 수 없는 양식입니다.
                         </span>
                       ) : null}
                     </button>
@@ -1141,7 +1230,7 @@ export default function ContractSignatureSendPage() {
                             onChange={(ev) => setSenderVals((prev) => ({ ...prev, [fk]: ev.target.checked }))}
                           />
                           <span className="contract-send-mobile-sender-fields__checkbox-label">
-                            {d.label || fk}
+                            {d.label?.trim() || '입력 항목'}
                             {d.required ? <span className="contract-signature-console__hint--warning"> *</span> : null}
                           </span>
                         </label>
@@ -1154,7 +1243,7 @@ export default function ContractSignatureSendPage() {
                       return (
                         <div key={fk} className="contract-send-mobile-sender-fields__field">
                           <p className="contract-send-mobile-sender-fields__hint">
-                            {d.label || fk}
+                            {d.label?.trim() || '입력 항목'}
                             {d.required ? <span className="contract-signature-console__hint--warning"> *</span> : null}
                           </p>
                           <div className="contract-send-mobile-sender-fields__select-wrap">
@@ -1172,7 +1261,7 @@ export default function ContractSignatureSendPage() {
                     return (
                       <label key={fk} className="contract-send-mobile-sender-fields__field-label">
                         <span className="contract-send-mobile-sender-fields__hint">
-                          {d.label || fk}
+                          {d.label?.trim() || '입력 항목'}
                           {d.required ? <span className="contract-signature-console__hint--warning"> *</span> : null}
                         </span>
                         {multiline ? (
@@ -1247,7 +1336,7 @@ export default function ContractSignatureSendPage() {
 
           {mobileStepShell(
             {
-              title: '2-3. 첨부자료',
+              title: formatSendSectionTitle(embeddedInCustomerWorkspace, 3, '첨부자료'),
               desc: selectedTemplateId
                 ? '고객이 전자서명 전에 확인할 자료를 첨부하세요.'
                 : '전자서명 템플릿을 선택하면 첨부자료를 추가할 수 있습니다.',
@@ -1260,7 +1349,7 @@ export default function ContractSignatureSendPage() {
 
           {mobileStepShell(
             {
-              title: '3. 발송 세션 생성',
+              title: formatSendSectionTitle(embeddedInCustomerWorkspace, 4, '전자서명 발송'),
               desc: null,
               active: step3Active,
               completed: step3Complete,
@@ -1291,23 +1380,6 @@ export default function ContractSignatureSendPage() {
               />
             </>,
           )}
-
-          {mobileStepShell(
-            {
-              title: '4. 상태 · evidence',
-              desc: null,
-              active: step4Active,
-              /** 결과 확인 단계는 완료(초록)가 아니라 진행 중·대기만 사용 */
-              completed: false,
-              locked: !currentSendSessionCreated,
-            },
-            <EvidenceStatusPanel
-              detail={scopedSendSessionDetail}
-              loading={evidenceLoading}
-              onRefresh={() => void refreshSessionDetail()}
-              layout="mobile"
-            />,
-          )}
         </div>
       </main>
     )
@@ -1315,12 +1387,16 @@ export default function ContractSignatureSendPage() {
 
   return (
     <main className={mainClass}>
-      <div className="contract-signature-console__container">
-        <h1 className="contract-signature-console__title">전자서명 발송</h1>
-        <p className="contract-signature-console__lead">
-          본인에게 등록된 고객을 선택하고, 관리자가 활성화한 전자서명 템플릿으로 링크를 발송합니다. 휴대폰 번호는 고객
-          정보에서만 읽으며 임의 입력·전송은 할 수 없습니다.
-        </p>
+      <div className="contract-signature-console__container" id={embeddedInCustomerWorkspace ? 'customer-signature-send' : undefined}>
+        {!embeddedInCustomerWorkspace ? (
+          <>
+            <h1 className="contract-signature-console__title">전자서명 발송</h1>
+            <p className="contract-signature-console__lead">
+              본인에게 등록된 고객을 선택하고, 관리자가 활성화한 전자서명 템플릿으로 링크를 발송합니다. 휴대폰 번호는 고객
+              정보에서만 읽으며 임의 입력·전송은 할 수 없습니다.
+            </p>
+          </>
+        ) : null}
 
         {bootError ? (
           <div className="contract-signature-console__alert--danger" role="alert">
@@ -1328,6 +1404,11 @@ export default function ContractSignatureSendPage() {
           </div>
         ) : null}
 
+        {embeddedInCustomerWorkspace ? (
+          <section className="contract-signature-console__section contract-signature-console__workspace-customer">
+            {renderEmbeddedWorkspaceCustomerSummary(selectedCustomer, customerSearchValidationError)}
+          </section>
+        ) : (
         <section className="contract-signature-console__section">
           <h2 className="contract-signature-console__section-title">1. 내 고객 검색</h2>
           <p className="contract-signature-console__body-text" style={{ margin: '0 0 6px' }}>
@@ -1378,10 +1459,9 @@ export default function ContractSignatureSendPage() {
                 {selectedCustomer.name}
               </div>
               <div className="contract-signature-console__hint" style={{ marginTop: 6 }}>
-                고객 ID: {selectedCustomer.id}
-                {selectedCustomer.customerCode?.trim() ? ` · 고객번호: ${selectedCustomer.customerCode}` : ''}
+                {selectedCustomer.customerCode?.trim() ? `고객번호: ${selectedCustomer.customerCode}` : null}
               </div>
-              <div className="contract-signature-console__hint">휴대폰: {selectedCustomer.hasPhone ? selectedCustomer.maskedPhone : '—'}</div>
+              <div className="contract-signature-console__hint">연락처: {selectedCustomer.hasPhone ? selectedCustomer.maskedPhone : '—'}</div>
               {!selectedCustomer.hasPhone ? (
                 <div className="contract-signature-console__hint--warning" style={{ marginTop: 4 }}>
                   유효한 휴대폰 번호가 없어 발송할 수 없습니다.
@@ -1405,8 +1485,8 @@ export default function ContractSignatureSendPage() {
                   <tr>
                     <th>선택</th>
                     <th>이름</th>
-                    <th>고객번호 · ID</th>
-                    <th>휴대폰(마스킹)</th>
+                    <th>고객번호</th>
+                    <th>연락처</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1454,16 +1534,7 @@ export default function ContractSignatureSendPage() {
                           />
                         </td>
                         <td>{c.name}</td>
-                        <td>
-                          {c.customerCode?.trim() ? (
-                            <>
-                              {c.customerCode}
-                              <span className="contract-signature-console__hint"> (ID {c.id})</span>
-                            </>
-                          ) : (
-                            <span>고객 ID: {c.id}</span>
-                          )}
-                        </td>
+                        <td>{c.customerCode?.trim() || '—'}</td>
                         <td>
                           {c.hasPhone ? c.maskedPhone : '—'}
                           {!c.hasPhone ? <div className="contract-signature-console__hint--warning">번호 없음</div> : null}
@@ -1481,25 +1552,23 @@ export default function ContractSignatureSendPage() {
             </p>
           ) : null}
         </section>
+        )}
 
         <section className="contract-signature-console__section">
-          <h2 className="contract-signature-console__section-title">2. 전자서명 템플릿 (active)</h2>
-          {selectedCustomer == null ? <p className="contract-signature-console__hint">고객을 선택하면 템플릿을 고를 수 있습니다.</p> : null}
+          <h2 className="contract-signature-console__section-title">
+            {formatSendSectionTitle(embeddedInCustomerWorkspace, 2, '전자서명 양식 선택')}
+          </h2>
+          {selectedCustomer == null ? <p className="contract-signature-console__hint">고객을 선택하면 양식을 고를 수 있습니다.</p> : null}
           <div className="contract-signature-console__scroll-x">
             <table className="pdf-engine-table contract-signature-console__table--compact contract-signature-console__pick-table">
               <thead>
                 <tr>
                   <th>선택</th>
-                  <th>템플릿명</th>
-                  <th>PDF명</th>
-                  <th>필드 수</th>
-                  <th>서명 필드</th>
+                  <th>양식명</th>
                 </tr>
               </thead>
               <tbody>
                 {templates.map((row) => {
-                  const isConfOnly = row.templateMode === 'confirmation_only'
-                  const noSig = !isConfOnly && row.signatureFieldCount < 1
                   const inactive = String(row.status) !== 'active'
                   const sel = selectedTemplateId === row.id
                   const tplRowInteractive = Boolean(t && selectedCustomer != null && !inactive)
@@ -1540,20 +1609,9 @@ export default function ContractSignatureSendPage() {
                       <td>
                         {row.title}
                         {inactive ? (
-                          <div className="contract-signature-console__hint--warning">비활성 템플릿은 발송할 수 없습니다.</div>
-                        ) : null}
-                        {noSig ? (
-                          <div className="contract-signature-console__hint--warning">
-                            signature 필드 없음 — 손사인 단계가 제한될 수 있습니다.
-                          </div>
-                        ) : null}
-                        {isConfOnly ? (
-                          <div className="contract-signature-console__hint">무좌표 확인서(확인 항목만)</div>
+                          <div className="contract-signature-console__hint--warning">사용할 수 없는 양식입니다.</div>
                         ) : null}
                       </td>
-                      <td>{isConfOnly ? '—' : row.pdfEngineTitle ?? '—'}</td>
-                      <td>{isConfOnly ? '—' : row.pdfFieldCount}</td>
-                      <td>{isConfOnly ? '—' : row.signatureFieldCount}</td>
                     </tr>
                   )
                 })}
@@ -1580,7 +1638,7 @@ export default function ContractSignatureSendPage() {
                         onChange={(ev) => setSenderVals((prev) => ({ ...prev, [fk]: ev.target.checked }))}
                       />
                       <span>
-                        {d.label || fk}
+                        {d.label?.trim() || '입력 항목'}
                         {d.required ? <span className="contract-signature-console__hint--warning"> *</span> : null}
                       </span>
                     </label>
@@ -1593,7 +1651,7 @@ export default function ContractSignatureSendPage() {
                   return (
                     <div key={fk} className="space-y-1">
                       <p className="contract-signature-console__hint" style={{ marginBottom: 4 }}>
-                        {d.label || fk}
+                        {d.label?.trim() || '입력 항목'}
                         {d.required ? <span className="contract-signature-console__hint--warning"> *</span> : null}
                       </p>
                       <FormSelect
@@ -1609,7 +1667,7 @@ export default function ContractSignatureSendPage() {
                 return (
                   <label key={fk} className="block space-y-1">
                     <span className="contract-signature-console__hint">
-                      {d.label || fk}
+                      {d.label?.trim() || '입력 항목'}
                       {d.required ? <span className="contract-signature-console__hint--warning"> *</span> : null}
                     </span>
                     {multiline ? (
@@ -1712,7 +1770,7 @@ export default function ContractSignatureSendPage() {
         </section>
 
         <section className="contract-signature-console__section">
-          <h2 className="contract-signature-console__section-title">3. 발송 세션</h2>
+          <h2 className="contract-signature-console__section-title">3. 전자서명 발송</h2>
           <SendSessionPanel
             busy={sendBusy}
             lastCreated={scopedLastCreated}
@@ -1723,15 +1781,6 @@ export default function ContractSignatureSendPage() {
             onRefresh={() => void refreshSessionDetail()}
             error={sendError}
             staffAuthToken={t}
-          />
-        </section>
-
-        <section className="contract-signature-console__section">
-          <h2 className="contract-signature-console__section-title">4. 상태 · evidence</h2>
-          <EvidenceStatusPanel
-            detail={scopedSendSessionDetail}
-            loading={evidenceLoading}
-            onRefresh={() => void refreshSessionDetail()}
           />
         </section>
       </div>

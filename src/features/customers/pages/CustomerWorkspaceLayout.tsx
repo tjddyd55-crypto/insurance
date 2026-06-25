@@ -9,7 +9,7 @@ import { getCustomerById } from '../api/customersApi'
 import { isGaCarInsuranceHubEnabled } from '../../dashboard/gaTenantMenu'
 import useIsMobile from '../../../hooks/useIsMobile'
 import { canAccessContractSignatureUserSend } from '../../contracts/testConsole/contractSignatureTestConsoleFlags'
-import { buildContractSignatureSendPath } from '../../contracts/navigation/contractSignatureNavigation'
+import { openCustomerSignatureWorkspace } from '../utils/customerSignatureWorkspaceNavigation'
 import CustomersPageContainer from './customers/CustomersPageContainer'
 import CustomerWorkspaceLayoutPC, { type CustomerWorkspaceLayoutPCProps } from './workspace/CustomerWorkspaceLayoutPC'
 import CustomerWorkspaceLayoutMobile from './workspace/CustomerWorkspaceLayoutMobile'
@@ -29,6 +29,7 @@ export type CustomerWorkspaceTab =
   | 'memos'
   | 'claims'
   | 'personal-message'
+  | 'signatures'
 
 /**
  * URL path → 현재 활성 탭 매핑.
@@ -267,13 +268,11 @@ export default function CustomerWorkspaceLayout() {
     if (!selectedCustomerId) {
       return
     }
-    const returnTo = `${location.pathname}${location.search}`
-    navigate(
-      buildContractSignatureSendPath({
-        customerId: selectedCustomerId,
-        returnTo,
-      }),
-    )
+    openCustomerSignatureWorkspace({
+      customerId: selectedCustomerId,
+      customerName: selectedCustomerLabel ?? selectedCustomer?.name,
+      navigate,
+    })
   }
 
   const handleClickViewOnMap = useCallback(() => {

@@ -20,7 +20,6 @@ import { copyTextToClipboard } from '../../../lib/clipboard'
 import { useAuth } from '../../auth/AuthProvider'
 import { isCarInsuranceFeatureEnabledForGa } from '../../dashboard/gaTenantMenu'
 import { canAccessContractSignatureUserSend } from '../../contracts/testConsole/contractSignatureTestConsoleFlags'
-import { buildContractSignatureSendPath } from '../../contracts/navigation/contractSignatureNavigation'
 import { deleteCustomer, getCustomerById, listCustomers, updateCustomer } from '../api/customersApi'
 import { listCustomerCars } from '../api/customerCarsApi'
 import type { CustomerRecord } from '../domain/types'
@@ -106,6 +105,10 @@ import {
 import { navigateToCustomerOnMap } from '../utils/customerMapFocusNavigation'
 import { parseMapEntryExpandCustomerId } from '../utils/customerMapDetailNavigation'
 import { parseClaimWorkspaceExpandCustomerId } from '../utils/customerClaimWorkspaceNavigation'
+import {
+  openCustomerSignatureWorkspace,
+  parseSignatureWorkspaceExpandCustomerId,
+} from '../utils/customerSignatureWorkspaceNavigation'
 import CustomersPageMobileView from './customers/CustomersPageMobileView'
 import CustomersPagePCView from './customers/CustomersPagePCView'
 
@@ -1318,15 +1321,16 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
 
   const handleOpenSignatures = useCallback(
     (customerId: number) => {
-      const returnTo = `${location.pathname}${location.search}`
-      navigate(
-        buildContractSignatureSendPath({
-          customerId,
-          returnTo,
-        }),
-      )
+      const customer =
+        customers.find((c) => c.id === customerId) ??
+        (pinnedWorkspaceCustomer?.id === customerId ? pinnedWorkspaceCustomer : null)
+      openCustomerSignatureWorkspace({
+        customerId,
+        customerName: customer?.name,
+        navigate,
+      })
     },
-    [location.pathname, location.search, navigate],
+    [customers, navigate, pinnedWorkspaceCustomer],
   )
 
   const handleOpenOnMap = useCallback(

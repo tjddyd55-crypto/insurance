@@ -1371,3 +1371,54 @@ main.contract-signature-console .contract-signature-send-conf-only__control {
   min-width: 0;
 }
 
+/* 고객 작업영역 전자서명 탭 — 발송 + 발송내역 스택 */
+.customer-signature-workspace-route {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+}
+
+main.contract-signature-console.contract-signature-console--workspace .contract-signature-console__container {
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+  padding-block: 0.75rem 1rem;
+  padding-inline: 0;
+}
+
+main.contract-signature-console.contract-signature-history-page--workspace .contract-signature-console__container {
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+  padding-block: 0.5rem 1rem;
+  padding-inline: 0;
+}
+
+main.contract-signature-console .contract-signature-console__workspace-customer-line {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--text-main);
+}
+
+main.contract-signature-console .contract-signature-console__workspace-customer-line strong {
+  font-weight: 600;
+}
+
+main.contract-signature-console .contract-signature-console__workspace-customer-sep {
+  color: var(--text-sub);
+}
+
+main.contract-signature-console .contract-signature-console__inline-link {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  font: inherit;
+}
+
+main.contract-signature-console .contract-signature-console__workspace-customer {
+  margin-bottom: 0.5rem;
+}
+

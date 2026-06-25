@@ -137,6 +137,7 @@ import ContractSignatureTestConsolePage from './features/contracts/testConsole/C
 import { ContractSignatureUserSendRoute } from './features/contracts/userSend/ContractSignatureUserSendRoute'
 import ContractSignatureSendPage from './features/contracts/userSend/ContractSignatureSendPage'
 import ContractSignatureHistoryPage from './features/contracts/userHistory/ContractSignatureHistoryPage'
+import CustomerSignaturesRoutePage from './features/customers/pages/CustomerSignaturesRoutePage'
 import BillingCheckoutPage from './features/insurance-billing/pages/BillingCheckoutPage'
 import BillingRequiredPage from './features/insurance-billing/pages/BillingRequiredPage'
 import BillingSuccessPage from './features/insurance-billing/pages/BillingSuccessPage'
@@ -335,6 +336,7 @@ export const appRouter = createBrowserRouter([
                     element: <PdfIssuanceHistoryPage />,
                   },
                   { path: ':customerId/application-documents/:id', element: <PdfDocumentDetailPage /> },
+                  { path: ':customerId/signatures', element: <CustomerSignaturesRoutePage /> },
                   { path: ':customerId/claim-requests', element: <ClaimRequestsRoutePage /> },
                 ],
               },
