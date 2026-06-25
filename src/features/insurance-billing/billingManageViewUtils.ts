@@ -1,4 +1,5 @@
 import type { CheckoutSummary } from './api/insuranceBillingApi'
+import { formatKstDateDots } from '../../utils/displayDateTime'
 
 export type BillingManageSubscription = {
   status: string
@@ -78,13 +79,8 @@ const PAYMENT_STATUS_TONE: Record<string, BillingStatusTone> = {
 }
 
 export function formatBillingDotDate(iso: string | null | undefined) {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}.${m}.${day}`
+  const formatted = formatKstDateDots(iso)
+  return formatted || '—'
 }
 
 export function formatBillingPeriod(start: string | null | undefined, end: string | null | undefined) {

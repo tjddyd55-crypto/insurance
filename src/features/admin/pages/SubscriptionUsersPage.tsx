@@ -29,6 +29,7 @@ import { PLAN_LABEL, STATUS_LABEL } from '../../subscription/copy'
 import { SUBSCRIPTION_PLAN_KEYS } from '../../subscription/policy'
 import { SubscriptionBulkToolbar } from '../components/SubscriptionBulkToolbar'
 import { SubscriptionEditDialog } from '../components/SubscriptionEditDialog'
+import { formatKstDate } from '../../../utils/displayDateTime'
 
 const PAGE_SIZE = 20
 
@@ -45,9 +46,7 @@ const STATUS_OPTIONS = [
 
 function formatDate(iso: string | null): string {
   if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  return d.toISOString().slice(0, 10)
+  return formatKstDate(iso) || '—'
 }
 
 function remainingLabel(row: SubscriptionUserRow): string {

@@ -14,6 +14,7 @@ import {
   type GaCompanyRow,
   type GaHistoryRow,
 } from '../../auth/authApi'
+import { formatKstDateDisplay, formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
 
 const STATUS_META: Record<EntityStatus, { label: string; fg: string; bg: string }> = {
   active: {
@@ -68,25 +69,11 @@ function StatusBadge({ status }: { status: EntityStatus }) {
 }
 
 function formatCreatedAt(iso: string): string {
-  if (!iso) {
-    return '—'
-  }
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) {
-    return iso.slice(0, 10)
-  }
-  return d.toISOString().slice(0, 10)
+  return formatKstDateDisplay(iso, '—')
 }
 
 function formatChangedAt(iso: string): string {
-  if (!iso) {
-    return '—'
-  }
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) {
-    return iso
-  }
-  return d.toLocaleString('ko-KR', { hour12: false })
+  return formatKstDateTimeDisplay(iso, '—')
 }
 
 function formatChangePair(before: string, after: string): string {

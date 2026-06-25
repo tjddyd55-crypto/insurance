@@ -51,14 +51,10 @@ function formatBytes(n: number): string {
   return `${(n / (1024 * 1024)).toFixed(2)} MB`
 }
 
+import { formatKstDateTime } from '../../../utils/displayDateTime'
+
 function formatDate(raw: string): string {
-  try {
-    const d = new Date(raw)
-    if (Number.isNaN(d.getTime())) return raw
-    return d.toLocaleString('ko-KR', { hour12: false })
-  } catch {
-    return raw
-  }
+  return formatKstDateTime(raw) || raw
 }
 
 export default function PdfIssuanceHistoryPage() {

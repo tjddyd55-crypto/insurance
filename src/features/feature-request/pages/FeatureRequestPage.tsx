@@ -13,6 +13,7 @@ import {
 } from '../../auth/authApi'
 import { useAuth } from '../../auth/AuthProvider'
 import { Button } from '../../../components/ui'
+import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
 
 /*
  * 사용자 "문의 / 요청" 페이지.
@@ -30,15 +31,9 @@ import { Button } from '../../../components/ui'
  *     (요청 수가 200 이하로 상한이 걸려 있어 비용은 크지 않다).
  */
 
+
 function formatDate(iso: string): string {
-  if (!iso) {
-    return '—'
-  }
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) {
-    return iso.slice(0, 10)
-  }
-  return d.toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' })
+  return formatKstDateTimeDisplay(iso, '—')
 }
 
 function statusLabel(status: FeatureRequestStatus): string {

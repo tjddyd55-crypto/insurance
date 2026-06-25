@@ -10,6 +10,7 @@ import {
   CustomerWorkspaceSecondaryActionButton,
   CustomerWorkspaceDangerActionButton,
 } from './CustomerWorkspaceActionButtons'
+import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
 import {
   CUSTOMER_WORKSPACE_FORM_TEXTAREA_CLASS,
   CustomerWorkspaceFormModalFooter,
@@ -368,7 +369,7 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
                   {useWorkspaceMemoItemActions ? (
                     <>
                       <div className="customer-workspace-item-date">
-                        {new Date(dateToShow).toLocaleString('ko-KR')}
+                        {formatKstDateTimeDisplay(dateToShow)}
                       </div>
                       <div className="customer-workspace-item-body">{note.content}</div>
                     </>
@@ -376,7 +377,7 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
                     <>
                       <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{note.content}</div>
                       <small className="customer-inline-memo-row__meta block mt-1">
-                        {new Date(dateToShow).toLocaleString('ko-KR')}
+                        {formatKstDateTimeDisplay(dateToShow)}
                       </small>
                     </>
                   )}

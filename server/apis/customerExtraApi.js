@@ -5,6 +5,7 @@ import { parseGaId } from '../lib/parseGaId.js'
 import { mapCustomerRow } from '../lib/customerRowMap.js'
 import { dedupeCustomersById } from '../lib/customerSearchDedupe.js'
 import { recordAnalyticsEvent } from '../lib/analyticsEvents.js'
+import { getKstDateString } from '../../shared/dateTimeKst.js'
 import { isGaTenantAdminRole } from '../lib/rbacScope.js'
 import {
   consentPutInsurerAttachment,
@@ -91,7 +92,7 @@ function parseConsultationWriteBody(reqBody, { requireContent = true, defaultDat
   const consultDateRaw = reqBody?.consultationDate ?? reqBody?.consultation_date
   let consultDate = consultDateRaw == null ? '' : String(consultDateRaw).trim()
   if (!consultDate && defaultDateToToday) {
-    consultDate = new Date().toISOString().slice(0, 10)
+    consultDate = getKstDateString()
   }
   if (consultDateRaw != null && String(consultDateRaw).trim() && !/^\d{4}-\d{2}-\d{2}$/.test(consultDate)) {
     return { ok: false, status: 400, message: '상담 일자는 YYYY-MM-DD 형식이어야 합니다.' }

@@ -4,16 +4,10 @@ import { StatusMessage } from '../../../components/feedback'
 import { listCustomerClaimRequests } from '../api/customerAppApi'
 import { useCustomerAppSession } from '../session/useCustomerAppSession'
 import { resolveClaimStatusMeta } from '../utils/claimStatus'
+import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
 
 function formatDateTime(iso: string | null): string {
-  if (!iso) {
-    return '—'
-  }
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) {
-    return iso
-  }
-  return date.toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' })
+  return formatKstDateTimeDisplay(iso, '—')
 }
 
 export default function CustomerAppRequestsPage() {

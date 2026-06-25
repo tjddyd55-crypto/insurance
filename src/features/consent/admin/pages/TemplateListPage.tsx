@@ -6,19 +6,14 @@ import { ApiError } from '../../../../lib/apiClient'
 import { gaLabel, insurerLabel, pdfFileNameFromKey } from '../consentAdminMeta'
 import { listAdminConsentTemplates, type ConsentTemplateListRow } from '../consentTemplateAdminApi'
 import '../consent-admin.css'
+import { formatKstDateTimeDisplay } from '../../../../utils/displayDateTime'
 
 function formatDt(value: string | Date | null | undefined): string {
   if (value == null) {
     return '—'
   }
-  const d = typeof value === 'string' ? new Date(value) : value
-  if (Number.isNaN(d.getTime())) {
-    return '—'
-  }
-  return d.toLocaleString('ko-KR', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  })
+  const iso = value instanceof Date ? value.toISOString() : String(value)
+  return formatKstDateTimeDisplay(iso, '—')
 }
 
 export function TemplateListPage() {

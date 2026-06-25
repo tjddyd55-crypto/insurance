@@ -5,6 +5,7 @@ import { FormButton } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import { listCustomers } from '../api/customersApi'
 import type { CustomerRecord } from '../domain/types'
+import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
 
 type CustomerWorkspaceOutletContext = {
   selectedCustomerId: number | null
@@ -19,11 +20,7 @@ function parseCreatedAtMs(iso: string | null | undefined): number {
 }
 
 function formatRegisteredAt(iso: string | null | undefined): string {
-  const date = new Date(String(iso ?? ''))
-  if (Number.isNaN(date.getTime())) {
-    return '등록일 미확인'
-  }
-  return date.toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' })
+  return formatKstDateTimeDisplay(iso, '등록일 미확인')
 }
 
 function formatPhone(phone: string | null | undefined): string {

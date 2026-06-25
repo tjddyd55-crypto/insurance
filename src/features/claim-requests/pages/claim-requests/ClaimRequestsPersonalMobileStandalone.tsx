@@ -19,6 +19,7 @@ import {
 } from '../../model/customerNewsMessageAttachmentUpload'
 import { salutationHonorific } from '../../utils/personalMessageLabels'
 import ClaimRequestsPersonalMobileView from './ClaimRequestsPersonalMobileView'
+import { formatKstDateTimeDisplay } from '../../../../utils/displayDateTime'
 
 function parsePositiveInt(raw: string | null | undefined): number | null {
   const n = Number(raw)
@@ -26,14 +27,7 @@ function parsePositiveInt(raw: string | null | undefined): number | null {
 }
 
 function formatDateTime(iso: string | null): string {
-  if (!iso) {
-    return '—'
-  }
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) {
-    return iso
-  }
-  return date.toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' })
+  return formatKstDateTimeDisplay(iso, '—')
 }
 
 export default function ClaimRequestsPersonalMobileStandalone() {

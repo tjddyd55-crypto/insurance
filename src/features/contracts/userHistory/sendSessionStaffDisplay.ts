@@ -1,39 +1,19 @@
 /** FC·USER 발송 내역 화면용 상태 라벨·날짜 포맷 */
 
+import {
+  formatKstDateTimeDisplay,
+  formatKstDateTimeParts,
+} from '../../../utils/displayDateTime'
+
 export type StaffSessionDateParts = { date: string; time: string }
 
 /** 표 시각: 첫 줄 YYYY.MM.DD, 둘째 줄 오전/오후 시:분 */
 export function formatStaffSessionDateParts(value: string | Date | null | undefined): StaffSessionDateParts | null {
-  if (value == null) {
-    return null
-  }
-  const d = typeof value === 'string' ? new Date(value) : value
-  if (Number.isNaN(d.getTime())) {
-    return null
-  }
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  const date = `${y}.${m}.${day}`
-  const time = d.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit', hour12: true })
-  return { date, time }
+  return formatKstDateTimeParts(value)
 }
 
 export function formatStaffSessionDate(value: string | Date | null | undefined): string {
-  if (value == null) {
-    return '—'
-  }
-  const d = typeof value === 'string' ? new Date(value) : value
-  if (Number.isNaN(d.getTime())) {
-    return '—'
-  }
-  return d.toLocaleString('ko-KR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  return formatKstDateTimeDisplay(value, '—')
 }
 
 /** 증빙 해시 표시 — 최대 12자 prefix */

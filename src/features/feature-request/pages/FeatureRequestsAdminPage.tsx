@@ -10,6 +10,7 @@ import {
   type FeatureRequestStatus,
 } from '../../auth/authApi'
 import { useAuth } from '../../auth/AuthProvider'
+import { formatKstDateDisplay, formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
 
 /*
  * 기능 요청(문의/요청) 관리 — SUPER_ADMIN 전용.
@@ -31,26 +32,13 @@ const STATUS_OPTIONS: { value: FeatureRequestStatus; label: string }[] = [
   { value: 'done', label: '완료 (done)' },
 ]
 
+
 function formatDate(iso: string): string {
-  if (!iso) {
-    return '—'
-  }
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) {
-    return iso.slice(0, 10)
-  }
-  return d.toISOString().slice(0, 10)
+  return formatKstDateDisplay(iso, '—')
 }
 
 function formatDateTime(iso: string): string {
-  if (!iso) {
-    return '—'
-  }
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) {
-    return iso
-  }
-  return d.toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' })
+  return formatKstDateTimeDisplay(iso, '—')
 }
 
 function statusToLabel(status: FeatureRequestStatus): string {

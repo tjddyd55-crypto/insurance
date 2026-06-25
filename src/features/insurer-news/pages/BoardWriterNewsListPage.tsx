@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
+import { formatTimestampSearchHaystack } from '../../../utils/displayDateTime'
 import {
   clearPublicBoardWriterSession,
   getPublicBoardWriterToken,
@@ -64,7 +65,7 @@ export function BoardWriterNewsListPage() {
       return items
     }
     return items.filter((item) =>
-      [item.insurerName, item.title, item.summary, item.publishedAt]
+      [item.insurerName, item.title, item.summary, item.publishedAt, formatTimestampSearchHaystack(item.publishedAt)]
         .map((value) => String(value ?? '').toLowerCase())
         .join('\n')
         .includes(q),

@@ -2,6 +2,7 @@ import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import { FormButton, FormInput } from '../../../components/form'
 import { fetchSecurityAuditLogs, type SecurityAuditLogRow } from '../../auth/authApi'
 import { useAuth } from '../../auth/AuthProvider'
+import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
 
 function formatMeta(meta: unknown): string {
   if (meta == null) {
@@ -129,7 +130,7 @@ export default function AuditLogsPage() {
               rows.map((r) => (
                 <tr key={String(r.id)}>
                   <td style={{ whiteSpace: 'nowrap' }}>
-                    {r.created_at ? new Date(r.created_at).toLocaleString('ko-KR') : '—'}
+                    {r.created_at ? formatKstDateTimeDisplay(r.created_at) : '—'}
                   </td>
                   <td>{r.action}</td>
                   <td style={{ wordBreak: 'break-all', maxWidth: 120 }}>{r.actor_user_id}</td>

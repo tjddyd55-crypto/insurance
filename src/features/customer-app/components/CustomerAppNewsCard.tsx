@@ -1,5 +1,6 @@
 import RichTextContent from '../../../components/rich-text/RichTextContent'
 import { stripRichText } from '../../../components/rich-text/richText'
+import { formatKstDateDisplay } from '../../../utils/displayDateTime'
 
 type CustomerAppNewsCardProps = {
   id: string
@@ -11,17 +12,6 @@ type CustomerAppNewsCardProps = {
   label?: string
   variant?: 'featured' | 'list'
   onOpen?: () => void
-}
-
-function formatDateOnly(iso?: string | null): string {
-  if (!iso) {
-    return '—'
-  }
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) {
-    return String(iso).slice(0, 10) || '—'
-  }
-  return date.toISOString().slice(0, 10)
 }
 
 function normalizeTitle(title?: string | null, label = '소식지'): string {
@@ -61,7 +51,7 @@ export default function CustomerAppNewsCard({
       )}
       <div className="customer-app-news-card__meta">
         <div className="customer-app-news-card__title">{displayTitle}</div>
-        <time className="customer-app-news-card__date" dateTime={updatedAt ?? undefined}>{formatDateOnly(updatedAt)}</time>
+        <time className="customer-app-news-card__date" dateTime={updatedAt ?? undefined}>{formatKstDateDisplay(updatedAt, '—')}</time>
       </div>
       {heroImageUrl && body ? (
         isList ? (

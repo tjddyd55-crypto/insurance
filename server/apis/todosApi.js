@@ -1,5 +1,6 @@
 import { safeQuery } from '../utils/dbSafeQuery.js'
 import { parseGaId } from '../lib/parseGaId.js'
+import { getKstDateString } from '../../shared/dateTimeKst.js'
 import {
   assertCustomerRowAccessibleByVisibility,
   replaceCustomerSqlAliasC,
@@ -19,19 +20,6 @@ const STATUSES = new Set(['pending', 'completed', 'canceled'])
 const PRIORITIES = new Set(['low', 'normal', 'high'])
 
 /**
- * @param {Date} d
- * @returns {string} YYYY-MM-DD in Asia/Seoul
- */
-export function formatSeoulYmd(d) {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Seoul',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(d)
-}
-
-/**
  * @returns {{ start: string; end: string }} 해당 주 월~일 달력일(Asia/Seoul)
  */
 export function seoulWeekRangeYmd(reference = new Date()) {
@@ -40,13 +28,13 @@ export function seoulWeekRangeYmd(reference = new Date()) {
   const dayNum = map[/** @type {keyof typeof map} */ (wdStr)] ?? 0
   const mondayOffset = dayNum === 0 ? -6 : 1 - dayNum
 
-  const refYmd = formatSeoulYmd(reference)
+  const refYmd = getKstDateString(reference)
   const anchor = /** @type {Date} */ (new Date(`${refYmd}T12:00:00+09:00`))
   const monday = new Date(anchor)
   monday.setDate(monday.getDate() + mondayOffset)
   const sunday = new Date(monday)
   sunday.setDate(monday.getDate() + 6)
-  return { start: formatSeoulYmd(monday), end: formatSeoulYmd(sunday) }
+  return { start: getKstDateString(monday), end: getKstDateString(sunday) }
 }
 
 /**
@@ -217,14 +205,14 @@ export function registerTodosApi(apiRouter, ctx) {
 
       if (due === 'today') {
         conditions.push(`t.due_date = $${p}`)
-        params.push(formatSeoulYmd(new Date()))
+        params.push(getKstDateString(new Date()))
         p += 1
       } else if (due === 'tomorrow') {
-        const t = formatSeoulYmd(new Date())
+        const t = getKstDateString(new Date())
         const dt = new Date(`${t}T12:00:00+09:00`)
         dt.setDate(dt.getDate() + 1)
         conditions.push(`t.due_date = $${p}`)
-        params.push(formatSeoulYmd(dt))
+        params.push(getKstDateString(dt))
         p += 1
       } else if (due === 'week') {
         const { start, end } = seoulWeekRangeYmd()
@@ -234,7 +222,7 @@ export function registerTodosApi(apiRouter, ctx) {
       }
 
       if (overdueRaw === '1' || overdueRaw === 'true') {
-        const today = formatSeoulYmd(new Date())
+        const today = getKstDateString(new Date())
         conditions.push(`t.status = $${p} AND t.due_date IS NOT NULL AND t.due_date < $${p + 1}`)
         params.push('pending', today)
         p += 2

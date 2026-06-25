@@ -3,6 +3,8 @@
  * 브라우저/내장 PDF 뷰어 표시 및 다운로드에 공통 사용.
  */
 
+import { getKstDateCompactString } from '../../../utils/displayDateTime'
+
 /** 경로·헤더에 쓰이지 않도록 파일명 문자만 남김 */
 function sanitizeSegment(raw: string, fallback: string): string {
   const s = String(raw ?? '')
@@ -13,19 +15,6 @@ function sanitizeSegment(raw: string, fallback: string): string {
     .replace(/_+/g, '_')
     .replace(/^_+|_+$/g, '')
   return s.length ? s.slice(0, 80) : fallback
-}
-
-export function formatSeoulYmdCompact(): string {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Seoul',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(new Date())
-  const y = parts.find((p) => p.type === 'year')?.value ?? '0000'
-  const m = parts.find((p) => p.type === 'month')?.value ?? '01'
-  const d = parts.find((p) => p.type === 'day')?.value ?? '01'
-  return `${y}${m}${d}`
 }
 
 export type PdfIssuanceDisplayFilenameInput = {
@@ -39,6 +28,6 @@ export type PdfIssuanceDisplayFilenameInput = {
 export function buildPdfIssuanceDisplayFilename(input: PdfIssuanceDisplayFilenameInput): string {
   const cust = sanitizeSegment(String(input.customerLabel ?? '').trim(), '고객')
   const tmpl = sanitizeSegment(String(input.templateTitle ?? input.templateCode ?? '').trim(), '신청서')
-  const ymd = input.ymdCompact?.trim() || formatSeoulYmdCompact()
+  const ymd = input.ymdCompact?.trim() || getKstDateCompactString()
   return `${cust}_${tmpl}_${ymd}.pdf`
 }

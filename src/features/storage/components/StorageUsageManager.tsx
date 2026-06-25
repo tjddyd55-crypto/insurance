@@ -8,6 +8,7 @@ import {
   type StorageUsageItem,
   type StorageUsageSource,
 } from '../api/storageUsageApi'
+import { formatKstDateDisplay } from '../../../utils/displayDateTime'
 
 type StorageUsageManagerProps = {
   token: string
@@ -44,14 +45,7 @@ function formatBytes(bytes: number): string {
 }
 
 function formatDate(iso: string | null): string {
-  if (!iso) {
-    return '—'
-  }
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) {
-    return String(iso).slice(0, 10) || '—'
-  }
-  return date.toLocaleDateString('ko-KR')
+  return formatKstDateDisplay(iso, '—')
 }
 
 function scrollToStorageWorkspace() {

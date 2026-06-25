@@ -1,5 +1,6 @@
 import { saveAs } from 'file-saver'
 import * as XLSX from 'xlsx'
+import { getKstDateString } from '../../../utils/displayDateTime'
 import type { CustomerRecord } from '../domain/types'
 import { customerNoteItems } from '../domain/types'
 
@@ -71,7 +72,7 @@ export function exportCustomersExcel(rows: CustomerRecord[], columnIds: string[]
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, sheet, '고객')
   const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array', cellStyles: true })
-  const today = new Date().toISOString().slice(0, 10)
+  const today = getKstDateString()
   const filename = `${baseFilename}_${today}.xlsx`
   saveAs(
     new Blob([out], {

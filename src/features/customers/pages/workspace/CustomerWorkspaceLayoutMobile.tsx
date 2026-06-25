@@ -7,6 +7,7 @@ import { useAuth } from '../../../auth/AuthProvider'
 import { listCustomers } from '../../api/customersApi'
 import type { CustomerRecord } from '../../domain/types'
 import type { CustomerWorkspaceLayoutPCProps } from './CustomerWorkspaceLayoutPC'
+import { formatKstDateTimeDisplay } from '../../../../utils/displayDateTime'
 
 const RECENT_CUSTOMER_LIMIT = 5
 const RECENT_CUSTOMER_SCROLL_RETRY_LIMIT = 12
@@ -61,11 +62,7 @@ function parseCreatedAtMs(iso: string | null | undefined): number {
 }
 
 function formatRegisteredAt(iso: string | null | undefined): string {
-  const date = new Date(String(iso ?? ''))
-  if (Number.isNaN(date.getTime())) {
-    return '등록일 미확인'
-  }
-  return date.toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' })
+  return formatKstDateTimeDisplay(iso, '등록일 미확인')
 }
 
 function formatPhone(phone: string | null | undefined): string {

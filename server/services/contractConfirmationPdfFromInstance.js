@@ -3,6 +3,7 @@
  */
 
 import { PDFDocument, rgb } from 'pdf-lib'
+import { formatKstDateTime } from '../../shared/dateTimeKst.js'
 import { embedKoreanFont } from '../pdf-engine/renderer/fontProvider.js'
 import pool from '../db.js'
 
@@ -15,14 +16,7 @@ const MAX_TEXT_WIDTH = A4_W - MARGIN * 2
 const CONFIRMATION_CONTENT_ACK_FIELD_KEY = '__confirmation_content_ack__'
 
 function formatTsKor(value) {
-  if (value == null || value === '') {
-    return '—'
-  }
-  try {
-    return new Date(value).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
-  } catch {
-    return String(value)
-  }
+  return formatKstDateTime(value) || '—'
 }
 
 function shortenId(s, max = 22) {
