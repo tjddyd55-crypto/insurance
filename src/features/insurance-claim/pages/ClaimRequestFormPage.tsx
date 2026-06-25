@@ -20,6 +20,7 @@ import {
   type CustomerClaimAppAttachment,
 } from '../api/claimRequestsApi'
 import ClaimRequestExtrasSection from '../components/ClaimRequestExtrasSection'
+import ClaimRequestPersonCustomerSearch from '../components/ClaimRequestPersonCustomerSearch'
 import '../insurance-claim-form.css'
 
 type Person = { name: string; ssn: string; phone: string; address: string; job: string }
@@ -76,6 +77,8 @@ export default function ClaimRequestFormPage() {
   const [customerId, setCustomerId] = useState<number | null>(null)
   const [customerQuery, setCustomerQuery] = useState('')
   const [matches, setMatches] = useState<{ id: number; name: string; phone?: string }[]>([])
+  const [contractorQuery, setContractorQuery] = useState('')
+  const [contractorMatches, setContractorMatches] = useState<{ id: number; name: string; phone?: string }[]>([])
   const [insured, setInsured] = useState<Person>(emptyPerson)
   const [same, setSame] = useState(true)
   const [contractor, setContractor] = useState<Person>(emptyPerson)
@@ -144,8 +147,52 @@ export default function ClaimRequestFormPage() {
       })
       setPaymentData((prev) => ({ ...prev, accountHolder: prev.accountHolder || customer.name || '' }))
       setMatches([])
+      setCustomerQuery('')
     },
     [token],
+  )
+
+  const fillContractor = useCallback(
+    async (id: number) => {
+      if (!token) return
+      const customer = await getCustomerById(token, id)
+      if (!customer) return
+      setContractor({
+        name: customer.name ?? '',
+        ssn: customer.ssn ?? '',
+        phone: customer.phone ?? '',
+        address: customer.address ?? '',
+        job: customer.job ?? '',
+      })
+      setContractorMatches([])
+      setContractorQuery('')
+    },
+    [token],
+  )
+
+  const persistDraft = useCallback(
+    async (
+      draftId: number,
+      patch: {
+        additionalAttachments?: ClaimAttachmentMetadata[]
+        signatureData?: ClaimSignatureData
+        selectedCustomerAttachmentIds?: number[]
+      },
+    ) => {
+      if (!token) {
+        return
+      }
+      const currentBody = buildBody()
+      const { request } = await updateClaimDraft(token, draftId, {
+        ...currentBody,
+        additionalAttachmentMetadata: patch.additionalAttachments ?? currentBody.additionalAttachmentMetadata,
+        signatureData: patch.signatureData ?? currentBody.signatureData,
+        selectedCustomerAttachmentIds:
+          patch.selectedCustomerAttachmentIds ?? currentBody.selectedCustomerAttachmentIds,
+      })
+      applyRequest(request)
+    },
+    [applyRequest, buildBody, token],
   )
 
   const loadCustomerAttachments = useCallback(
@@ -211,10 +258,16 @@ export default function ClaimRequestFormPage() {
     void loadCustomerAttachments(customerId)
   }, [customerId, loadCustomerAttachments, token])
 
-  const findCustomers = async () => {
-    if (!token || !customerQuery.trim()) return
+  const findCustomers = async (target: 'insured' | 'contractor') => {
+    const query = target === 'insured' ? customerQuery : contractorQuery
+    if (!token || !query.trim()) return
     try {
-      setMatches(await searchCustomers(token, customerQuery, { limit: 10 }))
+      const hits = await searchCustomers(token, query, { limit: 10 })
+      if (target === 'insured') {
+        setMatches(hits)
+      } else {
+        setContractorMatches(hits)
+      }
     } catch (e) {
       setMessage(e instanceof Error ? e.message : '고객 검색에 실패했습니다.')
     }
@@ -274,8 +327,10 @@ export default function ClaimRequestFormPage() {
     setMessage('')
     try {
       const { attachment } = await uploadClaimAttachment(token, id, file)
-      setAdditionalAttachments((prev) => [...prev, attachment])
-      setMessage('첨부파일을 업로드했습니다. 저장 버튼으로 반영해 주세요.')
+      const nextAttachments = [...additionalAttachments, attachment]
+      setAdditionalAttachments(nextAttachments)
+      await persistDraft(id, { additionalAttachments: nextAttachments })
+      setMessage('첨부파일을 저장했습니다.')
     } catch (e) {
       setMessage(e instanceof Error ? e.message : '첨부파일 업로드에 실패했습니다.')
     } finally {
@@ -283,21 +338,23 @@ export default function ClaimRequestFormPage() {
     }
   }
 
-  const handleUploadSignature = async (role: 'insured' | 'contractor', file: File) => {
+  const handleSaveSignature = async (role: 'insured' | 'contractor', pngBlob: Blob) => {
     if (!token) return
     const id = await ensureDraftId()
     if (id == null) return
     setUploadingSignatureRole(role)
     setMessage('')
     try {
-      const { signature } = await uploadClaimSignature(token, id, role, file)
-      setSignatureData((prev) => ({
-        ...prev,
+      const { signature } = await uploadClaimSignature(token, id, role, pngBlob)
+      const nextSignatureData: ClaimSignatureData = {
+        ...signatureData,
         [role === 'contractor' ? 'contractorSignature' : 'insuredSignature']: signature,
-      }))
-      setMessage('서명 파일을 업로드했습니다. 저장 버튼으로 반영해 주세요.')
+      }
+      setSignatureData(nextSignatureData)
+      await persistDraft(id, { signatureData: nextSignatureData })
+      setMessage('서명을 저장했습니다.')
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : '서명 업로드에 실패했습니다.')
+      setMessage(e instanceof Error ? e.message : '서명 저장에 실패했습니다.')
     } finally {
       setUploadingSignatureRole(null)
     }
@@ -332,16 +389,15 @@ export default function ClaimRequestFormPage() {
     }
   }
 
-  const personFields = (value: Person, setValue: (value: Person) => void, title: string) => (
-    <section className="insurance-claim-form__section">
-      <h2>{title}</h2>
+  const personInputFields = (value: Person, setValue: (value: Person) => void) => (
+    <>
       {(['name', 'ssn', 'phone', 'address', 'job'] as const).map((key) => (
         <label key={key}>
           {({ name: '이름', ssn: '주민등록번호', phone: '연락처', address: '주소', job: '직업' }[key])}
           <FormInput value={value[key]} onChange={(e) => setValue({ ...value, [key]: e.target.value })} />
         </label>
       ))}
-    </section>
+    </>
   )
 
   return (
@@ -363,22 +419,14 @@ export default function ClaimRequestFormPage() {
 
       <section className="insurance-claim-form__section">
         <h2>2. 피보험자 정보</h2>
-        <div className="insurance-claim-form__customer-search">
-          <FormInput
-            value={customerQuery}
-            onChange={(e) => setCustomerQuery(e.target.value)}
-            placeholder="고객명 또는 연락처 검색 (선택)"
-          />
-          <FormButton htmlType="button" onClick={() => void findCustomers()}>
-            고객 불러오기
-          </FormButton>
-        </div>
-        {matches.map((m) => (
-          <FormButton key={m.id} htmlType="button" onClick={() => void fillCustomer(m.id)}>
-            {m.name} {m.phone ?? ''}
-          </FormButton>
-        ))}
-        {personFields(insured, setInsured, '피보험자 직접 입력')}
+        <ClaimRequestPersonCustomerSearch
+          query={customerQuery}
+          matches={matches}
+          onQueryChange={setCustomerQuery}
+          onSearch={() => void findCustomers('insured')}
+          onSelect={(id) => void fillCustomer(id)}
+        />
+        {personInputFields(insured, setInsured)}
       </section>
 
       <section className="insurance-claim-form__section">
@@ -393,7 +441,20 @@ export default function ClaimRequestFormPage() {
         />
       </section>
 
-      {!same ? personFields(contractor, setContractor, '4. 계약자 정보') : null}
+      {!same ? (
+        <section className="insurance-claim-form__section">
+          <h2>4. 계약자 정보</h2>
+          <ClaimRequestPersonCustomerSearch
+            query={contractorQuery}
+            matches={contractorMatches}
+            onQueryChange={setContractorQuery}
+            onSearch={() => void findCustomers('contractor')}
+            onSelect={(id) => void fillContractor(id)}
+            searchLabel="고객 검색"
+          />
+          {personInputFields(contractor, setContractor)}
+        </section>
+      ) : null}
 
       <section className="insurance-claim-form__section">
         <h2>5. 진료 / 사고 정보</h2>
@@ -450,21 +511,33 @@ export default function ClaimRequestFormPage() {
         uploadingAttachment={uploadingAttachment}
         uploadingSignatureRole={uploadingSignatureRole}
         onUploadAttachment={(file) => void handleUploadAttachment(file)}
-        onRemoveAttachment={(storageKey) =>
-          setAdditionalAttachments((prev) => prev.filter((item) => item.storageKey !== storageKey))
-        }
-        onToggleCustomerAttachment={(id, checked) =>
-          setSelectedCustomerAttachmentIds((prev) =>
-            checked ? [...new Set([...prev, id])] : prev.filter((value) => value !== id),
-          )
-        }
-        onUploadSignature={(role, file) => void handleUploadSignature(role, file)}
-        onClearSignature={(role) =>
-          setSignatureData((prev) => ({
-            ...prev,
+        onRemoveAttachment={(storageKey) => {
+          const nextAttachments = additionalAttachments.filter((item) => item.storageKey !== storageKey)
+          setAdditionalAttachments(nextAttachments)
+          if (requestId != null) {
+            void persistDraft(requestId, { additionalAttachments: nextAttachments })
+          }
+        }}
+        onToggleCustomerAttachment={(id, checked) => {
+          const next = checked
+            ? [...new Set([...selectedCustomerAttachmentIds, id])]
+            : selectedCustomerAttachmentIds.filter((value) => value !== id)
+          setSelectedCustomerAttachmentIds(next)
+          if (requestId != null) {
+            void persistDraft(requestId, { selectedCustomerAttachmentIds: next })
+          }
+        }}
+        onSaveSignature={handleSaveSignature}
+        onClearSignature={(role) => {
+          const nextSignatureData: ClaimSignatureData = {
+            ...signatureData,
             [role === 'contractor' ? 'contractorSignature' : 'insuredSignature']: null,
-          }))
-        }
+          }
+          setSignatureData(nextSignatureData)
+          if (requestId != null) {
+            void persistDraft(requestId, { signatureData: nextSignatureData })
+          }
+        }}
       />
 
       {message ? (

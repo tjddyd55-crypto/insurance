@@ -52,7 +52,7 @@ import {
   updateDraft,
 } from './insurance-claim/repository/insuranceClaimRequestRepo.js'
 import { stampPdf } from './pdf-engine/renderer/stampPdf.js'
-import { resolveInsuranceClaimFieldValues } from './insurance-claim/claimFieldValueResolver.js'
+import { buildInsuranceClaimStampPayload } from './insurance-claim/buildInsuranceClaimStampPayload.js'
 import { buildClaimBundleDownloadName, buildContentDisposition } from './lib/claimRequestFileBundle.js'
 
 const MAX_PDF_UPLOAD_FILES = 20
@@ -298,8 +298,13 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
         const document = await getActiveDocumentForCompany(pool, request.insuranceCompanyId, type)
         if (!document) return res.status(400).json({ message: `${type === 'claim_form' ? '청구서' : '동의서'} PDF 설정이 필요합니다.` })
         const fields = (await listDocumentFields(pool, document.id)).map(claimFieldRowToDto)
-        const values = resolveInsuranceClaimFieldValues(fields, request)
-        const rendered = await stampPdf(await getClaimDocumentObject(document.storageKey), fields, values)
+        const { values, signaturePngByFieldKey } = await buildInsuranceClaimStampPayload(fields, request, type)
+        const rendered = await stampPdf(
+          await getClaimDocumentObject(document.storageKey),
+          fields,
+          values,
+          signaturePngByFieldKey,
+        )
         const storageKey = buildClaimDocumentStorageKey({ companyId: request.insuranceCompanyId, documentType: `generated-${id}-${type}` })
         await putClaimDocumentObject(storageKey, rendered)
         generated.push({ documentType: type, storageKey, fileName: `${type === 'claim_form' ? '청구서' : '동의서'}.pdf`, contentType: 'application/pdf' })
