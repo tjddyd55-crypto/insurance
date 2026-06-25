@@ -12654,11 +12654,11 @@ textarea.memo-sticky-note__textarea::placeholder {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 22px;
-  padding: 2px 8px;
+  min-height: 26px;
+  padding: 5px 12px;
   border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 800;
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -12942,6 +12942,7 @@ textarea.memo-sticky-note__textarea::placeholder {
   margin-bottom: 16px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--border-subtle);
+  font-size: 15px;
 }
 
 .claim-request-detail-surface .claim-detail-section:last-child {
@@ -12952,7 +12953,7 @@ textarea.memo-sticky-note__textarea::placeholder {
 
 .claim-request-detail-surface .claim-detail-section__title {
   margin: 0 0 10px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--text-primary);
 }
@@ -12972,7 +12973,7 @@ textarea.memo-sticky-note__textarea::placeholder {
 
 .claim-request-detail-surface .claim-detail-section--summary {
   position: relative;
-  padding-right: 88px;
+  padding-right: 112px;
 }
 
 .claim-request-detail-surface .claim-detail-section__status-pill {
@@ -12984,25 +12985,27 @@ textarea.memo-sticky-note__textarea::placeholder {
 .claim-request-detail-surface .claim-detail-section__body {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .claim-request-detail-surface .claim-detail-kv {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 10px;
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 15px;
+  line-height: 1.55;
 }
 
 .claim-request-detail-surface .claim-detail-kv__label {
   color: var(--text-muted);
   flex: 0 0 auto;
+  font-size: 14px;
 }
 
 .claim-request-detail-surface .claim-detail-kv__value {
   color: var(--text-primary);
   font-weight: 600;
+  font-size: 15px;
 }
 
 .claim-request-detail-surface .claim-detail-message-box {
@@ -13010,8 +13013,8 @@ textarea.memo-sticky-note__textarea::placeholder {
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   padding: 14px 16px;
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: 16px;
+  line-height: 1.65;
   color: #111827;
   white-space: pre-wrap;
   word-break: break-word;
@@ -13022,8 +13025,20 @@ textarea.memo-sticky-note__textarea::placeholder {
   border-radius: 10px;
   border: 1px dashed var(--border-subtle);
   background: color-mix(in srgb, var(--bg-card) 70%, var(--bg-elevated));
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-secondary);
+}
+
+.claim-request-detail-surface .claim-requests-page__detail-empty {
+  font-size: 14px;
+}
+
+.claim-request-detail-surface .claim-requests-page__file-name {
+  font-size: 14px;
+}
+
+.claim-request-detail-surface .claim-requests-page__file-size {
+  font-size: 13px;
 }
 
 .claim-request-detail-surface .claim-status-control-row {
@@ -13065,20 +13080,20 @@ textarea.memo-sticky-note__textarea::placeholder {
 }
 
 .claim-request-detail-surface .claim-requests-page__history-main {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--text-primary);
 }
 
 .claim-request-detail-surface .claim-requests-page__history-meta {
   margin-top: 4px;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-muted);
 }
 
 .claim-request-detail-surface .claim-requests-page__history-memo {
   margin-top: 6px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-secondary);
   white-space: pre-wrap;
 }
