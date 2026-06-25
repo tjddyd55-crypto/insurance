@@ -46,10 +46,13 @@ const HISTORY_MOBILE_MQ = '(max-width: 768px)'
 type ContractSignatureHistoryPageProps = {
   /** 모바일 고객카드 outlet 모달 — route path 없이 고객 scope 주입 */
   workspaceCustomerId?: number
+  /** 고객 작업영역 발송 섹션과 함께 쓸 때 전역 발송 이동 버튼 숨김 */
+  hideSendNavigation?: boolean
 }
 
 export default function ContractSignatureHistoryPage({
   workspaceCustomerId,
+  hideSendNavigation = false,
 }: ContractSignatureHistoryPageProps = {}) {
   const navigate = useNavigate()
   const params = useParams<{ customerId?: string }>()
@@ -75,9 +78,19 @@ export default function ContractSignatureHistoryPage({
     (params.customerId != null || (workspaceCustomerId != null && workspaceCustomerId > 0))
 
   const sendPageHref =
-    scopedCustomerId != null
-      ? `/contracts/signatures/send?customerId=${scopedCustomerId}`
-      : '/contracts/signatures/send'
+    hideSendNavigation
+      ? '#customer-signature-send'
+      : scopedCustomerId != null
+        ? `/contracts/signatures/send?customerId=${scopedCustomerId}`
+        : '/contracts/signatures/send'
+
+  const openSendSurface = useCallback(() => {
+    if (hideSendNavigation) {
+      document.getElementById('customer-signature-send')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return
+    }
+    navigate(sendPageHref)
+  }, [hideSendNavigation, navigate, sendPageHref])
 
   const [q, setQ] = useState('')
   const [debouncedQ, setDebouncedQ] = useState('')
@@ -297,7 +310,7 @@ export default function ContractSignatureHistoryPage({
     >
       <div className="contract-signature-console__container">
         <h1 className="contract-signature-console__title">
-          {embeddedInCustomerWorkspace ? '전자서명' : '전자서명 발송 내역'}
+          {embeddedInCustomerWorkspace ? '전자서명 발송내역' : '전자서명 발송 내역'}
         </h1>
         <p className="contract-signature-console__lead">
           {embeddedInCustomerWorkspace
@@ -350,16 +363,18 @@ export default function ContractSignatureHistoryPage({
                     새로고침
                   </FormButton>
                 </div>
+                {!hideSendNavigation ? (
                 <FormButton
                   htmlType="button"
                   variant="primary"
                   size="sm"
                   className="contract-history-mobile-toolbar__send-wide"
                   disabled={!t}
-                  onClick={() => navigate(sendPageHref)}
+                  onClick={() => openSendSurface()}
                 >
                   새 발송
                 </FormButton>
+                ) : null}
               </div>
               <div className="contract-history-mobile-toolbar__status-filters">
                 <SendSessionHistoryFilters value={filter} onChange={setFilter} />
@@ -405,15 +420,17 @@ export default function ContractSignatureHistoryPage({
                   >
                     새로고침
                   </FormButton>
+                  {!hideSendNavigation ? (
                   <FormButton
                     htmlType="button"
                     variant="primary"
                     size="sm"
                     disabled={!t}
-                    onClick={() => navigate(sendPageHref)}
+                    onClick={() => openSendSurface()}
                   >
                     새 발송
                   </FormButton>
+                  ) : null}
                 </div>
               </div>
               <SendSessionHistoryFilters value={filter} onChange={setFilter} />
@@ -443,9 +460,19 @@ export default function ContractSignatureHistoryPage({
           {!listBusy && rows.length === 0 && !listError ? (
             <div>
               <p className="contract-signature-console__empty-state-text">아직 발송한 전자서명이 없습니다.</p>
-              <Link className="contract-signature-console__hint" to={sendPageHref}>
-                전자서명 발송하기
-              </Link>
+              {hideSendNavigation ? (
+                <button
+                  type="button"
+                  className="contract-signature-console__hint contract-signature-console__inline-link"
+                  onClick={() => openSendSurface()}
+                >
+                  전자서명 발송하기
+                </button>
+              ) : (
+                <Link className="contract-signature-console__hint" to={sendPageHref}>
+                  전자서명 발송하기
+                </Link>
+              )}
             </div>
           ) : (
             <SendSessionHistoryList
