@@ -87,9 +87,13 @@ export default function ClaimRequestAttachmentActions({
         variant="primary"
         size={variant === 'mobile' ? 'md' : 'sm'}
         className={
-          variant === 'mobile'
-            ? 'claim-requests-page__primary-action claim-request-open-customer-button'
-            : 'claim-request-open-customer-button'
+          [
+            variant === 'mobile' ? 'claim-requests-page__primary-action' : '',
+            'claim-request-open-customer-button',
+            customerPageTarget === 'crm-internal' ? 'claim-request-open-customer-button--crm' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')
         }
         disabled={customerPageDisabled}
         loading={customerClaimPageBusy}

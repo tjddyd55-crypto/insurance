@@ -236,7 +236,7 @@
     gap: 8px !important;
   }
 
-  .claim-requests-page--mobile .claim-requests-page__badge {
+  .claim-requests-page--mobile .claim-request-status-badge {
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;

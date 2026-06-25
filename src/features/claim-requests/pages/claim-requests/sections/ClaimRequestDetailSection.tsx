@@ -154,11 +154,19 @@ export function ClaimRequestDetailBody({
   statusLabel,
 }: ClaimRequestDetailBodyProps) {
   if (detailLoading) {
-    return <div className="claim-requests-page__detail-empty">상세 불러오는 중…</div>
+    return (
+      <div className="claim-request-detail-surface">
+        <div className="claim-requests-page__detail-empty">상세 불러오는 중…</div>
+      </div>
+    )
   }
 
   if (!detail) {
-    return <div className="claim-requests-page__detail-empty">요청을 선택해 주세요.</div>
+    return (
+      <div className="claim-request-detail-surface">
+        <div className="claim-requests-page__detail-empty">요청을 선택해 주세요.</div>
+      </div>
+    )
   }
 
   const requesterLine = formatClaimRequesterLine(detail)
@@ -168,7 +176,7 @@ export function ClaimRequestDetailBody({
   const resolvedCustomerId = resolveClaimRequestCustomerId(detail) ?? customerId
 
   return (
-    <>
+    <div className="claim-request-detail-surface">
       <section className="claim-detail-section claim-detail-section--summary">
         <h4 className="claim-detail-section__title">기본 정보</h4>
         <div className="claim-detail-section__body">
@@ -321,6 +329,6 @@ export function ClaimRequestDetailBody({
           )}
         </section>
       ) : null}
-    </>
+    </div>
   )
 }
