@@ -166,10 +166,15 @@ export async function uploadClaimSignature(
   token: string,
   requestId: number,
   role: 'insured' | 'contractor',
-  file: File,
+  file: File | Blob,
+  fileName?: string,
 ) {
   const form = new FormData()
-  form.append('file', file)
+  const uploadFile =
+    file instanceof File
+      ? file
+      : new File([file], fileName ?? `${role}-signature.png`, { type: 'image/png' })
+  form.append('file', uploadFile)
   form.append('role', role)
   const response = await fetch(resolveApiUrl(`/api/insurance-claim/requests/${requestId}/signatures/upload`), {
     method: 'POST',
