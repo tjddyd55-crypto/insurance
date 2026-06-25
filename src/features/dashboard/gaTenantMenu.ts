@@ -155,7 +155,7 @@ export function buildGaTenantDashboardMenu(
 
   const insuranceClaimMenu: GaTenantDashboardMenuEntry[] = [
     { type: 'section', label: '보험청구' },
-    { type: 'link', label: '보험청구', path: '/insurance-claim/requests' },
+    { type: 'link', label: INSURANCE_CLAIM_USER_MENU.label, path: INSURANCE_CLAIM_USER_MENU.path },
   ]
 
   return [
@@ -274,6 +274,11 @@ const INSURANCE_CLAIM_COMPANY_ADMIN_MENU: GaTenantMenuItem = {
   path: '/admin/claim/insurance-companies',
 }
 
+const INSURANCE_CLAIM_USER_MENU: GaTenantMenuItem = {
+  label: '보험청구',
+  path: '/insurance-claim/requests',
+}
+
 function buildGaTenantAdminMenuEntries(role: string | undefined): GaTenantDashboardMenuEntry[] {
   const entries: GaTenantDashboardMenuEntry[] = []
   if (canUseInsuranceClaimAdminRoutes(role)) {
@@ -366,6 +371,13 @@ export function buildAppMenuForSession(
       return [
         ...itemsToEntries(superAdminMenuWithPublicShortcuts()),
         { type: 'link', label: AUDIT_LOG_ENTRY.label, path: AUDIT_LOG_ENTRY.path },
+        { type: 'divider' },
+        { type: 'section', label: '보험청구' },
+        {
+          type: 'link',
+          label: INSURANCE_CLAIM_USER_MENU.label,
+          path: INSURANCE_CLAIM_USER_MENU.path,
+        },
       ]
     }
     if (role === 'INSURER_MANAGER') {

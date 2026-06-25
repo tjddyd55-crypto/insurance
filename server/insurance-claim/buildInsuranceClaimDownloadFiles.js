@@ -24,6 +24,7 @@ export async function buildInsuranceClaimDownloadFiles(pool, gaId, request) {
       storageKey,
       fileName: `${order}_${label}.pdf`,
       contentType: 'application/pdf',
+      source: 'generated',
     })
   })
 
@@ -37,6 +38,7 @@ export async function buildInsuranceClaimDownloadFiles(pool, gaId, request) {
       storageKey,
       fileName: `추가첨부_${baseName}`,
       contentType: String(meta?.contentType ?? 'application/octet-stream'),
+      source: 'claim_attachment',
     })
   }
 
@@ -67,6 +69,7 @@ export async function buildInsuranceClaimDownloadFiles(pool, gaId, request) {
         storageKey: String(row.storage_key ?? ''),
         fileName: `고객첨부_${String(row.file_name ?? 'file')}`,
         contentType: String(row.content_type ?? 'application/octet-stream'),
+        source: 'customer_app_attachment',
       })
     }
   }

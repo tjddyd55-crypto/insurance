@@ -20,6 +20,8 @@ describe('buildInsuranceClaimDownloadFiles', () => {
       selectedCustomerAttachmentIds: [],
     })
     assert.equal(files.length, 3)
+    assert.equal(files[0].source, 'generated')
+    assert.equal(files[2].source, 'claim_attachment')
     assert.deepEqual(
       files.map((file) => file.fileName),
       ['01_청구서.pdf', '02_동의서.pdf', '추가첨부_신분증.jpg'],
@@ -43,6 +45,7 @@ describe('buildInsuranceClaimDownloadFiles', () => {
       selectedCustomerAttachmentIds: [99, 100],
     })
     assert.equal(files.length, 1)
+    assert.equal(files[0].source, 'customer_app_attachment')
     assert.equal(files[0].fileName, '고객첨부_영수증.pdf')
     assert.deepEqual(skipped, ['고객첨부 ID 100'])
   })
