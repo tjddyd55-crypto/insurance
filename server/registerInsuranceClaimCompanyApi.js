@@ -53,6 +53,7 @@ import {
 } from './insurance-claim/repository/insuranceClaimRequestRepo.js'
 import { stampPdf } from './pdf-engine/renderer/stampPdf.js'
 import { buildInsuranceClaimStampPayload } from './insurance-claim/buildInsuranceClaimStampPayload.js'
+import { readInsuranceClaimDownloadBuffer } from './insurance-claim/readInsuranceClaimDownloadBuffer.js'
 import { buildClaimBundleDownloadName, buildContentDisposition } from './lib/claimRequestFileBundle.js'
 
 const MAX_PDF_UPLOAD_FILES = 20
@@ -173,17 +174,6 @@ async function assertCustomerInGa(pool, gaId, customerId) {
     error.httpStatus = 404
     throw error
   }
-}
-
-async function readInsuranceClaimDownloadBuffer(storageKey) {
-  const key = String(storageKey ?? '').trim()
-  if (!key) {
-    throw new Error('storage key missing')
-  }
-  if (isGeneratedClaimDocumentKey(key)) {
-    return getClaimDocumentObject(key)
-  }
-  return getClaimRequestAttachmentObject(key)
 }
 
 function claimFieldRowToDto(row) {
@@ -342,7 +332,7 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
       const missing = []
       for (const file of files) {
         try {
-          const buffer = await readInsuranceClaimDownloadBuffer(file.storageKey)
+          const buffer = await readInsuranceClaimDownloadBuffer(file)
           archive.append(buffer, { name: file.fileName })
         } catch {
           missing.push(file.fileName)

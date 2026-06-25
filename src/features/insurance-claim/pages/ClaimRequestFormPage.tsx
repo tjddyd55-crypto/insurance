@@ -65,7 +65,7 @@ function formatStatus(status: string): string {
 }
 
 export default function ClaimRequestFormPage() {
-  const { token } = useAuth()
+  const { token, user } = useAuth()
   const navigate = useNavigate()
   const { id: requestIdParam } = useParams<{ id: string }>()
   const parsedRequestId = Number(requestIdParam)
@@ -170,6 +170,29 @@ export default function ClaimRequestFormPage() {
     [token],
   )
 
+  const applyRequest = useCallback((request: Awaited<ReturnType<typeof getClaimRequest>>['request']) => {
+    setCompanyId(String(request.insuranceCompanyId))
+    setCustomerId(request.customerId)
+    setInsured(request.insuredSnapshot as Person)
+    setSame(request.contractorSameAsInsured)
+    setContractor((request.contractorSnapshot ?? emptyPerson()) as Person)
+    setClaimData({
+      claimType: request.claimData.claimType ?? 'disease',
+      treatmentDate: request.claimData.treatmentDate ?? '',
+      claimDescription: request.claimData.claimDescription ?? '',
+    })
+    setPaymentData({
+      accountType: request.paymentData.accountType ?? 'normal',
+      bankName: request.paymentData.bankName ?? '',
+      accountNumber: request.paymentData.accountNumber ?? '',
+      accountHolder: request.paymentData.accountHolder ?? '',
+    })
+    setSignatureData(normalizeSignatureData(request.signatureData))
+    setAdditionalAttachments(normalizeAttachmentList(request.additionalAttachmentMetadata))
+    setSelectedCustomerAttachmentIds(normalizeSelectedIds(request.selectedCustomerAttachmentIds))
+    setStatus(request.status)
+  }, [])
+
   const persistDraft = useCallback(
     async (
       draftId: number,
@@ -211,29 +234,6 @@ export default function ClaimRequestFormPage() {
     [token],
   )
 
-  const applyRequest = useCallback((request: Awaited<ReturnType<typeof getClaimRequest>>['request']) => {
-    setCompanyId(String(request.insuranceCompanyId))
-    setCustomerId(request.customerId)
-    setInsured(request.insuredSnapshot as Person)
-    setSame(request.contractorSameAsInsured)
-    setContractor((request.contractorSnapshot ?? emptyPerson()) as Person)
-    setClaimData({
-      claimType: request.claimData.claimType ?? 'disease',
-      treatmentDate: request.claimData.treatmentDate ?? '',
-      claimDescription: request.claimData.claimDescription ?? '',
-    })
-    setPaymentData({
-      accountType: request.paymentData.accountType ?? 'normal',
-      bankName: request.paymentData.bankName ?? '',
-      accountNumber: request.paymentData.accountNumber ?? '',
-      accountHolder: request.paymentData.accountHolder ?? '',
-    })
-    setSignatureData(normalizeSignatureData(request.signatureData))
-    setAdditionalAttachments(normalizeAttachmentList(request.additionalAttachmentMetadata))
-    setSelectedCustomerAttachmentIds(normalizeSelectedIds(request.selectedCustomerAttachmentIds))
-    setStatus(request.status)
-  }, [])
-
   useEffect(() => {
     if (!token) return
     void listClaimCompanies(token)
@@ -262,7 +262,11 @@ export default function ClaimRequestFormPage() {
     const query = target === 'insured' ? customerQuery : contractorQuery
     if (!token || !query.trim()) return
     try {
-      const hits = await searchCustomers(token, query, { limit: 10 })
+      const scopeGaId =
+        user?.gaId != null && Number.isFinite(Number(user.gaId)) && Number(user.gaId) > 0
+          ? Number(user.gaId)
+          : null
+      const hits = await searchCustomers(token, query, { limit: 10, scopeGaId })
       if (target === 'insured') {
         setMatches(hits)
       } else {
