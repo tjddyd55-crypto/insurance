@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { collapseCompanyHistoryByDateAndCompany } from '../../../../server/lib/companyHistoryDiff.js'
 import { CompanyCard } from '../../company-registry/components/CompanyCard'
 import { getCompanyRecentUpdates } from '../../company-registry/api/companyRegistryApi'
 import { useAuth } from '../../auth/AuthProvider'
@@ -80,6 +82,9 @@ function groupHistoryByDate(items: CompanyUpdateHistoryItem[]) {
   return groups
 }
 
+const HISTORY_HELP_TEXT =
+  '원수사 연락처 저장 내역을 날짜·보험사별로 요약해 표시합니다. 같은 날 같은 보험사를 여러 번 저장한 경우 마지막 저장본만 표시됩니다. 빨간 글자는 저장 전 대비 바뀐 값입니다.'
+
 export function InsuranceUpdatesPage() {
   const { token } = useAuth()
   const [list, setList] = useState<CompanyUpdateHistoryItem[]>([])
@@ -120,16 +125,20 @@ export function InsuranceUpdatesPage() {
     }
   }, [token])
 
-  const grouped = useMemo(() => groupHistoryByDate(list), [list])
+  const collapsed = useMemo(() => collapseCompanyHistoryByDateAndCompany(list), [list])
+  const grouped = useMemo(() => groupHistoryByDate(collapsed), [collapsed])
 
   return (
     <main className="page page--with-back contacts-page insurance-recent-updates-page insurance-contacts-view company-directory-read-ui">
 
+      <Link className="insurer-contact-history-back" to="/insurance/contacts">
+        ← 원수사 연락처로 돌아가기
+      </Link>
+
       <header className="page-header">
         <h1>업데이트 현황</h1>
         <p>
-          {statusText ||
-            '원수사 연락처를 저장할 때마다 날짜·보험사별로 변경 요약이 쌓입니다. 빨간 글자는 직전 저장 대비 바뀐 값입니다.'}
+          {statusText || HISTORY_HELP_TEXT}
         </p>
       </header>
 
@@ -137,7 +146,7 @@ export function InsuranceUpdatesPage() {
         <h2 className="dashboard-section-title visually-hidden">변경 히스토리</h2>
         {isLoading ? (
           <p className="dashboard-empty">불러오는 중입니다…</p>
-        ) : list.length === 0 ? (
+        ) : collapsed.length === 0 ? (
           <div className="empty-box" role="status">
             📭 표시할 업데이트가 없습니다
           </div>
