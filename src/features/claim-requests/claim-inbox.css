@@ -107,6 +107,18 @@
   padding: 12px;
 }
 
+.claim-inbox__detail-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.claim-inbox__detail-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 2px 0 8px;
+}
+
 .claim-inbox__panel-header {
   display: flex;
   align-items: center;

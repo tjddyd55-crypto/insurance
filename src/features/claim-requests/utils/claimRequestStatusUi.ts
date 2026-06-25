@@ -8,6 +8,8 @@ const STATUS_LABELS: Record<ClaimRequestStatus, string> = {
   canceled: '취소',
 }
 
+const STATUS_BADGE_BASE = 'claim-request-status-badge'
+
 export function claimRequestStatusLabel(status: ClaimRequestStatus | string): string {
   return STATUS_LABELS[status as ClaimRequestStatus] ?? String(status ?? '')
 }
@@ -15,16 +17,16 @@ export function claimRequestStatusLabel(status: ClaimRequestStatus | string): st
 export function claimRequestStatusBadgeClass(status: ClaimRequestStatus | string): string {
   switch (status) {
     case 'done':
-      return 'claim-requests-page__badge claim-requests-page__badge--done'
+      return `${STATUS_BADGE_BASE} ${STATUS_BADGE_BASE}--completed`
     case 'processing':
-      return 'claim-requests-page__badge claim-requests-page__badge--processing'
+      return `${STATUS_BADGE_BASE} ${STATUS_BADGE_BASE}--processing`
     case 'requested':
-      return 'claim-requests-page__badge claim-requests-page__badge--requested'
+      return `${STATUS_BADGE_BASE} ${STATUS_BADGE_BASE}--requested`
     case 'rejected':
-      return 'claim-requests-page__badge claim-requests-page__badge--rejected'
+      return `${STATUS_BADGE_BASE} ${STATUS_BADGE_BASE}--rejected`
     case 'canceled':
-      return 'claim-requests-page__badge claim-requests-page__badge--canceled'
+      return `${STATUS_BADGE_BASE} ${STATUS_BADGE_BASE}--cancelled`
     default:
-      return 'claim-requests-page__badge'
+      return STATUS_BADGE_BASE
   }
 }

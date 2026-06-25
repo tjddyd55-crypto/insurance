@@ -401,7 +401,7 @@ export default function ClaimInboxPage() {
               <h2>상세 미리보기</h2>
               {selectedRow ? <span>#{selectedRow.id}</span> : null}
             </div>
-            {renderDetailBody()}
+            <div className="claim-inbox__detail-scroll">{renderDetailBody()}</div>
           </section>
         ) : null}
       </section>
