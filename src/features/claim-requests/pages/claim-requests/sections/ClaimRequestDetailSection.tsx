@@ -6,6 +6,10 @@ import type {
   ClaimRequestFileItem,
   ClaimRequestStatus,
 } from '../../../api/claimRequestsApi'
+import {
+  claimRequestMessageText,
+  formatClaimRequesterLine,
+} from '../../../utils/claimRequestDetailFormatters'
 import { claimRequestStatusBadgeClass } from '../../../utils/claimRequestStatusUi'
 
 type MaybePromise = void | Promise<void>
@@ -32,6 +36,8 @@ type ClaimRequestDetailSectionProps = {
   onOpenCustomerClaimPage?: () => MaybePromise
   showCustomerClaimPage?: boolean
   embeddedInCustomerWorkspace?: boolean
+  showStatusHistory?: boolean
+  statusNotice?: string
   attachmentActionsVariant?: 'desktop' | 'mobile' | 'compact'
   formatDateTime: (iso: string | null) => string
   statusLabel: (status: ClaimRequestStatus) => string
@@ -59,6 +65,8 @@ export default function ClaimRequestDetailSection({
   onOpenCustomerClaimPage,
   showCustomerClaimPage = true,
   embeddedInCustomerWorkspace = false,
+  showStatusHistory = true,
+  statusNotice = '',
   attachmentActionsVariant = 'desktop',
   formatDateTime,
   statusLabel,
@@ -94,6 +102,8 @@ export default function ClaimRequestDetailSection({
         onOpenCustomerClaimPage={onOpenCustomerClaimPage}
         showCustomerClaimPage={showCustomerClaimPage}
         embeddedInCustomerWorkspace={embeddedInCustomerWorkspace}
+        showStatusHistory={showStatusHistory}
+        statusNotice={statusNotice}
         attachmentActionsVariant={attachmentActionsVariant}
         formatDateTime={formatDateTime}
         statusLabel={statusLabel}
@@ -128,6 +138,8 @@ export function ClaimRequestDetailBody({
   onOpenCustomerClaimPage,
   showCustomerClaimPage = true,
   embeddedInCustomerWorkspace = false,
+  showStatusHistory = true,
+  statusNotice = '',
   attachmentActionsVariant = 'desktop',
   formatDateTime,
   statusLabel,
@@ -140,34 +152,54 @@ export function ClaimRequestDetailBody({
     return <div className="claim-requests-page__detail-empty">요청을 선택해 주세요.</div>
   }
 
-  const senderName = detail.requesterName || detail.customerName
+  const requesterLine = formatClaimRequesterLine(detail)
+  const messageText = claimRequestMessageText(detail)
   const saveDisabled = statusTarget === detail.status && !statusMemo.trim()
+  const hasBundleActions = Boolean(onDownloadZip && onDownloadPdf)
 
   return (
     <>
-      <div className="claim-requests-page__detail-section">
-        <div className="claim-requests-page__detail-header-row">
-          <div className="claim-requests-page__detail-title">
-            청구번호 #{detail.id}
-            {!embeddedInCustomerWorkspace && senderName ? ` · ${senderName}` : ''}
+      <section className="claim-detail-section claim-detail-section--summary">
+        <h4 className="claim-detail-section__title">기본 정보</h4>
+        <div className="claim-detail-section__body">
+          <div className="claim-detail-kv">
+            <span className="claim-detail-kv__label">청구번호</span>
+            <span className="claim-detail-kv__value">#{detail.id}</span>
           </div>
+          <div className="claim-detail-kv">
+            <span className="claim-detail-kv__label">접수</span>
+            <span className="claim-detail-kv__value">{formatDateTime(detail.submittedAt)}</span>
+          </div>
+          {requesterLine ? (
+            <div className="claim-detail-kv">
+              <span className="claim-detail-kv__label">요청자</span>
+              <span className="claim-detail-kv__value">{requesterLine}</span>
+            </div>
+          ) : null}
+          <div className="claim-detail-kv">
+            <span className="claim-detail-kv__label">연결고객</span>
+            <span className="claim-detail-kv__value">{detail.customerName}</span>
+          </div>
+          {!embeddedInCustomerWorkspace && detail.deviceId ? (
+            <div className="claim-detail-kv">
+              <span className="claim-detail-kv__label">설치자 기기</span>
+              <span className="claim-detail-kv__value">{detail.deviceId}</span>
+            </div>
+          ) : null}
+        </div>
+        <div className="claim-detail-section__status-pill">
           <span className={claimRequestStatusBadgeClass(detail.status)}>{statusLabel(detail.status)}</span>
         </div>
-        <div className="claim-requests-page__detail-meta">접수 {formatDateTime(detail.submittedAt)}</div>
-        {detail.requesterName ? (
-          <div className="claim-requests-page__detail-meta">
-            요청자 정보: {detail.requesterName} / {detail.requesterBirthDate} / {detail.requesterPhone}
-          </div>
-        ) : null}
-        <div className="claim-requests-page__detail-meta">연결고객: {detail.customerName}</div>
-        {!embeddedInCustomerWorkspace && detail.deviceId ? (
-          <div className="claim-requests-page__detail-meta">설치자 기기: {detail.deviceId}</div>
-        ) : null}
-        {detail.title ? <div className="claim-requests-page__detail-text">제목: {detail.title}</div> : null}
-        {detail.memo ? <div className="claim-requests-page__detail-text claim-requests-page__detail-text--memo">메모: {detail.memo}</div> : null}
-      </div>
+      </section>
 
-      {onDownloadZip && onDownloadPdf ? (
+      <section className="claim-detail-section claim-detail-section--message">
+        <h4 className="claim-detail-section__title">요청 내용</h4>
+        <div className="claim-detail-message-box">
+          {messageText ? messageText : '요청 내용이 없습니다.'}
+        </div>
+      </section>
+
+      {hasBundleActions && !embeddedInCustomerWorkspace ? (
         <ClaimRequestAttachmentActions
           section="customerPage"
           attachmentCount={detail.files.length}
@@ -175,23 +207,23 @@ export function ClaimRequestDetailBody({
           customerClaimPageBusy={customerClaimPageBusy}
           onOpenCustomerClaimPage={onOpenCustomerClaimPage}
           showCustomerClaimPage={showCustomerClaimPage}
-          onDownloadZip={onDownloadZip}
-          onDownloadPdf={onDownloadPdf}
+          onDownloadZip={onDownloadZip!}
+          onDownloadPdf={onDownloadPdf!}
           zipBusy={zipBusy}
           pdfBusy={pdfBusy}
           variant={attachmentActionsVariant}
         />
       ) : null}
 
-      <div className="claim-requests-page__detail-section">
-        <div className="claim-requests-page__attachment-header">
-          <div className="claim-requests-page__detail-subtitle">첨부 파일</div>
-          {onDownloadZip && onDownloadPdf ? (
+      <section className="claim-detail-section claim-detail-section--attachments">
+        <div className="claim-detail-section__head-row">
+          <h4 className="claim-detail-section__title">첨부 파일 {detail.files.length}개</h4>
+          {hasBundleActions ? (
             <ClaimRequestAttachmentActions
               section="bundle"
               attachmentCount={detail.files.length}
-              onDownloadZip={onDownloadZip}
-              onDownloadPdf={onDownloadPdf}
+              onDownloadZip={onDownloadZip!}
+              onDownloadPdf={onDownloadPdf!}
               zipBusy={zipBusy}
               pdfBusy={pdfBusy}
               variant={attachmentActionsVariant}
@@ -200,7 +232,7 @@ export function ClaimRequestDetailBody({
           ) : null}
         </div>
         {detail.files.length === 0 ? (
-          <div className="claim-requests-page__detail-empty">첨부 파일이 없습니다.</div>
+          <div className="claim-detail-empty">첨부 파일이 없습니다.</div>
         ) : (
           <ul className="claim-requests-page__file-list">
             {detail.files.map((file) => (
@@ -219,11 +251,11 @@ export function ClaimRequestDetailBody({
             ))}
           </ul>
         )}
-      </div>
+      </section>
 
-      <div className="claim-requests-page__detail-section claim-requests-page__detail-section--status">
-        <div className="claim-requests-page__detail-subtitle">상태 변경</div>
-        <div className="claim-requests-page__status-form-row">
+      <section className="claim-detail-section claim-detail-section--status">
+        <h4 className="claim-detail-section__title">상태 변경</h4>
+        <div className="claim-status-control-row">
           <FormSelect
             className="claim-requests-page__status-select"
             value={statusTarget}
@@ -242,34 +274,41 @@ export function ClaimRequestDetailBody({
           </FormButton>
         </div>
         <FormTextarea
-          className="claim-requests-page__status-memo"
-          rows={2}
+          className="claim-status-note-textarea"
+          rows={5}
           value={statusMemo}
           onChange={(event) => onStatusMemoChange(event.target.value)}
           placeholder="상태 변경 메모 — 담당자 내부 기록용(상태 이력에 남습니다)"
           maxLength={255}
         />
-      </div>
+        {statusNotice ? (
+          <div className="claim-requests-page__status-notice" role="status" aria-live="polite">
+            {statusNotice}
+          </div>
+        ) : null}
+      </section>
 
-      <div className="claim-requests-page__detail-section">
-        <div className="claim-requests-page__detail-subtitle">상태 이력</div>
-        {detail.statusLogs.length === 0 ? (
-          <div className="claim-requests-page__detail-empty">상태 이력이 없습니다.</div>
-        ) : (
-          <ul className="claim-requests-page__history-list">
-            {detail.statusLogs.map((log) => (
-              <li key={log.id} className="claim-requests-page__history-item">
-                <div className="claim-requests-page__history-main">
-                  {log.fromStatus ? `${statusLabel(log.fromStatus)} → ` : ''}
-                  {statusLabel(log.toStatus)}
-                </div>
-                <div className="claim-requests-page__history-meta">{formatDateTime(log.changedAt)}</div>
-                {log.memo ? <div className="claim-requests-page__history-memo">{log.memo}</div> : null}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      {showStatusHistory ? (
+        <section className="claim-detail-section claim-detail-section--history">
+          <h4 className="claim-detail-section__title">상태 이력</h4>
+          {detail.statusLogs.length === 0 ? (
+            <div className="claim-detail-empty">상태 이력이 없습니다.</div>
+          ) : (
+            <ul className="claim-requests-page__history-list">
+              {detail.statusLogs.map((log) => (
+                <li key={log.id} className="claim-requests-page__history-item">
+                  <div className="claim-requests-page__history-main">
+                    {log.fromStatus ? `${statusLabel(log.fromStatus)} → ` : ''}
+                    {statusLabel(log.toStatus)}
+                  </div>
+                  <div className="claim-requests-page__history-meta">{formatDateTime(log.changedAt)}</div>
+                  {log.memo ? <div className="claim-requests-page__history-memo">{log.memo}</div> : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : null}
     </>
   )
 }

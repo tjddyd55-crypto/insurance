@@ -318,23 +318,28 @@
 }
 
 .claim-requests-page__badge--requested {
-  background: color-mix(in srgb, var(--ui-polish-primary) 20%, transparent);
-  color: #8fb9ff;
+  background: color-mix(in srgb, #f59e0b 22%, transparent);
+  color: #fcd34d;
+  border: 1px solid color-mix(in srgb, #f59e0b 35%, transparent);
 }
 
 .claim-requests-page__badge--processing {
-  background: color-mix(in srgb, #f59e0b 20%, transparent);
-  color: #fbbf24;
+  background: color-mix(in srgb, #3b82f6 22%, transparent);
+  color: #93c5fd;
+  border: 1px solid color-mix(in srgb, #3b82f6 35%, transparent);
 }
 
 .claim-requests-page__badge--done {
-  background: color-mix(in srgb, #22c55e 20%, transparent);
+  background: color-mix(in srgb, #22c55e 22%, transparent);
   color: #86efac;
+  border: 1px solid color-mix(in srgb, #22c55e 35%, transparent);
 }
 
-.claim-requests-page__badge--rejected {
-  background: color-mix(in srgb, #ef4444 18%, transparent);
+.claim-requests-page__badge--rejected,
+.claim-requests-page__badge--canceled {
+  background: color-mix(in srgb, #ef4444 22%, transparent);
   color: #fca5a5;
+  border: 1px solid color-mix(in srgb, #ef4444 35%, transparent);
 }
 
 @media (max-width: 767px) {
