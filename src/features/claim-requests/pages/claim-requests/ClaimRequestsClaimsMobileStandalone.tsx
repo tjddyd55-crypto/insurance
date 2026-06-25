@@ -20,6 +20,10 @@ import {
   updateClaimRequestStatus,
 } from '../../api/claimRequestsApi'
 import { openCustomerClaimPageUrl } from '../../utils/customerClaimPageActions'
+import {
+  claimRequestStatusBadgeClass,
+  claimRequestStatusLabel,
+} from '../../utils/claimRequestStatusUi'
 import ClaimRequestsClaimsMobileView from './ClaimRequestsClaimsMobileView'
 
 const STATUS_OPTIONS: Array<{ value: ClaimRequestStatus; label: string }> = [
@@ -49,23 +53,11 @@ function formatDateTime(iso: string | null): string {
 }
 
 function statusLabel(status: ClaimRequestStatus): string {
-  return STATUS_OPTIONS.find((item) => item.value === status)?.label ?? status
+  return claimRequestStatusLabel(status)
 }
 
 function statusBadgeClass(status: ClaimRequestStatus): string {
-  switch (status) {
-    case 'done':
-      return 'claim-requests-page__badge claim-requests-page__badge--done'
-    case 'processing':
-      return 'claim-requests-page__badge claim-requests-page__badge--processing'
-    case 'requested':
-      return 'claim-requests-page__badge claim-requests-page__badge--requested'
-    case 'rejected':
-    case 'canceled':
-      return 'claim-requests-page__badge claim-requests-page__badge--rejected'
-    default:
-      return 'claim-requests-page__badge'
-  }
+  return claimRequestStatusBadgeClass(status)
 }
 
 function resolveConnectionState(linkStatus: CustomerAppLinkInfo | null): CustomerAppConnectionState {
