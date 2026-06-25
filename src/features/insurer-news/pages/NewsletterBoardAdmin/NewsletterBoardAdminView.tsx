@@ -21,11 +21,13 @@ export function NewsletterBoardAdminView({
   loading,
   busy,
   error,
+  notice,
   selectedBoard,
   onLabelChange,
   onDescriptionChange,
   onCreate,
   onDelete,
+  onEdit,
   onSelectBoard,
   onWriterBusyChange,
 }: NewsletterBoardAdminViewProps) {
@@ -107,6 +109,11 @@ export function NewsletterBoardAdminView({
             {error}
           </p>
         ) : null}
+        {notice ? (
+          <p className="status status--success" style={{ marginTop: 10 }} role="status">
+            {notice}
+          </p>
+        ) : null}
       </section>
 
       {isSuperAdmin ? (
@@ -119,6 +126,7 @@ export function NewsletterBoardAdminView({
           canManageWriters
           selectedBoardId={selectedBoard?.id ?? null}
           onDelete={onDelete}
+          onEdit={onEdit}
           onSelectBoard={onSelectBoard}
           writerPanel={
             selectedBoard &&
@@ -146,6 +154,7 @@ export function NewsletterBoardAdminView({
           canManageWriters
           selectedBoardId={selectedBoard?.id ?? null}
           onDelete={onDelete}
+          onEdit={onEdit}
           onSelectBoard={onSelectBoard}
           writerPanel={
             selectedBoard &&
@@ -175,6 +184,7 @@ function BoardTable({
   canManageWriters = false,
   selectedBoardId,
   onDelete,
+  onEdit,
   onSelectBoard,
   writerPanel = null,
 }: {
@@ -186,6 +196,7 @@ function BoardTable({
   canManageWriters?: boolean
   selectedBoardId: string | null
   onDelete: (board: NewsletterBoard) => void
+  onEdit: (board: NewsletterBoard) => void
   onSelectBoard: (board: NewsletterBoard | null) => void
   writerPanel?: React.ReactNode
 }) {
@@ -246,6 +257,17 @@ function BoardTable({
                             작성자 관리
                           </FormButton>
                         ) : null}
+                        <FormButton
+                          htmlType="button"
+                          variant="secondary"
+                          disabled={busy}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            onEdit(board)
+                          }}
+                        >
+                          수정
+                        </FormButton>
                         <FormButton
                           htmlType="button"
                           variant="secondary"
