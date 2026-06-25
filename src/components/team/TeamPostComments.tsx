@@ -20,18 +20,10 @@ export type TeamPostCommentsProps = {
   scrollSectionIntoViewNonce?: number
 }
 
+import { formatKstDateTimeDisplay } from '../../utils/displayDateTime'
+
 function formatCommentDate(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) {
-    return iso
-  }
-  return d.toLocaleString('ko-KR', {
-    month: 'numeric',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  })
+  return formatKstDateTimeDisplay(iso, iso)
 }
 
 export function TeamPostComments({

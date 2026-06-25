@@ -1,9 +1,9 @@
 import type { InsuranceApplicationFormData } from './types'
+import { getKstDateString } from '../../../utils/displayDateTime'
 
 function formatDatePart(isoDate: string): string {
   if (!isoDate) {
-    const now = new Date()
-    return now.toISOString().slice(0, 10)
+    return getKstDateString()
   }
 
   return isoDate

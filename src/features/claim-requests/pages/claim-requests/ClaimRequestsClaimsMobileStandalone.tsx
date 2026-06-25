@@ -25,6 +25,7 @@ import {
   claimRequestStatusLabel,
 } from '../../utils/claimRequestStatusUi'
 import ClaimRequestsClaimsMobileView from './ClaimRequestsClaimsMobileView'
+import { formatKstDateTimeDisplay } from '../../../../utils/displayDateTime'
 
 const STATUS_OPTIONS: Array<{ value: ClaimRequestStatus; label: string }> = [
   { value: 'requested', label: '요청됨' },
@@ -42,14 +43,7 @@ function parsePositiveInt(raw: string | null): number | null {
 }
 
 function formatDateTime(iso: string | null): string {
-  if (!iso) {
-    return '—'
-  }
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) {
-    return iso
-  }
-  return date.toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' })
+  return formatKstDateTimeDisplay(iso, '—')
 }
 
 function statusLabel(status: ClaimRequestStatus): string {

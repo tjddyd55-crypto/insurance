@@ -46,6 +46,7 @@ import {
   resolveCustomerAppConnectionState,
 } from '../model/customerAppLinkConnection'
 import { openCustomerClaimPageUrl } from '../utils/customerClaimPageActions'
+import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
 
 const STATUS_OPTIONS: Array<{ value: ClaimRequestStatus; label: string }> = [
   { value: 'requested', label: '요청됨' },
@@ -56,14 +57,7 @@ const STATUS_OPTIONS: Array<{ value: ClaimRequestStatus; label: string }> = [
 ]
 
 function formatDateTime(iso: string | null): string {
-  if (!iso) {
-    return '—'
-  }
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) {
-    return iso
-  }
-  return date.toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' })
+  return formatKstDateTimeDisplay(iso, '—')
 }
 
 function statusLabel(status: ClaimRequestStatus): string {

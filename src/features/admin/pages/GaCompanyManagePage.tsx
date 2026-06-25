@@ -10,6 +10,7 @@ import {
   type GaCustomerExcelSettingsDto,
 } from '../api/gaCustomerExcelAdminApi'
 import { listGaCompanies, type GaCompanyRow } from '../../auth/authApi'
+import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
 
 type TabKey = 'excel' | 'customerDb'
 
@@ -273,11 +274,11 @@ export default function GaCompanyManagePage() {
                   <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-2">2. 설정 상태 요약</h2>
                   <p className="text-sm text-[var(--text-secondary)]">{summaryText}</p>
                   <p className="text-xs text-[var(--text-secondary)] mt-1">
-                    마지막 수정: {settings.updatedAt ? new Date(settings.updatedAt).toLocaleString('ko-KR') : '—'}
+                    마지막 수정: {formatKstDateTimeDisplay(settings.updatedAt, '—')}
                   </p>
                   <p className="text-xs text-[var(--text-secondary)]">
                     샘플 파일: {settings.sampleOriginalFilename || '—'} (
-                    {settings.sampleUploadedAt ? new Date(settings.sampleUploadedAt).toLocaleString('ko-KR') : '—'})
+                    {formatKstDateTimeDisplay(settings.sampleUploadedAt, '—')})
                   </p>
                 </section>
 

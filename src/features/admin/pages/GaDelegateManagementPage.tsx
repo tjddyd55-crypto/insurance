@@ -14,6 +14,7 @@ import {
   type GaDelegateRole,
   type GaDelegateRow,
 } from '../../auth/authApi'
+import { formatKstDateDisplay } from '../../../utils/displayDateTime'
 
 const STATUS_META: Record<string, { label: string; fg: string; bg: string }> = {
   ACTIVE: {
@@ -68,14 +69,7 @@ function StatusBadge({ labelKey }: { labelKey: string }) {
 }
 
 function formatCreatedAt(iso: string): string {
-  if (!iso) {
-    return '—'
-  }
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) {
-    return iso.slice(0, 10)
-  }
-  return d.toISOString().slice(0, 10)
+  return formatKstDateDisplay(iso, '—')
 }
 
 function formatDelegateRole(role: GaDelegateRole): string {

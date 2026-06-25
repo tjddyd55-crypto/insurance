@@ -8,6 +8,7 @@ import {
   listClaimRequests,
   type ClaimRequestDraft,
 } from '../api/claimRequestsApi'
+import { formatKstDateDisplay } from '../../../utils/displayDateTime'
 import '../insurance-claim-form.css'
 
 const CLAIM_TYPE_LABELS: Record<string, string> = {
@@ -153,7 +154,7 @@ export default function ClaimRequestHistoryPage() {
                     <td>
                       <span className={statusBadgeClass(row.status)}>{formatStatus(row.status)}</span>
                     </td>
-                    <td>{String(row.createdAt ?? '').slice(0, 10) || '—'}</td>
+                    <td>{formatKstDateDisplay(row.createdAt, '—')}</td>
                     <td>
                       <div className="insurance-claim-history__actions">
                         <Link className="button button--secondary" to={`/insurance-claim/requests/${row.id}`}>

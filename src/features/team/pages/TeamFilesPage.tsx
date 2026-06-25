@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { fetchTeamFiles, fetchTeamMembers, type TeamFileRow } from '../api/teamApi'
+import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
 
 function formatStorageMbFromBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes < 0) {
@@ -11,11 +12,7 @@ function formatStorageMbFromBytes(bytes: number): string {
 }
 
 function formatDate(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) {
-    return iso
-  }
-  return d.toLocaleString('ko-KR')
+  return formatKstDateTimeDisplay(iso, '—')
 }
 
 export default function TeamFilesPage() {

@@ -25,6 +25,7 @@ import {
   type CustomerNewsMessageAttachmentDraft,
 } from '../../model/customerNewsMessageAttachmentUpload'
 import { salutationHonorific } from '../../utils/personalMessageLabels'
+import { formatKstDateTimeDisplay } from '../../../../utils/displayDateTime'
 import './ClaimRequestsPersonalPCStandalone.css'
 
 function parsePositiveInt(raw: string | null | undefined): number | null {
@@ -33,10 +34,7 @@ function parsePositiveInt(raw: string | null | undefined): number | null {
 }
 
 function formatDateTime(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return iso
-  return date.toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' })
+  return formatKstDateTimeDisplay(iso, '—')
 }
 
 function attachmentLabel(item: AgentCustomerNewsItem): string {

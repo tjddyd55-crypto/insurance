@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
 import GaRequiredNotice from '../../../components/access/GaRequiredNotice'
+import { formatTimestampSearchHaystack } from '../../../utils/displayDateTime'
 import { useAuth } from '../../auth/AuthProvider'
 import { isPublicGeneralAccount } from '../../auth/generalGa'
 import {
@@ -119,6 +120,7 @@ export function InsurerManagerNewsListPage({
         item.title,
         item.summary,
         item.publishedAt,
+        formatTimestampSearchHaystack(item.publishedAt),
       ]
         .map((value) => String(value ?? '').toLowerCase())
         .join('\n')

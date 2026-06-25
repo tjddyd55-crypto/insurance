@@ -15,16 +15,10 @@ import {
   type AgentCustomerNewsItem,
 } from '../../api/claimRequestsApi'
 import ClaimRequestsAllNewsMobileView from './ClaimRequestsAllNewsMobileView'
+import { formatKstDateTimeDisplay } from '../../../../utils/displayDateTime'
 
 function formatDateTime(iso: string | null): string {
-  if (!iso) {
-    return '—'
-  }
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) {
-    return iso
-  }
-  return date.toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' })
+  return formatKstDateTimeDisplay(iso, '—')
 }
 
 function collectNewsObjectKeys(item: AgentCustomerNewsItem): string[] {

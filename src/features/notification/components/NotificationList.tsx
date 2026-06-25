@@ -9,12 +9,10 @@ import {
 } from '../api/notificationApi'
 import { dispatchNotificationRefresh } from '../notificationRefreshDispatch'
 
+import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
+
 function formatNotifiedAt(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) {
-    return iso
-  }
-  return d.toLocaleString('ko-KR')
+  return formatKstDateTimeDisplay(iso, iso)
 }
 
 function isTeamPostCommentType(type: string): boolean {

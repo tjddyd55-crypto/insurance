@@ -5,6 +5,7 @@ import {
   CustomerWorkspaceItemActions,
   CustomerWorkspaceSecondaryActionButton,
 } from '../../customers/components/CustomerWorkspaceActionButtons'
+import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
 import type { StorageFileRow, StorageFolderRow, StorageFileDownloadLinkEntry } from '../api/storageApi'
 
 export type { StorageFileDownloadLinkEntry } from '../api/storageApi'
@@ -53,11 +54,7 @@ function renderFileIcon(file: StorageFileRow): string {
 }
 
 function formatDate(iso: string): string {
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) {
-    return '—'
-  }
-  return date.toLocaleString('ko-KR')
+  return formatKstDateTimeDisplay(iso, '—')
 }
 
 function formatFileSize(bytes: number | null): string {

@@ -19,6 +19,7 @@ import { saveCustomerCarsForCustomer } from '../../features/customers/utils/cust
 import type { SaveCustomerPayload } from '../../features/customers/api/customersApi'
 
 import type { CustomerNote } from '../../features/customers/domain/types'
+import { formatKstDateTimeDisplay } from '../../utils/displayDateTime'
 import {
   buildCrmExtensionPayloadForSave,
   normalizeBirthDateForSaveApi,
@@ -744,7 +745,7 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
                   <div>{note.content}</div>
 
-                  <small style={{ opacity: 0.75 }}>{new Date(note.createdAt).toLocaleString('ko-KR')}</small>
+                  <small style={{ opacity: 0.75 }}>{formatKstDateTimeDisplay(note.createdAt)}</small>
 
                 </div>
 

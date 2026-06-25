@@ -9,6 +9,7 @@ import pool from './db.js'
 import { safeQuery, systemQuery } from './utils/dbSafeQuery.js'
 import { initDb } from './initDb.js'
 import { registerAuthAccountSmsApi } from './registerAuthAccountSmsApi.js'
+import { formatKstDate } from '../shared/dateTimeKst.js'
 import { registerUserProfileApi } from './registerUserProfileApi.js'
 import { registerReferralApi } from './registerReferralApi.js'
 import { registerPromotionCodesApi } from './registerPromotionCodesApi.js'
@@ -443,7 +444,7 @@ function mapGaDelegateAdminRow(row) {
 function buildFormTitle(customerName, carNumber, updatedAt) {
   const normalizedCustomer = customerName?.trim() || '미입력'
   const normalizedCarNumber = carNumber?.trim() || '미입력'
-  const normalizedDate = updatedAt?.slice(0, 10) || '날짜없음'
+  const normalizedDate = formatKstDate(updatedAt) || '날짜없음'
   return `${normalizedCustomer} / ${normalizedCarNumber} / ${normalizedDate}`
 }
 

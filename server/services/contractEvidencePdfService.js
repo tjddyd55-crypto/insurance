@@ -4,6 +4,7 @@
  */
 
 import { PDFDocument, rgb } from 'pdf-lib'
+import { formatKstDateTime } from '../../shared/dateTimeKst.js'
 import { embedKoreanFont } from '../pdf-engine/renderer/fontProvider.js'
 import { consentGetBuffer } from '../lib/consentStorage.js'
 import { listFields } from '../pdf-engine/repository/pdfTemplateRepo.js'
@@ -29,15 +30,9 @@ export function encodeContractEvidenceContentDispositionFilename(name) {
   return `attachment; filename="${ascii}"; filename*=UTF-8''${utf8}`
 }
 
+
 function formatTsKor(value) {
-  if (value == null || value === '') {
-    return '—'
-  }
-  try {
-    return new Date(value).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
-  } catch {
-    return String(value)
-  }
+  return formatKstDateTime(value) || '—'
 }
 
 function hashPrefix(hex, n = 16) {

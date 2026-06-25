@@ -9,16 +9,10 @@ import { getCustomerNewsDetail, markCustomerNewsRead, type CustomerAppNewsDetail
 import { buildCustomerNewsGalleryUrls } from '../model/buildCustomerNewsGalleryUrls'
 import type { CustomerAppNewsAttachment } from '../api/customerAppApi'
 import { useCustomerAppSession } from '../session/useCustomerAppSession'
+import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
 
 function formatDateTime(iso: string | null): string {
-  if (!iso) {
-    return '—'
-  }
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) {
-    return iso
-  }
-  return date.toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' })
+  return formatKstDateTimeDisplay(iso, '—')
 }
 
 export default function CustomerAppNewsDetailPage() {

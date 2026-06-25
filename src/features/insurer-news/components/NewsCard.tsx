@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { NewsletterItem } from '../types'
+import { formatInsurerNewsDateLabel } from '../utils/formatInsurerNewsDate'
 import FormButton from '../../../components/form/FormButton'
 import {
   newsletterItemHasImageSource,
@@ -26,27 +27,10 @@ function cardAriaLabel(item: NewsletterItem): string {
   return parts.length > 0 ? `${parts.join(' — ')} 소식` : '소식지'
 }
 
-function formatPublishedDateLabel(iso: string): string {
-  const s = iso?.trim() ?? ''
-  if (!s) return '—'
-  const ymd = s.slice(0, 10)
-  if (/^\d{4}-\d{2}-\d{2}$/.test(ymd)) {
-    return ymd
-  }
-  const d = new Date(s)
-  if (!Number.isNaN(d.getTime())) {
-    const y = d.getFullYear()
-    const m = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
-    return `${y}-${m}-${day}`
-  }
-  return ymd || '—'
-}
-
 export function NewsCard({ item, onOpen, onDelete, deleteBusy, variant }: Props) {
   const isMobile = variant === 'mobile'
   const companyName = item.insurerName?.trim() || '—'
-  const dateLabel = formatPublishedDateLabel(item.publishedAt)
+  const dateLabel = formatInsurerNewsDateLabel(item.publishedAt)
   const headline = item.summary?.trim() || item.title?.trim() || '본문 내용이 없습니다.'
   const hasImageUrl = newsletterItemHasImageSource(item)
   const imageUrl = resolveNewsletterHeroViewUrl(item)

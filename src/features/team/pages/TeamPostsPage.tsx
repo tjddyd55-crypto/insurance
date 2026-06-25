@@ -5,6 +5,7 @@ import { useAuth } from '../../auth/AuthProvider'
 import { fetchTeamPosts, type TeamPostAttachment, type TeamPostRow } from '../api/teamApi'
 import { TeamPostComments } from '../../../components/team/TeamPostComments'
 import { TeamPostFormModal, type TeamPostModalInitialData } from '../components/TeamPostFormModal'
+import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
 
 function snippet(text: string, max = 120): string {
   const t = text.replace(/\s+/g, ' ').trim()
@@ -15,11 +16,7 @@ function snippet(text: string, max = 120): string {
 }
 
 function formatPostDate(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) {
-    return iso
-  }
-  return d.toLocaleString('ko-KR')
+  return formatKstDateTimeDisplay(iso, iso)
 }
 
 function teamPostAuthorLabel(post: TeamPostRow): string {

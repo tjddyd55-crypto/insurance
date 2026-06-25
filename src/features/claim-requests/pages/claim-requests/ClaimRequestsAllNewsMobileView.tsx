@@ -5,6 +5,7 @@ import { stripRichText } from '../../../../components/rich-text/richText'
 import CustomerAppNewsImageGallery from '../../../customer-app/components/CustomerAppNewsImageGallery'
 import { buildCustomerNewsGalleryUrls } from '../../../customer-app/model/buildCustomerNewsGalleryUrls'
 import '../../../customer-app/customer-app-news.css'
+import { formatKstDateDisplay } from '../../../../utils/displayDateTime'
 import type { AgentCustomerNewsItem } from '../../api/claimRequestsApi'
 import type { AllNewsAttachmentDraft } from '../../model/customerNewsAllAttachmentUpload'
 
@@ -38,17 +39,6 @@ const statusLabel: Record<AllNewsAttachmentDraft['status'], string> = {
 
 function getNewsHero(item: AgentCustomerNewsItem): string | null {
   return item.heroImageUrl || item.attachments?.find((attachment) => attachment.kind === 'image')?.url || null
-}
-
-function formatDateOnly(iso: string | null): string {
-  if (!iso) {
-    return '—'
-  }
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) {
-    return iso
-  }
-  return date.toISOString().slice(0, 10)
 }
 
 export default function ClaimRequestsAllNewsMobileView({
@@ -249,13 +239,13 @@ export default function ClaimRequestsAllNewsMobileView({
                     </div>
                     <div className="all-news-preview-v2-after-gallery">
                       <h2>{selectedNews.title || '전체소식지'}</h2>
-                      <p>{formatDateOnly(selectedNews.updatedAt)}</p>
+                      <p>{formatKstDateDisplay(selectedNews.updatedAt, '—')}</p>
                     </div>
                   </>
                 ) : (
                   <div className="all-news-preview-v2-plain-title">
                     <h2>{selectedNews.title || '전체소식지'}</h2>
-                    <p>{formatDateOnly(selectedNews.updatedAt)}</p>
+                    <p>{formatKstDateDisplay(selectedNews.updatedAt, '—')}</p>
                   </div>
                 )}
 
