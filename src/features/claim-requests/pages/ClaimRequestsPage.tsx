@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
-import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
+import { FormButton, FormInput, FormTextarea } from '../../../components/form'
 import Modal from '../../../components/ui/Modal'
 import PCOnlySection from '../../../components/PCOnlySection'
 import {
@@ -11,8 +11,7 @@ import {
 import useIsMobile from '../../../hooks/useIsMobile'
 import { NewsletterList } from '../../insurer-news/components/NewsletterList'
 import type { NewsletterItem } from '../../insurer-news/types'
-import ClaimRequestAttachmentActions from '../components/ClaimRequestAttachmentActions'
-import ClaimRequestFileActions from '../components/ClaimRequestFileActions'
+import { ClaimRequestDetailBody } from './claim-requests/sections/ClaimRequestDetailSection'
 import { useAuth } from '../../auth/AuthProvider'
 import ClaimRequestsPageMobileView from './claim-requests/ClaimRequestsPageMobileView'
 import ClaimRequestsPagePCView from './claim-requests/ClaimRequestsPagePCView'
@@ -684,135 +683,39 @@ export default function ClaimRequestsPage() {
     }
   }, [activeCustomerId, detail?.customerId, token])
 
-  const claimDetailBody = (
-    <>
-      {detailLoading ? <div className="claim-requests-page__detail-empty">상세 불러오는 중…</div> : null}
-      {!detailLoading && !detail ? <div className="claim-requests-page__detail-empty">요청을 선택해 주세요.</div> : null}
-      {detail ? (
-        <>
-          <div className="claim-requests-page__detail-section">
-            <div className="claim-requests-page__detail-header-row">
-              <div className="claim-requests-page__detail-title">
-                청구번호 #{detail.id}
-                {!embedInCustomerWorkspace && (detail.requesterName || detail.customerName)
-                  ? ` · ${detail.requesterName || detail.customerName}`
-                  : ''}
-              </div>
-              <span className={statusBadgeClass(detail.status)}>{statusLabel(detail.status)}</span>
-            </div>
-            <div className="claim-requests-page__detail-meta">접수 {formatDateTime(detail.submittedAt)}</div>
-            {detail.requesterName ? (
-              <div className="claim-requests-page__detail-meta">
-                요청자 정보: {detail.requesterName} / {detail.requesterBirthDate} / {detail.requesterPhone}
-              </div>
-            ) : null}
-            <div className="claim-requests-page__detail-meta">연결고객: {detail.customerName}</div>
-            {!embedInCustomerWorkspace && detail.deviceId ? (
-              <div className="claim-requests-page__detail-meta">설치자 기기: {detail.deviceId}</div>
-            ) : null}
-            {detail.title ? <div className="claim-requests-page__detail-text">제목: {detail.title}</div> : null}
-            {detail.memo ? <div className="claim-requests-page__detail-text claim-requests-page__detail-text--memo">메모: {detail.memo}</div> : null}
-          </div>
-
-          {!embedInCustomerWorkspace ? (
-          <ClaimRequestAttachmentActions
-            section="customerPage"
-            attachmentCount={detail.files.length}
-            customerClaimPageUrl={customerClaimPageUrl}
-            customerClaimPageBusy={customerClaimPageBusy}
-            onOpenCustomerClaimPage={handleOpenCustomerClaimPage}
-            onDownloadZip={handleDownloadClaimFilesZip}
-            onDownloadPdf={handleDownloadClaimFilesPdf}
-            zipBusy={zipBusy}
-            pdfBusy={pdfBusy}
-            variant={isMobile ? 'mobile' : 'desktop'}
-          />
-          ) : null}
-
-          <div className="claim-requests-page__detail-section">
-            <div className="claim-requests-page__attachment-header">
-              <div className="claim-requests-page__detail-subtitle">첨부 파일</div>
-              <ClaimRequestAttachmentActions
-                section="bundle"
-                attachmentCount={detail.files.length}
-                onDownloadZip={handleDownloadClaimFilesZip}
-                onDownloadPdf={handleDownloadClaimFilesPdf}
-                zipBusy={zipBusy}
-                pdfBusy={pdfBusy}
-                variant={isMobile ? 'mobile' : 'desktop'}
-                showCustomerClaimPage={false}
-              />
-            </div>
-            {detail.files.length === 0 ? (
-              <div className="claim-requests-page__detail-empty">첨부 파일이 없습니다.</div>
-            ) : (
-              <ul className="claim-requests-page__file-list">
-                {detail.files.map((file) => (
-                  <li key={file.id} className="claim-requests-page__file-item">
-                    <span className="claim-requests-page__file-name" title={file.fileName}>{file.fileName}</span>
-                    <span className="claim-requests-page__file-size">{(file.fileSize / 1024 / 1024).toFixed(1)} MB</span>
-                    <ClaimRequestFileActions
-                      file={file}
-                      useNativeLinks={isMobile}
-                      onOpenFile={handleOpenClaimFile}
-                      onDownloadFile={handleDownloadClaimFile}
-                    />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <div className="claim-requests-page__detail-section claim-requests-page__detail-section--status">
-            <div className="claim-requests-page__detail-subtitle">상태 변경</div>
-            <div className="claim-requests-page__status-form-row">
-              <FormSelect
-                className="claim-requests-page__status-select"
-                value={statusTarget}
-                onChange={(event) => setStatusTarget(event.target.value as ClaimRequestStatus)}
-                options={STATUS_OPTIONS.map((item) => ({ value: item.value, label: item.label }))}
-              />
-              <FormButton
-                htmlType="button"
-                variant="primary"
-                onClick={() => void handleUpdateStatus()}
-                loading={actionBusy}
-                disabled={statusTarget === detail.status && !statusMemo.trim()}
-                title={
-                  statusTarget === detail.status && !statusMemo.trim()
-                    ? '현재 상태와 동일하고 메모도 비어 있어 저장할 내용이 없습니다.'
-                    : undefined
-                }
-              >
-                상태 저장
-              </FormButton>
-            </div>
-            <FormTextarea
-              className="claim-requests-page__status-memo"
-              rows={5}
-              value={statusMemo}
-              onChange={(event) => setStatusMemo(event.target.value)}
-              placeholder="담당자 내부 기록용(상태 이력에 함께 남습니다)"
-              maxLength={255}
-            />
-            {statusNotice ? (
-              <div
-                className="claim-requests-page__status-notice"
-                role="status"
-                aria-live="polite"
-              >
-                {statusNotice}
-              </div>
-            ) : null}
-          </div>
-
-        </>
-      ) : null}
-      {selectedRow && !detail ? (
-        <div className="claim-requests-page__detail-empty">선택한 청구 요청 상세를 불러오지 못했습니다.</div>
-      ) : null}
-    </>
-  )
+  const claimDetailBody =
+    selectedRow && !detail && !detailLoading ? (
+      <div className="claim-requests-page__detail-empty">선택한 청구 요청 상세를 불러오지 못했습니다.</div>
+    ) : (
+      <ClaimRequestDetailBody
+        detail={detail}
+        detailLoading={detailLoading}
+        statusTarget={statusTarget}
+        statusMemo={statusMemo}
+        actionBusy={actionBusy}
+        statusOptions={STATUS_OPTIONS}
+        onStatusTargetChange={setStatusTarget}
+        onStatusMemoChange={setStatusMemo}
+        onUpdateStatus={handleUpdateStatus}
+        onOpenFile={handleOpenClaimFile}
+        onDownloadFile={handleDownloadClaimFile}
+        onDownloadZip={handleDownloadClaimFilesZip}
+        onDownloadPdf={handleDownloadClaimFilesPdf}
+        zipBusy={zipBusy}
+        pdfBusy={pdfBusy}
+        useNativeFileLinks={isMobile}
+        customerClaimPageUrl={customerClaimPageUrl}
+        customerClaimPageBusy={customerClaimPageBusy}
+        onOpenCustomerClaimPage={handleOpenCustomerClaimPage}
+        showCustomerClaimPage={!embedInCustomerWorkspace}
+        embeddedInCustomerWorkspace={embedInCustomerWorkspace}
+        showStatusHistory={false}
+        statusNotice={statusNotice}
+        attachmentActionsVariant={isMobile ? 'mobile' : 'desktop'}
+        formatDateTime={formatDateTime}
+        statusLabel={statusLabel}
+      />
+    )
 
   const claimStatusTimeline = detail ? (
     <div className="claim-requests-page__timeline-list">
@@ -950,7 +853,13 @@ export default function ClaimRequestsPage() {
           </section>
           ) : null}
 
-          <section className="claim-requests-page__claims-grid">
+          <section
+            className={
+              embedInCustomerWorkspace
+                ? 'claim-requests-page__claims-grid claim-requests-page__claims-grid--embedded'
+                : 'claim-requests-page__claims-grid'
+            }
+          >
             <article className="claim-requests-page__panel claim-requests-page__panel--list">
               <div className="claim-requests-page__panel-head">
                 <h3>청구 요청</h3>
@@ -978,13 +887,13 @@ export default function ClaimRequestsPage() {
                       className={`claim-requests-page__list-item${active ? ' claim-requests-page__list-item--active' : ''}`}
                       onClick={() => handleSelectClaim(item.id)}
                     >
-                      <div className="claim-requests-page__list-item-date-row">
-                        <span>{formatDateTime(item.submittedAt)}</span>
+                      <div className="claim-requests-page__list-item-header">
+                        <span className="claim-requests-page__list-item-date">{formatDateTime(item.submittedAt)}</span>
                         <span className={statusBadgeClass(item.status)}>{statusLabel(item.status)}</span>
                       </div>
-                      <p className="claim-requests-page__list-item-preview">{claimListPreviewText(item)}</p>
-                      <div className="claim-requests-page__list-item-footer">
-                        <span className="claim-requests-page__list-item-attach">첨부 {item.fileCount}개</span>
+                      <p className="claim-requests-page__list-item-body">{claimListPreviewText(item)}</p>
+                      <div className="claim-requests-page__list-item-meta">
+                        <span>첨부 {item.fileCount}개</span>
                       </div>
                     </FormButton>
                   )
