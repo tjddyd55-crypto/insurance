@@ -177,15 +177,14 @@ export function ClaimRequestDetailBody({
 
   return (
     <div className="claim-request-detail-surface">
-      <section className="claim-detail-section claim-detail-section--summary">
-        <h4 className="claim-detail-section__title">기본 정보</h4>
+      <section className="claim-detail-section claim-detail-section--summary" aria-label="청구 요약">
         <div className="claim-detail-section__body">
           <div className="claim-detail-kv">
             <span className="claim-detail-kv__label">청구번호</span>
             <span className="claim-detail-kv__value">#{detail.id}</span>
           </div>
           <div className="claim-detail-kv">
-            <span className="claim-detail-kv__label">접수</span>
+            <span className="claim-detail-kv__label">접수일시</span>
             <span className="claim-detail-kv__value">{formatDateTime(detail.submittedAt)}</span>
           </div>
           {requesterLine ? (
@@ -198,12 +197,6 @@ export function ClaimRequestDetailBody({
             <span className="claim-detail-kv__label">연결고객</span>
             <span className="claim-detail-kv__value">{detail.customerName}</span>
           </div>
-          {!embeddedInCustomerWorkspace && detail.deviceId ? (
-            <div className="claim-detail-kv">
-              <span className="claim-detail-kv__label">설치자 기기</span>
-              <span className="claim-detail-kv__value">{detail.deviceId}</span>
-            </div>
-          ) : null}
         </div>
         <div className="claim-detail-section__status-pill">
           <span className={claimRequestStatusBadgeClass(detail.status)}>{statusLabel(detail.status)}</span>

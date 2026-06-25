@@ -240,11 +240,11 @@
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    min-height: 24px !important;
-    padding: 0 8px !important;
+    min-height: 26px !important;
+    padding: 5px 12px !important;
     border-radius: 999px !important;
-    font-size: 0.72rem !important;
-    font-weight: 900 !important;
+    font-size: 13px !important;
+    font-weight: 800 !important;
     white-space: nowrap !important;
   }
 
