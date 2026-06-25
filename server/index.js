@@ -61,6 +61,11 @@ import {
 } from './lib/boardWriterAccountService.js'
 import { mapBoardWriterRow } from './lib/boardWriterService.js'
 import { parseGaId } from './lib/parseGaId.js'
+import {
+  FEATURE_REQUEST_COMMENT_COUNT_SUBQUERY_SQL,
+  FEATURE_REQUEST_COMMENT_INSERT_SQL,
+  FEATURE_REQUEST_COMMENT_SELECT_SQL,
+} from './lib/featureRequestCommentsSql.js'
 import { resolveTenantByAuthenticatedLegacyGaId } from './lib/resolveTenantByAuthenticatedLegacyGaId.js'
 import { isGeneralGaCompanyCode, resolveSignupGaCompany } from './lib/generalGa.js'
 import {
@@ -4516,9 +4521,7 @@ apiRouter.get('/feature-requests/my', requireAuth, async (req, res) => {
         fr.status,
         fr.created_at,
         (
-          SELECT COUNT(*)
-          FROM feature_request_comments c
-          WHERE c.feature_request_id = fr.id
+          ${FEATURE_REQUEST_COMMENT_COUNT_SUBQUERY_SQL}
         )::int AS comment_count
       FROM feature_requests fr
       WHERE fr.user_id = $1 AND fr.ga_id = $2
@@ -4595,9 +4598,7 @@ apiRouter.get('/admin/feature-requests', requireAuth, requireSuperAdmin, async (
         fr.status,
         fr.created_at,
         (
-          SELECT COUNT(*)
-          FROM feature_request_comments c
-          WHERE c.feature_request_id = fr.id
+          ${FEATURE_REQUEST_COMMENT_COUNT_SUBQUERY_SQL}
         )::int AS comment_count
       FROM feature_requests fr
       INNER JOIN ga_companies g ON g.id = fr.ga_id
@@ -4718,14 +4719,8 @@ apiRouter.get('/feature-requests/my/:id/comments', requireAuth, async (req, res)
     }
     const r = await safeQuery(
       pool,
-      `
-      SELECT id, feature_request_id, author_user_id, author_role, author_username, content, created_at
-      FROM feature_request_comments
-      WHERE feature_request_id = $1
-      ORDER BY created_at ASC, id ASC
-      LIMIT 500
-      `,
-      [id],
+      FEATURE_REQUEST_COMMENT_SELECT_SQL,
+      [id, gaId],
     )
     res.json(r.rows.map(mapFeatureRequestCommentRow))
   } catch (error) {
@@ -4760,14 +4755,8 @@ apiRouter.get(
       }
       const r = await safeQuery(
         pool,
-        `
-        SELECT id, feature_request_id, author_user_id, author_role, author_username, content, created_at
-        FROM feature_request_comments
-        WHERE feature_request_id = $1
-        ORDER BY created_at ASC, id ASC
-        LIMIT 500
-        `,
-        [id],
+        FEATURE_REQUEST_COMMENT_SELECT_SQL,
+        [id, actorGa],
       )
       res.json(r.rows.map(mapFeatureRequestCommentRow))
     } catch (error) {
@@ -4820,14 +4809,13 @@ apiRouter.post(
       }
       const ins = await safeQuery(
         pool,
-        `
-        INSERT INTO feature_request_comments
-          (feature_request_id, author_user_id, author_role, author_username, content)
-        VALUES ($1, $2, 'admin', $3, $4)
-        RETURNING id, feature_request_id, author_user_id, author_role, author_username, content, created_at
-        `,
-        [id, actorId, actorUsername, rawContent],
+        FEATURE_REQUEST_COMMENT_INSERT_SQL,
+        [id, actorId, actorUsername, rawContent, actorGa],
       )
+      if (ins.rowCount === 0) {
+        res.status(404).json({ message: '요청을 찾을 수 없습니다.' })
+        return
+      }
       res.status(201).json(mapFeatureRequestCommentRow(ins.rows[0]))
     } catch (error) {
       handleDbError(error, req, res)

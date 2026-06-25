@@ -1416,11 +1416,19 @@ export async function initDb() {
   await pool.query(`
     ALTER TABLE feature_request_comments
       ADD COLUMN IF NOT EXISTS feature_request_id INTEGER,
+      ADD COLUMN IF NOT EXISTS ga_id INTEGER,
       ADD COLUMN IF NOT EXISTS author_user_id TEXT,
       ADD COLUMN IF NOT EXISTS author_role TEXT,
       ADD COLUMN IF NOT EXISTS author_username TEXT,
       ADD COLUMN IF NOT EXISTS content TEXT,
       ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  `)
+  await pool.query(`
+    UPDATE feature_request_comments c
+    SET ga_id = r.ga_id
+    FROM feature_requests r
+    WHERE c.feature_request_id = r.id
+      AND c.ga_id IS NULL
   `)
   // FK(feature_request_id → feature_requests.id) - 이미 존재하면 무시.
   await pool.query(`
@@ -1455,6 +1463,10 @@ export async function initDb() {
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_frc_request_created
     ON feature_request_comments(feature_request_id, created_at)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_feature_request_comments_ga_request
+    ON feature_request_comments (ga_id, feature_request_id, created_at, id)
   `)
 
   await pool.query(`
