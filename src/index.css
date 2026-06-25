@@ -12582,6 +12582,70 @@ textarea.memo-sticky-note__textarea::placeholder {
   overflow: auto;
 }
 
+.claim-request-list-card {
+  width: 100%;
+  display: block;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  line-height: 1.55;
+  cursor: pointer;
+}
+
+.claim-request-list-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.claim-request-list-card__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.claim-request-list-card__meta {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.claim-request-list-card__body {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.claim-request-list-card--active {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, var(--bg-elevated));
+}
+
+.claim-request-list-card:hover {
+  border-color: color-mix(in srgb, var(--primary) 55%, var(--border-subtle));
+}
+
+.claim-request-open-customer-button:not(:disabled) {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
+.claim-request-open-customer-button:not(:disabled):hover {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
 .claim-requests-page__list-item {
   width: 100%;
   height: auto !important;

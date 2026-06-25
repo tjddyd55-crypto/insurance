@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
-import { FormButton, FormSelect, FormTextarea } from '../../../components/form'
+import { FormButton, FormSelect } from '../../../components/form'
 import useIsMobile from '../../../hooks/useIsMobile'
 import { useAuth } from '../../auth/AuthProvider'
-import ClaimRequestAttachmentActions from '../components/ClaimRequestAttachmentActions'
+import ClaimRequestListCard from '../components/ClaimRequestListCard'
+import { ClaimRequestDetailBody } from './claim-requests/sections/ClaimRequestDetailSection'
 import {
   downloadClaimRequestFile,
   downloadClaimRequestFilesPdf,
@@ -19,6 +20,8 @@ import {
   updateClaimRequestStatus,
 } from '../api/claimRequestsApi'
 import { openCustomerClaimWorkspace } from '../../customers/utils/customerClaimWorkspaceNavigation'
+import { claimRequestStatusLabel } from '../utils/claimRequestStatusUi'
+import { resolveClaimRequestCustomerId } from '../utils/resolveClaimRequestCustomerId'
 
 const STATUS_OPTIONS: Array<{ value: ClaimRequestStatus | ''; label: string }> = [
   { value: '', label: '전체' },
@@ -46,40 +49,6 @@ function formatDateTime(iso: string | null): string {
     return iso
   }
   return date.toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' })
-}
-
-function formatFileSize(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes < 1) {
-    return '0 KB'
-  }
-  if (bytes >= 1024 * 1024) {
-    return `${(bytes / 1024 / 1024).toFixed(1)} MB`
-  }
-  return `${Math.ceil(bytes / 1024)} KB`
-}
-
-function statusLabel(status: ClaimRequestStatus | string): string {
-  return STATUS_OPTIONS.find((item) => item.value === status)?.label ?? String(status ?? '')
-}
-
-function statusClass(status: ClaimRequestStatus | string): string {
-  switch (status) {
-    case 'requested':
-      return 'claim-inbox__status claim-inbox__status--requested'
-    case 'processing':
-      return 'claim-inbox__status claim-inbox__status--processing'
-    case 'done':
-      return 'claim-inbox__status claim-inbox__status--done'
-    case 'rejected':
-    case 'canceled':
-      return 'claim-inbox__status claim-inbox__status--closed'
-    default:
-      return 'claim-inbox__status'
-  }
-}
-
-function isImageFile(file: ClaimRequestFileItem): boolean {
-  return String(file.contentType ?? '').startsWith('image/')
 }
 
 export default function ClaimInboxPage() {
@@ -193,8 +162,8 @@ export default function ClaimInboxPage() {
   }, [statusNotice])
 
   const handleOpenInternalCustomerClaim = useCallback(() => {
-    const customerId = detail?.customerId
-    if (!customerId) {
+    const customerId = resolveClaimRequestCustomerId(detail)
+    if (customerId == null) {
       setError('연결된 고객 정보가 없어 청구관리 화면을 열 수 없습니다.')
       return
     }
@@ -206,7 +175,7 @@ export default function ClaimInboxPage() {
       isMobile,
       navigate,
     })
-  }, [detail?.customerId, detail?.customerName, detail?.id, isMobile, navigate])
+  }, [detail, detail?.customerName, detail?.id, isMobile, navigate])
 
   const handleDownloadClaimFilesZip = useCallback(async () => {
     if (!token?.trim() || !detail || detail.files.length === 0) {
@@ -310,8 +279,8 @@ export default function ClaimInboxPage() {
       setStatusMemo('')
       setStatusNotice(
         memoToSend
-          ? `상태를 "${statusLabel(result.status)}" 로 변경하고 메모를 기록했습니다.`
-          : `상태를 "${statusLabel(result.status)}" 로 변경했습니다.`,
+          ? `상태를 "${claimRequestStatusLabel(result.status)}" 로 변경하고 메모를 기록했습니다.`
+          : `상태를 "${claimRequestStatusLabel(result.status)}" 로 변경했습니다.`,
       )
       await loadRows()
       await loadDetail()
@@ -322,117 +291,38 @@ export default function ClaimInboxPage() {
     }
   }, [detail, loadDetail, loadRows, selectedId, statusMemo, statusTarget, token])
 
-  const renderDetailBody = () => {
-    if (detailLoading) {
-      return <div className="claim-inbox__empty">상세를 불러오는 중…</div>
-    }
-    if (!detail) {
-      return <div className="claim-inbox__empty">목록에서 요청을 선택해 주세요.</div>
-    }
+  const inboxStatusLabel = useCallback((value: ClaimRequestStatus) => claimRequestStatusLabel(value), [])
 
-    return (
-      <div className="claim-inbox__detail">
-        <div className="claim-inbox__detail-head">
-          <div>
-            <div className="claim-inbox__detail-title">#{detail.id} {detail.requesterName || detail.customerName}</div>
-            <div className="claim-inbox__detail-meta">접수 {formatDateTime(detail.submittedAt)}</div>
-            <div className="claim-inbox__detail-meta">연결고객: {detail.customerName}</div>
-          </div>
-          <span className={statusClass(detail.status)}>{statusLabel(detail.status)}</span>
-        </div>
-
-        {detail.memo ? <div className="claim-inbox__detail-memo">{detail.memo}</div> : null}
-
-        <ClaimRequestAttachmentActions
-          section="customerPage"
-          attachmentCount={detail.files.length}
-          customerPageTarget="crm-internal"
-          customerId={detail.customerId}
-          onOpenCustomerClaimPage={handleOpenInternalCustomerClaim}
-          onDownloadZip={handleDownloadClaimFilesZip}
-          onDownloadPdf={handleDownloadClaimFilesPdf}
-          zipBusy={zipBusy}
-          pdfBusy={pdfBusy}
-          variant={isMobile ? 'mobile' : 'desktop'}
-        />
-
-        <div className="claim-inbox__detail-section claim-inbox__status-editor">
-          <h3>상태 변경</h3>
-          <div className="claim-inbox__status-editor-row">
-            <FormSelect
-              value={statusTarget}
-              onChange={(event) => setStatusTarget(event.target.value as ClaimRequestStatus)}
-              options={DETAIL_STATUS_OPTIONS}
-            />
-            <FormButton htmlType="button" variant="primary" onClick={() => void handleUpdateStatus()} loading={actionBusy}>
-              상태 저장
-            </FormButton>
-          </div>
-          <FormTextarea
-            value={statusMemo}
-            onChange={(event) => setStatusMemo(event.target.value)}
-            rows={3}
-            placeholder="상태 변경 메모 — 담당자 내부 기록용(상태 이력에 남습니다)"
-            className="claim-inbox__status-memo"
-          />
-        </div>
-
-        <div className="claim-inbox__detail-section">
-          <div className="claim-inbox__attachment-header">
-            <h3>첨부 파일</h3>
-            <ClaimRequestAttachmentActions
-              section="bundle"
-              attachmentCount={detail.files.length}
-              onDownloadZip={handleDownloadClaimFilesZip}
-              onDownloadPdf={handleDownloadClaimFilesPdf}
-              zipBusy={zipBusy}
-              pdfBusy={pdfBusy}
-              variant={isMobile ? 'mobile' : 'desktop'}
-              showCustomerClaimPage={false}
-            />
-          </div>
-          {detail.files.length === 0 ? <div className="claim-inbox__empty claim-inbox__empty--small">첨부 파일이 없습니다.</div> : null}
-          {detail.files.length > 0 ? (
-            <div className="claim-inbox__file-list">
-              {detail.files.map((file) => (
-                <div key={file.id} className="claim-inbox__file-item">
-                  {isImageFile(file) ? (
-                    <img className="claim-inbox__file-thumb" src={file.url} alt="" loading="lazy" />
-                  ) : (
-                    <span className="claim-inbox__file-thumb claim-inbox__file-thumb--file">PDF</span>
-                  )}
-                  <div className="claim-inbox__file-main">
-                    <div className="claim-inbox__file-name">{file.fileName}</div>
-                    <div className="claim-inbox__file-meta">{formatFileSize(file.fileSize)}</div>
-                  </div>
-                  <div className="claim-inbox__file-actions">
-                    <button type="button" onClick={() => void handleOpenFile(file)}>열기</button>
-                    <button type="button" onClick={() => void handleDownloadFile(file)}>다운</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </div>
-
-        <div className="claim-inbox__detail-section">
-          <h3>상태 이력</h3>
-          {detail.statusLogs.length === 0 ? <div className="claim-inbox__empty claim-inbox__empty--small">상태 이력이 없습니다.</div> : null}
-          {detail.statusLogs.length > 0 ? (
-            <ul className="claim-inbox__history-list">
-              {detail.statusLogs.map((log) => (
-                <li key={log.id} className="claim-inbox__history-item">
-                  <strong>{log.fromStatus ? `${statusLabel(log.fromStatus)} → ` : ''}{statusLabel(log.toStatus)}</strong>
-                  <span>{formatDateTime(log.changedAt)}</span>
-                  {log.memo ? <p>{log.memo}</p> : null}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
-      </div>
-    )
-  }
+  const renderDetailBody = () => (
+    <ClaimRequestDetailBody
+      detail={detail}
+      detailLoading={detailLoading}
+      statusTarget={statusTarget}
+      statusMemo={statusMemo}
+      actionBusy={actionBusy}
+      statusOptions={DETAIL_STATUS_OPTIONS}
+      onStatusTargetChange={setStatusTarget}
+      onStatusMemoChange={setStatusMemo}
+      onUpdateStatus={handleUpdateStatus}
+      onOpenFile={handleOpenFile}
+      onDownloadFile={handleDownloadFile}
+      onDownloadZip={handleDownloadClaimFilesZip}
+      onDownloadPdf={handleDownloadClaimFilesPdf}
+      zipBusy={zipBusy}
+      pdfBusy={pdfBusy}
+      useNativeFileLinks={isMobile}
+      customerPageTarget="crm-internal"
+      customerId={detail ? resolveClaimRequestCustomerId(detail) : null}
+      onOpenCustomerClaimPage={handleOpenInternalCustomerClaim}
+      showCustomerClaimPage
+      embeddedInCustomerWorkspace={false}
+      showStatusHistory
+      statusNotice={statusNotice}
+      attachmentActionsVariant={isMobile ? 'mobile' : 'desktop'}
+      formatDateTime={formatDateTime}
+      statusLabel={inboxStatusLabel}
+    />
+  )
 
   return (
     <main className="claim-inbox content-wrapper">
@@ -486,32 +376,21 @@ export default function ClaimInboxPage() {
           {!loading && rows.length === 0 ? <div className="claim-inbox__empty">접수된 청구 요청이 없습니다.</div> : null}
           {rows.length > 0 ? (
             <div className="claim-inbox__list">
-              {rows.map((row) => {
-                const requesterName = row.requesterName || row.customerName || '고객'
-                return (
-                  <button
-                    key={row.id}
-                    type="button"
-                    className={row.id === selectedId && !isMobile ? 'claim-inbox__list-item claim-inbox__list-item--active' : 'claim-inbox__list-item'}
-                    onClick={() => {
-                      if (isMobile) {
-                        openDetailModal(row)
-                        return
-                      }
-                      setSelectedId(row.id)
-                    }}
-                  >
-                    <div className="claim-inbox__list-item-top">
-                      <strong>#{row.id} {requesterName}</strong>
-                      <span className={statusClass(row.status)}>{statusLabel(row.status)}</span>
-                    </div>
-                    <div className="claim-inbox__list-meta">
-                      {row.customerName} · {formatDateTime(row.submittedAt)} · 파일 {row.fileCount}개
-                    </div>
-                    {row.memo ? <div className="claim-inbox__list-memo">{row.memo}</div> : null}
-                  </button>
-                )
-              })}
+              {rows.map((row) => (
+                <ClaimRequestListCard
+                  key={row.id}
+                  item={row}
+                  active={row.id === selectedId && !isMobile}
+                  formatDateTime={formatDateTime}
+                  onClick={() => {
+                    if (isMobile) {
+                      openDetailModal(row)
+                      return
+                    }
+                    setSelectedId(row.id)
+                  }}
+                />
+              ))}
             </div>
           ) : null}
         </aside>

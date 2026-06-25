@@ -11,6 +11,7 @@ import {
   formatClaimRequesterLine,
 } from '../../../utils/claimRequestDetailFormatters'
 import { claimRequestStatusBadgeClass } from '../../../utils/claimRequestStatusUi'
+import { resolveClaimRequestCustomerId } from '../../../utils/resolveClaimRequestCustomerId'
 
 type MaybePromise = void | Promise<void>
 
@@ -34,6 +35,8 @@ type ClaimRequestDetailSectionProps = {
   customerClaimPageUrl?: string
   customerClaimPageBusy?: boolean
   onOpenCustomerClaimPage?: () => MaybePromise
+  customerPageTarget?: 'customer-app' | 'crm-internal'
+  customerId?: number | null
   showCustomerClaimPage?: boolean
   embeddedInCustomerWorkspace?: boolean
   showStatusHistory?: boolean
@@ -63,6 +66,8 @@ export default function ClaimRequestDetailSection({
   customerClaimPageUrl = '',
   customerClaimPageBusy = false,
   onOpenCustomerClaimPage,
+  customerPageTarget = 'customer-app',
+  customerId = null,
   showCustomerClaimPage = true,
   embeddedInCustomerWorkspace = false,
   showStatusHistory = true,
@@ -100,6 +105,8 @@ export default function ClaimRequestDetailSection({
         customerClaimPageUrl={customerClaimPageUrl}
         customerClaimPageBusy={customerClaimPageBusy}
         onOpenCustomerClaimPage={onOpenCustomerClaimPage}
+        customerPageTarget={customerPageTarget}
+        customerId={customerId}
         showCustomerClaimPage={showCustomerClaimPage}
         embeddedInCustomerWorkspace={embeddedInCustomerWorkspace}
         showStatusHistory={showStatusHistory}
@@ -136,6 +143,8 @@ export function ClaimRequestDetailBody({
   customerClaimPageUrl = '',
   customerClaimPageBusy = false,
   onOpenCustomerClaimPage,
+  customerPageTarget = 'customer-app',
+  customerId = null,
   showCustomerClaimPage = true,
   embeddedInCustomerWorkspace = false,
   showStatusHistory = true,
@@ -156,6 +165,7 @@ export function ClaimRequestDetailBody({
   const messageText = claimRequestMessageText(detail)
   const saveDisabled = statusTarget === detail.status && !statusMemo.trim()
   const hasBundleActions = Boolean(onDownloadZip && onDownloadPdf)
+  const resolvedCustomerId = resolveClaimRequestCustomerId(detail) ?? customerId
 
   return (
     <>
@@ -205,6 +215,8 @@ export function ClaimRequestDetailBody({
           attachmentCount={detail.files.length}
           customerClaimPageUrl={customerClaimPageUrl}
           customerClaimPageBusy={customerClaimPageBusy}
+          customerPageTarget={customerPageTarget}
+          customerId={resolvedCustomerId}
           onOpenCustomerClaimPage={onOpenCustomerClaimPage}
           showCustomerClaimPage={showCustomerClaimPage}
           onDownloadZip={onDownloadZip!}

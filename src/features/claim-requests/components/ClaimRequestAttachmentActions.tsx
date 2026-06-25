@@ -1,4 +1,5 @@
 import { FormButton } from '../../../components/form'
+import { resolveClaimRequestCustomerId } from '../utils/resolveClaimRequestCustomerId'
 
 export type ClaimRequestAttachmentActionsVariant = 'desktop' | 'mobile' | 'compact'
 
@@ -62,12 +63,13 @@ export default function ClaimRequestAttachmentActions({
   className = '',
 }: ClaimRequestAttachmentActionsProps) {
   const labels = resolveLabels(variant, customerPageTarget)
+  const resolvedCustomerId = resolveClaimRequestCustomerId({ customerId })
   const bundleDisabled = attachmentCount <= 0 || zipBusy || pdfBusy
   const customerPageDisabled =
     customerClaimPageBusy ||
     !onOpenCustomerClaimPage ||
     (customerPageTarget === 'customer-app' && !customerClaimPageUrl.trim()) ||
-    (customerPageTarget === 'crm-internal' && !(Number(customerId) > 0))
+    (customerPageTarget === 'crm-internal' && resolvedCustomerId == null)
 
   const customerPageTitle =
     customerPageTarget === 'crm-internal'
@@ -84,7 +86,11 @@ export default function ClaimRequestAttachmentActions({
         htmlType="button"
         variant="primary"
         size={variant === 'mobile' ? 'md' : 'sm'}
-        className={variant === 'mobile' ? 'claim-requests-page__primary-action' : undefined}
+        className={
+          variant === 'mobile'
+            ? 'claim-requests-page__primary-action claim-request-open-customer-button'
+            : 'claim-request-open-customer-button'
+        }
         disabled={customerPageDisabled}
         loading={customerClaimPageBusy}
         loadingText={customerPageTarget === 'crm-internal' ? '이동 중…' : '링크 준비 중…'}
