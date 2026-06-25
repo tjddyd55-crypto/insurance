@@ -6,6 +6,7 @@ import type {
   ClaimRequestFileItem,
   ClaimRequestStatus,
 } from '../../../api/claimRequestsApi'
+import { claimRequestStatusBadgeClass } from '../../../utils/claimRequestStatusUi'
 
 type MaybePromise = void | Promise<void>
 
@@ -30,6 +31,7 @@ type ClaimRequestDetailSectionProps = {
   customerClaimPageBusy?: boolean
   onOpenCustomerClaimPage?: () => MaybePromise
   showCustomerClaimPage?: boolean
+  embeddedInCustomerWorkspace?: boolean
   attachmentActionsVariant?: 'desktop' | 'mobile' | 'compact'
   formatDateTime: (iso: string | null) => string
   statusLabel: (status: ClaimRequestStatus) => string
@@ -56,6 +58,7 @@ export default function ClaimRequestDetailSection({
   customerClaimPageBusy = false,
   onOpenCustomerClaimPage,
   showCustomerClaimPage = true,
+  embeddedInCustomerWorkspace = false,
   attachmentActionsVariant = 'desktop',
   formatDateTime,
   statusLabel,
@@ -90,6 +93,7 @@ export default function ClaimRequestDetailSection({
         customerClaimPageBusy={customerClaimPageBusy}
         onOpenCustomerClaimPage={onOpenCustomerClaimPage}
         showCustomerClaimPage={showCustomerClaimPage}
+        embeddedInCustomerWorkspace={embeddedInCustomerWorkspace}
         attachmentActionsVariant={attachmentActionsVariant}
         formatDateTime={formatDateTime}
         statusLabel={statusLabel}
@@ -123,6 +127,7 @@ export function ClaimRequestDetailBody({
   customerClaimPageBusy = false,
   onOpenCustomerClaimPage,
   showCustomerClaimPage = true,
+  embeddedInCustomerWorkspace = false,
   attachmentActionsVariant = 'desktop',
   formatDateTime,
   statusLabel,
@@ -141,19 +146,23 @@ export function ClaimRequestDetailBody({
   return (
     <>
       <div className="claim-requests-page__detail-section">
-        <div className="claim-requests-page__detail-title">
-          #{detail.id} {senderName}
+        <div className="claim-requests-page__detail-header-row">
+          <div className="claim-requests-page__detail-title">
+            청구번호 #{detail.id}
+            {!embeddedInCustomerWorkspace && senderName ? ` · ${senderName}` : ''}
+          </div>
+          <span className={claimRequestStatusBadgeClass(detail.status)}>{statusLabel(detail.status)}</span>
         </div>
-        <div className="claim-requests-page__detail-meta">
-          상태 {statusLabel(detail.status)} · 접수 {formatDateTime(detail.submittedAt)}
-        </div>
+        <div className="claim-requests-page__detail-meta">접수 {formatDateTime(detail.submittedAt)}</div>
         {detail.requesterName ? (
           <div className="claim-requests-page__detail-meta">
             요청자 정보: {detail.requesterName} / {detail.requesterBirthDate} / {detail.requesterPhone}
           </div>
         ) : null}
         <div className="claim-requests-page__detail-meta">연결고객: {detail.customerName}</div>
-        {detail.deviceId ? <div className="claim-requests-page__detail-meta">설치자 기기: {detail.deviceId}</div> : null}
+        {!embeddedInCustomerWorkspace && detail.deviceId ? (
+          <div className="claim-requests-page__detail-meta">설치자 기기: {detail.deviceId}</div>
+        ) : null}
         {detail.title ? <div className="claim-requests-page__detail-text">제목: {detail.title}</div> : null}
         {detail.memo ? <div className="claim-requests-page__detail-text claim-requests-page__detail-text--memo">메모: {detail.memo}</div> : null}
       </div>

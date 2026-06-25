@@ -109,6 +109,7 @@ import {
 } from '../utils/customerRoutePaths'
 import { navigateToCustomerOnMap } from '../utils/customerMapFocusNavigation'
 import { parseMapEntryExpandCustomerId } from '../utils/customerMapDetailNavigation'
+import { parseClaimWorkspaceExpandCustomerId } from '../utils/customerClaimWorkspaceNavigation'
 import CustomersPageMobileView from './customers/CustomersPageMobileView'
 import CustomersPagePCView from './customers/CustomersPagePCView'
 
@@ -818,20 +819,22 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     return () => window.removeEventListener(CUSTOMERS_LIST_REFRESH_EVENT, handler)
   }, [loadCustomers])
 
-  /** 고객 지도 → 상세: 필터 초기화 + 리스트 카드 펼침(목록 로딩 후 재시도 포함). */
+  /** 고객 지도·전역 청구관리 → 상세: 필터 초기화 + 리스트 카드 펼침(목록 로딩 후 재시도 포함). */
   useEffect(() => {
-    const mapExpandId = parseMapEntryExpandCustomerId(location.state)
-    if (mapExpandId == null) {
+    const entryExpandId =
+      parseMapEntryExpandCustomerId(location.state) ??
+      parseClaimWorkspaceExpandCustomerId(location.state)
+    if (entryExpandId == null) {
       mapEntryExpandPendingRef.current = null
       return
     }
-    mapEntryExpandPendingRef.current = mapExpandId
+    mapEntryExpandPendingRef.current = entryExpandId
     setSearchInput('')
     setDeepSearch(false)
     setFavoriteOnly(false)
     setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS })
     setAdvSearchHits(null)
-    applyListCustomerExpand(mapExpandId)
+    applyListCustomerExpand(entryExpandId)
   }, [applyListCustomerExpand, location.key, location.state])
 
   /** 지도 진입 후 목록이 비동기로 도착하면 펼침·스크롤을 한 번 더 보장한다. */

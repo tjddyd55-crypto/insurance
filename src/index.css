@@ -12601,6 +12601,30 @@ textarea.memo-sticky-note__textarea::placeholder {
   background: color-mix(in srgb, var(--primary) 10%, var(--bg-elevated));
 }
 
+.claim-requests-page__list-item-date-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.claim-requests-page__list-item-preview {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+
+.claim-requests-page__list-item-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
 .claim-requests-page__list-item-title-row {
   display: flex;
   align-items: center;
@@ -12634,16 +12658,17 @@ textarea.memo-sticky-note__textarea::placeholder {
 }
 
 .claim-requests-page__badge--processing {
-  background: var(--accent-soft);
-  color: #fbbf24;
-}
-
-.claim-requests-page__badge--requested {
-  background: var(--primary-soft);
+  background: color-mix(in srgb, #3b82f6 18%, transparent);
   color: #93c5fd;
 }
 
-.claim-requests-page__badge--rejected {
+.claim-requests-page__badge--requested {
+  background: color-mix(in srgb, #f59e0b 18%, transparent);
+  color: #fbbf24;
+}
+
+.claim-requests-page__badge--rejected,
+.claim-requests-page__badge--canceled {
   background: color-mix(in srgb, var(--danger) 18%, transparent);
   color: #fca5a5;
 }
@@ -12662,6 +12687,23 @@ textarea.memo-sticky-note__textarea::placeholder {
   font-size: 14px;
   font-weight: 700;
   color: var(--text-primary);
+}
+
+.claim-requests-page__detail-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.claim-requests-page__detail-header-row .claim-requests-page__detail-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.claim-requests-page__detail-header-row .claim-requests-page__badge {
+  flex: 0 0 auto;
+  margin-top: 1px;
 }
 
 .claim-requests-page__detail-subtitle {
@@ -12758,6 +12800,12 @@ textarea.memo-sticky-note__textarea::placeholder {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+.claim-requests-page__detail-section--status {
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-subtle);
 }
 
 .claim-requests-page__status-form-row {

@@ -10,11 +10,14 @@ export function buildInternalCustomerClaimRoute(params) {
     return ''
   }
   const base = `/customers/${customerId}/claim-requests`
+  const query = new URLSearchParams()
+  query.set('customerId', String(customerId))
   const claimRequestId = Number(params?.claimRequestId)
   if (Number.isInteger(claimRequestId) && claimRequestId > 0) {
-    return `${base}?claimId=${claimRequestId}`
+    query.set('claimId', String(claimRequestId))
   }
-  return base
+  const qs = query.toString()
+  return qs ? `${base}?${qs}` : base
 }
 
 /** 고객앱 청구 진입 URL 여부 — 내부 CRM 버튼에서 사용 금지 */

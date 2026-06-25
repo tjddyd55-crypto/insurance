@@ -18,7 +18,7 @@ import {
   type ClaimRequestStatus,
   updateClaimRequestStatus,
 } from '../api/claimRequestsApi'
-import { buildInternalCustomerClaimRoute } from '../utils/customerClaimPageActions'
+import { openCustomerClaimWorkspace } from '../../customers/utils/customerClaimWorkspaceNavigation'
 
 const STATUS_OPTIONS: Array<{ value: ClaimRequestStatus | ''; label: string }> = [
   { value: '', label: '전체' },
@@ -198,17 +198,15 @@ export default function ClaimInboxPage() {
       setError('연결된 고객 정보가 없어 청구관리 화면을 열 수 없습니다.')
       return
     }
-    const route = buildInternalCustomerClaimRoute({
+    setError('')
+    openCustomerClaimWorkspace({
       customerId,
       claimRequestId: detail?.id ?? null,
+      customerName: detail?.customerName,
+      isMobile,
+      navigate,
     })
-    if (!route) {
-      setError('청구관리 화면 경로를 만들지 못했습니다.')
-      return
-    }
-    setError('')
-    navigate(route)
-  }, [detail?.customerId, detail?.id, navigate])
+  }, [detail?.customerId, detail?.customerName, detail?.id, isMobile, navigate])
 
   const handleDownloadClaimFilesZip = useCallback(async () => {
     if (!token?.trim() || !detail || detail.files.length === 0) {

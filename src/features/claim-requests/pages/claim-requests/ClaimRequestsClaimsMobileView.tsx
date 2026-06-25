@@ -199,6 +199,8 @@ export default function ClaimRequestsClaimsMobileView({
               customerClaimPageUrl={customerClaimPageUrl}
               customerClaimPageBusy={customerClaimPageBusy}
               onOpenCustomerClaimPage={onOpenCustomerClaimPage}
+              showCustomerClaimPage={!embedInCustomerWorkspace}
+              embeddedInCustomerWorkspace={embedInCustomerWorkspace}
               attachmentActionsVariant="mobile"
               formatDateTime={formatDateTime}
               statusLabel={statusLabel}

@@ -4,6 +4,10 @@ import { StatusMessage } from '../../../components/feedback'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
 import Modal from '../../../components/ui/Modal'
 import PCOnlySection from '../../../components/PCOnlySection'
+import {
+  claimRequestStatusBadgeClass,
+  claimRequestStatusLabel,
+} from '../utils/claimRequestStatusUi'
 import useIsMobile from '../../../hooks/useIsMobile'
 import { NewsletterList } from '../../insurer-news/components/NewsletterList'
 import type { NewsletterItem } from '../../insurer-news/types'
@@ -63,28 +67,16 @@ function formatDateTime(iso: string | null): string {
 }
 
 function statusLabel(status: ClaimRequestStatus): string {
-  return STATUS_OPTIONS.find((item) => item.value === status)?.label ?? status
+  return claimRequestStatusLabel(status)
+}
+
+function statusBadgeClass(status: ClaimRequestStatus): string {
+  return claimRequestStatusBadgeClass(status)
 }
 
 function parsePositiveInt(raw: string | null): number | null {
   const n = Number(raw)
   return Number.isInteger(n) && n > 0 ? n : null
-}
-
-function statusBadgeClass(status: ClaimRequestStatus): string {
-  switch (status) {
-    case 'done':
-      return 'claim-requests-page__badge claim-requests-page__badge--done'
-    case 'processing':
-      return 'claim-requests-page__badge claim-requests-page__badge--processing'
-    case 'requested':
-      return 'claim-requests-page__badge claim-requests-page__badge--requested'
-    case 'rejected':
-    case 'canceled':
-      return 'claim-requests-page__badge claim-requests-page__badge--rejected'
-    default:
-      return 'claim-requests-page__badge'
-  }
 }
 
 function claimListPreviewText(item: ClaimRequestListItem): string {
@@ -699,30 +691,30 @@ export default function ClaimRequestsPage() {
       {detail ? (
         <>
           <div className="claim-requests-page__detail-section">
-            {(() => {
-              const senderName = detail.requesterName || detail.customerName
-              return (
-                <div className="claim-requests-page__detail-title">
-                  #{detail.id} {senderName}
-                </div>
-              )
-            })()}
-            <div className="claim-requests-page__detail-meta">
-              상태 {statusLabel(detail.status)} · 접수 {formatDateTime(detail.submittedAt)}
+            <div className="claim-requests-page__detail-header-row">
+              <div className="claim-requests-page__detail-title">
+                청구번호 #{detail.id}
+                {!embedInCustomerWorkspace && (detail.requesterName || detail.customerName)
+                  ? ` · ${detail.requesterName || detail.customerName}`
+                  : ''}
+              </div>
+              <span className={statusBadgeClass(detail.status)}>{statusLabel(detail.status)}</span>
             </div>
+            <div className="claim-requests-page__detail-meta">접수 {formatDateTime(detail.submittedAt)}</div>
             {detail.requesterName ? (
               <div className="claim-requests-page__detail-meta">
                 요청자 정보: {detail.requesterName} / {detail.requesterBirthDate} / {detail.requesterPhone}
               </div>
             ) : null}
             <div className="claim-requests-page__detail-meta">연결고객: {detail.customerName}</div>
-            {detail.deviceId ? (
+            {!embedInCustomerWorkspace && detail.deviceId ? (
               <div className="claim-requests-page__detail-meta">설치자 기기: {detail.deviceId}</div>
             ) : null}
             {detail.title ? <div className="claim-requests-page__detail-text">제목: {detail.title}</div> : null}
             {detail.memo ? <div className="claim-requests-page__detail-text claim-requests-page__detail-text--memo">메모: {detail.memo}</div> : null}
           </div>
 
+          {!embedInCustomerWorkspace ? (
           <ClaimRequestAttachmentActions
             section="customerPage"
             attachmentCount={detail.files.length}
@@ -735,6 +727,7 @@ export default function ClaimRequestsPage() {
             pdfBusy={pdfBusy}
             variant={isMobile ? 'mobile' : 'desktop'}
           />
+          ) : null}
 
           <div className="claim-requests-page__detail-section">
             <div className="claim-requests-page__attachment-header">

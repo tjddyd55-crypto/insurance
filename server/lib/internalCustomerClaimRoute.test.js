@@ -9,12 +9,12 @@ describe('internalCustomerClaimRoute', () => {
   it('builds internal customer claim route with customerId and claimRequestId', () => {
     assert.equal(
       buildInternalCustomerClaimRoute({ customerId: 42, claimRequestId: 37 }),
-      '/customers/42/claim-requests?claimId=37',
+      '/customers/42/claim-requests?customerId=42&claimId=37',
     )
   })
 
   it('builds internal customer claim route without claimRequestId', () => {
-    assert.equal(buildInternalCustomerClaimRoute({ customerId: 42 }), '/customers/42/claim-requests')
+    assert.equal(buildInternalCustomerClaimRoute({ customerId: 42 }), '/customers/42/claim-requests?customerId=42')
   })
 
   it('returns empty path for invalid customerId', () => {
