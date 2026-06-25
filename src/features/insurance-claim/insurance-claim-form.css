@@ -1,47 +1,56 @@
-.insurance-claim-form {
-  max-width: 760px;
+.insurance-claim-form,
+.insurance-claim-history {
+  max-width: 900px;
+  margin: 0 auto;
+  color: var(--text-main);
 }
 
 .insurance-claim-form__section {
   margin-bottom: 24px;
   padding: 16px;
-  border: 1px solid #1e293b;
-  border-radius: 12px;
-  background: #111827;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--bg-surface, #ffffff);
 }
 
 .insurance-claim-form__section h2,
 .insurance-claim-form__section h3 {
   margin: 0 0 12px;
-  color: #f8fafc;
+  color: var(--text-primary);
+  font-size: 1.05rem;
+  font-weight: 700;
 }
 
 .insurance-claim-form__section label {
   display: block;
   margin-bottom: 10px;
-  color: #cbd5e1;
+  color: var(--text-secondary);
+  font-weight: 600;
 }
 
 .insurance-claim-form__customer-search {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 12px;
 }
 
 .insurance-claim-form__hint {
   margin: 0;
-  color: #94a3b8;
-  font-size: 14px;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
 }
 
 .insurance-claim-form__status {
   margin: 8px 0 0;
-  color: #60a5fa;
+  color: var(--link);
+  font-size: 0.875rem;
 }
 
 .insurance-claim-form__message {
   margin: 12px 0;
-  color: #f87171;
+  color: var(--danger);
+  font-size: 0.875rem;
 }
 
 .insurance-claim-form__actions {
@@ -65,8 +74,8 @@
   justify-content: space-between;
   gap: 12px;
   padding: 8px 0;
-  border-bottom: 1px solid #1e293b;
-  color: #e5e7eb;
+  border-bottom: 1px solid var(--border-default);
+  color: var(--text-main);
 }
 
 .insurance-claim-form__check-item {
@@ -75,11 +84,12 @@
   gap: 8px;
   width: 100%;
   margin: 0;
+  font-weight: 400;
 }
 
 .insurance-claim-form__upload input[type='file'] {
   margin-top: 8px;
-  color: #e5e7eb;
+  color: var(--text-main);
 }
 
 .insurance-claim-form__signature-grid {
@@ -90,9 +100,106 @@
 .insurance-claim-form__meta {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   margin: 8px 0 0;
-  color: #e5e7eb;
+  color: var(--text-main);
+}
+
+.insurance-claim-history__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.insurance-claim-history__message {
+  margin: 0 0 12px;
+  color: var(--danger);
+  font-size: 0.875rem;
+}
+
+.insurance-claim-history__empty {
+  margin: 16px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
+}
+
+.insurance-claim-history__table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--bg-surface, #ffffff);
+}
+
+.insurance-claim-history__table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.insurance-claim-history__table th,
+.insurance-claim-history__table td {
+  border-bottom: 1px solid var(--border-default);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.insurance-claim-history__table th {
+  background: var(--bg-soft);
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.insurance-claim-history__table tr:last-child td {
+  border-bottom: none;
+}
+
+.insurance-claim-history__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.insurance-claim-history__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid var(--border-default);
+  background: var(--bg-soft);
+  color: var(--text-secondary);
+}
+
+.insurance-claim-history__badge--draft {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.insurance-claim-history__badge--generated,
+.insurance-claim-history__badge--completed {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+
+.insurance-claim-history__badge--failed {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.insurance-claim-history__manual-tag {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
 }
 
 @media (min-width: 720px) {

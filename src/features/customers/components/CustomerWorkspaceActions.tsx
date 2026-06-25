@@ -1,5 +1,4 @@
 import { FormButton } from '../../../components/form'
-import { Link } from 'react-router-dom'
 import CustomerHeaderAppLinkCompact from '../pages/workspace/CustomerHeaderAppLinkCompact'
 
 export type CustomerWorkspaceActionsVariant = 'mobile' | 'pc'
@@ -149,15 +148,6 @@ export function CustomerWorkspaceActions({
             </span>
             <MobileActionText>청구</MobileActionText>
           </FormButton>
-          <Link
-            className="button button--primary customer-mobile-action-btn customer-mobile-action-btn--claim-new"
-            to={`/insurance-claim/new?customerId=${customerId}`}
-          >
-            <span className="customer-mobile-action-btn__icon" aria-hidden>
-              📝
-            </span>
-            <MobileActionText>청구하기</MobileActionText>
-          </Link>
           <FormButton
             htmlType="button"
             variant="secondary"

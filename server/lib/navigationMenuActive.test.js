@@ -5,6 +5,7 @@ import {
   isCustomerNewsClaimTab,
   isClaimManagementClaimTab,
   matchClaimRequestsMenuPath,
+  matchInsuranceClaimMenuPath,
 } from '../../shared/navigationMenuActive.js'
 
 const CUSTOMER_NEWS_PATH = '/claim-requests?claimTab=news-all'
@@ -46,4 +47,14 @@ test('claim tab helpers', () => {
   assert.equal(isClaimManagementClaimTab(''), true)
   assert.equal(isClaimManagementClaimTab('inbox'), true)
   assert.equal(getClaimTabParam('?claimTab=news-all'), 'news-all')
+})
+
+test('insurance claim menu — all insurance-claim routes', () => {
+  const menuPath = '/insurance-claim/requests'
+  assert.equal(matchInsuranceClaimMenuPath('/insurance-claim/requests', menuPath), true)
+  assert.equal(matchInsuranceClaimMenuPath('/insurance-claim/new', menuPath), true)
+  assert.equal(matchInsuranceClaimMenuPath('/insurance-claim/requests/42', menuPath), true)
+  assert.equal(matchInsuranceClaimMenuPath('/claim-requests', menuPath), false)
+  assert.equal(matchInsuranceClaimMenuPath('/customers', menuPath), false)
+  assert.equal(matchInsuranceClaimMenuPath('/customers', '/customers'), null)
 })

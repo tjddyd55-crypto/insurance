@@ -1,5 +1,6 @@
 import {
   matchClaimRequestsMenuPath,
+  matchInsuranceClaimMenuPath,
   parseSearchParams,
   splitMenuItemPath,
 } from '@insurance-shared/navigationMenuActive.js'
@@ -12,6 +13,11 @@ export function isActivePcNavigationPath(
   const claimMatch = matchClaimRequestsMenuPath(pathname, search, itemPath)
   if (claimMatch !== null) {
     return claimMatch
+  }
+
+  const insuranceClaimMatch = matchInsuranceClaimMenuPath(pathname, itemPath)
+  if (insuranceClaimMatch !== null) {
+    return insuranceClaimMatch
   }
 
   const { pathname: menuPathname, searchParams: menuSearchParams } = splitMenuItemPath(itemPath)

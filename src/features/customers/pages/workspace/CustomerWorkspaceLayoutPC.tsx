@@ -1,5 +1,5 @@
 import type { MutableRefObject } from 'react'
-import { Link, Outlet } from 'react-router-dom'
+import { Outlet } from 'react-router-dom'
 import { EmptyState } from '../../../../components/feedback'
 import { FormButton } from '../../../../components/form'
 import type { CustomerRecord } from '../../domain/types'
@@ -257,11 +257,6 @@ export default function CustomerWorkspaceLayoutPC({
             >
               청구관리
             </FormButton>
-            {selectedCustomerId ? (
-              <Link className="button button--primary" to={`/insurance-claim/new?customerId=${selectedCustomerId}`}>
-                청구하기
-              </Link>
-            ) : null}
           </div>
         </nav>
       </header>
