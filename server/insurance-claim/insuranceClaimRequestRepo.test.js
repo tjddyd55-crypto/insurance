@@ -40,6 +40,35 @@ test('draft update is allowed but generated request is immutable', async () => {
   )
 })
 
+test('updateDraft preserves contractor snapshot when patch sends empty contractor with same=false', async () => {
+  const existing = row({
+    contractor_same_as_insured: false,
+    contractor_snapshot: { name: '계약자', ssn: '800202-2345678', phone: '010-3333-4444' },
+  })
+  let updateParams = null
+  const pool = {
+    query: async (sql, params) => {
+      if (sql.includes('SELECT')) return { rows: [existing] }
+      updateParams = params
+      return {
+        rows: [
+          row({
+            contractor_same_as_insured: false,
+            contractor_snapshot: { name: '계약자', ssn: '800202-2345678', phone: '010-3333-4444' },
+          }),
+        ],
+      }
+    },
+  }
+  await updateDraft(pool, 3, 7, {
+    insuranceCompanyId: 4,
+    insuredSnapshot: existing.insured_snapshot,
+    contractorSameAsInsured: false,
+    contractorSnapshot: { name: '', ssn: '', phone: '', address: '', job: '' },
+  })
+  assert.equal(JSON.parse(updateParams[3]).name, '계약자')
+})
+
 test('duplicate creates a separate draft and preserves the source request id', async () => {
   let insertParams = null
   const pool = {

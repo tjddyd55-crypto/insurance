@@ -44,6 +44,18 @@ test('camelCase snapshot 키와 customer mapping을 해석한다', () => {
   assert.equal(values.name, '계약자')
 })
 
+test('B 고객 매핑은 계약자 snapshot 이 비어 있으면 빈 값을 반환한다', () => {
+  const values = resolveInsuranceClaimFieldValues(
+    [{ fieldKey: 'contractor_name', dataMapping: { dataSourceType: 'customer', customerFieldKey: 'name', useSecondaryCustomer: true } }],
+    {
+      insuredSnapshot: { name: '피보험자', ssn: '900101-1234567' },
+      contractorSnapshot: { name: '', ssn: '', phone: '', address: '', job: '' },
+      contractorSameAsInsured: false,
+    },
+  )
+  assert.equal(values.contractor_name, '')
+})
+
 test('B 고객 매핑은 계약자가 없으면 피보험자로 fallback 한다', () => {
   const values = resolveInsuranceClaimFieldValues(
     [{ fieldKey: 'name', dataMapping: { dataSourceType: 'customer', customerFieldKey: 'name', useSecondaryCustomer: true } }],

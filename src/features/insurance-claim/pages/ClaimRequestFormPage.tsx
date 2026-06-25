@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
 import { ApiError } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
@@ -16,6 +16,7 @@ import {
   uploadClaimSignature,
   type ClaimAttachmentMetadata,
   type ClaimCompany,
+  type ClaimRequestDraft,
   type ClaimSignatureData,
   type CustomerClaimAppAttachment,
 } from '../api/claimRequestsApi'
@@ -24,7 +25,42 @@ import ClaimRequestPersonCustomerSearch from '../components/ClaimRequestPersonCu
 import '../insurance-claim-form.css'
 
 type Person = { name: string; ssn: string; phone: string; address: string; job: string }
+type ClaimFormLocationState = { claimRequestSeed?: ClaimRequestDraft }
+
 const emptyPerson = (): Person => ({ name: '', ssn: '', phone: '', address: '', job: '' })
+
+function personFromCustomer(customer: {
+  name?: string | null
+  ssn?: string | null
+  phone?: string | null
+  address?: string | null
+  job?: string | null
+}): Person {
+  return {
+    name: customer.name ?? '',
+    ssn: customer.ssn ?? '',
+    phone: customer.phone ?? '',
+    address: customer.address ?? '',
+    job: customer.job ?? '',
+  }
+}
+
+function validateDraftInputs(same: boolean, insured: Person, contractor: Person): string | null {
+  if (!insured.name.trim()) {
+    return '피보험자 이름은 필수입니다.'
+  }
+  if (!same && !contractor.name.trim()) {
+    return '계약자 정보를 입력해 주세요.'
+  }
+  return null
+}
+
+function contractorSnapshotReady(request: ClaimRequestDraft): boolean {
+  if (request.contractorSameAsInsured !== false) {
+    return true
+  }
+  return Boolean(request.contractorSnapshot?.name?.trim())
+}
 
 function normalizeSignatureData(raw: unknown): ClaimSignatureData {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
@@ -67,6 +103,8 @@ function formatStatus(status: string): string {
 export default function ClaimRequestFormPage() {
   const { token, user } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const hydratedRequestIdRef = useRef<number | null>(null)
   const { id: requestIdParam } = useParams<{ id: string }>()
   const parsedRequestId = Number(requestIdParam)
   const requestId = Number.isInteger(parsedRequestId) && parsedRequestId > 0 ? parsedRequestId : null
@@ -101,6 +139,7 @@ export default function ClaimRequestFormPage() {
   const [uploadingAttachment, setUploadingAttachment] = useState(false)
   const [uploadingSignatureRole, setUploadingSignatureRole] = useState<'insured' | 'contractor' | null>(null)
   const [message, setMessage] = useState('')
+  const [formReady, setFormReady] = useState(requestId == null)
 
   const draftSaved = requestId != null
   const isDraft = status === 'draft'
@@ -134,38 +173,28 @@ export default function ClaimRequestFormPage() {
 
   const fillCustomer = useCallback(
     async (id: number) => {
-      if (!token) return
+      if (!token) return false
       const customer = await getCustomerById(token, id)
-      if (!customer) return
+      if (!customer) return false
       setCustomerId(customer.id)
-      setInsured({
-        name: customer.name ?? '',
-        ssn: customer.ssn ?? '',
-        phone: customer.phone ?? '',
-        address: customer.address ?? '',
-        job: customer.job ?? '',
-      })
+      setInsured(personFromCustomer(customer))
       setPaymentData((prev) => ({ ...prev, accountHolder: prev.accountHolder || customer.name || '' }))
       setMatches([])
       setCustomerQuery('')
+      return true
     },
     [token],
   )
 
   const fillContractor = useCallback(
     async (id: number) => {
-      if (!token) return
+      if (!token) return false
       const customer = await getCustomerById(token, id)
-      if (!customer) return
-      setContractor({
-        name: customer.name ?? '',
-        ssn: customer.ssn ?? '',
-        phone: customer.phone ?? '',
-        address: customer.address ?? '',
-        job: customer.job ?? '',
-      })
+      if (!customer) return false
+      setContractor(personFromCustomer(customer))
       setContractorMatches([])
       setContractorQuery('')
+      return true
     },
     [token],
   )
@@ -193,6 +222,16 @@ export default function ClaimRequestFormPage() {
     setStatus(request.status)
   }, [])
 
+  const navigateToSavedDraft = useCallback(
+    (request: ClaimRequestDraft) => {
+      navigate(`/insurance-claim/requests/${request.id}`, {
+        replace: true,
+        state: { claimRequestSeed: request } satisfies ClaimFormLocationState,
+      })
+    },
+    [navigate],
+  )
+
   const persistDraft = useCallback(
     async (
       draftId: number,
@@ -201,9 +240,14 @@ export default function ClaimRequestFormPage() {
         signatureData?: ClaimSignatureData
         selectedCustomerAttachmentIds?: number[]
       },
-    ) => {
-      if (!token) {
-        return
+    ): Promise<ClaimRequestDraft | null> => {
+      if (!token || !formReady) {
+        return null
+      }
+      const validationError = validateDraftInputs(same, insured, contractor)
+      if (validationError) {
+        setMessage(validationError)
+        return null
       }
       const currentBody = buildBody()
       const { request } = await updateClaimDraft(token, draftId, {
@@ -214,8 +258,9 @@ export default function ClaimRequestFormPage() {
           patch.selectedCustomerAttachmentIds ?? currentBody.selectedCustomerAttachmentIds,
       })
       applyRequest(request)
+      return request
     },
-    [applyRequest, buildBody, token],
+    [applyRequest, buildBody, contractor, formReady, insured, same, token],
   )
 
   const loadCustomerAttachments = useCallback(
@@ -244,11 +289,36 @@ export default function ClaimRequestFormPage() {
   }, [fillCustomer, params, token])
 
   useEffect(() => {
-    if (!token || requestId == null) return
+    if (!token || requestId == null) {
+      setFormReady(true)
+      return
+    }
+
+    setFormReady(false)
+    const seed = (location.state as ClaimFormLocationState | null)?.claimRequestSeed
+    if (seed?.id === requestId && hydratedRequestIdRef.current !== requestId) {
+      applyRequest(seed)
+      hydratedRequestIdRef.current = requestId
+      setFormReady(true)
+      return
+    }
+
+    if (hydratedRequestIdRef.current === requestId) {
+      setFormReady(true)
+      return
+    }
+
     void getClaimRequest(token, requestId)
-      .then(({ request }) => applyRequest(request))
-      .catch((e) => setMessage(e instanceof Error ? e.message : '청구 내역을 불러오지 못했습니다.'))
-  }, [applyRequest, requestId, token])
+      .then(({ request }) => {
+        applyRequest(request)
+        hydratedRequestIdRef.current = requestId
+        setFormReady(true)
+      })
+      .catch((e) => {
+        setMessage(e instanceof Error ? e.message : '청구 내역을 불러오지 못했습니다.')
+        setFormReady(true)
+      })
+  }, [applyRequest, location.state, requestId, token])
 
   useEffect(() => {
     if (!token || customerId == null) {
@@ -277,10 +347,15 @@ export default function ClaimRequestFormPage() {
     }
   }
 
-  const save = async () => {
-    if (!token || !companyId || !insured.name.trim()) {
+  const save = async (): Promise<ClaimRequestDraft | null> => {
+    if (!token || !companyId) {
       setMessage('보험회사와 피보험자 이름은 필수입니다.')
-      return
+      return null
+    }
+    const validationError = validateDraftInputs(same, insured, contractor)
+    if (validationError) {
+      setMessage(validationError)
+      return null
     }
     setSaving(true)
     setMessage('')
@@ -290,12 +365,14 @@ export default function ClaimRequestFormPage() {
         requestId != null ? await updateClaimDraft(token, requestId, body) : await createClaimDraft(token, body)
       applyRequest(request)
       if (requestId == null) {
-        navigate(`/insurance-claim/requests/${request.id}`, { replace: true })
+        navigateToSavedDraft(request)
       } else {
         setMessage('저장했습니다.')
       }
+      return request
     } catch (e) {
       setMessage(e instanceof ApiError ? e.message : '청구 초안 저장에 실패했습니다.')
+      return null
     } finally {
       setSaving(false)
     }
@@ -305,15 +382,20 @@ export default function ClaimRequestFormPage() {
     if (requestId != null) {
       return requestId
     }
-    if (!token || !companyId || !insured.name.trim()) {
+    if (!token || !companyId) {
       setMessage('첨부/서명 업로드 전에 보험회사와 피보험자 이름을 입력하고 저장해 주세요.')
+      return null
+    }
+    const validationError = validateDraftInputs(same, insured, contractor)
+    if (validationError) {
+      setMessage(validationError)
       return null
     }
     setSaving(true)
     try {
       const { request } = await createClaimDraft(token, buildBody())
       applyRequest(request)
-      navigate(`/insurance-claim/requests/${request.id}`, { replace: true })
+      navigateToSavedDraft(request)
       return request.id
     } catch (e) {
       setMessage(e instanceof ApiError ? e.message : '청구 초안 저장에 실패했습니다.')
@@ -333,7 +415,10 @@ export default function ClaimRequestFormPage() {
       const { attachment } = await uploadClaimAttachment(token, id, file)
       const nextAttachments = [...additionalAttachments, attachment]
       setAdditionalAttachments(nextAttachments)
-      await persistDraft(id, { additionalAttachments: nextAttachments })
+      const persisted = await persistDraft(id, { additionalAttachments: nextAttachments })
+      if (persisted == null) {
+        return
+      }
       setMessage('첨부파일을 저장했습니다.')
     } catch (e) {
       setMessage(e instanceof Error ? e.message : '첨부파일 업로드에 실패했습니다.')
@@ -355,7 +440,10 @@ export default function ClaimRequestFormPage() {
         [role === 'contractor' ? 'contractorSignature' : 'insuredSignature']: signature,
       }
       setSignatureData(nextSignatureData)
-      await persistDraft(id, { signatureData: nextSignatureData })
+      const persisted = await persistDraft(id, { signatureData: nextSignatureData })
+      if (persisted == null) {
+        return
+      }
       setMessage('서명을 저장했습니다.')
     } catch (e) {
       setMessage(e instanceof Error ? e.message : '서명 저장에 실패했습니다.')
@@ -369,8 +457,15 @@ export default function ClaimRequestFormPage() {
     setGenerating(true)
     setMessage('')
     try {
-      await save()
-      const { request } = await generateClaimDocuments(token, requestId)
+      const saved = await save()
+      if (saved == null) {
+        return
+      }
+      if (!contractorSnapshotReady(saved)) {
+        setMessage('계약자 정보가 저장되지 않았습니다. 계약자 정보 확인 후 다시 저장해 주세요.')
+        return
+      }
+      const { request } = await generateClaimDocuments(token, saved.id)
       applyRequest(request)
       setMessage('청구서·동의서 PDF를 생성했습니다.')
     } catch (e) {

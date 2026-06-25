@@ -4,6 +4,26 @@ function json(value, fallback) {
   return JSON.stringify(value ?? fallback)
 }
 
+function isEmptyPersonSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
+    return true
+  }
+  return !String(snapshot.name ?? '').trim()
+}
+
+function mergeContractorSnapshotForUpdate(current, patch) {
+  const next = { ...current, ...patch }
+  if (next.contractorSameAsInsured === false && isEmptyPersonSnapshot(next.contractorSnapshot)) {
+    if (!isEmptyPersonSnapshot(current.contractorSnapshot)) {
+      next.contractorSnapshot = current.contractorSnapshot
+    }
+  }
+  if (next.contractorSameAsInsured !== false) {
+    next.contractorSnapshot = null
+  }
+  return next
+}
+
 function rowToDto(row) {
   if (!row) return null
   return {
@@ -90,7 +110,7 @@ export async function updateDraft(pool, gaId, id, patch) {
     error.code = 'CLAIM_REQUEST_NOT_DRAFT'
     throw error
   }
-  const next = { ...current, ...patch }
+  const next = mergeContractorSnapshotForUpdate(current, patch)
   const { rows } = await pool.query(
     `UPDATE insurance_claim_requests SET
        customer_id = $1, insurance_company_id = $2, insured_snapshot = CAST($3 AS jsonb),
