@@ -72,8 +72,10 @@ function parsePositiveIntLocal(value) {
 }
 
 function parseNotificationListFilters(query) {
-  const status = String(query?.status ?? 'all').trim().toLowerCase()
+  const viewRaw = String(query?.view ?? '').trim().toLowerCase()
+  const statusRaw = String(query?.status ?? '').trim().toLowerCase()
   const type = String(query?.type ?? 'all').trim().toLowerCase()
+  const allowedViews = new Set(['active', 'confirmed'])
   const allowedStatus = new Set(['all', 'unread', 'read', 'dismissed', 'hidden'])
   const allowedTypes = new Set([
     'all',
@@ -81,8 +83,17 @@ function parseNotificationListFilters(query) {
     USER_NOTIFICATION_TYPES.INSURANCE_AGE_DATE,
     USER_NOTIFICATION_TYPES.CLAIM_REQUEST_RECEIVED,
   ])
+  let view = 'active'
+  if (allowedViews.has(viewRaw)) {
+    view = viewRaw
+  } else if (statusRaw === 'dismissed' || statusRaw === 'hidden') {
+    view = 'confirmed'
+  } else if (allowedStatus.has(statusRaw)) {
+    view = 'active'
+  }
   return {
-    status: allowedStatus.has(status) ? status : 'all',
+    view,
+    status: view === 'confirmed' ? 'dismissed' : 'all',
     type: allowedTypes.has(type) ? type : 'all',
   }
 }
@@ -90,12 +101,9 @@ function parseNotificationListFilters(query) {
 export function buildNotificationListWhere(userId, gaId, filters) {
   const params = [userId, gaId]
   const parts = ['user_id = $1', 'ga_id = $2']
-  if (filters.status === 'unread') {
-    parts.push('is_read = false', 'is_dismissed = false')
-  } else if (filters.status === 'read') {
-    parts.push('is_read = true', 'is_dismissed = false')
-  } else if (filters.status === 'dismissed' || filters.status === 'hidden') {
+  if (filters.view === 'confirmed') {
     parts.push('is_dismissed = true')
+    parts.push(`COALESCE(confirmed_at, created_at) >= NOW() - INTERVAL '1 month'`)
   } else {
     parts.push('is_dismissed = false')
   }
@@ -112,7 +120,7 @@ export function buildNotificationListQuery(userId, gaId, filters, limit) {
   const limitParam = params.length
   const sql = `
     SELECT id, user_id, ga_id, team_id, type, reference_id, message, is_read, is_dismissed,
-           customer_id, customer_name, target_date, claim_request_id, created_at
+           customer_id, customer_name, target_date, claim_request_id, created_at, confirmed_at
     FROM (
       SELECT DISTINCT ON (
         user_id,
@@ -123,7 +131,7 @@ export function buildNotificationListQuery(userId, gaId, filters, limit) {
         COALESCE(claim_request_id, -1)
       )
         id, user_id, ga_id, team_id, type, reference_id, message, is_read, is_dismissed,
-        customer_id, customer_name, target_date, claim_request_id, created_at
+        customer_id, customer_name, target_date, claim_request_id, created_at, confirmed_at
       FROM notifications
       WHERE ${clause}
       ORDER BY
@@ -380,7 +388,7 @@ export function registerNotificationsApi(apiRouter, ctx) {
         pool,
         `
         UPDATE notifications
-        SET is_dismissed = true, is_read = true
+        SET is_dismissed = true, is_read = true, confirmed_at = NOW()
         WHERE id = $1::bigint AND user_id = $2 AND ga_id = $3
         `,
         [nid, userId, gaId],

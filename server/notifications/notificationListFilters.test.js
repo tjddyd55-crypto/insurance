@@ -7,56 +7,62 @@ import {
   parseNotificationListFilters,
 } from '../apis/notificationsApi.js'
 
-test('parseNotificationListFilters accepts status and type filters', () => {
-  assert.deepEqual(parseNotificationListFilters({ status: 'read', type: 'car_expiry' }), {
-    status: 'read',
+test('parseNotificationListFilters accepts view and legacy status filters', () => {
+  assert.deepEqual(parseNotificationListFilters({ view: 'confirmed', type: 'car_expiry' }), {
+    view: 'confirmed',
+    status: 'dismissed',
     type: 'car_expiry',
   })
+  assert.deepEqual(parseNotificationListFilters({ view: 'active' }), {
+    view: 'active',
+    status: 'all',
+    type: 'all',
+  })
+  assert.deepEqual(parseNotificationListFilters({ status: 'dismissed' }), {
+    view: 'confirmed',
+    status: 'dismissed',
+    type: 'all',
+  })
   assert.deepEqual(parseNotificationListFilters({ status: 'unknown', type: 'bad' }), {
+    view: 'active',
     status: 'all',
     type: 'all',
   })
 })
 
-test('buildNotificationListWhere maps unread/read/dismissed/hidden', () => {
-  const unread = buildNotificationListWhere('u1', 1, { status: 'unread', type: 'all' })
-  assert.match(unread.clause, /is_read = false/)
-  assert.match(unread.clause, /is_dismissed = false/)
+test('buildNotificationListWhere maps active and confirmed views', () => {
+  const active = buildNotificationListWhere('u1', 1, { view: 'active', type: 'all' })
+  assert.match(active.clause, /is_dismissed = false/)
+  assert.doesNotMatch(active.clause, /confirmed_at/)
 
-  const read = buildNotificationListWhere('u1', 1, { status: 'read', type: 'all' })
-  assert.match(read.clause, /is_read = true/)
-  assert.match(read.clause, /is_dismissed = false/)
-
-  const dismissed = buildNotificationListWhere('u1', 1, { status: 'dismissed', type: 'all' })
-  assert.match(dismissed.clause, /is_dismissed = true/)
-
-  const hidden = buildNotificationListWhere('u1', 1, { status: 'hidden', type: 'all' })
-  assert.match(hidden.clause, /is_dismissed = true/)
+  const confirmed = buildNotificationListWhere('u1', 1, { view: 'confirmed', type: 'all' })
+  assert.match(confirmed.clause, /is_dismissed = true/)
+  assert.match(confirmed.clause, /COALESCE\(confirmed_at, created_at\) >= NOW\(\) - INTERVAL '1 month'/)
 })
 
-test('buildNotificationListWhere keeps active notifications for status all without target_date filter', () => {
-  const all = buildNotificationListWhere('u1', 1, { status: 'all', type: 'all' })
-  assert.match(all.clause, /is_dismissed = false/)
-  assert.doesNotMatch(all.clause, /target_date/)
+test('buildNotificationListWhere keeps active notifications without target_date filter', () => {
+  const active = buildNotificationListWhere('u1', 1, { view: 'active', type: 'all' })
+  assert.match(active.clause, /is_dismissed = false/)
+  assert.doesNotMatch(active.clause, /target_date/)
 })
 
-test('buildNotificationListWhere applies type filter without changing status rules', () => {
-  const carUnread = buildNotificationListWhere('u1', 1, { status: 'unread', type: 'car_expiry' })
-  assert.match(carUnread.clause, /type = \$3/)
-  assert.match(carUnread.clause, /is_dismissed = false/)
-  assert.equal(carUnread.params[2], 'car_expiry')
+test('buildNotificationListWhere applies type filter without changing view rules', () => {
+  const carActive = buildNotificationListWhere('u1', 1, { view: 'active', type: 'car_expiry' })
+  assert.match(carActive.clause, /type = \$3/)
+  assert.match(carActive.clause, /is_dismissed = false/)
+  assert.equal(carActive.params[2], 'car_expiry')
 
-  const ageRead = buildNotificationListWhere('u1', 1, { status: 'read', type: 'insurance_age_date' })
-  assert.match(ageRead.clause, /type = \$3/)
-  assert.match(ageRead.clause, /is_read = true/)
-  assert.match(ageRead.clause, /is_dismissed = false/)
+  const ageConfirmed = buildNotificationListWhere('u1', 1, { view: 'confirmed', type: 'insurance_age_date' })
+  assert.match(ageConfirmed.clause, /type = \$3/)
+  assert.match(ageConfirmed.clause, /is_dismissed = true/)
 })
 
 test('buildNotificationListQuery deduplicates rows defensively with DISTINCT ON', () => {
-  const query = buildNotificationListQuery('u1', 1, { status: 'all', type: 'insurance_age_date' }, 50)
+  const query = buildNotificationListQuery('u1', 1, { view: 'active', type: 'insurance_age_date' }, 50)
   assert.match(query.sql, /SELECT DISTINCT ON/)
   assert.match(query.sql, /COALESCE\(customer_id, -1\)/)
   assert.match(query.sql, /COALESCE\(target_date, DATE '1970-01-01'\)/)
+  assert.match(query.sql, /confirmed_at/)
   assert.match(query.sql, /ORDER BY created_at DESC, id DESC/)
   assert.equal(query.params[query.params.length - 1], 50)
 })

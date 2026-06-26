@@ -2795,6 +2795,13 @@ export async function initDb() {
   await pool.query(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS target_date DATE NULL`)
   await pool.query(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS claim_request_id BIGINT NULL`)
   await pool.query(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS is_dismissed BOOLEAN NOT NULL DEFAULT false`)
+  await pool.query(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMPTZ NULL`)
+  await pool.query(`
+    UPDATE notifications
+    SET confirmed_at = created_at
+    WHERE is_dismissed = true
+      AND confirmed_at IS NULL
+  `)
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_notifications_user_ga_active_created
     ON notifications (user_id, ga_id, is_dismissed, created_at DESC)
