@@ -9,6 +9,7 @@ import {
   normalizeNameForCustomerDedupe,
   normalizePhoneForCustomerDedupe,
 } from './customerSearchDedupe'
+import { inferGenderFromResidentNumberDigits } from './inferGenderFromResidentNumberDigits'
 
 /**
  * 샘플·업로드 공통 헤더 순서 (1행)
@@ -215,6 +216,18 @@ export function parseGender(value: unknown): '' | 'male' | 'female' {
     return s
   }
   return ''
+}
+
+/** 업로드 row: 명시 성별 우선, 없으면 주민번호 7번째 자리로 추론 */
+export function resolveGenderForCustomerImport(
+  genderRaw: unknown,
+  ssn: string,
+): '' | 'male' | 'female' {
+  const parsed = parseGender(genderRaw)
+  if (parsed !== '') {
+    return parsed
+  }
+  return inferGenderFromResidentNumberDigits(ssn) ?? ''
 }
 
 /** 스펙: "TRUE" / "FALSE" 만 인정, 그 외 null. 엑셀 불리언·대소문자 허용. */
@@ -567,7 +580,7 @@ export function transformRow(row: CustomerExcelParsedRow): SaveCustomerPayload |
   if (!name || (!hasPhone && !hasResidentNumber)) {
     return null
   }
-  const gender = parseGender(row.genderRaw)
+  const gender = resolveGenderForCustomerImport(row.genderRaw, ssn)
   const isDriver = row.isDriver
   const createdAt = new Date().toISOString()
   const noteItems = memoToNotes(row.memoRaw, createdAt)
