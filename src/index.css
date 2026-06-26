@@ -4408,6 +4408,10 @@ button.filter-button:focus-visible {
   grid-column: 1 / -1;
 }
 
+.customer-inflow-fields {
+  display: contents;
+}
+
 .customer-form-gender-options {
   display: flex;
   flex-wrap: wrap;

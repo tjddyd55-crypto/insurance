@@ -4,7 +4,7 @@
 import { parseCrmExtensionFromDb } from './customerCrmExtension.js'
 import { summarizeConsultationBody } from './customerConsultationListQuery.js'
 import { isClosedFollowUpStatus } from './customerConsultationFollowUp.js'
-import { inflowSourceFromDbRow } from './customerInflowSource.js'
+import { inflowSourceFromDbRow, referrerNameFromDbRow } from './customerInflowSource.js'
 
 export function normalizeExpiryDate(value) {
   if (typeof value !== 'string') {
@@ -135,6 +135,7 @@ export function mapCustomerRow(row) {
   )
 
   const inflowSource = inflowSourceFromDbRow(row)
+  const referrerName = referrerNameFromDbRow(row)
 
   const followUpNextRaw =
     row.follow_up_next_contact_date ?? row.followUpNextContactDate ?? row.next_contact_date ?? null
@@ -200,6 +201,7 @@ export function mapCustomerRow(row) {
     consultationCount,
     hasConsultation: consultationCount > 0,
     inflowSource,
+    referrerName,
     nextContactDate,
     followUpStatus,
     contactResult,

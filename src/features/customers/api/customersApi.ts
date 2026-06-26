@@ -62,6 +62,9 @@ export function assertCustomerDataRecord(
   const phone = phoneFromPrimary || phoneFromSnake || phoneFromCamel
 
   const crmExtension = normalizeCustomerCrmExtension(row.crmExtension ?? row.crm_extension)
+  const referrerRaw = row.referrerName ?? row.referrer_name
+  const referrerName =
+    typeof referrerRaw === 'string' && referrerRaw.trim() ? referrerRaw.trim() : null
 
   return {
     ...withFlag,
@@ -69,6 +72,7 @@ export function assertCustomerDataRecord(
     phoneNumber: phone,
     isFavorite: withFlag.isFavorite === true,
     crmExtension,
+    referrerName,
   }
 }
 
@@ -311,6 +315,7 @@ export interface SaveCustomerPayload {
   isFavorite?: boolean
   /** 유입 경로 — 미지정·빈 문자열은 null 저장 */
   inflowSource?: string | null
+  referrerName?: string | null
 }
 
 export interface UpdateCustomerCarPayload {
@@ -373,6 +378,7 @@ export function customerRecordToUpdatePayload(
     renewalDate: normalizeCustomerRenewalDateForPut(customer.renewalDate),
     isFavorite: customer.isFavorite === true,
     inflowSource: customer.inflowSource ?? null,
+    referrerName: customer.referrerName ?? null,
     ...(hasExtension
       ? {
           crmExtension: {

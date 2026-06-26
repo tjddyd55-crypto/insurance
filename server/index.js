@@ -84,7 +84,7 @@ import {
   buildCustomerFollowUpSummaryJoin,
   buildCustomerListWhereExtras,
 } from './lib/customerConsultationListQuery.js'
-import { normalizeInflowSourceForDb } from './lib/customerInflowSource.js'
+import { normalizeInflowSourceForDb, normalizeReferrerNameForDb } from './lib/customerInflowSource.js'
 import {
   PUBLIC_INVITE_REG_COOKIE,
   buildInviteRegClearCookieHeader,
@@ -5961,6 +5961,10 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
       res.status(400).json({ message: inflowParsed.message })
       return
     }
+    const referrerNameSql = normalizeReferrerNameForDb(
+      inflowParsed.value,
+      data.referrerName ?? data.referrer_name,
+    )
 
     const inserted = await safeQuery(pool,
       `
@@ -5972,15 +5976,17 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
         birth_date,
         crm_extension,
         inflow_source,
+        referrer_name,
         tenant_id, owner_user_id, created_by_user_id, visibility_scope
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, CAST($22 AS jsonb), $23, CAST($24 AS jsonb), $25, $26, $27, $28, $29)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, CAST($22 AS jsonb), $23, CAST($24 AS jsonb), $25, $26, $27, $28, $29, $30)
       RETURNING
         id, user_id, name, birth_date, ssn, phone, carrier, address, height, weight, job, driving, medical,
         car_number, car_model, car_year, renewal_date,
         gender, insurance_age, next_age_date, is_driver, car_type, notes,
         is_favorite, created_at,
         crm_extension,
-        inflow_source
+        inflow_source,
+        referrer_name
       `,
       [
         userId,
@@ -6008,6 +6014,7 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
         birthDateSql,
         crmExtSql,
         inflowParsed.value,
+        referrerNameSql,
         custTenantId,
         userId,
         userId,
@@ -6832,6 +6839,15 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
       }
       parts.push(`inflow_source = $${n++}`)
       vals.push(inflowParsed.value)
+      parts.push(`referrer_name = $${n++}`)
+      vals.push(
+        normalizeReferrerNameForDb(inflowParsed.value, data.referrerName ?? data.referrer_name),
+      )
+    } else if (hasKey('referrerName') || hasKey('referrer_name')) {
+      parts.push(`referrer_name = $${n++}`)
+      vals.push(
+        normalizeReferrerNameForDb('소개', hasKey('referrerName') ? data.referrerName : data.referrer_name),
+      )
     }
 
     if (parts.length === 0) {
@@ -6882,7 +6898,8 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
         gender, insurance_age, next_age_date, is_driver, car_type, notes,
         is_favorite, created_at,
         crm_extension,
-        inflow_source
+        inflow_source,
+        referrer_name
       `,
       vals,
     )
@@ -7114,6 +7131,7 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
           c.is_favorite, c.created_at,
           c.crm_extension,
           c.inflow_source,
+          c.referrer_name,
           lc.last_consult_date,
           lc.consultation_count,
           lcm.last_consultation_body,
@@ -7196,6 +7214,7 @@ apiRouter.get('/customers/:id', requireAuth, async (req, res) => {
         c.is_favorite, c.created_at,
         c.crm_extension,
         c.inflow_source,
+        c.referrer_name,
         lc.last_consult_date,
         lc.consultation_count,
         lcm.last_consultation_body,

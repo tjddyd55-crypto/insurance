@@ -9,7 +9,10 @@ import {
   formatCustomerPhoneUi,
   formatCustomerSsnUi,
 } from '../utils/customerDisplayFormat'
-import { formatCustomerInflowSourceLabel } from '../config/customerInflowSource.config'
+import {
+  formatCustomerInflowSourceLabel,
+  isCustomerInflowSourceReferral,
+} from '../config/customerInflowSource.config'
 import { CustomerCarsReadSection } from './CustomerCarsReadSection'
 import { CustomerRelationsStrip } from './CustomerRelationsStrip'
 import type { CustomerIndustryTemplate } from '../../customer-templates/customerTemplate.types'
@@ -228,6 +231,12 @@ export default function CustomerDetailReadView({
             {formatCustomerInflowSourceLabel(c.inflowSource)}
           </span>
         </DetailReadInfoRow>
+        {isCustomerInflowSourceReferral(c.inflowSource) && c.referrerName?.trim() ? (
+          <DetailReadInfoRow>
+            <span className="customer-detail-read__info-label">소개자:</span>{' '}
+            <span className="customer-detail-read__info-value">{c.referrerName.trim()}</span>
+          </DetailReadInfoRow>
+        ) : null}
         <DetailReadInfoRow>
           <span className="customer-detail-read__info-label">핸드폰번호:</span>{' '}
           <span className="customer-detail-read__info-value">{formatCustomerPhoneUi(c.phone) || '—'}</span>

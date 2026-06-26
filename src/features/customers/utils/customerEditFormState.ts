@@ -44,6 +44,7 @@ export function recordToEditForm(c: CustomerRecord): CustomerEditFormState {
     cars: customerRecordToCarFormItems(c),
     crmExtensionFields: { ...(c.crmExtension?.fields ?? {}) },
     inflowSource: c.inflowSource ?? '',
+    referrerName: c.referrerName ?? '',
   }
 }
 

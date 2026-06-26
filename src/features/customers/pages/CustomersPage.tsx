@@ -52,7 +52,10 @@ import { CustomerRelationsStrip } from '../components/CustomerRelationsStrip'
 import CustomerMobileModals from '../components/CustomerMobileModals'
 import CustomerPageHeaderActions from '../components/CustomerPageHeaderActions'
 import { CustomerFilterControls, type CustomerConsultationFilter } from '../components/CustomerFilterControls'
-import type { CustomerListSortValue } from '../config/customerInflowSource.config'
+import {
+  type CustomerListSortValue,
+  resolveReferrerNameForSave,
+} from '../config/customerInflowSource.config'
 import CustomerExcelSelectToolbar from '../components/CustomerExcelSelectToolbar'
 import CustomerListCard, { type CustomerSsnDupHighlight } from '../components/CustomerListCard'
 import type { CustomerEditFormState } from '../types/customerEditForm'
@@ -1084,6 +1087,10 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         renewalDate: renewalDateForApi,
         isFavorite: base.isFavorite === true,
         inflowSource: activeEditForm.inflowSource.trim() || null,
+        referrerName: resolveReferrerNameForSave(
+          activeEditForm.inflowSource,
+          activeEditForm.referrerName,
+        ),
         ...industryExt,
       })
       try {

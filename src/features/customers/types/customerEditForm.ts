@@ -22,4 +22,6 @@ export type CustomerEditFormState = {
   crmExtensionFields: Record<string, string>
   /** 유입 경로 — 빈 문자열은 미지정 */
   inflowSource: string
+  /** 유입 경로가 소개일 때 소개자 이름 */
+  referrerName: string
 }
