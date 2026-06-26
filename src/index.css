@@ -4939,9 +4939,9 @@ div.cta-button.customers-page__action-btn[role='button'] {
 .notification-section {
   min-width: 0;
   overflow: hidden;
-  border: 1px solid #1e293b;
+  border: 1px solid #e5e7eb;
   border-radius: 12px;
-  background: #111827;
+  background: #ffffff;
 }
 
 .notification-section__banner {
@@ -4949,7 +4949,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
   align-items: center;
   justify-content: center;
   padding: 12px 14px;
-  border-bottom: 1px solid #1e293b;
+  border-bottom: 1px solid #e5e7eb;
   text-align: center;
 }
 
@@ -4961,40 +4961,41 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 .notification-section--age .notification-section__banner {
-  background: rgba(16, 185, 129, 0.14);
-  border-bottom-color: rgba(16, 185, 129, 0.28);
+  background: #ecfdf5;
+  border-bottom-color: #a7f3d0;
 }
 
 .notification-section--age .notification-section__title {
-  color: #6ee7b7;
+  color: #047857;
 }
 
 .notification-section--car .notification-section__banner {
-  background: rgba(59, 130, 246, 0.14);
-  border-bottom-color: rgba(59, 130, 246, 0.28);
+  background: #eff6ff;
+  border-bottom-color: #bfdbfe;
 }
 
 .notification-section--car .notification-section__title {
-  color: #93c5fd;
+  color: #1d4ed8;
 }
 
 .notification-section--claim .notification-section__banner {
-  background: rgba(245, 158, 11, 0.14);
-  border-bottom-color: rgba(245, 158, 11, 0.28);
+  background: #fffbeb;
+  border-bottom-color: #fde68a;
 }
 
 .notification-section--claim .notification-section__title {
-  color: #fcd34d;
+  color: #b45309;
 }
 
 .notification-section__body {
   padding: 10px;
+  background: #ffffff;
 }
 
 .notification-section__empty {
   margin: 0;
   padding: 12px 8px;
-  color: #94a3b8;
+  color: #64748b;
   font-size: 0.875rem;
   text-align: center;
 }
@@ -5002,25 +5003,30 @@ div.cta-button.customers-page__action-btn[role='button'] {
 .notification-section__table {
   width: 100%;
   border-collapse: collapse;
+  background: #ffffff;
 }
 
 .notification-section__table th,
 .notification-section__table td {
   padding: 8px 6px;
-  border-bottom: 1px solid #1e293b;
+  border-bottom: 1px solid #e5e7eb;
   text-align: left;
   vertical-align: middle;
   font-size: 0.875rem;
 }
 
 .notification-section__table th {
-  color: #cbd5e1;
+  color: #64748b;
   font-weight: 700;
   white-space: nowrap;
 }
 
 .notification-section__table td {
-  color: #e5e7eb;
+  color: #111827;
+}
+
+.notification-section__table tbody tr:hover td {
+  background: #f8fafc;
 }
 
 .notification-section__table tbody tr:last-child td {
@@ -5031,7 +5037,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
   padding: 0;
   border: 0;
   background: transparent;
-  color: #60a5fa;
+  color: #2563eb;
   font: inherit;
   font-weight: 600;
   cursor: pointer;
@@ -5039,7 +5045,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 .notification-section__name-link:hover:not(:disabled) {
-  color: #93c5fd;
+  color: #1d4ed8;
   text-decoration: underline;
 }
 
@@ -5049,30 +5055,30 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 .notification-center__view-hint {
-  color: #94a3b8;
+  color: #64748b;
   font-size: 0.8125rem;
 }
 
 .notification-center__toast {
   margin: 0 0 12px;
   padding: 10px 14px;
-  border: 1px solid rgba(16, 185, 129, 0.28);
+  border: 1px solid #a7f3d0;
   border-radius: 8px;
-  background: rgba(16, 185, 129, 0.14);
-  color: #6ee7b7;
+  background: #ecfdf5;
+  color: #047857;
   font-size: 0.875rem;
 }
 
 .notification-confirm-modal__question {
   margin: 0;
-  color: #f8fafc;
+  color: #111827;
   font-size: 1rem;
   font-weight: 700;
 }
 
 .notification-confirm-modal__hint {
   margin: 10px 0 0;
-  color: #94a3b8;
+  color: #64748b;
   font-size: 0.875rem;
   line-height: 1.5;
 }
@@ -5080,27 +5086,27 @@ div.cta-button.customers-page__action-btn[role='button'] {
 .notification-confirm-modal__summary {
   margin-top: 14px;
   padding: 12px 14px;
-  border: 1px solid #334155;
+  border: 1px solid #e5e7eb;
   border-radius: 10px;
-  background: #111827;
+  background: #f8fafc;
 }
 
 .notification-confirm-modal__name {
   margin: 0;
-  color: #f8fafc;
+  color: #111827;
   font-size: 0.9375rem;
   font-weight: 700;
 }
 
 .notification-confirm-modal__detail {
   margin: 6px 0 0;
-  color: #cbd5e1;
+  color: #64748b;
   font-size: 0.875rem;
 }
 
 .notification-confirm-modal__error {
   margin: 12px 0 0;
-  color: #f87171;
+  color: #dc2626;
   font-size: 0.875rem;
 }
 

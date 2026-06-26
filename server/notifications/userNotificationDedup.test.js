@@ -3,12 +3,21 @@ import test from 'node:test'
 
 import {
   createClaimRequestReceivedNotification,
+  retireOutOfWindowInsuranceAgeNotifications,
   syncDueUserNotifications,
 } from '../services/userNotificationService.js'
+import { addDaysToDateOnly } from '../../shared/dateTimeKst.js'
 import { USER_NOTIFICATION_TYPES } from './userNotificationTypes.js'
 
 function createSafeQueryMock(handler) {
   return async (_db, sql, params) => handler(String(sql), params)
+}
+
+function handleRetireInsuranceAgeUpdate(sql, params) {
+  if (sql.includes('UPDATE notifications') && sql.includes('target_date >')) {
+    return { rows: [], rowCount: 0 }
+  }
+  return null
 }
 
 function notificationInsertKey(params) {
@@ -43,6 +52,10 @@ test('syncDueUserNotifications queries car expiry and insurance age within inclu
   const tracker = createInsertTracker()
   const pool = {}
   const safeQuery = createSafeQueryMock(async (sql, params) => {
+    const retireResult = handleRetireInsuranceAgeUpdate(sql, params)
+    if (retireResult) {
+      return retireResult
+    }
     if (sql.includes('FROM customers c') && sql.includes('renewal_date')) {
       captured.carSql = sql
       captured.carParams = params
@@ -70,12 +83,17 @@ test('syncDueUserNotifications queries car expiry and insurance age within inclu
   assert.match(captured.ageSql, /next_age_date <= \$4::date/)
   assert.equal(captured.ageParams.length, 4)
   assert.ok(captured.ageParams[2] <= captured.ageParams[3])
+  assert.equal(captured.ageParams[3], addDaysToDateOnly(captured.ageParams[2], 30))
 })
 
 test('syncDueUserNotifications creates car expiry and insurance age notifications with ON CONFLICT DO NOTHING', async () => {
   const tracker = createInsertTracker()
   const pool = {}
   const safeQuery = createSafeQueryMock(async (sql, params) => {
+    const retireResult = handleRetireInsuranceAgeUpdate(sql, params)
+    if (retireResult) {
+      return retireResult
+    }
     if (sql.includes('FROM customers c') && sql.includes('renewal_date')) {
       return {
         rows: [{ customer_id: 10, customer_name: '강남수', renewal_date: '2026-07-25' }],
@@ -108,6 +126,10 @@ test('syncDueUserNotifications skips duplicate car expiry notifications when syn
   const tracker = createInsertTracker()
   const pool = {}
   const safeQuery = createSafeQueryMock(async (sql, params) => {
+    const retireResult = handleRetireInsuranceAgeUpdate(sql, params)
+    if (retireResult) {
+      return retireResult
+    }
     if (sql.includes('FROM customers c') && sql.includes('renewal_date')) {
       return {
         rows: [{ customer_id: 10, customer_name: '강남수', renewal_date: '2026-07-01' }],
@@ -133,6 +155,10 @@ test('parallel syncDueUserNotifications inserts one row per notification key', a
   const tracker = createInsertTracker()
   const pool = {}
   const safeQuery = createSafeQueryMock(async (sql, params) => {
+    const retireResult = handleRetireInsuranceAgeUpdate(sql, params)
+    if (retireResult) {
+      return retireResult
+    }
     if (sql.includes('FROM customers c') && sql.includes('renewal_date')) {
       await new Promise((resolve) => setTimeout(resolve, 5))
       return { rows: [] }
@@ -166,6 +192,10 @@ test('syncDueUserNotifications does not update existing read or dismissed notifi
   const pool = {}
   const safeQuery = createSafeQueryMock(async (sql, params) => {
     sqlLog.push(sql)
+    const retireResult = handleRetireInsuranceAgeUpdate(sql, params)
+    if (retireResult) {
+      return retireResult
+    }
     if (sql.includes('FROM customers c') && sql.includes('renewal_date')) {
       return { rows: [] }
     }
@@ -185,8 +215,37 @@ test('syncDueUserNotifications does not update existing read or dismissed notifi
   await syncDueUserNotifications(pool, safeQuery, 'user-a', 3)
 
   assert.equal(tracker.inserts.length, 1)
-  assert.ok(sqlLog.every((sql) => !sql.includes('UPDATE notifications')))
+  const updateSql = sqlLog.filter((sql) => sql.includes('UPDATE notifications'))
+  assert.equal(updateSql.length, 2)
+  assert.ok(updateSql.every((sql) => sql.includes('target_date >')))
   assert.ok(sqlLog.every((sql) => !sql.includes('DO UPDATE')))
+})
+
+test('retireOutOfWindowInsuranceAgeNotifications dismisses active rows beyond 30-day window', async () => {
+  let captured = null
+  const pool = {}
+  const safeQuery = createSafeQueryMock(async (sql, params) => {
+    if (sql.includes('UPDATE notifications') && sql.includes('target_date >')) {
+      captured = { sql, params }
+      return { rows: [], rowCount: 2 }
+    }
+    throw new Error(`unexpected sql: ${sql}`)
+  })
+
+  const count = await retireOutOfWindowInsuranceAgeNotifications(
+    pool,
+    safeQuery,
+    'user-a',
+    3,
+    '2026-06-26',
+    '2026-07-26',
+  )
+
+  assert.equal(count, 2)
+  assert.match(captured.sql, /is_dismissed = true/)
+  assert.match(captured.sql, /confirmed_at = COALESCE\(confirmed_at, NOW\(\)\)/)
+  assert.equal(captured.params[2], USER_NOTIFICATION_TYPES.INSURANCE_AGE_DATE)
+  assert.equal(captured.params[3], '2026-07-26')
 })
 
 test('createClaimRequestReceivedNotification uses ON CONFLICT DO NOTHING', async () => {

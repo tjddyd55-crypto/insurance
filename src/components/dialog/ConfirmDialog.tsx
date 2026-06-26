@@ -11,6 +11,8 @@ export type ConfirmDialogProps = {
   cancelLabel?: string
   busy?: boolean
   tone?: 'default' | 'danger'
+  closeOnBackdrop?: boolean
+  closeOnEsc?: boolean
   onConfirm: () => void | Promise<void>
   onCancel: () => void
 }
@@ -33,6 +35,8 @@ export function ConfirmDialog({
   cancelLabel = '취소',
   busy = false,
   tone = 'default',
+  closeOnBackdrop = true,
+  closeOnEsc = true,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -41,8 +45,8 @@ export function ConfirmDialog({
       open={open}
       onClose={onCancel}
       ariaLabel={title}
-      closeOnBackdrop={!busy}
-      closeOnEsc={!busy}
+      closeOnBackdrop={!busy && closeOnBackdrop}
+      closeOnEsc={!busy && closeOnEsc}
       panelClassName="max-w-lg"
       usePortal
       overlayClassName="!z-[100100]"

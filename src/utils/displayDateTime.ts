@@ -1,4 +1,5 @@
 export {
+  addDaysToDateOnly,
   diffDateOnlyDays,
   formatDateOnly,
   formatKstDate,

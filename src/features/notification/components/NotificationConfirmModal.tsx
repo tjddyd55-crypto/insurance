@@ -57,6 +57,8 @@ export function NotificationConfirmModal({
       confirmLabel="확인"
       cancelLabel="취소"
       busy={busy}
+      closeOnBackdrop={false}
+      closeOnEsc={false}
       onConfirm={onConfirm}
       onCancel={onCancel}
     />

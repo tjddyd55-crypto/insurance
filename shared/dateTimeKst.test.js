@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  addDaysToDateOnly,
   diffDateOnlyDays,
   formatDateOnly,
   formatKstDate,
@@ -48,6 +49,14 @@ test('getKstDateString/getKstDateCompactString — YYYY-MM-DD and YYYYMMDD', () 
 test('formatTimestampSearchHaystack — includes KST date token', () => {
   const haystack = formatTimestampSearchHaystack('2026-06-25T15:30:00.000Z')
   assert.match(haystack, /2026-06-26/)
+})
+
+test('addDaysToDateOnly — adds calendar days on date-only strings', () => {
+  assert.equal(addDaysToDateOnly(TODAY, 0), TODAY)
+  assert.equal(addDaysToDateOnly(TODAY, 30), '2026-07-26')
+  assert.equal(addDaysToDateOnly(TODAY, 31), '2026-07-27')
+  assert.equal(addDaysToDateOnly('2026-01-31', 1), '2026-02-01')
+  assert.equal(addDaysToDateOnly('', 30), '')
 })
 
 test('diffDateOnlyDays — counts date-only strings without timezone shift', () => {

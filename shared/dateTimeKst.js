@@ -112,6 +112,25 @@ export function diffDateOnlyDays(targetDateOnly, todayDateOnly) {
 }
 
 /**
+ * @param {string | null | undefined} dateStr YYYY-MM-DD
+ * @param {number} days
+ * @returns {string}
+ */
+export function addDaysToDateOnly(dateStr, days) {
+  const base = formatDateOnly(dateStr)
+  if (!base || !Number.isFinite(days)) {
+    return ''
+  }
+  const [y, m, d] = base.split('-').map(Number)
+  const nextUtc = Date.UTC(y, m - 1, d) + days * 86400000
+  const next = new Date(nextUtc)
+  const year = next.getUTCFullYear()
+  const month = String(next.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(next.getUTCDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+/**
  * @param {string | null | undefined} targetDate
  * @param {string} [today]
  * @returns {string}

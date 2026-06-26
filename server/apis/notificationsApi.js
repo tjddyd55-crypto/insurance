@@ -7,6 +7,7 @@ import {
   syncDueUserNotifications,
 } from '../services/userNotificationService.js'
 import { USER_NOTIFICATION_TYPES } from '../notifications/userNotificationTypes.js'
+import { addDaysToDateOnly, getKstDateString } from '../../shared/dateTimeKst.js'
 
 function isInsurerManagerRole(role) {
   const normalized = String(role ?? '')
@@ -106,6 +107,13 @@ export function buildNotificationListWhere(userId, gaId, filters) {
     parts.push(`COALESCE(confirmed_at, created_at) >= NOW() - INTERVAL '1 month'`)
   } else {
     parts.push('is_dismissed = false')
+    const ageUpperBound = addDaysToDateOnly(getKstDateString(), 30)
+    if (ageUpperBound) {
+      params.push(ageUpperBound)
+      parts.push(
+        `NOT (type = '${USER_NOTIFICATION_TYPES.INSURANCE_AGE_DATE}' AND target_date > $${params.length}::date)`,
+      )
+    }
   }
   if (filters.type !== 'all') {
     params.push(filters.type)
