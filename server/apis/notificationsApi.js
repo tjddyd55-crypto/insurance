@@ -205,7 +205,9 @@ export function registerNotificationsApi(apiRouter, ctx) {
       if (gaId == null) {
         return
       }
-      await syncDueUserNotifications(pool, safeQuery, userId, gaId)
+      await syncDueUserNotifications(pool, safeQuery, userId, gaId).catch((error) => {
+        console.error('[notificationsApi] syncDueUserNotifications failed', { userId, gaId, error })
+      })
       const r = await safeQuery(
         pool,
         `
@@ -234,7 +236,9 @@ export function registerNotificationsApi(apiRouter, ctx) {
       if (gaId == null) {
         return
       }
-      await syncDueUserNotifications(pool, safeQuery, userId, gaId)
+      await syncDueUserNotifications(pool, safeQuery, userId, gaId).catch((error) => {
+        console.error('[notificationsApi] syncDueUserNotifications failed', { userId, gaId, error })
+      })
       const filters = parseNotificationListFilters(req.query)
       const limRaw = Number(req.query?.limit ?? NOTIFICATIONS_LIST_LIMIT_DEFAULT)
       const limit = Math.min(
