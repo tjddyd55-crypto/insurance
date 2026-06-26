@@ -77,12 +77,6 @@ const HEADER_LABEL_TO_KEY: Record<string, (typeof CUSTOMER_EXCEL_UPLOAD_HEADERS)
 /** 한국 주민등록번호 본문 13자리 (검증·병합 키용) */
 export const RRN_NORMALIZED_LENGTH = 13
 
-/**
- * 엑셀 일괄 업로드 1회 요청 상한(서버·브라우저 부하 완화).
- * DB에 이미 있는 주민번호 중복 차단은 서버(API) 쪽 검증이 필요하다(다음 단계).
- */
-export const CUSTOMER_EXCEL_UPLOAD_MAX_BATCH = 300
-
 /** 숫자만 추출. 비정상·누락 시 병합 키로 쓰지 않도록 길이 검증은 호출부에서 한다. */
 export function normalizeSsn(ssn: string): string {
   return String(ssn ?? '')
