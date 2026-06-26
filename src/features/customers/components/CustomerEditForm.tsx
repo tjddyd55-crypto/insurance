@@ -5,11 +5,11 @@ import {
   AddressSearchField,
   FormButton,
   FormInput,
-  FormSelect,
   FormTextarea,
   type AddressSearchValue,
 } from '../../../components/form'
-import { CUSTOMER_INFLOW_SOURCE_FORM_OPTIONS } from '../config/customerInflowSource.config'
+import { resolveReferrerNameForSave } from '../config/customerInflowSource.config'
+import CustomerInflowSourceFields from './CustomerInflowSourceFields'
 import {
   CUSTOMER_INSURANCE_HISTORY_PLACEHOLDER,
   CUSTOMER_MEDICAL_HISTORY_PLACEHOLDER,
@@ -137,17 +137,26 @@ export default function CustomerEditForm({
               }
             />
           </label>
-          <label className="field">
-            <span className="field__label">유입 경로</span>
-            <FormSelect
-              className="field__control"
-              value={editForm.inflowSource ?? ''}
-              onChange={(e) =>
-                setEditForm((prev) => (prev ? { ...prev, inflowSource: e.target.value } : prev))
-              }
-              options={CUSTOMER_INFLOW_SOURCE_FORM_OPTIONS}
-            />
-          </label>
+          <CustomerInflowSourceFields
+            inflowSource={editForm.inflowSource ?? ''}
+            referrerName={editForm.referrerName ?? ''}
+            onInflowSourceChange={(value) =>
+              setEditForm((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      inflowSource: value,
+                      referrerName: resolveReferrerNameForSave(value, prev.referrerName)
+                        ? prev.referrerName
+                        : '',
+                    }
+                  : prev,
+              )
+            }
+            onReferrerNameChange={(value) =>
+              setEditForm((prev) => (prev ? { ...prev, referrerName: value } : prev))
+            }
+          />
           <InsuranceInline ssn={editForm.ssn ?? ''} />
           <label className="field">
             <span className="field__label">키</span>

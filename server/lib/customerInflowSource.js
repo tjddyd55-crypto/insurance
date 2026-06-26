@@ -60,3 +60,29 @@ export function parseInflowSourceFilterQuery(query) {
   }
   return { value: null, error: '잘못된 유입 경로 필터입니다.' }
 }
+
+/**
+ * @param {string | null | undefined} inflowSourceValue — normalizeInflowSourceForDb 결과
+ * @param {unknown} referrerNameRaw
+ * @returns {string | null}
+ */
+export function normalizeReferrerNameForDb(inflowSourceValue, referrerNameRaw) {
+  if (inflowSourceValue !== '소개') {
+    return null
+  }
+  const s = String(referrerNameRaw ?? '').trim()
+  return s || null
+}
+
+/**
+ * @param {Record<string, unknown> | null | undefined} row
+ * @returns {string | null}
+ */
+export function referrerNameFromDbRow(row) {
+  const raw = row?.referrer_name ?? row?.referrerName
+  if (raw == null) {
+    return null
+  }
+  const s = String(raw).trim()
+  return s || null
+}

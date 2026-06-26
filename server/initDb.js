@@ -1611,7 +1611,8 @@ export async function initDb() {
   await pool.query(`
     ALTER TABLE customers
     ADD COLUMN IF NOT EXISTS inflow_source TEXT,
-    ADD COLUMN IF NOT EXISTS inflow_source_note TEXT
+    ADD COLUMN IF NOT EXISTS inflow_source_note TEXT,
+    ADD COLUMN IF NOT EXISTS referrer_name TEXT
   `)
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_customers_inflow_source

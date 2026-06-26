@@ -86,6 +86,8 @@ export interface CustomerRecord {
   hasConsultation?: boolean
   /** 유입 경로 (미지정·null 허용) */
   inflowSource?: string | null
+  /** 유입 경로가 소개일 때 소개자 이름 */
+  referrerName?: string | null
   /** 다음 연락 예정일 (활성 후속관리 기준) */
   nextContactDate?: string | null
   followUpStatus?: string | null
