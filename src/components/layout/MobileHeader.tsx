@@ -33,7 +33,7 @@ export default function MobileHeader({
         <span className="mobile-workspace-header__title">{title}</span>
       </div>
       <div className="mobile-workspace-header__right">
-        {showNotification ? <NotificationBell variant="workspaceHeader" boundaryRef={headerRef} /> : null}
+        {showNotification ? <NotificationBell variant="workspaceHeader" /> : null}
       </div>
     </header>
   )

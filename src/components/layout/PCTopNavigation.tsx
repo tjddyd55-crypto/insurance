@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { FormButton } from '../form'
 import { useAuth } from '../../features/auth/AuthProvider'
@@ -23,7 +23,6 @@ type MenuGroup = {
 
 type Props = {
   showNotification?: boolean
-  notificationBoundaryRef?: RefObject<HTMLElement | null>
   onLogout?: () => void
 }
 
@@ -226,7 +225,7 @@ export default function PCTopNavigation({
         <div className="pc-top-navigation__actions" aria-label="PC 상단 액션">
           <BillingStatusBadge />
           {showNotification ? (
-            <NotificationBell variant="workspaceHeader" boundaryRef={notificationBoundaryRef} />
+            <NotificationBell variant="workspaceHeader" />
           ) : null}
           {onLogout ? (
             <FormButton

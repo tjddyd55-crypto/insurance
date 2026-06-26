@@ -1,26 +1,21 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FormButton } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import { ApiError } from '../../../lib/apiClient'
 import { fetchUnreadCount } from '../api/notificationApi'
 import { NOTIFICATION_REFRESH_EVENT } from '../notificationRefreshDispatch'
-import { NotificationList } from './NotificationList'
 
 export type NotificationBellVariant = 'inline' | 'workspaceHeader'
 
 type Props = {
   variant?: NotificationBellVariant
-  /** workspaceHeader: header 아래에 패널을 고정할 때 기준 요소로 사용한다. */
-  boundaryRef?: RefObject<HTMLElement | null>
 }
 
-export function NotificationBell({ variant = 'inline', boundaryRef }: Props) {
+export function NotificationBell({ variant = 'inline' }: Props) {
   const navigate = useNavigate()
   const { token, user } = useAuth()
-  const [open, setOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
-  const wrapRef = useRef<HTMLDivElement>(null)
 
   const isNewsManager = user?.role === 'INSURER_MANAGER' || user?.role === 'LOSS_ADJUSTER'
 
@@ -67,22 +62,13 @@ export function NotificationBell({ variant = 'inline', boundaryRef }: Props) {
     return () => window.removeEventListener(NOTIFICATION_REFRESH_EVENT, onRefreshSignal)
   }, [refreshUnread])
 
-  useEffect(() => {
-    if (!open) {
-      return
-    }
-    function onDocMouseDown(ev: MouseEvent) {
-      const root = boundaryRef?.current ?? wrapRef.current
-      if (root && ev.target instanceof Node && !root.contains(ev.target)) {
-        setOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', onDocMouseDown)
-    return () => document.removeEventListener('mousedown', onDocMouseDown)
-  }, [open, boundaryRef])
-
   if (!token?.trim() || isNewsManager) {
     return null
+  }
+
+  const handleBellClick = () => {
+    void refreshUnread()
+    navigate('/notifications')
   }
 
   const trigger = (
@@ -90,13 +76,8 @@ export function NotificationBell({ variant = 'inline', boundaryRef }: Props) {
       htmlType="button"
       variant="action"
       className="app-tenant-ga-bar__notification-trigger notification-icon"
-      aria-expanded={open}
-      aria-haspopup="true"
       aria-label={'\uC54C\uB9BC'}
-      onClick={() => {
-        setOpen((v) => !v)
-        void refreshUnread()
-      }}
+      onClick={handleBellClick}
     >
       <span className="relative inline-block text-lg leading-none" aria-hidden>
         {'\uD83D\uDD14'}
@@ -112,50 +93,13 @@ export function NotificationBell({ variant = 'inline', boundaryRef }: Props) {
     </FormButton>
   )
 
-  const panel = open ? (
-    <div
-      className={
-        variant === 'workspaceHeader'
-          ? 'notification-panel notification-panel--workspace-header notification-dropdown'
-          : 'notification-panel'
-      }
-      role="dialog"
-      aria-label={'\uC54C\uB9BC \uBAA9\uB85D'}
-    >
-      <div className="notification-panel__header">{'\uC54C\uB9BC'}</div>
-      <div className="notification-panel__body">
-        <NotificationList token={token} onUnreadChanged={() => void refreshUnread()} />
-      </div>
-      <div className="notification-panel__footer px-3 py-2 border-t border-[var(--border-default)]">
-        <FormButton
-          htmlType="button"
-          variant="secondary"
-          size="sm"
-          className="w-full"
-          onClick={() => {
-            setOpen(false)
-            navigate('/notifications')
-          }}
-        >
-          알림 전체 보기
-        </FormButton>
-      </div>
-    </div>
-  ) : null
-
   if (variant === 'workspaceHeader') {
     return (
       <div className="app-workspace-chrome-header__notification-root">
         <div className="header-right app-workspace-chrome-header__header-right">{trigger}</div>
-        {panel}
       </div>
     )
   }
 
-  return (
-    <div ref={wrapRef} className="relative inline-flex items-center">
-      {trigger}
-      {panel}
-    </div>
-  )
+  return <div className="relative inline-flex items-center">{trigger}</div>
 }
