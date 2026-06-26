@@ -40,30 +40,58 @@ function MemoPanelBody({
   /** `/memo` 정식 페이지 — StickyNote 캔버스 높이 스코프 (FAB만 숨김) */
   routedMemoCanvas?: boolean
 }) {
-  return (
-    <div className="memo-panel-main">
-      <div
-        className={`memo-body${routedMemoCanvas ? ' memo-body--routed-page' : ''} ${isMobile ? 'memo-body--mobile mobile-container' : 'memo-body--list-row'}`}
-      >
-        <div className={`memo-canvas-area p-2 min-h-0 ${isMobile ? 'mobile-memo-view' : ''}`}>
-          <MemoWorkspacePage />
-        </div>
-        {isMobile ? (
-          <MemoMobileListSection
-            showList={showList}
-            selectedNoteId={selectedNoteId}
-            onSelectNoteFromList={onSelectNoteFromList}
-            onToggleList={onToggleList}
-          />
-        ) : (
-          <MemoPcListSection
-            showList={showList}
-            selectedNoteId={selectedNoteId}
-            onSelectNoteFromList={onSelectNoteFromList}
-            onToggleList={onToggleList}
-          />
-        )}
+  const listSection = isMobile ? (
+    <MemoMobileListSection
+      showList={showList}
+      selectedNoteId={selectedNoteId}
+      onSelectNoteFromList={onSelectNoteFromList}
+      onToggleList={onToggleList}
+    />
+  ) : (
+    <MemoPcListSection
+      showList={showList}
+      selectedNoteId={selectedNoteId}
+      onSelectNoteFromList={onSelectNoteFromList}
+      onToggleList={onToggleList}
+    />
+  )
+
+  const canvasAreaClass = [
+    'memo-canvas-area min-h-0',
+    routedMemoCanvas ? 'memo-canvas-area--routed-board' : 'p-2',
+    isMobile ? 'mobile-memo-view' : 'memo-canvas-area--pc',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  const bodyClass = [
+    'memo-body',
+    routedMemoCanvas ? 'memo-body--routed-page memo-workspace__body' : '',
+    routedMemoCanvas && showList ? 'memo-workspace__body--list-open' : '',
+    routedMemoCanvas && !showList ? 'memo-workspace__body--list-closed' : '',
+    isMobile ? 'memo-body--mobile mobile-container' : 'memo-body--list-row',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  const panelInner = (
+    <>
+      <div className={canvasAreaClass}>
+        <MemoWorkspacePage />
       </div>
+      {listSection}
+    </>
+  )
+
+  return (
+    <div className={`memo-panel-main${routedMemoCanvas ? ' memo-panel-main--routed-page' : ''}`}>
+      {routedMemoCanvas ? (
+        <div className="memo-workspace memo-workspace--routed-page">
+          <div className={bodyClass}>{panelInner}</div>
+        </div>
+      ) : (
+        <div className={bodyClass}>{panelInner}</div>
+      )}
       {!omitFab ? <MemoFab /> : null}
     </div>
   )

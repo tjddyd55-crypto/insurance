@@ -4,7 +4,12 @@ import { parseGaId } from '../lib/parseGaId.js'
 const DEFAULT_WIDTH = 260
 const DEFAULT_HEIGHT = 200
 const DEFAULT_FONT_SIZE = 16
+const DEFAULT_FONT_WEIGHT = 'normal'
 const DEFAULT_Z_INDEX = 0
+
+function normalizeFontWeight(value) {
+  return value === 'bold' ? 'bold' : 'normal'
+}
 
 /**
  * @param {import('pg').QueryResultRow} row
@@ -31,6 +36,7 @@ function mapMemoRow(row) {
       row.font_size != null && Number.isFinite(Number(row.font_size))
         ? Math.round(Number(row.font_size))
         : DEFAULT_FONT_SIZE,
+    fontWeight: normalizeFontWeight(row.font_weight),
   }
 }
 
@@ -73,7 +79,7 @@ export function registerMemoApi(apiRouter, ctx) {
       const r = await safeQuery(
         pool,
         `
-        SELECT id, content, x, y, width, height, z_index, font_size, created_at, updated_at
+        SELECT id, content, x, y, width, height, z_index, font_size, font_weight, created_at, updated_at
         FROM memo
         WHERE user_id = $1 AND ga_id = $2
         ORDER BY created_at DESC
@@ -97,7 +103,7 @@ export function registerMemoApi(apiRouter, ctx) {
       if (gaId == null) {
         return
       }
-      const { content, x, y, width, height, zIndex, fontSize } = req.body ?? {}
+      const { content, x, y, width, height, zIndex, fontSize, fontWeight } = req.body ?? {}
       const contentVal = typeof content === 'string' ? content : ''
       const xVal = Number.isFinite(Number(x)) ? Math.round(Number(x)) : 100
       const yVal = Number.isFinite(Number(y)) ? Math.round(Number(y)) : 100
@@ -117,14 +123,18 @@ export function registerMemoApi(apiRouter, ctx) {
         fontSize !== undefined && fontSize !== null && Number.isFinite(Number(fontSize))
           ? Math.round(Number(fontSize))
           : DEFAULT_FONT_SIZE
+      const fwVal =
+        fontWeight !== undefined && fontWeight !== null
+          ? normalizeFontWeight(fontWeight)
+          : DEFAULT_FONT_WEIGHT
       const r = await safeQuery(
         pool,
         `
-        INSERT INTO memo (user_id, ga_id, content, x, y, width, height, z_index, font_size)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        RETURNING id, content, x, y, width, height, z_index, font_size
+        INSERT INTO memo (user_id, ga_id, content, x, y, width, height, z_index, font_size, font_weight)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        RETURNING id, content, x, y, width, height, z_index, font_size, font_weight
         `,
-        [userId, gaId, contentVal, xVal, yVal, wVal, hVal, zVal, fVal],
+        [userId, gaId, contentVal, xVal, yVal, wVal, hVal, zVal, fVal, fwVal],
       )
       if (r.rowCount === 0) {
         res.status(500).json({ message: '메모를 생성하지 못했습니다.' })
@@ -154,7 +164,7 @@ export function registerMemoApi(apiRouter, ctx) {
       }
       const cur = await safeQuery(
         pool,
-        `SELECT id, content, x, y, width, height, z_index, font_size FROM memo WHERE id = $1::uuid AND user_id = $2 AND ga_id = $3`,
+        `SELECT id, content, x, y, width, height, z_index, font_size, font_weight FROM memo WHERE id = $1::uuid AND user_id = $2 AND ga_id = $3`,
         [memoId, userId, gaId],
       )
       if (cur.rowCount === 0) {
@@ -162,7 +172,7 @@ export function registerMemoApi(apiRouter, ctx) {
         return
       }
       const row = cur.rows[0]
-      const { content, x, y, width, height, zIndex, fontSize } = req.body ?? {}
+      const { content, x, y, width, height, zIndex, fontSize, fontWeight } = req.body ?? {}
       const nextContent =
         content !== undefined && content !== null ? String(content) : String(row.content ?? '')
       const nextX =
@@ -197,15 +207,33 @@ export function registerMemoApi(apiRouter, ctx) {
           : row.font_size != null
             ? Math.round(Number(row.font_size))
             : DEFAULT_FONT_SIZE
+      const nextFontWeight =
+        fontWeight !== undefined && fontWeight !== null
+          ? normalizeFontWeight(fontWeight)
+          : row.font_weight != null
+            ? normalizeFontWeight(row.font_weight)
+            : DEFAULT_FONT_WEIGHT
       const up = await safeQuery(
         pool,
         `
         UPDATE memo
-        SET content = $1, x = $2, y = $3, width = $4, height = $5, z_index = $6, font_size = $7, updated_at = NOW()
-        WHERE id = $8::uuid AND user_id = $9 AND ga_id = $10
-        RETURNING id, content, x, y, width, height, z_index, font_size
+        SET content = $1, x = $2, y = $3, width = $4, height = $5, z_index = $6, font_size = $7, font_weight = $8, updated_at = NOW()
+        WHERE id = $9::uuid AND user_id = $10 AND ga_id = $11
+        RETURNING id, content, x, y, width, height, z_index, font_size, font_weight
         `,
-        [nextContent, nextX, nextY, nextWidth, nextHeight, nextZIndex, nextFontSize, memoId, userId, gaId],
+        [
+          nextContent,
+          nextX,
+          nextY,
+          nextWidth,
+          nextHeight,
+          nextZIndex,
+          nextFontSize,
+          nextFontWeight,
+          memoId,
+          userId,
+          gaId,
+        ],
       )
       if (up.rowCount === 0) {
         res.status(404).json({ message: '메모를 찾을 수 없습니다.' })

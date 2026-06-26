@@ -26,7 +26,6 @@ export function useUserInsurerAccountsState() {
     companyName: '',
     loginId: '',
     loginPassword: '',
-    memo: '',
   })
 
   const load = useCallback(async () => {
@@ -52,9 +51,14 @@ export function useUserInsurerAccountsState() {
     void load()
   }, [load])
 
-  const visibleAccounts = useMemo(
-    () => accounts.filter((row) => row.category === activeTab),
-    [accounts, activeTab],
+  const lifeAccounts = useMemo(
+    () => accounts.filter((row) => row.category === 'LIFE'),
+    [accounts],
+  )
+
+  const nonLifeAccounts = useMemo(
+    () => accounts.filter((row) => row.category === 'NON_LIFE'),
+    [accounts],
   )
 
   const saveAccountField = useCallback(
@@ -69,7 +73,6 @@ export function useUserInsurerAccountsState() {
           companyName: patch.companyName,
           loginId: patch.loginId,
           loginPassword: patch.loginPassword,
-          memo: patch.memo,
         })
         setAccounts((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
       } catch (e) {
@@ -100,8 +103,9 @@ export function useUserInsurerAccountsState() {
     [authToken],
   )
 
-  const openAddModal = useCallback(() => {
-    setAddForm({ companyName: '', loginId: '', loginPassword: '', memo: '' })
+  const openAddModal = useCallback((category: UserInsurerAccountCategory = 'LIFE') => {
+    setActiveTab(category)
+    setAddForm({ companyName: '', loginId: '', loginPassword: '' })
     setAddOpen(true)
   }, [])
 
@@ -126,7 +130,6 @@ export function useUserInsurerAccountsState() {
         companyName,
         loginId: addForm.loginId.trim(),
         loginPassword: addForm.loginPassword,
-        memo: addForm.memo,
       })
       setAccounts((prev) => [...prev, created])
       setAddOpen(false)
@@ -140,7 +143,9 @@ export function useUserInsurerAccountsState() {
   return {
     activeTab,
     setActiveTab,
-    accounts: visibleAccounts,
+    accounts,
+    lifeAccounts,
+    nonLifeAccounts,
     loading,
     error,
     pendingId,

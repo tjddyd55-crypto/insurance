@@ -9,6 +9,7 @@ export type MemoWorkspaceUiPersisted = {
 export type MemoCanvasUiPersisted = {
   isMinimized: boolean
   hiddenNoteIds: string[]
+  minimizedNoteIds: string[]
 }
 
 export type MemoUiSnapshot = {
@@ -25,6 +26,7 @@ const DEFAULT_WORKSPACE: MemoWorkspaceUiPersisted = {
 const DEFAULT_CANVAS: MemoCanvasUiPersisted = {
   isMinimized: false,
   hiddenNoteIds: [],
+  minimizedNoteIds: [],
 }
 
 function storageKey(userId: string): string {
@@ -46,6 +48,7 @@ function normalizeSnapshot(raw: unknown): MemoUiSnapshot | null {
 
   const isMinimized = canvasIn.isMinimized
   const hiddenRaw = canvasIn.hiddenNoteIds
+  const minimizedRaw = canvasIn.minimizedNoteIds
 
   const workspace: MemoWorkspaceUiPersisted = {
     memoRatio: Number.isFinite(memoRatio) ? Math.max(0.05, Math.min(0.95, memoRatio)) : DEFAULT_WORKSPACE.memoRatio,
@@ -57,9 +60,14 @@ function normalizeSnapshot(raw: unknown): MemoUiSnapshot | null {
     ? hiddenRaw.map((id) => String(id)).filter((id) => id.length > 0)
     : DEFAULT_CANVAS.hiddenNoteIds
 
+  const minimizedNoteIds = Array.isArray(minimizedRaw)
+    ? minimizedRaw.map((id) => String(id)).filter((id) => id.length > 0)
+    : DEFAULT_CANVAS.minimizedNoteIds
+
   const canvas: MemoCanvasUiPersisted = {
     isMinimized: typeof isMinimized === 'boolean' ? isMinimized : DEFAULT_CANVAS.isMinimized,
     hiddenNoteIds,
+    minimizedNoteIds,
   }
 
   return { workspace, canvas }

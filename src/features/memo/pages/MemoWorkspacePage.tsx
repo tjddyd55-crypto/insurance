@@ -1,3 +1,4 @@
+import { getMemoBoardVisibleNotes } from '@insurance-shared/memoLayout.js'
 import StickyNote from '../components/StickyNote'
 import DeleteConfirmModal, {
   MemoDeleteConfirmFooter,
@@ -11,8 +12,11 @@ export default function MemoWorkspacePage() {
     notesLoading,
     updateNote,
     updatePosition,
+    commitPosition,
     updateSize,
+    commitSize,
     updateFontSize,
+    updateFontWeight,
     workspaceRef,
     containerRef,
     activeNoteId,
@@ -33,6 +37,7 @@ export default function MemoWorkspacePage() {
     closeDeleteModal,
     confirmDelete,
     hiddenNotes,
+    minimizedNotes,
     minimizeNote,
     routedPage,
   } = useMemoWorkspace()
@@ -46,21 +51,21 @@ export default function MemoWorkspacePage() {
     )
   }
 
-  const visibleNotes = notes.filter((n) => !hiddenNotes[n.id])
+  const visibleNotes = getMemoBoardVisibleNotes(notes, hiddenNotes, routedPage, minimizedNotes)
 
   return (
     <>
       <div
-        className="memo-canvas"
+        className={`memo-canvas${routedPage ? ' memo-canvas--routed-board' : ''}`}
         style={canvasHeight != null ? { minHeight: canvasHeight } : undefined}
         onClick={handleCanvasClick}
       >
         <div
           ref={workspaceRef}
-          className="memo-workspace memo-workspace--infinite w-full h-full min-h-full bg-transparent"
+          className={`memo-workspace memo-workspace--infinite w-full h-full min-h-full bg-transparent${routedPage ? ' memo-board' : ''}`}
           onClick={handleCanvasClick}
         >
-          <div ref={containerRef} className="h-full w-full" onClick={handleCanvasClick}>
+          <div ref={containerRef} className="memo-board__notes-layer h-full w-full" onClick={handleCanvasClick}>
             {/*
              * 색상 클래스를 컴포넌트 레벨에 박지 않는다. 메모 캔버스는 앱 전역 테마와
              * 독립된 "다크 스코프" 라서, 색은 부모 .memo-canvas-area 의 전용 변수
@@ -97,9 +102,10 @@ export default function MemoWorkspacePage() {
                   isEditing={editingNoteId === note.id}
                   isDragging={draggingNoteId === note.id}
                   onChange={(content) => updateNote(note.id, content)}
-                  onPositionChange={updatePosition}
-                  onSizeChange={updateSize}
+                  onPositionCommit={commitPosition}
+                  onSizeCommit={commitSize}
                   onFontSizeChange={updateFontSize}
+                  onFontWeightChange={updateFontWeight}
                   containerRef={containerRef}
                   getWorkspaceBounds={getWorkspaceBounds}
                   onDeleteRequest={handleRequestDelete}

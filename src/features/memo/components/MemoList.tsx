@@ -21,6 +21,7 @@ export default function MemoList({ onAfterSelectNote, hideHeader = false }: Prop
     notes,
     hiddenNotes,
     activeNoteId,
+    minimizedNotes,
     handleSidebarSelectNote,
     handleAutoArrange,
     setIsMinimized,
@@ -42,6 +43,7 @@ export default function MemoList({ onAfterSelectNote, hideHeader = false }: Prop
     <MemoSidebar
       notes={notes}
       hiddenNotes={hiddenNotes}
+      minimizedNotes={minimizedNotes}
       isOpen
       onToggle={() => {}}
       onSelectNote={onSelect}

@@ -1,3 +1,5 @@
+export type MemoFontWeight = 'normal' | 'bold'
+
 export interface Note {
   id: string
   content: string
@@ -7,4 +9,5 @@ export interface Note {
   width?: number
   height?: number
   fontSize?: number
+  fontWeight?: MemoFontWeight
 }
