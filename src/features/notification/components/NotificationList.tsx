@@ -3,13 +3,15 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
 import {
+  buildNotificationNavigatePath,
   fetchNotifications,
   markNotificationRead,
+  notificationTypeLabel,
   type NotificationRow,
 } from '../api/notificationApi'
 import { dispatchNotificationRefresh } from '../notificationRefreshDispatch'
 
-import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
+import { formatKstDateDisplay, formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
 
 function formatNotifiedAt(iso: string): string {
   return formatKstDateTimeDisplay(iso, iso)
@@ -42,8 +44,8 @@ export function NotificationList({ token, onUnreadChanged }: NotificationListPro
     setError('')
     setLoading(true)
     try {
-      const { notifications } = await fetchNotifications(token, 20)
-      setItems(notifications)
+      const { notifications } = await fetchNotifications(token, { limit: 20 })
+      setItems(notifications.filter((row) => !row.isDismissed))
     } catch (e) {
       setItems([])
       setError(
@@ -69,6 +71,11 @@ export function NotificationList({ token, onUnreadChanged }: NotificationListPro
         setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, isRead: true } : x)))
         onUnreadChanged?.()
         dispatchNotificationRefresh()
+      }
+      const path = buildNotificationNavigatePath(n)
+      if (path) {
+        navigate(path)
+        return
       }
       if (isTeamPostCommentType(n.type) && n.referenceId?.trim()) {
         navigate('/team/posts', {
@@ -105,6 +112,7 @@ export function NotificationList({ token, onUnreadChanged }: NotificationListPro
     <ul className="max-h-72 overflow-y-auto m-0 p-0 list-none" role="list">
       {items.map((n) => {
         const unread = !n.isRead
+        const typeLabel = notificationTypeLabel(n.type)
         return (
           <li key={n.id}>
             <FormButton
@@ -116,7 +124,13 @@ export function NotificationList({ token, onUnreadChanged }: NotificationListPro
               disabled={pendingReadId === n.id}
               onClick={() => void handleRowClick(n)}
             >
+              <div className="text-xs font-semibold text-[#60A5FA]">[{typeLabel}]</div>
               <div className="text-sm text-[var(--text-primary)]">{n.message}</div>
+              {n.targetDate ? (
+                <div className="text-xs text-[var(--text-secondary)] mt-0.5 tabular-nums">
+                  기준일: {formatKstDateDisplay(n.targetDate, '—')}
+                </div>
+              ) : null}
               <div className="text-xs text-[var(--text-secondary)] mt-0.5 tabular-nums">
                 {formatNotifiedAt(n.createdAt)}
               </div>

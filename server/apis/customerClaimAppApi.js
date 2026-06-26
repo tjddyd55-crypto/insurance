@@ -38,6 +38,8 @@ import {
   loadAgentClaimRequestBundleFiles,
   pipeClaimFilesZip,
 } from '../lib/claimRequestFileBundle.js'
+import { createClaimRequestReceivedNotification } from '../services/userNotificationService.js'
+import { safeQuery } from '../utils/dbSafeQuery.js'
 
 const CUSTOMER_APP_TOKEN_KIND = 'CUSTOMER_APP'
 const CUSTOMER_APP_TOKEN_EXPIRES_IN = '180d'
@@ -2944,6 +2946,19 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         meta: { requestId, fileCount: files.length },
       })
       await client.query('COMMIT')
+      if (claimGaId != null) {
+        const customerNameRow = await pool.query(
+          `SELECT name FROM customers WHERE id = $1 LIMIT 1`,
+          [context.customerId],
+        )
+        await createClaimRequestReceivedNotification(pool, safeQuery, {
+          ownerUserId: context.agentId,
+          gaId: claimGaId,
+          customerId: context.customerId,
+          customerName: customerNameRow.rows[0]?.name,
+          claimRequestId: requestId,
+        })
+      }
       res.status(201).json({
         success: true,
         data: {

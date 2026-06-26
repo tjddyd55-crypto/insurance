@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { FormButton } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import { ApiError } from '../../../lib/apiClient'
@@ -15,6 +16,7 @@ type Props = {
 }
 
 export function NotificationBell({ variant = 'inline', boundaryRef }: Props) {
+  const navigate = useNavigate()
   const { token, user } = useAuth()
   const [open, setOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
@@ -123,6 +125,20 @@ export function NotificationBell({ variant = 'inline', boundaryRef }: Props) {
       <div className="notification-panel__header">{'\uC54C\uB9BC'}</div>
       <div className="notification-panel__body">
         <NotificationList token={token} onUnreadChanged={() => void refreshUnread()} />
+      </div>
+      <div className="notification-panel__footer px-3 py-2 border-t border-[var(--border-default)]">
+        <FormButton
+          htmlType="button"
+          variant="secondary"
+          size="sm"
+          className="w-full"
+          onClick={() => {
+            setOpen(false)
+            navigate('/notifications')
+          }}
+        >
+          알림 전체 보기
+        </FormButton>
       </div>
     </div>
   ) : null

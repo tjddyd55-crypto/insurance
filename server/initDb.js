@@ -2790,6 +2790,15 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_notifications_user_ga_read_created
     ON notifications (user_id, ga_id, is_read, created_at DESC)
   `)
+  await pool.query(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS customer_id INTEGER NULL`)
+  await pool.query(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS customer_name TEXT NULL`)
+  await pool.query(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS target_date DATE NULL`)
+  await pool.query(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS claim_request_id BIGINT NULL`)
+  await pool.query(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS is_dismissed BOOLEAN NOT NULL DEFAULT false`)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_notifications_user_ga_active_created
+    ON notifications (user_id, ga_id, is_dismissed, created_at DESC)
+  `)
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS notification_settings (
@@ -2804,6 +2813,10 @@ export async function initDb() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       PRIMARY KEY (user_id, ga_id)
     )
+  `)
+  await pool.query(`
+    ALTER TABLE notification_settings
+    ADD COLUMN IF NOT EXISTS modal_suppressed_until TIMESTAMPTZ NULL
   `)
 
   await pool.query(`

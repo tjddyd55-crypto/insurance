@@ -1,6 +1,12 @@
 import { safeQuery } from '../utils/dbSafeQuery.js'
 import { parseGaId } from '../lib/parseGaId.js'
 import { deleteCustomerNewsletterHard } from '../services/customerNewsDeleteService.js'
+import {
+  getKstEndOfDayDate,
+  mapUserNotificationRow,
+  syncDueUserNotifications,
+} from '../services/userNotificationService.js'
+import { USER_NOTIFICATION_TYPES } from '../notifications/userNotificationTypes.js'
 
 function isInsurerManagerRole(role) {
   const normalized = String(role ?? '')
@@ -20,8 +26,8 @@ function requireGaForNotifications(req, res) {
   return gaId
 }
 
-const NOTIFICATIONS_LIST_LIMIT_DEFAULT = 20
-const NOTIFICATIONS_LIST_LIMIT_MAX = 50
+const NOTIFICATIONS_LIST_LIMIT_DEFAULT = 50
+const NOTIFICATIONS_LIST_LIMIT_MAX = 100
 
 const NOTIFICATION_SETTING_COLUMNS = [
   'customer_claim_message',
@@ -29,6 +35,7 @@ const NOTIFICATION_SETTING_COLUMNS = [
   'insurer_news_uploaded',
   'car_renewal_one_month',
   'insurer_contact_updated',
+  'modal_suppressed_until',
 ]
 
 function mapNotificationSettingsRow(row) {
@@ -38,6 +45,7 @@ function mapNotificationSettingsRow(row) {
     insurerNewsUploaded: row?.insurer_news_uploaded !== false,
     carRenewalOneMonth: row?.car_renewal_one_month !== false,
     insurerContactUpdated: row?.insurer_contact_updated !== false,
+    modalSuppressedUntil: row?.modal_suppressed_until ?? null,
   }
 }
 
@@ -63,6 +71,52 @@ function parsePositiveIntLocal(value) {
   return Number.isInteger(n) && n > 0 ? n : null
 }
 
+function parseNotificationListFilters(query) {
+  const status = String(query?.status ?? 'all').trim().toLowerCase()
+  const type = String(query?.type ?? 'all').trim().toLowerCase()
+  const allowedStatus = new Set(['all', 'unread', 'dismissed'])
+  const allowedTypes = new Set([
+    'all',
+    USER_NOTIFICATION_TYPES.CAR_EXPIRY,
+    USER_NOTIFICATION_TYPES.INSURANCE_AGE_DATE,
+    USER_NOTIFICATION_TYPES.CLAIM_REQUEST_RECEIVED,
+  ])
+  return {
+    status: allowedStatus.has(status) ? status : 'all',
+    type: allowedTypes.has(type) ? type : 'all',
+  }
+}
+
+function buildNotificationListWhere(userId, gaId, filters) {
+  const params = [userId, gaId]
+  const parts = ['user_id = $1', 'ga_id = $2']
+  if (filters.status === 'unread') {
+    parts.push('is_read = false', 'is_dismissed = false')
+  } else if (filters.status === 'dismissed') {
+    parts.push('is_dismissed = true')
+  }
+  if (filters.type !== 'all') {
+    params.push(filters.type)
+    parts.push(`type = $${params.length}`)
+  }
+  return { clause: parts.join(' AND '), params }
+}
+
+async function ensureNotificationSettings(pool, userId, gaId) {
+  const r = await safeQuery(
+    pool,
+    `
+    INSERT INTO notification_settings (user_id, ga_id)
+    VALUES ($1, $2)
+    ON CONFLICT (user_id, ga_id) DO UPDATE
+    SET updated_at = notification_settings.updated_at
+    RETURNING ${NOTIFICATION_SETTING_COLUMNS.join(', ')}
+    `,
+    [userId, gaId],
+  )
+  return r.rows[0]
+}
+
 /**
  * @param {import('express').Router} apiRouter
  * @param {object} ctx
@@ -84,18 +138,8 @@ export function registerNotificationsApi(apiRouter, ctx) {
       if (gaId == null) {
         return
       }
-      const r = await safeQuery(
-        pool,
-        `
-        INSERT INTO notification_settings (user_id, ga_id)
-        VALUES ($1, $2)
-        ON CONFLICT (user_id, ga_id) DO UPDATE
-        SET updated_at = notification_settings.updated_at
-        RETURNING ${NOTIFICATION_SETTING_COLUMNS.join(', ')}
-        `,
-        [userId, gaId],
-      )
-      res.json({ settings: mapNotificationSettingsRow(r.rows[0]) })
+      const row = await ensureNotificationSettings(pool, userId, gaId)
+      res.json({ settings: mapNotificationSettingsRow(row) })
     } catch (error) {
       handleDbError(error, req, res)
     }
@@ -118,7 +162,7 @@ export function registerNotificationsApi(apiRouter, ctx) {
         res.status(400).json({ message: '변경할 알림 설정이 없습니다.' })
         return
       }
-      const insertValues = NOTIFICATION_SETTING_COLUMNS.map((column) =>
+      const insertValues = NOTIFICATION_SETTING_COLUMNS.filter((c) => c !== 'modal_suppressed_until').map((column) =>
         Object.prototype.hasOwnProperty.call(patch, column) ? patch[column] : true,
       )
       const updateSets = patchEntries.map(([column]) => {
@@ -131,9 +175,13 @@ export function registerNotificationsApi(apiRouter, ctx) {
         INSERT INTO notification_settings (
           user_id,
           ga_id,
-          ${NOTIFICATION_SETTING_COLUMNS.join(', ')}
+          customer_claim_message,
+          new_customer_registered,
+          insurer_news_uploaded,
+          car_renewal_one_month,
+          insurer_contact_updated
         )
-        VALUES ($1, $2, ${NOTIFICATION_SETTING_COLUMNS.map((_, index) => `$${3 + index}`).join(', ')})
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         ON CONFLICT (user_id, ga_id) DO UPDATE
         SET ${updateSets.join(', ')}, updated_at = NOW()
         RETURNING ${NOTIFICATION_SETTING_COLUMNS.join(', ')}
@@ -157,12 +205,13 @@ export function registerNotificationsApi(apiRouter, ctx) {
       if (gaId == null) {
         return
       }
+      await syncDueUserNotifications(pool, safeQuery, userId, gaId)
       const r = await safeQuery(
         pool,
         `
         SELECT COUNT(*)::bigint AS c
         FROM notifications
-        WHERE user_id = $1 AND ga_id = $2 AND is_read = false
+        WHERE user_id = $1 AND ga_id = $2 AND is_read = false AND is_dismissed = false
         `,
         [userId, gaId],
       )
@@ -185,34 +234,31 @@ export function registerNotificationsApi(apiRouter, ctx) {
       if (gaId == null) {
         return
       }
+      await syncDueUserNotifications(pool, safeQuery, userId, gaId)
+      const filters = parseNotificationListFilters(req.query)
       const limRaw = Number(req.query?.limit ?? NOTIFICATIONS_LIST_LIMIT_DEFAULT)
       const limit = Math.min(
         NOTIFICATIONS_LIST_LIMIT_MAX,
         Math.max(1, Number.isFinite(limRaw) ? Math.floor(limRaw) : NOTIFICATIONS_LIST_LIMIT_DEFAULT),
       )
+      const { clause, params } = buildNotificationListWhere(userId, gaId, filters)
+      params.push(limit)
       const r = await safeQuery(
         pool,
         `
-        SELECT id, user_id, ga_id, team_id, type, reference_id, message, is_read, created_at
+        SELECT id, user_id, ga_id, team_id, type, reference_id, message, is_read, is_dismissed,
+               customer_id, customer_name, target_date, claim_request_id, created_at
         FROM notifications
-        WHERE user_id = $1 AND ga_id = $2
-        ORDER BY created_at DESC
-        LIMIT $3
+        WHERE ${clause}
+        ORDER BY created_at DESC, id DESC
+        LIMIT $${params.length}
         `,
-        [userId, gaId, limit],
+        params,
       )
+      const settingsRow = await ensureNotificationSettings(pool, userId, gaId)
       res.json({
-        notifications: r.rows.map((row) => ({
-          id: String(row.id),
-          userId: String(row.user_id ?? ''),
-          gaId: Number(row.ga_id),
-          teamId: row.team_id != null ? String(row.team_id) : null,
-          type: String(row.type ?? ''),
-          referenceId: row.reference_id != null ? String(row.reference_id) : null,
-          message: String(row.message ?? ''),
-          isRead: Boolean(row.is_read),
-          createdAt: row.created_at,
-        })),
+        notifications: r.rows.map(mapUserNotificationRow),
+        settings: mapNotificationSettingsRow(settingsRow),
       })
     } catch (error) {
       handleDbError(error, req, res)
@@ -232,7 +278,7 @@ export function registerNotificationsApi(apiRouter, ctx) {
       }
       const nid = String(req.params.notificationId ?? '').trim()
       if (!nid || !/^\d+$/.test(nid)) {
-        res.status(400).json({ message: '알림을 찾을 수 없습니다.' })
+        res.status(404).json({ message: '알림을 찾을 수 없습니다.' })
         return
       }
       const upd = await safeQuery(
@@ -249,6 +295,95 @@ export function registerNotificationsApi(apiRouter, ctx) {
         return
       }
       res.json({ ok: true })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.patch('/notifications/:notificationId/dismiss', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaForNotifications(req, res)
+      if (gaId == null) {
+        return
+      }
+      const nid = String(req.params.notificationId ?? '').trim()
+      if (!nid || !/^\d+$/.test(nid)) {
+        res.status(404).json({ message: '알림을 찾을 수 없습니다.' })
+        return
+      }
+      const upd = await safeQuery(
+        pool,
+        `
+        UPDATE notifications
+        SET is_dismissed = true, is_read = true
+        WHERE id = $1::bigint AND user_id = $2 AND ga_id = $3
+        `,
+        [nid, userId, gaId],
+      )
+      if (upd.rowCount === 0) {
+        res.status(404).json({ message: '알림을 찾을 수 없습니다.' })
+        return
+      }
+      res.json({ ok: true })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.patch('/notifications/read-all', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaForNotifications(req, res)
+      if (gaId == null) {
+        return
+      }
+      await safeQuery(
+        pool,
+        `
+        UPDATE notifications
+        SET is_read = true
+        WHERE user_id = $1 AND ga_id = $2 AND is_read = false AND is_dismissed = false
+        `,
+        [userId, gaId],
+      )
+      res.json({ ok: true })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.post('/notifications/modal-suppress-today', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaForNotifications(req, res)
+      if (gaId == null) {
+        return
+      }
+      const until = getKstEndOfDayDate()
+      await safeQuery(
+        pool,
+        `
+        INSERT INTO notification_settings (user_id, ga_id, modal_suppressed_until)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (user_id, ga_id) DO UPDATE
+        SET modal_suppressed_until = EXCLUDED.modal_suppressed_until, updated_at = NOW()
+        `,
+        [userId, gaId, until.toISOString()],
+      )
+      res.json({ ok: true, modalSuppressedUntil: until.toISOString() })
     } catch (error) {
       handleDbError(error, req, res)
     }

@@ -9,6 +9,11 @@ export type NotificationRow = {
   referenceId: string | null
   message: string
   isRead: boolean
+  isDismissed: boolean
+  customerId: number | null
+  customerName: string | null
+  targetDate: string | null
+  claimRequestId: number | null
   createdAt: string
 }
 
@@ -18,18 +23,38 @@ export type NotificationSettings = {
   insurerNewsUploaded: boolean
   carRenewalOneMonth: boolean
   insurerContactUpdated: boolean
+  modalSuppressedUntil: string | null
 }
+
+export type NotificationListStatus = 'all' | 'unread' | 'dismissed'
+export type NotificationListType =
+  | 'all'
+  | 'car_expiry'
+  | 'insurance_age_date'
+  | 'claim_request_received'
 
 export async function fetchNotifications(
   token: string,
-  limit = 20,
-): Promise<{ notifications: NotificationRow[] }> {
+  options: {
+    limit?: number
+    status?: NotificationListStatus
+    type?: NotificationListType
+  } = {},
+): Promise<{ notifications: NotificationRow[]; settings: NotificationSettings }> {
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
   }
-  const lim = Math.min(50, Math.max(1, Math.floor(limit)))
-  return apiRequest<{ notifications: NotificationRow[] }>(
-    `/api/notifications?limit=${encodeURIComponent(String(lim))}`,
+  const lim = Math.min(100, Math.max(1, Math.floor(options.limit ?? 50)))
+  const params = new URLSearchParams()
+  params.set('limit', String(lim))
+  if (options.status) {
+    params.set('status', options.status)
+  }
+  if (options.type) {
+    params.set('type', options.type)
+  }
+  return apiRequest<{ notifications: NotificationRow[]; settings: NotificationSettings }>(
+    `/api/notifications?${params.toString()}`,
     { token },
   )
 }
@@ -56,6 +81,43 @@ export async function markNotificationRead(token: string, id: string): Promise<{
   })
 }
 
+export async function dismissNotification(token: string, id: string): Promise<{ ok: boolean }> {
+  if (!token?.trim()) {
+    throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  const nid = String(id ?? '').trim()
+  if (!nid) {
+    throw new ApiError('알림을 찾을 수 없습니다.', 400)
+  }
+  return apiRequest<{ ok: boolean }>(`/api/notifications/${encodeURIComponent(nid)}/dismiss`, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify({}),
+  })
+}
+
+export async function markAllNotificationsRead(token: string): Promise<{ ok: boolean }> {
+  if (!token?.trim()) {
+    throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  return apiRequest<{ ok: boolean }>('/api/notifications/read-all', {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify({}),
+  })
+}
+
+export async function suppressNotificationModalToday(token: string): Promise<{ ok: boolean }> {
+  if (!token?.trim()) {
+    throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  return apiRequest<{ ok: boolean }>('/api/notifications/modal-suppress-today', {
+    method: 'POST',
+    token,
+    body: JSON.stringify({}),
+  })
+}
+
 export async function fetchNotificationSettings(
   token: string,
 ): Promise<{ settings: NotificationSettings }> {
@@ -67,7 +129,7 @@ export async function fetchNotificationSettings(
 
 export async function patchNotificationSettings(
   token: string,
-  settings: Partial<NotificationSettings>,
+  settings: Partial<Omit<NotificationSettings, 'modalSuppressedUntil'>>,
 ): Promise<{ settings: NotificationSettings }> {
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
@@ -77,4 +139,31 @@ export async function patchNotificationSettings(
     token,
     body: JSON.stringify(settings),
   })
+}
+
+export function notificationTypeLabel(type: string): string {
+  switch (type) {
+    case 'car_expiry':
+      return '자동차 만기'
+    case 'insurance_age_date':
+      return '상령일'
+    case 'claim_request_received':
+      return '청구알림'
+    default:
+      return type || '알림'
+  }
+}
+
+export function buildNotificationNavigatePath(notification: NotificationRow): string | null {
+  if (notification.customerId == null || notification.customerId < 1) {
+    return null
+  }
+  if (notification.type === 'claim_request_received' && notification.claimRequestId != null) {
+    const params = new URLSearchParams({
+      customerId: String(notification.customerId),
+      claimId: String(notification.claimRequestId),
+    })
+    return `/customers/${notification.customerId}/claim-requests?${params.toString()}`
+  }
+  return `/customers/${notification.customerId}/consultations`
 }

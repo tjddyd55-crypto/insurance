@@ -1,0 +1,11 @@
+export const USER_NOTIFICATION_TYPES = {
+  CAR_EXPIRY: 'car_expiry',
+  INSURANCE_AGE_DATE: 'insurance_age_date',
+  CLAIM_REQUEST_RECEIVED: 'claim_request_received',
+}
+
+export const USER_NOTIFICATION_TYPE_LABELS = {
+  [USER_NOTIFICATION_TYPES.CAR_EXPIRY]: '자동차 만기',
+  [USER_NOTIFICATION_TYPES.INSURANCE_AGE_DATE]: '상령일',
+  [USER_NOTIFICATION_TYPES.CLAIM_REQUEST_RECEIVED]: '청구알림',
+}

@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
 import { useAuth } from '../../auth/AuthProvider'
-import { NotificationList } from '../../notification/components/NotificationList'
+import { NotificationCenter } from '../../notification/components/NotificationCenter'
 
 type NotificationsViewProps = {
   token: string
@@ -15,7 +15,7 @@ function NotificationsContent({ token }: NotificationsViewProps) {
       </header>
       <section className="notifications-page__panel">
         {token.trim() ? (
-          <NotificationList token={token} />
+          <NotificationCenter token={token} />
         ) : (
           <p className="notifications-page__empty">로그인이 필요합니다.</p>
         )}
