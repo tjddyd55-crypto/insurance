@@ -259,7 +259,7 @@ export function UserGaExcelManagePanel({ token }: Props) {
   }
 
   return (
-    <div className="field">
+    <div className="field ga-data-upload-panel">
       <span className="field__label">{L.label}</span>
       <p className="text-sm text-[var(--text-secondary)] mb-2">{L.intro}</p>
       {savedSummary && !hasUnsavedDraft ? (
@@ -298,8 +298,8 @@ export function UserGaExcelManagePanel({ token }: Props) {
       </div>
 
       {sampleColumns.length > 0 ? (
-        <div>
-          <div className="mt-4">
+        <div className="ga-data-upload-section">
+          <div className="ga-data-upload-preview-card mt-4">
             <span className="field__label block mb-1">{L.previewTitle}</span>
             <p className="text-sm text-[var(--text-secondary)] mb-1">{L.previewGuide}</p>
             <p className="text-sm text-[var(--text-secondary)] mb-2">
@@ -337,53 +337,55 @@ export function UserGaExcelManagePanel({ token }: Props) {
             {previewColumns.length === 0 ? (
               <p className="text-sm text-[var(--text-secondary)]">{L.previewEmpty}</p>
             ) : (
-              <div className="ga-data-upload-preview-scroll profile-page__excel-preview-scroll">
-                <table className="ga-data-upload-preview-table profile-page__excel-preview-table admin-data-table">
-                  <thead>
-                    <tr className="profile-page__excel-preview-toggle-row">
-                      {previewColumns.map((col) => {
-                        const sampleId = col.sampleId
-                        return (
-                          <th key={`preview-toggle-${col.key}`} className="profile-page__excel-preview-toggle-cell">
-                            {sampleId ? (
-                              <FormInput
-                                type="checkbox"
-                                id={`ga-col-preview-${sampleId}`}
-                                checked={col.checked}
-                                onChange={(ev) => void onToggleColumn(sampleId, ev.target.checked)}
-                                className="shrink-0"
-                              />
+              <div className="ga-data-upload-preview-shell">
+                <div className="ga-data-upload-preview-scroll">
+                  <table className="ga-data-upload-preview-table admin-data-table">
+                    <thead>
+                      <tr className="profile-page__excel-preview-toggle-row">
+                        {previewColumns.map((col) => {
+                          const sampleId = col.sampleId
+                          return (
+                            <th key={`preview-toggle-${col.key}`} className="profile-page__excel-preview-toggle-cell">
+                              {sampleId ? (
+                                <FormInput
+                                  type="checkbox"
+                                  id={`ga-col-preview-${sampleId}`}
+                                  checked={col.checked}
+                                  onChange={(ev) => void onToggleColumn(sampleId, ev.target.checked)}
+                                  className="shrink-0"
+                                />
+                              ) : (
+                                <span className="text-[var(--text-secondary)]">-</span>
+                              )}
+                            </th>
+                          )
+                        })}
+                      </tr>
+                      <tr>
+                        {previewColumns.map((col) => (
+                          <th key={`preview-head-${col.key}`}>
+                            {col.sampleId ? (
+                              <label htmlFor={`ga-col-preview-${col.sampleId}`} className="profile-page__excel-preview-head-label">
+                                {col.header}
+                              </label>
                             ) : (
-                              <span className="text-[var(--text-secondary)]">-</span>
+                              col.header
                             )}
                           </th>
-                        )
-                      })}
-                    </tr>
-                    <tr>
-                      {previewColumns.map((col) => (
-                        <th key={`preview-head-${col.key}`}>
-                          {col.sampleId ? (
-                            <label htmlFor={`ga-col-preview-${col.sampleId}`} className="profile-page__excel-preview-head-label">
-                              {col.header}
-                            </label>
-                          ) : (
-                            col.header
-                          )}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {previewTable.rows.map((r, rowIdx) => (
-                      <tr key={`preview-row-${rowIdx}`}>
-                        {previewColumns.map((_, colIdx) => (
-                          <td key={`preview-cell-${rowIdx}-${colIdx}`}>{r[colIdx] ?? ''}</td>
                         ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {previewTable.rows.map((r, rowIdx) => (
+                        <tr key={`preview-row-${rowIdx}`}>
+                          {previewColumns.map((_, colIdx) => (
+                            <td key={`preview-cell-${rowIdx}-${colIdx}`}>{r[colIdx] ?? ''}</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>

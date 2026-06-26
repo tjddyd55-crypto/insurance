@@ -3619,11 +3619,11 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   color: var(--text-secondary);
 }
 
-.profile-page__excel-preview-scroll,
-.ga-data-upload-preview-scroll {
+.profile-page__excel-preview-scroll {
   display: block;
   width: 100%;
   max-width: 100%;
+  min-width: 0;
   overflow-x: auto;
   overflow-y: auto;
   border: 1px solid var(--border-default);
@@ -3631,11 +3631,53 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   box-sizing: border-box;
 }
 
-.profile-page__excel-preview-table,
-.ga-data-upload-preview-table {
+.profile-page__excel-preview-table {
   min-width: max-content;
   width: max-content;
   table-layout: auto;
+  white-space: nowrap;
+}
+
+/* GA 데이터 업로드 미리보기 — wrapper 폭 고정 + 내부 가로 스크롤 */
+.profile-page__excel-toolbar .ga-data-upload-panel,
+.profile-page__excel-toolbar .ga-data-upload-section,
+.profile-page__excel-toolbar .ga-data-upload-preview-card,
+.profile-page__excel-toolbar .ga-data-upload-preview-shell,
+.profile-page__excel-toolbar .ga-data-upload-action-bar {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.profile-page__excel-toolbar .ga-data-upload-preview-shell {
+  overflow: hidden;
+}
+
+.profile-page__excel-toolbar .ga-data-upload-preview-scroll {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: auto;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
+}
+
+.profile-page__excel-toolbar .ga-data-upload-preview-table.admin-data-table {
+  width: max-content;
+  min-width: 1800px;
+  max-width: none;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+
+.profile-page__excel-toolbar .ga-data-upload-preview-table th,
+.profile-page__excel-toolbar .ga-data-upload-preview-table td {
   white-space: nowrap;
 }
 
@@ -12431,12 +12473,12 @@ textarea.memo-sticky-note__textarea::placeholder {
 }
 
 /* 부모 영역 풀기 — profile-page 스크롤은 app-main-content 가 담당 */
-.profile-page__excel-preview-scroll,
-.ga-data-upload-preview-scroll {
+.profile-page__excel-preview-scroll {
   overflow-x: auto;
   overflow-y: auto;
   width: 100%;
   max-width: 100%;
+  min-width: 0;
 }
 
 /* ==========================================================================
