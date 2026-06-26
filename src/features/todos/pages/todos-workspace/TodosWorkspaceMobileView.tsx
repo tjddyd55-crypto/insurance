@@ -4,6 +4,7 @@ import {
   todoSourceLabel,
   todoStatusLabel,
 } from '../../utils/todoCopy'
+import { formatTodoDueDateDisplay } from '../../utils/formatTodoDueDateDisplay'
 import type { TodosWorkspaceViewProps } from './todosWorkspaceViewProps'
 
 const CARD = 'rounded-xl border border-border bg-card p-3'
@@ -175,7 +176,7 @@ export default function TodosWorkspaceMobileView({
                       )}
                     </div>
                     <div>
-                      마감 {row.dueDate ?? '—'}
+                      마감 {formatTodoDueDateDisplay(row.dueDate, true)}
                       {row.dueTime ? ` ${row.dueTime}` : ''} · 우선 {todoPriorityLabel(row.priority)} ·{' '}
                       {todoStatusLabel(row.status)}
                     </div>

@@ -2,8 +2,10 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   addDaysToDateOnly,
+  coerceDateOnlyString,
   diffDateOnlyDays,
   formatDateOnly,
+  formatKoreanDateOnlyWithWeekday,
   formatKstDate,
   formatKstDateTime,
   formatTargetDateWithDDay,
@@ -57,6 +59,23 @@ test('addDaysToDateOnly — adds calendar days on date-only strings', () => {
   assert.equal(addDaysToDateOnly(TODAY, 31), '2026-07-27')
   assert.equal(addDaysToDateOnly('2026-01-31', 1), '2026-02-01')
   assert.equal(addDaysToDateOnly('', 30), '')
+})
+
+test('coerceDateOnlyString — normalizes date-only strings and Date objects without weekday prefix', () => {
+  assert.equal(coerceDateOnlyString('2026-06-29'), '2026-06-29')
+  assert.equal(coerceDateOnlyString('2026-06-29T00:00:00.000Z'), '2026-06-29')
+  assert.equal(coerceDateOnlyString(new Date(2026, 5, 29)), '2026-06-29')
+  assert.equal(coerceDateOnlyString('Mon Jun 29'), '')
+  assert.equal(coerceDateOnlyString(null), '')
+})
+
+test('formatKoreanDateOnlyWithWeekday — renders Korean date with weekday label', () => {
+  assert.equal(formatKoreanDateOnlyWithWeekday('2026-06-29'), '2026.06.29(월)')
+  assert.equal(formatKoreanDateOnlyWithWeekday('2026-07-01'), '2026.07.01(수)')
+  assert.equal(formatKoreanDateOnlyWithWeekday('2026-07-05'), '2026.07.05(일)')
+  assert.equal(formatKoreanDateOnlyWithWeekday('2026-06-29', { compact: true }), '06.29(월)')
+  assert.equal(formatKoreanDateOnlyWithWeekday(null), '—')
+  assert.equal(formatKoreanDateOnlyWithWeekday('Mon Jun 29'), '—')
 })
 
 test('diffDateOnlyDays — counts date-only strings without timezone shift', () => {

@@ -6,6 +6,7 @@ import {
   todoSourceLabel,
   todoStatusLabel,
 } from '../../utils/todoCopy'
+import { formatTodoDueDateDisplay } from '../../utils/formatTodoDueDateDisplay'
 import type { TodosWorkspaceViewProps } from './todosWorkspaceViewProps'
 
 const FILTER_CHIP =
@@ -191,7 +192,7 @@ export default function TodosWorkspacePCView({
                     ) : null}
                   </td>
                   <td className="p-2 align-middle whitespace-nowrap">
-                    {row.dueDate ?? '—'}
+                    {formatTodoDueDateDisplay(row.dueDate)}
                     {row.dueTime ? ` ${row.dueTime}` : ''}
                   </td>
                   <td className="p-2 align-middle">{todoPriorityLabel(row.priority)}</td>
