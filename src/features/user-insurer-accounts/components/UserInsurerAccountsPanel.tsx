@@ -9,7 +9,7 @@ import {
 import type { UserInsurerAccountsViewProps } from '../hooks/useUserInsurerAccountsState'
 import type { UserInsurerAccountRow } from '../api/userInsurerAccountsApi'
 import { formatAccountSavedAt } from './userInsurerAccountSavedAt'
-import { UserInsurerAccountInputWithCopy } from './UserInsurerAccountInputWithCopy'
+import { UserInsurerAccountCopyButton } from './UserInsurerAccountCopyButton'
 
 type LocalDraft = {
   loginId: string
@@ -62,43 +62,60 @@ function AccountRowEditor({
   }
 
   return (
-    <tr className="user-insurer-accounts-page__row">
-      <td className="user-insurer-accounts-page__company user-insurer-account-company-cell">
+    <div className="insurer-account-table__row" role="row">
+      <div className="insurer-account-table__company" role="cell">
         {row.companyName}
-      </td>
-      <td className="user-insurer-accounts-page__input-cell user-insurer-accounts-page__input-cell--login-id">
-        <UserInsurerAccountInputWithCopy
+      </div>
+      <div className="insurer-account-table__field" role="cell">
+        <FormInput
           value={draft.loginId}
-          onChange={(loginId) => setDraft((prev) => ({ ...prev, loginId }))}
+          onChange={(event) => setDraft((prev) => ({ ...prev, loginId: event.target.value }))}
           placeholder="아이디"
           disabled={pending}
         />
-      </td>
-      <td className="user-insurer-accounts-page__input-cell user-insurer-accounts-page__input-cell--password">
-        <UserInsurerAccountInputWithCopy
+      </div>
+      <div className="insurer-account-table__copy" role="cell">
+        <UserInsurerAccountCopyButton value={draft.loginId} disabled={pending} label="아이디" />
+      </div>
+      <div className="insurer-account-table__field" role="cell">
+        <FormInput
+          type="text"
           value={draft.loginPassword}
-          onChange={(loginPassword) => setDraft((prev) => ({ ...prev, loginPassword }))}
+          onChange={(event) => setDraft((prev) => ({ ...prev, loginPassword: event.target.value }))}
           placeholder="비밀번호"
           disabled={pending}
           autoComplete="off"
         />
-      </td>
-      <td className="user-insurer-accounts-page__saved-at user-insurer-account-saved-at-cell">
+      </div>
+      <div className="insurer-account-table__copy" role="cell">
+        <UserInsurerAccountCopyButton value={draft.loginPassword} disabled={pending} label="비밀번호" />
+      </div>
+      <div className="insurer-account-table__saved-at" role="cell">
         {formatAccountSavedAt(row)}
-      </td>
-      <td className="user-insurer-accounts-page__actions-cell user-insurer-account-action-cell">
-        <div className="user-insurer-accounts-page__row-actions">
-          <FormButton htmlType="button" variant="primary" size="sm" disabled={pending} onClick={handleSave}>
+      </div>
+      <div className="insurer-account-table__action" role="cell">
+        <div className="insurer-account-table__action-group">
+          <button
+            type="button"
+            className="insurer-account-save-button"
+            disabled={pending}
+            onClick={handleSave}
+          >
             저장
-          </FormButton>
+          </button>
           {row.isCustom ? (
-            <FormButton htmlType="button" variant="secondary" size="sm" disabled={pending} onClick={onDelete}>
+            <button
+              type="button"
+              className="insurer-account-delete-button"
+              disabled={pending}
+              onClick={onDelete}
+            >
               삭제
-            </FormButton>
+            </button>
           ) : null}
         </div>
-      </td>
-    </tr>
+      </div>
+    </div>
   )
 }
 
@@ -130,25 +147,18 @@ function AccountSection({
         {rows.length === 0 ? (
           <p className="user-insurer-accounts-page__muted">등록된 계정 정보가 없습니다.</p>
         ) : (
-          <div className="user-insurer-accounts-page__table-wrap">
-            <table className="user-insurer-accounts-page__table user-insurer-accounts-table">
-              <colgroup>
-                <col className="user-insurer-accounts-page__col-company" />
-                <col className="user-insurer-accounts-page__col-login-id" />
-                <col className="user-insurer-accounts-page__col-password" />
-                <col className="user-insurer-accounts-page__col-saved-at" />
-                <col className="user-insurer-accounts-page__col-actions" />
-              </colgroup>
-              <thead>
-                <tr>
-                  <th className="user-insurer-accounts-page__th-company">회사</th>
-                  <th className="user-insurer-accounts-page__th-login-id">아이디</th>
-                  <th className="user-insurer-accounts-page__th-password">비번</th>
-                  <th className="user-insurer-accounts-page__th-saved-at">저장일</th>
-                  <th className="user-insurer-accounts-page__th-actions">작업</th>
-                </tr>
-              </thead>
-              <tbody>
+          <div className="insurer-account-table-scroll">
+            <div className="insurer-account-table" role="table">
+              <div className="insurer-account-table__header" role="row">
+                <span role="columnheader">회사</span>
+                <span role="columnheader">아이디</span>
+                <span role="columnheader" aria-hidden="true" />
+                <span role="columnheader">비번</span>
+                <span role="columnheader" aria-hidden="true" />
+                <span role="columnheader">저장일</span>
+                <span role="columnheader">작업</span>
+              </div>
+              <div className="insurer-account-table__body" role="rowgroup">
                 {rows.map((row) => (
                   <AccountRowEditor
                     key={row.id}
@@ -158,8 +168,8 @@ function AccountSection({
                     onDelete={() => onDelete(row)}
                   />
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </div>
           </div>
         )}
       </div>
