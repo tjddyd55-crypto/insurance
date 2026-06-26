@@ -7,6 +7,8 @@ import {
   updateDraft,
 } from './repository/insuranceClaimRequestRepo.js'
 
+const OPEN_SCOPE = { clause: '(TRUE)', params: [] }
+
 function row(overrides = {}) {
   return {
     id: 7, ga_id: 3, customer_id: null, insurance_company_id: 4, status: 'draft',
@@ -30,12 +32,12 @@ test('claim request draft allows null customer_id and requires snapshot payload 
 
 test('draft update is allowed but generated request is immutable', async () => {
   const draftPool = { query: async (sql) => ({ rows: [row()] }) }
-  const updated = await updateDraft(draftPool, 3, 7, { insuredSnapshot: { name: '수정' } })
+  const updated = await updateDraft(draftPool, 3, 7, { insuredSnapshot: { name: '수정' } }, OPEN_SCOPE)
   assert.deepEqual(updated.insuredSnapshot, { name: '수동 입력' })
 
   const generatedPool = { query: async () => ({ rows: [row({ status: 'generated' })] }) }
   await assert.rejects(
-    () => updateDraft(generatedPool, 3, 7, { insuredSnapshot: { name: '수정' } }),
+    () => updateDraft(generatedPool, 3, 7, { insuredSnapshot: { name: '수정' } }, OPEN_SCOPE),
     { code: 'CLAIM_REQUEST_NOT_DRAFT' },
   )
 })
@@ -65,8 +67,8 @@ test('updateDraft preserves contractor snapshot when patch sends empty contracto
     insuredSnapshot: existing.insured_snapshot,
     contractorSameAsInsured: false,
     contractorSnapshot: { name: '', ssn: '', phone: '', address: '', job: '' },
-  })
-  assert.equal(JSON.parse(updateParams[3]).name, '계약자')
+  }, OPEN_SCOPE)
+  assert.equal(JSON.parse(updateParams[5]).name, '계약자')
 })
 
 test('duplicate creates a separate draft and preserves the source request id', async () => {
@@ -78,7 +80,7 @@ test('duplicate creates a separate draft and preserves the source request id', a
       return { rows: [row({ id: 12, customer_id: 42, source_claim_request_id: 11 })] }
     },
   }
-  const duplicate = await duplicateAsDraft(pool, 3, 11, 9)
+  const duplicate = await duplicateAsDraft(pool, 3, 11, 9, OPEN_SCOPE)
   assert.equal(duplicate.id, 12)
   assert.equal(duplicate.sourceClaimRequestId, 11)
   assert.equal(insertParams[12], 11)

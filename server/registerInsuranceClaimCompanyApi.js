@@ -25,6 +25,9 @@ import {
   putClaimRequestAttachmentObject,
 } from './insurance-claim/storage/claimRequestAttachmentStorage.js'
 import { buildInsuranceClaimDownloadFiles } from './insurance-claim/buildInsuranceClaimDownloadFiles.js'
+import { buildClaimRequestScopeWhere } from './insurance-claim/claimRequestAccessScope.js'
+import { assertCustomerRowAccessibleByVisibility } from './lib/customerRowVisibilitySql.js'
+import { safeQuery } from './utils/dbSafeQuery.js'
 import {
   createInsuranceCompany,
   getActiveDocumentForCompany,
@@ -169,16 +172,21 @@ function requireInsuranceClaimAdmin(req, res) {
   return true
 }
 
-async function assertCustomerInGa(pool, gaId, customerId) {
-  const { rows } = await pool.query(
-    `SELECT id FROM customers WHERE id = $1 AND ga_id = $2 LIMIT 1`,
-    [customerId, gaId],
-  )
-  if (!rows[0]) {
+async function assertCustomerAccessibleForClaim(req, pool, customerId) {
+  const ok = await assertCustomerRowAccessibleByVisibility(pool, safeQuery, req, customerId)
+  if (!ok) {
     const error = new Error('고객을 찾을 수 없습니다.')
     error.httpStatus = 404
     throw error
   }
+}
+
+function claimScopeForRequest(req) {
+  return buildClaimRequestScopeWhere(req)
+}
+
+async function getClaimRequestScoped(pool, req, id) {
+  return getClaimRequestById(pool, req.insuranceClaimGaId, id, claimScopeForRequest(req))
 }
 
 function claimFieldRowToDto(row) {
@@ -212,6 +220,10 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
 
   const claimRequestMw = [requireAuth, async (req, res, next) => {
     try {
+      if ((req.user?.customerAccess ?? 'own') === 'none') {
+        res.status(403).json({ message: '고객 정보에 접근할 수 없는 계정입니다.' })
+        return
+      }
       const gaId = await resolveTenantGaIdForRequest(pool, req)
       if (gaId == null) {
         res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
@@ -232,6 +244,9 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
         res.status(400).json({ message: '사용 가능한 보험회사를 선택해 주세요.' })
         return
       }
+      if (input.customerId != null) {
+        await assertCustomerAccessibleForClaim(req, pool, input.customerId)
+      }
       const request = await createDraft(pool, {
         ...input,
         gaId: req.insuranceClaimGaId,
@@ -249,13 +264,13 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
 
   apiRouter.get('/insurance-claim/requests', ...claimRequestMw, async (req, res) => {
     try {
-      res.json({ requests: await listClaimRequests(pool, req.insuranceClaimGaId) })
+      res.json({ requests: await listClaimRequests(pool, req.insuranceClaimGaId, claimScopeForRequest(req)) })
     } catch (error) { handleDbError(error, req, res) }
   })
 
   apiRouter.get('/insurance-claim/requests/:id', ...claimRequestMw, async (req, res) => {
     try {
-      const request = await getClaimRequestById(pool, req.insuranceClaimGaId, parsePositiveInt(req.params.id))
+      const request = await getClaimRequestScoped(pool, req, parsePositiveInt(req.params.id))
       if (!request) return res.status(404).json({ message: '청구 내역을 찾을 수 없습니다.' })
       res.json({ request })
     } catch (error) { handleDbError(error, req, res) }
@@ -264,7 +279,16 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
   apiRouter.patch('/insurance-claim/requests/:id', ...claimRequestMw, async (req, res) => {
     try {
       const input = normalizeClaimRequestInput(req.body)
-      const request = await updateDraft(pool, req.insuranceClaimGaId, parsePositiveInt(req.params.id), input)
+      if (input.customerId != null) {
+        await assertCustomerAccessibleForClaim(req, pool, input.customerId)
+      }
+      const request = await updateDraft(
+        pool,
+        req.insuranceClaimGaId,
+        parsePositiveInt(req.params.id),
+        input,
+        claimScopeForRequest(req),
+      )
       if (!request) return res.status(404).json({ message: '청구 내역을 찾을 수 없습니다.' })
       res.json({ request })
     } catch (error) {
@@ -276,7 +300,13 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
 
   apiRouter.post('/insurance-claim/requests/:id/duplicate', ...claimRequestMw, async (req, res) => {
     try {
-      const request = await duplicateAsDraft(pool, req.insuranceClaimGaId, parsePositiveInt(req.params.id), parsePositiveInt(req.user?.id))
+      const request = await duplicateAsDraft(
+        pool,
+        req.insuranceClaimGaId,
+        parsePositiveInt(req.params.id),
+        parsePositiveInt(req.user?.id),
+        claimScopeForRequest(req),
+      )
       if (!request) return res.status(404).json({ message: '청구 내역을 찾을 수 없습니다.' })
       res.status(201).json({ request })
     } catch (error) { handleDbError(error, req, res) }
@@ -285,7 +315,7 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
   apiRouter.post('/insurance-claim/requests/:id/generate', ...claimRequestMw, async (req, res) => {
     try {
       const id = parsePositiveInt(req.params.id)
-      const request = await getClaimRequestById(pool, req.insuranceClaimGaId, id)
+      const request = await getClaimRequestScoped(pool, req, id)
       if (!request) return res.status(404).json({ message: '청구 내역을 찾을 수 없습니다.' })
       if (request.status !== 'draft') return res.status(409).json({ message: 'draft 상태의 청구만 생성할 수 있습니다.' })
 
@@ -347,19 +377,19 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
       const updated = await markGenerated(pool, req.insuranceClaimGaId, id, {
         documents: generated,
         generatedAt: new Date().toISOString(),
-      })
+      }, claimScopeForRequest(req))
       res.json({ request: updated })
     } catch (error) { handleDbError(error, req, res) }
   })
 
   apiRouter.get('/insurance-claim/requests/:id/download', ...claimRequestMw, async (req, res) => {
     try {
-      const request = await getClaimRequestById(pool, req.insuranceClaimGaId, parsePositiveInt(req.params.id))
+      const request = await getClaimRequestScoped(pool, req, parsePositiveInt(req.params.id))
       const { files, skipped } = await buildInsuranceClaimDownloadFiles(pool, req.insuranceClaimGaId, request ?? {})
       if (!request || files.length === 0) {
         return res.status(404).json({ message: '생성된 청구 문서가 없습니다.' })
       }
-      await markDownloaded(pool, req.insuranceClaimGaId, request.id)
+      await markDownloaded(pool, req.insuranceClaimGaId, request.id, claimScopeForRequest(req))
       res.status(200).setHeader('Content-Type', 'application/zip')
       res.setHeader(
         'Content-Disposition',
@@ -406,7 +436,7 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
     async (req, res) => {
       try {
         const id = parsePositiveInt(req.params.id)
-        const request = await getClaimRequestById(pool, req.insuranceClaimGaId, id)
+        const request = await getClaimRequestScoped(pool, req, id)
         if (!request) return res.status(404).json({ message: '청구 내역을 찾을 수 없습니다.' })
         if (request.status !== 'draft') return res.status(409).json({ message: 'draft 상태의 청구만 첨부를 추가할 수 있습니다.' })
         const file = req.file
@@ -438,7 +468,7 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
       try {
         const id = parsePositiveInt(req.params.id)
         const role = String(req.body?.role ?? '').trim() === 'contractor' ? 'contractor' : 'insured'
-        const request = await getClaimRequestById(pool, req.insuranceClaimGaId, id)
+        const request = await getClaimRequestScoped(pool, req, id)
         if (!request) return res.status(404).json({ message: '청구 내역을 찾을 수 없습니다.' })
         if (request.status !== 'draft') return res.status(409).json({ message: 'draft 상태의 청구만 서명을 변경할 수 있습니다.' })
         const file = req.file
@@ -467,7 +497,7 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
     try {
       const customerId = parsePositiveInt(req.params.customerId)
       if (customerId == null) return res.status(400).json({ message: '잘못된 고객 ID입니다.' })
-      await assertCustomerInGa(pool, req.insuranceClaimGaId, customerId)
+      await assertCustomerAccessibleForClaim(req, pool, customerId)
       const { rows } = await pool.query(
         `
         SELECT
@@ -508,8 +538,12 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
     try {
       const customerId = parsePositiveInt(req.params.customerId)
       if (customerId == null) return res.status(400).json({ message: '잘못된 고객 ID입니다.' })
-      res.json({ requests: await listByCustomerId(pool, req.insuranceClaimGaId, customerId) })
-    } catch (error) { handleDbError(error, req, res) }
+      await assertCustomerAccessibleForClaim(req, pool, customerId)
+      res.json({ requests: await listByCustomerId(pool, req.insuranceClaimGaId, customerId, claimScopeForRequest(req)) })
+    } catch (error) {
+      if (error?.httpStatus) return res.status(error.httpStatus).json({ message: error.message })
+      handleDbError(error, req, res)
+    }
   })
 
   apiRouter.get('/admin/insurance-claim/companies', ...adminMw, async (req, res) => {
