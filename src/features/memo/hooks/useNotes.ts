@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '../../auth/AuthProvider'
 import { memoApi } from '../api/memo.api'
-import type { Note } from '../types/memo.types'
+import type { MemoFontWeight, Note } from '../types/memo.types'
 import {
   MEMO_DEFAULT_HEIGHT,
   MEMO_DEFAULT_WIDTH,
@@ -15,6 +15,7 @@ const CONTENT_SAVE_MS = 400
 const POSITION_SAVE_MS = 350
 const SIZE_SAVE_MS = 350
 const FONT_SAVE_MS = 350
+const WEIGHT_SAVE_MS = 350
 
 const MIN_W = MEMO_MIN_WIDTH
 const MIN_H = MEMO_MIN_HEIGHT
@@ -36,17 +37,20 @@ export function useNotes() {
   const positionTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const sizeTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const fontTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+  const weightTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
   useEffect(() => {
     const ct = contentTimersRef.current
     const pt = positionTimersRef.current
     const st = sizeTimersRef.current
     const ft = fontTimersRef.current
+    const wt = weightTimersRef.current
     return () => {
       Object.values(ct).forEach((t) => clearTimeout(t))
       Object.values(pt).forEach((t) => clearTimeout(t))
       Object.values(st).forEach((t) => clearTimeout(t))
       Object.values(ft).forEach((t) => clearTimeout(t))
+      Object.values(wt).forEach((t) => clearTimeout(t))
     }
   }, [])
 
@@ -72,6 +76,8 @@ export function useNotes() {
               y: Number.isFinite(Number(r.y)) ? Number(r.y) : MEMO_DEFAULT_Y,
               width: Math.max(MEMO_MIN_WIDTH, Number(r.width) || MEMO_DEFAULT_WIDTH),
               height: Math.max(MEMO_MIN_HEIGHT, Number(r.height) || MEMO_DEFAULT_HEIGHT),
+              fontSize: Math.min(FONT_MAX, Math.max(FONT_MIN, Number(r.fontSize) || 16)),
+              fontWeight: r.fontWeight === 'bold' ? 'bold' : 'normal',
               zIndex: Number(r.zIndex) || 0,
             }))
             setNotes(apiData)
@@ -219,6 +225,26 @@ export function useNotes() {
     [token],
   )
 
+  const updateFontWeight = useCallback(
+    (id: string, fontWeight: MemoFontWeight) => {
+      const nextWeight: MemoFontWeight = fontWeight === 'bold' ? 'bold' : 'normal'
+      setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, fontWeight: nextWeight } : n)))
+      const auth = token?.trim()
+      if (!auth) {
+        return
+      }
+      const prev = weightTimersRef.current[id]
+      if (prev) {
+        clearTimeout(prev)
+      }
+      weightTimersRef.current[id] = setTimeout(() => {
+        delete weightTimersRef.current[id]
+        void memoApi.update(id, { fontWeight: nextWeight }, auth).catch(() => {})
+      }, WEIGHT_SAVE_MS)
+    },
+    [token],
+  )
+
   const commitSize = useCallback(
     (id: string, width: number, height: number) => {
       const w = clamp(Math.round(width), MIN_W, 4000)
@@ -308,6 +334,7 @@ export function useNotes() {
     updateSize,
     commitSize,
     updateFontSize,
+    updateFontWeight,
     deleteNote,
     bringToFront,
   }

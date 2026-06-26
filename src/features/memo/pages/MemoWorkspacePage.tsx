@@ -16,6 +16,7 @@ export default function MemoWorkspacePage() {
     updateSize,
     commitSize,
     updateFontSize,
+    updateFontWeight,
     workspaceRef,
     containerRef,
     activeNoteId,
@@ -36,7 +37,8 @@ export default function MemoWorkspacePage() {
     closeDeleteModal,
     confirmDelete,
     hiddenNotes,
-    minimizeNote,
+    minimizedNotes,
+    toggleMinimizeNote,
     routedPage,
   } = useMemoWorkspace()
 
@@ -99,10 +101,12 @@ export default function MemoWorkspacePage() {
                   isActive={activeNoteId === note.id}
                   isEditing={editingNoteId === note.id}
                   isDragging={draggingNoteId === note.id}
+                  isMinimized={Boolean(minimizedNotes[note.id])}
                   onChange={(content) => updateNote(note.id, content)}
                   onPositionCommit={commitPosition}
                   onSizeCommit={commitSize}
                   onFontSizeChange={updateFontSize}
+                  onFontWeightChange={updateFontWeight}
                   containerRef={containerRef}
                   getWorkspaceBounds={getWorkspaceBounds}
                   onDeleteRequest={handleRequestDelete}
@@ -112,7 +116,7 @@ export default function MemoWorkspacePage() {
                   onTextareaBlur={handleTextareaBlur}
                   onDragStart={handleDragStart}
                   onDragEnd={handleDragEnd}
-                  onMinimize={routedPage ? undefined : minimizeNote}
+                  onToggleMinimize={toggleMinimizeNote}
                 />
               ))
             )}

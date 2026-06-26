@@ -3512,6 +3512,10 @@ export async function initDb() {
     ADD COLUMN IF NOT EXISTS font_size INTEGER DEFAULT 16
   `)
   await pool.query(`
+    ALTER TABLE memo
+    ADD COLUMN IF NOT EXISTS font_weight TEXT DEFAULT 'normal'
+  `)
+  await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_memo_user_id ON memo (user_id)
   `)
   await pool.query(`

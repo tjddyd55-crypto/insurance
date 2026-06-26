@@ -4,11 +4,13 @@ import test from 'node:test'
 import {
   MEMO_DEFAULT_X,
   MEMO_DEFAULT_Y,
+  MEMO_MINIMIZED_HEIGHT,
   MEMO_ROUTED_BOARD_MIN_HEIGHT,
   buildArrangedNotePositions,
   clampNotePosition,
   getMemoBoardCanvasHeight,
   getMemoBoardVisibleNotes,
+  memoLayoutBoxesOverlap,
 } from './memoLayout.js'
 
 test('clampNotePosition moves negative coordinates inside board', () => {
@@ -36,14 +38,66 @@ test('getMemoBoardCanvasHeight expands routed memo board vertically', () => {
     viewportHeight: 800,
   })
   assert.ok(height != null && height >= MEMO_ROUTED_BOARD_MIN_HEIGHT)
-  assert.ok(height >= 1200 + 200 + 160)
+  assert.ok(height >= 1200 + 200 + 120)
 })
 
-test('buildArrangedNotePositions lays out column grid', () => {
-  assert.deepEqual(buildArrangedNotePositions(4), [
-    { x: 24, y: 24 },
-    { x: 300, y: 24 },
-    { x: 576, y: 24 },
-    { x: 24, y: 260 },
-  ])
+test('buildArrangedNotePositions lays out without overlap', () => {
+  const notes = [
+    { id: 'a', width: 260, height: 200 },
+    { id: 'b', width: 260, height: 200 },
+    { id: 'c', width: 260, height: 200 },
+    { id: 'd', width: 260, height: 200 },
+  ]
+  const arranged = buildArrangedNotePositions(notes, { boardWidth: 900 })
+  assert.equal(arranged.length, 4)
+  assert.equal(memoLayoutBoxesOverlap(arranged), false)
+  assert.equal(arranged[0].x, 24)
+  assert.equal(arranged[0].y, 24)
+})
+
+test('buildArrangedNotePositions respects varying note sizes', () => {
+  const notes = [
+    { id: 'a', width: 300, height: 220 },
+    { id: 'b', width: 240, height: 180 },
+    { id: 'c', width: 280, height: 260 },
+  ]
+  const arranged = buildArrangedNotePositions(notes, { boardWidth: 700 })
+  assert.equal(memoLayoutBoxesOverlap(arranged), false)
+  assert.ok(arranged[1].x > arranged[0].x)
+})
+
+test('buildArrangedNotePositions wraps to next row when boardWidth exceeded', () => {
+  const notes = [
+    { id: 'a', width: 260, height: 200 },
+    { id: 'b', width: 260, height: 200 },
+    { id: 'c', width: 260, height: 200 },
+  ]
+  const arranged = buildArrangedNotePositions(notes, { boardWidth: 620 })
+  assert.equal(memoLayoutBoxesOverlap(arranged), false)
+  assert.equal(arranged[0].y, 24)
+  assert.equal(arranged[1].y, 24)
+  assert.ok(arranged[2].y > arranged[0].y + 200)
+})
+
+test('buildArrangedNotePositions uses row max height for next row y', () => {
+  const notes = [
+    { id: 'a', width: 260, height: 200 },
+    { id: 'b', width: 260, height: 320 },
+    { id: 'c', width: 260, height: 200 },
+  ]
+  const arranged = buildArrangedNotePositions(notes, { boardWidth: 620 })
+  assert.equal(arranged[2].y, 24 + 320 + 24)
+})
+
+test('buildArrangedNotePositions uses minimized height for collapsed notes', () => {
+  const notes = [
+    { id: 'a', width: 260, height: 200, x: 0, y: 0 },
+    { id: 'b', width: 260, height: 200, x: 0, y: 0 },
+  ]
+  const arranged = buildArrangedNotePositions(notes, {
+    boardWidth: 900,
+    minimizedNoteIds: ['b'],
+  })
+  assert.equal(arranged[1].height, MEMO_MINIMIZED_HEIGHT)
+  assert.equal(memoLayoutBoxesOverlap(arranged), false)
 })

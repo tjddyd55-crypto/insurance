@@ -1,5 +1,5 @@
 import { apiRequest } from '../../../lib/apiClient'
-import type { Note } from '../types/memo.types'
+import type { MemoFontWeight, Note } from '../types/memo.types'
 
 export const memoApi = {
   async getAll(token: string | null) {
@@ -15,6 +15,7 @@ export const memoApi = {
       height?: number
       zIndex?: number
       fontSize?: number
+      fontWeight?: MemoFontWeight
     },
     token: string | null,
   ) {
@@ -27,7 +28,7 @@ export const memoApi = {
 
   async update(
     id: string,
-    body: Partial<Pick<Note, 'content' | 'x' | 'y' | 'width' | 'height' | 'zIndex' | 'fontSize'>>,
+    body: Partial<Pick<Note, 'content' | 'x' | 'y' | 'width' | 'height' | 'zIndex' | 'fontSize' | 'fontWeight'>>,
     token: string | null,
   ) {
     return apiRequest<Note>(`/api/memo/${encodeURIComponent(id)}`, {

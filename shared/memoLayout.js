@@ -1,4 +1,4 @@
-/** @typedef {{ x: number, y: number, width?: number, height?: number }} MemoLayoutNote */
+/** @typedef {{ x: number, y: number, width?: number, height?: number, id?: string }} MemoLayoutNote */
 
 export const MEMO_DEFAULT_X = 24
 export const MEMO_DEFAULT_Y = 24
@@ -6,7 +6,9 @@ export const MEMO_DEFAULT_WIDTH = 260
 export const MEMO_DEFAULT_HEIGHT = 200
 export const MEMO_MIN_WIDTH = 220
 export const MEMO_MIN_HEIGHT = 160
+export const MEMO_MINIMIZED_HEIGHT = 44
 
+/** @deprecated fixed-column arrange — row-wrap uses note dimensions instead */
 export const MEMO_ARRANGE_COLUMNS = [24, 300, 576]
 export const MEMO_ARRANGE_START_Y = 24
 export const MEMO_ARRANGE_ROW_STEP = 236
@@ -25,6 +27,22 @@ export function noteWidth(note) {
  */
 export function noteHeight(note) {
   return Math.max(MEMO_MIN_HEIGHT, Number(note.height) || MEMO_DEFAULT_HEIGHT)
+}
+
+/**
+ * @param {MemoLayoutNote & { id?: string }} note
+ * @param {{ minimizedNoteIds?: Set<string> | string[] }} [options]
+ */
+export function noteArrangeHeight(note, options = {}) {
+  const ids = options.minimizedNoteIds
+  const id = note.id != null ? String(note.id) : ''
+  if (id && ids) {
+    const set = ids instanceof Set ? ids : new Set(ids.map((v) => String(v)))
+    if (set.has(id)) {
+      return MEMO_MINIMIZED_HEIGHT
+    }
+  }
+  return noteHeight(note)
 }
 
 /**
@@ -59,7 +77,7 @@ export function getMemoBoardVisibleNotes(notes, hiddenNotes, isMemoRoute) {
 
 /**
  * @param {Array<MemoLayoutNote & { id?: string }>} notes
- * @param {{ routedPage?: boolean, viewportHeight?: number }} [options]
+ * @param {{ routedPage?: boolean, viewportHeight?: number, minimizedNoteIds?: Set<string> | string[] }} [options]
  * @returns {number | undefined}
  */
 export function getMemoBoardCanvasHeight(notes, options = {}) {
@@ -71,25 +89,80 @@ export function getMemoBoardCanvasHeight(notes, options = {}) {
   }
   const bottoms = notes.map((note) => {
     const y = Number.isFinite(Number(note.y)) ? Number(note.y) : MEMO_DEFAULT_Y
-    return y + noteHeight(note)
+    return y + noteArrangeHeight(note, options)
   })
-  const canvasBottom = Math.max(...bottoms) + 160
+  const canvasBottom = Math.max(...bottoms) + 120
   if (routedPage) {
     return Math.max(routedMin, canvasBottom)
   }
   return canvasBottom
 }
 
-/** @param {number} count */
-export function buildArrangedNotePositions(count) {
-  const out = []
-  for (let index = 0; index < count; index += 1) {
-    const col = index % MEMO_ARRANGE_COLUMNS.length
-    const row = Math.floor(index / MEMO_ARRANGE_COLUMNS.length)
-    out.push({
-      x: MEMO_ARRANGE_COLUMNS[col],
-      y: MEMO_ARRANGE_START_Y + row * MEMO_ARRANGE_ROW_STEP,
-    })
+/**
+ * Row-wrap arrange — each note keeps width/height; no overlap.
+ *
+ * @param {Array<MemoLayoutNote & { id: string }>} notes
+ * @param {{
+ *   boardWidth?: number,
+ *   startX?: number,
+ *   startY?: number,
+ *   gapX?: number,
+ *   gapY?: number,
+ *   minimizedNoteIds?: Set<string> | string[],
+ * }} [options]
+ */
+export function buildArrangedNotePositions(notes, options = {}) {
+  const boardWidth = Number(options.boardWidth || 1200)
+  const startX = Number(options.startX || 24)
+  const startY = Number(options.startY || 24)
+  const gapX = Number(options.gapX || 24)
+  const gapY = Number(options.gapY || 24)
+
+  let x = startX
+  let y = startY
+  let rowHeight = 0
+
+  return notes.map((note) => {
+    const width = noteWidth(note)
+    const height = noteArrangeHeight(note, options)
+
+    if (x > startX && x + width > boardWidth - startX) {
+      x = startX
+      y += rowHeight + gapY
+      rowHeight = 0
+    }
+
+    const arranged = {
+      id: note.id,
+      x,
+      y,
+      width,
+      height,
+    }
+
+    x += width + gapX
+    rowHeight = Math.max(rowHeight, height)
+
+    return arranged
+  })
+}
+
+/** @param {Array<{ x: number, y: number, width: number, height: number }>} boxes */
+export function memoLayoutBoxesOverlap(boxes) {
+  for (let i = 0; i < boxes.length; i += 1) {
+    for (let j = i + 1; j < boxes.length; j += 1) {
+      const a = boxes[i]
+      const b = boxes[j]
+      const overlap = !(
+        a.x + a.width <= b.x ||
+        b.x + b.width <= a.x ||
+        a.y + a.height <= b.y ||
+        b.y + b.height <= a.y
+      )
+      if (overlap) {
+        return true
+      }
+    }
   }
-  return out
+  return false
 }
