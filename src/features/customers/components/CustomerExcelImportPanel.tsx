@@ -4,7 +4,6 @@ import { FormButton, FormInput } from '../../../components/form'
 
 import type { CustomerExcelPrepareResult, CustomerUploadBatchResult } from '../utils/customerExcelUpload'
 import {
-  CUSTOMER_EXCEL_UPLOAD_MAX_BATCH,
   downloadExcludedRowsExcel,
   downloadFailedApiRowsExcel,
   downloadFailedPayloadsJson,
@@ -72,12 +71,6 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
     if (!prepare || prepare.payloads.length === 0 || !token) {
       return
     }
-    if (prepare.payloads.length > CUSTOMER_EXCEL_UPLOAD_MAX_BATCH) {
-      setError(
-        `한 번에 ${CUSTOMER_EXCEL_UPLOAD_MAX_BATCH}건까지만 업로드 가능합니다. (현재 ${prepare.payloads.length}건)`,
-      )
-      return
-    }
     void (async () => {
       setBusy(true)
       setError(null)
@@ -102,11 +95,9 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
 
   const prepStats = prepare?.stats
   const showExcludedDownload = prepare && prepare.excludedRows.length > 0
-  const overBatchLimit =
-    prepare != null && prepare.payloads.length > CUSTOMER_EXCEL_UPLOAD_MAX_BATCH
   const confirmMessage =
-    prepare && prepare.payloads.length > 0 && !overBatchLimit
-      ? `${prepare.payloads.length}건을 서버에 등록합니다. 계속할까요?`
+    prepare && prepare.payloads.length > 0
+      ? `총 ${prepare.payloads.length}건을 서버에 등록합니다. 계속할까요?`
       : ''
 
 
@@ -163,7 +154,7 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
       {busy && !parsePhase && progress && progress.total > 0 ? (
         <div className="customers-excel-import-panel__progress" aria-busy="true">
           <p className="customers-excel-import-panel__status">
-            로딩 중… 업로드 {progress.done}/{progress.total} (
+            총 {progress.total.toLocaleString('ko-KR')}건 중 {progress.done.toLocaleString('ko-KR')}건 처리 중… (
             {Math.round((progress.done / progress.total) * 100)}%)
           </p>
           <div
@@ -202,12 +193,6 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
             {prepare.stats.skippedOtherCount > 0 ? (
               <li>기타 제외(이름 없음 등): {prepare.stats.skippedOtherCount}건</li>
             ) : null}
-            {overBatchLimit ? (
-              <li className="customers-excel-import-panel__warn">
-                1회 업로드는 {CUSTOMER_EXCEL_UPLOAD_MAX_BATCH}건까지 가능합니다. (현재 {prepare.payloads.length}건) 파일을
-                나누어 업로드해 주세요.
-              </li>
-            ) : null}
           </ul>
           {showExcludedDownload ? (
             <FormButton
@@ -235,11 +220,8 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
               htmlType="button"
               variant="action"
               className="cta-button"
-              disabled={busy || overBatchLimit}
+              disabled={busy}
               onClick={() => {
-                if (overBatchLimit) {
-                  return
-                }
                 void (async () => {
                   const confirmed = await confirm({
                     title: '엑셀 업로드',
@@ -261,7 +243,7 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
 
       {!busy && result && result.total > 0 ? (
         <p className="customers-excel-import-panel__status customers-excel-import-panel__status--done">
-          진행 완료 ({result.total}건, 100%)
+          총 {result.total.toLocaleString('ko-KR')}건 업로드 완료
         </p>
       ) : null}
 
