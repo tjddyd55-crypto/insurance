@@ -115,7 +115,8 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
       </FormButton>
 
       <p className="customers-excel-import-panel__intro text-sm text-[var(--text-secondary)] mb-2">
-        이름은 필수이며, 연락처와 주민번호 중 하나만 있어도 업로드할 수 있습니다.
+        이름은 필수이며, 연락처와 주민번호 중 하나만 있어도 업로드할 수 있습니다. 성별이 비어 있어도 주민번호가
+        있으면 자동으로 입력됩니다.
       </p>
 
       <div className="customers-excel-import-panel__row">

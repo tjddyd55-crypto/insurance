@@ -85,6 +85,7 @@ import {
   buildCustomerListWhereExtras,
 } from './lib/customerConsultationListQuery.js'
 import { normalizeInflowSourceForDb, normalizeReferrerNameForDb } from './lib/customerInflowSource.js'
+import { resolveCustomerGenderForSave } from './lib/inferGenderFromResidentNumber.js'
 import {
   PUBLIC_INVITE_REG_COOKIE,
   buildInviteRegClearCookieHeader,
@@ -5938,8 +5939,7 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
     const { age: insuranceAge, nextAgeDate: nextAgeDateObj } = calculateInsuranceInfoFromRrn(ssn)
     const nextAgeSql = nextAgeDateToSqlDate(nextAgeDateObj)
 
-    const genderRaw = String(data.gender ?? '').trim()
-    const gender = genderRaw === 'male' || genderRaw === 'female' ? genderRaw : ''
+    const gender = resolveCustomerGenderForSave(data.gender, ssn)
 
     const notes = normalizeCustomerNotesInput(data.notes)
     const driving =
@@ -6250,8 +6250,7 @@ async function insertCustomerFromExternalBody(executor, data, refUserId, refGaId
   const { age: insuranceAge, nextAgeDate: nextAgeDateObj } = calculateInsuranceInfoFromRrn(ssn)
   const nextAgeSql = nextAgeDateToSqlDate(nextAgeDateObj)
 
-  const genderRaw = String(data.gender ?? '').trim()
-  const gender = genderRaw === 'male' || genderRaw === 'female' ? genderRaw : ''
+  const gender = resolveCustomerGenderForSave(data.gender, ssn)
 
   const notes = normalizeCustomerNotesInput(data.notes)
   const driving =
@@ -6575,8 +6574,7 @@ apiRouter.patch('/customer/external-invite-registration', async (req, res) => {
     const carType = String(data.carType ?? data.car_type ?? '').trim()
     const { age: insuranceAge, nextAgeDate: nextAgeDateObj } = calculateInsuranceInfoFromRrn(ssn)
     const nextAgeSql = nextAgeDateToSqlDate(nextAgeDateObj)
-    const genderRaw = String(data.gender ?? '').trim()
-    const gender = genderRaw === 'male' || genderRaw === 'female' ? genderRaw : ''
+    const gender = resolveCustomerGenderForSave(data.gender, ssn)
     const notes = normalizeCustomerNotesInput(data.notes)
     const driving =
       isDriver === true ? '운전함' : isDriver === false ? '운전 안함' : String(data.driving ?? '').trim()
@@ -6768,8 +6766,8 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
     }
 
     if (hasKey('gender')) {
-      const genderRaw = String(data.gender ?? '').trim()
-      const gender = genderRaw === 'male' || genderRaw === 'female' ? genderRaw : ''
+      const ssnForGender = String(data.ssn ?? '').trim()
+      const gender = resolveCustomerGenderForSave(data.gender, ssnForGender)
       parts.push(`gender = $${n++}`)
       vals.push(gender)
     }

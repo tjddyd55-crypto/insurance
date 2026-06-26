@@ -9,6 +9,7 @@ import {
   CUSTOMER_EXCEL_UPLOAD_REQUIRED_FIELD_MESSAGE,
   getCustomerExcelRowMergeKey,
   mergeRowsForImport,
+  resolveGenderForCustomerImport,
   satisfiesCustomerExcelUploadRequiredFields,
   transformRow,
   uploadCustomers,
@@ -113,6 +114,35 @@ describe('customerExcelUpload import policy', () => {
     expect(payload).not.toBeNull()
     expect(payload?.ssn).toBe('8001011234567')
     expect(payload?.phone).toBe('')
+  })
+
+  it('resolveGenderForCustomerImport infers gender from ssn when gender empty', () => {
+    expect(resolveGenderForCustomerImport('', '900101-1234567')).toBe('male')
+    expect(resolveGenderForCustomerImport('', '9001012234567')).toBe('female')
+    expect(resolveGenderForCustomerImport('', '9001013234567')).toBe('male')
+    expect(resolveGenderForCustomerImport('', '9001014234567')).toBe('female')
+    expect(resolveGenderForCustomerImport('', '9001011234567')).toBe('male')
+  })
+
+  it('resolveGenderForCustomerImport keeps explicit gender over ssn', () => {
+    expect(resolveGenderForCustomerImport('female', '9001011234567')).toBe('female')
+  })
+
+  it('resolveGenderForCustomerImport returns empty without ssn', () => {
+    expect(resolveGenderForCustomerImport('', '')).toBe('')
+    expect(resolveGenderForCustomerImport('', '900101')).toBe('')
+  })
+
+  it('transformRow infers male from ssn when gender cell empty', () => {
+    const payload = transformRow(makeParsedRow({ genderRaw: '', ssn: '9001011234567' }))
+    expect(payload?.gender).toBe('male')
+  })
+
+  it('transformRow keeps explicit female when ssn implies male', () => {
+    const payload = transformRow(
+      makeParsedRow({ genderRaw: 'female', ssn: '9001011234567' }),
+    )
+    expect(payload?.gender).toBe('female')
   })
 
   it('transformRow rejects name only', () => {
