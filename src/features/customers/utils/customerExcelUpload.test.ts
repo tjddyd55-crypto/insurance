@@ -6,8 +6,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SaveCustomerPayload } from '../api/customersApi'
 import type { CustomerExcelParsedRow } from './customerExcelUpload'
 import {
+  CUSTOMER_EXCEL_UPLOAD_REQUIRED_FIELD_MESSAGE,
   getCustomerExcelRowMergeKey,
   mergeRowsForImport,
+  satisfiesCustomerExcelUploadRequiredFields,
   transformRow,
   uploadCustomers,
 } from './customerExcelUpload'
@@ -48,13 +50,16 @@ function makeParsedRow(overrides: Partial<CustomerExcelParsedRow> = {}): Custome
   }
 }
 
-function makePayload(index: number, withSsn = true): SaveCustomerPayload {
+function makePayload(
+  index: number,
+  mode: 'full' | 'phoneOnly' | 'ssnOnly' = 'full',
+): SaveCustomerPayload {
   const suffix = String(index).padStart(6, '0')
   return {
     name: `고객${index}`,
-    ssn: withSsn ? `9001011${suffix.slice(-6)}` : '',
+    ssn: mode === 'phoneOnly' ? '' : `9001011${suffix.slice(-6)}`,
     gender: 'male',
-    phone: `010${suffix.slice(-8)}`,
+    phone: mode === 'ssnOnly' ? '' : `010${suffix.slice(-8)}`,
     address: '',
     height: '',
     weight: '',
@@ -103,17 +108,37 @@ describe('customerExcelUpload import policy', () => {
     expect(payload?.phone).toBe('01012345678')
   })
 
-  it('transformRow rejects missing name', () => {
-    expect(transformRow(makeParsedRow({ name: '  ' }))).toBeNull()
+  it('transformRow accepts name + ssn without phone', () => {
+    const payload = transformRow(makeParsedRow({ phone: '' }))
+    expect(payload).not.toBeNull()
+    expect(payload?.ssn).toBe('8001011234567')
+    expect(payload?.phone).toBe('')
   })
 
-  it('transformRow rejects missing phone', () => {
-    expect(transformRow(makeParsedRow({ phone: '' }))).toBeNull()
-    expect(transformRow(makeParsedRow({ phone: '010' }))).toBeNull()
+  it('transformRow rejects name only', () => {
+    expect(transformRow(makeParsedRow({ phone: '', ssn: '' }))).toBeNull()
+  })
+
+  it('transformRow rejects missing name', () => {
+    expect(transformRow(makeParsedRow({ name: '  ', phone: '01012345678' }))).toBeNull()
+    expect(transformRow(makeParsedRow({ name: '  ', ssn: '8001011234567' }))).toBeNull()
+  })
+
+  it('satisfiesCustomerExcelUploadRequiredFields rejects phone-only and ssn-only rows', () => {
+    expect(satisfiesCustomerExcelUploadRequiredFields({ name: '', phone: '01012345678', ssn: '' })).toBe(false)
+    expect(satisfiesCustomerExcelUploadRequiredFields({ name: '', phone: '', ssn: '8001011234567' })).toBe(false)
+  })
+
+  it('satisfiesCustomerExcelUploadRequiredFields accepts name with phone or ssn', () => {
+    expect(satisfiesCustomerExcelUploadRequiredFields({ name: '홍길동', phone: '01012345678', ssn: '' })).toBe(true)
+    expect(
+      satisfiesCustomerExcelUploadRequiredFields({ name: '홍길동', phone: '', ssn: '8001011234567' }),
+    ).toBe(true)
   })
 
   it('merge key prefers ssn when present', () => {
     expect(getCustomerExcelRowMergeKey(makeParsedRow())).toBe('ssn:8001011234567')
+    expect(getCustomerExcelRowMergeKey(makeParsedRow({ phone: '' }))).toBe('ssn:8001011234567')
   })
 
   it('merge key uses name + phone when ssn absent', () => {
@@ -130,8 +155,20 @@ describe('customerExcelUpload import policy', () => {
     expect(merged[0]?.memoRaw).toContain('첫 메모')
   })
 
+  it('mergeRowsForImport merges duplicate ssn rows without phone', () => {
+    const merged = mergeRowsForImport([
+      makeParsedRow({ phone: '', address: '서울' }),
+      makeParsedRow({ phone: '', job: '회사원' }),
+    ])
+    expect(merged).toHaveLength(1)
+    expect(merged[0]?.job).toBe('회사원')
+  })
+
   it.each([299, 300, 301, 1000])('uploadCustomers processes all %i rows without row cap', async (count) => {
-    const payloads = Array.from({ length: count }, (_, i) => makePayload(i + 1, i % 2 === 0))
+    const payloads = Array.from({ length: count }, (_, i) => {
+      const mode = i % 3 === 0 ? 'phoneOnly' : i % 3 === 1 ? 'ssnOnly' : 'full'
+      return makePayload(i + 1, mode)
+    })
     const progress: Array<{ done: number; total: number }> = []
 
     const result = await uploadCustomers('token', payloads, (done, total) => {
@@ -145,11 +182,15 @@ describe('customerExcelUpload import policy', () => {
     expect(progress.at(-1)).toEqual({ done: count, total: count })
   })
 
-  it('uploadCustomers sends empty ssn when omitted', async () => {
-    await uploadCustomers('token', [makePayload(1, false)])
+  it('uploadCustomers sends empty phone when only ssn provided', async () => {
+    await uploadCustomers('token', [makePayload(1, 'ssnOnly')])
     expect(saveCustomerMock).toHaveBeenCalledWith(
       'token',
-      expect.objectContaining({ name: '고객1', ssn: '', phone: expect.any(String) }),
+      expect.objectContaining({ name: '고객1', ssn: expect.any(String), phone: '' }),
     )
+  })
+
+  it('uses standard required-field message constant', () => {
+    expect(CUSTOMER_EXCEL_UPLOAD_REQUIRED_FIELD_MESSAGE).toContain('연락처 또는 주민번호')
   })
 })

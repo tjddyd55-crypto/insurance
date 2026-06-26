@@ -740,7 +740,7 @@ export function ProfilePage() {
             />
           </div>
           <p className="profile-page__section-desc profile-page__section-desc--spaced">
-            이름과 연락처만 있으면 업로드할 수 있습니다. 주민번호는 선택 입력입니다. 샘플 다운로드 후 양식에
+            이름은 필수이며, 연락처와 주민번호 중 하나만 있어도 업로드할 수 있습니다. 샘플 다운로드 후 양식에
             맞게 작성한 파일을 업로드해 주세요.
           </p>
         </PCOnlySection>

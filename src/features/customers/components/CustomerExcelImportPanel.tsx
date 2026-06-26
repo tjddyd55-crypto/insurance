@@ -115,7 +115,7 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
       </FormButton>
 
       <p className="customers-excel-import-panel__intro text-sm text-[var(--text-secondary)] mb-2">
-        필수: 이름, 연락처 / 선택: 주민번호, 주소, 메모 등. 주민번호 없이도 업로드할 수 있습니다.
+        이름은 필수이며, 연락처와 주민번호 중 하나만 있어도 업로드할 수 있습니다.
       </p>
 
       <div className="customers-excel-import-panel__row">
@@ -197,7 +197,7 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
               </li>
             ) : null}
             {prepare.stats.skippedOtherCount > 0 ? (
-              <li>기타 제외(이름·연락처 없음 등): {prepare.stats.skippedOtherCount}건</li>
+              <li>기타 제외(필수값 누락 등): {prepare.stats.skippedOtherCount}건</li>
             ) : null}
           </ul>
           {showExcludedDownload ? (
