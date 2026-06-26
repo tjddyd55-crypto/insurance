@@ -15,6 +15,7 @@ import {
 import { dispatchNotificationRefresh } from '../notificationRefreshDispatch'
 import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
 import { formatNotificationTargetDateWithDDay } from '../utils/notificationDateLabel'
+import { openNotificationCustomerNavigate } from '../utils/notificationCustomerNavigation'
 
 type NotificationLoginModalProps = {
   token: string
@@ -79,15 +80,14 @@ export function NotificationLoginModal({ token, open, onClose }: NotificationLog
   }
 
   const handleNavigate = async (row: NotificationRow) => {
-    const path = buildNotificationNavigatePath(row)
     setPendingId(row.id)
     try {
       if (!row.isRead) {
         await markNotificationRead(token, row.id)
         dispatchNotificationRefresh()
       }
-      if (path) {
-        navigate(path)
+      if (buildNotificationNavigatePath(row)) {
+        openNotificationCustomerNavigate({ notification: row, navigate })
       }
       await handleClose()
     } catch (e) {

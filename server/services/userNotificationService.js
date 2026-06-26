@@ -255,35 +255,40 @@ export async function createClaimRequestReceivedNotification(db, safeQueryExec, 
  * @param {object} input
  */
 async function upsertUserNotification(db, safeQueryExec, input) {
+  const normalizedTargetDate = input.targetDate ? toDateOnlyString(input.targetDate) : null
+  if (input.targetDate && !normalizedTargetDate) {
+    return null
+  }
+
+  const params = [
+    input.userId,
+    input.gaId,
+    input.type,
+    input.referenceId ?? null,
+    input.message,
+    input.customerId ?? null,
+    input.customerName ?? null,
+    normalizedTargetDate,
+    input.claimRequestId ?? null,
+  ]
+
   if (input.type === USER_NOTIFICATION_TYPES.CLAIM_REQUEST_RECEIVED) {
-    const exists = await safeQueryExec(
+    const r = await safeQueryExec(
       db,
       `
-      SELECT 1 FROM notifications
-      WHERE user_id = $1 AND ga_id = $2 AND type = $3
-        AND customer_id = $4 AND claim_request_id = $5
-        AND is_dismissed = false
-      LIMIT 1
+      INSERT INTO notifications (
+        user_id, ga_id, team_id, type, reference_id, message,
+        customer_id, customer_name, target_date, claim_request_id
+      )
+      VALUES ($1, $2, NULL, $3, $4, $5, $6, $7, $8, $9)
+      ON CONFLICT (user_id, ga_id, type, claim_request_id)
+      WHERE type = 'claim_request_received' AND claim_request_id IS NOT NULL
+      DO NOTHING
+      RETURNING id
       `,
-      [input.userId, input.gaId, input.type, input.customerId, input.claimRequestId],
+      params,
     )
-    if ((exists.rowCount ?? 0) > 0) {
-      return null
-    }
-  } else {
-    const exists = await safeQueryExec(
-      db,
-      `
-      SELECT 1 FROM notifications
-      WHERE user_id = $1 AND ga_id = $2 AND type = $3
-        AND customer_id = $4 AND target_date = $5::date
-      LIMIT 1
-      `,
-      [input.userId, input.gaId, input.type, input.customerId, input.targetDate],
-    )
-    if ((exists.rowCount ?? 0) > 0) {
-      return null
-    }
+    return r.rows[0]?.id ?? null
   }
 
   const r = await safeQueryExec(
@@ -294,19 +299,14 @@ async function upsertUserNotification(db, safeQueryExec, input) {
       customer_id, customer_name, target_date, claim_request_id
     )
     VALUES ($1, $2, NULL, $3, $4, $5, $6, $7, $8, $9)
+    ON CONFLICT (user_id, ga_id, type, customer_id, target_date)
+    WHERE type IN ('car_expiry', 'insurance_age_date')
+      AND customer_id IS NOT NULL
+      AND target_date IS NOT NULL
+    DO NOTHING
     RETURNING id
     `,
-    [
-      input.userId,
-      input.gaId,
-      input.type,
-      input.referenceId ?? null,
-      input.message,
-      input.customerId ?? null,
-      input.customerName ?? null,
-      input.targetDate ?? null,
-      input.claimRequestId ?? null,
-    ],
+    params,
   )
   return r.rows[0]?.id ?? null
 }

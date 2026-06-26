@@ -106,6 +106,41 @@ export function buildNotificationListWhere(userId, gaId, filters) {
   return { clause: parts.join(' AND '), params }
 }
 
+export function buildNotificationListQuery(userId, gaId, filters, limit) {
+  const { clause, params } = buildNotificationListWhere(userId, gaId, filters)
+  params.push(limit)
+  const limitParam = params.length
+  const sql = `
+    SELECT id, user_id, ga_id, team_id, type, reference_id, message, is_read, is_dismissed,
+           customer_id, customer_name, target_date, claim_request_id, created_at
+    FROM (
+      SELECT DISTINCT ON (
+        user_id,
+        ga_id,
+        type,
+        COALESCE(customer_id, -1),
+        COALESCE(target_date, DATE '1970-01-01'),
+        COALESCE(claim_request_id, -1)
+      )
+        id, user_id, ga_id, team_id, type, reference_id, message, is_read, is_dismissed,
+        customer_id, customer_name, target_date, claim_request_id, created_at
+      FROM notifications
+      WHERE ${clause}
+      ORDER BY
+        user_id,
+        ga_id,
+        type,
+        COALESCE(customer_id, -1),
+        COALESCE(target_date, DATE '1970-01-01'),
+        COALESCE(claim_request_id, -1),
+        id ASC
+    ) deduped
+    ORDER BY created_at DESC, id DESC
+    LIMIT $${limitParam}
+  `
+  return { sql, params }
+}
+
 export { parseNotificationListFilters }
 
 function defaultNotificationSettingsRow() {
@@ -267,21 +302,13 @@ export function registerNotificationsApi(apiRouter, ctx) {
         NOTIFICATIONS_LIST_LIMIT_MAX,
         Math.max(1, Number.isFinite(limRaw) ? Math.floor(limRaw) : NOTIFICATIONS_LIST_LIMIT_DEFAULT),
       )
-      const { clause, params } = buildNotificationListWhere(userId, gaId, filters)
-      params.push(limit)
       let rows = []
       try {
+        const { sql, params: listParams } = buildNotificationListQuery(userId, gaId, filters, limit)
         const r = await safeQuery(
           pool,
-          `
-          SELECT id, user_id, ga_id, team_id, type, reference_id, message, is_read, is_dismissed,
-                 customer_id, customer_name, target_date, claim_request_id, created_at
-          FROM notifications
-          WHERE ${clause}
-          ORDER BY created_at DESC, id DESC
-          LIMIT $${params.length}
-          `,
-          params,
+          sql,
+          listParams,
         )
         rows = r.rows
       } catch (listError) {

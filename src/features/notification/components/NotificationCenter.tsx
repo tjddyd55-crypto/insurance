@@ -17,6 +17,7 @@ import {
 import { dispatchNotificationRefresh } from '../notificationRefreshDispatch'
 import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
 import { formatNotificationTargetDateWithDDay } from '../utils/notificationDateLabel'
+import { openNotificationCustomerNavigate } from '../utils/notificationCustomerNavigation'
 
 const STATUS_OPTIONS: Array<{ value: NotificationListStatus; label: string }> = [
   { value: 'all', label: '전체' },
@@ -87,8 +88,7 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
   }, [load])
 
   const handleNavigate = async (row: NotificationRow) => {
-    const path = buildNotificationNavigatePath(row)
-    if (!path) {
+    if (!buildNotificationNavigatePath(row)) {
       return
     }
     setPendingId(row.id)
@@ -97,7 +97,7 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
         await markNotificationRead(token, row.id)
         dispatchNotificationRefresh()
       }
-      navigate(path)
+      openNotificationCustomerNavigate({ notification: row, navigate })
     } catch (e) {
       setError(resolveNotificationLoadError(e))
     } finally {
