@@ -1,7 +1,9 @@
 export {
   addDaysToDateOnly,
+  coerceDateOnlyString,
   diffDateOnlyDays,
   formatDateOnly,
+  formatKoreanDateOnlyWithWeekday,
   formatKstDate,
   formatKstDateDisplay,
   formatKstDateDots,

@@ -153,6 +153,48 @@ export function formatTargetDateWithDDay(targetDate, today = getKstDateString())
   return `${dateOnly} (D+${Math.abs(diffDays)})`
 }
 
+const KOREAN_WEEKDAY_LABELS = Object.freeze(['일', '월', '화', '수', '목', '금', '토'])
+
+/**
+ * DB date-only 컬럼·API 문자열을 YYYY-MM-DD로 정규화한다.
+ * @param {string | Date | null | undefined} value
+ * @returns {string}
+ */
+export function coerceDateOnlyString(value) {
+  if (value == null || value === '') {
+    return ''
+  }
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) {
+      return ''
+    }
+    return getKstDateString(value)
+  }
+  return formatDateOnly(value)
+}
+
+/**
+ * date-only 값을 한국식 YYYY.MM.DD(요일) 또는 MM.DD(요일)로 표시한다.
+ * @param {string | Date | null | undefined} value
+ * @param {{ compact?: boolean, emptyLabel?: string }} [options]
+ * @returns {string}
+ */
+export function formatKoreanDateOnlyWithWeekday(value, options = {}) {
+  const { compact = false, emptyLabel = '—' } = options
+  const dateOnly = coerceDateOnlyString(value)
+  if (!dateOnly) {
+    return emptyLabel
+  }
+  const [year, month, day] = dateOnly.split('-').map(Number)
+  const weekday = KOREAN_WEEKDAY_LABELS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()]
+  const mm = String(month).padStart(2, '0')
+  const dd = String(day).padStart(2, '0')
+  if (compact) {
+    return `${mm}.${dd}(${weekday})`
+  }
+  return `${year}.${mm}.${dd}(${weekday})`
+}
+
 /**
  * @param {string | Date | null | undefined} value
  * @returns {string} YYYY.MM.DD (KST)

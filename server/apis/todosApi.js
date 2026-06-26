@@ -1,6 +1,6 @@
 import { safeQuery } from '../utils/dbSafeQuery.js'
 import { parseGaId } from '../lib/parseGaId.js'
-import { getKstDateString } from '../../shared/dateTimeKst.js'
+import { getKstDateString, coerceDateOnlyString } from '../../shared/dateTimeKst.js'
 import {
   assertCustomerRowAccessibleByVisibility,
   replaceCustomerSqlAliasC,
@@ -41,7 +41,8 @@ export function seoulWeekRangeYmd(reference = new Date()) {
  * @param {import('pg').QueryResultRow} row
  */
 function mapTodoRow(row) {
-  const due = row.due_date ? String(row.due_date).slice(0, 10) : null
+  const dueRaw = coerceDateOnlyString(row.due_date)
+  const due = dueRaw || null
   /** @type {string | null} */
   let dueTime = null
   if (row.due_time) {
