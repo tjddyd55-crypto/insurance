@@ -32,6 +32,7 @@ import { registerCustomerExtraApi } from './apis/customerExtraApi.js'
 import { registerTeamApi } from './apis/teamApi.js'
 import { registerNotificationsApi } from './apis/notificationsApi.js'
 import { registerMemoApi } from './apis/memoApi.js'
+import { registerUserInsurerAccountsApi } from './apis/userInsurerAccountsApi.js'
 import { registerTodosApi } from './apis/todosApi.js'
 import { registerSuperAdminAnalyticsApi } from './registerSuperAdminAnalyticsApi.js'
 import { registerGaCustomerExcelApi } from './apis/gaCustomerExcelApi.js'
@@ -1563,6 +1564,7 @@ registerGaCustomerMatchAliasesApi(apiRouter, {
 registerNotificationsApi(apiRouter, { pool, requireAuth, handleDbError })
 
 registerMemoApi(apiRouter, { pool, requireAuth, handleDbError })
+registerUserInsurerAccountsApi(apiRouter, { pool, requireAuth, handleDbError })
 registerTodosApi(apiRouter, { pool, requireAuth, handleDbError })
 
 registerSuperAdminAnalyticsApi(apiRouter, {

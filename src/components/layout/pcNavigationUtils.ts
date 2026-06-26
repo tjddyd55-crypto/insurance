@@ -156,6 +156,9 @@ export function isActivePcNavigationPath(
   if (menuPathname.startsWith('/team/')) {
     return pathname === menuPathname || pathname.startsWith(`${menuPathname}/`)
   }
+  if (menuPathname === '/insurance/account-credentials') {
+    return pathname === '/insurance/account-credentials' || pathname.startsWith('/insurance/account-credentials/')
+  }
   if (menuPathname === '/memo') {
     return pathname === '/memo' || pathname.startsWith('/memo/')
   }
