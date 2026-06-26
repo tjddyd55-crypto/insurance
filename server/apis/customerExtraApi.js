@@ -296,7 +296,15 @@ function toSortTimestamp(isoOrNull) {
   return Number.isFinite(ms) ? ms : 0
 }
 
-async function folderNameExistsForScope(pool, userId, gaId, customerId, folderName, excludeFolderId) {
+async function folderNameExistsForScope(
+  pool,
+  userId,
+  gaId,
+  customerId,
+  folderName,
+  excludeFolderId,
+  parentId = null,
+) {
   if (excludeFolderId == null) {
     const row = await safeQuery(
       pool,
@@ -309,10 +317,11 @@ async function folderNameExistsForScope(pool, userId, gaId, customerId, folderNa
           ($3::INTEGER IS NULL AND customer_id IS NULL)
           OR customer_id = $3
         )
-        AND lower(btrim(name)) = lower(btrim($4))
+        AND parent_id IS NOT DISTINCT FROM $4
+        AND lower(btrim(name)) = lower(btrim($5))
       LIMIT 1
       `,
-      [userId, gaId, customerId, folderName],
+      [userId, gaId, customerId, parentId, folderName],
     )
     return row.rowCount > 0
   }
@@ -328,10 +337,11 @@ async function folderNameExistsForScope(pool, userId, gaId, customerId, folderNa
         ($4::INTEGER IS NULL AND customer_id IS NULL)
         OR customer_id = $4
       )
-      AND lower(btrim(name)) = lower(btrim($5))
+      AND parent_id IS NOT DISTINCT FROM $5
+      AND lower(btrim(name)) = lower(btrim($6))
     LIMIT 1
     `,
-    [userId, gaId, excludeFolderId, customerId, folderName],
+    [userId, gaId, excludeFolderId, customerId, parentId, folderName],
   )
   return row.rowCount > 0
 }
@@ -521,6 +531,7 @@ function mapFolderRow(row) {
     id: Number(row.id),
     name: String(row.name ?? ''),
     customerId: row.customer_id != null ? Number(row.customer_id) : null,
+    parentId: row.parent_id != null ? Number(row.parent_id) : null,
     createdAt: row.created_at ? new Date(row.created_at).toISOString() : '',
   }
 }
@@ -629,7 +640,7 @@ async function assertFolderOwnedByUser(pool, folderId, userId, gaId) {
   const row = await safeQuery(
     pool,
     `
-    SELECT id, user_id, ga_id, name, customer_id
+    SELECT id, user_id, ga_id, name, customer_id, parent_id
     FROM folders
     WHERE id = $1
       AND user_id = $2
@@ -2290,7 +2301,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       const rows = await safeQuery(
         pool,
         `
-        SELECT id, name, customer_id, created_at
+        SELECT id, name, customer_id, parent_id, created_at
         FROM folders
         WHERE user_id = $1
           AND ga_id = $2
@@ -2342,18 +2353,34 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         return
       }
       const customerId = scope.customerId
-      if (await folderNameExistsForScope(pool, userId, gaId, customerId, folderName, null)) {
+      const parentId = parseFolderId(body.parentId ?? body.parent_id)
+      if (parentId != null) {
+        const parentFolder = await assertFolderOwnedByUser(pool, parentId, userId, gaId)
+        if (!parentFolder) {
+          res.status(404).json({ message: '상위 폴더를 찾을 수 없습니다.' })
+          return
+        }
+        const parentCustomerId =
+          parentFolder.customer_id != null ? Number(parentFolder.customer_id) : null
+        if (parentCustomerId !== customerId) {
+          res.status(400).json({ message: '상위 폴더가 현재 범위와 일치하지 않습니다.' })
+          return
+        }
+      }
+      if (
+        await folderNameExistsForScope(pool, userId, gaId, customerId, folderName, null, parentId)
+      ) {
         res.status(409).json({ message: FOLDER_DUPLICATE_NAME_MESSAGE })
         return
       }
       const ins = await safeQuery(
         pool,
         `
-        INSERT INTO folders (user_id, ga_id, customer_id, name)
-        VALUES ($1, $2, $3, $4)
-        RETURNING id, name, customer_id, created_at
+        INSERT INTO folders (user_id, ga_id, customer_id, parent_id, name)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id, name, customer_id, parent_id, created_at
         `,
-        [userId, gaId, customerId, folderName],
+        [userId, gaId, customerId, parentId, folderName],
       )
       res.status(201).json(mapFolderRow(ins.rows[0]))
     } catch (error) {
@@ -2397,8 +2424,17 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         return
       }
       const scopeCustomerId = folder.customer_id != null ? Number(folder.customer_id) : null
+      const parentId = folder.parent_id != null ? Number(folder.parent_id) : null
       if (
-        await folderNameExistsForScope(pool, userId, gaId, scopeCustomerId, folderName, folderId)
+        await folderNameExistsForScope(
+          pool,
+          userId,
+          gaId,
+          scopeCustomerId,
+          folderName,
+          folderId,
+          parentId,
+        )
       ) {
         res.status(409).json({ message: FOLDER_DUPLICATE_NAME_MESSAGE })
         return
@@ -2411,7 +2447,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         WHERE id = $2
           AND user_id = $3
           AND ga_id = $4
-        RETURNING id, name, customer_id, created_at
+        RETURNING id, name, customer_id, parent_id, created_at
         `,
         [folderName, folderId, userId, gaId],
       )
@@ -2463,6 +2499,22 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       )
       if (used.rowCount > 0) {
         res.status(409).json({ message: '파일이 있는 폴더는 삭제할 수 없습니다.' })
+        return
+      }
+      const childFolder = await safeQuery(
+        pool,
+        `
+        SELECT 1
+        FROM folders
+        WHERE parent_id = $1
+          AND user_id = $2
+          AND ga_id = $3
+        LIMIT 1
+        `,
+        [folderId, userId, gaId],
+      )
+      if (childFolder.rowCount > 0) {
+        res.status(409).json({ message: '하위 폴더가 있는 폴더는 삭제할 수 없습니다.' })
         return
       }
       await safeQuery(

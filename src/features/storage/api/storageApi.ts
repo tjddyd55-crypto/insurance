@@ -4,6 +4,7 @@ export type StorageFolderRow = {
   id: number
   name: string
   customerId?: number | null
+  parentId?: number | null
   createdAt: string
 }
 
@@ -96,7 +97,7 @@ export async function listStorageFolders(
 export async function createStorageFolder(
   token: string,
   name: string,
-  scope?: StorageFileScope,
+  scope?: StorageFileScope & { parentId?: number | null },
 ): Promise<StorageFolderRow> {
   assertToken(token)
   return apiRequest<StorageFolderRow>('/api/storage/folders', {
@@ -105,6 +106,7 @@ export async function createStorageFolder(
     body: JSON.stringify({
       name,
       customerId: scope?.customerId ?? null,
+      parentId: scope?.parentId ?? null,
     }),
   })
 }

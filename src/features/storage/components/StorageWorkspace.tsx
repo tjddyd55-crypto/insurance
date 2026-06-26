@@ -19,9 +19,20 @@ import {
   type StorageFolderRow,
 } from '../api/storageApi'
 import StorageDeleteDialog from './StorageDeleteDialog'
+import StorageExplorerFilePanel from './StorageExplorerFilePanel'
+import StorageExplorerToolbar from './StorageExplorerToolbar'
 import StorageFileList, { type StorageActionVariant } from './StorageFileList'
+import StorageFolderTreePanel from './StorageFolderTreePanel'
 import StorageRenameDialog from './StorageRenameDialog'
 import StorageToolbar from './StorageToolbar'
+import {
+  buildStorageFolderBreadcrumb,
+  buildStorageFolderPathLabel,
+  getStorageAncestorFolderIds,
+  readStoredExplorerFolderId,
+  resolveFolderIdAtBreadcrumbIndex,
+  writeStoredExplorerFolderId,
+} from '../utils/storageFolderTree'
 
 const FILE_NAME_MAX_LENGTH = 120
 const FOLDER_NAME_MAX_LENGTH = 12
@@ -66,6 +77,8 @@ type StorageWorkspaceProps = {
    * 고객 작업영역 모달에서만 'workspace'(메모·상담과 동일 SSOT 버튼)로 넘긴다.
    */
   actionVariant?: StorageActionVariant
+  /** PC 고객 파일 등 — 좌측 폴더 트리 + 우측 파일 목록 탐색기 레이아웃 */
+  layout?: 'legacy' | 'explorer'
 }
 
 function normalizeName(raw: string, maxLength: number): string {
@@ -150,8 +163,10 @@ export default function StorageWorkspace({
   headerSlot,
   variant,
   actionVariant = 'storage',
+  layout = 'legacy',
 }: StorageWorkspaceProps) {
   const isMobile = variant === 'mobile'
+  const isExplorerLayout = layout === 'explorer' && !isMobile && customerId != null
   const [folders, setFolders] = useState<StorageFolderRow[]>([])
   const [files, setFiles] = useState<StorageFileRow[]>([])
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<number>>(new Set())
@@ -159,6 +174,7 @@ export default function StorageWorkspace({
   const [selectedFileId, setSelectedFileId] = useState<number | null>(null)
   const [searchText, setSearchText] = useState('')
   const [kindFilter, setKindFilter] = useState<'all' | 'image' | 'pdf' | 'spreadsheet'>('all')
+  const [sortOrder, setSortOrder] = useState<'name' | 'date-desc'>('date-desc')
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -193,8 +209,12 @@ export default function StorageWorkspace({
 
   const filteredFiles = useMemo(() => {
     const query = searchText.trim().toLowerCase()
-    return files.filter((file) => {
-      if (selectedFolderId !== null && (file.folderId ?? null) !== selectedFolderId) {
+    const scoped = files.filter((file) => {
+      if (isExplorerLayout) {
+        if ((file.folderId ?? null) !== selectedFolderId) {
+          return false
+        }
+      } else if (selectedFolderId !== null && (file.folderId ?? null) !== selectedFolderId) {
         return false
       }
       if (kindFilter !== 'all' && storageFileKind(file) !== kindFilter) {
@@ -206,7 +226,20 @@ export default function StorageWorkspace({
       const haystack = `${file.displayName ?? ''} ${file.fileName ?? ''} ${file.originalName ?? ''}`.toLowerCase()
       return haystack.includes(query)
     })
-  }, [files, kindFilter, searchText, selectedFolderId])
+    const sorted = [...scoped]
+    if (sortOrder === 'name') {
+      sorted.sort((a, b) =>
+        String(a.displayName || a.fileName).localeCompare(String(b.displayName || b.fileName), 'ko'),
+      )
+    } else {
+      sorted.sort((a, b) => {
+        const aTime = new Date(a.createdAt).getTime()
+        const bTime = new Date(b.createdAt).getTime()
+        return (Number.isFinite(bTime) ? bTime : 0) - (Number.isFinite(aTime) ? aTime : 0)
+      })
+    }
+    return sorted
+  }, [files, isExplorerLayout, kindFilter, searchText, selectedFolderId, sortOrder])
 
   const FILE_DOWNLOAD_TTL_MS = 8 * 60 * 1000
   const fileDownloadLinksRef = useRef<Record<number, StorageFileDownloadLinkEntry>>({})
@@ -273,10 +306,40 @@ export default function StorageWorkspace({
     setSelectedFileId(null)
     setSearchText('')
     setKindFilter('all')
+    setSortOrder('date-desc')
     setError('')
     setFoldersLoadError('')
     setFilesListError('')
   }, [customerId, token])
+
+  useEffect(() => {
+    if (!isExplorerLayout || customerId == null) {
+      return
+    }
+    const stored = readStoredExplorerFolderId(customerId)
+    setSelectedFolderId(stored)
+  }, [customerId, isExplorerLayout])
+
+  useEffect(() => {
+    if (!isExplorerLayout || customerId == null) {
+      return
+    }
+    writeStoredExplorerFolderId(customerId, selectedFolderId)
+  }, [customerId, isExplorerLayout, selectedFolderId])
+
+  useEffect(() => {
+    if (!isExplorerLayout || selectedFolderId == null) {
+      return
+    }
+    setExpandedFolderIds((prev) => {
+      const next = new Set(prev)
+      for (const ancestorId of getStorageAncestorFolderIds(folders, selectedFolderId)) {
+        next.add(ancestorId)
+      }
+      next.add(selectedFolderId)
+      return next
+    })
+  }, [folders, isExplorerLayout, selectedFolderId])
 
   useEffect(() => {
     setExpandedFolderIds((prev) => {
@@ -289,6 +352,12 @@ export default function StorageWorkspace({
       return next
     })
   }, [folders])
+
+  useEffect(() => {
+    if (selectedFolderId != null && !folders.some((folder) => folder.id === selectedFolderId)) {
+      setSelectedFolderId(null)
+    }
+  }, [folders, selectedFolderId])
 
   const loadFolders = useCallback(
     async (signal?: AbortSignal) => {
@@ -399,12 +468,6 @@ export default function StorageWorkspace({
   }, [loadFiles, token])
 
   useEffect(() => {
-    if (selectedFolderId != null && !folders.some((folder) => folder.id === selectedFolderId)) {
-      setSelectedFolderId(null)
-    }
-  }, [folders, selectedFolderId])
-
-  useEffect(() => {
     if (selectedFileId != null && !files.some((file) => file.id === selectedFileId)) {
       setSelectedFileId(null)
     }
@@ -427,16 +490,38 @@ export default function StorageWorkspace({
     setSubmitting(true)
     setError('')
     try {
-      await createStorageFolder(token, name, storageFolderScope)
+      const created = await createStorageFolder(token, name, {
+        ...storageFolderScope,
+        parentId: isExplorerLayout ? selectedFolderId : null,
+      })
       setCreateFolderOpen(false)
       setCreateFolderName('')
       await loadFolders()
+      if (isExplorerLayout) {
+        setSelectedFolderId(created.id)
+        setExpandedFolderIds((prev) => {
+          const next = new Set(prev)
+          if (created.parentId != null) {
+            next.add(created.parentId)
+          }
+          next.add(created.id)
+          return next
+        })
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : '폴더 생성에 실패했습니다.')
     } finally {
       setSubmitting(false)
     }
-  }, [createFolderName, loadFolders, storageFolderScope, submitting, token])
+  }, [
+    createFolderName,
+    isExplorerLayout,
+    loadFolders,
+    selectedFolderId,
+    storageFolderScope,
+    submitting,
+    token,
+  ])
 
   const validateStoragePickerFile = useCallback((file: File): string | null => {
     const normalizedName = normalizeName(file.name, FILE_NAME_MAX_LENGTH)
@@ -626,135 +711,38 @@ export default function StorageWorkspace({
     }
   }, [quota])
 
-  return (
-    <div className="storage-workspace page-shell user-page">
-      {headerSlot}
-      <div className="storage-workspace__header">
-        {title?.trim() ? <h1 className="storage-workspace__title">{title}</h1> : null}
-        {subtitle ? <p className="storage-workspace__subtitle">{subtitle}</p> : null}
-        <p className="storage-workspace__quota" role="status">
-          {quotaLoading ? (
-            <>개인 저장공간 사용량 불러오는 중…</>
-          ) : quota ? (
-            <>
-              개인 저장소 사용량 {formatStorageMb(quota.usedBytes)} MB / {formatStorageMb(quota.limitBytes)} MB (
-              {quotaPercent?.text ?? '0.0'}%)
-              {quota.pendingUploadBytes != null && quota.pendingUploadBytes > 0
-                ? ` (업로드 진행 예약 ${formatStorageMb(quota.pendingUploadBytes)} MB)`
-                : ''}
-              {customerId != null ? ' (고객 파일·내 저장공간 합산)' : ''}
-              <span className="storage-bar" aria-hidden="true">
-                <span className="storage-bar-fill" style={{ width: `${quotaPercent?.safe ?? 0}%` }} />
-              </span>
-            </>
-          ) : (
-            <>개인 저장공간 용량 정보를 불러오지 못했습니다.</>
-          )}
-        </p>
-      </div>
+  const explorerFolderPath = useMemo(
+    () => buildStorageFolderPathLabel(folders, selectedFolderId),
+    [folders, selectedFolderId],
+  )
+  const explorerBreadcrumb = useMemo(
+    () => buildStorageFolderBreadcrumb(folders, selectedFolderId),
+    [folders, selectedFolderId],
+  )
 
-      <StorageToolbar
-        isMobile={isMobile}
-        actionVariant={actionVariant}
-        folderOptions={folderOptions}
-        selectedFolderId={selectedFolderId}
-        folderPickerOpen={folderPickerOpen}
-        onOpenFolderPicker={() => setFolderPickerOpen(true)}
-        onCloseFolderPicker={() => setFolderPickerOpen(false)}
-        onSelectFolder={(folderId) => setSelectedFolderId(folderId)}
-        onOpenCreateFolder={openCreateFolderDialog}
-        validateUploadFile={validateStoragePickerFile}
-        onUploadFiles={(selectedFiles) => {
-          void uploadFiles(selectedFiles)
-        }}
-        onUploadInvalidBatch={(failures) => {
-          if (failures.length) {
-            setError(`${failures.length}개 파일이 형식·용량·이름 규칙에 맞지 않습니다.`)
-          }
-        }}
-        uploading={uploading}
-      />
+  const handleSelectExplorerFolder = useCallback((folderId: number | null) => {
+    setSelectedFolderId(folderId)
+    setSelectedFileId(null)
+  }, [])
 
-      <div className="storage-workspace__filters" role="search">
-        <input
-          type="search"
-          value={searchText}
-          onChange={(event) => setSearchText(event.target.value)}
-          placeholder="파일명 검색"
-          className="storage-workspace__search user-form-control"
-        />
-        <select
-          value={kindFilter}
-          onChange={(event) => setKindFilter(event.target.value as 'all' | 'image' | 'pdf' | 'spreadsheet')}
-          className="storage-workspace__kind-filter"
-          aria-label="파일 종류 필터"
-        >
-          <option value="all">전체 형식</option>
-          <option value="image">이미지</option>
-          <option value="pdf">PDF</option>
-          <option value="spreadsheet">엑셀/CSV</option>
-        </select>
-        {(searchText.trim() || kindFilter !== 'all' || selectedFolderId !== null) ? (
-          <button
-            type="button"
-            className="storage-workspace__filter-reset"
-            onClick={() => {
-              setSearchText('')
-              setKindFilter('all')
-              setSelectedFolderId(null)
-            }}
-          >
-            필터 초기화
-          </button>
-        ) : null}
-      </div>
+  const handleSelectBreadcrumbFolder = useCallback(
+    (index: number) => {
+      handleSelectExplorerFolder(resolveFolderIdAtBreadcrumbIndex(folders, selectedFolderId, index))
+    },
+    [folders, handleSelectExplorerFolder, selectedFolderId],
+  )
 
-      <div className="storage-workspace__summary">
-        표시 {filteredFiles.length}개 / 전체 {files.length}개 · 폴더 {folders.length}개
-        {selectedFolderId !== null ? ` · 선택 폴더: ${folders.find((folder) => folder.id === selectedFolderId)?.name ?? '폴더'}` : ''}
-      </div>
+  const resetExplorerFilters = useCallback(() => {
+    setSearchText('')
+    setKindFilter('all')
+    setSortOrder('date-desc')
+  }, [])
 
-      {foldersLoadError ? (
-        <p className="storage-workspace__folder-warning" role="status">
-          {foldersLoadError}
-        </p>
-      ) : null}
-      {error ? <p className="storage-workspace__error">{error}</p> : null}
-
-      <StorageFileList
-        folders={folders}
-        files={filteredFiles}
-        actionVariant={actionVariant}
-        loading={loading}
-        listFetchError={filesListError}
-        selectedFileId={selectedFileId}
-        expandedFolderIds={expandedFolderIds}
-        onToggleFolder={(folderId) => {
-          setExpandedFolderIds((prev) => {
-            const next = new Set(prev)
-            if (next.has(folderId)) {
-              next.delete(folderId)
-            } else {
-              next.add(folderId)
-            }
-            return next
-          })
-        }}
-        onSelectFile={setSelectedFileId}
-        onOpen={(file) => {
-          void openFile(file)
-        }}
-        downloadLinksByFileId={fileDownloadLinks}
-        downloadLinkFailedIds={fileDownloadFailedIds}
-        onRename={openRenameFileDialog}
-        onDelete={(file) => setDeleteTarget({ kind: 'file', file })}
-        onRenameFolder={openRenameFolderDialog}
-        onDeleteFolder={(folder) => setDeleteTarget({ kind: 'folder', folder })}
-      />
-
+  const dialogBlock = (
+    <>
       <StorageRenameDialog
         open={createFolderOpen}
-        title="폴더 생성"
+        title={isExplorerLayout ? `폴더 생성 · ${explorerFolderPath}` : '폴더 생성'}
         value={createFolderName}
         loading={submitting}
         footerVariant={actionVariant}
@@ -795,6 +783,221 @@ export default function StorageWorkspace({
           void submitDelete()
         }}
       />
+    </>
+  )
+
+  return (
+    <div
+      className={[
+        'storage-workspace page-shell user-page',
+        isExplorerLayout ? 'storage-workspace--explorer' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
+      {headerSlot}
+      <div className="storage-workspace__header">
+        {title?.trim() ? <h1 className="storage-workspace__title">{title}</h1> : null}
+        {subtitle ? <p className="storage-workspace__subtitle">{subtitle}</p> : null}
+        <p className="storage-workspace__quota" role="status">
+          {quotaLoading ? (
+            <>개인 저장공간 사용량 불러오는 중…</>
+          ) : quota ? (
+            <>
+              개인 저장소 사용량 {formatStorageMb(quota.usedBytes)} MB / {formatStorageMb(quota.limitBytes)} MB (
+              {quotaPercent?.text ?? '0.0'}%)
+              {quota.pendingUploadBytes != null && quota.pendingUploadBytes > 0
+                ? ` (업로드 진행 예약 ${formatStorageMb(quota.pendingUploadBytes)} MB)`
+                : ''}
+              {customerId != null ? ' (고객 파일·내 저장공간 합산)' : ''}
+              <span className="storage-bar" aria-hidden="true">
+                <span className="storage-bar-fill" style={{ width: `${quotaPercent?.safe ?? 0}%` }} />
+              </span>
+            </>
+          ) : (
+            <>개인 저장공간 용량 정보를 불러오지 못했습니다.</>
+          )}
+        </p>
+      </div>
+
+      {isExplorerLayout ? (
+        <>
+          <StorageExplorerToolbar
+            selectedFolderPath={explorerFolderPath}
+            searchText={searchText}
+            kindFilter={kindFilter}
+            sortOrder={sortOrder}
+            uploading={uploading}
+            onSearchChange={setSearchText}
+            onKindFilterChange={setKindFilter}
+            onSortOrderChange={setSortOrder}
+            onResetFilters={resetExplorerFilters}
+            onOpenCreateFolder={openCreateFolderDialog}
+            validateUploadFile={validateStoragePickerFile}
+            onUploadFiles={(selectedFiles) => {
+              void uploadFiles(selectedFiles)
+            }}
+            onUploadInvalidBatch={(failures) => {
+              if (failures.length) {
+                setError(`${failures.length}개 파일이 형식·용량·이름 규칙에 맞지 않습니다.`)
+              }
+            }}
+          />
+
+          {foldersLoadError ? (
+            <p className="storage-workspace__folder-warning" role="status">
+              {foldersLoadError}
+            </p>
+          ) : null}
+          {error ? <p className="storage-workspace__error">{error}</p> : null}
+
+          <div className="storage-explorer">
+            <StorageFolderTreePanel
+              folders={folders}
+              files={files}
+              selectedFolderId={selectedFolderId}
+              expandedFolderIds={expandedFolderIds}
+              onSelectFolder={handleSelectExplorerFolder}
+              onToggleExpand={(folderId) => {
+                setExpandedFolderIds((prev) => {
+                  const next = new Set(prev)
+                  if (next.has(folderId)) {
+                    next.delete(folderId)
+                  } else {
+                    next.add(folderId)
+                  }
+                  return next
+                })
+              }}
+              onRenameFolder={openRenameFolderDialog}
+              onDeleteFolder={(folder) => setDeleteTarget({ kind: 'folder', folder })}
+            />
+            <StorageExplorerFilePanel
+              breadcrumb={explorerBreadcrumb}
+              files={filteredFiles}
+              loading={loading}
+              listFetchError={filesListError}
+              searchActive={Boolean(searchText.trim()) || kindFilter !== 'all'}
+              selectedFileId={selectedFileId}
+              actionVariant={actionVariant}
+              downloadLinksByFileId={fileDownloadLinks}
+              downloadLinkFailedIds={fileDownloadFailedIds}
+              onSelectFile={setSelectedFileId}
+              onOpen={(file) => {
+                void openFile(file)
+              }}
+              onRename={openRenameFileDialog}
+              onDelete={(file) => setDeleteTarget({ kind: 'file', file })}
+              onSelectBreadcrumbFolder={handleSelectBreadcrumbFolder}
+            />
+          </div>
+        </>
+      ) : (
+        <>
+          <StorageToolbar
+            isMobile={isMobile}
+            actionVariant={actionVariant}
+            folderOptions={folderOptions}
+            selectedFolderId={selectedFolderId}
+            folderPickerOpen={folderPickerOpen}
+            onOpenFolderPicker={() => setFolderPickerOpen(true)}
+            onCloseFolderPicker={() => setFolderPickerOpen(false)}
+            onSelectFolder={(folderId) => setSelectedFolderId(folderId)}
+            onOpenCreateFolder={openCreateFolderDialog}
+            validateUploadFile={validateStoragePickerFile}
+            onUploadFiles={(selectedFiles) => {
+              void uploadFiles(selectedFiles)
+            }}
+            onUploadInvalidBatch={(failures) => {
+              if (failures.length) {
+                setError(`${failures.length}개 파일이 형식·용량·이름 규칙에 맞지 않습니다.`)
+              }
+            }}
+            uploading={uploading}
+          />
+
+          <div className="storage-workspace__filters" role="search">
+            <input
+              type="search"
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              placeholder="파일명 검색"
+              className="storage-workspace__search user-form-control"
+            />
+            <select
+              value={kindFilter}
+              onChange={(event) => setKindFilter(event.target.value as 'all' | 'image' | 'pdf' | 'spreadsheet')}
+              className="storage-workspace__kind-filter"
+              aria-label="파일 종류 필터"
+            >
+              <option value="all">전체 형식</option>
+              <option value="image">이미지</option>
+              <option value="pdf">PDF</option>
+              <option value="spreadsheet">엑셀/CSV</option>
+            </select>
+            {(searchText.trim() || kindFilter !== 'all' || selectedFolderId !== null) ? (
+              <button
+                type="button"
+                className="storage-workspace__filter-reset"
+                onClick={() => {
+                  setSearchText('')
+                  setKindFilter('all')
+                  setSelectedFolderId(null)
+                }}
+              >
+                필터 초기화
+              </button>
+            ) : null}
+          </div>
+
+          <div className="storage-workspace__summary">
+            표시 {filteredFiles.length}개 / 전체 {files.length}개 · 폴더 {folders.length}개
+            {selectedFolderId !== null
+              ? ` · 선택 폴더: ${folders.find((folder) => folder.id === selectedFolderId)?.name ?? '폴더'}`
+              : ''}
+          </div>
+
+          {foldersLoadError ? (
+            <p className="storage-workspace__folder-warning" role="status">
+              {foldersLoadError}
+            </p>
+          ) : null}
+          {error ? <p className="storage-workspace__error">{error}</p> : null}
+
+          <StorageFileList
+            folders={folders}
+            files={filteredFiles}
+            actionVariant={actionVariant}
+            loading={loading}
+            listFetchError={filesListError}
+            selectedFileId={selectedFileId}
+            expandedFolderIds={expandedFolderIds}
+            onToggleFolder={(folderId) => {
+              setExpandedFolderIds((prev) => {
+                const next = new Set(prev)
+                if (next.has(folderId)) {
+                  next.delete(folderId)
+                } else {
+                  next.add(folderId)
+                }
+                return next
+              })
+            }}
+            onSelectFile={setSelectedFileId}
+            onOpen={(file) => {
+              void openFile(file)
+            }}
+            downloadLinksByFileId={fileDownloadLinks}
+            downloadLinkFailedIds={fileDownloadFailedIds}
+            onRename={openRenameFileDialog}
+            onDelete={(file) => setDeleteTarget({ kind: 'file', file })}
+            onRenameFolder={openRenameFolderDialog}
+            onDeleteFolder={(folder) => setDeleteTarget({ kind: 'folder', folder })}
+          />
+        </>
+      )}
+
+      {dialogBlock}
     </div>
   )
 }
