@@ -61,10 +61,11 @@ function scopedWhere(scope, gaId, extraClause = '', extraParams = []) {
   const params = [...scope.params, ...extraParams, gaId]
   const gaPh = `$${scope.params.length + extraParams.length + 1}`
   const scopeSql = scope.clause
+  const notDeleted = 'r.deleted_at IS NULL'
   if (extraClause) {
-    return { sql: `r.ga_id = ${gaPh} AND (${scopeSql}) AND (${extraClause})`, params }
+    return { sql: `r.ga_id = ${gaPh} AND ${notDeleted} AND (${scopeSql}) AND (${extraClause})`, params }
   }
-  return { sql: `r.ga_id = ${gaPh} AND (${scopeSql})`, params }
+  return { sql: `r.ga_id = ${gaPh} AND ${notDeleted} AND (${scopeSql})`, params }
 }
 
 export function isClaimRequestStatus(value) {
@@ -150,7 +151,7 @@ export async function updateDraft(pool, gaId, id, patch, scope) {
        claim_data = CAST($${start + 5} AS jsonb), payment_data = CAST($${start + 6} AS jsonb), signature_data = CAST($${start + 7} AS jsonb),
        selected_customer_attachment_ids = CAST($${start + 8} AS jsonb), additional_attachment_metadata = CAST($${start + 9} AS jsonb),
        updated_at = NOW()
-     WHERE r.id = ${idPh} AND r.ga_id = ${gaPh} AND r.status = 'draft' AND (${scope.clause})
+     WHERE r.id = ${idPh} AND r.ga_id = ${gaPh} AND r.deleted_at IS NULL AND r.status = 'draft' AND (${scope.clause})
      RETURNING *`,
     [...scope.params, id, gaId, ...updateValues],
   )
@@ -164,7 +165,7 @@ export async function markGenerated(pool, gaId, id, metadata, scope) {
   const gaPh = `$${p + 3}`
   const { rows } = await pool.query(
     `UPDATE insurance_claim_requests r SET status = 'generated', generated_document_metadata = CAST(${metaPh} AS jsonb), updated_at = NOW()
-     WHERE r.id = ${idPh} AND r.ga_id = ${gaPh} AND r.status = 'draft' AND (${scope.clause})
+     WHERE r.id = ${idPh} AND r.ga_id = ${gaPh} AND r.deleted_at IS NULL AND r.status = 'draft' AND (${scope.clause})
      RETURNING *`,
     [...scope.params, id, json(metadata, {}), gaId],
   )
@@ -177,11 +178,25 @@ export async function markDownloaded(pool, gaId, id, scope) {
   const gaPh = `$${p + 2}`
   const { rows } = await pool.query(
     `UPDATE insurance_claim_requests r SET status = 'downloaded', updated_at = NOW()
-     WHERE r.id = ${idPh} AND r.ga_id = ${gaPh} AND r.status IN ('generated', 'downloaded') AND (${scope.clause})
+     WHERE r.id = ${idPh} AND r.ga_id = ${gaPh} AND r.deleted_at IS NULL AND r.status IN ('generated', 'downloaded') AND (${scope.clause})
      RETURNING *`,
     [...scope.params, id, gaId],
   )
   return rowToDto(rows[0])
+}
+
+export async function softDelete(pool, gaId, id, deletedBy, scope) {
+  const p = scope.params.length
+  const idPh = `$${p + 1}`
+  const gaPh = `$${p + 2}`
+  const deletedByPh = `$${p + 3}`
+  const { rows } = await pool.query(
+    `UPDATE insurance_claim_requests r SET deleted_at = NOW(), deleted_by = ${deletedByPh}, updated_at = NOW()
+     WHERE r.id = ${idPh} AND r.ga_id = ${gaPh} AND r.deleted_at IS NULL AND (${scope.clause})
+     RETURNING r.id`,
+    [...scope.params, id, gaId, deletedBy ?? null],
+  )
+  return rows[0] ? { id: rows[0].id } : null
 }
 
 export async function duplicateAsDraft(pool, gaId, id, createdBy, scope) {

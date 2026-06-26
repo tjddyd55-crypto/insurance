@@ -5448,6 +5448,8 @@ export async function ensureInsuranceClaimCompanySchema(executor) {
   await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS generated_document_metadata JSONB NOT NULL DEFAULT '{}'::jsonb`)
   await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS source_claim_request_id INTEGER NULL`)
   await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS created_by INTEGER NULL`)
+  await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL`)
+  await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS deleted_by INTEGER NULL`)
   await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`)
   await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`)
   await executor.query(`ALTER TABLE insurance_claim_requests DROP CONSTRAINT IF EXISTS insurance_claim_requests_status_check`)
@@ -5463,6 +5465,11 @@ export async function ensureInsuranceClaimCompanySchema(executor) {
     tableName: 'insurance_claim_requests',
     columnName: 'created_by',
     constraintName: 'insurance_claim_requests_created_by_fkey',
+  })
+  await ensureOptionalUserForeignKey(executor, {
+    tableName: 'insurance_claim_requests',
+    columnName: 'deleted_by',
+    constraintName: 'insurance_claim_requests_deleted_by_fkey',
   })
 }
 

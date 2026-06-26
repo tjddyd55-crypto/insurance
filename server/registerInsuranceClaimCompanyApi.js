@@ -26,6 +26,8 @@ import {
 } from './insurance-claim/storage/claimRequestAttachmentStorage.js'
 import { buildInsuranceClaimDownloadFiles } from './insurance-claim/buildInsuranceClaimDownloadFiles.js'
 import { buildClaimRequestScopeWhere } from './insurance-claim/claimRequestAccessScope.js'
+import { collectClaimRequestStorageKeys } from './insurance-claim/collectClaimRequestStorageKeys.js'
+import { deleteClaimRequestStoredFiles } from './insurance-claim/deleteClaimRequestStoredFiles.js'
 import { assertCustomerRowAccessibleByVisibility } from './lib/customerRowVisibilitySql.js'
 import { safeQuery } from './utils/dbSafeQuery.js'
 import {
@@ -52,6 +54,7 @@ import {
   listByCustomerId,
   markGenerated,
   markDownloaded,
+  softDelete,
   updateDraft,
 } from './insurance-claim/repository/insuranceClaimRequestRepo.js'
 import { stampPdf } from './pdf-engine/renderer/stampPdf.js'
@@ -309,6 +312,35 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
       )
       if (!request) return res.status(404).json({ message: '청구 내역을 찾을 수 없습니다.' })
       res.status(201).json({ request })
+    } catch (error) { handleDbError(error, req, res) }
+  })
+
+  apiRouter.delete('/insurance-claim/requests/:id', ...claimRequestMw, async (req, res) => {
+    try {
+      const id = parsePositiveInt(req.params.id)
+      if (id == null) {
+        return res.status(404).json({ message: '청구 내역을 찾을 수 없습니다.' })
+      }
+      const request = await getClaimRequestScoped(pool, req, id)
+      if (!request) {
+        return res.status(404).json({ message: '청구 내역을 찾을 수 없습니다.' })
+      }
+
+      const storageKeys = collectClaimRequestStorageKeys(request)
+      await deleteClaimRequestStoredFiles(storageKeys, console)
+
+      const deleted = await softDelete(
+        pool,
+        req.insuranceClaimGaId,
+        id,
+        parsePositiveInt(req.user?.id),
+        claimScopeForRequest(req),
+      )
+      if (!deleted) {
+        return res.status(404).json({ message: '청구 내역을 찾을 수 없습니다.' })
+      }
+
+      res.json({ success: true })
     } catch (error) { handleDbError(error, req, res) }
   })
 

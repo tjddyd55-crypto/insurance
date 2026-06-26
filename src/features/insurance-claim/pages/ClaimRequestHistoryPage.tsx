@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { FormButton } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import {
+  deleteClaimRequest,
   downloadClaimBundle,
   duplicateClaimRequest,
   listClaimRequests,
@@ -53,6 +54,7 @@ export default function ClaimRequestHistoryPage() {
   const [message, setMessage] = useState('')
   const [busyId, setBusyId] = useState<number | null>(null)
   const [downloadingId, setDownloadingId] = useState<number | null>(null)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const load = useCallback(async () => {
     if (!token) {
@@ -98,6 +100,28 @@ export default function ClaimRequestHistoryPage() {
       setMessage(e instanceof Error ? e.message : '다운로드에 실패했습니다.')
     } finally {
       setDownloadingId(null)
+    }
+  }
+
+  const remove = async (id: number) => {
+    if (!token) {
+      return
+    }
+    const confirmed = window.confirm(
+      '이 청구 내역을 삭제하시겠습니까? 생성된 청구서, 동의서, 추가 첨부파일, 서명 파일도 함께 삭제됩니다. 이 작업은 되돌릴 수 없습니다.',
+    )
+    if (!confirmed) {
+      return
+    }
+    setDeletingId(id)
+    try {
+      await deleteClaimRequest(token, id)
+      setRows((prev) => prev.filter((row) => row.id !== id))
+      setMessage('청구 내역이 삭제되었습니다.')
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : '청구 내역 삭제에 실패했습니다.')
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -180,6 +204,15 @@ export default function ClaimRequestHistoryPage() {
                             {downloadingId === row.id ? '다운로드 중…' : '다운로드'}
                           </FormButton>
                         ) : null}
+                        <FormButton
+                          htmlType="button"
+                          variant="danger"
+                          size="sm"
+                          disabled={deletingId === row.id}
+                          onClick={() => void remove(row.id)}
+                        >
+                          {deletingId === row.id ? '삭제 중…' : '삭제'}
+                        </FormButton>
                       </div>
                     </td>
                   </tr>
