@@ -3176,6 +3176,27 @@ export async function initDb() {
     ON folders (user_id, ga_id, customer_id, lower(btrim(name)))
     WHERE customer_id IS NOT NULL
   `)
+  await pool.query(`
+    ALTER TABLE folders
+    ADD COLUMN IF NOT EXISTS parent_id BIGINT REFERENCES folders(id) ON DELETE CASCADE
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_folders_parent_id
+    ON folders (parent_id)
+    WHERE parent_id IS NOT NULL
+  `)
+  await pool.query(`DROP INDEX IF EXISTS uq_folders_user_ga_personal_name`)
+  await pool.query(`DROP INDEX IF EXISTS uq_folders_user_ga_customer_name`)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_folders_user_ga_personal_parent_name
+    ON folders (user_id, ga_id, COALESCE(parent_id, 0), lower(btrim(name)))
+    WHERE customer_id IS NULL
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_folders_user_ga_customer_parent_name
+    ON folders (user_id, ga_id, customer_id, COALESCE(parent_id, 0), lower(btrim(name)))
+    WHERE customer_id IS NOT NULL
+  `)
 
   await pool.query(`
     INSERT INTO files (

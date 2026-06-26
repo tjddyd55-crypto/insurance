@@ -19,6 +19,7 @@ export default function CustomerFilesPagePC({
       title=""
       subtitle={undefined}
       variant={variant}
+      layout={variant === 'pc' ? 'explorer' : 'legacy'}
       actionVariant={variant === 'mobile' ? 'workspace' : 'storage'}
     />
   )
