@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useBlocker } from 'react-router'
 import * as XLSX from 'xlsx'
 import { FormButton, FormInput } from '../../../components/form'
 import { StatusMessage } from '../../../components/feedback'
+import { ExitConfirmDialog } from '../../../components/ExitConfirmDialog'
 import {
   fetchGaCustomerExcelCapability,
   fetchUserExcelData,
@@ -12,26 +14,35 @@ import {
 
 const L = {
   label: 'GA 데이터 업로드',
-  loadFail: '\uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.',
-  pickFile: '\uD30C\uC77C\uC744 \uC120\uD0DD\uD574 \uC8FC\uC138\uC694.',
-  uploadFail: '\uC5C5\uB85C\uB4DC\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.',
+  loadFail: '불러오지 못했습니다.',
+  pickFile: '파일을 선택해 주세요.',
+  uploadFail: '업로드에 실패했습니다.',
   parseFail: '엑셀 파일을 읽을 수 없습니다.',
-  saveFail: '\uC800\uC7A5\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.',
-  noFeature: '\uC774 GA\uC5D0\uC11C\uB294 \uC774 \uAE30\uB2A5\uC744 \uC0AC\uC6A9\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.',
+  saveFail: '저장에 실패했습니다.',
+  noFeature: '이 GA에서는 이 기능을 사용할 수 없습니다.',
   intro:
-    'GA\uC5D0 \uC124\uC815\uB41C \uC0D8\uD50C\uACFC \uB3D9\uC77C\uD55C \uC5F4 \uAD6C\uC870\uC758 \uD30C\uC77C\uB9CC \uC5C5\uB85C\uB4DC\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4. \uC5C5\uB85C\uB4DC \uC2DC \uAE30\uC874 \uB370\uC774\uD130\uB294 \uC0AD\uC81C \uD6C4 \uB300\uCE58\uB429\uB2C8\uB2E4.',
-  fileTypes: '\uD30C\uC77C (.xlsx / .xls)',
-  upload: '\uC5C5\uB85C\uB4DC',
+    'GA에 설정된 샘플과 동일한 열 구조의 파일만 업로드할 수 있습니다. 업로드 시 기존 데이터는 삭제 후 대치됩니다.',
+  fileTypes: '파일 (.xlsx / .xls)',
+  save: '저장',
+  reset: '초기화',
   displayTitle: '컬럼 노출 설정',
   allColumnsTitle: '전체 컬럼',
   previewTitle: '엑셀 데이터 미리보기',
   previewGuide: '업로드된 데이터의 상위 10행을 표시합니다.',
   previewEmpty: '업로드된 데이터가 없습니다.',
-  emptyCols: '\uC0D8\uD50C \uC5D1\uC140 \uC124\uC815 \uD6C4 \uC5EC\uAE30\uC5D0 \uCEEC\uB7FC \uBAA9\uB85D\uC774 \uD45C\uC2DC\uB429\uB2C8\uB2E4.',
+  emptyCols: '샘플 엑셀 설정 후 여기에 컬럼 목록이 표시됩니다.',
+  unsavedNotice: '아직 저장되지 않은 데이터입니다. 저장 버튼을 눌러야 실제 고객 데이터에 반영됩니다.',
+  leaveConfirm:
+    '아직 저장되지 않은 업로드 데이터가 있습니다. 이동하면 업로드한 내용이 사라집니다. 이동하시겠습니까?',
 }
 
 type Props = {
   token: string
+}
+
+type SaveResult = {
+  rowCount: number
+  savedAt: string
 }
 
 export function UserGaExcelManagePanel({ token }: Props) {
@@ -43,9 +54,13 @@ export function UserGaExcelManagePanel({ token }: Props) {
   const [sampleColumns, setSampleColumns] = useState<{ id: string; header: string }[]>([])
   const [rows, setRows] = useState<{ rowIndex: number; cells: Record<string, string> }[]>([])
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [draftRowCount, setDraftRowCount] = useState<number | null>(null)
   const [fileInputKey, setFileInputKey] = useState(0)
   const [localPreview, setLocalPreview] = useState<{ headers: string[]; rows: string[][] } | null>(null)
   const [visibility, setVisibility] = useState<Record<string, boolean>>({})
+  const [saveResult, setSaveResult] = useState<SaveResult | null>(null)
+
+  const hasUnsavedDraft = selectedFile != null
 
   const load = useCallback(async () => {
     if (!token?.trim()) {
@@ -84,14 +99,39 @@ export function UserGaExcelManagePanel({ token }: Props) {
     void load()
   }, [load])
 
-  const summary = useMemo(() => {
-    if (!cap?.showDesignerUi) {
+  useEffect(() => {
+    if (!hasUnsavedDraft) {
+      return
+    }
+    const handler = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [hasUnsavedDraft])
+
+  const navigationBlocker = useBlocker(
+    useCallback(
+      ({ currentLocation, nextLocation }) => {
+        if (!hasUnsavedDraft) {
+          return false
+        }
+        return (
+          currentLocation.pathname !== nextLocation.pathname ||
+          currentLocation.search !== nextLocation.search ||
+          currentLocation.hash !== nextLocation.hash
+        )
+      },
+      [hasUnsavedDraft],
+    ),
+  )
+
+  const savedSummary = useMemo(() => {
+    if (!cap?.showDesignerUi || rowCount == null) {
       return ''
     }
-    if (rowCount == null) {
-      return ''
-    }
-    return `\uC5C5\uB85C\uB4DC\uB41C \uD589: ${rowCount}\uAC74`
+    return `저장된 데이터: ${rowCount}건`
   }, [cap?.showDesignerUi, rowCount])
 
   const previewRows = useMemo(() => rows.slice(0, 10), [rows])
@@ -122,6 +162,15 @@ export function UserGaExcelManagePanel({ token }: Props) {
     })
   }, [previewTable.headers, sampleColumns, visibility])
 
+  const clearDraft = useCallback(() => {
+    setSelectedFile(null)
+    setDraftRowCount(null)
+    setLocalPreview(null)
+    setFileInputKey((prev) => prev + 1)
+    setLoadErr('')
+    setInfo('')
+  }, [])
+
   const parseLocalPreview = useCallback(async (file: File) => {
     const buf = await file.arrayBuffer()
     const wb = XLSX.read(buf, { type: 'array', cellDates: true })
@@ -141,10 +190,13 @@ export function UserGaExcelManagePanel({ token }: Props) {
           return String(cell ?? '')
         }),
       )
+    const totalDataRows = Math.max(0, matrix.length - 1)
+    setDraftRowCount(totalDataRows)
     setLocalPreview({ headers, rows: dataRows })
+    setSaveResult(null)
   }, [])
 
-  const onUpload = async () => {
+  const onSave = async () => {
     if (!token?.trim() || !cap?.showDesignerUi) {
       return
     }
@@ -159,13 +211,12 @@ export function UserGaExcelManagePanel({ token }: Props) {
     setInfo('')
     try {
       const r = await uploadUserExcelData(token, file)
-      setInfo(`\uC5C5\uB85C\uB4DC \uC644\uB8CC (${r.rowCount}\uD589).`)
+      setSaveResult({ rowCount: r.rowCount, savedAt: new Date().toISOString() })
+      setInfo(`저장 완료: 총 ${r.rowCount}건 처리`)
       await load()
-      setSelectedFile(null)
-      setLocalPreview(null)
-      setFileInputKey((prev) => prev + 1)
+      clearDraft()
     } catch (e) {
-      setLoadErr(e instanceof Error ? e.message : L.uploadFail)
+      setLoadErr(e instanceof Error ? e.message : L.saveFail)
     } finally {
       setBusy(false)
     }
@@ -211,7 +262,9 @@ export function UserGaExcelManagePanel({ token }: Props) {
     <div className="field">
       <span className="field__label">{L.label}</span>
       <p className="text-sm text-[var(--text-secondary)] mb-2">{L.intro}</p>
-      {summary ? <p className="text-sm text-[var(--text-primary)] mb-2">{summary}</p> : null}
+      {savedSummary && !hasUnsavedDraft ? (
+        <p className="text-sm text-[var(--text-primary)] mb-2">{savedSummary}</p>
+      ) : null}
       <StatusMessage message={loadErr} tone="error" />
       <StatusMessage message={info} tone="default" />
 
@@ -228,20 +281,20 @@ export function UserGaExcelManagePanel({ token }: Props) {
               const file = ev.target.files?.[0] ?? null
               setSelectedFile(file)
               setLoadErr('')
+              setInfo('')
               if (!file) {
                 setLocalPreview(null)
+                setDraftRowCount(null)
                 return
               }
               void parseLocalPreview(file).catch(() => {
                 setLocalPreview(null)
+                setDraftRowCount(null)
                 setLoadErr(L.parseFail)
               })
             }}
           />
         </label>
-        <FormButton htmlType="button" variant="secondary" disabled={busy} onClick={() => void onUpload()}>
-          {L.upload}
-        </FormButton>
       </div>
 
       {sampleColumns.length > 0 ? (
@@ -252,11 +305,40 @@ export function UserGaExcelManagePanel({ token }: Props) {
             <p className="text-sm text-[var(--text-secondary)] mb-2">
               {L.displayTitle}: {L.allColumnsTitle} 체크를 각 컬럼 헤더 위에서 바로 설정할 수 있습니다.
             </p>
+
+            <div className="ga-data-upload-action-bar mb-3">
+              {hasUnsavedDraft ? (
+                <p className="text-sm text-[var(--text-primary)] mb-2">
+                  {L.unsavedNotice}
+                  {draftRowCount != null ? ` (선택 파일 ${draftRowCount}행)` : null}
+                </p>
+              ) : null}
+              {saveResult && !hasUnsavedDraft ? (
+                <div className="text-sm text-[var(--text-primary)] mb-2">
+                  <p>저장 완료: 총 {saveResult.rowCount}건 처리</p>
+                  <p>총 {saveResult.rowCount}건 처리 완료</p>
+                </div>
+              ) : null}
+              <div className="flex flex-wrap gap-2">
+                <FormButton htmlType="button" variant="primary" disabled={busy || !hasUnsavedDraft} onClick={() => void onSave()}>
+                  {L.save}
+                </FormButton>
+                <FormButton
+                  htmlType="button"
+                  variant="secondary"
+                  disabled={busy || !hasUnsavedDraft}
+                  onClick={clearDraft}
+                >
+                  {L.reset}
+                </FormButton>
+              </div>
+            </div>
+
             {previewColumns.length === 0 ? (
               <p className="text-sm text-[var(--text-secondary)]">{L.previewEmpty}</p>
             ) : (
-              <div className="table-wrapper profile-page__excel-preview-scroll">
-                <table className="admin-data-table profile-page__excel-preview-table">
+              <div className="ga-data-upload-preview-scroll profile-page__excel-preview-scroll">
+                <table className="ga-data-upload-preview-table profile-page__excel-preview-table admin-data-table">
                   <thead>
                     <tr className="profile-page__excel-preview-toggle-row">
                       {previewColumns.map((col) => {
@@ -309,6 +391,18 @@ export function UserGaExcelManagePanel({ token }: Props) {
       ) : (
         <p className="text-sm text-[var(--text-secondary)]">{L.emptyCols}</p>
       )}
+
+      {navigationBlocker.state === 'blocked' ? (
+        <ExitConfirmDialog
+          title="페이지 이동 확인"
+          message={L.leaveConfirm}
+          onCancel={() => navigationBlocker.reset()}
+          onConfirm={() => {
+            clearDraft()
+            navigationBlocker.proceed()
+          }}
+        />
+      ) : null}
     </div>
   )
 }

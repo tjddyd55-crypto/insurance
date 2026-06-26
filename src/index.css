@@ -3619,26 +3619,24 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   color: var(--text-secondary);
 }
 
-.profile-page__excel-preview-scroll {
+.profile-page__excel-preview-scroll,
+.ga-data-upload-preview-scroll {
   display: block;
   width: 100%;
   max-width: 100%;
-  overflow-x: auto !important;
-  overflow-y: hidden;
+  overflow-x: auto;
+  overflow-y: auto;
   border: 1px solid var(--border-default);
   border-radius: 8px;
   box-sizing: border-box;
 }
 
-.profile-page__excel-preview-scroll table {
-  min-width: 100%;
-  white-space: nowrap;
-}
-
-.profile-page__excel-preview-table {
+.profile-page__excel-preview-table,
+.ga-data-upload-preview-table {
+  min-width: max-content;
   width: max-content;
-  table-layout: fixed;
-  min-width: 1200px;
+  table-layout: auto;
+  white-space: nowrap;
 }
 
 .profile-page__excel-preview-toggle-row th {
@@ -12418,17 +12416,12 @@ textarea.memo-sticky-note__textarea::placeholder {
 }
 
 /* 부모 영역 풀기 — profile-page 스크롤은 app-main-content 가 담당 */
-.profile-page__excel-preview-scroll {
-  overflow-x: auto !important;
-  overflow-y: hidden;
+.profile-page__excel-preview-scroll,
+.ga-data-upload-preview-scroll {
+  overflow-x: auto;
+  overflow-y: auto;
   width: 100%;
   max-width: 100%;
-}
-
-/* 테이블 */
-.profile-page__excel-preview-scroll table {
-  min-width: 1000px;
-  white-space: nowrap;
 }
 
 /* ==========================================================================
