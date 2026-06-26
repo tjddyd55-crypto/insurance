@@ -451,36 +451,16 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
   }, [])
 
   const handleAutoArrange = useCallback(() => {
-    const gap = 20
-    const startX = 20
-    const startY = 20
-    const rightPad = 20
+    const columnX = [24, 300, 576]
+    const startY = 24
+    const rowStep = 236
 
-    const { width: workspaceWidth } = getWorkspaceBounds()
-    if (workspaceWidth === 0) {
-      return
-    }
-
-    const maxRight = workspaceWidth - rightPad
-    let x = startX
-    let y = startY
-    let rowMaxHeight = 0
-
-    notes.forEach((note) => {
-      const noteWidth = Math.max(200, Number(note.width) || 200)
-      const noteHeight = Math.max(150, Number(note.height) || 160)
-
-      if (x > startX && x + noteWidth > maxRight) {
-        y += rowMaxHeight + gap
-        x = startX
-        rowMaxHeight = 0
-      }
-
-      updatePosition(note.id, x, y)
-      rowMaxHeight = Math.max(rowMaxHeight, noteHeight)
-      x += noteWidth + gap
+    notes.forEach((note, index) => {
+      const col = index % columnX.length
+      const row = Math.floor(index / columnX.length)
+      updatePosition(note.id, columnX[col], startY + row * rowStep)
     })
-  }, [getWorkspaceBounds, notes, updatePosition])
+  }, [notes, updatePosition])
 
   const closeDeleteModal = useCallback(() => {
     if (deleteSubmitting) {
