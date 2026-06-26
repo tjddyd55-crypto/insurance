@@ -6,6 +6,7 @@ import {
   MEMO_DEFAULT_Y,
   buildArrangedNotePositions,
   clampNotePosition,
+  getMemoBoardVisibleNotes,
 } from './memoLayout.js'
 
 test('clampNotePosition moves negative coordinates inside board', () => {
@@ -18,6 +19,13 @@ test('clampNotePosition keeps note inside board bounds', () => {
   const next = clampNotePosition({ x: 5000, y: 4000, width: 260, height: 200 }, 800, 600)
   assert.equal(next.x, 540)
   assert.equal(next.y, 400)
+})
+
+test('getMemoBoardVisibleNotes ignores hidden list on memo route', () => {
+  const notes = [{ id: 'a' }, { id: 'b' }]
+  const hidden = { a: true }
+  assert.deepEqual(getMemoBoardVisibleNotes(notes, hidden, true), notes)
+  assert.deepEqual(getMemoBoardVisibleNotes(notes, hidden, false), [{ id: 'b' }])
 })
 
 test('buildArrangedNotePositions lays out column grid', () => {

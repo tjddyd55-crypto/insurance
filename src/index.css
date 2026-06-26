@@ -10213,6 +10213,108 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   min-height: 0;
 }
 
+.memo-route-page .memo-workspace--routed-page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: calc(100dvh - 96px);
+  background: #f8fafc;
+}
+
+.memo-route-page .memo-workspace__body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  align-items: stretch;
+}
+
+.memo-route-page .memo-workspace__body--list-closed {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.memo-route-page .memo-workspace__body--list-closed .memo-list-toggle-btn--expand {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  z-index: 12;
+}
+
+.memo-route-page .memo-workspace__body--list-closed .memo-canvas-area {
+  position: relative;
+}
+
+.memo-route-page .workspace-memo-routed-body .memo-body--routed-page {
+  flex: 1;
+  min-height: 0;
+}
+
+.memo-route-page .workspace-memo-routed-body .memo-canvas-area {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.memo-route-page .workspace-memo-routed-body .memo-canvas-area--routed-board {
+  min-height: calc(100dvh - var(--app-header-height, 72px) - 56px);
+  background: #f1f5f9;
+  overflow: auto;
+  padding: 0;
+}
+
+.memo-route-page .workspace-memo-routed-body .memo-canvas--routed-board,
+.memo-route-page .workspace-memo-routed-body .memo-board {
+  position: relative;
+  width: 100%;
+  min-height: calc(100dvh - 160px);
+  background: #f1f5f9;
+}
+
+.memo-route-page .workspace-memo-routed-body .memo-board__notes-layer {
+  position: relative;
+  min-height: calc(100dvh - 160px);
+  width: 100%;
+}
+
+.memo-route-page .memo-board .memo-sticky-note__root {
+  z-index: 5;
+  min-width: 220px;
+  min-height: 160px;
+  background: #fff7cc;
+  border: 1px solid #facc15;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+}
+
+.memo-route-page .memo-board .memo-workspace__empty,
+.memo-route-page .memo-board .memo-workspace__loading {
+  color: var(--text-secondary);
+}
+
+.memo-route-page .memo-board .memo-workspace__empty-title {
+  color: var(--text-primary);
+}
+
+.memo-route-page .memo-board .memo-workspace__empty-hint {
+  color: var(--text-muted);
+}
+
+.memo-route-page .workspace-memo-routed-body .memo-list-sidebar.memo-list-sidebar--right-dock {
+  width: 260px;
+  min-width: 260px;
+}
+
+.memo-route-page .workspace-memo-routed-body .memo-canvas,
+.memo-route-page .workspace-memo-routed-body .memo-workspace {
+  height: 100%;
+  min-height: 100%;
+}
+
+.memo-route-page .workspace-memo-routed-body .memo-workspace > div {
+  position: relative;
+  min-height: 100%;
+}
+
 .memo-routed-page-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -10235,54 +10337,6 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-}
-
-.memo-route-page .workspace-memo-routed-body .memo-body--routed-page {
-  flex: 1;
-  min-height: calc(100dvh - 96px);
-}
-
-.memo-route-page .workspace-memo-routed-body .memo-canvas-area {
-  flex: 1;
-  min-height: 0;
-}
-
-.memo-route-page .workspace-memo-routed-body .memo-canvas-area--routed-board {
-  min-height: calc(100dvh - var(--app-header-height, 72px) - 56px);
-  min-height: calc(100dvh - var(--app-header-height, 72px) - 56px);
-  background: #f1f5f9;
-  overflow: auto;
-}
-
-.memo-route-page .workspace-memo-routed-body .memo-canvas--routed-board,
-.memo-route-page .workspace-memo-routed-body .memo-board {
-  position: relative;
-  width: 100%;
-  min-height: calc(100dvh - 160px);
-  min-height: calc(100dvh - 160px);
-  background: #f1f5f9;
-}
-
-.memo-route-page .workspace-memo-routed-body .memo-board__notes-layer {
-  position: relative;
-  min-height: calc(100dvh - 160px);
-  min-height: calc(100dvh - 160px);
-  width: 100%;
-}
-
-.memo-route-page .memo-board .memo-sticky-note__root {
-  z-index: 5;
-}
-
-.memo-route-page .workspace-memo-routed-body .memo-canvas,
-.memo-route-page .workspace-memo-routed-body .memo-workspace {
-  height: 100%;
-  min-height: 100%;
-}
-
-.memo-route-page .workspace-memo-routed-body .memo-workspace > div {
-  position: relative;
-  min-height: 100%;
 }
 
 .memo-list-item--active {

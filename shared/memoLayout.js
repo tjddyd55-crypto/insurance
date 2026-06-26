@@ -43,6 +43,18 @@ export function clampNotePosition(note, boardWidth, boardHeight) {
   }
 }
 
+/**
+ * @param {Array<{ id: string }>} notes
+ * @param {Record<string, boolean>} hiddenNotes
+ * @param {boolean} isMemoRoute
+ */
+export function getMemoBoardVisibleNotes(notes, hiddenNotes, isMemoRoute) {
+  if (isMemoRoute) {
+    return notes
+  }
+  return notes.filter((note) => !hiddenNotes[note.id])
+}
+
 /** @param {number} count */
 export function buildArrangedNotePositions(count) {
   const out = []

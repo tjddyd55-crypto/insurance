@@ -1,3 +1,4 @@
+import { getMemoBoardVisibleNotes } from '@insurance-shared/memoLayout.js'
 import StickyNote from '../components/StickyNote'
 import DeleteConfirmModal, {
   MemoDeleteConfirmFooter,
@@ -46,9 +47,7 @@ export default function MemoWorkspacePage() {
     )
   }
 
-  const visibleNotes = routedPage
-    ? notes
-    : notes.filter((n) => !hiddenNotes[n.id])
+  const visibleNotes = getMemoBoardVisibleNotes(notes, hiddenNotes, routedPage)
 
   return (
     <>

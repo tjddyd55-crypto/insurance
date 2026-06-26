@@ -154,15 +154,15 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
   }, [activeNoteId])
 
   const getWorkspaceBounds = useCallback(() => {
-    const el = workspaceRef.current
-    if (!el) {
+    const boardEl = containerRef.current ?? workspaceRef.current
+    if (!boardEl) {
       return { width: 0, height: 0 }
     }
     return {
-      width: el.clientWidth,
+      width: boardEl.clientWidth,
       height: Math.max(
-        el.scrollHeight,
-        el.clientHeight + (routedPage ? ROUTED_MEMO_DRAG_EXTENSION : 0),
+        boardEl.scrollHeight,
+        boardEl.clientHeight + (routedPage ? ROUTED_MEMO_DRAG_EXTENSION : 0),
       ),
     }
   }, [routedPage])
@@ -202,14 +202,13 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
       return
     }
     const measureAndClamp = () => {
-      const workspaceEl = workspaceRef.current
-      const containerEl = containerRef.current
-      const measuredWidth = workspaceEl?.clientWidth ?? containerEl?.clientWidth ?? 0
-      const measuredHeight = workspaceEl?.clientHeight ?? containerEl?.clientHeight ?? 0
+      const boardEl = containerRef.current ?? workspaceRef.current
+      const measuredWidth = boardEl?.clientWidth ?? 0
+      const measuredHeight = boardEl?.clientHeight ?? 0
       const workspaceWidth = measuredWidth > 0 ? measuredWidth : 960
       const workspaceHeight =
         measuredHeight > 0
-          ? Math.max(measuredHeight, workspaceEl?.scrollHeight ?? 0)
+          ? Math.max(measuredHeight, boardEl?.scrollHeight ?? 0)
           : routedPage
             ? 720
             : 480
@@ -225,6 +224,7 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
     measureAndClamp()
     if (routedPage) {
       requestAnimationFrame(measureAndClamp)
+      requestAnimationFrame(() => requestAnimationFrame(measureAndClamp))
     }
   }, [draggingNoteId, notes, routedPage, updatePosition, workspaceSizeTick])
 
@@ -397,15 +397,13 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
     updatePosition,
   ])
 
-  /** 라우트 페이지: 선택 메모가 없으면 최신 메모 자동 선택·숨김이면 복원 */
+  /** 라우트 페이지: 선택 메모 보정 — 숨김 없이 전체 보드에 표시 */
   useEffect(() => {
     if (!routedPage || notes.length === 0) {
       return
     }
     if (activeNoteId && notes.some((n) => n.id === activeNoteId)) {
-      if (!hiddenNotes[activeNoteId]) {
-        ensureRoutedNoteVisible(activeNoteId)
-      }
+      ensureRoutedNoteVisible(activeNoteId)
       return
     }
     const sorted = [...notes].sort(
@@ -424,35 +422,6 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
     activeNoteId,
     bringToFront,
     ensureRoutedNoteVisible,
-    hiddenNotes,
-    notes,
-    restoreNote,
-    routedPage,
-    workspaceSizeTick,
-  ])
-
-  /** 라우트 페이지: 최초 진입 시 선택만 보정한다. 숨김 메모는 리스트 클릭 전까지 유지한다. */
-  useEffect(() => {
-    if (!routedPage || notes.length === 0) {
-      return
-    }
-    if (activeNoteId && notes.some((n) => n.id === activeNoteId)) {
-      return
-    }
-    const sorted = [...notes].sort(
-      (a, b) => (Number(b.zIndex) || 0) - (Number(a.zIndex) || 0),
-    )
-    const pick = sorted.find((note) => !hiddenNotes[note.id])?.id
-    if (!pick) {
-      return
-    }
-    activeNoteIdRef.current = pick
-    setActiveNoteId(pick)
-    ensureRoutedNoteVisible(pick)
-  }, [
-    activeNoteId,
-    ensureRoutedNoteVisible,
-    hiddenNotes,
     notes,
     restoreNote,
     routedPage,
