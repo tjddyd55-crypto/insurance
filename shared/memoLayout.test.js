@@ -4,8 +4,10 @@ import test from 'node:test'
 import {
   MEMO_DEFAULT_X,
   MEMO_DEFAULT_Y,
+  MEMO_ROUTED_BOARD_MIN_HEIGHT,
   buildArrangedNotePositions,
   clampNotePosition,
+  getMemoBoardCanvasHeight,
   getMemoBoardVisibleNotes,
 } from './memoLayout.js'
 
@@ -26,6 +28,15 @@ test('getMemoBoardVisibleNotes ignores hidden list on memo route', () => {
   const hidden = { a: true }
   assert.deepEqual(getMemoBoardVisibleNotes(notes, hidden, true), notes)
   assert.deepEqual(getMemoBoardVisibleNotes(notes, hidden, false), [{ id: 'b' }])
+})
+
+test('getMemoBoardCanvasHeight expands routed memo board vertically', () => {
+  const height = getMemoBoardCanvasHeight([{ x: 24, y: 1200, width: 260, height: 200 }], {
+    routedPage: true,
+    viewportHeight: 800,
+  })
+  assert.ok(height != null && height >= MEMO_ROUTED_BOARD_MIN_HEIGHT)
+  assert.ok(height >= 1200 + 200 + 160)
 })
 
 test('buildArrangedNotePositions lays out column grid', () => {

@@ -12,7 +12,9 @@ export default function MemoWorkspacePage() {
     notesLoading,
     updateNote,
     updatePosition,
+    commitPosition,
     updateSize,
+    commitSize,
     updateFontSize,
     workspaceRef,
     containerRef,
@@ -98,8 +100,8 @@ export default function MemoWorkspacePage() {
                   isEditing={editingNoteId === note.id}
                   isDragging={draggingNoteId === note.id}
                   onChange={(content) => updateNote(note.id, content)}
-                  onPositionChange={updatePosition}
-                  onSizeChange={updateSize}
+                  onPositionCommit={commitPosition}
+                  onSizeCommit={commitSize}
                   onFontSizeChange={updateFontSize}
                   containerRef={containerRef}
                   getWorkspaceBounds={getWorkspaceBounds}

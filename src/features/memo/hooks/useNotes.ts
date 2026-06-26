@@ -140,7 +140,9 @@ export function useNotes() {
 
   const updatePosition = useCallback(
     (id: string, x: number, y: number) => {
-      setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, x, y } : n)))
+      const rx = Math.round(x)
+      const ry = Math.round(y)
+      setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, x: rx, y: ry } : n)))
       const auth = token?.trim()
       if (!auth) {
         return
@@ -151,8 +153,27 @@ export function useNotes() {
       }
       positionTimersRef.current[id] = setTimeout(() => {
         delete positionTimersRef.current[id]
-        void memoApi.update(id, { x, y }, auth).catch(() => {})
+        void memoApi.update(id, { x: rx, y: ry }, auth).catch(() => {})
       }, POSITION_SAVE_MS)
+    },
+    [token],
+  )
+
+  const commitPosition = useCallback(
+    (id: string, x: number, y: number) => {
+      const rx = Math.round(x)
+      const ry = Math.round(y)
+      setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, x: rx, y: ry } : n)))
+      const auth = token?.trim()
+      if (!auth) {
+        return
+      }
+      const prev = positionTimersRef.current[id]
+      if (prev) {
+        clearTimeout(prev)
+      }
+      delete positionTimersRef.current[id]
+      void memoApi.update(id, { x: rx, y: ry }, auth).catch(() => {})
     },
     [token],
   )
@@ -194,6 +215,25 @@ export function useNotes() {
         delete fontTimersRef.current[id]
         void memoApi.update(id, { fontSize: f }, auth).catch(() => {})
       }, FONT_SAVE_MS)
+    },
+    [token],
+  )
+
+  const commitSize = useCallback(
+    (id: string, width: number, height: number) => {
+      const w = clamp(Math.round(width), MIN_W, 4000)
+      const h = clamp(Math.round(height), MIN_H, 4000)
+      setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, width: w, height: h } : n)))
+      const auth = token?.trim()
+      if (!auth) {
+        return
+      }
+      const prev = sizeTimersRef.current[id]
+      if (prev) {
+        clearTimeout(prev)
+      }
+      delete sizeTimersRef.current[id]
+      void memoApi.update(id, { width: w, height: h }, auth).catch(() => {})
     },
     [token],
   )
@@ -264,7 +304,9 @@ export function useNotes() {
     addNote,
     updateNote,
     updatePosition,
+    commitPosition,
     updateSize,
+    commitSize,
     updateFontSize,
     deleteNote,
     bringToFront,

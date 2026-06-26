@@ -15,9 +15,9 @@ import {
 import { useAuth } from '../../auth/AuthProvider'
 import { useNotes } from '../hooks/useNotes'
 import { loadMemoUiSnapshot, patchMemoUiCanvas } from '../memoUiStorage'
-import { buildArrangedNotePositions, clampNotePosition } from '@insurance-shared/memoLayout.js'
+import { buildArrangedNotePositions, clampNotePosition, getMemoBoardCanvasHeight, MEMO_ROUTED_BOARD_MIN_HEIGHT } from '@insurance-shared/memoLayout.js'
 
-const ROUTED_MEMO_DRAG_EXTENSION = 1200
+const ROUTED_MEMO_DRAG_EXTENSION = 160
 
 type MemoWorkspaceContextValue = ReturnType<typeof useNotes> & {
   token: string | undefined
@@ -158,17 +158,22 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
     if (!boardEl) {
       return { width: 0, height: 0 }
     }
+    const viewportHeight = boardEl.clientHeight
+    const scrollHeight = boardEl.scrollHeight
+    const routedFloor = routedPage ? MEMO_ROUTED_BOARD_MIN_HEIGHT : 0
     return {
       width: boardEl.clientWidth,
       height: Math.max(
-        boardEl.scrollHeight,
-        boardEl.clientHeight + (routedPage ? ROUTED_MEMO_DRAG_EXTENSION : 0),
+        viewportHeight,
+        scrollHeight,
+        routedFloor,
+        viewportHeight + (routedPage ? ROUTED_MEMO_DRAG_EXTENSION : 0),
       ),
     }
   }, [routedPage])
 
   useEffect(() => {
-    const el = workspaceRef.current
+    const el = containerRef.current ?? workspaceRef.current
     if (!el || typeof ResizeObserver === 'undefined') {
       return
     }
@@ -181,20 +186,8 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
 
   const canvasHeight = useMemo(() => {
     const boardNotes = routedPage ? notes : notes.filter((n) => !hiddenNotes[n.id])
-    if (boardNotes.length === 0) {
-      return undefined
-    }
-    const bottoms = boardNotes.map((n) => {
-      const h = Math.max(150, Number(n.height) || 160)
-      return n.y + h
-    })
-    const maxY = Math.max(...bottoms)
-    const canvasBottom = maxY + 80
-    const viewportHeight = workspaceRef.current?.clientHeight ?? 0
-    if (routedPage && canvasBottom <= viewportHeight) {
-      return undefined
-    }
-    return canvasBottom
+    const viewportHeight = containerRef.current?.clientHeight ?? workspaceRef.current?.clientHeight ?? 720
+    return getMemoBoardCanvasHeight(boardNotes, { routedPage, viewportHeight })
   }, [notes, hiddenNotes, routedPage, workspaceSizeTick])
 
   useEffect(() => {
@@ -208,9 +201,9 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
       const workspaceWidth = measuredWidth > 0 ? measuredWidth : 960
       const workspaceHeight =
         measuredHeight > 0
-          ? Math.max(measuredHeight, boardEl?.scrollHeight ?? 0)
+          ? Math.max(measuredHeight, boardEl?.scrollHeight ?? 0, routedPage ? MEMO_ROUTED_BOARD_MIN_HEIGHT : 0)
           : routedPage
-            ? 720
+            ? MEMO_ROUTED_BOARD_MIN_HEIGHT
             : 480
 
       notes.forEach((note) => {

@@ -10314,18 +10314,12 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 
 .memo-route-page .workspace-memo-routed-body .memo-board__notes-layer {
   position: relative;
-  min-height: calc(100dvh - 160px);
+  min-height: max(calc(100dvh - 160px), 2400px);
   width: 100%;
 }
 
 .memo-route-page .memo-board .memo-sticky-note__root {
   z-index: 5;
-  min-width: 220px;
-  min-height: 160px;
-  background: #fff7cc;
-  border: 1px solid #facc15;
-  border-radius: 12px;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
 }
 
 .memo-route-page .memo-board .memo-workspace__empty,
@@ -10727,17 +10721,11 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 }
 
 .memo-workspace .memo-sticky-note__root {
-  border: 1px solid var(--border-default);
-  opacity: 0.95;
-}
-
-.memo-workspace .memo-sticky-note__root:hover {
-  border-color: color-mix(in srgb, var(--primary) 35%, var(--border-default));
+  opacity: 1;
 }
 
 .memo-workspace .memo-sticky-note__root--active {
   opacity: 1;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 24%, transparent);
 }
 
 .memo-body.memo-body--pc-panel {
@@ -11368,112 +11356,115 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   outline: none;
 }
 
-/* ——— Sticky 메모 레이아웃 / 상태 분리 (행간·높이·outline은 여기서 통일) ——— */
+/* ——— Sticky 메모 — Windows 스티커 메모 톤 ——— */
 .memo-sticky-note__root {
   position: absolute;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-radius: 0.25rem;
+  border-radius: 10px;
   box-sizing: border-box;
-  background: var(--bg-card);
-  color: var(--text-primary);
-  border: 1px solid var(--border-default);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  background: #fff7c2;
+  color: #334155;
+  border: 1px solid rgba(212, 180, 60, 0.45);
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.08);
   transition: box-shadow 0.15s ease, border-color 0.15s ease;
+  min-width: 220px;
+  min-height: 160px;
+}
+
+.memo-sticky-note__root--dragging {
+  transition: none;
+  will-change: transform;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.14);
+  cursor: grabbing;
 }
 
 .memo-sticky-note__root--active {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 24%, transparent);
+  border-color: rgba(180, 150, 40, 0.72);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
 }
 
-.memo-sticky-note__root--active .memo-sticky-note__header {
-  background: var(--primary);
-  color: #fff;
-  border-bottom-color: rgba(255, 255, 255, 0.3);
-}
-
-.memo-sticky-note__root--active .memo-sticky-note__header button {
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.memo-sticky-note__root:hover:not(.memo-sticky-note__root--active) {
-  border-color: color-mix(in srgb, var(--primary) 35%, var(--border-default));
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.14);
-}
-
-.memo-sticky-note__root--editing,
-.memo-sticky-note__root:not(.memo-sticky-note__root--active):has(.memo-sticky-note__textarea--editing) {
-  border-color: var(--primary);
+.memo-sticky-note__root:hover:not(.memo-sticky-note__root--dragging) {
+  box-shadow: 0 3px 12px rgba(15, 23, 42, 0.1);
 }
 
 .memo-sticky-note__header {
-  height: 32px;
-  min-height: 32px;
+  height: 28px;
+  min-height: 28px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 0 6px;
-  overflow: hidden;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 0 6px 0 4px;
   box-sizing: border-box;
-  background: var(--primary-soft);
-  color: var(--text-primary);
-  border-bottom: 1px solid var(--border-default);
+  background: rgba(255, 255, 255, 0.42);
+  border-bottom: 1px solid rgba(212, 180, 60, 0.28);
 }
 
-.memo-sticky-note__header button {
-  height: 24px;
-  min-height: 24px;
-  max-height: 24px;
-  font-size: 12px;
-  padding: 0 5px;
-  box-sizing: border-box;
+.memo-sticky-note__handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+  cursor: grab;
+  touch-action: none;
 }
 
-.memo-sticky-note__header-button,
-.memo-sticky-note__drag {
-  border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border-default));
-  background: var(--bg-card);
-  color: var(--text-primary);
+.memo-sticky-note__handle:active {
+  cursor: grabbing;
 }
 
-.memo-sticky-note__drag {
-  flex: 1 1 0;
-  min-width: 36px;
+.memo-sticky-note__handle:hover {
+  background: rgba(255, 255, 255, 0.55);
 }
 
-.memo-sticky-note__actions {
-  max-width: calc(100% - 42px);
+.memo-sticky-note__handle-grip {
+  display: block;
+  width: 10px;
+  height: 12px;
+  background:
+    radial-gradient(circle, #94a3b8 1.5px, transparent 1.6px) 0 0 / 5px 4px repeat;
 }
 
-.memo-sticky-note__font-btn,
-.memo-sticky-note__minimize-btn {
-  min-width: 28px;
+.memo-sticky-note__toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
 }
 
-.memo-sticky-note__header-button:hover,
-.memo-sticky-note__drag:hover {
-  background: var(--bg-hover);
+.memo-sticky-note__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
 }
 
-.memo-sticky-note__delete {
-  color: var(--btn-danger-text, #b91c1c);
-  background: var(--btn-danger-surface, #ffffff);
-  border: 1px solid var(--btn-danger-border, #fecaca);
-  min-width: 24px;
-  width: 24px;
-  padding-left: 0;
-  padding-right: 0;
+.memo-sticky-note__icon-btn:hover {
+  background: rgba(255, 255, 255, 0.72);
+  color: #334155;
 }
 
-.memo-sticky-note__delete:hover {
-  background: var(--btn-danger-hover-bg, #fef2f2);
-  border-color: var(--btn-danger-hover-border, #fca5a5);
-  color: var(--btn-danger-text, #b91c1c);
+.memo-sticky-note__icon-btn--danger:hover {
+  background: rgba(254, 226, 226, 0.85);
+  color: #b91c1c;
 }
 
 .team-post-comment__delete {
@@ -11490,18 +11481,16 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 
 .memo-sticky-note__content {
   position: relative;
-  height: calc(100% - 32px);
+  flex: 1;
   min-height: 0;
   width: 100%;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
   box-sizing: border-box;
 }
 
 textarea.memo-sticky-note__textarea {
   display: block;
-  vertical-align: top;
   width: 100%;
   height: 100%;
   min-height: 0;
@@ -11509,29 +11498,47 @@ textarea.memo-sticky-note__textarea {
   box-sizing: border-box;
   background: transparent;
   border: 0;
-  border-top: 1px solid color-mix(in srgb, var(--border-default) 40%, transparent);
-  padding: 6px 8px;
+  padding: 10px 12px;
   font-size: var(--memo-font-size, 16px);
-  line-height: 1.4;
-  color: var(--text-primary);
+  line-height: 1.45;
+  color: #334155;
   outline: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.35) transparent;
 }
 
 textarea.memo-sticky-note__textarea::placeholder {
-  color: var(--text-muted);
+  color: #94a3b8;
 }
 
-.memo-sticky-note__textarea:focus:not(.memo-sticky-note__textarea--editing) {
+textarea.memo-sticky-note__textarea:focus {
   outline: none;
 }
 
 .memo-sticky-note__textarea--editing {
-  outline: 2px solid var(--primary);
-  outline-offset: 0;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.memo-sticky-note__resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 18px;
+  height: 18px;
+  cursor: nwse-resize;
+  touch-action: none;
 }
 
 .memo-sticky-note__resize-mark {
-  border-color: var(--text-muted);
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid rgba(100, 116, 139, 0.55);
+  border-bottom: 2px solid rgba(100, 116, 139, 0.55);
+  pointer-events: none;
 }
 
 /* Electron — server force-update gate (full-window block) */
