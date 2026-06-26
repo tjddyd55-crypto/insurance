@@ -390,19 +390,6 @@ body {
     text-overflow: ellipsis;
   }
 
-  .notification-panel.notification-panel--workspace-header.notification-dropdown {
-    position: absolute;
-    top: 100%;
-    right: 12px;
-    margin-top: 4px;
-    width: 320px;
-    max-width: min(100vw - 24px, 320px);
-    z-index: 100;
-    border-radius: 8px;
-    background: #2a2f3a;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
-  }
-
   .app-workspace-chrome-header__profile {
     white-space: nowrap;
   }
@@ -998,41 +985,6 @@ button:focus-visible:not(:disabled) {
   app-region: no-drag;
 }
 
-/* Notification dropdown: viewport-fixed overlay (escapes parent overflow / transform). */
-.notification-panel {
-  position: fixed;
-  top: 36px;
-  right: 10px;
-  width: 320px;
-  max-width: min(100vw - 20px, 320px);
-  max-height: 400px;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-  z-index: 9999;
-  border-radius: 0.5rem;
-  border: 1px solid var(--border-default);
-  background: var(--bg-card);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
-  overflow: hidden;
-}
-
-.notification-panel__header {
-  flex-shrink: 0;
-  padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid var(--border-default);
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.notification-panel__body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
 html.electron-app .title-bar.electron-title-bar {
   height: 32px;
   min-height: 32px;
@@ -1063,11 +1015,6 @@ html.electron-app .electron-title-bar .window-controls .electron-title-bar__cont
   min-width: 40px;
   max-width: 40px;
   padding: 0;
-}
-
-html.electron-app .notification-panel:not(.notification-panel--workspace-header) {
-  top: 32px;
-  z-index: 99999;
 }
 
 .memo-electron-fab-dock {
@@ -5194,10 +5141,6 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .notification-login-modal__header,
 .notification-login-modal__footer {
-  background: var(--bg-card);
-}
-
-.notification-panel__footer {
   background: var(--bg-card);
 }
 

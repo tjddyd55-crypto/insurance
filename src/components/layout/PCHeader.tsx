@@ -34,11 +34,7 @@ export default function PCHeader({
       className="app-workspace-chrome-header header pc-workspace-header pc-workspace-header--navigation-only"
       aria-label="PC 워크스페이스 상단 메뉴"
     >
-      <PCTopNavigation
-        showNotification={showNotification}
-        notificationBoundaryRef={headerRef}
-        onLogout={onLogout}
-      />
+      <PCTopNavigation showNotification={showNotification} onLogout={onLogout} />
     </header>
   )
 }
