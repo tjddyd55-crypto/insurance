@@ -58,7 +58,7 @@ export async function syncDueUserNotifications(db, safeQueryExec, userId, gaId) 
       FROM customer_cars cc
       WHERE cc.customer_id = c.id
         AND cc.renewal_date IS NOT NULL
-      ORDER BY cc.is_primary DESC, cc.sort_order ASC, cc.id ASC
+      ORDER BY cc.is_primary DESC, cc.id ASC
       LIMIT 1
     ) target ON TRUE
     WHERE c.ga_id = $1
