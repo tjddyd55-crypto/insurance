@@ -18,6 +18,7 @@ const USER_UI_SHELL_PATTERNS: RegExp[] = [
   /^\/portal\/boards/,
   /^\/application\/documents/,
   /^\/insurance\/contacts$/,
+  /^\/insurance\/account-credentials(\/|$)/,
   /^\/contacts(\/|$)/,
   /^\/memo(\/|$)/,
   /^\/storage(\/|$)/,

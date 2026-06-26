@@ -46,6 +46,7 @@ import TeamFilesPage from './features/team/pages/TeamFilesPage'
 import CompanyRegistryPage from './features/company-registry/pages/CompanyRegistryPage'
 import GeneralRequestPage from './features/company-registry/pages/GeneralRequestPage'
 import InsuranceCompanyContactsViewPage from './features/company-registry/pages/InsuranceCompanyContactsViewPage'
+import UserInsurerAccountsPage from './features/user-insurer-accounts/pages/UserInsurerAccountsPage'
 import { ConsentCompanyPage } from './features/consent/pages/ConsentCompanyPage'
 import { TemplateEditorPage } from './features/consent/admin/pages/TemplateEditorPage'
 import { TemplateListPage } from './features/consent/admin/pages/TemplateListPage'
@@ -488,6 +489,7 @@ export const appRouter = createBrowserRouter([
               },
               { path: 'contacts', element: <Navigate to="/insurance/contacts" replace /> },
               { path: 'insurance/contacts', element: <InsuranceCompanyContactsViewPage /> },
+              { path: 'insurance/account-credentials', element: <UserInsurerAccountsPage /> },
               { path: 'insurance/general-request', element: <GeneralRequestPage /> },
               { path: 'reinsurer-contacts', element: <ReinsurerContactsPage /> },
               { path: 'insurance/print', element: <InsurancePrintPage /> },

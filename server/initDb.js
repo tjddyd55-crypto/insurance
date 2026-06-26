@@ -2820,6 +2820,37 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS user_insurer_accounts (
+      id BIGSERIAL PRIMARY KEY,
+      owner_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      ga_id INTEGER REFERENCES ga_companies(id),
+      category TEXT NOT NULL,
+      company_name TEXT NOT NULL,
+      login_id TEXT,
+      login_password_encrypted TEXT,
+      memo TEXT,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      is_custom BOOLEAN NOT NULL DEFAULT FALSE,
+      is_archived BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    ALTER TABLE user_insurer_accounts
+    ADD COLUMN IF NOT EXISTS login_password_encrypted TEXT
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_user_insurer_accounts_owner_active
+    ON user_insurer_accounts (owner_user_id, is_archived, category, sort_order)
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_user_insurer_accounts_owner_default_company
+    ON user_insurer_accounts (owner_user_id, category, company_name)
+    WHERE is_archived = false AND is_custom = false
+  `)
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS customer_consultations (
       id SERIAL PRIMARY KEY,
       customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
