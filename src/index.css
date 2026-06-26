@@ -11393,10 +11393,6 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   min-height: 160px;
 }
 
-.memo-sticky-note__root--minimized {
-  min-height: 44px;
-}
-
 .memo-sticky-note__root--dragging {
   transition: none;
   will-change: transform;

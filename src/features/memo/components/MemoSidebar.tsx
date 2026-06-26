@@ -5,6 +5,7 @@ import type { Note } from '../types/memo.types'
 type Props = {
   notes: Note[]
   hiddenNotes: Record<string, boolean>
+  minimizedNotes?: Record<string, boolean>
   isOpen: boolean
   onToggle: () => void
   onSelectNote: (id: string) => void
@@ -29,6 +30,7 @@ type Props = {
 export default function MemoSidebar({
   notes,
   hiddenNotes,
+  minimizedNotes = {},
   isOpen,
   onToggle,
   onSelectNote,
@@ -62,7 +64,9 @@ export default function MemoSidebar({
         {notes.map((note) => {
           const preview = note.content?.trim().slice(0, 20) || '내용 없음'
           const isActive = selectedNoteId === note.id
-          const isExpandedOnCanvas = singleCanvasMode ? isActive : !hiddenNotes[note.id]
+          const isExpandedOnCanvas = singleCanvasMode
+            ? isActive
+            : !hiddenNotes[note.id] && !minimizedNotes[note.id]
           return (
             <div
               key={note.id}

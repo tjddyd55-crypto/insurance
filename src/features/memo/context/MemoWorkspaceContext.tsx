@@ -15,7 +15,7 @@ import {
 import { useAuth } from '../../auth/AuthProvider'
 import { useNotes } from '../hooks/useNotes'
 import { loadMemoUiSnapshot, patchMemoUiCanvas } from '../memoUiStorage'
-import { buildArrangedNotePositions, clampNotePosition, getMemoBoardCanvasHeight, MEMO_ROUTED_BOARD_MIN_HEIGHT } from '@insurance-shared/memoLayout.js'
+import { buildArrangedNotePositions, clampNotePosition, getMemoBoardCanvasHeight, getMemoBoardVisibleNotes, MEMO_ROUTED_BOARD_MIN_HEIGHT } from '@insurance-shared/memoLayout.js'
 
 const ROUTED_MEMO_DRAG_EXTENSION = 160
 
@@ -49,9 +49,8 @@ type MemoWorkspaceContextValue = ReturnType<typeof useNotes> & {
   hiddenNotes: Record<string, boolean>
   /** 스티커 접힘(최소화) — 본문/하단바 접기, localStorage 저장 */
   minimizedNotes: Record<string, boolean>
-  toggleMinimizeNote: (id: string) => void
-  expandMinimizeNote: (id: string) => void
   minimizeNote: (id: string) => void
+  expandMinimizeNote: (id: string) => void
   restoreNote: (id: string) => void
   /** `/memo` 정식 페이지 — 캔버스 대신 목록+상세 패널 레이아웃 */
   routedPage: boolean
@@ -159,15 +158,12 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
     })
   }, [persistenceUserId, isMinimized, hiddenNotes, minimizedNotes, routedPage])
 
-  const toggleMinimizeNote = useCallback((id: string) => {
+  const minimizeNote = useCallback((id: string) => {
     setMinimizedNotes((prev) => {
-      const next = { ...prev }
-      if (next[id]) {
-        delete next[id]
-      } else {
-        next[id] = true
+      if (prev[id]) {
+        return prev
       }
-      return next
+      return { ...prev, [id]: true }
     })
   }, [])
 
@@ -181,11 +177,6 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
       return next
     })
   }, [])
-
-  /** @deprecated hiddenNotes hide — use toggleMinimizeNote for sticker collapse */
-  const minimizeNote = useCallback((id: string) => {
-    toggleMinimizeNote(id)
-  }, [toggleMinimizeNote])
 
   const restoreNote = useCallback((id: string) => {
     setHiddenNotes((prev) => {
@@ -231,10 +222,9 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
   }, [])
 
   const canvasHeight = useMemo(() => {
-    const boardNotes = routedPage ? notes : notes.filter((n) => !hiddenNotes[n.id])
+    const boardNotes = getMemoBoardVisibleNotes(notes, hiddenNotes, routedPage, minimizedNotes)
     const viewportHeight = containerRef.current?.clientHeight ?? workspaceRef.current?.clientHeight ?? 720
-    const minimizedNoteIds = Object.keys(minimizedNotes).filter((id) => minimizedNotes[id])
-    return getMemoBoardCanvasHeight(boardNotes, { routedPage, viewportHeight, minimizedNoteIds })
+    return getMemoBoardCanvasHeight(boardNotes, { routedPage, viewportHeight })
   }, [notes, hiddenNotes, minimizedNotes, routedPage, workspaceSizeTick])
 
   useEffect(() => {
@@ -480,13 +470,13 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
   const handleAutoArrange = useCallback(() => {
     const boardEl = containerRef.current ?? workspaceRef.current
     const boardWidth = boardEl?.clientWidth ?? 1200
-    const minimizedNoteIds = Object.keys(minimizedNotes).filter((id) => minimizedNotes[id])
-    const positions = buildArrangedNotePositions(notes, { boardWidth, minimizedNoteIds })
+    const visibleNotes = getMemoBoardVisibleNotes(notes, hiddenNotes, routedPage, minimizedNotes)
+    const positions = buildArrangedNotePositions(visibleNotes, { boardWidth })
     setHiddenNotes({})
     positions.forEach((target) => {
       updatePosition(target.id, target.x, target.y)
     })
-  }, [minimizedNotes, notes, updatePosition])
+  }, [hiddenNotes, minimizedNotes, notes, routedPage, updatePosition])
 
   const closeDeleteModal = useCallback(() => {
     if (deleteSubmitting) {
@@ -562,9 +552,8 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
       setIsMinimized,
       hiddenNotes,
       minimizedNotes,
-      toggleMinimizeNote,
-      expandMinimizeNote,
       minimizeNote,
+      expandMinimizeNote,
       restoreNote,
       routedPage,
       addAndSelectNote,
@@ -595,9 +584,8 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
       isMinimized,
       hiddenNotes,
       minimizedNotes,
-      toggleMinimizeNote,
-      expandMinimizeNote,
       minimizeNote,
+      expandMinimizeNote,
       restoreNote,
       routedPage,
       addAndSelectNote,

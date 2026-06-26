@@ -32,6 +32,12 @@ test('getMemoBoardVisibleNotes ignores hidden list on memo route', () => {
   assert.deepEqual(getMemoBoardVisibleNotes(notes, hidden, false), [{ id: 'b' }])
 })
 
+test('getMemoBoardVisibleNotes hides minimized notes on memo route', () => {
+  const notes = [{ id: 'a' }, { id: 'b' }]
+  const minimized = { a: true }
+  assert.deepEqual(getMemoBoardVisibleNotes(notes, {}, true, minimized), [{ id: 'b' }])
+})
+
 test('getMemoBoardCanvasHeight expands routed memo board vertically', () => {
   const height = getMemoBoardCanvasHeight([{ x: 24, y: 1200, width: 260, height: 200 }], {
     routedPage: true,

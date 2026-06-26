@@ -38,7 +38,7 @@ export default function MemoWorkspacePage() {
     confirmDelete,
     hiddenNotes,
     minimizedNotes,
-    toggleMinimizeNote,
+    minimizeNote,
     routedPage,
   } = useMemoWorkspace()
 
@@ -51,7 +51,7 @@ export default function MemoWorkspacePage() {
     )
   }
 
-  const visibleNotes = getMemoBoardVisibleNotes(notes, hiddenNotes, routedPage)
+  const visibleNotes = getMemoBoardVisibleNotes(notes, hiddenNotes, routedPage, minimizedNotes)
 
   return (
     <>
@@ -101,7 +101,6 @@ export default function MemoWorkspacePage() {
                   isActive={activeNoteId === note.id}
                   isEditing={editingNoteId === note.id}
                   isDragging={draggingNoteId === note.id}
-                  isMinimized={Boolean(minimizedNotes[note.id])}
                   onChange={(content) => updateNote(note.id, content)}
                   onPositionCommit={commitPosition}
                   onSizeCommit={commitSize}
@@ -116,7 +115,7 @@ export default function MemoWorkspacePage() {
                   onTextareaBlur={handleTextareaBlur}
                   onDragStart={handleDragStart}
                   onDragEnd={handleDragEnd}
-                  onToggleMinimize={toggleMinimizeNote}
+                  onMinimize={minimizeNote}
                 />
               ))
             )}

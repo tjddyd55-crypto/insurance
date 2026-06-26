@@ -6,7 +6,6 @@ import {
   MEMO_DEFAULT_WIDTH,
   MEMO_MIN_HEIGHT,
   MEMO_MIN_WIDTH,
-  MEMO_MINIMIZED_HEIGHT,
 } from '@insurance-shared/memoLayout.js'
 
 const MIN_W = MEMO_MIN_WIDTH
@@ -33,13 +32,12 @@ type Props = {
   isActive: boolean
   isEditing: boolean
   isDragging: boolean
-  isMinimized: boolean
   onChange: (content: string) => void
   onPositionCommit: (id: string, x: number, y: number) => void
   onSizeCommit: (id: string, width: number, height: number) => void
   onFontSizeChange: (id: string, fontSize: number) => void
   onFontWeightChange: (id: string, fontWeight: MemoFontWeight) => void
-  onToggleMinimize: (id: string) => void
+  onMinimize: (id: string) => void
   containerRef: RefObject<HTMLElement | null>
   getWorkspaceBounds: () => { width: number; height: number }
   onDeleteRequest: (id: string) => void
@@ -56,13 +54,12 @@ export default function StickyNote({
   isActive,
   isEditing,
   isDragging,
-  isMinimized,
   onChange,
   onPositionCommit,
   onSizeCommit,
   onFontSizeChange,
   onFontWeightChange,
-  onToggleMinimize,
+  onMinimize,
   containerRef,
   getWorkspaceBounds,
   onDeleteRequest,
@@ -96,8 +93,7 @@ export default function StickyNote({
   const pendingSizeRef = useRef<{ w: number; h: number } | null>(null)
 
   const w = Math.max(MIN_W, Number(note.width) || MEMO_DEFAULT_WIDTH)
-  const storedH = Math.max(MIN_H, Number(note.height) || MEMO_DEFAULT_HEIGHT)
-  const displayH = isMinimized ? MEMO_MINIMIZED_HEIGHT : storedH
+  const h = Math.max(MIN_H, Number(note.height) || MEMO_DEFAULT_HEIGHT)
   const fs = Math.min(FONT_MAX, Math.max(FONT_MIN, Math.round(Number(note.fontSize) || 16)))
   const isBold = note.fontWeight === 'bold'
   const preview = useMemo(() => notePreview(note.content), [note.content])
@@ -191,7 +187,7 @@ export default function StickyNote({
       offsetY: e.clientY - rect.top - note.y,
       bounds: getWorkspaceBounds(),
       noteW: w,
-      noteH: displayH,
+      noteH: h,
     }
     pendingPosRef.current = { x: note.x, y: note.y }
     e.currentTarget.setPointerCapture(e.pointerId)
@@ -238,7 +234,7 @@ export default function StickyNote({
   )
 
   const handleResizePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (dragSessionRef.current || isMinimized) {
+    if (dragSessionRef.current) {
       return
     }
     e.preventDefault()
@@ -249,9 +245,9 @@ export default function StickyNote({
       startX: e.clientX,
       startY: e.clientY,
       startW: w,
-      startH: storedH,
+      startH: h,
     }
-    pendingSizeRef.current = { w, h: storedH }
+    pendingSizeRef.current = { w, h: h }
     e.currentTarget.setPointerCapture(e.pointerId)
   }
 
@@ -302,7 +298,6 @@ export default function StickyNote({
     'memo-sticky-note__root',
     isActive ? 'memo-sticky-note__root--active' : '',
     isDragging ? 'memo-sticky-note__root--dragging' : '',
-    isMinimized ? 'memo-sticky-note__root--minimized' : '',
   ]
     .filter(Boolean)
     .join(' ')
@@ -322,7 +317,7 @@ export default function StickyNote({
         left: note.x,
         top: note.y,
         width: w,
-        height: displayH,
+        height: h,
         zIndex: Number(note.zIndex) || 0,
         touchAction: 'none',
       }}
@@ -340,14 +335,14 @@ export default function StickyNote({
             type="button"
             className="memo-sticky-note__titlebar-btn"
             data-no-drag="true"
-            aria-label={isMinimized ? '메모 복원' : '메모 최소화'}
+            aria-label="메모 최소화"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation()
-              onToggleMinimize(note.id)
+              onMinimize(note.id)
             }}
           >
-            {isMinimized ? '□' : '−'}
+            −
           </button>
           <button
             type="button"
@@ -365,88 +360,84 @@ export default function StickyNote({
         </div>
       </header>
 
-      {!isMinimized ? (
-        <>
-          <div className="memo-sticky-note__content">
-            <FormTextarea
-              className={`memo-sticky-note__textarea touch-manipulation ${
-                isEditing ? 'memo-sticky-note__textarea--editing' : ''
-              } ${isBold ? 'memo-sticky-note__textarea--bold' : ''}`}
-              style={
-                {
-                  '--memo-font-size': `${fs}px`,
-                  '--memo-font-weight': isBold ? '700' : '400',
-                } as CSSProperties
-              }
-              value={note.content}
-              onChange={(e) => onChange(e.target.value)}
-              onFocus={() => onTextareaFocus(note.id)}
-              onBlur={() => onTextareaBlur()}
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => e.stopPropagation()}
-              placeholder="메모를 입력하세요"
-              aria-label="메모 내용"
-              inputMode="text"
-              spellCheck={false}
-              autoCorrect="off"
-              autoCapitalize="off"
-              autoComplete="off"
-            />
-          </div>
-          <footer className="memo-sticky-note__footer">
-            <button
-              type="button"
-              className={`memo-sticky-note__tool-button${isBold ? ' memo-sticky-note__tool-button--active' : ''}`}
-              data-no-drag="true"
-              aria-label="굵게"
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation()
-                toggleBold()
-              }}
-            >
-              B
-            </button>
-            <button
-              type="button"
-              className="memo-sticky-note__tool-button"
-              data-no-drag="true"
-              aria-label="글자 크기 줄이기"
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation()
-                bumpFont(-1)
-              }}
-            >
-              A−
-            </button>
-            <button
-              type="button"
-              className="memo-sticky-note__tool-button"
-              data-no-drag="true"
-              aria-label="글자 크기 키우기"
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation()
-                bumpFont(1)
-              }}
-            >
-              A+
-            </button>
-          </footer>
-          <div
-            role="presentation"
-            className="memo-sticky-note__resize"
-            onClick={(e) => e.stopPropagation()}
-            onPointerDown={handleResizePointerDown}
-            onPointerMove={handleResizePointerMove}
-            onPointerUp={handleResizePointerUp}
-            onPointerCancel={handleResizePointerUp}
-          >
-            <span className="memo-sticky-note__resize-mark" aria-hidden />
-          </div>
-        </>
-      ) : null}
+      <div className="memo-sticky-note__content">
+        <FormTextarea
+          className={`memo-sticky-note__textarea touch-manipulation ${
+            isEditing ? 'memo-sticky-note__textarea--editing' : ''
+          } ${isBold ? 'memo-sticky-note__textarea--bold' : ''}`}
+          style={
+            {
+              '--memo-font-size': `${fs}px`,
+              '--memo-font-weight': isBold ? '700' : '400',
+            } as CSSProperties
+          }
+          value={note.content}
+          onChange={(e) => onChange(e.target.value)}
+          onFocus={() => onTextareaFocus(note.id)}
+          onBlur={() => onTextareaBlur()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          placeholder="메모를 입력하세요"
+          aria-label="메모 내용"
+          inputMode="text"
+          spellCheck={false}
+          autoCorrect="off"
+          autoCapitalize="off"
+          autoComplete="off"
+        />
+      </div>
+      <footer className="memo-sticky-note__footer">
+        <button
+          type="button"
+          className={`memo-sticky-note__tool-button${isBold ? ' memo-sticky-note__tool-button--active' : ''}`}
+          data-no-drag="true"
+          aria-label="굵게"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation()
+            toggleBold()
+          }}
+        >
+          B
+        </button>
+        <button
+          type="button"
+          className="memo-sticky-note__tool-button"
+          data-no-drag="true"
+          aria-label="글자 크기 줄이기"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation()
+            bumpFont(-1)
+          }}
+        >
+          A−
+        </button>
+        <button
+          type="button"
+          className="memo-sticky-note__tool-button"
+          data-no-drag="true"
+          aria-label="글자 크기 키우기"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation()
+            bumpFont(1)
+          }}
+        >
+          A+
+        </button>
+      </footer>
+      <div
+        role="presentation"
+        className="memo-sticky-note__resize"
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={handleResizePointerDown}
+        onPointerMove={handleResizePointerMove}
+        onPointerUp={handleResizePointerUp}
+        onPointerCancel={handleResizePointerUp}
+      >
+        <span className="memo-sticky-note__resize-mark" aria-hidden />
+      </div>
     </div>
   )
 }
