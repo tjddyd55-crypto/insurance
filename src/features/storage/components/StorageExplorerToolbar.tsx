@@ -36,15 +36,17 @@ export default function StorageExplorerToolbar({
 
   return (
     <div className="storage-explorer-toolbar">
-      <div className="storage-explorer-toolbar__location" role="status">
-        <span className="storage-explorer-toolbar__location-label">선택 폴더</span>
-        <strong className="storage-explorer-toolbar__location-path">{selectedFolderPath}</strong>
-      </div>
-
-      <div className="storage-explorer-toolbar__actions">
-        <FormButton htmlType="button" variant="secondary" onClick={onOpenCreateFolder}>
+      <div className="storage-explorer-toolbar__left">
+        <div className="storage-explorer-toolbar__location" role="status">
+          <span className="storage-explorer-toolbar__location-label">현재 폴더</span>
+          <strong className="storage-explorer-toolbar__location-path">{selectedFolderPath}</strong>
+        </div>
+        <FormButton htmlType="button" variant="secondary" size="sm" onClick={onOpenCreateFolder}>
           폴더 생성
         </FormButton>
+      </div>
+
+      <div className="storage-explorer-toolbar__center">
         <FileUploader
           accept="image/jpeg,image/png,application/pdf,.pdf,.xls,.xlsx,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
           validateFile={validateUploadFile}
@@ -54,11 +56,14 @@ export default function StorageExplorerToolbar({
           disabled={uploading}
           statusText={uploading ? '업로드 중…' : undefined}
           primaryHint="파일을 드래그하거나 클릭하여 업로드"
-          hintLines={['JPG · PNG · PDF · XLS · XLSX · CSV, 파일당 최대 25MB']}
+          hintLines={[
+            `현재 폴더: ${selectedFolderPath}`,
+            'JPG · PNG · PDF · XLS · XLSX · CSV, 파일당 최대 25MB',
+          ]}
         />
       </div>
 
-      <div className="storage-explorer-toolbar__filters" role="search">
+      <div className="storage-explorer-toolbar__right" role="search">
         <input
           type="search"
           value={searchText}
@@ -90,7 +95,7 @@ export default function StorageExplorerToolbar({
         </select>
         {hasActiveFilters ? (
           <button type="button" className="storage-explorer-toolbar__reset" onClick={onResetFilters}>
-            필터 초기화
+            초기화
           </button>
         ) : null}
       </div>
