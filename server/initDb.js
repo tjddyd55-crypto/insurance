@@ -2799,6 +2799,30 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_notifications_user_ga_active_created
     ON notifications (user_id, ga_id, is_dismissed, created_at DESC)
   `)
+  await pool.query(`
+    DELETE FROM notifications dup
+    USING notifications keep
+    WHERE dup.id > keep.id
+      AND dup.user_id = keep.user_id
+      AND dup.ga_id = keep.ga_id
+      AND dup.type = keep.type
+      AND COALESCE(dup.customer_id, -1) = COALESCE(keep.customer_id, -1)
+      AND COALESCE(dup.target_date, DATE '1970-01-01') = COALESCE(keep.target_date, DATE '1970-01-01')
+      AND COALESCE(dup.claim_request_id, -1) = COALESCE(keep.claim_request_id, -1)
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS notifications_unique_customer_target
+    ON notifications (user_id, ga_id, type, customer_id, target_date)
+    WHERE type IN ('car_expiry', 'insurance_age_date')
+      AND customer_id IS NOT NULL
+      AND target_date IS NOT NULL
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS notifications_unique_claim_request
+    ON notifications (user_id, ga_id, type, claim_request_id)
+    WHERE type = 'claim_request_received'
+      AND claim_request_id IS NOT NULL
+  `)
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS notification_settings (

@@ -108,6 +108,7 @@ import {
 import { navigateToCustomerOnMap } from '../utils/customerMapFocusNavigation'
 import { parseMapEntryExpandCustomerId } from '../utils/customerMapDetailNavigation'
 import { parseClaimWorkspaceExpandCustomerId } from '../utils/customerClaimWorkspaceNavigation'
+import { parseNotificationExpandCustomerId } from '../../notification/utils/notificationCustomerNavigation'
 import {
   openCustomerSignatureWorkspace,
   parseSignatureWorkspaceExpandCustomerId,
@@ -805,7 +806,8 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   useEffect(() => {
     const entryExpandId =
       parseMapEntryExpandCustomerId(location.state) ??
-      parseClaimWorkspaceExpandCustomerId(location.state)
+      parseClaimWorkspaceExpandCustomerId(location.state) ??
+      parseNotificationExpandCustomerId(location.state)
     if (entryExpandId == null) {
       mapEntryExpandPendingRef.current = null
       return

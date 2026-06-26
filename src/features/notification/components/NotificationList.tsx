@@ -13,6 +13,7 @@ import { dispatchNotificationRefresh } from '../notificationRefreshDispatch'
 
 import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
 import { formatNotificationTargetDateWithDDay } from '../utils/notificationDateLabel'
+import { openNotificationCustomerNavigate } from '../utils/notificationCustomerNavigation'
 
 function formatNotifiedAt(iso: string): string {
   return formatKstDateTimeDisplay(iso, iso)
@@ -73,9 +74,8 @@ export function NotificationList({ token, onUnreadChanged }: NotificationListPro
         onUnreadChanged?.()
         dispatchNotificationRefresh()
       }
-      const path = buildNotificationNavigatePath(n)
-      if (path) {
-        navigate(path)
+      if (buildNotificationNavigatePath(n)) {
+        openNotificationCustomerNavigate({ notification: n, navigate })
         return
       }
       if (isTeamPostCommentType(n.type) && n.referenceId?.trim()) {

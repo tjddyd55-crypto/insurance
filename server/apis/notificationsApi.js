@@ -74,7 +74,7 @@ function parsePositiveIntLocal(value) {
 function parseNotificationListFilters(query) {
   const status = String(query?.status ?? 'all').trim().toLowerCase()
   const type = String(query?.type ?? 'all').trim().toLowerCase()
-  const allowedStatus = new Set(['all', 'unread', 'dismissed'])
+  const allowedStatus = new Set(['all', 'unread', 'read', 'dismissed', 'hidden'])
   const allowedTypes = new Set([
     'all',
     USER_NOTIFICATION_TYPES.CAR_EXPIRY,
@@ -87,12 +87,14 @@ function parseNotificationListFilters(query) {
   }
 }
 
-function buildNotificationListWhere(userId, gaId, filters) {
+export function buildNotificationListWhere(userId, gaId, filters) {
   const params = [userId, gaId]
   const parts = ['user_id = $1', 'ga_id = $2']
   if (filters.status === 'unread') {
     parts.push('is_read = false', 'is_dismissed = false')
-  } else if (filters.status === 'dismissed') {
+  } else if (filters.status === 'read') {
+    parts.push('is_read = true', 'is_dismissed = false')
+  } else if (filters.status === 'dismissed' || filters.status === 'hidden') {
     parts.push('is_dismissed = true')
   } else {
     parts.push('is_dismissed = false')
@@ -104,19 +106,72 @@ function buildNotificationListWhere(userId, gaId, filters) {
   return { clause: parts.join(' AND '), params }
 }
 
+export function buildNotificationListQuery(userId, gaId, filters, limit) {
+  const { clause, params } = buildNotificationListWhere(userId, gaId, filters)
+  params.push(limit)
+  const limitParam = params.length
+  const sql = `
+    SELECT id, user_id, ga_id, team_id, type, reference_id, message, is_read, is_dismissed,
+           customer_id, customer_name, target_date, claim_request_id, created_at
+    FROM (
+      SELECT DISTINCT ON (
+        user_id,
+        ga_id,
+        type,
+        COALESCE(customer_id, -1),
+        COALESCE(target_date, DATE '1970-01-01'),
+        COALESCE(claim_request_id, -1)
+      )
+        id, user_id, ga_id, team_id, type, reference_id, message, is_read, is_dismissed,
+        customer_id, customer_name, target_date, claim_request_id, created_at
+      FROM notifications
+      WHERE ${clause}
+      ORDER BY
+        user_id,
+        ga_id,
+        type,
+        COALESCE(customer_id, -1),
+        COALESCE(target_date, DATE '1970-01-01'),
+        COALESCE(claim_request_id, -1),
+        id ASC
+    ) deduped
+    ORDER BY created_at DESC, id DESC
+    LIMIT $${limitParam}
+  `
+  return { sql, params }
+}
+
+export { parseNotificationListFilters }
+
+function defaultNotificationSettingsRow() {
+  return {
+    customer_claim_message: true,
+    new_customer_registered: true,
+    insurer_news_uploaded: true,
+    car_renewal_one_month: true,
+    insurer_contact_updated: true,
+    modal_suppressed_until: null,
+  }
+}
+
 async function ensureNotificationSettings(pool, userId, gaId) {
-  const r = await safeQuery(
-    pool,
-    `
-    INSERT INTO notification_settings (user_id, ga_id)
-    VALUES ($1, $2)
-    ON CONFLICT (user_id, ga_id) DO UPDATE
-    SET updated_at = notification_settings.updated_at
-    RETURNING ${NOTIFICATION_SETTING_COLUMNS.join(', ')}
-    `,
-    [userId, gaId],
-  )
-  return r.rows[0]
+  try {
+    const r = await safeQuery(
+      pool,
+      `
+      INSERT INTO notification_settings (user_id, ga_id)
+      VALUES ($1, $2)
+      ON CONFLICT (user_id, ga_id) DO UPDATE
+      SET updated_at = notification_settings.updated_at
+      RETURNING ${NOTIFICATION_SETTING_COLUMNS.join(', ')}
+      `,
+      [userId, gaId],
+    )
+    return r.rows[0] ?? defaultNotificationSettingsRow()
+  } catch (error) {
+    console.error('[notificationsApi] ensureNotificationSettings failed', { userId, gaId, error })
+    return defaultNotificationSettingsRow()
+  }
 }
 
 /**
@@ -247,23 +302,22 @@ export function registerNotificationsApi(apiRouter, ctx) {
         NOTIFICATIONS_LIST_LIMIT_MAX,
         Math.max(1, Number.isFinite(limRaw) ? Math.floor(limRaw) : NOTIFICATIONS_LIST_LIMIT_DEFAULT),
       )
-      const { clause, params } = buildNotificationListWhere(userId, gaId, filters)
-      params.push(limit)
-      const r = await safeQuery(
-        pool,
-        `
-        SELECT id, user_id, ga_id, team_id, type, reference_id, message, is_read, is_dismissed,
-               customer_id, customer_name, target_date, claim_request_id, created_at
-        FROM notifications
-        WHERE ${clause}
-        ORDER BY created_at DESC, id DESC
-        LIMIT $${params.length}
-        `,
-        params,
-      )
+      let rows = []
+      try {
+        const { sql, params: listParams } = buildNotificationListQuery(userId, gaId, filters, limit)
+        const r = await safeQuery(
+          pool,
+          sql,
+          listParams,
+        )
+        rows = r.rows
+      } catch (listError) {
+        console.error('[notificationsApi] notifications list query failed', { userId, gaId, filters, listError })
+        rows = []
+      }
       const settingsRow = await ensureNotificationSettings(pool, userId, gaId)
       res.json({
-        notifications: r.rows.map(mapUserNotificationRow),
+        notifications: rows.map(mapUserNotificationRow),
         settings: mapNotificationSettingsRow(settingsRow),
       })
     } catch (error) {
