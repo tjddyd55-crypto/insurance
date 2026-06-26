@@ -1,4 +1,4 @@
-import { FormButton } from '../../../components/form'
+import type { MouseEvent } from 'react'
 import type { StorageFileRow, StorageFolderRow } from '../api/storageApi'
 import {
   STORAGE_ROOT_FOLDER_LABEL,
@@ -19,90 +19,149 @@ type StorageFolderTreePanelProps = {
   onDeleteFolder: (folder: StorageFolderRow) => void
 }
 
+type FolderTreeItemProps = {
+  depth?: number
+  selected: boolean
+  expanded?: boolean
+  hasChildren?: boolean
+  icon: string
+  name: string
+  title: string
+  onSelect: () => void
+  onToggleExpand?: () => void
+  onRename?: () => void
+  onDelete?: () => void
+}
+
+function FolderTreeIconButton({
+  label,
+  variant,
+  onClick,
+}: {
+  label: string
+  variant: 'rename' | 'delete'
+  onClick: (event: MouseEvent<HTMLButtonElement>) => void
+}) {
+  return (
+    <button
+      type="button"
+      className={[
+        'storage-folder-tree-item__icon-button',
+        variant === 'delete' ? 'storage-folder-tree-item__icon-button--delete' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      aria-label={label}
+      onClick={onClick}
+    >
+      {variant === 'rename' ? '✎' : '⌫'}
+    </button>
+  )
+}
+
+function FolderTreeItem({
+  depth = 0,
+  selected,
+  expanded,
+  hasChildren = false,
+  icon,
+  name,
+  title,
+  onSelect,
+  onToggleExpand,
+  onRename,
+  onDelete,
+}: FolderTreeItemProps) {
+  return (
+    <div
+      className={[
+        'storage-folder-tree-item',
+        selected ? 'storage-folder-tree-item--selected' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      style={{ paddingLeft: `${8 + depth * 14}px` }}
+    >
+      {onToggleExpand ? (
+        <button
+          type="button"
+          className="storage-folder-tree-item__expand"
+          aria-label={expanded ? '폴더 접기' : '폴더 펼치기'}
+          onClick={(event) => {
+            event.stopPropagation()
+            onToggleExpand()
+          }}
+        >
+          {hasChildren ? (expanded ? '▼' : '▶') : '•'}
+        </button>
+      ) : (
+        <span className="storage-folder-tree-item__expand" aria-hidden="true">
+          ▼
+        </span>
+      )}
+      <button
+        type="button"
+        className="storage-folder-tree-item__select"
+        title={title}
+        onClick={onSelect}
+      >
+        <span className="storage-folder-tree-item__icon" aria-hidden="true">
+          {icon}
+        </span>
+        <span className="storage-folder-tree-item__name">{name}</span>
+      </button>
+      {onRename && onDelete ? (
+        <div className="storage-folder-tree-item__actions">
+          <FolderTreeIconButton
+            label="폴더 이름 변경"
+            variant="rename"
+            onClick={(event) => {
+              event.stopPropagation()
+              onRename()
+            }}
+          />
+          <FolderTreeIconButton
+            label="폴더 삭제"
+            variant="delete"
+            onClick={(event) => {
+              event.stopPropagation()
+              onDelete()
+            }}
+          />
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 function renderFolderNode(
   node: StorageFolderTreeNode,
   depth: number,
   props: StorageFolderTreePanelProps,
 ): JSX.Element {
   const { folder, children } = node
-  const {
-    files,
-    folders,
-    selectedFolderId,
-    expandedFolderIds,
-    onSelectFolder,
-    onToggleExpand,
-    onRenameFolder,
-    onDeleteFolder,
-  } = props
+  const { files, folders, selectedFolderId, expandedFolderIds, onSelectFolder, onToggleExpand, onRenameFolder, onDeleteFolder } =
+    props
   const expanded = expandedFolderIds.has(folder.id)
-  const selected = selectedFolderId === folder.id
   const fileCount = countDirectFilesInFolder(files, folder.id)
   const childFolderCount = countDirectChildFolders(folders, folder.id)
 
   return (
     <div key={folder.id} className="storage-explorer-tree__branch">
-      <div
-        className={[
-          'storage-explorer-tree__row',
-          selected ? 'storage-explorer-tree__row--selected' : '',
-        ]
-          .filter(Boolean)
-          .join(' ')}
-        style={{ paddingLeft: `${12 + depth * 16}px` }}
-      >
-        <button
-          type="button"
-          className="storage-explorer-tree__expand"
-          aria-label={expanded ? '폴더 접기' : '폴더 펼치기'}
-          onClick={(event) => {
-            event.stopPropagation()
-            onToggleExpand(folder.id)
-          }}
-        >
-          {children.length > 0 ? (expanded ? '▼' : '▶') : '•'}
-        </button>
-        <button
-          type="button"
-          className="storage-explorer-tree__select"
-          onClick={() => onSelectFolder(folder.id)}
-        >
-          <span className="storage-explorer-tree__icon" aria-hidden="true">
-            📁
-          </span>
-          <span className="storage-explorer-tree__name">{folder.name}</span>
-          <span className="storage-explorer-tree__meta">
-            {fileCount}개 · 하위 {childFolderCount}
-          </span>
-        </button>
-        <div className="storage-explorer-tree__actions">
-          <FormButton
-            htmlType="button"
-            variant="action"
-            size="sm"
-            onClick={(event) => {
-              event.stopPropagation()
-              onRenameFolder(folder)
-            }}
-          >
-            ✏️
-          </FormButton>
-          <FormButton
-            htmlType="button"
-            variant="action"
-            size="sm"
-            onClick={(event) => {
-              event.stopPropagation()
-              onDeleteFolder(folder)
-            }}
-          >
-            🗑️
-          </FormButton>
-        </div>
-      </div>
-      {expanded
-        ? children.map((child) => renderFolderNode(child, depth + 1, props))
-        : null}
+      <FolderTreeItem
+        depth={depth}
+        selected={selectedFolderId === folder.id}
+        expanded={expanded}
+        hasChildren={children.length > 0}
+        icon="📁"
+        name={folder.name}
+        title={`${folder.name} · 파일 ${fileCount}개 · 하위 폴더 ${childFolderCount}개`}
+        onSelect={() => onSelectFolder(folder.id)}
+        onToggleExpand={() => onToggleExpand(folder.id)}
+        onRename={() => onRenameFolder(folder)}
+        onDelete={() => onDeleteFolder(folder)}
+      />
+      {expanded ? children.map((child) => renderFolderNode(child, depth + 1, props)) : null}
     </div>
   )
 }
@@ -110,7 +169,6 @@ function renderFolderNode(
 export default function StorageFolderTreePanel(props: StorageFolderTreePanelProps) {
   const { folders, files, selectedFolderId, onSelectFolder } = props
   const forest = buildStorageFolderForest(folders)
-  const rootSelected = selectedFolderId == null
   const rootFileCount = countDirectFilesInFolder(files, null)
   const rootChildCount = countDirectChildFolders(folders, null)
 
@@ -118,32 +176,13 @@ export default function StorageFolderTreePanel(props: StorageFolderTreePanelProp
     <aside className="storage-explorer-tree" aria-label="폴더 구조">
       <div className="storage-explorer-tree__header">폴더</div>
       <div className="storage-explorer-tree__body">
-        <div
-          className={[
-            'storage-explorer-tree__row',
-            'storage-explorer-tree__row--root',
-            rootSelected ? 'storage-explorer-tree__row--selected' : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-        >
-          <span className="storage-explorer-tree__expand" aria-hidden="true">
-            ▼
-          </span>
-          <button
-            type="button"
-            className="storage-explorer-tree__select"
-            onClick={() => onSelectFolder(null)}
-          >
-            <span className="storage-explorer-tree__icon" aria-hidden="true">
-              🏠
-            </span>
-            <span className="storage-explorer-tree__name">{STORAGE_ROOT_FOLDER_LABEL}</span>
-            <span className="storage-explorer-tree__meta">
-              {rootFileCount}개 · 하위 {rootChildCount}
-            </span>
-          </button>
-        </div>
+        <FolderTreeItem
+          selected={selectedFolderId == null}
+          icon="🏠"
+          name={STORAGE_ROOT_FOLDER_LABEL}
+          title={`${STORAGE_ROOT_FOLDER_LABEL} · 파일 ${rootFileCount}개 · 하위 폴더 ${rootChildCount}개`}
+          onSelect={() => onSelectFolder(null)}
+        />
         {forest.length === 0 ? (
           <p className="storage-explorer-tree__empty">하위 폴더 없음</p>
         ) : (
