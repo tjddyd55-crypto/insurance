@@ -52,9 +52,14 @@ export function useUserInsurerAccountsState() {
     void load()
   }, [load])
 
-  const visibleAccounts = useMemo(
-    () => accounts.filter((row) => row.category === activeTab),
-    [accounts, activeTab],
+  const lifeAccounts = useMemo(
+    () => accounts.filter((row) => row.category === 'LIFE'),
+    [accounts],
+  )
+
+  const nonLifeAccounts = useMemo(
+    () => accounts.filter((row) => row.category === 'NON_LIFE'),
+    [accounts],
   )
 
   const saveAccountField = useCallback(
@@ -100,7 +105,8 @@ export function useUserInsurerAccountsState() {
     [authToken],
   )
 
-  const openAddModal = useCallback(() => {
+  const openAddModal = useCallback((category: UserInsurerAccountCategory = 'LIFE') => {
+    setActiveTab(category)
     setAddForm({ companyName: '', loginId: '', loginPassword: '', memo: '' })
     setAddOpen(true)
   }, [])
@@ -140,7 +146,9 @@ export function useUserInsurerAccountsState() {
   return {
     activeTab,
     setActiveTab,
-    accounts: visibleAccounts,
+    accounts,
+    lifeAccounts,
+    nonLifeAccounts,
     loading,
     error,
     pendingId,

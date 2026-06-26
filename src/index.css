@@ -5159,6 +5159,72 @@ div.cta-button.customers-page__action-btn[role='button'] {
   padding: 12px;
 }
 
+.user-insurer-accounts-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.user-insurer-accounts-section {
+  min-width: 0;
+}
+
+.user-insurer-accounts-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.user-insurer-accounts-section__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.user-insurer-accounts-page--pc .user-insurer-accounts-page__table {
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.user-insurer-accounts-page__col-company {
+  width: 20%;
+}
+
+.user-insurer-accounts-page__col-login-id {
+  width: 22%;
+}
+
+.user-insurer-accounts-page__col-password {
+  width: 22%;
+}
+
+.user-insurer-accounts-page__col-memo {
+  width: 26%;
+}
+
+.user-insurer-accounts-page__col-actions {
+  width: 80px;
+}
+
+.user-insurer-accounts-page__actions-cell {
+  width: 80px;
+  white-space: nowrap;
+}
+
+.user-insurer-accounts-page--pc .user-insurer-accounts-page__table-wrap {
+  overflow-x: auto;
+}
+
+@media (max-width: 900px) {
+  .user-insurer-accounts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .notifications-page__panel ul {
   max-height: none !important;
 }
@@ -10110,7 +10176,7 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 
 .memo-route-page .workspace-memo-routed-body .memo-body--routed-page {
   flex: 1;
-  min-height: 0;
+  min-height: calc(100dvh - 96px);
 }
 
 .memo-route-page .workspace-memo-routed-body .memo-canvas-area {
@@ -10119,17 +10185,30 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 }
 
 .memo-route-page .workspace-memo-routed-body .memo-canvas-area--routed-board {
-  min-height: calc(100vh - var(--app-header-height, 72px) - 56px);
+  min-height: calc(100dvh - var(--app-header-height, 72px) - 56px);
   min-height: calc(100dvh - var(--app-header-height, 72px) - 56px);
   background: #f1f5f9;
+  overflow: auto;
 }
 
 .memo-route-page .workspace-memo-routed-body .memo-canvas--routed-board,
 .memo-route-page .workspace-memo-routed-body .memo-board {
   position: relative;
   width: 100%;
-  min-height: calc(100vh - 160px);
   min-height: calc(100dvh - 160px);
+  min-height: calc(100dvh - 160px);
+  background: #f1f5f9;
+}
+
+.memo-route-page .workspace-memo-routed-body .memo-board__notes-layer {
+  position: relative;
+  min-height: calc(100dvh - 160px);
+  min-height: calc(100dvh - 160px);
+  width: 100%;
+}
+
+.memo-route-page .memo-board .memo-sticky-note__root {
+  z-index: 5;
 }
 
 .memo-route-page .workspace-memo-routed-body .memo-canvas,

@@ -10,7 +10,7 @@ export default function UserInsurerAccountsPCView(props: UserInsurerAccountsView
           보험회사별 아이디·비밀번호·메모는 현재 로그인한 설계사 개인 데이터입니다.
         </p>
       </header>
-      <UserInsurerAccountsPanel {...props} />
+      <UserInsurerAccountsPanel {...props} layout="dual-column" />
     </main>
   )
 }
