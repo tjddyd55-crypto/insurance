@@ -1,6 +1,7 @@
 import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
-import type { StorageFileDownloadLinkEntry, StorageFileRow } from '../api/storageApi'
+import type { StorageFileDownloadLinkEntry, StorageFileRow, StorageFolderRow } from '../api/storageApi'
 import type { StorageActionVariant } from './StorageFileList'
+import { resolveStorageFileFolderLabel } from '../utils/storageFolderTree'
 import {
   CUSTOMER_WORKSPACE_ACTION_SECONDARY_CLASS,
   CustomerWorkspaceDangerActionButton,
@@ -14,7 +15,9 @@ const EXPLORER_FILE_ACTION_DANGER_CLASS =
 
 type StorageExplorerFilePanelProps = {
   breadcrumb: string[]
+  folders: StorageFolderRow[]
   files: StorageFileRow[]
+  isAllFilesView: boolean
   loading: boolean
   listFetchError?: string
   searchActive: boolean
@@ -70,7 +73,9 @@ function inferFileExtension(file: StorageFileRow): string {
 
 export default function StorageExplorerFilePanel({
   breadcrumb,
+  folders,
   files,
+  isAllFilesView,
   loading,
   listFetchError = '',
   searchActive,
@@ -116,7 +121,7 @@ export default function StorageExplorerFilePanel({
         </p>
       ) : files.length === 0 ? (
         <p className="storage-explorer-files__empty">
-          {searchActive ? '검색 결과 없음' : '선택된 폴더에 파일 없음'}
+          {searchActive ? '검색 결과 없음' : isAllFilesView ? '전체 파일 없음' : '선택된 폴더에 파일 없음'}
         </p>
       ) : (
         <div className="storage-explorer-files__list">
@@ -154,7 +159,14 @@ export default function StorageExplorerFilePanel({
               >
                 <div className="storage-explorer-files__name-cell">
                   <span className="storage-explorer-files__icon">{renderFileIcon(file)}</span>
-                  <span className="storage-explorer-files__name">{file.displayName}</span>
+                  <span className="storage-explorer-files__name-block">
+                    <span className="storage-explorer-files__name">{file.displayName}</span>
+                    {isAllFilesView ? (
+                      <span className="storage-explorer-files__folder-path">
+                        {resolveStorageFileFolderLabel(folders, file)}
+                      </span>
+                    ) : null}
+                  </span>
                 </div>
                 <span className="storage-explorer-files__type">{inferFileExtension(file)}</span>
                 <span className="storage-explorer-files__size">{formatFileSize(file.fileSize)}</span>

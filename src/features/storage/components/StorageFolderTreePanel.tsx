@@ -5,13 +5,15 @@ import {
   buildStorageFolderForest,
   countDirectChildFolders,
   countDirectFilesInFolder,
+  isStorageExplorerAllView,
+  type StorageExplorerSelection,
   type StorageFolderTreeNode,
 } from '../utils/storageFolderTree'
 
 type StorageFolderTreePanelProps = {
   folders: StorageFolderRow[]
   files: StorageFileRow[]
-  selectedFolderId: number | null
+  selection: StorageExplorerSelection
   expandedFolderIds: Set<number>
   onSelectFolder: (folderId: number | null) => void
   onToggleExpand: (folderId: number) => void
@@ -142,17 +144,18 @@ function renderFolderNode(
   props: StorageFolderTreePanelProps,
 ): JSX.Element {
   const { folder, children } = node
-  const { files, folders, selectedFolderId, expandedFolderIds, onSelectFolder, onToggleExpand, onRenameFolder, onDeleteFolder } =
+  const { files, folders, selection, expandedFolderIds, onSelectFolder, onToggleExpand, onRenameFolder, onDeleteFolder } =
     props
   const expanded = expandedFolderIds.has(folder.id)
   const fileCount = countDirectFilesInFolder(files, folder.id)
   const childFolderCount = countDirectChildFolders(folders, folder.id)
+  const selected = selection.mode === 'folder' && selection.folderId === folder.id
 
   return (
     <div key={folder.id} className="storage-explorer-tree__branch">
       <FolderTreeItem
         depth={depth}
-        selected={selectedFolderId === folder.id}
+        selected={selected}
         expanded={expanded}
         hasChildren={children.length > 0}
         icon="📁"
@@ -169,19 +172,19 @@ function renderFolderNode(
 }
 
 export default function StorageFolderTreePanel(props: StorageFolderTreePanelProps) {
-  const { folders, files, selectedFolderId, onSelectFolder } = props
+  const { folders, files, selection, onSelectFolder } = props
   const forest = buildStorageFolderForest(folders)
-  const rootFileCount = countDirectFilesInFolder(files, null)
   const rootChildCount = countDirectChildFolders(folders, null)
+  const allSelected = isStorageExplorerAllView(selection)
 
   return (
     <aside className="storage-explorer-tree" aria-label="폴더 구조">
       <div className="storage-explorer-tree__header">폴더</div>
       <div className="storage-explorer-tree__body">
         <FolderTreeItem
-          selected={selectedFolderId == null}
+          selected={allSelected}
           name={STORAGE_ROOT_FOLDER_LABEL}
-          title={`${STORAGE_ROOT_FOLDER_LABEL} · 파일 ${rootFileCount}개 · 하위 폴더 ${rootChildCount}개`}
+          title={`${STORAGE_ROOT_FOLDER_LABEL} · 파일 ${files.length}개 · 하위 폴더 ${rootChildCount}개`}
           onSelect={() => onSelectFolder(null)}
         />
         {forest.length === 0 ? (

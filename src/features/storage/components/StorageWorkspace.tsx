@@ -28,10 +28,14 @@ import StorageToolbar from './StorageToolbar'
 import {
   buildStorageFolderBreadcrumb,
   buildStorageFolderPathLabel,
+  filterFilesForExplorerFolder,
   getStorageAncestorFolderIds,
-  readStoredExplorerFolderId,
-  resolveFolderIdAtBreadcrumbIndex,
-  writeStoredExplorerFolderId,
+  getStorageExplorerSelectedFolderId,
+  getStorageExplorerUploadFolderId,
+  readStoredExplorerSelection,
+  resolveExplorerSelectionAtBreadcrumbIndex,
+  writeStoredExplorerSelection,
+  type StorageExplorerSelection,
 } from '../utils/storageFolderTree'
 
 const FILE_NAME_MAX_LENGTH = 120
@@ -170,6 +174,7 @@ export default function StorageWorkspace({
   const [folders, setFolders] = useState<StorageFolderRow[]>([])
   const [files, setFiles] = useState<StorageFileRow[]>([])
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<number>>(new Set())
+  const [explorerSelection, setExplorerSelection] = useState<StorageExplorerSelection>({ mode: 'all' })
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null)
   const [selectedFileId, setSelectedFileId] = useState<number | null>(null)
   const [searchText, setSearchText] = useState('')
@@ -209,12 +214,11 @@ export default function StorageWorkspace({
 
   const filteredFiles = useMemo(() => {
     const query = searchText.trim().toLowerCase()
-    const scoped = files.filter((file) => {
-      if (isExplorerLayout) {
-        if ((file.folderId ?? null) !== selectedFolderId) {
-          return false
-        }
-      } else if (selectedFolderId !== null && (file.folderId ?? null) !== selectedFolderId) {
+    const folderScoped = isExplorerLayout
+      ? filterFilesForExplorerFolder(files, explorerSelection)
+      : files
+    const scoped = folderScoped.filter((file) => {
+      if (!isExplorerLayout && selectedFolderId !== null && (file.folderId ?? null) !== selectedFolderId) {
         return false
       }
       if (kindFilter !== 'all' && storageFileKind(file) !== kindFilter) {
@@ -239,7 +243,7 @@ export default function StorageWorkspace({
       })
     }
     return sorted
-  }, [files, isExplorerLayout, kindFilter, searchText, selectedFolderId, sortOrder])
+  }, [explorerSelection, files, isExplorerLayout, kindFilter, searchText, selectedFolderId, sortOrder])
 
   const FILE_DOWNLOAD_TTL_MS = 8 * 60 * 1000
   const fileDownloadLinksRef = useRef<Record<number, StorageFileDownloadLinkEntry>>({})
@@ -302,6 +306,7 @@ export default function StorageWorkspace({
     }
     setFolders([])
     setFiles([])
+    setExplorerSelection({ mode: 'all' })
     setSelectedFolderId(null)
     setSelectedFileId(null)
     setSearchText('')
@@ -316,30 +321,32 @@ export default function StorageWorkspace({
     if (!isExplorerLayout || customerId == null) {
       return
     }
-    const stored = readStoredExplorerFolderId(customerId)
-    setSelectedFolderId(stored)
+    const stored = readStoredExplorerSelection(customerId)
+    setExplorerSelection(stored)
   }, [customerId, isExplorerLayout])
 
   useEffect(() => {
     if (!isExplorerLayout || customerId == null) {
       return
     }
-    writeStoredExplorerFolderId(customerId, selectedFolderId)
-  }, [customerId, isExplorerLayout, selectedFolderId])
+    writeStoredExplorerSelection(customerId, explorerSelection)
+  }, [customerId, explorerSelection, isExplorerLayout])
+
+  const explorerSelectedFolderId = getStorageExplorerSelectedFolderId(explorerSelection)
 
   useEffect(() => {
-    if (!isExplorerLayout || selectedFolderId == null) {
+    if (!isExplorerLayout || explorerSelectedFolderId == null) {
       return
     }
     setExpandedFolderIds((prev) => {
       const next = new Set(prev)
-      for (const ancestorId of getStorageAncestorFolderIds(folders, selectedFolderId)) {
+      for (const ancestorId of getStorageAncestorFolderIds(folders, explorerSelectedFolderId)) {
         next.add(ancestorId)
       }
-      next.add(selectedFolderId)
+      next.add(explorerSelectedFolderId)
       return next
     })
-  }, [folders, isExplorerLayout, selectedFolderId])
+  }, [explorerSelectedFolderId, folders, isExplorerLayout])
 
   useEffect(() => {
     setExpandedFolderIds((prev) => {
@@ -354,10 +361,13 @@ export default function StorageWorkspace({
   }, [folders])
 
   useEffect(() => {
-    if (selectedFolderId != null && !folders.some((folder) => folder.id === selectedFolderId)) {
-      setSelectedFolderId(null)
+    if (
+      explorerSelectedFolderId != null &&
+      !folders.some((folder) => folder.id === explorerSelectedFolderId)
+    ) {
+      setExplorerSelection({ mode: 'all' })
     }
-  }, [folders, selectedFolderId])
+  }, [explorerSelectedFolderId, folders])
 
   const loadFolders = useCallback(
     async (signal?: AbortSignal) => {
@@ -492,13 +502,13 @@ export default function StorageWorkspace({
     try {
       const created = await createStorageFolder(token, name, {
         ...storageFolderScope,
-        parentId: isExplorerLayout ? selectedFolderId : null,
+        parentId: isExplorerLayout ? getStorageExplorerUploadFolderId(explorerSelection) : null,
       })
       setCreateFolderOpen(false)
       setCreateFolderName('')
       await loadFolders()
       if (isExplorerLayout) {
-        setSelectedFolderId(created.id)
+        setExplorerSelection({ mode: 'folder', folderId: created.id })
         setExpandedFolderIds((prev) => {
           const next = new Set(prev)
           if (created.parentId != null) {
@@ -515,9 +525,10 @@ export default function StorageWorkspace({
     }
   }, [
     createFolderName,
+    explorerSelection,
     isExplorerLayout,
     loadFolders,
-    selectedFolderId,
+    explorerSelection,
     storageFolderScope,
     submitting,
     token,
@@ -587,7 +598,7 @@ export default function StorageWorkspace({
             fileUrl: presign.fileUrl,
             size: file.size,
             mimeType,
-            folderId: selectedFolderId,
+            folderId: isExplorerLayout ? getStorageExplorerUploadFolderId(explorerSelection) : selectedFolderId,
             customerId,
           })
           stagedObjectKey = null
@@ -616,7 +627,7 @@ export default function StorageWorkspace({
         setError(`${failCount}개 파일 업로드에 실패했습니다.`)
       }
     },
-    [customerId, loadFiles, loadQuota, selectedFolderId, token, uploading],
+    [customerId, explorerSelection, isExplorerLayout, loadFiles, loadQuota, selectedFolderId, token, uploading],
   )
 
   const openRenameFileDialog = useCallback((file: StorageFileRow) => {
@@ -672,7 +683,13 @@ export default function StorageWorkspace({
         await loadQuota()
       } else {
         await deleteStorageFolder(token, deleteTarget.folder.id)
-        if (selectedFolderId === deleteTarget.folder.id) {
+        if (
+          isExplorerLayout &&
+          explorerSelection.mode === 'folder' &&
+          explorerSelection.folderId === deleteTarget.folder.id
+        ) {
+          setExplorerSelection({ mode: 'all' })
+        } else if (selectedFolderId === deleteTarget.folder.id) {
           setSelectedFolderId(null)
         }
         await loadFolders()
@@ -683,7 +700,7 @@ export default function StorageWorkspace({
     } finally {
       setSubmitting(false)
     }
-  }, [deleteTarget, loadFolders, loadQuota, selectedFolderId, submitting, token])
+  }, [deleteTarget, explorerSelection, isExplorerLayout, loadFolders, loadQuota, selectedFolderId, submitting, token])
 
   const openFile = useCallback(
     async (file: StorageFileRow) => {
@@ -712,24 +729,25 @@ export default function StorageWorkspace({
   }, [quota])
 
   const explorerFolderPath = useMemo(
-    () => buildStorageFolderPathLabel(folders, selectedFolderId),
-    [folders, selectedFolderId],
+    () => buildStorageFolderPathLabel(folders, explorerSelection),
+    [explorerSelection, folders],
   )
   const explorerBreadcrumb = useMemo(
-    () => buildStorageFolderBreadcrumb(folders, selectedFolderId),
-    [folders, selectedFolderId],
+    () => buildStorageFolderBreadcrumb(folders, explorerSelection),
+    [explorerSelection, folders],
   )
 
   const handleSelectExplorerFolder = useCallback((folderId: number | null) => {
-    setSelectedFolderId(folderId)
+    setExplorerSelection(folderId == null ? { mode: 'all' } : { mode: 'folder', folderId })
     setSelectedFileId(null)
   }, [])
 
   const handleSelectBreadcrumbFolder = useCallback(
     (index: number) => {
-      handleSelectExplorerFolder(resolveFolderIdAtBreadcrumbIndex(folders, selectedFolderId, index))
+      setExplorerSelection(resolveExplorerSelectionAtBreadcrumbIndex(folders, explorerSelection, index))
+      setSelectedFileId(null)
     },
-    [folders, handleSelectExplorerFolder, selectedFolderId],
+    [explorerSelection, folders],
   )
 
   const resetExplorerFilters = useCallback(() => {
@@ -855,7 +873,7 @@ export default function StorageWorkspace({
             <StorageFolderTreePanel
               folders={folders}
               files={files}
-              selectedFolderId={selectedFolderId}
+              selection={explorerSelection}
               expandedFolderIds={expandedFolderIds}
               onSelectFolder={handleSelectExplorerFolder}
               onToggleExpand={(folderId) => {
@@ -874,7 +892,9 @@ export default function StorageWorkspace({
             />
             <StorageExplorerFilePanel
               breadcrumb={explorerBreadcrumb}
+              folders={folders}
               files={filteredFiles}
+              isAllFilesView={explorerSelection.mode === 'all'}
               loading={loading}
               listFetchError={filesListError}
               searchActive={Boolean(searchText.trim()) || kindFilter !== 'all'}
