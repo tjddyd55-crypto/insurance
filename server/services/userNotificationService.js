@@ -48,70 +48,114 @@ export async function syncDueUserNotifications(db, safeQueryExec, userId, gaId) 
     return
   }
 
-  const carRows = await safeQueryExec(
-    db,
-    `
-    SELECT DISTINCT c.id AS customer_id, c.name AS customer_name, target.renewal_date
-    FROM customers c
-    INNER JOIN LATERAL (
-      SELECT COALESCE(cc.renewal_date, c.renewal_date) AS renewal_date
-      FROM customer_cars cc
-      WHERE cc.customer_id = c.id
-        AND cc.renewal_date IS NOT NULL
-      ORDER BY cc.is_primary DESC, cc.id ASC
-      LIMIT 1
-    ) target ON TRUE
-    WHERE c.ga_id = $1
-      AND c.deleted_at IS NULL
-      AND COALESCE(c.owner_user_id, c.user_id) = $2
-      AND target.renewal_date = $3::date
-    `,
-    [gaId, userId, carRenewalDueOn],
-  )
+  let carRows
+  try {
+    carRows = await safeQueryExec(
+      db,
+      `
+      SELECT DISTINCT c.id AS customer_id, c.name AS customer_name, target.renewal_date
+      FROM customers c
+      INNER JOIN LATERAL (
+        SELECT COALESCE(cc.renewal_date, c.renewal_date) AS renewal_date
+        FROM customer_cars cc
+        WHERE cc.customer_id = c.id
+          AND cc.renewal_date IS NOT NULL
+        ORDER BY cc.is_primary DESC, cc.id ASC
+        LIMIT 1
+      ) target ON TRUE
+      WHERE c.ga_id = $1
+        AND c.deleted_at IS NULL
+        AND COALESCE(c.owner_user_id, c.user_id) = $2
+        AND target.renewal_date = $3::date
+      `,
+      [gaId, userId, carRenewalDueOn],
+    )
+  } catch (error) {
+    console.error('[userNotificationService] car expiry sync query failed; falling back to customers.renewal_date', error)
+    try {
+      carRows = await safeQueryExec(
+        db,
+        `
+        SELECT c.id AS customer_id, c.name AS customer_name, c.renewal_date
+        FROM customers c
+        WHERE c.ga_id = $1
+          AND c.deleted_at IS NULL
+          AND COALESCE(c.owner_user_id, c.user_id) = $2
+          AND c.renewal_date = $3::date
+        `,
+        [gaId, userId, carRenewalDueOn],
+      )
+    } catch (fallbackError) {
+      console.error('[userNotificationService] car expiry fallback query failed', fallbackError)
+      carRows = { rows: [] }
+    }
+  }
 
   for (const row of carRows.rows) {
     const customerName = String(row.customer_name ?? '').trim() || '고객'
     const renewalDate = String(row.renewal_date ?? '').slice(0, 10)
-    await upsertUserNotification(db, safeQueryExec, {
-      userId,
-      gaId,
-      type: USER_NOTIFICATION_TYPES.CAR_EXPIRY,
-      customerId: Number(row.customer_id),
-      customerName,
-      targetDate: renewalDate,
-      claimRequestId: null,
-      message: `${customerName} 고객님의 자동차보험 만기일이 1달 남았습니다. 만기일: ${renewalDate}`,
-      referenceId: String(row.customer_id),
-    })
+    try {
+      await upsertUserNotification(db, safeQueryExec, {
+        userId,
+        gaId,
+        type: USER_NOTIFICATION_TYPES.CAR_EXPIRY,
+        customerId: Number(row.customer_id),
+        customerName,
+        targetDate: renewalDate,
+        claimRequestId: null,
+        message: `${customerName} 고객님의 자동차보험 만기일이 1달 남았습니다. 만기일: ${renewalDate}`,
+        referenceId: String(row.customer_id),
+      })
+    } catch (error) {
+      console.error('[userNotificationService] car expiry notification upsert failed', {
+        userId,
+        customerId: row.customer_id,
+        error,
+      })
+    }
   }
 
-  const ageRows = await safeQueryExec(
-    db,
-    `
-    SELECT c.id AS customer_id, c.name AS customer_name, c.next_age_date
-    FROM customers c
-    WHERE c.ga_id = $1
-      AND c.deleted_at IS NULL
-      AND COALESCE(c.owner_user_id, c.user_id) = $2
-      AND c.next_age_date = $3::date
-    `,
-    [gaId, userId, insuranceAgeDueOn],
-  )
+  let ageRows
+  try {
+    ageRows = await safeQueryExec(
+      db,
+      `
+      SELECT c.id AS customer_id, c.name AS customer_name, c.next_age_date
+      FROM customers c
+      WHERE c.ga_id = $1
+        AND c.deleted_at IS NULL
+        AND COALESCE(c.owner_user_id, c.user_id) = $2
+        AND c.next_age_date = $3::date
+      `,
+      [gaId, userId, insuranceAgeDueOn],
+    )
+  } catch (error) {
+    console.error('[userNotificationService] insurance age sync query failed', error)
+    ageRows = { rows: [] }
+  }
 
   for (const row of ageRows.rows) {
     const customerName = String(row.customer_name ?? '').trim() || '고객'
     const targetDate = String(row.next_age_date ?? '').slice(0, 10)
-    await upsertUserNotification(db, safeQueryExec, {
-      userId,
-      gaId,
-      type: USER_NOTIFICATION_TYPES.INSURANCE_AGE_DATE,
-      customerId: Number(row.customer_id),
-      customerName,
-      targetDate,
-      claimRequestId: null,
-      message: `${customerName} 고객님의 상령일이 2달 남았습니다. 상령일: ${targetDate}`,
-      referenceId: String(row.customer_id),
-    })
+    try {
+      await upsertUserNotification(db, safeQueryExec, {
+        userId,
+        gaId,
+        type: USER_NOTIFICATION_TYPES.INSURANCE_AGE_DATE,
+        customerId: Number(row.customer_id),
+        customerName,
+        targetDate,
+        claimRequestId: null,
+        message: `${customerName} 고객님의 상령일이 2달 남았습니다. 상령일: ${targetDate}`,
+        referenceId: String(row.customer_id),
+      })
+    } catch (error) {
+      console.error('[userNotificationService] insurance age notification upsert failed', {
+        userId,
+        customerId: row.customer_id,
+        error,
+      })
+    }
   }
 }
 

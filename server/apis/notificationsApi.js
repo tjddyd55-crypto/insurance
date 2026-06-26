@@ -205,7 +205,9 @@ export function registerNotificationsApi(apiRouter, ctx) {
       if (gaId == null) {
         return
       }
-      await syncDueUserNotifications(pool, safeQuery, userId, gaId)
+      await syncDueUserNotifications(pool, safeQuery, userId, gaId).catch((error) => {
+        console.error('[notificationsApi] syncDueUserNotifications failed', { userId, gaId, error })
+      })
       const r = await safeQuery(
         pool,
         `
