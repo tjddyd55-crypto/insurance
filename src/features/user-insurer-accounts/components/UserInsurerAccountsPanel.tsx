@@ -95,14 +95,16 @@ function AccountRowEditor({
       </div>
       <div className="insurer-account-table__action" role="cell">
         <div className="insurer-account-table__action-group">
-          <button
-            type="button"
-            className="insurer-account-save-button"
+          <FormButton
+            htmlType="button"
+            variant="primary"
+            size="sm"
+            className="insurer-account-table__save-btn"
             disabled={pending}
             onClick={handleSave}
           >
             저장
-          </button>
+          </FormButton>
           {row.isCustom ? (
             <button
               type="button"

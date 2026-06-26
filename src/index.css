@@ -5161,28 +5161,11 @@ div.cta-button.customers-page__action-btn[role='button'] {
   background: #f8fafc;
 }
 
-.insurer-account-save-button {
+.insurer-account-table__action .insurer-account-table__save-btn.button--small {
   height: 34px;
   min-width: 54px;
   padding: 0 12px;
-  border: 1px solid #2563eb;
-  border-radius: 8px;
-  background: #2563eb;
-  color: #ffffff;
-  font-size: 13px;
   font-weight: 800;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.insurer-account-save-button:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.insurer-account-save-button:not(:disabled):hover {
-  background: #1d4ed8;
-  border-color: #1d4ed8;
 }
 
 .insurer-account-delete-button {
