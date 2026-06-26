@@ -16,6 +16,7 @@ import {
   sortNotificationRowsByReferenceDate,
 } from '../utils/notificationDateLabel'
 import { openNotificationCustomerNavigate } from '../utils/notificationCustomerNavigation'
+import { NotificationConfirmModal } from './NotificationConfirmModal'
 
 const VIEW_OPTIONS: Array<{ value: NotificationListView; label: string }> = [
   { value: 'active', label: '미확인' },
@@ -47,6 +48,10 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [pendingId, setPendingId] = useState<string | null>(null)
+  const [confirmTarget, setConfirmTarget] = useState<NotificationRow | null>(null)
+  const [isConfirming, setIsConfirming] = useState(false)
+  const [confirmError, setConfirmError] = useState('')
+  const [toast, setToast] = useState('')
 
   const load = useCallback(async () => {
     if (!token.trim()) {
@@ -70,6 +75,14 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    if (!toast) {
+      return
+    }
+    const timer = window.setTimeout(() => setToast(''), 3000)
+    return () => window.clearTimeout(timer)
+  }, [toast])
 
   const groupedItems = useMemo(() => {
     const map = new Map<string, NotificationRow[]>()
@@ -103,21 +116,51 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
     }
   }
 
-  const handleConfirm = async (row: NotificationRow) => {
-    setPendingId(row.id)
+  const openConfirmModal = (row: NotificationRow) => {
+    if (isConfirming) {
+      return
+    }
+    setConfirmError('')
+    setConfirmTarget(row)
+  }
+
+  const closeConfirmModal = () => {
+    if (isConfirming) {
+      return
+    }
+    setConfirmTarget(null)
+    setConfirmError('')
+  }
+
+  const handleConfirmSubmit = async () => {
+    if (!confirmTarget || isConfirming) {
+      return
+    }
+    setIsConfirming(true)
+    setConfirmError('')
     try {
-      await dismissNotification(token, row.id)
-      await load()
+      await dismissNotification(token, confirmTarget.id)
+      setItems((prev) => prev.filter((item) => item.id !== confirmTarget.id))
+      setConfirmTarget(null)
+      setToast('알림을 확인 처리했습니다.')
       dispatchNotificationRefresh()
-    } catch (e) {
-      setError(resolveNotificationLoadError(e))
+    } catch {
+      setConfirmError('알림 확인 처리에 실패했습니다. 다시 시도해 주세요.')
     } finally {
-      setPendingId(null)
+      setIsConfirming(false)
     }
   }
 
   return (
     <div className="notification-center">
+      <NotificationConfirmModal
+        row={confirmTarget}
+        busy={isConfirming}
+        error={confirmError}
+        onConfirm={handleConfirmSubmit}
+        onCancel={closeConfirmModal}
+      />
+
       <div className="notification-center__filters">
         <div className="notification-center__filter-row">
           <div className="notification-center__filter-buttons">
@@ -138,6 +181,8 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
           ) : null}
         </div>
       </div>
+
+      {toast ? <p className="notification-center__toast">{toast}</p> : null}
 
       {loading ? <p className="notification-center__muted">불러오는 중…</p> : null}
       {error ? (
@@ -179,7 +224,7 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
                                 <button
                                   type="button"
                                   className="notification-section__name-link"
-                                  disabled={pendingId === row.id}
+                                  disabled={pendingId === row.id || isConfirming}
                                   onClick={() => void handleNameClick(row)}
                                 >
                                   {row.customerName ?? '—'}
@@ -196,8 +241,8 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
                                   htmlType="button"
                                   variant="secondary"
                                   size="sm"
-                                  disabled={pendingId === row.id}
-                                  onClick={() => void handleConfirm(row)}
+                                  disabled={isConfirming && confirmTarget?.id === row.id}
+                                  onClick={() => openConfirmModal(row)}
                                 >
                                   확인
                                 </FormButton>
