@@ -62,7 +62,7 @@ export default function MemoWorkspacePage() {
           className={`memo-workspace memo-workspace--infinite w-full h-full min-h-full bg-transparent${routedPage ? ' memo-board' : ''}`}
           onClick={handleCanvasClick}
         >
-          <div ref={containerRef} className="h-full w-full" onClick={handleCanvasClick}>
+          <div ref={containerRef} className="memo-board__notes-layer h-full w-full" onClick={handleCanvasClick}>
             {/*
              * 색상 클래스를 컴포넌트 레벨에 박지 않는다. 메모 캔버스는 앱 전역 테마와
              * 독립된 "다크 스코프" 라서, 색은 부모 .memo-canvas-area 의 전용 변수
@@ -111,7 +111,7 @@ export default function MemoWorkspacePage() {
                   onTextareaBlur={handleTextareaBlur}
                   onDragStart={handleDragStart}
                   onDragEnd={handleDragEnd}
-                  onMinimize={minimizeNote}
+                  onMinimize={routedPage ? undefined : minimizeNote}
                 />
               ))
             )}

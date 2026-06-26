@@ -101,6 +101,13 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
       canvasHydratedRef.current = false
       return
     }
+    if (routedPage) {
+      setHiddenNotes({})
+      setIsMinimized(false)
+      canvasHydratedRef.current = true
+      skipCanvasPersistRef.current = true
+      return
+    }
     const snap = loadMemoUiSnapshot(persistenceUserId)
     if (snap?.canvas) {
       setIsMinimized(snap.canvas.isMinimized)
@@ -111,10 +118,10 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
       setHiddenNotes(nextHidden)
     }
     canvasHydratedRef.current = true
-  }, [persistenceUserId])
+  }, [persistenceUserId, routedPage])
 
   useEffect(() => {
-    if (!persistenceUserId || !canvasHydratedRef.current) {
+    if (!persistenceUserId || !canvasHydratedRef.current || routedPage) {
       return
     }
     if (skipCanvasPersistRef.current) {
@@ -125,7 +132,7 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
       isMinimized,
       hiddenNoteIds: Object.keys(hiddenNotes).filter((id) => hiddenNotes[id]),
     })
-  }, [persistenceUserId, isMinimized, hiddenNotes])
+  }, [persistenceUserId, isMinimized, hiddenNotes, routedPage])
 
   const minimizeNote = useCallback((id: string) => {
     setHiddenNotes((prev) => ({
@@ -173,11 +180,11 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
   }, [])
 
   const canvasHeight = useMemo(() => {
-    const visible = notes.filter((n) => !hiddenNotes[n.id])
-    if (visible.length === 0) {
+    const boardNotes = routedPage ? notes : notes.filter((n) => !hiddenNotes[n.id])
+    if (boardNotes.length === 0) {
       return undefined
     }
-    const bottoms = visible.map((n) => {
+    const bottoms = boardNotes.map((n) => {
       const h = Math.max(150, Number(n.height) || 160)
       return n.y + h
     })
@@ -194,24 +201,32 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
     if (notes.length === 0 || draggingNoteId != null) {
       return
     }
-    const { width: workspaceWidth, height: workspaceHeight } = getWorkspaceBounds()
-    if (workspaceWidth === 0 || workspaceHeight === 0) {
-      return
-    }
-    notes.forEach((note) => {
-      const noteWidth = Math.max(200, Number(note.width) || 200)
-      const noteHeight = Math.max(150, Number(note.height) || 160)
-      const { x: fixedX, y: fixedY } = clampNotePosition(
-        note,
-        workspaceWidth || noteWidth + 48,
-        workspaceHeight || noteHeight + 48,
-      )
+    const measureAndClamp = () => {
+      const workspaceEl = workspaceRef.current
+      const containerEl = containerRef.current
+      const measuredWidth = workspaceEl?.clientWidth ?? containerEl?.clientWidth ?? 0
+      const measuredHeight = workspaceEl?.clientHeight ?? containerEl?.clientHeight ?? 0
+      const workspaceWidth = measuredWidth > 0 ? measuredWidth : 960
+      const workspaceHeight =
+        measuredHeight > 0
+          ? Math.max(measuredHeight, workspaceEl?.scrollHeight ?? 0)
+          : routedPage
+            ? 720
+            : 480
 
-      if (fixedX !== note.x || fixedY !== note.y) {
-        updatePosition(note.id, fixedX, fixedY)
-      }
-    })
-  }, [draggingNoteId, getWorkspaceBounds, notes, updatePosition, workspaceSizeTick])
+      notes.forEach((note) => {
+        const { x: fixedX, y: fixedY } = clampNotePosition(note, workspaceWidth, workspaceHeight)
+        if (fixedX !== note.x || fixedY !== note.y) {
+          updatePosition(note.id, fixedX, fixedY)
+        }
+      })
+    }
+
+    measureAndClamp()
+    if (routedPage) {
+      requestAnimationFrame(measureAndClamp)
+    }
+  }, [draggingNoteId, notes, routedPage, updatePosition, workspaceSizeTick])
 
   const ensureRoutedNoteVisible = useCallback(
     (id: string, options: { center?: boolean } = {}) => {
