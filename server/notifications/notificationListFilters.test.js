@@ -32,3 +32,21 @@ test('buildNotificationListWhere maps unread/read/dismissed/hidden', () => {
   const hidden = buildNotificationListWhere('u1', 1, { status: 'hidden', type: 'all' })
   assert.match(hidden.clause, /is_dismissed = true/)
 })
+
+test('buildNotificationListWhere keeps active notifications for status all without target_date filter', () => {
+  const all = buildNotificationListWhere('u1', 1, { status: 'all', type: 'all' })
+  assert.match(all.clause, /is_dismissed = false/)
+  assert.doesNotMatch(all.clause, /target_date/)
+})
+
+test('buildNotificationListWhere applies type filter without changing status rules', () => {
+  const carUnread = buildNotificationListWhere('u1', 1, { status: 'unread', type: 'car_expiry' })
+  assert.match(carUnread.clause, /type = \$3/)
+  assert.match(carUnread.clause, /is_dismissed = false/)
+  assert.equal(carUnread.params[2], 'car_expiry')
+
+  const ageRead = buildNotificationListWhere('u1', 1, { status: 'read', type: 'insurance_age_date' })
+  assert.match(ageRead.clause, /type = \$3/)
+  assert.match(ageRead.clause, /is_read = true/)
+  assert.match(ageRead.clause, /is_dismissed = false/)
+})
