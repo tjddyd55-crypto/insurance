@@ -1,4 +1,3 @@
-import { FormButton } from '../../../components/form'
 import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
 import type { StorageFileDownloadLinkEntry, StorageFileRow } from '../api/storageApi'
 import type { StorageActionVariant } from './StorageFileList'
@@ -8,6 +7,10 @@ import {
   CustomerWorkspaceItemActions,
   CustomerWorkspaceSecondaryActionButton,
 } from '../../customers/components/CustomerWorkspaceActionButtons'
+
+const EXPLORER_FILE_ACTION_BUTTON_CLASS = 'storage-explorer-file-action-button'
+const EXPLORER_FILE_ACTION_DANGER_CLASS =
+  'storage-explorer-file-action-button storage-explorer-file-action-button--danger'
 
 type StorageExplorerFilePanelProps = {
   breadcrumb: string[]
@@ -208,22 +211,21 @@ export default function StorageExplorerFilePanel({
                   </CustomerWorkspaceItemActions>
                 ) : (
                   <div className="storage-explorer-files__actions">
-                    <FormButton
-                      htmlType="button"
-                      variant="action"
-                      size="sm"
+                    <button
+                      type="button"
+                      className={EXPLORER_FILE_ACTION_BUTTON_CLASS}
                       onClick={(event) => {
                         event.stopPropagation()
                         onOpen(file)
                       }}
                     >
                       열기
-                    </FormButton>
+                    </button>
                     {downloadHref ? (
                       <a
                         href={downloadHref}
                         download
-                        className="button button--small storage-file-list__action-button storage-file-list__action-button--download"
+                        className={EXPLORER_FILE_ACTION_BUTTON_CLASS}
                         onClick={(event) => {
                           event.stopPropagation()
                         }}
@@ -231,40 +233,37 @@ export default function StorageExplorerFilePanel({
                         다운로드
                       </a>
                     ) : (
-                      <FormButton
-                        htmlType="button"
-                        variant="action"
-                        size="sm"
+                      <button
+                        type="button"
+                        className={EXPLORER_FILE_ACTION_BUTTON_CLASS}
                         disabled
                         onClick={(event) => {
                           event.stopPropagation()
                         }}
                       >
                         {downloadFailed ? '준비 실패' : '준비 중'}
-                      </FormButton>
+                      </button>
                     )}
-                    <FormButton
-                      htmlType="button"
-                      variant="secondary"
-                      size="sm"
+                    <button
+                      type="button"
+                      className={EXPLORER_FILE_ACTION_BUTTON_CLASS}
                       onClick={(event) => {
                         event.stopPropagation()
                         onRename(file)
                       }}
                     >
                       이름 변경
-                    </FormButton>
-                    <FormButton
-                      htmlType="button"
-                      variant="danger"
-                      size="sm"
+                    </button>
+                    <button
+                      type="button"
+                      className={EXPLORER_FILE_ACTION_DANGER_CLASS}
                       onClick={(event) => {
                         event.stopPropagation()
                         onDelete(file)
                       }}
                     >
                       삭제
-                    </FormButton>
+                    </button>
                   </div>
                 )}
               </div>
