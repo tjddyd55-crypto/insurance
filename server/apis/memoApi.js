@@ -1,8 +1,8 @@
 import { safeQuery } from '../utils/dbSafeQuery.js'
 import { parseGaId } from '../lib/parseGaId.js'
 
-const DEFAULT_WIDTH = 200
-const DEFAULT_HEIGHT = 160
+const DEFAULT_WIDTH = 260
+const DEFAULT_HEIGHT = 200
 const DEFAULT_FONT_SIZE = 16
 const DEFAULT_Z_INDEX = 0
 

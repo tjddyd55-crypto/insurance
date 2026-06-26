@@ -2,8 +2,8 @@ import { FormButton, FormTextarea } from '../../../components/form'
 import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
 import type { Note } from '../types/memo.types'
 
-const MIN_W = 200
-const MIN_H = 150
+const MIN_W = 220
+const MIN_H = 160
 const FONT_MIN = 12
 const FONT_MAX = 24
 

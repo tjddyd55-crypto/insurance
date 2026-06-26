@@ -8,8 +8,8 @@ const POSITION_SAVE_MS = 350
 const SIZE_SAVE_MS = 350
 const FONT_SAVE_MS = 350
 
-const MIN_W = 200
-const MIN_H = 150
+const MIN_W = 220
+const MIN_H = 160
 const FONT_MIN = 12
 const FONT_MAX = 24
 

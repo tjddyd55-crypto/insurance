@@ -162,6 +162,7 @@ export function buildGaTenantDashboardMenu(
     { type: 'section', label: '할일 및 알림' },
     { type: 'link', label: '할일', path: '/todos' },
     { type: 'link', label: '알림', path: '/notifications' },
+    { type: 'link', label: '메모', path: '/memo' },
 
     { type: 'section', label: '고객관리' },
     { type: 'link', label: '고객리스트', path: '/customers' },
