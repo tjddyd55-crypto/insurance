@@ -46,18 +46,20 @@ export default function MemoWorkspacePage() {
     )
   }
 
-  const visibleNotes = notes.filter((n) => !hiddenNotes[n.id])
+  const visibleNotes = routedPage
+    ? notes
+    : notes.filter((n) => !hiddenNotes[n.id])
 
   return (
     <>
       <div
-        className="memo-canvas"
+        className={`memo-canvas${routedPage ? ' memo-canvas--routed-board' : ''}`}
         style={canvasHeight != null ? { minHeight: canvasHeight } : undefined}
         onClick={handleCanvasClick}
       >
         <div
           ref={workspaceRef}
-          className="memo-workspace memo-workspace--infinite w-full h-full min-h-full bg-transparent"
+          className={`memo-workspace memo-workspace--infinite w-full h-full min-h-full bg-transparent${routedPage ? ' memo-board' : ''}`}
           onClick={handleCanvasClick}
         >
           <div ref={containerRef} className="h-full w-full" onClick={handleCanvasClick}>

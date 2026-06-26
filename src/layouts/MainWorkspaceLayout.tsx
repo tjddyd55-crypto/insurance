@@ -45,7 +45,7 @@ function MemoPanelBody({
       <div
         className={`memo-body${routedMemoCanvas ? ' memo-body--routed-page' : ''} ${isMobile ? 'memo-body--mobile mobile-container' : 'memo-body--list-row'}`}
       >
-        <div className={`memo-canvas-area p-2 min-h-0 ${isMobile ? 'mobile-memo-view' : ''}`}>
+        <div className={`memo-canvas-area p-2 min-h-0 ${routedMemoCanvas ? 'memo-canvas-area--routed-board' : ''} ${isMobile ? 'mobile-memo-view' : 'memo-canvas-area--pc'}`}>
           <MemoWorkspacePage />
         </div>
         {isMobile ? (

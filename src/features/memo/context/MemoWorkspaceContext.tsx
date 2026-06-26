@@ -15,6 +15,7 @@ import {
 import { useAuth } from '../../auth/AuthProvider'
 import { useNotes } from '../hooks/useNotes'
 import { loadMemoUiSnapshot, patchMemoUiCanvas } from '../memoUiStorage'
+import { buildArrangedNotePositions, clampNotePosition } from '@insurance-shared/memoLayout.js'
 
 const ROUTED_MEMO_DRAG_EXTENSION = 1200
 
@@ -200,11 +201,11 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
     notes.forEach((note) => {
       const noteWidth = Math.max(200, Number(note.width) || 200)
       const noteHeight = Math.max(150, Number(note.height) || 160)
-      const maxX = Math.max(0, workspaceWidth - noteWidth)
-      const maxY = Math.max(0, workspaceHeight - noteHeight)
-
-      const fixedX = Math.max(0, Math.min(note.x, maxX))
-      const fixedY = Math.max(0, Math.min(note.y, maxY))
+      const { x: fixedX, y: fixedY } = clampNotePosition(
+        note,
+        workspaceWidth || noteWidth + 48,
+        workspaceHeight || noteHeight + 48,
+      )
 
       if (fixedX !== note.x || fixedY !== note.y) {
         updatePosition(note.id, fixedX, fixedY)
@@ -451,16 +452,18 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
   }, [])
 
   const handleAutoArrange = useCallback(() => {
-    const columnX = [24, 300, 576]
-    const startY = 24
-    const rowStep = 236
-
+    const positions = buildArrangedNotePositions(notes.length)
+    if (routedPage) {
+      setHiddenNotes({})
+    }
     notes.forEach((note, index) => {
-      const col = index % columnX.length
-      const row = Math.floor(index / columnX.length)
-      updatePosition(note.id, columnX[col], startY + row * rowStep)
+      const target = positions[index]
+      if (!target) {
+        return
+      }
+      updatePosition(note.id, target.x, target.y)
     })
-  }, [notes, updatePosition])
+  }, [notes, routedPage, updatePosition])
 
   const closeDeleteModal = useCallback(() => {
     if (deleteSubmitting) {
