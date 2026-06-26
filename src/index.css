@@ -11525,12 +11525,27 @@ textarea.memo-sticky-note__textarea::placeholder {
   min-width: 0;
 }
 
+.storage-explorer-files__name-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
 .storage-explorer-files__name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: #111827;
   font-size: 0.86rem;
+}
+
+.storage-explorer-files__folder-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #64748b;
+  font-size: 0.74rem;
 }
 
 .storage-explorer-files__type,

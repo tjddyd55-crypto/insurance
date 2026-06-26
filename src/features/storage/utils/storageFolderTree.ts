@@ -2,6 +2,24 @@ import type { StorageFileRow, StorageFolderRow } from '../api/storageApi'
 
 export const STORAGE_ROOT_FOLDER_LABEL = '전체'
 
+/** 탐색기 좌측 `전체` = 모든 폴더 파일. `folder` = 해당 폴더 직속 파일만. */
+export type StorageExplorerSelection =
+  | { mode: 'all' }
+  | { mode: 'folder'; folderId: number }
+
+export function isStorageExplorerAllView(selection: StorageExplorerSelection): boolean {
+  return selection.mode === 'all'
+}
+
+export function getStorageExplorerSelectedFolderId(selection: StorageExplorerSelection): number | null {
+  return selection.mode === 'folder' ? selection.folderId : null
+}
+
+/** `전체` 보기에서 업로드·폴더 생성 시 최상위(parentId/folderId null) */
+export function getStorageExplorerUploadFolderId(selection: StorageExplorerSelection): number | null {
+  return selection.mode === 'folder' ? selection.folderId : null
+}
+
 export type StorageFolderTreeNode = {
   folder: StorageFolderRow
   children: StorageFolderTreeNode[]
@@ -47,11 +65,12 @@ export function findStorageFolderById(
 
 export function buildStorageFolderBreadcrumb(
   folders: StorageFolderRow[],
-  selectedFolderId: number | null,
+  selection: StorageExplorerSelection,
 ): string[] {
-  if (selectedFolderId == null) {
+  if (selection.mode === 'all') {
     return [STORAGE_ROOT_FOLDER_LABEL]
   }
+  const selectedFolderId = selection.folderId
   const byId = new Map(folders.map((folder) => [folder.id, folder]))
   const segments: string[] = []
   let currentId: number | null = selectedFolderId
@@ -70,9 +89,9 @@ export function buildStorageFolderBreadcrumb(
 
 export function buildStorageFolderPathLabel(
   folders: StorageFolderRow[],
-  selectedFolderId: number | null,
+  selection: StorageExplorerSelection,
 ): string {
-  return buildStorageFolderBreadcrumb(folders, selectedFolderId).join(' > ')
+  return buildStorageFolderBreadcrumb(folders, selection).join(' > ')
 }
 
 export function getStorageAncestorFolderIds(
@@ -117,26 +136,41 @@ export function countDirectChildFolders(
 
 export function filterFilesForExplorerFolder(
   files: StorageFileRow[],
-  selectedFolderId: number | null,
+  selection: StorageExplorerSelection,
 ): StorageFileRow[] {
-  return files.filter((file) => (file.folderId ?? null) === selectedFolderId)
+  if (selection.mode === 'all') {
+    return files
+  }
+  return files.filter((file) => (file.folderId ?? null) === selection.folderId)
+}
+
+export function resolveStorageFileFolderLabel(
+  folders: StorageFolderRow[],
+  file: StorageFileRow,
+): string {
+  const folderId = file.folderId ?? null
+  if (folderId == null) {
+    return '최상위'
+  }
+  return findStorageFolderById(folders, folderId)?.name ?? '폴더'
 }
 
 export function storageExplorerFolderSessionKey(customerId: number): string {
   return `storage-explorer-folder:${customerId}`
 }
 
-export function resolveFolderIdAtBreadcrumbIndex(
+export function resolveExplorerSelectionAtBreadcrumbIndex(
   folders: StorageFolderRow[],
-  selectedFolderId: number | null,
+  selection: StorageExplorerSelection,
   breadcrumbIndex: number,
-): number | null {
+): StorageExplorerSelection {
   if (breadcrumbIndex <= 0) {
-    return null
+    return { mode: 'all' }
   }
-  if (selectedFolderId == null) {
-    return null
+  if (selection.mode !== 'folder') {
+    return { mode: 'all' }
   }
+  const selectedFolderId = selection.folderId
   const byId = new Map(folders.map((folder) => [folder.id, folder]))
   const chain: number[] = []
   let currentId: number | null = selectedFolderId
@@ -147,27 +181,53 @@ export function resolveFolderIdAtBreadcrumbIndex(
     currentId = byId.get(currentId)?.parentId ?? null
   }
   const folderIndex = breadcrumbIndex - 1
-  return chain[folderIndex] ?? selectedFolderId
+  const folderId = chain[folderIndex] ?? selectedFolderId
+  return { mode: 'folder', folderId }
 }
 
-export function readStoredExplorerFolderId(customerId: number): number | null {
+/** @deprecated {@link resolveExplorerSelectionAtBreadcrumbIndex} */
+export function resolveFolderIdAtBreadcrumbIndex(
+  folders: StorageFolderRow[],
+  selectedFolderId: number | null,
+  breadcrumbIndex: number,
+): number | null {
+  const selection: StorageExplorerSelection =
+    selectedFolderId == null ? { mode: 'all' } : { mode: 'folder', folderId: selectedFolderId }
+  const next = resolveExplorerSelectionAtBreadcrumbIndex(folders, selection, breadcrumbIndex)
+  return getStorageExplorerSelectedFolderId(next)
+}
+
+export function readStoredExplorerSelection(customerId: number): StorageExplorerSelection {
   if (typeof sessionStorage === 'undefined') {
-    return null
+    return { mode: 'all' }
   }
   const raw = sessionStorage.getItem(storageExplorerFolderSessionKey(customerId))
-  if (!raw || raw === 'root') {
-    return null
+  if (!raw || raw === 'root' || raw === 'all') {
+    return { mode: 'all' }
   }
   const id = Number(raw)
-  return Number.isInteger(id) && id > 0 ? id : null
+  return Number.isInteger(id) && id > 0 ? { mode: 'folder', folderId: id } : { mode: 'all' }
 }
 
-export function writeStoredExplorerFolderId(customerId: number, folderId: number | null): void {
+export function writeStoredExplorerSelection(customerId: number, selection: StorageExplorerSelection): void {
   if (typeof sessionStorage === 'undefined') {
     return
   }
   sessionStorage.setItem(
     storageExplorerFolderSessionKey(customerId),
-    folderId == null ? 'root' : String(folderId),
+    selection.mode === 'all' ? 'all' : String(selection.folderId),
+  )
+}
+
+/** @deprecated {@link readStoredExplorerSelection} */
+export function readStoredExplorerFolderId(customerId: number): number | null {
+  return getStorageExplorerSelectedFolderId(readStoredExplorerSelection(customerId))
+}
+
+/** @deprecated {@link writeStoredExplorerSelection} */
+export function writeStoredExplorerFolderId(customerId: number, folderId: number | null): void {
+  writeStoredExplorerSelection(
+    customerId,
+    folderId == null ? { mode: 'all' } : { mode: 'folder', folderId },
   )
 }
