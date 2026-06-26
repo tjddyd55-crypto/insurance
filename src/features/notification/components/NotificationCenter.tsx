@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FormButton } from '../../../components/form'
 import { ApiError } from '../../../lib/apiClient'
@@ -6,6 +6,7 @@ import {
   buildNotificationNavigatePath,
   dismissNotification,
   fetchNotifications,
+  fetchUnreadCount,
   markAllNotificationsRead,
   markNotificationRead,
   notificationTypeLabel,
@@ -17,9 +18,11 @@ import { dispatchNotificationRefresh } from '../notificationRefreshDispatch'
 import { formatKstDateDisplay, formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
 
 const STATUS_OPTIONS: Array<{ value: NotificationListStatus; label: string }> = [
-  { value: 'all', label: '전체 알림' },
+  { value: 'all', label: '전체' },
   { value: 'unread', label: '읽지 않음' },
-  { value: 'dismissed', label: '처리 완료/숨김' },
+  { value: 'read', label: '읽음' },
+  { value: 'dismissed', label: '처리 완료' },
+  { value: 'hidden', label: '숨김' },
 ]
 
 const TYPE_OPTIONS: Array<{ value: NotificationListType; label: string }> = [
@@ -28,6 +31,16 @@ const TYPE_OPTIONS: Array<{ value: NotificationListType; label: string }> = [
   { value: 'insurance_age_date', label: '상령일' },
   { value: 'claim_request_received', label: '청구알림' },
 ]
+
+function resolveNotificationLoadError(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.message === 'DB_ERROR') {
+      return '알림을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'
+    }
+    return error.message
+  }
+  return '알림을 불러오지 못했습니다.'
+}
 
 export type NotificationCenterProps = {
   token: string
@@ -41,21 +54,28 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [pendingId, setPendingId] = useState<string | null>(null)
+  const [unreadCount, setUnreadCount] = useState(0)
 
   const load = useCallback(async () => {
     if (!token.trim()) {
       setItems([])
+      setUnreadCount(0)
       setLoading(false)
       return
     }
     setLoading(true)
     setError('')
     try {
-      const { notifications } = await fetchNotifications(token, { limit: 100, status, type })
+      const [{ notifications }, unread] = await Promise.all([
+        fetchNotifications(token, { limit: 100, status, type }),
+        fetchUnreadCount(token),
+      ])
       setItems(notifications)
+      setUnreadCount(unread.count)
     } catch (e) {
       setItems([])
-      setError(e instanceof ApiError ? e.message : '알림을 불러오지 못했습니다.')
+      setUnreadCount(0)
+      setError(resolveNotificationLoadError(e))
     } finally {
       setLoading(false)
     }
@@ -78,7 +98,7 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
       }
       navigate(path)
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : '알림 처리에 실패했습니다.')
+      setError(resolveNotificationLoadError(e))
     } finally {
       setPendingId(null)
     }
@@ -91,7 +111,7 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
       await load()
       dispatchNotificationRefresh()
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : '알림 처리에 실패했습니다.')
+      setError(resolveNotificationLoadError(e))
     } finally {
       setPendingId(null)
     }
@@ -103,60 +123,64 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
       await load()
       dispatchNotificationRefresh()
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : '전체 읽음 처리에 실패했습니다.')
+      setError(resolveNotificationLoadError(e))
     }
   }
 
-  const unreadCount = useMemo(
-    () => items.filter((row) => !row.isRead && !row.isDismissed).length,
-    [items],
-  )
-
   return (
     <div className="notification-center">
-      <div className="notification-center__toolbar flex flex-wrap items-center gap-2 mb-4">
-        <div className="flex flex-wrap gap-2">
-          {STATUS_OPTIONS.map((option) => (
-            <FormButton
-              key={option.value}
-              htmlType="button"
-              variant={status === option.value ? 'primary' : 'secondary'}
-              size="sm"
-              onClick={() => setStatus(option.value)}
-            >
-              {option.label}
-            </FormButton>
-          ))}
+      <div className="notification-center__filters">
+        <div className="notification-center__filter-row">
+          <span className="notification-center__filter-label">상태</span>
+          <div className="notification-center__filter-buttons">
+            {STATUS_OPTIONS.map((option) => (
+              <FormButton
+                key={option.value}
+                htmlType="button"
+                variant={status === option.value ? 'primary' : 'secondary'}
+                size="sm"
+                onClick={() => setStatus(option.value)}
+              >
+                {option.label}
+              </FormButton>
+            ))}
+          </div>
+          <span className="notification-center__unread-count">읽지 않음 {unreadCount}건</span>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {TYPE_OPTIONS.map((option) => (
-            <FormButton
-              key={option.value}
-              htmlType="button"
-              variant={type === option.value ? 'primary' : 'secondary'}
-              size="sm"
-              onClick={() => setType(option.value)}
-            >
-              {option.label}
-            </FormButton>
-          ))}
+
+        <div className="notification-center__filter-row">
+          <span className="notification-center__filter-label">종류</span>
+          <div className="notification-center__filter-buttons">
+            {TYPE_OPTIONS.map((option) => (
+              <FormButton
+                key={option.value}
+                htmlType="button"
+                variant={type === option.value ? 'primary' : 'secondary'}
+                size="sm"
+                onClick={() => setType(option.value)}
+              >
+                {option.label}
+              </FormButton>
+            ))}
+          </div>
+          <FormButton htmlType="button" variant="secondary" size="sm" onClick={() => void handleReadAll()}>
+            전체 읽음 처리
+          </FormButton>
         </div>
-        <FormButton htmlType="button" variant="secondary" size="sm" onClick={() => void handleReadAll()}>
-          전체 읽음
-        </FormButton>
-        <span className="text-sm text-[var(--text-secondary)]">읽지 않음 {unreadCount}건</span>
       </div>
 
-      {loading ? <p className="text-sm text-[var(--text-secondary)]">불러오는 중…</p> : null}
+      {loading ? <p className="notification-center__muted">불러오는 중…</p> : null}
       {error ? (
-        <p className="text-sm text-[var(--danger)]" role="alert">
+        <p className="notification-center__error" role="alert">
           {error}
         </p>
       ) : null}
 
-      {!loading && items.length === 0 ? (
-        <p className="text-sm text-[var(--text-secondary)]">알림이 없습니다.</p>
-      ) : (
+      {!loading && !error && items.length === 0 ? (
+        <p className="notification-center__empty">알림이 없습니다.</p>
+      ) : null}
+
+      {!loading && items.length > 0 ? (
         <div className="notification-center__table-wrap overflow-x-auto">
           <table className="notification-center__table w-full min-w-[920px] border-collapse">
             <thead>
@@ -210,7 +234,7 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
             </tbody>
           </table>
         </div>
-      )}
+      ) : null}
     </div>
   )
 }

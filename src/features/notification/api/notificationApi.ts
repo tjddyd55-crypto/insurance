@@ -26,7 +26,7 @@ export type NotificationSettings = {
   modalSuppressedUntil: string | null
 }
 
-export type NotificationListStatus = 'all' | 'unread' | 'dismissed'
+export type NotificationListStatus = 'all' | 'unread' | 'read' | 'dismissed' | 'hidden'
 export type NotificationListType =
   | 'all'
   | 'car_expiry'
