@@ -27,8 +27,8 @@ test('breadcrumb · ancestor · folder-scoped files', () => {
     { id: 1, name: '보험청구', parentId: null, createdAt: '' },
     { id: 2, name: '진단서', parentId: 1, createdAt: '' },
   ]
-  assert.deepEqual(buildStorageFolderBreadcrumb(folders, 2), ['홈', '보험청구', '진단서'])
-  assert.equal(buildStorageFolderPathLabel(folders, 2), '홈 > 보험청구 > 진단서')
+  assert.deepEqual(buildStorageFolderBreadcrumb(folders, 2), ['전체', '보험청구', '진단서'])
+  assert.equal(buildStorageFolderPathLabel(folders, 2), '전체 > 보험청구 > 진단서')
   assert.deepEqual(getStorageAncestorFolderIds(folders, 2), [1])
   assert.equal(countDirectChildFolders(folders, 1), 1)
   const files = [

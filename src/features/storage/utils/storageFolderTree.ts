@@ -1,6 +1,6 @@
 import type { StorageFileRow, StorageFolderRow } from '../api/storageApi'
 
-export const STORAGE_ROOT_FOLDER_LABEL = '홈'
+export const STORAGE_ROOT_FOLDER_LABEL = '전체'
 
 export type StorageFolderTreeNode = {
   folder: StorageFolderRow

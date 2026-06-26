@@ -11304,9 +11304,9 @@ textarea.memo-sticky-note__textarea::placeholder {
 .storage-explorer-tree__header {
   padding: 10px 12px;
   border-bottom: 1px solid #e5e7eb;
-  color: #64748b;
+  color: #111827;
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 700;
   background: #f8fafc;
 }
 
