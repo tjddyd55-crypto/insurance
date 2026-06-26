@@ -9,6 +9,7 @@ import {
 import type { UserInsurerAccountsViewProps } from '../hooks/useUserInsurerAccountsState'
 import type { UserInsurerAccountRow } from '../api/userInsurerAccountsApi'
 import { formatAccountSavedAt } from './userInsurerAccountSavedAt'
+import { UserInsurerAccountInputWithCopy } from './UserInsurerAccountInputWithCopy'
 
 type LocalDraft = {
   loginId: string
@@ -62,27 +63,30 @@ function AccountRowEditor({
 
   return (
     <tr className="user-insurer-accounts-page__row">
-      <td className="user-insurer-accounts-page__company">{row.companyName}</td>
+      <td className="user-insurer-accounts-page__company user-insurer-account-company-cell">
+        {row.companyName}
+      </td>
       <td className="user-insurer-accounts-page__input-cell user-insurer-accounts-page__input-cell--login-id">
-        <FormInput
+        <UserInsurerAccountInputWithCopy
           value={draft.loginId}
-          onChange={(event) => setDraft((prev) => ({ ...prev, loginId: event.target.value }))}
+          onChange={(loginId) => setDraft((prev) => ({ ...prev, loginId }))}
           placeholder="아이디"
           disabled={pending}
         />
       </td>
       <td className="user-insurer-accounts-page__input-cell user-insurer-accounts-page__input-cell--password">
-        <FormInput
-          type="text"
+        <UserInsurerAccountInputWithCopy
           value={draft.loginPassword}
-          onChange={(event) => setDraft((prev) => ({ ...prev, loginPassword: event.target.value }))}
+          onChange={(loginPassword) => setDraft((prev) => ({ ...prev, loginPassword }))}
           placeholder="비밀번호"
           disabled={pending}
           autoComplete="off"
         />
       </td>
-      <td className="user-insurer-accounts-page__saved-at">{formatAccountSavedAt(row)}</td>
-      <td className="user-insurer-accounts-page__actions-cell">
+      <td className="user-insurer-accounts-page__saved-at user-insurer-account-saved-at-cell">
+        {formatAccountSavedAt(row)}
+      </td>
+      <td className="user-insurer-accounts-page__actions-cell user-insurer-account-action-cell">
         <div className="user-insurer-accounts-page__row-actions">
           <FormButton htmlType="button" variant="primary" size="sm" disabled={pending} onClick={handleSave}>
             저장
@@ -127,7 +131,7 @@ function AccountSection({
           <p className="user-insurer-accounts-page__muted">등록된 계정 정보가 없습니다.</p>
         ) : (
           <div className="user-insurer-accounts-page__table-wrap">
-            <table className="user-insurer-accounts-page__table">
+            <table className="user-insurer-accounts-page__table user-insurer-accounts-table">
               <colgroup>
                 <col className="user-insurer-accounts-page__col-company" />
                 <col className="user-insurer-accounts-page__col-login-id" />
@@ -137,11 +141,11 @@ function AccountSection({
               </colgroup>
               <thead>
                 <tr>
-                  <th>회사</th>
-                  <th>아이디</th>
-                  <th>비번</th>
-                  <th>저장일</th>
-                  <th>작업</th>
+                  <th className="user-insurer-accounts-page__th-company">회사</th>
+                  <th className="user-insurer-accounts-page__th-login-id">아이디</th>
+                  <th className="user-insurer-accounts-page__th-password">비번</th>
+                  <th className="user-insurer-accounts-page__th-saved-at">저장일</th>
+                  <th className="user-insurer-accounts-page__th-actions">작업</th>
                 </tr>
               </thead>
               <tbody>
