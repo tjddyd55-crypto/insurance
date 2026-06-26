@@ -4925,6 +4925,55 @@ div.cta-button.customers-page__action-btn[role='button'] {
   padding: 16px;
 }
 
+.notification-center__filters {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.notification-center__filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.notification-center__filter-label {
+  flex: 0 0 auto;
+  min-width: 2.5rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.notification-center__filter-buttons {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.notification-center__unread-count {
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.notification-center__muted,
+.notification-center__empty {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.notification-center__error {
+  margin: 0 0 12px;
+  color: var(--danger);
+  font-size: 0.875rem;
+}
+
 .notification-center__table {
   border: 1px solid var(--border-default);
   border-radius: 10px;
@@ -4968,28 +5017,28 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 .user-insurer-accounts-page {
-  color: #e5e7eb;
+  color: var(--text-primary);
 }
 
 .user-insurer-accounts-page__header h1 {
   margin: 0;
-  color: #f8fafc;
+  color: var(--text-primary);
   font-size: 1.35rem;
   font-weight: 700;
 }
 
 .user-insurer-accounts-page__desc {
   margin: 8px 0 0;
-  color: #94a3b8;
+  color: var(--text-secondary);
   font-size: 0.875rem;
 }
 
 .user-insurer-accounts-page__panel {
   margin-top: 16px;
   padding: 16px;
-  border: 1px solid #1e293b;
+  border: 1px solid var(--border-default);
   border-radius: 12px;
-  background: #111827;
+  background: var(--bg-card);
 }
 
 .user-insurer-accounts-page__tabs,
@@ -5012,21 +5061,22 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .user-insurer-accounts-page__table th,
 .user-insurer-accounts-page__table td {
-  border-bottom: 1px solid #1e293b;
+  border-bottom: 1px solid var(--border-default);
   padding: 10px 12px;
   text-align: left;
   vertical-align: top;
+  background: var(--bg-card);
 }
 
 .user-insurer-accounts-page__table th {
-  color: #cbd5e1;
-  background: #1f2937;
+  color: var(--text-secondary);
+  background: var(--bg-soft);
   font-size: 0.875rem;
   font-weight: 600;
 }
 
 .user-insurer-accounts-page__company {
-  color: #f8fafc;
+  color: var(--text-primary);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -5039,13 +5089,13 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .user-insurer-accounts-page__muted {
   margin: 0;
-  color: #94a3b8;
+  color: var(--text-secondary);
   font-size: 0.875rem;
 }
 
 .user-insurer-accounts-page__error {
   margin: 0 0 12px;
-  color: #ef4444;
+  color: var(--danger);
   font-size: 0.875rem;
 }
 
@@ -5056,7 +5106,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 .user-insurer-accounts-page__field span {
-  color: #cbd5e1;
+  color: var(--text-secondary);
   font-size: 0.875rem;
   font-weight: 600;
 }
@@ -5066,17 +5116,18 @@ div.cta-button.customers-page__action-btn[role='button'] {
   min-height: 0;
   flex: 1;
   flex-direction: column;
-  color: #e5e7eb;
+  color: var(--text-primary);
 }
 
 .user-insurer-accounts-page__add-modal-header {
-  border-bottom: 1px solid #1e293b;
+  border-bottom: 1px solid var(--border-default);
   padding: 16px 20px;
+  background: var(--bg-card);
 }
 
 .user-insurer-accounts-page__add-modal-header h2 {
   margin: 0;
-  color: #f8fafc;
+  color: var(--text-primary);
   font-size: 1.1rem;
 }
 
@@ -5084,14 +5135,16 @@ div.cta-button.customers-page__action-btn[role='button'] {
   flex: 1;
   overflow-y: auto;
   padding: 16px 20px;
+  background: var(--bg-card);
 }
 
 .user-insurer-accounts-page__add-modal-footer {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  border-top: 1px solid #1e293b;
+  border-top: 1px solid var(--border-default);
   padding: 16px 20px;
+  background: var(--bg-card);
 }
 
 .user-insurer-accounts-page--mobile {
@@ -10063,6 +10116,20 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 .memo-route-page .workspace-memo-routed-body .memo-canvas-area {
   flex: 1;
   min-height: 0;
+}
+
+.memo-route-page .workspace-memo-routed-body .memo-canvas-area--routed-board {
+  min-height: calc(100vh - var(--app-header-height, 72px) - 56px);
+  min-height: calc(100dvh - var(--app-header-height, 72px) - 56px);
+  background: #f1f5f9;
+}
+
+.memo-route-page .workspace-memo-routed-body .memo-canvas--routed-board,
+.memo-route-page .workspace-memo-routed-body .memo-board {
+  position: relative;
+  width: 100%;
+  min-height: calc(100vh - 160px);
+  min-height: calc(100dvh - 160px);
 }
 
 .memo-route-page .workspace-memo-routed-body .memo-canvas,
