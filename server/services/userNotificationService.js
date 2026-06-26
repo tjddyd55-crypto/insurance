@@ -330,5 +330,6 @@ export function mapUserNotificationRow(row) {
     targetDate: row.target_date != null ? toDateOnlyString(row.target_date) || null : null,
     claimRequestId: row.claim_request_id != null ? Number(row.claim_request_id) : null,
     createdAt: row.created_at,
+    confirmedAt: row.confirmed_at ?? null,
   }
 }

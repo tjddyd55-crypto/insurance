@@ -27,6 +27,7 @@ export type NotificationSettings = {
 }
 
 export type NotificationListStatus = 'all' | 'unread' | 'read' | 'dismissed' | 'hidden'
+export type NotificationListView = 'active' | 'confirmed'
 export type NotificationListType =
   | 'all'
   | 'car_expiry'
@@ -37,6 +38,7 @@ export async function fetchNotifications(
   token: string,
   options: {
     limit?: number
+    view?: NotificationListView
     status?: NotificationListStatus
     type?: NotificationListType
   } = {},
@@ -47,7 +49,9 @@ export async function fetchNotifications(
   const lim = Math.min(100, Math.max(1, Math.floor(options.limit ?? 50)))
   const params = new URLSearchParams()
   params.set('limit', String(lim))
-  if (options.status) {
+  if (options.view) {
+    params.set('view', options.view)
+  } else if (options.status) {
     params.set('status', options.status)
   }
   if (options.type) {

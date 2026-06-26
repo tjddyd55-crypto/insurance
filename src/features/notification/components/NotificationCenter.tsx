@@ -1,37 +1,25 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FormButton } from '../../../components/form'
 import { ApiError } from '../../../lib/apiClient'
 import {
-  buildNotificationNavigatePath,
   dismissNotification,
   fetchNotifications,
-  fetchUnreadCount,
-  markAllNotificationsRead,
-  markNotificationRead,
-  notificationTypeLabel,
-  type NotificationListStatus,
-  type NotificationListType,
+  type NotificationListView,
   type NotificationRow,
 } from '../api/notificationApi'
+import { NOTIFICATION_SECTIONS } from '../config/notificationCenter.config'
 import { dispatchNotificationRefresh } from '../notificationRefreshDispatch'
-import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
-import { formatNotificationTargetDateWithDDay } from '../utils/notificationDateLabel'
+import {
+  formatNotificationDateOnly,
+  formatNotificationRowDDay,
+  sortNotificationRowsByReferenceDate,
+} from '../utils/notificationDateLabel'
 import { openNotificationCustomerNavigate } from '../utils/notificationCustomerNavigation'
 
-const STATUS_OPTIONS: Array<{ value: NotificationListStatus; label: string }> = [
-  { value: 'all', label: '전체' },
-  { value: 'unread', label: '읽지 않음' },
-  { value: 'read', label: '읽음' },
-  { value: 'dismissed', label: '처리 완료' },
-  { value: 'hidden', label: '숨김' },
-]
-
-const TYPE_OPTIONS: Array<{ value: NotificationListType; label: string }> = [
-  { value: 'all', label: '전체 종류' },
-  { value: 'car_expiry', label: '자동차 만기' },
-  { value: 'insurance_age_date', label: '상령일' },
-  { value: 'claim_request_received', label: '청구알림' },
+const VIEW_OPTIONS: Array<{ value: NotificationListView; label: string }> = [
+  { value: 'active', label: '미확인' },
+  { value: 'confirmed', label: '확인한 알림' },
 ]
 
 function resolveNotificationLoadError(error: unknown): string {
@@ -44,6 +32,10 @@ function resolveNotificationLoadError(error: unknown): string {
   return '알림을 불러오지 못했습니다.'
 }
 
+function canOpenCustomerFromNotification(row: NotificationRow): boolean {
+  return row.customerId != null && row.customerId > 0
+}
+
 export type NotificationCenterProps = {
   token: string
 }
@@ -51,52 +43,58 @@ export type NotificationCenterProps = {
 export function NotificationCenter({ token }: NotificationCenterProps) {
   const navigate = useNavigate()
   const [items, setItems] = useState<NotificationRow[]>([])
-  const [status, setStatus] = useState<NotificationListStatus>('all')
-  const [type, setType] = useState<NotificationListType>('all')
+  const [view, setView] = useState<NotificationListView>('active')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [pendingId, setPendingId] = useState<string | null>(null)
-  const [unreadCount, setUnreadCount] = useState(0)
 
   const load = useCallback(async () => {
     if (!token.trim()) {
       setItems([])
-      setUnreadCount(0)
       setLoading(false)
       return
     }
     setLoading(true)
     setError('')
     try {
-      const [{ notifications }, unread] = await Promise.all([
-        fetchNotifications(token, { limit: 100, status, type }),
-        fetchUnreadCount(token),
-      ])
+      const { notifications } = await fetchNotifications(token, { limit: 100, view, type: 'all' })
       setItems(notifications)
-      setUnreadCount(unread.count)
     } catch (e) {
       setItems([])
-      setUnreadCount(0)
       setError(resolveNotificationLoadError(e))
     } finally {
       setLoading(false)
     }
-  }, [token, status, type])
+  }, [token, view])
 
   useEffect(() => {
     void load()
   }, [load])
 
-  const handleNavigate = async (row: NotificationRow) => {
-    if (!buildNotificationNavigatePath(row)) {
+  const groupedItems = useMemo(() => {
+    const map = new Map<string, NotificationRow[]>()
+    for (const section of NOTIFICATION_SECTIONS) {
+      map.set(section.type, [])
+    }
+    for (const row of items) {
+      const bucket = map.get(row.type)
+      if (bucket) {
+        bucket.push(row)
+      }
+    }
+    for (const section of NOTIFICATION_SECTIONS) {
+      const rows = map.get(section.type) ?? []
+      map.set(section.type, sortNotificationRowsByReferenceDate(rows))
+    }
+    return map
+  }, [items])
+
+  const handleNameClick = async (row: NotificationRow) => {
+    if (!canOpenCustomerFromNotification(row)) {
       return
     }
     setPendingId(row.id)
     try {
-      if (!row.isRead) {
-        await markNotificationRead(token, row.id)
-        dispatchNotificationRefresh()
-      }
       openNotificationCustomerNavigate({ notification: row, navigate })
     } catch (e) {
       setError(resolveNotificationLoadError(e))
@@ -105,7 +103,7 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
     }
   }
 
-  const handleDismiss = async (row: NotificationRow) => {
+  const handleConfirm = async (row: NotificationRow) => {
     setPendingId(row.id)
     try {
       await dismissNotification(token, row.id)
@@ -118,55 +116,26 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
     }
   }
 
-  const handleReadAll = async () => {
-    try {
-      await markAllNotificationsRead(token)
-      await load()
-      dispatchNotificationRefresh()
-    } catch (e) {
-      setError(resolveNotificationLoadError(e))
-    }
-  }
-
   return (
     <div className="notification-center">
       <div className="notification-center__filters">
         <div className="notification-center__filter-row">
-          <span className="notification-center__filter-label">상태</span>
           <div className="notification-center__filter-buttons">
-            {STATUS_OPTIONS.map((option) => (
+            {VIEW_OPTIONS.map((option) => (
               <FormButton
                 key={option.value}
                 htmlType="button"
-                variant={status === option.value ? 'primary' : 'secondary'}
+                variant={view === option.value ? 'primary' : 'secondary'}
                 size="sm"
-                onClick={() => setStatus(option.value)}
+                onClick={() => setView(option.value)}
               >
                 {option.label}
               </FormButton>
             ))}
           </div>
-          <span className="notification-center__unread-count">읽지 않음 {unreadCount}건</span>
-        </div>
-
-        <div className="notification-center__filter-row">
-          <span className="notification-center__filter-label">종류</span>
-          <div className="notification-center__filter-buttons">
-            {TYPE_OPTIONS.map((option) => (
-              <FormButton
-                key={option.value}
-                htmlType="button"
-                variant={type === option.value ? 'primary' : 'secondary'}
-                size="sm"
-                onClick={() => setType(option.value)}
-              >
-                {option.label}
-              </FormButton>
-            ))}
-          </div>
-          <FormButton htmlType="button" variant="secondary" size="sm" onClick={() => void handleReadAll()}>
-            전체 읽음 처리
-          </FormButton>
+          {view === 'confirmed' ? (
+            <span className="notification-center__view-hint">최근 1개월 내 확인한 알림만 표시됩니다.</span>
+          ) : null}
         </div>
       </div>
 
@@ -177,63 +146,72 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
         </p>
       ) : null}
 
-      {!loading && !error && items.length === 0 ? (
-        <p className="notification-center__empty">알림이 없습니다.</p>
-      ) : null}
-
-      {!loading && items.length > 0 ? (
-        <div className="notification-center__table-wrap overflow-x-auto">
-          <table className="notification-center__table w-full min-w-[920px] border-collapse">
-            <thead>
-              <tr>
-                <th>종류</th>
-                <th>고객명</th>
-                <th>내용</th>
-                <th>기준일</th>
-                <th>발생일</th>
-                <th>상태</th>
-                <th>작업</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((row) => (
-                <tr key={row.id} className={!row.isRead && !row.isDismissed ? 'notification-center__row--unread' : ''}>
-                  <td>{notificationTypeLabel(row.type)}</td>
-                  <td>{row.customerName ?? '—'}</td>
-                  <td>{row.message}</td>
-                  <td>{formatNotificationTargetDateWithDDay(row.targetDate)}</td>
-                  <td>{formatKstDateTimeDisplay(row.createdAt, row.createdAt)}</td>
-                  <td>{row.isDismissed ? '처리 완료' : row.isRead ? '읽음' : '읽지 않음'}</td>
-                  <td>
-                    <div className="flex flex-wrap gap-2">
-                      {buildNotificationNavigatePath(row) ? (
-                        <FormButton
-                          htmlType="button"
-                          variant="secondary"
-                          size="sm"
-                          disabled={pendingId === row.id}
-                          onClick={() => void handleNavigate(row)}
-                        >
-                          바로가기
-                        </FormButton>
-                      ) : null}
-                      {!row.isDismissed ? (
-                        <FormButton
-                          htmlType="button"
-                          variant="secondary"
-                          size="sm"
-                          disabled={pendingId === row.id}
-                          onClick={() => void handleDismiss(row)}
-                        >
-                          처리
-                        </FormButton>
-                      ) : null}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {!loading && !error ? (
+        <div className="notification-center__grid">
+          {NOTIFICATION_SECTIONS.map((section) => {
+            const rows = groupedItems.get(section.type) ?? []
+            return (
+              <section
+                key={section.type}
+                className={`notification-section notification-section--${section.sectionClass}`}
+              >
+                <header className="notification-section__banner">
+                  <h2 className="notification-section__title">{section.title}</h2>
+                </header>
+                <div className="notification-section__body">
+                  {rows.length === 0 ? (
+                    <p className="notification-section__empty">표시할 알림이 없습니다.</p>
+                  ) : (
+                    <table className="notification-section__table">
+                      <thead>
+                        <tr>
+                          <th>이름</th>
+                          <th>{section.dateColumnLabel}</th>
+                          <th>D-day</th>
+                          {view === 'active' ? <th>확인</th> : null}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((row) => (
+                          <tr key={row.id}>
+                            <td>
+                              {canOpenCustomerFromNotification(row) ? (
+                                <button
+                                  type="button"
+                                  className="notification-section__name-link"
+                                  disabled={pendingId === row.id}
+                                  onClick={() => void handleNameClick(row)}
+                                >
+                                  {row.customerName ?? '—'}
+                                </button>
+                              ) : (
+                                row.customerName ?? '—'
+                              )}
+                            </td>
+                            <td className="tabular-nums">{formatNotificationDateOnly(row)}</td>
+                            <td className="tabular-nums">{formatNotificationRowDDay(row)}</td>
+                            <td>
+                              {view === 'active' ? (
+                                <FormButton
+                                  htmlType="button"
+                                  variant="secondary"
+                                  size="sm"
+                                  disabled={pendingId === row.id}
+                                  onClick={() => void handleConfirm(row)}
+                                >
+                                  확인
+                                </FormButton>
+                              ) : null}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </section>
+            )
+          })}
         </div>
       ) : null}
     </div>
