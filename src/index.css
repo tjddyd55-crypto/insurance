@@ -11545,37 +11545,48 @@ textarea.memo-sticky-note__textarea::placeholder {
 .storage-explorer-files__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 6px;
+  align-items: center;
   justify-content: flex-end;
 }
 
-.storage-workspace--explorer .storage-explorer-files__actions .button {
-  min-height: 28px;
-  padding: 4px 8px;
-  font-size: 0.74rem;
+.storage-workspace--explorer .storage-explorer-file-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  min-width: 52px;
+  padding: 0 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111827;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  box-sizing: border-box;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.storage-workspace--explorer .storage-explorer-files__actions .button--danger {
+.storage-workspace--explorer .storage-explorer-file-action-button:hover:not(:disabled) {
+  background: #f8fafc;
+}
+
+.storage-workspace--explorer .storage-explorer-file-action-button--danger {
   border-color: #fecaca;
   color: #dc2626;
-  background: #ffffff;
 }
 
-.storage-workspace--explorer .storage-explorer-files__actions .button--danger:hover {
+.storage-workspace--explorer .storage-explorer-file-action-button--danger:hover:not(:disabled) {
   background: #fef2f2;
 }
 
-.storage-workspace--explorer .storage-explorer-files__actions .button--secondary,
-.storage-workspace--explorer .storage-explorer-files__actions .button--action {
-  border-color: #e5e7eb;
-  color: #334155;
-  background: #ffffff;
-}
-
-.storage-workspace--explorer .storage-explorer-files__actions .storage-file-list__action-button--download {
-  min-height: 28px;
-  padding: 4px 8px;
-  font-size: 0.74rem;
+.storage-workspace--explorer .storage-explorer-file-action-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 @media (max-width: 1100px) {
