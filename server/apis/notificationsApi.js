@@ -94,6 +94,8 @@ function buildNotificationListWhere(userId, gaId, filters) {
     parts.push('is_read = false', 'is_dismissed = false')
   } else if (filters.status === 'dismissed') {
     parts.push('is_dismissed = true')
+  } else {
+    parts.push('is_dismissed = false')
   }
   if (filters.type !== 'all') {
     params.push(filters.type)

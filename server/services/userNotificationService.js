@@ -1,5 +1,58 @@
-import { getKstDateString } from '../../shared/dateTimeKst.js'
+import { formatDateOnly, getKstDateString } from '../../shared/dateTimeKst.js'
 import { USER_NOTIFICATION_TYPES } from '../notifications/userNotificationTypes.js'
+
+/**
+ * @param {string | Date | null | undefined} value
+ * @returns {string} YYYY-MM-DD or empty
+ */
+export function toDateOnlyString(value) {
+  if (value instanceof Date) {
+    return getKstDateString(value)
+  }
+  return formatDateOnly(value)
+}
+
+/**
+ * @param {string} dateOnly YYYY-MM-DD
+ * @param {string} startDateOnly YYYY-MM-DD
+ * @param {string} endDateOnly YYYY-MM-DD
+ * @returns {boolean}
+ */
+export function isDateWithinInclusiveRange(dateOnly, startDateOnly, endDateOnly) {
+  const date = toDateOnlyString(dateOnly)
+  const start = toDateOnlyString(startDateOnly)
+  const end = toDateOnlyString(endDateOnly)
+  if (!date || !start || !end) {
+    return false
+  }
+  return date >= start && date <= end
+}
+
+/**
+ * @param {string} expiryDate YYYY-MM-DD
+ * @param {string} [today] YYYY-MM-DD
+ * @returns {boolean}
+ */
+export function isCarExpiryDueForNotification(expiryDate, today = getKstDateString()) {
+  const upperBound = addMonthsToDateOnly(today, 1)
+  if (!upperBound) {
+    return false
+  }
+  return isDateWithinInclusiveRange(expiryDate, today, upperBound)
+}
+
+/**
+ * @param {string} nextAgeDate YYYY-MM-DD
+ * @param {string} [today] YYYY-MM-DD
+ * @returns {boolean}
+ */
+export function isInsuranceAgeDueForNotification(nextAgeDate, today = getKstDateString()) {
+  const upperBound = addMonthsToDateOnly(today, 2)
+  if (!upperBound) {
+    return false
+  }
+  return isDateWithinInclusiveRange(nextAgeDate, today, upperBound)
+}
 
 /**
  * @param {string} dateStr YYYY-MM-DD
@@ -42,9 +95,9 @@ export function getKstEndOfDayDate(date = new Date()) {
  */
 export async function syncDueUserNotifications(db, safeQueryExec, userId, gaId) {
   const today = getKstDateString()
-  const carRenewalDueOn = addMonthsToDateOnly(today, 1)
-  const insuranceAgeDueOn = addMonthsToDateOnly(today, 2)
-  if (!carRenewalDueOn || !insuranceAgeDueOn) {
+  const carRenewalUpperBound = addMonthsToDateOnly(today, 1)
+  const insuranceAgeUpperBound = addMonthsToDateOnly(today, 2)
+  if (!carRenewalUpperBound || !insuranceAgeUpperBound) {
     return
   }
 
@@ -66,9 +119,10 @@ export async function syncDueUserNotifications(db, safeQueryExec, userId, gaId) 
       WHERE c.ga_id = $1
         AND c.deleted_at IS NULL
         AND COALESCE(c.owner_user_id, c.user_id) = $2
-        AND target.renewal_date = $3::date
+        AND target.renewal_date >= $3::date
+        AND target.renewal_date <= $4::date
       `,
-      [gaId, userId, carRenewalDueOn],
+      [gaId, userId, today, carRenewalUpperBound],
     )
   } catch (error) {
     console.error('[userNotificationService] car expiry sync query failed; falling back to customers.renewal_date', error)
@@ -81,9 +135,10 @@ export async function syncDueUserNotifications(db, safeQueryExec, userId, gaId) 
         WHERE c.ga_id = $1
           AND c.deleted_at IS NULL
           AND COALESCE(c.owner_user_id, c.user_id) = $2
-          AND c.renewal_date = $3::date
+          AND c.renewal_date >= $3::date
+          AND c.renewal_date <= $4::date
         `,
-        [gaId, userId, carRenewalDueOn],
+        [gaId, userId, today, carRenewalUpperBound],
       )
     } catch (fallbackError) {
       console.error('[userNotificationService] car expiry fallback query failed', fallbackError)
@@ -93,7 +148,10 @@ export async function syncDueUserNotifications(db, safeQueryExec, userId, gaId) 
 
   for (const row of carRows.rows) {
     const customerName = String(row.customer_name ?? '').trim() || '고객'
-    const renewalDate = String(row.renewal_date ?? '').slice(0, 10)
+    const renewalDate = toDateOnlyString(row.renewal_date)
+    if (!renewalDate) {
+      continue
+    }
     try {
       await upsertUserNotification(db, safeQueryExec, {
         userId,
@@ -103,7 +161,7 @@ export async function syncDueUserNotifications(db, safeQueryExec, userId, gaId) 
         customerName,
         targetDate: renewalDate,
         claimRequestId: null,
-        message: `${customerName} 고객님의 자동차보험 만기일이 1달 남았습니다. 만기일: ${renewalDate}`,
+        message: `${customerName} 고객님의 자동차보험 만기일이 다가왔습니다. 만기일: ${renewalDate}`,
         referenceId: String(row.customer_id),
       })
     } catch (error) {
@@ -125,9 +183,10 @@ export async function syncDueUserNotifications(db, safeQueryExec, userId, gaId) 
       WHERE c.ga_id = $1
         AND c.deleted_at IS NULL
         AND COALESCE(c.owner_user_id, c.user_id) = $2
-        AND c.next_age_date = $3::date
+        AND c.next_age_date >= $3::date
+        AND c.next_age_date <= $4::date
       `,
-      [gaId, userId, insuranceAgeDueOn],
+      [gaId, userId, today, insuranceAgeUpperBound],
     )
   } catch (error) {
     console.error('[userNotificationService] insurance age sync query failed', error)
@@ -136,7 +195,10 @@ export async function syncDueUserNotifications(db, safeQueryExec, userId, gaId) 
 
   for (const row of ageRows.rows) {
     const customerName = String(row.customer_name ?? '').trim() || '고객'
-    const targetDate = String(row.next_age_date ?? '').slice(0, 10)
+    const targetDate = toDateOnlyString(row.next_age_date)
+    if (!targetDate) {
+      continue
+    }
     try {
       await upsertUserNotification(db, safeQueryExec, {
         userId,
@@ -146,7 +208,7 @@ export async function syncDueUserNotifications(db, safeQueryExec, userId, gaId) 
         customerName,
         targetDate,
         claimRequestId: null,
-        message: `${customerName} 고객님의 상령일이 2달 남았습니다. 상령일: ${targetDate}`,
+        message: `${customerName} 고객님의 상령일이 다가왔습니다. 상령일: ${targetDate}`,
         referenceId: String(row.customer_id),
       })
     } catch (error) {
@@ -215,7 +277,6 @@ async function upsertUserNotification(db, safeQueryExec, input) {
       SELECT 1 FROM notifications
       WHERE user_id = $1 AND ga_id = $2 AND type = $3
         AND customer_id = $4 AND target_date = $5::date
-        AND is_dismissed = false
       LIMIT 1
       `,
       [input.userId, input.gaId, input.type, input.customerId, input.targetDate],
@@ -266,7 +327,7 @@ export function mapUserNotificationRow(row) {
     isDismissed: Boolean(row.is_dismissed),
     customerId: row.customer_id != null ? Number(row.customer_id) : null,
     customerName: row.customer_name != null ? String(row.customer_name) : null,
-    targetDate: row.target_date != null ? String(row.target_date).slice(0, 10) : null,
+    targetDate: row.target_date != null ? toDateOnlyString(row.target_date) || null : null,
     claimRequestId: row.claim_request_id != null ? Number(row.claim_request_id) : null,
     createdAt: row.created_at,
   }
