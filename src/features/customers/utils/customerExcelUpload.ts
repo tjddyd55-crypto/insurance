@@ -81,7 +81,11 @@ const HEADER_LABEL_TO_KEY: Record<string, (typeof CUSTOMER_EXCEL_UPLOAD_HEADERS)
 /** 한국 주민등록번호 본문 13자리 (있을 때만 검증·병합 키로 사용) */
 export const RRN_NORMALIZED_LENGTH = 13
 
-/** 업로드 필수 연락처 최소 자릿수(숫자만) */
+/** 업로드 필수값 미충족 안내 */
+export const CUSTOMER_EXCEL_UPLOAD_REQUIRED_FIELD_MESSAGE =
+  '이름은 필수이며, 연락처 또는 주민번호 중 하나는 필요합니다.'
+
+/** 유효 연락처 최소 자릿수(숫자만) */
 export const CUSTOMER_EXCEL_UPLOAD_MIN_PHONE_DIGITS = 10
 
 /** 숫자만 추출. 비정상·누락 시 병합 키로 쓰지 않도록 길이 검증은 호출부에서 한다. */
@@ -343,6 +347,22 @@ export function hasValidUploadPhone(phone: string): boolean {
   return normalizePhoneForCustomerDedupe(phone).length >= CUSTOMER_EXCEL_UPLOAD_MIN_PHONE_DIGITS
 }
 
+export function hasValidResidentNumber(ssn: string): boolean {
+  return normalizeSsn(ssn).length === RRN_NORMALIZED_LENGTH
+}
+
+export function satisfiesCustomerExcelUploadRequiredFields(row: {
+  name: string
+  phone: string
+  ssn: string
+}): boolean {
+  const name = row.name.trim()
+  if (!name) {
+    return false
+  }
+  return hasValidUploadPhone(row.phone) || hasValidResidentNumber(row.ssn)
+}
+
 /** 주민번호(우선) 또는 이름+연락처 병합 키. 유효하지 않으면 null */
 export function getCustomerExcelRowMergeKey(row: CustomerExcelParsedRow): string | null {
   const ssnNorm = normalizeSsn(row.ssn)
@@ -440,7 +460,7 @@ export function parseExcel(file: File): Promise<CustomerExcelParsedRow[]> {
 
         const hasRequiredKeys = (keys: string[]): boolean => {
           const set = new Set(keys.filter(Boolean))
-          return set.has('name') && set.has('phone')
+          return set.has('name') && (set.has('phone') || set.has('ssn'))
         }
 
         const firstHeaderKeys = resolveHeaderKeys(rows2d[0] as unknown[])
@@ -538,14 +558,15 @@ export function mergeRowsBySsn(rows: CustomerExcelParsedRow[]): CustomerExcelPar
   return mergeRowsForImport(rows)
 }
 
-/** 필수(name, phone) 미충족 시 null. 주민번호는 선택 */
+/** 필수(name + 연락처 또는 주민번호) 미충족 시 null */
 export function transformRow(row: CustomerExcelParsedRow): SaveCustomerPayload | null {
   const name = row.name.trim()
-  const phone = normalizePhoneForCustomerDedupe(row.phone)
-  if (!name || phone.length < CUSTOMER_EXCEL_UPLOAD_MIN_PHONE_DIGITS) {
+  const ssn = normalizeOptionalSsn(row.ssn)
+  const hasPhone = hasValidUploadPhone(row.phone)
+  const hasResidentNumber = ssn.length === RRN_NORMALIZED_LENGTH
+  if (!name || (!hasPhone && !hasResidentNumber)) {
     return null
   }
-  const ssn = normalizeOptionalSsn(row.ssn)
   const gender = parseGender(row.genderRaw)
   const isDriver = row.isDriver
   const createdAt = new Date().toISOString()
@@ -609,11 +630,11 @@ export async function prepareCustomerExcelImport(file: File): Promise<CustomerEx
       })
       return
     }
-    if (!hasValidUploadPhone(row.phone)) {
+    if (!satisfiesCustomerExcelUploadRequiredFields({ name, phone: row.phone, ssn: row.ssn })) {
       excludedRows.push({
         excelRow,
-        category: 'missing_phone',
-        reason: '연락처 없음 또는 형식 오류',
+        category: 'other',
+        reason: CUSTOMER_EXCEL_UPLOAD_REQUIRED_FIELD_MESSAGE,
         values: parsedRowToExportRecord(row),
       })
       return
@@ -638,7 +659,7 @@ export async function prepareCustomerExcelImport(file: File): Promise<CustomerEx
       excludedRows.push({
         excelRow: 0,
         category: 'other',
-        reason: '필수값 검증 실패',
+        reason: CUSTOMER_EXCEL_UPLOAD_REQUIRED_FIELD_MESSAGE,
         values: parsedRowToExportRecord(m),
       })
     }
@@ -707,8 +728,8 @@ export function downloadCustomerUploadSampleXlsx(): void {
   const descRows: [string, string][] = [
     ['name', '필수. 고객 이름 (폼「이름」)'],
     ['gender', 'male 또는 female (폼「성별」과 동일). 주민번호가 있으면 자동 판단 가능'],
-    ['ssn', `선택. 주민등록번호 숫자 ${RRN_NORMALIZED_LENGTH}자리(하이픈 없음). 없어도 업로드 가능`],
-    ['phone', '필수. 전화번호 (폼「전화번호」). 숫자 10자리 이상'],
+    ['ssn', `선택. 주민등록번호 숫자 ${RRN_NORMALIZED_LENGTH}자리(하이픈 없음). 이름과 함께 연락처 또는 주민번호 중 하나는 필수`],
+    ['phone', '연락처 (폼「전화번호」). 숫자 10자리 이상. 이름과 함께 연락처 또는 주민번호 중 하나는 필수'],
     ['address', '주소'],
     ['height', '키(cm 등 자유)'],
     ['weight', '몸무게(kg 등 자유)'],
