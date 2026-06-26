@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { FormButton, FormInput, FormTextarea } from '../../../components/form'
+import { FormButton, FormInput } from '../../../components/form'
 import { BaseDialog } from '../../../components/dialog/BaseDialog'
 import {
   USER_INSURER_ACCOUNT_ADD_LABEL,
@@ -8,11 +8,11 @@ import {
 } from '../config/userInsurerAccounts.config'
 import type { UserInsurerAccountsViewProps } from '../hooks/useUserInsurerAccountsState'
 import type { UserInsurerAccountRow } from '../api/userInsurerAccountsApi'
+import { formatAccountSavedAt } from './userInsurerAccountSavedAt'
 
 type LocalDraft = {
   loginId: string
   loginPassword: string
-  memo: string
 }
 
 type AccountSectionProps = {
@@ -23,6 +23,11 @@ type AccountSectionProps = {
   onAdd: () => void
   onSave: (row: UserInsurerAccountRow, patch: Partial<UserInsurerAccountRow>) => void
   onDelete: (row: UserInsurerAccountRow) => void
+}
+
+const SECTION_MODIFIER: Record<UserInsurerAccountCategory, string> = {
+  LIFE: 'life',
+  NON_LIFE: 'non-life',
 }
 
 function AccountRowEditor({
@@ -39,29 +44,26 @@ function AccountRowEditor({
   const [draft, setDraft] = useState<LocalDraft>({
     loginId: row.loginId,
     loginPassword: row.loginPassword,
-    memo: row.memo,
   })
 
   useEffect(() => {
     setDraft({
       loginId: row.loginId,
       loginPassword: row.loginPassword,
-      memo: row.memo,
     })
-  }, [row.id, row.loginId, row.loginPassword, row.memo, row.updatedAt])
+  }, [row.id, row.loginId, row.loginPassword, row.updatedAt])
 
   const handleSave = () => {
     onSave({
       loginId: draft.loginId,
       loginPassword: draft.loginPassword,
-      memo: draft.memo,
     })
   }
 
   return (
     <tr className="user-insurer-accounts-page__row">
       <td className="user-insurer-accounts-page__company">{row.companyName}</td>
-      <td>
+      <td className="user-insurer-accounts-page__input-cell user-insurer-accounts-page__input-cell--login-id">
         <FormInput
           value={draft.loginId}
           onChange={(event) => setDraft((prev) => ({ ...prev, loginId: event.target.value }))}
@@ -69,7 +71,7 @@ function AccountRowEditor({
           disabled={pending}
         />
       </td>
-      <td>
+      <td className="user-insurer-accounts-page__input-cell user-insurer-accounts-page__input-cell--password">
         <FormInput
           type="text"
           value={draft.loginPassword}
@@ -79,15 +81,7 @@ function AccountRowEditor({
           autoComplete="off"
         />
       </td>
-      <td>
-        <FormTextarea
-          value={draft.memo}
-          onChange={(event) => setDraft((prev) => ({ ...prev, memo: event.target.value }))}
-          placeholder="메모"
-          rows={2}
-          disabled={pending}
-        />
-      </td>
+      <td className="user-insurer-accounts-page__saved-at">{formatAccountSavedAt(row)}</td>
       <td className="user-insurer-accounts-page__actions-cell">
         <div className="user-insurer-accounts-page__row-actions">
           <FormButton htmlType="button" variant="primary" size="sm" disabled={pending} onClick={handleSave}>
@@ -113,49 +107,58 @@ function AccountSection({
   onSave,
   onDelete,
 }: AccountSectionProps) {
+  const sectionModifier = SECTION_MODIFIER[category]
+
   return (
-    <section className="user-insurer-accounts-section" aria-label={title}>
-      <header className="user-insurer-accounts-section__header">
+    <section
+      className={`user-insurer-accounts-section user-insurer-accounts-section--${sectionModifier}`}
+      aria-label={title}
+    >
+      <header className="user-insurer-accounts-section__banner">
         <h2 className="user-insurer-accounts-section__title">{title}</h2>
-        <FormButton htmlType="button" variant="secondary" size="sm" onClick={onAdd}>
-          {USER_INSURER_ACCOUNT_ADD_LABEL[category]}
-        </FormButton>
       </header>
-      {rows.length === 0 ? (
-        <p className="user-insurer-accounts-page__muted">등록된 계정 정보가 없습니다.</p>
-      ) : (
-        <div className="user-insurer-accounts-page__table-wrap">
-          <table className="user-insurer-accounts-page__table">
-            <colgroup>
-              <col className="user-insurer-accounts-page__col-company" />
-              <col className="user-insurer-accounts-page__col-login-id" />
-              <col className="user-insurer-accounts-page__col-password" />
-              <col className="user-insurer-accounts-page__col-memo" />
-              <col className="user-insurer-accounts-page__col-actions" />
-            </colgroup>
-            <thead>
-              <tr>
-                <th>회사</th>
-                <th>아이디</th>
-                <th>비번</th>
-                <th>메모</th>
-                <th>작업</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <AccountRowEditor
-                  key={row.id}
-                  row={row}
-                  pending={pendingId === row.id}
-                  onSave={(patch) => onSave(row, patch)}
-                  onDelete={() => onDelete(row)}
-                />
-              ))}
-            </tbody>
-          </table>
+      <div className="user-insurer-accounts-section__body">
+        <div className="user-insurer-accounts-section__toolbar">
+          <FormButton htmlType="button" variant="secondary" size="sm" onClick={onAdd}>
+            {USER_INSURER_ACCOUNT_ADD_LABEL[category]}
+          </FormButton>
         </div>
-      )}
+        {rows.length === 0 ? (
+          <p className="user-insurer-accounts-page__muted">등록된 계정 정보가 없습니다.</p>
+        ) : (
+          <div className="user-insurer-accounts-page__table-wrap">
+            <table className="user-insurer-accounts-page__table">
+              <colgroup>
+                <col className="user-insurer-accounts-page__col-company" />
+                <col className="user-insurer-accounts-page__col-login-id" />
+                <col className="user-insurer-accounts-page__col-password" />
+                <col className="user-insurer-accounts-page__col-saved-at" />
+                <col className="user-insurer-accounts-page__col-actions" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>회사</th>
+                  <th>아이디</th>
+                  <th>비번</th>
+                  <th>저장일</th>
+                  <th>작업</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <AccountRowEditor
+                    key={row.id}
+                    row={row}
+                    pending={pendingId === row.id}
+                    onSave={(patch) => onSave(row, patch)}
+                    onDelete={() => onDelete(row)}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </section>
   )
 }
@@ -183,29 +186,25 @@ export function UserInsurerAccountsPanel({
   submitAdd,
 }: UserInsurerAccountsPanelProps) {
   const showTabs = layout === 'stacked'
+  const stackedCategory = activeTab
+  const stackedTitle = stackedCategory === 'LIFE' ? '생명보험' : '손해보험'
+  const stackedRows = stackedCategory === 'LIFE' ? lifeAccounts : nonLifeAccounts
 
   return (
     <div className="user-insurer-accounts-page__panel">
       {showTabs ? (
-        <>
-          <div className="user-insurer-accounts-page__tabs">
-            {USER_INSURER_ACCOUNT_TABS.map((tab) => (
-              <FormButton
-                key={tab.value}
-                htmlType="button"
-                variant={activeTab === tab.value ? 'primary' : 'secondary'}
-                onClick={() => setActiveTab(tab.value as UserInsurerAccountCategory)}
-              >
-                {tab.label}
-              </FormButton>
-            ))}
-          </div>
-          <div className="user-insurer-accounts-page__toolbar">
-            <FormButton htmlType="button" variant="secondary" onClick={() => openAddModal(activeTab)}>
-              {USER_INSURER_ACCOUNT_ADD_LABEL[activeTab]}
+        <div className="user-insurer-accounts-page__tabs">
+          {USER_INSURER_ACCOUNT_TABS.map((tab) => (
+            <FormButton
+              key={tab.value}
+              htmlType="button"
+              variant={activeTab === tab.value ? 'primary' : 'secondary'}
+              onClick={() => setActiveTab(tab.value as UserInsurerAccountCategory)}
+            >
+              {tab.label}
             </FormButton>
-          </div>
-        </>
+          ))}
+        </div>
       ) : null}
 
       {loading ? <p className="user-insurer-accounts-page__muted">불러오는 중…</p> : null}
@@ -239,43 +238,15 @@ export function UserInsurerAccountsPanel({
       ) : null}
 
       {!loading && layout === 'stacked' ? (
-        <div className="user-insurer-accounts-stack">
-          {(activeTab === 'LIFE' ? lifeAccounts : nonLifeAccounts).length === 0 ? (
-            <p className="user-insurer-accounts-page__muted">등록된 계정 정보가 없습니다.</p>
-          ) : (
-            <div className="user-insurer-accounts-page__table-wrap">
-              <table className="user-insurer-accounts-page__table">
-                <colgroup>
-                  <col className="user-insurer-accounts-page__col-company" />
-                  <col className="user-insurer-accounts-page__col-login-id" />
-                  <col className="user-insurer-accounts-page__col-password" />
-                  <col className="user-insurer-accounts-page__col-memo" />
-                  <col className="user-insurer-accounts-page__col-actions" />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th>회사</th>
-                    <th>아이디</th>
-                    <th>비번</th>
-                    <th>메모</th>
-                    <th>작업</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(activeTab === 'LIFE' ? lifeAccounts : nonLifeAccounts).map((row) => (
-                    <AccountRowEditor
-                      key={row.id}
-                      row={row}
-                      pending={pendingId === row.id}
-                      onSave={(patch) => void saveAccountField(row, patch)}
-                      onDelete={() => void removeAccount(row)}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        <AccountSection
+          title={stackedTitle}
+          category={stackedCategory}
+          rows={stackedRows}
+          pendingId={pendingId}
+          onAdd={() => openAddModal(stackedCategory)}
+          onSave={(row, patch) => void saveAccountField(row, patch)}
+          onDelete={(row) => void removeAccount(row)}
+        />
       ) : null}
 
       <BaseDialog
@@ -315,15 +286,6 @@ export function UserInsurerAccountsPanel({
                 onChange={(event) => setAddForm({ ...addForm, loginPassword: event.target.value })}
                 placeholder="비밀번호"
                 autoComplete="new-password"
-              />
-            </label>
-            <label className="user-insurer-accounts-page__field">
-              <span>메모</span>
-              <FormTextarea
-                value={addForm.memo}
-                onChange={(event) => setAddForm({ ...addForm, memo: event.target.value })}
-                placeholder="메모"
-                rows={3}
               />
             </label>
           </div>

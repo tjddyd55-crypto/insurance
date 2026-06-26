@@ -5055,7 +5055,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .user-insurer-accounts-page__table {
   width: 100%;
-  min-width: 760px;
+  min-width: 0;
   border-collapse: collapse;
 }
 
@@ -5168,21 +5168,55 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .user-insurer-accounts-section {
   min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--bg-card);
 }
 
-.user-insurer-accounts-section__header {
+.user-insurer-accounts-section__banner {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 12px;
+  justify-content: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-default);
+  text-align: center;
 }
 
 .user-insurer-accounts-section__title {
   margin: 0;
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--text-primary);
+  font-size: 1.125rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.user-insurer-accounts-section--life .user-insurer-accounts-section__banner {
+  background: #ecfdf5;
+  border-bottom-color: #a7f3d0;
+}
+
+.user-insurer-accounts-section--life .user-insurer-accounts-section__title {
+  color: #065f46;
+}
+
+.user-insurer-accounts-section--non-life .user-insurer-accounts-section__banner {
+  background: #eff6ff;
+  border-bottom-color: #bfdbfe;
+}
+
+.user-insurer-accounts-section--non-life .user-insurer-accounts-section__title {
+  color: #1e40af;
+}
+
+.user-insurer-accounts-section__body {
+  padding: 12px;
+}
+
+.user-insurer-accounts-section__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .user-insurer-accounts-page--pc .user-insurer-accounts-page__table {
@@ -5191,27 +5225,52 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 .user-insurer-accounts-page__col-company {
-  width: 20%;
+  width: 18%;
 }
 
 .user-insurer-accounts-page__col-login-id {
-  width: 22%;
-}
-
-.user-insurer-accounts-page__col-password {
-  width: 22%;
-}
-
-.user-insurer-accounts-page__col-memo {
   width: 26%;
 }
 
+.user-insurer-accounts-page__col-password {
+  width: 26%;
+}
+
+.user-insurer-accounts-page__col-saved-at {
+  width: 18%;
+}
+
 .user-insurer-accounts-page__col-actions {
-  width: 80px;
+  width: 12%;
+}
+
+.user-insurer-accounts-page__input-cell {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.user-insurer-accounts-page__input-cell .form-input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.user-insurer-accounts-page__input-cell--login-id {
+  padding-right: 6px;
+}
+
+.user-insurer-accounts-page__input-cell--password {
+  padding-left: 6px;
+}
+
+.user-insurer-accounts-page__saved-at {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  white-space: nowrap;
 }
 
 .user-insurer-accounts-page__actions-cell {
-  width: 80px;
   white-space: nowrap;
 }
 
@@ -5222,6 +5281,10 @@ div.cta-button.customers-page__action-btn[role='button'] {
 @media (max-width: 900px) {
   .user-insurer-accounts-grid {
     grid-template-columns: 1fr;
+  }
+
+  .user-insurer-accounts-page__saved-at {
+    white-space: normal;
   }
 }
 

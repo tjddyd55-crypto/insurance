@@ -26,7 +26,6 @@ export function useUserInsurerAccountsState() {
     companyName: '',
     loginId: '',
     loginPassword: '',
-    memo: '',
   })
 
   const load = useCallback(async () => {
@@ -74,7 +73,6 @@ export function useUserInsurerAccountsState() {
           companyName: patch.companyName,
           loginId: patch.loginId,
           loginPassword: patch.loginPassword,
-          memo: patch.memo,
         })
         setAccounts((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
       } catch (e) {
@@ -107,7 +105,7 @@ export function useUserInsurerAccountsState() {
 
   const openAddModal = useCallback((category: UserInsurerAccountCategory = 'LIFE') => {
     setActiveTab(category)
-    setAddForm({ companyName: '', loginId: '', loginPassword: '', memo: '' })
+    setAddForm({ companyName: '', loginId: '', loginPassword: '' })
     setAddOpen(true)
   }, [])
 
@@ -132,7 +130,6 @@ export function useUserInsurerAccountsState() {
         companyName,
         loginId: addForm.loginId.trim(),
         loginPassword: addForm.loginPassword,
-        memo: addForm.memo,
       })
       setAccounts((prev) => [...prev, created])
       setAddOpen(false)
