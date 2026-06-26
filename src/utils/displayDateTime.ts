@@ -1,4 +1,5 @@
 export {
+  diffDateOnlyDays,
   formatDateOnly,
   formatKstDate,
   formatKstDateDisplay,
@@ -6,6 +7,7 @@ export {
   formatKstDateTime,
   formatKstDateTimeDisplay,
   formatKstDateTimeParts,
+  formatTargetDateWithDDay,
   formatTimestampSearchHaystack,
   getKstDateCompactString,
   getKstDateString,

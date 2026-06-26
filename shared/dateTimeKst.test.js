@@ -1,13 +1,17 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  diffDateOnlyDays,
   formatDateOnly,
   formatKstDate,
   formatKstDateTime,
+  formatTargetDateWithDDay,
   formatTimestampSearchHaystack,
   getKstDateCompactString,
   getKstDateString,
 } from './dateTimeKst.js'
+
+const TODAY = '2026-06-26'
 
 test('formatKstDate — UTC evening becomes next KST calendar day', () => {
   assert.equal(formatKstDate('2026-06-25T15:30:00.000Z'), '2026-06-26')
@@ -44,4 +48,21 @@ test('getKstDateString/getKstDateCompactString — YYYY-MM-DD and YYYYMMDD', () 
 test('formatTimestampSearchHaystack — includes KST date token', () => {
   const haystack = formatTimestampSearchHaystack('2026-06-25T15:30:00.000Z')
   assert.match(haystack, /2026-06-26/)
+})
+
+test('diffDateOnlyDays — counts date-only strings without timezone shift', () => {
+  assert.equal(diffDateOnlyDays('2026-07-01', TODAY), 5)
+  assert.equal(diffDateOnlyDays('2026-06-26', TODAY), 0)
+  assert.equal(diffDateOnlyDays('2026-06-20', TODAY), -6)
+  assert.equal(diffDateOnlyDays('2026-06-26T15:00:00.000Z', TODAY), 0)
+  assert.equal(diffDateOnlyDays(null, TODAY), null)
+})
+
+test('formatTargetDateWithDDay — renders D-Day labels from date-only diff', () => {
+  assert.equal(formatTargetDateWithDDay('2026-07-01', TODAY), '2026-07-01 (D-5)')
+  assert.equal(formatTargetDateWithDDay('2026-07-26', TODAY), '2026-07-26 (D-30)')
+  assert.equal(formatTargetDateWithDDay('2026-06-26', TODAY), '2026-06-26 (D-Day)')
+  assert.equal(formatTargetDateWithDDay('2026-06-25', TODAY), '2026-06-25 (D+1)')
+  assert.equal(formatTargetDateWithDDay('', TODAY), '')
+  assert.equal(formatTargetDateWithDDay('Wed Aug 26 2026', TODAY), '')
 })

@@ -93,6 +93,48 @@ export function formatDateOnly(value) {
 }
 
 /**
+ * date-only YYYY-MM-DD 문자열 사이 일수 차 (target - today). timezone 변환 없음.
+ * @param {string | null | undefined} targetDateOnly
+ * @param {string | null | undefined} todayDateOnly
+ * @returns {number | null}
+ */
+export function diffDateOnlyDays(targetDateOnly, todayDateOnly) {
+  const target = formatDateOnly(targetDateOnly)
+  const today = formatDateOnly(todayDateOnly)
+  if (!target || !today) {
+    return null
+  }
+  const [ty, tm, td] = target.split('-').map(Number)
+  const [y, m, d] = today.split('-').map(Number)
+  const targetUtc = Date.UTC(ty, tm - 1, td)
+  const todayUtc = Date.UTC(y, m - 1, d)
+  return Math.round((targetUtc - todayUtc) / 86400000)
+}
+
+/**
+ * @param {string | null | undefined} targetDate
+ * @param {string} [today]
+ * @returns {string}
+ */
+export function formatTargetDateWithDDay(targetDate, today = getKstDateString()) {
+  const dateOnly = formatDateOnly(targetDate)
+  if (!dateOnly) {
+    return ''
+  }
+  const diffDays = diffDateOnlyDays(dateOnly, today)
+  if (diffDays === null) {
+    return ''
+  }
+  if (diffDays === 0) {
+    return `${dateOnly} (D-Day)`
+  }
+  if (diffDays > 0) {
+    return `${dateOnly} (D-${diffDays})`
+  }
+  return `${dateOnly} (D+${Math.abs(diffDays)})`
+}
+
+/**
  * @param {string | Date | null | undefined} value
  * @returns {string} YYYY.MM.DD (KST)
  */
