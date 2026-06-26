@@ -11,7 +11,8 @@ import {
 } from '../api/notificationApi'
 import { dispatchNotificationRefresh } from '../notificationRefreshDispatch'
 
-import { formatKstDateDisplay, formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
+import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
+import { formatNotificationTargetDateWithDDay } from '../utils/notificationDateLabel'
 
 function formatNotifiedAt(iso: string): string {
   return formatKstDateTimeDisplay(iso, iso)
@@ -128,7 +129,7 @@ export function NotificationList({ token, onUnreadChanged }: NotificationListPro
               <div className="text-sm text-[var(--text-primary)]">{n.message}</div>
               {n.targetDate ? (
                 <div className="text-xs text-[var(--text-secondary)] mt-0.5 tabular-nums">
-                  기준일: {formatKstDateDisplay(n.targetDate, '—')}
+                  기준일: {formatNotificationTargetDateWithDDay(n.targetDate)}
                 </div>
               ) : null}
               <div className="text-xs text-[var(--text-secondary)] mt-0.5 tabular-nums">

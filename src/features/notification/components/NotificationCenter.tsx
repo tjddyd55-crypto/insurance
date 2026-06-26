@@ -14,7 +14,8 @@ import {
   type NotificationRow,
 } from '../api/notificationApi'
 import { dispatchNotificationRefresh } from '../notificationRefreshDispatch'
-import { formatKstDateDisplay, formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
+import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
+import { formatNotificationTargetDateWithDDay } from '../utils/notificationDateLabel'
 
 const STATUS_OPTIONS: Array<{ value: NotificationListStatus; label: string }> = [
   { value: 'all', label: '전체 알림' },
@@ -176,7 +177,7 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
                   <td>{notificationTypeLabel(row.type)}</td>
                   <td>{row.customerName ?? '—'}</td>
                   <td>{row.message}</td>
-                  <td>{formatKstDateDisplay(row.targetDate, '—')}</td>
+                  <td>{formatNotificationTargetDateWithDDay(row.targetDate)}</td>
                   <td>{formatKstDateTimeDisplay(row.createdAt, row.createdAt)}</td>
                   <td>{row.isDismissed ? '처리 완료' : row.isRead ? '읽음' : '읽지 않음'}</td>
                   <td>

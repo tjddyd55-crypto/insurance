@@ -13,7 +13,8 @@ import {
   type NotificationRow,
 } from '../api/notificationApi'
 import { dispatchNotificationRefresh } from '../notificationRefreshDispatch'
-import { formatKstDateDisplay, formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
+import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
+import { formatNotificationTargetDateWithDDay } from '../utils/notificationDateLabel'
 
 type NotificationLoginModalProps = {
   token: string
@@ -151,7 +152,7 @@ export function NotificationLoginModal({ token, open, onClose }: NotificationLog
                 </div>
                 <p className="mt-2 text-sm text-[var(--text-primary)]">{row.message}</p>
                 <div className="mt-2 text-xs text-[var(--text-secondary)] tabular-nums">
-                  {row.targetDate ? `기준일: ${formatKstDateDisplay(row.targetDate, '—')}` : null}
+                  {row.targetDate ? `기준일: ${formatNotificationTargetDateWithDDay(row.targetDate)}` : null}
                   {row.targetDate ? ' · ' : null}
                   발생: {formatKstDateTimeDisplay(row.createdAt, row.createdAt)}
                 </div>
