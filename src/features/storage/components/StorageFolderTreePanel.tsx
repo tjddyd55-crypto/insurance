@@ -24,7 +24,7 @@ type FolderTreeItemProps = {
   selected: boolean
   expanded?: boolean
   hasChildren?: boolean
-  icon: string
+  icon?: string
   name: string
   title: string
   onSelect: () => void
@@ -105,9 +105,11 @@ function FolderTreeItem({
         title={title}
         onClick={onSelect}
       >
-        <span className="storage-folder-tree-item__icon" aria-hidden="true">
-          {icon}
-        </span>
+        {icon ? (
+          <span className="storage-folder-tree-item__icon" aria-hidden="true">
+            {icon}
+          </span>
+        ) : null}
         <span className="storage-folder-tree-item__name">{name}</span>
       </button>
       {onRename && onDelete ? (
@@ -178,7 +180,6 @@ export default function StorageFolderTreePanel(props: StorageFolderTreePanelProp
       <div className="storage-explorer-tree__body">
         <FolderTreeItem
           selected={selectedFolderId == null}
-          icon="🏠"
           name={STORAGE_ROOT_FOLDER_LABEL}
           title={`${STORAGE_ROOT_FOLDER_LABEL} · 파일 ${rootFileCount}개 · 하위 폴더 ${rootChildCount}개`}
           onSelect={() => onSelectFolder(null)}
