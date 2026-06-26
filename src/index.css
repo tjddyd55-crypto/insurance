@@ -4916,12 +4916,55 @@ div.cta-button.customers-page__action-btn[role='button'] {
 .notifications-page__panel {
   display: grid;
   gap: 8px;
-  max-width: 680px;
+  max-width: none;
   margin-top: 16px;
   border: 1px solid var(--border-default);
   border-radius: 8px;
   background: var(--bg-card);
   overflow: hidden;
+  padding: 16px;
+}
+
+.notification-center__table {
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.notification-center__table th,
+.notification-center__table td {
+  border-bottom: 1px solid var(--border-default);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+  font-size: 0.875rem;
+}
+
+.notification-center__table th {
+  background: var(--bg-soft);
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.notification-center__table td {
+  color: var(--text-primary);
+}
+
+.notification-center__row--unread {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.notification-login-modal {
+  color: var(--text-primary);
+}
+
+.notification-login-modal__header,
+.notification-login-modal__footer {
+  background: var(--bg-card);
+}
+
+.notification-panel__footer {
+  background: var(--bg-card);
 }
 
 .notifications-page__panel ul {

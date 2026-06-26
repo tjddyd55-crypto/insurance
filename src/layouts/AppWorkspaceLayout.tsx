@@ -17,6 +17,10 @@ import { useBackButtonClose } from '../hooks/useBackButtonClose'
 import { isUserWorkspacePath } from '../features/user-ui/isUserWorkspacePath'
 import { isActivePcNavigationPath } from '../components/layout/pcNavigationUtils'
 import BillingStatusBadge from '../features/insurance-billing/components/BillingStatusBadge'
+import {
+  NotificationLoginModal,
+  useNotificationLoginModal,
+} from '../features/notification/components/NotificationLoginModal'
 
 /** B안 모드 랜딩에서도 PlatformModeSwitcher 노출 (appRouter 변경 없음). */
 function isPlatformAdminArea(pathname: string): boolean {
@@ -45,8 +49,25 @@ export function MobileLayout() {
 }
 
 /** 인증 라우트 전역: PC/모바일 레이아웃을 완전히 분리해 렌더링한다. */
+function NotificationLoginModalHost() {
+  const { token, user } = useAuth()
+  const isNewsManager = user?.role === 'INSURER_MANAGER' || user?.role === 'LOSS_ADJUSTER'
+  const { open, close } = useNotificationLoginModal(isNewsManager ? null : token)
+
+  if (!token?.trim() || isNewsManager) {
+    return null
+  }
+
+  return <NotificationLoginModal token={token} open={open} onClose={close} />
+}
+
 export default function AppWorkspaceLayout() {
-  return <ResponsiveLayout PC={PCLayout} Mobile={MobileLayout} />
+  return (
+    <>
+      <ResponsiveLayout PC={PCLayout} Mobile={MobileLayout} />
+      <NotificationLoginModalHost />
+    </>
+  )
 }
 
 function AppWorkspaceLayoutMobileShell() {
