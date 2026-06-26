@@ -54,7 +54,7 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
         setPreviewOpen(true)
         if (prep.payloads.length === 0) {
           setError(
-            `업로드할 유효한 행이 없습니다. (시트 ${prep.stats.totalSheetRows}행 중 주민번호 오류 제외 ${prep.stats.skippedInvalidSsnCount}건, 기타 제외 ${prep.stats.skippedOtherCount}건)`,
+            `업로드할 유효한 행이 없습니다. (시트 ${prep.stats.totalSheetRows}행 중 주민번호 형식 오류 ${prep.stats.skippedInvalidSsnCount}건, 기타 제외 ${prep.stats.skippedOtherCount}건)`,
           )
           setPreviewOpen(false)
         }
@@ -113,6 +113,10 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
       >
         샘플 다운로드
       </FormButton>
+
+      <p className="customers-excel-import-panel__intro text-sm text-[var(--text-secondary)] mb-2">
+        필수: 이름, 연락처 / 선택: 주민번호, 주소, 메모 등. 주민번호 없이도 업로드할 수 있습니다.
+      </p>
 
       <div className="customers-excel-import-panel__row">
         <FormInput
@@ -180,18 +184,20 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
             <li>업로드 예정 {prepare.stats.uploadReadyCount}건</li>
             {prepare.stats.mergedAbsorbedRowCount > 0 ? (
               <li>
-                중복 병합: {prepare.stats.mergedAbsorbedRowCount}건 (주민번호 기준, 동일 고객 데이터가 병합되었습니다
-                {prepare.stats.duplicateSsnGroupCount > 0
-                  ? ` · 중복 그룹 ${prepare.stats.duplicateSsnGroupCount}개`
+                중복 병합: {prepare.stats.mergedAbsorbedRowCount}건 (주민번호 또는 이름+연락처 기준
+                {prepare.stats.duplicateMergeGroupCount > 0
+                  ? ` · 중복 그룹 ${prepare.stats.duplicateMergeGroupCount}개`
                   : ''}
                 )
               </li>
             ) : null}
-            <li className={prepare.stats.skippedInvalidSsnCount > 0 ? 'customers-excel-import-panel__warn' : undefined}>
-              주민번호 오류로 제외: {prepare.stats.skippedInvalidSsnCount}건
-            </li>
+            {prepare.stats.skippedInvalidSsnCount > 0 ? (
+              <li className="customers-excel-import-panel__warn">
+                주민번호 형식 오류로 제외: {prepare.stats.skippedInvalidSsnCount}건
+              </li>
+            ) : null}
             {prepare.stats.skippedOtherCount > 0 ? (
-              <li>기타 제외(이름 없음 등): {prepare.stats.skippedOtherCount}건</li>
+              <li>기타 제외(이름·연락처 없음 등): {prepare.stats.skippedOtherCount}건</li>
             ) : null}
           </ul>
           {showExcludedDownload ? (
@@ -249,7 +255,7 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
 
       {prepStats && !previewOpen && (prepStats.skippedInvalidSsnCount > 0 || prepStats.mergedAbsorbedRowCount > 0) ? (
         <p className="customers-excel-import-panel__meta" role="status">
-          직전 분석: 시트 {prepStats.totalSheetRows}행 · 병합 {prepStats.mergedAbsorbedRowCount}건 · 주민번호 제외{' '}
+          직전 분석: 시트 {prepStats.totalSheetRows}행 · 병합 {prepStats.mergedAbsorbedRowCount}건 · 주민번호 형식 제외{' '}
           {prepStats.skippedInvalidSsnCount}건
           {showExcludedDownload ? (
             <>
@@ -297,8 +303,8 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
           {result.failures.length > 0 ? (
             <ul className="customers-excel-import-panel__failures">
               {result.failures.slice(0, 30).map((f, idx) => (
-                <li key={`${f.ssn}-${idx}`}>
-                  {f.name} ({f.ssn}): {f.message}
+                <li key={`${f.ssn}-${f.phone}-${idx}`}>
+                  {f.name} ({f.ssn || f.phone || '—'}): {f.message}
                 </li>
               ))}
               {result.failures.length > 30 ? (
@@ -321,7 +327,7 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
           className="link-btn link-btn--compact customers-excel-import-panel__download"
           onClick={() => downloadExcludedRowsExcel(prepare.excludedRows)}
         >
-          제외 데이터 다운로드 (주민번호 오류 등)
+          제외 데이터 다운로드 (형식 오류·필수값 누락 등)
         </FormButton>
       ) : null}
       {confirmDialog}

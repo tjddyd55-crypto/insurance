@@ -5,6 +5,10 @@ import type { CustomerNote } from '../domain/types'
 import { normalizeCustomerNotesBag } from '../domain/types'
 import type { SaveCustomerPayload } from '../api/customersApi'
 import { saveCustomer } from '../api/customersApi'
+import {
+  normalizeNameForCustomerDedupe,
+  normalizePhoneForCustomerDedupe,
+} from './customerSearchDedupe'
 
 /**
  * 샘플·업로드 공통 헤더 순서 (1행)
@@ -74,8 +78,11 @@ const HEADER_LABEL_TO_KEY: Record<string, (typeof CUSTOMER_EXCEL_UPLOAD_HEADERS)
   메모: 'memo',
 }
 
-/** 한국 주민등록번호 본문 13자리 (검증·병합 키용) */
+/** 한국 주민등록번호 본문 13자리 (있을 때만 검증·병합 키로 사용) */
 export const RRN_NORMALIZED_LENGTH = 13
+
+/** 업로드 필수 연락처 최소 자릿수(숫자만) */
+export const CUSTOMER_EXCEL_UPLOAD_MIN_PHONE_DIGITS = 10
 
 /** 숫자만 추출. 비정상·누락 시 병합 키로 쓰지 않도록 길이 검증은 호출부에서 한다. */
 export function normalizeSsn(ssn: string): string {
@@ -108,6 +115,7 @@ export type CustomerExcelParsedRow = {
 export type CustomerUploadFailure = {
   name: string
   ssn: string
+  phone: string
   message: string
 }
 
@@ -120,11 +128,11 @@ export type CustomerUploadBatchResult = {
   failedPayloads: SaveCustomerPayload[]
 }
 
-/** 주민번호 형식 오류 등 업로드에서 제외된 행 */
+/** 업로드에서 제외된 행 */
 export type PreparedExcludedRow = {
   /** 엑셀 시트 행 번호(1부터, 헤더=1). 병합 후 제외 등 알 수 없으면 0 */
   excelRow: number
-  category: 'invalid_ssn' | 'missing_name' | 'other'
+  category: 'invalid_ssn' | 'missing_name' | 'missing_phone' | 'other'
   reason: string
   values: Record<string, string>
 }
@@ -135,14 +143,14 @@ export type CustomerExcelPrepareResult = {
   stats: {
     /** 시트에서 읽은 데이터 행 수(헤더 제외) */
     totalSheetRows: number
-    /** 주민번호 13자리 미달/초과/공란 등 */
+    /** 주민번호가 입력됐지만 13자리가 아닌 경우 */
     skippedInvalidSsnCount: number
-    /** 병합 후 이름 없음 등 */
+    /** 이름·연락처 누락 등 */
     skippedOtherCount: number
-    /** 같은 주민번호로 묶인 "추가 행" 수 (합쳐진 횟수) */
+    /** 같은 병합 키(주민번호 또는 이름+연락처)로 묶인 추가 행 수 */
     mergedAbsorbedRowCount: number
-    /** 주민번호가 2행 이상 등장한 고유 번호 개수 */
-    duplicateSsnGroupCount: number
+    /** 병합 키가 2행 이상 등장한 고유 그룹 수 */
+    duplicateMergeGroupCount: number
     /** API 전송 예정 건수 */
     uploadReadyCount: number
   }
@@ -321,28 +329,59 @@ function payloadToExportRecord(p: SaveCustomerPayload): Record<string, string> {
   }
 }
 
-/** 주민번호 정규화·13자리 검증을 통과한 행만 넣어 통계 */
+function normalizeOptionalSsn(ssn: string): string {
+  const norm = normalizeSsn(ssn)
+  return norm.length === RRN_NORMALIZED_LENGTH ? norm : ''
+}
+
+export function isInvalidSsnFormat(ssn: string): boolean {
+  const norm = normalizeSsn(ssn)
+  return norm.length > 0 && norm.length !== RRN_NORMALIZED_LENGTH
+}
+
+export function hasValidUploadPhone(phone: string): boolean {
+  return normalizePhoneForCustomerDedupe(phone).length >= CUSTOMER_EXCEL_UPLOAD_MIN_PHONE_DIGITS
+}
+
+/** 주민번호(우선) 또는 이름+연락처 병합 키. 유효하지 않으면 null */
+export function getCustomerExcelRowMergeKey(row: CustomerExcelParsedRow): string | null {
+  const ssnNorm = normalizeSsn(row.ssn)
+  if (ssnNorm.length === RRN_NORMALIZED_LENGTH) {
+    return `ssn:${ssnNorm}`
+  }
+  if (ssnNorm.length > 0) {
+    return null
+  }
+  const phone = normalizePhoneForCustomerDedupe(row.phone)
+  const name = normalizeNameForCustomerDedupe(row.name)
+  if (!name || phone.length < CUSTOMER_EXCEL_UPLOAD_MIN_PHONE_DIGITS) {
+    return null
+  }
+  return `phone:${phone}:${name}`
+}
+
+/** 병합 키 기준 중복 통계 */
 function duplicateMergeMetrics(validRows: CustomerExcelParsedRow[]): {
-  duplicateSsnGroupCount: number
+  duplicateMergeGroupCount: number
   mergedAbsorbedRowCount: number
 } {
   const byKey = new Map<string, number>()
   for (const r of validRows) {
-    const k = normalizeSsn(r.ssn)
-    if (k.length !== RRN_NORMALIZED_LENGTH) {
+    const k = getCustomerExcelRowMergeKey(r)
+    if (!k) {
       continue
     }
     byKey.set(k, (byKey.get(k) ?? 0) + 1)
   }
-  let duplicateSsnGroupCount = 0
+  let duplicateMergeGroupCount = 0
   let mergedAbsorbedRowCount = 0
   for (const c of byKey.values()) {
     if (c > 1) {
-      duplicateSsnGroupCount += 1
+      duplicateMergeGroupCount += 1
       mergedAbsorbedRowCount += c - 1
     }
   }
-  return { duplicateSsnGroupCount, mergedAbsorbedRowCount }
+  return { duplicateMergeGroupCount, mergedAbsorbedRowCount }
 }
 
 export function parseExcel(file: File): Promise<CustomerExcelParsedRow[]> {
@@ -401,7 +440,7 @@ export function parseExcel(file: File): Promise<CustomerExcelParsedRow[]> {
 
         const hasRequiredKeys = (keys: string[]): boolean => {
           const set = new Set(keys.filter(Boolean))
-          return set.has('name') && set.has('ssn')
+          return set.has('name') && set.has('phone')
         }
 
         const firstHeaderKeys = resolveHeaderKeys(rows2d[0] as unknown[])
@@ -452,22 +491,27 @@ export function parseExcel(file: File): Promise<CustomerExcelParsedRow[]> {
   })
 }
 
-export function mergeRowsBySsn(rows: CustomerExcelParsedRow[]): CustomerExcelParsedRow[] {
+export function mergeRowsForImport(rows: CustomerExcelParsedRow[]): CustomerExcelParsedRow[] {
   const map = new Map<string, CustomerExcelParsedRow>()
   for (const row of rows) {
-    const normalized = normalizeSsn(row.ssn)
-    if (normalized.length !== RRN_NORMALIZED_LENGTH) {
+    const key = getCustomerExcelRowMergeKey(row)
+    if (!key) {
       continue
     }
-    const rowNorm: CustomerExcelParsedRow = { ...row, ssn: normalized }
-    const prev = map.get(normalized)
+    const rowNorm: CustomerExcelParsedRow = {
+      ...row,
+      name: row.name.trim(),
+      ssn: normalizeOptionalSsn(row.ssn),
+      phone: row.phone.trim(),
+    }
+    const prev = map.get(key)
     if (!prev) {
-      map.set(normalized, rowNorm)
+      map.set(key, rowNorm)
       continue
     }
     const merged: CustomerExcelParsedRow = {
       name: pickValue(prev.name, rowNorm.name),
-      ssn: normalized,
+      ssn: pickValue(prev.ssn, rowNorm.ssn),
       genderRaw: pickValue(prev.genderRaw, rowNorm.genderRaw),
       phone: pickValue(prev.phone, rowNorm.phone),
       address: pickValue(prev.address, rowNorm.address),
@@ -484,19 +528,24 @@ export function mergeRowsBySsn(rows: CustomerExcelParsedRow[]): CustomerExcelPar
       insuranceHistory: pickValue(prev.insuranceHistory, rowNorm.insuranceHistory),
       memoRaw: mergeMemoPartsUnique(prev.memoRaw, rowNorm.memoRaw),
     }
-    map.set(normalized, merged)
+    map.set(key, merged)
   }
   return [...map.values()]
 }
 
-/** 필수(name, 주민번호 숫자 13자리) 미충족 시 null */
+/** @deprecated mergeRowsForImport 사용 */
+export function mergeRowsBySsn(rows: CustomerExcelParsedRow[]): CustomerExcelParsedRow[] {
+  return mergeRowsForImport(rows)
+}
+
+/** 필수(name, phone) 미충족 시 null. 주민번호는 선택 */
 export function transformRow(row: CustomerExcelParsedRow): SaveCustomerPayload | null {
   const name = row.name.trim()
-  const ssnNorm = normalizeSsn(row.ssn)
-  if (!name || ssnNorm.length !== RRN_NORMALIZED_LENGTH) {
+  const phone = normalizePhoneForCustomerDedupe(row.phone)
+  if (!name || phone.length < CUSTOMER_EXCEL_UPLOAD_MIN_PHONE_DIGITS) {
     return null
   }
-  const ssn = ssnNorm
+  const ssn = normalizeOptionalSsn(row.ssn)
   const gender = parseGender(row.genderRaw)
   const isDriver = row.isDriver
   const createdAt = new Date().toISOString()
@@ -529,7 +578,7 @@ export function transformRow(row: CustomerExcelParsedRow): SaveCustomerPayload |
 }
 
 /**
- * 파싱 → 주민번호 검증·제외 집계 → 중복 병합 → 업로드용 페이로드.
+ * 파싱 → 필수값 검증·제외 집계 → 중복 병합 → 업로드용 페이로드.
  * UI 미리보기·제외/실패 다운로드에 사용한다.
  */
 export async function prepareCustomerExcelImport(file: File): Promise<CustomerExcelPrepareResult> {
@@ -541,36 +590,47 @@ export async function prepareCustomerExcelImport(file: File): Promise<CustomerEx
   parsed.forEach((row, idx) => {
     const excelRow = idx + 2
     const norm = normalizeSsn(row.ssn)
-    if (norm.length !== RRN_NORMALIZED_LENGTH) {
-      const reason =
-        norm.length === 0
-          ? '주민번호 없음 (13자리 숫자 필요)'
-          : `주민번호 ${norm.length}자리 (13자리 필요)`
+    if (isInvalidSsnFormat(row.ssn)) {
       excludedRows.push({
         excelRow,
         category: 'invalid_ssn',
-        reason,
+        reason: `주민번호 ${norm.length}자리 (13자리 필요)`,
         values: parsedRowToExportRecord(row),
       })
       return
     }
-    valid.push({ ...row, ssn: norm })
+    const name = row.name.trim()
+    if (!name) {
+      excludedRows.push({
+        excelRow,
+        category: 'missing_name',
+        reason: '이름 없음',
+        values: parsedRowToExportRecord(row),
+      })
+      return
+    }
+    if (!hasValidUploadPhone(row.phone)) {
+      excludedRows.push({
+        excelRow,
+        category: 'missing_phone',
+        reason: '연락처 없음 또는 형식 오류',
+        values: parsedRowToExportRecord(row),
+      })
+      return
+    }
+    valid.push({
+      ...row,
+      name,
+      ssn: normalizeOptionalSsn(row.ssn),
+      phone: row.phone.trim(),
+    })
   })
 
-  const { duplicateSsnGroupCount, mergedAbsorbedRowCount } = duplicateMergeMetrics(valid)
-  const merged = mergeRowsBySsn(valid)
+  const { duplicateMergeGroupCount, mergedAbsorbedRowCount } = duplicateMergeMetrics(valid)
+  const merged = mergeRowsForImport(valid)
   const payloads: SaveCustomerPayload[] = []
 
   for (const m of merged) {
-    if (!m.name.trim()) {
-      excludedRows.push({
-        excelRow: 0,
-        category: 'missing_name',
-        reason: '이름 없음',
-        values: parsedRowToExportRecord(m),
-      })
-      continue
-    }
     const p = transformRow(m)
     if (p) {
       payloads.push(p)
@@ -595,7 +655,7 @@ export async function prepareCustomerExcelImport(file: File): Promise<CustomerEx
       skippedInvalidSsnCount,
       skippedOtherCount,
       mergedAbsorbedRowCount,
-      duplicateSsnGroupCount,
+      duplicateMergeGroupCount,
       uploadReadyCount: payloads.length,
     },
   }
@@ -646,9 +706,9 @@ export function downloadCustomerUploadSampleXlsx(): void {
   const descHeader = ['컬럼명', '설명']
   const descRows: [string, string][] = [
     ['name', '필수. 고객 이름 (폼「이름」)'],
-    ['gender', 'male 또는 female (폼「성별」과 동일)'],
-    ['ssn', `필수. 주민등록번호 숫자 ${RRN_NORMALIZED_LENGTH}자리(하이픈 없음). 길이 오류 행은 업로드 제외`],
-    ['phone', '전화번호 (폼「전화번호」)'],
+    ['gender', 'male 또는 female (폼「성별」과 동일). 주민번호가 있으면 자동 판단 가능'],
+    ['ssn', `선택. 주민등록번호 숫자 ${RRN_NORMALIZED_LENGTH}자리(하이픈 없음). 없어도 업로드 가능`],
+    ['phone', '필수. 전화번호 (폼「전화번호」). 숫자 10자리 이상'],
     ['address', '주소'],
     ['height', '키(cm 등 자유)'],
     ['weight', '몸무게(kg 등 자유)'],
@@ -701,6 +761,7 @@ export async function uploadCustomers(
       failures.push({
         name: payload.name,
         ssn: String(payload.ssn ?? ''),
+        phone: String(payload.phone ?? ''),
         message,
       })
       failedPayloads.push(payload)
