@@ -93,6 +93,13 @@ export async function listClaimRequests(token: string) {
   return apiRequest<{ requests: ClaimRequestDraft[] }>('/api/insurance-claim/requests', { token })
 }
 
+export async function deleteClaimRequest(token: string, id: number) {
+  return apiRequest<{ success: boolean }>(`/api/insurance-claim/requests/${id}`, {
+    method: 'DELETE',
+    token,
+  })
+}
+
 export async function duplicateClaimRequest(token: string, id: number) {
   return apiRequest<{ request: ClaimRequestDraft }>(`/api/insurance-claim/requests/${id}/duplicate`, {
     method: 'POST',
