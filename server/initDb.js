@@ -2867,6 +2867,15 @@ export async function initDb() {
     WHERE type = 'claim_request_received'
       AND claim_request_id IS NOT NULL
   `)
+  await pool.query(`
+    UPDATE notifications
+    SET is_dismissed = true,
+        is_read = true,
+        confirmed_at = COALESCE(confirmed_at, NOW())
+    WHERE type = 'insurance_age_date'
+      AND is_dismissed = false
+      AND target_date > ((NOW() AT TIME ZONE 'Asia/Seoul')::date + 30)
+  `)
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS notification_settings (

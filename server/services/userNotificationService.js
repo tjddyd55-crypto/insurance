@@ -1,5 +1,7 @@
-import { formatDateOnly, getKstDateString } from '../../shared/dateTimeKst.js'
+import { addDaysToDateOnly, formatDateOnly, getKstDateString } from '../../shared/dateTimeKst.js'
 import { USER_NOTIFICATION_TYPES } from '../notifications/userNotificationTypes.js'
+
+export const INSURANCE_AGE_NOTIFICATION_WINDOW_DAYS = 30
 
 /**
  * @param {string | Date | null | undefined} value
@@ -46,8 +48,12 @@ export function isCarExpiryDueForNotification(expiryDate, today = getKstDateStri
  * @param {string} [today] YYYY-MM-DD
  * @returns {boolean}
  */
-export function isInsuranceAgeDueForNotification(nextAgeDate, today = getKstDateString()) {
-  const upperBound = addMonthsToDateOnly(today, 2)
+export function isInsuranceAgeDueForNotification(
+  nextAgeDate,
+  today = getKstDateString(),
+  windowDays = INSURANCE_AGE_NOTIFICATION_WINDOW_DAYS,
+) {
+  const upperBound = addDaysToDateOnly(today, windowDays)
   if (!upperBound) {
     return false
   }
@@ -96,10 +102,12 @@ export function getKstEndOfDayDate(date = new Date()) {
 export async function syncDueUserNotifications(db, safeQueryExec, userId, gaId) {
   const today = getKstDateString()
   const carRenewalUpperBound = addMonthsToDateOnly(today, 1)
-  const insuranceAgeUpperBound = addMonthsToDateOnly(today, 2)
+  const insuranceAgeUpperBound = addDaysToDateOnly(today, INSURANCE_AGE_NOTIFICATION_WINDOW_DAYS)
   if (!carRenewalUpperBound || !insuranceAgeUpperBound) {
     return
   }
+
+  await retireOutOfWindowInsuranceAgeNotifications(db, safeQueryExec, userId, gaId, today, insuranceAgeUpperBound)
 
   let carRows
   try {
@@ -219,6 +227,43 @@ export async function syncDueUserNotifications(db, safeQueryExec, userId, gaId) 
       })
     }
   }
+}
+
+/**
+ * @param {import('pg').Pool | import('pg').PoolClient} db
+ * @param {typeof import('../utils/dbSafeQuery.js').safeQuery} safeQueryExec
+ * @param {string} userId
+ * @param {number} gaId
+ * @param {string} [today]
+ * @param {string} [upperBound]
+ */
+export async function retireOutOfWindowInsuranceAgeNotifications(
+  db,
+  safeQueryExec,
+  userId,
+  gaId,
+  today = getKstDateString(),
+  upperBound = addDaysToDateOnly(today, INSURANCE_AGE_NOTIFICATION_WINDOW_DAYS),
+) {
+  if (!upperBound) {
+    return 0
+  }
+  const result = await safeQueryExec(
+    db,
+    `
+    UPDATE notifications
+    SET is_dismissed = true,
+        is_read = true,
+        confirmed_at = COALESCE(confirmed_at, NOW())
+    WHERE user_id = $1
+      AND ga_id = $2
+      AND type = $3
+      AND is_dismissed = false
+      AND target_date > $4::date
+    `,
+    [userId, gaId, USER_NOTIFICATION_TYPES.INSURANCE_AGE_DATE, upperBound],
+  )
+  return result.rowCount ?? 0
 }
 
 /**

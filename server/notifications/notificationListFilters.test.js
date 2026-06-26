@@ -40,17 +40,22 @@ test('buildNotificationListWhere maps active and confirmed views', () => {
   assert.match(confirmed.clause, /COALESCE\(confirmed_at, created_at\) >= NOW\(\) - INTERVAL '1 month'/)
 })
 
-test('buildNotificationListWhere keeps active notifications without target_date filter', () => {
+test('buildNotificationListWhere excludes active insurance age notifications beyond 30 days', () => {
   const active = buildNotificationListWhere('u1', 1, { view: 'active', type: 'all' })
   assert.match(active.clause, /is_dismissed = false/)
-  assert.doesNotMatch(active.clause, /target_date/)
+  assert.match(active.clause, /NOT \(type = 'insurance_age_date' AND target_date >/)
+  assert.equal(active.params.length, 3)
+
+  const confirmed = buildNotificationListWhere('u1', 1, { view: 'confirmed', type: 'all' })
+  assert.match(confirmed.clause, /is_dismissed = true/)
+  assert.doesNotMatch(confirmed.clause, /target_date >/)
 })
 
 test('buildNotificationListWhere applies type filter without changing view rules', () => {
   const carActive = buildNotificationListWhere('u1', 1, { view: 'active', type: 'car_expiry' })
-  assert.match(carActive.clause, /type = \$3/)
+  assert.match(carActive.clause, /type = \$4/)
   assert.match(carActive.clause, /is_dismissed = false/)
-  assert.equal(carActive.params[2], 'car_expiry')
+  assert.equal(carActive.params[3], 'car_expiry')
 
   const ageConfirmed = buildNotificationListWhere('u1', 1, { view: 'confirmed', type: 'insurance_age_date' })
   assert.match(ageConfirmed.clause, /type = \$3/)
