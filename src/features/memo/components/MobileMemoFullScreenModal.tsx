@@ -85,12 +85,29 @@ export function MobileMemoFullScreenModal({
 
   return (
     <>
-      <div className="mobile-memo-fullscreen-modal" role="dialog" aria-modal="true" aria-label="메모 편집">
-        <header className="mobile-memo-fullscreen-modal__header">
+      <div className="mobile-memo-fullscreen-modal mobile-memo-editor" role="dialog" aria-modal="true" aria-label="메모 편집">
+        <header className="mobile-memo-fullscreen-modal__header mobile-memo-editor__header">
+          <h2 className="mobile-memo-fullscreen-modal__title mobile-memo-editor__title">스티커 메모</h2>
           <FormButton htmlType="button" variant="secondary" size="sm" onClick={requestClose}>
             닫기
           </FormButton>
-          <h2 className="mobile-memo-fullscreen-modal__title">스티커 메모</h2>
+        </header>
+        <div className="mobile-memo-fullscreen-modal__body mobile-memo-editor__body">
+          <FormTextarea
+            className="mobile-memo-fullscreen-modal__textarea mobile-memo-editor__textarea"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder="메모 내용을 입력하세요"
+            rows={16}
+            autoFocus
+          />
+        </div>
+        <footer className="mobile-memo-fullscreen-modal__footer mobile-memo-editor__footer">
+          {!isCreate ? (
+            <FormButton htmlType="button" variant="secondary" size="sm" onClick={() => setDeleteOpen(true)}>
+              삭제
+            </FormButton>
+          ) : null}
           <FormButton
             htmlType="button"
             variant="primary"
@@ -100,24 +117,7 @@ export function MobileMemoFullScreenModal({
           >
             저장
           </FormButton>
-        </header>
-        <div className="mobile-memo-fullscreen-modal__body">
-          <FormTextarea
-            className="mobile-memo-fullscreen-modal__textarea"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder="메모 내용을 입력하세요"
-            rows={16}
-            autoFocus
-          />
-        </div>
-        {!isCreate ? (
-          <footer className="mobile-memo-fullscreen-modal__footer">
-            <FormButton htmlType="button" variant="secondary" size="sm" onClick={() => setDeleteOpen(true)}>
-              삭제
-            </FormButton>
-          </footer>
-        ) : null}
+        </footer>
       </div>
 
       <DeleteConfirmModal
@@ -133,7 +133,9 @@ export function MobileMemoFullScreenModal({
         }
       >
         <p className="mt-3 text-sm text-[var(--text-muted)]">
-          이 메모를 삭제하시겠습니까? 삭제 후 복구할 수 없습니다.
+          메모를 삭제하시겠습니까?
+          <br />
+          삭제한 메모는 복구할 수 없습니다.
         </p>
       </DeleteConfirmModal>
     </>
