@@ -21,6 +21,7 @@ type AccountSectionProps = {
   category: UserInsurerAccountCategory
   rows: UserInsurerAccountRow[]
   pendingId: string | null
+  rowLayout?: AccountRowLayout
   onAdd: () => void
   onSave: (row: UserInsurerAccountRow, patch: Partial<UserInsurerAccountRow>) => void
   onDelete: (row: UserInsurerAccountRow) => void
@@ -32,14 +33,18 @@ const SECTION_MODIFIER: Record<UserInsurerAccountCategory, string> = {
   GENERAL: 'general',
 }
 
+type AccountRowLayout = 'table' | 'card'
+
 function AccountRowEditor({
   row,
   pending,
+  rowLayout = 'table',
   onSave,
   onDelete,
 }: {
   row: UserInsurerAccountRow
   pending: boolean
+  rowLayout?: AccountRowLayout
   onSave: (patch: Partial<UserInsurerAccountRow>) => void
   onDelete: () => void
 }) {
@@ -60,6 +65,65 @@ function AccountRowEditor({
       loginId: draft.loginId,
       loginPassword: draft.loginPassword,
     })
+  }
+
+  const saveButton = (
+    <FormButton
+      htmlType="button"
+      variant="primary"
+      size="sm"
+      className="insurer-account-table__save-btn user-insurer-account-save-button"
+      disabled={pending}
+      onClick={handleSave}
+    >
+      저장
+    </FormButton>
+  )
+
+  const deleteButton =
+    row.isCustom ? (
+      <button
+        type="button"
+        className="insurer-account-delete-button"
+        disabled={pending}
+        onClick={onDelete}
+      >
+        삭제
+      </button>
+    ) : null
+
+  if (rowLayout === 'card') {
+    return (
+      <div className="user-insurer-account-row user-insurer-account-row--card">
+        <div className="user-insurer-account-row__top">
+          <div className="user-insurer-account-row__company">{row.companyName}</div>
+          <div className="user-insurer-account-row__save">
+            {saveButton}
+            {deleteButton}
+          </div>
+        </div>
+        <div className="user-insurer-account-row__field">
+          <FormInput
+            value={draft.loginId}
+            onChange={(event) => setDraft((prev) => ({ ...prev, loginId: event.target.value }))}
+            placeholder="아이디"
+            disabled={pending}
+          />
+          <UserInsurerAccountCopyButton value={draft.loginId} disabled={pending} label="아이디" />
+        </div>
+        <div className="user-insurer-account-row__field">
+          <FormInput
+            type="text"
+            value={draft.loginPassword}
+            onChange={(event) => setDraft((prev) => ({ ...prev, loginPassword: event.target.value }))}
+            placeholder="비밀번호"
+            disabled={pending}
+            autoComplete="off"
+          />
+          <UserInsurerAccountCopyButton value={draft.loginPassword} disabled={pending} label="비밀번호" />
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -93,26 +157,8 @@ function AccountRowEditor({
       </div>
       <div className="insurer-account-table__action" role="cell">
         <div className="insurer-account-table__action-group">
-          <FormButton
-            htmlType="button"
-            variant="primary"
-            size="sm"
-            className="insurer-account-table__save-btn user-insurer-account-save-button"
-            disabled={pending}
-            onClick={handleSave}
-          >
-            저장
-          </FormButton>
-          {row.isCustom ? (
-            <button
-              type="button"
-              className="insurer-account-delete-button"
-              disabled={pending}
-              onClick={onDelete}
-            >
-              삭제
-            </button>
-          ) : null}
+          {saveButton}
+          {deleteButton}
         </div>
       </div>
     </div>
@@ -124,11 +170,13 @@ function AccountSection({
   category,
   rows,
   pendingId,
+  rowLayout = 'table',
   onAdd,
   onSave,
   onDelete,
 }: AccountSectionProps) {
   const sectionModifier = SECTION_MODIFIER[category]
+  const isCardLayout = rowLayout === 'card'
 
   return (
     <section
@@ -146,6 +194,19 @@ function AccountSection({
         </div>
         {rows.length === 0 ? (
           <p className="user-insurer-accounts-page__muted">{USER_INSURER_ACCOUNT_EMPTY_LABEL[category]}</p>
+        ) : isCardLayout ? (
+          <div className="user-insurer-account-list">
+            {rows.map((row) => (
+              <AccountRowEditor
+                key={row.id}
+                row={row}
+                rowLayout="card"
+                pending={pendingId === row.id}
+                onSave={(patch) => onSave(row, patch)}
+                onDelete={() => onDelete(row)}
+              />
+            ))}
+          </div>
         ) : (
           <div className="insurer-account-table-scroll">
             <div className="insurer-account-table" role="table">
@@ -200,6 +261,7 @@ export function UserInsurerAccountsPanel({
   submitAdd,
 }: UserInsurerAccountsPanelProps) {
   const showTabs = layout === 'stacked'
+  const rowLayout: AccountRowLayout = layout === 'stacked' ? 'card' : 'table'
   const stackedCategory = activeTab
   const stackedTitle =
     USER_INSURER_ACCOUNT_TABS.find((tab) => tab.value === stackedCategory)?.label ?? '생명보험'
@@ -272,6 +334,7 @@ export function UserInsurerAccountsPanel({
           category={stackedCategory}
           rows={stackedRows}
           pendingId={pendingId}
+          rowLayout={rowLayout}
           onAdd={() => openAddModal(stackedCategory)}
           onSave={(row, patch) => void saveAccountField(row, patch)}
           onDelete={(row) => void removeAccount(row)}
