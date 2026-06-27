@@ -97,7 +97,7 @@ describe('buildInsuranceClaimDownloadFiles customer attachment entries', () => {
     })
     assert.equal(files.length, 1)
     assert.equal(files[0].source, 'customer_app_attachment')
-    assert.equal(files[0].fileName, '고객첨부_1777359738057.jpg')
+    assert.equal(files[0].fileName, '01_고객첨부_1777359738057.jpg')
     assert.equal(files[0].requestId, 23)
     assert.equal(files[0].gaCode, 'YJASSET')
   })
