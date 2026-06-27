@@ -233,17 +233,21 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
     }
   }, [canvasHeight, canvasWidth, routedPage])
 
+  const getMemoScrollContainer = useCallback(() => {
+    return workspaceRef.current?.parentElement ?? workspaceRef.current
+  }, [])
+
   useEffect(() => {
-    const el = containerRef.current ?? workspaceRef.current
-    if (!el || typeof ResizeObserver === 'undefined') {
+    const scrollEl = getMemoScrollContainer()
+    if (!scrollEl || typeof ResizeObserver === 'undefined') {
       return
     }
     const observer = new ResizeObserver(() => {
       setWorkspaceSizeTick((tick) => tick + 1)
     })
-    observer.observe(el)
+    observer.observe(scrollEl)
     return () => observer.disconnect()
-  }, [])
+  }, [getMemoScrollContainer])
 
   useEffect(() => {
     if (notes.length === 0 || draggingNoteId != null) {
@@ -271,10 +275,6 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
     }
   }, [draggingNoteId, notes, routedPage, updatePosition, workspaceSizeTick])
 
-  const getMemoScrollContainer = useCallback(() => {
-    return workspaceRef.current?.parentElement ?? workspaceRef.current
-  }, [])
-
   const ensureRoutedNoteVisible = useCallback(
     (id: string, options: { center?: boolean } = {}) => {
       if (!routedPage) {
@@ -295,21 +295,27 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
       const pad = 20
       const noteWidth = Math.max(200, Number(note.width) || 200)
       const noteHeight = Math.max(150, Number(note.height) || 160)
-      const maxX = Math.max(pad, viewportWidth - noteWidth - pad)
-      const maxY = Math.max(pad, viewportHeight - noteHeight - pad)
-      const centeredX = Math.max(pad, Math.round((viewportWidth - noteWidth) / 2))
-      const centeredY = Math.max(pad, Math.round((viewportHeight - noteHeight) / 2))
-      const nextX = options.center ? centeredX : Math.max(pad, Math.min(note.x, maxX))
-      const nextY = options.center ? centeredY : Math.max(pad, Math.min(note.y, maxY))
 
-      if (nextX !== note.x || nextY !== note.y) {
-        updatePosition(note.id, nextX, nextY)
+      if (options.center) {
+        const centeredX = Math.max(0, Math.round((viewportWidth - noteWidth) / 2))
+        const centeredY = Math.max(0, Math.round((viewportHeight - noteHeight) / 2))
+        if (centeredX !== note.x || centeredY !== note.y) {
+          updatePosition(note.id, centeredX, centeredY)
+        }
+        requestAnimationFrame(() => {
+          scrollContainer.scrollTo({
+            left: Math.max(0, centeredX - pad),
+            top: Math.max(0, centeredY - pad),
+            behavior: 'smooth',
+          })
+        })
+        return true
       }
 
       requestAnimationFrame(() => {
         scrollContainer.scrollTo({
-          left: Math.max(0, nextX - pad),
-          top: Math.max(0, nextY - pad),
+          left: Math.max(0, note.x - pad),
+          top: Math.max(0, note.y - pad),
           behavior: 'smooth',
         })
       })
@@ -479,7 +485,7 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
 
   /** 라우트 페이지: 선택 메모 보정 — 숨김 없이 전체 보드에 표시 */
   useEffect(() => {
-    if (!routedPage || notes.length === 0) {
+    if (!routedPage || notes.length === 0 || draggingNoteId != null) {
       return
     }
     if (activeNoteId && notes.some((n) => n.id === activeNoteId)) {
@@ -506,6 +512,7 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
     restoreNote,
     routedPage,
     workspaceSizeTick,
+    draggingNoteId,
   ])
 
   const handleCanvasClick = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {

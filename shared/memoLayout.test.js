@@ -59,14 +59,31 @@ test('getMemoBoardCanvasWidth expands beyond viewport when notes extend to the r
     viewportWidth: 390,
   })
   assert.ok(width >= 900 + 260 + MEMO_CANVAS_PADDING)
+  assert.ok(width > 390)
 })
 
-test('getMemoBoardCanvasHeight expands beyond viewport when notes extend downward', () => {
-  const height = getMemoBoardCanvasHeight([{ x: 24, y: 1200, width: 260, height: 200 }], {
+test('getMemoBoardCanvasWidth expands when dragDraft position exceeds viewport', () => {
+  const atRest = getMemoBoardCanvasWidth([{ id: 'a', x: 24, y: 24, width: 260, height: 200 }], {
+    viewportWidth: 390,
+  })
+  assert.ok(atRest >= 390)
+
+  const whileDragging = getMemoBoardCanvasWidth([{ id: 'a', x: 820, y: 24, width: 260, height: 200 }], {
+    viewportWidth: 390,
+  })
+  assert.ok(whileDragging >= 820 + 260 + MEMO_CANVAS_PADDING)
+  assert.ok(whileDragging > atRest)
+})
+
+test('getMemoBoardCanvasSize keeps horizontal and vertical expansion in sync with draft note', () => {
+  const draftNotes = [{ id: 'a', x: 820, y: 1100, width: 260, height: 200 }]
+  const size = getMemoBoardCanvasSize(draftNotes, {
     routedPage: true,
+    viewportWidth: 390,
     viewportHeight: 800,
   })
-  assert.ok(height != null && height >= 1200 + 200 + MEMO_CANVAS_PADDING)
+  assert.ok(size.width >= 820 + 260 + MEMO_CANVAS_PADDING)
+  assert.ok(size.height != null && size.height >= 1100 + 200 + MEMO_CANVAS_PADDING)
 })
 
 test('getMemoBoardCanvasSize includes draft note positions for drag expansion', () => {
@@ -81,7 +98,7 @@ test('getMemoBoardCanvasSize includes draft note positions for drag expansion', 
   assert.ok(size.height != null && size.height >= 900 + 200 + MEMO_CANVAS_PADDING)
 })
 
-test('getMemoBoardCanvasHeight expands routed memo board vertically', () => {
+test('getMemoBoardCanvasHeight expands beyond viewport when notes extend downward', () => {
   const height = getMemoBoardCanvasHeight([{ x: 24, y: 1200, width: 260, height: 200 }], {
     routedPage: true,
     viewportHeight: 800,

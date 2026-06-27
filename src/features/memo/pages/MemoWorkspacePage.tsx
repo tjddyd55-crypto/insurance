@@ -58,8 +58,12 @@ export default function MemoWorkspacePage() {
   const canvasStyle =
     canvasWidth != null || canvasHeight != null
       ? {
-          minWidth: canvasWidth,
-          minHeight: canvasHeight,
+          ...(canvasWidth != null
+            ? { width: `${canvasWidth}px`, minWidth: `${canvasWidth}px` }
+            : {}),
+          ...(canvasHeight != null
+            ? { height: `${canvasHeight}px`, minHeight: `${canvasHeight}px` }
+            : {}),
         }
       : undefined
 
@@ -72,12 +76,13 @@ export default function MemoWorkspacePage() {
       >
         <div
           ref={workspaceRef}
-          className={`memo-workspace memo-workspace--infinite w-full h-full min-h-full bg-transparent${routedPage ? ' memo-board' : ''}`}
+          className={`memo-workspace memo-workspace--infinite min-h-full bg-transparent${routedPage ? ' memo-board' : ''}`}
+          style={canvasStyle}
           onClick={handleCanvasClick}
         >
           <div
             ref={containerRef}
-            className="memo-board__notes-layer h-full w-full"
+            className="memo-board__notes-layer"
             style={canvasStyle}
             onClick={handleCanvasClick}
           >
