@@ -4,11 +4,20 @@ import test from 'node:test'
 import {
   bootstrapDefaultUserInsurerAccounts,
   listUserInsurerAccounts,
+  normalizeUserInsurerAccountCategory,
 } from '../services/userInsurerAccountService.js'
 
 function createSafeQueryMock(handler) {
   return async (_db, sql, params) => handler(String(sql), params)
 }
+
+test('normalizeUserInsurerAccountCategory accepts GENERAL', () => {
+  assert.equal(normalizeUserInsurerAccountCategory('general'), 'GENERAL')
+  assert.equal(normalizeUserInsurerAccountCategory('GENERAL'), 'GENERAL')
+  assert.equal(normalizeUserInsurerAccountCategory('일반'), 'GENERAL')
+  assert.equal(normalizeUserInsurerAccountCategory('life'), 'LIFE')
+  assert.equal(normalizeUserInsurerAccountCategory('non_life'), 'NON_LIFE')
+})
 
 test('listUserInsurerAccounts scopes by owner_user_id only', async () => {
   let capturedSql = ''
