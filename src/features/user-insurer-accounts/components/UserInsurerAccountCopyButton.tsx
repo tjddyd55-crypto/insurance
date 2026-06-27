@@ -45,7 +45,7 @@ export function UserInsurerAccountCopyButton({
   return (
     <button
       type="button"
-      className="insurer-account-copy-button user-insurer-account-copy-button"
+      className="account-credential-copy-button"
       disabled={!canCopy}
       onClick={() => void handleCopy()}
       aria-label={`${label} 복사`}

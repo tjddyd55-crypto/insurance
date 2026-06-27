@@ -63,57 +63,55 @@ function AccountRowEditor({
   }
 
   return (
-    <div className="insurer-account-table__row user-insurer-account-row" role="row">
-      <div className="insurer-account-table__company" role="cell">
+    <div className="account-credential-row" role="row">
+      <div className="account-credential-row__company" role="cell">
         {row.companyName}
       </div>
-      <div className="insurer-account-table__field" role="cell">
-        <FormInput
-          value={draft.loginId}
-          onChange={(event) => setDraft((prev) => ({ ...prev, loginId: event.target.value }))}
-          placeholder="아이디"
-          disabled={pending}
-        />
-      </div>
-      <div className="insurer-account-table__copy" role="cell">
-        <UserInsurerAccountCopyButton value={draft.loginId} disabled={pending} label="아이디" />
-      </div>
-      <div className="insurer-account-table__field" role="cell">
-        <FormInput
-          type="text"
-          value={draft.loginPassword}
-          onChange={(event) => setDraft((prev) => ({ ...prev, loginPassword: event.target.value }))}
-          placeholder="비밀번호"
-          disabled={pending}
-          autoComplete="off"
-        />
-      </div>
-      <div className="insurer-account-table__copy" role="cell">
-        <UserInsurerAccountCopyButton value={draft.loginPassword} disabled={pending} label="비밀번호" />
-      </div>
-      <div className="insurer-account-table__action" role="cell">
-        <div className="insurer-account-table__action-group">
-          <FormButton
-            htmlType="button"
-            variant="primary"
-            size="sm"
-            className="insurer-account-table__save-btn user-insurer-account-save-button"
+
+      <div className="account-credential-row__fields" role="cell">
+        <div className="account-credential-row__field">
+          <FormInput
+            value={draft.loginId}
+            onChange={(event) => setDraft((prev) => ({ ...prev, loginId: event.target.value }))}
+            placeholder="아이디"
             disabled={pending}
-            onClick={handleSave}
-          >
-            저장
-          </FormButton>
-          {row.isCustom ? (
-            <button
-              type="button"
-              className="insurer-account-delete-button"
-              disabled={pending}
-              onClick={onDelete}
-            >
-              삭제
-            </button>
-          ) : null}
+          />
+          <UserInsurerAccountCopyButton value={draft.loginId} disabled={pending} label="아이디" />
         </div>
+        <div className="account-credential-row__field">
+          <FormInput
+            type="text"
+            value={draft.loginPassword}
+            onChange={(event) => setDraft((prev) => ({ ...prev, loginPassword: event.target.value }))}
+            placeholder="비밀번호"
+            disabled={pending}
+            autoComplete="off"
+          />
+          <UserInsurerAccountCopyButton value={draft.loginPassword} disabled={pending} label="비밀번호" />
+        </div>
+      </div>
+
+      <div className="account-credential-row__actions" role="cell">
+        <FormButton
+          htmlType="button"
+          variant="primary"
+          size="sm"
+          className="account-credential-save-button"
+          disabled={pending}
+          onClick={handleSave}
+        >
+          저장
+        </FormButton>
+        {row.isCustom ? (
+          <button
+            type="button"
+            className="account-credential-delete-button"
+            disabled={pending}
+            onClick={onDelete}
+          >
+            삭제
+          </button>
+        ) : null}
       </div>
     </div>
   )
@@ -147,17 +145,20 @@ function AccountSection({
         {rows.length === 0 ? (
           <p className="user-insurer-accounts-page__muted">{USER_INSURER_ACCOUNT_EMPTY_LABEL[category]}</p>
         ) : (
-          <div className="insurer-account-table-scroll">
-            <div className="insurer-account-table" role="table">
-              <div className="insurer-account-table__header user-insurer-account-row" role="row">
-                <span role="columnheader">회사</span>
-                <span role="columnheader">아이디</span>
-                <span role="columnheader" aria-hidden="true" />
-                <span role="columnheader">비번</span>
-                <span role="columnheader" aria-hidden="true" />
-                <span role="columnheader">작업</span>
+          <div className="account-credential-table-scroll">
+            <div className="account-credential-table" role="table">
+              <div className="account-credential-table-header account-credential-row" role="row">
+                <span className="account-credential-table-header__company" role="columnheader">
+                  회사
+                </span>
+                <span className="account-credential-table-header__fields" role="columnheader">
+                  아이디 / 비밀번호
+                </span>
+                <span className="account-credential-table-header__actions" role="columnheader">
+                  작업
+                </span>
               </div>
-              <div className="insurer-account-table__body" role="rowgroup">
+              <div className="account-credential-table__body" role="rowgroup">
                 {rows.map((row) => (
                   <AccountRowEditor
                     key={row.id}
