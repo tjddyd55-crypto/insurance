@@ -14,6 +14,7 @@ import {
 import { getClaimDocumentObject } from './storage/claimDocumentStorage.js'
 import {
   getClaimRequestAttachmentObject,
+  isClaimRequestAttachmentStorageKey,
   isGeneratedClaimDocumentKey,
 } from './storage/claimRequestAttachmentStorage.js'
 
@@ -36,7 +37,7 @@ export function resolveInsuranceClaimDownloadSource(storageKey, explicitSource) 
   if (isGeneratedClaimDocumentKey(key)) {
     return 'generated'
   }
-  if (key.startsWith('insurance-claim-requests/')) {
+  if (isClaimRequestAttachmentStorageKey(key)) {
     return 'claim_attachment'
   }
   return 'customer_app_attachment'
