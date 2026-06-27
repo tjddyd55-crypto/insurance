@@ -15,9 +15,15 @@ import {
 import { useAuth } from '../../auth/AuthProvider'
 import { useNotes } from '../hooks/useNotes'
 import { loadMemoUiSnapshot, patchMemoUiCanvas } from '../memoUiStorage'
-import { buildArrangedNotePositions, clampNotePosition, getMemoBoardCanvasHeight, getMemoBoardVisibleNotes, MEMO_ROUTED_BOARD_MIN_HEIGHT } from '@insurance-shared/memoLayout.js'
+import { buildArrangedNotePositions, clampNotePosition, clampNotePositionMin, getMemoBoardCanvasSize, getMemoBoardVisibleNotes, MEMO_DEFAULT_HEIGHT, MEMO_DEFAULT_WIDTH, MEMO_MIN_HEIGHT, MEMO_MIN_WIDTH, MEMO_ROUTED_BOARD_MIN_HEIGHT } from '@insurance-shared/memoLayout.js'
 
-const ROUTED_MEMO_DRAG_EXTENSION = 160
+type MemoDragDraft = {
+  noteId: string
+  x: number
+  y: number
+  width: number
+  height: number
+}
 
 type MemoWorkspaceContextValue = ReturnType<typeof useNotes> & {
   token: string | undefined
@@ -29,6 +35,7 @@ type MemoWorkspaceContextValue = ReturnType<typeof useNotes> & {
   pendingDeleteId: string | null
   deleteSubmitting: boolean
   canvasHeight: number | undefined
+  canvasWidth: number | undefined
   getWorkspaceBounds: () => { width: number; height: number }
   promoteNote: (id: string) => void
   handleRootClick: (id: string) => void
@@ -36,6 +43,7 @@ type MemoWorkspaceContextValue = ReturnType<typeof useNotes> & {
   handleTextareaFocus: (id: string) => void
   handleTextareaBlur: () => void
   handleDragStart: (id: string) => void
+  handleDragMove: (id: string, x: number, y: number) => void
   handleDragEnd: () => void
   handleRequestDelete: (id: string) => void
   handleSidebarSelectNote: (id: string) => void
@@ -86,6 +94,7 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
   const activeNoteIdRef = useRef<string | null>(null)
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const [draggingNoteId, setDraggingNoteId] = useState<string | null>(null)
+  const [dragDraft, setDragDraft] = useState<MemoDragDraft | null>(null)
 
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [deleteSubmitting, setDeleteSubmitting] = useState(false)
@@ -190,24 +199,39 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
     activeNoteIdRef.current = activeNoteId
   }, [activeNoteId])
 
+  const boardNotesForLayout = useMemo(() => {
+    const visible = getMemoBoardVisibleNotes(notes, hiddenNotes, routedPage, minimizedNotes)
+    if (!dragDraft) {
+      return visible
+    }
+    return visible.map((note) =>
+      note.id === dragDraft.noteId ? { ...note, x: dragDraft.x, y: dragDraft.y } : note,
+    )
+  }, [dragDraft, hiddenNotes, minimizedNotes, notes, routedPage])
+
+  const canvasSize = useMemo(() => {
+    const scrollEl = workspaceRef.current?.parentElement
+    const viewportWidth = scrollEl?.clientWidth ?? workspaceRef.current?.clientWidth ?? 960
+    const viewportHeight = scrollEl?.clientHeight ?? workspaceRef.current?.clientHeight ?? 720
+    return getMemoBoardCanvasSize(boardNotesForLayout, {
+      routedPage,
+      viewportWidth,
+      viewportHeight,
+    })
+  }, [boardNotesForLayout, routedPage, workspaceSizeTick])
+
+  const canvasWidth = canvasSize.width
+  const canvasHeight = canvasSize.height
+
   const getWorkspaceBounds = useCallback(() => {
     const boardEl = containerRef.current ?? workspaceRef.current
-    if (!boardEl) {
-      return { width: 0, height: 0 }
-    }
-    const viewportHeight = boardEl.clientHeight
-    const scrollHeight = boardEl.scrollHeight
+    const viewportHeight = boardEl?.clientHeight ?? 0
     const routedFloor = routedPage ? MEMO_ROUTED_BOARD_MIN_HEIGHT : 0
     return {
-      width: boardEl.clientWidth,
-      height: Math.max(
-        viewportHeight,
-        scrollHeight,
-        routedFloor,
-        viewportHeight + (routedPage ? ROUTED_MEMO_DRAG_EXTENSION : 0),
-      ),
+      width: canvasWidth,
+      height: Math.max(canvasHeight ?? viewportHeight, viewportHeight, routedFloor),
     }
-  }, [routedPage])
+  }, [canvasHeight, canvasWidth, routedPage])
 
   useEffect(() => {
     const el = containerRef.current ?? workspaceRef.current
@@ -221,32 +245,21 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
     return () => observer.disconnect()
   }, [])
 
-  const canvasHeight = useMemo(() => {
-    const boardNotes = getMemoBoardVisibleNotes(notes, hiddenNotes, routedPage, minimizedNotes)
-    const viewportHeight = containerRef.current?.clientHeight ?? workspaceRef.current?.clientHeight ?? 720
-    return getMemoBoardCanvasHeight(boardNotes, { routedPage, viewportHeight })
-  }, [notes, hiddenNotes, minimizedNotes, routedPage, workspaceSizeTick])
-
   useEffect(() => {
     if (notes.length === 0 || draggingNoteId != null) {
       return
     }
     const measureAndClamp = () => {
-      const boardEl = containerRef.current ?? workspaceRef.current
-      const measuredWidth = boardEl?.clientWidth ?? 0
-      const measuredHeight = boardEl?.clientHeight ?? 0
-      const workspaceWidth = measuredWidth > 0 ? measuredWidth : 960
-      const workspaceHeight =
-        measuredHeight > 0
-          ? Math.max(measuredHeight, boardEl?.scrollHeight ?? 0, routedPage ? MEMO_ROUTED_BOARD_MIN_HEIGHT : 0)
-          : routedPage
-            ? MEMO_ROUTED_BOARD_MIN_HEIGHT
-            : 480
+      const scrollEl = workspaceRef.current?.parentElement
+      const measuredWidth = scrollEl?.clientWidth ?? workspaceRef.current?.clientWidth ?? 960
+      const measuredHeight = scrollEl?.clientHeight ?? workspaceRef.current?.clientHeight ?? 480
 
       notes.forEach((note) => {
-        const { x: fixedX, y: fixedY } = clampNotePosition(note, workspaceWidth, workspaceHeight)
-        if (fixedX !== note.x || fixedY !== note.y) {
-          updatePosition(note.id, fixedX, fixedY)
+        const next = routedPage
+          ? clampNotePositionMin(note)
+          : clampNotePosition(note, measuredWidth, measuredHeight)
+        if (next.x !== note.x || next.y !== note.y) {
+          updatePosition(note.id, next.x, next.y)
         }
       })
     }
@@ -258,19 +271,23 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
     }
   }, [draggingNoteId, notes, routedPage, updatePosition, workspaceSizeTick])
 
+  const getMemoScrollContainer = useCallback(() => {
+    return workspaceRef.current?.parentElement ?? workspaceRef.current
+  }, [])
+
   const ensureRoutedNoteVisible = useCallback(
     (id: string, options: { center?: boolean } = {}) => {
       if (!routedPage) {
         return false
       }
       const note = notes.find((n) => n.id === id)
-      const workspace = workspaceRef.current
-      if (!note || !workspace) {
+      const scrollContainer = getMemoScrollContainer()
+      if (!note || !scrollContainer) {
         return false
       }
 
-      const viewportWidth = workspace.clientWidth
-      const viewportHeight = workspace.clientHeight
+      const viewportWidth = scrollContainer.clientWidth
+      const viewportHeight = scrollContainer.clientHeight
       if (viewportWidth <= 0 || viewportHeight <= 0) {
         return false
       }
@@ -290,7 +307,7 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
       }
 
       requestAnimationFrame(() => {
-        workspace.scrollTo({
+        scrollContainer.scrollTo({
           left: Math.max(0, nextX - pad),
           top: Math.max(0, nextY - pad),
           behavior: 'smooth',
@@ -298,7 +315,7 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
       })
       return true
     },
-    [notes, routedPage, updatePosition],
+    [getMemoScrollContainer, notes, routedPage, updatePosition],
   )
 
   const promoteNote = useCallback(
@@ -344,12 +361,42 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
       setEditingNoteId(null)
       promoteNote(id)
       setDraggingNoteId(id)
+      const note = notes.find((item) => item.id === id)
+      if (!note) {
+        setDragDraft(null)
+        return
+      }
+      setDragDraft({
+        noteId: id,
+        x: note.x,
+        y: note.y,
+        width: Math.max(MEMO_MIN_WIDTH, Number(note.width) || MEMO_DEFAULT_WIDTH),
+        height: Math.max(MEMO_MIN_HEIGHT, Number(note.height) || MEMO_DEFAULT_HEIGHT),
+      })
     },
-    [promoteNote],
+    [notes, promoteNote],
+  )
+
+  const handleDragMove = useCallback(
+    (id: string, x: number, y: number) => {
+      const note = notes.find((item) => item.id === id)
+      if (!note) {
+        return
+      }
+      setDragDraft({
+        noteId: id,
+        x,
+        y,
+        width: Math.max(MEMO_MIN_WIDTH, Number(note.width) || MEMO_DEFAULT_WIDTH),
+        height: Math.max(MEMO_MIN_HEIGHT, Number(note.height) || MEMO_DEFAULT_HEIGHT),
+      })
+    },
+    [notes],
   )
 
   const handleDragEnd = useCallback(() => {
     setDraggingNoteId(null)
+    setDragDraft(null)
   }, [])
 
   const handleRequestDelete = useCallback((id: string) => {
@@ -359,15 +406,16 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
   const scrollCanvasToNote = useCallback(
     (id: string) => {
       const note = notes.find((n) => n.id === id)
+      const scrollContainer = getMemoScrollContainer()
       const y = note ? note.y : 0
       requestAnimationFrame(() => {
-        workspaceRef.current?.scrollTo({
+        scrollContainer?.scrollTo({
           top: Math.max(0, y - 40),
           behavior: 'smooth',
         })
       })
     },
-    [notes],
+    [getMemoScrollContainer, notes],
   )
 
   const handleSidebarSelectNote = useCallback(
@@ -410,11 +458,11 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
 
     if (routedPage) {
       requestAnimationFrame(() => {
-        const workspace = workspaceRef.current
-        const { width } = getWorkspaceBounds()
+        const scrollContainer = getMemoScrollContainer()
+        const viewportWidth = scrollContainer?.clientWidth ?? 960
         const noteWidth = Math.max(200, Number(created.width) || 200)
-        const x = Math.max(20, Math.min(100, Math.max(20, width - noteWidth - 20)))
-        const y = Math.max(20, (workspace?.scrollTop ?? 0) + 20)
+        const x = Math.max(20, Math.min(100, Math.max(20, viewportWidth - noteWidth - 20)))
+        const y = Math.max(20, (scrollContainer?.scrollTop ?? 0) + 20)
         updatePosition(created.id, x, y)
         scrollCanvasToNote(created.id)
       })
@@ -422,7 +470,7 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
   }, [
     addNote,
     bringToFront,
-    getWorkspaceBounds,
+    getMemoScrollContainer,
     restoreNote,
     routedPage,
     scrollCanvasToNote,
@@ -516,6 +564,7 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
       })
       setEditingNoteId((prev) => (prev === id ? null : prev))
       setDraggingNoteId((prev) => (prev === id ? null : prev))
+      setDragDraft((prev) => (prev?.noteId === id ? null : prev))
       setPendingDeleteId(null)
     } finally {
       setDeleteSubmitting(false)
@@ -534,6 +583,7 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
       pendingDeleteId,
       deleteSubmitting,
       canvasHeight,
+      canvasWidth,
       getWorkspaceBounds,
       promoteNote,
       handleRootClick,
@@ -541,6 +591,7 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
       handleTextareaFocus,
       handleTextareaBlur,
       handleDragStart,
+      handleDragMove,
       handleDragEnd,
       handleRequestDelete,
       handleSidebarSelectNote,
@@ -567,6 +618,7 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
       pendingDeleteId,
       deleteSubmitting,
       canvasHeight,
+      canvasWidth,
       getWorkspaceBounds,
       promoteNote,
       handleRootClick,
@@ -574,6 +626,7 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
       handleTextareaFocus,
       handleTextareaBlur,
       handleDragStart,
+      handleDragMove,
       handleDragEnd,
       handleRequestDelete,
       handleSidebarSelectNote,

@@ -8,6 +8,9 @@ export const MEMO_MIN_WIDTH = 220
 export const MEMO_MIN_HEIGHT = 160
 export const MEMO_MINIMIZED_HEIGHT = 44
 
+/** `/memo` routed board — note 배치·드래그 여백(px) */
+export const MEMO_CANVAS_PADDING = 160
+
 /** @deprecated fixed-column arrange — row-wrap uses note dimensions instead */
 export const MEMO_ARRANGE_COLUMNS = [24, 300, 576]
 export const MEMO_ARRANGE_START_Y = 24
@@ -64,6 +67,19 @@ export function clampNotePosition(note, boardWidth, boardHeight) {
 }
 
 /**
+ * 왼쪽/위쪽만 보정하고 오른쪽·아래쪽은 캔버스 확장으로 수용한다.
+ * @param {MemoLayoutNote} note
+ */
+export function clampNotePositionMin(note) {
+  const rawX = Number.isFinite(Number(note.x)) ? Number(note.x) : MEMO_DEFAULT_X
+  const rawY = Number.isFinite(Number(note.y)) ? Number(note.y) : MEMO_DEFAULT_Y
+  return {
+    x: Math.max(0, rawX < 0 ? MEMO_DEFAULT_X : rawX),
+    y: Math.max(0, rawY < 0 ? MEMO_DEFAULT_Y : rawY),
+  }
+}
+
+/**
  * @param {Array<{ id: string }>} notes
  * @param {Record<string, boolean>} hiddenNotes
  * @param {boolean} isMemoRoute
@@ -83,12 +99,45 @@ export function getMemoBoardVisibleNotes(notes, hiddenNotes, isMemoRoute, minimi
 
 /**
  * @param {Array<MemoLayoutNote & { id?: string }>} notes
- * @param {{ routedPage?: boolean, viewportHeight?: number, minimizedNoteIds?: Set<string> | string[] }} [options]
+ * @param {{ viewportWidth?: number, padding?: number }} [options]
+ * @returns {number}
+ */
+export function getMemoBoardCanvasWidth(notes, options = {}) {
+  const viewportWidth = Math.max(0, Number(options.viewportWidth) || 320)
+  const padding = Number(options.padding) || MEMO_CANVAS_PADDING
+  if (!notes.length) {
+    return viewportWidth
+  }
+  const rights = notes.map((note) => {
+    const x = Number.isFinite(Number(note.x)) ? Number(note.x) : MEMO_DEFAULT_X
+    return x + noteWidth(note)
+  })
+  return Math.max(viewportWidth, Math.max(...rights) + padding)
+}
+
+/**
+ * @param {Array<MemoLayoutNote & { id?: string }>} notes
+ * @param {{ routedPage?: boolean, viewportHeight?: number, viewportWidth?: number, minimizedNoteIds?: Set<string> | string[], padding?: number }} [options]
+ * @returns {{ width: number, height: number | undefined }}
+ */
+export function getMemoBoardCanvasSize(notes, options = {}) {
+  const viewportWidth = Math.max(0, Number(options.viewportWidth) || 320)
+  const viewportHeight = Math.max(0, Number(options.viewportHeight) || 720)
+  return {
+    width: getMemoBoardCanvasWidth(notes, options),
+    height: getMemoBoardCanvasHeight(notes, { ...options, viewportHeight }),
+  }
+}
+
+/**
+ * @param {Array<MemoLayoutNote & { id?: string }>} notes
+ * @param {{ routedPage?: boolean, viewportHeight?: number, minimizedNoteIds?: Set<string> | string[], padding?: number }} [options]
  * @returns {number | undefined}
  */
 export function getMemoBoardCanvasHeight(notes, options = {}) {
   const routedPage = Boolean(options.routedPage)
   const viewportHeight = Math.max(0, Number(options.viewportHeight) || 720)
+  const padding = Number(options.padding) || MEMO_CANVAS_PADDING
   const routedMin = Math.max(viewportHeight, MEMO_ROUTED_BOARD_MIN_HEIGHT)
   if (!notes.length) {
     return routedPage ? routedMin : undefined
@@ -97,7 +146,7 @@ export function getMemoBoardCanvasHeight(notes, options = {}) {
     const y = Number.isFinite(Number(note.y)) ? Number(note.y) : MEMO_DEFAULT_Y
     return y + noteArrangeHeight(note, options)
   })
-  const canvasBottom = Math.max(...bottoms) + 120
+  const canvasBottom = Math.max(...bottoms) + padding
   if (routedPage) {
     return Math.max(routedMin, canvasBottom)
   }

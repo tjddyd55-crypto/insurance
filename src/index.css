@@ -10449,21 +10449,24 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   min-height: calc(100dvh - var(--app-header-height, 72px) - 56px);
   background: #f1f5f9;
   overflow: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 0;
 }
 
 .memo-route-page .workspace-memo-routed-body .memo-canvas--routed-board,
 .memo-route-page .workspace-memo-routed-body .memo-board {
   position: relative;
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
   min-height: calc(100dvh - 160px);
   background: #f1f5f9;
+  overflow: visible;
 }
 
 .memo-route-page .workspace-memo-routed-body .memo-board__notes-layer {
   position: relative;
+  min-width: 100%;
   min-height: max(calc(100dvh - 160px), 2400px);
-  width: 100%;
 }
 
 .memo-route-page .memo-board .memo-sticky-note__root {
@@ -11104,6 +11107,7 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   display: flex;
   flex-direction: column;
   overflow: auto;
+  -webkit-overflow-scrolling: touch;
   background: var(--bg-soft);
   --canvas-fg: var(--text-primary);
   --canvas-fg-muted: var(--text-muted);
@@ -11120,6 +11124,7 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   flex: 1;
   min-height: 0;
   overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .memo-list-sidebar {
@@ -11434,8 +11439,14 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   box-sizing: border-box;
   transform: none;
   filter: none;
-  overflow: auto;
+  overflow: visible;
   isolation: auto;
+}
+
+.memo-route-page .workspace-memo-routed-body .memo-workspace {
+  overflow: visible;
+  height: auto;
+  min-height: 100%;
 }
 
 .memo-workspace.memo-workspace--infinite {

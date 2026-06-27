@@ -13,8 +13,6 @@ const MIN_H = MEMO_MIN_HEIGHT
 const FONT_MIN = 12
 const FONT_MAX = 24
 
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(value, max))
-
 function isNoDragTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && Boolean(target.closest('[data-no-drag="true"]'))
 }
@@ -46,6 +44,7 @@ type Props = {
   onTextareaFocus: (id: string) => void
   onTextareaBlur: () => void
   onDragStart: (id: string) => void
+  onDragMove: (id: string, x: number, y: number) => void
   onDragEnd: () => void
 }
 
@@ -60,26 +59,24 @@ export default function StickyNote({
   onFontSizeChange,
   onFontWeightChange,
   onMinimize,
-  containerRef,
-  getWorkspaceBounds,
+  containerRef: _containerRef,
+  getWorkspaceBounds: _getWorkspaceBounds,
   onDeleteRequest,
   onRootClick,
   onActivate,
   onTextareaFocus,
   onTextareaBlur,
   onDragStart,
+  onDragMove,
   onDragEnd,
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null)
   const dragSessionRef = useRef<{
     pointerId: number
+    startPointerX: number
+    startPointerY: number
     originX: number
     originY: number
-    offsetX: number
-    offsetY: number
-    bounds: { width: number; height: number }
-    noteW: number
-    noteH: number
   } | null>(null)
   const resizeSessionRef = useRef<{
     pointerId: number
@@ -115,23 +112,14 @@ export default function StickyNote({
     el.style.transform = `translate(${x - session.originX}px, ${y - session.originY}px)`
   }, [])
 
-  const computeClampedPosition = useCallback(
-    (clientX: number, clientY: number, session: NonNullable<typeof dragSessionRef.current>) => {
-      const rect = containerRef.current?.getBoundingClientRect()
-      if (!rect) {
-        return null
-      }
-      const rawX = clientX - rect.left - session.offsetX
-      const rawY = clientY - rect.top - session.offsetY
-      const maxX = Math.max(0, session.bounds.width - session.noteW)
-      const maxY = Math.max(0, session.bounds.height - session.noteH)
-      return {
-        x: clamp(rawX, 0, maxX),
-        y: clamp(rawY, 0, maxY),
-      }
-    },
-    [containerRef],
-  )
+  const computeDragPosition = useCallback((clientX: number, clientY: number, session: NonNullable<typeof dragSessionRef.current>) => {
+    const deltaX = clientX - session.startPointerX
+    const deltaY = clientY - session.startPointerY
+    return {
+      x: Math.max(0, session.originX + deltaX),
+      y: Math.max(0, session.originY + deltaY),
+    }
+  }, [])
 
   const scheduleDragFrame = useCallback(() => {
     if (rafRef.current != null) {
@@ -142,9 +130,10 @@ export default function StickyNote({
       const next = pendingPosRef.current
       if (next) {
         applyDragTransform(next.x, next.y)
+        onDragMove(note.id, next.x, next.y)
       }
     })
-  }, [applyDragTransform])
+  }, [applyDragTransform, note.id, onDragMove])
 
   const finishDrag = useCallback(
     (pointerId: number) => {
@@ -174,20 +163,12 @@ export default function StickyNote({
     e.stopPropagation()
     onDragStart(note.id)
 
-    const rect = containerRef.current?.getBoundingClientRect()
-    if (!rect) {
-      return
-    }
-
     dragSessionRef.current = {
       pointerId: e.pointerId,
+      startPointerX: e.clientX,
+      startPointerY: e.clientY,
       originX: note.x,
       originY: note.y,
-      offsetX: e.clientX - rect.left - note.x,
-      offsetY: e.clientY - rect.top - note.y,
-      bounds: getWorkspaceBounds(),
-      noteW: w,
-      noteH: h,
     }
     pendingPosRef.current = { x: note.x, y: note.y }
     e.currentTarget.setPointerCapture(e.pointerId)
@@ -199,10 +180,7 @@ export default function StickyNote({
       return
     }
     e.preventDefault()
-    const next = computeClampedPosition(e.clientX, e.clientY, session)
-    if (!next) {
-      return
-    }
+    const next = computeDragPosition(e.clientX, e.clientY, session)
     pendingPosRef.current = next
     scheduleDragFrame()
   }
@@ -319,7 +297,6 @@ export default function StickyNote({
         width: w,
         height: h,
         zIndex: Number(note.zIndex) || 0,
-        touchAction: 'none',
       }}
     >
       <header

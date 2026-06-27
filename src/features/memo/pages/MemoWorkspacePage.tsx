@@ -25,12 +25,14 @@ export default function MemoWorkspacePage() {
     pendingDeleteId,
     deleteSubmitting,
     canvasHeight,
+    canvasWidth,
     getWorkspaceBounds,
     handleRootClick,
     handleActivate,
     handleTextareaFocus,
     handleTextareaBlur,
     handleDragStart,
+    handleDragMove,
     handleDragEnd,
     handleRequestDelete,
     handleCanvasClick,
@@ -53,11 +55,19 @@ export default function MemoWorkspacePage() {
 
   const visibleNotes = getMemoBoardVisibleNotes(notes, hiddenNotes, routedPage, minimizedNotes)
 
+  const canvasStyle =
+    canvasWidth != null || canvasHeight != null
+      ? {
+          minWidth: canvasWidth,
+          minHeight: canvasHeight,
+        }
+      : undefined
+
   return (
     <>
       <div
         className={`memo-canvas${routedPage ? ' memo-canvas--routed-board' : ''}`}
-        style={canvasHeight != null ? { minHeight: canvasHeight } : undefined}
+        style={canvasStyle}
         onClick={handleCanvasClick}
       >
         <div
@@ -65,7 +75,12 @@ export default function MemoWorkspacePage() {
           className={`memo-workspace memo-workspace--infinite w-full h-full min-h-full bg-transparent${routedPage ? ' memo-board' : ''}`}
           onClick={handleCanvasClick}
         >
-          <div ref={containerRef} className="memo-board__notes-layer h-full w-full" onClick={handleCanvasClick}>
+          <div
+            ref={containerRef}
+            className="memo-board__notes-layer h-full w-full"
+            style={canvasStyle}
+            onClick={handleCanvasClick}
+          >
             {/*
              * 색상 클래스를 컴포넌트 레벨에 박지 않는다. 메모 캔버스는 앱 전역 테마와
              * 독립된 "다크 스코프" 라서, 색은 부모 .memo-canvas-area 의 전용 변수
@@ -114,6 +129,7 @@ export default function MemoWorkspacePage() {
                   onTextareaFocus={handleTextareaFocus}
                   onTextareaBlur={handleTextareaBlur}
                   onDragStart={handleDragStart}
+                  onDragMove={handleDragMove}
                   onDragEnd={handleDragEnd}
                   onMinimize={minimizeNote}
                 />

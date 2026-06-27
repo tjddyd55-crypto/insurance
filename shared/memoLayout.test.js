@@ -2,13 +2,17 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
+  MEMO_CANVAS_PADDING,
   MEMO_DEFAULT_X,
   MEMO_DEFAULT_Y,
   MEMO_MINIMIZED_HEIGHT,
   MEMO_ROUTED_BOARD_MIN_HEIGHT,
   buildArrangedNotePositions,
   clampNotePosition,
+  clampNotePositionMin,
   getMemoBoardCanvasHeight,
+  getMemoBoardCanvasSize,
+  getMemoBoardCanvasWidth,
   getMemoBoardVisibleNotes,
   memoLayoutBoxesOverlap,
 } from './memoLayout.js'
@@ -38,13 +42,52 @@ test('getMemoBoardVisibleNotes hides minimized notes on memo route', () => {
   assert.deepEqual(getMemoBoardVisibleNotes(notes, {}, true, minimized), [{ id: 'b' }])
 })
 
+test('clampNotePositionMin keeps negative coordinates inside left/top bounds only', () => {
+  const next = clampNotePositionMin({ x: -40, y: -10, width: 260, height: 200 })
+  assert.equal(next.x, MEMO_DEFAULT_X)
+  assert.equal(next.y, MEMO_DEFAULT_Y)
+})
+
+test('clampNotePositionMin does not clamp right or bottom overflow', () => {
+  const next = clampNotePositionMin({ x: 5000, y: 4000, width: 260, height: 200 })
+  assert.equal(next.x, 5000)
+  assert.equal(next.y, 4000)
+})
+
+test('getMemoBoardCanvasWidth expands beyond viewport when notes extend to the right', () => {
+  const width = getMemoBoardCanvasWidth([{ x: 900, y: 24, width: 260, height: 200 }], {
+    viewportWidth: 390,
+  })
+  assert.ok(width >= 900 + 260 + MEMO_CANVAS_PADDING)
+})
+
+test('getMemoBoardCanvasHeight expands beyond viewport when notes extend downward', () => {
+  const height = getMemoBoardCanvasHeight([{ x: 24, y: 1200, width: 260, height: 200 }], {
+    routedPage: true,
+    viewportHeight: 800,
+  })
+  assert.ok(height != null && height >= 1200 + 200 + MEMO_CANVAS_PADDING)
+})
+
+test('getMemoBoardCanvasSize includes draft note positions for drag expansion', () => {
+  const size = getMemoBoardCanvasSize(
+    [
+      { x: 24, y: 24, width: 260, height: 200 },
+      { x: 700, y: 900, width: 260, height: 200 },
+    ],
+    { routedPage: true, viewportWidth: 390, viewportHeight: 800 },
+  )
+  assert.ok(size.width >= 700 + 260 + MEMO_CANVAS_PADDING)
+  assert.ok(size.height != null && size.height >= 900 + 200 + MEMO_CANVAS_PADDING)
+})
+
 test('getMemoBoardCanvasHeight expands routed memo board vertically', () => {
   const height = getMemoBoardCanvasHeight([{ x: 24, y: 1200, width: 260, height: 200 }], {
     routedPage: true,
     viewportHeight: 800,
   })
   assert.ok(height != null && height >= MEMO_ROUTED_BOARD_MIN_HEIGHT)
-  assert.ok(height >= 1200 + 200 + 120)
+  assert.ok(height >= 1200 + 200 + MEMO_CANVAS_PADDING)
 })
 
 test('buildArrangedNotePositions lays out without overlap', () => {
