@@ -8,11 +8,13 @@ import {
   MEMO_MINIMIZED_HEIGHT,
   MEMO_ROUTED_BOARD_MIN_HEIGHT,
   buildArrangedNotePositions,
+  clampMemoNoteDragPosition,
   clampNotePosition,
   clampNotePositionMin,
   getMemoBoardCanvasHeight,
   getMemoBoardCanvasSize,
   getMemoBoardCanvasWidth,
+  getMemoBoardDragMaxX,
   getMemoBoardVisibleNotes,
   memoLayoutBoxesOverlap,
 } from './memoLayout.js'
@@ -52,6 +54,37 @@ test('clampNotePositionMin does not clamp right or bottom overflow', () => {
   const next = clampNotePositionMin({ x: 5000, y: 4000, width: 260, height: 200 })
   assert.equal(next.x, 5000)
   assert.equal(next.y, 4000)
+})
+
+test('getMemoBoardCanvasWidth does not expand when expandWidth is false', () => {
+  const width = getMemoBoardCanvasWidth([{ x: 900, y: 24, width: 260, height: 200 }], {
+    viewportWidth: 800,
+    expandWidth: false,
+  })
+  assert.equal(width, 800)
+})
+
+test('getMemoBoardDragMaxX follows current board width', () => {
+  const note = { x: 24, y: 24, width: 260, height: 200 }
+  assert.equal(getMemoBoardDragMaxX(note, 800), 540)
+  assert.equal(getMemoBoardDragMaxX(note, 1200), 940)
+})
+
+test('clampMemoNoteDragPosition keeps note inside PC board bounds', () => {
+  const note = { x: 24, y: 24, width: 260, height: 200 }
+  const inside = clampMemoNoteDragPosition(note, 5000, 4000, 800, 600)
+  assert.equal(inside.x, 540)
+  assert.equal(inside.y, 400)
+
+  const widerBoard = clampMemoNoteDragPosition(note, 5000, 4000, 1200, 600)
+  assert.equal(widerBoard.x, 940)
+})
+
+test('clampMemoNoteDragPosition does not allow negative coordinates', () => {
+  const note = { x: 24, y: 24, width: 260, height: 200 }
+  const next = clampMemoNoteDragPosition(note, -40, -10, 800, 600)
+  assert.equal(next.x, 0)
+  assert.equal(next.y, 0)
 })
 
 test('getMemoBoardCanvasWidth expands beyond viewport when notes extend to the right', () => {

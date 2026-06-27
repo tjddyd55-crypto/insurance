@@ -209,58 +209,103 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
     )
   }, [dragDraft, hiddenNotes, minimizedNotes, notes, routedPage])
 
+  const measureBoardViewport = useCallback(() => {
+    const workspaceEl = workspaceRef.current
+    const canvasEl = workspaceEl?.parentElement ?? null
+    const canvasAreaEl = canvasEl?.parentElement ?? canvasEl
+    const viewportEl = canvasAreaEl ?? canvasEl ?? workspaceEl
+    const width = viewportEl?.clientWidth ?? workspaceEl?.clientWidth ?? 960
+    const height = viewportEl?.clientHeight ?? workspaceEl?.clientHeight ?? 720
+    return { width, height, viewportEl }
+  }, [])
+
   const canvasSize = useMemo(() => {
-    const scrollEl = workspaceRef.current?.parentElement
-    const viewportWidth = scrollEl?.clientWidth ?? workspaceRef.current?.clientWidth ?? 960
-    const viewportHeight = scrollEl?.clientHeight ?? workspaceRef.current?.clientHeight ?? 720
+    const { width: viewportWidth, height: viewportHeight } = measureBoardViewport()
     return getMemoBoardCanvasSize(boardNotesForLayout, {
       routedPage,
       viewportWidth,
       viewportHeight,
       expandWidth: false,
     })
-  }, [boardNotesForLayout, routedPage, workspaceSizeTick])
+  }, [boardNotesForLayout, measureBoardViewport, routedPage, workspaceSizeTick])
 
   const canvasWidth = canvasSize.width
   const canvasHeight = canvasSize.height
 
   const getWorkspaceBounds = useCallback(() => {
+    const { width, height: viewportHeight } = measureBoardViewport()
     const boardEl = containerRef.current ?? workspaceRef.current
-    const viewportHeight = boardEl?.clientHeight ?? 0
+    const contentHeight = boardEl?.clientHeight ?? viewportHeight
     const routedFloor = routedPage ? MEMO_ROUTED_BOARD_MIN_HEIGHT : 0
     return {
-      width: canvasWidth,
-      height: Math.max(canvasHeight ?? viewportHeight, viewportHeight, routedFloor),
+      width,
+      height: Math.max(canvasHeight ?? contentHeight, contentHeight, viewportHeight, routedFloor),
     }
-  }, [canvasHeight, canvasWidth, routedPage])
+  }, [canvasHeight, measureBoardViewport, routedPage])
 
   const getMemoScrollContainer = useCallback(() => {
-    return workspaceRef.current?.parentElement ?? workspaceRef.current
-  }, [])
+    const workspaceEl = workspaceRef.current
+    const canvasEl = workspaceEl?.parentElement ?? null
+    const canvasAreaEl = canvasEl?.parentElement ?? canvasEl
+    if (routedPage && canvasAreaEl) {
+      return canvasAreaEl
+    }
+    return canvasEl ?? workspaceEl
+  }, [routedPage])
 
   useEffect(() => {
-    const scrollEl = getMemoScrollContainer()
-    if (!scrollEl || typeof ResizeObserver === 'undefined') {
+    if (typeof ResizeObserver === 'undefined') {
       return
     }
+    let disconnected = false
     const observer = new ResizeObserver(() => {
       setWorkspaceSizeTick((tick) => tick + 1)
     })
-    observer.observe(scrollEl)
-    return () => observer.disconnect()
-  }, [getMemoScrollContainer])
+
+    const connect = () => {
+      if (disconnected) {
+        return
+      }
+      const workspaceEl = workspaceRef.current
+      if (!workspaceEl) {
+        requestAnimationFrame(connect)
+        return
+      }
+      observer.disconnect()
+      const canvasEl = workspaceEl.parentElement
+      const canvasAreaEl = canvasEl?.parentElement
+      const targets = [canvasAreaEl, canvasEl, workspaceEl].filter(
+        (el): el is Element => el instanceof Element,
+      )
+      const seen = new Set<Element>()
+      for (const el of targets) {
+        if (!seen.has(el)) {
+          seen.add(el)
+          observer.observe(el)
+        }
+      }
+    }
+
+    connect()
+    return () => {
+      disconnected = true
+      observer.disconnect()
+    }
+  }, [routedPage])
 
   useEffect(() => {
     if (notes.length === 0 || draggingNoteId != null) {
       return
     }
     const measureAndClamp = () => {
-      const scrollEl = workspaceRef.current?.parentElement
-      const measuredWidth = scrollEl?.clientWidth ?? workspaceRef.current?.clientWidth ?? 960
-      const measuredHeight = scrollEl?.clientHeight ?? workspaceRef.current?.clientHeight ?? 480
+      const { width: measuredWidth, height: measuredHeight } = measureBoardViewport()
+      const boardHeight = Math.max(
+        measuredHeight,
+        canvasHeight ?? measuredHeight,
+        routedPage ? MEMO_ROUTED_BOARD_MIN_HEIGHT : measuredHeight,
+      )
 
       notes.forEach((note) => {
-        const boardHeight = Math.max(measuredHeight, canvasHeight ?? measuredHeight, routedPage ? MEMO_ROUTED_BOARD_MIN_HEIGHT : measuredHeight)
         const next = clampNotePosition(note, measuredWidth, boardHeight)
         if (next.x !== note.x || next.y !== note.y) {
           updatePosition(note.id, next.x, next.y)
@@ -273,7 +318,7 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
       requestAnimationFrame(measureAndClamp)
       requestAnimationFrame(() => requestAnimationFrame(measureAndClamp))
     }
-  }, [canvasHeight, draggingNoteId, notes, routedPage, updatePosition, workspaceSizeTick])
+  }, [canvasHeight, draggingNoteId, measureBoardViewport, notes, routedPage, updatePosition, workspaceSizeTick])
 
   const ensureRoutedNoteVisible = useCallback(
     (id: string, options: { center?: boolean } = {}) => {
