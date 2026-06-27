@@ -1,6 +1,7 @@
 /**
  * 청구 내역 삭제 시 storage에서 제거할 storageKey 를 수집한다.
  * selected_customer_attachment_ids(고객앱 원본)는 포함하지 않는다.
+ * DB에 저장된 key(레거시·SSOT)를 그대로 사용하며, 기존 production 파일은 이동하지 않는다.
  *
  * @param {object} request
  * @returns {string[]}

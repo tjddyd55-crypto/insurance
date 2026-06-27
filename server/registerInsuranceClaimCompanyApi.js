@@ -13,6 +13,7 @@ import { mergePdfFieldCustomerMappings } from './pdf-engine/schema/fieldDataMapp
 import { mergePdfUploadBuffers } from './pdf-engine/pdf/mergePdfBuffers.js'
 import {
   buildClaimDocumentStorageKey,
+  buildClaimRequestGeneratedDocumentStorageKey,
   deleteClaimDocumentObject,
   getClaimDocumentObject,
   putClaimDocumentObject,
@@ -115,6 +116,18 @@ function parsePositiveInt(raw) {
   const n = Number(raw)
   if (!Number.isInteger(n) || n < 1) return null
   return n
+}
+
+function resolveClaimStorageUserId(req, request) {
+  const fromUser = req.user?.id
+  if (fromUser != null && String(fromUser).trim()) {
+    return String(fromUser).trim()
+  }
+  const fromRequest = request?.createdBy ?? request?.created_by
+  if (fromRequest != null && String(fromRequest).trim()) {
+    return String(fromRequest).trim()
+  }
+  return ''
 }
 
 function normalizeClaimRequestInput(body) {
@@ -356,6 +369,11 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
         return res.status(400).json({ message: signatureCheck.message })
       }
 
+      const userId = resolveClaimStorageUserId(req, request)
+      if (!userId) {
+        return res.status(500).json({ message: '청구 파일 저장 사용자 정보를 확인할 수 없습니다.' })
+      }
+
       /** @type {Array<Record<string, unknown>>} */
       const generated = []
 
@@ -369,9 +387,10 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
         claimPayload.values,
         claimPayload.signaturePngByFieldKey,
       )
-      const claimStorageKey = buildClaimDocumentStorageKey({
-        companyId: request.insuranceCompanyId,
-        documentType: `generated-${id}-claim_form`,
+      const claimStorageKey = buildClaimRequestGeneratedDocumentStorageKey({
+        userId,
+        claimRequestId: id,
+        documentType: 'claim_form',
       })
       await putClaimDocumentObject(claimStorageKey, claimRendered)
       generated.push(buildGeneratedDocumentMetadataEntry('claim_form', '청구서', claimStorageKey))
@@ -391,9 +410,11 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
           consentPayload.values,
           consentPayload.signaturePngByFieldKey,
         )
-        const consentStorageKey = buildClaimDocumentStorageKey({
-          companyId: request.insuranceCompanyId,
-          documentType: `generated-${id}-consent_form-${target.consentTarget}`,
+        const consentStorageKey = buildClaimRequestGeneratedDocumentStorageKey({
+          userId,
+          claimRequestId: id,
+          documentType: 'consent_form',
+          consentTarget: target.consentTarget,
         })
         await putClaimDocumentObject(consentStorageKey, consentRendered)
         generated.push(
@@ -474,7 +495,11 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
         const file = req.file
         if (!file?.buffer?.length) return res.status(400).json({ message: '파일을 선택해 주세요.' })
         const fileName = String(file.originalname ?? 'attachment').trim() || 'attachment'
-        const storageKey = buildClaimRequestAttachmentStorageKey(id, fileName)
+        const userId = resolveClaimStorageUserId(req, request)
+        if (!userId) {
+          return res.status(500).json({ message: '첨부 파일 저장 사용자 정보를 확인할 수 없습니다.' })
+        }
+        const storageKey = buildClaimRequestAttachmentStorageKey(userId, id, fileName)
         const contentType = String(file.mimetype ?? 'application/octet-stream')
         await putClaimRequestAttachmentObject(storageKey, file.buffer, contentType)
         res.json({
@@ -506,7 +531,11 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
         const file = req.file
         if (!file?.buffer?.length) return res.status(400).json({ message: '서명 이미지를 선택해 주세요.' })
         const fileName = String(file.originalname ?? `${role}-signature.png`).trim() || `${role}-signature.png`
-        const storageKey = buildClaimRequestSignatureStorageKey(id, role, fileName)
+        const userId = resolveClaimStorageUserId(req, request)
+        if (!userId) {
+          return res.status(500).json({ message: '서명 파일 저장 사용자 정보를 확인할 수 없습니다.' })
+        }
+        const storageKey = buildClaimRequestSignatureStorageKey(userId, id, role, fileName)
         const contentType = String(file.mimetype ?? 'image/png')
         await putClaimRequestAttachmentObject(storageKey, file.buffer, contentType)
         res.json({

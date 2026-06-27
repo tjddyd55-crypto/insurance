@@ -18,6 +18,21 @@ describe('resolveInsuranceClaimDownloadSource', () => {
       resolveInsuranceClaimDownloadSource('insurance-claim-requests/10/attachments/x.pdf'),
       'claim_attachment',
     )
+    assert.equal(
+      resolveInsuranceClaimDownloadSource(
+        'insurance/claim-requests/agent-1/10/attachments/extra.pdf',
+      ),
+      'claim_attachment',
+    )
+  })
+
+  it('marks SSOT generated claim documents', () => {
+    assert.equal(
+      resolveInsuranceClaimDownloadSource(
+        'insurance/claim-requests/9/7/generated/claim-form-20260627.pdf',
+      ),
+      'generated',
+    )
   })
 
   it('marks customer app attachments as storage-path fallback readers', () => {

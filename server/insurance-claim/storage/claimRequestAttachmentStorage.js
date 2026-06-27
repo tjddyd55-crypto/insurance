@@ -1,32 +1,33 @@
-import { randomUUID } from 'node:crypto'
 import { consentGetBuffer, consentPutObject } from '../../lib/consentStorage.js'
-
-const KEY_PREFIX = 'insurance-claim-requests'
-
-function safeFileSegment(fileName, fallback = 'file') {
-  const trimmed = String(fileName ?? '').trim() || fallback
-  return trimmed.replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 120)
-}
+import {
+  assertInsuranceStorageKeyPrefix,
+  buildInsuranceClaimRequestAttachmentKey,
+  buildInsuranceClaimRequestSignatureKey,
+  isInsuranceClaimRequestAttachmentKey,
+  isInsuranceClaimRequestGeneratedKey,
+} from '../../storage/insuranceStorageKeys.js'
 
 /**
- * @param {number} claimRequestId
+ * @param {string | number} userId
+ * @param {number | string} claimRequestId
  * @param {string} fileName
  */
-export function buildClaimRequestAttachmentStorageKey(claimRequestId, fileName) {
-  return `${KEY_PREFIX}/${claimRequestId}/attachments/${randomUUID()}-${safeFileSegment(fileName)}`
+export function buildClaimRequestAttachmentStorageKey(userId, claimRequestId, fileName) {
+  return buildInsuranceClaimRequestAttachmentKey({ userId, claimRequestId, fileName })
 }
 
 /**
- * @param {number} claimRequestId
+ * @param {string | number} userId
+ * @param {number | string} claimRequestId
  * @param {'insured' | 'contractor'} role
  * @param {string} fileName
  */
-export function buildClaimRequestSignatureStorageKey(claimRequestId, role, fileName) {
-  const safeRole = role === 'contractor' ? 'contractor' : 'insured'
-  return `${KEY_PREFIX}/${claimRequestId}/signatures/${safeRole}-${randomUUID()}-${safeFileSegment(fileName, 'signature.png')}`
+export function buildClaimRequestSignatureStorageKey(userId, claimRequestId, role, fileName) {
+  return buildInsuranceClaimRequestSignatureKey({ userId, claimRequestId, role, fileName })
 }
 
 export function putClaimRequestAttachmentObject(key, body, contentType) {
+  assertInsuranceStorageKeyPrefix(key)
   return consentPutObject(key, body, contentType || 'application/octet-stream')
 }
 
@@ -35,5 +36,9 @@ export function getClaimRequestAttachmentObject(key) {
 }
 
 export function isGeneratedClaimDocumentKey(storageKey) {
-  return String(storageKey ?? '').startsWith('insurance-claim-documents/')
+  return isInsuranceClaimRequestGeneratedKey(storageKey)
+}
+
+export function isClaimRequestAttachmentStorageKey(storageKey) {
+  return isInsuranceClaimRequestAttachmentKey(storageKey)
 }
