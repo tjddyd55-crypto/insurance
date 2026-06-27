@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { FormButton, FormTextarea } from '../../../components/form'
 import { useMemoWorkspace } from '../context/MemoWorkspaceContext'
 import DeleteConfirmModal, { MemoDeleteConfirmFooter } from './DeleteConfirmModal'
+
+const MOBILE_MEMO_EDITOR_BACK_TRAP = '__MOBILE_MEMO_EDITOR_BACK_TRAP__'
 
 type MobileMemoFullScreenModalProps = {
   open: boolean
@@ -24,6 +26,15 @@ export function MobileMemoFullScreenModal({
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteSubmitting, setDeleteSubmitting] = useState(false)
   const isCreate = noteId == null
+  const openRef = useRef(open)
+  const deleteOpenRef = useRef(deleteOpen)
+  const isDirtyRef = useRef(false)
+  const onCloseRef = useRef(onClose)
+  const historyBackArmedRef = useRef(false)
+
+  openRef.current = open
+  deleteOpenRef.current = deleteOpen
+  onCloseRef.current = onClose
 
   useEffect(() => {
     if (open) {
@@ -32,16 +43,79 @@ export function MobileMemoFullScreenModal({
   }, [initialContent, noteId, open])
 
   const isDirty = draft !== initialContent
+  isDirtyRef.current = isDirty
 
-  const requestClose = useCallback(() => {
-    if (isDirty) {
+  const closeEditor = useCallback(() => {
+    if (isDirtyRef.current) {
       const ok = window.confirm('변경사항이 저장되지 않았습니다. 닫으시겠습니까?')
       if (!ok) {
         return
       }
     }
-    onClose()
-  }, [isDirty, onClose])
+    onCloseRef.current()
+  }, [])
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    window.history.pushState({ [MOBILE_MEMO_EDITOR_BACK_TRAP]: true }, '', window.location.href)
+    historyBackArmedRef.current = true
+
+    const rearmHistoryBackTrap = () => {
+      window.queueMicrotask(() => {
+        if (!openRef.current) {
+          return
+        }
+        window.history.pushState({ [MOBILE_MEMO_EDITOR_BACK_TRAP]: true }, '', window.location.href)
+        historyBackArmedRef.current = true
+      })
+    }
+
+    const onPopState = () => {
+      if (!openRef.current) {
+        return
+      }
+
+      if (deleteOpenRef.current) {
+        setDeleteOpen(false)
+        rearmHistoryBackTrap()
+        return
+      }
+
+      if (isDirtyRef.current) {
+        const ok = window.confirm('변경사항이 저장되지 않았습니다. 닫으시겠습니까?')
+        if (!ok) {
+          rearmHistoryBackTrap()
+          return
+        }
+      }
+
+      historyBackArmedRef.current = false
+      onCloseRef.current()
+    }
+
+    window.addEventListener('popstate', onPopState)
+
+    return () => {
+      window.removeEventListener('popstate', onPopState)
+      if (!historyBackArmedRef.current) {
+        return
+      }
+      historyBackArmedRef.current = false
+      try {
+        const currentState =
+          typeof window.history.state === 'object' && window.history.state != null
+            ? { ...(window.history.state as Record<string, unknown>) }
+            : {}
+        delete currentState[MOBILE_MEMO_EDITOR_BACK_TRAP]
+        window.history.replaceState(currentState, '', window.location.href)
+      } catch {
+        // no-op
+      }
+    }
+  }, [open])
 
   const handleSave = useCallback(async () => {
     setSaving(true)
@@ -88,7 +162,7 @@ export function MobileMemoFullScreenModal({
       <div className="mobile-memo-fullscreen-modal mobile-memo-editor" role="dialog" aria-modal="true" aria-label="메모 편집">
         <header className="mobile-memo-fullscreen-modal__header mobile-memo-editor__header">
           <h2 className="mobile-memo-fullscreen-modal__title mobile-memo-editor__title">스티커 메모</h2>
-          <FormButton htmlType="button" variant="secondary" size="sm" onClick={requestClose}>
+          <FormButton htmlType="button" variant="secondary" size="sm" onClick={closeEditor}>
             닫기
           </FormButton>
         </header>
