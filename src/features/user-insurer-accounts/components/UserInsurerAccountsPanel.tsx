@@ -9,7 +9,6 @@ import {
 } from '../config/userInsurerAccounts.config'
 import type { UserInsurerAccountsViewProps } from '../hooks/useUserInsurerAccountsState'
 import type { UserInsurerAccountRow } from '../api/userInsurerAccountsApi'
-import { formatAccountSavedAt } from './userInsurerAccountSavedAt'
 import { UserInsurerAccountCopyButton } from './UserInsurerAccountCopyButton'
 
 type LocalDraft = {
@@ -64,7 +63,7 @@ function AccountRowEditor({
   }
 
   return (
-    <div className="insurer-account-table__row" role="row">
+    <div className="insurer-account-table__row user-insurer-account-row" role="row">
       <div className="insurer-account-table__company" role="cell">
         {row.companyName}
       </div>
@@ -92,16 +91,13 @@ function AccountRowEditor({
       <div className="insurer-account-table__copy" role="cell">
         <UserInsurerAccountCopyButton value={draft.loginPassword} disabled={pending} label="비밀번호" />
       </div>
-      <div className="insurer-account-table__saved-at" role="cell">
-        {formatAccountSavedAt(row)}
-      </div>
       <div className="insurer-account-table__action" role="cell">
         <div className="insurer-account-table__action-group">
           <FormButton
             htmlType="button"
             variant="primary"
             size="sm"
-            className="insurer-account-table__save-btn"
+            className="insurer-account-table__save-btn user-insurer-account-save-button"
             disabled={pending}
             onClick={handleSave}
           >
@@ -136,7 +132,7 @@ function AccountSection({
 
   return (
     <section
-      className={`user-insurer-accounts-section user-insurer-accounts-section--${sectionModifier}`}
+      className={`user-insurer-accounts-section user-insurer-account-section user-insurer-accounts-section--${sectionModifier}`}
       aria-label={title}
     >
       <header className="user-insurer-accounts-section__banner">
@@ -153,13 +149,12 @@ function AccountSection({
         ) : (
           <div className="insurer-account-table-scroll">
             <div className="insurer-account-table" role="table">
-              <div className="insurer-account-table__header" role="row">
+              <div className="insurer-account-table__header user-insurer-account-row" role="row">
                 <span role="columnheader">회사</span>
                 <span role="columnheader">아이디</span>
                 <span role="columnheader" aria-hidden="true" />
                 <span role="columnheader">비번</span>
                 <span role="columnheader" aria-hidden="true" />
-                <span role="columnheader">저장일</span>
                 <span role="columnheader">작업</span>
               </div>
               <div className="insurer-account-table__body" role="rowgroup">

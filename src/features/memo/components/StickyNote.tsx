@@ -60,7 +60,7 @@ export default function StickyNote({
   onFontWeightChange,
   onMinimize,
   containerRef: _containerRef,
-  getWorkspaceBounds: _getWorkspaceBounds,
+  getWorkspaceBounds,
   onDeleteRequest,
   onRootClick,
   onActivate,
@@ -115,11 +115,14 @@ export default function StickyNote({
   const computeDragPosition = useCallback((clientX: number, clientY: number, session: NonNullable<typeof dragSessionRef.current>) => {
     const deltaX = clientX - session.startPointerX
     const deltaY = clientY - session.startPointerY
+    const bounds = getWorkspaceBounds()
+    const maxX = Math.max(0, bounds.width - w)
+    const maxY = Math.max(0, bounds.height - h)
     return {
-      x: Math.max(0, session.originX + deltaX),
-      y: Math.max(0, session.originY + deltaY),
+      x: Math.max(0, Math.min(session.originX + deltaX, maxX)),
+      y: Math.max(0, Math.min(session.originY + deltaY, maxY)),
     }
-  }, [])
+  }, [getWorkspaceBounds, w, h])
 
   const scheduleDragFrame = useCallback(() => {
     if (rafRef.current != null) {

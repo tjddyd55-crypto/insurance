@@ -4,6 +4,7 @@ import { useAuth } from '../features/auth/AuthProvider'
 import { loadMemoUiSnapshot, patchMemoUiWorkspace } from '../features/memo/memoUiStorage'
 import { MemoWorkspaceProvider, useMemoWorkspace } from '../features/memo/context/MemoWorkspaceContext'
 import MemoWorkspacePage from '../features/memo/pages/MemoWorkspacePage'
+import MobileMemoListView from '../features/memo/components/MobileMemoListView'
 import MemoList from '../features/memo/components/MemoList'
 import useIsMobile from '../hooks/useIsMobile'
 import { useMediaQuery } from '../hooks/useMediaQuery'
@@ -380,6 +381,14 @@ function MainWorkspaceLayoutInner({
   }, [])
 
   if (routedMemoPage) {
+    if (isMobile) {
+      return (
+        <div className="workspace-root workspace-root--memo-routed-page workspace-root--memo-mobile-list" ref={rootRef}>
+          <MobileMemoListView pageTitle={pageTitle} />
+        </div>
+      )
+    }
+
     const listVisible = isListOpen
     return (
       <div className="workspace-root workspace-root--memo-routed-page" ref={rootRef}>

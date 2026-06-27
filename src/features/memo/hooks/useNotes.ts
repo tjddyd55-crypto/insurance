@@ -79,6 +79,8 @@ export function useNotes() {
               fontSize: Math.min(FONT_MAX, Math.max(FONT_MIN, Number(r.fontSize) || 16)),
               fontWeight: r.fontWeight === 'bold' ? 'bold' : 'normal',
               zIndex: Number(r.zIndex) || 0,
+              createdAt: r.createdAt ?? null,
+              updatedAt: r.updatedAt ?? null,
             }))
             setNotes(apiData)
           }
@@ -99,16 +101,17 @@ export function useNotes() {
     }
   }, [token])
 
-  const addNote = useCallback(async (): Promise<Note | null> => {
+  const addNote = useCallback(async (options?: { content?: string }): Promise<Note | null> => {
     const auth = token?.trim()
     if (!auth) {
       return null
     }
     try {
       const z = Date.now()
+      const content = typeof options?.content === 'string' ? options.content : ''
       const newNote = await memoApi.create(
         {
-          content: '',
+          content,
           x: MEMO_DEFAULT_X,
           y: MEMO_DEFAULT_Y,
           width: MEMO_DEFAULT_WIDTH,
@@ -117,7 +120,12 @@ export function useNotes() {
         },
         auth,
       )
-      const row = { ...newNote, zIndex: newNote.zIndex ?? z }
+      const row = {
+        ...newNote,
+        zIndex: newNote.zIndex ?? z,
+        createdAt: newNote.createdAt ?? null,
+        updatedAt: newNote.updatedAt ?? null,
+      }
       setNotes((prev) => [...prev, row])
       return row
     } catch {
@@ -264,6 +272,42 @@ export function useNotes() {
     [token],
   )
 
+  const commitNoteContent = useCallback(
+    async (id: string, content: string): Promise<boolean> => {
+      const auth = token?.trim()
+      if (!auth) {
+        return false
+      }
+      const prev = contentTimersRef.current[id]
+      if (prev) {
+        clearTimeout(prev)
+        delete contentTimersRef.current[id]
+      }
+      setNotes((prevNotes) =>
+        prevNotes.map((n) => (n.id === id ? { ...n, content, updatedAt: new Date().toISOString() } : n)),
+      )
+      try {
+        const updated = await memoApi.update(id, { content }, auth)
+        setNotes((prevNotes) =>
+          prevNotes.map((n) =>
+            n.id === id
+              ? {
+                  ...n,
+                  ...updated,
+                  content,
+                  updatedAt: updated.updatedAt ?? new Date().toISOString(),
+                }
+              : n,
+          ),
+        )
+        return true
+      } catch {
+        return false
+      }
+    },
+    [token],
+  )
+
   const deleteNote = useCallback(
     async (id: string) => {
       const auth = token?.trim()
@@ -329,6 +373,7 @@ export function useNotes() {
     notesLoading,
     addNote,
     updateNote,
+    commitNoteContent,
     updatePosition,
     commitPosition,
     updateSize,

@@ -15,7 +15,7 @@ import {
 import { useAuth } from '../../auth/AuthProvider'
 import { useNotes } from '../hooks/useNotes'
 import { loadMemoUiSnapshot, patchMemoUiCanvas } from '../memoUiStorage'
-import { buildArrangedNotePositions, clampNotePosition, clampNotePositionMin, getMemoBoardCanvasSize, getMemoBoardVisibleNotes, MEMO_DEFAULT_HEIGHT, MEMO_DEFAULT_WIDTH, MEMO_MIN_HEIGHT, MEMO_MIN_WIDTH, MEMO_ROUTED_BOARD_MIN_HEIGHT } from '@insurance-shared/memoLayout.js'
+import { buildArrangedNotePositions, clampNotePosition, getMemoBoardCanvasSize, getMemoBoardVisibleNotes, MEMO_DEFAULT_HEIGHT, MEMO_DEFAULT_WIDTH, MEMO_MIN_HEIGHT, MEMO_MIN_WIDTH, MEMO_ROUTED_BOARD_MIN_HEIGHT } from '@insurance-shared/memoLayout.js'
 
 type MemoDragDraft = {
   noteId: string
@@ -217,6 +217,7 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
       routedPage,
       viewportWidth,
       viewportHeight,
+      expandWidth: false,
     })
   }, [boardNotesForLayout, routedPage, workspaceSizeTick])
 
@@ -259,9 +260,8 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
       const measuredHeight = scrollEl?.clientHeight ?? workspaceRef.current?.clientHeight ?? 480
 
       notes.forEach((note) => {
-        const next = routedPage
-          ? clampNotePositionMin(note)
-          : clampNotePosition(note, measuredWidth, measuredHeight)
+        const boardHeight = Math.max(measuredHeight, canvasHeight ?? measuredHeight, routedPage ? MEMO_ROUTED_BOARD_MIN_HEIGHT : measuredHeight)
+        const next = clampNotePosition(note, measuredWidth, boardHeight)
         if (next.x !== note.x || next.y !== note.y) {
           updatePosition(note.id, next.x, next.y)
         }
@@ -273,7 +273,7 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
       requestAnimationFrame(measureAndClamp)
       requestAnimationFrame(() => requestAnimationFrame(measureAndClamp))
     }
-  }, [draggingNoteId, notes, routedPage, updatePosition, workspaceSizeTick])
+  }, [canvasHeight, draggingNoteId, notes, routedPage, updatePosition, workspaceSizeTick])
 
   const ensureRoutedNoteVisible = useCallback(
     (id: string, options: { center?: boolean } = {}) => {

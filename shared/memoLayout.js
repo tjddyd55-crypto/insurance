@@ -104,6 +104,9 @@ export function getMemoBoardVisibleNotes(notes, hiddenNotes, isMemoRoute, minimi
  */
 export function getMemoBoardCanvasWidth(notes, options = {}) {
   const viewportWidth = Math.max(0, Number(options.viewportWidth) || 320)
+  if (options.expandWidth === false) {
+    return viewportWidth
+  }
   const padding = Number(options.padding) || MEMO_CANVAS_PADDING
   if (!notes.length) {
     return viewportWidth

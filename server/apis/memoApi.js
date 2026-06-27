@@ -37,6 +37,8 @@ function mapMemoRow(row) {
         ? Math.round(Number(row.font_size))
         : DEFAULT_FONT_SIZE,
     fontWeight: normalizeFontWeight(row.font_weight),
+    createdAt: row.created_at ?? null,
+    updatedAt: row.updated_at ?? null,
   }
 }
 
@@ -82,7 +84,7 @@ export function registerMemoApi(apiRouter, ctx) {
         SELECT id, content, x, y, width, height, z_index, font_size, font_weight, created_at, updated_at
         FROM memo
         WHERE user_id = $1 AND ga_id = $2
-        ORDER BY created_at DESC
+        ORDER BY updated_at DESC, created_at DESC
         `,
         [userId, gaId],
       )
@@ -132,7 +134,7 @@ export function registerMemoApi(apiRouter, ctx) {
         `
         INSERT INTO memo (user_id, ga_id, content, x, y, width, height, z_index, font_size, font_weight)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-        RETURNING id, content, x, y, width, height, z_index, font_size, font_weight
+        RETURNING id, content, x, y, width, height, z_index, font_size, font_weight, created_at, updated_at
         `,
         [userId, gaId, contentVal, xVal, yVal, wVal, hVal, zVal, fVal, fwVal],
       )
@@ -219,7 +221,7 @@ export function registerMemoApi(apiRouter, ctx) {
         UPDATE memo
         SET content = $1, x = $2, y = $3, width = $4, height = $5, z_index = $6, font_size = $7, font_weight = $8, updated_at = NOW()
         WHERE id = $9::uuid AND user_id = $10 AND ga_id = $11
-        RETURNING id, content, x, y, width, height, z_index, font_size, font_weight
+        RETURNING id, content, x, y, width, height, z_index, font_size, font_weight, created_at, updated_at
         `,
         [
           nextContent,
