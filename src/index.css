@@ -5179,26 +5179,28 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .insurer-account-table-scroll {
   width: 100%;
-  overflow-x: auto;
+  overflow-x: hidden;
 }
 
 .insurer-account-table {
-  min-width: 620px;
+  min-width: 0;
+  width: 100%;
 }
 
 .insurer-account-table__header,
-.insurer-account-table__row {
+.insurer-account-table__row,
+.user-insurer-account-row {
   display: grid;
   grid-template-columns:
-    minmax(72px, 0.8fr)
-    minmax(92px, 1fr)
-    40px
-    minmax(92px, 1fr)
-    40px
-    86px
-    52px;
+    minmax(68px, 0.8fr)
+    minmax(72px, 1fr)
+    34px
+    minmax(72px, 1fr)
+    34px
+    48px;
   column-gap: 6px;
   align-items: center;
+  min-width: 0;
 }
 
 .insurer-account-table__header {
@@ -5255,7 +5257,8 @@ div.cta-button.customers-page__action-btn[role='button'] {
   justify-content: center;
 }
 
-.insurer-account-table__row input {
+.insurer-account-table__row input,
+.user-insurer-account-row input {
   width: 100%;
   height: 34px;
   min-width: 0;
@@ -5274,10 +5277,11 @@ div.cta-button.customers-page__action-btn[role='button'] {
   outline: none;
 }
 
-.insurer-account-copy-button {
-  width: 40px;
+.insurer-account-copy-button,
+.user-insurer-account-copy-button {
+  width: 34px;
   height: 34px;
-  min-width: 40px;
+  min-width: 34px;
   padding: 0;
   border: 1px solid #dbe3ef;
   border-radius: 8px;
@@ -5298,10 +5302,11 @@ div.cta-button.customers-page__action-btn[role='button'] {
   background: #f8fafc;
 }
 
-.insurer-account-table__action .insurer-account-table__save-btn.button--small {
+.insurer-account-table__action .insurer-account-table__save-btn.button--small,
+.user-insurer-account-save-button.button--small {
   height: 34px;
-  min-width: 52px;
-  padding: 0 10px;
+  min-width: 48px;
+  padding: 0 8px;
   font-weight: 800;
 }
 
@@ -5423,6 +5428,12 @@ div.cta-button.customers-page__action-btn[role='button'] {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
   align-items: start;
+  overflow-x: hidden;
+}
+
+.user-insurer-accounts-section,
+.user-insurer-account-section {
+  min-width: 0;
 }
 
 .user-insurer-accounts-section {
@@ -5498,10 +5509,6 @@ div.cta-button.customers-page__action-btn[role='button'] {
   .user-insurer-accounts-grid,
   .user-insurer-account-board {
     grid-template-columns: 1fr;
-  }
-
-  .insurer-account-table__saved-at {
-    white-space: normal;
   }
 }
 
@@ -10475,7 +10482,9 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 .memo-route-page .workspace-memo-routed-body .memo-canvas-area--routed-board {
   min-height: calc(100dvh - var(--app-header-height, 72px) - 56px);
   background: #f1f5f9;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 0;
 }
 
@@ -10483,14 +10492,18 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 .memo-route-page .workspace-memo-routed-body .memo-board {
   position: relative;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: calc(100dvh - 160px);
   background: #f1f5f9;
+  overflow: visible;
+  flex-shrink: 0;
 }
 
 .memo-route-page .workspace-memo-routed-body .memo-board__notes-layer {
   position: relative;
-  min-height: max(calc(100dvh - 160px), 2400px);
-  width: 100%;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .memo-route-page .memo-board .memo-sticky-note__root {
@@ -10524,6 +10537,151 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 .memo-route-page .workspace-memo-routed-body .memo-workspace > div {
   position: relative;
   min-height: 100%;
+}
+
+.workspace-root--memo-mobile-list {
+  min-height: 100dvh;
+  background: #f8fafc;
+}
+
+.mobile-memo-list-page {
+  min-height: 100dvh;
+  background: #f8fafc;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.mobile-memo-list-page__header {
+  margin-bottom: 12px;
+}
+
+.mobile-memo-list-page__title {
+  margin: 0;
+  color: #111827;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.mobile-memo-list-page__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.mobile-memo-search {
+  flex: 1 1 180px;
+  min-width: 0;
+  height: 40px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  border-radius: 4px;
+  padding: 0 12px;
+  color: #111827;
+}
+
+.mobile-memo-list-page__muted {
+  margin: 16px 0 0;
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+.mobile-memo-list-page__cards {
+  display: grid;
+  gap: 10px;
+}
+
+.mobile-memo-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: #fff7cc;
+  border: 1px solid #f5e7a8;
+  border-radius: 4px;
+  padding: 14px 16px;
+  color: #111827;
+  cursor: pointer;
+}
+
+.mobile-memo-card__time {
+  float: right;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.mobile-memo-card__title {
+  font-weight: 700;
+  margin-bottom: 8px;
+  padding-right: 72px;
+}
+
+.mobile-memo-card__preview {
+  white-space: pre-line;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+.mobile-memo-fullscreen-modal {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  background: #ffffff;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-memo-fullscreen-modal__header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.mobile-memo-fullscreen-modal__title {
+  margin: 0;
+  text-align: center;
+  color: #111827;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.mobile-memo-fullscreen-modal__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.mobile-memo-fullscreen-modal__textarea {
+  width: 100%;
+  min-height: calc(100dvh - 160px);
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+  color: #111827;
+  background: #ffffff;
+  font-size: 1rem;
+  line-height: 1.5;
+  resize: none;
+  box-sizing: border-box;
+}
+
+.mobile-memo-fullscreen-modal__footer {
+  display: flex;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid #e5e7eb;
+  background: #ffffff;
 }
 
 .memo-routed-page-toolbar {
@@ -11130,7 +11288,11 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   height: 100%;
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   overflow: auto;
+  overflow-x: auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   background: var(--bg-soft);
   --canvas-fg: var(--text-primary);
   --canvas-fg-muted: var(--text-muted);
@@ -11146,7 +11308,11 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 .mobile-memo-view {
   flex: 1;
   min-height: 0;
+  min-width: 0;
   overflow: auto;
+  overflow-x: auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .memo-list-sidebar {
@@ -11438,15 +11604,18 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 }
 
 .memo-canvas {
-  flex: 1;
+  flex: 1 0 auto;
   position: relative;
   min-width: 0;
   min-height: 0;
+  width: max-content;
+  min-width: 100%;
   height: 100%;
   transform: none;
   filter: none;
   overflow: visible;
   isolation: auto;
+  flex-shrink: 0;
 }
 
 .memo-workspace__canvas-border,
@@ -11458,11 +11627,20 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   position: relative;
   min-height: 100%;
   height: 100%;
+  width: max-content;
+  min-width: 100%;
   box-sizing: border-box;
   transform: none;
   filter: none;
-  overflow: auto;
+  overflow: visible;
   isolation: auto;
+  flex-shrink: 0;
+}
+
+.memo-route-page .workspace-memo-routed-body .memo-workspace {
+  overflow: visible;
+  height: auto;
+  min-height: 100%;
 }
 
 .memo-workspace.memo-workspace--infinite {

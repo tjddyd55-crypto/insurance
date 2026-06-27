@@ -10,4 +10,6 @@ export interface Note {
   height?: number
   fontSize?: number
   fontWeight?: MemoFontWeight
+  createdAt?: string | null
+  updatedAt?: string | null
 }

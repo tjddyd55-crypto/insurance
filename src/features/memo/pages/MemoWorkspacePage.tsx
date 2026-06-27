@@ -25,12 +25,14 @@ export default function MemoWorkspacePage() {
     pendingDeleteId,
     deleteSubmitting,
     canvasHeight,
+    canvasWidth,
     getWorkspaceBounds,
     handleRootClick,
     handleActivate,
     handleTextareaFocus,
     handleTextareaBlur,
     handleDragStart,
+    handleDragMove,
     handleDragEnd,
     handleRequestDelete,
     handleCanvasClick,
@@ -53,19 +55,37 @@ export default function MemoWorkspacePage() {
 
   const visibleNotes = getMemoBoardVisibleNotes(notes, hiddenNotes, routedPage, minimizedNotes)
 
+  const canvasStyle =
+    canvasWidth != null || canvasHeight != null
+      ? {
+          ...(canvasWidth != null
+            ? { width: `${canvasWidth}px`, minWidth: `${canvasWidth}px` }
+            : {}),
+          ...(canvasHeight != null
+            ? { height: `${canvasHeight}px`, minHeight: `${canvasHeight}px` }
+            : {}),
+        }
+      : undefined
+
   return (
     <>
       <div
         className={`memo-canvas${routedPage ? ' memo-canvas--routed-board' : ''}`}
-        style={canvasHeight != null ? { minHeight: canvasHeight } : undefined}
+        style={canvasStyle}
         onClick={handleCanvasClick}
       >
         <div
           ref={workspaceRef}
-          className={`memo-workspace memo-workspace--infinite w-full h-full min-h-full bg-transparent${routedPage ? ' memo-board' : ''}`}
+          className={`memo-workspace memo-workspace--infinite min-h-full bg-transparent${routedPage ? ' memo-board' : ''}`}
+          style={canvasStyle}
           onClick={handleCanvasClick}
         >
-          <div ref={containerRef} className="memo-board__notes-layer h-full w-full" onClick={handleCanvasClick}>
+          <div
+            ref={containerRef}
+            className="memo-board__notes-layer"
+            style={canvasStyle}
+            onClick={handleCanvasClick}
+          >
             {/*
              * 색상 클래스를 컴포넌트 레벨에 박지 않는다. 메모 캔버스는 앱 전역 테마와
              * 독립된 "다크 스코프" 라서, 색은 부모 .memo-canvas-area 의 전용 변수
@@ -114,6 +134,7 @@ export default function MemoWorkspacePage() {
                   onTextareaFocus={handleTextareaFocus}
                   onTextareaBlur={handleTextareaBlur}
                   onDragStart={handleDragStart}
+                  onDragMove={handleDragMove}
                   onDragEnd={handleDragEnd}
                   onMinimize={minimizeNote}
                 />
