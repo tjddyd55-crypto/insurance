@@ -8,19 +8,26 @@ import {
 export const USER_INSURER_ACCOUNT_CATEGORIES = Object.freeze({
   LIFE: 'LIFE',
   NON_LIFE: 'NON_LIFE',
+  GENERAL: 'GENERAL',
 })
 
 /**
  * @param {string | null | undefined} raw
- * @returns {'LIFE' | 'NON_LIFE' | null}
+ * @returns {'LIFE' | 'NON_LIFE' | 'GENERAL' | null}
  */
 export function normalizeUserInsurerAccountCategory(raw) {
   const s = String(raw ?? '')
     .trim()
     .toUpperCase()
     .replace(/-/g, '_')
-  if (s === 'LIFE' || s === 'NONLIFE' || s === 'NON_LIFE') {
-    return s === 'LIFE' ? 'LIFE' : 'NON_LIFE'
+  if (s === 'LIFE') {
+    return 'LIFE'
+  }
+  if (s === 'NONLIFE' || s === 'NON_LIFE') {
+    return 'NON_LIFE'
+  }
+  if (s === 'GENERAL') {
+    return 'GENERAL'
   }
   const ko = String(raw ?? '').replace(/\s+/g, '')
   if (/^(생명|생명보험|생보)$/.test(ko)) {
@@ -28,6 +35,9 @@ export function normalizeUserInsurerAccountCategory(raw) {
   }
   if (/^(손해|손해보험|손보)$/.test(ko)) {
     return 'NON_LIFE'
+  }
+  if (/^(일반)$/.test(ko)) {
+    return 'GENERAL'
   }
   return null
 }
@@ -205,7 +215,12 @@ export async function listUserInsurerAccounts(db, safeQueryExec, userId, gaId, o
     FROM user_insurer_accounts
     WHERE owner_user_id = $1 AND is_archived = false
     ORDER BY
-      CASE category WHEN 'LIFE' THEN 0 WHEN 'NON_LIFE' THEN 1 ELSE 2 END,
+      CASE category
+        WHEN 'LIFE' THEN 0
+        WHEN 'NON_LIFE' THEN 1
+        WHEN 'GENERAL' THEN 2
+        ELSE 3
+      END,
       sort_order ASC,
       company_name ASC,
       id ASC

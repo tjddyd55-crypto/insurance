@@ -3,6 +3,7 @@ import { FormButton, FormInput } from '../../../components/form'
 import { BaseDialog } from '../../../components/dialog/BaseDialog'
 import {
   USER_INSURER_ACCOUNT_ADD_LABEL,
+  USER_INSURER_ACCOUNT_EMPTY_LABEL,
   USER_INSURER_ACCOUNT_TABS,
   type UserInsurerAccountCategory,
 } from '../config/userInsurerAccounts.config'
@@ -29,6 +30,7 @@ type AccountSectionProps = {
 const SECTION_MODIFIER: Record<UserInsurerAccountCategory, string> = {
   LIFE: 'life',
   NON_LIFE: 'non-life',
+  GENERAL: 'general',
 }
 
 function AccountRowEditor({
@@ -147,7 +149,7 @@ function AccountSection({
           </FormButton>
         </div>
         {rows.length === 0 ? (
-          <p className="user-insurer-accounts-page__muted">등록된 계정 정보가 없습니다.</p>
+          <p className="user-insurer-accounts-page__muted">{USER_INSURER_ACCOUNT_EMPTY_LABEL[category]}</p>
         ) : (
           <div className="insurer-account-table-scroll">
             <div className="insurer-account-table" role="table">
@@ -189,6 +191,7 @@ export function UserInsurerAccountsPanel({
   setActiveTab,
   lifeAccounts,
   nonLifeAccounts,
+  generalAccounts,
   loading,
   error,
   pendingId,
@@ -203,8 +206,14 @@ export function UserInsurerAccountsPanel({
 }: UserInsurerAccountsPanelProps) {
   const showTabs = layout === 'stacked'
   const stackedCategory = activeTab
-  const stackedTitle = stackedCategory === 'LIFE' ? '생명보험' : '손해보험'
-  const stackedRows = stackedCategory === 'LIFE' ? lifeAccounts : nonLifeAccounts
+  const stackedTitle =
+    USER_INSURER_ACCOUNT_TABS.find((tab) => tab.value === stackedCategory)?.label ?? '생명보험'
+  const stackedRows =
+    stackedCategory === 'LIFE'
+      ? lifeAccounts
+      : stackedCategory === 'NON_LIFE'
+        ? nonLifeAccounts
+        : generalAccounts
 
   return (
     <div className="user-insurer-accounts-page__panel">
@@ -231,7 +240,7 @@ export function UserInsurerAccountsPanel({
       ) : null}
 
       {!loading && layout === 'dual-column' ? (
-        <div className="user-insurer-accounts-grid">
+        <div className="user-insurer-accounts-grid user-insurer-account-board">
           <AccountSection
             title="생명보험"
             category="LIFE"
@@ -247,6 +256,15 @@ export function UserInsurerAccountsPanel({
             rows={nonLifeAccounts}
             pendingId={pendingId}
             onAdd={() => openAddModal('NON_LIFE')}
+            onSave={(row, patch) => void saveAccountField(row, patch)}
+            onDelete={(row) => void removeAccount(row)}
+          />
+          <AccountSection
+            title="일반"
+            category="GENERAL"
+            rows={generalAccounts}
+            pendingId={pendingId}
+            onAdd={() => openAddModal('GENERAL')}
             onSave={(row, patch) => void saveAccountField(row, patch)}
             onDelete={(row) => void removeAccount(row)}
           />

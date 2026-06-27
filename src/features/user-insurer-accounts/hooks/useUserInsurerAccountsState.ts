@@ -61,6 +61,11 @@ export function useUserInsurerAccountsState() {
     [accounts],
   )
 
+  const generalAccounts = useMemo(
+    () => accounts.filter((row) => row.category === 'GENERAL'),
+    [accounts],
+  )
+
   const saveAccountField = useCallback(
     async (row: UserInsurerAccountRow, patch: Partial<UserInsurerAccountRow>) => {
       if (!authToken) {
@@ -146,6 +151,7 @@ export function useUserInsurerAccountsState() {
     accounts,
     lifeAccounts,
     nonLifeAccounts,
+    generalAccounts,
     loading,
     error,
     pendingId,
