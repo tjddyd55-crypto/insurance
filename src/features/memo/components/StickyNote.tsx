@@ -77,6 +77,8 @@ export default function StickyNote({
     startPointerY: number
     originX: number
     originY: number
+    maxX: number
+    maxY: number
   } | null>(null)
   const resizeSessionRef = useRef<{
     pointerId: number
@@ -115,14 +117,11 @@ export default function StickyNote({
   const computeDragPosition = useCallback((clientX: number, clientY: number, session: NonNullable<typeof dragSessionRef.current>) => {
     const deltaX = clientX - session.startPointerX
     const deltaY = clientY - session.startPointerY
-    const bounds = getWorkspaceBounds()
-    const maxX = Math.max(0, bounds.width - w)
-    const maxY = Math.max(0, bounds.height - h)
     return {
-      x: Math.max(0, Math.min(session.originX + deltaX, maxX)),
-      y: Math.max(0, Math.min(session.originY + deltaY, maxY)),
+      x: Math.max(0, Math.min(session.originX + deltaX, session.maxX)),
+      y: Math.max(0, Math.min(session.originY + deltaY, session.maxY)),
     }
-  }, [getWorkspaceBounds, w, h])
+  }, [])
 
   const scheduleDragFrame = useCallback(() => {
     if (rafRef.current != null) {
@@ -166,12 +165,15 @@ export default function StickyNote({
     e.stopPropagation()
     onDragStart(note.id)
 
+    const bounds = getWorkspaceBounds()
     dragSessionRef.current = {
       pointerId: e.pointerId,
       startPointerX: e.clientX,
       startPointerY: e.clientY,
       originX: note.x,
       originY: note.y,
+      maxX: Math.max(0, bounds.width - w),
+      maxY: Math.max(0, bounds.height - h),
     }
     pendingPosRef.current = { x: note.x, y: note.y }
     e.currentTarget.setPointerCapture(e.pointerId)

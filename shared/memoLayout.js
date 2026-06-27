@@ -80,6 +80,34 @@ export function clampNotePositionMin(note) {
 }
 
 /**
+ * PC 보드 drag clamp — x/y 최소 0, boardWidth/Height 기준 max.
+ * @param {MemoLayoutNote} note
+ * @param {number} x
+ * @param {number} y
+ * @param {number} boardWidth
+ * @param {number} boardHeight
+ */
+export function clampMemoNoteDragPosition(note, x, y, boardWidth, boardHeight) {
+  const w = noteWidth(note)
+  const h = noteHeight(note)
+  const maxX = Math.max(0, boardWidth - w)
+  const maxY = Math.max(0, boardHeight - h)
+  return {
+    x: Math.max(0, Math.min(x, maxX)),
+    y: Math.max(0, Math.min(y, maxY)),
+  }
+}
+
+/**
+ * @param {MemoLayoutNote} note
+ * @param {number} boardWidth
+ * @returns {number}
+ */
+export function getMemoBoardDragMaxX(note, boardWidth) {
+  return Math.max(0, boardWidth - noteWidth(note))
+}
+
+/**
  * @param {Array<{ id: string }>} notes
  * @param {Record<string, boolean>} hiddenNotes
  * @param {boolean} isMemoRoute

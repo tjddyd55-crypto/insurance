@@ -56,11 +56,13 @@ export default function MemoWorkspacePage() {
   const visibleNotes = getMemoBoardVisibleNotes(notes, hiddenNotes, routedPage, minimizedNotes)
 
   const canvasStyle =
-    canvasWidth != null || canvasHeight != null
+    canvasWidth != null || canvasHeight != null || routedPage
       ? {
-          ...(canvasWidth != null
-            ? { width: `${canvasWidth}px`, minWidth: `${canvasWidth}px` }
-            : {}),
+          ...(routedPage
+            ? { width: '100%', minWidth: 0, maxWidth: '100%' }
+            : canvasWidth != null
+              ? { width: `${canvasWidth}px`, minWidth: `${canvasWidth}px` }
+              : {}),
           ...(canvasHeight != null
             ? { height: `${canvasHeight}px`, minHeight: `${canvasHeight}px` }
             : {}),
