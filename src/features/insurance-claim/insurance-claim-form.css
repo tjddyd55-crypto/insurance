@@ -104,35 +104,15 @@
 
 .insurance-claim-company-panel {
   min-width: 0;
+  margin-top: 0;
+  padding-top: 0;
 }
 
 .insurance-claim-company-panel__inner {
-  margin-bottom: 0;
+  margin: 0;
   padding: 0;
   border: 0;
   background: transparent;
-}
-
-.insurance-claim-company-panel__title {
-  margin: 0 0 4px;
-  font-size: 1.125rem;
-  font-weight: 800;
-  line-height: 1.35;
-  color: var(--claim-text);
-}
-
-.insurance-claim-company-panel__desc {
-  margin: 0 0 14px;
-  font-size: 0.8125rem;
-  line-height: 1.45;
-  color: var(--claim-subtext);
-}
-
-.insurance-claim-company-panel__selection-count {
-  margin: 0 0 10px;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  color: #166534;
 }
 
 .insurance-claim-company-panel__hint {

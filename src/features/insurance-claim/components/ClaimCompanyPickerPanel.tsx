@@ -70,8 +70,6 @@ export default function ClaimCompanyPickerPanel({
   return (
     <aside className="insurance-claim-company-panel">
       <div className="insurance-claim-company-panel__inner">
-        <h2 className="insurance-claim-company-panel__title">보험회사 선택</h2>
-        <p className="insurance-claim-company-panel__desc">청구할 보험회사를 하나 선택하세요.</p>
         <div className="claim-company-groups">
           <CompanyGroupBlock
             title="생명보험"
