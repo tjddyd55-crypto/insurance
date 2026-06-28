@@ -27,13 +27,19 @@ describe('resolveDefaultClaimFaxNumber', () => {
 })
 
 describe('filterTemplateFormFields', () => {
-  it('keeps non-standard claim fields from template coordinates', () => {
+  it('keeps coordinate fields and excludes signature or sender roles', () => {
     const fields = filterTemplateFormFields([
       { fieldKey: 'claim_id_card_issued_date', label: '신분증 발급일자', fieldType: 'date', required: true },
       { fieldKey: 'insured_name', label: '피보험자 이름', fieldType: 'text', required: true },
       { fieldKey: 'claim_claim_type', label: '청구유형', fieldType: 'radio', required: true },
+      { fieldKey: 'insured_signature', label: '서명', fieldType: 'signature', required: true },
+      { fieldKey: 'sender_fax', label: '발송 팩스', fieldType: 'text', inputRole: 'sender' },
     ])
-    expect(fields.map((field) => field.fieldKey)).toEqual(['claim_id_card_issued_date'])
+    expect(fields.map((field) => field.fieldKey)).toEqual([
+      'claim_id_card_issued_date',
+      'insured_name',
+      'claim_claim_type',
+    ])
   })
 })
 

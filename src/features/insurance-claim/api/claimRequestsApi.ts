@@ -66,7 +66,16 @@ export type ClaimDocumentFieldSpec = {
   fieldType?: string
   required?: boolean
   inputRole?: 'customer' | 'sender' | 'disabled'
+  orderIndex?: number
+  inputOrder?: number | null
   options?: Array<{ label: string; value: string }> | null
+  placements?: Array<{
+    page?: number
+    x?: number
+    y?: number
+    width?: number | null
+    height?: number | null
+  }>
   dataMapping?: {
     dataSourceType?: string
     customerFieldKey?: string
@@ -98,6 +107,30 @@ export async function getClaimCompanyDocumentFields(
     `/api/insurance-claim/companies/${companyId}/documents?${query.toString()}`,
     { token },
   )
+}
+
+export async function listClaimCompanyFormFields(token: string, companyId: number) {
+  const documentTypes: Array<'claim_form' | 'consent_form'> = ['claim_form', 'consent_form']
+  const merged: Array<ClaimDocumentFieldSpec & { documentType: 'claim_form' | 'consent_form'; documentOrder: number }> =
+    []
+
+  for (let index = 0; index < documentTypes.length; index += 1) {
+    const documentType = documentTypes[index]
+    try {
+      const { fields } = await getClaimCompanyDocumentFields(token, companyId, documentType)
+      merged.push(
+        ...fields.map((field) => ({
+          ...field,
+          documentType,
+          documentOrder: index,
+        })),
+      )
+    } catch {
+      // 문서가 없으면 해당 타입은 건너뜀
+    }
+  }
+
+  return merged
 }
 
 export async function createClaimDraft(token: string, body: ClaimDraftPayload & { insuranceCompanyId: number }) {
