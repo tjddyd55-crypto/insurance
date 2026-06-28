@@ -174,7 +174,8 @@ export function buildGaTenantDashboardMenu(
   const insuranceClaimMenu: GaTenantDashboardMenuEntry[] = includeInsuranceClaimFeatures
     ? [
         { type: 'section', label: '보험청구' },
-        { type: 'link', label: INSURANCE_CLAIM_USER_MENU.label, path: INSURANCE_CLAIM_USER_MENU.path },
+        { type: 'link', label: INSURANCE_CLAIM_NEW_MENU.label, path: INSURANCE_CLAIM_NEW_MENU.path },
+        { type: 'link', label: INSURANCE_CLAIM_HISTORY_MENU.label, path: INSURANCE_CLAIM_HISTORY_MENU.path },
       ]
     : []
 
@@ -284,8 +285,13 @@ const PDF_TEMPLATE_ADMIN_MENU: GaTenantMenuItem = {
   path: '/admin/pdf-templates',
 }
 
-const INSURANCE_CLAIM_USER_MENU: GaTenantMenuItem = {
-  label: '보험청구',
+const INSURANCE_CLAIM_NEW_MENU: GaTenantMenuItem = {
+  label: '새청구',
+  path: '/insurance-claim/new',
+}
+
+const INSURANCE_CLAIM_HISTORY_MENU: GaTenantMenuItem = {
+  label: '청구내역',
   path: '/insurance-claim/requests',
 }
 

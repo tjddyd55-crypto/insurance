@@ -21,7 +21,7 @@ export default function ClaimRequestPersonCustomerSearch({
 }: Props) {
   return (
     <>
-      <div className="insurance-claim-form__customer-search">
+      <div className="insurance-claim-form__customer-search claim-person-search">
         <FormInput
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}

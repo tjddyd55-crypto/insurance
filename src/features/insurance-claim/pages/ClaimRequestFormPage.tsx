@@ -21,7 +21,9 @@ import {
   type CustomerClaimAppAttachment,
 } from '../api/claimRequestsApi'
 import ClaimRequestExtrasSection from '../components/ClaimRequestExtrasSection'
+import ClaimCompanyPickerPanel from '../components/ClaimCompanyPickerPanel'
 import ClaimRequestPersonCustomerSearch from '../components/ClaimRequestPersonCustomerSearch'
+import InsuranceClaimSubnav from '../components/InsuranceClaimSubnav'
 import '../insurance-claim-form.css'
 
 type Person = { name: string; ssn: string; phone: string; address: string; job: string }
@@ -489,15 +491,15 @@ export default function ClaimRequestFormPage() {
   }
 
   const personInputFields = (value: Person, setValue: (value: Person) => void) => (
-    <div className="insurance-claim-form__field-grid insurance-claim-form__field-grid--person">
+    <div className="insurance-claim-form__field-grid insurance-claim-form__field-grid--person claim-person-grid">
       {(['name', 'ssn', 'phone', 'address', 'job'] as const).map((key) => (
         <label
           key={key}
           className={`insurance-claim-form__field${
             key === 'address'
-              ? ' insurance-claim-form__field--address'
+              ? ' insurance-claim-form__field--address claim-person-address'
               : key === 'job'
-                ? ' insurance-claim-form__field--job'
+                ? ' insurance-claim-form__field--job claim-person-job'
                 : ''
           }`}
         >
@@ -511,210 +513,211 @@ export default function ClaimRequestFormPage() {
   )
 
   return (
-    <main className="page page--with-back insurance-claim-form insurance-claim-form-page">
+    <main className="page page--with-back insurance-claim-form insurance-claim-form-page insurance-claim-page">
       <header className="page-header">
-        <h1>{requestId != null ? `보험청구 #${requestId}` : '보험청구 작성'}</h1>
+        <h1>{requestId != null ? `보험청구 #${requestId}` : '보험청구'}</h1>
         <p>고객 등록 없이 직접 입력할 수 있으며, 고객 불러오기는 입력 보조 기능입니다.</p>
         {requestId != null ? <p className="insurance-claim-form__status">상태: {formatStatus(status)}</p> : null}
       </header>
 
-      <section className="insurance-claim-form__section">
-        <h2>1. 보험회사</h2>
-        <p className="insurance-claim-form__section-desc">청구할 보험회사를 선택합니다.</p>
-        <label className="insurance-claim-form__field insurance-claim-form__field--company">
-          <span className="insurance-claim-form__label">보험회사</span>
-          <FormSelect
-            value={companyId}
-            onChange={(e) => setCompanyId(e.target.value)}
-            options={[{ value: '', label: '보험회사 선택' }, ...companies.map((c) => ({ value: String(c.id), label: c.companyName }))]}
-          />
-        </label>
-      </section>
+      <InsuranceClaimSubnav />
 
-      <section className="insurance-claim-form__section">
-        <h2>2. 피보험자 정보</h2>
-        <p className="insurance-claim-form__section-desc">직접 입력하거나 고객 불러오기로 정보를 채울 수 있습니다.</p>
-        <ClaimRequestPersonCustomerSearch
-          query={customerQuery}
-          matches={matches}
-          onQueryChange={setCustomerQuery}
-          onSearch={() => void findCustomers('insured')}
-          onSelect={(id) => void fillCustomer(id)}
-        />
-        {personInputFields(insured, setInsured)}
-      </section>
-
-      <section className="insurance-claim-form__section">
-        <h2>3. 계약자와 피보험자 동일 여부</h2>
-        <label className="insurance-claim-form__field insurance-claim-form__field--same">
-          <span className="insurance-claim-form__label">동일 여부</span>
-          <FormSelect
-            value={same ? 'yes' : 'no'}
-            onChange={(e) => setSame(e.target.value === 'yes')}
-            options={[
-              { value: 'yes', label: '예' },
-              { value: 'no', label: '아니오' },
-            ]}
-          />
-        </label>
-      </section>
-
-      {!same ? (
-        <section className="insurance-claim-form__section">
-          <h2>4. 계약자 정보</h2>
-          <ClaimRequestPersonCustomerSearch
-            query={contractorQuery}
-            matches={contractorMatches}
-            onQueryChange={setContractorQuery}
-            onSearch={() => void findCustomers('contractor')}
-            onSelect={(id) => void fillContractor(id)}
-            searchLabel="고객 검색"
-          />
-          {personInputFields(contractor, setContractor)}
-        </section>
-      ) : null}
-
-      <section className="insurance-claim-form__section">
-        <h2>5. 진료 / 사고 정보</h2>
-        <p className="insurance-claim-form__section-desc">청구 유형과 진료·사고 내용을 입력합니다.</p>
-        <div className="insurance-claim-form__field-grid insurance-claim-form__field-grid--treatment">
-          <label className="insurance-claim-form__field">
-            <span className="insurance-claim-form__label">청구유형</span>
-            <FormSelect
-              value={claimData.claimType}
-              onChange={(e) => setClaimData({ ...claimData, claimType: e.target.value })}
-              options={[
-                { value: 'disease', label: '질병' },
-                { value: 'injury', label: '상해' },
-                { value: 'traffic', label: '교통사고' },
-              ]}
+      <div className="insurance-claim-compose-layout">
+        <div className="insurance-claim-main-form">
+          <section className="insurance-claim-form__section claim-form-section">
+            <h2>1. 피보험자 정보</h2>
+            <p className="insurance-claim-form__section-desc">직접 입력하거나 고객 불러오기로 정보를 채울 수 있습니다.</p>
+            <ClaimRequestPersonCustomerSearch
+              query={customerQuery}
+              matches={matches}
+              onQueryChange={setCustomerQuery}
+              onSearch={() => void findCustomers('insured')}
+              onSelect={(id) => void fillCustomer(id)}
             />
-          </label>
-          <label className="insurance-claim-form__field">
-            <span className="insurance-claim-form__label">진료/사고일자</span>
-            <FormInput
-              type="date"
-              value={claimData.treatmentDate}
-              onChange={(e) => setClaimData({ ...claimData, treatmentDate: e.target.value })}
-            />
-          </label>
-          <label className="insurance-claim-form__field insurance-claim-form__field--description">
-            <span className="insurance-claim-form__label">질병/사고 내용</span>
-            <FormTextarea
-              value={claimData.claimDescription}
-              onChange={(e) => setClaimData({ ...claimData, claimDescription: e.target.value })}
-              placeholder="질병/사고 내용"
-            />
-          </label>
-        </div>
-      </section>
+            {personInputFields(insured, setInsured)}
+          </section>
 
-      <section className="insurance-claim-form__section">
-        <h2>6. 계좌정보</h2>
-        <p className="insurance-claim-form__section-desc">보험금 수령 계좌 정보를 입력합니다.</p>
-        <div className="insurance-claim-form__field-grid insurance-claim-form__field-grid--payment">
-          <label className="insurance-claim-form__field">
-            <span className="insurance-claim-form__label">계좌 유형</span>
-            <FormSelect
-              value={paymentData.accountType}
-              onChange={(e) => setPaymentData({ ...paymentData, accountType: e.target.value })}
-              options={[
-                { value: 'normal', label: '일반' },
-                { value: 'auto_debit', label: '자동이체' },
-              ]}
-            />
-          </label>
-          {(['bankName', 'accountNumber', 'accountHolder'] as const).map((key) => (
-            <label key={key} className="insurance-claim-form__field">
-              <span className="insurance-claim-form__label">
-                {key === 'bankName' ? '은행명' : key === 'accountNumber' ? '계좌번호' : '예금주'}
-              </span>
-              <FormInput
-                value={paymentData[key]}
-                onChange={(e) => setPaymentData({ ...paymentData, [key]: e.target.value })}
-                placeholder={key === 'bankName' ? '은행명' : key === 'accountNumber' ? '계좌번호' : '예금주'}
+          <section className="insurance-claim-form__section claim-form-section">
+            <h2>2. 계약자와 피보험자 동일 여부</h2>
+            <label className="insurance-claim-form__field insurance-claim-form__field--same">
+              <span className="insurance-claim-form__label">동일 여부</span>
+              <FormSelect
+                value={same ? 'yes' : 'no'}
+                onChange={(e) => setSame(e.target.value === 'yes')}
+                options={[
+                  { value: 'yes', label: '예' },
+                  { value: 'no', label: '아니오' },
+                ]}
               />
             </label>
-          ))}
-        </div>
-      </section>
+          </section>
 
-      <ClaimRequestExtrasSection
-        customerId={customerId}
-        draftSaved={draftSaved}
-        additionalAttachments={additionalAttachments}
-        selectedCustomerAttachmentIds={selectedCustomerAttachmentIds}
-        customerAttachments={customerAttachments}
-        customerAttachmentsLoading={customerAttachmentsLoading}
-        signatureData={signatureData}
-        contractorSameAsInsured={same}
-        uploadingAttachment={uploadingAttachment}
-        uploadingSignatureRole={uploadingSignatureRole}
-        onUploadAttachment={(file) => void handleUploadAttachment(file)}
-        onRemoveAttachment={(storageKey) => {
-          const nextAttachments = additionalAttachments.filter((item) => item.storageKey !== storageKey)
-          setAdditionalAttachments(nextAttachments)
-          if (requestId != null) {
-            void persistDraft(requestId, { additionalAttachments: nextAttachments })
-          }
-        }}
-        onToggleCustomerAttachment={(id, checked) => {
-          const next = checked
-            ? [...new Set([...selectedCustomerAttachmentIds, id])]
-            : selectedCustomerAttachmentIds.filter((value) => value !== id)
-          setSelectedCustomerAttachmentIds(next)
-          if (requestId != null) {
-            void persistDraft(requestId, { selectedCustomerAttachmentIds: next })
-          }
-        }}
-        onSaveSignature={handleSaveSignature}
-        onClearSignature={(role) => {
-          const nextSignatureData: ClaimSignatureData = {
-            ...signatureData,
-            [role === 'contractor' ? 'contractorSignature' : 'insuredSignature']: null,
-          }
-          setSignatureData(nextSignatureData)
-          if (requestId != null) {
-            void persistDraft(requestId, { signatureData: nextSignatureData })
-          }
-        }}
-      />
+          {!same ? (
+            <section className="insurance-claim-form__section claim-form-section">
+              <h2>3. 계약자 정보</h2>
+              <ClaimRequestPersonCustomerSearch
+                query={contractorQuery}
+                matches={contractorMatches}
+                onQueryChange={setContractorQuery}
+                onSearch={() => void findCustomers('contractor')}
+                onSelect={(id) => void fillContractor(id)}
+                searchLabel="고객 검색"
+              />
+              {personInputFields(contractor, setContractor)}
+            </section>
+          ) : null}
 
-      {message ? (
-        <p className="insurance-claim-form__message" role="alert">
-          {message}
-        </p>
-      ) : null}
+          <section className="insurance-claim-form__section claim-form-section">
+            <h2>{same ? '3' : '4'}. 진료 / 사고 정보</h2>
+            <p className="insurance-claim-form__section-desc">청구 유형과 진료·사고 내용을 입력합니다.</p>
+            <div className="insurance-claim-form__field-grid insurance-claim-form__field-grid--treatment claim-treatment-grid">
+              <label className="insurance-claim-form__field">
+                <span className="insurance-claim-form__label">청구유형</span>
+                <FormSelect
+                  value={claimData.claimType}
+                  onChange={(e) => setClaimData({ ...claimData, claimType: e.target.value })}
+                  options={[
+                    { value: 'disease', label: '질병' },
+                    { value: 'injury', label: '상해' },
+                    { value: 'traffic', label: '교통사고' },
+                  ]}
+                />
+              </label>
+              <label className="insurance-claim-form__field">
+                <span className="insurance-claim-form__label">진료/사고일자</span>
+                <FormInput
+                  type="date"
+                  value={claimData.treatmentDate}
+                  onChange={(e) => setClaimData({ ...claimData, treatmentDate: e.target.value })}
+                />
+              </label>
+              <label className="insurance-claim-form__field insurance-claim-form__field--description">
+                <span className="insurance-claim-form__label">질병/사고 내용</span>
+                <FormTextarea
+                  value={claimData.claimDescription}
+                  onChange={(e) => setClaimData({ ...claimData, claimDescription: e.target.value })}
+                  placeholder="질병/사고 내용"
+                />
+              </label>
+            </div>
+          </section>
 
-      <div className="insurance-claim-form__actions-bar">
-        <FormButton htmlType="button" variant="primary" disabled={saving || !isDraft} onClick={() => void save()}>
-          {saving ? '저장 중…' : '청구 초안 저장'}
-        </FormButton>
-        {requestId != null ? (
-          <>
-            <FormButton
-              htmlType="button"
-              variant="secondary"
-              disabled={generating || !isDraft}
-              onClick={() => void handleGenerate()}
-            >
-              {generating ? '생성 중…' : 'PDF 생성'}
+          <section className="insurance-claim-form__section claim-form-section">
+            <h2>{same ? '4' : '5'}. 계좌정보</h2>
+            <p className="insurance-claim-form__section-desc">보험금 수령 계좌 정보를 입력합니다.</p>
+            <div className="insurance-claim-form__field-grid insurance-claim-form__field-grid--payment claim-bank-grid">
+              <label className="insurance-claim-form__field">
+                <span className="insurance-claim-form__label">계좌 유형</span>
+                <FormSelect
+                  value={paymentData.accountType}
+                  onChange={(e) => setPaymentData({ ...paymentData, accountType: e.target.value })}
+                  options={[
+                    { value: 'normal', label: '일반' },
+                    { value: 'auto_debit', label: '자동이체' },
+                  ]}
+                />
+              </label>
+              {(['bankName', 'accountNumber', 'accountHolder'] as const).map((key) => (
+                <label key={key} className="insurance-claim-form__field">
+                  <span className="insurance-claim-form__label">
+                    {key === 'bankName' ? '은행명' : key === 'accountNumber' ? '계좌번호' : '예금주'}
+                  </span>
+                  <FormInput
+                    value={paymentData[key]}
+                    onChange={(e) => setPaymentData({ ...paymentData, [key]: e.target.value })}
+                    placeholder={key === 'bankName' ? '은행명' : key === 'accountNumber' ? '계좌번호' : '예금주'}
+                  />
+                </label>
+              ))}
+            </div>
+          </section>
+
+          <ClaimRequestExtrasSection
+            customerId={customerId}
+            draftSaved={draftSaved}
+            additionalAttachments={additionalAttachments}
+            selectedCustomerAttachmentIds={selectedCustomerAttachmentIds}
+            customerAttachments={customerAttachments}
+            customerAttachmentsLoading={customerAttachmentsLoading}
+            signatureData={signatureData}
+            contractorSameAsInsured={same}
+            uploadingAttachment={uploadingAttachment}
+            uploadingSignatureRole={uploadingSignatureRole}
+            onUploadAttachment={(file) => void handleUploadAttachment(file)}
+            onRemoveAttachment={(storageKey) => {
+              const nextAttachments = additionalAttachments.filter((item) => item.storageKey !== storageKey)
+              setAdditionalAttachments(nextAttachments)
+              if (requestId != null) {
+                void persistDraft(requestId, { additionalAttachments: nextAttachments })
+              }
+            }}
+            onToggleCustomerAttachment={(id, checked) => {
+              const next = checked
+                ? [...new Set([...selectedCustomerAttachmentIds, id])]
+                : selectedCustomerAttachmentIds.filter((value) => value !== id)
+              setSelectedCustomerAttachmentIds(next)
+              if (requestId != null) {
+                void persistDraft(requestId, { selectedCustomerAttachmentIds: next })
+              }
+            }}
+            onSaveSignature={handleSaveSignature}
+            onClearSignature={(role) => {
+              const nextSignatureData: ClaimSignatureData = {
+                ...signatureData,
+                [role === 'contractor' ? 'contractorSignature' : 'insuredSignature']: null,
+              }
+              setSignatureData(nextSignatureData)
+              if (requestId != null) {
+                void persistDraft(requestId, { signatureData: nextSignatureData })
+              }
+            }}
+            sectionsStartAt={same ? 5 : 6}
+          />
+
+          {message ? (
+            <p className="insurance-claim-form__message" role="alert">
+              {message}
+            </p>
+          ) : null}
+
+          <div className="insurance-claim-form__actions-bar claim-form-actions">
+            <FormButton htmlType="button" variant="primary" disabled={saving || !isDraft} onClick={() => void save()}>
+              {saving ? '저장 중…' : '청구 초안 저장'}
             </FormButton>
-            {status !== 'draft' ? (
-              <FormButton
-                htmlType="button"
-                variant="secondary"
-                disabled={downloading}
-                onClick={() => void handleDownload()}
-              >
-                {downloading ? '다운로드 중…' : 'ZIP 다운로드'}
-              </FormButton>
+            {requestId != null ? (
+              <>
+                <FormButton
+                  htmlType="button"
+                  variant="secondary"
+                  disabled={generating || !isDraft}
+                  onClick={() => void handleGenerate()}
+                >
+                  {generating ? '생성 중…' : 'PDF 생성'}
+                </FormButton>
+                {status !== 'draft' ? (
+                  <FormButton
+                    htmlType="button"
+                    variant="secondary"
+                    disabled={downloading}
+                    onClick={() => void handleDownload()}
+                  >
+                    {downloading ? '다운로드 중…' : 'ZIP 다운로드'}
+                  </FormButton>
+                ) : null}
+              </>
             ) : null}
-          </>
-        ) : null}
-        <Link className="button button--secondary" to="/insurance-claim/requests">
-          청구 내역
-        </Link>
+            <Link className="button button--secondary" to="/insurance-claim/requests">
+              청구 내역
+            </Link>
+          </div>
+        </div>
+
+        <ClaimCompanyPickerPanel
+          companies={companies}
+          selectedCompanyId={companyId}
+          onSelect={setCompanyId}
+          disabled={!isDraft}
+        />
       </div>
     </main>
   )
