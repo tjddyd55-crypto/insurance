@@ -489,14 +489,19 @@ export default function ClaimRequestFormPage() {
   }
 
   const personInputFields = (value: Person, setValue: (value: Person) => void) => (
-    <>
+    <div className="insurance-claim-form__field-grid">
       {(['name', 'ssn', 'phone', 'address', 'job'] as const).map((key) => (
-        <label key={key}>
-          {({ name: '이름', ssn: '주민등록번호', phone: '연락처', address: '주소', job: '직업' }[key])}
+        <label
+          key={key}
+          className={`insurance-claim-form__field${key === 'address' ? ' insurance-claim-form__field--full' : ''}`}
+        >
+          <span className="insurance-claim-form__label">
+            {({ name: '이름', ssn: '주민등록번호', phone: '연락처', address: '주소', job: '직업' }[key])}
+          </span>
           <FormInput value={value[key]} onChange={(e) => setValue({ ...value, [key]: e.target.value })} />
         </label>
       ))}
-    </>
+    </div>
   )
 
   return (
@@ -509,15 +514,20 @@ export default function ClaimRequestFormPage() {
 
       <section className="insurance-claim-form__section">
         <h2>1. 보험회사</h2>
-        <FormSelect
-          value={companyId}
-          onChange={(e) => setCompanyId(e.target.value)}
-          options={[{ value: '', label: '보험회사 선택' }, ...companies.map((c) => ({ value: String(c.id), label: c.companyName }))]}
-        />
+        <p className="insurance-claim-form__section-desc">청구할 보험회사를 선택합니다.</p>
+        <label className="insurance-claim-form__field insurance-claim-form__field--full">
+          <span className="insurance-claim-form__label">보험회사</span>
+          <FormSelect
+            value={companyId}
+            onChange={(e) => setCompanyId(e.target.value)}
+            options={[{ value: '', label: '보험회사 선택' }, ...companies.map((c) => ({ value: String(c.id), label: c.companyName }))]}
+          />
+        </label>
       </section>
 
       <section className="insurance-claim-form__section">
         <h2>2. 피보험자 정보</h2>
+        <p className="insurance-claim-form__section-desc">직접 입력하거나 고객 불러오기로 정보를 채울 수 있습니다.</p>
         <ClaimRequestPersonCustomerSearch
           query={customerQuery}
           matches={matches}
@@ -530,14 +540,17 @@ export default function ClaimRequestFormPage() {
 
       <section className="insurance-claim-form__section">
         <h2>3. 계약자와 피보험자 동일 여부</h2>
-        <FormSelect
-          value={same ? 'yes' : 'no'}
-          onChange={(e) => setSame(e.target.value === 'yes')}
-          options={[
-            { value: 'yes', label: '예' },
-            { value: 'no', label: '아니오' },
-          ]}
-        />
+        <label className="insurance-claim-form__field insurance-claim-form__field--full">
+          <span className="insurance-claim-form__label">동일 여부</span>
+          <FormSelect
+            value={same ? 'yes' : 'no'}
+            onChange={(e) => setSame(e.target.value === 'yes')}
+            options={[
+              { value: 'yes', label: '예' },
+              { value: 'no', label: '아니오' },
+            ]}
+          />
+        </label>
       </section>
 
       {!same ? (
@@ -557,45 +570,67 @@ export default function ClaimRequestFormPage() {
 
       <section className="insurance-claim-form__section">
         <h2>5. 진료 / 사고 정보</h2>
-        <FormSelect
-          value={claimData.claimType}
-          onChange={(e) => setClaimData({ ...claimData, claimType: e.target.value })}
-          options={[
-            { value: 'disease', label: '질병' },
-            { value: 'injury', label: '상해' },
-            { value: 'traffic', label: '교통사고' },
-          ]}
-        />
-        <FormInput
-          type="date"
-          value={claimData.treatmentDate}
-          onChange={(e) => setClaimData({ ...claimData, treatmentDate: e.target.value })}
-        />
-        <FormTextarea
-          value={claimData.claimDescription}
-          onChange={(e) => setClaimData({ ...claimData, claimDescription: e.target.value })}
-          placeholder="질병/사고 내용"
-        />
+        <p className="insurance-claim-form__section-desc">청구 유형과 진료·사고 내용을 입력합니다.</p>
+        <div className="insurance-claim-form__field-grid">
+          <label className="insurance-claim-form__field">
+            <span className="insurance-claim-form__label">청구유형</span>
+            <FormSelect
+              value={claimData.claimType}
+              onChange={(e) => setClaimData({ ...claimData, claimType: e.target.value })}
+              options={[
+                { value: 'disease', label: '질병' },
+                { value: 'injury', label: '상해' },
+                { value: 'traffic', label: '교통사고' },
+              ]}
+            />
+          </label>
+          <label className="insurance-claim-form__field">
+            <span className="insurance-claim-form__label">진료/사고일자</span>
+            <FormInput
+              type="date"
+              value={claimData.treatmentDate}
+              onChange={(e) => setClaimData({ ...claimData, treatmentDate: e.target.value })}
+            />
+          </label>
+          <label className="insurance-claim-form__field insurance-claim-form__field--full">
+            <span className="insurance-claim-form__label">질병/사고 내용</span>
+            <FormTextarea
+              value={claimData.claimDescription}
+              onChange={(e) => setClaimData({ ...claimData, claimDescription: e.target.value })}
+              placeholder="질병/사고 내용"
+            />
+          </label>
+        </div>
       </section>
 
       <section className="insurance-claim-form__section">
         <h2>6. 계좌정보</h2>
-        <FormSelect
-          value={paymentData.accountType}
-          onChange={(e) => setPaymentData({ ...paymentData, accountType: e.target.value })}
-          options={[
-            { value: 'normal', label: '일반' },
-            { value: 'auto_debit', label: '자동이체' },
-          ]}
-        />
-        {(['bankName', 'accountNumber', 'accountHolder'] as const).map((key) => (
-          <FormInput
-            key={key}
-            value={paymentData[key]}
-            onChange={(e) => setPaymentData({ ...paymentData, [key]: e.target.value })}
-            placeholder={key === 'bankName' ? '은행명' : key === 'accountNumber' ? '계좌번호' : '예금주'}
-          />
-        ))}
+        <p className="insurance-claim-form__section-desc">보험금 수령 계좌 정보를 입력합니다.</p>
+        <div className="insurance-claim-form__field-grid insurance-claim-form__field-grid--payment">
+          <label className="insurance-claim-form__field">
+            <span className="insurance-claim-form__label">계좌 유형</span>
+            <FormSelect
+              value={paymentData.accountType}
+              onChange={(e) => setPaymentData({ ...paymentData, accountType: e.target.value })}
+              options={[
+                { value: 'normal', label: '일반' },
+                { value: 'auto_debit', label: '자동이체' },
+              ]}
+            />
+          </label>
+          {(['bankName', 'accountNumber', 'accountHolder'] as const).map((key) => (
+            <label key={key} className="insurance-claim-form__field">
+              <span className="insurance-claim-form__label">
+                {key === 'bankName' ? '은행명' : key === 'accountNumber' ? '계좌번호' : '예금주'}
+              </span>
+              <FormInput
+                value={paymentData[key]}
+                onChange={(e) => setPaymentData({ ...paymentData, [key]: e.target.value })}
+                placeholder={key === 'bankName' ? '은행명' : key === 'accountNumber' ? '계좌번호' : '예금주'}
+              />
+            </label>
+          ))}
+        </div>
       </section>
 
       <ClaimRequestExtrasSection
@@ -645,7 +680,7 @@ export default function ClaimRequestFormPage() {
         </p>
       ) : null}
 
-      <div className="insurance-claim-form__actions">
+      <div className="insurance-claim-form__actions-bar">
         <FormButton htmlType="button" variant="primary" disabled={saving || !isDraft} onClick={() => void save()}>
           {saving ? '저장 중…' : '청구 초안 저장'}
         </FormButton>

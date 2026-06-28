@@ -125,18 +125,65 @@ export default function ClaimRequestHistoryPage() {
     }
   }
 
+  const renderRowActions = (row: ClaimRequestDraft, actionClassName: string) => (
+    <div className={actionClassName}>
+      <Link className="button button--secondary" to={`/insurance-claim/requests/${row.id}`}>
+        상세보기
+      </Link>
+      <FormButton
+        htmlType="button"
+        variant="secondary"
+        size="sm"
+        disabled={busyId === row.id}
+        onClick={() => void duplicate(row.id)}
+      >
+        다시 청구하기
+      </FormButton>
+      {row.status !== 'draft' ? (
+        <FormButton
+          htmlType="button"
+          variant="secondary"
+          size="sm"
+          disabled={downloadingId === row.id}
+          onClick={() => void download(row.id)}
+        >
+          {downloadingId === row.id ? '다운로드 중…' : '다운로드'}
+        </FormButton>
+      ) : null}
+      <FormButton
+        htmlType="button"
+        variant="danger"
+        size="sm"
+        disabled={deletingId === row.id}
+        onClick={() => void remove(row.id)}
+      >
+        {deletingId === row.id ? '삭제 중…' : '삭제'}
+      </FormButton>
+    </div>
+  )
+
+  const renderInsuredName = (row: ClaimRequestDraft) => {
+    const insuredName = row.insuredSnapshot?.name?.trim() || '수동 입력'
+    const isManual = row.customerId == null
+    return (
+      <>
+        {insuredName}
+        {isManual ? <span className="insurance-claim-history__manual-tag">수동 입력</span> : null}
+      </>
+    )
+  }
+
   return (
     <main className="page page--with-back insurance-claim-history">
-      <header className="page-header">
-        <h1>보험청구</h1>
-        <p>청구 내역을 확인하고 새 청구를 작성합니다.</p>
-      </header>
-
-      <div className="insurance-claim-history__toolbar">
+      <header className="page-header insurance-claim-history__header">
+        <div className="insurance-claim-history__header-main">
+          <h1>보험청구</h1>
+          <p>청구 내역을 확인하고 새 청구를 작성합니다.</p>
+        </div>
         <Link className="button button--primary" to="/insurance-claim/new">
           새 청구
         </Link>
-      </div>
+      </header>
 
       {message ? (
         <p className="insurance-claim-history__message" role="alert">
@@ -147,31 +194,24 @@ export default function ClaimRequestHistoryPage() {
       {rows.length === 0 ? (
         <p className="insurance-claim-history__empty">아직 작성한 보험청구가 없습니다.</p>
       ) : (
-        <div className="insurance-claim-history__table-wrap">
-          <table className="insurance-claim-history__table">
-            <thead>
-              <tr>
-                <th>피보험자</th>
-                <th>보험회사</th>
-                <th>청구유형</th>
-                <th>진료/사고일자</th>
-                <th>상태</th>
-                <th>작성일</th>
-                <th>작업</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => {
-                const insuredName = row.insuredSnapshot?.name?.trim() || '수동 입력'
-                const isManual = row.customerId == null
-                return (
+        <>
+          <div className="insurance-claim-history__table-wrap">
+            <table className="insurance-claim-history__table">
+              <thead>
+                <tr>
+                  <th>피보험자</th>
+                  <th>보험회사</th>
+                  <th>청구유형</th>
+                  <th>진료/사고일자</th>
+                  <th>상태</th>
+                  <th>작성일</th>
+                  <th>작업</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
                   <tr key={row.id}>
-                    <td>
-                      {insuredName}
-                      {isManual ? (
-                        <span className="insurance-claim-history__manual-tag">수동 입력</span>
-                      ) : null}
-                    </td>
+                    <td>{renderInsuredName(row)}</td>
                     <td>{row.insuranceCompanyName ?? row.insuranceCompanyId}</td>
                     <td>{formatClaimType(row.claimData?.claimType)}</td>
                     <td>{row.claimData?.treatmentDate || '—'}</td>
@@ -179,48 +219,49 @@ export default function ClaimRequestHistoryPage() {
                       <span className={statusBadgeClass(row.status)}>{formatStatus(row.status)}</span>
                     </td>
                     <td>{formatKstDateDisplay(row.createdAt, '—')}</td>
-                    <td>
-                      <div className="insurance-claim-history__actions">
-                        <Link className="button button--secondary" to={`/insurance-claim/requests/${row.id}`}>
-                          상세보기
-                        </Link>
-                        <FormButton
-                          htmlType="button"
-                          variant="secondary"
-                          size="sm"
-                          disabled={busyId === row.id}
-                          onClick={() => void duplicate(row.id)}
-                        >
-                          다시 청구하기
-                        </FormButton>
-                        {row.status !== 'draft' ? (
-                          <FormButton
-                            htmlType="button"
-                            variant="secondary"
-                            size="sm"
-                            disabled={downloadingId === row.id}
-                            onClick={() => void download(row.id)}
-                          >
-                            {downloadingId === row.id ? '다운로드 중…' : '다운로드'}
-                          </FormButton>
-                        ) : null}
-                        <FormButton
-                          htmlType="button"
-                          variant="danger"
-                          size="sm"
-                          disabled={deletingId === row.id}
-                          onClick={() => void remove(row.id)}
-                        >
-                          {deletingId === row.id ? '삭제 중…' : '삭제'}
-                        </FormButton>
-                      </div>
-                    </td>
+                    <td>{renderRowActions(row, 'insurance-claim-history__actions')}</td>
                   </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="insurance-claim-history__card-list">
+            {rows.map((row) => (
+              <article key={row.id} className="insurance-claim-history__card">
+                <div className="insurance-claim-history__card-row">
+                  <span className="insurance-claim-history__card-label">피보험자</span>
+                  <span className="insurance-claim-history__card-value">{renderInsuredName(row)}</span>
+                </div>
+                <div className="insurance-claim-history__card-row">
+                  <span className="insurance-claim-history__card-label">보험회사</span>
+                  <span className="insurance-claim-history__card-value">
+                    {row.insuranceCompanyName ?? row.insuranceCompanyId}
+                  </span>
+                </div>
+                <div className="insurance-claim-history__card-row">
+                  <span className="insurance-claim-history__card-label">청구유형</span>
+                  <span className="insurance-claim-history__card-value">{formatClaimType(row.claimData?.claimType)}</span>
+                </div>
+                <div className="insurance-claim-history__card-row">
+                  <span className="insurance-claim-history__card-label">진료/사고일자</span>
+                  <span className="insurance-claim-history__card-value">{row.claimData?.treatmentDate || '—'}</span>
+                </div>
+                <div className="insurance-claim-history__card-row">
+                  <span className="insurance-claim-history__card-label">상태</span>
+                  <span className="insurance-claim-history__card-value">
+                    <span className={statusBadgeClass(row.status)}>{formatStatus(row.status)}</span>
+                  </span>
+                </div>
+                <div className="insurance-claim-history__card-row">
+                  <span className="insurance-claim-history__card-label">작성일</span>
+                  <span className="insurance-claim-history__card-value">{formatKstDateDisplay(row.createdAt, '—')}</span>
+                </div>
+                {renderRowActions(row, 'insurance-claim-history__card-actions')}
+              </article>
+            ))}
+          </div>
+        </>
       )}
     </main>
   )
