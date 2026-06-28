@@ -9,7 +9,7 @@ import {
   updateAdminNotice,
   uploadAdminNoticeImage,
 } from '../api/adminNoticesApi'
-import { AdminNoticeBlockEditor, AdminNoticeBlockPreview } from '../components/AdminNoticeBlockEditor'
+import { AdminNoticeHtmlPreview, AdminNoticeRichEditor } from '../components/AdminNoticeRichEditor'
 import {
   adminNoticeToForm,
   emptyAdminNoticeForm,
@@ -44,7 +44,8 @@ export default function AdminNoticeEditorPage() {
         }
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : '공지를 불러오지 못했습니다.')
+          console.error('[admin-notices] failed to load notice', e)
+          setError('공지사항을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
         }
       } finally {
         if (!cancelled) {
@@ -62,10 +63,7 @@ export default function AdminNoticeEditorPage() {
       if (!token?.trim()) {
         throw new Error('로그인이 필요합니다.')
       }
-      if (!isEdit || noticeId == null) {
-        throw new Error('이미지 업로드는 공지 저장 후 가능합니다.')
-      }
-      return uploadAdminNoticeImage(token, noticeId, file)
+      return uploadAdminNoticeImage(token, file, isEdit ? noticeId : null)
     },
     [isEdit, noticeId, token],
   )
@@ -86,7 +84,8 @@ export default function AdminNoticeEditorPage() {
       const created = await createAdminNotice(token, payload)
       navigate(`/admin/notices/${created.id}`)
     } catch (e) {
-      setError(e instanceof Error ? e.message : '저장에 실패했습니다.')
+      console.error('[admin-notices] failed to save notice', e)
+      setError(e instanceof Error && e.message !== 'DB_ERROR' ? e.message : '공지사항 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
       setSaving(false)
     }
@@ -98,7 +97,7 @@ export default function AdminNoticeEditorPage() {
     <main className="page admin-notices-page admin-notices-page--pc page--with-back content-wrapper page-shell">
       <header className="admin-notices-page__header">
         <h1>{pageTitle}</h1>
-        <p className="admin-notices-page__desc">텍스트와 이미지 블록을 자유롭게 배치할 수 있습니다.</p>
+        <p className="admin-notices-page__desc">네이버 글쓰기처럼 본문에서 텍스트와 이미지를 자유롭게 작성할 수 있습니다.</p>
       </header>
 
       {loading ? <p className="admin-notices-page__muted">불러오는 중…</p> : null}
@@ -121,16 +120,13 @@ export default function AdminNoticeEditorPage() {
           </label>
 
           <section className="admin-notices-editor__section">
-            <h2>본문 블록</h2>
-            <AdminNoticeBlockEditor
-              blocks={form.contentBlocks}
+            <h2>본문</h2>
+            <AdminNoticeRichEditor
+              value={form.contentHtml}
               disabled={saving}
-              onChange={(contentBlocks) => setForm((prev) => ({ ...prev, contentBlocks }))}
+              onChange={(contentHtml) => setForm((prev) => ({ ...prev, contentHtml }))}
               onUploadImage={handleUploadImage}
             />
-            {!isEdit ? (
-              <p className="admin-notices-page__muted">이미지 업로드는 공지를 먼저 저장한 뒤 수정 화면에서 가능합니다.</p>
-            ) : null}
           </section>
 
           <section className="admin-notices-editor__section admin-notices-editor__options">
@@ -199,7 +195,7 @@ export default function AdminNoticeEditorPage() {
             <h2>{form.title || '제목 없음'}</h2>
           </header>
           <div className="admin-notices-preview-modal__body">
-            <AdminNoticeBlockPreview blocks={form.contentBlocks} />
+            <AdminNoticeHtmlPreview html={form.contentHtml} />
           </div>
           <footer className="admin-notices-preview-modal__footer">
             <FormButton htmlType="button" variant="secondary" onClick={() => setPreviewOpen(false)}>

@@ -17,7 +17,8 @@ export type AdminNoticeContentBlock = AdminNoticeTextBlock | AdminNoticeImageBlo
 export type AdminNotice = {
   id: number
   title: string
-  contentBlocks: AdminNoticeContentBlock[]
+  contentHtml: string
+  contentBlocks?: AdminNoticeContentBlock[]
   plainText?: string | null
   status: AdminNoticeStatus
   showAsPopup: boolean
@@ -33,12 +34,12 @@ export type AdminNotice = {
 export type ActivePopupNotice = {
   id: number
   title: string
-  contentBlocks: AdminNoticeContentBlock[]
+  contentHtml: string
 }
 
 export type AdminNoticeFormState = {
   title: string
-  contentBlocks: AdminNoticeContentBlock[]
+  contentHtml: string
   status: AdminNoticeStatus
   showAsPopup: boolean
   popupPriority: number
@@ -48,7 +49,7 @@ export type AdminNoticeFormState = {
 
 export const emptyAdminNoticeForm = (): AdminNoticeFormState => ({
   title: '',
-  contentBlocks: [{ type: 'text', text: '' }],
+  contentHtml: '<p></p>',
   status: 'draft',
   showAsPopup: false,
   popupPriority: 0,
@@ -59,7 +60,7 @@ export const emptyAdminNoticeForm = (): AdminNoticeFormState => ({
 export function adminNoticeToForm(notice: AdminNotice): AdminNoticeFormState {
   return {
     title: notice.title,
-    contentBlocks: notice.contentBlocks.length > 0 ? notice.contentBlocks : [{ type: 'text', text: '' }],
+    contentHtml: notice.contentHtml?.trim() ? notice.contentHtml : '<p></p>',
     status: notice.status,
     showAsPopup: notice.showAsPopup,
     popupPriority: notice.popupPriority,

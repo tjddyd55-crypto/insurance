@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { FormButton } from '../../../components/form'
 import { BaseDialog } from '../../../components/dialog/BaseDialog'
 import type { ActivePopupNotice } from '../types/adminNotice.types'
-import { AdminNoticeBlockPreview } from './AdminNoticeBlockEditor'
+import { AdminNoticeHtmlPreview } from './AdminNoticeRichEditor'
 
 type Props = {
   notice: ActivePopupNotice
@@ -30,7 +30,7 @@ export function AdminNoticePopupModal({ notice, open, onClose }: Props) {
           <h2 className="m-0 text-lg font-semibold text-[var(--text-primary)]">{notice.title}</h2>
         </header>
         <div className="notification-login-modal__body flex-1 overflow-y-auto px-5 py-4">
-          <AdminNoticeBlockPreview blocks={notice.contentBlocks} />
+          <AdminNoticeHtmlPreview html={notice.contentHtml} />
         </div>
         <footer className="notification-login-modal__footer flex items-center justify-between gap-3 border-t border-[var(--border-default)] px-5 py-4">
           <label className="notification-login-modal__suppress flex items-center gap-2 text-sm text-[var(--text-secondary)]">
