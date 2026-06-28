@@ -112,6 +112,35 @@ export function resolveAdminUserSubscriptionTone(
   return resolveSubscriptionStatusTone(status)
 }
 
+export function resolveAdminUserSubscriptionBadgeClass(status: string | null | undefined): string {
+  const normalized = String(status ?? '').trim().toLowerCase()
+  if (!normalized || normalized === 'none') {
+    return 'admin-subscription-badge--none'
+  }
+  if (normalized === 'active_paid' || normalized === 'paid') {
+    return 'admin-subscription-badge--active-paid'
+  }
+  if (normalized === 'trialing' || normalized === 'trial') {
+    return 'admin-subscription-badge--trialing'
+  }
+  if (normalized === 'pending_payment' || normalized === 'pending') {
+    return 'admin-subscription-badge--pending-payment'
+  }
+  if (normalized === 'legacy_active' || normalized === 'active' || normalized === 'free') {
+    return 'admin-subscription-badge--legacy'
+  }
+  if (
+    normalized === 'past_due' ||
+    normalized === 'expired' ||
+    normalized === 'canceled' ||
+    normalized === 'cancelled' ||
+    normalized === 'blocked'
+  ) {
+    return 'admin-subscription-badge--warning'
+  }
+  return 'admin-subscription-badge--unknown'
+}
+
 export function formatAdminUserSubscriptionListLabel(row: {
   subscription_list_label?: string | null
   subscription_status?: string | null
