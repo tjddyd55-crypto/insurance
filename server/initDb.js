@@ -2897,6 +2897,39 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS admin_notices (
+      id BIGSERIAL PRIMARY KEY,
+      title TEXT NOT NULL,
+      content_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+      plain_text TEXT,
+      status TEXT NOT NULL DEFAULT 'draft',
+      show_as_popup BOOLEAN NOT NULL DEFAULT FALSE,
+      popup_priority INTEGER NOT NULL DEFAULT 0,
+      starts_at TIMESTAMPTZ,
+      ends_at TIMESTAMPTZ,
+      created_by TEXT,
+      updated_by TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_admin_notices_popup_active
+    ON admin_notices (status, show_as_popup, popup_priority DESC, updated_at DESC)
+  `)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS user_notice_dismissals (
+      id BIGSERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      notice_id BIGINT NOT NULL REFERENCES admin_notices(id) ON DELETE CASCADE,
+      dismissed_until TIMESTAMPTZ,
+      dismissed_forever BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (user_id, notice_id)
+    )
+  `)
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS user_insurer_accounts (
       id BIGSERIAL PRIMARY KEY,
       owner_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

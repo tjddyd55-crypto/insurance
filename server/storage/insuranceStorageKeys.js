@@ -222,6 +222,25 @@ export function buildInsuranceMessageKey({ userId, messageBatchId, category, fil
 }
 
 /**
+ * @param {object} params
+ * @param {string | number} [params.noticeId]
+ * @param {string | number} [params.userId]
+ * @param {string} params.fileName
+ */
+export function buildInsuranceAdminNoticeImageKey({ noticeId, userId, fileName }) {
+  const safeName = `${randomUUID()}-${sanitizeInsuranceStorageFileName(fileName)}`
+  if (noticeId != null && String(noticeId).trim() !== '') {
+    const noticeSeg = sanitizeInsurancePathSegment(noticeId)
+    if (!noticeSeg || noticeSeg === '_') {
+      throw new Error('noticeId is required')
+    }
+    return [INSURANCE_STORAGE_PREFIX, 'admin-notices', noticeSeg, safeName].join('/')
+  }
+  const userSeg = sanitizeInsuranceStorageUserId(userId ?? 'system')
+  return [INSURANCE_STORAGE_PREFIX, 'admin-notices', 'temp', userSeg, safeName].join('/')
+}
+
+/**
  * @param {string | null | undefined} storageKey
  */
 export function isLegacyInsuranceClaimGeneratedKey(storageKey) {

@@ -17,10 +17,8 @@ import { useBackButtonClose } from '../hooks/useBackButtonClose'
 import { isUserWorkspacePath } from '../features/user-ui/isUserWorkspacePath'
 import { isActivePcNavigationPath } from '../components/layout/pcNavigationUtils'
 import BillingStatusBadge from '../features/insurance-billing/components/BillingStatusBadge'
-import {
-  NotificationLoginModal,
-  useNotificationLoginModal,
-} from '../features/notification/components/NotificationLoginModal'
+import { AdminNoticePopupModal } from '../features/admin-notices/components/AdminNoticePopupModal'
+import { useAdminNoticePopup } from '../features/admin-notices/hooks/useAdminNoticePopup'
 
 /** B안 모드 랜딩에서도 PlatformModeSwitcher 노출 (appRouter 변경 없음). */
 function isPlatformAdminArea(pathname: string): boolean {
@@ -48,24 +46,30 @@ export function MobileLayout() {
   return <AppWorkspaceLayoutMobileShell />
 }
 
-/** 인증 라우트 전역: PC/모바일 레이아웃을 완전히 분리해 렌더링한다. */
-function NotificationLoginModalHost() {
+/** 인증 라우트 전역: 관리자 공지 팝업 (개인 알림 로그인 모달 대체) */
+function AdminNoticePopupHost() {
   const { token, user } = useAuth()
   const isNewsManager = user?.role === 'INSURER_MANAGER' || user?.role === 'LOSS_ADJUSTER'
-  const { open, close } = useNotificationLoginModal(isNewsManager ? null : token)
+  const { notice, open, close } = useAdminNoticePopup(isNewsManager ? null : token)
 
-  if (!token?.trim() || isNewsManager) {
+  if (!token?.trim() || isNewsManager || !notice) {
     return null
   }
 
-  return <NotificationLoginModal token={token} open={open} onClose={close} />
+  return (
+    <AdminNoticePopupModal
+      notice={notice}
+      open={open}
+      onClose={(options) => void close(options)}
+    />
+  )
 }
 
 export default function AppWorkspaceLayout() {
   return (
     <>
       <ResponsiveLayout PC={PCLayout} Mobile={MobileLayout} />
-      <NotificationLoginModalHost />
+      <AdminNoticePopupHost />
     </>
   )
 }

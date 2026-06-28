@@ -5144,6 +5144,247 @@ div.cta-button.customers-page__action-btn[role='button'] {
   background: var(--bg-card);
 }
 
+.admin-notices-page {
+  color: var(--text-primary);
+}
+
+.admin-notices-page__header h1 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.admin-notices-page__desc,
+.admin-notices-page__muted {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.admin-notices-page__error {
+  margin: 12px 0 0;
+  color: #ef4444;
+  font-size: 0.875rem;
+}
+
+.admin-notices-page__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.admin-notices-page__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.admin-notices-page__card {
+  padding: 16px;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--bg-card);
+}
+
+.admin-notices-page__card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.admin-notices-page__card-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.admin-notices-page__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.admin-notices-page__badge--popup {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.14);
+  color: #2563eb;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.admin-notices-page__preview {
+  margin: 10px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  white-space: pre-wrap;
+}
+
+.admin-notices-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.admin-notices-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.admin-notices-editor__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.admin-notices-editor__field input,
+.admin-notices-editor__field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--bg-soft);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.admin-notices-editor__section {
+  padding: 16px;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--bg-card);
+}
+
+.admin-notices-editor__options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.admin-notices-editor__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.admin-notices-editor__footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-notices-block-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-notices-block-editor__item {
+  padding: 12px;
+  border: 1px dashed var(--border-default);
+  border-radius: 10px;
+  background: var(--bg-soft);
+}
+
+.admin-notices-block-editor__item textarea {
+  width: 100%;
+  min-height: 96px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font: inherit;
+  resize: vertical;
+}
+
+.admin-notices-block-editor__image img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.admin-notices-block-editor__actions,
+.admin-notices-block-editor__upload {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.admin-notices-block-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-notices-block-preview__text {
+  margin: 0;
+  white-space: pre-wrap;
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.admin-notices-block-preview__figure {
+  margin: 0;
+}
+
+.admin-notices-block-preview__figure img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.admin-notices-preview-modal {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.admin-notices-preview-modal__header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.admin-notices-preview-modal__header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.admin-notices-preview-modal__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+.admin-notices-preview-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border-default);
+}
+
+.admin-notice-popup-modal .admin-notices-block-preview__text {
+  font-size: 0.95rem;
+}
+
 .user-insurer-accounts-page {
   color: var(--text-primary);
 }

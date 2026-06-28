@@ -30,7 +30,8 @@ import { applyPromotionCodeToAccount } from './promotions/promotionService.js'
 import { readPolicyActive } from './subscription/appSettings.js'
 import { registerCustomerExtraApi } from './apis/customerExtraApi.js'
 import { registerTeamApi } from './apis/teamApi.js'
-import { registerNotificationsApi } from './apis/notificationsApi.js'
+import { registerAdminNoticesApi } from './registerAdminNoticesApi.js'
+import { registerNoticesApi } from './apis/noticesApi.js'
 import { registerMemoApi } from './apis/memoApi.js'
 import { registerUserInsurerAccountsApi } from './apis/userInsurerAccountsApi.js'
 import { registerTodosApi } from './apis/todosApi.js'
@@ -1562,6 +1563,8 @@ registerGaCustomerMatchAliasesApi(apiRouter, {
 })
 
 registerNotificationsApi(apiRouter, { pool, requireAuth, handleDbError })
+registerNoticesApi(apiRouter, { pool, requireAuth, handleDbError })
+registerAdminNoticesApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
 
 registerMemoApi(apiRouter, { pool, requireAuth, handleDbError })
 registerUserInsurerAccountsApi(apiRouter, { pool, requireAuth, handleDbError })
