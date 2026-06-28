@@ -116,6 +116,7 @@ import {
   resolveTenantGaIdForRequest,
 } from './lib/rbacScope.js'
 import { logSecurityEvent, writeSecurityAudit } from './lib/securityAudit.js'
+import { listSecurityAuditLogs } from './lib/securityAuditListService.js'
 import { recordSuccessfulUserLoginSession, resolveMinConcurrentSessionCapForUser } from './lib/authSessions.js'
 import { registerConsentApi } from './registerConsentApi.js'
 import { registerInsurerNewsApi } from './registerInsurerNewsApi.js'
@@ -2919,11 +2920,6 @@ apiRouter.get('/admin/health/insurer-managers', requireAuth, requireInsurerHealt
 
 apiRouter.get('/admin/audit-logs', requireAuth, requireAuditLogReader, async (req, res) => {
   try {
-    const limit = Math.min(100, Math.max(1, Number.parseInt(String(req.query.limit ?? '50'), 10) || 50))
-    const actionQ = String(req.query.action ?? '').trim()
-    const actorUserIdQ = String(req.query.actor_user_id ?? '').trim()
-    const sinceQ = String(req.query.since ?? '').trim()
-
     const superUser = isSuperAdminRole(req.user.role)
     const userGa = parseGaId(req.user.gaId)
     if (!superUser && userGa == null) {
@@ -2931,41 +2927,16 @@ apiRouter.get('/admin/audit-logs', requireAuth, requireAuditLogReader, async (re
       return
     }
 
-    let sql = `
-      SELECT id, actor_user_id, actor_role, action, target_type, target_id, ga_id, company_id, meta, created_at
-      FROM security_audit_logs
-      WHERE 1=1
-    `
-    const params = []
-    let i = 1
-    if (!superUser) {
-      sql += ` AND ga_id = $${i}`
-      i += 1
-      params.push(userGa)
-    }
-    if (actionQ) {
-      sql += ` AND action = $${i}`
-      i += 1
-      params.push(actionQ)
-    }
-    if (actorUserIdQ) {
-      sql += ` AND actor_user_id = $${i}`
-      i += 1
-      params.push(actorUserIdQ)
-    }
-    if (sinceQ) {
-      const d = new Date(sinceQ)
-      if (!Number.isNaN(d.getTime())) {
-        sql += ` AND created_at >= $${i}`
-        i += 1
-        params.push(d.toISOString())
-      }
-    }
-    sql += ` ORDER BY created_at DESC NULLS LAST, id DESC LIMIT $${i}`
-    params.push(limit)
-
-    const r = await systemQuery(pool, sql, params)
-    res.json(r.rows)
+    const logs = await listSecurityAuditLogs(pool, {
+      limit: req.query.limit,
+      action: req.query.action,
+      category: req.query.category,
+      actorQ: req.query.actor_q ?? req.query.actorQ,
+      since: req.query.since,
+      superUser,
+      gaIdFilter: userGa,
+    })
+    res.json({ logs })
   } catch (error) {
     handleDbError(error, req, res)
   }
