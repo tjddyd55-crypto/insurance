@@ -207,6 +207,67 @@
   border-top: 1px solid var(--border-default);
 }
 
+.admin-user-management__toolbar {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.admin-user-management__search {
+  grid-column: 1 / -1;
+}
+
+.admin-subscription-badge {
+  display: inline-block;
+  max-width: 100%;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: normal;
+  word-break: keep-all;
+}
+
+.admin-subscription-badge--green {
+  color: #86efac;
+  background: color-mix(in srgb, #22c55e 18%, transparent);
+}
+
+.admin-subscription-badge--blue {
+  color: #93c5fd;
+  background: color-mix(in srgb, #3b82f6 18%, transparent);
+}
+
+.admin-subscription-badge--orange {
+  color: #fdba74;
+  background: color-mix(in srgb, #f97316 18%, transparent);
+}
+
+.admin-subscription-badge--red {
+  color: #fca5a5;
+  background: color-mix(in srgb, #ef4444 18%, transparent);
+}
+
+.admin-subscription-badge--gray {
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--text-secondary) 16%, transparent);
+}
+
+.admin-user-table__last-login-compact {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  .admin-user-table__last-login-full {
+    display: none;
+  }
+
+  .admin-user-table__last-login-compact {
+    display: inline;
+  }
+}
+
 /* GA·관리 모달 공통 입력 (라이트/다크) */
 .admin-form-input,
 .admin-ga-management .admin-modal-panel input,

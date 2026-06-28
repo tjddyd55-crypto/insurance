@@ -14,7 +14,7 @@ import { AnalyticsFilterBar } from '../components/AnalyticsFilterBar'
 import { AnalyticsLineChart } from '../components/AnalyticsLineChart'
 import { GaStatusTable } from '../components/GaStatusTable'
 import { SummaryKpiCards } from '../components/SummaryKpiCards'
-import { UserHealthCards } from '../components/UserHealthCards'
+import { getAnalyticsMetricLabel } from '../analyticsLabels'
 
 function addDaysYmd(ymd: string, delta: number): string {
   const [y, m, d] = ymd.split('-').map(Number)
@@ -138,7 +138,7 @@ export default function AdminAnalyticsPage() {
           }`}
           onClick={() => setTab('board')}
         >
-          현황판
+          오늘 현황
         </FormButton>
         <FormButton
           htmlType="button"
@@ -150,7 +150,7 @@ export default function AdminAnalyticsPage() {
           }`}
           onClick={() => setTab('chart')}
         >
-          통계 분석
+          자세히 보기
         </FormButton>
       </div>
 
@@ -161,12 +161,10 @@ export default function AdminAnalyticsPage() {
             gaTotalCount={dash.gaTotalCount}
             overall={dash.overall}
           />
-          <UserHealthCards statDate={dash.statDate} overall={dash.overall} />
           <ActivitySummaryCards statDate={dash.statDate} overall={dash.overall} />
           <section>
-            <h2 className="mb-2 text-lg font-semibold text-[var(--text-primary)]">
-              GA별 ({dash.statDate})
-            </h2>
+            <h2 className="mb-2 text-lg font-semibold text-[var(--text-primary)]">GA별 현황</h2>
+            <p className="mb-3 text-sm text-[var(--text-secondary)]">전일 {dash.statDate} 기준</p>
             <GaStatusTable statDate={dash.statDate} rows={dash.gaRows} />
           </section>
         </div>
@@ -195,7 +193,7 @@ export default function AdminAnalyticsPage() {
           />
           <AnalyticsLineChart
             points={chartPoints}
-            label={`${metric} · 최대 전일까지`}
+            label={`${getAnalyticsMetricLabel(metric)} · 전일까지`}
           />
         </div>
       ) : null}

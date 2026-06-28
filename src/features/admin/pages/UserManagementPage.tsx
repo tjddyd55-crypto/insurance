@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { FormDialog, useConfirmDialog } from '../../../components/dialog'
 import { EmptyState, StatusMessage } from '../../../components/feedback'
-import { FieldWrapper, FormButton, FormSelect } from '../../../components/form'
+import { FieldWrapper, FormButton, FormInput, FormSelect } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import {
   deleteAdminUser,
@@ -13,8 +13,15 @@ import {
   type GaCompanyRow,
   type UserRole,
 } from '../../auth/authApi'
+import {
+  ADMIN_USER_SUBSCRIPTION_FILTER_OPTIONS,
+  formatAdminUserLastLogin,
+  formatAdminUserSubscriptionListLabel,
+  resolveAdminUserSubscriptionTone,
+  type AdminUserSubscriptionFilter,
+} from '../adminUserPresentation'
 
-const STATUS_META: Record<EntityStatus, { label: string; fg: string; bg: string }> = {
+const ACCOUNT_STATUS_META: Record<EntityStatus, { label: string; fg: string; bg: string }> = {
   active: {
     label: '정상',
     fg: 'var(--success)',
@@ -32,11 +39,19 @@ const STATUS_META: Record<EntityStatus, { label: string; fg: string; bg: string 
   },
 }
 
-const STATUS_SELECT_OPTIONS: { value: EntityStatus; label: string }[] = [
+const ACCOUNT_STATUS_OPTIONS: { value: EntityStatus; label: string }[] = [
   { value: 'active', label: '정상' },
   { value: 'blocked', label: '접근금지' },
   { value: 'inactive', label: '비활성' },
 ]
+
+const SUBSCRIPTION_TONE_CLASS: Record<string, string> = {
+  green: 'admin-subscription-badge--green',
+  blue: 'admin-subscription-badge--blue',
+  orange: 'admin-subscription-badge--orange',
+  red: 'admin-subscription-badge--red',
+  gray: 'admin-subscription-badge--gray',
+}
 
 function normalizeUserStatus(s: string | undefined): EntityStatus {
   const v = String(s ?? '').toLowerCase()
@@ -46,8 +61,8 @@ function normalizeUserStatus(s: string | undefined): EntityStatus {
   return 'active'
 }
 
-function StatusBadge({ status }: { status: EntityStatus }) {
-  const m = STATUS_META[status]
+function AccountStatusBadge({ status }: { status: EntityStatus }) {
+  const m = ACCOUNT_STATUS_META[status]
   return (
     <span
       style={{
@@ -62,6 +77,16 @@ function StatusBadge({ status }: { status: EntityStatus }) {
       }}
     >
       {m.label}
+    </span>
+  )
+}
+
+function SubscriptionStatusBadge({ row }: { row: AdminUserRow }) {
+  const tone = resolveAdminUserSubscriptionTone(row.subscription_status)
+  const label = formatAdminUserSubscriptionListLabel(row)
+  return (
+    <span className={`admin-subscription-badge ${SUBSCRIPTION_TONE_CLASS[tone] ?? SUBSCRIPTION_TONE_CLASS.gray}`}>
+      {label}
     </span>
   )
 }
@@ -90,6 +115,8 @@ export default function UserManagementPage() {
   const { confirm, confirmDialog } = useConfirmDialog()
   const [gaList, setGaList] = useState<GaCompanyRow[]>([])
   const [gaFilter, setGaFilter] = useState<number | 'all'>('all')
+  const [subscriptionFilter, setSubscriptionFilter] = useState<AdminUserSubscriptionFilter>('')
+  const [searchQuery, setSearchQuery] = useState('')
   const [rows, setRows] = useState<AdminUserRow[]>([])
   const [loadError, setLoadError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -130,14 +157,18 @@ export default function UserManagementPage() {
     setLoadError('')
     setIsLoading(true)
     try {
-      const users = await listAdminUsers(token, gaFilter === 'all' ? undefined : gaFilter)
+      const users = await listAdminUsers(token, {
+        gaId: gaFilter === 'all' ? undefined : gaFilter,
+        subscriptionStatus: subscriptionFilter || undefined,
+        q: searchQuery.trim() || undefined,
+      })
       setRows(users.map((u) => ({ ...u, status: normalizeUserStatus(u.status as string) })))
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : '사용자 목록을 불러오지 못했습니다.')
     } finally {
       setIsLoading(false)
     }
-  }, [token, user?.role, gaFilter])
+  }, [token, user?.role, gaFilter, subscriptionFilter, searchQuery])
 
   useEffect(() => {
     void loadUsers()
@@ -196,27 +227,6 @@ export default function UserManagementPage() {
     }
   }
 
-  const applyUserStatus = async (row: AdminUserRow, status: EntityStatus) => {
-    if (!token?.trim()) {
-      return
-    }
-    if (normalizeUserStatus(row.status as string) === status) {
-      return
-    }
-    try {
-      const updated = await patchAdminUser(token, row.id, { status })
-      setRows((prev) =>
-        prev.map((u) =>
-          u.id === row.id
-            ? { ...u, ...updated, status: normalizeUserStatus(updated.status as string) }
-            : u,
-        ),
-      )
-    } catch (e) {
-      window.alert(e instanceof Error ? e.message : '상태 변경에 실패했습니다.')
-    }
-  }
-
   const confirmDeleteUser = async (row: AdminUserRow) => {
     if (!token?.trim()) {
       return
@@ -238,7 +248,6 @@ export default function UserManagementPage() {
   }
 
   const renderRowCells = (r: AdminUserRow) => {
-    const st = normalizeUserStatus(r.status as string)
     const displayName = String(r.display_name ?? '').trim()
     return (
       <>
@@ -248,19 +257,16 @@ export default function UserManagementPage() {
         <td>{formatReferrer(r)}</td>
         <td>{r.role}</td>
         <td>
-          <StatusBadge status={st} />
+          <SubscriptionStatusBadge row={r} />
+        </td>
+        <td className="admin-user-table__last-login">
+          <span className="admin-user-table__last-login-full">{formatAdminUserLastLogin(r.last_login_at)}</span>
+          <span className="admin-user-table__last-login-compact">
+            {formatAdminUserLastLogin(r.last_login_at, true)}
+          </span>
         </td>
         <td className="admin-table-cell--actions">
           <div className="admin-table-actions">
-            <FormSelect
-              className="admin-form-input"
-              style={{ width: 'auto', minWidth: 100 }}
-              value={st}
-              onChange={(e) => void applyUserStatus(r, e.target.value as EntityStatus)}
-              disabled={isLoading}
-              aria-label={`${r.username} 상태 변경`}
-              options={STATUS_SELECT_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
-            />
             <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={() => openEdit(r)} disabled={isLoading}>
               수정
             </FormButton>
@@ -280,7 +286,6 @@ export default function UserManagementPage() {
   }
 
   const renderUserCard = (r: AdminUserRow) => {
-    const st = normalizeUserStatus(r.status as string)
     const displayName = String(r.display_name ?? '').trim()
     return (
       <article key={r.id} className="admin-user-card">
@@ -305,21 +310,16 @@ export default function UserManagementPage() {
           <span className="admin-user-card__value">{r.role}</span>
         </div>
         <div className="admin-user-card__row">
-          <span className="admin-user-card__label">상태</span>
+          <span className="admin-user-card__label">구독 상태</span>
           <span className="admin-user-card__value">
-            <StatusBadge status={st} />
+            <SubscriptionStatusBadge row={r} />
           </span>
         </div>
+        <div className="admin-user-card__row">
+          <span className="admin-user-card__label">최근 접속일</span>
+          <span className="admin-user-card__value">{formatAdminUserLastLogin(r.last_login_at, true)}</span>
+        </div>
         <div className="admin-user-card__actions">
-          <FormSelect
-            className="admin-form-input"
-            style={{ flex: '1 1 120px', minWidth: 0 }}
-            value={st}
-            onChange={(e) => void applyUserStatus(r, e.target.value as EntityStatus)}
-            disabled={isLoading}
-            aria-label={`${r.username} 상태`}
-            options={STATUS_SELECT_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
-          />
           <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={() => openEdit(r)} disabled={isLoading}>
             수정
           </FormButton>
@@ -350,7 +350,7 @@ export default function UserManagementPage() {
       </header>
 
       <section className="admin-toolbar admin-user-management__toolbar card auth-card" style={{ maxWidth: 'none', margin: 0 }}>
-        <FieldWrapper label="GA 선택" className="admin-modal-field" >
+        <FieldWrapper label="GA 선택" className="admin-modal-field">
           <FormSelect
             className="admin-form-input"
             value={gaFilter === 'all' ? '' : String(gaFilter)}
@@ -362,6 +362,33 @@ export default function UserManagementPage() {
             disabled={isLoading}
             aria-busy={isLoading}
             options={[{ value: '', label: '전체' }, ...gaList.map((g) => ({ value: String(g.id), label: g.name }))]}
+          />
+        </FieldWrapper>
+        <FieldWrapper label="구독 상태" className="admin-modal-field">
+          <FormSelect
+            className="admin-form-input"
+            value={subscriptionFilter}
+            onChange={(e) => {
+              setSaveOk('')
+              setSubscriptionFilter(e.target.value as AdminUserSubscriptionFilter)
+            }}
+            disabled={isLoading}
+            options={ADMIN_USER_SUBSCRIPTION_FILTER_OPTIONS.map((opt) => ({
+              value: opt.value,
+              label: opt.label,
+            }))}
+          />
+        </FieldWrapper>
+        <FieldWrapper label="이름 / 아이디 검색" className="admin-modal-field admin-user-management__search">
+          <FormInput
+            className="admin-form-input"
+            value={searchQuery}
+            onChange={(e) => {
+              setSaveOk('')
+              setSearchQuery(e.target.value)
+            }}
+            placeholder="이름 또는 아이디"
+            disabled={isLoading}
           />
         </FieldWrapper>
       </section>
@@ -376,7 +403,8 @@ export default function UserManagementPage() {
                 <th scope="col">아이디</th>
                 <th scope="col">추천인</th>
                 <th scope="col">역할</th>
-                <th scope="col">상태</th>
+                <th scope="col">구독 상태</th>
+                <th scope="col">최근 접속일</th>
                 <th scope="col" className="admin-table-cell--actions">
                   관리
                 </th>
@@ -385,7 +413,7 @@ export default function UserManagementPage() {
             <tbody>
               {rows.length === 0 && !isLoading ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: '20px 14px', color: 'var(--text-sub)' }}>
+                  <td colSpan={8} style={{ padding: '20px 14px', color: 'var(--text-sub)' }}>
                     표시할 사용자가 없습니다.
                   </td>
                 </tr>
@@ -438,15 +466,33 @@ export default function UserManagementPage() {
                 options={EDIT_ROLE_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
               />
             </FieldWrapper>
-            <FieldWrapper label="상태" className="admin-modal-field">
+            <FieldWrapper label="계정 상태" className="admin-modal-field">
               <FormSelect
                 className="admin-form-input"
                 value={editStatus}
                 onChange={(e) => setEditStatus(e.target.value as EntityStatus)}
                 disabled={isSaving}
-                options={STATUS_SELECT_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
+                options={ACCOUNT_STATUS_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
               />
             </FieldWrapper>
+            <div className="admin-modal-field">
+              <span className="admin-user-card__label">현재 구독 상태</span>
+              <div style={{ marginTop: 6 }}>
+                <SubscriptionStatusBadge row={editing} />
+              </div>
+            </div>
+            <div className="admin-modal-field">
+              <span className="admin-user-card__label">최근 접속일</span>
+              <div style={{ marginTop: 6, color: 'var(--text-primary)' }}>
+                {formatAdminUserLastLogin(editing.last_login_at)}
+              </div>
+            </div>
+            <div className="admin-modal-field">
+              <span className="admin-user-card__label">계정 상태 표시</span>
+              <div style={{ marginTop: 6 }}>
+                <AccountStatusBadge status={editStatus} />
+              </div>
+            </div>
           </div>
           <div className="admin-modal-actions">
             <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={closeEdit} disabled={isSaving}>

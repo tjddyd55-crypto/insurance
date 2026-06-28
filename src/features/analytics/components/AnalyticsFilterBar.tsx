@@ -1,21 +1,13 @@
+import type { AnalyticsChartMetric } from '../adminAnalyticsApi'
+import { ANALYTICS_METRIC_OPTIONS } from '../analyticsLabels'
 import { FormSelect } from '../../../components/form'
-import type { AnalyticsChartMetric, AnalyticsGaOption } from '../adminAnalyticsApi'
 import {
   analyticsFilterShell,
   analyticsLabel,
   analyticsMuted,
   analyticsSelect,
 } from '../analyticsUiClasses'
-
-const METRIC_OPTIONS: { value: AnalyticsChartMetric; label: string }[] = [
-  { value: 'daily_active_users', label: 'DAU' },
-  { value: 'weekly_active_users', label: 'WAU' },
-  { value: 'total_users', label: '총 유저' },
-  { value: 'new_users', label: '신규 가입' },
-  { value: 'customers_created', label: '신규 고객' },
-  { value: 'documents_created', label: '문서 생성' },
-  { value: 'team_messages_created', label: '상담 메시지' },
-]
+import type { AnalyticsGaOption } from '../adminAnalyticsApi'
 
 type Props = {
   gaOptions: AnalyticsGaOption[]
@@ -46,7 +38,7 @@ export function AnalyticsFilterBar({
           className={analyticsSelect}
           value={metric}
           onChange={(e) => onMetricChange(e.target.value as AnalyticsChartMetric)}
-          options={METRIC_OPTIONS}
+          options={ANALYTICS_METRIC_OPTIONS}
         />
       </label>
       <label className={analyticsLabel}>
@@ -78,10 +70,7 @@ export function AnalyticsFilterBar({
           />
         </label>
       ) : null}
-      <p className={analyticsMuted}>
-        차트 마지막 날짜는 전일까지(
-        {statDateCap})로 제한됩니다.
-      </p>
+      <p className={analyticsMuted}>차트는 전일({statDateCap})까지의 데이터를 표시합니다.</p>
     </div>
   )
 }
