@@ -1,95 +1,236 @@
 .insurance-claim-form,
 .insurance-claim-history {
-  max-width: 900px;
+  --claim-surface: #ffffff;
+  --claim-soft: #f8fafc;
+  --claim-border: #e5e7eb;
+  --claim-text: #111827;
+  --claim-subtext: #6b7280;
+  --claim-label: #374151;
   margin: 0 auto;
-  color: var(--text-main);
+  color: var(--claim-text);
 }
 
-.insurance-claim-form__section {
-  margin-bottom: 24px;
-  padding: 16px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg, 12px);
-  background: var(--bg-surface, #ffffff);
+.insurance-claim-form-page {
+  max-width: 1180px;
+  padding: 28px 32px 56px;
 }
 
-.insurance-claim-form__section h2,
-.insurance-claim-form__section h3 {
-  margin: 0 0 12px;
-  color: var(--text-primary);
-  font-size: 1.05rem;
+.insurance-claim-history-page {
+  max-width: 1280px;
+  padding: 28px 32px 48px;
+}
+
+.insurance-claim-form .page-header,
+.insurance-claim-history .page-header {
+  margin-bottom: 20px;
+}
+
+.insurance-claim-form .page-header h1,
+.insurance-claim-history .page-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.3;
+  color: var(--claim-text);
+}
+
+.insurance-claim-form .page-header p,
+.insurance-claim-history .page-header p {
+  margin: 8px 0 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--claim-subtext);
+}
+
+.insurance-claim-page-header {
+  margin-bottom: 20px;
+}
+
+.insurance-claim-page-header__title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.insurance-claim-page-header__title-row h1 {
+  margin: 0;
+}
+
+.insurance-claim-page-header__actions {
+  flex-shrink: 0;
+}
+
+.insurance-claim-page-header__actions .button--primary {
+  min-height: 40px;
+}
+
+.insurance-claim-form__status {
+  display: inline-flex;
+  align-items: center;
+  margin: 10px 0 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--claim-border);
+  background: var(--claim-soft);
+  color: var(--claim-label);
+  font-size: 0.8125rem;
   font-weight: 700;
 }
 
-.insurance-claim-form__section label {
-  display: block;
-  margin-bottom: 10px;
-  color: var(--text-secondary);
+.insurance-claim-form__section {
+  margin-bottom: 14px;
+  padding: 18px 20px;
+  border: 1px solid var(--claim-border);
+  border-radius: 12px;
+  background: var(--claim-surface);
+}
+
+.insurance-claim-form__section h2 {
+  margin: 0 0 4px;
+  color: var(--claim-text);
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.insurance-claim-form__section-desc {
+  margin: 0 0 14px;
+  color: var(--claim-subtext);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.insurance-claim-form__field-grid {
+  display: grid;
+  gap: 12px 16px;
+}
+
+.insurance-claim-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+}
+
+.insurance-claim-form__label {
+  font-size: 0.875rem;
   font-weight: 600;
+  color: var(--claim-label);
+}
+
+.insurance-claim-form__section .form-input,
+.insurance-claim-form__section .form-select,
+.insurance-claim-form__section .form-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--claim-border);
+  border-radius: 10px;
+  background: var(--claim-surface);
+  color: var(--claim-text);
+}
+
+.insurance-claim-form__section .form-input,
+.insurance-claim-form__section .form-select {
+  height: 40px;
+  min-height: 40px;
+  padding: 0 12px;
+  font-size: 0.875rem;
+}
+
+.insurance-claim-form__section .form-textarea {
+  min-height: 76px;
+  padding: 10px 12px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.insurance-claim-form__section .form-input:focus,
+.insurance-claim-form__section .form-select:focus,
+.insurance-claim-form__section .form-textarea:focus {
+  border-color: var(--brand-primary, #16a34a);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-primary, #16a34a) 22%, transparent);
+  outline: none;
+}
+
+.insurance-claim-form__section .field--readonly.form-input,
+.insurance-claim-form__section .field--readonly.form-select,
+.insurance-claim-form__section .field--readonly.form-textarea {
+  background: var(--claim-soft);
+  color: var(--claim-subtext);
+}
+
+.insurance-claim-form__field--company .form-select {
+  max-width: 420px;
+}
+
+.insurance-claim-form__field--same .form-select {
+  max-width: 240px;
 }
 
 .insurance-claim-form__customer-search {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: stretch;
   margin-bottom: 12px;
 }
 
+.insurance-claim-form__customer-search .form-input {
+  flex: 1 1 220px;
+  min-width: 0;
+  height: 40px;
+  min-height: 40px;
+}
+
+.insurance-claim-form__customer-search .form-button {
+  flex: 0 0 auto;
+  min-height: 40px;
+  align-self: stretch;
+}
+
 .insurance-claim-form__customer-matches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin: 0 0 12px;
-  padding: 0;
-  list-style: none;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md, 8px);
-  overflow: hidden;
-}
-
-.insurance-claim-form__customer-matches li {
-  border-bottom: 1px solid var(--border-default);
-}
-
-.insurance-claim-form__customer-matches li:last-child {
-  border-bottom: none;
-}
-
-.insurance-claim-form__customer-matches button {
-  display: block;
-  width: 100%;
-  padding: 10px 12px;
-  border: none;
-  background: var(--bg-surface, #ffffff);
-  color: var(--text-main);
-  text-align: left;
-  cursor: pointer;
-}
-
-.insurance-claim-form__customer-matches button:hover {
-  background: var(--bg-muted, #f3f4f6);
 }
 
 .insurance-claim-form__hint {
   margin: 0;
-  color: var(--text-secondary);
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px dashed #d1d5db;
+  border-radius: 10px;
+  background: #f9fafb;
+  color: var(--claim-subtext);
   font-size: 0.875rem;
-}
-
-.insurance-claim-form__status {
-  margin: 8px 0 0;
-  color: var(--link);
-  font-size: 0.875rem;
+  line-height: 1.45;
+  box-sizing: border-box;
 }
 
 .insurance-claim-form__message {
-  margin: 12px 0;
-  color: var(--danger);
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--danger, #ef4444) 35%, var(--claim-border));
+  background: color-mix(in srgb, var(--danger, #ef4444) 8%, #ffffff);
+  color: var(--danger, #b91c1c);
   font-size: 0.875rem;
 }
 
-.insurance-claim-form__actions {
+.insurance-claim-form__actions-bar {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-start;
   gap: 8px;
-  margin-top: 16px;
+  margin-top: 18px;
+}
+
+.insurance-claim-form__actions-bar .form-button,
+.insurance-claim-form__actions-bar .button {
+  min-height: 40px;
 }
 
 .insurance-claim-form__file-list,
@@ -105,52 +246,88 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border-default);
-  color: var(--text-main);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--claim-border);
+  color: var(--claim-text);
+}
+
+.insurance-claim-form__file-list li:last-child,
+.insurance-claim-form__check-list li:last-child {
+  border-bottom: none;
 }
 
 .insurance-claim-form__check-item {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
   margin: 0;
   font-weight: 400;
+  color: var(--claim-text);
+}
+
+.insurance-claim-form__check-item input[type='checkbox'] {
+  margin-top: 3px;
+  width: 16px;
+  height: 16px;
+}
+
+.insurance-claim-form__upload {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 10px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--claim-label);
 }
 
 .insurance-claim-form__upload input[type='file'] {
-  margin-top: 8px;
-  color: var(--text-main);
+  width: 100%;
+  max-width: 420px;
+  padding: 10px 12px;
+  border: 1px dashed var(--claim-border);
+  border-radius: 10px;
+  background: var(--claim-soft);
+  color: var(--claim-text);
 }
 
 .insurance-claim-form__signature-grid {
   display: grid;
-  gap: 16px;
+  gap: 12px;
 }
 
 .insurance-claim-form__signature-block {
-  padding: 12px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md, 8px);
-  background: var(--bg-surface, #ffffff);
+  padding: 14px;
+  border: 1px solid var(--claim-border);
+  border-radius: 10px;
+  background: var(--claim-soft);
 }
 
 .insurance-claim-form__signature-block h3 {
   margin: 0 0 8px;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--claim-text);
 }
 
 .insurance-claim-form__signature-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 8px;
+  margin-top: 10px;
 }
 
 .insurance-claim-form__signature-status {
-  margin: 8px 0 0;
-  color: var(--text-secondary);
-  font-size: 0.875rem;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #047857;
+  font-size: 0.75rem;
+  font-weight: 700;
 }
 
 .insurance-claim-form__meta {
@@ -159,83 +336,104 @@
   flex-wrap: wrap;
   gap: 8px;
   margin: 8px 0 0;
-  color: var(--text-main);
+  color: var(--claim-text);
 }
 
-.insurance-claim-history__toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-  margin-bottom: 16px;
-}
+/* ── History page ── */
 
 .insurance-claim-history__message {
-  margin: 0 0 12px;
-  color: var(--danger);
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--danger, #ef4444) 35%, var(--claim-border));
+  background: color-mix(in srgb, var(--danger, #ef4444) 8%, #ffffff);
+  color: var(--danger, #b91c1c);
   font-size: 0.875rem;
 }
 
 .insurance-claim-history__empty {
-  margin: 16px 0 0;
-  color: var(--text-secondary);
+  margin: 0;
+  padding: 28px 16px;
+  border: 1px dashed var(--claim-border);
+  border-radius: 12px;
+  background: var(--claim-soft);
+  color: var(--claim-subtext);
   font-size: 0.9375rem;
+  text-align: center;
 }
 
 .insurance-claim-history__table-wrap {
   overflow-x: auto;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg, 12px);
-  background: var(--bg-surface, #ffffff);
+  border: 1px solid var(--claim-border);
+  border-radius: 12px;
+  background: var(--claim-surface);
 }
 
 .insurance-claim-history__table {
   width: 100%;
-  min-width: 720px;
+  min-width: 880px;
   border-collapse: collapse;
   font-size: 0.875rem;
 }
 
 .insurance-claim-history__table th,
 .insurance-claim-history__table td {
-  border-bottom: 1px solid var(--border-default);
-  padding: 10px 12px;
+  border-bottom: 1px solid var(--claim-border);
+  padding: 12px 14px;
   text-align: left;
   vertical-align: middle;
+  color: var(--claim-text);
 }
 
 .insurance-claim-history__table th {
-  background: var(--bg-soft);
-  color: var(--text-secondary);
-  font-weight: 600;
+  background: var(--claim-soft);
+  color: var(--claim-label);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .insurance-claim-history__table tr:last-child td {
   border-bottom: none;
 }
 
-.insurance-claim-history__actions {
+.insurance-claim-history__table td:nth-child(2) {
+  min-width: 120px;
+}
+
+.insurance-claim-history__actions,
+.claim-request-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
   align-items: center;
+}
+
+.insurance-claim-history__actions .button,
+.insurance-claim-history__actions .form-button,
+.claim-request-actions .button,
+.claim-request-actions .form-button {
+  min-height: 36px;
 }
 
 .insurance-claim-history__badge {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
+  padding: 4px 10px;
   border-radius: 999px;
   font-size: 0.75rem;
-  font-weight: 600;
-  border: 1px solid var(--border-default);
-  background: var(--bg-soft);
-  color: var(--text-secondary);
+  font-weight: 700;
+  line-height: 1.2;
+  border: 1px solid var(--claim-border);
+  background: var(--claim-soft);
+  color: var(--claim-subtext);
+  white-space: nowrap;
 }
 
 .insurance-claim-history__badge--draft {
   background: #f3f4f6;
   color: #4b5563;
+  border-color: #d1d5db;
 }
 
 .insurance-claim-history__badge--generated,
@@ -255,11 +453,140 @@
   display: inline-block;
   margin-left: 6px;
   font-size: 0.75rem;
-  color: var(--text-secondary);
+  color: var(--claim-subtext);
 }
 
-@media (min-width: 720px) {
+.insurance-claim-history__card-list {
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.insurance-claim-history__card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--claim-border);
+  border-radius: 12px;
+  background: var(--claim-surface);
+}
+
+.insurance-claim-history__card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.insurance-claim-history__card-label {
+  flex: 0 0 auto;
+  min-width: 88px;
+  color: var(--claim-subtext);
+  font-weight: 600;
+}
+
+.insurance-claim-history__card-value {
+  flex: 1 1 auto;
+  text-align: right;
+  color: var(--claim-text);
+  word-break: break-word;
+}
+
+.insurance-claim-history__card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--claim-border);
+}
+
+.insurance-claim-history__card-actions .button,
+.insurance-claim-history__card-actions .form-button {
+  flex: 1 1 calc(50% - 4px);
+  min-width: 120px;
+  min-height: 40px;
+}
+
+@media (min-width: 769px) {
+  .insurance-claim-form__field-grid--person {
+    grid-template-columns: minmax(180px, 1fr) minmax(220px, 1fr) minmax(180px, 1fr);
+  }
+
+  .insurance-claim-form__field--address {
+    grid-column: span 2;
+  }
+
+  .insurance-claim-form__field--job {
+    max-width: 260px;
+  }
+
+  .insurance-claim-form__field-grid--treatment {
+    grid-template-columns: 160px 180px minmax(320px, 1fr);
+    align-items: start;
+  }
+
+  .insurance-claim-form__field-grid--payment {
+    grid-template-columns: 140px 1fr 1.4fr 1fr;
+  }
+
   .insurance-claim-form__signature-grid {
     grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .insurance-claim-form-page,
+  .insurance-claim-history-page {
+    max-width: none;
+    padding: 18px 14px 40px;
+  }
+
+  .insurance-claim-form__field-grid--person,
+  .insurance-claim-form__field-grid--treatment,
+  .insurance-claim-form__field-grid--payment {
+    grid-template-columns: 1fr;
+  }
+
+  .insurance-claim-form__field--address {
+    grid-column: auto;
+  }
+
+  .insurance-claim-form__field--job,
+  .insurance-claim-form__field--company .form-select,
+  .insurance-claim-form__field--same .form-select {
+    max-width: none;
+  }
+
+  .insurance-claim-page-header__title-row {
+    display: block;
+  }
+
+  .insurance-claim-page-header__actions {
+    margin-top: 12px;
+  }
+
+  .insurance-claim-page-header__actions .button--primary {
+    width: 100%;
+  }
+
+  .insurance-claim-form__section {
+    padding: 16px;
+  }
+
+  .insurance-claim-form__actions-bar .form-button,
+  .insurance-claim-form__actions-bar .button {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 140px;
+  }
+
+  .insurance-claim-history__table-wrap {
+    display: none;
+  }
+
+  .insurance-claim-history__card-list {
+    display: flex;
   }
 }
