@@ -17,7 +17,7 @@ import {
   ADMIN_USER_SUBSCRIPTION_FILTER_OPTIONS,
   formatAdminUserLastLogin,
   formatAdminUserSubscriptionListLabel,
-  resolveAdminUserSubscriptionTone,
+  resolveAdminUserSubscriptionBadgeClass,
   type AdminUserSubscriptionFilter,
 } from '../adminUserPresentation'
 
@@ -44,14 +44,6 @@ const ACCOUNT_STATUS_OPTIONS: { value: EntityStatus; label: string }[] = [
   { value: 'blocked', label: '접근금지' },
   { value: 'inactive', label: '비활성' },
 ]
-
-const SUBSCRIPTION_TONE_CLASS: Record<string, string> = {
-  green: 'admin-subscription-badge--green',
-  blue: 'admin-subscription-badge--blue',
-  orange: 'admin-subscription-badge--orange',
-  red: 'admin-subscription-badge--red',
-  gray: 'admin-subscription-badge--gray',
-}
 
 function normalizeUserStatus(s: string | undefined): EntityStatus {
   const v = String(s ?? '').toLowerCase()
@@ -82,13 +74,9 @@ function AccountStatusBadge({ status }: { status: EntityStatus }) {
 }
 
 function SubscriptionStatusBadge({ row }: { row: AdminUserRow }) {
-  const tone = resolveAdminUserSubscriptionTone(row.subscription_status)
+  const badgeClass = resolveAdminUserSubscriptionBadgeClass(row.subscription_status)
   const label = formatAdminUserSubscriptionListLabel(row)
-  return (
-    <span className={`admin-subscription-badge ${SUBSCRIPTION_TONE_CLASS[tone] ?? SUBSCRIPTION_TONE_CLASS.gray}`}>
-      {label}
-    </span>
-  )
+  return <span className={`admin-subscription-badge ${badgeClass}`}>{label}</span>
 }
 
 function formatReferrer(row: AdminUserRow): string {
