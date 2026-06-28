@@ -8,6 +8,7 @@ import {
   createClaimDraft,
   downloadClaimBundle,
   generateClaimDocuments,
+  getClaimCompanyDocumentFields,
   getClaimRequest,
   listClaimCompanies,
   listCustomerClaimAppAttachments,
@@ -16,23 +17,21 @@ import {
   uploadClaimSignature,
   type ClaimAttachmentMetadata,
   type ClaimCompany,
+  type ClaimDocumentFieldSpec,
   type ClaimRequestDraft,
   type ClaimSignatureData,
   type CustomerClaimAppAttachment,
 } from '../api/claimRequestsApi'
 import ClaimRequestExtrasSection from '../components/ClaimRequestExtrasSection'
 import ClaimCompanyPickerPanel from '../components/ClaimCompanyPickerPanel'
+import ClaimTemplateFieldsSection from '../components/ClaimTemplateFieldsSection'
 import ClaimRequestPersonCustomerSearch from '../components/ClaimRequestPersonCustomerSearch'
 import InsuranceClaimSubnav from '../components/InsuranceClaimSubnav'
+import { resolveDefaultClaimFaxNumber, validateCompanySelection } from '../utils/claimCompanyValidation'
 import {
-  buildClaimDataWithCompanySpecificFields,
-  formatMultiClaimGenerateMessage,
-  toSelectedClaimCompanies,
-  validateCompanySelection,
-  validateCompanySpecificFields,
-  type CompanySpecificFields,
-  type MultiClaimGenerateFailure,
-} from '../utils/claimCompanyValidation'
+  filterTemplateFormFields,
+  validateTemplateFormFields,
+} from '../utils/claimTemplateFormFields'
 import '../insurance-claim-form.css'
 
 type Person = { name: string; ssn: string; phone: string; address: string; job: string }
@@ -122,8 +121,10 @@ export default function ClaimRequestFormPage() {
   const [params] = useSearchParams()
 
   const [companies, setCompanies] = useState<ClaimCompany[]>([])
-  const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([])
-  const [companySpecificFields, setCompanySpecificFields] = useState<CompanySpecificFields>({})
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null)
+  const [faxNumber, setFaxNumber] = useState('')
+  const [templateFields, setTemplateFields] = useState<ClaimDocumentFieldSpec[]>([])
+  const [templateFieldsLoading, setTemplateFieldsLoading] = useState(false)
   const [customerId, setCustomerId] = useState<number | null>(null)
   const [customerQuery, setCustomerQuery] = useState('')
   const [matches, setMatches] = useState<{ id: number; name: string; phone?: string }[]>([])
@@ -155,10 +156,7 @@ export default function ClaimRequestFormPage() {
 
   const draftSaved = requestId != null
   const isDraft = status === 'draft'
-  const selectedCompanies = useMemo(
-    () => toSelectedClaimCompanies(companies, selectedCompanyIds),
-    [companies, selectedCompanyIds],
-  )
+  const visibleTemplateFields = useMemo(() => filterTemplateFormFields(templateFields), [templateFields])
 
   const buildDraftPayload = useCallback(
     () => ({
@@ -166,7 +164,10 @@ export default function ClaimRequestFormPage() {
       insuredSnapshot: insured,
       contractorSnapshot: same ? null : contractor,
       contractorSameAsInsured: same,
-      claimData: claimData as Record<string, string>,
+      claimData: {
+        ...claimData,
+        faxNumberSnapshot: faxNumber.trim(),
+      } as Record<string, string>,
       paymentData,
       signatureData,
       selectedCustomerAttachmentIds,
@@ -177,6 +178,7 @@ export default function ClaimRequestFormPage() {
       claimData,
       contractor,
       customerId,
+      faxNumber,
       insured,
       paymentData,
       same,
@@ -185,28 +187,16 @@ export default function ClaimRequestFormPage() {
     ],
   )
 
-  const buildDraftPayloadForCompany = useCallback(
-    (companyId: string) => ({
-      ...buildDraftPayload(),
-      claimData: buildClaimDataWithCompanySpecificFields(
-        claimData as Record<string, string>,
-        companyId,
-        companySpecificFields,
-      ),
-    }),
-    [buildDraftPayload, claimData, companySpecificFields],
-  )
-
   const buildBody = useCallback(
     () => ({
-      ...buildDraftPayloadForCompany(selectedCompanyIds[0]),
-      insuranceCompanyId: Number(selectedCompanyIds[0]),
+      ...buildDraftPayload(),
+      insuranceCompanyId: Number(selectedCompanyId),
     }),
-    [buildDraftPayloadForCompany, selectedCompanyIds],
+    [buildDraftPayload, selectedCompanyId],
   )
 
   const validateBeforeSubmit = useCallback((): string | null => {
-    const companyError = validateCompanySelection(selectedCompanyIds)
+    const companyError = validateCompanySelection(selectedCompanyId)
     if (companyError) {
       return companyError
     }
@@ -214,47 +204,28 @@ export default function ClaimRequestFormPage() {
     if (commonError) {
       return commonError
     }
-    return validateCompanySpecificFields(selectedCompanies, companySpecificFields)
-  }, [companySpecificFields, insured, same, contractor, selectedCompanies, selectedCompanyIds])
+    return validateTemplateFormFields(visibleTemplateFields, {
+      ...claimData,
+      faxNumberSnapshot: faxNumber.trim(),
+    })
+  }, [claimData, faxNumber, insured, same, contractor, selectedCompanyId, visibleTemplateFields])
 
-  const toggleCompanyId = useCallback(
+  const selectCompany = useCallback(
     (companyId: string) => {
       if (!isDraft) {
         return
       }
-      setSelectedCompanyIds((prev) => {
-        const next =
-          requestId != null
-            ? prev.includes(companyId)
-              ? []
-              : [companyId]
-            : prev.includes(companyId)
-              ? prev.filter((id) => id !== companyId)
-              : [...prev, companyId]
-
-        if (!next.includes(companyId)) {
-          setCompanySpecificFields((fields) => {
-            if (!(companyId in fields)) {
-              return fields
-            }
-            const { [companyId]: _removed, ...rest } = fields
-            return rest
-          })
-        }
-        return next
-      })
+      setSelectedCompanyId(companyId)
+      const company = companies.find((row) => String(row.id) === companyId)
+      if (company) {
+        setFaxNumber(resolveDefaultClaimFaxNumber(company))
+      }
     },
-    [isDraft, requestId],
+    [companies, isDraft],
   )
 
-  const handleCompanyFieldChange = useCallback((companyId: string, fieldKey: string, value: string) => {
-    setCompanySpecificFields((prev) => ({
-      ...prev,
-      [companyId]: {
-        ...(prev[companyId] ?? {}),
-        [fieldKey]: value,
-      },
-    }))
+  const handleTemplateFieldChange = useCallback((dataKey: string, value: string) => {
+    setClaimData((prev) => ({ ...prev, [dataKey]: value }))
   }, [])
 
   const fillCustomer = useCallback(
@@ -286,17 +257,25 @@ export default function ClaimRequestFormPage() {
   )
 
   const applyRequest = useCallback((request: Awaited<ReturnType<typeof getClaimRequest>>['request']) => {
-    setSelectedCompanyIds([String(request.insuranceCompanyId)])
-    const rawSpecific = request.claimData?.companySpecificFields
-    if (rawSpecific && typeof rawSpecific === 'object' && !Array.isArray(rawSpecific)) {
-      const normalized: Record<string, string> = {}
-      for (const [key, value] of Object.entries(rawSpecific as Record<string, unknown>)) {
-        normalized[key] = String(value ?? '')
-      }
-      setCompanySpecificFields({ [String(request.insuranceCompanyId)]: normalized })
-    } else {
-      setCompanySpecificFields({})
+    setSelectedCompanyId(String(request.insuranceCompanyId))
+    const legacySpecific =
+      request.claimData?.companySpecificFields &&
+      typeof request.claimData.companySpecificFields === 'object' &&
+      !Array.isArray(request.claimData.companySpecificFields)
+        ? (request.claimData.companySpecificFields as Record<string, unknown>)
+        : {}
+    const extraClaimData = Object.fromEntries(
+      Object.entries(request.claimData ?? {}).filter(
+        ([key]) =>
+          !['claimType', 'treatmentDate', 'claimDescription', 'faxNumberSnapshot', 'companySpecificFields'].includes(
+            key,
+          ),
+      ),
+    )
+    for (const [key, value] of Object.entries(legacySpecific)) {
+      extraClaimData[key] = String(value ?? '')
     }
+    setFaxNumber(String(request.claimData?.faxNumberSnapshot ?? ''))
     setCustomerId(request.customerId)
     setInsured(request.insuredSnapshot as Person)
     setSame(request.contractorSameAsInsured)
@@ -305,6 +284,7 @@ export default function ClaimRequestFormPage() {
       claimType: request.claimData.claimType ?? 'disease',
       treatmentDate: request.claimData.treatmentDate ?? '',
       claimDescription: request.claimData.claimDescription ?? '',
+      ...extraClaimData,
     })
     setPaymentData({
       accountType: request.paymentData.accountType ?? 'normal',
@@ -424,6 +404,33 @@ export default function ClaimRequestFormPage() {
     void loadCustomerAttachments(customerId)
   }, [customerId, loadCustomerAttachments, token])
 
+  useEffect(() => {
+    if (selectedCompanyId == null || faxNumber.trim()) {
+      return
+    }
+    const company = companies.find((row) => String(row.id) === selectedCompanyId)
+    if (company) {
+      setFaxNumber(resolveDefaultClaimFaxNumber(company))
+    }
+  }, [companies, faxNumber, selectedCompanyId])
+
+  useEffect(() => {
+    if (!token || selectedCompanyId == null) {
+      setTemplateFields([])
+      return
+    }
+    const companyId = Number(selectedCompanyId)
+    if (!Number.isInteger(companyId) || companyId <= 0) {
+      setTemplateFields([])
+      return
+    }
+    setTemplateFieldsLoading(true)
+    void getClaimCompanyDocumentFields(token, companyId, 'claim_form')
+      .then(({ fields }) => setTemplateFields(fields))
+      .catch(() => setTemplateFields([]))
+      .finally(() => setTemplateFieldsLoading(false))
+  }, [selectedCompanyId, token])
+
   const findCustomers = async (target: 'insured' | 'contractor') => {
     const query = target === 'insured' ? customerQuery : contractorQuery
     if (!token || !query.trim()) return
@@ -462,33 +469,10 @@ export default function ClaimRequestFormPage() {
         return request
       }
 
-      const created: ClaimRequestDraft[] = []
-      for (const companyId of selectedCompanyIds) {
-        const numericId = Number(companyId)
-        if (!Number.isInteger(numericId) || numericId <= 0) {
-          continue
-        }
-        const { request } = await createClaimDraft(token, {
-          ...buildDraftPayloadForCompany(companyId),
-          insuranceCompanyId: numericId,
-        })
-        created.push(request)
-      }
-
-      if (created.length === 0) {
-        setMessage('청구 초안 저장에 실패했습니다.')
-        return null
-      }
-
-      if (created.length === 1) {
-        applyRequest(created[0])
-        navigateToSavedDraft(created[0])
-        return created[0]
-      }
-
-      setMessage(`${created.length}건의 청구 초안을 저장했습니다.`)
-      navigate('/insurance-claim/requests')
-      return created[0]
+      const { request } = await createClaimDraft(token, buildBody())
+      applyRequest(request)
+      navigateToSavedDraft(request)
+      return request
     } catch (e) {
       setMessage(e instanceof ApiError ? e.message : '청구 초안 저장에 실패했습니다.')
       return null
@@ -504,10 +488,6 @@ export default function ClaimRequestFormPage() {
     if (!token) {
       return null
     }
-    if (selectedCompanyIds.length > 1) {
-      setMessage('여러 보험회사 선택 시 먼저 [청구 초안 저장] 또는 [청구 문서 생성]을 눌러 주세요.')
-      return null
-    }
     const validationError = validateBeforeSubmit()
     if (validationError) {
       setMessage(validationError)
@@ -515,11 +495,7 @@ export default function ClaimRequestFormPage() {
     }
     setSaving(true)
     try {
-      const companyId = selectedCompanyIds[0]
-      const { request } = await createClaimDraft(token, {
-        ...buildDraftPayloadForCompany(companyId),
-        insuranceCompanyId: Number(companyId),
-      })
+      const { request } = await createClaimDraft(token, buildBody())
       applyRequest(request)
       navigateToSavedDraft(request)
       return request.id
@@ -601,7 +577,7 @@ export default function ClaimRequestFormPage() {
     }
   }
 
-  const handleGenerateAll = async () => {
+  const handleGenerateNew = async () => {
     if (!token || requestId != null) {
       return
     }
@@ -612,35 +588,20 @@ export default function ClaimRequestFormPage() {
     }
     setGenerating(true)
     setMessage('')
-    const failures: MultiClaimGenerateFailure[] = []
-    let successCount = 0
     try {
-      for (const company of selectedCompanies) {
-        try {
-          const { request } = await createClaimDraft(token, {
-            ...buildDraftPayloadForCompany(company.companyId),
-            insuranceCompanyId: Number(company.companyId),
-          })
-          if (!contractorSnapshotReady(request)) {
-            failures.push({
-              companyName: company.companyName,
-              message: '계약자 정보가 저장되지 않았습니다.',
-            })
-            continue
-          }
-          await generateClaimDocuments(token, request.id)
-          successCount += 1
-        } catch (e) {
-          failures.push({
-            companyName: company.companyName,
-            message: e instanceof ApiError ? e.message : '청구 문서 생성에 실패했습니다.',
-          })
-        }
+      const { request } = await createClaimDraft(token, buildBody())
+      if (!contractorSnapshotReady(request)) {
+        setMessage('계약자 정보가 저장되지 않았습니다. 계약자 정보 확인 후 다시 저장해 주세요.')
+        return
       }
-      setMessage(formatMultiClaimGenerateMessage(successCount, failures))
-      if (successCount > 0) {
-        navigate('/insurance-claim/requests')
-      }
+      const { request: generated } = await generateClaimDocuments(token, request.id)
+      setMessage('청구서·동의서 PDF를 생성했습니다.')
+      navigate(`/insurance-claim/requests/${generated.id}`, {
+        replace: true,
+        state: { claimRequestSeed: generated } satisfies ClaimFormLocationState,
+      })
+    } catch (e) {
+      setMessage(e instanceof ApiError ? e.message : '청구 문서 생성에 실패했습니다.')
     } finally {
       setGenerating(false)
     }
@@ -801,6 +762,21 @@ export default function ClaimRequestFormPage() {
             </div>
           </section>
 
+          {selectedCompanyId != null ? (
+            templateFieldsLoading ? (
+              <section className="insurance-claim-form__section claim-form-section">
+                <p className="insurance-claim-form__hint">청구서 입력 항목을 불러오는 중…</p>
+              </section>
+            ) : (
+              <ClaimTemplateFieldsSection
+                fields={visibleTemplateFields}
+                claimData={claimData}
+                disabled={!isDraft}
+                onFieldChange={handleTemplateFieldChange}
+              />
+            )
+          ) : null}
+
           <ClaimRequestExtrasSection
             customerId={customerId}
             draftSaved={draftSaved}
@@ -857,8 +833,8 @@ export default function ClaimRequestFormPage() {
               <FormButton
                 htmlType="button"
                 variant="secondary"
-                disabled={generating || selectedCompanyIds.length === 0}
-                onClick={() => void handleGenerateAll()}
+                disabled={generating || selectedCompanyId == null}
+                onClick={() => void handleGenerateNew()}
               >
                 {generating ? '생성 중…' : '청구 문서 생성'}
               </FormButton>
@@ -893,12 +869,11 @@ export default function ClaimRequestFormPage() {
 
         <ClaimCompanyPickerPanel
           companies={companies}
-          selectedCompanyIds={selectedCompanyIds}
-          onToggle={toggleCompanyId}
-          companySpecificFields={companySpecificFields}
-          onCompanyFieldChange={handleCompanyFieldChange}
+          selectedCompanyId={selectedCompanyId}
+          onSelect={selectCompany}
+          faxNumber={faxNumber}
+          onFaxNumberChange={setFaxNumber}
           disabled={!isDraft}
-          multiSelect={requestId == null}
         />
       </div>
     </main>
