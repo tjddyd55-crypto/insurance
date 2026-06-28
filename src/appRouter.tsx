@@ -62,6 +62,7 @@ import { IntroductionInstallPage } from './features/web/pages/IntroductionInstal
 import FeatureRequestPage from './features/feature-request/pages/FeatureRequestPage'
 import FeatureRequestsAdminPage from './features/feature-request/pages/FeatureRequestsAdminPage'
 import AdminAnalyticsPage from './features/analytics/pages/AdminAnalyticsPage'
+import AdminInsurerSitesPage from './features/insurer-sites/pages/AdminInsurerSitesPage'
 import AdminNoticeListPage from './features/admin-notices/pages/AdminNoticeListPage'
 import AdminNoticeEditorPage from './features/admin-notices/pages/AdminNoticeEditorPage'
 import PlatformHubPage from './features/platform/pages/PlatformHubPage'
