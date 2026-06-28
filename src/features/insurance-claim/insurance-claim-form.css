@@ -12,8 +12,8 @@
 .app-main-content .page.insurance-claim-page,
 .app-main-content .page.insurance-claim-form-page,
 .app-main-content .page.insurance-claim-history-page {
-  width: min(1180px, calc(100vw - 64px));
-  max-width: min(1180px, calc(100vw - 64px));
+  width: min(1480px, calc(100vw - 48px));
+  max-width: min(1480px, calc(100vw - 48px));
   margin-left: auto;
   margin-right: auto;
   padding: 28px 0 56px;
@@ -93,8 +93,8 @@
 
 .insurance-claim-compose-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) min(400px, 38vw);
-  gap: 18px;
+  grid-template-columns: minmax(520px, 560px) minmax(0, 1fr);
+  gap: 20px;
   align-items: start;
 }
 
@@ -103,24 +103,26 @@
 }
 
 .insurance-claim-company-panel {
-  position: sticky;
-  top: 92px;
+  min-width: 0;
 }
 
 .insurance-claim-company-panel__inner {
   margin-bottom: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 .insurance-claim-company-panel__title {
   margin: 0 0 4px;
-  font-size: 1rem;
+  font-size: 1.125rem;
   font-weight: 800;
   line-height: 1.35;
   color: var(--claim-text);
 }
 
 .insurance-claim-company-panel__desc {
-  margin: 0 0 8px;
+  margin: 0 0 14px;
   font-size: 0.8125rem;
   line-height: 1.45;
   color: var(--claim-subtext);
@@ -134,7 +136,7 @@
 }
 
 .insurance-claim-company-panel__hint {
-  margin: 10px 0 0;
+  margin: 12px 0 0;
   font-size: 0.8125rem;
   color: var(--claim-subtext);
 }
@@ -142,47 +144,79 @@
 .claim-company-groups {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  max-height: min(70vh, 480px);
+  gap: 16px;
+  max-height: none;
+  overflow: visible;
 }
 
 .claim-company-group {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  min-height: 0;
-  padding: 10px;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
+  border: 1px solid #dbe4ef;
+  border-radius: 14px;
   background: #ffffff;
+  overflow: visible;
+  max-height: none;
+}
+
+.claim-company-group__header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid #dbe4ef;
+  text-align: center;
 }
 
 .claim-company-group__title {
-  margin: 0 0 8px;
-  font-size: 0.8125rem;
+  margin: 0;
+  font-size: 1rem;
   font-weight: 800;
-  color: var(--claim-label);
+  line-height: 1.3;
+}
+
+.claim-company-group--life .claim-company-group__header {
+  background: #ecfdf5;
+  border-bottom-color: #a7f3d0;
+}
+
+.claim-company-group--life .claim-company-group__title {
+  color: #047857;
+}
+
+.claim-company-group--non-life .claim-company-group__header {
+  background: #eff6ff;
+  border-bottom-color: #bfdbfe;
+}
+
+.claim-company-group--non-life .claim-company-group__title {
+  color: #1d4ed8;
+}
+
+.claim-company-group__body {
+  padding: 12px;
 }
 
 .claim-company-group__list {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  overflow-y: auto;
-  min-height: 0;
-  max-height: 360px;
+  max-height: none;
+  overflow: visible;
 }
 
 .claim-company-group__empty {
   margin: 0;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   line-height: 1.45;
   color: var(--claim-subtext);
+  text-align: center;
 }
 
 .claim-company-option {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: flex-start;
   gap: 8px;
   width: 100%;
@@ -194,9 +228,12 @@
   font-size: 0.875rem;
   font-weight: 700;
   font-family: inherit;
-  line-height: 1.2;
+  line-height: 1.3;
   color: var(--claim-text);
   text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
   cursor: pointer;
   box-sizing: border-box;
 }
@@ -225,30 +262,12 @@
   font-weight: 800;
 }
 
-.claim-company-fax {
-  margin-top: 12px;
-  padding: 14px 16px;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  background: #ffffff;
+.claim-fax-section__field {
+  max-width: 420px;
 }
 
-.claim-company-fax__title {
-  margin: 0 0 8px;
-  font-size: 0.9375rem;
-  font-weight: 800;
-  color: var(--claim-text);
-}
-
-.claim-company-fax__company {
-  margin: 0 0 10px;
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: var(--claim-text);
-}
-
-.claim-company-fax .insurance-claim-form__hint + .insurance-claim-form__hint {
-  margin-top: 6px;
+.claim-fax-section .insurance-claim-form__hint {
+  margin-top: 8px;
 }
 
 /* ── Form sections ── */
@@ -708,7 +727,7 @@
 @media (min-width: 769px) {
   .claim-person-grid,
   .insurance-claim-form__field-grid--person {
-    grid-template-columns: 180px 220px 180px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .claim-person-search,
@@ -718,24 +737,29 @@
 
   .claim-person-address,
   .insurance-claim-form__field--address {
-    grid-column: span 2;
+    grid-column: 1 / -1;
   }
 
   .claim-person-job,
   .insurance-claim-form__field--job {
-    width: 220px;
-    max-width: 220px;
+    grid-column: span 1;
+    max-width: 280px;
   }
 
   .claim-treatment-grid,
   .insurance-claim-form__field-grid--treatment {
-    grid-template-columns: 140px 170px minmax(280px, 1fr);
+    grid-template-columns: minmax(140px, 180px) minmax(160px, 200px) minmax(0, 1fr);
     align-items: start;
   }
 
   .claim-bank-grid,
   .insurance-claim-form__field-grid--payment {
-    grid-template-columns: 130px 180px 260px 180px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .insurance-claim-form__field--account-type {
+    grid-column: 1 / -1;
+    max-width: 220px;
   }
 
   .insurance-claim-form__signature-grid {
@@ -749,17 +773,11 @@
   }
 
   .insurance-claim-company-panel {
-    position: static;
     order: -1;
   }
 
   .claim-company-groups {
     grid-template-columns: 1fr;
-    max-height: none;
-  }
-
-  .claim-company-group__list {
-    max-height: none;
   }
 }
 
