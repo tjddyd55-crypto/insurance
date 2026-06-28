@@ -85,6 +85,8 @@ import AccountDeletionPage from './features/legal/AccountDeletionPage'
 import { SuperAdminRoute } from './features/auth/SuperAdminRoute'
 import { PdfTemplateAdminRoute } from './features/auth/PdfTemplateAdminRoute'
 import { InsuranceClaimAdminRoute } from './features/auth/InsuranceClaimAdminRoute'
+import { InsuranceClaimUserRoute } from './features/auth/InsuranceClaimUserRoute'
+import { InsuranceClaimUserGate } from './features/auth/InsuranceClaimUserGate'
 import InsuranceClaimCompanyListPage from './features/insurance-claim-admin/pages/InsuranceClaimCompanyListPage'
 import InsuranceClaimCompanyDetailPage from './features/insurance-claim-admin/pages/InsuranceClaimCompanyDetailPage'
 import InsuranceClaimDocumentEditorPage from './features/insurance-claim-admin/pages/InsuranceClaimDocumentEditorPage'
@@ -376,9 +378,15 @@ export const appRouter = createBrowserRouter([
               { path: 'application/documents', element: <PdfDocumentListPage /> },
               { path: 'application/documents/history', element: <PdfIssuanceHistoryPage /> },
               { path: 'application/documents/:id', element: <PdfDocumentDetailPage /> },
-              { path: 'insurance-claim/new', element: <ClaimRequestFormPage /> },
-              { path: 'insurance-claim/requests', element: <ClaimRequestHistoryPage /> },
-              { path: 'insurance-claim/requests/:id', element: <ClaimRequestFormPage /> },
+              {
+                element: <InsuranceClaimUserRoute />,
+                children: [
+                  { path: 'insurance-claim/new', element: <ClaimRequestFormPage /> },
+                  { path: 'insurance-claim/requests', element: <ClaimRequestHistoryPage /> },
+                  { path: 'insurance-claim/requests/:id', element: <ClaimRequestFormPage /> },
+                  { path: 'claim-requests', element: <ClaimRequestsRoutePage /> },
+                ],
+              },
               { path: 'customers/map', element: <CustomerMapPage /> },
               {
                 path: 'customers',
@@ -397,7 +405,14 @@ export const appRouter = createBrowserRouter([
                   },
                   { path: ':customerId/application-documents/:id', element: <PdfDocumentDetailPage /> },
                   { path: ':customerId/signatures', element: <CustomerSignaturesRoutePage /> },
-                  { path: ':customerId/claim-requests', element: <ClaimRequestsRoutePage /> },
+                  {
+                    path: ':customerId/claim-requests',
+                    element: (
+                      <InsuranceClaimUserGate>
+                        <ClaimRequestsRoutePage />
+                      </InsuranceClaimUserGate>
+                    ),
+                  },
                 ],
               },
               { path: 'storage', element: <MyStoragePage /> },
@@ -478,7 +493,6 @@ export const appRouter = createBrowserRouter([
               { path: 'account/billing', element: <AccountBillingPage /> },
               { path: 'account/reset', element: <AccountResetPage /> },
               { path: 'feature-request', element: <FeatureRequestPage /> },
-              { path: 'claim-requests', element: <ClaimRequestsRoutePage /> },
               { path: 'feature-requests/my', element: <Navigate to="/feature-request" replace /> },
               {
                 element: <SuperAdminRoute />,

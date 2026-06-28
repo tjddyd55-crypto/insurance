@@ -7,7 +7,7 @@
 import { isAllowedForExpiredFrontend } from '../subscription/expiredAllowlist'
 import { canAccessContractSignatureAdminConsole } from '../contracts/testConsole/contractSignatureTestConsoleFlags'
 import {
-  canUseInsuranceClaimAdminRoutes,
+  canUseInsuranceClaimUserRoutes,
   canUseNewsletterBoardAdminRoutes,
   canUsePdfTemplateAdminRoutes,
 } from '../auth/roleGuards'
@@ -114,6 +114,8 @@ const DEV_BADGE = '개발중'
 type BuildGaTenantDashboardMenuOptions = {
   /** USER 역할에게만 신청서 아래 「전자서명」 블록을 붙인다. */
   includeUserContractSignatures?: boolean
+  /** USER 전용 — 청구관리·보험청구·고객소식지(청구 모듈) 노출 */
+  includeInsuranceClaimFeatures?: boolean
   dynamicNewsletterBoards?: DynamicNewsletterBoardMenuItem[]
 }
 
@@ -122,7 +124,8 @@ export function buildGaTenantDashboardMenu(
   gaName: string | undefined,
   options: BuildGaTenantDashboardMenuOptions = {},
 ): GaTenantDashboardMenuEntry[] {
-  const { includeUserContractSignatures = false, dynamicNewsletterBoards = [] } = options
+  const { includeUserContractSignatures = false, includeInsuranceClaimFeatures = false, dynamicNewsletterBoards = [] } =
+    options
 
   void gaCode
   void gaName
@@ -153,10 +156,27 @@ export function buildGaTenantDashboardMenu(
     },
   ]
 
-  const insuranceClaimMenu: GaTenantDashboardMenuEntry[] = [
-    { type: 'section', label: '보험청구' },
-    { type: 'link', label: INSURANCE_CLAIM_USER_MENU.label, path: INSURANCE_CLAIM_USER_MENU.path },
+  const customerManagementLinks: GaTenantDashboardMenuEntry[] = [
+    { type: 'link', label: '고객리스트', path: '/customers' },
+    { type: 'link', label: '고객 지도', path: '/customers/map' },
   ]
+  if (includeInsuranceClaimFeatures) {
+    customerManagementLinks.push(
+      {
+        type: 'link',
+        label: '고객소식지',
+        path: '/claim-requests?claimTab=news-all',
+      },
+      { type: 'link', label: '청구관리', path: '/claim-requests' },
+    )
+  }
+
+  const insuranceClaimMenu: GaTenantDashboardMenuEntry[] = includeInsuranceClaimFeatures
+    ? [
+        { type: 'section', label: '보험청구' },
+        { type: 'link', label: INSURANCE_CLAIM_USER_MENU.label, path: INSURANCE_CLAIM_USER_MENU.path },
+      ]
+    : []
 
   return [
     { type: 'section', label: '할일 및 알림' },
@@ -165,14 +185,7 @@ export function buildGaTenantDashboardMenu(
     { type: 'link', label: '메모', path: '/memo' },
 
     { type: 'section', label: '고객관리' },
-    { type: 'link', label: '고객리스트', path: '/customers' },
-    { type: 'link', label: '고객 지도', path: '/customers/map' },
-    {
-      type: 'link',
-      label: '고객소식지',
-      path: '/claim-requests?claimTab=news-all',
-    },
-    { type: 'link', label: '청구관리', path: '/claim-requests' },
+    ...customerManagementLinks,
 
     { type: 'section', label: '소식지' },
     { type: 'link', label: '원수사소식지', path: '/portal/newsletters' },
@@ -271,11 +284,6 @@ const PDF_TEMPLATE_ADMIN_MENU: GaTenantMenuItem = {
   path: '/admin/pdf-templates',
 }
 
-const INSURANCE_CLAIM_COMPANY_ADMIN_MENU: GaTenantMenuItem = {
-  label: '보험회사 설정',
-  path: '/admin/claim/insurance-companies',
-}
-
 const INSURANCE_CLAIM_USER_MENU: GaTenantMenuItem = {
   label: '보험청구',
   path: '/insurance-claim/requests',
@@ -283,25 +291,20 @@ const INSURANCE_CLAIM_USER_MENU: GaTenantMenuItem = {
 
 function buildGaTenantAdminMenuEntries(role: string | undefined): GaTenantDashboardMenuEntry[] {
   const entries: GaTenantDashboardMenuEntry[] = []
-  if (canUseInsuranceClaimAdminRoutes(role)) {
-    entries.push({ type: 'section', label: '청구 관리' })
-    entries.push({
-      type: 'link',
-      label: INSURANCE_CLAIM_COMPANY_ADMIN_MENU.label,
-      path: INSURANCE_CLAIM_COMPANY_ADMIN_MENU.path,
-    })
-  }
+  const documentItems: GaTenantMenuItem[] = []
+
   if (canUsePdfTemplateAdminRoutes(role)) {
-    entries.push({
-      type: 'link',
-      label: PDF_TEMPLATE_ADMIN_MENU.label,
-      path: PDF_TEMPLATE_ADMIN_MENU.path,
-    })
+    documentItems.push(PDF_TEMPLATE_ADMIN_MENU)
   }
   const signatureAdmin = contractSignatureAdminMenuIfEnabled(role)
   if (signatureAdmin) {
-    entries.push({ type: 'link', label: signatureAdmin.label, path: signatureAdmin.path })
+    documentItems.push(signatureAdmin)
   }
+  if (documentItems.length > 0) {
+    entries.push({ type: 'section', label: '전자문서 / 서명 관리' })
+    entries.push(...itemsToEntries(documentItems))
+  }
+
   if (canUseNewsletterBoardAdminRoutes(role)) {
     const newsletterLabel =
       role === 'SUPER_ADMIN'
@@ -309,8 +312,55 @@ function buildGaTenantAdminMenuEntries(role: string | undefined): GaTenantDashbo
         : role === 'GA_ADMIN'
           ? 'GA전용 소식지 관리'
           : '소식지 관리'
+    entries.push({ type: 'section', label: '공지 / 운영 관리' })
     entries.push({ type: 'link', label: newsletterLabel, path: '/admin/newsletter-boards' })
   }
+
+  return entries
+}
+
+function buildSuperAdminMenuEntries(): GaTenantDashboardMenuEntry[] {
+  const entries: GaTenantDashboardMenuEntry[] = []
+
+  entries.push({ type: 'section', label: '사용자 / 조직 관리' })
+  entries.push(
+    ...itemsToEntries([
+      { label: 'GA 관리', path: '/admin/ga' },
+      { label: '담당자 관리', path: '/admin/delegates' },
+      { label: '유저 관리', path: '/admin/users' },
+    ]),
+  )
+
+  entries.push({ type: 'section', label: '결제 / 구독 관리' })
+  entries.push(...itemsToEntries([{ label: '결제·구독 관리', path: '/admin/billing/manage' }]))
+
+  entries.push({ type: 'section', label: '공지 / 운영 관리' })
+  entries.push(
+    ...itemsToEntries([
+      { label: '공지사항 관리', path: '/admin/notices' },
+      { label: '소식지 관리', path: '/admin/newsletter-boards' },
+      { label: '운영 통계', path: '/admin/analytics' },
+      { label: '기능 요청 관리', path: '/internal/admin/feature-requests' },
+    ]),
+  )
+
+  const documentItems: GaTenantMenuItem[] = [PDF_TEMPLATE_ADMIN_MENU]
+  const signatureAdmin = contractSignatureAdminMenuIfEnabled('SUPER_ADMIN')
+  if (signatureAdmin) {
+    documentItems.push(signatureAdmin)
+  }
+  entries.push({ type: 'section', label: '전자문서 / 서명 관리' })
+  entries.push(...itemsToEntries(documentItems))
+
+  entries.push({ type: 'section', label: '보험사 / 시스템 설정' })
+  entries.push(
+    ...itemsToEntries([
+      { label: '보험사 설계사이트 관리', path: '/admin/insurer-sites' },
+      { label: '보험사 설계사이트 (일반·카드)', path: '/insurance/insurer-sites' },
+      { label: '보안 감사 로그', path: '/admin/audit-logs' },
+    ]),
+  )
+
   return entries
 }
 
@@ -319,38 +369,6 @@ function contractSignatureAdminMenuIfEnabled(role: string | undefined): GaTenant
     return null
   }
   return CONTRACT_SIGNATURE_ADMIN_MENU
-}
-
-const SUPER_ADMIN_BASE: GaTenantMenuItem[] = [
-  { label: 'GA 관리', path: '/admin/ga' },
-  { label: '담당자 관리', path: '/admin/delegates' },
-  { label: '유저 관리', path: '/admin/users' },
-  { label: '결제·구독 관리', path: '/admin/billing/manage' },
-  { label: '운영 통계', path: '/admin/analytics' },
-  { label: '기능 요청 관리', path: '/internal/admin/feature-requests' },
-  { label: '공지사항 관리', path: '/admin/notices' },
-  { label: '보험사 설계사이트 관리', path: '/admin/insurer-sites' },
-  { label: '소식지 관리', path: '/admin/newsletter-boards' },
-  { label: 'PDF 문서 템플릿', path: '/admin/pdf-templates' },
-  { label: '보험회사 설정', path: '/admin/claim/insurance-companies' },
-]
-
-function superAdminMenuWithPublicShortcuts(): GaTenantMenuItem[] {
-  const testItem = contractSignatureAdminMenuIfEnabled('SUPER_ADMIN')
-  const adminItems = [...SUPER_ADMIN_BASE]
-  if (testItem) {
-    const pdfIdx = adminItems.findIndex((i) => i.path === '/admin/pdf-templates')
-    if (pdfIdx >= 0) {
-      adminItems.splice(pdfIdx + 1, 0, testItem)
-    } else {
-      adminItems.push(testItem)
-    }
-  }
-  return [
-    ...adminItems,
-    /* SUPER_ADMIN 전용: FC·GA와 동일한 카드 UI 미리보기. "관리" 항목과 경로·라벨 혼동 방지 */
-    { label: '보험사 설계사이트 (일반·카드)', path: '/insurance/insurer-sites' },
-  ]
 }
 
 function itemsToEntries(items: GaTenantMenuItem[]): GaTenantDashboardMenuEntry[] {
@@ -371,17 +389,7 @@ export function buildAppMenuForSession(
 
   const base: GaTenantDashboardMenuEntry[] = (() => {
     if (role === 'SUPER_ADMIN') {
-      return [
-        ...itemsToEntries(superAdminMenuWithPublicShortcuts()),
-        { type: 'link', label: AUDIT_LOG_ENTRY.label, path: AUDIT_LOG_ENTRY.path },
-        { type: 'divider' },
-        { type: 'section', label: '보험청구' },
-        {
-          type: 'link',
-          label: INSURANCE_CLAIM_USER_MENU.label,
-          path: INSURANCE_CLAIM_USER_MENU.path,
-        },
-      ]
+      return buildSuperAdminMenuEntries()
     }
     if (role === 'INSURER_MANAGER') {
       return itemsToEntries(INSURER_MANAGER_MENU)
@@ -406,14 +414,17 @@ export function buildAppMenuForSession(
       return [...adminEntries, { type: 'divider' }, ...operational]
     }
     if (role === 'GA_ADMIN' || role === 'USER') {
+      const includeInsuranceClaimFeatures = canUseInsuranceClaimUserRoutes(role)
       const entries = buildGaTenantDashboardMenu(gaCode, gaName, {
         includeUserContractSignatures: role === 'USER',
+        includeInsuranceClaimFeatures,
         dynamicNewsletterBoards,
       })
       if (role === 'GA_ADMIN') {
         entries.push(...buildGaTenantAdminMenuEntries('GA_ADMIN'))
         entries.push(
           { type: 'divider' },
+          { type: 'section', label: '보안 / 감사' },
           { type: 'link', label: AUDIT_LOG_ENTRY.label, path: AUDIT_LOG_ENTRY.path },
         )
       }

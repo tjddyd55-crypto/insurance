@@ -9,6 +9,7 @@ export type CustomerWorkspaceActionsProps = {
   carFeatureEnabled: boolean
   contractSignaturesEnabled: boolean
   gaExcelEnabled: boolean
+  claimsFeatureEnabled: boolean
   onOpenFilesModal: (customerId: number) => void
   onOpenConsultationsModal: (customerId: number) => void
   onOpenAutoModal: (customerId: number) => void
@@ -33,6 +34,7 @@ export function CustomerWorkspaceActions({
   carFeatureEnabled,
   contractSignaturesEnabled,
   gaExcelEnabled,
+  claimsFeatureEnabled,
   onOpenFilesModal,
   onOpenConsultationsModal,
   onOpenAutoModal,
@@ -126,28 +128,32 @@ export function CustomerWorkspaceActions({
             </span>
             <MobileActionText>GA 데이터 보기</MobileActionText>
           </FormButton>
-          <FormButton
-            htmlType="button"
-            variant="secondary"
-            className="button button--secondary customer-mobile-action-btn"
-            onClick={() => onOpenPersonalMessage(customerId)}
-          >
-            <span className="customer-mobile-action-btn__icon" aria-hidden>
-              ✉️
-            </span>
-            <MobileActionText>개인메시지</MobileActionText>
-          </FormButton>
-          <FormButton
-            htmlType="button"
-            variant="secondary"
-            className="button button--secondary customer-mobile-action-btn"
-            onClick={() => onOpenClaims(customerId)}
-          >
-            <span className="customer-mobile-action-btn__icon" aria-hidden>
-              📋
-            </span>
-            <MobileActionText>청구</MobileActionText>
-          </FormButton>
+          {claimsFeatureEnabled ? (
+            <>
+              <FormButton
+                htmlType="button"
+                variant="secondary"
+                className="button button--secondary customer-mobile-action-btn"
+                onClick={() => onOpenPersonalMessage(customerId)}
+              >
+                <span className="customer-mobile-action-btn__icon" aria-hidden>
+                  ✉️
+                </span>
+                <MobileActionText>개인메시지</MobileActionText>
+              </FormButton>
+              <FormButton
+                htmlType="button"
+                variant="secondary"
+                className="button button--secondary customer-mobile-action-btn"
+                onClick={() => onOpenClaims(customerId)}
+              >
+                <span className="customer-mobile-action-btn__icon" aria-hidden>
+                  📋
+                </span>
+                <MobileActionText>청구</MobileActionText>
+              </FormButton>
+            </>
+          ) : null}
           <FormButton
             htmlType="button"
             variant="secondary"
