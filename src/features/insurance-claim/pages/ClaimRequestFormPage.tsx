@@ -620,6 +620,15 @@ export default function ClaimRequestFormPage() {
     }
   }
 
+  const hasTemplateSection =
+    selectedCompanyId != null && (templateFieldsLoading || visibleTemplateFields.length > 0)
+  const extrasSectionStart = (same ? 4 : 5) + (hasTemplateSection ? 1 : 0) + 1
+  const faxSectionNumber = extrasSectionStart + 3
+  const selectedCompany = useMemo(
+    () => companies.find((company) => String(company.id) === selectedCompanyId) ?? null,
+    [companies, selectedCompanyId],
+  )
+
   const personInputFields = (value: Person, setValue: (value: Person) => void) => (
     <div className="insurance-claim-form__field-grid insurance-claim-form__field-grid--person claim-person-grid">
       {(['name', 'ssn', 'phone', 'address', 'job'] as const).map((key) => (
@@ -646,13 +655,19 @@ export default function ClaimRequestFormPage() {
     <main className="page page--with-back insurance-claim-form insurance-claim-form-page insurance-claim-page">
       <header className="page-header">
         <h1>{requestId != null ? `보험청구 #${requestId}` : '보험청구'}</h1>
-        <p>고객 등록 없이 직접 입력할 수 있으며, 고객 불러오기는 입력 보조 기능입니다.</p>
         {requestId != null ? <p className="insurance-claim-form__status">상태: {formatStatus(status)}</p> : null}
       </header>
 
-      <InsuranceClaimSubnav />
+      {requestId != null ? <InsuranceClaimSubnav /> : null}
 
       <div className="insurance-claim-compose-layout">
+        <ClaimCompanyPickerPanel
+          companies={companies}
+          selectedCompanyId={selectedCompanyId}
+          onSelect={selectCompany}
+          disabled={!isDraft}
+        />
+
         <div className="insurance-claim-main-form">
           <section className="insurance-claim-form__section claim-form-section">
             <h2>1. 피보험자 정보</h2>
@@ -736,7 +751,7 @@ export default function ClaimRequestFormPage() {
             <h2>{same ? '4' : '5'}. 계좌정보</h2>
             <p className="insurance-claim-form__section-desc">보험금 수령 계좌 정보를 입력합니다.</p>
             <div className="insurance-claim-form__field-grid insurance-claim-form__field-grid--payment claim-bank-grid">
-              <label className="insurance-claim-form__field">
+              <label className="insurance-claim-form__field insurance-claim-form__field--account-type">
                 <span className="insurance-claim-form__label">계좌 유형</span>
                 <FormSelect
                   value={paymentData.accountType}
@@ -747,18 +762,30 @@ export default function ClaimRequestFormPage() {
                   ]}
                 />
               </label>
-              {(['bankName', 'accountNumber', 'accountHolder'] as const).map((key) => (
-                <label key={key} className="insurance-claim-form__field">
-                  <span className="insurance-claim-form__label">
-                    {key === 'bankName' ? '은행명' : key === 'accountNumber' ? '계좌번호' : '예금주'}
-                  </span>
-                  <FormInput
-                    value={paymentData[key]}
-                    onChange={(e) => setPaymentData({ ...paymentData, [key]: e.target.value })}
-                    placeholder={key === 'bankName' ? '은행명' : key === 'accountNumber' ? '계좌번호' : '예금주'}
-                  />
-                </label>
-              ))}
+              <label className="insurance-claim-form__field">
+                <span className="insurance-claim-form__label">은행명</span>
+                <FormInput
+                  value={paymentData.bankName}
+                  onChange={(e) => setPaymentData({ ...paymentData, bankName: e.target.value })}
+                  placeholder="은행명"
+                />
+              </label>
+              <label className="insurance-claim-form__field">
+                <span className="insurance-claim-form__label">예금주</span>
+                <FormInput
+                  value={paymentData.accountHolder}
+                  onChange={(e) => setPaymentData({ ...paymentData, accountHolder: e.target.value })}
+                  placeholder="예금주"
+                />
+              </label>
+              <label className="insurance-claim-form__field">
+                <span className="insurance-claim-form__label">계좌번호</span>
+                <FormInput
+                  value={paymentData.accountNumber}
+                  onChange={(e) => setPaymentData({ ...paymentData, accountNumber: e.target.value })}
+                  placeholder="계좌번호"
+                />
+              </label>
             </div>
           </section>
 
@@ -816,8 +843,32 @@ export default function ClaimRequestFormPage() {
                 void persistDraft(requestId, { signatureData: nextSignatureData })
               }
             }}
-            sectionsStartAt={same ? 5 : 6}
+            sectionsStartAt={extrasSectionStart}
           />
+
+          {selectedCompanyId != null ? (
+            <section className="insurance-claim-form__section claim-form-section claim-fax-section">
+              <h2>
+                {faxSectionNumber}. 청구 팩스번호
+                {selectedCompany ? ` · ${selectedCompany.companyName}` : ''}
+              </h2>
+              <p className="insurance-claim-form__section-desc">
+                보험회사에 저장된 청구 팩스번호를 기본값으로 불러옵니다. 필요하면 이번 청구에서만 수정해서 사용할 수 있습니다.
+              </p>
+              <label className="insurance-claim-form__field claim-fax-section__field">
+                <span className="insurance-claim-form__label">팩스번호</span>
+                <FormInput
+                  value={faxNumber}
+                  disabled={!isDraft}
+                  placeholder="예: 0505-123-4567"
+                  onChange={(event) => setFaxNumber(event.target.value)}
+                />
+              </label>
+              <p className="insurance-claim-form__hint">
+                팩스 발송 시 사용할 번호입니다. 번호가 없으면 팩스 발송 전 입력해야 합니다.
+              </p>
+            </section>
+          ) : null}
 
           {message ? (
             <p className="insurance-claim-form__message" role="alert">
@@ -866,15 +917,6 @@ export default function ClaimRequestFormPage() {
             </Link>
           </div>
         </div>
-
-        <ClaimCompanyPickerPanel
-          companies={companies}
-          selectedCompanyId={selectedCompanyId}
-          onSelect={selectCompany}
-          faxNumber={faxNumber}
-          onFaxNumberChange={setFaxNumber}
-          disabled={!isDraft}
-        />
       </div>
     </main>
   )
