@@ -489,11 +489,17 @@ export default function ClaimRequestFormPage() {
   }
 
   const personInputFields = (value: Person, setValue: (value: Person) => void) => (
-    <div className="insurance-claim-form__field-grid">
+    <div className="insurance-claim-form__field-grid insurance-claim-form__field-grid--person">
       {(['name', 'ssn', 'phone', 'address', 'job'] as const).map((key) => (
         <label
           key={key}
-          className={`insurance-claim-form__field${key === 'address' ? ' insurance-claim-form__field--full' : ''}`}
+          className={`insurance-claim-form__field${
+            key === 'address'
+              ? ' insurance-claim-form__field--address'
+              : key === 'job'
+                ? ' insurance-claim-form__field--job'
+                : ''
+          }`}
         >
           <span className="insurance-claim-form__label">
             {({ name: '이름', ssn: '주민등록번호', phone: '연락처', address: '주소', job: '직업' }[key])}
@@ -505,7 +511,7 @@ export default function ClaimRequestFormPage() {
   )
 
   return (
-    <main className="page page--with-back insurance-claim-form">
+    <main className="page page--with-back insurance-claim-form insurance-claim-form-page">
       <header className="page-header">
         <h1>{requestId != null ? `보험청구 #${requestId}` : '보험청구 작성'}</h1>
         <p>고객 등록 없이 직접 입력할 수 있으며, 고객 불러오기는 입력 보조 기능입니다.</p>
@@ -515,7 +521,7 @@ export default function ClaimRequestFormPage() {
       <section className="insurance-claim-form__section">
         <h2>1. 보험회사</h2>
         <p className="insurance-claim-form__section-desc">청구할 보험회사를 선택합니다.</p>
-        <label className="insurance-claim-form__field insurance-claim-form__field--full">
+        <label className="insurance-claim-form__field insurance-claim-form__field--company">
           <span className="insurance-claim-form__label">보험회사</span>
           <FormSelect
             value={companyId}
@@ -540,7 +546,7 @@ export default function ClaimRequestFormPage() {
 
       <section className="insurance-claim-form__section">
         <h2>3. 계약자와 피보험자 동일 여부</h2>
-        <label className="insurance-claim-form__field insurance-claim-form__field--full">
+        <label className="insurance-claim-form__field insurance-claim-form__field--same">
           <span className="insurance-claim-form__label">동일 여부</span>
           <FormSelect
             value={same ? 'yes' : 'no'}
@@ -571,7 +577,7 @@ export default function ClaimRequestFormPage() {
       <section className="insurance-claim-form__section">
         <h2>5. 진료 / 사고 정보</h2>
         <p className="insurance-claim-form__section-desc">청구 유형과 진료·사고 내용을 입력합니다.</p>
-        <div className="insurance-claim-form__field-grid">
+        <div className="insurance-claim-form__field-grid insurance-claim-form__field-grid--treatment">
           <label className="insurance-claim-form__field">
             <span className="insurance-claim-form__label">청구유형</span>
             <FormSelect
@@ -592,7 +598,7 @@ export default function ClaimRequestFormPage() {
               onChange={(e) => setClaimData({ ...claimData, treatmentDate: e.target.value })}
             />
           </label>
-          <label className="insurance-claim-form__field insurance-claim-form__field--full">
+          <label className="insurance-claim-form__field insurance-claim-form__field--description">
             <span className="insurance-claim-form__label">질병/사고 내용</span>
             <FormTextarea
               value={claimData.claimDescription}

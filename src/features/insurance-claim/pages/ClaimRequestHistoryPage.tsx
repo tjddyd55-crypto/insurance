@@ -174,15 +174,17 @@ export default function ClaimRequestHistoryPage() {
   }
 
   return (
-    <main className="page page--with-back insurance-claim-history">
-      <header className="page-header insurance-claim-history__header">
-        <div className="insurance-claim-history__header-main">
+    <main className="page page--with-back insurance-claim-history insurance-claim-history-page">
+      <header className="page-header insurance-claim-page-header">
+        <div className="insurance-claim-page-header__title-row">
           <h1>보험청구</h1>
-          <p>청구 내역을 확인하고 새 청구를 작성합니다.</p>
+          <div className="insurance-claim-page-header__actions">
+            <Link className="button button--primary" to="/insurance-claim/new">
+              새 청구
+            </Link>
+          </div>
         </div>
-        <Link className="button button--primary" to="/insurance-claim/new">
-          새 청구
-        </Link>
+        <p>청구 내역을 확인하고 새 청구를 작성합니다.</p>
       </header>
 
       {message ? (
