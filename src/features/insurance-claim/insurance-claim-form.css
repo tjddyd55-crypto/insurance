@@ -225,7 +225,7 @@
   font-weight: 800;
 }
 
-.claim-company-extra-fields {
+.claim-company-fax {
   margin-top: 12px;
   padding: 14px 16px;
   border: 1px solid #e5e7eb;
@@ -233,45 +233,22 @@
   background: #ffffff;
 }
 
-.claim-company-extra-fields--empty {
-  margin-top: 12px;
-}
-
-.claim-company-extra-fields__title {
-  margin: 0 0 10px;
+.claim-company-fax__title {
+  margin: 0 0 8px;
   font-size: 0.9375rem;
   font-weight: 800;
   color: var(--claim-text);
 }
 
-.claim-company-extra-fields__list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.claim-company-extra-fields__block {
-  padding: 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  background: #f9fafb;
-}
-
-.claim-company-extra-fields__company-name {
+.claim-company-fax__company {
   margin: 0 0 10px;
   font-size: 0.875rem;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--claim-text);
 }
 
-.claim-company-extra-fields__empty {
-  margin: 0;
-  font-size: 0.8125rem;
-  color: var(--claim-subtext);
-}
-
-.claim-company-extra-fields__block .insurance-claim-form__field + .insurance-claim-form__field {
-  margin-top: 10px;
+.claim-company-fax .insurance-claim-form__hint + .insurance-claim-form__hint {
+  margin-top: 6px;
 }
 
 /* ── Form sections ── */

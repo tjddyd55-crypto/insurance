@@ -55,7 +55,23 @@ export type ClaimCompany = {
   id: number
   companyName: string
   faxNumber: string
+  claimFaxNumber?: string
   companyType?: 'life' | 'non_life' | 'mutual' | 'other'
+}
+
+export type ClaimDocumentFieldSpec = {
+  id?: number
+  fieldKey: string
+  label: string
+  fieldType?: string
+  required?: boolean
+  inputRole?: 'customer' | 'sender' | 'disabled'
+  options?: Array<{ label: string; value: string }> | null
+  dataMapping?: {
+    dataSourceType?: string
+    customerFieldKey?: string
+    useSecondaryCustomer?: boolean
+  } | null
 }
 
 export type ClaimDraftPayload = Omit<
@@ -70,6 +86,18 @@ function authHeader(token: string) {
 
 export async function listClaimCompanies(token: string) {
   return apiRequest<{ companies: ClaimCompany[] }>('/api/insurance-claim/companies', { token })
+}
+
+export async function getClaimCompanyDocumentFields(
+  token: string,
+  companyId: number,
+  documentType: 'claim_form' | 'consent_form' = 'claim_form',
+) {
+  const query = new URLSearchParams({ documentType })
+  return apiRequest<{ document: { id: number }; fields: ClaimDocumentFieldSpec[] }>(
+    `/api/insurance-claim/companies/${companyId}/documents?${query.toString()}`,
+    { token },
+  )
 }
 
 export async function createClaimDraft(token: string, body: ClaimDraftPayload & { insuranceCompanyId: number }) {
