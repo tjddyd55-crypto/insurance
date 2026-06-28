@@ -3,6 +3,7 @@ import { describe, test } from 'node:test'
 import {
   INSURANCE_CLAIM_REQUEST_CATEGORY,
   assertInsuranceStorageKeyPrefix,
+  buildInsuranceAdminNoticeImageKey,
   buildInsuranceClaimRequestAttachmentKey,
   buildInsuranceClaimRequestGeneratedKey,
   buildInsuranceClaimRequestKey,
@@ -26,6 +27,24 @@ describe('insuranceStorageKeys', () => {
       'insurance/claim-requests/tjddyd55/123/generated/claim-form-20260627.pdf',
     )
     assert.doesNotThrow(() => assertInsuranceStorageKeyPrefix(key))
+  })
+
+  test('buildInsuranceAdminNoticeImageKey stores under insurance/admin-notices', () => {
+    const key = buildInsuranceAdminNoticeImageKey({
+      noticeId: 123,
+      userId: 'admin-1',
+      fileName: 'guide.png',
+    })
+    assert.match(key, /^insurance\/admin-notices\/123\/[0-9a-f-]+-guide\.png$/)
+    assert.doesNotThrow(() => assertInsuranceStorageKeyPrefix(key))
+  })
+
+  test('buildInsuranceAdminNoticeImageKey temp path uses user segment', () => {
+    const key = buildInsuranceAdminNoticeImageKey({
+      userId: 'admin-1',
+      fileName: 'draft.jpg',
+    })
+    assert.match(key, /^insurance\/admin-notices\/temp\/admin-1\/[0-9a-f-]+-draft\.jpg$/)
   })
 
   test('buildInsuranceClaimRequestAttachmentKey stores under attachments', () => {

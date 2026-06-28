@@ -62,7 +62,8 @@ import { IntroductionInstallPage } from './features/web/pages/IntroductionInstal
 import FeatureRequestPage from './features/feature-request/pages/FeatureRequestPage'
 import FeatureRequestsAdminPage from './features/feature-request/pages/FeatureRequestsAdminPage'
 import AdminAnalyticsPage from './features/analytics/pages/AdminAnalyticsPage'
-import AdminInsurerSitesPage from './features/insurer-sites/pages/AdminInsurerSitesPage'
+import AdminNoticeListPage from './features/admin-notices/pages/AdminNoticeListPage'
+import AdminNoticeEditorPage from './features/admin-notices/pages/AdminNoticeEditorPage'
 import PlatformHubPage from './features/platform/pages/PlatformHubPage'
 import IndustriesListPage from './features/platform/pages/industries/IndustriesListPage'
 import IndustryDetailPage from './features/platform/pages/industries/IndustryDetailPage'
@@ -438,6 +439,9 @@ export const appRouter = createBrowserRouter([
                     element: <AdminAnalyticsPage />,
                   },
                   { path: 'admin/insurer-sites', element: <AdminInsurerSitesPage /> },
+                  { path: 'admin/notices', element: <AdminNoticeListPage /> },
+                  { path: 'admin/notices/new', element: <AdminNoticeEditorPage /> },
+                  { path: 'admin/notices/:id', element: <AdminNoticeEditorPage /> },
                 ],
               },
               {
