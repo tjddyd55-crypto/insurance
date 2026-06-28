@@ -125,8 +125,8 @@ export default function AdminNoticeEditorPage() {
             />
           </label>
 
-          <section className="admin-notices-editor__section">
-            <h2>본문</h2>
+          <div className="admin-notices-editor__field admin-notices-editor__field--content">
+            <span>본문</span>
             <AdminNoticeRichEditor
               value={form.contentHtml}
               disabled={saving}
@@ -134,7 +134,7 @@ export default function AdminNoticeEditorPage() {
               linkPreviewToken={token}
               onUploadImage={handleUploadImage}
             />
-          </section>
+          </div>
 
           <section className="admin-notices-editor__section admin-notices-editor__options">
             <label className="admin-notices-editor__checkbox">
