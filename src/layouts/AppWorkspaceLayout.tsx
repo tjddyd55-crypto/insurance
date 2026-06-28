@@ -55,7 +55,7 @@ function AdminNoticePopupHost() {
     isAuthenticated && !isNewsManager ? token : null,
   )
 
-  if (!isAuthenticated || !token?.trim() || isNewsManager || !notice) {
+  if (!isAuthenticated || !token?.trim() || isNewsManager || !notice || !open) {
     return null
   }
 

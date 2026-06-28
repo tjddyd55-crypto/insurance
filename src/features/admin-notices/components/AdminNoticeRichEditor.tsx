@@ -1,13 +1,15 @@
 import { Extension } from '@tiptap/core'
 import { Color } from '@tiptap/extension-color'
-import Image from '@tiptap/extension-image'
 import Link from '@tiptap/extension-link'
 import TextAlign from '@tiptap/extension-text-align'
 import { TextStyle } from '@tiptap/extension-text-style'
 import Underline from '@tiptap/extension-underline'
 import StarterKit from '@tiptap/starter-kit'
-import { EditorContent, useEditor } from '@tiptap/react'
+import { EditorContent, useEditor, type Editor } from '@tiptap/react'
 import { useEffect, useRef, type ReactNode } from 'react'
+import { NoticeLinkPreview } from '../extensions/NoticeLinkPreviewExtension'
+import { ResizableImage } from '../extensions/ResizableImageExtension'
+import { insertNoticeLinkPreview, isStandaloneUrl } from '../utils/adminNoticeEditorUtils'
 import { sanitizeAdminNoticeHtml } from '../utils/sanitizeAdminNoticeHtml'
 
 declare module '@tiptap/core' {
@@ -64,6 +66,7 @@ type Props = {
   value: string
   onChange: (html: string) => void
   disabled?: boolean
+  linkPreviewToken?: string | null
   onUploadImage: (file: File) => Promise<string>
 }
 
@@ -93,8 +96,18 @@ function ToolbarButton({
   )
 }
 
-export function AdminNoticeRichEditor({ value, onChange, disabled = false, onUploadImage }: Props) {
+export function AdminNoticeRichEditor({
+  value,
+  onChange,
+  disabled = false,
+  linkPreviewToken,
+  onUploadImage,
+}: Props) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const editorRef = useRef<Editor | null>(null)
+  const linkPreviewTokenRef = useRef(linkPreviewToken)
+  linkPreviewTokenRef.current = linkPreviewToken
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -108,10 +121,11 @@ export function AdminNoticeRichEditor({ value, onChange, disabled = false, onUpl
           rel: 'noopener noreferrer',
         },
       }),
-      Image.configure({
+      ResizableImage.configure({
         inline: false,
         allowBase64: false,
       }),
+      NoticeLinkPreview,
       TextAlign.configure({
         types: ['heading', 'paragraph'],
       }),
@@ -124,7 +138,25 @@ export function AdminNoticeRichEditor({ value, onChange, disabled = false, onUpl
     onUpdate: ({ editor: nextEditor }) => {
       onChange(nextEditor.getHTML())
     },
+    editorProps: {
+      handlePaste: (_view, event) => {
+        const currentEditor = editorRef.current
+        const token = linkPreviewTokenRef.current?.trim()
+        if (!currentEditor || !token) {
+          return false
+        }
+        const text = event.clipboardData?.getData('text/plain')?.trim() ?? ''
+        if (!isStandaloneUrl(text)) {
+          return false
+        }
+        event.preventDefault()
+        void insertNoticeLinkPreview(currentEditor, token, text)
+        return true
+      },
+    },
   })
+
+  editorRef.current = editor
 
   useEffect(() => {
     if (!editor) {
@@ -181,6 +213,12 @@ export function AdminNoticeRichEditor({ value, onChange, disabled = false, onUpl
         .extendMarkRange('link')
         .setLink({ href: trimmedUrl, target: '_blank', rel: 'noopener noreferrer' })
         .run()
+      return
+    }
+
+    const token = linkPreviewToken?.trim()
+    if (token && isStandaloneUrl(trimmedUrl)) {
+      void insertNoticeLinkPreview(editor, token, trimmedUrl)
       return
     }
 

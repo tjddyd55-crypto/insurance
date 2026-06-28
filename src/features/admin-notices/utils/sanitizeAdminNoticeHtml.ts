@@ -25,9 +25,20 @@ const ALLOWED_TAGS = [
 export function sanitizeAdminNoticeHtml(html: string): string {
   return DOMPurify.sanitize(html ?? '', {
     ALLOWED_TAGS,
-    ALLOWED_ATTR: ['href', 'target', 'rel', 'src', 'alt', 'title', 'style'],
+    ALLOWED_ATTR: [
+      'href',
+      'target',
+      'rel',
+      'src',
+      'alt',
+      'title',
+      'style',
+      'width',
+      'height',
+      'class',
+      'data-url',
+    ],
     ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,
     ADD_ATTR: ['target', 'rel'],
-  })
-    .replace(/<a\b(?![^>]*\btarget=)/gi, '<a target="_blank" rel="noopener noreferrer"')
+  }).replace(/<a\b(?![^>]*\btarget=)/gi, '<a target="_blank" rel="noopener noreferrer"')
 }

@@ -131,6 +131,7 @@ export default function AdminNoticeEditorPage() {
               value={form.contentHtml}
               disabled={saving}
               onChange={(contentHtml) => setForm((prev) => ({ ...prev, contentHtml }))}
+              linkPreviewToken={token}
               onUploadImage={handleUploadImage}
             />
           </section>

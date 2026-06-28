@@ -8,6 +8,7 @@ import {
   setAdminNoticePopup,
   updateAdminNotice,
 } from './admin-notices/adminNoticeService.js'
+import { resolveAdminNoticeLinkPreview } from './admin-notices/adminNoticeLinkPreview.js'
 import { buildInsuranceAdminNoticeImageKey } from './storage/insuranceStorageKeys.js'
 import {
   getR2InsurerAttachmentsCacheControl,
@@ -128,6 +129,22 @@ export function registerAdminNoticesApi(apiRouter, deps) {
       if (mapError(e, res)) return
       logAdminNoticeFailure(req, e)
       handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.post('/admin/notices/link-preview', guard, async (req, res) => {
+    try {
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      const url = String(body.url ?? '').trim()
+      if (!url) {
+        res.json({ success: true, data: null })
+        return
+      }
+      const data = await resolveAdminNoticeLinkPreview(url)
+      res.json({ success: true, data })
+    } catch (e) {
+      logAdminNoticeFailure(req, e)
+      res.json({ success: true, data: null })
     }
   })
 

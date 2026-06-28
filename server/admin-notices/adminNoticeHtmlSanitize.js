@@ -22,6 +22,13 @@ const ALLOWED_TAGS = [
   'div',
 ]
 
+const ALLOWED_CLASSES = {
+  div: ['admin-notice-link-preview', 'admin-notice-link-preview__body'],
+  strong: ['admin-notice-link-preview__title'],
+  p: ['admin-notice-link-preview__description'],
+  span: ['admin-notice-link-preview__domain'],
+}
+
 /**
  * @param {unknown} html
  */
@@ -30,19 +37,24 @@ export function sanitizeAdminNoticeHtml(html) {
     allowedTags: ALLOWED_TAGS,
     allowedAttributes: {
       a: ['href', 'target', 'rel'],
-      img: ['src', 'alt', 'title'],
-      span: ['style'],
-      div: ['style'],
-      p: ['style'],
+      img: ['src', 'alt', 'title', 'width', 'height', 'style'],
+      span: ['style', 'class'],
+      div: ['style', 'class', 'data-url'],
+      p: ['style', 'class'],
       h1: ['style'],
       h2: ['style'],
       h3: ['style'],
+      strong: ['class'],
     },
+    allowedClasses: ALLOWED_CLASSES,
     allowedStyles: {
       '*': {
         color: [/^#(?:[0-9a-fA-F]{3,8})$/, /^rgb\(/i],
         'font-size': [/^\d+(?:\.\d+)?(?:px|em|rem|%)$/],
         'text-align': [/^(?:left|right|center|justify)$/],
+        width: [/^\d+(?:\.\d+)?px$/],
+        'max-width': [/^100%$/],
+        height: [/^auto$/],
       },
     },
     transformTags: {
