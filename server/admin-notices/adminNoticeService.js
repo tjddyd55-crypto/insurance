@@ -361,8 +361,8 @@ export async function setAdminNoticePopup(pool, id, actorUserId) {
   if (!Number.isFinite(noticeId) || noticeId <= 0) {
     throw new Error('notice_not_found')
   }
-  const notice = await getAdminNoticeById(pool, noticeId)
-  if (notice.status !== 'published') {
+  const existingNotice = await getAdminNoticeById(pool, noticeId)
+  if (existingNotice.status !== 'published') {
     throw new Error('notice_not_published')
   }
   await clearOtherPopupFlags(pool, true, noticeId)
@@ -378,9 +378,8 @@ export async function setAdminNoticePopup(pool, id, actorUserId) {
     `,
     [noticeId, actorUserId],
   )
-  const notice = mapAdminNoticeRow(rows[0])
   await clearNoticeDismissals(pool, noticeId)
-  return notice
+  return mapAdminNoticeRow(rows[0])
 }
 
 /**
