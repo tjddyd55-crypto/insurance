@@ -22,7 +22,8 @@ export function useAdminNoticePopup(token: string | null | undefined) {
         }
         setNotice(data)
         setOpen(Boolean(data))
-      } catch {
+      } catch (error) {
+        console.warn('[admin-notice-popup] failed to load active popup', error)
         if (!cancelled) {
           setNotice(null)
           setOpen(false)

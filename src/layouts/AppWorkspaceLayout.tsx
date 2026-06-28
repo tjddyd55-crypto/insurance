@@ -49,11 +49,13 @@ export function MobileLayout() {
 
 /** 인증 라우트 전역: 관리자 공지 팝업 (개인 알림 로그인 모달 대체) */
 function AdminNoticePopupHost() {
-  const { token, user } = useAuth()
+  const { token, user, isAuthenticated } = useAuth()
   const isNewsManager = user?.role === 'INSURER_MANAGER' || user?.role === 'LOSS_ADJUSTER'
-  const { notice, open, close } = useAdminNoticePopup(isNewsManager ? null : token)
+  const { notice, open, close } = useAdminNoticePopup(
+    isAuthenticated && !isNewsManager ? token : null,
+  )
 
-  if (!token?.trim() || isNewsManager || !notice) {
+  if (!isAuthenticated || !token?.trim() || isNewsManager || !notice) {
     return null
   }
 
