@@ -83,6 +83,53 @@ function isContractorSameField(fieldKey: string, fieldName: string): boolean {
   return key.includes('same') || name.includes('same') || key.includes('동일') || name.includes('동일')
 }
 
+export function isContractorSameTemplateField(field: ClaimTemplateFieldSpec): boolean {
+  const { field: fieldName } = resolveFieldGroup(String(field.fieldKey ?? ''))
+  return isContractorSameField(String(field.fieldKey ?? ''), fieldName)
+}
+
+export function isContractorTemplateField(field: ClaimTemplateFieldSpec): boolean {
+  if (isContractorSameTemplateField(field)) {
+    return false
+  }
+  const { group } = resolveFieldGroup(String(field.fieldKey ?? ''))
+  if (group === 'contractor') {
+    return true
+  }
+  return field.dataMapping?.useSecondaryCustomer === true
+}
+
+export function filterTemplateFieldsForEntry(
+  fields: ClaimTemplateFieldSpec[],
+  contractorSameAsInsured: boolean,
+): ClaimTemplateFieldSpec[] {
+  return fields.filter((field) => {
+    if (isContractorSameTemplateField(field)) {
+      return false
+    }
+    if (contractorSameAsInsured && isContractorTemplateField(field)) {
+      return false
+    }
+    return true
+  })
+}
+
+export function applyContractorSameAsInsuredValue(
+  same: boolean,
+  state: ClaimTemplateFormState,
+): ClaimTemplateFieldPatch {
+  if (same) {
+    return {
+      contractorSameAsInsured: true,
+      contractor: { ...state.insured },
+    }
+  }
+  return {
+    contractorSameAsInsured: false,
+    contractor: { ...state.insured },
+  }
+}
+
 function placementSortKey(field: ClaimTemplateFieldSpec): {
   page: number
   y: number
@@ -217,6 +264,9 @@ export function readTemplateFieldValue(field: ClaimTemplateFieldSpec, state: Cla
     return readPersonValue(state.insured, fieldName)
   }
   if (group === 'contractor') {
+    if (state.contractorSameAsInsured) {
+      return readPersonValue(state.insured, fieldName)
+    }
     return readPersonValue(state.contractor, fieldName)
   }
   if (group === 'claim') {
@@ -255,13 +305,20 @@ export function applyTemplateFieldValue(
       return patch
     }
     patch.insured = { ...state.insured, [personKey]: value }
+    if (state.contractorSameAsInsured) {
+      patch.contractor = { ...patch.insured }
+    }
     return patch
   }
 
   if (group === 'insured') {
     const personKey = personFieldKey(fieldName)
     if (personKey) {
-      patch.insured = { ...state.insured, [personKey]: value }
+      const nextInsured = { ...state.insured, [personKey]: value }
+      patch.insured = nextInsured
+      if (state.contractorSameAsInsured) {
+        patch.contractor = { ...nextInsured }
+      }
     }
     return patch
   }
@@ -280,7 +337,7 @@ export function applyTemplateFieldValue(
       const same = value === 'yes' || value === 'true' || value === '1' || value === '예'
       patch.contractorSameAsInsured = same
       if (same) {
-        patch.contractor = { name: '', ssn: '', phone: '', address: '', job: '' }
+        patch.contractor = { ...state.insured }
       }
       return patch
     }
@@ -309,19 +366,34 @@ export function applyCustomerToTemplateFields(
   const merged: ClaimTemplateFieldPatch = {}
 
   for (const field of fields) {
+    if (isContractorSameTemplateField(field)) {
+      continue
+    }
+
     const mapping = field.dataMapping
     if (mapping?.dataSourceType === 'customer' && mapping.customerFieldKey) {
       const personKey = personFieldKey(String(mapping.customerFieldKey))
       if (!personKey) {
         continue
       }
-      const patch = applyTemplateFieldValue(field, String(customer[personKey] ?? ''), nextState)
+      const customerValue = String(customer[personKey] ?? '')
+      const fieldForApply =
+        mapping.useSecondaryCustomer === true && nextState.contractorSameAsInsured
+          ? ({
+              ...field,
+              dataMapping: { ...mapping, useSecondaryCustomer: false },
+            } satisfies ClaimTemplateFieldSpec)
+          : field
+      const patch = applyTemplateFieldValue(fieldForApply, customerValue, nextState)
       nextState = mergeTemplateFormState(nextState, patch)
       Object.assign(merged, patch)
       continue
     }
 
     const { group, field: fieldName } = resolveFieldGroup(field.fieldKey)
+    if (group === 'contractor' && nextState.contractorSameAsInsured) {
+      continue
+    }
     if (group !== 'insured') {
       continue
     }
@@ -332,6 +404,12 @@ export function applyCustomerToTemplateFields(
     const patch = applyTemplateFieldValue(field, String(customer[personKey] ?? ''), nextState)
     nextState = mergeTemplateFormState(nextState, patch)
     Object.assign(merged, patch)
+  }
+
+  if (nextState.contractorSameAsInsured) {
+    const syncPatch = { contractor: { ...nextState.insured } }
+    nextState = mergeTemplateFormState(nextState, syncPatch)
+    Object.assign(merged, syncPatch)
   }
 
   return merged
@@ -355,6 +433,12 @@ export function validateTemplateFormFields(
   state: ClaimTemplateFormState,
 ): string | null {
   for (const field of fields) {
+    if (state.contractorSameAsInsured && isContractorTemplateField(field)) {
+      continue
+    }
+    if (isContractorSameTemplateField(field)) {
+      continue
+    }
     if (!field.required) {
       continue
     }

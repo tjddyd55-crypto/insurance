@@ -7,6 +7,8 @@ type Props = {
   fields: ClaimTemplateFieldSpec[]
   loading?: boolean
   disabled?: boolean
+  contractorSameAsInsured: boolean
+  onContractorSameAsInsuredChange: (same: boolean) => void
   getFieldValue: (field: ClaimTemplateFieldSpec) => string
   onFieldChange: (field: ClaimTemplateFieldSpec, value: string) => void
   customerQuery: string
@@ -14,6 +16,31 @@ type Props = {
   onCustomerQueryChange: (value: string) => void
   onCustomerSearch: () => void
   onCustomerSelect: (customerId: number) => void
+}
+
+function ContractorSameControl({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: boolean
+  disabled: boolean
+  onChange: (same: boolean) => void
+}) {
+  return (
+    <label className="insurance-claim-form__field insurance-claim-form__field--same claim-template-same-field">
+      <span className="insurance-claim-form__label">계약자와 피보험자 동일 여부</span>
+      <FormSelect
+        value={value ? 'yes' : 'no'}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value === 'yes')}
+        options={[
+          { value: 'yes', label: '예' },
+          { value: 'no', label: '아니오' },
+        ]}
+      />
+    </label>
+  )
 }
 
 function renderFieldInput(
@@ -104,10 +131,52 @@ function renderFieldInput(
   )
 }
 
+function TemplateFieldGrid({
+  fields,
+  disabled,
+  getFieldValue,
+  onFieldChange,
+}: Pick<Props, 'fields' | 'disabled' | 'getFieldValue' | 'onFieldChange'>) {
+  if (fields.length === 0) {
+    return (
+      <p className="insurance-claim-form__hint">
+        선택한 보험회사 청구서 좌표 설정에 등록된 입력 항목이 없습니다.
+      </p>
+    )
+  }
+
+  return (
+    <div className="insurance-claim-form__field-grid claim-template-fields__grid">
+      {fields.map((field) => {
+        const fieldType = resolveTemplateFieldType(field)
+        const value = getFieldValue(field)
+        if (fieldType === 'checkbox') {
+          return (
+            <div key={field.fieldKey} className="insurance-claim-form__field claim-template-field">
+              {renderFieldInput(field, value, disabled, (next) => onFieldChange(field, next))}
+            </div>
+          )
+        }
+        return (
+          <label key={field.fieldKey} className="insurance-claim-form__field claim-template-field">
+            <span className="insurance-claim-form__label">
+              {field.label}
+              {field.required ? ' *' : ''}
+            </span>
+            {renderFieldInput(field, value, disabled, (next) => onFieldChange(field, next))}
+          </label>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function ClaimTemplateFieldsSection({
   fields,
   loading = false,
   disabled = false,
+  contractorSameAsInsured,
+  onContractorSameAsInsuredChange,
   getFieldValue,
   onFieldChange,
   customerQuery,
@@ -125,20 +194,9 @@ export default function ClaimTemplateFieldsSection({
     )
   }
 
-  if (fields.length === 0) {
-    return (
-      <section className="insurance-claim-form__section claim-form-section claim-template-fields">
-        <h2>1. 청구 입력</h2>
-        <p className="insurance-claim-form__hint">
-          선택한 보험회사 청구서 좌표 설정에 등록된 입력 항목이 없습니다.
-        </p>
-      </section>
-    )
-  }
-
   return (
     <section className="insurance-claim-form__section claim-form-section claim-template-fields">
-      <h2>청구 입력</h2>
+      <h2>1. 청구 입력</h2>
       <p className="insurance-claim-form__section-desc">
         선택한 보험회사 청구서 좌표 설정에 등록된 항목입니다.
       </p>
@@ -149,28 +207,17 @@ export default function ClaimTemplateFieldsSection({
         onSearch={onCustomerSearch}
         onSelect={onCustomerSelect}
       />
-      <div className="insurance-claim-form__field-grid claim-template-fields__grid">
-        {fields.map((field) => {
-          const fieldType = resolveTemplateFieldType(field)
-          const value = getFieldValue(field)
-          if (fieldType === 'checkbox') {
-            return (
-              <div key={field.fieldKey} className="insurance-claim-form__field claim-template-field">
-                {renderFieldInput(field, value, disabled, (next) => onFieldChange(field, next))}
-              </div>
-            )
-          }
-          return (
-            <label key={field.fieldKey} className="insurance-claim-form__field claim-template-field">
-              <span className="insurance-claim-form__label">
-                {field.label}
-                {field.required ? ' *' : ''}
-              </span>
-              {renderFieldInput(field, value, disabled, (next) => onFieldChange(field, next))}
-            </label>
-          )
-        })}
-      </div>
+      <ContractorSameControl
+        value={contractorSameAsInsured}
+        disabled={disabled}
+        onChange={onContractorSameAsInsuredChange}
+      />
+      <TemplateFieldGrid
+        fields={fields}
+        disabled={disabled}
+        getFieldValue={getFieldValue}
+        onFieldChange={onFieldChange}
+      />
     </section>
   )
 }
