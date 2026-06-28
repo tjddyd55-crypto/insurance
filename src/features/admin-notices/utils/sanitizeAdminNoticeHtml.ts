@@ -37,6 +37,7 @@ export function sanitizeAdminNoticeHtml(html: string): string {
       'height',
       'class',
       'data-url',
+      'data-align',
     ],
     ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,
     ADD_ATTR: ['target', 'rel'],

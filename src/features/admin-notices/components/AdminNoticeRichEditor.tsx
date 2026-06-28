@@ -9,7 +9,7 @@ import { EditorContent, useEditor, type Editor } from '@tiptap/react'
 import { useEffect, useRef, type ReactNode } from 'react'
 import { NoticeLinkPreview } from '../extensions/NoticeLinkPreviewExtension'
 import { ResizableImage } from '../extensions/ResizableImageExtension'
-import { insertNoticeLinkPreview, isStandaloneUrl } from '../utils/adminNoticeEditorUtils'
+import { insertNoticeLinkPreview, isStandaloneUrl, applyNoticeAlign, isNoticeAlignActive } from '../utils/adminNoticeEditorUtils'
 import { sanitizeAdminNoticeHtml } from '../utils/sanitizeAdminNoticeHtml'
 
 declare module '@tiptap/core' {
@@ -311,26 +311,26 @@ export function AdminNoticeRichEditor({
           S
         </ToolbarButton>
         <ToolbarButton
-          active={editor.isActive({ textAlign: 'left' })}
+          active={isNoticeAlignActive(editor, 'left')}
           disabled={disabled}
           title="왼쪽 정렬"
-          onClick={() => editor.chain().focus().setTextAlign('left').run()}
+          onClick={() => applyNoticeAlign(editor, 'left')}
         >
           좌
         </ToolbarButton>
         <ToolbarButton
-          active={editor.isActive({ textAlign: 'center' })}
+          active={isNoticeAlignActive(editor, 'center')}
           disabled={disabled}
           title="가운데 정렬"
-          onClick={() => editor.chain().focus().setTextAlign('center').run()}
+          onClick={() => applyNoticeAlign(editor, 'center')}
         >
           중
         </ToolbarButton>
         <ToolbarButton
-          active={editor.isActive({ textAlign: 'right' })}
+          active={isNoticeAlignActive(editor, 'right')}
           disabled={disabled}
           title="오른쪽 정렬"
-          onClick={() => editor.chain().focus().setTextAlign('right').run()}
+          onClick={() => applyNoticeAlign(editor, 'right')}
         >
           우
         </ToolbarButton>
@@ -364,7 +364,7 @@ export function AdminNoticeRichEditor({
         </ToolbarButton>
       </div>
 
-      <EditorContent editor={editor} className="admin-notices-rich-editor__content" />
+      <EditorContent editor={editor} className="admin-notice-content admin-notices-rich-editor__content" />
 
       <input
         ref={fileInputRef}
@@ -386,7 +386,7 @@ export function AdminNoticeHtmlPreview({ html }: { html: string }) {
   const sanitized = sanitizeAdminNoticeHtml(html)
   return (
     <div
-      className="admin-notice-popup__content admin-notices-rich-editor__preview"
+      className="admin-notice-content admin-notice-popup__content admin-notices-rich-editor__preview"
       dangerouslySetInnerHTML={{ __html: sanitized }}
     />
   )

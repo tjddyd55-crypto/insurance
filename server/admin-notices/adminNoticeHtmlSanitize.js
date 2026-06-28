@@ -37,9 +37,9 @@ export function sanitizeAdminNoticeHtml(html) {
     allowedTags: ALLOWED_TAGS,
     allowedAttributes: {
       a: ['href', 'target', 'rel'],
-      img: ['src', 'alt', 'title', 'width', 'height', 'style'],
+      img: ['src', 'alt', 'title', 'width', 'height', 'style', 'data-align'],
       span: ['style', 'class'],
-      div: ['style', 'class', 'data-url'],
+      div: ['style', 'class', 'data-url', 'data-align'],
       p: ['style', 'class'],
       h1: ['style'],
       h2: ['style'],
@@ -66,6 +66,17 @@ export function sanitizeAdminNoticeHtml(html) {
           rel: 'noopener noreferrer',
         },
       }),
+      div: (_tagName, attribs) => {
+        const nextAttribs = { ...attribs }
+        const dataUrl = String(nextAttribs['data-url'] ?? '')
+        if (/^javascript:/i.test(dataUrl)) {
+          delete nextAttribs['data-url']
+        }
+        return {
+          tagName: 'div',
+          attribs: nextAttribs,
+        }
+      },
     },
     allowedSchemes: ['http', 'https', 'mailto'],
     allowedSchemesByTag: {

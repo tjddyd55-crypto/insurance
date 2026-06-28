@@ -6,7 +6,10 @@ export type NoticeLinkPreviewAttrs = {
   description: string
   image: string
   domain: string
+  align: 'left' | 'center' | 'right'
 }
+
+const NOTICE_ALIGNMENTS = ['left', 'center', 'right']
 
 export const NoticeLinkPreview = Node.create({
   name: 'noticeLinkPreview',
@@ -22,6 +25,19 @@ export const NoticeLinkPreview = Node.create({
       description: { default: '' },
       image: { default: '' },
       domain: { default: '' },
+      align: {
+        default: 'left',
+        parseHTML: (element) => {
+          if (!(element instanceof HTMLElement)) {
+            return 'left'
+          }
+          const align = element.getAttribute('data-align')
+          return NOTICE_ALIGNMENTS.includes(String(align)) ? align : 'left'
+        },
+        renderHTML: (attributes) => ({
+          'data-align': NOTICE_ALIGNMENTS.includes(String(attributes.align)) ? attributes.align : 'left',
+        }),
+      },
     }
   },
 
@@ -38,6 +54,7 @@ export const NoticeLinkPreview = Node.create({
             element.getAttribute('data-url')?.trim() ||
             anchor?.getAttribute('href')?.trim() ||
             ''
+          const align = element.getAttribute('data-align')
           return {
             url,
             title: element.querySelector('.admin-notice-link-preview__title')?.textContent?.trim() || url,
@@ -45,6 +62,7 @@ export const NoticeLinkPreview = Node.create({
               element.querySelector('.admin-notice-link-preview__description')?.textContent?.trim() || '',
             image: element.querySelector('img')?.getAttribute('src')?.trim() || '',
             domain: element.querySelector('.admin-notice-link-preview__domain')?.textContent?.trim() || '',
+            align: NOTICE_ALIGNMENTS.includes(String(align)) ? align : 'left',
           }
         },
       },
@@ -57,6 +75,7 @@ export const NoticeLinkPreview = Node.create({
     const description = String(HTMLAttributes.description ?? '').trim()
     const image = String(HTMLAttributes.image ?? '').trim()
     const domain = String(HTMLAttributes.domain ?? '').trim()
+    const align = NOTICE_ALIGNMENTS.includes(String(HTMLAttributes.align)) ? HTMLAttributes.align : 'left'
 
     const linkChildren: Array<string | Record<string, string> | Array<unknown>> = []
     if (image) {
@@ -78,6 +97,7 @@ export const NoticeLinkPreview = Node.create({
       mergeAttributes(HTMLAttributes, {
         class: 'admin-notice-link-preview',
         'data-url': url,
+        'data-align': align,
       }),
       [
         'a',

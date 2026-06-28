@@ -41,11 +41,13 @@ export function ResizableImageNodeView({ node, updateAttributes, selected }: Nod
       className={`admin-notices-rich-editor__image-wrap${
         selected ? ' admin-notices-rich-editor__image-wrap--selected' : ''
       }`}
+      data-align={String(node.attrs.align ?? 'left')}
       data-drag-handle
     >
       <img
         src={String(node.attrs.src ?? '')}
         alt={String(node.attrs.alt ?? '')}
+        data-align={String(node.attrs.align ?? 'left')}
         style={imageStyle}
         draggable={false}
       />
