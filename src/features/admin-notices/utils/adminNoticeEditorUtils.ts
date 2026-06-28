@@ -84,14 +84,23 @@ export async function insertNoticeLinkPreview(editor: Editor, token: string, url
   return true
 }
 
+function findAlignableNodeAtSelection(state: Editor['state']): { pos: number; node: { type: { name: string }; attrs: Record<string, unknown> } } | null {
+  const { selection } = state
+  if (selection instanceof NodeSelection && ALIGNABLE_NODE_TYPES.has(selection.node.type.name)) {
+    return { pos: selection.from, node: selection.node }
+  }
+  return null
+}
+
 export function applyNoticeAlign(editor: Editor, align: NoticeAlign): void {
   const { state, view } = editor
   const { selection, doc } = state
 
-  if (selection instanceof NodeSelection && ALIGNABLE_NODE_TYPES.has(selection.node.type.name)) {
+  const selectedAlignable = findAlignableNodeAtSelection(state)
+  if (selectedAlignable) {
     view.dispatch(
-      state.tr.setNodeMarkup(selection.from, undefined, {
-        ...selection.node.attrs,
+      state.tr.setNodeMarkup(selectedAlignable.pos, undefined, {
+        ...selectedAlignable.node.attrs,
         align,
       }),
     )
@@ -128,6 +137,13 @@ export function applyNoticeAlign(editor: Editor, align: NoticeAlign): void {
 }
 
 export function isNoticeAlignActive(editor: Editor, align: NoticeAlign): boolean {
+  const selectedAlignable = findAlignableNodeAtSelection(editor.state)
+  if (selectedAlignable?.node.type.name === 'image') {
+    return (selectedAlignable.node.attrs.align || 'left') === align
+  }
+  if (selectedAlignable?.node.type.name === 'noticeLinkPreview') {
+    return (selectedAlignable.node.attrs.align || 'left') === align
+  }
   if (editor.isActive('image')) {
     return (editor.getAttributes('image').align || 'left') === align
   }
