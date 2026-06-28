@@ -15,6 +15,7 @@ import type { SendSessionDetail } from '../testConsole/contractSignatureTestCons
 import {
   buildCustomerPublicSignUrl,
   cancelUserSendSession,
+  deleteUserSendSession,
   getUserSendSessionDetail,
   listUserSendSessions,
   type SendSessionHistoryListItem,
@@ -39,6 +40,17 @@ function formatCancelFailureMessage(e: unknown): string {
     return raw
   }
   return '발송 취소 중 오류가 발생했습니다. 다시 시도해주세요.'
+}
+
+function formatDeleteFailureMessage(e: unknown): string {
+  if (e instanceof ApiError) {
+    const raw = e.message.trim()
+    if (!raw || raw === 'DB_ERROR' || raw.toUpperCase() === 'DB_ERROR') {
+      return '삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.'
+    }
+    return raw
+  }
+  return '삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.'
 }
 
 const HISTORY_MOBILE_MQ = '(max-width: 768px)'
@@ -108,6 +120,7 @@ export default function ContractSignatureHistoryPage({
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState<string | null>(null)
   const [cancelBusy, setCancelBusy] = useState(false)
+  const [deleteBusy, setDeleteBusy] = useState(false)
   /** 상세 패널이 열린 세션 ID — 취소 후 상세 갱신용 */
   const [panelSessionId, setPanelSessionId] = useState<string | null>(null)
   const [cancelFeedback, setCancelFeedback] = useState<{ tone: 'success' | 'error'; text: string } | null>(null)
@@ -270,6 +283,75 @@ export default function ContractSignatureHistoryPage({
     void runCancel(row.id)
   }
 
+  const runDelete = async (sendSessionId: string) => {
+    if (!t) {
+      return
+    }
+    setDeleteBusy(true)
+    setCancelFeedback(null)
+    try {
+      const result = await deleteUserSendSession(t, sendSessionId)
+      setCancelFeedback({
+        tone: 'success',
+        text: result.message || '전자서명 발송내역이 삭제되었습니다.',
+      })
+      setDetailOpen(false)
+      setDetail(null)
+      setPanelSessionId(null)
+      await reloadListFirstPage()
+    } catch (e) {
+      setCancelFeedback({ tone: 'error', text: formatDeleteFailureMessage(e) })
+    } finally {
+      setDeleteBusy(false)
+    }
+  }
+
+  const confirmDeleteRow = async (row: SendSessionHistoryListItem) => {
+    if (!row.canDelete) {
+      return
+    }
+    const ok = await confirm({
+      title: '전자서명 발송내역 삭제',
+      message: (
+        <>
+          <p style={{ margin: '0 0 8px' }}>전자서명 발송내역을 삭제하시겠습니까?</p>
+          <p style={{ margin: '0 0 8px' }}>이 작업은 되돌릴 수 없습니다.</p>
+          <p style={{ margin: 0 }}>완료된 서명 문서와 관련 파일도 함께 삭제됩니다.</p>
+        </>
+      ),
+      tone: 'danger',
+      confirmLabel: '삭제',
+      cancelLabel: '취소',
+    })
+    if (!ok) {
+      return
+    }
+    void runDelete(row.id)
+  }
+
+  const confirmDeleteDetail = async () => {
+    if (!detail?.id || detail.canDelete === false) {
+      return
+    }
+    const ok = await confirm({
+      title: '전자서명 발송내역 삭제',
+      message: (
+        <>
+          <p style={{ margin: '0 0 8px' }}>전자서명 발송내역을 삭제하시겠습니까?</p>
+          <p style={{ margin: '0 0 8px' }}>이 작업은 되돌릴 수 없습니다.</p>
+          <p style={{ margin: 0 }}>완료된 서명 문서와 관련 파일도 함께 삭제됩니다.</p>
+        </>
+      ),
+      tone: 'danger',
+      confirmLabel: '삭제',
+      cancelLabel: '취소',
+    })
+    if (!ok) {
+      return
+    }
+    void runDelete(detail.id)
+  }
+
   const confirmCancelDetail = async () => {
     if (!detail?.id) {
       return
@@ -319,7 +401,8 @@ export default function ContractSignatureHistoryPage({
         </p>
 
         <p className="contract-signature-console__notice">
-          전자서명 완료 문서는 증빙 보존을 위해 삭제할 수 없습니다. 진행 중인 건만 취소할 수 있습니다.
+          진행 중인 건은 취소할 수 있습니다. 발송내역을 삭제하면 완료된 서명 PDF와 관련 파일도 함께 삭제되며, 삭제
+          후에는 해당 템플릿을 정리할 수 있습니다.
         </p>
 
         <section className="contract-signature-console__section">
@@ -477,12 +560,13 @@ export default function ContractSignatureHistoryPage({
           ) : (
             <SendSessionHistoryList
               rows={rows}
-              busy={listBusy || cancelBusy}
+              busy={listBusy || cancelBusy || deleteBusy}
               listLayout={historyMobile ? 'cards' : 'table'}
               onDetail={(row) => void openDetail(row)}
               onCopyLink={(row) => void copyLink(row.linkCode)}
               onOpenLink={(row) => openTab(row.linkCode)}
               onCancel={confirmCancelRow}
+              onDelete={confirmDeleteRow}
             />
           )}
 
@@ -512,6 +596,9 @@ export default function ContractSignatureHistoryPage({
         onRefresh={() => void refreshDetail()}
         onCancelSession={confirmCancelDetail}
         cancelBusy={cancelBusy}
+        onDeleteSession={confirmDeleteDetail}
+        deleteBusy={deleteBusy}
+        canDelete={detail?.canDelete === true}
         onCopyLink={(lc) => void copyLink(lc)}
         onOpenLink={(lc) => openTab(lc)}
       />

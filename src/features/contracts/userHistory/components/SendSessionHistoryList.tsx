@@ -10,6 +10,7 @@ type Props = {
   onCopyLink: (row: SendSessionHistoryListItem) => void
   onOpenLink: (row: SendSessionHistoryListItem) => void
   onCancel: (row: SendSessionHistoryListItem) => void
+  onDelete: (row: SendSessionHistoryListItem) => void
   /** 모바일(768px 이하)에서 테이블 대신 카드 */
   listLayout?: 'table' | 'cards'
 }
@@ -21,6 +22,7 @@ export function SendSessionHistoryList({
   onCopyLink,
   onOpenLink,
   onCancel,
+  onDelete,
   listLayout = 'table',
 }: Props) {
   if (listLayout === 'cards') {
@@ -113,6 +115,16 @@ export function SendSessionHistoryList({
                   onClick={() => onCancel(row)}
                 >
                   취소
+                </FormButton>
+                <FormButton
+                  htmlType="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={!row.canDelete || busy}
+                  className="contract-history-mobile-card__actions--full contract-history-actions__delete"
+                  onClick={() => onDelete(row)}
+                >
+                  삭제
                 </FormButton>
               </div>
             </div>
@@ -240,6 +252,18 @@ export function SendSessionHistoryList({
                         onClick={() => onCancel(row)}
                       >
                         취소
+                      </FormButton>
+                    </div>
+                    <div className="history-actions__delete">
+                      <FormButton
+                        htmlType="button"
+                        variant="secondary"
+                        size="sm"
+                        disabled={!row.canDelete || busy}
+                        className="contract-history-actions__delete"
+                        onClick={() => onDelete(row)}
+                      >
+                        삭제
                       </FormButton>
                     </div>
                   </div>

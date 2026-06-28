@@ -21,6 +21,9 @@ type Props = {
   onRefresh: () => void
   onCancelSession: () => void
   cancelBusy: boolean
+  onDeleteSession: () => void
+  deleteBusy: boolean
+  canDelete?: boolean
   onCopyLink: (linkCode: string) => void
   onOpenLink: (linkCode: string) => void
 }
@@ -37,6 +40,9 @@ export function SendSessionDetailPanel({
   onRefresh,
   onCancelSession,
   cancelBusy,
+  onDeleteSession,
+  deleteBusy,
+  canDelete = false,
   onCopyLink,
   onOpenLink,
 }: Props) {
@@ -302,6 +308,16 @@ export function SendSessionDetailPanel({
               onClick={onCancelSession}
             >
               발송취소
+            </FormButton>
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              size="sm"
+              className="contract-history-actions__delete"
+              disabled={!canDelete || deleteBusy}
+              onClick={onDeleteSession}
+            >
+              삭제
             </FormButton>
             <FormButton htmlType="button" variant="secondary" size="sm" onClick={onClose}>
               닫기

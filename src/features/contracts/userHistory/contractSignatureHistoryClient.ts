@@ -118,6 +118,33 @@ export async function cancelUserSendSession(token: string, sendSessionId: string
   return b
 }
 
+export type DeleteUserSendSessionResult = {
+  ok: true
+  deleted: boolean
+  id: string
+  message?: string
+}
+
+export async function deleteUserSendSession(token: string, sendSessionId: string): Promise<DeleteUserSendSessionResult> {
+  const body = await apiRequest<{ deleted?: boolean; id?: string; message?: string }>(
+    `/api/contracts/send-sessions/${encodeURIComponent(sendSessionId)}`,
+    {
+      method: 'DELETE',
+      token,
+    },
+  )
+  const data = body as { deleted?: boolean; id?: string; message?: string; ok?: boolean }
+  if (!data?.id) {
+    throw new ApiError('발송내역 삭제 응답이 올바르지 않습니다.', 500)
+  }
+  return {
+    ok: true,
+    deleted: data.deleted === true,
+    id: String(data.id),
+    message: data.message,
+  }
+}
+
 /**
  * 고객용 전자서명 공개 URL (복사·새 탭).
  * Electron `file://` 문서에서는 `window.location.origin`이 `file://` 계열이 될 수 있어
