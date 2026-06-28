@@ -5643,10 +5643,14 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .user-insurer-accounts-page__panel {
   margin-top: 16px;
-  padding: 16px;
-  border: 1px solid var(--border-default);
-  border-radius: 12px;
-  background: var(--bg-card);
+}
+
+.user-insurer-accounts-page--pc .user-insurer-accounts-page__panel {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .user-insurer-accounts-page__tabs,
@@ -5727,9 +5731,12 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 .user-insurer-accounts-page .account-credential-row__fields {
+  min-width: 0;
+}
+
+.user-insurer-accounts-page--mobile .account-credential-row__fields {
   display: grid;
   grid-template-rows: 1fr 1fr;
-  min-width: 0;
 }
 
 .user-insurer-accounts-page .account-credential-row__field {
@@ -5742,7 +5749,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
   box-sizing: border-box;
 }
 
-.user-insurer-accounts-page .account-credential-row__field:first-child {
+.user-insurer-accounts-page--mobile .account-credential-row__field:first-child {
   border-bottom: 1px solid #e5e7eb;
 }
 
@@ -5767,6 +5774,10 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 .user-insurer-accounts-page .account-credential-copy-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   width: 48px;
   min-width: 48px;
   height: 34px;
@@ -5802,6 +5813,10 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 .user-insurer-accounts-page .account-credential-save-button.button--small {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   min-width: 52px;
   height: 36px;
   padding: 0 10px;
@@ -5809,6 +5824,10 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 .user-insurer-accounts-page .account-credential-delete-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   height: 28px;
   min-width: 44px;
   padding: 0 8px;
@@ -5939,6 +5958,35 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .user-insurer-accounts-page--mobile .user-insurer-accounts-section__body {
   padding: 0;
+}
+
+@media (min-width: 901px) {
+  .user-insurer-accounts-page--pc .account-credential-row,
+  .user-insurer-accounts-page--pc .account-credential-table-header {
+    grid-template-columns: minmax(90px, 0.75fr) minmax(0, 1fr) minmax(0, 1fr) 64px;
+    align-items: center;
+  }
+
+  .user-insurer-accounts-page--pc .account-credential-table-header__fields {
+    grid-column: 2 / 4;
+  }
+
+  .user-insurer-accounts-page--pc .account-credential-row__fields {
+    display: contents;
+  }
+
+  .user-insurer-accounts-page--pc .account-credential-row__field {
+    border-bottom: none;
+    border-right: 1px solid #e5e7eb;
+  }
+
+  .user-insurer-accounts-page--pc .account-credential-row__field:first-child {
+    border-bottom: none;
+  }
+
+  .user-insurer-accounts-page--pc .account-credential-row__actions {
+    align-self: center;
+  }
 }
 
 @media (max-width: 768px) {
