@@ -562,6 +562,17 @@ export interface AdminUserRow {
   referrer_username: string | null
   referrer_display_name: string | null
   referrer_ga_company_name: string | null
+  last_login_at: string | null
+  subscription_status: string | null
+  subscription_status_label: string
+  subscription_until: string | null
+  subscription_list_label: string
+}
+
+export type AdminUserListFilters = {
+  gaId?: number
+  subscriptionStatus?: string
+  q?: string
 }
 
 /** 슈퍼 관리자 — GA 담당자(GA_ADMIN/GA_STAFF) 전용. 비밀번호는 관리 목적 평문(일반 유저와 무관). */
@@ -636,9 +647,22 @@ export async function patchGaDelegate(
   }
 }
 
-export async function listAdminUsers(token: string, gaId?: number): Promise<AdminUserRow[]> {
-  const qs = gaId != null && Number.isInteger(gaId) ? `?ga_id=${encodeURIComponent(String(gaId))}` : ''
-  return apiRequest<AdminUserRow[]>(`/api/admin/users${qs}`, { method: 'GET', token })
+export async function listAdminUsers(
+  token: string,
+  filters: AdminUserListFilters = {},
+): Promise<AdminUserRow[]> {
+  const params = new URLSearchParams()
+  if (filters.gaId != null && Number.isInteger(filters.gaId)) {
+    params.set('ga_id', String(filters.gaId))
+  }
+  if (filters.subscriptionStatus?.trim()) {
+    params.set('subscription_status', filters.subscriptionStatus.trim())
+  }
+  if (filters.q?.trim()) {
+    params.set('q', filters.q.trim())
+  }
+  const qs = params.toString()
+  return apiRequest<AdminUserRow[]>(`/api/admin/users${qs ? `?${qs}` : ''}`, { method: 'GET', token })
 }
 
 export async function patchAdminUser(

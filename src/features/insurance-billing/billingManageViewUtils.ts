@@ -45,6 +45,7 @@ const STATUS_LABEL: Record<string, string> = {
   past_due: '결제 확인 필요',
   canceled: '해지',
   cancelled: '해지',
+  none: '구독 없음',
 }
 
 const STATUS_TONE: Record<string, BillingStatusTone> = {

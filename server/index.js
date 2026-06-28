@@ -37,6 +37,11 @@ import { registerMemoApi } from './apis/memoApi.js'
 import { registerUserInsurerAccountsApi } from './apis/userInsurerAccountsApi.js'
 import { registerTodosApi } from './apis/todosApi.js'
 import { registerSuperAdminAnalyticsApi } from './registerSuperAdminAnalyticsApi.js'
+import {
+  mapAdminUserListRow,
+  parseAdminUserSearchQuery,
+  parseAdminUserSubscriptionFilter,
+} from './lib/adminUsersPresentation.js'
 import { registerGaCustomerExcelApi } from './apis/gaCustomerExcelApi.js'
 import { registerGaCustomerMatchAliasesApi } from './apis/gaCustomerMatchAliasesApi.js'
 import { registerCustomerClaimAppApi } from './apis/customerClaimAppApi.js'
@@ -3958,6 +3963,28 @@ apiRouter.delete('/admin/ga/:id', requireAuth, requireSuperAdmin, async (req, re
 apiRouter.get('/admin/users', requireAuth, requireSuperAdmin, async (req, res) => {
   try {
     const filterGa = parseGaId(req.query.ga_id ?? req.query.gaId)
+    const subscriptionFilter = parseAdminUserSubscriptionFilter(
+      req.query.subscription_status ?? req.query.subscriptionStatus,
+    )
+    const searchQuery = parseAdminUserSearchQuery(req.query.q ?? req.query.keyword)
+    const params = [filterGa]
+    let paramIndex = 2
+    let subscriptionClause = ''
+    if (subscriptionFilter === 'none') {
+      subscriptionClause = `AND (bs.status IS NULL OR LOWER(TRIM(bs.status)) IN ('none', ''))`
+    } else if (subscriptionFilter === 'canceled') {
+      subscriptionClause = `AND LOWER(TRIM(bs.status)) IN ('canceled', 'cancelled')`
+    } else if (subscriptionFilter) {
+      subscriptionClause = `AND LOWER(TRIM(bs.status)) = $${paramIndex}`
+      params.push(subscriptionFilter)
+      paramIndex += 1
+    }
+    let searchClause = ''
+    if (searchQuery) {
+      searchClause = `AND (u.username ILIKE '%' || $${paramIndex} || '%' OR u.display_name ILIKE '%' || $${paramIndex} || '%')`
+      params.push(searchQuery)
+      paramIndex += 1
+    }
     const r = await safeQuery(pool,
       `
       SELECT
@@ -3969,37 +3996,45 @@ apiRouter.get('/admin/users', requireAuth, requireSuperAdmin, async (req, res) =
         u.role,
         u.status,
         u.created_at,
+        u.last_login_at,
         rr.referrer_user_id,
         ref_u.username AS referrer_username,
         ref_u.display_name AS referrer_display_name,
-        ref_g.name AS referrer_ga_company_name
+        ref_g.name AS referrer_ga_company_name,
+        audit_login.audit_last_login_at,
+        bs.status AS subscription_status,
+        bs.trial_ends_at,
+        bs.next_billing_at,
+        bs.current_period_end
       FROM users u
       INNER JOIN ga_companies g ON g.id = u.ga_id
       LEFT JOIN referral_relationships rr ON rr.referred_user_id = u.id
       LEFT JOIN users ref_u ON ref_u.id = rr.referrer_user_id AND ref_u.is_deleted = false
       LEFT JOIN ga_companies ref_g ON ref_g.id = ref_u.ga_id AND ref_g.is_deleted = false
+      LEFT JOIN (
+        SELECT actor_user_id, MAX(created_at) AS audit_last_login_at
+        FROM security_audit_logs
+        WHERE action = 'login_success'
+        GROUP BY actor_user_id
+      ) audit_login ON audit_login.actor_user_id = u.id
+      LEFT JOIN billing_subscriptions bs ON bs.user_id = u.id
       WHERE u.is_deleted = false AND g.is_deleted = false
         AND ($1::int IS NULL OR u.ga_id = $1::int)
+        ${subscriptionClause}
+        ${searchClause}
       ORDER BY g.name ASC, u.username ASC
       `,
-      [filterGa],
+      params,
     )
-    const rows = r.rows.map((row) => ({
-      id: String(row.id),
-      ga_id: row.ga_id,
-      display_name: String(row.display_name ?? '').trim(),
-      ga_company_name: row.ga_company_name,
-      username: row.username,
-      role: normalizeUserRole(row.role),
-      status: String(row.status ?? 'active').toLowerCase(),
-      created_at: toIsoString(row.created_at),
-      referrer_user_id: row.referrer_user_id != null ? String(row.referrer_user_id) : null,
-      referrer_username: row.referrer_username != null ? String(row.referrer_username) : null,
-      referrer_display_name:
-        row.referrer_display_name != null ? String(row.referrer_display_name).trim() : null,
-      referrer_ga_company_name:
-        row.referrer_ga_company_name != null ? String(row.referrer_ga_company_name) : null,
-    }))
+    const rows = r.rows.map((row) =>
+      mapAdminUserListRow(
+        {
+          ...row,
+          role: normalizeUserRole(row.role),
+        },
+        toIsoString,
+      ),
+    )
     res.json(rows)
   } catch (error) {
     handleDbError(error, req, res)

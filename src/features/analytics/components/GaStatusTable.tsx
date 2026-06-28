@@ -13,13 +13,13 @@ export function GaStatusTable({ statDate, rows }: Props) {
         <thead>
           <tr className={analyticsThRow}>
             <th className="px-3 py-2">GA</th>
-            <th className="px-3 py-2 text-right">유저</th>
-            <th className="px-3 py-2 text-right">DAU</th>
-            <th className="px-3 py-2 text-right">WAU</th>
-            <th className="px-3 py-2 text-right">신규</th>
-            <th className="px-3 py-2 text-right">고객+</th>
-            <th className="px-3 py-2 text-right">문서+</th>
-            <th className="px-3 py-2 text-right">상담+</th>
+            <th className="px-3 py-2 text-right">회원 수</th>
+            <th className="px-3 py-2 text-right">어제 접속</th>
+            <th className="px-3 py-2 text-right">7일 접속</th>
+            <th className="px-3 py-2 text-right">신규 가입</th>
+            <th className="px-3 py-2 text-right">고객 등록</th>
+            <th className="px-3 py-2 text-right">신청서 생성</th>
+            <th className="px-3 py-2 text-right">상담 메시지</th>
           </tr>
         </thead>
         <tbody>

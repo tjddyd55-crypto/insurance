@@ -7,12 +7,20 @@ type Props = {
   overall: AnalyticsOverall
 }
 
-export function SummaryKpiCards({ statDate, gaTotalCount, overall }: Props) {
+export function SummaryKpiCards({ gaTotalCount, overall }: Props) {
   const items = [
-    { label: '총 GA', value: gaTotalCount, hint: '활성 GA 수' },
-    { label: '총 유저(스냅샷)', value: overall.total_users, hint: `기준일 ${statDate}` },
-    { label: '전일 접속자(DAU)', value: overall.daily_active_users, hint: '로그인 기준' },
-    { label: 'WAU(7일)', value: overall.weekly_active_users, hint: '전일까지 7일·로그인' },
+    { label: '등록된 GA', value: gaTotalCount, hint: '활성 GA 수' },
+    { label: '전체 회원', value: overall.total_users, hint: '전일 기준 회원 수' },
+    {
+      label: '어제 접속한 회원',
+      value: overall.daily_active_users,
+      hint: '어제 접속한 회원 수입니다.',
+    },
+    {
+      label: '최근 7일 접속한 회원',
+      value: overall.weekly_active_users,
+      hint: '최근 7일 동안 한 번 이상 접속한 회원 수입니다.',
+    },
   ]
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
