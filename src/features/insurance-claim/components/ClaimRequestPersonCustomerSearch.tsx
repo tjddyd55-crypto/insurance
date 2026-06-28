@@ -21,13 +21,13 @@ export default function ClaimRequestPersonCustomerSearch({
 }: Props) {
   return (
     <>
-      <div className="insurance-claim-form__customer-search">
+      <div className="insurance-claim-form__customer-search claim-person-search">
         <FormInput
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
           placeholder="고객명 또는 연락처 검색 (선택)"
         />
-        <FormButton htmlType="button" onClick={onSearch}>
+        <FormButton htmlType="button" variant="secondary" onClick={onSearch}>
           {searchLabel}
         </FormButton>
       </div>

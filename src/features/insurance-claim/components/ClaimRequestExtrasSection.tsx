@@ -26,6 +26,7 @@ type Props = {
   onToggleCustomerAttachment: (id: number, checked: boolean) => void
   onSaveSignature: (role: SignatureRole, pngBlob: Blob) => Promise<void>
   onClearSignature: (role: SignatureRole) => void
+  sectionsStartAt?: number
 }
 
 function formatBytes(size: number) {
@@ -100,13 +101,14 @@ export default function ClaimRequestExtrasSection({
   onToggleCustomerAttachment,
   onSaveSignature,
   onClearSignature,
+  sectionsStartAt = 5,
 }: Props) {
   const [signatureModalRole, setSignatureModalRole] = useState<SignatureRole | null>(null)
 
   return (
     <>
-      <section className="insurance-claim-form__section">
-        <h2>7. 서명</h2>
+      <section className="insurance-claim-form__section claim-form-section">
+        <h2>{sectionsStartAt}. 서명</h2>
         {!draftSaved ? (
           <p className="insurance-claim-form__hint">청구 초안을 먼저 저장한 뒤 서명을 작성할 수 있습니다.</p>
         ) : (
@@ -133,8 +135,8 @@ export default function ClaimRequestExtrasSection({
         )}
       </section>
 
-      <section className="insurance-claim-form__section">
-        <h2>8. 추가 첨부파일</h2>
+      <section className="insurance-claim-form__section claim-form-section">
+        <h2>{sectionsStartAt + 1}. 추가 첨부파일</h2>
         {!draftSaved ? (
           <p className="insurance-claim-form__hint">청구 초안을 먼저 저장한 뒤 첨부파일을 추가할 수 있습니다.</p>
         ) : (
@@ -171,8 +173,8 @@ export default function ClaimRequestExtrasSection({
         )}
       </section>
 
-      <section className="insurance-claim-form__section">
-        <h2>9. 고객앱 첨부파일</h2>
+      <section className="insurance-claim-form__section claim-form-section">
+        <h2>{sectionsStartAt + 2}. 고객앱 첨부파일</h2>
         {customerId == null ? (
           <p className="insurance-claim-form__hint">고객을 불러오면 고객앱 첨부파일을 선택할 수 있습니다.</p>
         ) : customerAttachmentsLoading ? (

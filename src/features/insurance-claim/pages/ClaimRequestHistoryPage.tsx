@@ -9,6 +9,7 @@ import {
   listClaimRequests,
   type ClaimRequestDraft,
 } from '../api/claimRequestsApi'
+import InsuranceClaimSubnav from '../components/InsuranceClaimSubnav'
 import { formatKstDateDisplay } from '../../../utils/displayDateTime'
 import '../insurance-claim-form.css'
 
@@ -174,18 +175,13 @@ export default function ClaimRequestHistoryPage() {
   }
 
   return (
-    <main className="page page--with-back insurance-claim-history insurance-claim-history-page">
-      <header className="page-header insurance-claim-page-header">
-        <div className="insurance-claim-page-header__title-row">
-          <h1>보험청구</h1>
-          <div className="insurance-claim-page-header__actions">
-            <Link className="button button--primary" to="/insurance-claim/new">
-              새 청구
-            </Link>
-          </div>
-        </div>
+    <main className="page page--with-back insurance-claim-history insurance-claim-history-page insurance-claim-page">
+      <header className="page-header">
+        <h1>보험청구</h1>
         <p>청구 내역을 확인하고 새 청구를 작성합니다.</p>
       </header>
+
+      <InsuranceClaimSubnav />
 
       {message ? (
         <p className="insurance-claim-history__message" role="alert">
