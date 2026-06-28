@@ -64,7 +64,7 @@ test('sanitizeAdminNoticeHtml keeps resized image width and style', () => {
     '<p><img src="https://cdn.example/a.png" alt="a" width="520" style="width: 520px; max-width: 100%; height: auto;" /></p>',
   )
   assert.match(sanitized, /width="520"/)
-  assert.match(sanitized, /max-width: 100%/)
+  assert.match(sanitized, /max-width:\s*100%/)
 })
 
 test('sanitizeAdminNoticeHtml keeps link preview card markup', () => {
@@ -81,4 +81,20 @@ test('sanitizeAdminNoticeHtml removes javascript links from preview cards', () =
     '<div class="admin-notice-link-preview" data-url="javascript:alert(1)"><a href="javascript:alert(1)">bad</a></div>',
   )
   assert.equal(sanitized.includes('javascript:'), false)
+})
+
+test('sanitizeAdminNoticeHtml keeps img data-align and width together', () => {
+  const sanitized = sanitizeAdminNoticeHtml(
+    '<p><img src="https://cdn.example/a.png" alt="a" width="520" data-align="center" style="width: 520px; max-width: 100%; height: auto;" /></p>',
+  )
+  assert.match(sanitized, /data-align="center"/)
+  assert.match(sanitized, /width="520"/)
+})
+
+test('sanitizeAdminNoticeHtml keeps link preview data-url and data-align', () => {
+  const sanitized = sanitizeAdminNoticeHtml(
+    '<div class="admin-notice-link-preview" data-url="https://example.com" data-align="right"><a href="https://example.com" target="_blank" rel="noopener noreferrer"><div class="admin-notice-link-preview__body"><strong class="admin-notice-link-preview__title">제목</strong></div></a></div>',
+  )
+  assert.match(sanitized, /data-url="https:\/\/example.com"/)
+  assert.match(sanitized, /data-align="right"/)
 })

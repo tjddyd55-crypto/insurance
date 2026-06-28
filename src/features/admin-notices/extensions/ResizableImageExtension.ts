@@ -2,6 +2,8 @@ import Image from '@tiptap/extension-image'
 import { ReactNodeViewRenderer } from '@tiptap/react'
 import { ResizableImageNodeView } from './ResizableImageNodeView'
 
+const NOTICE_ALIGNMENTS = ['left', 'center', 'right']
+
 export const ResizableImage = Image.extend({
   addAttributes() {
     return {
@@ -29,6 +31,16 @@ export const ResizableImage = Image.extend({
             style: `width: ${width}px; max-width: 100%; height: auto;`,
           }
         },
+      },
+      align: {
+        default: 'left',
+        parseHTML: (element) => {
+          const align = element.getAttribute('data-align')
+          return NOTICE_ALIGNMENTS.includes(String(align)) ? align : 'left'
+        },
+        renderHTML: (attributes) => ({
+          'data-align': NOTICE_ALIGNMENTS.includes(String(attributes.align)) ? attributes.align : 'left',
+        }),
       },
     }
   },
