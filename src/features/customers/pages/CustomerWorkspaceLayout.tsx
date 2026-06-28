@@ -9,6 +9,7 @@ import { getCustomerById } from '../api/customersApi'
 import { isGaCarInsuranceHubEnabled } from '../../dashboard/gaTenantMenu'
 import useIsMobile from '../../../hooks/useIsMobile'
 import { canAccessContractSignatureUserSend } from '../../contracts/testConsole/contractSignatureTestConsoleFlags'
+import { canUseInsuranceClaimUserRoutes } from '../../auth/roleGuards'
 import { openCustomerSignatureWorkspace } from '../utils/customerSignatureWorkspaceNavigation'
 import CustomersPageContainer from './customers/CustomersPageContainer'
 import CustomerWorkspaceLayoutPC, { type CustomerWorkspaceLayoutPCProps } from './workspace/CustomerWorkspaceLayoutPC'
@@ -191,6 +192,7 @@ export default function CustomerWorkspaceLayout() {
 
   const showCarInsuranceInWorkspace = isGaCarInsuranceHubEnabled(user?.gaCode, user?.gaName)
   const showContractSignaturesInWorkspace = canAccessContractSignatureUserSend(user?.role)
+  const showClaimsInWorkspace = canUseInsuranceClaimUserRoutes(user?.role)
 
   const moveTo = (path: string) => {
     const href = buildCustomerWorkspaceHref(path, searchParams, selectedCustomerId)
@@ -290,6 +292,7 @@ export default function CustomerWorkspaceLayout() {
     activeTab,
     showCarInsuranceInWorkspace,
     showContractSignaturesInWorkspace,
+    showClaimsInWorkspace,
     showGaExcelEntry,
     gaExcelMenuTitleHint:
       selectedCustomerId && excelCap != null && !excelCap.showDesignerUi

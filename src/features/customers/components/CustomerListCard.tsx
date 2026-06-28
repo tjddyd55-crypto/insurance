@@ -114,6 +114,7 @@ export type CustomerListCardProps = {
   carFeatureEnabled: boolean
   contractSignaturesEnabled: boolean
   gaExcelEnabled: boolean
+  claimsFeatureEnabled: boolean
   onCopyCustomer: (c: CustomerRecord) => void
   onStartEdit: (c: CustomerRecord) => void
   onCancelEdit: () => void
@@ -163,6 +164,7 @@ const CustomerListCard = memo(function CustomerListCard({
   carFeatureEnabled,
   contractSignaturesEnabled,
   gaExcelEnabled,
+  claimsFeatureEnabled,
   onCopyCustomer,
   onStartEdit,
   onCancelEdit,
@@ -429,6 +431,7 @@ const CustomerListCard = memo(function CustomerListCard({
                   carFeatureEnabled={carFeatureEnabled}
                   contractSignaturesEnabled={contractSignaturesEnabled}
                   gaExcelEnabled={gaExcelEnabled}
+                  claimsFeatureEnabled={claimsFeatureEnabled}
                   onOpenFilesModal={onOpenFilesModal}
                   onOpenConsultationsModal={onOpenConsultationsModal}
                   onOpenAutoModal={onOpenAutoModal}

@@ -26,6 +26,7 @@ export type CustomerWorkspaceLayoutPCProps = {
   activeTab: WorkspaceActiveTab
   showCarInsuranceInWorkspace: boolean
   showContractSignaturesInWorkspace: boolean
+  showClaimsInWorkspace: boolean
   showGaExcelEntry: boolean
   /** 설정 미완료 등 안내용(버튼은 항상 활성 — 고객 선택 시) */
   gaExcelMenuTitleHint: string | undefined
@@ -93,6 +94,7 @@ export default function CustomerWorkspaceLayoutPC({
   activeTab,
   showCarInsuranceInWorkspace,
   showContractSignaturesInWorkspace,
+  showClaimsInWorkspace,
   showGaExcelEntry,
   gaExcelMenuTitleHint,
   onClickFiles,
@@ -161,17 +163,19 @@ export default function CustomerWorkspaceLayoutPC({
             >
               지도에서 보기
             </FormButton>
-            <FormButton
-              htmlType="button"
-              variant="action"
-              className={`customer-workspace-layout__tab${
-                activeTab === 'personal-message' ? ' customer-workspace-layout__tab--active' : ''
-              }`}
-              disabled={!selectedCustomerId}
-              onClick={onClickPersonalMessage}
-            >
-              개인메시지
-            </FormButton>
+            {showClaimsInWorkspace ? (
+              <FormButton
+                htmlType="button"
+                variant="action"
+                className={`customer-workspace-layout__tab${
+                  activeTab === 'personal-message' ? ' customer-workspace-layout__tab--active' : ''
+                }`}
+                disabled={!selectedCustomerId}
+                onClick={onClickPersonalMessage}
+              >
+                개인메시지
+              </FormButton>
+            ) : null}
             <FormButton
               htmlType="button"
               variant="action"
@@ -246,17 +250,19 @@ export default function CustomerWorkspaceLayoutPC({
             >
               메모 보기
             </FormButton>
-            <FormButton
-              htmlType="button"
-              variant="action"
-              className={`customer-workspace-layout__tab${
-                activeTab === 'claims' ? ' customer-workspace-layout__tab--active' : ''
-              }`}
-              disabled={!selectedCustomerId}
-              onClick={onClickClaims}
-            >
-              청구관리
-            </FormButton>
+            {showClaimsInWorkspace ? (
+              <FormButton
+                htmlType="button"
+                variant="action"
+                className={`customer-workspace-layout__tab${
+                  activeTab === 'claims' ? ' customer-workspace-layout__tab--active' : ''
+                }`}
+                disabled={!selectedCustomerId}
+                onClick={onClickClaims}
+              >
+                청구관리
+              </FormButton>
+            ) : null}
           </div>
         </nav>
       </header>

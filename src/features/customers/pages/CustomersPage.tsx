@@ -20,6 +20,7 @@ import { copyTextToClipboard } from '../../../lib/clipboard'
 import { useAuth } from '../../auth/AuthProvider'
 import { isCarInsuranceFeatureEnabledForGa } from '../../dashboard/gaTenantMenu'
 import { canAccessContractSignatureUserSend } from '../../contracts/testConsole/contractSignatureTestConsoleFlags'
+import { canUseInsuranceClaimUserRoutes } from '../../auth/roleGuards'
 import { deleteCustomer, getCustomerById, listCustomers, updateCustomer } from '../api/customersApi'
 import { listCustomerCars } from '../api/customerCarsApi'
 import type { CustomerRecord } from '../domain/types'
@@ -145,6 +146,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   const { confirm, confirmDialog } = useConfirmDialog()
   const carFeatureEnabled = isCarInsuranceFeatureEnabledForGa(user?.gaCode)
   const contractSignaturesEnabled = canAccessContractSignatureUserSend(user?.role)
+  const claimsFeatureEnabled = canUseInsuranceClaimUserRoutes(user?.role)
   const gaExcelEnabled = gaSettings.use_ga_excel === true
   const [customers, setCustomers] = useState<CustomerRecord[]>([])
   const [customersTotalCount, setCustomersTotalCount] = useState(0)
@@ -1716,6 +1718,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
               carFeatureEnabled={carFeatureEnabled}
               contractSignaturesEnabled={contractSignaturesEnabled}
               gaExcelEnabled={gaExcelEnabled}
+              claimsFeatureEnabled={claimsFeatureEnabled}
               onCopyCustomer={copyCustomer}
               onStartEdit={startEdit}
               onCancelEdit={cancelEdit}
