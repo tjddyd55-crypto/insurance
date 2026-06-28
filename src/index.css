@@ -5235,17 +5235,31 @@ div.cta-button.customers-page__action-btn[role='button'] {
 .admin-notices-editor {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 0;
   margin-top: 16px;
 }
 
 .admin-notices-editor__field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+  margin-bottom: 18px;
   font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--text-secondary);
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.admin-notices-editor__field > span {
+  display: block;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.admin-notices-editor__field--content {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
 }
 
 .admin-notices-editor__field input,
@@ -5257,9 +5271,11 @@ div.cta-button.customers-page__action-btn[role='button'] {
   background: var(--bg-soft);
   color: var(--text-primary);
   font: inherit;
+  font-weight: 400;
 }
 
 .admin-notices-editor__section {
+  margin-bottom: 18px;
   padding: 16px;
   border: 1px solid var(--border-default);
   border-radius: 12px;
@@ -5284,16 +5300,28 @@ div.cta-button.customers-page__action-btn[role='button'] {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  margin-top: 4px;
+}
+
+@media (max-width: 768px) {
+  .admin-notices-editor__field--content .admin-notices-rich-editor__toolbar {
+    padding: 8px;
+  }
+
+  .admin-notices-editor__field--content .admin-notices-rich-editor__content .tiptap {
+    padding: 10px;
+  }
 }
 
 .admin-notices-rich-editor {
   display: flex;
   flex-direction: column;
   gap: 0;
+  width: 100%;
   border: 1px solid var(--border-default);
-  border-radius: 12px;
+  border-radius: 10px;
   overflow: hidden;
-  background: var(--bg-card);
+  background: var(--bg-soft);
 }
 
 .admin-notices-rich-editor__toolbar {
@@ -5303,7 +5331,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
   align-items: center;
   padding: 10px 12px;
   border-bottom: 1px solid var(--border-default);
-  background: var(--bg-soft);
+  background: var(--bg-card);
 }
 
 .admin-notices-rich-editor__tool {
@@ -5363,14 +5391,16 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .admin-notices-rich-editor__content {
   min-height: 420px;
+  background: var(--bg-soft);
 }
 
 .admin-notices-rich-editor__content .tiptap {
   min-height: 420px;
-  padding: 16px 18px;
+  padding: 10px 12px;
   outline: none;
   color: var(--text-primary);
   line-height: 1.7;
+  background: var(--bg-soft);
 }
 
 .admin-notices-rich-editor__content .tiptap p,
