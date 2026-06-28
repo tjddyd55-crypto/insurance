@@ -33,7 +33,8 @@ export default function AdminNoticeListPage() {
     try {
       setItems(await fetchAdminNotices(token))
     } catch (e) {
-      setError(e instanceof Error ? e.message : '공지 목록을 불러오지 못했습니다.')
+      console.error('[admin-notices] failed to load notices', e)
+      setError('공지사항을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
       setItems([])
     } finally {
       setLoading(false)
@@ -50,7 +51,8 @@ export default function AdminNoticeListPage() {
       await action()
       await load()
     } catch (e) {
-      setError(e instanceof Error ? e.message : '처리에 실패했습니다.')
+      console.error('[admin-notices] failed to run notice action', e)
+      setError('처리에 실패했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
       setPendingId(null)
     }

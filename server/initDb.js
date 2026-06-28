@@ -2881,6 +2881,10 @@ export async function initDb() {
     ON admin_notices (status, show_as_popup, popup_priority DESC, updated_at DESC)
   `)
   await pool.query(`
+    ALTER TABLE admin_notices
+    ADD COLUMN IF NOT EXISTS content_html TEXT NOT NULL DEFAULT ''
+  `)
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS user_notice_dismissals (
       id BIGSERIAL PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

@@ -5286,68 +5286,115 @@ div.cta-button.customers-page__action-btn[role='button'] {
   gap: 8px;
 }
 
-.admin-notices-block-editor {
+.admin-notices-rich-editor {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg-card);
 }
 
-.admin-notices-block-editor__item {
-  padding: 12px;
-  border: 1px dashed var(--border-default);
-  border-radius: 10px;
+.admin-notices-rich-editor__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-default);
   background: var(--bg-soft);
 }
 
-.admin-notices-block-editor__item textarea {
-  width: 100%;
-  min-height: 96px;
-  padding: 10px 12px;
+.admin-notices-rich-editor__tool {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
   border: 1px solid var(--border-default);
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--bg-card);
   color: var(--text-primary);
-  font: inherit;
-  resize: vertical;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
 }
 
-.admin-notices-block-editor__image img {
-  display: block;
-  max-width: 100%;
-  height: auto;
-  border-radius: 8px;
+.admin-notices-rich-editor__tool--active {
+  border-color: #2563eb;
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.08);
 }
 
-.admin-notices-block-editor__actions,
-.admin-notices-block-editor__upload {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.admin-notices-rich-editor__tool:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.admin-notices-rich-editor__select-wrap {
+  display: inline-flex;
   align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
 }
 
-.admin-notices-block-preview {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.admin-notices-block-preview__text {
-  margin: 0;
-  white-space: pre-wrap;
+.admin-notices-rich-editor__select {
+  min-width: 88px;
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-card);
   color: var(--text-primary);
-  line-height: 1.6;
 }
 
-.admin-notices-block-preview__figure {
-  margin: 0;
+.admin-notices-rich-editor__colors {
+  display: inline-flex;
+  gap: 4px;
 }
 
-.admin-notices-block-preview__figure img {
-  display: block;
+.admin-notices-rich-editor__color {
+  width: 22px;
+  height: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.admin-notices-rich-editor__content {
+  min-height: 420px;
+}
+
+.admin-notices-rich-editor__content .tiptap {
+  min-height: 420px;
+  padding: 16px 18px;
+  outline: none;
+  color: var(--text-primary);
+  line-height: 1.7;
+}
+
+.admin-notices-rich-editor__content .tiptap p,
+.admin-notices-rich-editor__preview p {
+  margin: 0 0 12px;
+}
+
+.admin-notices-rich-editor__content .tiptap img,
+.admin-notice-popup__content img,
+.admin-notices-rich-editor__preview img {
   max-width: 100%;
   height: auto;
-  border-radius: 8px;
+  border-radius: 12px;
+  display: block;
+  margin: 12px auto;
+}
+
+.admin-notice-popup__content a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.admin-notices-rich-editor__preview {
+  color: var(--text-primary);
 }
 
 .admin-notices-preview-modal {
@@ -5379,10 +5426,6 @@ div.cta-button.customers-page__action-btn[role='button'] {
   gap: 8px;
   padding: 16px 20px;
   border-top: 1px solid var(--border-default);
-}
-
-.admin-notice-popup-modal .admin-notices-block-preview__text {
-  font-size: 0.95rem;
 }
 
 .user-insurer-accounts-page {

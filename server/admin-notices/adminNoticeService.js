@@ -1,4 +1,4 @@
-import { safeQuery } from '../utils/dbSafeQuery.js'
+import { systemQuery } from '../utils/dbSafeQuery.js'
 import { getR2PublicCdnBase } from '../lib/consentStorage.js'
 import { assertInsuranceStorageKeyPrefix } from '../storage/insuranceStorageKeys.js'
 import { getKstEndOfDayDate } from '../services/userNotificationService.js'
@@ -10,17 +10,61 @@ import {
   isNoticeDismissedActive,
   normalizeContentBlocks,
 } from './adminNoticeLogic.js'
+import { derivePlainTextFromHtml, sanitizeAdminNoticeHtml } from './adminNoticeHtmlSanitize.js'
+
+function escapeHtmlText(text) {
+  return String(text ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+/**
+ * @param {AdminNoticeContentBlock[]} blocks
+ * @param {string} [cdnBase]
+ */
+function blocksToHtml(blocks, cdnBase = getR2PublicCdnBase()) {
+  return blocks
+    .map((block) => {
+      if (block.type === 'text') {
+        const lines = String(block.text ?? '')
+          .split('\n')
+          .map((line) => escapeHtmlText(line))
+          .join('<br>')
+        return lines ? `<p>${lines}</p>` : ''
+      }
+      const storageKey = block.storageKey ? assertInsuranceStorageKeyPrefix(block.storageKey) : ''
+      const url = block.url?.trim() || (storageKey ? `${cdnBase}/${storageKey}` : '')
+      if (!url) {
+        return ''
+      }
+      const alt = String(block.alt ?? '').replace(/"/g, '&quot;')
+      return `<p><img src="${url.replace(/"/g, '&quot;')}" alt="${alt}" /></p>`
+    })
+    .filter(Boolean)
+    .join('')
+}
 
 /**
  * @param {unknown} row
  */
 export function mapAdminNoticeRow(row) {
   const contentBlocks = Array.isArray(row?.content_json) ? row.content_json : []
+  let contentHtml = String(row?.content_html ?? '').trim()
+  if (!contentHtml && contentBlocks.length > 0) {
+    contentHtml = blocksToHtml(enrichNoticeBlocksWithPublicUrls(contentBlocks))
+  }
+  contentHtml = sanitizeAdminNoticeHtml(contentHtml)
   return {
     id: Number(row.id),
     title: String(row.title ?? ''),
+    contentHtml,
     contentBlocks,
-    plainText: row.plain_text != null ? String(row.plain_text) : derivePlainText(contentBlocks),
+    plainText:
+      row.plain_text != null
+        ? String(row.plain_text)
+        : derivePlainTextFromHtml(contentHtml) || derivePlainText(contentBlocks),
     status: String(row.status ?? 'draft'),
     showAsPopup: row.show_as_popup === true,
     popupPriority: Number(row.popup_priority ?? 0),
@@ -37,7 +81,7 @@ export function mapAdminNoticeRow(row) {
  * @param {import('pg').Pool} pool
  */
 export async function listAdminNotices(pool) {
-  const { rows } = await safeQuery(
+  const { rows } = await systemQuery(
     pool,
     `
     SELECT *
@@ -57,7 +101,7 @@ export async function getAdminNoticeById(pool, id) {
   if (!Number.isFinite(noticeId) || noticeId <= 0) {
     throw new Error('notice_not_found')
   }
-  const { rows } = await safeQuery(pool, `SELECT * FROM admin_notices WHERE id = $1`, [noticeId])
+  const { rows } = await systemQuery(pool, `SELECT * FROM admin_notices WHERE id = $1`, [noticeId])
   if (!rows[0]) {
     throw new Error('notice_not_found')
   }
@@ -87,7 +131,17 @@ function parseNoticeInput(body) {
   if (!title) {
     throw new Error('title_required')
   }
-  const contentBlocks = normalizeContentBlocks(payload.contentBlocks ?? payload.content_json ?? [])
+
+  let contentHtml = ''
+  if (payload.contentHtml != null || payload.content_html != null) {
+    contentHtml = sanitizeAdminNoticeHtml(String(payload.contentHtml ?? payload.content_html ?? ''))
+  } else if (payload.contentBlocks != null || payload.content_json != null) {
+    const contentBlocks = normalizeContentBlocks(payload.contentBlocks ?? payload.content_json ?? [])
+    contentHtml = blocksToHtml(contentBlocks)
+  }
+
+  const contentBlocks = []
+  const plainText = derivePlainTextFromHtml(contentHtml)
   const statusRaw = String(payload.status ?? 'draft').trim().toLowerCase()
   const status = ADMIN_NOTICE_STATUSES.includes(statusRaw) ? statusRaw : 'draft'
   const showAsPopup = payload.showAsPopup === true || payload.show_as_popup === true
@@ -97,8 +151,9 @@ function parseNoticeInput(body) {
   }
   return {
     title,
+    contentHtml,
     contentBlocks,
-    plainText: derivePlainText(contentBlocks),
+    plainText,
     status,
     showAsPopup,
     popupPriority,
@@ -117,14 +172,14 @@ async function clearOtherPopupFlags(pool, showAsPopup, exceptId = null) {
     return
   }
   if (exceptId != null) {
-    await safeQuery(
+    await systemQuery(
       pool,
       `UPDATE admin_notices SET show_as_popup = false, updated_at = NOW() WHERE show_as_popup = true AND id <> $1`,
       [exceptId],
     )
     return
   }
-  await safeQuery(pool, `UPDATE admin_notices SET show_as_popup = false, updated_at = NOW() WHERE show_as_popup = true`)
+  await systemQuery(pool, `UPDATE admin_notices SET show_as_popup = false, updated_at = NOW() WHERE show_as_popup = true`)
 }
 
 /**
@@ -135,19 +190,20 @@ async function clearOtherPopupFlags(pool, showAsPopup, exceptId = null) {
 export async function createAdminNotice(pool, body, actorUserId) {
   const input = parseNoticeInput(body)
   await clearOtherPopupFlags(pool, input.showAsPopup)
-  const { rows } = await safeQuery(
+  const { rows } = await systemQuery(
     pool,
     `
     INSERT INTO admin_notices (
-      title, content_json, plain_text, status, show_as_popup, popup_priority,
+      title, content_json, content_html, plain_text, status, show_as_popup, popup_priority,
       starts_at, ends_at, created_by, updated_by
     )
-    VALUES ($1, $2::jsonb, $3, $4, $5, $6, $7, $8, $9, $9)
+    VALUES ($1, $2::jsonb, $3, $4, $5, $6, $7, $8, $9, $10, $10)
     RETURNING *
     `,
     [
       input.title,
       JSON.stringify(input.contentBlocks),
+      input.contentHtml,
       input.plainText,
       input.status,
       input.showAsPopup,
@@ -173,19 +229,20 @@ export async function updateAdminNotice(pool, id, body, actorUserId) {
   }
   const input = parseNoticeInput(body)
   await clearOtherPopupFlags(pool, input.showAsPopup, noticeId)
-  const { rows } = await safeQuery(
+  const { rows } = await systemQuery(
     pool,
     `
     UPDATE admin_notices
     SET title = $2,
         content_json = $3::jsonb,
-        plain_text = $4,
-        status = $5,
-        show_as_popup = $6,
-        popup_priority = $7,
-        starts_at = $8,
-        ends_at = $9,
-        updated_by = $10,
+        content_html = $4,
+        plain_text = $5,
+        status = $6,
+        show_as_popup = $7,
+        popup_priority = $8,
+        starts_at = $9,
+        ends_at = $10,
+        updated_by = $11,
         updated_at = NOW()
     WHERE id = $1
     RETURNING *
@@ -194,6 +251,7 @@ export async function updateAdminNotice(pool, id, body, actorUserId) {
       noticeId,
       input.title,
       JSON.stringify(input.contentBlocks),
+      input.contentHtml,
       input.plainText,
       input.status,
       input.showAsPopup,
@@ -218,7 +276,7 @@ export async function deleteAdminNotice(pool, id) {
   if (!Number.isFinite(noticeId) || noticeId <= 0) {
     throw new Error('notice_not_found')
   }
-  const { rowCount } = await safeQuery(pool, `DELETE FROM admin_notices WHERE id = $1`, [noticeId])
+  const { rowCount } = await systemQuery(pool, `DELETE FROM admin_notices WHERE id = $1`, [noticeId])
   if (!rowCount) {
     throw new Error('notice_not_found')
   }
@@ -254,7 +312,7 @@ async function updateAdminNoticeStatus(pool, id, status, actorUserId) {
   if (!Number.isFinite(noticeId) || noticeId <= 0) {
     throw new Error('notice_not_found')
   }
-  const { rows } = await safeQuery(
+  const { rows } = await systemQuery(
     pool,
     `
     UPDATE admin_notices
@@ -288,7 +346,7 @@ export async function setAdminNoticePopup(pool, id, actorUserId) {
     throw new Error('notice_not_published')
   }
   await clearOtherPopupFlags(pool, true, noticeId)
-  const { rows } = await safeQuery(
+  const { rows } = await systemQuery(
     pool,
     `
     UPDATE admin_notices
@@ -323,7 +381,7 @@ export function enrichNoticeBlocksWithPublicUrls(blocks, cdnBase = getR2PublicCd
  * @param {string} userId
  */
 export async function getActivePopupNoticeForUser(pool, userId) {
-  const { rows } = await safeQuery(
+  const { rows } = await systemQuery(
     pool,
     `
     SELECT n.*,
@@ -360,6 +418,7 @@ export async function getActivePopupNoticeForUser(pool, userId) {
   return {
     id: winner.id,
     title: winner.title,
+    contentHtml: winner.contentHtml,
     contentBlocks: enrichNoticeBlocksWithPublicUrls(winner.contentBlocks),
   }
 }
@@ -380,7 +439,7 @@ export async function dismissAdminNoticeForUser(pool, userId, noticeIdRaw, optio
   const dismissedForever = options.forever === true
   const dismissedUntil = options.suppressToday === true ? getKstEndOfDayDate().toISOString() : null
 
-  await safeQuery(
+  await systemQuery(
     pool,
     `
     INSERT INTO user_notice_dismissals (user_id, notice_id, dismissed_until, dismissed_forever)
