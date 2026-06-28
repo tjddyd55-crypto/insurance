@@ -1,11 +1,15 @@
 import { useMemo } from 'react'
 import type { ClaimCompany } from '../api/claimRequestsApi'
 import { splitClaimCompaniesByGroup } from '../claimCompanyGroups'
+import type { CompanySpecificFields } from '../utils/claimCompanyValidation'
+import ClaimCompanyExtraFieldsPanel from './ClaimCompanyExtraFieldsPanel'
 
 type Props = {
   companies: ClaimCompany[]
   selectedCompanyIds: string[]
   onToggle: (companyId: string) => void
+  companySpecificFields: CompanySpecificFields
+  onCompanyFieldChange: (companyId: string, fieldKey: string, value: string) => void
   disabled?: boolean
   multiSelect?: boolean
 }
@@ -56,11 +60,20 @@ export default function ClaimCompanyPickerPanel({
   companies,
   selectedCompanyIds,
   onToggle,
+  companySpecificFields,
+  onCompanyFieldChange,
   disabled = false,
   multiSelect = true,
 }: Props) {
   const { life, nonLife } = useMemo(() => splitClaimCompaniesByGroup(companies), [companies])
   const selectedCount = selectedCompanyIds.length
+  const selectedCompanies = useMemo(
+    () =>
+      selectedCompanyIds
+        .map((companyId) => companies.find((company) => String(company.id) === companyId))
+        .filter((company): company is ClaimCompany => company != null),
+    [companies, selectedCompanyIds],
+  )
 
   return (
     <aside className="insurance-claim-company-panel">
@@ -92,6 +105,13 @@ export default function ClaimCompanyPickerPanel({
           <p className="insurance-claim-company-panel__hint">보험회사를 선택해 주세요.</p>
         ) : null}
       </div>
+
+      <ClaimCompanyExtraFieldsPanel
+        selectedCompanies={selectedCompanies}
+        companySpecificFields={companySpecificFields}
+        onFieldChange={onCompanyFieldChange}
+        disabled={disabled}
+      />
     </aside>
   )
 }

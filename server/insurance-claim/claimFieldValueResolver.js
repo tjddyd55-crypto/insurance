@@ -210,7 +210,13 @@ export function resolveInsuranceClaimFieldValues(fields, input, options = {}) {
     if (group === 'contractor') {
       source = contractor
     } else if (group === 'claim') {
-      source = input.claimData ?? {}
+      const claimData = input.claimData ?? {}
+      const specific =
+        claimData.companySpecificFields && typeof claimData.companySpecificFields === 'object'
+          ? claimData.companySpecificFields
+          : {}
+      source = { ...claimData, ...specific }
+      delete source.companySpecificFields
     } else if (group === 'payment') {
       source = input.paymentData ?? {}
     } else if (group === 'signature') {

@@ -44,6 +44,24 @@ test('camelCase snapshot 키와 customer mapping을 해석한다', () => {
   assert.equal(values.name, '계약자')
 })
 
+test('보험회사별 추가 필드는 claimData.companySpecificFields 에서 우선 해석한다', () => {
+  const values = resolveInsuranceClaimFieldValues(
+    [{ fieldKey: 'claim_id_card_issued_date' }, { fieldKey: 'claim_accident_location' }],
+    {
+      ...sampleInput,
+      claimData: {
+        ...sampleInput.claimData,
+        companySpecificFields: {
+          idCardIssuedDate: '2020-01-01',
+          accidentLocation: '자택',
+        },
+      },
+    },
+  )
+  assert.equal(values.claim_id_card_issued_date, '2020-01-01')
+  assert.equal(values.claim_accident_location, '자택')
+})
+
 test('B 고객 매핑은 계약자 snapshot 이 비어 있으면 빈 값을 반환한다', () => {
   const values = resolveInsuranceClaimFieldValues(
     [{ fieldKey: 'contractor_name', dataMapping: { dataSourceType: 'customer', customerFieldKey: 'name', useSecondaryCustomer: true } }],
