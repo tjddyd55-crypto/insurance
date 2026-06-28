@@ -155,21 +155,48 @@ export function AdminNoticeRichEditor({ value, onChange, disabled = false, onUpl
       const publicUrl = await onUploadImage(file)
       editor.chain().focus().setImage({ src: publicUrl, alt: file.name }).run()
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : '이미지 업로드에 실패했습니다.')
+      console.error('[admin-notices] image upload failed', error)
+      window.alert('이미지 업로드에 실패했습니다.')
     }
   }
 
   const setLink = () => {
+    const { from, to } = editor.state.selection
+    const hasSelection = from !== to
     const previousUrl = String(editor.getAttributes('link').href ?? '')
     const url = window.prompt('링크 URL', previousUrl || 'https://')
     if (url == null) {
       return
     }
-    if (!url.trim()) {
+    const trimmedUrl = url.trim()
+    if (!trimmedUrl) {
       editor.chain().focus().extendMarkRange('link').unsetLink().run()
       return
     }
-    editor.chain().focus().extendMarkRange('link').setLink({ href: url.trim(), target: '_blank' }).run()
+
+    if (hasSelection) {
+      editor
+        .chain()
+        .focus()
+        .extendMarkRange('link')
+        .setLink({ href: trimmedUrl, target: '_blank', rel: 'noopener noreferrer' })
+        .run()
+      return
+    }
+
+    const label = window.prompt('링크 텍스트', trimmedUrl)
+    if (label == null || !label.trim()) {
+      return
+    }
+    editor
+      .chain()
+      .focus()
+      .insertContent({
+        type: 'text',
+        text: label.trim(),
+        marks: [{ type: 'link', attrs: { href: trimmedUrl, target: '_blank', rel: 'noopener noreferrer' } }],
+      })
+      .run()
   }
 
   return (

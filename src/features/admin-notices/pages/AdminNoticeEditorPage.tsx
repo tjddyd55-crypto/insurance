@@ -77,15 +77,21 @@ export default function AdminNoticeEditorPage() {
     try {
       const payload = { ...form, status: nextStatus }
       if (isEdit && noticeId != null) {
-        await updateAdminNotice(token, noticeId, payload)
+        const saved = await updateAdminNotice(token, noticeId, payload)
+        if (!saved?.id) {
+          throw new Error('공지 저장 결과에 ID가 없습니다.')
+        }
         navigate('/admin/notices')
         return
       }
       const created = await createAdminNotice(token, payload)
-      navigate(`/admin/notices/${created.id}`)
+      if (!created?.id) {
+        throw new Error('공지 저장 결과에 ID가 없습니다.')
+      }
+      navigate(nextStatus === 'published' ? '/admin/notices' : `/admin/notices/${created.id}`)
     } catch (e) {
       console.error('[admin-notices] failed to save notice', e)
-      setError(e instanceof Error && e.message !== 'DB_ERROR' ? e.message : '공지사항 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.')
+      setError('공지사항 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
       setSaving(false)
     }

@@ -5388,9 +5388,22 @@ div.cta-button.customers-page__action-btn[role='button'] {
   margin: 12px auto;
 }
 
-.admin-notice-popup__content a {
-  color: #2563eb;
+.admin-notices-rich-editor__content .tiptap a,
+.admin-notice-popup__content a,
+.admin-notices-rich-editor__preview a,
+.admin-notices-preview-modal__body a {
+  color: #0f8f3c;
   text-decoration: underline;
+  text-underline-offset: 3px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-notices-rich-editor__content .tiptap a:hover,
+.admin-notice-popup__content a:hover,
+.admin-notices-rich-editor__preview a:hover,
+.admin-notices-preview-modal__body a:hover {
+  color: #047857;
 }
 
 .admin-notices-rich-editor__preview {
