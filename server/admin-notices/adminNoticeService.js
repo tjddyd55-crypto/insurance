@@ -184,6 +184,18 @@ async function clearOtherPopupFlags(pool, showAsPopup, exceptId = null) {
 
 /**
  * @param {import('pg').Pool} pool
+ * @param {number | null | undefined} noticeId
+ */
+async function clearNoticeDismissals(pool, noticeId) {
+  const id = Number(noticeId)
+  if (!Number.isFinite(id) || id <= 0) {
+    return
+  }
+  await systemQuery(pool, `DELETE FROM user_notice_dismissals WHERE notice_id = $1`, [id])
+}
+
+/**
+ * @param {import('pg').Pool} pool
  * @param {unknown} body
  * @param {string | null} actorUserId
  */
@@ -213,7 +225,11 @@ export async function createAdminNotice(pool, body, actorUserId) {
       actorUserId,
     ],
   )
-  return mapAdminNoticeRow(rows[0])
+  const notice = mapAdminNoticeRow(rows[0])
+  if (input.showAsPopup) {
+    await clearNoticeDismissals(pool, notice.id)
+  }
+  return notice
 }
 
 /**
@@ -264,7 +280,11 @@ export async function updateAdminNotice(pool, id, body, actorUserId) {
   if (!rows[0]) {
     throw new Error('notice_not_found')
   }
-  return mapAdminNoticeRow(rows[0])
+  const notice = mapAdminNoticeRow(rows[0])
+  if (input.showAsPopup) {
+    await clearNoticeDismissals(pool, noticeId)
+  }
+  return notice
 }
 
 /**
@@ -358,7 +378,9 @@ export async function setAdminNoticePopup(pool, id, actorUserId) {
     `,
     [noticeId, actorUserId],
   )
-  return mapAdminNoticeRow(rows[0])
+  const notice = mapAdminNoticeRow(rows[0])
+  await clearNoticeDismissals(pool, noticeId)
+  return notice
 }
 
 /**

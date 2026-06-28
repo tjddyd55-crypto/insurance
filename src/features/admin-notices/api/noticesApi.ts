@@ -1,14 +1,18 @@
 import { apiRequest } from '../../../lib/apiClient'
 import type { ActivePopupNotice } from '../types/adminNotice.types'
 
-type ActivePopupResponse = {
-  success: boolean
-  data: ActivePopupNotice | null
+function isActivePopupNotice(value: unknown): value is ActivePopupNotice {
+  return (
+    value != null &&
+    typeof value === 'object' &&
+    'id' in value &&
+    Number.isFinite(Number((value as ActivePopupNotice).id))
+  )
 }
 
 export async function fetchActivePopupNotice(token: string): Promise<ActivePopupNotice | null> {
-  const res = (await apiRequest('/api/notices/active-popup', { token })) as ActivePopupResponse
-  return res.data ?? null
+  const data = await apiRequest<ActivePopupNotice | null>('/api/notices/active-popup', { token })
+  return isActivePopupNotice(data) ? data : null
 }
 
 export async function dismissPopupNotice(

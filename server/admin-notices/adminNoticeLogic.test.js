@@ -36,6 +36,13 @@ test('isActivePopupCandidate requires published popup in schedule', () => {
   const now = new Date('2026-06-28T03:00:00.000Z')
   assert.equal(
     isActivePopupCandidate(
+      { status: 'published', showAsPopup: true, startsAt: null, endsAt: null },
+      now,
+    ),
+    true,
+  )
+  assert.equal(
+    isActivePopupCandidate(
       { status: 'published', showAsPopup: true, startsAt: '2026-06-27T00:00:00.000Z', endsAt: null },
       now,
     ),

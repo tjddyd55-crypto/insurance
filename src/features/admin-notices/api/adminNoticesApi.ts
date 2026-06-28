@@ -8,6 +8,15 @@ export type AdminNoticeImagePresignResult = {
   contentType: string
 }
 
+export type AdminNoticeLinkPreview = {
+  url: string
+  title: string
+  description: string
+  image: string
+  siteName: string
+  domain: string
+}
+
 function serializeNoticeBody(form: AdminNoticeFormState) {
   return {
     title: form.title,
@@ -134,4 +143,19 @@ export async function setAdminNoticePopup(token: string, id: number): Promise<Ad
     }),
     '공지 팝업 설정 결과에 ID가 없습니다.',
   )
+}
+
+export async function fetchAdminNoticeLinkPreview(
+  token: string,
+  url: string,
+): Promise<AdminNoticeLinkPreview | null> {
+  const preview = await apiRequest<AdminNoticeLinkPreview | null>('/api/admin/notices/link-preview', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({ url }),
+  })
+  if (!preview || typeof preview !== 'object' || !preview.url) {
+    return null
+  }
+  return preview
 }
