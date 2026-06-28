@@ -1,4 +1,6 @@
 import { Node, mergeAttributes } from '@tiptap/core'
+import { ReactNodeViewRenderer } from '@tiptap/react'
+import { NoticeLinkPreviewNodeView } from './NoticeLinkPreviewNodeView'
 
 export type NoticeLinkPreviewAttrs = {
   url: string
@@ -39,6 +41,10 @@ export const NoticeLinkPreview = Node.create({
         }),
       },
     }
+  },
+
+  addNodeView() {
+    return ReactNodeViewRenderer(NoticeLinkPreviewNodeView)
   },
 
   parseHTML() {

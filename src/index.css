@@ -5466,13 +5466,20 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .admin-notice-link-preview,
 .admin-notice-content .admin-notice-link-preview {
+  display: block;
   width: min(640px, 100%);
+  max-width: 100%;
   margin-top: 14px;
   margin-bottom: 14px;
   border: 1px solid #334155;
   border-radius: 14px;
   overflow: hidden;
   background: #111827;
+}
+
+.admin-notice-link-preview--selected {
+  outline: 2px solid #16a34a;
+  outline-offset: 2px;
 }
 
 .admin-notice-content .admin-notice-link-preview[data-align='left'],
