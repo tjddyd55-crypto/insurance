@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
+import { FormButton, FormInput } from '../../../components/form'
 import { ApiError } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
 import { getCustomerById, searchCustomers } from '../../customers/api/customersApi'
@@ -8,16 +8,15 @@ import {
   createClaimDraft,
   downloadClaimBundle,
   generateClaimDocuments,
-  getClaimCompanyDocumentFields,
   getClaimRequest,
   listClaimCompanies,
+  listClaimCompanyFormFields,
   listCustomerClaimAppAttachments,
   updateClaimDraft,
   uploadClaimAttachment,
   uploadClaimSignature,
   type ClaimAttachmentMetadata,
   type ClaimCompany,
-  type ClaimDocumentFieldSpec,
   type ClaimRequestDraft,
   type ClaimSignatureData,
   type CustomerClaimAppAttachment,
@@ -25,12 +24,18 @@ import {
 import ClaimRequestExtrasSection from '../components/ClaimRequestExtrasSection'
 import ClaimCompanyPickerPanel from '../components/ClaimCompanyPickerPanel'
 import ClaimTemplateFieldsSection from '../components/ClaimTemplateFieldsSection'
-import ClaimRequestPersonCustomerSearch from '../components/ClaimRequestPersonCustomerSearch'
 import InsuranceClaimSubnav from '../components/InsuranceClaimSubnav'
 import { resolveDefaultClaimFaxNumber, validateCompanySelection } from '../utils/claimCompanyValidation'
 import {
-  filterTemplateFormFields,
+  applyCustomerToTemplateFields,
+  applyTemplateFieldValue,
+  contractorSnapshotReady as isContractorSnapshotReady,
+  mergeTemplateFormState,
+  prepareClaimTemplateFormFields,
+  readTemplateFieldValue,
   validateTemplateFormFields,
+  type ClaimTemplateFieldSpec,
+  type ClaimTemplateFormState,
 } from '../utils/claimTemplateFormFields'
 import '../insurance-claim-form.css'
 
@@ -55,21 +60,19 @@ function personFromCustomer(customer: {
   }
 }
 
-function validateDraftInputs(same: boolean, insured: Person, contractor: Person): string | null {
-  if (!insured.name.trim()) {
-    return '피보험자 이름은 필수입니다.'
+function emptyFormState(): ClaimTemplateFormState {
+  return {
+    insured: emptyPerson(),
+    contractor: emptyPerson(),
+    contractorSameAsInsured: true,
+    claimData: { claimType: 'disease', treatmentDate: '', claimDescription: '' },
+    paymentData: {
+      accountType: 'normal',
+      bankName: '',
+      accountNumber: '',
+      accountHolder: '',
+    },
   }
-  if (!same && !contractor.name.trim()) {
-    return '계약자 정보를 입력해 주세요.'
-  }
-  return null
-}
-
-function contractorSnapshotReady(request: ClaimRequestDraft): boolean {
-  if (request.contractorSameAsInsured !== false) {
-    return true
-  }
-  return Boolean(request.contractorSnapshot?.name?.trim())
 }
 
 function normalizeSignatureData(raw: unknown): ClaimSignatureData {
@@ -123,13 +126,11 @@ export default function ClaimRequestFormPage() {
   const [companies, setCompanies] = useState<ClaimCompany[]>([])
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null)
   const [faxNumber, setFaxNumber] = useState('')
-  const [templateFields, setTemplateFields] = useState<ClaimDocumentFieldSpec[]>([])
+  const [templateFields, setTemplateFields] = useState<ClaimTemplateFieldSpec[]>([])
   const [templateFieldsLoading, setTemplateFieldsLoading] = useState(false)
   const [customerId, setCustomerId] = useState<number | null>(null)
   const [customerQuery, setCustomerQuery] = useState('')
   const [matches, setMatches] = useState<{ id: number; name: string; phone?: string }[]>([])
-  const [contractorQuery, setContractorQuery] = useState('')
-  const [contractorMatches, setContractorMatches] = useState<{ id: number; name: string; phone?: string }[]>([])
   const [insured, setInsured] = useState<Person>(emptyPerson)
   const [same, setSame] = useState(true)
   const [contractor, setContractor] = useState<Person>(emptyPerson)
@@ -156,7 +157,38 @@ export default function ClaimRequestFormPage() {
 
   const draftSaved = requestId != null
   const isDraft = status === 'draft'
-  const visibleTemplateFields = useMemo(() => filterTemplateFormFields(templateFields), [templateFields])
+  const visibleTemplateFields = useMemo(
+    () => prepareClaimTemplateFormFields(templateFields),
+    [templateFields],
+  )
+  const formState = useMemo<ClaimTemplateFormState>(
+    () => ({
+      insured,
+      contractor,
+      contractorSameAsInsured: same,
+      claimData,
+      paymentData,
+    }),
+    [claimData, contractor, insured, paymentData, same],
+  )
+
+  const applyFormPatch = useCallback((patch: Partial<ClaimTemplateFormState>) => {
+    if (patch.insured) {
+      setInsured(patch.insured)
+    }
+    if (patch.contractor) {
+      setContractor(patch.contractor)
+    }
+    if (patch.contractorSameAsInsured != null) {
+      setSame(patch.contractorSameAsInsured)
+    }
+    if (patch.claimData) {
+      setClaimData(patch.claimData)
+    }
+    if (patch.paymentData) {
+      setPaymentData(patch.paymentData)
+    }
+  }, [])
 
   const buildDraftPayload = useCallback(
     () => ({
@@ -200,20 +232,27 @@ export default function ClaimRequestFormPage() {
     if (companyError) {
       return companyError
     }
-    const commonError = validateDraftInputs(same, insured, contractor)
-    if (commonError) {
-      return commonError
+    if (visibleTemplateFields.length === 0) {
+      return '선택한 보험회사에 등록된 청구 입력 항목이 없습니다.'
     }
-    return validateTemplateFormFields(visibleTemplateFields, {
-      ...claimData,
-      faxNumberSnapshot: faxNumber.trim(),
-    })
-  }, [claimData, faxNumber, insured, same, contractor, selectedCompanyId, visibleTemplateFields])
+    return validateTemplateFormFields(visibleTemplateFields, formState)
+  }, [formState, selectedCompanyId, visibleTemplateFields])
 
   const selectCompany = useCallback(
     (companyId: string) => {
       if (!isDraft) {
         return
+      }
+      if (companyId !== selectedCompanyId && requestId == null) {
+        const reset = emptyFormState()
+        setInsured(reset.insured)
+        setContractor(reset.contractor)
+        setSame(reset.contractorSameAsInsured)
+        setClaimData(reset.claimData)
+        setPaymentData(reset.paymentData)
+        setCustomerId(null)
+        setCustomerQuery('')
+        setMatches([])
       }
       setSelectedCompanyId(companyId)
       const company = companies.find((row) => String(row.id) === companyId)
@@ -221,12 +260,20 @@ export default function ClaimRequestFormPage() {
         setFaxNumber(resolveDefaultClaimFaxNumber(company))
       }
     },
-    [companies, isDraft],
+    [companies, isDraft, requestId, selectedCompanyId],
   )
 
-  const handleTemplateFieldChange = useCallback((dataKey: string, value: string) => {
-    setClaimData((prev) => ({ ...prev, [dataKey]: value }))
-  }, [])
+  const handleTemplateFieldChange = useCallback(
+    (field: ClaimTemplateFieldSpec, value: string) => {
+      applyFormPatch(applyTemplateFieldValue(field, value, formState))
+    },
+    [applyFormPatch, formState],
+  )
+
+  const readTemplateField = useCallback(
+    (field: ClaimTemplateFieldSpec) => readTemplateFieldValue(field, formState),
+    [formState],
+  )
 
   const fillCustomer = useCallback(
     async (id: number) => {
@@ -234,26 +281,14 @@ export default function ClaimRequestFormPage() {
       const customer = await getCustomerById(token, id)
       if (!customer) return false
       setCustomerId(customer.id)
-      setInsured(personFromCustomer(customer))
-      setPaymentData((prev) => ({ ...prev, accountHolder: prev.accountHolder || customer.name || '' }))
+      applyFormPatch(
+        applyCustomerToTemplateFields(personFromCustomer(customer), visibleTemplateFields, formState),
+      )
       setMatches([])
       setCustomerQuery('')
       return true
     },
-    [token],
-  )
-
-  const fillContractor = useCallback(
-    async (id: number) => {
-      if (!token) return false
-      const customer = await getCustomerById(token, id)
-      if (!customer) return false
-      setContractor(personFromCustomer(customer))
-      setContractorMatches([])
-      setContractorQuery('')
-      return true
-    },
-    [token],
+    [applyFormPatch, formState, token, visibleTemplateFields],
   )
 
   const applyRequest = useCallback((request: Awaited<ReturnType<typeof getClaimRequest>>['request']) => {
@@ -320,7 +355,7 @@ export default function ClaimRequestFormPage() {
       if (!token || !formReady) {
         return null
       }
-      const validationError = validateDraftInputs(same, insured, contractor)
+      const validationError = validateBeforeSubmit()
       if (validationError) {
         setMessage(validationError)
         return null
@@ -336,7 +371,7 @@ export default function ClaimRequestFormPage() {
       applyRequest(request)
       return request
     },
-    [applyRequest, buildBody, contractor, formReady, insured, same, token],
+    [applyRequest, buildBody, formReady, token, validateBeforeSubmit],
   )
 
   const loadCustomerAttachments = useCallback(
@@ -425,26 +460,21 @@ export default function ClaimRequestFormPage() {
       return
     }
     setTemplateFieldsLoading(true)
-    void getClaimCompanyDocumentFields(token, companyId, 'claim_form')
-      .then(({ fields }) => setTemplateFields(fields))
+    void listClaimCompanyFormFields(token, companyId)
+      .then((fields) => setTemplateFields(fields))
       .catch(() => setTemplateFields([]))
       .finally(() => setTemplateFieldsLoading(false))
   }, [selectedCompanyId, token])
 
-  const findCustomers = async (target: 'insured' | 'contractor') => {
-    const query = target === 'insured' ? customerQuery : contractorQuery
-    if (!token || !query.trim()) return
+  const findCustomers = async () => {
+    if (!token || !customerQuery.trim()) return
     try {
       const scopeGaId =
         user?.gaId != null && Number.isFinite(Number(user.gaId)) && Number(user.gaId) > 0
           ? Number(user.gaId)
           : null
-      const hits = await searchCustomers(token, query, { limit: 10, scopeGaId })
-      if (target === 'insured') {
-        setMatches(hits)
-      } else {
-        setContractorMatches(hits)
-      }
+      const hits = await searchCustomers(token, customerQuery, { limit: 10, scopeGaId })
+      setMatches(hits)
     } catch (e) {
       setMessage(e instanceof Error ? e.message : '고객 검색에 실패했습니다.')
     }
@@ -563,7 +593,7 @@ export default function ClaimRequestFormPage() {
       if (saved == null) {
         return
       }
-      if (!contractorSnapshotReady(saved)) {
+      if (!isContractorSnapshotReady(visibleTemplateFields, formState)) {
         setMessage('계약자 정보가 저장되지 않았습니다. 계약자 정보 확인 후 다시 저장해 주세요.')
         return
       }
@@ -590,7 +620,7 @@ export default function ClaimRequestFormPage() {
     setMessage('')
     try {
       const { request } = await createClaimDraft(token, buildBody())
-      if (!contractorSnapshotReady(request)) {
+      if (!isContractorSnapshotReady(visibleTemplateFields, formState)) {
         setMessage('계약자 정보가 저장되지 않았습니다. 계약자 정보 확인 후 다시 저장해 주세요.')
         return
       }
@@ -620,35 +650,11 @@ export default function ClaimRequestFormPage() {
     }
   }
 
-  const hasTemplateSection =
-    selectedCompanyId != null && (templateFieldsLoading || visibleTemplateFields.length > 0)
-  const extrasSectionStart = (same ? 4 : 5) + (hasTemplateSection ? 1 : 0) + 1
-  const faxSectionNumber = extrasSectionStart + 3
+  const extrasSectionStart = 2
+  const faxSectionNumber = 5
   const selectedCompany = useMemo(
     () => companies.find((company) => String(company.id) === selectedCompanyId) ?? null,
     [companies, selectedCompanyId],
-  )
-
-  const personInputFields = (value: Person, setValue: (value: Person) => void) => (
-    <div className="insurance-claim-form__field-grid insurance-claim-form__field-grid--person claim-person-grid">
-      {(['name', 'ssn', 'phone', 'address', 'job'] as const).map((key) => (
-        <label
-          key={key}
-          className={`insurance-claim-form__field${
-            key === 'address'
-              ? ' insurance-claim-form__field--address claim-person-address'
-              : key === 'job'
-                ? ' insurance-claim-form__field--job claim-person-job'
-                : ''
-          }`}
-        >
-          <span className="insurance-claim-form__label">
-            {({ name: '이름', ssn: '주민등록번호', phone: '연락처', address: '주소', job: '직업' }[key])}
-          </span>
-          <FormInput value={value[key]} onChange={(e) => setValue({ ...value, [key]: e.target.value })} />
-        </label>
-      ))}
-    </div>
   )
 
   return (
@@ -669,140 +675,24 @@ export default function ClaimRequestFormPage() {
         />
 
         <div className="insurance-claim-main-form">
-          <section className="insurance-claim-form__section claim-form-section">
-            <h2>1. 피보험자 정보</h2>
-            <p className="insurance-claim-form__section-desc">직접 입력하거나 고객 불러오기로 정보를 채울 수 있습니다.</p>
-            <ClaimRequestPersonCustomerSearch
-              query={customerQuery}
-              matches={matches}
-              onQueryChange={setCustomerQuery}
-              onSearch={() => void findCustomers('insured')}
-              onSelect={(id) => void fillCustomer(id)}
-            />
-            {personInputFields(insured, setInsured)}
-          </section>
-
-          <section className="insurance-claim-form__section claim-form-section">
-            <h2>2. 계약자와 피보험자 동일 여부</h2>
-            <label className="insurance-claim-form__field insurance-claim-form__field--same">
-              <span className="insurance-claim-form__label">동일 여부</span>
-              <FormSelect
-                value={same ? 'yes' : 'no'}
-                onChange={(e) => setSame(e.target.value === 'yes')}
-                options={[
-                  { value: 'yes', label: '예' },
-                  { value: 'no', label: '아니오' },
-                ]}
-              />
-            </label>
-          </section>
-
-          {!same ? (
+          {selectedCompanyId == null ? (
             <section className="insurance-claim-form__section claim-form-section">
-              <h2>3. 계약자 정보</h2>
-              <ClaimRequestPersonCustomerSearch
-                query={contractorQuery}
-                matches={contractorMatches}
-                onQueryChange={setContractorQuery}
-                onSearch={() => void findCustomers('contractor')}
-                onSelect={(id) => void fillContractor(id)}
-                searchLabel="고객 검색"
-              />
-              {personInputFields(contractor, setContractor)}
+              <p className="insurance-claim-form__hint">보험회사를 선택하면 청구 입력 항목이 표시됩니다.</p>
             </section>
-          ) : null}
-
-          <section className="insurance-claim-form__section claim-form-section">
-            <h2>{same ? '3' : '4'}. 진료 / 사고 정보</h2>
-            <p className="insurance-claim-form__section-desc">청구 유형과 진료·사고 내용을 입력합니다.</p>
-            <div className="insurance-claim-form__field-grid insurance-claim-form__field-grid--treatment claim-treatment-grid">
-              <label className="insurance-claim-form__field">
-                <span className="insurance-claim-form__label">청구유형</span>
-                <FormSelect
-                  value={claimData.claimType}
-                  onChange={(e) => setClaimData({ ...claimData, claimType: e.target.value })}
-                  options={[
-                    { value: 'disease', label: '질병' },
-                    { value: 'injury', label: '상해' },
-                    { value: 'traffic', label: '교통사고' },
-                  ]}
-                />
-              </label>
-              <label className="insurance-claim-form__field">
-                <span className="insurance-claim-form__label">진료/사고일자</span>
-                <FormInput
-                  type="date"
-                  value={claimData.treatmentDate}
-                  onChange={(e) => setClaimData({ ...claimData, treatmentDate: e.target.value })}
-                />
-              </label>
-              <label className="insurance-claim-form__field insurance-claim-form__field--description">
-                <span className="insurance-claim-form__label">질병/사고 내용</span>
-                <FormTextarea
-                  value={claimData.claimDescription}
-                  onChange={(e) => setClaimData({ ...claimData, claimDescription: e.target.value })}
-                  placeholder="질병/사고 내용"
-                />
-              </label>
-            </div>
-          </section>
-
-          <section className="insurance-claim-form__section claim-form-section">
-            <h2>{same ? '4' : '5'}. 계좌정보</h2>
-            <p className="insurance-claim-form__section-desc">보험금 수령 계좌 정보를 입력합니다.</p>
-            <div className="insurance-claim-form__field-grid insurance-claim-form__field-grid--payment claim-bank-grid">
-              <label className="insurance-claim-form__field insurance-claim-form__field--account-type">
-                <span className="insurance-claim-form__label">계좌 유형</span>
-                <FormSelect
-                  value={paymentData.accountType}
-                  onChange={(e) => setPaymentData({ ...paymentData, accountType: e.target.value })}
-                  options={[
-                    { value: 'normal', label: '일반' },
-                    { value: 'auto_debit', label: '자동이체' },
-                  ]}
-                />
-              </label>
-              <label className="insurance-claim-form__field">
-                <span className="insurance-claim-form__label">은행명</span>
-                <FormInput
-                  value={paymentData.bankName}
-                  onChange={(e) => setPaymentData({ ...paymentData, bankName: e.target.value })}
-                  placeholder="은행명"
-                />
-              </label>
-              <label className="insurance-claim-form__field">
-                <span className="insurance-claim-form__label">예금주</span>
-                <FormInput
-                  value={paymentData.accountHolder}
-                  onChange={(e) => setPaymentData({ ...paymentData, accountHolder: e.target.value })}
-                  placeholder="예금주"
-                />
-              </label>
-              <label className="insurance-claim-form__field">
-                <span className="insurance-claim-form__label">계좌번호</span>
-                <FormInput
-                  value={paymentData.accountNumber}
-                  onChange={(e) => setPaymentData({ ...paymentData, accountNumber: e.target.value })}
-                  placeholder="계좌번호"
-                />
-              </label>
-            </div>
-          </section>
-
-          {selectedCompanyId != null ? (
-            templateFieldsLoading ? (
-              <section className="insurance-claim-form__section claim-form-section">
-                <p className="insurance-claim-form__hint">청구서 입력 항목을 불러오는 중…</p>
-              </section>
-            ) : (
-              <ClaimTemplateFieldsSection
-                fields={visibleTemplateFields}
-                claimData={claimData}
-                disabled={!isDraft}
-                onFieldChange={handleTemplateFieldChange}
-              />
-            )
-          ) : null}
+          ) : (
+            <ClaimTemplateFieldsSection
+              fields={visibleTemplateFields}
+              loading={templateFieldsLoading}
+              disabled={!isDraft}
+              getFieldValue={readTemplateField}
+              onFieldChange={handleTemplateFieldChange}
+              customerQuery={customerQuery}
+              customerMatches={matches}
+              onCustomerQueryChange={setCustomerQuery}
+              onCustomerSearch={() => void findCustomers()}
+              onCustomerSelect={(id) => void fillCustomer(id)}
+            />
+          )}
 
           <ClaimRequestExtrasSection
             customerId={customerId}

@@ -336,11 +336,36 @@
 }
 
 .insurance-claim-form__section .form-textarea {
-  min-height: 76px;
-  padding: 10px 12px;
+  min-height: 40px;
+  height: 40px;
+  padding: 8px 12px;
   font-size: 0.875rem;
   line-height: 1.5;
   resize: vertical;
+}
+
+.claim-template-fields__grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.claim-template-field__checkbox,
+.claim-template-field__radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: var(--claim-text);
+}
+
+.claim-template-field__radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+}
+
+.claim-template-field__textarea.form-textarea {
+  min-height: 40px;
+  height: 40px;
 }
 
 .insurance-claim-form__section .form-input:focus,
@@ -757,6 +782,10 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .claim-template-fields__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .insurance-claim-form__field--account-type {
     grid-column: 1 / -1;
     max-width: 220px;
@@ -793,6 +822,7 @@
   .claim-person-grid,
   .claim-treatment-grid,
   .claim-bank-grid,
+  .claim-template-fields__grid,
   .insurance-claim-form__field-grid--person,
   .insurance-claim-form__field-grid--treatment,
   .insurance-claim-form__field-grid--payment {

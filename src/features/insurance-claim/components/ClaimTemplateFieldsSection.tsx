@@ -1,26 +1,40 @@
 import { FormInput, FormSelect, FormTextarea } from '../../../components/form'
-import type { ClaimDocumentFieldSpec } from '../api/claimRequestsApi'
-import { claimDataKeyFromFieldKey } from '../utils/claimTemplateFormFields'
+import type { ClaimTemplateFieldSpec } from '../utils/claimTemplateFormFields'
+import ClaimRequestPersonCustomerSearch from './ClaimRequestPersonCustomerSearch'
+import { resolveTemplateFieldType } from '../utils/claimTemplateFormFields'
 
 type Props = {
-  fields: ClaimDocumentFieldSpec[]
-  claimData: Record<string, string>
+  fields: ClaimTemplateFieldSpec[]
+  loading?: boolean
   disabled?: boolean
-  onFieldChange: (dataKey: string, value: string) => void
+  getFieldValue: (field: ClaimTemplateFieldSpec) => string
+  onFieldChange: (field: ClaimTemplateFieldSpec, value: string) => void
+  customerQuery: string
+  customerMatches: Array<{ id: number; name: string; phone?: string }>
+  onCustomerQueryChange: (value: string) => void
+  onCustomerSearch: () => void
+  onCustomerSelect: (customerId: number) => void
 }
 
 function renderFieldInput(
-  field: ClaimDocumentFieldSpec,
+  field: ClaimTemplateFieldSpec,
   value: string,
   disabled: boolean,
   onChange: (next: string) => void,
 ) {
-  const fieldType = String(field.fieldType ?? 'text')
+  const fieldType = resolveTemplateFieldType(field)
+
   if (fieldType === 'textarea') {
     return (
-      <FormTextarea value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} />
+      <FormTextarea
+        className="claim-template-field__textarea"
+        value={value}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value)}
+      />
     )
   }
+
   if (fieldType === 'select') {
     return (
       <FormSelect
@@ -34,6 +48,52 @@ function renderFieldInput(
       />
     )
   }
+
+  if (fieldType === 'checkbox') {
+    const checked = value === 'true' || value === '1' || value === 'yes'
+    return (
+      <label className="claim-template-field__checkbox">
+        <input
+          type="checkbox"
+          checked={checked}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.checked ? 'true' : 'false')}
+        />
+        <span>{field.label}</span>
+      </label>
+    )
+  }
+
+  if (fieldType === 'radio') {
+    const options = field.options ?? []
+    if (options.length === 0) {
+      return (
+        <FormInput
+          value={value}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      )
+    }
+    return (
+      <div className="claim-template-field__radio-group">
+        {options.map((option) => (
+          <label key={option.value} className="claim-template-field__radio">
+            <input
+              type="radio"
+              name={field.fieldKey}
+              value={option.value}
+              checked={value === option.value}
+              disabled={disabled}
+              onChange={() => onChange(option.value)}
+            />
+            <span>{option.label}</span>
+          </label>
+        ))}
+      </div>
+    )
+  }
+
   return (
     <FormInput
       type={fieldType === 'date' ? 'date' : 'text'}
@@ -46,30 +106,67 @@ function renderFieldInput(
 
 export default function ClaimTemplateFieldsSection({
   fields,
-  claimData,
+  loading = false,
   disabled = false,
+  getFieldValue,
   onFieldChange,
+  customerQuery,
+  customerMatches,
+  onCustomerQueryChange,
+  onCustomerSearch,
+  onCustomerSelect,
 }: Props) {
+  if (loading) {
+    return (
+      <section className="insurance-claim-form__section claim-form-section claim-template-fields">
+        <h2>1. 청구 입력</h2>
+        <p className="insurance-claim-form__hint">청구 입력 항목을 불러오는 중…</p>
+      </section>
+    )
+  }
+
   if (fields.length === 0) {
-    return null
+    return (
+      <section className="insurance-claim-form__section claim-form-section claim-template-fields">
+        <h2>1. 청구 입력</h2>
+        <p className="insurance-claim-form__hint">
+          선택한 보험회사 청구서 좌표 설정에 등록된 입력 항목이 없습니다.
+        </p>
+      </section>
+    )
   }
 
   return (
-    <section className="insurance-claim-form__section claim-form-section">
-      <h2>청구서 추가 입력</h2>
+    <section className="insurance-claim-form__section claim-form-section claim-template-fields">
+      <h2>청구 입력</h2>
       <p className="insurance-claim-form__section-desc">
-        선택한 보험회사 청구서 PDF 좌표 설정에 따라 필요한 항목만 표시됩니다.
+        선택한 보험회사 청구서 좌표 설정에 등록된 항목입니다.
       </p>
-      <div className="insurance-claim-form__field-grid">
+      <ClaimRequestPersonCustomerSearch
+        query={customerQuery}
+        matches={customerMatches}
+        onQueryChange={onCustomerQueryChange}
+        onSearch={onCustomerSearch}
+        onSelect={onCustomerSelect}
+      />
+      <div className="insurance-claim-form__field-grid claim-template-fields__grid">
         {fields.map((field) => {
-          const dataKey = claimDataKeyFromFieldKey(field.fieldKey)
+          const fieldType = resolveTemplateFieldType(field)
+          const value = getFieldValue(field)
+          if (fieldType === 'checkbox') {
+            return (
+              <div key={field.fieldKey} className="insurance-claim-form__field claim-template-field">
+                {renderFieldInput(field, value, disabled, (next) => onFieldChange(field, next))}
+              </div>
+            )
+          }
           return (
-            <label key={field.fieldKey} className="insurance-claim-form__field">
+            <label key={field.fieldKey} className="insurance-claim-form__field claim-template-field">
               <span className="insurance-claim-form__label">
                 {field.label}
                 {field.required ? ' *' : ''}
               </span>
-              {renderFieldInput(field, claimData[dataKey] ?? '', disabled, (next) => onFieldChange(dataKey, next))}
+              {renderFieldInput(field, value, disabled, (next) => onFieldChange(field, next))}
             </label>
           )
         })}
