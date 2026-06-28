@@ -363,7 +363,11 @@
   color: var(--claim-subtext);
 }
 
-.insurance-claim-form__field--same .form-select {
+.claim-template-same-field {
+  margin-bottom: 12px;
+}
+
+.claim-template-same-field .form-select {
   max-width: 240px;
 }
 

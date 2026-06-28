@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { resolveDefaultClaimFaxNumber, validateCompanySelection } from './claimCompanyValidation'
-import { claimDataKeyFromFieldKey, filterTemplateFormFields } from './claimTemplateFormFields'
+import { claimDataKeyFromFieldKey, filterTemplateFormFields, filterTemplateFieldsForEntry } from './claimTemplateFormFields'
 
 describe('validateCompanySelection', () => {
   it('requires one company', () => {
@@ -39,6 +39,21 @@ describe('filterTemplateFormFields', () => {
       'claim_id_card_issued_date',
       'insured_name',
       'claim_claim_type',
+    ])
+  })
+})
+
+describe('filterTemplateFieldsForEntry', () => {
+  it('hides contractor fields when contractorSameAsInsured is true', () => {
+    const fields = [
+      { fieldKey: 'insured_name', label: '피보험자 이름', fieldType: 'text', required: true },
+      { fieldKey: 'contractor_name', label: '계약자 이름', fieldType: 'text', required: true },
+      { fieldKey: 'claim_same_as_insured', label: '동일 여부', fieldType: 'radio', required: true },
+    ]
+    expect(filterTemplateFieldsForEntry(fields, true).map((field) => field.fieldKey)).toEqual(['insured_name'])
+    expect(filterTemplateFieldsForEntry(fields, false).map((field) => field.fieldKey)).toEqual([
+      'insured_name',
+      'contractor_name',
     ])
   })
 })

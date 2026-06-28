@@ -28,8 +28,10 @@ import InsuranceClaimSubnav from '../components/InsuranceClaimSubnav'
 import { resolveDefaultClaimFaxNumber, validateCompanySelection } from '../utils/claimCompanyValidation'
 import {
   applyCustomerToTemplateFields,
+  applyContractorSameAsInsuredValue,
   applyTemplateFieldValue,
   contractorSnapshotReady as isContractorSnapshotReady,
+  filterTemplateFieldsForEntry,
   mergeTemplateFormState,
   prepareClaimTemplateFormFields,
   readTemplateFieldValue,
@@ -161,6 +163,10 @@ export default function ClaimRequestFormPage() {
     () => prepareClaimTemplateFormFields(templateFields),
     [templateFields],
   )
+  const entryTemplateFields = useMemo(
+    () => filterTemplateFieldsForEntry(visibleTemplateFields, same),
+    [same, visibleTemplateFields],
+  )
   const formState = useMemo<ClaimTemplateFormState>(
     () => ({
       insured,
@@ -266,6 +272,13 @@ export default function ClaimRequestFormPage() {
   const handleTemplateFieldChange = useCallback(
     (field: ClaimTemplateFieldSpec, value: string) => {
       applyFormPatch(applyTemplateFieldValue(field, value, formState))
+    },
+    [applyFormPatch, formState],
+  )
+
+  const handleContractorSameChange = useCallback(
+    (nextSame: boolean) => {
+      applyFormPatch(applyContractorSameAsInsuredValue(nextSame, formState))
     },
     [applyFormPatch, formState],
   )
@@ -681,9 +694,11 @@ export default function ClaimRequestFormPage() {
             </section>
           ) : (
             <ClaimTemplateFieldsSection
-              fields={visibleTemplateFields}
+              fields={entryTemplateFields}
               loading={templateFieldsLoading}
               disabled={!isDraft}
+              contractorSameAsInsured={same}
+              onContractorSameAsInsuredChange={handleContractorSameChange}
               getFieldValue={readTemplateField}
               onFieldChange={handleTemplateFieldChange}
               customerQuery={customerQuery}
