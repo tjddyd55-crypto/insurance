@@ -97,6 +97,60 @@ export async function createDraft(pool, input) {
   return rowToDto(rows[0])
 }
 
+export async function createDraftsBatch(pool, input, insuranceCompanyIds) {
+  const ids = [...new Set(insuranceCompanyIds.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0))]
+  if (ids.length === 0) {
+    const error = new Error('보험회사를 하나 이상 선택해 주세요.')
+    error.httpStatus = 400
+    throw error
+  }
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const results = []
+    for (const insuranceCompanyId of ids) {
+      const { rows } = await client.query(
+        `
+        INSERT INTO insurance_claim_requests
+          (ga_id, customer_id, insurance_company_id, status, insured_snapshot, contractor_snapshot,
+           contractor_same_as_insured, claim_data, payment_data, signature_data,
+           selected_customer_attachment_ids, additional_attachment_metadata, generated_document_metadata,
+           source_claim_request_id, created_by)
+        VALUES ($1, $2, $3, 'draft', CAST($4 AS jsonb), CAST($5 AS jsonb), $6,
+                CAST($7 AS jsonb), CAST($8 AS jsonb), CAST($9 AS jsonb), CAST($10 AS jsonb),
+                CAST($11 AS jsonb), CAST($12 AS jsonb), $13, $14)
+        RETURNING *
+        `,
+        [
+          input.gaId,
+          input.customerId ?? null,
+          insuranceCompanyId,
+          json(input.insuredSnapshot, {}),
+          input.contractorSnapshot ? json(input.contractorSnapshot, {}) : null,
+          input.contractorSameAsInsured !== false,
+          json(input.claimData, {}),
+          json(input.paymentData, {}),
+          json(input.signatureData, {}),
+          json(input.selectedCustomerAttachmentIds, []),
+          json(input.additionalAttachmentMetadata, []),
+          json(input.generatedDocumentMetadata, {}),
+          input.sourceClaimRequestId ?? null,
+          input.createdBy ?? null,
+        ],
+      )
+      results.push(rowToDto(rows[0]))
+    }
+    await client.query('COMMIT')
+    return results
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {})
+    throw error
+  } finally {
+    client.release()
+  }
+}
+
 export async function getById(pool, gaId, id, scope) {
   const p = scope.params.length
   const idPh = `$${p + 1}`

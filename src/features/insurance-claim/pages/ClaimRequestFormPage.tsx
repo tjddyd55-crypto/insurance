@@ -6,6 +6,7 @@ import { useAuth } from '../../auth/AuthProvider'
 import { getCustomerById, searchCustomers } from '../../customers/api/customersApi'
 import {
   createClaimDraft,
+  createClaimDraftsBatch,
   downloadClaimBundle,
   generateClaimDocuments,
   getClaimRequest,
@@ -113,7 +114,7 @@ export default function ClaimRequestFormPage() {
   const [params] = useSearchParams()
 
   const [companies, setCompanies] = useState<ClaimCompany[]>([])
-  const [companyId, setCompanyId] = useState('')
+  const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([])
   const [customerId, setCustomerId] = useState<number | null>(null)
   const [customerQuery, setCustomerQuery] = useState('')
   const [matches, setMatches] = useState<{ id: number; name: string; phone?: string }[]>([])
@@ -146,10 +147,9 @@ export default function ClaimRequestFormPage() {
   const draftSaved = requestId != null
   const isDraft = status === 'draft'
 
-  const buildBody = useCallback(
+  const buildDraftPayload = useCallback(
     () => ({
       customerId,
-      insuranceCompanyId: Number(companyId),
       insuredSnapshot: insured,
       contractorSnapshot: same ? null : contractor,
       contractorSameAsInsured: same,
@@ -162,7 +162,6 @@ export default function ClaimRequestFormPage() {
     [
       additionalAttachments,
       claimData,
-      companyId,
       contractor,
       customerId,
       insured,
@@ -171,6 +170,29 @@ export default function ClaimRequestFormPage() {
       selectedCustomerAttachmentIds,
       signatureData,
     ],
+  )
+
+  const buildBody = useCallback(
+    () => ({
+      ...buildDraftPayload(),
+      insuranceCompanyId: Number(selectedCompanyIds[0]),
+    }),
+    [buildDraftPayload, selectedCompanyIds],
+  )
+
+  const toggleCompanyId = useCallback(
+    (companyId: string) => {
+      if (!isDraft) {
+        return
+      }
+      setSelectedCompanyIds((prev) => {
+        if (requestId != null) {
+          return prev.includes(companyId) ? [] : [companyId]
+        }
+        return prev.includes(companyId) ? prev.filter((id) => id !== companyId) : [...prev, companyId]
+      })
+    },
+    [isDraft, requestId],
   )
 
   const fillCustomer = useCallback(
@@ -202,7 +224,7 @@ export default function ClaimRequestFormPage() {
   )
 
   const applyRequest = useCallback((request: Awaited<ReturnType<typeof getClaimRequest>>['request']) => {
-    setCompanyId(String(request.insuranceCompanyId))
+    setSelectedCompanyIds([String(request.insuranceCompanyId)])
     setCustomerId(request.customerId)
     setInsured(request.insuredSnapshot as Person)
     setSame(request.contractorSameAsInsured)
@@ -350,8 +372,8 @@ export default function ClaimRequestFormPage() {
   }
 
   const save = async (): Promise<ClaimRequestDraft | null> => {
-    if (!token || !companyId) {
-      setMessage('보험회사와 피보험자 이름은 필수입니다.')
+    if (!token || selectedCompanyIds.length === 0) {
+      setMessage('보험회사를 하나 이상 선택하고 피보험자 이름을 입력해 주세요.')
       return null
     }
     const validationError = validateDraftInputs(same, insured, contractor)
@@ -362,16 +384,27 @@ export default function ClaimRequestFormPage() {
     setSaving(true)
     setMessage('')
     try {
-      const body = buildBody()
-      const { request } =
-        requestId != null ? await updateClaimDraft(token, requestId, body) : await createClaimDraft(token, body)
-      applyRequest(request)
-      if (requestId == null) {
-        navigateToSavedDraft(request)
-      } else {
+      if (requestId != null) {
+        const { request } = await updateClaimDraft(token, requestId, buildBody())
+        applyRequest(request)
         setMessage('저장했습니다.')
+        return request
       }
-      return request
+
+      const payload = buildDraftPayload()
+      const companyIds = selectedCompanyIds.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0)
+
+      if (companyIds.length === 1) {
+        const { request } = await createClaimDraft(token, { ...payload, insuranceCompanyId: companyIds[0] })
+        applyRequest(request)
+        navigateToSavedDraft(request)
+        return request
+      }
+
+      const { requests } = await createClaimDraftsBatch(token, payload, companyIds)
+      setMessage(`${requests.length}건의 청구 초안을 저장했습니다.`)
+      navigate('/insurance-claim/requests')
+      return requests[0] ?? null
     } catch (e) {
       setMessage(e instanceof ApiError ? e.message : '청구 초안 저장에 실패했습니다.')
       return null
@@ -384,8 +417,12 @@ export default function ClaimRequestFormPage() {
     if (requestId != null) {
       return requestId
     }
-    if (!token || !companyId) {
+    if (!token || selectedCompanyIds.length === 0) {
       setMessage('첨부/서명 업로드 전에 보험회사와 피보험자 이름을 입력하고 저장해 주세요.')
+      return null
+    }
+    if (selectedCompanyIds.length > 1) {
+      setMessage('여러 보험회사 선택 시 먼저 [청구 초안 저장]을 눌러 주세요.')
       return null
     }
     const validationError = validateDraftInputs(same, insured, contractor)
@@ -714,9 +751,10 @@ export default function ClaimRequestFormPage() {
 
         <ClaimCompanyPickerPanel
           companies={companies}
-          selectedCompanyId={companyId}
-          onSelect={setCompanyId}
+          selectedCompanyIds={selectedCompanyIds}
+          onToggle={toggleCompanyId}
           disabled={!isDraft}
+          multiSelect={requestId == null}
         />
       </div>
     </main>

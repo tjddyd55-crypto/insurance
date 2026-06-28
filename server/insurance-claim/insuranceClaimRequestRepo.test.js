@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   createDraft,
+  createDraftsBatch,
   duplicateAsDraft,
   isClaimRequestStatus,
   updateDraft,
@@ -84,6 +85,38 @@ test('duplicate creates a separate draft and preserves the source request id', a
   assert.equal(duplicate.id, 12)
   assert.equal(duplicate.sourceClaimRequestId, 11)
   assert.equal(insertParams[12], 11)
+})
+
+test('createDraftsBatch creates one draft per insurance company in a transaction', async () => {
+  const calls = []
+  const client = {
+    query: async (sql, params) => {
+      calls.push({ sql, params })
+      if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+        return { rows: [] }
+      }
+      return { rows: [row({ id: calls.length, insurance_company_id: params[2] })] }
+    },
+    release: () => {},
+  }
+  const pool = {
+    connect: async () => client,
+  }
+  const results = await createDraftsBatch(
+    pool,
+    {
+      gaId: 3,
+      customerId: null,
+      insuredSnapshot: { name: '수동 입력' },
+      createdBy: 9,
+    },
+    [4, 5],
+  )
+  assert.equal(results.length, 2)
+  assert.equal(results[0].insuranceCompanyId, 4)
+  assert.equal(results[1].insuranceCompanyId, 5)
+  assert.equal(calls.some((call) => call.sql === 'BEGIN'), true)
+  assert.equal(calls.some((call) => call.sql === 'COMMIT'), true)
 })
 
 test('claim request status allowlist includes lifecycle values', () => {

@@ -49,6 +49,7 @@ import {
 } from './insurance-claim/repository/insuranceClaimCompanyRepo.js'
 import {
   createDraft,
+  createDraftsBatch,
   duplicateAsDraft,
   getById as getClaimRequestById,
   list as listClaimRequests,
@@ -130,23 +131,25 @@ function resolveClaimStorageUserId(req, request) {
   return ''
 }
 
-function normalizeClaimRequestInput(body) {
+function parseInsuranceCompanyIds(body) {
+  const raw = body?.insuranceCompanyIds ?? body?.insurance_company_ids
+  if (Array.isArray(raw)) {
+    return [...new Set(raw.map((value) => parsePositiveInt(value)).filter((id) => id != null))]
+  }
+  const single = parsePositiveInt(body?.insuranceCompanyId ?? body?.insurance_company_id)
+  return single != null ? [single] : []
+}
+
+function normalizeClaimRequestSharedBody(body) {
   const insuredSnapshot = body?.insuredSnapshot ?? body?.insured_snapshot
   if (!insuredSnapshot || typeof insuredSnapshot !== 'object' || Array.isArray(insuredSnapshot)) {
     const error = new Error('피보험자 정보(insured_snapshot)가 필요합니다.')
     error.httpStatus = 400
     throw error
   }
-  const insuranceCompanyId = parsePositiveInt(body?.insuranceCompanyId ?? body?.insurance_company_id)
-  if (insuranceCompanyId == null) {
-    const error = new Error('보험회사를 선택해 주세요.')
-    error.httpStatus = 400
-    throw error
-  }
   const contractorSameAsInsured = body?.contractorSameAsInsured ?? body?.contractor_same_as_insured
   return {
     customerId: parsePositiveInt(body?.customerId ?? body?.customer_id),
-    insuranceCompanyId,
     insuredSnapshot,
     contractorSnapshot: body?.contractorSnapshot ?? body?.contractor_snapshot ?? null,
     contractorSameAsInsured: contractorSameAsInsured !== false,
@@ -155,6 +158,44 @@ function normalizeClaimRequestInput(body) {
     signatureData: body?.signatureData ?? body?.signature_data ?? {},
     selectedCustomerAttachmentIds: body?.selectedCustomerAttachmentIds ?? body?.selected_customer_attachment_ids ?? [],
     additionalAttachmentMetadata: body?.additionalAttachmentMetadata ?? body?.additional_attachment_metadata ?? [],
+  }
+}
+
+function normalizeClaimRequestInput(body) {
+  const insuranceCompanyIds = parseInsuranceCompanyIds(body)
+  if (insuranceCompanyIds.length === 0) {
+    const error = new Error('보험회사를 선택해 주세요.')
+    error.httpStatus = 400
+    throw error
+  }
+  return {
+    ...normalizeClaimRequestSharedBody(body),
+    insuranceCompanyId: insuranceCompanyIds[0],
+    insuranceCompanyIds,
+  }
+}
+
+function normalizeClaimRequestBatchInput(body) {
+  const insuranceCompanyIds = parseInsuranceCompanyIds(body)
+  if (insuranceCompanyIds.length === 0) {
+    const error = new Error('보험회사를 하나 이상 선택해 주세요.')
+    error.httpStatus = 400
+    throw error
+  }
+  return {
+    ...normalizeClaimRequestSharedBody(body),
+    insuranceCompanyIds,
+  }
+}
+
+async function assertActiveInsuranceCompanies(pool, companyIds) {
+  for (const companyId of companyIds) {
+    const company = await getInsuranceCompanyById(pool, companyId)
+    if (!company?.isActive) {
+      const error = new Error('사용 가능한 보험회사를 선택해 주세요.')
+      error.httpStatus = 400
+      throw error
+    }
   }
 }
 
@@ -255,11 +296,7 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
   apiRouter.post('/insurance-claim/requests', ...claimRequestMw, async (req, res) => {
     try {
       const input = normalizeClaimRequestInput(req.body)
-      const company = await getInsuranceCompanyById(pool, input.insuranceCompanyId)
-      if (!company?.isActive) {
-        res.status(400).json({ message: '사용 가능한 보험회사를 선택해 주세요.' })
-        return
-      }
+      await assertActiveInsuranceCompanies(pool, [input.insuranceCompanyId])
       if (input.customerId != null) {
         await assertCustomerAccessibleForClaim(req, pool, input.customerId)
       }
@@ -269,6 +306,40 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
         createdBy: parsePositiveInt(req.user?.id),
       })
       res.status(201).json({ request })
+    } catch (error) {
+      if (error?.httpStatus) {
+        res.status(error.httpStatus).json({ message: error.message })
+        return
+      }
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.post('/insurance-claim/requests/batch', ...claimRequestMw, async (req, res) => {
+    try {
+      const input = normalizeClaimRequestBatchInput(req.body)
+      await assertActiveInsuranceCompanies(pool, input.insuranceCompanyIds)
+      if (input.customerId != null) {
+        await assertCustomerAccessibleForClaim(req, pool, input.customerId)
+      }
+      const requests = await createDraftsBatch(
+        pool,
+        {
+          customerId: input.customerId,
+          insuredSnapshot: input.insuredSnapshot,
+          contractorSnapshot: input.contractorSnapshot,
+          contractorSameAsInsured: input.contractorSameAsInsured,
+          claimData: input.claimData,
+          paymentData: input.paymentData,
+          signatureData: input.signatureData,
+          selectedCustomerAttachmentIds: input.selectedCustomerAttachmentIds,
+          additionalAttachmentMetadata: input.additionalAttachmentMetadata,
+          gaId: req.insuranceClaimGaId,
+          createdBy: parsePositiveInt(req.user?.id),
+        },
+        input.insuranceCompanyIds,
+      )
+      res.status(201).json({ requests })
     } catch (error) {
       if (error?.httpStatus) {
         res.status(error.httpStatus).json({ message: error.message })
