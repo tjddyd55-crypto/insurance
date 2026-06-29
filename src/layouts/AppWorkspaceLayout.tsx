@@ -5,7 +5,7 @@ import ResponsiveLayout from '../components/ResponsiveLayout'
 import PCHeader from '../components/layout/PCHeader'
 import { useAuth } from '../features/auth/AuthProvider'
 import { PublicAccountGaOnlyOutletGuard } from '../features/auth/PublicAccountGaOnlyOutletGuard'
-import { formatGaBannerLabel, shouldShowGaTenantChrome } from '../navigation/gaTenantBarShared'
+import { formatGaBannerLabel, resolveStoreReviewTenantDisplayName, shouldShowGaTenantChrome } from '../navigation/gaTenantBarShared'
 import { buildAppMenuForSession } from '../features/dashboard/gaTenantMenu'
 import { isSpecialNewsletterAccount } from '../features/auth/roleGuards'
 import { ExpiredBanner } from '../features/subscription/components/ExpiredBanner'
@@ -189,10 +189,12 @@ function AppWorkspaceLayoutMobileShell() {
   const tenantChrome = shouldShowGaTenantChrome(isAuthenticated, user?.gaId, location.pathname)
   const isNewsManager = isSpecialNewsletterAccount(user?.role)
   const userShellActive = isUserWorkspacePath(location.pathname)
+  const tenantDisplayName =
+    resolveStoreReviewTenantDisplayName(user?.username) ?? (user?.gaName ?? '').trim()
   const workspaceHeaderTitle = tenantChrome && !isNewsManager
-    ? formatGaBannerLabel(user?.gaName ?? '', user?.gaCode ?? '')
+    ? formatGaBannerLabel(user?.gaName ?? '', user?.gaCode ?? '', user?.username)
     : '업무 메뉴'
-  const mobileTopbarTitle = (user?.gaName ?? '').trim() || workspaceHeaderTitle || '영진 SGA'
+  const mobileTopbarTitle = tenantDisplayName || workspaceHeaderTitle || '영진 SGA'
 
   const pushMobilePage = useCallback((path: string) => {
     setMobilePageStack((prev) => {
@@ -368,7 +370,7 @@ function AppWorkspaceLayoutPCShell() {
   const userShellActive = isUserWorkspacePath(location.pathname)
   const showGaUserActions = tenantChrome && !isNewsManager
   const workspaceHeaderTitle = tenantChrome
-    ? formatGaBannerLabel(user?.gaName ?? '', user?.gaCode ?? '')
+    ? formatGaBannerLabel(user?.gaName ?? '', user?.gaCode ?? '', user?.username)
     : '업무 메뉴'
 
   return (
