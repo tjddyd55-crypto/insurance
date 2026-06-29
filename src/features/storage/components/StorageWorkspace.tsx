@@ -764,6 +764,7 @@ export default function StorageWorkspace({
         value={createFolderName}
         loading={submitting}
         footerVariant={actionVariant}
+        folderCreate
         onChange={setCreateFolderName}
         onClose={() => setCreateFolderOpen(false)}
         onSubmit={() => {

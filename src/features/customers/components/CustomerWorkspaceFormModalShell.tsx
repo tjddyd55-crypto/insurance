@@ -14,6 +14,8 @@ type CustomerWorkspaceFormModalShellProps = {
   onEscapeRequest?: () => void
   /** outlet 중첩 form 모달(고객 파일 삭제/이름변경) — body portal */
   usePortal?: boolean
+  /** panelClassName 에 추가할 modifier (예: file-folder-create-modal) */
+  panelClassExtra?: string
 }
 
 /**
@@ -28,13 +30,16 @@ export function CustomerWorkspaceFormModalShell({
   closeOnBackdrop = false,
   onEscapeRequest,
   usePortal = false,
+  panelClassExtra,
 }: CustomerWorkspaceFormModalShellProps) {
+  const panelClassName = [CUSTOMER_WORKSPACE_FORM_MODAL_PANEL_CLASS, panelClassExtra].filter(Boolean).join(' ')
+
   return (
     <Modal
       open={open}
       onClose={onClose}
       ariaLabel={ariaLabel}
-      panelClassName={CUSTOMER_WORKSPACE_FORM_MODAL_PANEL_CLASS}
+      panelClassName={panelClassName}
       closeOnBackdrop={closeOnBackdrop}
       onEscapeRequest={onEscapeRequest}
       usePortal={usePortal}
