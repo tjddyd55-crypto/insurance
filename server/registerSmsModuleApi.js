@@ -30,7 +30,7 @@ import {
   removeSmsOptOut,
   updateSmsTemplate,
 } from './sms/smsTemplateService.js'
-import { assertSmsModuleFeatureEnabled } from './sms/smsModuleConfig.js'
+import { assertSmsModuleFeatureEnabled, assertSmsRealSendAllowed } from './sms/smsModuleConfig.js'
 
 function smsApiError(res, err) {
   const status = Number(err?.status ?? 500)
@@ -49,6 +49,19 @@ function smsApiError(res, err) {
 function ensureSmsModuleEnabled(req, res, next) {
   try {
     assertSmsModuleFeatureEnabled()
+    next()
+  } catch (e) {
+    if (e?.status) {
+      smsApiError(res, e)
+      return
+    }
+    next(e)
+  }
+}
+
+function ensureSmsRealSendEnabled(req, res, next) {
+  try {
+    assertSmsRealSendAllowed()
     next()
   } catch (e) {
     if (e?.status) {
@@ -204,7 +217,7 @@ export function registerSmsModuleApi(apiRouter, ctx) {
     }
   })
 
-  apiRouter.post('/sms/senders/:id/test', requireAuth, ensureSmsModuleEnabled, async (req, res) => {
+  apiRouter.post('/sms/senders/:id/test', requireAuth, ensureSmsModuleEnabled, ensureSmsRealSendEnabled, async (req, res) => {
     try {
       const scope = await resolveSmsAuthContext(pool, req)
       const senderId = Number(req.params.id)
@@ -230,7 +243,7 @@ export function registerSmsModuleApi(apiRouter, ctx) {
     }
   })
 
-  apiRouter.post('/sms/test-send', requireAuth, ensureSmsModuleEnabled, async (req, res) => {
+  apiRouter.post('/sms/test-send', requireAuth, ensureSmsModuleEnabled, ensureSmsRealSendEnabled, async (req, res) => {
     try {
       const scope = await resolveSmsAuthContext(pool, req)
       const body = req.body ?? {}
@@ -263,7 +276,7 @@ export function registerSmsModuleApi(apiRouter, ctx) {
     }
   })
 
-  apiRouter.post('/sms/send', requireAuth, ensureSmsModuleEnabled, async (req, res) => {
+  apiRouter.post('/sms/send', requireAuth, ensureSmsModuleEnabled, ensureSmsRealSendEnabled, async (req, res) => {
     try {
       const scope = await resolveSmsAuthContext(pool, req)
       const body = req.body ?? {}
@@ -373,7 +386,7 @@ export function registerSmsModuleApi(apiRouter, ctx) {
     }
   })
 
-  apiRouter.post('/sms/campaigns/:id/send', requireAuth, ensureSmsModuleEnabled, async (req, res) => {
+  apiRouter.post('/sms/campaigns/:id/send', requireAuth, ensureSmsModuleEnabled, ensureSmsRealSendEnabled, async (req, res) => {
     try {
       const scope = await resolveSmsAuthContext(pool, req)
       const body = req.body ?? {}

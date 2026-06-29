@@ -168,6 +168,43 @@ test('gateway 응답 raw sanitize 확인', () => {
   assert.equal(String(sanitized.api_key).includes('abc'), false)
 })
 
+test('REAL_SEND=false일 때 resolveSmsProvider().send가 gateway 호출 전 차단', async () => {
+  const snap = saveEnv([
+    'NODE_ENV',
+    'RAILWAY_ENVIRONMENT',
+    'SMS_MODULE_PROVIDER',
+    'SMS_MODULE_REAL_SEND_ENABLED',
+    'SMS_MODULE_GATEWAY_URL',
+    'SMS_MODULE_GATEWAY_TOKEN',
+    'SMS_CREDENTIALS_SECRET_KEY',
+  ])
+  try {
+    process.env.NODE_ENV = 'production'
+    process.env.RAILWAY_ENVIRONMENT = 'production'
+    process.env.SMS_MODULE_PROVIDER = 'gateway'
+    process.env.SMS_MODULE_REAL_SEND_ENABLED = 'false'
+    process.env.SMS_MODULE_GATEWAY_URL = 'http://gateway.example/api/crm-sms'
+    process.env.SMS_MODULE_GATEWAY_TOKEN = 'secret-token'
+    process.env.SMS_CREDENTIALS_SECRET_KEY = SECRET
+
+    const provider = resolveSmsProvider()
+    await assert.rejects(
+      async () => {
+        await provider.send({
+          to: '01012345678',
+          from: '01087654321',
+          message: 'hello',
+          providerUserId: 'aligo-user',
+          apiKey: 'user-api-key-secret',
+        })
+      },
+      (err) => err.message === 'sms_real_send_disabled',
+    )
+  } finally {
+    restoreEnv(snap)
+  }
+})
+
 test('REAL_SEND=false일 때 gateway send 호출 자체가 차단', async () => {
   const snap = saveEnv([
     'NODE_ENV',

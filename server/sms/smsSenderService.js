@@ -198,7 +198,7 @@ export async function testSmsSend(executor, scope, input) {
     senderNumber,
     requireVerified: false,
   })
-  assertSmsModuleProductionProviderPolicy()
+  assertSmsRealSendAllowed()
   const runtime = readSmsModuleRuntimeInfo()
   const creds = await loadDecryptedAligoCredentials(executor, scope)
   const provider = resolveSmsProvider()
@@ -226,8 +226,6 @@ export async function testSmsSend(executor, scope, input) {
   } else if (runtime.isMock) {
     nextStatus = 'pending'
   } else if (runtime.testMode || result.testMode === true) {
-    nextStatus = 'test_passed'
-  } else if (!runtime.realSendEnabled) {
     nextStatus = 'test_passed'
   }
 

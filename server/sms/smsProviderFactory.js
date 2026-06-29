@@ -3,10 +3,27 @@ import { gatewaySmsProvider } from './providers/gatewaySmsProvider.js'
 import { mockSmsProvider } from './providers/mockSmsProvider.js'
 import {
   assertSmsModuleProductionProviderPolicy,
+  assertSmsRealSendAllowed,
   getConfiguredSmsModuleProviderMode,
   getSmsModuleRuntimeInfo,
   getSmsOutboundServerIpHint,
 } from './smsModuleConfig.js'
+
+/**
+ * @param {import('./providers/smsProvider.js').SmsProvider} provider
+ * @returns {import('./providers/smsProvider.js').SmsProvider}
+ */
+function wrapSmsProviderWithRealSendGuard(provider) {
+  return {
+    send(input) {
+      assertSmsRealSendAllowed()
+      return provider.send(input)
+    },
+    getBalance(input) {
+      return provider.getBalance(input)
+    },
+  }
+}
 
 /**
  * @returns {import('./providers/smsProvider.js').SmsProvider}
@@ -15,19 +32,19 @@ export function resolveSmsProvider() {
   assertSmsModuleProductionProviderPolicy()
   const mode = getConfiguredSmsModuleProviderMode()
   if (mode === 'mock') {
-    return mockSmsProvider
+    return wrapSmsProviderWithRealSendGuard(mockSmsProvider)
   }
   if (mode === 'aligo') {
-    return aligoSmsProvider
+    return wrapSmsProviderWithRealSendGuard(aligoSmsProvider)
   }
   if (mode === 'gateway') {
-    return gatewaySmsProvider
+    return wrapSmsProviderWithRealSendGuard(gatewaySmsProvider)
   }
   const nodeEnv = String(process.env.NODE_ENV ?? '').trim().toLowerCase()
   if (nodeEnv === 'test') {
-    return mockSmsProvider
+    return wrapSmsProviderWithRealSendGuard(mockSmsProvider)
   }
-  return mockSmsProvider
+  return wrapSmsProviderWithRealSendGuard(mockSmsProvider)
 }
 
 export { getSmsOutboundServerIpHint, getSmsModuleRuntimeInfo }

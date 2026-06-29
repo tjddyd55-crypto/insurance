@@ -148,7 +148,7 @@ test('production + gateway provider일 때 runtime은 provider=gateway 표시', 
   }
 })
 
-test('SMS_MODULE_PROVIDER=gateway일 때 smsProviderFactory가 gatewaySmsProvider 반환', () => {
+test('SMS_MODULE_PROVIDER=gateway일 때 smsProviderFactory가 gateway provider 래핑 반환', () => {
   const snap = saveEnv(['SMS_MODULE_PROVIDER', 'NODE_ENV', 'RAILWAY_ENVIRONMENT', ...Object.keys(GATEWAY_ENV)])
   try {
     process.env.NODE_ENV = 'development'
@@ -156,7 +156,9 @@ test('SMS_MODULE_PROVIDER=gateway일 때 smsProviderFactory가 gatewaySmsProvide
     process.env.SMS_MODULE_PROVIDER = 'gateway'
     Object.assign(process.env, GATEWAY_ENV)
     const provider = resolveSmsProvider()
-    assert.equal(provider, gatewaySmsProvider)
+    assert.notEqual(provider, gatewaySmsProvider)
+    assert.equal(typeof provider.send, 'function')
+    assert.equal(typeof provider.getBalance, 'function')
   } finally {
     restoreEnv(snap)
   }

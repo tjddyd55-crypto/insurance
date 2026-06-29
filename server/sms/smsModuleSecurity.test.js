@@ -197,6 +197,63 @@ test('production에서 SMS_CREDENTIALS_SECRET_KEY 없으면 API Key 저장 거�
   }
 })
 
+test('REAL_SEND=false이면 testSmsSend가 provider 호출 전 403으로 차단', async () => {
+  const snap = saveEnv([
+    'NODE_ENV',
+    'RAILWAY_ENVIRONMENT',
+    'SMS_MODULE_PROVIDER',
+    'SMS_MODULE_REAL_SEND_ENABLED',
+    'SMS_CREDENTIALS_SECRET_KEY',
+    'SMS_MODULE_ENABLED',
+  ])
+  try {
+    process.env.NODE_ENV = 'production'
+    process.env.RAILWAY_ENVIRONMENT = 'production'
+    process.env.SMS_MODULE_PROVIDER = 'gateway'
+    process.env.SMS_MODULE_REAL_SEND_ENABLED = 'false'
+    process.env.SMS_MODULE_ENABLED = 'true'
+    process.env.SMS_CREDENTIALS_SECRET_KEY = SECRET
+    process.env.SMS_MODULE_GATEWAY_URL = 'http://gateway.example/api/crm-sms'
+    process.env.SMS_MODULE_GATEWAY_TOKEN = 'gateway-token'
+    const encrypted = encryptSmsCredential('key')
+    const senders = [
+      {
+        tenant_id: 1,
+        user_id: 'user-a',
+        sender_number: '01012345678',
+        status: 'pending',
+      },
+    ]
+    const pool = createMockPool({
+      tenantId: 1,
+      accounts: [
+        {
+          id: 1,
+          tenant_id: 1,
+          user_id: 'user-a',
+          provider_user_id: 'aligo',
+          api_key_encrypted: encrypted,
+          is_active: true,
+        },
+      ],
+      senders,
+      queries: [],
+    })
+    await assert.rejects(
+      () =>
+        testSmsSend(pool, { tenantId: 1, userId: 'user-a' }, {
+          senderNumber: '01012345678',
+          receiver: '01022223333',
+          message: 'test',
+        }),
+      (err) => err.message === 'sms_real_send_disabled' && err.status === 403,
+    )
+    assert.equal(senders[0].status, 'pending')
+  } finally {
+    restoreEnv(snap)
+  }
+})
+
 test('mock 테스트 발송 성공으로 verified 전환되지 않음', async () => {
   const snap = saveEnv(['SMS_MODULE_PROVIDER', 'SMS_MODULE_REAL_SEND_ENABLED', 'SMS_CREDENTIALS_SECRET_KEY'])
   try {
