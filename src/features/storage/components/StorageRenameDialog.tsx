@@ -1,5 +1,9 @@
 import { FormButton, FormInput } from '../../../components/form'
 import Modal from '../../../components/ui/Modal'
+import {
+  CustomerWorkspacePrimaryActionButton,
+  CustomerWorkspaceSecondaryActionButton,
+} from '../../customers/components/CustomerWorkspaceActionButtons'
 import { CustomerWorkspaceFormModalShell } from '../../customers/components/CustomerWorkspaceFormModalShell'
 import { CustomerWorkspaceFormModalFooter } from '../../customers/components/CustomerWorkspaceFormModalFooter'
 import type { StorageActionVariant } from './StorageFileList'
@@ -40,8 +44,87 @@ export default function StorageRenameDialog({
     : 'customer-workspace-form-modal__title'
   const bodyClass = folderCreate ? 'file-folder-create-modal__body' : 'customer-workspace-form-modal__body'
 
+  if (folderCreate) {
+    const folderCreateForm = (
+      <form
+        className="file-folder-create-modal__body"
+        onSubmit={(event) => {
+          event.preventDefault()
+          if (saveDisabled || loading) {
+            return
+          }
+          onSubmit()
+        }}
+      >
+        <div className="file-folder-create-modal__field">
+          <FormInput
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            maxLength={120}
+            autoFocus
+          />
+        </div>
+        {useWorkspaceFooter ? (
+          <div className="file-folder-create-modal__actions customer-workspace-modal-actions user-modal-actions">
+            <CustomerWorkspaceSecondaryActionButton disabled={loading} onClick={onClose}>
+              취소
+            </CustomerWorkspaceSecondaryActionButton>
+            <CustomerWorkspacePrimaryActionButton
+              disabled={loading || saveDisabled}
+              onClick={() => void onSubmit()}
+            >
+              {loading ? '저장 중…' : '저장'}
+            </CustomerWorkspacePrimaryActionButton>
+          </div>
+        ) : (
+          <div className="file-folder-create-modal__actions user-modal-actions">
+            <FormButton htmlType="button" variant="secondary" onClick={onClose} disabled={loading}>
+              취소
+            </FormButton>
+            <FormButton htmlType="submit" variant="primary" disabled={loading || saveDisabled}>
+              {loading ? '저장 중…' : '저장'}
+            </FormButton>
+          </div>
+        )}
+      </form>
+    )
+
+    if (useWorkspaceFooter) {
+      return (
+        <CustomerWorkspaceFormModalShell
+          open={open}
+          onClose={onClose}
+          ariaLabel={title}
+          closeOnBackdrop={false}
+          usePortal
+          panelClassExtra={folderCreatePanelClass}
+        >
+          <header className={headerClass}>
+            <h2 className={titleClass}>{title}</h2>
+          </header>
+          {folderCreateForm}
+        </CustomerWorkspaceFormModalShell>
+      )
+    }
+
+    return (
+      <Modal
+        open={open}
+        onClose={onClose}
+        ariaLabel={title}
+        panelClassName={folderCreatePanelClass}
+        closeOnBackdrop={false}
+      >
+        <header className={headerClass}>
+          <h2 className={titleClass}>{title}</h2>
+        </header>
+        {folderCreateForm}
+      </Modal>
+    )
+  }
+
   const storageFooter = (
-    <div className={folderCreate ? 'file-folder-create-modal__actions user-modal-actions' : 'user-modal-actions'}>
+    <div className="user-modal-actions">
       <FormButton htmlType="button" variant="secondary" onClick={onClose} disabled={loading}>
         취소
       </FormButton>
@@ -62,24 +145,13 @@ export default function StorageRenameDialog({
         onSubmit()
       }}
     >
-      {folderCreate ? (
-        <div className="file-folder-create-modal__field">
-          <FormInput
-            value={value}
-            onChange={(event) => onChange(event.target.value)}
-            maxLength={120}
-            autoFocus
-          />
-        </div>
-      ) : (
-        <FormInput
-          className={useWorkspaceFooter ? 'customer-workspace-form-modal__input' : undefined}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          maxLength={120}
-          autoFocus
-        />
-      )}
+      <FormInput
+        className={useWorkspaceFooter ? 'customer-workspace-form-modal__input' : undefined}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        maxLength={120}
+        autoFocus
+      />
       {useWorkspaceFooter ? null : storageFooter}
     </form>
   )
