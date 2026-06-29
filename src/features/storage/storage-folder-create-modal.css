@@ -1,0 +1,94 @@
+/**
+ * 저장공간 폴더 생성 모달 — PC explorer(storage footer) · 모바일 workspace footer 공통.
+ * customer-workspace-form-modal 규칙보다 후행 import 로 여백·입력칸만 덮어쓴다.
+ */
+.customer-ui-modal-panel.folder-create-modal,
+.customer-ui-modal-panel.file-folder-create-modal,
+.customer-ui-modal-panel.customer-workspace-form-modal.file-folder-create-modal {
+  box-sizing: border-box;
+  padding: 24px 24px 16px;
+  border-radius: 14px;
+}
+
+.folder-create-modal__title,
+.file-folder-create-modal__title {
+  margin: 0 0 14px;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: #111827;
+}
+
+.folder-create-modal__field,
+.file-folder-create-modal__field {
+  margin-top: 10px;
+}
+
+.customer-ui-modal-panel.folder-create-modal input,
+.customer-ui-modal-panel.file-folder-create-modal input,
+.customer-ui-modal-panel.customer-workspace-form-modal.file-folder-create-modal input,
+.folder-create-modal input,
+.file-folder-create-modal input {
+  display: block;
+  box-sizing: border-box;
+  width: 240px;
+  max-width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 9px;
+  background-color: #ffffff;
+  color: #111827;
+  font-size: 14px;
+  outline: none;
+}
+
+.customer-ui-modal-panel.folder-create-modal input::placeholder,
+.customer-ui-modal-panel.file-folder-create-modal input::placeholder,
+.customer-ui-modal-panel.customer-workspace-form-modal.file-folder-create-modal input::placeholder,
+.folder-create-modal input::placeholder,
+.file-folder-create-modal input::placeholder {
+  color: #64748b;
+}
+
+.customer-ui-modal-panel.folder-create-modal input:focus,
+.customer-ui-modal-panel.file-folder-create-modal input:focus,
+.customer-ui-modal-panel.customer-workspace-form-modal.file-folder-create-modal input:focus,
+.folder-create-modal input:focus,
+.file-folder-create-modal input:focus {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.14);
+}
+
+.folder-create-modal__actions,
+.file-folder-create-modal__actions,
+.customer-ui-modal-panel.file-folder-create-modal .customer-workspace-modal-actions,
+.customer-ui-modal-panel.customer-workspace-form-modal.file-folder-create-modal .customer-workspace-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.folder-create-modal__actions button,
+.folder-create-modal__actions .button,
+.file-folder-create-modal__actions button,
+.file-folder-create-modal__actions .button,
+.customer-ui-modal-panel.file-folder-create-modal .customer-workspace-modal-actions button,
+.customer-ui-modal-panel.file-folder-create-modal .customer-workspace-modal-actions .button,
+.customer-ui-modal-panel.customer-workspace-form-modal.file-folder-create-modal
+  .customer-workspace-modal-actions
+  button,
+.customer-ui-modal-panel.customer-workspace-form-modal.file-folder-create-modal
+  .customer-workspace-modal-actions
+  .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  min-height: 38px;
+  padding: 0 16px;
+  border-radius: 9px;
+  line-height: 1;
+}

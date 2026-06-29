@@ -14,6 +14,8 @@ type StorageRenameDialogProps = {
   onSubmit: () => void
   /** 고객 작업영역 모바일 — 메모/상담·폴더 삭제 모달과 동일 footer 버튼 */
   footerVariant?: StorageActionVariant
+  /** 폴더 생성 모달 전용 여백·입력칸 레이아웃 */
+  folderCreate?: boolean
 }
 
 export default function StorageRenameDialog({
@@ -25,12 +27,21 @@ export default function StorageRenameDialog({
   onClose,
   onSubmit,
   footerVariant = 'storage',
+  folderCreate = false,
 }: StorageRenameDialogProps) {
   const useWorkspaceFooter = footerVariant === 'workspace'
   const saveDisabled = !value.trim()
+  const folderCreatePanelClass = folderCreate ? 'file-folder-create-modal' : ''
+  const headerClass = folderCreate
+    ? 'file-folder-create-modal__header'
+    : 'customer-workspace-form-modal__header'
+  const titleClass = folderCreate
+    ? 'file-folder-create-modal__title'
+    : 'customer-workspace-form-modal__title'
+  const bodyClass = folderCreate ? 'file-folder-create-modal__body' : 'customer-workspace-form-modal__body'
 
   const storageFooter = (
-    <div className="user-modal-actions">
+    <div className={folderCreate ? 'file-folder-create-modal__actions user-modal-actions' : 'user-modal-actions'}>
       <FormButton htmlType="button" variant="secondary" onClick={onClose} disabled={loading}>
         취소
       </FormButton>
@@ -51,13 +62,24 @@ export default function StorageRenameDialog({
         onSubmit()
       }}
     >
-      <FormInput
-        className={useWorkspaceFooter ? 'customer-workspace-form-modal__input' : undefined}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        maxLength={120}
-        autoFocus
-      />
+      {folderCreate ? (
+        <div className="file-folder-create-modal__field">
+          <FormInput
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            maxLength={120}
+            autoFocus
+          />
+        </div>
+      ) : (
+        <FormInput
+          className={useWorkspaceFooter ? 'customer-workspace-form-modal__input' : undefined}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          maxLength={120}
+          autoFocus
+        />
+      )}
       {useWorkspaceFooter ? null : storageFooter}
     </form>
   )
@@ -70,11 +92,12 @@ export default function StorageRenameDialog({
         ariaLabel={title}
         closeOnBackdrop={false}
         usePortal
+        panelClassExtra={folderCreatePanelClass}
       >
-        <header className="customer-workspace-form-modal__header">
-          <h2 className="customer-workspace-form-modal__title">{title}</h2>
+        <header className={headerClass}>
+          <h2 className={titleClass}>{title}</h2>
         </header>
-        <div className="customer-workspace-form-modal__body">{formBody}</div>
+        <div className={bodyClass}>{formBody}</div>
         <CustomerWorkspaceFormModalFooter
           onCancel={onClose}
           onSave={onSubmit}
@@ -86,11 +109,17 @@ export default function StorageRenameDialog({
   }
 
   return (
-    <Modal open={open} onClose={onClose} ariaLabel={title} panelClassName="max-w-md" closeOnBackdrop={false}>
-      <header className="customer-workspace-form-modal__header">
-        <h2 className="customer-workspace-form-modal__title">{title}</h2>
+    <Modal
+      open={open}
+      onClose={onClose}
+      ariaLabel={title}
+      panelClassName={['max-w-md', folderCreatePanelClass].filter(Boolean).join(' ')}
+      closeOnBackdrop={false}
+    >
+      <header className={headerClass}>
+        <h2 className={titleClass}>{title}</h2>
       </header>
-      <div className="customer-workspace-form-modal__body">{formBody}</div>
+      <div className={bodyClass}>{formBody}</div>
     </Modal>
   )
 }
