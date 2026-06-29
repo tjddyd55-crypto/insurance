@@ -15056,6 +15056,41 @@ textarea.memo-sticky-note__textarea:focus {
   font-size: 15px;
 }
 
+.claim-request-detail-surface .claim-detail-kv--requester {
+  align-items: baseline;
+  column-gap: 8px;
+  row-gap: 4px;
+}
+
+.claim-request-detail-surface .claim-detail-kv--requester .claim-detail-kv__label {
+  flex: 0 0 auto;
+}
+
+.claim-request-detail-surface .claim-detail-kv--requester .claim-detail-kv__value {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.claim-request-detail-surface.claim-request-detail button,
+.claim-request-detail-surface.claim-request-detail .button,
+.claim-request-detail-surface.claim-request-detail a.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.claim-request-detail-surface .claim-requests-page__attachment-actions--detail-footer {
+  margin-top: 16px;
+  margin-bottom: 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+}
+
 .claim-request-detail-surface .claim-detail-message-box {
   background: #f1f5f9;
   border: 1px solid #e5e7eb;
