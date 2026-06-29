@@ -168,9 +168,14 @@ export default function InsuranceCompanyContactsViewPage() {
             </FormButton>
           ) : null}
         </div>
-        {statusText ? (
+        {errorText ? (
+          <p className="insurance-contacts-status insurance-contacts-status--error" role="alert">
+            {errorText}
+          </p>
+        ) : null}
+        {copyStatus ? (
           <p className="insurance-contacts-status" role="status" aria-live="polite">
-            {statusText}
+            {copyStatus}
           </p>
         ) : null}
       </header>
