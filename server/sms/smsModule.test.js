@@ -62,6 +62,32 @@ function createMockPool(state) {
         return { rowCount: 1, rows: [row] }
       }
 
+      if (text.includes('UPDATE sms_sender_numbers') && text.includes('is_default = true')) {
+        const sender = state.senders.find((s) => s.id === params[0])
+        if (sender) {
+          sender.is_default = true
+        }
+        return { rowCount: 1, rows: [] }
+      }
+
+      if (text.includes('UPDATE sms_sender_numbers') && text.includes('is_default = false') && text.includes('id <>')) {
+        for (const sender of state.senders) {
+          if (sender.tenant_id === params[0] && sender.user_id === params[1] && sender.id !== params[2]) {
+            sender.is_default = false
+          }
+        }
+        return { rowCount: 1, rows: [] }
+      }
+
+      if (text.includes('UPDATE sms_sender_numbers') && text.includes('is_default = false')) {
+        for (const sender of state.senders) {
+          if (sender.tenant_id === params[0] && sender.user_id === params[1]) {
+            sender.is_default = false
+          }
+        }
+        return { rowCount: 1, rows: [] }
+      }
+
       if (text.includes('FROM sms_sender_numbers') && text.includes('sender_number = $3')) {
         const row = state.senders.find(
           (s) => s.tenant_id === params[0] && s.user_id === params[1] && s.sender_number === params[2],
@@ -81,9 +107,9 @@ function createMockPool(state) {
           user_id: params[1],
           provider_account_id: params[2],
           sender_number: params[3],
-          label: params[4],
-          status: params[5] ?? 'pending',
-          is_default: params[6] ?? false,
+          label: '기본 발신번호',
+          status: 'pending',
+          is_default: true,
           last_test_sent_at: null,
           created_at: new Date(),
           updated_at: new Date(),
@@ -400,4 +426,130 @@ test('phone validation', () => {
   assert.equal(normalizeSmsPhone('010-1234-5678'), '01012345678')
   assert.equal(isValidKoreanMobilePhone('01012345678'), true)
   assert.equal(isValidKoreanMobilePhone('0212345678'), false)
+})
+
+test('upsert settings auto-registers default sender', async () => {
+  const state = {
+    accounts: [],
+    senders: [],
+    queries: [],
+    nextAccountId: 1,
+    nextSenderId: 1,
+    nextCampaignId: 1,
+    customers: [],
+    optOuts: [],
+    recipients: [],
+    campaigns: [],
+  }
+  const pool = createMockPool(state)
+  await upsertAligoSmsSettings(pool, { tenantId: TENANT_ID, userId: USER_A }, {
+    aligoUserId: 'aligo-user',
+    apiKey: 'super-secret-api-key-value',
+    defaultSender: '01012345678',
+  })
+  assert.equal(state.senders.length, 1)
+  assert.equal(state.senders[0].sender_number, '01012345678')
+  assert.equal(state.senders[0].is_default, true)
+  assert.equal(state.senders[0].status, 'pending')
+})
+
+test('upsert settings does not duplicate same default sender', async () => {
+  const state = {
+    accounts: [],
+    senders: [],
+    queries: [],
+    nextAccountId: 1,
+    nextSenderId: 1,
+    nextCampaignId: 1,
+    customers: [],
+    optOuts: [],
+    recipients: [],
+    campaigns: [],
+  }
+  const pool = createMockPool(state)
+  const input = {
+    aligoUserId: 'aligo-user',
+    apiKey: 'super-secret-api-key-value',
+    defaultSender: '01012345678',
+  }
+  await upsertAligoSmsSettings(pool, { tenantId: TENANT_ID, userId: USER_A }, input)
+  await upsertAligoSmsSettings(pool, { tenantId: TENANT_ID, userId: USER_A }, {
+    aligoUserId: 'aligo-user',
+    defaultSender: '01012345678',
+  })
+  assert.equal(state.senders.length, 1)
+  assert.equal(state.senders[0].is_default, true)
+})
+
+test('upsert settings keeps single is_default when default sender changes', async () => {
+  const state = {
+    accounts: [],
+    senders: [],
+    queries: [],
+    nextAccountId: 1,
+    nextSenderId: 1,
+    nextCampaignId: 1,
+    customers: [],
+    optOuts: [],
+    recipients: [],
+    campaigns: [],
+  }
+  const pool = createMockPool(state)
+  await upsertAligoSmsSettings(pool, { tenantId: TENANT_ID, userId: USER_A }, {
+    aligoUserId: 'aligo-user',
+    apiKey: 'super-secret-api-key-value',
+    defaultSender: '01011112222',
+  })
+  await upsertAligoSmsSettings(pool, { tenantId: TENANT_ID, userId: USER_A }, {
+    aligoUserId: 'aligo-user',
+    defaultSender: '01033334444',
+  })
+  assert.equal(state.senders.length, 2)
+  const defaults = state.senders.filter((s) => s.is_default)
+  assert.equal(defaults.length, 1)
+  assert.equal(defaults[0].sender_number, '01033334444')
+})
+
+test('upsert settings preserves verified status for same sender number', async () => {
+  const state = {
+    accounts: [],
+    senders: [
+      {
+        id: 1,
+        tenant_id: TENANT_ID,
+        user_id: USER_A,
+        provider_account_id: 1,
+        sender_number: '01012345678',
+        label: '기본 발신번호',
+        status: 'verified',
+        is_default: true,
+      },
+    ],
+    queries: [],
+    nextAccountId: 2,
+    nextSenderId: 2,
+    nextCampaignId: 1,
+    customers: [],
+    optOuts: [],
+    recipients: [],
+    campaigns: [],
+  }
+  state.accounts.push({
+    id: 1,
+    tenant_id: TENANT_ID,
+    user_id: USER_A,
+    provider_user_id: 'aligo-user',
+    api_key_encrypted: encryptSmsCredential('super-secret-api-key-value'),
+    default_sender: '01012345678',
+    is_active: true,
+    last_balance_checked_at: null,
+  })
+  const pool = createMockPool(state)
+  await upsertAligoSmsSettings(pool, { tenantId: TENANT_ID, userId: USER_A }, {
+    aligoUserId: 'aligo-user',
+    defaultSender: '01012345678',
+  })
+  assert.equal(state.senders.length, 1)
+  assert.equal(state.senders[0].status, 'verified')
+  assert.equal(state.senders[0].is_default, true)
 })

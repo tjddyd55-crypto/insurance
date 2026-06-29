@@ -11,8 +11,7 @@ export interface SmsSettings {
   isActive: boolean
   lastBalanceCheckedAt: string | null
   outboundServerIpHint: string
-  aligoChargeUrl: string
-  aligoSenderRegisterUrl: string
+  aligoApiSettingsUrl: string
   moduleEnabled: boolean
   realSendEnabled: boolean
   providerMode: 'mock' | 'aligo' | 'gateway' | 'invalid'
@@ -31,8 +30,7 @@ export const EMPTY_SMS_SETTINGS: SmsSettings = {
   isActive: false,
   lastBalanceCheckedAt: null,
   outboundServerIpHint: '',
-  aligoChargeUrl: 'https://smartsms.aligo.in/shop/charge.html',
-  aligoSenderRegisterUrl: 'https://smartsms.aligo.in/admin/sender/list.html',
+  aligoApiSettingsUrl: 'https://smartsms.aligo.in/admin/api/auth.html',
   moduleEnabled: true,
   realSendEnabled: false,
   providerMode: 'mock',
@@ -52,8 +50,7 @@ export function normalizeSmsSettings(raw: unknown): SmsSettings {
     apiKeyMasked: row.apiKeyMasked ?? null,
     defaultSender: row.defaultSender ?? '',
     outboundServerIpHint: row.outboundServerIpHint ?? '',
-    aligoChargeUrl: row.aligoChargeUrl ?? EMPTY_SMS_SETTINGS.aligoChargeUrl,
-    aligoSenderRegisterUrl: row.aligoSenderRegisterUrl ?? EMPTY_SMS_SETTINGS.aligoSenderRegisterUrl,
+    aligoApiSettingsUrl: row.aligoApiSettingsUrl ?? EMPTY_SMS_SETTINGS.aligoApiSettingsUrl,
   }
 }
 

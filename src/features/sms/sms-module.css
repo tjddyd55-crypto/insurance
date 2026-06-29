@@ -263,3 +263,54 @@
   color: var(--text-primary);
   margin: 0.35rem 0;
 }
+
+.sms-module__settings-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.sms-module__field-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sms-module__field-title {
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.sms-module__saved-row {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: baseline;
+}
+
+.sms-module__saved-label {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.sms-module__saved-value {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.sms-module__balance-panel {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+}
+
+.sms-module__balance-title {
+  margin: 0 0 0.25rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}

@@ -4,7 +4,6 @@ import {
   addSmsOptOut,
   cancelSmsCampaign,
   createSmsCampaign,
-  createSmsSender,
   createSmsTemplate,
   deleteSmsSettings,
   deleteSmsTemplate,
@@ -63,9 +62,9 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
   const [previewAcknowledged, setPreviewAcknowledged] = useState(false)
 
   const [settingsForm, setSettingsForm] = useState({
-    aligoUserId: '',
-    apiKey: '',
-    defaultSender: '',
+    aligoUserIdChange: '',
+    apiKeyChange: '',
+    defaultSenderChange: '',
     testReceiver: '',
     testMessage: 'CRM 문자 연동 테스트입니다.',
   })
@@ -138,8 +137,9 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
       setOptOuts(Array.isArray(optOutsRes) ? optOutsRes : [])
       setSettingsForm((prev) => ({
         ...prev,
-        aligoUserId: normalizedSettings.aligoUserId ?? '',
-        defaultSender: normalizedSettings.defaultSender ?? '',
+        aligoUserIdChange: '',
+        apiKeyChange: '',
+        defaultSenderChange: '',
       }))
       const defaultSender =
         normalizedSenders.find((s) => s.isDefault && s.status === 'verified')?.senderNumber ??
@@ -196,18 +196,39 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
 
   const handleSaveSettings = useCallback(async () => {
     await runBusy(async () => {
+      const aligoUserId =
+        settingsForm.aligoUserIdChange.trim() || settings?.aligoUserId?.trim() || ''
+      const defaultSender =
+        settingsForm.defaultSenderChange.trim() || settings?.defaultSender?.trim() || ''
+      const apiKey = settingsForm.apiKeyChange.trim() || undefined
+
+      if (!aligoUserId) {
+        throw new Error('알리고 아이디를 입력해 주세요.')
+      }
+      if (!defaultSender) {
+        throw new Error('알리고에 등록된 발신번호를 입력해 주세요.')
+      }
+      if (!settings?.configured && !apiKey) {
+        throw new Error('API Key를 입력해 주세요.')
+      }
+
       const saved = await saveSmsSettings(token, {
-        aligoUserId: settingsForm.aligoUserId.trim(),
-        apiKey: settingsForm.apiKey.trim() || undefined,
-        defaultSender: settingsForm.defaultSender.trim() || undefined,
+        aligoUserId,
+        apiKey,
+        defaultSender,
       })
       setSettings(saved)
       setSettingsLoaded(true)
-      setSettingsForm((prev) => ({ ...prev, apiKey: '' }))
-      setNotice('알리고 설정을 저장했습니다. API Key 원문은 서버에만 암호화 저장됩니다.')
+      setSettingsForm((prev) => ({
+        ...prev,
+        aligoUserIdChange: '',
+        apiKeyChange: '',
+        defaultSenderChange: '',
+      }))
+      setNotice('알리고 연동 설정과 기본 발신번호가 저장되었습니다.')
       await reloadCore()
     })
-  }, [runBusy, settingsForm, reloadCore, token])
+  }, [runBusy, settingsForm, settings, reloadCore, token])
 
   const handleDeleteSettings = useCallback(async () => {
     await runBusy(async () => {
@@ -219,24 +240,12 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
     })
   }, [runBusy, reloadCore, token])
 
-  const handleRegisterSender = useCallback(async () => {
-    await runBusy(async () => {
-      if (!settingsForm.defaultSender.trim()) {
-        throw new Error('발신번호를 입력해 주세요.')
-      }
-      await createSmsSender(token, {
-        senderNumber: settingsForm.defaultSender.trim(),
-        label: '기본 발신번호',
-        isDefault: true,
-      })
-      setNotice('발신번호를 등록했습니다. 테스트 발송으로 검증해 주세요.')
-      await reloadCore()
-    })
-  }, [runBusy, settingsForm.defaultSender, reloadCore, token])
-
   const handleTestSend = useCallback(async () => {
     await runBusy(async () => {
-      const sender = settingsForm.defaultSender.trim() || sendForm.senderNumber
+      const sender =
+        settings?.defaultSender?.trim() ||
+        settingsForm.defaultSenderChange.trim() ||
+        sendForm.senderNumber
       const result = await testSmsSend(token, {
         senderNumber: sender,
         receiver: settingsForm.testReceiver.trim(),
@@ -253,7 +262,7 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
       )
       await reloadCore()
     })
-  }, [runBusy, settingsForm, sendForm.senderNumber, reloadCore, token])
+  }, [runBusy, settingsForm, settings, sendForm.senderNumber, reloadCore, token])
 
   const handleFetchBalance = useCallback(async () => {
     await runBusy(async () => {
@@ -264,7 +273,7 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
             '잔액 조회에 실패했습니다. API Key, 서버 IP 등록, 알리고 계정 상태를 확인해 주세요.',
         )
       }
-      setBalanceText(result.balanceText ?? '조회 완료')
+      setBalanceText(result.balanceText ?? '(단문) 0건 (장문) 0건 (그림) 0건')
     })
   }, [runBusy, token])
 
@@ -438,7 +447,6 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
     reloadCore,
     handleSaveSettings,
     handleDeleteSettings,
-    handleRegisterSender,
     handleTestSend,
     handleFetchBalance,
     handleSendSingle,

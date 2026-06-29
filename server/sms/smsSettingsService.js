@@ -9,6 +9,8 @@ import { normalizeSenderNumber } from './smsPhone.js'
 import { getSmsOutboundServerIpHint, readSmsModuleRuntimeInfo } from './smsModuleConfig.js'
 import { loadActiveSmsProviderAccount } from './smsScope.js'
 
+const ALIGO_API_SETTINGS_URL = 'https://smartsms.aligo.in/admin/api/auth.html'
+
 function mapSettingsRow(row, apiKeyMasked) {
   const runtime = readSmsModuleRuntimeInfo()
   const base = {
@@ -20,8 +22,7 @@ function mapSettingsRow(row, apiKeyMasked) {
     providerMisconfigured: runtime.providerMisconfigured,
     aligoTestMode: runtime.testMode,
     outboundServerIpHint: getSmsOutboundServerIpHint(),
-    aligoChargeUrl: 'https://smartsms.aligo.in/shop/charge.html',
-    aligoSenderRegisterUrl: 'https://smartsms.aligo.in/admin/sender/list.html',
+    aligoApiSettingsUrl: ALIGO_API_SETTINGS_URL,
   }
   if (!row) {
     return {
@@ -86,6 +87,12 @@ export async function upsertAligoSmsSettings(executor, scope, input) {
     err.publicMessage = '알리고 아이디를 입력해 주세요.'
     throw err
   }
+  if (!defaultSender) {
+    const err = new Error('sms_default_sender_required')
+    err.status = 400
+    err.publicMessage = '알리고에 등록된 발신번호를 입력해 주세요.'
+    throw err
+  }
 
   const existing = await loadActiveSmsProviderAccount(executor, scope)
   if (!existing && !apiKey) {
@@ -147,17 +154,24 @@ async function ensureDefaultSenderRow(executor, scope, providerAccountId, sender
   const existing = await systemQuery(
     executor,
     `
-    SELECT id FROM sms_sender_numbers
+    SELECT id, status FROM sms_sender_numbers
     WHERE tenant_id = $1 AND user_id = $2 AND sender_number = $3
     LIMIT 1
     `,
     [scope.tenantId, scope.userId, senderNumber],
   )
+
   if (existing.rowCount > 0) {
+    const row = existing.rows[0]
+    const rowId = Number(row.id)
     await systemQuery(
       executor,
-      `UPDATE sms_sender_numbers SET is_default = true, updated_at = NOW() WHERE id = $1`,
-      [existing.rows[0].id],
+      `
+      UPDATE sms_sender_numbers
+      SET is_default = true, updated_at = NOW()
+      WHERE id = $1
+      `,
+      [rowId],
     )
     await systemQuery(
       executor,
@@ -166,10 +180,21 @@ async function ensureDefaultSenderRow(executor, scope, providerAccountId, sender
       SET is_default = false, updated_at = NOW()
       WHERE tenant_id = $1 AND user_id = $2 AND id <> $3
       `,
-      [scope.tenantId, scope.userId, existing.rows[0].id],
+      [scope.tenantId, scope.userId, rowId],
     )
     return
   }
+
+  await systemQuery(
+    executor,
+    `
+    UPDATE sms_sender_numbers
+    SET is_default = false, updated_at = NOW()
+    WHERE tenant_id = $1 AND user_id = $2
+    `,
+    [scope.tenantId, scope.userId],
+  )
+
   await systemQuery(
     executor,
     `

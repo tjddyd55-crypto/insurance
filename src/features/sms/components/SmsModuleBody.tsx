@@ -1,7 +1,8 @@
 import FormButton from '../../../components/form/FormButton'
 import FormInput from '../../../components/form/FormInput'
-import type { SmsModuleViewProps } from '../../hooks/useSmsModuleState'
-import type { SmsModuleTab } from '../../types/sms.types'
+import type { SmsModuleViewProps } from '../hooks/useSmsModuleState'
+import { ALIGO_API_SETTINGS_URL, formatKrMobileDisplay } from '../smsDisplayUtils'
+import type { SmsModuleTab } from '../types/sms.types'
 
 const TABS: { id: SmsModuleTab; label: string }[] = [
   { id: 'settings', label: '문자 설정' },
@@ -97,18 +98,26 @@ function ProviderNotice({
 function GuideBox({ outboundIpHint }: { outboundIpHint?: string }) {
   return (
     <div className="sms-module__guide">
-      <p>문자 발송은 알리고 계정을 연동하여 사용합니다.</p>
-      <p>알리고 API 발송 서버 IP에 아래 IP를 등록해 주세요.</p>
+      <p>알리고 API 설정 페이지에서 API Key, 발송 서버 IP, 발신번호 등록을 확인해 주세요.</p>
+      <p>알리고 API 발송 서버 IP에는 아래 IP를 등록해 주세요.</p>
       {outboundIpHint ? (
         <p className="sms-module__ip-hint">{outboundIpHint}</p>
       ) : (
-        <p className="sms-module__muted">발송 서버 IP는 SMS_MODULE_OUTBOUND_IP_HINT 환경변수로 안내됩니다.</p>
+        <p className="sms-module__ip-hint">100.54.92.161</p>
       )}
       <p>문자 충전과 발신번호 등록은 알리고 사이트에서 직접 진행해 주세요.</p>
-      <p>
-        CRM 문자 발송은 유저 본인의 알리고 계정으로 처리되며, 문자비는 해당 알리고 계정에서 차감됩니다.
-      </p>
+      <p>CRM에는 알리고에 등록된 기본 발신번호 하나만 저장합니다.</p>
+      <p>API Key는 저장 후 다시 표시되지 않으며, 변경 시에만 새로 입력합니다.</p>
     </div>
+  )
+}
+
+function SavedValueRow({ label, value }: { label: string; value: string }) {
+  return (
+    <p className="sms-module__saved-row">
+      <span className="sms-module__saved-label">{label}</span>
+      <span className="sms-module__saved-value">{value}</span>
+    </p>
   )
 }
 
@@ -125,7 +134,6 @@ export default function SmsModuleBody(props: Props) {
     moduleDisabled,
     notice,
     settings,
-    senders,
     verifiedSenders,
     templates,
     history,
@@ -147,7 +155,6 @@ export default function SmsModuleBody(props: Props) {
     bulkByteInfo,
     handleSaveSettings,
     handleDeleteSettings,
-    handleRegisterSender,
     handleTestSend,
     handleFetchBalance,
     handleSendSingle,
@@ -165,7 +172,7 @@ export default function SmsModuleBody(props: Props) {
     <>
       <header className="sms-module__header">
         <h1>문자 발송</h1>
-        <p className="sms-module__subtitle">알리고 계정 연동 · 충전/발신번호 등록은 알리고 사이트에서 진행</p>
+        <p className="sms-module__subtitle">알리고 계정 연동 · API Key·발송 IP·발신번호는 알리고 API 설정 페이지에서 확인</p>
       </header>
 
       <nav className={`sms-module__tabs sms-module__tabs--${variant}`}>
@@ -191,43 +198,53 @@ export default function SmsModuleBody(props: Props) {
         <section className="sms-module__panel">
           <GuideBox outboundIpHint={settings?.outboundServerIpHint} />
           <EmptySettingsNotice visible={!settings?.configured} loading={loading} />
-          <div className="sms-module__grid">
-            <label>
-              알리고 아이디
+          <div className="sms-module__settings-fields">
+            <div className="sms-module__field-block">
+              <span className="sms-module__field-title">알리고 아이디</span>
+              {settings?.aligoUserId ? (
+                <SavedValueRow label="저장됨:" value={settings.aligoUserId} />
+              ) : null}
               <FormInput
-                value={settingsForm.aligoUserId}
-                onChange={(e) => setSettingsForm((p) => ({ ...p, aligoUserId: e.target.value }))}
+                placeholder={settings?.aligoUserId ? '변경 시에만 입력' : '알리고 아이디'}
+                value={settingsForm.aligoUserIdChange}
+                onChange={(e) => setSettingsForm((p) => ({ ...p, aligoUserIdChange: e.target.value }))}
               />
-            </label>
-            <label>
-              API Key {settings?.apiKeyMasked ? `(저장됨: ${settings.apiKeyMasked})` : ''}
+            </div>
+
+            <div className="sms-module__field-block">
+              <span className="sms-module__field-title">API Key</span>
+              {settings?.apiKeyMasked ? (
+                <SavedValueRow label="저장됨:" value={settings.apiKeyMasked} />
+              ) : null}
               <FormInput
                 type="password"
                 autoComplete="new-password"
-                placeholder="변경 시에만 입력"
-                value={settingsForm.apiKey}
-                onChange={(e) => setSettingsForm((p) => ({ ...p, apiKey: e.target.value }))}
+                placeholder={settings?.apiKeyMasked ? '변경 시에만 입력' : 'API Key'}
+                value={settingsForm.apiKeyChange}
+                onChange={(e) => setSettingsForm((p) => ({ ...p, apiKeyChange: e.target.value }))}
               />
-            </label>
-            <label>
-              기본 발신번호 (알리고 등록 번호)
+            </div>
+
+            <div className="sms-module__field-block">
+              <span className="sms-module__field-title">기본 발신번호</span>
+              {settings?.defaultSender ? (
+                <SavedValueRow
+                  label="저장됨:"
+                  value={formatKrMobileDisplay(settings.defaultSender)}
+                />
+              ) : null}
               <FormInput
-                value={settingsForm.defaultSender}
-                onChange={(e) => setSettingsForm((p) => ({ ...p, defaultSender: e.target.value }))}
+                placeholder={
+                  settings?.defaultSender ? '변경 시에만 입력' : '알리고에 등록된 발신번호'
+                }
+                value={settingsForm.defaultSenderChange}
+                onChange={(e) => setSettingsForm((p) => ({ ...p, defaultSenderChange: e.target.value }))}
               />
-            </label>
+            </div>
           </div>
           <div className="sms-module__actions">
             <FormButton type="button" disabled={busy || moduleDisabled} onClick={() => void handleSaveSettings()}>
-              저장
-            </FormButton>
-            <FormButton
-              type="button"
-              variant="secondary"
-              disabled={busy || moduleDisabled}
-              onClick={() => void handleRegisterSender()}
-            >
-              발신번호 CRM 등록
+              알리고 연동 설정 저장
             </FormButton>
             {settings?.configured ? (
               <FormButton
@@ -266,43 +283,19 @@ export default function SmsModuleBody(props: Props) {
             </FormButton>
             <a
               className="sms-module__link-btn"
-              href={settings?.aligoChargeUrl ?? 'https://smartsms.aligo.in/shop/charge.html'}
+              href={settings?.aligoApiSettingsUrl ?? ALIGO_API_SETTINGS_URL}
               target="_blank"
               rel="noreferrer"
             >
-              알리고에서 충전하기
-            </a>
-            <a
-              className="sms-module__link-btn"
-              href={settings?.aligoSenderRegisterUrl ?? 'https://smartsms.aligo.in/admin/sender/list.html'}
-              target="_blank"
-              rel="noreferrer"
-            >
-              알리고 발신번호 등록
+              알리고 API 설정 페이지 열기
             </a>
           </div>
-          {balanceText ? <p className="sms-module__balance">{balanceText}</p> : null}
-          {settings?.outboundServerIpHint ? (
-            <div className="sms-module__ip-panel">
-              <p className="sms-module__muted">알리고 API 발송 서버 IP에 아래 IP를 등록해 주세요.</p>
-              <p className="sms-module__ip-hint">{settings.outboundServerIpHint}</p>
-              <p className="sms-module__muted">
-                CRM 문자 발송은 유저 본인의 알리고 계정으로 처리되며, 문자비는 해당 알리고 계정에서 차감됩니다.
-              </p>
+          {balanceText ? (
+            <div className="sms-module__balance-panel">
+              <p className="sms-module__balance-title">잔액 조회 결과</p>
+              <p className="sms-module__balance">{balanceText}</p>
             </div>
           ) : null}
-
-          <h3>등록된 발신번호</h3>
-          <ul className="sms-module__list">
-            {senders.length === 0 ? <li className="sms-module__muted">등록된 발신번호가 없습니다.</li> : null}
-            {senders.map((s) => (
-              <li key={s.id}>
-                {s.senderNumber} · {s.label} ·{' '}
-                <span className={`sms-module__badge sms-module__badge--${s.status}`}>{s.status}</span>
-                {s.isDefault ? ' · 기본' : ''}
-              </li>
-            ))}
-          </ul>
         </section>
       ) : null}
 

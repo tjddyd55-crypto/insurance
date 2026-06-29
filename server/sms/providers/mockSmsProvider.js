@@ -1,4 +1,5 @@
 import { sanitizeProviderRaw } from '../smsCredentialsCrypto.js'
+import { formatSmsRemainBalanceText } from '../smsBalanceFormat.js'
 
 /** @type {import('./smsProvider.js').SmsProvider} */
 export const mockSmsProvider = {
@@ -25,10 +26,12 @@ export const mockSmsProvider = {
     if (!String(input.providerUserId ?? '').trim() || !String(input.apiKey ?? '').trim()) {
       return { success: false, errorMessage: '알리고 계정 정보가 없습니다.' }
     }
+    const counts = { sms: 999, lms: 999, mms: 0 }
     return {
       success: true,
-      balanceText: 'SMS 999건 / LMS 999건 (mock)',
-      raw: sanitizeProviderRaw({ mock: true, SMS_CNT: 999, LMS_CNT: 999 }),
+      balanceText: formatSmsRemainBalanceText(counts),
+      balanceBreakdown: counts,
+      raw: sanitizeProviderRaw({ mock: true, SMS_CNT: 999, LMS_CNT: 999, MMS_CNT: 0 }),
     }
   },
 }

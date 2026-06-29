@@ -6,6 +6,7 @@ import {
   maskGatewayPayloadForLog,
 } from '../smsProviderErrors.js'
 import { resolveMessageType } from '../smsMessageUtils.js'
+import { formatSmsRemainBalanceFromRaw, parseSmsRemainCounts } from '../smsBalanceFormat.js'
 
 const GATEWAY_TIMEOUT_MS = (() => {
   const n = Number(process.env.SMS_MODULE_GATEWAY_TIMEOUT_MS ?? 10000)
@@ -204,13 +205,16 @@ export function createGatewaySmsProvider(deps = {}) {
             raw: parsed.raw,
           }
         }
+        const rawBody = res.data?.raw ?? res.data
+        const counts = parseSmsRemainCounts(rawBody)
         const balanceText =
-          res.data?.balanceText ??
-          res.data?.balance_text ??
-          '잔액 조회에 성공했습니다.'
+          typeof res.data?.balanceText === 'string' && res.data.balanceText.includes('단문')
+            ? res.data.balanceText
+            : formatSmsRemainBalanceFromRaw(rawBody)
         return {
           success: true,
           balanceText: String(balanceText),
+          balanceBreakdown: counts,
           raw: parsed.raw,
         }
       } catch {

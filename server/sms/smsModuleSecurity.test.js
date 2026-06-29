@@ -60,7 +60,65 @@ function createMockPool(state) {
           is_active: true,
         }
         state.accounts = state.accounts ?? []
+        if (state.nextAccountId != null) {
+          state.nextAccountId += 1
+        }
         state.accounts.push(row)
+        return { rowCount: 1, rows: [row] }
+      }
+
+      if (text.includes('UPDATE sms_provider_accounts') && text.includes('provider_user_id')) {
+        const row = state.accounts?.find((a) => a.id === params[0])
+        if (row) {
+          row.provider_user_id = params[2]
+          row.api_key_encrypted = params[3]
+          row.default_sender = params[4]
+        }
+        return { rowCount: 1, rows: [row] }
+      }
+
+      if (text.includes('UPDATE sms_sender_numbers') && text.includes('is_default = true')) {
+        const sender = state.senders?.find((s) => s.id === params[0])
+        if (sender) {
+          sender.is_default = true
+        }
+        return { rowCount: 1, rows: [] }
+      }
+
+      if (text.includes('UPDATE sms_sender_numbers') && text.includes('is_default = false') && text.includes('id <>')) {
+        for (const sender of state.senders ?? []) {
+          if (sender.tenant_id === params[0] && sender.user_id === params[1] && sender.id !== params[2]) {
+            sender.is_default = false
+          }
+        }
+        return { rowCount: 1, rows: [] }
+      }
+
+      if (text.includes('UPDATE sms_sender_numbers') && text.includes('is_default = false')) {
+        for (const sender of state.senders ?? []) {
+          if (sender.tenant_id === params[0] && sender.user_id === params[1]) {
+            sender.is_default = false
+          }
+        }
+        return { rowCount: 1, rows: [] }
+      }
+
+      if (text.includes('INSERT INTO sms_sender_numbers')) {
+        state.senders = state.senders ?? []
+        const row = {
+          id: (state.nextSenderId ?? state.senders.length + 1),
+          tenant_id: params[0],
+          user_id: params[1],
+          provider_account_id: params[2],
+          sender_number: params[3],
+          label: '기본 발신번호',
+          status: 'pending',
+          is_default: true,
+        }
+        if (state.nextSenderId != null) {
+          state.nextSenderId += 1
+        }
+        state.senders.push(row)
         return { rowCount: 1, rows: [row] }
       }
 
@@ -249,6 +307,45 @@ test('REAL_SEND=false이면 testSmsSend가 provider 호출 전 403으로 차단'
       (err) => err.message === 'sms_real_send_disabled' && err.status === 403,
     )
     assert.equal(senders[0].status, 'pending')
+  } finally {
+    restoreEnv(snap)
+  }
+})
+
+test('REAL_SEND=false에서도 설정 저장과 기본 발신번호 자동 등록은 허용', async () => {
+  const snap = saveEnv([
+    'NODE_ENV',
+    'RAILWAY_ENVIRONMENT',
+    'SMS_MODULE_PROVIDER',
+    'SMS_MODULE_REAL_SEND_ENABLED',
+    'SMS_CREDENTIALS_SECRET_KEY',
+    'SMS_MODULE_ENABLED',
+  ])
+  try {
+    process.env.NODE_ENV = 'production'
+    process.env.RAILWAY_ENVIRONMENT = 'production'
+    process.env.SMS_MODULE_PROVIDER = 'gateway'
+    process.env.SMS_MODULE_REAL_SEND_ENABLED = 'false'
+    process.env.SMS_MODULE_ENABLED = 'true'
+    process.env.SMS_CREDENTIALS_SECRET_KEY = SECRET
+    const state = {
+      tenantId: 1,
+      accounts: [],
+      senders: [],
+      queries: [],
+      nextAccountId: 1,
+      nextSenderId: 1,
+    }
+    const pool = createMockPool(state)
+    const saved = await upsertAligoSmsSettings(pool, { tenantId: 1, userId: 'user-a' }, {
+      aligoUserId: 'aligo-user',
+      apiKey: 'secret-key',
+      defaultSender: '01012345678',
+    })
+    assert.equal(saved.configured, true)
+    assert.equal(state.senders.length, 1)
+    assert.equal(state.senders[0].sender_number, '01012345678')
+    assert.equal(state.senders[0].is_default, true)
   } finally {
     restoreEnv(snap)
   }

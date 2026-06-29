@@ -3,6 +3,7 @@ import { sanitizeProviderRaw } from '../smsCredentialsCrypto.js'
 import { isAligoTestModeEnabled } from '../smsModuleConfig.js'
 import { classifyAligoProviderError, maskAligoRequestBodyForLog } from '../smsProviderErrors.js'
 import { resolveMessageType } from '../smsMessageUtils.js'
+import { formatSmsRemainBalanceFromRaw, parseSmsRemainCounts } from '../smsBalanceFormat.js'
 
 const ALIGO_SEND_URL = 'https://apis.aligo.in/send/'
 const ALIGO_REMAIN_URL = 'https://apis.aligo.in/remain/'
@@ -119,11 +120,9 @@ export const aligoSmsProvider = {
           raw: sanitizeProviderRaw(res.data),
         }
       }
-      const smsCnt = res.data?.SMS_CNT ?? res.data?.sms_cnt
-      const lmsCnt = res.data?.LMS_CNT ?? res.data?.lms_cnt
-      const mmsCnt = res.data?.MMS_CNT ?? res.data?.mms_cnt
-      const balanceText = `SMS ${smsCnt ?? '-'}건 / LMS ${lmsCnt ?? '-'}건 / MMS ${mmsCnt ?? '-'}건`
-      return { success: true, balanceText, raw: sanitizeProviderRaw(res.data) }
+      const counts = parseSmsRemainCounts(res.data)
+      const balanceText = formatSmsRemainBalanceFromRaw(res.data)
+      return { success: true, balanceText, balanceBreakdown: counts, raw: sanitizeProviderRaw(res.data) }
     } catch (err) {
       const classified = classifyAligoProviderError({ network: true })
       if (process.env.NODE_ENV !== 'test') {
