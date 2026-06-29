@@ -480,6 +480,7 @@ export async function sendSmsCampaignNow(executor, scope, campaignId, input = {}
       messageType: resolveMessageType(String(row.message)),
       providerUserId: creds.providerUserId,
       apiKey: creds.apiKey,
+      requestId: `campaign:${campaignId}:recipient:${row.id}`,
     })
     if (sendResult.success) {
       successCount += 1

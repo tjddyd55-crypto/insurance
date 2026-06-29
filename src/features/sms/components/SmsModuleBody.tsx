@@ -39,6 +39,9 @@ function ProviderNotice({ settings }: { settings: SmsModuleViewProps['settings']
       {settings.providerIsMock || settings.providerMode === 'mock' ? (
         <p>현재 provider가 mock입니다. 실제 알리고 발송·verified 처리는 되지 않습니다.</p>
       ) : null}
+      {settings.usesGateway ? (
+        <p>CRM 문자는 EC2 SMS Gateway를 통해 알리고로 발송됩니다. 알리고에 등록할 IP는 아래 안내를 따르세요.</p>
+      ) : null}
       {!settings.realSendEnabled ? (
         <p>
           실제 문자 발송(SMS_MODULE_REAL_SEND_ENABLED)은 비활성화되어 있습니다. 설정·미리보기·예약 저장만
@@ -46,7 +49,10 @@ function ProviderNotice({ settings }: { settings: SmsModuleViewProps['settings']
         </p>
       ) : null}
       {settings.providerMisconfigured ? (
-        <p>운영 provider 설정이 올바르지 않습니다. SMS_MODULE_PROVIDER=aligo 를 확인해 주세요.</p>
+        <p>
+          운영 provider 설정이 올바르지 않습니다. SMS_MODULE_PROVIDER=gateway, aligo_gateway 또는 aligo 설정을
+          확인해 주세요.
+        </p>
       ) : null}
       {settings.aligoTestMode ? (
         <p>알리고 testmode가 켜져 있습니다. 테스트 발송 성공만으로 verified 되지 않습니다.</p>
@@ -54,13 +60,20 @@ function ProviderNotice({ settings }: { settings: SmsModuleViewProps['settings']
     </div>
   )
 }
-function GuideBox() {
+function GuideBox({ outboundIpHint }: { outboundIpHint?: string }) {
   return (
     <div className="sms-module__guide">
       <p>문자 발송은 알리고 계정을 연동하여 사용합니다.</p>
-      <p>문자 충전은 알리고 사이트에서 직접 진행해 주세요.</p>
-      <p>발신번호는 알리고에 사전 등록된 번호만 사용할 수 있습니다.</p>
-      <p>알리고 API 사용을 위해 알리고 API 설정에서 CRM 발송 서버 IP를 등록해야 할 수 있습니다.</p>
+      <p>알리고 API 발송 서버 IP에 아래 IP를 등록해 주세요.</p>
+      {outboundIpHint ? (
+        <p className="sms-module__ip-hint">{outboundIpHint}</p>
+      ) : (
+        <p className="sms-module__muted">발송 서버 IP는 SMS_MODULE_OUTBOUND_IP_HINT 환경변수로 안내됩니다.</p>
+      )}
+      <p>문자 충전과 발신번호 등록은 알리고 사이트에서 직접 진행해 주세요.</p>
+      <p>
+        CRM 문자 발송은 유저 본인의 알리고 계정으로 처리되며, 문자비는 해당 알리고 계정에서 차감됩니다.
+      </p>
     </div>
   )
 }
@@ -138,7 +151,7 @@ export default function SmsModuleBody(props: Props) {
 
       {tab === 'settings' ? (
         <section className="sms-module__panel">
-          <GuideBox />
+          <GuideBox outboundIpHint={settings?.outboundServerIpHint} />
           <div className="sms-module__grid">
             <label>
               알리고 아이디
@@ -221,10 +234,14 @@ export default function SmsModuleBody(props: Props) {
           </div>
           {balanceText ? <p className="sms-module__balance">{balanceText}</p> : null}
           {settings?.outboundServerIpHint ? (
-            <p className="sms-module__muted">CRM 발송 서버 IP 안내: {settings.outboundServerIpHint}</p>
-          ) : (
-            <p className="sms-module__muted">CRM 발송 서버 IP는 운영 환경 설정(SMS_MODULE_OUTBOUND_IP_HINT)으로 안내됩니다.</p>
-          )}
+            <div className="sms-module__ip-panel">
+              <p className="sms-module__muted">알리고 API 발송 서버 IP에 아래 IP를 등록해 주세요.</p>
+              <p className="sms-module__ip-hint">{settings.outboundServerIpHint}</p>
+              <p className="sms-module__muted">
+                CRM 문자 발송은 유저 본인의 알리고 계정으로 처리되며, 문자비는 해당 알리고 계정에서 차감됩니다.
+              </p>
+            </div>
+          ) : null}
 
           <h3>등록된 발신번호</h3>
           <ul className="sms-module__list">

@@ -1,5 +1,5 @@
 /**
- * @typedef {'invalid_api_key' | 'sender_not_registered' | 'insufficient_balance' | 'invalid_receiver' | 'provider_error' | 'network_error'} SmsProviderErrorCode
+ * @typedef {'invalid_api_key' | 'sender_not_registered' | 'insufficient_balance' | 'invalid_receiver' | 'provider_error' | 'network_error' | 'gateway_auth_error'} SmsProviderErrorCode
  */
 
 const ERROR_PATTERNS = [
@@ -49,6 +49,8 @@ function mapPublicMessage(code, fallback) {
       return '수신번호 형식을 확인해 주세요.'
     case 'network_error':
       return '알리고 서버와 통신하지 못했습니다. 잠시 후 다시 시도해 주세요.'
+    case 'gateway_auth_error':
+      return 'CRM SMS Gateway 인증에 실패했습니다. 관리자에게 문의해 주세요.'
     default:
       return fallback || '알리고 처리 중 오류가 발생했습니다.'
   }
@@ -60,4 +62,66 @@ function mapPublicMessage(code, fallback) {
  */
 export function maskAligoRequestBodyForLog(body) {
   return String(body ?? '').replace(/(^|&)key=[^&]*/gi, '$1key=****')
+}
+
+/**
+ * @param {Record<string, unknown>} payload
+ */
+export function maskGatewayPayloadForLog(payload) {
+  if (!payload || typeof payload !== 'object') {
+    return {}
+  }
+  const clone = { ...payload }
+  if ('api_key' in clone) {
+    clone.api_key = '****'
+  }
+  if ('sender' in clone) {
+    clone.sender = maskPhoneTail(String(clone.sender ?? ''))
+  }
+  if ('receiver' in clone) {
+    clone.receiver = maskPhoneTail(String(clone.receiver ?? ''))
+  }
+  if ('message' in clone) {
+    clone.message = '[redacted]'
+  }
+  return clone
+}
+
+function maskPhoneTail(value) {
+  const digits = String(value ?? '').replace(/\D/g, '')
+  if (digits.length < 4) {
+    return '****'
+  }
+  return `***${digits.slice(-4)}`
+}
+
+/**
+ * @param {{ errorCode?: unknown; message?: string; network?: boolean; httpStatus?: number }} input
+ * @returns {{ code: SmsProviderErrorCode; publicMessage: string }}
+ */
+export function classifyGatewayProviderError(input) {
+  if (input.network) {
+    return {
+      code: 'network_error',
+      publicMessage: 'CRM SMS Gateway와 통신하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+    }
+  }
+  if (input.httpStatus === 401 || String(input.errorCode ?? '') === 'gateway_auth_error') {
+    return {
+      code: 'gateway_auth_error',
+      publicMessage: 'CRM SMS Gateway 인증에 실패했습니다. 관리자에게 문의해 주세요.',
+    }
+  }
+  const explicit = String(input.errorCode ?? '').trim()
+  if (
+    explicit === 'invalid_api_key' ||
+    explicit === 'sender_not_registered' ||
+    explicit === 'insufficient_balance' ||
+    explicit === 'invalid_receiver' ||
+    explicit === 'provider_error' ||
+    explicit === 'network_error'
+  ) {
+    return { code: explicit, publicMessage: mapPublicMessage(explicit, String(input.message ?? '')) }
+  }
+  return classifyAligoProviderError({ message: input.message, network: input.network })
 }

@@ -15,8 +15,9 @@ export interface SmsSettings {
   aligoSenderRegisterUrl: string
   moduleEnabled: boolean
   realSendEnabled: boolean
-  providerMode: 'mock' | 'aligo' | 'invalid'
+  providerMode: 'mock' | 'aligo' | 'gateway' | 'invalid'
   providerIsMock: boolean
+  usesGateway?: boolean
   providerMisconfigured?: boolean
   aligoTestMode: boolean
 }

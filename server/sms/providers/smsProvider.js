@@ -8,6 +8,7 @@
  * @property {'SMS' | 'LMS' | 'MMS'} [messageType]
  * @property {string} providerUserId
  * @property {string} apiKey
+ * @property {string} [requestId]
  */
 
 /**

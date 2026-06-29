@@ -93,6 +93,7 @@ export async function sendSingleSms(executor, scope, input) {
     messageType: aligoMsgType,
     providerUserId: creds.providerUserId,
     apiKey: creds.apiKey,
+    requestId: `single:${campaignId}`,
   })
 
   const recipientStatus = sendResult.success ? 'success' : 'failed'

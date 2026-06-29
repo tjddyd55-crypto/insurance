@@ -30,13 +30,31 @@ export function isSmsRealSendEnabled() {
   return normalizeBooleanEnv(process.env.SMS_MODULE_REAL_SEND_ENABLED)
 }
 
+const PRODUCTION_PROVIDER_REQUIRED_MESSAGE =
+  'SMS_MODULE_ENABLED=true 인 production 환경에서는 SMS_MODULE_PROVIDER=gateway 또는 aligo_gateway 또는 aligo가 필요합니다. mock은 사용할 수 없습니다.'
+
 /**
- * @returns {'mock' | 'aligo'}
+ * @param {string | undefined | null} raw
+ * @returns {'mock' | 'aligo' | 'gateway' | ''}
+ */
+export function normalizeSmsModuleProviderMode(raw) {
+  const mode = String(raw ?? '').trim().toLowerCase()
+  if (mode === 'aligo_gateway') {
+    return 'gateway'
+  }
+  if (mode === 'mock' || mode === 'aligo' || mode === 'gateway') {
+    return mode
+  }
+  return ''
+}
+
+/**
+ * @returns {'mock' | 'aligo' | 'gateway' | ''}
  */
 export function getConfiguredSmsModuleProviderMode() {
-  const explicit = String(process.env.SMS_MODULE_PROVIDER ?? '').trim().toLowerCase()
-  if (explicit === 'mock' || explicit === 'aligo') {
-    return explicit
+  const normalized = normalizeSmsModuleProviderMode(process.env.SMS_MODULE_PROVIDER)
+  if (normalized) {
+    return normalized
   }
   const nodeEnv = String(process.env.NODE_ENV ?? '').trim().toLowerCase()
   if (nodeEnv === 'test') {
@@ -48,6 +66,26 @@ export function getConfiguredSmsModuleProviderMode() {
   return 'mock'
 }
 
+function isProductionAllowedProviderMode(mode) {
+  return mode === 'aligo' || mode === 'gateway'
+}
+
+function isGatewayProviderMode(mode) {
+  return mode === 'gateway'
+}
+
+function readGatewayEnv() {
+  return {
+    url: String(process.env.SMS_MODULE_GATEWAY_URL ?? '').trim(),
+    token: String(process.env.SMS_MODULE_GATEWAY_TOKEN ?? '').trim(),
+  }
+}
+
+function isGatewayEnvConfigured() {
+  const { url, token } = readGatewayEnv()
+  return Boolean(url && token)
+}
+
 /**
  * production 에서 provider 정책 위반 시 throw.
  */
@@ -55,12 +93,18 @@ export function assertSmsModuleProductionProviderPolicy() {
   if (!isSmsModuleProductionRuntime()) {
     return
   }
-  const mode = String(process.env.SMS_MODULE_PROVIDER ?? '').trim().toLowerCase()
-  if (mode !== 'aligo') {
+  const normalized = normalizeSmsModuleProviderMode(process.env.SMS_MODULE_PROVIDER)
+  if (!isProductionAllowedProviderMode(normalized)) {
     const err = new Error('sms_production_provider_required')
     err.status = 503
+    err.publicMessage = PRODUCTION_PROVIDER_REQUIRED_MESSAGE
+    throw err
+  }
+  if (isGatewayProviderMode(normalized) && !isGatewayEnvConfigured()) {
+    const err = new Error('sms_gateway_not_configured')
+    err.status = 503
     err.publicMessage =
-      '운영 환경에서는 SMS_MODULE_PROVIDER=aligo 설정이 필요합니다. mock provider는 사용할 수 없습니다.'
+      'CRM SMS Gateway 설정(SMS_MODULE_GATEWAY_URL, SMS_MODULE_GATEWAY_TOKEN)이 필요합니다.'
     throw err
   }
 }
@@ -75,12 +119,18 @@ export function validateSmsModuleStartupConfig() {
   if (!isSmsModuleEnabled()) {
     return { ok: true, note: 'SMS_MODULE_ENABLED=false — provider 검사 생략' }
   }
-  const mode = String(process.env.SMS_MODULE_PROVIDER ?? '').trim().toLowerCase()
-  if (mode !== 'aligo') {
+  const mode = normalizeSmsModuleProviderMode(process.env.SMS_MODULE_PROVIDER)
+  if (!isProductionAllowedProviderMode(mode)) {
+    return {
+      ok: false,
+      message: PRODUCTION_PROVIDER_REQUIRED_MESSAGE,
+    }
+  }
+  if (isGatewayProviderMode(mode) && !isGatewayEnvConfigured()) {
     return {
       ok: false,
       message:
-        'SMS_MODULE_ENABLED=true 인 production 환경에서는 SMS_MODULE_PROVIDER=aligo 가 필수입니다.',
+        'gateway provider 사용 시 SMS_MODULE_GATEWAY_URL 과 SMS_MODULE_GATEWAY_TOKEN 환경변수가 필수입니다.',
     }
   }
   const secret = String(process.env.SMS_CREDENTIALS_SECRET_KEY ?? '').trim()
@@ -126,8 +176,9 @@ export function isAligoTestModeEnabled() {
 
 /**
  * @returns {{
- *   mode: 'mock' | 'aligo' | 'invalid';
+ *   mode: 'mock' | 'aligo' | 'gateway' | 'invalid';
  *   isMock: boolean;
+ *   usesGateway: boolean;
  *   testMode: boolean;
  *   realSendEnabled: boolean;
  *   moduleEnabled: boolean;
@@ -136,31 +187,35 @@ export function isAligoTestModeEnabled() {
  */
 export function readSmsModuleRuntimeInfo() {
   if (isSmsModuleProductionRuntime()) {
-    const configured = String(process.env.SMS_MODULE_PROVIDER ?? '').trim().toLowerCase()
-    if (configured !== 'aligo') {
+    const configured = normalizeSmsModuleProviderMode(process.env.SMS_MODULE_PROVIDER)
+    if (!isProductionAllowedProviderMode(configured)) {
       return {
         mode: 'invalid',
         isMock: true,
+        usesGateway: false,
         testMode: false,
         realSendEnabled: isSmsRealSendEnabled(),
         moduleEnabled: isSmsModuleEnabled(),
         providerMisconfigured: true,
       }
     }
+    const gatewayMisconfigured = isGatewayProviderMode(configured) && !isGatewayEnvConfigured()
     return {
-      mode: 'aligo',
+      mode: configured,
       isMock: false,
+      usesGateway: configured === 'gateway',
       testMode: isAligoTestModeEnabled(),
       realSendEnabled: isSmsRealSendEnabled(),
       moduleEnabled: isSmsModuleEnabled(),
-      providerMisconfigured: false,
+      providerMisconfigured: gatewayMisconfigured,
     }
   }
   const mode = getConfiguredSmsModuleProviderMode() || 'mock'
   return {
     mode,
     isMock: mode === 'mock',
-    testMode: mode === 'aligo' && isAligoTestModeEnabled(),
+    usesGateway: mode === 'gateway',
+    testMode: (mode === 'aligo' || mode === 'gateway') && isAligoTestModeEnabled(),
     realSendEnabled: isSmsRealSendEnabled(),
     moduleEnabled: isSmsModuleEnabled(),
     providerMisconfigured: false,
@@ -182,7 +237,7 @@ export function canVerifySenderFromTestSend(runtime = readSmsModuleRuntimeInfo()
   if (!runtime.realSendEnabled) {
     return false
   }
-  return true
+  return runtime.mode === 'aligo' || runtime.mode === 'gateway'
 }
 
 export function getSmsOutboundServerIpHint() {

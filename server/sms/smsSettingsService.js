@@ -16,6 +16,7 @@ function mapSettingsRow(row, apiKeyMasked) {
     realSendEnabled: runtime.realSendEnabled,
     providerMode: runtime.mode,
     providerIsMock: runtime.isMock,
+    usesGateway: runtime.usesGateway,
     providerMisconfigured: runtime.providerMisconfigured,
     aligoTestMode: runtime.testMode,
     outboundServerIpHint: getSmsOutboundServerIpHint(),

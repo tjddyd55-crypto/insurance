@@ -429,8 +429,16 @@ test('success recipient 재발송 방지 — pending 만 조회', async () => {
   }
 })
 
-test('production startup validation — provider aligo + secret 필수', () => {
-  const snap = saveEnv(['NODE_ENV', 'RAILWAY_ENVIRONMENT', 'SMS_MODULE_ENABLED', 'SMS_MODULE_PROVIDER', 'SMS_CREDENTIALS_SECRET_KEY'])
+test('production startup validation — gateway/aligo 허용, mock 차단', () => {
+  const snap = saveEnv([
+    'NODE_ENV',
+    'RAILWAY_ENVIRONMENT',
+    'SMS_MODULE_ENABLED',
+    'SMS_MODULE_PROVIDER',
+    'SMS_CREDENTIALS_SECRET_KEY',
+    'SMS_MODULE_GATEWAY_URL',
+    'SMS_MODULE_GATEWAY_TOKEN',
+  ])
   try {
     process.env.NODE_ENV = 'production'
     process.env.RAILWAY_ENVIRONMENT = 'production'
@@ -439,11 +447,27 @@ test('production startup validation — provider aligo + secret 필수', () => {
     delete process.env.SMS_CREDENTIALS_SECRET_KEY
     const bad = validateSmsModuleStartupConfig()
     assert.equal(bad.ok, false)
+    assert.match(bad.message ?? '', /gateway 또는 aligo_gateway 또는 aligo/)
+
+    process.env.SMS_MODULE_PROVIDER = 'gateway'
+    delete process.env.SMS_MODULE_GATEWAY_URL
+    delete process.env.SMS_MODULE_GATEWAY_TOKEN
+    const gatewayMissing = validateSmsModuleStartupConfig()
+    assert.equal(gatewayMissing.ok, false)
+
+    process.env.SMS_MODULE_GATEWAY_URL = 'http://gateway.example/api/crm-sms'
+    process.env.SMS_MODULE_GATEWAY_TOKEN = 'token'
+    process.env.SMS_CREDENTIALS_SECRET_KEY = SECRET
+    const gatewayOk = validateSmsModuleStartupConfig()
+    assert.equal(gatewayOk.ok, true)
+
+    process.env.SMS_MODULE_PROVIDER = 'aligo_gateway'
+    const aliasOk = validateSmsModuleStartupConfig()
+    assert.equal(aliasOk.ok, true)
 
     process.env.SMS_MODULE_PROVIDER = 'aligo'
-    process.env.SMS_CREDENTIALS_SECRET_KEY = SECRET
-    const ok = validateSmsModuleStartupConfig()
-    assert.equal(ok.ok, true)
+    const aligoOk = validateSmsModuleStartupConfig()
+    assert.equal(aligoOk.ok, true)
   } finally {
     restoreEnv(snap)
   }

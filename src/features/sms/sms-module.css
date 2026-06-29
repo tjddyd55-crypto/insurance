@@ -154,6 +154,24 @@
   font-weight: 600;
 }
 
+.sms-module-page--pc .sms-module__ip-hint,
+.sms-module-page--mobile .sms-module__ip-hint {
+  color: #f8fafc;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin: 0.35rem 0 0.75rem;
+}
+
+.sms-module-page--pc .sms-module__ip-panel,
+.sms-module-page--mobile .sms-module__ip-panel {
+  margin-top: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  background: #111827;
+}
+
 .sms-module__list {
   list-style: none;
   padding: 0;

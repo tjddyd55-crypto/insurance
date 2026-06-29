@@ -1,4 +1,5 @@
 import { aligoSmsProvider } from './providers/aligoSmsProvider.js'
+import { gatewaySmsProvider } from './providers/gatewaySmsProvider.js'
 import { mockSmsProvider } from './providers/mockSmsProvider.js'
 import {
   assertSmsModuleProductionProviderPolicy,
@@ -18,6 +19,9 @@ export function resolveSmsProvider() {
   }
   if (mode === 'aligo') {
     return aligoSmsProvider
+  }
+  if (mode === 'gateway') {
+    return gatewaySmsProvider
   }
   const nodeEnv = String(process.env.NODE_ENV ?? '').trim().toLowerCase()
   if (nodeEnv === 'test') {
