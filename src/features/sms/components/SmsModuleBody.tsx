@@ -27,6 +27,34 @@ function NoticeBox({ error, notice }: { error: string | null; notice: string | n
   return null
 }
 
+function ModuleDisabledNotice({ visible }: { visible: boolean }) {
+  if (!visible) {
+    return null
+  }
+  return (
+    <div className="sms-module__alert sms-module__alert--error">
+      문자 모듈이 비활성화되어 있습니다. 관리자에게 SMS_MODULE_ENABLED 설정을 확인해 주세요.
+    </div>
+  )
+}
+
+function EmptySettingsNotice({
+  visible,
+  loading,
+}: {
+  visible: boolean
+  loading: boolean
+}) {
+  if (!visible || loading) {
+    return null
+  }
+  return (
+    <div className="sms-module__guide sms-module__guide--empty">
+      <p>아직 알리고 연동 설정이 없습니다. 아래에서 알리고 아이디와 API Key를 입력해 저장해 주세요.</p>
+    </div>
+  )
+}
+
 function ProviderNotice({ settings }: { settings: SmsModuleViewProps['settings'] }) {
   if (!settings) {
     return null
@@ -86,6 +114,7 @@ export default function SmsModuleBody(props: Props) {
     loading,
     busy,
     error,
+    moduleDisabled,
     notice,
     settings,
     senders,
@@ -145,13 +174,15 @@ export default function SmsModuleBody(props: Props) {
       </nav>
 
       <NoticeBox error={error} notice={notice} />
+      <ModuleDisabledNotice visible={moduleDisabled} />
       <ProviderNotice settings={settings} />
 
-      {loading ? <p className="sms-module__muted">불러오는 중…</p> : null}
+      {loading ? <p className="sms-module__muted sms-module__loading">불러오는 중…</p> : null}
 
-      {tab === 'settings' ? (
+      {!loading && !moduleDisabled && tab === 'settings' ? (
         <section className="sms-module__panel">
           <GuideBox outboundIpHint={settings?.outboundServerIpHint} />
+          <EmptySettingsNotice visible={!settings?.configured} loading={loading} />
           <div className="sms-module__grid">
             <label>
               알리고 아이디
@@ -179,14 +210,24 @@ export default function SmsModuleBody(props: Props) {
             </label>
           </div>
           <div className="sms-module__actions">
-            <FormButton type="button" disabled={busy} onClick={() => void handleSaveSettings()}>
+            <FormButton type="button" disabled={busy || moduleDisabled} onClick={() => void handleSaveSettings()}>
               저장
             </FormButton>
-            <FormButton type="button" variant="secondary" disabled={busy} onClick={() => void handleRegisterSender()}>
+            <FormButton
+              type="button"
+              variant="secondary"
+              disabled={busy || moduleDisabled}
+              onClick={() => void handleRegisterSender()}
+            >
               발신번호 CRM 등록
             </FormButton>
             {settings?.configured ? (
-              <FormButton type="button" variant="secondary" disabled={busy} onClick={() => void handleDeleteSettings()}>
+              <FormButton
+                type="button"
+                variant="secondary"
+                disabled={busy || moduleDisabled}
+                onClick={() => void handleDeleteSettings()}
+              >
                 연동 해제
               </FormButton>
             ) : null}
@@ -257,7 +298,7 @@ export default function SmsModuleBody(props: Props) {
         </section>
       ) : null}
 
-      {tab === 'send' ? (
+      {!loading && !moduleDisabled && tab === 'send' ? (
         <section className="sms-module__panel">
           <div className="sms-module__grid">
             <label>
@@ -314,7 +355,7 @@ export default function SmsModuleBody(props: Props) {
         </section>
       ) : null}
 
-      {tab === 'bulk' || tab === 'scheduled' ? (
+      {!loading && !moduleDisabled && (tab === 'bulk' || tab === 'scheduled') ? (
         <section className="sms-module__panel">
           <p className="sms-module__muted">{`{고객명}`} 치환을 지원합니다. 고객 ID를 쉼표/줄바꿈으로 입력하세요.</p>
           <div className="sms-module__grid">
@@ -409,7 +450,7 @@ export default function SmsModuleBody(props: Props) {
         </section>
       ) : null}
 
-      {tab === 'scheduled' ? (
+      {!loading && !moduleDisabled && tab === 'scheduled' ? (
         <section className="sms-module__panel">
           <h3>예약/초안 캠페인</h3>
           <p className="sms-module__muted">
@@ -434,7 +475,7 @@ export default function SmsModuleBody(props: Props) {
         </section>
       ) : null}
 
-      {tab === 'templates' ? (
+      {!loading && !moduleDisabled && tab === 'templates' ? (
         <section className="sms-module__panel">
           <div className="sms-module__grid">
             <label>
@@ -472,7 +513,7 @@ export default function SmsModuleBody(props: Props) {
         </section>
       ) : null}
 
-      {tab === 'history' ? (
+      {!loading && !moduleDisabled && tab === 'history' ? (
         <section className="sms-module__panel">
           <ul className="sms-module__list">
             {history.length === 0 ? <li className="sms-module__muted">발송 이력 없음</li> : null}
@@ -486,7 +527,7 @@ export default function SmsModuleBody(props: Props) {
         </section>
       ) : null}
 
-      {tab === 'opt-outs' ? (
+      {!loading && !moduleDisabled && tab === 'opt-outs' ? (
         <section className="sms-module__panel">
           <div className="sms-module__grid sms-module__grid--2">
             <label>

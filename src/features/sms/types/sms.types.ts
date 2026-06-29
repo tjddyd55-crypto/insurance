@@ -22,6 +22,41 @@ export interface SmsSettings {
   aligoTestMode: boolean
 }
 
+export const EMPTY_SMS_SETTINGS: SmsSettings = {
+  configured: false,
+  provider: 'aligo',
+  aligoUserId: '',
+  apiKeyMasked: null,
+  defaultSender: '',
+  isActive: false,
+  lastBalanceCheckedAt: null,
+  outboundServerIpHint: '',
+  aligoChargeUrl: 'https://smartsms.aligo.in/shop/charge.html',
+  aligoSenderRegisterUrl: 'https://smartsms.aligo.in/admin/sender/list.html',
+  moduleEnabled: true,
+  realSendEnabled: false,
+  providerMode: 'mock',
+  providerIsMock: true,
+  aligoTestMode: false,
+}
+
+export function normalizeSmsSettings(raw: unknown): SmsSettings {
+  if (!raw || typeof raw !== 'object') {
+    return { ...EMPTY_SMS_SETTINGS }
+  }
+  const row = raw as Partial<SmsSettings>
+  return {
+    ...EMPTY_SMS_SETTINGS,
+    ...row,
+    aligoUserId: row.aligoUserId ?? '',
+    apiKeyMasked: row.apiKeyMasked ?? null,
+    defaultSender: row.defaultSender ?? '',
+    outboundServerIpHint: row.outboundServerIpHint ?? '',
+    aligoChargeUrl: row.aligoChargeUrl ?? EMPTY_SMS_SETTINGS.aligoChargeUrl,
+    aligoSenderRegisterUrl: row.aligoSenderRegisterUrl ?? EMPTY_SMS_SETTINGS.aligoSenderRegisterUrl,
+  }
+}
+
 export interface SmsSender {
   id: number
   senderNumber: string

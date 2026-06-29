@@ -23,7 +23,18 @@ import {
   sendSmsCampaign,
   testSmsSend,
 } from '../api/smsApi'
-import type { SmsCampaignPreview, SmsCampaignSummary, SmsModuleTab, SmsOptOut, SmsSender, SmsSettings, SmsTemplate } from '../types/sms.types'
+import { ApiError } from '../../../lib/apiClient'
+import {
+  EMPTY_SMS_SETTINGS,
+  normalizeSmsSettings,
+  type SmsCampaignPreview,
+  type SmsCampaignSummary,
+  type SmsModuleTab,
+  type SmsOptOut,
+  type SmsSender,
+  type SmsSettings,
+  type SmsTemplate,
+} from '../types/sms.types'
 
 export type SmsModuleViewProps = ReturnType<typeof useSmsModuleState>
 
@@ -32,6 +43,7 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [moduleDisabled, setModuleDisabled] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
 
   const [settings, setSettings] = useState<SmsSettings | null>(null)
@@ -84,6 +96,7 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
   const reloadCore = useCallback(async () => {
     setLoading(true)
     setError(null)
+    setModuleDisabled(false)
     try {
       const [settingsRes, sendersRes, templatesRes, historyRes, campaignsRes, optOutsRes] =
         await Promise.all([
@@ -94,26 +107,40 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
           fetchSmsCampaigns(),
           fetchSmsOptOuts(),
         ])
-      setSettings(settingsRes)
-      setSenders(sendersRes)
-      setTemplates(templatesRes)
-      setHistory(historyRes)
-      setCampaigns(campaignsRes)
-      setOptOuts(optOutsRes)
+      const normalizedSettings = normalizeSmsSettings(settingsRes)
+      const normalizedSenders = Array.isArray(sendersRes) ? sendersRes : []
+      setSettings(normalizedSettings)
+      setSenders(normalizedSenders)
+      setTemplates(Array.isArray(templatesRes) ? templatesRes : [])
+      setHistory(Array.isArray(historyRes) ? historyRes : [])
+      setCampaigns(Array.isArray(campaignsRes) ? campaignsRes : [])
+      setOptOuts(Array.isArray(optOutsRes) ? optOutsRes : [])
       setSettingsForm((prev) => ({
         ...prev,
-        aligoUserId: settingsRes.aligoUserId ?? prev.aligoUserId,
-        defaultSender: settingsRes.defaultSender ?? prev.defaultSender,
+        aligoUserId: normalizedSettings.aligoUserId ?? '',
+        defaultSender: normalizedSettings.defaultSender ?? '',
       }))
       const defaultSender =
-        sendersRes.find((s) => s.isDefault && s.status === 'verified')?.senderNumber ??
-        sendersRes.find((s) => s.status === 'verified')?.senderNumber ??
-        settingsRes.defaultSender ??
+        normalizedSenders.find((s) => s.isDefault && s.status === 'verified')?.senderNumber ??
+        normalizedSenders.find((s) => s.status === 'verified')?.senderNumber ??
+        normalizedSettings.defaultSender ??
         ''
       setSendForm((prev) => ({ ...prev, senderNumber: prev.senderNumber || defaultSender }))
       setBulkForm((prev) => ({ ...prev, senderNumber: prev.senderNumber || defaultSender }))
     } catch (e) {
-      setError(e instanceof Error ? e.message : '문자 데이터를 불러오지 못했습니다.')
+      if (e instanceof ApiError && e.code === 'sms_module_disabled') {
+        setModuleDisabled(true)
+        setSettings({ ...EMPTY_SMS_SETTINGS, moduleEnabled: false })
+        setSenders([])
+        setTemplates([])
+        setHistory([])
+        setCampaigns([])
+        setOptOuts([])
+        setError(null)
+      } else {
+        setError(e instanceof Error ? e.message : '문자 데이터를 불러오지 못했습니다.')
+        setSettings((prev) => prev ?? { ...EMPTY_SMS_SETTINGS })
+      }
     } finally {
       setLoading(false)
     }
@@ -348,6 +375,7 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
     loading,
     busy,
     error,
+    moduleDisabled,
     notice,
     settings,
     senders,

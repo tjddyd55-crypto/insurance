@@ -1,4 +1,5 @@
 import { apiRequest } from '../../../lib/apiClient'
+import { normalizeSmsSettings } from '../types/sms.types'
 import type {
   SmsCampaignPreview,
   SmsCampaignSummary,
@@ -8,11 +9,17 @@ import type {
   SmsTemplate,
 } from '../types/sms.types'
 
-type ApiEnvelope<T> = { success: boolean; data: T; message?: string }
+function asArray<T>(raw: unknown): T[] {
+  return Array.isArray(raw) ? raw : []
+}
+
+function asRecord(raw: unknown): Record<string, unknown> {
+  return raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {}
+}
 
 export async function fetchSmsSettings(): Promise<SmsSettings> {
-  const res = await apiRequest<ApiEnvelope<SmsSettings>>('/sms/settings')
-  return res.data
+  const raw = await apiRequest<SmsSettings>('/sms/settings')
+  return normalizeSmsSettings(raw)
 }
 
 export async function saveSmsSettings(input: {
@@ -20,7 +27,7 @@ export async function saveSmsSettings(input: {
   apiKey?: string
   defaultSender?: string
 }): Promise<SmsSettings> {
-  const res = await apiRequest<ApiEnvelope<SmsSettings>>('/sms/settings/aligo', {
+  const raw = await apiRequest<SmsSettings>('/sms/settings/aligo', {
     method: 'POST',
     body: JSON.stringify({
       aligo_user_id: input.aligoUserId,
@@ -28,17 +35,17 @@ export async function saveSmsSettings(input: {
       default_sender: input.defaultSender,
     }),
   })
-  return res.data
+  return normalizeSmsSettings(raw)
 }
 
 export async function deleteSmsSettings(): Promise<SmsSettings> {
-  const res = await apiRequest<ApiEnvelope<SmsSettings>>('/sms/settings/aligo', { method: 'DELETE' })
-  return res.data
+  const raw = await apiRequest<SmsSettings>('/sms/settings/aligo', { method: 'DELETE' })
+  return normalizeSmsSettings(raw)
 }
 
 export async function fetchSmsSenders(): Promise<SmsSender[]> {
-  const res = await apiRequest<ApiEnvelope<SmsSender[]>>('/sms/senders')
-  return res.data
+  const raw = await apiRequest<SmsSender[]>('/sms/senders')
+  return asArray<SmsSender>(raw)
 }
 
 export async function createSmsSender(input: {
@@ -46,7 +53,7 @@ export async function createSmsSender(input: {
   label?: string
   isDefault?: boolean
 }): Promise<SmsSender> {
-  const res = await apiRequest<ApiEnvelope<SmsSender>>('/sms/senders', {
+  const raw = await apiRequest<SmsSender>('/sms/senders', {
     method: 'POST',
     body: JSON.stringify({
       sender_number: input.senderNumber,
@@ -54,7 +61,7 @@ export async function createSmsSender(input: {
       is_default: input.isDefault,
     }),
   })
-  return res.data
+  return raw as SmsSender
 }
 
 export async function testSmsSend(input: {
@@ -62,18 +69,27 @@ export async function testSmsSend(input: {
   receiver: string
   message: string
 }): Promise<{ success: boolean; errorMessage?: string; providerMessageId?: string | null }> {
-  const res = await apiRequest<{
-    success: boolean
-    data: { success: boolean; errorMessage?: string; providerMessageId?: string | null }
-  }>('/sms/test-send', {
-    method: 'POST',
-    body: JSON.stringify({
-      sender_number: input.senderNumber,
-      receiver: input.receiver,
-      message: input.message,
-    }),
-  })
-  return res.data
+  const raw = asRecord(
+    await apiRequest<{ success: boolean; errorMessage?: string; providerMessageId?: string | null }>(
+      '/sms/test-send',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          sender_number: input.senderNumber,
+          receiver: input.receiver,
+          message: input.message,
+        }),
+      },
+    ),
+  )
+  return {
+    success: Boolean(raw.success),
+    errorMessage: typeof raw.errorMessage === 'string' ? raw.errorMessage : undefined,
+    providerMessageId:
+      typeof raw.providerMessageId === 'string' || raw.providerMessageId === null
+        ? (raw.providerMessageId as string | null)
+        : undefined,
+  }
 }
 
 export async function fetchSmsBalance(): Promise<{
@@ -81,11 +97,14 @@ export async function fetchSmsBalance(): Promise<{
   balanceText?: string
   errorMessage?: string
 }> {
-  const res = await apiRequest<{
-    success: boolean
-    data: { success: boolean; balanceText?: string; errorMessage?: string }
-  }>('/sms/balance')
-  return res.data
+  const raw = asRecord(
+    await apiRequest<{ success: boolean; balanceText?: string; errorMessage?: string }>('/sms/balance'),
+  )
+  return {
+    success: Boolean(raw.success),
+    balanceText: typeof raw.balanceText === 'string' ? raw.balanceText : undefined,
+    errorMessage: typeof raw.errorMessage === 'string' ? raw.errorMessage : undefined,
+  }
 }
 
 export async function sendSingleSms(input: {
@@ -95,20 +114,29 @@ export async function sendSingleSms(input: {
   customerId?: number | null
   messageType?: 'info' | 'ad'
 }): Promise<{ success: boolean; campaignId?: number; errorMessage?: string | null }> {
-  const res = await apiRequest<{
-    success: boolean
-    data: { success: boolean; campaignId?: number; errorMessage?: string | null }
-  }>('/sms/send', {
-    method: 'POST',
-    body: JSON.stringify({
-      sender_number: input.senderNumber,
-      receiver: input.receiver,
-      message: input.message,
-      customer_id: input.customerId,
-      message_type: input.messageType,
-    }),
-  })
-  return res.data
+  const raw = asRecord(
+    await apiRequest<{ success: boolean; campaignId?: number; errorMessage?: string | null }>(
+      '/sms/send',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          sender_number: input.senderNumber,
+          receiver: input.receiver,
+          message: input.message,
+          customer_id: input.customerId,
+          message_type: input.messageType,
+        }),
+      },
+    ),
+  )
+  return {
+    success: Boolean(raw.success),
+    campaignId: typeof raw.campaignId === 'number' ? raw.campaignId : undefined,
+    errorMessage:
+      typeof raw.errorMessage === 'string' || raw.errorMessage === null
+        ? (raw.errorMessage as string | null)
+        : undefined,
+  }
 }
 
 export async function previewSmsCampaign(input: {
@@ -117,7 +145,7 @@ export async function previewSmsCampaign(input: {
   customerIds?: number[]
   filter?: { search?: string }
 }): Promise<SmsCampaignPreview> {
-  const res = await apiRequest<ApiEnvelope<SmsCampaignPreview>>('/sms/campaigns/preview', {
+  const raw = await apiRequest<SmsCampaignPreview>('/sms/campaigns/preview', {
     method: 'POST',
     body: JSON.stringify({
       sender_number: input.senderNumber,
@@ -126,7 +154,7 @@ export async function previewSmsCampaign(input: {
       filter: input.filter,
     }),
   })
-  return res.data
+  return raw as SmsCampaignPreview
 }
 
 export async function createSmsCampaign(input: {
@@ -137,54 +165,68 @@ export async function createSmsCampaign(input: {
   scheduledAt?: string | null
   messageType?: 'info' | 'ad'
 }): Promise<{ campaignId: number; status: string; scheduledAt: string | null }> {
-  const res = await apiRequest<
-    ApiEnvelope<{ campaignId: number; status: string; scheduledAt: string | null }>
-  >('/sms/campaigns', {
-    method: 'POST',
-    body: JSON.stringify({
-      title: input.title,
-      sender_number: input.senderNumber,
-      message: input.message,
-      customer_ids: input.customerIds,
-      scheduled_at: input.scheduledAt,
-      message_type: input.messageType,
-    }),
-  })
-  return res.data
+  const raw = asRecord(
+    await apiRequest<{ campaignId: number; status: string; scheduledAt: string | null }>(
+      '/sms/campaigns',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          title: input.title,
+          sender_number: input.senderNumber,
+          message: input.message,
+          customer_ids: input.customerIds,
+          scheduled_at: input.scheduledAt,
+          message_type: input.messageType,
+        }),
+      },
+    ),
+  )
+  return {
+    campaignId: Number(raw.campaignId ?? 0),
+    status: String(raw.status ?? ''),
+    scheduledAt:
+      typeof raw.scheduledAt === 'string' || raw.scheduledAt === null
+        ? (raw.scheduledAt as string | null)
+        : null,
+  }
 }
 
 export async function sendSmsCampaign(campaignId: number, previewConfirmed = false): Promise<SmsCampaignSummary> {
-  const res = await apiRequest<ApiEnvelope<SmsCampaignSummary>>(`/sms/campaigns/${campaignId}/send`, {
+  const raw = await apiRequest<SmsCampaignSummary>(`/sms/campaigns/${campaignId}/send`, {
     method: 'POST',
     body: JSON.stringify({
       preview_confirmed: previewConfirmed,
       previewConfirmed,
     }),
   })
-  return res.data
+  return raw as SmsCampaignSummary
 }
 
 export async function cancelSmsCampaign(campaignId: number): Promise<{ id: number; status: string }> {
-  const res = await apiRequest<ApiEnvelope<{ id: number; status: string }>>(
-    `/sms/campaigns/${campaignId}/cancel`,
-    { method: 'POST' },
+  const raw = asRecord(
+    await apiRequest<{ id: number; status: string }>(`/sms/campaigns/${campaignId}/cancel`, {
+      method: 'POST',
+    }),
   )
-  return res.data
+  return {
+    id: Number(raw.id ?? campaignId),
+    status: String(raw.status ?? ''),
+  }
 }
 
 export async function fetchSmsCampaigns(): Promise<SmsCampaignSummary[]> {
-  const res = await apiRequest<ApiEnvelope<SmsCampaignSummary[]>>('/sms/campaigns')
-  return res.data
+  const raw = await apiRequest<SmsCampaignSummary[]>('/sms/campaigns')
+  return asArray<SmsCampaignSummary>(raw)
 }
 
 export async function fetchSmsHistory(): Promise<SmsCampaignSummary[]> {
-  const res = await apiRequest<ApiEnvelope<SmsCampaignSummary[]>>('/sms/history')
-  return res.data
+  const raw = await apiRequest<SmsCampaignSummary[]>('/sms/history')
+  return asArray<SmsCampaignSummary>(raw)
 }
 
 export async function fetchSmsTemplates(): Promise<SmsTemplate[]> {
-  const res = await apiRequest<ApiEnvelope<SmsTemplate[]>>('/sms/templates')
-  return res.data
+  const raw = await apiRequest<SmsTemplate[]>('/sms/templates')
+  return asArray<SmsTemplate>(raw)
 }
 
 export async function createSmsTemplate(input: {
@@ -192,7 +234,7 @@ export async function createSmsTemplate(input: {
   message: string
   messageType?: 'info' | 'ad'
 }): Promise<SmsTemplate> {
-  const res = await apiRequest<ApiEnvelope<SmsTemplate>>('/sms/templates', {
+  const raw = await apiRequest<SmsTemplate>('/sms/templates', {
     method: 'POST',
     body: JSON.stringify({
       title: input.title,
@@ -200,7 +242,7 @@ export async function createSmsTemplate(input: {
       message_type: input.messageType,
     }),
   })
-  return res.data
+  return raw as SmsTemplate
 }
 
 export async function deleteSmsTemplate(id: number): Promise<void> {
@@ -208,8 +250,8 @@ export async function deleteSmsTemplate(id: number): Promise<void> {
 }
 
 export async function fetchSmsOptOuts(): Promise<SmsOptOut[]> {
-  const res = await apiRequest<ApiEnvelope<SmsOptOut[]>>('/sms/opt-outs')
-  return res.data
+  const raw = await apiRequest<SmsOptOut[]>('/sms/opt-outs')
+  return asArray<SmsOptOut>(raw)
 }
 
 export async function addSmsOptOut(input: { phone: string; reason?: string }): Promise<void> {

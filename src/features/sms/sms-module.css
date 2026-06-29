@@ -172,6 +172,16 @@
   background: #111827;
 }
 
+.sms-module-page--pc .sms-module__guide--empty,
+.sms-module-page--mobile .sms-module__guide--empty {
+  border-color: #334155;
+}
+
+.sms-module-page--pc .sms-module__loading,
+.sms-module-page--mobile .sms-module__loading {
+  padding: 12px 0;
+}
+
 .sms-module__list {
   list-style: none;
   padding: 0;
