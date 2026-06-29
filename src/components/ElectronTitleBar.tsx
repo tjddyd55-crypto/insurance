@@ -71,7 +71,7 @@ export function ElectronTitleBar() {
           <span className="electron-title-bar__app-name">
             {tenantChrome ? (
               <span className="electron-title-bar__ga-name">
-                {formatGaBannerLabel(user?.gaName ?? '', user?.gaCode ?? '')}
+                {formatGaBannerLabel(user?.gaName ?? '', user?.gaCode ?? '', user?.username)}
               </span>
             ) : (
               APP_TITLE
