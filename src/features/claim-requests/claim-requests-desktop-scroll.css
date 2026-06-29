@@ -1,0 +1,63 @@
+/**
+ * PC /claim-requests — 패널 내부 스크롤 제거, app-main-content 페이지 스크롤만 사용.
+ * ClaimInboxPage(.claim-inbox) · ClaimRequestsPage(.claim-requests-page--pc) 공통.
+ * 모바일(full modal / outlet) 규칙은 건드리지 않는다.
+ */
+@media (min-width: 901px) {
+  .claim-inbox.content-wrapper,
+  .claim-requests-page--pc.content-wrapper,
+  .claim-requests-page--pc.page {
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .claim-inbox__workspace,
+  .claim-requests-page--pc .claim-requests-page__claims-grid,
+  .claim-requests-page--pc .claim-requests-page__claims-grid--embedded {
+    align-items: start;
+    min-height: 0;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .claim-inbox__list-panel,
+  .claim-inbox__detail-panel,
+  .claim-requests-page--pc .claim-requests-page__panel,
+  .claim-requests-page--pc .claim-requests-page__panel--list,
+  .claim-requests-page--pc .claim-requests-page__panel--detail,
+  .claim-requests-page--pc .claim-requests-page__panel--timeline {
+    align-self: start;
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .claim-inbox__list,
+  .claim-inbox__detail-scroll,
+  .claim-requests-page--pc .claim-requests-page__list,
+  .claim-requests-page--pc .claim-requests-page__detail-scroll,
+  .claim-requests-page--pc .claim-requests-page__timeline-scroll {
+    flex: 0 0 auto;
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .claim-inbox__detail-panel {
+    display: block;
+  }
+
+  .claim-requests-page--pc .claim-request-detail-surface,
+  .claim-requests-page--pc .claim-request-detail-surface.claim-request-detail,
+  .claim-inbox__detail-scroll .claim-request-detail-surface,
+  .claim-inbox__detail-scroll .claim-request-detail-surface.claim-request-detail {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+}
