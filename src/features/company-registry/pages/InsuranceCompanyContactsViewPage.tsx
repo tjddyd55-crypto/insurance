@@ -1,5 +1,5 @@
 import { FormButton, FormInput } from '../../../components/form'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { canMutateInsuranceDirectory, isInsuranceOpsRole } from '../../auth/roleGuards'
@@ -44,7 +44,29 @@ export default function InsuranceCompanyContactsViewPage() {
   const [keyword, setKeyword] = useState('')
   const [list, setList] = useState<CompanyDirectoryEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [statusText, setStatusText] = useState('')
+  const [errorText, setErrorText] = useState('')
+  const [copyStatus, setCopyStatus] = useState('')
+  const copyNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const showCopyFeedback = useCallback((message: string) => {
+    if (copyNoticeTimerRef.current) {
+      clearTimeout(copyNoticeTimerRef.current)
+    }
+    setCopyStatus(message)
+    copyNoticeTimerRef.current = setTimeout(() => {
+      setCopyStatus('')
+      copyNoticeTimerRef.current = null
+    }, 3000)
+  }, [])
+
+  useEffect(
+    () => () => {
+      if (copyNoticeTimerRef.current) {
+        clearTimeout(copyNoticeTimerRef.current)
+      }
+    },
+    [],
+  )
 
   const loadList = useCallback(async () => {
     if (!token) {
@@ -54,9 +76,9 @@ export default function InsuranceCompanyContactsViewPage() {
     try {
       const rows = await listCompanyDirectory(token)
       setList(rows)
-      setStatusText('')
+      setErrorText('')
     } catch (error) {
-      setStatusText(error instanceof Error ? error.message : '목록을 불러오지 못했습니다.')
+      setErrorText(error instanceof Error ? error.message : '목록을 불러오지 못했습니다.')
     } finally {
       setIsLoading(false)
     }
@@ -146,7 +168,11 @@ export default function InsuranceCompanyContactsViewPage() {
             </FormButton>
           ) : null}
         </div>
-        {statusText ? <p className="insurance-contacts-status">{statusText}</p> : null}
+        {statusText ? (
+          <p className="insurance-contacts-status" role="status" aria-live="polite">
+            {statusText}
+          </p>
+        ) : null}
       </header>
 
       <div className="tabs" role="tablist" aria-label="보험 종류">
@@ -201,6 +227,7 @@ export default function InsuranceCompanyContactsViewPage() {
                 entry={c}
                 showEditButton={canEditFromCard}
                 onEdit={openCompanyRegistryEdit}
+                onCopyFeedback={showCopyFeedback}
               />
             ))}
           </div>

@@ -15,8 +15,12 @@ function telHref(raw: string): string {
   return d ? `tel:${d}` : '#'
 }
 
-function copy(text: string) {
-  copyToClipboard(text)
+function copy(text: string, onCopyFeedback?: (message: string) => void) {
+  void copyToClipboard(text).then((ok) => {
+    onCopyFeedback?.(
+      ok ? '복사되었습니다.' : '복사하지 못했습니다. 번호를 직접 선택해 복사해 주세요.',
+    )
+  })
 }
 
 function renderPositionLabel(position: string | undefined | null) {
@@ -42,15 +46,20 @@ export type CompanyCardProps =
       entry: CompanyDirectoryEntry
       showEditButton?: boolean
       onEdit?: (entry: CompanyDirectoryEntry) => void
+      onCopyFeedback?: (message: string) => void
     }
   | {
       variant: 'history'
       companyName: string
       before: CompanyHistorySnapshot
       after: CompanyHistorySnapshot
+      onCopyFeedback?: (message: string) => void
     }
 
 export function CompanyCard(props: CompanyCardProps) {
+  const onCopyFeedback = props.onCopyFeedback
+  const handleCopy = (text: string) => copy(text, onCopyFeedback)
+
   if (props.variant === 'directory') {
     const c = props.entry
     const customerCenter = asTrimmedText(c.customerCenter)
@@ -83,7 +92,7 @@ export function CompanyCard(props: CompanyCardProps) {
                   <a href={telHref(customerCenter)} aria-label="고객센터 전화">
                     📞
                   </a>
-                  <FormButton htmlType="button" onClick={() => copy(customerCenter)} aria-label="고객센터 번호 복사">
+                  <FormButton htmlType="button" onClick={() => handleCopy(customerCenter)} aria-label="고객센터 번호 복사">
                     📋
                   </FormButton>
                 </div>
@@ -100,7 +109,7 @@ export function CompanyCard(props: CompanyCardProps) {
                   <a href={telHref(systemPhone)} aria-label="전산문의 전화">
                     📞
                   </a>
-                  <FormButton htmlType="button" onClick={() => copy(systemPhone)} aria-label="전산문의 번호 복사">
+                  <FormButton htmlType="button" onClick={() => handleCopy(systemPhone)} aria-label="전산문의 번호 복사">
                     📋
                   </FormButton>
                 </div>
@@ -117,7 +126,7 @@ export function CompanyCard(props: CompanyCardProps) {
                   <a href={telHref(incallNumber)} aria-label="인콜 전화">
                     📞
                   </a>
-                  <FormButton htmlType="button" onClick={() => copy(incallNumber)} aria-label="인콜 번호 복사">
+                  <FormButton htmlType="button" onClick={() => handleCopy(incallNumber)} aria-label="인콜 번호 복사">
                     📋
                   </FormButton>
                 </div>
@@ -155,7 +164,7 @@ export function CompanyCard(props: CompanyCardProps) {
                       </a>
                     ) : null}
                     {phoneRaw ? (
-                      <FormButton htmlType="button" onClick={() => copy(phoneRaw)} aria-label="담당자 번호 복사">
+                      <FormButton htmlType="button" onClick={() => handleCopy(phoneRaw)} aria-label="담당자 번호 복사">
                         📋
                       </FormButton>
                     ) : null}
@@ -204,7 +213,7 @@ export function CompanyCard(props: CompanyCardProps) {
                 <a href={telHref(customerCenter)} aria-label="고객센터 전화">
                   📞
                 </a>
-                <FormButton htmlType="button" onClick={() => copy(customerCenter)} aria-label="고객센터 번호 복사">
+                <FormButton htmlType="button" onClick={() => handleCopy(customerCenter)} aria-label="고객센터 번호 복사">
                   📋
                 </FormButton>
               </div>
@@ -223,7 +232,7 @@ export function CompanyCard(props: CompanyCardProps) {
                 <a href={telHref(systemPhone)} aria-label="전산문의 전화">
                   📞
                 </a>
-                <FormButton htmlType="button" onClick={() => copy(systemPhone)} aria-label="전산문의 번호 복사">
+                <FormButton htmlType="button" onClick={() => handleCopy(systemPhone)} aria-label="전산문의 번호 복사">
                   📋
                 </FormButton>
               </div>
@@ -242,7 +251,7 @@ export function CompanyCard(props: CompanyCardProps) {
                 <a href={telHref(incallNumber)} aria-label="인콜 전화">
                   📞
                 </a>
-                <FormButton htmlType="button" onClick={() => copy(incallNumber)} aria-label="인콜 번호 복사">
+                <FormButton htmlType="button" onClick={() => handleCopy(incallNumber)} aria-label="인콜 번호 복사">
                   📋
                 </FormButton>
               </div>
@@ -293,7 +302,7 @@ export function CompanyCard(props: CompanyCardProps) {
                     </a>
                   ) : null}
                   {asTrimmedText(phoneRaw) ? (
-                    <FormButton htmlType="button" onClick={() => copy(phoneRaw)} aria-label="담당자 번호 복사">
+                    <FormButton htmlType="button" onClick={() => handleCopy(phoneRaw)} aria-label="담당자 번호 복사">
                       📋
                     </FormButton>
                   ) : null}

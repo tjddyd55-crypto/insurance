@@ -8815,7 +8815,11 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .insurance-contacts-status {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.875rem;
+  color: #94a3b8;
+}
+
+.insurance-contacts-status--error {
   color: var(--status-warn);
 }
 
