@@ -23,16 +23,20 @@
 
 .file-folder-create-modal__body,
 .folder-create-modal__body {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
+  column-gap: 10px;
   margin: 0;
+  padding: 0;
 }
 
 .file-folder-create-modal__field,
 .folder-create-modal__field {
-  flex: 1;
   margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
   min-width: 0;
 }
 
@@ -42,17 +46,25 @@
   .file-folder-create-modal__field
   input,
 .folder-create-modal__field input,
-.file-folder-create-modal__field input {
+.file-folder-create-modal__field input,
+.customer-ui-modal-panel.file-folder-create-modal .file-folder-create-modal__field input.form-input,
+.customer-ui-modal-panel.customer-workspace-form-modal.file-folder-create-modal
+  .file-folder-create-modal__field
+  input.form-input {
   display: block;
   box-sizing: border-box;
   width: 100%;
   height: 40px;
+  min-height: 40px;
+  max-height: 40px;
+  margin: 0;
   padding: 0 12px;
   border: 1px solid #d1d5db;
   border-radius: 9px;
   background-color: #ffffff;
   color: #111827;
   font-size: 14px;
+  line-height: 1;
   outline: none;
 }
 
@@ -79,14 +91,17 @@
 
 .folder-create-modal__actions,
 .file-folder-create-modal__actions,
+.file-folder-create-modal__actions.user-modal-actions,
 .customer-ui-modal-panel.file-folder-create-modal .file-folder-create-modal__actions.customer-workspace-modal-actions,
 .customer-ui-modal-panel.customer-workspace-form-modal.file-folder-create-modal
   .file-folder-create-modal__actions.customer-workspace-modal-actions {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 0;
+  margin: 0;
+  padding: 0;
+  align-self: center;
   flex-shrink: 0;
 }
 
@@ -101,20 +116,31 @@
   button,
 .customer-ui-modal-panel.customer-workspace-form-modal.file-folder-create-modal
   .file-folder-create-modal__actions
-  .button {
+  .button,
+.customer-ui-modal-panel.file-folder-create-modal
+  .file-folder-create-modal__actions
+  button.customer-workspace-action-button,
+.customer-ui-modal-panel.customer-workspace-form-modal.file-folder-create-modal
+  .file-folder-create-modal__actions
+  button.customer-workspace-action-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 38px;
-  min-height: 38px;
+  box-sizing: border-box;
+  height: 40px;
+  min-height: 40px;
+  max-height: 40px;
+  margin: 0;
   padding: 0 16px;
   border-radius: 9px;
   line-height: 1;
+  vertical-align: middle;
 }
 
 @media (max-width: 480px) {
   .file-folder-create-modal__body,
   .folder-create-modal__body {
+    display: flex;
     flex-direction: column;
     align-items: stretch;
   }
