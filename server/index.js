@@ -138,6 +138,8 @@ import { registerInsurerSitesApi } from './registerInsurerSitesApi.js'
 import { registerPlatformAdminApi } from './registerPlatformAdminApi.js'
 import { registerCrmCustomerTemplateAdminApi } from './registerCrmCustomerTemplateAdminApi.js'
 import { registerGovernmentSupportApi } from './registerGovernmentSupportApi.js'
+import { registerSmsModuleApi } from './registerSmsModuleApi.js'
+import { logSmsModuleEnvironmentHint, validateSmsModuleStartupConfig } from './sms/smsModuleConfig.js'
 import { registerContractPublicOtpApi } from './apis/contractPublicOtpApi.js'
 import { registerContractPublicApi } from './apis/contractPublicApi.js'
 import { registerContractAdminApi } from './apis/contractAdminApi.js'
@@ -1605,6 +1607,14 @@ registerInsurerSitesApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handl
 registerPlatformAdminApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
 registerCrmCustomerTemplateAdminApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
 registerGovernmentSupportApi(apiRouter, { pool, requireAuth, handleDbError })
+registerSmsModuleApi(apiRouter, { pool, requireAuth, handleDbError })
+const smsStartup = validateSmsModuleStartupConfig()
+if (!smsStartup.ok) {
+  console.error(`[sms-module] startup blocked: ${smsStartup.message}`)
+} else if (smsStartup.note) {
+  console.log(`[sms-module] ${smsStartup.note}`)
+}
+logSmsModuleEnvironmentHint(process.env.DATABASE_URL)
 
 registerSubscriptionEndpoints(apiRouter, { requireAuth })
 
