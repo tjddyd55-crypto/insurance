@@ -1,0 +1,37 @@
+---
+description: CRM 업무 화면 light theme SSOT — 신규·수정 UI는 tokens.css var(--*) 기준, 별도 요청 없으면 dark hex 금지
+globs: src/**/*.{ts,tsx,css}
+alwaysApply: true
+---
+
+# CRM Light Theme 색상 규칙
+
+CRM 업무 화면(고객관리, 계정, 결제, 문자, 업무편의 등)의 **기본 UI는 light theme**이다.
+`src/styles/tokens.css` · `src/theme-tokens.css` · `src/index.css` 입력 규칙을 따른다.
+
+## 필수
+
+1. 색상은 **`var(--*)` semantic token** 우선. 페이지 root에 background hex 하드코딩 금지.
+2. 페이지 배경: `var(--bg-base)` 또는 배경 미지정(상위 shell 상속).
+3. 카드/패널: `var(--bg-surface)` + `var(--border-default)`.
+4. 텍스트: `var(--text-primary)` / 보조 `var(--text-secondary)`.
+5. 입력: `var(--input-bg)`, `var(--text-primary)`, `var(--input-border)`, focus `var(--input-focus-border)`.
+6. 안내 박스: `var(--hint-bg)`, `var(--hint-border)`, `var(--hint-text)` 또는 `var(--bg-soft)`.
+7. 버튼: `FormButton` / `Button` 공통 컴포넌트 우선. secondary/primary는 `--btn-*` 토큰.
+8. 입력/선택: `FormInput`, `FormSelect` 등 공통 form 컴포넌트 우선.
+
+## 금지 (별도 dark UI 요청 없을 때)
+
+- `#0b111a`, `#111827`, `#1f2937`, `#020617`, `#1e293b`, `#334155` 등 navy/dark palette hex
+- feature 전용 dark 디자인 시스템 신규 작성
+- CRM 화면에 `.page-dark`, `.dark-card` 등 dark scope class 무분별 사용
+
+## 기준 화면 (스타일 참고)
+
+- `src/features/insurance-billing/insurance-billing.css`
+- `src/features/insurance-claim-admin/insurance-claim-admin.css`
+- `src/styles/tokens.css`
+
+## 완료 보고
+
+기능 PR/작업 보고에 **「기존 화이트톤 유지 확인」** 항목을 포함한다.
