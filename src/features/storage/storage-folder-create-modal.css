@@ -6,6 +6,8 @@
 .customer-ui-modal-panel.file-folder-create-modal,
 .customer-ui-modal-panel.customer-workspace-form-modal.file-folder-create-modal {
   box-sizing: border-box;
+  width: 440px;
+  max-width: calc(100vw - 32px);
   padding: 24px 24px 16px;
   border-radius: 14px;
 }
@@ -19,20 +21,31 @@
   color: #111827;
 }
 
-.folder-create-modal__field,
-.file-folder-create-modal__field {
-  margin-top: 10px;
+.file-folder-create-modal__body,
+.folder-create-modal__body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
 }
 
-.customer-ui-modal-panel.folder-create-modal input,
-.customer-ui-modal-panel.file-folder-create-modal input,
-.customer-ui-modal-panel.customer-workspace-form-modal.file-folder-create-modal input,
-.folder-create-modal input,
-.file-folder-create-modal input {
+.file-folder-create-modal__field,
+.folder-create-modal__field {
+  flex: 1;
+  margin: 0;
+  min-width: 0;
+}
+
+.customer-ui-modal-panel.folder-create-modal .file-folder-create-modal__field input,
+.customer-ui-modal-panel.file-folder-create-modal .file-folder-create-modal__field input,
+.customer-ui-modal-panel.customer-workspace-form-modal.file-folder-create-modal
+  .file-folder-create-modal__field
+  input,
+.folder-create-modal__field input,
+.file-folder-create-modal__field input {
   display: block;
   box-sizing: border-box;
-  width: 240px;
-  max-width: 100%;
+  width: 100%;
   height: 40px;
   padding: 0 12px;
   border: 1px solid #d1d5db;
@@ -43,45 +56,51 @@
   outline: none;
 }
 
-.customer-ui-modal-panel.folder-create-modal input::placeholder,
-.customer-ui-modal-panel.file-folder-create-modal input::placeholder,
-.customer-ui-modal-panel.customer-workspace-form-modal.file-folder-create-modal input::placeholder,
-.folder-create-modal input::placeholder,
-.file-folder-create-modal input::placeholder {
+.customer-ui-modal-panel.folder-create-modal .file-folder-create-modal__field input::placeholder,
+.customer-ui-modal-panel.file-folder-create-modal .file-folder-create-modal__field input::placeholder,
+.customer-ui-modal-panel.customer-workspace-form-modal.file-folder-create-modal
+  .file-folder-create-modal__field
+  input::placeholder,
+.folder-create-modal__field input::placeholder,
+.file-folder-create-modal__field input::placeholder {
   color: #64748b;
 }
 
-.customer-ui-modal-panel.folder-create-modal input:focus,
-.customer-ui-modal-panel.file-folder-create-modal input:focus,
-.customer-ui-modal-panel.customer-workspace-form-modal.file-folder-create-modal input:focus,
-.folder-create-modal input:focus,
-.file-folder-create-modal input:focus {
+.customer-ui-modal-panel.folder-create-modal .file-folder-create-modal__field input:focus,
+.customer-ui-modal-panel.file-folder-create-modal .file-folder-create-modal__field input:focus,
+.customer-ui-modal-panel.customer-workspace-form-modal.file-folder-create-modal
+  .file-folder-create-modal__field
+  input:focus,
+.folder-create-modal__field input:focus,
+.file-folder-create-modal__field input:focus {
   border-color: #22c55e;
   box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.14);
 }
 
 .folder-create-modal__actions,
 .file-folder-create-modal__actions,
-.customer-ui-modal-panel.file-folder-create-modal .customer-workspace-modal-actions,
-.customer-ui-modal-panel.customer-workspace-form-modal.file-folder-create-modal .customer-workspace-modal-actions {
+.customer-ui-modal-panel.file-folder-create-modal .file-folder-create-modal__actions.customer-workspace-modal-actions,
+.customer-ui-modal-panel.customer-workspace-form-modal.file-folder-create-modal
+  .file-folder-create-modal__actions.customer-workspace-modal-actions {
   display: flex;
-  justify-content: flex-end;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
-  margin-top: 24px;
+  margin-top: 0;
+  flex-shrink: 0;
 }
 
 .folder-create-modal__actions button,
 .folder-create-modal__actions .button,
 .file-folder-create-modal__actions button,
 .file-folder-create-modal__actions .button,
-.customer-ui-modal-panel.file-folder-create-modal .customer-workspace-modal-actions button,
-.customer-ui-modal-panel.file-folder-create-modal .customer-workspace-modal-actions .button,
+.customer-ui-modal-panel.file-folder-create-modal .file-folder-create-modal__actions button,
+.customer-ui-modal-panel.file-folder-create-modal .file-folder-create-modal__actions .button,
 .customer-ui-modal-panel.customer-workspace-form-modal.file-folder-create-modal
-  .customer-workspace-modal-actions
+  .file-folder-create-modal__actions
   button,
 .customer-ui-modal-panel.customer-workspace-form-modal.file-folder-create-modal
-  .customer-workspace-modal-actions
+  .file-folder-create-modal__actions
   .button {
   display: inline-flex;
   align-items: center;
@@ -91,4 +110,17 @@
   padding: 0 16px;
   border-radius: 9px;
   line-height: 1;
+}
+
+@media (max-width: 480px) {
+  .file-folder-create-modal__body,
+  .folder-create-modal__body {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .file-folder-create-modal__actions,
+  .folder-create-modal__actions {
+    justify-content: flex-end;
+  }
 }
