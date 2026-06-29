@@ -35,3 +35,19 @@ export async function validateReferralCodeForSignup(
     },
   )
 }
+
+export async function validateDiscountCodeForSignup(
+  discountCode: string,
+): Promise<{ valid: boolean; message?: string; benefitSummary?: string; source?: string }> {
+  const code = discountCode.trim().toUpperCase().replace(/\s+/g, '')
+  if (!code) {
+    return { valid: true }
+  }
+  return apiRequest<{ valid: boolean; message?: string; benefitSummary?: string; source?: string }>(
+    '/api/auth/validate-discount-code',
+    {
+      method: 'POST',
+      body: JSON.stringify({ discount_code: code }),
+    },
+  )
+}

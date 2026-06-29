@@ -160,6 +160,7 @@ import BillingSuccessPage from './features/insurance-billing/pages/BillingSucces
 import BillingFailPage from './features/insurance-billing/pages/BillingFailPage'
 import BillingManagePage from './features/insurance-billing/pages/BillingManagePage'
 import { RequireInsuranceBillingEntitlement } from './features/insurance-billing/RequireInsuranceBillingEntitlement'
+import FreeLaunchBillingGuard from './features/billing/FreeLaunchBillingGuard'
 
 export const appRouter = createBrowserRouter([
   {
@@ -299,11 +300,11 @@ export const appRouter = createBrowserRouter([
               {
                 element: <AppWorkspaceLayout />,
                 children: [
-              { path: 'billing/checkout', element: <BillingCheckoutPage /> },
-              { path: 'billing/required', element: <BillingRequiredPage /> },
-              { path: 'billing/success', element: <BillingSuccessPage /> },
-              { path: 'billing/fail', element: <BillingFailPage /> },
-              { path: 'billing/manage', element: <BillingManagePage /> },
+              { path: 'billing/checkout', element: <FreeLaunchBillingGuard><BillingCheckoutPage /></FreeLaunchBillingGuard> },
+              { path: 'billing/required', element: <FreeLaunchBillingGuard><BillingRequiredPage /></FreeLaunchBillingGuard> },
+              { path: 'billing/success', element: <FreeLaunchBillingGuard><BillingSuccessPage /></FreeLaunchBillingGuard> },
+              { path: 'billing/fail', element: <FreeLaunchBillingGuard><BillingFailPage /></FreeLaunchBillingGuard> },
+              { path: 'billing/manage', element: <FreeLaunchBillingGuard><BillingManagePage /></FreeLaunchBillingGuard> },
               {
                 element: <RequireInsuranceBillingEntitlement />,
                 children: [
@@ -491,7 +492,7 @@ export const appRouter = createBrowserRouter([
                 children: [{ path: 'admin/audit-logs', element: <AuditLogsPage /> }],
               },
               { path: 'profile', element: <ProfilePage /> },
-              { path: 'account/billing', element: <AccountBillingPage /> },
+              { path: 'account/billing', element: <FreeLaunchBillingGuard><AccountBillingPage /></FreeLaunchBillingGuard> },
               { path: 'account/reset', element: <AccountResetPage /> },
               { path: 'feature-request', element: <FeatureRequestPage /> },
               { path: 'feature-requests/my', element: <Navigate to="/feature-request" replace /> },

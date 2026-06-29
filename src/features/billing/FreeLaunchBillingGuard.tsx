@@ -1,0 +1,15 @@
+import { Navigate } from 'react-router-dom'
+import { isFreeLaunchBillingUiHidden } from './freeLaunchPolicy'
+
+type Props = {
+  children: React.ReactNode
+  redirectTo?: string
+}
+
+/** 무료 운영 기간 — 결제 관련 라우트 접근 시 대시보드로 안전 리다이렉트 */
+export default function FreeLaunchBillingGuard({ children, redirectTo = '/dashboard' }: Props) {
+  if (isFreeLaunchBillingUiHidden()) {
+    return <Navigate to={redirectTo} replace />
+  }
+  return children
+}

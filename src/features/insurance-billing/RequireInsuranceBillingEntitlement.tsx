@@ -9,6 +9,7 @@ import {
   isInsuranceBillingEnforceAccessClient,
   isInsuranceBillingEntitledStatus,
 } from '../insurance-billing/insuranceBillingConfig'
+import { isFreeLaunchBillingUiHidden } from '../billing/freeLaunchPolicy'
 
 /**
  * 보험 CRM 결제단 Phase 1 라우트 가드.
@@ -55,6 +56,10 @@ export function RequireInsuranceBillingEntitlement() {
   }, [token, user?.role])
 
   if (!isInsuranceBillingEnabledClient()) {
+    return <Outlet />
+  }
+
+  if (isFreeLaunchBillingUiHidden()) {
     return <Outlet />
   }
 
