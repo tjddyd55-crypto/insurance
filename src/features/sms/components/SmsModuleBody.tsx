@@ -55,8 +55,14 @@ function EmptySettingsNotice({
   )
 }
 
-function ProviderNotice({ settings }: { settings: SmsModuleViewProps['settings'] }) {
-  if (!settings) {
+function ProviderNotice({
+  settings,
+  settingsLoaded,
+}: {
+  settings: SmsModuleViewProps['settings']
+  settingsLoaded: boolean
+}) {
+  if (!settingsLoaded || !settings) {
     return null
   }
   return (
@@ -114,6 +120,8 @@ export default function SmsModuleBody(props: Props) {
     loading,
     busy,
     error,
+    authRequired,
+    settingsLoaded,
     moduleDisabled,
     notice,
     settings,
@@ -173,13 +181,13 @@ export default function SmsModuleBody(props: Props) {
         ))}
       </nav>
 
-      <NoticeBox error={error} notice={notice} />
+      <NoticeBox error={error} notice={authRequired ? null : notice} />
       <ModuleDisabledNotice visible={moduleDisabled} />
-      <ProviderNotice settings={settings} />
+      {!authRequired ? <ProviderNotice settings={settings} settingsLoaded={settingsLoaded} /> : null}
 
       {loading ? <p className="sms-module__muted sms-module__loading">불러오는 중…</p> : null}
 
-      {!loading && !moduleDisabled && tab === 'settings' ? (
+      {!loading && !moduleDisabled && !authRequired && !authRequired && tab === 'settings' ? (
         <section className="sms-module__panel">
           <GuideBox outboundIpHint={settings?.outboundServerIpHint} />
           <EmptySettingsNotice visible={!settings?.configured} loading={loading} />
@@ -298,7 +306,7 @@ export default function SmsModuleBody(props: Props) {
         </section>
       ) : null}
 
-      {!loading && !moduleDisabled && tab === 'send' ? (
+      {!loading && !moduleDisabled && !authRequired && tab === 'send' ? (
         <section className="sms-module__panel">
           <div className="sms-module__grid">
             <label>
@@ -355,7 +363,7 @@ export default function SmsModuleBody(props: Props) {
         </section>
       ) : null}
 
-      {!loading && !moduleDisabled && (tab === 'bulk' || tab === 'scheduled') ? (
+      {!loading && !moduleDisabled && !authRequired && (tab === 'bulk' || tab === 'scheduled') ? (
         <section className="sms-module__panel">
           <p className="sms-module__muted">{`{고객명}`} 치환을 지원합니다. 고객 ID를 쉼표/줄바꿈으로 입력하세요.</p>
           <div className="sms-module__grid">
@@ -450,7 +458,7 @@ export default function SmsModuleBody(props: Props) {
         </section>
       ) : null}
 
-      {!loading && !moduleDisabled && tab === 'scheduled' ? (
+      {!loading && !moduleDisabled && !authRequired && tab === 'scheduled' ? (
         <section className="sms-module__panel">
           <h3>예약/초안 캠페인</h3>
           <p className="sms-module__muted">
@@ -475,7 +483,7 @@ export default function SmsModuleBody(props: Props) {
         </section>
       ) : null}
 
-      {!loading && !moduleDisabled && tab === 'templates' ? (
+      {!loading && !moduleDisabled && !authRequired && tab === 'templates' ? (
         <section className="sms-module__panel">
           <div className="sms-module__grid">
             <label>
@@ -513,7 +521,7 @@ export default function SmsModuleBody(props: Props) {
         </section>
       ) : null}
 
-      {!loading && !moduleDisabled && tab === 'history' ? (
+      {!loading && !moduleDisabled && !authRequired && tab === 'history' ? (
         <section className="sms-module__panel">
           <ul className="sms-module__list">
             {history.length === 0 ? <li className="sms-module__muted">발송 이력 없음</li> : null}
@@ -527,7 +535,7 @@ export default function SmsModuleBody(props: Props) {
         </section>
       ) : null}
 
-      {!loading && !moduleDisabled && tab === 'opt-outs' ? (
+      {!loading && !moduleDisabled && !authRequired && tab === 'opt-outs' ? (
         <section className="sms-module__panel">
           <div className="sms-module__grid sms-module__grid--2">
             <label>

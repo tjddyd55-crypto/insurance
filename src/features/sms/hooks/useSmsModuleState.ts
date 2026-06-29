@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useAuth } from '../../auth/AuthProvider'
 import {
   addSmsOptOut,
   cancelSmsCampaign,
@@ -38,11 +39,16 @@ import {
 
 export type SmsModuleViewProps = ReturnType<typeof useSmsModuleState>
 
+const AUTH_REQUIRED_MESSAGE = '로그인이 필요합니다. 다시 로그인해 주세요.'
+
 export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
+  const { token } = useAuth()
   const [tab, setTab] = useState<SmsModuleTab>(initialTab)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [authRequired, setAuthRequired] = useState(false)
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
   const [moduleDisabled, setModuleDisabled] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
 
@@ -96,20 +102,35 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
   const reloadCore = useCallback(async () => {
     setLoading(true)
     setError(null)
+    setAuthRequired(false)
+    setSettingsLoaded(false)
     setModuleDisabled(false)
+    if (!token?.trim()) {
+      setSettings(null)
+      setSenders([])
+      setTemplates([])
+      setHistory([])
+      setCampaigns([])
+      setOptOuts([])
+      setAuthRequired(true)
+      setError(AUTH_REQUIRED_MESSAGE)
+      setLoading(false)
+      return
+    }
     try {
       const [settingsRes, sendersRes, templatesRes, historyRes, campaignsRes, optOutsRes] =
         await Promise.all([
-          fetchSmsSettings(),
-          fetchSmsSenders(),
-          fetchSmsTemplates(),
-          fetchSmsHistory(),
-          fetchSmsCampaigns(),
-          fetchSmsOptOuts(),
+          fetchSmsSettings(token),
+          fetchSmsSenders(token),
+          fetchSmsTemplates(token),
+          fetchSmsHistory(token),
+          fetchSmsCampaigns(token),
+          fetchSmsOptOuts(token),
         ])
       const normalizedSettings = normalizeSmsSettings(settingsRes)
       const normalizedSenders = Array.isArray(sendersRes) ? sendersRes : []
       setSettings(normalizedSettings)
+      setSettingsLoaded(true)
       setSenders(normalizedSenders)
       setTemplates(Array.isArray(templatesRes) ? templatesRes : [])
       setHistory(Array.isArray(historyRes) ? historyRes : [])
@@ -131,20 +152,30 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
       if (e instanceof ApiError && e.code === 'sms_module_disabled') {
         setModuleDisabled(true)
         setSettings({ ...EMPTY_SMS_SETTINGS, moduleEnabled: false })
+        setSettingsLoaded(true)
         setSenders([])
         setTemplates([])
         setHistory([])
         setCampaigns([])
         setOptOuts([])
         setError(null)
+      } else if (e instanceof ApiError && e.status === 401) {
+        setAuthRequired(true)
+        setSettings(null)
+        setSenders([])
+        setTemplates([])
+        setHistory([])
+        setCampaigns([])
+        setOptOuts([])
+        setError(AUTH_REQUIRED_MESSAGE)
       } else {
+        setSettings(null)
         setError(e instanceof Error ? e.message : '문자 데이터를 불러오지 못했습니다.')
-        setSettings((prev) => prev ?? { ...EMPTY_SMS_SETTINGS })
       }
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [token])
 
   useEffect(() => {
     void reloadCore()
@@ -165,33 +196,35 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
 
   const handleSaveSettings = useCallback(async () => {
     await runBusy(async () => {
-      const saved = await saveSmsSettings({
+      const saved = await saveSmsSettings(token, {
         aligoUserId: settingsForm.aligoUserId.trim(),
         apiKey: settingsForm.apiKey.trim() || undefined,
         defaultSender: settingsForm.defaultSender.trim() || undefined,
       })
       setSettings(saved)
+      setSettingsLoaded(true)
       setSettingsForm((prev) => ({ ...prev, apiKey: '' }))
       setNotice('알리고 설정을 저장했습니다. API Key 원문은 서버에만 암호화 저장됩니다.')
       await reloadCore()
     })
-  }, [runBusy, settingsForm, reloadCore])
+  }, [runBusy, settingsForm, reloadCore, token])
 
   const handleDeleteSettings = useCallback(async () => {
     await runBusy(async () => {
-      const saved = await deleteSmsSettings()
+      const saved = await deleteSmsSettings(token)
       setSettings(saved)
+      setSettingsLoaded(true)
       setNotice('알리고 연동을 해제했습니다.')
       await reloadCore()
     })
-  }, [runBusy, reloadCore])
+  }, [runBusy, reloadCore, token])
 
   const handleRegisterSender = useCallback(async () => {
     await runBusy(async () => {
       if (!settingsForm.defaultSender.trim()) {
         throw new Error('발신번호를 입력해 주세요.')
       }
-      await createSmsSender({
+      await createSmsSender(token, {
         senderNumber: settingsForm.defaultSender.trim(),
         label: '기본 발신번호',
         isDefault: true,
@@ -199,12 +232,12 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
       setNotice('발신번호를 등록했습니다. 테스트 발송으로 검증해 주세요.')
       await reloadCore()
     })
-  }, [runBusy, settingsForm.defaultSender, reloadCore])
+  }, [runBusy, settingsForm.defaultSender, reloadCore, token])
 
   const handleTestSend = useCallback(async () => {
     await runBusy(async () => {
       const sender = settingsForm.defaultSender.trim() || sendForm.senderNumber
-      const result = await testSmsSend({
+      const result = await testSmsSend(token, {
         senderNumber: sender,
         receiver: settingsForm.testReceiver.trim(),
         message: settingsForm.testMessage.trim(),
@@ -220,11 +253,11 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
       )
       await reloadCore()
     })
-  }, [runBusy, settingsForm, sendForm.senderNumber, reloadCore])
+  }, [runBusy, settingsForm, sendForm.senderNumber, reloadCore, token])
 
   const handleFetchBalance = useCallback(async () => {
     await runBusy(async () => {
-      const result = await fetchSmsBalance()
+      const result = await fetchSmsBalance(token)
       if (!result.success) {
         throw new Error(
           result.errorMessage ??
@@ -233,11 +266,11 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
       }
       setBalanceText(result.balanceText ?? '조회 완료')
     })
-  }, [runBusy])
+  }, [runBusy, token])
 
   const handleSendSingle = useCallback(async () => {
     await runBusy(async () => {
-      const result = await sendSingleSms({
+      const result = await sendSingleSms(token, {
         senderNumber: sendForm.senderNumber,
         receiver: sendForm.receiver,
         message: sendForm.message,
@@ -250,7 +283,7 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
       setSendForm((prev) => ({ ...prev, message: '' }))
       await reloadCore()
     })
-  }, [runBusy, sendForm, reloadCore])
+  }, [runBusy, sendForm, reloadCore, token])
 
   const parseCustomerIds = useCallback((raw: string) => {
     return raw
@@ -261,7 +294,7 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
 
   const handlePreviewBulk = useCallback(async () => {
     await runBusy(async () => {
-      const previewResult = await previewSmsCampaign({
+      const previewResult = await previewSmsCampaign(token, {
         senderNumber: bulkForm.senderNumber,
         message: bulkForm.message,
         customerIds: parseCustomerIds(bulkForm.customerIdsText),
@@ -269,7 +302,7 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
       setPreview(previewResult)
       setPreviewAcknowledged(true)
     })
-  }, [runBusy, bulkForm, parseCustomerIds])
+  }, [runBusy, bulkForm, parseCustomerIds, token])
 
   const handleCreateBulk = useCallback(async (scheduled: boolean) => {
     if (!scheduled && !previewAcknowledged) {
@@ -277,7 +310,7 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
       return
     }
     await runBusy(async () => {
-      const created = await createSmsCampaign({
+      const created = await createSmsCampaign(token, {
         title: bulkForm.title,
         senderNumber: bulkForm.senderNumber,
         message: bulkForm.message,
@@ -288,64 +321,64 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
       if (created.status === 'scheduled') {
         setNotice('예약 캠페인을 저장했습니다. 자동 발송 worker는 후속 작업 예정입니다.')
       } else {
-        const sent = await sendSmsCampaign(created.campaignId, previewAcknowledged)
+        const sent = await sendSmsCampaign(token, created.campaignId, previewAcknowledged)
         setNotice(`단체문자 발송 완료 — 성공 ${sent.successCount} / 실패 ${sent.failCount}`)
       }
       setPreview(null)
       setPreviewAcknowledged(false)
       await reloadCore()
     })
-  }, [runBusy, bulkForm, parseCustomerIds, previewAcknowledged, reloadCore])
+  }, [runBusy, bulkForm, parseCustomerIds, previewAcknowledged, reloadCore, token])
 
   const handleCancelCampaign = useCallback(
     async (campaignId: number) => {
       await runBusy(async () => {
-        await cancelSmsCampaign(campaignId)
+        await cancelSmsCampaign(token, campaignId)
         setNotice('예약/초안 캠페인을 취소했습니다.')
         await reloadCore()
       })
     },
-    [runBusy, reloadCore],
+    [runBusy, reloadCore, token],
   )
 
   const handleSaveTemplate = useCallback(async () => {
     await runBusy(async () => {
-      await createSmsTemplate(templateForm)
+      await createSmsTemplate(token, templateForm)
       setTemplateForm({ title: '', message: '', messageType: 'info' })
       setNotice('템플릿을 저장했습니다.')
       await reloadCore()
     })
-  }, [runBusy, templateForm, reloadCore])
+  }, [runBusy, templateForm, reloadCore, token])
 
   const handleDeleteTemplate = useCallback(
     async (id: number) => {
       await runBusy(async () => {
-        await deleteSmsTemplate(id)
+        await deleteSmsTemplate(token, id)
         setNotice('템플릿을 삭제했습니다.')
         await reloadCore()
       })
     },
-    [runBusy, reloadCore],
+    [runBusy, reloadCore, token],
   )
 
   const handleAddOptOut = useCallback(async () => {
     await runBusy(async () => {
-      await addSmsOptOut(optOutForm)
+      await addSmsOptOut(token, optOutForm)
       setOptOutForm({ phone: '', reason: '' })
       setNotice('수신거부 번호를 등록했습니다.')
       await reloadCore()
     })
-  }, [runBusy, optOutForm, reloadCore])
+  }, [runBusy, optOutForm, reloadCore, token])
 
   const handleRemoveOptOut = useCallback(
     async (id: number) => {
       await runBusy(async () => {
-        await removeSmsOptOut(id)
+        await removeSmsOptOut(token, id)
         setNotice('수신거부 번호를 삭제했습니다.')
         await reloadCore()
       })
     },
-    [runBusy, reloadCore],
+    [runBusy, reloadCore, token],
   )
 
   const sendByteInfo = useMemo(
@@ -375,6 +408,8 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
     loading,
     busy,
     error,
+    authRequired,
+    settingsLoaded,
     moduleDisabled,
     notice,
     settings,
