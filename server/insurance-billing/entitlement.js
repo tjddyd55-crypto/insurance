@@ -6,6 +6,7 @@ import { isInsuranceBillingEntitledStatus } from './subscriptionStatusPolicy.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { syncSubscriptionTrialExpiry } from './subscriptionLifecycle.js'
 import { resolveApiPolicyPath } from '../utils/apiPolicyPath.js'
+import { isFreeLaunchGrantMode } from '../signup/freeLaunchPolicy.js'
 
 const BILLING_API_ALLOW_PREFIXES = Object.freeze([
   '/api/auth/',
@@ -100,6 +101,10 @@ export function evaluateInsuranceBillingEntitlement(subscription) {
  */
 export async function enforceInsuranceBillingEntitlement(req, res, next, pool) {
   try {
+    if (isFreeLaunchGrantMode()) {
+      next()
+      return
+    }
     if (!isInsuranceBillingEnabled() || !isInsuranceBillingEnforceAccess()) {
       next()
       return

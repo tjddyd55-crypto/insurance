@@ -7,6 +7,7 @@ import { fetchCheckoutSummary } from '../../insurance-billing/api/insuranceBilli
 import { isInsuranceBillingEnabledClient } from '../../insurance-billing/insuranceBillingConfig'
 import { resolveInsuranceBillingAuthPath } from '../../insurance-billing/insuranceBillingLanding'
 import useIsMobile from '../../../hooks/useIsMobile'
+import { isFreeLaunchBillingUiHidden } from '../../billing/freeLaunchPolicy'
 import { setPublicBoardWriterToken } from '../../insurer-news/services/publicBoardWriter.service'
 
 /**
@@ -72,7 +73,7 @@ export function useLoginController(): UseLoginControllerResult {
       return
     }
     const defaultPath = resolveAuthLandingPath(isMobile, user?.role)
-    if (!isInsuranceBillingEnabledClient() || user?.role !== 'USER' || !token?.trim()) {
+    if (!isInsuranceBillingEnabledClient() || user?.role !== 'USER' || !token?.trim() || isFreeLaunchBillingUiHidden()) {
       navigate(defaultPath, { replace: true })
       return
     }
@@ -135,7 +136,7 @@ export function useLoginController(): UseLoginControllerResult {
       }
       login({ token: session.token, user: session.user })
       const defaultPath = resolveAuthLandingPath(isMobile, session.user.role)
-      if (isInsuranceBillingEnabledClient() && session.user.role === 'USER') {
+      if (isInsuranceBillingEnabledClient() && session.user.role === 'USER' && !isFreeLaunchBillingUiHidden()) {
         try {
           const summary = await fetchCheckoutSummary(session.token)
           navigate(resolveInsuranceBillingAuthPath(defaultPath, summary.subscriptionStatus), { replace: true })

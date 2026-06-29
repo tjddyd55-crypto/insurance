@@ -22,6 +22,7 @@ import { fetchReferralSummary, type ReferralSummaryResponse } from '../../referr
 import { requestAccountDeletion } from '../../account/services/accountDeleteApi'
 import { BaseDialog } from '../../../components/dialog/BaseDialog'
 import { DialogActions } from '../../../components/dialog/DialogActions'
+import { isFreeLaunchBillingUiHidden } from '../../billing/freeLaunchPolicy'
 
 const CODE_TTL_SEC = 180
 const RESEND_COOLDOWN_SEC = 60
@@ -718,6 +719,7 @@ export function ProfilePage() {
         )}
       </section>
 
+      {!isFreeLaunchBillingUiHidden() ? (
       <section className="profile-page__section">
         <h2 className="profile-page__section-title">결제 관리</h2>
         <p className="profile-page__section-desc">월 이용료 구독 상태와 결제 내역을 확인할 수 있습니다.</p>
@@ -725,6 +727,7 @@ export function ProfilePage() {
           결제 관리로 이동
         </Link>
       </section>
+      ) : null}
 
       <section className="profile-page__section">
         <h2 className="profile-page__section-title">고객 데이터 업로드</h2>

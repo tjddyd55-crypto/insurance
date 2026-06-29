@@ -17,7 +17,10 @@ import { useAuth } from '../AuthProvider'
 import { resolveAuthLandingPath } from '../landing'
 import useIsMobile from '../../../hooks/useIsMobile'
 import { isInsuranceBillingEnabledClient } from '../../insurance-billing/insuranceBillingConfig'
-import { validateReferralCodeForSignup } from '../../referrals/referralApi'
+import {
+  validateReferralCodeForSignup,
+} from '../../referrals/referralApi'
+import { isFreeLaunchBillingUiHidden } from '../../billing/freeLaunchPolicy'
 import {
   getSignupUsernameValidationError,
   SIGNUP_USERNAME_RULE_MESSAGE,
@@ -252,12 +255,12 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
           }
           if (data.valid) {
             setReferralCodeValid(true)
-            setReferralCodeHint(data.benefitSummary ?? data.message ?? '코드가 적용되었습니다.')
+            setReferralCodeHint(data.benefitSummary ?? data.message ?? '추천인 코드가 확인되었습니다.')
             setReferralCodeError('')
           } else {
             setReferralCodeValid(false)
             setReferralCodeHint('')
-            setReferralCodeError(data.message ?? '유효하지 않은 코드입니다.')
+            setReferralCodeError(data.message ?? '유효하지 않은 추천인 코드입니다.')
           }
         } catch {
           if (cancelled) {
@@ -513,7 +516,11 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
         return
       }
       login({ token: session.token, user: session.user })
-      if (signupIndustry === 'insurance' && isInsuranceBillingEnabledClient()) {
+      if (
+        signupIndustry === 'insurance' &&
+        isInsuranceBillingEnabledClient() &&
+        !isFreeLaunchBillingUiHidden()
+      ) {
         navigate('/billing/checkout', { replace: true })
         return
       }
@@ -677,12 +684,12 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
           </label>
 
           <label className="field">
-            <span className="field__label">추천/할인 코드</span>
+            <span className="field__label">추천인 코드</span>
             <FormInput
               value={referralCode}
               onChange={(e) => setReferralCode(e.target.value.toUpperCase().replace(/\s+/g, ''))}
               autoComplete="off"
-              placeholder="추천 또는 할인 코드가 있으면 입력해 주세요"
+              placeholder="추천인 코드가 있으면 입력해 주세요"
             />
             {referralCodeHint ? (
               <p className="status" style={{ color: 'var(--success)' }}>

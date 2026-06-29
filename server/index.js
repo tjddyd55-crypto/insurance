@@ -18,15 +18,10 @@ import { registerBillingApi } from './registerBillingApi.js'
 import { registerInsuranceBillingApi, enforceInsuranceBillingEntitlement } from './registerInsuranceBillingApi.js'
 import {
   bootstrapInsuranceBillingSubscriptionOnSignup,
-  createBillingReferralPending,
-  resolveTenantIdForUser,
 } from './insurance-billing/subscriptionLifecycle.js'
-import {
-  createReferralRelationship,
-} from './referrals/referralService.js'
-import { ensureReferralCodeForUser, normalizeReferralCode } from './referrals/referralCode.js'
-import { validatePromotionOrReferralCode } from './promotions/validatePromotionOrReferral.js'
-import { applyPromotionCodeToAccount } from './promotions/promotionService.js'
+import { ensureReferralCodeForUser } from './referrals/referralCode.js'
+import { planSignupCodes, applySignupCodesPlan } from './signup/processSignupCodes.js'
+import { applySignupAutoPromotionOnSignup } from './signup/signupAutoPromotion.js'
 import { readPolicyActive } from './subscription/appSettings.js'
 import { registerCustomerExtraApi } from './apis/customerExtraApi.js'
 import { registerTeamApi } from './apis/teamApi.js'
@@ -2242,10 +2237,11 @@ async function handleRegister(req, res) {
       ? resolveDevSignupPhoneForStorage(phoneNorm, normalizedUsername)
       : phoneNorm
 
-    const promotionOrReferralRaw = referralCodeSnake ?? referralCodeCamel ?? ''
-    const promotionOrReferralNorm = normalizeReferralCode(promotionOrReferralRaw)
-    const promotionOrReferral =
-      promotionOrReferralNorm ? await validatePromotionOrReferralCode(pool, promotionOrReferralNorm) : null
+    const signupCodesPlan = await planSignupCodes(pool, req)
+    if (signupCodesPlan.validationError) {
+      res.status(signupCodesPlan.validationError.status).json({ message: signupCodesPlan.validationError.message })
+      return
+    }
 
     const passwordHash = await bcrypt.hash(password, 10)
     const id = randomUUID()
@@ -2302,62 +2298,26 @@ async function handleRegister(req, res) {
       }
 
       await ensureReferralCodeForUser(client, id)
-      if (promotionOrReferralNorm) {
-        if (!promotionOrReferral || promotionOrReferral.ok !== true) {
-          await client.query('ROLLBACK')
-          client.release()
-          res.status(400).json({ message: promotionOrReferral?.message ?? '사용할 수 없는 코드입니다.' })
+      const policyActive = await readPolicyActive()
+      try {
+        await applySignupCodesPlan(client, {
+          userId: id,
+          gaId,
+          plan: signupCodesPlan,
+          policyActive,
+        })
+      } catch (referralErr) {
+        await client.query('ROLLBACK')
+        client.release()
+        if (referralErr?.message === 'referral_self_not_allowed') {
+          res.status(400).json({ message: '본인 추천 코드는 사용할 수 없습니다.' })
           return
         }
-
-        if (promotionOrReferral.source === 'legacy_referral' && promotionOrReferral.legacy) {
-          const policyActive = await readPolicyActive()
-          try {
-            await createReferralRelationship(client, {
-              referredUserId: id,
-              referrerUserId: promotionOrReferral.legacy.referrerUserId,
-              code: promotionOrReferral.legacy.code,
-              policyActive,
-            })
-            await ensureReferralCodeForUser(client, promotionOrReferral.legacy.referrerUserId)
-            await createBillingReferralPending(client, {
-              referrerUserId: promotionOrReferral.legacy.referrerUserId,
-              referredUserId: id,
-              referralCode: promotionOrReferral.legacy.code,
-              tenantId: await resolveTenantIdForUser(client, id, gaId),
-            })
-          } catch (referralErr) {
-            await client.query('ROLLBACK')
-            client.release()
-            if (referralErr?.message === 'referral_self_not_allowed') {
-              res.status(400).json({ message: '본인 추천 코드는 사용할 수 없습니다.' })
-              return
-            }
-            if (referralErr?.message === 'referral_already_applied') {
-              res.status(409).json({ message: '이미 추천 코드가 적용된 계정입니다.' })
-              return
-            }
-            throw referralErr
-          }
+        if (referralErr?.message === 'referral_already_applied') {
+          res.status(409).json({ message: '이미 추천 코드가 적용된 계정입니다.' })
+          return
         }
-
-        if (promotionOrReferral.source === 'promotion_code' && promotionOrReferral.promo) {
-          try {
-            await applyPromotionCodeToAccount(client, { userId: id, promo: promotionOrReferral.promo })
-          } catch (promotionErr) {
-            await client.query('ROLLBACK')
-            client.release()
-            if (promotionErr?.message === 'promotion_already_applied') {
-              res.status(409).json({ message: '이미 코드가 적용된 계정입니다.' })
-              return
-            }
-            if (promotionErr?.message === 'promotion_max_uses') {
-              res.status(400).json({ message: '사용 횟수가 모두 소진된 코드입니다.' })
-              return
-            }
-            throw promotionErr
-          }
-        }
+        throw referralErr
       }
 
       const isInsuranceCrmSignup = !tenantRegSignup || industrySignup === 'insurance'
@@ -2376,6 +2336,12 @@ async function handleRegister(req, res) {
       throw e
     }
     client.release()
+
+    try {
+      await applySignupAutoPromotionOnSignup(pool, { userId: id, gaId })
+    } catch (autoPromoErr) {
+      console.warn('[handleRegister] launch auto promotion skipped:', autoPromoErr?.message ?? autoPromoErr)
+    }
 
     if (phoneNorm) {
       await pool.query(`DELETE FROM sms_verification_codes WHERE purpose = 'SIGNUP' AND phone_number = $1`, [

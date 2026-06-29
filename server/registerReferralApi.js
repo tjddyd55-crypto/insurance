@@ -1,8 +1,8 @@
-import { validatePromotionOrReferralCode } from './promotions/validatePromotionOrReferral.js'
-import { normalizePromotionCode } from './promotions/promotionCode.js'
+import { validatePromotionCode } from './promotions/promotionService.js'
 import { summarizeLegacyReferralBenefit, summarizePromotionBenefit } from './promotions/promotionBenefit.js'
+import { normalizePromotionCode } from './promotions/promotionCode.js'
 import { BASE_MONTHLY_PRICE } from './referrals/policy.js'
-import { getReferralSummaryForUser } from './referrals/referralService.js'
+import { validateReferralCodeForSignup, getReferralSummaryForUser } from './referrals/referralService.js'
 
 /**
  * @param {import('express').Router} apiRouter
@@ -25,28 +25,47 @@ export function registerReferralApi(apiRouter, ctx) {
   apiRouter.post('/auth/validate-referral-code', async (req, res) => {
     try {
       const body = req.body ?? {}
-      // 기존 API 경로는 유지하되, 입력란은 "추천/할인 코드"로 확장한다.
       const codeNorm = normalizePromotionCode(body.referral_code ?? body.referralCode ?? body.code ?? '')
       if (!codeNorm) {
         res.json({ valid: true })
         return
       }
-      const result = await validatePromotionOrReferralCode(pool, codeNorm)
+      const result = await validateReferralCodeForSignup(pool, codeNorm)
       if (!result.ok) {
         res.json({ valid: false, message: result.message })
         return
       }
-      const benefitSummary =
-        result.source === 'promotion_code' && result.promo
-          ? summarizePromotionBenefit(result.promo, BASE_MONTHLY_PRICE)
-          : result.source === 'legacy_referral'
-            ? summarizeLegacyReferralBenefit()
-            : undefined
       res.json({
         valid: true,
-        source: result.source,
-        message: result.message || '코드가 적용되었습니다.',
-        benefitSummary,
+        source: 'legacy_referral',
+        message: '추천인 코드가 확인되었습니다.',
+        benefitSummary: summarizeLegacyReferralBenefit(),
+      })
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.post('/auth/validate-discount-code', async (req, res) => {
+    try {
+      const body = req.body ?? {}
+      const codeNorm = normalizePromotionCode(
+        body.discount_code ?? body.discountCode ?? body.promo_code ?? body.promoCode ?? body.code ?? '',
+      )
+      if (!codeNorm) {
+        res.json({ valid: true })
+        return
+      }
+      const result = await validatePromotionCode(pool, codeNorm)
+      if (!result.ok || !result.promo) {
+        res.json({ valid: false, message: result.message ?? '사용할 수 없는 할인 코드입니다.' })
+        return
+      }
+      res.json({
+        valid: true,
+        source: 'promotion_code',
+        message: '할인 코드가 확인되었습니다.',
+        benefitSummary: summarizePromotionBenefit(result.promo, BASE_MONTHLY_PRICE),
       })
     } catch (e) {
       handleDbError(e, req, res)
