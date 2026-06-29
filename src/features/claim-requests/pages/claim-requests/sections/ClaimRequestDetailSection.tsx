@@ -176,7 +176,7 @@ export function ClaimRequestDetailBody({
   const resolvedCustomerId = resolveClaimRequestCustomerId(detail) ?? customerId
 
   return (
-    <div className="claim-request-detail-surface">
+    <div className="claim-request-detail-surface claim-request-detail">
       <section className="claim-detail-section claim-detail-section--summary" aria-label="청구 요약">
         <div className="claim-detail-section__body">
           <div className="claim-detail-kv">
@@ -188,15 +188,11 @@ export function ClaimRequestDetailBody({
             <span className="claim-detail-kv__value">{formatDateTime(detail.submittedAt)}</span>
           </div>
           {requesterLine ? (
-            <div className="claim-detail-kv">
+            <div className="claim-detail-kv claim-detail-kv--requester">
               <span className="claim-detail-kv__label">요청자</span>
               <span className="claim-detail-kv__value">{requesterLine}</span>
             </div>
           ) : null}
-          <div className="claim-detail-kv">
-            <span className="claim-detail-kv__label">연결고객</span>
-            <span className="claim-detail-kv__value">{detail.customerName}</span>
-          </div>
         </div>
         <div className="claim-detail-section__status-pill">
           <span className={claimRequestStatusBadgeClass(detail.status)}>{statusLabel(detail.status)}</span>
@@ -209,24 +205,6 @@ export function ClaimRequestDetailBody({
           {messageText ? messageText : '요청 내용이 없습니다.'}
         </div>
       </section>
-
-      {hasBundleActions && !embeddedInCustomerWorkspace ? (
-        <ClaimRequestAttachmentActions
-          section="customerPage"
-          attachmentCount={detail.files.length}
-          customerClaimPageUrl={customerClaimPageUrl}
-          customerClaimPageBusy={customerClaimPageBusy}
-          customerPageTarget={customerPageTarget}
-          customerId={resolvedCustomerId}
-          onOpenCustomerClaimPage={onOpenCustomerClaimPage}
-          showCustomerClaimPage={showCustomerClaimPage}
-          onDownloadZip={onDownloadZip!}
-          onDownloadPdf={onDownloadPdf!}
-          zipBusy={zipBusy}
-          pdfBusy={pdfBusy}
-          variant={attachmentActionsVariant}
-        />
-      ) : null}
 
       <section className="claim-detail-section claim-detail-section--attachments">
         <div className="claim-detail-section__head-row">
@@ -321,6 +299,25 @@ export function ClaimRequestDetailBody({
             </ul>
           )}
         </section>
+      ) : null}
+
+      {hasBundleActions && !embeddedInCustomerWorkspace ? (
+        <ClaimRequestAttachmentActions
+          section="customerPage"
+          attachmentCount={detail.files.length}
+          customerClaimPageUrl={customerClaimPageUrl}
+          customerClaimPageBusy={customerClaimPageBusy}
+          customerPageTarget={customerPageTarget}
+          customerId={resolvedCustomerId}
+          onOpenCustomerClaimPage={onOpenCustomerClaimPage}
+          showCustomerClaimPage={showCustomerClaimPage}
+          onDownloadZip={onDownloadZip!}
+          onDownloadPdf={onDownloadPdf!}
+          zipBusy={zipBusy}
+          pdfBusy={pdfBusy}
+          variant={attachmentActionsVariant}
+          className="claim-requests-page__attachment-actions--detail-footer"
+        />
       ) : null}
     </div>
   )
