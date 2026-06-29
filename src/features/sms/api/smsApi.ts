@@ -18,7 +18,7 @@ function asRecord(raw: unknown): Record<string, unknown> {
 }
 
 export async function fetchSmsSettings(): Promise<SmsSettings> {
-  const raw = await apiRequest<SmsSettings>('/sms/settings')
+  const raw = await apiRequest<SmsSettings>('/api/sms/settings')
   return normalizeSmsSettings(raw)
 }
 
@@ -27,7 +27,7 @@ export async function saveSmsSettings(input: {
   apiKey?: string
   defaultSender?: string
 }): Promise<SmsSettings> {
-  const raw = await apiRequest<SmsSettings>('/sms/settings/aligo', {
+  const raw = await apiRequest<SmsSettings>('/api/sms/settings/aligo', {
     method: 'POST',
     body: JSON.stringify({
       aligo_user_id: input.aligoUserId,
@@ -39,12 +39,12 @@ export async function saveSmsSettings(input: {
 }
 
 export async function deleteSmsSettings(): Promise<SmsSettings> {
-  const raw = await apiRequest<SmsSettings>('/sms/settings/aligo', { method: 'DELETE' })
+  const raw = await apiRequest<SmsSettings>('/api/sms/settings/aligo', { method: 'DELETE' })
   return normalizeSmsSettings(raw)
 }
 
 export async function fetchSmsSenders(): Promise<SmsSender[]> {
-  const raw = await apiRequest<SmsSender[]>('/sms/senders')
+  const raw = await apiRequest<SmsSender[]>('/api/sms/senders')
   return asArray<SmsSender>(raw)
 }
 
@@ -53,7 +53,7 @@ export async function createSmsSender(input: {
   label?: string
   isDefault?: boolean
 }): Promise<SmsSender> {
-  const raw = await apiRequest<SmsSender>('/sms/senders', {
+  const raw = await apiRequest<SmsSender>('/api/sms/senders', {
     method: 'POST',
     body: JSON.stringify({
       sender_number: input.senderNumber,
@@ -71,7 +71,7 @@ export async function testSmsSend(input: {
 }): Promise<{ success: boolean; errorMessage?: string; providerMessageId?: string | null }> {
   const raw = asRecord(
     await apiRequest<{ success: boolean; errorMessage?: string; providerMessageId?: string | null }>(
-      '/sms/test-send',
+      '/api/sms/test-send',
       {
         method: 'POST',
         body: JSON.stringify({
@@ -98,7 +98,7 @@ export async function fetchSmsBalance(): Promise<{
   errorMessage?: string
 }> {
   const raw = asRecord(
-    await apiRequest<{ success: boolean; balanceText?: string; errorMessage?: string }>('/sms/balance'),
+    await apiRequest<{ success: boolean; balanceText?: string; errorMessage?: string }>('/api/sms/balance'),
   )
   return {
     success: Boolean(raw.success),
@@ -116,7 +116,7 @@ export async function sendSingleSms(input: {
 }): Promise<{ success: boolean; campaignId?: number; errorMessage?: string | null }> {
   const raw = asRecord(
     await apiRequest<{ success: boolean; campaignId?: number; errorMessage?: string | null }>(
-      '/sms/send',
+      '/api/sms/send',
       {
         method: 'POST',
         body: JSON.stringify({
@@ -145,7 +145,7 @@ export async function previewSmsCampaign(input: {
   customerIds?: number[]
   filter?: { search?: string }
 }): Promise<SmsCampaignPreview> {
-  const raw = await apiRequest<SmsCampaignPreview>('/sms/campaigns/preview', {
+  const raw = await apiRequest<SmsCampaignPreview>('/api/sms/campaigns/preview', {
     method: 'POST',
     body: JSON.stringify({
       sender_number: input.senderNumber,
@@ -167,7 +167,7 @@ export async function createSmsCampaign(input: {
 }): Promise<{ campaignId: number; status: string; scheduledAt: string | null }> {
   const raw = asRecord(
     await apiRequest<{ campaignId: number; status: string; scheduledAt: string | null }>(
-      '/sms/campaigns',
+      '/api/sms/campaigns',
       {
         method: 'POST',
         body: JSON.stringify({
@@ -192,7 +192,7 @@ export async function createSmsCampaign(input: {
 }
 
 export async function sendSmsCampaign(campaignId: number, previewConfirmed = false): Promise<SmsCampaignSummary> {
-  const raw = await apiRequest<SmsCampaignSummary>(`/sms/campaigns/${campaignId}/send`, {
+  const raw = await apiRequest<SmsCampaignSummary>(`/api/sms/campaigns/${campaignId}/send`, {
     method: 'POST',
     body: JSON.stringify({
       preview_confirmed: previewConfirmed,
@@ -204,7 +204,7 @@ export async function sendSmsCampaign(campaignId: number, previewConfirmed = fal
 
 export async function cancelSmsCampaign(campaignId: number): Promise<{ id: number; status: string }> {
   const raw = asRecord(
-    await apiRequest<{ id: number; status: string }>(`/sms/campaigns/${campaignId}/cancel`, {
+    await apiRequest<{ id: number; status: string }>(`/api/sms/campaigns/${campaignId}/cancel`, {
       method: 'POST',
     }),
   )
@@ -215,17 +215,17 @@ export async function cancelSmsCampaign(campaignId: number): Promise<{ id: numbe
 }
 
 export async function fetchSmsCampaigns(): Promise<SmsCampaignSummary[]> {
-  const raw = await apiRequest<SmsCampaignSummary[]>('/sms/campaigns')
+  const raw = await apiRequest<SmsCampaignSummary[]>('/api/sms/campaigns')
   return asArray<SmsCampaignSummary>(raw)
 }
 
 export async function fetchSmsHistory(): Promise<SmsCampaignSummary[]> {
-  const raw = await apiRequest<SmsCampaignSummary[]>('/sms/history')
+  const raw = await apiRequest<SmsCampaignSummary[]>('/api/sms/history')
   return asArray<SmsCampaignSummary>(raw)
 }
 
 export async function fetchSmsTemplates(): Promise<SmsTemplate[]> {
-  const raw = await apiRequest<SmsTemplate[]>('/sms/templates')
+  const raw = await apiRequest<SmsTemplate[]>('/api/sms/templates')
   return asArray<SmsTemplate>(raw)
 }
 
@@ -234,7 +234,7 @@ export async function createSmsTemplate(input: {
   message: string
   messageType?: 'info' | 'ad'
 }): Promise<SmsTemplate> {
-  const raw = await apiRequest<SmsTemplate>('/sms/templates', {
+  const raw = await apiRequest<SmsTemplate>('/api/sms/templates', {
     method: 'POST',
     body: JSON.stringify({
       title: input.title,
@@ -246,23 +246,23 @@ export async function createSmsTemplate(input: {
 }
 
 export async function deleteSmsTemplate(id: number): Promise<void> {
-  await apiRequest(`/sms/templates/${id}`, { method: 'DELETE' })
+  await apiRequest(`/api/sms/templates/${id}`, { method: 'DELETE' })
 }
 
 export async function fetchSmsOptOuts(): Promise<SmsOptOut[]> {
-  const raw = await apiRequest<SmsOptOut[]>('/sms/opt-outs')
+  const raw = await apiRequest<SmsOptOut[]>('/api/sms/opt-outs')
   return asArray<SmsOptOut>(raw)
 }
 
 export async function addSmsOptOut(input: { phone: string; reason?: string }): Promise<void> {
-  await apiRequest('/sms/opt-outs', {
+  await apiRequest('/api/sms/opt-outs', {
     method: 'POST',
     body: JSON.stringify(input),
   })
 }
 
 export async function removeSmsOptOut(id: number): Promise<void> {
-  await apiRequest(`/sms/opt-outs/${id}`, { method: 'DELETE' })
+  await apiRequest(`/api/sms/opt-outs/${id}`, { method: 'DELETE' })
 }
 
 export function estimateSmsBytes(text: string): number {
