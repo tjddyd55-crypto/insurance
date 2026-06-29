@@ -21,6 +21,8 @@ export async function copyTextToClipboard(text: string): Promise<boolean> {
     return false
   }
 
+  const activeElement = document.activeElement instanceof HTMLElement ? document.activeElement : null
+
   const textarea = document.createElement('textarea')
   textarea.value = t
   textarea.setAttribute('readonly', 'readonly')
@@ -42,5 +44,12 @@ export async function copyTextToClipboard(text: string): Promise<boolean> {
     return false
   } finally {
     document.body.removeChild(textarea)
+    if (activeElement && typeof activeElement.focus === 'function') {
+      try {
+        activeElement.focus({ preventScroll: true })
+      } catch {
+        activeElement.focus()
+      }
+    }
   }
 }
