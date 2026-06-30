@@ -37,11 +37,8 @@ export const SMS_EXPLICIT_SAMPLE_VALUES = {
   memo: '메모 샘플',
 } as const
 
-/** 광고성 미리보기용 회사명 — (광고) 헤더 표시용 */
-export const SMS_AD_COMPANY_NAME = 'ONE FC'
-
-/** @deprecated use SMS_AD_COMPANY_NAME */
-export const SMS_SAMPLE_COMPANY_NAME = SMS_AD_COMPANY_NAME
+/** 광고 표시명 미설정 시 미리보기 placeholder */
+export const SMS_AD_DISPLAY_NAME_PLACEHOLDER = '{광고 표시명}'
 
 /** 광고성 미리보기용 무료수신거부 번호 */
 export const SMS_AD_OPT_OUT_NUMBER = '0808811258'

@@ -45,6 +45,7 @@ function createMockPool(state) {
           provider_user_id: params[2],
           api_key_encrypted: params[3],
           default_sender: params[4],
+          ad_display_name: params[5] ?? '',
           is_active: true,
           last_balance_checked_at: null,
         }
@@ -58,6 +59,7 @@ function createMockPool(state) {
           row.provider_user_id = params[2]
           row.api_key_encrypted = params[3]
           row.default_sender = params[4]
+          row.ad_display_name = params[5] ?? row.ad_display_name ?? ''
         }
         return { rowCount: 1, rows: [row] }
       }
@@ -194,6 +196,117 @@ test('upsert settings response does not include api key plain text', async () =>
   const stored = state.accounts[0].api_key_encrypted
   assert.notEqual(stored, 'super-secret-api-key-value')
   assert.equal(decryptSmsCredential(stored), 'super-secret-api-key-value')
+})
+
+test('upsert settings saves ad display name per user', async () => {
+  const state = {
+    accounts: [],
+    senders: [],
+    queries: [],
+    nextAccountId: 1,
+    nextSenderId: 1,
+    nextCampaignId: 1,
+    customers: [],
+    optOuts: [],
+    recipients: [],
+    campaigns: [],
+  }
+  const pool = createMockPool(state)
+  const saved = await upsertAligoSmsSettings(pool, { tenantId: TENANT_ID, userId: USER_A }, {
+    aligoUserId: 'aligo-user',
+    apiKey: 'super-secret-api-key-value',
+    defaultSender: '01012345678',
+    adDisplayName: '박성용',
+  })
+  assert.equal(saved.adDisplayName, '박성용')
+  assert.equal(state.accounts[0].ad_display_name, '박성용')
+
+  const loaded = await getSmsSettings(pool, { tenantId: TENANT_ID, userId: USER_A })
+  assert.equal(loaded.adDisplayName, '박성용')
+})
+
+test('sendSingleSms rejects ad send without ad display name', async () => {
+  const encrypted = encryptSmsCredential('secret-key')
+  const pool = createMockPool({
+    accounts: [
+      {
+        id: 1,
+        tenant_id: TENANT_ID,
+        user_id: USER_A,
+        provider_user_id: 'aligo-user',
+        api_key_encrypted: encrypted,
+        ad_display_name: '',
+        is_active: true,
+      },
+    ],
+    senders: [
+      {
+        tenant_id: TENANT_ID,
+        user_id: USER_A,
+        sender_number: '01012345678',
+        status: 'verified',
+      },
+    ],
+    customers: [],
+    optOuts: [],
+    recipients: [],
+    campaigns: [],
+    queries: [],
+    nextCampaignId: 10,
+  })
+  await assert.rejects(
+    () =>
+      sendSingleSms(pool, { tenantId: TENANT_ID, userId: USER_A }, {
+        senderNumber: '01012345678',
+        receiver: '01022223333',
+        message: '광고 본문',
+        messageType: 'ad',
+      }),
+    (err) => err.message === 'sms_ad_display_name_required',
+  )
+})
+
+test('sendSingleSms stores composed ad message on mock success', async () => {
+  const encrypted = encryptSmsCredential('secret-key')
+  const state = {
+    accounts: [
+      {
+        id: 1,
+        tenant_id: TENANT_ID,
+        user_id: USER_A,
+        provider_user_id: 'aligo-user',
+        api_key_encrypted: encrypted,
+        ad_display_name: '박성용',
+        is_active: true,
+      },
+    ],
+    senders: [
+      {
+        tenant_id: TENANT_ID,
+        user_id: USER_A,
+        sender_number: '01012345678',
+        status: 'verified',
+      },
+    ],
+    customers: [],
+    optOuts: [],
+    recipients: [],
+    campaigns: [],
+    queries: [],
+    nextCampaignId: 10,
+  }
+  const pool = createMockPool(state)
+  const result = await sendSingleSms(pool, { tenantId: TENANT_ID, userId: USER_A }, {
+    senderNumber: '01012345678',
+    receiver: '01022223333',
+    message: '광고 본문',
+    messageType: 'ad',
+  })
+  assert.equal(result.success, true)
+  const storedMessage = state.recipients[0]?.params?.[4]
+  assert.match(String(storedMessage), /\(광고\)박성용/)
+  assert.match(String(storedMessage), /무료거부 0808811258/)
+  assert.doesNotMatch(String(storedMessage), /ONE FC/)
 })
 
 test('assertOwnedSenderNumber rejects other user sender', async () => {

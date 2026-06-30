@@ -21,6 +21,10 @@ export async function ensureSmsModuleSchema(executor) {
     )
   `)
   await executor.query(`
+    ALTER TABLE sms_provider_accounts
+    ADD COLUMN IF NOT EXISTS ad_display_name TEXT NOT NULL DEFAULT ''
+  `)
+  await executor.query(`
     CREATE INDEX IF NOT EXISTS idx_sms_provider_accounts_tenant_user
     ON sms_provider_accounts (tenant_id, user_id)
   `)

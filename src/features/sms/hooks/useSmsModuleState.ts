@@ -64,6 +64,7 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
     aligoUserIdChange: '',
     apiKeyChange: '',
     defaultSenderChange: '',
+    adDisplayNameChange: '',
     testReceiver: '',
     testMessage: 'CRM 문자 연동 테스트입니다.',
   })
@@ -142,6 +143,7 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
         aligoUserIdChange: '',
         apiKeyChange: '',
         defaultSenderChange: '',
+        adDisplayNameChange: '',
       }))
       const defaultSender =
         normalizedSenders.find((s) => s.isDefault && s.status === 'verified')?.senderNumber ??
@@ -203,6 +205,7 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
       const defaultSender =
         settingsForm.defaultSenderChange.trim() || settings?.defaultSender?.trim() || ''
       const apiKey = settingsForm.apiKeyChange.trim() || undefined
+      const adDisplayName = settingsForm.adDisplayNameChange.trim() || undefined
 
       if (!aligoUserId) {
         throw new Error('알리고 아이디를 입력해 주세요.')
@@ -218,6 +221,7 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
         aligoUserId,
         apiKey,
         defaultSender,
+        adDisplayName,
       })
       setSettings(saved)
       setSettingsLoaded(true)
@@ -226,6 +230,7 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
         aligoUserIdChange: '',
         apiKeyChange: '',
         defaultSenderChange: '',
+        adDisplayNameChange: '',
       }))
       setNotice('알리고 연동 설정과 기본 발신번호가 저장되었습니다.')
       await reloadCore()

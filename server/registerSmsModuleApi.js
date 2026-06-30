@@ -101,6 +101,7 @@ export function registerSmsModuleApi(apiRouter, ctx) {
         aligoUserId: body.aligo_user_id ?? body.aligoUserId,
         apiKey: body.api_key ?? body.apiKey,
         defaultSender: body.default_sender ?? body.defaultSender,
+        adDisplayName: body.ad_display_name ?? body.adDisplayName,
       })
       res.json({ success: true, data: settings })
     } catch (e) {
@@ -120,6 +121,7 @@ export function registerSmsModuleApi(apiRouter, ctx) {
         aligoUserId: body.aligo_user_id ?? body.aligoUserId ?? '',
         apiKey: body.api_key ?? body.apiKey,
         defaultSender: body.default_sender ?? body.defaultSender,
+        adDisplayName: body.ad_display_name ?? body.adDisplayName,
       })
       res.json({ success: true, data: settings })
     } catch (e) {

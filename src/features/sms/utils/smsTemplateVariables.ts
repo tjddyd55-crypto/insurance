@@ -1,4 +1,4 @@
-import { SMS_AD_COMPANY_NAME, SMS_EXPLICIT_SAMPLE_VALUES } from '../config/smsCompose.config'
+import { SMS_EXPLICIT_SAMPLE_VALUES } from '../config/smsCompose.config'
 
 export type SmsTemplateVariableKey =
   | 'customerName'

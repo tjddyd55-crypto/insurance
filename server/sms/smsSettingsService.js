@@ -31,6 +31,7 @@ function mapSettingsRow(row, apiKeyMasked) {
       aligoUserId: '',
       apiKeyMasked: null,
       defaultSender: '',
+      adDisplayName: '',
       isActive: false,
       lastBalanceCheckedAt: null,
       ...base,
@@ -42,6 +43,7 @@ function mapSettingsRow(row, apiKeyMasked) {
     aligoUserId: String(row.provider_user_id ?? ''),
     apiKeyMasked,
     defaultSender: String(row.default_sender ?? ''),
+    adDisplayName: String(row.ad_display_name ?? ''),
     isActive: Boolean(row.is_active),
     lastBalanceCheckedAt: row.last_balance_checked_at ?? null,
     ...base,
@@ -68,7 +70,7 @@ export async function getSmsSettings(executor, scope) {
 /**
  * @param {import('pg').Pool | import('pg').PoolClient} executor
  * @param {{ tenantId: number; userId: string }} scope
- * @param {{ aligoUserId: string; apiKey?: string; defaultSender?: string }} input
+ * @param {{ aligoUserId: string; apiKey?: string; defaultSender?: string; adDisplayName?: string }} input
  */
 export async function upsertAligoSmsSettings(executor, scope, input) {
   if (!canStoreSmsCredentials()) {
@@ -80,6 +82,8 @@ export async function upsertAligoSmsSettings(executor, scope, input) {
   const providerUserId = String(input.aligoUserId ?? '').trim()
   const apiKey = String(input.apiKey ?? '').trim()
   const defaultSender = normalizeSenderNumber(input.defaultSender ?? '') ?? ''
+  const adDisplayNameRaw =
+    input.adDisplayName === undefined ? undefined : String(input.adDisplayName ?? '').trim()
 
   if (!providerUserId) {
     const err = new Error('sms_aligo_user_required')
@@ -114,6 +118,10 @@ export async function upsertAligoSmsSettings(executor, scope, input) {
   }
 
   if (existing) {
+    const nextAdDisplayName =
+      adDisplayNameRaw === undefined
+        ? String(existing.ad_display_name ?? '')
+        : adDisplayNameRaw || String(existing.ad_display_name ?? '')
     await systemQuery(
       executor,
       `
@@ -121,22 +129,38 @@ export async function upsertAligoSmsSettings(executor, scope, input) {
       SET provider_user_id = $3,
           api_key_encrypted = $4,
           default_sender = $5,
+          ad_display_name = $6,
           is_active = true,
           updated_at = NOW()
-      WHERE id = $1 AND tenant_id = $2 AND user_id = $6
+      WHERE id = $1 AND tenant_id = $2 AND user_id = $7
       `,
-      [existing.id, scope.tenantId, providerUserId, encrypted, defaultSender, scope.userId],
+      [
+        existing.id,
+        scope.tenantId,
+        providerUserId,
+        encrypted,
+        defaultSender,
+        nextAdDisplayName,
+        scope.userId,
+      ],
     )
   } else {
     await systemQuery(
       executor,
       `
       INSERT INTO sms_provider_accounts (
-        tenant_id, user_id, provider, provider_user_id, api_key_encrypted, default_sender, is_active
+        tenant_id, user_id, provider, provider_user_id, api_key_encrypted, default_sender, ad_display_name, is_active
       )
-      VALUES ($1, $2, 'aligo', $3, $4, $5, true)
+      VALUES ($1, $2, 'aligo', $3, $4, $5, $6, true)
       `,
-      [scope.tenantId, scope.userId, providerUserId, encrypted, defaultSender],
+      [
+        scope.tenantId,
+        scope.userId,
+        providerUserId,
+        encrypted,
+        defaultSender,
+        adDisplayNameRaw ?? '',
+      ],
     )
   }
 
@@ -260,5 +284,6 @@ export async function loadDecryptedAligoCredentials(executor, scope) {
     providerUserId,
     apiKey,
     defaultSender: String(row.default_sender ?? ''),
+    adDisplayName: String(row.ad_display_name ?? ''),
   }
 }

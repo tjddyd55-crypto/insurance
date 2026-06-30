@@ -1,5 +1,5 @@
 import {
-  SMS_AD_COMPANY_NAME,
+  SMS_AD_DISPLAY_NAME_PLACEHOLDER,
   SMS_AD_OPT_OUT_NUMBER,
   SMS_BYTE_LIMIT,
   SMS_DEDUCTION_LABELS,
@@ -26,7 +26,10 @@ export type SmsMessageMetaInput = {
   previewSubstitution?: SmsPreviewSubstitution
   /** @deprecated previewSubstitution 사용 */
   sampleVariables?: Partial<Record<SmsTemplateVariableKey, string>>
-  adCompanyName?: string
+  /** 문자 설정에 저장된 광고 표시명 (1순위) */
+  adDisplayName?: string | null
+  /** @deprecated adDisplayName 사용 */
+  adCompanyName?: string | null
   optOutNumber?: string | null
 }
 
@@ -47,6 +50,8 @@ export type SmsMessageMeta = {
   previewHeader: string | null
   previewFooter: string | null
   previewSubstitutionNotice: string | null
+  adDisplayNameMissing: boolean
+  adDisplayNameNotice: string | null
   charCount: number
   byteCount: number
   messageType: SmsTransportType
@@ -62,6 +67,26 @@ export type SmsMessageMeta = {
   /** @deprecated variablesSubstituted 사용 */
   usesSampleSubstitution: boolean
   transitionReason: string | null
+}
+
+export function resolveSmsAdDisplayName(options: {
+  savedAdDisplayName?: string | null
+  userDisplayName?: string | null
+  organizationDisplayName?: string | null
+}): string | null {
+  const saved = String(options.savedAdDisplayName ?? '').trim()
+  if (saved) {
+    return saved
+  }
+  const userDisplay = String(options.userDisplayName ?? '').trim()
+  if (userDisplay) {
+    return userDisplay
+  }
+  const organizationDisplay = String(options.organizationDisplayName ?? '').trim()
+  if (organizationDisplay) {
+    return organizationDisplay
+  }
+  return null
 }
 
 export function estimateSmsByteLength(text: string): number {
@@ -123,7 +148,7 @@ function normalizeInput(input: SmsMessageMetaInput | string, legacyOptions?: Sms
       isAdvertisement: legacyOptions?.messageType === 'ad',
       attachments: legacyOptions?.attachments,
       sampleVariables: legacyOptions?.sampleVars,
-      adCompanyName: legacyOptions?.adSenderLabel ?? SMS_AD_COMPANY_NAME,
+      adDisplayName: legacyOptions?.adSenderLabel ?? null,
     }
   }
   return input
@@ -148,13 +173,22 @@ export function calculateSmsMessageMeta(
   )
   const previewSubstitutionNotice = resolvePreviewSubstitutionNotice(previewSubstitution)
 
-  const adCompanyName = normalized.adCompanyName?.trim() || SMS_AD_COMPANY_NAME
+  const resolvedAdDisplayName =
+    normalized.adDisplayName?.trim() ||
+    normalized.adCompanyName?.trim() ||
+    null
+  const adDisplayNameMissing = isAdvertisement && !resolvedAdDisplayName
+  const adDisplayNameNotice = adDisplayNameMissing
+    ? '광고 표시명이 없습니다. 문자 설정에서 광고 표시명을 입력해 주세요.'
+    : null
+
   let previewHeader: string | null = null
   let previewFooter: string | null = null
   let composedForBytes = previewBody
 
   if (isAdvertisement) {
-    previewHeader = `(광고)${adCompanyName}`
+    const headerLabel = resolvedAdDisplayName ?? SMS_AD_DISPLAY_NAME_PLACEHOLDER
+    previewHeader = `(광고)${headerLabel}`
     previewFooter = optOutNumber ? `무료거부 ${optOutNumber}` : null
     composedForBytes = [previewHeader, previewBody, previewFooter].filter(Boolean).join('\n')
   }
@@ -172,6 +206,8 @@ export function calculateSmsMessageMeta(
     previewHeader,
     previewFooter,
     previewSubstitutionNotice,
+    adDisplayNameMissing,
+    adDisplayNameNotice,
     charCount,
     byteCount,
     messageType,

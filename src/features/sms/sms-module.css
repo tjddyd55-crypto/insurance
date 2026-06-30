@@ -283,6 +283,18 @@
   font-size: 0.9rem;
 }
 
+.sms-module__field-hint,
+.sms-module__field-desc {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.sms-module__field-desc {
+  color: var(--text-muted);
+}
+
 .sms-module__saved-row {
   margin: 0;
   display: flex;
@@ -502,6 +514,7 @@
 
 .sms-composer__variables-note,
 .sms-composer__ad-note,
+.sms-composer__ad-warning,
 .sms-composer__send-disabled-note,
 .sms-composer__scheduled-note,
 .sms-composer__attachment-disabled {
@@ -511,6 +524,10 @@
 }
 
 .sms-composer__send-disabled-note {
+  color: var(--warning-text);
+}
+
+.sms-composer__ad-warning {
   color: var(--warning-text);
 }
 

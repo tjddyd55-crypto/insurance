@@ -12,6 +12,7 @@ type Props = {
   isAdvertisement: boolean
   onAdvertisementChange: (value: boolean) => void
   senderNumber?: string
+  adDisplayName?: string | null
   attachment?: SmsPreviewAttachment
   previewSubstitution?: SmsPreviewSubstitution
   realSendEnabled: boolean
@@ -28,6 +29,7 @@ export default function SmsComposerLayout({
   isAdvertisement,
   onAdvertisementChange,
   senderNumber,
+  adDisplayName = null,
   attachment = null,
   previewSubstitution = { mode: 'preserve' },
   realSendEnabled,
@@ -39,6 +41,7 @@ export default function SmsComposerLayout({
   const { meta, transitionNotice, dismissTransitionNotice } = useSmsMessageComposeMeta({
     body: message,
     isAdvertisement,
+    adDisplayName,
     attachments: attachment ? [attachment] : [],
     previewSubstitution,
   })

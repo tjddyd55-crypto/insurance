@@ -21,7 +21,7 @@ export function useSmsMessageComposeMeta(input: SmsMessageMetaInput): {
 
   const meta = useMemo(
     () => calculateSmsMessageMeta(input),
-    [input.body, input.isAdvertisement, input.adCompanyName, input.optOutNumber, hasAttachment, substitutionKey],
+    [input.body, input.isAdvertisement, input.adDisplayName, input.adCompanyName, input.optOutNumber, hasAttachment, substitutionKey],
   )
 
   const prevTypeRef = useRef<SmsTransportType>(meta.messageType)

@@ -8,6 +8,7 @@ export interface SmsSettings {
   aligoUserId: string
   apiKeyMasked: string | null
   defaultSender: string
+  adDisplayName: string
   isActive: boolean
   lastBalanceCheckedAt: string | null
   outboundServerIpHint: string
@@ -27,6 +28,7 @@ export const EMPTY_SMS_SETTINGS: SmsSettings = {
   aligoUserId: '',
   apiKeyMasked: null,
   defaultSender: '',
+  adDisplayName: '',
   isActive: false,
   lastBalanceCheckedAt: null,
   outboundServerIpHint: '',
@@ -49,6 +51,7 @@ export function normalizeSmsSettings(raw: unknown): SmsSettings {
     aligoUserId: row.aligoUserId ?? '',
     apiKeyMasked: row.apiKeyMasked ?? null,
     defaultSender: row.defaultSender ?? '',
+    adDisplayName: row.adDisplayName ?? '',
     outboundServerIpHint: row.outboundServerIpHint ?? '',
     aligoApiSettingsUrl: row.aligoApiSettingsUrl ?? EMPTY_SMS_SETTINGS.aligoApiSettingsUrl,
   }

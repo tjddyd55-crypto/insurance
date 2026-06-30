@@ -57,6 +57,7 @@ function createMockPool(state) {
           provider_user_id: params[2],
           api_key_encrypted: params[3],
           default_sender: params[4],
+          ad_display_name: params[5] ?? '',
           is_active: true,
         }
         state.accounts = state.accounts ?? []
@@ -73,6 +74,7 @@ function createMockPool(state) {
           row.provider_user_id = params[2]
           row.api_key_encrypted = params[3]
           row.default_sender = params[4]
+          row.ad_display_name = params[5] ?? row.ad_display_name ?? ''
         }
         return { rowCount: 1, rows: [row] }
       }

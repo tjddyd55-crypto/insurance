@@ -1,6 +1,6 @@
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { assertSmsRealSendAllowed } from './smsModuleConfig.js'
-import { renderSmsTemplate, resolveMessageType } from './smsMessageUtils.js'
+import { composeAdvertisementSmsMessage, renderSmsTemplate, resolveMessageType } from './smsMessageUtils.js'
 import { isValidKoreanMobilePhone, normalizeSenderNumber, normalizeSmsPhone } from './smsPhone.js'
 import { resolveSmsProvider } from './smsProviderFactory.js'
 import { assertCustomerOwnedByScope, assertOwnedSenderNumber, loadOptOutPhoneSet } from './smsScope.js'
@@ -69,7 +69,21 @@ export async function sendSingleSms(executor, scope, input) {
 
   const creds = await loadDecryptedAligoCredentials(executor, scope)
   const provider = resolveSmsProvider()
-  const aligoMsgType = resolveMessageType(message)
+  let messageToSend = message
+  if (messageType === 'ad') {
+    const composed = composeAdvertisementSmsMessage({
+      body: message,
+      adDisplayName: creds.adDisplayName,
+    })
+    if (!composed.ok) {
+      const err = new Error(composed.code)
+      err.status = 400
+      err.publicMessage = composed.publicMessage
+      throw err
+    }
+    messageToSend = composed.message
+  }
+  const aligoMsgType = resolveMessageType(messageToSend)
 
   const campaignIns = await systemQuery(
     executor,
@@ -88,7 +102,7 @@ export async function sendSingleSms(executor, scope, input) {
   const sendResult = await provider.send({
     to: receiver,
     from: senderNumber,
-    message,
+    message: messageToSend,
     title: input.title,
     messageType: aligoMsgType,
     providerUserId: creds.providerUserId,
@@ -111,7 +125,7 @@ export async function sendSingleSms(executor, scope, input) {
       campaignId,
       input.customerId ?? null,
       receiver,
-      message,
+      messageToSend,
       recipientStatus,
       sendResult.providerMessageId ?? null,
       sendResult.success ? null : sendResult.errorMessage ?? '발송 실패',

@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react'
 import FormButton from '../../../components/form/FormButton'
 import FormInput from '../../../components/form/FormInput'
+import { useAuth } from '../../auth/AuthProvider'
 import SmsComposerLayout, { SmsComposerSetupFields } from './composer/SmsComposerLayout'
 import type { SmsModuleViewProps } from '../hooks/useSmsModuleState'
 import { SMS_EXPLICIT_SAMPLE_VALUES } from '../config/smsCompose.config'
 import { ALIGO_API_SETTINGS_URL, formatKrMobileDisplay } from '../smsDisplayUtils'
+import { resolveSmsAdDisplayName } from '../utils/smsMessageMeta'
 import type { SmsPreviewSubstitution } from '../utils/smsTemplateVariables'
 import type { SmsModuleTab } from '../types/sms.types'
 
@@ -181,9 +183,19 @@ export default function SmsModuleBody(props: Props) {
     handleRemoveOptOut,
   } = props
 
+  const { user } = useAuth()
   const [bulkSampleCustomerId, setBulkSampleCustomerId] = useState<number | null>(null)
   const [templateSamplePreviewEnabled, setTemplateSamplePreviewEnabled] = useState(false)
   const realSendEnabled = Boolean(settings?.realSendEnabled)
+  const resolvedAdDisplayName = useMemo(
+    () =>
+      resolveSmsAdDisplayName({
+        savedAdDisplayName: settings?.adDisplayName,
+        userDisplayName: user?.displayName,
+        organizationDisplayName: user?.gaName,
+      }),
+    [settings?.adDisplayName, user?.displayName, user?.gaName],
+  )
   const defaultSenderDisplay = formatKrMobileDisplay(
     settings?.defaultSender || sendForm.senderNumber || bulkForm.senderNumber,
   )
@@ -287,6 +299,29 @@ export default function SmsModuleBody(props: Props) {
                 onChange={(e) => setSettingsForm((p) => ({ ...p, defaultSenderChange: e.target.value }))}
               />
             </div>
+
+            <div className="sms-module__field-block">
+              <span className="sms-module__field-title">광고 표시명</span>
+              <p className="sms-module__field-hint">
+                광고 표시명은 광고성 문자 맨 앞에 `(광고)`와 함께 표시됩니다.
+              </p>
+              <p className="sms-module__field-hint">
+                예: `(광고)박성용` / 본문 / `무료거부 0808811258`
+              </p>
+              <p className="sms-module__field-desc">
+                광고성 문자에 표시될 이름입니다. 예: 박성용, ○○보험대리점, ○○팀
+              </p>
+              {settings?.adDisplayName ? (
+                <SavedValueRow label="저장됨:" value={settings.adDisplayName} />
+              ) : null}
+              <FormInput
+                placeholder={settings?.adDisplayName ? '변경 시에만 입력' : '광고 표시명'}
+                value={settingsForm.adDisplayNameChange}
+                onChange={(e) =>
+                  setSettingsForm((p) => ({ ...p, adDisplayNameChange: e.target.value }))
+                }
+              />
+            </div>
           </div>
           <div className="sms-module__actions">
             <FormButton type="button" disabled={busy || moduleDisabled} onClick={() => void handleSaveSettings()}>
@@ -356,6 +391,7 @@ export default function SmsModuleBody(props: Props) {
               setSendForm((p) => ({ ...p, messageType: checked ? 'ad' : 'info' }))
             }
             senderNumber={settings?.defaultSender || sendForm.senderNumber}
+            adDisplayName={resolvedAdDisplayName}
             previewSubstitution={{ mode: 'preserve' }}
             realSendEnabled={realSendEnabled}
             disabled={busy}
@@ -412,6 +448,7 @@ export default function SmsModuleBody(props: Props) {
               setBulkForm((p) => ({ ...p, messageType: checked ? 'ad' : 'info' }))
             }
             senderNumber={bulkForm.senderNumber || settings?.defaultSender}
+            adDisplayName={resolvedAdDisplayName}
             previewSubstitution={bulkPreviewSubstitution}
             realSendEnabled={realSendEnabled}
             disabled={busy}
@@ -579,6 +616,7 @@ export default function SmsModuleBody(props: Props) {
               setTemplateForm((p) => ({ ...p, messageType: checked ? 'ad' : 'info' }))
             }
             senderNumber={settings?.defaultSender}
+            adDisplayName={resolvedAdDisplayName}
             previewSubstitution={templatePreviewSubstitution}
             realSendEnabled={realSendEnabled}
             disabled={busy}

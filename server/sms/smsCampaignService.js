@@ -1,6 +1,6 @@
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { assertSmsRealSendAllowed } from './smsModuleConfig.js'
-import { renderSmsTemplate, resolveMessageType } from './smsMessageUtils.js'
+import { composeAdvertisementSmsMessage, renderSmsTemplate, resolveMessageType } from './smsMessageUtils.js'
 import { isValidKoreanMobilePhone, normalizeSenderNumber, normalizeSmsPhone } from './smsPhone.js'
 import { resolveSmsProvider } from './smsProviderFactory.js'
 import { assertOwnedSenderNumber, assertCustomerOwnedByScope, loadOptOutPhoneSet } from './smsScope.js'
@@ -92,6 +92,19 @@ export async function previewSmsCampaign(executor, scope, input) {
     requireVerified: true,
   })
 
+  const messageType = input.messageType === 'ad' ? 'ad' : 'info'
+  let adDisplayName = ''
+  if (messageType === 'ad') {
+    const creds = await loadDecryptedAligoCredentials(executor, scope)
+    adDisplayName = String(creds.adDisplayName ?? '').trim()
+    if (!adDisplayName) {
+      const err = new Error('sms_ad_display_name_required')
+      err.status = 400
+      err.publicMessage = '광고 표시명을 문자 설정에서 입력해 주세요.'
+      throw err
+    }
+  }
+
   const customers = await loadCampaignTargetCustomers(executor, scope, input)
   const skipCounts = {
     no_phone: 0,
@@ -125,17 +138,31 @@ export async function previewSmsCampaign(executor, scope, input) {
       continue
     }
     const customerName = String(row.name ?? '').trim()
+    const renderedBody = renderSmsTemplate(messageTemplate, { customerName })
+    let sampleMessage = renderedBody
+    if (messageType === 'ad') {
+      const composed = composeAdvertisementSmsMessage({
+        body: renderedBody,
+        adDisplayName,
+      })
+      sampleMessage = composed.ok ? composed.message : renderedBody
+    }
     sendable.push({
       customerId: Number(row.id),
       customerName,
       phone,
-      sampleMessage: renderSmsTemplate(messageTemplate, { customerName }),
+      sampleMessage,
     })
   }
 
+  const previewTypeSource =
+    messageType === 'ad' && sendable[0]?.sampleMessage
+      ? sendable[0].sampleMessage
+      : messageTemplate
+
   return {
     senderNumber,
-    messageTypeDetected: resolveMessageType(messageTemplate),
+    messageTypeDetected: resolveMessageType(previewTypeSource),
     sendableCount: sendable.length,
     skippedCount: Object.values(skipCounts).reduce((a, b) => a + b, 0),
     skipReasonCounts: skipCounts,
@@ -473,11 +500,33 @@ export async function sendSmsCampaignNow(executor, scope, campaignId, input = {}
       }
     }
 
+    let messageToSend = String(row.message)
+    if (campaign.messageType === 'ad') {
+      const composed = composeAdvertisementSmsMessage({
+        body: messageToSend,
+        adDisplayName: creds.adDisplayName,
+      })
+      if (!composed.ok) {
+        failCount += 1
+        await systemQuery(
+          executor,
+          `
+          UPDATE sms_recipients
+          SET status = 'failed', fail_reason = $2
+          WHERE id = $1 AND status = 'pending'
+          `,
+          [row.id, composed.publicMessage],
+        )
+        continue
+      }
+      messageToSend = composed.message
+    }
+
     const sendResult = await provider.send({
       to: phone,
       from: campaign.senderNumber,
-      message: String(row.message),
-      messageType: resolveMessageType(String(row.message)),
+      message: messageToSend,
+      messageType: resolveMessageType(messageToSend),
       providerUserId: creds.providerUserId,
       apiKey: creds.apiKey,
       requestId: `campaign:${campaignId}:recipient:${row.id}`,

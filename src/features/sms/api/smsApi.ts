@@ -35,6 +35,7 @@ export async function saveSmsSettings(
     aligoUserId: string
     apiKey?: string
     defaultSender?: string
+    adDisplayName?: string
   },
 ): Promise<SmsSettings> {
   const raw = await apiRequest<SmsSettings>('/api/sms/settings/aligo', {
@@ -44,6 +45,7 @@ export async function saveSmsSettings(
       aligo_user_id: input.aligoUserId,
       api_key: input.apiKey,
       default_sender: input.defaultSender,
+      ad_display_name: input.adDisplayName,
     }),
   })
   return normalizeSmsSettings(raw)

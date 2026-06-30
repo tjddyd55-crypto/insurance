@@ -96,6 +96,9 @@ export default function SmsMessageEditor({
             ? `(광고) 표시와 무료거부 ${SMS_AD_OPT_OUT_NUMBER} 문구가 미리보기·byte 계산에 포함됩니다.`
             : '광고성 문자가 아니면 본문만 표시됩니다.'}
         </p>
+        {isAdvertisement && meta.adDisplayNameMissing ? (
+          <p className="sms-composer__ad-warning">{meta.adDisplayNameNotice}</p>
+        ) : null}
       </div>
 
       <div className="sms-composer__attachment">
