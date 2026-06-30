@@ -7,8 +7,6 @@ import {
   createSmsTemplate,
   deleteSmsSettings,
   deleteSmsTemplate,
-  detectSmsType,
-  estimateSmsBytes,
   fetchSmsBalance,
   fetchSmsCampaigns,
   fetchSmsHistory,
@@ -35,6 +33,7 @@ import {
   type SmsSettings,
   type SmsTemplate,
 } from '../types/sms.types'
+import type { SmsPreviewAttachment } from '../utils/smsMessageMeta'
 
 export type SmsModuleViewProps = ReturnType<typeof useSmsModuleState>
 
@@ -74,6 +73,7 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
     receiver: '',
     message: '',
     messageType: 'info' as 'info' | 'ad',
+    imageAttachment: null as SmsPreviewAttachment,
   })
 
   const [bulkForm, setBulkForm] = useState({
@@ -83,12 +83,14 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
     customerIdsText: '',
     scheduledAt: '',
     messageType: 'info' as 'info' | 'ad',
+    imageAttachment: null as SmsPreviewAttachment,
   })
 
   const [templateForm, setTemplateForm] = useState({
     title: '',
     message: '',
     messageType: 'info' as 'info' | 'ad',
+    imageAttachment: null as SmsPreviewAttachment,
   })
 
   const [optOutForm, setOptOutForm] = useState({ phone: '', reason: '' })
@@ -353,7 +355,7 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
   const handleSaveTemplate = useCallback(async () => {
     await runBusy(async () => {
       await createSmsTemplate(token, templateForm)
-      setTemplateForm({ title: '', message: '', messageType: 'info' })
+      setTemplateForm({ title: '', message: '', messageType: 'info', imageAttachment: null })
       setNotice('템플릿을 저장했습니다.')
       await reloadCore()
     })
@@ -388,22 +390,6 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
       })
     },
     [runBusy, reloadCore, token],
-  )
-
-  const sendByteInfo = useMemo(
-    () => ({
-      bytes: estimateSmsBytes(sendForm.message),
-      type: detectSmsType(sendForm.message),
-    }),
-    [sendForm.message],
-  )
-
-  const bulkByteInfo = useMemo(
-    () => ({
-      bytes: estimateSmsBytes(bulkForm.message),
-      type: detectSmsType(bulkForm.message),
-    }),
-    [bulkForm.message],
   )
 
   const scheduledCampaigns = useMemo(
@@ -442,8 +428,6 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
     setTemplateForm,
     optOutForm,
     setOptOutForm,
-    sendByteInfo,
-    bulkByteInfo,
     reloadCore,
     handleSaveSettings,
     handleDeleteSettings,
