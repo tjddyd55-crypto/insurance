@@ -64,13 +64,11 @@ export default function SmsPhonePreview({
             </div>
           ) : null}
 
-          <div className="sms-composer__phone-bubble">
-            <p
-              className={`sms-composer__phone-message${isEmpty ? ' sms-composer__phone-message--empty' : ''}`}
-            >
-              {isEmpty ? '보낼 문자 내용을 입력해 주세요.' : messageText}
-            </p>
-          </div>
+          <p
+            className={`sms-composer__phone-text${isEmpty ? ' sms-composer__phone-text--empty' : ''}`}
+          >
+            {isEmpty ? '보낼 문자 내용을 입력해 주세요.' : messageText}
+          </p>
         </div>
       </div>
 

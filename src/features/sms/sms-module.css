@@ -718,6 +718,7 @@
 .sms-composer--pc .sms-composer__phone {
   width: 390px;
   max-width: 390px;
+  min-height: 640px;
 }
 
 .sms-composer__phone {
@@ -726,6 +727,8 @@
   background: var(--bg-surface);
   box-shadow: 0 8px 24px var(--shadow-card);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .sms-composer--mobile .sms-composer__phone {
@@ -777,54 +780,59 @@
 
 .sms-composer--pc .sms-composer__phone-screen {
   width: 342px;
+  min-height: 540px;
   margin: 0 auto;
   box-sizing: border-box;
+  flex: 1 1 auto;
 }
 
 .sms-composer__phone-screen {
-  min-height: 280px;
-  padding: 0.85rem 0.75rem 1rem;
+  min-height: 420px;
+  padding: 14px 16px 20px;
   background: #eceff1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  box-sizing: border-box;
 }
 
 .sms-composer__phone-image-wrap {
-  margin-bottom: 0.65rem;
+  margin-bottom: 0.75rem;
+  width: 100%;
 }
 
 .sms-composer__phone-image {
   width: 100%;
-  max-height: 160px;
+  max-height: 180px;
   object-fit: cover;
-  border-radius: 12px;
-  border: 1px solid var(--border-default);
+  border-radius: 8px;
 }
 
-.sms-composer--pc .sms-composer__phone-bubble {
-  max-width: 306px;
+.sms-composer--pc .sms-composer__phone-text {
+  width: 310px;
+  max-width: 310px;
 }
 
-.sms-composer__phone-bubble {
-  max-width: min(306px, calc(100% - 0.5rem));
-  margin-right: auto;
-  margin-left: 0;
-  padding: 0.7rem 0.8rem;
-  border-radius: 18px;
-  background: #ffffff;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: none;
-}
-
-.sms-composer__phone-message {
+.sms-composer__phone-text {
   margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+  background: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
   white-space: pre-wrap;
   word-break: break-word;
   overflow-wrap: anywhere;
-  color: var(--text-primary);
-  font-size: 0.88rem;
-  line-height: 1.45;
+  text-align: left;
+  align-self: flex-start;
+  color: #1f2937;
+  font-size: 0.94rem;
+  line-height: 1.55;
 }
 
-.sms-composer__phone-message--empty {
+.sms-composer__phone-text--empty {
   color: var(--text-secondary);
 }
 

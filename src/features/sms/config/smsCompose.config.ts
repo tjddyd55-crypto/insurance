@@ -8,8 +8,15 @@ export const SMS_COMPOSER_PC_MAX_WIDTH = 1134
 export const SMS_COMPOSER_PC_EDITOR_WIDTH = 620
 export const SMS_COMPOSER_PC_PREVIEW_WIDTH = 390
 export const SMS_COMPOSER_PC_COLUMN_GAP = 24
+/** 휴대폰 프레임 내부 screen (px) — 줄바꿈 예측 기준 폭 */
 export const SMS_PHONE_SCREEN_WIDTH = 342
-export const SMS_PHONE_BUBBLE_MAX_WIDTH = 306
+export const SMS_PHONE_SCREEN_MIN_HEIGHT = 540
+/** screen 좌우 padding 합산 후 본문 렌더 폭 (342 - 16*2) */
+export const SMS_PHONE_TEXT_AREA_WIDTH = 310
+export const SMS_PHONE_TEXT_PADDING_X = 16
+export const SMS_PHONE_TEXT_PADDING_Y = 14
+/** @deprecated use SMS_PHONE_TEXT_AREA_WIDTH */
+export const SMS_PHONE_BUBBLE_MAX_WIDTH = SMS_PHONE_TEXT_AREA_WIDTH
 
 /**
  * 명시적 "샘플 미리보기" 토글에서만 사용.
