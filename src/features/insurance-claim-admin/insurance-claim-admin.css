@@ -166,13 +166,39 @@
 .insurance-claim-admin-page--document-editor .pdf-engine-editor {
   width: 100%;
   overflow-x: auto;
+  align-items: stretch;
+}
+
+.insurance-claim-admin-page--document-editor .pdf-engine-editor__page-overflow-warning {
+  grid-column: 1 / -1;
+}
+
+.insurance-claim-admin-page--document-editor .pdf-engine-editor__panel--fields,
+.insurance-claim-admin-page--document-editor .pdf-engine-editor__panel--config,
+.insurance-claim-admin-page--document-editor .pdf-engine-editor__panel--preview {
+  height: calc(100vh - 220px);
+  max-height: calc(100vh - 220px);
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.insurance-claim-admin-page--document-editor .pdf-engine-editor__panel--fields,
+.insurance-claim-admin-page--document-editor .pdf-engine-editor__panel--config {
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .insurance-claim-admin-page--document-editor .pdf-engine-editor__panel--preview {
   min-width: 720px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .insurance-claim-admin-page--document-editor .pdf-engine-editor__preview-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
   overflow-x: auto;
   overflow-y: auto;
 }
@@ -185,4 +211,21 @@
 
 .insurance-claim-admin-page--document-editor .pdf-engine-editor__overlay--a4-page {
   max-width: none;
+}
+
+@media (max-width: 1024px) {
+  .insurance-claim-admin-page--document-editor .pdf-engine-editor__panel--fields,
+  .insurance-claim-admin-page--document-editor .pdf-engine-editor__panel--config,
+  .insurance-claim-admin-page--document-editor .pdf-engine-editor__panel--preview {
+    height: auto;
+    max-height: none;
+  }
+
+  .insurance-claim-admin-page--document-editor .pdf-engine-editor__panel--preview {
+    min-width: 0;
+  }
+
+  .insurance-claim-admin-page--document-editor .pdf-engine-editor__preview-scroll {
+    max-height: min(80vh, calc(100vh - 140px));
+  }
 }
