@@ -452,11 +452,7 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
   }
 
   return (
-    <main className="user-page pdf-engine-page pdf-engine-page--editor">
-      <div className="pdf-engine-page__header">
-        <h1 className="pdf-engine-page__title">PDF 템플릿 편집</h1>
-        {headerMeta}
-      </div>
+    <main className="user-page pdf-engine-page pdf-engine-page--editor pdf-engine-page--template-editor">
       <div className="pdf-engine-page__toolbar">
         <Link to="/admin/pdf-templates" className="pdf-engine-editor__btn">
           ← 목록
@@ -469,12 +465,17 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
         >
           {saving ? '저장 중…' : '저장'}
         </FormButton>
-        {toast ? <span className="pdf-engine-page__hint">{toast}</span> : null}
+        {toast ? <span className="pdf-engine-page__hint pdf-engine-page__hint--inline">{toast}</span> : null}
       </div>
 
-      <section className="pdf-engine-form pdf-engine-form--inline">
+      <div className="pdf-engine-page__header">
+        <h1 className="pdf-engine-page__title">PDF 템플릿 편집</h1>
+        {headerMeta}
+      </div>
+
+      <section className="pdf-engine-form pdf-engine-form--inline pdf-engine-form--meta-compact">
         <label className="pdf-engine-editor__label">
-          소속 GA (미지정이면 전 GA 공용)
+          소속 GA
           <FormSelect
             value={gaId === '' ? '' : String(gaId)}
             options={[
@@ -492,14 +493,13 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
           설명
           <FormInput type="text" value={description} onChange={(e) => setDescription(e.target.value)} />
         </label>
-        <label className="pdf-engine-editor__label" style={{ flex: '0 0 auto' }}>
+        <label className="pdf-engine-editor__label pdf-engine-editor__label--checkbox">
           <FormInput
             type="checkbox"
             checked={isActive}
             onChange={(e) => setIsActive(e.target.checked)}
-            style={{ width: 'auto' }}
           />{' '}
-          활성 (사용자에게 노출)
+          활성
         </label>
       </section>
 

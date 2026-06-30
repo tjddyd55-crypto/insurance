@@ -350,10 +350,6 @@
   align-items: stretch;
 }
 
-.pdf-engine-page--editor:has(.pdf-engine-form--inline) .pdf-engine-editor--compact {
-  --pdf-engine-compact-panel-height: calc(100vh - 340px);
-}
-
 .pdf-engine-editor--compact .pdf-engine-editor__page-overflow-warning {
   grid-column: 1 / -1;
 }
@@ -1164,8 +1160,39 @@
   flex-direction: row;
   align-items: flex-end;
   flex-wrap: wrap;
-  gap: 12px;
-  padding: 0 0 16px;
+  gap: 8px;
+  padding: 0 0 8px;
+}
+
+/* 일반 PDF 템플릿 편집 — 상단 문서 설정만 compact, 좌표 에디터 높이는 공통 compact 기준 */
+.pdf-engine-page--template-editor {
+  padding: 16px 32px 24px;
+}
+
+.pdf-engine-page--template-editor .pdf-engine-page__toolbar {
+  margin-bottom: 8px;
+}
+
+.pdf-engine-page--template-editor .pdf-engine-page__header {
+  margin-bottom: 8px;
+}
+
+.pdf-engine-page--template-editor .pdf-engine-page__hint--inline {
+  margin: 0;
+}
+
+.pdf-engine-form--meta-compact .pdf-engine-editor__label {
+  flex: 1 1 160px;
+  min-width: 140px;
+  margin: 0;
+  font-size: 12px;
+  gap: 4px;
+}
+
+.pdf-engine-form--meta-compact .pdf-engine-editor__label--checkbox {
+  flex: 0 0 auto;
+  align-self: center;
+  white-space: nowrap;
 }
 
 /* ─── 사용자 문서 신청(PC/모바일) ───────────────────────────────── */
