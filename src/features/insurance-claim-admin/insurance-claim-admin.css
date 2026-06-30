@@ -146,3 +146,18 @@
     white-space: nowrap;
   }
 }
+
+/* 좌표 설정 — 작업용 전체 폭 (일반 목록/상세 max-width 제외) */
+.insurance-claim-admin-page--document-editor {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 24px 32px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .insurance-claim-admin-page--document-editor {
+    padding: 16px;
+  }
+}

@@ -111,7 +111,7 @@ export default function InsuranceClaimDocumentEditorPage() {
       : '청구 문서'
 
   return (
-    <main className="user-page pdf-engine-page pdf-engine-page--editor insurance-claim-admin-page">
+    <main className="user-page pdf-engine-page pdf-engine-page--editor insurance-claim-admin-page insurance-claim-admin-page--document-editor">
       <div className="insurance-claim-admin-page__toolbar">
         <Link to={`/admin/claim/insurance-companies/${companyId}`} className="insurance-claim-admin-link">
           ← 보험회사 상세
@@ -136,6 +136,7 @@ export default function InsuranceClaimDocumentEditorPage() {
       {loading ? <p className="insurance-claim-admin-page__hint">불러오는 중…</p> : null}
       {!loading && pdfBuffer ? (
         <PdfCoordinateEditor
+          layout="sidebar-preview"
           pdfBuffer={pdfBuffer}
           pageCount={pageCount}
           fields={fields}
