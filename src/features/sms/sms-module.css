@@ -320,17 +320,32 @@
 }
 
 .sms-composer {
+  --sms-composer-editor-width: 620px;
+  --sms-composer-preview-width: 360px;
+  --sms-composer-column-gap: 24px;
+  --sms-composer-max-width: 1004px;
+  --sms-phone-preview-width: 360px;
+  --sms-phone-screen-width: 300px;
+  --sms-phone-text-width: 276px;
+  --sms-phone-screen-padding-x: 12px;
+  --sms-phone-screen-padding-y: 14px;
+  --sms-phone-screen-padding-bottom: 20px;
+  --sms-phone-outer-min-height: 640px;
+  --sms-phone-screen-min-height-pc: 540px;
+  --sms-phone-screen-min-height-mobile: 420px;
+  --sms-phone-text-font-size: 16px;
+  --sms-phone-text-line-height: 1.55;
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
 .sms-composer--pc {
-  max-width: 1134px;
+  max-width: var(--sms-composer-max-width);
 }
 
 .sms-composer--pc .sms-composer__below {
-  max-width: 1134px;
+  max-width: var(--sms-composer-max-width);
 }
 
 .sms-composer__transition-dismiss,
@@ -359,9 +374,9 @@
 
 .sms-composer--pc .sms-composer__workspace {
   display: grid;
-  grid-template-columns: 620px 390px;
-  gap: 24px;
-  max-width: 1134px;
+  grid-template-columns: var(--sms-composer-editor-width) var(--sms-composer-preview-width);
+  gap: var(--sms-composer-column-gap);
+  max-width: var(--sms-composer-max-width);
   align-items: start;
 }
 
@@ -373,8 +388,8 @@
 }
 
 .sms-composer--pc .sms-composer__main {
-  width: 620px;
-  max-width: 620px;
+  width: var(--sms-composer-editor-width);
+  max-width: var(--sms-composer-editor-width);
 }
 
 .sms-composer__main {
@@ -699,8 +714,8 @@
 .sms-composer--pc .sms-composer__preview-panel {
   position: sticky;
   top: 0.75rem;
-  width: 390px;
-  max-width: 390px;
+  width: var(--sms-composer-preview-width);
+  max-width: var(--sms-composer-preview-width);
 }
 
 .sms-composer__preview-panel {
@@ -711,14 +726,14 @@
 .sms-composer--mobile .sms-composer__preview-panel {
   position: static;
   width: 100%;
-  max-width: 390px;
+  max-width: var(--sms-phone-preview-width);
   margin: 0 auto;
 }
 
 .sms-composer--pc .sms-composer__phone {
-  width: 390px;
-  max-width: 390px;
-  min-height: 640px;
+  width: var(--sms-phone-preview-width);
+  max-width: var(--sms-phone-preview-width);
+  min-height: var(--sms-phone-outer-min-height);
 }
 
 .sms-composer__phone {
@@ -733,7 +748,7 @@
 
 .sms-composer--mobile .sms-composer__phone {
   width: 100%;
-  max-width: 390px;
+  max-width: var(--sms-phone-preview-width);
   margin: 0 auto;
 }
 
@@ -779,21 +794,28 @@
 }
 
 .sms-composer--pc .sms-composer__phone-screen {
-  width: 342px;
-  min-height: 540px;
+  width: var(--sms-phone-screen-width);
+  min-height: var(--sms-phone-screen-min-height-pc);
   margin: 0 auto;
   box-sizing: border-box;
   flex: 1 1 auto;
 }
 
 .sms-composer__phone-screen {
-  min-height: 420px;
-  padding: 14px 16px 20px;
+  min-height: var(--sms-phone-screen-min-height-mobile);
+  padding: var(--sms-phone-screen-padding-y) var(--sms-phone-screen-padding-x)
+    var(--sms-phone-screen-padding-bottom);
   background: #eceff1;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   box-sizing: border-box;
+}
+
+.sms-composer--mobile .sms-composer__phone-screen {
+  width: calc(100% - 24px);
+  max-width: var(--sms-phone-screen-width);
+  margin-inline: auto;
 }
 
 .sms-composer__phone-image-wrap {
@@ -809,8 +831,8 @@
 }
 
 .sms-composer--pc .sms-composer__phone-text {
-  width: 310px;
-  max-width: 310px;
+  width: var(--sms-phone-text-width);
+  max-width: var(--sms-phone-text-width);
 }
 
 .sms-composer__phone-text {
@@ -828,8 +850,14 @@
   text-align: left;
   align-self: flex-start;
   color: #1f2937;
-  font-size: 0.94rem;
-  line-height: 1.55;
+  font-size: var(--sms-phone-text-font-size);
+  line-height: var(--sms-phone-text-line-height);
+  letter-spacing: 0;
+}
+
+.sms-composer--mobile .sms-composer__phone-text {
+  width: min(var(--sms-phone-text-width), calc(100% - 24px));
+  max-width: min(var(--sms-phone-text-width), calc(100% - 24px));
 }
 
 .sms-composer__phone-text--empty {
@@ -845,7 +873,7 @@
 .sms-composer--pc .sms-composer__below,
 .sms-composer--pc .sms-composer__campaign-preview,
 .sms-composer--pc .sms-composer__template-list {
-  max-width: 1134px;
+  max-width: var(--sms-composer-max-width);
 }
 
 .sms-composer__recipient-summary {

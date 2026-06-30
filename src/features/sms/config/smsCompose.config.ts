@@ -3,17 +3,22 @@ export const SMS_BYTE_LIMIT = 90
 /** @deprecated use SMS_BYTE_LIMIT */
 export const SMS_BYTE_LIMIT_SMS = SMS_BYTE_LIMIT
 
-/** PC composer 고정폭 (px) */
-export const SMS_COMPOSER_PC_MAX_WIDTH = 1134
+/** PC composer 고정폭 (px) — editor 620 + gap 24 + preview 360 */
 export const SMS_COMPOSER_PC_EDITOR_WIDTH = 620
-export const SMS_COMPOSER_PC_PREVIEW_WIDTH = 390
+export const SMS_COMPOSER_PC_PREVIEW_WIDTH = 360
 export const SMS_COMPOSER_PC_COLUMN_GAP = 24
-/** 휴대폰 프레임 내부 screen (px) — 줄바꿈 예측 기준 폭 */
-export const SMS_PHONE_SCREEN_WIDTH = 342
+export const SMS_COMPOSER_PC_MAX_WIDTH =
+  SMS_COMPOSER_PC_EDITOR_WIDTH + SMS_COMPOSER_PC_COLUMN_GAP + SMS_COMPOSER_PC_PREVIEW_WIDTH
+
+/** 휴대폰 미리보기 프레임 (px) — 알리고 줄바꿈 예측 기준 */
+export const SMS_PHONE_PREVIEW_WIDTH = SMS_COMPOSER_PC_PREVIEW_WIDTH
+export const SMS_PHONE_SCREEN_WIDTH = 300
 export const SMS_PHONE_SCREEN_MIN_HEIGHT = 540
-/** screen 좌우 padding 합산 후 본문 렌더 폭 (342 - 16*2) */
-export const SMS_PHONE_TEXT_AREA_WIDTH = 310
-export const SMS_PHONE_TEXT_PADDING_X = 16
+export const SMS_PHONE_OUTER_MIN_HEIGHT = 640
+/** screen 좌우 padding 합산 후 본문 렌더 폭 (300 - 12*2) */
+export const SMS_PHONE_TEXT_AREA_WIDTH = 276
+export const SMS_PHONE_TEXT_WIDTH = SMS_PHONE_TEXT_AREA_WIDTH
+export const SMS_PHONE_TEXT_PADDING_X = 12
 export const SMS_PHONE_TEXT_PADDING_Y = 14
 /** @deprecated use SMS_PHONE_TEXT_AREA_WIDTH */
 export const SMS_PHONE_BUBBLE_MAX_WIDTH = SMS_PHONE_TEXT_AREA_WIDTH
