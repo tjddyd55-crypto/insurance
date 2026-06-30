@@ -3,6 +3,7 @@ import type { SmsTransportType } from '../../utils/smsMessageMeta'
 type Props = {
   activeType: SmsTransportType
   pulse?: boolean
+  compact?: boolean
 }
 
 const ITEMS: Array<{ id: SmsTransportType; short: string; label: string; icon: string }> = [
@@ -11,10 +12,10 @@ const ITEMS: Array<{ id: SmsTransportType; short: string; label: string; icon: s
   { id: 'MMS', short: 'MMS', label: '그림', icon: '🖼' },
 ]
 
-export default function SmsMessageTypeBadge({ activeType, pulse = false }: Props) {
+export default function SmsMessageTypeBadge({ activeType, pulse = false, compact = false }: Props) {
   return (
     <div
-      className={`sms-composer__type-badges${pulse ? ' sms-composer__type-badges--pulse' : ''}`}
+      className={`sms-composer__type-badges${compact ? ' sms-composer__type-badges--compact' : ''}${pulse ? ' sms-composer__type-badges--pulse' : ''}`}
       aria-label="발송 유형"
     >
       {ITEMS.map((item) => (

@@ -329,64 +329,8 @@
   max-width: 1134px;
 }
 
-.sms-composer__status-card {
-  padding: 1rem;
-  border: 1px solid var(--border-default);
-  border-radius: 14px;
-  background: var(--bg-surface);
-  box-shadow: 0 1px 2px var(--shadow-card);
-}
-
-.sms-composer--pc .sms-composer__status-card,
 .sms-composer--pc .sms-composer__below {
   max-width: 1134px;
-}
-
-.sms-composer__status-main {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 0.75rem;
-  align-items: flex-start;
-}
-
-.sms-composer__status-title,
-.sms-composer__status-byte {
-  margin: 0;
-  color: var(--text-primary);
-}
-
-.sms-composer__status-flag {
-  margin: 0.35rem 0 0;
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-}
-
-.sms-composer__status-flag--warn {
-  color: var(--warning-text);
-  font-weight: 600;
-}
-
-.sms-composer__status-hints {
-  margin: 0.75rem 0 0;
-  padding-left: 1.1rem;
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-}
-
-.sms-composer__transition-banner,
-.sms-composer__preview-transition {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.5rem;
-  align-items: center;
-  margin-top: 0.75rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: 8px;
-  background: var(--accent-soft);
-  color: var(--warning-text);
-  font-size: 0.85rem;
-  font-weight: 600;
 }
 
 .sms-composer__transition-dismiss,
@@ -398,27 +342,19 @@
   font-weight: 600;
 }
 
-.sms-composer__balance-strip {
-  margin-top: 0.85rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--border-subtle);
-}
-
-.sms-composer__balance-label,
-.sms-composer__deduction {
-  margin: 0.15rem 0 0;
-  color: var(--text-secondary);
-  font-size: 0.82rem;
-}
-
-.sms-composer__balance-value {
-  margin: 0.15rem 0 0;
-  color: var(--text-primary);
+.sms-composer__preview-transition,
+.sms-composer__meta-transition {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--warning-text);
+  font-size: 0.8rem;
   font-weight: 600;
-}
-
-.sms-composer__balance-value--muted {
-  font-weight: 500;
 }
 
 .sms-composer--pc .sms-composer__workspace {
@@ -585,19 +521,28 @@
 }
 
 .sms-composer__meta-bar {
-  padding: 0.75rem;
+  padding: 0.65rem 0.75rem;
   border: 1px solid var(--border-default);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--bg-soft);
+}
+
+.sms-composer__meta-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
 }
 
 .sms-composer__meta-inline {
   margin: 0;
   color: var(--text-primary);
+  font-size: 0.88rem;
 }
 
 .sms-composer__meta-notes {
-  margin: 0.5rem 0 0;
+  margin: 0.45rem 0 0;
   padding-left: 1.1rem;
   color: var(--text-secondary);
   font-size: 0.78rem;
@@ -701,6 +646,56 @@
   color: #6d28d9;
 }
 
+.sms-composer__type-badges--compact .sms-composer__type-badge {
+  min-width: 40px;
+  padding: 0.15rem 0.35rem;
+  opacity: 0.45;
+}
+
+.sms-composer__type-badges--compact .sms-composer__type-badge-icon {
+  display: none;
+}
+
+.sms-composer__type-badges--compact .sms-composer__type-badge-label {
+  display: none;
+}
+
+.sms-composer__type-badges--compact .sms-composer__type-badge-short {
+  font-size: 0.68rem;
+}
+
+.sms-composer__preview-caption {
+  margin-bottom: 0.5rem;
+}
+
+.sms-composer__preview-caption-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.sms-composer__preview-caption-type {
+  margin: 0.15rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.sms-composer__preview-hint {
+  margin: 0 0 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.sms-composer__preview-disclaimer {
+  margin: 0.5rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  text-align: center;
+}
+
 .sms-composer--pc .sms-composer__preview-panel {
   position: sticky;
   top: 0.75rem;
@@ -767,28 +762,17 @@
   text-align: center;
 }
 
-.sms-composer__phone-type {
+.sms-composer__phone-app-title {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   font-weight: 700;
   color: var(--text-primary);
 }
 
 .sms-composer__phone-sender {
-  margin: 0.15rem 0 0.35rem;
+  margin: 0.15rem 0 0;
   color: var(--text-secondary);
   font-size: 0.82rem;
-}
-
-.sms-composer__phone-substitution-notice {
-  margin: 0 0 0.5rem;
-  padding: 0.35rem 0.5rem;
-  border-radius: 8px;
-  background: var(--hint-bg);
-  border: 1px solid var(--hint-border);
-  color: var(--text-secondary);
-  font-size: 0.76rem;
-  line-height: 1.35;
 }
 
 .sms-composer--pc .sms-composer__phone-screen {
@@ -799,8 +783,8 @@
 
 .sms-composer__phone-screen {
   min-height: 280px;
-  padding: 0.85rem;
-  background: #f8fbff;
+  padding: 0.85rem 0.75rem 1rem;
+  background: #eceff1;
 }
 
 .sms-composer__phone-image-wrap {
@@ -821,17 +805,16 @@
 
 .sms-composer__phone-bubble {
   max-width: min(306px, calc(100% - 0.5rem));
-  margin-left: auto;
-  padding: 0.75rem 0.85rem;
-  border-radius: 16px 16px 4px 16px;
+  margin-right: auto;
+  margin-left: 0;
+  padding: 0.7rem 0.8rem;
+  border-radius: 18px;
   background: #ffffff;
-  border: 1px solid var(--hint-border);
-  box-shadow: 0 1px 2px var(--shadow-card);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: none;
 }
 
-.sms-composer__phone-ad-header,
-.sms-composer__phone-body,
-.sms-composer__phone-opt-out {
+.sms-composer__phone-message {
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
@@ -841,31 +824,8 @@
   line-height: 1.45;
 }
 
-.sms-composer__phone-ad-header {
-  font-weight: 700;
-  margin-bottom: 0.35rem;
-}
-
-.sms-composer__phone-opt-out {
-  margin-top: 0.5rem;
+.sms-composer__phone-message--empty {
   color: var(--text-secondary);
-  font-size: 0.78rem;
-}
-
-.sms-composer__phone-footer {
-  padding: 0.65rem 1rem 0.85rem;
-  border-top: 1px solid var(--border-subtle);
-  text-align: center;
-}
-
-.sms-composer__phone-footer p {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 0.78rem;
-}
-
-.sms-composer__phone-disclaimer {
-  margin-top: 0.35rem;
 }
 
 .sms-composer__below,

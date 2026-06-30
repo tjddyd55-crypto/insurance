@@ -2,7 +2,6 @@ import type { ReactNode } from 'react'
 import { useSmsMessageComposeMeta } from '../../hooks/useSmsMessageComposeMeta'
 import type { SmsPreviewAttachment } from '../../utils/smsMessageMeta'
 import type { SmsPreviewSubstitution } from '../../utils/smsTemplateVariables'
-import SmsComposerStatusCard from './SmsComposerStatusCard'
 import SmsMessageEditor from './SmsMessageEditor'
 import SmsPhonePreview from './SmsPhonePreview'
 
@@ -16,7 +15,6 @@ type Props = {
   attachment?: SmsPreviewAttachment
   previewSubstitution?: SmsPreviewSubstitution
   realSendEnabled: boolean
-  balanceText?: string | null
   disabled?: boolean
   setupFields: ReactNode
   actions?: ReactNode
@@ -33,7 +31,6 @@ export default function SmsComposerLayout({
   attachment = null,
   previewSubstitution = { mode: 'preserve' },
   realSendEnabled,
-  balanceText,
   disabled = false,
   setupFields,
   actions,
@@ -48,14 +45,6 @@ export default function SmsComposerLayout({
 
   return (
     <div className={`sms-composer sms-composer--${variant}`}>
-      <SmsComposerStatusCard
-        meta={meta}
-        realSendEnabled={realSendEnabled}
-        balanceText={balanceText}
-        transitionNotice={transitionNotice}
-        onDismissTransition={dismissTransitionNotice}
-      />
-
       <div className="sms-composer__workspace">
         <div className="sms-composer__main">
           {setupFields ? <section className="sms-composer__card">{setupFields}</section> : null}
@@ -66,6 +55,9 @@ export default function SmsComposerLayout({
             isAdvertisement={isAdvertisement}
             onAdvertisementChange={onAdvertisementChange}
             attachment={attachment}
+            realSendEnabled={realSendEnabled}
+            transitionNotice={transitionNotice}
+            onDismissTransition={dismissTransitionNotice}
             disabled={disabled}
             footer={actions}
           />

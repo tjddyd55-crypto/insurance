@@ -11,6 +11,9 @@ type Props = {
   isAdvertisement: boolean
   onAdvertisementChange: (value: boolean) => void
   attachment: SmsPreviewAttachment
+  realSendEnabled: boolean
+  transitionNotice?: string | null
+  onDismissTransition?: () => void
   disabled?: boolean
   footer?: ReactNode
 }
@@ -22,6 +25,9 @@ export default function SmsMessageEditor({
   isAdvertisement,
   onAdvertisementChange,
   attachment,
+  realSendEnabled,
+  transitionNotice,
+  onDismissTransition,
   disabled = false,
   footer,
 }: Props) {
@@ -64,7 +70,12 @@ export default function SmsMessageEditor({
         />
       </label>
 
-      <SmsMessageMetaBar meta={meta} />
+      <SmsMessageMetaBar
+        meta={meta}
+        realSendEnabled={realSendEnabled}
+        transitionNotice={transitionNotice}
+        onDismissTransition={onDismissTransition}
+      />
       <p className="sms-composer__wrap-hint">
         실제 줄바꿈은 오른쪽 휴대폰 미리보기 기준으로 확인해 주세요.
       </p>

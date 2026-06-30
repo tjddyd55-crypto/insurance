@@ -358,7 +358,6 @@ export default function SmsModuleBody(props: Props) {
             senderNumber={settings?.defaultSender || sendForm.senderNumber}
             previewSubstitution={{ mode: 'preserve' }}
             realSendEnabled={realSendEnabled}
-            balanceText={balanceText}
             disabled={busy}
             setupFields={
               <SmsComposerSetupFields
@@ -415,7 +414,6 @@ export default function SmsModuleBody(props: Props) {
             senderNumber={bulkForm.senderNumber || settings?.defaultSender}
             previewSubstitution={bulkPreviewSubstitution}
             realSendEnabled={realSendEnabled}
-            balanceText={balanceText}
             disabled={busy}
             setupFields={
               <>
@@ -583,7 +581,6 @@ export default function SmsModuleBody(props: Props) {
             senderNumber={settings?.defaultSender}
             previewSubstitution={templatePreviewSubstitution}
             realSendEnabled={realSendEnabled}
-            balanceText={balanceText}
             disabled={busy}
             setupFields={
               <div className="sms-module__grid">

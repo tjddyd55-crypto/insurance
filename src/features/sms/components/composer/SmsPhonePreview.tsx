@@ -1,6 +1,5 @@
 import { formatKrMobileDisplay } from '../../smsDisplayUtils'
 import type { SmsMessageMeta, SmsPreviewAttachment } from '../../utils/smsMessageMeta'
-import SmsMessageTypeBadge from './SmsMessageTypeBadge'
 
 type Props = {
   meta: SmsMessageMeta
@@ -18,9 +17,20 @@ export default function SmsPhonePreview({
   onDismissTransition,
 }: Props) {
   const senderLabel = senderNumber ? formatKrMobileDisplay(senderNumber) : '발신번호 미선택'
+  const messageText = meta.previewText.trim()
+  const isEmpty = !messageText
 
   return (
     <aside className="sms-composer__preview-panel" aria-label="휴대폰 미리보기">
+      <div className="sms-composer__preview-caption">
+        <p className="sms-composer__preview-caption-title">미리보기</p>
+        <p className="sms-composer__preview-caption-type">현재 유형: {meta.typeLabel}</p>
+      </div>
+
+      {meta.previewSubstitutionNotice ? (
+        <p className="sms-composer__preview-hint">{meta.previewSubstitutionNotice}</p>
+      ) : null}
+
       {transitionNotice ? (
         <div className="sms-composer__preview-transition">
           <span>{transitionNotice}</span>
@@ -37,13 +47,10 @@ export default function SmsPhonePreview({
           <span className="sms-composer__phone-speaker" />
           <span className="sms-composer__phone-camera" />
         </div>
+
         <div className="sms-composer__phone-header">
-          <p className="sms-composer__phone-type">{meta.typeLabel}</p>
+          <p className="sms-composer__phone-app-title">문자</p>
           <p className="sms-composer__phone-sender">{senderLabel}</p>
-          {meta.previewSubstitutionNotice ? (
-            <p className="sms-composer__phone-substitution-notice">{meta.previewSubstitutionNotice}</p>
-          ) : null}
-          <SmsMessageTypeBadge activeType={meta.messageType} pulse={Boolean(transitionNotice)} />
         </div>
 
         <div className="sms-composer__phone-screen">
@@ -58,27 +65,18 @@ export default function SmsPhonePreview({
           ) : null}
 
           <div className="sms-composer__phone-bubble">
-            {meta.previewHeader ? (
-              <p className="sms-composer__phone-ad-header">{meta.previewHeader}</p>
-            ) : null}
-            <p className="sms-composer__phone-body">
-              {meta.previewBody || '보낼 문자 내용을 입력해 주세요.'}
+            <p
+              className={`sms-composer__phone-message${isEmpty ? ' sms-composer__phone-message--empty' : ''}`}
+            >
+              {isEmpty ? '보낼 문자 내용을 입력해 주세요.' : messageText}
             </p>
-            {meta.previewFooter ? (
-              <p className="sms-composer__phone-opt-out">{meta.previewFooter}</p>
-            ) : null}
           </div>
         </div>
-
-        <div className="sms-composer__phone-footer">
-          <p>
-            현재 {meta.byteCount} / {meta.limitByte}byte · {meta.typeLabel}
-          </p>
-          <p className="sms-composer__phone-disclaimer">
-            실제 표시 형태는 통신사와 수신 기기에 따라 다를 수 있습니다.
-          </p>
-        </div>
       </div>
+
+      <p className="sms-composer__preview-disclaimer">
+        실제 표시는 통신사와 기기에 따라 일부 다를 수 있습니다.
+      </p>
     </aside>
   )
 }
