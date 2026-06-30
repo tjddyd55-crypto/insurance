@@ -65,6 +65,9 @@ export default function SmsMessageEditor({
       </label>
 
       <SmsMessageMetaBar meta={meta} />
+      <p className="sms-composer__wrap-hint">
+        실제 줄바꿈은 오른쪽 휴대폰 미리보기 기준으로 확인해 주세요.
+      </p>
       <SmsVariableChips onInsert={insertToken} disabled={disabled} />
 
       <div className="sms-composer__ad-panel">

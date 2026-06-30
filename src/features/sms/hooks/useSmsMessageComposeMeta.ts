@@ -15,11 +15,13 @@ export function useSmsMessageComposeMeta(input: SmsMessageMetaInput): {
   dismissTransitionNotice: () => void
 } {
   const hasAttachment = Boolean(input.attachments?.some(Boolean))
-  const sampleKey = JSON.stringify(input.sampleVariables ?? {})
+  const substitutionKey = JSON.stringify(
+    input.previewSubstitution ?? input.sampleVariables ?? { mode: 'preserve' },
+  )
 
   const meta = useMemo(
     () => calculateSmsMessageMeta(input),
-    [input.body, input.isAdvertisement, input.adCompanyName, input.optOutNumber, hasAttachment, sampleKey],
+    [input.body, input.isAdvertisement, input.adCompanyName, input.optOutNumber, hasAttachment, substitutionKey],
   )
 
   const prevTypeRef = useRef<SmsTransportType>(meta.messageType)

@@ -24,7 +24,7 @@ export default function SmsVariableChips({ onInsert, disabled = false }: Props) 
         ))}
       </div>
       <p className="sms-composer__variables-note">
-        치환 변수는 실제 발송 시 고객별 값으로 변경됩니다. 미리보기는 샘플 고객 기준입니다.
+        치환 변수는 실제 발송 시 고객별 값으로 변경됩니다. 고객 미선택 시 미리보기에는 변수가 그대로 표시됩니다.
       </p>
     </div>
   )

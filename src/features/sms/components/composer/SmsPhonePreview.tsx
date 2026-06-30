@@ -40,6 +40,9 @@ export default function SmsPhonePreview({
         <div className="sms-composer__phone-header">
           <p className="sms-composer__phone-type">{meta.typeLabel}</p>
           <p className="sms-composer__phone-sender">{senderLabel}</p>
+          {meta.previewSubstitutionNotice ? (
+            <p className="sms-composer__phone-substitution-notice">{meta.previewSubstitutionNotice}</p>
+          ) : null}
           <SmsMessageTypeBadge activeType={meta.messageType} pulse={Boolean(transitionNotice)} />
         </div>
 

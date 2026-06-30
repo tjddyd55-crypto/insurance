@@ -1,12 +1,14 @@
 import {
+  SMS_AD_COMPANY_NAME,
   SMS_AD_OPT_OUT_NUMBER,
   SMS_BYTE_LIMIT,
   SMS_DEDUCTION_LABELS,
-  SMS_SAMPLE_COMPANY_NAME,
   SMS_TRANSPORT_TYPE_LABELS,
 } from '../config/smsCompose.config'
 import {
   applySmsTemplateVariables,
+  resolvePreviewSubstitutionNotice,
+  type SmsPreviewSubstitution,
   type SmsTemplateVariableKey,
 } from './smsTemplateVariables'
 
@@ -21,6 +23,8 @@ export type SmsMessageMetaInput = {
   body: string
   isAdvertisement?: boolean
   attachments?: SmsPreviewAttachment[]
+  previewSubstitution?: SmsPreviewSubstitution
+  /** @deprecated previewSubstitution 사용 */
   sampleVariables?: Partial<Record<SmsTemplateVariableKey, string>>
   adCompanyName?: string
   optOutNumber?: string | null
@@ -42,6 +46,7 @@ export type SmsMessageMeta = {
   previewBody: string
   previewHeader: string | null
   previewFooter: string | null
+  previewSubstitutionNotice: string | null
   charCount: number
   byteCount: number
   messageType: SmsTransportType
@@ -53,6 +58,8 @@ export type SmsMessageMeta = {
   hasAttachment: boolean
   hasVariables: boolean
   hasOptOut: boolean
+  variablesSubstituted: boolean
+  /** @deprecated variablesSubstituted 사용 */
   usesSampleSubstitution: boolean
   transitionReason: string | null
 }
@@ -95,6 +102,20 @@ function buildTransitionReason(
   return null
 }
 
+function normalizeSubstitution(input: SmsMessageMetaInput): SmsPreviewSubstitution {
+  if (input.previewSubstitution) {
+    return input.previewSubstitution
+  }
+  if (input.sampleVariables && Object.keys(input.sampleVariables).length > 0) {
+    return {
+      mode: 'selectedCustomer',
+      values: input.sampleVariables,
+      selectedCustomerName: input.sampleVariables.customerName ?? null,
+    }
+  }
+  return { mode: 'preserve' }
+}
+
 function normalizeInput(input: SmsMessageMetaInput | string, legacyOptions?: SmsMessageMetaOptions): SmsMessageMetaInput {
   if (typeof input === 'string') {
     return {
@@ -102,7 +123,7 @@ function normalizeInput(input: SmsMessageMetaInput | string, legacyOptions?: Sms
       isAdvertisement: legacyOptions?.messageType === 'ad',
       attachments: legacyOptions?.attachments,
       sampleVariables: legacyOptions?.sampleVars,
-      adCompanyName: legacyOptions?.adSenderLabel ?? SMS_SAMPLE_COMPANY_NAME,
+      adCompanyName: legacyOptions?.adSenderLabel ?? SMS_AD_COMPANY_NAME,
     }
   }
   return input
@@ -119,13 +140,15 @@ export function calculateSmsMessageMeta(
   const hasAttachment = attachments.some(Boolean)
   const isAdvertisement = Boolean(normalized.isAdvertisement)
   const optOutNumber = normalized.optOutNumber?.trim() || SMS_AD_OPT_OUT_NUMBER
+  const previewSubstitution = normalizeSubstitution(normalized)
 
-  const { text: previewBody, hasVariables } = applySmsTemplateVariables(
+  const { text: previewBody, hasVariables, variablesSubstituted } = applySmsTemplateVariables(
     rawText,
-    normalized.sampleVariables ?? {},
+    previewSubstitution,
   )
+  const previewSubstitutionNotice = resolvePreviewSubstitutionNotice(previewSubstitution)
 
-  const adCompanyName = normalized.adCompanyName?.trim() || SMS_SAMPLE_COMPANY_NAME
+  const adCompanyName = normalized.adCompanyName?.trim() || SMS_AD_COMPANY_NAME
   let previewHeader: string | null = null
   let previewFooter: string | null = null
   let composedForBytes = previewBody
@@ -148,6 +171,7 @@ export function calculateSmsMessageMeta(
     previewBody,
     previewHeader,
     previewFooter,
+    previewSubstitutionNotice,
     charCount,
     byteCount,
     messageType,
@@ -159,7 +183,8 @@ export function calculateSmsMessageMeta(
     hasAttachment,
     hasVariables,
     hasOptOut: isAdvertisement && Boolean(previewFooter),
-    usesSampleSubstitution: hasVariables,
+    variablesSubstituted,
+    usesSampleSubstitution: variablesSubstituted,
     transitionReason: buildTransitionReason(previousType, messageType, hasAttachment),
   }
 }

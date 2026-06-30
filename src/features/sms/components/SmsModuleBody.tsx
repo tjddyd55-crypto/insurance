@@ -3,8 +3,9 @@ import FormButton from '../../../components/form/FormButton'
 import FormInput from '../../../components/form/FormInput'
 import SmsComposerLayout, { SmsComposerSetupFields } from './composer/SmsComposerLayout'
 import type { SmsModuleViewProps } from '../hooks/useSmsModuleState'
-import { SMS_SAMPLE_CUSTOMER_NAME } from '../config/smsCompose.config'
+import { SMS_EXPLICIT_SAMPLE_VALUES } from '../config/smsCompose.config'
 import { ALIGO_API_SETTINGS_URL, formatKrMobileDisplay } from '../smsDisplayUtils'
+import type { SmsPreviewSubstitution } from '../utils/smsTemplateVariables'
 import type { SmsModuleTab } from '../types/sms.types'
 
 const TABS: { id: SmsModuleTab; label: string }[] = [
@@ -181,18 +182,37 @@ export default function SmsModuleBody(props: Props) {
   } = props
 
   const [bulkSampleCustomerId, setBulkSampleCustomerId] = useState<number | null>(null)
+  const [templateSamplePreviewEnabled, setTemplateSamplePreviewEnabled] = useState(false)
   const realSendEnabled = Boolean(settings?.realSendEnabled)
   const defaultSenderDisplay = formatKrMobileDisplay(
     settings?.defaultSender || sendForm.senderNumber || bulkForm.senderNumber,
   )
 
-  const bulkSampleCustomerName = useMemo(() => {
+  const bulkPreviewSubstitution = useMemo((): SmsPreviewSubstitution => {
     if (!preview?.samples?.length) {
-      return SMS_SAMPLE_CUSTOMER_NAME
+      return { mode: 'preserve' }
     }
     const selectedId = bulkSampleCustomerId ?? preview.samples[0]?.customerId ?? null
-    return preview.samples.find((s) => s.customerId === selectedId)?.customerName ?? SMS_SAMPLE_CUSTOMER_NAME
+    const sample = preview.samples.find((s) => s.customerId === selectedId)
+    if (!sample?.customerName) {
+      return { mode: 'preserve' }
+    }
+    return {
+      mode: 'selectedCustomer',
+      selectedCustomerName: sample.customerName,
+      values: { customerName: sample.customerName },
+    }
   }, [preview, bulkSampleCustomerId])
+
+  const templatePreviewSubstitution = useMemo((): SmsPreviewSubstitution => {
+    if (!templateSamplePreviewEnabled) {
+      return { mode: 'preserve' }
+    }
+    return {
+      mode: 'explicitSample',
+      values: { ...SMS_EXPLICIT_SAMPLE_VALUES },
+    }
+  }, [templateSamplePreviewEnabled])
 
   return (
     <>
@@ -336,6 +356,7 @@ export default function SmsModuleBody(props: Props) {
               setSendForm((p) => ({ ...p, messageType: checked ? 'ad' : 'info' }))
             }
             senderNumber={settings?.defaultSender || sendForm.senderNumber}
+            previewSubstitution={{ mode: 'preserve' }}
             realSendEnabled={realSendEnabled}
             balanceText={balanceText}
             disabled={busy}
@@ -392,7 +413,7 @@ export default function SmsModuleBody(props: Props) {
               setBulkForm((p) => ({ ...p, messageType: checked ? 'ad' : 'info' }))
             }
             senderNumber={bulkForm.senderNumber || settings?.defaultSender}
-            sampleVariables={{ customerName: bulkSampleCustomerName }}
+            previewSubstitution={bulkPreviewSubstitution}
             realSendEnabled={realSendEnabled}
             balanceText={balanceText}
             disabled={busy}
@@ -560,6 +581,7 @@ export default function SmsModuleBody(props: Props) {
               setTemplateForm((p) => ({ ...p, messageType: checked ? 'ad' : 'info' }))
             }
             senderNumber={settings?.defaultSender}
+            previewSubstitution={templatePreviewSubstitution}
             realSendEnabled={realSendEnabled}
             balanceText={balanceText}
             disabled={busy}
@@ -572,6 +594,19 @@ export default function SmsModuleBody(props: Props) {
                     onChange={(e) => setTemplateForm((p) => ({ ...p, title: e.target.value }))}
                   />
                 </label>
+                <label className="sms-composer__checkbox sms-composer__template-sample-toggle">
+                  <input
+                    type="checkbox"
+                    checked={templateSamplePreviewEnabled}
+                    onChange={(e) => setTemplateSamplePreviewEnabled(e.target.checked)}
+                  />
+                  <span>샘플 미리보기</span>
+                </label>
+                {templateSamplePreviewEnabled ? (
+                  <p className="sms-composer__sample-preview-label">
+                    샘플 미리보기: 고객명={SMS_EXPLICIT_SAMPLE_VALUES.customerName}
+                  </p>
+                ) : null}
               </div>
             }
             actions={

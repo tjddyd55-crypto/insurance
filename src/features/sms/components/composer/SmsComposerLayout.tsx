@@ -1,8 +1,7 @@
 import type { ReactNode } from 'react'
-import { SMS_SAMPLE_COMPANY_NAME } from '../../config/smsCompose.config'
 import { useSmsMessageComposeMeta } from '../../hooks/useSmsMessageComposeMeta'
 import type { SmsPreviewAttachment } from '../../utils/smsMessageMeta'
-import type { SmsTemplateVariableKey } from '../../utils/smsTemplateVariables'
+import type { SmsPreviewSubstitution } from '../../utils/smsTemplateVariables'
 import SmsComposerStatusCard from './SmsComposerStatusCard'
 import SmsMessageEditor from './SmsMessageEditor'
 import SmsPhonePreview from './SmsPhonePreview'
@@ -15,7 +14,7 @@ type Props = {
   onAdvertisementChange: (value: boolean) => void
   senderNumber?: string
   attachment?: SmsPreviewAttachment
-  sampleVariables?: Partial<Record<SmsTemplateVariableKey, string>>
+  previewSubstitution?: SmsPreviewSubstitution
   realSendEnabled: boolean
   balanceText?: string | null
   disabled?: boolean
@@ -32,7 +31,7 @@ export default function SmsComposerLayout({
   onAdvertisementChange,
   senderNumber,
   attachment = null,
-  sampleVariables,
+  previewSubstitution = { mode: 'preserve' },
   realSendEnabled,
   balanceText,
   disabled = false,
@@ -44,8 +43,7 @@ export default function SmsComposerLayout({
     body: message,
     isAdvertisement,
     attachments: attachment ? [attachment] : [],
-    sampleVariables,
-    adCompanyName: SMS_SAMPLE_COMPANY_NAME,
+    previewSubstitution,
   })
 
   return (
@@ -58,7 +56,7 @@ export default function SmsComposerLayout({
         onDismissTransition={dismissTransitionNotice}
       />
 
-      <div className="sms-composer__grid">
+      <div className="sms-composer__workspace">
         <div className="sms-composer__main">
           {setupFields ? <section className="sms-composer__card">{setupFields}</section> : null}
           <SmsMessageEditor
