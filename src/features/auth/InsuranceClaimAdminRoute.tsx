@@ -1,15 +1,16 @@
-import { Navigate } from 'react-router-dom'
+import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from './AuthProvider'
+import { canUseInsuranceClaimAdminRoutes } from './roleGuards'
 
-/**
- * 보험청구 관리자 설정 화면 — 프론트에서는 비활성.
- * 청구 기능은 USER 전용이며, 관리자·스텝 메뉴/URL 진입을 막는다 (API는 서버에 유지).
- */
+/** 보험청구 보험회사 설정 — SUPER_ADMIN · GA_ADMIN · GA_STAFF */
 export function InsuranceClaimAdminRoute() {
-  const { isAuthenticated } = useAuth()
+  const { user, isAuthenticated } = useAuth()
 
   if (!isAuthenticated) {
     return <Navigate to="/login?required=1" replace />
   }
-  return <Navigate to="/dashboard" replace />
+  if (!user || !canUseInsuranceClaimAdminRoutes(user.role)) {
+    return <Navigate to="/dashboard" replace />
+  }
+  return <Outlet />
 }

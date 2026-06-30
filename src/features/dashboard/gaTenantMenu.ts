@@ -7,6 +7,7 @@
 import { isAllowedForExpiredFrontend } from '../subscription/expiredAllowlist'
 import { canAccessContractSignatureAdminConsole } from '../contracts/testConsole/contractSignatureTestConsoleFlags'
 import {
+  canUseInsuranceClaimAdminRoutes,
   canUseInsuranceClaimUserRoutes,
   canUseNewsletterBoardAdminRoutes,
   canUsePdfTemplateAdminRoutes,
@@ -296,9 +297,23 @@ const INSURANCE_CLAIM_HISTORY_MENU: GaTenantMenuItem = {
   path: '/insurance-claim/requests',
 }
 
+const INSURANCE_CLAIM_COMPANY_ADMIN_MENU: GaTenantMenuItem = {
+  label: '보험청구 설정',
+  path: '/admin/claim/insurance-companies',
+}
+
 function buildGaTenantAdminMenuEntries(role: string | undefined): GaTenantDashboardMenuEntry[] {
   const entries: GaTenantDashboardMenuEntry[] = []
   const documentItems: GaTenantMenuItem[] = []
+
+  if (canUseInsuranceClaimAdminRoutes(role)) {
+    entries.push({ type: 'section', label: '보험청구 설정' })
+    entries.push({
+      type: 'link',
+      label: INSURANCE_CLAIM_COMPANY_ADMIN_MENU.label,
+      path: INSURANCE_CLAIM_COMPANY_ADMIN_MENU.path,
+    })
+  }
 
   if (canUsePdfTemplateAdminRoutes(role)) {
     documentItems.push(PDF_TEMPLATE_ADMIN_MENU)
@@ -362,6 +377,7 @@ function buildSuperAdminMenuEntries(): GaTenantDashboardMenuEntry[] {
   entries.push({ type: 'section', label: '보험사 / 시스템 설정' })
   entries.push(
     ...itemsToEntries([
+      { label: INSURANCE_CLAIM_COMPANY_ADMIN_MENU.label, path: INSURANCE_CLAIM_COMPANY_ADMIN_MENU.path },
       { label: '보험사 설계사이트 관리', path: '/admin/insurer-sites' },
       { label: '보험사 설계사이트 (일반·카드)', path: '/insurance/insurer-sites' },
       { label: '보안 감사 로그', path: '/admin/audit-logs' },

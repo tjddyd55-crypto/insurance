@@ -15,7 +15,7 @@ function sectionLabels(entries: ReturnType<typeof buildAppMenuForSession>): stri
 }
 
 describe('buildAppMenuForSession claim access', () => {
-  it('groups SUPER_ADMIN menu and excludes claim routes', () => {
+  it('groups SUPER_ADMIN menu and exposes admin claim settings only', () => {
     const menu = buildAppMenuForSession('SUPER_ADMIN', undefined, undefined)
     const paths = linkPaths(menu)
     const sections = sectionLabels(menu)
@@ -26,22 +26,24 @@ describe('buildAppMenuForSession claim access', () => {
     expect(sections).toContain('전자문서 / 서명 관리')
     expect(sections).toContain('보험사 / 시스템 설정')
 
-    expect(paths.some((path) => path.includes('claim'))).toBe(false)
-    expect(paths.some((path) => path.includes('insurance-claim'))).toBe(false)
+    expect(paths).toContain('/admin/claim/insurance-companies')
+    expect(paths.some((path) => path.includes('/insurance-claim'))).toBe(false)
+    expect(paths.some((path) => path.includes('/claim-requests'))).toBe(false)
   })
 
-  it('excludes claim routes for GA_ADMIN and GA_STAFF', () => {
+  it('exposes admin claim settings for GA_ADMIN and GA_STAFF but not user claim routes', () => {
     for (const role of ['GA_ADMIN', 'GA_STAFF'] as const) {
       const paths = linkPaths(buildAppMenuForSession(role, 'TEST', 'Test GA'))
+      expect(paths).toContain('/admin/claim/insurance-companies')
       expect(paths.some((path) => path.includes('/claim-requests'))).toBe(false)
       expect(paths.some((path) => path.includes('/insurance-claim'))).toBe(false)
-      expect(paths.some((path) => path.includes('/admin/claim'))).toBe(false)
     }
   })
 
-  it('keeps insurance claim entries for USER', () => {
+  it('keeps insurance claim entries for USER and hides admin claim settings', () => {
     const paths = linkPaths(buildAppMenuForSession('USER', 'TEST', 'Test GA'))
     expect(paths).toContain('/claim-requests')
     expect(paths).toContain('/insurance-claim/requests')
+    expect(paths).not.toContain('/admin/claim/insurance-companies')
   })
 })
