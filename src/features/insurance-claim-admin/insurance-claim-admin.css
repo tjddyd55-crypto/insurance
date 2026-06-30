@@ -161,3 +161,28 @@
     padding: 16px;
   }
 }
+
+/* 보험청구 좌표 설정 — 3열 유지 + 전체 폭 사용, PDF preview 잘림 방지 */
+.insurance-claim-admin-page--document-editor .pdf-engine-editor {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.insurance-claim-admin-page--document-editor .pdf-engine-editor__panel--preview {
+  min-width: 720px;
+}
+
+.insurance-claim-admin-page--document-editor .pdf-engine-editor__preview-scroll {
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.insurance-claim-admin-page--document-editor .pdf-engine-editor__preview-canvas-host {
+  width: fit-content;
+  min-width: 794px;
+  max-width: none;
+}
+
+.insurance-claim-admin-page--document-editor .pdf-engine-editor__overlay--a4-page {
+  max-width: none;
+}

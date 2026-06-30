@@ -50,8 +50,6 @@ interface Props {
   fieldsDirty: boolean
   /** 좌표 화면 개발 로그용(스토리지 경로는 넣지 않음) */
   templateId?: number
-  /** three-column: 기본 3열. sidebar-preview: 좌측 설정 + 우측 PDF 2열(좁은 작업 화면용). */
-  layout?: 'three-column' | 'sidebar-preview'
 }
 
 type DraftField = {
@@ -122,7 +120,6 @@ export function PdfCoordinateEditor({
   savingFields,
   fieldsDirty,
   templateId,
-  layout = 'three-column',
 }: Props) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   /**
@@ -631,13 +628,7 @@ export function PdfCoordinateEditor({
   }, [fields, pageCount])
 
   return (
-    <div
-      className={
-        layout === 'sidebar-preview'
-          ? 'pdf-engine-editor pdf-engine-editor--sidebar-preview'
-          : 'pdf-engine-editor'
-      }
-    >
+    <div className="pdf-engine-editor">
       {placementsBeyondPageCount > 0 ? (
         <p className="pdf-engine-page__error pdf-engine-editor__page-overflow-warning" role="alert">
           기존 좌표 중 {placementsBeyondPageCount}개가 현재 PDF 페이지 수({pageCount})를 초과합니다.
