@@ -342,6 +342,87 @@
   margin: 0;
 }
 
+/* compact 좌표 에디터 — 3열 동일 높이, PDF preview 넓게, 내부 스크롤 */
+.pdf-engine-editor--compact {
+  --pdf-engine-compact-panel-height: calc(100vh - 180px);
+  width: 100%;
+  overflow-x: auto;
+  align-items: stretch;
+}
+
+.pdf-engine-page--editor:has(.pdf-engine-form--inline) .pdf-engine-editor--compact {
+  --pdf-engine-compact-panel-height: calc(100vh - 340px);
+}
+
+.pdf-engine-editor--compact .pdf-engine-editor__page-overflow-warning {
+  grid-column: 1 / -1;
+}
+
+.pdf-engine-editor--compact .pdf-engine-editor__panel--fields,
+.pdf-engine-editor--compact .pdf-engine-editor__panel--config,
+.pdf-engine-editor--compact .pdf-engine-editor__panel--preview {
+  height: var(--pdf-engine-compact-panel-height);
+  max-height: var(--pdf-engine-compact-panel-height);
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.pdf-engine-editor--compact .pdf-engine-editor__panel--fields,
+.pdf-engine-editor--compact .pdf-engine-editor__panel--config {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.pdf-engine-editor--compact .pdf-engine-editor__panel--preview {
+  min-width: 720px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.pdf-engine-editor--compact .pdf-engine-editor__preview-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.pdf-engine-editor--compact .pdf-engine-editor__preview-canvas-host {
+  width: fit-content;
+  min-width: 794px;
+  max-width: none;
+}
+
+.pdf-engine-editor--compact .pdf-engine-editor__overlay--a4-page {
+  max-width: none;
+}
+
+.pdf-engine-editor--compact .pdf-engine-editor__panel-title {
+  margin-bottom: 8px;
+}
+
+.pdf-engine-editor--compact .pdf-engine-editor__panel--preview .pdf-engine-editor__row {
+  margin-bottom: 8px;
+}
+
+@media (max-width: 1024px) {
+  .pdf-engine-editor--compact .pdf-engine-editor__panel--fields,
+  .pdf-engine-editor--compact .pdf-engine-editor__panel--config,
+  .pdf-engine-editor--compact .pdf-engine-editor__panel--preview {
+    height: auto;
+    max-height: none;
+  }
+
+  .pdf-engine-editor--compact .pdf-engine-editor__panel--preview {
+    min-width: 0;
+  }
+
+  .pdf-engine-editor--compact .pdf-engine-editor__preview-scroll {
+    max-height: min(80vh, calc(100vh - 140px));
+  }
+}
+
 .pdf-engine-editor__field-cards {
   display: flex;
   flex-direction: column;

@@ -50,8 +50,8 @@ interface Props {
   fieldsDirty: boolean
   /** 좌표 화면 개발 로그용(스토리지 경로는 넣지 않음) */
   templateId?: number
-  /** insurance-claim: 보험청구 좌표 설정 — 짧은 안내·필드 목록 중심 UI */
-  editorVariant?: 'default' | 'insurance-claim'
+  /** compact: 좌표 작업용 — 짧은 안내·3열 동일 높이·필드 목록 중심 UI */
+  editorVariant?: 'default' | 'compact'
 }
 
 type DraftField = {
@@ -122,9 +122,9 @@ export function PdfCoordinateEditor({
   savingFields,
   fieldsDirty,
   templateId,
-  editorVariant = 'default',
+  editorVariant = 'compact',
 }: Props) {
-  const compactEditor = editorVariant === 'insurance-claim'
+  const compactEditor = editorVariant === 'compact'
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   /**
    * 같은 필드 안의 여러 placement 중 "어느 것을 편집 중" 인지.
@@ -632,7 +632,11 @@ export function PdfCoordinateEditor({
   }, [fields, pageCount])
 
   return (
-    <div className="pdf-engine-editor">
+    <div
+      className={
+        'pdf-engine-editor' + (compactEditor ? ' pdf-engine-editor--compact' : '')
+      }
+    >
       {placementsBeyondPageCount > 0 ? (
         <p className="pdf-engine-page__error pdf-engine-editor__page-overflow-warning" role="alert">
           기존 좌표 중 {placementsBeyondPageCount}개가 현재 PDF 페이지 수({pageCount})를 초과합니다.

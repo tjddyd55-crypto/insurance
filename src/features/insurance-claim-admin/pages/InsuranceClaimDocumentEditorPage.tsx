@@ -136,7 +136,7 @@ export default function InsuranceClaimDocumentEditorPage() {
       {loading ? <p className="insurance-claim-admin-page__hint">불러오는 중…</p> : null}
       {!loading && pdfBuffer ? (
         <PdfCoordinateEditor
-          editorVariant="insurance-claim"
+          editorVariant="compact"
           pdfBuffer={pdfBuffer}
           pageCount={pageCount}
           fields={fields}
