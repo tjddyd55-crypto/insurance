@@ -121,7 +121,7 @@ export default function InsuranceClaimDocumentEditorPage() {
         {title || docLabel} — 좌표 설정
       </h1>
       <p className="insurance-claim-admin-page__hint">
-        보험청구 전용 PDF 좌표입니다. 일반 PDF 문서 템플릿과 저장 위치가 분리되어 있습니다.
+        보험청구 전용 PDF 좌표입니다.
       </p>
       {error ? (
         <p className="insurance-claim-admin-page__error" role="alert">
@@ -136,6 +136,7 @@ export default function InsuranceClaimDocumentEditorPage() {
       {loading ? <p className="insurance-claim-admin-page__hint">불러오는 중…</p> : null}
       {!loading && pdfBuffer ? (
         <PdfCoordinateEditor
+          editorVariant="insurance-claim"
           pdfBuffer={pdfBuffer}
           pageCount={pageCount}
           fields={fields}

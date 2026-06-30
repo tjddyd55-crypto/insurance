@@ -50,6 +50,8 @@ interface Props {
   fieldsDirty: boolean
   /** 좌표 화면 개발 로그용(스토리지 경로는 넣지 않음) */
   templateId?: number
+  /** insurance-claim: 보험청구 좌표 설정 — 짧은 안내·필드 목록 중심 UI */
+  editorVariant?: 'default' | 'insurance-claim'
 }
 
 type DraftField = {
@@ -120,7 +122,9 @@ export function PdfCoordinateEditor({
   savingFields,
   fieldsDirty,
   templateId,
+  editorVariant = 'default',
 }: Props) {
+  const compactEditor = editorVariant === 'insurance-claim'
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   /**
    * 같은 필드 안의 여러 placement 중 "어느 것을 편집 중" 인지.
@@ -636,13 +640,15 @@ export function PdfCoordinateEditor({
       ) : null}
       <aside className="pdf-engine-editor__panel pdf-engine-editor__panel--fields">
         <h3 className="pdf-engine-editor__panel-title">등록된 필드 ({fields.length})</h3>
-        <p className="pdf-engine-editor__hint pdf-engine-editor__hint--input-order">
-          <strong>좌표 위치:</strong> PDF 위에서 드래그해 저장한 위치입니다.
-          <br />
-          <strong>입력 순서:</strong> 고객이 신청서를 작성할 때 보이는 입력 순서입니다. 좌표 위치와 입력
-          순서는 서로 다를 수 있습니다.
-        </p>
-        {fields.length > 0 ? (
+        {!compactEditor ? (
+          <p className="pdf-engine-editor__hint pdf-engine-editor__hint--input-order">
+            <strong>좌표 위치:</strong> PDF 위에서 드래그해 저장한 위치입니다.
+            <br />
+            <strong>입력 순서:</strong> 고객이 신청서를 작성할 때 보이는 입력 순서입니다. 좌표 위치와 입력
+            순서는 서로 다를 수 있습니다.
+          </p>
+        ) : null}
+        {!compactEditor && fields.length > 0 ? (
           <div className="pdf-engine-editor__mapping-table" role="table" aria-label="필드별 고객 데이터 매핑">
             <div className="pdf-engine-editor__mapping-table-head" role="row">
               <span role="columnheader">순서</span>
@@ -850,9 +856,11 @@ export function PdfCoordinateEditor({
                 </button>
               </div>
               <p className="pdf-engine-editor__hint">
-                {selectedField.fieldType === 'radio'
-                  ? '라디오: PDF 에 드래그한 뒤 좌표 목록 위의 「선택 옵션 좌표 저장」으로 확정해야 서버 저장과 발급 PDF 에 반영됩니다. 다른 필드 타입은 드래그만으로 즉시 반영됩니다.'
-                  : 'PDF 미리보기에서 드래그해 박스를 그리면 위치와 크기가 반영됩니다. 좌표 숫자는 PDF 위 박스로만 확인합니다.'}
+                {compactEditor
+                  ? '필드를 추가하거나 선택한 필드의 설정을 수정합니다.'
+                  : selectedField.fieldType === 'radio'
+                    ? '라디오: PDF 에 드래그한 뒤 좌표 목록 위의 「선택 옵션 좌표 저장」으로 확정해야 서버 저장과 발급 PDF 에 반영됩니다. 다른 필드 타입은 드래그만으로 즉시 반영됩니다.'
+                    : 'PDF 미리보기에서 드래그해 박스를 그리면 위치와 크기가 반영됩니다. 좌표 숫자는 PDF 위 박스로만 확인합니다.'}
               </p>
               <label className="pdf-engine-editor__label">
                 라벨
@@ -936,10 +944,12 @@ export function PdfCoordinateEditor({
               ) : null}
 
               {selectedField.fieldType === 'text' || selectedField.fieldType === 'textarea' ? (
+                compactEditor ? null : (
                 <p className="pdf-engine-editor__hint" style={{ marginTop: 6 }}>
                   여기에서는 필드명·타입·PDF 위 박스 영역 중심으로 지정하면 됩니다. 글자 크기는 신청 입력
                   화면에서 필드별로 조절하며, 기본은 11pt 입니다.
                 </p>
+                )
               ) : null}
 
               {selectedField.fieldType === 'radio' ? (
@@ -1167,22 +1177,27 @@ export function PdfCoordinateEditor({
                     {savingFields ? '좌표 저장 중…' : '좌표 저장'}
                   </button>
                 </div>
-              ) : null}
-              <p className="pdf-engine-editor__hint pdf-engine-editor__hint--muted-block">
-                왼쪽에서 필드를 선택하면 세부 설정과 좌표 저장을 할 수 있습니다.
-              </p>
+              ) : compactEditor ? null : (
+                <p className="pdf-engine-editor__hint pdf-engine-editor__hint--muted-block">
+                  왼쪽에서 필드를 선택하면 세부 설정과 좌표 저장을 할 수 있습니다.
+                </p>
+              )}
             </>
           )}
         </section>
       </aside>
 
       <section className="pdf-engine-editor__panel pdf-engine-editor__panel--preview">
-        <p className="pdf-engine-editor__hint pdf-engine-editor__preview-hint">
-          필드를 고른 뒤 PDF 위에서 드래그하면 박스가 생깁니다. 좌표는 박스 위치로만 확인합니다.
-        </p>
-        <p className="pdf-engine-editor__hint pdf-engine-editor__preview-hint" style={{ marginTop: 6 }}>
-          페이지가 여러 장이면 아래 미리보기를 스크롤하며 작업하세요. A4에 가까운 크기로 표시됩니다.
-        </p>
+        {!compactEditor ? (
+          <>
+            <p className="pdf-engine-editor__hint pdf-engine-editor__preview-hint">
+              필드를 고른 뒤 PDF 위에서 드래그하면 박스가 생깁니다. 좌표는 박스 위치로만 확인합니다.
+            </p>
+            <p className="pdf-engine-editor__hint pdf-engine-editor__preview-hint" style={{ marginTop: 6 }}>
+              페이지가 여러 장이면 아래 미리보기를 스크롤하며 작업하세요. A4에 가까운 크기로 표시됩니다.
+            </p>
+          </>
+        ) : null}
         <div className="pdf-engine-editor__row">
           <label className="pdf-engine-editor__label" style={{ flex: '0 0 160px' }}>
             페이지 (1~{numPages})

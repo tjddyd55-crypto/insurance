@@ -152,8 +152,32 @@
   max-width: none;
   width: 100%;
   margin: 0;
-  padding: 24px 32px;
+  padding: 16px 32px 24px;
   box-sizing: border-box;
+}
+
+.insurance-claim-admin-page--document-editor .insurance-claim-admin-page__toolbar {
+  margin-bottom: 8px;
+}
+
+.insurance-claim-admin-page--document-editor .pdf-engine-page__title {
+  margin-bottom: 8px;
+}
+
+.insurance-claim-admin-page--document-editor .insurance-claim-admin-page__hint {
+  margin: 0 0 12px;
+}
+
+.insurance-claim-admin-page--document-editor .pdf-engine-editor {
+  margin-top: 0;
+}
+
+.insurance-claim-admin-page--document-editor .pdf-engine-editor__panel-title {
+  margin-bottom: 8px;
+}
+
+.insurance-claim-admin-page--document-editor .pdf-engine-editor__panel--preview .pdf-engine-editor__row {
+  margin-bottom: 8px;
 }
 
 @media (max-width: 768px) {
@@ -176,8 +200,8 @@
 .insurance-claim-admin-page--document-editor .pdf-engine-editor__panel--fields,
 .insurance-claim-admin-page--document-editor .pdf-engine-editor__panel--config,
 .insurance-claim-admin-page--document-editor .pdf-engine-editor__panel--preview {
-  height: calc(100vh - 220px);
-  max-height: calc(100vh - 220px);
+  height: calc(100vh - 180px);
+  max-height: calc(100vh - 180px);
   min-height: 0;
   box-sizing: border-box;
 }
