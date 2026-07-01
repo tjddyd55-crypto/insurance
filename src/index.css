@@ -4662,29 +4662,48 @@ button.filter-button:focus-visible {
   padding-top: calc(88px + env(safe-area-inset-top, 0px));
 }
 
-.scroll-to-top {
-  position: fixed;
-  right: 16px;
-  bottom: 24px;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--brand);
-  color: var(--text-on-primary);
-  font-size: 20px;
-  border: 1px solid color-mix(in srgb, var(--border-default) 40%, transparent);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--shadow-card) 80%, transparent);
-  z-index: 9999;
-  pointer-events: auto;
-  cursor: pointer;
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.customer-list-panel {
+  position: relative;
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
 }
 
-.scroll-to-top:hover {
-  opacity: 0.9;
+.customer-list-scroll-top-button {
+  position: sticky;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: 8px auto 0;
+  padding: 0;
+  border: 1px solid var(--border-default, #e5e7eb);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #111827;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.customer-list-scroll-top-button:hover {
+  background: #f8fafc;
+}
+
+.customer-list-scroll-top-button:focus-visible {
+  outline: none;
+  box-shadow:
+    0 2px 8px rgba(15, 23, 42, 0.12),
+    0 0 0 3px rgba(59, 130, 246, 0.28);
+}
+
+.customers-page--mobile .customer-list-scroll-top-button {
+  width: 44px;
+  height: 44px;
 }
 
 /* 고객 관리 — 모바일 기준 단일 열 레이아웃 */
