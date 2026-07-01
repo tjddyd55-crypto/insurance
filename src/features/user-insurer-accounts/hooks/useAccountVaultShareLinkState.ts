@@ -72,7 +72,12 @@ export function useAccountVaultShareLinkState(authToken: string) {
       return
     }
     const ok = await copyTextToClipboard(shareUrl)
-    setCopyFeedback(ok ? '복사되었습니다.' : '복사하지 못했습니다.')
+    setCopyFeedback(ok ? '복사됨' : '복사 실패')
+    if (ok) {
+      window.setTimeout(() => {
+        setCopyFeedback((prev) => (prev === '복사됨' ? '' : prev))
+      }, 1500)
+    }
   }, [shareUrl])
 
   const openShareLink = useCallback(() => {
