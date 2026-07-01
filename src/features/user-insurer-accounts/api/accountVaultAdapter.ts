@@ -67,3 +67,10 @@ export function formatExternalAccountVaultTitle(ownerDisplayName: string | null 
   }
   return '사용자의 계정입니다'
 }
+
+export const EXTERNAL_ACCOUNT_VAULT_LINK_DESCRIPTION = '보험사 계정관리 페이지입니다.'
+
+export function formatExternalAccountVaultLinkTitle(ownerDisplayName: string | null | undefined): string {
+  const name = String(ownerDisplayName ?? '').trim() || '사용자'
+  return `${name} 계정관리`
+}

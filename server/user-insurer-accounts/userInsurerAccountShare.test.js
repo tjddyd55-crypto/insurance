@@ -12,10 +12,11 @@ function createSafeQueryMock(handler) {
   return async (_db, sql, params) => handler(String(sql), params)
 }
 
-test('resolveOwnerDisplayName prefers display_name then username', () => {
-  assert.equal(resolveOwnerDisplayName('박성용', 'agent1'), '박성용')
-  assert.equal(resolveOwnerDisplayName('', 'agent1'), 'agent1')
-  assert.equal(resolveOwnerDisplayName(null, null), '사용자')
+test('resolveOwnerDisplayName prefers display_name then name then username', () => {
+  assert.equal(resolveOwnerDisplayName('박성용', '박성', 'agent1'), '박성용')
+  assert.equal(resolveOwnerDisplayName('', '김철수', 'agent1'), '김철수')
+  assert.equal(resolveOwnerDisplayName('', '', 'agent1'), 'agent1')
+  assert.equal(resolveOwnerDisplayName(null, null, null), '사용자')
 })
 
 test('createActiveShareToken revokes previous active token before insert', async () => {
@@ -49,6 +50,7 @@ test('resolveActiveShareTokenContext maps owner display name', async () => {
           ga_id: 3,
           owner_user_id: 'user-a',
           display_name: '박성용',
+          name: '',
           username: 'agent1',
         },
       ],
