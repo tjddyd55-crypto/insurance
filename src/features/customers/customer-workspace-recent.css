@@ -165,8 +165,8 @@
 
 .customer-recent-mobile-trigger {
   position: fixed;
-  right: 16px;
-  bottom: 88px;
+  right: calc(16px + env(safe-area-inset-right, 0px));
+  bottom: calc(22px + env(safe-area-inset-bottom, 0px));
   z-index: 35;
   min-height: 44px;
   padding: 0 14px;
