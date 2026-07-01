@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
-import { AppDownloadActions } from '../components/AppDownloadActions'
+import { DESKTOP_DOWNLOAD_URL } from '../constants/appInstallLinks'
+import { OneFcMobileInstallOptions } from '../components/OneFcMobileInstallOptions'
 import { BusinessInfoFooter } from '../components/BusinessInfoFooter'
 import {
   IntroductionFeatureShowcase,
@@ -40,7 +41,10 @@ export function IntroductionPage() {
             <span>자동화 플랫폼</span>
           </div>
           <div className="intro-v2-hero__download-actions">
-            <AppDownloadActions className="intro-v2-download-actions" layout="row" />
+            <a className="intro-v2-btn intro-v2-btn--white intro-v2-hero__pc-download" href={DESKTOP_DOWNLOAD_URL} download>
+              PC 프로그램 다운로드
+            </a>
+            <OneFcMobileInstallOptions variant="intro-hero" />
             <Link className="intro-v2-btn intro-v2-btn--primary" to="/introduction/install">
               설치 안내 보기
             </Link>

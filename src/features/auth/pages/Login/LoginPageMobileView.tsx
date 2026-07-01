@@ -39,7 +39,7 @@ export default function LoginPageMobileView() {
         />
       </section>
 
-      <section className="auth-page__mobile-download" aria-label="앱 다운로드">
+      <section className="auth-page__mobile-download" aria-label="앱 설치">
         <LoginAppDownloadFooter layout="stack" />
       </section>
 

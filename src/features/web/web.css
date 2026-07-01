@@ -147,6 +147,110 @@
   justify-items: center;
 }
 
+.intro-v2-hero__pc-download {
+  margin-top: 0;
+}
+
+.one-fc-mobile-install {
+  width: min(100%, 760px);
+}
+
+.one-fc-mobile-install__header {
+  text-align: center;
+}
+
+.one-fc-mobile-install__title {
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.one-fc-mobile-install__lead {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+  text-align: center;
+}
+
+.one-fc-mobile-install__description {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(248, 250, 252, 0.88);
+  text-align: center;
+}
+
+.one-fc-mobile-install--login .one-fc-mobile-install__description {
+  color: var(--text-muted);
+}
+
+.one-fc-mobile-install__grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.one-fc-mobile-install__card {
+  display: grid;
+  gap: 10px;
+  padding: 18px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.42);
+  text-align: center;
+}
+
+.one-fc-mobile-install__card-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.one-fc-mobile-install__card-copy {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(226, 232, 240, 0.92);
+}
+
+.one-fc-mobile-install__card-button,
+.one-fc-mobile-install__cta-button {
+  width: 100%;
+  min-height: 48px;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.25;
+}
+
+.one-fc-mobile-install--intro-cta .one-fc-mobile-install__title,
+.one-fc-mobile-install--intro-cta .one-fc-mobile-install__description,
+.one-fc-mobile-install--intro-cta .one-fc-mobile-install__card-title,
+.one-fc-mobile-install--intro-cta .one-fc-mobile-install__card-copy {
+  color: #fff;
+}
+
+.one-fc-mobile-install--intro-cta .one-fc-mobile-install__card {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.one-fc-mobile-install--login {
+  width: 100%;
+}
+
+.one-fc-mobile-install__buttons {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
 .intro-v2-hero__download-actions .intro-v2-btn--primary {
   margin-top: 0;
 }
@@ -625,6 +729,10 @@
   .intro-v2-cta__action {
     width: 100%;
     min-width: 0;
+  }
+
+  .one-fc-mobile-install__grid {
+    grid-template-columns: 1fr;
   }
 
   .intro-v2-cta h2 {
