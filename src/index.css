@@ -5661,6 +5661,17 @@ div.cta-button.customers-page__action-btn[role='button'] {
   gap: 8px;
 }
 
+.account-vault-share-link-actions__status {
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.account-vault-share-link-actions__status--error {
+  color: var(--danger, #ef4444);
+}
+
 .account-vault-share-link-actions__feedback {
   color: var(--text-secondary);
   font-size: 0.8125rem;
