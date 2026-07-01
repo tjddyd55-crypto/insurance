@@ -5,8 +5,7 @@ export function AccountVaultShareLinkActions({
   hasShareUrl,
   loading,
   pending,
-  error,
-  copyFeedback,
+  statusLabel,
   onCreateShareLink,
   onRegenerateShareLink,
   onCopyShareLink,
@@ -16,16 +15,21 @@ export function AccountVaultShareLinkActions({
     return null
   }
 
+  const isErrorStatus = statusLabel === '생성 실패' || statusLabel === '처리 실패'
+
   return (
     <div className="account-vault-share-link-actions" aria-label="외부 수정 URL">
-      {copyFeedback ? (
-        <span className="account-vault-share-link-actions__feedback" role="status">
-          {copyFeedback}
-        </span>
-      ) : null}
-      {error ? (
-        <span className="account-vault-share-link-actions__error" role="alert">
-          {error}
+      {statusLabel ? (
+        <span
+          className={[
+            'account-vault-share-link-actions__status',
+            isErrorStatus ? 'account-vault-share-link-actions__status--error' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          role="status"
+        >
+          {statusLabel}
         </span>
       ) : null}
       {!hasShareUrl ? (
