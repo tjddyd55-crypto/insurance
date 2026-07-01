@@ -5641,56 +5641,43 @@ div.cta-button.customers-page__action-btn[role='button'] {
   font-size: 0.875rem;
 }
 
+.user-insurer-accounts-page__header--toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.user-insurer-accounts-page__header-main {
+  min-width: 0;
+}
+
+.account-vault-share-link-actions {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.account-vault-share-link-actions__feedback {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.account-vault-share-link-actions__error {
+  color: var(--danger);
+  font-size: 0.8125rem;
+}
+
 .external-account-vault-page__header {
   margin-bottom: 0;
 }
 
 .external-account-vault-page .user-insurer-accounts-page__panel {
   margin-top: 16px;
-}
-
-.account-vault-share-link-section {
-  margin-bottom: 16px;
-}
-
-.user-insurer-accounts-section--share-link .account-vault-share-link-section__banner {
-  background: var(--bg-card);
-}
-
-.user-insurer-accounts-section--share-link .user-insurer-accounts-section__title {
-  color: var(--text-primary);
-}
-
-.account-vault-share-link-section__desc {
-  margin-bottom: 8px;
-}
-
-.account-vault-share-link-section__desc:last-of-type {
-  margin-bottom: 12px;
-}
-
-.account-vault-share-link-section__url-field {
-  display: grid;
-  gap: 6px;
-  margin-bottom: 12px;
-}
-
-.account-vault-share-link-section__url-label {
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
-.account-vault-share-link-section__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.account-vault-share-link-section__feedback {
-  margin: 0 0 12px;
-  color: var(--text-secondary);
-  font-size: 0.875rem;
 }
 
 .user-insurer-accounts-page__panel {
@@ -5971,6 +5958,17 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .user-insurer-accounts-page--mobile .user-insurer-accounts-page__header h1 {
   font-size: 1.65rem;
+}
+
+.user-insurer-accounts-page--mobile .user-insurer-accounts-page__header--toolbar {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.user-insurer-accounts-page--mobile .account-vault-share-link-actions {
+  justify-content: flex-start;
 }
 
 .user-insurer-accounts-page--mobile .user-insurer-accounts-page__panel {
