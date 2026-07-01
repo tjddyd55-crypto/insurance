@@ -4679,7 +4679,7 @@ button.filter-button:focus-visible {
 }
 
 .customer-list-panel__scroll-content {
-  padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
 }
 
 .customer-list-panel__fab-overlay {
@@ -4693,19 +4693,19 @@ button.filter-button:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  min-width: 48px;
-  height: 56px;
-  min-height: 56px;
-  bottom: calc(var(--customer-list-fab-bottom-offset, 22px) + env(safe-area-inset-bottom, 0px));
+  width: 44px;
+  min-width: 44px;
+  height: 52px;
+  min-height: 52px;
+  bottom: calc(var(--customer-list-scroll-fab-bottom-offset, 16px) + env(safe-area-inset-bottom, 0px));
   margin: 0;
   padding: 0;
-  border: 1px solid var(--border-default, #d7dde5);
+  border: 1px solid #a7f3d0;
   border-radius: 999px;
-  background: var(--bg-surface, #ffffff);
-  color: var(--text-primary, #111827);
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
-  font-size: 24px;
+  background: #ffffff;
+  color: #166534;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.14);
+  font-size: 22px;
   font-weight: 800;
   line-height: 1;
   cursor: pointer;
@@ -4715,14 +4715,22 @@ button.filter-button:focus-visible {
 }
 
 .customer-list-scroll-top-button:hover {
-  background: #f8fafc;
+  background: #f0fdf4;
 }
 
 .customer-list-scroll-top-button:focus-visible {
   outline: none;
   box-shadow:
-    0 8px 20px rgba(15, 23, 42, 0.18),
-    0 0 0 3px rgba(59, 130, 246, 0.28);
+    0 8px 20px rgba(15, 23, 42, 0.14),
+    0 0 0 3px rgba(167, 243, 208, 0.55);
+}
+
+.customers-page--mobile .customer-list-scroll-top-button {
+  width: 46px;
+  min-width: 46px;
+  height: 56px;
+  min-height: 56px;
+  font-size: 24px;
 }
 
 /* 고객 관리 — 모바일 기준 단일 열 레이아웃 */
