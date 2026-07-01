@@ -150,13 +150,24 @@ export function resolveStorageFileFolderLabel(
 ): string {
   const folderId = file.folderId ?? null
   if (folderId == null) {
-    return '최상위'
+    return '미분류'
   }
   return findStorageFolderById(folders, folderId)?.name ?? '폴더'
 }
 
-export function storageExplorerFolderSessionKey(customerId: number): string {
-  return `storage-explorer-folder:${customerId}`
+export type StorageExplorerPersistScope =
+  | { type: 'customer'; customerId: number }
+  | { type: 'personal' }
+
+export function storageExplorerFolderSessionKey(scope: StorageExplorerPersistScope): string {
+  return scope.type === 'personal'
+    ? 'storage-explorer-folder:personal'
+    : `storage-explorer-folder:${scope.customerId}`
+}
+
+/** @deprecated {@link storageExplorerFolderSessionKey} with customer scope */
+export function storageExplorerFolderSessionKeyForCustomer(customerId: number): string {
+  return storageExplorerFolderSessionKey({ type: 'customer', customerId })
 }
 
 export function resolveExplorerSelectionAtBreadcrumbIndex(
@@ -197,11 +208,11 @@ export function resolveFolderIdAtBreadcrumbIndex(
   return getStorageExplorerSelectedFolderId(next)
 }
 
-export function readStoredExplorerSelection(customerId: number): StorageExplorerSelection {
+export function readStoredExplorerSelection(scope: StorageExplorerPersistScope): StorageExplorerSelection {
   if (typeof sessionStorage === 'undefined') {
     return { mode: 'all' }
   }
-  const raw = sessionStorage.getItem(storageExplorerFolderSessionKey(customerId))
+  const raw = sessionStorage.getItem(storageExplorerFolderSessionKey(scope))
   if (!raw || raw === 'root' || raw === 'all') {
     return { mode: 'all' }
   }
@@ -209,25 +220,30 @@ export function readStoredExplorerSelection(customerId: number): StorageExplorer
   return Number.isInteger(id) && id > 0 ? { mode: 'folder', folderId: id } : { mode: 'all' }
 }
 
-export function writeStoredExplorerSelection(customerId: number, selection: StorageExplorerSelection): void {
+export function writeStoredExplorerSelection(
+  scope: StorageExplorerPersistScope,
+  selection: StorageExplorerSelection,
+): void {
   if (typeof sessionStorage === 'undefined') {
     return
   }
   sessionStorage.setItem(
-    storageExplorerFolderSessionKey(customerId),
+    storageExplorerFolderSessionKey(scope),
     selection.mode === 'all' ? 'all' : String(selection.folderId),
   )
 }
 
 /** @deprecated {@link readStoredExplorerSelection} */
 export function readStoredExplorerFolderId(customerId: number): number | null {
-  return getStorageExplorerSelectedFolderId(readStoredExplorerSelection(customerId))
+  return getStorageExplorerSelectedFolderId(
+    readStoredExplorerSelection({ type: 'customer', customerId }),
+  )
 }
 
 /** @deprecated {@link writeStoredExplorerSelection} */
 export function writeStoredExplorerFolderId(customerId: number, folderId: number | null): void {
   writeStoredExplorerSelection(
-    customerId,
+    { type: 'customer', customerId },
     folderId == null ? { mode: 'all' } : { mode: 'folder', folderId },
   )
 }

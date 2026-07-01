@@ -4,9 +4,11 @@ import type { MyStorageViewProps } from './myStorageViewProps'
 
 export default function MyStoragePageMobileView(props: MyStorageViewProps) {
   return (
-    <>
-      <StorageUsageManager token={props.token} />
-      <StorageWorkspace {...props} variant="mobile" />
-    </>
+    <StorageWorkspace
+      {...props}
+      variant="mobile"
+      layout="legacy"
+      headerActionsSlot={<StorageUsageManager token={props.token} compact />}
+    />
   )
 }

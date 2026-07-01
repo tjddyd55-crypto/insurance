@@ -73,7 +73,7 @@ test('resolveStorageFileFolderLabel and breadcrumb all selection', () => {
   )
   assert.equal(
     resolveStorageFileFolderLabel(folders, { id: 2, folderId: null } as Parameters<typeof resolveStorageFileFolderLabel>[1]),
-    '최상위',
+    '미분류',
   )
   assert.deepEqual(buildStorageFolderBreadcrumb(folders, { mode: 'all' }), ['전체'])
   assert.deepEqual(
@@ -95,11 +95,13 @@ test('session storage uses all vs folder id', () => {
     },
   })
   try {
-    const key = 999001
-    writeStoredExplorerSelection(key, { mode: 'folder', folderId: 42 })
-    assert.deepEqual(readStoredExplorerSelection(key), { mode: 'folder', folderId: 42 })
-    writeStoredExplorerSelection(key, { mode: 'all' })
-    assert.deepEqual(readStoredExplorerSelection(key), { mode: 'all' })
+    const scope = { type: 'customer' as const, customerId: 999001 }
+    writeStoredExplorerSelection(scope, { mode: 'folder', folderId: 42 })
+    assert.deepEqual(readStoredExplorerSelection(scope), { mode: 'folder', folderId: 42 })
+    writeStoredExplorerSelection(scope, { mode: 'all' })
+    assert.deepEqual(readStoredExplorerSelection(scope), { mode: 'all' })
+    writeStoredExplorerSelection({ type: 'personal' }, { mode: 'folder', folderId: 7 })
+    assert.deepEqual(readStoredExplorerSelection({ type: 'personal' }), { mode: 'folder', folderId: 7 })
   } finally {
     Object.defineProperty(globalThis, 'sessionStorage', {
       configurable: true,

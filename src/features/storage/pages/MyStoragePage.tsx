@@ -37,7 +37,6 @@ export default function MyStoragePage() {
     token,
     customerId: null,
     title: '내 저장공간',
-    subtitle: '폴더와 파일은 최신순으로 정렬됩니다.',
   }
 
   return (

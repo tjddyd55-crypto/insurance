@@ -35,6 +35,7 @@ import {
   readStoredExplorerSelection,
   resolveExplorerSelectionAtBreadcrumbIndex,
   writeStoredExplorerSelection,
+  type StorageExplorerPersistScope,
   type StorageExplorerSelection,
 } from '../utils/storageFolderTree'
 
@@ -75,6 +76,8 @@ type StorageWorkspaceProps = {
   title: string
   subtitle?: string
   headerSlot?: ReactNode
+  /** 제목·용량 줄 우측 compact 액션(내 저장공간 사용처 보기 등) */
+  headerActionsSlot?: ReactNode
   variant: 'pc' | 'mobile'
   /**
    * 행/툴바 액션 버튼 스타일. 기본 'storage'(내 저장공간).
@@ -165,12 +168,16 @@ export default function StorageWorkspace({
   title,
   subtitle,
   headerSlot,
+  headerActionsSlot,
   variant,
   actionVariant = 'storage',
   layout = 'legacy',
 }: StorageWorkspaceProps) {
   const isMobile = variant === 'mobile'
-  const isExplorerLayout = layout === 'explorer' && !isMobile && customerId != null
+  const isExplorerLayout = layout === 'explorer' && !isMobile
+  const explorerPersistScope = useMemo((): StorageExplorerPersistScope => {
+    return customerId != null ? { type: 'customer', customerId } : { type: 'personal' }
+  }, [customerId])
   const [folders, setFolders] = useState<StorageFolderRow[]>([])
   const [files, setFiles] = useState<StorageFileRow[]>([])
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<number>>(new Set())
@@ -318,19 +325,19 @@ export default function StorageWorkspace({
   }, [customerId, token])
 
   useEffect(() => {
-    if (!isExplorerLayout || customerId == null) {
+    if (!isExplorerLayout) {
       return
     }
-    const stored = readStoredExplorerSelection(customerId)
+    const stored = readStoredExplorerSelection(explorerPersistScope)
     setExplorerSelection(stored)
-  }, [customerId, isExplorerLayout])
+  }, [explorerPersistScope, isExplorerLayout])
 
   useEffect(() => {
-    if (!isExplorerLayout || customerId == null) {
+    if (!isExplorerLayout) {
       return
     }
-    writeStoredExplorerSelection(customerId, explorerSelection)
-  }, [customerId, explorerSelection, isExplorerLayout])
+    writeStoredExplorerSelection(explorerPersistScope, explorerSelection)
+  }, [explorerPersistScope, explorerSelection, isExplorerLayout])
 
   const explorerSelectedFolderId = getStorageExplorerSelectedFolderId(explorerSelection)
 
@@ -815,28 +822,40 @@ export default function StorageWorkspace({
         .join(' ')}
     >
       {headerSlot}
-      <div className="storage-workspace__header">
-        {title?.trim() ? <h1 className="storage-workspace__title">{title}</h1> : null}
-        {subtitle ? <p className="storage-workspace__subtitle">{subtitle}</p> : null}
-        <p className="storage-workspace__quota" role="status">
-          {quotaLoading ? (
-            <>개인 저장공간 사용량 불러오는 중…</>
-          ) : quota ? (
-            <>
-              개인 저장소 사용량 {formatStorageMb(quota.usedBytes)} MB / {formatStorageMb(quota.limitBytes)} MB (
-              {quotaPercent?.text ?? '0.0'}%)
-              {quota.pendingUploadBytes != null && quota.pendingUploadBytes > 0
-                ? ` (업로드 진행 예약 ${formatStorageMb(quota.pendingUploadBytes)} MB)`
-                : ''}
-              {customerId != null ? ' (고객 파일·내 저장공간 합산)' : ''}
-              <span className="storage-bar" aria-hidden="true">
-                <span className="storage-bar-fill" style={{ width: `${quotaPercent?.safe ?? 0}%` }} />
-              </span>
-            </>
-          ) : (
-            <>개인 저장공간 용량 정보를 불러오지 못했습니다.</>
-          )}
-        </p>
+      <div
+        className={[
+          'storage-workspace__header',
+          headerActionsSlot ? 'storage-workspace__header--with-actions' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
+        <div className="storage-workspace__header-main">
+          {title?.trim() ? <h1 className="storage-workspace__title">{title}</h1> : null}
+          {subtitle ? <p className="storage-workspace__subtitle">{subtitle}</p> : null}
+          <p className="storage-workspace__quota" role="status">
+            {quotaLoading ? (
+              <>개인 저장공간 사용량 불러오는 중…</>
+            ) : quota ? (
+              <>
+                개인 저장소 사용량 {formatStorageMb(quota.usedBytes)} MB / {formatStorageMb(quota.limitBytes)} MB (
+                {quotaPercent?.text ?? '0.0'}%)
+                {quota.pendingUploadBytes != null && quota.pendingUploadBytes > 0
+                  ? ` (업로드 진행 예약 ${formatStorageMb(quota.pendingUploadBytes)} MB)`
+                  : ''}
+                {customerId != null ? ' (고객 파일·내 저장공간 합산)' : ''}
+                <span className="storage-bar" aria-hidden="true">
+                  <span className="storage-bar-fill" style={{ width: `${quotaPercent?.safe ?? 0}%` }} />
+                </span>
+              </>
+            ) : (
+              <>개인 저장공간 용량 정보를 불러오지 못했습니다.</>
+            )}
+          </p>
+        </div>
+        {headerActionsSlot ? (
+          <div className="storage-workspace__header-actions">{headerActionsSlot}</div>
+        ) : null}
       </div>
 
       {isExplorerLayout ? (

@@ -12685,6 +12685,26 @@ textarea.memo-sticky-note__textarea:focus {
   margin-bottom: 12px;
 }
 
+.storage-workspace__header--with-actions {
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.storage-workspace__header-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.storage-workspace__header-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding-top: 2px;
+}
+
 .storage-workspace__title {
   margin: 0;
   font-size: 1.2rem;
@@ -12749,6 +12769,14 @@ textarea.memo-sticky-note__textarea:focus {
 
 .storage-workspace--explorer .storage-workspace__header {
   margin-bottom: 10px;
+}
+
+.storage-workspace--explorer .storage-workspace__header--with-actions {
+  align-items: center;
+}
+
+.storage-workspace--explorer .storage-workspace__header-actions {
+  padding-top: 0;
 }
 
 .storage-workspace--explorer .storage-workspace__quota {
