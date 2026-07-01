@@ -1,5 +1,6 @@
 import type { TaCallAssignment, TaCallDay, TaCallStatus } from '../types/taCall.types'
 import { TA_STATUS_LABELS } from '../types/taCall.types'
+import { canOpenTaCallCustomer } from '../utils/taCallCustomerNavigation'
 import {
   buildTelHref,
   formatTaCallBirthDate,
@@ -10,6 +11,28 @@ import {
   resolveDayHeaderRatio,
   resolveDayStatusBadge,
 } from '../utils/taCallDisplay'
+
+type TaCallCustomerNameProps = {
+  assignment: TaCallAssignment
+  onOpenCustomer: (assignment: TaCallAssignment) => void
+}
+
+function TaCallCustomerName({ assignment, onOpenCustomer }: TaCallCustomerNameProps) {
+  const name = assignment.customerName?.trim() || '—'
+  if (!canOpenTaCallCustomer(assignment)) {
+    return <span className="ta-call-customer-name">{name}</span>
+  }
+
+  return (
+    <button
+      type="button"
+      className="ta-call-customer-name ta-call-customer-name--link"
+      onClick={() => onOpenCustomer(assignment)}
+    >
+      {name}
+    </button>
+  )
+}
 
 type TaCallStatusButtonsProps = {
   current: TaCallStatus
@@ -43,6 +66,7 @@ type TaCallAssignmentCardProps = {
   assignment: TaCallAssignment
   emphasize?: boolean
   disabled?: boolean
+  onOpenCustomer: (assignment: TaCallAssignment) => void
   onStatusChange: (status: TaCallStatus) => void
 }
 
@@ -50,6 +74,7 @@ export function TaCallAssignmentCard({
   assignment,
   emphasize = false,
   disabled,
+  onOpenCustomer,
   onStatusChange,
 }: TaCallAssignmentCardProps) {
   const tel = buildTelHref(assignment.customerPhone)
@@ -63,7 +88,7 @@ export function TaCallAssignmentCard({
     >
       <div className="ta-call-assignment-card__head">
         <div className="ta-call-assignment-card__name-row">
-          <strong className="ta-call-assignment-card__name">{assignment.customerName}</strong>
+          <TaCallCustomerName assignment={assignment} onOpenCustomer={onOpenCustomer} />
           <span className="ta-call-assignment-card__gender">{gender}</span>
           <span className={`ta-call-status-badge ta-call-status-badge--${assignment.status}`}>
             {TA_STATUS_LABELS[assignment.status]}
@@ -92,14 +117,22 @@ export function TaCallAssignmentCard({
 type TaCallAssignmentRowProps = {
   assignment: TaCallAssignment
   disabled?: boolean
+  onOpenCustomer: (assignment: TaCallAssignment) => void
   onStatusChange: (status: TaCallStatus) => void
 }
 
-export function TaCallAssignmentRow({ assignment, disabled, onStatusChange }: TaCallAssignmentRowProps) {
+export function TaCallAssignmentRow({
+  assignment,
+  disabled,
+  onOpenCustomer,
+  onStatusChange,
+}: TaCallAssignmentRowProps) {
   const tel = buildTelHref(assignment.customerPhone)
   return (
     <div className="ta-call-assignment-row">
-      <div className="ta-call-assignment-row__name">{assignment.customerName}</div>
+      <div className="ta-call-assignment-row__name">
+        <TaCallCustomerName assignment={assignment} onOpenCustomer={onOpenCustomer} />
+      </div>
       <div className="ta-call-assignment-row__gender">{formatTaCallGender(assignment.customerGender)}</div>
       <div className="ta-call-assignment-row__birth">{formatTaCallBirthDate(assignment.customerBirthDate)}</div>
       <div className="ta-call-assignment-row__phone">{formatTaCallPhoneNumber(assignment.customerPhone)}</div>
@@ -135,6 +168,7 @@ type TaCallDaySectionProps = {
   expanded: boolean
   layout: 'mobile' | 'pc'
   onToggleExpanded: () => void
+  onOpenCustomer: (assignment: TaCallAssignment) => void
   onStatusChange: (assignmentId: string, status: TaCallStatus) => void
 }
 
@@ -144,6 +178,7 @@ export default function TaCallDaySection({
   expanded,
   layout,
   onToggleExpanded,
+  onOpenCustomer,
   onStatusChange,
 }: TaCallDaySectionProps) {
   const badge = resolveDayStatusBadge(day)
@@ -205,6 +240,7 @@ export default function TaCallDaySection({
               key={assignment.id}
               assignment={assignment}
               disabled={busy}
+              onOpenCustomer={onOpenCustomer}
               onStatusChange={(status) => onStatusChange(assignment.id, status)}
             />
           ))}
@@ -219,6 +255,7 @@ export default function TaCallDaySection({
               assignment={assignment}
               emphasize={day.isToday}
               disabled={busy}
+              onOpenCustomer={onOpenCustomer}
               onStatusChange={(status) => onStatusChange(assignment.id, status)}
             />
           ))}

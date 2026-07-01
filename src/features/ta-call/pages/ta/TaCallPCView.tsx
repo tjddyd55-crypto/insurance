@@ -24,6 +24,7 @@ export default function TaCallPCView(props: TaCallViewProps) {
     changeAssignmentStatus,
     toggleDayExpanded,
     isDayExpanded,
+    openCustomerFromAssignment,
   } = props
 
   return (
@@ -93,6 +94,7 @@ export default function TaCallPCView(props: TaCallViewProps) {
                     expanded={isDayExpanded(day.date)}
                     layout="pc"
                     onToggleExpanded={() => toggleDayExpanded(day.date)}
+                    onOpenCustomer={openCustomerFromAssignment}
                     onStatusChange={changeAssignmentStatus}
                   />
                 ))}

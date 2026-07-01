@@ -461,6 +461,27 @@
   font-size: 1rem;
 }
 
+.ta-call-customer-name {
+  font-size: inherit;
+  font-weight: 600;
+}
+
+.ta-call-page .ta-call-customer-name--link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ta-call-page .ta-call-customer-name--link:hover {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
 .ta-call-assignment-card__gender {
   font-size: 0.8125rem;
   color: var(--ta-muted);
