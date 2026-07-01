@@ -98,6 +98,11 @@ import {
   injectCustomerRegisterInviteMeta,
   readCookieFromHeader,
 } from './lib/customerInviteRegistrationPublic.js'
+import { injectAccountVaultShareMeta } from './lib/accountVaultSharePublicMeta.js'
+import {
+  normalizeShareToken,
+  resolveActiveShareTokenContext,
+} from './services/userInsurerAccountShareService.js'
 import { stringifyCrmExtensionForDb } from './lib/customerCrmExtension.js'
 import { validateExternalInviteBatchCustomers } from './lib/externalInviteBatchRegistration.js'
 import { buildCustomerRowVisibilityWhere, resolveCustomerApiAccessScope } from './lib/customerAccessScope.js'
@@ -7538,7 +7543,7 @@ app.use('/backend/api', apiRouter)
 
 if (fs.existsSync(DIST_PATH)) {
   app.use(express.static(DIST_PATH))
-  app.use((req, res, next) => {
+  app.use(async (req, res, next) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       return next()
     }
@@ -7567,6 +7572,23 @@ if (fs.existsSync(DIST_PATH)) {
       } catch (err) {
         console.warn(
           '[spa] customer/register meta inject failed:',
+          err instanceof Error ? err.message : String(err),
+        )
+      }
+    }
+
+    if (p.startsWith('/share/account-credentials/')) {
+      try {
+        const tokenRaw = p.slice('/share/account-credentials/'.length).split('/')[0] ?? ''
+        const token = normalizeShareToken(decodeURIComponent(tokenRaw))
+        const htmlPath = path.join(DIST_PATH, 'index.html')
+        const raw = fs.readFileSync(htmlPath, 'utf8')
+        const owner = token ? await resolveActiveShareTokenContext(pool, safeQuery, token) : null
+        res.type('html').send(injectAccountVaultShareMeta(raw, owner?.ownerDisplayName ?? null))
+        return
+      } catch (err) {
+        console.warn(
+          '[spa] account-vault share meta inject failed:',
           err instanceof Error ? err.message : String(err),
         )
       }

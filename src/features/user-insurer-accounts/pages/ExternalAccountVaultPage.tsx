@@ -8,6 +8,7 @@ import {
   type AccountVaultAdapter,
 } from '../api/accountVaultAdapter'
 import { fetchExternalAccountVaultMeta } from '../api/externalAccountVaultApi'
+import { useExternalAccountVaultLinkMeta } from '../hooks/useExternalAccountVaultLinkMeta'
 import ExternalAccountVaultPCView from './external-account-vault/ExternalAccountVaultPCView'
 import ExternalAccountVaultMobileView from './external-account-vault/ExternalAccountVaultMobileView'
 
@@ -60,6 +61,7 @@ export default function ExternalAccountVaultPage() {
   }, [shareToken])
 
   const title = formatExternalAccountVaultTitle(ownerDisplayName)
+  useExternalAccountVaultLinkMeta(ownerDisplayName, !metaLoading && !metaError && Boolean(ownerDisplayName.trim()))
 
   return (
     <ResponsiveLayout<ExternalAccountVaultViewProps>

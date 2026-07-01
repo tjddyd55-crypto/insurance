@@ -78,12 +78,16 @@ export function registerUserInsurerAccountShareApi(apiRouter, ctx) {
       }
       const userR = await safeQuery(
         pool,
-        `SELECT display_name, username FROM users WHERE id = $1 LIMIT 1`,
+        `SELECT display_name, name, username FROM users WHERE id = $1 LIMIT 1`,
         [owner.userId],
         { allowUnscoped: true },
       )
       const userRow = userR.rows[0]
-      const ownerDisplayName = resolveOwnerDisplayName(userRow?.display_name, userRow?.username)
+      const ownerDisplayName = resolveOwnerDisplayName(
+        userRow?.display_name,
+        userRow?.name,
+        userRow?.username,
+      )
       res.json({
         shareUrl: buildSharePageUrl(req, row.token),
         token: row.token,
@@ -104,12 +108,16 @@ export function registerUserInsurerAccountShareApi(apiRouter, ctx) {
       const token = await createActiveShareToken(pool, safeQuery, owner.userId, owner.gaId)
       const userR = await safeQuery(
         pool,
-        `SELECT display_name, username FROM users WHERE id = $1 LIMIT 1`,
+        `SELECT display_name, name, username FROM users WHERE id = $1 LIMIT 1`,
         [owner.userId],
         { allowUnscoped: true },
       )
       const userRow = userR.rows[0]
-      const ownerDisplayName = resolveOwnerDisplayName(userRow?.display_name, userRow?.username)
+      const ownerDisplayName = resolveOwnerDisplayName(
+        userRow?.display_name,
+        userRow?.name,
+        userRow?.username,
+      )
       res.status(201).json({
         shareUrl: buildSharePageUrl(req, token),
         token,

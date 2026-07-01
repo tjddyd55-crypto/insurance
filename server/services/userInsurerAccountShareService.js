@@ -10,12 +10,17 @@ export function normalizeShareToken(raw) {
 
 /**
  * @param {string | null | undefined} displayName
+ * @param {string | null | undefined} name
  * @param {string | null | undefined} username
  */
-export function resolveOwnerDisplayName(displayName, username) {
-  const name = String(displayName ?? '').trim()
-  if (name) {
-    return name
+export function resolveOwnerDisplayName(displayName, name, username) {
+  const display = String(displayName ?? '').trim()
+  if (display) {
+    return display
+  }
+  const legalName = String(name ?? '').trim()
+  if (legalName) {
+    return legalName
   }
   const login = String(username ?? '').trim()
   if (login) {
@@ -109,6 +114,7 @@ export async function resolveActiveShareTokenContext(db, safeQueryExec, token) {
       t.ga_id,
       t.owner_user_id,
       u.display_name,
+      u.name,
       u.username
     FROM user_insurer_account_share_tokens t
     JOIN users u ON u.id = t.owner_user_id
@@ -127,6 +133,6 @@ export async function resolveActiveShareTokenContext(db, safeQueryExec, token) {
     token: normalized,
     userId: String(row.owner_user_id ?? ''),
     gaId: Number(row.ga_id),
-    ownerDisplayName: resolveOwnerDisplayName(row.display_name, row.username),
+    ownerDisplayName: resolveOwnerDisplayName(row.display_name, row.name, row.username),
   }
 }
