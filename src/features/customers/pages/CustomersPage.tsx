@@ -1615,6 +1615,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
 
   const listBodyNode = (
     <section ref={listPanelRef} className="list-section customer-list-panel" style={{ marginTop: 0 }}>
+      <div className="customer-list-panel__scroll-content">
       {showFilters ? (
         <CustomerFilterControls
           variant="filterPanel"
@@ -1688,56 +1689,55 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
             : '고객이 없습니다.'}
         </p>
       ) : (
-        <>
-          <ul className="record-list customer-expand-list customer-list customers-page__customer-list">
-            {listCustomersToRender.map((c) => (
-              <CustomerListCard
-                key={String(c.id)}
-                customer={c}
-                ssnDupHighlight={ssnDupHighlightByCustomerId.get(c.id)}
-                isSelectMode={isSelectMode}
-                selectedCustomerIds={selectedCustomerIds}
-                setSelectedCustomerIds={setSelectedCustomerIds}
-                expandedId={expandedId}
-                setExpandedId={setExpandedId}
-                onSelectCustomer={handleSelectCustomer}
-                editingId={editingId}
-                editForm={editForm}
-                setEditForm={setEditForm}
-                onEditSubmit={handleEditFormSubmit}
-                onEditSaveRequest={handleEditSaveRequest}
-                editSaving={editSaving}
-                editStatusText={editingId === c.id ? statusText : undefined}
-                carFeatureEnabled={carFeatureEnabled}
-                contractSignaturesEnabled={contractSignaturesEnabled}
-                gaExcelEnabled={gaExcelEnabled}
-                claimsFeatureEnabled={claimsFeatureEnabled}
-                onCopyCustomer={copyCustomer}
-                onStartEdit={startEdit}
-                onCancelEdit={cancelEdit}
-                onDeleteCustomer={handleDeleteCustomer}
-                onOpenFilesModal={handleOpenFilesModal}
-                onOpenConsultationsModal={handleOpenConsultationsModal}
-                onOpenAutoModal={handleOpenAutoModal}
-                onOpenSignatures={handleOpenSignatures}
-                onOpenGaModal={handleOpenGaModal}
-                onOpenPersonalMessage={handleOpenPersonalMessage}
-                onOpenClaims={handleOpenClaims}
-                onOpenMemos={handleOpenMemos}
-                onOpenOnMap={handleOpenOnMap}
-                mobileCopyFeedback={mobileCopyFeedback}
-                onOpenRelatedCustomer={handleOpenRelatedCustomer}
-                token={token}
-                onToggleFavorite={handleToggleFavorite}
-                variant={isMobile ? 'mobile' : 'pc'}
-                crmIsInsuranceLayout={crmIndustry.isInsuranceLayout}
-                crmIndustryTemplate={crmIndustry.resolvedTemplate}
-              />
-            ))}
-          </ul>
-          <CustomerListScrollTopButton anchorRef={listPanelRef} />
-        </>
+        <ul className="record-list customer-expand-list customer-list customers-page__customer-list">
+          {listCustomersToRender.map((c) => (
+            <CustomerListCard
+              key={String(c.id)}
+              customer={c}
+              ssnDupHighlight={ssnDupHighlightByCustomerId.get(c.id)}
+              isSelectMode={isSelectMode}
+              selectedCustomerIds={selectedCustomerIds}
+              setSelectedCustomerIds={setSelectedCustomerIds}
+              expandedId={expandedId}
+              setExpandedId={setExpandedId}
+              onSelectCustomer={handleSelectCustomer}
+              editingId={editingId}
+              editForm={editForm}
+              setEditForm={setEditForm}
+              onEditSubmit={handleEditFormSubmit}
+              onEditSaveRequest={handleEditSaveRequest}
+              editSaving={editSaving}
+              editStatusText={editingId === c.id ? statusText : undefined}
+              carFeatureEnabled={carFeatureEnabled}
+              contractSignaturesEnabled={contractSignaturesEnabled}
+              gaExcelEnabled={gaExcelEnabled}
+              claimsFeatureEnabled={claimsFeatureEnabled}
+              onCopyCustomer={copyCustomer}
+              onStartEdit={startEdit}
+              onCancelEdit={cancelEdit}
+              onDeleteCustomer={handleDeleteCustomer}
+              onOpenFilesModal={handleOpenFilesModal}
+              onOpenConsultationsModal={handleOpenConsultationsModal}
+              onOpenAutoModal={handleOpenAutoModal}
+              onOpenSignatures={handleOpenSignatures}
+              onOpenGaModal={handleOpenGaModal}
+              onOpenPersonalMessage={handleOpenPersonalMessage}
+              onOpenClaims={handleOpenClaims}
+              onOpenMemos={handleOpenMemos}
+              onOpenOnMap={handleOpenOnMap}
+              mobileCopyFeedback={mobileCopyFeedback}
+              onOpenRelatedCustomer={handleOpenRelatedCustomer}
+              token={token}
+              onToggleFavorite={handleToggleFavorite}
+              variant={isMobile ? 'mobile' : 'pc'}
+              crmIsInsuranceLayout={crmIndustry.isInsuranceLayout}
+              crmIndustryTemplate={crmIndustry.resolvedTemplate}
+            />
+          ))}
+        </ul>
       )}
+      </div>
+      {listCustomersToRender.length > 0 ? <CustomerListScrollTopButton anchorRef={listPanelRef} /> : null}
     </section>
   )
 
