@@ -22,6 +22,8 @@ export default function TaCallMobileView(props: TaCallViewProps) {
     goPrevWeek,
     goNextWeek,
     changeAssignmentStatus,
+    toggleDayExpanded,
+    isDayExpanded,
   } = props
 
   return (
@@ -56,7 +58,9 @@ export default function TaCallMobileView(props: TaCallViewProps) {
                 key={day.date}
                 day={day}
                 busy={busy}
+                expanded={isDayExpanded(day.date)}
                 layout="mobile"
+                onToggleExpanded={() => toggleDayExpanded(day.date)}
                 onStatusChange={changeAssignmentStatus}
               />
             ))}

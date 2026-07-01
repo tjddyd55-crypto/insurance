@@ -1,5 +1,18 @@
 import { addDaysToDateOnly, formatKoreanDateOnlyWithWeekday } from '../../../../shared/dateTimeKst'
+import {
+  buildTaCallTelHref,
+  formatTaCallBirthDate,
+  formatTaCallGender,
+  formatTaCallPhoneNumber,
+} from '../../../../shared/taCallDisplayFormat.js'
 import type { TaCallDay, TaCallWeekPayload } from '../types/taCall.types'
+
+export {
+  buildTaCallTelHref,
+  formatTaCallBirthDate,
+  formatTaCallGender,
+  formatTaCallPhoneNumber,
+}
 
 export function formatTaWeekRangeLabel(start: string, end: string): string {
   const startLabel = start.replace(/-/g, '.')
@@ -15,14 +28,16 @@ export function formatTaDayHeader(date: string): { weekday: string; dayNum: stri
   return { weekday, dayNum, full }
 }
 
-export function formatTaBirthDateDots(value: string | null | undefined): string {
-  if (!value) return '—'
-  return value.replace(/-/g, '.')
+/** 예: 6/29, 월 */
+export function formatTaDayHeaderCompact(date: string): { dateLabel: string; weekday: string } {
+  const month = Number(date.slice(5, 7))
+  const day = Number(date.slice(8, 10))
+  const weekday = formatTaDayHeader(date).weekday
+  return { dateLabel: `${month}/${day}`, weekday }
 }
 
 export function buildTelHref(phone: string): string {
-  const digits = phone.replace(/\D/g, '')
-  return digits ? `tel:${digits}` : ''
+  return buildTaCallTelHref(phone)
 }
 
 export function findTodayDay(week: TaCallWeekPayload | null): TaCallDay | null {
@@ -56,9 +71,14 @@ export function resolveDayStatusBadge(day: TaCallDay): string {
   return '미션 완료'
 }
 
-export function genderSymbol(gender: string): string {
-  const g = gender.trim().toUpperCase()
-  if (g === 'M' || g === '남' || g === 'MALE') return 'M'
-  if (g === 'F' || g === '여' || g === 'FEMALE') return 'F'
-  return ''
+export function resolveDayHeaderRatio(day: TaCallDay): string {
+  if (day.isFuture) return '예정'
+  const total = day.totalCount > 0 ? day.totalCount : day.dailyTargetCount
+  return `${day.completedCount}/${total}`
 }
+
+export {
+  buildDefaultExpandedDates,
+  isDayExpanded,
+  toggleExpandedDate,
+} from '../../../../shared/taCallDayExpand.js'

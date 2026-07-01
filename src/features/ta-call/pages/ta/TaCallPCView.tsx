@@ -22,6 +22,8 @@ export default function TaCallPCView(props: TaCallViewProps) {
     goPrevWeek,
     goNextWeek,
     changeAssignmentStatus,
+    toggleDayExpanded,
+    isDayExpanded,
   } = props
 
   return (
@@ -88,7 +90,9 @@ export default function TaCallPCView(props: TaCallViewProps) {
                     key={day.date}
                     day={day}
                     busy={busy}
+                    expanded={isDayExpanded(day.date)}
                     layout="pc"
+                    onToggleExpanded={() => toggleDayExpanded(day.date)}
                     onStatusChange={changeAssignmentStatus}
                   />
                 ))}

@@ -2,9 +2,12 @@ import type { TaCallAssignment, TaCallDay, TaCallStatus } from '../types/taCall.
 import { TA_STATUS_LABELS } from '../types/taCall.types'
 import {
   buildTelHref,
-  formatTaBirthDateDots,
-  genderSymbol,
+  formatTaCallBirthDate,
+  formatTaCallGender,
+  formatTaCallPhoneNumber,
+  formatTaDayHeaderCompact,
   resolveDayEmptyMessage,
+  resolveDayHeaderRatio,
   resolveDayStatusBadge,
 } from '../utils/taCallDisplay'
 
@@ -50,7 +53,9 @@ export function TaCallAssignmentCard({
   onStatusChange,
 }: TaCallAssignmentCardProps) {
   const tel = buildTelHref(assignment.customerPhone)
-  const gender = genderSymbol(assignment.customerGender)
+  const gender = formatTaCallGender(assignment.customerGender)
+  const birthDate = formatTaCallBirthDate(assignment.customerBirthDate)
+  const phone = formatTaCallPhoneNumber(assignment.customerPhone)
 
   return (
     <article
@@ -59,11 +64,7 @@ export function TaCallAssignmentCard({
       <div className="ta-call-assignment-card__head">
         <div className="ta-call-assignment-card__name-row">
           <strong className="ta-call-assignment-card__name">{assignment.customerName}</strong>
-          {gender ? (
-            <span className={`ta-call-assignment-card__gender ta-call-assignment-card__gender--${gender.toLowerCase()}`}>
-              {gender}
-            </span>
-          ) : null}
+          <span className="ta-call-assignment-card__gender">{gender}</span>
           <span className={`ta-call-status-badge ta-call-status-badge--${assignment.status}`}>
             {TA_STATUS_LABELS[assignment.status]}
           </span>
@@ -75,8 +76,8 @@ export function TaCallAssignmentCard({
         ) : null}
       </div>
       <div className="ta-call-assignment-card__meta">
-        <span>{formatTaBirthDateDots(assignment.customerBirthDate)}</span>
-        <span>{assignment.customerPhone}</span>
+        <span className="ta-call-assignment-card__meta-item">생년월일 {birthDate}</span>
+        <span className="ta-call-assignment-card__meta-item">연락처 {phone}</span>
       </div>
       <TaCallStatusButtons
         current={assignment.status}
@@ -99,25 +100,30 @@ export function TaCallAssignmentRow({ assignment, disabled, onStatusChange }: Ta
   return (
     <div className="ta-call-assignment-row">
       <div className="ta-call-assignment-row__name">{assignment.customerName}</div>
-      <div className="ta-call-assignment-row__birth">{formatTaBirthDateDots(assignment.customerBirthDate)}</div>
-      <div className="ta-call-assignment-row__phone">{assignment.customerPhone}</div>
+      <div className="ta-call-assignment-row__gender">{formatTaCallGender(assignment.customerGender)}</div>
+      <div className="ta-call-assignment-row__birth">{formatTaCallBirthDate(assignment.customerBirthDate)}</div>
+      <div className="ta-call-assignment-row__phone">{formatTaCallPhoneNumber(assignment.customerPhone)}</div>
       <div className="ta-call-assignment-row__status">
         <span className={`ta-call-status-badge ta-call-status-badge--${assignment.status}`}>
           {TA_STATUS_LABELS[assignment.status]}
         </span>
       </div>
-      <div className="ta-call-assignment-row__actions">
+      <div className="ta-call-assignment-row__status-actions">
         <TaCallStatusButtons
           current={assignment.status}
           disabled={disabled}
           layout="pc"
           onChange={onStatusChange}
         />
+      </div>
+      <div className="ta-call-assignment-row__call">
         {tel ? (
           <a className="ta-call-assignment-row__call-btn" href={tel} aria-label={`${assignment.customerName}에게 전화`}>
             📞
           </a>
-        ) : null}
+        ) : (
+          <span className="ta-call-assignment-row__call-empty">-</span>
+        )}
       </div>
     </div>
   )
@@ -126,14 +132,26 @@ export function TaCallAssignmentRow({ assignment, disabled, onStatusChange }: Ta
 type TaCallDaySectionProps = {
   day: TaCallDay
   busy: boolean
+  expanded: boolean
   layout: 'mobile' | 'pc'
+  onToggleExpanded: () => void
   onStatusChange: (assignmentId: string, status: TaCallStatus) => void
 }
 
-export default function TaCallDaySection({ day, busy, layout, onStatusChange }: TaCallDaySectionProps) {
+export default function TaCallDaySection({
+  day,
+  busy,
+  expanded,
+  layout,
+  onToggleExpanded,
+  onStatusChange,
+}: TaCallDaySectionProps) {
   const badge = resolveDayStatusBadge(day)
   const emptyMessage = resolveDayEmptyMessage(day)
-  const ratio = day.totalCount > 0 ? `${day.completedCount}/${day.totalCount}` : `0/${day.dailyTargetCount}`
+  const ratio = resolveDayHeaderRatio(day)
+  const { dateLabel, weekday } = formatTaDayHeaderCompact(day.date)
+  const showAssignmentList = expanded && !day.isFuture && day.totalCount > 0
+  const showEmptyBody = expanded && (day.isFuture || day.totalCount === 0)
 
   return (
     <section
@@ -141,38 +159,46 @@ export default function TaCallDaySection({ day, busy, layout, onStatusChange }: 
         day.isToday ? ' ta-call-day-section--today' : ''
       }${day.isFuture ? ' ta-call-day-section--future' : ''}${
         day.isMissionCompleted ? ' ta-call-day-section--completed' : ''
-      }`}
+      }${expanded ? ' ta-call-day-section--expanded' : ' ta-call-day-section--collapsed'}`}
     >
-      <header className="ta-call-day-section__header">
+      <button
+        type="button"
+        className="ta-call-day-section__header"
+        aria-expanded={expanded}
+        onClick={onToggleExpanded}
+      >
+        <span className="ta-call-day-section__toggle" aria-hidden>
+          {expanded ? '▼' : '▶'}
+        </span>
         <div className="ta-call-day-section__date">
-          <span className="ta-call-day-section__day-num">{day.date.slice(8, 10).replace(/^0/, '')}</span>
-          <span className="ta-call-day-section__weekday">
-            {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][new Date(`${day.date}T12:00:00+09:00`).getUTCDay()]}
-          </span>
+          <span className="ta-call-day-section__date-label">{dateLabel}</span>
+          <span className="ta-call-day-section__weekday">{weekday}</span>
         </div>
         <div className="ta-call-day-section__summary">
-          <span className="ta-call-day-section__ratio">{ratio}</span>
+          {!day.isFuture ? <span className="ta-call-day-section__ratio">{ratio}</span> : null}
           <span className={`ta-call-day-section__badge ta-call-day-section__badge--${badge.replace(/\s+/g, '-')}`}>
             {badge}
           </span>
         </div>
-        {layout === 'pc' && day.totalCount > 0 ? (
+        {layout === 'pc' && expanded && !day.isFuture && day.totalCount > 0 ? (
           <div className="ta-call-day-section__stats">
             통화완료 {day.completedCount}, 부재중 {day.noAnswerCount}, 미통화 {day.notCalledCount} | {ratio}
           </div>
         ) : null}
-      </header>
+      </button>
 
-      {day.isFuture || day.totalCount === 0 ? (
-        <p className="ta-call-day-section__empty">{emptyMessage}</p>
-      ) : layout === 'pc' ? (
+      {showEmptyBody ? <p className="ta-call-day-section__empty">{emptyMessage}</p> : null}
+
+      {showAssignmentList && layout === 'pc' ? (
         <div className="ta-call-day-section__table">
           <div className="ta-call-assignment-row ta-call-assignment-row--head">
             <div>고객명</div>
+            <div>성별</div>
             <div>생년월일</div>
             <div>연락처</div>
-            <div>상태</div>
+            <div>현재 상태</div>
             <div>상태 변경</div>
+            <div>전화</div>
           </div>
           {day.assignments.map((assignment) => (
             <TaCallAssignmentRow
@@ -183,7 +209,9 @@ export default function TaCallDaySection({ day, busy, layout, onStatusChange }: 
             />
           ))}
         </div>
-      ) : (
+      ) : null}
+
+      {showAssignmentList && layout === 'mobile' ? (
         <div className="ta-call-day-section__cards">
           {day.assignments.map((assignment) => (
             <TaCallAssignmentCard
@@ -195,7 +223,7 @@ export default function TaCallDaySection({ day, busy, layout, onStatusChange }: 
             />
           ))}
         </div>
-      )}
+      ) : null}
     </section>
   )
 }

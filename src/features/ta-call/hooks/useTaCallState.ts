@@ -13,7 +13,7 @@ import {
   TA_CALL_MIN_TARGET,
 } from '../config/taCall.config'
 import type { TaCallSettings, TaCallStatus, TaCallWeekPayload } from '../types/taCall.types'
-import { findTodayDay, shiftWeekStartDate } from '../utils/taCallDisplay'
+import { findTodayDay, shiftWeekStartDate, buildDefaultExpandedDates, toggleExpandedDate, isDayExpanded } from '../utils/taCallDisplay'
 
 export type TaCallViewProps = ReturnType<typeof useTaCallState>
 
@@ -31,6 +31,7 @@ export function useTaCallState() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [draftTarget, setDraftTarget] = useState(TA_CALL_DEFAULT_TARGET)
   const [settingsDirty, setSettingsDirty] = useState(false)
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(() => new Set())
   const settingsDirtyRef = useRef(false)
 
   const todayDay = useMemo(() => findTodayDay(week), [week])
@@ -52,6 +53,7 @@ export function useTaCallState() {
         setSettings(settingsRes)
         setWeek(weekRes)
         setWeekStartDate(weekRes.weekStartDate)
+        setExpandedDates(buildDefaultExpandedDates(weekRes))
         if (!settingsDirtyRef.current) {
           setDraftTarget(settingsRes.dailyTargetCount)
         }
@@ -120,6 +122,10 @@ export function useTaCallState() {
     void loadWeek(shiftWeekStartDate(weekStartDate, 1))
   }, [loadWeek, weekStartDate])
 
+  const toggleDayExpanded = useCallback((date: string) => {
+    setExpandedDates((prev) => toggleExpandedDate(prev, date))
+  }, [])
+
   const changeAssignmentStatus = useCallback(
     async (assignmentId: string, status: TaCallStatus) => {
       if (!token?.trim() || !week) return
@@ -156,6 +162,8 @@ export function useTaCallState() {
     saveSettings,
     goPrevWeek,
     goNextWeek,
+    toggleDayExpanded,
+    isDayExpanded: (date: string) => isDayExpanded(expandedDates, date),
     changeAssignmentStatus,
     reload: () => loadWeek(weekStartDate || undefined),
   }
