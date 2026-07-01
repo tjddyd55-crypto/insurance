@@ -4697,7 +4697,7 @@ button.filter-button:focus-visible {
   min-width: 44px;
   height: 52px;
   min-height: 52px;
-  bottom: calc(var(--customer-list-scroll-fab-bottom-offset, 16px) + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--customer-list-scroll-fab-bottom-offset, 10px) + env(safe-area-inset-bottom, 0px));
   margin: 0;
   padding: 0;
   border: 1px solid #a7f3d0;
@@ -4726,11 +4726,11 @@ button.filter-button:focus-visible {
 }
 
 .customers-page--mobile .customer-list-scroll-top-button {
-  width: 46px;
-  min-width: 46px;
-  height: 56px;
-  min-height: 56px;
-  font-size: 24px;
+  width: 40px;
+  min-width: 40px;
+  height: 44px;
+  min-height: 44px;
+  font-size: 22px;
 }
 
 /* 고객 관리 — 모바일 기준 단일 열 레이아웃 */
