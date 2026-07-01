@@ -12,9 +12,13 @@ import {
 
 type CustomerListScrollTopButtonProps = {
   anchorRef: RefObject<HTMLElement | null>
+  variant?: 'pc' | 'mobile'
 }
 
-export default function CustomerListScrollTopButton({ anchorRef }: CustomerListScrollTopButtonProps) {
+export default function CustomerListScrollTopButton({
+  anchorRef,
+  variant = 'pc',
+}: CustomerListScrollTopButtonProps) {
   const [fabStyle, setFabStyle] = useState<CSSProperties>({ visibility: 'hidden' })
 
   const syncFabPosition = useCallback(() => {
@@ -97,13 +101,20 @@ export default function CustomerListScrollTopButton({ anchorRef }: CustomerListS
     <div className="customer-list-panel__fab-overlay" aria-hidden={fabStyle.visibility === 'hidden'}>
       <button
         type="button"
-        className="customer-list-scroll-top-button"
+        className={[
+          'customer-list-scroll-top-button',
+          variant === 'mobile' ? 'customer-list-scroll-top-button--mobile' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
         style={fabStyle}
         aria-label="고객 리스트 상단으로 이동"
         title="상단으로 이동"
         onClick={handleClick}
       >
-        ↑
+        <span className="customer-list-scroll-top-button__icon" aria-hidden="true">
+          ↑
+        </span>
       </button>
     </div>
   )

@@ -4693,6 +4693,7 @@ button.filter-button:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
   width: 44px;
   min-width: 44px;
   height: 52px;
@@ -4705,13 +4706,28 @@ button.filter-button:focus-visible {
   background: #ffffff;
   color: #166534;
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.14);
-  font-size: 22px;
-  font-weight: 800;
-  line-height: 1;
   cursor: pointer;
   flex-shrink: 0;
   pointer-events: auto;
   -webkit-tap-highlight-color: transparent;
+}
+
+.customer-list-scroll-top-button__icon {
+  display: block;
+  font-size: 20px;
+  line-height: 1;
+  font-weight: 800;
+}
+
+.customer-list-scroll-top-button--mobile {
+  width: 40px;
+  min-width: 40px;
+  height: 44px;
+  min-height: 44px;
+}
+
+.customer-list-scroll-top-button--mobile .customer-list-scroll-top-button__icon {
+  font-size: 22px;
 }
 
 .customer-list-scroll-top-button:hover {
@@ -4723,14 +4739,6 @@ button.filter-button:focus-visible {
   box-shadow:
     0 8px 20px rgba(15, 23, 42, 0.14),
     0 0 0 3px rgba(167, 243, 208, 0.55);
-}
-
-.customers-page--mobile .customer-list-scroll-top-button {
-  width: 40px;
-  min-width: 40px;
-  height: 44px;
-  min-height: 44px;
-  font-size: 22px;
 }
 
 /* 고객 관리 — 모바일 기준 단일 열 레이아웃 */
@@ -13795,7 +13803,7 @@ textarea.memo-sticky-note__textarea:focus {
    아이콘 버튼은 `.customers-page--pc .customer-card__actions .icon-box button` 등으로만 제한한다.
    ========================= */
 
-.customers-page--mobile button:not(.customer-detail-action-button):not(.customer-mobile-action-btn):not(.customer-detail-toggle-btn):not(.customer-header-app-link-compact__copy):not(.customer-filter-chip):not(.customers-page__action-btn):not(.storage-file-list__action-button):not(.customer-workspace-action-button):not(.customer-workspace-action-icon-button):not(.ui-button):not(.linked-customer-chip__main):not(.linked-customer-chip__remove):not(.customer-relations-result-item):not(.customer-edit-actions__btn),
+.customers-page--mobile button:not(.customer-detail-action-button):not(.customer-mobile-action-btn):not(.customer-detail-toggle-btn):not(.customer-header-app-link-compact__copy):not(.customer-filter-chip):not(.customers-page__action-btn):not(.storage-file-list__action-button):not(.customer-workspace-action-button):not(.customer-workspace-action-icon-button):not(.ui-button):not(.linked-customer-chip__main):not(.linked-customer-chip__remove):not(.customer-relations-result-item):not(.customer-edit-actions__btn):not(.customer-list-scroll-top-button),
 .customers-page--mobile a:not(.storage-file-list__action-button):not(.customer-workspace-action-button) {
   min-height: unset !important;
   height: auto !important;
