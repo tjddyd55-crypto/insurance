@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
+import useIsMobile from '../../../hooks/useIsMobile'
 import { useAuth } from '../../auth/AuthProvider'
 import {
   fetchTaCallSettings,
@@ -12,13 +14,16 @@ import {
   TA_CALL_MAX_TARGET,
   TA_CALL_MIN_TARGET,
 } from '../config/taCall.config'
-import type { TaCallSettings, TaCallStatus, TaCallWeekPayload } from '../types/taCall.types'
+import type { TaCallAssignment, TaCallSettings, TaCallStatus, TaCallWeekPayload } from '../types/taCall.types'
+import { buildTaCallCustomerNavigateHref } from '../utils/taCallCustomerNavigation'
 import { findTodayDay, shiftWeekStartDate, buildDefaultExpandedDates, toggleExpandedDate, isDayExpanded } from '../utils/taCallDisplay'
 
 export type TaCallViewProps = ReturnType<typeof useTaCallState>
 
 export function useTaCallState() {
   const { token } = useAuth()
+  const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -126,6 +131,20 @@ export function useTaCallState() {
     setExpandedDates((prev) => toggleExpandedDate(prev, date))
   }, [])
 
+  const openCustomerFromAssignment = useCallback(
+    (assignment: TaCallAssignment) => {
+      const href = buildTaCallCustomerNavigateHref(assignment, isMobile)
+      if (!href) {
+        return
+      }
+      const customerName = assignment.customerName?.trim()
+      navigate(href, {
+        state: customerName ? { customerName } : undefined,
+      })
+    },
+    [isMobile, navigate],
+  )
+
   const changeAssignmentStatus = useCallback(
     async (assignmentId: string, status: TaCallStatus) => {
       if (!token?.trim() || !week) return
@@ -164,6 +183,7 @@ export function useTaCallState() {
     goNextWeek,
     toggleDayExpanded,
     isDayExpanded: (date: string) => isDayExpanded(expandedDates, date),
+    openCustomerFromAssignment,
     changeAssignmentStatus,
     reload: () => loadWeek(weekStartDate || undefined),
   }
