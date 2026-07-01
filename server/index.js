@@ -30,6 +30,7 @@ import { registerNoticesApi } from './apis/noticesApi.js'
 import { registerNotificationsApi } from './apis/notificationsApi.js'
 import { registerMemoApi } from './apis/memoApi.js'
 import { registerUserInsurerAccountsApi } from './apis/userInsurerAccountsApi.js'
+import { registerUserInsurerAccountShareApi } from './apis/userInsurerAccountShareApi.js'
 import { registerTodosApi } from './apis/todosApi.js'
 import { registerSuperAdminAnalyticsApi } from './registerSuperAdminAnalyticsApi.js'
 import {
@@ -1567,6 +1568,7 @@ registerAdminNoticesApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handl
 
 registerMemoApi(apiRouter, { pool, requireAuth, handleDbError })
 registerUserInsurerAccountsApi(apiRouter, { pool, requireAuth, handleDbError })
+registerUserInsurerAccountShareApi(apiRouter, { pool, requireAuth, handleDbError })
 registerTodosApi(apiRouter, { pool, requireAuth, handleDbError })
 
 registerSuperAdminAnalyticsApi(apiRouter, {

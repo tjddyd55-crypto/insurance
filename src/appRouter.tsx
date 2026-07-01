@@ -47,6 +47,7 @@ import CompanyRegistryPage from './features/company-registry/pages/CompanyRegist
 import GeneralRequestPage from './features/company-registry/pages/GeneralRequestPage'
 import InsuranceCompanyContactsViewPage from './features/company-registry/pages/InsuranceCompanyContactsViewPage'
 import UserInsurerAccountsPage from './features/user-insurer-accounts/pages/UserInsurerAccountsPage'
+import ExternalAccountVaultPage from './features/user-insurer-accounts/pages/ExternalAccountVaultPage'
 import { ConsentCompanyPage } from './features/consent/pages/ConsentCompanyPage'
 import { TemplateEditorPage } from './features/consent/admin/pages/TemplateEditorPage'
 import { TemplateListPage } from './features/consent/admin/pages/TemplateListPage'
@@ -189,6 +190,7 @@ export const appRouter = createBrowserRouter([
       { path: 'customer/input', element: <CustomerInputPage /> },
       { path: 'customer/register', element: <CustomerRegisterPage /> },
       { path: 'contracts/sign/:linkCode', element: <ContractSignPage /> },
+      { path: 'share/account-credentials/:token', element: <ExternalAccountVaultPage /> },
       {
         path: 'contracts/sign/:linkCode/documents/:documentInstanceId',
         element: <ContractSignDocumentPage />,

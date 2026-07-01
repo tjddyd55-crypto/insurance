@@ -1,7 +1,8 @@
-import type { UserInsurerAccountsViewProps } from '../../hooks/useUserInsurerAccountsState'
-import { UserInsurerAccountsPanel } from '../../components/UserInsurerAccountsPanel'
+import { AccountVaultManager } from '../../components/AccountVaultManager'
+import { AccountVaultShareLinkSection } from '../../components/AccountVaultShareLinkSection'
+import type { UserInsurerAccountsPageViewProps } from '../UserInsurerAccountsPage'
 
-export default function UserInsurerAccountsPCView(props: UserInsurerAccountsViewProps) {
+export default function UserInsurerAccountsPCView({ adapter, shareLink }: UserInsurerAccountsPageViewProps) {
   return (
     <main className="page user-insurer-accounts-page user-insurer-accounts-page--pc page--with-back content-wrapper page-shell">
       <header className="user-insurer-accounts-page__header">
@@ -10,7 +11,8 @@ export default function UserInsurerAccountsPCView(props: UserInsurerAccountsView
           보험회사별 아이디·비밀번호는 현재 로그인한 설계사 개인 데이터입니다.
         </p>
       </header>
-      <UserInsurerAccountsPanel {...props} layout="dual-column" />
+      <AccountVaultShareLinkSection {...shareLink} />
+      <AccountVaultManager mode="internal" layout="dual-column" adapter={adapter} />
     </main>
   )
 }
