@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FormButton } from '../../../components/form'
+import Modal from '../../../components/ui/Modal'
 import { createStorageFileDownloadUrl, deleteStorageFile, openStorageFile } from '../api/storageApi'
 import {
   getStorageUsageBreakdown,
@@ -12,6 +13,8 @@ import { formatKstDateDisplay } from '../../../utils/displayDateTime'
 
 type StorageUsageManagerProps = {
   token: string
+  /** true 이면 헤더 우측 버튼 + 모달만 표시(큰 상단 카드 없음) */
+  compact?: boolean
   onStorageChanged?: () => void
 }
 
@@ -67,7 +70,169 @@ function compareUsageItems(a: StorageUsageItem, b: StorageUsageItem, sortMode: S
   return (Number(b.size) || 0) - (Number(a.size) || 0)
 }
 
-export default function StorageUsageManager({ token, onStorageChanged }: StorageUsageManagerProps) {
+type UsageBreakdownBodyProps = {
+  error: string
+  loading: boolean
+  breakdown: StorageUsageBreakdown
+  filteredItems: StorageUsageItem[]
+  sourceFilter: StorageUsageSource | 'all'
+  searchText: string
+  sortMode: StorageUsageSortMode
+  hasActiveFilter: boolean
+  deletingId: string | null
+  usageDownloadHrefByFileId: Record<number, string>
+  usageDownloadFailedIds: ReadonlySet<number>
+  onSourceFilterChange: (value: StorageUsageSource | 'all') => void
+  onSearchTextChange: (value: string) => void
+  onSortModeChange: (value: StorageUsageSortMode) => void
+  onResetFilters: () => void
+  onOpenStorageFile: (item: StorageUsageItem) => void
+  onGoSource: (item: StorageUsageItem) => void
+  onDelete: (item: StorageUsageItem) => void
+}
+
+function UsageBreakdownBody({
+  error,
+  loading,
+  breakdown,
+  filteredItems,
+  sourceFilter,
+  searchText,
+  sortMode,
+  hasActiveFilter,
+  deletingId,
+  usageDownloadHrefByFileId,
+  usageDownloadFailedIds,
+  onSourceFilterChange,
+  onSearchTextChange,
+  onSortModeChange,
+  onResetFilters,
+  onOpenStorageFile,
+  onGoSource,
+  onDelete,
+}: UsageBreakdownBodyProps) {
+  return (
+    <>
+      {error ? <p className="storage-usage-manager__error">{error}</p> : null}
+      <div className="storage-usage-manager__summary">
+        <div className="storage-usage-manager__summary-card storage-usage-manager__summary-card--total">
+          <span>분석된 파일</span>
+          <strong>{breakdown.totalCount}개</strong>
+          <small>{formatBytes(breakdown.totalSize)}</small>
+        </div>
+        {breakdown.summary.map((group) => (
+          <div key={group.source} className="storage-usage-manager__summary-card">
+            <span>{group.label}</span>
+            <strong>{group.count}개</strong>
+            <small>{formatBytes(group.size)}</small>
+          </div>
+        ))}
+      </div>
+
+      <div className="storage-usage-manager__filters" role="search">
+        <input
+          type="search"
+          value={searchText}
+          onChange={(event) => onSearchTextChange(event.target.value)}
+          placeholder="파일명, 고객명, 위치 검색"
+          aria-label="용량 사용처 검색"
+        />
+        <select
+          value={sourceFilter}
+          onChange={(event) => onSourceFilterChange(event.target.value as StorageUsageSource | 'all')}
+          aria-label="사용처 필터"
+        >
+          <option value="all">전체 사용처</option>
+          <option value="personal-storage">내 파일</option>
+          <option value="customer-storage">고객 파일</option>
+          <option value="claim-file">청구 첨부</option>
+          <option value="customer-news">소식지 첨부</option>
+        </select>
+        <select
+          value={sortMode}
+          onChange={(event) => onSortModeChange(event.target.value as StorageUsageSortMode)}
+          aria-label="정렬"
+        >
+          <option value="size-desc">용량 큰 순</option>
+          <option value="latest">최신순</option>
+          <option value="name">이름순</option>
+        </select>
+        {hasActiveFilter ? (
+          <button type="button" className="storage-usage-manager__filter-reset" onClick={onResetFilters}>
+            필터 초기화
+          </button>
+        ) : null}
+      </div>
+
+      <p className="storage-usage-manager__count">
+        표시 {filteredItems.length}개 / 전체 {breakdown.totalCount}개
+      </p>
+
+      {loading ? <div className="storage-usage-manager__empty">용량 사용처를 불러오는 중…</div> : null}
+      {!loading && breakdown.items.length === 0 ? (
+        <div className="storage-usage-manager__empty">표시할 파일이 없습니다.</div>
+      ) : null}
+      {!loading && breakdown.items.length > 0 && filteredItems.length === 0 ? (
+        <div className="storage-usage-manager__empty">조건에 맞는 파일이 없습니다.</div>
+      ) : null}
+      {!loading && filteredItems.length > 0 ? (
+        <div className="storage-usage-manager__list">
+          {filteredItems.map((item) => (
+            <article key={item.id} className="storage-usage-manager__item">
+              <div className="storage-usage-manager__item-main">
+                <span className={`storage-usage-manager__badge storage-usage-manager__badge--${item.source}`}>
+                  {item.sourceLabel}
+                </span>
+                <strong>{item.fileName}</strong>
+                <p>{item.locationLabel}</p>
+                <small>
+                  {formatBytes(item.size)} · {formatDate(item.createdAt)}
+                </small>
+              </div>
+              <div className="storage-usage-manager__item-actions">
+                {item.storageFileId ? (
+                  <>
+                    <button type="button" onClick={() => onOpenStorageFile(item)}>
+                      열기
+                    </button>
+                    {usageDownloadHrefByFileId[item.storageFileId] ? (
+                      <a
+                        href={usageDownloadHrefByFileId[item.storageFileId]}
+                        download
+                        className="button button--small"
+                      >
+                        다운
+                      </a>
+                    ) : (
+                      <button type="button" disabled>
+                        {usageDownloadFailedIds.has(item.storageFileId) ? '준비 실패' : '준비 중'}
+                      </button>
+                    )}
+                  </>
+                ) : null}
+                <button type="button" onClick={() => onGoSource(item)}>
+                  원본관리
+                </button>
+                {item.canDeleteDirectly ? (
+                  <button
+                    type="button"
+                    className="storage-usage-manager__danger"
+                    disabled={deletingId === item.id}
+                    onClick={() => onDelete(item)}
+                  >
+                    삭제
+                  </button>
+                ) : null}
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : null}
+    </>
+  )
+}
+
+export default function StorageUsageManager({ token, compact = false, onStorageChanged }: StorageUsageManagerProps) {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -171,71 +336,174 @@ export default function StorageUsageManager({ token, onStorageChanged }: Storage
     }
   }, [token])
 
-  const handleDelete = useCallback(async (item: StorageUsageItem) => {
-    if (!token?.trim() || !item.storageFileId || !item.canDeleteDirectly) {
-      return
-    }
-    const ok = window.confirm(`"${item.fileName}" 파일을 삭제할까요?`)
-    if (!ok) {
-      return
-    }
-    setDeletingId(item.id)
-    setError('')
-    try {
-      await deleteStorageFile(token, item.storageFileId)
-      setBreakdown((prev) => {
-        const items = prev.items.filter((row) => row.id !== item.id)
-        const totalSize = items.reduce((sum, row) => sum + (Number(row.size) || 0), 0)
-        const summary = prev.summary.map((group) => {
-          const groupItems = items.filter((row) => row.source === group.source)
-          return {
-            ...group,
-            count: groupItems.length,
-            size: groupItems.reduce((sum, row) => sum + (Number(row.size) || 0), 0),
-          }
+  const handleDelete = useCallback(
+    async (item: StorageUsageItem) => {
+      if (!token?.trim() || !item.storageFileId || !item.canDeleteDirectly) {
+        return
+      }
+      const ok = window.confirm(`"${item.fileName}" 파일을 삭제할까요?`)
+      if (!ok) {
+        return
+      }
+      setDeletingId(item.id)
+      setError('')
+      try {
+        await deleteStorageFile(token, item.storageFileId)
+        setBreakdown((prev) => {
+          const items = prev.items.filter((row) => row.id !== item.id)
+          const totalSize = items.reduce((sum, row) => sum + (Number(row.size) || 0), 0)
+          const summary = prev.summary.map((group) => {
+            const groupItems = items.filter((row) => row.source === group.source)
+            return {
+              ...group,
+              count: groupItems.length,
+              size: groupItems.reduce((sum, row) => sum + (Number(row.size) || 0), 0),
+            }
+          })
+          return { items, summary, totalCount: items.length, totalSize }
         })
-        return { items, summary, totalCount: items.length, totalSize }
-      })
-      onStorageChanged?.()
-    } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : '파일 삭제에 실패했습니다.')
-    } finally {
-      setDeletingId(null)
-    }
-  }, [onStorageChanged, token])
+        onStorageChanged?.()
+      } catch (deleteError) {
+        setError(deleteError instanceof Error ? deleteError.message : '파일 삭제에 실패했습니다.')
+      } finally {
+        setDeletingId(null)
+      }
+    },
+    [onStorageChanged, token],
+  )
 
-  const handleOpenStorageFile = useCallback(async (item: StorageUsageItem) => {
-    if (!token?.trim() || !item.storageFileId) {
-      return
-    }
-    try {
-      await openStorageFile(token, item.storageFileId)
-    } catch (openError) {
-      setError(openError instanceof Error ? openError.message : '파일 열기에 실패했습니다.')
-    }
-  }, [token])
+  const handleOpenStorageFile = useCallback(
+    async (item: StorageUsageItem) => {
+      if (!token?.trim() || !item.storageFileId) {
+        return
+      }
+      try {
+        await openStorageFile(token, item.storageFileId)
+      } catch (openError) {
+        setError(openError instanceof Error ? openError.message : '파일 열기에 실패했습니다.')
+      }
+    },
+    [token],
+  )
 
-  const handleGoSource = useCallback((item: StorageUsageItem) => {
-    if (item.source === 'personal-storage') {
-      setOpen(false)
-      navigate('/storage', { replace: true })
-      scrollToStorageWorkspace()
-      return
+  const handleGoSource = useCallback(
+    (item: StorageUsageItem) => {
+      if (item.source === 'personal-storage') {
+        setOpen(false)
+        navigate('/storage', { replace: true })
+        scrollToStorageWorkspace()
+        return
+      }
+      if (item.source === 'customer-storage' && item.customerId) {
+        navigate(`/customers/${item.customerId}/files`)
+        return
+      }
+      if (item.source === 'claim-file' && item.customerId && item.claimRequestId) {
+        navigate(`/customers/${item.customerId}/claim-requests?claimId=${item.claimRequestId}`)
+        return
+      }
+      if (item.source === 'customer-news') {
+        navigate(`/claim-requests?claimTab=${item.newsScope === 'personal' ? 'news-personal' : 'news-all'}`)
+        return
+      }
+      navigate('/storage')
+    },
+    [navigate],
+  )
+
+  const openUsagePanel = useCallback(() => {
+    setOpen(true)
+    if (breakdown.items.length === 0) {
+      void loadUsage()
     }
-    if (item.source === 'customer-storage' && item.customerId) {
-      navigate(`/customers/${item.customerId}/files`)
-      return
-    }
-    if (item.source === 'claim-file' && item.customerId && item.claimRequestId) {
-      navigate(`/customers/${item.customerId}/claim-requests?claimId=${item.claimRequestId}`)
-      return
-    }
-    if (item.source === 'customer-news') {
-      navigate(`/claim-requests?claimTab=${item.newsScope === 'personal' ? 'news-personal' : 'news-all'}`)
-      return
-    }
-    navigate('/storage')
-  }, [navigate])
+  }, [breakdown.items.length, loadUsage])
+
+  const breakdownBodyProps: UsageBreakdownBodyProps = {
+    error,
+    loading,
+    breakdown,
+    filteredItems,
+    sourceFilter,
+    searchText,
+    sortMode,
+    hasActiveFilter,
+    deletingId,
+    usageDownloadHrefByFileId,
+    usageDownloadFailedIds,
+    onSourceFilterChange: setSourceFilter,
+    onSearchTextChange: setSearchText,
+    onSortModeChange: setSortMode,
+    onResetFilters: resetFilters,
+    onOpenStorageFile: (item) => {
+      void handleOpenStorageFile(item)
+    },
+    onGoSource: handleGoSource,
+    onDelete: (item) => {
+      void handleDelete(item)
+    },
+  }
+
+  const actionButtons = (
+    <>
+      <FormButton
+        htmlType="button"
+        variant="secondary"
+        size={compact ? 'sm' : 'md'}
+        onClick={() => {
+          if (compact) {
+            openUsagePanel()
+            return
+          }
+          setOpen((value) => !value)
+          if (!open && breakdown.items.length === 0) {
+            void loadUsage()
+          }
+        }}
+      >
+        {compact ? '사용처 보기' : open ? '접기' : '사용처 보기'}
+      </FormButton>
+      {open && !compact ? (
+        <FormButton htmlType="button" variant="secondary" onClick={() => void loadUsage()} loading={loading}>
+          새로고침
+        </FormButton>
+      ) : null}
+    </>
+  )
+
+  const modalShell = (children: ReactNode) => (
+    <Modal
+      open={open}
+      onClose={() => setOpen(false)}
+      ariaLabel="전체 용량 사용처"
+      panelPreset="largeForm"
+      panelClassName="storage-usage-manager-modal"
+    >
+      <header className="storage-usage-manager-modal__header">
+        <div>
+          <h2>전체 용량 사용처</h2>
+          <p>내 파일, 고객 파일, 청구 첨부, 고객 소식지 첨부가 어디에 얼마나 쓰이는지 확인합니다.</p>
+        </div>
+        <div className="storage-usage-manager__actions">
+          <FormButton htmlType="button" variant="secondary" onClick={() => void loadUsage()} loading={loading}>
+            새로고침
+          </FormButton>
+          <FormButton htmlType="button" variant="secondary" onClick={() => setOpen(false)}>
+            닫기
+          </FormButton>
+        </div>
+      </header>
+      <div className="storage-usage-manager-modal__body">{children}</div>
+    </Modal>
+  )
+
+  if (compact) {
+    return (
+      <>
+        <div className="storage-usage-manager storage-usage-manager--compact">{actionButtons}</div>
+        {modalShell(<UsageBreakdownBody {...breakdownBodyProps} />)}
+      </>
+    )
+  }
 
   return (
     <section className="storage-usage-manager">
@@ -244,136 +512,10 @@ export default function StorageUsageManager({ token, onStorageChanged }: Storage
           <h2>전체 용량 사용처</h2>
           <p>내 파일, 고객 파일, 청구 첨부, 고객 소식지 첨부가 어디에 얼마나 쓰이는지 확인합니다.</p>
         </div>
-        <div className="storage-usage-manager__actions">
-          <FormButton
-            htmlType="button"
-            variant="secondary"
-            onClick={() => {
-              setOpen((value) => !value)
-              if (!open && breakdown.items.length === 0) {
-                void loadUsage()
-              }
-            }}
-          >
-            {open ? '접기' : '사용처 보기'}
-          </FormButton>
-          {open ? (
-            <FormButton htmlType="button" variant="secondary" onClick={() => void loadUsage()} loading={loading}>
-              새로고침
-            </FormButton>
-          ) : null}
-        </div>
+        <div className="storage-usage-manager__actions">{actionButtons}</div>
       </div>
 
-      {open ? (
-        <>
-          {error ? <p className="storage-usage-manager__error">{error}</p> : null}
-          <div className="storage-usage-manager__summary">
-            <div className="storage-usage-manager__summary-card storage-usage-manager__summary-card--total">
-              <span>분석된 파일</span>
-              <strong>{breakdown.totalCount}개</strong>
-              <small>{formatBytes(breakdown.totalSize)}</small>
-            </div>
-            {breakdown.summary.map((group) => (
-              <div key={group.source} className="storage-usage-manager__summary-card">
-                <span>{group.label}</span>
-                <strong>{group.count}개</strong>
-                <small>{formatBytes(group.size)}</small>
-              </div>
-            ))}
-          </div>
-
-          <div className="storage-usage-manager__filters" role="search">
-            <input
-              type="search"
-              value={searchText}
-              onChange={(event) => setSearchText(event.target.value)}
-              placeholder="파일명, 고객명, 위치 검색"
-              aria-label="용량 사용처 검색"
-            />
-            <select
-              value={sourceFilter}
-              onChange={(event) => setSourceFilter(event.target.value as StorageUsageSource | 'all')}
-              aria-label="사용처 필터"
-            >
-              <option value="all">전체 사용처</option>
-              <option value="personal-storage">내 파일</option>
-              <option value="customer-storage">고객 파일</option>
-              <option value="claim-file">청구 첨부</option>
-              <option value="customer-news">소식지 첨부</option>
-            </select>
-            <select
-              value={sortMode}
-              onChange={(event) => setSortMode(event.target.value as StorageUsageSortMode)}
-              aria-label="정렬"
-            >
-              <option value="size-desc">용량 큰 순</option>
-              <option value="latest">최신순</option>
-              <option value="name">이름순</option>
-            </select>
-            {hasActiveFilter ? (
-              <button type="button" className="storage-usage-manager__filter-reset" onClick={resetFilters}>
-                필터 초기화
-              </button>
-            ) : null}
-          </div>
-
-          <p className="storage-usage-manager__count">
-            표시 {filteredItems.length}개 / 전체 {breakdown.totalCount}개
-          </p>
-
-          {loading ? <div className="storage-usage-manager__empty">용량 사용처를 불러오는 중…</div> : null}
-          {!loading && breakdown.items.length === 0 ? <div className="storage-usage-manager__empty">표시할 파일이 없습니다.</div> : null}
-          {!loading && breakdown.items.length > 0 && filteredItems.length === 0 ? (
-            <div className="storage-usage-manager__empty">조건에 맞는 파일이 없습니다.</div>
-          ) : null}
-          {!loading && filteredItems.length > 0 ? (
-            <div className="storage-usage-manager__list">
-              {filteredItems.map((item) => (
-                <article key={item.id} className="storage-usage-manager__item">
-                  <div className="storage-usage-manager__item-main">
-                    <span className={`storage-usage-manager__badge storage-usage-manager__badge--${item.source}`}>{item.sourceLabel}</span>
-                    <strong>{item.fileName}</strong>
-                    <p>{item.locationLabel}</p>
-                    <small>{formatBytes(item.size)} · {formatDate(item.createdAt)}</small>
-                  </div>
-                  <div className="storage-usage-manager__item-actions">
-                    {item.storageFileId ? (
-                      <>
-                        <button type="button" onClick={() => void handleOpenStorageFile(item)}>열기</button>
-                        {usageDownloadHrefByFileId[item.storageFileId] ? (
-                          <a
-                            href={usageDownloadHrefByFileId[item.storageFileId]}
-                            download
-                            className="button button--small"
-                          >
-                            다운
-                          </a>
-                        ) : (
-                          <button type="button" disabled>
-                            {usageDownloadFailedIds.has(item.storageFileId) ? '준비 실패' : '준비 중'}
-                          </button>
-                        )}
-                      </>
-                    ) : null}
-                    <button type="button" onClick={() => handleGoSource(item)}>원본관리</button>
-                    {item.canDeleteDirectly ? (
-                      <button
-                        type="button"
-                        className="storage-usage-manager__danger"
-                        disabled={deletingId === item.id}
-                        onClick={() => void handleDelete(item)}
-                      >
-                        삭제
-                      </button>
-                    ) : null}
-                  </div>
-                </article>
-              ))}
-            </div>
-          ) : null}
-        </>
-      ) : null}
+      {open ? <UsageBreakdownBody {...breakdownBodyProps} /> : null}
     </section>
   )
 }

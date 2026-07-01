@@ -10,6 +10,48 @@
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
 }
 
+.storage-usage-manager--compact {
+  width: auto;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.storage-usage-manager-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.storage-usage-manager-modal__header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 900;
+  line-height: 1.35;
+  color: #111827;
+}
+
+.storage-usage-manager-modal__header p {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.storage-usage-manager-modal__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 20px 20px;
+}
+
 .storage-usage-manager__header {
   display: flex;
   align-items: center;
