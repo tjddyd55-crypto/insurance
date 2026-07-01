@@ -1781,7 +1781,9 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         </ul>
       )}
       </div>
-      {listCustomersToRender.length > 0 ? <CustomerListScrollTopButton anchorRef={listPanelRef} /> : null}
+      {listCustomersToRender.length > 0 ? (
+        <CustomerListScrollTopButton anchorRef={listPanelRef} variant={isMobile ? 'mobile' : 'pc'} />
+      ) : null}
     </section>
   )
 
