@@ -53,15 +53,29 @@ export function parseTaDailyTargetCount(raw) {
  * @param {import('pg').QueryResultRow} row
  */
 function mapAssignmentRow(row) {
+  let birthDate = row.customer_birth_date_snapshot
+    ? formatDateOnly(row.customer_birth_date_snapshot)
+    : ''
+  if (!birthDate) {
+    birthDate =
+      resolveCustomerBirthDateYmd({
+        birth_date: row.customer_birth_date_live,
+        ssn: row.customer_ssn_live,
+      }) || ''
+  }
+
+  let gender = String(row.customer_gender_snapshot ?? '').trim()
+  if (!gender) {
+    gender = String(row.customer_gender_live ?? '').trim()
+  }
+
   return {
     id: String(row.id),
     customerId: String(row.customer_id),
     customerName: row.customer_name_snapshot ?? '',
     customerPhone: row.customer_phone_snapshot ?? '',
-    customerBirthDate: row.customer_birth_date_snapshot
-      ? formatDateOnly(row.customer_birth_date_snapshot)
-      : null,
-    customerGender: row.customer_gender_snapshot ?? '',
+    customerBirthDate: birthDate || null,
+    customerGender: gender,
     status: row.status ?? 'not_called',
   }
 }
@@ -168,13 +182,17 @@ async function fetchAssignmentsForDate(pool, userId, dateYmd) {
     pool,
     `
     SELECT
-      id, user_id, customer_id, assignment_date, rotation_round, status,
-      customer_name_snapshot, customer_phone_snapshot,
-      customer_birth_date_snapshot, customer_gender_snapshot,
-      completed_at, created_at, updated_at
-    FROM ta_call_assignments
-    WHERE user_id = $1 AND assignment_date = $2::date
-    ORDER BY id ASC
+      a.id, a.user_id, a.customer_id, a.assignment_date, a.rotation_round, a.status,
+      a.customer_name_snapshot, a.customer_phone_snapshot,
+      a.customer_birth_date_snapshot, a.customer_gender_snapshot,
+      a.completed_at, a.created_at, a.updated_at,
+      c.birth_date AS customer_birth_date_live,
+      c.ssn AS customer_ssn_live,
+      c.gender AS customer_gender_live
+    FROM ta_call_assignments a
+    LEFT JOIN customers c ON c.id = a.customer_id
+    WHERE a.user_id = $1 AND a.assignment_date = $2::date
+    ORDER BY a.id ASC
     `,
     [userId, dateYmd],
     TA_QUERY_OPTS,
