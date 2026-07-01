@@ -98,6 +98,32 @@ export function buildTaDayPayload(dateYmd, assignments, todayYmd, dailyTarget) {
 }
 
 /**
+ * TA 배정 자동 생성/조회 정책.
+ * - today: ensure (없으면 생성)
+ * - past: fetch (저장된 기록만)
+ * - future: skip (빈 응답)
+ *
+ * @param {string} dateYmd
+ * @param {string} todayYmd
+ * @returns {'ensure' | 'fetch' | 'skip'}
+ */
+export function resolveTaAssignmentLoadMode(dateYmd, todayYmd) {
+  const date = coerceDateOnlyString(dateYmd)
+  const today = coerceDateOnlyString(todayYmd)
+  if (!date || !today) {
+    return 'skip'
+  }
+  if (date === today) {
+    return 'ensure'
+  }
+  const diff = diffDateOnlyDays(date, today)
+  if (diff != null && diff < 0) {
+    return 'fetch'
+  }
+  return 'skip'
+}
+
+/**
  * @param {import('pg').Pool} pool
  * @param {string} userId
  */
@@ -241,6 +267,9 @@ export async function ensureTaAssignmentsForDate(pool, req, userId, gaId, dateYm
   if (diff > 0) {
     return []
   }
+  if (diff < 0) {
+    return fetchAssignmentsForDate(pool, userId, date)
+  }
 
   const existingRows = await fetchAssignmentsForDate(pool, userId, date)
   const existingCount = existingRows.length
@@ -333,11 +362,11 @@ export async function getTaWeekPayload(pool, req, userId, gaId, startDateYmd) {
   let cursor = start
   while (cursor && cursor <= end) {
     let rows = []
-    const diff = diffDateOnlyDays(cursor, todayYmd)
-    if (diff != null && diff <= 0) {
+    const loadMode = resolveTaAssignmentLoadMode(cursor, todayYmd)
+    if (loadMode === 'ensure') {
       rows = await ensureTaAssignmentsForDate(pool, req, userId, gaId, cursor, dailyTarget)
-    } else {
-      rows = []
+    } else if (loadMode === 'fetch') {
+      rows = await fetchAssignmentsForDate(pool, userId, cursor)
     }
     days.push(
       buildTaDayPayload(
@@ -373,11 +402,13 @@ export async function getTaDayPayload(pool, req, userId, gaId, dateYmd) {
   }
   const settings = await getOrCreateTaSettings(pool, userId)
   const dailyTarget = Number(settings.daily_target_count ?? TA_DEFAULT_DAILY_TARGET)
-  const diff = diffDateOnlyDays(date, todayYmd)
 
+  const loadMode = resolveTaAssignmentLoadMode(date, todayYmd)
   let rows = []
-  if (diff != null && diff <= 0) {
+  if (loadMode === 'ensure') {
     rows = await ensureTaAssignmentsForDate(pool, req, userId, gaId, date, dailyTarget)
+  } else if (loadMode === 'fetch') {
+    rows = await fetchAssignmentsForDate(pool, userId, date)
   }
 
   return buildTaDayPayload(date, rows.map(mapAssignmentRow), todayYmd, dailyTarget)
