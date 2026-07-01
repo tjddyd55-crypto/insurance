@@ -32,6 +32,9 @@ export const TA_MIN_DAILY_TARGET = 1
 export const TA_MAX_DAILY_TARGET = 50
 export const TA_STATUSES = new Set(['not_called', 'completed', 'no_answer'])
 
+/** ta_call_* 테이블은 ga_id 없이 user_id 로만 스코프한다. */
+const TA_QUERY_OPTS = { allowUnscoped: true }
+
 /**
  * @param {unknown} raw
  * @returns {number | null}
@@ -108,6 +111,7 @@ export async function getOrCreateTaSettings(pool, userId) {
     LIMIT 1
     `,
     [userId],
+    TA_QUERY_OPTS,
   )
   if (existing.rows[0]) {
     return existing.rows[0]
@@ -121,6 +125,7 @@ export async function getOrCreateTaSettings(pool, userId) {
     RETURNING id, user_id, daily_target_count, created_at, updated_at
     `,
     [userId, TA_DEFAULT_DAILY_TARGET],
+    TA_QUERY_OPTS,
   )
   return inserted.rows[0]
 }
@@ -172,6 +177,7 @@ async function fetchAssignmentsForDate(pool, userId, dateYmd) {
     ORDER BY id ASC
     `,
     [userId, dateYmd],
+    TA_QUERY_OPTS,
   )
   return r.rows
 }
@@ -189,6 +195,7 @@ async function fetchCurrentRotationRound(pool, userId) {
     WHERE user_id = $1
     `,
     [userId],
+    TA_QUERY_OPTS,
   )
   const round = Number(r.rows[0]?.round ?? 1)
   return Number.isInteger(round) && round >= 1 ? round : 1
@@ -208,6 +215,7 @@ async function fetchRoundAssignedCustomerIds(pool, userId, rotationRound) {
     WHERE user_id = $1 AND rotation_round = $2
     `,
     [userId, rotationRound],
+    TA_QUERY_OPTS,
   )
   return new Set(r.rows.map((row) => Number(row.customer_id)))
 }
@@ -409,6 +417,7 @@ export async function updateTaAssignmentStatus(pool, userId, assignmentId, statu
       completed_at, created_at, updated_at
     `,
     [id, userId, status],
+    TA_QUERY_OPTS,
   )
   if (!r.rows[0]) {
     return null
@@ -431,6 +440,7 @@ export async function saveTaSettings(pool, userId, dailyTargetCount) {
     SET daily_target_count = EXCLUDED.daily_target_count, updated_at = NOW()
     `,
     [userId, dailyTargetCount],
+    TA_QUERY_OPTS,
   )
   return getOrCreateTaSettings(pool, userId)
 }
