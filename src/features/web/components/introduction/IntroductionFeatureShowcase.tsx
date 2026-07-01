@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom'
 import {
   DESKTOP_DOWNLOAD_URL,
+  ONE_FC_APP_STORE_URL,
   USER_ANDROID_APK_DOWNLOAD_URL,
-} from '../AppDownloadActions'
+} from '../../constants/appInstallLinks'
 import {
   introCustomerCapabilities,
   introFeatureImages,
@@ -126,7 +127,15 @@ export function IntroductionFinalCta() {
             href={USER_ANDROID_APK_DOWNLOAD_URL}
             download
           >
-            모바일 앱 다운로드
+            안드로이드 앱 설치
+          </a>
+          <a
+            className="intro-v2-cta__action intro-v2-cta__action--white"
+            href={ONE_FC_APP_STORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            아이폰 앱 설치
           </a>
           <Link className="intro-v2-cta__action intro-v2-cta__action--outline" to="/introduction/install">
             설치 안내 보기

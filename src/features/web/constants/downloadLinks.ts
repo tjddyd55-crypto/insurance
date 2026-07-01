@@ -1,7 +1,7 @@
 import {
   DESKTOP_DOWNLOAD_URL,
   MOBILE_DOWNLOAD_URL,
-} from '../components/AppDownloadActions'
+} from './appInstallLinks'
 
 export type DownloadLinkMap = {
   pc: string

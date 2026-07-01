@@ -2449,7 +2449,13 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   margin: 0 auto;
 }
 
-.auth-page.auth-page--mobile-login .app-download-actions__buttons {
+.auth-page.auth-page--mobile-login .app-download-actions > .app-download-actions__link,
+.auth-page.auth-page--mobile-login .app-download-actions > .app-download-actions__item {
+  width: 100%;
+  max-width: none;
+}
+
+.auth-page.auth-page--mobile-login .one-fc-mobile-install__buttons {
   flex-direction: column;
   align-items: stretch;
   width: 100%;
@@ -2483,9 +2489,15 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   gap: 10px;
 }
 
-.app-download-actions--stack .app-download-actions__buttons {
+.app-download-actions--stack .app-download-actions__buttons,
+.app-download-actions--stack .one-fc-mobile-install__buttons {
   flex-direction: column;
   width: min(100%, 360px);
+}
+
+.app-download-actions--stack > .app-download-actions__link,
+.app-download-actions--stack > .app-download-actions__item {
+  width: 100%;
 }
 
 .app-download-actions__link,
