@@ -8,8 +8,9 @@ type CustomerListScrollTopButtonProps = {
   anchorRef: RefObject<HTMLElement | null>
 }
 
-const FAB_SIZE_PX = 44
-const FAB_BOTTOM_OFFSET_PX = 16
+const FAB_HEIGHT_PX = 56
+const FAB_WIDTH_PX = 48
+const FAB_BOTTOM_OFFSET_PX = 22
 
 export default function CustomerListScrollTopButton({ anchorRef }: CustomerListScrollTopButtonProps) {
   const [fabStyle, setFabStyle] = useState<CSSProperties>({ visibility: 'hidden' })
@@ -28,7 +29,7 @@ export default function CustomerListScrollTopButton({ anchorRef }: CustomerListS
     }
 
     const rect = container.getBoundingClientRect()
-    if (rect.width < FAB_SIZE_PX || rect.height < FAB_SIZE_PX) {
+    if (rect.width < FAB_WIDTH_PX || rect.height < FAB_HEIGHT_PX) {
       setFabStyle({ visibility: 'hidden' })
       return
     }

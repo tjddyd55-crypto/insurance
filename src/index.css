@@ -4679,7 +4679,7 @@ button.filter-button:focus-visible {
 }
 
 .customer-list-panel__scroll-content {
-  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
 }
 
 .customer-list-panel__fab-overlay {
@@ -4693,8 +4693,10 @@ button.filter-button:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  min-width: 48px;
+  height: 56px;
+  min-height: 56px;
   margin: 0;
   padding: 0;
   border: 1px solid var(--border-default, #d7dde5);
@@ -4702,7 +4704,7 @@ button.filter-button:focus-visible {
   background: var(--bg-surface, #ffffff);
   color: var(--text-primary, #111827);
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 800;
   line-height: 1;
   cursor: pointer;
