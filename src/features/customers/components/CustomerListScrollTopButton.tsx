@@ -1,5 +1,11 @@
 import { useCallback, useLayoutEffect, useState, type CSSProperties, type RefObject } from 'react'
 import {
+  CUSTOMER_LIST_FAB_BOTTOM_OFFSET_CSS_VAR,
+  CUSTOMER_LIST_FAB_HEIGHT_PX,
+  CUSTOMER_LIST_FAB_WIDTH_PX,
+} from '../config/customerRecentRegistration.config'
+import { resolveCustomerListFloatingBottomOffsetPx } from '../utils/resolveCustomerListFloatingBottom'
+import {
   resolveCustomerListScrollContainer,
   scrollCustomerListPanelToTop,
 } from '../utils/resolveCustomerListScrollContainer'
@@ -8,9 +14,14 @@ type CustomerListScrollTopButtonProps = {
   anchorRef: RefObject<HTMLElement | null>
 }
 
-const FAB_HEIGHT_PX = 56
-const FAB_WIDTH_PX = 48
-const FAB_BOTTOM_OFFSET_PX = 22
+function syncFloatingBottomOffsetCssVar(panel: HTMLElement | null) {
+  const bottomOffsetPx = resolveCustomerListFloatingBottomOffsetPx(panel)
+  document.documentElement.style.setProperty(
+    CUSTOMER_LIST_FAB_BOTTOM_OFFSET_CSS_VAR,
+    `${bottomOffsetPx}px`,
+  )
+  return bottomOffsetPx
+}
 
 export default function CustomerListScrollTopButton({ anchorRef }: CustomerListScrollTopButtonProps) {
   const [fabStyle, setFabStyle] = useState<CSSProperties>({ visibility: 'hidden' })
@@ -18,26 +29,30 @@ export default function CustomerListScrollTopButton({ anchorRef }: CustomerListS
   const syncFabPosition = useCallback(() => {
     const panel = anchorRef.current
     if (!panel || !panel.isConnected) {
+      document.documentElement.style.removeProperty(CUSTOMER_LIST_FAB_BOTTOM_OFFSET_CSS_VAR)
       setFabStyle({ visibility: 'hidden' })
       return
     }
 
     const container = resolveCustomerListScrollContainer(panel)
     if (!container) {
+      document.documentElement.style.removeProperty(CUSTOMER_LIST_FAB_BOTTOM_OFFSET_CSS_VAR)
       setFabStyle({ visibility: 'hidden' })
       return
     }
 
     const rect = container.getBoundingClientRect()
-    if (rect.width < FAB_WIDTH_PX || rect.height < FAB_HEIGHT_PX) {
+    if (rect.width < CUSTOMER_LIST_FAB_WIDTH_PX || rect.height < CUSTOMER_LIST_FAB_HEIGHT_PX) {
+      document.documentElement.style.removeProperty(CUSTOMER_LIST_FAB_BOTTOM_OFFSET_CSS_VAR)
       setFabStyle({ visibility: 'hidden' })
       return
     }
 
+    syncFloatingBottomOffsetCssVar(panel)
+
     setFabStyle({
       position: 'fixed',
       left: rect.left + rect.width / 2,
-      bottom: Math.max(FAB_BOTTOM_OFFSET_PX, window.innerHeight - rect.bottom + FAB_BOTTOM_OFFSET_PX),
       transform: 'translateX(-50%)',
       zIndex: 50,
       visibility: 'visible',
@@ -71,6 +86,7 @@ export default function CustomerListScrollTopButton({ anchorRef }: CustomerListS
       window.removeEventListener('resize', syncFabPosition)
       window.removeEventListener('scroll', syncFabPosition, true)
       resizeObserver?.disconnect()
+      document.documentElement.style.removeProperty(CUSTOMER_LIST_FAB_BOTTOM_OFFSET_CSS_VAR)
     }
   }, [anchorRef, syncFabPosition])
 
