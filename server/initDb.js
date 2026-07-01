@@ -3107,6 +3107,60 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS ta_call_settings (
+      id BIGSERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      daily_target_count INTEGER NOT NULL DEFAULT 10,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT ta_call_settings_user_unique UNIQUE (user_id),
+      CONSTRAINT ta_call_settings_target_chk CHECK (
+        daily_target_count >= 1 AND daily_target_count <= 50
+      )
+    )
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ta_call_assignments (
+      id BIGSERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      assignment_date DATE NOT NULL,
+      rotation_round INTEGER NOT NULL DEFAULT 1,
+      status TEXT NOT NULL DEFAULT 'not_called',
+      customer_name_snapshot TEXT NOT NULL DEFAULT '',
+      customer_phone_snapshot TEXT NOT NULL DEFAULT '',
+      customer_birth_date_snapshot DATE,
+      customer_gender_snapshot TEXT NOT NULL DEFAULT '',
+      completed_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT ta_call_assignments_status_chk CHECK (
+        status IN ('not_called', 'completed', 'no_answer')
+      ),
+      CONSTRAINT ta_call_assignments_user_date_customer_unique UNIQUE (
+        user_id, assignment_date, customer_id
+      )
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_ta_call_assignments_user_date
+    ON ta_call_assignments (user_id, assignment_date)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_ta_call_assignments_user_round
+    ON ta_call_assignments (user_id, rotation_round)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_ta_call_assignments_user_round_customer
+    ON ta_call_assignments (user_id, rotation_round, customer_id)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_ta_call_assignments_customer
+    ON ta_call_assignments (customer_id)
+  `)
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS customer_files (
       id BIGSERIAL PRIMARY KEY,
       customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
