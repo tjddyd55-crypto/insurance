@@ -210,6 +210,7 @@ export function buildGaTenantDashboardMenu(
     { type: 'link', label: '팀 자료', path: '/team/files' },
 
     { type: 'section', label: '업무편의' },
+    { type: 'link', label: '오늘의 TA', path: '/ta-call' },
     { type: 'link', label: '원수사 연락처', path: '/insurance/contacts' },
     { type: 'link', label: '계정관리', path: '/insurance/account-credentials' },
     { type: 'link', label: '설계사이트', path: '/insurance/insurer-sites' },

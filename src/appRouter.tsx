@@ -48,6 +48,7 @@ import GeneralRequestPage from './features/company-registry/pages/GeneralRequest
 import InsuranceCompanyContactsViewPage from './features/company-registry/pages/InsuranceCompanyContactsViewPage'
 import UserInsurerAccountsPage from './features/user-insurer-accounts/pages/UserInsurerAccountsPage'
 import ExternalAccountVaultPage from './features/user-insurer-accounts/pages/ExternalAccountVaultPage'
+import TaCallPage from './features/ta-call/pages/TaCallPage'
 import { ConsentCompanyPage } from './features/consent/pages/ConsentCompanyPage'
 import { TemplateEditorPage } from './features/consent/admin/pages/TemplateEditorPage'
 import { TemplateListPage } from './features/consent/admin/pages/TemplateListPage'
@@ -511,6 +512,7 @@ export const appRouter = createBrowserRouter([
               },
               { path: 'contacts', element: <Navigate to="/insurance/contacts" replace /> },
               { path: 'insurance/contacts', element: <InsuranceCompanyContactsViewPage /> },
+              { path: 'ta-call', element: <TaCallPage /> },
               { path: 'insurance/account-credentials', element: <UserInsurerAccountsPage /> },
               { path: 'insurance/general-request', element: <GeneralRequestPage /> },
               { path: 'reinsurer-contacts', element: <ReinsurerContactsPage /> },
