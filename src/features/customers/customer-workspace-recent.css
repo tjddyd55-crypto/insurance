@@ -165,8 +165,9 @@
 
 .customer-recent-mobile-trigger {
   position: fixed;
-  right: calc(16px + env(safe-area-inset-right, 0px));
-  bottom: calc(var(--customer-list-fab-bottom-offset, 22px) + env(safe-area-inset-bottom, 0px));
+  /* CUSTOMER_LIST_RECENT_FAB_* — scroll FAB와 별도, 더 하단 우측 */
+  right: calc(12px + env(safe-area-inset-right, 0px));
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
   z-index: 35;
   min-height: 44px;
   padding: 0 14px;
