@@ -7,7 +7,6 @@ type CustomersPagePCViewProps = {
   headerNode: ReactNode
   bodyNode: ReactNode
   columnPickerNode: ReactNode
-  scrollTopNode: ReactNode
   createExitConfirmNode: ReactNode
   confirmDialogNode: ReactNode
 }
@@ -19,7 +18,6 @@ export default function CustomersPagePCView({
   headerNode,
   bodyNode,
   columnPickerNode,
-  scrollTopNode,
   createExitConfirmNode,
   confirmDialogNode,
 }: CustomersPagePCViewProps) {
@@ -33,7 +31,6 @@ export default function CustomersPagePCView({
       {headerNode}
       {bodyNode}
       {columnPickerNode}
-      {scrollTopNode}
       {createExitConfirmNode}
       {confirmDialogNode}
     </main>

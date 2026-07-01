@@ -59,6 +59,7 @@ import {
 } from '../config/customerInflowSource.config'
 import CustomerExcelSelectToolbar from '../components/CustomerExcelSelectToolbar'
 import CustomerListCard, { type CustomerSsnDupHighlight } from '../components/CustomerListCard'
+import CustomerListScrollTopButton from '../components/CustomerListScrollTopButton'
 import type { CustomerEditFormState } from '../types/customerEditForm'
 import { useCustomerExpandedCardScroll } from '../hooks/useCustomerExpandedCardScroll'
 import { useCustomerMobileExpandedCardBack } from '../hooks/useCustomerMobileExpandedCardBack'
@@ -277,6 +278,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   // NOTE: Router supports only one blocker. Global AppExitConfirm handles POP blocking (including customer create).
   const [searchInput, setSearchInput] = useState('')
   const searchInputRef = useRef<HTMLInputElement | null>(null)
+  const listPanelRef = useRef<HTMLElement | null>(null)
   const keyword = useDebounce(searchInput, 180)
   const [sortType, setSortType] = useState<CustomerSortType>(null)
   const [advancedFilters, setAdvancedFilters] = useState<CustomerAdvancedFilters>(() => ({
@@ -302,19 +304,9 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   const [appliedInflowSource, setAppliedInflowSource] = useState('')
   const [appliedListSort, setAppliedListSort] = useState<CustomerListSortValue>('')
   const [consultationFilterMessage, setConsultationFilterMessage] = useState('')
-  const [showScrollToTop, setShowScrollToTop] = useState(false)
   const [customerCreateExitModalOpen, setCustomerCreateExitModalOpen] = useState(false)
   /** 터치→합성 mouse/click 등으로 초대 복사가 두 번 도는 것 방지 */
   const inviteCopyPointerTsRef = useRef(0)
-
-  useEffect(() => {
-    function onScroll() {
-      setShowScrollToTop(window.scrollY > 300)
-    }
-    onScroll()
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
 
   /** React Native WebView: 하드웨어 뒤로가기는 앱이 소비 후 이 이벤트만 전달 → ExitConfirmDialog 단일 표시 */
   useEffect(() => {
@@ -1666,7 +1658,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   const listLoadTruncated = !isLoading && customersTotalCount > loadedUniqueCustomerCount
 
   const listBodyNode = (
-    <section className="list-section" style={{ marginTop: 0 }}>
+    <section ref={listPanelRef} className="list-section customer-list-panel" style={{ marginTop: 0 }}>
       {showFilters ? (
         <CustomerFilterControls
           variant="filterPanel"
@@ -1740,52 +1732,55 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
             : '고객이 없습니다.'}
         </p>
       ) : (
-        <ul className="record-list customer-expand-list customer-list customers-page__customer-list">
-          {listCustomersToRender.map((c) => (
-            <CustomerListCard
-              key={String(c.id)}
-              customer={c}
-              ssnDupHighlight={ssnDupHighlightByCustomerId.get(c.id)}
-              isSelectMode={isSelectMode}
-              selectedCustomerIds={selectedCustomerIds}
-              setSelectedCustomerIds={setSelectedCustomerIds}
-              expandedId={expandedId}
-              setExpandedId={setExpandedId}
-              onSelectCustomer={handleSelectCustomer}
-              editingId={editingId}
-              editForm={editForm}
-              setEditForm={setEditForm}
-              onEditSubmit={handleEditFormSubmit}
-              onEditSaveRequest={handleEditSaveRequest}
-              editSaving={editSaving}
-              editStatusText={editingId === c.id ? statusText : undefined}
-              carFeatureEnabled={carFeatureEnabled}
-              contractSignaturesEnabled={contractSignaturesEnabled}
-              gaExcelEnabled={gaExcelEnabled}
-              claimsFeatureEnabled={claimsFeatureEnabled}
-              onCopyCustomer={copyCustomer}
-              onStartEdit={startEdit}
-              onCancelEdit={cancelEdit}
-              onDeleteCustomer={handleDeleteCustomer}
-              onOpenFilesModal={handleOpenFilesModal}
-              onOpenConsultationsModal={handleOpenConsultationsModal}
-              onOpenAutoModal={handleOpenAutoModal}
-              onOpenSignatures={handleOpenSignatures}
-              onOpenGaModal={handleOpenGaModal}
-              onOpenPersonalMessage={handleOpenPersonalMessage}
-              onOpenClaims={handleOpenClaims}
-              onOpenMemos={handleOpenMemos}
-              onOpenOnMap={handleOpenOnMap}
-              mobileCopyFeedback={mobileCopyFeedback}
-              onOpenRelatedCustomer={handleOpenRelatedCustomer}
-              token={token}
-              onToggleFavorite={handleToggleFavorite}
-              variant={isMobile ? 'mobile' : 'pc'}
-              crmIsInsuranceLayout={crmIndustry.isInsuranceLayout}
-              crmIndustryTemplate={crmIndustry.resolvedTemplate}
-            />
-          ))}
-        </ul>
+        <>
+          <ul className="record-list customer-expand-list customer-list customers-page__customer-list">
+            {listCustomersToRender.map((c) => (
+              <CustomerListCard
+                key={String(c.id)}
+                customer={c}
+                ssnDupHighlight={ssnDupHighlightByCustomerId.get(c.id)}
+                isSelectMode={isSelectMode}
+                selectedCustomerIds={selectedCustomerIds}
+                setSelectedCustomerIds={setSelectedCustomerIds}
+                expandedId={expandedId}
+                setExpandedId={setExpandedId}
+                onSelectCustomer={handleSelectCustomer}
+                editingId={editingId}
+                editForm={editForm}
+                setEditForm={setEditForm}
+                onEditSubmit={handleEditFormSubmit}
+                onEditSaveRequest={handleEditSaveRequest}
+                editSaving={editSaving}
+                editStatusText={editingId === c.id ? statusText : undefined}
+                carFeatureEnabled={carFeatureEnabled}
+                contractSignaturesEnabled={contractSignaturesEnabled}
+                gaExcelEnabled={gaExcelEnabled}
+                claimsFeatureEnabled={claimsFeatureEnabled}
+                onCopyCustomer={copyCustomer}
+                onStartEdit={startEdit}
+                onCancelEdit={cancelEdit}
+                onDeleteCustomer={handleDeleteCustomer}
+                onOpenFilesModal={handleOpenFilesModal}
+                onOpenConsultationsModal={handleOpenConsultationsModal}
+                onOpenAutoModal={handleOpenAutoModal}
+                onOpenSignatures={handleOpenSignatures}
+                onOpenGaModal={handleOpenGaModal}
+                onOpenPersonalMessage={handleOpenPersonalMessage}
+                onOpenClaims={handleOpenClaims}
+                onOpenMemos={handleOpenMemos}
+                onOpenOnMap={handleOpenOnMap}
+                mobileCopyFeedback={mobileCopyFeedback}
+                onOpenRelatedCustomer={handleOpenRelatedCustomer}
+                token={token}
+                onToggleFavorite={handleToggleFavorite}
+                variant={isMobile ? 'mobile' : 'pc'}
+                crmIsInsuranceLayout={crmIndustry.isInsuranceLayout}
+                crmIndustryTemplate={crmIndustry.resolvedTemplate}
+              />
+            ))}
+          </ul>
+          <CustomerListScrollTopButton anchorRef={listPanelRef} />
+        </>
       )}
     </section>
   )
@@ -1820,19 +1815,6 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         exitExcelSelectMode={exitExcelSelectMode}
         toggleExcelColumn={toggleExcelColumn}
       />
-    ) : null
-
-  const scrollTopNode =
-    showScrollToTop ? (
-      <FormButton
-        htmlType="button"
-        variant="action"
-        className="scroll-to-top"
-        aria-label="맨 위로 스크롤"
-        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-      >
-        ↑
-      </FormButton>
     ) : null
 
   const createExitConfirmNode =
@@ -1874,7 +1856,6 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     headerNode: ReactNode
     bodyNode: ReactNode
     columnPickerNode: ReactNode
-    scrollTopNode: ReactNode
     createExitConfirmNode: ReactNode
     confirmDialogNode: ReactNode
   } = {
@@ -1884,7 +1865,6 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     headerNode,
     bodyNode,
     columnPickerNode,
-    scrollTopNode,
     createExitConfirmNode,
     confirmDialogNode: confirmDialog,
   }

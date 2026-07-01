@@ -7,7 +7,6 @@ type CustomersPageMobileViewProps = {
   headerNode: ReactNode
   bodyNode: ReactNode
   columnPickerNode: ReactNode
-  scrollTopNode: ReactNode
   createExitConfirmNode: ReactNode
   confirmDialogNode: ReactNode
 }
@@ -19,7 +18,6 @@ export default function CustomersPageMobileView({
   headerNode,
   bodyNode,
   columnPickerNode,
-  scrollTopNode,
   createExitConfirmNode,
   confirmDialogNode,
 }: CustomersPageMobileViewProps) {
@@ -76,7 +74,6 @@ export default function CustomersPageMobileView({
       {headerNode}
       {bodyNode}
       {columnPickerNode}
-      {scrollTopNode}
       {createExitConfirmNode}
       {confirmDialogNode}
     </main>
