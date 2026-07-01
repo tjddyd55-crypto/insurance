@@ -7,7 +7,7 @@ import {
   USER_INSURER_ACCOUNT_TABS,
   type UserInsurerAccountCategory,
 } from '../config/userInsurerAccounts.config'
-import type { UserInsurerAccountsViewProps } from '../hooks/useUserInsurerAccountsState'
+import type { AccountVaultViewProps } from '../hooks/useAccountVaultState'
 import type { UserInsurerAccountRow } from '../api/userInsurerAccountsApi'
 import { UserInsurerAccountCopyButton } from './UserInsurerAccountCopyButton'
 
@@ -177,7 +177,7 @@ function AccountSection({
   )
 }
 
-type UserInsurerAccountsPanelProps = UserInsurerAccountsViewProps & {
+type UserInsurerAccountsPanelProps = AccountVaultViewProps & {
   layout: 'dual-column' | 'stacked'
 }
 

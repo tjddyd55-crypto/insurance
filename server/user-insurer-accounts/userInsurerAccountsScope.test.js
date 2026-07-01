@@ -108,7 +108,10 @@ test('bootstrap skips existing default rows for same owner', async () => {
 
 test('PATCH owner guard requires owner_user_id in update SQL', async () => {
   const { readFileSync } = await import('node:fs')
-  const source = readFileSync(new URL('../apis/userInsurerAccountsApi.js', import.meta.url), 'utf8')
+  const source = readFileSync(
+    new URL('../services/userInsurerAccountMutationService.js', import.meta.url),
+    'utf8',
+  )
   assert.match(source, /WHERE id = \$1 AND owner_user_id = \$2/)
   assert.match(source, /owner_user_id = \$2 AND is_archived = false/)
 })

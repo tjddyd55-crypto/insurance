@@ -2965,6 +2965,26 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS user_insurer_account_share_tokens (
+      id BIGSERIAL PRIMARY KEY,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id) ON DELETE CASCADE,
+      owner_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token TEXT NOT NULL UNIQUE,
+      revoked_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_user_insurer_account_share_tokens_owner_active
+    ON user_insurer_account_share_tokens (ga_id, owner_user_id, revoked_at, created_at DESC)
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_user_insurer_account_share_tokens_active_owner
+    ON user_insurer_account_share_tokens (ga_id, owner_user_id)
+    WHERE revoked_at IS NULL
+  `)
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS customer_consultations (
       id SERIAL PRIMARY KEY,
       customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
