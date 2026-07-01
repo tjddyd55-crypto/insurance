@@ -6,17 +6,13 @@ import { useAuth } from '../../auth/AuthProvider'
 import { listCustomers } from '../api/customersApi'
 import type { CustomerRecord } from '../domain/types'
 import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
+import { filterRecentRegisteredCustomers } from '../utils/customerRecentRegistration'
 
 type CustomerWorkspaceOutletContext = {
   selectedCustomerId: number | null
   openRelatedCustomerRef: MutableRefObject<
     ((customerId: number, customerName?: string) => void) | null
   >
-}
-
-function parseCreatedAtMs(iso: string | null | undefined): number {
-  const time = Date.parse(String(iso ?? ''))
-  return Number.isFinite(time) ? time : 0
 }
 
 function formatRegisteredAt(iso: string | null | undefined): string {
@@ -43,10 +39,7 @@ export default function CustomerWorkspaceHomePage() {
   const [error, setError] = useState('')
 
   const recentCustomers = useMemo(
-    () =>
-      [...customers]
-        .sort((a, b) => parseCreatedAtMs(b.createdAt) - parseCreatedAtMs(a.createdAt))
-        .slice(0, 5),
+    () => filterRecentRegisteredCustomers(customers),
     [customers],
   )
 

@@ -8,8 +8,9 @@ import { listCustomers } from '../../api/customersApi'
 import type { CustomerRecord } from '../../domain/types'
 import type { CustomerWorkspaceLayoutPCProps } from './CustomerWorkspaceLayoutPC'
 import { formatKstDateTimeDisplay } from '../../../../utils/displayDateTime'
+import { filterRecentRegisteredCustomers } from '../../utils/customerRecentRegistration'
+import type { CustomerWorkspaceLayoutPCProps } from './CustomerWorkspaceLayoutPC'
 
-const RECENT_CUSTOMER_LIMIT = 5
 const RECENT_CUSTOMER_SCROLL_RETRY_LIMIT = 12
 const RECENT_CUSTOMER_SCROLL_RETRY_DELAY_MS = 40
 
@@ -54,11 +55,6 @@ function resolveMobileSheetTitle(pathname: string, search: string): string {
     return '고객 파일'
   }
   return '상세'
-}
-
-function parseCreatedAtMs(iso: string | null | undefined): number {
-  const time = Date.parse(String(iso ?? ''))
-  return Number.isFinite(time) ? time : 0
 }
 
 function formatRegisteredAt(iso: string | null | undefined): string {
@@ -132,10 +128,12 @@ export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLa
   )
 
   const sortedRecentCustomers = useMemo(
-    () =>
-      [...recentCustomers]
-        .sort((a, b) => parseCreatedAtMs(b.createdAt) - parseCreatedAtMs(a.createdAt))
-        .slice(0, RECENT_CUSTOMER_LIMIT),
+    () => filterRecentRegisteredCustomers(recentCustomers),
+    [recentCustomers],
+  )
+
+  const recentRegistrationCount = useMemo(
+    () => filterRecentRegisteredCustomers(recentCustomers, { limit: null }).length,
     [recentCustomers],
   )
 
@@ -225,7 +223,7 @@ export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLa
           }
         }}
       >
-        최근 등록 {sortedRecentCustomers.length > 0 ? `${sortedRecentCustomers.length}` : ''}
+        최근 등록 {recentRegistrationCount > 0 ? `${recentRegistrationCount}` : ''}
       </button>
 
       <Modal
