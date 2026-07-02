@@ -965,7 +965,6 @@
 
 .sms-bulk-workspace__left .sms-bulk-search__list,
 .sms-bulk-workspace__center .sms-bulk-selected__list,
-.sms-bulk-workspace__groups .sms-bulk-groups__list,
 .sms-bulk-workspace__groups .sms-bulk-groups__members {
   flex: 1 1 auto;
   min-height: 0;
@@ -1412,12 +1411,13 @@
 }
 
 .sms-bulk-groups__list {
-  overflow: auto;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  flex: 0 0 auto;
+  min-height: 0;
   max-height: 220px;
-  align-content: flex-start;
+  overflow-y: auto;
 }
 
 .sms-bulk-group-row {

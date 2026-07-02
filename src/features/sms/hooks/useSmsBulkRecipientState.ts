@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../../auth/AuthProvider'
 import { searchSmsBulkRecipients } from '../api/smsBulkRecipientsApi'
 import {
@@ -154,6 +154,15 @@ export function useSmsBulkRecipientState() {
     setSelectedSearchIds(new Set())
     await runSearch(defaults)
   }, [runSearch])
+
+  const didInitialSearchRef = useRef(false)
+  useEffect(() => {
+    if (didInitialSearchRef.current || !token?.trim()) {
+      return
+    }
+    didInitialSearchRef.current = true
+    void runSearch({ ...EMPTY_SMS_BULK_FILTERS })
+  }, [runSearch, token])
 
   const toggleSearchCustomer = useCallback((customerId: number) => {
     setSelectedSearchIds((prev) => {
