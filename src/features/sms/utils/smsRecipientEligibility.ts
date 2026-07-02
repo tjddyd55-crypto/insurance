@@ -29,6 +29,44 @@ export function summarizeSelectedRecipients(recipients: SmsSelectedRecipient[]) 
   return { total, sendable, excluded, skipCounts }
 }
 
+export function formatGroupLastSentAt(lastSentAt: string | null | undefined): string {
+  if (!lastSentAt) {
+    return '최근 발송 없음'
+  }
+  const date = new Date(lastSentAt)
+  if (Number.isNaN(date.getTime())) {
+    return '최근 발송 없음'
+  }
+  return date.toISOString().slice(0, 10)
+}
+
+export function buildGroupAppendToCartMessage(
+  groupTotal: number,
+  addedCount: number,
+  skipped: Record<string, number>,
+): string {
+  const parts = [`그룹 고객 ${groupTotal}명 중 ${addedCount}명이 추가되었습니다.`]
+  const detail: string[] = []
+  if (skipped.already_added) {
+    detail.push(`이미 추가된 고객 ${skipped.already_added}명`)
+  }
+  if (skipped.duplicate_phone) {
+    detail.push(`중복 번호 ${skipped.duplicate_phone}건`)
+  }
+  if (detail.length > 0) {
+    parts.push(`${detail.join(', ')}은 제외되었습니다.`)
+  }
+  return parts.join(' ')
+}
+
+export function buildCartAppendToGroupMessage(cartTotal: number, addedCount: number, alreadyInGroup: number): string {
+  const parts = [`현재 선택 대상 ${cartTotal}명 중 ${addedCount}명이 그룹에 추가되었습니다.`]
+  if (alreadyInGroup > 0) {
+    parts.push(`이미 포함된 고객 ${alreadyInGroup}명은 제외되었습니다.`)
+  }
+  return parts.join(' ')
+}
+
 export function buildAddResultMessage(addedCount: number, skipped: Record<string, number>): string {
   const parts = [`${addedCount}명이 추가되었습니다.`]
   const detail: string[] = []

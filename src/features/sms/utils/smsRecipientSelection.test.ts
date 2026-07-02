@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildAddResultMessage, summarizeSelectedRecipients } from './smsRecipientEligibility'
-import { mergeSmsRecipientSelections } from './smsRecipientSelection'
+import { mergeCustomerIdsForGroup, mergeSmsRecipientSelections } from './smsRecipientSelection'
 
 describe('smsRecipientSelection', () => {
   it('merges without duplicate customer ids', () => {
@@ -25,6 +25,13 @@ describe('smsRecipientSelection', () => {
     expect(recipients).toHaveLength(2)
     expect(result.addedCount).toBe(1)
     expect(result.skipped.already_added).toBe(1)
+  })
+
+  it('merges customer ids for group without duplicates', () => {
+    const merged = mergeCustomerIdsForGroup([1, 2, 3], [3, 4, 5])
+    expect(merged.mergedIds).toEqual([1, 2, 3, 4, 5])
+    expect(merged.addedCount).toBe(2)
+    expect(merged.alreadyInGroup).toBe(1)
   })
 })
 

@@ -4,6 +4,7 @@ import FormInput from '../../../../components/form/FormInput'
 import Modal from '../../../../components/ui/Modal'
 import type { SmsBulkRecipientState } from '../../hooks/useSmsBulkRecipientState'
 import { formatSmsBlockedReason } from '../../utils/smsRecipientEligibility'
+import SmsBulkGroupsPanel from './SmsBulkGroupsPanel'
 
 type SmsBulkRecipientWorkspaceProps = {
   variant: 'pc' | 'mobile'
@@ -180,8 +181,7 @@ function SelectedRecipientsPanel({
     setRecipientViewFilter,
     removeRecipient,
     clearRecipients,
-    setGroupModalOpen,
-    setGroupPickerOpen,
+    setGroupSaveModalOpen,
     sendableCustomerIds,
   } = bulkState
 
@@ -189,7 +189,7 @@ function SelectedRecipientsPanel({
     <div className="sms-bulk-selected">
       <div className="sms-bulk-selected__summary">
         <p>
-          총 선택 {summary.total}명 · 수신 가능 {summary.sendable}명 · 제외 {summary.excluded}명
+          총 선택 {summary.total}명 · 발송 가능 {summary.sendable}명 · 제외 {summary.excluded}명
         </p>
         {Object.keys(summary.skipCounts).length > 0 ? (
           <p className="sms-module__muted">
@@ -224,14 +224,11 @@ function SelectedRecipientsPanel({
           </button>
         </div>
         <div className="sms-bulk-selected__actions">
-          <FormButton type="button" variant="secondary" disabled={disabled} onClick={() => setGroupPickerOpen(true)}>
-            그룹 불러오기
-          </FormButton>
           <FormButton
             type="button"
             variant="secondary"
             disabled={disabled || summary.total === 0}
-            onClick={() => setGroupModalOpen(true)}
+            onClick={() => setGroupSaveModalOpen(true)}
           >
             그룹 저장
           </FormButton>
@@ -298,6 +295,7 @@ function GroupSaveModal({
     <Modal open={open} onClose={onClose} closeOnBackdrop={false} ariaLabel="그룹 저장">
       <div className="sms-bulk-modal">
         <h2>그룹 저장</h2>
+        <p className="sms-module__muted">현재 선택된 발송 대상으로 새 그룹을 만듭니다.</p>
         <label>
           그룹명
           <FormInput value={name} disabled={busy} onChange={(e) => setName(e.target.value)} />
@@ -325,67 +323,140 @@ function GroupSaveModal({
   )
 }
 
-function GroupPickerModal({
+function NewGroupModal({
   open,
   busy,
-  groups,
+  cartCount,
   onClose,
-  onLoad,
-  onRename,
-  onDelete,
+  onSave,
 }: {
   open: boolean
   busy?: boolean
-  groups: SmsBulkRecipientState['groups']
+  cartCount: number
   onClose: () => void
-  onLoad: (groupId: number) => Promise<void>
-  onRename: (groupId: number, name: string) => Promise<void>
-  onDelete: (groupId: number) => Promise<void>
+  onSave: (input: { name: string; description: string; mode: 'empty' | 'from_cart' }) => Promise<void>
 }) {
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [mode, setMode] = useState<'empty' | 'from_cart'>('empty')
+
+  useEffect(() => {
+    if (open) {
+      setName('')
+      setDescription('')
+      setMode(cartCount > 0 ? 'from_cart' : 'empty')
+    }
+  }, [cartCount, open])
+
   return (
-    <Modal open={open} onClose={onClose} closeOnBackdrop={false} ariaLabel="그룹 불러오기">
+    <Modal open={open} onClose={onClose} closeOnBackdrop={false} ariaLabel="새 그룹 만들기">
       <div className="sms-bulk-modal">
-        <h2>그룹 불러오기</h2>
-        {groups.length === 0 ? (
-          <p className="sms-module__muted">저장된 그룹이 없습니다.</p>
-        ) : (
-          <ul className="sms-bulk-group-list">
-            {groups.map((group) => (
-              <li key={group.id} className="sms-bulk-group-list__item">
-                <div>
-                  <strong>{group.name}</strong>
-                  <p>
-                    {group.recipientCount}명 · {group.description || '설명 없음'}
-                  </p>
-                </div>
-                <div className="sms-bulk-group-list__actions">
-                  <FormButton type="button" disabled={busy} onClick={() => void onLoad(group.id)}>
-                    불러오기
-                  </FormButton>
-                  <FormButton
-                    type="button"
-                    variant="secondary"
-                    disabled={busy}
-                    onClick={() => {
-                      const next = window.prompt('그룹명', group.name)
-                      if (next?.trim()) {
-                        void onRename(group.id, next.trim())
-                      }
-                    }}
-                  >
-                    이름 변경
-                  </FormButton>
-                  <FormButton type="button" variant="secondary" disabled={busy} onClick={() => void onDelete(group.id)}>
-                    삭제
-                  </FormButton>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-        <FormButton type="button" variant="secondary" disabled={busy} onClick={onClose}>
-          닫기
-        </FormButton>
+        <h2>새 그룹 만들기</h2>
+        <label>
+          그룹명
+          <FormInput value={name} disabled={busy} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <label>
+          설명 (선택)
+          <textarea
+            className="sms-module__textarea"
+            rows={3}
+            value={description}
+            disabled={busy}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </label>
+        <fieldset className="sms-bulk-modal__mode">
+          <legend>생성 방식</legend>
+          <label className="sms-bulk-modal__radio">
+            <input
+              type="radio"
+              name="new-group-mode"
+              checked={mode === 'empty'}
+              disabled={busy}
+              onChange={() => setMode('empty')}
+            />
+            빈 그룹으로 만들기
+          </label>
+          <label className="sms-bulk-modal__radio">
+            <input
+              type="radio"
+              name="new-group-mode"
+              checked={mode === 'from_cart'}
+              disabled={busy || cartCount === 0}
+              onChange={() => setMode('from_cart')}
+            />
+            현재 선택된 발송 대상 {cartCount}명으로 만들기
+          </label>
+        </fieldset>
+        <div className="sms-bulk-modal__actions">
+          <FormButton type="button" variant="secondary" disabled={busy} onClick={onClose}>
+            취소
+          </FormButton>
+          <FormButton
+            type="button"
+            disabled={busy || !name.trim() || (mode === 'from_cart' && cartCount === 0)}
+            onClick={() => void onSave({ name, description, mode })}
+          >
+            저장
+          </FormButton>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function GroupEditModal({
+  open,
+  busy,
+  initialName,
+  initialDescription,
+  onClose,
+  onSave,
+}: {
+  open: boolean
+  busy?: boolean
+  initialName: string
+  initialDescription: string
+  onClose: () => void
+  onSave: (input: { name: string; description: string }) => Promise<void>
+}) {
+  const [name, setName] = useState(initialName)
+  const [description, setDescription] = useState(initialDescription)
+
+  useEffect(() => {
+    if (open) {
+      setName(initialName)
+      setDescription(initialDescription)
+    }
+  }, [initialDescription, initialName, open])
+
+  return (
+    <Modal open={open} onClose={onClose} closeOnBackdrop={false} ariaLabel="그룹 수정">
+      <div className="sms-bulk-modal">
+        <h2>이름/설명 수정</h2>
+        <label>
+          그룹명
+          <FormInput value={name} disabled={busy} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <label>
+          설명 (선택)
+          <textarea
+            className="sms-module__textarea"
+            rows={3}
+            value={description}
+            disabled={busy}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </label>
+        <div className="sms-bulk-modal__actions">
+          <FormButton type="button" variant="secondary" disabled={busy} onClick={onClose}>
+            취소
+          </FormButton>
+          <FormButton type="button" disabled={busy || !name.trim()} onClick={() => void onSave({ name, description })}>
+            저장
+          </FormButton>
+        </div>
       </div>
     </Modal>
   )
@@ -399,41 +470,45 @@ export default function SmsBulkRecipientWorkspace({
 }: SmsBulkRecipientWorkspaceProps) {
   const {
     actionNotice,
-    groupModalOpen,
-    setGroupModalOpen,
-    groupPickerOpen,
-    setGroupPickerOpen,
-    groups,
+    groupSaveModalOpen,
+    setGroupSaveModalOpen,
+    newGroupModalOpen,
+    setNewGroupModalOpen,
+    groupEditModalOpen,
+    setGroupEditModalOpen,
     mobileTab,
     setMobileTab,
-    saveGroup,
-    loadGroup,
-    renameGroup,
-    removeGroup,
-    reloadGroups,
     summary,
+    selectedGroup,
+    saveGroupFromCart,
+    createGroup,
+    updateGroupMeta,
+    reloadGroups,
+    groupActionBusy,
   } = bulkState
 
   useEffect(() => {
-    if (groupPickerOpen) {
-      void reloadGroups()
-    }
-  }, [groupPickerOpen, reloadGroups])
+    void reloadGroups()
+  }, [reloadGroups])
+
+  const panelBusy = busy || bulkState.searchBusy || groupActionBusy
 
   const searchPanel = (
     <>
       <h2 className="sms-bulk-panel__title">고객 찾기</h2>
-      <FilterFields bulkState={bulkState} disabled={busy || bulkState.searchBusy} />
-      <SearchResultsPanel bulkState={bulkState} disabled={busy || bulkState.searchBusy} layout={variant} />
+      <FilterFields bulkState={bulkState} disabled={panelBusy} />
+      <SearchResultsPanel bulkState={bulkState} disabled={panelBusy} layout={variant} />
     </>
   )
 
   const selectedPanel = (
     <>
       <h2 className="sms-bulk-panel__title">선택된 발송 대상</h2>
-      <SelectedRecipientsPanel bulkState={bulkState} disabled={busy} onProceedToCompose={onProceedToCompose} />
+      <SelectedRecipientsPanel bulkState={bulkState} disabled={panelBusy} onProceedToCompose={onProceedToCompose} />
     </>
   )
+
+  const groupsPanel = <SmsBulkGroupsPanel bulkState={bulkState} disabled={panelBusy} layout={variant} />
 
   return (
     <section className={`sms-bulk-workspace sms-bulk-workspace--${variant}`}>
@@ -455,29 +530,52 @@ export default function SmsBulkRecipientWorkspace({
             >
               선택된 대상 {summary.total}
             </button>
+            <button
+              type="button"
+              className={`sms-bulk-mobile-tabs__btn${mobileTab === 'groups' ? ' sms-bulk-mobile-tabs__btn--active' : ''}`}
+              onClick={() => setMobileTab('groups')}
+            >
+              그룹
+            </button>
           </div>
-          <div className="sms-bulk-mobile-panel">{mobileTab === 'search' ? searchPanel : selectedPanel}</div>
+          <div className="sms-bulk-mobile-panel">
+            {mobileTab === 'search' ? searchPanel : null}
+            {mobileTab === 'selected' ? selectedPanel : null}
+            {mobileTab === 'groups' ? groupsPanel : null}
+          </div>
         </>
       ) : (
         <div className="sms-bulk-workspace__grid">
-          <div className="sms-bulk-workspace__left">{searchPanel}</div>
-          <div className="sms-bulk-workspace__right">{selectedPanel}</div>
+          <div className="sms-bulk-workspace__column sms-bulk-workspace__left">{searchPanel}</div>
+          <div className="sms-bulk-workspace__column sms-bulk-workspace__center">{selectedPanel}</div>
+          <div className="sms-bulk-workspace__column sms-bulk-workspace__groups">{groupsPanel}</div>
         </div>
       )}
       <GroupSaveModal
-        open={groupModalOpen}
-        busy={busy}
-        onClose={() => setGroupModalOpen(false)}
-        onSave={saveGroup}
+        open={groupSaveModalOpen}
+        busy={panelBusy}
+        onClose={() => setGroupSaveModalOpen(false)}
+        onSave={saveGroupFromCart}
       />
-      <GroupPickerModal
-        open={groupPickerOpen}
-        busy={busy}
-        groups={groups}
-        onClose={() => setGroupPickerOpen(false)}
-        onLoad={loadGroup}
-        onRename={renameGroup}
-        onDelete={removeGroup}
+      <NewGroupModal
+        open={newGroupModalOpen}
+        busy={panelBusy}
+        cartCount={summary.total}
+        onClose={() => setNewGroupModalOpen(false)}
+        onSave={createGroup}
+      />
+      <GroupEditModal
+        open={groupEditModalOpen}
+        busy={panelBusy}
+        initialName={selectedGroup?.name ?? ''}
+        initialDescription={selectedGroup?.description ?? ''}
+        onClose={() => setGroupEditModalOpen(false)}
+        onSave={(input) => {
+          if (selectedGroup == null) {
+            return Promise.resolve()
+          }
+          return updateGroupMeta(selectedGroup.id, input)
+        }}
       />
     </section>
   )

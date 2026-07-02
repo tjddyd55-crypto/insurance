@@ -921,19 +921,40 @@
 
 .sms-bulk-workspace__grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-  gap: 1rem;
-  align-items: start;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 0.85fr);
+  gap: 0.875rem;
+  align-items: stretch;
+  min-height: calc(100vh - 10rem);
+}
+
+.sms-bulk-workspace__column,
+.sms-bulk-workspace__left,
+.sms-bulk-workspace__center,
+.sms-bulk-workspace__groups,
+.sms-bulk-mobile-panel {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 1rem;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .sms-bulk-workspace__left,
-.sms-bulk-workspace__right,
-.sms-bulk-mobile-panel {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  padding: 1rem;
-  min-height: 420px;
+.sms-bulk-workspace__center,
+.sms-bulk-workspace__groups {
+  max-height: calc(100vh - 8rem);
+  overflow: hidden;
+}
+
+.sms-bulk-workspace__left .sms-bulk-search__list,
+.sms-bulk-workspace__center .sms-bulk-selected__list,
+.sms-bulk-workspace__groups .sms-bulk-groups__list,
+.sms-bulk-workspace__groups .sms-bulk-groups__members {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .sms-bulk-workspace__right {
@@ -992,6 +1013,11 @@
   gap: 0.5rem;
 }
 
+.sms-bulk-workspace__left .sms-bulk-search__list,
+.sms-bulk-workspace__center .sms-bulk-selected__list {
+  max-height: none;
+}
+
 .sms-bulk-search-row {
   display: flex;
   gap: 0.65rem;
@@ -1005,6 +1031,19 @@
 .sms-bulk-search-row__body {
   display: grid;
   gap: 0.2rem;
+}
+
+.sms-bulk-selected {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.sms-bulk-workspace__center .sms-bulk-selected__list {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .sms-bulk-selected-row {
@@ -1042,7 +1081,7 @@
 
 .sms-bulk-mobile-tabs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 0.5rem;
 }
 
@@ -1091,6 +1130,148 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
+}
+
+.sms-bulk-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.sms-bulk-groups__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.sms-bulk-groups__header .sms-bulk-panel__title {
+  margin: 0;
+}
+
+.sms-bulk-groups__header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.sms-bulk-groups__search {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.sms-bulk-groups__list {
+  overflow: auto;
+  display: grid;
+  gap: 0.5rem;
+  max-height: 220px;
+}
+
+.sms-bulk-group-card {
+  display: grid;
+  gap: 0.2rem;
+  text-align: left;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.sms-bulk-group-card--active {
+  border-color: var(--btn-primary-bg, #16a34a);
+  box-shadow: inset 0 0 0 1px var(--btn-primary-bg, #16a34a);
+}
+
+.sms-bulk-group-card__desc {
+  color: var(--text-muted, #64748b);
+  font-size: 0.875rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sms-bulk-groups__detail {
+  display: grid;
+  gap: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 0.75rem;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.sms-bulk-groups__detail-head h3 {
+  margin: 0 0 0.35rem;
+}
+
+.sms-bulk-groups__detail-head p {
+  margin: 0.15rem 0;
+}
+
+.sms-bulk-groups__actions {
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.sms-bulk-groups__actions--mobile {
+  grid-template-columns: 1fr;
+}
+
+.sms-bulk-groups__members {
+  overflow: auto;
+  display: grid;
+  gap: 0.5rem;
+  max-height: 240px;
+}
+
+.sms-bulk-groups__members h4 {
+  margin: 0;
+}
+
+.sms-bulk-group-member-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f9fafb;
+}
+
+.sms-bulk-groups__empty-detail {
+  margin-top: 0.5rem;
+}
+
+.sms-bulk-modal__mode {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.sms-bulk-modal__mode legend {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.sms-bulk-modal__radio {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+@media (max-width: 1180px) {
+  .sms-bulk-workspace--pc .sms-bulk-workspace__grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .sms-bulk-workspace--pc .sms-bulk-workspace__groups {
+    grid-column: 1 / -1;
+    max-height: 420px;
+  }
 }
 
 .sms-bulk-compose-toolbar {

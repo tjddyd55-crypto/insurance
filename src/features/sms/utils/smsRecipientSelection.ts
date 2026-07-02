@@ -51,3 +51,29 @@ export function mergeSmsRecipientSelections(
     result: { addedCount: added.length, skipped },
   }
 }
+
+export function mergeCustomerIdsForGroup(
+  existingIds: number[],
+  incomingIds: number[],
+): { mergedIds: number[]; addedCount: number; alreadyInGroup: number } {
+  const seen = new Set(existingIds)
+  const merged = [...existingIds]
+  let addedCount = 0
+  let alreadyInGroup = 0
+
+  for (const rawId of incomingIds) {
+    const id = Number(rawId)
+    if (!Number.isInteger(id) || id <= 0) {
+      continue
+    }
+    if (seen.has(id)) {
+      alreadyInGroup += 1
+      continue
+    }
+    seen.add(id)
+    merged.push(id)
+    addedCount += 1
+  }
+
+  return { mergedIds: merged, addedCount, alreadyInGroup }
+}
