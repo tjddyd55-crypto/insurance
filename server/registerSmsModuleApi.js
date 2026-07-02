@@ -563,11 +563,12 @@ export function registerSmsModuleApi(apiRouter, ctx) {
       const scope = await resolveSmsAuthContext(pool, req)
       const q = req.query ?? {}
       const data = await searchSmsRecipientCustomers(pool, scope, {
-        search: q.search,
+        search: q.search ?? q.keyword ?? q.q,
         gender: q.gender,
         sangnyeongDays: q.sangnyeongDays ?? q.sangnyeong_days,
         insuranceAgeFrom: q.insuranceAgeFrom ?? q.insurance_age_from,
         insuranceAgeTo: q.insuranceAgeTo ?? q.insurance_age_to,
+        includeBlocked: q.includeBlocked ?? q.include_blocked,
       })
       res.json({ success: true, data })
     } catch (e) {

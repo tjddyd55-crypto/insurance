@@ -977,71 +977,96 @@
 }
 
 .sms-bulk-workspace--pc .sms-bulk-filters--compact {
-  gap: 0.45rem;
+  display: grid;
+  gap: 10px;
   margin-bottom: 0.65rem;
 }
 
-.sms-bulk-workspace--pc .sms-bulk-filters__row {
+.sms-bulk-workspace--pc .sms-bulk-filter-row {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 0.45rem 0.65rem;
+  gap: 10px;
+  min-width: 0;
 }
 
-.sms-bulk-workspace--pc .sms-bulk-filters__row--search {
+.sms-bulk-workspace--pc .sms-bulk-filter-row--search {
   width: 100%;
 }
 
-.sms-bulk-workspace--pc .sms-bulk-filters__inline-field {
+.sms-bulk-workspace--pc .sms-bulk-filter-row--secondary {
+  flex-wrap: wrap;
+}
+
+.sms-bulk-workspace--pc .sms-bulk-filter-field {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 6px;
   min-width: 0;
 }
 
-.sms-bulk-workspace--pc .sms-bulk-filters__inline-field > span:first-child {
-  flex-shrink: 0;
+.sms-bulk-workspace--pc .sms-bulk-filter-field--search {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.sms-bulk-workspace--pc .sms-bulk-filter-field--age {
+  flex-wrap: nowrap;
+}
+
+.sms-bulk-workspace--pc .sms-bulk-filter-field__label {
+  flex: 0 0 auto;
   color: #64748b;
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
-.sms-bulk-workspace--pc .sms-bulk-filters__inline-field--search {
-  flex: 1 1 auto;
-  min-width: 180px;
-}
-
-.sms-bulk-workspace--pc .sms-bulk-filters__control--search {
-  flex: 1 1 auto;
-  min-width: 0;
-  width: auto;
-}
-
-.sms-bulk-workspace--pc .sms-bulk-filters__control--gender {
-  width: 120px;
-  min-width: 100px;
-}
-
-.sms-bulk-workspace--pc .sms-bulk-filters__control--days {
-  width: 88px;
-  min-width: 80px;
-}
-
-.sms-bulk-workspace--pc .sms-bulk-filters__control--age {
-  width: 80px;
-  min-width: 70px;
-}
-
-.sms-bulk-workspace--pc .sms-bulk-filters__search-btn {
-  flex-shrink: 0;
-  width: 88px;
-  min-width: 80px;
-}
-
-.sms-bulk-workspace--pc .sms-bulk-filters__suffix {
+.sms-bulk-workspace--pc .sms-bulk-filter-field__suffix {
+  flex: 0 0 auto;
   color: #64748b;
   font-size: 0.875rem;
   white-space: nowrap;
+}
+
+.sms-bulk-workspace--pc .sms-bulk-search-input {
+  flex: 1 1 auto;
+  min-width: 220px;
+  width: auto;
+  height: 36px;
+}
+
+.sms-bulk-workspace--pc .sms-bulk-search-button {
+  flex: 0 0 88px;
+  width: 88px;
+  min-width: 88px;
+  height: 36px;
+  padding-inline: 0.5rem;
+}
+
+.sms-bulk-workspace--pc .sms-bulk-filter-field__gender {
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+  height: 36px;
+  padding-block: 0.35rem;
+}
+
+.sms-bulk-workspace--pc .sms-bulk-filter-field__days,
+.sms-bulk-workspace--pc .sms-bulk-filter-field__age {
+  width: 80px;
+  min-width: 70px;
+  max-width: 88px;
+  height: 36px;
+}
+
+.sms-bulk-search__summary {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.sms-bulk-search__policy {
+  font-size: 0.8125rem;
+  line-height: 1.35;
 }
 
 .sms-bulk-compact-row {

@@ -34,7 +34,7 @@ function normalizeBirthYmd(row) {
   return null
 }
 
-function matchesSearch(row, search) {
+export function matchesSearch(row, search) {
   const q = String(search ?? '').trim()
   if (!q) {
     return true
@@ -43,7 +43,17 @@ function matchesSearch(row, search) {
   const name = String(row.name ?? '').toLowerCase()
   const phone = String(row.phone ?? '').replace(/\D/g, '')
   const birthYmd = normalizeBirthYmd(row) ?? ''
-  return name.includes(lower) || phone.includes(q.replace(/\D/g, '')) || birthYmd.includes(q)
+  const phoneQuery = q.replace(/\D/g, '')
+  const phoneMatch = phoneQuery.length > 0 && phone.includes(phoneQuery)
+  const birthMatch = birthYmd.includes(q)
+  return name.includes(lower) || phoneMatch || birthMatch
+}
+
+function parseIncludeBlocked(value) {
+  if (value === true || value === 'true' || value === '1') {
+    return true
+  }
+  return false
 }
 
 function matchesGender(row, genderFilter) {
@@ -118,11 +128,13 @@ function mapCustomerRow(row, optOutSet, today = new Date()) {
  *   sangnyeongDays?: string | number;
  *   insuranceAgeFrom?: string | number;
  *   insuranceAgeTo?: string | number;
+ *   includeBlocked?: boolean | string;
  * }} query
  */
 export async function searchSmsRecipientCustomers(executor, scope, query = {}) {
   const genderFilter =
     query.gender === 'male' || query.gender === 'female' ? query.gender : 'all'
+  const includeBlocked = parseIncludeBlocked(query.includeBlocked)
   const today = new Date()
 
   const r = await systemQuery(
@@ -156,7 +168,11 @@ export async function searchSmsRecipientCustomers(executor, scope, query = {}) {
     if (!matchesInsuranceAge(row, query.insuranceAgeFrom, query.insuranceAgeTo, today)) {
       continue
     }
-    filtered.push(mapCustomerRow(row, optOutSet, today))
+    const mapped = mapCustomerRow(row, optOutSet, today)
+    if (!includeBlocked && !mapped.canSend) {
+      continue
+    }
+    filtered.push(mapped)
   }
 
   return {

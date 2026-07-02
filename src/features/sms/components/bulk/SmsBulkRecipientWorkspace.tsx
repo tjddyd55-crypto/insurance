@@ -27,31 +27,37 @@ function FilterFields({
   if (layout === 'pc') {
     return (
       <div className="sms-bulk-filters sms-bulk-filters--compact">
-        <div className="sms-bulk-filters__row sms-bulk-filters__row--search">
-          <label className="sms-bulk-filters__inline-field sms-bulk-filters__inline-field--search">
-            <span>검색어</span>
+        <div className="sms-bulk-filter-row sms-bulk-filter-row--search">
+          <div className="sms-bulk-filter-field sms-bulk-filter-field--search">
+            <span className="sms-bulk-filter-field__label">검색어</span>
             <FormInput
-              className="sms-bulk-filters__control--search"
+              className="sms-bulk-search-input"
               value={filters.search}
               disabled={disabled}
               placeholder="이름 / 연락처 / 생년월일 검색"
               onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  void bulkState.runSearch()
+                }
+              }}
             />
-          </label>
+          </div>
           <FormButton
             type="button"
-            className="sms-bulk-filters__search-btn"
+            className="sms-bulk-search-button"
             disabled={disabled}
             onClick={() => void bulkState.runSearch()}
           >
             검색
           </FormButton>
         </div>
-        <div className="sms-bulk-filters__row sms-bulk-filters__row--secondary">
-          <label className="sms-bulk-filters__inline-field">
-            <span>성별</span>
+        <div className="sms-bulk-filter-row sms-bulk-filter-row--secondary">
+          <div className="sms-bulk-filter-field">
+            <span className="sms-bulk-filter-field__label">성별</span>
             <select
-              className="sms-module__select sms-bulk-filters__control--gender"
+              className="sms-module__select sms-bulk-filter-field__gender"
               disabled={disabled}
               value={filters.gender}
               onChange={(e) =>
@@ -65,40 +71,40 @@ function FilterFields({
               <option value="male">남자</option>
               <option value="female">여자</option>
             </select>
-          </label>
-          <label className="sms-bulk-filters__inline-field">
-            <span>상령일</span>
+          </div>
+          <div className="sms-bulk-filter-field">
+            <span className="sms-bulk-filter-field__label">상령일</span>
             <FormInput
-              className="sms-bulk-filters__control--days"
+              className="sms-bulk-filter-field__days"
               type="number"
               min={0}
               disabled={disabled}
               value={filters.sangnyeongDays}
               onChange={(e) => setFilters((prev) => ({ ...prev, sangnyeongDays: e.target.value }))}
             />
-            <span className="sms-bulk-filters__suffix">일 이내</span>
-          </label>
-          <label className="sms-bulk-filters__inline-field">
-            <span>보험나이</span>
+            <span className="sms-bulk-filter-field__suffix">일 이내</span>
+          </div>
+          <div className="sms-bulk-filter-field sms-bulk-filter-field--age">
+            <span className="sms-bulk-filter-field__label">보험나이</span>
             <FormInput
-              className="sms-bulk-filters__control--age"
+              className="sms-bulk-filter-field__age"
               type="number"
               min={0}
               disabled={disabled}
               value={filters.insuranceAgeFrom}
               onChange={(e) => setFilters((prev) => ({ ...prev, insuranceAgeFrom: e.target.value }))}
             />
-            <span className="sms-bulk-filters__suffix">세부터</span>
+            <span className="sms-bulk-filter-field__suffix">세부터</span>
             <FormInput
-              className="sms-bulk-filters__control--age"
+              className="sms-bulk-filter-field__age"
               type="number"
               min={0}
               disabled={disabled}
               value={filters.insuranceAgeTo}
               onChange={(e) => setFilters((prev) => ({ ...prev, insuranceAgeTo: e.target.value }))}
             />
-            <span className="sms-bulk-filters__suffix">세까지</span>
-          </label>
+            <span className="sms-bulk-filter-field__suffix">세까지</span>
+          </div>
         </div>
       </div>
     )
@@ -196,9 +202,14 @@ function SearchResultsPanel({
   return (
     <div className="sms-bulk-search">
       <div className="sms-bulk-search__toolbar">
-        <span>
-          검색 결과 {searchTotalCount}명 · 선택 {selectedSearchIds.size}명
-        </span>
+        <div className="sms-bulk-search__summary">
+          <span>
+            검색 결과 {searchTotalCount}명 · 선택 {selectedSearchIds.size}명
+          </span>
+          <span className="sms-module__muted sms-bulk-search__policy">
+            발송 가능한 고객만 표시됩니다. 연락처 없음, 전화번호 오류, 수신거부 고객은 제외됩니다.
+          </span>
+        </div>
         <div className="sms-bulk-search__actions">
           <FormButton type="button" variant="secondary" disabled={disabled} onClick={selectAllSearchResults}>
             전체 선택

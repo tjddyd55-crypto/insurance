@@ -25,9 +25,12 @@ function buildSearchQuery(filters: SmsBulkRecipientFilters): string {
   if (filters.insuranceAgeTo.trim()) {
     params.set('insuranceAgeTo', filters.insuranceAgeTo.trim())
   }
+  params.set('includeBlocked', 'false')
   const qs = params.toString()
   return qs ? `?${qs}` : ''
 }
+
+export { buildSearchQuery }
 
 export async function searchSmsBulkRecipients(
   token: string,
@@ -38,7 +41,9 @@ export async function searchSmsBulkRecipients(
     { token: requireSmsToken(token) },
   )
   return {
-    customers: Array.isArray(raw?.customers) ? raw.customers : [],
+    customers: Array.isArray(raw?.customers)
+      ? raw.customers.filter((row) => row.canSend)
+      : [],
     totalCount: Number(raw?.totalCount ?? 0),
   }
 }

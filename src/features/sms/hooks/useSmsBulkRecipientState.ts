@@ -131,14 +131,15 @@ export function useSmsBulkRecipientState() {
     })
   }, [groupMembers])
 
-  const runSearch = useCallback(async () => {
+  const runSearch = useCallback(async (overrideFilters?: SmsBulkRecipientFilters) => {
     if (!token?.trim()) {
       return
     }
+    const activeFilters = overrideFilters ?? filters
     setSearchBusy(true)
     setActionNotice(null)
     try {
-      const result = await searchSmsBulkRecipients(token, filters)
+      const result = await searchSmsBulkRecipients(token, activeFilters)
       setSearchResults(result.customers)
       setSearchTotalCount(result.totalCount)
       setSelectedSearchIds(new Set())
