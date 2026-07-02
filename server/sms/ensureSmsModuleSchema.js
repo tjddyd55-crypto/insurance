@@ -122,6 +122,63 @@ export async function ensureSmsModuleSchema(executor) {
     CREATE INDEX IF NOT EXISTS idx_sms_recipients_tenant_phone
     ON sms_recipients (tenant_id, phone)
   `)
+  await executor.query(`
+    ALTER TABLE sms_recipients
+    ADD COLUMN IF NOT EXISTS gender_snapshot TEXT NOT NULL DEFAULT ''
+  `)
+  await executor.query(`
+    ALTER TABLE sms_recipients
+    ADD COLUMN IF NOT EXISTS birth_date_snapshot DATE
+  `)
+  await executor.query(`
+    ALTER TABLE sms_recipients
+    ADD COLUMN IF NOT EXISTS insurance_age_snapshot INTEGER
+  `)
+  await executor.query(`
+    ALTER TABLE sms_recipients
+    ADD COLUMN IF NOT EXISTS sangnyeong_dday_snapshot INTEGER
+  `)
+  await executor.query(`
+    ALTER TABLE sms_recipients
+    ADD COLUMN IF NOT EXISTS customer_name_snapshot TEXT NOT NULL DEFAULT ''
+  `)
+  await executor.query(`
+    ALTER TABLE sms_recipients
+    ADD COLUMN IF NOT EXISTS phone_snapshot TEXT NOT NULL DEFAULT ''
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS sms_recipient_groups (
+      id BIGSERIAL PRIMARY KEY,
+      tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '',
+      recipient_count INTEGER NOT NULL DEFAULT 0,
+      last_sent_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      archived_at TIMESTAMPTZ
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_sms_recipient_groups_tenant_user
+    ON sms_recipient_groups (tenant_id, user_id, updated_at DESC)
+    WHERE archived_at IS NULL
+  `)
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS sms_recipient_group_members (
+      id BIGSERIAL PRIMARY KEY,
+      group_id BIGINT NOT NULL REFERENCES sms_recipient_groups(id) ON DELETE CASCADE,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT sms_recipient_group_members_unique UNIQUE (group_id, customer_id)
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_sms_recipient_group_members_group
+    ON sms_recipient_group_members (group_id, customer_id)
+  `)
 
   await executor.query(`
     CREATE TABLE IF NOT EXISTS sms_templates (

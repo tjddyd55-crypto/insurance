@@ -1,4 +1,9 @@
 import { systemQuery } from '../utils/dbSafeQuery.js'
+import {
+  getSangnyeongDday,
+  normalizeCustomerGender,
+  resolveCustomerInsuranceMetrics,
+} from '../../shared/customerInsuranceMetrics.js'
 import { assertSmsRealSendAllowed } from './smsModuleConfig.js'
 import { composeAdvertisementSmsMessage, renderSmsTemplate, resolveMessageType } from './smsMessageUtils.js'
 import { isValidKoreanMobilePhone, normalizeSenderNumber, normalizeSmsPhone } from './smsPhone.js'
@@ -22,7 +27,7 @@ async function loadCampaignTargetCustomers(executor, scope, input) {
     const r = await systemQuery(
       executor,
       `
-      SELECT c.id, c.name, c.phone
+      SELECT c.id, c.name, c.phone, c.gender, c.ssn, c.insurance_age, c.next_age_date, c.birth_date
       FROM customers c
       INNER JOIN users u ON u.id = c.user_id
       INNER JOIN tenants t ON t.legacy_ga_id = u.ga_id
@@ -44,7 +49,7 @@ async function loadCampaignTargetCustomers(executor, scope, input) {
   const r = await systemQuery(
     executor,
     `
-    SELECT c.id, c.name, c.phone
+    SELECT c.id, c.name, c.phone, c.gender, c.ssn, c.insurance_age, c.next_age_date, c.birth_date
     FROM customers c
     INNER JOIN users u ON u.id = c.user_id
     INNER JOIN tenants t ON t.legacy_ga_id = u.ga_id
@@ -56,6 +61,68 @@ async function loadCampaignTargetCustomers(executor, scope, input) {
     values,
   )
   return r.rows
+}
+
+function buildRecipientSnapshot(row, today = new Date()) {
+  const metrics = resolveCustomerInsuranceMetrics(row, today)
+  const gender = normalizeCustomerGender(row.gender)
+  const sangnyeongDday = metrics.maturityYmd ? getSangnyeongDday(metrics.maturityYmd, today) : null
+  let birthDateSnapshot = metrics.birthDateYmd || null
+  if (!birthDateSnapshot && row.birth_date) {
+    const d = row.birth_date instanceof Date ? row.birth_date : new Date(row.birth_date)
+    if (!Number.isNaN(d.getTime())) {
+      birthDateSnapshot = d.toISOString().slice(0, 10)
+    }
+  }
+  return {
+    customerNameSnapshot: String(row.name ?? ''),
+    phoneSnapshot: normalizeSmsPhone(row.phone) || '',
+    genderSnapshot: gender ?? '',
+    birthDateSnapshot,
+    insuranceAgeSnapshot: metrics.insuranceAge,
+    sangnyeongDdaySnapshot: sangnyeongDday,
+  }
+}
+
+async function insertSmsRecipientRow(
+  executor,
+  {
+    tenantId,
+    campaignId,
+    row,
+    message,
+    status,
+    skipReason = null,
+    snapshot,
+  },
+) {
+  await systemQuery(
+    executor,
+    `
+    INSERT INTO sms_recipients (
+      tenant_id, campaign_id, customer_id, phone, customer_name, message, status, skip_reason,
+      customer_name_snapshot, phone_snapshot, gender_snapshot, birth_date_snapshot,
+      insurance_age_snapshot, sangnyeong_dday_snapshot
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+    `,
+    [
+      tenantId,
+      campaignId,
+      Number(row.id),
+      snapshot.phoneSnapshot || normalizeSmsPhone(row.phone) || '',
+      snapshot.customerNameSnapshot,
+      message,
+      status,
+      skipReason,
+      snapshot.customerNameSnapshot,
+      snapshot.phoneSnapshot,
+      snapshot.genderSnapshot,
+      snapshot.birthDateSnapshot,
+      snapshot.insuranceAgeSnapshot,
+      snapshot.sangnyeongDdaySnapshot,
+    ],
+  )
 }
 
 /**
@@ -238,6 +305,7 @@ export async function createSmsCampaign(executor, scope, input) {
 
   for (const row of customers) {
     const phone = normalizeSmsPhone(row.phone)
+    const snapshot = buildRecipientSnapshot(row)
     let skipReason = null
     if (!phone) {
       skipReason = 'no_phone'
@@ -248,45 +316,30 @@ export async function createSmsCampaign(executor, scope, input) {
     } else if (optOutSet.has(phone)) {
       skipReason = 'opt_out'
     }
+    const renderedMessage = renderSmsTemplate(messageTemplate, {
+      customerName: snapshot.customerNameSnapshot,
+    })
     if (skipReason) {
-      await systemQuery(
-        executor,
-        `
-        INSERT INTO sms_recipients (
-          tenant_id, campaign_id, customer_id, phone, customer_name, message, status, skip_reason
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, 'skipped', $7)
-        `,
-        [
-          scope.tenantId,
-          campaignId,
-          Number(row.id),
-          phone || '',
-          String(row.name ?? ''),
-          renderSmsTemplate(messageTemplate, { customerName: String(row.name ?? '') }),
-          skipReason,
-        ],
-      )
+      await insertSmsRecipientRow(executor, {
+        tenantId: scope.tenantId,
+        campaignId,
+        row,
+        message: renderedMessage,
+        status: 'skipped',
+        skipReason,
+        snapshot,
+      })
       continue
     }
     seenPhones.add(phone)
-    await systemQuery(
-      executor,
-      `
-      INSERT INTO sms_recipients (
-        tenant_id, campaign_id, customer_id, phone, customer_name, message, status
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, 'pending')
-      `,
-      [
-        scope.tenantId,
-        campaignId,
-        Number(row.id),
-        phone,
-        String(row.name ?? ''),
-        renderSmsTemplate(messageTemplate, { customerName: String(row.name ?? '') }),
-      ],
-    )
+    await insertSmsRecipientRow(executor, {
+      tenantId: scope.tenantId,
+      campaignId,
+      row,
+      message: renderedMessage,
+      status: 'pending',
+      snapshot,
+    })
   }
 
   return { campaignId, status, scheduledAt, preview }

@@ -30,6 +30,14 @@ import {
   removeSmsOptOut,
   updateSmsTemplate,
 } from './sms/smsTemplateService.js'
+import {
+  archiveSmsRecipientGroup,
+  createSmsRecipientGroup,
+  listSmsRecipientGroups,
+  loadSmsRecipientGroupMembers,
+  updateSmsRecipientGroup,
+} from './sms/smsRecipientGroupService.js'
+import { searchSmsRecipientCustomers } from './sms/smsRecipientSearchService.js'
 import { assertSmsModuleFeatureEnabled, assertSmsRealSendAllowed } from './sms/smsModuleConfig.js'
 
 function smsApiError(res, err) {
@@ -541,6 +549,107 @@ export function registerSmsModuleApi(apiRouter, ctx) {
       const scope = await resolveSmsAuthContext(pool, req)
       const result = await removeSmsOptOut(pool, scope, Number(req.params.id))
       res.json({ success: true, data: result })
+    } catch (e) {
+      if (e?.status) {
+        smsApiError(res, e)
+        return
+      }
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.get('/sms/recipients/customers', requireAuth, ensureSmsModuleEnabled, async (req, res) => {
+    try {
+      const scope = await resolveSmsAuthContext(pool, req)
+      const q = req.query ?? {}
+      const data = await searchSmsRecipientCustomers(pool, scope, {
+        search: q.search,
+        gender: q.gender,
+        sangnyeongDays: q.sangnyeongDays ?? q.sangnyeong_days,
+        insuranceAgeFrom: q.insuranceAgeFrom ?? q.insurance_age_from,
+        insuranceAgeTo: q.insuranceAgeTo ?? q.insurance_age_to,
+      })
+      res.json({ success: true, data })
+    } catch (e) {
+      if (e?.status) {
+        smsApiError(res, e)
+        return
+      }
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.get('/sms/recipient-groups', requireAuth, ensureSmsModuleEnabled, async (req, res) => {
+    try {
+      const scope = await resolveSmsAuthContext(pool, req)
+      const rows = await listSmsRecipientGroups(pool, scope)
+      res.json({ success: true, data: rows })
+    } catch (e) {
+      if (e?.status) {
+        smsApiError(res, e)
+        return
+      }
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.post('/sms/recipient-groups', requireAuth, ensureSmsModuleEnabled, async (req, res) => {
+    try {
+      const scope = await resolveSmsAuthContext(pool, req)
+      const body = req.body ?? {}
+      const row = await createSmsRecipientGroup(pool, scope, {
+        name: body.name,
+        description: body.description,
+        customerIds: body.customerIds ?? body.customer_ids,
+      })
+      res.status(201).json({ success: true, data: row })
+    } catch (e) {
+      if (e?.status) {
+        smsApiError(res, e)
+        return
+      }
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.patch('/sms/recipient-groups/:groupId', requireAuth, ensureSmsModuleEnabled, async (req, res) => {
+    try {
+      const scope = await resolveSmsAuthContext(pool, req)
+      const body = req.body ?? {}
+      const row = await updateSmsRecipientGroup(pool, scope, Number(req.params.groupId), {
+        name: body.name,
+        description: body.description,
+        customerIds: body.customerIds ?? body.customer_ids,
+      })
+      res.json({ success: true, data: row })
+    } catch (e) {
+      if (e?.status) {
+        smsApiError(res, e)
+        return
+      }
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.delete('/sms/recipient-groups/:groupId', requireAuth, ensureSmsModuleEnabled, async (req, res) => {
+    try {
+      const scope = await resolveSmsAuthContext(pool, req)
+      const result = await archiveSmsRecipientGroup(pool, scope, Number(req.params.groupId))
+      res.json({ success: true, data: result })
+    } catch (e) {
+      if (e?.status) {
+        smsApiError(res, e)
+        return
+      }
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.get('/sms/recipient-groups/:groupId/members', requireAuth, ensureSmsModuleEnabled, async (req, res) => {
+    try {
+      const scope = await resolveSmsAuthContext(pool, req)
+      const data = await loadSmsRecipientGroupMembers(pool, scope, Number(req.params.groupId))
+      res.json({ success: true, data })
     } catch (e) {
       if (e?.status) {
         smsApiError(res, e)

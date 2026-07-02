@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import FormButton from '../../../components/form/FormButton'
 import FormInput from '../../../components/form/FormInput'
 import { useAuth } from '../../auth/AuthProvider'
+import SmsBulkRecipientWorkspace from './bulk/SmsBulkRecipientWorkspace'
 import SmsComposerLayout, { SmsComposerSetupFields } from './composer/SmsComposerLayout'
+import { useSmsBulkRecipientState } from '../hooks/useSmsBulkRecipientState'
 import type { SmsModuleViewProps } from '../hooks/useSmsModuleState'
 import { SMS_EXPLICIT_SAMPLE_VALUES } from '../config/smsCompose.config'
 import { ALIGO_API_SETTINGS_URL, formatKrMobileDisplay } from '../smsDisplayUtils'
@@ -184,6 +186,8 @@ export default function SmsModuleBody(props: Props) {
   } = props
 
   const { user } = useAuth()
+  const bulkRecipientState = useSmsBulkRecipientState()
+  const [bulkComposeStep, setBulkComposeStep] = useState<'select' | 'compose'>('select')
   const [bulkSampleCustomerId, setBulkSampleCustomerId] = useState<number | null>(null)
   const [templateSamplePreviewEnabled, setTemplateSamplePreviewEnabled] = useState(false)
   const realSendEnabled = Boolean(settings?.realSendEnabled)
@@ -199,6 +203,20 @@ export default function SmsModuleBody(props: Props) {
   const defaultSenderDisplay = formatKrMobileDisplay(
     settings?.defaultSender || sendForm.senderNumber || bulkForm.senderNumber,
   )
+
+  useEffect(() => {
+    if (tab !== 'bulk' && tab !== 'scheduled') {
+      setBulkComposeStep('select')
+    }
+  }, [tab])
+
+  const handleProceedToBulkCompose = (customerIds: number[]) => {
+    setBulkForm((prev) => ({
+      ...prev,
+      customerIdsText: customerIds.join(', '),
+    }))
+    setBulkComposeStep('compose')
+  }
 
   const bulkPreviewSubstitution = useMemo((): SmsPreviewSubstitution => {
     if (!preview?.samples?.length) {
@@ -433,12 +451,32 @@ export default function SmsModuleBody(props: Props) {
       ) : null}
 
       {!loading && !moduleDisabled && !authRequired && (tab === 'bulk' || tab === 'scheduled') ? (
+        <>
+          {bulkComposeStep === 'select' ? (
+            <section className="sms-module__panel sms-module__panel--bulk-select">
+              <SmsBulkRecipientWorkspace
+                variant={variant}
+                busy={busy}
+                bulkState={bulkRecipientState}
+                onProceedToCompose={handleProceedToBulkCompose}
+              />
+            </section>
+          ) : null}
+          {bulkComposeStep === 'compose' ? (
         <section className="sms-module__panel sms-module__panel--compose">
           {tab === 'scheduled' ? (
             <p className="sms-composer__scheduled-note">
               예약 캠페인 저장만 가능합니다. 자동 발송 worker는 후속 작업 예정입니다.
             </p>
           ) : null}
+          <div className="sms-bulk-compose-toolbar">
+            <FormButton type="button" variant="secondary" disabled={busy} onClick={() => setBulkComposeStep('select')}>
+              대상 선택으로 돌아가기
+            </FormButton>
+            <p className="sms-module__muted">
+              발송 가능 {bulkRecipientState.summary.sendable}명 · 제외 {bulkRecipientState.summary.excluded}명
+            </p>
+          </div>
           <SmsComposerLayout
             variant={variant}
             message={bulkForm.message}
@@ -491,21 +529,11 @@ export default function SmsModuleBody(props: Props) {
                     </label>
                   ) : null}
                 </div>
-                <label>
-                  대상 고객 ID 목록
-                  <textarea
-                    className="sms-module__textarea"
-                    rows={3}
-                    placeholder="예: 101, 102, 103"
-                    value={bulkForm.customerIdsText}
-                    onChange={(e) => setBulkForm((p) => ({ ...p, customerIdsText: e.target.value }))}
-                  />
-                </label>
                 {preview ? (
                   <div className="sms-composer__recipient-summary">
                     <p>
-                      선택 고객 {bulkForm.customerIdsText.split(/[\s,;]+/).filter(Boolean).length}명 · 발송 가능{' '}
-                      {preview.sendableCount}명 · 제외 {preview.skippedCount}명
+                      선택 고객 {bulkRecipientState.summary.sendable}명 · 발송 가능 {preview.sendableCount}명 · 제외{' '}
+                      {preview.skippedCount}명
                     </p>
                     {preview.samples.length > 0 ? (
                       <label>
@@ -578,6 +606,8 @@ export default function SmsModuleBody(props: Props) {
             }
           />
         </section>
+          ) : null}
+        </>
       ) : null}
 
       {!loading && !moduleDisabled && !authRequired && tab === 'scheduled' ? (
