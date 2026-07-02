@@ -1,5 +1,7 @@
 export type TaCallStatus = 'not_called' | 'completed' | 'no_answer'
 
+export type TaTargetGender = 'all' | 'male' | 'female'
+
 export type TaCallAssignment = {
   id: string
   customerId: string
@@ -21,17 +23,25 @@ export type TaCallDay = {
   isFuture: boolean
   isMissionCompleted: boolean
   assignments: TaCallAssignment[]
+  emptyMessage?: string | null
+  emptySubMessage?: string | null
 }
 
 export type TaCallWeekPayload = {
   weekStartDate: string
   weekEndDate: string
   dailyTargetCount: number
+  targetFilterSummary?: string
   days: TaCallDay[]
 }
 
 export type TaCallSettings = {
   dailyTargetCount: number
+  targetGender: TaTargetGender
+  targetSangnyeongDays: number | null
+  targetInsuranceAgeMin: number | null
+  targetInsuranceAgeMax: number | null
+  excludeMinors: boolean
   updatedAt: string | null
 }
 
@@ -41,6 +51,22 @@ export const TA_STATUS_LABELS: Record<TaCallStatus, string> = {
   no_answer: '부재중',
 }
 
+function parseOptionalInt(raw: unknown): number | null {
+  if (raw == null || raw === '') {
+    return null
+  }
+  const n = Number(raw)
+  return Number.isFinite(n) ? n : null
+}
+
+function parseTargetGender(raw: unknown): TaTargetGender {
+  const value = String(raw ?? 'all')
+  if (value === 'male' || value === 'female') {
+    return value
+  }
+  return 'all'
+}
+
 export function normalizeTaCallWeekPayload(raw: unknown): TaCallWeekPayload {
   const obj = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
   const daysRaw = Array.isArray(obj.days) ? obj.days : []
@@ -48,6 +74,7 @@ export function normalizeTaCallWeekPayload(raw: unknown): TaCallWeekPayload {
     weekStartDate: String(obj.weekStartDate ?? ''),
     weekEndDate: String(obj.weekEndDate ?? ''),
     dailyTargetCount: Number(obj.dailyTargetCount ?? 10) || 10,
+    targetFilterSummary: obj.targetFilterSummary ? String(obj.targetFilterSummary) : undefined,
     days: daysRaw.map(normalizeTaCallDay),
   }
 }
@@ -66,6 +93,8 @@ export function normalizeTaCallDay(raw: unknown): TaCallDay {
     isFuture: Boolean(obj.isFuture),
     isMissionCompleted: Boolean(obj.isMissionCompleted),
     assignments: assignmentsRaw.map(normalizeTaCallAssignment),
+    emptyMessage: obj.emptyMessage ? String(obj.emptyMessage) : null,
+    emptySubMessage: obj.emptySubMessage ? String(obj.emptySubMessage) : null,
   }
 }
 
@@ -89,6 +118,11 @@ export function normalizeTaCallSettings(raw: unknown): TaCallSettings {
   const obj = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
   return {
     dailyTargetCount: Number(obj.dailyTargetCount ?? 10) || 10,
+    targetGender: parseTargetGender(obj.targetGender),
+    targetSangnyeongDays: parseOptionalInt(obj.targetSangnyeongDays),
+    targetInsuranceAgeMin: parseOptionalInt(obj.targetInsuranceAgeMin),
+    targetInsuranceAgeMax: parseOptionalInt(obj.targetInsuranceAgeMax),
+    excludeMinors: obj.excludeMinors !== false,
     updatedAt: obj.updatedAt ? String(obj.updatedAt) : null,
   }
 }

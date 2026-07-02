@@ -56,10 +56,20 @@ export function resolveDayEmptyMessage(day: TaCallDay): string | null {
   if (day.totalCount > 0) {
     return null
   }
+  if (day.emptyMessage) {
+    return day.emptyMessage
+  }
   if (day.isToday) {
-    return '오늘 배정 가능한 성인 고객이 없습니다.'
+    return '현재 설정한 조건에 맞는 전화 대상 고객이 없습니다.'
   }
   return '배정 없음'
+}
+
+export function resolveDayEmptySubMessage(day: TaCallDay): string | null {
+  if (day.totalCount > 0 || day.isFuture) {
+    return null
+  }
+  return day.emptySubMessage ?? '타겟 조건을 변경하거나 고객 정보를 확인해 주세요.'
 }
 
 export function resolveDayStatusBadge(day: TaCallDay): string {

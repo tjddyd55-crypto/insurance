@@ -8,6 +8,7 @@ import {
   formatTaCallPhoneNumber,
   formatTaDayHeaderCompact,
   resolveDayEmptyMessage,
+  resolveDayEmptySubMessage,
   resolveDayHeaderRatio,
   resolveDayStatusBadge,
 } from '../utils/taCallDisplay'
@@ -183,6 +184,7 @@ export default function TaCallDaySection({
 }: TaCallDaySectionProps) {
   const badge = resolveDayStatusBadge(day)
   const emptyMessage = resolveDayEmptyMessage(day)
+  const emptySubMessage = resolveDayEmptySubMessage(day)
   const ratio = resolveDayHeaderRatio(day)
   const { dateLabel, weekday } = formatTaDayHeaderCompact(day.date)
   const showAssignmentList = expanded && !day.isFuture && day.totalCount > 0
@@ -222,7 +224,12 @@ export default function TaCallDaySection({
         ) : null}
       </button>
 
-      {showEmptyBody ? <p className="ta-call-day-section__empty">{emptyMessage}</p> : null}
+      {showEmptyBody ? (
+        <div className="ta-call-day-section__empty-wrap">
+          <p className="ta-call-day-section__empty">{emptyMessage}</p>
+          {emptySubMessage ? <p className="ta-call-day-section__empty-sub">{emptySubMessage}</p> : null}
+        </div>
+      ) : null}
 
       {showAssignmentList && layout === 'pc' ? (
         <div className="ta-call-day-section__table">

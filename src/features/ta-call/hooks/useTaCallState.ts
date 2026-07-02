@@ -10,15 +10,36 @@ import {
   updateTaCallAssignmentStatus,
 } from '../api/taCallApi'
 import {
-  TA_CALL_DEFAULT_TARGET,
+  TA_CALL_DEFAULT_SETTINGS,
   TA_CALL_MAX_TARGET,
   TA_CALL_MIN_TARGET,
+  TA_CALL_SETTINGS_SAVED_NOTICE,
 } from '../config/taCall.config'
 import type { TaCallAssignment, TaCallSettings, TaCallStatus, TaCallWeekPayload } from '../types/taCall.types'
 import { buildTaCallCustomerNavigateHref } from '../utils/taCallCustomerNavigation'
-import { findTodayDay, shiftWeekStartDate, buildDefaultExpandedDates, toggleExpandedDate, isDayExpanded } from '../utils/taCallDisplay'
+import {
+  findTodayDay,
+  shiftWeekStartDate,
+  buildDefaultExpandedDates,
+  toggleExpandedDate,
+  isDayExpanded,
+} from '../utils/taCallDisplay'
+import { buildTaTargetFilterSummary } from '../utils/taCallTargetFilterSummary'
 
 export type TaCallViewProps = ReturnType<typeof useTaCallState>
+
+function clampTarget(value: number) {
+  return Math.min(TA_CALL_MAX_TARGET, Math.max(TA_CALL_MIN_TARGET, value))
+}
+
+function parseDraftInt(raw: string): number | null {
+  const trimmed = raw.trim()
+  if (!trimmed) {
+    return null
+  }
+  const n = Number.parseInt(trimmed, 10)
+  return Number.isFinite(n) && n >= 0 ? n : null
+}
 
 export function useTaCallState() {
   const { token } = useAuth()
@@ -28,18 +49,26 @@ export function useTaCallState() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [week, setWeek] = useState<TaCallWeekPayload | null>(null)
-  const [settings, setSettings] = useState<TaCallSettings>({
-    dailyTargetCount: TA_CALL_DEFAULT_TARGET,
-    updatedAt: null,
-  })
+  const [settings, setSettings] = useState<TaCallSettings>(TA_CALL_DEFAULT_SETTINGS)
   const [weekStartDate, setWeekStartDate] = useState<string>('')
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [draftTarget, setDraftTarget] = useState(TA_CALL_DEFAULT_TARGET)
+  const [draftSettings, setDraftSettings] = useState<TaCallSettings>(TA_CALL_DEFAULT_SETTINGS)
   const [settingsDirty, setSettingsDirty] = useState(false)
+  const [settingsNotice, setSettingsNotice] = useState<string | null>(null)
   const [expandedDates, setExpandedDates] = useState<Set<string>>(() => new Set())
   const settingsDirtyRef = useRef(false)
 
   const todayDay = useMemo(() => findTodayDay(week), [week])
+  const targetFilterSummary = useMemo(
+    () => week?.targetFilterSummary ?? buildTaTargetFilterSummary(settings),
+    [settings, week?.targetFilterSummary],
+  )
+
+  const markDirty = useCallback((next: TaCallSettings) => {
+    setDraftSettings(next)
+    setSettingsDirty(true)
+    settingsDirtyRef.current = true
+  }, [])
 
   const loadWeek = useCallback(
     async (startDate?: string) => {
@@ -60,7 +89,7 @@ export function useTaCallState() {
         setWeekStartDate(weekRes.weekStartDate)
         setExpandedDates(buildDefaultExpandedDates(weekRes))
         if (!settingsDirtyRef.current) {
-          setDraftTarget(settingsRes.dailyTargetCount)
+          setDraftSettings(settingsRes)
         }
       } catch (err) {
         const message =
@@ -78,11 +107,11 @@ export function useTaCallState() {
   }, [loadWeek])
 
   const openSettings = useCallback(() => {
-    setDraftTarget(settings.dailyTargetCount)
+    setDraftSettings(settings)
     setSettingsDirty(false)
     settingsDirtyRef.current = false
     setSettingsOpen(true)
-  }, [settings.dailyTargetCount])
+  }, [settings])
 
   const closeSettings = useCallback(() => {
     setSettingsOpen(false)
@@ -90,23 +119,59 @@ export function useTaCallState() {
     settingsDirtyRef.current = false
   }, [])
 
-  const changeDraftTarget = useCallback((next: number) => {
-    const clamped = Math.min(TA_CALL_MAX_TARGET, Math.max(TA_CALL_MIN_TARGET, next))
-    setDraftTarget(clamped)
-    setSettingsDirty(true)
-    settingsDirtyRef.current = true
-  }, [])
+  const changeDraftTarget = useCallback(
+    (next: number) => {
+      markDirty({ ...draftSettings, dailyTargetCount: clampTarget(next) })
+    },
+    [draftSettings, markDirty],
+  )
+
+  const changeDraftGender = useCallback(
+    (targetGender: TaCallSettings['targetGender']) => {
+      markDirty({ ...draftSettings, targetGender })
+    },
+    [draftSettings, markDirty],
+  )
+
+  const changeDraftSangnyeongDays = useCallback(
+    (raw: string) => {
+      markDirty({ ...draftSettings, targetSangnyeongDays: parseDraftInt(raw) })
+    },
+    [draftSettings, markDirty],
+  )
+
+  const changeDraftInsuranceAgeMin = useCallback(
+    (raw: string) => {
+      markDirty({ ...draftSettings, targetInsuranceAgeMin: parseDraftInt(raw) })
+    },
+    [draftSettings, markDirty],
+  )
+
+  const changeDraftInsuranceAgeMax = useCallback(
+    (raw: string) => {
+      markDirty({ ...draftSettings, targetInsuranceAgeMax: parseDraftInt(raw) })
+    },
+    [draftSettings, markDirty],
+  )
+
+  const changeDraftExcludeMinors = useCallback(
+    (excludeMinors: boolean) => {
+      markDirty({ ...draftSettings, excludeMinors })
+    },
+    [draftSettings, markDirty],
+  )
 
   const saveSettings = useCallback(async () => {
     if (!token?.trim()) return
     setBusy(true)
     setError(null)
     try {
-      const saved = await saveTaCallSettings(token, draftTarget)
+      const saved = await saveTaCallSettings(token, draftSettings)
       setSettings(saved)
       setSettingsOpen(false)
       setSettingsDirty(false)
       settingsDirtyRef.current = false
+      setSettingsNotice(TA_CALL_SETTINGS_SAVED_NOTICE)
       await loadWeek(weekStartDate || undefined)
     } catch (err) {
       const message =
@@ -115,7 +180,7 @@ export function useTaCallState() {
     } finally {
       setBusy(false)
     }
-  }, [draftTarget, loadWeek, token, weekStartDate])
+  }, [draftSettings, loadWeek, token, weekStartDate])
 
   const goPrevWeek = useCallback(() => {
     if (!weekStartDate) return
@@ -173,11 +238,18 @@ export function useTaCallState() {
     todayDay,
     weekStartDate,
     settingsOpen,
-    draftTarget,
+    draftSettings,
     settingsDirty,
+    settingsNotice,
+    targetFilterSummary,
     openSettings,
     closeSettings,
     changeDraftTarget,
+    changeDraftGender,
+    changeDraftSangnyeongDays,
+    changeDraftInsuranceAgeMin,
+    changeDraftInsuranceAgeMax,
+    changeDraftExcludeMinors,
     saveSettings,
     goPrevWeek,
     goNextWeek,

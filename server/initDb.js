@@ -3084,6 +3084,27 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    ALTER TABLE ta_call_settings
+    ADD COLUMN IF NOT EXISTS target_gender TEXT NOT NULL DEFAULT 'all'
+  `)
+  await pool.query(`
+    ALTER TABLE ta_call_settings
+    ADD COLUMN IF NOT EXISTS target_sangnyeong_days INTEGER
+  `)
+  await pool.query(`
+    ALTER TABLE ta_call_settings
+    ADD COLUMN IF NOT EXISTS target_insurance_age_min INTEGER
+  `)
+  await pool.query(`
+    ALTER TABLE ta_call_settings
+    ADD COLUMN IF NOT EXISTS target_insurance_age_max INTEGER
+  `)
+  await pool.query(`
+    ALTER TABLE ta_call_settings
+    ADD COLUMN IF NOT EXISTS exclude_minors BOOLEAN NOT NULL DEFAULT TRUE
+  `)
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS ta_call_assignments (
       id BIGSERIAL PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

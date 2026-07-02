@@ -4,10 +4,10 @@ import {
   getOrCreateTaSettings,
   getTaDayPayload,
   getTaWeekPayload,
-  parseTaDailyTargetCount,
+  mapTaSettingsFromRow,
+  parseTaSettingsPatch,
   resolveTaAuthContext,
   saveTaSettings,
-  TA_DEFAULT_DAILY_TARGET,
   updateTaAssignmentStatus,
 } from '../services/taCallService.js'
 import { coerceDateOnlyString } from '../../shared/dateTimeKst.js'
@@ -22,10 +22,7 @@ function resolveGaIdStrict(req, res) {
 }
 
 function mapSettingsRow(row) {
-  return {
-    dailyTargetCount: Number(row?.daily_target_count ?? TA_DEFAULT_DAILY_TARGET),
-    updatedAt: row?.updated_at ? new Date(row.updated_at).toISOString() : null,
-  }
+  return mapTaSettingsFromRow(row)
 }
 
 export function registerTaCallApi(apiRouter, ctx) {
@@ -53,16 +50,15 @@ export function registerTaCallApi(apiRouter, ctx) {
         res.status(401).json({ message: '로그인이 필요합니다.' })
         return
       }
-      const gaId = resolveGaIdStrict(req, res)
-      if (gaId == null) return
+      if (resolveGaIdStrict(req, res) == null) return
 
-      const parsed = parseTaDailyTargetCount(req.body?.dailyTargetCount)
-      if (parsed == null) {
-        res.status(400).json({ message: '하루 목표 전화 수는 1~50 사이 정수여야 합니다.' })
+      const parsed = parseTaSettingsPatch(req.body ?? {})
+      if (!parsed.ok) {
+        res.status(400).json({ message: parsed.message })
         return
       }
 
-      const row = await saveTaSettings(pool, auth.userId, parsed)
+      const row = await saveTaSettings(pool, auth.userId, parsed.value)
       res.json(mapSettingsRow(row))
     } catch (error) {
       handleDbError(error, req, res)
