@@ -16,23 +16,37 @@
   background: var(--bg-base);
 }
 
-.sms-module__header h1 {
-  color: var(--text-primary);
-  margin: 0 0 0.25rem;
-  font-size: 1.35rem;
-  font-weight: 700;
-}
-
-.sms-module__subtitle,
 .sms-module__muted {
   color: var(--text-secondary);
+}
+
+.sms-module__topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  flex-wrap: wrap;
+  margin: 0 0 0.75rem;
+}
+
+.sms-module__status-badge {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  background: var(--accent-soft, #fef3c7);
+  color: var(--warning-text, #92400e);
+  border: 1px solid var(--hint-border, #fcd34d);
 }
 
 .sms-module__tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  margin: 1rem 0;
+  margin: 0;
+  flex: 1 1 auto;
 }
 
 .sms-module__tabs--mobile {

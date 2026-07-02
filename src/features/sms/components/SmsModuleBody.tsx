@@ -74,6 +74,15 @@ function ProviderNotice({
   if (!settingsLoaded || !settings) {
     return null
   }
+  const hasCriticalNotice =
+    !settings.moduleEnabled ||
+    settings.providerIsMock ||
+    settings.providerMode === 'mock' ||
+    settings.providerMisconfigured ||
+    settings.aligoTestMode
+  if (!hasCriticalNotice) {
+    return null
+  }
   return (
     <div className="sms-module__guide">
       {!settings.moduleEnabled ? (
@@ -81,15 +90,6 @@ function ProviderNotice({
       ) : null}
       {settings.providerIsMock || settings.providerMode === 'mock' ? (
         <p>현재 provider가 mock입니다. 실제 알리고 발송·verified 처리는 되지 않습니다.</p>
-      ) : null}
-      {settings.usesGateway ? (
-        <p>CRM 문자는 EC2 SMS Gateway를 통해 알리고로 발송됩니다. 알리고에 등록할 IP는 아래 안내를 따르세요.</p>
-      ) : null}
-      {!settings.realSendEnabled ? (
-        <p>
-          실제 문자 발송(SMS_MODULE_REAL_SEND_ENABLED)은 비활성화되어 있습니다. 설정·미리보기·예약 저장만
-          가능합니다.
-        </p>
       ) : null}
       {settings.providerMisconfigured ? (
         <p>
@@ -101,6 +101,20 @@ function ProviderNotice({
         <p>알리고 testmode가 켜져 있습니다. 테스트 발송 성공만으로 verified 되지 않습니다.</p>
       ) : null}
     </div>
+  )
+}
+
+function RealSendStatusBadge({ visible }: { visible: boolean }) {
+  if (!visible) {
+    return null
+  }
+  return (
+    <span
+      className="sms-module__status-badge"
+      title="실제 문자 발송이 비활성화되어 있어 미리보기와 예약 저장만 가능합니다."
+    >
+      실발송 비활성 · 미리보기/예약 저장만 가능
+    </span>
   )
 }
 function GuideBox({ outboundIpHint }: { outboundIpHint?: string }) {
@@ -246,23 +260,24 @@ export default function SmsModuleBody(props: Props) {
 
   return (
     <>
-      <header className="sms-module__header">
-        <h1>문자 발송</h1>
-        <p className="sms-module__subtitle">알리고 계정 연동 · API Key·발송 IP·발신번호는 알리고 API 설정 페이지에서 확인</p>
-      </header>
-
-      <nav className={`sms-module__tabs sms-module__tabs--${variant}`}>
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            className={`sms-module__tab${tab === t.id ? ' sms-module__tab--active' : ''}`}
-            onClick={() => setTab(t.id)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </nav>
+      <h1 className="sr-only">문자</h1>
+      <div className={`sms-module__topbar sms-module__topbar--${variant}`}>
+        <nav className={`sms-module__tabs sms-module__tabs--${variant}`}>
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              className={`sms-module__tab${tab === t.id ? ' sms-module__tab--active' : ''}`}
+              onClick={() => setTab(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </nav>
+        <RealSendStatusBadge
+          visible={!authRequired && settingsLoaded && !!settings && !realSendEnabled}
+        />
+      </div>
 
       <NoticeBox error={error} notice={authRequired ? null : notice} />
       <ModuleDisabledNotice visible={moduleDisabled} />
