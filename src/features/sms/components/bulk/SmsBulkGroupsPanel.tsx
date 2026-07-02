@@ -186,51 +186,28 @@ export default function SmsBulkGroupsPanel({ bulkState, disabled, layout }: SmsB
           filteredGroups.map((group) => (
             <div
               key={group.id}
-              role="button"
-              tabIndex={busy ? -1 : 0}
-              className={`sms-bulk-compact-row sms-bulk-compact-row--group sms-bulk-compact-row--${layout}${
-                selectedGroupId === group.id ? ' sms-bulk-compact-row--active' : ''
+              className={`sms-bulk-group-row sms-bulk-group-row--${layout}${
+                selectedGroupId === group.id ? ' sms-bulk-group-row--active' : ''
               }`}
-              onClick={() => {
-                if (!busy) {
-                  void selectGroup(group.id)
-                }
-              }}
-              onKeyDown={(e) => {
-                if (busy) {
-                  return
-                }
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  void selectGroup(group.id)
-                }
-              }}
             >
               <input
                 type="checkbox"
-                className="sms-bulk-compact-row__check"
+                className="sms-bulk-group-row__check"
                 checked={selectedGroupIds.has(group.id)}
                 disabled={busy}
                 aria-label={`${group.name} 선택`}
                 onChange={() => toggleGroupSelection(group.id)}
-                onClick={(e) => e.stopPropagation()}
               />
-              <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__name">{group.name}</span>
-              {layout === 'mobile' ? (
-                <span className="sms-bulk-compact-row__group-meta-line">
-                  <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__count">{group.recipientCount}명</span>
-                  <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__meta">
-                    {formatGroupLastSentAt(group.lastSentAt)}
-                  </span>
-                </span>
-              ) : (
-                <>
-                  <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__count">{group.recipientCount}명</span>
-                  <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__meta">
-                    {formatGroupLastSentAt(group.lastSentAt)}
-                  </span>
-                </>
-              )}
+              <button
+                type="button"
+                className="sms-bulk-group-row__content"
+                disabled={busy}
+                onClick={() => void selectGroup(group.id)}
+              >
+                <span className="sms-bulk-group-row__name">{group.name}</span>
+                <span className="sms-bulk-group-row__count">{group.recipientCount}명</span>
+                <span className="sms-bulk-group-row__last">{formatGroupLastSentAt(group.lastSentAt)}</span>
+              </button>
             </div>
           ))
         )}

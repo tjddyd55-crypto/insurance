@@ -148,6 +148,13 @@ export function useSmsBulkRecipientState() {
     }
   }, [filters, token])
 
+  const resetFilters = useCallback(async () => {
+    const defaults = { ...EMPTY_SMS_BULK_FILTERS }
+    setFilters(defaults)
+    setSelectedSearchIds(new Set())
+    await runSearch(defaults)
+  }, [runSearch])
+
   const toggleSearchCustomer = useCallback((customerId: number) => {
     setSelectedSearchIds((prev) => {
       const next = new Set(prev)
@@ -582,6 +589,7 @@ export function useSmsBulkRecipientState() {
     summary,
     sendableCustomerIds,
     runSearch,
+    resetFilters,
     toggleSearchCustomer,
     selectAllSearchResults,
     clearSearchSelection,

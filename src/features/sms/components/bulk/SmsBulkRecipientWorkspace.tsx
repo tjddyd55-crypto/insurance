@@ -52,6 +52,15 @@ function FilterFields({
           >
             검색
           </FormButton>
+          <FormButton
+            type="button"
+            variant="secondary"
+            className="sms-bulk-reset-button"
+            disabled={disabled}
+            onClick={() => void bulkState.resetFilters()}
+          >
+            초기화
+          </FormButton>
         </div>
         <div className="sms-bulk-filter-row sms-bulk-filter-row--secondary">
           <div className="sms-bulk-filter-field">
@@ -173,9 +182,19 @@ function FilterFields({
           <span>세까지</span>
         </div>
       </label>
-      <FormButton type="button" disabled={disabled} onClick={() => void bulkState.runSearch()}>
-        검색
-      </FormButton>
+      <div className="sms-bulk-filters__actions">
+        <FormButton type="button" disabled={disabled} onClick={() => void bulkState.runSearch()}>
+          검색
+        </FormButton>
+        <FormButton
+          type="button"
+          variant="secondary"
+          disabled={disabled}
+          onClick={() => void bulkState.resetFilters()}
+        >
+          초기화
+        </FormButton>
+      </div>
     </div>
   )
 }
