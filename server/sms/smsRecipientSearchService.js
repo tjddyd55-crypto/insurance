@@ -5,6 +5,11 @@ import {
   normalizeCustomerGender,
   resolveCustomerInsuranceMetrics,
 } from '../../shared/customerInsuranceMetrics.js'
+import {
+  matchesCustomerTargetFilters,
+  matchesTargetGender,
+  parseOptionalFilterInt,
+} from '../../shared/customerTargetFilters.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { isValidKoreanMobilePhone, normalizeSmsPhone } from './smsPhone.js'
 import { loadOptOutPhoneSet } from './smsScope.js'
@@ -12,11 +17,7 @@ import { loadOptOutPhoneSet } from './smsScope.js'
 const MAX_SEARCH_RESULTS = 5000
 
 function parseOptionalInt(value) {
-  if (value == null || value === '') {
-    return null
-  }
-  const n = Number.parseInt(String(value).trim(), 10)
-  return Number.isFinite(n) ? n : null
+  return parseOptionalFilterInt(value)
 }
 
 function normalizeBirthYmd(row) {
@@ -46,47 +47,23 @@ function matchesSearch(row, search) {
 }
 
 function matchesGender(row, genderFilter) {
-  if (!genderFilter || genderFilter === 'all') {
-    return true
-  }
-  const normalized = normalizeCustomerGender(row.gender)
-  if (!normalized) {
-    return false
-  }
-  return normalized === genderFilter
+  return matchesTargetGender(row, genderFilter)
 }
 
-function matchesSangnyeong(metrics, sangnyeongDays, today = new Date()) {
-  const maxDays = parseOptionalInt(sangnyeongDays)
-  if (maxDays == null) {
-    return true
-  }
-  if (!metrics.maturityYmd) {
-    return false
-  }
-  const dday = getSangnyeongDday(metrics.maturityYmd, today)
-  if (dday == null) {
-    return false
-  }
-  return dday >= 0 && dday <= maxDays
+function matchesSangnyeong(row, sangnyeongDays, today = new Date()) {
+  return matchesCustomerTargetFilters(
+    row,
+    { gender: 'all', sangnyeongDays, insuranceAgeFrom: null, insuranceAgeTo: null },
+    today,
+  )
 }
 
-function matchesInsuranceAge(metrics, from, to) {
-  const min = parseOptionalInt(from)
-  const max = parseOptionalInt(to)
-  if (min == null && max == null) {
-    return true
-  }
-  if (metrics.insuranceAge == null) {
-    return false
-  }
-  if (min != null && metrics.insuranceAge < min) {
-    return false
-  }
-  if (max != null && metrics.insuranceAge > max) {
-    return false
-  }
-  return true
+function matchesInsuranceAge(row, from, to, today = new Date()) {
+  return matchesCustomerTargetFilters(
+    row,
+    { gender: 'all', sangnyeongDays: null, insuranceAgeFrom: from, insuranceAgeTo: to },
+    today,
+  )
 }
 
 function buildEligibility(row, optOutSet) {
@@ -170,14 +147,13 @@ export async function searchSmsRecipientCustomers(executor, scope, query = {}) {
     if (!matchesSearch(row, query.search)) {
       continue
     }
-    const metrics = resolveCustomerInsuranceMetrics(row, today)
     if (!matchesGender(row, genderFilter)) {
       continue
     }
-    if (!matchesSangnyeong(metrics, query.sangnyeongDays, today)) {
+    if (!matchesSangnyeong(row, query.sangnyeongDays, today)) {
       continue
     }
-    if (!matchesInsuranceAge(metrics, query.insuranceAgeFrom, query.insuranceAgeTo)) {
+    if (!matchesInsuranceAge(row, query.insuranceAgeFrom, query.insuranceAgeTo, today)) {
       continue
     }
     filtered.push(mapCustomerRow(row, optOutSet, today))

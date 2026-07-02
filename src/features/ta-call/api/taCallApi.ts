@@ -21,12 +21,19 @@ export async function fetchTaCallSettings(token: string): Promise<TaCallSettings
 
 export async function saveTaCallSettings(
   token: string,
-  dailyTargetCount: number,
+  settings: TaCallSettings,
 ): Promise<TaCallSettings> {
   const raw = await apiRequest<TaCallSettings>('/api/ta/settings', {
     token: requireToken(token),
     method: 'PATCH',
-    body: JSON.stringify({ dailyTargetCount }),
+    body: JSON.stringify({
+      dailyTargetCount: settings.dailyTargetCount,
+      targetGender: settings.targetGender,
+      targetSangnyeongDays: settings.targetSangnyeongDays,
+      targetInsuranceAgeMin: settings.targetInsuranceAgeMin,
+      targetInsuranceAgeMax: settings.targetInsuranceAgeMax,
+      excludeMinors: settings.excludeMinors,
+    }),
   })
   return normalizeTaCallSettings(raw)
 }

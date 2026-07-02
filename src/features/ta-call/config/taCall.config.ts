@@ -1,7 +1,22 @@
+import type { TaCallSettings } from '../types/taCall.types'
+
 export const TA_CALL_MIN_TARGET = 1
 export const TA_CALL_MAX_TARGET = 50
 export const TA_CALL_DEFAULT_TARGET = 10
 export const TA_CALL_RECOMMENDED_TARGETS = [10, 20] as const
+
+export const TA_CALL_DEFAULT_SETTINGS: TaCallSettings = {
+  dailyTargetCount: TA_CALL_DEFAULT_TARGET,
+  targetGender: 'all',
+  targetSangnyeongDays: null,
+  targetInsuranceAgeMin: null,
+  targetInsuranceAgeMax: null,
+  excludeMinors: true,
+  updatedAt: null,
+}
+
+export const TA_CALL_SETTINGS_SAVED_NOTICE =
+  '설정이 저장되었습니다. 이미 생성된 오늘 목록은 유지되며, 변경된 조건은 다음 배정부터 적용됩니다.'
 
 export const TA_CALL_EMPTY_MESSAGES = {
   noCustomers: '전화 대상 고객이 없습니다. 고객을 먼저 등록해 주세요.',

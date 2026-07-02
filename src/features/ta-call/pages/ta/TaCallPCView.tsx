@@ -13,11 +13,18 @@ export default function TaCallPCView(props: TaCallViewProps) {
     settings,
     todayDay,
     settingsOpen,
-    draftTarget,
+    draftSettings,
     settingsDirty,
+    settingsNotice,
+    targetFilterSummary,
     openSettings,
     closeSettings,
     changeDraftTarget,
+    changeDraftGender,
+    changeDraftSangnyeongDays,
+    changeDraftInsuranceAgeMin,
+    changeDraftInsuranceAgeMax,
+    changeDraftExcludeMinors,
     saveSettings,
     goPrevWeek,
     goNextWeek,
@@ -60,12 +67,16 @@ export default function TaCallPCView(props: TaCallViewProps) {
           ) : null}
 
           <div className="ta-call-page__sidebar-settings">
-            <span>하루 목표: {settings.dailyTargetCount}명</span>
+            <div className="ta-call-page__sidebar-settings-copy">
+              <span>하루 목표: {settings.dailyTargetCount}명</span>
+              <p className="ta-call-page__target-summary">{targetFilterSummary}</p>
+            </div>
             <button type="button" className="ta-call-page__settings-btn" onClick={openSettings}>
               <span aria-hidden>⚙</span>
               설정
             </button>
           </div>
+          {settingsNotice ? <p className="ta-call-page__settings-notice">{settingsNotice}</p> : null}
         </aside>
 
         <section className="ta-call-page__main">
@@ -107,12 +118,17 @@ export default function TaCallPCView(props: TaCallViewProps) {
       <TaCallSettingsDialog
         open={settingsOpen}
         busy={busy}
-        draftTarget={draftTarget}
+        draftSettings={draftSettings}
         dirty={settingsDirty}
         variant="pc"
         onClose={closeSettings}
         onSave={saveSettings}
         onChangeTarget={changeDraftTarget}
+        onChangeGender={changeDraftGender}
+        onChangeSangnyeongDays={changeDraftSangnyeongDays}
+        onChangeInsuranceAgeMin={changeDraftInsuranceAgeMin}
+        onChangeInsuranceAgeMax={changeDraftInsuranceAgeMax}
+        onChangeExcludeMinors={changeDraftExcludeMinors}
       />
     </main>
   )

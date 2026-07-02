@@ -13,11 +13,18 @@ export default function TaCallMobileView(props: TaCallViewProps) {
     settings,
     todayDay,
     settingsOpen,
-    draftTarget,
+    draftSettings,
     settingsDirty,
+    settingsNotice,
+    targetFilterSummary,
     openSettings,
     closeSettings,
     changeDraftTarget,
+    changeDraftGender,
+    changeDraftSangnyeongDays,
+    changeDraftInsuranceAgeMin,
+    changeDraftInsuranceAgeMax,
+    changeDraftExcludeMinors,
     saveSettings,
     goPrevWeek,
     goNextWeek,
@@ -39,6 +46,9 @@ export default function TaCallMobileView(props: TaCallViewProps) {
           설정
         </button>
       </header>
+
+      <p className="ta-call-page__target-summary">{targetFilterSummary}</p>
+      {settingsNotice ? <p className="ta-call-page__settings-notice">{settingsNotice}</p> : null}
 
       {error ? <p className="ta-call-page__error">{error}</p> : null}
       {loading && !week ? <p className="ta-call-page__loading">오늘의 TA 대상을 준비하고 있습니다.</p> : null}
@@ -73,12 +83,17 @@ export default function TaCallMobileView(props: TaCallViewProps) {
       <TaCallSettingsDialog
         open={settingsOpen}
         busy={busy}
-        draftTarget={draftTarget}
+        draftSettings={draftSettings}
         dirty={settingsDirty}
         variant="mobile"
         onClose={closeSettings}
         onSave={saveSettings}
         onChangeTarget={changeDraftTarget}
+        onChangeGender={changeDraftGender}
+        onChangeSangnyeongDays={changeDraftSangnyeongDays}
+        onChangeInsuranceAgeMin={changeDraftInsuranceAgeMin}
+        onChangeInsuranceAgeMax={changeDraftInsuranceAgeMax}
+        onChangeExcludeMinors={changeDraftExcludeMinors}
       />
     </main>
   )

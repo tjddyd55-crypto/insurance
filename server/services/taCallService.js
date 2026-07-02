@@ -4,6 +4,8 @@ import { resolveCustomerVisibilitySqlForSelect } from '../lib/customerRowVisibil
 import { resolveCustomerBirthDateYmd } from '../lib/customerBirthDateResolve.js'
 import { hasTaCallablePhone, isTaEligibleAdultCustomer } from '../lib/taCallAdult.js'
 import { pickTaAssignments } from '../lib/taCallAssignmentAlgorithm.js'
+import { matchesCustomerTargetFilters } from '../../shared/customerTargetFilters.js'
+import { buildTaTargetFilterSummary } from '../../shared/taCallTargetFilterSummary.js'
 import {
   addDaysToDateOnly,
   coerceDateOnlyString,
@@ -31,6 +33,7 @@ export const TA_DEFAULT_DAILY_TARGET = 10
 export const TA_MIN_DAILY_TARGET = 1
 export const TA_MAX_DAILY_TARGET = 50
 export const TA_STATUSES = new Set(['not_called', 'completed', 'no_answer'])
+export const TA_TARGET_GENDERS = new Set(['all', 'male', 'female'])
 
 /** ta_call_* 테이블은 ga_id 없이 user_id 로만 스코프한다. */
 const TA_QUERY_OPTS = { allowUnscoped: true }
@@ -47,6 +50,180 @@ export function parseTaDailyTargetCount(raw) {
     return null
   }
   return raw
+}
+
+function parseOptionalNonNegativeInt(raw) {
+  if (raw == null || raw === '') {
+    return { ok: true, value: null }
+  }
+  if (typeof raw !== 'number' || !Number.isInteger(raw) || raw < 0) {
+    return { ok: false, message: '0 이상의 정수여야 합니다.' }
+  }
+  return { ok: true, value: raw }
+}
+
+/**
+ * @param {import('pg').QueryResultRow | null | undefined} row
+ */
+export function mapTaSettingsFromRow(row) {
+  const excludeMinors = row?.exclude_minors !== false
+  return {
+    dailyTargetCount: Number(row?.daily_target_count ?? TA_DEFAULT_DAILY_TARGET),
+    targetGender:
+      row?.target_gender === 'male' || row?.target_gender === 'female'
+        ? row.target_gender
+        : 'all',
+    targetSangnyeongDays:
+      row?.target_sangnyeong_days == null ? null : Number(row.target_sangnyeong_days),
+    targetInsuranceAgeMin:
+      row?.target_insurance_age_min == null ? null : Number(row.target_insurance_age_min),
+    targetInsuranceAgeMax:
+      row?.target_insurance_age_max == null ? null : Number(row.target_insurance_age_max),
+    excludeMinors,
+    updatedAt: row?.updated_at ? new Date(row.updated_at).toISOString() : null,
+  }
+}
+
+/**
+ * @param {Record<string, unknown>} body
+ * @returns {{ ok: true; value: ReturnType<typeof mapTaSettingsFromRow> } | { ok: false; message: string }}
+ */
+export function parseTaSettingsPatch(body) {
+  const dailyTargetCount = parseTaDailyTargetCount(body?.dailyTargetCount)
+  if (dailyTargetCount == null) {
+    return { ok: false, message: '하루 목표 전화 수는 1~50 사이 정수여야 합니다.' }
+  }
+
+  const genderRaw = body?.targetGender == null ? 'all' : String(body.targetGender).trim()
+  if (!TA_TARGET_GENDERS.has(genderRaw)) {
+    return { ok: false, message: '성별 필터 값이 올바르지 않습니다.' }
+  }
+
+  const sangnyeong = parseOptionalNonNegativeInt(body?.targetSangnyeongDays)
+  if (!sangnyeong.ok) {
+    return { ok: false, message: '상령일 필터는 0 이상의 정수여야 합니다.' }
+  }
+
+  const ageMin = parseOptionalNonNegativeInt(body?.targetInsuranceAgeMin)
+  if (!ageMin.ok) {
+    return { ok: false, message: '보험나이 최소값은 0 이상의 정수여야 합니다.' }
+  }
+
+  const ageMax = parseOptionalNonNegativeInt(body?.targetInsuranceAgeMax)
+  if (!ageMax.ok) {
+    return { ok: false, message: '보험나이 최대값은 0 이상의 정수여야 합니다.' }
+  }
+
+  if (ageMin.value != null && ageMax.value != null && ageMin.value > ageMax.value) {
+    return { ok: false, message: '보험나이 최소값은 최대값보다 클 수 없습니다.' }
+  }
+
+  if (body?.excludeMinors != null && typeof body.excludeMinors !== 'boolean') {
+    return { ok: false, message: '미성년 제외 여부는 true/false 여야 합니다.' }
+  }
+
+  return {
+    ok: true,
+    value: {
+      dailyTargetCount,
+      targetGender: /** @type {'all' | 'male' | 'female'} */ (genderRaw),
+      targetSangnyeongDays: sangnyeong.value,
+      targetInsuranceAgeMin: ageMin.value,
+      targetInsuranceAgeMax: ageMax.value,
+      excludeMinors: body?.excludeMinors !== false,
+      updatedAt: null,
+    },
+  }
+}
+
+/**
+ * @param {Record<string, unknown>[]} rows
+ * @param {ReturnType<typeof mapTaSettingsFromRow>} settings
+ * @param {string} referenceDateYmd
+ */
+export function filterTaEligibleCustomers(rows, settings, referenceDateYmd) {
+  const referenceDate = new Date(`${referenceDateYmd}T12:00:00+09:00`)
+  return rows.filter((row) => {
+    if (!hasTaCallablePhone(row.phone)) {
+      return false
+    }
+    if (settings.excludeMinors !== false && !isTaEligibleAdultCustomer(row, referenceDateYmd)) {
+      return false
+    }
+    return matchesCustomerTargetFilters(
+      row,
+      {
+        gender: settings.targetGender ?? 'all',
+        sangnyeongDays: settings.targetSangnyeongDays,
+        insuranceAgeFrom: settings.targetInsuranceAgeMin,
+        insuranceAgeTo: settings.targetInsuranceAgeMax,
+      },
+      referenceDate,
+    )
+  })
+}
+
+/**
+ * @param {Record<string, unknown>[]} rows
+ * @param {ReturnType<typeof mapTaSettingsFromRow>} settings
+ * @param {string} referenceDateYmd
+ */
+export function countTaEligibleStages(rows, settings, referenceDateYmd) {
+  const referenceDate = new Date(`${referenceDateYmd}T12:00:00+09:00`)
+  let withPhone = 0
+  let afterMinors = 0
+  let afterFilters = 0
+
+  for (const row of rows) {
+    if (!hasTaCallablePhone(row.phone)) {
+      continue
+    }
+    withPhone += 1
+    if (settings.excludeMinors !== false && !isTaEligibleAdultCustomer(row, referenceDateYmd)) {
+      continue
+    }
+    afterMinors += 1
+    if (
+      !matchesCustomerTargetFilters(
+        row,
+        {
+          gender: settings.targetGender ?? 'all',
+          sangnyeongDays: settings.targetSangnyeongDays,
+          insuranceAgeFrom: settings.targetInsuranceAgeMin,
+          insuranceAgeTo: settings.targetInsuranceAgeMax,
+        },
+        referenceDate,
+      )
+    ) {
+      continue
+    }
+    afterFilters += 1
+  }
+
+  return { withPhone, afterMinors, afterFilters }
+}
+
+/**
+ * @param {{ withPhone: number; afterMinors: number; afterFilters: number }} counts
+ * @param {ReturnType<typeof mapTaSettingsFromRow>} settings
+ */
+export function resolveTaEmptyStateMessages(counts, settings) {
+  if (counts.withPhone === 0) {
+    return {
+      emptyMessage: '전화 가능한 고객이 없습니다.',
+      emptySubMessage: '타겟 조건을 변경하거나 고객 정보를 확인해 주세요.',
+    }
+  }
+  if (settings.excludeMinors !== false && counts.afterMinors === 0) {
+    return {
+      emptyMessage: '미성년 제외 조건으로 인해 배정 가능한 고객이 없습니다.',
+      emptySubMessage: '타겟 조건을 변경하거나 고객 정보를 확인해 주세요.',
+    }
+  }
+  return {
+    emptyMessage: '현재 설정한 조건에 맞는 전화 대상 고객이 없습니다.',
+    emptySubMessage: '타겟 조건을 변경하거나 고객 정보를 확인해 주세요.',
+  }
 }
 
 /**
@@ -85,8 +262,9 @@ function mapAssignmentRow(row) {
  * @param {ReturnType<typeof mapAssignmentRow>[]} assignments
  * @param {string} todayYmd
  * @param {number} dailyTarget
+ * @param {{ emptyMessage?: string | null; emptySubMessage?: string | null }} [options]
  */
-export function buildTaDayPayload(dateYmd, assignments, todayYmd, dailyTarget) {
+export function buildTaDayPayload(dateYmd, assignments, todayYmd, dailyTarget, options = {}) {
   const date = coerceDateOnlyString(dateYmd)
   const diff = diffDateOnlyDays(date, todayYmd)
   const isFuture = diff != null && diff > 0
@@ -108,6 +286,8 @@ export function buildTaDayPayload(dateYmd, assignments, todayYmd, dailyTarget) {
     isFuture,
     isMissionCompleted,
     assignments,
+    emptyMessage: options.emptyMessage ?? null,
+    emptySubMessage: options.emptySubMessage ?? null,
   }
 }
 
@@ -145,7 +325,11 @@ export async function getOrCreateTaSettings(pool, userId) {
   const existing = await safeQuery(
     pool,
     `
-    SELECT id, user_id, daily_target_count, created_at, updated_at
+    SELECT id, user_id, daily_target_count,
+      target_gender, target_sangnyeong_days,
+      target_insurance_age_min, target_insurance_age_max,
+      exclude_minors,
+      created_at, updated_at
     FROM ta_call_settings
     WHERE user_id = $1
     LIMIT 1
@@ -162,7 +346,11 @@ export async function getOrCreateTaSettings(pool, userId) {
     INSERT INTO ta_call_settings (user_id, daily_target_count)
     VALUES ($1, $2)
     ON CONFLICT (user_id) DO UPDATE SET updated_at = NOW()
-    RETURNING id, user_id, daily_target_count, created_at, updated_at
+    RETURNING id, user_id, daily_target_count,
+      target_gender, target_sangnyeong_days,
+      target_insurance_age_min, target_insurance_age_max,
+      exclude_minors,
+      created_at, updated_at
     `,
     [userId, TA_DEFAULT_DAILY_TARGET],
     TA_QUERY_OPTS,
@@ -174,8 +362,9 @@ export async function getOrCreateTaSettings(pool, userId) {
  * @param {import('express').Request} req
  * @param {string} userId
  * @param {number} gaId
+ * @param {string} referenceDateYmd
  */
-async function fetchEligibleAdultCustomers(pool, req, userId, gaId, referenceDateYmd) {
+async function fetchScopedCustomerRows(pool, req, userId, gaId) {
   const vis = resolveCustomerVisibilitySqlForSelect(req, userId, gaId)
   if (vis.blocked) {
     return []
@@ -183,7 +372,8 @@ async function fetchEligibleAdultCustomers(pool, req, userId, gaId, referenceDat
   const r = await safeQuery(
     pool,
     `
-    SELECT c.id, c.name, c.phone, c.birth_date, c.ssn, c.gender
+    SELECT c.id, c.name, c.phone, c.birth_date, c.ssn, c.gender,
+      c.insurance_age, c.next_age_date
     FROM customers c
     WHERE (${vis.clause})
       AND c.deleted_at IS NULL
@@ -191,11 +381,20 @@ async function fetchEligibleAdultCustomers(pool, req, userId, gaId, referenceDat
     `,
     vis.params,
   )
-  return r.rows.filter(
-    (row) =>
-      hasTaCallablePhone(row.phone) &&
-      isTaEligibleAdultCustomer(row, referenceDateYmd),
-  )
+  return r.rows
+}
+
+/**
+ * @param {import('pg').Pool} pool
+ * @param {import('express').Request} req
+ * @param {string} userId
+ * @param {number} gaId
+ * @param {string} referenceDateYmd
+ * @param {ReturnType<typeof mapTaSettingsFromRow>} settings
+ */
+async function fetchEligibleCustomers(pool, req, userId, gaId, referenceDateYmd, settings) {
+  const rows = await fetchScopedCustomerRows(pool, req, userId, gaId)
+  return filterTaEligibleCustomers(rows, settings, referenceDateYmd)
 }
 
 /**
@@ -271,8 +470,9 @@ async function fetchRoundAssignedCustomerIds(pool, userId, rotationRound) {
  * @param {number} gaId
  * @param {string} dateYmd
  * @param {number} targetCount
+ * @param {ReturnType<typeof mapTaSettingsFromRow>} settings
  */
-export async function ensureTaAssignmentsForDate(pool, req, userId, gaId, dateYmd, targetCount) {
+export async function ensureTaAssignmentsForDate(pool, req, userId, gaId, dateYmd, targetCount, settings) {
   const todayYmd = getKstDateString()
   const date = coerceDateOnlyString(dateYmd)
   if (!date) {
@@ -296,7 +496,7 @@ export async function ensureTaAssignmentsForDate(pool, req, userId, gaId, dateYm
     return existingRows
   }
 
-  const eligible = await fetchEligibleAdultCustomers(pool, req, userId, gaId, date)
+  const eligible = await fetchEligibleCustomers(pool, req, userId, gaId, date, settings)
   if (eligible.length === 0 && existingCount === 0) {
     return []
   }
@@ -372,8 +572,9 @@ export async function getTaWeekPayload(pool, req, userId, gaId, startDateYmd) {
   const ref = startDateYmd ? coerceDateOnlyString(startDateYmd) : todayYmd
   const { start, end } = seoulWeekRangeYmd(ref ? new Date(`${ref}T12:00:00+09:00`) : new Date())
 
-  const settings = await getOrCreateTaSettings(pool, userId)
-  const dailyTarget = Number(settings.daily_target_count ?? TA_DEFAULT_DAILY_TARGET)
+  const settingsRow = await getOrCreateTaSettings(pool, userId)
+  const settings = mapTaSettingsFromRow(settingsRow)
+  const dailyTarget = settings.dailyTargetCount
 
   /** @type {ReturnType<typeof buildTaDayPayload>[]} */
   const days = []
@@ -382,17 +583,30 @@ export async function getTaWeekPayload(pool, req, userId, gaId, startDateYmd) {
     let rows = []
     const loadMode = resolveTaAssignmentLoadMode(cursor, todayYmd)
     if (loadMode === 'ensure') {
-      rows = await ensureTaAssignmentsForDate(pool, req, userId, gaId, cursor, dailyTarget)
+      rows = await ensureTaAssignmentsForDate(pool, req, userId, gaId, cursor, dailyTarget, settings)
     } else if (loadMode === 'fetch') {
       rows = await fetchAssignmentsForDate(pool, userId, cursor)
     }
-    days.push(
-      buildTaDayPayload(
+    const assignments = rows.map(mapAssignmentRow)
+    let emptyMessage = null
+    let emptySubMessage = null
+    if (assignments.length === 0 && cursor === todayYmd) {
+      const emptyState = await resolveTodayEmptyMessages(
+        pool,
+        req,
+        userId,
+        gaId,
         cursor,
-        rows.map(mapAssignmentRow),
-        todayYmd,
-        dailyTarget,
-      ),
+        settings,
+      )
+      emptyMessage = emptyState.emptyMessage
+      emptySubMessage = emptyState.emptySubMessage
+    }
+    days.push(
+      buildTaDayPayload(cursor, assignments, todayYmd, dailyTarget, {
+        emptyMessage,
+        emptySubMessage,
+      }),
     )
     cursor = addDaysToDateOnly(cursor, 1)
   }
@@ -401,6 +615,7 @@ export async function getTaWeekPayload(pool, req, userId, gaId, startDateYmd) {
     weekStartDate: start,
     weekEndDate: end,
     dailyTargetCount: dailyTarget,
+    targetFilterSummary: buildTaTargetFilterSummary(settings),
     days,
   }
 }
@@ -418,18 +633,31 @@ export async function getTaDayPayload(pool, req, userId, gaId, dateYmd) {
   if (!date) {
     throw new Error('INVALID_DATE')
   }
-  const settings = await getOrCreateTaSettings(pool, userId)
-  const dailyTarget = Number(settings.daily_target_count ?? TA_DEFAULT_DAILY_TARGET)
+  const settingsRow = await getOrCreateTaSettings(pool, userId)
+  const settings = mapTaSettingsFromRow(settingsRow)
+  const dailyTarget = settings.dailyTargetCount
 
   const loadMode = resolveTaAssignmentLoadMode(date, todayYmd)
   let rows = []
   if (loadMode === 'ensure') {
-    rows = await ensureTaAssignmentsForDate(pool, req, userId, gaId, date, dailyTarget)
+    rows = await ensureTaAssignmentsForDate(pool, req, userId, gaId, date, dailyTarget, settings)
   } else if (loadMode === 'fetch') {
     rows = await fetchAssignmentsForDate(pool, userId, date)
   }
 
-  return buildTaDayPayload(date, rows.map(mapAssignmentRow), todayYmd, dailyTarget)
+  const assignments = rows.map(mapAssignmentRow)
+  let emptyMessage = null
+  let emptySubMessage = null
+  if (assignments.length === 0 && date === todayYmd) {
+    const emptyState = await resolveTodayEmptyMessages(pool, req, userId, gaId, date, settings)
+    emptyMessage = emptyState.emptyMessage
+    emptySubMessage = emptyState.emptySubMessage
+  }
+
+  return buildTaDayPayload(date, assignments, todayYmd, dailyTarget, {
+    emptyMessage,
+    emptySubMessage,
+  })
 }
 
 /**
@@ -476,19 +704,53 @@ export async function updateTaAssignmentStatus(pool, userId, assignmentId, statu
 
 /**
  * @param {import('pg').Pool} pool
+ * @param {import('express').Request} req
  * @param {string} userId
- * @param {number} dailyTargetCount
+ * @param {number} gaId
+ * @param {string} dateYmd
+ * @param {ReturnType<typeof mapTaSettingsFromRow>} settings
  */
-export async function saveTaSettings(pool, userId, dailyTargetCount) {
+async function resolveTodayEmptyMessages(pool, req, userId, gaId, dateYmd, settings) {
+  const rows = await fetchScopedCustomerRows(pool, req, userId, gaId)
+  const counts = countTaEligibleStages(rows, settings, dateYmd)
+  return resolveTaEmptyStateMessages(counts, settings)
+}
+
+/**
+ * @param {import('pg').Pool} pool
+ * @param {string} userId
+ * @param {ReturnType<typeof parseTaSettingsPatch> extends { ok: true; value: infer V } ? V : never} settings
+ */
+export async function saveTaSettings(pool, userId, settings) {
   await safeQuery(
     pool,
     `
-    INSERT INTO ta_call_settings (user_id, daily_target_count)
-    VALUES ($1, $2)
+    INSERT INTO ta_call_settings (
+      user_id, daily_target_count,
+      target_gender, target_sangnyeong_days,
+      target_insurance_age_min, target_insurance_age_max,
+      exclude_minors
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
     ON CONFLICT (user_id) DO UPDATE
-    SET daily_target_count = EXCLUDED.daily_target_count, updated_at = NOW()
+    SET
+      daily_target_count = EXCLUDED.daily_target_count,
+      target_gender = EXCLUDED.target_gender,
+      target_sangnyeong_days = EXCLUDED.target_sangnyeong_days,
+      target_insurance_age_min = EXCLUDED.target_insurance_age_min,
+      target_insurance_age_max = EXCLUDED.target_insurance_age_max,
+      exclude_minors = EXCLUDED.exclude_minors,
+      updated_at = NOW()
     `,
-    [userId, dailyTargetCount],
+    [
+      userId,
+      settings.dailyTargetCount,
+      settings.targetGender,
+      settings.targetSangnyeongDays,
+      settings.targetInsuranceAgeMin,
+      settings.targetInsuranceAgeMax,
+      settings.excludeMinors !== false,
+    ],
     TA_QUERY_OPTS,
   )
   return getOrCreateTaSettings(pool, userId)
