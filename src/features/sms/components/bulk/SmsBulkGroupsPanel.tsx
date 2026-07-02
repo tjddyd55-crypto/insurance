@@ -2,7 +2,11 @@ import FormButton from '../../../../components/form/FormButton'
 import FormInput from '../../../../components/form/FormInput'
 import { useConfirmDialog } from '../../../../components/dialog'
 import type { SmsBulkRecipientState } from '../../hooks/useSmsBulkRecipientState'
-import { formatGroupLastSentAt, formatSmsBlockedReason } from '../../utils/smsRecipientEligibility'
+import {
+  formatCompactGender,
+  formatGroupLastSentAt,
+  formatSmsBlockedReason,
+} from '../../utils/smsRecipientEligibility'
 
 type SmsBulkGroupsPanelProps = {
   bulkState: SmsBulkRecipientState
@@ -21,6 +25,8 @@ export default function SmsBulkGroupsPanel({ bulkState, disabled, layout }: SmsB
     setGroupSearchQuery,
     groupActionBusy,
     summary,
+    selectedGroupIds,
+    selectedGroupMemberIds,
     selectGroup,
     setNewGroupModalOpen,
     setGroupEditModalOpen,
@@ -30,6 +36,14 @@ export default function SmsBulkGroupsPanel({ bulkState, disabled, layout }: SmsB
     replaceGroupWithCart,
     removeGroupMember,
     removeGroup,
+    toggleGroupSelection,
+    selectAllFilteredGroups,
+    clearGroupSelection,
+    removeSelectedGroups,
+    toggleGroupMemberSelection,
+    selectAllGroupMembers,
+    clearGroupMemberSelection,
+    removeSelectedGroupMembers,
   } = bulkState
 
   const busy = disabled || groupActionBusy
@@ -94,6 +108,37 @@ export default function SmsBulkGroupsPanel({ bulkState, disabled, layout }: SmsB
     }
   }
 
+  const handleRemoveSelectedGroups = async () => {
+    const count = selectedGroupIds.size
+    if (count === 0) {
+      return
+    }
+    const ok = await confirm({
+      title: '그룹 삭제',
+      message: `선택한 그룹 ${count}개를 삭제하시겠습니까? 발송 이력은 삭제되지 않습니다.`,
+      confirmLabel: '삭제',
+      tone: 'danger',
+    })
+    if (ok) {
+      await removeSelectedGroups()
+    }
+  }
+
+  const handleRemoveSelectedMembers = async () => {
+    if (selectedGroupId == null || selectedGroupMemberIds.size === 0) {
+      return
+    }
+    const count = selectedGroupMemberIds.size
+    const ok = await confirm({
+      title: '구성원 제거',
+      message: `선택한 구성원 ${count}명을 그룹에서 제거하시겠습니까?`,
+      confirmLabel: '제거',
+    })
+    if (ok) {
+      await removeSelectedGroupMembers(selectedGroupId)
+    }
+  }
+
   return (
     <div className={`sms-bulk-groups sms-bulk-groups--${layout}`}>
       <div className="sms-bulk-groups__header">
@@ -115,24 +160,58 @@ export default function SmsBulkGroupsPanel({ bulkState, disabled, layout }: SmsB
         />
       </label>
 
-      <div className="sms-bulk-groups__list">
+      <div className="sms-bulk-groups__list-toolbar">
+        <FormButton type="button" variant="secondary" disabled={busy || filteredGroups.length === 0} onClick={selectAllFilteredGroups}>
+          전체 선택
+        </FormButton>
+        <FormButton type="button" variant="secondary" disabled={busy || selectedGroupIds.size === 0} onClick={clearGroupSelection}>
+          선택 해제
+        </FormButton>
+        <FormButton
+          type="button"
+          variant="secondary"
+          disabled={busy || selectedGroupIds.size === 0}
+          onClick={() => void handleRemoveSelectedGroups()}
+        >
+          선택 삭제
+        </FormButton>
+      </div>
+
+      <div className={`sms-bulk-groups__list sms-bulk-groups__list--${layout}`}>
         {filteredGroups.length === 0 ? (
           <p className="sms-module__muted">저장된 그룹이 없습니다.</p>
         ) : (
           filteredGroups.map((group) => (
-            <button
+            <div
               key={group.id}
-              type="button"
-              className={`sms-bulk-group-card${selectedGroupId === group.id ? ' sms-bulk-group-card--active' : ''}`}
-              disabled={busy}
-              onClick={() => void selectGroup(group.id)}
+              className={`sms-bulk-compact-row sms-bulk-compact-row--group sms-bulk-compact-row--${layout}${
+                selectedGroupId === group.id ? ' sms-bulk-compact-row--active' : ''
+              }`}
             >
-              <strong>{group.name}</strong>
-              <span>
-                {group.recipientCount}명 · {formatGroupLastSentAt(group.lastSentAt)}
-              </span>
-              {group.description ? <span className="sms-bulk-group-card__desc">{group.description}</span> : null}
-            </button>
+              <input
+                type="checkbox"
+                className="sms-bulk-compact-row__check"
+                checked={selectedGroupIds.has(group.id)}
+                disabled={busy}
+                onChange={() => toggleGroupSelection(group.id)}
+                onClick={(e) => e.stopPropagation()}
+              />
+              <button
+                type="button"
+                className="sms-bulk-compact-row__group-main"
+                disabled={busy}
+                onClick={() => void selectGroup(group.id)}
+              >
+                <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__name">{group.name}</span>
+                <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__count">{group.recipientCount}명</span>
+                <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__meta">
+                  {formatGroupLastSentAt(group.lastSentAt)}
+                </span>
+                {group.description ? (
+                  <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__desc">{group.description}</span>
+                ) : null}
+              </button>
+            </div>
           ))
         )}
       </div>
@@ -179,32 +258,77 @@ export default function SmsBulkGroupsPanel({ bulkState, disabled, layout }: SmsB
           </div>
 
           <div className="sms-bulk-groups__members">
-            <h4>그룹 구성원</h4>
-            {groupMembers.length === 0 ? (
-              <p className="sms-module__muted">구성원이 없습니다.</p>
-            ) : (
-              groupMembers.map((row) => (
-                <article key={row.customerId} className="sms-bulk-group-member-row">
-                  <div>
-                    <strong>{row.name}</strong>
-                    <p>
-                      {row.genderLabel} · {row.birthDate ?? '-'} · {row.phoneDisplay}
-                    </p>
-                    <p className={row.canSend ? 'sms-bulk-selected-row__ok' : 'sms-bulk-selected-row__blocked'}>
-                      {formatSmsBlockedReason(row.canSend ? null : row.blockedReason)}
-                    </p>
-                  </div>
-                  <FormButton
-                    type="button"
-                    variant="secondary"
-                    disabled={busy}
-                    onClick={() => void handleRemoveMember(row.customerId)}
+            <div className="sms-bulk-groups__members-head">
+              <h4>그룹 구성원</h4>
+              <div className="sms-bulk-groups__members-toolbar">
+                <FormButton
+                  type="button"
+                  variant="secondary"
+                  disabled={busy || groupMembers.length === 0}
+                  onClick={selectAllGroupMembers}
+                >
+                  전체 선택
+                </FormButton>
+                <FormButton
+                  type="button"
+                  variant="secondary"
+                  disabled={busy || selectedGroupMemberIds.size === 0}
+                  onClick={clearGroupMemberSelection}
+                >
+                  선택 해제
+                </FormButton>
+                <FormButton
+                  type="button"
+                  variant="secondary"
+                  disabled={busy || selectedGroupMemberIds.size === 0}
+                  onClick={() => void handleRemoveSelectedMembers()}
+                >
+                  선택 제거
+                </FormButton>
+              </div>
+            </div>
+            <div className={`sms-bulk-groups__members-list sms-bulk-groups__members-list--${layout}`}>
+              {groupMembers.length === 0 ? (
+                <p className="sms-module__muted">구성원이 없습니다.</p>
+              ) : (
+                groupMembers.map((row) => (
+                  <div
+                    key={row.customerId}
+                    className={`sms-bulk-compact-row sms-bulk-compact-row--member sms-bulk-compact-row--${layout}`}
                   >
-                    제거
-                  </FormButton>
-                </article>
-              ))
-            )}
+                    <input
+                      type="checkbox"
+                      className="sms-bulk-compact-row__check"
+                      checked={selectedGroupMemberIds.has(row.customerId)}
+                      disabled={busy}
+                      onChange={() => toggleGroupMemberSelection(row.customerId)}
+                    />
+                    <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__name">{row.name}</span>
+                    <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__gender">
+                      {formatCompactGender(row.gender, row.genderLabel)}
+                    </span>
+                    <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__birth">{row.birthDate ?? '-'}</span>
+                    <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__phone">{row.phoneDisplay}</span>
+                    <span
+                      className={`sms-bulk-compact-row__cell sms-bulk-compact-row__status${
+                        row.canSend ? ' sms-bulk-compact-row__status--ok' : ' sms-bulk-compact-row__status--blocked'
+                      }`}
+                    >
+                      {formatSmsBlockedReason(row.canSend ? null : row.blockedReason)}
+                    </span>
+                    <FormButton
+                      type="button"
+                      variant="secondary"
+                      className="sms-bulk-compact-row__action"
+                      disabled={busy}
+                      onClick={() => void handleRemoveMember(row.customerId)}
+                    >
+                      제거
+                    </FormButton>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       ) : (

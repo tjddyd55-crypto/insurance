@@ -3,7 +3,7 @@ import FormButton from '../../../../components/form/FormButton'
 import FormInput from '../../../../components/form/FormInput'
 import Modal from '../../../../components/ui/Modal'
 import type { SmsBulkRecipientState } from '../../hooks/useSmsBulkRecipientState'
-import { formatSmsBlockedReason } from '../../utils/smsRecipientEligibility'
+import { formatSmsBlockedReason, formatCompactGender, formatCompactSangnyeong } from '../../utils/smsRecipientEligibility'
 import SmsBulkGroupsPanel from './SmsBulkGroupsPanel'
 
 type SmsBulkRecipientWorkspaceProps = {
@@ -16,11 +16,94 @@ type SmsBulkRecipientWorkspaceProps = {
 function FilterFields({
   bulkState,
   disabled,
+  layout,
 }: {
   bulkState: SmsBulkRecipientState
   disabled?: boolean
+  layout: 'pc' | 'mobile'
 }) {
   const { filters, setFilters } = bulkState
+
+  if (layout === 'pc') {
+    return (
+      <div className="sms-bulk-filters sms-bulk-filters--compact">
+        <div className="sms-bulk-filters__row sms-bulk-filters__row--search">
+          <label className="sms-bulk-filters__inline-field sms-bulk-filters__inline-field--search">
+            <span>검색어</span>
+            <FormInput
+              className="sms-bulk-filters__control--search"
+              value={filters.search}
+              disabled={disabled}
+              placeholder="이름 / 연락처 / 생년월일 검색"
+              onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
+            />
+          </label>
+          <FormButton
+            type="button"
+            className="sms-bulk-filters__search-btn"
+            disabled={disabled}
+            onClick={() => void bulkState.runSearch()}
+          >
+            검색
+          </FormButton>
+        </div>
+        <div className="sms-bulk-filters__row sms-bulk-filters__row--secondary">
+          <label className="sms-bulk-filters__inline-field">
+            <span>성별</span>
+            <select
+              className="sms-module__select sms-bulk-filters__control--gender"
+              disabled={disabled}
+              value={filters.gender}
+              onChange={(e) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  gender: e.target.value as typeof filters.gender,
+                }))
+              }
+            >
+              <option value="all">전체</option>
+              <option value="male">남자</option>
+              <option value="female">여자</option>
+            </select>
+          </label>
+          <label className="sms-bulk-filters__inline-field">
+            <span>상령일</span>
+            <FormInput
+              className="sms-bulk-filters__control--days"
+              type="number"
+              min={0}
+              disabled={disabled}
+              value={filters.sangnyeongDays}
+              onChange={(e) => setFilters((prev) => ({ ...prev, sangnyeongDays: e.target.value }))}
+            />
+            <span className="sms-bulk-filters__suffix">일 이내</span>
+          </label>
+          <label className="sms-bulk-filters__inline-field">
+            <span>보험나이</span>
+            <FormInput
+              className="sms-bulk-filters__control--age"
+              type="number"
+              min={0}
+              disabled={disabled}
+              value={filters.insuranceAgeFrom}
+              onChange={(e) => setFilters((prev) => ({ ...prev, insuranceAgeFrom: e.target.value }))}
+            />
+            <span className="sms-bulk-filters__suffix">세부터</span>
+            <FormInput
+              className="sms-bulk-filters__control--age"
+              type="number"
+              min={0}
+              disabled={disabled}
+              value={filters.insuranceAgeTo}
+              onChange={(e) => setFilters((prev) => ({ ...prev, insuranceAgeTo: e.target.value }))}
+            />
+            <span className="sms-bulk-filters__suffix">세까지</span>
+          </label>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="sms-bulk-filters">
       <label className="sms-bulk-filters__field">
@@ -133,30 +216,29 @@ function SearchResultsPanel({
           <p className="sms-module__muted">검색 결과가 없습니다.</p>
         ) : (
           searchResults.map((row) => (
-            <label key={row.customerId} className="sms-bulk-search-row">
+            <label
+              key={row.customerId}
+              className={`sms-bulk-compact-row sms-bulk-compact-row--customer sms-bulk-compact-row--${layout}`}
+            >
               <input
                 type="checkbox"
+                className="sms-bulk-compact-row__check"
                 checked={selectedSearchIds.has(row.customerId)}
                 disabled={disabled}
                 onChange={() => toggleSearchCustomer(row.customerId)}
               />
-              <div className="sms-bulk-search-row__body">
-                <strong>{row.name || '-'}</strong>
-                {layout === 'pc' ? (
-                  <span>
-                    {row.genderLabel} · {row.birthDate ?? '-'} · 보험나이 {row.insuranceAge ?? '-'}세 ·{' '}
-                    {row.sangnyeongLabel} · {row.phoneDisplay}
-                  </span>
-                ) : (
-                  <>
-                    <span>
-                      {row.genderLabel} · {row.birthDate ?? '-'} · 보험나이 {row.insuranceAge ?? '-'}세 ·{' '}
-                      {row.sangnyeongLabel}
-                    </span>
-                    <span>{row.phoneDisplay}</span>
-                  </>
-                )}
-              </div>
+              <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__name">{row.name || '-'}</span>
+              <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__gender">
+                {formatCompactGender(row.gender, row.genderLabel)}
+              </span>
+              <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__birth">{row.birthDate ?? '-'}</span>
+              <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__insurance-age">
+                {row.insuranceAge != null ? `보험 ${row.insuranceAge}세` : '-'}
+              </span>
+              <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__dday">
+                {formatCompactSangnyeong(row.sangnyeongLabel)}
+              </span>
+              <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__phone">{row.phoneDisplay}</span>
             </label>
           ))
         )}
@@ -168,10 +250,12 @@ function SearchResultsPanel({
 function SelectedRecipientsPanel({
   bulkState,
   disabled,
+  layout,
   onProceedToCompose,
 }: {
   bulkState: SmsBulkRecipientState
   disabled?: boolean
+  layout: 'pc' | 'mobile'
   onProceedToCompose: (customerIds: number[]) => void
 }) {
   const {
@@ -179,6 +263,11 @@ function SelectedRecipientsPanel({
     visibleRecipients,
     recipientViewFilter,
     setRecipientViewFilter,
+    selectedCartIds,
+    toggleCartCustomer,
+    selectAllVisibleCart,
+    clearCartSelection,
+    removeSelectedRecipients,
     removeRecipient,
     clearRecipients,
     setGroupSaveModalOpen,
@@ -224,6 +313,23 @@ function SelectedRecipientsPanel({
           </button>
         </div>
         <div className="sms-bulk-selected__actions">
+          <FormButton type="button" variant="secondary" disabled={disabled || visibleRecipients.length === 0} onClick={selectAllVisibleCart}>
+            전체 선택
+          </FormButton>
+          <FormButton type="button" variant="secondary" disabled={disabled || selectedCartIds.size === 0} onClick={clearCartSelection}>
+            선택 해제
+          </FormButton>
+          <FormButton
+            type="button"
+            variant="secondary"
+            disabled={disabled || selectedCartIds.size === 0}
+            onClick={removeSelectedRecipients}
+          >
+            선택 제거
+          </FormButton>
+          <FormButton type="button" variant="secondary" disabled={disabled || summary.total === 0} onClick={clearRecipients}>
+            전체 비우기
+          </FormButton>
           <FormButton
             type="button"
             variant="secondary"
@@ -232,30 +338,47 @@ function SelectedRecipientsPanel({
           >
             그룹 저장
           </FormButton>
-          <FormButton type="button" variant="secondary" disabled={disabled || summary.total === 0} onClick={clearRecipients}>
-            전체 비우기
-          </FormButton>
         </div>
       </div>
-      <div className="sms-bulk-selected__list">
+      <div className={`sms-bulk-selected__list sms-bulk-selected__list--${layout}`}>
         {visibleRecipients.length === 0 ? (
           <p className="sms-module__muted">선택된 발송 대상이 없습니다.</p>
         ) : (
           visibleRecipients.map((row) => (
-            <article key={row.customerId} className="sms-bulk-selected-row">
-              <div>
-                <strong>{row.name}</strong>
-                <p>
-                  {row.genderLabel} · {row.birthDate ?? '-'} · {row.phoneDisplay}
-                </p>
-                <p className={row.canSend ? 'sms-bulk-selected-row__ok' : 'sms-bulk-selected-row__blocked'}>
-                  {formatSmsBlockedReason(row.canSend ? null : row.blockedReason)}
-                </p>
-              </div>
-              <FormButton type="button" variant="secondary" disabled={disabled} onClick={() => removeRecipient(row.customerId)}>
+            <div
+              key={row.customerId}
+              className={`sms-bulk-compact-row sms-bulk-compact-row--recipient sms-bulk-compact-row--${layout}`}
+            >
+              <input
+                type="checkbox"
+                className="sms-bulk-compact-row__check"
+                checked={selectedCartIds.has(row.customerId)}
+                disabled={disabled}
+                onChange={() => toggleCartCustomer(row.customerId)}
+              />
+              <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__name">{row.name}</span>
+              <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__gender">
+                {formatCompactGender(row.gender, row.genderLabel)}
+              </span>
+              <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__birth">{row.birthDate ?? '-'}</span>
+              <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__phone">{row.phoneDisplay}</span>
+              <span
+                className={`sms-bulk-compact-row__cell sms-bulk-compact-row__status${
+                  row.canSend ? ' sms-bulk-compact-row__status--ok' : ' sms-bulk-compact-row__status--blocked'
+                }`}
+              >
+                {formatSmsBlockedReason(row.canSend ? null : row.blockedReason)}
+              </span>
+              <FormButton
+                type="button"
+                variant="secondary"
+                className="sms-bulk-compact-row__action"
+                disabled={disabled}
+                onClick={() => removeRecipient(row.customerId)}
+              >
                 제거
               </FormButton>
-            </article>
+            </div>
           ))
         )}
       </div>
@@ -496,7 +619,7 @@ export default function SmsBulkRecipientWorkspace({
   const searchPanel = (
     <>
       <h2 className="sms-bulk-panel__title">고객 찾기</h2>
-      <FilterFields bulkState={bulkState} disabled={panelBusy} />
+      <FilterFields bulkState={bulkState} disabled={panelBusy} layout={variant} />
       <SearchResultsPanel bulkState={bulkState} disabled={panelBusy} layout={variant} />
     </>
   )
@@ -504,7 +627,7 @@ export default function SmsBulkRecipientWorkspace({
   const selectedPanel = (
     <>
       <h2 className="sms-bulk-panel__title">선택된 발송 대상</h2>
-      <SelectedRecipientsPanel bulkState={bulkState} disabled={panelBusy} onProceedToCompose={onProceedToCompose} />
+      <SelectedRecipientsPanel bulkState={bulkState} disabled={panelBusy} layout={variant} onProceedToCompose={onProceedToCompose} />
     </>
   )
 

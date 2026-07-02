@@ -29,6 +29,27 @@ export function summarizeSelectedRecipients(recipients: SmsSelectedRecipient[]) 
   return { total, sendable, excluded, skipCounts }
 }
 
+export function formatCompactGender(
+  gender: 'male' | 'female' | null,
+  genderLabel: string,
+): string {
+  if (gender === 'male') {
+    return '남'
+  }
+  if (gender === 'female') {
+    return '여'
+  }
+  return genderLabel || '-'
+}
+
+export function formatCompactSangnyeong(label: string): string {
+  const match = label.match(/D-\d+/i)
+  if (match) {
+    return match[0]
+  }
+  return label || '-'
+}
+
 export function formatGroupLastSentAt(lastSentAt: string | null | undefined): string {
   if (!lastSentAt) {
     return '최근 발송 없음'

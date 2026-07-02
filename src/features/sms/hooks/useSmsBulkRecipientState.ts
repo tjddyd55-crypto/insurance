@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../auth/AuthProvider'
 import { searchSmsBulkRecipients } from '../api/smsBulkRecipientsApi'
 import {
@@ -32,6 +32,9 @@ export function useSmsBulkRecipientState() {
   const [searchResults, setSearchResults] = useState<SmsBulkSearchCustomer[]>([])
   const [searchTotalCount, setSearchTotalCount] = useState(0)
   const [selectedSearchIds, setSelectedSearchIds] = useState<Set<number>>(() => new Set())
+  const [selectedCartIds, setSelectedCartIds] = useState<Set<number>>(() => new Set())
+  const [selectedGroupIds, setSelectedGroupIds] = useState<Set<number>>(() => new Set())
+  const [selectedGroupMemberIds, setSelectedGroupMemberIds] = useState<Set<number>>(() => new Set())
   const [selectedRecipients, setSelectedRecipients] = useState<SmsSelectedRecipient[]>([])
   const [recipientViewFilter, setRecipientViewFilter] = useState<SmsBulkRecipientViewFilter>('all')
   const [mobileTab, setMobileTab] = useState<SmsBulkMobileTab>('search')
@@ -80,6 +83,54 @@ export function useSmsBulkRecipientState() {
     [groups, selectedGroupId],
   )
 
+  useEffect(() => {
+    const valid = new Set(selectedRecipients.map((row) => row.customerId))
+    setSelectedCartIds((prev) => {
+      let changed = false
+      const next = new Set<number>()
+      for (const id of prev) {
+        if (valid.has(id)) {
+          next.add(id)
+        } else {
+          changed = true
+        }
+      }
+      return changed ? next : prev
+    })
+  }, [selectedRecipients])
+
+  useEffect(() => {
+    const valid = new Set(groups.map((group) => group.id))
+    setSelectedGroupIds((prev) => {
+      let changed = false
+      const next = new Set<number>()
+      for (const id of prev) {
+        if (valid.has(id)) {
+          next.add(id)
+        } else {
+          changed = true
+        }
+      }
+      return changed ? next : prev
+    })
+  }, [groups])
+
+  useEffect(() => {
+    const valid = new Set(groupMembers.map((row) => row.customerId))
+    setSelectedGroupMemberIds((prev) => {
+      let changed = false
+      const next = new Set<number>()
+      for (const id of prev) {
+        if (valid.has(id)) {
+          next.add(id)
+        } else {
+          changed = true
+        }
+      }
+      return changed ? next : prev
+    })
+  }, [groupMembers])
+
   const runSearch = useCallback(async () => {
     if (!token?.trim()) {
       return
@@ -125,12 +176,51 @@ export function useSmsBulkRecipientState() {
     setMobileTab('selected')
   }, [searchResults, selectedRecipients, selectedSearchIds])
 
+  const toggleCartCustomer = useCallback((customerId: number) => {
+    setSelectedCartIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(customerId)) {
+        next.delete(customerId)
+      } else {
+        next.add(customerId)
+      }
+      return next
+    })
+  }, [])
+
+  const selectAllVisibleCart = useCallback(() => {
+    setSelectedCartIds(new Set(visibleRecipients.map((row) => row.customerId)))
+  }, [visibleRecipients])
+
+  const clearCartSelection = useCallback(() => {
+    setSelectedCartIds(new Set())
+  }, [])
+
+  const removeSelectedRecipients = useCallback(() => {
+    const removeCount = selectedCartIds.size
+    if (removeCount === 0) {
+      return
+    }
+    setSelectedRecipients((prev) => prev.filter((row) => !selectedCartIds.has(row.customerId)))
+    setSelectedCartIds(new Set())
+    setActionNotice(`${removeCount}명을 선택 대상에서 제거했습니다.`)
+  }, [selectedCartIds])
+
   const removeRecipient = useCallback((customerId: number) => {
     setSelectedRecipients((prev) => prev.filter((row) => row.customerId !== customerId))
+    setSelectedCartIds((prev) => {
+      if (!prev.has(customerId)) {
+        return prev
+      }
+      const next = new Set(prev)
+      next.delete(customerId)
+      return next
+    })
   }, [])
 
   const clearRecipients = useCallback(() => {
     setSelectedRecipients([])
+    setSelectedCartIds(new Set())
     setActionNotice(null)
   }, [])
 
@@ -162,9 +252,98 @@ export function useSmsBulkRecipientState() {
     [token],
   )
 
+  const toggleGroupSelection = useCallback((groupId: number) => {
+    setSelectedGroupIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(groupId)) {
+        next.delete(groupId)
+      } else {
+        next.add(groupId)
+      }
+      return next
+    })
+  }, [])
+
+  const selectAllFilteredGroups = useCallback(() => {
+    setSelectedGroupIds(new Set(filteredGroups.map((group) => group.id)))
+  }, [filteredGroups])
+
+  const clearGroupSelection = useCallback(() => {
+    setSelectedGroupIds(new Set())
+  }, [])
+
+  const removeSelectedGroups = useCallback(async () => {
+    if (!token?.trim() || selectedGroupIds.size === 0) {
+      return false
+    }
+    const ids = Array.from(selectedGroupIds)
+    setGroupActionBusy(true)
+    try {
+      for (const groupId of ids) {
+        await deleteSmsRecipientGroup(token, groupId)
+      }
+      if (selectedGroupId != null && ids.includes(selectedGroupId)) {
+        setSelectedGroupId(null)
+        setGroupMembers([])
+        setSelectedGroupMemberIds(new Set())
+      }
+      setSelectedGroupIds(new Set())
+      setActionNotice(`${ids.length}개 그룹을 삭제했습니다.`)
+      await reloadGroups()
+      return true
+    } finally {
+      setGroupActionBusy(false)
+    }
+  }, [reloadGroups, selectedGroupId, selectedGroupIds, token])
+
+  const toggleGroupMemberSelection = useCallback((customerId: number) => {
+    setSelectedGroupMemberIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(customerId)) {
+        next.delete(customerId)
+      } else {
+        next.add(customerId)
+      }
+      return next
+    })
+  }, [])
+
+  const selectAllGroupMembers = useCallback(() => {
+    setSelectedGroupMemberIds(new Set(groupMembers.map((row) => row.customerId)))
+  }, [groupMembers])
+
+  const clearGroupMemberSelection = useCallback(() => {
+    setSelectedGroupMemberIds(new Set())
+  }, [])
+
+  const removeSelectedGroupMembers = useCallback(
+    async (groupId: number) => {
+      if (!token?.trim() || selectedGroupMemberIds.size === 0) {
+        return false
+      }
+      const removeCount = selectedGroupMemberIds.size
+      setGroupActionBusy(true)
+      try {
+        const nextIds = groupMembers
+          .filter((row) => !selectedGroupMemberIds.has(row.customerId))
+          .map((row) => row.customerId)
+        await updateSmsRecipientGroup(token, groupId, { customerIds: nextIds })
+        setSelectedGroupMemberIds(new Set())
+        setActionNotice(`${removeCount}명을 그룹에서 제거했습니다.`)
+        await reloadGroups()
+        await loadGroupMembers(groupId)
+        return true
+      } finally {
+        setGroupActionBusy(false)
+      }
+    },
+    [groupMembers, loadGroupMembers, reloadGroups, selectedGroupMemberIds, token],
+  )
+
   const selectGroup = useCallback(
     async (groupId: number) => {
       setSelectedGroupId(groupId)
+      setSelectedGroupMemberIds(new Set())
       await loadGroupMembers(groupId)
     },
     [loadGroupMembers],
@@ -373,6 +552,9 @@ export function useSmsBulkRecipientState() {
     searchResults,
     searchTotalCount,
     selectedSearchIds,
+    selectedCartIds,
+    selectedGroupIds,
+    selectedGroupMemberIds,
     selectedRecipients,
     visibleRecipients,
     recipientViewFilter,
@@ -403,8 +585,20 @@ export function useSmsBulkRecipientState() {
     selectAllSearchResults,
     clearSearchSelection,
     addSelectedToRecipients,
+    toggleCartCustomer,
+    selectAllVisibleCart,
+    clearCartSelection,
+    removeSelectedRecipients,
     removeRecipient,
     clearRecipients,
+    toggleGroupSelection,
+    selectAllFilteredGroups,
+    clearGroupSelection,
+    removeSelectedGroups,
+    toggleGroupMemberSelection,
+    selectAllGroupMembers,
+    clearGroupMemberSelection,
+    removeSelectedGroupMembers,
     reloadGroups,
     selectGroup,
     saveGroupFromCart,
