@@ -110,6 +110,64 @@ test('searchSmsRecipientCustomers can include blocked when includeBlocked=true',
   assert.ok(result.customers.some((row) => row.blockedReason === 'no_phone'))
 })
 
+test('searchSmsRecipientCustomers dedupes same identity across multiple customer ids', async () => {
+  const duplicateIdentityRows = [6, 7, 8, 9, 10, 14].map((id, index) => ({
+    id,
+    name: '박성용',
+    phone: '01022221382',
+    gender: 'male',
+    ssn: '8402181',
+    insurance_age: 42,
+    next_age_date: null,
+    birth_date: new Date(1984, 1, 18),
+    created_at: `2026-01-0${index + 1}T00:00:00.000Z`,
+  }))
+
+  const result = await searchSmsRecipientCustomers(
+    createMockExecutor(duplicateIdentityRows),
+    { tenantId: 1, userId: 'user-1' },
+    { search: '박성용' },
+  )
+
+  assert.equal(result.totalCount, 1)
+  assert.equal(result.customers.length, 1)
+  assert.equal(result.customers[0].customerId, 6)
+  assert.equal(new Set(result.customers.map((row) => row.customerId)).size, 1)
+})
+
+test('searchSmsRecipientCustomers keeps different customer_id with same phone', async () => {
+  const result = await searchSmsRecipientCustomers(
+    createMockExecutor([
+      {
+        id: 101,
+        name: '홍길동',
+        phone: '01022221382',
+        gender: 'male',
+        ssn: '9001011',
+        insurance_age: 30,
+        next_age_date: null,
+        birth_date: new Date(1990, 0, 1),
+        created_at: '2026-01-01T00:00:00.000Z',
+      },
+      {
+        id: 102,
+        name: '김철수',
+        phone: '01022221382',
+        gender: 'male',
+        ssn: '9101011',
+        insurance_age: 29,
+        next_age_date: null,
+        birth_date: new Date(1991, 0, 1),
+        created_at: '2026-01-02T00:00:00.000Z',
+      },
+    ]),
+    { tenantId: 1, userId: 'user-1' },
+    { search: '0102222' },
+  )
+  assert.equal(result.totalCount, 2)
+  assert.equal(new Set(result.customers.map((row) => row.customerId)).size, 2)
+})
+
 test('searchSmsRecipientCustomers combines search with gender filter', async () => {
   const result = await searchSmsRecipientCustomers(
     createMockExecutor(sampleRows),

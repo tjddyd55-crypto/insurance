@@ -32,6 +32,21 @@ function buildSearchQuery(filters: SmsBulkRecipientFilters): string {
 
 export { buildSearchQuery }
 
+export function dedupeSmsSearchCustomersByCustomerId(
+  customers: SmsBulkSearchCustomer[],
+): SmsBulkSearchCustomer[] {
+  const seen = new Set<number>()
+  const deduped: SmsBulkSearchCustomer[] = []
+  for (const row of customers) {
+    if (seen.has(row.customerId)) {
+      continue
+    }
+    seen.add(row.customerId)
+    deduped.push(row)
+  }
+  return deduped
+}
+
 export async function searchSmsBulkRecipients(
   token: string,
   filters: SmsBulkRecipientFilters,
@@ -40,10 +55,10 @@ export async function searchSmsBulkRecipients(
     `/api/sms/recipients/customers${buildSearchQuery(filters)}`,
     { token: requireSmsToken(token) },
   )
+  const sendable = Array.isArray(raw?.customers) ? raw.customers.filter((row) => row.canSend) : []
+  const customers = dedupeSmsSearchCustomersByCustomerId(sendable)
   return {
-    customers: Array.isArray(raw?.customers)
-      ? raw.customers.filter((row) => row.canSend)
-      : [],
-    totalCount: Number(raw?.totalCount ?? 0),
+    customers,
+    totalCount: customers.length,
   }
 }

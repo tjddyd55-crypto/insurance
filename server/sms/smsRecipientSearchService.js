@@ -10,6 +10,7 @@ import {
   matchesTargetGender,
   parseOptionalFilterInt,
 } from '../../shared/customerTargetFilters.js'
+import { dedupeCustomersById, dedupeCustomersForSearch } from '../lib/customerSearchDedupe.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { isValidKoreanMobilePhone, normalizeSmsPhone } from './smsPhone.js'
 import { loadOptOutPhoneSet } from './smsScope.js'
@@ -140,12 +141,23 @@ export async function searchSmsRecipientCustomers(executor, scope, query = {}) {
   const r = await systemQuery(
     executor,
     `
-    SELECT c.id, c.name, c.phone, c.gender, c.ssn, c.insurance_age, c.next_age_date, c.birth_date
+    SELECT DISTINCT ON (c.id)
+      c.id,
+      c.name,
+      c.phone,
+      c.gender,
+      c.ssn,
+      c.insurance_age,
+      c.next_age_date,
+      c.birth_date,
+      c.created_at
     FROM customers c
     INNER JOIN users u ON u.id = c.user_id
     INNER JOIN tenants t ON t.legacy_ga_id = u.ga_id
-    WHERE c.user_id = $1 AND t.id = $2
-    ORDER BY c.id ASC
+    WHERE c.user_id = $1
+      AND t.id = $2
+      AND c.deleted_at IS NULL
+    ORDER BY c.id ASC, c.created_at DESC
     LIMIT $3
     `,
     [scope.userId, scope.tenantId, MAX_SEARCH_RESULTS],
@@ -154,7 +166,7 @@ export async function searchSmsRecipientCustomers(executor, scope, query = {}) {
   const phones = r.rows.map((row) => normalizeSmsPhone(row.phone)).filter(Boolean)
   const optOutSet = await loadOptOutPhoneSet(executor, { tenantId: scope.tenantId, phones })
 
-  const filtered = []
+  const filteredRows = []
   for (const row of r.rows) {
     if (!matchesSearch(row, query.search)) {
       continue
@@ -168,6 +180,13 @@ export async function searchSmsRecipientCustomers(executor, scope, query = {}) {
     if (!matchesInsuranceAge(row, query.insuranceAgeFrom, query.insuranceAgeTo, today)) {
       continue
     }
+    filteredRows.push(row)
+  }
+
+  const { customers: dedupedRows } = dedupeCustomersForSearch(filteredRows)
+
+  const filtered = []
+  for (const row of dedupedRows) {
     const mapped = mapCustomerRow(row, optOutSet, today)
     if (!includeBlocked && !mapped.canSend) {
       continue
@@ -196,12 +215,24 @@ export async function loadSmsRecipientCustomersByIds(executor, scope, customerId
   const r = await systemQuery(
     executor,
     `
-    SELECT c.id, c.name, c.phone, c.gender, c.ssn, c.insurance_age, c.next_age_date, c.birth_date
+    SELECT DISTINCT ON (c.id)
+      c.id,
+      c.name,
+      c.phone,
+      c.gender,
+      c.ssn,
+      c.insurance_age,
+      c.next_age_date,
+      c.birth_date,
+      c.created_at
     FROM customers c
     INNER JOIN users u ON u.id = c.user_id
     INNER JOIN tenants t ON t.legacy_ga_id = u.ga_id
-    WHERE c.user_id = $1 AND t.id = $2 AND c.id = ANY($3::int[])
-    ORDER BY c.id ASC
+    WHERE c.user_id = $1
+      AND t.id = $2
+      AND c.id = ANY($3::int[])
+      AND c.deleted_at IS NULL
+    ORDER BY c.id ASC, c.created_at DESC
     `,
     [scope.userId, scope.tenantId, ids],
   )
@@ -209,7 +240,8 @@ export async function loadSmsRecipientCustomersByIds(executor, scope, customerId
   const phones = r.rows.map((row) => normalizeSmsPhone(row.phone)).filter(Boolean)
   const optOutSet = await loadOptOutPhoneSet(executor, { tenantId: scope.tenantId, phones })
   const today = new Date()
-  return r.rows.map((row) => mapCustomerRow(row, optOutSet, today))
+  const { customers: dedupedRows } = dedupeCustomersForSearch(r.rows)
+  return dedupedRows.map((row) => mapCustomerRow(row, optOutSet, today))
 }
 
 export function mergeRecipientSelections(existing, incoming, options = {}) {
@@ -276,4 +308,4 @@ export function mergeRecipientSelections(existing, incoming, options = {}) {
   }
 }
 
-export { MAX_SEARCH_RESULTS }
+export { MAX_SEARCH_RESULTS, dedupeCustomersById }
