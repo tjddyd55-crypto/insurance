@@ -44,6 +44,7 @@ export function useSmsBulkRecipientState() {
   const [groupMembers, setGroupMembers] = useState<SmsBulkSearchCustomer[]>([])
   const [groupSearchQuery, setGroupSearchQuery] = useState('')
   const [searchBusy, setSearchBusy] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
   const [groupActionBusy, setGroupActionBusy] = useState(false)
   const [actionNotice, setActionNotice] = useState<string | null>(null)
   const [groupSaveModalOpen, setGroupSaveModalOpen] = useState(false)
@@ -148,6 +149,7 @@ export function useSmsBulkRecipientState() {
     }
     const activeFilters = overrideFilters ?? filtersRef.current
     const requestId = searchSequencerRef.current.begin()
+    setHasSearched(true)
     setSearchBusy(true)
     setActionNotice(null)
     try {
@@ -176,25 +178,23 @@ export function useSmsBulkRecipientState() {
     }
   }, [token])
 
-  const resetFilters = useCallback(async () => {
+  // [초기화]는 "검색 조건과 검색 결과를 모두 비우는" 동작이다. 전체 고객 재조회가 아니다.
+  // 따라서 여기서 runSearch 를 호출하지 않는다(검색 API 요청을 보내지 않음).
+  const resetFilters = useCallback(() => {
     const defaults = { ...EMPTY_SMS_BULK_FILTERS }
+    // 진행 중이던 검색 응답이 나중에 도착해도 반영되지 않도록 요청 순번을 무효화한다.
+    searchSequencerRef.current.begin()
     setFilters(defaults)
-    // 필터가 풀렸음을 즉시 반영: 검색 선택/결과/카운트를 먼저 비운 뒤 기본 전체 목록을 다시 조회한다.
+    filtersRef.current = defaults
+    // 검색 조건/결과/선택/상태 메시지만 비운다.
     // (장바구니 selectedRecipients / 그룹 선택 selectedGroupId 는 건드리지 않아 유지된다.)
     setSelectedSearchIds(new Set())
     setSearchResults([])
     setSearchTotalCount(0)
-    await runSearch(defaults)
-  }, [runSearch])
-
-  const didInitialSearchRef = useRef(false)
-  useEffect(() => {
-    if (didInitialSearchRef.current || !token?.trim()) {
-      return
-    }
-    didInitialSearchRef.current = true
-    void runSearch({ ...EMPTY_SMS_BULK_FILTERS })
-  }, [runSearch, token])
+    setSearchBusy(false)
+    setActionNotice(null)
+    setHasSearched(false)
+  }, [])
 
   const toggleSearchCustomer = useCallback((customerId: number) => {
     setSelectedSearchIds((prev) => {
@@ -618,6 +618,7 @@ export function useSmsBulkRecipientState() {
     groupSearchQuery,
     setGroupSearchQuery,
     searchBusy,
+    hasSearched,
     groupActionBusy,
     actionNotice,
     setActionNotice,

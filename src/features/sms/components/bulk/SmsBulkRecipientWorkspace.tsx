@@ -212,6 +212,7 @@ function SearchResultsPanel({
     searchResults,
     searchTotalCount,
     selectedSearchIds,
+    hasSearched,
     toggleSearchCustomer,
     selectAllSearchResults,
     clearSearchSelection,
@@ -243,7 +244,9 @@ function SearchResultsPanel({
       </div>
       <div className={`sms-bulk-search__list sms-bulk-search__list--${layout}`}>
         {searchResults.length === 0 ? (
-          <p className="sms-module__muted">검색 결과가 없습니다.</p>
+          <p className="sms-module__muted">
+            {hasSearched ? '검색 결과가 없습니다.' : '검색 조건을 입력하고 검색을 눌러주세요.'}
+          </p>
         ) : (
           searchResults.map((row) => (
             <label
