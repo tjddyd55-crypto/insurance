@@ -10,15 +10,18 @@ export function AccountVaultShareLinkActions({
   onRegenerateShareLink,
   onCopyShareLink,
   onOpenShareLink,
+  confirmDialog,
 }: AccountVaultShareLinkViewProps) {
   if (loading) {
-    return null
+    // 로딩 중에도 확인창은 마운트해 두어야 재생성 확인 흐름이 끊기지 않는다.
+    return confirmDialog
   }
 
   const isErrorStatus = statusLabel === '생성 실패' || statusLabel === '처리 실패'
 
   return (
     <div className="account-vault-share-link-actions" aria-label="외부 수정 URL">
+      {confirmDialog}
       {statusLabel ? (
         <span
           className={[
@@ -69,7 +72,7 @@ export function AccountVaultShareLinkActions({
             disabled={pending}
             onClick={() => void onRegenerateShareLink()}
           >
-            새로생성
+            URL 새로생성
           </FormButton>
         </>
       )}

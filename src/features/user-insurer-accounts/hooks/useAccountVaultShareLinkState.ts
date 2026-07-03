@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { copyTextToClipboard } from '../../../lib/clipboard'
+import { useConfirmDialog } from '../../../components/dialog'
 import {
   createUserInsurerAccountShareLink,
   fetchUserInsurerAccountShareLink,
@@ -15,6 +16,7 @@ export type AccountVaultShareLinkViewProps = ReturnType<typeof useAccountVaultSh
 
 export function useAccountVaultShareLinkState(authToken: string) {
   const token = authToken.trim()
+  const { confirm, confirmDialog } = useConfirmDialog()
   const [shareUrlRaw, setShareUrlRaw] = useState<string | null>(null)
   const [shareToken, setShareToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -123,6 +125,26 @@ export function useAccountVaultShareLinkState(authToken: string) {
     }
   }, [clearStatusFlashTimer, flashStatus, token])
 
+  // [새로생성]은 기존 URL을 무효화하므로, 확인창에서 명시적으로 확인한 경우에만 재생성한다.
+  // (확인 전에는 API를 호출하지 않고, 취소 시 기존 URL은 그대로 유지된다.)
+  const confirmAndRegenerate = useCallback(async () => {
+    if (!token || pending) {
+      return
+    }
+    const confirmed = await confirm({
+      title: '접속 URL을 새로 생성하시겠습니까?',
+      message:
+        '새로 생성하면 기존 접속 URL은 더 이상 사용할 수 없습니다. 기존 URL을 사용 중인 경우 접속이 차단될 수 있습니다. 계속 진행하시겠습니까?',
+      confirmLabel: '새로생성',
+      cancelLabel: '취소',
+      tone: 'danger',
+    })
+    if (!confirmed) {
+      return
+    }
+    await createOrRegenerate()
+  }, [confirm, createOrRegenerate, pending, token])
+
   const copyShareLink = useCallback(async () => {
     if (!shareUrl) {
       return
@@ -150,8 +172,9 @@ export function useAccountVaultShareLinkState(authToken: string) {
     pending,
     statusLabel,
     onCreateShareLink: createOrRegenerate,
-    onRegenerateShareLink: createOrRegenerate,
+    onRegenerateShareLink: confirmAndRegenerate,
     onCopyShareLink: copyShareLink,
     onOpenShareLink: openShareLink,
+    confirmDialog,
   }
 }
