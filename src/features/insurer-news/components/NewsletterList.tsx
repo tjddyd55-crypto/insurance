@@ -12,6 +12,11 @@ type Props = {
   onOpenItem?: (id: string) => void
   onDeleteItem?: (item: NewsletterItem) => void
   deleteBusyId?: string | null
+  /**
+   * 아이템별 삭제 버튼 노출 여부. 미지정이면 `onDeleteItem` 이 있을 때 항상 노출한다
+   * (기존 호출처 호환). 권한 게이팅이 필요한 목록은 이 predicate 를 주입한다.
+   */
+  canDeleteItem?: (item: NewsletterItem) => boolean
   noSearchResults?: boolean
 }
 
@@ -22,6 +27,7 @@ export function NewsletterList({
   onOpenItem,
   onDeleteItem,
   deleteBusyId,
+  canDeleteItem,
   noSearchResults,
 }: Props) {
   if (!items.length) {
@@ -34,16 +40,19 @@ export function NewsletterList({
 
   return (
     <div className="news-grid">
-      {items.map((item) => (
-        <NewsCard
-          key={item.id}
-          item={item}
-          variant={variant}
-          onOpen={onOpenItem ? () => onOpenItem(item.id) : undefined}
-          onDelete={onDeleteItem ? () => onDeleteItem(item) : undefined}
-          deleteBusy={Boolean(deleteBusyId && deleteBusyId === item.id)}
-        />
-      ))}
+      {items.map((item) => {
+        const deletable = onDeleteItem != null && (canDeleteItem ? canDeleteItem(item) : true)
+        return (
+          <NewsCard
+            key={item.id}
+            item={item}
+            variant={variant}
+            onOpen={onOpenItem ? () => onOpenItem(item.id) : undefined}
+            onDelete={deletable ? () => onDeleteItem!(item) : undefined}
+            deleteBusy={Boolean(deleteBusyId && deleteBusyId === item.id)}
+          />
+        )
+      })}
     </div>
   )
 }

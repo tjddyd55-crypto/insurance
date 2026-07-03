@@ -46,6 +46,10 @@ export default function InsurerManagerNewsListPCView({
   searchQuery,
   onSearchQueryChange,
   noSearchResults,
+  onDeleteItem,
+  canDeleteItem,
+  deleteBusyId,
+  deleteNotice,
 }: InsurerManagerNewsListViewProps) {
   const { user, token } = useAuth()
   const gaCode = user?.gaCode ?? ''
@@ -145,11 +149,19 @@ export default function InsurerManagerNewsListPCView({
         </label>
       </div>
       {error ? <div className="insurer-news-empty">{error}</div> : null}
+      {deleteNotice ? (
+        <div className="insurer-news-inline-notice" role="status">
+          {deleteNotice}
+        </div>
+      ) : null}
       <NewsletterList
         items={items}
         emptyMessage={emptyMessage}
         variant="pc"
         onOpenItem={openDetailModal}
+        onDeleteItem={onDeleteItem}
+        canDeleteItem={canDeleteItem}
+        deleteBusyId={deleteBusyId}
         noSearchResults={noSearchResults}
       />
       <NewsDetailViewerModal

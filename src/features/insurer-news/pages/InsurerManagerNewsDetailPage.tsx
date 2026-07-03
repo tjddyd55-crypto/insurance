@@ -11,6 +11,7 @@ import { NewsletterImageGallery } from '../components/NewsletterImageGallery'
 import { deleteManagerNewsletter, getNewsletterDetail, getNewsletterDetailForInsurerManager } from '../services/insurerNews.service'
 import { buildInsurerNewsGalleryUrls } from '../utils/buildInsurerNewsGalleryUrls'
 import { formatInsurerNewsDateTime } from '../utils/formatInsurerNewsDate'
+import { canDeleteNewsletter } from '../utils/newsletterDeletePermission'
 import type { NewsChannel, NewsletterDetail } from '../types'
 
 export function InsurerManagerNewsDetailPage({
@@ -100,11 +101,7 @@ export function InsurerManagerNewsDetailPage({
     heroImageObjectKey: detail.heroImageObjectKey,
     attachments: detail.attachments,
   })
-  const role = user?.role ?? ''
-  const isGaDeleteRole = role === 'GA_ADMIN' || role === 'GA_STAFF'
-  const isManagerRole = role === 'INSURER_MANAGER' || role === 'LOSS_ADJUSTER'
-  const isAuthor = Boolean(detail.publisherId && String(detail.publisherId) === String(user?.id ?? ''))
-  const canDelete = isGaDeleteRole || (isManagerRole && isAuthor)
+  const canDelete = canDeleteNewsletter(detail, user)
   const handleDelete = () => {
     if (!newsletterId || !token?.trim() || deleteBusy) {
       return

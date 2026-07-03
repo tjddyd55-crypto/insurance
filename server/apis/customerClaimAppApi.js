@@ -2101,6 +2101,7 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         WHERE id = $1
           AND ga_id = $2
           AND status = 'PUBLISHED'
+          AND deleted_at IS NULL
         LIMIT 1
         `,
         [newsId, gaId],
@@ -2233,6 +2234,7 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
       const targetCustomerId = parsePositiveInt(req.query.targetCustomerId)
       const where = [
         `n.status = 'PUBLISHED'`,
+        `n.deleted_at IS NULL`,
         `COALESCE((n.payload->>'customerVisible')::boolean, false) = true`,
         `COALESCE(NULLIF(TRIM(n.payload->>'publisherId'), ''), '') = $1`,
       ]
@@ -3384,6 +3386,7 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
       WHERE id = $1
         AND ga_id = $2
         AND status = 'PUBLISHED'
+        AND deleted_at IS NULL
         AND COALESCE((payload->>'customerVisible')::boolean, false) = true
         AND COALESCE(NULLIF(TRIM(payload->>'publisherId'), ''), '') = $3
         AND (
@@ -3592,6 +3595,7 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
           AND r.customer_id = $2
         WHERE n.ga_id = $3
           AND n.status = 'PUBLISHED'
+          AND n.deleted_at IS NULL
           AND COALESCE((n.payload->>'customerVisible')::boolean, false) = true
           AND COALESCE(NULLIF(TRIM(n.payload->>'publisherId'), ''), '') = $1
           ${scopeWhere}

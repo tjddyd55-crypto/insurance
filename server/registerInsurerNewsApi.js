@@ -34,6 +34,7 @@ import {
   SUPER_ADMIN_NEWSLETTER_BOARDS_LIST_SQL,
 } from './lib/newsletterBoardAdminSql.js'
 import { parseBoardMetadataPatch } from './lib/newsletterBoardMetadata.js'
+import { canDeleteNewsletter } from './lib/newsletterDeletePermission.js'
 import { insertDynamicBoardNewsletter } from './lib/dynamicBoardNewsletterWrite.js'
 import { grantBoardToAllGlobalWriters } from './lib/boardWriterService.js'
 import {
@@ -420,7 +421,7 @@ async function buildInsurersListMerged(pool, gaId, gaCodeUpper) {
       COUNT(*) FILTER (WHERE status = 'PUBLISHED') AS pub_cnt,
       MAX(updated_at) AS last_u
     FROM insurance_company_newsletters
-    WHERE ga_id = $1 AND company_id IS NOT NULL
+    WHERE ga_id = $1 AND company_id IS NOT NULL AND deleted_at IS NULL
     GROUP BY company_id
     `,
     [gaId],
@@ -1432,16 +1433,13 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
    */
   async function assertCanDeleteNewsletterRow(row, req, expectedChannel = null) {
     await assertCanAccessNewsletterRow(row, req, expectedChannel)
-    if (isGaInsurerManagerMutatorRole(req.user.role)) {
+    const rowPayload = row.payload && typeof row.payload === 'object' ? row.payload : {}
+    // GA 관리자 or 작성자 본인 (공용 SSOT). GA/tenant 범위는 위 access 검사에서 이미 강제됨.
+    if (canDeleteNewsletter({ userId: req.user.id, role: req.user.role }, { publisherId: rowPayload.publisherId })) {
       return
     }
     if (isNewsManagerRole(req.user.role)) {
-      const rowPayload = row.payload && typeof row.payload === 'object' ? row.payload : {}
-      const publisherId = String(rowPayload.publisherId ?? '').trim()
-      if (!publisherId || publisherId !== String(req.user.id)) {
-        throw Object.assign(new Error('작성자 본인만 삭제할 수 있습니다.'), { httpStatus: 403 })
-      }
-      return
+      throw Object.assign(new Error('작성자 본인만 삭제할 수 있습니다.'), { httpStatus: 403 })
     }
     throw Object.assign(new Error('소식 삭제 권한이 없습니다.'), { httpStatus: 403 })
   }
@@ -1942,6 +1940,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         FROM insurance_company_newsletters n
         LEFT JOIN ga_companies g ON g.id = n.ga_id
         WHERE n.status = 'PUBLISHED'
+          AND n.deleted_at IS NULL
           AND LOWER(TRIM(n.payload->>'dynamicBoardSlug')) = $1
           ${postFilter.sql}
           AND COALESCE((n.payload->>'customerVisible')::boolean, false) = false
@@ -1988,6 +1987,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         WHERE id = $1
           AND LOWER(TRIM(payload->>'dynamicBoardSlug')) = $2
           AND status = 'PUBLISHED'
+          AND deleted_at IS NULL
           ${postFilter.sql}
           AND COALESCE((payload->>'customerVisible')::boolean, false) = false
           AND COALESCE(NULLIF(TRIM(payload->>'insurerSlug'), ''), '') <> 'customer-news'
@@ -2084,6 +2084,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         INNER JOIN ga_companies g ON g.id = n.ga_id
         WHERE n.ga_id = $1
           AND n.status = 'PUBLISHED'
+          AND n.deleted_at IS NULL
           AND COALESCE(NULLIF(TRIM(n.payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $2
           AND COALESCE((n.payload->>'customerVisible')::boolean, false) = false
           AND COALESCE(NULLIF(TRIM(n.payload->>'insurerSlug'), ''), '') <> 'customer-news'
@@ -2130,6 +2131,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         WHERE id = $1
           AND ga_id = $2
           AND status = 'PUBLISHED'
+          AND deleted_at IS NULL
           AND COALESCE(NULLIF(TRIM(payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $3
           AND COALESCE((payload->>'customerVisible')::boolean, false) = false
           AND COALESCE(NULLIF(TRIM(payload->>'insurerSlug'), ''), '') <> 'customer-news'
@@ -2516,6 +2518,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         FROM insurance_company_newsletters n
         INNER JOIN ga_companies g ON g.id = n.ga_id
         WHERE n.ga_id = $1
+          AND n.deleted_at IS NULL
           AND COALESCE(NULLIF(TRIM(n.payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $2
           AND COALESCE((n.payload->>'customerVisible')::boolean, false) = false
           AND COALESCE(NULLIF(TRIM(n.payload->>'insurerSlug'), ''), '') <> 'customer-news'
@@ -2557,6 +2560,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         FROM insurance_company_newsletters
         WHERE id = $1
           AND ga_id = $2
+          AND deleted_at IS NULL
           AND COALESCE(NULLIF(TRIM(payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $3
           AND COALESCE((payload->>'customerVisible')::boolean, false) = false
           AND COALESCE(NULLIF(TRIM(payload->>'insurerSlug'), ''), '') <> 'customer-news'
@@ -2711,6 +2715,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         FROM insurance_company_newsletters
         WHERE id = $1
           AND ga_id = $2
+          AND deleted_at IS NULL
           AND COALESCE(NULLIF(TRIM(payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $3
         `,
         [newsletterId, gaIdForSelect, channel],
@@ -2840,6 +2845,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         FROM insurance_company_newsletters
         WHERE id = $1
           AND ga_id = $2
+          AND deleted_at IS NULL
           AND COALESCE(NULLIF(TRIM(payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $3
         `,
         [newsletterId, scope.gaId, channel],
@@ -2876,6 +2882,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         FROM insurance_company_newsletters
         WHERE id = $1
           AND ga_id = $2
+          AND deleted_at IS NULL
           AND COALESCE(NULLIF(TRIM(payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $3
         `,
         [newsletterId, gaId, channel],
@@ -2901,12 +2908,14 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         .map((row) => String(row.object_key ?? '').trim())
         .filter(Boolean)
 
+      // soft-delete: 소식지 row 는 보존(복구·이력)하고 deleted_at 만 채운다.
+      // 첨부(R2 원본 + DB row)는 스토리지 절약을 위해 즉시 제거한다.
       await withTransaction(async (client) => {
         await deleteAttachmentsForNewsletter(client, newsletterId, gaId)
-        await client.query(`DELETE FROM insurance_company_newsletters WHERE id = $1 AND ga_id = $2`, [
-          newsletterId,
-          gaId,
-        ])
+        await client.query(
+          `UPDATE insurance_company_newsletters SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1 AND ga_id = $2 AND deleted_at IS NULL`,
+          [newsletterId, gaId],
+        )
       })
 
       const r2Stats = await deleteInsurerNewsR2ObjectsAfterDb(objectKeys, {

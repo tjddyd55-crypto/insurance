@@ -1,14 +1,17 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
 import GaRequiredNotice from '../../../components/access/GaRequiredNotice'
+import { useConfirmDialog } from '../../../components/dialog'
 import { formatTimestampSearchHaystack } from '../../../utils/displayDateTime'
 import { useAuth } from '../../auth/AuthProvider'
 import { isPublicGeneralAccount } from '../../auth/generalGa'
 import {
+  deleteManagerNewsletter,
   getAllPublishedForGa,
   getNewslettersForInsurerManagerCompany,
 } from '../services/insurerNews.service'
 import type { NewsChannel, NewsletterItem } from '../types'
+import { canDeleteNewsletter } from '../utils/newsletterDeletePermission'
 import InsurerManagerNewsListMobileView from './InsurerManagerNewsList/InsurerManagerNewsListMobileView'
 import InsurerManagerNewsListPCView from './InsurerManagerNewsList/InsurerManagerNewsListPCView'
 import type { InsurerManagerNewsListViewProps } from './InsurerManagerNewsList/insurerManagerNewsListViewProps'
@@ -52,6 +55,7 @@ export function InsurerManagerNewsListPage({
   noSessionMessage = '원수사 담당자 계정(소속 회사 정보 포함)으로 로그인한 후 이용할 수 있습니다.',
 }: InsurerManagerNewsListPageProps) {
   const { user, token } = useAuth()
+  const { confirm, confirmDialog } = useConfirmDialog()
   const gaCode = user?.gaCode ?? ''
   const companyId = user?.companyId
   const isPublicAccount = isPublicGeneralAccount(user)
@@ -65,6 +69,45 @@ export function InsurerManagerNewsListPage({
   const [items, setItems] = useState<NewsletterItem[]>([])
   const [error, setError] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
+  const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null)
+  const [deleteNotice, setDeleteNotice] = useState('')
+
+  const canDeleteItem = useCallback(
+    (item: NewsletterItem) => canDeleteNewsletter(item, user),
+    [user],
+  )
+
+  const handleDeleteItem = useCallback(
+    (item: NewsletterItem) => {
+      if (!token?.trim() || deleteBusyId) {
+        return
+      }
+      void (async () => {
+        const confirmed = await confirm({
+          title: '소식지 삭제',
+          message: '이 소식지를 삭제하시겠습니까?\n삭제한 소식지는 목록에서 보이지 않습니다.',
+          tone: 'danger',
+          confirmLabel: '삭제',
+          cancelLabel: '취소',
+        })
+        if (!confirmed) {
+          return
+        }
+        setDeleteBusyId(item.id)
+        setDeleteNotice('')
+        try {
+          await deleteManagerNewsletter(token, item.id, { channel })
+          setItems((prev) => prev.filter((row) => row.id !== item.id))
+          setDeleteNotice('소식지가 삭제되었습니다.')
+        } catch (e) {
+          setDeleteNotice(e instanceof Error ? e.message : '삭제에 실패했습니다.')
+        } finally {
+          setDeleteBusyId(null)
+        }
+      })()
+    },
+    [token, deleteBusyId, confirm, channel],
+  )
 
   useEffect(() => {
     if (isPublicAccount || !token?.trim() || !gaCode || (requiresCompanyScope && companyId == null)) {
@@ -92,23 +135,6 @@ export function InsurerManagerNewsListPage({
     }
   }, [fetchScope, channel, token, gaCode, companyId, requiresCompanyScope, isPublicAccount])
 
-  if (isPublicAccount) {
-    return <GaRequiredNotice />
-  }
-
-  if (!gaCode || (requiresCompanyScope && companyId == null)) {
-    return (
-      <main className="page page--with-back insurer-news-page">
-        <header className="page-header page-header--has-inline-back">
-          <div className="page-header__title-row">
-            <h1>{title}</h1>
-          </div>
-        </header>
-        <div className="insurer-news-empty">{noSessionMessage}</div>
-      </main>
-    )
-  }
-
   const filteredItems = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
     if (!q) {
@@ -128,6 +154,23 @@ export function InsurerManagerNewsListPage({
     })
   }, [items, searchQuery])
 
+  if (isPublicAccount) {
+    return <GaRequiredNotice />
+  }
+
+  if (!gaCode || (requiresCompanyScope && companyId == null)) {
+    return (
+      <main className="page page--with-back insurer-news-page">
+        <header className="page-header page-header--has-inline-back">
+          <div className="page-header__title-row">
+            <h1>{title}</h1>
+          </div>
+        </header>
+        <div className="insurer-news-empty">{noSessionMessage}</div>
+      </main>
+    )
+  }
+
   const viewProps: InsurerManagerNewsListViewProps = {
     items: filteredItems,
     error,
@@ -140,13 +183,20 @@ export function InsurerManagerNewsListPage({
     searchQuery,
     onSearchQueryChange: setSearchQuery,
     noSearchResults: searchQuery.trim() !== '' && filteredItems.length === 0,
+    onDeleteItem: handleDeleteItem,
+    canDeleteItem,
+    deleteBusyId,
+    deleteNotice,
   }
 
   return (
-    <ResponsiveLayout<InsurerManagerNewsListViewProps>
-      PC={InsurerManagerNewsListPCView}
-      Mobile={InsurerManagerNewsListMobileView}
-      viewProps={viewProps}
-    />
+    <>
+      {confirmDialog}
+      <ResponsiveLayout<InsurerManagerNewsListViewProps>
+        PC={InsurerManagerNewsListPCView}
+        Mobile={InsurerManagerNewsListMobileView}
+        viewProps={viewProps}
+      />
+    </>
   )
 }
