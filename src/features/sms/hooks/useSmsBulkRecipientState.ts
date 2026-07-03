@@ -22,6 +22,7 @@ import {
   summarizeSelectedRecipients,
 } from '../utils/smsRecipientEligibility'
 import { mergeCustomerIdsForGroup, mergeSmsRecipientSelections } from '../utils/smsRecipientSelection'
+import { createSearchRequestSequencer } from '../utils/searchRequestSequencer'
 
 export type SmsBulkRecipientViewFilter = 'all' | 'sendable' | 'excluded'
 export type SmsBulkMobileTab = 'search' | 'selected' | 'groups'
@@ -131,33 +132,55 @@ export function useSmsBulkRecipientState() {
     })
   }, [groupMembers])
 
+  // runSearch 가 filters state 를 클로저로 잡으면 키 입력마다 함수 정체성이 바뀌어
+  // mount 검색 effect 가 계속 재생성된다. 최신 filters 는 ref 로 읽어 정체성을 안정화한다.
+  const filtersRef = useRef(filters)
+  useEffect(() => {
+    filtersRef.current = filters
+  }, [filters])
+
+  // 늦게 도착한 이전 검색 응답이 최신 응답(예: 초기화 결과)을 덮어쓰지 못하게 한다.
+  const searchSequencerRef = useRef(createSearchRequestSequencer())
+
   const runSearch = useCallback(async (overrideFilters?: SmsBulkRecipientFilters) => {
     if (!token?.trim()) {
       return
     }
-    const activeFilters = overrideFilters ?? filters
+    const activeFilters = overrideFilters ?? filtersRef.current
+    const requestId = searchSequencerRef.current.begin()
     setSearchBusy(true)
     setActionNotice(null)
     try {
       const result = await searchSmsBulkRecipients(token, activeFilters)
+      // 이 요청보다 최신 요청이 이미 시작됐다면 결과를 버린다(stale 응답 무시).
+      if (!searchSequencerRef.current.isLatest(requestId)) {
+        return
+      }
       setSearchResults(result.customers)
       setSearchTotalCount(result.totalCount)
       setSelectedSearchIds(new Set())
     } catch (error) {
+      if (!searchSequencerRef.current.isLatest(requestId)) {
+        return
+      }
       // 검색 실패 시 이전 결과가 남아 사용자를 혼동시키지 않도록 목록/카운트를 비운다.
       setSearchResults([])
       setSearchTotalCount(0)
       setSelectedSearchIds(new Set())
       setActionNotice(error instanceof Error ? error.message : '검색에 실패했습니다.')
     } finally {
-      setSearchBusy(false)
+      // stale 요청의 finally 는 busy 플래그를 건드리지 않는다(최신 요청만 로딩 상태 소유).
+      if (searchSequencerRef.current.isLatest(requestId)) {
+        setSearchBusy(false)
+      }
     }
-  }, [filters, token])
+  }, [token])
 
   const resetFilters = useCallback(async () => {
     const defaults = { ...EMPTY_SMS_BULK_FILTERS }
     setFilters(defaults)
     // 필터가 풀렸음을 즉시 반영: 검색 선택/결과/카운트를 먼저 비운 뒤 기본 전체 목록을 다시 조회한다.
+    // (장바구니 selectedRecipients / 그룹 선택 selectedGroupId 는 건드리지 않아 유지된다.)
     setSelectedSearchIds(new Set())
     setSearchResults([])
     setSearchTotalCount(0)
