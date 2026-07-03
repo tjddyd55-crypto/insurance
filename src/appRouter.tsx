@@ -48,6 +48,8 @@ import GeneralRequestPage from './features/company-registry/pages/GeneralRequest
 import InsuranceCompanyContactsViewPage from './features/company-registry/pages/InsuranceCompanyContactsViewPage'
 import UserInsurerAccountsPage from './features/user-insurer-accounts/pages/UserInsurerAccountsPage'
 import ExternalAccountVaultPage from './features/user-insurer-accounts/pages/ExternalAccountVaultPage'
+import SharedAccountVaultListPage from './features/user-insurer-accounts/pages/SharedAccountVaultListPage'
+import SharedAccountVaultDetailPage from './features/user-insurer-accounts/pages/SharedAccountVaultDetailPage'
 import SmsModulePage from './features/sms/pages/SmsModulePage'
 import TaCallPage from './features/ta-call/pages/TaCallPage'
 import { ConsentCompanyPage } from './features/consent/pages/ConsentCompanyPage'
@@ -570,6 +572,14 @@ export const appRouter = createBrowserRouter([
               { path: 'sms/send', element: <Navigate to="/sms/bulk" replace /> },
               { path: 'sms/:tab', element: <SmsModulePage /> },
               { path: 'insurance/account-credentials', element: <UserInsurerAccountsPage /> },
+              {
+                path: 'insurance/account-credentials/shared',
+                element: <SharedAccountVaultListPage />,
+              },
+              {
+                path: 'insurance/account-credentials/shared/:userId',
+                element: <SharedAccountVaultDetailPage />,
+              },
               { path: 'insurance/general-request', element: <GeneralRequestPage /> },
               { path: 'reinsurer-contacts', element: <ReinsurerContactsPage /> },
               { path: 'insurance/print', element: <InsurancePrintPage /> },

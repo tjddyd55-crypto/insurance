@@ -11,6 +11,12 @@ import {
   fetchExternalAccountVaultAccounts,
   patchExternalAccountVaultAccount,
 } from './externalAccountVaultApi'
+import {
+  createSharedUserAccount,
+  deleteSharedUserAccount,
+  fetchSharedUserAccounts,
+  patchSharedUserAccount,
+} from './accountShareVisibilityApi'
 import type { UserInsurerAccountCategory } from '../config/userInsurerAccounts.config'
 
 export type AccountVaultAdapter = {
@@ -57,6 +63,27 @@ export function createExternalAccountVaultAdapter(shareToken: string): AccountVa
     createAccount: (payload) => createExternalAccountVaultAccount(token, payload),
     patchAccount: (id, payload) => patchExternalAccountVaultAccount(token, id, payload),
     deleteAccount: (id) => deleteExternalAccountVaultAccount(token, id),
+  }
+}
+
+/**
+ * 스태프가 같은 GA 의 공유 ON 사용자 계정관리를 다루는 adapter.
+ * 기존 서비스 재사용을 위해 계정 서버 권한은 서버가 다시 검증한다(공유 ON + 같은 GA).
+ */
+export function createStaffSharedAccountVaultAdapter(
+  authToken: string,
+  targetUserId: string,
+): AccountVaultAdapter | null {
+  const token = authToken.trim()
+  const userId = targetUserId.trim()
+  if (!token || !userId) {
+    return null
+  }
+  return {
+    fetchAccounts: async () => (await fetchSharedUserAccounts(token, userId)).accounts,
+    createAccount: (payload) => createSharedUserAccount(token, userId, payload),
+    patchAccount: (id, payload) => patchSharedUserAccount(token, userId, id, payload),
+    deleteAccount: (id) => deleteSharedUserAccount(token, userId, id),
   }
 }
 

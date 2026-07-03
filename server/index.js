@@ -31,6 +31,7 @@ import { registerNotificationsApi } from './apis/notificationsApi.js'
 import { registerMemoApi } from './apis/memoApi.js'
 import { registerUserInsurerAccountsApi } from './apis/userInsurerAccountsApi.js'
 import { registerUserInsurerAccountShareApi } from './apis/userInsurerAccountShareApi.js'
+import { registerUserInsurerAccountSharedApi } from './apis/userInsurerAccountSharedApi.js'
 import { registerTodosApi } from './apis/todosApi.js'
 import { registerTaCallApi } from './apis/taCallApi.js'
 import { registerSuperAdminAnalyticsApi } from './registerSuperAdminAnalyticsApi.js'
@@ -1583,6 +1584,7 @@ registerAdminNoticesApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handl
 registerMemoApi(apiRouter, { pool, requireAuth, handleDbError })
 registerUserInsurerAccountsApi(apiRouter, { pool, requireAuth, handleDbError })
 registerUserInsurerAccountShareApi(apiRouter, { pool, requireAuth, handleDbError })
+registerUserInsurerAccountSharedApi(apiRouter, { pool, requireAuth, handleDbError })
 registerTodosApi(apiRouter, { pool, requireAuth, handleDbError })
 registerTaCallApi(apiRouter, { pool, requireAuth, handleDbError })
 

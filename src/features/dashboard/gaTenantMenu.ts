@@ -74,6 +74,7 @@ export const GA_STAFF_MENU: GaTenantMenuItem[] = [
   { label: '원수사 담당자 관리', path: '/insurer-managers' },
   { label: '손해사정사 계정 관리', path: '/loss-adjusters' },
   { label: '보험사 설계사이트', path: '/insurance/insurer-sites' },
+  { label: '공유 계정관리', path: '/insurance/account-credentials/shared' },
   { label: '추가기능 요청하기', path: '/feature-request' },
 ]
 
@@ -117,6 +118,8 @@ type BuildGaTenantDashboardMenuOptions = {
   includeUserContractSignatures?: boolean
   /** USER 전용 — 청구관리·보험청구·고객소식지(청구 모듈) 노출 */
   includeInsuranceClaimFeatures?: boolean
+  /** GA_ADMIN 전용 — 업무편의에 「공유 계정관리」(스태프 열람) 노출 */
+  includeSharedAccountManagement?: boolean
   dynamicNewsletterBoards?: DynamicNewsletterBoardMenuItem[]
 }
 
@@ -125,8 +128,28 @@ export function buildGaTenantDashboardMenu(
   gaName: string | undefined,
   options: BuildGaTenantDashboardMenuOptions = {},
 ): GaTenantDashboardMenuEntry[] {
-  const { includeUserContractSignatures = false, includeInsuranceClaimFeatures = false, dynamicNewsletterBoards = [] } =
-    options
+  const {
+    includeUserContractSignatures = false,
+    includeInsuranceClaimFeatures = false,
+    includeSharedAccountManagement = false,
+    dynamicNewsletterBoards = [],
+  } = options
+
+  const workConvenienceLinks: GaTenantDashboardMenuEntry[] = [
+    { type: 'link', label: '문자 발송', path: '/sms/settings' },
+    { type: 'link', label: '원수사 연락처', path: '/insurance/contacts' },
+    { type: 'link', label: '계정관리', path: '/insurance/account-credentials' },
+    ...(includeSharedAccountManagement
+      ? [
+          {
+            type: 'link' as const,
+            label: '공유 계정관리',
+            path: '/insurance/account-credentials/shared',
+          },
+        ]
+      : []),
+    { type: 'link', label: '설계사이트', path: '/insurance/insurer-sites' },
+  ]
 
   void gaCode
   void gaName
@@ -212,10 +235,7 @@ export function buildGaTenantDashboardMenu(
     { type: 'link', label: '팀 자료', path: '/team/files' },
 
     { type: 'section', label: '업무편의' },
-    { type: 'link', label: '문자 발송', path: '/sms/settings' },
-    { type: 'link', label: '원수사 연락처', path: '/insurance/contacts' },
-    { type: 'link', label: '계정관리', path: '/insurance/account-credentials' },
-    { type: 'link', label: '설계사이트', path: '/insurance/insurer-sites' },
+    ...workConvenienceLinks,
 
     { type: 'section', label: '내정보' },
     { type: 'link', label: '내 저장공간', path: '/storage' },
@@ -442,6 +462,7 @@ export function buildAppMenuForSession(
       const entries = buildGaTenantDashboardMenu(gaCode, gaName, {
         includeUserContractSignatures: role === 'USER',
         includeInsuranceClaimFeatures,
+        includeSharedAccountManagement: role === 'GA_ADMIN',
         dynamicNewsletterBoards,
       })
       if (role === 'GA_ADMIN') {

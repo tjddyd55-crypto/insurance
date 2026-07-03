@@ -5737,6 +5737,157 @@ div.cta-button.customers-page__action-btn[role='button'] {
   font-size: 0.8125rem;
 }
 
+.user-insurer-accounts-page__share-controls {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.account-share-visibility {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  max-width: 320px;
+}
+
+.account-share-visibility__control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.account-share-visibility__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.account-share-visibility__track {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--border-strong, #cbd5e1);
+  transition: background 0.15s ease;
+}
+
+.account-share-visibility__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2);
+  transition: transform 0.15s ease;
+}
+
+.account-share-visibility__input:checked + .account-share-visibility__track {
+  background: var(--btn-primary-bg, #2563eb);
+}
+
+.account-share-visibility__input:checked + .account-share-visibility__track .account-share-visibility__thumb {
+  transform: translateX(18px);
+}
+
+.account-share-visibility__input:focus-visible + .account-share-visibility__track {
+  outline: 2px solid var(--input-focus-border, #2563eb);
+  outline-offset: 2px;
+}
+
+.account-share-visibility__input:disabled + .account-share-visibility__track {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.account-share-visibility__label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.account-share-visibility__desc {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.account-share-visibility__error {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--danger, #ef4444);
+}
+
+.user-insurer-accounts-page--mobile .user-insurer-accounts-page__share-controls,
+.user-insurer-accounts-page--mobile .account-share-visibility {
+  align-items: stretch;
+  max-width: none;
+}
+
+.user-insurer-accounts-page--mobile .account-share-visibility__desc {
+  text-align: left;
+}
+
+.shared-account-list__banner {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--hint-bg, #eff6ff);
+  border: 1px solid var(--hint-border, #bfdbfe);
+  color: var(--hint-text, #1e40af);
+  font-size: 0.875rem;
+}
+
+.shared-account-list__search {
+  margin-bottom: 12px;
+  max-width: 320px;
+}
+
+.shared-account-list__items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.shared-account-list__item-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  border: 1px solid var(--border-default, #e2e8f0);
+  border-radius: 8px;
+  background: var(--bg-surface, #fff);
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.shared-account-list__item-btn:hover {
+  background: var(--bg-soft, #f8fafc);
+  border-color: var(--border-strong, #cbd5e1);
+}
+
+.shared-account-list__empty,
+.shared-account-list__muted {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
 .external-account-vault-page__header {
   margin-bottom: 0;
 }
