@@ -44,6 +44,7 @@ import CustomerIndustryTemplateFields from '../../features/customers/components/
 import { CustomerCarsEditor } from '../../features/customers/components/CustomerCarsEditor'
 import { CustomerDrivingRadioGroup } from '../../features/customers/components/CustomerDrivingRadioGroup'
 import { CustomerFormSection } from '../../features/customers/components/CustomerFormSection'
+import { CustomerAccountNumberField } from '../../features/customers/components/CustomerAccountNumberField'
 import { useCustomerCrmIndustryContext } from '../../features/customers/hooks/useCustomerCrmIndustryContext'
 import { getCustomerIndustryTemplateFormValidationError } from '../../features/customers/utils/customerIndustryTemplateFormValidation'
 import type { CustomerCarFormItem } from '../../features/customers/types/customerCarForm'
@@ -193,6 +194,9 @@ export type CustomerFormState = {
   /** 보험가입내역 — notes.jsonb.insuranceHistory 로 저장 */
   insuranceHistory: string
 
+  /** 계좌번호 — notes.jsonb.accountNumber 로 저장(자유 텍스트) */
+  accountNumber: string
+
   notes: CustomerNote[]
 
   noteDraft: string
@@ -247,6 +251,8 @@ const EMPTY_FORM: CustomerFormState = {
   medical: '',
 
   insuranceHistory: '',
+
+  accountNumber: '',
 
   notes: [],
 
@@ -364,6 +370,7 @@ export function customerFormStateToSavePayload(form: CustomerFormState): SaveCus
     notes: {
       items: form.notes,
       insuranceHistory: form.insuranceHistory.trim(),
+      accountNumber: form.accountNumber.trim(),
     },
 
     ...(birthDateOpt != null ? { birthDate: birthDateOpt } : {}),
@@ -671,6 +678,16 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
             onChange={(e) => onFormChange({ ...form, insuranceHistory: e.target.value })}
 
+          />
+        </label>
+      </CustomerFormSection>
+
+      <CustomerFormSection title="계좌번호" className="field field--wide">
+        <label className="customer-form-section__solo">
+          <CustomerAccountNumberField
+            value={form.accountNumber}
+            onChange={(next) => onFormChange({ ...form, accountNumber: next })}
+            idSuffix="create"
           />
         </label>
       </CustomerFormSection>

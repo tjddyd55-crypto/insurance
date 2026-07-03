@@ -17,6 +17,7 @@ import {
 } from '../utils/customerDisplayFormat'
 import { resolveGenderAfterSsnInput } from '../utils/inferGenderFromResidentNumberDigits'
 import type { CustomerEditFormState } from '../types/customerEditForm'
+import { CustomerAccountNumberField } from './CustomerAccountNumberField'
 import { CustomerCarsEditor } from './CustomerCarsEditor'
 import { CustomerDrivingRadioGroup } from './CustomerDrivingRadioGroup'
 import CustomerIndustryTemplateFields from './CustomerIndustryTemplateFields'
@@ -261,6 +262,17 @@ export default function CustomerEditForm({
                     prev ? { ...prev, insuranceHistory: e.target.value } : prev,
                   )
                 }
+              />
+            </label>
+          </CustomerFormSection>
+          <CustomerFormSection title="계좌번호" className="field field--wide">
+            <label className="customer-form-section__solo">
+              <CustomerAccountNumberField
+                value={editForm.accountNumber ?? ''}
+                onChange={(next) =>
+                  setEditForm((prev) => (prev ? { ...prev, accountNumber: next } : prev))
+                }
+                idSuffix={`edit-${customerId}`}
               />
             </label>
           </CustomerFormSection>

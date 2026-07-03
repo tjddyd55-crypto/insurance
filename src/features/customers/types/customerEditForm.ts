@@ -18,6 +18,8 @@ export type CustomerEditFormState = {
   carType: string
   medical: string
   insuranceHistory: string
+  /** 계좌번호 — notes.jsonb.accountNumber 로 저장(자유 텍스트) */
+  accountNumber: string
   cars: CustomerCarFormItem[]
   crmExtensionFields: Record<string, string>
   /** 유입 경로 — 빈 문자열은 미지정 */

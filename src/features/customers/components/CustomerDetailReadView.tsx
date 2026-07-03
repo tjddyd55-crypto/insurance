@@ -13,6 +13,7 @@ import {
   formatCustomerInflowSourceLabel,
   isCustomerInflowSourceReferral,
 } from '../config/customerInflowSource.config'
+import { CustomerCopyButton } from './CustomerAccountNumberField'
 import { CustomerCarsReadSection } from './CustomerCarsReadSection'
 import { CustomerRelationsStrip } from './CustomerRelationsStrip'
 import type { CustomerIndustryTemplate } from '../../customer-templates/customerTemplate.types'
@@ -292,6 +293,25 @@ export default function CustomerDetailReadView({
           {normalizeCustomerNotesBag(c.notes).insuranceHistory?.trim()
             ? normalizeCustomerNotesBag(c.notes).insuranceHistory
             : '내용 없음'}
+        </div>
+      </section>
+      <hr className="customer-detail-read__divider" />
+      <section className="customer-detail-read__section" aria-labelledby="customer-account-number-heading">
+        <div className="customer-detail-read__section-header">
+          <h4 id="customer-account-number-heading" className="customer-detail-read__section-title">
+            계좌번호
+          </h4>
+        </div>
+        <div className="customer-detail-read__section-body customer-account-number-read">
+          <span className="customer-account-number-read__value">
+            {normalizeCustomerNotesBag(c.notes).accountNumber?.trim() || '내용 없음'}
+          </span>
+          {normalizeCustomerNotesBag(c.notes).accountNumber?.trim() ? (
+            <CustomerCopyButton
+              text={normalizeCustomerNotesBag(c.notes).accountNumber}
+              ariaLabel="계좌번호 복사"
+            />
+          ) : null}
         </div>
       </section>
       {token?.trim() ? (

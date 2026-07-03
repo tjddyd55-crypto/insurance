@@ -20,12 +20,14 @@ export function inviteCustomerApiRowToFormState(row: ApiCustomerInvite): Custome
   const notesBag = row.notes as Record<string, unknown> | CustomerNote[] | undefined
   let notes: CustomerNote[] = []
   let insuranceHistory = ''
+  let accountNumber = ''
   if (Array.isArray(notesBag)) {
     notes = notesBag.filter((n): n is CustomerNote => n != null && typeof n === 'object')
   } else if (notesBag != null && typeof notesBag === 'object' && Array.isArray(notesBag.items)) {
     const items = notesBag.items as CustomerNote[]
     notes = Array.isArray(items) ? items : []
     insuranceHistory = typeof notesBag.insuranceHistory === 'string' ? notesBag.insuranceHistory : ''
+    accountNumber = typeof notesBag.accountNumber === 'string' ? notesBag.accountNumber : ''
   }
 
   const g = String(row.gender ?? '').trim()
@@ -79,6 +81,8 @@ export function inviteCustomerApiRowToFormState(row: ApiCustomerInvite): Custome
     medical: str(row.medical),
     insuranceHistory:
       insuranceHistory || (typeof row.insuranceHistory === 'string' ? row.insuranceHistory : ''),
+    accountNumber:
+      accountNumber || (typeof row.accountNumber === 'string' ? row.accountNumber : ''),
     notes,
     noteDraft: '',
     crmExtensionFields: crmBag.fields ?? {},
