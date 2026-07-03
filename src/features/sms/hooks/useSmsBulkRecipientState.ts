@@ -143,6 +143,12 @@ export function useSmsBulkRecipientState() {
       setSearchResults(result.customers)
       setSearchTotalCount(result.totalCount)
       setSelectedSearchIds(new Set())
+    } catch (error) {
+      // 검색 실패 시 이전 결과가 남아 사용자를 혼동시키지 않도록 목록/카운트를 비운다.
+      setSearchResults([])
+      setSearchTotalCount(0)
+      setSelectedSearchIds(new Set())
+      setActionNotice(error instanceof Error ? error.message : '검색에 실패했습니다.')
     } finally {
       setSearchBusy(false)
     }
@@ -151,7 +157,10 @@ export function useSmsBulkRecipientState() {
   const resetFilters = useCallback(async () => {
     const defaults = { ...EMPTY_SMS_BULK_FILTERS }
     setFilters(defaults)
+    // 필터가 풀렸음을 즉시 반영: 검색 선택/결과/카운트를 먼저 비운 뒤 기본 전체 목록을 다시 조회한다.
     setSelectedSearchIds(new Set())
+    setSearchResults([])
+    setSearchTotalCount(0)
     await runSearch(defaults)
   }, [runSearch])
 
