@@ -6,26 +6,30 @@ export interface CustomerNote {
   createdAt: string
 }
 
-/** DB notes jsonb: 메모 목록 + 보험가입내역(긴 텍스트) */
+/** DB notes jsonb: 메모 목록 + 보험가입내역(긴 텍스트) + 계좌번호(자유 텍스트) */
 export interface CustomerNotesBag {
   items: CustomerNote[]
   insuranceHistory: string
+  /** 계좌번호 — 은행명/예금주 등 자유 텍스트 허용(포맷 강제 없음) */
+  accountNumber: string
 }
 
 export function normalizeCustomerNotesBag(raw: unknown): CustomerNotesBag {
   if (Array.isArray(raw)) {
-    return { items: raw as CustomerNote[], insuranceHistory: '' }
+    return { items: raw as CustomerNote[], insuranceHistory: '', accountNumber: '' }
   }
   if (raw && typeof raw === 'object') {
     const o = raw as Record<string, unknown>
     const items = Array.isArray(o.items) ? (o.items as CustomerNote[]) : []
     const ih = o.insuranceHistory
+    const acc = o.accountNumber
     return {
       items,
       insuranceHistory: typeof ih === 'string' ? ih : '',
+      accountNumber: typeof acc === 'string' ? acc : '',
     }
   }
-  return { items: [], insuranceHistory: '' }
+  return { items: [], insuranceHistory: '', accountNumber: '' }
 }
 
 export function customerNoteItems(c: Pick<CustomerRecord, 'notes'>): CustomerNote[] {
@@ -34,6 +38,10 @@ export function customerNoteItems(c: Pick<CustomerRecord, 'notes'>): CustomerNot
 
 export function customerInsuranceHistoryText(c: Pick<CustomerRecord, 'notes'>): string {
   return normalizeCustomerNotesBag(c.notes).insuranceHistory.trim()
+}
+
+export function customerAccountNumberText(c: Pick<CustomerRecord, 'notes'>): string {
+  return normalizeCustomerNotesBag(c.notes).accountNumber.trim()
 }
 
 export interface CustomerRecord {

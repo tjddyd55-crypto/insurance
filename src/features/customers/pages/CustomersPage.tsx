@@ -1076,6 +1076,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         notes: {
           items: customerNoteItems(base),
           insuranceHistory: activeEditForm.insuranceHistory.trim(),
+          accountNumber: activeEditForm.accountNumber.trim(),
         },
         carNumber: primaryCar?.carNumber ?? '',
         carModel: primaryCar?.carModel ?? '',

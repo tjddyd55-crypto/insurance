@@ -41,6 +41,7 @@ export function recordToEditForm(c: CustomerRecord): CustomerEditFormState {
     carType: c.carType ?? '',
     medical: c.medical ?? '',
     insuranceHistory: normalizeCustomerNotesBag(c.notes).insuranceHistory,
+    accountNumber: normalizeCustomerNotesBag(c.notes).accountNumber,
     cars: customerRecordToCarFormItems(c),
     crmExtensionFields: { ...(c.crmExtension?.fields ?? {}) },
     inflowSource: c.inflowSource ?? '',

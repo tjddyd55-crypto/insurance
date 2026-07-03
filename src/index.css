@@ -7134,6 +7134,53 @@ div.cta-button.customers-page__action-btn[role='button'] {
   box-sizing: border-box;
 }
 
+/* 계좌번호 입력 + 복사 버튼 (등록/수정 폼) */
+.customer-account-number {
+  display: block;
+  width: 100%;
+}
+
+.customer-account-number__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.customer-account-number__input {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.customer-account-number__copy-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.customer-account-number__copy {
+  white-space: nowrap;
+}
+
+.customer-account-number__feedback {
+  font-size: 0.8125rem;
+  color: var(--text-secondary, #4b5563);
+  min-height: 1em;
+}
+
+/* 계좌번호 읽기 영역 (상세 화면) */
+.customer-account-number-read {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.customer-account-number-read__value {
+  word-break: break-all;
+}
+
 .customer-form-textarea {
   display: block;
   width: 100%;

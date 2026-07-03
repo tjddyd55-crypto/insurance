@@ -555,14 +555,17 @@ function normalizeCustomerNoteItemsArray(itemsRaw) {
 /** DB jsonb 저장 형식: { items: Note[], insuranceHistory?: string } */
 function normalizeCustomerNotesInput(raw) {
   const insuranceHistoryMax = 60000
+  const accountNumberMax = 200
   let insuranceHistory = ''
+  let accountNumber = ''
   let itemsRaw = raw
   if (raw != null && typeof raw === 'object' && !Array.isArray(raw)) {
     insuranceHistory = String(raw.insuranceHistory ?? '').trim().slice(0, insuranceHistoryMax)
+    accountNumber = String(raw.accountNumber ?? '').trim().slice(0, accountNumberMax)
     itemsRaw = raw.items
   }
   const items = normalizeCustomerNoteItemsArray(itemsRaw)
-  return { items, insuranceHistory }
+  return { items, insuranceHistory, accountNumber }
 }
 
 function normalizePhoneNumber(value) {
