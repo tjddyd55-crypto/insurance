@@ -2963,6 +2963,28 @@ export async function initDb() {
     WHERE revoked_at IS NULL
   `)
 
+  // 계정관리 "스태프 공유" ON/OFF 상태. 기존 공유 URL 토큰과는 별개 기능이다.
+  // 행이 없으면 OFF(기본값). ON 인 사용자만 같은 GA 스태프의 공유 목록에 노출된다.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS user_insurer_account_share_prefs (
+      id BIGSERIAL PRIMARY KEY,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id) ON DELETE CASCADE,
+      owner_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      is_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_user_insurer_account_share_prefs_owner
+    ON user_insurer_account_share_prefs (ga_id, owner_user_id)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_user_insurer_account_share_prefs_enabled
+    ON user_insurer_account_share_prefs (ga_id, is_enabled)
+    WHERE is_enabled = true
+  `)
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS customer_consultations (
       id SERIAL PRIMARY KEY,
