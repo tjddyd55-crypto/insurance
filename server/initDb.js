@@ -2078,6 +2078,17 @@ export async function initDb() {
     ALTER COLUMN ga_id DROP NOT NULL
   `)
 
+  /** 소식지 soft-delete: 삭제 시 row 를 보존하고 deleted_at 만 채운다(복구·이력 보존). */
+  await pool.query(`
+    ALTER TABLE insurance_company_newsletters
+    ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_insurance_company_newsletters_active
+    ON insurance_company_newsletters(ga_id)
+    WHERE deleted_at IS NULL
+  `)
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS public_board_writer_accounts (
       id TEXT PRIMARY KEY,

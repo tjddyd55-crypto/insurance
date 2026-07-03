@@ -34,4 +34,12 @@ export type InsurerManagerNewsListViewProps = {
   searchQuery: string
   onSearchQueryChange: (value: string) => void
   noSearchResults: boolean
+  /** 삭제 실행 (확인창 → API → 목록 제거). 권한 없는 목록에서는 undefined. */
+  onDeleteItem?: (item: NewsletterItem) => void
+  /** 아이템별 삭제 버튼 노출 판정 (작성자 본인 or GA 관리자). */
+  canDeleteItem?: (item: NewsletterItem) => boolean
+  /** 삭제 진행 중인 아이템 id (버튼 로딩 표시용). */
+  deleteBusyId?: string | null
+  /** 삭제 성공/실패 인라인 안내 문구. */
+  deleteNotice?: string
 }

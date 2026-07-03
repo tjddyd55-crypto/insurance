@@ -544,6 +544,16 @@
   background: var(--bg-soft);
 }
 
+.insurer-news-page .insurer-news-inline-notice {
+  margin: 8px 16px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
 .pc-root .news-modal,
 .insurer-news-page .news-modal {
   position: fixed;

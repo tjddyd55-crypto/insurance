@@ -1,6 +1,5 @@
 import { isConsentR2Enabled, r2DeleteObject, isR2ObjectNotFoundError } from '../lib/consentStorage.js'
-
-const GA_WIDE_CUSTOMER_NEWS_ROLES = new Set(['SUPER_ADMIN', 'GA_ADMIN', 'GA_STAFF'])
+import { canDeleteNewsletter } from '../lib/newsletterDeletePermission.js'
 
 /**
  * @param {unknown} payload
@@ -46,15 +45,12 @@ function isCustomerNewsPayload(payload) {
  * }} args
  * @returns {Promise<{ ok: true, deletedId: string } | { ok: false, status: number, message: string }>}
  */
-export async function deleteCustomerNewsletterHard(pool, args) {
+export async function deleteCustomerNewsletter(pool, args) {
   const { actorUserId, actorRole, gaId, newsId, targetCustomerId } = args
   const actorId = String(actorUserId ?? '').trim()
   if (!actorId) {
     return { ok: false, status: 401, message: '로그인이 필요합니다.' }
   }
-
-  const roleNorm = String(actorRole ?? '').trim()
-  const canManageGaWide = GA_WIDE_CUSTOMER_NEWS_ROLES.has(roleNorm)
 
   const rowRes = await pool.query(
     `
@@ -62,6 +58,7 @@ export async function deleteCustomerNewsletterHard(pool, args) {
     FROM insurance_company_newsletters
     WHERE id = $1
       AND ga_id = $2
+      AND deleted_at IS NULL
     LIMIT 1
     `,
     [newsId, gaId],
@@ -83,7 +80,7 @@ export async function deleteCustomerNewsletterHard(pool, args) {
     .toLowerCase()
   const scope = scopeRaw === 'personal' ? 'personal' : 'all'
 
-  if (!canManageGaWide && publisherId !== actorId) {
+  if (!canDeleteNewsletter({ userId: actorId, role: actorRole }, { publisherId })) {
     return { ok: false, status: 403, message: '이 소식지를 삭제할 권한이 없습니다.' }
   }
 
@@ -112,10 +109,11 @@ export async function deleteCustomerNewsletterHard(pool, args) {
   try {
     await client.query('BEGIN')
     await client.query(`DELETE FROM customer_news_reads WHERE news_id = hashtextextended($1::text, 0)`, [newsId])
-    const del = await client.query(`DELETE FROM insurance_company_newsletters WHERE id = $1 AND ga_id = $2`, [
-      newsId,
-      gaId,
-    ])
+    // soft-delete: row 보존(복구·이력) + deleted_at 기록. 첨부(R2)는 아래에서 즉시 제거.
+    const del = await client.query(
+      `UPDATE insurance_company_newsletters SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1 AND ga_id = $2 AND deleted_at IS NULL`,
+      [newsId, gaId],
+    )
     if (del.rowCount === 0) {
       await client.query('ROLLBACK')
       return { ok: false, status: 404, message: '삭제할 소식지를 찾을 수 없습니다.' }

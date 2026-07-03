@@ -1,6 +1,6 @@
 import { safeQuery } from '../utils/dbSafeQuery.js'
 import { parseGaId } from '../lib/parseGaId.js'
-import { deleteCustomerNewsletterHard } from '../services/customerNewsDeleteService.js'
+import { deleteCustomerNewsletter } from '../services/customerNewsDeleteService.js'
 import {
   getKstEndOfDayDate,
   mapUserNotificationRow,
@@ -484,7 +484,7 @@ export function registerNotificationsApi(apiRouter, ctx) {
       }
       const targetCustomerId = parsePositiveIntLocal(req.query?.targetCustomerId)
 
-      const result = await deleteCustomerNewsletterHard(pool, {
+      const result = await deleteCustomerNewsletter(pool, {
         actorUserId: userId,
         actorRole: req.user?.role,
         gaId,

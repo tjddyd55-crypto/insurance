@@ -392,6 +392,7 @@ export async function listBoardWriterNewsletters(executor, board, writerOwnerGaI
         ORDER BY a.sort_order ASC LIMIT 1) AS hero_object_key
     FROM insurance_company_newsletters n
     WHERE LOWER(TRIM(n.payload->>'dynamicBoardSlug')) = $1
+      AND n.deleted_at IS NULL
       ${gaFilterSql}
       AND COALESCE((n.payload->>'customerVisible')::boolean, false) = false
     ORDER BY n.created_at DESC
@@ -420,6 +421,7 @@ export async function loadBoardWriterNewsletterById(executor, board, newsletterI
     SELECT *
     FROM insurance_company_newsletters
     WHERE id = $1
+      AND deleted_at IS NULL
       AND LOWER(TRIM(payload->>'dynamicBoardSlug')) = $2
       ${gaFilterSql}
       AND COALESCE((payload->>'customerVisible')::boolean, false) = false
@@ -562,12 +564,14 @@ export async function deleteBoardWriterNewsletter(pool, withTransaction, input) 
   const attRows = await loadAttachmentsForNewsletter(pool, newsletterId, gaId)
   const objectKeys = attRows.map((row) => String(row.object_key ?? '').trim()).filter(Boolean)
 
+  // soft-delete: row 보존(복구·이력) + deleted_at 기록. 첨부(R2 + DB row)는 즉시 제거.
   await withTransaction(async (client) => {
     await deleteAttachmentsForNewsletter(client, newsletterId, gaId)
     await client.query(
       `
-      DELETE FROM insurance_company_newsletters
-      WHERE id = $1 AND ${global ? 'ga_id IS NULL' : 'ga_id = $2'}
+      UPDATE insurance_company_newsletters
+      SET deleted_at = NOW(), updated_at = NOW()
+      WHERE id = $1 AND ${global ? 'ga_id IS NULL' : 'ga_id = $2'} AND deleted_at IS NULL
       `,
       global ? [newsletterId] : [newsletterId, gaId],
     )

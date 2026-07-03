@@ -2633,6 +2633,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
           FROM insurance_company_newsletters n
           WHERE n.ga_id = $1
             AND n.status = 'PUBLISHED'
+            AND n.deleted_at IS NULL
             AND COALESCE((n.payload->>'customerVisible')::boolean, false) = true
             AND COALESCE(NULLIF(TRIM(n.payload->>'publisherId'), ''), '') = $2
           `,
