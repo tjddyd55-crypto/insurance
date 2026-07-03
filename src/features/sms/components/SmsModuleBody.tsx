@@ -12,9 +12,10 @@ import { resolveSmsAdDisplayName } from '../utils/smsMessageMeta'
 import type { SmsPreviewSubstitution } from '../utils/smsTemplateVariables'
 import type { SmsModuleTab } from '../types/sms.types'
 
+// 개별 「문자 보내기」(send)는 당분간 사용하지 않으므로 상단 탭 동선에서 숨긴다.
+// 관련 패널/핸들러 코드는 보존하며, /sms/send 직접 접근은 라우터에서 /sms/bulk 로 redirect 한다.
 const TABS: { id: SmsModuleTab; label: string }[] = [
   { id: 'settings', label: '문자 설정' },
-  { id: 'send', label: '문자 보내기' },
   { id: 'bulk', label: '단체문자' },
   { id: 'scheduled', label: '예약문자' },
   { id: 'templates', label: '문자 템플릿' },

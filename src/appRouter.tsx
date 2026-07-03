@@ -567,6 +567,7 @@ export const appRouter = createBrowserRouter([
               { path: 'insurance/contacts', element: <InsuranceCompanyContactsViewPage /> },
               { path: 'ta-call', element: <TaCallPage /> },
               { path: 'sms', element: <Navigate to="/sms/settings" replace /> },
+              { path: 'sms/send', element: <Navigate to="/sms/bulk" replace /> },
               { path: 'sms/:tab', element: <SmsModulePage /> },
               { path: 'insurance/account-credentials', element: <UserInsurerAccountsPage /> },
               { path: 'insurance/general-request', element: <GeneralRequestPage /> },

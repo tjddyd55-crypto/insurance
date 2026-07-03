@@ -26,6 +26,7 @@ function parseTab(raw: string | undefined): SmsModuleTab {
 export default function SmsModulePage() {
   const navigate = useNavigate()
   const params = useParams()
+  // 개별 「문자 보내기」(/sms/send)는 라우터에서 /sms/bulk 로 redirect 되므로 여기서 다루지 않는다.
   const initialTab = parseTab(params.tab)
   const state = useSmsModuleState(initialTab)
 

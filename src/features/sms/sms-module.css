@@ -1099,6 +1099,9 @@
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
+  /* compact 고정 높이: 콘텐츠만큼만 차지하고 남은 높이를 나눠 먹지 않는다. */
+  min-height: 44px;
+  align-self: start;
 }
 
 .sms-bulk-workspace--pc .sms-bulk-compact-row--customer.sms-bulk-compact-row--pc {
@@ -1170,6 +1173,9 @@
   align-items: center;
   gap: 0.35rem 0.5rem;
   padding: 0.65rem 0.75rem;
+  /* compact 고정 높이(모바일): 남은 높이를 나눠 먹어 커지지 않게 한다. */
+  min-height: 52px;
+  align-self: start;
 }
 
 .sms-bulk-workspace--mobile .sms-bulk-compact-row--mobile .sms-bulk-compact-row__name {
@@ -1260,6 +1266,10 @@
   overflow: auto;
   display: grid;
   gap: 0.5rem;
+  /* 리스트가 남은 높이를 채우더라도(center 열의 flex:1) 행을 세로로 늘리지 않는다.
+     기본 align-content(stretch 동작)가 자동 행을 늘려 카드가 과도하게 커지던 문제를 차단. */
+  align-content: start;
+  grid-auto-rows: min-content;
 }
 
 .sms-bulk-workspace__left .sms-bulk-search__list,
