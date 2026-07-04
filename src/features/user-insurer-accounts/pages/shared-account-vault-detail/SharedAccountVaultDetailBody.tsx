@@ -1,4 +1,5 @@
 import { AccountVaultManager } from '../../components/AccountVaultManager'
+import { SHARED_USER_INSURER_ACCOUNT_CATEGORIES } from '../../config/userInsurerAccounts.config'
 import type { SharedAccountVaultDetailViewProps } from '../sharedAccountVault.types'
 
 type Props = SharedAccountVaultDetailViewProps & {
@@ -40,7 +41,12 @@ export function SharedAccountVaultDetailBody({
           {metaLoading ? (
             <p className="shared-account-list__muted">불러오는 중…</p>
           ) : (
-            <AccountVaultManager mode="external" layout={layout} adapter={adapter} />
+            <AccountVaultManager
+              mode="external"
+              layout={layout}
+              adapter={adapter}
+              visibleCategories={SHARED_USER_INSURER_ACCOUNT_CATEGORIES}
+            />
           )}
         </>
       )}

@@ -9,6 +9,19 @@ export const USER_INSURER_ACCOUNT_TABS: Array<{
   { value: 'GENERAL', label: '일반' },
 ]
 
+/** 본인 계정관리 등 전체 카테고리 노출 화면 */
+export const ALL_USER_INSURER_ACCOUNT_CATEGORIES: UserInsurerAccountCategory[] = [
+  'LIFE',
+  'NON_LIFE',
+  'GENERAL',
+]
+
+/** 공유·외부 URL 계정관리 — 생명/손해만 노출 */
+export const SHARED_USER_INSURER_ACCOUNT_CATEGORIES: UserInsurerAccountCategory[] = [
+  'LIFE',
+  'NON_LIFE',
+]
+
 export const USER_INSURER_ACCOUNT_ADD_LABEL: Record<UserInsurerAccountCategory, string> = {
   LIFE: '+ 생명보험 계정 추가',
   NON_LIFE: '+ 손해보험 계정 추가',

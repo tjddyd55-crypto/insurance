@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { FormButton, FormInput } from '../../../components/form'
 import { BaseDialog } from '../../../components/dialog/BaseDialog'
 import {
+  ALL_USER_INSURER_ACCOUNT_CATEGORIES,
   USER_INSURER_ACCOUNT_ADD_LABEL,
   USER_INSURER_ACCOUNT_EMPTY_LABEL,
   USER_INSURER_ACCOUNT_TABS,
@@ -179,10 +180,22 @@ function AccountSection({
 
 type UserInsurerAccountsPanelProps = AccountVaultViewProps & {
   layout: 'dual-column' | 'stacked'
+  visibleCategories?: UserInsurerAccountCategory[]
 }
+
+const ACCOUNT_SECTIONS: Array<{
+  title: string
+  category: UserInsurerAccountCategory
+  rowsKey: 'lifeAccounts' | 'nonLifeAccounts' | 'generalAccounts'
+}> = [
+  { title: '생명보험', category: 'LIFE', rowsKey: 'lifeAccounts' },
+  { title: '손해보험', category: 'NON_LIFE', rowsKey: 'nonLifeAccounts' },
+  { title: '일반', category: 'GENERAL', rowsKey: 'generalAccounts' },
+]
 
 export function UserInsurerAccountsPanel({
   layout,
+  visibleCategories = ALL_USER_INSURER_ACCOUNT_CATEGORIES,
   activeTab,
   setActiveTab,
   lifeAccounts,
@@ -200,27 +213,45 @@ export function UserInsurerAccountsPanel({
   closeAddModal,
   submitAdd,
 }: UserInsurerAccountsPanelProps) {
+  const visibleTabs = useMemo(
+    () => USER_INSURER_ACCOUNT_TABS.filter((tab) => visibleCategories.includes(tab.value)),
+    [visibleCategories],
+  )
+  const visibleSections = useMemo(
+    () => ACCOUNT_SECTIONS.filter((section) => visibleCategories.includes(section.category)),
+    [visibleCategories],
+  )
+  const accountsByCategory = {
+    lifeAccounts,
+    nonLifeAccounts,
+    generalAccounts,
+  }
+
+  useEffect(() => {
+    if (visibleCategories.includes(activeTab)) {
+      return
+    }
+    setActiveTab(visibleCategories[0] ?? 'LIFE')
+  }, [activeTab, setActiveTab, visibleCategories])
+
   const showTabs = layout === 'stacked'
-  const stackedCategory = activeTab
+  const stackedCategory = visibleCategories.includes(activeTab) ? activeTab : visibleCategories[0] ?? 'LIFE'
   const stackedTitle =
     USER_INSURER_ACCOUNT_TABS.find((tab) => tab.value === stackedCategory)?.label ?? '생명보험'
-  const stackedRows =
-    stackedCategory === 'LIFE'
-      ? lifeAccounts
-      : stackedCategory === 'NON_LIFE'
-        ? nonLifeAccounts
-        : generalAccounts
+  const stackedRows = accountsByCategory[
+    ACCOUNT_SECTIONS.find((section) => section.category === stackedCategory)?.rowsKey ?? 'lifeAccounts'
+  ]
 
   return (
     <div className="user-insurer-accounts-page__panel">
       {showTabs ? (
         <div className="user-insurer-accounts-page__tabs">
-          {USER_INSURER_ACCOUNT_TABS.map((tab) => (
+          {visibleTabs.map((tab) => (
             <FormButton
               key={tab.value}
               htmlType="button"
-              variant={activeTab === tab.value ? 'primary' : 'secondary'}
-              onClick={() => setActiveTab(tab.value as UserInsurerAccountCategory)}
+              variant={stackedCategory === tab.value ? 'primary' : 'secondary'}
+              onClick={() => setActiveTab(tab.value)}
             >
               {tab.label}
             </FormButton>
@@ -237,33 +268,18 @@ export function UserInsurerAccountsPanel({
 
       {!loading && layout === 'dual-column' ? (
         <div className="user-insurer-accounts-grid user-insurer-account-board">
-          <AccountSection
-            title="생명보험"
-            category="LIFE"
-            rows={lifeAccounts}
-            pendingId={pendingId}
-            onAdd={() => openAddModal('LIFE')}
-            onSave={(row, patch) => void saveAccountField(row, patch)}
-            onDelete={(row) => void removeAccount(row)}
-          />
-          <AccountSection
-            title="손해보험"
-            category="NON_LIFE"
-            rows={nonLifeAccounts}
-            pendingId={pendingId}
-            onAdd={() => openAddModal('NON_LIFE')}
-            onSave={(row, patch) => void saveAccountField(row, patch)}
-            onDelete={(row) => void removeAccount(row)}
-          />
-          <AccountSection
-            title="일반"
-            category="GENERAL"
-            rows={generalAccounts}
-            pendingId={pendingId}
-            onAdd={() => openAddModal('GENERAL')}
-            onSave={(row, patch) => void saveAccountField(row, patch)}
-            onDelete={(row) => void removeAccount(row)}
-          />
+          {visibleSections.map((section) => (
+            <AccountSection
+              key={section.category}
+              title={section.title}
+              category={section.category}
+              rows={accountsByCategory[section.rowsKey]}
+              pendingId={pendingId}
+              onAdd={() => openAddModal(section.category)}
+              onSave={(row, patch) => void saveAccountField(row, patch)}
+              onDelete={(row) => void removeAccount(row)}
+            />
+          ))}
         </div>
       ) : null}
 
@@ -289,7 +305,7 @@ export function UserInsurerAccountsPanel({
       >
         <div className="user-insurer-accounts-page__add-modal">
           <header className="user-insurer-accounts-page__add-modal-header">
-            <h2>{USER_INSURER_ACCOUNT_ADD_LABEL[activeTab]}</h2>
+            <h2>{USER_INSURER_ACCOUNT_ADD_LABEL[stackedCategory]}</h2>
           </header>
           <div className="user-insurer-accounts-page__add-modal-body">
             <label className="user-insurer-accounts-page__field">

@@ -5979,6 +5979,48 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .shared-account-workspace__search {
   max-width: none;
+  width: 100%;
+  min-width: 0;
+}
+
+.shared-account-workspace-page .shared-account-workspace__search-input.user-form-control,
+.external-account-vault-page .shared-account-workspace__search-input.user-form-control,
+.shared-account-list .shared-account-workspace__search-input.user-form-control {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--input-bg);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.shared-account-workspace-page .shared-account-workspace__search-input.user-form-control::placeholder,
+.external-account-vault-page .shared-account-workspace__search-input.user-form-control::placeholder,
+.shared-account-list .shared-account-workspace__search-input.user-form-control::placeholder {
+  color: var(--placeholder);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .shared-account-workspace-page .shared-account-workspace__search-input.user-form-control:hover:not(:disabled):not([readonly]),
+  .external-account-vault-page .shared-account-workspace__search-input.user-form-control:hover:not(:disabled):not([readonly]),
+  .shared-account-list .shared-account-workspace__search-input.user-form-control:hover:not(:disabled):not([readonly]) {
+    border-color: var(--border-strong);
+  }
+}
+
+.shared-account-workspace-page .shared-account-workspace__search-input.user-form-control:focus:not(:disabled):not([readonly]),
+.shared-account-workspace-page .shared-account-workspace__search-input.user-form-control:focus-visible:not(:disabled):not([readonly]),
+.external-account-vault-page .shared-account-workspace__search-input.user-form-control:focus:not(:disabled):not([readonly]),
+.external-account-vault-page .shared-account-workspace__search-input.user-form-control:focus-visible:not(:disabled):not([readonly]),
+.shared-account-list .shared-account-workspace__search-input.user-form-control:focus:not(:disabled):not([readonly]),
+.shared-account-list .shared-account-workspace__search-input.user-form-control:focus-visible:not(:disabled):not([readonly]) {
+  outline: none;
+  border-color: var(--input-focus-border);
+  box-shadow: none;
 }
 
 .shared-account-workspace__detail {

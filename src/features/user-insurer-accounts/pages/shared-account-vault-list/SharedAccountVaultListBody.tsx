@@ -57,6 +57,7 @@ export function SharedAccountVaultListBody({
             <div className="shared-account-list__search">
               <FormInput
                 type="search"
+                className="shared-account-workspace__search-input user-form-control"
                 value={search}
                 onChange={(event) => onSearchChange(event.target.value)}
                 placeholder="이름으로 검색"

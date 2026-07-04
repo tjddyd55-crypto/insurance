@@ -121,6 +121,32 @@ export function formatExternalAccountVaultTitle(ownerDisplayName: string | null 
   return '사용자의 계정입니다'
 }
 
+/**
+ * 공유·외부 URL 화면에서 허용 카테고리만 adapter 경계에서 다룬다.
+ * (UI 숨김 + fetch/create 가드 — 서버 CRUD 엔드포인트는 변경하지 않음)
+ */
+export function withVisibleAccountCategories(
+  adapter: AccountVaultAdapter,
+  visibleCategories: UserInsurerAccountCategory[],
+): AccountVaultAdapter {
+  const allowed = new Set<UserInsurerAccountCategory>(visibleCategories)
+
+  return {
+    fetchAccounts: async () => {
+      const rows = await adapter.fetchAccounts()
+      return rows.filter((row) => allowed.has(row.category))
+    },
+    createAccount: async (payload) => {
+      if (!allowed.has(payload.category)) {
+        throw new Error('shared_account_category_not_allowed')
+      }
+      return adapter.createAccount(payload)
+    },
+    patchAccount: (id, payload) => adapter.patchAccount(id, payload),
+    deleteAccount: (id) => adapter.deleteAccount(id),
+  }
+}
+
 export const EXTERNAL_ACCOUNT_VAULT_LINK_DESCRIPTION = '보험사 계정관리 페이지입니다.'
 
 export function formatExternalAccountVaultLinkTitle(ownerDisplayName: string | null | undefined): string {
