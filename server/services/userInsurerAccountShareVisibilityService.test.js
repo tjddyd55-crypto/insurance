@@ -64,3 +64,33 @@ test('getTargetShareState — 대상 공유 OFF 면 isEnabled=false 로 반환(=
   const state = await getTargetShareState(null, fake, 10, 'u2')
   assert.deepEqual(state, { gaId: 10, isEnabled: false })
 })
+
+test('share visibility lifecycle — 행 없음 GET false, PATCH true/false 반영', async () => {
+  /** @type {Map<string, boolean>} */
+  const prefs = new Map()
+  const key = '10:u1'
+
+  const fake = async (_db, sql, params) => {
+    const gaId = params[0]
+    const userId = params[1]
+    const mapKey = `${gaId}:${userId}`
+
+    if (sql.includes('SELECT is_enabled') && sql.includes('FROM user_insurer_account_share_prefs')) {
+      const enabled = prefs.get(mapKey)
+      return enabled === undefined ? { rows: [], rowCount: 0 } : { rows: [{ is_enabled: enabled }], rowCount: 1 }
+    }
+
+    if (sql.includes('INSERT INTO user_insurer_account_share_prefs')) {
+      prefs.set(mapKey, Boolean(params[2]))
+      return { rows: [], rowCount: 1 }
+    }
+
+    throw new Error(`unexpected sql: ${sql}`)
+  }
+
+  assert.equal(await getShareVisibility(null, fake, 'u1', 10), false)
+  assert.equal(await setShareVisibility(null, fake, 'u1', 10, true), true)
+  assert.equal(await getShareVisibility(null, fake, 'u1', 10), true)
+  assert.equal(await setShareVisibility(null, fake, 'u1', 10, false), false)
+  assert.equal(await getShareVisibility(null, fake, 'u1', 10), false)
+})

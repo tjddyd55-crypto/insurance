@@ -16,6 +16,11 @@ import {
   setShareVisibility,
 } from '../services/userInsurerAccountShareVisibilityService.js'
 import { resolveOwnerDisplayName } from '../services/userInsurerAccountShareService.js'
+import {
+  logShareVisibilityPatchValidationFailure,
+  parseShareVisibilityEnabledFromBody,
+  shareVisibilitySuccessPayload,
+} from '../lib/userInsurerAccountShareVisibilityApi.js'
 
 /**
  * 요청자(로그인 사용자) 컨텍스트. gaId 없으면 400.
@@ -88,7 +93,7 @@ export function registerUserInsurerAccountSharedApi(apiRouter, ctx) {
         return
       }
       const enabled = await getShareVisibility(pool, safeQuery, requester.userId, requester.gaId)
-      res.json({ enabled })
+      res.json(shareVisibilitySuccessPayload(enabled))
     } catch (error) {
       handleDbError(error, req, res)
     }
@@ -101,13 +106,17 @@ export function registerUserInsurerAccountSharedApi(apiRouter, ctx) {
       if (!requester) {
         return
       }
-      const raw = req.body?.enabled
-      if (typeof raw !== 'boolean') {
+      const nextEnabled = parseShareVisibilityEnabledFromBody(req.body)
+      if (nextEnabled == null) {
+        logShareVisibilityPatchValidationFailure(req, 'enabled_boolean_required', {
+          userId: requester.userId,
+          gaId: requester.gaId,
+        })
         res.status(400).json({ message: 'enabled 값(true/false)이 필요합니다.' })
         return
       }
-      const enabled = await setShareVisibility(pool, safeQuery, requester.userId, requester.gaId, raw)
-      res.json({ enabled })
+      const enabled = await setShareVisibility(pool, safeQuery, requester.userId, requester.gaId, nextEnabled)
+      res.json(shareVisibilitySuccessPayload(enabled))
     } catch (error) {
       handleDbError(error, req, res)
     }

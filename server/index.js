@@ -1582,9 +1582,11 @@ registerNoticesApi(apiRouter, { pool, requireAuth, handleDbError })
 registerAdminNoticesApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
 
 registerMemoApi(apiRouter, { pool, requireAuth, handleDbError })
-registerUserInsurerAccountsApi(apiRouter, { pool, requireAuth, handleDbError })
+// user-insurer-accounts: 문자열 경로(share-visibility 등)를 :id 파라미터 라우트보다 먼저 등록해야
+// PATCH /user-insurer-accounts/share-visibility 가 :id=share-visibility 로 오매칭되지 않는다.
 registerUserInsurerAccountShareApi(apiRouter, { pool, requireAuth, handleDbError })
 registerUserInsurerAccountSharedApi(apiRouter, { pool, requireAuth, handleDbError })
+registerUserInsurerAccountsApi(apiRouter, { pool, requireAuth, handleDbError })
 registerTodosApi(apiRouter, { pool, requireAuth, handleDbError })
 registerTaCallApi(apiRouter, { pool, requireAuth, handleDbError })
 
