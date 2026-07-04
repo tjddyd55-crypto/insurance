@@ -1,6 +1,6 @@
 import { safeQuery } from '../utils/dbSafeQuery.js'
 import { parseGaId } from '../lib/parseGaId.js'
-import { canAccessSharedAccountManagement } from '../lib/sharedAccountAccess.js'
+import { canAccessSharedAccountManagement, canAccessSharedAccountUserList } from '../lib/sharedAccountAccess.js'
 import { listUserInsurerAccounts } from '../services/userInsurerAccountService.js'
 import {
   createUserInsurerAccountRecord,
@@ -130,17 +130,20 @@ export function registerUserInsurerAccountSharedApi(apiRouter, ctx) {
         return
       }
       if (
-        !canAccessSharedAccountManagement({
+        !canAccessSharedAccountUserList({
           requesterRole: requester.role,
           requesterGaId: requester.gaId,
-          targetGaId: requester.gaId,
-          targetShareEnabled: true,
         })
       ) {
         res.status(403).json({ message: '공유 계정관리 목록에 접근할 권한이 없습니다.' })
         return
       }
       const data = await listSharedAccountUsers(pool, safeQuery, requester.gaId, requester.userId)
+      console.info('[shared-users] list', {
+        requesterRole: requester.role,
+        requesterGaId: requester.gaId,
+        returnedRowCount: data.length,
+      })
       res.json({ success: true, data })
     } catch (error) {
       handleDbError(error, req, res)

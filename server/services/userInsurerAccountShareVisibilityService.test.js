@@ -50,6 +50,7 @@ test('listSharedAccountUsers — 이름만 매핑하고 요청자 본인을 제�
   // 같은 GA + 공유 ON + 본인 제외 조건이 쿼리에 반영되는지
   assert.match(calls[0].sql, /is_enabled = true/)
   assert.match(calls[0].sql, /owner_user_id <> \$2/)
+  assert.match(calls[0].sql, /u\.role = 'USER'/)
   assert.deepEqual(calls[0].params, [10, 'u1'])
 })
 

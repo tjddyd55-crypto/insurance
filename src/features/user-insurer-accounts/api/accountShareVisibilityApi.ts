@@ -40,11 +40,10 @@ export async function updateAccountShareVisibility(token: string, enabled: boole
 /** 같은 GA 에서 공유 ON 인 사용자 목록(이름만) */
 export async function fetchSharedAccountUsers(token: string): Promise<SharedAccountUser[]> {
   const t = requireToken(token)
-  const { data } = await apiRequest<{ success: boolean; data: SharedAccountUser[] }>(
-    '/api/user-insurer-accounts/shared-users',
-    { token: t },
-  )
-  return Array.isArray(data) ? data : []
+  const rows = await apiRequest<SharedAccountUser[]>('/api/user-insurer-accounts/shared-users', {
+    token: t,
+  })
+  return Array.isArray(rows) ? rows : []
 }
 
 function sharedAccountsPath(userId: string): string {
