@@ -71,7 +71,7 @@ export function SharedAccountVaultWorkspaceBody(props: SharedAccountVaultWorkspa
         </div>
         {listLink ? (
           <div className="user-insurer-accounts-page__share-controls shared-account-list__link-controls">
-            <SharedAccountListLinkActions {...listLink} headingLabel="공유 계정관리 목록 URL" />
+            <SharedAccountListLinkActions {...listLink} />
           </div>
         ) : null}
       </header>
