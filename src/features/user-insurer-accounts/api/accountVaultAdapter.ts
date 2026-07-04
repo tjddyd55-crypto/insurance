@@ -17,6 +17,12 @@ import {
   fetchSharedUserAccounts,
   patchSharedUserAccount,
 } from './accountShareVisibilityApi'
+import {
+  createPublicSharedUserAccount,
+  deletePublicSharedUserAccount,
+  fetchPublicSharedUserAccounts,
+  patchPublicSharedUserAccount,
+} from './publicSharedAccountListVaultApi'
 import type { UserInsurerAccountCategory } from '../config/userInsurerAccounts.config'
 
 export type AccountVaultAdapter = {
@@ -84,6 +90,26 @@ export function createStaffSharedAccountVaultAdapter(
     createAccount: (payload) => createSharedUserAccount(token, userId, payload),
     patchAccount: (id, payload) => patchSharedUserAccount(token, userId, id, payload),
     deleteAccount: (id) => deleteSharedUserAccount(token, userId, id),
+  }
+}
+
+/**
+ * 공개 "공유 계정관리 목록 URL" token 으로 대상 USER 계정관리를 다루는 adapter.
+ */
+export function createPublicSharedListAccountVaultAdapter(
+  listToken: string,
+  targetUserId: string,
+): AccountVaultAdapter | null {
+  const token = listToken.trim()
+  const userId = targetUserId.trim()
+  if (!token || !userId) {
+    return null
+  }
+  return {
+    fetchAccounts: async () => (await fetchPublicSharedUserAccounts(token, userId)).accounts,
+    createAccount: (payload) => createPublicSharedUserAccount(token, userId, payload),
+    patchAccount: (id, payload) => patchPublicSharedUserAccount(token, userId, id, payload),
+    deleteAccount: (id) => deletePublicSharedUserAccount(token, userId, id),
   }
 }
 

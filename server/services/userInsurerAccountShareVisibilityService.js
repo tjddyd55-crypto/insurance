@@ -90,6 +90,37 @@ export async function listSharedAccountUsers(db, safeQueryExec, gaId, excludeUse
 }
 
 /**
+ * 같은 GA 에서 공유 ON 인 USER 목록(이름만). 공개 목록 URL 등 요청자 제외 없이 전체 조회.
+ * @param {import('pg').Pool | import('pg').PoolClient} db
+ * @param {typeof safeQuery} safeQueryExec
+ * @param {number} gaId
+ * @returns {Promise<Array<{ userId: string, name: string }>>}
+ */
+export async function listSharedAccountUsersForGa(db, safeQueryExec, gaId) {
+  const r = await safeQueryExec(
+    db,
+    `
+    SELECT u.id, u.display_name, u.name, u.username
+    FROM user_insurer_account_share_prefs p
+    JOIN users u ON u.id = p.owner_user_id
+    WHERE p.ga_id = $1
+      AND p.is_enabled = true
+      AND COALESCE(u.is_deleted, false) = false
+      AND u.role = 'USER'
+    ORDER BY
+      COALESCE(NULLIF(TRIM(u.display_name), ''), NULLIF(TRIM(u.name), ''), u.username) ASC,
+      u.id ASC
+    `,
+    [gaId],
+    { allowUnscoped: true },
+  )
+  return r.rows.map((row) => ({
+    userId: String(row.id),
+    name: resolveOwnerDisplayName(row.display_name, row.name, row.username),
+  }))
+}
+
+/**
  * 특정 대상 사용자가 요청자와 같은 GA 에서 공유 ON 상태인지 조회.
  * (권한 판정은 sharedAccountAccess.canAccessSharedAccountManagement 로 분리)
  * @param {import('pg').Pool | import('pg').PoolClient} db

@@ -5849,6 +5849,48 @@ div.cta-button.customers-page__action-btn[role='button'] {
   font-size: 0.875rem;
 }
 
+.shared-account-list-link {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border-default, #e2e8f0);
+  background: var(--bg-surface, #fff);
+}
+
+.shared-account-list-link__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 8px;
+}
+
+.shared-account-list-link__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.shared-account-list-link__desc,
+.shared-account-list-link__warning {
+  margin: 0 0 8px;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.shared-account-list-link__desc {
+  color: var(--text-secondary);
+}
+
+.shared-account-list-link__warning {
+  color: var(--hint-text, #1e40af);
+}
+
+.shared-account-list-link .account-vault-share-link-actions {
+  margin-top: 4px;
+}
+
 .shared-account-list__search {
   margin-bottom: 12px;
   max-width: 320px;
