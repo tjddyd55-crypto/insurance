@@ -5745,6 +5745,59 @@ div.cta-button.customers-page__action-btn[role='button'] {
   gap: 8px;
 }
 
+.user-insurer-accounts-page--personal .user-insurer-accounts-page__header--personal {
+  align-items: center;
+  margin-bottom: 6px;
+  gap: 12px 16px;
+}
+
+.user-insurer-accounts-page--personal .user-insurer-accounts-page__header--personal h1 {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.user-insurer-accounts-page__header-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px 14px;
+  margin-left: auto;
+  min-width: 0;
+}
+
+.user-insurer-accounts-page--personal .account-share-visibility {
+  flex-direction: row;
+  align-items: center;
+  max-width: none;
+  gap: 0;
+}
+
+.user-insurer-accounts-page--personal .account-share-visibility__control {
+  white-space: nowrap;
+}
+
+.user-insurer-accounts-page--personal .account-vault-share-link-actions {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.user-insurer-accounts-page--personal .account-vault-share-link-actions__status {
+  font-size: 0.8125rem;
+}
+
+.user-insurer-accounts-page--pc.user-insurer-accounts-page--personal .user-insurer-accounts-page__header--personal {
+  flex-wrap: wrap;
+}
+
+.user-insurer-accounts-page--pc.user-insurer-accounts-page--personal .user-insurer-accounts-page__header-toolbar {
+  flex-wrap: wrap;
+}
+
+.user-insurer-accounts-page--personal .user-insurer-accounts-page__panel {
+  margin-top: 8px;
+}
+
 .account-share-visibility {
   display: flex;
   flex-direction: column;
@@ -6453,6 +6506,26 @@ div.cta-button.customers-page__action-btn[role='button'] {
   align-items: stretch;
   gap: 10px;
   margin-bottom: 4px;
+}
+
+.user-insurer-accounts-page--mobile.user-insurer-accounts-page--personal .user-insurer-accounts-page__header--personal {
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.user-insurer-accounts-page--mobile.user-insurer-accounts-page--personal .user-insurer-accounts-page__header--personal h1 {
+  font-size: 1.35rem;
+}
+
+.user-insurer-accounts-page--mobile.user-insurer-accounts-page--personal .user-insurer-accounts-page__header-toolbar {
+  margin-left: 0;
+  justify-content: flex-start;
+  gap: 10px 12px;
+}
+
+.user-insurer-accounts-page--mobile.user-insurer-accounts-page--personal .account-vault-share-link-actions {
+  flex-wrap: wrap;
+  justify-content: flex-start;
 }
 
 .user-insurer-accounts-page--mobile .account-vault-share-link-actions {

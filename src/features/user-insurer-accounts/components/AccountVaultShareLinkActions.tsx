@@ -43,7 +43,7 @@ export function AccountVaultShareLinkActions({
           disabled={pending}
           onClick={() => void onCreateShareLink()}
         >
-          외부 URL 생성
+          URL 생성
         </FormButton>
       ) : (
         <>

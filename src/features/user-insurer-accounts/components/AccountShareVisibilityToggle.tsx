@@ -15,11 +15,16 @@ export function AccountShareVisibilityToggle({
 
   return (
     <div className="account-share-visibility" aria-label="계정관리 공유 허용">
-      <label className="account-share-visibility__control">
+      <label
+        className="account-share-visibility__control"
+        title="공유를 켜면 같은 GA 스태프가 공유 계정관리에서 내 계정을 볼 수 있습니다."
+      >
+        <span className="account-share-visibility__label">공유 허용</span>
         <input
           type="checkbox"
           className="account-share-visibility__input"
           role="switch"
+          aria-label="공유 허용"
           checked={enabled}
           disabled={disabled}
           onChange={(event) => void onToggle(event.target.checked)}
@@ -27,13 +32,7 @@ export function AccountShareVisibilityToggle({
         <span className="account-share-visibility__track" aria-hidden="true">
           <span className="account-share-visibility__thumb" />
         </span>
-        <span className="account-share-visibility__label">공유 허용</span>
       </label>
-      <p className="account-share-visibility__desc">
-        {enabled
-          ? '같은 GA 스태프가 공유 계정관리 목록에서 내 계정관리를 열람·수정할 수 있습니다.'
-          : '공유를 켜면 같은 GA 스태프가 공유 계정관리 목록에서 내 계정관리를 열람·수정할 수 있습니다.'}
-      </p>
       {error ? (
         <p className="account-share-visibility__error" role="alert">
           {error}
