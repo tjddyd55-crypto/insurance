@@ -135,7 +135,7 @@ export function CompanyCard(props: CompanyCardProps) {
           </div>
 
           {visitInfo ? (
-            <div className="info-row">
+            <div className="info-row info-row--visit">
               <span className="label">방문일</span>
               <span className="value">{visitInfo}</span>
               <div className="info-row-actions" aria-hidden="true" />
@@ -153,9 +153,11 @@ export function CompanyCard(props: CompanyCardProps) {
               return (
                 <div key={p.id != null ? p.id : `new-${c.id}-${idx}`} className="contact-row">
                   <div className="position">{renderPositionLabel(position)}</div>
-                  <div className="name">{name || '—'}</div>
-                  <div className={phoneRaw ? 'phone' : 'phone phone--empty'}>
-                    {phoneRaw ? formatPhone(phoneRaw) : '—'}
+                  <div className="contact-row-main">
+                    <div className="name">{name || '—'}</div>
+                    <div className={phoneRaw ? 'phone' : 'phone phone--empty'}>
+                      {phoneRaw ? formatPhone(phoneRaw) : '—'}
+                    </div>
                   </div>
                   <div className="actions actions-mini">
                     {phoneRaw ? (
@@ -260,7 +262,7 @@ export function CompanyCard(props: CompanyCardProps) {
         </div>
 
         {visitInfo || asTrimmedText(before.visitInfo) ? (
-          <div className="info-row">
+          <div className="info-row info-row--visit">
             <span className="label">방문일</span>
             <span className={`value${isHistoryTextChanged(before.visitInfo, after.visitInfo) ? ' changed' : ''}`}>
               {visitInfo || '—'}
@@ -291,9 +293,11 @@ export function CompanyCard(props: CompanyCardProps) {
             return (
               <div key={rowKey} className="contact-row">
                 <div className={`position${posCh ? ' changed' : ''}`}>{renderPositionLabel(position)}</div>
-                <div className={`name${nameCh ? ' changed' : ''}`}>{asTrimmedText(name) || '—'}</div>
-                <div className={`phone${asTrimmedText(phoneRaw) ? '' : ' phone--empty'}${phoneCh ? ' changed' : ''}`}>
-                  {asTrimmedText(phoneRaw) ? formatPhone(phoneRaw) : '—'}
+                <div className="contact-row-main">
+                  <div className={`name${nameCh ? ' changed' : ''}`}>{asTrimmedText(name) || '—'}</div>
+                  <div className={`phone${asTrimmedText(phoneRaw) ? '' : ' phone--empty'}${phoneCh ? ' changed' : ''}`}>
+                    {asTrimmedText(phoneRaw) ? formatPhone(phoneRaw) : '—'}
+                  </div>
                 </div>
                 <div className="actions actions-mini">
                   {asTrimmedText(phoneRaw) ? (
