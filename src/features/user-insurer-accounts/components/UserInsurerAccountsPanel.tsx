@@ -22,6 +22,7 @@ type AccountSectionProps = {
   category: UserInsurerAccountCategory
   rows: UserInsurerAccountRow[]
   pendingId: string | null
+  showAddButton: boolean
   onAdd: () => void
   onSave: (row: UserInsurerAccountRow, patch: Partial<UserInsurerAccountRow>) => void
   onDelete: (row: UserInsurerAccountRow) => void
@@ -123,6 +124,7 @@ function AccountSection({
   category,
   rows,
   pendingId,
+  showAddButton,
   onAdd,
   onSave,
   onDelete,
@@ -138,11 +140,13 @@ function AccountSection({
         <h2 className="user-insurer-accounts-section__title">{title}</h2>
       </header>
       <div className="user-insurer-accounts-section__body">
-        <div className="user-insurer-accounts-section__toolbar">
-          <FormButton htmlType="button" variant="secondary" size="sm" onClick={onAdd}>
-            {USER_INSURER_ACCOUNT_ADD_LABEL[category]}
-          </FormButton>
-        </div>
+        {showAddButton ? (
+          <div className="user-insurer-accounts-section__toolbar">
+            <FormButton htmlType="button" variant="secondary" size="sm" onClick={onAdd}>
+              {USER_INSURER_ACCOUNT_ADD_LABEL[category]}
+            </FormButton>
+          </div>
+        ) : null}
         {rows.length === 0 ? (
           <p className="user-insurer-accounts-page__muted">{USER_INSURER_ACCOUNT_EMPTY_LABEL[category]}</p>
         ) : (
@@ -181,6 +185,7 @@ function AccountSection({
 type UserInsurerAccountsPanelProps = AccountVaultViewProps & {
   layout: 'dual-column' | 'stacked'
   visibleCategories?: UserInsurerAccountCategory[]
+  showCategoryAddButtons?: boolean
 }
 
 const ACCOUNT_SECTIONS: Array<{
@@ -196,6 +201,7 @@ const ACCOUNT_SECTIONS: Array<{
 export function UserInsurerAccountsPanel({
   layout,
   visibleCategories = ALL_USER_INSURER_ACCOUNT_CATEGORIES,
+  showCategoryAddButtons = false,
   activeTab,
   setActiveTab,
   lifeAccounts,
@@ -291,6 +297,7 @@ export function UserInsurerAccountsPanel({
               category={section.category}
               rows={accountsByCategory[section.rowsKey]}
               pendingId={pendingId}
+              showAddButton={showCategoryAddButtons}
               onAdd={() => openAddModal(section.category)}
               onSave={(row, patch) => void saveAccountField(row, patch)}
               onDelete={(row) => void removeAccount(row)}
@@ -305,6 +312,7 @@ export function UserInsurerAccountsPanel({
           category={stackedCategory}
           rows={stackedRows}
           pendingId={pendingId}
+          showAddButton={showCategoryAddButtons}
           onAdd={() => openAddModal(stackedCategory)}
           onSave={(row, patch) => void saveAccountField(row, patch)}
           onDelete={(row) => void removeAccount(row)}

@@ -13,6 +13,7 @@ type AccountVaultManagerProps = {
   layout: 'dual-column' | 'stacked'
   adapter: AccountVaultAdapter | null
   visibleCategories?: UserInsurerAccountCategory[]
+  showCategoryAddButtons?: boolean
 }
 
 export function AccountVaultManager({
@@ -20,6 +21,7 @@ export function AccountVaultManager({
   layout,
   adapter,
   visibleCategories = ALL_USER_INSURER_ACCOUNT_CATEGORIES,
+  showCategoryAddButtons = false,
 }: AccountVaultManagerProps) {
   const effectiveAdapter = useMemo(
     () => (adapter ? withVisibleAccountCategories(adapter, visibleCategories) : null),
@@ -27,6 +29,11 @@ export function AccountVaultManager({
   )
   const state = useAccountVaultState(effectiveAdapter)
   return (
-    <UserInsurerAccountsPanel {...state} layout={layout} visibleCategories={visibleCategories} />
+    <UserInsurerAccountsPanel
+      {...state}
+      layout={layout}
+      visibleCategories={visibleCategories}
+      showCategoryAddButtons={showCategoryAddButtons}
+    />
   )
 }

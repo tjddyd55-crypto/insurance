@@ -5786,6 +5786,10 @@ div.cta-button.customers-page__action-btn[role='button'] {
   font-size: 0.8125rem;
 }
 
+.user-insurer-accounts-page--personal .user-insurer-accounts-page__general-add-button {
+  white-space: nowrap;
+}
+
 .user-insurer-accounts-page--pc.user-insurer-accounts-page--personal .user-insurer-accounts-page__header--personal {
   flex-wrap: wrap;
 }
