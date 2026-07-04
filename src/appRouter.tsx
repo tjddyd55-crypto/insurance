@@ -21,7 +21,7 @@ import { LoginPage } from './features/auth/pages/LoginPage'
 import { PasswordResetPage } from './features/auth/pages/PasswordResetPage'
 import { RegisterPage } from './features/auth/pages/RegisterPage'
 import { ProfilePage } from './features/auth/pages/ProfilePage'
-import { ProtectedRoute } from './features/auth/ProtectedRoute'
+import { UserBillingRoute } from './features/auth/UserBillingRoute'
 import { RequireActiveSubscription } from './features/subscription/RequireActiveSubscription'
 import { GaCarInsuranceRoute } from './features/auth/GaCarInsuranceRoute'
 import { StaffRoute } from './features/auth/StaffRoute'
@@ -305,11 +305,17 @@ export const appRouter = createBrowserRouter([
               {
                 element: <AppWorkspaceLayout />,
                 children: [
-              { path: 'billing/checkout', element: <FreeLaunchBillingGuard><BillingCheckoutPage /></FreeLaunchBillingGuard> },
-              { path: 'billing/required', element: <FreeLaunchBillingGuard><BillingRequiredPage /></FreeLaunchBillingGuard> },
-              { path: 'billing/success', element: <FreeLaunchBillingGuard><BillingSuccessPage /></FreeLaunchBillingGuard> },
-              { path: 'billing/fail', element: <FreeLaunchBillingGuard><BillingFailPage /></FreeLaunchBillingGuard> },
-              { path: 'billing/manage', element: <FreeLaunchBillingGuard><BillingManagePage /></FreeLaunchBillingGuard> },
+              {
+                element: <UserBillingRoute />,
+                children: [
+                  { path: 'billing/checkout', element: <FreeLaunchBillingGuard><BillingCheckoutPage /></FreeLaunchBillingGuard> },
+                  { path: 'billing/required', element: <FreeLaunchBillingGuard><BillingRequiredPage /></FreeLaunchBillingGuard> },
+                  { path: 'billing/success', element: <FreeLaunchBillingGuard><BillingSuccessPage /></FreeLaunchBillingGuard> },
+                  { path: 'billing/fail', element: <FreeLaunchBillingGuard><BillingFailPage /></FreeLaunchBillingGuard> },
+                  { path: 'billing/manage', element: <FreeLaunchBillingGuard><BillingManagePage /></FreeLaunchBillingGuard> },
+                  { path: 'account/billing', element: <FreeLaunchBillingGuard><AccountBillingPage /></FreeLaunchBillingGuard> },
+                ],
+              },
               {
                 element: <RequireInsuranceBillingEntitlement />,
                 children: [
@@ -497,7 +503,6 @@ export const appRouter = createBrowserRouter([
                 children: [{ path: 'admin/audit-logs', element: <AuditLogsPage /> }],
               },
               { path: 'profile', element: <ProfilePage /> },
-              { path: 'account/billing', element: <FreeLaunchBillingGuard><AccountBillingPage /></FreeLaunchBillingGuard> },
               { path: 'account/reset', element: <AccountResetPage /> },
               { path: 'feature-request', element: <FeatureRequestPage /> },
               { path: 'feature-requests/my', element: <Navigate to="/feature-request" replace /> },

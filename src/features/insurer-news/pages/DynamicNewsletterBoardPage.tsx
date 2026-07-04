@@ -8,6 +8,8 @@ import { isPublicGeneralAccount } from '../../auth/generalGa'
 import { getDynamicNewsletterBoardFeed } from '../services/insurerNews.service'
 import type { NewsletterBoard, NewsletterItem } from '../types'
 import { isGaOnlyNewsletterBoard } from '../utils/newsletterBoardScope'
+import { isUserAgentNewsletterBoard } from '../utils/newsletterBoardMenuPolicy'
+import { isGaTenantStaffRole } from '../../auth/roleGuards'
 import DynamicNewsletterBoardMobileView from './DynamicNewsletterBoard/DynamicNewsletterBoardMobileView'
 import DynamicNewsletterBoardPCView from './DynamicNewsletterBoard/DynamicNewsletterBoardPCView'
 import type { DynamicNewsletterBoardViewProps } from './DynamicNewsletterBoard/dynamicNewsletterBoardViewProps'
@@ -44,6 +46,12 @@ export function DynamicNewsletterBoardPage() {
           return
         }
         if (result.kind === 'success') {
+          if (isGaTenantStaffRole(user?.role) && isUserAgentNewsletterBoard(result.board)) {
+            setBoard(null)
+            setItems([])
+            setAccessForbidden(true)
+            return
+          }
           setBoard(result.board)
           setItems(result.newsletters)
           return
@@ -75,7 +83,7 @@ export function DynamicNewsletterBoardPage() {
     return () => {
       cancelled = true
     }
-  }, [boardSlug, token])
+  }, [boardSlug, token, user?.role])
 
   const filteredItems = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
@@ -94,6 +102,17 @@ export function DynamicNewsletterBoardPage() {
     isPublicAccount &&
     !loading &&
     (accessForbidden || (board != null && isGaOnlyNewsletterBoard(board)))
+
+  if (!loading && accessForbidden && isGaTenantStaffRole(user?.role)) {
+    return (
+      <main className="page page--with-back">
+        <header className="page-header">
+          <h1>접근 제한</h1>
+          <p>이 소식지는 일반 설계사(USER) 전용입니다.</p>
+        </header>
+      </main>
+    )
+  }
 
   if (showGaRequiredNotice) {
     return <GaRequiredNotice />

@@ -103,7 +103,14 @@ export function DashboardPage() {
         if (cancelled) {
           return
         }
-        setDynamicNewsletterBoards(boards.map((board) => ({ label: board.label, slug: board.slug })))
+        setDynamicNewsletterBoards(
+          boards.map((board) => ({
+            label: board.label,
+            slug: board.slug,
+            boardScope: board.boardScope,
+            contentScope: board.contentScope,
+          })),
+        )
       })
       .catch(() => {
         if (!cancelled) {

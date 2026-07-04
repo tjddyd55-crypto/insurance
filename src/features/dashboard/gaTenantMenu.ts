@@ -14,12 +14,15 @@ import {
 } from '../auth/roleGuards'
 import { isPublicGeneralAccount } from '../auth/generalGa'
 import { applyPublicAccountMenuPathRestrictions } from '../auth/publicAccountRestrictedRoutes'
+import { filterNewsletterBoardsForGaOpsMenu } from '../insurer-news/utils/newsletterBoardMenuPolicy'
 
 export type GaTenantMenuItem = { label: string; path: string }
 
 export type DynamicNewsletterBoardMenuItem = {
   label: string
   slug: string
+  boardScope?: 'system' | 'global' | 'ga'
+  contentScope?: 'global' | 'ga'
 }
 
 /**
@@ -68,7 +71,7 @@ export const LOSS_ADJUSTER_MENU: GaTenantMenuItem[] = [
   { label: '손해사정사 뉴스 업로드', path: '/adjuster/news/upload' },
 ]
 
-/** GA_STAFF 전용 — 원수사 관리만(다른 GA 메뉴와 merge 금지) */
+/** @deprecated GA_STAFF 는 buildGaStaffOperationalMenu 사용 */
 export const GA_STAFF_MENU: GaTenantMenuItem[] = [
   { label: '원수사 연락처 관리', path: '/insurance/company-registry' },
   { label: '원수사 담당자 관리', path: '/insurer-managers' },
@@ -121,6 +124,100 @@ type BuildGaTenantDashboardMenuOptions = {
   /** GA_ADMIN 전용 — 업무편의에 「공유 계정관리」(스태프 열람) 노출 */
   includeSharedAccountManagement?: boolean
   dynamicNewsletterBoards?: DynamicNewsletterBoardMenuItem[]
+}
+
+function buildGaOpsNewsletterLinks(
+  dynamicNewsletterBoards: DynamicNewsletterBoardMenuItem[],
+): GaTenantDashboardMenuEntry[] {
+  const gaBoards = filterNewsletterBoardsForGaOpsMenu(dynamicNewsletterBoards)
+  const findByLabel = (pattern: RegExp) => gaBoards.find((board) => pattern.test(board.label))
+  const generalBoard = findByLabel(/일반/)
+  const miscBoard = findByLabel(/기타/)
+  const reserved = new Set([generalBoard, miscBoard].filter(Boolean))
+
+  const links: GaTenantDashboardMenuEntry[] = []
+  if (generalBoard) {
+    links.push({
+      type: 'link',
+      label: '일반 소식지',
+      path: `/portal/boards/${encodeURIComponent(generalBoard.slug)}`,
+    })
+  }
+  links.push(
+    { type: 'link', label: '원수사 소식', path: '/portal/newsletters' },
+    { type: 'link', label: '손해사정사 소식', path: '/portal/adjuster-news' },
+  )
+  if (miscBoard) {
+    links.push({
+      type: 'link',
+      label: '기타 소식',
+      path: `/portal/boards/${encodeURIComponent(miscBoard.slug)}`,
+    })
+  }
+  for (const board of gaBoards) {
+    if (reserved.has(board)) {
+      continue
+    }
+    links.push({
+      type: 'link',
+      label: board.label,
+      path: `/portal/boards/${encodeURIComponent(board.slug)}`,
+    })
+  }
+  return links
+}
+
+function buildGaAdminOperationalMenu(
+  dynamicNewsletterBoards: DynamicNewsletterBoardMenuItem[] = [],
+): GaTenantDashboardMenuEntry[] {
+  return [
+    { type: 'section', label: '할일 및 알림' },
+    { type: 'link', label: '할일 및 알림', path: '/notifications' },
+    { type: 'link', label: '메모', path: '/memo' },
+
+    { type: 'section', label: '고객관리' },
+    { type: 'link', label: '고객관리', path: '/customers' },
+
+    { type: 'section', label: '소식지' },
+    ...buildGaOpsNewsletterLinks(dynamicNewsletterBoards),
+
+    { type: 'section', label: '팀관리' },
+    { type: 'link', label: '팀원 관리', path: '/team/members' },
+    { type: 'link', label: '직원 관리', path: '/insurer-managers' },
+    { type: 'link', label: '이용자 관리', path: '/loss-adjusters' },
+
+    { type: 'section', label: '업무편의' },
+    { type: 'link', label: '연락처', path: '/insurance/contacts' },
+    { type: 'link', label: '계정관리', path: '/insurance/account-credentials' },
+    { type: 'link', label: '공유 계정관리', path: '/insurance/account-credentials/shared' },
+
+    { type: 'section', label: '내정보' },
+    { type: 'link', label: '내정보', path: '/profile' },
+  ]
+}
+
+function buildGaStaffOperationalMenu(
+  dynamicNewsletterBoards: DynamicNewsletterBoardMenuItem[] = [],
+): GaTenantDashboardMenuEntry[] {
+  return [
+    { type: 'section', label: '할일 및 알림' },
+    { type: 'link', label: '할일 및 알림', path: '/notifications' },
+    { type: 'link', label: '메모', path: '/memo' },
+
+    { type: 'section', label: '고객관리' },
+    { type: 'link', label: '고객관리', path: '/customers' },
+
+    { type: 'section', label: '소식지' },
+    ...buildGaOpsNewsletterLinks(dynamicNewsletterBoards),
+
+    { type: 'section', label: '업무편의' },
+    { type: 'link', label: '연락처', path: '/insurance/contacts' },
+    { type: 'link', label: '계정관리', path: '/insurance/account-credentials' },
+    { type: 'link', label: '공유 계정관리', path: '/insurance/account-credentials/shared' },
+
+    { type: 'section', label: '내정보' },
+    { type: 'link', label: '내정보', path: '/profile' },
+  ]
 }
 
 export function buildGaTenantDashboardMenu(
@@ -442,38 +539,19 @@ export function buildAppMenuForSession(
       return itemsToEntries(LOSS_ADJUSTER_MENU)
     }
     if (role === 'GA_STAFF') {
-      const adminEntries = buildGaTenantAdminMenuEntries(role)
-      const operational = itemsToEntries([
-        CONTRACT_SIGNATURE_USER_SEND,
-        CONTRACT_SIGNATURE_USER_HISTORY,
-        ...GA_STAFF_MENU,
-        ...dynamicNewsletterBoards.map((board) => ({
-          label: board.label,
-          path: `/portal/boards/${encodeURIComponent(board.slug)}`,
-        })),
-      ])
-      if (!adminEntries.length) {
-        return operational
-      }
-      return [...adminEntries, { type: 'divider' }, ...operational]
+      return buildGaStaffOperationalMenu(dynamicNewsletterBoards)
     }
-    if (role === 'GA_ADMIN' || role === 'USER') {
+    if (role === 'GA_ADMIN') {
+      return buildGaAdminOperationalMenu(dynamicNewsletterBoards)
+    }
+    if (role === 'USER') {
       const includeInsuranceClaimFeatures = canUseInsuranceClaimUserRoutes(role)
-      const entries = buildGaTenantDashboardMenu(gaCode, gaName, {
-        includeUserContractSignatures: role === 'USER',
+      return buildGaTenantDashboardMenu(gaCode, gaName, {
+        includeUserContractSignatures: true,
         includeInsuranceClaimFeatures,
-        includeSharedAccountManagement: role === 'GA_ADMIN',
+        includeSharedAccountManagement: false,
         dynamicNewsletterBoards,
       })
-      if (role === 'GA_ADMIN') {
-        entries.push(...buildGaTenantAdminMenuEntries('GA_ADMIN'))
-        entries.push(
-          { type: 'divider' },
-          { type: 'section', label: '보안 / 감사' },
-          { type: 'link', label: AUDIT_LOG_ENTRY.label, path: AUDIT_LOG_ENTRY.path },
-        )
-      }
-      return entries
     }
     return []
   })()
