@@ -324,8 +324,8 @@ export function UserInsurerAccountsPanel({
         onClose={closeAddModal}
         ariaLabel="계정 추가"
         closeOnBackdrop={false}
+        closeOnEsc={false}
         panelPreset="largeForm"
-        onEscapeRequest={closeAddModal}
       >
         <div className="user-insurer-accounts-page__add-modal">
           <header className="user-insurer-accounts-page__add-modal-header">
