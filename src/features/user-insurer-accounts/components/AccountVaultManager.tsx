@@ -29,11 +29,14 @@ export function AccountVaultManager({
   )
   const state = useAccountVaultState(effectiveAdapter)
   return (
-    <UserInsurerAccountsPanel
-      {...state}
-      layout={layout}
-      visibleCategories={visibleCategories}
-      showCategoryAddButtons={showCategoryAddButtons}
-    />
+    <>
+      <UserInsurerAccountsPanel
+        {...state}
+        layout={layout}
+        visibleCategories={visibleCategories}
+        showCategoryAddButtons={showCategoryAddButtons}
+      />
+      {state.confirmDialog}
+    </>
   )
 }

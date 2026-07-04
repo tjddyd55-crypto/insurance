@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useConfirmDialog } from '../../../components/dialog'
 import { ApiError } from '../../../lib/apiClient'
 import type { AccountVaultAdapter } from '../api/accountVaultAdapter'
 import type { UserInsurerAccountRow } from '../api/userInsurerAccountsApi'
 import type { UserInsurerAccountCategory } from '../config/userInsurerAccounts.config'
+import { deleteAccountWithConfirm } from './accountVaultDeleteConfirm'
 
 export type AccountVaultViewProps = ReturnType<typeof useAccountVaultState>
 
 export function useAccountVaultState(adapter: AccountVaultAdapter | null) {
+  const { confirm, confirmDialog } = useConfirmDialog()
   const [activeTab, setActiveTab] = useState<UserInsurerAccountCategory>('LIFE')
   const [accounts, setAccounts] = useState<UserInsurerAccountRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -85,10 +88,14 @@ export function useAccountVaultState(adapter: AccountVaultAdapter | null) {
       if (!adapter || !row.isCustom) {
         return
       }
-      setPendingId(row.id)
       setError('')
       try {
-        await adapter.deleteAccount(row.id)
+        const deleted = await deleteAccountWithConfirm(row, adapter, confirm, {
+          onConfirmed: () => setPendingId(row.id),
+        })
+        if (!deleted) {
+          return
+        }
         setAccounts((prev) => prev.filter((item) => item.id !== row.id))
       } catch (e) {
         setError(e instanceof ApiError ? e.message : '삭제에 실패했습니다.')
@@ -96,7 +103,7 @@ export function useAccountVaultState(adapter: AccountVaultAdapter | null) {
         setPendingId(null)
       }
     },
-    [adapter],
+    [adapter, confirm],
   )
 
   const openAddModal = useCallback((category: UserInsurerAccountCategory = 'LIFE') => {
@@ -155,5 +162,6 @@ export function useAccountVaultState(adapter: AccountVaultAdapter | null) {
     openAddModal,
     closeAddModal,
     submitAdd,
+    confirmDialog,
   }
 }

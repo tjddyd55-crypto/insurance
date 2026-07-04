@@ -52,6 +52,7 @@ export function PersonalAccountVaultWorkspace({
         layout={layout}
         showCategoryAddButtons={false}
       />
+      {vaultState.confirmDialog}
     </>
   )
 }
