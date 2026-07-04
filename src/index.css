@@ -6573,9 +6573,26 @@ div.cta-button.customers-page__action-btn[role='button'] {
 .user-insurer-accounts-grid--shared-two-columns {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   width: 100%;
-  max-width: 1080px;
+  max-width: 1220px;
   justify-content: start;
   align-items: start;
+}
+
+@media (min-width: 901px) {
+  .user-insurer-accounts-grid--shared-two-columns .account-credential-row,
+  .user-insurer-accounts-grid--shared-two-columns .account-credential-table-header {
+    grid-template-columns: minmax(78px, 0.62fr) minmax(0, 1.12fr) minmax(0, 1.12fr) 58px;
+  }
+
+  .user-insurer-accounts-grid--shared-two-columns .account-credential-row__field {
+    grid-template-columns: minmax(0, 1fr) 44px;
+    gap: 4px;
+  }
+
+  .user-insurer-accounts-grid--shared-two-columns .account-credential-copy-button {
+    width: 44px;
+    min-width: 44px;
+  }
 }
 
 .user-insurer-accounts-page__panel--shared-two-columns {
