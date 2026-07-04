@@ -5843,32 +5843,6 @@ div.cta-button.customers-page__action-btn[role='button'] {
   min-width: 0;
 }
 
-.shared-account-list-link-actions {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-  width: 100%;
-}
-
-.shared-account-list-link__heading {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-  width: 100%;
-}
-
-.shared-account-list-link__label {
-  color: var(--text-secondary);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  line-height: 1.4;
-  text-align: right;
-  white-space: nowrap;
-}
-
 .shared-account-list .account-vault-share-link-actions--toolbar {
   width: 100%;
 }
@@ -5949,18 +5923,58 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .shared-account-workspace {
   display: grid;
-  grid-template-columns: clamp(240px, 28vw, 320px) minmax(0, 1fr);
-  gap: 20px;
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  gap: 12px;
   align-items: start;
   min-width: 0;
 }
 
+.shared-account-workspace-page .user-insurer-accounts-page__header--toolbar {
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.shared-account-workspace-page .user-insurer-accounts-page__header h1 {
+  font-size: 1.2rem;
+}
+
+.shared-account-workspace-page .user-insurer-accounts-page__share-controls {
+  flex-direction: row;
+  align-items: center;
+  gap: 0;
+}
+
+.shared-account-workspace-page .account-vault-share-link-actions {
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+
 .shared-account-workspace__sidebar {
   min-width: 0;
-  padding: 12px;
+  padding: 10px;
   border: 1px solid var(--border-default);
   border-radius: 12px;
   background: var(--bg-surface);
+}
+
+.shared-account-workspace-page .shared-account-list__section-title {
+  margin-bottom: 8px;
+  font-size: 0.9375rem;
+}
+
+.shared-account-workspace-page .shared-account-list__search {
+  margin-bottom: 8px;
+}
+
+.shared-account-workspace-page .shared-account-user-list {
+  gap: 6px;
+}
+
+.shared-account-workspace-page .shared-account-user-list__item {
+  min-height: 40px;
+  padding: 8px 10px;
+  font-size: 0.875rem;
 }
 
 .shared-account-workspace__search {
@@ -5969,11 +5983,22 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .shared-account-workspace__detail {
   min-width: 0;
-  min-height: 280px;
-  padding: 12px 14px;
+  min-height: 240px;
+  padding: 10px 12px;
   border: 1px solid var(--border-default);
   border-radius: 12px;
   background: var(--bg-surface);
+}
+
+.shared-account-workspace-page .shared-account-list__banner {
+  margin-bottom: 8px;
+  padding: 8px 10px;
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .shared-account-workspace {
+    grid-template-columns: minmax(170px, 200px) minmax(0, 1fr);
+  }
 }
 
 .shared-account-user-list {
@@ -6056,7 +6081,17 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .user-insurer-accounts-page--mobile .shared-account-workspace {
   grid-template-columns: 1fr;
-  gap: 16px;
+  gap: 12px;
+}
+
+.user-insurer-accounts-page--mobile .shared-account-workspace__sidebar {
+  padding: 12px;
+}
+
+.user-insurer-accounts-page--mobile .shared-account-workspace-page .shared-account-user-list__item {
+  min-height: 44px;
+  padding: 10px 12px;
+  font-size: 0.9375rem;
 }
 
 .user-insurer-accounts-page--mobile .shared-account-workspace__detail {
@@ -6067,17 +6102,15 @@ div.cta-button.customers-page__action-btn[role='button'] {
   margin-top: 0;
 }
 
-.user-insurer-accounts-page--mobile .shared-account-list-link__heading {
-  justify-content: flex-start;
-}
-
-.user-insurer-accounts-page--mobile .shared-account-list-link__label {
-  text-align: left;
-}
-
-.user-insurer-accounts-page--mobile .shared-account-list-link-actions,
-.user-insurer-accounts-page--mobile .shared-account-list .account-vault-share-link-actions--toolbar {
+.user-insurer-accounts-page--mobile .shared-account-workspace-page .user-insurer-accounts-page__share-controls {
   align-items: stretch;
+  width: 100%;
+}
+
+.user-insurer-accounts-page--mobile .shared-account-workspace-page .account-vault-share-link-actions {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  width: 100%;
 }
 
 .user-insurer-accounts-page--mobile .shared-account-list .shared-account-users-grid {

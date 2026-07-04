@@ -1,10 +1,6 @@
 import { FormButton } from '../../../components/form'
 import type { SharedAccountListLinkViewProps } from '../hooks/useSharedAccountListLinkState'
 
-type SharedAccountListLinkActionsProps = SharedAccountListLinkViewProps & {
-  headingLabel?: string
-}
-
 function renderStatusLabel(statusLabel: string) {
   const isErrorStatus = statusLabel === '생성 실패' || statusLabel === '처리 실패'
 
@@ -87,7 +83,6 @@ function renderActionButtons({
 }
 
 export function SharedAccountListLinkActions({
-  headingLabel,
   hasShareUrl,
   loading,
   pending,
@@ -97,40 +92,23 @@ export function SharedAccountListLinkActions({
   onCopyShareLink,
   onOpenShareLink,
   confirmDialog,
-}: SharedAccountListLinkActionsProps) {
+}: SharedAccountListLinkViewProps) {
   if (loading) {
     return confirmDialog
-  }
-
-  const buttons = renderActionButtons({
-    hasShareUrl,
-    pending,
-    onCreateShareLink,
-    onRegenerateShareLink,
-    onCopyShareLink,
-    onOpenShareLink,
-  })
-
-  if (headingLabel) {
-    return (
-      <div className="shared-account-list-link-actions" aria-label="공유 계정관리 목록 URL">
-        {confirmDialog}
-        <div className="shared-account-list-link__heading">
-          <span className="shared-account-list-link__label">{headingLabel}</span>
-          {statusLabel ? renderStatusLabel(statusLabel) : null}
-        </div>
-        <div className="account-vault-share-link-actions account-vault-share-link-actions--toolbar">
-          {buttons}
-        </div>
-      </div>
-    )
   }
 
   return (
     <div className="account-vault-share-link-actions" aria-label="공유 계정관리 목록 URL">
       {confirmDialog}
       {statusLabel ? renderStatusLabel(statusLabel) : null}
-      {buttons}
+      {renderActionButtons({
+        hasShareUrl,
+        pending,
+        onCreateShareLink,
+        onRegenerateShareLink,
+        onCopyShareLink,
+        onOpenShareLink,
+      })}
     </div>
   )
 }
