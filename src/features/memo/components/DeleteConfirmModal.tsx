@@ -30,8 +30,8 @@ export default function DeleteConfirmModal({
       ariaLabel={ariaLabel}
       panelClassName="memo-delete-modal__panel"
       overlayClassName="memo-delete-modal__overlay"
-      closeOnBackdrop
-      closeOnEsc
+      closeOnBackdrop={false}
+      closeOnEsc={false}
       usePortal
     >
       <h2 className="text-lg font-semibold text-[var(--text-primary)]">{title}</h2>

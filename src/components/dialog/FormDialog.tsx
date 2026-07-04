@@ -7,9 +7,21 @@ type FormDialogProps = Omit<BaseDialogProps, 'children'> & {
   footer?: ReactNode
 }
 
-export function FormDialog({ title, children, footer, ...dialogProps }: FormDialogProps) {
+export function FormDialog({
+  title,
+  children,
+  footer,
+  closeOnBackdrop = false,
+  closeOnEsc = false,
+  ...dialogProps
+}: FormDialogProps) {
   return (
-    <BaseDialog {...dialogProps} ariaLabel={title}>
+    <BaseDialog
+      {...dialogProps}
+      closeOnBackdrop={closeOnBackdrop}
+      closeOnEsc={closeOnEsc}
+      ariaLabel={title}
+    >
       <h2 className="text-lg font-semibold text-[var(--text-main)]">{title}</h2>
       <div className="mt-4">{children}</div>
       {footer ? <div className="mt-5">{footer}</div> : null}

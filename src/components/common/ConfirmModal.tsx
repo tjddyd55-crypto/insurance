@@ -20,26 +20,6 @@ export default function ConfirmModal({ open, title = '확인', message, onConfir
     }
   }, [open])
 
-  useEffect(() => {
-    if (!open) {
-      return
-    }
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !processingRef.current) {
-        onCancel()
-      }
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [open, onCancel])
-
-  const handleOverlayClick = () => {
-    if (processingRef.current) {
-      return
-    }
-    onCancel()
-  }
-
   const handleConfirm = async () => {
     if (processingRef.current) {
       return
@@ -64,7 +44,7 @@ export default function ConfirmModal({ open, title = '확인', message, onConfir
       title={title}
       message={message}
       busy={isProcessing}
-      onCancel={handleOverlayClick}
+      onCancel={onCancel}
       onConfirm={() => void handleConfirm()}
     />
   )
