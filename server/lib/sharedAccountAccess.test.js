@@ -1,6 +1,39 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { canAccessSharedAccountManagement } from './sharedAccountAccess.js'
+import {
+  canAccessSharedAccountManagement,
+  canAccessSharedAccountUserList,
+} from './sharedAccountAccess.js'
+
+test('shared account list — GA_STAFF + gaId 이면 허용', () => {
+  assert.equal(
+    canAccessSharedAccountUserList({
+      requesterRole: 'GA_STAFF',
+      requesterGaId: 10,
+    }),
+    true,
+  )
+})
+
+test('shared account list — USER 는 거부', () => {
+  assert.equal(
+    canAccessSharedAccountUserList({
+      requesterRole: 'USER',
+      requesterGaId: 10,
+    }),
+    false,
+  )
+})
+
+test('shared account list — gaId 없으면 거부', () => {
+  assert.equal(
+    canAccessSharedAccountUserList({
+      requesterRole: 'GA_ADMIN',
+      requesterGaId: null,
+    }),
+    false,
+  )
+})
 
 test('shared account access — GA_ADMIN 같은 GA + 대상 공유 ON 이면 허용', () => {
   assert.equal(
