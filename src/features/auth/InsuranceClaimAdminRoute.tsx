@@ -2,7 +2,7 @@ import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from './AuthProvider'
 import { canUseInsuranceClaimAdminRoutes } from './roleGuards'
 
-/** 보험청구 보험회사 설정 — SUPER_ADMIN 전용 */
+/** 보험청구 보험회사 설정 — SUPER_ADMIN · GA_ADMIN · GA_STAFF */
 export function InsuranceClaimAdminRoute() {
   const { user, isAuthenticated } = useAuth()
 
