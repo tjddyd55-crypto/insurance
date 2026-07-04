@@ -6261,7 +6261,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 .user-insurer-accounts-page .account-credential-row,
 .user-insurer-accounts-page .account-credential-table-header {
   display: grid;
-  grid-template-columns: minmax(90px, 0.8fr) minmax(0, 2fr) 64px;
+  grid-template-columns: minmax(90px, 0.8fr) minmax(0, 2fr) minmax(72px, auto);
   align-items: stretch;
   min-width: 0;
   max-width: 100%;
@@ -6360,12 +6360,27 @@ div.cta-button.customers-page__action-btn[role='button'] {
 .user-insurer-accounts-page .account-credential-row__actions {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
+  align-items: center;
   justify-content: center;
   gap: 6px;
-  min-width: 0;
-  padding: 8px;
+  min-width: 72px;
+  padding: 8px 6px;
   border-left: 1px solid #e5e7eb;
+  box-sizing: border-box;
+}
+
+.user-insurer-accounts-page .account-credential-row__actions .button {
+  min-width: 52px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  word-break: keep-all;
+}
+
+.user-insurer-accounts-page .account-credential-row__field .button {
+  min-width: 48px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 .user-insurer-accounts-page__muted {
@@ -6510,7 +6525,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 @media (min-width: 901px) {
   .user-insurer-accounts-page--pc .account-credential-row,
   .user-insurer-accounts-page--pc .account-credential-table-header {
-    grid-template-columns: minmax(90px, 0.75fr) minmax(0, 1fr) minmax(0, 1fr) 64px;
+    grid-template-columns: minmax(90px, 0.75fr) minmax(0, 1fr) minmax(0, 1fr) minmax(72px, auto);
     align-items: center;
   }
 
@@ -6543,7 +6558,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
   .user-insurer-accounts-page--mobile .account-credential-row,
   .user-insurer-accounts-page--mobile .account-credential-table-header {
-    grid-template-columns: minmax(78px, 0.75fr) minmax(0, 1fr) 58px;
+    grid-template-columns: minmax(78px, 0.75fr) minmax(0, 1fr) minmax(72px, auto);
   }
 
   .user-insurer-accounts-page--mobile .account-credential-row__company {
@@ -6581,7 +6596,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 @media (min-width: 901px) {
   .user-insurer-accounts-grid--shared-two-columns .account-credential-row,
   .user-insurer-accounts-grid--shared-two-columns .account-credential-table-header {
-    grid-template-columns: minmax(78px, 0.62fr) minmax(0, 1.12fr) minmax(0, 1.12fr) 58px;
+    grid-template-columns: minmax(78px, 0.62fr) minmax(0, 1.12fr) minmax(0, 1.12fr) minmax(72px, auto);
   }
 
   .user-insurer-accounts-grid--shared-two-columns .account-credential-row__field {
