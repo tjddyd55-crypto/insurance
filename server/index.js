@@ -32,6 +32,7 @@ import { registerMemoApi } from './apis/memoApi.js'
 import { registerUserInsurerAccountsApi } from './apis/userInsurerAccountsApi.js'
 import { registerUserInsurerAccountShareApi } from './apis/userInsurerAccountShareApi.js'
 import { registerUserInsurerAccountSharedApi } from './apis/userInsurerAccountSharedApi.js'
+import { registerUserInsurerAccountSharedListLinkApi } from './apis/userInsurerAccountSharedListLinkApi.js'
 import { registerTodosApi } from './apis/todosApi.js'
 import { registerTaCallApi } from './apis/taCallApi.js'
 import { registerSuperAdminAnalyticsApi } from './registerSuperAdminAnalyticsApi.js'
@@ -1581,6 +1582,7 @@ registerMemoApi(apiRouter, { pool, requireAuth, handleDbError })
 // PATCH /user-insurer-accounts/share-visibility 가 :id=share-visibility 로 오매칭되지 않는다.
 registerUserInsurerAccountShareApi(apiRouter, { pool, requireAuth, handleDbError })
 registerUserInsurerAccountSharedApi(apiRouter, { pool, requireAuth, handleDbError })
+registerUserInsurerAccountSharedListLinkApi(apiRouter, { pool, requireAuth, handleDbError })
 registerUserInsurerAccountsApi(apiRouter, { pool, requireAuth, handleDbError })
 registerTodosApi(apiRouter, { pool, requireAuth, handleDbError })
 registerTaCallApi(apiRouter, { pool, requireAuth, handleDbError })

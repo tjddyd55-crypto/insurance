@@ -9,6 +9,7 @@ import {
 import type { SharedAccountUser } from '../api/accountShareVisibilityApi'
 import SharedAccountVaultListPCView from './shared-account-vault-list/SharedAccountVaultListPCView'
 import SharedAccountVaultListMobileView from './shared-account-vault-list/SharedAccountVaultListMobileView'
+import { useSharedAccountListLinkState } from '../hooks/useSharedAccountListLinkState'
 
 export type { SharedAccountVaultListViewProps }
 
@@ -29,7 +30,8 @@ export default function SharedAccountVaultListPage() {
     [navigate],
   )
 
-  const viewProps = useSharedAccountVaultListState(authToken, openUser)
+  const listLink = useSharedAccountListLinkState(authToken)
+  const viewProps = useSharedAccountVaultListState(authToken, openUser, listLink)
 
   return (
     <ResponsiveLayout<SharedAccountVaultListViewProps>

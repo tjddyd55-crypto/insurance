@@ -2985,6 +2985,29 @@ export async function initDb() {
     WHERE is_enabled = true
   `)
 
+  // GA 스태프용 "공유 계정관리 목록" 공개 URL 토큰. USER별 공유 URL 토큰과 별도 테이블.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS user_insurer_account_shared_list_links (
+      id BIGSERIAL PRIMARY KEY,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id) ON DELETE CASCADE,
+      token TEXT NOT NULL UNIQUE,
+      created_by_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      regenerated_from_id BIGINT REFERENCES user_insurer_account_shared_list_links(id) ON DELETE SET NULL,
+      revoked_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_user_insurer_account_shared_list_links_ga_active
+    ON user_insurer_account_shared_list_links (ga_id, revoked_at, created_at DESC)
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_user_insurer_account_shared_list_links_active_ga
+    ON user_insurer_account_shared_list_links (ga_id)
+    WHERE revoked_at IS NULL
+  `)
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS customer_consultations (
       id SERIAL PRIMARY KEY,

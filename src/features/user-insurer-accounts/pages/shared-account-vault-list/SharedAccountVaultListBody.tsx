@@ -1,4 +1,5 @@
 import FormInput from '../../../../components/form/FormInput'
+import { SharedAccountListLinkActions } from '../../components/SharedAccountListLinkActions'
 import type { SharedAccountVaultListViewProps } from '../../hooks/useSharedAccountVaultListState'
 
 /**
@@ -12,6 +13,8 @@ export function SharedAccountVaultListBody({
   search,
   onSearchChange,
   onOpenUser,
+  listLink,
+  publicMode = false,
 }: SharedAccountVaultListViewProps) {
   return (
     <>
@@ -21,9 +24,12 @@ export function SharedAccountVaultListBody({
         </div>
       </header>
 
+      {listLink ? <SharedAccountListLinkActions {...listLink} /> : null}
+
       <p className="shared-account-list__banner">
-        같은 GA에서 계정관리 공유를 켠 사용자 목록입니다. 이름을 누르면 해당 사용자의 계정관리
-        화면이 열립니다.
+        {publicMode
+          ? '공유 허용된 사용자 목록입니다. 이름을 누르면 해당 사용자의 계정관리 화면이 열립니다.'
+          : '같은 GA에서 계정관리 공유를 켠 사용자 목록입니다. 이름을 누르면 해당 사용자의 계정관리 화면이 열립니다.'}
       </p>
 
       {loading ? <p className="shared-account-list__muted">불러오는 중…</p> : null}
