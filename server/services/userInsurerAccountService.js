@@ -4,6 +4,7 @@ import {
   decryptUserInsurerAccountPassword,
   encryptUserInsurerAccountPassword,
 } from '../lib/userInsurerAccountCrypto.js'
+import { filterAccountsByAllowedCategories } from '../lib/userInsurerAccountCategoryAccess.js'
 
 export const USER_INSURER_ACCOUNT_CATEGORIES = Object.freeze({
   LIFE: 'LIFE',
@@ -196,7 +197,7 @@ export async function bootstrapDefaultUserInsurerAccounts(db, safeQueryExec, use
  * @param {typeof safeQuery} safeQueryExec
  * @param {string} userId
  * @param {number} gaId
- * @param {{ bootstrapIfEmpty?: boolean }} [options]
+ * @param {{ bootstrapIfEmpty?: boolean, allowedCategories?: readonly string[] }} [options]
  */
 export async function listUserInsurerAccounts(db, safeQueryExec, userId, gaId, options = {}) {
   if (options.bootstrapIfEmpty) {
@@ -228,7 +229,8 @@ export async function listUserInsurerAccounts(db, safeQueryExec, userId, gaId, o
     [userId],
     { allowUnscoped: true },
   )
-  return r.rows.map(mapUserInsurerAccountRow)
+  const rows = r.rows.map(mapUserInsurerAccountRow)
+  return filterAccountsByAllowedCategories(rows, options.allowedCategories)
 }
 
 /**

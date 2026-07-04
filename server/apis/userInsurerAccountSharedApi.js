@@ -21,6 +21,7 @@ import {
   parseShareVisibilityEnabledFromBody,
   shareVisibilitySuccessPayload,
 } from '../lib/userInsurerAccountShareVisibilityApi.js'
+import { SHARED_ACCOUNT_CATEGORY_ACCESS } from '../lib/userInsurerAccountCategoryAccess.js'
 
 /**
  * 요청자(로그인 사용자) 컨텍스트. gaId 없으면 400.
@@ -167,7 +168,10 @@ export function registerUserInsurerAccountSharedApi(apiRouter, ctx) {
         return
       }
       const [accounts, ownerDisplayName] = await Promise.all([
-        listUserInsurerAccounts(pool, safeQuery, owner.userId, owner.gaId, { bootstrapIfEmpty: true }),
+        listUserInsurerAccounts(pool, safeQuery, owner.userId, owner.gaId, {
+          bootstrapIfEmpty: true,
+          ...SHARED_ACCOUNT_CATEGORY_ACCESS,
+        }),
         resolveTargetDisplayName(pool, targetUserId),
       ])
       res.json({ accounts, ownerDisplayName })
@@ -196,7 +200,13 @@ export function registerUserInsurerAccountSharedApi(apiRouter, ctx) {
       if (!owner) {
         return
       }
-      const account = await createUserInsurerAccountRecord(pool, safeQuery, owner, req.body ?? {})
+      const account = await createUserInsurerAccountRecord(
+        pool,
+        safeQuery,
+        owner,
+        req.body ?? {},
+        SHARED_ACCOUNT_CATEGORY_ACCESS,
+      )
       res.status(201).json({ account })
     } catch (error) {
       if (respondUserInsurerAccountMutationError(error, res)) {
@@ -227,7 +237,14 @@ export function registerUserInsurerAccountSharedApi(apiRouter, ctx) {
         res.status(400).json({ message: '유효하지 않은 계정 id입니다.' })
         return
       }
-      const account = await patchUserInsurerAccountRecord(pool, safeQuery, owner, accountId, req.body ?? {})
+      const account = await patchUserInsurerAccountRecord(
+        pool,
+        safeQuery,
+        owner,
+        accountId,
+        req.body ?? {},
+        SHARED_ACCOUNT_CATEGORY_ACCESS,
+      )
       res.json({ account })
     } catch (error) {
       if (respondUserInsurerAccountMutationError(error, res)) {
@@ -258,7 +275,7 @@ export function registerUserInsurerAccountSharedApi(apiRouter, ctx) {
         res.status(400).json({ message: '유효하지 않은 계정 id입니다.' })
         return
       }
-      await deleteUserInsurerAccountRecord(pool, safeQuery, owner, accountId)
+      await deleteUserInsurerAccountRecord(pool, safeQuery, owner, accountId, SHARED_ACCOUNT_CATEGORY_ACCESS)
       res.json({ ok: true })
     } catch (error) {
       if (respondUserInsurerAccountMutationError(error, res)) {
