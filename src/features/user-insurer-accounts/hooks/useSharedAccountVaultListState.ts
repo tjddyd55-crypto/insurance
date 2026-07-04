@@ -4,6 +4,7 @@ import type { SharedAccountListLinkViewProps } from './useSharedAccountListLinkS
 
 export type SharedAccountVaultListViewProps = {
   users: SharedAccountUser[]
+  totalUserCount: number
   loading: boolean
   error: string
   search: string
@@ -70,6 +71,7 @@ export function useSharedAccountVaultListState(
 
   return {
     users: filtered,
+    totalUserCount: users.length,
     loading,
     error,
     search,

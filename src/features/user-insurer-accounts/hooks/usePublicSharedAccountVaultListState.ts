@@ -55,6 +55,7 @@ export function usePublicSharedAccountVaultListState(
 
   return {
     users: filtered,
+    totalUserCount: users.length,
     loading,
     error,
     search,

@@ -75,9 +75,9 @@ export function useSharedAccountListLinkState(authToken: string) {
       return '새 URL 생성됨'
     }
     if (hasShareUrl) {
-      return '목록 URL 활성'
+      return '외부 URL 활성'
     }
-    return '목록 URL 없음'
+    return '외부 URL 없음'
   }, [errorKind, hasShareUrl, loading, statusFlash])
 
   const load = useCallback(async () => {

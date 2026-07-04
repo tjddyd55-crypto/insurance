@@ -5839,56 +5839,28 @@ div.cta-button.customers-page__action-btn[role='button'] {
   text-align: left;
 }
 
-.shared-account-list__banner {
-  margin: 0 0 12px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: var(--hint-bg, #eff6ff);
-  border: 1px solid var(--hint-border, #bfdbfe);
-  color: var(--hint-text, #1e40af);
-  font-size: 0.875rem;
+.shared-account-list__link-controls {
+  min-width: 0;
 }
 
-.shared-account-list-link {
-  margin: 0 0 16px;
-  padding: 14px 16px;
-  border-radius: 8px;
-  border: 1px solid var(--border-default, #e2e8f0);
-  background: var(--bg-surface, #fff);
-}
-
-.shared-account-list-link__header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-  margin-bottom: 8px;
-}
-
-.shared-account-list-link__title {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.shared-account-list-link__desc,
-.shared-account-list-link__warning {
-  margin: 0 0 8px;
-  font-size: 0.875rem;
-  line-height: 1.45;
-}
-
-.shared-account-list-link__desc {
+.shared-account-list-link__label {
   color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: right;
+  white-space: nowrap;
 }
 
-.shared-account-list-link__warning {
-  color: var(--hint-text, #1e40af);
-}
-
-.shared-account-list-link .account-vault-share-link-actions {
+.shared-account-list__users-section {
   margin-top: 4px;
+}
+
+.shared-account-list__section-title {
+  margin: 0 0 12px;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 700;
 }
 
 .shared-account-list__search {
@@ -5896,38 +5868,59 @@ div.cta-button.customers-page__action-btn[role='button'] {
   max-width: 320px;
 }
 
-.shared-account-list__items {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.shared-account-users-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.shared-account-list__item-btn {
-  display: block;
+.shared-account-user-card {
+  display: flex;
+  align-items: center;
   width: 100%;
-  text-align: left;
+  min-height: 44px;
   padding: 12px 14px;
+  overflow: hidden;
   border: 1px solid var(--border-default, #e2e8f0);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--bg-surface, #fff);
   color: var(--text-primary);
   font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   cursor: pointer;
   transition: background 0.12s ease, border-color 0.12s ease;
 }
 
-.shared-account-list__item-btn:hover {
+.shared-account-user-card:hover {
+  border-color: var(--input-focus-border, #93c5fd);
   background: var(--bg-soft, #f8fafc);
-  border-color: var(--border-strong, #cbd5e1);
+}
+
+.shared-account-user-card:focus-visible {
+  outline: 2px solid var(--input-focus-border, #93c5fd);
+  outline-offset: 2px;
 }
 
 .shared-account-list__empty,
 .shared-account-list__muted {
+  margin: 0;
   color: var(--text-secondary);
   font-size: 0.875rem;
+}
+
+.user-insurer-accounts-page--mobile .shared-account-list-link__label {
+  text-align: left;
+}
+
+.user-insurer-accounts-page--mobile .shared-account-users-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr));
 }
 
 .external-account-vault-page__header {
