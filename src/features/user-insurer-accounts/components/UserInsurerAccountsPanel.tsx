@@ -241,9 +241,17 @@ export function UserInsurerAccountsPanel({
   const stackedRows = accountsByCategory[
     ACCOUNT_SECTIONS.find((section) => section.category === stackedCategory)?.rowsKey ?? 'lifeAccounts'
   ]
+  const isSharedTwoColumnLayout = layout === 'dual-column' && visibleCategories.length === 2
 
   return (
-    <div className="user-insurer-accounts-page__panel">
+    <div
+      className={[
+        'user-insurer-accounts-page__panel',
+        isSharedTwoColumnLayout ? 'user-insurer-accounts-page__panel--shared-two-columns' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
       {showTabs ? (
         <div className="user-insurer-accounts-page__tabs">
           {visibleTabs.map((tab) => (
@@ -267,7 +275,15 @@ export function UserInsurerAccountsPanel({
       ) : null}
 
       {!loading && layout === 'dual-column' ? (
-        <div className="user-insurer-accounts-grid user-insurer-account-board">
+        <div
+          className={[
+            'user-insurer-accounts-grid',
+            'user-insurer-account-board',
+            isSharedTwoColumnLayout ? 'user-insurer-accounts-grid--shared-two-columns' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        >
           {visibleSections.map((section) => (
             <AccountSection
               key={section.category}
