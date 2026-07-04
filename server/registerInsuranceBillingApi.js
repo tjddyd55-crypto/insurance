@@ -62,10 +62,6 @@ export function registerInsuranceBillingApi(apiRouter, ctx) {
   }
 
   function requireBillingSubject(req, res, next) {
-    if (String(req.user?.role ?? '') !== 'USER') {
-      res.status(403).json({ message: '결제 기능을 이용할 수 없는 계정입니다.' })
-      return
-    }
     if (!isSubscriptionSubjectRole(req.user?.role)) {
       res.status(403).json({ message: '결제 기능을 이용할 수 없는 계정입니다.' })
       return

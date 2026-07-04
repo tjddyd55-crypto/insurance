@@ -31,10 +31,10 @@ describe('buildAppMenuForSession claim access', () => {
     expect(paths.some((path) => path.includes('/claim-requests'))).toBe(false)
   })
 
-  it('exposes admin claim settings for SUPER_ADMIN only', () => {
+  it('exposes admin claim settings for GA_ADMIN and GA_STAFF but not user claim routes', () => {
     for (const role of ['GA_ADMIN', 'GA_STAFF'] as const) {
       const paths = linkPaths(buildAppMenuForSession(role, 'TEST', 'Test GA'))
-      expect(paths).not.toContain('/admin/claim/insurance-companies')
+      expect(paths).toContain('/admin/claim/insurance-companies')
       expect(paths.some((path) => path.includes('/claim-requests'))).toBe(false)
       expect(paths.some((path) => path.includes('/insurance-claim'))).toBe(false)
     }
