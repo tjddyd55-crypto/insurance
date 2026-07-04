@@ -194,7 +194,8 @@
 /* 업무편의 연락처 검색 */
 .user-app-shell .insurance-contacts-search__input.user-form-control,
 .user-app-shell .storage-workspace__search.user-form-control,
-.user-app-shell .customers-page__search-input.user-form-control {
+.user-app-shell .customers-page__search-input.user-form-control,
+.user-app-shell .shared-account-workspace__search-input.user-form-control {
   min-height: 44px;
 }
 

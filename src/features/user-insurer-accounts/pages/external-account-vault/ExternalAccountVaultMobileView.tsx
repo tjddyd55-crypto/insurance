@@ -1,4 +1,5 @@
 import { AccountVaultManager } from '../../components/AccountVaultManager'
+import { SHARED_USER_INSURER_ACCOUNT_CATEGORIES } from '../../config/userInsurerAccounts.config'
 import type { ExternalAccountVaultViewProps } from '../ExternalAccountVaultPage'
 
 export default function ExternalAccountVaultMobileView({
@@ -19,7 +20,12 @@ export default function ExternalAccountVaultMobileView({
         </p>
       ) : null}
       {!metaLoading && !metaError ? (
-        <AccountVaultManager mode="external" layout="stacked" adapter={adapter} />
+        <AccountVaultManager
+          mode="external"
+          layout="stacked"
+          adapter={adapter}
+          visibleCategories={SHARED_USER_INSURER_ACCOUNT_CATEGORIES}
+        />
       ) : null}
     </main>
   )
