@@ -6325,7 +6325,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .user-insurer-accounts-page .account-credential-row__field {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 48px;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 6px;
   align-items: center;
   min-width: 0;
@@ -6357,83 +6357,15 @@ div.cta-button.customers-page__action-btn[role='button'] {
   outline: none;
 }
 
-.user-insurer-accounts-page .account-credential-copy-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  width: 48px;
-  min-width: 48px;
-  height: 34px;
-  padding: 0;
-  border: 1px solid #dbe3ef;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #334155;
-  font-size: 12px;
-  font-weight: 800;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.user-insurer-accounts-page .account-credential-copy-button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.user-insurer-accounts-page .account-credential-copy-button:not(:disabled):hover {
-  background: #f8fafc;
-}
-
 .user-insurer-accounts-page .account-credential-row__actions {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
   padding: 8px;
   border-left: 1px solid #e5e7eb;
-}
-
-.user-insurer-accounts-page .account-credential-save-button.button--small {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  min-width: 52px;
-  height: 36px;
-  padding: 0 10px;
-  font-weight: 800;
-}
-
-.user-insurer-accounts-page .account-credential-delete-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  height: 28px;
-  min-width: 44px;
-  padding: 0 8px;
-  border: 1px solid #dbe3ef;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.user-insurer-accounts-page .account-credential-delete-button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.user-insurer-accounts-page .account-credential-delete-button:not(:disabled):hover {
-  background: rgba(239, 68, 68, 0.08);
-  border-color: #fca5a5;
-  color: #dc2626;
 }
 
 .user-insurer-accounts-page__muted {
@@ -6622,18 +6554,9 @@ div.cta-button.customers-page__action-btn[role='button'] {
   }
 
   .user-insurer-accounts-page--mobile .account-credential-row__field {
-    grid-template-columns: minmax(0, 1fr) 44px;
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 6px;
     padding: 7px;
-  }
-
-  .user-insurer-accounts-page--mobile .account-credential-copy-button {
-    width: 44px;
-    min-width: 44px;
-  }
-
-  .user-insurer-accounts-page--mobile .account-credential-save-button.button--small {
-    min-width: 48px;
   }
 }
 
@@ -6662,13 +6585,8 @@ div.cta-button.customers-page__action-btn[role='button'] {
   }
 
   .user-insurer-accounts-grid--shared-two-columns .account-credential-row__field {
-    grid-template-columns: minmax(0, 1fr) 44px;
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 4px;
-  }
-
-  .user-insurer-accounts-grid--shared-two-columns .account-credential-copy-button {
-    width: 44px;
-    min-width: 44px;
   }
 }
 

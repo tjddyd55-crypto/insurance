@@ -98,21 +98,21 @@ function AccountRowEditor({
           htmlType="button"
           variant="primary"
           size="sm"
-          className="account-credential-save-button"
           disabled={pending}
           onClick={handleSave}
         >
           저장
         </FormButton>
         {row.isCustom ? (
-          <button
-            type="button"
-            className="account-credential-delete-button"
+          <FormButton
+            htmlType="button"
+            variant="danger"
+            size="sm"
             disabled={pending}
             onClick={onDelete}
           >
             삭제
-          </button>
+          </FormButton>
         ) : null}
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { FormButton } from '../../../components/form'
 import { copyTextToClipboard } from '../../../lib/clipboard'
 
 type UserInsurerAccountCopyButtonProps = {
@@ -43,14 +44,15 @@ export function UserInsurerAccountCopyButton({
   }, [canCopy, value])
 
   return (
-    <button
-      type="button"
-      className="account-credential-copy-button"
+    <FormButton
+      htmlType="button"
+      variant="secondary"
+      size="sm"
       disabled={!canCopy}
       onClick={() => void handleCopy()}
       aria-label={`${label} 복사`}
     >
       {copied ? '복사됨' : '복사'}
-    </button>
+    </FormButton>
   )
 }
