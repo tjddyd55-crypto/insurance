@@ -4,6 +4,10 @@ import {
   mapUserInsurerAccountRow,
   normalizeUserInsurerAccountCategory,
 } from './userInsurerAccountService.js'
+import {
+  assertAllowedAccountCategory,
+  sharedAccountCategoryNotAllowedMessage,
+} from '../lib/userInsurerAccountCategoryAccess.js'
 
 /**
  * @param {unknown} raw
@@ -39,8 +43,9 @@ export function sanitizeUserInsurerAccountPatchBody(body) {
  * @param {typeof safeQuery} safeQueryExec
  * @param {{ userId: string, gaId: number }} owner
  * @param {unknown} body
+ * @param {{ allowedCategories?: readonly string[] }} [options]
  */
-export async function createUserInsurerAccountRecord(db, safeQueryExec, owner, body) {
+export async function createUserInsurerAccountRecord(db, safeQueryExec, owner, body, options = {}) {
   const category = normalizeUserInsurerAccountCategory(body?.category)
   const companyName = String(body?.companyName ?? body?.company_name ?? '').trim()
   if (!category) {
@@ -48,6 +53,7 @@ export async function createUserInsurerAccountRecord(db, safeQueryExec, owner, b
     error.code = 'invalid_category'
     throw error
   }
+  assertAllowedAccountCategory(category, options.allowedCategories, 'create')
   if (!companyName) {
     const error = new Error('missing_company_name')
     error.code = 'missing_company_name'
@@ -101,12 +107,13 @@ export async function createUserInsurerAccountRecord(db, safeQueryExec, owner, b
  * @param {{ userId: string, gaId: number }} owner
  * @param {number} accountId
  * @param {unknown} body
+ * @param {{ allowedCategories?: readonly string[] }} [options]
  */
-export async function patchUserInsurerAccountRecord(db, safeQueryExec, owner, accountId, body) {
+export async function patchUserInsurerAccountRecord(db, safeQueryExec, owner, accountId, body, options = {}) {
   const existing = await safeQueryExec(
     db,
     `
-    SELECT id, is_custom
+    SELECT id, is_custom, category
     FROM user_insurer_accounts
     WHERE id = $1 AND owner_user_id = $2 AND is_archived = false
     LIMIT 1
@@ -118,6 +125,11 @@ export async function patchUserInsurerAccountRecord(db, safeQueryExec, owner, ac
     const error = new Error('not_found')
     error.code = 'not_found'
     throw error
+  }
+  assertAllowedAccountCategory(existing.rows[0]?.category, options.allowedCategories, 'patch')
+  if (Object.prototype.hasOwnProperty.call(body ?? {}, 'category')) {
+    const nextCategory = normalizeUserInsurerAccountCategory(body?.category)
+    assertAllowedAccountCategory(nextCategory, options.allowedCategories, 'patch')
   }
   const patch = sanitizeUserInsurerAccountPatchBody(body)
   const sets = []
@@ -182,8 +194,27 @@ export async function patchUserInsurerAccountRecord(db, safeQueryExec, owner, ac
  * @param {typeof safeQuery} safeQueryExec
  * @param {{ userId: string }} owner
  * @param {number} accountId
+ * @param {{ allowedCategories?: readonly string[] }} [options]
  */
-export async function deleteUserInsurerAccountRecord(db, safeQueryExec, owner, accountId) {
+export async function deleteUserInsurerAccountRecord(db, safeQueryExec, owner, accountId, options = {}) {
+  const existing = await safeQueryExec(
+    db,
+    `
+    SELECT id, category
+    FROM user_insurer_accounts
+    WHERE id = $1 AND owner_user_id = $2 AND is_archived = false
+    LIMIT 1
+    `,
+    [accountId, owner.userId],
+    { allowUnscoped: true },
+  )
+  if ((existing.rowCount ?? 0) === 0) {
+    const error = new Error('not_found')
+    error.code = 'not_found'
+    throw error
+  }
+  assertAllowedAccountCategory(existing.rows[0]?.category, options.allowedCategories, 'delete')
+
   const r = await safeQueryExec(
     db,
     `
@@ -227,6 +258,9 @@ export function respondUserInsurerAccountMutationError(error, res) {
       return true
     case 'not_found':
       res.status(404).json({ message: '계정 정보를 찾을 수 없습니다.' })
+      return true
+    case 'shared_account_category_not_allowed':
+      res.status(403).json({ message: sharedAccountCategoryNotAllowedMessage(error) })
       return true
     default:
       return false

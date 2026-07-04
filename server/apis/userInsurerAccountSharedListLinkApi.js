@@ -22,6 +22,7 @@ import {
   resolveActiveSharedListLinkContext,
   sharedListLinkTokenSuffix,
 } from '../services/userInsurerAccountSharedListLinkService.js'
+import { SHARED_ACCOUNT_CATEGORY_ACCESS } from '../lib/userInsurerAccountCategoryAccess.js'
 
 function resolveStaffListLinkRequester(req, res) {
   const userId = req.user?.id ? String(req.user.id) : ''
@@ -225,7 +226,10 @@ export function registerUserInsurerAccountSharedListLinkApi(apiRouter, ctx) {
         return
       }
       const [accounts, ownerDisplayName] = await Promise.all([
-        listUserInsurerAccounts(pool, safeQuery, owner.userId, owner.gaId, { bootstrapIfEmpty: true }),
+        listUserInsurerAccounts(pool, safeQuery, owner.userId, owner.gaId, {
+          bootstrapIfEmpty: true,
+          ...SHARED_ACCOUNT_CATEGORY_ACCESS,
+        }),
         resolveTargetDisplayName(pool, targetUserId),
       ])
       console.info('[shared-list-link] public accounts read', {
@@ -259,7 +263,13 @@ export function registerUserInsurerAccountSharedListLinkApi(apiRouter, ctx) {
       if (!owner) {
         return
       }
-      const account = await createUserInsurerAccountRecord(pool, safeQuery, owner, req.body ?? {})
+      const account = await createUserInsurerAccountRecord(
+        pool,
+        safeQuery,
+        owner,
+        req.body ?? {},
+        SHARED_ACCOUNT_CATEGORY_ACCESS,
+      )
       console.info('[shared-list-link] public account create', {
         gaId: linkContext.gaId,
         targetUserId,
@@ -297,7 +307,14 @@ export function registerUserInsurerAccountSharedListLinkApi(apiRouter, ctx) {
           res.status(400).json({ message: '유효하지 않은 계정 id입니다.' })
           return
         }
-        const account = await patchUserInsurerAccountRecord(pool, safeQuery, owner, accountId, req.body ?? {})
+        const account = await patchUserInsurerAccountRecord(
+          pool,
+          safeQuery,
+          owner,
+          accountId,
+          req.body ?? {},
+          SHARED_ACCOUNT_CATEGORY_ACCESS,
+        )
         console.info('[shared-list-link] public account patch', {
           gaId: linkContext.gaId,
           targetUserId,
@@ -337,7 +354,13 @@ export function registerUserInsurerAccountSharedListLinkApi(apiRouter, ctx) {
           res.status(400).json({ message: '유효하지 않은 계정 id입니다.' })
           return
         }
-        await deleteUserInsurerAccountRecord(pool, safeQuery, owner, accountId)
+        await deleteUserInsurerAccountRecord(
+          pool,
+          safeQuery,
+          owner,
+          accountId,
+          SHARED_ACCOUNT_CATEGORY_ACCESS,
+        )
         console.info('[shared-list-link] public account delete', {
           gaId: linkContext.gaId,
           targetUserId,
