@@ -6025,6 +6025,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .shared-account-workspace__detail {
   min-width: 0;
+  width: 100%;
   min-height: 240px;
   padding: 10px 12px;
   border: 1px solid var(--border-default);
@@ -6568,6 +6569,28 @@ div.cta-button.customers-page__action-btn[role='button'] {
   overflow-x: hidden;
 }
 
+/* 공유 화면(LIFE/NON_LIFE 2개) — 3열 grid 잔여 track 제거, 본인 3열 카드 폭과 동일 */
+.user-insurer-accounts-grid--shared-two-columns {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+}
+
+.user-insurer-accounts-page__panel--shared-two-columns {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+
+.external-account-vault-page.user-insurer-accounts-page--pc .user-insurer-accounts-grid--shared-two-columns {
+  width: calc((100% - 32px) * 2 / 3 + 16px);
+  max-width: 100%;
+}
+
+.shared-account-workspace__detail .user-insurer-accounts-grid--shared-two-columns {
+  width: 100%;
+  max-width: none;
+}
+
 .user-insurer-accounts-section,
 .user-insurer-account-section {
   min-width: 0;
@@ -6636,15 +6659,19 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 @media (max-width: 1500px) {
-  .user-insurer-accounts-grid,
-  .user-insurer-account-board {
+  .user-insurer-accounts-grid:not(.user-insurer-accounts-grid--shared-two-columns),
+  .user-insurer-account-board:not(.user-insurer-accounts-grid--shared-two-columns) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 900px) {
-  .user-insurer-accounts-grid,
-  .user-insurer-account-board {
+  .user-insurer-accounts-grid:not(.user-insurer-accounts-grid--shared-two-columns),
+  .user-insurer-account-board:not(.user-insurer-accounts-grid--shared-two-columns) {
+    grid-template-columns: 1fr;
+  }
+
+  .user-insurer-accounts-grid--shared-two-columns {
     grid-template-columns: 1fr;
   }
 }
