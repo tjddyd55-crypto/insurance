@@ -28,6 +28,9 @@ export const USER_INSURER_ACCOUNT_ADD_LABEL: Record<UserInsurerAccountCategory, 
   GENERAL: '+ 일반 계정 추가',
 }
 
+/** 본인 계정관리 상단 toolbar — 일반 계정 추가 */
+export const USER_INSURER_ACCOUNT_GENERAL_ADD_TOOLBAR_LABEL = '일반 계정 추가'
+
 export const USER_INSURER_ACCOUNT_EMPTY_LABEL: Record<UserInsurerAccountCategory, string> = {
   LIFE: '등록된 계정 정보가 없습니다.',
   NON_LIFE: '등록된 계정 정보가 없습니다.',
