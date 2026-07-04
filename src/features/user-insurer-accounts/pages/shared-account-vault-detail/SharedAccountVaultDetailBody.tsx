@@ -1,22 +1,32 @@
 import { AccountVaultManager } from '../../components/AccountVaultManager'
-import type { SharedAccountVaultDetailViewProps } from '../SharedAccountVaultDetailPage'
+import type { SharedAccountVaultDetailViewProps } from '../sharedAccountVault.types'
 
 type Props = SharedAccountVaultDetailViewProps & {
   layout: 'dual-column' | 'stacked'
+  embedded?: boolean
 }
 
 /**
  * 스태프 계정관리 상세 본문. 기존 공유 링크 화면과 동일하게 AccountVaultManager 를
  * 재사용하고, 상단에 "누구의 계정관리를 보는지" 배너만 추가한다.
  */
-export function SharedAccountVaultDetailBody({ adapter, ownerName, metaLoading, accessError, layout }: Props) {
+export function SharedAccountVaultDetailBody({
+  adapter,
+  ownerName,
+  metaLoading,
+  accessError,
+  layout,
+  embedded = false,
+}: Props) {
   const bannerName = ownerName.trim() || '사용자'
 
   return (
     <>
-      <header className="user-insurer-accounts-page__header external-account-vault-page__header">
-        <h1>{bannerName} 계정관리</h1>
-      </header>
+      {!embedded ? (
+        <header className="user-insurer-accounts-page__header external-account-vault-page__header">
+          <h1>{bannerName} 계정관리</h1>
+        </header>
+      ) : null}
 
       {accessError ? (
         <p className="user-insurer-accounts-page__error" role="alert">
