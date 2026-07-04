@@ -14,11 +14,21 @@ export function canUsePdfTemplateAdminRoutes(role: string | undefined): boolean 
   return role != null && (PDF_TEMPLATE_ADMIN_ROLES as readonly string[]).includes(role)
 }
 
-/** 보험청구 보험회사 설정 — PDF 템플릿 관리와 동일 관리자 역할 (서버 API용) */
-export const INSURANCE_CLAIM_ADMIN_ROLES: UserRole[] = ['SUPER_ADMIN', 'GA_ADMIN', 'GA_STAFF']
+/** 보험청구 보험회사 설정 — SUPER_ADMIN(시스템 admin) 전용 */
+export const INSURANCE_CLAIM_ADMIN_ROLES: UserRole[] = ['SUPER_ADMIN']
 
 export function canUseInsuranceClaimAdminRoutes(role: string | undefined): boolean {
-  return role != null && (INSURANCE_CLAIM_ADMIN_ROLES as readonly string[]).includes(role)
+  return role === 'SUPER_ADMIN'
+}
+
+/** USER 전용 셀프 결제·구독 화면 */
+export function canUseBillingSelfServiceRoutes(role: string | undefined): boolean {
+  return role === 'USER'
+}
+
+/** USER 전용 전자서명 발송·발송내역 */
+export function canUseContractSignatureUserRoutes(role: string | undefined): boolean {
+  return role === 'USER'
 }
 
 /** 보험청구·청구관리 사용자 화면 — 일반 설계사(USER) 전용 */
