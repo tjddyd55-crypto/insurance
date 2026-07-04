@@ -6569,25 +6569,18 @@ div.cta-button.customers-page__action-btn[role='button'] {
   overflow-x: hidden;
 }
 
-/* 공유 화면(LIFE/NON_LIFE 2개) — 3열 grid 잔여 track 제거, 본인 3열 카드 폭과 동일 */
+/* 공유 화면(LIFE/NON_LIFE 2개) — 3열 grid 잔여 track 제거, 본인 3열 카드 폭과 유사하게 cap */
 .user-insurer-accounts-grid--shared-two-columns {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   width: 100%;
+  max-width: 1080px;
+  justify-content: start;
+  align-items: start;
 }
 
 .user-insurer-accounts-page__panel--shared-two-columns {
   width: 100%;
   min-width: 0;
-  max-width: none;
-}
-
-.external-account-vault-page.user-insurer-accounts-page--pc .user-insurer-accounts-grid--shared-two-columns {
-  width: calc((100% - 32px) * 2 / 3 + 16px);
-  max-width: 100%;
-}
-
-.shared-account-workspace__detail .user-insurer-accounts-grid--shared-two-columns {
-  width: 100%;
   max-width: none;
 }
 
@@ -6672,6 +6665,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
   }
 
   .user-insurer-accounts-grid--shared-two-columns {
+    max-width: none;
     grid-template-columns: 1fr;
   }
 }
