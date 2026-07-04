@@ -5843,6 +5843,23 @@ div.cta-button.customers-page__action-btn[role='button'] {
   min-width: 0;
 }
 
+.shared-account-list-link-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  width: 100%;
+}
+
+.shared-account-list-link__heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  width: 100%;
+}
+
 .shared-account-list-link__label {
   color: var(--text-secondary);
   font-size: 0.8125rem;
@@ -5850,6 +5867,10 @@ div.cta-button.customers-page__action-btn[role='button'] {
   line-height: 1.4;
   text-align: right;
   white-space: nowrap;
+}
+
+.shared-account-list .account-vault-share-link-actions--toolbar {
+  width: 100%;
 }
 
 .shared-account-list__users-section {
@@ -5868,7 +5889,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
   max-width: 320px;
 }
 
-.shared-account-users-grid {
+.shared-account-list .shared-account-users-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 10px;
@@ -5877,7 +5898,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
   padding: 0;
 }
 
-.shared-account-user-card {
+.shared-account-list .shared-account-user-card {
   display: flex;
   align-items: center;
   width: 100%;
@@ -5898,12 +5919,12 @@ div.cta-button.customers-page__action-btn[role='button'] {
   transition: background 0.12s ease, border-color 0.12s ease;
 }
 
-.shared-account-user-card:hover {
+.shared-account-list .shared-account-user-card:hover {
   border-color: var(--input-focus-border, #93c5fd);
   background: var(--bg-soft, #f8fafc);
 }
 
-.shared-account-user-card:focus-visible {
+.shared-account-list .shared-account-user-card:focus-visible {
   outline: 2px solid var(--input-focus-border, #93c5fd);
   outline-offset: 2px;
 }
@@ -5915,11 +5936,20 @@ div.cta-button.customers-page__action-btn[role='button'] {
   font-size: 0.875rem;
 }
 
+.user-insurer-accounts-page--mobile .shared-account-list-link__heading {
+  justify-content: flex-start;
+}
+
 .user-insurer-accounts-page--mobile .shared-account-list-link__label {
   text-align: left;
 }
 
-.user-insurer-accounts-page--mobile .shared-account-users-grid {
+.user-insurer-accounts-page--mobile .shared-account-list-link-actions,
+.user-insurer-accounts-page--mobile .shared-account-list .account-vault-share-link-actions--toolbar {
+  align-items: stretch;
+}
+
+.user-insurer-accounts-page--mobile .shared-account-list .shared-account-users-grid {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr));
 }
 

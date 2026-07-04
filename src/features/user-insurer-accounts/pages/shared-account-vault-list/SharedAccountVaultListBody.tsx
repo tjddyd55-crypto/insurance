@@ -35,8 +35,7 @@ export function SharedAccountVaultListBody({
         </div>
         {listLink ? (
           <div className="user-insurer-accounts-page__share-controls shared-account-list__link-controls">
-            <span className="shared-account-list-link__label">공유 계정관리 목록 URL</span>
-            <SharedAccountListLinkActions {...listLink} />
+            <SharedAccountListLinkActions {...listLink} headingLabel="공유 계정관리 목록 URL" />
           </div>
         ) : null}
       </header>
