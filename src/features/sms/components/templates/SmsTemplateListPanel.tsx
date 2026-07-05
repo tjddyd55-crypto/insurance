@@ -15,6 +15,7 @@ import {
 type Props = {
   templates: SmsTemplate[]
   busy?: boolean
+  onLoad: (template: SmsTemplate) => void
   onDelete: (id: number) => Promise<void>
   onUpdate: (id: number, input: { title: string; message: string; messageType: 'info' | 'ad' }) => Promise<void>
 }
@@ -29,7 +30,7 @@ function emptyEditForm(): EditFormState {
   return { title: '', message: '', messageType: 'info' }
 }
 
-export default function SmsTemplateListPanel({ templates, busy = false, onDelete, onUpdate }: Props) {
+export default function SmsTemplateListPanel({ templates, busy = false, onLoad, onDelete, onUpdate }: Props) {
   const { confirm, confirmDialog } = useConfirmDialog()
   const [viewTemplate, setViewTemplate] = useState<SmsTemplate | null>(null)
   const [editTemplate, setEditTemplate] = useState<SmsTemplate | null>(null)
@@ -113,6 +114,9 @@ export default function SmsTemplateListPanel({ templates, busy = false, onDelete
                   </p>
                 </div>
                 <div className="sms-template-card__actions">
+                  <FormButton type="button" disabled={busy} onClick={() => onLoad(template)}>
+                    불러오기
+                  </FormButton>
                   <FormButton type="button" variant="secondary" disabled={busy} onClick={() => setViewTemplate(template)}>
                     보기
                   </FormButton>

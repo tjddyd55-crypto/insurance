@@ -7,6 +7,10 @@ type Props = {
   attachment?: SmsPreviewAttachment
   transitionNotice?: string | null
   onDismissTransition?: () => void
+  /** 좁은 패널(예약문자 등)에서 phone mockup 축소 */
+  compact?: boolean
+  /** 미리보기 캡션(제목·유형) 숨김 */
+  hideCaption?: boolean
 }
 
 export default function SmsPhonePreview({
@@ -15,17 +19,24 @@ export default function SmsPhonePreview({
   attachment,
   transitionNotice,
   onDismissTransition,
+  compact = false,
+  hideCaption = false,
 }: Props) {
   const senderLabel = senderNumber ? formatKrMobileDisplay(senderNumber) : '발신번호 미선택'
   const messageText = meta.previewText.trim()
   const isEmpty = !messageText
 
   return (
-    <aside className="sms-composer__preview-panel sms-preview-panel" aria-label="휴대폰 미리보기">
-      <div className="sms-composer__preview-caption">
-        <p className="sms-composer__preview-caption-title">미리보기</p>
-        <p className="sms-composer__preview-caption-type">현재 유형: {meta.typeLabel}</p>
-      </div>
+    <aside
+      className={`sms-composer__preview-panel sms-preview-panel${compact ? ' sms-preview-panel--compact' : ''}`}
+      aria-label="휴대폰 미리보기"
+    >
+      {!hideCaption ? (
+        <div className="sms-composer__preview-caption">
+          <p className="sms-composer__preview-caption-title">미리보기</p>
+          <p className="sms-composer__preview-caption-type">현재 유형: {meta.typeLabel}</p>
+        </div>
+      ) : null}
 
       {meta.previewSubstitutionNotice ? (
         <p className="sms-composer__preview-hint">{meta.previewSubstitutionNotice}</p>
@@ -66,7 +77,7 @@ export default function SmsPhonePreview({
           ) : null}
 
           <p
-            className={`sms-composer__phone-text${isEmpty ? ' sms-composer__phone-text--empty' : ''}`}
+            className={`sms-composer__phone-text sms-phone-preview__body${isEmpty ? ' sms-composer__phone-text--empty' : ''}`}
           >
             {isEmpty ? '보낼 문자 내용을 입력해 주세요.' : messageText}
           </p>

@@ -358,6 +358,16 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
     [runBusy, reloadCore, token],
   )
 
+  const handleLoadTemplate = useCallback((template: SmsTemplate) => {
+    setTemplateForm({
+      title: template.title,
+      message: template.message,
+      messageType: template.messageType,
+      imageAttachment: null,
+    })
+    setNotice('템플릿을 작성 영역에 불러왔습니다. 저장하면 새 템플릿으로 등록됩니다.')
+  }, [])
+
   const handleSaveTemplate = useCallback(async () => {
     await runBusy(async () => {
       await createSmsTemplate(token, templateForm)
@@ -458,6 +468,7 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
     handlePreviewBulk,
     handleCreateBulk,
     handleCancelCampaign,
+    handleLoadTemplate,
     handleSaveTemplate,
     handleDeleteTemplate,
     handleUpdateTemplate,

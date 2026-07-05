@@ -3,7 +3,7 @@ import FormButton from '../../../../components/form/FormButton'
 import FormInput from '../../../../components/form/FormInput'
 import Modal from '../../../../components/ui/Modal'
 import type { SmsBulkRecipientState } from '../../hooks/useSmsBulkRecipientState'
-import { formatSmsBlockedReason, formatCompactGender, formatCompactSangnyeong } from '../../utils/smsRecipientEligibility'
+import { formatSmsBlockedReason, formatCompactGender } from '../../utils/smsRecipientEligibility'
 import SmsBulkGroupsPanel from './SmsBulkGroupsPanel'
 
 type SmsBulkRecipientWorkspaceProps = {
@@ -251,27 +251,21 @@ function SearchResultsPanel({
           searchResults.map((row) => (
             <label
               key={row.customerId}
-              className={`sms-bulk-compact-row sms-bulk-compact-row--customer sms-bulk-compact-row--${layout}`}
+              className={`sms-bulk-compact-row sms-bulk-person-row sms-bulk-compact-row--customer sms-bulk-compact-row--${layout}`}
             >
               <input
                 type="checkbox"
-                className="sms-bulk-compact-row__check"
+                className="sms-bulk-compact-row__check sms-bulk-person-row__check"
                 checked={selectedSearchIds.has(row.customerId)}
                 disabled={disabled}
                 onChange={() => toggleSearchCustomer(row.customerId)}
               />
-              <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__name">{row.name || '-'}</span>
-              <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__gender">
+              <span className="sms-bulk-compact-row__cell sms-bulk-person-row__name">{row.name || '-'}</span>
+              <span className="sms-bulk-compact-row__cell sms-bulk-person-row__gender">
                 {formatCompactGender(row.gender, row.genderLabel)}
               </span>
-              <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__birth">{row.birthDate ?? '-'}</span>
-              <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__insurance-age">
-                {row.insuranceAge != null ? `보험 ${row.insuranceAge}세` : '-'}
-              </span>
-              <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__dday">
-                {formatCompactSangnyeong(row.sangnyeongLabel)}
-              </span>
-              <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__phone">{row.phoneDisplay}</span>
+              <span className="sms-bulk-compact-row__cell sms-bulk-person-row__birth">{row.birthDate ?? '-'}</span>
+              <span className="sms-bulk-compact-row__cell sms-bulk-person-row__phone">{row.phoneDisplay}</span>
             </label>
           ))
         )}
@@ -380,23 +374,23 @@ function SelectedRecipientsPanel({
           visibleRecipients.map((row) => (
             <div
               key={row.customerId}
-              className={`sms-bulk-compact-row sms-bulk-compact-row--recipient sms-bulk-compact-row--${layout}`}
+              className={`sms-bulk-compact-row sms-bulk-person-row sms-bulk-person-row--selected sms-bulk-compact-row--recipient sms-bulk-compact-row--${layout}`}
             >
               <input
                 type="checkbox"
-                className="sms-bulk-compact-row__check"
+                className="sms-bulk-compact-row__check sms-bulk-person-row__check"
                 checked={selectedCartIds.has(row.customerId)}
                 disabled={disabled}
                 onChange={() => toggleCartCustomer(row.customerId)}
               />
-              <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__name">{row.name}</span>
-              <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__gender">
+              <span className="sms-bulk-compact-row__cell sms-bulk-person-row__name">{row.name}</span>
+              <span className="sms-bulk-compact-row__cell sms-bulk-person-row__gender">
                 {formatCompactGender(row.gender, row.genderLabel)}
               </span>
-              <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__birth">{row.birthDate ?? '-'}</span>
-              <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__phone">{row.phoneDisplay}</span>
+              <span className="sms-bulk-compact-row__cell sms-bulk-person-row__birth">{row.birthDate ?? '-'}</span>
+              <span className="sms-bulk-compact-row__cell sms-bulk-person-row__phone">{row.phoneDisplay}</span>
               <span
-                className={`sms-bulk-compact-row__cell sms-bulk-compact-row__status${
+                className={`sms-bulk-compact-row__cell sms-bulk-person-row__status sms-bulk-compact-row__status${
                   row.canSend ? ' sms-bulk-compact-row__status--ok' : ' sms-bulk-compact-row__status--blocked'
                 }`}
               >
@@ -405,7 +399,7 @@ function SelectedRecipientsPanel({
               <FormButton
                 type="button"
                 variant="secondary"
-                className="sms-bulk-compact-row__action"
+                className="sms-bulk-compact-row__action sms-bulk-person-row__remove"
                 disabled={disabled}
                 onClick={() => removeRecipient(row.customerId)}
               >

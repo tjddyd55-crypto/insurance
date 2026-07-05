@@ -420,7 +420,7 @@ function ScheduledPreviewPanel({
   const hiddenCount = Math.max(0, groupMembers.length - visibleMembers.length)
 
   return (
-    <div className="sms-scheduled-panel sms-scheduled-panel--preview-stack">
+    <div className="sms-scheduled-panel sms-scheduled-panel--preview-stack sms-scheduled-side-panel">
       <section className="sms-scheduled-preview-block">
         <h3 className="sms-scheduled-preview-block__title">예약 요약</h3>
         <ul className="sms-scheduled-preview-block__list">
@@ -440,7 +440,7 @@ function ScheduledPreviewPanel({
             {previewSample.name} 고객 기준 미리보기 · {previewSample.phoneDisplay || '연락처 없음'}
           </p>
         ) : null}
-        <SmsPhonePreview meta={meta} senderNumber={defaultSender} />
+        <SmsPhonePreview meta={meta} senderNumber={defaultSender} compact hideCaption />
       </section>
 
       <section className="sms-scheduled-preview-block">

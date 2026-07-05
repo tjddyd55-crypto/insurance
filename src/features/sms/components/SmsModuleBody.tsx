@@ -194,6 +194,7 @@ export default function SmsModuleBody(props: Props) {
     previewAcknowledged,
     handlePreviewBulk,
     handleCreateBulk,
+    handleLoadTemplate,
     handleSaveTemplate,
     handleDeleteTemplate,
     handleUpdateTemplate,
@@ -644,6 +645,9 @@ export default function SmsModuleBody(props: Props) {
                   />
                 </label>
                 <div className="sms-template-options">
+                  <p className="sms-template-load-hint sms-module__muted">
+                    불러온 템플릿은 현재 작성 내용에만 적용됩니다. 기존 템플릿을 바꾸려면 수정 버튼을 사용하세요.
+                  </p>
                   <label className="sms-composer__checkbox sms-template-sample-toggle">
                     <input
                       type="checkbox"
@@ -669,6 +673,7 @@ export default function SmsModuleBody(props: Props) {
               <SmsTemplateListPanel
                 templates={templates}
                 busy={busy}
+                onLoad={handleLoadTemplate}
                 onDelete={handleDeleteTemplate}
                 onUpdate={handleUpdateTemplate}
               />

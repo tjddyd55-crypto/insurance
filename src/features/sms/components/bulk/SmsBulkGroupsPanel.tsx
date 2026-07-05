@@ -331,23 +331,23 @@ export default function SmsBulkGroupsPanel({ bulkState, disabled, layout }: SmsB
                 groupMembers.map((row) => (
                   <div
                     key={row.customerId}
-                    className={`sms-bulk-compact-row sms-bulk-compact-row--member sms-bulk-compact-row--${layout}`}
+                    className={`sms-bulk-compact-row sms-bulk-person-row sms-bulk-person-row--selected sms-bulk-compact-row--member sms-bulk-compact-row--${layout}`}
                   >
                     <input
                       type="checkbox"
-                      className="sms-bulk-compact-row__check"
+                      className="sms-bulk-compact-row__check sms-bulk-person-row__check"
                       checked={selectedGroupMemberIds.has(row.customerId)}
                       disabled={busy}
                       onChange={() => toggleGroupMemberSelection(row.customerId)}
                     />
-                    <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__name">{row.name}</span>
-                    <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__gender">
+                    <span className="sms-bulk-compact-row__cell sms-bulk-person-row__name">{row.name}</span>
+                    <span className="sms-bulk-compact-row__cell sms-bulk-person-row__gender">
                       {formatCompactGender(row.gender, row.genderLabel)}
                     </span>
-                    <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__birth">{row.birthDate ?? '-'}</span>
-                    <span className="sms-bulk-compact-row__cell sms-bulk-compact-row__phone">{row.phoneDisplay}</span>
+                    <span className="sms-bulk-compact-row__cell sms-bulk-person-row__birth">{row.birthDate ?? '-'}</span>
+                    <span className="sms-bulk-compact-row__cell sms-bulk-person-row__phone">{row.phoneDisplay}</span>
                     <span
-                      className={`sms-bulk-compact-row__cell sms-bulk-compact-row__status${
+                      className={`sms-bulk-compact-row__cell sms-bulk-person-row__status sms-bulk-compact-row__status${
                         row.canSend ? ' sms-bulk-compact-row__status--ok' : ' sms-bulk-compact-row__status--blocked'
                       }`}
                     >
@@ -356,7 +356,7 @@ export default function SmsBulkGroupsPanel({ bulkState, disabled, layout }: SmsB
                     <FormButton
                       type="button"
                       variant="secondary"
-                      className="sms-bulk-compact-row__action"
+                      className="sms-bulk-compact-row__action sms-bulk-person-row__remove"
                       disabled={busy}
                       onClick={() => void handleRemoveMember(row.customerId)}
                     >
