@@ -101,6 +101,8 @@ export interface SmsTemplate {
   title: string
   message: string
   messageType: SmsMessageType
+  createdAt?: string | null
+  updatedAt?: string | null
 }
 
 export interface SmsOptOut {

@@ -4,6 +4,7 @@ import FormInput from '../../../components/form/FormInput'
 import { useAuth } from '../../auth/AuthProvider'
 import SmsBulkRecipientWorkspace from './bulk/SmsBulkRecipientWorkspace'
 import SmsScheduledWorkspace from './scheduled/SmsScheduledWorkspace'
+import SmsTemplateListPanel from './templates/SmsTemplateListPanel'
 import SmsComposerLayout, { SmsComposerSetupFields } from './composer/SmsComposerLayout'
 import { useSmsBulkRecipientState } from '../hooks/useSmsBulkRecipientState'
 import type { SmsModuleViewProps } from '../hooks/useSmsModuleState'
@@ -195,6 +196,7 @@ export default function SmsModuleBody(props: Props) {
     handleCreateBulk,
     handleSaveTemplate,
     handleDeleteTemplate,
+    handleUpdateTemplate,
     handleAddOptOut,
     handleRemoveOptOut,
   } = props
@@ -279,6 +281,7 @@ export default function SmsModuleBody(props: Props) {
         />
       </div>
 
+      <div className="sms-module__content">
       <NoticeBox error={error} notice={authRequired ? null : notice} />
       <ModuleDisabledNotice visible={moduleDisabled} />
       {!authRequired ? <ProviderNotice settings={settings} settingsLoaded={settingsLoaded} /> : null}
@@ -660,23 +663,12 @@ export default function SmsModuleBody(props: Props) {
               </FormButton>
             }
             below={
-              <ul className="sms-module__list sms-composer__template-list">
-                {templates.map((t) => (
-                  <li key={t.id} className="sms-module__list-row">
-                    <span>
-                      {t.title} ({t.messageType})
-                    </span>
-                    <FormButton
-                      type="button"
-                      variant="secondary"
-                      disabled={busy}
-                      onClick={() => void handleDeleteTemplate(t.id)}
-                    >
-                      삭제
-                    </FormButton>
-                  </li>
-                ))}
-              </ul>
+              <SmsTemplateListPanel
+                templates={templates}
+                busy={busy}
+                onDelete={handleDeleteTemplate}
+                onUpdate={handleUpdateTemplate}
+              />
             }
           />
         </section>
@@ -731,6 +723,7 @@ export default function SmsModuleBody(props: Props) {
           </ul>
         </section>
       ) : null}
+      </div>
     </>
   )
 }

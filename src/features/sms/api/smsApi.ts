@@ -300,6 +300,27 @@ export async function deleteSmsTemplate(token: string, id: number): Promise<void
   await apiRequest(`/api/sms/templates/${id}`, { token: requireSmsToken(token), method: 'DELETE' })
 }
 
+export async function updateSmsTemplate(
+  token: string,
+  id: number,
+  input: {
+    title: string
+    message: string
+    messageType?: 'info' | 'ad'
+  },
+): Promise<SmsTemplate> {
+  const raw = await apiRequest<SmsTemplate>(`/api/sms/templates/${id}`, {
+    token: requireSmsToken(token),
+    method: 'PATCH',
+    body: JSON.stringify({
+      title: input.title,
+      message: input.message,
+      message_type: input.messageType,
+    }),
+  })
+  return raw as SmsTemplate
+}
+
 export async function fetchSmsOptOuts(token: string): Promise<SmsOptOut[]> {
   const raw = await apiRequest<SmsOptOut[]>('/api/sms/opt-outs', { token: requireSmsToken(token) })
   return asArray<SmsOptOut>(raw)

@@ -7,6 +7,7 @@ import {
   createSmsTemplate,
   deleteSmsSettings,
   deleteSmsTemplate,
+  updateSmsTemplate,
   fetchSmsBalance,
   fetchSmsCampaigns,
   fetchSmsHistory,
@@ -377,6 +378,21 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
     [runBusy, reloadCore, token],
   )
 
+  const handleUpdateTemplate = useCallback(
+    async (id: number, input: { title: string; message: string; messageType: 'info' | 'ad' }) => {
+      await runBusy(async () => {
+        try {
+          await updateSmsTemplate(token, id, input)
+          setNotice('템플릿이 수정되었습니다.')
+          await reloadCore()
+        } catch {
+          setError('템플릿 수정에 실패했습니다.')
+        }
+      })
+    },
+    [runBusy, reloadCore, token],
+  )
+
   const handleAddOptOut = useCallback(async () => {
     await runBusy(async () => {
       await addSmsOptOut(token, optOutForm)
@@ -444,6 +460,7 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
     handleCancelCampaign,
     handleSaveTemplate,
     handleDeleteTemplate,
+    handleUpdateTemplate,
     handleAddOptOut,
     handleRemoveOptOut,
   }

@@ -420,7 +420,7 @@ function ScheduledPreviewPanel({
   const hiddenCount = Math.max(0, groupMembers.length - visibleMembers.length)
 
   return (
-    <aside className="sms-scheduled-panel sms-scheduled-panel--preview">
+    <div className="sms-scheduled-panel sms-scheduled-panel--preview-stack">
       <section className="sms-scheduled-preview-block">
         <h3 className="sms-scheduled-preview-block__title">예약 요약</h3>
         <ul className="sms-scheduled-preview-block__list">
@@ -480,7 +480,7 @@ function ScheduledPreviewPanel({
           </ul>
         )}
       </section>
-    </aside>
+    </div>
   )
 }
 
@@ -500,13 +500,15 @@ export default function SmsScheduledWorkspace({
       <div className="sms-scheduled-workspace sms-scheduled-workspace--pc">
         {actionNotice ? <p className="sms-scheduled-workspace__notice">{actionNotice}</p> : null}
         <ScheduledListPanel state={state} disabled={disabled} />
-        <ScheduledFormPanel state={state} templates={templates} adDisplayName={adDisplayName} disabled={disabled} />
-        <ScheduledPreviewPanel
-          state={state}
-          defaultSender={defaultSender}
-          adDisplayName={adDisplayName}
-          realSendEnabled={realSendEnabled}
-        />
+        <div className="sms-scheduled-side-panel">
+          <ScheduledFormPanel state={state} templates={templates} adDisplayName={adDisplayName} disabled={disabled} />
+          <ScheduledPreviewPanel
+            state={state}
+            defaultSender={defaultSender}
+            adDisplayName={adDisplayName}
+            realSendEnabled={realSendEnabled}
+          />
+        </div>
         {confirmDialog}
       </div>
     )
