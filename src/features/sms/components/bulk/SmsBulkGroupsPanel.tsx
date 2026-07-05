@@ -3,10 +3,9 @@ import FormInput from '../../../../components/form/FormInput'
 import { useConfirmDialog } from '../../../../components/dialog'
 import type { SmsBulkRecipientState } from '../../hooks/useSmsBulkRecipientState'
 import {
-  formatCompactGender,
   formatGroupLastSentAt,
-  formatSmsBlockedReason,
 } from '../../utils/smsRecipientEligibility'
+import SmsBulkPersonRow from './SmsBulkPersonRow'
 
 type SmsBulkGroupsPanelProps = {
   bulkState: SmsBulkRecipientState
@@ -193,24 +192,26 @@ export default function SmsBulkGroupsPanel({ bulkState, disabled, layout }: SmsB
                 selectedGroupId === group.id ? ' sms-bulk-group-row--active' : ''
               }`}
             >
-              <input
-                type="checkbox"
-                className="sms-bulk-group-row__check"
-                checked={selectedGroupIds.has(group.id)}
-                disabled={busy}
-                aria-label={`${group.name} 선택`}
-                onChange={() => toggleGroupSelection(group.id)}
-              />
-              <button
-                type="button"
-                className="sms-bulk-group-row__content"
-                disabled={busy}
-                onClick={() => void selectGroup(group.id)}
-              >
-                <span className="sms-bulk-group-row__name">{group.name}</span>
-                <span className="sms-bulk-group-row__count">{group.recipientCount}명</span>
-                <span className="sms-bulk-group-row__last">{formatGroupLastSentAt(group.lastSentAt)}</span>
-              </button>
+              <div className="sms-bulk-group-row__main">
+                <input
+                  type="checkbox"
+                  className="sms-bulk-group-row__check"
+                  checked={selectedGroupIds.has(group.id)}
+                  disabled={busy}
+                  aria-label={`${group.name} 선택`}
+                  onChange={() => toggleGroupSelection(group.id)}
+                />
+                <button
+                  type="button"
+                  className="sms-bulk-group-row__content"
+                  disabled={busy}
+                  onClick={() => void selectGroup(group.id)}
+                >
+                  <span className="sms-bulk-group-row__name">{group.name}</span>
+                  <span className="sms-bulk-group-row__count">{group.recipientCount}명</span>
+                  <span className="sms-bulk-group-row__last">{formatGroupLastSentAt(group.lastSentAt)}</span>
+                </button>
+              </div>
               <div className="sms-bulk-group-row__actions">
                 <FormButton type="button" variant="secondary" disabled={busy} onClick={() => void selectGroup(group.id)}>
                   보기
@@ -369,43 +370,22 @@ export default function SmsBulkGroupsPanel({ bulkState, disabled, layout }: SmsB
             </div>
             <div className={`sms-bulk-groups__members-list sms-bulk-groups__members-list--${layout}`}>
               {groupMembers.length === 0 ? (
-                <p className="sms-module__muted">구성원이 없습니다.</p>
+                <p className="sms-module__muted">이 그룹에 등록된 고객이 없습니다.</p>
               ) : (
                 groupMembers.map((row) => (
-                  <div
+                  <SmsBulkPersonRow
                     key={row.customerId}
-                    className={`sms-bulk-compact-row sms-bulk-person-row sms-bulk-person-row--selected sms-bulk-compact-row--member sms-bulk-compact-row--${layout}`}
-                  >
-                    <input
-                      type="checkbox"
-                      className="sms-bulk-compact-row__check sms-bulk-person-row__check"
-                      checked={selectedGroupMemberIds.has(row.customerId)}
-                      disabled={busy}
-                      onChange={() => toggleGroupMemberSelection(row.customerId)}
-                    />
-                    <span className="sms-bulk-compact-row__cell sms-bulk-person-row__name">{row.name}</span>
-                    <span className="sms-bulk-compact-row__cell sms-bulk-person-row__gender">
-                      {formatCompactGender(row.gender, row.genderLabel)}
-                    </span>
-                    <span className="sms-bulk-compact-row__cell sms-bulk-person-row__birth">{row.birthDate ?? '-'}</span>
-                    <span className="sms-bulk-compact-row__cell sms-bulk-person-row__phone">{row.phoneDisplay}</span>
-                    <span
-                      className={`sms-bulk-compact-row__cell sms-bulk-person-row__status sms-bulk-compact-row__status${
-                        row.canSend ? ' sms-bulk-compact-row__status--ok' : ' sms-bulk-compact-row__status--blocked'
-                      }`}
-                    >
-                      {formatSmsBlockedReason(row.canSend ? null : row.blockedReason)}
-                    </span>
-                    <FormButton
-                      type="button"
-                      variant="secondary"
-                      className="sms-bulk-compact-row__action sms-bulk-person-row__remove"
-                      disabled={busy}
-                      onClick={() => void handleRemoveMember(row.customerId)}
-                    >
-                      제거
-                    </FormButton>
-                  </div>
+                    layout={layout}
+                    name={row.name}
+                    gender={row.gender}
+                    genderLabel={row.genderLabel}
+                    birthDate={row.birthDate}
+                    phoneDisplay={row.phoneDisplay}
+                    checked={selectedGroupMemberIds.has(row.customerId)}
+                    disabled={busy}
+                    onCheckChange={() => toggleGroupMemberSelection(row.customerId)}
+                    onRemove={() => void handleRemoveMember(row.customerId)}
+                  />
                 ))
               )}
             </div>

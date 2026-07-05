@@ -400,13 +400,44 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
   }, [])
 
   const handleSaveTemplate = useCallback(async () => {
+    const title = templateForm.title.trim()
+    const message = templateForm.message.trim()
+    if (!title || !message) {
+      setError('템플릿명과 본문을 입력해 주세요.')
+      return
+    }
     await runBusy(async () => {
-      await createSmsTemplate(token, templateForm)
+      await createSmsTemplate(token, {
+        title,
+        message,
+        messageType: templateForm.messageType,
+      })
       setTemplateForm({ title: '', message: '', messageType: 'info', imageAttachment: null })
       setNotice('템플릿을 저장했습니다.')
       await reloadCore()
     })
   }, [runBusy, templateForm, reloadCore, token])
+
+  const handleSaveTemplateFromComposer = useCallback(
+    async (input: { title: string; message: string; messageType: 'info' | 'ad' }) => {
+      const title = input.title.trim()
+      const message = input.message.trim()
+      if (!title || !message) {
+        setError('템플릿명과 본문을 입력해 주세요.')
+        return
+      }
+      await runBusy(async () => {
+        await createSmsTemplate(token, {
+          title,
+          message,
+          messageType: input.messageType,
+        })
+        setNotice('템플릿을 저장했습니다.')
+        await reloadCore()
+      })
+    },
+    [runBusy, reloadCore, token],
+  )
 
   const handleDeleteTemplate = useCallback(
     async (id: number) => {
@@ -503,6 +534,7 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
     handleLoadTemplateToSend,
     prepareResendFromHistory,
     handleSaveTemplate,
+    handleSaveTemplateFromComposer,
     handleDeleteTemplate,
     handleUpdateTemplate,
     handleAddOptOut,

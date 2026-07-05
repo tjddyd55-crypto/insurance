@@ -5,6 +5,7 @@ import { useAuth } from '../../auth/AuthProvider'
 import SmsBulkRecipientWorkspace from './bulk/SmsBulkRecipientWorkspace'
 import SmsSendWorkspace from './send/SmsSendWorkspace'
 import SmsHistoryWorkspace from './history/SmsHistoryWorkspace'
+import SmsTemplatesWorkspace from './templates/SmsTemplatesWorkspace'
 import { useSmsBulkRecipientState } from '../hooks/useSmsBulkRecipientState'
 import type { SmsModuleViewProps } from '../hooks/useSmsModuleState'
 import { ALIGO_API_SETTINGS_URL, formatKrMobileDisplay } from '../smsDisplayUtils'
@@ -191,6 +192,7 @@ export default function SmsModuleBody(props: Props) {
     handleLoadTemplateToSend,
     prepareResendFromHistory,
     handleSaveTemplate,
+    handleSaveTemplateFromComposer,
     handleDeleteTemplate,
     handleUpdateTemplate,
     handleAddOptOut,
@@ -441,6 +443,12 @@ export default function SmsModuleBody(props: Props) {
               setTab,
             }}
           />
+        </section>
+      ) : null}
+
+      {!loading && !moduleDisabled && !authRequired && tab === 'templates' ? (
+        <section className="sms-module__panel sms-module__panel--templates">
+          <SmsTemplatesWorkspace variant={variant} module={props} adDisplayName={resolvedAdDisplayName} />
         </section>
       ) : null}
       </div>

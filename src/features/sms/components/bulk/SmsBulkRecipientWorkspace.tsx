@@ -3,8 +3,9 @@ import FormButton from '../../../../components/form/FormButton'
 import FormInput from '../../../../components/form/FormInput'
 import Modal from '../../../../components/ui/Modal'
 import type { SmsBulkRecipientState } from '../../hooks/useSmsBulkRecipientState'
-import { formatSmsBlockedReason, formatCompactGender } from '../../utils/smsRecipientEligibility'
+import { formatSmsBlockedReason } from '../../utils/smsRecipientEligibility'
 import SmsBulkGroupsPanel from './SmsBulkGroupsPanel'
+import SmsBulkPersonRow from './SmsBulkPersonRow'
 
 type SmsBulkRecipientWorkspaceProps = {
   variant: 'pc' | 'mobile'
@@ -251,24 +252,18 @@ function SearchResultsPanel({
           </p>
         ) : (
           searchResults.map((row) => (
-            <label
+            <SmsBulkPersonRow
               key={row.customerId}
-              className={`sms-bulk-compact-row sms-bulk-person-row sms-bulk-compact-row--customer sms-bulk-compact-row--${layout}`}
-            >
-              <input
-                type="checkbox"
-                className="sms-bulk-compact-row__check sms-bulk-person-row__check"
-                checked={selectedSearchIds.has(row.customerId)}
-                disabled={disabled}
-                onChange={() => toggleSearchCustomer(row.customerId)}
-              />
-              <span className="sms-bulk-compact-row__cell sms-bulk-person-row__name">{row.name || '-'}</span>
-              <span className="sms-bulk-compact-row__cell sms-bulk-person-row__gender">
-                {formatCompactGender(row.gender, row.genderLabel)}
-              </span>
-              <span className="sms-bulk-compact-row__cell sms-bulk-person-row__birth">{row.birthDate ?? '-'}</span>
-              <span className="sms-bulk-compact-row__cell sms-bulk-person-row__phone">{row.phoneDisplay}</span>
-            </label>
+              layout={layout}
+              name={row.name}
+              gender={row.gender}
+              genderLabel={row.genderLabel}
+              birthDate={row.birthDate}
+              phoneDisplay={row.phoneDisplay}
+              checked={selectedSearchIds.has(row.customerId)}
+              disabled={disabled}
+              onCheckChange={() => toggleSearchCustomer(row.customerId)}
+            />
           ))
         )}
       </div>
@@ -376,40 +371,21 @@ function SelectedRecipientsPanel({
           <p className="sms-module__muted">선택된 발송 대상이 없습니다.</p>
         ) : (
           visibleRecipients.map((row) => (
-            <div
+            <SmsBulkPersonRow
               key={row.customerId}
-              className={`sms-bulk-compact-row sms-bulk-person-row sms-bulk-person-row--selected sms-bulk-compact-row--recipient sms-bulk-compact-row--${layout}`}
-            >
-              <input
-                type="checkbox"
-                className="sms-bulk-compact-row__check sms-bulk-person-row__check"
-                checked={selectedCartIds.has(row.customerId)}
-                disabled={disabled}
-                onChange={() => toggleCartCustomer(row.customerId)}
-              />
-              <span className="sms-bulk-compact-row__cell sms-bulk-person-row__name">{row.name}</span>
-              <span className="sms-bulk-compact-row__cell sms-bulk-person-row__gender">
-                {formatCompactGender(row.gender, row.genderLabel)}
-              </span>
-              <span className="sms-bulk-compact-row__cell sms-bulk-person-row__birth">{row.birthDate ?? '-'}</span>
-              <span className="sms-bulk-compact-row__cell sms-bulk-person-row__phone">{row.phoneDisplay}</span>
-              <span
-                className={`sms-bulk-compact-row__cell sms-bulk-person-row__status sms-bulk-compact-row__status${
-                  row.canSend ? ' sms-bulk-compact-row__status--ok' : ' sms-bulk-compact-row__status--blocked'
-                }`}
-              >
-                {formatSmsBlockedReason(row.canSend ? null : row.blockedReason)}
-              </span>
-              <FormButton
-                type="button"
-                variant="secondary"
-                className="sms-bulk-compact-row__action sms-bulk-person-row__remove"
-                disabled={disabled}
-                onClick={() => removeRecipient(row.customerId)}
-              >
-                제거
-              </FormButton>
-            </div>
+              layout={layout}
+              name={row.name}
+              gender={row.gender}
+              genderLabel={row.genderLabel}
+              birthDate={row.birthDate}
+              phoneDisplay={row.phoneDisplay}
+              checked={selectedCartIds.has(row.customerId)}
+              disabled={disabled}
+              onCheckChange={() => toggleCartCustomer(row.customerId)}
+              canSend={row.canSend}
+              blockedReason={row.blockedReason}
+              onRemove={() => removeRecipient(row.customerId)}
+            />
           ))
         )}
       </div>

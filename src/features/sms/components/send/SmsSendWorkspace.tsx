@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import FormButton from '../../../../components/form/FormButton'
 import FormInput from '../../../../components/form/FormInput'
 import { useAuth } from '../../../auth/AuthProvider'
@@ -18,7 +19,6 @@ import { buildScheduleListCardMeta, buildScheduleSummary, formatNextRunAtLabel }
 import { formatKrMobileDisplay } from '../../smsDisplayUtils'
 import SmsComposerLayout from '../composer/SmsComposerLayout'
 import SmsPhonePreview from '../composer/SmsPhonePreview'
-import SmsTemplateListPanel from '../templates/SmsTemplateListPanel'
 import { useConfirmDialog } from '../../../../components/dialog'
 
 type Props = {
@@ -230,12 +230,14 @@ function ReservedRulesSection({
 }
 
 export default function SmsSendWorkspace({ variant, module, initialSendMode, adDisplayName }: Props) {
+  const navigate = useNavigate()
   const { token } = useAuth()
   const scheduledState = useSmsScheduledState(module.templates)
   const [sendMode, setSendMode] = useState<'immediate' | 'reserved'>(initialSendMode)
   const [selectedGroupId, setSelectedGroupId] = useState<string>('')
   const [groupSummary, setGroupSummary] = useState<{ total: number; sendable: number; excluded: number } | null>(null)
   const [groupBusy, setGroupBusy] = useState(false)
+  const [newTemplateTitle, setNewTemplateTitle] = useState('')
 
   const {
     busy,
@@ -246,14 +248,10 @@ export default function SmsSendWorkspace({ variant, module, initialSendMode, adD
     setBulkForm,
     preview,
     previewAcknowledged,
-    templateForm,
-    setTemplateForm,
     handlePreviewBulk,
     handleCreateBulk,
     handleLoadTemplateToSend,
-    handleSaveTemplate,
-    handleDeleteTemplate,
-    handleUpdateTemplate,
+    handleSaveTemplateFromComposer,
   } = module
 
   const realSendEnabledFlag = Boolean(settings?.realSendEnabled)
@@ -431,14 +429,42 @@ export default function SmsSendWorkspace({ variant, module, initialSendMode, adD
               </select>
             </label>
             <p className="sms-module__muted sms-template-load-hint">
-              불러온 템플릿은 현재 작성 내용에만 적용됩니다.
+              불러온 템플릿은 현재 작성 내용에만 적용됩니다. 저장하면 새 템플릿으로 등록됩니다.
             </p>
+            <label>
+              새 템플릿명
+              <FormInput
+                value={newTemplateTitle}
+                disabled={busy}
+                placeholder="저장할 템플릿 이름"
+                onChange={(e) => setNewTemplateTitle(e.target.value)}
+              />
+            </label>
+            <div className="sms-send-template-actions">
+              <FormButton
+                type="button"
+                disabled={busy || !newTemplateTitle.trim() || !messageBody.trim()}
+                onClick={() =>
+                  void handleSaveTemplateFromComposer({
+                    title: newTemplateTitle,
+                    message: messageBody,
+                    messageType,
+                  }).then(() => setNewTemplateTitle(''))
+                }
+              >
+                템플릿 저장
+              </FormButton>
+              <FormButton type="button" variant="secondary" disabled={busy} onClick={() => navigate('/sms/templates')}>
+                템플릿 관리
+              </FormButton>
+            </div>
           </section>
         </aside>
 
         <div className="sms-send-workspace__center">
           <SmsComposerLayout
             variant={variant}
+            showPreview={variant !== 'pc'}
             message={messageBody}
             onMessageChange={handleMessageChange}
             isAdvertisement={messageType === 'ad'}
@@ -523,7 +549,7 @@ export default function SmsSendWorkspace({ variant, module, initialSendMode, adD
         </div>
 
         {variant === 'pc' ? (
-          <aside className="sms-send-workspace__right">
+          <aside className="sms-send-workspace__right sms-send-preview-panel">
             <SmsPhonePreview meta={meta} senderNumber={settings?.defaultSender} compact hideCaption />
             {selectedGroup && groupSummary ? (
               <div className="sms-send-target-summary">
@@ -537,29 +563,6 @@ export default function SmsSendWorkspace({ variant, module, initialSendMode, adD
           </aside>
         ) : null}
       </div>
-
-      <section className="sms-send-section sms-send-section--templates">
-        <h3 className="sms-send-section__title">템플릿 관리</h3>
-        <div className="sms-send-template-editor">
-          <label>
-            새 템플릿명
-            <FormInput
-              value={templateForm.title}
-              onChange={(e) => setTemplateForm((prev) => ({ ...prev, title: e.target.value }))}
-            />
-          </label>
-          <FormButton type="button" disabled={busy} onClick={() => void module.handleSaveTemplate()}>
-            템플릿 저장
-          </FormButton>
-        </div>
-        <SmsTemplateListPanel
-          templates={templates}
-          busy={busy}
-          onLoad={handleLoadTemplateToSend}
-          onDelete={handleDeleteTemplate}
-          onUpdate={handleUpdateTemplate}
-        />
-      </section>
 
       <ReservedRulesSection
         rules={scheduledState.rules}

@@ -7,17 +7,17 @@ import SmsModuleMobileView from './sms/SmsModuleMobileView'
 import SmsModulePCView from './sms/SmsModulePCView'
 import '../sms-module.css'
 
-const TAB_IDS: SmsModuleTab[] = ['settings', 'groups', 'send', 'history']
+const VISIBLE_TAB_IDS: SmsModuleTab[] = ['settings', 'groups', 'send', 'history']
+const ROUTE_TAB_IDS: SmsModuleTab[] = [...VISIBLE_TAB_IDS, 'templates']
 
 const LEGACY_TAB_PATH: Record<string, string> = {
   bulk: '/sms/groups',
   scheduled: '/sms/send?mode=reserved',
-  templates: '/sms/send',
   'opt-outs': '/sms/settings',
 }
 
 function parseTab(raw: string | undefined): SmsModuleTab {
-  if (raw && TAB_IDS.includes(raw as SmsModuleTab)) {
+  if (raw && ROUTE_TAB_IDS.includes(raw as SmsModuleTab)) {
     return raw as SmsModuleTab
   }
   return 'settings'

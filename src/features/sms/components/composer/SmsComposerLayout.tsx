@@ -18,6 +18,7 @@ type Props = {
   realSendEnabled: boolean
   disabled?: boolean
   layout?: 'default' | 'templates'
+  showPreview?: boolean
   setupFields: ReactNode
   actions?: ReactNode
   below?: ReactNode
@@ -36,6 +37,7 @@ export default function SmsComposerLayout({
   realSendEnabled,
   disabled = false,
   layout = 'default',
+  showPreview = true,
   setupFields,
   actions,
   below,
@@ -71,13 +73,15 @@ export default function SmsComposerLayout({
           {layout === 'templates' && below ? <div className="sms-composer__below">{below}</div> : null}
         </div>
 
-        <SmsPhonePreview
-          meta={meta}
-          senderNumber={senderNumber}
-          attachment={attachment}
-          transitionNotice={transitionNotice}
-          onDismissTransition={dismissTransitionNotice}
-        />
+        {showPreview ? (
+          <SmsPhonePreview
+            meta={meta}
+            senderNumber={senderNumber}
+            attachment={attachment}
+            transitionNotice={transitionNotice}
+            onDismissTransition={dismissTransitionNotice}
+          />
+        ) : null}
       </div>
 
       {layout !== 'templates' && below ? <div className="sms-composer__below">{below}</div> : null}
