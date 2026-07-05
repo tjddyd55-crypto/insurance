@@ -80,8 +80,8 @@ export function buildGroupAppendToCartMessage(
   return parts.join(' ')
 }
 
-export function buildCartAppendToGroupMessage(cartTotal: number, addedCount: number, alreadyInGroup: number): string {
-  const parts = [`현재 선택 대상 ${cartTotal}명 중 ${addedCount}명이 그룹에 추가되었습니다.`]
+export function buildCartAppendToGroupMessage(checkedTotal: number, addedCount: number, alreadyInGroup: number): string {
+  const parts = [`선택한 고객 ${checkedTotal}명 중 ${addedCount}명이 그룹에 추가되었습니다.`]
   if (alreadyInGroup > 0) {
     parts.push(`이미 포함된 고객 ${alreadyInGroup}명은 제외되었습니다.`)
   }

@@ -21,7 +21,7 @@ export default function SmsBulkGroupsPanel({ bulkState, disabled, layout }: SmsB
     groupSearchQuery,
     setGroupSearchQuery,
     groupActionBusy,
-    summary,
+    selectedCartIds,
     selectedGroupMemberIds,
     selectGroup,
     setNewGroupModalOpen,
@@ -37,7 +37,7 @@ export default function SmsBulkGroupsPanel({ bulkState, disabled, layout }: SmsB
   } = bulkState
 
   const busy = disabled || groupActionBusy
-  const cartEmpty = summary.total === 0
+  const checkedCartCount = selectedCartIds.size
 
   const handleDeleteGroup = async () => {
     if (selectedGroupId == null) {
@@ -164,10 +164,10 @@ export default function SmsBulkGroupsPanel({ bulkState, disabled, layout }: SmsB
           <div className={`sms-bulk-groups__detail-actions sms-bulk-groups__detail-actions--${layout}`}>
             <FormButton
               type="button"
-              disabled={busy || cartEmpty}
+              disabled={busy || checkedCartCount === 0}
               onClick={() => void appendCartToGroup(selectedGroup.id)}
             >
-              현재 선택 고객 추가
+              체크한 고객 추가
             </FormButton>
             <FormButton
               type="button"

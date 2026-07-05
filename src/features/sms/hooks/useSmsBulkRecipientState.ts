@@ -494,23 +494,26 @@ export function useSmsBulkRecipientState() {
 
   const appendCartToGroup = useCallback(
     async (groupId: number) => {
-      if (!token?.trim()) {
+      if (!token?.trim() || selectedCartIds.size === 0) {
         return
       }
       setGroupActionBusy(true)
       try {
         const data = await fetchSmsRecipientGroupMembers(token, groupId)
-        const cartIds = selectedRecipients.map((r) => r.customerId)
-        const { mergedIds, addedCount, alreadyInGroup } = mergeCustomerIdsForGroup(data.customerIds, cartIds)
+        const checkedIds = selectedRecipients
+          .filter((row) => selectedCartIds.has(row.customerId))
+          .map((row) => row.customerId)
+        const { mergedIds, addedCount, alreadyInGroup } = mergeCustomerIdsForGroup(data.customerIds, checkedIds)
         await updateSmsRecipientGroup(token, groupId, { customerIds: mergedIds })
-        setActionNotice(buildCartAppendToGroupMessage(cartIds.length, addedCount, alreadyInGroup))
+        setSelectedCartIds(new Set())
+        setActionNotice(buildCartAppendToGroupMessage(checkedIds.length, addedCount, alreadyInGroup))
         await reloadGroups()
         await loadGroupMembers(groupId)
       } finally {
         setGroupActionBusy(false)
       }
     },
-    [loadGroupMembers, reloadGroups, selectedRecipients, token],
+    [loadGroupMembers, reloadGroups, selectedCartIds, selectedRecipients, token],
   )
 
   const replaceGroupWithCart = useCallback(

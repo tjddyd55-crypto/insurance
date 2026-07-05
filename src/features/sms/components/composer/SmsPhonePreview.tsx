@@ -54,40 +54,33 @@ export default function SmsPhonePreview({
       ) : null}
 
       <div className="sms-phone-preview-shell">
-        <div className="sms-composer__phone">
-        <div className="sms-composer__phone-sensors" aria-hidden="true">
-          <span className="sms-composer__phone-speaker" />
-          <span className="sms-composer__phone-camera" />
-        </div>
-
-        <div className="sms-composer__phone-header">
-          <p className="sms-composer__phone-app-title">문자</p>
-          <p className="sms-composer__phone-sender">{senderLabel}</p>
-        </div>
-
-        <div className="sms-composer__phone-screen">
-          {attachment ? (
-            <div className="sms-composer__phone-image-wrap">
-              <img
-                src={attachment.previewUrl}
-                alt={attachment.fileName || '첨부 이미지'}
-                className="sms-composer__phone-image"
-              />
-            </div>
-          ) : null}
-
-          <p
-            className={`sms-composer__phone-text sms-phone-preview__body${isEmpty ? ' sms-composer__phone-text--empty' : ''}`}
-          >
+        <div className="sms-phone-preview">
+          <div className="sms-phone-preview__top" aria-hidden="true">
+            <span className="sms-phone-preview__speaker" />
+            <span className="sms-phone-preview__camera" />
+          </div>
+          <div className="sms-phone-preview__header">문자</div>
+          <div className="sms-phone-preview__number">{senderLabel}</div>
+          <div className={`sms-phone-preview__body${isEmpty ? ' sms-phone-preview__body--empty' : ''}`}>
+            {attachment ? (
+              <div className="sms-phone-preview__attachment">
+                <img
+                  src={attachment.previewUrl}
+                  alt={attachment.fileName || '첨부 이미지'}
+                  className="sms-phone-preview__attachment-image"
+                />
+              </div>
+            ) : null}
             {isEmpty ? '보낼 문자 내용을 입력해 주세요.' : messageText}
-          </p>
-        </div>
+          </div>
         </div>
       </div>
 
-      <p className="sms-composer__preview-disclaimer">
-        실제 표시는 통신사와 기기에 따라 일부 다를 수 있습니다.
-      </p>
+      {!hideCaption ? (
+        <p className="sms-composer__preview-disclaimer">
+          실제 표시는 통신사와 기기에 따라 일부 다를 수 있습니다.
+        </p>
+      ) : null}
     </aside>
   )
 }
