@@ -500,15 +500,13 @@ export default function SmsScheduledWorkspace({
       <div className="sms-scheduled-workspace sms-scheduled-workspace--pc">
         {actionNotice ? <p className="sms-scheduled-workspace__notice">{actionNotice}</p> : null}
         <ScheduledListPanel state={state} disabled={disabled} />
-        <div className="sms-scheduled-side-panel">
-          <ScheduledFormPanel state={state} templates={templates} adDisplayName={adDisplayName} disabled={disabled} />
-          <ScheduledPreviewPanel
-            state={state}
-            defaultSender={defaultSender}
-            adDisplayName={adDisplayName}
-            realSendEnabled={realSendEnabled}
-          />
-        </div>
+        <ScheduledFormPanel state={state} templates={templates} adDisplayName={adDisplayName} disabled={disabled} />
+        <ScheduledPreviewPanel
+          state={state}
+          defaultSender={defaultSender}
+          adDisplayName={adDisplayName}
+          realSendEnabled={realSendEnabled}
+        />
         {confirmDialog}
       </div>
     )

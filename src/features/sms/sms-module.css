@@ -948,21 +948,18 @@
 }
 
 .sms-bulk-workspace--pc .sms-bulk-workspace__grid {
-  grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr);
+  grid-template-columns: minmax(300px, 1fr) minmax(280px, 0.9fr) minmax(240px, 0.75fr);
+  gap: 12px;
+  align-items: start;
   min-height: auto;
 }
 
 .sms-bulk-workspace__grid {
   display: grid;
-  grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr);
-  gap: 0.875rem;
-  align-items: stretch;
+  grid-template-columns: minmax(300px, 1fr) minmax(280px, 0.9fr) minmax(240px, 0.75fr);
+  gap: 12px;
+  align-items: start;
   min-height: auto;
-}
-
-.sms-bulk-workspace--pc .sms-bulk-workspace__groups {
-  grid-column: 1 / -1;
-  max-height: 360px;
 }
 
 .sms-bulk-workspace__column,
@@ -1641,12 +1638,6 @@
   align-items: center;
 }
 
-@media (max-width: 1180px) {
-  .sms-bulk-workspace--pc .sms-bulk-workspace__grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 .sms-bulk-compose-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -1671,13 +1662,14 @@
 }
 
 .sms-scheduled-workspace--pc {
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: 260px minmax(440px, 1fr) 300px;
+  gap: 12px;
 }
 
-.sms-scheduled-side-panel {
+.sms-scheduled-panel--preview-stack {
   display: grid;
   gap: 12px;
-  min-width: 0;
+  align-content: start;
 }
 
 .sms-scheduled-workspace__notice {
