@@ -1,4 +1,5 @@
-import { useNavigate, useParams } from 'react-router-dom'
+import { useEffect } from 'react'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
 import { useSmsModuleState, type SmsModuleViewProps } from '../hooks/useSmsModuleState'
 import type { SmsModuleTab } from '../types/sms.types'
@@ -6,15 +7,14 @@ import SmsModuleMobileView from './sms/SmsModuleMobileView'
 import SmsModulePCView from './sms/SmsModulePCView'
 import '../sms-module.css'
 
-const TAB_IDS: SmsModuleTab[] = [
-  'settings',
-  'send',
-  'bulk',
-  'scheduled',
-  'templates',
-  'history',
-  'opt-outs',
-]
+const TAB_IDS: SmsModuleTab[] = ['settings', 'groups', 'send', 'history']
+
+const LEGACY_TAB_PATH: Record<string, string> = {
+  bulk: '/sms/groups',
+  scheduled: '/sms/send?mode=reserved',
+  templates: '/sms/send',
+  'opt-outs': '/sms/settings',
+}
 
 function parseTab(raw: string | undefined): SmsModuleTab {
   if (raw && TAB_IDS.includes(raw as SmsModuleTab)) {
@@ -26,16 +26,34 @@ function parseTab(raw: string | undefined): SmsModuleTab {
 export default function SmsModulePage() {
   const navigate = useNavigate()
   const params = useParams()
-  // 개별 「문자 보내기」(/sms/send)는 라우터에서 /sms/bulk 로 redirect 되므로 여기서 다루지 않는다.
-  const initialTab = parseTab(params.tab)
+  const [searchParams] = useSearchParams()
+  const rawTab = params.tab
+
+  useEffect(() => {
+    if (rawTab && LEGACY_TAB_PATH[rawTab]) {
+      navigate(LEGACY_TAB_PATH[rawTab], { replace: true })
+    }
+  }, [navigate, rawTab])
+
+  const initialTab = parseTab(rawTab)
   const state = useSmsModuleState(initialTab)
 
   const viewProps: SmsModuleViewProps = {
     ...state,
+    sendMode: searchParams.get('mode') === 'reserved' ? 'reserved' : 'immediate',
     setTab: (tab) => {
       state.setTab(tab)
       navigate(`/sms/${tab}`, { replace: true })
     },
+    navigateToSend: (options) => {
+      const query = options?.mode === 'reserved' ? '?mode=reserved' : ''
+      state.setTab('send')
+      navigate(`/sms/send${query}`, { replace: true })
+    },
+  }
+
+  if (rawTab && LEGACY_TAB_PATH[rawTab]) {
+    return null
   }
 
   return <ResponsiveLayout<SmsModuleViewProps> PC={SmsModulePCView} Mobile={SmsModuleMobileView} viewProps={viewProps} />

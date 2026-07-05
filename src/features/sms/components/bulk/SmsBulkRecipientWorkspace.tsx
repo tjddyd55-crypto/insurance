@@ -10,7 +10,9 @@ type SmsBulkRecipientWorkspaceProps = {
   variant: 'pc' | 'mobile'
   busy?: boolean
   bulkState: SmsBulkRecipientState
-  onProceedToCompose: (customerIds: number[]) => void
+  /** 그룹설정 탭에서는 문자 작성 이동 버튼을 숨긴다 */
+  groupsOnly?: boolean
+  onProceedToCompose?: (customerIds: number[]) => void
 }
 
 function FilterFields({
@@ -278,12 +280,14 @@ function SelectedRecipientsPanel({
   bulkState,
   disabled,
   layout,
+  groupsOnly,
   onProceedToCompose,
 }: {
   bulkState: SmsBulkRecipientState
   disabled?: boolean
   layout: 'pc' | 'mobile'
-  onProceedToCompose: (customerIds: number[]) => void
+  groupsOnly?: boolean
+  onProceedToCompose?: (customerIds: number[]) => void
 }) {
   const {
     summary,
@@ -409,13 +413,15 @@ function SelectedRecipientsPanel({
           ))
         )}
       </div>
-      <FormButton
-        type="button"
-        disabled={disabled || sendableCustomerIds.length === 0}
-        onClick={() => onProceedToCompose(sendableCustomerIds)}
-      >
-        문자 작성
-      </FormButton>
+      {!groupsOnly ? (
+        <FormButton
+          type="button"
+          disabled={disabled || sendableCustomerIds.length === 0 || !onProceedToCompose}
+          onClick={() => onProceedToCompose?.(sendableCustomerIds)}
+        >
+          문자 작성
+        </FormButton>
+      ) : null}
     </div>
   )
 }
@@ -477,12 +483,16 @@ function NewGroupModal({
   open,
   busy,
   cartCount,
+  initialName = '',
+  initialDescription = '',
   onClose,
   onSave,
 }: {
   open: boolean
   busy?: boolean
   cartCount: number
+  initialName?: string
+  initialDescription?: string
   onClose: () => void
   onSave: (input: { name: string; description: string; mode: 'empty' | 'from_cart' }) => Promise<void>
 }) {
@@ -492,11 +502,11 @@ function NewGroupModal({
 
   useEffect(() => {
     if (open) {
-      setName('')
-      setDescription('')
+      setName(initialName)
+      setDescription(initialDescription)
       setMode(cartCount > 0 ? 'from_cart' : 'empty')
     }
-  }, [cartCount, open])
+  }, [cartCount, initialDescription, initialName, open])
 
   return (
     <Modal open={open} onClose={onClose} closeOnBackdrop={false} ariaLabel="새 그룹 만들기">
@@ -616,6 +626,7 @@ export default function SmsBulkRecipientWorkspace({
   variant,
   busy,
   bulkState,
+  groupsOnly = false,
   onProceedToCompose,
 }: SmsBulkRecipientWorkspaceProps) {
   const {
@@ -626,6 +637,8 @@ export default function SmsBulkRecipientWorkspace({
     setNewGroupModalOpen,
     groupEditModalOpen,
     setGroupEditModalOpen,
+    groupCopyPreset,
+    setGroupCopyPreset,
     mobileTab,
     setMobileTab,
     summary,
@@ -654,7 +667,13 @@ export default function SmsBulkRecipientWorkspace({
   const selectedPanel = (
     <>
       <h2 className="sms-bulk-panel__title">선택된 발송 대상</h2>
-      <SelectedRecipientsPanel bulkState={bulkState} disabled={panelBusy} layout={variant} onProceedToCompose={onProceedToCompose} />
+      <SelectedRecipientsPanel
+        bulkState={bulkState}
+        disabled={panelBusy}
+        layout={variant}
+        groupsOnly={groupsOnly}
+        onProceedToCompose={onProceedToCompose}
+      />
     </>
   )
 
@@ -711,7 +730,12 @@ export default function SmsBulkRecipientWorkspace({
         open={newGroupModalOpen}
         busy={panelBusy}
         cartCount={summary.total}
-        onClose={() => setNewGroupModalOpen(false)}
+        initialName={groupCopyPreset?.name ?? ''}
+        initialDescription={groupCopyPreset?.description ?? ''}
+        onClose={() => {
+          setNewGroupModalOpen(false)
+          setGroupCopyPreset(null)
+        }}
         onSave={createGroup}
       />
       <GroupEditModal

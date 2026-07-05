@@ -36,13 +36,22 @@ import {
 } from '../types/sms.types'
 import type { SmsPreviewAttachment } from '../utils/smsMessageMeta'
 
-export type SmsModuleViewProps = ReturnType<typeof useSmsModuleState>
+export type SmsModuleState = ReturnType<typeof useSmsModuleState>
+
+export type SmsModuleViewProps = SmsModuleState & {
+  sendMode: 'immediate' | 'reserved'
+  navigateToSend: (options?: { mode?: 'immediate' | 'reserved' }) => void
+}
 
 const AUTH_REQUIRED_MESSAGE = '로그인이 필요합니다. 다시 로그인해 주세요.'
 
 export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
   const { token } = useAuth()
   const [tab, setTab] = useState<SmsModuleTab>(initialTab)
+
+  useEffect(() => {
+    setTab(initialTab)
+  }, [initialTab])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -368,6 +377,28 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
     setNotice('템플릿을 작성 영역에 불러왔습니다. 저장하면 새 템플릿으로 등록됩니다.')
   }, [])
 
+  const handleLoadTemplateToSend = useCallback((template: SmsTemplate) => {
+    setBulkForm((prev) => ({
+      ...prev,
+      message: template.message,
+      messageType: template.messageType,
+    }))
+    setNotice('템플릿을 문자 작성 영역에 불러왔습니다.')
+  }, [])
+
+  const prepareResendFromHistory = useCallback((item: SmsCampaignSummary) => {
+    setBulkForm((prev) => ({
+      ...prev,
+      title: `${item.title} (재발송)`,
+      message: item.message,
+      messageType: item.messageType,
+      senderNumber: item.senderNumber || prev.senderNumber,
+    }))
+    setPreview(null)
+    setPreviewAcknowledged(false)
+    setNotice('발송 내역을 문자발송 화면에 불러왔습니다. 대상 그룹과 내용을 확인한 뒤 발송하세요.')
+  }, [])
+
   const handleSaveTemplate = useCallback(async () => {
     await runBusy(async () => {
       await createSmsTemplate(token, templateForm)
@@ -469,6 +500,8 @@ export function useSmsModuleState(initialTab: SmsModuleTab = 'settings') {
     handleCreateBulk,
     handleCancelCampaign,
     handleLoadTemplate,
+    handleLoadTemplateToSend,
+    prepareResendFromHistory,
     handleSaveTemplate,
     handleDeleteTemplate,
     handleUpdateTemplate,

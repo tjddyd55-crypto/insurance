@@ -324,11 +324,34 @@ export function useSmsScheduledState(templates: SmsTemplate[]) {
     setMobilePanel('list')
   }, [confirm, persistRules, rules, selectedRule])
 
+  const deleteRuleById = useCallback(
+    (ruleId: string) => {
+      persistRules(rules.filter((rule) => rule.id !== ruleId))
+      if (selectedRuleId === ruleId) {
+        setSelectedRuleId(null)
+        setIsCreating(false)
+        setForm({ ...EMPTY_SMS_SCHEDULED_FORM })
+      }
+      setActionNotice('예약문자를 삭제했습니다.')
+    },
+    [persistRules, rules, selectedRuleId],
+  )
+
+  const copyRule = useCallback((rule: SmsScheduledRule) => {
+    const copied = ruleToForm(rule)
+    copied.name = `${rule.name} 복사본`
+    setForm(copied)
+    setSelectedRuleId(null)
+    setIsCreating(true)
+    setActionNotice('예약을 복사했습니다. 저장하면 새 예약 규칙이 생성됩니다.')
+    setMobilePanel('settings')
+  }, [])
+
   useEffect(() => {
     if (selectedRule && !isCreating) {
       setForm(ruleToForm(selectedRule))
     }
-  }, [selectedRule?.id, isCreating])
+  }, [selectedRule, isCreating])
 
   return {
     confirmDialog,
@@ -366,6 +389,8 @@ export function useSmsScheduledState(templates: SmsTemplate[]) {
     saveRule,
     disableRule,
     deleteRule,
+    deleteRuleById,
+    copyRule,
     formatBlockedReason: formatSmsBlockedReason,
   }
 }

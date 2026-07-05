@@ -36,6 +36,7 @@ export default function SmsBulkGroupsPanel({ bulkState, disabled, layout }: SmsB
     replaceGroupWithCart,
     removeGroupMember,
     removeGroup,
+    copyGroupToDraft,
     toggleGroupSelection,
     selectAllFilteredGroups,
     clearGroupSelection,
@@ -87,8 +88,10 @@ export default function SmsBulkGroupsPanel({ bulkState, disabled, layout }: SmsB
     }
     const ok = await confirm({
       title: '그룹 삭제',
-      message: '이 그룹을 삭제하시겠습니까? 발송 이력은 삭제되지 않습니다.',
+      message:
+        '문자 그룹을 삭제하시겠습니까?\n삭제하면 이 그룹을 문자 발송 대상으로 선택할 수 없습니다.',
       confirmLabel: '삭제',
+      cancelLabel: '취소',
       tone: 'danger',
     })
     if (ok) {
@@ -208,6 +211,46 @@ export default function SmsBulkGroupsPanel({ bulkState, disabled, layout }: SmsB
                 <span className="sms-bulk-group-row__count">{group.recipientCount}명</span>
                 <span className="sms-bulk-group-row__last">{formatGroupLastSentAt(group.lastSentAt)}</span>
               </button>
+              <div className="sms-bulk-group-row__actions">
+                <FormButton type="button" variant="secondary" disabled={busy} onClick={() => void selectGroup(group.id)}>
+                  보기
+                </FormButton>
+                <FormButton
+                  type="button"
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={() => {
+                    void selectGroup(group.id)
+                    setGroupEditModalOpen(true)
+                  }}
+                >
+                  수정
+                </FormButton>
+                <FormButton type="button" variant="secondary" disabled={busy} onClick={() => void copyGroupToDraft(group.id)}>
+                  복사
+                </FormButton>
+                <FormButton
+                  type="button"
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={async () => {
+                    await selectGroup(group.id)
+                    const ok = await confirm({
+                      title: '그룹 삭제',
+                      message:
+                        '문자 그룹을 삭제하시겠습니까?\n삭제하면 이 그룹을 문자 발송 대상으로 선택할 수 없습니다.',
+                      confirmLabel: '삭제',
+                      cancelLabel: '취소',
+                      tone: 'danger',
+                    })
+                    if (ok) {
+                      await removeGroup(group.id)
+                    }
+                  }}
+                >
+                  삭제
+                </FormButton>
+              </div>
             </div>
           ))
         )}

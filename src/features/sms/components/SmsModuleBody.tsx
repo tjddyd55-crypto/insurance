@@ -1,28 +1,21 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import FormButton from '../../../components/form/FormButton'
 import FormInput from '../../../components/form/FormInput'
 import { useAuth } from '../../auth/AuthProvider'
 import SmsBulkRecipientWorkspace from './bulk/SmsBulkRecipientWorkspace'
-import SmsScheduledWorkspace from './scheduled/SmsScheduledWorkspace'
-import SmsTemplateListPanel from './templates/SmsTemplateListPanel'
-import SmsComposerLayout, { SmsComposerSetupFields } from './composer/SmsComposerLayout'
+import SmsSendWorkspace from './send/SmsSendWorkspace'
+import SmsHistoryWorkspace from './history/SmsHistoryWorkspace'
 import { useSmsBulkRecipientState } from '../hooks/useSmsBulkRecipientState'
 import type { SmsModuleViewProps } from '../hooks/useSmsModuleState'
-import { SMS_EXPLICIT_SAMPLE_VALUES } from '../config/smsCompose.config'
 import { ALIGO_API_SETTINGS_URL, formatKrMobileDisplay } from '../smsDisplayUtils'
 import { resolveSmsAdDisplayName } from '../utils/smsMessageMeta'
-import type { SmsPreviewSubstitution } from '../utils/smsTemplateVariables'
 import type { SmsModuleTab } from '../types/sms.types'
 
-// 개별 「문자 보내기」(send)는 당분간 사용하지 않으므로 상단 탭 동선에서 숨긴다.
-// 관련 패널/핸들러 코드는 보존하며, /sms/send 직접 접근은 라우터에서 /sms/bulk 로 redirect 한다.
 const TABS: { id: SmsModuleTab; label: string }[] = [
-  { id: 'settings', label: '문자 설정' },
-  { id: 'bulk', label: '단체문자' },
-  { id: 'scheduled', label: '예약문자' },
-  { id: 'templates', label: '문자 템플릿' },
-  { id: 'history', label: '발송 이력' },
-  { id: 'opt-outs', label: '수신거부 관리' },
+  { id: 'settings', label: '문자설정' },
+  { id: 'groups', label: '그룹설정' },
+  { id: 'send', label: '문자발송' },
+  { id: 'history', label: '발송내역' },
 ]
 
 type Props = SmsModuleViewProps & {
@@ -195,18 +188,19 @@ export default function SmsModuleBody(props: Props) {
     handlePreviewBulk,
     handleCreateBulk,
     handleLoadTemplate,
+    handleLoadTemplateToSend,
+    prepareResendFromHistory,
     handleSaveTemplate,
     handleDeleteTemplate,
     handleUpdateTemplate,
     handleAddOptOut,
     handleRemoveOptOut,
+    sendMode,
+    navigateToSend,
   } = props
 
   const { user } = useAuth()
   const bulkRecipientState = useSmsBulkRecipientState()
-  const [bulkComposeStep, setBulkComposeStep] = useState<'select' | 'compose'>('select')
-  const [bulkSampleCustomerId, setBulkSampleCustomerId] = useState<number | null>(null)
-  const [templateSamplePreviewEnabled, setTemplateSamplePreviewEnabled] = useState(false)
   const realSendEnabled = Boolean(settings?.realSendEnabled)
   const resolvedAdDisplayName = useMemo(
     () =>
@@ -222,44 +216,10 @@ export default function SmsModuleBody(props: Props) {
   )
 
   useEffect(() => {
-    if (tab !== 'bulk') {
-      setBulkComposeStep('select')
+    if (tab === 'groups') {
+      void bulkRecipientState.reloadGroups()
     }
-  }, [tab])
-
-  const handleProceedToBulkCompose = (customerIds: number[]) => {
-    setBulkForm((prev) => ({
-      ...prev,
-      customerIdsText: customerIds.join(', '),
-    }))
-    setBulkComposeStep('compose')
-  }
-
-  const bulkPreviewSubstitution = useMemo((): SmsPreviewSubstitution => {
-    if (!preview?.samples?.length) {
-      return { mode: 'preserve' }
-    }
-    const selectedId = bulkSampleCustomerId ?? preview.samples[0]?.customerId ?? null
-    const sample = preview.samples.find((s) => s.customerId === selectedId)
-    if (!sample?.customerName) {
-      return { mode: 'preserve' }
-    }
-    return {
-      mode: 'selectedCustomer',
-      selectedCustomerName: sample.customerName,
-      values: { customerName: sample.customerName },
-    }
-  }, [preview, bulkSampleCustomerId])
-
-  const templatePreviewSubstitution = useMemo((): SmsPreviewSubstitution => {
-    if (!templateSamplePreviewEnabled) {
-      return { mode: 'preserve' }
-    }
-    return {
-      mode: 'explicitSample',
-      values: { ...SMS_EXPLICIT_SAMPLE_VALUES },
-    }
-  }, [templateSamplePreviewEnabled])
+  }, [tab, bulkRecipientState])
 
   return (
     <>
@@ -414,321 +374,73 @@ export default function SmsModuleBody(props: Props) {
               <p className="sms-module__balance">{balanceText}</p>
             </div>
           ) : null}
+
+          <div className="sms-settings-section sms-settings-section--opt-outs">
+            <h2 className="sms-settings-section__title">수신거부 관리</h2>
+            <div className="sms-module__grid sms-module__grid--2">
+              <label>
+                수신거부 번호
+                <FormInput
+                  value={optOutForm.phone}
+                  onChange={(e) => setOptOutForm((p) => ({ ...p, phone: e.target.value }))}
+                />
+              </label>
+              <label>
+                사유
+                <FormInput
+                  value={optOutForm.reason}
+                  onChange={(e) => setOptOutForm((p) => ({ ...p, reason: e.target.value }))}
+                />
+              </label>
+            </div>
+            <FormButton type="button" disabled={busy} onClick={() => void handleAddOptOut()}>
+              수신거부 등록
+            </FormButton>
+            <ul className="sms-module__list">
+              {optOuts.map((o) => (
+                <li key={o.id} className="sms-module__list-row">
+                  <span>
+                    {o.phoneMasked} {o.reason ? `· ${o.reason}` : ''}
+                  </span>
+                  <FormButton type="button" variant="secondary" disabled={busy} onClick={() => void handleRemoveOptOut(o.id)}>
+                    삭제
+                  </FormButton>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      ) : null}
+
+      {!loading && !moduleDisabled && !authRequired && tab === 'groups' ? (
+        <section className="sms-module__panel sms-module__panel--bulk-select">
+          <SmsBulkRecipientWorkspace variant={variant} busy={busy} bulkState={bulkRecipientState} groupsOnly />
         </section>
       ) : null}
 
       {!loading && !moduleDisabled && !authRequired && tab === 'send' ? (
-        <section className="sms-module__panel sms-module__panel--compose">
-          <SmsComposerLayout
+        <section className="sms-module__panel sms-module__panel--send">
+          <SmsSendWorkspace
             variant={variant}
-            message={sendForm.message}
-            onMessageChange={(message) => setSendForm((p) => ({ ...p, message }))}
-            isAdvertisement={sendForm.messageType === 'ad'}
-            onAdvertisementChange={(checked) =>
-              setSendForm((p) => ({ ...p, messageType: checked ? 'ad' : 'info' }))
-            }
-            senderNumber={settings?.defaultSender || sendForm.senderNumber}
+            module={props}
+            initialSendMode={sendMode}
             adDisplayName={resolvedAdDisplayName}
-            previewSubstitution={{ mode: 'preserve' }}
-            realSendEnabled={realSendEnabled}
-            disabled={busy}
-            setupFields={
-              <SmsComposerSetupFields
-                senderNumber={defaultSenderDisplay}
-                senderReadOnly
-                receiverField={
-                  <label>
-                    수신번호
-                    <FormInput
-                      placeholder="010-0000-0000"
-                      value={sendForm.receiver}
-                      onChange={(e) => setSendForm((p) => ({ ...p, receiver: e.target.value }))}
-                    />
-                  </label>
-                }
-              />
-            }
-            actions={
-              <>
-                <FormButton
-                  type="button"
-                  disabled={busy || !realSendEnabled}
-                  title={
-                    !realSendEnabled
-                      ? '실제 문자 발송은 아직 활성화되어 있지 않습니다.'
-                      : undefined
-                  }
-                  onClick={() => void handleSendSingle()}
-                >
-                  문자 발송
-                </FormButton>
-                <RealSendDisabledHint visible={!realSendEnabled} />
-              </>
-            }
-          />
-        </section>
-      ) : null}
-
-      {!loading && !moduleDisabled && !authRequired && tab === 'bulk' ? (
-        <>
-          {bulkComposeStep === 'select' ? (
-            <section className="sms-module__panel sms-module__panel--bulk-select">
-              <SmsBulkRecipientWorkspace
-                variant={variant}
-                busy={busy}
-                bulkState={bulkRecipientState}
-                onProceedToCompose={handleProceedToBulkCompose}
-              />
-            </section>
-          ) : null}
-          {bulkComposeStep === 'compose' ? (
-        <section className="sms-module__panel sms-module__panel--compose">
-          <div className="sms-bulk-compose-toolbar">
-            <FormButton type="button" variant="secondary" disabled={busy} onClick={() => setBulkComposeStep('select')}>
-              대상 선택으로 돌아가기
-            </FormButton>
-            <p className="sms-module__muted">
-              발송 가능 {bulkRecipientState.summary.sendable}명 · 제외 {bulkRecipientState.summary.excluded}명
-            </p>
-          </div>
-          <SmsComposerLayout
-            variant={variant}
-            message={bulkForm.message}
-            onMessageChange={(message) => setBulkForm((p) => ({ ...p, message }))}
-            isAdvertisement={bulkForm.messageType === 'ad'}
-            onAdvertisementChange={(checked) =>
-              setBulkForm((p) => ({ ...p, messageType: checked ? 'ad' : 'info' }))
-            }
-            senderNumber={bulkForm.senderNumber || settings?.defaultSender}
-            adDisplayName={resolvedAdDisplayName}
-            previewSubstitution={bulkPreviewSubstitution}
-            realSendEnabled={realSendEnabled}
-            disabled={busy}
-            setupFields={
-              <>
-                <p className="sms-module__muted">
-                  단체문자는 발송 전 미리보기를 반드시 확인해야 합니다. {`{고객명}`} / %고객명% 치환을 지원합니다.
-                </p>
-                <div className="sms-module__grid">
-                  <label>
-                    캠페인 제목
-                    <FormInput
-                      value={bulkForm.title}
-                      onChange={(e) => setBulkForm((p) => ({ ...p, title: e.target.value }))}
-                    />
-                  </label>
-                  <label>
-                    발신번호
-                    <select
-                      className="sms-module__select"
-                      value={bulkForm.senderNumber}
-                      onChange={(e) => setBulkForm((p) => ({ ...p, senderNumber: e.target.value }))}
-                    >
-                      <option value="">선택</option>
-                      {verifiedSenders.map((s) => (
-                        <option key={s.id} value={s.senderNumber}>
-                          {formatKrMobileDisplay(s.senderNumber)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-                {preview ? (
-                  <div className="sms-composer__recipient-summary">
-                    <p>
-                      선택 고객 {bulkRecipientState.summary.sendable}명 · 발송 가능 {preview.sendableCount}명 · 제외{' '}
-                      {preview.skippedCount}명
-                    </p>
-                    {preview.samples.length > 0 ? (
-                      <label>
-                        미리보기 샘플 고객
-                        <select
-                          className="sms-module__select"
-                          value={bulkSampleCustomerId ?? preview.samples[0]?.customerId ?? ''}
-                          onChange={(e) => setBulkSampleCustomerId(Number(e.target.value))}
-                        >
-                          {preview.samples.map((s) => (
-                            <option key={s.customerId} value={s.customerId}>
-                              {s.customerName} 고객 기준 미리보기
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    ) : null}
-                  </div>
-                ) : null}
-              </>
-            }
-            actions={
-              <div className="sms-module__actions">
-                <FormButton type="button" variant="secondary" disabled={busy} onClick={() => void handlePreviewBulk()}>
-                  발송 미리보기
-                </FormButton>
-                <FormButton
-                  type="button"
-                  disabled={busy || !previewAcknowledged || !realSendEnabled}
-                  title={
-                    !realSendEnabled
-                      ? '실제 문자 발송은 아직 활성화되어 있지 않습니다.'
-                      : undefined
-                  }
-                  onClick={() => void handleCreateBulk(false)}
-                >
-                  미리보기 확인 후 즉시 발송
-                </FormButton>
-                <RealSendDisabledHint visible={!realSendEnabled} />
-              </div>
-            }
-            below={
-              preview ? (
-                <div className="sms-module__preview sms-composer__campaign-preview">
-                  <p>
-                    발송 가능 {preview.sendableCount}건 / 제외 {preview.skippedCount}건
-                  </p>
-                  <ul>
-                    {Object.entries(preview.skipReasonCounts).map(([k, v]) => (
-                      <li key={k}>
-                        {k}: {v}
-                      </li>
-                    ))}
-                  </ul>
-                  {preview.samples.map((s) => (
-                    <pre key={s.customerId} className="sms-module__sample">
-                      {s.customerName}: {s.sampleMessage}
-                    </pre>
-                  ))}
-                </div>
-              ) : null
-            }
-          />
-        </section>
-          ) : null}
-        </>
-      ) : null}
-
-      {!loading && !moduleDisabled && !authRequired && tab === 'scheduled' ? (
-        <section className="sms-module__panel sms-module__panel--scheduled">
-          <SmsScheduledWorkspace
-            variant={variant}
-            disabled={busy}
-            templates={templates}
-            realSendEnabled={realSendEnabled}
-            defaultSender={settings?.defaultSender}
-            adDisplayName={resolvedAdDisplayName}
-          />
-        </section>
-      ) : null}
-
-      {!loading && !moduleDisabled && !authRequired && tab === 'templates' ? (
-        <section className="sms-module__panel sms-module__panel--compose sms-module__panel--templates">
-          <SmsComposerLayout
-            variant={variant}
-            layout="templates"
-            message={templateForm.message}
-            onMessageChange={(message) => setTemplateForm((p) => ({ ...p, message }))}
-            isAdvertisement={templateForm.messageType === 'ad'}
-            onAdvertisementChange={(checked) =>
-              setTemplateForm((p) => ({ ...p, messageType: checked ? 'ad' : 'info' }))
-            }
-            senderNumber={settings?.defaultSender}
-            adDisplayName={resolvedAdDisplayName}
-            previewSubstitution={templatePreviewSubstitution}
-            realSendEnabled={realSendEnabled}
-            disabled={busy}
-            setupFields={
-              <div className="sms-template-setup">
-                <label>
-                  템플릿명
-                  <FormInput
-                    value={templateForm.title}
-                    onChange={(e) => setTemplateForm((p) => ({ ...p, title: e.target.value }))}
-                  />
-                </label>
-                <div className="sms-template-options">
-                  <p className="sms-template-load-hint sms-module__muted">
-                    불러온 템플릿은 현재 작성 내용에만 적용됩니다. 기존 템플릿을 바꾸려면 수정 버튼을 사용하세요.
-                  </p>
-                  <label className="sms-composer__checkbox sms-template-sample-toggle">
-                    <input
-                      type="checkbox"
-                      checked={templateSamplePreviewEnabled}
-                      onChange={(e) => setTemplateSamplePreviewEnabled(e.target.checked)}
-                    />
-                    <span>샘플 미리보기</span>
-                  </label>
-                  {templateSamplePreviewEnabled ? (
-                    <p className="sms-composer__sample-preview-label">
-                      샘플 미리보기: 고객명={SMS_EXPLICIT_SAMPLE_VALUES.customerName}
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-            }
-            actions={
-              <FormButton type="button" disabled={busy} onClick={() => void handleSaveTemplate()}>
-                템플릿 저장
-              </FormButton>
-            }
-            below={
-              <SmsTemplateListPanel
-                templates={templates}
-                busy={busy}
-                onLoad={handleLoadTemplate}
-                onDelete={handleDeleteTemplate}
-                onUpdate={handleUpdateTemplate}
-              />
-            }
           />
         </section>
       ) : null}
 
       {!loading && !moduleDisabled && !authRequired && tab === 'history' ? (
-        <section className="sms-module__panel">
-          <ul className="sms-module__list">
-            {history.length === 0 ? <li className="sms-module__muted">발송 이력 없음</li> : null}
-            {history.map((h) => (
-              <li key={h.id}>
-                #{h.id} {h.title} · {h.status} · 성공 {h.successCount} / 실패 {h.failCount} / 제외{' '}
-                {h.skippedCount} · {new Date(h.createdAt).toLocaleString()}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      {!loading && !moduleDisabled && !authRequired && tab === 'opt-outs' ? (
-        <section className="sms-module__panel">
-          <div className="sms-module__grid sms-module__grid--2">
-            <label>
-              수신거부 번호
-              <FormInput
-                value={optOutForm.phone}
-                onChange={(e) => setOptOutForm((p) => ({ ...p, phone: e.target.value }))}
-              />
-            </label>
-            <label>
-              사유
-              <FormInput
-                value={optOutForm.reason}
-                onChange={(e) => setOptOutForm((p) => ({ ...p, reason: e.target.value }))}
-              />
-            </label>
-          </div>
-          <FormButton type="button" disabled={busy} onClick={() => void handleAddOptOut()}>
-            수신거부 등록
-          </FormButton>
-          <ul className="sms-module__list">
-            {optOuts.map((o) => (
-              <li key={o.id} className="sms-module__list-row">
-                <span>
-                  {o.phoneMasked} {o.reason ? `· ${o.reason}` : ''}
-                </span>
-                <FormButton type="button" variant="secondary" disabled={busy} onClick={() => void handleRemoveOptOut(o.id)}>
-                  삭제
-                </FormButton>
-              </li>
-            ))}
-          </ul>
+        <section className="sms-module__panel sms-module__panel--history">
+          <SmsHistoryWorkspace
+            variant={variant}
+            module={{
+              history,
+              busy,
+              prepareResendFromHistory,
+              navigateToSend,
+              setTab,
+            }}
+          />
         </section>
       ) : null}
       </div>

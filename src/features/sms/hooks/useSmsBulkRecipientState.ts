@@ -50,6 +50,7 @@ export function useSmsBulkRecipientState() {
   const [groupSaveModalOpen, setGroupSaveModalOpen] = useState(false)
   const [newGroupModalOpen, setNewGroupModalOpen] = useState(false)
   const [groupEditModalOpen, setGroupEditModalOpen] = useState(false)
+  const [groupCopyPreset, setGroupCopyPreset] = useState<{ name: string; description: string } | null>(null)
 
   const summary = useMemo(() => summarizeSelectedRecipients(selectedRecipients), [selectedRecipients])
 
@@ -435,6 +436,7 @@ export function useSmsBulkRecipientState() {
           customerIds,
         })
         setNewGroupModalOpen(false)
+        setGroupCopyPreset(null)
         setActionNotice(
           input.mode === 'from_cart'
             ? `그룹 "${created.name}"을(를) 현재 선택 대상 ${customerIds.length}명으로 만들었습니다.`
@@ -573,6 +575,36 @@ export function useSmsBulkRecipientState() {
     [groupMembers, loadGroupMembers, reloadGroups, token],
   )
 
+  const copyGroupToDraft = useCallback(
+    async (groupId: number) => {
+      if (!token?.trim()) {
+        return
+      }
+      const group = groups.find((row) => row.id === groupId)
+      if (!group) {
+        return
+      }
+      setGroupActionBusy(true)
+      try {
+        const data = await fetchSmsRecipientGroupMembers(token, groupId)
+        const { recipients } = mergeSmsRecipientSelections([], data.customers)
+        setSelectedRecipients(recipients)
+        setGroupCopyPreset({
+          name: `${group.name} 복사본`,
+          description: group.description,
+        })
+        setNewGroupModalOpen(true)
+        setMobileTab('selected')
+        setActionNotice(
+          `"${group.name}" 그룹을 복사 초안으로 불러왔습니다. 구성원을 수정한 뒤 저장하면 새 그룹이 생성됩니다.`,
+        )
+      } finally {
+        setGroupActionBusy(false)
+      }
+    },
+    [groups, token],
+  )
+
   const removeGroup = useCallback(
     async (groupId: number) => {
       if (!token?.trim()) {
@@ -628,6 +660,8 @@ export function useSmsBulkRecipientState() {
     setNewGroupModalOpen,
     groupEditModalOpen,
     setGroupEditModalOpen,
+    groupCopyPreset,
+    setGroupCopyPreset,
     summary,
     sendableCustomerIds,
     runSearch,
@@ -659,6 +693,7 @@ export function useSmsBulkRecipientState() {
     appendCartToGroup,
     replaceGroupWithCart,
     updateGroupMeta,
+    copyGroupToDraft,
     removeGroupMember,
     removeGroup,
   }

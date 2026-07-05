@@ -574,7 +574,10 @@ export const appRouter = createBrowserRouter([
               { path: 'insurance/contacts', element: <InsuranceCompanyContactsViewPage /> },
               { path: 'ta-call', element: <TaCallPage /> },
               { path: 'sms', element: <Navigate to="/sms/settings" replace /> },
-              { path: 'sms/send', element: <Navigate to="/sms/bulk" replace /> },
+              { path: 'sms/bulk', element: <Navigate to="/sms/groups" replace /> },
+              { path: 'sms/scheduled', element: <Navigate to="/sms/send?mode=reserved" replace /> },
+              { path: 'sms/templates', element: <Navigate to="/sms/send" replace /> },
+              { path: 'sms/opt-outs', element: <Navigate to="/sms/settings" replace /> },
               { path: 'sms/:tab', element: <SmsModulePage /> },
               { path: 'insurance/account-credentials', element: <UserInsurerAccountsPage /> },
               {
