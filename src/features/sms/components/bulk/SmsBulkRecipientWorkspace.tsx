@@ -27,7 +27,7 @@ function FilterFields({
   if (layout === 'pc') {
     return (
       <div className="sms-bulk-filters sms-bulk-filters--compact">
-        <div className="sms-bulk-filter-row sms-bulk-filter-row--search">
+        <div className="sms-bulk-filter-row sms-bulk-filter-row--search sms-bulk-search__keyword-row">
           <div className="sms-bulk-filter-field sms-bulk-filter-field--search">
             <span className="sms-bulk-filter-field__label">검색어</span>
             <FormInput

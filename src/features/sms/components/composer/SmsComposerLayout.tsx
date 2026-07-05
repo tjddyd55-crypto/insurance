@@ -17,6 +17,7 @@ type Props = {
   previewSubstitution?: SmsPreviewSubstitution
   realSendEnabled: boolean
   disabled?: boolean
+  layout?: 'default' | 'templates'
   setupFields: ReactNode
   actions?: ReactNode
   below?: ReactNode
@@ -34,6 +35,7 @@ export default function SmsComposerLayout({
   previewSubstitution = { mode: 'preserve' },
   realSendEnabled,
   disabled = false,
+  layout = 'default',
   setupFields,
   actions,
   below,
@@ -47,7 +49,9 @@ export default function SmsComposerLayout({
   })
 
   return (
-    <div className={`sms-composer sms-composer--${variant}`}>
+    <div
+      className={`sms-composer sms-composer--${variant}${layout === 'templates' ? ' sms-composer--templates' : ''}`}
+    >
       <div className="sms-composer__workspace">
         <div className="sms-composer__main">
           {setupFields ? <section className="sms-composer__card">{setupFields}</section> : null}
@@ -64,6 +68,7 @@ export default function SmsComposerLayout({
             disabled={disabled}
             footer={actions}
           />
+          {layout === 'templates' && below ? <div className="sms-composer__below">{below}</div> : null}
         </div>
 
         <SmsPhonePreview
@@ -75,7 +80,7 @@ export default function SmsComposerLayout({
         />
       </div>
 
-      {below ? <div className="sms-composer__below">{below}</div> : null}
+      {layout !== 'templates' && below ? <div className="sms-composer__below">{below}</div> : null}
     </div>
   )
 }

@@ -21,7 +21,7 @@ export default function SmsPhonePreview({
   const isEmpty = !messageText
 
   return (
-    <aside className="sms-composer__preview-panel" aria-label="휴대폰 미리보기">
+    <aside className="sms-composer__preview-panel sms-preview-panel" aria-label="휴대폰 미리보기">
       <div className="sms-composer__preview-caption">
         <p className="sms-composer__preview-caption-title">미리보기</p>
         <p className="sms-composer__preview-caption-type">현재 유형: {meta.typeLabel}</p>
@@ -42,7 +42,8 @@ export default function SmsPhonePreview({
         </div>
       ) : null}
 
-      <div className="sms-composer__phone">
+      <div className="sms-phone-preview-shell">
+        <div className="sms-composer__phone">
         <div className="sms-composer__phone-sensors" aria-hidden="true">
           <span className="sms-composer__phone-speaker" />
           <span className="sms-composer__phone-camera" />
@@ -69,6 +70,7 @@ export default function SmsPhonePreview({
           >
             {isEmpty ? '보낼 문자 내용을 입력해 주세요.' : messageText}
           </p>
+        </div>
         </div>
       </div>
 

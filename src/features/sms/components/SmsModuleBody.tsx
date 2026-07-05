@@ -619,9 +619,10 @@ export default function SmsModuleBody(props: Props) {
       ) : null}
 
       {!loading && !moduleDisabled && !authRequired && tab === 'templates' ? (
-        <section className="sms-module__panel sms-module__panel--compose">
+        <section className="sms-module__panel sms-module__panel--compose sms-module__panel--templates">
           <SmsComposerLayout
             variant={variant}
+            layout="templates"
             message={templateForm.message}
             onMessageChange={(message) => setTemplateForm((p) => ({ ...p, message }))}
             isAdvertisement={templateForm.messageType === 'ad'}
@@ -634,7 +635,7 @@ export default function SmsModuleBody(props: Props) {
             realSendEnabled={realSendEnabled}
             disabled={busy}
             setupFields={
-              <div className="sms-module__grid">
+              <div className="sms-template-setup">
                 <label>
                   템플릿명
                   <FormInput
@@ -642,19 +643,21 @@ export default function SmsModuleBody(props: Props) {
                     onChange={(e) => setTemplateForm((p) => ({ ...p, title: e.target.value }))}
                   />
                 </label>
-                <label className="sms-composer__checkbox sms-composer__template-sample-toggle">
-                  <input
-                    type="checkbox"
-                    checked={templateSamplePreviewEnabled}
-                    onChange={(e) => setTemplateSamplePreviewEnabled(e.target.checked)}
-                  />
-                  <span>샘플 미리보기</span>
-                </label>
-                {templateSamplePreviewEnabled ? (
-                  <p className="sms-composer__sample-preview-label">
-                    샘플 미리보기: 고객명={SMS_EXPLICIT_SAMPLE_VALUES.customerName}
-                  </p>
-                ) : null}
+                <div className="sms-template-options">
+                  <label className="sms-composer__checkbox sms-template-sample-toggle">
+                    <input
+                      type="checkbox"
+                      checked={templateSamplePreviewEnabled}
+                      onChange={(e) => setTemplateSamplePreviewEnabled(e.target.checked)}
+                    />
+                    <span>샘플 미리보기</span>
+                  </label>
+                  {templateSamplePreviewEnabled ? (
+                    <p className="sms-composer__sample-preview-label">
+                      샘플 미리보기: 고객명={SMS_EXPLICIT_SAMPLE_VALUES.customerName}
+                    </p>
+                  ) : null}
+                </div>
               </div>
             }
             actions={
