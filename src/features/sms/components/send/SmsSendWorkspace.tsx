@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import FormButton from '../../../../components/form/FormButton'
 import FormInput from '../../../../components/form/FormInput'
 import { useAuth } from '../../../auth/AuthProvider'
-import { fetchSmsRecipientGroupMembers } from '../../api/smsRecipientGroupsApi'
 import {
   SMS_SCHEDULE_MONTH_DAY_MAX,
   SMS_SCHEDULE_MONTH_DAY_MIN,
@@ -12,6 +11,7 @@ import {
 } from '../../config/smsScheduled.config'
 import { useSmsMessageComposeMeta } from '../../hooks/useSmsMessageComposeMeta'
 import { useSmsScheduledState } from '../../hooks/useSmsScheduledState'
+import { useSmsSendGroupSelection } from '../../hooks/useSmsSendGroupSelection'
 import type { SmsModuleViewProps } from '../../hooks/useSmsModuleState'
 import type { SmsTemplate } from '../../types/sms.types'
 import type { SmsScheduledRule } from '../../types/smsScheduled.types'
@@ -234,9 +234,6 @@ export default function SmsSendWorkspace({ variant, module, initialSendMode, adD
   const { token } = useAuth()
   const scheduledState = useSmsScheduledState(module.templates)
   const [sendMode, setSendMode] = useState<'immediate' | 'reserved'>(initialSendMode)
-  const [selectedGroupId, setSelectedGroupId] = useState<string>('')
-  const [groupSummary, setGroupSummary] = useState<{ total: number; sendable: number; excluded: number } | null>(null)
-  const [groupBusy, setGroupBusy] = useState(false)
   const [newTemplateTitle, setNewTemplateTitle] = useState('')
 
   const {
@@ -254,46 +251,31 @@ export default function SmsSendWorkspace({ variant, module, initialSendMode, adD
     handleSaveTemplateFromComposer,
   } = module
 
+  const syncCustomerIdsText = useCallback(
+    (customerIdsText: string) => {
+      setBulkForm((prev) => ({ ...prev, customerIdsText }))
+    },
+    [setBulkForm],
+  )
+
+  const {
+    selectedGroupId,
+    setSelectedGroupId,
+    selectedGroup,
+    groupSummary,
+    isLoadingGroupMembers,
+    handleGroupChange,
+  } = useSmsSendGroupSelection({
+    token,
+    groups: scheduledState.groups,
+    onCustomerIdsTextChange: syncCustomerIdsText,
+  })
+
   const realSendEnabledFlag = Boolean(settings?.realSendEnabled)
 
   useEffect(() => {
     setSendMode(initialSendMode)
   }, [initialSendMode])
-
-  const syncGroupMembers = useCallback(
-    async (groupId: string) => {
-      setSelectedGroupId(groupId)
-      scheduledState.updateForm({ recipientGroupId: groupId })
-      if (!groupId || !token?.trim()) {
-        setGroupSummary(null)
-        setBulkForm((prev) => ({ ...prev, customerIdsText: '' }))
-        return
-      }
-      setGroupBusy(true)
-      try {
-        const data = await fetchSmsRecipientGroupMembers(token, Number(groupId))
-        const sendable = data.customers.filter((c) => c.canSend).length
-        setGroupSummary({
-          total: data.customers.length,
-          sendable,
-          excluded: data.customers.length - sendable,
-        })
-        setBulkForm((prev) => ({
-          ...prev,
-          customerIdsText: data.customers.map((c) => c.customerId).join(', '),
-        }))
-      } finally {
-        setGroupBusy(false)
-      }
-    },
-    [scheduledState, setBulkForm, token],
-  )
-
-  useEffect(() => {
-    if (sendMode === 'reserved' && scheduledState.form.recipientGroupId) {
-      void syncGroupMembers(scheduledState.form.recipientGroupId)
-    }
-  }, [scheduledState.form.recipientGroupId, sendMode, syncGroupMembers])
 
   const messageBody = sendMode === 'reserved' ? scheduledState.form.messageBody : bulkForm.message
   const messageType = sendMode === 'reserved' ? scheduledState.form.messageType : bulkForm.messageType
@@ -304,11 +286,6 @@ export default function SmsSendWorkspace({ variant, module, initialSendMode, adD
     adDisplayName,
     previewSubstitution: { mode: 'preserve' },
   })
-
-  const selectedGroup = useMemo(
-    () => scheduledState.groups.find((g) => String(g.id) === selectedGroupId) ?? null,
-    [scheduledState.groups, selectedGroupId],
-  )
 
   const handleMessageChange = (message: string) => {
     if (sendMode === 'reserved') {
@@ -354,8 +331,10 @@ export default function SmsSendWorkspace({ variant, module, initialSendMode, adD
   }
 
   const handleEditReservedRule = (ruleId: string) => {
+    const rule = scheduledState.rules.find((row) => row.id === ruleId)
     setSendMode('reserved')
     scheduledState.selectRule(ruleId)
+    setSelectedGroupId(rule?.recipientGroupId ?? '')
   }
 
   const handleDeleteReservedRule = (rule: SmsScheduledRule) => {
@@ -382,8 +361,8 @@ export default function SmsSendWorkspace({ variant, module, initialSendMode, adD
               <select
                 className="sms-module__select"
                 value={selectedGroupId}
-                disabled={busy || groupBusy}
-                onChange={(e) => void syncGroupMembers(e.target.value)}
+                disabled={busy || isLoadingGroupMembers}
+                onChange={(e) => handleGroupChange(e.target.value)}
               >
                 <option value="">그룹 선택</option>
                 {scheduledState.groups.map((group) => (
