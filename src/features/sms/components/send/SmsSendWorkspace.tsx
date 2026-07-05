@@ -464,7 +464,7 @@ export default function SmsSendWorkspace({ variant, module, initialSendMode, adD
         <div className="sms-send-workspace__center">
           <SmsComposerLayout
             variant={variant}
-            showPreview={variant !== 'pc'}
+            showPreview={variant === 'mobile'}
             message={messageBody}
             onMessageChange={handleMessageChange}
             isAdvertisement={messageType === 'ad'}

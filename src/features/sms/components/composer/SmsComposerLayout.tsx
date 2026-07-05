@@ -52,7 +52,9 @@ export default function SmsComposerLayout({
 
   return (
     <div
-      className={`sms-composer sms-composer--${variant}${layout === 'templates' ? ' sms-composer--templates' : ''}`}
+      className={`sms-composer sms-composer--${variant}${layout === 'templates' ? ' sms-composer--templates' : ''}${
+        !showPreview && variant === 'pc' ? ' sms-composer--no-preview' : ''
+      }`}
     >
       <div className="sms-composer__workspace">
         <div className="sms-composer__main">

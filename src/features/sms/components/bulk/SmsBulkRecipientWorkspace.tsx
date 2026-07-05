@@ -382,8 +382,7 @@ function SelectedRecipientsPanel({
               checked={selectedCartIds.has(row.customerId)}
               disabled={disabled}
               onCheckChange={() => toggleCartCustomer(row.customerId)}
-              canSend={row.canSend}
-              blockedReason={row.blockedReason}
+              showRemove
               onRemove={() => removeRecipient(row.customerId)}
             />
           ))
