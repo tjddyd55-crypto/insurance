@@ -1645,3 +1645,335 @@
   max-height: none;
 }
 
+.sms-scheduled-workspace {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+}
+
+.sms-scheduled-workspace--pc {
+  grid-template-columns: 320px minmax(480px, 1fr) 360px;
+}
+
+.sms-scheduled-workspace__notice {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  background: var(--hint-bg);
+  border: 1px solid var(--hint-border);
+  color: var(--hint-text);
+  font-size: 0.875rem;
+}
+
+.sms-scheduled-panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 16px;
+  padding: 16px;
+  min-width: 0;
+}
+
+.sms-scheduled-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.sms-scheduled-panel__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.sms-scheduled-list-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.sms-scheduled-list-filters__btn {
+  border: 1px solid var(--border-default);
+  background: var(--bg-base);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.sms-scheduled-list-filters__btn--active {
+  border-color: var(--input-focus-border);
+  color: var(--text-primary);
+  background: var(--bg-soft);
+}
+
+.sms-scheduled-search {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.sms-scheduled-search__label {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.sms-scheduled-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+}
+
+.sms-scheduled-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: calc(100vh - 14rem);
+  overflow: auto;
+}
+
+.sms-scheduled-card {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--bg-base);
+  padding: 0.75rem;
+  cursor: pointer;
+}
+
+.sms-scheduled-card--active {
+  border-color: var(--input-focus-border);
+  background: var(--bg-soft);
+}
+
+.sms-scheduled-card__name {
+  margin: 0 0 0.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.sms-scheduled-card__meta,
+.sms-scheduled-card__group,
+.sms-scheduled-card__next {
+  margin: 0.15rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.sms-scheduled-panel--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 320px;
+}
+
+.sms-scheduled-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sms-scheduled-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.sms-scheduled-form__block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sms-scheduled-form__label {
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.sms-scheduled-form__hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.sms-scheduled-form__validation {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--hint-text);
+}
+
+.sms-scheduled-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-top: 0.25rem;
+}
+
+.sms-scheduled-toggle {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sms-scheduled-segment {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.sms-scheduled-segment__btn {
+  border: 1px solid var(--border-default);
+  background: var(--bg-base);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.sms-scheduled-segment__btn--active {
+  border-color: var(--input-focus-border);
+  background: var(--bg-soft);
+  color: var(--text-primary);
+}
+
+.sms-scheduled-weekdays {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.sms-scheduled-weekday {
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--bg-base);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.sms-scheduled-weekday--active {
+  border-color: var(--input-focus-border);
+  background: var(--bg-soft);
+  color: var(--text-primary);
+}
+
+.sms-scheduled-group-summary {
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-default);
+}
+
+.sms-scheduled-group-summary__name {
+  margin: 0 0 0.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.sms-scheduled-group-summary__counts {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.sms-scheduled-preview-block {
+  margin-bottom: 1rem;
+}
+
+.sms-scheduled-preview-block__title {
+  margin: 0 0 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.sms-scheduled-preview-block__subtitle {
+  margin: 0 0 0.35rem;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.sms-scheduled-preview-block__list {
+  margin: 0;
+  padding-left: 1rem;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+.sms-scheduled-target-list,
+.sms-scheduled-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.sms-scheduled-workspace--mobile {
+  grid-template-columns: 1fr;
+}
+
+.sms-scheduled-mobile-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.sms-scheduled-mobile-tabs__btn {
+  border: 1px solid var(--border-default);
+  background: var(--bg-base);
+  color: var(--text-secondary);
+  border-radius: 10px;
+  padding: 0.45rem 0.25rem;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.sms-scheduled-mobile-tabs__btn--active {
+  border-color: var(--input-focus-border);
+  background: var(--bg-soft);
+  color: var(--text-primary);
+}
+
+.sms-scheduled-mobile-save-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding: 0.75rem 0 0.25rem;
+  background: linear-gradient(to top, var(--bg-base) 70%, transparent);
+}
+
+.sms-module-page--mobile .sms-scheduled-panel--form .sms-scheduled-form__actions {
+  padding-bottom: 4rem;
+}
+
+@media (max-width: 1200px) {
+  .sms-scheduled-workspace--pc {
+    grid-template-columns: 280px minmax(0, 1fr) 320px;
+  }
+}
+
+@media (max-width: 960px) {
+  .sms-scheduled-workspace--pc {
+    grid-template-columns: 1fr;
+  }
+}
+

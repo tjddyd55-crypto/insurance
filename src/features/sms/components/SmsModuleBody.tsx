@@ -3,6 +3,7 @@ import FormButton from '../../../components/form/FormButton'
 import FormInput from '../../../components/form/FormInput'
 import { useAuth } from '../../auth/AuthProvider'
 import SmsBulkRecipientWorkspace from './bulk/SmsBulkRecipientWorkspace'
+import SmsScheduledWorkspace from './scheduled/SmsScheduledWorkspace'
 import SmsComposerLayout, { SmsComposerSetupFields } from './composer/SmsComposerLayout'
 import { useSmsBulkRecipientState } from '../hooks/useSmsBulkRecipientState'
 import type { SmsModuleViewProps } from '../hooks/useSmsModuleState'
@@ -171,7 +172,6 @@ export default function SmsModuleBody(props: Props) {
     verifiedSenders,
     templates,
     history,
-    scheduledCampaigns,
     optOuts,
     balanceText,
     preview,
@@ -193,7 +193,6 @@ export default function SmsModuleBody(props: Props) {
     previewAcknowledged,
     handlePreviewBulk,
     handleCreateBulk,
-    handleCancelCampaign,
     handleSaveTemplate,
     handleDeleteTemplate,
     handleAddOptOut,
@@ -220,7 +219,7 @@ export default function SmsModuleBody(props: Props) {
   )
 
   useEffect(() => {
-    if (tab !== 'bulk' && tab !== 'scheduled') {
+    if (tab !== 'bulk') {
       setBulkComposeStep('select')
     }
   }, [tab])
@@ -466,7 +465,7 @@ export default function SmsModuleBody(props: Props) {
         </section>
       ) : null}
 
-      {!loading && !moduleDisabled && !authRequired && (tab === 'bulk' || tab === 'scheduled') ? (
+      {!loading && !moduleDisabled && !authRequired && tab === 'bulk' ? (
         <>
           {bulkComposeStep === 'select' ? (
             <section className="sms-module__panel sms-module__panel--bulk-select">
@@ -480,11 +479,6 @@ export default function SmsModuleBody(props: Props) {
           ) : null}
           {bulkComposeStep === 'compose' ? (
         <section className="sms-module__panel sms-module__panel--compose">
-          {tab === 'scheduled' ? (
-            <p className="sms-composer__scheduled-note">
-              예약 캠페인 저장만 가능합니다. 자동 발송 worker는 후속 작업 예정입니다.
-            </p>
-          ) : null}
           <div className="sms-bulk-compose-toolbar">
             <FormButton type="button" variant="secondary" disabled={busy} onClick={() => setBulkComposeStep('select')}>
               대상 선택으로 돌아가기
@@ -534,16 +528,6 @@ export default function SmsModuleBody(props: Props) {
                       ))}
                     </select>
                   </label>
-                  {tab === 'scheduled' ? (
-                    <label>
-                      예약 일시
-                      <FormInput
-                        type="datetime-local"
-                        value={bulkForm.scheduledAt}
-                        onChange={(e) => setBulkForm((p) => ({ ...p, scheduledAt: e.target.value }))}
-                      />
-                    </label>
-                  ) : null}
                 </div>
                 {preview ? (
                   <div className="sms-composer__recipient-summary">
@@ -576,27 +560,19 @@ export default function SmsModuleBody(props: Props) {
                 <FormButton type="button" variant="secondary" disabled={busy} onClick={() => void handlePreviewBulk()}>
                   발송 미리보기
                 </FormButton>
-                {tab === 'bulk' ? (
-                  <>
-                    <FormButton
-                      type="button"
-                      disabled={busy || !previewAcknowledged || !realSendEnabled}
-                      title={
-                        !realSendEnabled
-                          ? '실제 문자 발송은 아직 활성화되어 있지 않습니다.'
-                          : undefined
-                      }
-                      onClick={() => void handleCreateBulk(false)}
-                    >
-                      미리보기 확인 후 즉시 발송
-                    </FormButton>
-                    <RealSendDisabledHint visible={!realSendEnabled} />
-                  </>
-                ) : (
-                  <FormButton type="button" disabled={busy} onClick={() => void handleCreateBulk(true)}>
-                    예약 캠페인 저장
-                  </FormButton>
-                )}
+                <FormButton
+                  type="button"
+                  disabled={busy || !previewAcknowledged || !realSendEnabled}
+                  title={
+                    !realSendEnabled
+                      ? '실제 문자 발송은 아직 활성화되어 있지 않습니다.'
+                      : undefined
+                  }
+                  onClick={() => void handleCreateBulk(false)}
+                >
+                  미리보기 확인 후 즉시 발송
+                </FormButton>
+                <RealSendDisabledHint visible={!realSendEnabled} />
               </div>
             }
             below={
@@ -627,27 +603,15 @@ export default function SmsModuleBody(props: Props) {
       ) : null}
 
       {!loading && !moduleDisabled && !authRequired && tab === 'scheduled' ? (
-        <section className="sms-module__panel">
-          <h3>예약/초안 캠페인</h3>
-          <p className="sms-module__muted">
-            예약 자동 발송 worker는 후속 작업 예정입니다. 지금은 예약 캠페인 저장과 발송 전 취소만 지원합니다.
-          </p>
-          <ul className="sms-module__list">
-            {scheduledCampaigns.length === 0 ? <li className="sms-module__muted">예약 캠페인 없음</li> : null}
-            {scheduledCampaigns.map((c) => (
-              <li key={c.id} className="sms-module__list-row">
-                <span>
-                  #{c.id} {c.title} · {c.status} · 대상 {c.targetCount} ·{' '}
-                  {c.scheduledAt ? new Date(c.scheduledAt).toLocaleString() : '즉시'}
-                </span>
-                {c.status === 'scheduled' || c.status === 'draft' ? (
-                  <FormButton type="button" variant="secondary" disabled={busy} onClick={() => void handleCancelCampaign(c.id)}>
-                    취소
-                  </FormButton>
-                ) : null}
-              </li>
-            ))}
-          </ul>
+        <section className="sms-module__panel sms-module__panel--scheduled">
+          <SmsScheduledWorkspace
+            variant={variant}
+            disabled={busy}
+            templates={templates}
+            realSendEnabled={realSendEnabled}
+            defaultSender={settings?.defaultSender}
+            adDisplayName={resolvedAdDisplayName}
+          />
         </section>
       ) : null}
 
