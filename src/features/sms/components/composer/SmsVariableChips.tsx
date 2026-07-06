@@ -1,4 +1,4 @@
-import { SMS_TEMPLATE_VARIABLES } from '../../utils/smsTemplateVariables'
+import { SMS_ENABLED_TEMPLATE_VARIABLES } from '../../utils/smsTemplateVariables'
 
 type Props = {
   onInsert: (token: string) => void
@@ -10,22 +10,20 @@ export default function SmsVariableChips({ onInsert, disabled = false }: Props) 
     <div className="sms-composer__variables">
       <p className="sms-composer__variables-title">치환 변수</p>
       <div className="sms-composer__variable-chips">
-        {SMS_TEMPLATE_VARIABLES.map((item) => (
+        {SMS_ENABLED_TEMPLATE_VARIABLES.map((item) => (
           <button
             key={item.id}
             type="button"
             className="sms-composer__variable-chip"
-            disabled={disabled || !item.enabled}
-            title={item.enabled ? `${item.aligoLabel} 삽입` : item.disabledReason}
+            disabled={disabled}
+            title={`${item.aligoLabel} 삽입`}
             onClick={() => onInsert(item.token)}
           >
             + {item.chipLabel}
           </button>
         ))}
       </div>
-      <p className="sms-composer__variables-note">
-        치환 변수는 실제 발송 시 고객별 값으로 변경됩니다. 고객 미선택 시 미리보기에는 변수가 그대로 표시됩니다.
-      </p>
+      <p className="sms-composer__variables-note">현재는 고객명 치환만 지원합니다.</p>
     </div>
   )
 }

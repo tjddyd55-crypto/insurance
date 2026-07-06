@@ -529,7 +529,7 @@ export default function SmsSendWorkspace({ variant, module, initialSendMode, adD
 
         {variant === 'pc' ? (
           <aside className="sms-send-workspace__right sms-send-preview-panel">
-            <SmsPhonePreview meta={meta} senderNumber={settings?.defaultSender} compact hideCaption />
+            <SmsPhonePreview meta={meta} senderNumber={settings?.defaultSender} hideCaption />
             {selectedGroup && groupSummary ? (
               <div className="sms-send-target-summary">
                 <h3 className="sms-send-section__title">대상 요약</h3>

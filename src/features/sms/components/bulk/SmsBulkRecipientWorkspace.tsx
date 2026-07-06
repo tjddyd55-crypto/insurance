@@ -294,7 +294,6 @@ function SelectedRecipientsPanel({
     selectAllVisibleCart,
     clearCartSelection,
     removeSelectedRecipients,
-    removeRecipient,
     clearRecipients,
     setGroupSaveModalOpen,
     sendableCustomerIds,
@@ -382,8 +381,6 @@ function SelectedRecipientsPanel({
               checked={selectedCartIds.has(row.customerId)}
               disabled={disabled}
               onCheckChange={() => toggleCartCustomer(row.customerId)}
-              showRemove
-              onRemove={() => removeRecipient(row.customerId)}
             />
           ))
         )}

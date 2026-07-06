@@ -188,7 +188,6 @@ export default function SmsModuleBody(props: Props) {
     previewAcknowledged,
     handlePreviewBulk,
     handleCreateBulk,
-    handleLoadTemplate,
     handleLoadTemplateToSend,
     prepareResendFromHistory,
     handleSaveTemplate,

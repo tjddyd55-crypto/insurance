@@ -27,7 +27,6 @@ export default function SmsBulkGroupsPanel({ bulkState, disabled, layout }: SmsB
     setNewGroupModalOpen,
     setGroupEditModalOpen,
     appendCartToGroup,
-    removeGroupMember,
     removeGroup,
     copyGroupToDraft,
     toggleGroupMemberSelection,
@@ -53,22 +52,6 @@ export default function SmsBulkGroupsPanel({ bulkState, disabled, layout }: SmsB
     })
     if (ok) {
       await removeGroup(selectedGroupId)
-    }
-  }
-
-  const handleRemoveMember = async (customerId: number) => {
-    if (selectedGroupId == null) {
-      return
-    }
-    const ok = await confirm({
-      title: '구성원 제외',
-      message:
-        '선택한 고객을 이 그룹에서 제외하시겠습니까?\n그룹에서만 제외되며 고객 정보는 삭제되지 않습니다.',
-      confirmLabel: '제외',
-      cancelLabel: '취소',
-    })
-    if (ok) {
-      await removeGroupMember(selectedGroupId, customerId)
     }
   }
 
@@ -226,8 +209,6 @@ export default function SmsBulkGroupsPanel({ bulkState, disabled, layout }: SmsB
                     checked={selectedGroupMemberIds.has(row.customerId)}
                     disabled={busy}
                     onCheckChange={() => toggleGroupMemberSelection(row.customerId)}
-                    showRemove
-                    onRemove={() => void handleRemoveMember(row.customerId)}
                   />
                 ))
               )}

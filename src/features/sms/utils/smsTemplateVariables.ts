@@ -28,6 +28,17 @@ export type SmsTemplateVariableDef = {
   disabledReason?: string
 }
 
+/** UI 칩으로 노출·삽입 가능한 변수 (초기 버전: 고객명만) */
+export const SMS_ENABLED_TEMPLATE_VARIABLES: SmsTemplateVariableDef[] = [
+  {
+    id: 'customerName',
+    token: '{고객명}',
+    aligoLabel: '%고객명%',
+    chipLabel: '고객명',
+    enabled: true,
+  },
+]
+
 export const SMS_TEMPLATE_VARIABLES: SmsTemplateVariableDef[] = [
   {
     id: 'customerName',
