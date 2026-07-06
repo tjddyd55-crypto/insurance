@@ -1,6 +1,8 @@
 import TaCallDaySection from '../../components/TaCallDaySection'
+import TaCallDailyTargetCard from '../../components/TaCallDailyTargetCard'
 import TaCallMissionCard from '../../components/TaCallMissionCard'
 import TaCallSettingsDialog from '../../components/TaCallSettingsDialog'
+import TaCallWeekSummaryCard from '../../components/TaCallWeekSummaryCard'
 import type { TaCallViewProps } from '../../hooks/useTaCallState'
 import { formatTaWeekRangeLabel } from '../../utils/taCallDisplay'
 
@@ -48,34 +50,18 @@ export default function TaCallPCView(props: TaCallViewProps) {
           <TaCallMissionCard day={todayDay} dailyTargetCount={settings.dailyTargetCount} compact />
 
           {week ? (
-            <section className="ta-call-week-summary">
-              <h2 className="ta-call-week-summary__title">이번 주 요약</h2>
-              <p className="ta-call-week-summary__range">
-                {formatTaWeekRangeLabel(week.weekStartDate, week.weekEndDate)}
-              </p>
-              <ul className="ta-call-week-summary__list">
-                {week.days.map((day) => (
-                  <li key={day.date} className="ta-call-week-summary__item">
-                    <span>
-                      {day.date.slice(5).replace('-', '/')} — {day.completedCount}/{day.dailyTargetCount}
-                    </span>
-                    {day.isMissionCompleted ? <span className="ta-call-week-summary__check">✓</span> : null}
-                  </li>
-                ))}
-              </ul>
-            </section>
+            <TaCallWeekSummaryCard
+              weekStartDate={week.weekStartDate}
+              weekEndDate={week.weekEndDate}
+              days={week.days}
+            />
           ) : null}
 
-          <div className="ta-call-page__sidebar-settings">
-            <div className="ta-call-page__sidebar-settings-copy">
-              <span>하루 목표: {settings.dailyTargetCount}명</span>
-              <p className="ta-call-page__target-summary">{targetFilterSummary}</p>
-            </div>
-            <button type="button" className="ta-call-page__settings-btn" onClick={openSettings}>
-              <span aria-hidden>⚙</span>
-              설정
-            </button>
-          </div>
+          <TaCallDailyTargetCard
+            dailyTargetCount={settings.dailyTargetCount}
+            targetFilterSummary={targetFilterSummary}
+            onOpenSettings={openSettings}
+          />
           {settingsNotice ? <p className="ta-call-page__settings-notice">{settingsNotice}</p> : null}
         </aside>
 
