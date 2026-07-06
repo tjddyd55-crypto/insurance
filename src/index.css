@@ -256,6 +256,10 @@ body {
     padding: 0;
     border-bottom: 1px solid var(--border-default, #2a2a2a);
     background: var(--bg-elevated, #141b26);
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: clip;
   }
 
   .pc-root.app-workspace-layout-root .workspace-root.workspace-root--app-pc {
