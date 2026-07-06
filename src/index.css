@@ -9945,7 +9945,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
     width: 96px;
     min-width: 96px;
     max-width: 96px;
-    text-align: right;
+    text-align: center;
     box-sizing: border-box;
     color: var(--text-sub, #6b7280);
     white-space: nowrap;
@@ -10062,17 +10062,32 @@ div.cta-button.customers-page__action-btn[role='button'] {
   padding: 8px 10px;
 }
 
-/* PC 원수사 연락처: 3열 카드 + 모바일 정렬 규칙 재사용 */
+/* PC 원수사 연락처: 반응형 카드 grid (Windows Snap 반쪽 화면 대응) */
 .pc-root .insurance-contacts-view .insurance-contacts-cards,
 .pc-root .insurance-contacts-view .contact-list {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(280px, 1fr));
   gap: 16px;
+}
+
+@media (max-width: 1180px) {
+  .pc-root .insurance-contacts-view .insurance-contacts-cards,
+  .pc-root .insurance-contacts-view .contact-list {
+    grid-template-columns: repeat(2, minmax(300px, 1fr));
+  }
+}
+
+@media (max-width: 820px) {
+  .pc-root .insurance-contacts-view .insurance-contacts-cards,
+  .pc-root .insurance-contacts-view .contact-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .pc-root .insurance-contacts-view .company-card,
 .pc-root .insurance-contacts-view .contact-card {
   width: 100%;
+  min-width: 0;
   padding: 16px;
   border-radius: 12px;
   background: #ffffff;
@@ -10090,6 +10105,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
   padding: 6px 0;
   margin-top: 0;
   min-height: 36px;
+  min-width: 0;
 }
 
 .pc-root .insurance-contacts-view .company-card .info-row + .info-row {
@@ -10109,6 +10125,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 .pc-root .insurance-contacts-view .company-card .info-row .value {
   min-width: 0;
   word-break: break-word;
+  font-variant-numeric: tabular-nums;
 }
 
 .pc-root .insurance-contacts-view .company-card .info-row-actions,
@@ -10128,6 +10145,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
   gap: 8px;
   padding: 6px 0;
   min-height: 36px;
+  min-width: 0;
 }
 
 .pc-root .insurance-contacts-view .company-card .contact-row .position {
@@ -10143,12 +10161,24 @@ div.cta-button.customers-page__action-btn[role='button'] {
   display: none;
 }
 
-.pc-root .insurance-contacts-view .company-card .contact-row .name,
-.pc-root .insurance-contacts-view .company-card .contact-row .phone {
+.pc-root .insurance-contacts-view .company-card .contact-row .name {
   min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.pc-root .insurance-contacts-view .company-card .contact-row .phone {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  font-variant-numeric: tabular-nums;
+}
+
+.pc-root .insurance-contacts-view .company-card .contact-row .actions,
+.pc-root .insurance-contacts-view .company-card .contact-row .actions-mini {
+  flex-shrink: 0;
 }
 
 .pc-root .insurance-contacts-view .company-card .actions-mini button,
@@ -10159,13 +10189,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
   border-radius: 8px;
   background: #ffffff;
   border: 1px solid #e5e7eb;
-}
-
-@media (min-width: 1024px) and (max-width: 1200px) {
-  .pc-root .insurance-contacts-view .insurance-contacts-cards,
-  .pc-root .insurance-contacts-view .contact-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+  flex-shrink: 0;
 }
 
 .insurance-contacts-footer-links {
