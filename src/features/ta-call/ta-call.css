@@ -101,11 +101,22 @@
   position: sticky;
   top: 16px;
   align-self: start;
-  background: var(--ta-card);
-  border: 1px solid #e5e7eb;
-  border-radius: 20px;
-  padding: 20px;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.ta-call-page__sidebar .ta-call-mission-card {
+  margin-bottom: 0;
+}
+
+.ta-call-page__sidebar .ta-call-page__header--sidebar {
+  margin-bottom: 0;
+}
+
+.ta-call-page__sidebar .ta-call-page__settings-notice {
+  margin-top: 0;
 }
 
 .ta-call-page__sidebar-settings {
@@ -310,35 +321,175 @@
   cursor: pointer;
 }
 
-.ta-call-week-summary__title {
-  margin: 0 0 4px;
-  font-size: 0.9375rem;
+.ta-week-summary-card,
+.ta-daily-target-card {
+  background: var(--ta-card);
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  padding: 18px 20px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
 }
 
-.ta-call-week-summary__range {
-  margin: 0 0 10px;
+.ta-week-summary-card__head {
+  margin-bottom: 12px;
+}
+
+.ta-week-summary-card__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ta-text);
+}
+
+.ta-week-summary-card__icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.ta-week-summary-card__range {
+  margin: 8px 0 0;
   color: var(--ta-muted);
   font-size: 0.8125rem;
 }
 
-.ta-call-week-summary__list {
+.ta-week-summary-card__rows {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
-.ta-call-week-summary__item {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.8125rem;
+.ta-week-summary-row {
+  display: grid;
+  grid-template-columns: 28px 52px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
 }
 
-.ta-call-week-summary__check {
+.ta-week-summary-row--today {
+  background: var(--ta-green-soft);
+  border-radius: 12px;
+  padding: 6px 10px;
+  margin-inline: -10px;
+}
+
+.ta-week-summary-row--today .ta-week-summary-row__weekday,
+.ta-week-summary-row--today .ta-week-summary-row__date,
+.ta-week-summary-row--today .ta-week-summary-row__count {
   color: var(--ta-green);
   font-weight: 700;
+}
+
+.ta-week-summary-row__weekday,
+.ta-week-summary-row__date {
+  font-size: 0.8125rem;
+  color: var(--ta-muted);
+}
+
+.ta-week-summary-row__progress-area {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ta-week-progress {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 6px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+}
+
+.ta-week-progress__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ta-green);
+}
+
+.ta-week-progress__fill--full {
+  width: 100%;
+}
+
+.ta-week-summary-row__count {
+  flex: 0 0 auto;
+  font-size: 0.8125rem;
+  color: var(--ta-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.ta-week-summary-row__count--active {
+  color: var(--ta-green);
+  font-weight: 600;
+}
+
+.ta-week-summary-row__check {
+  flex: 0 0 auto;
+  color: var(--ta-green);
+  font-weight: 700;
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+.ta-week-summary-row__today-dot {
+  flex: 0 0 auto;
+  color: var(--ta-green);
+  font-size: 0.625rem;
+  line-height: 1;
+}
+
+.ta-week-summary-row__muted {
+  font-size: 0.8125rem;
+  color: var(--ta-muted);
+}
+
+.ta-daily-target-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ta-daily-target-card__body {
+  min-width: 0;
+}
+
+.ta-daily-target-card__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--ta-text);
+}
+
+.ta-daily-target-card__icon {
+  color: var(--ta-green);
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+.ta-daily-target-card__value {
+  margin: 4px 0 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ta-text);
+}
+
+.ta-daily-target-card__summary {
+  margin: 6px 0 0;
+  color: var(--ta-muted);
+  font-size: 0.8125rem;
+  line-height: 1.4;
 }
 
 .ta-call-day-section {

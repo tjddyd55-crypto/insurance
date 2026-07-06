@@ -2,6 +2,7 @@ import TaCallDaySection from '../../components/TaCallDaySection'
 import TaCallMissionCard from '../../components/TaCallMissionCard'
 import TaCallSettingsDialog from '../../components/TaCallSettingsDialog'
 import TaCallWeekNav from '../../components/TaCallWeekNav'
+import TaCallWeekSummaryCard from '../../components/TaCallWeekSummaryCard'
 import type { TaCallViewProps } from '../../hooks/useTaCallState'
 
 export default function TaCallMobileView(props: TaCallViewProps) {
@@ -56,6 +57,11 @@ export default function TaCallMobileView(props: TaCallViewProps) {
       {week ? (
         <>
           <TaCallMissionCard day={todayDay} dailyTargetCount={settings.dailyTargetCount} />
+          <TaCallWeekSummaryCard
+            weekStartDate={week.weekStartDate}
+            weekEndDate={week.weekEndDate}
+            days={week.days}
+          />
           <TaCallWeekNav
             weekStartDate={week.weekStartDate}
             weekEndDate={week.weekEndDate}
