@@ -243,6 +243,55 @@ body {
   display: none;
 }
 
+/*
+ * Windows Snap 등 1024px 미만 PC 창: .pc-root 에서만 chrome header·레이아웃 노출.
+ * 1024px 이상 PC 스타일은 @media (min-width: 1024px) 블록(원본)을 그대로 사용한다.
+ */
+@media (max-width: 1023px) {
+  .pc-root .app-workspace-chrome-header.header {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    padding: 0;
+    border-bottom: 1px solid var(--border-default, #2a2a2a);
+    background: var(--bg-elevated, #141b26);
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  .pc-root.app-workspace-layout-root .workspace-root.workspace-root--app-pc {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+    max-height: none;
+    overflow: hidden;
+  }
+
+  .pc-root.app-workspace-layout-root .workspace-main.workspace-main--app {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .pc-root.app-workspace-layout-root .workspace-main.workspace-main--app .app-main-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .pc-root .app-main-content.app-main-content--workspace-outlet-host {
+    position: relative;
+    padding: 12px;
+    padding-top: 0;
+    margin: 0;
+  }
+}
+
 .pc-title-bar {
   display: none;
 }

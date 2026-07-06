@@ -173,3 +173,208 @@
     line-height: 1;
   }
 }
+
+/*
+ * Windows Snap 등 1024px 미만 PC 창: .pc-root 에서만 메뉴 노출.
+ * 표시·레이아웃만 보정한다. 하위 메뉴 버튼 모양은 전체화면과 동일하게
+ * .pc-root .button 시스템 + min-width 블록과 같은 specificity 의 item 보조 규칙을 따른다.
+ */
+@media (max-width: 1023px) {
+  .pc-root .pc-workspace-header--navigation-only {
+    overflow: visible;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .pc-root .pc-workspace-header--navigation-only .pc-top-navigation {
+    display: flex;
+  }
+
+  .pc-root .pc-top-navigation {
+    position: relative;
+    align-items: stretch;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 44px;
+    padding: 0 12px;
+    border-top: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--border-default, #2a2a2a) 78%, transparent);
+    background: color-mix(in srgb, var(--bg-elevated, #141b26) 92%, #000 8%);
+    overflow: visible;
+    z-index: 60;
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .pc-root .pc-top-navigation__bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .pc-root .pc-top-navigation__groups {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .pc-root .pc-top-navigation__groups::-webkit-scrollbar {
+    display: none;
+    height: 0;
+  }
+
+  .pc-top-navigation__group {
+    flex: 0 0 auto;
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: color-mix(in srgb, var(--text-primary, #fff) 84%, transparent);
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .pc-top-navigation__group:hover,
+  .pc-top-navigation__group--open,
+  .pc-top-navigation__group--pinned {
+    background: var(--bg-soft, #f1f5f9);
+    color: var(--text-primary, #111827);
+  }
+
+  .pc-top-navigation__group--active {
+    background: var(--primary-soft, #dcfce7);
+    color: var(--primary-active, #166534);
+  }
+
+  .pc-top-navigation__group:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary, #60a5fa) 42%, transparent);
+  }
+
+  .pc-root .pc-top-navigation__actions {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    min-height: 44px;
+    white-space: nowrap;
+  }
+
+  .pc-root .pc-top-navigation__actions .notification-icon,
+  .pc-root .pc-top-navigation__logout {
+    min-height: 32px;
+  }
+
+  .pc-root .pc-top-navigation__dropdown {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    min-height: 52px;
+    padding: 10px 12px;
+    border-top: 1px solid color-mix(in srgb, var(--border-default, #2a2a2a) 72%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--border-default, #2a2a2a) 82%, transparent);
+    background: color-mix(in srgb, var(--bg-card) 94%, #000 6%);
+    box-shadow: 0 16px 28px rgba(0, 0, 0, 0.28);
+    z-index: 80;
+    box-sizing: border-box;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .pc-top-navigation__dropdown-title {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    margin-right: 12px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--brand-primary, #60a5fa) 16%, transparent);
+    color: color-mix(in srgb, var(--brand-primary, #60a5fa) 82%, #fff 18%);
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.02em;
+    vertical-align: middle;
+  }
+
+  .pc-root .pc-top-navigation__dropdown-items {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .pc-root .pc-top-navigation__dropdown-items::-webkit-scrollbar {
+    display: none;
+    height: 0;
+  }
+
+  /*
+   * 하위 메뉴 FormButton: base 크기·radius 는 .pc-root .button 이 담당(전체화면과 동일 cascade).
+   * active·badge 등 보조 규칙만 min-width 블록과 같은 selector 로 제공한다.
+   */
+  .pc-top-navigation__item {
+    flex: 0 0 auto;
+    width: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+
+  .pc-top-navigation__item[aria-current='page'],
+  .pc-top-navigation__item--active {
+    border-color: var(--primary-border, #bbf7d0);
+    background: var(--primary-soft, #dcfce7);
+    color: var(--primary-active, #166534);
+  }
+
+  .pc-top-navigation__item:disabled {
+    opacity: 0.58;
+    cursor: not-allowed;
+  }
+
+  .pc-top-navigation__item-label {
+    white-space: nowrap;
+  }
+
+  .pc-top-navigation__item-badge {
+    flex: 0 0 auto;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--warning, #f59e0b) 18%, transparent);
+    color: color-mix(in srgb, var(--warning, #f59e0b) 78%, #fff 22%);
+    font-size: 0.66rem;
+    font-weight: 800;
+    line-height: 1;
+  }
+}
