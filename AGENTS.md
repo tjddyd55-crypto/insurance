@@ -289,6 +289,13 @@ Windows 환경에서 `core.autocrlf=true`로 인해 `git status`에 수백 개 �
 6. **`useIsMobile` 판정식 고정**  
    `src/hooks/useIsMobile.ts`의 미디어 쿼리는 **`(max-width: 768px) and (pointer: coarse)`** 이다. `pointer: coarse`를 제거하거나 width 단독으로 되돌리면 "PC에서 DevTools 열거나 창 좁게 쓰면 우측 패널·PC CSS가 통째로 사라지는" 버그가 재발한다(실제 사례 있음). 정의상 이 hook은 **"레이아웃용 실모바일 기기 여부"** 이지 "뷰포트 폭"이 아니다.
 
+7. **PC 프로그램 반응형 기준 (SSOT)**  
+   PC 프로그램·PC 웹(`.pc-root`)은 창 폭이 줄어도 **모바일 레이아웃으로 강제 전환하지 않는다.** Windows Snap, 좁은 데스크톱 창, Electron 창 축소 상태에서도 **전역 메뉴 접근 수단은 항상 보여야 한다.**
+   - PC 전용 레이아웃/메뉴 노출 여부는 **단순 viewport width가 아니라 `.pc-root` 기준**을 우선한다.
+   - `@media (max-width: 1024px) { .app-sidebar { display: none } }` 처럼 root 없이 width만으로 PC 메뉴를 숨기면 **Snap 반쪽 화면에서 메뉴가 사라지는 회귀**가 난다(실제 사례).
+   - 모바일 전용 메뉴 숨김/드로어 전환 규칙은 **반드시 `.mobile-root`** 또는 `useIsMobile()` 등 명확한 모바일 환경 조건에서만 적용한다.
+   - breakpoint를 낮추는 임시 처리로 PC 메뉴 가시성을 맞추지 말 것. root class 또는 runtime 환경으로 구분한다.
+
 ### 8-3. 신규 페이지 체크리스트
 
 - [ ] `PageContainer` / `PagePCView` / `PageMobileView` 3파일 구조인가?
