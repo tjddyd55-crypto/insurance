@@ -31,12 +31,7 @@ import type { CustomerSortType } from '../types/customerListSort'
 import { customerNoteItems } from '../domain/types'
 import { buildKakaoCustomerCopyText } from '../utils/customerText'
 import { exportCustomersExcel } from '../utils/exportCustomersExcel'
-import {
-  CUSTOMER_MEDICAL_QUESTION_HINT,
-  CUSTOMER_MEDICAL_QUESTION_TEXT,
-  formatCustomerPhoneUi,
-  formatCustomerSsnUi,
-} from '../utils/customerDisplayFormat'
+import { buildLegacyMedicalColumnValue } from '../utils/customerMedicalHistory'
 import {
   CustomerForm,
   InsuranceInline,
@@ -1069,7 +1064,10 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         weight: activeEditForm.weight,
         job: activeEditForm.job,
         driving: drivingText(activeEditForm.isDriver),
-        medical: activeEditForm.medical,
+        medical: buildLegacyMedicalColumnValue(
+          activeEditForm.treatmentHistoryNote,
+          activeEditForm.medicationHistoryNote,
+        ),
         gender: activeEditForm.gender,
         isDriver: activeEditForm.isDriver,
         carType: activeEditForm.carType.trim(),
@@ -1077,6 +1075,8 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           items: customerNoteItems(base),
           insuranceHistory: activeEditForm.insuranceHistory.trim(),
           accountNumber: activeEditForm.accountNumber.trim(),
+          treatmentHistoryNote: activeEditForm.treatmentHistoryNote.trim(),
+          medicationHistoryNote: activeEditForm.medicationHistoryNote.trim(),
         },
         carNumber: primaryCar?.carNumber ?? '',
         carModel: primaryCar?.carModel ?? '',

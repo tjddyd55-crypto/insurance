@@ -16,7 +16,8 @@ export type CustomerEditFormState = {
   isDriver: boolean | null
   /** UI 제거 — 서버 `customers.car_type` 유지용(기존 값 보존) */
   carType: string
-  medical: string
+  treatmentHistoryNote: string
+  medicationHistoryNote: string
   insuranceHistory: string
   /** 계좌번호 — notes.jsonb.accountNumber 로 저장(자유 텍스트) */
   accountNumber: string

@@ -55,21 +55,41 @@ function normalizeCustomerNoteItemsArray(itemsRaw) {
   return out
 }
 
-/** API 응답: { items, insuranceHistory, accountNumber } — 레거시 배열도 수용 */
+/** API 응답: { items, insuranceHistory, accountNumber, treatmentHistoryNote, medicationHistoryNote } — 레거시 배열도 수용 */
 export function mapCustomerNotesJson(raw) {
   if (raw == null) {
-    return { items: [], insuranceHistory: '', accountNumber: '' }
+    return {
+      items: [],
+      insuranceHistory: '',
+      accountNumber: '',
+      treatmentHistoryNote: '',
+      medicationHistoryNote: '',
+    }
   }
   if (Array.isArray(raw)) {
-    return { items: normalizeCustomerNoteItemsArray(raw), insuranceHistory: '', accountNumber: '' }
+    return {
+      items: normalizeCustomerNoteItemsArray(raw),
+      insuranceHistory: '',
+      accountNumber: '',
+      treatmentHistoryNote: '',
+      medicationHistoryNote: '',
+    }
   }
   if (typeof raw === 'object') {
     const insuranceHistory = String(raw.insuranceHistory ?? '').trim()
     const accountNumber = String(raw.accountNumber ?? '').trim()
+    const treatmentHistoryNote = String(raw.treatmentHistoryNote ?? '').trim()
+    const medicationHistoryNote = String(raw.medicationHistoryNote ?? '').trim()
     const items = normalizeCustomerNoteItemsArray(raw.items)
-    return { items, insuranceHistory, accountNumber }
+    return { items, insuranceHistory, accountNumber, treatmentHistoryNote, medicationHistoryNote }
   }
-  return { items: [], insuranceHistory: '', accountNumber: '' }
+  return {
+    items: [],
+    insuranceHistory: '',
+    accountNumber: '',
+    treatmentHistoryNote: '',
+    medicationHistoryNote: '',
+  }
 }
 
 export function mapCustomerRow(row) {

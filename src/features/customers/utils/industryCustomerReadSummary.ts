@@ -1,6 +1,7 @@
 import { resolveCanonicalFieldKey } from '../../customer-templates'
 import type { CustomerIndustryTemplate } from '../../customer-templates/customerTemplate.types'
 import type { CustomerRecord } from '../domain/types'
+import { formatMedicalHistoryForLegacyDisplay } from './customerMedicalHistory'
 
 /** 업종 고객 읽기/상세에 쓰이는 단일 필드 표시 문자열(canonical 기준). */
 export function readIndustryCanonDisplayValue(customer: CustomerRecord, canonicalKey: string): string {
@@ -28,9 +29,11 @@ export function readIndustryCanonDisplayValue(customer: CustomerRecord, canonica
       return customer.birthDate ? String(customer.birthDate).slice(0, 10) : ''
     case 'customer.carrier':
       return customer.carrier ?? ''
+    case 'insurance.medical':
+      return formatMedicalHistoryForLegacyDisplay(customer)
     case 'customer.memo': {
       const ex = customer.crmExtension?.fields?.['customer.memo']
-      return (ex ?? '').trim() || customer.medical || ''
+      return (ex ?? '').trim() || formatMedicalHistoryForLegacyDisplay(customer)
     }
     default:
       return customer.crmExtension?.fields?.[canonicalKey] ?? ''

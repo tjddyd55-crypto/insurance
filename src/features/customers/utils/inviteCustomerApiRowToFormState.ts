@@ -6,7 +6,9 @@ import type { CustomerFormState } from '../../../components/customer/CustomerFor
 import { createEmptyCustomerForm } from '../../../components/customer/CustomerForm'
 import { normalizeCustomerCrmExtension } from '../domain/crmExtension'
 import type { CustomerNote } from '../domain/types'
+import { normalizeCustomerNotesBag } from '../domain/types'
 import type { CustomerCarFormItem } from '../types/customerCarForm'
+import { resolveMedicalHistoryFromCustomer } from './customerMedicalHistory'
 
 type ApiCustomerInvite = Record<string, unknown>
 
@@ -61,6 +63,12 @@ export function inviteCustomerApiRowToFormState(row: ApiCustomerInvite): Custome
         ? crmBag.fields.birth_date.trim()
         : ''
 
+  const notesBagNormalized = normalizeCustomerNotesBag(notesBag)
+  const medicalHistory = resolveMedicalHistoryFromCustomer({
+    notes: notesBagNormalized,
+    medical: str(row.medical),
+  } as { notes: typeof notesBagNormalized; medical: string })
+
   return {
     ...base,
     name: str(row.name).trim(),
@@ -78,12 +86,17 @@ export function inviteCustomerApiRowToFormState(row: ApiCustomerInvite): Custome
     isDriver,
     carType: str(row.carType),
     cars,
-    medical: str(row.medical),
+    treatmentHistoryNote: medicalHistory.treatmentHistoryNote,
+    medicationHistoryNote: medicalHistory.medicationHistoryNote,
     insuranceHistory:
-      insuranceHistory || (typeof row.insuranceHistory === 'string' ? row.insuranceHistory : ''),
+      notesBagNormalized.insuranceHistory ||
+      insuranceHistory ||
+      (typeof row.insuranceHistory === 'string' ? row.insuranceHistory : ''),
     accountNumber:
-      accountNumber || (typeof row.accountNumber === 'string' ? row.accountNumber : ''),
-    notes,
+      notesBagNormalized.accountNumber ||
+      accountNumber ||
+      (typeof row.accountNumber === 'string' ? row.accountNumber : ''),
+    notes: notesBagNormalized.items.length > 0 ? notesBagNormalized.items : notes,
     noteDraft: '',
     crmExtensionFields: crmBag.fields ?? {},
   }

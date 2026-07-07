@@ -34,11 +34,11 @@ import {
   formatInsuranceUiDate,
 
 } from '../../features/customers/utils/insuranceInfo'
+import CustomerMedicalHistoryFields from '../../features/customers/components/CustomerMedicalHistoryFields'
 import {
   CUSTOMER_INSURANCE_HISTORY_PLACEHOLDER,
-  CUSTOMER_MEDICAL_HISTORY_PLACEHOLDER,
-  CUSTOMER_MEDICAL_QUESTION_TEXT,
 } from '../../features/customers/utils/customerDisplayFormat'
+import { buildLegacyMedicalColumnValue } from '../../features/customers/utils/customerMedicalHistory'
 import { resolveGenderAfterSsnInput } from '../../features/customers/utils/inferGenderFromResidentNumberDigits'
 import CustomerIndustryTemplateFields from '../../features/customers/components/CustomerIndustryTemplateFields'
 import { CustomerCarsEditor } from '../../features/customers/components/CustomerCarsEditor'
@@ -189,7 +189,9 @@ export type CustomerFormState = {
 
   cars: CustomerCarFormItem[]
 
-  medical: string
+  treatmentHistoryNote: string
+
+  medicationHistoryNote: string
 
   /** 보험가입내역 — notes.jsonb.insuranceHistory 로 저장 */
   insuranceHistory: string
@@ -248,7 +250,9 @@ const EMPTY_FORM: CustomerFormState = {
 
   cars: [],
 
-  medical: '',
+  treatmentHistoryNote: '',
+
+  medicationHistoryNote: '',
 
   insuranceHistory: '',
 
@@ -349,7 +353,7 @@ export function customerFormStateToSavePayload(form: CustomerFormState): SaveCus
 
     driving: drivingText(form.isDriver),
 
-    medical: form.medical,
+    medical: buildLegacyMedicalColumnValue(form.treatmentHistoryNote, form.medicationHistoryNote),
 
     gender: form.gender,
 
@@ -371,6 +375,8 @@ export function customerFormStateToSavePayload(form: CustomerFormState): SaveCus
       items: form.notes,
       insuranceHistory: form.insuranceHistory.trim(),
       accountNumber: form.accountNumber.trim(),
+      treatmentHistoryNote: form.treatmentHistoryNote.trim(),
+      medicationHistoryNote: form.medicationHistoryNote.trim(),
     },
 
     ...(birthDateOpt != null ? { birthDate: birthDateOpt } : {}),
@@ -644,24 +650,12 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
       />
 
-      <CustomerFormSection title={CUSTOMER_MEDICAL_QUESTION_TEXT} className="field field--wide" description="입력 형식은 아래 칸의 예시(placeholder)를 참고하세요.">
-        <label className="customer-form-section__solo">
-          <FormTextarea
-
-            className="field__control customer-form-textarea customer-form-textarea--large customer-textarea--medical-history"
-
-            rows={4}
-
-            placeholder={CUSTOMER_MEDICAL_HISTORY_PLACEHOLDER}
-            aria-label={CUSTOMER_MEDICAL_QUESTION_TEXT}
-
-            value={form.medical}
-
-            onChange={(e) => onFormChange({ ...form, medical: e.target.value })}
-
-          />
-        </label>
-      </CustomerFormSection>
+      <CustomerMedicalHistoryFields
+        treatmentHistoryNote={form.treatmentHistoryNote}
+        medicationHistoryNote={form.medicationHistoryNote}
+        onTreatmentChange={(value) => onFormChange({ ...form, treatmentHistoryNote: value })}
+        onMedicationChange={(value) => onFormChange({ ...form, medicationHistoryNote: value })}
+      />
 
       <CustomerFormSection title="보험가입내역" className="field field--wide">
         <label className="customer-form-section__solo">

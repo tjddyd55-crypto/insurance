@@ -7,6 +7,14 @@ export const CUSTOMER_MEDICAL_QUESTION_HINT =
   '(몇년몇월/진단명/치료부위/수술명/입원 및 통원여부/원인/현상태)'
 
 /** 등록·수정 폼 병력 textarea placeholder */
+export const CUSTOMER_MEDICAL_TREATMENT_LABEL = '수술/치료 관련'
+export const CUSTOMER_MEDICAL_MEDICATION_LABEL = '약복용 관련'
+export const CUSTOMER_MEDICAL_TREATMENT_PLACEHOLDER =
+  '예: 24.03 위내시경 / 용종 제거 / 2일 입원 / 현재 치료 종료'
+export const CUSTOMER_MEDICAL_MEDICATION_PLACEHOLDER =
+  '예: 혈압약 복용중 / 23.11부터 / 하루 1회'
+
+/** @deprecated 단일 textarea 시절 placeholder — 신규 UI는 TREATMENT/MEDICATION 사용 */
 export const CUSTOMER_MEDICAL_HISTORY_PLACEHOLDER =
   '형식 예시: 2024-03 / 진단명 / 치료부위 / 수술명 / 입원 및 통원 여부 / 원인 / 현상태'
 

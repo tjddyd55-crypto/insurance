@@ -5,6 +5,7 @@ import {
   CUSTOMER_MEDICAL_QUESTION_HINT,
   CUSTOMER_MEDICAL_QUESTION_TEXT,
 } from './customerDisplayFormat'
+import { formatMedicalHistoryForLegacyDisplay } from './customerMedicalHistory'
 
 /** 고객 관리 · 카톡 붙여넣기용 (필요 필드만) */
 export function buildKakaoCustomerCopyText(data: CustomerRecord | Partial<CustomerRecord>) {
@@ -16,7 +17,7 @@ export function buildKakaoCustomerCopyText(data: CustomerRecord | Partial<Custom
   const height = String(c.height ?? '').trim()
   const weight = String(c.weight ?? '').trim()
   const job = String(c.job ?? '')
-  const medical = String(c.medical ?? '').trim()
+  const medicalDisplay = formatMedicalHistoryForLegacyDisplay(c as CustomerRecord)
   const isDriver = c.isDriver
   const carType = String(c.carType ?? '').trim()
   const drivingLine =
@@ -36,7 +37,7 @@ export function buildKakaoCustomerCopyText(data: CustomerRecord | Partial<Custom
     `차종: ${carType || '—'}`,
     `${CUSTOMER_MEDICAL_QUESTION_TEXT}`,
     `${CUSTOMER_MEDICAL_QUESTION_HINT}`,
-    `${medical || '—'}`,
+    `${medicalDisplay || '—'}`,
   ]
   return lines.join('\n').trim()
 }

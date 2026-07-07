@@ -2,7 +2,7 @@ import type { CustomerIndustryTemplate } from '../../customer-templates/customer
 import { getListColumnDefinition } from '../../customer-templates'
 import type { CustomerRecord } from '../domain/types'
 import { formatDateYmdInput } from './insuranceInfo'
-import { getCustomerListMetrics } from './customerListMetrics'
+import { formatMedicalHistoryForLegacyDisplay } from './customerMedicalHistory'
 
 function trimOrDash(raw: unknown): string | null {
   if (raw == null) return null
@@ -85,10 +85,12 @@ export function industryListColumnValue(customer: CustomerRecord, sourceFieldKey
       return trimOrDash(customer.birthDate)
     case 'customer.carrier':
       return trimOrDash(customer.carrier)
+    case 'insurance.medical':
+      return trimOrDash(formatMedicalHistoryForLegacyDisplay(customer))
     case 'customer.memo': {
       const ex = customer.crmExtension?.fields?.['customer.memo']
       if (trimOrDash(ex)) return trimOrDash(ex)
-      return trimOrDash(customer.medical)
+      return trimOrDash(formatMedicalHistoryForLegacyDisplay(customer))
     }
     default: {
       const ex = customer.crmExtension?.fields?.[sourceFieldKey]
