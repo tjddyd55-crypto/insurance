@@ -1,7 +1,12 @@
 import { DOWNLOAD_LINKS } from '../constants/downloadLinks'
+import { ONE_FC_APP_STORE_URL } from '../constants/appInstallLinks'
 import { FormButton } from '../../../components/form'
 import { downloadCustomerUploadSampleXlsx } from '../../customers/utils/customerExcelUpload'
 import { BusinessInfoFooter } from '../components/BusinessInfoFooter'
+import {
+  IntroPlatformDownloadCard,
+  type IntroPlatformDownloadCardProps,
+} from '../components/introduction/IntroPlatformDownloadCard'
 
 const GPT_PROMPT_TEXT = `다음 작업을 수행해줘.
 
@@ -88,32 +93,47 @@ const PC_STEPS = [
 ]
 
 const FC_MOBILE_STEPS = [
-  'FC 모바일 APK를 다운로드한다',
+  '안드로이드 APK를 다운로드한다',
   '휴대폰 설정에서 알 수 없는 앱 설치 허용을 켠다',
   '다운로드한 APK를 눌러 설치를 진행한다',
   '설치 완료 후 앱 실행 후 로그인한다',
 ]
 
-const DOWNLOAD_CARDS = [
+const DOWNLOAD_CARDS: IntroPlatformDownloadCardProps[] = [
   {
-    key: 'pc',
     title: 'PC 버전 다운로드',
     description: 'Windows에서 설치 후 바로 사용할 수 있는 프로그램입니다',
     href: DOWNLOAD_LINKS.pc,
     buttonLabel: 'PC 다운로드',
     badge: '설계사용',
-    icon: 'PC',
+    iconLabel: 'PC',
+    download: true,
+    iconVariant: 'primary',
+    badgeVariant: 'default',
   },
   {
-    key: 'fc',
-    title: '모바일 APK 다운로드',
-    description: '안드로이드 휴대폰에 직접 설치하는 파일입니다',
+    title: '안드로이드 앱 다운로드',
+    description: '안드로이드 휴대폰에 직접 설치하는 파일입니다.',
     href: DOWNLOAD_LINKS.fcMobile,
-    buttonLabel: 'APK 다운로드',
-    badge: '설계사용',
-    icon: 'APK',
+    buttonLabel: '안드로이드 다운로드',
+    badge: 'Android',
+    iconLabel: 'APK',
+    download: true,
+    iconVariant: 'platform',
+    badgeVariant: 'platform',
   },
-] as const
+  {
+    title: '아이폰 앱 다운로드',
+    description: 'iPhone 사용자는 App Store에서 ONE FC를 설치할 수 있습니다.',
+    href: ONE_FC_APP_STORE_URL,
+    buttonLabel: '아이폰 다운로드',
+    badge: 'iPhone',
+    iconLabel: 'iOS',
+    external: true,
+    iconVariant: 'platform',
+    badgeVariant: 'platform',
+  },
+]
 
 export function IntroductionInstallPage() {
   return (
@@ -122,14 +142,17 @@ export function IntroductionInstallPage() {
         <div className="intro-v2-shell">
           <h1>ONE FC<br />설치 및 업로드 안내</h1>
           <p>보험 FC 업무용 프로그램 설치 안내</p>
-          <p>PC 버전 또는 모바일 APK를 설치하고</p>
+          <p>PC 버전 또는 안드로이드·아이폰 앱을 설치하고</p>
           <p>연락처 엑셀 파일을 작성해 업로드하세요</p>
           <div className="intro-install-hero__actions">
             <a href={DOWNLOAD_LINKS.pc} download>
               PC 다운로드
             </a>
             <a href={DOWNLOAD_LINKS.fcMobile} download>
-              모바일 APK 다운로드
+              안드로이드 다운로드
+            </a>
+            <a href={ONE_FC_APP_STORE_URL} target="_blank" rel="noopener noreferrer">
+              아이폰 다운로드
             </a>
           </div>
         </div>
@@ -141,26 +164,9 @@ export function IntroductionInstallPage() {
             <h2>프로그램 다운로드</h2>
             <p>사용 환경에 맞는 버전을 선택하세요</p>
           </header>
-          <div className="intro-install-download-grid">
+          <div className="intro-install-download-grid intro-platform-download-grid">
             {DOWNLOAD_CARDS.map((card) => (
-              <article key={card.key} className="intro-install-download-card">
-                <div className="intro-install-download-card__head">
-                  <div className="intro-install-download-card__icon">
-                    <span>{card.icon}</span>
-                  </div>
-                  <div className="intro-install-download-card__title-wrap">
-                    <h3>{card.title}</h3>
-                    {card.badge ? (
-                      <span className="intro-install-download-card__badge">{card.badge}</span>
-                    ) : null}
-                  </div>
-                </div>
-                <p>{card.description}</p>
-                <a href={card.href} download>
-                  <span className="intro-install-download-card__btn-icon" aria-hidden="true">↓</span>
-                  {card.buttonLabel}
-                </a>
-              </article>
+              <IntroPlatformDownloadCard key={card.title} {...card} />
             ))}
           </div>
         </div>
@@ -183,7 +189,7 @@ export function IntroductionInstallPage() {
               <div className="intro-install-guide-note">설치 중 경고창이 나오면 신뢰된 앱으로 허용한 뒤 계속 진행하세요.</div>
             </article>
             <article className="intro-install-guide-card">
-              <h3>설계사 APK 설치 방법</h3>
+              <h3>안드로이드 APK 설치 방법</h3>
               <ol>
                 {FC_MOBILE_STEPS.map((step, index) => (
                   <li key={step}><span>{index + 1}</span>{step}</li>
@@ -247,7 +253,10 @@ export function IntroductionInstallPage() {
           <p>프로그램 설치 -&gt; 샘플 다운로드 -&gt; 엑셀 작성 -&gt; 업로드</p>
           <div className="intro-install-cta__actions">
             <a href={DOWNLOAD_LINKS.pc} download>PC 다운로드</a>
-            <a href={DOWNLOAD_LINKS.fcMobile} download>모바일 APK 다운로드</a>
+            <a href={DOWNLOAD_LINKS.fcMobile} download>안드로이드 다운로드</a>
+            <a href={ONE_FC_APP_STORE_URL} target="_blank" rel="noopener noreferrer">
+              아이폰 다운로드
+            </a>
           </div>
         </div>
       </section>
@@ -255,4 +264,3 @@ export function IntroductionInstallPage() {
     </main>
   )
 }
-

@@ -127,7 +127,7 @@ export function IntroductionFinalCta() {
             href={USER_ANDROID_APK_DOWNLOAD_URL}
             download
           >
-            안드로이드 앱 설치
+            안드로이드 다운로드
           </a>
           <a
             className="intro-v2-cta__action intro-v2-cta__action--white"
@@ -135,7 +135,7 @@ export function IntroductionFinalCta() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            아이폰 앱 설치
+            아이폰 다운로드
           </a>
           <Link className="intro-v2-cta__action intro-v2-cta__action--outline" to="/introduction/install">
             설치 안내 보기
