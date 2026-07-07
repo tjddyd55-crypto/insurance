@@ -203,8 +203,26 @@ function isGatewayConfigured(env = process.env) {
   return Boolean(String(env.SMS_HTTP_GATEWAY_URL ?? '').trim())
 }
 
+function resolveGatewayAuthToken(env = process.env) {
+  return (
+    String(env.SMS_HTTP_GATEWAY_TOKEN ?? '').trim() ||
+    String(env.SMS_GATEWAY_TOKEN ?? '').trim() ||
+    String(env.SMS_GATEWAY_API_KEY ?? '').trim()
+  )
+}
+
+function buildGatewayRequestHeaders(env = process.env) {
+  const headers = { 'Content-Type': 'application/json' }
+  const token = resolveGatewayAuthToken(env)
+  if (token) {
+    headers.Authorization = `Bearer ${token}`
+  }
+  return headers
+}
+
 /**
- * 필수 인증 SMS provider 선택 — gateway URL 존재만으로는 gateway를 쓰지 않는다.
+ * 필수 인증 SMS provider 선택 — gateway URL이 있으면 기본 gateway 우선.
+ * Railway에서 Aligo 직접 발송은 AUTH_SMS_PROVIDER=aligo 명시 시에만 허용한다.
  * @param {NodeJS.ProcessEnv} [env]
  */
 export function resolveAuthSmsProvider(env = process.env) {
@@ -213,20 +231,7 @@ export function resolveAuthSmsProvider(env = process.env) {
   const aligoConfigured = isAligoCredentialsConfigured(env)
   const gatewayConfigured = isGatewayConfigured(env)
 
-  if (authProvider === 'gateway') {
-    if (gatewayConfigured) {
-      return { provider: 'gateway', aligoConfigured, gatewayConfigured }
-    }
-    return {
-      provider: null,
-      aligoConfigured,
-      gatewayConfigured,
-      errorCode: 'gateway_unconfigured',
-      errorMessage: 'AUTH_SMS_PROVIDER=gateway but SMS_HTTP_GATEWAY_URL is missing',
-    }
-  }
-
-  if (authProvider === 'aligo' || !authProvider) {
+  if (authProvider === 'aligo') {
     if (aligoConfigured) {
       return { provider: 'aligo', aligoConfigured, gatewayConfigured }
     }
@@ -235,7 +240,20 @@ export function resolveAuthSmsProvider(env = process.env) {
       aligoConfigured,
       gatewayConfigured,
       errorCode: 'aligo_unconfigured',
-      errorMessage: 'Aligo credentials are missing for auth SMS',
+      errorMessage: 'AUTH_SMS_PROVIDER=aligo but Aligo credentials are missing',
+    }
+  }
+
+  if (authProvider === 'gateway' || !authProvider) {
+    if (gatewayConfigured) {
+      return { provider: 'gateway', aligoConfigured, gatewayConfigured }
+    }
+    return {
+      provider: null,
+      aligoConfigured,
+      gatewayConfigured,
+      errorCode: 'gateway_unconfigured',
+      errorMessage: 'SMS_HTTP_GATEWAY_URL is missing for auth SMS',
     }
   }
 
@@ -268,11 +286,19 @@ function extractGatewayProviderMessageId(body) {
     root.providerMessageId,
     root.messageId,
     root.msg_id,
+    root.mid,
     root.externalId,
     nested?.providerMessageId,
     nested?.messageId,
     nested?.msg_id,
+    nested?.mid,
     nested?.externalId,
+    root.result && typeof root.result === 'object'
+      ? /** @type {Record<string, unknown>} */ (root.result).msg_id
+      : null,
+    root.result && typeof root.result === 'object'
+      ? /** @type {Record<string, unknown>} */ (root.result).messageId
+      : null,
   ]
   for (const candidate of candidates) {
     const value = String(candidate ?? '').trim()
@@ -285,20 +311,51 @@ function extractGatewayProviderMessageId(body) {
 
 /**
  * HTTP SMS gateway 응답 — provider 접수 증거가 있을 때만 accepted.
+ * EC2 gateway가 Aligo raw 응답을 그대로 전달하는 경우도 normalize 한다.
  * @param {unknown} body
  */
 export function evaluateGatewayDispatchAcceptance(body) {
+  /** @type {Record<string, unknown>} */
+  const root = body && typeof body === 'object' ? /** @type {Record<string, unknown>} */ (body) : {}
+  const nested = root.data && typeof root.data === 'object' ? /** @type {Record<string, unknown>} */ (root.data) : null
+  const resultNested =
+    root.result && typeof root.result === 'object' ? /** @type {Record<string, unknown>} */ (root.result) : null
+
+  for (const candidate of [root, nested, resultNested]) {
+    if (!candidate || candidate.result_code == null) {
+      continue
+    }
+    const aligoEval = evaluateAligoDispatchAcceptance(candidate)
+    if (aligoEval.accepted) {
+      return {
+        accepted: true,
+        provider: 'gateway',
+        providerMessageId: aligoEval.providerMessageId,
+        resultCode: aligoEval.resultCode,
+        successCount: aligoEval.successCount,
+      }
+    }
+    return {
+      accepted: false,
+      provider: 'gateway',
+      errorCode: aligoEval.errorCode,
+      errorMessage: aligoEval.errorMessage,
+    }
+  }
+
   const providerMessageId = extractGatewayProviderMessageId(body)
   if (providerMessageId) {
+    const resultCode = Number(root.result_code)
+    const successCount = Number(root.success_cnt ?? 0)
     return {
       accepted: true,
       provider: 'gateway',
       providerMessageId,
+      ...(Number.isFinite(resultCode) ? { resultCode } : {}),
+      ...(Number.isFinite(successCount) ? { successCount } : {}),
     }
   }
-  /** @type {Record<string, unknown>} */
-  const root = body && typeof body === 'object' ? /** @type {Record<string, unknown>} */ (body) : {}
-  const nested = root.data && typeof root.data === 'object' ? /** @type {Record<string, unknown>} */ (root.data) : null
+
   const resultCode = Number(root.result_code ?? nested?.result_code)
   if (Number.isFinite(resultCode) && resultCode > 0) {
     return {
@@ -377,6 +434,21 @@ function logAuthDispatchFailed(purposeNorm, payload) {
     return
   }
   console.error('[service-auth-sms] dispatch failed', payload)
+}
+
+function logAuthGatewayDispatchFailed(purposeNorm, payload) {
+  if (!isServiceAuthSmsPurpose(purposeNorm)) {
+    return
+  }
+  console.error('[service-auth-sms] gateway dispatch failed', payload)
+}
+
+function buildGatewayAuthSmsPayload(receiver, message, purposeNorm) {
+  return {
+    phone: receiver,
+    message,
+    purpose: purposeNorm,
+  }
 }
 
 /**
@@ -510,6 +582,16 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
     const evaluation = evaluateGatewayDispatchAcceptance(response.data)
     if (!evaluation.accepted) {
       await finalizeFail(String(evaluation.errorMessage ?? 'gateway_no_acceptance'), 'http')
+      const responseBody =
+        response.data && typeof response.data === 'object' ? /** @type {Record<string, unknown>} */ (response.data) : {}
+      logAuthGatewayDispatchFailed(purposeNorm, {
+        phoneSuffix: maskPhone(receiver),
+        purpose: purposeNorm,
+        status: response.status,
+        errorCode: evaluation.errorCode,
+        errorMessage: evaluation.errorMessage,
+        responseKeys: Object.keys(responseBody),
+      })
       logAuthDispatchFailed(purposeNorm, {
         provider: 'gateway',
         errorCode: evaluation.errorCode,
@@ -535,6 +617,8 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
       sent: true,
       provider: 'gateway',
       providerMessageId: evaluation.providerMessageId,
+      ...(evaluation.resultCode != null ? { resultCode: evaluation.resultCode } : {}),
+      ...(evaluation.successCount != null ? { successCount: evaluation.successCount } : {}),
       data: response.data,
     })
   }
@@ -555,9 +639,9 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
     const runOnce = () =>
       axios.post(
         SMS_HTTP_GATEWAY_URL,
-        { phone: receiver, message: messageGateway },
+        buildGatewayAuthSmsPayload(receiver, messageGateway, purposeNorm),
         {
-          headers: { 'Content-Type': 'application/json' },
+          headers: buildGatewayRequestHeaders(),
           timeout: SMS_SEND_TIMEOUT_MS,
           validateStatus: () => true,
         },

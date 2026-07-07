@@ -151,12 +151,38 @@ test('isAuthSmsProviderAccepted: mock success 는 false', () => {
   )
 })
 
-test('resolveAuthSmsProvider: ALIGO+gateway 모두 있고 AUTH_SMS_PROVIDER 없음 → aligo', () => {
+test('evaluateGatewayDispatchAcceptance: Aligo raw success(result_code 1, msg_id, success_cnt 1) → accepted', () => {
+  const result = evaluateGatewayDispatchAcceptance({
+    result_code: 1,
+    success_cnt: 1,
+    msg_id: '12345',
+    message: 'success',
+  })
+  assert.equal(result.accepted, true)
+  assert.equal(result.provider, 'gateway')
+  assert.equal(result.providerMessageId, '12345')
+  assert.equal(result.resultCode, 1)
+  assert.equal(result.successCount, 1)
+})
+
+test('evaluateGatewayDispatchAcceptance: Aligo raw -102 API 인증오류 → rejected', () => {
+  const result = evaluateGatewayDispatchAcceptance({
+    result_code: -102,
+    message: 'API 인증오류입니다.',
+    success_cnt: 0,
+  })
+  assert.equal(result.accepted, false)
+  assert.equal(result.provider, 'gateway')
+  assert.equal(result.errorCode, -102)
+  assert.equal(result.errorMessage, 'API 인증오류입니다.')
+})
+
+test('resolveAuthSmsProvider: ALIGO+gateway 모두 있고 AUTH_SMS_PROVIDER 없음 → gateway', () => {
   const result = resolveAuthSmsProvider({
     ...BASE_ALIGO_ENV,
     ...BASE_GATEWAY_ENV,
   })
-  assert.equal(result.provider, 'aligo')
+  assert.equal(result.provider, 'gateway')
   assert.equal(result.aligoConfigured, true)
   assert.equal(result.gatewayConfigured, true)
 })
@@ -179,13 +205,21 @@ test('resolveAuthSmsProvider: AUTH_SMS_PROVIDER=gateway → gateway', () => {
   assert.equal(result.provider, 'gateway')
 })
 
-test('resolveAuthSmsProvider: gateway만 있고 AUTH_SMS_PROVIDER 없음 → aligo_unconfigured', () => {
+test('resolveAuthSmsProvider: gateway만 있고 AUTH_SMS_PROVIDER 없음 → gateway', () => {
   const result = resolveAuthSmsProvider({
     ...BASE_GATEWAY_ENV,
   })
-  assert.equal(result.provider, null)
-  assert.equal(result.errorCode, 'aligo_unconfigured')
+  assert.equal(result.provider, 'gateway')
   assert.equal(result.gatewayConfigured, true)
+  assert.equal(result.aligoConfigured, false)
+})
+
+test('resolveAuthSmsProvider: gateway만 있고 AUTH_SMS_PROVIDER=gateway → gateway', () => {
+  const result = resolveAuthSmsProvider({
+    ...BASE_GATEWAY_ENV,
+    AUTH_SMS_PROVIDER: 'gateway',
+  })
+  assert.equal(result.provider, 'gateway')
 })
 
 test('resolveAuthSmsProvider: AUTH_SMS_PROVIDER=gateway but URL 없음 → gateway_unconfigured', () => {
