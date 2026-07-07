@@ -78,9 +78,12 @@ import { isGeneralGaCompanyCode, resolveSignupGaCompany } from './lib/generalGa.
 import {
   isDevSignupPhoneBypassEnabled,
   resolveDevSignupPhoneForStorage,
-  shouldBypassSmsProofForSignup,
   shouldSkipSignupPhoneDuplicateCheck,
 } from './lib/devSignupPhoneBypass.js'
+import {
+  isSignupPhoneVerificationRequired,
+  shouldRequireSignupPhoneProofForRegister,
+} from './lib/signupPhoneVerificationPolicy.js'
 import { isValidSignupUsername, validateSignupUsername } from './lib/signupUsername.js'
 import { selectCrmBootstrapExtendedForLegacyGa } from './crm/resolveLegacyGaCrmBootstrap.js'
 import { mapCustomerRow } from './lib/customerRowMap.js'
@@ -2041,9 +2044,15 @@ async function handleRegister(req, res) {
     let tenantRegMeta = null
 
     const proofRaw = String(signupProofSnake ?? signupProofCamel ?? '').trim()
-    if (!proofRaw && !shouldBypassSmsProofForSignup()) {
+    const signupPhoneProofRequired = shouldRequireSignupPhoneProofForRegister()
+    if (!proofRaw && signupPhoneProofRequired) {
       res.status(400).json({ message: '휴대폰 인증이 필요합니다.' })
       return
+    }
+    if (!proofRaw && !isSignupPhoneVerificationRequired()) {
+      console.warn('[signup-phone-verification] verification bypassed by config', {
+        reason: 'SIGNUP_PHONE_VERIFICATION_REQUIRED=false',
+      })
     }
 
     let invitedByUserId = null
@@ -2071,7 +2080,7 @@ async function handleRegister(req, res) {
       }
 
       let rp
-      if (!shouldBypassSmsProofForSignup()) {
+      if (signupPhoneProofRequired) {
         try {
           rp = verifyRegistrationSignupPhoneProof(proofRaw, JWT_SECRET)
         } catch {
@@ -2184,7 +2193,7 @@ async function handleRegister(req, res) {
       }
 
       let signupProofLegacy
-      if (!shouldBypassSmsProofForSignup()) {
+      if (signupPhoneProofRequired) {
         try {
           signupProofLegacy = verifySignupPhoneProof(proofRaw, JWT_SECRET)
         } catch {

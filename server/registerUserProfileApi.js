@@ -33,6 +33,7 @@ import {
   isDevSignupPhoneBypassEnabled,
   shouldSkipSignupPhoneDuplicateCheck,
 } from './lib/devSignupPhoneBypass.js'
+import { isSignupPhoneVerificationRequired } from './lib/signupPhoneVerificationPolicy.js'
 
 const SMS_PURPOSE_SIGNUP = 'SIGNUP'
 const SMS_PURPOSE_PHONE_CHANGE = 'PHONE_CHANGE'
@@ -103,6 +104,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
   apiRouter.get('/auth/signup-phone-policy', async (_req, res) => {
     res.json({
       devBypassEnabled: isDevSignupPhoneBypassEnabled(),
+      signupPhoneVerificationRequired: isSignupPhoneVerificationRequired(),
     })
   })
 

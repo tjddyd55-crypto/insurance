@@ -94,6 +94,7 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
   const [referralCodeError, setReferralCodeError] = useState('')
   const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(null)
   const [devPhoneBypassEnabled, setDevPhoneBypassEnabled] = useState(false)
+  const [signupPhoneVerificationRequired, setSignupPhoneVerificationRequired] = useState(true)
 
   useEffect(() => {
     let cancelled = false
@@ -101,6 +102,7 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
       const policy = await fetchSignupPhonePolicy()
       if (!cancelled) {
         setDevPhoneBypassEnabled(Boolean(policy.devBypassEnabled))
+        setSignupPhoneVerificationRequired(policy.signupPhoneVerificationRequired !== false)
       }
     })()
     return () => {
@@ -305,7 +307,7 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
   const phoneDigits = normalizeKrMobile(phone)
   const gaCodeTrim = gaCode.trim()
   const regCodeTrim = registrationCode.trim().replace(/\s+/g, '').toUpperCase()
-  const needsPhoneAuth = !devPhoneBypassEnabled
+  const needsPhoneAuth = signupPhoneVerificationRequired && !devPhoneBypassEnabled
 
   const requestSignupSms = async () => {
     setErrorMessage('')
@@ -704,7 +706,11 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
           </label>
 
           <div className="verify-section">
-            {devPhoneBypassEnabled ? (
+            {!signupPhoneVerificationRequired ? (
+              <p className="status" style={{ color: 'var(--text-secondary)' }}>
+                현재는 휴대폰 인증 없이 가입할 수 있습니다.
+              </p>
+            ) : devPhoneBypassEnabled ? (
               <p className="status" style={{ color: 'var(--text-secondary)' }}>
                 develop 환경: 휴대폰 SMS 인증 없이 가입할 수 있습니다. (테스트용)
               </p>
