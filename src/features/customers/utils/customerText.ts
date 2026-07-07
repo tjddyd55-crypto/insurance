@@ -6,6 +6,7 @@ import {
   CUSTOMER_MEDICAL_QUESTION_TEXT,
 } from './customerDisplayFormat'
 import { formatMedicalHistoryForLegacyDisplay } from './customerMedicalHistory'
+import { formatCustomerMobileCarrierDisplay } from './customerDisplayFormat'
 
 /** 고객 관리 · 카톡 붙여넣기용 (필요 필드만) */
 export function buildKakaoCustomerCopyText(data: CustomerRecord | Partial<CustomerRecord>) {
@@ -13,6 +14,7 @@ export function buildKakaoCustomerCopyText(data: CustomerRecord | Partial<Custom
   const name = String(c.name ?? '')
   const ssn = String(c.ssn ?? '')
   const phone = String(c.phone ?? '')
+  const carrier = formatCustomerMobileCarrierDisplay(c.carrier)
   const address = String(c.address ?? '')
   const height = String(c.height ?? '').trim()
   const weight = String(c.weight ?? '').trim()
@@ -30,6 +32,7 @@ export function buildKakaoCustomerCopyText(data: CustomerRecord | Partial<Custom
     `이름: ${name}`,
     `주민번호: ${ssn}`,
     `핸드폰번호: ${phone}`,
+    `통신사: ${carrier || '—'}`,
     `주소: ${address || '—'}`,
     `키/몸무게: ${heightWeight}`,
     `직업/회사명/하는일/지역: ${job || '—'}`,

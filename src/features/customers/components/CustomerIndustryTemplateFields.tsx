@@ -2,7 +2,7 @@ import type { CustomerIndustryTemplate, CustomerTemplateFormField } from '../../
 import { resolveCanonicalFieldKey } from '../../customer-templates'
 import type { CustomerNote } from '../domain/types'
 import { NOTE_MAX_LENGTH } from '../utils/insuranceInfo'
-import type { IndustryTemplateFormBinder } from './customerIndustryTemplateForm.types'
+import CustomerMobileCarrierSelect from './CustomerMobileCarrierSelect'
 
 import {
   AddressSearchField,
@@ -132,12 +132,10 @@ export default function CustomerIndustryTemplateFields({
       blocks.push(
         <label className="field" key={`${canon}-${i}`}>
           <span className="field__label">{field.label}</span>
-          <FormInput
-            className="field__control"
-            placeholder={field.label}
+          <CustomerMobileCarrierSelect
             value={value.carrier}
-            onChange={(e) => emitPatch({ carrier: e.target.value })}
-            {...inputLock}
+            onChange={(next) => emitPatch({ carrier: next })}
+            disabled={readOnlyPreview}
           />
         </label>,
       )

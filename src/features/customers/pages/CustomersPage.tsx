@@ -32,6 +32,7 @@ import { customerNoteItems } from '../domain/types'
 import { buildKakaoCustomerCopyText } from '../utils/customerText'
 import { exportCustomersExcel } from '../utils/exportCustomersExcel'
 import { buildLegacyMedicalColumnValue } from '../utils/customerMedicalHistory'
+import { normalizeCustomerCarrierForSave } from '../config/customerMobileCarrier.config'
 import {
   CustomerForm,
   InsuranceInline,
@@ -1053,7 +1054,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         name,
         ssn: activeEditForm.ssn,
         phone: activeEditForm.phone,
-        carrier: String(activeEditForm.carrier ?? '').trim(),
+        carrier: normalizeCustomerCarrierForSave(activeEditForm.carrier),
         ...(birthDateForApi != null ? { birthDate: birthDateForApi } : {}),
         address: formatAddressForSave({
           zonecode: activeEditForm.zonecode ?? '',

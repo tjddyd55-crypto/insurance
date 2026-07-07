@@ -71,3 +71,5 @@ export function formatCustomerPhoneUi(raw: string | null | undefined): string {
   }
   return text
 }
+
+export { formatCustomerMobileCarrierDisplay } from '../config/customerMobileCarrier.config'

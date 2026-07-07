@@ -35,6 +35,8 @@ import {
 
 } from '../../features/customers/utils/insuranceInfo'
 import CustomerMedicalHistoryFields from '../../features/customers/components/CustomerMedicalHistoryFields'
+import CustomerMobileCarrierSelect from '../../features/customers/components/CustomerMobileCarrierSelect'
+import { normalizeCustomerCarrierForSave } from '../../features/customers/config/customerMobileCarrier.config'
 import {
   CUSTOMER_INSURANCE_HISTORY_PLACEHOLDER,
 } from '../../features/customers/utils/customerDisplayFormat'
@@ -341,7 +343,7 @@ export function customerFormStateToSavePayload(form: CustomerFormState): SaveCus
 
     phone: form.phone,
 
-    carrier: String(form.carrier ?? '').trim(),
+    carrier: normalizeCustomerCarrierForSave(form.carrier),
 
     address: mergedAddress,
 
@@ -549,6 +551,14 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
           onChange={(e) => onFormChange({ ...form, phone: e.target.value })}
         />
 
+      </label>
+
+      <label className="field">
+        <span className="field__label">통신사</span>
+        <CustomerMobileCarrierSelect
+          value={form.carrier}
+          onChange={(value) => onFormChange({ ...form, carrier: value })}
+        />
       </label>
 
       <CustomerInflowSourceFields
