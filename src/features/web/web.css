@@ -152,7 +152,7 @@
 }
 
 .one-fc-mobile-install {
-  width: min(100%, 760px);
+  width: min(100%, 920px);
 }
 
 .one-fc-mobile-install__header {
@@ -160,10 +160,11 @@
 }
 
 .one-fc-mobile-install__title {
-  margin: 0 0 8px;
-  font-size: 22px;
-  font-weight: 700;
-  color: #f8fafc;
+  margin: 0 0 10px;
+  font-size: 24px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.01em;
 }
 
 .one-fc-mobile-install__lead {
@@ -175,10 +176,11 @@
 }
 
 .one-fc-mobile-install__description {
-  margin: 8px 0 0;
-  font-size: 14px;
-  line-height: 1.5;
-  color: rgba(248, 250, 252, 0.88);
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.55;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.96);
   text-align: center;
 }
 
@@ -187,55 +189,97 @@
 }
 
 .one-fc-mobile-install__grid {
-  margin-top: 18px;
+  margin-top: 20px;
+}
+
+.intro-platform-download-grid {
   display: grid;
+  gap: 24px;
+}
+
+.intro-platform-download-grid--compact {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
 }
 
-.one-fc-mobile-install__card {
-  display: grid;
-  gap: 10px;
-  padding: 18px 16px;
-  border-radius: 16px;
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  background: rgba(15, 23, 42, 0.42);
-  text-align: center;
+.intro-install-download-grid.intro-platform-download-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-width: 1160px;
+  margin: 0 auto;
 }
 
-.one-fc-mobile-install__card-title {
-  margin: 0;
+.intro-install-download-card__icon--platform {
+  background: linear-gradient(135deg, var(--intro-btn-green) 0%, var(--intro-btn-green-hover) 100%);
+}
+
+.intro-install-download-card__badge--platform {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.intro-v2 .intro-install-download-card,
+.intro-install .intro-install-download-card {
+  height: 264px;
+}
+
+.intro-v2 .intro-install-download-card h3,
+.intro-install .intro-install-download-card h3 {
+  color: #111827;
+}
+
+.intro-v2 .intro-install-download-card p,
+.intro-install .intro-install-download-card p {
+  color: #4b5563;
+}
+
+.intro-v2 .intro-install-download-card a,
+.intro-install-hero__actions a,
+.intro-install-download-card a,
+.intro-install-cta__actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  border-radius: 12px;
+  padding: 0 18px;
   font-size: 16px;
-  font-weight: 700;
-  color: #f8fafc;
-}
-
-.one-fc-mobile-install__card-copy {
-  margin: 0;
-  font-size: 14px;
   line-height: 1.5;
-  color: rgba(226, 232, 240, 0.92);
+  font-weight: 700;
+  text-decoration: none;
+  border: 1px solid var(--intro-btn-green);
+  background: var(--intro-btn-green);
+  color: #ffffff;
+  opacity: 1;
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
 }
 
-.one-fc-mobile-install__card-button,
-.one-fc-mobile-install__cta-button {
+.intro-v2 .intro-install-download-card a {
   width: 100%;
-  min-height: 48px;
-  white-space: normal;
-  text-align: center;
-  line-height: 1.25;
+  margin-top: auto;
 }
 
-.one-fc-mobile-install--intro-cta .one-fc-mobile-install__title,
-.one-fc-mobile-install--intro-cta .one-fc-mobile-install__description,
-.one-fc-mobile-install--intro-cta .one-fc-mobile-install__card-title,
-.one-fc-mobile-install--intro-cta .one-fc-mobile-install__card-copy {
-  color: #fff;
+.intro-v2 .intro-install-download-card a:hover,
+.intro-install-hero__actions a:hover,
+.intro-install-download-card a:hover,
+.intro-install-cta__actions a:hover {
+  background: var(--intro-btn-green-hover);
+  border-color: var(--intro-btn-green-hover);
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgba(16, 185, 129, 0.24);
+  transform: translateY(-1px);
 }
 
-.one-fc-mobile-install--intro-cta .one-fc-mobile-install__card {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.28);
+.intro-v2 .intro-install-download-card a:focus-visible,
+.intro-install-hero__actions a:focus-visible,
+.intro-install-download-card a:focus-visible,
+.intro-install-cta__actions a:focus-visible {
+  outline: 3px solid rgba(16, 185, 129, 0.28);
+  outline-offset: 3px;
+  box-shadow: none;
 }
 
 .one-fc-mobile-install--login {
@@ -898,11 +942,7 @@
 }
 
 .intro-install-download-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 24px;
-  max-width: 920px;
-  margin: 0 auto;
 }
 
 .intro-install-download-card {
@@ -977,7 +1017,7 @@
 
 .intro-install-download-card p {
   margin: 16px 0 0;
-  color: #6b7280;
+  color: #4b5563;
   font-size: 16px;
   line-height: 1.625;
   min-height: 52px;
@@ -1229,6 +1269,12 @@
   color: var(--intro-btn-green-disabled-text);
 }
 
+@media (max-width: 1100px) {
+  .intro-install-download-grid.intro-platform-download-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 1024px) {
   .intro-install-hero h1 {
     font-size: 36px;
@@ -1238,11 +1284,13 @@
     font-size: 17px;
   }
 
-  .intro-install-download-grid,
+  .intro-platform-download-grid--compact,
+  .intro-install-download-grid.intro-platform-download-grid,
   .intro-install-guide-grid {
     grid-template-columns: 1fr;
   }
 
+  .intro-v2 .intro-install-download-card,
   .intro-install-download-card {
     height: auto;
     min-height: 264px;
