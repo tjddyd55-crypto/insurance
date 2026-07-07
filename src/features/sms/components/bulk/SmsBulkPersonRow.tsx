@@ -1,5 +1,6 @@
 import { formatCompactGender } from '../../utils/smsRecipientEligibility'
 import { formatSmsPersonBirthDisplay } from '../../utils/formatSmsPersonBirthDisplay'
+import { createSmsBulkPersonRowHandlers } from '../../utils/smsBulkPersonRowInteraction'
 
 type Props = {
   name: string
@@ -22,13 +23,26 @@ export default function SmsBulkPersonRow({
   disabled,
   onCheckChange,
 }: Props) {
+  const { handleRowClick, handleCheckboxClick, handleCheckboxChange, handleRowKeyDown } =
+    createSmsBulkPersonRowHandlers(onCheckChange, disabled)
+
   return (
-    <div className="sms-bulk-person-row">
+    <div
+      className="sms-bulk-person-row"
+      role="checkbox"
+      aria-checked={checked}
+      aria-disabled={disabled || undefined}
+      tabIndex={disabled ? -1 : 0}
+      onClick={handleRowClick}
+      onKeyDown={handleRowKeyDown}
+    >
       <input
         type="checkbox"
         checked={checked}
         disabled={disabled}
-        onChange={onCheckChange}
+        onClick={handleCheckboxClick}
+        onChange={handleCheckboxChange}
+        aria-label={`${name || '고객'} 선택`}
       />
       <span className="sms-bulk-person-row__name">{name || '-'}</span>
       <span className="sms-bulk-person-row__gender">{formatCompactGender(gender, genderLabel)}</span>
