@@ -141,7 +141,7 @@
   grid-template-columns: 1fr;
 }
 
-.sms-module__panel label:not(.sms-bulk-person-row) {
+.sms-module__panel label {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -1372,54 +1372,23 @@
   flex: 1 1 auto;
 }
 
-@media (min-width: 768px) {
-  .sms-bulk-person-row.sms-bulk-compact-row {
-    display: grid !important;
-    grid-template-columns: 24px minmax(72px, 1fr) 32px 48px minmax(108px, 120px);
-    align-items: center;
-    justify-items: start;
-    gap: 8px;
-    width: 100%;
-    min-height: 44px;
-    max-height: 48px;
-    padding: 8px 10px;
-    box-sizing: border-box;
-    margin: 0;
-    text-align: left;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    align-self: start;
-    transition: border-color 0.15s ease, background-color 0.15s ease;
-  }
-
-  .sms-bulk-person-row.sms-bulk-compact-row > * {
-    min-width: 0;
-    width: auto;
-    max-width: none;
-    text-align: left;
-  }
-
-  .sms-bulk-person-row__name {
-    font-weight: 700;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .sms-bulk-person-row__gender,
-  .sms-bulk-person-row__birth {
-    white-space: nowrap;
-    font-weight: 500;
-  }
-
-  .sms-bulk-person-row__phone {
-    justify-self: end;
-    white-space: nowrap;
-    overflow: visible;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    text-align: right;
-  }
+.sms-bulk-person-row {
+  display: grid;
+  grid-template-columns: 24px minmax(72px, 1fr) 32px 48px minmax(108px, 120px);
+  align-items: center;
+  justify-items: start;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  max-height: 48px;
+  padding: 8px 10px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-soft, #f1f5f9);
+  text-align: left;
+  min-width: 0;
+  margin: 0;
 }
 
 .sms-bulk-person-row:hover {
@@ -1427,20 +1396,47 @@
   background: var(--bg-surface, #fff);
 }
 
-.sms-bulk-person-row:has(.sms-bulk-compact-row__check:checked) {
-  border-color: var(--primary-border, #bbf7d0);
+.sms-bulk-person-row:has(input:checked) {
   background: var(--primary-soft, #dcfce7);
+  border-color: var(--primary-border, #86efac);
 }
 
-.sms-bulk-workspace--pc .sms-bulk-compact-row--customer.sms-bulk-compact-row--pc {
-  cursor: pointer;
+.sms-bulk-person-row > * {
+  min-width: 0;
+}
+
+.sms-bulk-person-row input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex-shrink: 0;
+  justify-self: start;
+}
+
+.sms-bulk-person-row__name {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sms-bulk-person-row__gender,
-.sms-bulk-person-row__birth,
-.sms-bulk-person-row__phone {
-  color: #475569;
+.sms-bulk-person-row__birth {
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--text-secondary, #475569);
   font-size: 0.875rem;
+}
+
+.sms-bulk-person-row__phone {
+  justify-self: end;
+  white-space: nowrap;
+  overflow: visible;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary, #475569);
+  font-size: 0.875rem;
+  text-align: right;
 }
 
 .sms-bulk-compact-row__check {
@@ -1454,17 +1450,6 @@
 .sms-bulk-compact-row__cell {
   font-size: 0.875rem;
   min-width: 0;
-}
-
-.sms-bulk-person-row .sms-bulk-compact-row__cell {
-  overflow: visible;
-  text-overflow: clip;
-  white-space: nowrap;
-}
-
-.sms-bulk-person-row .sms-bulk-compact-row__cell.sms-bulk-person-row__name {
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .sms-bulk-compact-row__name {
@@ -1499,26 +1484,6 @@
   flex-shrink: 0;
   padding-inline: 0.55rem;
   min-height: 30px;
-}
-
-@media (max-width: 767px) {
-  .sms-bulk-person-row.sms-bulk-compact-row {
-    display: grid !important;
-    grid-template-columns: 24px minmax(72px, 1fr) 32px minmax(108px, 120px);
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    min-height: 44px;
-    padding: 8px 10px;
-    box-sizing: border-box;
-    text-align: left;
-    flex-direction: row;
-    flex-wrap: nowrap;
-  }
-
-  .sms-bulk-person-row__birth {
-    display: none;
-  }
 }
 
 .sms-bulk-groups__list-toolbar,
@@ -2662,8 +2627,19 @@
 }
 
 .sms-templates-workspace__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.sms-templates-workspace__head-main {
   display: grid;
   gap: 0.35rem;
+  min-width: 0;
+  flex: 1 1 240px;
 }
 
 .sms-send-section {

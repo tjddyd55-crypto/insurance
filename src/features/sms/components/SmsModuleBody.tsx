@@ -16,6 +16,7 @@ const TABS: { id: SmsModuleTab; label: string }[] = [
   { id: 'settings', label: '문자설정' },
   { id: 'groups', label: '그룹설정' },
   { id: 'send', label: '문자발송' },
+  { id: 'templates', label: '템플릿관리' },
   { id: 'history', label: '발송내역' },
 ]
 

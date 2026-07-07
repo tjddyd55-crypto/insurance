@@ -31,9 +31,10 @@ export default function SmsTemplatesWorkspace({ variant, module, adDisplayName }
     handleSaveTemplate,
     handleDeleteTemplate,
     handleUpdateTemplate,
+    navigateToSend,
   } = module
 
-  const [editingId, setEditingId] = useState<number | null>(null)
+  const [loadedId, setLoadedId] = useState<number | null>(null)
   const realSendEnabledFlag = Boolean(settings?.realSendEnabled)
 
   const { meta, transitionNotice, dismissTransitionNotice } = useSmsMessageComposeMeta({
@@ -44,13 +45,13 @@ export default function SmsTemplatesWorkspace({ variant, module, adDisplayName }
   })
 
   const resetForm = useCallback(() => {
-    setEditingId(null)
+    setLoadedId(null)
     setTemplateForm({ ...EMPTY_FORM, imageAttachment: null })
   }, [setTemplateForm])
 
-  const handleEdit = useCallback(
+  const handleLoad = useCallback(
     (template: SmsTemplate) => {
-      setEditingId(template.id)
+      setLoadedId(template.id)
       setTemplateForm({
         title: template.title,
         message: template.message,
@@ -59,6 +60,16 @@ export default function SmsTemplatesWorkspace({ variant, module, adDisplayName }
       })
     },
     [setTemplateForm],
+  )
+
+  const handleDelete = useCallback(
+    async (id: number) => {
+      await handleDeleteTemplate(id)
+      if (loadedId === id) {
+        resetForm()
+      }
+    },
+    [handleDeleteTemplate, loadedId, resetForm],
   )
 
   const insertToken = useCallback(
@@ -74,8 +85,8 @@ export default function SmsTemplatesWorkspace({ variant, module, adDisplayName }
     if (!title || !message) {
       return
     }
-    if (editingId != null) {
-      await handleUpdateTemplate(editingId, {
+    if (loadedId != null) {
+      await handleUpdateTemplate(loadedId, {
         title,
         message,
         messageType: templateForm.messageType,
@@ -89,40 +100,28 @@ export default function SmsTemplatesWorkspace({ variant, module, adDisplayName }
   return (
     <div className={`sms-templates-workspace sms-templates-workspace--${variant}`}>
       <header className="sms-templates-workspace__head">
-        <h2 className="sms-templates-workspace__title">문자 템플릿 관리</h2>
-        <p className="sms-module__muted">저장된 템플릿을 보고, 수정하고, 삭제할 수 있습니다.</p>
+        <div className="sms-templates-workspace__head-main">
+          <h2 className="sms-templates-workspace__title">문자 템플릿 관리</h2>
+          <p className="sms-module__muted">
+            자주 사용하는 문자 내용을 저장하고, 문자 발송 화면에서 불러올 수 있습니다.
+          </p>
+        </div>
+        <FormButton type="button" variant="secondary" disabled={busy} onClick={() => navigateToSend()}>
+          문자발송으로 돌아가기
+        </FormButton>
       </header>
 
       <div className="sms-templates-workspace__grid">
-        <div className="sms-templates-workspace__list">
-          <SmsTemplateListPanel
-            templates={templates}
-            busy={busy}
-            editingId={editingId}
-            onEdit={handleEdit}
-            onDelete={handleDeleteTemplate}
-          />
-        </div>
-
         <div className="sms-templates-workspace__editor">
           <section className="sms-composer__card sms-templates-workspace__form">
-            <div className="sms-templates-workspace__form-head">
-              <h3 className="sms-composer__card-title">
-                {editingId != null ? '템플릿 수정' : '템플릿 작성'}
-              </h3>
-              {editingId != null ? (
-                <FormButton type="button" variant="secondary" disabled={busy} onClick={resetForm}>
-                  새로 작성
-                </FormButton>
-              ) : null}
-            </div>
+            <h3 className="sms-composer__card-title">템플릿 작성</h3>
 
             <label>
               템플릿명
               <FormInput
                 value={templateForm.title}
                 disabled={busy}
-                placeholder="새 템플릿 이름"
+                placeholder="템플릿 이름"
                 onChange={(e) => setTemplateForm((prev) => ({ ...prev, title: e.target.value }))}
               />
             </label>
@@ -165,7 +164,7 @@ export default function SmsTemplatesWorkspace({ variant, module, adDisplayName }
                 disabled={busy || !templateForm.title.trim() || !templateForm.message.trim()}
                 onClick={() => void handleSave()}
               >
-                {editingId != null ? '변경 저장' : '템플릿 저장'}
+                저장
               </FormButton>
             </div>
           </section>
@@ -178,6 +177,16 @@ export default function SmsTemplatesWorkspace({ variant, module, adDisplayName }
               onDismissTransition={dismissTransitionNotice}
             />
           </aside>
+        </div>
+
+        <div className="sms-templates-workspace__list">
+          <SmsTemplateListPanel
+            templates={templates}
+            busy={busy}
+            loadedId={loadedId}
+            onLoad={handleLoad}
+            onDelete={handleDelete}
+          />
         </div>
       </div>
     </div>

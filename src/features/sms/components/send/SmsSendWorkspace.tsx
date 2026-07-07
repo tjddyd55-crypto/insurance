@@ -234,7 +234,6 @@ export default function SmsSendWorkspace({ variant, module, initialSendMode, adD
   const { token } = useAuth()
   const scheduledState = useSmsScheduledState(module.templates)
   const [sendMode, setSendMode] = useState<'immediate' | 'reserved'>(initialSendMode)
-  const [newTemplateTitle, setNewTemplateTitle] = useState('')
 
   const {
     busy,
@@ -248,7 +247,6 @@ export default function SmsSendWorkspace({ variant, module, initialSendMode, adD
     handlePreviewBulk,
     handleCreateBulk,
     handleLoadTemplateToSend,
-    handleSaveTemplateFromComposer,
   } = module
 
   const syncCustomerIdsText = useCallback(
@@ -390,9 +388,9 @@ export default function SmsSendWorkspace({ variant, module, initialSendMode, adD
           ) : null}
 
           <section className="sms-send-section">
-            <h3 className="sms-send-section__title">템플릿 불러오기</h3>
+            <h3 className="sms-send-section__title">템플릿</h3>
             <label>
-              저장된 템플릿
+              템플릿 불러오기
               <select
                 className="sms-module__select"
                 value={sendMode === 'reserved' ? scheduledState.form.templateId : ''}
@@ -407,32 +405,7 @@ export default function SmsSendWorkspace({ variant, module, initialSendMode, adD
                 ))}
               </select>
             </label>
-            <p className="sms-module__muted sms-template-load-hint">
-              불러온 템플릿은 현재 작성 내용에만 적용됩니다. 저장하면 새 템플릿으로 등록됩니다.
-            </p>
-            <label>
-              새 템플릿명
-              <FormInput
-                value={newTemplateTitle}
-                disabled={busy}
-                placeholder="저장할 템플릿 이름"
-                onChange={(e) => setNewTemplateTitle(e.target.value)}
-              />
-            </label>
             <div className="sms-send-template-actions">
-              <FormButton
-                type="button"
-                disabled={busy || !newTemplateTitle.trim() || !messageBody.trim()}
-                onClick={() =>
-                  void handleSaveTemplateFromComposer({
-                    title: newTemplateTitle,
-                    message: messageBody,
-                    messageType,
-                  }).then(() => setNewTemplateTitle(''))
-                }
-              >
-                템플릿 저장
-              </FormButton>
               <FormButton type="button" variant="secondary" disabled={busy} onClick={() => navigate('/sms/templates')}>
                 템플릿 관리
               </FormButton>

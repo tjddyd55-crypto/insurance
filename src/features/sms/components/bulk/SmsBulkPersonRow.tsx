@@ -2,7 +2,6 @@ import { formatCompactGender } from '../../utils/smsRecipientEligibility'
 import { formatSmsPersonBirthDisplay } from '../../utils/formatSmsPersonBirthDisplay'
 
 type Props = {
-  layout: 'pc' | 'mobile'
   name: string
   gender: 'male' | 'female' | null
   genderLabel: string
@@ -14,7 +13,6 @@ type Props = {
 }
 
 export default function SmsBulkPersonRow({
-  layout,
   name,
   gender,
   genderLabel,
@@ -25,22 +23,17 @@ export default function SmsBulkPersonRow({
   onCheckChange,
 }: Props) {
   return (
-    <label className={`sms-bulk-compact-row sms-bulk-person-row sms-bulk-compact-row--${layout} sms-bulk-compact-row--customer`}>
+    <div className="sms-bulk-person-row">
       <input
         type="checkbox"
-        className="sms-bulk-compact-row__check sms-bulk-person-row__check"
         checked={checked}
         disabled={disabled}
         onChange={onCheckChange}
       />
-      <span className="sms-bulk-compact-row__cell sms-bulk-person-row__name">{name || '-'}</span>
-      <span className="sms-bulk-compact-row__cell sms-bulk-person-row__gender">
-        {formatCompactGender(gender, genderLabel)}
-      </span>
-      <span className="sms-bulk-compact-row__cell sms-bulk-person-row__birth">
-        {formatSmsPersonBirthDisplay(birthDate, true)}
-      </span>
-      <span className="sms-bulk-compact-row__cell sms-bulk-person-row__phone">{phoneDisplay}</span>
-    </label>
+      <span className="sms-bulk-person-row__name">{name || '-'}</span>
+      <span className="sms-bulk-person-row__gender">{formatCompactGender(gender, genderLabel)}</span>
+      <span className="sms-bulk-person-row__birth">{formatSmsPersonBirthDisplay(birthDate, true)}</span>
+      <span className="sms-bulk-person-row__phone">{phoneDisplay}</span>
+    </div>
   )
 }

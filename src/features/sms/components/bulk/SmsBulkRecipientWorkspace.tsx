@@ -254,7 +254,6 @@ function SearchResultsPanel({
           searchResults.map((row) => (
             <SmsBulkPersonRow
               key={row.customerId}
-              layout={layout}
               name={row.name}
               gender={row.gender}
               genderLabel={row.genderLabel}
@@ -372,7 +371,6 @@ function SelectedRecipientsPanel({
           visibleRecipients.map((row) => (
             <SmsBulkPersonRow
               key={row.customerId}
-              layout={layout}
               name={row.name}
               gender={row.gender}
               genderLabel={row.genderLabel}

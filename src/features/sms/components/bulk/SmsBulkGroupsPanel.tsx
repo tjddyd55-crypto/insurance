@@ -200,7 +200,6 @@ export default function SmsBulkGroupsPanel({ bulkState, disabled, layout }: SmsB
                 groupMembers.map((row) => (
                   <SmsBulkPersonRow
                     key={row.customerId}
-                    layout={layout}
                     name={row.name}
                     gender={row.gender}
                     genderLabel={row.genderLabel}
