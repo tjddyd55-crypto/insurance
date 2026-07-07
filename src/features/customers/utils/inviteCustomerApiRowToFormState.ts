@@ -8,6 +8,7 @@ import { normalizeCustomerCrmExtension } from '../domain/crmExtension'
 import type { CustomerNote } from '../domain/types'
 import { normalizeCustomerNotesBag } from '../domain/types'
 import type { CustomerCarFormItem } from '../types/customerCarForm'
+import { normalizeCustomerCarrierForForm } from '../config/customerMobileCarrier.config'
 import { resolveMedicalHistoryFromCustomer } from './customerMedicalHistory'
 
 type ApiCustomerInvite = Record<string, unknown>
@@ -75,7 +76,7 @@ export function inviteCustomerApiRowToFormState(row: ApiCustomerInvite): Custome
     gender,
     ssn: str(row.ssn),
     phone: str(row.phone),
-    carrier: str(row.carrier),
+    carrier: normalizeCustomerCarrierForForm(str(row.carrier)),
     birthDate: str(row.birthDate).trim() || crmBirth,
     address: addr,
     addressDetail: '',

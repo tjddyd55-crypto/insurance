@@ -2,6 +2,7 @@ import type { CustomerRecord } from '../domain/types'
 import { normalizeCustomerNotesBag } from '../domain/types'
 import type { CustomerEditFormState } from '../types/customerEditForm'
 import { customerRecordToCarFormItems } from './customerCarFormUtils'
+import { normalizeCustomerCarrierForForm } from '../config/customerMobileCarrier.config'
 import { resolveMedicalHistoryFromCustomer } from './customerMedicalHistory'
 import { inferGenderFromResidentNumberDigits } from './inferGenderFromResidentNumberDigits'
 
@@ -31,7 +32,7 @@ export function recordToEditForm(c: CustomerRecord): CustomerEditFormState {
     gender: storedGender ?? inferGenderFromResidentNumberDigits(c.ssn ?? '') ?? null,
     ssn: c.ssn ?? '',
     phone: c.phone ?? '',
-    carrier: (c.carrier ?? '').trim(),
+    carrier: normalizeCustomerCarrierForForm(c.carrier),
     birthDate: c.birthDate ? String(c.birthDate).slice(0, 10) : '',
     address: c.address ?? '',
     addressDetail: '',

@@ -14,6 +14,7 @@ import {
   CUSTOMER_INSURANCE_HISTORY_PLACEHOLDER,
 } from '../utils/customerDisplayFormat'
 import CustomerMedicalHistoryFields from './CustomerMedicalHistoryFields'
+import CustomerMobileCarrierSelect from './CustomerMobileCarrierSelect'
 import { resolveGenderAfterSsnInput } from '../utils/inferGenderFromResidentNumberDigits'
 import type { CustomerEditFormState } from '../types/customerEditForm'
 import { CustomerAccountNumberField } from './CustomerAccountNumberField'
@@ -134,6 +135,15 @@ export default function CustomerEditForm({
               value={editForm.phone ?? ''}
               onChange={(e) =>
                 setEditForm((prev) => (prev ? { ...prev, phone: e.target.value } : prev))
+              }
+            />
+          </label>
+          <label className="field">
+            <span className="field__label">통신사</span>
+            <CustomerMobileCarrierSelect
+              value={editForm.carrier ?? ''}
+              onChange={(value) =>
+                setEditForm((prev) => (prev ? { ...prev, carrier: value } : prev))
               }
             />
           </label>

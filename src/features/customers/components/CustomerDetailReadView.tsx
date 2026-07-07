@@ -4,6 +4,7 @@ import { normalizeCustomerNotesBag } from '../domain/types'
 import { getDDay, getDDayBadgeClass } from '../utils/dday'
 import {
   formatCustomerGenderReadLabel,
+  formatCustomerMobileCarrierDisplay,
   formatCustomerPhoneUi,
   formatCustomerSsnUi,
 } from '../utils/customerDisplayFormat'
@@ -241,6 +242,12 @@ export default function CustomerDetailReadView({
         <DetailReadInfoRow>
           <span className="customer-detail-read__info-label">핸드폰번호:</span>{' '}
           <span className="customer-detail-read__info-value">{formatCustomerPhoneUi(c.phone) || '—'}</span>
+        </DetailReadInfoRow>
+        <DetailReadInfoRow>
+          <span className="customer-detail-read__info-label">통신사:</span>{' '}
+          <span className="customer-detail-read__info-value">
+            {formatCustomerMobileCarrierDisplay(c.carrier) || '—'}
+          </span>
         </DetailReadInfoRow>
         <DetailReadInfoRow>
           <span className="customer-detail-read__info-label">주소:</span>{' '}
