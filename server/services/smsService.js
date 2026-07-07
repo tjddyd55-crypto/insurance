@@ -16,6 +16,18 @@ const SMS_HTTP_GATEWAY_URL = String(process.env.SMS_HTTP_GATEWAY_URL ?? '').trim
 
 const ALIGO_URL = 'https://apis.aligo.in/send/'
 
+/** 회원가입·비밀번호 재설정·휴대폰 변경 등 필수 인증 SMS — CRM 단체문자 REAL_SEND 와 분리 */
+export const SERVICE_AUTH_SMS_PURPOSES = new Set([
+  'SIGNUP',
+  'PHONE_CHANGE',
+  'PASSWORD_RESET',
+  'ACCOUNT_RESET',
+])
+
+export function isServiceAuthSmsPurpose(purpose) {
+  return SERVICE_AUTH_SMS_PURPOSES.has(String(purpose ?? '').trim().toUpperCase())
+}
+
 const IS_PRODUCTION =
   process.env.NODE_ENV === 'production' || Boolean(process.env.RAILWAY_ENVIRONMENT)
 
@@ -84,9 +96,13 @@ function getAllowedTestRecipients() {
 /**
  * 발송 허용 정책 (development 전용 차단만 반환값에 반영한다).
  * production 은 `{ kind:'production' }` 로 기존 gateway/알리고 순서 유지.
+ * 필수 인증 SMS(SIGNUP 등)는 단체문자 dev mock 정책과 분리해 항상 production 경로를 탄다.
  * @returns {{ kind: 'production' } | { kind: 'mock', reason: string } | { kind: 'allow_real_test_recipient' }}
  */
-function resolveSmsSendPolicy(receiverDigits) {
+export function resolveSmsSendPolicy(receiverDigits, purpose = '') {
+  if (isServiceAuthSmsPurpose(purpose)) {
+    return { kind: 'production' }
+  }
   if (!isDevelopmentDeploy()) {
     return { kind: 'production' }
   }
@@ -224,7 +240,14 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
     }
   }
 
-  const smsPolicy = resolveSmsSendPolicy(receiver)
+  const smsPolicy = resolveSmsSendPolicy(receiver, purposeNorm)
+  if (isServiceAuthSmsPurpose(purposeNorm)) {
+    console.info('[service-auth-sms] dispatch', {
+      phoneSuffix: maskPhone(receiver),
+      purpose: purposeNorm,
+      policy: smsPolicy.kind,
+    })
+  }
   /** development 화이트리스트로 실외부 발송이 허용된 경우 성공 응답에 testRecipient 플래그를 붙인다 */
   let devApprovedTestRecipient = false
   const realDispatchOk = (base) => {
@@ -236,6 +259,20 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
   }
 
   if (smsPolicy.kind === 'mock') {
+    if (isServiceAuthSmsPurpose(purposeNorm)) {
+      await finalizeFail('auth_mock_blocked', 'policy')
+      console.error('[service-auth-sms] blocked by dev mock policy (misconfiguration)', {
+        to: maskPhone(receiver),
+        purpose: purposeNorm,
+        reason: smsPolicy.reason,
+      })
+      return {
+        success: false,
+        sent: false,
+        publicMessage: SMS_PUBLIC_DELAY_MESSAGE,
+        reason: smsPolicy.reason,
+      }
+    }
     logSmsDelivery({
       phone: receiver,
       ip,
@@ -322,10 +359,11 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
 
   /**
    * ALIGO_TEST_MODE 가 Y/true/1 등이면 이 분기에서 실제 apis.aligo.in 호출을 하지 않는다(운영 검증 단계 포함).
+   * 필수 인증 SMS(SIGNUP 등)는 이 skip 분기를 타지 않고 provider 로 실제 발송을 시도한다.
    * development 에서 ALLOW_TEST_RECIPIENTS 로 실수신 테스트를 할 때에는 ALIGO_TEST_MODE=N(또는 비활성)으로 두고,
    * 아래 gateway 미설치 시 알리고 실호출까지 이어지게 한다.
    */
-  if (isAligoTestModeOn()) {
+  if (isAligoTestModeOn() && !isServiceAuthSmsPurpose(purposeNorm)) {
     await finalizeOk('test_mode')
     if (IS_PRODUCTION) {
       console.log('[SMS TEST MODE] production — not sent', {
