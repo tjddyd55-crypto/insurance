@@ -255,7 +255,7 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
           }
           if (data.valid) {
             setReferralCodeValid(true)
-            setReferralCodeHint(data.benefitSummary ?? data.message ?? '추천인 코드가 확인되었습니다.')
+            setReferralCodeHint(data.message ?? '추천인 코드가 확인되었습니다.')
             setReferralCodeError('')
           } else {
             setReferralCodeValid(false)
