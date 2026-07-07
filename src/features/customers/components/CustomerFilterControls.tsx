@@ -1,5 +1,6 @@
 import { useState, type Dispatch, RefObject, SetStateAction } from 'react'
 import { FormButton, FormInput, FormSelect } from '../../../components/form'
+import AppDateInput from '../../../components/common/AppDateInput'
 import {
   CUSTOMER_INFLOW_SOURCE_FILTER_OPTIONS,
   CUSTOMER_LIST_SORT_OPTIONS,
@@ -178,10 +179,9 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
           {consultationFilter === 'no_since' ? (
             <label className="customers-advanced-filters__field">
               <span>기준 날짜</span>
-              <FormInput
-                type="date"
+              <AppDateInput
                 value={consultationCutoffDate}
-                onChange={(e) => setConsultationCutoffDate(e.target.value)}
+                onChange={setConsultationCutoffDate}
                 aria-label="기준 날짜 — 선택 날짜 이후 상담 없는 고객"
               />
             </label>
@@ -241,19 +241,17 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
         <div className="customers-advanced-filters__grid customers-advanced-filters__grid--consultation-detail">
           <label className="customers-advanced-filters__field">
             <span>상담일 시작</span>
-            <FormInput
-              type="date"
+            <AppDateInput
               value={consultationFrom}
-              onChange={(e) => setConsultationFrom(e.target.value)}
+              onChange={setConsultationFrom}
               aria-label="상담일 시작"
             />
           </label>
           <label className="customers-advanced-filters__field">
             <span>상담일 종료</span>
-            <FormInput
-              type="date"
+            <AppDateInput
               value={consultationTo}
-              onChange={(e) => setConsultationTo(e.target.value)}
+              onChange={setConsultationTo}
               aria-label="상담일 종료"
             />
           </label>

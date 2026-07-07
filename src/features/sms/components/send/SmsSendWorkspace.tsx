@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import FormButton from '../../../../components/form/FormButton'
 import FormInput from '../../../../components/form/FormInput'
+import AppDateInput from '../../../../components/common/AppDateInput'
 import { useAuth } from '../../../auth/AuthProvider'
 import {
   SMS_SCHEDULE_MONTH_DAY_MAX,
@@ -103,7 +104,7 @@ function ReservedScheduleFields({
       {form.scheduleType === 'once' ? (
         <label>
           발송 날짜
-          <FormInput type="date" value={form.sendDate} disabled={disabled} onChange={(e) => updateForm({ sendDate: e.target.value })} />
+          <AppDateInput value={form.sendDate} disabled={disabled} onChange={(sendDate) => updateForm({ sendDate })} />
         </label>
       ) : null}
       {form.scheduleType === 'weekly' ? (

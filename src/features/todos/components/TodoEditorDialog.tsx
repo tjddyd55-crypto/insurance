@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { BaseDialog } from '../../../components/dialog/BaseDialog'
 import { useConfirmDialog } from '../../../components/dialog'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
+import AppDateInput from '../../../components/common/AppDateInput'
 import { ApiError } from '../../../lib/apiClient'
 import { searchCustomers } from '../../customers/api/customersApi'
 import type { CustomerRecord } from '../../customers/domain/types'
@@ -326,12 +327,11 @@ export function TodoEditorDialog({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <label className="flex flex-col gap-1 dark-label">
                 <span>마감일</span>
-                <FormInput
-                  type="date"
+                <AppDateInput
                   value={dueDate}
-                  onChange={(e) => {
+                  onChange={(value) => {
                     touchedRef.current = true
-                    setDueDate(e.target.value)
+                    setDueDate(value)
                   }}
                   disabled={busy}
                 />

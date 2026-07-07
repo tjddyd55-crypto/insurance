@@ -1,4 +1,5 @@
 import { FormButton, FormInput } from '../../../components/form'
+import AppDateInput from '../../../components/common/AppDateInput'
 import type { CustomerCarFormItem } from '../types/customerCarForm'
 import { toDateInputValue } from '../utils/toDateInputValue'
 
@@ -68,12 +69,11 @@ export function CustomerCarEditCard({
       </label>
       <label className="field">
         <span className="field__label">만기(갱신)일</span>
-        <FormInput
+        <AppDateInput
           className="field__control"
-          type="date"
           value={toDateInputValue(car.renewalDate)}
           disabled={disabled}
-          onChange={(e) => onChange({ ...car, renewalDate: e.target.value })}
+          onChange={(renewalDate) => onChange({ ...car, renewalDate })}
         />
       </label>
     </section>

@@ -10,6 +10,7 @@
 
 import { useMemo, useState } from 'react'
 import { FieldWrapper, FormButton, FormInput, FormSelect } from '../../../components/form'
+import AppDateInput from '../../../components/common/AppDateInput'
 import { StatusMessage } from '../../../components/feedback'
 import { SUBSCRIPTION_PLAN_KEYS } from '../../subscription/policy'
 import { PLAN_LABEL } from '../../subscription/copy'
@@ -160,10 +161,9 @@ export function SubscriptionBulkToolbar({
             </FieldWrapper>
             {plan === 'PAID' ? (
               <FieldWrapper label="만료일 (PAID 필수)">
-                <FormInput
-                  type="date"
+                <AppDateInput
                   value={expiryDateForPaid}
-                  onChange={(e) => setExpiryDateForPaid(e.target.value)}
+                  onChange={setExpiryDateForPaid}
                   disabled={isEmpty || disabled || busy}
                 />
               </FieldWrapper>
@@ -186,10 +186,9 @@ export function SubscriptionBulkToolbar({
 
         {kind === 'SET_EXPIRY' ? (
           <FieldWrapper label="만료일">
-            <FormInput
-              type="date"
+            <AppDateInput
               value={expiryDate}
-              onChange={(e) => setExpiryDate(e.target.value)}
+              onChange={setExpiryDate}
               disabled={isEmpty || disabled || busy}
             />
           </FieldWrapper>

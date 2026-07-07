@@ -10,6 +10,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { FieldWrapper, FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
+import AppDateInput from '../../../components/common/AppDateInput'
 import { FormDialog } from '../../../components/dialog'
 import { StatusMessage } from '../../../components/feedback'
 import { PLAN_LABEL } from '../../subscription/copy'
@@ -129,18 +130,16 @@ export function SubscriptionEditDialog({ open, target, onClose, onSubmit }: Prop
         {needsPeriod ? (
           <>
             <FieldWrapper label="시작일 (선택)">
-              <FormInput
-                type="date"
+              <AppDateInput
                 value={startedAt}
-                onChange={(e) => setStartedAt(e.target.value)}
+                onChange={setStartedAt}
                 disabled={submitting}
               />
             </FieldWrapper>
             <FieldWrapper label="만료일 (필수)">
-              <FormInput
-                type="date"
+              <AppDateInput
                 value={expiresAt}
-                onChange={(e) => setExpiresAt(e.target.value)}
+                onChange={setExpiresAt}
                 disabled={submitting}
               />
             </FieldWrapper>

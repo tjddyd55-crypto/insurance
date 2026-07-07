@@ -1,5 +1,6 @@
 import type { HTMLAttributes, KeyboardEventHandler } from 'react'
 import { FieldWrapper, FormInput, FormSelect, FormTextarea } from '../../../components/form'
+import AppDateInput from '../../../components/common/AppDateInput'
 
 interface BaseFieldProps {
   label: string
@@ -54,17 +55,29 @@ export function TextInput({
 }: TextInputProps) {
   return (
     <FieldWrapper label={label} required={required} helperText={helperText}>
-      <FormInput
-        className="field__control"
-        type={type}
-        value={value}
-        inputMode={inputMode}
-        onChange={(event) => onChange(event.target.value)}
-        onKeyDown={onKeyDown}
-        placeholder={placeholder}
-        disabled={disabled}
-        readOnly={readOnly}
-      />
+      {type === 'date' ? (
+        <AppDateInput
+          className="field__control"
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          disabled={disabled}
+          readOnly={readOnly}
+          onKeyDown={onKeyDown}
+        />
+      ) : (
+        <FormInput
+          className="field__control"
+          type={type}
+          value={value}
+          inputMode={inputMode}
+          onChange={(event) => onChange(event.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder={placeholder}
+          disabled={disabled}
+          readOnly={readOnly}
+        />
+      )}
     </FieldWrapper>
   )
 }

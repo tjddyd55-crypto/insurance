@@ -1,4 +1,5 @@
 import { FormInput, FormTextarea } from '../../../components/form'
+import AppDateInput from '../../../components/common/AppDateInput'
 import {
   CustomerWorkspaceDangerActionButton,
   CustomerWorkspaceItemActions,
@@ -65,10 +66,9 @@ export default function CustomerConsultationHistoryList({
               <div style={{ display: 'grid', gap: 8 }}>
                 <label style={{ display: 'block' }}>
                   상담 일자{' '}
-                  <FormInput
-                    type="date"
+                  <AppDateInput
                     value={editConsultDate}
-                    onChange={(ev) => onSetEditConsultDate(ev.target.value)}
+                    onChange={onSetEditConsultDate}
                   />
                 </label>
                 <FormTextarea
