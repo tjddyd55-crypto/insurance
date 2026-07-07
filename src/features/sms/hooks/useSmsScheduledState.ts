@@ -22,7 +22,7 @@ import {
   loadSmsScheduledRules,
   saveSmsScheduledRules,
 } from '../utils/smsScheduledStorage'
-import { isSmsScheduledFormValid, validateSmsScheduledForm } from '../utils/smsScheduledValidation'
+import { isSmsScheduledSaveValid, validateSmsScheduledSave } from '../utils/smsScheduledValidation'
 import { formatSmsBlockedReason, summarizeSelectedRecipients } from '../utils/smsRecipientEligibility'
 
 function ruleToForm(rule: SmsScheduledRule): SmsScheduledFormState {
@@ -142,8 +142,16 @@ export function useSmsScheduledState(templates: SmsTemplate[]) {
     return sendable
   }, [groupMembers, previewRefreshKey])
 
-  const validation = useMemo(() => validateSmsScheduledForm(form), [form])
-  const canSave = validation.valid
+  const validation = useMemo(
+    () =>
+      validateSmsScheduledSave({
+        form,
+        sendableCount: memberSummary.sendable,
+        groupMembersLoading: membersBusy,
+      }),
+    [form, memberSummary.sendable, membersBusy],
+  )
+  const canSave = validation.canSave
   const showEditor = isCreating || selectedRuleId != null
   const runHistory: SmsScheduledRunHistoryItem[] = []
 
@@ -276,20 +284,31 @@ export function useSmsScheduledState(templates: SmsTemplate[]) {
     setActionNotice('미리보기를 갱신했습니다.')
   }, [])
 
-  const saveRule = useCallback(() => {
-    if (!isSmsScheduledFormValid(form)) {
-      return
-    }
-    const nextRule = formToRule(form, selectedRule)
-    const nextRules = selectedRule
-      ? rules.map((rule) => (rule.id === selectedRule.id ? nextRule : rule))
-      : [nextRule, ...rules]
-    persistRules(nextRules)
-    setSelectedRuleId(nextRule.id)
-    setIsCreating(false)
-    setActionNotice('예약문자를 저장했습니다.')
-    setMobilePanel('preview')
-  }, [form, persistRules, rules, selectedRule])
+  const saveRule = useCallback(
+    (patch?: Partial<SmsScheduledFormState>) => {
+      const merged = patch ? { ...form, ...patch } : form
+      if (
+        !isSmsScheduledSaveValid({
+          form: merged,
+          sendableCount: memberSummary.sendable,
+          groupMembersLoading: membersBusy,
+        })
+      ) {
+        return
+      }
+      const nextRule = formToRule(merged, selectedRule)
+      const nextRules = selectedRule
+        ? rules.map((rule) => (rule.id === selectedRule.id ? nextRule : rule))
+        : [nextRule, ...rules]
+      persistRules(nextRules)
+      setSelectedRuleId(nextRule.id)
+      setIsCreating(false)
+      setForm(merged)
+      setActionNotice('예약문자를 저장했습니다.')
+      setMobilePanel('preview')
+    },
+    [form, persistRules, rules, selectedRule, memberSummary.sendable, membersBusy],
+  )
 
   const disableRule = useCallback(() => {
     if (!selectedRule) {
