@@ -245,7 +245,7 @@ function SearchResultsPanel({
           </FormButton>
         </div>
       </div>
-      <div className={`sms-bulk-search__list sms-bulk-search__list--${layout}`}>
+      <div className={`sms-bulk-search__list sms-bulk-person-list sms-bulk-search__list--${layout}`}>
         {searchResults.length === 0 ? (
           <p className="sms-module__muted">
             {hasSearched ? '검색 결과가 없습니다.' : '검색 조건을 입력하고 검색을 눌러주세요.'}
@@ -365,7 +365,7 @@ function SelectedRecipientsPanel({
           </FormButton>
         </div>
       </div>
-      <div className={`sms-bulk-selected__list sms-bulk-selected__list--${layout}`}>
+      <div className={`sms-bulk-selected__list sms-bulk-person-list sms-bulk-selected__list--${layout}`}>
         {visibleRecipients.length === 0 ? (
           <p className="sms-module__muted">선택된 발송 대상이 없습니다.</p>
         ) : (

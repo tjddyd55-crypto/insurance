@@ -141,7 +141,7 @@
   grid-template-columns: 1fr;
 }
 
-.sms-module__panel label {
+.sms-module__panel label:not(.sms-bulk-person-row) {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -581,46 +581,48 @@
 
 .sms-phone-preview-shell {
   width: 100%;
-  max-width: 260px;
+  max-width: 240px;
   margin: 0 auto;
-  min-width: 0;
+  padding: 10px 10px 14px;
+  border-radius: 32px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  overflow: visible;
+  box-sizing: border-box;
 }
 
 .sms-phone-preview {
   width: 100%;
-  border: 1px solid var(--border-default);
-  border-radius: 28px;
-  background: var(--bg-surface);
-  box-shadow: 0 8px 24px var(--shadow-card);
+  min-height: 360px;
+  border-radius: 24px;
   overflow: hidden;
+  background: var(--bg-surface);
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
 }
 
-.sms-phone-preview__top {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 0.45rem;
-  padding-top: 0.65rem;
-}
-
 .sms-phone-preview__speaker {
-  width: 42%;
-  height: 5px;
+  display: block;
+  width: 48px;
+  height: 4px;
   border-radius: 999px;
   background: var(--border-default);
+  margin: 0 auto 8px;
+  flex-shrink: 0;
+}
+
+.sms-phone-preview__top {
+  display: none;
 }
 
 .sms-phone-preview__camera {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--border-default);
+  display: none;
 }
 
 .sms-phone-preview__header {
+  flex: 0 0 auto;
   padding: 0.35rem 1rem 0.15rem;
   text-align: center;
   font-size: 0.92rem;
@@ -629,6 +631,7 @@
 }
 
 .sms-phone-preview__number {
+  flex: 0 0 auto;
   padding: 0 1rem 0.75rem;
   border-bottom: 1px solid var(--border-subtle);
   text-align: center;
@@ -637,10 +640,10 @@
 }
 
 .sms-phone-preview__body {
+  flex: 1 1 auto;
   min-height: 220px;
-  max-height: 260px;
   overflow-y: auto;
-  padding: 14px 12px 20px;
+  padding: 14px 12px 16px;
   white-space: pre-wrap;
   word-break: break-word;
   color: var(--text-primary);
@@ -651,6 +654,21 @@
 
 .sms-phone-preview__body--empty {
   color: var(--text-secondary);
+}
+
+.sms-phone-preview__bottom {
+  flex: 0 0 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-surface);
+}
+
+.sms-phone-preview__home-indicator {
+  width: 42%;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border-default);
 }
 
 .sms-phone-preview__attachment {
@@ -665,7 +683,7 @@
 }
 
 .sms-preview-panel {
-  overflow: hidden;
+  overflow: visible;
   min-width: 0;
 }
 
@@ -682,20 +700,20 @@
 .sms-preview-panel--compact .sms-phone-preview-shell,
 .sms-preview-panel--compact .sms-phone-preview {
   width: 100%;
-  max-width: 260px;
+  max-width: 240px;
   min-width: 0;
   margin: 0 auto;
 }
 
 .sms-preview-panel--compact .sms-phone-preview {
-  min-height: auto;
+  min-height: 320px;
 }
 
 .sms-preview-panel--compact .sms-phone-preview__body {
   width: 100%;
   max-width: 100%;
-  min-height: 220px;
-  max-height: 320px;
+  min-height: 200px;
+  max-height: none;
 }
 
 .sms-composer--pc.sms-composer--templates .sms-composer__phone {
@@ -1181,7 +1199,7 @@
 
 .sms-bulk-workspace__left .sms-bulk-search__list,
 .sms-bulk-workspace__center .sms-bulk-selected__list,
-.sms-bulk-workspace__groups .sms-bulk-groups__members {
+.sms-bulk-workspace__groups .sms-bulk-groups__members-list {
   flex: 1 1 auto;
   min-height: 0;
 }
@@ -1332,29 +1350,90 @@
   min-width: 0;
 }
 
-.sms-bulk-person-row {
+.sms-bulk-person-list,
+.sms-bulk-search__list,
+.sms-bulk-selected__list,
+.sms-bulk-groups__members-list {
   display: grid;
-  grid-template-columns: 24px minmax(64px, 1fr) 32px 48px minmax(104px, 116px);
-  align-items: center;
   gap: 8px;
-  min-height: 44px;
-  padding: 8px 10px;
-  box-sizing: border-box;
+  align-content: start;
+  align-items: start;
+  grid-auto-rows: min-content;
+  overflow: auto;
+  min-height: 0;
+  min-width: 0;
+  max-height: 360px;
+}
+
+.sms-bulk-workspace__left .sms-bulk-person-list,
+.sms-bulk-workspace__center .sms-bulk-person-list,
+.sms-bulk-workspace__groups .sms-bulk-person-list {
+  max-height: none;
+  flex: 1 1 auto;
+}
+
+@media (min-width: 768px) {
+  .sms-bulk-person-row.sms-bulk-compact-row {
+    display: grid !important;
+    grid-template-columns: 24px minmax(72px, 1fr) 32px 48px minmax(108px, 120px);
+    align-items: center;
+    justify-items: start;
+    gap: 8px;
+    width: 100%;
+    min-height: 44px;
+    max-height: 48px;
+    padding: 8px 10px;
+    box-sizing: border-box;
+    margin: 0;
+    text-align: left;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-self: start;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+  }
+
+  .sms-bulk-person-row.sms-bulk-compact-row > * {
+    min-width: 0;
+    width: auto;
+    max-width: none;
+    text-align: left;
+  }
+
+  .sms-bulk-person-row__name {
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sms-bulk-person-row__gender,
+  .sms-bulk-person-row__birth {
+    white-space: nowrap;
+    font-weight: 500;
+  }
+
+  .sms-bulk-person-row__phone {
+    justify-self: end;
+    white-space: nowrap;
+    overflow: visible;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+}
+
+.sms-bulk-person-row:hover {
+  border-color: color-mix(in srgb, var(--input-focus-border, #93c5fd) 72%, var(--border-default));
+  background: var(--bg-surface, #fff);
+}
+
+.sms-bulk-person-row:has(.sms-bulk-compact-row__check:checked) {
+  border-color: var(--primary-border, #bbf7d0);
+  background: var(--primary-soft, #dcfce7);
 }
 
 .sms-bulk-workspace--pc .sms-bulk-compact-row--customer.sms-bulk-compact-row--pc {
   cursor: pointer;
-}
-
-.sms-bulk-person-row__name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 600;
-}
-
-.sms-bulk-person-row__birth {
-  white-space: nowrap;
 }
 
 .sms-bulk-person-row__gender,
@@ -1364,19 +1443,12 @@
   font-size: 0.875rem;
 }
 
-.sms-bulk-person-row__phone {
-  white-space: nowrap;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  overflow: visible;
-  text-overflow: clip;
-}
-
 .sms-bulk-compact-row__check {
   width: 16px;
   height: 16px;
   margin: 0;
   flex-shrink: 0;
+  justify-self: start;
 }
 
 .sms-bulk-compact-row__cell {
@@ -1429,29 +1501,24 @@
   min-height: 30px;
 }
 
-.sms-bulk-workspace--mobile .sms-bulk-compact-row--mobile {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem 0.5rem;
-  padding: 0.65rem 0.75rem;
-  /* compact 고정 높이(모바일): 남은 높이를 나눠 먹어 커지지 않게 한다. */
-  min-height: 52px;
-  align-self: start;
-}
+@media (max-width: 767px) {
+  .sms-bulk-person-row.sms-bulk-compact-row {
+    display: grid !important;
+    grid-template-columns: 24px minmax(72px, 1fr) 32px minmax(108px, 120px);
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 44px;
+    padding: 8px 10px;
+    box-sizing: border-box;
+    text-align: left;
+    flex-direction: row;
+    flex-wrap: nowrap;
+  }
 
-.sms-bulk-workspace--mobile .sms-bulk-compact-row--mobile .sms-bulk-compact-row__name {
-  flex: 1 1 calc(100% - 28px);
-  min-width: 0;
-}
-
-.sms-bulk-workspace--mobile .sms-bulk-compact-row--mobile .sms-bulk-compact-row__cell:not(.sms-bulk-compact-row__name):not(.sms-bulk-compact-row__status) {
-  flex: 1 1 auto;
-}
-
-.sms-bulk-workspace--mobile .sms-bulk-compact-row--mobile .sms-bulk-compact-row__status,
-.sms-bulk-workspace--mobile .sms-bulk-compact-row--mobile .sms-bulk-compact-row__action {
-  flex-shrink: 0;
+  .sms-bulk-person-row__birth {
+    display: none;
+  }
 }
 
 .sms-bulk-groups__list-toolbar,
@@ -1473,20 +1540,6 @@
 
 .sms-bulk-groups__members-head h4 {
   margin: 0;
-}
-
-.sms-bulk-groups__members-list {
-  overflow: auto;
-  display: grid;
-  gap: 0.5rem;
-  align-content: start;
-  grid-auto-rows: min-content;
-  max-height: none;
-}
-
-.sms-bulk-workspace--pc .sms-bulk-groups__members-list--pc .sms-bulk-person-row {
-  display: grid;
-  grid-template-columns: 24px minmax(64px, 1fr) 32px 48px minmax(104px, 116px);
 }
 
 .sms-bulk-workspace--pc .sms-bulk-groups__actions--pc {
@@ -1529,21 +1582,9 @@
   gap: 0.5rem;
 }
 
-.sms-bulk-search__list,
-.sms-bulk-selected__list {
-  max-height: 360px;
-  overflow: auto;
-  display: grid;
-  gap: 0.5rem;
-  /* 리스트가 남은 높이를 채우더라도(center 열의 flex:1) 행을 세로로 늘리지 않는다.
-     기본 align-content(stretch 동작)가 자동 행을 늘려 카드가 과도하게 커지던 문제를 차단. */
-  align-content: start;
-  grid-auto-rows: min-content;
-}
-
-.sms-bulk-workspace__left .sms-bulk-search__list,
 .sms-bulk-workspace__center .sms-bulk-selected__list {
-  max-height: none;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .sms-bulk-search-row {
@@ -1567,11 +1608,6 @@
   gap: 0.75rem;
   min-height: 0;
   flex: 1 1 auto;
-}
-
-.sms-bulk-workspace__center .sms-bulk-selected__list {
-  flex: 1 1 auto;
-  min-height: 0;
 }
 
 .sms-bulk-selected-row {
@@ -2495,12 +2531,13 @@
 }
 
 .sms-send-preview-panel {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
   min-width: 0;
   overflow: visible;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 12px 8px 24px;
 }
 
 .sms-send-preview-panel .sms-composer__preview-panel {
@@ -2514,19 +2551,22 @@
 
 .sms-send-preview-panel .sms-phone-preview-shell {
   width: 100%;
-  max-width: 260px;
+  max-width: 240px;
   margin: 0 auto;
+  overflow: visible;
 }
 
 .sms-send-preview-panel .sms-phone-preview {
   width: 100%;
-  border-radius: 28px;
+  min-height: 360px;
+  border-radius: 24px;
   overflow: hidden;
 }
 
 .sms-send-preview-panel .sms-phone-preview__body {
+  flex: 1 1 auto;
   min-height: 220px;
-  max-height: 260px;
+  max-height: none;
   overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-word;

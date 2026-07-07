@@ -193,7 +193,7 @@ export default function SmsBulkGroupsPanel({ bulkState, disabled, layout }: SmsB
                 </FormButton>
               </div>
             </div>
-            <div className={`sms-bulk-groups__members-list sms-bulk-groups__members-list--${layout}`}>
+            <div className={`sms-bulk-groups__members-list sms-bulk-person-list sms-bulk-groups__members-list--${layout}`}>
               {groupMembers.length === 0 ? (
                 <p className="sms-module__muted">이 그룹에 등록된 고객이 없습니다.</p>
               ) : (

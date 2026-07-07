@@ -54,11 +54,8 @@ export default function SmsPhonePreview({
       ) : null}
 
       <div className="sms-phone-preview-shell">
+        <span className="sms-phone-preview__speaker" aria-hidden="true" />
         <div className="sms-phone-preview">
-          <div className="sms-phone-preview__top" aria-hidden="true">
-            <span className="sms-phone-preview__speaker" />
-            <span className="sms-phone-preview__camera" />
-          </div>
           <div className="sms-phone-preview__header">문자</div>
           <div className="sms-phone-preview__number">{senderLabel}</div>
           <div className={`sms-phone-preview__body${isEmpty ? ' sms-phone-preview__body--empty' : ''}`}>
@@ -72,6 +69,9 @@ export default function SmsPhonePreview({
               </div>
             ) : null}
             {isEmpty ? '보낼 문자 내용을 입력해 주세요.' : messageText}
+          </div>
+          <div className="sms-phone-preview__bottom" aria-hidden="true">
+            <span className="sms-phone-preview__home-indicator" />
           </div>
         </div>
       </div>
