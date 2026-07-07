@@ -7,7 +7,7 @@ import {
   normalizeTenantRegistrationCodeRaw,
 } from './lib/tenantRegistrationCodes.js'
 import { systemQuery } from './utils/dbSafeQuery.js'
-import { sendVerificationCode } from './services/smsService.js'
+import { sendVerificationCode, isAuthSmsProviderAccepted } from './services/smsService.js'
 import { consumeAnonymousSmsVerificationCode, consumeSmsVerificationCode } from './services/consumeSmsVerificationCode.js'
 import {
   assertNotVerifyLocked,
@@ -268,12 +268,12 @@ export function registerUserProfileApi(apiRouter, ctx) {
       purpose: SMS_PURPOSE_SIGNUP,
       clientIp,
     })
-    const smsDelivered = smsResult?.success === true && smsResult.sent === true
-    if (!smsDelivered) {
+    if (!isAuthSmsProviderAccepted(smsResult)) {
       console.error('[signup-phone-verification] sms send failed', {
         phoneSuffix: maskPhoneForLog(phoneNorm),
-        provider: smsResult?.mocked ? 'mock' : smsResult?.skipped ? 'skipped' : 'provider',
-        errorMessage: smsResult?.publicMessage ?? SMS_PUBLIC_DELAY_MESSAGE,
+        provider: smsResult?.provider,
+        errorCode: smsResult?.errorCode,
+        errorMessage: smsResult?.errorMessage ?? smsResult?.publicMessage ?? SMS_PUBLIC_DELAY_MESSAGE,
         reason: smsResult?.reason,
         retryAfterSec: smsResult?.retryAfterSec,
       })
@@ -289,7 +289,8 @@ export function registerUserProfileApi(apiRouter, ctx) {
 
     console.info('[signup-phone-verification] sms send success', {
       phoneSuffix: maskPhoneForLog(phoneNorm),
-      provider: smsResult?.testRecipient ? 'gateway_test_recipient' : 'provider',
+      provider: smsResult.provider,
+      providerMessageId: smsResult.providerMessageId,
       sent: true,
     })
 

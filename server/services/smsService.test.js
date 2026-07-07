@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  evaluateAligoDispatchAcceptance,
+  evaluateGatewayDispatchAcceptance,
+  isAuthSmsProviderAccepted,
   isServiceAuthSmsPurpose,
   resolveSmsSendPolicy,
   SERVICE_AUTH_SMS_PURPOSES,
@@ -54,4 +57,85 @@ test('resolveSmsSendPolicy: production 은 purpose 무관 production', () => {
   assert.deepEqual(signup, { kind: 'production' })
 
   restoreEnv()
+})
+
+test('evaluateAligoDispatchAcceptance: result_code 1 + msg_id + success_cnt 1 → accepted', () => {
+  const result = evaluateAligoDispatchAcceptance({
+    result_code: 1,
+    success_cnt: 1,
+    msg_id: '123456789',
+  })
+  assert.equal(result.accepted, true)
+  assert.equal(result.provider, 'aligo')
+  assert.equal(result.providerMessageId, '123456789')
+  assert.equal(result.resultCode, 1)
+  assert.equal(result.successCount, 1)
+})
+
+test('evaluateAligoDispatchAcceptance: result_code -101 → rejected', () => {
+  const result = evaluateAligoDispatchAcceptance({
+    result_code: -101,
+    message: 'invalid key',
+  })
+  assert.equal(result.accepted, false)
+  assert.equal(result.provider, 'aligo')
+  assert.equal(result.errorCode, -101)
+})
+
+test('evaluateAligoDispatchAcceptance: result_code 1인데 msg_id 없음 → rejected', () => {
+  const result = evaluateAligoDispatchAcceptance({
+    result_code: 1,
+    success_cnt: 1,
+  })
+  assert.equal(result.accepted, false)
+  assert.equal(result.provider, 'aligo')
+})
+
+test('evaluateGatewayDispatchAcceptance: success true 단독 → rejected', () => {
+  const result = evaluateGatewayDispatchAcceptance({ success: true, sent: true })
+  assert.equal(result.accepted, false)
+  assert.equal(result.provider, 'gateway')
+})
+
+test('evaluateGatewayDispatchAcceptance: sent true + providerMessageId → accepted', () => {
+  const result = evaluateGatewayDispatchAcceptance({
+    sent: true,
+    providerMessageId: 'gw-abc-123',
+  })
+  assert.equal(result.accepted, true)
+  assert.equal(result.provider, 'gateway')
+  assert.equal(result.providerMessageId, 'gw-abc-123')
+})
+
+test('evaluateGatewayDispatchAcceptance: msg_id 필드도 accepted', () => {
+  const result = evaluateGatewayDispatchAcceptance({ msg_id: '998877' })
+  assert.equal(result.accepted, true)
+  assert.equal(result.providerMessageId, '998877')
+})
+
+test('isAuthSmsProviderAccepted: providerMessageId 없으면 false', () => {
+  assert.equal(
+    isAuthSmsProviderAccepted({ success: true, sent: true, provider: 'aligo' }),
+    false,
+  )
+  assert.equal(
+    isAuthSmsProviderAccepted({
+      success: true,
+      sent: true,
+      provider: 'aligo',
+      providerMessageId: '123',
+    }),
+    true,
+  )
+})
+
+test('isAuthSmsProviderAccepted: mock success 는 false', () => {
+  assert.equal(
+    isAuthSmsProviderAccepted({
+      success: true,
+      sent: false,
+      mocked: true,
+    }),
+    false,
+  )
 })

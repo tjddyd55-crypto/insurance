@@ -191,9 +191,141 @@ export function isSmsProviderConfigured() {
   )
 }
 
+function isAligoCredentialsConfigured() {
+  return Boolean(
+    String(ALIGO_API_KEY ?? '').trim() &&
+      String(ALIGO_USER_ID ?? '').trim() &&
+      String(ALIGO_SENDER ?? '').trim(),
+  )
+}
+
+/**
+ * @param {unknown} body
+ * @returns {string | null}
+ */
+function extractGatewayProviderMessageId(body) {
+  if (!body || typeof body !== 'object') {
+    return null
+  }
+  /** @type {Record<string, unknown>} */
+  const root = /** @type {Record<string, unknown>} */ (body)
+  const nested = root.data && typeof root.data === 'object' ? /** @type {Record<string, unknown>} */ (root.data) : null
+  const candidates = [
+    root.providerMessageId,
+    root.messageId,
+    root.msg_id,
+    root.externalId,
+    nested?.providerMessageId,
+    nested?.messageId,
+    nested?.msg_id,
+    nested?.externalId,
+  ]
+  for (const candidate of candidates) {
+    const value = String(candidate ?? '').trim()
+    if (value) {
+      return value
+    }
+  }
+  return null
+}
+
+/**
+ * HTTP SMS gateway 응답 — provider 접수 증거가 있을 때만 accepted.
+ * @param {unknown} body
+ */
+export function evaluateGatewayDispatchAcceptance(body) {
+  const providerMessageId = extractGatewayProviderMessageId(body)
+  if (providerMessageId) {
+    return {
+      accepted: true,
+      provider: 'gateway',
+      providerMessageId,
+    }
+  }
+  /** @type {Record<string, unknown>} */
+  const root = body && typeof body === 'object' ? /** @type {Record<string, unknown>} */ (body) : {}
+  const nested = root.data && typeof root.data === 'object' ? /** @type {Record<string, unknown>} */ (root.data) : null
+  const resultCode = Number(root.result_code ?? nested?.result_code)
+  if (Number.isFinite(resultCode) && resultCode > 0) {
+    return {
+      accepted: true,
+      provider: 'gateway',
+      providerMessageId: `result_code:${resultCode}`,
+      resultCode,
+    }
+  }
+  return {
+    accepted: false,
+    provider: 'gateway',
+    errorCode: root.result_code ?? nested?.result_code,
+    errorMessage:
+      String(root.message ?? root.error ?? nested?.message ?? nested?.error ?? '').trim() ||
+      'gateway_no_acceptance_evidence',
+  }
+}
+
+/**
+ * Aligo apis.aligo.in/send 응답 — result_code·success_cnt·msg_id 모두 확인.
+ * @param {unknown} body
+ */
+export function evaluateAligoDispatchAcceptance(body) {
+  /** @type {Record<string, unknown>} */
+  const root = body && typeof body === 'object' ? /** @type {Record<string, unknown>} */ (body) : {}
+  const resultCode = Number(root.result_code)
+  const successCount = Number(root.success_cnt ?? 0)
+  const providerMessageId = String(root.msg_id ?? '').trim()
+  const accepted =
+    Number.isFinite(resultCode) && resultCode > 0 && successCount > 0 && Boolean(providerMessageId)
+
+  if (accepted) {
+    return {
+      accepted: true,
+      provider: 'aligo',
+      providerMessageId,
+      resultCode,
+      successCount,
+    }
+  }
+  return {
+    accepted: false,
+    provider: 'aligo',
+    errorCode: root.result_code,
+    errorMessage: String(root.message ?? '').trim() || 'aligo_reject',
+  }
+}
+
+/**
+ * @param {unknown} smsResult
+ */
+export function isAuthSmsProviderAccepted(smsResult) {
+  return (
+    smsResult?.success === true &&
+    smsResult?.sent === true &&
+    Boolean(String(smsResult?.providerMessageId ?? '').trim())
+  )
+}
+
+function logAuthProviderSelected(purposeNorm) {
+  if (!isServiceAuthSmsPurpose(purposeNorm)) {
+    return
+  }
+  console.info('[service-auth-sms] provider selected', {
+    provider: SMS_HTTP_GATEWAY_URL ? 'gateway' : 'aligo',
+    aligoConfigured: isAligoCredentialsConfigured(),
+    gatewayConfigured: Boolean(SMS_HTTP_GATEWAY_URL),
+  })
+}
+
+function logAuthDispatchFailed(purposeNorm, payload) {
+  if (!isServiceAuthSmsPurpose(purposeNorm)) {
+    return
+  }
+  console.error('[service-auth-sms] dispatch failed', payload)
+}
+
 /**
  * @param {{ phoneNumber: string, code: string, purpose: string, clientIp?: string }} params
- * @returns {Promise<{ success: boolean, ok?: boolean, sent?: boolean, test?: boolean, testRecipient?: boolean, mocked?: boolean, skipped?: boolean, reason?: string, data?: unknown, error?: unknown, publicMessage?: string, retryAfterSec?: number }>}
+ * @returns {Promise<{ success: boolean, ok?: boolean, sent?: boolean, provider?: string, providerMessageId?: string, resultCode?: number, successCount?: number, test?: boolean, testRecipient?: boolean, mocked?: boolean, skipped?: boolean, reason?: string, data?: unknown, error?: unknown, errorCode?: unknown, errorMessage?: string, publicMessage?: string, retryAfterSec?: number }>}
  */
 export async function sendVerificationCode({ phoneNumber, code, purpose, clientIp = '' }) {
   const receiver = normalizePhoneNumber(phoneNumber)
@@ -241,13 +373,7 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
   }
 
   const smsPolicy = resolveSmsSendPolicy(receiver, purposeNorm)
-  if (isServiceAuthSmsPurpose(purposeNorm)) {
-    console.info('[service-auth-sms] dispatch', {
-      phoneSuffix: maskPhone(receiver),
-      purpose: purposeNorm,
-      policy: smsPolicy.kind,
-    })
-  }
+  logAuthProviderSelected(purposeNorm)
   /** development 화이트리스트로 실외부 발송이 허용된 경우 성공 응답에 testRecipient 플래그를 붙인다 */
   let devApprovedTestRecipient = false
   const realDispatchOk = (base) => {
@@ -300,6 +426,42 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
     devApprovedTestRecipient = true
   }
 
+  const finalizeGatewayAttempt = async (response, channelLabel) => {
+    if (response.status < 200 || response.status >= 300) {
+      return null
+    }
+    const evaluation = evaluateGatewayDispatchAcceptance(response.data)
+    if (!evaluation.accepted) {
+      await finalizeFail(String(evaluation.errorMessage ?? 'gateway_no_acceptance'), 'http')
+      logAuthDispatchFailed(purposeNorm, {
+        provider: 'gateway',
+        errorCode: evaluation.errorCode,
+        errorMessage: evaluation.errorMessage,
+      })
+      return {
+        success: false,
+        sent: false,
+        provider: 'gateway',
+        errorCode: evaluation.errorCode,
+        errorMessage: evaluation.errorMessage,
+        publicMessage: SMS_PUBLIC_DELAY_MESSAGE,
+        data: response.data,
+      }
+    }
+    await finalizeOk(channelLabel)
+    if (isServiceAuthSmsPurpose(purposeNorm)) {
+      console.info('[service-auth-sms] gateway accepted', {
+        providerMessageId: evaluation.providerMessageId,
+      })
+    }
+    return realDispatchOk({
+      sent: true,
+      provider: 'gateway',
+      providerMessageId: evaluation.providerMessageId,
+      data: response.data,
+    })
+  }
+
   if (SMS_HTTP_GATEWAY_URL) {
     if (SMS_GATEWAY_HEALTH_CHECK) {
       const h = await checkSmsGatewayHealth()
@@ -330,13 +492,21 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
         response = await runOnce()
       } catch (err2) {
         await finalizeFail('gateway_error', 'http')
-        return { success: false, sent: false, error: err2, publicMessage: SMS_PUBLIC_DELAY_MESSAGE }
+        return {
+          success: false,
+          sent: false,
+          provider: 'gateway',
+          error: err2,
+          publicMessage: SMS_PUBLIC_DELAY_MESSAGE,
+        }
       }
     }
 
     if (response.status >= 200 && response.status < 300) {
-      await finalizeOk('http')
-      return realDispatchOk({ sent: true, data: response.data })
+      const gatewayResult = await finalizeGatewayAttempt(response, 'http')
+      if (gatewayResult) {
+        return gatewayResult
+      }
     }
 
     await sleep(RETRY_DELAY_MS)
@@ -345,16 +515,31 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
       response = await runOnce()
     } catch (err) {
       await finalizeFail('gateway_error', 'http')
-      return { success: false, sent: false, error: err, publicMessage: SMS_PUBLIC_DELAY_MESSAGE }
+      return { success: false, sent: false, provider: 'gateway', error: err, publicMessage: SMS_PUBLIC_DELAY_MESSAGE }
     }
 
     if (response.status >= 200 && response.status < 300) {
-      await finalizeOk('http_retry')
-      return realDispatchOk({ sent: true, data: response.data })
+      const gatewayResult = await finalizeGatewayAttempt(response, 'http_retry')
+      if (gatewayResult) {
+        return gatewayResult
+      }
     }
 
     await finalizeFail('gateway_reject', 'http')
-    return { success: false, sent: false, data: response.data, publicMessage: SMS_PUBLIC_DELAY_MESSAGE }
+    logAuthDispatchFailed(purposeNorm, {
+      provider: 'gateway',
+      errorCode: response.status,
+      errorMessage: 'gateway_reject',
+    })
+    return {
+      success: false,
+      sent: false,
+      provider: 'gateway',
+      errorCode: response.status,
+      errorMessage: 'gateway_reject',
+      data: response.data,
+      publicMessage: SMS_PUBLIC_DELAY_MESSAGE,
+    }
   }
 
   /**
@@ -403,40 +588,88 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
     return response.data
   }
 
-  try {
-    let data = await fetchAligoData()
-    if (String(data?.result_code) !== '1') {
-      await sleep(RETRY_DELAY_MS)
-      logSmsRetry({ channel: 'aligo', purpose: purposeNorm, attempt: 2 })
-      data = await fetchAligoData()
-    }
-    if (String(data?.result_code) !== '1') {
+  const finalizeAligoAttempt = async (data, channelLabel) => {
+    const evaluation = evaluateAligoDispatchAcceptance(data)
+    if (!evaluation.accepted) {
       await finalizeFail('aligo_reject', 'aligo')
+      logAuthDispatchFailed(purposeNorm, {
+        provider: 'aligo',
+        errorCode: evaluation.errorCode,
+        errorMessage: evaluation.errorMessage,
+      })
       console.error('[smsService] SMS send failed:', {
-        result_code: data?.result_code,
+        result_code: evaluation.errorCode,
         purpose: purposeNorm,
         to: maskPhone(receiver),
       })
-      return { success: false, sent: false, data, publicMessage: SMS_PUBLIC_DELAY_MESSAGE }
+      return {
+        success: false,
+        sent: false,
+        provider: 'aligo',
+        errorCode: evaluation.errorCode,
+        errorMessage: evaluation.errorMessage,
+        data,
+        publicMessage: SMS_PUBLIC_DELAY_MESSAGE,
+      }
     }
-    await finalizeOk('aligo')
-    return realDispatchOk({ sent: true, data })
+    await finalizeOk(channelLabel)
+    if (isServiceAuthSmsPurpose(purposeNorm)) {
+      console.info('[service-auth-sms] aligo accepted', {
+        resultCode: evaluation.resultCode,
+        successCount: evaluation.successCount,
+        providerMessageId: evaluation.providerMessageId,
+      })
+    }
+    return realDispatchOk({
+      sent: true,
+      provider: 'aligo',
+      providerMessageId: evaluation.providerMessageId,
+      resultCode: evaluation.resultCode,
+      successCount: evaluation.successCount,
+      data,
+    })
+  }
+
+  try {
+    let data = await fetchAligoData()
+    let aligoResult = await finalizeAligoAttempt(data, 'aligo')
+    if (aligoResult.success) {
+      return aligoResult
+    }
+    await sleep(RETRY_DELAY_MS)
+    logSmsRetry({ channel: 'aligo', purpose: purposeNorm, attempt: 2 })
+    data = await fetchAligoData()
+    aligoResult = await finalizeAligoAttempt(data, 'aligo_retry')
+    if (aligoResult.success) {
+      return aligoResult
+    }
+    return aligoResult
   } catch (error) {
     try {
       await sleep(RETRY_DELAY_MS)
       logSmsRetry({ channel: 'aligo', purpose: purposeNorm, attempt: 2 })
       const data = await fetchAligoData()
-      if (String(data?.result_code) === '1') {
-        await finalizeOk('aligo_retry')
-        return realDispatchOk({ sent: true, data })
+      const aligoResult = await finalizeAligoAttempt(data, 'aligo_retry')
+      if (aligoResult.success) {
+        return aligoResult
       }
-      await finalizeFail('aligo_reject', 'aligo')
-      return { success: false, sent: false, data, publicMessage: SMS_PUBLIC_DELAY_MESSAGE }
+      return aligoResult
     } catch (err2) {
       await finalizeFail('aligo_error', 'aligo')
       const msg = err2 instanceof Error ? err2.message : String(err2)
+      logAuthDispatchFailed(purposeNorm, {
+        provider: 'aligo',
+        errorMessage: msg,
+      })
       console.error('[smsService] SMS API error:', msg)
-      return { success: false, sent: false, error: err2, publicMessage: SMS_PUBLIC_DELAY_MESSAGE }
+      return {
+        success: false,
+        sent: false,
+        provider: 'aligo',
+        error: err2,
+        errorMessage: msg,
+        publicMessage: SMS_PUBLIC_DELAY_MESSAGE,
+      }
     }
   }
 }
