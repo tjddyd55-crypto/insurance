@@ -1,6 +1,7 @@
 import Modal from '../../../../components/ui/Modal'
 import { StatusMessage } from '../../../../components/feedback'
 import { FormInput, FormTextarea } from '../../../../components/form'
+import AppDateInput from '../../../../components/common/AppDateInput'
 import CustomerConsultationContactResultField from '../CustomerConsultationContactResultField'
 import { CustomerWorkspaceMobileScope } from '../CustomerWorkspaceActionButtons'
 import {
@@ -57,10 +58,9 @@ export default function CustomerConsultationFormModal({
         >
           <label style={{ display: 'block' }}>
             <span className="block mb-1 text-[var(--text-secondary)]">상담일</span>
-            <FormInput
-              type="date"
+            <AppDateInput
               value={consultDate}
-              onChange={(ev) => onConsultDateChange(ev.target.value)}
+              onChange={onConsultDateChange}
               disabled={busy}
             />
           </label>

@@ -1,6 +1,7 @@
 import { type CSSProperties, type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { useConfirmDialog } from '../../../components/dialog'
 import { FormInput, FormTextarea, FormButton } from '../../../components/form'
+import AppDateInput from '../../../components/common/AppDateInput'
 import { Button } from '../../../components/ui/Button'
 import Modal from '../../../components/ui/Modal'
 import { ApiError } from '../../../lib/apiClient'
@@ -296,11 +297,10 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
         <div className="text-lg font-semibold mb-2 text-[var(--text-primary)]">상담 입력</div>
         <form onSubmit={(ev) => void onModalSubmit(ev)}>
           <div className="mb-2">
-            <FormInput
-              type="date"
+            <AppDateInput
               className="field__control w-full box-border"
               value={consultDate}
-              onChange={(e) => setConsultDate(e.target.value)}
+              onChange={setConsultDate}
               aria-label="상담 일자"
             />
             <p className="text-[var(--text-secondary)] text-xs mt-1 mb-0">

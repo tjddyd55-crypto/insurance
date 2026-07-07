@@ -1,5 +1,6 @@
 import FormButton from '../../../../components/form/FormButton'
 import FormInput from '../../../../components/form/FormInput'
+import AppDateInput from '../../../../components/common/AppDateInput'
 import { SMS_SCHEDULE_LIST_FILTER_OPTIONS, SMS_SCHEDULE_MOBILE_PANELS, SMS_SCHEDULE_MONTH_DAY_MAX, SMS_SCHEDULE_MONTH_DAY_MIN, SMS_SCHEDULE_TARGET_PREVIEW_LIMIT, SMS_SCHEDULE_TYPE_OPTIONS, SMS_SCHEDULE_WEEKDAY_OPTIONS } from '../../config/smsScheduled.config'
 import { useSmsMessageComposeMeta } from '../../hooks/useSmsMessageComposeMeta'
 import { useSmsScheduledState } from '../../hooks/useSmsScheduledState'
@@ -245,11 +246,10 @@ function ScheduledFormPanel({
         {form.scheduleType === 'once' ? (
           <label>
             발송 날짜
-            <FormInput
-              type="date"
+            <AppDateInput
               value={form.sendDate}
               disabled={disabled}
-              onChange={(e) => updateForm({ sendDate: e.target.value })}
+              onChange={(sendDate) => updateForm({ sendDate })}
             />
           </label>
         ) : null}

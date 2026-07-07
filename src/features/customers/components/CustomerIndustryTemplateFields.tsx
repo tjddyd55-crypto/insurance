@@ -3,6 +3,7 @@ import { resolveCanonicalFieldKey } from '../../customer-templates'
 import type { CustomerNote } from '../domain/types'
 import { NOTE_MAX_LENGTH } from '../utils/insuranceInfo'
 import CustomerMobileCarrierSelect from './CustomerMobileCarrierSelect'
+import AppDateInput from '../../../components/common/AppDateInput'
 
 import {
   AddressSearchField,
@@ -408,11 +409,10 @@ export default function CustomerIndustryTemplateFields({
 
           if (fdef.widget === 'date') {
             return (
-              <FormInput
+              <AppDateInput
                 className="field__control"
-                type="date"
-                value={String(rawVal).slice(0, 10)}
-                onChange={(e) => patchExt(e.target.value.slice(0, 10))}
+                value={String(rawVal)}
+                onChange={(value) => patchExt(value)}
                 {...inputLock}
               />
             )

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FormButton, FormInput } from '../../../components/form'
+import AppDateInput from '../../../components/common/AppDateInput'
 import { useAuth } from '../../auth/AuthProvider'
 import { updateCustomerCar } from '../api/customersApi'
 import { clearSelectedCustomer, readSelectedCustomer } from '../storage/selectedCustomerStorage'
@@ -117,11 +118,10 @@ export default function CustomerCarPage() {
           </label>
           <label className="field field--wide">
             <span className="field__label">만기(갱신)일</span>
-            <FormInput
+            <AppDateInput
               className="field__control"
-              type="date"
               value={form.renewalDate}
-              onChange={(e) => setForm({ ...form, renewalDate: e.target.value })}
+              onChange={(renewalDate) => setForm({ ...form, renewalDate })}
             />
           </label>
         </div>

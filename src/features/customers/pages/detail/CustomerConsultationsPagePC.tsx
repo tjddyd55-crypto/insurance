@@ -1,5 +1,6 @@
 import { EmptyState, StatusMessage } from '../../../../components/feedback'
 import { FormButton, FormInput, FormTextarea } from '../../../../components/form'
+import AppDateInput from '../../../../components/common/AppDateInput'
 import CustomerConsultationContactResultField from '../../components/CustomerConsultationContactResultField'
 import CustomerConsultationHistoryList from '../../components/CustomerConsultationHistoryList'
 import type { CustomerConsultationsPCViewProps } from './customerConsultationsViewProps'
@@ -40,7 +41,7 @@ export default function CustomerConsultationsPagePC({
           <form onSubmit={onSubmit} style={{ marginBottom: 20 }}>
             <label style={{ display: 'block', marginBottom: 8 }}>
               상담 일자{' '}
-              <FormInput type="date" value={consultDate} onChange={(ev) => onSetConsultDate(ev.target.value)} />
+              <AppDateInput value={consultDate} onChange={onSetConsultDate} />
             </label>
             <FormTextarea
               value={body}
