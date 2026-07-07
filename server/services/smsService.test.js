@@ -5,9 +5,20 @@ import {
   evaluateGatewayDispatchAcceptance,
   isAuthSmsProviderAccepted,
   isServiceAuthSmsPurpose,
+  resolveAuthSmsProvider,
   resolveSmsSendPolicy,
   SERVICE_AUTH_SMS_PURPOSES,
 } from './smsService.js'
+
+const BASE_ALIGO_ENV = {
+  ALIGO_API_KEY: 'test-key',
+  ALIGO_USER_ID: 'test-user',
+  ALIGO_SENDER: '01012345678',
+}
+
+const BASE_GATEWAY_ENV = {
+  SMS_HTTP_GATEWAY_URL: 'https://sms-gateway.example/send',
+}
 
 const ORIGINAL_ENV = { ...process.env }
 
@@ -138,4 +149,59 @@ test('isAuthSmsProviderAccepted: mock success 는 false', () => {
     }),
     false,
   )
+})
+
+test('resolveAuthSmsProvider: ALIGO+gateway 모두 있고 AUTH_SMS_PROVIDER 없음 → aligo', () => {
+  const result = resolveAuthSmsProvider({
+    ...BASE_ALIGO_ENV,
+    ...BASE_GATEWAY_ENV,
+  })
+  assert.equal(result.provider, 'aligo')
+  assert.equal(result.aligoConfigured, true)
+  assert.equal(result.gatewayConfigured, true)
+})
+
+test('resolveAuthSmsProvider: AUTH_SMS_PROVIDER=aligo → aligo', () => {
+  const result = resolveAuthSmsProvider({
+    ...BASE_ALIGO_ENV,
+    ...BASE_GATEWAY_ENV,
+    AUTH_SMS_PROVIDER: 'aligo',
+  })
+  assert.equal(result.provider, 'aligo')
+})
+
+test('resolveAuthSmsProvider: AUTH_SMS_PROVIDER=gateway → gateway', () => {
+  const result = resolveAuthSmsProvider({
+    ...BASE_ALIGO_ENV,
+    ...BASE_GATEWAY_ENV,
+    AUTH_SMS_PROVIDER: 'gateway',
+  })
+  assert.equal(result.provider, 'gateway')
+})
+
+test('resolveAuthSmsProvider: gateway만 있고 AUTH_SMS_PROVIDER 없음 → aligo_unconfigured', () => {
+  const result = resolveAuthSmsProvider({
+    ...BASE_GATEWAY_ENV,
+  })
+  assert.equal(result.provider, null)
+  assert.equal(result.errorCode, 'aligo_unconfigured')
+  assert.equal(result.gatewayConfigured, true)
+})
+
+test('resolveAuthSmsProvider: AUTH_SMS_PROVIDER=gateway but URL 없음 → gateway_unconfigured', () => {
+  const result = resolveAuthSmsProvider({
+    ...BASE_ALIGO_ENV,
+    AUTH_SMS_PROVIDER: 'gateway',
+  })
+  assert.equal(result.provider, null)
+  assert.equal(result.errorCode, 'gateway_unconfigured')
+})
+
+test('resolveAuthSmsProvider: invalid AUTH_SMS_PROVIDER → invalid_auth_sms_provider', () => {
+  const result = resolveAuthSmsProvider({
+    ...BASE_ALIGO_ENV,
+    AUTH_SMS_PROVIDER: 'twilio',
+  })
+  assert.equal(result.provider, null)
+  assert.equal(result.errorCode, 'invalid_auth_sms_provider')
 })

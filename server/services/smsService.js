@@ -191,12 +191,66 @@ export function isSmsProviderConfigured() {
   )
 }
 
-function isAligoCredentialsConfigured() {
+function isAligoCredentialsConfigured(env = process.env) {
   return Boolean(
-    String(ALIGO_API_KEY ?? '').trim() &&
-      String(ALIGO_USER_ID ?? '').trim() &&
-      String(ALIGO_SENDER ?? '').trim(),
+    String(env.ALIGO_API_KEY ?? '').trim() &&
+      String(env.ALIGO_USER_ID ?? '').trim() &&
+      String(env.ALIGO_SENDER ?? '').trim(),
   )
+}
+
+function isGatewayConfigured(env = process.env) {
+  return Boolean(String(env.SMS_HTTP_GATEWAY_URL ?? '').trim())
+}
+
+/**
+ * 필수 인증 SMS provider 선택 — gateway URL 존재만으로는 gateway를 쓰지 않는다.
+ * @param {NodeJS.ProcessEnv} [env]
+ */
+export function resolveAuthSmsProvider(env = process.env) {
+  const authProviderRaw = String(env.AUTH_SMS_PROVIDER ?? '').trim()
+  const authProvider = authProviderRaw.toLowerCase()
+  const aligoConfigured = isAligoCredentialsConfigured(env)
+  const gatewayConfigured = isGatewayConfigured(env)
+
+  if (authProvider === 'gateway') {
+    if (gatewayConfigured) {
+      return { provider: 'gateway', aligoConfigured, gatewayConfigured }
+    }
+    return {
+      provider: null,
+      aligoConfigured,
+      gatewayConfigured,
+      errorCode: 'gateway_unconfigured',
+      errorMessage: 'AUTH_SMS_PROVIDER=gateway but SMS_HTTP_GATEWAY_URL is missing',
+    }
+  }
+
+  if (authProvider === 'aligo' || !authProvider) {
+    if (aligoConfigured) {
+      return { provider: 'aligo', aligoConfigured, gatewayConfigured }
+    }
+    return {
+      provider: null,
+      aligoConfigured,
+      gatewayConfigured,
+      errorCode: 'aligo_unconfigured',
+      errorMessage: 'Aligo credentials are missing for auth SMS',
+    }
+  }
+
+  return {
+    provider: null,
+    aligoConfigured,
+    gatewayConfigured,
+    errorCode: 'invalid_auth_sms_provider',
+    errorMessage: `Unsupported AUTH_SMS_PROVIDER: ${authProviderRaw}`,
+  }
+}
+
+function authProviderEnvLabel(env = process.env) {
+  const raw = String(env.AUTH_SMS_PROVIDER ?? '').trim()
+  return raw || 'default'
 }
 
 /**
@@ -305,14 +359,16 @@ export function isAuthSmsProviderAccepted(smsResult) {
   )
 }
 
-function logAuthProviderSelected(purposeNorm) {
+function logAuthProviderSelected(purposeNorm, selection) {
   if (!isServiceAuthSmsPurpose(purposeNorm)) {
     return
   }
   console.info('[service-auth-sms] provider selected', {
-    provider: SMS_HTTP_GATEWAY_URL ? 'gateway' : 'aligo',
-    aligoConfigured: isAligoCredentialsConfigured(),
-    gatewayConfigured: Boolean(SMS_HTTP_GATEWAY_URL),
+    provider: selection.provider,
+    purpose: purposeNorm,
+    authProvider: authProviderEnvLabel(),
+    aligoConfigured: selection.aligoConfigured,
+    gatewayConfigured: selection.gatewayConfigured,
   })
 }
 
@@ -373,7 +429,28 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
   }
 
   const smsPolicy = resolveSmsSendPolicy(receiver, purposeNorm)
-  logAuthProviderSelected(purposeNorm)
+  const isAuthPurpose = isServiceAuthSmsPurpose(purposeNorm)
+  const authProviderSelection = isAuthPurpose ? resolveAuthSmsProvider() : null
+
+  if (isAuthPurpose && authProviderSelection) {
+    logAuthProviderSelected(purposeNorm, authProviderSelection)
+    if (!authProviderSelection.provider) {
+      await finalizeFail(String(authProviderSelection.errorCode ?? 'provider_unconfigured'), 'policy')
+      logAuthDispatchFailed(purposeNorm, {
+        provider: null,
+        errorCode: authProviderSelection.errorCode,
+        errorMessage: authProviderSelection.errorMessage,
+      })
+      return {
+        success: false,
+        sent: false,
+        errorCode: authProviderSelection.errorCode,
+        errorMessage: authProviderSelection.errorMessage,
+        publicMessage: SMS_PUBLIC_DELAY_MESSAGE,
+      }
+    }
+  }
+
   /** development 화이트리스트로 실외부 발송이 허용된 경우 성공 응답에 testRecipient 플래그를 붙인다 */
   let devApprovedTestRecipient = false
   const realDispatchOk = (base) => {
@@ -462,7 +539,11 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
     })
   }
 
-  if (SMS_HTTP_GATEWAY_URL) {
+  const shouldUseGateway = isAuthPurpose
+    ? authProviderSelection?.provider === 'gateway'
+    : Boolean(SMS_HTTP_GATEWAY_URL)
+
+  if (shouldUseGateway) {
     if (SMS_GATEWAY_HEALTH_CHECK) {
       const h = await checkSmsGatewayHealth()
       if (!h.ok) {
@@ -548,7 +629,7 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
    * development 에서 ALLOW_TEST_RECIPIENTS 로 실수신 테스트를 할 때에는 ALIGO_TEST_MODE=N(또는 비활성)으로 두고,
    * 아래 gateway 미설치 시 알리고 실호출까지 이어지게 한다.
    */
-  if (isAligoTestModeOn() && !isServiceAuthSmsPurpose(purposeNorm)) {
+  if (isAligoTestModeOn() && !isAuthPurpose) {
     await finalizeOk('test_mode')
     if (IS_PRODUCTION) {
       console.log('[SMS TEST MODE] production — not sent', {
@@ -561,9 +642,18 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
     return { success: true, test: true, sent: true }
   }
 
-  if (!isSmsProviderConfigured()) {
+  const aligoReady = isAuthPurpose ? isAligoCredentialsConfigured() : isSmsProviderConfigured()
+  if (!aligoReady) {
     await finalizeFail('provider_unconfigured', 'aligo')
-    console.warn('[smsService] SMS provider not configured (gateway URL or Aligo env)')
+    if (isAuthPurpose) {
+      logAuthDispatchFailed(purposeNorm, {
+        provider: 'aligo',
+        errorCode: 'aligo_unconfigured',
+        errorMessage: 'Aligo credentials are missing for auth SMS',
+      })
+    } else {
+      console.warn('[smsService] SMS provider not configured (gateway URL or Aligo env)')
+    }
     return { success: false, sent: false, publicMessage: SMS_PUBLIC_DELAY_MESSAGE }
   }
 
