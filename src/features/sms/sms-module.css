@@ -2547,44 +2547,70 @@
 .sms-templates-workspace {
   display: grid;
   gap: 1rem;
+  min-width: 0;
 }
 
 .sms-templates-workspace__grid {
   display: grid;
   gap: 1rem;
   align-items: start;
+  min-width: 0;
 }
 
 .sms-templates-workspace--pc .sms-templates-workspace__grid {
-  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(260px, 280px) minmax(280px, 360px);
 }
 
 .sms-templates-workspace--mobile .sms-templates-workspace__grid {
   grid-template-columns: minmax(0, 1fr);
 }
 
-.sms-templates-workspace__list {
-  min-width: 0;
-}
-
-.sms-templates-workspace__editor {
-  display: grid;
-  gap: 1rem;
-  min-width: 0;
-}
-
-.sms-templates-workspace--pc .sms-templates-workspace__editor {
-  grid-template-columns: minmax(0, 1fr) 320px;
-  align-items: start;
-}
-
-.sms-templates-workspace--mobile .sms-templates-workspace__editor {
-  grid-template-columns: minmax(0, 1fr);
-}
-
 .sms-templates-workspace__form {
   display: grid;
   gap: 0.75rem;
+  min-width: 0;
+  align-self: start;
+}
+
+.sms-templates-workspace__preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--bg-surface);
+  align-self: start;
+  overflow: visible;
+  box-sizing: border-box;
+}
+
+.sms-templates-workspace__preview .sms-composer__preview-panel {
+  position: static;
+  top: auto;
+  width: 100%;
+  max-width: 280px;
+  min-width: 0;
+  margin: 0 auto;
+  overflow: visible;
+}
+
+.sms-templates-workspace__preview .sms-phone-preview-shell,
+.sms-templates-workspace__preview .sms-phone-preview {
+  width: 100%;
+  max-width: 240px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.sms-templates-workspace__list {
+  min-width: 0;
+  align-self: start;
+  max-height: min(72vh, 720px);
+  overflow: auto;
 }
 
 .sms-templates-workspace__form-head {
@@ -2602,17 +2628,6 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-}
-
-.sms-templates-workspace__preview {
-  min-width: 0;
-}
-
-.sms-templates-workspace__preview .sms-composer__preview-panel {
-  position: static;
-  width: 100%;
-  max-width: 320px;
-  margin: 0 auto;
 }
 
 .sms-template-card--active {

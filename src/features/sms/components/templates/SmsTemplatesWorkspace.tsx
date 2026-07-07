@@ -112,72 +112,70 @@ export default function SmsTemplatesWorkspace({ variant, module, adDisplayName }
       </header>
 
       <div className="sms-templates-workspace__grid">
-        <div className="sms-templates-workspace__editor">
-          <section className="sms-composer__card sms-templates-workspace__form">
-            <h3 className="sms-composer__card-title">템플릿 작성</h3>
+        <section className="sms-composer__card sms-templates-workspace__form">
+          <h3 className="sms-composer__card-title">템플릿 작성</h3>
 
-            <label>
-              템플릿명
-              <FormInput
-                value={templateForm.title}
-                disabled={busy}
-                placeholder="템플릿 이름"
-                onChange={(e) => setTemplateForm((prev) => ({ ...prev, title: e.target.value }))}
-              />
-            </label>
-
-            <label className="sms-composer__editor-label">
-              본문
-              <textarea
-                className="sms-module__textarea sms-composer__textarea"
-                rows={10}
-                value={templateForm.message}
-                disabled={busy}
-                placeholder="보낼 문자 내용을 입력해 주세요."
-                onChange={(e) => setTemplateForm((prev) => ({ ...prev, message: e.target.value }))}
-              />
-            </label>
-
-            <SmsMessageMetaBar
-              meta={meta}
-              realSendEnabled={realSendEnabledFlag}
-              transitionNotice={transitionNotice}
-              onDismissTransition={dismissTransitionNotice}
+          <label>
+            템플릿명
+            <FormInput
+              value={templateForm.title}
+              disabled={busy}
+              placeholder="템플릿 이름"
+              onChange={(e) => setTemplateForm((prev) => ({ ...prev, title: e.target.value }))}
             />
-            <SmsVariableChips onInsert={insertToken} disabled={busy} />
+          </label>
 
-            <label className="sms-composer__checkbox">
-              <input
-                type="checkbox"
-                checked={templateForm.messageType === 'ad'}
-                disabled={busy}
-                onChange={(e) =>
-                  setTemplateForm((prev) => ({ ...prev, messageType: e.target.checked ? 'ad' : 'info' }))
-                }
-              />
-              <span>광고성 문자입니다.</span>
-            </label>
-
-            <div className="sms-templates-workspace__form-actions">
-              <FormButton
-                type="button"
-                disabled={busy || !templateForm.title.trim() || !templateForm.message.trim()}
-                onClick={() => void handleSave()}
-              >
-                저장
-              </FormButton>
-            </div>
-          </section>
-
-          <aside className="sms-templates-workspace__preview">
-            <SmsPhonePreview
-              meta={meta}
-              senderNumber={settings?.defaultSender}
-              transitionNotice={transitionNotice}
-              onDismissTransition={dismissTransitionNotice}
+          <label className="sms-composer__editor-label">
+            본문
+            <textarea
+              className="sms-module__textarea sms-composer__textarea"
+              rows={10}
+              value={templateForm.message}
+              disabled={busy}
+              placeholder="보낼 문자 내용을 입력해 주세요."
+              onChange={(e) => setTemplateForm((prev) => ({ ...prev, message: e.target.value }))}
             />
-          </aside>
-        </div>
+          </label>
+
+          <SmsMessageMetaBar
+            meta={meta}
+            realSendEnabled={realSendEnabledFlag}
+            transitionNotice={transitionNotice}
+            onDismissTransition={dismissTransitionNotice}
+          />
+          <SmsVariableChips onInsert={insertToken} disabled={busy} />
+
+          <label className="sms-composer__checkbox">
+            <input
+              type="checkbox"
+              checked={templateForm.messageType === 'ad'}
+              disabled={busy}
+              onChange={(e) =>
+                setTemplateForm((prev) => ({ ...prev, messageType: e.target.checked ? 'ad' : 'info' }))
+              }
+            />
+            <span>광고성 문자입니다.</span>
+          </label>
+
+          <div className="sms-templates-workspace__form-actions">
+            <FormButton
+              type="button"
+              disabled={busy || !templateForm.title.trim() || !templateForm.message.trim()}
+              onClick={() => void handleSave()}
+            >
+              저장
+            </FormButton>
+          </div>
+        </section>
+
+        <aside className="sms-templates-workspace__preview" aria-label="휴대폰 미리보기">
+          <SmsPhonePreview
+            meta={meta}
+            senderNumber={settings?.defaultSender}
+            transitionNotice={transitionNotice}
+            onDismissTransition={dismissTransitionNotice}
+          />
+        </aside>
 
         <div className="sms-templates-workspace__list">
           <SmsTemplateListPanel
