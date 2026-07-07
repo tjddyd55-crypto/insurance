@@ -11,7 +11,7 @@ const ALIGO_API_KEY = process.env.ALIGO_API_KEY
 const ALIGO_USER_ID = process.env.ALIGO_USER_ID
 const ALIGO_SENDER = process.env.ALIGO_SENDER
 
-/** 설정 시 JSON `{ phone, message }` POST로 전송 (예: EC2 중계 서버). Aligo·테스트모드보다 우선 */
+/** 레거시 EC2 sms-server (JSON `{ phone, message }`). CRM gateway 미설정 시에만 사용 */
 const SMS_HTTP_GATEWAY_URL = String(process.env.SMS_HTTP_GATEWAY_URL ?? '').trim()
 
 const ALIGO_URL = 'https://apis.aligo.in/send/'
@@ -139,20 +139,87 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms))
 }
 
-function resolveGatewayHealthUrl() {
-  const explicit = String(process.env.SMS_HTTP_GATEWAY_HEALTH_URL ?? '').trim()
+function resolveCrmAuthGatewayBaseUrl(env = process.env) {
+  return String(env.SMS_MODULE_GATEWAY_URL ?? '').trim().replace(/\/$/, '')
+}
+
+function resolveCrmAuthGatewayToken(env = process.env) {
+  return (
+    String(env.SMS_MODULE_GATEWAY_TOKEN ?? '').trim() ||
+    String(env.CRM_SMS_GATEWAY_TOKEN ?? '').trim() ||
+    String(env.SMS_HTTP_GATEWAY_TOKEN ?? '').trim() ||
+    String(env.SMS_GATEWAY_TOKEN ?? '').trim() ||
+    String(env.SMS_GATEWAY_API_KEY ?? '').trim()
+  )
+}
+
+function isAligoCredentialsConfigured(env = process.env) {
+  return Boolean(
+    String(env.ALIGO_API_KEY ?? '').trim() &&
+      String(env.ALIGO_USER_ID ?? '').trim() &&
+      String(env.ALIGO_SENDER ?? '').trim(),
+  )
+}
+
+function isCrmAuthGatewayConfigured(env = process.env) {
+  return Boolean(
+    resolveCrmAuthGatewayBaseUrl(env) &&
+      resolveCrmAuthGatewayToken(env) &&
+      isAligoCredentialsConfigured(env),
+  )
+}
+
+function isLegacyHttpGatewayConfigured(env = process.env) {
+  return Boolean(String(env.SMS_HTTP_GATEWAY_URL ?? '').trim())
+}
+
+function isGatewayConfigured(env = process.env) {
+  return isCrmAuthGatewayConfigured(env) || isLegacyHttpGatewayConfigured(env)
+}
+
+/**
+ * 운영 인증 SMS gateway endpoint — 단체문자 성공 경로(CRM) 우선, 레거시 sms-server 폴백.
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {{ mode: 'crm', url: string, endpointPath: string } | { mode: 'legacy', url: string, endpointPath: string } | null}
+ */
+export function resolveAuthSmsGatewayEndpoint(env = process.env) {
+  if (isCrmAuthGatewayConfigured(env)) {
+    const base = resolveCrmAuthGatewayBaseUrl(env)
+    return { mode: 'crm', url: `${base}/send`, endpointPath: '/send' }
+  }
+  if (isLegacyHttpGatewayConfigured(env)) {
+    const url = String(env.SMS_HTTP_GATEWAY_URL ?? '').trim()
+    try {
+      const parsed = new URL(url)
+      return { mode: 'legacy', url, endpointPath: parsed.pathname || '/send-sms' }
+    } catch {
+      return { mode: 'legacy', url, endpointPath: '/send-sms' }
+    }
+  }
+  return null
+}
+
+function resolveGatewayHealthUrl(env = process.env) {
+  const explicit = String(
+    env.SMS_HTTP_GATEWAY_HEALTH_URL ?? env.SMS_MODULE_GATEWAY_HEALTH_URL ?? '',
+  ).trim()
   if (explicit) {
     return explicit
   }
-  if (!SMS_HTTP_GATEWAY_URL) {
-    return null
+  const authEndpoint = resolveAuthSmsGatewayEndpoint(env)
+  if (authEndpoint?.mode === 'crm') {
+    const base = resolveCrmAuthGatewayBaseUrl(env)
+    return base ? `${base}/health` : null
   }
-  try {
-    const u = new URL(SMS_HTTP_GATEWAY_URL)
-    return `${u.origin}/health`
-  } catch {
-    return null
+  if (SMS_HTTP_GATEWAY_URL) {
+    try {
+      const u = new URL(SMS_HTTP_GATEWAY_URL)
+      return `${u.origin}/health`
+    } catch {
+      return null
+    }
   }
+  return null
 }
 
 async function checkSmsGatewayHealth() {
@@ -181,29 +248,13 @@ async function checkSmsGatewayHealth() {
 }
 
 export function isSmsProviderConfigured() {
-  if (SMS_HTTP_GATEWAY_URL) {
+  if (isGatewayConfigured()) {
     return true
   }
-  return Boolean(
-    String(ALIGO_API_KEY ?? '').trim() &&
-      String(ALIGO_USER_ID ?? '').trim() &&
-      String(ALIGO_SENDER ?? '').trim(),
-  )
+  return isAligoCredentialsConfigured()
 }
 
-function isAligoCredentialsConfigured(env = process.env) {
-  return Boolean(
-    String(env.ALIGO_API_KEY ?? '').trim() &&
-      String(env.ALIGO_USER_ID ?? '').trim() &&
-      String(env.ALIGO_SENDER ?? '').trim(),
-  )
-}
-
-function isGatewayConfigured(env = process.env) {
-  return Boolean(String(env.SMS_HTTP_GATEWAY_URL ?? '').trim())
-}
-
-function resolveGatewayAuthToken(env = process.env) {
+function resolveLegacyGatewayAuthToken(env = process.env) {
   return (
     String(env.SMS_HTTP_GATEWAY_TOKEN ?? '').trim() ||
     String(env.SMS_GATEWAY_TOKEN ?? '').trim() ||
@@ -211,13 +262,65 @@ function resolveGatewayAuthToken(env = process.env) {
   )
 }
 
-function buildGatewayRequestHeaders(env = process.env) {
+/**
+ * 단체문자 CRM gateway 와 동일한 Authorization 헤더 (server/sms import 없이 복제).
+ * @param {NodeJS.ProcessEnv} [env]
+ */
+export function buildAuthSmsGatewayHeaders(env = process.env) {
+  const endpoint = resolveAuthSmsGatewayEndpoint(env)
+  if (endpoint?.mode === 'crm') {
+    const token = resolveCrmAuthGatewayToken(env)
+    return {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    }
+  }
   const headers = { 'Content-Type': 'application/json' }
-  const token = resolveGatewayAuthToken(env)
+  const token = resolveLegacyGatewayAuthToken(env)
   if (token) {
     headers.Authorization = `Bearer ${token}`
   }
   return headers
+}
+
+/** EUC-KR byte 길이 근사 — 단체문자 gateway message_type 과 동일 기준 */
+function estimateAuthSmsByteLength(text) {
+  let bytes = 0
+  for (const ch of String(text ?? '')) {
+    const code = ch.charCodeAt(0)
+    bytes += code <= 0x7f ? 1 : 2
+  }
+  return bytes
+}
+
+function resolveAuthSmsMessageType(message) {
+  return estimateAuthSmsByteLength(message) <= 90 ? 'SMS' : 'LMS'
+}
+
+/**
+ * 운영 인증 SMS gateway body — CRM 모드는 단체문자 성공 contract, 레거시는 phone/message.
+ * @param {{ phone: string, message: string, purpose?: string }} params
+ * @param {NodeJS.ProcessEnv} [env]
+ */
+export function buildAuthSmsGatewayPayload({ phone, message, purpose }, env = process.env) {
+  const endpoint = resolveAuthSmsGatewayEndpoint(env)
+  if (endpoint?.mode === 'crm') {
+    return {
+      provider: 'aligo',
+      user_id: String(env.ALIGO_USER_ID ?? '').trim(),
+      api_key: String(env.ALIGO_API_KEY ?? '').trim(),
+      sender: String(env.ALIGO_SENDER ?? '').trim(),
+      receiver: String(phone ?? '').trim(),
+      message: String(message ?? '').trim(),
+      message_type: resolveAuthSmsMessageType(String(message ?? '')),
+      testmode_yn: 'N',
+    }
+  }
+  return {
+    phone: String(phone ?? '').trim(),
+    message: String(message ?? '').trim(),
+    purpose: String(purpose ?? '').trim(),
+  }
 }
 
 /**
@@ -253,7 +356,7 @@ export function resolveAuthSmsProvider(env = process.env) {
       aligoConfigured,
       gatewayConfigured,
       errorCode: 'gateway_unconfigured',
-      errorMessage: 'SMS_HTTP_GATEWAY_URL is missing for auth SMS',
+      errorMessage: 'SMS gateway is not configured for auth SMS',
     }
   }
 
@@ -284,11 +387,13 @@ function extractGatewayProviderMessageId(body) {
   const nested = root.data && typeof root.data === 'object' ? /** @type {Record<string, unknown>} */ (root.data) : null
   const candidates = [
     root.providerMessageId,
+    root.provider_message_id,
     root.messageId,
     root.msg_id,
     root.mid,
     root.externalId,
     nested?.providerMessageId,
+    nested?.provider_message_id,
     nested?.messageId,
     nested?.msg_id,
     nested?.mid,
@@ -359,19 +464,25 @@ export function evaluateGatewayDispatchAcceptance(body) {
   const resultCode = Number(root.result_code ?? nested?.result_code)
   if (Number.isFinite(resultCode) && resultCode > 0) {
     return {
-      accepted: true,
+      accepted: false,
       provider: 'gateway',
-      providerMessageId: `result_code:${resultCode}`,
-      resultCode,
+      errorCode: resultCode,
+      errorMessage: 'gateway_no_msg_id',
     }
   }
   return {
     accepted: false,
     provider: 'gateway',
-    errorCode: root.result_code ?? nested?.result_code,
+    errorCode: root.errorCode ?? root.result_code ?? nested?.result_code,
     errorMessage:
-      String(root.message ?? root.error ?? nested?.message ?? nested?.error ?? '').trim() ||
-      'gateway_no_acceptance_evidence',
+      String(
+        root.errorMessage ??
+          root.message ??
+          root.error ??
+          nested?.message ??
+          nested?.error ??
+          '',
+      ).trim() || 'gateway_no_acceptance_evidence',
   }
 }
 
@@ -443,12 +554,17 @@ function logAuthGatewayDispatchFailed(purposeNorm, payload) {
   console.error('[service-auth-sms] gateway dispatch failed', payload)
 }
 
-function buildGatewayAuthSmsPayload(receiver, message, purposeNorm) {
-  return {
-    phone: receiver,
-    message,
-    purpose: purposeNorm,
+function logAuthGatewayRequestContract(purposeNorm, endpoint, headers, payload) {
+  if (!isServiceAuthSmsPurpose(purposeNorm)) {
+    return
   }
+  console.info('[service-auth-sms] gateway request contract', {
+    purpose: purposeNorm,
+    gatewayMode: endpoint?.mode ?? 'unknown',
+    endpointPath: endpoint?.endpointPath ?? 'unknown',
+    headerKeys: Object.keys(headers ?? {}),
+    bodyKeys: Object.keys(payload ?? {}),
+  })
 }
 
 /**
@@ -585,7 +701,6 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
       const responseBody =
         response.data && typeof response.data === 'object' ? /** @type {Record<string, unknown>} */ (response.data) : {}
       logAuthGatewayDispatchFailed(purposeNorm, {
-        phoneSuffix: maskPhone(receiver),
         purpose: purposeNorm,
         status: response.status,
         errorCode: evaluation.errorCode,
@@ -610,7 +725,10 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
     await finalizeOk(channelLabel)
     if (isServiceAuthSmsPurpose(purposeNorm)) {
       console.info('[service-auth-sms] gateway accepted', {
+        purpose: purposeNorm,
         providerMessageId: evaluation.providerMessageId,
+        resultCode: evaluation.resultCode,
+        successCount: evaluation.successCount,
       })
     }
     return realDispatchOk({
@@ -623,11 +741,20 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
     })
   }
 
+  const authGatewayEndpoint = isAuthPurpose ? resolveAuthSmsGatewayEndpoint() : null
   const shouldUseGateway = isAuthPurpose
     ? authProviderSelection?.provider === 'gateway'
     : Boolean(SMS_HTTP_GATEWAY_URL)
 
   if (shouldUseGateway) {
+    const gatewayUrl = isAuthPurpose
+      ? authGatewayEndpoint?.url
+      : SMS_HTTP_GATEWAY_URL
+    if (!gatewayUrl) {
+      await finalizeFail('gateway_unconfigured', 'http')
+      return { success: false, sent: false, publicMessage: SMS_PUBLIC_DELAY_MESSAGE }
+    }
+
     if (SMS_GATEWAY_HEALTH_CHECK) {
       const h = await checkSmsGatewayHealth()
       if (!h.ok) {
@@ -636,16 +763,23 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
       }
     }
 
+    const gatewayPayload = isAuthPurpose
+      ? buildAuthSmsGatewayPayload({ phone: receiver, message: messageGateway, purpose: purposeNorm })
+      : { phone: receiver, message: messageGateway }
+    const gatewayHeaders = isAuthPurpose
+      ? buildAuthSmsGatewayHeaders()
+      : buildAuthSmsGatewayHeaders(process.env)
+
+    if (isAuthPurpose) {
+      logAuthGatewayRequestContract(purposeNorm, authGatewayEndpoint, gatewayHeaders, gatewayPayload)
+    }
+
     const runOnce = () =>
-      axios.post(
-        SMS_HTTP_GATEWAY_URL,
-        buildGatewayAuthSmsPayload(receiver, messageGateway, purposeNorm),
-        {
-          headers: buildGatewayRequestHeaders(),
-          timeout: SMS_SEND_TIMEOUT_MS,
-          validateStatus: () => true,
-        },
-      )
+      axios.post(gatewayUrl, gatewayPayload, {
+        headers: gatewayHeaders,
+        timeout: SMS_SEND_TIMEOUT_MS,
+        validateStatus: () => true,
+      })
 
     let response
     try {
@@ -710,8 +844,6 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
   /**
    * ALIGO_TEST_MODE 가 Y/true/1 등이면 이 분기에서 실제 apis.aligo.in 호출을 하지 않는다(운영 검증 단계 포함).
    * 필수 인증 SMS(SIGNUP 등)는 이 skip 분기를 타지 않고 provider 로 실제 발송을 시도한다.
-   * development 에서 ALLOW_TEST_RECIPIENTS 로 실수신 테스트를 할 때에는 ALIGO_TEST_MODE=N(또는 비활성)으로 두고,
-   * 아래 gateway 미설치 시 알리고 실호출까지 이어지게 한다.
    */
   if (isAligoTestModeOn() && !isAuthPurpose) {
     await finalizeOk('test_mode')
