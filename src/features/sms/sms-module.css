@@ -11,8 +11,8 @@
 }
 
 .sms-module__content {
-  width: min(100%, 1200px);
-  max-width: 1200px;
+  width: min(100%, 1240px);
+  max-width: 1240px;
   margin: 0 auto;
   padding: 12px 16px 32px;
   box-sizing: border-box;
@@ -1359,7 +1359,8 @@
   align-content: start;
   align-items: start;
   grid-auto-rows: min-content;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   min-height: 0;
   min-width: 0;
   max-height: 360px;
@@ -1374,20 +1375,20 @@
 
 .sms-bulk-person-row {
   display: grid;
-  grid-template-columns: 24px minmax(72px, 1fr) 32px 48px minmax(108px, 120px);
+  grid-template-columns: 20px minmax(52px, 1fr) 24px 40px 96px;
   align-items: center;
   justify-items: start;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
-  min-height: 44px;
-  max-height: 48px;
-  padding: 8px 10px;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 7px 8px;
   box-sizing: border-box;
   border-radius: 8px;
   border: 1px solid var(--border-default);
   background: var(--bg-soft, #f1f5f9);
   text-align: left;
-  min-width: 0;
   margin: 0;
 }
 
@@ -1414,6 +1415,7 @@
 }
 
 .sms-bulk-person-row__name {
+  min-width: 0;
   font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1422,21 +1424,24 @@
 
 .sms-bulk-person-row__gender,
 .sms-bulk-person-row__birth {
-  font-weight: 500;
   white-space: nowrap;
+  font-weight: 500;
   color: var(--text-secondary, #475569);
   font-size: 0.875rem;
 }
 
 .sms-bulk-person-row__phone {
   justify-self: end;
+  width: 96px;
+  min-width: 96px;
+  max-width: 96px;
   white-space: nowrap;
   overflow: visible;
+  text-align: right;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--text-secondary, #475569);
   font-size: 0.875rem;
-  text-align: right;
 }
 
 .sms-bulk-compact-row__check {
@@ -2628,6 +2633,11 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+.sms-templates-workspace__loaded-hint {
+  margin: 0;
+  font-size: 0.875rem;
 }
 
 .sms-template-card--active {

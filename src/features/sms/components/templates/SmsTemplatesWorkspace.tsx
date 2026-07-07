@@ -29,6 +29,7 @@ export default function SmsTemplatesWorkspace({ variant, module, adDisplayName }
     templateForm,
     setTemplateForm,
     handleSaveTemplate,
+    handleCreateTemplateFromForm,
     handleDeleteTemplate,
     handleUpdateTemplate,
     navigateToSend,
@@ -44,10 +45,16 @@ export default function SmsTemplatesWorkspace({ variant, module, adDisplayName }
     previewSubstitution: { mode: 'preserve' },
   })
 
+  const canSave = Boolean(templateForm.title.trim() && templateForm.message.trim())
+
   const resetForm = useCallback(() => {
     setLoadedId(null)
     setTemplateForm({ ...EMPTY_FORM, imageAttachment: null })
   }, [setTemplateForm])
+
+  const handleNewDraft = useCallback(() => {
+    resetForm()
+  }, [resetForm])
 
   const handleLoad = useCallback(
     (template: SmsTemplate) => {
@@ -66,11 +73,15 @@ export default function SmsTemplatesWorkspace({ variant, module, adDisplayName }
     async (id: number) => {
       await handleDeleteTemplate(id)
       if (loadedId === id) {
-        resetForm()
+        setLoadedId(null)
       }
     },
-    [handleDeleteTemplate, loadedId, resetForm],
+    [handleDeleteTemplate, loadedId],
   )
+
+  const handleClearLoad = useCallback(() => {
+    setLoadedId(null)
+  }, [])
 
   const insertToken = useCallback(
     (token: string) => {
@@ -79,22 +90,34 @@ export default function SmsTemplatesWorkspace({ variant, module, adDisplayName }
     [setTemplateForm],
   )
 
-  const handleSave = async () => {
+  const handleNewSave = async () => {
+    const created = await handleSaveTemplate()
+    if (created) {
+      setLoadedId(null)
+    }
+  }
+
+  const handleUpdateLoaded = async () => {
+    if (loadedId == null) {
+      return
+    }
     const title = templateForm.title.trim()
     const message = templateForm.message.trim()
     if (!title || !message) {
       return
     }
-    if (loadedId != null) {
-      await handleUpdateTemplate(loadedId, {
-        title,
-        message,
-        messageType: templateForm.messageType,
-      })
-      resetForm()
-      return
+    await handleUpdateTemplate(loadedId, {
+      title,
+      message,
+      messageType: templateForm.messageType,
+    })
+  }
+
+  const handleSaveAsNew = async () => {
+    const created = await handleCreateTemplateFromForm()
+    if (created) {
+      setLoadedId(created.id)
     }
-    await handleSaveTemplate()
   }
 
   return (
@@ -113,7 +136,18 @@ export default function SmsTemplatesWorkspace({ variant, module, adDisplayName }
 
       <div className="sms-templates-workspace__grid">
         <section className="sms-composer__card sms-templates-workspace__form">
-          <h3 className="sms-composer__card-title">템플릿 작성</h3>
+          <div className="sms-templates-workspace__form-head">
+            <h3 className="sms-composer__card-title">템플릿 작성</h3>
+            <FormButton type="button" variant="secondary" disabled={busy} onClick={handleNewDraft}>
+              새 템플릿 작성
+            </FormButton>
+          </div>
+
+          {loadedId != null ? (
+            <p className="sms-module__muted sms-templates-workspace__loaded-hint">
+              불러온 템플릿을 수정 저장하거나, 새 템플릿으로 따로 저장할 수 있습니다.
+            </p>
+          ) : null}
 
           <label>
             템플릿명
@@ -158,13 +192,23 @@ export default function SmsTemplatesWorkspace({ variant, module, adDisplayName }
           </label>
 
           <div className="sms-templates-workspace__form-actions">
-            <FormButton
-              type="button"
-              disabled={busy || !templateForm.title.trim() || !templateForm.message.trim()}
-              onClick={() => void handleSave()}
-            >
-              저장
-            </FormButton>
+            {loadedId == null ? (
+              <FormButton type="button" disabled={busy || !canSave} onClick={() => void handleNewSave()}>
+                새 템플릿 저장
+              </FormButton>
+            ) : (
+              <>
+                <FormButton type="button" disabled={busy || !canSave} onClick={() => void handleUpdateLoaded()}>
+                  수정 저장
+                </FormButton>
+                <FormButton type="button" variant="secondary" disabled={busy || !canSave} onClick={() => void handleSaveAsNew()}>
+                  새 템플릿으로 저장
+                </FormButton>
+                <FormButton type="button" variant="secondary" disabled={busy} onClick={handleClearLoad}>
+                  불러오기 해제
+                </FormButton>
+              </>
+            )}
           </div>
         </section>
 
