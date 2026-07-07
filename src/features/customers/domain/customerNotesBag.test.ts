@@ -14,6 +14,8 @@ describe('normalizeCustomerNotesBag - accountNumber', () => {
   it('defaults accountNumber to empty string when missing', () => {
     const bag = normalizeCustomerNotesBag({ items: [], insuranceHistory: '' })
     expect(bag.accountNumber).toBe('')
+    expect(bag.treatmentHistoryNote).toBe('')
+    expect(bag.medicationHistoryNote).toBe('')
   })
 
   it('treats a legacy array bag as no accountNumber', () => {

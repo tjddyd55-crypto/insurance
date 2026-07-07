@@ -6,30 +6,50 @@ export interface CustomerNote {
   createdAt: string
 }
 
-/** DB notes jsonb: 메모 목록 + 보험가입내역(긴 텍스트) + 계좌번호(자유 텍스트) */
+/** DB notes jsonb: 메모 목록 + 보험가입내역(긴 텍스트) + 계좌번호(자유 텍스트) + 병력 분리 필드 */
 export interface CustomerNotesBag {
   items: CustomerNote[]
   insuranceHistory: string
   /** 계좌번호 — 은행명/예금주 등 자유 텍스트 허용(포맷 강제 없음) */
   accountNumber: string
+  /** 5년 이내 수술/치료 관련 병력 */
+  treatmentHistoryNote: string
+  /** 5년 이내 약복용 관련 병력 */
+  medicationHistoryNote: string
 }
 
 export function normalizeCustomerNotesBag(raw: unknown): CustomerNotesBag {
   if (Array.isArray(raw)) {
-    return { items: raw as CustomerNote[], insuranceHistory: '', accountNumber: '' }
+    return {
+      items: raw as CustomerNote[],
+      insuranceHistory: '',
+      accountNumber: '',
+      treatmentHistoryNote: '',
+      medicationHistoryNote: '',
+    }
   }
   if (raw && typeof raw === 'object') {
     const o = raw as Record<string, unknown>
     const items = Array.isArray(o.items) ? (o.items as CustomerNote[]) : []
     const ih = o.insuranceHistory
     const acc = o.accountNumber
+    const treatment = o.treatmentHistoryNote
+    const medication = o.medicationHistoryNote
     return {
       items,
       insuranceHistory: typeof ih === 'string' ? ih : '',
       accountNumber: typeof acc === 'string' ? acc : '',
+      treatmentHistoryNote: typeof treatment === 'string' ? treatment : '',
+      medicationHistoryNote: typeof medication === 'string' ? medication : '',
     }
   }
-  return { items: [], insuranceHistory: '', accountNumber: '' }
+  return {
+    items: [],
+    insuranceHistory: '',
+    accountNumber: '',
+    treatmentHistoryNote: '',
+    medicationHistoryNote: '',
+  }
 }
 
 export function customerNoteItems(c: Pick<CustomerRecord, 'notes'>): CustomerNote[] {

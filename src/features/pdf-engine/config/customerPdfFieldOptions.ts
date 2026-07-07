@@ -4,6 +4,7 @@
 
 import type { CustomerRecord } from '../../customers/domain/types'
 import { resolveCustomerBirthDateYmd } from '../../customers/utils/resolveCustomerBirthDateYmd'
+import { formatMedicalHistoryForLegacyDisplay } from '../../customers/utils/customerMedicalHistory'
 
 export type CustomerPdfFieldKey =
   | 'name'
@@ -126,7 +127,7 @@ export function pickCustomerPdfFieldValue(customer: CustomerRecord, fieldKey: Cu
     case 'weight':
       return customer.weight.trim()
     case 'medical':
-      return customer.medical.trim()
+      return formatMedicalHistoryForLegacyDisplay(customer)
     default:
       return ''
   }

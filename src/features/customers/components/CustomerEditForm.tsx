@@ -12,9 +12,8 @@ import { resolveReferrerNameForSave } from '../config/customerInflowSource.confi
 import CustomerInflowSourceFields from './CustomerInflowSourceFields'
 import {
   CUSTOMER_INSURANCE_HISTORY_PLACEHOLDER,
-  CUSTOMER_MEDICAL_HISTORY_PLACEHOLDER,
-  CUSTOMER_MEDICAL_QUESTION_TEXT,
 } from '../utils/customerDisplayFormat'
+import CustomerMedicalHistoryFields from './CustomerMedicalHistoryFields'
 import { resolveGenderAfterSsnInput } from '../utils/inferGenderFromResidentNumberDigits'
 import type { CustomerEditFormState } from '../types/customerEditForm'
 import { CustomerAccountNumberField } from './CustomerAccountNumberField'
@@ -229,25 +228,16 @@ export default function CustomerEditForm({
               setEditForm((prev) => (prev ? { ...prev, cars: next } : prev))
             }
           />
-          <CustomerFormSection
-            title={CUSTOMER_MEDICAL_QUESTION_TEXT}
-            className="field field--wide"
-            description="입력 형식은 아래 칸의 예시(placeholder)를 참고하세요."
-          >
-            <label className="customer-form-section__solo">
-              <FormTextarea
-                className="field__control customer-form-textarea customer-form-textarea--large customer-textarea--medical-history"
-                rows={4}
-                name="customer-medical"
-                placeholder={CUSTOMER_MEDICAL_HISTORY_PLACEHOLDER}
-                aria-label={CUSTOMER_MEDICAL_QUESTION_TEXT}
-                value={editForm.medical ?? ''}
-                onChange={(e) =>
-                  setEditForm((prev) => (prev ? { ...prev, medical: e.target.value } : prev))
-                }
-              />
-            </label>
-          </CustomerFormSection>
+          <CustomerMedicalHistoryFields
+            treatmentHistoryNote={editForm.treatmentHistoryNote ?? ''}
+            medicationHistoryNote={editForm.medicationHistoryNote ?? ''}
+            onTreatmentChange={(value) =>
+              setEditForm((prev) => (prev ? { ...prev, treatmentHistoryNote: value } : prev))
+            }
+            onMedicationChange={(value) =>
+              setEditForm((prev) => (prev ? { ...prev, medicationHistoryNote: value } : prev))
+            }
+          />
           <CustomerFormSection title="보험가입내역" className="field field--wide">
             <label className="customer-form-section__solo">
               <FormTextarea

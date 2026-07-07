@@ -7714,6 +7714,62 @@ div.cta-button.customers-page__action-btn[role='button'] {
   box-sizing: border-box;
 }
 
+.customer-medical-history-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.customer-medical-history-fields__block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.customer-medical-history-fields__label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.customer-medical-history-fields--with-divider .customer-medical-history-fields__block + .customer-medical-history-fields__block {
+  border-top: 1px dashed var(--border-default);
+  margin-top: 4px;
+  padding-top: 16px;
+}
+
+.customer-medical-history-read {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.customer-medical-history-read__block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.customer-medical-history-read__sub-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.customer-medical-history-read__text {
+  white-space: pre-wrap;
+}
+
+.customer-medical-history-read__divider {
+  border: 0;
+  border-top: 1px dashed var(--border-default);
+  margin: 4px 0;
+}
+
+.customer-medical-history-read--with-divider {
+  gap: 12px;
+}
+
 /* .field__control 가 나중에 선언되어 textarea min-height 를 덮어쓰므로 더 구체적으로 고정 */
 .field__control.form-textarea.customer-form-textarea--large,
 .field__control.customer-form-textarea--large.form-textarea {

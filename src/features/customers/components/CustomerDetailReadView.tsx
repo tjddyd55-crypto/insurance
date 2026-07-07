@@ -3,12 +3,12 @@ import type { CustomerRecord } from '../domain/types'
 import { normalizeCustomerNotesBag } from '../domain/types'
 import { getDDay, getDDayBadgeClass } from '../utils/dday'
 import {
-  CUSTOMER_MEDICAL_QUESTION_HINT,
-  CUSTOMER_MEDICAL_QUESTION_TEXT,
   formatCustomerGenderReadLabel,
   formatCustomerPhoneUi,
   formatCustomerSsnUi,
 } from '../utils/customerDisplayFormat'
+import { CustomerMedicalHistoryReadSection } from './CustomerMedicalHistoryRead'
+import { resolveMedicalHistoryFromCustomer } from '../utils/customerMedicalHistory'
 import {
   formatCustomerInflowSourceLabel,
   isCustomerInflowSourceReferral,
@@ -273,11 +273,9 @@ export default function CustomerDetailReadView({
           <span className="customer-detail-read__info-value">{c.carType.trim() || '—'}</span>
         </DetailReadInfoRow>
         <DetailReadInfoRow>
-          <div>
-            <span className="customer-detail-read__info-label">{CUSTOMER_MEDICAL_QUESTION_TEXT}</span>
-            <p className="customer-detail-read__info-hint">{CUSTOMER_MEDICAL_QUESTION_HINT}</p>
-            <p className="customer-detail-read__info-answer">{c.medical?.trim() || '—'}</p>
-          </div>
+          <CustomerMedicalHistoryReadSection
+            {...resolveMedicalHistoryFromCustomer(c)}
+          />
         </DetailReadInfoRow>
       </div>
       <hr className="customer-detail-read__divider" />

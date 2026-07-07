@@ -3,6 +3,7 @@
  */
 
 import { resolveCustomerBirthDateYmd } from '../../lib/customerBirthDateResolve.js'
+import { formatMedicalHistoryForLegacyDisplay } from '../../lib/customerMedicalHistory.js'
 
 export const CUSTOMER_PDF_FIELD_OPTIONS = Object.freeze([
   { key: 'name', label: '고객명' },
@@ -111,7 +112,7 @@ export function pickCustomerPdfFieldValue(customer, fieldKey) {
     case 'weight':
       return String(c.weight ?? '').trim()
     case 'medical':
-      return String(c.medical ?? '').trim()
+      return formatMedicalHistoryForLegacyDisplay(c)
     default:
       return ''
   }
