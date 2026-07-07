@@ -1390,6 +1390,16 @@
   background: var(--bg-soft, #f1f5f9);
   text-align: left;
   margin: 0;
+  cursor: pointer;
+}
+
+.sms-bulk-person-row[aria-disabled='true'] {
+  cursor: not-allowed;
+}
+
+.sms-bulk-person-row:focus-visible {
+  outline: 2px solid rgba(22, 163, 74, 0.35);
+  outline-offset: 2px;
 }
 
 .sms-bulk-person-row:hover {
@@ -1412,6 +1422,7 @@
   margin: 0;
   flex-shrink: 0;
   justify-self: start;
+  cursor: pointer;
 }
 
 .sms-bulk-person-row__name {
