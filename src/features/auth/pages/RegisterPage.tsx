@@ -357,12 +357,16 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
       setIsVerified(false)
     } catch (e) {
       if (e instanceof ApiError) {
-        setErrorMessage(e.message)
+        setErrorMessage(
+          e.message || '인증번호 발송에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+        )
         if (e.retryAfterSec != null) {
           setResendLeft(e.retryAfterSec)
         }
       } else {
-        setErrorMessage(e instanceof Error ? e.message : '인증번호 요청에 실패했습니다.')
+        setErrorMessage(
+          e instanceof Error ? e.message : '인증번호 발송에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+        )
       }
     } finally {
       setSmsSubmitting(false)

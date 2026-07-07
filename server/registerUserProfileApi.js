@@ -21,7 +21,7 @@ import { assertNotSmsAccountLocked } from './services/smsAccountLock.js'
 import { insertSmsVerificationLog } from './services/smsVerificationAudit.js'
 import { applyUserSmsRequestAfterSend, evaluateUserSmsRequestQuota } from './services/smsUserDbRate.js'
 import { normalizeKrMobile, validateKrMobileDigits } from './lib/phoneNormalize.js'
-import { logSmsVerifyFailure } from './services/smsStructuredLog.js'
+import { logSmsVerifyFailure, maskPhoneForLog } from './services/smsStructuredLog.js'
 import { SMS_PUBLIC_DELAY_MESSAGE } from './services/smsPublicMessages.js'
 import { buildSubscriptionResponseForUser } from './subscription/applyToResponseUser.js'
 import {
@@ -38,9 +38,10 @@ const SMS_PURPOSE_SIGNUP = 'SIGNUP'
 const SMS_PURPOSE_PHONE_CHANGE = 'PHONE_CHANGE'
 
 function exposeSmsDebugCode(runningInProduction) {
-  return (
-    !runningInProduction && String(process.env.INSURANCE_SMS_DEBUG_RESPONSE_CODE ?? '').trim() === 'true'
-  )
+  if (String(process.env.INSURANCE_SMS_DEBUG_RESPONSE_CODE ?? '').trim() === 'true') {
+    return true
+  }
+  return !runningInProduction
 }
 
 /** USER 역할·숫자만 동일(포맷 무시) — 회원가입/가입 SMS 플로우용 */
@@ -221,6 +222,12 @@ export function registerUserProfileApi(apiRouter, ctx) {
         return
       }
 
+      console.info('[signup-phone-verification] request received', {
+        phoneSuffix: maskPhoneForLog(phoneNorm),
+        ip: clientIp,
+        userAgent: getClientUserAgent(req)?.slice(0, 80),
+      })
+
       await client.query('BEGIN')
       await client.query(
         `
@@ -261,16 +268,30 @@ export function registerUserProfileApi(apiRouter, ctx) {
       purpose: SMS_PURPOSE_SIGNUP,
       clientIp,
     })
-    if (!smsResult?.success) {
+    const smsDelivered = smsResult?.success === true && smsResult.sent === true
+    if (!smsDelivered) {
+      console.error('[signup-phone-verification] sms send failed', {
+        phoneSuffix: maskPhoneForLog(phoneNorm),
+        provider: smsResult?.mocked ? 'mock' : smsResult?.skipped ? 'skipped' : 'provider',
+        errorMessage: smsResult?.publicMessage ?? SMS_PUBLIC_DELAY_MESSAGE,
+        reason: smsResult?.reason,
+        retryAfterSec: smsResult?.retryAfterSec,
+      })
       if (newCodeRowId != null) {
         await pool.query('DELETE FROM sms_verification_codes WHERE id = $1', [newCodeRowId])
       }
-      res.status(503).json({
-        message: smsResult.publicMessage ?? SMS_PUBLIC_DELAY_MESSAGE,
+      res.status(smsResult?.retryAfterSec != null ? 429 : 503).json({
+        message: smsResult?.publicMessage ?? SMS_PUBLIC_DELAY_MESSAGE,
         retryAfterSec: smsResult.retryAfterSec,
       })
       return
     }
+
+    console.info('[signup-phone-verification] sms send success', {
+      phoneSuffix: maskPhoneForLog(phoneNorm),
+      provider: smsResult?.testRecipient ? 'gateway_test_recipient' : 'provider',
+      sent: true,
+    })
 
     await recordPhoneSms10MinSend(phoneNorm)
 
@@ -314,10 +335,6 @@ export function registerUserProfileApi(apiRouter, ctx) {
       [SMS_PURPOSE_SIGNUP, normalizedPhone],
     )
     const saved = savedRes.rows[0] ?? null
-
-    console.log('PHONE:', normalizedPhone)
-    console.log('INPUT CODE:', codeRaw)
-    console.log('SAVED CODE:', saved?.code)
 
     if (!saved) {
       return res.status(400).json({
