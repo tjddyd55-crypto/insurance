@@ -359,8 +359,8 @@ function ScheduledFormPanel({
           disabled={disabled}
         />
 
-        {!canSave && validation.missing.length > 0 ? (
-          <p className="sms-scheduled-form__validation">필수 입력: {validation.missing.join(', ')}</p>
+        {!canSave && validation.disabledReason ? (
+          <p className="sms-scheduled-form__validation">{validation.disabledReason}</p>
         ) : null}
 
         <div className="sms-scheduled-form__actions">

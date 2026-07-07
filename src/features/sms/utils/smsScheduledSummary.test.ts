@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { buildScheduleSummary, formatScheduleTimeLabel } from './smsScheduledSummary'
 
 describe('smsScheduledSummary', () => {
+  it('formats midnight and noon in Korean', () => {
+    expect(formatScheduleTimeLabel('00:00')).toBe('오전 12:00')
+    expect(formatScheduleTimeLabel('12:00')).toBe('오후 12:00')
+  })
+
   it('formats time label in Korean', () => {
     expect(formatScheduleTimeLabel('09:00')).toBe('오전 9:00')
     expect(formatScheduleTimeLabel('14:30')).toBe('오후 2:30')

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import FormButton from '../../../../components/form/FormButton'
 import FormInput from '../../../../components/form/FormInput'
@@ -16,6 +16,7 @@ import type { SmsModuleViewProps } from '../../hooks/useSmsModuleState'
 import type { SmsTemplate } from '../../types/sms.types'
 import type { SmsScheduledRule } from '../../types/smsScheduled.types'
 import { buildScheduleListCardMeta, buildScheduleSummary, formatNextRunAtLabel } from '../../utils/smsScheduledSummary'
+import { validateSmsScheduledSave } from '../../utils/smsScheduledValidation'
 import { formatKrMobileDisplay } from '../../smsDisplayUtils'
 import SmsComposerLayout from '../composer/SmsComposerLayout'
 import SmsPhonePreview from '../composer/SmsPhonePreview'
@@ -319,13 +320,38 @@ export default function SmsSendWorkspace({ variant, module, initialSendMode, adD
     }
   }
 
+  const handleGroupChangeForSend = useCallback(
+    (groupId: string) => {
+      handleGroupChange(groupId)
+      scheduledState.updateForm({ recipientGroupId: groupId })
+    },
+    [handleGroupChange, scheduledState],
+  )
+
+  const scheduleSaveValidation = useMemo(
+    () =>
+      validateSmsScheduledSave({
+        form: scheduledState.form,
+        recipientGroupId: selectedGroupId,
+        sendableCount: groupSummary?.sendable ?? null,
+        groupMembersLoading: isLoadingGroupMembers,
+        smsModuleEnabled: settings?.moduleEnabled !== false,
+      }),
+    [
+      scheduledState.form,
+      selectedGroupId,
+      groupSummary?.sendable,
+      isLoadingGroupMembers,
+      settings?.moduleEnabled,
+    ],
+  )
+
   const handleSaveReserved = () => {
-    scheduledState.updateForm({
-      messageBody: bulkForm.message || scheduledState.form.messageBody,
-      messageType: bulkForm.messageType,
+    scheduledState.saveRule({
       recipientGroupId: selectedGroupId,
+      messageBody: scheduledState.form.messageBody,
+      messageType: scheduledState.form.messageType,
     })
-    scheduledState.saveRule()
   }
 
   const handleEditReservedRule = (ruleId: string) => {
@@ -360,7 +386,7 @@ export default function SmsSendWorkspace({ variant, module, initialSendMode, adD
                 className="sms-module__select"
                 value={selectedGroupId}
                 disabled={busy || isLoadingGroupMembers}
-                onChange={(e) => handleGroupChange(e.target.value)}
+                onChange={(e) => handleGroupChangeForSend(e.target.value)}
               >
                 <option value="">그룹 선택</option>
                 {scheduledState.groups.map((group) => (
@@ -477,9 +503,16 @@ export default function SmsSendWorkspace({ variant, module, initialSendMode, adD
                 </div>
               ) : (
                 <div className="sms-module__actions">
-                  <FormButton type="button" disabled={busy || !scheduledState.canSave} onClick={handleSaveReserved}>
+                  <FormButton
+                    type="button"
+                    disabled={busy || !scheduleSaveValidation.canSave}
+                    onClick={handleSaveReserved}
+                  >
                     예약 저장
                   </FormButton>
+                  {scheduleSaveValidation.disabledReason ? (
+                    <p className="sms-send-workspace__validation-message">{scheduleSaveValidation.disabledReason}</p>
+                  ) : null}
                   {!realSendEnabledFlag ? (
                     <p className="sms-composer__send-disabled-note">
                       실발송 비활성 상태입니다. 예약 규칙은 localStorage에 저장됩니다.
