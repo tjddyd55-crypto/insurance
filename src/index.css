@@ -9522,8 +9522,19 @@ div.cta-button.customers-page__action-btn[role='button'] {
   font-weight: 800;
 }
 
-/* 원수사 연락처 조회 카드 — 마지막 저장에서 바뀐 값만 빨간색으로 강조.
-   (라벨/회사명/버튼은 그대로, 값 텍스트만. 업데이트현황 진입 없이 카드에서 바로 인지) */
+/* 원수사 연락처 조회 카드 — 가장 최근 저장 1건에서 바뀐 값만 빨간색으로 강조.
+   (라벨/회사명/버튼은 그대로, 값 텍스트만. 업데이트현황 진입 없이 카드에서 바로 인지)
+   전화/이름 기본색을 검정으로 바꾼 뒤에도 빨강이 항상 이기도록 root 스코프로
+   specificity 를 올린다. 모바일 기본 phone 규칙(.mobile-root … .phone) 과
+   동일 specificity 라 뒤에 오면 덮이는 문제를 원천 차단한다. */
+.pc-root .insurance-contacts-view .company-card .value.changed,
+.pc-root .insurance-contacts-view .company-card .contact-row .position.changed,
+.pc-root .insurance-contacts-view .company-card .contact-row .name.changed,
+.pc-root .insurance-contacts-view .company-card .contact-row .phone.changed,
+.mobile-root .insurance-contacts-view .company-card .value.changed,
+.mobile-root .insurance-contacts-view .company-card .contact-row .position.changed,
+.mobile-root .insurance-contacts-view .company-card .contact-row .name.changed,
+.mobile-root .insurance-contacts-view .company-card .contact-row .phone.changed,
 .insurance-contacts-view .company-card .value.changed,
 .insurance-contacts-view .company-card .contact-row .position.changed,
 .insurance-contacts-view .company-card .contact-row .name.changed,
@@ -9854,7 +9865,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .company-card .info-row .phone {
   white-space: nowrap;
-  color: var(--primary, #16a34a);
+  color: var(--text-primary, #111827);
 }
 
 .company-card .info-row-actions {
@@ -9908,7 +9919,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 .company-card .contact-row .phone {
   font-size: 15px;
   font-weight: 600;
-  color: var(--primary);
+  color: var(--text-primary, #111827);
   font-variant-numeric: tabular-nums;
   min-width: 0;
   overflow: hidden;
@@ -10158,7 +10169,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
     text-overflow: clip;
     max-width: none;
     font-variant-numeric: tabular-nums;
-    color: var(--primary, #16a34a);
+    color: var(--text-primary, #111827);
   }
 
   .mobile-root .insurance-contacts-view .company-card .actions-mini {

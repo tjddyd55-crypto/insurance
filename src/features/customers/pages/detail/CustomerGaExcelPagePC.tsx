@@ -4,7 +4,7 @@ import { FormButton } from '../../../../components/form'
 import GaCustomerMatchAliasesCard from '../../components/GaCustomerMatchAliasesCard'
 import { useGaCustomerExcelData } from '../../hooks/useGaCustomerExcelData'
 import {
-  formatGaCellDisplay,
+  formatGaCellByColumn,
   gaCustomerDataCellClassName,
   gaCustomerDataGridTemplateColumns,
   MSG_GA_EXCEL_NO_DISPLAY_KEYS,
@@ -95,7 +95,7 @@ export default function CustomerGaExcelPagePC() {
                     className={gaCustomerDataCellClassName(cid, headers[idx] ?? cid)}
                     role="cell"
                   >
-                    {formatGaCellDisplay(r.cells[cid])}
+                    {formatGaCellByColumn(cid, headers[idx] ?? cid, r.cells[cid])}
                   </div>
                 ))}
               </div>

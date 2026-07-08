@@ -38,6 +38,73 @@ export function formatGaCellDisplay(value: string | undefined | null): string {
   return s === '' ? '-' : s
 }
 
+/**
+ * 8자리 숫자 날짜(YYYYMMDD)를 YYYY-MM-DD 로 표시한다.
+ * 이미 YYYY-MM-DD 이면 그대로, 그 외에는 원본을 반환한다(억지 변환 금지).
+ * 표시 전용 — 원본 데이터/정렬 키는 변경하지 않는다.
+ */
+export function formatGaDate(value: string | number | undefined | null): string {
+  const raw = String(value ?? '').trim()
+  if (!raw) {
+    return ''
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return raw
+  }
+  if (/^\d{8}$/.test(raw)) {
+    return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`
+  }
+  return raw
+}
+
+/**
+ * 보험료 등 숫자값에 천 단위 콤마를 적용한다.
+ * 이미 콤마가 있어도 normalize 후 다시 적용하고, 숫자로 볼 수 없으면 원본을 반환한다.
+ * 표시 전용 — 원본 데이터/정렬 키는 변경하지 않는다.
+ */
+export function formatGaPremium(value: string | number | undefined | null): string {
+  const raw = String(value ?? '').trim()
+  if (!raw) {
+    return ''
+  }
+  const normalized = raw.replace(/,/g, '')
+  if (!/^\d+$/.test(normalized)) {
+    return raw
+  }
+  return Number(normalized).toLocaleString('ko-KR')
+}
+
+/**
+ * 컬럼(colId/header)에 맞춰 셀 표시값을 가공한다.
+ * - 계약일자/보험일자 등 날짜 컬럼: YYYYMMDD → YYYY-MM-DD
+ * - 보험료 컬럼: 천 단위 콤마
+ * - 그 외: 기존 표시 규칙(formatGaCellDisplay)
+ * 데이터 원본은 건드리지 않으며 화면 표시만 담당한다.
+ */
+export function formatGaCellByColumn(
+  colId: string,
+  header: string,
+  value: string | undefined | null,
+): string {
+  const idLower = String(colId ?? '').toLowerCase()
+  const headerText = String(header ?? '')
+  const isDateColumn =
+    /일자/.test(headerText) ||
+    /계약일|보험일|가입일|개시일/.test(headerText) ||
+    /contract_?date|insurance_?date|contractdate|insurancedate/.test(idLower)
+  const isPremiumColumn = /보험료/.test(headerText) || /premium/.test(idLower)
+
+  if (isDateColumn) {
+    const formatted = formatGaDate(value)
+    return formatted === '' ? '-' : formatted
+  }
+  if (isPremiumColumn) {
+    const formatted = formatGaPremium(value)
+    return formatted === '' ? '-' : formatted
+  }
+  return formatGaCellDisplay(value)
+}
+
 /** PC GA 고객 데이터 표 — 8열 표준 레이아웃 (원수사·상품명·계약일자·계약자·피보험자·보험료·상태·납월) */
 export const GA_CUSTOMER_DATA_GRID_TEMPLATE =
   '120px minmax(320px, 1fr) 130px 120px 120px 120px 100px 110px'
