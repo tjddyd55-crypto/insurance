@@ -11,6 +11,7 @@ import { useNewsletterDelete } from '../hooks/useNewsletterDelete'
 import { getNewsletterDetail, getNewsletterDetailForInsurerManager } from '../services/insurerNews.service'
 import { buildInsurerNewsGalleryUrls } from '../utils/buildInsurerNewsGalleryUrls'
 import { formatInsurerNewsDateTime } from '../utils/formatInsurerNewsDate'
+import { normalizeInsurerNewsText } from '../utils/insurerNewsText'
 import type { NewsChannel, NewsletterDetail } from '../types'
 
 export function InsurerManagerNewsDetailPage({
@@ -101,6 +102,7 @@ export function InsurerManagerNewsDetailPage({
   })
   const showDelete = canDelete(detail)
   const deleteBusy = Boolean(newsletterId && busyId === newsletterId)
+  const bodyText = normalizeInsurerNewsText(detail.bodyText)
 
   const handleDelete = () => {
     if (!newsletterId || !detail) {
@@ -146,9 +148,11 @@ export function InsurerManagerNewsDetailPage({
           ) : null}
         </header>
         <NewsDetailMobileZoomScroll>
-          <div className="insurer-news-detail-body news-text" style={{ marginBottom: 8 }}>
-            {detail.bodyText || '본문이 없습니다.'}
-          </div>
+          {bodyText ? (
+            <div className="insurer-news-detail-body news-text" style={{ marginBottom: 8 }}>
+              {bodyText}
+            </div>
+          ) : null}
           {galleryUrls.length > 0 ? (
             <NewsletterImageGallery imageUrls={galleryUrls} altBase="소식지 이미지" resolveUrls />
           ) : null}

@@ -16,6 +16,7 @@ import type { NewsletterDetail, NewsletterItem } from '../../types'
 import type { InsurerManagerNewsListViewProps } from './insurerManagerNewsListViewProps'
 import { buildInsurerNewsGalleryUrls } from '../../utils/buildInsurerNewsGalleryUrls'
 import { resolveInsurerNewsListCardImageUrl } from '../../utils/resolveInsurerNewsImageUrl'
+import { normalizeInsurerNewsText } from '../../utils/insurerNewsText'
 
 const ZOOM_STEP = NEWS_DETAIL_VIEWER_ZOOM_STEP
 
@@ -191,9 +192,12 @@ export default function InsurerManagerNewsListPCView({
         }
       >
         <NewsDetailZoomContent zoom={zoom}>
-          {(selectedDetail?.bodyText?.trim() || selectedItem?.summary?.trim()) ? (
-            <div className="news-text">{selectedDetail?.bodyText?.trim() || selectedItem?.summary}</div>
-          ) : null}
+          {(() => {
+            const detailBodyText =
+              normalizeInsurerNewsText(selectedDetail?.bodyText) ||
+              normalizeInsurerNewsText(selectedItem?.summary)
+            return detailBodyText ? <div className="news-text">{detailBodyText}</div> : null
+          })()}
           {modalGalleryUrls.map((url) => (
             <img key={url} src={url} alt="" />
           ))}

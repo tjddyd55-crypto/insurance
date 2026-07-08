@@ -2,10 +2,8 @@ import { useEffect, useState } from 'react'
 import type { NewsletterItem } from '../types'
 import { formatInsurerNewsDateLabel } from '../utils/formatInsurerNewsDate'
 import FormButton from '../../../components/form/FormButton'
-import {
-  newsletterItemHasImageSource,
-  resolveNewsletterHeroViewUrl,
-} from '../utils/resolveNewsletterAttachmentViewUrl'
+import { resolveInsurerNewsListCardImageUrl, insurerNewsListItemHasImageSource } from '../utils/resolveInsurerNewsImageUrl'
+import { normalizeInsurerNewsText } from '../utils/insurerNewsText'
 
 /**
  * PC/Mobile 분기는 `variant` prop 으로 승격 (AGENTS.md §8-5 Tier 4/3 참조).
@@ -21,7 +19,7 @@ type Props = {
 }
 
 function cardAriaLabel(item: NewsletterItem): string {
-  const headline = item.summary?.trim() || item.title?.trim() || ''
+  const headline = normalizeInsurerNewsText(item.summary) || normalizeInsurerNewsText(item.title)
   const head = headline ? headline.slice(0, 40) : ''
   const parts = [item.insurerName, head].filter(Boolean)
   return parts.length > 0 ? `${parts.join(' — ')} 소식` : '소식지'
@@ -31,9 +29,10 @@ export function NewsCard({ item, onOpen, onDelete, deleteBusy, variant }: Props)
   const isMobile = variant === 'mobile'
   const companyName = item.insurerName?.trim() || '—'
   const dateLabel = formatInsurerNewsDateLabel(item.publishedAt)
-  const headline = item.summary?.trim() || item.title?.trim() || '본문 내용이 없습니다.'
-  const hasImageUrl = newsletterItemHasImageSource(item)
-  const imageUrl = resolveNewsletterHeroViewUrl(item)
+  const headline = normalizeInsurerNewsText(item.summary) || normalizeInsurerNewsText(item.title)
+  const hasHeadline = headline.length > 0
+  const hasImageUrl = insurerNewsListItemHasImageSource(item)
+  const imageUrl = resolveInsurerNewsListCardImageUrl(item)
   const [imageLoadFailed, setImageLoadFailed] = useState(false)
 
   useEffect(() => {
@@ -41,7 +40,9 @@ export function NewsCard({ item, onOpen, onDelete, deleteBusy, variant }: Props)
   }, [item.id, imageUrl])
 
   const shouldShowImage = hasImageUrl && !imageLoadFailed
-  const shouldShowTextPreview = isMobile && !hasImageUrl
+  // 이미지가 없을 때만, 그리고 실제 텍스트가 있을 때만 텍스트 미리보기를 노출한다.
+  // (이미지 없음 + 텍스트 없음 → placeholder 문구를 강제로 만들지 않는다)
+  const shouldShowTextPreview = isMobile && !hasImageUrl && hasHeadline
   const shouldShowImageFailed = isMobile && hasImageUrl && imageLoadFailed
 
   const textPreviewPlaceholder = (
@@ -83,9 +84,9 @@ export function NewsCard({ item, onOpen, onDelete, deleteBusy, variant }: Props)
     <div className="news-card__media">
       {hasImageUrl ? (
         <img src={imageUrl} alt="" loading="lazy" />
-      ) : (
+      ) : hasHeadline ? (
         textPreviewPlaceholder
-      )}
+      ) : null}
     </div>
   )
 
