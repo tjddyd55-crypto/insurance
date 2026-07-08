@@ -4,7 +4,11 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { canMutateInsuranceDirectory, isInsuranceOpsRole } from '../../auth/roleGuards'
 import { companyDirectoryRowMatchesSearchAlias } from '../domain/insuranceSearchAliases'
-import { listCompanyDirectory } from '../api/companyRegistryApi'
+import { getCompanyRecentUpdates, listCompanyDirectory } from '../api/companyRegistryApi'
+import {
+  buildCompanyChangeSummaries,
+  type CompanyDirectoryChangeSummary,
+} from '../utils/companyDirectoryChanges'
 import { resolveTabCategory } from '../domain/categoryUtils'
 import {
   INSURANCE_TYPE_ORDER,
@@ -43,6 +47,9 @@ export default function InsuranceCompanyContactsViewPage() {
   const [activeTab, setActiveTab] = useState<InsuranceCategory>('LIFE')
   const [keyword, setKeyword] = useState('')
   const [list, setList] = useState<CompanyDirectoryEntry[]>([])
+  const [changeSummaries, setChangeSummaries] = useState<Map<string, CompanyDirectoryChangeSummary>>(
+    () => new Map(),
+  )
   const [isLoading, setIsLoading] = useState(true)
   const [errorText, setErrorText] = useState('')
   const [copyStatus, setCopyStatus] = useState('')
@@ -74,8 +81,14 @@ export default function InsuranceCompanyContactsViewPage() {
     }
     setIsLoading(true)
     try {
-      const rows = await listCompanyDirectory(token)
+      // 연락처 목록과 최근 변경 이력을 함께 로드한다.
+      // 이력 조회는 배지/강조용 부가 데이터이므로 실패해도 목록 표시는 막지 않는다.
+      const [rows, history] = await Promise.all([
+        listCompanyDirectory(token),
+        getCompanyRecentUpdates(token).catch(() => []),
+      ])
       setList(rows)
+      setChangeSummaries(buildCompanyChangeSummaries(history))
       setErrorText('')
     } catch (error) {
       setErrorText(error instanceof Error ? error.message : '목록을 불러오지 못했습니다.')
@@ -158,15 +171,6 @@ export default function InsuranceCompanyContactsViewPage() {
       <header className="page-header insurance-contacts-header contact-header">
         <div className="contact-header__row">
           <h1>원수사 연락처</h1>
-          {!isStaff ? (
-            <FormButton
-              htmlType="button"
-              className="update-btn"
-              onClick={() => navigate('/updates')}
-            >
-              업데이트 현황
-            </FormButton>
-          ) : null}
         </div>
         {errorText ? (
           <p className="insurance-contacts-status insurance-contacts-status--error" role="alert">
@@ -233,15 +237,12 @@ export default function InsuranceCompanyContactsViewPage() {
                 showEditButton={canEditFromCard}
                 onEdit={openCompanyRegistryEdit}
                 onCopyFeedback={showCopyFeedback}
+                changeSummary={changeSummaries.get(String(c.id))}
               />
             ))}
           </div>
         )}
       </section>
-
-      <footer className="insurance-contacts-footer-links">
-        <Link to="/insurance/history">업데이트 현황</Link>
-      </footer>
     </main>
   )
 }

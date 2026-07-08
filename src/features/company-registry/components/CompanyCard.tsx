@@ -3,12 +3,17 @@ import { asTrimmedText, cleanPhone, formatPhone } from '../../contacts/utils/pho
 import type { CompanyDirectoryEntry, CompanyHistorySnapshot } from '../domain/types'
 import { copyToClipboard } from '../utils/clipboard'
 import {
+  contactRoleKey,
   isHistoryContactFieldChanged,
   isHistoryPhoneChanged,
   isHistoryTextChanged,
   pairHistoryContacts,
   sortCompanyContactsByInputOrder,
 } from '../../../../server/lib/companyHistoryDiff.js'
+import {
+  formatCompanyUpdatedBadgeDate,
+  type CompanyDirectoryChangeSummary,
+} from '../utils/companyDirectoryChanges'
 
 function telHref(raw: string): string {
   const d = cleanPhone(raw)
@@ -47,6 +52,8 @@ export type CompanyCardProps =
       showEditButton?: boolean
       onEdit?: (entry: CompanyDirectoryEntry) => void
       onCopyFeedback?: (message: string) => void
+      /** 마지막 저장 기준 변경 요약(기준일 배지 + 변경 필드 빨간 강조). 없으면 강조/배지 미표시. */
+      changeSummary?: CompanyDirectoryChangeSummary
     }
   | {
       variant: 'history'
@@ -66,11 +73,18 @@ export function CompanyCard(props: CompanyCardProps) {
     const systemPhone = asTrimmedText(c.systemPhone)
     const incallNumber = asTrimmedText(c.incallNumber)
     const visitInfo = asTrimmedText(c.visitInfo)
+    const summary = props.changeSummary
+    const updatedBadgeDate = formatCompanyUpdatedBadgeDate(summary?.updatedAt)
 
     return (
       <article className="company-card">
         <div className="company-card__header">
           <h3 className="company-card__title">{c.name}</h3>
+          {updatedBadgeDate ? (
+            <span className="company-card__updated-badge" title="마지막 수정일">
+              수정일 {updatedBadgeDate}
+            </span>
+          ) : null}
           {props.showEditButton && props.onEdit ? (
             <FormButton
               htmlType="button"
@@ -85,7 +99,9 @@ export function CompanyCard(props: CompanyCardProps) {
         <div className="company-info-block">
           <div className="info-row">
             <span className="label">고객센터</span>
-            <span className="value">{customerCenter ? formatPhone(customerCenter) : '—'}</span>
+            <span className={`value${summary?.customerCenterChanged ? ' changed' : ''}`}>
+              {customerCenter ? formatPhone(customerCenter) : '—'}
+            </span>
             <div className="info-row-actions">
               {customerCenter ? (
                 <div className="actions-mini">
@@ -102,7 +118,9 @@ export function CompanyCard(props: CompanyCardProps) {
 
           <div className="info-row">
             <span className="label">전산문의</span>
-            <span className="value">{systemPhone ? formatPhone(systemPhone) : '—'}</span>
+            <span className={`value${summary?.systemChanged ? ' changed' : ''}`}>
+              {systemPhone ? formatPhone(systemPhone) : '—'}
+            </span>
             <div className="info-row-actions">
               {systemPhone ? (
                 <div className="actions-mini">
@@ -119,7 +137,9 @@ export function CompanyCard(props: CompanyCardProps) {
 
           <div className="info-row">
             <span className="label">인콜</span>
-            <span className="value">{incallNumber ? formatPhone(incallNumber) : '—'}</span>
+            <span className={`value${summary?.incallChanged ? ' changed' : ''}`}>
+              {incallNumber ? formatPhone(incallNumber) : '—'}
+            </span>
             <div className="info-row-actions">
               {incallNumber ? (
                 <div className="actions-mini">
@@ -137,7 +157,7 @@ export function CompanyCard(props: CompanyCardProps) {
           {visitInfo ? (
             <div className="info-row info-row--visit">
               <span className="label">방문일</span>
-              <span className="value">{visitInfo}</span>
+              <span className={`value${summary?.visitInfoChanged ? ' changed' : ''}`}>{visitInfo}</span>
               <div className="info-row-actions" aria-hidden="true" />
             </div>
           ) : null}
@@ -149,13 +169,18 @@ export function CompanyCard(props: CompanyCardProps) {
               const name = asTrimmedText(p.name)
               const position = asTrimmedText(p.position)
               const phoneRaw = asTrimmedText(p.phone)
+              const contactChange = summary?.contactChangesByRole.get(contactRoleKey(position))
 
               return (
                 <div key={p.id != null ? p.id : `new-${c.id}-${idx}`} className="contact-row">
-                  <div className="position">{renderPositionLabel(position)}</div>
+                  <div className={`position${contactChange?.positionChanged ? ' changed' : ''}`}>
+                    {renderPositionLabel(position)}
+                  </div>
                   <div className="contact-row-main">
-                    <div className="name">{name || '—'}</div>
-                    <div className={phoneRaw ? 'phone' : 'phone phone--empty'}>
+                    <div className={`name${contactChange?.nameChanged ? ' changed' : ''}`}>{name || '—'}</div>
+                    <div
+                      className={`${phoneRaw ? 'phone' : 'phone phone--empty'}${contactChange?.phoneChanged ? ' changed' : ''}`}
+                    >
                       {phoneRaw ? formatPhone(phoneRaw) : '—'}
                     </div>
                   </div>
