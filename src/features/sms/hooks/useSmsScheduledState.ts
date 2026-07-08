@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../auth/AuthProvider'
 import { useConfirmDialog } from '../../../components/dialog'
+import {
+  createSmsScheduledMessage,
+  deleteSmsScheduledMessage,
+  fetchSmsScheduledMessages,
+  type SmsScheduledMessageDto,
+} from '../api/smsScheduledApi'
 import { fetchSmsRecipientGroupMembers, fetchSmsRecipientGroups } from '../api/smsRecipientGroupsApi'
 import { SMS_SCHEDULE_DEFAULT_SEND_TIME } from '../config/smsScheduled.config'
 import type { SmsBulkSearchCustomer, SmsRecipientGroupSummary } from '../types/smsBulkRecipient.types'
@@ -11,19 +17,55 @@ import {
   type SmsScheduledListFilter,
   type SmsScheduledMobilePanel,
   type SmsScheduledRule,
+  type SmsScheduledRuleStatus,
   type SmsScheduledRunHistoryItem,
 } from '../types/smsScheduled.types'
 import {
   computeNextRunAtPreview,
   formatNextRunAtLabel,
 } from '../utils/smsScheduledSummary'
-import {
-  createScheduledRuleId,
-  loadSmsScheduledRules,
-  saveSmsScheduledRules,
-} from '../utils/smsScheduledStorage'
 import { isSmsScheduledSaveValid, validateSmsScheduledSave } from '../utils/smsScheduledValidation'
 import { formatSmsBlockedReason, summarizeSelectedRecipients } from '../utils/smsRecipientEligibility'
+
+function mapServerStatus(status: SmsScheduledMessageDto['status']): SmsScheduledRuleStatus {
+  if (status === 'active' || status === 'processing') {
+    return 'active'
+  }
+  if (status === 'paused') {
+    return 'paused'
+  }
+  if (status === 'failed') {
+    return 'failed'
+  }
+  return 'inactive'
+}
+
+function dtoToRule(dto: SmsScheduledMessageDto): SmsScheduledRule {
+  const uiStatus = mapServerStatus(dto.status)
+  return {
+    id: String(dto.id),
+    name: dto.name,
+    description: dto.description || undefined,
+    enabled: uiStatus === 'active',
+    scheduleType: dto.scheduleType,
+    sendDate: dto.sendDate ?? undefined,
+    sendTime: dto.sendTime || SMS_SCHEDULE_DEFAULT_SEND_TIME,
+    weekdays: dto.weekdays?.length ? dto.weekdays : undefined,
+    monthDay: dto.monthDay ?? undefined,
+    recipientGroupId: String(dto.recipientGroupId),
+    templateId: dto.templateId != null ? String(dto.templateId) : undefined,
+    messageBody: dto.messageBody,
+    messageType: dto.messageType,
+    nextRunAt: dto.nextRunAt,
+    lastRunAt: dto.lastRunAt,
+    status: uiStatus,
+    createdAt: dto.createdAt,
+    updatedAt: dto.updatedAt,
+    serverStatus: dto.status,
+    lastErrorCode: dto.lastErrorCode,
+    lastErrorMessage: dto.lastErrorMessage,
+  }
+}
 
 function ruleToForm(rule: SmsScheduledRule): SmsScheduledFormState {
   return {
@@ -39,31 +81,6 @@ function ruleToForm(rule: SmsScheduledRule): SmsScheduledFormState {
     templateId: rule.templateId ?? '',
     messageBody: rule.messageBody,
     messageType: rule.messageType,
-  }
-}
-
-function formToRule(form: SmsScheduledFormState, existing?: SmsScheduledRule | null): SmsScheduledRule {
-  const now = new Date().toISOString()
-  const nextRunAt = computeNextRunAtPreview(form)
-  return {
-    id: existing?.id ?? createScheduledRuleId(),
-    name: form.name.trim(),
-    description: form.description.trim() || undefined,
-    enabled: form.enabled,
-    scheduleType: form.scheduleType,
-    sendDate: form.scheduleType === 'once' ? form.sendDate : undefined,
-    sendTime: form.sendTime,
-    weekdays: form.scheduleType === 'weekly' ? [...form.weekdays].sort((a, b) => a - b) : undefined,
-    monthDay: form.scheduleType === 'monthly' ? form.monthDay : undefined,
-    recipientGroupId: form.recipientGroupId,
-    templateId: form.templateId || undefined,
-    messageBody: form.messageBody,
-    messageType: form.messageType,
-    nextRunAt,
-    lastRunAt: existing?.lastRunAt ?? null,
-    status: form.enabled ? 'active' : 'inactive',
-    createdAt: existing?.createdAt ?? now,
-    updatedAt: now,
   }
 }
 
@@ -86,6 +103,9 @@ export function useSmsScheduledState(templates: SmsTemplate[]) {
   const userKey = user?.id ? String(user.id) : ''
 
   const [rules, setRules] = useState<SmsScheduledRule[]>([])
+  const [rulesLoading, setRulesLoading] = useState(false)
+  const [rulesError, setRulesError] = useState<string | null>(null)
+  const [saveBusy, setSaveBusy] = useState(false)
   const [groups, setGroups] = useState<SmsRecipientGroupSummary[]>([])
   const [groupMembers, setGroupMembers] = useState<SmsBulkSearchCustomer[]>([])
   const [membersBusy, setMembersBusy] = useState(false)
@@ -97,6 +117,24 @@ export function useSmsScheduledState(templates: SmsTemplate[]) {
   const [mobilePanel, setMobilePanel] = useState<SmsScheduledMobilePanel>('list')
   const [actionNotice, setActionNotice] = useState<string | null>(null)
   const [previewRefreshKey, setPreviewRefreshKey] = useState(0)
+
+  const reloadRules = useCallback(async () => {
+    if (!token?.trim()) {
+      setRules([])
+      return
+    }
+    setRulesLoading(true)
+    setRulesError(null)
+    try {
+      const rows = await fetchSmsScheduledMessages(token)
+      setRules(rows.map(dtoToRule))
+    } catch (err) {
+      setRules([])
+      setRulesError(err instanceof Error ? err.message : '예약 목록을 불러오지 못했습니다.')
+    } finally {
+      setRulesLoading(false)
+    }
+  }, [token])
 
   const selectedRule = useMemo(
     () => rules.find((rule) => rule.id === selectedRuleId) ?? null,
@@ -151,7 +189,7 @@ export function useSmsScheduledState(templates: SmsTemplate[]) {
       }),
     [form, memberSummary.sendable, membersBusy],
   )
-  const canSave = validation.canSave
+  const canSave = validation.canSave && !saveBusy
   const showEditor = isCreating || selectedRuleId != null
   const runHistory: SmsScheduledRunHistoryItem[] = []
 
@@ -165,8 +203,8 @@ export function useSmsScheduledState(templates: SmsTemplate[]) {
       setRules([])
       return
     }
-    setRules(loadSmsScheduledRules(userKey))
-  }, [userKey])
+    void reloadRules()
+  }, [userKey, reloadRules])
 
   useEffect(() => {
     if (!token?.trim()) {
@@ -218,16 +256,6 @@ export function useSmsScheduledState(templates: SmsTemplate[]) {
       cancelled = true
     }
   }, [form.recipientGroupId, token])
-
-  const persistRules = useCallback(
-    (nextRules: SmsScheduledRule[]) => {
-      setRules(nextRules)
-      if (userKey) {
-        saveSmsScheduledRules(userKey, nextRules)
-      }
-    },
-    [userKey],
-  )
 
   const startCreate = useCallback(() => {
     setSelectedRuleId(null)
@@ -285,7 +313,7 @@ export function useSmsScheduledState(templates: SmsTemplate[]) {
   }, [])
 
   const saveRule = useCallback(
-    (patch?: Partial<SmsScheduledFormState>) => {
+    async (patch?: Partial<SmsScheduledFormState>) => {
       const merged = patch ? { ...form, ...patch } : form
       if (
         !isSmsScheduledSaveValid({
@@ -296,32 +324,51 @@ export function useSmsScheduledState(templates: SmsTemplate[]) {
       ) {
         return
       }
-      const nextRule = formToRule(merged, selectedRule)
-      const nextRules = selectedRule
-        ? rules.map((rule) => (rule.id === selectedRule.id ? nextRule : rule))
-        : [nextRule, ...rules]
-      persistRules(nextRules)
-      setSelectedRuleId(nextRule.id)
-      setIsCreating(false)
-      setForm(merged)
-      setActionNotice('예약문자를 저장했습니다.')
-      setMobilePanel('preview')
+      if (!token?.trim()) {
+        setActionNotice('로그인이 필요합니다.')
+        return
+      }
+      setSaveBusy(true)
+      setActionNotice(null)
+      try {
+        const created = await createSmsScheduledMessage(token, {
+          name: merged.name.trim(),
+          description: merged.description.trim() || undefined,
+          recipientGroupId: merged.recipientGroupId,
+          messageBody: merged.messageBody,
+          messageType: merged.messageType,
+          scheduleType: merged.scheduleType,
+          sendDate: merged.scheduleType === 'once' ? merged.sendDate : undefined,
+          sendTime: merged.sendTime,
+          timezone: 'Asia/Seoul',
+          weekdays: merged.scheduleType === 'weekly' ? merged.weekdays : undefined,
+          monthDay: merged.scheduleType === 'monthly' ? merged.monthDay : undefined,
+          templateId: merged.templateId || undefined,
+          enabled: merged.enabled,
+        })
+        const nextRule = dtoToRule(created)
+        setRules((prev) => [nextRule, ...prev.filter((rule) => rule.id !== nextRule.id)])
+        setSelectedRuleId(nextRule.id)
+        setIsCreating(false)
+        setForm(merged)
+        setActionNotice('예약이 서버에 저장되었습니다. 예약 시간에 자동 발송됩니다.')
+        setMobilePanel('preview')
+        void reloadRules()
+      } catch (err) {
+        setActionNotice(err instanceof Error ? err.message : '예약 저장에 실패했습니다.')
+      } finally {
+        setSaveBusy(false)
+      }
     },
-    [form, persistRules, rules, selectedRule, memberSummary.sendable, membersBusy],
+    [form, memberSummary.sendable, membersBusy, reloadRules, token],
   )
 
   const disableRule = useCallback(() => {
-    if (!selectedRule) {
-      return
-    }
-    const nextRule = { ...selectedRule, enabled: false, status: 'inactive' as const, updatedAt: new Date().toISOString() }
-    persistRules(rules.map((rule) => (rule.id === selectedRule.id ? nextRule : rule)))
-    setForm((prev) => ({ ...prev, enabled: false }))
-    setActionNotice('예약문자를 비활성화했습니다.')
-  }, [persistRules, rules, selectedRule])
+    setActionNotice('예약 비활성화는 예약현황에서 삭제 후 다시 등록해 주세요.')
+  }, [])
 
   const deleteRule = useCallback(async () => {
-    if (!selectedRule) {
+    if (!selectedRule || !token?.trim()) {
       return
     }
     const ok = await confirm({
@@ -335,25 +382,38 @@ export function useSmsScheduledState(templates: SmsTemplate[]) {
     if (!ok) {
       return
     }
-    persistRules(rules.filter((rule) => rule.id !== selectedRule.id))
-    setSelectedRuleId(null)
-    setIsCreating(false)
-    setForm({ ...EMPTY_SMS_SCHEDULED_FORM })
-    setActionNotice('예약문자를 삭제했습니다.')
-    setMobilePanel('list')
-  }, [confirm, persistRules, rules, selectedRule])
+    try {
+      await deleteSmsScheduledMessage(token, selectedRule.id)
+      setRules((prev) => prev.filter((rule) => rule.id !== selectedRule.id))
+      setSelectedRuleId(null)
+      setIsCreating(false)
+      setForm({ ...EMPTY_SMS_SCHEDULED_FORM })
+      setActionNotice('예약문자를 삭제했습니다.')
+      setMobilePanel('list')
+    } catch (err) {
+      setActionNotice(err instanceof Error ? err.message : '예약 삭제에 실패했습니다.')
+    }
+  }, [confirm, selectedRule, token])
 
   const deleteRuleById = useCallback(
-    (ruleId: string) => {
-      persistRules(rules.filter((rule) => rule.id !== ruleId))
-      if (selectedRuleId === ruleId) {
-        setSelectedRuleId(null)
-        setIsCreating(false)
-        setForm({ ...EMPTY_SMS_SCHEDULED_FORM })
+    async (ruleId: string) => {
+      if (!token?.trim()) {
+        return
       }
-      setActionNotice('예약문자를 삭제했습니다.')
+      try {
+        await deleteSmsScheduledMessage(token, ruleId)
+        setRules((prev) => prev.filter((rule) => rule.id !== ruleId))
+        if (selectedRuleId === ruleId) {
+          setSelectedRuleId(null)
+          setIsCreating(false)
+          setForm({ ...EMPTY_SMS_SCHEDULED_FORM })
+        }
+        setActionNotice('예약문자를 삭제했습니다.')
+      } catch (err) {
+        setActionNotice(err instanceof Error ? err.message : '예약 삭제에 실패했습니다.')
+      }
     },
-    [persistRules, rules, selectedRuleId],
+    [selectedRuleId, token],
   )
 
   const copyRule = useCallback((rule: SmsScheduledRule) => {
@@ -376,6 +436,9 @@ export function useSmsScheduledState(templates: SmsTemplate[]) {
     confirmDialog,
     rules,
     filteredRules,
+    rulesLoading,
+    rulesError,
+    saveBusy,
     groups,
     groupMembers,
     membersBusy,
@@ -410,6 +473,7 @@ export function useSmsScheduledState(templates: SmsTemplate[]) {
     deleteRule,
     deleteRuleById,
     copyRule,
+    reloadRules,
     formatBlockedReason: formatSmsBlockedReason,
   }
 }
