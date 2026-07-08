@@ -19,6 +19,7 @@ import { resolveGenderAfterSsnInput } from '../utils/inferGenderFromResidentNumb
 import type { CustomerEditFormState } from '../types/customerEditForm'
 import { CustomerAccountNumberField } from './CustomerAccountNumberField'
 import { CustomerCarsEditor } from './CustomerCarsEditor'
+import { CustomerSpecialDatesEditor } from './CustomerSpecialDatesEditor'
 import { CustomerDrivingRadioGroup } from './CustomerDrivingRadioGroup'
 import CustomerIndustryTemplateFields from './CustomerIndustryTemplateFields'
 import { CustomerFormSection } from './CustomerFormSection'
@@ -236,6 +237,12 @@ export default function CustomerEditForm({
             cars={editForm.cars}
             onChange={(next) =>
               setEditForm((prev) => (prev ? { ...prev, cars: next } : prev))
+            }
+          />
+          <CustomerSpecialDatesEditor
+            specialDates={editForm.specialDates}
+            onChange={(next) =>
+              setEditForm((prev) => (prev ? { ...prev, specialDates: next } : prev))
             }
           />
           <CustomerMedicalHistoryFields

@@ -23,6 +23,7 @@ import { canAccessContractSignatureUserSend } from '../../contracts/testConsole/
 import { canUseInsuranceClaimUserRoutes } from '../../auth/roleGuards'
 import { deleteCustomer, getCustomerById, listCustomers, updateCustomer } from '../api/customersApi'
 import { listCustomerCars } from '../api/customerCarsApi'
+import { listCustomerSpecialDates } from '../api/customerSpecialDatesApi'
 import type { CustomerRecord } from '../domain/types'
 import {
   buildCrmExtensionPayloadForSave,
@@ -86,6 +87,11 @@ import {
   customerCarRecordToFormItem,
   saveCustomerCarsForCustomer,
 } from '../utils/customerCarsSaveUtils'
+import {
+  customerSpecialDateRecordToFormItem,
+  saveCustomerSpecialDatesForCustomer,
+} from '../utils/customerSpecialDatesSaveUtils'
+import { getCustomerSpecialDatesValidationError } from '../utils/customerSpecialDateFormUtils'
 import {
   isCustomerWorkspaceSideDetailPath,
   parseWorkspaceCustomerIdFromPath,
@@ -1053,6 +1059,11 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         setStatusText(msg)
         return
       }
+      const specialDatesErr = getCustomerSpecialDatesValidationError(activeEditForm.specialDates)
+      if (specialDatesErr) {
+        setStatusText(specialDatesErr)
+        return
+      }
     } else {
       const verr = getCustomerIndustryTemplateFormValidationError(activeEditForm, crm.resolvedTemplate)
       if (verr) {
@@ -1132,6 +1143,29 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       } catch {
         setStatusText(
           '고객 정보는 수정했습니다. 자동차 정보 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+        )
+        cancelEdit()
+        mergeCustomerInListState(updatedCustomer)
+        if (keepOpenCustomerId != null) {
+          keepCustomerCardOpen(keepOpenCustomerId)
+        }
+        await loadCustomers({ silent: true })
+        if (keepOpenCustomerId != null) {
+          keepCustomerCardOpen(keepOpenCustomerId)
+        }
+        return
+      }
+      try {
+        if (token?.trim() && crmIndustryRef.current.isInsuranceLayout) {
+          await saveCustomerSpecialDatesForCustomer({
+            token,
+            customerId: activeEditingId,
+            formItems: activeEditForm.specialDates,
+          })
+        }
+      } catch {
+        setStatusText(
+          '고객 정보는 수정했습니다. 기념일 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.',
         )
         cancelEdit()
         mergeCustomerInListState(updatedCustomer)
@@ -1248,14 +1282,27 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       const customerId = cl.id
       void (async () => {
         try {
-          const serverCars = await listCustomerCars(token, cl.id)
-          if (serverCars.length > 0) {
-            setEditForm((prev) =>
-              editingIdRef.current === customerId && prev ? { ...prev, cars: serverCars.map(customerCarRecordToFormItem) } : prev,
-            )
+          const [serverCars, serverSpecialDates] = await Promise.all([
+            listCustomerCars(token, cl.id),
+            listCustomerSpecialDates(token, cl.id),
+          ])
+          if (editingIdRef.current !== customerId) {
+            return
           }
+          setEditForm((prev) => {
+            if (editingIdRef.current !== customerId || !prev) {
+              return prev
+            }
+            return {
+              ...prev,
+              ...(serverCars.length > 0
+                ? { cars: serverCars.map(customerCarRecordToFormItem) }
+                : {}),
+              specialDates: serverSpecialDates.map(customerSpecialDateRecordToFormItem),
+            }
+          })
         } catch {
-          setStatusText('자동차 목록을 불러오지 못했습니다. 기본 차량 정보로 편집합니다.')
+          setStatusText('자동차·기념일 목록을 불러오지 못했습니다. 기본 정보로 편집합니다.')
         }
       })()
     },

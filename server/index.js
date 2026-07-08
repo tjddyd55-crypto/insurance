@@ -45,6 +45,7 @@ import { registerGaCustomerExcelApi } from './apis/gaCustomerExcelApi.js'
 import { registerGaCustomerMatchAliasesApi } from './apis/gaCustomerMatchAliasesApi.js'
 import { registerCustomerClaimAppApi } from './apis/customerClaimAppApi.js'
 import { registerCustomerCarsApi } from './apis/customerCarsApi.js'
+import { registerCustomerSpecialDatesApi } from './apis/customerSpecialDatesApi.js'
 import { registerCustomerMapApi } from './apis/customerMapApi.js'
 import { recordAnalyticsEvent } from './lib/analyticsEvents.js'
 import { ensureYesterdayAnalyticsAggregated } from './lib/analyticsAggregation.js'
@@ -1637,6 +1638,7 @@ logSmsModuleEnvironmentHint(process.env.DATABASE_URL)
 registerSubscriptionEndpoints(apiRouter, { requireAuth })
 
 registerCustomerCarsApi(apiRouter, { pool, requireAuth, handleDbError })
+registerCustomerSpecialDatesApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCustomerMapApi(apiRouter, { pool, requireAuth, handleDbError, requireInsuranceFormUserId })
 
 registerCustomerClaimAppApi(apiRouter, {

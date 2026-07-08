@@ -7875,6 +7875,93 @@ div.cta-button.customers-page__action-btn[role='button'] {
   gap: 16px;
 }
 
+.customer-special-dates-editor {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+}
+
+.customer-special-dates-editor__add-button {
+  font-size: 0.875rem;
+  padding: 4px 10px;
+}
+
+.customer-special-dates-editor__list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.customer-special-dates-editor__empty-hint {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.customer-special-date-edit-card {
+  padding: 12px 12px 4px;
+  border: 1px solid var(--border-muted);
+  border-radius: 8px;
+  background: var(--bg-soft, rgba(0, 0, 0, 0.04));
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px 12px;
+}
+
+.customer-special-date-edit-card__header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.customer-special-date-edit-card__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.customer-special-date-edit-card__remove {
+  font-size: 0.8125rem;
+  padding: 4px 10px;
+}
+
+.customer-special-dates-read__loading,
+.customer-special-dates-read__empty {
+  margin: 0;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.customer-special-dates-read__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.customer-special-dates-read__item {
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.customer-special-dates-read__purpose {
+  font-weight: 600;
+}
+
+.customer-special-dates-read__sep {
+  margin: 0 0.25rem;
+  opacity: 0.72;
+}
+
+.customer-special-dates-read__memo {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
 /* 고객 상세 읽기 전용 — CustomerDetailReadView / cars grid / 연계 고객 헤더 공통 */
 .customer-detail-read {
   font-size: 14px;

@@ -16,6 +16,7 @@ import {
 } from '../config/customerInflowSource.config'
 import { CustomerCopyButton } from './CustomerAccountNumberField'
 import { CustomerCarsReadSection } from './CustomerCarsReadSection'
+import { CustomerSpecialDatesReadSection } from './CustomerSpecialDatesReadSection'
 import { CustomerRelationsStrip } from './CustomerRelationsStrip'
 import type { CustomerIndustryTemplate } from '../../customer-templates/customerTemplate.types'
 import { governmentDetailSummaryRows, isGovernmentIndustryTemplate, buildGovernmentProgressMvp } from '../utils/governmentCustomerUi'
@@ -287,6 +288,8 @@ export default function CustomerDetailReadView({
       </div>
       <hr className="customer-detail-read__divider" />
       <CustomerCarsReadSection customer={c} token={token} enabled={fetchCarsEnabled} />
+      <hr className="customer-detail-read__divider" />
+      <CustomerSpecialDatesReadSection customer={c} token={token} enabled={fetchCarsEnabled} />
       <hr className="customer-detail-read__divider" />
       <section className="customer-detail-read__section" aria-labelledby="customer-insurance-history-heading">
         <div className="customer-detail-read__section-header">

@@ -1751,6 +1751,57 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS customer_special_dates (
+      id BIGSERIAL PRIMARY KEY,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id) ON DELETE CASCADE,
+      purpose_type TEXT NOT NULL DEFAULT 'CELEBRATION',
+      title TEXT NOT NULL DEFAULT '',
+      date_value DATE NOT NULL,
+      memo TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      deleted_at TIMESTAMPTZ NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_special_dates_customer_id
+    ON customer_special_dates(customer_id)
+    WHERE deleted_at IS NULL
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_special_dates_user_customer
+    ON customer_special_dates(user_id, customer_id)
+    WHERE deleted_at IS NULL
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_special_dates_ga_customer
+    ON customer_special_dates(ga_id, customer_id)
+    WHERE deleted_at IS NULL
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_special_dates_date_value
+    ON customer_special_dates(date_value)
+    WHERE deleted_at IS NULL
+  `)
+
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'customer_special_dates_purpose_type_check'
+      ) THEN
+        ALTER TABLE customer_special_dates
+        ADD CONSTRAINT customer_special_dates_purpose_type_check
+        CHECK (purpose_type IN ('CELEBRATION', 'THANKS', 'NOTICE', 'CHECKUP'));
+      END IF;
+    END $$
+  `)
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS ga_customer_excel_settings (
       ga_id INTEGER PRIMARY KEY REFERENCES ga_companies(id) ON DELETE CASCADE,
       feature_enabled BOOLEAN NOT NULL DEFAULT false,

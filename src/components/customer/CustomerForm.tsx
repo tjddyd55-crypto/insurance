@@ -44,17 +44,21 @@ import { buildLegacyMedicalColumnValue } from '../../features/customers/utils/cu
 import { resolveGenderAfterSsnInput } from '../../features/customers/utils/inferGenderFromResidentNumberDigits'
 import CustomerIndustryTemplateFields from '../../features/customers/components/CustomerIndustryTemplateFields'
 import { CustomerCarsEditor } from '../../features/customers/components/CustomerCarsEditor'
+import { CustomerSpecialDatesEditor } from '../../features/customers/components/CustomerSpecialDatesEditor'
 import { CustomerDrivingRadioGroup } from '../../features/customers/components/CustomerDrivingRadioGroup'
 import { CustomerFormSection } from '../../features/customers/components/CustomerFormSection'
 import { CustomerAccountNumberField } from '../../features/customers/components/CustomerAccountNumberField'
 import { useCustomerCrmIndustryContext } from '../../features/customers/hooks/useCustomerCrmIndustryContext'
 import { getCustomerIndustryTemplateFormValidationError } from '../../features/customers/utils/customerIndustryTemplateFormValidation'
 import type { CustomerCarFormItem } from '../../features/customers/types/customerCarForm'
+import type { CustomerSpecialDateFormItem } from '../../features/customers/types/customerSpecialDateForm'
 import {
   createEmptyCustomerCar,
   normalizeCustomerCarsForSave,
   pickPrimaryCustomerCar,
 } from '../../features/customers/utils/customerCarFormUtils'
+import { getCustomerSpecialDatesValidationError } from '../../features/customers/utils/customerSpecialDateFormUtils'
+import { saveCustomerSpecialDatesForCustomer } from '../../features/customers/utils/customerSpecialDatesSaveUtils'
 
 
 
@@ -191,6 +195,8 @@ export type CustomerFormState = {
 
   cars: CustomerCarFormItem[]
 
+  specialDates: CustomerSpecialDateFormItem[]
+
   treatmentHistoryNote: string
 
   medicationHistoryNote: string
@@ -252,6 +258,8 @@ const EMPTY_FORM: CustomerFormState = {
 
   cars: [],
 
+  specialDates: [],
+
   treatmentHistoryNote: '',
 
   medicationHistoryNote: '',
@@ -286,6 +294,8 @@ export function createEmptyCustomerForm(): CustomerFormState {
 
     cars: [{ ...createEmptyCustomerCar(), isPrimary: true }],
 
+    specialDates: [],
+
   }
 
 }
@@ -308,7 +318,7 @@ export function getCustomerFormValidationError(form: CustomerFormState): string 
   if (!form.name?.trim()) {
     return '이름은 필수입니다.'
   }
-  return null
+  return getCustomerSpecialDatesValidationError(form.specialDates)
 }
 
 
@@ -660,6 +670,11 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
       />
 
+      <CustomerSpecialDatesEditor
+        specialDates={form.specialDates}
+        onChange={(next) => onFormChange({ ...form, specialDates: next })}
+      />
+
       <CustomerMedicalHistoryFields
         treatmentHistoryNote={form.treatmentHistoryNote}
         medicationHistoryNote={form.medicationHistoryNote}
@@ -873,6 +888,20 @@ export function CustomerForm({ onStatusMessage, onInternalSaveSuccess }: Custome
         } catch {
           onStatusMessage?.(
             '고객 정보를 저장했습니다. 자동차 정보 일부 저장에 실패했습니다. 고객 수정 화면에서 다시 확인해 주세요.',
+          )
+          setForm(createEmptyCustomerForm())
+          onInternalSaveSuccess?.()
+          return
+        }
+        try {
+          await saveCustomerSpecialDatesForCustomer({
+            token,
+            customerId: created.id,
+            formItems: form.specialDates,
+          })
+        } catch {
+          onStatusMessage?.(
+            '고객 정보를 저장했습니다. 기념일 일부 저장에 실패했습니다. 고객 수정 화면에서 다시 확인해 주세요.',
           )
           setForm(createEmptyCustomerForm())
           onInternalSaveSuccess?.()
