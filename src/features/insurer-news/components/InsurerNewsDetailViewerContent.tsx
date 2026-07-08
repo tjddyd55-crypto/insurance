@@ -2,6 +2,7 @@ import NewsDetailZoomContent from '../../../components/news-detail-viewer/NewsDe
 import type { NewsletterDetail, NewsletterItem } from '../types'
 import { buildInsurerNewsGalleryUrls } from '../utils/buildInsurerNewsGalleryUrls'
 import { resolveInsurerNewsListCardImageUrl } from '../utils/resolveInsurerNewsImageUrl'
+import { normalizeInsurerNewsText } from '../utils/insurerNewsText'
 
 type InsurerNewsDetailViewerContentProps = {
   zoom: number
@@ -27,7 +28,7 @@ export function InsurerNewsDetailViewerContent({
       ? [resolveInsurerNewsListCardImageUrl(item)].filter(Boolean)
       : []
 
-  const bodyText = detail?.bodyText?.trim() || item?.summary?.trim()
+  const bodyText = normalizeInsurerNewsText(detail?.bodyText) || normalizeInsurerNewsText(item?.summary)
 
   return (
     <NewsDetailZoomContent zoom={zoom}>

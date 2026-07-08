@@ -17,6 +17,7 @@ import {
 } from '../services/publicBoardWriter.service'
 import { buildInsurerNewsGalleryUrls } from '../utils/buildInsurerNewsGalleryUrls'
 import { formatInsurerNewsDateTime } from '../utils/formatInsurerNewsDate'
+import { normalizeInsurerNewsText } from '../utils/insurerNewsText'
 import type { NewsletterDetail } from '../types'
 
 export function BoardWriterNewsDetailPage() {
@@ -85,6 +86,7 @@ export function BoardWriterNewsDetailPage() {
   }
 
   const isAuthor = Boolean(detail.publisherId && String(detail.publisherId) === String(writerId))
+  const bodyText = normalizeInsurerNewsText(detail.bodyText)
   const galleryUrls = buildInsurerNewsGalleryUrls({
     heroImageUrl: detail.heroImageUrl,
     heroImageObjectKey: detail.heroImageObjectKey,
@@ -172,9 +174,11 @@ export function BoardWriterNewsDetailPage() {
           ) : null}
         </header>
         <NewsDetailMobileZoomScroll>
-          <div className="insurer-news-detail-body news-text" style={{ marginBottom: 8 }}>
-            {detail.bodyText || '본문이 없습니다.'}
-          </div>
+          {bodyText ? (
+            <div className="insurer-news-detail-body news-text" style={{ marginBottom: 8 }}>
+              {bodyText}
+            </div>
+          ) : null}
           {galleryUrls.length > 0 ? (
             <NewsletterImageGallery imageUrls={galleryUrls} altBase="소식지 이미지" resolveUrls />
           ) : null}
