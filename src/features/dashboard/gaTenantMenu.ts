@@ -14,13 +14,12 @@ import {
 } from '../auth/roleGuards'
 import { isPublicGeneralAccount } from '../auth/generalGa'
 import { applyPublicAccountMenuPathRestrictions } from '../auth/publicAccountRestrictedRoutes'
+import { buildDynamicNewsletterBoardMenuEntries } from '../insurer-news/utils/newsletterBoardMenuLinks'
+import type { DynamicNewsletterBoardMenuItem } from '../insurer-news/utils/newsletterBoardMenuLinks'
+
+export type { DynamicNewsletterBoardMenuItem }
 
 export type GaTenantMenuItem = { label: string; path: string }
-
-export type DynamicNewsletterBoardMenuItem = {
-  label: string
-  slug: string
-}
 
 /**
  * 대시보드·사이드바·드로어 공용 메뉴 엔트리.
@@ -121,6 +120,8 @@ type BuildGaTenantDashboardMenuOptions = {
   /** GA_ADMIN 전용 — 업무편의에 「공유 계정관리」(스태프 열람) 노출 */
   includeSharedAccountManagement?: boolean
   dynamicNewsletterBoards?: DynamicNewsletterBoardMenuItem[]
+  /** 동적 소식지 조회/업로드 메뉴 정책용 역할 */
+  menuRole?: string
 }
 
 export function buildGaTenantDashboardMenu(
@@ -133,6 +134,7 @@ export function buildGaTenantDashboardMenu(
     includeInsuranceClaimFeatures = false,
     includeSharedAccountManagement = false,
     dynamicNewsletterBoards = [],
+    menuRole,
   } = options
 
   const workConvenienceLinks: GaTenantDashboardMenuEntry[] = [
@@ -216,11 +218,7 @@ export function buildGaTenantDashboardMenu(
     { type: 'section', label: '소식지' },
     { type: 'link', label: '원수사소식지', path: '/portal/newsletters' },
     { type: 'link', label: '손해사정사 소식지', path: '/portal/adjuster-news' },
-    ...dynamicNewsletterBoards.map((board) => ({
-      type: 'link' as const,
-      label: board.label,
-      path: `/portal/boards/${encodeURIComponent(board.slug)}`,
-    })),
+    ...buildDynamicNewsletterBoardMenuEntries(dynamicNewsletterBoards, menuRole),
 
     { type: 'section', label: '신청서' },
     ...applicationItems,
@@ -352,7 +350,7 @@ function buildGaTenantAdminMenuEntries(role: string | undefined): GaTenantDashbo
     const newsletterLabel =
       role === 'SUPER_ADMIN'
         ? '소식지 관리'
-        : role === 'GA_ADMIN'
+        : role === 'GA_ADMIN' || role === 'GA_STAFF'
           ? 'GA전용 소식지 관리'
           : '소식지 관리'
     entries.push({ type: 'section', label: '공지 / 운영 관리' })
@@ -447,15 +445,16 @@ export function buildAppMenuForSession(
         CONTRACT_SIGNATURE_USER_SEND,
         CONTRACT_SIGNATURE_USER_HISTORY,
         ...GA_STAFF_MENU,
-        ...dynamicNewsletterBoards.map((board) => ({
-          label: board.label,
-          path: `/portal/boards/${encodeURIComponent(board.slug)}`,
-        })),
       ])
+      const dynamicBoardEntries = buildDynamicNewsletterBoardMenuEntries(dynamicNewsletterBoards, role)
+      const withDynamicBoards =
+        dynamicBoardEntries.length > 0
+          ? [...operational, { type: 'divider' as const }, ...dynamicBoardEntries]
+          : operational
       if (!adminEntries.length) {
-        return operational
+        return withDynamicBoards
       }
-      return [...adminEntries, { type: 'divider' }, ...operational]
+      return [...adminEntries, { type: 'divider' }, ...withDynamicBoards]
     }
     if (role === 'GA_ADMIN' || role === 'USER') {
       const includeInsuranceClaimFeatures = canUseInsuranceClaimUserRoutes(role)
@@ -464,6 +463,7 @@ export function buildAppMenuForSession(
         includeInsuranceClaimFeatures,
         includeSharedAccountManagement: role === 'GA_ADMIN',
         dynamicNewsletterBoards,
+        menuRole: role,
       })
       if (role === 'GA_ADMIN') {
         entries.push(...buildGaTenantAdminMenuEntries('GA_ADMIN'))

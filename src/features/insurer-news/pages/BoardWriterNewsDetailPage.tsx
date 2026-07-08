@@ -12,7 +12,6 @@ import {
   getBoardWriterNewsletter,
   getPublicBoardWriterToken,
   clearPublicBoardWriterSession,
-  PUBLIC_BOARD_WRITER_EXIT_PATH,
   updateBoardWriterNewsletter,
   uploadBoardWriterAttachments,
 } from '../services/publicBoardWriter.service'
@@ -38,7 +37,7 @@ export function BoardWriterNewsDetailPage() {
   useEffect(() => {
     const writerToken = getPublicBoardWriterToken()
     if (!writerToken?.trim() || !boardSlug.trim() || !newsletterId.trim()) {
-      navigate(PUBLIC_BOARD_WRITER_EXIT_PATH, { replace: true })
+      navigate('/board-writer/login', { replace: true })
       return
     }
     setToken(writerToken)
@@ -56,7 +55,7 @@ export function BoardWriterNewsDetailPage() {
       } catch {
         if (!cancelled) {
           clearPublicBoardWriterSession()
-          navigate(PUBLIC_BOARD_WRITER_EXIT_PATH, { replace: true })
+          navigate('/board-writer/login', { replace: true })
         }
       } finally {
         if (!cancelled) {

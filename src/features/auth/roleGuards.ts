@@ -33,6 +33,13 @@ export function canUseNewsletterBoardAdminRoutes(role: string | undefined): bool
   return role != null && (NEWSLETTER_BOARD_ADMIN_ROLES as readonly string[]).includes(role)
 }
 
+/** GA전용 동적 소식지 업로드 메뉴(작성자 워크스페이스 진입) — 내부 운영 역할만 */
+export const GA_NEWSLETTER_BOARD_UPLOAD_MENU_ROLES: UserRole[] = ['GA_ADMIN', 'GA_STAFF']
+
+export function canAccessGaNewsletterBoardUploadMenu(role: string | undefined): boolean {
+  return role != null && (GA_NEWSLETTER_BOARD_UPLOAD_MENU_ROLES as readonly string[]).includes(role)
+}
+
 /** 동의서 템플릿 관리(등록/수정) — GA_STAFF 제외 */
 export const CONSENT_TEMPLATE_ADMIN_ROLES: UserRole[] = ['GA_ADMIN', 'SUPER_ADMIN']
 

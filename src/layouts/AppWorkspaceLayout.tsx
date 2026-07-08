@@ -11,6 +11,7 @@ import { ExpiredBanner } from '../features/subscription/components/ExpiredBanner
 import PlatformModeSwitcher from '../features/platform/components/PlatformModeSwitcher'
 import { fetchTeamMembers } from '../features/team/api/teamApi'
 import { listVisibleNewsletterBoards } from '../features/insurer-news/services/insurerNews.service'
+import { mapNewsletterBoardsToMenuItems } from '../features/insurer-news/utils/newsletterBoardMenuLinks'
 import type { DynamicNewsletterBoardMenuItem } from '../features/dashboard/gaTenantMenu'
 import useIsMobile from '../hooks/useIsMobile'
 import { useBackButtonClose } from '../hooks/useBackButtonClose'
@@ -173,7 +174,7 @@ function AppWorkspaceLayoutMobileShell() {
         if (cancelled) {
           return
         }
-        setDynamicNewsletterBoards(boards.map((board) => ({ label: board.label, slug: board.slug })))
+        setDynamicNewsletterBoards(mapNewsletterBoardsToMenuItems(boards))
       })
       .catch(() => {
         if (!cancelled) {

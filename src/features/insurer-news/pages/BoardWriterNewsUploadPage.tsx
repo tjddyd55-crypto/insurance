@@ -2,10 +2,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { InsurerNewsForm } from '../components/InsurerNewsForm'
 import {
-  clearPublicBoardWriterSession,
   createBoardWriterNewsletter,
   getPublicBoardWriterToken,
-  PUBLIC_BOARD_WRITER_EXIT_PATH,
   uploadBoardWriterAttachments,
 } from '../services/publicBoardWriter.service'
 import type { BoardWriterOutletContext } from './BoardWriterWorkspaceLayout'
@@ -19,7 +17,7 @@ export function BoardWriterNewsUploadPage() {
   useEffect(() => {
     const writerToken = getPublicBoardWriterToken()
     if (!writerToken?.trim()) {
-      navigate(PUBLIC_BOARD_WRITER_EXIT_PATH, { replace: true })
+      navigate('/board-writer/login', { replace: true })
       return
     }
     if (!boardSlug.trim() || board.slug !== boardSlug) {

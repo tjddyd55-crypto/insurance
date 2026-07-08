@@ -9,6 +9,7 @@ import {
 } from '../../features/dashboard/gaTenantMenu'
 import { fetchTeamMembers } from '../../features/team/api/teamApi'
 import { listVisibleNewsletterBoards } from '../../features/insurer-news/services/insurerNews.service'
+import { mapNewsletterBoardsToMenuItems } from '../../features/insurer-news/utils/newsletterBoardMenuLinks'
 import { NotificationBell } from '../../features/notification/components/NotificationBell'
 import BillingStatusBadge from '../../features/insurance-billing/components/BillingStatusBadge'
 import { isActivePcNavigationPath } from './pcNavigationUtils'
@@ -113,7 +114,7 @@ export default function PCTopNavigation({
         if (cancelled) {
           return
         }
-        setDynamicNewsletterBoards(boards.map((board) => ({ label: board.label, slug: board.slug })))
+        setDynamicNewsletterBoards(mapNewsletterBoardsToMenuItems(boards))
       })
       .catch(() => {
         if (!cancelled) {
