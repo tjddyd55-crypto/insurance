@@ -9795,7 +9795,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 .pc-root .insurance-contacts-view .company-card .contact-row {
-  grid-template-columns: 68px minmax(0, 1fr) 60px;
+  grid-template-columns: 76px minmax(48px, 0.7fr) minmax(118px, 1.3fr) 60px;
 }
 
 .pc-root .insurance-contacts-view .company-card .contact-row .position {
@@ -9929,16 +9929,11 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 /* 담당자 이름/전화번호 묶음.
-   PC 원수사 연락처는 카드 다열(4~5열) 배치를 위해 이름/전화를 세로로 쌓아
-   좁은 카드 폭에서도 전화번호가 잘리지 않게 한다. (모바일은 하단 @media 규칙에서 별도 처리) */
+   PC 원수사 연락처는 이 래퍼를 display:contents 로 풀어 이름/전화가
+   contact-row 4열 grid 트랙에 직접 참여한다(직책/이름/전화/버튼 한 줄 정렬).
+   상세 규칙은 하단 .pc-root .insurance-contacts-view 블록 참조.
+   (모바일은 하단 @media 규칙에서 별도 처리) */
 .company-card .contact-row-main {
-  min-width: 0;
-}
-
-.pc-root .insurance-contacts-view .company-card .contact-row-main {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
   min-width: 0;
 }
 
@@ -10298,16 +10293,22 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .pc-root .insurance-contacts-view .company-card .contact-row {
   display: grid;
-  grid-template-columns: 68px minmax(0, 1fr) 60px;
+  grid-template-columns: 76px minmax(48px, 0.7fr) minmax(118px, 1.3fr) 60px;
   align-items: center;
-  gap: 8px;
+  column-gap: 8px;
   padding: 6px 0;
   min-height: 36px;
   min-width: 0;
 }
 
+/* PC: 이름/전화 래퍼를 grid 트랙에 직접 참여시켜 직책/이름/전화/버튼을 한 줄로 정렬 */
+.pc-root .insurance-contacts-view .company-card .contact-row-main {
+  display: contents;
+}
+
 .pc-root .insurance-contacts-view .company-card .contact-row .position {
   width: auto;
+  min-width: 0;
   flex-shrink: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -10337,6 +10338,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 .pc-root .insurance-contacts-view .company-card .contact-row .actions,
 .pc-root .insurance-contacts-view .company-card .contact-row .actions-mini {
   flex-shrink: 0;
+  justify-content: flex-end;
 }
 
 .pc-root .insurance-contacts-view .company-card .actions-mini button,
