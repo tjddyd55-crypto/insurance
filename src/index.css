@@ -547,6 +547,55 @@ body {
   border: 1px solid var(--border-default);
 }
 
+.app-date-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.app-date-input__text {
+  width: 100%;
+  padding-right: 42px;
+}
+
+.app-date-input__button {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 30px;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.app-date-input__button:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--bg-soft);
+}
+
+.app-date-input__button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.app-date-input__native {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  width: 30px;
+  height: 30px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='submit']):not(
     [type='button']
   ):not([type='reset']):not([type='image']):not([type='color']),
