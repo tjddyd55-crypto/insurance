@@ -5,7 +5,6 @@
     "buildCommand": "rm -rf dist && npm run build"
   },
   "deploy": {
-    "startCommand": "npm run start",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
