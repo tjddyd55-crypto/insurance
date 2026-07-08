@@ -3,6 +3,10 @@ import { FormButton } from '../form'
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock'
 import { useBackButtonClose } from '../../hooks/useBackButtonClose'
 import { useNewsDetailViewerPinchZoom } from './useNewsDetailViewerPinchZoom'
+import {
+  useNewsDetailViewerZoomAnchor,
+  type NewsDetailViewerZoomAnchor,
+} from './useNewsDetailViewerZoomAnchor'
 import './news-detail-viewer.css'
 
 export type NewsDetailViewerModalProps = {
@@ -43,9 +47,11 @@ export default function NewsDetailViewerModal({
   useBodyScrollLock(open)
   useBackButtonClose(open, onClose)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const zoomAnchorRef = useRef<NewsDetailViewerZoomAnchor>(null)
   const pinchEnabled = open && !loading && !error
 
-  useNewsDetailViewerPinchZoom(scrollRef, zoom, onZoomChange, pinchEnabled)
+  useNewsDetailViewerPinchZoom(scrollRef, zoom, onZoomChange, pinchEnabled, zoomAnchorRef)
+  useNewsDetailViewerZoomAnchor(scrollRef, zoom, zoomAnchorRef)
 
   useEffect(() => {
     if (!open) {
