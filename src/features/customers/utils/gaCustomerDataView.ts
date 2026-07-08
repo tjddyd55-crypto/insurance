@@ -38,6 +38,41 @@ export function formatGaCellDisplay(value: string | undefined | null): string {
   return s === '' ? '-' : s
 }
 
+/** PC GA 고객 데이터 표 — 8열 표준 레이아웃 (원수사·상품명·계약일자·계약자·피보험자·보험료·상태·납월) */
+export const GA_CUSTOMER_DATA_GRID_TEMPLATE =
+  '120px minmax(320px, 1fr) 130px 120px 120px 120px 100px 110px'
+
+export type GaCustomerDataCellKind = 'product' | 'premium' | 'default'
+
+export function resolveGaCustomerDataCellKind(colId: string, header: string): GaCustomerDataCellKind {
+  const label = `${colId} ${header}`.toLowerCase()
+  if (/product|상품/.test(label)) {
+    return 'product'
+  }
+  if (/premium|보험료/.test(label)) {
+    return 'premium'
+  }
+  return 'default'
+}
+
+export function gaCustomerDataCellClassName(colId: string, header: string): string {
+  const kind = resolveGaCustomerDataCellKind(colId, header)
+  if (kind === 'product') {
+    return 'ga-customer-data-cell ga-customer-data-cell--product'
+  }
+  if (kind === 'premium') {
+    return 'ga-customer-data-cell ga-customer-data-cell--premium'
+  }
+  return 'ga-customer-data-cell'
+}
+
+export function gaCustomerDataGridTemplateColumns(columnCount: number): string {
+  if (columnCount === 8) {
+    return GA_CUSTOMER_DATA_GRID_TEMPLATE
+  }
+  return `repeat(${Math.max(columnCount, 1)}, minmax(100px, 1fr))`
+}
+
 function headerLabelForColumnId(id: string): string {
   const hit = COLUMN_ID_LABEL_HINTS.find((h) => h.test(id))
   return hit ? hit.label : id

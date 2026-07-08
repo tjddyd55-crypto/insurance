@@ -5,6 +5,8 @@ import GaCustomerMatchAliasesCard from '../../components/GaCustomerMatchAliasesC
 import { useGaCustomerExcelData } from '../../hooks/useGaCustomerExcelData'
 import {
   formatGaCellDisplay,
+  gaCustomerDataCellClassName,
+  gaCustomerDataGridTemplateColumns,
   MSG_GA_EXCEL_NO_DISPLAY_KEYS,
   MSG_GA_EXCEL_NO_MAPPED_DATA,
   MSG_GA_EXCEL_UPLOAD_HINT,
@@ -30,6 +32,7 @@ export default function CustomerGaExcelPagePC() {
   const emptyMappingMessage = `${MSG_GA_EXCEL_NO_MAPPED_DATA} ${MSG_GA_EXCEL_UPLOAD_HINT}`
   const showTable = !loading && !error && sortedRows.length > 0 && colIds.length > 0
   const showBrokenColumns = !loading && !error && sortedRows.length > 0 && colIds.length === 0
+  const gridTemplateColumns = gaCustomerDataGridTemplateColumns(colIds.length)
 
   return (
     <main className="page customer-ga-excel-page customer-ga-excel-page--pc p-3">
@@ -60,35 +63,44 @@ export default function CustomerGaExcelPagePC() {
       ) : showBrokenColumns ? (
         <EmptyState message={`${MSG_GA_EXCEL_NO_DISPLAY_KEYS} ${MSG_GA_EXCEL_UPLOAD_HINT}`} />
       ) : showTable ? (
-        <div className="ga-table-scroll overflow-x-auto border border-[var(--border-default)] rounded-md">
-          <table className="admin-data-table" style={{ minWidth: 400 }}>
-            <thead>
-              <tr>
-                {headers.map((h, idx) => (
-                  <th key={colIds[idx] ?? String(idx)}>
+        <div className="ga-customer-data-table-scroll">
+          <div
+            className="ga-customer-data-table"
+            style={{ ['--ga-customer-data-grid-columns' as string]: gridTemplateColumns }}
+          >
+            <div className="ga-customer-data-header" role="row">
+              {headers.map((h, idx) => {
+                const colId = colIds[idx] ?? String(idx)
+                const cellClass = gaCustomerDataCellClassName(colId, h)
+                return (
+                  <div key={colId} className={cellClass} role="columnheader">
                     <FormButton
                       htmlType="button"
                       variant="action"
-                      className="text-left underline-offset-2 hover:underline text-sm font-semibold !justify-start"
+                      className="ga-customer-data-header__button"
                       onClick={() => onHeaderClick(idx)}
                     >
                       {h}
                       {sortIdx === idx ? (sortAsc ? ' ▲' : ' ▼') : ''}
                     </FormButton>
-                  </th>
+                  </div>
+                )
+              })}
+            </div>
+            {sortedRows.map((r) => (
+              <div key={r.rowIndex} className="ga-customer-data-row" role="row">
+                {colIds.map((cid, idx) => (
+                  <div
+                    key={cid}
+                    className={gaCustomerDataCellClassName(cid, headers[idx] ?? cid)}
+                    role="cell"
+                  >
+                    {formatGaCellDisplay(r.cells[cid])}
+                  </div>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {sortedRows.map((r) => (
-                <tr key={r.rowIndex}>
-                  {colIds.map((cid) => (
-                    <td key={cid}>{formatGaCellDisplay(r.cells[cid])}</td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+              </div>
+            ))}
+          </div>
         </div>
       ) : null}
     </main>
