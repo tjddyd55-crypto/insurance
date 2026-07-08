@@ -6,7 +6,6 @@ import {
   clearPublicBoardWriterSession,
   getPublicBoardWriterToken,
   listBoardWriterNewsletters,
-  PUBLIC_BOARD_WRITER_EXIT_PATH,
 } from '../services/publicBoardWriter.service'
 import type { NewsletterItem } from '../types'
 import type { BoardWriterOutletContext } from './BoardWriterWorkspaceLayout'
@@ -26,7 +25,7 @@ export function BoardWriterNewsListPage() {
   useEffect(() => {
     const token = getPublicBoardWriterToken()
     if (!token?.trim()) {
-      navigate(PUBLIC_BOARD_WRITER_EXIT_PATH, { replace: true })
+      navigate('/board-writer/login', { replace: true })
       return
     }
     if (!boardSlug.trim() || board.slug !== boardSlug) {
@@ -45,7 +44,7 @@ export function BoardWriterNewsListPage() {
       } catch {
         if (!cancelled) {
           clearPublicBoardWriterSession()
-          navigate(PUBLIC_BOARD_WRITER_EXIT_PATH, { replace: true })
+          navigate('/board-writer/login', { replace: true })
         }
       } finally {
         if (!cancelled) {

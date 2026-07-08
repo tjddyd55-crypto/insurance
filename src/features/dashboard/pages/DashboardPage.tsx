@@ -4,6 +4,7 @@ import { FormButton } from '../../../components/form'
 import { fetchInsurerManagersHealth, type InsurerManagersHealth } from '../../auth/authApi'
 import { fetchTeamMembers } from '../../team/api/teamApi'
 import { listVisibleNewsletterBoards } from '../../insurer-news/services/insurerNews.service'
+import { mapNewsletterBoardsToMenuItems } from '../../insurer-news/utils/newsletterBoardMenuLinks'
 import { useAuth } from '../../auth/AuthProvider'
 import { isGaStaffReadOnlyUi } from '../../auth/roleGuards'
 import { Button, Modal } from '../../../components/ui'
@@ -103,7 +104,7 @@ export function DashboardPage() {
         if (cancelled) {
           return
         }
-        setDynamicNewsletterBoards(boards.map((board) => ({ label: board.label, slug: board.slug })))
+        setDynamicNewsletterBoards(mapNewsletterBoardsToMenuItems(boards))
       })
       .catch(() => {
         if (!cancelled) {

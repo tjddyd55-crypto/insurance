@@ -1,6 +1,12 @@
 import { Link } from 'react-router-dom'
 import { FormButton, FormInput } from '../../../../components/form'
+import { canUseNewsletterBoardAdminRoutes } from '../../../auth/roleGuards'
 import type { NewsletterBoard } from '../../types'
+import {
+  buildNewsletterBoardUploadPath,
+  buildNewsletterBoardViewPath,
+} from '../../utils/newsletterBoardMenuLinks'
+import { isGaOnlyNewsletterBoard } from '../../utils/newsletterBoardScope'
 import type { NewsletterBoardAdminViewProps } from './newsletterBoardAdminViewProps'
 import { NewsletterBoardWriterPanel } from './NewsletterBoardWriterPanel'
 import './newsletter-board-admin.css'
@@ -32,7 +38,8 @@ export function NewsletterBoardAdminView({
   onWriterBusyChange,
 }: NewsletterBoardAdminViewProps) {
   const isSuperAdmin = role === 'SUPER_ADMIN'
-  const isGaAdmin = role === 'GA_ADMIN'
+  const canManageGaBoards = role === 'GA_ADMIN' || role === 'GA_STAFF'
+  const canManageWriters = canUseNewsletterBoardAdminRoutes(role)
 
   return (
     <>
@@ -54,15 +61,19 @@ export function NewsletterBoardAdminView({
               공용 소식지별 작성자 계정은 아래 목록에서 소식지를 선택해 관리합니다.
             </p>
           </div>
-        ) : (
+        ) : canManageGaBoards ? (
           <div className="newsletter-board-admin-page__toolbar" style={{ marginTop: 14 }}>
             <Link to="/board-writer/login">
               <FormButton htmlType="button" variant="secondary">
                 GA전용 작성자 로그인
               </FormButton>
             </Link>
+            <p className="newsletter-board-admin-page__help" style={{ margin: '8px 0 0' }}>
+              글 업로드는 작성자 전용 계정으로 로그인한 뒤, 아래 목록의 「업로드」 또는 작성자 워크스페이스에서
+              진행합니다.
+            </p>
           </div>
-        )}
+        ) : null}
       </section>
 
       {isSuperAdmin ? (
@@ -124,6 +135,8 @@ export function NewsletterBoardAdminView({
           busy={busy}
           canDelete
           canManageWriters
+          showBoardQuickLinks
+          includeUploadLink
           selectedBoardId={selectedBoard?.id ?? null}
           onDelete={onDelete}
           onEdit={onEdit}
@@ -144,14 +157,16 @@ export function NewsletterBoardAdminView({
         />
       ) : null}
 
-      {isGaAdmin ? (
+      {canManageGaBoards ? (
         <BoardTable
           title="GA전용 소식지 목록"
           boards={gaBoards}
           loading={loading}
           busy={busy}
           canDelete
-          canManageWriters
+          canManageWriters={canManageWriters}
+          showBoardQuickLinks
+          includeUploadLink
           selectedBoardId={selectedBoard?.id ?? null}
           onDelete={onDelete}
           onEdit={onEdit}
@@ -182,6 +197,8 @@ function BoardTable({
   busy,
   canDelete,
   canManageWriters = false,
+  showBoardQuickLinks = false,
+  includeUploadLink = false,
   selectedBoardId,
   onDelete,
   onEdit,
@@ -194,6 +211,9 @@ function BoardTable({
   busy: boolean
   canDelete: boolean
   canManageWriters?: boolean
+  showBoardQuickLinks?: boolean
+  /** true면 GA전용·공용 모두 업로드 링크 표시(관리 화면용) */
+  includeUploadLink?: boolean
   selectedBoardId: string | null
   onDelete: (board: NewsletterBoard) => void
   onEdit: (board: NewsletterBoard) => void
@@ -213,6 +233,7 @@ function BoardTable({
                 <th>유형</th>
                 <th>GA</th>
                 <th>경로</th>
+                <th>바로가기</th>
                 <th>관리</th>
               </tr>
             </thead>
@@ -242,6 +263,30 @@ function BoardTable({
                     </td>
                     <td>{board.gaName ?? board.gaCode ?? '—'}</td>
                     <td className="newsletter-board-admin-page__path">{`/portal/boards/${board.slug}`}</td>
+                    <td>
+                      {showBoardQuickLinks ? (
+                        <div className="newsletter-board-admin-page__row-actions newsletter-board-admin-page__row-actions--links">
+                          <Link
+                            to={buildNewsletterBoardViewPath(board.slug)}
+                            className="button button--small button--secondary"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            조회
+                          </Link>
+                          {includeUploadLink || isGaOnlyNewsletterBoard(board) ? (
+                            <Link
+                              to={buildNewsletterBoardUploadPath(board.slug)}
+                              className="button button--small button--secondary"
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              업로드
+                            </Link>
+                          ) : null}
+                        </div>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
                     <td>
                       <div className="newsletter-board-admin-page__row-actions">
                         {canManageWriters ? (

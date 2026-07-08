@@ -18,6 +18,8 @@ import {
 } from '../services/publicBoardWriter.service'
 import './board-writer-workspace.css'
 
+const BOARD_WRITER_LOGIN_PATH = '/board-writer/login'
+
 export type BoardWriterOutletContext = {
   board: PublicBoardWriterBoard
   viewLabel: string
@@ -152,7 +154,7 @@ export function BoardWriterWorkspaceLayout() {
   useEffect(() => {
     const token = getPublicBoardWriterToken()
     if (!token?.trim()) {
-      navigate(PUBLIC_BOARD_WRITER_EXIT_PATH, { replace: true })
+      navigate(BOARD_WRITER_LOGIN_PATH, { replace: true })
       return
     }
     if (!boardSlug.trim()) {
@@ -180,7 +182,7 @@ export function BoardWriterWorkspaceLayout() {
       } catch {
         if (!cancelled) {
           clearPublicBoardWriterSession()
-          navigate(PUBLIC_BOARD_WRITER_EXIT_PATH, { replace: true })
+          navigate(BOARD_WRITER_LOGIN_PATH, { replace: true })
         }
       } finally {
         if (!cancelled) {
