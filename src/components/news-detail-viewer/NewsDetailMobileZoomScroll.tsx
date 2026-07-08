@@ -2,6 +2,10 @@ import { useRef, useState, type ReactNode } from 'react'
 import NewsDetailZoomContent from './NewsDetailZoomContent'
 import { clampNewsDetailViewerZoom } from './newsDetailViewerZoom'
 import { useNewsDetailViewerPinchZoom } from './useNewsDetailViewerPinchZoom'
+import {
+  useNewsDetailViewerZoomAnchor,
+  type NewsDetailViewerZoomAnchor,
+} from './useNewsDetailViewerZoomAnchor'
 
 type NewsDetailMobileZoomScrollProps = {
   children: ReactNode
@@ -20,13 +24,16 @@ export default function NewsDetailMobileZoomScroll({
 }: NewsDetailMobileZoomScrollProps) {
   const [zoom, setZoom] = useState(1)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const zoomAnchorRef = useRef<NewsDetailViewerZoomAnchor>(null)
 
   useNewsDetailViewerPinchZoom(
     scrollRef,
     zoom,
     (next) => setZoom(clampNewsDetailViewerZoom(next)),
     enabled,
+    zoomAnchorRef,
   )
+  useNewsDetailViewerZoomAnchor(scrollRef, zoom, zoomAnchorRef)
 
   return (
     <div ref={scrollRef} className={['news-detail-mobile-scroll', className].filter(Boolean).join(' ')}>
