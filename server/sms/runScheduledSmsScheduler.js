@@ -2,7 +2,7 @@
  * Railway Cron — due 예약을 outbox(run + send_jobs)로 큐잉 후 종료.
  *
  * Command: node server/sms/runScheduledSmsScheduler.js
- * Cron (UTC): */5 * * * *
+ * Cron (UTC): every 5 minutes (`0/5 * * * *`)
  */
 import pool from '../db.js'
 import { logSmsModuleEnvironmentHint, validateSmsModuleStartupConfig } from './smsModuleConfig.js'
