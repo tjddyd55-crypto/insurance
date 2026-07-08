@@ -124,7 +124,7 @@
   gap: 10px;
   padding: 10px;
   border-radius: 14px;
-  background: #1f2937;
+  background: var(--bg-soft, #f9fafb);
   border: 1px solid var(--border-default);
 }
 
@@ -136,8 +136,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(59, 130, 246, 0.2);
-  color: #93c5fd;
+  background: rgba(22, 163, 74, 0.1);
+  color: var(--primary);
   font-size: 0.75rem;
   font-weight: 900;
 }
@@ -351,7 +351,7 @@
   padding: 10px;
   border-radius: 14px;
   border: 1px solid var(--border-default);
-  background: #1f2937;
+  background: var(--bg-soft, #f9fafb);
 }
 
 .customer-app-claim-attachment__preview {
@@ -374,8 +374,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(59, 130, 246, 0.2);
-  color: #93c5fd;
+  background: rgba(22, 163, 74, 0.1);
+  color: var(--primary);
   font-size: 0.8rem;
   font-weight: 900;
 }
