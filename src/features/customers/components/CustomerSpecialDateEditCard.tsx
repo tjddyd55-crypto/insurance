@@ -1,9 +1,11 @@
 import { memo, useCallback } from 'react'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
 import AppDateInput from '../../../components/common/AppDateInput'
-import { CUSTOMER_SPECIAL_DATE_PURPOSE_OPTIONS } from '../config/customerSpecialDatePurpose.config'
+import {
+  CUSTOMER_SPECIAL_DATE_PURPOSE_OPTIONS,
+  normalizeCustomerSpecialDatePurposeType,
+} from '../config/customerSpecialDatePurpose.config'
 import type { CustomerSpecialDateFormItem } from '../types/customerSpecialDateForm'
-import type { CustomerSpecialDatePurposeType } from '../types/customerSpecialDateForm'
 
 export type CustomerSpecialDateEditCardProps = {
   index: number
@@ -47,18 +49,15 @@ export const CustomerSpecialDateEditCard = memo(function CustomerSpecialDateEdit
         <span className="field__label">타입</span>
         <FormSelect
           className="field__control"
-          value={item.purposeType}
+          value={normalizeCustomerSpecialDatePurposeType(item.purposeType)}
           disabled={disabled}
+          options={CUSTOMER_SPECIAL_DATE_PURPOSE_OPTIONS}
           onChange={(e) =>
-            updateField({ purposeType: e.target.value as CustomerSpecialDatePurposeType })
+            updateField({
+              purposeType: normalizeCustomerSpecialDatePurposeType(e.target.value),
+            })
           }
-        >
-          {CUSTOMER_SPECIAL_DATE_PURPOSE_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </FormSelect>
+        />
       </label>
       <label className="field">
         <span className="field__label">라벨</span>

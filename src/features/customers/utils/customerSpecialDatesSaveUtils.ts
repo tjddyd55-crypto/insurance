@@ -8,6 +8,7 @@ import {
   type CustomerSpecialDateRecord,
 } from '../api/customerSpecialDatesApi'
 import { normalizeCustomerSpecialDatesForSave } from './customerSpecialDateFormUtils'
+import { normalizeCustomerSpecialDatePurposeType } from '../config/customerSpecialDatePurpose.config'
 
 export function customerSpecialDateRecordToFormItem(
   r: CustomerSpecialDateRecord,
@@ -27,7 +28,8 @@ function trim(s: string | undefined): string {
 
 function formItemToInput(item: CustomerSpecialDateFormItem): CustomerSpecialDateInput {
   return {
-    purposeType: item.purposeType,
+    // 타입이 비어 있거나 유효하지 않으면 CELEBRATION으로 보정 → 빈 타입 400 방지.
+    purposeType: normalizeCustomerSpecialDatePurposeType(item.purposeType),
     title: trim(item.title),
     dateValue: trim(item.dateValue).slice(0, 10),
     memo: trim(item.memo),
