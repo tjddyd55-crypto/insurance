@@ -4,7 +4,7 @@ import { FormSelect } from '../../../../components/form'
 import GaCustomerMatchAliasesCard from '../../components/GaCustomerMatchAliasesCard'
 import { useGaCustomerExcelData } from '../../hooks/useGaCustomerExcelData'
 import {
-  formatGaCellDisplay,
+  formatGaCellByColumn,
   MSG_GA_EXCEL_NO_DISPLAY_KEYS,
   MSG_GA_EXCEL_NO_MAPPED_DATA,
   MSG_GA_EXCEL_UPLOAD_HINT,
@@ -110,7 +110,9 @@ export default function CustomerGaExcelPageMobile({ routeCustomerId }: CustomerG
                   {colIds.map((cid, idx) => (
                     <div key={cid} className="customer-ga-excel-mobile-card__pair">
                       <dt className="customer-ga-excel-mobile-card__dt">{headers[idx] ?? cid}</dt>
-                      <dd className="customer-ga-excel-mobile-card__dd">{formatGaCellDisplay(r.cells[cid])}</dd>
+                      <dd className="customer-ga-excel-mobile-card__dd">
+                        {formatGaCellByColumn(cid, headers[idx] ?? cid, r.cells[cid])}
+                      </dd>
                     </div>
                   ))}
                 </dl>
