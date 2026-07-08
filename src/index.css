@@ -2008,6 +2008,11 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   padding-top: 30px;
 }
 
+/* 원수사 연락처(PC): 상단 메뉴 ~ 제목 사이 여백 축소 — 이 페이지 scope 한정. */
+.pc-root .insurance-contacts-view.page--with-back > .contacts-public-auth:first-of-type {
+  padding-top: 6px;
+}
+
 .page--with-back.insurance-print-page > .screen-only.insurance-print-controls:first-of-type {
   padding-left: 36px;
 }
@@ -9790,7 +9795,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 .pc-root .insurance-contacts-view .company-card .contact-row {
-  grid-template-columns: 88px minmax(0, 1fr) 60px;
+  grid-template-columns: 68px minmax(0, 1fr) 60px;
 }
 
 .pc-root .insurance-contacts-view .company-card .contact-row .position {
@@ -10205,15 +10210,36 @@ div.cta-button.customers-page__action-btn[role='button'] {
   padding: 8px 10px;
 }
 
-/* PC 원수사 연락처: 반응형 카드 grid — 실제 컨테이너 폭 기준 auto-fill.
-   담당자 행은 이름/전화를 세로로 쌓아(아래 contact-row 규칙) 좁은 카드에서도 잘리지 않는다.
-   viewport 가 아닌 컨테이너 폭으로 열 수가 정해지므로, 사이드바 유무·Windows Snap 반쪽
-   화면에서도 가로 overflow 없이 자연스럽게 5→4→3→2→1 열로 접힌다. */
+/* PC 원수사 연락처: 카드 grid — 최대 4열 상한.
+   auto-fill 은 초광폭에서 5~6열까지 늘어나 카드 폭이 과하게 좁아지므로 사용하지 않는다.
+   열 수는 뷰포트 breakpoint 로 4→3→2→1 로 접고, 각 열은 minmax(0,1fr) 이라
+   사이드바 유무·Windows Snap 반쪽 화면에서도 가로 overflow 가 나지 않는다. */
 .pc-root .insurance-contacts-view .insurance-contacts-cards,
 .pc-root .insurance-contacts-view .contact-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
+}
+
+@media (max-width: 1280px) {
+  .pc-root .insurance-contacts-view .insurance-contacts-cards,
+  .pc-root .insurance-contacts-view .contact-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 980px) {
+  .pc-root .insurance-contacts-view .insurance-contacts-cards,
+  .pc-root .insurance-contacts-view .contact-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .pc-root .insurance-contacts-view .insurance-contacts-cards,
+  .pc-root .insurance-contacts-view .contact-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .pc-root .insurance-contacts-view .company-card,
@@ -10272,7 +10298,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .pc-root .insurance-contacts-view .company-card .contact-row {
   display: grid;
-  grid-template-columns: 88px minmax(0, 1fr) 60px;
+  grid-template-columns: 68px minmax(0, 1fr) 60px;
   align-items: center;
   gap: 8px;
   padding: 6px 0;
