@@ -14818,6 +14818,103 @@ textarea.memo-sticky-note__textarea:focus {
   width: 100%;
 }
 
+.customer-ga-excel-page--pc .ga-customer-data-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+}
+
+.customer-ga-excel-page--pc .ga-customer-data-table {
+  width: 100%;
+  min-width: 1140px;
+}
+
+.customer-ga-excel-page--pc .ga-customer-data-header,
+.customer-ga-excel-page--pc .ga-customer-data-row {
+  display: grid;
+  grid-template-columns: var(
+    --ga-customer-data-grid-columns,
+    120px minmax(320px, 1fr) 130px 120px 120px 120px 100px 110px
+  );
+  align-items: center;
+  column-gap: 0;
+}
+
+.customer-ga-excel-page--pc .ga-customer-data-header {
+  background: var(--bg-soft);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.customer-ga-excel-page--pc .ga-customer-data-row {
+  border-bottom: 1px solid var(--border-default);
+}
+
+.customer-ga-excel-page--pc .ga-customer-data-row:last-child {
+  border-bottom: 0;
+}
+
+.customer-ga-excel-page--pc .ga-customer-data-cell {
+  min-width: 0;
+  padding: 10px 8px;
+  text-align: center;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.customer-ga-excel-page--pc .ga-customer-data-cell--product {
+  text-align: left;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+
+.customer-ga-excel-page--pc .ga-customer-data-cell--premium {
+  font-variant-numeric: tabular-nums;
+}
+
+.customer-ga-excel-page--pc .ga-customer-data-header__button {
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  min-height: unset;
+  height: auto;
+  padding: 8px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  justify-content: center;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  underline-offset: 2px;
+}
+
+.customer-ga-excel-page--pc .ga-customer-data-cell--product .ga-customer-data-header__button {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .customer-ga-excel-page--pc .ga-customer-data-header__button:hover {
+    text-decoration: underline;
+  }
+}
+
+.customer-ga-excel-page--pc .ga-customer-data-table-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.customer-ga-excel-page--pc .ga-customer-data-table-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 3px;
+}
+
 @media (max-width: 768px) {
   .insurance-contacts-cards {
     grid-template-columns: 1fr;
