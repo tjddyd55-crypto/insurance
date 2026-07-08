@@ -110,17 +110,22 @@ export default function CustomerCarPage() {
             <span className="field__label">연식</span>
             <FormInput
               className="field__control"
-              placeholder="연식"
+              type="text"
               inputMode="numeric"
+              autoComplete="off"
+              maxLength={4}
+              placeholder="연식"
               value={form.carYear}
-              onChange={(e) => setForm({ ...form, carYear: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, carYear: e.target.value.replace(/\D/g, '').slice(0, 4) })
+              }
             />
           </label>
           <label className="field field--wide">
             <span className="field__label">만기(갱신)일</span>
             <AppDateInput
-              className="field__control"
-              value={form.renewalDate}
+              inputClassName="field__control"
+              value={form.renewalDate ?? ''}
               onChange={(renewalDate) => setForm({ ...form, renewalDate })}
             />
           </label>

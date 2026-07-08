@@ -1,3 +1,4 @@
+import { useCallback, useMemo } from 'react'
 import { FormButton } from '../../../components/form'
 import type { CustomerCarFormItem } from '../types/customerCarForm'
 import { createEmptyCustomerCar } from '../utils/customerCarFormUtils'
@@ -39,30 +40,42 @@ function ensurePrimary(cars: CustomerCarFormItem[]): CustomerCarFormItem[] {
 }
 
 export function CustomerCarsEditor({ cars, onChange, disabled }: CustomerCarsEditorProps) {
-  const list = ensurePrimary(cars.length ? cars : [createEmptyCustomerCar()])
+  const list = useMemo(
+    () => ensurePrimary(cars.length ? cars : [createEmptyCustomerCar()]),
+    [cars],
+  )
 
-  function apply(next: CustomerCarFormItem[]) {
-    onChange(ensurePrimary(next))
-  }
+  const apply = useCallback(
+    (next: CustomerCarFormItem[]) => {
+      onChange(ensurePrimary(next))
+    },
+    [onChange],
+  )
 
-  function updateAt(i: number, next: CustomerCarFormItem) {
-    const copy = [...list]
-    copy[i] = next
-    apply(copy)
-  }
+  const updateAt = useCallback(
+    (i: number, next: CustomerCarFormItem) => {
+      const copy = [...list]
+      copy[i] = next
+      apply(copy)
+    },
+    [apply, list],
+  )
 
-  function removeAt(i: number) {
-    if (list.length <= 1) {
-      apply([{ ...createEmptyCustomerCar(), isPrimary: true }])
-      return
-    }
-    const copy = list.filter((_, j) => j !== i)
-    apply(copy)
-  }
+  const removeAt = useCallback(
+    (i: number) => {
+      if (list.length <= 1) {
+        apply([{ ...createEmptyCustomerCar(), isPrimary: true }])
+        return
+      }
+      const copy = list.filter((_, j) => j !== i)
+      apply(copy)
+    },
+    [apply, list],
+  )
 
-  function addCar() {
+  const addCar = useCallback(() => {
     apply([...list, { ...createEmptyCustomerCar(), isPrimary: false }])
-  }
+  }, [apply, list])
 
   return (
     <CustomerFormSection

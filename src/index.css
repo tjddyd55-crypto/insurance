@@ -557,6 +557,7 @@ body {
 .app-date-input__text {
   width: 100%;
   padding-right: 42px;
+  pointer-events: auto;
 }
 
 .app-date-input__button {
@@ -574,6 +575,7 @@ body {
   justify-content: center;
   cursor: pointer;
   border-radius: 6px;
+  pointer-events: auto;
 }
 
 .app-date-input__button:hover:not(:disabled) {

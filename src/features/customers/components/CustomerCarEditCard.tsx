@@ -1,7 +1,11 @@
+import { memo, useCallback, type ChangeEvent } from 'react'
 import { FormButton, FormInput } from '../../../components/form'
 import AppDateInput from '../../../components/common/AppDateInput'
 import type { CustomerCarFormItem } from '../types/customerCarForm'
-import { toDateInputValue } from '../utils/toDateInputValue'
+
+function normalizeCarYearInput(value: string): string {
+  return value.replace(/\D/g, '').slice(0, 4)
+}
 
 export type CustomerCarEditCardProps = {
   index: number
@@ -12,7 +16,7 @@ export type CustomerCarEditCardProps = {
   onRemove: () => void
 }
 
-export function CustomerCarEditCard({
+export const CustomerCarEditCard = memo(function CustomerCarEditCard({
   index,
   car,
   canRemove,
@@ -21,6 +25,28 @@ export function CustomerCarEditCard({
   onRemove,
 }: CustomerCarEditCardProps) {
   const n = index + 1
+
+  const updateField = useCallback(
+    (patch: Partial<CustomerCarFormItem>) => {
+      onChange({ ...car, ...patch })
+    },
+    [car, onChange],
+  )
+
+  const handleCarYearChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      updateField({ carYear: normalizeCarYearInput(event.target.value) })
+    },
+    [updateField],
+  )
+
+  const handleRenewalDateChange = useCallback(
+    (renewalDate: string) => {
+      updateField({ renewalDate })
+    },
+    [updateField],
+  )
+
   return (
     <section className="customer-car-edit-card" aria-label={`자동차 정보 ${n}`}>
       <div className="customer-car-edit-card__header">
@@ -44,7 +70,7 @@ export function CustomerCarEditCard({
           placeholder="차량번호"
           value={car.carNumber}
           disabled={disabled}
-          onChange={(e) => onChange({ ...car, carNumber: e.target.value })}
+          onChange={(e) => updateField({ carNumber: e.target.value })}
         />
       </label>
       <label className="field">
@@ -54,28 +80,32 @@ export function CustomerCarEditCard({
           placeholder="예: 그랜저, 카니발"
           value={car.carModel}
           disabled={disabled}
-          onChange={(e) => onChange({ ...car, carModel: e.target.value })}
+          onChange={(e) => updateField({ carModel: e.target.value })}
         />
       </label>
       <label className="field">
         <span className="field__label">연식</span>
         <FormInput
           className="field__control"
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          maxLength={4}
           placeholder="연식"
           value={car.carYear}
           disabled={disabled}
-          onChange={(e) => onChange({ ...car, carYear: e.target.value })}
+          onChange={handleCarYearChange}
         />
       </label>
       <label className="field">
         <span className="field__label">만기(갱신)일</span>
         <AppDateInput
-          className="field__control"
-          value={toDateInputValue(car.renewalDate)}
+          inputClassName="field__control"
+          value={car.renewalDate ?? ''}
           disabled={disabled}
-          onChange={(renewalDate) => onChange({ ...car, renewalDate })}
+          onChange={handleRenewalDateChange}
         />
       </label>
     </section>
   )
-}
+})
