@@ -50,10 +50,32 @@ function buildContactChanges(
   return changes
 }
 
+/** updatedAt 을 날짜 단위(YYYY-MM-DD)로 정규화한다. 유효하지 않으면 빈 문자열. */
+function toUpdatedDay(updatedAt: string | undefined | null): string {
+  const raw = String(updatedAt ?? '').trim().slice(0, 10)
+  return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : ''
+}
+
+/** 배지(updatedAt)는 유지하되 변경 강조는 모두 제거한 요약(과거 날짜 카드용). */
+function withoutHighlight(summary: CompanyDirectoryChangeSummary): CompanyDirectoryChangeSummary {
+  return {
+    updatedAt: summary.updatedAt,
+    customerCenterChanged: false,
+    systemChanged: false,
+    incallChanged: false,
+    visitInfoChanged: false,
+    contactChangesByRole: new Map(),
+  }
+}
+
 /**
  * 최근 업데이트 로그(회사별 여러 건)를 회사 id 기준으로 접어, 각 회사의
  * "마지막 저장" 1건만 남긴 변경 요약 맵을 만든다.
  * key 는 directory 의 company id 를 문자열로 맞춘 값(String(entry.id)).
+ *
+ * 빨간 강조 규칙: 회사별 최신이 아니라 **목록 전체에서 가장 최근 수정일(YYYY-MM-DD)**
+ * 에 해당하는 카드의 변경 필드만 강조한다. 그 외 과거 날짜 카드는 배지(updatedAt)는
+ * 유지하되 변경 강조는 제거한다. (오늘 수정분만 빨간색, 어제 이전은 검정)
  */
 export function buildCompanyChangeSummaries(
   history: CompanyUpdateHistoryItem[],
@@ -87,6 +109,30 @@ export function buildCompanyChangeSummaries(
       visitInfoChanged: isHistoryTextChanged(before.visitInfo, after.visitInfo),
       contactChangesByRole: buildContactChanges(latest),
     })
+  }
+
+  // 목록 전체에서 가장 최근 수정일(날짜 단위) 계산. updatedAt 은 YYYY-MM-DD 라 사전순=시간순.
+  let globalLatestDay = ''
+  for (const summary of summaries.values()) {
+    const day = toUpdatedDay(summary.updatedAt)
+    if (day && day > globalLatestDay) {
+      globalLatestDay = day
+    }
+  }
+
+  // 최신 날짜를 특정할 수 없으면 강조 없이 반환(임의 빨간색 표시 금지).
+  if (!globalLatestDay) {
+    for (const [companyId, summary] of summaries) {
+      summaries.set(companyId, withoutHighlight(summary))
+    }
+    return summaries
+  }
+
+  // 전체 최신 날짜와 다른 카드는 변경 강조 제거(배지는 유지).
+  for (const [companyId, summary] of summaries) {
+    if (toUpdatedDay(summary.updatedAt) !== globalLatestDay) {
+      summaries.set(companyId, withoutHighlight(summary))
+    }
   }
   return summaries
 }

@@ -9714,6 +9714,12 @@ div.cta-button.customers-page__action-btn[role='button'] {
   margin-bottom: 0;
 }
 
+/* 원수사 연락처: 상단 전체 여백은 축소 상태 유지하되, 제목과 탭 사이만 자연스럽게 벌린다.
+   (전역 h1 은 건드리지 않고 이 화면 scope 안에서만 헤더 하단 여백을 준다) */
+.insurance-contacts-view .insurance-contacts-header {
+  margin-bottom: 10px;
+}
+
 .insurance-contacts-status {
   margin: 0;
   font-size: 0.875rem;

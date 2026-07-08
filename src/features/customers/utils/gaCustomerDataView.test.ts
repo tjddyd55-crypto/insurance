@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   formatGaCellByColumn,
   formatGaDate,
+  formatGaMonth,
   formatGaPremium,
 } from './gaCustomerDataView'
 
@@ -47,6 +48,26 @@ describe('formatGaPremium', () => {
   })
 })
 
+describe('formatGaMonth', () => {
+  it('6자리 숫자를 YYYY-MM 으로 변환한다', () => {
+    expect(formatGaMonth('202605')).toBe('2026-05')
+    expect(formatGaMonth('202405')).toBe('2024-05')
+    expect(formatGaMonth('202402')).toBe('2024-02')
+    expect(formatGaMonth(202605)).toBe('2026-05')
+  })
+
+  it('이미 YYYY-MM 형식이면 그대로 표시한다', () => {
+    expect(formatGaMonth('2026-05')).toBe('2026-05')
+  })
+
+  it('빈 값·잘못된 값은 억지 변환하지 않고 원본/빈문자를 유지한다', () => {
+    expect(formatGaMonth('')).toBe('')
+    expect(formatGaMonth(null)).toBe('')
+    expect(formatGaMonth('2026')).toBe('2026')
+    expect(formatGaMonth('상시')).toBe('상시')
+  })
+})
+
 describe('formatGaCellByColumn', () => {
   it('계약일자/보험일자 컬럼은 날짜 포맷을 적용한다', () => {
     expect(formatGaCellByColumn('contractDate', '계약일자', '20241122')).toBe('2024-11-22')
@@ -55,6 +76,16 @@ describe('formatGaCellByColumn', () => {
 
   it('보험료 컬럼은 콤마 포맷을 적용한다', () => {
     expect(formatGaCellByColumn('premium', '보험료', '504600')).toBe('504,600')
+  })
+
+  it('납월 컬럼은 YYYY-MM 포맷을 적용한다', () => {
+    expect(formatGaCellByColumn('paymentMonth', '납월', '202605')).toBe('2026-05')
+    expect(formatGaCellByColumn('month', '납월', '202402')).toBe('2024-02')
+  })
+
+  it('납월 컬럼은 날짜(YYYYMMDD)로 오인해 8자리 처리하지 않는다', () => {
+    // 6자리는 월로, 8자리 계약일자는 별도 컬럼에서 날짜로 처리됨을 구분 확인
+    expect(formatGaCellByColumn('paymentMonth', '납월', '2026-05')).toBe('2026-05')
   })
 
   it('계약자(사람)는 날짜로 오인하지 않는다', () => {
