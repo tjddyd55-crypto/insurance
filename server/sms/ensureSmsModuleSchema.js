@@ -278,10 +278,10 @@ export async function ensureSmsModuleSchema(executor) {
     )
   `)
   await executor.query(`DROP INDEX IF EXISTS idx_sms_scheduled_deliveries_unique`)
+  await executor.query(`DROP INDEX IF EXISTS sms_scheduled_message_deliveries_unique_run`)
   await executor.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS sms_scheduled_message_deliveries_unique_run
     ON sms_scheduled_message_deliveries (scheduled_message_id, phone, scheduled_run_at)
-    WHERE phone <> ''
   `)
 
   await executor.query(`
