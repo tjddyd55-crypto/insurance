@@ -211,4 +211,153 @@ export async function ensureSmsModuleSchema(executor) {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_sms_opt_outs_tenant_phone
     ON sms_opt_outs (tenant_id, phone)
   `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS sms_scheduled_messages (
+      id BIGSERIAL PRIMARY KEY,
+      tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '',
+      recipient_group_id BIGINT NOT NULL REFERENCES sms_recipient_groups(id) ON DELETE RESTRICT,
+      message_body TEXT NOT NULL DEFAULT '',
+      message_type TEXT NOT NULL DEFAULT 'info',
+      schedule_type TEXT NOT NULL DEFAULT 'once',
+      send_date DATE,
+      send_time TEXT NOT NULL DEFAULT '09:00',
+      timezone TEXT NOT NULL DEFAULT 'Asia/Seoul',
+      weekdays INTEGER[] NOT NULL DEFAULT '{}',
+      month_day INTEGER,
+      template_id BIGINT REFERENCES sms_templates(id) ON DELETE SET NULL,
+      next_run_at TIMESTAMPTZ,
+      status TEXT NOT NULL DEFAULT 'active',
+      last_run_at TIMESTAMPTZ,
+      run_count INTEGER NOT NULL DEFAULT 0,
+      last_campaign_id BIGINT REFERENCES sms_campaigns(id) ON DELETE SET NULL,
+      last_error_code TEXT,
+      last_error_message TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      deleted_at TIMESTAMPTZ,
+      CONSTRAINT sms_scheduled_messages_message_type_check CHECK (message_type IN ('info', 'ad')),
+      CONSTRAINT sms_scheduled_messages_schedule_type_check CHECK (
+        schedule_type IN ('once', 'daily', 'weekly', 'monthly')
+      ),
+      CONSTRAINT sms_scheduled_messages_status_check CHECK (
+        status IN ('active', 'paused', 'processing', 'completed', 'failed', 'deleted')
+      )
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_sms_scheduled_messages_due
+    ON sms_scheduled_messages (next_run_at ASC)
+    WHERE deleted_at IS NULL AND status = 'active' AND next_run_at IS NOT NULL
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_sms_scheduled_messages_tenant_user
+    ON sms_scheduled_messages (tenant_id, user_id, updated_at DESC)
+    WHERE deleted_at IS NULL
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS sms_scheduled_message_deliveries (
+      id BIGSERIAL PRIMARY KEY,
+      scheduled_message_id BIGINT NOT NULL REFERENCES sms_scheduled_messages(id) ON DELETE CASCADE,
+      customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+      phone TEXT NOT NULL DEFAULT '',
+      scheduled_run_at TIMESTAMPTZ NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      provider_message_id TEXT,
+      error_code TEXT,
+      error_message TEXT,
+      sent_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT sms_scheduled_message_deliveries_status_check CHECK (
+        status IN ('pending', 'success', 'failed', 'skipped')
+      )
+    )
+  `)
+  await executor.query(`DROP INDEX IF EXISTS idx_sms_scheduled_deliveries_unique`)
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS sms_scheduled_message_deliveries_unique_run
+    ON sms_scheduled_message_deliveries (scheduled_message_id, phone, scheduled_run_at)
+    WHERE phone <> ''
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS sms_scheduled_runs (
+      id TEXT PRIMARY KEY,
+      scheduled_message_id BIGINT NOT NULL REFERENCES sms_scheduled_messages(id) ON DELETE CASCADE,
+      tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      scheduled_run_at TIMESTAMPTZ NOT NULL,
+      campaign_id BIGINT REFERENCES sms_campaigns(id) ON DELETE SET NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      total_count INTEGER NOT NULL DEFAULT 0,
+      queued_count INTEGER NOT NULL DEFAULT 0,
+      sent_count INTEGER NOT NULL DEFAULT 0,
+      failed_count INTEGER NOT NULL DEFAULT 0,
+      skipped_count INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      started_at TIMESTAMPTZ,
+      finished_at TIMESTAMPTZ,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT sms_scheduled_runs_status_check CHECK (
+        status IN ('pending', 'queued', 'processing', 'completed', 'partial_failed', 'failed')
+      )
+    )
+  `)
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS sms_scheduled_runs_unique_run
+    ON sms_scheduled_runs (scheduled_message_id, scheduled_run_at)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_sms_scheduled_runs_status
+    ON sms_scheduled_runs (status, updated_at DESC)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS sms_send_jobs (
+      id TEXT PRIMARY KEY,
+      tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      source_type TEXT NOT NULL,
+      source_id TEXT NOT NULL,
+      run_id TEXT REFERENCES sms_scheduled_runs(id) ON DELETE CASCADE,
+      campaign_id BIGINT REFERENCES sms_campaigns(id) ON DELETE SET NULL,
+      customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+      phone TEXT NOT NULL,
+      sender_number TEXT NOT NULL DEFAULT '',
+      message_body TEXT NOT NULL DEFAULT '',
+      message_type TEXT NOT NULL DEFAULT 'SMS',
+      is_advertising BOOLEAN NOT NULL DEFAULT false,
+      status TEXT NOT NULL DEFAULT 'queued',
+      attempt_count INTEGER NOT NULL DEFAULT 0,
+      max_attempts INTEGER NOT NULL DEFAULT 3,
+      scheduled_for TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      locked_at TIMESTAMPTZ,
+      locked_by TEXT,
+      provider_message_id TEXT,
+      error_code TEXT,
+      error_message TEXT,
+      sent_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT sms_send_jobs_source_type_check CHECK (
+        source_type IN ('immediate', 'scheduled', 'automation')
+      ),
+      CONSTRAINT sms_send_jobs_status_check CHECK (
+        status IN ('queued', 'processing', 'sent', 'failed', 'skipped', 'retry')
+      )
+    )
+  `)
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS sms_send_jobs_unique_source_recipient
+    ON sms_send_jobs (source_type, source_id, run_id, phone)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_sms_send_jobs_claim
+    ON sms_send_jobs (status, scheduled_for ASC, created_at ASC)
+    WHERE status IN ('queued', 'retry')
+  `)
 }

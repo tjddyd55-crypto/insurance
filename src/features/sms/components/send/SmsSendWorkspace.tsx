@@ -363,7 +363,7 @@ export default function SmsSendWorkspace({ variant, module, initialSendMode, adD
   }
 
   const handleDeleteReservedRule = (rule: SmsScheduledRule) => {
-    scheduledState.deleteRuleById(rule.id)
+    void scheduledState.deleteRuleById(rule.id)
   }
 
   const layout = variant === 'pc' ? 'sms-send-workspace--pc' : 'sms-send-workspace--mobile'
@@ -516,9 +516,13 @@ export default function SmsSendWorkspace({ variant, module, initialSendMode, adD
                   ) : null}
                   {!realSendEnabledFlag ? (
                     <p className="sms-composer__send-disabled-note">
-                      실발송 비활성 상태입니다. 예약 규칙은 localStorage에 저장됩니다.
+                      실발송 비활성 상태입니다. 예약은 서버에 저장되지만 예약 시간에 실제 발송되지 않습니다.
                     </p>
-                  ) : null}
+                  ) : (
+                    <p className="sms-composer__send-disabled-note">
+                      예약 저장 시 서버에 등록되며, 예약 시간에 자동 발송됩니다.
+                    </p>
+                  )}
                 </div>
               )
             }

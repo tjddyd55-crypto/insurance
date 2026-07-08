@@ -39,6 +39,14 @@ import {
 } from './sms/smsRecipientGroupService.js'
 import { searchSmsRecipientCustomers } from './sms/smsRecipientSearchService.js'
 import { assertSmsModuleFeatureEnabled, assertSmsRealSendAllowed } from './sms/smsModuleConfig.js'
+import {
+  createScheduledMessage,
+  deleteScheduledMessage,
+  listScheduledMessages,
+  queueDueScheduledMessages,
+  runScheduledMessageNow,
+  updateScheduledMessage,
+} from './sms/smsScheduledMessageService.js'
 
 function smsApiError(res, err) {
   const status = Number(err?.status ?? 500)
@@ -78,6 +86,28 @@ function ensureSmsRealSendEnabled(req, res, next) {
     }
     next(e)
   }
+}
+
+function ensureScheduleRunnerSecret(req, res, next) {
+  const secret = String(process.env.SMS_SCHEDULE_RUNNER_SECRET ?? '').trim()
+  if (!secret) {
+    res.status(503).json({
+      success: false,
+      message: '예약 실행기 secret(SMS_SCHEDULE_RUNNER_SECRET)이 설정되지 않았습니다.',
+      code: 'sms_schedule_runner_not_configured',
+    })
+    return
+  }
+  const provided = String(req.headers['x-sms-schedule-secret'] ?? req.body?.secret ?? '').trim()
+  if (provided !== secret) {
+    res.status(401).json({
+      success: false,
+      message: '예약 실행기 인증에 실패했습니다.',
+      code: 'sms_schedule_runner_unauthorized',
+    })
+    return
+  }
+  next()
 }
 
 /**
@@ -650,6 +680,104 @@ export function registerSmsModuleApi(apiRouter, ctx) {
     try {
       const scope = await resolveSmsAuthContext(pool, req)
       const data = await loadSmsRecipientGroupMembers(pool, scope, Number(req.params.groupId))
+      res.json({ success: true, data })
+    } catch (e) {
+      if (e?.status) {
+        smsApiError(res, e)
+        return
+      }
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.get('/sms/scheduled', requireAuth, ensureSmsModuleEnabled, async (req, res) => {
+    try {
+      const scope = await resolveSmsAuthContext(pool, req)
+      const data = await listScheduledMessages(pool, scope)
+      res.json({ success: true, data })
+    } catch (e) {
+      if (e?.status) {
+        smsApiError(res, e)
+        return
+      }
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.post('/sms/scheduled', requireAuth, ensureSmsModuleEnabled, async (req, res) => {
+    try {
+      const scope = await resolveSmsAuthContext(pool, req)
+      const data = await createScheduledMessage(pool, scope, req.body ?? {})
+      res.status(201).json({ success: true, data })
+    } catch (e) {
+      if (e?.status) {
+        smsApiError(res, e)
+        return
+      }
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.delete('/sms/scheduled/:id', requireAuth, ensureSmsModuleEnabled, async (req, res) => {
+    try {
+      const scope = await resolveSmsAuthContext(pool, req)
+      const id = Number(req.params.id)
+      if (!Number.isInteger(id) || id <= 0) {
+        res.status(400).json({ success: false, message: '잘못된 예약 ID입니다.', code: 'sms_scheduled_invalid_id' })
+        return
+      }
+      const data = await deleteScheduledMessage(pool, scope, id)
+      res.json({ success: true, data })
+    } catch (e) {
+      if (e?.status) {
+        smsApiError(res, e)
+        return
+      }
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.patch('/sms/scheduled/:id', requireAuth, ensureSmsModuleEnabled, async (req, res) => {
+    try {
+      const scope = await resolveSmsAuthContext(pool, req)
+      const id = Number(req.params.id)
+      if (!Number.isInteger(id) || id <= 0) {
+        res.status(400).json({ success: false, message: '잘못된 예약 ID입니다.', code: 'sms_scheduled_invalid_id' })
+        return
+      }
+      const data = await updateScheduledMessage(pool, scope, id, req.body ?? {})
+      res.json({ success: true, data })
+    } catch (e) {
+      if (e?.status) {
+        smsApiError(res, e)
+        return
+      }
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.post('/sms/scheduled/:id/run-now', requireAuth, ensureSmsModuleEnabled, async (req, res) => {
+    try {
+      const scope = await resolveSmsAuthContext(pool, req)
+      const id = Number(req.params.id)
+      if (!Number.isInteger(id) || id <= 0) {
+        res.status(400).json({ success: false, message: '잘못된 예약 ID입니다.', code: 'sms_scheduled_invalid_id' })
+        return
+      }
+      const data = await runScheduledMessageNow(pool, scope, id)
+      res.json({ success: true, data })
+    } catch (e) {
+      if (e?.status) {
+        smsApiError(res, e)
+        return
+      }
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.post('/sms/scheduled/run-due', ensureScheduleRunnerSecret, ensureSmsModuleEnabled, async (req, res) => {
+    try {
+      const data = await queueDueScheduledMessages(pool)
       res.json({ success: true, data })
     } catch (e) {
       if (e?.status) {

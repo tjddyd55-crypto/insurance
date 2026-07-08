@@ -435,7 +435,7 @@ export async function cancelSmsCampaign(executor, scope, campaignId) {
 export async function sendSmsCampaignNow(executor, scope, campaignId, input = {}) {
   assertSmsRealSendAllowed()
 
-  if (input.previewConfirmed !== true) {
+  if (!input.scheduledRun && input.previewConfirmed !== true) {
     const err = new Error('sms_campaign_preview_required')
     err.status = 400
     err.publicMessage = '단체문자 발송 전 미리보기 확인이 필요합니다.'

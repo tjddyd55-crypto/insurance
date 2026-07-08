@@ -6,7 +6,7 @@ export type SmsScheduledListFilter = 'all' | 'active' | 'inactive' | 'failed'
 
 export type SmsScheduledMobilePanel = 'list' | 'settings' | 'preview' | 'history'
 
-/** UI 저장용 예약 규칙. 반복 규칙은 localStorage, 1회는 추후 campaigns API 연동 가능. */
+/** 서버 저장 예약 규칙 (GET /api/sms/scheduled) */
 export type SmsScheduledRule = {
   id: string
   name: string
@@ -26,6 +26,9 @@ export type SmsScheduledRule = {
   status: SmsScheduledRuleStatus
   createdAt: string
   updatedAt: string
+  serverStatus?: 'active' | 'paused' | 'processing' | 'completed' | 'failed' | 'deleted'
+  lastErrorCode?: string | null
+  lastErrorMessage?: string | null
 }
 
 export type SmsScheduledFormState = {
