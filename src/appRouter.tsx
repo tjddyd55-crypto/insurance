@@ -51,6 +51,7 @@ import ExternalAccountVaultPage from './features/user-insurer-accounts/pages/Ext
 import PublicSharedAccountVaultWorkspacePage from './features/user-insurer-accounts/pages/PublicSharedAccountVaultWorkspacePage'
 import SharedAccountVaultWorkspacePage from './features/user-insurer-accounts/pages/SharedAccountVaultWorkspacePage'
 import SmsModulePage from './features/sms/pages/SmsModulePage'
+import SmsAutomationPage from './features/sms/pages/SmsAutomationPage'
 import TaCallPage from './features/ta-call/pages/TaCallPage'
 import { ConsentCompanyPage } from './features/consent/pages/ConsentCompanyPage'
 import { TemplateEditorPage } from './features/consent/admin/pages/TemplateEditorPage'
@@ -577,6 +578,7 @@ export const appRouter = createBrowserRouter([
               { path: 'sms/bulk', element: <Navigate to="/sms/groups" replace /> },
               { path: 'sms/scheduled', element: <Navigate to="/sms/send?mode=reserved" replace /> },
               { path: 'sms/opt-outs', element: <Navigate to="/sms/settings" replace /> },
+              { path: 'sms/automations', element: <SmsAutomationPage /> },
               { path: 'sms/:tab', element: <SmsModulePage /> },
               { path: 'insurance/account-credentials', element: <UserInsurerAccountsPage /> },
               {

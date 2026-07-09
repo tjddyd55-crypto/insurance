@@ -1,0 +1,32 @@
+import { Link, useLocation } from 'react-router-dom'
+
+const SMS_MANAGEMENT_LINKS = [
+  { label: '단체문자', path: '/sms/groups' },
+  { label: '예약문자', path: '/sms/send?mode=reserved' },
+  { label: '자동문자', path: '/sms/automations' },
+] as const
+
+export function SmsManagementNav() {
+  const location = useLocation()
+
+  return (
+    <nav className="sms-management-nav" aria-label="문자관리">
+      {SMS_MANAGEMENT_LINKS.map((item) => {
+        const active =
+          item.path === '/sms/automations'
+            ? location.pathname.startsWith('/sms/automations')
+            : location.pathname + location.search === item.path ||
+              (item.path === '/sms/groups' && location.pathname === '/sms/groups')
+        return (
+          <Link
+            key={item.path}
+            to={item.path}
+            className={`sms-management-nav__link${active ? ' sms-management-nav__link--active' : ''}`}
+          >
+            {item.label}
+          </Link>
+        )
+      })}
+    </nav>
+  )
+}

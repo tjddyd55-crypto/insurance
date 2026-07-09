@@ -47,6 +47,13 @@ import {
   runScheduledMessageNow,
   updateScheduledMessage,
 } from './sms/smsScheduledMessageService.js'
+import {
+  createAutomationRule,
+  deleteAutomationRule,
+  listAutomationRules,
+  previewAutomationRule,
+  updateAutomationRule,
+} from './sms/smsAutomationRuleService.js'
 
 function smsApiError(res, err) {
   const status = Number(err?.status ?? 500)
@@ -778,6 +785,91 @@ export function registerSmsModuleApi(apiRouter, ctx) {
   apiRouter.post('/sms/scheduled/run-due', ensureScheduleRunnerSecret, ensureSmsModuleEnabled, async (req, res) => {
     try {
       const data = await queueDueScheduledMessages(pool)
+      res.json({ success: true, data })
+    } catch (e) {
+      if (e?.status) {
+        smsApiError(res, e)
+        return
+      }
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.get('/sms/automation-rules', requireAuth, ensureSmsModuleEnabled, async (req, res) => {
+    try {
+      const scope = await resolveSmsAuthContext(pool, req)
+      const data = await listAutomationRules(pool, scope)
+      res.json({ success: true, data })
+    } catch (e) {
+      if (e?.status) {
+        smsApiError(res, e)
+        return
+      }
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.post('/sms/automation-rules', requireAuth, ensureSmsModuleEnabled, async (req, res) => {
+    try {
+      const scope = await resolveSmsAuthContext(pool, req)
+      const data = await createAutomationRule(pool, scope, req.body ?? {})
+      res.status(201).json({ success: true, data })
+    } catch (e) {
+      if (e?.status) {
+        smsApiError(res, e)
+        return
+      }
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.patch('/sms/automation-rules/:id', requireAuth, ensureSmsModuleEnabled, async (req, res) => {
+    try {
+      const scope = await resolveSmsAuthContext(pool, req)
+      const id = Number(req.params.id)
+      if (!Number.isInteger(id) || id <= 0) {
+        res.status(400).json({ success: false, message: '잘못된 규칙 ID입니다.', code: 'sms_automation_invalid_id' })
+        return
+      }
+      const data = await updateAutomationRule(pool, scope, id, req.body ?? {})
+      res.json({ success: true, data })
+    } catch (e) {
+      if (e?.status) {
+        smsApiError(res, e)
+        return
+      }
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.delete('/sms/automation-rules/:id', requireAuth, ensureSmsModuleEnabled, async (req, res) => {
+    try {
+      const scope = await resolveSmsAuthContext(pool, req)
+      const id = Number(req.params.id)
+      if (!Number.isInteger(id) || id <= 0) {
+        res.status(400).json({ success: false, message: '잘못된 규칙 ID입니다.', code: 'sms_automation_invalid_id' })
+        return
+      }
+      const data = await deleteAutomationRule(pool, scope, id)
+      res.json({ success: true, data })
+    } catch (e) {
+      if (e?.status) {
+        smsApiError(res, e)
+        return
+      }
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.post('/sms/automation-rules/:id/preview', requireAuth, ensureSmsModuleEnabled, async (req, res) => {
+    try {
+      const scope = await resolveSmsAuthContext(pool, req)
+      const id = Number(req.params.id)
+      if (!Number.isInteger(id) || id <= 0) {
+        res.status(400).json({ success: false, message: '잘못된 규칙 ID입니다.', code: 'sms_automation_invalid_id' })
+        return
+      }
+      const data = await previewAutomationRule(pool, scope, id)
       res.json({ success: true, data })
     } catch (e) {
       if (e?.status) {
