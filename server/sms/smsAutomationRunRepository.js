@@ -1,5 +1,52 @@
 import { systemQuery } from '../utils/dbSafeQuery.js'
 
+/**
+ * PostgreSQL DATE 컬럼용 — 빈 문자열·잘못된 형식은 null
+ * @param {unknown} value
+ * @returns {string | null}
+ */
+export function normalizeDateOrNull(value) {
+  if (value == null) {
+    return null
+  }
+  if (typeof value !== 'string') {
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      return value.toISOString().slice(0, 10)
+    }
+    return null
+  }
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return null
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return null
+  }
+  return trimmed
+}
+
+/**
+ * PostgreSQL TIMESTAMP 컬럼용 — 빈 문자열은 null
+ * @param {unknown} value
+ * @returns {string | Date | null}
+ */
+export function normalizeTimestampOrNull(value) {
+  if (value == null) {
+    return null
+  }
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value
+  }
+  if (typeof value !== 'string') {
+    return null
+  }
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return null
+  }
+  return trimmed
+}
+
 function mapRunRow(row) {
   return {
     id: Number(row.id),
@@ -92,8 +139,8 @@ export async function createAutomationRun(executor, input) {
       input.ruleId,
       input.runType,
       input.runMode,
-      input.baseDate,
-      input.targetDate,
+      normalizeDateOrNull(input.baseDate),
+      normalizeDateOrNull(input.targetDate),
       input.scheduledSendTime,
       input.summary.total,
       input.summary.sendable,
@@ -159,6 +206,8 @@ export async function finalizeAutomationRun(executor, runId, patch) {
  */
 export async function insertAutomationRunItem(executor, input) {
   const item = input.item
+  const referenceDate = normalizeDateOrNull(item.referenceDate)
+  const sentAt = normalizeTimestampOrNull(input.sentAt)
   const r = await systemQuery(
     executor,
     `
@@ -189,7 +238,7 @@ export async function insertAutomationRunItem(executor, input) {
       item.referenceType ?? null,
       item.referenceId ?? null,
       item.referenceTitle ?? null,
-      item.referenceDate ?? null,
+      referenceDate,
       item.triggerInstanceKey ?? '',
       item.messageBody ?? '',
       item.sendable === true,
@@ -197,7 +246,7 @@ export async function insertAutomationRunItem(executor, input) {
       input.sendStatus,
       input.sendResultCode ?? null,
       input.sendResultMessage ?? null,
-      input.sentAt ?? null,
+      sentAt,
     ],
   )
   return mapRunItemRow(r.rows[0])
@@ -237,7 +286,7 @@ export async function tryInsertAutomationSendDedupe(executor, input) {
         input.ruleId,
         input.customerId,
         input.triggerInstanceKey,
-        input.referenceDate,
+        normalizeDateOrNull(input.referenceDate),
         input.runItemId,
       ],
     )
@@ -272,7 +321,12 @@ export async function hasAutomationSendDedupe(executor, input) {
       AND reference_date = $4::date
     LIMIT 1
     `,
-    [input.ruleId, input.customerId, input.triggerInstanceKey, input.referenceDate],
+    [
+      input.ruleId,
+      input.customerId,
+      input.triggerInstanceKey,
+      normalizeDateOrNull(input.referenceDate),
+    ],
   )
   return r.rows.length > 0
 }
@@ -292,12 +346,14 @@ export async function listAutomationRuns(executor, params) {
     values.push(String(params.status))
     clauses.push(`status = $${values.length}`)
   }
-  if (params.dateFrom) {
-    values.push(String(params.dateFrom))
+  const dateFrom = normalizeDateOrNull(params.dateFrom)
+  if (dateFrom) {
+    values.push(dateFrom)
     clauses.push(`base_date >= $${values.length}::date`)
   }
-  if (params.dateTo) {
-    values.push(String(params.dateTo))
+  const dateTo = normalizeDateOrNull(params.dateTo)
+  if (dateTo) {
+    values.push(dateTo)
     clauses.push(`base_date <= $${values.length}::date`)
   }
   const limit = Math.min(Math.max(Number(params.limit ?? 50), 1), 200)
@@ -365,7 +421,7 @@ export async function tryAcquireSchedulerLock(executor, input) {
       INSERT INTO sms_automation_scheduler_locks (rule_id, run_date, send_time)
       VALUES ($1, $2::date, $3)
       `,
-      [input.ruleId, input.runDate, input.sendTime],
+      [input.ruleId, normalizeDateOrNull(input.runDate), input.sendTime],
     )
     return true
   } catch (e) {
