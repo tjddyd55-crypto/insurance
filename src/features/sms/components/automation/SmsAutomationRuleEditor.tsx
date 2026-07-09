@@ -1,16 +1,18 @@
+import { useCallback, useRef } from 'react'
 import FormButton from '../../../../components/form/FormButton'
 import FormInput from '../../../../components/form/FormInput'
 import FormSelect from '../../../../components/form/FormSelect'
 import FormTextarea from '../../../../components/form/FormTextarea'
 import {
+  insertAutomationMessageVariable,
   SMS_AUTOMATION_ACTIVE_OPTIONS,
   SMS_AUTOMATION_SPECIAL_DATE_PURPOSE_OPTIONS,
   SMS_AUTOMATION_TRIGGER_TYPE_OPTIONS,
-  SMS_AUTOMATION_VARIABLE_HINTS,
 } from '../../config/smsAutomationRule.config'
 import type { SmsAutomationRuleFormState } from '../../types/smsAutomationRuleTypes'
 import type { SmsAutomationTriggerType } from '../../types/smsAutomationRuleTypes'
 import { SmsAutomationStatusBadge } from './SmsAutomationStatusBadge'
+import { SmsAutomationVariableButtons } from './SmsAutomationVariableButtons'
 
 export type SmsAutomationRuleEditorProps = {
   form: SmsAutomationRuleFormState
@@ -20,6 +22,11 @@ export type SmsAutomationRuleEditorProps = {
   onTriggerTypeChange: (triggerType: SmsAutomationTriggerType) => void
   onSave: () => void
   onDelete: () => void
+}
+
+type TextSelection = {
+  start: number
+  end: number
 }
 
 export function SmsAutomationRuleEditor({
@@ -32,7 +39,37 @@ export function SmsAutomationRuleEditor({
   onDelete,
 }: SmsAutomationRuleEditorProps) {
   const showSpecialDateFilter = form.triggerType === 'CUSTOMER_SPECIAL_DATE'
-  const variableHints = SMS_AUTOMATION_VARIABLE_HINTS[form.triggerType]
+  const messageTextareaRef = useRef<HTMLTextAreaElement>(null)
+  const selectionRef = useRef<TextSelection>({ start: 0, end: 0 })
+
+  const syncSelectionFromTextarea = useCallback(() => {
+    const textarea = messageTextareaRef.current
+    if (!textarea) {
+      return
+    }
+    selectionRef.current = {
+      start: textarea.selectionStart ?? 0,
+      end: textarea.selectionEnd ?? 0,
+    }
+  }, [])
+
+  const handleInsertVariable = useCallback(
+    (token: string) => {
+      const { start, end } = selectionRef.current
+      const next = insertAutomationMessageVariable(form.messageBody, token, start, end)
+      onChange({ messageBody: next.text })
+      requestAnimationFrame(() => {
+        const textarea = messageTextareaRef.current
+        if (!textarea) {
+          return
+        }
+        textarea.focus()
+        textarea.setSelectionRange(next.cursor, next.cursor)
+        selectionRef.current = { start: next.cursor, end: next.cursor }
+      })
+    },
+    [form.messageBody, onChange],
+  )
 
   return (
     <section className="sms-automation-rules__editor-panel" aria-label="자동문자 규칙 편집">
@@ -115,18 +152,31 @@ export function SmsAutomationRuleEditor({
           />
         </label>
 
-        <label className="sms-automation-rules__field sms-automation-rules__field--wide">
-          <span className="sms-automation-rules__label">문자 내용</span>
-          <FormTextarea
-            className="sms-automation-rules__control sms-automation-rules__textarea"
-            rows={6}
-            value={form.messageBody}
-            onChange={(e) => onChange({ messageBody: e.target.value })}
+        <div className="sms-automation-rules__field sms-automation-rules__field--wide">
+          <label className="sms-automation-rules__message-field">
+            <span className="sms-automation-rules__label">문자 내용</span>
+            <FormTextarea
+              ref={messageTextareaRef}
+              className="sms-automation-rules__control sms-automation-rules__textarea"
+              rows={6}
+              value={form.messageBody}
+              onChange={(e) => {
+                onChange({ messageBody: e.target.value })
+                selectionRef.current = {
+                  start: e.target.selectionStart ?? e.target.value.length,
+                  end: e.target.selectionEnd ?? e.target.value.length,
+                }
+              }}
+              onClick={syncSelectionFromTextarea}
+              onKeyUp={syncSelectionFromTextarea}
+              onSelect={syncSelectionFromTextarea}
+            />
+          </label>
+          <SmsAutomationVariableButtons
+            triggerType={form.triggerType}
+            onInsert={handleInsertVariable}
           />
-          <p className="sms-automation-rules__hint">
-            사용 가능 변수: {variableHints.join(', ')}
-          </p>
-        </label>
+        </div>
       </div>
 
       <div className="sms-automation-rules__actions">

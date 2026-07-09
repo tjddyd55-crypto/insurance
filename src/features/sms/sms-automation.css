@@ -191,6 +191,31 @@
   resize: vertical;
 }
 
+.sms-automation-rules__message-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sms-automation-rules__variable-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.sms-automation-rules__variable-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sms-automation-rules__variable-button {
+  min-height: 30px;
+  padding: 4px 10px;
+  font-size: 0.8125rem;
+}
+
 .sms-automation-rules__inline {
   display: flex;
   align-items: center;
