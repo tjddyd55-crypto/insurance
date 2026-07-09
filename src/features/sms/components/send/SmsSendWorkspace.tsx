@@ -16,12 +16,11 @@ import { useSmsSendGroupSelection } from '../../hooks/useSmsSendGroupSelection'
 import type { SmsModuleViewProps } from '../../hooks/useSmsModuleState'
 import type { SmsTemplate } from '../../types/sms.types'
 import type { SmsScheduledRule } from '../../types/smsScheduled.types'
-import { buildScheduleListCardMeta, buildScheduleSummary, formatNextRunAtLabel } from '../../utils/smsScheduledSummary'
 import { validateSmsScheduledSave } from '../../utils/smsScheduledValidation'
 import { formatKrMobileDisplay } from '../../smsDisplayUtils'
 import SmsComposerLayout from '../composer/SmsComposerLayout'
 import SmsPhonePreview from '../composer/SmsPhonePreview'
-import { useConfirmDialog } from '../../../../components/dialog'
+import { SmsReservedRulesList } from './SmsReservedRulesList'
 
 type Props = {
   variant: 'pc' | 'mobile'
@@ -162,72 +161,92 @@ function ReservedScheduleFields({
   )
 }
 
-function ReservedRulesSection({
-  rules,
+function GroupSelectionSection({
+  selectedGroupId,
   groups,
-  disabled,
-  onEdit,
-  onCopy,
-  onDelete,
+  selectedGroup,
+  groupSummary,
+  busy,
+  isLoadingGroupMembers,
+  onGroupChange,
 }: {
-  rules: SmsScheduledRule[]
-  groups: { id: number; name: string }[]
-  disabled?: boolean
-  onEdit: (ruleId: string) => void
-  onCopy: (rule: SmsScheduledRule) => void
-  onDelete: (rule: SmsScheduledRule) => void
+  selectedGroupId: string
+  groups: { id: number; name: string; recipientCount: number }[]
+  selectedGroup: { id: number; name: string } | null | undefined
+  groupSummary: { total: number; sendable: number; excluded: number } | null | undefined
+  busy?: boolean
+  isLoadingGroupMembers?: boolean
+  onGroupChange: (groupId: string) => void
 }) {
-  const { confirm, confirmDialog } = useConfirmDialog()
-
-  const handleDelete = async (rule: SmsScheduledRule) => {
-    const ok = await confirm({
-      title: '예약 삭제',
-      message: '예약문자를 삭제하시겠습니까?\n삭제하면 해당 예약 규칙은 더 이상 실행되지 않습니다.',
-      confirmLabel: '삭제',
-      cancelLabel: '취소',
-      tone: 'danger',
-    })
-    if (ok) {
-      onDelete(rule)
-    }
-  }
-
   return (
-    <>
-      <section className="sms-send-reserved-list">
-        <h3 className="sms-send-section__title">예약현황</h3>
-        {rules.length === 0 ? (
-          <p className="sms-module__muted">저장된 예약문자가 없습니다.</p>
-        ) : (
-          <ul className="sms-send-reserved-list__items">
-            {rules.map((rule) => {
-              const groupName = groups.find((g) => String(g.id) === rule.recipientGroupId)?.name ?? '미지정'
-              return (
-                <li key={rule.id} className="sms-send-reserved-card">
-                  <p className="sms-send-reserved-card__name">{rule.name}</p>
-                  <p className="sms-send-reserved-card__meta">그룹: {groupName}</p>
-                  <p className="sms-send-reserved-card__meta">{buildScheduleSummary(rule)}</p>
-                  <p className="sms-send-reserved-card__meta">다음 실행: {formatNextRunAtLabel(rule.nextRunAt)}</p>
-                  <p className="sms-send-reserved-card__meta">상태: {rule.enabled ? '활성' : '비활성'}</p>
-                  <div className="sms-send-reserved-card__actions">
-                    <FormButton type="button" variant="secondary" disabled={disabled} onClick={() => onEdit(rule.id)}>
-                      수정
-                    </FormButton>
-                    <FormButton type="button" variant="secondary" disabled={disabled} onClick={() => onCopy(rule)}>
-                      복사
-                    </FormButton>
-                    <FormButton type="button" variant="secondary" disabled={disabled} onClick={() => void handleDelete(rule)}>
-                      삭제
-                    </FormButton>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </section>
-      {confirmDialog}
-    </>
+    <section className="sms-send-section">
+      <h3 className="sms-send-section__title">그룹 설정</h3>
+      <label>
+        연락처 그룹
+        <select
+          className="sms-module__select"
+          value={selectedGroupId}
+          disabled={busy || isLoadingGroupMembers}
+          onChange={(e) => onGroupChange(e.target.value)}
+        >
+          <option value="">그룹 선택</option>
+          {groups.map((group) => (
+            <option key={group.id} value={String(group.id)}>
+              {group.name} ({group.recipientCount}명)
+            </option>
+          ))}
+        </select>
+      </label>
+      {selectedGroup && groupSummary ? (
+        <div className="sms-send-group-summary">
+          <p>{selectedGroup.name}</p>
+          <p className="sms-module__muted">
+            총 {groupSummary.total}명 · 발송 가능 {groupSummary.sendable}명 · 제외 {groupSummary.excluded}명
+          </p>
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
+function TemplateSelectionSection({
+  templates,
+  templateId,
+  busy,
+  onTemplateSelect,
+  onManageTemplates,
+}: {
+  templates: SmsTemplate[]
+  templateId: string
+  busy?: boolean
+  onTemplateSelect: (templateId: string) => void
+  onManageTemplates: () => void
+}) {
+  return (
+    <section className="sms-send-section">
+      <h3 className="sms-send-section__title">템플릿 선택</h3>
+      <label>
+        템플릿 불러오기
+        <select
+          className="sms-module__select"
+          value={templateId}
+          disabled={busy}
+          onChange={(e) => onTemplateSelect(e.target.value)}
+        >
+          <option value="">템플릿 선택</option>
+          {templates.map((template: SmsTemplate) => (
+            <option key={template.id} value={String(template.id)}>
+              {template.title}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="sms-send-template-actions">
+        <FormButton type="button" variant="secondary" disabled={busy} onClick={onManageTemplates}>
+          템플릿 관리
+        </FormButton>
+      </div>
+    </section>
   )
 }
 
@@ -362,14 +381,207 @@ export default function SmsSendWorkspace({ variant, module, initialSendMode, adD
     setSelectedGroupId(rule?.recipientGroupId ?? '')
   }
 
+  const handleSelectReservedRule = (ruleId: string) => {
+    handleEditReservedRule(ruleId)
+  }
+
   const handleDeleteReservedRule = (rule: SmsScheduledRule) => {
     void scheduledState.deleteRuleById(rule.id)
   }
 
   const layout = variant === 'pc' ? 'sms-send-workspace--pc' : 'sms-send-workspace--mobile'
+  const isReservedPc = sendMode === 'reserved' && variant === 'pc'
+
+  const composerNode = (
+    <SmsComposerLayout
+      variant={variant}
+      showPreview={variant === 'mobile'}
+      message={messageBody}
+      onMessageChange={handleMessageChange}
+      isAdvertisement={messageType === 'ad'}
+      onAdvertisementChange={handleAdChange}
+      senderNumber={bulkForm.senderNumber || settings?.defaultSender}
+      adDisplayName={adDisplayName}
+      previewSubstitution={{ mode: 'preserve' }}
+      realSendEnabled={realSendEnabledFlag}
+      disabled={busy}
+      setupFields={
+        sendMode === 'immediate' ? (
+          <div className="sms-module__grid">
+            <label>
+              발송 제목
+              <FormInput
+                value={bulkForm.title}
+                onChange={(e) => setBulkForm((prev) => ({ ...prev, title: e.target.value }))}
+              />
+            </label>
+            <label>
+              발신번호
+              <select
+                className="sms-module__select"
+                value={bulkForm.senderNumber}
+                onChange={(e) => setBulkForm((prev) => ({ ...prev, senderNumber: e.target.value }))}
+              >
+                <option value="">선택</option>
+                {verifiedSenders.map((s) => (
+                  <option key={s.id} value={s.senderNumber}>
+                    {formatKrMobileDisplay(s.senderNumber)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        ) : null
+      }
+      actions={
+        sendMode === 'immediate' ? (
+          <div className="sms-module__actions">
+            <FormButton type="button" variant="secondary" disabled={busy} onClick={() => void handlePreviewBulk()}>
+              발송 미리보기
+            </FormButton>
+            <FormButton
+              type="button"
+              disabled={busy || !previewAcknowledged || !realSendEnabledFlag}
+              onClick={() => void handleCreateBulk(false)}
+            >
+              발송 준비
+            </FormButton>
+            {!realSendEnabledFlag ? (
+              <p className="sms-composer__send-disabled-note">
+                실발송 비활성 상태입니다. 현재는 미리보기/저장만 가능합니다.
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <div className="sms-module__actions">
+            <FormButton
+              type="button"
+              disabled={busy || !scheduleSaveValidation.canSave}
+              onClick={handleSaveReserved}
+            >
+              예약 저장
+            </FormButton>
+            {scheduleSaveValidation.disabledReason ? (
+              <p className="sms-send-workspace__validation-message">{scheduleSaveValidation.disabledReason}</p>
+            ) : null}
+            {!realSendEnabledFlag ? (
+              <p className="sms-composer__send-disabled-note">
+                실발송 비활성 상태입니다. 예약은 서버에 저장되지만 예약 시간에 실제 발송되지 않습니다.
+              </p>
+            ) : (
+              <p className="sms-composer__send-disabled-note">
+                예약 저장 시 서버에 등록되며, 예약 시간에 자동 발송됩니다.
+              </p>
+            )}
+          </div>
+        )
+      }
+      below={
+        preview && sendMode === 'immediate' ? (
+          <div className="sms-module__preview sms-composer__campaign-preview">
+            <p>
+              발송 가능 {preview.sendableCount}건 / 제외 {preview.skippedCount}건
+            </p>
+          </div>
+        ) : null
+      }
+    />
+  )
+
+  const phonePreviewAside =
+    variant === 'pc' ? (
+      <aside className="sms-send-workspace__right sms-send-preview-panel">
+        <SmsPhonePreview meta={meta} senderNumber={settings?.defaultSender} hideCaption />
+        {selectedGroup && groupSummary ? (
+          <div className="sms-send-target-summary">
+            <h3 className="sms-send-section__title">대상 요약</h3>
+            <p>{selectedGroup.name}</p>
+            <p className="sms-module__muted">
+              발송 가능 {groupSummary.sendable}명 · 제외 {groupSummary.excluded}명
+            </p>
+          </div>
+        ) : null}
+      </aside>
+    ) : null
+
+  const reservedListNode = (
+    <SmsReservedRulesList
+      rules={scheduledState.rules}
+      groups={scheduledState.groups}
+      selectedRuleId={scheduledState.selectedRuleId}
+      disabled={busy}
+      onSelect={handleSelectReservedRule}
+      onEdit={handleEditReservedRule}
+      onCopy={scheduledState.copyRule}
+      onDelete={handleDeleteReservedRule}
+    />
+  )
+
+  const reservedComposerNode = (
+    <SmsComposerLayout
+      variant={variant}
+      showPreview={variant === 'mobile'}
+      message={messageBody}
+      onMessageChange={handleMessageChange}
+      isAdvertisement={messageType === 'ad'}
+      onAdvertisementChange={handleAdChange}
+      senderNumber={bulkForm.senderNumber || settings?.defaultSender}
+      adDisplayName={adDisplayName}
+      previewSubstitution={{ mode: 'preserve' }}
+      realSendEnabled={realSendEnabledFlag}
+      disabled={busy}
+    />
+  )
+
+  const reservedSaveActions = (
+    <div className="sms-module__actions sms-send-workspace__reserved-save">
+      <FormButton type="button" disabled={busy || !scheduleSaveValidation.canSave} onClick={handleSaveReserved}>
+        예약 저장
+      </FormButton>
+      {scheduleSaveValidation.disabledReason ? (
+        <p className="sms-send-workspace__validation-message">{scheduleSaveValidation.disabledReason}</p>
+      ) : null}
+      {!realSendEnabledFlag ? (
+        <p className="sms-composer__send-disabled-note">
+          실발송 비활성 상태입니다. 예약은 서버에 저장되지만 예약 시간에 실제 발송되지 않습니다.
+        </p>
+      ) : (
+        <p className="sms-composer__send-disabled-note">
+          예약 저장 시 서버에 등록되며, 예약 시간에 자동 발송됩니다.
+        </p>
+      )}
+    </div>
+  )
+
+  const composeFlowNode = (
+    <>
+      <GroupSelectionSection
+        selectedGroupId={selectedGroupId}
+        groups={scheduledState.groups}
+        selectedGroup={selectedGroup}
+        groupSummary={groupSummary}
+        busy={busy}
+        isLoadingGroupMembers={isLoadingGroupMembers}
+        onGroupChange={handleGroupChangeForSend}
+      />
+      <TemplateSelectionSection
+        templates={templates}
+        templateId={scheduledState.form.templateId}
+        busy={busy}
+        onTemplateSelect={handleTemplateSelect}
+        onManageTemplates={() => navigate('/sms/templates')}
+      />
+      {reservedComposerNode}
+      <section className="sms-send-section sms-send-section--schedule">
+        <h3 className="sms-send-section__title">예약 설정</h3>
+        <ReservedScheduleFields form={scheduledState.form} updateForm={scheduledState.updateForm} disabled={busy} />
+      </section>
+      {reservedSaveActions}
+    </>
+  )
 
   return (
-    <div className={`sms-send-workspace ${layout}`}>
+    <div className={`sms-send-workspace ${layout}${isReservedPc ? ' sms-send-workspace--reserved-pc' : ''}`}>
       {scheduledState.actionNotice ? <p className="sms-module__muted">{scheduledState.actionNotice}</p> : null}
 
       <div className="sms-send-workspace__mode-row">
@@ -377,191 +589,46 @@ export default function SmsSendWorkspace({ variant, module, initialSendMode, adD
         <SendModeSelector value={sendMode} disabled={busy} onChange={setSendMode} />
       </div>
 
-      <div className="sms-send-workspace__main">
-        <aside className="sms-send-workspace__left">
-          <section className="sms-send-section">
-            <h3 className="sms-send-section__title">대상 그룹</h3>
-            <label>
-              그룹 선택
-              <select
-                className="sms-module__select"
-                value={selectedGroupId}
-                disabled={busy || isLoadingGroupMembers}
-                onChange={(e) => handleGroupChangeForSend(e.target.value)}
-              >
-                <option value="">그룹 선택</option>
-                {scheduledState.groups.map((group) => (
-                  <option key={group.id} value={String(group.id)}>
-                    {group.name} ({group.recipientCount}명)
-                  </option>
-                ))}
-              </select>
-            </label>
-            {selectedGroup && groupSummary ? (
-              <div className="sms-send-group-summary">
-                <p>{selectedGroup.name}</p>
-                <p className="sms-module__muted">
-                  총 {groupSummary.total}명 · 발송 가능 {groupSummary.sendable}명 · 제외 {groupSummary.excluded}명
-                </p>
-              </div>
-            ) : null}
-          </section>
+      {sendMode === 'reserved' && variant === 'mobile' ? reservedListNode : null}
 
-          {sendMode === 'reserved' ? (
-            <section className="sms-send-section">
-              <h3 className="sms-send-section__title">예약 조건</h3>
-              <ReservedScheduleFields form={scheduledState.form} updateForm={scheduledState.updateForm} disabled={busy} />
-            </section>
-          ) : null}
-
-          <section className="sms-send-section">
-            <h3 className="sms-send-section__title">템플릿</h3>
-            <label>
-              템플릿 불러오기
-              <select
-                className="sms-module__select"
-                value={sendMode === 'reserved' ? scheduledState.form.templateId : ''}
-                disabled={busy}
-                onChange={(e) => handleTemplateSelect(e.target.value)}
-              >
-                <option value="">템플릿 선택</option>
-                {templates.map((template: SmsTemplate) => (
-                  <option key={template.id} value={String(template.id)}>
-                    {template.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="sms-send-template-actions">
-              <FormButton type="button" variant="secondary" disabled={busy} onClick={() => navigate('/sms/templates')}>
-                템플릿 관리
-              </FormButton>
-            </div>
-          </section>
-        </aside>
-
-        <div className="sms-send-workspace__center">
-          <SmsComposerLayout
-            variant={variant}
-            showPreview={variant === 'mobile'}
-            message={messageBody}
-            onMessageChange={handleMessageChange}
-            isAdvertisement={messageType === 'ad'}
-            onAdvertisementChange={handleAdChange}
-            senderNumber={bulkForm.senderNumber || settings?.defaultSender}
-            adDisplayName={adDisplayName}
-            previewSubstitution={{ mode: 'preserve' }}
-            realSendEnabled={realSendEnabledFlag}
-            disabled={busy}
-            setupFields={
-              sendMode === 'immediate' ? (
-                <div className="sms-module__grid">
-                  <label>
-                    발송 제목
-                    <FormInput
-                      value={bulkForm.title}
-                      onChange={(e) => setBulkForm((prev) => ({ ...prev, title: e.target.value }))}
-                    />
-                  </label>
-                  <label>
-                    발신번호
-                    <select
-                      className="sms-module__select"
-                      value={bulkForm.senderNumber}
-                      onChange={(e) => setBulkForm((prev) => ({ ...prev, senderNumber: e.target.value }))}
-                    >
-                      <option value="">선택</option>
-                      {verifiedSenders.map((s) => (
-                        <option key={s.id} value={s.senderNumber}>
-                          {formatKrMobileDisplay(s.senderNumber)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-              ) : (
-                <p className="sms-module__muted">예약 발송은 그룹과 예약 조건을 확인한 뒤 저장합니다.</p>
-              )
-            }
-            actions={
-              sendMode === 'immediate' ? (
-                <div className="sms-module__actions">
-                  <FormButton type="button" variant="secondary" disabled={busy} onClick={() => void handlePreviewBulk()}>
-                    발송 미리보기
-                  </FormButton>
-                  <FormButton
-                    type="button"
-                    disabled={busy || !previewAcknowledged || !realSendEnabledFlag}
-                    onClick={() => void handleCreateBulk(false)}
-                  >
-                    발송 준비
-                  </FormButton>
-                  {!realSendEnabledFlag ? (
-                    <p className="sms-composer__send-disabled-note">
-                      실발송 비활성 상태입니다. 현재는 미리보기/저장만 가능합니다.
-                    </p>
-                  ) : null}
-                </div>
-              ) : (
-                <div className="sms-module__actions">
-                  <FormButton
-                    type="button"
-                    disabled={busy || !scheduleSaveValidation.canSave}
-                    onClick={handleSaveReserved}
-                  >
-                    예약 저장
-                  </FormButton>
-                  {scheduleSaveValidation.disabledReason ? (
-                    <p className="sms-send-workspace__validation-message">{scheduleSaveValidation.disabledReason}</p>
-                  ) : null}
-                  {!realSendEnabledFlag ? (
-                    <p className="sms-composer__send-disabled-note">
-                      실발송 비활성 상태입니다. 예약은 서버에 저장되지만 예약 시간에 실제 발송되지 않습니다.
-                    </p>
-                  ) : (
-                    <p className="sms-composer__send-disabled-note">
-                      예약 저장 시 서버에 등록되며, 예약 시간에 자동 발송됩니다.
-                    </p>
-                  )}
-                </div>
-              )
-            }
-            below={
-              preview && sendMode === 'immediate' ? (
-                <div className="sms-module__preview sms-composer__campaign-preview">
-                  <p>
-                    발송 가능 {preview.sendableCount}건 / 제외 {preview.skippedCount}건
-                  </p>
-                </div>
-              ) : null
-            }
-          />
-        </div>
-
-        {variant === 'pc' ? (
-          <aside className="sms-send-workspace__right sms-send-preview-panel">
-            <SmsPhonePreview meta={meta} senderNumber={settings?.defaultSender} hideCaption />
-            {selectedGroup && groupSummary ? (
-              <div className="sms-send-target-summary">
-                <h3 className="sms-send-section__title">대상 요약</h3>
-                <p>{selectedGroup.name}</p>
-                <p className="sms-module__muted">
-                  발송 가능 {groupSummary.sendable}명 · 제외 {groupSummary.excluded}명
-                </p>
-              </div>
-            ) : null}
+      <div
+        className={`sms-send-workspace__main${
+          isReservedPc ? ' sms-send-workspace__main--reserved' : ''
+        }`}
+      >
+        {isReservedPc ? (
+          <aside className="sms-send-workspace__reserved-list">{reservedListNode}</aside>
+        ) : sendMode !== 'reserved' ? (
+          <aside className="sms-send-workspace__left">
+            <GroupSelectionSection
+              selectedGroupId={selectedGroupId}
+              groups={scheduledState.groups}
+              selectedGroup={selectedGroup}
+              groupSummary={groupSummary}
+              busy={busy}
+              isLoadingGroupMembers={isLoadingGroupMembers}
+              onGroupChange={handleGroupChangeForSend}
+            />
+            <TemplateSelectionSection
+              templates={templates}
+              templateId=""
+              busy={busy}
+              onTemplateSelect={handleTemplateSelect}
+              onManageTemplates={() => navigate('/sms/templates')}
+            />
           </aside>
         ) : null}
-      </div>
 
-      <ReservedRulesSection
-        rules={scheduledState.rules}
-        groups={scheduledState.groups}
-        disabled={busy}
-        onEdit={handleEditReservedRule}
-        onCopy={scheduledState.copyRule}
-        onDelete={handleDeleteReservedRule}
-      />
+        <div
+          className={`sms-send-workspace__center${
+            sendMode === 'reserved' ? ' sms-send-workspace__center--reserved-compose' : ''
+          }`}
+        >
+          {sendMode === 'reserved' ? composeFlowNode : composerNode}
+        </div>
+
+        {phonePreviewAside}
+      </div>
 
       {scheduledState.confirmDialog}
     </div>

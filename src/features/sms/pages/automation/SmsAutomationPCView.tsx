@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { SmsAutomationPhonePreview } from '../../components/automation/SmsAutomationPhonePreview'
 import { SmsAutomationRuleEditor } from '../../components/automation/SmsAutomationRuleEditor'
 import { SmsAutomationRuleList } from '../../components/automation/SmsAutomationRuleList'
 import { SmsAutomationRulePreviewPanel } from '../../components/automation/SmsAutomationRulePreview'
@@ -48,32 +49,45 @@ export default function SmsAutomationPCView(props: SmsAutomationViewProps) {
           />
           <div className="sms-automation-rules-page__detail">
             {showEditor ? (
-              <>
-                <SmsAutomationRuleEditor
-                  form={props.form}
-                  isCreating={props.isCreating}
-                  saving={props.saving}
-                  onChange={props.updateForm}
-                  onTriggerTypeChange={props.changeTriggerType}
-                  onSave={() => void props.saveForm()}
-                  onDelete={() => void props.removeSelected()}
-                />
-                <SmsAutomationRulePreviewPanel
-                  preview={props.preview}
-                  loading={props.previewLoading}
-                  canPreview={!props.isCreating && props.form.id != null}
-                  baseDate={props.previewBaseDate}
-                  onBaseDateChange={props.setPreviewBaseDate}
-                  onLoadPreview={() => void props.loadPreview()}
-                />
-              </>
+              <SmsAutomationRuleEditor
+                form={props.form}
+                isCreating={props.isCreating}
+                saving={props.saving}
+                onChange={props.updateForm}
+                onTriggerTypeChange={props.changeTriggerType}
+                onSave={() => void props.saveForm()}
+                onDelete={() => void props.removeSelected()}
+              />
             ) : (
               <div className="sms-automation-rules__empty-detail">
                 <p>좌측에서 규칙을 선택하거나 새 규칙을 추가하세요.</p>
               </div>
             )}
           </div>
+          {showEditor ? (
+            <SmsAutomationPhonePreview
+              form={props.form}
+              preview={props.preview}
+              baseDate={props.previewBaseDate}
+            />
+          ) : (
+            <aside className="sms-automation-rules__phone-preview-panel sms-automation-rules__phone-preview-panel--placeholder">
+              <h2 className="sms-automation-rules__panel-title">휴대폰 미리보기</h2>
+              <p className="sms-automation-rules__muted">규칙을 선택하면 문자 예시가 표시됩니다.</p>
+            </aside>
+          )}
         </div>
+
+        {showEditor ? (
+          <SmsAutomationRulePreviewPanel
+            preview={props.preview}
+            loading={props.previewLoading}
+            canPreview={!props.isCreating && props.form.id != null}
+            baseDate={props.previewBaseDate}
+            onBaseDateChange={props.setPreviewBaseDate}
+            onLoadPreview={() => void props.loadPreview()}
+          />
+        ) : null}
       </div>
     </main>
   )
