@@ -88,9 +88,47 @@
 
 .sms-automation-rules-page__layout--pc {
   display: grid;
-  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr) minmax(260px, 300px);
   gap: 16px;
   align-items: start;
+}
+
+.sms-automation-rules-page__detail {
+  min-width: 0;
+}
+
+.sms-automation-rules__phone-preview-panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  padding: 14px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  align-self: start;
+}
+
+.sms-automation-rules__phone-preview-panel .sms-composer__preview-panel {
+  position: static;
+  top: auto;
+  width: 100%;
+  max-width: var(--sms-phone-preview-width, 280px);
+  margin: 0 auto;
+}
+
+.sms-automation-rules__phone-preview-panel--placeholder {
+  justify-content: flex-start;
+  min-height: 280px;
+}
+
+.sms-automation-rules-page--mobile .sms-automation-rules__phone-preview-panel {
+  margin-top: 4px;
+}
+
+.sms-automation-rules-page--pc .sms-automation-rules__preview-panel {
+  margin-top: 16px;
 }
 
 .sms-automation-rules__list-panel,

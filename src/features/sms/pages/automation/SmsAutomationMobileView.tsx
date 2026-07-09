@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { SmsAutomationPhonePreview } from '../../components/automation/SmsAutomationPhonePreview'
 import { SmsAutomationRuleEditor } from '../../components/automation/SmsAutomationRuleEditor'
 import { SmsAutomationRuleList } from '../../components/automation/SmsAutomationRuleList'
 import { SmsAutomationRulePreviewPanel } from '../../components/automation/SmsAutomationRulePreview'
@@ -54,6 +55,12 @@ export default function SmsAutomationMobileView(props: SmsAutomationViewProps) {
               onTriggerTypeChange={props.changeTriggerType}
               onSave={() => void props.saveForm()}
               onDelete={() => void props.removeSelected()}
+            />
+            <SmsAutomationPhonePreview
+              form={props.form}
+              preview={props.preview}
+              baseDate={props.previewBaseDate}
+              compact
             />
             <SmsAutomationRulePreviewPanel
               preview={props.preview}

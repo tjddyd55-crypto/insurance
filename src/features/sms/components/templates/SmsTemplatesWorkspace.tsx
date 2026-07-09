@@ -212,15 +212,6 @@ export default function SmsTemplatesWorkspace({ variant, module, adDisplayName }
           </div>
         </section>
 
-        <aside className="sms-templates-workspace__preview" aria-label="휴대폰 미리보기">
-          <SmsPhonePreview
-            meta={meta}
-            senderNumber={settings?.defaultSender}
-            transitionNotice={transitionNotice}
-            onDismissTransition={dismissTransitionNotice}
-          />
-        </aside>
-
         <div className="sms-templates-workspace__list">
           <SmsTemplateListPanel
             templates={templates}
@@ -230,6 +221,15 @@ export default function SmsTemplatesWorkspace({ variant, module, adDisplayName }
             onDelete={handleDelete}
           />
         </div>
+
+        <aside className="sms-templates-workspace__preview" aria-label="휴대폰 미리보기">
+          <SmsPhonePreview
+            meta={meta}
+            senderNumber={settings?.defaultSender}
+            transitionNotice={transitionNotice}
+            onDismissTransition={dismissTransitionNotice}
+          />
+        </aside>
       </div>
     </div>
   )
