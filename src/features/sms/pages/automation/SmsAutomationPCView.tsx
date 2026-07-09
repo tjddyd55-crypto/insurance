@@ -22,12 +22,12 @@ export default function SmsAutomationPCView(props: SmsAutomationViewProps) {
   const showEditor = props.isCreating || props.selectedRuleId != null
 
   return (
-    <main className="page sms-automation-rules-page sms-automation-rules-page--pc page--with-back">
-      <div className="sms-automation-rules-page__shell">
-        <div className="sms-module__topbar sms-module__topbar--pc">
-          <SmsModuleNav variant="pc" activeTab="automations" />
-        </div>
+    <main className="page sms-module-page sms-module-page--pc sms-automation-rules-page sms-automation-rules-page--pc page--with-back">
+      <div className="sms-module__topbar sms-module__topbar--pc">
+        <SmsModuleNav variant="pc" activeTab="automations" />
+      </div>
 
+      <div className="sms-module__content">
         <header className="sms-automation-rules-page__header">
           <div>
             <h1 className="sms-automation-rules-page__title">자동문자</h1>
