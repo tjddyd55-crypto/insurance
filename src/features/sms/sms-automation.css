@@ -216,6 +216,32 @@
   font-size: 0.8125rem;
 }
 
+.sms-automation-rules__target-scope {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sms-automation-rules__checkbox-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.sms-automation-rules__checkbox-field input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.sms-automation-rules__preview-card-note {
+  grid-column: 1 / -1;
+  color: var(--text-secondary);
+}
+
 .sms-automation-rules__inline {
   display: flex;
   align-items: center;

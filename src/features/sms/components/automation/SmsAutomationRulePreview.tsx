@@ -130,6 +130,12 @@ export function SmsAutomationRulePreviewPanel({
                           <dd>{item.excludedReason}</dd>
                         </div>
                       ) : null}
+                      {item.scopeNote ? (
+                        <div className="sms-automation-rules__preview-card-note">
+                          <dt>참고</dt>
+                          <dd>{item.scopeNote}</dd>
+                        </div>
+                      ) : null}
                     </dl>
                     <p className="sms-automation-rules__preview-card-message">{item.messageBody}</p>
                   </li>

@@ -392,4 +392,8 @@ export async function ensureSmsModuleSchema(executor) {
     ON sms_automation_rules (tenant_id, user_id, updated_at DESC)
     WHERE deleted_at IS NULL
   `)
+  await executor.query(`
+    ALTER TABLE sms_automation_rules
+    ADD COLUMN IF NOT EXISTS exclude_minors BOOLEAN NOT NULL DEFAULT FALSE
+  `)
 }

@@ -56,6 +56,7 @@ function ruleToForm(rule: SmsAutomationRule): SmsAutomationRuleFormState {
     sendTime: rule.sendTime,
     messageBody: rule.messageBody,
     isActive: rule.isActive,
+    excludeMinors: rule.excludeMinors,
   }
 }
 
@@ -171,6 +172,7 @@ export function useSmsAutomationRulesState(): UseSmsAutomationRulesStateResult {
         sendTime: form.sendTime,
         messageBody: form.messageBody.trim(),
         isActive: form.isActive,
+        excludeMinors: form.excludeMinors,
       }
       if (!payload.ruleName) {
         setError('규칙명을 입력해 주세요.')

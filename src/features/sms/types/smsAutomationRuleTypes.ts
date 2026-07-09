@@ -27,6 +27,7 @@ export type SmsAutomationRule = {
   sendTime: string
   messageBody: string
   isActive: boolean
+  excludeMinors: boolean
   createdAt: string
   updatedAt: string
 }
@@ -39,6 +40,7 @@ export type SmsAutomationRuleInput = {
   sendTime: string
   messageBody: string
   isActive: boolean
+  excludeMinors: boolean
 }
 
 export type SmsAutomationPreviewItem = {
@@ -52,6 +54,7 @@ export type SmsAutomationPreviewItem = {
   messageBody: string
   sendable: boolean
   excludedReason: string | null
+  scopeNote?: string | null
   carNumber?: string | null
 }
 
@@ -63,6 +66,7 @@ export type SmsAutomationRulePreview = {
     dayOffset: number
     sendTime: string
     isActive: boolean
+    excludeMinors: boolean
   }
   baseDate: string
   targetDate: string
