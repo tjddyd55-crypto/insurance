@@ -3,6 +3,8 @@ import type {
   SmsAutomationRule,
   SmsAutomationRuleInput,
   SmsAutomationRulePreview,
+  SmsAutomationRunDetail,
+  SmsAutomationRunResult,
 } from '../types/smsAutomationRuleTypes'
 
 function requireSmsToken(token: string): string {
@@ -58,5 +60,29 @@ export async function previewSmsAutomationRule(
     token: requireSmsToken(token),
     method: 'POST',
     body: JSON.stringify(baseDate ? { baseDate } : {}),
+  })
+}
+
+export async function runSmsAutomationRule(
+  token: string,
+  ruleId: number,
+  options?: { baseDate?: string; realSend?: boolean },
+): Promise<SmsAutomationRunResult> {
+  return apiRequest<SmsAutomationRunResult>(`/api/sms/automation-rules/${ruleId}/run`, {
+    token: requireSmsToken(token),
+    method: 'POST',
+    body: JSON.stringify({
+      baseDate: options?.baseDate,
+      realSend: options?.realSend === true,
+    }),
+  })
+}
+
+export async function fetchSmsAutomationRunDetail(
+  token: string,
+  runId: number,
+): Promise<SmsAutomationRunDetail> {
+  return apiRequest<SmsAutomationRunDetail>(`/api/sms/automation-runs/${runId}`, {
+    token: requireSmsToken(token),
   })
 }

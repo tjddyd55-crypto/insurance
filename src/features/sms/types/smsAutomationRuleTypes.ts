@@ -50,12 +50,67 @@ export type SmsAutomationPreviewItem = {
   triggerLabel: string
   referenceTitle: string | null
   referenceDate: string | null
+  referenceType?: string | null
+  referenceId?: number | null
+  triggerInstanceKey?: string | null
   dayOffset: number
   messageBody: string
   sendable: boolean
   excludedReason: string | null
   scopeNote?: string | null
   carNumber?: string | null
+}
+
+export type SmsAutomationRunSummary = {
+  total: number
+  sendable: number
+  excluded: number
+  sent: number
+  simulated: number
+  failed: number
+  skippedDuplicate: number
+}
+
+export type SmsAutomationRunResult = {
+  runId: number
+  mode: 'DRY_RUN' | 'REAL_SEND' | 'SIMULATED_SEND'
+  runType: 'MANUAL' | 'SCHEDULED'
+  realSendEnabled: boolean
+  summary: SmsAutomationRunSummary
+}
+
+export type SmsAutomationRunItem = {
+  id: number
+  runId: number
+  customerId: number | null
+  customerName: string
+  phone: string
+  referenceTitle: string | null
+  referenceDate: string | null
+  messageBody: string
+  sendable: boolean
+  excludedReason: string | null
+  sendStatus: 'EXCLUDED' | 'SKIPPED_DUPLICATE' | 'SIMULATED' | 'SENT' | 'FAILED'
+  sendResultMessage: string | null
+}
+
+export type SmsAutomationRunDetail = {
+  run: {
+    id: number
+    runType: string
+    runMode: string
+    status: string
+    baseDate: string
+    targetDate: string
+    totalCount: number
+    sendableCount: number
+    excludedCount: number
+    successCount: number
+    failedCount: number
+    skippedDuplicateCount: number
+    createdAt: string
+  }
+  items: SmsAutomationRunItem[]
 }
 
 export type SmsAutomationRulePreview = {

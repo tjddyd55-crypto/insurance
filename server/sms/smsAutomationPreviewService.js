@@ -9,6 +9,7 @@ import {
   applyAutomationTargetScopeToPreviewItem,
   mapAutomationTargetFiltersFromRuleRow,
 } from './smsAutomationTargetFilter.js'
+import { enrichPreviewItemForExecution } from './smsAutomationDedupe.js'
 
 const TRIGGER_LABELS = {
   BIRTHDAY: '생일',
@@ -247,6 +248,7 @@ async function collectCarExpiryCandidates(executor, scope, targetDate) {
       c.id AS customer_id,
       c.name AS customer_name,
       c.phone,
+      cc.id AS car_id,
       cc.car_number,
       cc.renewal_date
     FROM customer_cars cc
@@ -266,6 +268,7 @@ async function collectCarExpiryCandidates(executor, scope, targetDate) {
     customerId: Number(row.customer_id),
     customerName: String(row.customer_name ?? '').trim() || '고객',
     rawPhone: row.phone,
+    referenceId: Number(row.car_id),
     triggerLabel: TRIGGER_LABELS.CAR_INSURANCE_EXPIRY,
     referenceTitle: String(row.car_number ?? '').trim() || '자동차보험',
     referenceDate: formatDateOnly(row.renewal_date),
@@ -298,6 +301,7 @@ async function collectCarExpiryCandidates(executor, scope, targetDate) {
     customerId: Number(row.customer_id),
     customerName: String(row.customer_name ?? '').trim() || '고객',
     rawPhone: row.phone,
+    referenceId: null,
     triggerLabel: TRIGGER_LABELS.CAR_INSURANCE_EXPIRY,
     referenceTitle: String(row.car_number ?? '').trim() || '자동차보험',
     referenceDate: formatDateOnly(row.renewal_date),
@@ -353,6 +357,7 @@ async function collectSpecialDateCandidates(executor, scope, targetDate, purpose
       c.id AS customer_id,
       c.name AS customer_name,
       c.phone,
+      sd.id AS special_date_id,
       sd.title,
       sd.date_value,
       sd.purpose_type
@@ -379,6 +384,7 @@ async function collectSpecialDateCandidates(executor, scope, targetDate, purpose
       customerId: Number(row.customer_id),
       customerName: String(row.customer_name ?? '').trim() || '고객',
       rawPhone: row.phone,
+      referenceId: Number(row.special_date_id),
       triggerLabel: TRIGGER_LABELS.CUSTOMER_SPECIAL_DATE,
       referenceTitle: String(row.title ?? '').trim() || '기념일',
       referenceDate: specialDate,
@@ -456,12 +462,13 @@ export async function previewAutomationRule(executor, scope, ruleId, options = {
       },
       optOutSet,
     )
-    return applyAutomationTargetScopeToPreviewItem(
+    const scoped = applyAutomationTargetScopeToPreviewItem(
       finalized,
       customerById.get(candidate.customerId) ?? null,
       baseDate,
       targetFilters,
     )
+    return enrichPreviewItemForExecution(scoped, candidate, rule.triggerType)
   })
 
   const sendableCount = items.filter((item) => item.sendable).length
