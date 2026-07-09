@@ -1,4 +1,5 @@
 import type { GaCustomerExcelDataRow } from '../api/gaCustomerExcelApi'
+import { normalizeGaHeaderName } from './gaCustomerExcelParse'
 
 /** GA 고객 엑셀 조회 API 페이로드(일부 필드) */
 export type GaCustomerExcelApiPayload = {
@@ -77,14 +78,16 @@ export function formatGaMonth(value: string | number | undefined | null): string
 }
 
 /**
- * 보험료 등 숫자값에 천 단위 콤마를 적용한다.
- * 이미 콤마가 있어도 normalize 후 다시 적용하고, 숫자로 볼 수 없으면 원본을 반환한다.
- * 표시 전용 — 원본 데이터/정렬 키는 변경하지 않는다.
+ * 보험료·환산·금액 등 숫자값에 천 단위 콤마를 적용한다.
+ * 소수 비율(70.4 등)은 원본을 유지한다.
  */
 export function formatGaPremium(value: string | number | undefined | null): string {
   const raw = String(value ?? '').trim()
   if (!raw) {
     return ''
+  }
+  if (/^\d+\.\d+$/.test(raw)) {
+    return raw
   }
   const normalized = raw.replace(/,/g, '')
   if (!/^\d+$/.test(normalized)) {
@@ -93,43 +96,115 @@ export function formatGaPremium(value: string | number | undefined | null): stri
   return Number(normalized).toLocaleString('ko-KR')
 }
 
+const GA_PERSON_NAME_HEADERS = new Set(['계약자', '피보험자', '모집인'])
+
+const GA_MONTH_EXCLUDED_HEADERS = new Set(['월초대비환산율', '보험기간', '납입기간'])
+
+const GA_MONEY_EXCLUDED_HEADERS = new Set(['월초대비환산율', '납회'])
+
+const GA_IDENTIFIER_HEADERS = new Set([
+  '증권번호',
+  '차량번호',
+  '차명',
+  '전화번호',
+  '휴대폰',
+  '연락처',
+  '주민번호',
+  '등록번호',
+])
+
+function headerCompact(headerName: string): string {
+  return normalizeGaHeaderName(headerName)
+}
+
+export function isGaIdentifierColumn(headerName: string, fieldKey = ''): boolean {
+  const compact = headerCompact(headerName)
+  if (GA_IDENTIFIER_HEADERS.has(compact) || /증권번호|차량번호|차명|전화번호|휴대폰|연락처|주민번호|등록번호/.test(compact)) {
+    return true
+  }
+  const keyLower = String(fieldKey).toLowerCase()
+  return /policy|vehicle|plate|phone|mobile|tel|ssn|identifier/.test(keyLower)
+}
+
+export function isGaMonthColumn(headerName: string, fieldKey = ''): boolean {
+  const compact = headerCompact(headerName)
+  if (GA_MONTH_EXCLUDED_HEADERS.has(compact) || /월초대비환산율|보험기간|납입기간/.test(compact)) {
+    return false
+  }
+  if (/납월|납입월|납입년월|기준월|정산월|마감월/.test(compact)) {
+    return true
+  }
+  if (/월$/.test(compact) && !/환산율|보험료/.test(compact)) {
+    return true
+  }
+  const keyLower = String(fieldKey).toLowerCase()
+  return /payment_?month|paid_?month|due_?month|premium_?month|paymonth|paymentmonth|paidmonth|duemonth|premiummonth|^month$/.test(
+    keyLower,
+  )
+}
+
+export function isGaDateColumn(headerName: string, fieldKey = ''): boolean {
+  const compact = headerCompact(headerName)
+  if (GA_PERSON_NAME_HEADERS.has(compact) || /계약자|피보험자|모집인/.test(compact)) {
+    return false
+  }
+  if (/일자$/.test(compact)) {
+    return true
+  }
+  if (/계약일|보험일|가입일|개시일|만기일|이체일|소멸일|청약일|해지일|등록일|변경일/.test(compact)) {
+    return true
+  }
+  const keyLower = String(fieldKey).toLowerCase()
+  return /contract_?date|insurance_?date|contractdate|insurancedate|start_?date|end_?date|expiry_?date/.test(keyLower)
+}
+
+export function isGaMoneyColumn(headerName: string, fieldKey = ''): boolean {
+  const compact = headerCompact(headerName)
+  if (GA_MONEY_EXCLUDED_HEADERS.has(compact) || /월초대비환산율|납회/.test(compact)) {
+    return false
+  }
+  if (isGaIdentifierColumn(headerName, fieldKey)) {
+    return false
+  }
+  if (
+    /보험료$|갱신후보험료|수수료|원수사환산|영진환산|유지환산|2차환산|3차환산|환산$|금액$|수금액|납입보험료|월보험료/.test(
+      compact,
+    )
+  ) {
+    return true
+  }
+  const keyLower = String(fieldKey).toLowerCase()
+  return /premium|commission|conversion|amount|fee/.test(keyLower)
+}
+
 /**
  * 컬럼(colId/header)에 맞춰 셀 표시값을 가공한다.
- * - 납월 등 월 컬럼: YYYYMM → YYYY-MM
- * - 계약일자/보험일자 등 날짜 컬럼: YYYYMMDD → YYYY-MM-DD
- * - 보험료 컬럼: 천 단위 콤마
+ * - 식별자 컬럼: 원본 유지
+ * - 월 컬럼: YYYYMM → YYYY-MM
+ * - 날짜 컬럼: YYYYMMDD → YYYY-MM-DD
+ * - 금액/숫자 컬럼: 천 단위 콤마
  * - 그 외: 기존 표시 규칙(formatGaCellDisplay)
- * 데이터 원본은 건드리지 않으며 화면 표시만 담당한다.
  */
 export function formatGaCellByColumn(
   colId: string,
   header: string,
   value: string | undefined | null,
 ): string {
-  const idLower = String(colId ?? '').toLowerCase()
   const headerText = String(header ?? '')
-  // 월 컬럼은 날짜(YYYYMMDD)와 구분하기 위해 먼저 판정한다.
-  const isMonthColumn =
-    /납월|납입월|만기월|개시월/.test(headerText) ||
-    /payment_?month|paid_?month|due_?month|premium_?month|paymonth|paymentmonth|paidmonth|duemonth|premiummonth/.test(
-      idLower,
-    ) ||
-    /^month$/.test(idLower)
-  const isDateColumn =
-    /일자/.test(headerText) ||
-    /계약일|보험일|가입일|개시일/.test(headerText) ||
-    /contract_?date|insurance_?date|contractdate|insurancedate/.test(idLower)
-  const isPremiumColumn = /보험료/.test(headerText) || /premium/.test(idLower)
+  const fieldKey = String(colId ?? '')
 
-  if (isMonthColumn) {
+  if (isGaIdentifierColumn(headerText, fieldKey)) {
+    return formatGaCellDisplay(value)
+  }
+  if (isGaMonthColumn(headerText, fieldKey)) {
     const formatted = formatGaMonth(value)
     return formatted === '' ? '-' : formatted
   }
-  if (isDateColumn) {
+  if (isGaDateColumn(headerText, fieldKey)) {
     const formatted = formatGaDate(value)
     return formatted === '' ? '-' : formatted
   }
-  if (isPremiumColumn) {
+  if (isGaMoneyColumn(headerText, fieldKey)) {
     const formatted = formatGaPremium(value)
     return formatted === '' ? '-' : formatted
   }

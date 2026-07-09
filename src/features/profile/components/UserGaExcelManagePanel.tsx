@@ -11,6 +11,8 @@ import {
   uploadUserExcelData,
   type GaCustomerExcelCapability,
 } from '../../customers/api/gaCustomerExcelApi'
+import { formatGaCellByColumn } from '../../customers/utils/gaCustomerDataView'
+import { parseGaExcelMatrix } from '../../customers/utils/gaCustomerExcelParse'
 
 const L = {
   label: 'GA 데이터 업로드',
@@ -179,20 +181,21 @@ export function UserGaExcelManagePanel({ token }: Props) {
       throw new Error('EMPTY_WORKBOOK')
     }
     const sheet = wb.Sheets[sheetName]
-    const matrix = XLSX.utils.sheet_to_json<(string | number | null)[]>(sheet, { header: 1, defval: '' })
-    const headerRow = Array.isArray(matrix[0]) ? matrix[0] : []
-    const headers = headerRow.map((v) => String(v ?? '').trim())
-    const dataRows = matrix
-      .slice(1, 11)
-      .map((row) =>
-        Array.from({ length: headers.length }, (_, i) => {
-          const cell = Array.isArray(row) ? row[i] : ''
-          return String(cell ?? '')
-        }),
-      )
-    const totalDataRows = Math.max(0, matrix.length - 1)
-    setDraftRowCount(totalDataRows)
-    setLocalPreview({ headers, rows: dataRows })
+    const matrixRaw = XLSX.utils.sheet_to_json<(string | number | Date | null)[]>(sheet, {
+      header: 1,
+      defval: '',
+      raw: true,
+    })
+    const matrix = XLSX.utils.sheet_to_json<(string | number | Date | null)[]>(sheet, {
+      header: 1,
+      defval: '',
+      raw: false,
+    })
+    const { columns, dataRows } = parseGaExcelMatrix(matrix, matrixRaw)
+    const headers = columns.map((column) => column.header)
+    const previewDataRows = dataRows.slice(0, 10).map((row) => columns.map((column) => String(row.cells[column.id] ?? '')))
+    setDraftRowCount(dataRows.length)
+    setLocalPreview({ headers, rows: previewDataRows })
     setSaveResult(null)
   }, [])
 
@@ -378,8 +381,10 @@ export function UserGaExcelManagePanel({ token }: Props) {
                     <tbody>
                       {previewTable.rows.map((r, rowIdx) => (
                         <tr key={`preview-row-${rowIdx}`}>
-                          {previewColumns.map((_, colIdx) => (
-                            <td key={`preview-cell-${rowIdx}-${colIdx}`}>{r[colIdx] ?? ''}</td>
+                          {previewColumns.map((col, colIdx) => (
+                            <td key={`preview-cell-${rowIdx}-${colIdx}`}>
+                              {formatGaCellByColumn(col.key, col.header, r[colIdx] ?? '')}
+                            </td>
                           ))}
                         </tr>
                       ))}
