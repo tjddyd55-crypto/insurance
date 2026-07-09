@@ -32,7 +32,6 @@ export default function SmsTemplatesWorkspace({ variant, module, adDisplayName }
     handleCreateTemplateFromForm,
     handleDeleteTemplate,
     handleUpdateTemplate,
-    navigateToSend,
   } = module
 
   const [loadedId, setLoadedId] = useState<number | null>(null)
@@ -124,17 +123,24 @@ export default function SmsTemplatesWorkspace({ variant, module, adDisplayName }
     <div className={`sms-templates-workspace sms-templates-workspace--${variant}`}>
       <header className="sms-templates-workspace__head">
         <div className="sms-templates-workspace__head-main">
-          <h2 className="sms-templates-workspace__title">문자 템플릿 관리</h2>
+          <h2 className="sms-templates-workspace__title">템플릿관리</h2>
           <p className="sms-module__muted">
-            자주 사용하는 문자 내용을 저장하고, 문자 발송 화면에서 불러올 수 있습니다.
+            자주 사용하는 문자 내용을 저장하고, 즉시·예약 발송 화면에서 불러올 수 있습니다.
           </p>
         </div>
-        <FormButton type="button" variant="secondary" disabled={busy} onClick={() => navigateToSend()}>
-          문자발송으로 돌아가기
-        </FormButton>
       </header>
 
       <div className="sms-templates-workspace__grid">
+        <div className="sms-templates-workspace__list">
+          <SmsTemplateListPanel
+            templates={templates}
+            busy={busy}
+            loadedId={loadedId}
+            onLoad={handleLoad}
+            onDelete={handleDelete}
+          />
+        </div>
+
         <section className="sms-composer__card sms-templates-workspace__form">
           <div className="sms-templates-workspace__form-head">
             <h3 className="sms-composer__card-title">템플릿 작성</h3>
@@ -211,16 +217,6 @@ export default function SmsTemplatesWorkspace({ variant, module, adDisplayName }
             )}
           </div>
         </section>
-
-        <div className="sms-templates-workspace__list">
-          <SmsTemplateListPanel
-            templates={templates}
-            busy={busy}
-            loadedId={loadedId}
-            onLoad={handleLoad}
-            onDelete={handleDelete}
-          />
-        </div>
 
         <aside className="sms-templates-workspace__preview" aria-label="휴대폰 미리보기">
           <SmsPhonePreview

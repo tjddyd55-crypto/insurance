@@ -26,6 +26,7 @@ type Props = {
   variant: 'pc' | 'mobile'
   module: SmsModuleViewProps
   initialSendMode: 'immediate' | 'reserved'
+  lockSendMode?: boolean
   adDisplayName: string
 }
 
@@ -250,11 +251,21 @@ function TemplateSelectionSection({
   )
 }
 
-export default function SmsSendWorkspace({ variant, module, initialSendMode, adDisplayName }: Props) {
+export default function SmsSendWorkspace({
+  variant,
+  module,
+  initialSendMode,
+  lockSendMode = false,
+  adDisplayName,
+}: Props) {
   const navigate = useNavigate()
   const { token } = useAuth()
   const scheduledState = useSmsScheduledState(module.templates)
   const [sendMode, setSendMode] = useState<'immediate' | 'reserved'>(initialSendMode)
+
+  useEffect(() => {
+    setSendMode(initialSendMode)
+  }, [initialSendMode])
 
   const {
     busy,
@@ -291,10 +302,6 @@ export default function SmsSendWorkspace({ variant, module, initialSendMode, adD
   })
 
   const realSendEnabledFlag = Boolean(settings?.realSendEnabled)
-
-  useEffect(() => {
-    setSendMode(initialSendMode)
-  }, [initialSendMode])
 
   const messageBody = sendMode === 'reserved' ? scheduledState.form.messageBody : bulkForm.message
   const messageType = sendMode === 'reserved' ? scheduledState.form.messageType : bulkForm.messageType
@@ -584,10 +591,12 @@ export default function SmsSendWorkspace({ variant, module, initialSendMode, adD
     <div className={`sms-send-workspace ${layout}${isReservedPc ? ' sms-send-workspace--reserved-pc' : ''}`}>
       {scheduledState.actionNotice ? <p className="sms-module__muted">{scheduledState.actionNotice}</p> : null}
 
-      <div className="sms-send-workspace__mode-row">
-        <span className="sms-send-section__label">발송 방식</span>
-        <SendModeSelector value={sendMode} disabled={busy} onChange={setSendMode} />
-      </div>
+      {lockSendMode ? null : (
+        <div className="sms-send-workspace__mode-row">
+          <span className="sms-send-section__label">발송 방식</span>
+          <SendModeSelector value={sendMode} disabled={busy} onChange={setSendMode} />
+        </div>
+      )}
 
       {sendMode === 'reserved' && variant === 'mobile' ? reservedListNode : null}
 

@@ -111,7 +111,13 @@ export interface SmsOptOut {
   reason: string | null
 }
 
-export type SmsModuleTab = 'settings' | 'groups' | 'send' | 'history' | 'templates'
+export type SmsModuleTab =
+  | 'settings'
+  | 'send'
+  | 'reservations'
+  | 'groups'
+  | 'templates'
+  | 'history'
 
 /** @deprecated legacy URL segments — redirect to new tabs in appRouter */
 export type SmsLegacyModuleTab = 'bulk' | 'scheduled' | 'templates' | 'opt-outs'

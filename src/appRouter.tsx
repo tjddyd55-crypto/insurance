@@ -524,7 +524,7 @@ export const appRouter = createBrowserRouter([
               { path: 'ta-call', element: <TaCallPage /> },
               { path: 'sms', element: <Navigate to="/sms/settings" replace /> },
               { path: 'sms/bulk', element: <Navigate to="/sms/groups" replace /> },
-              { path: 'sms/scheduled', element: <Navigate to="/sms/send?mode=reserved" replace /> },
+              { path: 'sms/scheduled', element: <Navigate to="/sms/reservations" replace /> },
               { path: 'sms/opt-outs', element: <Navigate to="/sms/settings" replace /> },
               { path: 'sms/automations', element: <SmsAutomationPage /> },
               { path: 'sms/:tab', element: <SmsModulePage /> },
