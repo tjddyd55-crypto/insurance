@@ -54,6 +54,11 @@ import {
   updateAutomationRule,
 } from './sms/smsAutomationRuleService.js'
 import { previewAutomationRule } from './sms/smsAutomationPreviewService.js'
+import {
+  getAutomationRunSummaryDetail,
+  listAutomationRunSummaries,
+  runAutomationRule,
+} from './sms/smsAutomationExecutionService.js'
 
 function smsApiError(res, err) {
   const status = Number(err?.status ?? 500)
@@ -872,6 +877,70 @@ export function registerSmsModuleApi(apiRouter, ctx) {
       const data = await previewAutomationRule(pool, scope, id, {
         baseDate: req.body?.baseDate ?? req.body?.base_date ?? null,
       })
+      res.json({ success: true, data })
+    } catch (e) {
+      if (e?.status) {
+        smsApiError(res, e)
+        return
+      }
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.post('/sms/automation-rules/:id/run', requireAuth, ensureSmsModuleEnabled, async (req, res) => {
+    try {
+      const scope = await resolveSmsAuthContext(pool, req)
+      const id = Number(req.params.id)
+      if (!Number.isInteger(id) || id <= 0) {
+        res.status(400).json({ success: false, message: '잘못된 규칙 ID입니다.', code: 'sms_automation_invalid_id' })
+        return
+      }
+      const body = req.body ?? {}
+      const data = await runAutomationRule(pool, scope, id, {
+        baseDate: body.baseDate ?? body.base_date ?? null,
+        realSend: body.realSend === true || body.real_send === true,
+        runType: 'MANUAL',
+      })
+      res.json({ success: true, data })
+    } catch (e) {
+      if (e?.status) {
+        smsApiError(res, e)
+        return
+      }
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.get('/sms/automation-runs', requireAuth, ensureSmsModuleEnabled, async (req, res) => {
+    try {
+      const scope = await resolveSmsAuthContext(pool, req)
+      const data = await listAutomationRunSummaries(pool, scope, {
+        ruleId: req.query.ruleId ?? req.query.rule_id,
+        dateFrom: req.query.dateFrom ?? req.query.date_from,
+        dateTo: req.query.dateTo ?? req.query.date_to,
+        status: req.query.status,
+        limit: req.query.limit,
+        offset: req.query.offset,
+      })
+      res.json({ success: true, data })
+    } catch (e) {
+      if (e?.status) {
+        smsApiError(res, e)
+        return
+      }
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.get('/sms/automation-runs/:id', requireAuth, ensureSmsModuleEnabled, async (req, res) => {
+    try {
+      const scope = await resolveSmsAuthContext(pool, req)
+      const runId = Number(req.params.id)
+      if (!Number.isInteger(runId) || runId <= 0) {
+        res.status(400).json({ success: false, message: '잘못된 실행 ID입니다.', code: 'sms_automation_run_invalid_id' })
+        return
+      }
+      const data = await getAutomationRunSummaryDetail(pool, scope, runId)
       res.json({ success: true, data })
     } catch (e) {
       if (e?.status) {

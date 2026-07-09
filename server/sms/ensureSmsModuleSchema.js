@@ -396,4 +396,115 @@ export async function ensureSmsModuleSchema(executor) {
     ALTER TABLE sms_automation_rules
     ADD COLUMN IF NOT EXISTS exclude_minors BOOLEAN NOT NULL DEFAULT FALSE
   `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS sms_automation_runs (
+      id BIGSERIAL PRIMARY KEY,
+      tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      ga_id INTEGER REFERENCES ga_companies(id) ON DELETE SET NULL,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      rule_id BIGINT NOT NULL REFERENCES sms_automation_rules(id) ON DELETE CASCADE,
+      run_type TEXT NOT NULL,
+      run_mode TEXT NOT NULL,
+      base_date DATE NOT NULL,
+      target_date DATE NOT NULL,
+      scheduled_send_time TEXT NOT NULL DEFAULT '10:00',
+      status TEXT NOT NULL DEFAULT 'RUNNING',
+      total_count INTEGER NOT NULL DEFAULT 0,
+      sendable_count INTEGER NOT NULL DEFAULT 0,
+      excluded_count INTEGER NOT NULL DEFAULT 0,
+      success_count INTEGER NOT NULL DEFAULT 0,
+      failed_count INTEGER NOT NULL DEFAULT 0,
+      skipped_duplicate_count INTEGER NOT NULL DEFAULT 0,
+      started_at TIMESTAMPTZ,
+      finished_at TIMESTAMPTZ,
+      error_message TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT sms_automation_runs_run_type_check CHECK (run_type IN ('MANUAL', 'SCHEDULED')),
+      CONSTRAINT sms_automation_runs_run_mode_check CHECK (
+        run_mode IN ('DRY_RUN', 'REAL_SEND', 'SIMULATED_SEND')
+      ),
+      CONSTRAINT sms_automation_runs_status_check CHECK (
+        status IN ('RUNNING', 'COMPLETED', 'FAILED', 'PARTIAL_FAILED')
+      )
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_sms_automation_runs_tenant_user
+    ON sms_automation_runs (tenant_id, user_id, created_at DESC)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_sms_automation_runs_rule
+    ON sms_automation_runs (rule_id, created_at DESC)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS sms_automation_run_items (
+      id BIGSERIAL PRIMARY KEY,
+      run_id BIGINT NOT NULL REFERENCES sms_automation_runs(id) ON DELETE CASCADE,
+      tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      ga_id INTEGER REFERENCES ga_companies(id) ON DELETE SET NULL,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      rule_id BIGINT NOT NULL REFERENCES sms_automation_rules(id) ON DELETE CASCADE,
+      customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+      phone TEXT NOT NULL DEFAULT '',
+      customer_name TEXT NOT NULL DEFAULT '',
+      trigger_type TEXT NOT NULL,
+      reference_type TEXT,
+      reference_id BIGINT,
+      reference_title TEXT,
+      reference_date DATE,
+      trigger_instance_key TEXT NOT NULL DEFAULT '',
+      message_body TEXT NOT NULL DEFAULT '',
+      sendable BOOLEAN NOT NULL DEFAULT false,
+      excluded_reason TEXT,
+      send_status TEXT NOT NULL DEFAULT 'EXCLUDED',
+      send_result_code TEXT,
+      send_result_message TEXT,
+      sent_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT sms_automation_run_items_send_status_check CHECK (
+        send_status IN ('EXCLUDED', 'SKIPPED_DUPLICATE', 'SIMULATED', 'SENT', 'FAILED')
+      )
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_sms_automation_run_items_run
+    ON sms_automation_run_items (run_id, id)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS sms_automation_send_dedupes (
+      id BIGSERIAL PRIMARY KEY,
+      tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      ga_id INTEGER REFERENCES ga_companies(id) ON DELETE SET NULL,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      rule_id BIGINT NOT NULL REFERENCES sms_automation_rules(id) ON DELETE CASCADE,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      trigger_instance_key TEXT NOT NULL,
+      reference_date DATE NOT NULL,
+      run_item_id BIGINT REFERENCES sms_automation_run_items(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS sms_automation_send_dedupes_unique
+    ON sms_automation_send_dedupes (rule_id, customer_id, trigger_instance_key, reference_date)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS sms_automation_scheduler_locks (
+      id BIGSERIAL PRIMARY KEY,
+      rule_id BIGINT NOT NULL REFERENCES sms_automation_rules(id) ON DELETE CASCADE,
+      run_date DATE NOT NULL,
+      send_time TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS sms_automation_scheduler_locks_unique
+    ON sms_automation_scheduler_locks (rule_id, run_date, send_time)
+  `)
 }

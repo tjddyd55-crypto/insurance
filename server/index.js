@@ -144,6 +144,7 @@ import { registerInsurerSitesApi } from './registerInsurerSitesApi.js'
 import { registerPlatformAdminApi } from './registerPlatformAdminApi.js'
 import { registerCrmCustomerTemplateAdminApi } from './registerCrmCustomerTemplateAdminApi.js'
 import { registerSmsModuleApi } from './registerSmsModuleApi.js'
+import { startSmsAutomationScheduler } from './sms/smsAutomationScheduler.js'
 import { logSmsModuleEnvironmentHint, validateSmsModuleStartupConfig } from './sms/smsModuleConfig.js'
 import { registerContractPublicOtpApi } from './apis/contractPublicOtpApi.js'
 import { registerContractPublicApi } from './apis/contractPublicApi.js'
@@ -7742,6 +7743,8 @@ async function startServer() {
   setInterval(() => {
     void tickAnalyticsAggregationScheduler(pool, analyticsScheduleState)
   }, ANALYTICS_TICK_MS)
+
+  startSmsAutomationScheduler(pool)
 }
 
 startServer().catch((error) => {

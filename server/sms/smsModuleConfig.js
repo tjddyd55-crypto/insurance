@@ -30,6 +30,11 @@ export function isSmsRealSendEnabled() {
   return normalizeBooleanEnv(process.env.SMS_MODULE_REAL_SEND_ENABLED)
 }
 
+/** @default false — prod 배포 시 자동문자 스케줄러는 기본 비활성 */
+export function isSmsAutomationSchedulerEnabled() {
+  return normalizeBooleanEnv(process.env.SMS_AUTOMATION_SCHEDULER_ENABLED)
+}
+
 const PRODUCTION_PROVIDER_REQUIRED_MESSAGE =
   'SMS_MODULE_ENABLED=true 인 production 환경에서는 SMS_MODULE_PROVIDER=gateway 또는 aligo_gateway 또는 aligo가 필요합니다. mock은 사용할 수 없습니다.'
 
