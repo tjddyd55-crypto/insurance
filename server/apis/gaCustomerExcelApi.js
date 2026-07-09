@@ -5,6 +5,7 @@ import {
   listGaCustomerMatchAliases,
   normalizeGaExactMatchValue,
 } from '../lib/gaCustomerMatchAliases.js'
+import { parseGaExcelMatrix } from '../lib/gaCustomerExcelParse.js'
 
 const uploadExcel = multer({
   storage: multer.memoryStorage(),
@@ -29,20 +30,6 @@ function cellToString(v) {
     return `${y}-${m}-${d}`
   }
   return String(v).trim()
-}
-
-/** DB 저장·화면 표시용. 셀 문자열은 trim 하지 않고 보관한다(조회 시에만 정규화). */
-function excelCellToStoredString(v) {
-  if (v == null || v === '') {
-    return ''
-  }
-  if (v instanceof Date) {
-    const y = v.getFullYear()
-    const m = String(v.getMonth() + 1).padStart(2, '0')
-    const d = String(v.getDate()).padStart(2, '0')
-    return `${y}-${m}-${d}`
-  }
-  return String(v)
 }
 
 function normalizeNameForMatch(v) {
@@ -140,22 +127,9 @@ function getExcelCellNormalized(cells, columnId, dbField) {
 }
 
 /**
- * 첫 시트, 첫 행 헤더 → col_0… 안정 id 부여
+ * 첫 시트, 헤더 행 자동 감지 → col_0… 안정 id 부여
  * @param {Buffer} buffer
  */
-function headerCellToLabel(h, index) {
-  if (h == null || h === '') {
-    return `열 ${index + 1}`
-  }
-  if (h instanceof Date) {
-    const y = h.getFullYear()
-    const m = String(h.getMonth() + 1).padStart(2, '0')
-    const d = String(h.getDate()).padStart(2, '0')
-    return `${y}-${m}-${d}`
-  }
-  return String(h).trim() || `열 ${index + 1}`
-}
-
 function parseExcelSampleToColumnsAndRows(buffer) {
   const wb = XLSX.read(buffer, { type: 'buffer', cellDates: true })
   const sheetName = wb.SheetNames[0]
@@ -165,35 +139,7 @@ function parseExcelSampleToColumnsAndRows(buffer) {
   const sheet = wb.Sheets[sheetName]
   const matrixRaw = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true })
   const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false })
-  if (!Array.isArray(matrix) || matrix.length === 0) {
-    throw new Error('EMPTY_SHEET')
-  }
-  const headerRow = Array.isArray(matrixRaw[0]) ? matrixRaw[0] : matrix[0]
-  if (!Array.isArray(headerRow)) {
-    throw new Error('BAD_HEADER')
-  }
-  const columns = headerRow.map((h, index) => ({
-    id: `col_${index}`,
-    header: headerCellToLabel(h, index),
-    index,
-  }))
-  const dataRows = []
-  for (let i = 1; i < matrix.length; i++) {
-    const arr = matrix[i]
-    const cells = {}
-    let any = false
-    for (let j = 0; j < columns.length; j++) {
-      const v = Array.isArray(arr) ? arr[j] : undefined
-      const str = excelCellToStoredString(v)
-      cells[columns[j].id] = str
-      if (str.trim()) {
-        any = true
-      }
-    }
-    if (any) {
-      dataRows.push({ rowIndex: i + 1, cells })
-    }
-  }
+  const { columns, dataRows } = parseGaExcelMatrix(matrix, matrixRaw)
   return { columns, dataRows }
 }
 
