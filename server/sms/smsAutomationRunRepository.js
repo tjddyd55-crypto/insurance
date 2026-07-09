@@ -251,6 +251,33 @@ export async function tryInsertAutomationSendDedupe(executor, input) {
 }
 
 /**
+ * 기존 실제 발송 dedupe 존재 여부 조회 (insert 없음)
+ * @param {import('pg').Pool | import('pg').PoolClient} executor
+ * @param {{
+ *   ruleId: number;
+ *   customerId: number;
+ *   triggerInstanceKey: string;
+ *   referenceDate: string;
+ * }} input
+ */
+export async function hasAutomationSendDedupe(executor, input) {
+  const r = await systemQuery(
+    executor,
+    `
+    SELECT 1
+    FROM sms_automation_send_dedupes
+    WHERE rule_id = $1
+      AND customer_id = $2
+      AND trigger_instance_key = $3
+      AND reference_date = $4::date
+    LIMIT 1
+    `,
+    [input.ruleId, input.customerId, input.triggerInstanceKey, input.referenceDate],
+  )
+  return r.rows.length > 0
+}
+
+/**
  * @param {import('pg').Pool | import('pg').PoolClient} executor
  * @param {{ tenantId: number; userId: string; ruleId?: number; dateFrom?: string; dateTo?: string; status?: string; limit?: number; offset?: number }} params
  */
