@@ -1,9 +1,9 @@
-import { Link } from 'react-router-dom'
 import { SmsAutomationPhonePreview } from '../../components/automation/SmsAutomationPhonePreview'
 import { SmsAutomationRuleEditor } from '../../components/automation/SmsAutomationRuleEditor'
 import { SmsAutomationRuleList } from '../../components/automation/SmsAutomationRuleList'
 import { SmsAutomationRulePreviewPanel } from '../../components/automation/SmsAutomationRulePreview'
 import { SmsAutomationSummaryCards } from '../../components/automation/SmsAutomationStatusBadge'
+import { SmsModuleNav } from '../../components/SmsModuleNav'
 import FormButton from '../../../../components/form/FormButton'
 import type { SmsAutomationViewProps } from './SmsAutomationPCView'
 
@@ -23,11 +23,12 @@ export default function SmsAutomationMobileView(props: SmsAutomationViewProps) {
   return (
     <main className="page sms-automation-rules-page sms-automation-rules-page--mobile page--with-back">
       <div className="sms-automation-rules-page__shell">
+        <div className="sms-module__topbar sms-module__topbar--mobile">
+          <SmsModuleNav variant="mobile" activeTab="automations" />
+        </div>
+
         <header className="sms-automation-rules-page__header">
           <h1 className="sms-automation-rules-page__title">자동문자</h1>
-          <Link className="sms-automation-rules-page__back-link" to="/sms/settings">
-            문자 설정
-          </Link>
         </header>
 
         <p className="sms-automation-rules-page__subtitle">

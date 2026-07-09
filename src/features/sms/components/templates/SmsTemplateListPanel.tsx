@@ -20,7 +20,7 @@ function previewBody(message: string): string {
   if (!normalized) {
     return '(본문 없음)'
   }
-  return normalized.length > 80 ? `${normalized.slice(0, 80)}…` : normalized
+  return normalized
 }
 
 export default function SmsTemplateListPanel({
@@ -48,38 +48,50 @@ export default function SmsTemplateListPanel({
 
   return (
     <>
-      <section className="sms-template-list">
+      <section className="sms-template-list sms-template-list--workspace">
         <h3 className="sms-template-list__title">저장된 템플릿 목록</h3>
         {templates.length === 0 ? (
           <p className="sms-module__muted">저장된 템플릿이 없습니다.</p>
         ) : (
           <ul className="sms-template-list__items">
-            {templates.map((template) => (
-              <li
-                key={template.id}
-                className={`sms-template-card${loadedId === template.id ? ' sms-template-card--active' : ''}`}
-              >
-                <div className="sms-template-card__body">
-                  <p className="sms-template-card__title">{template.title}</p>
-                  <p className="sms-template-card__meta">
-                    {formatSmsTemplateTransportLabel(template.message)} ·{' '}
-                    {formatSmsTemplateMessageTypeLabel(template.messageType)}
-                  </p>
-                  <p className="sms-template-card__preview">{previewBody(template.message)}</p>
-                  <p className="sms-template-card__date">
-                    수정 {formatSmsTemplateDateLabel(template.updatedAt ?? template.createdAt)}
-                  </p>
-                </div>
-                <div className="sms-template-card__actions">
-                  <FormButton type="button" variant="secondary" disabled={busy} onClick={() => onLoad(template)}>
-                    불러오기
-                  </FormButton>
-                  <FormButton type="button" variant="secondary" disabled={busy} onClick={() => void handleDelete(template)}>
-                    삭제
-                  </FormButton>
-                </div>
-              </li>
-            ))}
+            {templates.map((template) => {
+              const active = loadedId === template.id
+              return (
+                <li key={template.id}>
+                  <article className={`sms-template-card${active ? ' sms-template-card--active' : ''}`}>
+                    <div className="sms-template-card__body">
+                      <p className="sms-template-card__title">{template.title}</p>
+                      <p className="sms-template-card__meta">
+                        {formatSmsTemplateTransportLabel(template.message)} ·{' '}
+                        {formatSmsTemplateMessageTypeLabel(template.messageType)}
+                      </p>
+                      <p className="sms-template-card__preview">{previewBody(template.message)}</p>
+                      <p className="sms-template-card__date">
+                        수정 {formatSmsTemplateDateLabel(template.updatedAt ?? template.createdAt)}
+                      </p>
+                    </div>
+                    <div className="sms-template-card__actions">
+                      <FormButton
+                        type="button"
+                        variant="secondary"
+                        disabled={busy}
+                        onClick={() => onLoad(template)}
+                      >
+                        불러오기
+                      </FormButton>
+                      <FormButton
+                        type="button"
+                        variant="secondary"
+                        disabled={busy}
+                        onClick={() => void handleDelete(template)}
+                      >
+                        삭제
+                      </FormButton>
+                    </div>
+                  </article>
+                </li>
+              )
+            })}
           </ul>
         )}
       </section>

@@ -6,19 +6,11 @@ import SmsBulkRecipientWorkspace from './bulk/SmsBulkRecipientWorkspace'
 import SmsSendWorkspace from './send/SmsSendWorkspace'
 import SmsHistoryWorkspace from './history/SmsHistoryWorkspace'
 import SmsTemplatesWorkspace from './templates/SmsTemplatesWorkspace'
+import { SmsModuleNav } from './SmsModuleNav'
 import { useSmsBulkRecipientState } from '../hooks/useSmsBulkRecipientState'
 import type { SmsModuleViewProps } from '../hooks/useSmsModuleState'
 import { ALIGO_API_SETTINGS_URL, formatKrMobileDisplay } from '../smsDisplayUtils'
 import { resolveSmsAdDisplayName } from '../utils/smsMessageMeta'
-import type { SmsModuleTab } from '../types/sms.types'
-
-const TABS: { id: SmsModuleTab; label: string }[] = [
-  { id: 'settings', label: '문자설정' },
-  { id: 'groups', label: '그룹설정' },
-  { id: 'send', label: '문자발송' },
-  { id: 'templates', label: '템플릿관리' },
-  { id: 'history', label: '발송내역' },
-]
 
 type Props = SmsModuleViewProps & {
   variant: 'pc' | 'mobile'
@@ -197,7 +189,6 @@ export default function SmsModuleBody(props: Props) {
     handleUpdateTemplate,
     handleAddOptOut,
     handleRemoveOptOut,
-    sendMode,
     navigateToSend,
   } = props
 
@@ -227,18 +218,7 @@ export default function SmsModuleBody(props: Props) {
     <>
       <h1 className="sr-only">문자</h1>
       <div className={`sms-module__topbar sms-module__topbar--${variant}`}>
-        <nav className={`sms-module__tabs sms-module__tabs--${variant}`}>
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              className={`sms-module__tab${tab === t.id ? ' sms-module__tab--active' : ''}`}
-              onClick={() => setTab(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </nav>
+        <SmsModuleNav variant={variant} activeTab={tab} />
         <RealSendStatusBadge
           visible={!authRequired && settingsLoaded && !!settings && !realSendEnabled}
         />
@@ -425,7 +405,20 @@ export default function SmsModuleBody(props: Props) {
           <SmsSendWorkspace
             variant={variant}
             module={props}
-            initialSendMode={sendMode}
+            initialSendMode="immediate"
+            lockSendMode
+            adDisplayName={resolvedAdDisplayName}
+          />
+        </section>
+      ) : null}
+
+      {!loading && !moduleDisabled && !authRequired && tab === 'reservations' ? (
+        <section className="sms-module__panel sms-module__panel--send">
+          <SmsSendWorkspace
+            variant={variant}
+            module={props}
+            initialSendMode="reserved"
+            lockSendMode
             adDisplayName={resolvedAdDisplayName}
           />
         </section>

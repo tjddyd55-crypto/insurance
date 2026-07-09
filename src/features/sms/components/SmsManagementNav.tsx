@@ -1,9 +1,10 @@
 import { Link, useLocation } from 'react-router-dom'
 
 const SMS_MANAGEMENT_LINKS = [
-  { label: '단체문자', path: '/sms/groups' },
-  { label: '예약문자', path: '/sms/send?mode=reserved' },
-  { label: '자동문자', path: '/sms/automations' },
+  { label: '즉시발송', path: '/sms/send' },
+  { label: '예약발송', path: '/sms/reservations' },
+  { label: '자동발송', path: '/sms/automations' },
+  { label: '그룹설정', path: '/sms/groups' },
 ] as const
 
 export function SmsManagementNav() {

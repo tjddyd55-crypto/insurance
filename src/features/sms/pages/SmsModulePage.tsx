@@ -7,11 +7,18 @@ import SmsModuleMobileView from './sms/SmsModuleMobileView'
 import SmsModulePCView from './sms/SmsModulePCView'
 import '../sms-module.css'
 
-const ROUTE_TAB_IDS: SmsModuleTab[] = ['settings', 'groups', 'send', 'templates', 'history']
+const ROUTE_TAB_IDS: SmsModuleTab[] = [
+  'settings',
+  'send',
+  'reservations',
+  'groups',
+  'templates',
+  'history',
+]
 
 const LEGACY_TAB_PATH: Record<string, string> = {
   bulk: '/sms/groups',
-  scheduled: '/sms/send?mode=reserved',
+  scheduled: '/sms/reservations',
   'opt-outs': '/sms/settings',
 }
 
@@ -34,24 +41,38 @@ export default function SmsModulePage() {
     }
   }, [navigate, rawTab])
 
+  useEffect(() => {
+    if (rawTab === 'send' && searchParams.get('mode') === 'reserved') {
+      navigate('/sms/reservations', { replace: true })
+    }
+  }, [navigate, rawTab, searchParams])
+
   const initialTab = parseTab(rawTab)
   const state = useSmsModuleState(initialTab)
 
   const viewProps: SmsModuleViewProps = {
     ...state,
-    sendMode: searchParams.get('mode') === 'reserved' ? 'reserved' : 'immediate',
+    sendMode: initialTab === 'reservations' ? 'reserved' : 'immediate',
     setTab: (tab) => {
       state.setTab(tab)
       navigate(`/sms/${tab}`, { replace: true })
     },
     navigateToSend: (options) => {
-      const query = options?.mode === 'reserved' ? '?mode=reserved' : ''
+      if (options?.mode === 'reserved') {
+        state.setTab('reservations')
+        navigate('/sms/reservations', { replace: true })
+        return
+      }
       state.setTab('send')
-      navigate(`/sms/send${query}`, { replace: true })
+      navigate('/sms/send', { replace: true })
     },
   }
 
   if (rawTab && LEGACY_TAB_PATH[rawTab]) {
+    return null
+  }
+
+  if (rawTab === 'send' && searchParams.get('mode') === 'reserved') {
     return null
   }
 

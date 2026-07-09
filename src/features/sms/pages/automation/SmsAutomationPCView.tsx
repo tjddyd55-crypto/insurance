@@ -1,9 +1,9 @@
-import { Link } from 'react-router-dom'
 import { SmsAutomationPhonePreview } from '../../components/automation/SmsAutomationPhonePreview'
 import { SmsAutomationRuleEditor } from '../../components/automation/SmsAutomationRuleEditor'
 import { SmsAutomationRuleList } from '../../components/automation/SmsAutomationRuleList'
 import { SmsAutomationRulePreviewPanel } from '../../components/automation/SmsAutomationRulePreview'
 import { SmsAutomationSummaryCards } from '../../components/automation/SmsAutomationStatusBadge'
+import { SmsModuleNav } from '../../components/SmsModuleNav'
 import type { UseSmsAutomationRulesStateResult } from '../../hooks/useSmsAutomationRulesState'
 
 export type SmsAutomationViewProps = UseSmsAutomationRulesStateResult
@@ -24,6 +24,10 @@ export default function SmsAutomationPCView(props: SmsAutomationViewProps) {
   return (
     <main className="page sms-automation-rules-page sms-automation-rules-page--pc page--with-back">
       <div className="sms-automation-rules-page__shell">
+        <div className="sms-module__topbar sms-module__topbar--pc">
+          <SmsModuleNav variant="pc" activeTab="automations" />
+        </div>
+
         <header className="sms-automation-rules-page__header">
           <div>
             <h1 className="sms-automation-rules-page__title">자동문자</h1>
@@ -31,9 +35,6 @@ export default function SmsAutomationPCView(props: SmsAutomationViewProps) {
               고객 생일, 자동차보험 만기, 보험나이, 고객 지정 기념일 기준으로 자동 발송 규칙을 설정합니다.
             </p>
           </div>
-          <Link className="sms-automation-rules-page__back-link" to="/sms/settings">
-            문자 설정으로
-          </Link>
         </header>
 
         <SmsAutomationSummaryCards rules={props.rules} />
