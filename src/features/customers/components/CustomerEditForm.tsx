@@ -23,6 +23,7 @@ import { CustomerSpecialDatesEditor } from './CustomerSpecialDatesEditor'
 import { CustomerDrivingRadioGroup } from './CustomerDrivingRadioGroup'
 import CustomerIndustryTemplateFields from './CustomerIndustryTemplateFields'
 import { CustomerFormSection } from './CustomerFormSection'
+import { CustomerSmsOptOutField } from './CustomerSmsOptOutField'
 
 type CustomerEditFormProps = {
   customerId: number
@@ -148,6 +149,12 @@ export default function CustomerEditForm({
               }
             />
           </label>
+          <CustomerSmsOptOutField
+            checked={editForm.smsOptOut === true}
+            onChange={(checked) =>
+              setEditForm((prev) => (prev ? { ...prev, smsOptOut: checked } : prev))
+            }
+          />
           <CustomerInflowSourceFields
             inflowSource={editForm.inflowSource ?? ''}
             referrerName={editForm.referrerName ?? ''}

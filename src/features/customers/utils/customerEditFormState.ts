@@ -51,6 +51,7 @@ export function recordToEditForm(c: CustomerRecord): CustomerEditFormState {
     crmExtensionFields: { ...(c.crmExtension?.fields ?? {}) },
     inflowSource: c.inflowSource ?? '',
     referrerName: c.referrerName ?? '',
+    smsOptOut: c.smsOptOut === true,
   }
 }
 

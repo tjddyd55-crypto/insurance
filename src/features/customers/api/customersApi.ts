@@ -71,6 +71,7 @@ export function assertCustomerDataRecord(
     phone,
     phoneNumber: phone,
     isFavorite: withFlag.isFavorite === true,
+    smsOptOut: withFlag.smsOptOut === true || row.sms_opt_out === true,
     crmExtension,
     referrerName,
   }
@@ -313,6 +314,7 @@ export interface SaveCustomerPayload {
   /** 다건 자동차(서버가 무시할 수 있음 — 대표차량은 car_* 로 동기화) */
   cars?: CustomerCarFormItem[]
   isFavorite?: boolean
+  smsOptOut?: boolean
   /** 유입 경로 — 미지정·빈 문자열은 null 저장 */
   inflowSource?: string | null
   referrerName?: string | null
@@ -377,6 +379,7 @@ export function customerRecordToUpdatePayload(
     carYear: String(customer.carYear ?? '').replace(/\D/g, ''),
     renewalDate: normalizeCustomerRenewalDateForPut(customer.renewalDate),
     isFavorite: customer.isFavorite === true,
+    smsOptOut: customer.smsOptOut === true,
     inflowSource: customer.inflowSource ?? null,
     referrerName: customer.referrerName ?? null,
     ...(hasExtension

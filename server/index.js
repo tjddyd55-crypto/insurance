@@ -6016,6 +6016,7 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
       inflowParsed.value,
       data.referrerName ?? data.referrer_name,
     )
+    const smsOptOut = data.smsOptOut === true || data.sms_opt_out === true
 
     const inserted = await safeQuery(pool,
       `
@@ -6028,8 +6029,9 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
         crm_extension,
         inflow_source,
         referrer_name,
+        sms_opt_out,
         tenant_id, owner_user_id, created_by_user_id, visibility_scope
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, CAST($22 AS jsonb), $23, CAST($24 AS jsonb), $25, $26, $27, $28, $29, $30)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, CAST($22 AS jsonb), $23, CAST($24 AS jsonb), $25, $26, $27, $28, $29, $30, $31)
       RETURNING
         id, user_id, name, birth_date, ssn, phone, carrier, address, height, weight, job, driving, medical,
         car_number, car_model, car_year, renewal_date,
@@ -6037,7 +6039,8 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
         is_favorite, created_at,
         crm_extension,
         inflow_source,
-        referrer_name
+        referrer_name,
+        sms_opt_out
       `,
       [
         userId,
@@ -6066,6 +6069,7 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
         crmExtSql,
         inflowParsed.value,
         referrerNameSql,
+        smsOptOut,
         custTenantId,
         userId,
         userId,
@@ -6858,6 +6862,24 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
       vals.push(b)
     }
 
+    if (hasKey('smsOptOut') || hasKey('sms_opt_out')) {
+      const v = hasKey('smsOptOut') ? data.smsOptOut : data.sms_opt_out
+      let b = null
+      if (v === true) b = true
+      else if (v === false) b = false
+      else if (typeof v === 'string') {
+        const s = v.trim().toLowerCase()
+        if (s === 'true') b = true
+        else if (s === 'false') b = false
+      }
+      if (b === null) {
+        res.status(400).json({ message: '문자 수신거부(smsOptOut) 값은 true/false만 허용됩니다.' })
+        return
+      }
+      parts.push(`sms_opt_out = $${n++}`)
+      vals.push(b)
+    }
+
     if (hasKey('notes')) {
       parts.push(`notes = CAST($${n++} AS jsonb)`)
       vals.push(JSON.stringify(normalizeCustomerNotesInput(data.notes)))
@@ -6948,7 +6970,8 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
         is_favorite, created_at,
         crm_extension,
         inflow_source,
-        referrer_name
+        referrer_name,
+        sms_opt_out
       `,
       vals,
     )
@@ -7015,7 +7038,8 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
           c.gender, c.insurance_age, c.next_age_date, c.is_driver, c.car_type, c.notes,
           c.is_favorite, c.created_at,
           c.customer_code,
-          c.crm_extension
+          c.crm_extension,
+          c.sms_opt_out
     `
 
     let result
@@ -7181,6 +7205,7 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
           c.crm_extension,
           c.inflow_source,
           c.referrer_name,
+          c.sms_opt_out,
           lc.last_consult_date,
           lc.consultation_count,
           lcm.last_consultation_body,
@@ -7264,6 +7289,7 @@ apiRouter.get('/customers/:id', requireAuth, async (req, res) => {
         c.crm_extension,
         c.inflow_source,
         c.referrer_name,
+        c.sms_opt_out,
         lc.last_consult_date,
         lc.consultation_count,
         lcm.last_consultation_body,

@@ -230,6 +230,7 @@ export function mapCustomerRow(row) {
     overdueFollowUp,
     todayFollowUp,
     isFavorite: row.is_favorite === true,
+    smsOptOut: row.sms_opt_out === true,
     crmExtension: crmParsed,
     createdAt: toIsoString(row.created_at),
   }

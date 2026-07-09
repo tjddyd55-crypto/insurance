@@ -48,6 +48,7 @@ import { CustomerSpecialDatesEditor } from '../../features/customers/components/
 import { CustomerDrivingRadioGroup } from '../../features/customers/components/CustomerDrivingRadioGroup'
 import { CustomerFormSection } from '../../features/customers/components/CustomerFormSection'
 import { CustomerAccountNumberField } from '../../features/customers/components/CustomerAccountNumberField'
+import { CustomerSmsOptOutField } from '../../features/customers/components/CustomerSmsOptOutField'
 import { useCustomerCrmIndustryContext } from '../../features/customers/hooks/useCustomerCrmIndustryContext'
 import { getCustomerIndustryTemplateFormValidationError } from '../../features/customers/utils/customerIndustryTemplateFormValidation'
 import type { CustomerCarFormItem } from '../../features/customers/types/customerCarForm'
@@ -222,6 +223,9 @@ export type CustomerFormState = {
   /** 유입 경로가 소개일 때 소개자 이름 */
   referrerName: string
 
+  /** CRM 문자(단체/예약/자동) 수신거부 */
+  smsOptOut: boolean
+
 }
 
 
@@ -277,6 +281,8 @@ const EMPTY_FORM: CustomerFormState = {
   inflowSource: '',
 
   referrerName: '',
+
+  smsOptOut: false,
 
 }
 
@@ -398,6 +404,8 @@ export function customerFormStateToSavePayload(form: CustomerFormState): SaveCus
     inflowSource: form.inflowSource.trim() || null,
 
     referrerName: resolveReferrerNameForSave(form.inflowSource, form.referrerName),
+
+    smsOptOut: form.smsOptOut === true,
 
   }
 
@@ -570,6 +578,11 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
           onChange={(value) => onFormChange({ ...form, carrier: value })}
         />
       </label>
+
+      <CustomerSmsOptOutField
+        checked={form.smsOptOut === true}
+        onChange={(checked) => onFormChange({ ...form, smsOptOut: checked })}
+      />
 
       <CustomerInflowSourceFields
         inflowSource={form.inflowSource}

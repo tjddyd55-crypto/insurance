@@ -1565,6 +1565,11 @@ export async function initDb() {
 
   await pool.query(`
     ALTER TABLE customers
+    ADD COLUMN IF NOT EXISTS sms_opt_out BOOLEAN NOT NULL DEFAULT FALSE
+  `)
+
+  await pool.query(`
+    ALTER TABLE customers
     ADD COLUMN IF NOT EXISTS birth_date DATE
   `)
   await pool.query(`

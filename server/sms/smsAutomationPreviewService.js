@@ -203,7 +203,8 @@ async function loadScopedCustomers(executor, scope) {
       c.ssn,
       c.birth_date,
       c.insurance_age,
-      c.next_age_date
+      c.next_age_date,
+      c.sms_opt_out
     FROM customers c
     INNER JOIN users u ON u.id = c.user_id
     INNER JOIN tenants t ON t.legacy_ga_id = u.ga_id
