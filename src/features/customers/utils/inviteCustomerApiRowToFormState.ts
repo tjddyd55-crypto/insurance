@@ -100,5 +100,6 @@ export function inviteCustomerApiRowToFormState(row: ApiCustomerInvite): Custome
     notes: notesBagNormalized.items.length > 0 ? notesBagNormalized.items : notes,
     noteDraft: '',
     crmExtensionFields: crmBag.fields ?? {},
+    smsOptOut: row.smsOptOut === true || row.sms_opt_out === true,
   }
 }

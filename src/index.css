@@ -7975,6 +7975,46 @@ div.cta-button.customers-page__action-btn[role='button'] {
   gap: 0.625rem;
 }
 
+.customer-sms-opt-out-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.customer-sms-opt-out-field__checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.customer-sms-opt-out-field__checkbox input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.customer-sms-opt-out-field__hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.customer-sms-opt-out-read__badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-soft);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
 .customer-detail-read__info-row {
   display: flex;
   align-items: flex-start;

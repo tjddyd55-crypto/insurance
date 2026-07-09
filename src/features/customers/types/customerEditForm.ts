@@ -29,4 +29,6 @@ export type CustomerEditFormState = {
   inflowSource: string
   /** 유입 경로가 소개일 때 소개자 이름 */
   referrerName: string
+  /** CRM 문자(단체/예약/자동) 수신거부 */
+  smsOptOut: boolean
 }

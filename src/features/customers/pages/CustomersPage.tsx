@@ -1125,6 +1125,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         carYear: carYearForApi,
         renewalDate: renewalDateForApi,
         isFavorite: base.isFavorite === true,
+        smsOptOut: activeEditForm.smsOptOut === true,
         inflowSource: activeEditForm.inflowSource.trim() || null,
         referrerName: resolveReferrerNameForSave(
           activeEditForm.inflowSource,

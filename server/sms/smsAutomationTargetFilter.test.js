@@ -1,10 +1,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  applyAutomationTargetScopeToPreviewItem,
+  applyCustomerSmsOptOutToPreviewItem,
   evaluateAutomationTargetScope,
   mapAutomationTargetFiltersFromInput,
   mapAutomationTargetFiltersFromRuleRow,
   SMS_AUTOMATION_AGE_UNKNOWN_NOTE,
+  SMS_AUTOMATION_CUSTOMER_SMS_OPT_OUT_REASON,
   SMS_AUTOMATION_MINOR_EXCLUDE_REASON,
 } from './smsAutomationTargetFilter.js'
 
@@ -61,4 +64,23 @@ test('evaluateAutomationTargetScope allows adult from RRN', () => {
   })
   assert.equal(result.excluded, false)
   assert.equal(result.scopeNote, null)
+})
+
+test('applyCustomerSmsOptOutToPreviewItem excludes opted-out customers', () => {
+  const result = applyCustomerSmsOptOutToPreviewItem(
+    { sendable: true, excludedReason: null },
+    { sms_opt_out: true },
+  )
+  assert.equal(result.sendable, false)
+  assert.equal(result.excludedReason, SMS_AUTOMATION_CUSTOMER_SMS_OPT_OUT_REASON)
+})
+
+test('applyAutomationTargetScopeToPreviewItem prioritizes customer sms opt-out', () => {
+  const result = applyAutomationTargetScopeToPreviewItem(
+    { sendable: true, excludedReason: null },
+    { sms_opt_out: true, birth_date: '2010-01-01' },
+    '2026-07-09',
+    { excludeMinors: true },
+  )
+  assert.equal(result.excludedReason, SMS_AUTOMATION_CUSTOMER_SMS_OPT_OUT_REASON)
 })

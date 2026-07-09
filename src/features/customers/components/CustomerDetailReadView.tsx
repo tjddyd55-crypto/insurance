@@ -25,7 +25,7 @@ import {
   buildGovernmentCustomerStatusSummary,
   buildGovernmentDetailStatusCardRows,
 } from '../utils/governmentCustomerStatusSummary'
-import GovernmentDetailStatusSummaryCard from './GovernmentDetailStatusSummaryCard'
+import { CustomerSmsOptOutReadBadge } from './CustomerSmsOptOutReadBadge'
 import GovernmentProgressReadSection from './GovernmentProgressReadSection'
 
 export type CustomerDetailInsuranceDisplay = {
@@ -185,6 +185,12 @@ export default function CustomerDetailReadView({
                 </div>
               </section>
             )}
+        <div className="customer-detail-read__info-list">
+          <DetailReadInfoRow>
+            <span className="customer-detail-read__info-label">문자 수신:</span>{' '}
+            <CustomerSmsOptOutReadBadge smsOptOut={c.smsOptOut === true} />
+          </DetailReadInfoRow>
+        </div>
         {token?.trim() ? (
           <CustomerRelationsStrip
             customerId={c.id}
@@ -243,6 +249,10 @@ export default function CustomerDetailReadView({
         <DetailReadInfoRow>
           <span className="customer-detail-read__info-label">핸드폰번호:</span>{' '}
           <span className="customer-detail-read__info-value">{formatCustomerPhoneUi(c.phone) || '—'}</span>
+        </DetailReadInfoRow>
+        <DetailReadInfoRow>
+          <span className="customer-detail-read__info-label">문자 수신:</span>{' '}
+          <CustomerSmsOptOutReadBadge smsOptOut={c.smsOptOut === true} />
         </DetailReadInfoRow>
         <DetailReadInfoRow>
           <span className="customer-detail-read__info-label">통신사:</span>{' '}

@@ -125,6 +125,8 @@ export interface CustomerRecord {
   todayFollowUp?: boolean
   /** 중요 고객(즐겨찾기) — 목록 상단 정렬·필터에 사용 */
   isFavorite: boolean
+  /** CRM 문자(단체/예약/자동) 수신거부 */
+  smsOptOut: boolean
   /** 업종별 확장 필드 (government / gym 등) — canonical fieldKey SSOT */
   crmExtension?: CustomerCrmExtension
   createdAt: string
