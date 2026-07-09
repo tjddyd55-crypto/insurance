@@ -10,6 +10,7 @@ import {
 } from '../../config/smsAutomationRule.config'
 import type { SmsAutomationRuleFormState } from '../../types/smsAutomationRuleTypes'
 import type { SmsAutomationTriggerType } from '../../types/smsAutomationRuleTypes'
+import { SmsAutomationStatusBadge } from './SmsAutomationStatusBadge'
 
 export type SmsAutomationRuleEditorProps = {
   form: SmsAutomationRuleFormState
@@ -35,9 +36,12 @@ export function SmsAutomationRuleEditor({
 
   return (
     <section className="sms-automation-rules__editor-panel" aria-label="자동문자 규칙 편집">
-      <h2 className="sms-automation-rules__panel-title">
-        {isCreating || form.id == null ? '새 자동문자 규칙' : '규칙 상세/수정'}
-      </h2>
+      <div className="sms-automation-rules__editor-heading">
+        <h2 className="sms-automation-rules__panel-title">
+          {isCreating || form.id == null ? '새 자동문자 규칙' : '규칙 상세/수정'}
+        </h2>
+        {!isCreating && form.id != null ? <SmsAutomationStatusBadge isActive={form.isActive} /> : null}
+      </div>
 
       <div className="sms-automation-rules__form-grid">
         <label className="sms-automation-rules__field">
@@ -102,7 +106,7 @@ export function SmsAutomationRuleEditor({
         </label>
 
         <label className="sms-automation-rules__field">
-          <span className="sms-automation-rules__label">사용 여부</span>
+          <span className="sms-automation-rules__label">자동문자 상태</span>
           <FormSelect
             className="sms-automation-rules__control sms-automation-rules__control--narrow"
             value={form.isActive ? 'true' : 'false'}

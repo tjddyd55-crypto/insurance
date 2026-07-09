@@ -51,9 +51,9 @@ import {
   createAutomationRule,
   deleteAutomationRule,
   listAutomationRules,
-  previewAutomationRule,
   updateAutomationRule,
 } from './sms/smsAutomationRuleService.js'
+import { previewAutomationRule } from './sms/smsAutomationPreviewService.js'
 
 function smsApiError(res, err) {
   const status = Number(err?.status ?? 500)
@@ -869,7 +869,9 @@ export function registerSmsModuleApi(apiRouter, ctx) {
         res.status(400).json({ success: false, message: '잘못된 규칙 ID입니다.', code: 'sms_automation_invalid_id' })
         return
       }
-      const data = await previewAutomationRule(pool, scope, id)
+      const data = await previewAutomationRule(pool, scope, id, {
+        baseDate: req.body?.baseDate ?? req.body?.base_date ?? null,
+      })
       res.json({ success: true, data })
     } catch (e) {
       if (e?.status) {

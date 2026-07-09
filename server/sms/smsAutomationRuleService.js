@@ -277,32 +277,7 @@ export async function deleteAutomationRule(executor, scope, ruleId) {
 }
 
 /**
- * 대상자 미리보기(dry-run). 실제 발송·큐 적재 없음.
- * @param {import('pg').Pool | import('pg').PoolClient} executor
- * @param {{ tenantId: number; userId: string }} scope
- * @param {number} ruleId
+ * 대상자 미리보기는 smsAutomationPreviewService.js 에서 구현한다.
  */
-export async function previewAutomationRule(executor, scope, ruleId) {
-  const existing = await loadRuleById(executor, scope, ruleId)
-  if (!existing) {
-    const err = new Error('sms_automation_rule_not_found')
-    err.status = 404
-    err.publicMessage = '자동문자 규칙을 찾을 수 없습니다.'
-    throw err
-  }
-  const rule = mapRowToApi(existing)
-  return {
-    ruleId: rule.id,
-    ruleName: rule.ruleName,
-    triggerType: rule.triggerType,
-    dayOffset: rule.dayOffset,
-    sendTime: rule.sendTime,
-    previewAvailable: false,
-    message:
-      '대상자 미리보기 계산은 다음 단계에서 제공됩니다. 현재는 규칙 설정만 저장됩니다.',
-    estimatedTargetCount: null,
-    sampleTargets: [],
-  }
-}
 
 export { normalizeTriggerType, normalizeDayOffset, normalizeSendTime, normalizeSpecialDatePurposeType, mapRowToApi }
