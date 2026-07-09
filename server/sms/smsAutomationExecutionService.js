@@ -6,6 +6,7 @@ import {
   createAutomationRun,
   finalizeAutomationRun,
   getAutomationRunDetail,
+  hasAutomationSendDedupe,
   insertAutomationRunItem,
   listAutomationRuns,
   tryInsertAutomationSendDedupe,
@@ -52,6 +53,105 @@ function resolveRunStatus(counts) {
     return 'FAILED'
   }
   return 'COMPLETED'
+}
+
+const DUPLICATE_SKIP_MESSAGE = '이미 동일 기준으로 실제 발송된 대상입니다.'
+const DUPLICATE_SIMULATED_NOTE = '기존 실제 발송 기록이 있어 모의 실행에서도 중복으로 표시됩니다.'
+
+/**
+ * sendable 대상 1건 처리 — dedupe 정책 SSOT
+ * SIMULATED_SEND: dedupe insert 금지, 기존 dedupe만 조회
+ * REAL_SEND: dedupe insert 후 발송 (실패해도 dedupe 유지 — A안)
+ *
+ * @param {'REAL_SEND' | 'SIMULATED_SEND'} runMode
+ * @param {{
+ *   hasDedupe: () => Promise<boolean>;
+ *   tryInsertDedupe: () => Promise<number | null>;
+ *   sendSms: () => Promise<{ success: boolean; errorMessage?: string | null }>;
+ * }} deps
+ */
+export async function processSendableAutomationTarget(runMode, deps) {
+  if (runMode === 'SIMULATED_SEND') {
+    const alreadySent = await deps.hasDedupe()
+    if (alreadySent) {
+      return {
+        sendStatus: 'SKIPPED_DUPLICATE',
+        sendResultCode: 'duplicate_existing',
+        sendResultMessage: DUPLICATE_SIMULATED_NOTE,
+        dedupeInserted: false,
+        outcome: 'skippedDuplicate',
+      }
+    }
+    return {
+      sendStatus: 'SIMULATED',
+      sendResultCode: null,
+      sendResultMessage: null,
+      dedupeInserted: false,
+      outcome: 'simulated',
+    }
+  }
+
+  const dedupeId = await deps.tryInsertDedupe()
+  if (dedupeId == null) {
+    return {
+      sendStatus: 'SKIPPED_DUPLICATE',
+      sendResultCode: 'duplicate_conflict',
+      sendResultMessage: DUPLICATE_SKIP_MESSAGE,
+      dedupeInserted: false,
+      outcome: 'skippedDuplicate',
+    }
+  }
+
+  try {
+    const sendResult = await deps.sendSms()
+    if (sendResult.success) {
+      return {
+        sendStatus: 'SENT',
+        sendResultCode: 'success',
+        sendResultMessage: null,
+        dedupeInserted: true,
+        outcome: 'sent',
+        sentAt: new Date(),
+      }
+    }
+    return {
+      sendStatus: 'FAILED',
+      sendResultCode: 'provider_failed',
+      sendResultMessage: sendResult.errorMessage ?? '발송 실패',
+      dedupeInserted: true,
+      outcome: 'failed',
+    }
+  } catch (sendErr) {
+    return {
+      sendStatus: 'FAILED',
+      sendResultCode: String(sendErr?.message ?? 'send_failed'),
+      sendResultMessage: String(sendErr?.publicMessage ?? sendErr?.message ?? '발송 실패'),
+      dedupeInserted: true,
+      outcome: 'failed',
+    }
+  }
+}
+
+async function updateAutomationRunItemStatus(executor, runItemId, patch) {
+  await systemQuery(
+    executor,
+    `
+    UPDATE sms_automation_run_items
+    SET send_status = $2,
+        send_result_code = $3,
+        send_result_message = $4,
+        sent_at = $5,
+        updated_at = NOW()
+    WHERE id = $1
+    `,
+    [
+      runItemId,
+      patch.sendStatus,
+      patch.sendResultCode ?? null,
+      patch.sendResultMessage ?? null,
+      patch.sentAt ?? null,
+    ],
+  )
 }
 
 async function loadRuleScopeRow(executor, scope, ruleId) {
@@ -139,95 +239,48 @@ export async function runAutomationRule(executor, scope, ruleId, options = {}) {
         ruleId,
         triggerType: preview.rule.triggerType,
         item,
-        sendStatus: 'SIMULATED',
+        sendStatus: runMode === 'REAL_SEND' ? 'FAILED' : 'SIMULATED',
       })
 
-      const dedupeId = await tryInsertAutomationSendDedupe(executor, {
-        tenantId: scope.tenantId,
-        gaId: run.gaId,
-        userId: scope.userId,
+      const referenceDate = String(item.referenceDate ?? preview.targetDate)
+      const dedupeKey = {
         ruleId,
         customerId: Number(item.customerId),
         triggerInstanceKey: String(item.triggerInstanceKey ?? ''),
-        referenceDate: String(item.referenceDate ?? preview.targetDate),
-        runItemId: runItem.id,
+        referenceDate,
+      }
+
+      const outcome = await processSendableAutomationTarget(runMode, {
+        hasDedupe: () => hasAutomationSendDedupe(executor, dedupeKey),
+        tryInsertDedupe: () =>
+          tryInsertAutomationSendDedupe(executor, {
+            tenantId: scope.tenantId,
+            gaId: run.gaId,
+            userId: scope.userId,
+            ruleId,
+            customerId: dedupeKey.customerId,
+            triggerInstanceKey: dedupeKey.triggerInstanceKey,
+            referenceDate: dedupeKey.referenceDate,
+            runItemId: runItem.id,
+          }),
+        sendSms: () =>
+          sendAutomationSms(executor, scope, {
+            customerId: dedupeKey.customerId,
+            phone: String(item.phone ?? ''),
+            messageBody: String(item.messageBody ?? ''),
+          }),
       })
 
-      if (dedupeId == null) {
+      await updateAutomationRunItemStatus(executor, runItem.id, outcome)
+
+      if (outcome.outcome === 'skippedDuplicate') {
         counts.skippedDuplicate += 1
-        await systemQuery(
-          executor,
-          `
-          UPDATE sms_automation_run_items
-          SET send_status = 'SKIPPED_DUPLICATE',
-              send_result_message = '이미 동일 기준으로 발송(또는 모의 실행)된 대상입니다.',
-              updated_at = NOW()
-          WHERE id = $1
-          `,
-          [runItem.id],
-        )
-        continue
-      }
-
-      if (runMode === 'SIMULATED_SEND') {
+      } else if (outcome.outcome === 'simulated') {
         counts.simulated += 1
-        continue
-      }
-
-      try {
-        const sendResult = await sendAutomationSms(executor, scope, {
-          customerId: Number(item.customerId),
-          phone: String(item.phone ?? ''),
-          messageBody: String(item.messageBody ?? ''),
-        })
-        if (sendResult.success) {
-          counts.sent += 1
-          await systemQuery(
-            executor,
-            `
-            UPDATE sms_automation_run_items
-            SET send_status = 'SENT',
-                send_result_code = 'success',
-                send_result_message = NULL,
-                sent_at = NOW(),
-                updated_at = NOW()
-            WHERE id = $1
-            `,
-            [runItem.id],
-          )
-        } else {
-          counts.failed += 1
-          await systemQuery(
-            executor,
-            `
-            UPDATE sms_automation_run_items
-            SET send_status = 'FAILED',
-                send_result_code = 'provider_failed',
-                send_result_message = $2,
-                updated_at = NOW()
-            WHERE id = $1
-            `,
-            [runItem.id, sendResult.errorMessage ?? '발송 실패'],
-          )
-        }
-      } catch (sendErr) {
+      } else if (outcome.outcome === 'sent') {
+        counts.sent += 1
+      } else if (outcome.outcome === 'failed') {
         counts.failed += 1
-        await systemQuery(
-          executor,
-          `
-          UPDATE sms_automation_run_items
-          SET send_status = 'FAILED',
-              send_result_code = $2,
-              send_result_message = $3,
-              updated_at = NOW()
-          WHERE id = $1
-          `,
-          [
-            runItem.id,
-            String(sendErr?.message ?? 'send_failed'),
-            String(sendErr?.publicMessage ?? sendErr?.message ?? '발송 실패'),
-          ],
-        )
       }
     }
 

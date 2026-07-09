@@ -206,11 +206,13 @@ export function SmsAutomationRulePreviewPanel({
 
       {!realSendEnabled ? (
         <p className="sms-automation-rules__run-hint sms-automation-rules__run-hint--disabled">
-          현재 실제 발송 비활성화 상태입니다. 모의 실행만 가능합니다. (SMS_MODULE_REAL_SEND_ENABLED)
+          현재 실제 발송 비활성화 상태입니다. 모의 실행만 가능하며, 모의 실행은 중복 발송 기록을 남기지
+          않습니다. (SMS_MODULE_REAL_SEND_ENABLED)
         </p>
       ) : (
         <p className="sms-automation-rules__run-hint">
-          실제 발송 실행은 확인 후 sendable 대상에게만 발송됩니다. 중복 발송은 자동으로 제외됩니다.
+          모의 실행은 실제 문자를 발송하지 않으며, 중복 발송 기록도 남기지 않습니다. 실제 발송 시 동일
+          규칙·고객·기준일 문자는 중복 발송되지 않습니다.
         </p>
       )}
 
