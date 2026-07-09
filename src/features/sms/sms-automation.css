@@ -1,14 +1,5 @@
 .sms-automation-rules-page {
-  background: var(--bg-base);
-  color: var(--text-primary);
-  min-height: 100%;
-}
-
-.sms-automation-rules-page__shell {
-  width: min(100%, 1240px);
-  margin: 0 auto;
-  padding: 12px 16px 32px;
-  box-sizing: border-box;
+  /* 본문 레이아웃은 sms-module-page / sms-module__content 와 공유 */
 }
 
 .sms-automation-rules-page__header {
@@ -340,10 +331,6 @@
 
 .sms-automation-rules-page--mobile .sms-automation-rules__back-to-list {
   margin-bottom: 10px;
-}
-
-.sms-automation-rules-page--mobile .sms-automation-rules-page__shell {
-  padding: 10px 12px 24px;
 }
 
 .sms-automation-rules__summary-cards {

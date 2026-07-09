@@ -28,7 +28,9 @@
 }
 
 .app-main-content--workspace-outlet-host .sms-module-page,
-.mobile-workspace-content .sms-module-page {
+.mobile-workspace-content .sms-module-page,
+.app-main-content--workspace-outlet-host .sms-automation-rules-page,
+.mobile-workspace-content .sms-automation-rules-page {
   min-height: auto;
   background: var(--bg-base);
 }

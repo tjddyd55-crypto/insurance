@@ -21,12 +21,12 @@ export default function SmsAutomationMobileView(props: SmsAutomationViewProps) {
   const showEditor = props.isCreating || props.selectedRuleId != null
 
   return (
-    <main className="page sms-automation-rules-page sms-automation-rules-page--mobile page--with-back">
-      <div className="sms-automation-rules-page__shell">
-        <div className="sms-module__topbar sms-module__topbar--mobile">
-          <SmsModuleNav variant="mobile" activeTab="automations" />
-        </div>
+    <main className="page sms-module-page sms-module-page--mobile sms-automation-rules-page sms-automation-rules-page--mobile page--with-back">
+      <div className="sms-module__topbar sms-module__topbar--mobile">
+        <SmsModuleNav variant="mobile" activeTab="automations" />
+      </div>
 
+      <div className="sms-module__content">
         <header className="sms-automation-rules-page__header">
           <h1 className="sms-automation-rules-page__title">자동문자</h1>
         </header>
