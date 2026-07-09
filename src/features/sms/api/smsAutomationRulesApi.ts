@@ -52,10 +52,11 @@ export async function deleteSmsAutomationRule(token: string, ruleId: number): Pr
 export async function previewSmsAutomationRule(
   token: string,
   ruleId: number,
+  baseDate?: string,
 ): Promise<SmsAutomationRulePreview> {
   return apiRequest<SmsAutomationRulePreview>(`/api/sms/automation-rules/${ruleId}/preview`, {
     token: requireSmsToken(token),
     method: 'POST',
-    body: JSON.stringify({}),
+    body: JSON.stringify(baseDate ? { baseDate } : {}),
   })
 }

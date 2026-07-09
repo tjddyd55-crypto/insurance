@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { SmsAutomationRuleEditor } from '../../components/automation/SmsAutomationRuleEditor'
 import { SmsAutomationRuleList } from '../../components/automation/SmsAutomationRuleList'
 import { SmsAutomationRulePreviewPanel } from '../../components/automation/SmsAutomationRulePreview'
-import { SmsManagementNav } from '../../components/SmsManagementNav'
+import { SmsAutomationSummaryCards } from '../../components/automation/SmsAutomationStatusBadge'
 import FormButton from '../../../../components/form/FormButton'
 import type { SmsAutomationViewProps } from './SmsAutomationPCView'
 
@@ -29,7 +29,11 @@ export default function SmsAutomationMobileView(props: SmsAutomationViewProps) {
           </Link>
         </header>
 
-        <SmsManagementNav />
+        <p className="sms-automation-rules-page__subtitle">
+          고객 생일, 자동차보험 만기, 보험나이, 고객 지정 기념일 기준으로 자동 발송 규칙을 설정합니다.
+        </p>
+
+        <SmsAutomationSummaryCards rules={props.rules} />
         <AlertBox error={props.error} notice={props.notice} />
 
         {showEditor ? (
@@ -55,6 +59,8 @@ export default function SmsAutomationMobileView(props: SmsAutomationViewProps) {
               preview={props.preview}
               loading={props.previewLoading}
               canPreview={!props.isCreating && props.form.id != null}
+              baseDate={props.previewBaseDate}
+              onBaseDateChange={props.setPreviewBaseDate}
               onLoadPreview={() => void props.loadPreview()}
             />
           </div>

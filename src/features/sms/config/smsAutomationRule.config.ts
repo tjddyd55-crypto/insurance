@@ -38,8 +38,8 @@ export const SMS_AUTOMATION_SPECIAL_DATE_PURPOSE_OPTIONS: FormSelectOption[] = (
 }))
 
 export const SMS_AUTOMATION_ACTIVE_OPTIONS: FormSelectOption[] = [
-  { value: 'true', label: '사용' },
-  { value: 'false', label: '중지' },
+  { value: 'true', label: '가동중' },
+  { value: 'false', label: '중지중' },
 ]
 
 export const SMS_AUTOMATION_DEFAULT_MESSAGE_BY_TRIGGER: Record<SmsAutomationTriggerType, string> = {
@@ -111,6 +111,18 @@ export function formatAutomationDayOffsetLabel(dayOffset: number): string {
   return `D-${dayOffset}`
 }
 
+export function formatAutomationSendTimeLabel(sendTime: string): string {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(String(sendTime ?? '').trim())
+  if (!match) {
+    return sendTime
+  }
+  const hour = Number(match[1])
+  const minute = match[2]
+  const period = hour < 12 ? '오전' : '오후'
+  const hour12 = hour % 12 === 0 ? 12 : hour % 12
+  return `${period} ${hour12}:${minute}`
+}
+
 export function formatAutomationUpdatedAt(iso: string | undefined | null): string {
   const raw = String(iso ?? '').trim()
   if (!raw) {
@@ -126,4 +138,17 @@ export function formatAutomationUpdatedAt(iso: string | undefined | null): strin
     month: '2-digit',
     day: '2-digit',
   }).format(d)
+}
+
+export function getAutomationPreviewBaseDateDefault(): string {
+  return new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date())
+}
+
+export function labelAutomationActiveState(isActive: boolean): string {
+  return isActive ? '가동중' : '중지중'
 }

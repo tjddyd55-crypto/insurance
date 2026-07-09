@@ -9,12 +9,14 @@ import {
 } from '../api/smsAutomationRulesApi'
 import {
   createEmptySmsAutomationRuleForm,
+  getAutomationPreviewBaseDateDefault,
   SMS_AUTOMATION_DEFAULT_MESSAGE_BY_TRIGGER,
 } from '../config/smsAutomationRule.config'
 import type {
   SmsAutomationRule,
   SmsAutomationRuleFormState,
   SmsAutomationRulePreview,
+  SmsAutomationRuleStats,
   SmsAutomationTriggerType,
 } from '../types/smsAutomationRuleTypes'
 
@@ -29,6 +31,8 @@ export type UseSmsAutomationRulesStateResult = {
   form: SmsAutomationRuleFormState
   preview: SmsAutomationRulePreview | null
   previewLoading: boolean
+  previewBaseDate: string
+  stats: SmsAutomationRuleStats
   isCreating: boolean
   selectRule: (ruleId: number | null) => void
   startCreate: () => void
@@ -36,7 +40,8 @@ export type UseSmsAutomationRulesStateResult = {
   changeTriggerType: (triggerType: SmsAutomationTriggerType) => void
   saveForm: () => Promise<void>
   removeSelected: () => Promise<void>
-  loadPreview: () => Promise<void>
+  loadPreview: (baseDate?: string) => Promise<void>
+  setPreviewBaseDate: (value: string) => void
   reload: () => Promise<void>
   clearNotice: () => void
 }
@@ -66,6 +71,16 @@ export function useSmsAutomationRulesState(): UseSmsAutomationRulesStateResult {
   const [form, setForm] = useState<SmsAutomationRuleFormState>(() => createEmptySmsAutomationRuleForm())
   const [preview, setPreview] = useState<SmsAutomationRulePreview | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewBaseDate, setPreviewBaseDate] = useState(() => getAutomationPreviewBaseDateDefault())
+
+  const stats = useMemo<SmsAutomationRuleStats>(() => {
+    const active = rules.filter((rule) => rule.isActive).length
+    return {
+      total: rules.length,
+      active,
+      inactive: rules.length - active,
+    }
+  }, [rules])
 
   const selectedRule = useMemo(
     () => rules.find((r) => r.id === selectedRuleId) ?? null,
@@ -211,23 +226,28 @@ export function useSmsAutomationRulesState(): UseSmsAutomationRulesStateResult {
     }
   }, [form.id, reload, token])
 
-  const loadPreview = useCallback(async () => {
-    if (!token?.trim() || form.id == null) {
-      setPreview(null)
-      return
-    }
-    setPreviewLoading(true)
-    setError(null)
-    try {
-      const data = await previewSmsAutomationRule(token, form.id)
-      setPreview(data)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '대상자 미리보기를 불러오지 못했습니다.')
-      setPreview(null)
-    } finally {
-      setPreviewLoading(false)
-    }
-  }, [form.id, token])
+  const loadPreview = useCallback(
+    async (baseDate?: string) => {
+      if (!token?.trim() || form.id == null) {
+        setPreview(null)
+        return
+      }
+      const effectiveBaseDate = (baseDate ?? previewBaseDate).trim() || getAutomationPreviewBaseDateDefault()
+      setPreviewLoading(true)
+      setError(null)
+      try {
+        const data = await previewSmsAutomationRule(token, form.id, effectiveBaseDate)
+        setPreview(data)
+        setPreviewBaseDate(effectiveBaseDate)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : '대상자 미리보기를 불러오지 못했습니다.')
+        setPreview(null)
+      } finally {
+        setPreviewLoading(false)
+      }
+    },
+    [form.id, previewBaseDate, token],
+  )
 
   const clearNotice = useCallback(() => {
     setNotice(null)
@@ -245,6 +265,8 @@ export function useSmsAutomationRulesState(): UseSmsAutomationRulesStateResult {
     form,
     preview,
     previewLoading,
+    previewBaseDate,
+    stats,
     isCreating,
     selectRule,
     startCreate,
@@ -253,6 +275,7 @@ export function useSmsAutomationRulesState(): UseSmsAutomationRulesStateResult {
     saveForm,
     removeSelected,
     loadPreview,
+    setPreviewBaseDate,
     reload,
     clearNotice,
   }

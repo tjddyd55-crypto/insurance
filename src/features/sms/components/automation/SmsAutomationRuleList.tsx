@@ -1,10 +1,12 @@
 import FormButton from '../../../../components/form/FormButton'
 import {
   formatAutomationDayOffsetLabel,
+  formatAutomationSendTimeLabel,
   formatAutomationUpdatedAt,
   labelForAutomationTriggerType,
 } from '../../config/smsAutomationRule.config'
 import type { SmsAutomationRule } from '../../types/smsAutomationRuleTypes'
+import { SmsAutomationStatusBadge } from './SmsAutomationStatusBadge'
 
 export type SmsAutomationRuleListProps = {
   rules: SmsAutomationRule[]
@@ -44,14 +46,17 @@ export function SmsAutomationRuleList({
                   className={`sms-automation-rules__list-item${active ? ' sms-automation-rules__list-item--active' : ''}`}
                   onClick={() => onSelect(rule.id)}
                 >
-                  <span className="sms-automation-rules__list-item-name">{rule.ruleName}</span>
-                  <span className="sms-automation-rules__list-item-meta">
-                    {labelForAutomationTriggerType(rule.triggerType)} ·{' '}
-                    {formatAutomationDayOffsetLabel(rule.dayOffset)} · {rule.sendTime}
+                  <span className="sms-automation-rules__list-item-top">
+                    <span className="sms-automation-rules__list-item-name">{rule.ruleName}</span>
+                    <SmsAutomationStatusBadge isActive={rule.isActive} />
                   </span>
                   <span className="sms-automation-rules__list-item-meta">
-                    {rule.isActive ? '사용' : '중지'} · 수정{' '}
-                    {formatAutomationUpdatedAt(rule.updatedAt)}
+                    {labelForAutomationTriggerType(rule.triggerType)} ·{' '}
+                    {formatAutomationDayOffsetLabel(rule.dayOffset)} ·{' '}
+                    {formatAutomationSendTimeLabel(rule.sendTime)}
+                  </span>
+                  <span className="sms-automation-rules__list-item-meta">
+                    최근 수정 {formatAutomationUpdatedAt(rule.updatedAt)}
                   </span>
                 </button>
               </li>

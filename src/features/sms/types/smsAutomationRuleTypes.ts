@@ -41,23 +41,46 @@ export type SmsAutomationRuleInput = {
   isActive: boolean
 }
 
-export type SmsAutomationRulePreview = {
-  ruleId: number
-  ruleName: string
-  triggerType: SmsAutomationTriggerType
+export type SmsAutomationPreviewItem = {
+  customerId: number
+  customerName: string
+  phone: string
+  triggerLabel: string
+  referenceTitle: string | null
+  referenceDate: string | null
   dayOffset: number
-  sendTime: string
+  messageBody: string
+  sendable: boolean
+  excludedReason: string | null
+  carNumber?: string | null
+}
+
+export type SmsAutomationRulePreview = {
+  rule: {
+    id: number
+    ruleName: string
+    triggerType: SmsAutomationTriggerType
+    dayOffset: number
+    sendTime: string
+    isActive: boolean
+  }
+  baseDate: string
+  targetDate: string
+  summary: {
+    total: number
+    sendable: number
+    excluded: number
+  }
+  items: SmsAutomationPreviewItem[]
   previewAvailable: boolean
-  message: string
-  estimatedTargetCount: number | null
-  sampleTargets: Array<{
-    customerId?: number
-    customerName?: string
-    phone?: string
-    referenceDate?: string
-  }>
 }
 
 export type SmsAutomationRuleFormState = SmsAutomationRuleInput & {
   id?: number
+}
+
+export type SmsAutomationRuleStats = {
+  total: number
+  active: number
+  inactive: number
 }

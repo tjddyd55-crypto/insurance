@@ -256,3 +256,242 @@
 .sms-automation-rules-page--mobile .sms-automation-rules-page__shell {
   padding: 10px 12px 24px;
 }
+
+.sms-automation-rules__summary-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.sms-automation-rules__summary-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sms-automation-rules__summary-card--active {
+  border-color: var(--hint-border, #bbf7d0);
+  background: var(--hint-bg, #f0fdf4);
+}
+
+.sms-automation-rules__summary-card--inactive {
+  border-color: #e5e7eb;
+  background: var(--bg-soft, #f9fafb);
+}
+
+.sms-automation-rules__summary-label {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.sms-automation-rules__summary-value {
+  font-size: 1.25rem;
+  color: var(--text-primary);
+}
+
+.sms-automation-rules__status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.sms-automation-rules__status-badge--active {
+  background: var(--hint-bg, #f0fdf4);
+  border: 1px solid var(--hint-border, #bbf7d0);
+  color: var(--hint-text, #166534);
+}
+
+.sms-automation-rules__status-badge--inactive {
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  color: #6b7280;
+}
+
+.sms-automation-rules__list-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.sms-automation-rules__list-item-top .sms-automation-rules__list-item-name {
+  margin-bottom: 0;
+}
+
+.sms-automation-rules__editor-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.sms-automation-rules__preview-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sms-automation-rules__preview-date-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sms-automation-rules__preview-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.sms-automation-rules__preview-summary-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.sms-automation-rules__preview-summary-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sms-automation-rules__preview-summary-card {
+  background: var(--bg-base);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.sms-automation-rules__preview-summary-card strong {
+  font-size: 1.125rem;
+  color: var(--text-primary);
+}
+
+.sms-automation-rules__preview-summary-card--sendable {
+  border-color: var(--hint-border, #bbf7d0);
+  background: var(--hint-bg, #f0fdf4);
+}
+
+.sms-automation-rules__preview-summary-card--excluded {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.sms-automation-rules__preview-list-shell {
+  max-height: 420px;
+  overflow: auto;
+}
+
+.sms-automation-rules__preview-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sms-automation-rules__preview-card {
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--bg-base);
+  padding: 12px;
+}
+
+.sms-automation-rules__preview-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.sms-automation-rules__sendable-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.sms-automation-rules__sendable-badge--ok {
+  background: var(--hint-bg, #f0fdf4);
+  border: 1px solid var(--hint-border, #bbf7d0);
+  color: var(--hint-text, #166534);
+}
+
+.sms-automation-rules__sendable-badge--blocked {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+.sms-automation-rules__preview-card-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 10px;
+}
+
+.sms-automation-rules__preview-card-meta div {
+  min-width: 0;
+}
+
+.sms-automation-rules__preview-card-meta dt {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.sms-automation-rules__preview-card-meta dd {
+  margin: 2px 0 0;
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+}
+
+.sms-automation-rules__preview-card-reason {
+  grid-column: 1 / -1;
+}
+
+.sms-automation-rules__preview-card-message {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--bg-soft, #f9fafb);
+  border: 1px solid var(--border-default);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: var(--text-primary);
+}
+
+.sms-automation-rules-page--mobile .sms-automation-rules__summary-cards,
+.sms-automation-rules-page--mobile .sms-automation-rules__preview-summary-cards {
+  grid-template-columns: 1fr;
+}
+
+.sms-automation-rules-page--mobile .sms-automation-rules__preview-card-meta {
+  grid-template-columns: 1fr;
+}
