@@ -360,4 +360,36 @@ export async function ensureSmsModuleSchema(executor) {
     ON sms_send_jobs (status, scheduled_for ASC, created_at ASC)
     WHERE status IN ('queued', 'retry')
   `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS sms_automation_rules (
+      id BIGSERIAL PRIMARY KEY,
+      tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      ga_id INTEGER REFERENCES ga_companies(id) ON DELETE SET NULL,
+      rule_name TEXT NOT NULL DEFAULT '',
+      trigger_type TEXT NOT NULL,
+      special_date_purpose_type TEXT,
+      day_offset INTEGER NOT NULL DEFAULT 0,
+      send_time TEXT NOT NULL DEFAULT '10:00',
+      message_body TEXT NOT NULL DEFAULT '',
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      deleted_at TIMESTAMPTZ,
+      CONSTRAINT sms_automation_rules_trigger_type_check CHECK (
+        trigger_type IN ('BIRTHDAY', 'CAR_INSURANCE_EXPIRY', 'INSURANCE_AGE', 'CUSTOMER_SPECIAL_DATE')
+      ),
+      CONSTRAINT sms_automation_rules_special_date_purpose_check CHECK (
+        special_date_purpose_type IS NULL
+        OR special_date_purpose_type IN ('ALL', 'CELEBRATION', 'THANKS', 'NOTICE', 'CHECKUP')
+      ),
+      CONSTRAINT sms_automation_rules_day_offset_check CHECK (day_offset >= 0 AND day_offset <= 366)
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_sms_automation_rules_tenant_user
+    ON sms_automation_rules (tenant_id, user_id, updated_at DESC)
+    WHERE deleted_at IS NULL
+  `)
 }
