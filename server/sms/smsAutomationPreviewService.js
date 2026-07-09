@@ -5,6 +5,10 @@ import { isValidKoreanMobilePhone, normalizeSmsPhone } from './smsPhone.js'
 import { loadOptOutPhoneSet } from './smsScope.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { mapRowToApi } from './smsAutomationRuleService.js'
+import {
+  applyAutomationTargetScopeToPreviewItem,
+  mapAutomationTargetFiltersFromRuleRow,
+} from './smsAutomationTargetFilter.js'
 
 const TRIGGER_LABELS = {
   BIRTHDAY: '생일',
@@ -183,6 +187,7 @@ function finalizePreviewItem(baseItem, template, context, optOutSet) {
     messageBody: rendered.messageBody,
     sendable,
     excludedReason,
+    scopeNote: null,
     carNumber: baseItem.carNumber ?? null,
   }
 }
@@ -418,16 +423,20 @@ export async function previewAutomationRule(executor, scope, ruleId, options = {
   }
 
   const rule = mapRowToApi(existing)
+  const targetFilters = mapAutomationTargetFiltersFromRuleRow(existing)
   const baseDate = normalizeBaseDate(options.baseDate)
   const targetDate = computeAutomationTargetDate(baseDate, rule.dayOffset)
   const agent = await loadAgentProfile(executor, scope.userId)
   const rawCandidates = await collectCandidates(executor, scope, rule, targetDate)
+  const customerById = new Map(
+    (await loadScopedCustomers(executor, scope)).map((row) => [Number(row.id), row]),
+  )
 
   const phones = rawCandidates.map((item) => normalizeSmsPhone(item.rawPhone)).filter(Boolean)
   const optOutSet = await loadOptOutPhoneSet(executor, { tenantId: scope.tenantId, phones })
 
-  const items = rawCandidates.map((candidate) =>
-    finalizePreviewItem(
+  const items = rawCandidates.map((candidate) => {
+    const finalized = finalizePreviewItem(
       { ...candidate, dayOffset: rule.dayOffset },
       rule.messageBody,
       {
@@ -445,8 +454,14 @@ export async function previewAutomationRule(executor, scope, ruleId, options = {
         specialDateDate: candidate.specialDateDate,
       },
       optOutSet,
-    ),
-  )
+    )
+    return applyAutomationTargetScopeToPreviewItem(
+      finalized,
+      customerById.get(candidate.customerId) ?? null,
+      baseDate,
+      targetFilters,
+    )
+  })
 
   const sendableCount = items.filter((item) => item.sendable).length
 
@@ -458,6 +473,7 @@ export async function previewAutomationRule(executor, scope, ruleId, options = {
       dayOffset: rule.dayOffset,
       sendTime: rule.sendTime,
       isActive: rule.isActive,
+      excludeMinors: rule.excludeMinors,
     },
     baseDate,
     targetDate,
@@ -476,4 +492,5 @@ export {
   normalizeBaseDate,
   buildVariableMap,
   evaluatePhoneEligibility,
+  loadScopedCustomers,
 }

@@ -120,6 +120,7 @@ export function createEmptySmsAutomationRuleForm(
     sendTime: '10:00',
     messageBody: SMS_AUTOMATION_DEFAULT_MESSAGE_BY_TRIGGER[triggerType],
     isActive: true,
+    excludeMinors: false,
   }
 }
 

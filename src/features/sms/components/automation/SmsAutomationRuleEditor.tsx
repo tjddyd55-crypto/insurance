@@ -152,6 +152,21 @@ export function SmsAutomationRuleEditor({
           />
         </label>
 
+        <div className="sms-automation-rules__field sms-automation-rules__field--wide sms-automation-rules__target-scope">
+          <span className="sms-automation-rules__label">대상 범위</span>
+          <label className="sms-automation-rules__checkbox-field">
+            <input
+              type="checkbox"
+              checked={form.excludeMinors}
+              onChange={(e) => onChange({ excludeMinors: e.target.checked })}
+            />
+            <span>미성년자 제외</span>
+          </label>
+          <p className="sms-automation-rules__hint">
+            체크하면 만 19세 미만 고객은 대상자 미리보기와 자동 발송 대상에서 제외됩니다.
+          </p>
+        </div>
+
         <div className="sms-automation-rules__field sms-automation-rules__field--wide">
           <label className="sms-automation-rules__message-field">
             <span className="sms-automation-rules__label">문자 내용</span>

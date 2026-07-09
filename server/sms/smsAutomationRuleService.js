@@ -1,4 +1,5 @@
 import { systemQuery } from '../utils/dbSafeQuery.js'
+import { mapAutomationTargetFiltersFromInput } from './smsAutomationTargetFilter.js'
 
 const TRIGGER_TYPES = new Set(['BIRTHDAY', 'CAR_INSURANCE_EXPIRY', 'INSURANCE_AGE', 'CUSTOMER_SPECIAL_DATE'])
 const SPECIAL_DATE_PURPOSE_TYPES = new Set(['ALL', 'CELEBRATION', 'THANKS', 'NOTICE', 'CHECKUP'])
@@ -17,6 +18,7 @@ function mapRowToApi(row) {
     sendTime: String(row.send_time ?? '10:00').slice(0, 5),
     messageBody: String(row.message_body ?? ''),
     isActive: row.is_active !== false,
+    excludeMinors: row.exclude_minors === true,
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
   }
@@ -110,6 +112,13 @@ function normalizeRuleInput(input, { partial = false } = {}) {
   if (!partial || Object.prototype.hasOwnProperty.call(input, 'isActive') || Object.prototype.hasOwnProperty.call(input, 'is_active')) {
     patch.isActive = input.isActive !== false && input.is_active !== false
   }
+  if (
+    !partial ||
+    Object.prototype.hasOwnProperty.call(input, 'excludeMinors') ||
+    Object.prototype.hasOwnProperty.call(input, 'exclude_minors')
+  ) {
+    patch.excludeMinors = mapAutomationTargetFiltersFromInput(input).excludeMinors
+  }
   return patch
 }
 
@@ -159,9 +168,9 @@ export async function createAutomationRule(executor, scope, input) {
     INSERT INTO sms_automation_rules (
       tenant_id, user_id, ga_id,
       rule_name, trigger_type, special_date_purpose_type,
-      day_offset, send_time, message_body, is_active
+      day_offset, send_time, message_body, is_active, exclude_minors
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
     RETURNING *
     `,
     [
@@ -175,6 +184,7 @@ export async function createAutomationRule(executor, scope, input) {
       patch.sendTime,
       patch.messageBody,
       patch.isActive,
+      patch.excludeMinors,
     ],
   )
   return mapRowToApi(ins.rows[0])
@@ -210,6 +220,11 @@ export async function updateAutomationRule(executor, scope, ruleId, input) {
         Object.prototype.hasOwnProperty.call(input, 'isActive') || Object.prototype.hasOwnProperty.call(input, 'is_active')
           ? input.isActive ?? input.is_active
           : existing.is_active,
+      excludeMinors:
+        Object.prototype.hasOwnProperty.call(input, 'excludeMinors') ||
+        Object.prototype.hasOwnProperty.call(input, 'exclude_minors')
+          ? mapAutomationTargetFiltersFromInput(input).excludeMinors
+          : existing.exclude_minors === true,
     },
     { partial: false },
   )
@@ -225,8 +240,9 @@ export async function updateAutomationRule(executor, scope, ruleId, input) {
         send_time = $5,
         message_body = $6,
         is_active = $7,
+        exclude_minors = $8,
         updated_at = NOW()
-    WHERE id = $8 AND tenant_id = $9 AND user_id = $10 AND deleted_at IS NULL
+    WHERE id = $9 AND tenant_id = $10 AND user_id = $11 AND deleted_at IS NULL
     RETURNING *
     `,
     [
@@ -237,6 +253,7 @@ export async function updateAutomationRule(executor, scope, ruleId, input) {
       patch.sendTime,
       patch.messageBody,
       patch.isActive,
+      patch.excludeMinors,
       ruleId,
       scope.tenantId,
       scope.userId,
