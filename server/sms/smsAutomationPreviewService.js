@@ -1,5 +1,6 @@
 import { resolveCustomerBirthDateYmd } from '../lib/customerBirthDateResolve.js'
 import { addDaysToDateOnly, formatDateOnly, getKstDateString } from '../../shared/dateTimeKst.js'
+import { normalizeDateOrNull } from './smsAutomationRunRepository.js'
 import { resolveCustomerInsuranceMetrics } from '../../shared/customerInsuranceMetrics.js'
 import { isValidKoreanMobilePhone, normalizeSmsPhone } from './smsPhone.js'
 import { loadOptOutPhoneSet } from './smsScope.js'
@@ -62,10 +63,22 @@ function formatBirthdayForTargetYear(birthYmd, targetYmd) {
   const birthMd = extractMonthDayFromYmd(birthYmd)
   const target = formatDateOnly(targetYmd)
   if (!birthMd || !target) {
-    return ''
+    return null
   }
   const year = target.slice(0, 4)
   return `${year}-${birthMd}`
+}
+
+/**
+ * 고객 지정 기념일 실행 로그 reference_date — targetDate 우선, 없으면 date_value
+ * @param {string | null | undefined} targetDate
+ * @param {unknown} dateValueRaw
+ * @returns {string | null}
+ */
+export function resolveSpecialDateReferenceDate(targetDate, dateValueRaw) {
+  const targetYmd = normalizeDateOrNull(targetDate)
+  const dateValueYmd = normalizeDateOrNull(formatDateOnly(dateValueRaw))
+  return targetYmd || dateValueYmd || null
 }
 
 async function loadRuleById(executor, scope, ruleId) {
@@ -379,7 +392,10 @@ async function collectSpecialDateCandidates(executor, scope, targetDate, purpose
   )
 
   return r.rows.map((row) => {
-    const specialDate = formatBirthdayForTargetYear(formatDateOnly(row.date_value), targetDate)
+    const referenceDate = resolveSpecialDateReferenceDate(targetDate, row.date_value)
+    const specialDateDate =
+      normalizeDateOrNull(formatBirthdayForTargetYear(formatDateOnly(row.date_value), targetDate)) ||
+      referenceDate
     return {
       customerId: Number(row.customer_id),
       customerName: String(row.customer_name ?? '').trim() || '고객',
@@ -387,9 +403,9 @@ async function collectSpecialDateCandidates(executor, scope, targetDate, purpose
       referenceId: Number(row.special_date_id),
       triggerLabel: TRIGGER_LABELS.CUSTOMER_SPECIAL_DATE,
       referenceTitle: String(row.title ?? '').trim() || '기념일',
-      referenceDate: specialDate,
+      referenceDate,
       specialDateTitle: String(row.title ?? '').trim(),
-      specialDateDate: specialDate,
+      specialDateDate,
     }
   })
 }

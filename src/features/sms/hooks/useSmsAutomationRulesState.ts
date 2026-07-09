@@ -5,6 +5,7 @@ import {
   deleteSmsAutomationRule,
   fetchSmsAutomationRunDetail,
   fetchSmsAutomationRules,
+  formatSmsAutomationRunError,
   previewSmsAutomationRule,
   runSmsAutomationRule,
   updateSmsAutomationRule,
@@ -309,7 +310,7 @@ export function useSmsAutomationRulesState(): UseSmsAutomationRulesStateResult {
           : '실행이 완료되었습니다.',
       )
     } catch (e) {
-      setError(e instanceof Error ? e.message : '모의 실행에 실패했습니다.')
+      setError(formatSmsAutomationRunError(e, '모의 실행에 실패했습니다.'))
     } finally {
       setRunLoading(false)
     }
@@ -338,7 +339,7 @@ export function useSmsAutomationRulesState(): UseSmsAutomationRulesStateResult {
         setNotice(`실제 발송이 완료되었습니다. (성공 ${data.summary.sent}명, 실패 ${data.summary.failed}명)`)
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : '실제 발송 실행에 실패했습니다.')
+      setError(formatSmsAutomationRunError(e, '실제 발송 실행에 실패했습니다.'))
     } finally {
       setRunLoading(false)
     }

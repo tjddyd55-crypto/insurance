@@ -5,6 +5,7 @@ import {
   formatAutomationDdayLabel,
   matchesMonthDayReference,
   renderAutomationMessage,
+  resolveSpecialDateReferenceDate,
 } from './smsAutomationPreviewService.js'
 
 test('computeAutomationTargetDate adds day_offset to baseDate', () => {
@@ -51,4 +52,12 @@ test('renderAutomationMessage marks missing required template variables', () => 
 
 test('CUSTOMER_SPECIAL_DATE purpose filter is applied in SQL params shape', () => {
   assert.equal(matchesMonthDayReference('2001-03-15', '2026-03-15'), true)
+})
+
+test('resolveSpecialDateReferenceDate prefers targetDate and never returns empty string', () => {
+  assert.equal(resolveSpecialDateReferenceDate('2026-03-15', '2001-03-15'), '2026-03-15')
+  assert.equal(resolveSpecialDateReferenceDate('', '2001-03-15'), '2001-03-15')
+  assert.equal(resolveSpecialDateReferenceDate(null, '2001-03-15'), '2001-03-15')
+  assert.equal(resolveSpecialDateReferenceDate('', ''), null)
+  assert.equal(resolveSpecialDateReferenceDate('invalid', '2001-03-15'), '2001-03-15')
 })

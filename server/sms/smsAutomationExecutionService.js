@@ -9,6 +9,7 @@ import {
   hasAutomationSendDedupe,
   insertAutomationRunItem,
   listAutomationRuns,
+  normalizeDateOrNull,
   tryInsertAutomationSendDedupe,
 } from './smsAutomationRunRepository.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
@@ -154,6 +155,23 @@ async function updateAutomationRunItemStatus(executor, runItemId, patch) {
   )
 }
 
+export function normalizeExecutionItem(item) {
+  return {
+    ...item,
+    referenceDate: normalizeDateOrNull(item.referenceDate),
+    phone: String(item.phone ?? '').trim(),
+    customerName: String(item.customerName ?? '').trim() || '고객',
+    referenceTitle:
+      item.referenceTitle != null && String(item.referenceTitle).trim()
+        ? String(item.referenceTitle).trim()
+        : null,
+    referenceId:
+      item.referenceId != null && Number.isInteger(Number(item.referenceId))
+        ? Number(item.referenceId)
+        : null,
+  }
+}
+
 async function loadRuleScopeRow(executor, scope, ruleId) {
   const r = await systemQuery(
     executor,
@@ -217,6 +235,8 @@ export async function runAutomationRule(executor, scope, ruleId, options = {}) {
 
   try {
     for (const item of preview.items) {
+      const executionItem = normalizeExecutionItem(item)
+
       if (!item.sendable) {
         await insertAutomationRunItem(executor, {
           runId: run.id,
@@ -225,7 +245,7 @@ export async function runAutomationRule(executor, scope, ruleId, options = {}) {
           userId: scope.userId,
           ruleId,
           triggerType: preview.rule.triggerType,
-          item,
+          item: executionItem,
           sendStatus: 'EXCLUDED',
         })
         continue
@@ -238,15 +258,15 @@ export async function runAutomationRule(executor, scope, ruleId, options = {}) {
         userId: scope.userId,
         ruleId,
         triggerType: preview.rule.triggerType,
-        item,
+        item: executionItem,
         sendStatus: runMode === 'REAL_SEND' ? 'FAILED' : 'SIMULATED',
       })
 
-      const referenceDate = String(item.referenceDate ?? preview.targetDate)
+      const referenceDate = executionItem.referenceDate ?? normalizeDateOrNull(preview.targetDate)
       const dedupeKey = {
         ruleId,
-        customerId: Number(item.customerId),
-        triggerInstanceKey: String(item.triggerInstanceKey ?? ''),
+        customerId: Number(executionItem.customerId),
+        triggerInstanceKey: String(executionItem.triggerInstanceKey ?? ''),
         referenceDate,
       }
 
@@ -266,8 +286,8 @@ export async function runAutomationRule(executor, scope, ruleId, options = {}) {
         sendSms: () =>
           sendAutomationSms(executor, scope, {
             customerId: dedupeKey.customerId,
-            phone: String(item.phone ?? ''),
-            messageBody: String(item.messageBody ?? ''),
+            phone: String(executionItem.phone ?? ''),
+            messageBody: String(executionItem.messageBody ?? ''),
           }),
       })
 

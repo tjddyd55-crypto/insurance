@@ -1,4 +1,4 @@
-import { apiRequest } from '../../../lib/apiClient'
+import { apiRequest, ApiError } from '../../../lib/apiClient'
 import type {
   SmsAutomationRule,
   SmsAutomationRuleInput,
@@ -12,6 +12,27 @@ function requireSmsToken(token: string): string {
     throw new Error('로그인이 필요합니다.')
   }
   return token.trim()
+}
+
+export const SMS_AUTOMATION_RUN_DB_ERROR_MESSAGE =
+  '자동문자 실행 로그 저장 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
+
+export function formatSmsAutomationRunError(error: unknown, fallback: string): string {
+  if (error instanceof ApiError) {
+    const message = error.message.trim()
+    if (message === 'DB_ERROR' || error.code === 'DB_ERROR') {
+      return SMS_AUTOMATION_RUN_DB_ERROR_MESSAGE
+    }
+    return message || fallback
+  }
+  if (error instanceof Error) {
+    const message = error.message.trim()
+    if (message === 'DB_ERROR') {
+      return SMS_AUTOMATION_RUN_DB_ERROR_MESSAGE
+    }
+    return message || fallback
+  }
+  return fallback
 }
 
 export async function fetchSmsAutomationRules(token: string): Promise<SmsAutomationRule[]> {
