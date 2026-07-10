@@ -48,7 +48,17 @@
   text-align: left;
 }
 
-/* 모바일·라우트 상세 페이지 — 확대 시 가로 스크롤만 담당하고 세로 스크롤은 페이지 셸에 맡긴다. */
+.news-detail-viewer-scroll--zoomed {
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+
+.news-detail-viewer-scroll--zoomed:active {
+  cursor: grabbing;
+}
+
+/* 모바일·라우트 상세 페이지 — zoom 1 은 가로만, zoom > 1 은 양축 pan */
 .news-detail-mobile-scroll {
   width: 100%;
   overflow-x: auto;
@@ -57,6 +67,17 @@
   overscroll-behavior-x: contain;
   overscroll-behavior-y: auto;
   touch-action: pan-x pan-y;
+}
+
+.news-detail-mobile-scroll--zoomed {
+  overflow: auto;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+
+.news-detail-mobile-scroll--zoomed:active {
+  cursor: grabbing;
 }
 
 .news-detail-mobile-scroll .news-detail-zoom-scope {
