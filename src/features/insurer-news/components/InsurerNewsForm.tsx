@@ -44,6 +44,8 @@ type Props = {
   ) => Promise<LocalAttachmentDraft[]>
   /** 소식지 전용 — 기본 false (다른 사용처에 자동 적용 금지) */
   enableLinkPreview?: boolean
+  /** 링크 미리보기 API — board-writer 화면에서 `/api/board-writer/link-preview` 주입 */
+  linkPreviewEndpoint?: string
   enableAutoLinking?: boolean
   enablePhoneLinks?: boolean
 }
@@ -117,6 +119,7 @@ export function InsurerNewsForm({
   channel = 'INSURER',
   uploadAttachments,
   enableLinkPreview = false,
+  linkPreviewEndpoint,
 }: Props) {
   const form = useInsurerNewsForm(initial)
   const [submitError, setSubmitError] = useState('')
@@ -201,6 +204,7 @@ export function InsurerNewsForm({
             authToken={authToken}
             initialPreview={getNewsletterLinkPreview(initial) ?? null}
             onPreviewChange={setLinkPreview}
+            previewEndpoint={linkPreviewEndpoint}
           />
         </div>
       ) : null}

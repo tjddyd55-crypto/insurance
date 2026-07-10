@@ -4,6 +4,7 @@ import { assertSafeExternalUrl } from '../admin-notices/adminNoticeLinkPreview.j
 import {
   extractLinkPreviewFromBody,
   extractNewsletterLinkPreviewFromPayload,
+  fetchNewsletterLinkPreviewForApi,
   normalizeNewsletterLinkPreview,
   parseNewsletterPayload,
   resolveNewsletterDetailLinkPreview,
@@ -73,4 +74,11 @@ test('assertSafeExternalUrl blocks localhost and private ips', () => {
   assert.throws(() => assertSafeExternalUrl('http://192.168.0.1/x'), /blocked_url|invalid_url/)
   assert.throws(() => assertSafeExternalUrl('javascript:alert(1)'), /invalid_url/)
   assert.equal(assertSafeExternalUrl('https://example.com/page'), 'https://example.com/page')
+})
+
+test('fetchNewsletterLinkPreviewForApi returns null preview for empty url', async () => {
+  const result = await fetchNewsletterLinkPreviewForApi('')
+  assert.deepEqual(result, { success: true, preview: null })
+  const whitespace = await fetchNewsletterLinkPreviewForApi('   ')
+  assert.deepEqual(whitespace, { success: true, preview: null })
 })
