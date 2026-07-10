@@ -3,9 +3,15 @@ import { FormButton, FormTextarea } from '../../../components/form'
 import { useCallback, useState } from 'react'
 import { ApiError } from '../../../lib/apiClient'
 import { useInsurerNewsForm } from '../hooks/useInsurerNewsForm'
-import type { LocalAttachmentDraft, NewsChannel, NewsletterDetail } from '../types'
+import type {
+  LocalAttachmentDraft,
+  NewsChannel,
+  NewsletterDetail,
+  NewsletterLinkPreview,
+} from '../types'
 import { uploadNewsletterAttachments } from '../services/insurerNews.service'
 import { validateInsurerNewsFile } from '../utils/validateInsurerNewsFile'
+import { LinkPreviewEditor } from './LinkPreviewEditor'
 
 const statusLabel: Record<string, string> = {
   pending: '대기',
@@ -35,6 +41,10 @@ type Props = {
     token: string,
     drafts: LocalAttachmentDraft[],
   ) => Promise<LocalAttachmentDraft[]>
+  /** 소식지 전용 — 기본 false (다른 사용처에 자동 적용 금지) */
+  enableLinkPreview?: boolean
+  enableAutoLinking?: boolean
+  enablePhoneLinks?: boolean
 }
 
 /** API 저장용 — 반드시 cdnUrl + objectKey (미리보기 blob 금지) */
@@ -44,6 +54,7 @@ function buildDraftForApi(
   bodyText: string,
   attachmentItems: LocalAttachmentDraft[],
   initial: NewsletterDetail | null,
+  linkPreview: NewsletterLinkPreview | null | undefined,
 ): NewsletterDetail {
   const summary = bodyText.trim() || '요약 없음'
   const ok = attachmentItems.filter((a) => a.status !== 'failed')
@@ -89,6 +100,8 @@ function buildDraftForApi(
     hasTextBody: bodyText.trim().length > 0,
     bodyText: bodyText.trim(),
     attachments,
+    // enableLinkPreview 미사용 시 필드를 생략해 기존 payload.linkPreview 를 유지한다.
+    ...(linkPreview !== undefined ? { linkPreview: linkPreview ?? null } : {}),
   }
 }
 
@@ -102,10 +115,14 @@ export function InsurerNewsForm({
   authToken,
   channel = 'INSURER',
   uploadAttachments,
+  enableLinkPreview = false,
 }: Props) {
   const form = useInsurerNewsForm(initial)
   const [submitError, setSubmitError] = useState('')
   const [busyMessage, setBusyMessage] = useState<string | null>(null)
+  const [linkPreview, setLinkPreview] = useState<NewsletterLinkPreview | null>(
+    initial?.linkPreview ?? null,
+  )
 
   const validateNewsletterFile = useCallback((file: File): string | null => {
     const v = validateInsurerNewsFile(file)
@@ -138,7 +155,14 @@ export function InsurerNewsForm({
         setSubmitError('일부 파일 업로드에 실패했습니다. 실패한 항목을 확인한 뒤 다시 시도해 주세요.')
         return
       }
-      const draft = buildDraftForApi(id, context, form.bodyText, uploaded, initial)
+      const draft = buildDraftForApi(
+        id,
+        context,
+        form.bodyText,
+        uploaded,
+        initial,
+        enableLinkPreview ? linkPreview : undefined,
+      )
       await onSubmit(draft)
     } catch (err) {
       const msg =
@@ -168,6 +192,17 @@ export function InsurerNewsForm({
           placeholder="본문을 입력하세요"
         />
       </label>
+
+      {enableLinkPreview ? (
+        <div className="field" style={{ marginTop: 8 }}>
+          <LinkPreviewEditor
+            bodyText={form.bodyText}
+            authToken={authToken}
+            initialPreview={initial?.linkPreview ?? null}
+            onPreviewChange={setLinkPreview}
+          />
+        </div>
+      ) : null}
 
       {busyMessage ? (
         <p className="insurer-news-muted" style={{ marginBottom: 12 }}>

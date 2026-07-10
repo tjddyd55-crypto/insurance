@@ -479,6 +479,7 @@ export async function createManagerNewsletter(
       channel: normalizeChannel(options?.channel),
       summary: draft.summary,
       publishedAt: draft.publishedAt,
+      ...(draft.linkPreview !== undefined ? { linkPreview: draft.linkPreview ?? null } : {}),
       attachments: draft.attachments.map((a) => ({
         kind: a.kind,
         url: a.url,
@@ -511,6 +512,7 @@ export async function updateManagerNewsletter(
       channel: normalizeChannel(options?.channel),
       summary: draft.summary,
       publishedAt: draft.publishedAt,
+      ...(draft.linkPreview !== undefined ? { linkPreview: draft.linkPreview ?? null } : {}),
       attachments: draft.attachments.map((a) => ({
         kind: a.kind,
         url: a.url,

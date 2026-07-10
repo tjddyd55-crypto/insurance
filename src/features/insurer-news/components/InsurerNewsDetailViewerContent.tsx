@@ -3,6 +3,8 @@ import type { NewsletterDetail, NewsletterItem } from '../types'
 import { buildInsurerNewsGalleryUrls } from '../utils/buildInsurerNewsGalleryUrls'
 import { resolveInsurerNewsListCardImageUrl } from '../utils/resolveInsurerNewsImageUrl'
 import { normalizeInsurerNewsText } from '../utils/insurerNewsText'
+import { AutoLinkText } from './AutoLinkText'
+import { LinkPreviewCard } from './LinkPreviewCard'
 
 type InsurerNewsDetailViewerContentProps = {
   zoom: number
@@ -29,10 +31,18 @@ export function InsurerNewsDetailViewerContent({
       : []
 
   const bodyText = normalizeInsurerNewsText(detail?.bodyText) || normalizeInsurerNewsText(item?.summary)
+  const linkPreview = detail?.linkPreview ?? null
 
   return (
     <NewsDetailZoomContent zoom={zoom}>
-      {bodyText ? <div className="news-text">{bodyText}</div> : null}
+      {bodyText ? (
+        <AutoLinkText text={bodyText} className="news-text" enableAutoLinking enablePhoneLinks />
+      ) : null}
+      {linkPreview?.url ? (
+        <div style={{ marginTop: 12 }}>
+          <LinkPreviewCard preview={linkPreview} />
+        </div>
+      ) : null}
       {modalGalleryUrls.map((url) => (
         <img key={url} src={url} alt="" />
       ))}

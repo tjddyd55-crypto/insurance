@@ -67,6 +67,11 @@ import {
   normalizeInsuranceGaCode,
 } from './lib/insuranceStorageLayout.js'
 import { assertNewsObjectKeyScoped } from './lib/insurerNewsObjectKeyScope.js'
+import { resolveAdminNoticeLinkPreview } from './admin-notices/adminNoticeLinkPreview.js'
+import {
+  extractLinkPreviewFromBody,
+  normalizeNewsletterLinkPreview,
+} from './lib/newsletterLinkPreview.js'
 
 /** 프론트 `attachmentUploadPolicy.ts` 와 동기화 */
 const ALLOWED_UPLOAD_MIME = new Set([
@@ -915,6 +920,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       hasTextBody: String(row.body_text ?? '').trim().length > 0,
       bodyText: String(row.body_text ?? ''),
       attachments,
+      linkPreview: normalizeNewsletterLinkPreview(payload.linkPreview ?? payload.link_preview),
     }
   }
 
@@ -1129,7 +1135,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     }
   }
 
-  function buildPayloadFromBody(body, scope, newsChannel) {
+  function buildPayloadFromBody(body, scope, newsChannel, existingPayload = null) {
     const resolvedChannel = normalizeNewsChannel(newsChannel)
     const payload = {
       gaCode: String(body.gaCode ?? scope.gaCodeRaw ?? '').trim().toUpperCase(),
@@ -1142,6 +1148,19 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     }
     if (scope.publisherId) {
       payload.publisherId = String(scope.publisherId)
+    }
+    const { linkPreview, provided } = extractLinkPreviewFromBody(body)
+    if (provided) {
+      if (linkPreview) {
+        payload.linkPreview = linkPreview
+      }
+    } else if (existingPayload && typeof existingPayload === 'object') {
+      const kept = normalizeNewsletterLinkPreview(
+        existingPayload.linkPreview ?? existingPayload.link_preview,
+      )
+      if (kept) {
+        payload.linkPreview = kept
+      }
     }
     return payload
   }
@@ -2447,6 +2466,35 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     }
   })
 
+  apiRouter.post('/insurer-news/link-preview', requireAuth, async (req, res) => {
+    try {
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      const url = String(body.url ?? '').trim()
+      if (!url) {
+        res.json({ success: true, preview: null })
+        return
+      }
+      const data = await resolveAdminNoticeLinkPreview(url)
+      if (!data) {
+        res.json({ success: true, preview: null })
+        return
+      }
+      res.json({
+        success: true,
+        preview: {
+          url: data.url,
+          title: data.title || null,
+          description: data.description || null,
+          imageUrl: data.imageUrl || data.image || null,
+          siteName: data.siteName || null,
+          domain: data.domain || null,
+        },
+      })
+    } catch {
+      res.json({ success: true, preview: null })
+    }
+  })
+
   apiRouter.get('/insurer-news/manager/newsletters', requireAuth, requireNewsletterWriter, async (req, res) => {
     try {
       /** @type {number} */
@@ -2727,7 +2775,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         res.status(400).json({ message: '소식의 보험사와 요청 정보가 일치하지 않습니다.' })
         return
       }
-      const payload = buildPayloadFromBody(body, scope, channel)
+      const payload = buildPayloadFromBody(body, scope, channel, nRes.rows[0].payload)
       const attachmentScope = {
         ...scope,
         companySlug: String(payload.insurerSlug ?? scope.companySlug ?? '').trim() || scope.companySlug,

@@ -94,6 +94,7 @@ export async function createBoardWriterNewsletter(
     body: JSON.stringify({
       bodyText: draft.bodyText,
       status: draft.status,
+      ...(draft.linkPreview !== undefined ? { linkPreview: draft.linkPreview ?? null } : {}),
       attachments: draft.attachments.map((a) => ({
         kind: a.kind,
         url: a.url,
@@ -121,6 +122,7 @@ export async function updateBoardWriterNewsletter(
       body: JSON.stringify({
         bodyText: draft.bodyText,
         status: draft.status,
+        ...(draft.linkPreview !== undefined ? { linkPreview: draft.linkPreview ?? null } : {}),
         attachments: draft.attachments.map((a) => ({
           kind: a.kind,
           url: a.url,

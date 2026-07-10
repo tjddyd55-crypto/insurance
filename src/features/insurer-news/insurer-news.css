@@ -637,6 +637,90 @@
   line-height: 1.6;
 }
 
+.insurer-news-link-preview-editor {
+  margin-top: 4px;
+}
+
+.insurer-news-link-preview {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+  border: 1px solid var(--border-default, #e5e7eb);
+  border-radius: 10px;
+  background: var(--bg-elevated, #fff);
+  padding: 10px;
+  text-decoration: none;
+  color: inherit;
+  overflow: hidden;
+}
+
+.insurer-news-link-preview:hover {
+  border-color: var(--border-strong, #cbd5e1);
+}
+
+.insurer-news-link-preview__media {
+  flex: 0 0 96px;
+  width: 96px;
+  height: 72px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-subtle, #f1f5f9);
+}
+
+.insurer-news-link-preview__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  margin: 0;
+}
+
+.insurer-news-link-preview__body {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.insurer-news-link-preview__title {
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.insurer-news-link-preview__description {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary, #64748b);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.insurer-news-link-preview__domain {
+  font-size: 11px;
+  color: var(--text-secondary, #64748b);
+}
+
+@media (max-width: 640px) {
+  .insurer-news-link-preview {
+    flex-direction: column;
+  }
+
+  .insurer-news-link-preview__media {
+    width: 100%;
+    height: 140px;
+    flex-basis: auto;
+  }
+}
+
 .pc-root .news-modal .news-detail-scroll img,
 .insurer-news-page .news-modal .news-detail-scroll img {
   width: 100%;

@@ -7,6 +7,8 @@ import {
 } from '../../../../components/news-detail-viewer/newsDetailViewerZoom'
 import { FormInput } from '../../../../components/form'
 import { useAuth } from '../../../auth/AuthProvider'
+import { AutoLinkText } from '../../components/AutoLinkText'
+import { LinkPreviewCard } from '../../components/LinkPreviewCard'
 import { NewsletterList } from '../../components/NewsletterList'
 import {
   getNewsletterDetail,
@@ -196,8 +198,20 @@ export default function InsurerManagerNewsListPCView({
             const detailBodyText =
               normalizeInsurerNewsText(selectedDetail?.bodyText) ||
               normalizeInsurerNewsText(selectedItem?.summary)
-            return detailBodyText ? <div className="news-text">{detailBodyText}</div> : null
+            return detailBodyText ? (
+              <AutoLinkText
+                text={detailBodyText}
+                className="news-text"
+                enableAutoLinking
+                enablePhoneLinks
+              />
+            ) : null
           })()}
+          {selectedDetail?.linkPreview?.url ? (
+            <div style={{ marginTop: 12 }}>
+              <LinkPreviewCard preview={selectedDetail.linkPreview} />
+            </div>
+          ) : null}
           {modalGalleryUrls.map((url) => (
             <img key={url} src={url} alt="" />
           ))}

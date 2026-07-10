@@ -90,6 +90,9 @@ export function InsurerManagerNewsUploadPage({
         context={context}
         authToken={token}
         channel={channel}
+        enableLinkPreview
+        enableAutoLinking
+        enablePhoneLinks
         onCancel={() => navigate(listPath)}
         onSubmit={async (draft) => {
           await createManagerNewsletter(token!, draft, { channel })
