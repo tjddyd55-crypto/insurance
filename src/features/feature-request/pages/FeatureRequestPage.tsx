@@ -14,6 +14,7 @@ import {
 import { useAuth } from '../../auth/AuthProvider'
 import { Button } from '../../../components/ui'
 import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
+import { formatFeatureRequestCommentAuthor } from '../formatFeatureRequestAuthor.js'
 
 /*
  * 사용자 "문의 / 요청" 페이지.
@@ -295,8 +296,7 @@ export default function FeatureRequestPage() {
                             className="rounded-md border border-[var(--border-muted,#e5e7eb)] bg-[var(--bg-elevated,#fff)] p-2"
                           >
                             <div className="text-[11px] text-[var(--text-secondary)] mb-1">
-                              {c.authorRole === 'admin' ? '담당자' : '요청자'} ·{' '}
-                              {c.authorUsername || c.authorId} · {formatDate(c.createdAt)}
+                              {formatFeatureRequestCommentAuthor(c)} · {formatDate(c.createdAt)}
                             </div>
                             <div className="text-sm whitespace-pre-wrap break-words">
                               {c.content}

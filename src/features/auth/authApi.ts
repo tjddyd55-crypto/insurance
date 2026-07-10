@@ -752,6 +752,8 @@ export interface FeatureRequestAdminRow {
   ga_id: number
   ga_name: string
   username: string
+  /** display_name / name — 없으면 빈 문자열 */
+  user_name?: string
   title: string
   content: string
   status: FeatureRequestStatus
@@ -767,6 +769,8 @@ export interface FeatureRequestComment {
   id: number
   authorRole: string
   authorUsername: string | null
+  authorDisplayName?: string | null
+  authorGaName?: string | null
   authorId: string
   createdAt: string
   content: string
