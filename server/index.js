@@ -4597,11 +4597,8 @@ apiRouter.delete('/feature-requests/my/:id', requireAuth, async (req, res) => {
 
 apiRouter.get('/admin/feature-requests', requireAuth, requireSuperAdmin, async (req, res) => {
   try {
-    const actorGa = parseGaId(req.user?.gaId)
-    if (actorGa == null) {
-      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
-      return
-    }
+    // SUPER_ADMIN 은 전체 GA 요청을 관리한다. safeQuery 는 SELECT 에 ga_id 컬럼이
+    // 포함되면 통과하므로, 테넌트 가드를 우회하지 않고 전체 목록을 반환한다.
     const r = await safeQuery(pool,
       `
       SELECT
@@ -4609,6 +4606,7 @@ apiRouter.get('/admin/feature-requests', requireAuth, requireSuperAdmin, async (
         fr.ga_id,
         g.name AS ga_name,
         u.username,
+        COALESCE(NULLIF(TRIM(u.display_name), ''), NULLIF(TRIM(u.name), ''), '') AS user_name,
         COALESCE(fr.title, '') AS title,
         fr.content,
         fr.status,
@@ -4619,17 +4617,17 @@ apiRouter.get('/admin/feature-requests', requireAuth, requireSuperAdmin, async (
       FROM feature_requests fr
       INNER JOIN ga_companies g ON g.id = fr.ga_id
       INNER JOIN users u ON u.id = fr.user_id
-      WHERE fr.ga_id = $1
       ORDER BY fr.created_at DESC
       LIMIT 500
       `,
-      [actorGa],
+      [],
     )
     const rows = r.rows.map((row) => ({
       id: row.id,
       ga_id: row.ga_id,
       ga_name: row.ga_name,
       username: row.username,
+      user_name: String(row.user_name ?? ''),
       title: String(row.title ?? ''),
       content: row.content,
       status: row.status,
@@ -4654,19 +4652,14 @@ apiRouter.patch('/admin/feature-requests/:id', requireAuth, requireSuperAdmin, a
       res.status(400).json({ message: 'status는 pending, reviewed, done 중 하나여야 합니다.' })
       return
     }
-    const actorGa = parseGaId(req.user?.gaId)
-    if (actorGa == null) {
-      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
-      return
-    }
     const upd = await safeQuery(pool,
       `
       UPDATE feature_requests
       SET status = $1
-      WHERE id = $2 AND ga_id = $3
+      WHERE id = $2
       RETURNING id, ga_id, user_id, title, content, status, created_at
       `,
-      [status, id, actorGa],
+      [status, id],
     )
     if (upd.rowCount === 0) {
       res.status(404).json({ message: '요청을 찾을 수 없습니다.' })
@@ -4689,21 +4682,36 @@ apiRouter.patch('/admin/feature-requests/:id', requireAuth, requireSuperAdmin, a
 
 // ─── 문의/요청 댓글 ─────────────────────────────────────────────────────────
 // - 요청자는 자신이 올린 요청의 댓글만 조회(읽기 전용).
-// - 관리자(SUPER_ADMIN)는 본인 GA 범위의 요청에 대해서만 조회/작성.
+// - 관리자(SUPER_ADMIN)는 전체 요청에 답변 가능. 코멘트 ga_id 는 요청 소속 GA.
 // - 현재는 관리자 답변만 허용하므로 POST 라우트는 admin 쪽에만 둔다.
-//   추후 요청자 회신을 허용하고 싶다면 "POST /feature-requests/my/:id/comments"
-//   라우트를 추가하고 author_role = 'user' 로 기록하면 된다.
 const FEATURE_REQUEST_COMMENT_MAX_LEN = 4000
 
 function mapFeatureRequestCommentRow(row) {
+  const authorDisplayName = String(row.author_display_name ?? '').trim()
+  const authorGaName = String(row.author_ga_name ?? '').trim()
+  const authorUsername = row.author_username != null ? String(row.author_username) : null
   return {
     id: row.id,
     authorRole: row.author_role,
-    authorUsername: row.author_username ?? null,
+    authorUsername,
+    authorDisplayName: authorDisplayName || authorUsername,
+    authorGaName: authorGaName || null,
     authorId: row.author_user_id,
     createdAt: toIsoString(row.created_at),
     content: row.content,
   }
+}
+
+async function loadFeatureRequestGaIdForAdmin(requestId) {
+  const own = await safeQuery(
+    pool,
+    `SELECT ga_id FROM feature_requests WHERE id = $1`,
+    [requestId],
+  )
+  if (own.rowCount === 0) {
+    return null
+  }
+  return parseGaId(own.rows[0].ga_id)
 }
 
 apiRouter.get('/feature-requests/my/:id/comments', requireAuth, async (req, res) => {
@@ -4755,24 +4763,15 @@ apiRouter.get(
         res.status(400).json({ message: '잘못된 ID입니다.' })
         return
       }
-      const actorGa = parseGaId(req.user?.gaId)
-      if (actorGa == null) {
-        res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
-        return
-      }
-      const own = await safeQuery(
-        pool,
-        `SELECT 1 FROM feature_requests WHERE id = $1 AND ga_id = $2`,
-        [id, actorGa],
-      )
-      if (own.rowCount === 0) {
+      const requestGaId = await loadFeatureRequestGaIdForAdmin(id)
+      if (requestGaId == null) {
         res.status(404).json({ message: '요청을 찾을 수 없습니다.' })
         return
       }
       const r = await safeQuery(
         pool,
         FEATURE_REQUEST_COMMENT_SELECT_SQL,
-        [id, actorGa],
+        [id, requestGaId],
       )
       res.json(r.rows.map(mapFeatureRequestCommentRow))
     } catch (error) {
@@ -4804,36 +4803,47 @@ apiRouter.post(
         return
       }
       const actorId = req.user?.id
-      const actorUsername = req.user?.username ?? null
-      const actorGa = parseGaId(req.user?.gaId)
+      const actorUsername =
+        String(req.user?.displayName ?? '').trim() ||
+        String(req.user?.username ?? '').trim() ||
+        null
       if (!actorId) {
         res.status(401).json({ message: '로그인이 필요합니다.' })
         return
       }
-      if (actorGa == null) {
-        res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
-        return
-      }
-      const own = await safeQuery(
-        pool,
-        `SELECT 1 FROM feature_requests WHERE id = $1 AND ga_id = $2`,
-        [id, actorGa],
-      )
-      if (own.rowCount === 0) {
+      // 코멘트 GA 는 "요청 소속 GA" 를 쓴다. SUPER_ADMIN 의 세션 GA 와 다를 수 있다.
+      const requestGaId = await loadFeatureRequestGaIdForAdmin(id)
+      if (requestGaId == null) {
         res.status(404).json({ message: '요청을 찾을 수 없습니다.' })
         return
       }
       const ins = await safeQuery(
         pool,
         FEATURE_REQUEST_COMMENT_INSERT_SQL,
-        [id, actorId, actorUsername, rawContent, actorGa],
+        [id, actorId, actorUsername, rawContent, requestGaId],
       )
       if (ins.rowCount === 0) {
         res.status(404).json({ message: '요청을 찾을 수 없습니다.' })
         return
       }
-      res.status(201).json(mapFeatureRequestCommentRow(ins.rows[0]))
+      const inserted = ins.rows[0]
+      // INSERT RETURNING 에는 join 필드의 없고, 작성자 표시용으로 한 번 더 SELECT.
+      const detail = await safeQuery(
+        pool,
+        FEATURE_REQUEST_COMMENT_SELECT_SQL,
+        [id, requestGaId],
+      )
+      const created =
+        detail.rows.find((row) => Number(row.id) === Number(inserted.id)) ?? inserted
+      res.status(201).json(mapFeatureRequestCommentRow(created))
     } catch (error) {
+      console.error('[feature-request-comment] insert failed', {
+        message: error?.message,
+        code: error?.code,
+        detail: error?.detail,
+        requestId: req.params?.id,
+        actorId: req.user?.id,
+      })
       handleDbError(error, req, res)
     }
   },

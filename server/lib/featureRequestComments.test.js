@@ -1,11 +1,11 @@
-import test from 'node:test'
 import assert from 'node:assert/strict'
-import { safeQuery } from '../utils/dbSafeQuery.js'
+import test from 'node:test'
 import {
   FEATURE_REQUEST_COMMENT_COUNT_SUBQUERY_SQL,
   FEATURE_REQUEST_COMMENT_INSERT_SQL,
   FEATURE_REQUEST_COMMENT_SELECT_SQL,
-} from '../lib/featureRequestCommentsSql.js'
+} from './featureRequestCommentsSql.js'
+import { safeQuery } from '../utils/dbSafeQuery.js'
 
 function sqlHasTenantGaFilter(sql) {
   return /\bga_id\b/i.test(String(sql))
@@ -13,7 +13,16 @@ function sqlHasTenantGaFilter(sql) {
 
 test('feature request comment SELECT — ga_id scope required by safeQuery', () => {
   assert.equal(sqlHasTenantGaFilter(FEATURE_REQUEST_COMMENT_SELECT_SQL), true)
-  assert.match(FEATURE_REQUEST_COMMENT_SELECT_SQL, /WHERE feature_request_id = \$1\s+AND ga_id = \$2/i)
+  assert.match(
+    FEATURE_REQUEST_COMMENT_SELECT_SQL,
+    /WHERE c\.feature_request_id = \$1\s+AND c\.ga_id = \$2/i,
+  )
+})
+
+test('feature request comment SELECT — includes author display joins', () => {
+  assert.match(FEATURE_REQUEST_COMMENT_SELECT_SQL, /LEFT JOIN users u ON u\.id = c\.author_user_id/i)
+  assert.match(FEATURE_REQUEST_COMMENT_SELECT_SQL, /author_display_name/i)
+  assert.match(FEATURE_REQUEST_COMMENT_SELECT_SQL, /author_ga_name/i)
 })
 
 test('feature request comment INSERT — parent ga_id enforced', () => {
