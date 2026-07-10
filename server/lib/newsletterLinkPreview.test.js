@@ -3,7 +3,10 @@ import test from 'node:test'
 import { assertSafeExternalUrl } from '../admin-notices/adminNoticeLinkPreview.js'
 import {
   extractLinkPreviewFromBody,
+  extractNewsletterLinkPreviewFromPayload,
   normalizeNewsletterLinkPreview,
+  parseNewsletterPayload,
+  resolveNewsletterDetailLinkPreview,
 } from './newsletterLinkPreview.js'
 
 test('normalizeNewsletterLinkPreview returns null for empty', () => {
@@ -28,6 +31,40 @@ test('extractLinkPreviewFromBody detects provided null as clear', () => {
   const result = extractLinkPreviewFromBody({ linkPreview: null })
   assert.equal(result.provided, true)
   assert.equal(result.linkPreview, null)
+})
+
+test('parseNewsletterPayload parses JSON string payload', () => {
+  const payload = parseNewsletterPayload(
+    JSON.stringify({
+      linkPreview: { url: 'https://example.com/', title: '제목' },
+    }),
+  )
+  assert.equal(payload.linkPreview?.url, 'https://example.com/')
+})
+
+test('resolveNewsletterDetailLinkPreview prefers top-level linkPreview', () => {
+  const preview = resolveNewsletterDetailLinkPreview({
+    linkPreview: { url: 'https://top.example/' },
+    payload: { linkPreview: { url: 'https://payload.example/' } },
+  })
+  assert.equal(preview?.url, 'https://top.example/')
+})
+
+test('resolveNewsletterDetailLinkPreview falls back to payload.linkPreview', () => {
+  const preview = resolveNewsletterDetailLinkPreview({
+    payload: {
+      linkPreview: {
+        url: 'https://thedoum-counseling.co.kr/',
+        title: '내 보험금 조금 더 받기 프로젝트',
+      },
+    },
+  })
+  assert.equal(preview?.url, 'https://thedoum-counseling.co.kr/')
+  assert.equal(preview?.title, '내 보험금 조금 더 받기 프로젝트')
+})
+
+test('extractNewsletterLinkPreviewFromPayload returns null for empty payload', () => {
+  assert.equal(extractNewsletterLinkPreviewFromPayload({}), null)
 })
 
 test('assertSafeExternalUrl blocks localhost and private ips', () => {

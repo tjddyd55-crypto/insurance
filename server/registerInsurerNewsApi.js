@@ -70,7 +70,10 @@ import { assertNewsObjectKeyScoped } from './lib/insurerNewsObjectKeyScope.js'
 import { resolveAdminNoticeLinkPreview } from './admin-notices/adminNoticeLinkPreview.js'
 import {
   extractLinkPreviewFromBody,
+  extractNewsletterLinkPreviewFromPayload,
   normalizeNewsletterLinkPreview,
+  parseNewsletterPayload,
+  resolveNewsletterDetailLinkPreview,
 } from './lib/newsletterLinkPreview.js'
 
 /** 프론트 `attachmentUploadPolicy.ts` 와 동기화 */
@@ -855,7 +858,8 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
    * @param {object[]} attRows
    */
   function mapNewsletterDetail(row, attRows, req = null, accessContext = null) {
-    const payload = row.payload && typeof row.payload === 'object' ? row.payload : {}
+    const payload = parseNewsletterPayload(row.payload)
+    const linkPreview = resolveNewsletterDetailLinkPreview({ ...row, payload })
     const newsletterId = String(row.id)
     const attachments = [...attRows]
       .sort((a, b) => Number(a.sort_order) - Number(b.sort_order))
@@ -920,7 +924,8 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       hasTextBody: String(row.body_text ?? '').trim().length > 0,
       bodyText: String(row.body_text ?? ''),
       attachments,
-      linkPreview: normalizeNewsletterLinkPreview(payload.linkPreview ?? payload.link_preview),
+      linkPreview,
+      payload,
     }
   }
 

@@ -93,6 +93,8 @@ export interface NewsletterDetail extends NewsletterItem {
   attachments: NewsletterAttachment[]
   /** 저장된 링크 미리보기 — 없으면 null/undefined */
   linkPreview?: NewsletterLinkPreview | null
+  /** DB payload 원본 — linkPreview fallback 용 (API가 내려줄 때만) */
+  payload?: Record<string, unknown> | string | null
 }
 
 /** 업로드 큐 아이템 (폼 상태) */

@@ -101,6 +101,7 @@ describe('news detail viewer modal', () => {
       'src/features/insurer-news/components/InsurerNewsDetailViewerContent.tsx',
     )
     const contentSrc = fs.readFileSync(contentPath, 'utf8')
+    assert.match(contentSrc, /getNewsletterLinkPreview/)
     assert.match(contentSrc, /AutoLinkText/)
     assert.match(contentSrc, /LinkPreviewCard/)
     assert.match(contentSrc, /enableAutoLinking/)
