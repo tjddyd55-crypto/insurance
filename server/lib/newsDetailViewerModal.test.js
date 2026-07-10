@@ -82,7 +82,7 @@ describe('news detail viewer modal', () => {
 
     assert.match(fs.readFileSync(insurerDetailPath, 'utf8'), /NewsDetailMobileZoomScroll/)
     assert.match(fs.readFileSync(customerDetailPath, 'utf8'), /NewsDetailMobileZoomScroll/)
-    assert.match(fs.readFileSync(boardDetailPath, 'utf8'), /NewsDetailMobileZoomScroll/)
+    assert.match(fs.readFileSync(boardDetailPath, 'utf8'), /NewsDetailViewerModal/)
 
     const css = fs.readFileSync(cssPath, 'utf8')
     assert.match(css, /\.news-detail-mobile-scroll--zoomed[\s\S]*overflow:\s*auto/)
