@@ -15,6 +15,41 @@ test('buildDynamicBoardPayload marks global posts', () => {
   assert.equal(payload.insurerSlug, 'board-notice')
 })
 
+test('buildDynamicBoardPayload stores normalized linkPreview', () => {
+  const payload = buildDynamicBoardPayload(
+    { slug: 'notice', label: '공지', board_scope: 'global' },
+    'writer-1',
+    'PUBLISHED',
+    {
+      url: 'https://thedoum-counseling.co.kr/',
+      title: '테스트',
+      description: '설명',
+    },
+  )
+  assert.equal(payload.linkPreview?.url, 'https://thedoum-counseling.co.kr/')
+  assert.equal(payload.linkPreview?.title, '테스트')
+})
+
+test('buildDynamicBoardPayload works without linkPreview', () => {
+  const payload = buildDynamicBoardPayload(
+    { slug: 'notice', label: '공지', board_scope: 'global' },
+    'writer-1',
+    'PUBLISHED',
+  )
+  assert.equal(payload.dynamicBoardSlug, 'notice')
+  assert.equal(payload.linkPreview, undefined)
+})
+
+test('buildDynamicBoardPayload clears linkPreview when input is null', () => {
+  const payload = buildDynamicBoardPayload(
+    { slug: 'notice', label: '공지', board_scope: 'global' },
+    'writer-1',
+    'PUBLISHED',
+    null,
+  )
+  assert.equal(payload.linkPreview, undefined)
+})
+
 test('writer and portal read filters align for global and ga boards', () => {
   const globalBoard = { board_scope: 'global', slug: 'notice' }
   const gaBoard = { board_scope: 'ga', owner_ga_id: 12, slug: 'team' }

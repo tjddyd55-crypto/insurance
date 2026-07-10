@@ -17,6 +17,7 @@ import {
 } from './insuranceStorageLayout.js'
 import { isGlobalBoardScope, resolveBoardPostGaId } from './newsletterBoardScope.js'
 import {
+  normalizeNewsletterLinkPreview,
   parseNewsletterPayload,
   resolveNewsletterDetailLinkPreview,
 } from './newsletterLinkPreview.js'
