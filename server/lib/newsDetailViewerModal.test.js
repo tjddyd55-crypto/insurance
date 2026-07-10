@@ -74,13 +74,18 @@ describe('news detail viewer modal', () => {
       process.cwd(),
       'src/features/insurer-news/pages/InsurerManagerNewsDetailPage.tsx',
     )
+    const boardWriterDetailPath = path.join(
+      process.cwd(),
+      'src/features/insurer-news/pages/BoardWriterNewsDetailPage.tsx',
+    )
     const customerDetailPath = path.join(process.cwd(), 'src/features/customer-app/pages/CustomerAppNewsDetailPage.tsx')
     const boardDetailPath = path.join(
       process.cwd(),
       'src/features/insurer-news/pages/DynamicNewsletterBoardDetailPage.tsx',
     )
 
-    assert.match(fs.readFileSync(insurerDetailPath, 'utf8'), /NewsDetailMobileZoomScroll/)
+    assert.match(fs.readFileSync(insurerDetailPath, 'utf8'), /NewsDetailViewerModal/)
+    assert.match(fs.readFileSync(boardWriterDetailPath, 'utf8'), /NewsDetailViewerModal/)
     assert.match(fs.readFileSync(customerDetailPath, 'utf8'), /NewsDetailMobileZoomScroll/)
     assert.match(fs.readFileSync(boardDetailPath, 'utf8'), /NewsDetailViewerModal/)
 
@@ -88,6 +93,26 @@ describe('news detail viewer modal', () => {
     assert.match(css, /\.news-detail-mobile-scroll--zoomed[\s\S]*overflow:\s*auto/)
     assert.match(css, /\.news-detail-mobile-scroll--zoomed[\s\S]*touch-action:\s*none/)
     assert.match(css, /\.news-detail-viewer-scroll--zoomed[\s\S]*touch-action:\s*none/)
+  })
+
+  it('mounts link previews in shared insurer news viewer content', () => {
+    const contentPath = path.join(
+      process.cwd(),
+      'src/features/insurer-news/components/InsurerNewsDetailViewerContent.tsx',
+    )
+    const contentSrc = fs.readFileSync(contentPath, 'utf8')
+    assert.match(contentSrc, /AutoLinkText/)
+    assert.match(contentSrc, /LinkPreviewCard/)
+    assert.match(contentSrc, /enableAutoLinking/)
+    assert.match(contentSrc, /enablePhoneLinks/)
+
+    const insurerPcPath = path.join(
+      process.cwd(),
+      'src/features/insurer-news/pages/InsurerManagerNewsList/InsurerManagerNewsListPCView.tsx',
+    )
+    const insurerPcSrc = fs.readFileSync(insurerPcPath, 'utf8')
+    assert.match(insurerPcSrc, /InsurerNewsDetailViewerContent/)
+    assert.doesNotMatch(insurerPcSrc, /<AutoLinkText/)
   })
 
   it('enables diagonal pan while zoomed via pointer scroll updates', () => {

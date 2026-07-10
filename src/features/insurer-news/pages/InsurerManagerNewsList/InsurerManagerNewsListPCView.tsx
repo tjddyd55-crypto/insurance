@@ -1,14 +1,15 @@
 import { useRef, useState } from 'react'
 import NewsDetailViewerModal from '../../../../components/news-detail-viewer/NewsDetailViewerModal'
-import NewsDetailZoomContent from '../../../../components/news-detail-viewer/NewsDetailZoomContent'
 import {
   NEWS_DETAIL_VIEWER_ZOOM_STEP,
   clampNewsDetailViewerZoom,
 } from '../../../../components/news-detail-viewer/newsDetailViewerZoom'
 import { FormInput } from '../../../../components/form'
 import { useAuth } from '../../../auth/AuthProvider'
-import { AutoLinkText } from '../../components/AutoLinkText'
-import { LinkPreviewCard } from '../../components/LinkPreviewCard'
+import {
+  buildInsurerNewsDetailHeroDownloadUrl,
+  InsurerNewsDetailViewerContent,
+} from '../../components/InsurerNewsDetailViewerContent'
 import { NewsletterList } from '../../components/NewsletterList'
 import {
   getNewsletterDetail,
@@ -16,9 +17,6 @@ import {
 } from '../../services/insurerNews.service'
 import type { NewsletterDetail, NewsletterItem } from '../../types'
 import type { InsurerManagerNewsListViewProps } from './insurerManagerNewsListViewProps'
-import { buildInsurerNewsGalleryUrls } from '../../utils/buildInsurerNewsGalleryUrls'
-import { resolveInsurerNewsListCardImageUrl } from '../../utils/resolveInsurerNewsImageUrl'
-import { normalizeInsurerNewsText } from '../../utils/insurerNewsText'
 
 const ZOOM_STEP = NEWS_DETAIL_VIEWER_ZOOM_STEP
 
@@ -112,25 +110,7 @@ export default function InsurerManagerNewsListPCView({
     })()
   }
 
-  const heroDownloadUrl = selectedDetail
-    ? buildInsurerNewsGalleryUrls({
-        heroImageUrl: selectedDetail.heroImageUrl,
-        heroImageObjectKey: selectedDetail.heroImageObjectKey,
-        attachments: selectedDetail.attachments,
-      })[0] ?? ''
-    : selectedItem
-      ? resolveInsurerNewsListCardImageUrl(selectedItem)
-      : ''
-
-  const modalGalleryUrls = selectedDetail
-    ? buildInsurerNewsGalleryUrls({
-        heroImageUrl: selectedDetail.heroImageUrl,
-        heroImageObjectKey: selectedDetail.heroImageObjectKey,
-        attachments: selectedDetail.attachments,
-      })
-    : selectedItem
-      ? [resolveInsurerNewsListCardImageUrl(selectedItem)].filter(Boolean)
-      : []
+  const heroDownloadUrl = buildInsurerNewsDetailHeroDownloadUrl(selectedDetail, selectedItem)
 
   return (
     <main className="page page--with-back insurer-news-page insurer-news-page--pc user-page">
@@ -193,29 +173,7 @@ export default function InsurerManagerNewsListPCView({
           ) : null
         }
       >
-        <NewsDetailZoomContent zoom={zoom}>
-          {(() => {
-            const detailBodyText =
-              normalizeInsurerNewsText(selectedDetail?.bodyText) ||
-              normalizeInsurerNewsText(selectedItem?.summary)
-            return detailBodyText ? (
-              <AutoLinkText
-                text={detailBodyText}
-                className="news-text"
-                enableAutoLinking
-                enablePhoneLinks
-              />
-            ) : null
-          })()}
-          {selectedDetail?.linkPreview?.url ? (
-            <div style={{ marginTop: 12 }}>
-              <LinkPreviewCard preview={selectedDetail.linkPreview} />
-            </div>
-          ) : null}
-          {modalGalleryUrls.map((url) => (
-            <img key={url} src={url} alt="" />
-          ))}
-        </NewsDetailZoomContent>
+        <InsurerNewsDetailViewerContent zoom={zoom} detail={selectedDetail} item={selectedItem} />
       </NewsDetailViewerModal>
     </main>
   )
