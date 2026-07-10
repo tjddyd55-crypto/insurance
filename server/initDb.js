@@ -1383,20 +1383,50 @@ export async function initDb() {
   `)
   await pool.query(`
     ALTER TABLE feature_request_comments
+      ADD COLUMN IF NOT EXISTS request_id INTEGER,
       ADD COLUMN IF NOT EXISTS feature_request_id INTEGER,
       ADD COLUMN IF NOT EXISTS ga_id INTEGER,
+      ADD COLUMN IF NOT EXISTS author_id TEXT,
       ADD COLUMN IF NOT EXISTS author_user_id TEXT,
       ADD COLUMN IF NOT EXISTS author_role TEXT,
       ADD COLUMN IF NOT EXISTS author_username TEXT,
       ADD COLUMN IF NOT EXISTS content TEXT,
       ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   `)
+  // 레거시(request_id/author_id) ↔ 신규(feature_request_id/author_user_id) 상호 backfill
+  await pool.query(`
+    UPDATE feature_request_comments
+    SET feature_request_id = request_id
+    WHERE feature_request_id IS NULL
+      AND request_id IS NOT NULL
+  `)
+  await pool.query(`
+    UPDATE feature_request_comments
+    SET request_id = feature_request_id
+    WHERE request_id IS NULL
+      AND feature_request_id IS NOT NULL
+  `)
+  await pool.query(`
+    UPDATE feature_request_comments
+    SET author_user_id = author_id
+    WHERE author_user_id IS NULL
+      AND author_id IS NOT NULL
+  `)
+  await pool.query(`
+    UPDATE feature_request_comments
+    SET author_id = author_user_id
+    WHERE author_id IS NULL
+      AND author_user_id IS NOT NULL
+  `)
   await pool.query(`
     UPDATE feature_request_comments c
     SET ga_id = r.ga_id
     FROM feature_requests r
-    WHERE c.feature_request_id = r.id
-      AND c.ga_id IS NULL
+    WHERE c.ga_id IS NULL
+      AND (
+        c.feature_request_id = r.id
+        OR c.request_id = r.id
+      )
   `)
   // FK(feature_request_id → feature_requests.id) - 이미 존재하면 무시.
   await pool.query(`
