@@ -3,6 +3,7 @@ import { FormButton } from '../form'
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock'
 import { useBackButtonClose } from '../../hooks/useBackButtonClose'
 import { useNewsDetailViewerPinchZoom } from './useNewsDetailViewerPinchZoom'
+import { useNewsDetailViewerPan } from './useNewsDetailViewerPan'
 import {
   useNewsDetailViewerZoomAnchor,
   type NewsDetailViewerZoomAnchor,
@@ -52,6 +53,7 @@ export default function NewsDetailViewerModal({
 
   useNewsDetailViewerPinchZoom(scrollRef, zoom, onZoomChange, pinchEnabled, zoomAnchorRef)
   useNewsDetailViewerZoomAnchor(scrollRef, zoom, zoomAnchorRef)
+  useNewsDetailViewerPan(scrollRef, zoom, pinchEnabled)
 
   useEffect(() => {
     if (!open) {
@@ -107,7 +109,15 @@ export default function NewsDetailViewerModal({
           </FormButton>
         </header>
 
-        <div ref={scrollRef} className="news-detail-viewer-scroll">
+        <div
+          ref={scrollRef}
+          className={[
+            'news-detail-viewer-scroll',
+            zoom > 1 ? 'news-detail-viewer-scroll--zoomed' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        >
           {loading ? <div className="news-detail-viewer-status">{loadingMessage}</div> : null}
           {!loading && error ? <div className="news-detail-viewer-status">{error}</div> : null}
           {!loading && !error ? children : null}

@@ -66,6 +66,8 @@ describe('news detail viewer modal', () => {
     const mobileScrollPath = path.join(process.cwd(), 'src/components/news-detail-viewer/NewsDetailMobileZoomScroll.tsx')
     const mobileScrollSrc = fs.readFileSync(mobileScrollPath, 'utf8')
     assert.match(mobileScrollSrc, /useNewsDetailViewerPinchZoom/)
+    assert.match(mobileScrollSrc, /useNewsDetailViewerPan/)
+    assert.match(mobileScrollSrc, /news-detail-mobile-scroll--zoomed/)
     assert.match(mobileScrollSrc, /NewsDetailZoomContent/)
 
     const insurerDetailPath = path.join(
@@ -80,11 +82,24 @@ describe('news detail viewer modal', () => {
 
     assert.match(fs.readFileSync(insurerDetailPath, 'utf8'), /NewsDetailMobileZoomScroll/)
     assert.match(fs.readFileSync(customerDetailPath, 'utf8'), /NewsDetailMobileZoomScroll/)
-    assert.match(fs.readFileSync(boardDetailPath, 'utf8'), /NewsDetailMobileZoomScroll/)
+    assert.match(fs.readFileSync(boardDetailPath, 'utf8'), /NewsDetailViewerModal/)
 
     const css = fs.readFileSync(cssPath, 'utf8')
-    assert.match(css, /\.news-detail-mobile-scroll[\s\S]*overflow-x:\s*auto/)
-    assert.match(css, /\.news-detail-mobile-scroll[\s\S]*overflow-y:\s*hidden/)
-    assert.match(css, /\.news-detail-mobile-scroll[\s\S]*touch-action:\s*pan-x pan-y/)
+    assert.match(css, /\.news-detail-mobile-scroll--zoomed[\s\S]*overflow:\s*auto/)
+    assert.match(css, /\.news-detail-mobile-scroll--zoomed[\s\S]*touch-action:\s*none/)
+    assert.match(css, /\.news-detail-viewer-scroll--zoomed[\s\S]*touch-action:\s*none/)
+  })
+
+  it('enables diagonal pan while zoomed via pointer scroll updates', () => {
+    const panPath = path.join(process.cwd(), 'src/components/news-detail-viewer/useNewsDetailViewerPan.ts')
+    const panSrc = fs.readFileSync(panPath, 'utf8')
+    assert.match(panSrc, /scrollLeft -= dx/)
+    assert.match(panSrc, /scrollTop -= dy/)
+    assert.doesNotMatch(panSrc, /Math\.abs\(dx\)/)
+    assert.doesNotMatch(panSrc, /Math\.abs\(dy\)/)
+
+    const modalSrc = fs.readFileSync(modalPath, 'utf8')
+    assert.match(modalSrc, /useNewsDetailViewerPan/)
+    assert.match(modalSrc, /news-detail-viewer-scroll--zoomed/)
   })
 })
