@@ -4,6 +4,50 @@
  */
 
 /**
+ * DB row.payload — jsonb 객체 또는 JSON 문자열을 안전하게 파싱한다.
+ * @param {unknown} raw
+ * @returns {Record<string, unknown>}
+ */
+export function parseNewsletterPayload(raw) {
+  if (raw == null) {
+    return {}
+  }
+  if (typeof raw === 'object' && !Array.isArray(raw)) {
+    return /** @type {Record<string, unknown>} */ (raw)
+  }
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim()
+    if (!trimmed) {
+      return {}
+    }
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return /** @type {Record<string, unknown>} */ (parsed)
+      }
+    } catch {
+      return {}
+    }
+  }
+  return {}
+}
+
+/**
+ * payload(또는 row.payload)에서 linkPreview를 추출·정규화한다.
+ * @param {unknown} payloadInput
+ * @returns {ReturnType<typeof normalizeNewsletterLinkPreview>}
+ */
+export function extractNewsletterLinkPreviewFromPayload(payloadInput) {
+  const payload =
+    payloadInput != null &&
+    typeof payloadInput === 'object' &&
+    !Array.isArray(payloadInput)
+      ? /** @type {Record<string, unknown>} */ (payloadInput)
+      : parseNewsletterPayload(payloadInput)
+  return normalizeNewsletterLinkPreview(payload.linkPreview ?? payload.link_preview)
+}
+
+/**
  * @param {unknown} raw
  * @returns {{
  *   url: string,
@@ -60,4 +104,22 @@ export function extractLinkPreviewFromBody(body) {
     return { linkPreview: null, provided: true }
   }
   return { linkPreview: normalizeNewsletterLinkPreview(raw), provided: true }
+}
+
+/**
+ * 상세 API 응답용 — top-level linkPreview와 payload.linkPreview를 함께 정규화한다.
+ * @param {unknown} rowOrDetail
+ * @returns {ReturnType<typeof normalizeNewsletterLinkPreview>}
+ */
+export function resolveNewsletterDetailLinkPreview(rowOrDetail) {
+  if (rowOrDetail == null || typeof rowOrDetail !== 'object') {
+    return null
+  }
+  const row = /** @type {Record<string, unknown>} */ (rowOrDetail)
+  const fromTop = normalizeNewsletterLinkPreview(row.linkPreview ?? row.link_preview)
+  if (fromTop?.url) {
+    return fromTop
+  }
+  const payload = parseNewsletterPayload(row.payload)
+  return extractNewsletterLinkPreviewFromPayload(payload)
 }

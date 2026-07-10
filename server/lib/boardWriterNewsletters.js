@@ -16,7 +16,10 @@ import {
   normalizeInsuranceGaCode,
 } from './insuranceStorageLayout.js'
 import { isGlobalBoardScope, resolveBoardPostGaId } from './newsletterBoardScope.js'
-import { normalizeNewsletterLinkPreview } from './newsletterLinkPreview.js'
+import {
+  parseNewsletterPayload,
+  resolveNewsletterDetailLinkPreview,
+} from './newsletterLinkPreview.js'
 
 const ALLOWED_UPLOAD_MIME = new Set([
   'image/jpeg',
@@ -241,7 +244,8 @@ export function mapBoardWriterNewsletterListRow(row, gaCodeUpper) {
  * @param {object[]} attRows
  */
 export function mapBoardWriterNewsletterDetail(row, attRows) {
-  const payload = row.payload && typeof row.payload === 'object' ? row.payload : {}
+  const payload = parseNewsletterPayload(row.payload)
+  const linkPreview = resolveNewsletterDetailLinkPreview({ ...row, payload })
   const attachments = [...attRows]
     .sort((a, b) => Number(a.sort_order) - Number(b.sort_order))
     .map((a) => {
@@ -286,7 +290,8 @@ export function mapBoardWriterNewsletterDetail(row, attRows) {
     hasTextBody: String(row.body_text ?? '').trim().length > 0,
     bodyText: String(row.body_text ?? ''),
     attachments,
-    linkPreview: normalizeNewsletterLinkPreview(payload.linkPreview ?? payload.link_preview),
+    linkPreview,
+    payload,
   }
 }
 

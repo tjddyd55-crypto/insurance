@@ -12,6 +12,7 @@ import type {
 import { uploadNewsletterAttachments } from '../services/insurerNews.service'
 import { validateInsurerNewsFile } from '../utils/validateInsurerNewsFile'
 import { LinkPreviewEditor } from './LinkPreviewEditor'
+import { getNewsletterLinkPreview } from '../utils/getNewsletterLinkPreview.js'
 
 const statusLabel: Record<string, string> = {
   pending: '대기',
@@ -121,7 +122,7 @@ export function InsurerNewsForm({
   const [submitError, setSubmitError] = useState('')
   const [busyMessage, setBusyMessage] = useState<string | null>(null)
   const [linkPreview, setLinkPreview] = useState<NewsletterLinkPreview | null>(
-    initial?.linkPreview ?? null,
+    getNewsletterLinkPreview(initial) ?? null,
   )
 
   const validateNewsletterFile = useCallback((file: File): string | null => {
@@ -198,7 +199,7 @@ export function InsurerNewsForm({
           <LinkPreviewEditor
             bodyText={form.bodyText}
             authToken={authToken}
-            initialPreview={initial?.linkPreview ?? null}
+            initialPreview={getNewsletterLinkPreview(initial) ?? null}
             onPreviewChange={setLinkPreview}
           />
         </div>

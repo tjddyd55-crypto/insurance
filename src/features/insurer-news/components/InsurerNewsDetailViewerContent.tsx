@@ -1,6 +1,7 @@
 import NewsDetailZoomContent from '../../../components/news-detail-viewer/NewsDetailZoomContent'
 import type { NewsletterDetail, NewsletterItem } from '../types'
 import { buildInsurerNewsGalleryUrls } from '../utils/buildInsurerNewsGalleryUrls'
+import { getNewsletterLinkPreview } from '../utils/getNewsletterLinkPreview.js'
 import { resolveInsurerNewsListCardImageUrl } from '../utils/resolveInsurerNewsImageUrl'
 import { normalizeInsurerNewsText } from '../utils/insurerNewsText'
 import { AutoLinkText } from './AutoLinkText'
@@ -32,7 +33,7 @@ export function InsurerNewsDetailViewerContent({
       : []
 
   const bodyText = normalizeInsurerNewsText(detail?.bodyText) || normalizeInsurerNewsText(item?.summary)
-  const linkPreview = detail?.linkPreview ?? null
+  const linkPreview = getNewsletterLinkPreview(detail)
 
   return (
     <NewsDetailZoomContent zoom={zoom}>
