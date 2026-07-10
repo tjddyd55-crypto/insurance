@@ -2,20 +2,23 @@ import { FormButton } from '../../../components/form'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useConfirmDialog } from '../../../components/dialog'
-import NewsDetailMobileZoomScroll from '../../../components/news-detail-viewer/NewsDetailMobileZoomScroll'
+import NewsDetailViewerModal from '../../../components/news-detail-viewer/NewsDetailViewerModal'
+import {
+  NEWS_DETAIL_VIEWER_ZOOM_STEP,
+  clampNewsDetailViewerZoom,
+} from '../../../components/news-detail-viewer/newsDetailViewerZoom'
 import GaRequiredNotice from '../../../components/access/GaRequiredNotice'
 import { useAuth } from '../../auth/AuthProvider'
 import { isPublicGeneralAccount } from '../../auth/generalGa'
-import { AutoLinkText } from '../components/AutoLinkText'
-import { LinkPreviewCard } from '../components/LinkPreviewCard'
-import { NewsletterAttachmentList } from '../components/NewsletterAttachmentList'
-import { NewsletterImageGallery } from '../components/NewsletterImageGallery'
+import {
+  buildInsurerNewsDetailHeroDownloadUrl,
+  InsurerNewsDetailViewerContent,
+} from '../components/InsurerNewsDetailViewerContent'
 import { deleteManagerNewsletter, getNewsletterDetail, getNewsletterDetailForInsurerManager } from '../services/insurerNews.service'
-import { buildInsurerNewsGalleryUrls } from '../utils/buildInsurerNewsGalleryUrls'
-import { formatInsurerNewsDateTime } from '../utils/formatInsurerNewsDate'
 import { canDeleteNewsletter } from '../utils/newsletterDeletePermission'
-import { normalizeInsurerNewsText } from '../utils/insurerNewsText'
 import type { NewsChannel, NewsletterDetail } from '../types'
+
+const ZOOM_STEP = NEWS_DETAIL_VIEWER_ZOOM_STEP
 
 export function InsurerManagerNewsDetailPage({
   channel = 'INSURER',
@@ -39,28 +42,48 @@ export function InsurerManagerNewsDetailPage({
   const [detail, setDetail] = useState<NewsletterDetail | null>(null)
   const { confirm, confirmDialog } = useConfirmDialog()
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState('')
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  const [zoom, setZoom] = useState(1)
 
   useEffect(() => {
     if (!canFetch) {
+      setLoading(false)
+      setDetail(null)
+      setFetchError(newsletterId ? '소식지를 불러올 수 없습니다.' : '잘못된 경로입니다.')
       return
     }
     let cancelled = false
-    ;(async () => {
-      const row =
-        detailScope === 'ga'
-          ? await getNewsletterDetail(gaCode, newsletterId, token, { channel })
-          : await getNewsletterDetailForInsurerManager(token, gaCode, companyId ?? 0, newsletterId, { channel })
-      if (!cancelled) {
-        setDetail(row)
-        setLoading(false)
+    setLoading(true)
+    setFetchError('')
+    setZoom(1)
+    void (async () => {
+      try {
+        const row =
+          detailScope === 'ga'
+            ? await getNewsletterDetail(gaCode, newsletterId, token, { channel })
+            : await getNewsletterDetailForInsurerManager(token, gaCode, companyId ?? 0, newsletterId, { channel })
+        if (!cancelled) {
+          setDetail(row)
+          if (!row) {
+            setFetchError('소식지를 찾을 수 없거나 접근 권한이 없습니다.')
+          }
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setFetchError(e instanceof Error ? e.message : '소식지를 불러올 수 없습니다.')
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
       }
     })()
     return () => {
       cancelled = true
     }
-  }, [canFetch, detailScope, channel, token, gaCode, companyId, newsletterId, requiresCompanyScope])
+  }, [canFetch, detailScope, channel, token, gaCode, companyId, newsletterId])
 
   if (isPublicAccount) {
     return <GaRequiredNotice />
@@ -69,43 +92,11 @@ export function InsurerManagerNewsDetailPage({
   if (!gaCode || (requiresCompanyScope && companyId == null)) {
     return null
   }
-  if (!canFetch) {
-    return (
-      <main className="page page--with-back insurer-news-page user-page">
-        <div className="insurer-news-empty" role="status">
-          {newsletterId ? '소식지를 불러올 수 없습니다.' : '잘못된 경로입니다.'}
-        </div>
-      </main>
-    )
-  }
 
-  if (loading) {
-    return (
-      <main className="page page--with-back insurer-news-page user-page">
-        <div className="insurer-news-empty" role="status">
-          불러오는 중…
-        </div>
-      </main>
-    )
-  }
+  const canDelete = detail ? canDeleteNewsletter(detail, user) : false
+  const heroDownloadUrl = buildInsurerNewsDetailHeroDownloadUrl(detail, null)
+  const viewerError = deleteError || fetchError || null
 
-  if (!detail) {
-    return (
-      <main className="page page--with-back insurer-news-page user-page">
-        <div className="insurer-news-empty" role="status">
-          {newsletterId ? '소식지를 찾을 수 없거나 접근 권한이 없습니다.' : '잘못된 경로입니다.'}
-        </div>
-      </main>
-    )
-  }
-
-  const galleryUrls = buildInsurerNewsGalleryUrls({
-    heroImageUrl: detail.heroImageUrl,
-    heroImageObjectKey: detail.heroImageObjectKey,
-    attachments: detail.attachments,
-  })
-  const bodyText = normalizeInsurerNewsText(detail.bodyText)
-  const canDelete = canDeleteNewsletter(detail, user)
   const handleDelete = () => {
     if (!newsletterId || !token?.trim() || deleteBusy) {
       return
@@ -132,17 +123,33 @@ export function InsurerManagerNewsDetailPage({
   }
 
   return (
-    <main className="page page--with-back insurer-news-page user-page">
-      <article className="insurer-news-detail-article">
-        <header style={{ marginBottom: 16 }}>
-          <p className="insurer-news-muted" style={{ margin: '0 0 4px', fontSize: 14 }}>
-            {detail.insurerName}
-          </p>
-          <time dateTime={detail.publishedAt} style={{ fontSize: '0.95rem' }}>
-            {formatInsurerNewsDateTime(detail.publishedAt)}
-          </time>
-          {canDelete ? (
-            <div style={{ marginTop: 10 }}>
+    <>
+      <NewsDetailViewerModal
+        open
+        onClose={() => navigate(listPath)}
+        zoom={zoom}
+        onZoomChange={(next) => setZoom(clampNewsDetailViewerZoom(next))}
+        onZoomIn={() => setZoom((value) => clampNewsDetailViewerZoom(value + ZOOM_STEP))}
+        onZoomOut={() => setZoom((value) => clampNewsDetailViewerZoom(value - ZOOM_STEP))}
+        zoomControlVariant="symbols"
+        closeLabel="✕"
+        loading={loading}
+        error={viewerError}
+        ariaLabel={detail?.title ? `소식지 · ${detail.title}` : '소식지 상세'}
+        headerActions={
+          <>
+            {heroDownloadUrl ? (
+              <a
+                href={heroDownloadUrl}
+                download
+                className="button filter-button download-btn"
+                target="_blank"
+                rel="noreferrer"
+              >
+                다운로드
+              </a>
+            ) : null}
+            {canDelete ? (
               <FormButton
                 htmlType="button"
                 className="button button--secondary"
@@ -151,35 +158,13 @@ export function InsurerManagerNewsDetailPage({
               >
                 {deleteBusy ? '삭제 중…' : '삭제'}
               </FormButton>
-            </div>
-          ) : null}
-          {deleteError ? (
-            <p className="status status--error" style={{ marginTop: 8 }}>
-              {deleteError}
-            </p>
-          ) : null}
-        </header>
-        <NewsDetailMobileZoomScroll>
-          {bodyText ? (
-            <AutoLinkText
-              text={bodyText}
-              className="insurer-news-detail-body news-text"
-              enableAutoLinking
-              enablePhoneLinks
-            />
-          ) : null}
-          {detail.linkPreview?.url ? (
-            <div style={{ marginBottom: 12, marginTop: 8 }}>
-              <LinkPreviewCard preview={detail.linkPreview} />
-            </div>
-          ) : null}
-          {galleryUrls.length > 0 ? (
-            <NewsletterImageGallery imageUrls={galleryUrls} altBase="소식지 이미지" resolveUrls />
-          ) : null}
-          <NewsletterAttachmentList attachments={detail.attachments} />
-        </NewsDetailMobileZoomScroll>
-      </article>
+            ) : null}
+          </>
+        }
+      >
+        {detail ? <InsurerNewsDetailViewerContent zoom={zoom} detail={detail} item={null} /> : null}
+      </NewsDetailViewerModal>
       {confirmDialog}
-    </main>
+    </>
   )
 }

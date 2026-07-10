@@ -5,6 +5,7 @@ import { resolveInsurerNewsListCardImageUrl } from '../utils/resolveInsurerNewsI
 import { normalizeInsurerNewsText } from '../utils/insurerNewsText'
 import { AutoLinkText } from './AutoLinkText'
 import { LinkPreviewCard } from './LinkPreviewCard'
+import { NewsletterAttachmentList } from './NewsletterAttachmentList'
 
 type InsurerNewsDetailViewerContentProps = {
   zoom: number
@@ -46,6 +47,9 @@ export function InsurerNewsDetailViewerContent({
       {modalGalleryUrls.map((url) => (
         <img key={url} src={url} alt="" />
       ))}
+      {detail?.attachments?.length ? (
+        <NewsletterAttachmentList attachments={detail.attachments} />
+      ) : null}
     </NewsDetailZoomContent>
   )
 }

@@ -2,12 +2,16 @@ import { FormButton } from '../../../components/form'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useConfirmDialog } from '../../../components/dialog'
-import NewsDetailMobileZoomScroll from '../../../components/news-detail-viewer/NewsDetailMobileZoomScroll'
-import { AutoLinkText } from '../components/AutoLinkText'
+import NewsDetailViewerModal from '../../../components/news-detail-viewer/NewsDetailViewerModal'
+import {
+  NEWS_DETAIL_VIEWER_ZOOM_STEP,
+  clampNewsDetailViewerZoom,
+} from '../../../components/news-detail-viewer/newsDetailViewerZoom'
 import { InsurerNewsForm } from '../components/InsurerNewsForm'
-import { LinkPreviewCard } from '../components/LinkPreviewCard'
-import { NewsletterAttachmentList } from '../components/NewsletterAttachmentList'
-import { NewsletterImageGallery } from '../components/NewsletterImageGallery'
+import {
+  buildInsurerNewsDetailHeroDownloadUrl,
+  InsurerNewsDetailViewerContent,
+} from '../components/InsurerNewsDetailViewerContent'
 import {
   deleteBoardWriterNewsletter,
   fetchPublicBoardWriterMe,
@@ -17,10 +21,9 @@ import {
   updateBoardWriterNewsletter,
   uploadBoardWriterAttachments,
 } from '../services/publicBoardWriter.service'
-import { buildInsurerNewsGalleryUrls } from '../utils/buildInsurerNewsGalleryUrls'
-import { formatInsurerNewsDateTime } from '../utils/formatInsurerNewsDate'
-import { normalizeInsurerNewsText } from '../utils/insurerNewsText'
 import type { NewsletterDetail } from '../types'
+
+const ZOOM_STEP = NEWS_DETAIL_VIEWER_ZOOM_STEP
 
 export function BoardWriterNewsDetailPage() {
   const { boardSlug = '', newsletterId = '' } = useParams<{ boardSlug: string; newsletterId: string }>()
@@ -30,9 +33,11 @@ export function BoardWriterNewsDetailPage() {
   const [detail, setDetail] = useState<NewsletterDetail | null>(null)
   const [boardLabel, setBoardLabel] = useState('')
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState('')
   const [editing, setEditing] = useState(false)
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  const [zoom, setZoom] = useState(1)
   const { confirm, confirmDialog } = useConfirmDialog()
 
   const listPath = `/board-writer/boards/${encodeURIComponent(boardSlug)}/news`
@@ -45,6 +50,9 @@ export function BoardWriterNewsDetailPage() {
     }
     setToken(writerToken)
     let cancelled = false
+    setLoading(true)
+    setFetchError('')
+    setZoom(1)
     void (async () => {
       try {
         const me = await fetchPublicBoardWriterMe(writerToken)
@@ -71,29 +79,9 @@ export function BoardWriterNewsDetailPage() {
     }
   }, [boardSlug, newsletterId, navigate])
 
-  if (!token || loading) {
-    return (
-      <main className="page page--with-back insurer-news-page user-page">
-        <div className="insurer-news-empty">불러오는 중…</div>
-      </main>
-    )
-  }
-
-  if (!detail) {
-    return (
-      <main className="page page--with-back insurer-news-page user-page">
-        <div className="insurer-news-empty">소식지를 찾을 수 없거나 접근 권한이 없습니다.</div>
-      </main>
-    )
-  }
-
-  const isAuthor = Boolean(detail.publisherId && String(detail.publisherId) === String(writerId))
-  const bodyText = normalizeInsurerNewsText(detail.bodyText)
-  const galleryUrls = buildInsurerNewsGalleryUrls({
-    heroImageUrl: detail.heroImageUrl,
-    heroImageObjectKey: detail.heroImageObjectKey,
-    attachments: detail.attachments,
-  })
+  const isAuthor = Boolean(detail?.publisherId && String(detail.publisherId) === String(writerId))
+  const heroDownloadUrl = buildInsurerNewsDetailHeroDownloadUrl(detail, null)
+  const viewerError = deleteError || fetchError || null
 
   const handleDelete = () => {
     if (!token || deleteBusy) {
@@ -120,7 +108,7 @@ export function BoardWriterNewsDetailPage() {
     })()
   }
 
-  if (editing && isAuthor) {
+  if (editing && isAuthor && detail && token) {
     return (
       <main className="page page--with-back insurer-news-page user-page">
         <header className="page-header" style={{ marginBottom: 16 }}>
@@ -152,53 +140,53 @@ export function BoardWriterNewsDetailPage() {
     )
   }
 
+  if (!token) {
+    return null
+  }
+
   return (
-    <main className="page page--with-back insurer-news-page user-page">
-      <article className="insurer-news-detail-article">
-        <header style={{ marginBottom: 16 }}>
-          <p className="insurer-news-muted" style={{ margin: '0 0 4px', fontSize: 14 }}>
-            {detail.insurerName}
-          </p>
-          <time dateTime={detail.publishedAt} style={{ fontSize: '0.95rem' }}>
-            {formatInsurerNewsDateTime(detail.publishedAt)}
-          </time>
-          {isAuthor ? (
-            <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <FormButton htmlType="button" variant="primary" onClick={() => setEditing(true)}>
-                수정
-              </FormButton>
-              <FormButton htmlType="button" variant="secondary" disabled={deleteBusy} onClick={handleDelete}>
-                {deleteBusy ? '삭제 중…' : '삭제'}
-              </FormButton>
-            </div>
-          ) : null}
-          {deleteError ? (
-            <p className="status status--error" style={{ marginTop: 8 }}>
-              {deleteError}
-            </p>
-          ) : null}
-        </header>
-        <NewsDetailMobileZoomScroll>
-          {bodyText ? (
-            <AutoLinkText
-              text={bodyText}
-              className="insurer-news-detail-body news-text"
-              enableAutoLinking
-              enablePhoneLinks
-            />
-          ) : null}
-          {detail.linkPreview?.url ? (
-            <div style={{ marginBottom: 12, marginTop: 8 }}>
-              <LinkPreviewCard preview={detail.linkPreview} />
-            </div>
-          ) : null}
-          {galleryUrls.length > 0 ? (
-            <NewsletterImageGallery imageUrls={galleryUrls} altBase="소식지 이미지" resolveUrls />
-          ) : null}
-          <NewsletterAttachmentList attachments={detail.attachments} />
-        </NewsDetailMobileZoomScroll>
-      </article>
+    <>
+      <NewsDetailViewerModal
+        open
+        onClose={() => navigate(listPath)}
+        zoom={zoom}
+        onZoomChange={(next) => setZoom(clampNewsDetailViewerZoom(next))}
+        onZoomIn={() => setZoom((value) => clampNewsDetailViewerZoom(value + ZOOM_STEP))}
+        onZoomOut={() => setZoom((value) => clampNewsDetailViewerZoom(value - ZOOM_STEP))}
+        zoomControlVariant="symbols"
+        closeLabel="✕"
+        loading={loading}
+        error={viewerError || (!loading && !detail ? '소식지를 찾을 수 없거나 접근 권한이 없습니다.' : null)}
+        ariaLabel={detail?.title ? `소식지 · ${detail.title}` : '소식지 상세'}
+        headerActions={
+          <>
+            {heroDownloadUrl ? (
+              <a
+                href={heroDownloadUrl}
+                download
+                className="button filter-button download-btn"
+                target="_blank"
+                rel="noreferrer"
+              >
+                다운로드
+              </a>
+            ) : null}
+            {isAuthor ? (
+              <>
+                <FormButton htmlType="button" variant="primary" onClick={() => setEditing(true)}>
+                  수정
+                </FormButton>
+                <FormButton htmlType="button" variant="secondary" disabled={deleteBusy} onClick={handleDelete}>
+                  {deleteBusy ? '삭제 중…' : '삭제'}
+                </FormButton>
+              </>
+            ) : null}
+          </>
+        }
+      >
+        {detail ? <InsurerNewsDetailViewerContent zoom={zoom} detail={detail} item={null} /> : null}
+      </NewsDetailViewerModal>
       {confirmDialog}
-    </main>
+    </>
   )
 }
