@@ -53,6 +53,9 @@ export function BoardWriterNewsUploadPage() {
           insurerSlug: companySlug,
         }}
         authToken={token}
+        enableLinkPreview
+        enableAutoLinking
+        enablePhoneLinks
         uploadAttachments={(authToken, drafts) => uploadBoardWriterAttachments(authToken, boardSlug, drafts)}
         onCancel={() => navigate(listPath)}
         onSubmit={async (draft) => {

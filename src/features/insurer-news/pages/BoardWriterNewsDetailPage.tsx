@@ -3,7 +3,9 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useConfirmDialog } from '../../../components/dialog'
 import NewsDetailMobileZoomScroll from '../../../components/news-detail-viewer/NewsDetailMobileZoomScroll'
+import { AutoLinkText } from '../components/AutoLinkText'
 import { InsurerNewsForm } from '../components/InsurerNewsForm'
+import { LinkPreviewCard } from '../components/LinkPreviewCard'
 import { NewsletterAttachmentList } from '../components/NewsletterAttachmentList'
 import { NewsletterImageGallery } from '../components/NewsletterImageGallery'
 import {
@@ -135,6 +137,9 @@ export function BoardWriterNewsDetailPage() {
             insurerSlug: detail.insurerSlug,
           }}
           authToken={token}
+          enableLinkPreview
+          enableAutoLinking
+          enablePhoneLinks
           uploadAttachments={(authToken, drafts) => uploadBoardWriterAttachments(authToken, boardSlug, drafts)}
           onCancel={() => setEditing(false)}
           onSubmit={async (draft) => {
@@ -175,8 +180,16 @@ export function BoardWriterNewsDetailPage() {
         </header>
         <NewsDetailMobileZoomScroll>
           {bodyText ? (
-            <div className="insurer-news-detail-body news-text" style={{ marginBottom: 8 }}>
-              {bodyText}
+            <AutoLinkText
+              text={bodyText}
+              className="insurer-news-detail-body news-text"
+              enableAutoLinking
+              enablePhoneLinks
+            />
+          ) : null}
+          {detail.linkPreview?.url ? (
+            <div style={{ marginBottom: 12, marginTop: 8 }}>
+              <LinkPreviewCard preview={detail.linkPreview} />
             </div>
           ) : null}
           {galleryUrls.length > 0 ? (

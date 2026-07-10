@@ -1,0 +1,63 @@
+/**
+ * 소식지 payload 내 링크 미리보기 정규화.
+ * 기존 글(필드 없음)과 호환 — null 허용.
+ */
+
+/**
+ * @param {unknown} raw
+ * @returns {{
+ *   url: string,
+ *   title: string | null,
+ *   description: string | null,
+ *   imageUrl: string | null,
+ *   siteName: string | null,
+ *   domain: string | null,
+ * } | null}
+ */
+export function normalizeNewsletterLinkPreview(raw) {
+  if (raw == null || typeof raw !== 'object') {
+    return null
+  }
+  const row = /** @type {Record<string, unknown>} */ (raw)
+  const url = String(row.url ?? row.link_url ?? '').trim()
+  if (!url) {
+    return null
+  }
+  let domain = String(row.domain ?? '').trim()
+  if (!domain) {
+    try {
+      domain = new URL(url).hostname.replace(/^www\./, '')
+    } catch {
+      domain = ''
+    }
+  }
+  return {
+    url,
+    title: String(row.title ?? row.link_title ?? '').trim() || null,
+    description: String(row.description ?? row.link_description ?? '').trim() || null,
+    imageUrl: String(row.imageUrl ?? row.image_url ?? row.image ?? '').trim() || null,
+    siteName: String(row.siteName ?? row.site_name ?? row.link_site_name ?? '').trim() || null,
+    domain: domain || null,
+  }
+}
+
+/**
+ * 요청 body / draft 에서 linkPreview 추출.
+ * 명시적으로 null 이면 제거, undefined 이면 기존 유지용으로 null 반환하지 않음 — 호출측에서 처리.
+ * @param {unknown} body
+ * @returns {{ linkPreview: ReturnType<typeof normalizeNewsletterLinkPreview> | null, provided: boolean }}
+ */
+export function extractLinkPreviewFromBody(body) {
+  if (body == null || typeof body !== 'object') {
+    return { linkPreview: null, provided: false }
+  }
+  const row = /** @type {Record<string, unknown>} */ (body)
+  if (!Object.prototype.hasOwnProperty.call(row, 'linkPreview') && !Object.prototype.hasOwnProperty.call(row, 'link_preview')) {
+    return { linkPreview: null, provided: false }
+  }
+  const raw = row.linkPreview ?? row.link_preview
+  if (raw == null) {
+    return { linkPreview: null, provided: true }
+  }
+  return { linkPreview: normalizeNewsletterLinkPreview(raw), provided: true }
+}

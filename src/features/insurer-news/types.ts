@@ -77,10 +77,22 @@ export interface NewsletterItem {
   targetCustomerId?: number | null
 }
 
+/** 본문 대표 링크 미리보기 (optional — 기존 글은 null) */
+export interface NewsletterLinkPreview {
+  url: string
+  title?: string | null
+  description?: string | null
+  imageUrl?: string | null
+  siteName?: string | null
+  domain?: string | null
+}
+
 /** 상세 본문 */
 export interface NewsletterDetail extends NewsletterItem {
   bodyText: string
   attachments: NewsletterAttachment[]
+  /** 저장된 링크 미리보기 — 없으면 null/undefined */
+  linkPreview?: NewsletterLinkPreview | null
 }
 
 /** 업로드 큐 아이템 (폼 상태) */

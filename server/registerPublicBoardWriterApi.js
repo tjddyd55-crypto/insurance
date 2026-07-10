@@ -198,6 +198,11 @@ export function registerPublicBoardWriterApi(apiRouter, ctx) {
         bodyText,
         status,
         attachments: Array.isArray(body.attachments) ? body.attachments : [],
+        linkPreview: Object.prototype.hasOwnProperty.call(body, 'linkPreview')
+          ? body.linkPreview
+          : Object.prototype.hasOwnProperty.call(body, 'link_preview')
+            ? body.link_preview
+            : undefined,
       })
       res.status(201).json(detail)
     } catch (e) {
@@ -226,6 +231,11 @@ export function registerPublicBoardWriterApi(apiRouter, ctx) {
         bodyText: String(body.bodyText ?? ''),
         status,
         attachments: Array.isArray(body.attachments) ? body.attachments : [],
+        linkPreview: Object.prototype.hasOwnProperty.call(body, 'linkPreview')
+          ? body.linkPreview
+          : Object.prototype.hasOwnProperty.call(body, 'link_preview')
+            ? body.link_preview
+            : undefined,
       })
       res.json(detail)
     } catch (e) {

@@ -16,6 +16,7 @@ import {
   normalizeInsuranceGaCode,
 } from './insuranceStorageLayout.js'
 import { isGlobalBoardScope, resolveBoardPostGaId } from './newsletterBoardScope.js'
+import { normalizeNewsletterLinkPreview } from './newsletterLinkPreview.js'
 
 const ALLOWED_UPLOAD_MIME = new Set([
   'image/jpeg',
@@ -162,12 +163,12 @@ async function assertAttachmentsExistInR2(normalized) {
  * @param {Record<string, unknown>} board
  * @param {string} writerId
  */
-export function buildDynamicBoardPayload(board, writerId, status) {
+export function buildDynamicBoardPayload(board, writerId, status, linkPreviewInput = undefined) {
   const slug = String(board.slug ?? '').trim()
   const label = String(board.label ?? '').trim() || slug
   const global = isGlobalBoardScope(board)
   const nowIso = new Date().toISOString()
-  return {
+  const payload = {
     dynamicBoardSlug: slug,
     contentScope: global ? 'global' : 'ga',
     insurerSlug: boardWriterCompanySlug(board),
@@ -178,6 +179,13 @@ export function buildDynamicBoardPayload(board, writerId, status) {
     publishedAt: status === 'PUBLISHED' ? nowIso : null,
     publisherId: writerId,
   }
+  if (linkPreviewInput !== undefined) {
+    const normalized = normalizeNewsletterLinkPreview(linkPreviewInput)
+    if (normalized) {
+      payload.linkPreview = normalized
+    }
+  }
+  return payload
 }
 
 /**
@@ -278,6 +286,7 @@ export function mapBoardWriterNewsletterDetail(row, attRows) {
     hasTextBody: String(row.body_text ?? '').trim().length > 0,
     bodyText: String(row.body_text ?? ''),
     attachments,
+    linkPreview: normalizeNewsletterLinkPreview(payload.linkPreview ?? payload.link_preview),
   }
 }
 
@@ -442,7 +451,7 @@ export async function loadBoardWriterNewsletterById(executor, board, newsletterI
  * @param {Function} withTransaction
  */
 export async function createBoardWriterNewsletter(pool, withTransaction, input) {
-  const { board, writerId, writerOwnerGaId, bodyText, status, attachments } = input
+  const { board, writerId, writerOwnerGaId, bodyText, status, attachments, linkPreview } = input
   const global = isGlobalBoardScope(board)
   const gaId = global ? null : resolveBoardPostGaId(board, writerOwnerGaId)
   if (!global && gaId == null) {
@@ -455,7 +464,7 @@ export async function createBoardWriterNewsletter(pool, withTransaction, input) 
   await assertAttachmentsExistInR2(rowsToInsert)
 
   const id = randomUUID()
-  const payload = buildDynamicBoardPayload(board, writerId, status)
+  const payload = buildDynamicBoardPayload(board, writerId, status, linkPreview)
   const label = String(board.label ?? '').trim() || String(board.slug ?? '')
 
   await withTransaction(async (client) => {
@@ -486,7 +495,8 @@ export async function createBoardWriterNewsletter(pool, withTransaction, input) 
  * @param {Function} withTransaction
  */
 export async function updateBoardWriterNewsletter(pool, withTransaction, input) {
-  const { board, newsletterId, writerId, writerOwnerGaId, bodyText, status, attachments } = input
+  const { board, newsletterId, writerId, writerOwnerGaId, bodyText, status, attachments, linkPreview } =
+    input
   const existing = await loadBoardWriterNewsletterById(pool, board, newsletterId, writerOwnerGaId)
   if (!existing) {
     throw Object.assign(new Error('소식을 찾을 수 없습니다.'), { httpStatus: 404 })
@@ -503,7 +513,9 @@ export async function updateBoardWriterNewsletter(pool, withTransaction, input) 
   const rowsToInsert = prepareAttachmentsForWrite(attIn, attachmentScope)
   await assertAttachmentsExistInR2(rowsToInsert)
 
-  const payload = buildDynamicBoardPayload(board, writerId, status)
+  const linkPreviewForPayload =
+    linkPreview !== undefined ? linkPreview : existing.linkPreview ?? null
+  const payload = buildDynamicBoardPayload(board, writerId, status, linkPreviewForPayload)
   const label = String(board.label ?? '').trim() || String(board.slug ?? '')
   const prevAttRows = await loadAttachmentsForNewsletter(pool, newsletterId, gaId)
   const prevObjectKeys = prevAttRows.map((row) => String(row.object_key ?? '').trim()).filter(Boolean)
