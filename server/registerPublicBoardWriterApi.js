@@ -26,6 +26,7 @@ import {
   resolveBoardWriterStorageGaCode,
   updateBoardWriterNewsletter,
 } from './lib/boardWriterNewsletters.js'
+import { fetchNewsletterLinkPreviewForApi } from './lib/newsletterLinkPreview.js'
 import {
   assertAdminCanManageBoardWriters,
   authenticateBoardWriterCredentials,
@@ -124,6 +125,20 @@ export function registerPublicBoardWriterApi(apiRouter, ctx) {
 
   apiRouter.get('/board-writer/me', requireBoardWriterAuth, getWriterMe)
   apiRouter.get('/public-board-writer/me', requireBoardWriterAuth, getWriterMe)
+
+  async function fetchWriterLinkPreview(req, res) {
+    try {
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      const url = String(body.url ?? '').trim()
+      const payload = await fetchNewsletterLinkPreviewForApi(url)
+      res.json(payload)
+    } catch {
+      res.json({ success: true, preview: null })
+    }
+  }
+
+  apiRouter.post('/board-writer/link-preview', requireBoardWriterAuth, fetchWriterLinkPreview)
+  apiRouter.post('/public-board-writer/link-preview', requireBoardWriterAuth, fetchWriterLinkPreview)
 
   async function listWriterBoards(req, res) {
     try {

@@ -5,11 +5,15 @@ import type { NewsletterLinkPreview } from '../types'
 import { LinkPreviewCard } from './LinkPreviewCard'
 import { extractFirstExternalUrl } from '../utils/linkTextParser.js'
 
+const DEFAULT_LINK_PREVIEW_ENDPOINT = '/api/insurer-news/link-preview'
+
 type Props = {
   bodyText: string
   authToken: string | null
   initialPreview?: NewsletterLinkPreview | null
   onPreviewChange: (preview: NewsletterLinkPreview | null) => void
+  /** 기본값: CRM 내부 소식지용 `/api/insurer-news/link-preview` */
+  previewEndpoint?: string
 }
 
 type PreviewApiRaw = {
@@ -43,8 +47,12 @@ function mapPreview(raw: PreviewApiRaw): NewsletterLinkPreview | null {
   }
 }
 
-async function fetchLinkPreview(token: string, url: string): Promise<NewsletterLinkPreview | null> {
-  const res = await apiRequest<PreviewApiResponse>('/api/insurer-news/link-preview', {
+async function fetchLinkPreview(
+  token: string,
+  url: string,
+  endpoint: string,
+): Promise<NewsletterLinkPreview | null> {
+  const res = await apiRequest<PreviewApiResponse>(endpoint, {
     method: 'POST',
     token,
     body: JSON.stringify({ url }),
@@ -65,6 +73,7 @@ export function LinkPreviewEditor({
   authToken,
   initialPreview = null,
   onPreviewChange,
+  previewEndpoint = DEFAULT_LINK_PREVIEW_ENDPOINT,
 }: Props) {
   const [preview, setPreview] = useState<NewsletterLinkPreview | null>(initialPreview)
   const [loading, setLoading] = useState(false)
@@ -107,7 +116,7 @@ export function LinkPreviewEditor({
         setLoading(true)
         setError('')
         try {
-          const next = await fetchLinkPreview(authToken, url)
+          const next = await fetchLinkPreview(authToken, url, previewEndpoint)
           if (requestId !== requestIdRef.current) {
             return
           }
@@ -136,7 +145,7 @@ export function LinkPreviewEditor({
       window.clearTimeout(timer)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- URL/refresh 변경 시에만 재요청
-  }, [bodyText, authToken, removed, refreshNonce, applyPreview])
+  }, [bodyText, authToken, removed, refreshNonce, applyPreview, previewEndpoint])
 
   if (removed) {
     return (

@@ -3,6 +3,8 @@
  * 기존 글(필드 없음)과 호환 — null 허용.
  */
 
+import { resolveAdminNoticeLinkPreview } from '../admin-notices/adminNoticeLinkPreview.js'
+
 /**
  * DB row.payload — jsonb 객체 또는 JSON 문자열을 안전하게 파싱한다.
  * @param {unknown} raw
@@ -122,4 +124,31 @@ export function resolveNewsletterDetailLinkPreview(rowOrDetail) {
   }
   const payload = parseNewsletterPayload(row.payload)
   return extractNewsletterLinkPreviewFromPayload(payload)
+}
+
+/**
+ * 링크 미리보기 API 공통 응답 — insurer-news / board-writer endpoint가 동일 포맷을 반환한다.
+ * @param {unknown} urlInput
+ * @returns {Promise<{ success: true, preview: ReturnType<typeof normalizeNewsletterLinkPreview> }>}
+ */
+export async function fetchNewsletterLinkPreviewForApi(urlInput) {
+  const url = String(urlInput ?? '').trim()
+  if (!url) {
+    return { success: true, preview: null }
+  }
+  const data = await resolveAdminNoticeLinkPreview(url)
+  if (!data) {
+    return { success: true, preview: null }
+  }
+  return {
+    success: true,
+    preview: normalizeNewsletterLinkPreview({
+      url: data.url,
+      title: data.title,
+      description: data.description,
+      imageUrl: data.imageUrl ?? data.image,
+      siteName: data.siteName,
+      domain: data.domain,
+    }),
+  }
 }

@@ -126,6 +126,7 @@ export function BoardWriterNewsDetailPage() {
           }}
           authToken={token}
           enableLinkPreview
+          linkPreviewEndpoint="/api/board-writer/link-preview"
           enableAutoLinking
           enablePhoneLinks
           uploadAttachments={(authToken, drafts) => uploadBoardWriterAttachments(authToken, boardSlug, drafts)}

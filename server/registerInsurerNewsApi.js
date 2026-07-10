@@ -67,10 +67,10 @@ import {
   normalizeInsuranceGaCode,
 } from './lib/insuranceStorageLayout.js'
 import { assertNewsObjectKeyScoped } from './lib/insurerNewsObjectKeyScope.js'
-import { resolveAdminNoticeLinkPreview } from './admin-notices/adminNoticeLinkPreview.js'
 import {
   extractLinkPreviewFromBody,
   extractNewsletterLinkPreviewFromPayload,
+  fetchNewsletterLinkPreviewForApi,
   normalizeNewsletterLinkPreview,
   parseNewsletterPayload,
   resolveNewsletterDetailLinkPreview,
@@ -2475,26 +2475,8 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     try {
       const body = req.body && typeof req.body === 'object' ? req.body : {}
       const url = String(body.url ?? '').trim()
-      if (!url) {
-        res.json({ success: true, preview: null })
-        return
-      }
-      const data = await resolveAdminNoticeLinkPreview(url)
-      if (!data) {
-        res.json({ success: true, preview: null })
-        return
-      }
-      res.json({
-        success: true,
-        preview: {
-          url: data.url,
-          title: data.title || null,
-          description: data.description || null,
-          imageUrl: data.imageUrl || data.image || null,
-          siteName: data.siteName || null,
-          domain: data.domain || null,
-        },
-      })
+      const payload = await fetchNewsletterLinkPreviewForApi(url)
+      res.json(payload)
     } catch {
       res.json({ success: true, preview: null })
     }
