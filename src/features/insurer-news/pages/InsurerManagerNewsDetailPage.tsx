@@ -1,4 +1,3 @@
-import { FormButton } from '../../../components/form'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useConfirmDialog } from '../../../components/dialog'
@@ -14,6 +13,7 @@ import {
   buildInsurerNewsDetailHeroDownloadUrl,
   InsurerNewsDetailViewerContent,
 } from '../components/InsurerNewsDetailViewerContent'
+import { NewsletterViewerHeaderActions } from '../components/NewsletterViewerHeaderActions'
 import { deleteManagerNewsletter, getNewsletterDetail, getNewsletterDetailForInsurerManager } from '../services/insurerNews.service'
 import { canDeleteNewsletter } from '../utils/newsletterDeletePermission'
 import type { NewsChannel, NewsletterDetail } from '../types'
@@ -137,29 +137,12 @@ export function InsurerManagerNewsDetailPage({
         error={viewerError}
         ariaLabel={detail?.title ? `소식지 · ${detail.title}` : '소식지 상세'}
         headerActions={
-          <>
-            {heroDownloadUrl ? (
-              <a
-                href={heroDownloadUrl}
-                download
-                className="button filter-button download-btn"
-                target="_blank"
-                rel="noreferrer"
-              >
-                다운로드
-              </a>
-            ) : null}
-            {canDelete ? (
-              <FormButton
-                htmlType="button"
-                className="button button--secondary"
-                disabled={deleteBusy || !token?.trim() || !newsletterId}
-                onClick={handleDelete}
-              >
-                {deleteBusy ? '삭제 중…' : '삭제'}
-              </FormButton>
-            ) : null}
-          </>
+          <NewsletterViewerHeaderActions
+            heroDownloadUrl={heroDownloadUrl}
+            canDelete={canDelete}
+            onDelete={handleDelete}
+            deleteBusy={deleteBusy}
+          />
         }
       >
         {detail ? <InsurerNewsDetailViewerContent zoom={zoom} detail={detail} item={null} /> : null}

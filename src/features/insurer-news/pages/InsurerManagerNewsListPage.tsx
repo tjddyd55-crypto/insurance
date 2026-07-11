@@ -78,33 +78,33 @@ export function InsurerManagerNewsListPage({
   )
 
   const handleDeleteItem = useCallback(
-    (item: NewsletterItem) => {
+    async (item: NewsletterItem): Promise<boolean> => {
       if (!token?.trim() || deleteBusyId) {
-        return
+        return false
       }
-      void (async () => {
-        const confirmed = await confirm({
-          title: '소식지 삭제',
-          message: '이 소식지를 삭제하시겠습니까?\n삭제한 소식지는 목록에서 보이지 않습니다.',
-          tone: 'danger',
-          confirmLabel: '삭제',
-          cancelLabel: '취소',
-        })
-        if (!confirmed) {
-          return
-        }
-        setDeleteBusyId(item.id)
-        setDeleteNotice('')
-        try {
-          await deleteManagerNewsletter(token, item.id, { channel })
-          setItems((prev) => prev.filter((row) => row.id !== item.id))
-          setDeleteNotice('소식지가 삭제되었습니다.')
-        } catch (e) {
-          setDeleteNotice(e instanceof Error ? e.message : '삭제에 실패했습니다.')
-        } finally {
-          setDeleteBusyId(null)
-        }
-      })()
+      const confirmed = await confirm({
+        title: '소식지 삭제',
+        message: '이 소식지를 삭제하시겠습니까?\n삭제한 소식지는 목록에서 보이지 않습니다.',
+        tone: 'danger',
+        confirmLabel: '삭제',
+        cancelLabel: '취소',
+      })
+      if (!confirmed) {
+        return false
+      }
+      setDeleteBusyId(item.id)
+      setDeleteNotice('')
+      try {
+        await deleteManagerNewsletter(token, item.id, { channel })
+        setItems((prev) => prev.filter((row) => row.id !== item.id))
+        setDeleteNotice('소식지가 삭제되었습니다.')
+        return true
+      } catch (e) {
+        setDeleteNotice(e instanceof Error ? e.message : '삭제에 실패했습니다.')
+        return false
+      } finally {
+        setDeleteBusyId(null)
+      }
     },
     [token, deleteBusyId, confirm, channel],
   )

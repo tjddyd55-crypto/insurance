@@ -14,6 +14,7 @@ import {
   InsurerNewsDetailViewerContent,
 } from '../components/InsurerNewsDetailViewerContent'
 import { getDynamicNewsletterBoardDetail } from '../services/insurerNews.service'
+import { NewsletterViewerHeaderActions } from '../components/NewsletterViewerHeaderActions'
 import type { NewsletterDetail } from '../types'
 
 const ZOOM_STEP = NEWS_DETAIL_VIEWER_ZOOM_STEP
@@ -104,19 +105,7 @@ export function DynamicNewsletterBoardDetailPage() {
       loading={loading}
       error={viewerError}
       ariaLabel={detail?.title ? `소식지 · ${detail.title}` : '소식지 상세'}
-      headerActions={
-        heroDownloadUrl ? (
-          <a
-            href={heroDownloadUrl}
-            download
-            className="button filter-button download-btn"
-            target="_blank"
-            rel="noreferrer"
-          >
-            다운로드
-          </a>
-        ) : null
-      }
+      headerActions={<NewsletterViewerHeaderActions heroDownloadUrl={heroDownloadUrl} />}
     >
       {detail ? <InsurerNewsDetailViewerContent zoom={zoom} detail={detail} item={null} /> : null}
     </NewsDetailViewerModal>
