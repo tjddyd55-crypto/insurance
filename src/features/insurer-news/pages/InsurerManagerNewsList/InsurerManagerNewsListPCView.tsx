@@ -11,6 +11,7 @@ import {
   InsurerNewsDetailViewerContent,
 } from '../../components/InsurerNewsDetailViewerContent'
 import { NewsletterList } from '../../components/NewsletterList'
+import { NewsletterViewerHeaderActions } from '../../components/NewsletterViewerHeaderActions'
 import {
   getNewsletterDetail,
   getNewsletterDetailForInsurerManager,
@@ -111,6 +112,21 @@ export default function InsurerManagerNewsListPCView({
   }
 
   const heroDownloadUrl = buildInsurerNewsDetailHeroDownloadUrl(selectedDetail, selectedItem)
+  const canDeleteSelected =
+    selectedItem != null && canDeleteItem?.(selectedItem) === true && onDeleteItem != null
+  const deleteBusy = Boolean(deleteBusyId && selectedItem && deleteBusyId === selectedItem.id)
+
+  const handleModalDelete = () => {
+    if (!selectedItem || !onDeleteItem) {
+      return
+    }
+    void (async () => {
+      const deleted = await onDeleteItem(selectedItem)
+      if (deleted) {
+        closeDetailModal()
+      }
+    })()
+  }
 
   return (
     <main className="page page--with-back insurer-news-page insurer-news-page--pc user-page">
@@ -142,9 +158,6 @@ export default function InsurerManagerNewsListPCView({
         emptyMessage={emptyMessage}
         variant="pc"
         onOpenItem={openDetailModal}
-        onDeleteItem={onDeleteItem}
-        canDeleteItem={canDeleteItem}
-        deleteBusyId={deleteBusyId}
         noSearchResults={noSearchResults}
       />
       <NewsDetailViewerModal
@@ -160,17 +173,12 @@ export default function InsurerManagerNewsListPCView({
         error={detailError || null}
         ariaLabel={selectedItem?.title ? `소식지 · ${selectedItem.title}` : '소식지 상세'}
         headerActions={
-          heroDownloadUrl ? (
-            <a
-              href={heroDownloadUrl}
-              download
-              className="button filter-button download-btn"
-              target="_blank"
-              rel="noreferrer"
-            >
-              다운로드
-            </a>
-          ) : null
+          <NewsletterViewerHeaderActions
+            heroDownloadUrl={heroDownloadUrl}
+            canDelete={canDeleteSelected}
+            onDelete={handleModalDelete}
+            deleteBusy={deleteBusy}
+          />
         }
       >
         <InsurerNewsDetailViewerContent zoom={zoom} detail={selectedDetail} item={selectedItem} />

@@ -1,4 +1,3 @@
-import { FormButton } from '../../../components/form'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useConfirmDialog } from '../../../components/dialog'
@@ -12,6 +11,7 @@ import {
   buildInsurerNewsDetailHeroDownloadUrl,
   InsurerNewsDetailViewerContent,
 } from '../components/InsurerNewsDetailViewerContent'
+import { NewsletterViewerHeaderActions } from '../components/NewsletterViewerHeaderActions'
 import {
   deleteBoardWriterNewsletter,
   fetchPublicBoardWriterMe,
@@ -160,29 +160,14 @@ export function BoardWriterNewsDetailPage() {
         error={viewerError || (!loading && !detail ? '소식지를 찾을 수 없거나 접근 권한이 없습니다.' : null)}
         ariaLabel={detail?.title ? `소식지 · ${detail.title}` : '소식지 상세'}
         headerActions={
-          <>
-            {heroDownloadUrl ? (
-              <a
-                href={heroDownloadUrl}
-                download
-                className="button filter-button download-btn"
-                target="_blank"
-                rel="noreferrer"
-              >
-                다운로드
-              </a>
-            ) : null}
-            {isAuthor ? (
-              <>
-                <FormButton htmlType="button" variant="primary" onClick={() => setEditing(true)}>
-                  수정
-                </FormButton>
-                <FormButton htmlType="button" variant="secondary" disabled={deleteBusy} onClick={handleDelete}>
-                  {deleteBusy ? '삭제 중…' : '삭제'}
-                </FormButton>
-              </>
-            ) : null}
-          </>
+          <NewsletterViewerHeaderActions
+            heroDownloadUrl={heroDownloadUrl}
+            canEdit={isAuthor}
+            onEdit={() => setEditing(true)}
+            canDelete={isAuthor}
+            onDelete={handleDelete}
+            deleteBusy={deleteBusy}
+          />
         }
       >
         {detail ? <InsurerNewsDetailViewerContent zoom={zoom} detail={detail} item={null} /> : null}

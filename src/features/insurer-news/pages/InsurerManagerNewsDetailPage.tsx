@@ -1,4 +1,3 @@
-import { FormButton } from '../../../components/form'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import NewsDetailViewerModal from '../../../components/news-detail-viewer/NewsDetailViewerModal'
@@ -13,6 +12,7 @@ import {
   buildInsurerNewsDetailHeroDownloadUrl,
   InsurerNewsDetailViewerContent,
 } from '../components/InsurerNewsDetailViewerContent'
+import { NewsletterViewerHeaderActions } from '../components/NewsletterViewerHeaderActions'
 import { useNewsletterDelete } from '../hooks/useNewsletterDelete'
 import { getNewsletterDetail, getNewsletterDetailForInsurerManager } from '../services/insurerNews.service'
 import type { NewsChannel, NewsletterDetail } from '../types'
@@ -119,30 +119,12 @@ export function InsurerManagerNewsDetailPage({
         error={viewerError}
         ariaLabel={detail?.title ? `소식지 · ${detail.title}` : '소식지 상세'}
         headerActions={
-          <>
-            {heroDownloadUrl ? (
-              <a
-                href={heroDownloadUrl}
-                download
-                className="button filter-button download-btn"
-                target="_blank"
-                rel="noreferrer"
-              >
-                다운로드
-              </a>
-            ) : null}
-            {showDelete ? (
-              <FormButton
-                htmlType="button"
-                className="button button--secondary"
-                loading={deleteBusy}
-                disabled={deleteBusy || !token?.trim() || !newsletterId}
-                onClick={handleDelete}
-              >
-                {deleteBusy ? '삭제 중…' : '삭제'}
-              </FormButton>
-            ) : null}
-          </>
+          <NewsletterViewerHeaderActions
+            heroDownloadUrl={heroDownloadUrl}
+            canDelete={showDelete}
+            onDelete={handleDelete}
+            deleteBusy={deleteBusy}
+          />
         }
       >
         {detail ? <InsurerNewsDetailViewerContent zoom={zoom} detail={detail} item={null} /> : null}

@@ -24,9 +24,6 @@ export default function InsurerManagerNewsListMobileView({
   searchQuery,
   onSearchQueryChange,
   noSearchResults,
-  onDeleteItem,
-  canDeleteItem,
-  deleteBusyId,
   deleteNotice,
 }: InsurerManagerNewsListViewProps) {
   const navigate = useNavigate()
@@ -61,9 +58,6 @@ export default function InsurerManagerNewsListMobileView({
         emptyMessage={emptyMessage}
         variant="mobile"
         onOpenItem={(id) => navigate(`${openPathPrefix}/${id}`)}
-        onDeleteItem={onDeleteItem}
-        canDeleteItem={canDeleteItem}
-        deleteBusyId={deleteBusyId}
         noSearchResults={noSearchResults}
       />
     </main>
