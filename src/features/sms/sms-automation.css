@@ -572,7 +572,7 @@
   grid-template-columns: 1fr;
 }
 
-.sms-automation-rules__run-hint {
+.sms-automation-rules__preview-hint {
   margin: 0 0 12px;
   padding: 10px 12px;
   border-radius: 8px;
@@ -583,34 +583,17 @@
   line-height: 1.5;
 }
 
-.sms-automation-rules__run-hint--disabled {
-  border-color: var(--border-default);
-  background: var(--bg-soft);
+.sms-automation-rules__preview-footnote {
+  margin: 16px 0 0;
+  font-size: 0.8125rem;
   color: var(--text-secondary);
+  line-height: 1.5;
 }
 
-.sms-automation-rules__run-result {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border-default);
-}
-
-.sms-automation-rules__run-result-title {
-  margin: 0 0 12px;
-  font-size: 0.9375rem;
-  font-weight: 600;
+.sms-automation-rules__preview-footnote-link {
   color: var(--text-primary);
-}
-
-.sms-automation-rules__run-result-actions {
-  display: flex;
-  gap: 8px;
-  margin: 12px 0;
-}
-
-.sms-automation-rules__run-detail-list-shell {
-  max-height: 360px;
-  overflow-y: auto;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .sms-automation-rules-page--mobile .sms-automation-rules__preview-controls {

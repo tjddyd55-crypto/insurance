@@ -5,7 +5,6 @@ import { SmsAutomationRulePreviewPanel } from '../../components/automation/SmsAu
 import { SmsAutomationSummaryCards } from '../../components/automation/SmsAutomationStatusBadge'
 import { SmsModuleNav } from '../../components/SmsModuleNav'
 import FormButton from '../../../../components/form/FormButton'
-import { useConfirmDialog } from '../../../../components/dialog'
 import type { SmsAutomationViewProps } from './SmsAutomationPCView'
 
 function AlertBox({ error, notice }: { error: string | null; notice: string | null }) {
@@ -20,33 +19,6 @@ function AlertBox({ error, notice }: { error: string | null; notice: string | nu
 
 export default function SmsAutomationMobileView(props: SmsAutomationViewProps) {
   const showEditor = props.isCreating || props.selectedRuleId != null
-  const { confirm, confirmDialog } = useConfirmDialog()
-
-  const handleRunRealSend = async () => {
-    const sendable = props.preview?.summary.sendable ?? 0
-    const excluded = props.preview?.summary.excluded ?? 0
-    const ok = await confirm({
-      title: '자동문자를 실제 발송할까요?',
-      message: (
-        <>
-          <p>
-            현재 규칙 기준으로 발송 가능 고객 <strong>{sendable}</strong>명에게 문자가 발송됩니다.
-          </p>
-          <p>
-            수신거부, 미성년자 제외, 휴대폰번호 없음 고객은 제외됩니다. (제외 {excluded}명)
-          </p>
-          <p>이미 발송된 동일 기준 문자는 중복 발송되지 않습니다.</p>
-        </>
-      ),
-      confirmLabel: '실제 발송',
-      cancelLabel: '취소',
-      tone: 'danger',
-    })
-    if (!ok) {
-      return
-    }
-    await props.runRealSend()
-  }
 
   return (
     <main className="page sms-module-page sms-module-page--mobile sms-automation-rules-page sms-automation-rules-page--mobile page--with-back">
@@ -98,15 +70,6 @@ export default function SmsAutomationMobileView(props: SmsAutomationViewProps) {
               baseDate={props.previewBaseDate}
               onBaseDateChange={props.setPreviewBaseDate}
               onLoadPreview={() => void props.loadPreview()}
-              runLoading={props.runLoading}
-              runResult={props.runResult}
-              runDetail={props.runDetail}
-              runDetailLoading={props.runDetailLoading}
-              realSendEnabled={props.realSendEnabled}
-              onRunSimulation={() => void props.runSimulation()}
-              onRunRealSend={() => void handleRunRealSend()}
-              onLoadRunDetail={(runId) => void props.loadRunDetail(runId)}
-              onClearRunDetail={props.clearRunDetail}
             />
           </div>
         ) : (
@@ -119,7 +82,6 @@ export default function SmsAutomationMobileView(props: SmsAutomationViewProps) {
           />
         )}
       </div>
-      {confirmDialog}
     </main>
   )
 }
