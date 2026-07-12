@@ -5,8 +5,8 @@ import { buildReservationPreviewSubstitution } from '../../utils/smsReservationP
 import { useSmsMessageComposeMeta } from '../../hooks/useSmsMessageComposeMeta'
 import type { SmsModuleViewProps } from '../../hooks/useSmsModuleState'
 import type { SmsTemplate } from '../../types/sms.types'
-import SmsMessageMetaBar from '../composer/SmsMessageMetaBar'
-import SmsPhonePreview from '../composer/SmsPhonePreview'
+import SmsMessageComposer from '../common/SmsMessageComposer'
+import SmsPhonePreview from '../common/SmsPhonePreview'
 import SmsVariableChips from '../composer/SmsVariableChips'
 import SmsTemplateListPanel from './SmsTemplateListPanel'
 
@@ -174,25 +174,17 @@ export default function SmsTemplatesWorkspace({ variant, module, adDisplayName }
             />
           </label>
 
-          <label className="sms-composer__editor-label">
-            본문
-            <textarea
-              className="sms-module__textarea sms-composer__textarea"
-              rows={10}
-              value={templateForm.message}
-              disabled={busy}
-              placeholder="보낼 문자 내용을 입력해 주세요."
-              onChange={(e) => setTemplateForm((prev) => ({ ...prev, message: e.target.value }))}
-            />
-          </label>
-
-          <SmsMessageMetaBar
+          <SmsMessageComposer
+            label="본문"
+            value={templateForm.message}
+            onChange={(message) => setTemplateForm((prev) => ({ ...prev, message }))}
             meta={meta}
             realSendEnabled={realSendEnabledFlag}
             transitionNotice={transitionNotice}
             onDismissTransition={dismissTransitionNotice}
+            disabled={busy}
+            variableButtons={<SmsVariableChips onInsert={insertToken} disabled={busy} />}
           />
-          <SmsVariableChips onInsert={insertToken} disabled={busy} />
 
           <label className="sms-composer__checkbox">
             <input
