@@ -1,0 +1,32 @@
+/** 알리고 연동 설정 안내 — 외부 링크 SSOT */
+
+export const ALIGO_API_SETTINGS_URL = 'https://smartsms.aligo.in/admin/api/auth.html'
+
+/** 알리고 회원가입·로그인 */
+export const ALIGO_LOGIN_URL = 'https://www.aligo.in/'
+
+/** 발신번호 관리 (스마트문자 관리자) */
+export const ALIGO_SENDER_MANAGEMENT_URL = 'https://smartsms.aligo.in/admin/sender/list.html'
+
+/** 발송 결과·내역 */
+export const ALIGO_SEND_HISTORY_URL = 'https://smartsms.aligo.in/admin/result/list.html'
+
+/** env 미설정 시 안내용 기본 IP */
+export const DEFAULT_ALIGO_OUTBOUND_IP = '100.54.92.161'
+
+export const ALIGO_SETUP_EXTERNAL_LINKS = [
+  { id: 'login', label: '알리고 로그인/회원가입', href: ALIGO_LOGIN_URL },
+  { id: 'sender', label: '알리고 발신번호 관리', href: ALIGO_SENDER_MANAGEMENT_URL },
+  { id: 'api', label: '알리고 문자 API 신청/인증', href: ALIGO_API_SETTINGS_URL },
+  { id: 'history', label: '알리고 발송내역 확인', href: ALIGO_SEND_HISTORY_URL },
+] as const
+
+export const ALIGO_SETUP_CHECKLIST = [
+  '알리고 회원가입을 완료했나요?',
+  '알리고 문자 잔액을 충전했나요?',
+  '발신번호 등록이 승인되었나요?',
+  '문자 API 신청/인증에서 API Key를 발급받았나요?',
+  '발송 서버 IP에 CRM 서버 IP를 등록했나요?',
+  'CRM에 알리고 아이디, API Key, 기본 발신번호를 입력했나요?',
+  '테스트 발송을 완료했나요?',
+] as const

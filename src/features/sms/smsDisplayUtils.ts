@@ -12,4 +12,4 @@ export function formatKrMobileDisplay(raw: string | undefined | null): string {
   return String(raw ?? '').trim() || digits
 }
 
-export const ALIGO_API_SETTINGS_URL = 'https://smartsms.aligo.in/admin/api/auth.html'
+export { ALIGO_API_SETTINGS_URL } from './config/aligoSetup.config'
