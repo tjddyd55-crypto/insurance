@@ -3,14 +3,10 @@ import { useAuth } from '../../auth/AuthProvider'
 import {
   createSmsAutomationRule,
   deleteSmsAutomationRule,
-  fetchSmsAutomationRunDetail,
   fetchSmsAutomationRules,
-  formatSmsAutomationRunError,
   previewSmsAutomationRule,
-  runSmsAutomationRule,
   updateSmsAutomationRule,
 } from '../api/smsAutomationRulesApi'
-import { fetchSmsSettings } from '../api/smsApi'
 import {
   createEmptySmsAutomationRuleForm,
   getAutomationPreviewBaseDateDefault,
@@ -21,8 +17,6 @@ import type {
   SmsAutomationRuleFormState,
   SmsAutomationRulePreview,
   SmsAutomationRuleStats,
-  SmsAutomationRunDetail,
-  SmsAutomationRunResult,
   SmsAutomationTriggerType,
 } from '../types/smsAutomationRuleTypes'
 
@@ -39,11 +33,6 @@ export type UseSmsAutomationRulesStateResult = {
   previewLoading: boolean
   previewBaseDate: string
   stats: SmsAutomationRuleStats
-  runLoading: boolean
-  runResult: SmsAutomationRunResult | null
-  runDetail: SmsAutomationRunDetail | null
-  runDetailLoading: boolean
-  realSendEnabled: boolean
   isCreating: boolean
   selectRule: (ruleId: number | null) => void
   startCreate: () => void
@@ -52,10 +41,6 @@ export type UseSmsAutomationRulesStateResult = {
   saveForm: () => Promise<void>
   removeSelected: () => Promise<void>
   loadPreview: (baseDate?: string) => Promise<void>
-  runSimulation: () => Promise<void>
-  runRealSend: () => Promise<void>
-  loadRunDetail: (runId: number) => Promise<void>
-  clearRunDetail: () => void
   setPreviewBaseDate: (value: string) => void
   reload: () => Promise<void>
   clearNotice: () => void
@@ -88,11 +73,6 @@ export function useSmsAutomationRulesState(): UseSmsAutomationRulesStateResult {
   const [preview, setPreview] = useState<SmsAutomationRulePreview | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [previewBaseDate, setPreviewBaseDate] = useState(() => getAutomationPreviewBaseDateDefault())
-  const [runLoading, setRunLoading] = useState(false)
-  const [runResult, setRunResult] = useState<SmsAutomationRunResult | null>(null)
-  const [runDetail, setRunDetail] = useState<SmsAutomationRunDetail | null>(null)
-  const [runDetailLoading, setRunDetailLoading] = useState(false)
-  const [realSendEnabled, setRealSendEnabled] = useState(false)
 
   const stats = useMemo<SmsAutomationRuleStats>(() => {
     const active = rules.filter((rule) => rule.isActive).length
@@ -131,23 +111,11 @@ export function useSmsAutomationRulesState(): UseSmsAutomationRulesStateResult {
     void reload()
   }, [reload])
 
-  useEffect(() => {
-    if (!token?.trim()) {
-      setRealSendEnabled(false)
-      return
-    }
-    void fetchSmsSettings(token)
-      .then((settings) => setRealSendEnabled(settings.realSendEnabled === true))
-      .catch(() => setRealSendEnabled(false))
-  }, [token])
-
   const selectRule = useCallback(
     (ruleId: number | null) => {
       setIsCreating(false)
       setSelectedRuleId(ruleId)
       setPreview(null)
-      setRunResult(null)
-      setRunDetail(null)
       if (ruleId == null) {
         setForm(createEmptySmsAutomationRuleForm())
         return
@@ -252,8 +220,6 @@ export function useSmsAutomationRulesState(): UseSmsAutomationRulesStateResult {
       setIsCreating(false)
       setForm(createEmptySmsAutomationRuleForm())
       setPreview(null)
-      setRunResult(null)
-      setRunDetail(null)
       await reload()
     } catch (e) {
       setError(e instanceof Error ? e.message : '자동문자 규칙 삭제에 실패했습니다.')
@@ -266,8 +232,6 @@ export function useSmsAutomationRulesState(): UseSmsAutomationRulesStateResult {
     async (baseDate?: string) => {
       if (!token?.trim() || form.id == null) {
         setPreview(null)
-      setRunResult(null)
-      setRunDetail(null)
         return
       }
       const effectiveBaseDate = (baseDate ?? previewBaseDate).trim() || getAutomationPreviewBaseDateDefault()
@@ -280,93 +244,12 @@ export function useSmsAutomationRulesState(): UseSmsAutomationRulesStateResult {
       } catch (e) {
         setError(e instanceof Error ? e.message : '대상자 미리보기를 불러오지 못했습니다.')
         setPreview(null)
-      setRunResult(null)
-      setRunDetail(null)
       } finally {
         setPreviewLoading(false)
       }
     },
     [form.id, previewBaseDate, token],
   )
-
-  const runSimulation = useCallback(async () => {
-    if (!token?.trim() || form.id == null) {
-      return
-    }
-    setRunLoading(true)
-    setError(null)
-    setNotice(null)
-    setRunDetail(null)
-    try {
-      const data = await runSmsAutomationRule(token, form.id, {
-        baseDate: previewBaseDate,
-        realSend: false,
-      })
-      setRunResult(data)
-      setRealSendEnabled(data.realSendEnabled)
-      setNotice(
-        data.mode === 'SIMULATED_SEND'
-          ? `모의 실행이 완료되었습니다. (발송 가능 ${data.summary.sendable}명)`
-          : '실행이 완료되었습니다.',
-      )
-    } catch (e) {
-      setError(formatSmsAutomationRunError(e, '모의 실행에 실패했습니다.'))
-    } finally {
-      setRunLoading(false)
-    }
-  }, [form.id, previewBaseDate, token])
-
-  const runRealSend = useCallback(async () => {
-    if (!token?.trim() || form.id == null) {
-      return
-    }
-    setRunLoading(true)
-    setError(null)
-    setNotice(null)
-    setRunDetail(null)
-    try {
-      const data = await runSmsAutomationRule(token, form.id, {
-        baseDate: previewBaseDate,
-        realSend: true,
-      })
-      setRunResult(data)
-      setRealSendEnabled(data.realSendEnabled)
-      if (data.mode === 'SIMULATED_SEND') {
-        setNotice(
-          `실제 발송이 비활성화되어 모의 실행으로 처리되었습니다. (발송 가능 ${data.summary.sendable}명)`,
-        )
-      } else {
-        setNotice(`실제 발송이 완료되었습니다. (성공 ${data.summary.sent}명, 실패 ${data.summary.failed}명)`)
-      }
-    } catch (e) {
-      setError(formatSmsAutomationRunError(e, '실제 발송 실행에 실패했습니다.'))
-    } finally {
-      setRunLoading(false)
-    }
-  }, [form.id, previewBaseDate, token])
-
-  const loadRunDetail = useCallback(
-    async (runId: number) => {
-      if (!token?.trim()) {
-        return
-      }
-      setRunDetailLoading(true)
-      setError(null)
-      try {
-        const detail = await fetchSmsAutomationRunDetail(token, runId)
-        setRunDetail(detail)
-      } catch (e) {
-        setError(e instanceof Error ? e.message : '실행 상세를 불러오지 못했습니다.')
-      } finally {
-        setRunDetailLoading(false)
-      }
-    },
-    [token],
-  )
-
-  const clearRunDetail = useCallback(() => {
-    setRunDetail(null)
-  }, [])
 
   const clearNotice = useCallback(() => {
     setNotice(null)
@@ -386,11 +269,6 @@ export function useSmsAutomationRulesState(): UseSmsAutomationRulesStateResult {
     previewLoading,
     previewBaseDate,
     stats,
-    runLoading,
-    runResult,
-    runDetail,
-    runDetailLoading,
-    realSendEnabled,
     isCreating,
     selectRule,
     startCreate,
@@ -399,10 +277,6 @@ export function useSmsAutomationRulesState(): UseSmsAutomationRulesStateResult {
     saveForm,
     removeSelected,
     loadPreview,
-    runSimulation,
-    runRealSend,
-    loadRunDetail,
-    clearRunDetail,
     setPreviewBaseDate,
     reload,
     clearNotice,
