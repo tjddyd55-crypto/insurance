@@ -6,6 +6,7 @@ import SmsBulkRecipientWorkspace from './bulk/SmsBulkRecipientWorkspace'
 import SmsSendWorkspace from './send/SmsSendWorkspace'
 import SmsHistoryWorkspace from './history/SmsHistoryWorkspace'
 import SmsTemplatesWorkspace from './templates/SmsTemplatesWorkspace'
+import { AligoSetupGuide } from './settings/AligoSetupGuide'
 import { SmsModuleNav } from './SmsModuleNav'
 import { useSmsBulkRecipientState } from '../hooks/useSmsBulkRecipientState'
 import type { SmsModuleViewProps } from '../hooks/useSmsModuleState'
@@ -105,22 +106,6 @@ function RealSendStatusBadge({ visible }: { visible: boolean }) {
     >
       실발송 비활성 · 미리보기/예약 저장만 가능
     </span>
-  )
-}
-function GuideBox({ outboundIpHint }: { outboundIpHint?: string }) {
-  return (
-    <div className="sms-module__guide">
-      <p>알리고 API 설정 페이지에서 API Key, 발송 서버 IP, 발신번호 등록을 확인해 주세요.</p>
-      <p>알리고 API 발송 서버 IP에는 아래 IP를 등록해 주세요.</p>
-      {outboundIpHint ? (
-        <p className="sms-module__ip-hint">{outboundIpHint}</p>
-      ) : (
-        <p className="sms-module__ip-hint">100.54.92.161</p>
-      )}
-      <p>문자 충전과 발신번호 등록은 알리고 사이트에서 직접 진행해 주세요.</p>
-      <p>CRM에는 알리고에 등록된 기본 발신번호 하나만 저장합니다.</p>
-      <p>API Key는 저장 후 다시 표시되지 않으며, 변경 시에만 새로 입력합니다.</p>
-    </div>
   )
 }
 
@@ -233,11 +218,12 @@ export default function SmsModuleBody(props: Props) {
 
       {!loading && !moduleDisabled && !authRequired && !authRequired && tab === 'settings' ? (
         <section className="sms-module__panel">
-          <GuideBox outboundIpHint={settings?.outboundServerIpHint} />
+          <AligoSetupGuide serverIp={settings?.outboundServerIpHint} />
           <EmptySettingsNotice visible={!settings?.configured} loading={loading} />
           <div className="sms-module__settings-fields">
             <div className="sms-module__field-block">
               <span className="sms-module__field-title">알리고 아이디</span>
+              <p className="sms-module__field-desc">알리고 로그인 아이디를 입력합니다.</p>
               {settings?.aligoUserId ? (
                 <SavedValueRow label="저장됨:" value={settings.aligoUserId} />
               ) : null}
@@ -250,6 +236,10 @@ export default function SmsModuleBody(props: Props) {
 
             <div className="sms-module__field-block">
               <span className="sms-module__field-title">API Key</span>
+              <p className="sms-module__field-desc">
+                알리고 문자 API → 신청/인증에서 발급받은 API Key를 입력합니다. 보안을 위해 저장 후에는
+                전체 값을 다시 표시하지 않습니다. 변경할 때만 새 API Key를 입력해 주세요.
+              </p>
               {settings?.apiKeyMasked ? (
                 <SavedValueRow label="저장됨:" value={settings.apiKeyMasked} />
               ) : null}
@@ -264,6 +254,10 @@ export default function SmsModuleBody(props: Props) {
 
             <div className="sms-module__field-block">
               <span className="sms-module__field-title">기본 발신번호</span>
+              <p className="sms-module__field-desc">
+                알리고에서 승인 완료된 발신번호만 입력해 주세요. 승인되지 않은 번호를 입력하면 발송
+                실패할 수 있습니다.
+              </p>
               {settings?.defaultSender ? (
                 <SavedValueRow
                   label="저장됨:"
@@ -281,14 +275,21 @@ export default function SmsModuleBody(props: Props) {
 
             <div className="sms-module__field-block">
               <span className="sms-module__field-title">광고 표시명</span>
-              <p className="sms-module__field-hint">
-                광고 표시명은 광고성 문자 맨 앞에 `(광고)`와 함께 표시됩니다.
-              </p>
-              <p className="sms-module__field-hint">
-                예: `(광고)박성용` / 본문 / `무료거부 0808811258`
-              </p>
               <p className="sms-module__field-desc">
-                광고성 문자에 표시될 이름입니다. 예: 박성용, ○○보험대리점, ○○팀
+                광고성 문자 발송 시 문자 맨 앞에 `(광고)`와 함께 표시될 이름입니다. 예: 박성용, ○○보험대리점,
+                ○○팀
+              </p>
+              <p className="sms-module__field-hint">광고성 문자의 예:</p>
+              <p className="sms-module__field-hint sms-module__field-hint--example">
+                (광고)박성용
+                <br />
+                본문 내용...
+                <br />
+                무료수신거부 080...
+              </p>
+              <p className="sms-module__field-desc sms-module__field-desc--warn">
+                주의: 광고성 문자 발송 시 관련 법령에 따라 광고 표시와 수신거부 문구가 필요할 수
+                있습니다. 운영자는 알리고 및 관련 규정을 확인한 뒤 발송해 주세요.
               </p>
               {settings?.adDisplayName ? (
                 <SavedValueRow label="저장됨:" value={settings.adDisplayName} />

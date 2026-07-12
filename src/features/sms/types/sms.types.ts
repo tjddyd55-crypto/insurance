@@ -22,6 +22,8 @@ export interface SmsSettings {
   aligoTestMode: boolean
 }
 
+import { ALIGO_API_SETTINGS_URL } from '../config/aligoSetup.config'
+
 export const EMPTY_SMS_SETTINGS: SmsSettings = {
   configured: false,
   provider: 'aligo',
@@ -32,7 +34,7 @@ export const EMPTY_SMS_SETTINGS: SmsSettings = {
   isActive: false,
   lastBalanceCheckedAt: null,
   outboundServerIpHint: '',
-  aligoApiSettingsUrl: 'https://smartsms.aligo.in/admin/api/auth.html',
+  aligoApiSettingsUrl: ALIGO_API_SETTINGS_URL,
   moduleEnabled: true,
   realSendEnabled: false,
   providerMode: 'mock',
