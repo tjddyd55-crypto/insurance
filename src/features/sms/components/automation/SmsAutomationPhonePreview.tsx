@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useSmsMessageComposeMeta } from '../../hooks/useSmsMessageComposeMeta'
 import type { SmsAutomationRuleFormState, SmsAutomationRulePreview } from '../../types/smsAutomationRuleTypes'
 import { buildAutomationPhonePreviewMessage } from '../../utils/smsAutomationPreviewMessage'
-import SmsPhonePreview from '../composer/SmsPhonePreview'
+import SmsPhonePreview from '../common/SmsPhonePreview'
 
 export type SmsAutomationPhonePreviewProps = {
   form: SmsAutomationRuleFormState

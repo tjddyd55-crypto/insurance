@@ -1,7 +1,7 @@
 import { useCallback, useRef, type ReactNode } from 'react'
 import { SMS_AD_OPT_OUT_NUMBER, SMS_MMS_ATTACHMENT_UI_ENABLED } from '../../config/smsCompose.config'
 import type { SmsMessageMeta, SmsPreviewAttachment } from '../../utils/smsMessageMeta'
-import SmsMessageMetaBar from './SmsMessageMetaBar'
+import SmsMessageComposer from '../common/SmsMessageComposer'
 import SmsVariableChips from './SmsVariableChips'
 
 type Props = {
@@ -57,29 +57,17 @@ export default function SmsMessageEditor({
     <section className="sms-composer__card">
       <h3 className="sms-composer__card-title">문자 작성</h3>
 
-      <label className="sms-composer__editor-label">
-        메시지 본문
-        <textarea
-          ref={textareaRef}
-          className="sms-module__textarea sms-composer__textarea"
-          rows={10}
-          value={message}
-          disabled={disabled}
-          placeholder="보낼 문자 내용을 입력해 주세요."
-          onChange={(e) => onMessageChange(e.target.value)}
-        />
-      </label>
-
-      <SmsMessageMetaBar
+      <SmsMessageComposer
+        value={message}
+        onChange={onMessageChange}
         meta={meta}
         realSendEnabled={realSendEnabled}
         transitionNotice={transitionNotice}
         onDismissTransition={onDismissTransition}
+        disabled={disabled}
+        textareaRef={textareaRef}
+        variableButtons={<SmsVariableChips onInsert={insertToken} disabled={disabled} />}
       />
-      <p className="sms-composer__wrap-hint">
-        실제 줄바꿈은 오른쪽 휴대폰 미리보기 기준으로 확인해 주세요.
-      </p>
-      <SmsVariableChips onInsert={insertToken} disabled={disabled} />
 
       <div className="sms-composer__ad-panel">
         <label className="sms-composer__checkbox">

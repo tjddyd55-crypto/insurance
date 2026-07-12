@@ -2,15 +2,16 @@ import { useCallback, useRef } from 'react'
 import FormButton from '../../../../components/form/FormButton'
 import FormInput from '../../../../components/form/FormInput'
 import FormSelect from '../../../../components/form/FormSelect'
-import FormTextarea from '../../../../components/form/FormTextarea'
 import {
   insertAutomationMessageVariable,
   SMS_AUTOMATION_ACTIVE_OPTIONS,
   SMS_AUTOMATION_SPECIAL_DATE_PURPOSE_OPTIONS,
   SMS_AUTOMATION_TRIGGER_TYPE_OPTIONS,
 } from '../../config/smsAutomationRule.config'
+import { useSmsMessageComposeMeta } from '../../hooks/useSmsMessageComposeMeta'
 import type { SmsAutomationRuleFormState } from '../../types/smsAutomationRuleTypes'
 import type { SmsAutomationTriggerType } from '../../types/smsAutomationRuleTypes'
+import SmsMessageComposer from '../common/SmsMessageComposer'
 import { SmsAutomationStatusBadge } from './SmsAutomationStatusBadge'
 import { SmsAutomationVariableButtons } from './SmsAutomationVariableButtons'
 
@@ -41,6 +42,12 @@ export function SmsAutomationRuleEditor({
   const showSpecialDateFilter = form.triggerType === 'CUSTOMER_SPECIAL_DATE'
   const messageTextareaRef = useRef<HTMLTextAreaElement>(null)
   const selectionRef = useRef<TextSelection>({ start: 0, end: 0 })
+
+  const { meta, transitionNotice, dismissTransitionNotice } = useSmsMessageComposeMeta({
+    body: form.messageBody,
+    isAdvertisement: false,
+    previewSubstitution: { mode: 'preserve' },
+  })
 
   const syncSelectionFromTextarea = useCallback(() => {
     const textarea = messageTextareaRef.current
@@ -167,29 +174,20 @@ export function SmsAutomationRuleEditor({
           </p>
         </div>
 
-        <div className="sms-automation-rules__field sms-automation-rules__field--wide">
-          <label className="sms-automation-rules__message-field">
-            <span className="sms-automation-rules__label">문자 내용</span>
-            <FormTextarea
-              ref={messageTextareaRef}
-              className="sms-automation-rules__control sms-automation-rules__textarea"
-              rows={6}
-              value={form.messageBody}
-              onChange={(e) => {
-                onChange({ messageBody: e.target.value })
-                selectionRef.current = {
-                  start: e.target.selectionStart ?? e.target.value.length,
-                  end: e.target.selectionEnd ?? e.target.value.length,
-                }
-              }}
-              onClick={syncSelectionFromTextarea}
-              onKeyUp={syncSelectionFromTextarea}
-              onSelect={syncSelectionFromTextarea}
-            />
-          </label>
-          <SmsAutomationVariableButtons
-            triggerType={form.triggerType}
-            onInsert={handleInsertVariable}
+        <div className="sms-automation-rules__field sms-automation-rules__field--wide sms-automation-rules__message-field">
+          <SmsMessageComposer
+            label="문자 내용"
+            value={form.messageBody}
+            onChange={(messageBody) => onChange({ messageBody })}
+            meta={meta}
+            rows={6}
+            transitionNotice={transitionNotice}
+            onDismissTransition={dismissTransitionNotice}
+            textareaRef={messageTextareaRef}
+            onTextareaSelect={syncSelectionFromTextarea}
+            variableButtons={
+              <SmsAutomationVariableButtons triggerType={form.triggerType} onInsert={handleInsertVariable} />
+            }
           />
         </div>
       </div>
