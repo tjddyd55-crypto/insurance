@@ -3,6 +3,7 @@ import { parseGaId } from '../lib/parseGaId.js'
 import { deleteCustomerNewsletter } from '../services/customerNewsDeleteService.js'
 import {
   getKstEndOfDayDate,
+  INSURANCE_AGE_NOTIFICATION_WINDOW_DAYS,
   mapUserNotificationRow,
   syncDueUserNotifications,
 } from '../services/userNotificationService.js'
@@ -107,11 +108,16 @@ export function buildNotificationListWhere(userId, gaId, filters) {
     parts.push(`COALESCE(confirmed_at, created_at) >= NOW() - INTERVAL '1 month'`)
   } else {
     parts.push('is_dismissed = false')
-    const ageUpperBound = addDaysToDateOnly(getKstDateString(), 30)
-    if (ageUpperBound) {
+    const today = getKstDateString()
+    const ageUpperBound = addDaysToDateOnly(today, INSURANCE_AGE_NOTIFICATION_WINDOW_DAYS)
+    if (today && ageUpperBound) {
+      params.push(today)
+      const todayParam = params.length
       params.push(ageUpperBound)
+      const upperParam = params.length
+      // 상령일: 오늘 포함 ~ 오늘+30일만. 지나간·31일 이후는 활성 목록에서 제외.
       parts.push(
-        `NOT (type = '${USER_NOTIFICATION_TYPES.INSURANCE_AGE_DATE}' AND target_date > $${params.length}::date)`,
+        `(type <> '${USER_NOTIFICATION_TYPES.INSURANCE_AGE_DATE}' OR (target_date >= $${todayParam}::date AND target_date <= $${upperParam}::date))`,
       )
     }
   }

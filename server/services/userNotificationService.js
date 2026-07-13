@@ -245,9 +245,10 @@ export async function retireOutOfWindowInsuranceAgeNotifications(
   today = getKstDateString(),
   upperBound = addDaysToDateOnly(today, INSURANCE_AGE_NOTIFICATION_WINDOW_DAYS),
 ) {
-  if (!upperBound) {
+  if (!today || !upperBound) {
     return 0
   }
+  // 상령일 알림은 "오늘 ~ 오늘+30일"만 유지. 지나간·30일 초과는 활성에서 제외.
   const result = await safeQueryExec(
     db,
     `
@@ -259,9 +260,13 @@ export async function retireOutOfWindowInsuranceAgeNotifications(
       AND ga_id = $2
       AND type = $3
       AND is_dismissed = false
-      AND target_date > $4::date
+      AND (
+        target_date IS NULL
+        OR target_date < $4::date
+        OR target_date > $5::date
+      )
     `,
-    [userId, gaId, USER_NOTIFICATION_TYPES.INSURANCE_AGE_DATE, upperBound],
+    [userId, gaId, USER_NOTIFICATION_TYPES.INSURANCE_AGE_DATE, today, upperBound],
   )
   return result.rowCount ?? 0
 }

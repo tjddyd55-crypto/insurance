@@ -2976,7 +2976,11 @@ export async function initDb() {
         confirmed_at = COALESCE(confirmed_at, NOW())
     WHERE type = 'insurance_age_date'
       AND is_dismissed = false
-      AND target_date > ((NOW() AT TIME ZONE 'Asia/Seoul')::date + 30)
+      AND (
+        target_date IS NULL
+        OR target_date < (NOW() AT TIME ZONE 'Asia/Seoul')::date
+        OR target_date > ((NOW() AT TIME ZONE 'Asia/Seoul')::date + 30)
+      )
   `)
 
   await pool.query(`
