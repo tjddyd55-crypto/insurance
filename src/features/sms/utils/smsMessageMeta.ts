@@ -184,7 +184,7 @@ export function calculateSmsMessageMeta(
 
   let previewHeader: string | null = null
   let previewFooter: string | null = null
-  let composedForBytes = previewBody
+  let composedForBytes = rawText
 
   if (isAdvertisement) {
     const headerLabel = resolvedAdDisplayName ?? SMS_AD_DISPLAY_NAME_PLACEHOLDER

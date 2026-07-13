@@ -7,6 +7,7 @@ import { useSmsScheduledState } from '../../hooks/useSmsScheduledState'
 import type { SmsTemplate } from '../../types/sms.types'
 import type { SmsScheduledRule } from '../../types/smsScheduled.types'
 import { buildScheduleListCardMeta, buildScheduleSummary, formatNextRunAtLabel } from '../../utils/smsScheduledSummary'
+import { buildReservationPreviewSubstitution } from '../../utils/smsReservationPreviewSubstitution'
 import SmsMessageEditor from '../composer/SmsMessageEditor'
 import SmsPhonePreview from '../composer/SmsPhonePreview'
 
@@ -401,13 +402,11 @@ function ScheduledPreviewPanel({
   realSendEnabled: boolean
 }) {
   const { form, selectedGroup, memberSummary, previewSample, groupMembers, scheduleSummaryNextRun } = state
-  const previewSubstitution = previewSample
-    ? {
-        mode: 'selectedCustomer' as const,
-        selectedCustomerName: previewSample.name,
-        values: { customerName: previewSample.name },
-      }
-    : { mode: 'preserve' as const }
+  const previewSubstitution = buildReservationPreviewSubstitution({
+    customerName: previewSample?.name,
+    referenceDate: form.sendDate?.trim() || undefined,
+    dDayLabel: '당일',
+  })
 
   const { meta } = useSmsMessageComposeMeta({
     body: form.messageBody,

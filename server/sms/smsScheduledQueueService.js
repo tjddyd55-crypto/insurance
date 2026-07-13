@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import { systemQuery } from '../utils/dbSafeQuery.js'
+import { loadSmsAgentProfile, formatKstDateLabel } from './smsAgentProfile.js'
 import { createSmsCampaign } from './smsCampaignService.js'
 import { loadSmsRecipientGroupMembers, touchSmsRecipientGroupLastSent } from './smsRecipientGroupService.js'
 import { isSmsModuleEnabled } from './smsModuleConfig.js'
 import { getSmsSettings } from './smsSettingsService.js'
-import { renderSmsTemplate } from './smsMessageUtils.js'
+import { renderSmsTemplateDetailed } from './smsMessageUtils.js'
 import { computeScheduledNextRunAt } from './smsScheduledNextRun.js'
 import { normalizeSmsPhone } from './smsPhone.js'
 
@@ -244,6 +245,14 @@ export async function queueOneScheduledMessage(executor, row, options = {}) {
 
   const messageTemplate = String(row.message_body ?? '')
   const isAdvertising = row.message_type === 'ad'
+  const agent = await loadSmsAgentProfile(executor, scope.userId)
+  const referenceDate = formatKstDateLabel(scheduledRunAt)
+  const templateContext = {
+    agentName: agent.agentName,
+    agentPhone: agent.agentPhone,
+    referenceDate,
+    dDayLabel: '당일',
+  }
   const allCustomerIds = customers.map((member) => Number(member.customerId))
   const created = await createSmsCampaign(executor, scope, {
     title: `예약발송 · ${String(row.name ?? '').trim() || '예약문자'}`,
@@ -259,9 +268,14 @@ export async function queueOneScheduledMessage(executor, row, options = {}) {
     if (!phone) {
       continue
     }
-    const renderedMessage = renderSmsTemplate(messageTemplate, {
+    const rendered = renderSmsTemplateDetailed(messageTemplate, {
       customerName: member.name,
+      ...templateContext,
     })
+    if (rendered.missingVariables.length > 0) {
+      continue
+    }
+    const renderedMessage = rendered.messageBody
     await insertSendJob(executor, {
       id: randomUUID(),
       tenantId: scope.tenantId,

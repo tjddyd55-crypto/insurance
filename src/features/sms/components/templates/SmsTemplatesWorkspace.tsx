@@ -1,6 +1,7 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import FormButton from '../../../../components/form/FormButton'
 import FormInput from '../../../../components/form/FormInput'
+import { buildReservationPreviewSubstitution } from '../../utils/smsReservationPreviewSubstitution'
 import { useSmsMessageComposeMeta } from '../../hooks/useSmsMessageComposeMeta'
 import type { SmsModuleViewProps } from '../../hooks/useSmsModuleState'
 import type { SmsTemplate } from '../../types/sms.types'
@@ -37,11 +38,19 @@ export default function SmsTemplatesWorkspace({ variant, module, adDisplayName }
   const [loadedId, setLoadedId] = useState<number | null>(null)
   const realSendEnabledFlag = Boolean(settings?.realSendEnabled)
 
+  const previewSubstitution = useMemo(
+    () =>
+      buildReservationPreviewSubstitution({
+        agentName: adDisplayName,
+      }),
+    [adDisplayName],
+  )
+
   const { meta, transitionNotice, dismissTransitionNotice } = useSmsMessageComposeMeta({
     body: templateForm.message,
     isAdvertisement: templateForm.messageType === 'ad',
     adDisplayName,
-    previewSubstitution: { mode: 'preserve' },
+    previewSubstitution,
   })
 
   const canSave = Boolean(templateForm.title.trim() && templateForm.message.trim())

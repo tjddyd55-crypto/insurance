@@ -18,6 +18,7 @@ export function useSmsSendGroupSelection({ token, groups, onCustomerIdsTextChang
   const [selectedGroupId, setSelectedGroupId] = useState('')
   const [groupSummary, setGroupSummary] = useState<SmsSendGroupSummary | null>(null)
   const [isLoadingGroupMembers, setIsLoadingGroupMembers] = useState(false)
+  const [groupMembers, setGroupMembers] = useState<SmsBulkSearchCustomer[]>([])
   const groupMembersRequestRef = useRef(0)
   const groupMembersCacheRef = useRef(new Map<string, SmsBulkSearchCustomer[]>())
   const onCustomerIdsTextChangeRef = useRef(onCustomerIdsTextChange)
@@ -30,14 +31,21 @@ export function useSmsSendGroupSelection({ token, groups, onCustomerIdsTextChang
   )
 
   const applyGroupMembers = useCallback((customers: SmsBulkSearchCustomer[]) => {
+    setGroupMembers(customers)
     setGroupSummary(buildSmsSendGroupSummary(customers))
     onCustomerIdsTextChangeRef.current(buildSmsSendCustomerIdsText(customers))
   }, [])
 
   const clearGroupSelectionState = useCallback(() => {
+    setGroupMembers([])
     setGroupSummary(null)
     onCustomerIdsTextChangeRef.current('')
   }, [])
+
+  const previewMember = useMemo(
+    () => groupMembers.find((row) => row.canSend) ?? groupMembers[0] ?? null,
+    [groupMembers],
+  )
 
   const handleGroupChange = useCallback((groupId: string) => {
     setSelectedGroupId(groupId)
@@ -97,6 +105,7 @@ export function useSmsSendGroupSelection({ token, groups, onCustomerIdsTextChang
     setSelectedGroupId,
     selectedGroup,
     groupSummary,
+    previewMember,
     isLoadingGroupMembers,
     handleGroupChange,
   }

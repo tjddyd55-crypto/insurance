@@ -1,6 +1,8 @@
 /** 광고성 문자 무료수신거부 번호 — 미리보기·발송 본문 조합 공통 */
 export const SMS_AD_OPT_OUT_NUMBER = '0808811258'
 
+const TEMPLATE_VAR_PATTERN = /\{([^}]+)\}/g
+
 /**
  * EUC-KR 기준 byte 길이 근사 (한글 2byte, ASCII 1byte)
  * @param {string} text
@@ -23,12 +25,73 @@ export function resolveMessageType(message) {
 }
 
 /**
+ * @param {{
+ *   customerName?: string | null;
+ *   agentName?: string | null;
+ *   agentPhone?: string | null;
+ *   referenceDate?: string | null;
+ *   dDayLabel?: string | null;
+ * }} vars
+ */
+export function buildSmsTemplateVariableMap(vars) {
+  const customerName = String(vars.customerName ?? '').trim()
+  return {
+    고객명: customerName || '고객',
+    담당자명: String(vars.agentName ?? '').trim(),
+    담당자연락처: String(vars.agentPhone ?? '').trim(),
+    기준일: String(vars.referenceDate ?? '').trim(),
+    'D일': String(vars.dDayLabel ?? '당일').trim(),
+  }
+}
+
+/**
  * @param {string} template
- * @param {{ customerName?: string | null }} vars
+ * @param {{
+ *   customerName?: string | null;
+ *   agentName?: string | null;
+ *   agentPhone?: string | null;
+ *   referenceDate?: string | null;
+ *   dDayLabel?: string | null;
+ * }} vars
+ */
+export function renderSmsTemplateDetailed(template, vars) {
+  const map = buildSmsTemplateVariableMap(vars)
+  const usedTokens = new Set()
+  for (const match of String(template ?? '').matchAll(TEMPLATE_VAR_PATTERN)) {
+    usedTokens.add(match[1])
+  }
+
+  const missing = []
+  for (const token of usedTokens) {
+    if (!(token in map)) {
+      continue
+    }
+    const value = map[token]
+    if (value == null || String(value).trim() === '') {
+      missing.push(token)
+    }
+  }
+
+  let messageBody = String(template ?? '')
+  for (const [key, value] of Object.entries(map)) {
+    messageBody = messageBody.replaceAll(`{${key}}`, value || '')
+  }
+
+  return { messageBody, missingVariables: missing }
+}
+
+/**
+ * @param {string} template
+ * @param {{
+ *   customerName?: string | null;
+ *   agentName?: string | null;
+ *   agentPhone?: string | null;
+ *   referenceDate?: string | null;
+ *   dDayLabel?: string | null;
+ * }} vars
  */
 export function renderSmsTemplate(template, vars) {
-  const name = String(vars.customerName ?? '').trim() || '고객'
-  return String(template ?? '').replace(/\{고객명\}/g, name)
+  return renderSmsTemplateDetailed(template, vars).messageBody
 }
 
 /**

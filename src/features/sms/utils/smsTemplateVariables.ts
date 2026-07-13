@@ -1,8 +1,12 @@
 import { SMS_EXPLICIT_SAMPLE_VALUES } from '../config/smsCompose.config'
+import { SMS_RESERVATION_VARIABLE_OPTIONS } from '../config/smsVariables.config'
 
 export type SmsTemplateVariableKey =
   | 'customerName'
   | 'agentName'
+  | 'agentPhone'
+  | 'referenceDate'
+  | 'dDayLabel'
   | 'companyName'
   | 'senderName'
   | 'claimLink'
@@ -28,33 +32,35 @@ export type SmsTemplateVariableDef = {
   disabledReason?: string
 }
 
-/** UI 칩으로 노출·삽입 가능한 변수 (초기 버전: 고객명만) */
-export const SMS_ENABLED_TEMPLATE_VARIABLES: SmsTemplateVariableDef[] = [
-  {
-    id: 'customerName',
-    token: '{고객명}',
-    aligoLabel: '%고객명%',
-    chipLabel: '고객명',
-    enabled: true,
-  },
-]
+const RESERVATION_VARIABLE_DEFS: Record<
+  (typeof SMS_RESERVATION_VARIABLE_OPTIONS)[number]['token'],
+  { id: SmsTemplateVariableKey; aligoLabel: string }
+> = {
+  '{고객명}': { id: 'customerName', aligoLabel: '%고객명%' },
+  '{담당자명}': { id: 'agentName', aligoLabel: '%담당자명%' },
+  '{담당자연락처}': { id: 'agentPhone', aligoLabel: '%담당자연락처%' },
+  '{기준일}': { id: 'referenceDate', aligoLabel: '%기준일%' },
+  '{D일}': { id: 'dDayLabel', aligoLabel: '%D일%' },
+}
+
+function buildReservationVariableDefs(): SmsTemplateVariableDef[] {
+  return SMS_RESERVATION_VARIABLE_OPTIONS.map((option) => {
+    const def = RESERVATION_VARIABLE_DEFS[option.token as keyof typeof RESERVATION_VARIABLE_DEFS]
+    return {
+      id: def.id,
+      token: option.token,
+      aligoLabel: def.aligoLabel,
+      chipLabel: option.label,
+      enabled: true,
+    }
+  })
+}
+
+/** UI 버튼으로 노출·삽입 가능한 예약/템플릿 공통 변수 */
+export const SMS_ENABLED_TEMPLATE_VARIABLES: SmsTemplateVariableDef[] = buildReservationVariableDefs()
 
 export const SMS_TEMPLATE_VARIABLES: SmsTemplateVariableDef[] = [
-  {
-    id: 'customerName',
-    token: '{고객명}',
-    aligoLabel: '%고객명%',
-    chipLabel: '고객명',
-    enabled: true,
-  },
-  {
-    id: 'agentName',
-    token: '{담당자명}',
-    aligoLabel: '%담당자명%',
-    chipLabel: '담당자명',
-    enabled: false,
-    disabledReason: '후속 연동 예정',
-  },
+  ...buildReservationVariableDefs(),
   {
     id: 'companyName',
     token: '{회사명}',
@@ -176,7 +182,7 @@ export function resolvePreviewSubstitutionNotice(
     return name ? `미리보기 기준 고객: ${name}` : null
   }
   if (substitution.mode === 'explicitSample') {
-    return '샘플 미리보기입니다. 실제 발송 시 고객별 값으로 치환됩니다.'
+    return '샘플 미리보기입니다. 실제 발송 시 고객별 값으로 치환됩니다. 변수 치환 후 고객 정보에 따라 실제 문자 용량과 SMS/LMS 구분이 달라질 수 있습니다.'
   }
   return null
 }

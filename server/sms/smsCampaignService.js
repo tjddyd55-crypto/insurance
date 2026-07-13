@@ -5,7 +5,8 @@ import {
   resolveCustomerInsuranceMetrics,
 } from '../../shared/customerInsuranceMetrics.js'
 import { assertSmsRealSendAllowed } from './smsModuleConfig.js'
-import { composeAdvertisementSmsMessage, renderSmsTemplate, resolveMessageType } from './smsMessageUtils.js'
+import { loadSmsAgentProfile, formatKstDateLabel } from './smsAgentProfile.js'
+import { composeAdvertisementSmsMessage, renderSmsTemplate, renderSmsTemplateDetailed, resolveMessageType } from './smsMessageUtils.js'
 import { isValidKoreanMobilePhone, normalizeSenderNumber, normalizeSmsPhone } from './smsPhone.js'
 import { resolveSmsProvider } from './smsProviderFactory.js'
 import { assertOwnedSenderNumber, assertCustomerOwnedByScope, loadOptOutPhoneSet } from './smsScope.js'
@@ -173,11 +174,22 @@ export async function previewSmsCampaign(executor, scope, input) {
   }
 
   const customers = await loadCampaignTargetCustomers(executor, scope, input)
+  const agent = await loadSmsAgentProfile(executor, scope.userId)
+  const referenceDate = input.scheduledAt
+    ? formatKstDateLabel(input.scheduledAt)
+    : formatKstDateLabel(new Date())
+  const templateContext = {
+    agentName: agent.agentName,
+    agentPhone: agent.agentPhone,
+    referenceDate,
+    dDayLabel: '당일',
+  }
   const skipCounts = {
     no_phone: 0,
     invalid_phone: 0,
     duplicate_phone: 0,
     opt_out: 0,
+    variable_missing: 0,
   }
   /** @type {Array<{ customerId: number; customerName: string; phone: string; sampleMessage: string }>} */
   const sendable = []
@@ -205,7 +217,15 @@ export async function previewSmsCampaign(executor, scope, input) {
       continue
     }
     const customerName = String(row.name ?? '').trim()
-    const renderedBody = renderSmsTemplate(messageTemplate, { customerName })
+    const rendered = renderSmsTemplateDetailed(messageTemplate, {
+      customerName,
+      ...templateContext,
+    })
+    if (rendered.missingVariables.length > 0) {
+      skipCounts.variable_missing = (skipCounts.variable_missing ?? 0) + 1
+      continue
+    }
+    const renderedBody = rendered.messageBody
     let sampleMessage = renderedBody
     if (messageType === 'ad') {
       const composed = composeAdvertisementSmsMessage({
@@ -271,6 +291,14 @@ export async function createSmsCampaign(executor, scope, input) {
   const messageType = input.messageType === 'ad' ? 'ad' : 'info'
   const title = String(input.title ?? '').trim() || '단체문자'
   const status = scheduledAt ? 'scheduled' : 'draft'
+  const agent = await loadSmsAgentProfile(executor, scope.userId)
+  const referenceDate = scheduledAt ? formatKstDateLabel(scheduledAt) : formatKstDateLabel(new Date())
+  const templateContext = {
+    agentName: agent.agentName,
+    agentPhone: agent.agentPhone,
+    referenceDate,
+    dDayLabel: '당일',
+  }
 
   const campaignIns = await systemQuery(
     executor,
@@ -316,9 +344,14 @@ export async function createSmsCampaign(executor, scope, input) {
     } else if (optOutSet.has(phone)) {
       skipReason = 'opt_out'
     }
-    const renderedMessage = renderSmsTemplate(messageTemplate, {
+    const rendered = renderSmsTemplateDetailed(messageTemplate, {
       customerName: snapshot.customerNameSnapshot,
+      ...templateContext,
     })
+    const renderedMessage = rendered.messageBody
+    if (!skipReason && rendered.missingVariables.length > 0) {
+      skipReason = 'variable_missing'
+    }
     if (skipReason) {
       await insertSmsRecipientRow(executor, {
         tenantId: scope.tenantId,
