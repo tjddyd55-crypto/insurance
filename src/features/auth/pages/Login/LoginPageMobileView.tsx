@@ -2,7 +2,7 @@ import { useLoginController } from '../../hooks/useLoginController'
 import LoginForm from './LoginForm'
 import LoginAppDownloadFooter from './LoginAppDownloadFooter'
 import LoginPageVersionFooter from './LoginPageVersionFooter'
-import LoginPrivacyFooter from './LoginPrivacyFooter'
+import { BusinessInfoFooter } from '../../../web/components/BusinessInfoFooter'
 
 /**
  * [Mobile View] 로그인 페이지.
@@ -45,7 +45,7 @@ export default function LoginPageMobileView() {
 
       <footer className="auth-page__mobile-legal-footer">
         <LoginPageVersionFooter version={controller.version} />
-        <LoginPrivacyFooter />
+        <BusinessInfoFooter />
       </footer>
     </main>
   )

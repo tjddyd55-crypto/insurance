@@ -17,5 +17,5 @@ export const accountDeletionSiteConfig = {
   /** 삭제 요청 검토·처리 안내 (운영 정책) */
   reviewStartWithin: '접수 후 영업일 기준 7일 이내',
   completionWithin: '최대 30일 이내',
-  lastRevisedDate: '2026년 6월 16일',
+  lastRevisedDate: '2026년 7월 13일',
 } as const

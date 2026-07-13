@@ -2464,6 +2464,34 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   pointer-events: none;
 }
 
+.auth-page.auth-page--login-split .intro-business-footer {
+  width: 100%;
+  margin-top: 4px;
+  padding: 20px 0 0;
+  border-top: 1px solid #e5e7eb;
+  background: transparent;
+  text-align: left;
+}
+
+.auth-page.auth-page--login-split .intro-business-footer .intro-v2-shell {
+  max-width: none;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.auth-page.auth-page--mobile-login .auth-page__mobile-legal-footer .intro-business-footer {
+  width: 100%;
+  margin-top: 8px;
+  padding: 16px 0 0;
+  border-top: 1px solid #e5e7eb;
+  background: transparent;
+}
+
+.auth-page.auth-page--mobile-login .auth-page__mobile-legal-footer .intro-business-footer .intro-v2-shell {
+  padding-left: clamp(8px, 3vw, 16px);
+  padding-right: clamp(8px, 3vw, 16px);
+}
+
 .auth-page.auth-page--login-split .auth-page__privacy-footer {
   position: static;
   width: 100%;

@@ -88,6 +88,7 @@ import PlatformRegistriesPage from './features/platform/pages/registries/Platfor
 import InsurerSitesPage from './features/insurer-sites/pages/InsurerSitesPage'
 import PrivacyPolicyPage from './features/legal/PrivacyPolicyPage'
 import AccountDeletionPage from './features/legal/AccountDeletionPage'
+import TermsOfServicePage from './features/legal/TermsOfServicePage'
 import { SuperAdminRoute } from './features/auth/SuperAdminRoute'
 import { PdfTemplateAdminRoute } from './features/auth/PdfTemplateAdminRoute'
 import { InsuranceClaimAdminRoute } from './features/auth/InsuranceClaimAdminRoute'
@@ -239,6 +240,7 @@ export const appRouter = createBrowserRouter([
       },
       { path: 'privacy', element: <PrivacyPolicyPage /> },
       { path: 'privacy-policy', element: <Navigate to="/privacy" replace /> },
+      { path: 'terms', element: <TermsOfServicePage /> },
       { path: 'account-deletion', element: <AccountDeletionPage /> },
       { path: 'introduction', element: <IntroductionPage /> },
       { path: 'introduction/install', element: <IntroductionInstallPage /> },

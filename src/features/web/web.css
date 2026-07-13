@@ -1203,9 +1203,94 @@
 .intro-business-footer {
   border-top: 1px solid #e5e7eb;
   background: #ffffff;
-  padding: 24px 0 28px;
+  padding: 28px 0 32px;
+  color: #374151;
 }
 
+.intro-business-footer__inner {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.intro-business-footer__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.intro-business-footer__item {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.intro-business-footer__item:not(:last-child)::after {
+  content: '|';
+  margin-left: 4px;
+  color: #d1d5db;
+  font-weight: 400;
+}
+
+.intro-business-footer__label {
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.intro-business-footer__value {
+  color: #111827;
+  font-weight: 500;
+}
+
+.intro-business-footer__link {
+  color: #1d4ed8;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.intro-business-footer__link:hover {
+  color: #1e40af;
+}
+
+.intro-business-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin-top: 6px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.intro-business-footer__nav-link {
+  color: #374151;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.intro-business-footer__nav-link:hover {
+  color: #111827;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.intro-business-footer__sep {
+  color: #d1d5db;
+  font-weight: 400;
+}
+
+.intro-business-footer__copyright {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #6b7280;
+}
+
+/* legacy selectors kept for compatibility */
 .intro-business-footer dl {
   margin: 0;
   display: flex;
@@ -1306,7 +1391,27 @@
   }
 
   .intro-business-footer {
-    padding: 20px 0 24px;
+    padding: 22px 0 28px;
+  }
+
+  .intro-business-footer__line {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 13px;
+  }
+
+  .intro-business-footer__item:not(:last-child)::after {
+    content: none;
+  }
+
+  .intro-business-footer__links {
+    gap: 6px 8px;
+    font-size: 13px;
+  }
+
+  .intro-business-footer__copyright {
+    font-size: 12px;
   }
 
   .intro-business-footer dl {
