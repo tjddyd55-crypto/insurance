@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { BusinessInfoFooter } from '../web/components/BusinessInfoFooter'
 import { privacySiteConfig as C } from './privacySiteConfig'
 
 function setOrCreateMeta(name: string, content: string) {
@@ -29,7 +30,8 @@ export default function PrivacyPolicyPage() {
   }, [])
 
   return (
-    <main className="legal-doc-page" id="privacy-policy-top">
+    <>
+      <main className="legal-doc-page" id="privacy-policy-top">
       <article className="legal-doc">
         <header className="legal-doc__header">
           <p className="legal-doc__meta">
@@ -249,6 +251,8 @@ export default function PrivacyPolicyPage() {
           </p>
         </footer>
       </article>
-    </main>
+      </main>
+      <BusinessInfoFooter />
+    </>
   )
 }

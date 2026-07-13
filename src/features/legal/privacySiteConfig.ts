@@ -1,5 +1,8 @@
+import { businessInfo } from '../../config/businessInfo.config'
+
 /**
  * 스토어 심사·고지용 개인정보처리방침에서 바꿀 값만 모았습니다.
+ * 사업자·담당자 식별 정보는 businessInfo.config.ts 를 단일 진실 원천으로 사용합니다.
  */
 export const privacySiteConfig = {
   /** 브라우저 탭 제목 */
@@ -11,24 +14,23 @@ export const privacySiteConfig = {
   /** 서비스·앱 명칭 (문서 내 표기) */
   serviceName: 'ONE FC',
   /** 법적 운영자 상호(예: 회사명) */
-  operatorLegalName: '팍스미디어',
+  operatorLegalName: businessInfo.businessName,
   /** 대표자 성명 (필요 시 문서에 반영) */
-  representativeName: '박성용',
+  representativeName: businessInfo.representativeName,
   /** 사업자등록번호 (선택, 공개 정책에 따라 기입) */
-  businessRegistrationNumber: '540-99-01608',
+  businessRegistrationNumber: businessInfo.businessRegistrationNumber,
   /** 주소 */
-  address: '서울특별시 광진구 천호대로 114길 39(능동) 202호',
+  address: businessInfo.businessAddress,
   /** 개인정보 보호책임자 성명 */
-  privacyOfficerName: '박성용',
+  privacyOfficerName: businessInfo.privacyOfficerName,
   /** 소속/직책 */
   privacyOfficerRole: '개인정보 보호책임자',
   /** 문의 이메일 — mailto 링크에 사용 */
-  privacyEmail: 'tjddyd55@naver.com',
+  privacyEmail: businessInfo.businessEmail,
   /** 문의 전화 (선택) */
-  privacyPhone: '010-2222-1382',
+  privacyPhone: businessInfo.privacyOfficerPhone,
   /** 방침 시행일 */
   effectiveDate: '2026년 4월 1일',
   /** 최종 개정일 (시행일과 같을 수 있음) */
-  lastRevisedDate: '2026년 6월 16일',
+  lastRevisedDate: '2026년 7월 13일',
 } as const
-

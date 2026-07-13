@@ -24,6 +24,7 @@ export function AppLayout() {
   const isPublicLegalRoute =
     location.pathname === '/privacy' ||
     location.pathname === '/account-deletion' ||
+    location.pathname === '/terms' ||
     location.pathname === '/privacy-policy'
   const isExternalAccountVaultRoute = location.pathname.startsWith('/share/account-credentials/')
 
