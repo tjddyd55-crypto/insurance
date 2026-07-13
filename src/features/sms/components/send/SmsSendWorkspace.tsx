@@ -17,6 +17,8 @@ import type { SmsModuleViewProps } from '../../hooks/useSmsModuleState'
 import type { SmsTemplate } from '../../types/sms.types'
 import type { SmsScheduledRule } from '../../types/smsScheduled.types'
 import { validateSmsScheduledSave } from '../../utils/smsScheduledValidation'
+import { computeNextRunAtPreview } from '../../utils/smsScheduledSummary'
+import { buildReservationPreviewSubstitution } from '../../utils/smsReservationPreviewSubstitution'
 import { formatKrMobileDisplay } from '../../smsDisplayUtils'
 import SmsComposerLayout from '../composer/SmsComposerLayout'
 import SmsPhonePreview from '../composer/SmsPhonePreview'
@@ -288,11 +290,14 @@ export default function SmsSendWorkspace({
     [setBulkForm],
   )
 
+  const { user } = useAuth()
+
   const {
     selectedGroupId,
     setSelectedGroupId,
     selectedGroup,
     groupSummary,
+    previewMember,
     isLoadingGroupMembers,
     handleGroupChange,
   } = useSmsSendGroupSelection({
@@ -306,11 +311,38 @@ export default function SmsSendWorkspace({
   const messageBody = sendMode === 'reserved' ? scheduledState.form.messageBody : bulkForm.message
   const messageType = sendMode === 'reserved' ? scheduledState.form.messageType : bulkForm.messageType
 
+  const reservationReferenceDate = useMemo(() => {
+    if (sendMode !== 'reserved') {
+      return undefined
+    }
+    const nextRunAt = computeNextRunAtPreview({ ...scheduledState.form, enabled: true })
+    if (nextRunAt) {
+      return new Intl.DateTimeFormat('sv-SE', {
+        timeZone: 'Asia/Seoul',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date(nextRunAt))
+    }
+    return scheduledState.form.sendDate?.trim() || undefined
+  }, [sendMode, scheduledState.form])
+
+  const previewSubstitution = useMemo(
+    () =>
+      buildReservationPreviewSubstitution({
+        customerName: previewMember?.name,
+        agentName: user?.displayName,
+        referenceDate: reservationReferenceDate,
+        dDayLabel: '당일',
+      }),
+    [previewMember?.name, user?.displayName, reservationReferenceDate],
+  )
+
   const { meta } = useSmsMessageComposeMeta({
     body: messageBody,
     isAdvertisement: messageType === 'ad',
     adDisplayName,
-    previewSubstitution: { mode: 'preserve' },
+    previewSubstitution,
   })
 
   const handleMessageChange = (message: string) => {
@@ -409,7 +441,7 @@ export default function SmsSendWorkspace({
       onAdvertisementChange={handleAdChange}
       senderNumber={bulkForm.senderNumber || settings?.defaultSender}
       adDisplayName={adDisplayName}
-      previewSubstitution={{ mode: 'preserve' }}
+      previewSubstitution={previewSubstitution}
       realSendEnabled={realSendEnabledFlag}
       disabled={busy}
       setupFields={
@@ -534,7 +566,7 @@ export default function SmsSendWorkspace({
       onAdvertisementChange={handleAdChange}
       senderNumber={bulkForm.senderNumber || settings?.defaultSender}
       adDisplayName={adDisplayName}
-      previewSubstitution={{ mode: 'preserve' }}
+      previewSubstitution={previewSubstitution}
       realSendEnabled={realSendEnabledFlag}
       disabled={busy}
     />

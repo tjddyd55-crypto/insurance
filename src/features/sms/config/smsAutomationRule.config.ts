@@ -1,9 +1,18 @@
 import type { FormSelectOption } from '../../../components/form/FormSelect'
+import { insertSmsMessageVariable } from '../utils/insertSmsMessageVariable'
 import type {
   SmsAutomationRuleFormState,
   SmsAutomationSpecialDatePurposeType,
   SmsAutomationTriggerType,
 } from '../types/smsAutomationRuleTypes'
+
+export {
+  getAutomationVariableOptions,
+  SMS_COMMON_VARIABLE_OPTIONS,
+  SMS_RESERVATION_VARIABLE_OPTIONS,
+} from './smsVariables.config'
+
+export type { SmsVariableOption } from '../types/smsVariable.types'
 
 export const SMS_AUTOMATION_TRIGGER_TYPE_LABELS: Record<SmsAutomationTriggerType, string> = {
   BIRTHDAY: '생일',
@@ -53,47 +62,10 @@ export const SMS_AUTOMATION_DEFAULT_MESSAGE_BY_TRIGGER: Record<SmsAutomationTrig
 늘 좋은 하루 보내세요.`,
 }
 
+/** @deprecated SmsVariableOption 사용 */
 export type SmsAutomationVariableOption = {
   label: string
   token: string
-}
-
-const SMS_AUTOMATION_COMMON_VARIABLE_OPTIONS: SmsAutomationVariableOption[] = [
-  { label: '고객명', token: '{고객명}' },
-  { label: '담당자명', token: '{담당자명}' },
-  { label: '담당자연락처', token: '{담당자연락처}' },
-  { label: '기준일', token: '{기준일}' },
-  { label: 'D일', token: '{D일}' },
-]
-
-const SMS_AUTOMATION_TRIGGER_VARIABLE_OPTIONS: Record<
-  SmsAutomationTriggerType,
-  SmsAutomationVariableOption[]
-> = {
-  BIRTHDAY: [{ label: '생일', token: '{생일}' }],
-  CAR_INSURANCE_EXPIRY: [
-    { label: '만기일', token: '{만기일}' },
-    { label: '차량번호', token: '{차량번호}' },
-    { label: '보험회사', token: '{보험회사}' },
-  ],
-  INSURANCE_AGE: [
-    { label: '보험나이', token: '{보험나이}' },
-    { label: '보험나이변경일', token: '{보험나이변경일}' },
-  ],
-  CUSTOMER_SPECIAL_DATE: [
-    { label: '기념일명', token: '{기념일명}' },
-    { label: '타이틀', token: '{타이틀}' },
-    { label: '기념일날짜', token: '{기념일날짜}' },
-  ],
-}
-
-export function getAutomationVariableOptions(
-  triggerType: SmsAutomationTriggerType,
-): SmsAutomationVariableOption[] {
-  return [
-    ...SMS_AUTOMATION_COMMON_VARIABLE_OPTIONS,
-    ...SMS_AUTOMATION_TRIGGER_VARIABLE_OPTIONS[triggerType],
-  ]
 }
 
 export function insertAutomationMessageVariable(
@@ -101,12 +73,8 @@ export function insertAutomationMessageVariable(
   token: string,
   selectionStart: number,
   selectionEnd: number,
-): { text: string; cursor: number } {
-  const start = Math.max(0, Math.min(selectionStart, messageBody.length))
-  const end = Math.max(start, Math.min(selectionEnd, messageBody.length))
-  const nextText = `${messageBody.slice(0, start)}${token}${messageBody.slice(end)}`
-  const cursor = start + token.length
-  return { text: nextText, cursor }
+) {
+  return insertSmsMessageVariable(messageBody, token, selectionStart, selectionEnd)
 }
 
 export function createEmptySmsAutomationRuleForm(

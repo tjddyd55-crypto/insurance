@@ -63,6 +63,9 @@ export default function SmsMessageMetaBar({
 
       <ul className="sms-composer__meta-notes">
         <li>{SMS_BYTE_LIMIT}byte 초과 시 장문(LMS)로 전환됩니다.</li>
+        {meta.hasVariables ? (
+          <li>변수 치환 후 고객 정보에 따라 실제 문자 용량과 SMS/LMS 구분이 달라질 수 있습니다.</li>
+        ) : null}
         {!realSendEnabled ? <li>실제 발송은 비활성화 상태입니다.</li> : null}
       </ul>
     </div>

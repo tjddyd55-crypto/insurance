@@ -72,3 +72,18 @@ describe('calculateSmsMessageMeta advertisement preview', () => {
     expect(meta.previewText).toBe('안녕하세요.')
   })
 })
+
+describe('calculateSmsMessageMeta byte policy', () => {
+  it('counts bytes from raw template text even when preview substitutes variables', () => {
+    const meta = calculateSmsMessageMeta({
+      body: '{고객명}님 안녕하세요',
+      isAdvertisement: false,
+      previewSubstitution: {
+        mode: 'explicitSample',
+        values: { customerName: '홍길동' },
+      },
+    })
+    expect(meta.previewText).toContain('홍길동')
+    expect(meta.byteCount).toBe(calculateSmsMessageMeta({ body: '{고객명}님 안녕하세요' }).byteCount)
+  })
+})

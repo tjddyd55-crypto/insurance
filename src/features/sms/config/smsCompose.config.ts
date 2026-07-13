@@ -30,10 +30,13 @@ export const SMS_PHONE_BUBBLE_MAX_WIDTH = SMS_PHONE_TEXT_AREA_WIDTH
 export const SMS_EXPLICIT_SAMPLE_VALUES = {
   customerName: '홍길동',
   agentName: '박성용',
+  agentPhone: '010-2222-1382',
   companyName: 'ONE FC',
   senderName: '박성용',
   claimLink: 'https://example.com/claim/sample',
   reservationDate: '2026-06-30',
+  referenceDate: '2026-06-30',
+  dDayLabel: '당일',
   memo: '메모 샘플',
 } as const
 
