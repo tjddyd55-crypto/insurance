@@ -14,7 +14,10 @@ function createSafeQueryMock(handler) {
 }
 
 function handleRetireInsuranceAgeUpdate(sql, params) {
-  if (sql.includes('UPDATE notifications') && sql.includes('target_date >')) {
+  if (
+    sql.includes('UPDATE notifications') &&
+    (sql.includes('target_date >') || sql.includes('target_date <'))
+  ) {
     return { rows: [], rowCount: 0 }
   }
   return null
@@ -217,15 +220,15 @@ test('syncDueUserNotifications does not update existing read or dismissed notifi
   assert.equal(tracker.inserts.length, 1)
   const updateSql = sqlLog.filter((sql) => sql.includes('UPDATE notifications'))
   assert.equal(updateSql.length, 2)
-  assert.ok(updateSql.every((sql) => sql.includes('target_date >')))
+  assert.ok(updateSql.every((sql) => sql.includes('target_date <') && sql.includes('target_date >')))
   assert.ok(sqlLog.every((sql) => !sql.includes('DO UPDATE')))
 })
 
-test('retireOutOfWindowInsuranceAgeNotifications dismisses active rows beyond 30-day window', async () => {
+test('retireOutOfWindowInsuranceAgeNotifications dismisses past and beyond-30-day rows', async () => {
   let captured = null
   const pool = {}
   const safeQuery = createSafeQueryMock(async (sql, params) => {
-    if (sql.includes('UPDATE notifications') && sql.includes('target_date >')) {
+    if (sql.includes('UPDATE notifications') && sql.includes('target_date <')) {
       captured = { sql, params }
       return { rows: [], rowCount: 2 }
     }
@@ -244,8 +247,11 @@ test('retireOutOfWindowInsuranceAgeNotifications dismisses active rows beyond 30
   assert.equal(count, 2)
   assert.match(captured.sql, /is_dismissed = true/)
   assert.match(captured.sql, /confirmed_at = COALESCE\(confirmed_at, NOW\(\)\)/)
+  assert.match(captured.sql, /target_date < \$4::date/)
+  assert.match(captured.sql, /target_date > \$5::date/)
   assert.equal(captured.params[2], USER_NOTIFICATION_TYPES.INSURANCE_AGE_DATE)
-  assert.equal(captured.params[3], '2026-07-26')
+  assert.equal(captured.params[3], '2026-06-26')
+  assert.equal(captured.params[4], '2026-07-26')
 })
 
 test('createClaimRequestReceivedNotification uses ON CONFLICT DO NOTHING', async () => {

@@ -57,7 +57,10 @@ test('addDaysToDateOnly adds calendar days on date-only strings', () => {
 test('isInsuranceAgeDueForNotification uses today through today + 30 days window', () => {
   assert.equal(isInsuranceAgeDueForNotification('2026-06-26', TODAY), true)
   assert.equal(isInsuranceAgeDueForNotification('2026-07-01', TODAY), true)
+  assert.equal(isInsuranceAgeDueForNotification('2026-07-03', TODAY), true)
   assert.equal(isInsuranceAgeDueForNotification('2026-07-26', TODAY), true)
+  assert.equal(isInsuranceAgeDueForNotification('2026-06-25', TODAY), false)
+  assert.equal(isInsuranceAgeDueForNotification('2026-06-16', TODAY), false)
   assert.equal(isInsuranceAgeDueForNotification('2026-07-27', TODAY), false)
   assert.equal(isInsuranceAgeDueForNotification('2026-08-26', TODAY), false)
   assert.equal(isInsuranceAgeDueForNotification('', TODAY), false)
