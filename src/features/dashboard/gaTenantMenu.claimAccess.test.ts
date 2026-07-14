@@ -8,6 +8,12 @@ function linkPaths(entries: ReturnType<typeof buildAppMenuForSession>): string[]
     .map((entry) => (entry.type === 'link' ? entry.path : ''))
 }
 
+function linkLabels(entries: ReturnType<typeof buildAppMenuForSession>): string[] {
+  return entries
+    .filter((entry) => entry.type === 'link')
+    .map((entry) => (entry.type === 'link' ? entry.label : ''))
+}
+
 function sectionLabels(entries: ReturnType<typeof buildAppMenuForSession>): string[] {
   return entries
     .filter((entry) => entry.type === 'section')
@@ -40,14 +46,21 @@ describe('buildAppMenuForSession claim access', () => {
     }
   })
 
-  it('hides insurance claim and electronic signature entries for USER while feature flags are off', () => {
+  it('hides top-level signature and insurance-claim menus but keeps customer management claim links for USER', () => {
     const menu = buildAppMenuForSession('USER', 'TEST', 'Test GA')
     const paths = linkPaths(menu)
+    const labels = linkLabels(menu)
     const sections = sectionLabels(menu)
 
+    expect(sections).toContain('고객관리')
     expect(sections).not.toContain('보험청구')
     expect(sections).not.toContain('전자서명')
-    expect(paths).not.toContain('/claim-requests')
+
+    expect(labels).toContain('고객소식지')
+    expect(labels).toContain('청구관리')
+    expect(paths).toContain('/claim-requests')
+    expect(paths).toContain('/claim-requests?claimTab=news-all')
+
     expect(paths).not.toContain('/insurance-claim/new')
     expect(paths).not.toContain('/insurance-claim/requests')
     expect(paths).not.toContain('/contracts/signatures/send')
