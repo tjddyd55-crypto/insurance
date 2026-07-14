@@ -22,11 +22,17 @@ export type { DynamicNewsletterBoardMenuItem }
 /**
  * 일반 USER 앱 메뉴 노출 게이트.
  * 라우트·API·페이지는 유지하고, 대시보드/사이드바/드로어 메뉴 노출만 제어한다.
- * 기능을 다시 열 때 해당 플래그만 true 로 바꾸면 된다.
+ * 대분류와 고객관리 하위는 별도 플래그로 분리한다.
  */
 export const USER_MENU_FEATURE_FLAGS = {
-  electronicSignature: false,
-  insuranceClaim: false,
+  /** 대분류 「전자서명」(발송·발송내역) */
+  topLevelElectronicSignature: false,
+  /** 대분류 「보험청구」(새청구·청구내역) */
+  topLevelInsuranceClaim: false,
+  /** 고객관리 > 고객소식지 */
+  customerManagementNewsletter: true,
+  /** 고객관리 > 청구관리 */
+  customerManagementClaim: true,
 } as const
 
 export type GaTenantMenuItem = { label: string; path: string }
@@ -123,10 +129,14 @@ export const BASE_GA_MENU: GaTenantMenuItem[] = []
 const DEV_BADGE = '개발중'
 
 type BuildGaTenantDashboardMenuOptions = {
-  /** USER 역할에게만 신청서 아래 「전자서명」 블록을 붙인다. */
+  /** USER 역할에게만 신청서 아래 「전자서명」 대분류 블록을 붙인다. */
   includeUserContractSignatures?: boolean
-  /** USER 전용 — 청구관리·보험청구·고객소식지(청구 모듈) 노출 */
-  includeInsuranceClaimFeatures?: boolean
+  /** 고객관리 하위 「고객소식지」 */
+  includeCustomerManagementNewsletter?: boolean
+  /** 고객관리 하위 「청구관리」 */
+  includeCustomerManagementClaim?: boolean
+  /** USER 전용 대분류 「보험청구」(새청구·청구내역) */
+  includeTopLevelInsuranceClaim?: boolean
   /** GA_ADMIN 전용 — 업무편의에 「공유 계정관리」(스태프 열람) 노출 */
   includeSharedAccountManagement?: boolean
   dynamicNewsletterBoards?: DynamicNewsletterBoardMenuItem[]
@@ -141,7 +151,9 @@ export function buildGaTenantDashboardMenu(
 ): GaTenantDashboardMenuEntry[] {
   const {
     includeUserContractSignatures = false,
-    includeInsuranceClaimFeatures = false,
+    includeCustomerManagementNewsletter = false,
+    includeCustomerManagementClaim = false,
+    includeTopLevelInsuranceClaim = false,
     includeSharedAccountManagement = false,
     dynamicNewsletterBoards = [],
     menuRole,
@@ -196,18 +208,18 @@ export function buildGaTenantDashboardMenu(
     { type: 'link', label: '고객리스트', path: '/customers' },
     { type: 'link', label: '고객 지도', path: '/customers/map' },
   ]
-  if (includeInsuranceClaimFeatures) {
-    customerManagementLinks.push(
-      {
-        type: 'link',
-        label: '고객소식지',
-        path: '/claim-requests?claimTab=news-all',
-      },
-      { type: 'link', label: '청구관리', path: '/claim-requests' },
-    )
+  if (includeCustomerManagementNewsletter) {
+    customerManagementLinks.push({
+      type: 'link',
+      label: '고객소식지',
+      path: '/claim-requests?claimTab=news-all',
+    })
+  }
+  if (includeCustomerManagementClaim) {
+    customerManagementLinks.push({ type: 'link', label: '청구관리', path: '/claim-requests' })
   }
 
-  const insuranceClaimMenu: GaTenantDashboardMenuEntry[] = includeInsuranceClaimFeatures
+  const insuranceClaimMenu: GaTenantDashboardMenuEntry[] = includeTopLevelInsuranceClaim
     ? [
         { type: 'section', label: '보험청구' },
         { type: 'link', label: INSURANCE_CLAIM_NEW_MENU.label, path: INSURANCE_CLAIM_NEW_MENU.path },
@@ -467,14 +479,16 @@ export function buildAppMenuForSession(
       return [...adminEntries, { type: 'divider' }, ...withDynamicBoards]
     }
     if (role === 'GA_ADMIN' || role === 'USER') {
-      const includeInsuranceClaimFeatures =
-        role === 'USER' &&
-        USER_MENU_FEATURE_FLAGS.insuranceClaim &&
-        canUseInsuranceClaimUserRoutes(role)
+      const isClaimUser = canUseInsuranceClaimUserRoutes(role)
       const entries = buildGaTenantDashboardMenu(gaCode, gaName, {
         includeUserContractSignatures:
-          role === 'USER' && USER_MENU_FEATURE_FLAGS.electronicSignature,
-        includeInsuranceClaimFeatures,
+          role === 'USER' && USER_MENU_FEATURE_FLAGS.topLevelElectronicSignature,
+        includeCustomerManagementNewsletter:
+          isClaimUser && USER_MENU_FEATURE_FLAGS.customerManagementNewsletter,
+        includeCustomerManagementClaim:
+          isClaimUser && USER_MENU_FEATURE_FLAGS.customerManagementClaim,
+        includeTopLevelInsuranceClaim:
+          isClaimUser && USER_MENU_FEATURE_FLAGS.topLevelInsuranceClaim,
         includeSharedAccountManagement: role === 'GA_ADMIN',
         dynamicNewsletterBoards,
         menuRole: role,
