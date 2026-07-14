@@ -19,6 +19,16 @@ import type { DynamicNewsletterBoardMenuItem } from '../insurer-news/utils/newsl
 
 export type { DynamicNewsletterBoardMenuItem }
 
+/**
+ * 일반 USER 앱 메뉴 노출 게이트.
+ * 라우트·API·페이지는 유지하고, 대시보드/사이드바/드로어 메뉴 노출만 제어한다.
+ * 기능을 다시 열 때 해당 플래그만 true 로 바꾸면 된다.
+ */
+export const USER_MENU_FEATURE_FLAGS = {
+  electronicSignature: false,
+  insuranceClaim: false,
+} as const
+
 export type GaTenantMenuItem = { label: string; path: string }
 
 /**
@@ -451,9 +461,13 @@ export function buildAppMenuForSession(
       return [...adminEntries, { type: 'divider' }, ...withDynamicBoards]
     }
     if (role === 'GA_ADMIN' || role === 'USER') {
-      const includeInsuranceClaimFeatures = canUseInsuranceClaimUserRoutes(role)
+      const includeInsuranceClaimFeatures =
+        role === 'USER' &&
+        USER_MENU_FEATURE_FLAGS.insuranceClaim &&
+        canUseInsuranceClaimUserRoutes(role)
       const entries = buildGaTenantDashboardMenu(gaCode, gaName, {
-        includeUserContractSignatures: role === 'USER',
+        includeUserContractSignatures:
+          role === 'USER' && USER_MENU_FEATURE_FLAGS.electronicSignature,
         includeInsuranceClaimFeatures,
         includeSharedAccountManagement: role === 'GA_ADMIN',
         dynamicNewsletterBoards,

@@ -40,10 +40,19 @@ describe('buildAppMenuForSession claim access', () => {
     }
   })
 
-  it('keeps insurance claim entries for USER and hides admin claim settings', () => {
-    const paths = linkPaths(buildAppMenuForSession('USER', 'TEST', 'Test GA'))
-    expect(paths).toContain('/claim-requests')
-    expect(paths).toContain('/insurance-claim/requests')
+  it('hides insurance claim and electronic signature entries for USER while feature flags are off', () => {
+    const menu = buildAppMenuForSession('USER', 'TEST', 'Test GA')
+    const paths = linkPaths(menu)
+    const sections = sectionLabels(menu)
+
+    expect(sections).not.toContain('보험청구')
+    expect(sections).not.toContain('전자서명')
+    expect(paths).not.toContain('/claim-requests')
+    expect(paths).not.toContain('/insurance-claim/new')
+    expect(paths).not.toContain('/insurance-claim/requests')
+    expect(paths).not.toContain('/contracts/signatures/send')
+    expect(paths).not.toContain('/contracts/signatures/history')
     expect(paths).not.toContain('/admin/claim/insurance-companies')
+    expect(paths).toContain('/customers')
   })
 })
