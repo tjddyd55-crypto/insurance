@@ -1,6 +1,6 @@
 import { AppDownloadActions } from '../../../web/components/AppDownloadActions'
 
-/** 로그인 화면 하단 PC·Android·iPhone 설치 안내 */
+/** 로그인 화면 하단 PC버전 · 안드로이드 · 아이폰 다운로드 링크 */
 export default function LoginAppDownloadFooter({
   layout = 'row',
 }: {
