@@ -32,7 +32,12 @@ export default function CustomerGaExcelPagePC() {
   const emptyMappingMessage = `${MSG_GA_EXCEL_NO_MAPPED_DATA} ${MSG_GA_EXCEL_UPLOAD_HINT}`
   const showTable = !loading && !error && sortedRows.length > 0 && colIds.length > 0
   const showBrokenColumns = !loading && !error && sortedRows.length > 0 && colIds.length === 0
-  const gridTemplateColumns = gaCustomerDataGridTemplateColumns(colIds.length)
+  const gridTemplateColumns = gaCustomerDataGridTemplateColumns(
+    colIds.map((colId, index) => ({
+      colId,
+      header: headers[index] ?? colId,
+    })),
+  )
 
   return (
     <main className="page customer-ga-excel-page customer-ga-excel-page--pc p-3">

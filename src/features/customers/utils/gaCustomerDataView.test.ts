@@ -4,6 +4,9 @@ import {
   formatGaDate,
   formatGaMonth,
   formatGaPremium,
+  GA_CUSTOMER_DATA_COLUMN_WIDTH,
+  GA_CUSTOMER_DATA_GRID_TEMPLATE,
+  gaCustomerDataGridTemplateColumns,
 } from './gaCustomerDataView'
 
 describe('formatGaDate', () => {
@@ -84,7 +87,6 @@ describe('formatGaCellByColumn', () => {
   })
 
   it('납월 컬럼은 날짜(YYYYMMDD)로 오인해 8자리 처리하지 않는다', () => {
-    // 6자리는 월로, 8자리 계약일자는 별도 컬럼에서 날짜로 처리됨을 구분 확인
     expect(formatGaCellByColumn('paymentMonth', '납월', '2026-05')).toBe('2026-05')
   })
 
@@ -113,5 +115,45 @@ describe('formatGaCellByColumn', () => {
     expect(formatGaCellByColumn('col_0', '증권번호', '209061090')).toBe('209061090')
     expect(formatGaCellByColumn('col_21', '납입기간', '5년납')).toBe('5년납')
     expect(formatGaCellByColumn('col_22', '보험기간', '종신')).toBe('종신')
+  })
+})
+
+describe('gaCustomerDataGridTemplateColumns', () => {
+  const sevenColumns = [
+    { colId: 'insurer', header: '원수사' },
+    { colId: 'product', header: '상품명' },
+    { colId: 'contractDate', header: '계약일자' },
+    { colId: 'contractor', header: '계약자' },
+    { colId: 'insured', header: '피보험자' },
+    { colId: 'premium', header: '보험료' },
+    { colId: 'status', header: '상태' },
+  ]
+
+  const eightColumns = [
+    ...sevenColumns,
+    { colId: 'paymentMonth', header: '납월' },
+  ]
+
+  it('납월 없는 7열에서도 상품명은 minmax(320px, 1fr) 을 유지하고 equal-repeat 로 떨어지지 않는다', () => {
+    const template = gaCustomerDataGridTemplateColumns(sevenColumns)
+    expect(template.includes('repeat(')).toBe(false)
+    expect(template).toContain(GA_CUSTOMER_DATA_COLUMN_WIDTH.product)
+    expect(template).toBe('120px minmax(320px, 1fr) 130px 120px 120px 120px 100px')
+  })
+
+  it('납월 있는 8열은 표준 템플릿과 동일하다', () => {
+    const template = gaCustomerDataGridTemplateColumns(eightColumns)
+    expect(template).toBe(GA_CUSTOMER_DATA_GRID_TEMPLATE)
+    expect(template).toContain(GA_CUSTOMER_DATA_COLUMN_WIDTH.product)
+    expect(template.endsWith('110px')).toBe(true)
+  })
+
+  it('표시 컬럼이 일부만 있어도 상품명 폭은 유지한다', () => {
+    const template = gaCustomerDataGridTemplateColumns([
+      { colId: 'product', header: '상품명' },
+      { colId: 'premium', header: '보험료' },
+      { colId: 'status', header: '상태' },
+    ])
+    expect(template).toBe('minmax(320px, 1fr) 120px 100px')
   })
 })
