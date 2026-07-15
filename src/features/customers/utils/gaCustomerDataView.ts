@@ -211,11 +211,28 @@ export function formatGaCellByColumn(
   return formatGaCellDisplay(value)
 }
 
-/** PC GA 고객 데이터 표 — 8열 표준 레이아웃 (원수사·상품명·계약일자·계약자·피보험자·보험료·상태·납월) */
+/** PC GA 고객 데이터 표 — 표준 8열 예시(문서용). 실제 폭은 표시 컬럼별 key/헤더로 조립한다. */
 export const GA_CUSTOMER_DATA_GRID_TEMPLATE =
   '120px minmax(320px, 1fr) 130px 120px 120px 120px 100px 110px'
 
+/** 표시 컬럼 개수와 무관하게 헤더·키로 폭을 고른다. 상품명은 항상 minmax(320px, 1fr). */
+export const GA_CUSTOMER_DATA_COLUMN_WIDTH = {
+  insurer: '120px',
+  product: 'minmax(320px, 1fr)',
+  contractDate: '130px',
+  person: '120px',
+  premium: '120px',
+  status: '100px',
+  paymentMonth: '110px',
+  default: 'minmax(110px, 1fr)',
+} as const
+
 export type GaCustomerDataCellKind = 'product' | 'premium' | 'default'
+
+export type GaCustomerDataGridColumn = {
+  colId: string
+  header: string
+}
 
 export function resolveGaCustomerDataCellKind(colId: string, header: string): GaCustomerDataCellKind {
   const label = `${colId} ${header}`.toLowerCase()
@@ -239,11 +256,44 @@ export function gaCustomerDataCellClassName(colId: string, header: string): stri
   return 'ga-customer-data-cell'
 }
 
-export function gaCustomerDataGridTemplateColumns(columnCount: number): string {
-  if (columnCount === 8) {
-    return GA_CUSTOMER_DATA_GRID_TEMPLATE
+/**
+ * 표시 중인 컬럼 목록으로 grid-template-columns 를 만든다.
+ * 열 개수(7/8)와 무관하게 상품명 폭을 유지한다. header/body 가 동일 문자열을 쓴다.
+ */
+export function resolveGaCustomerDataColumnWidth(colId: string, header: string): string {
+  const compact = headerCompact(header)
+  const label = `${colId} ${header}`.toLowerCase()
+  const kind = resolveGaCustomerDataCellKind(colId, header)
+
+  if (kind === 'product') {
+    return GA_CUSTOMER_DATA_COLUMN_WIDTH.product
   }
-  return `repeat(${Math.max(columnCount, 1)}, minmax(100px, 1fr))`
+  if ((/원수사|보험사/.test(compact) || /insurer|company/.test(label)) && !/환산/.test(compact)) {
+    return GA_CUSTOMER_DATA_COLUMN_WIDTH.insurer
+  }
+  if (isGaDateColumn(header, colId) || /계약일자|보험일자|개시일자|만기일자|이체일자/.test(compact)) {
+    return GA_CUSTOMER_DATA_COLUMN_WIDTH.contractDate
+  }
+  if (/계약자|피보험자|모집인/.test(compact) || /contractor|insured|agent/.test(label)) {
+    return GA_CUSTOMER_DATA_COLUMN_WIDTH.person
+  }
+  if (kind === 'premium' || (/보험료$/.test(compact) && !/환산율/.test(compact))) {
+    return GA_CUSTOMER_DATA_COLUMN_WIDTH.premium
+  }
+  if (/^상태$/.test(compact) || /(^|[^a-z])status([^a-z]|$)/.test(label)) {
+    return GA_CUSTOMER_DATA_COLUMN_WIDTH.status
+  }
+  if (isGaMonthColumn(header, colId)) {
+    return GA_CUSTOMER_DATA_COLUMN_WIDTH.paymentMonth
+  }
+  return GA_CUSTOMER_DATA_COLUMN_WIDTH.default
+}
+
+export function gaCustomerDataGridTemplateColumns(columns: GaCustomerDataGridColumn[]): string {
+  if (columns.length === 0) {
+    return GA_CUSTOMER_DATA_COLUMN_WIDTH.default
+  }
+  return columns.map((column) => resolveGaCustomerDataColumnWidth(column.colId, column.header)).join(' ')
 }
 
 function headerLabelForColumnId(id: string): string {
