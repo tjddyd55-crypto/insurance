@@ -163,11 +163,6 @@ export default function CustomerAppRequestComposePage() {
   }
 
   const handleSubmit = async () => {
-    if (!profile) {
-      setError('청구 요청 전에 내정보를 먼저 저장해 주세요.')
-      navigate('/customer-app/profile')
-      return
-    }
     if (!memo.trim()) {
       setError('청구 내용을 입력해 주세요.')
       return
@@ -186,14 +181,23 @@ export default function CustomerAppRequestComposePage() {
           fileSize: item.file.size,
         })
       }
+      // requester 는 claim_request 스냅샷용. 서버는 CRM customers 원장을 덮어쓰지 않는다.
+      // 이름은 세션의 CRM customerName 을 우선한다.
+      const snapshotName = String(session.customerName || profile?.name || '').trim()
+      const snapshotBirth = String(profile?.birthDate || session.requesterBirthDate || '').trim()
+      const snapshotPhone = String(profile?.phone || session.requesterPhone || '').trim()
       await createCustomerClaimRequest(session.appToken, {
         memo: memo.trim(),
         files: uploadedFiles,
-        requester: {
-          name: profile.name,
-          birthDate: profile.birthDate,
-          phone: profile.phone,
-        },
+        ...(snapshotName && snapshotBirth && snapshotPhone
+          ? {
+              requester: {
+                name: snapshotName,
+                birthDate: snapshotBirth,
+                phone: snapshotPhone,
+              },
+            }
+          : {}),
       })
       setResult('요청이 전송되었습니다.')
       setMemo('')
@@ -205,6 +209,9 @@ export default function CustomerAppRequestComposePage() {
     }
   }
 
+  const displayName = String(session.customerName || profile?.name || '').trim()
+  const displaySub = [profile?.birthDate, profile?.phone].filter(Boolean).join(' · ')
+
   return (
     <div className="customer-app-claim-page">
       <StatusMessage message={error} tone="error" />
@@ -213,20 +220,15 @@ export default function CustomerAppRequestComposePage() {
         <section className="customer-app-claim-card customer-app-claim-profile">
           <div className="customer-app-claim-profile__main">
             <div className="customer-app-claim-profile__label">요청자 정보</div>
-            {profile ? (
+            {displayName ? (
               <>
-                <div className="customer-app-claim-profile__name">{profile.name}</div>
-                <div className="customer-app-claim-profile__sub">
-                  {profile.birthDate} · {profile.phone}
-                </div>
+                <div className="customer-app-claim-profile__name">{displayName}</div>
+                {displaySub ? <div className="customer-app-claim-profile__sub">{displaySub}</div> : null}
               </>
             ) : (
-              <div className="customer-app-claim-profile__sub">내정보가 저장되지 않았습니다.</div>
+              <div className="customer-app-claim-profile__sub">연결된 고객 정보를 불러오는 중입니다.</div>
             )}
           </div>
-          <Link to="/customer-app/profile" className="customer-app-claim-profile__button">
-            내정보 수정
-          </Link>
         </section>
 
         <section className="customer-app-claim-card">

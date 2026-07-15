@@ -757,22 +757,52 @@ async function upsertCustomerAppProfile(executor, context, requester) {
 }
 
 /**
+ * 고객앱 세션에서 CRM customers 원장(name/phone 등)을 덮어쓰지 않는다.
+ * 과거 connect / profile PUT / claim-requests 제출에서 호출되어
+ * 고객이 바꾼 이름으로 CRM 고객리스트가 바뀌는 사고가 있었다.
+ * 의도적으로 호출부를 제거했으며, 재도입하지 말 것.
+ *
+ * @param {import('pg').Pool | import('pg').PoolClient} _executor
+ * @param {{ agentId: string, customerId: number }} _context
+ * @param {{ name: string, phone: string }} _requester
+ */
+async function syncProfileToLinkedCustomer(_executor, _context, _requester) {
+  throw new Error('customer-app must not mutate CRM customers master profile')
+}
+
+/**
+ * 청구 requester_* 스냅샷용 — CRM customers 조회만 (UPDATE 없음).
  * @param {import('pg').Pool | import('pg').PoolClient} executor
  * @param {{ agentId: string, customerId: number }} context
- * @param {{ name: string, phone: string }} requester
  */
-async function syncProfileToLinkedCustomer(executor, context, requester) {
-  await executor.query(
+async function loadRequesterSnapshotFromCustomer(executor, context) {
+  const result = await executor.query(
     `
-    UPDATE customers
-    SET
-      name = $1,
-      phone = CASE WHEN $2 <> '' THEN $2 ELSE phone END
-    WHERE id = $3
-      AND user_id = $4
+    SELECT name, ssn, birth_date, phone
+    FROM customers
+    WHERE id = $1
+      AND user_id = $2
+    LIMIT 1
     `,
-    [requester.name, requester.phone, context.customerId, context.agentId],
+    [context.customerId, context.agentId],
   )
+  if (result.rowCount === 0) {
+    return null
+  }
+  const strict = buildRequesterFromCustomerRowStrict(result.rows[0])
+  if (strict) {
+    return strict
+  }
+  const row = result.rows[0]
+  const name = sanitizeProfileField(row?.name, 120)
+  if (!name) {
+    return null
+  }
+  return {
+    name,
+    birthDate: deriveCustomerBirthDate(row) || '',
+    phone: sanitizeProfileField(row?.phone, 30) || '',
+  }
 }
 
 /**
@@ -2550,20 +2580,13 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         jwtSecret,
         { expiresIn: CUSTOMER_APP_TOKEN_EXPIRES_IN },
       )
+      // 앱 측 요청자 캐시만 저장. CRM customers 원장은 절대 갱신하지 않는다.
       await upsertCustomerAppProfile(
         client,
         {
           agentId,
           customerId,
           deviceId,
-        },
-        requester,
-      )
-      await syncProfileToLinkedCustomer(
-        client,
-        {
-          agentId,
-          customerId,
         },
         requester,
       )
@@ -2579,13 +2602,14 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         },
       })
       await client.query('COMMIT')
+      const crmCustomerName = String(display.customer_name ?? '').trim()
       res.json({
         success: true,
         data: {
           agentId,
           customerId,
           agentName: String(display.agent_name ?? '담당 설계사'),
-          customerName: requester.name || String(display.customer_name ?? '고객'),
+          customerName: crmCustomerName || requester.name || '고객',
           appToken,
           profile: {
             name: requester.name,
@@ -2657,25 +2681,10 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
   })
 
   apiRouter.put('/customer-app/profile', requireCustomerAppAuth, async (req, res) => {
-    try {
-      const context = req.customerApp
-      const requester = normalizeRequester(req.body)
-      if (!requester) {
-        res.status(422).json({ message: '이름, 생년월일, 연락처를 모두 입력해 주세요.' })
-        return
-      }
-      await upsertCustomerAppProfile(pool, context, requester)
-      await syncProfileToLinkedCustomer(pool, context, requester)
-      res.json({
-        success: true,
-        data: {
-          ...requester,
-          savedAt: new Date().toISOString(),
-        },
-      })
-    } catch (error) {
-      handleDbError(error, req, res)
-    }
+    res.status(403).json({
+      success: false,
+      message: '고객 정보 수정 기능은 현재 사용할 수 없습니다.',
+    })
   })
 
   apiRouter.all('/customer-app/claim-files/presign', requireCustomerAppAuth, async (req, res) => {
@@ -2843,22 +2852,16 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         }
       }
       await client.query('BEGIN')
-      const requester = requesterFromBody ?? (await loadCustomerAppProfile(client, context))
+      // CRM 원장 이름을 청구 스냅샷 기준으로 고정한다. body.requester.name 으로 customers 를 덮어쓰지 않는다.
+      const crmSnapshot = await loadRequesterSnapshotFromCustomer(client, context)
+      const requester =
+        crmSnapshot ??
+        requesterFromBody ??
+        (await loadCustomerAppProfile(client, context))
       if (!requester) {
         await client.query('ROLLBACK')
-        res.status(422).json({ message: '내정보를 먼저 저장해 주세요.' })
+        res.status(422).json({ message: '연결된 고객 정보를 확인할 수 없습니다. 설계사 링크로 다시 연결해 주세요.' })
         return
-      }
-      if (requesterFromBody) {
-        await upsertCustomerAppProfile(client, context, requesterFromBody)
-        await syncProfileToLinkedCustomer(
-          client,
-          {
-            agentId: context.agentId,
-            customerId: context.customerId,
-          },
-          requesterFromBody,
-        )
       }
       const requestInsert = await client.query(
         `
