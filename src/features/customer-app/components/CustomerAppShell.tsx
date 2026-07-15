@@ -12,7 +12,7 @@ import '../customer-app.css'
  *
  * - 상단: 담당 설계사 정보
  * - 본문: children (Outlet 또는 페이지 콘텐츠)
- * - 하단 고정: 청구 요청 CTA(작성 화면 제외) + 4탭(홈/문의내역/개인메시지/내정보)
+ * - 하단 고정: 청구 요청 CTA(작성 화면 제외) + 3탭(홈/문의내역/개인메시지)
  */
 
 type Props = {
@@ -203,11 +203,6 @@ const TABS: TabItem[] = [
     to: '/customer-app/news/personal',
     label: '개인메시지',
     match: (path) => path === '/customer-app/news/personal',
-  },
-  {
-    to: '/customer-app/profile',
-    label: '내정보',
-    match: (path) => path.startsWith('/customer-app/profile'),
   },
 ]
 

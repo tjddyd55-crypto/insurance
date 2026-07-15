@@ -270,7 +270,7 @@ export const appRouter = createBrowserRouter([
             element: <CustomerAppMainLayout />,
             children: [
               { path: 'home', element: <CustomerAppHomePage />, handle: { customerAppMainLabel: '홈' } },
-              { path: 'profile', element: <CustomerAppProfilePage />, handle: { customerAppMainLabel: '내정보' } },
+              { path: 'profile', element: <CustomerAppProfilePage />, handle: { customerAppMainLabel: '홈' } },
               {
                 path: 'requests/new',
                 element: <CustomerAppRequestComposePage />,
