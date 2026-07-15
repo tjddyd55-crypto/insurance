@@ -8,7 +8,7 @@ import { fetchGaCustomerExcelCapability, type GaCustomerExcelCapability } from '
 import { getCustomerById } from '../api/customersApi'
 import { isGaCarInsuranceHubEnabled } from '../../dashboard/gaTenantMenu'
 import useIsMobile from '../../../hooks/useIsMobile'
-import { canAccessContractSignatureUserSend } from '../../contracts/testConsole/contractSignatureTestConsoleFlags'
+import { canShowCustomerDetailElectronicSignature } from '../config/customerDetailFeatureFlags'
 import { canUseInsuranceClaimUserRoutes } from '../../auth/roleGuards'
 import { openCustomerSignatureWorkspace } from '../utils/customerSignatureWorkspaceNavigation'
 import CustomersPageContainer from './customers/CustomersPageContainer'
@@ -191,8 +191,18 @@ export default function CustomerWorkspaceLayout() {
   const showGaExcelEntry = true
 
   const showCarInsuranceInWorkspace = isGaCarInsuranceHubEnabled(user?.gaCode, user?.gaName)
-  const showContractSignaturesInWorkspace = canAccessContractSignatureUserSend(user?.role)
+  const showContractSignaturesInWorkspace = canShowCustomerDetailElectronicSignature(user?.role)
   const showClaimsInWorkspace = canUseInsuranceClaimUserRoutes(user?.role)
+
+  useEffect(() => {
+    if (showContractSignaturesInWorkspace) {
+      return
+    }
+    if (currentPathTab !== 'signatures' || selectedCustomerId == null) {
+      return
+    }
+    navigate(`/customers/${selectedCustomerId}/files`, { replace: true })
+  }, [currentPathTab, navigate, selectedCustomerId, showContractSignaturesInWorkspace])
 
   const moveTo = (path: string) => {
     const href = buildCustomerWorkspaceHref(path, searchParams, selectedCustomerId)
@@ -267,7 +277,7 @@ export default function CustomerWorkspaceLayout() {
   }
 
   const handleClickSignatures = () => {
-    if (!selectedCustomerId) {
+    if (!selectedCustomerId || !showContractSignaturesInWorkspace) {
       return
     }
     openCustomerSignatureWorkspace({

@@ -19,7 +19,7 @@ import { getPublicOrigin } from '../../../lib/publicOrigin'
 import { copyTextToClipboard } from '../../../lib/clipboard'
 import { useAuth } from '../../auth/AuthProvider'
 import { isCarInsuranceFeatureEnabledForGa } from '../../dashboard/gaTenantMenu'
-import { canAccessContractSignatureUserSend } from '../../contracts/testConsole/contractSignatureTestConsoleFlags'
+import { canShowCustomerDetailElectronicSignature } from '../config/customerDetailFeatureFlags'
 import { canUseInsuranceClaimUserRoutes } from '../../auth/roleGuards'
 import { deleteCustomer, getCustomerById, listCustomers, updateCustomer } from '../api/customersApi'
 import { listCustomerCars } from '../api/customerCarsApi'
@@ -152,7 +152,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   const { gaSettings } = useGaSettings()
   const { confirm, confirmDialog } = useConfirmDialog()
   const carFeatureEnabled = isCarInsuranceFeatureEnabledForGa(user?.gaCode)
-  const contractSignaturesEnabled = canAccessContractSignatureUserSend(user?.role)
+  const contractSignaturesEnabled = canShowCustomerDetailElectronicSignature(user?.role)
   const claimsFeatureEnabled = canUseInsuranceClaimUserRoutes(user?.role)
   const gaExcelEnabled = gaSettings.use_ga_excel === true
   const [customers, setCustomers] = useState<CustomerRecord[]>([])
@@ -1418,6 +1418,9 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
 
   const handleOpenSignatures = useCallback(
     (customerId: number) => {
+      if (!contractSignaturesEnabled) {
+        return
+      }
       const customer =
         customers.find((c) => c.id === customerId) ??
         (pinnedWorkspaceCustomer?.id === customerId ? pinnedWorkspaceCustomer : null)
@@ -1427,7 +1430,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         navigate,
       })
     },
-    [customers, navigate, pinnedWorkspaceCustomer],
+    [contractSignaturesEnabled, customers, navigate, pinnedWorkspaceCustomer],
   )
 
   const handleOpenOnMap = useCallback(
