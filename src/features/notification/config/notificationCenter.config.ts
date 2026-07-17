@@ -1,4 +1,4 @@
-import type { NotificationListType } from '../api/notificationApi'
+import type { NotificationListType, UserAlertSettings } from '../api/notificationApi'
 
 export type NotificationSectionConfig = {
   type: Exclude<NotificationListType, 'all'>
@@ -33,3 +33,13 @@ export const NOTIFICATION_SECTIONS: NotificationSectionConfig[] = [
     sectionClass: 'claim',
   },
 ]
+
+/** 패널 접힘 상태 기본 표시 행 수 */
+export const NOTIFICATION_PANEL_PREVIEW_COUNT = 5
+
+export const DEFAULT_USER_ALERT_SETTINGS: UserAlertSettings = {
+  insuranceAge: { enabled: true, daysBefore: 30 },
+  carExpiry: { enabled: true, daysBefore: 30 },
+  specialDate: { enabled: true, daysBefore: 30 },
+  claimRequest: { enabled: true },
+}

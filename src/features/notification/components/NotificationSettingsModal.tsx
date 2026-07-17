@@ -95,6 +95,7 @@ export function NotificationSettingsModal({
       closeOnBackdrop={false}
       closeOnEsc={false}
       onEscapeRequest={busy ? undefined : onCancel}
+      usePortal
       panelClassName="notification-settings-modal"
       footer={
         <div className="notification-settings-modal__footer">

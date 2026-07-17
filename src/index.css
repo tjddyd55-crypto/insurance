@@ -5042,7 +5042,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
   border: 1px solid var(--border-default);
   border-radius: 8px;
   background: var(--bg-card);
-  overflow: hidden;
+  overflow: visible;
   padding: 16px;
 }
 
@@ -5050,6 +5050,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 16px;
+  align-items: start;
 }
 
 .notifications-page--pc .notification-center__grid {
@@ -5058,17 +5059,26 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 .notification-section {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+  min-height: 220px;
+  max-height: 360px;
   overflow: hidden;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   background: #ffffff;
 }
 
+.notification-section.is-expanded {
+  max-height: 560px;
+}
+
 .notification-section__banner {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   padding: 12px 14px;
   border-bottom: 1px solid #e5e7eb;
   text-align: center;
@@ -5076,9 +5086,62 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .notification-section__title {
   margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 1rem;
   font-weight: 800;
   line-height: 1.3;
+}
+
+.notification-section__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.notification-section__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 10px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.notification-section.is-expanded .notification-section__body {
+  overflow: auto;
+}
+
+.notification-section__footer {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  padding: 8px 10px 12px;
+  border-top: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.notification-section__more {
+  appearance: none;
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.notification-section__more:hover {
+  background: var(--bg-soft);
 }
 
 .notification-section--age .notification-section__banner {
@@ -5194,11 +5257,6 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .notification-center__filter-row {
   justify-content: space-between;
-}
-
-.notification-section__body {
-  padding: 10px;
-  background: #ffffff;
 }
 
 .notification-section__empty {

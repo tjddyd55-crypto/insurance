@@ -7,11 +7,16 @@ import {
   fetchNotificationSettings,
   fetchNotifications,
   patchNotificationSettings,
+  type NotificationListType,
   type NotificationListView,
   type NotificationRow,
   type UserAlertSettings,
 } from '../api/notificationApi'
-import { NOTIFICATION_SECTIONS } from '../config/notificationCenter.config'
+import {
+  DEFAULT_USER_ALERT_SETTINGS,
+  NOTIFICATION_PANEL_PREVIEW_COUNT,
+  NOTIFICATION_SECTIONS,
+} from '../config/notificationCenter.config'
 import { dispatchNotificationRefresh } from '../notificationRefreshDispatch'
 import {
   formatNotificationDateOnly,
@@ -60,6 +65,7 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
   const [settingsDraft, setSettingsDraft] = useState<UserAlertSettings | null>(null)
   const [settingsBusy, setSettingsBusy] = useState(false)
   const [settingsError, setSettingsError] = useState('')
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(() => new Set())
 
   const load = useCallback(async () => {
     if (!token.trim()) {
@@ -83,6 +89,10 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    setExpandedSections(new Set())
+  }, [view])
 
   useEffect(() => {
     if (!toast) {
@@ -167,10 +177,13 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
     setSettingsBusy(true)
     try {
       const { data } = await fetchNotificationSettings(token)
-      setSettingsDraft(data)
+      setSettingsDraft(data ?? { ...DEFAULT_USER_ALERT_SETTINGS })
       setSettingsOpen(true)
     } catch (e) {
-      setError(resolveNotificationLoadError(e))
+      // 조회 실패해도 모달은 기본값으로 열어 "무반응"을 막는다.
+      setSettingsDraft({ ...DEFAULT_USER_ALERT_SETTINGS })
+      setSettingsOpen(true)
+      setSettingsError(resolveNotificationLoadError(e))
     } finally {
       setSettingsBusy(false)
     }
@@ -203,6 +216,18 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
     } finally {
       setSettingsBusy(false)
     }
+  }
+
+  const toggleSectionExpanded = (type: NotificationListType | string) => {
+    setExpandedSections((prev) => {
+      const next = new Set(prev)
+      if (next.has(type)) {
+        next.delete(type)
+      } else {
+        next.add(type)
+      }
+      return next
+    })
   }
 
   return (
@@ -267,13 +292,21 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
         <div className="notification-center__grid">
           {NOTIFICATION_SECTIONS.map((section) => {
             const rows = groupedItems.get(section.type) ?? []
+            const expanded = expandedSections.has(section.type)
+            const hiddenCount = Math.max(0, rows.length - NOTIFICATION_PANEL_PREVIEW_COUNT)
+            const visibleRows = expanded ? rows : rows.slice(0, NOTIFICATION_PANEL_PREVIEW_COUNT)
             return (
               <section
                 key={section.type}
-                className={`notification-section notification-section--${section.sectionClass}`}
+                className={`notification-section notification-section--${section.sectionClass}${
+                  expanded ? ' is-expanded' : ''
+                }`}
               >
                 <header className="notification-section__banner">
-                  <h2 className="notification-section__title">{section.title}</h2>
+                  <h2 className="notification-section__title">
+                    {section.title}
+                    <span className="notification-section__count">{rows.length}</span>
+                  </h2>
                 </header>
                 <div className="notification-section__body">
                   {rows.length === 0 ? (
@@ -289,7 +322,7 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
                         </tr>
                       </thead>
                       <tbody>
-                        {rows.map((row) => (
+                        {visibleRows.map((row) => (
                           <tr key={row.id}>
                             <td>
                               {canOpenCustomerFromNotification(row) ? (
@@ -326,6 +359,19 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
                     </table>
                   )}
                 </div>
+                {hiddenCount > 0 || expanded ? (
+                  <div className="notification-section__footer">
+                    {rows.length > NOTIFICATION_PANEL_PREVIEW_COUNT ? (
+                      <button
+                        type="button"
+                        className="notification-section__more"
+                        onClick={() => toggleSectionExpanded(section.type)}
+                      >
+                        {expanded ? '접기' : `더보기 ${hiddenCount}개`}
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
               </section>
             )
           })}
