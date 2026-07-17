@@ -143,7 +143,12 @@ export default function CustomerWorkspaceLayoutPC({
                   </>
                 ) : null}
               </p>
-              <CustomerHeaderAppLinkCompact key={selectedCustomerId} customerId={selectedCustomerId} />
+              <CustomerHeaderAppLinkCompact
+                key={selectedCustomerId}
+                customerId={selectedCustomerId}
+                customerName={selectedCustomer?.name ?? selectedCustomerLabel}
+                customerPhone={selectedCustomer?.phone ?? selectedCustomer?.phoneNumber ?? ''}
+              />
             </div>
           ) : (
             <p className="customer-workspace-layout__summary-line customer-workspace-layout__summary-line--empty">

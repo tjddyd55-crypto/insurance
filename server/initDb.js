@@ -2990,6 +2990,35 @@ export async function initDb() {
       UNIQUE (ga_id, user_id)
     )
   `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS alimtalk_send_logs (
+      id BIGSERIAL PRIMARY KEY,
+      ga_id INTEGER,
+      user_id TEXT,
+      customer_id INTEGER,
+      template_key TEXT NOT NULL,
+      tpl_code TEXT,
+      receiver_masked TEXT,
+      status TEXT NOT NULL,
+      provider TEXT,
+      provider_message_id TEXT,
+      provider_code INTEGER,
+      provider_message TEXT,
+      dry_run BOOLEAN NOT NULL DEFAULT TRUE,
+      request_context JSONB,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_alimtalk_send_logs_customer_created
+    ON alimtalk_send_logs (customer_id, created_at DESC)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_alimtalk_send_logs_user_created
+    ON alimtalk_send_logs (user_id, created_at DESC)
+  `)
   await pool.query(`
     DO $$
     BEGIN

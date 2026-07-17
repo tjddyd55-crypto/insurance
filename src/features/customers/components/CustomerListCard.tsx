@@ -428,6 +428,8 @@ const CustomerListCard = memo(function CustomerListCard({
                 <CustomerWorkspaceActions
                   variant="mobile"
                   customerId={c.id}
+                  customerName={c.name}
+                  customerPhone={c.phone ?? c.phoneNumber ?? ''}
                   carFeatureEnabled={carFeatureEnabled}
                   contractSignaturesEnabled={contractSignaturesEnabled}
                   gaExcelEnabled={gaExcelEnabled}

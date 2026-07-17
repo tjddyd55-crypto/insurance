@@ -6,6 +6,8 @@ export type CustomerWorkspaceActionsVariant = 'mobile' | 'pc'
 export type CustomerWorkspaceActionsProps = {
   variant: CustomerWorkspaceActionsVariant
   customerId: number
+  customerName?: string
+  customerPhone?: string
   carFeatureEnabled: boolean
   contractSignaturesEnabled: boolean
   gaExcelEnabled: boolean
@@ -31,6 +33,8 @@ function MobileActionText({ children }: { children: string }) {
 export function CustomerWorkspaceActions({
   variant,
   customerId,
+  customerName,
+  customerPhone,
   carFeatureEnabled,
   contractSignaturesEnabled,
   gaExcelEnabled,
@@ -50,7 +54,12 @@ export function CustomerWorkspaceActions({
     return (
       <>
         <div className="customer-mobile-expanded-app-link">
-          <CustomerHeaderAppLinkCompact key={customerId} customerId={customerId} />
+          <CustomerHeaderAppLinkCompact
+            key={customerId}
+            customerId={customerId}
+            customerName={customerName}
+            customerPhone={customerPhone}
+          />
         </div>
         <div className="customer-detail-feature-actions customer-detail-feature-actions--mobile-priority customer-detail-feature-actions--mobile-grid-8">
           <FormButton
