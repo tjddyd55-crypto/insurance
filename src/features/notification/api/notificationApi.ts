@@ -14,10 +14,28 @@ export type NotificationRow = {
   customerName: string | null
   targetDate: string | null
   claimRequestId: number | null
+  specialDateId?: number | null
   createdAt: string
 }
 
-export type NotificationSettings = {
+export type WindowedAlertSetting = {
+  enabled: boolean
+  daysBefore: number
+}
+
+export type ToggleAlertSetting = {
+  enabled: boolean
+}
+
+export type UserAlertSettings = {
+  insuranceAge: WindowedAlertSetting
+  carExpiry: WindowedAlertSetting
+  specialDate: WindowedAlertSetting
+  claimRequest: ToggleAlertSetting
+}
+
+/** 로그인 모달 억제 등 레거시 필드 */
+export type LegacyNotificationSettings = {
   customerClaimMessage: boolean
   newCustomerRegistered: boolean
   insurerNewsUploaded: boolean
@@ -33,6 +51,7 @@ export type NotificationListType =
   | 'car_expiry'
   | 'insurance_age_date'
   | 'claim_request_received'
+  | 'special_date'
 
 export async function fetchNotifications(
   token: string,
@@ -42,7 +61,11 @@ export async function fetchNotifications(
     status?: NotificationListStatus
     type?: NotificationListType
   } = {},
-): Promise<{ notifications: NotificationRow[]; settings: NotificationSettings }> {
+): Promise<{
+  notifications: NotificationRow[]
+  settings: UserAlertSettings
+  legacySettings: LegacyNotificationSettings
+}> {
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
   }
@@ -57,10 +80,11 @@ export async function fetchNotifications(
   if (options.type) {
     params.set('type', options.type)
   }
-  return apiRequest<{ notifications: NotificationRow[]; settings: NotificationSettings }>(
-    `/api/notifications?${params.toString()}`,
-    { token },
-  )
+  return apiRequest<{
+    notifications: NotificationRow[]
+    settings: UserAlertSettings
+    legacySettings: LegacyNotificationSettings
+  }>(`/api/notifications?${params.toString()}`, { token })
 }
 
 export async function fetchUnreadCount(token: string): Promise<{ count: number }> {
@@ -124,21 +148,23 @@ export async function suppressNotificationModalToday(token: string): Promise<{ o
 
 export async function fetchNotificationSettings(
   token: string,
-): Promise<{ settings: NotificationSettings }> {
+): Promise<{ success: boolean; data: UserAlertSettings }> {
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
   }
-  return apiRequest<{ settings: NotificationSettings }>('/api/notifications/settings', { token })
+  return apiRequest<{ success: boolean; data: UserAlertSettings }>('/api/notifications/settings', {
+    token,
+  })
 }
 
 export async function patchNotificationSettings(
   token: string,
-  settings: Partial<Omit<NotificationSettings, 'modalSuppressedUntil'>>,
-): Promise<{ settings: NotificationSettings }> {
+  settings: Partial<UserAlertSettings>,
+): Promise<{ success: boolean; data: UserAlertSettings }> {
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
   }
-  return apiRequest<{ settings: NotificationSettings }>('/api/notifications/settings', {
+  return apiRequest<{ success: boolean; data: UserAlertSettings }>('/api/notifications/settings', {
     method: 'PATCH',
     token,
     body: JSON.stringify(settings),
@@ -153,6 +179,8 @@ export function notificationTypeLabel(type: string): string {
       return '상령일'
     case 'claim_request_received':
       return '청구알림'
+    case 'special_date':
+      return '지정일'
     default:
       return type || '알림'
   }

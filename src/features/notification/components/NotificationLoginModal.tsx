@@ -46,11 +46,11 @@ export function NotificationLoginModal({ token, open, onClose }: NotificationLog
     setLoading(true)
     setError('')
     try {
-      const { notifications, settings } = await fetchNotifications(token, {
+      const { notifications, legacySettings } = await fetchNotifications(token, {
         limit: 20,
         status: 'unread',
       })
-      if (isModalSuppressed(settings.modalSuppressedUntil)) {
+      if (isModalSuppressed(legacySettings?.modalSuppressedUntil)) {
         setItems([])
         onClose()
         return
@@ -212,14 +212,14 @@ export function useNotificationLoginModal(token: string | null | undefined) {
     let cancelled = false
     ;(async () => {
       try {
-        const { notifications, settings } = await fetchNotifications(authToken, {
+        const { notifications, legacySettings } = await fetchNotifications(authToken, {
           limit: 20,
           status: 'unread',
         })
         if (cancelled) {
           return
         }
-        if (isModalSuppressed(settings.modalSuppressedUntil)) {
+        if (isModalSuppressed(legacySettings?.modalSuppressedUntil)) {
           setOpen(false)
           return
         }

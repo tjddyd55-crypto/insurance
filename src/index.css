@@ -5042,7 +5042,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 .notifications-page--pc .notification-center__grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
 }
 
@@ -5095,6 +5095,94 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .notification-section--claim .notification-section__title {
   color: #b45309;
+}
+
+.notification-section--special .notification-section__banner {
+  background: #fdf2f8;
+  border-bottom-color: #fbcfe8;
+}
+
+.notification-section--special .notification-section__title {
+  color: #9d174d;
+}
+
+.notification-settings-modal__body {
+  display: grid;
+  gap: 14px;
+  max-height: min(60vh, 480px);
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.notification-settings-modal__section {
+  padding: 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--bg-surface);
+}
+
+.notification-settings-modal__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.notification-settings-modal__section-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.notification-settings-modal__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.notification-settings-modal__days {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.notification-settings-modal__days.is-disabled {
+  opacity: 0.55;
+}
+
+.notification-settings-modal__days .form-input {
+  width: 5.5rem;
+}
+
+.notification-settings-modal__hint {
+  margin: 10px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.notification-settings-modal__error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.875rem;
+}
+
+.notification-settings-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.notification-center__filter-row {
+  justify-content: space-between;
 }
 
 .notification-section__body {

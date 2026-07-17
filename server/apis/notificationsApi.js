@@ -3,10 +3,15 @@ import { parseGaId } from '../lib/parseGaId.js'
 import { deleteCustomerNewsletter } from '../services/customerNewsDeleteService.js'
 import {
   getKstEndOfDayDate,
-  INSURANCE_AGE_NOTIFICATION_WINDOW_DAYS,
   mapUserNotificationRow,
   syncDueUserNotifications,
 } from '../services/userNotificationService.js'
+import {
+  getDefaultUserNotificationSettings,
+  getUserNotificationSettings,
+  normalizeUserNotificationSettingsPatch,
+  upsertUserNotificationSettings,
+} from '../services/userNotificationSettingsService.js'
 import { USER_NOTIFICATION_TYPES } from '../notifications/userNotificationTypes.js'
 import { addDaysToDateOnly, getKstDateString } from '../../shared/dateTimeKst.js'
 
@@ -31,7 +36,7 @@ function requireGaForNotifications(req, res) {
 const NOTIFICATIONS_LIST_LIMIT_DEFAULT = 50
 const NOTIFICATIONS_LIST_LIMIT_MAX = 100
 
-const NOTIFICATION_SETTING_COLUMNS = [
+const LEGACY_NOTIFICATION_SETTING_COLUMNS = [
   'customer_claim_message',
   'new_customer_registered',
   'insurer_news_uploaded',
@@ -40,7 +45,7 @@ const NOTIFICATION_SETTING_COLUMNS = [
   'modal_suppressed_until',
 ]
 
-function mapNotificationSettingsRow(row) {
+function mapLegacyNotificationSettingsRow(row) {
   return {
     customerClaimMessage: row?.customer_claim_message !== false,
     newCustomerRegistered: row?.new_customer_registered !== false,
@@ -51,21 +56,35 @@ function mapNotificationSettingsRow(row) {
   }
 }
 
-function normalizeNotificationSettingsPatch(body) {
-  const out = {}
-  const map = {
-    customerClaimMessage: 'customer_claim_message',
-    newCustomerRegistered: 'new_customer_registered',
-    insurerNewsUploaded: 'insurer_news_uploaded',
-    carRenewalOneMonth: 'car_renewal_one_month',
-    insurerContactUpdated: 'insurer_contact_updated',
+function defaultLegacyNotificationSettingsRow() {
+  return {
+    customer_claim_message: true,
+    new_customer_registered: true,
+    insurer_news_uploaded: true,
+    car_renewal_one_month: true,
+    insurer_contact_updated: true,
+    modal_suppressed_until: null,
   }
-  for (const [key, column] of Object.entries(map)) {
-    if (Object.prototype.hasOwnProperty.call(body ?? {}, key)) {
-      out[column] = body[key] === true
-    }
+}
+
+async function ensureLegacyNotificationSettings(pool, userId, gaId) {
+  try {
+    const r = await safeQuery(
+      pool,
+      `
+      INSERT INTO notification_settings (user_id, ga_id)
+      VALUES ($1, $2)
+      ON CONFLICT (user_id, ga_id) DO UPDATE
+      SET updated_at = notification_settings.updated_at
+      RETURNING ${LEGACY_NOTIFICATION_SETTING_COLUMNS.join(', ')}
+      `,
+      [userId, gaId],
+    )
+    return r.rows[0] ?? defaultLegacyNotificationSettingsRow()
+  } catch (error) {
+    console.error('[notificationsApi] ensureLegacyNotificationSettings failed', { userId, gaId, error })
+    return defaultLegacyNotificationSettingsRow()
   }
-  return out
 }
 
 function parsePositiveIntLocal(value) {
@@ -84,6 +103,7 @@ function parseNotificationListFilters(query) {
     USER_NOTIFICATION_TYPES.CAR_EXPIRY,
     USER_NOTIFICATION_TYPES.INSURANCE_AGE_DATE,
     USER_NOTIFICATION_TYPES.CLAIM_REQUEST_RECEIVED,
+    USER_NOTIFICATION_TYPES.SPECIAL_DATE,
   ])
   let view = 'active'
   if (allowedViews.has(viewRaw)) {
@@ -100,7 +120,18 @@ function parseNotificationListFilters(query) {
   }
 }
 
-export function buildNotificationListWhere(userId, gaId, filters) {
+/**
+ * @param {string} userId
+ * @param {number} gaId
+ * @param {{ view: string, type: string }} filters
+ * @param {import('../services/userNotificationSettingsService.js').UserNotificationSettings} [settings]
+ */
+export function buildNotificationListWhere(
+  userId,
+  gaId,
+  filters,
+  settings = getDefaultUserNotificationSettings(),
+) {
   const params = [userId, gaId]
   const parts = ['user_id = $1', 'ga_id = $2']
   if (filters.view === 'confirmed') {
@@ -109,16 +140,47 @@ export function buildNotificationListWhere(userId, gaId, filters) {
   } else {
     parts.push('is_dismissed = false')
     const today = getKstDateString()
-    const ageUpperBound = addDaysToDateOnly(today, INSURANCE_AGE_NOTIFICATION_WINDOW_DAYS)
-    if (today && ageUpperBound) {
+    const typeClauses = []
+
+    const pushWindowedType = (enabled, type, daysBefore) => {
+      if (!enabled) {
+        return
+      }
+      if (!today) {
+        return
+      }
+      const upperBound = addDaysToDateOnly(today, daysBefore)
+      if (!upperBound) {
+        return
+      }
       params.push(today)
       const todayParam = params.length
-      params.push(ageUpperBound)
+      params.push(upperBound)
       const upperParam = params.length
-      // 상령일: 오늘 포함 ~ 오늘+30일만. 지나간·31일 이후는 활성 목록에서 제외.
-      parts.push(
-        `(type <> '${USER_NOTIFICATION_TYPES.INSURANCE_AGE_DATE}' OR (target_date >= $${todayParam}::date AND target_date <= $${upperParam}::date))`,
+      typeClauses.push(
+        `(type = '${type}' AND target_date >= $${todayParam}::date AND target_date <= $${upperParam}::date)`,
       )
+    }
+
+    pushWindowedType(
+      settings.insuranceAge.enabled,
+      USER_NOTIFICATION_TYPES.INSURANCE_AGE_DATE,
+      settings.insuranceAge.daysBefore,
+    )
+    pushWindowedType(settings.carExpiry.enabled, USER_NOTIFICATION_TYPES.CAR_EXPIRY, settings.carExpiry.daysBefore)
+    pushWindowedType(
+      settings.specialDate.enabled,
+      USER_NOTIFICATION_TYPES.SPECIAL_DATE,
+      settings.specialDate.daysBefore,
+    )
+    if (settings.claimRequest.enabled) {
+      typeClauses.push(`(type = '${USER_NOTIFICATION_TYPES.CLAIM_REQUEST_RECEIVED}')`)
+    }
+
+    if (typeClauses.length === 0) {
+      parts.push('FALSE')
+    } else {
+      parts.push(`(${typeClauses.join(' OR ')})`)
     }
   }
   if (filters.type !== 'all') {
@@ -128,24 +190,25 @@ export function buildNotificationListWhere(userId, gaId, filters) {
   return { clause: parts.join(' AND '), params }
 }
 
-export function buildNotificationListQuery(userId, gaId, filters, limit) {
-  const { clause, params } = buildNotificationListWhere(userId, gaId, filters)
+export function buildNotificationListQuery(userId, gaId, filters, limit, settings) {
+  const { clause, params } = buildNotificationListWhere(userId, gaId, filters, settings)
   params.push(limit)
   const limitParam = params.length
   const sql = `
     SELECT id, user_id, ga_id, team_id, type, reference_id, message, is_read, is_dismissed,
-           customer_id, customer_name, target_date, claim_request_id, created_at, confirmed_at
+           customer_id, customer_name, target_date, claim_request_id, special_date_id, created_at, confirmed_at
     FROM (
       SELECT DISTINCT ON (
         user_id,
         ga_id,
         type,
         COALESCE(customer_id, -1),
+        COALESCE(special_date_id, -1),
         COALESCE(target_date, DATE '1970-01-01'),
         COALESCE(claim_request_id, -1)
       )
         id, user_id, ga_id, team_id, type, reference_id, message, is_read, is_dismissed,
-        customer_id, customer_name, target_date, claim_request_id, created_at, confirmed_at
+        customer_id, customer_name, target_date, claim_request_id, special_date_id, created_at, confirmed_at
       FROM notifications
       WHERE ${clause}
       ORDER BY
@@ -153,6 +216,7 @@ export function buildNotificationListQuery(userId, gaId, filters, limit) {
         ga_id,
         type,
         COALESCE(customer_id, -1),
+        COALESCE(special_date_id, -1),
         COALESCE(target_date, DATE '1970-01-01'),
         COALESCE(claim_request_id, -1),
         id ASC
@@ -164,37 +228,6 @@ export function buildNotificationListQuery(userId, gaId, filters, limit) {
 }
 
 export { parseNotificationListFilters }
-
-function defaultNotificationSettingsRow() {
-  return {
-    customer_claim_message: true,
-    new_customer_registered: true,
-    insurer_news_uploaded: true,
-    car_renewal_one_month: true,
-    insurer_contact_updated: true,
-    modal_suppressed_until: null,
-  }
-}
-
-async function ensureNotificationSettings(pool, userId, gaId) {
-  try {
-    const r = await safeQuery(
-      pool,
-      `
-      INSERT INTO notification_settings (user_id, ga_id)
-      VALUES ($1, $2)
-      ON CONFLICT (user_id, ga_id) DO UPDATE
-      SET updated_at = notification_settings.updated_at
-      RETURNING ${NOTIFICATION_SETTING_COLUMNS.join(', ')}
-      `,
-      [userId, gaId],
-    )
-    return r.rows[0] ?? defaultNotificationSettingsRow()
-  } catch (error) {
-    console.error('[notificationsApi] ensureNotificationSettings failed', { userId, gaId, error })
-    return defaultNotificationSettingsRow()
-  }
-}
 
 /**
  * @param {import('express').Router} apiRouter
@@ -217,8 +250,8 @@ export function registerNotificationsApi(apiRouter, ctx) {
       if (gaId == null) {
         return
       }
-      const row = await ensureNotificationSettings(pool, userId, gaId)
-      res.json({ settings: mapNotificationSettingsRow(row) })
+      const data = await getUserNotificationSettings(pool, userId, gaId)
+      res.json({ success: true, data })
     } catch (error) {
       handleDbError(error, req, res)
     }
@@ -235,39 +268,17 @@ export function registerNotificationsApi(apiRouter, ctx) {
       if (gaId == null) {
         return
       }
-      const patch = normalizeNotificationSettingsPatch(req.body)
-      const patchEntries = Object.entries(patch)
-      if (patchEntries.length === 0) {
-        res.status(400).json({ message: '변경할 알림 설정이 없습니다.' })
+      const current = await getUserNotificationSettings(pool, userId, gaId)
+      const normalized = normalizeUserNotificationSettingsPatch(req.body, current)
+      if (!normalized.ok) {
+        res.status(400).json({ message: normalized.message })
         return
       }
-      const insertValues = NOTIFICATION_SETTING_COLUMNS.filter((c) => c !== 'modal_suppressed_until').map((column) =>
-        Object.prototype.hasOwnProperty.call(patch, column) ? patch[column] : true,
-      )
-      const updateSets = patchEntries.map(([column]) => {
-        const columnIndex = NOTIFICATION_SETTING_COLUMNS.indexOf(column)
-        return `${column} = $${3 + columnIndex}`
+      const data = await upsertUserNotificationSettings(pool, userId, gaId, normalized.data)
+      await syncDueUserNotifications(pool, safeQuery, userId, gaId).catch((error) => {
+        console.error('[notificationsApi] sync after settings patch failed', { userId, gaId, error })
       })
-      const r = await safeQuery(
-        pool,
-        `
-        INSERT INTO notification_settings (
-          user_id,
-          ga_id,
-          customer_claim_message,
-          new_customer_registered,
-          insurer_news_uploaded,
-          car_renewal_one_month,
-          insurer_contact_updated
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        ON CONFLICT (user_id, ga_id) DO UPDATE
-        SET ${updateSets.join(', ')}, updated_at = NOW()
-        RETURNING ${NOTIFICATION_SETTING_COLUMNS.join(', ')}
-        `,
-        [userId, gaId, ...insertValues],
-      )
-      res.json({ settings: mapNotificationSettingsRow(r.rows[0]) })
+      res.json({ success: true, data })
     } catch (error) {
       handleDbError(error, req, res)
     }
@@ -287,14 +298,22 @@ export function registerNotificationsApi(apiRouter, ctx) {
       await syncDueUserNotifications(pool, safeQuery, userId, gaId).catch((error) => {
         console.error('[notificationsApi] syncDueUserNotifications failed', { userId, gaId, error })
       })
+      const settings = await getUserNotificationSettings(pool, userId, gaId)
+      const { clause, params } = buildNotificationListWhere(
+        userId,
+        gaId,
+        { view: 'active', type: 'all' },
+        settings,
+      )
       const r = await safeQuery(
         pool,
         `
         SELECT COUNT(*)::bigint AS c
         FROM notifications
-        WHERE user_id = $1 AND ga_id = $2 AND is_read = false AND is_dismissed = false
+        WHERE ${clause}
+          AND is_read = false
         `,
-        [userId, gaId],
+        params,
       )
       const row = r.rows[0]
       const count = row && row.c != null ? Number(row.c) : 0
@@ -324,23 +343,21 @@ export function registerNotificationsApi(apiRouter, ctx) {
         NOTIFICATIONS_LIST_LIMIT_MAX,
         Math.max(1, Number.isFinite(limRaw) ? Math.floor(limRaw) : NOTIFICATIONS_LIST_LIMIT_DEFAULT),
       )
+      const settings = await getUserNotificationSettings(pool, userId, gaId)
       let rows = []
       try {
-        const { sql, params: listParams } = buildNotificationListQuery(userId, gaId, filters, limit)
-        const r = await safeQuery(
-          pool,
-          sql,
-          listParams,
-        )
+        const { sql, params: listParams } = buildNotificationListQuery(userId, gaId, filters, limit, settings)
+        const r = await safeQuery(pool, sql, listParams)
         rows = r.rows
       } catch (listError) {
         console.error('[notificationsApi] notifications list query failed', { userId, gaId, filters, listError })
         rows = []
       }
-      const settingsRow = await ensureNotificationSettings(pool, userId, gaId)
+      const legacySettingsRow = await ensureLegacyNotificationSettings(pool, userId, gaId)
       res.json({
         notifications: rows.map(mapUserNotificationRow),
-        settings: mapNotificationSettingsRow(settingsRow),
+        settings,
+        legacySettings: mapLegacyNotificationSettingsRow(legacySettingsRow),
       })
     } catch (error) {
       handleDbError(error, req, res)
