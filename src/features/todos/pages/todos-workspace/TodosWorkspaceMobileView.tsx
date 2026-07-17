@@ -1,8 +1,8 @@
 import { FormButton } from '../../../../components/form'
 import {
-  todoPriorityLabel,
   todoSourceLabel,
   todoStatusLabel,
+  todoDisplayContent,
 } from '../../utils/todoCopy'
 import { formatTodoDueDateDisplay } from '../../utils/formatTodoDueDateDisplay'
 import type { TodosWorkspaceViewProps } from './todosWorkspaceViewProps'
@@ -151,7 +151,9 @@ export default function TodosWorkspaceMobileView({
                     }
                   }}
                 >
-                  <div className="text-left w-full text-info font-semibold">{row.title}</div>
+                  <div className="todo-item-content text-left w-full text-info font-semibold">
+                    {todoDisplayContent(row)}
+                  </div>
                   <div className="text-xs text-muted mt-1 space-y-1">
                     <div>
                       연결:{' '}
@@ -176,15 +178,10 @@ export default function TodosWorkspaceMobileView({
                       )}
                     </div>
                     <div>
-                      마감 {formatTodoDueDateDisplay(row.dueDate, true)}
-                      {row.dueTime ? ` ${row.dueTime}` : ''} · 우선 {todoPriorityLabel(row.priority)} ·{' '}
-                      {todoStatusLabel(row.status)}
+                      마감 {formatTodoDueDateDisplay(row.dueDate, true)} · {todoStatusLabel(row.status)}
                     </div>
                     <div>출처 {todoSourceLabel(row.sourceType)}</div>
                   </div>
-                  {row.description ? (
-                    <p className="text-xs text-secondary mt-2 m-0 whitespace-pre-wrap line-clamp-4">{row.description}</p>
-                  ) : null}
                 </div>
               </div>
             </li>

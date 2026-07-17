@@ -2,9 +2,9 @@ import { FormButton } from '../../../../components/form'
 
 
 import {
-  todoPriorityLabel,
   todoSourceLabel,
   todoStatusLabel,
+  todoDisplayContent,
 } from '../../utils/todoCopy'
 import { formatTodoDueDateDisplay } from '../../utils/formatTodoDueDateDisplay'
 import type { TodosWorkspaceViewProps } from './todosWorkspaceViewProps'
@@ -140,9 +140,8 @@ export default function TodosWorkspacePCView({
               <tr className="bg-soft text-left text-secondary">
                 <th className="todos-page--pc__th-done p-2 w-12 text-center font-semibold">완료</th>
                 <th className="p-2 font-semibold">연결</th>
-                <th className="p-2 font-semibold">제목</th>
+                <th className="p-2 font-semibold">내용</th>
                 <th className="p-2 font-semibold">마감일</th>
-                <th className="p-2 font-semibold">우선순위</th>
                 <th className="p-2 font-semibold">상태</th>
                 <th className="p-2 font-semibold">출처</th>
               </tr>
@@ -182,20 +181,15 @@ export default function TodosWorkspacePCView({
                   <td className="p-2 align-middle">
                     <button
                       type="button"
-                      className="text-left bg-transparent border-none p-0 cursor-pointer text-info hover:underline"
+                      className="todo-item-content text-left bg-transparent border-none p-0 cursor-pointer text-info hover:underline w-full"
                       onClick={() => openEdit(row)}
                     >
-                      {row.title}
+                      {todoDisplayContent(row)}
                     </button>
-                    {row.description ? (
-                      <div className="text-xs text-muted line-clamp-2 mt-1 whitespace-pre-wrap">{row.description}</div>
-                    ) : null}
                   </td>
                   <td className="p-2 align-middle whitespace-nowrap">
                     {formatTodoDueDateDisplay(row.dueDate)}
-                    {row.dueTime ? ` ${row.dueTime}` : ''}
                   </td>
-                  <td className="p-2 align-middle">{todoPriorityLabel(row.priority)}</td>
                   <td className="p-2 align-middle">{todoStatusLabel(row.status)}</td>
                   <td className="p-2 align-middle">{todoSourceLabel(row.sourceType)}</td>
                 </tr>

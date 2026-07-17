@@ -284,16 +284,23 @@ export function registerTodosApi(apiRouter, ctx) {
       if (gaId == null) return
 
       const body = req.body ?? {}
-      const title = String(body.title ?? '').trim()
+      const description = String(body.description ?? '').slice(0, 20000)
+      let title = String(body.title ?? '').trim()
       if (!title) {
-        res.status(400).json({ message: '제목을 입력해 주세요.' })
+        const firstLine = description.split(/\r?\n/).find((line) => String(line).trim()) ?? ''
+        title = String(firstLine).trim().slice(0, 40)
+      }
+      if (!title && !description.trim()) {
+        res.status(400).json({ message: '내용을 입력해 주세요.' })
         return
+      }
+      if (!title) {
+        title = '할일'
       }
       let sourceType = String(body.sourceType ?? body.source_type ?? 'manual').trim().toLowerCase()
       if (!SOURCE_TYPES.has(sourceType)) {
         sourceType = 'manual'
       }
-      const description = String(body.description ?? '').slice(0, 20000)
       const dueDateRaw = body.dueDate ?? body.due_date
       const dueTimeRaw = body.dueTime ?? body.due_time
 
