@@ -2933,6 +2933,7 @@ export async function initDb() {
   await pool.query(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS customer_name TEXT NULL`)
   await pool.query(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS target_date DATE NULL`)
   await pool.query(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS claim_request_id BIGINT NULL`)
+  await pool.query(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS special_date_id BIGINT NULL`)
   await pool.query(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS is_dismissed BOOLEAN NOT NULL DEFAULT false`)
   await pool.query(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMPTZ NULL`)
   await pool.query(`
@@ -2970,6 +2971,13 @@ export async function initDb() {
       AND claim_request_id IS NOT NULL
   `)
   await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS notifications_unique_special_date
+    ON notifications (user_id, ga_id, type, special_date_id, target_date)
+    WHERE type = 'special_date'
+      AND special_date_id IS NOT NULL
+      AND target_date IS NOT NULL
+  `)
+  await pool.query(`
     UPDATE notifications
     SET is_dismissed = true,
         is_read = true,
@@ -3000,6 +3008,44 @@ export async function initDb() {
   await pool.query(`
     ALTER TABLE notification_settings
     ADD COLUMN IF NOT EXISTS modal_suppressed_until TIMESTAMPTZ NULL
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS user_notification_settings (
+      id BIGSERIAL PRIMARY KEY,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      insurance_age_enabled BOOLEAN NOT NULL DEFAULT true,
+      insurance_age_days_before INTEGER NOT NULL DEFAULT 30,
+      car_expiry_enabled BOOLEAN NOT NULL DEFAULT true,
+      car_expiry_days_before INTEGER NOT NULL DEFAULT 30,
+      special_date_enabled BOOLEAN NOT NULL DEFAULT true,
+      special_date_days_before INTEGER NOT NULL DEFAULT 30,
+      claim_request_enabled BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (ga_id, user_id)
+    )
+  `)
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'user_notification_settings_days_check'
+      ) THEN
+        ALTER TABLE user_notification_settings
+        ADD CONSTRAINT user_notification_settings_days_check
+        CHECK (
+          insurance_age_days_before BETWEEN 0 AND 365
+          AND car_expiry_days_before BETWEEN 0 AND 365
+          AND special_date_days_before BETWEEN 0 AND 365
+        );
+      END IF;
+    END $$
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_user_notification_settings_user_ga
+    ON user_notification_settings (user_id, ga_id)
   `)
 
   await pool.query(`

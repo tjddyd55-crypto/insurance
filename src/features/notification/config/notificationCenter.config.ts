@@ -1,10 +1,10 @@
 import type { NotificationListType } from '../api/notificationApi'
 
 export type NotificationSectionConfig = {
-  type: NotificationListType
+  type: Exclude<NotificationListType, 'all'>
   title: string
   dateColumnLabel: string
-  sectionClass: 'age' | 'car' | 'claim'
+  sectionClass: 'age' | 'car' | 'claim' | 'special'
 }
 
 export const NOTIFICATION_SECTIONS: NotificationSectionConfig[] = [
@@ -19,6 +19,12 @@ export const NOTIFICATION_SECTIONS: NotificationSectionConfig[] = [
     title: '자동차만기',
     dateColumnLabel: '만기일',
     sectionClass: 'car',
+  },
+  {
+    type: 'special_date',
+    title: '지정일',
+    dateColumnLabel: '지정일',
+    sectionClass: 'special',
   },
   {
     type: 'claim_request_received',

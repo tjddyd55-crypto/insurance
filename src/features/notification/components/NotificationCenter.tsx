@@ -4,9 +4,12 @@ import { FormButton } from '../../../components/form'
 import { ApiError } from '../../../lib/apiClient'
 import {
   dismissNotification,
+  fetchNotificationSettings,
   fetchNotifications,
+  patchNotificationSettings,
   type NotificationListView,
   type NotificationRow,
+  type UserAlertSettings,
 } from '../api/notificationApi'
 import { NOTIFICATION_SECTIONS } from '../config/notificationCenter.config'
 import { dispatchNotificationRefresh } from '../notificationRefreshDispatch'
@@ -17,6 +20,7 @@ import {
 } from '../utils/notificationDateLabel'
 import { openNotificationCustomerNavigate } from '../utils/notificationCustomerNavigation'
 import { NotificationConfirmModal } from './NotificationConfirmModal'
+import { NotificationSettingsModal } from './NotificationSettingsModal'
 
 const VIEW_OPTIONS: Array<{ value: NotificationListView; label: string }> = [
   { value: 'active', label: '미확인' },
@@ -52,6 +56,10 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
   const [isConfirming, setIsConfirming] = useState(false)
   const [confirmError, setConfirmError] = useState('')
   const [toast, setToast] = useState('')
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsDraft, setSettingsDraft] = useState<UserAlertSettings | null>(null)
+  const [settingsBusy, setSettingsBusy] = useState(false)
+  const [settingsError, setSettingsError] = useState('')
 
   const load = useCallback(async () => {
     if (!token.trim()) {
@@ -151,6 +159,52 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
     }
   }
 
+  const openSettingsModal = async () => {
+    if (!token.trim() || settingsBusy) {
+      return
+    }
+    setSettingsError('')
+    setSettingsBusy(true)
+    try {
+      const { data } = await fetchNotificationSettings(token)
+      setSettingsDraft(data)
+      setSettingsOpen(true)
+    } catch (e) {
+      setError(resolveNotificationLoadError(e))
+    } finally {
+      setSettingsBusy(false)
+    }
+  }
+
+  const closeSettingsModal = () => {
+    if (settingsBusy) {
+      return
+    }
+    setSettingsOpen(false)
+    setSettingsDraft(null)
+    setSettingsError('')
+  }
+
+  const handleSettingsSave = async () => {
+    if (!settingsDraft || settingsBusy) {
+      return
+    }
+    setSettingsBusy(true)
+    setSettingsError('')
+    try {
+      await patchNotificationSettings(token, settingsDraft)
+      setSettingsOpen(false)
+      setSettingsDraft(null)
+      setToast('알림 설정을 저장했습니다.')
+      dispatchNotificationRefresh()
+      await load()
+    } catch (e) {
+      setSettingsError(resolveNotificationLoadError(e))
+    } finally {
+      setSettingsBusy(false)
+    }
+  }
+
   return (
     <div className="notification-center">
       <NotificationConfirmModal
@@ -159,6 +213,15 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
         error={confirmError}
         onConfirm={handleConfirmSubmit}
         onCancel={closeConfirmModal}
+      />
+      <NotificationSettingsModal
+        open={settingsOpen}
+        draft={settingsDraft}
+        busy={settingsBusy}
+        error={settingsError}
+        onChange={setSettingsDraft}
+        onSave={handleSettingsSave}
+        onCancel={closeSettingsModal}
       />
 
       <div className="notification-center__filters">
@@ -176,10 +239,19 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
               </FormButton>
             ))}
           </div>
-          {view === 'confirmed' ? (
-            <span className="notification-center__view-hint">최근 1개월 내 확인한 알림만 표시됩니다.</span>
-          ) : null}
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            size="sm"
+            disabled={settingsBusy}
+            onClick={() => void openSettingsModal()}
+          >
+            알림 설정
+          </FormButton>
         </div>
+        {view === 'confirmed' ? (
+          <span className="notification-center__view-hint">최근 1개월 내 확인한 알림만 표시됩니다.</span>
+        ) : null}
       </div>
 
       {toast ? <p className="notification-center__toast">{toast}</p> : null}

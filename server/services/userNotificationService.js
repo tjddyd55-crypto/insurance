@@ -1,7 +1,13 @@
 import { addDaysToDateOnly, formatDateOnly, getKstDateString } from '../../shared/dateTimeKst.js'
+import { computeNextAnnualOccurrence } from '../../shared/annualOccurrenceDate.js'
 import { USER_NOTIFICATION_TYPES } from '../notifications/userNotificationTypes.js'
+import {
+  DEFAULT_NOTIFICATION_DAYS_BEFORE,
+  getDefaultUserNotificationSettings,
+  getUserNotificationSettings,
+} from './userNotificationSettingsService.js'
 
-export const INSURANCE_AGE_NOTIFICATION_WINDOW_DAYS = 30
+export const INSURANCE_AGE_NOTIFICATION_WINDOW_DAYS = DEFAULT_NOTIFICATION_DAYS_BEFORE
 
 /**
  * @param {string | Date | null | undefined} value
@@ -31,21 +37,44 @@ export function isDateWithinInclusiveRange(dateOnly, startDateOnly, endDateOnly)
 }
 
 /**
- * @param {string} expiryDate YYYY-MM-DD
+ * @param {string} targetDate YYYY-MM-DD
  * @param {string} [today] YYYY-MM-DD
+ * @param {number} [windowDays]
  * @returns {boolean}
  */
-export function isCarExpiryDueForNotification(expiryDate, today = getKstDateString()) {
-  const upperBound = addMonthsToDateOnly(today, 1)
+export function isDueWithinDaysWindow(
+  targetDate,
+  today = getKstDateString(),
+  windowDays = DEFAULT_NOTIFICATION_DAYS_BEFORE,
+) {
+  if (!Number.isInteger(windowDays) || windowDays < 0) {
+    return false
+  }
+  const upperBound = addDaysToDateOnly(today, windowDays)
   if (!upperBound) {
     return false
   }
-  return isDateWithinInclusiveRange(expiryDate, today, upperBound)
+  return isDateWithinInclusiveRange(targetDate, today, upperBound)
+}
+
+/**
+ * @param {string} expiryDate YYYY-MM-DD
+ * @param {string} [today] YYYY-MM-DD
+ * @param {number} [windowDays]
+ * @returns {boolean}
+ */
+export function isCarExpiryDueForNotification(
+  expiryDate,
+  today = getKstDateString(),
+  windowDays = DEFAULT_NOTIFICATION_DAYS_BEFORE,
+) {
+  return isDueWithinDaysWindow(expiryDate, today, windowDays)
 }
 
 /**
  * @param {string} nextAgeDate YYYY-MM-DD
  * @param {string} [today] YYYY-MM-DD
+ * @param {number} [windowDays]
  * @returns {boolean}
  */
 export function isInsuranceAgeDueForNotification(
@@ -53,11 +82,20 @@ export function isInsuranceAgeDueForNotification(
   today = getKstDateString(),
   windowDays = INSURANCE_AGE_NOTIFICATION_WINDOW_DAYS,
 ) {
-  const upperBound = addDaysToDateOnly(today, windowDays)
-  if (!upperBound) {
-    return false
-  }
-  return isDateWithinInclusiveRange(nextAgeDate, today, upperBound)
+  return isDueWithinDaysWindow(nextAgeDate, today, windowDays)
+}
+
+/**
+ * @param {string} occurrenceDate YYYY-MM-DD
+ * @param {string} [today]
+ * @param {number} [windowDays]
+ */
+export function isSpecialDateDueForNotification(
+  occurrenceDate,
+  today = getKstDateString(),
+  windowDays = DEFAULT_NOTIFICATION_DAYS_BEFORE,
+) {
+  return isDueWithinDaysWindow(occurrenceDate, today, windowDays)
 }
 
 /**
@@ -98,16 +136,156 @@ export function getKstEndOfDayDate(date = new Date()) {
  * @param {typeof import('../utils/dbSafeQuery.js').safeQuery} safeQueryExec
  * @param {string} userId
  * @param {number} gaId
+ * @param {string} type
+ * @param {string} today
+ * @param {string | null} upperBound null이면 해당 type 전체 dismiss
+ */
+export async function retireOutOfWindowNotificationsByType(
+  db,
+  safeQueryExec,
+  userId,
+  gaId,
+  type,
+  today,
+  upperBound,
+) {
+  if (!today) {
+    return 0
+  }
+  if (upperBound == null) {
+    const result = await safeQueryExec(
+      db,
+      `
+      UPDATE notifications
+      SET is_dismissed = true,
+          is_read = true,
+          confirmed_at = COALESCE(confirmed_at, NOW())
+      WHERE user_id = $1
+        AND ga_id = $2
+        AND type = $3
+        AND is_dismissed = false
+      `,
+      [userId, gaId, type],
+    )
+    return result.rowCount ?? 0
+  }
+  const result = await safeQueryExec(
+    db,
+    `
+    UPDATE notifications
+    SET is_dismissed = true,
+        is_read = true,
+        confirmed_at = COALESCE(confirmed_at, NOW())
+    WHERE user_id = $1
+      AND ga_id = $2
+      AND type = $3
+      AND is_dismissed = false
+      AND (
+        target_date IS NULL
+        OR target_date < $4::date
+        OR target_date > $5::date
+      )
+    `,
+    [userId, gaId, type, today, upperBound],
+  )
+  return result.rowCount ?? 0
+}
+
+/**
+ * @param {import('pg').Pool | import('pg').PoolClient} db
+ * @param {typeof import('../utils/dbSafeQuery.js').safeQuery} safeQueryExec
+ * @param {string} userId
+ * @param {number} gaId
+ * @param {string} [today]
+ * @param {string} [upperBound]
+ */
+export async function retireOutOfWindowInsuranceAgeNotifications(
+  db,
+  safeQueryExec,
+  userId,
+  gaId,
+  today = getKstDateString(),
+  upperBound = addDaysToDateOnly(today, INSURANCE_AGE_NOTIFICATION_WINDOW_DAYS),
+) {
+  return retireOutOfWindowNotificationsByType(
+    db,
+    safeQueryExec,
+    userId,
+    gaId,
+    USER_NOTIFICATION_TYPES.INSURANCE_AGE_DATE,
+    today,
+    upperBound,
+  )
+}
+
+/**
+ * @param {import('pg').Pool | import('pg').PoolClient} db
+ * @param {typeof import('../utils/dbSafeQuery.js').safeQuery} safeQueryExec
+ * @param {string} userId
+ * @param {number} gaId
  */
 export async function syncDueUserNotifications(db, safeQueryExec, userId, gaId) {
   const today = getKstDateString()
-  const carRenewalUpperBound = addMonthsToDateOnly(today, 1)
-  const insuranceAgeUpperBound = addDaysToDateOnly(today, INSURANCE_AGE_NOTIFICATION_WINDOW_DAYS)
-  if (!carRenewalUpperBound || !insuranceAgeUpperBound) {
+  if (!today) {
     return
   }
 
-  await retireOutOfWindowInsuranceAgeNotifications(db, safeQueryExec, userId, gaId, today, insuranceAgeUpperBound)
+  const settings = await getUserNotificationSettings(db, userId, gaId, safeQueryExec).catch(() =>
+    getDefaultUserNotificationSettings(),
+  )
+
+  await syncCarExpiryNotifications(db, safeQueryExec, userId, gaId, today, settings.carExpiry)
+  await syncInsuranceAgeNotifications(db, safeQueryExec, userId, gaId, today, settings.insuranceAge)
+  await syncSpecialDateNotifications(db, safeQueryExec, userId, gaId, today, settings.specialDate)
+
+  if (!settings.claimRequest.enabled) {
+    await retireOutOfWindowNotificationsByType(
+      db,
+      safeQueryExec,
+      userId,
+      gaId,
+      USER_NOTIFICATION_TYPES.CLAIM_REQUEST_RECEIVED,
+      today,
+      null,
+    )
+  }
+}
+
+/**
+ * @param {import('pg').Pool | import('pg').PoolClient} db
+ * @param {typeof import('../utils/dbSafeQuery.js').safeQuery} safeQueryExec
+ * @param {string} userId
+ * @param {number} gaId
+ * @param {string} today
+ * @param {{ enabled: boolean, daysBefore: number }} setting
+ */
+async function syncCarExpiryNotifications(db, safeQueryExec, userId, gaId, today, setting) {
+  if (!setting.enabled) {
+    await retireOutOfWindowNotificationsByType(
+      db,
+      safeQueryExec,
+      userId,
+      gaId,
+      USER_NOTIFICATION_TYPES.CAR_EXPIRY,
+      today,
+      null,
+    )
+    return
+  }
+
+  const upperBound = addDaysToDateOnly(today, setting.daysBefore)
+  if (!upperBound) {
+    return
+  }
+  await retireOutOfWindowNotificationsByType(
+    db,
+    safeQueryExec,
+    userId,
+    gaId,
+    USER_NOTIFICATION_TYPES.CAR_EXPIRY,
+    today,
+    upperBound,
+  )
 
   let carRows
   try {
@@ -130,7 +308,7 @@ export async function syncDueUserNotifications(db, safeQueryExec, userId, gaId) 
         AND target.renewal_date >= $3::date
         AND target.renewal_date <= $4::date
       `,
-      [gaId, userId, today, carRenewalUpperBound],
+      [gaId, userId, today, upperBound],
     )
   } catch (error) {
     console.error('[userNotificationService] car expiry sync query failed; falling back to customers.renewal_date', error)
@@ -146,7 +324,7 @@ export async function syncDueUserNotifications(db, safeQueryExec, userId, gaId) 
           AND c.renewal_date >= $3::date
           AND c.renewal_date <= $4::date
         `,
-        [gaId, userId, today, carRenewalUpperBound],
+        [gaId, userId, today, upperBound],
       )
     } catch (fallbackError) {
       console.error('[userNotificationService] car expiry fallback query failed', fallbackError)
@@ -169,6 +347,7 @@ export async function syncDueUserNotifications(db, safeQueryExec, userId, gaId) 
         customerName,
         targetDate: renewalDate,
         claimRequestId: null,
+        specialDateId: null,
         message: `${customerName} 고객님의 자동차보험 만기일이 다가왔습니다. 만기일: ${renewalDate}`,
         referenceId: String(row.customer_id),
       })
@@ -180,6 +359,35 @@ export async function syncDueUserNotifications(db, safeQueryExec, userId, gaId) 
       })
     }
   }
+}
+
+/**
+ * @param {import('pg').Pool | import('pg').PoolClient} db
+ * @param {typeof import('../utils/dbSafeQuery.js').safeQuery} safeQueryExec
+ * @param {string} userId
+ * @param {number} gaId
+ * @param {string} today
+ * @param {{ enabled: boolean, daysBefore: number }} setting
+ */
+async function syncInsuranceAgeNotifications(db, safeQueryExec, userId, gaId, today, setting) {
+  if (!setting.enabled) {
+    await retireOutOfWindowNotificationsByType(
+      db,
+      safeQueryExec,
+      userId,
+      gaId,
+      USER_NOTIFICATION_TYPES.INSURANCE_AGE_DATE,
+      today,
+      null,
+    )
+    return
+  }
+
+  const upperBound = addDaysToDateOnly(today, setting.daysBefore)
+  if (!upperBound) {
+    return
+  }
+  await retireOutOfWindowInsuranceAgeNotifications(db, safeQueryExec, userId, gaId, today, upperBound)
 
   let ageRows
   try {
@@ -194,7 +402,7 @@ export async function syncDueUserNotifications(db, safeQueryExec, userId, gaId) 
         AND c.next_age_date >= $3::date
         AND c.next_age_date <= $4::date
       `,
-      [gaId, userId, today, insuranceAgeUpperBound],
+      [gaId, userId, today, upperBound],
     )
   } catch (error) {
     console.error('[userNotificationService] insurance age sync query failed', error)
@@ -216,6 +424,7 @@ export async function syncDueUserNotifications(db, safeQueryExec, userId, gaId) 
         customerName,
         targetDate,
         claimRequestId: null,
+        specialDateId: null,
         message: `${customerName} 고객님의 상령일이 다가왔습니다. 상령일: ${targetDate}`,
         referenceId: String(row.customer_id),
       })
@@ -234,41 +443,97 @@ export async function syncDueUserNotifications(db, safeQueryExec, userId, gaId) 
  * @param {typeof import('../utils/dbSafeQuery.js').safeQuery} safeQueryExec
  * @param {string} userId
  * @param {number} gaId
- * @param {string} [today]
- * @param {string} [upperBound]
+ * @param {string} today
+ * @param {{ enabled: boolean, daysBefore: number }} setting
  */
-export async function retireOutOfWindowInsuranceAgeNotifications(
-  db,
-  safeQueryExec,
-  userId,
-  gaId,
-  today = getKstDateString(),
-  upperBound = addDaysToDateOnly(today, INSURANCE_AGE_NOTIFICATION_WINDOW_DAYS),
-) {
-  if (!today || !upperBound) {
-    return 0
+async function syncSpecialDateNotifications(db, safeQueryExec, userId, gaId, today, setting) {
+  if (!setting.enabled) {
+    await retireOutOfWindowNotificationsByType(
+      db,
+      safeQueryExec,
+      userId,
+      gaId,
+      USER_NOTIFICATION_TYPES.SPECIAL_DATE,
+      today,
+      null,
+    )
+    return
   }
-  // 상령일 알림은 "오늘 ~ 오늘+30일"만 유지. 지나간·30일 초과는 활성에서 제외.
-  const result = await safeQueryExec(
+
+  const upperBound = addDaysToDateOnly(today, setting.daysBefore)
+  if (!upperBound) {
+    return
+  }
+  await retireOutOfWindowNotificationsByType(
     db,
-    `
-    UPDATE notifications
-    SET is_dismissed = true,
-        is_read = true,
-        confirmed_at = COALESCE(confirmed_at, NOW())
-    WHERE user_id = $1
-      AND ga_id = $2
-      AND type = $3
-      AND is_dismissed = false
-      AND (
-        target_date IS NULL
-        OR target_date < $4::date
-        OR target_date > $5::date
-      )
-    `,
-    [userId, gaId, USER_NOTIFICATION_TYPES.INSURANCE_AGE_DATE, today, upperBound],
+    safeQueryExec,
+    userId,
+    gaId,
+    USER_NOTIFICATION_TYPES.SPECIAL_DATE,
+    today,
+    upperBound,
   )
-  return result.rowCount ?? 0
+
+  let specialRows
+  try {
+    specialRows = await safeQueryExec(
+      db,
+      `
+      SELECT
+        sd.id AS special_date_id,
+        sd.title,
+        sd.purpose_type,
+        sd.date_value,
+        c.id AS customer_id,
+        c.name AS customer_name
+      FROM customer_special_dates sd
+      INNER JOIN customers c ON c.id = sd.customer_id
+      WHERE sd.ga_id = $1
+        AND sd.deleted_at IS NULL
+        AND c.ga_id = $1
+        AND c.deleted_at IS NULL
+        AND COALESCE(c.owner_user_id, c.user_id) = $2
+      `,
+      [gaId, userId],
+    )
+  } catch (error) {
+    console.error('[userNotificationService] special date sync query failed', error)
+    specialRows = { rows: [] }
+  }
+
+  for (const row of specialRows.rows) {
+    const occurrence = computeNextAnnualOccurrence(row.date_value, today)
+    if (!occurrence || !isSpecialDateDueForNotification(occurrence, today, setting.daysBefore)) {
+      continue
+    }
+    const customerName = String(row.customer_name ?? '').trim() || '고객'
+    const title = String(row.title ?? '').trim() || '지정일'
+    const specialDateId = Number(row.special_date_id)
+    if (!Number.isInteger(specialDateId) || specialDateId < 1) {
+      continue
+    }
+    try {
+      await upsertUserNotification(db, safeQueryExec, {
+        userId,
+        gaId,
+        type: USER_NOTIFICATION_TYPES.SPECIAL_DATE,
+        customerId: Number(row.customer_id),
+        customerName: `${customerName} · ${title}`,
+        targetDate: occurrence,
+        claimRequestId: null,
+        specialDateId,
+        message: `${customerName} 고객님의 「${title}」 지정일이 다가왔습니다. 지정일: ${occurrence}`,
+        referenceId: String(specialDateId),
+      })
+    } catch (error) {
+      console.error('[userNotificationService] special date notification upsert failed', {
+        userId,
+        customerId: row.customer_id,
+        specialDateId,
+        error,
+      })
+    }
+  }
 }
 
 /**
@@ -285,6 +550,14 @@ export async function createClaimRequestReceivedNotification(db, safeQueryExec, 
   if (!Number.isInteger(claimRequestId) || claimRequestId < 1) {
     return null
   }
+
+  const settings = await getUserNotificationSettings(db, userId, gaId, safeQueryExec).catch(() =>
+    getDefaultUserNotificationSettings(),
+  )
+  if (!settings.claimRequest.enabled) {
+    return null
+  }
+
   const customerName = String(input.customerName ?? '').trim() || '고객'
   return upsertUserNotification(db, safeQueryExec, {
     userId,
@@ -294,6 +567,7 @@ export async function createClaimRequestReceivedNotification(db, safeQueryExec, 
     customerName,
     targetDate: null,
     claimRequestId,
+    specialDateId: null,
     message: `${customerName} 고객님의 새 보험청구 문의가 접수되었습니다.`,
     referenceId: String(claimRequestId),
   })
@@ -320,6 +594,7 @@ async function upsertUserNotification(db, safeQueryExec, input) {
     input.customerName ?? null,
     normalizedTargetDate,
     input.claimRequestId ?? null,
+    input.specialDateId ?? null,
   ]
 
   if (input.type === USER_NOTIFICATION_TYPES.CLAIM_REQUEST_RECEIVED) {
@@ -328,11 +603,32 @@ async function upsertUserNotification(db, safeQueryExec, input) {
       `
       INSERT INTO notifications (
         user_id, ga_id, team_id, type, reference_id, message,
-        customer_id, customer_name, target_date, claim_request_id
+        customer_id, customer_name, target_date, claim_request_id, special_date_id
       )
-      VALUES ($1, $2, NULL, $3, $4, $5, $6, $7, $8, $9)
+      VALUES ($1, $2, NULL, $3, $4, $5, $6, $7, $8, $9, $10)
       ON CONFLICT (user_id, ga_id, type, claim_request_id)
       WHERE type = 'claim_request_received' AND claim_request_id IS NOT NULL
+      DO NOTHING
+      RETURNING id
+      `,
+      params,
+    )
+    return r.rows[0]?.id ?? null
+  }
+
+  if (input.type === USER_NOTIFICATION_TYPES.SPECIAL_DATE) {
+    const r = await safeQueryExec(
+      db,
+      `
+      INSERT INTO notifications (
+        user_id, ga_id, team_id, type, reference_id, message,
+        customer_id, customer_name, target_date, claim_request_id, special_date_id
+      )
+      VALUES ($1, $2, NULL, $3, $4, $5, $6, $7, $8, $9, $10)
+      ON CONFLICT (user_id, ga_id, type, special_date_id, target_date)
+      WHERE type = 'special_date'
+        AND special_date_id IS NOT NULL
+        AND target_date IS NOT NULL
       DO NOTHING
       RETURNING id
       `,
@@ -346,9 +642,9 @@ async function upsertUserNotification(db, safeQueryExec, input) {
     `
     INSERT INTO notifications (
       user_id, ga_id, team_id, type, reference_id, message,
-      customer_id, customer_name, target_date, claim_request_id
+      customer_id, customer_name, target_date, claim_request_id, special_date_id
     )
-    VALUES ($1, $2, NULL, $3, $4, $5, $6, $7, $8, $9)
+    VALUES ($1, $2, NULL, $3, $4, $5, $6, $7, $8, $9, $10)
     ON CONFLICT (user_id, ga_id, type, customer_id, target_date)
     WHERE type IN ('car_expiry', 'insurance_age_date')
       AND customer_id IS NOT NULL
@@ -379,6 +675,7 @@ export function mapUserNotificationRow(row) {
     customerName: row.customer_name != null ? String(row.customer_name) : null,
     targetDate: row.target_date != null ? toDateOnlyString(row.target_date) || null : null,
     claimRequestId: row.claim_request_id != null ? Number(row.claim_request_id) : null,
+    specialDateId: row.special_date_id != null ? Number(row.special_date_id) : null,
     createdAt: row.created_at,
     confirmedAt: row.confirmed_at ?? null,
   }
