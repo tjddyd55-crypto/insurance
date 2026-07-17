@@ -378,6 +378,32 @@ export async function getCustomerAppLink(token: string, customerId: number): Pro
   return response as CustomerAppLinkInfo | null
 }
 
+export type CustomerAppAlimtalkSendResult = {
+  status: 'dry_run' | 'sent' | 'failed'
+  templateKey?: string
+  receiverMasked?: string
+  customerAppUrl?: string
+  provider?: string
+  providerMessageId?: string | null
+  providerCode?: number | null
+  providerMessage?: string | null
+}
+
+export async function sendCustomerAppLinkAlimtalk(
+  token: string,
+  customerId: number,
+): Promise<CustomerAppAlimtalkSendResult> {
+  const response = await apiRequest<{ success: true; data: CustomerAppAlimtalkSendResult }>(
+    `/api/agent/customers/${customerId}/customer-app/alimtalk`,
+    {
+      method: 'POST',
+      token,
+      body: JSON.stringify({}),
+    },
+  )
+  return response as CustomerAppAlimtalkSendResult
+}
+
 export async function listClaimRequests(
   token: string,
   params: { status?: ClaimRequestStatus | ''; customerId?: number | null; page?: number; pageSize?: number } = {},
