@@ -6,6 +6,7 @@ import {
   todoStatusLabel,
   todoDisplayContent,
 } from '../../utils/todoCopy'
+import { formatTodoCreatedDate } from '../../utils/formatTodoCreatedDate'
 import { formatTodoDueDateDisplay } from '../../utils/formatTodoDueDateDisplay'
 import type { TodosWorkspaceViewProps } from './todosWorkspaceViewProps'
 
@@ -139,6 +140,7 @@ export default function TodosWorkspacePCView({
             <thead>
               <tr className="bg-soft text-left text-secondary">
                 <th className="todos-page--pc__th-done p-2 w-12 text-center font-semibold">완료</th>
+                <th className="todos-page--pc__th-created p-2 font-semibold">작성일</th>
                 <th className="p-2 font-semibold">연결</th>
                 <th className="p-2 font-semibold">내용</th>
                 <th className="p-2 font-semibold">마감일</th>
@@ -160,6 +162,9 @@ export default function TodosWorkspacePCView({
                         title={row.status === 'completed' ? '완료 취소' : '완료 처리'}
                       />
                     </span>
+                  </td>
+                  <td className="todos-page--pc__td-created p-2 align-middle whitespace-nowrap text-secondary">
+                    {formatTodoCreatedDate(row.createdAt)}
                   </td>
                   <td className="p-2 align-middle text-primary">
                     {row.relatedEntityType === 'customer' && row.relatedEntityId ? (

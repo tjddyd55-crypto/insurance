@@ -4,6 +4,7 @@ import {
   todoStatusLabel,
   todoDisplayContent,
 } from '../../utils/todoCopy'
+import { formatTodoCreatedDate } from '../../utils/formatTodoCreatedDate'
 import { formatTodoDueDateDisplay } from '../../utils/formatTodoDueDateDisplay'
 import type { TodosWorkspaceViewProps } from './todosWorkspaceViewProps'
 
@@ -177,6 +178,7 @@ export default function TodosWorkspaceMobileView({
                         <span className="text-muted">연결 없음</span>
                       )}
                     </div>
+                    <div>작성일 {formatTodoCreatedDate(row.createdAt)}</div>
                     <div>
                       마감 {formatTodoDueDateDisplay(row.dueDate, true)} · {todoStatusLabel(row.status)}
                     </div>

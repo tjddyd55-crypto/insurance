@@ -5017,6 +5017,13 @@ div.cta-button.customers-page__action-btn[role='button'] {
   text-align: center;
 }
 
+.todos-page--pc .todos-page--pc__table .todos-page--pc__th-created,
+.todos-page--pc .todos-page--pc__table .todos-page--pc__td-created {
+  width: 8.5rem;
+  min-width: 8.5rem;
+  white-space: nowrap;
+}
+
 .todos-page--pc .todos-page--pc__table .todos-page--pc__cb-wrap {
   display: inline-flex;
   align-items: center;
