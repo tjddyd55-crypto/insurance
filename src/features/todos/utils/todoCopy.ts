@@ -31,9 +31,25 @@ export function todoStatusLabel(st: string): string {
   return '미완료'
 }
 
-/** 본문에서 기본 할 일 제목(첫 줄) */
-export function firstLineTodoTitle(text: string, maxLen = 120): string {
+/** 저장용 title — 내용 첫 줄(최대 40자). DB title 필수 호환용. */
+export function firstLineTodoTitle(text: string, maxLen = 40): string {
   const line = text.split(/\r?\n/).find((l) => l.trim()) ?? ''
   const trimmed = line.trim().slice(0, maxLen)
-  return trimmed || '할 일'
+  return trimmed || '할일'
+}
+
+/** 리스트/카드 표시 텍스트 — content 우선, 없으면 기존 title fallback */
+export function todoDisplayContent(todo: {
+  description?: string | null
+  title?: string | null
+}): string {
+  const content = String(todo.description ?? '').trim()
+  if (content) {
+    return content
+  }
+  const title = String(todo.title ?? '').trim()
+  if (title) {
+    return title
+  }
+  return '내용 없음'
 }

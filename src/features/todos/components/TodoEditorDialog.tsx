@@ -1,22 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { BaseDialog } from '../../../components/dialog/BaseDialog'
 import { useConfirmDialog } from '../../../components/dialog'
-import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
+import { FormButton, FormInput, FormTextarea } from '../../../components/form'
 import AppDateInput from '../../../components/common/AppDateInput'
 import { ApiError } from '../../../lib/apiClient'
 import { searchCustomers } from '../../customers/api/customersApi'
 import type { CustomerRecord } from '../../customers/domain/types'
-import type { TodoDto, TodoPriority, TodoSourceType } from '../domain/todoTypes'
+import type { TodoDto, TodoSourceType } from '../domain/todoTypes'
 import { createTodo, deleteTodo, patchTodo } from '../api/todosApi'
 import { formatSeoulYmd } from '../utils/formatSeoulYmd'
 import { suggestDueDateFromText } from '../utils/suggestDueDateFromText'
+import { firstLineTodoTitle } from '../utils/todoCopy'
 
 const MIN_SEARCH = 2
 
 export type TodoCreatePrefill = {
   sourceType: TodoSourceType
   sourceId?: string | null
-  title: string
+  /** @deprecated UI에서는 사용하지 않음. description 비어 있을 때만 fallback */
+  title?: string
   description: string
   dueDate?: string | null
   relatedEntityType?: 'customer' | null
@@ -40,12 +42,12 @@ type Props = {
   onCommitted?: () => void
 }
 
-function priorityOptions() {
-  return [
-    { value: 'low', label: '낮음' },
-    { value: 'normal', label: '보통' },
-    { value: 'high', label: '높음' },
-  ]
+function resolveEditorContent(description: string | null | undefined, title: string | null | undefined): string {
+  const content = String(description ?? '').trim()
+  if (content) {
+    return content
+  }
+  return String(title ?? '').trim()
 }
 
 export function TodoEditorDialog({
@@ -63,11 +65,8 @@ export function TodoEditorDialog({
 
   const mode: Mode = editingTodo ? 'edit' : 'create'
 
-  const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [dueDate, setDueDate] = useState('')
-  const [dueTime, setDueTime] = useState('')
-  const [priority, setPriority] = useState<TodoPriority>('normal')
   const [relatedEntityType, setRelatedEntityType] = useState('')
   const [relatedEntityId, setRelatedEntityId] = useState('')
   const [searchQ, setSearchQ] = useState('')
@@ -84,11 +83,8 @@ export function TodoEditorDialog({
     mode === 'create' ? String(prefill?.lockedCustomerSummary ?? '').trim() : ''
 
   const resetFromEditing = useCallback((row: TodoDto) => {
-    setTitle(row.title)
-    setDescription(row.description ?? '')
+    setDescription(resolveEditorContent(row.description, row.title))
     setDueDate(row.dueDate ?? '')
-    setDueTime(row.dueTime ?? '')
-    setPriority(row.priority ?? 'normal')
     setRelatedEntityType(row.relatedEntityType ?? '')
     setRelatedEntityId(row.relatedEntityId ?? '')
     setSearchQ('')
@@ -97,15 +93,13 @@ export function TodoEditorDialog({
   }, [])
 
   const resetFromPrefill = useCallback((pf: TodoCreatePrefill) => {
+    const content = resolveEditorContent(pf.description, pf.title)
     const suggested =
       pf.dueDate && /^\d{4}-\d{2}-\d{2}$/.test(pf.dueDate)
         ? pf.dueDate
-        : suggestDueDateFromText(`${pf.title}\n${pf.description}`)
-    setTitle(pf.title)
-    setDescription(pf.description)
+        : suggestDueDateFromText(content)
+    setDescription(content)
     setDueDate(suggested ?? '')
-    setDueTime('')
-    setPriority('normal')
     if (pf.lockRelated && pf.relatedEntityType === 'customer' && pf.relatedEntityId) {
       setRelatedEntityType('customer')
       setRelatedEntityId(pf.relatedEntityId)
@@ -128,11 +122,8 @@ export function TodoEditorDialog({
     } else if (prefill) {
       resetFromPrefill(prefill)
     } else {
-      setTitle('')
       setDescription('')
       setDueDate('')
-      setDueTime('')
-      setPriority('normal')
       setRelatedEntityType('')
       setRelatedEntityId('')
       setSearchQ('')
@@ -175,7 +166,7 @@ export function TodoEditorDialog({
 
   const suggestFromDescription = () => {
     touchedRef.current = true
-    const s = suggestDueDateFromText(`${title}\n${description}`)
+    const s = suggestDueDateFromText(description)
     if (s && !dueDate) {
       setDueDate(s)
     }
@@ -202,21 +193,22 @@ export function TodoEditorDialog({
     if (!token?.trim()) {
       return
     }
-    const t = title.trim()
-    if (!t) {
-      setFormError('제목을 입력해 주세요.')
+    const content = description.trim()
+    if (!content) {
+      setFormError('내용을 입력해 주세요.')
       return
     }
+    const title = firstLineTodoTitle(content)
     setBusy(true)
     setFormError('')
     try {
       if (mode === 'edit' && editingTodo) {
         await patchTodo(token, editingTodo.id, {
-          title: t,
-          description,
+          title,
+          description: content,
           dueDate: dueDate.trim() || null,
-          dueTime: dueTime.trim() || null,
-          priority,
+          dueTime: null,
+          priority: 'normal',
           relatedEntityType: relatedEntityType.trim() || null,
           relatedEntityId: relatedEntityType.trim() && relatedEntityId.trim() ? relatedEntityId.trim() : null,
         })
@@ -225,11 +217,11 @@ export function TodoEditorDialog({
         await createTodo(token, {
           sourceType: st,
           sourceId: prefill?.sourceId ?? undefined,
-          title: t,
-          description,
+          title,
+          description: content,
           dueDate: dueDate.trim() || null,
-          dueTime: dueTime.trim() || null,
-          priority,
+          dueTime: null,
+          priority: 'normal',
           relatedEntityType: relatedEntityType.trim() ? relatedEntityType.trim() : null,
           relatedEntityId:
             relatedEntityType.trim() && relatedEntityId.trim() ? relatedEntityId.trim() : null,
@@ -293,22 +285,11 @@ export function TodoEditorDialog({
               </p>
             ) : null}
             <label className="flex flex-col gap-1 dark-label">
-              <span>제목</span>
-              <FormInput
-                value={title}
-                onChange={(e) => {
-                  touchedRef.current = true
-                  setTitle(e.target.value)
-                }}
-                maxLength={500}
-                disabled={busy}
-              />
-            </label>
-            <label className="flex flex-col gap-1 dark-label">
-              <span>설명 / 메모</span>
+              <span>내용</span>
               <FormTextarea
                 value={description}
-                rows={5}
+                rows={6}
+                placeholder="할 일을 입력하세요."
                 onChange={(e) => {
                   touchedRef.current = true
                   setDescription(e.target.value.slice(0, 20000))
@@ -324,40 +305,14 @@ export function TodoEditorDialog({
                 본문에서 오늘/내일/모레 키워드로 마감일 제안
               </button>
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <label className="flex flex-col gap-1 dark-label">
-                <span>마감일</span>
-                <AppDateInput
-                  value={dueDate}
-                  onChange={(value) => {
-                    touchedRef.current = true
-                    setDueDate(value)
-                  }}
-                  disabled={busy}
-                />
-              </label>
-              <label className="flex flex-col gap-1 dark-label">
-                <span>마감 시간(선택)</span>
-                <FormInput
-                  type="time"
-                  value={dueTime}
-                  onChange={(e) => {
-                    touchedRef.current = true
-                    setDueTime(e.target.value)
-                  }}
-                  disabled={busy}
-                />
-              </label>
-            </div>
             <label className="flex flex-col gap-1 dark-label max-w-xs">
-              <span>우선순위</span>
-              <FormSelect
-                value={priority}
-                onChange={(e) => {
+              <span>마감일</span>
+              <AppDateInput
+                value={dueDate}
+                onChange={(value) => {
                   touchedRef.current = true
-                  setPriority(e.target.value as TodoPriority)
+                  setDueDate(value)
                 }}
-                options={priorityOptions()}
                 disabled={busy}
               />
             </label>
