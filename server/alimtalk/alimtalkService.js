@@ -1,4 +1,5 @@
 import {
+  isCustomerAppLinkRealSendApproved,
   isInsuranceAlimtalkCredentialsComplete,
   loadInsuranceAlimtalkConfig,
 } from './alimtalkConfig.js'
@@ -238,6 +239,40 @@ export async function sendCustomerAppLinkAlimtalk(pool, params) {
     }
   }
 
+  // 검수중(승인 flag false): 실발송 HTTP 호출 금지
+  if (!effectiveDryRun && !isCustomerAppLinkRealSendApproved(config)) {
+    await insertAlimtalkSendLog(pool, {
+      gaId: access.gaId,
+      userId: params.agentId,
+      customerId: params.customerId,
+      templateKey: template.key,
+      tplCode: template.tplCode,
+      receiverMasked,
+      status: 'blocked',
+      provider: config.provider,
+      providerMessage: 'template not approved for real send',
+      dryRun: false,
+      requestContext: {
+        reason: 'approval_flag_blocked',
+        customerAppLinkApproved: config.customerAppLinkApproved,
+        allowRealSend: config.allowRealSend,
+      },
+    }).catch(() => null)
+    return {
+      success: false,
+      httpStatus: 503,
+      error: '템플릿 검수 완료 전에는 알림톡을 실발송할 수 없습니다.',
+      data: {
+        status: 'blocked',
+        templateKey: template.key,
+        tplCode: template.tplCode,
+        receiverMasked,
+        provider: config.provider,
+        providerMessage: 'template not approved for real send',
+      },
+    }
+  }
+
   if (!effectiveDryRun && !isInsuranceAlimtalkCredentialsComplete(config)) {
     return {
       success: false,
@@ -298,6 +333,7 @@ export async function sendCustomerAppLinkAlimtalk(pool, params) {
       data: {
         status: 'dry_run',
         templateKey: template.key,
+        tplCode: template.tplCode,
         receiverMasked,
         customerAppUrl: link.customerAppUrl,
         provider: config.provider,

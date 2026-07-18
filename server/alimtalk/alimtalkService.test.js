@@ -102,15 +102,59 @@ describe('alimtalkService customer app link', () => {
     })
     assert.equal(result.success, true)
     assert.equal(result.data.status, 'dry_run')
+    assert.equal(result.data.tplCode, 'UJ_6184')
     assert.equal(result.data.receiverMasked, '010****5678')
     assert.equal(result.data.customerAppUrl, 'https://example.com/customer-app/link?code=ABC123')
     assert.equal(sendInput?.dryRun, true)
+    assert.equal(sendInput?.tplCode, 'UJ_6184')
+    assert.equal(sendInput?.subject, '고객앱 안내')
+    assert.equal(sendInput?.buttonPayload?.button?.[0]?.name, '고객앱 열기')
     assert.equal(sendInput?.buttonPayload?.button?.[0]?.linkMo, 'https://example.com/customer-app/link?code=ABC123')
-    assert.match(String(sendInput?.message), /김철수님/)
-    assert.match(String(sendInput?.message), /박담당/)
+    assert.match(String(sendInput?.message), /김철수님, 안녕하세요\./)
+    assert.match(String(sendInput?.message), /박담당입니다\./)
     // sendFn is our stub — "fetch" not used; dryRun path does not need HTTP
     assert.equal(typeof sendInput, 'object')
     void fetchCalled
+  })
+
+  it('blocks real send when approval flags are false', async () => {
+    const pool = createMockPool({
+      id: 10,
+      name: '김철수',
+      phone: '01012345678',
+      deleted_at: null,
+    })
+    let sendCalled = false
+    const result = await sendCustomerAppLinkAlimtalk(pool, {
+      agentId: 'user-1',
+      customerId: 10,
+      user: { id: 'user-1', role: 'USER', gaId: 1 },
+      forceDryRun: false,
+      config: loadInsuranceAlimtalkConfig({
+        INSURANCE_ALIGO_KAKAO_DRY_RUN: 'false',
+        INSURANCE_ALIGO_KAKAO_API_KEY: 'k',
+        INSURANCE_ALIGO_KAKAO_USER_ID: 'u',
+        INSURANCE_ALIGO_KAKAO_SENDER_KEY: 's',
+        INSURANCE_ALIGO_KAKAO_SENDER: '01011112222',
+        INSURANCE_ALIGO_KAKAO_CUSTOMER_APP_LINK_APPROVED: 'false',
+        INSURANCE_ALIGO_KAKAO_ALLOW_REAL_SEND: 'false',
+      }),
+      templateEnv: {},
+      ensureLinkFn: async () => ({
+        ok: true,
+        customerAppUrl: 'https://example.com/customer-app/link?code=ABC',
+        linkCode: 'ABC',
+      }),
+      sendFn: async () => {
+        sendCalled = true
+        return { ok: true, status: 'sent', dryRun: false, providerCode: 0 }
+      },
+    })
+    assert.equal(result.success, false)
+    assert.equal(result.data.status, 'blocked')
+    assert.equal(result.data.tplCode, 'UJ_6184')
+    assert.equal(sendCalled, false)
+    assert.match(String(result.error), /검수/)
   })
 
   it('fails when customer phone is missing', async () => {
