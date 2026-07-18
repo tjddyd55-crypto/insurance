@@ -33,6 +33,13 @@ export function loadInsuranceAlimtalkConfig(env = process.env) {
     return Math.min(n, 15000)
   })()
 
+  // 검수중 템플릿 실발송 차단 — 승인 후에만 true 로 올린다.
+  const customerAppLinkApproved = normalizeBooleanEnv(
+    env.INSURANCE_ALIGO_KAKAO_CUSTOMER_APP_LINK_APPROVED,
+    false,
+  )
+  const allowRealSend = normalizeBooleanEnv(env.INSURANCE_ALIGO_KAKAO_ALLOW_REAL_SEND, false)
+
   return {
     apiKey: String(env.INSURANCE_ALIGO_KAKAO_API_KEY ?? '').trim(),
     userId: String(env.INSURANCE_ALIGO_KAKAO_USER_ID ?? '').trim(),
@@ -46,7 +53,19 @@ export function loadInsuranceAlimtalkConfig(env = process.env) {
     sendUrl: ALIGO_ALIMTALK_SEND_URL,
     profileListUrl: ALIGO_ALIMTALK_PROFILE_LIST_URL,
     provider: 'aligo_alimtalk',
+    /** UJ_6184 검수 완료 후에만 true */
+    customerAppLinkApproved,
+    /** 전역 실발송 허용 (기본 false) */
+    allowRealSend,
   }
+}
+
+/**
+ * 고객앱 링크 알림톡 실발송 가능 여부 (승인 flag 모두 true 여야 함).
+ * @param {ReturnType<typeof loadInsuranceAlimtalkConfig>} config
+ */
+export function isCustomerAppLinkRealSendApproved(config) {
+  return Boolean(config?.customerAppLinkApproved && config?.allowRealSend)
 }
 
 /**
