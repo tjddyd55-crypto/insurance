@@ -164,11 +164,9 @@ export function PasswordResetPage() {
             <label className="field">
               <span className="field__label">휴대폰 번호</span>
               <FormInput
+                format="phone"
                 value={phoneInput}
                 onChange={(ev) => setPhoneInput(ev.target.value)}
-                inputMode="numeric"
-                autoComplete="tel"
-                placeholder="01012345678 또는 010-1234-5678"
                 required
               />
             </label>

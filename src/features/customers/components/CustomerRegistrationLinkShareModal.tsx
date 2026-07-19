@@ -261,11 +261,9 @@ export default function CustomerRegistrationLinkShareModal({
         <label className="customer-registration-share-modal__field">
           <span className="customer-registration-share-modal__label">수신번호</span>
           <FormInput
+            format="phone"
             value={receiver}
             onChange={(e) => setReceiver(e.target.value)}
-            placeholder="01012345678"
-            inputMode="tel"
-            autoComplete="tel"
             disabled={busy}
           />
         </label>

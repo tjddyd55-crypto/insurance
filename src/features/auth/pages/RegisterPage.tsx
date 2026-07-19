@@ -724,15 +724,13 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
             <label className="field">
               <span className="field__label">휴대폰 번호</span>
               <FormInput
+                format="phone"
                 value={phone}
                 onChange={(e) => {
                   setPhone(e.target.value)
                   setIsVerified(false)
                   setSignupPhoneProof(null)
                 }}
-                inputMode="numeric"
-                autoComplete="tel"
-                placeholder="01012345678 또는 010-1234-5678"
                 required
               />
             </label>

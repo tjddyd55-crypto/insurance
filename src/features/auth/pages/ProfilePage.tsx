@@ -532,14 +532,13 @@ export function ProfilePage() {
               <label className="field">
                 <span className="field__label">휴대폰번호</span>
                 <FormInput
+                  format="phone"
                   value={phoneEditDigits}
                   onChange={(e) => {
                     setPhoneEditDigits(e.target.value)
                     setPhoneChangeProof(null)
                   }}
-                  inputMode="numeric"
-                  autoComplete="tel"
-                  placeholder={phoneInput}
+                  placeholder={phoneInput || undefined}
                   required
                 />
               </label>

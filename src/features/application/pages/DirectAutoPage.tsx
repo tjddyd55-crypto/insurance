@@ -105,9 +105,8 @@ export function DirectAutoPage() {
           <label className="block space-y-2">
             <span className="text-sm font-semibold text-slate-300">연락처</span>
             <FormInput
-              type="tel"
+              format="phone"
               name="direct-auto-phone"
-              autoComplete="tel"
               placeholder="연락처 입력"
               className={`w-full ${FIELD_SHELL}`}
               value={form.연락처}

@@ -1,4 +1,4 @@
-import { FormInput, FormSelect, FormTextarea } from '../../../components/form'
+import { FormInput, FormSelect, FormTextarea, type FormInputFormat } from '../../../components/form'
 import type { ClaimTemplateFieldSpec } from '../utils/claimTemplateFormFields'
 import ClaimRequestPersonCustomerSearch from './ClaimRequestPersonCustomerSearch'
 import { resolveTemplateFieldType } from '../utils/claimTemplateFormFields'
@@ -16,6 +16,17 @@ type Props = {
   onCustomerQueryChange: (value: string) => void
   onCustomerSearch: () => void
   onCustomerSelect: (customerId: number) => void
+}
+
+function resolvePersonInputFormat(field: ClaimTemplateFieldSpec): FormInputFormat | undefined {
+  const raw = `${field.fieldName ?? ''} ${field.fieldKey ?? ''} ${field.label ?? ''}`.toLowerCase()
+  if (/ssn|resident|주민/.test(raw)) {
+    return 'residentNumber'
+  }
+  if (/phone|mobile|tel|연락|휴대폰|휴대전화/.test(raw)) {
+    return 'phone'
+  }
+  return undefined
 }
 
 function ContractorSameControl({
@@ -124,6 +135,7 @@ function renderFieldInput(
   return (
     <FormInput
       type={fieldType === 'date' ? 'date' : 'text'}
+      format={fieldType === 'date' ? undefined : resolvePersonInputFormat(field)}
       value={value}
       disabled={disabled}
       onChange={(event) => onChange(event.target.value)}

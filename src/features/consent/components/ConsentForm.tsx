@@ -59,9 +59,7 @@ export function ConsentForm({
           <FormInput
             id="consent-ssn"
             className="consent-field__input"
-            inputMode="numeric"
-            autoComplete="off"
-            placeholder="주민번호를 입력하세요"
+            format="residentNumber"
             value={formData.ssn}
             onChange={(e) => onFormChange('ssn', e.target.value)}
           />
@@ -73,10 +71,7 @@ export function ConsentForm({
           <FormInput
             id="consent-phone"
             className="consent-field__input"
-            type="tel"
-            inputMode="tel"
-            autoComplete="tel"
-            placeholder="연락처를 입력하세요"
+            format="phone"
             value={formData.phone}
             onChange={(e) => onFormChange('phone', e.target.value)}
           />

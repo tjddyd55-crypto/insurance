@@ -119,6 +119,7 @@ export default function CustomerIndustryTemplateFields({
           <span className="field__label">{field.label}</span>
           <FormInput
             className="field__control"
+            format="phone"
             placeholder={field.label}
             value={value.phone}
             onChange={(e) => emitPatch({ phone: e.target.value })}
@@ -176,6 +177,7 @@ export default function CustomerIndustryTemplateFields({
           <span className="field__label">{field.label}</span>
           <FormInput
             className="field__control"
+            format="residentNumber"
             placeholder={field.label}
             value={value.ssn}
             onChange={(e) => emitPatch({ ssn: e.target.value })}

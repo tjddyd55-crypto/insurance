@@ -544,7 +544,7 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
         <FormInput
           className="field__control"
-          placeholder="주민번호"
+          format="residentNumber"
           value={form.ssn}
           onChange={(e) => {
             const next = e.target.value
@@ -564,7 +564,7 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
         <FormInput
           className="field__control"
-          placeholder="전화번호"
+          format="phone"
           value={form.phone}
           onChange={(e) => onFormChange({ ...form, phone: e.target.value })}
         />
