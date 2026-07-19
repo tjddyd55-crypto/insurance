@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useConfirmDialog } from '../../../components/dialog'
 import { StatusMessage } from '../../../components/feedback'
 import { FormButton, FormInput, FormTextarea } from '../../../components/form'
 import Modal from '../../../components/ui/Modal'
@@ -77,6 +78,7 @@ export default function ClaimRequestsPage() {
   const isMobile = useIsMobile()
   const navigate = useNavigate()
   const { token } = useAuth()
+  const { confirm, confirmDialog } = useConfirmDialog()
   const location = useLocation()
   const { customerId: customerIdParam } = useParams<{ customerId?: string }>()
   const [searchParams] = useSearchParams()
@@ -336,11 +338,15 @@ export default function ClaimRequestsPage() {
       if (!token) {
         return
       }
-      if (
-        !window.confirm(
-          '이 개인 소식지를 완전히 삭제할까요? 고객 앱에서도 보이지 않으며 복구할 수 없습니다.',
-        )
-      ) {
+      const confirmed = await confirm({
+        title: '개인 소식지를 삭제할까요?',
+        message:
+          '이 개인 소식지를 완전히 삭제합니다.\n고객 앱에서도 보이지 않으며 복구할 수 없습니다.',
+        confirmLabel: '삭제',
+        cancelLabel: '취소',
+        tone: 'danger',
+      })
+      if (!confirmed) {
         return
       }
       const tid = item.targetCustomerId ?? selectedCustomerId ?? null
@@ -360,7 +366,7 @@ export default function ClaimRequestsPage() {
         setCustomerNewsDeletingId(null)
       }
     },
-    [token, loadNewsHistory, selectedCustomerId],
+    [token, loadNewsHistory, selectedCustomerId, confirm],
   )
 
   useEffect(() => {
@@ -970,6 +976,7 @@ export default function ClaimRequestsPage() {
   if (isMobile) {
     return (
       <ClaimRequestsPageMobileView>
+        {confirmDialog}
         {pageContent}
         <Modal
           open={mobileDetailOpen}
@@ -1001,5 +1008,10 @@ export default function ClaimRequestsPage() {
       </ClaimRequestsPageMobileView>
     )
   }
-  return <ClaimRequestsPagePCView>{pageContent}</ClaimRequestsPagePCView>
+  return (
+    <ClaimRequestsPagePCView>
+      {confirmDialog}
+      {pageContent}
+    </ClaimRequestsPagePCView>
+  )
 }
