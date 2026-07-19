@@ -43,13 +43,13 @@ function CustomerPageHeaderActions({
         tabIndex={0}
         className="customers-page__action-btn customers-page__action-btn--neutral customers-page__invite-copy-btn"
         style={{ touchAction: 'manipulation' }}
-        aria-label="고객 등록 링크 복사"
+        aria-label="고객등록 링크 보내기"
         onTouchStart={onCustomerRegisterInviteCopyTouchStart}
         onMouseDown={onCustomerRegisterInviteCopyMouseDown}
         onClick={onCustomerRegisterInviteCopyClick}
         onKeyDown={onCustomerRegisterInviteCopyKeyDown}
       >
-        등록 링크
+        고객등록 공유
       </div>
       <FormButton
         htmlType="button"

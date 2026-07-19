@@ -99,3 +99,85 @@ export function getCustomerAppLinkTemplate(env = process.env) {
     buildButtonPayload: buildCustomerAppLinkButtonPayload,
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* 고객정보 등록 링크 — UJ_6324 (검수중)                                           */
+/* -------------------------------------------------------------------------- */
+
+export const TEMPLATE_KEY_CUSTOMER_REGISTRATION_LINK = 'INSURANCE_CUSTOMER_REGISTRATION_LINK'
+
+/** 검수중 템플릿 코드 */
+export const CUSTOMER_REGISTRATION_LINK_TPL_CODE = 'UJ_6324'
+
+const CUSTOMER_REGISTRATION_LINK_SUBJECT = '고객정보 등록 안내'
+const CUSTOMER_REGISTRATION_LINK_BUTTON_NAME = '고객정보 등록'
+const CUSTOMER_REGISTRATION_LINK_TEMPLATE_NAME = '고객정보 등록 링크 안내'
+const CUSTOMER_REGISTRATION_LINK_CHANNEL_NAME = '@crm솔루션'
+
+/**
+ * 카카오 심사 신청 문구와 100% 일치해야 실발송 가능.
+ */
+export function buildCustomerRegistrationLinkMessage({ managerName }) {
+  const manager = String(managerName ?? '').trim() || '담당자'
+  return [
+    '안녕하세요.',
+    `${manager}입니다.`,
+    '',
+    '보험 상담 및 업무 진행을 위해 고객정보 등록 링크를 안내드립니다.',
+    '아래 [고객정보 등록] 버튼을 눌러 필요한 정보를 입력해 주세요.',
+    '',
+    '※ 본 링크는 보험 상담 및 업무 처리를 위한 고객정보 등록 안내입니다.',
+  ].join('\n')
+}
+
+/**
+ * @param {{
+ *   registrationUrl: string,
+ *   buttonName?: string,
+ * }} input
+ */
+export function buildCustomerRegistrationLinkButtonPayload(input) {
+  const url = String(input.registrationUrl ?? '').trim()
+  const name =
+    String(input.buttonName ?? CUSTOMER_REGISTRATION_LINK_BUTTON_NAME).trim() ||
+    CUSTOMER_REGISTRATION_LINK_BUTTON_NAME
+  return {
+    button: [
+      {
+        name,
+        linkType: 'WL',
+        linkTypeName: '웹링크',
+        linkMo: url,
+        linkPc: url,
+      },
+    ],
+  }
+}
+
+/**
+ * @param {NodeJS.ProcessEnv} [env]
+ */
+export function resolveCustomerRegistrationLinkTplCode(env = process.env) {
+  const fromEnv = String(env.INSURANCE_ALIGO_KAKAO_TPL_CUSTOMER_REGISTRATION_LINK ?? '').trim()
+  if (fromEnv) return fromEnv
+  return CUSTOMER_REGISTRATION_LINK_TPL_CODE
+}
+
+/**
+ * @param {NodeJS.ProcessEnv} [env]
+ */
+export function getCustomerRegistrationLinkTemplate(env = process.env) {
+  const tplCode = resolveCustomerRegistrationLinkTplCode(env)
+  return {
+    key: TEMPLATE_KEY_CUSTOMER_REGISTRATION_LINK,
+    subject: CUSTOMER_REGISTRATION_LINK_SUBJECT,
+    buttonName: CUSTOMER_REGISTRATION_LINK_BUTTON_NAME,
+    templateName: CUSTOMER_REGISTRATION_LINK_TEMPLATE_NAME,
+    channelName: CUSTOMER_REGISTRATION_LINK_CHANNEL_NAME,
+    failover: 'N',
+    tplCode,
+    isPlaceholder: isPlaceholderTplCode(tplCode),
+    buildMessage: buildCustomerRegistrationLinkMessage,
+    buildButtonPayload: buildCustomerRegistrationLinkButtonPayload,
+  }
+}
