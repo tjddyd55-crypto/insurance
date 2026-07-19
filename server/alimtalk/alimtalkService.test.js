@@ -117,6 +117,89 @@ describe('alimtalkService customer app link', () => {
     void fetchCalled
   })
 
+  it('uses body receiver override when provided', async () => {
+    const pool = createMockPool({
+      id: 10,
+      name: '김철수',
+      phone: '01099998888',
+      deleted_at: null,
+    })
+    /** @type {unknown} */
+    let sendInput = null
+    const result = await sendCustomerAppLinkAlimtalk(pool, {
+      agentId: 'user-1',
+      customerId: 10,
+      receiver: '010-1234-5678',
+      user: { id: 'user-1', role: 'USER', gaId: 1 },
+      forceDryRun: true,
+      skipEnsureLogTable: true,
+      config: loadInsuranceAlimtalkConfig({
+        INSURANCE_ALIGO_KAKAO_DRY_RUN: 'true',
+        INSURANCE_ALIGO_KAKAO_API_KEY: 'k',
+        INSURANCE_ALIGO_KAKAO_USER_ID: 'u',
+        INSURANCE_ALIGO_KAKAO_SENDER_KEY: 's',
+        INSURANCE_ALIGO_KAKAO_SENDER: '01011112222',
+      }),
+      templateEnv: {},
+      ensureLinkFn: async () => ({
+        ok: true,
+        error: null,
+        customerAppUrl: 'https://example.com/customer-app/link?code=XYZ',
+        linkCode: 'XYZ',
+      }),
+      sendFn: async (input) => {
+        sendInput = input
+        return {
+          ok: true,
+          status: 'dry_run',
+          dryRun: true,
+          provider: 'aligo_alimtalk',
+          providerMessageId: null,
+          providerCode: null,
+          providerMessage: 'dry run',
+          httpStatus: null,
+          requestedAt: new Date().toISOString(),
+          sentAt: null,
+          failedAt: null,
+        }
+      },
+    })
+    assert.equal(result.success, true)
+    assert.equal(result.data.tplCode, 'UJ_6184')
+    assert.equal(result.data.templateKey, 'INSURANCE_CUSTOMER_APP_LINK')
+    assert.equal(result.data.receiverMasked, '010****5678')
+    assert.equal(/** @type {{ receiver?: string }} */ (sendInput)?.receiver, '01012345678')
+  })
+
+  it('returns missing_receiver when phone and receiver are empty', async () => {
+    const pool = createMockPool({
+      id: 10,
+      name: '김철수',
+      phone: '',
+      deleted_at: null,
+    })
+    let sendCalled = false
+    const result = await sendCustomerAppLinkAlimtalk(pool, {
+      agentId: 'user-1',
+      customerId: 10,
+      user: { id: 'user-1', role: 'USER', gaId: 1 },
+      forceDryRun: true,
+      skipEnsureLogTable: true,
+      config: loadInsuranceAlimtalkConfig({ INSURANCE_ALIGO_KAKAO_DRY_RUN: 'true' }),
+      templateEnv: {},
+      ensureLinkFn: async () => {
+        throw new Error('should not create link')
+      },
+      sendFn: async () => {
+        sendCalled = true
+        return { ok: false, status: 'failed' }
+      },
+    })
+    assert.equal(result.success, false)
+    assert.equal(result.data.status, 'missing_receiver')
+    assert.equal(sendCalled, false)
+  })
+
   it('blocks real send when approval flags are false', async () => {
     const pool = createMockPool({
       id: 10,

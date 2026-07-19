@@ -152,7 +152,7 @@
     letter-spacing: var(--customer-mobile-letter-button);
   }
 
-  .customers-page--mobile .customer-mobile-expanded-app-link .customer-header-app-link-compact__copy {
+  .customers-page--mobile .customer-mobile-expanded-app-link .customer-header-app-link-compact__send {
     font-size: var(--customer-mobile-font-button);
     line-height: var(--customer-mobile-line-button);
     letter-spacing: var(--customer-mobile-letter-button);

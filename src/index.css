@@ -12119,19 +12119,7 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   white-space: nowrap;
 }
 
-.customers-page--mobile .customer-mobile-expanded-app-link .customer-header-app-link-compact__copy {
-  box-sizing: border-box;
-  min-height: 32px;
-  height: 32px;
-  padding: 0 12px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-.customers-page--mobile .customer-mobile-expanded-app-link .customer-header-app-link-compact__alimtalk {
+.customers-page--mobile .customer-mobile-expanded-app-link .customer-header-app-link-compact__send {
   box-sizing: border-box;
   min-height: 32px;
   height: 32px;
@@ -15040,7 +15028,7 @@ textarea.memo-sticky-note__textarea:focus {
    아이콘 버튼은 `.customers-page--pc .customer-card__actions .icon-box button` 등으로만 제한한다.
    ========================= */
 
-.customers-page--mobile button:not(.customer-detail-action-button):not(.customer-mobile-action-btn):not(.customer-detail-toggle-btn):not(.customer-header-app-link-compact__copy):not(.customer-header-app-link-compact__alimtalk):not(.customer-filter-chip):not(.customers-page__action-btn):not(.storage-file-list__action-button):not(.customer-workspace-action-button):not(.customer-workspace-action-icon-button):not(.ui-button):not(.linked-customer-chip__main):not(.linked-customer-chip__remove):not(.customer-relations-result-item):not(.customer-edit-actions__btn):not(.customer-list-scroll-top-button),
+.customers-page--mobile button:not(.customer-detail-action-button):not(.customer-mobile-action-btn):not(.customer-detail-toggle-btn):not(.customer-header-app-link-compact__send):not(.customer-filter-chip):not(.customers-page__action-btn):not(.storage-file-list__action-button):not(.customer-workspace-action-button):not(.customer-workspace-action-icon-button):not(.ui-button):not(.linked-customer-chip__main):not(.linked-customer-chip__remove):not(.customer-relations-result-item):not(.customer-edit-actions__btn):not(.customer-list-scroll-top-button),
 .customers-page--mobile a:not(.storage-file-list__action-button):not(.customer-workspace-action-button) {
   min-height: unset !important;
   height: auto !important;

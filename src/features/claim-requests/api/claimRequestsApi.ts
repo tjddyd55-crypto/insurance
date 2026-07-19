@@ -379,7 +379,7 @@ export async function getCustomerAppLink(token: string, customerId: number): Pro
 }
 
 export type CustomerAppAlimtalkSendResult = {
-  status: 'dry_run' | 'sent' | 'failed'
+  status: 'dry_run' | 'sent' | 'failed' | 'blocked' | 'missing_receiver'
   templateKey?: string
   receiverMasked?: string
   customerAppUrl?: string
@@ -392,16 +392,34 @@ export type CustomerAppAlimtalkSendResult = {
 export async function sendCustomerAppLinkAlimtalk(
   token: string,
   customerId: number,
+  receiver?: string,
 ): Promise<CustomerAppAlimtalkSendResult> {
-  const response = await apiRequest<{ success: true; data: CustomerAppAlimtalkSendResult }>(
-    `/api/agent/customers/${customerId}/customer-app/alimtalk`,
-    {
-      method: 'POST',
-      token,
-      body: JSON.stringify({}),
-    },
-  )
-  return response as CustomerAppAlimtalkSendResult
+  const body: Record<string, string> = {}
+  if (receiver != null && String(receiver).trim()) {
+    body.receiver = String(receiver).trim()
+  }
+  try {
+    const response = await apiRequest<{ success: true; data: CustomerAppAlimtalkSendResult }>(
+      `/api/agent/customers/${customerId}/customer-app/alimtalk`,
+      {
+        method: 'POST',
+        token,
+        body: JSON.stringify(body),
+      },
+    )
+    return response as CustomerAppAlimtalkSendResult
+  } catch (error) {
+    if (error instanceof ApiError && error.data && typeof error.data === 'object') {
+      const status = String((error.data as { status?: string }).status ?? '').trim()
+      if (status === 'blocked' || status === 'failed' || status === 'missing_receiver') {
+        return {
+          ...(error.data as CustomerAppAlimtalkSendResult),
+          status: status as CustomerAppAlimtalkSendResult['status'],
+        }
+      }
+    }
+    throw error
+  }
 }
 
 export async function listClaimRequests(

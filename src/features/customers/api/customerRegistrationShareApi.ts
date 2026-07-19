@@ -74,13 +74,26 @@ export async function sendCustomerRegistrationAlimtalk(
   token: string,
   receiver: string,
 ): Promise<CustomerRegistrationAlimtalkResult> {
-  const data = await apiRequest<CustomerRegistrationAlimtalkResult>(
-    '/api/agent/customer-registration/alimtalk',
-    {
-      token: requireToken(token),
-      method: 'POST',
-      body: JSON.stringify({ receiver }),
-    },
-  )
-  return data as CustomerRegistrationAlimtalkResult
+  try {
+    const data = await apiRequest<CustomerRegistrationAlimtalkResult>(
+      '/api/agent/customer-registration/alimtalk',
+      {
+        token: requireToken(token),
+        method: 'POST',
+        body: JSON.stringify({ receiver }),
+      },
+    )
+    return data as CustomerRegistrationAlimtalkResult
+  } catch (error) {
+    if (error instanceof ApiError && error.data && typeof error.data === 'object') {
+      const status = String((error.data as { status?: string }).status ?? '').trim()
+      if (status === 'blocked' || status === 'failed') {
+        return {
+          ...(error.data as CustomerRegistrationAlimtalkResult),
+          status: status as CustomerRegistrationAlimtalkResult['status'],
+        }
+      }
+    }
+    throw error
+  }
 }
