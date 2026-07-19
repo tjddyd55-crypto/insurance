@@ -4952,6 +4952,56 @@ div.cta-button.customers-page__action-btn[role='button'] {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* 고객등록 링크 공유 모달 (URL 미표시) */
+.customer-registration-share-modal__desc {
+  margin: 0 0 1rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.customer-registration-share-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.customer-registration-share-modal__label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.customer-registration-share-modal__hint,
+.customer-registration-share-modal__result {
+  margin: 0.75rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.customer-registration-share-modal__result {
+  color: var(--text-primary);
+}
+
+.customer-registration-share-modal__footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+@media (max-width: 768px) {
+  .customer-registration-share-modal__footer {
+    flex-direction: column;
+  }
+
+  .customer-registration-share-modal__footer .ui-button,
+  .customer-registration-share-modal__footer button {
+    width: 100%;
+  }
+}
+
 .customers-page__create-nav {
   margin-bottom: 8px;
 }

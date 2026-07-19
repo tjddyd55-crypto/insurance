@@ -49,6 +49,7 @@ import { useGaSettings } from '../../ga-settings/useGaSettings'
 import { CustomerRelationsStrip } from '../components/CustomerRelationsStrip'
 import CustomerMobileModals from '../components/CustomerMobileModals'
 import CustomerPageHeaderActions from '../components/CustomerPageHeaderActions'
+import CustomerRegistrationLinkShareModal from '../components/CustomerRegistrationLinkShareModal'
 import { CustomerFilterControls, type CustomerConsultationFilter } from '../components/CustomerFilterControls'
 import {
   type CustomerListSortValue,
@@ -1479,8 +1480,10 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     runExport([...sortedCustomers])
   }
 
-  /** 모바일 앱 WebView는 /customer/register 네비를 네이티브에서 막음 — 여기서는 복사만. */
-  const runCustomerRegisterInviteCopy = useCallback(async () => {
+  /** 고객등록 링크 공유 모달 (복사 / 문자 / 카카오톡) */
+  const [registrationShareOpen, setRegistrationShareOpen] = useState(false)
+
+  const openCustomerRegistrationShareModal = useCallback(() => {
     const refUsername = (user?.username ?? '').trim()
     const gaCode = (user?.gaCode ?? '').trim().toUpperCase()
     if (!gaCode) {
@@ -1496,13 +1499,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       setStatusText('초대 링크를 만들 수 없습니다. VITE_BASE_URL 설정을 확인해 주세요.')
       return
     }
-    const inviteUrl = `${origin}/customer/register?ref=${encodeURIComponent(refUsername)}&ga=${encodeURIComponent(gaCode)}`
-    const copied = await copyTextToClipboard(inviteUrl)
-    if (copied) {
-      setStatusText('등록 링크가 복사되었습니다.')
-      return
-    }
-    setStatusText('복사에 실패했습니다. 링크를 직접 선택해 복사해 주세요.')
+    setRegistrationShareOpen(true)
   }, [user?.username, user?.gaCode])
 
   const invokeInviteCopyFromPointer = useCallback(() => {
@@ -1511,8 +1508,8 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       return
     }
     inviteCopyPointerTsRef.current = now
-    void runCustomerRegisterInviteCopy()
-  }, [runCustomerRegisterInviteCopy])
+    openCustomerRegistrationShareModal()
+  }, [openCustomerRegistrationShareModal])
 
   const onCustomerRegisterInviteCopyTouchStart = useCallback(
     (e: TouchEvent<HTMLDivElement>) => {
@@ -1548,9 +1545,9 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       }
       e.preventDefault()
       e.stopPropagation()
-      void runCustomerRegisterInviteCopy()
+      openCustomerRegistrationShareModal()
     },
-    [runCustomerRegisterInviteCopy],
+    [openCustomerRegistrationShareModal],
   )
 
   if (user?.role !== 'USER') {
@@ -1857,6 +1854,14 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     <>
       {tab === 'create' ? createBodyNode : listBodyNode}
       {mobileDetailModalNode}
+      <CustomerRegistrationLinkShareModal
+        open={registrationShareOpen}
+        token={token}
+        username={(user?.username ?? '').trim()}
+        gaCode={(user?.gaCode ?? '').trim().toUpperCase()}
+        onClose={() => setRegistrationShareOpen(false)}
+        onFeedback={setStatusText}
+      />
     </>
   )
 
