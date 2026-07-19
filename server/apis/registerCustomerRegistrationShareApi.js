@@ -5,13 +5,11 @@ import {
   resolveCustomerRegistrationPublicOrigin,
 } from '../alimtalk/customerRegistrationLinkUrl.js'
 import { maskAlimtalkReceiver, normalizeAlimtalkPhone, validateAlimtalkPhone } from '../alimtalk/alimtalkPhone.js'
-import { isSmsModuleEnabled, isSmsRealSendEnabled } from '../sms/smsModuleConfig.js'
-import { listSmsSenders } from '../sms/smsSenderService.js'
-import { sendSingleSms } from '../sms/smsSendService.js'
-import { getSmsSettings } from '../sms/smsSettingsService.js'
-import { resolveSmsAuthContext } from '../sms/smsScope.js'
-
-const SMS_DISABLED_REASON = '알리고 문자 설정이 완료된 경우에만 사용할 수 있습니다.'
+import {
+  CUSTOMER_REGISTRATION_SMS_DISABLED_REASON,
+  resolveCustomerRegistrationSmsAvailability,
+  sendCustomerRegistrationSmsViaUserAligo,
+} from './customerRegistrationSmsShare.js'
 
 /**
  * @param {import('pg').Pool} pool
@@ -58,44 +56,9 @@ async function resolveRegistrationUrlForRequest(req, pool) {
 }
 
 /**
- * @param {import('pg').Pool} pool
- * @param {import('express').Request} req
- */
-async function resolveSmsAvailability(pool, req) {
-  if (!isSmsModuleEnabled()) {
-    return { available: false, reason: SMS_DISABLED_REASON }
-  }
-  if (!isSmsRealSendEnabled()) {
-    return { available: false, reason: SMS_DISABLED_REASON }
-  }
-  try {
-    const scope = await resolveSmsAuthContext(pool, req)
-    const settings = await getSmsSettings(pool, scope)
-    if (!settings?.configured || settings.providerMisconfigured) {
-      return { available: false, reason: SMS_DISABLED_REASON }
-    }
-    const senders = await listSmsSenders(pool, scope)
-    const senderList = Array.isArray(senders) ? senders : []
-    const verifiedSenders = senderList.filter((s) => String(s.status ?? '').toLowerCase() === 'verified')
-    const defaultSender = String(settings.defaultSender ?? '').replace(/\D/g, '')
-    if (verifiedSenders.length === 0 && !defaultSender) {
-      return { available: false, reason: SMS_DISABLED_REASON }
-    }
-    return {
-      available: true,
-      reason: null,
-      defaultSender,
-      scope,
-      settings,
-      verifiedSenders,
-    }
-  } catch {
-    return { available: false, reason: SMS_DISABLED_REASON }
-  }
-}
-
-/**
  * 고객등록 링크 공유: preview / SMS availability / SMS send / alimtalk
+ * SMS 는 유저 개인 알리고 설정 + CRM 단건 발송(sendSingleSms)만 사용한다.
+ *
  * @param {import('express').Router} apiRouter
  * @param {{
  *   pool: import('pg').Pool,
@@ -128,12 +91,14 @@ export function registerCustomerRegistrationShareApi(apiRouter, ctx) {
 
   apiRouter.get('/agent/customer-registration/sms-availability', requireAuth, async (req, res) => {
     try {
-      const avail = await resolveSmsAvailability(pool, req)
+      const avail = await resolveCustomerRegistrationSmsAvailability(pool, req)
       res.json({
         success: true,
         data: {
           available: Boolean(avail.available),
-          reason: avail.available ? null : avail.reason || SMS_DISABLED_REASON,
+          reason: avail.available
+            ? null
+            : avail.reason || CUSTOMER_REGISTRATION_SMS_DISABLED_REASON,
         },
       })
     } catch (error) {
@@ -143,17 +108,6 @@ export function registerCustomerRegistrationShareApi(apiRouter, ctx) {
 
   apiRouter.post('/agent/customer-registration/sms', requireAuth, async (req, res) => {
     try {
-      const avail = await resolveSmsAvailability(pool, req)
-      if (!avail.available || !avail.scope) {
-        res.status(400).json({
-          success: false,
-          message: SMS_DISABLED_REASON,
-          error: SMS_DISABLED_REASON,
-          data: { status: 'disabled' },
-        })
-        return
-      }
-
       const phoneDigits = normalizeAlimtalkPhone(req.body?.receiver)
       const phoneErr = validateAlimtalkPhone(phoneDigits)
       if (phoneErr) {
@@ -177,27 +131,10 @@ export function registerCustomerRegistrationShareApi(apiRouter, ctx) {
         return
       }
 
-      const preferred =
-        (avail.verifiedSenders || []).find((s) => s.isDefault) ||
-        (avail.verifiedSenders || [])[0]
-      const senderNumber = String(preferred?.senderNumber || avail.defaultSender || '').replace(/\D/g, '')
-
-      if (!senderNumber) {
-        res.status(400).json({
-          success: false,
-          message: SMS_DISABLED_REASON,
-          error: SMS_DISABLED_REASON,
-          data: { status: 'disabled' },
-        })
-        return
-      }
-
       const message = buildCustomerRegistrationSmsMessage(registrationUrl)
-      const result = await sendSingleSms(pool, avail.scope, {
-        senderNumber,
+      const result = await sendCustomerRegistrationSmsViaUserAligo(pool, req, {
         receiver: phoneDigits,
         message,
-        messageType: 'info',
       })
 
       res.json({
@@ -214,11 +151,15 @@ export function registerCustomerRegistrationShareApi(apiRouter, ctx) {
           /** @type {{ publicMessage?: string, message?: string }} */ (error).publicMessage ||
           /** @type {{ message?: string }} */ (error).message ||
           '문자 발송에 실패했습니다.'
+        const isDisabled =
+          String(/** @type {{ message?: string }} */ (error).message ?? '') ===
+            'sms_customer_registration_disabled' ||
+          msg === CUSTOMER_REGISTRATION_SMS_DISABLED_REASON
         res.status(Number(error.status) || 400).json({
           success: false,
           message: msg,
           error: msg,
-          data: { status: 'failed' },
+          data: { status: isDisabled ? 'disabled' : 'failed', message: msg },
         })
         return
       }
