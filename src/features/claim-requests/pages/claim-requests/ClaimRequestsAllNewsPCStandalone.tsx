@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import FileUploader from '../../../../components/common/FileUploader'
+import { useConfirmDialog } from '../../../../components/dialog'
 import { StatusMessage } from '../../../../components/feedback'
 import { FormButton, FormInput, FormTextarea } from '../../../../components/form'
 import { fetchMe } from '../../../auth/authApi'
@@ -79,6 +80,7 @@ async function deleteAllNewsSourceFiles(token: string, item: AgentCustomerNewsIt
 
 export default function ClaimRequestsAllNewsPCStandalone() {
   const { token, user } = useAuth()
+  const { confirm, confirmDialog } = useConfirmDialog()
   const [agentMePhone, setAgentMePhone] = useState<string | null>(null)
   const [history, setHistory] = useState<AgentCustomerNewsItem[]>([])
   const [title, setTitle] = useState('')
@@ -321,11 +323,15 @@ export default function ClaimRequestsAllNewsPCStandalone() {
     if (!token?.trim() || !activeHomeItem) {
       return
     }
-    if (
-      !window.confirm(
-        '고객앱 홈에 표시 중인 메시지·이미지를 삭제할까요? 저장소에 올린 파일도 정리합니다.',
-      )
-    ) {
+    const confirmed = await confirm({
+      title: '고객앱 홈 슬라이드를 삭제할까요?',
+      message:
+        '고객앱 홈에 표시 중인 메시지와 이미지를 삭제합니다.\n저장소에 올린 파일도 함께 정리됩니다.',
+      confirmLabel: '삭제',
+      cancelLabel: '취소',
+      tone: 'danger',
+    })
+    if (!confirmed) {
       return
     }
     setDeleteBusy(true)
@@ -351,6 +357,7 @@ export default function ClaimRequestsAllNewsPCStandalone() {
 
   return (
     <ClaimRequestsPagePCView>
+      {confirmDialog}
       <section className="claim-requests-all-news-pc insurer-news-page">
         <StatusMessage message={error} tone="error" />
         <div className="customer-news-all-layout claim-requests-all-news-pc__layout">

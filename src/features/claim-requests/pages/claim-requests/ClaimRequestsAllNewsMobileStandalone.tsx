@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useConfirmDialog } from '../../../../components/dialog'
 import { isRichTextEmpty } from '../../../../components/rich-text/richText'
 import { useAuth } from '../../../auth/AuthProvider'
 import { deleteStorageFile, listStorageFiles } from '../../../storage/api/storageApi'
@@ -52,6 +53,7 @@ async function deleteAllNewsSourceFiles(token: string, item: AgentCustomerNewsIt
 
 export default function ClaimRequestsAllNewsMobileStandalone() {
   const { token } = useAuth()
+  const { confirm, confirmDialog } = useConfirmDialog()
   const [history, setHistory] = useState<AgentCustomerNewsItem[]>([])
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -192,11 +194,14 @@ export default function ClaimRequestsAllNewsMobileStandalone() {
     if (!token) {
       return
     }
-    if (
-      !window.confirm(
-        '이 소식지를 완전히 삭제할까요? 첨부 이미지/파일도 삭제되며 복구할 수 없습니다.',
-      )
-    ) {
+    const confirmed = await confirm({
+      title: '소식지를 삭제할까요?',
+      message: '이 소식지를 완전히 삭제합니다.\n첨부 이미지/파일도 삭제되며 복구할 수 없습니다.',
+      confirmLabel: '삭제',
+      cancelLabel: '취소',
+      tone: 'danger',
+    })
+    if (!confirmed) {
       return
     }
     setDeletingId(item.id)
@@ -225,23 +230,26 @@ export default function ClaimRequestsAllNewsMobileStandalone() {
   }
 
   return (
-    <ClaimRequestsAllNewsMobileView
-      title={title}
-      content={content}
-      attachments={attachments}
-      history={history}
-      loading={loading}
-      actionBusy={actionBusy}
-      deletingId={deletingId}
-      resultMessage={result}
-      errorMessage={error}
-      onTitleChange={setTitle}
-      onContentChange={setContent}
-      onFilesSelected={handleFilesSelected}
-      onRemoveAttachment={handleRemoveAttachment}
-      onSend={() => void handleSend()}
-      onDeleteNews={(item) => void handleDeleteNews(item)}
-      formatDateTime={formatDateTime}
-    />
+    <>
+      {confirmDialog}
+      <ClaimRequestsAllNewsMobileView
+        title={title}
+        content={content}
+        attachments={attachments}
+        history={history}
+        loading={loading}
+        actionBusy={actionBusy}
+        deletingId={deletingId}
+        resultMessage={result}
+        errorMessage={error}
+        onTitleChange={setTitle}
+        onContentChange={setContent}
+        onFilesSelected={handleFilesSelected}
+        onRemoveAttachment={handleRemoveAttachment}
+        onSend={() => void handleSend()}
+        onDeleteNews={(item) => void handleDeleteNews(item)}
+        formatDateTime={formatDateTime}
+      />
+    </>
   )
 }
