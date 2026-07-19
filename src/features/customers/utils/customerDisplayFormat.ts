@@ -1,3 +1,4 @@
+import { formatKoreanMobilePhone, formatKoreanResidentNumber } from '../../../utils/inputFormatters'
 import { inferGenderFromResidentNumberDigits } from './inferGenderFromResidentNumberDigits'
 
 export const CUSTOMER_MEDICAL_QUESTION_TEXT =
@@ -50,11 +51,7 @@ export function formatCustomerSsnUi(raw: string | null | undefined): string {
   if (!text) {
     return ''
   }
-  const digits = text.replace(/\D/g, '')
-  if (digits.length === 13) {
-    return `${digits.slice(0, 6)}-${digits.slice(6)}`
-  }
-  return text
+  return formatKoreanResidentNumber(text)
 }
 
 export function formatCustomerPhoneUi(raw: string | null | undefined): string {
@@ -63,13 +60,10 @@ export function formatCustomerPhoneUi(raw: string | null | undefined): string {
     return ''
   }
   const digits = text.replace(/\D/g, '')
-  if (digits.length === 11) {
-    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
+  if (digits.length < 10) {
+    return text
   }
-  if (digits.length === 10) {
-    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`
-  }
-  return text
+  return formatKoreanMobilePhone(text)
 }
 
 export { formatCustomerMobileCarrierDisplay } from '../config/customerMobileCarrier.config'

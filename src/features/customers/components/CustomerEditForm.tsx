@@ -112,7 +112,7 @@ export default function CustomerEditForm({
             <FormInput
               className="field__control"
               name="customer-ssn"
-              autoComplete="off"
+              format="residentNumber"
               value={editForm.ssn ?? ''}
               onChange={(e) => {
                 const next = e.target.value
@@ -133,7 +133,7 @@ export default function CustomerEditForm({
             <FormInput
               className="field__control"
               name="customer-phone"
-              autoComplete="tel"
+              format="phone"
               value={editForm.phone ?? ''}
               onChange={(e) =>
                 setEditForm((prev) => (prev ? { ...prev, phone: e.target.value } : prev))

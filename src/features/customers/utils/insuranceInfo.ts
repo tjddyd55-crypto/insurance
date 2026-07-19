@@ -1,13 +1,11 @@
+import { formatKoreanResidentNumber } from '../../../utils/inputFormatters'
 import { calculateInsuranceAgeFromRrn } from './insuranceAge'
 
 const NOTE_MAX_LENGTH = 2000
 
+/** @deprecated Prefer formatKoreanResidentNumber — kept as thin alias for callers. */
 export function formatRrnInput(raw: string): string {
-  const d = raw.replace(/\D/g, '').slice(0, 13)
-  if (d.length <= 6) {
-    return d
-  }
-  return `${d.slice(0, 6)}-${d.slice(6)}`
+  return formatKoreanResidentNumber(raw)
 }
 
 /** 주민번호 기준 보험나이·상령일 — `insuranceAge.ts` 단일 로직 */

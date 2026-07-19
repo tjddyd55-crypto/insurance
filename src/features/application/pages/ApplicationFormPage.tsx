@@ -563,14 +563,14 @@ export function ApplicationFormPage() {
         <TextInput
           label="휴대폰"
           value={formData.ownerPhone}
-          inputMode="numeric"
+          format="phone"
           disabled={isReadOnly}
           onChange={(value) => updateField('ownerPhone', value)}
         />
         <TextInput
           label="주민번호"
           value={formData.ownerResidentNumber}
-          inputMode="numeric"
+          format="residentNumber"
           disabled={isReadOnly}
           onChange={(value) => updateField('ownerResidentNumber', value)}
         />
@@ -599,14 +599,14 @@ export function ApplicationFormPage() {
         <TextInput
           label="휴대폰"
           value={formData.payerPhone}
-          inputMode="numeric"
+          format="phone"
           disabled={isReadOnly || formData.payerSameAsOwner}
           onChange={(value) => updateField('payerPhone', value)}
         />
         <TextInput
           label="주민번호"
           value={formData.payerResidentNumber}
-          inputMode="numeric"
+          format="residentNumber"
           disabled={isReadOnly || formData.payerSameAsOwner}
           onChange={(value) => updateField('payerResidentNumber', value)}
         />
@@ -730,7 +730,7 @@ export function ApplicationFormPage() {
         <TextInput
           label="지정 1인 운전자 주민번호"
           value={formData.designatedDriverResidentNumber}
-          inputMode="numeric"
+          format="residentNumber"
           disabled={isReadOnly}
           onChange={(value) => updateField('designatedDriverResidentNumber', value)}
         />
@@ -743,7 +743,7 @@ export function ApplicationFormPage() {
         <TextInput
           label="배우자/최저운전자 주민번호"
           value={formData.spouseOrMinDriverResidentNumber}
-          inputMode="numeric"
+          format="residentNumber"
           disabled={isReadOnly}
           onChange={(value) => updateField('spouseOrMinDriverResidentNumber', value)}
         />

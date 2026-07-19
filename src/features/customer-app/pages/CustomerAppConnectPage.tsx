@@ -433,10 +433,9 @@ export default function CustomerAppConnectPage() {
         />
         <FormInput
           className="w-full"
+          format="phone"
           value={phone}
           onChange={(event) => setPhone(event.target.value)}
-          placeholder="연락처 (예: 010-1234-5678)"
-          autoComplete="tel"
         />
         <FormButton htmlType="button" variant="primary" onClick={() => void handleConnect()} loading={loading}>
           연결하기
