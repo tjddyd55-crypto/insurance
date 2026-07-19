@@ -45,6 +45,7 @@ import { registerGaCustomerExcelApi } from './apis/gaCustomerExcelApi.js'
 import { registerGaCustomerMatchAliasesApi } from './apis/gaCustomerMatchAliasesApi.js'
 import { registerCustomerClaimAppApi } from './apis/customerClaimAppApi.js'
 import { registerCustomerAppAlimtalkApi } from './apis/registerCustomerAppAlimtalkApi.js'
+import { registerCustomerAppShareApi } from './apis/registerCustomerAppShareApi.js'
 import { registerCustomerRegistrationShareApi } from './apis/registerCustomerRegistrationShareApi.js'
 import { registerCustomerCarsApi } from './apis/customerCarsApi.js'
 import { registerCustomerSpecialDatesApi } from './apis/customerSpecialDatesApi.js'
@@ -1652,6 +1653,12 @@ registerCustomerClaimAppApi(apiRouter, {
 })
 
 registerCustomerAppAlimtalkApi(apiRouter, {
+  pool,
+  requireAuth,
+  handleDbError,
+})
+
+registerCustomerAppShareApi(apiRouter, {
   pool,
   requireAuth,
   handleDbError,

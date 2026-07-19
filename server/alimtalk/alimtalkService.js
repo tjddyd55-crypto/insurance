@@ -98,6 +98,7 @@ async function loadManagerName(pool, userId) {
  *   customerId: number,
  *   user: import('express').Request['user'] | { id?: string, role?: string, gaId?: unknown },
  *   reqLike?: { protocol?: string, host?: string } | null,
+ *   receiver?: string | null,
  *   forceDryRun?: boolean,
  *   config?: ReturnType<typeof loadInsuranceAlimtalkConfig>,
  *   templateEnv?: NodeJS.ProcessEnv,
@@ -131,7 +132,9 @@ export async function sendCustomerAppLinkAlimtalk(pool, params) {
   }
 
   const customerName = String(access.customer.name ?? '').trim() || '고객'
-  const phoneDigits = normalizeAlimtalkPhone(access.customer.phone)
+  const bodyReceiver = normalizeAlimtalkPhone(params.receiver)
+  const customerPhone = normalizeAlimtalkPhone(access.customer.phone)
+  const phoneDigits = bodyReceiver || customerPhone
   const receiverMasked = maskAlimtalkReceiver(phoneDigits)
   const phoneErr = validateAlimtalkPhone(phoneDigits)
   if (phoneErr) {
@@ -151,9 +154,9 @@ export async function sendCustomerAppLinkAlimtalk(pool, params) {
     return {
       success: false,
       httpStatus: 400,
-      error: phoneErr,
+      error: '고객 휴대폰번호가 없어 발송할 수 없습니다.',
       data: {
-        status: 'failed',
+        status: 'missing_receiver',
         templateKey: template.key,
         receiverMasked,
         provider: config.provider,

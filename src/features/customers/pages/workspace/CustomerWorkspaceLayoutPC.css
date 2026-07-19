@@ -65,13 +65,7 @@
   margin-left: auto;
 }
 
-.customer-workspace-layout__summary-inner .customer-header-app-link-compact__copy {
-  min-height: 28px;
-  padding: 0 10px;
-  font-size: 12px;
-}
-
-.customer-workspace-layout__summary-inner .customer-header-app-link-compact__alimtalk {
+.customer-workspace-layout__summary-inner .customer-header-app-link-compact__send {
   min-height: 28px;
   padding: 0 10px;
   font-size: 12px;

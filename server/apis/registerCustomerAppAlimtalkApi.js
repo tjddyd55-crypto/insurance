@@ -34,10 +34,15 @@ export function registerCustomerAppAlimtalkApi(apiRouter, ctx) {
       // 운영 UI는 body.dryRun 조작 금지 — 서버 env 우선. 테스트용으로만 true 강제 허용.
       const bodyDryRun = req.body?.dryRun
       const forceDryRun = bodyDryRun === true
+      const receiver =
+        req.body?.receiver != null && String(req.body.receiver).trim() !== ''
+          ? String(req.body.receiver)
+          : undefined
 
       const result = await sendCustomerAppLinkAlimtalk(pool, {
         agentId,
         customerId,
+        receiver,
         user: req.user,
         reqLike: {
           protocol: req.protocol,
