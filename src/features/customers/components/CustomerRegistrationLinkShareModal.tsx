@@ -277,8 +277,8 @@ export default function CustomerRegistrationLinkShareModal({
           </p>
         ) : null}
 
-        <section className="customer-registration-share-modal__actions" aria-label="공유 방법">
-          <h3 className="customer-registration-share-modal__actions-title">공유 방법</h3>
+        <section className="customer-registration-share-modal__actions" aria-label="발송 방법">
+          <h3 className="customer-registration-share-modal__actions-title">발송 방법</h3>
           <div className="customer-registration-share-modal__action-grid">
             <FormButton
               htmlType="button"
