@@ -32,9 +32,10 @@ export function buildBoardWriterNavLabels(board: BoardWriterNavBoard): BoardWrit
       uploadLabel: '공용 소식지 업로드',
     }
   }
+  // GA전용 등: 메뉴/탭 표시는 생성 이름 그대로 (suffix 금지)
   return {
     title: name,
-    viewLabel: `${name} 조회`,
+    viewLabel: name,
     uploadLabel: `${name} 업로드`,
   }
 }

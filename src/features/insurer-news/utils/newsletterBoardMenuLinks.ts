@@ -27,8 +27,9 @@ export function buildNewsletterBoardUploadPath(boardSlug: string): string {
 }
 
 /**
- * 동적 소식지 메뉴 — 보드별 "조회" + (GA전용·내부 역할일 때만) "업로드".
+ * 동적 소식지 메뉴 — 보드별 조회(생성 이름 그대로) + (GA전용·내부 역할일 때만) "업로드".
  * 업로드는 CRM 직접 작성이 아니라 작성자 워크스페이스 경로로 연결한다.
+ * 사용자 노출 조회 메뉴에는 "조회"/"소식지" 등 suffix 를 붙이지 않는다.
  */
 export function buildDynamicNewsletterBoardMenuEntries(
   boards: DynamicNewsletterBoardMenuItem[],
@@ -45,7 +46,7 @@ export function buildDynamicNewsletterBoardMenuEntries(
     }
     entries.push({
       type: 'link',
-      label: `${name} 조회`,
+      label: name,
       path: buildNewsletterBoardViewPath(slug),
     })
     if (includeUploadLinks && isGaOnlyNewsletterBoard(board)) {
