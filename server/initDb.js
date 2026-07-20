@@ -3758,6 +3758,11 @@ export async function initDb() {
     ON customer_relations(customer_id)
   `)
 
+  const { ensureCustomerRelationGroupsSchema } = await import(
+    './customer-relation-groups/ensureCustomerRelationGroupsSchema.js'
+  )
+  await ensureCustomerRelationGroupsSchema(pool)
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS analytics_events (
       id BIGSERIAL PRIMARY KEY,

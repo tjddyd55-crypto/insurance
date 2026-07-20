@@ -24,6 +24,7 @@ import { planSignupCodes, applySignupCodesPlan } from './signup/processSignupCod
 import { applySignupAutoPromotionOnSignup } from './signup/signupAutoPromotion.js'
 import { readPolicyActive } from './subscription/appSettings.js'
 import { registerCustomerExtraApi } from './apis/customerExtraApi.js'
+import { registerCustomerRelationGroupsApi } from './apis/registerCustomerRelationGroupsApi.js'
 import { registerTeamApi } from './apis/teamApi.js'
 import { registerAdminNoticesApi } from './registerAdminNoticesApi.js'
 import { registerNoticesApi } from './apis/noticesApi.js'
@@ -7627,6 +7628,7 @@ apiRouter.delete('/forms/:id', requireAuth, async (req, res) => {
  * 반드시 app.use 로 apiRouter 를 붙이기 **전에** 등록한다. (등록이 뒤에 가면 라우트가 붙지 않음)
  */
 registerCustomerExtraApi(apiRouter, { pool, requireAuth, handleDbError })
+registerCustomerRelationGroupsApi(apiRouter, { pool, requireAuth, handleDbError })
 
 app.use('/uploads', express.static(UPLOADS_PUBLIC_PATH))
 
