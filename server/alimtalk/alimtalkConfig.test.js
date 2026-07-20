@@ -55,4 +55,16 @@ describe('alimtalkConfig', () => {
       true,
     )
   })
+
+  it('enables gateway provider when GATEWAY_URL is set', () => {
+    const config = loadInsuranceAlimtalkConfig({
+      INSURANCE_ALIGO_KAKAO_GATEWAY_URL: 'http://gateway.example/api/crm-alimtalk/',
+      INSURANCE_ALIGO_KAKAO_GATEWAY_TOKEN: 'tok',
+      INSURANCE_ALIGO_KAKAO_TEST_MODE: 'false',
+    })
+    assert.equal(config.useGateway, true)
+    assert.equal(config.gatewayUrl, 'http://gateway.example/api/crm-alimtalk')
+    assert.equal(config.provider, 'aligo_alimtalk_gateway')
+    assert.equal(config.testMode, 'N')
+  })
 })

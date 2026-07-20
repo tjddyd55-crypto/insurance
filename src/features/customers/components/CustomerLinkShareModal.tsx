@@ -336,7 +336,10 @@ export default function CustomerLinkShareModal({
           showStatus(MISSING_CUSTOMER_PHONE_REASON, 'error')
           onFeedback(MISSING_CUSTOMER_PHONE_REASON)
         } else {
-          const msg = '카카오톡 발송에 실패했습니다. 링크 복사로 직접 전달할 수 있습니다.'
+          const reason = result.providerMessage ? String(result.providerMessage) : ''
+          const msg = reason
+            ? `카카오톡 발송에 실패했습니다. ${reason}`
+            : '카카오톡 발송에 실패했습니다. 링크 복사로 직접 전달할 수 있습니다.'
           showStatus(msg, 'error')
           onFeedback(msg)
         }
@@ -357,16 +360,29 @@ export default function CustomerLinkShareModal({
           showStatus(msg, 'info')
           onFeedback(msg)
         } else {
-          const msg = '카카오톡 발송에 실패했습니다. 링크 복사로 직접 전달할 수 있습니다.'
+          const reason = result.providerMessage ? String(result.providerMessage) : ''
+          const msg = reason
+            ? `카카오톡 발송에 실패했습니다. ${reason}`
+            : '카카오톡 발송에 실패했습니다. 링크 복사로 직접 전달할 수 있습니다.'
           showStatus(msg, 'error')
           onFeedback(msg)
         }
       }
     } catch (error) {
-      const msg = '카카오톡 발송에 실패했습니다. 링크 복사로 직접 전달할 수 있습니다.'
+      const providerMessage =
+        error instanceof ApiError &&
+        error.data &&
+        typeof error.data === 'object' &&
+        'providerMessage' in error.data &&
+        error.data.providerMessage
+          ? String(error.data.providerMessage)
+          : ''
+      const msg = providerMessage
+        ? `카카오톡 발송에 실패했습니다. ${providerMessage}`
+        : '카카오톡 발송에 실패했습니다. 링크 복사로 직접 전달할 수 있습니다.'
       showStatus(msg, 'error')
       onFeedback(
-        error instanceof ApiError && error.message
+        error instanceof ApiError && error.message && !providerMessage
           ? `카카오톡 발송에 실패했습니다. 사유: ${error.message}`
           : msg,
       )

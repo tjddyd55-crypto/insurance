@@ -1,18 +1,20 @@
 /**
- * 운영 시 실제 SMS 업체(알리고 등) 호출 로직을 이 파일에 연결하세요.
- * 메인 앱은 SMS_HTTP_GATEWAY_URL 로 이 서버에 { phone, message } JSON POST 합니다.
+ * EC2 SMS Gateway (repo reference).
+ * Live production uses /home/ubuntu/sms-server on EC2:3000.
  *
- * 헬스체크: GET /health → { "status": "ok" }
+ * 시스템 인증 SMS: POST /, POST /send-sms
+ * 보험 CRM 알림톡: /api/crm-alimtalk/*
  */
 import express from 'express'
+import { createCrmAlimtalkRouter } from './routes/crmAlimtalk.mjs'
 
 const PORT = Number(process.env.PORT ?? 3080)
 
 const app = express()
-app.use(express.json({ limit: '32kb' }))
+app.use(express.json({ limit: '256kb' }))
 
 app.get('/health', (_req, res) => {
-  res.status(200).json({ status: 'ok' })
+  res.status(200).json({ status: 'ok', service: 'sms-gateway-ec2' })
 })
 
 const smsHandler = async (req, res) => {
@@ -23,7 +25,6 @@ const smsHandler = async (req, res) => {
     return
   }
 
-  // TODO: 여기서 알리고·AWS SNS 등 실제 발송
   if (String(process.env.SMS_GATEWAY_STUB_OK ?? '').trim() === 'true') {
     res.status(200).json({ ok: true, stub: true })
     return
@@ -34,6 +35,8 @@ const smsHandler = async (req, res) => {
 
 app.post('/', smsHandler)
 app.post('/send-sms', smsHandler)
+
+app.use('/api/crm-alimtalk', createCrmAlimtalkRouter())
 
 app.listen(PORT, () => {
   console.log(`[sms-gateway-ec2] listening on ${PORT}`)

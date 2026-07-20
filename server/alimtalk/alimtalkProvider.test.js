@@ -94,30 +94,50 @@ describe('alimtalkProvider', () => {
     assert.equal(result.providerMessageId, 'M1')
   })
 
-  it('does not set SMS failover', async () => {
+  it('gateway mode posts JSON to relay and maps providerCode', async () => {
+    /** @type {string | null} */
+    let calledUrl = null
     /** @type {string | null} */
     let body = null
-    await sendAligoAlimtalk({
+    const result = await sendAligoAlimtalk({
       config: loadInsuranceAlimtalkConfig({
         INSURANCE_ALIGO_KAKAO_DRY_RUN: 'false',
         INSURANCE_ALIGO_KAKAO_API_KEY: 'k',
         INSURANCE_ALIGO_KAKAO_USER_ID: 'u',
         INSURANCE_ALIGO_KAKAO_SENDER_KEY: 's',
         INSURANCE_ALIGO_KAKAO_SENDER: '01011112222',
+        INSURANCE_ALIGO_KAKAO_GATEWAY_URL: 'http://gateway.example/api/crm-alimtalk',
+        INSURANCE_ALIGO_KAKAO_GATEWAY_TOKEN: 'tok',
       }),
       dryRun: false,
-      tplCode: 'UJ_6184',
+      tplCode: 'UJ_6324',
       receiver: '01012345678',
-      subject: '고객앱 안내',
+      subject: '고객정보 등록 안내',
       message: 'hello',
-      buttonPayload: { button: [{ name: 'x', linkType: 'WL', linkTypeName: '웹링크', linkMo: 'https://x', linkPc: 'https://x' }] },
-      fetchImpl: async (_url, init) => {
+      buttonPayload: {
+        button: [{ name: '고객정보 등록', linkType: 'WL', linkTypeName: '웹링크', linkMo: 'https://x', linkPc: 'https://x' }],
+      },
+      fetchImpl: async (url, init) => {
+        calledUrl = String(url)
         body = String(init?.body ?? '')
-        return { status: 200, text: async () => '{"code":0}' }
+        return {
+          status: 502,
+          text: async () =>
+            JSON.stringify({
+              success: false,
+              providerCode: -99,
+              providerMessage: '인증되지 않는 서버 IP로 부터의 호출 입니다.',
+            }),
+        }
       },
     })
-    assert.ok(body)
-    assert.match(body, /failover=N/)
-    assert.doesNotMatch(body, /failover=Y/)
+    assert.match(String(calledUrl), /crm-alimtalk\/send/)
+    assert.match(String(body), /"tpl_code":"UJ_6324"/)
+    assert.match(String(body), /"failover":"N"/)
+    assert.match(String(body), /"testMode":"N"/)
+    assert.equal(result.ok, false)
+    assert.equal(result.providerCode, -99)
+    assert.match(String(result.providerMessage), /서버 IP/)
+    assert.equal(result.provider, 'aligo_alimtalk_gateway')
   })
 })
