@@ -440,3 +440,207 @@
     max-height: min(80vh, 640px);
   }
 }
+
+/* ── 연계 고객 그룹 카드 ── */
+.customer-relations-strip__header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.customer-relations-strip__empty {
+  margin: 0;
+  padding: 10px 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.customer-relation-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.customer-relation-group-card {
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--bg-surface);
+  padding: 12px;
+}
+
+.customer-relation-group-card__header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.customer-relation-group-card__title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.customer-relation-group-card__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.customer-relation-group-card__type {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-soft);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.customer-relation-group-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.customer-relation-group-card__members {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.customer-relation-group-member {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--bg-base, var(--bg-elevated));
+  min-height: 52px;
+}
+
+.customer-relation-group-member--current {
+  border-color: var(--hint-border, var(--border-default));
+  background: var(--hint-bg, var(--bg-soft));
+}
+
+.customer-relation-group-member--focused {
+  outline: 2px solid var(--input-focus-border, #2563eb);
+}
+
+.customer-relation-group-member__main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.customer-relation-group-member__main:disabled {
+  cursor: default;
+}
+
+.customer-relation-group-member__name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.customer-relation-group-member__meta {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.customer-relation-group-member__ops {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.customer-relations-legacy {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-default);
+}
+
+.customer-relations-legacy__title {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.customer-relation-group-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.customer-relation-group-form__hint {
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.customer-relation-group-pending {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.customer-relation-group-pending li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-soft);
+  font-size: 0.85rem;
+}
+
+.customer-relation-group-modal .customer-relations-modal__body {
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+}
+
+@media (min-width: 769px) {
+  .customer-relation-group-member {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .customer-relation-group-card__header {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+}
+
