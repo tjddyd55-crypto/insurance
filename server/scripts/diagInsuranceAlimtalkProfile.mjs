@@ -61,7 +61,7 @@ console.log(
         .map((item) => ({
           name: item?.name != null ? String(item.name) : null,
           status: item?.status != null ? String(item.status) : null,
-          hasSenderkey: Boolean(item?.senderkey),
+          hasSenderkey: Boolean(item?.senderkey ?? item?.senderKey ?? item?.sender_key),
         })),
     },
     null,
