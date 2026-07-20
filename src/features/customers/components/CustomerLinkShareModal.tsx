@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { FormButton, FormInput } from '../../../components/form'
 import { BaseDialog } from '../../../components/dialog'
+import { useBackButtonClose } from '../../../hooks/useBackButtonClose'
 import { ApiError } from '../../../lib/apiClient'
 import { copyTextToClipboard } from '../../../lib/clipboard'
 import { getPublicOrigin } from '../../../lib/publicOrigin'
@@ -407,10 +408,19 @@ export default function CustomerLinkShareModal({
 
   const copyDisabled = busy || (!isCustomerApp && !shareUrl && !resolveRegistrationUrl())
 
-  const requestClose = () => {
+  const requestClose = useCallback(() => {
     if (busy) return
     onClose()
-  }
+  }, [busy, onClose])
+
+  /*
+   * Android/브라우저 back → 모달만 닫기 (뒤 레이어 route 이동 금지).
+   * 공용 useBackButtonClose: open 시 synthetic history 1회 push, popstate 시 onClose,
+   * 버튼 닫기 시 cleanup 에서 marker 일치할 때만 history.back() 으로 entry 정리.
+   * BaseDialog closeOnHistoryBack 과 이중 trap 하지 않는다.
+   * back 은 busy 여부와 무관하게 닫는다(trap 소비 후 모달만 남는 회귀 방지).
+   */
+  useBackButtonClose(open, onClose)
 
   return (
     <BaseDialog
