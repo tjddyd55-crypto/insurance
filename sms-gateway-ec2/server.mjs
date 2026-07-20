@@ -13,11 +13,12 @@
  */
 import express from 'express'
 import { createCrmSmsRouter } from './routes/crmSms.mjs'
+import { createCrmAlimtalkRouter } from './routes/crmAlimtalk.mjs'
 
 const PORT = Number(process.env.PORT ?? 3080)
 
 const app = express()
-app.use(express.json({ limit: '64kb' }))
+app.use(express.json({ limit: '256kb' }))
 
 app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok', service: 'sms-gateway-ec2' })
@@ -43,6 +44,7 @@ app.post('/', smsHandler)
 app.post('/send-sms', smsHandler)
 
 app.use('/api/crm-sms', createCrmSmsRouter())
+app.use('/api/crm-alimtalk', createCrmAlimtalkRouter())
 
 app.listen(PORT, () => {
   console.log(`[sms-gateway-ec2] listening on ${PORT}`)

@@ -24,7 +24,7 @@ SMS(`ALIGO_*`, `SMS_MODULE_*`)·자동문자와 **완전히 분리**합니다.
 ## 정부지원 CRM ↔ 보험 CRM 매핑
 
 정부지원은 Railway → EC2 relay, EC2 에 Aligo Kakao credential 이 있습니다.
-보험 CRM 은 **앱 서비스에 직접** `INSURANCE_ALIGO_KAKAO_*` 를 둡니다.
+보험 CRM 도 **Railway 직접 호출 시 Aligo IP 화이트리스트(-99)에 막히므로** EC2 relay 를 사용합니다.
 
 | 정부지원 / EC2 | 보험 CRM |
 |---|---|
@@ -33,7 +33,24 @@ SMS(`ALIGO_*`, `SMS_MODULE_*`)·자동문자와 **완전히 분리**합니다.
 | `ALIGO_KAKAO_SENDER_KEY` | `INSURANCE_ALIGO_KAKAO_SENDER_KEY` |
 | `ALIGO_SENDER` (발신번호) | `INSURANCE_ALIGO_KAKAO_SENDER` |
 | `ALIMTALK_DRY_RUN` / `GOVERNMENT_ALIMTALK_DRY_RUN` | `INSURANCE_ALIGO_KAKAO_DRY_RUN` |
-| (정부지원은 relay 구조) | `INSURANCE_ALIGO_KAKAO_ALLOW_REAL_SEND` + 템플릿별 `*_APPROVED` |
+| EC2 relay | `INSURANCE_ALIGO_KAKAO_GATEWAY_URL` + token (`SMS_MODULE_GATEWAY_TOKEN` 재사용 가능) |
+
+### EC2 relay (필수 · production)
+
+알리고 응답 `code -99` / `인증되지 않는 서버 IP로 부터의 호출 입니다.` 는 Railway egress IP 미등록이 원인입니다.
+
+1. `sms-gateway-ec2` 에 `/api/crm-alimtalk` 라우트를 배포한다 (문자 CRM gateway 와 동일 프로세스).
+2. Railway app env:
+
+```
+INSURANCE_ALIGO_KAKAO_GATEWAY_URL=http://100.54.92.161:3000/api/crm-alimtalk
+# TOKEN 미설정 시 SMS_MODULE_GATEWAY_TOKEN 사용
+INSURANCE_ALIGO_KAKAO_DRY_RUN=true
+INSURANCE_ALIGO_KAKAO_ALLOW_REAL_SEND=false
+```
+
+3. diagnostics: `railway run --service app --environment production -- node server/scripts/diagInsuranceAlimtalkProfile.mjs`
+   - `via: gateway`, `code: 0` 확인 후 1건 테스트 직전에만 real send 오픈.
 
 보험 CRM 코드의 env 이름을 바꾸지 않습니다. 매핑은 운영 설정 시에만 적용합니다.
 
