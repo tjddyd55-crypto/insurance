@@ -39,7 +39,9 @@ SMS(`ALIGO_*`, `SMS_MODULE_*`)·자동문자와 **완전히 분리**합니다.
 
 알리고 응답 `code -99` / `인증되지 않는 서버 IP로 부터의 호출 입니다.` 는 Railway egress IP 미등록이 원인입니다.
 
-1. `sms-gateway-ec2` 에 `/api/crm-alimtalk` 라우트를 배포한다 (문자 CRM gateway 와 동일 프로세스).
+1. 운영 EC2 `sms-server`(포트 3000)에 `/api/crm-alimtalk` 라우트를 배포한다
+   (`crmAlimtalkRoutes.js` mount · 문자 `/api/crm-sms` 와 동일 Bearer 토큰).
+   repo 의 `sms-gateway-ec2/` 는 참고 구현이며, 현재 라이브는 `sms-server` 프로세스다.
 2. Railway app env:
 
 ```
