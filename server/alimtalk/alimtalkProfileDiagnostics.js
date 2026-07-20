@@ -1,6 +1,18 @@
 import { loadInsuranceAlimtalkConfig } from './alimtalkConfig.js'
 
 /**
+ * Aligo profile/list 항목의 senderKey 필드명 차이(camelCase/snake)를 흡수한다.
+ * @param {unknown} item
+ * @param {string} expected
+ */
+function profileSenderKeyEquals(item, expected) {
+  if (!item || typeof item !== 'object') return false
+  const row = /** @type {Record<string, unknown>} */ (item)
+  const actual = String(row.senderkey ?? row.senderKey ?? row.sender_key ?? '').trim()
+  return Boolean(actual) && actual === String(expected ?? '').trim()
+}
+
+/**
  * profile/list 진단 (실발송 없음). 관리자 UI 비노출 — CLI/테스트용.
  * gateway URL 이 있으면 EC2 relay 로 조회한다 (Railway IP 화이트리스트 회피).
  * @param {{
@@ -65,13 +77,7 @@ export async function checkInsuranceAlimtalkProfileList(opts = {}) {
             ? Number(parsed.code)
             : null
       const list = Array.isArray(parsed?.list) ? parsed.list : []
-      const senderKeyMatch = list.some(
-        (item) =>
-          item &&
-          typeof item === 'object' &&
-          String(/** @type {Record<string, unknown>} */ (item).senderkey ?? '').trim() ===
-            config.senderKey,
-      )
+      const senderKeyMatch = list.some((item) => profileSenderKeyEquals(item, config.senderKey))
       return {
         ok: code === 0,
         code,
@@ -105,13 +111,7 @@ export async function checkInsuranceAlimtalkProfileList(opts = {}) {
     }
     const code = parsed?.code != null ? Number(parsed.code) : null
     const list = Array.isArray(parsed?.list) ? parsed.list : []
-    const senderKeyMatch = list.some(
-      (item) =>
-        item &&
-        typeof item === 'object' &&
-        String(/** @type {Record<string, unknown>} */ (item).senderkey ?? '').trim() ===
-          config.senderKey,
-    )
+    const senderKeyMatch = list.some((item) => profileSenderKeyEquals(item, config.senderKey))
     return {
       ok: code === 0,
       code,
