@@ -48,7 +48,8 @@ test('legacy link uses createCustomerRelation(token, customerId, relatedCustomer
 
 test('legacy modal title remains 고객 검색 후 연결', () => {
   assert.match(legacy, /고객 검색 후 연결/)
-  assert.match(legacy, /related-list--pc/)
+  assert.match(legacy, /customer-relations-result-list/)
+  assert.equal(legacy.includes('related-list--pc'), false)
 })
 
 test('legacy chip click uses onOpenCustomer prop', () => {

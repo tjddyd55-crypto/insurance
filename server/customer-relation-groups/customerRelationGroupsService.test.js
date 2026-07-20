@@ -25,4 +25,17 @@ describe('customer relation groups helpers', () => {
     assert.ok(DEFAULT_RELATIONSHIP_LABELS.includes('배우자'))
     assert.ok(DEFAULT_RELATIONSHIP_LABELS.includes('자녀'))
   })
+
+  it('listActiveGroupMembers SQL includes ga_id tenant scope', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { fileURLToPath } = await import('node:url')
+    const { dirname, join } = await import('node:path')
+    const dir = dirname(fileURLToPath(import.meta.url))
+    const src = readFileSync(join(dir, 'customerRelationGroupsService.js'), 'utf8')
+    const fnStart = src.indexOf('export async function listActiveGroupMembers')
+    assert.ok(fnStart >= 0)
+    const slice = src.slice(fnStart, fnStart + 1200)
+    assert.match(slice, /g\.ga_id\s*=\s*\$3/)
+    assert.match(slice, /INNER JOIN customer_relation_groups g/)
+  })
 })
