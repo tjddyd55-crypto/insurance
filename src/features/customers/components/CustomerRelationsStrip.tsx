@@ -73,6 +73,9 @@ export function CustomerRelationsStrip({
     Array<{ customerId: number; name: string; phone: string; relationshipLabel: string }>
   >([])
 
+  /** 기존 1:1 연결 추가 모달 (그룹과 별도 UI 상태) */
+  const [legacyLinkOpen, setLegacyLinkOpen] = useState(false)
+
   const [addMemberGroupId, setAddMemberGroupId] = useState<number | null>(null)
   const [searchQ, setSearchQ] = useState('')
   const [searchBusy, setSearchBusy] = useState(false)
