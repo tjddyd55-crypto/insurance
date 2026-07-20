@@ -589,11 +589,22 @@
   border-top: 1px solid var(--border-default);
 }
 
-.customer-relations-legacy__title {
+.customer-relations-legacy-section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-default);
+}
+
+.customer-relations-legacy__title,
+.customer-relation-groups-section__title {
   margin: 0 0 8px;
   font-size: 0.85rem;
   font-weight: 700;
   color: var(--text-secondary);
+}
+
+.customer-relation-groups-section {
+  margin-top: 0;
 }
 
 .customer-relation-group-form__field {
