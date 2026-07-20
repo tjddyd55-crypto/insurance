@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { FormButton, FormInput } from '../../../components/form'
-import { FormDialog } from '../../../components/dialog'
+import { BaseDialog } from '../../../components/dialog'
 import { ApiError } from '../../../lib/apiClient'
 import { copyTextToClipboard } from '../../../lib/clipboard'
 import { getPublicOrigin } from '../../../lib/publicOrigin'
@@ -407,99 +407,135 @@ export default function CustomerLinkShareModal({
 
   const copyDisabled = busy || (!isCustomerApp && !shareUrl && !resolveRegistrationUrl())
 
+  const requestClose = () => {
+    if (busy) return
+    onClose()
+  }
+
   return (
-    <FormDialog
+    <BaseDialog
       open={open}
-      onClose={() => {
-        if (busy) return
-        onClose()
-      }}
-      title={title}
-      panelClassName="customer-registration-share-dialog"
-      footer={
-        <div className="customer-registration-share-modal__cancel-row">
-          <FormButton htmlType="button" variant="secondary" disabled={busy} onClick={onClose}>
+      onClose={requestClose}
+      ariaLabel={title}
+      closeOnBackdrop={false}
+      closeOnEsc={false}
+      usePortal
+      panelClassName={[
+        'customer-registration-share-dialog',
+        // BaseDialog default(w-[90%] max-w-md p-4) 를 이기고 header/body/footer 셸 고정
+        '!w-[min(560px,calc(100vw-32px))] !max-w-none !max-h-[calc(100dvh-32px)] !min-h-0 !flex !flex-col !overflow-hidden !p-0',
+      ].join(' ')}
+    >
+      <div className="customer-registration-share-shell">
+        <header className="customer-registration-share-modal__header">
+          <h2 className="customer-registration-share-modal__title">{title}</h2>
+          <button
+            type="button"
+            className="customer-registration-share-modal__close"
+            disabled={busy}
+            onClick={requestClose}
+            aria-label="닫기"
+          >
+            ×
+          </button>
+        </header>
+
+        <div className="customer-registration-share-modal__body">
+          <div className="customer-registration-share-modal">
+            <p className="customer-registration-share-modal__desc">{description}</p>
+
+            <label className="customer-registration-share-modal__field">
+              <span className="customer-registration-share-modal__label">수신번호</span>
+              <FormInput
+                format="phone"
+                value={receiver}
+                onChange={(e) => setReceiver(e.target.value)}
+                disabled={busy}
+                placeholder={phonePlaceholder}
+                inputMode="numeric"
+                autoComplete="tel"
+              />
+            </label>
+
+            {customerPhoneMissing ? (
+              <p className="customer-registration-share-modal__hint" role="note">
+                {MISSING_CUSTOMER_PHONE_HINT}
+              </p>
+            ) : !smsAvailable ? (
+              <p className="customer-registration-share-modal__hint" role="note">
+                {smsDisabledReason}
+              </p>
+            ) : null}
+
+            <section className="customer-registration-share-modal__actions" aria-label="발송 방법">
+              <h3 className="customer-registration-share-modal__actions-title">발송 방법</h3>
+              <div className="customer-registration-share-modal__action-grid">
+                <FormButton
+                  htmlType="button"
+                  variant="secondary"
+                  fullWidth
+                  loading={copying}
+                  disabled={copyDisabled}
+                  onClick={() => void handleCopy()}
+                >
+                  링크 복사
+                </FormButton>
+                <FormButton
+                  htmlType="button"
+                  variant="secondary"
+                  fullWidth
+                  loading={sendingSms}
+                  disabled={busy || !validReceiver || !smsAvailable}
+                  title={smsTitle}
+                  onClick={() => void handleSms()}
+                >
+                  문자 발송
+                </FormButton>
+                <FormButton
+                  htmlType="button"
+                  variant="secondary"
+                  fullWidth
+                  className="customer-registration-share-modal__kakao-btn"
+                  loading={sendingAlimtalk}
+                  disabled={busy || !validReceiver}
+                  title={
+                    validReceiver
+                      ? '카카오 알림톡으로 발송합니다.'
+                      : isCustomerApp
+                        ? MISSING_CUSTOMER_PHONE_REASON
+                        : '수신번호를 입력해 주세요.'
+                  }
+                  onClick={() => void handleAlimtalk()}
+                >
+                  카카오톡 발송
+                </FormButton>
+              </div>
+            </section>
+
+            <div
+              className={`customer-registration-share-modal__status customer-registration-share-modal__status--${statusTone}${
+                statusMessage ? ' is-visible' : ''
+              }`}
+              role="status"
+              aria-live="polite"
+            >
+              {statusMessage || '\u00a0'}
+            </div>
+          </div>
+        </div>
+
+        <footer className="customer-registration-share-modal__footer">
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            fullWidth
+            disabled={busy}
+            onClick={requestClose}
+          >
             취소
           </FormButton>
-        </div>
-      }
-    >
-      <div className="customer-registration-share-modal">
-        <p className="customer-registration-share-modal__desc">{description}</p>
-
-        <label className="customer-registration-share-modal__field">
-          <span className="customer-registration-share-modal__label">수신번호</span>
-          <FormInput
-            format="phone"
-            value={receiver}
-            onChange={(e) => setReceiver(e.target.value)}
-            disabled={busy}
-            placeholder={phonePlaceholder}
-          />
-        </label>
-
-        {customerPhoneMissing ? (
-          <p className="customer-registration-share-modal__hint" role="note">
-            {MISSING_CUSTOMER_PHONE_HINT}
-          </p>
-        ) : !smsAvailable ? (
-          <p className="customer-registration-share-modal__hint" role="note">
-            {smsDisabledReason}
-          </p>
-        ) : null}
-
-        <section className="customer-registration-share-modal__actions" aria-label="발송 방법">
-          <h3 className="customer-registration-share-modal__actions-title">발송 방법</h3>
-          <div className="customer-registration-share-modal__action-grid">
-            <FormButton
-              htmlType="button"
-              variant="secondary"
-              loading={copying}
-              disabled={copyDisabled}
-              onClick={() => void handleCopy()}
-            >
-              링크 복사
-            </FormButton>
-            <FormButton
-              htmlType="button"
-              variant="secondary"
-              loading={sendingSms}
-              disabled={busy || !validReceiver || !smsAvailable}
-              title={smsTitle}
-              onClick={() => void handleSms()}
-            >
-              문자 발송
-            </FormButton>
-            <FormButton
-              htmlType="button"
-              variant="primary"
-              className="customer-registration-share-modal__kakao-btn"
-              loading={sendingAlimtalk}
-              disabled={busy || !validReceiver}
-              title={
-                validReceiver
-                  ? '카카오 알림톡으로 발송합니다.'
-                  : isCustomerApp
-                    ? MISSING_CUSTOMER_PHONE_REASON
-                    : '수신번호를 입력해 주세요.'
-              }
-              onClick={() => void handleAlimtalk()}
-            >
-              카카오톡 발송
-            </FormButton>
-          </div>
-        </section>
-
-        <div
-          className={`customer-registration-share-modal__status customer-registration-share-modal__status--${statusTone}${
-            statusMessage ? ' is-visible' : ''
-          }`}
-          role="status"
-          aria-live="polite"
-        >
-          {statusMessage || '\u00a0'}
-        </div>
+        </footer>
       </div>
-    </FormDialog>
+    </BaseDialog>
   )
 }
