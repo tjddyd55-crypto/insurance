@@ -150,12 +150,5 @@ export async function deleteCustomerRelationGroup(token: string, groupId: number
   })
 }
 
-export const RELATIONSHIP_LABEL_OPTIONS = [
-  '본인',
-  '배우자',
-  '아버지',
-  '어머니',
-  '자녀',
-  '형제',
-  '기타',
-] as const
+/** @deprecated prefer RELATIONSHIP_LABEL_PRESETS from utils/relationshipLabel — 호환 export */
+export { RELATIONSHIP_LABEL_PRESETS as RELATIONSHIP_LABEL_OPTIONS } from '../utils/relationshipLabel.js'

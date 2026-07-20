@@ -1,10 +1,10 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { useConfirmDialog } from '../../../components/dialog'
-import { FormButton, FormInput, FormSelect } from '../../../components/form'
+import { FormButton, FormInput } from '../../../components/form'
 import Modal from '../../../components/ui/Modal'
 import { useBackButtonClose } from '../../../hooks/useBackButtonClose'
 import { ApiError } from '../../../lib/apiClient'
-import { listCustomers, searchCustomers } from '../api/customersApi'
+import { searchCustomers } from '../api/customersApi'
 import {
   createCustomerRelation,
   deleteCustomerRelation,
@@ -12,7 +12,6 @@ import {
   type CustomerRelationRow,
 } from '../api/customerExtraApi'
 import {
-  RELATIONSHIP_LABEL_OPTIONS,
   addCustomerRelationGroupMember,
   createCustomerRelationGroup,
   deleteCustomerRelationGroup,
@@ -25,6 +24,11 @@ import {
 import type { CustomerRecord } from '../domain/types'
 import { formatCustomerPhoneUi } from '../utils/customerDisplayFormat'
 import { parseBirthDateFromRrn } from '../utils/insuranceAge'
+import {
+  resolveRelationshipLabel,
+  splitRelationshipLabelForEdit,
+} from '../utils/relationshipLabel.js'
+import { CustomerRelationLabelField } from './CustomerRelationLabelField'
 
 type Props = {
   customerId: number
@@ -32,6 +36,13 @@ type Props = {
   token: string
   onOpenCustomer: (id: number, name?: string) => void
   focusedCustomerId: number | null
+}
+
+type PendingMember = {
+  customerId: number
+  name: string
+  phone: string
+  relationshipLabel: string
 }
 
 function formatBirthYmdDotFromSsn(ssn: string | null | undefined): string {
@@ -49,6 +60,17 @@ function groupTypeLabel(type: string): string {
   if (type === 'BUSINESS') return '사업'
   if (type === 'ETC') return '기타'
   return '가족'
+}
+
+function familyConflictMessage(err: ApiError): string {
+  const existingName =
+    err.data && typeof err.data === 'object' && 'existingGroupName' in err.data
+      ? String((err.data as { existingGroupName?: string }).existingGroupName ?? '').trim()
+      : ''
+  if (existingName) {
+    return `이미 “${existingName}” 그룹에 포함된 고객입니다.`
+  }
+  return err.message || '이미 다른 가족 그룹에 포함된 고객입니다.'
 }
 
 export function CustomerRelationsStrip({
@@ -69,9 +91,7 @@ export function CustomerRelationsStrip({
   const [createName, setCreateName] = useState('')
   const [createMemo, setCreateMemo] = useState('')
   const [createBusy, setCreateBusy] = useState(false)
-  const [pendingMembers, setPendingMembers] = useState<
-    Array<{ customerId: number; name: string; phone: string; relationshipLabel: string }>
-  >([])
+  const [pendingMembers, setPendingMembers] = useState<PendingMember[]>([])
 
   /** 기존 1:1 연결 추가 모달 (그룹과 별도 UI 상태) */
   const [legacyLinkOpen, setLegacyLinkOpen] = useState(false)
@@ -80,15 +100,19 @@ export function CustomerRelationsStrip({
   const [searchQ, setSearchQ] = useState('')
   const [searchBusy, setSearchBusy] = useState(false)
   const [searchPool, setSearchPool] = useState<CustomerRecord[]>([])
-  const [pickLabel, setPickLabel] = useState('배우자')
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerRecord | null>(null)
+  const [pickOption, setPickOption] = useState('배우자')
+  const [pickCustom, setPickCustom] = useState('')
   const [linking, setLinking] = useState(false)
+  const [labelError, setLabelError] = useState('')
 
   const [editGroupId, setEditGroupId] = useState<number | null>(null)
   const [editGroupName, setEditGroupName] = useState('')
   const [editLabelTarget, setEditLabelTarget] = useState<{
     groupId: number
     customerId: number
-    label: string
+    option: string
+    custom: string
   } | null>(null)
 
   const groupMemberIdSet = useMemo(() => {
@@ -99,6 +123,18 @@ export function CustomerRelationsStrip({
       }
     }
     return ids
+  }, [groups])
+
+  const memberGroupNameByCustomerId = useMemo(() => {
+    const map = new Map<number, string>()
+    for (const g of groups) {
+      for (const m of g.members) {
+        if (!map.has(m.customerId)) {
+          map.set(m.customerId, g.name)
+        }
+      }
+    }
+    return map
   }, [groups])
 
   const legacyRelations = useMemo(
@@ -136,19 +172,23 @@ export function CustomerRelationsStrip({
     setCreateOpen(false)
     setAddMemberGroupId(null)
     setLegacyLinkOpen(false)
+    setSelectedCustomer(null)
   })
 
   useEffect(() => {
     if (!searchModalOpen || !token?.trim()) return
     const q = searchQ.trim()
+    if (q.length < 1) {
+      setSearchPool([])
+      setSearchBusy(false)
+      return
+    }
     let cancelled = false
     const handle = window.setTimeout(() => {
       void (async () => {
         setSearchBusy(true)
         try {
-          const customers = q
-            ? await searchCustomers(token, q, { limit: 50 })
-            : (await listCustomers(token, 500)).customers
+          const customers = await searchCustomers(token, q, { limit: 50 })
           if (!cancelled) setSearchPool(customers)
         } catch (e) {
           if (!cancelled) {
@@ -159,7 +199,7 @@ export function CustomerRelationsStrip({
           if (!cancelled) setSearchBusy(false)
         }
       })()
-    }, q ? 180 : 0)
+    }, 250)
     return () => {
       cancelled = true
       window.clearTimeout(handle)
@@ -178,36 +218,66 @@ export function CustomerRelationsStrip({
     return out
   }, [customerId, searchPool])
 
+  const resetPickerState = (labelDefault = '배우자') => {
+    setSearchQ('')
+    setSearchPool([])
+    setSelectedCustomer(null)
+    setPickOption(labelDefault)
+    setPickCustom('')
+    setLabelError('')
+  }
+
   const openCreate = () => {
     setError('')
     setNotice('')
     setCreateName(`${customerName.trim() || '고객'} 가족`)
     setCreateMemo('')
     setPendingMembers([])
-    setSearchQ('')
-    setPickLabel('배우자')
+    resetPickerState('배우자')
     setCreateOpen(true)
   }
 
-  const queuePendingMember = (target: CustomerRecord) => {
-    if (pendingMembers.some((m) => m.customerId === target.id)) {
+  const resolvedPickLabel = () => resolveRelationshipLabel(pickOption, pickCustom)
+
+  const queuePendingMember = () => {
+    if (!selectedCustomer) {
+      setLabelError('추가할 고객을 검색해 선택해 주세요.')
+      return
+    }
+    const label = resolvedPickLabel()
+    if (!label) {
+      setLabelError('관계를 선택하거나 기타 관계를 입력해 주세요.')
+      return
+    }
+    if (pendingMembers.some((m) => m.customerId === selectedCustomer.id)) {
       setNotice('이미 이 그룹에 포함된 고객입니다.')
       return
     }
-    if (groupMemberIdSet.has(target.id)) {
-      setNotice('이미 가족 그룹에 포함된 고객입니다.')
+    if (groupMemberIdSet.has(selectedCustomer.id)) {
+      const groupName = memberGroupNameByCustomerId.get(selectedCustomer.id)
+      setNotice(
+        groupName
+          ? `이미 “${groupName}” 그룹에 포함된 고객입니다.`
+          : '이미 가족 그룹에 포함된 고객입니다.',
+      )
       return
     }
     setPendingMembers((prev) => [
       ...prev,
       {
-        customerId: target.id,
-        name: target.name,
-        phone: target.phone ?? '',
-        relationshipLabel: pickLabel,
+        customerId: selectedCustomer.id,
+        name: selectedCustomer.name,
+        phone: selectedCustomer.phone ?? '',
+        relationshipLabel: label,
       },
     ])
-    setNotice(`${target.name}을(를) 추가 목록에 넣었습니다.`)
+    setNotice(`${selectedCustomer.name}을(를) 추가 목록에 넣었습니다.`)
+    setSelectedCustomer(null)
+    setPickOption('배우자')
+    setPickCustom('')
+    setLabelError('')
+    setSearchQ('')
+    setSearchPool([])
   }
 
   const submitCreate = async () => {
@@ -229,15 +299,7 @@ export function CustomerRelationsStrip({
       await loadAll()
     } catch (e) {
       if (e instanceof ApiError && e.code === 'already_in_family_group') {
-        const existingName =
-          e.data && typeof e.data === 'object' && 'existingGroupName' in e.data
-            ? String((e.data as { existingGroupName?: string }).existingGroupName ?? '')
-            : ''
-        setError(
-          existingName
-            ? `이 고객은 “${existingName}” 그룹에 포함되어 있습니다.`
-            : e.message,
-        )
+        setError(familyConflictMessage(e))
       } else {
         setError(e instanceof Error ? e.message : '그룹 생성에 실패했습니다.')
       }
@@ -246,30 +308,34 @@ export function CustomerRelationsStrip({
     }
   }
 
-  const addMemberToGroup = async (target: CustomerRecord) => {
-    if (!token?.trim() || addMemberGroupId == null) return
+  const addMemberToGroup = async () => {
+    if (!token?.trim() || addMemberGroupId == null || !selectedCustomer) {
+      setLabelError('추가할 고객을 검색해 선택해 주세요.')
+      return
+    }
+    const label = resolvedPickLabel()
+    if (!label) {
+      setLabelError('관계를 선택하거나 기타 관계를 입력해 주세요.')
+      return
+    }
     setLinking(true)
     setError('')
+    setLabelError('')
     try {
       await addCustomerRelationGroupMember(token, addMemberGroupId, {
-        customerId: target.id,
-        relationshipLabel: pickLabel,
+        customerId: selectedCustomer.id,
+        relationshipLabel: label,
       })
-      setNotice(`${target.name}을(를) 그룹에 추가했습니다.`)
-      setAddMemberGroupId(null)
+      setNotice(`${selectedCustomer.name}을(를) 그룹에 추가했습니다.`)
+      setSelectedCustomer(null)
+      setPickOption('자녀')
+      setPickCustom('')
       setSearchQ('')
+      setSearchPool([])
       await loadAll()
     } catch (e) {
       if (e instanceof ApiError && e.code === 'already_in_family_group') {
-        const existingName =
-          e.data && typeof e.data === 'object' && 'existingGroupName' in e.data
-            ? String((e.data as { existingGroupName?: string }).existingGroupName ?? '')
-            : ''
-        setError(
-          existingName
-            ? `이 고객은 “${existingName}” 그룹에 포함되어 있습니다.`
-            : '이미 가족 그룹에 포함된 고객입니다.',
-        )
+        setError(familyConflictMessage(e))
       } else {
         setError(e instanceof Error ? e.message : '구성원 추가에 실패했습니다.')
       }
@@ -278,12 +344,60 @@ export function CustomerRelationsStrip({
     }
   }
 
-  const renameGroup = async () => {
-    if (!token?.trim() || editGroupId == null) return
-    const name = editGroupName.trim()
-    if (!name) return
+  const linkLegacy = async (target: CustomerRecord) => {
+    if (!token?.trim()) return
+    setLinking(true)
+    setError('')
     try {
-      await updateCustomerRelationGroup(token, editGroupId, { name })
+      await createCustomerRelation(token, customerId, { relatedCustomerId: target.id })
+      setLegacyLinkOpen(false)
+      setNotice(`${target.name}과(와) 연결했습니다.`)
+      await loadAll()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '연결에 실패했습니다.')
+    } finally {
+      setLinking(false)
+    }
+  }
+
+  const removeMember = async (
+    groupId: number,
+    member: { customerId: number; name: string; isCurrentCustomer?: boolean },
+  ) => {
+    if (member.isCurrentCustomer) return
+    const confirmed = await confirm({
+      title: '구성원 제거',
+      message: `${member.name}을(를) 그룹에서 제거할까요?`,
+      tone: 'danger',
+    })
+    if (!confirmed) return
+    try {
+      await removeCustomerRelationGroupMember(token, groupId, member.customerId)
+      await loadAll()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '구성원 제거에 실패했습니다.')
+    }
+  }
+
+  const deleteGroup = async (group: CustomerRelationGroup) => {
+    const confirmed = await confirm({
+      title: '그룹 삭제',
+      message: `“${group.name}” 그룹을 삭제할까요?`,
+      tone: 'danger',
+    })
+    if (!confirmed) return
+    try {
+      await deleteCustomerRelationGroup(token, group.id)
+      await loadAll()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '그룹 삭제에 실패했습니다.')
+    }
+  }
+
+  const renameGroup = async () => {
+    if (editGroupId == null || !token?.trim()) return
+    try {
+      await updateCustomerRelationGroup(token, editGroupId, { name: editGroupName.trim() })
       setEditGroupId(null)
       await loadAll()
     } catch (e) {
@@ -292,9 +406,12 @@ export function CustomerRelationsStrip({
   }
 
   const saveMemberLabel = async () => {
-    if (!token?.trim() || !editLabelTarget) return
-    const label = editLabelTarget.label.trim()
-    if (!label) return
+    if (!editLabelTarget || !token?.trim()) return
+    const label = resolveRelationshipLabel(editLabelTarget.option, editLabelTarget.custom)
+    if (!label) {
+      setLabelError('관계를 선택하거나 기타 관계를 입력해 주세요.')
+      return
+    }
     try {
       await updateCustomerRelationGroupMemberLabel(
         token,
@@ -303,66 +420,10 @@ export function CustomerRelationsStrip({
         label,
       )
       setEditLabelTarget(null)
+      setLabelError('')
       await loadAll()
     } catch (e) {
-      setError(e instanceof Error ? e.message : '관계 라벨 수정에 실패했습니다.')
-    }
-  }
-
-  const removeMember = async (groupId: number, member: { customerId: number; name: string }) => {
-    if (!token?.trim()) return
-    const confirmed = await confirm({
-      title: '연계 그룹에서 제거할까요?',
-      message: '선택한 고객을 이 그룹에서 제거합니다. 고객 정보는 삭제되지 않습니다.',
-      confirmLabel: '제거',
-      cancelLabel: '취소',
-      tone: 'danger',
-    })
-    if (!confirmed) return
-    try {
-      await removeCustomerRelationGroupMember(token, groupId, member.customerId)
-      setNotice(`${member.name}을(를) 그룹에서 제거했습니다.`)
-      await loadAll()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '구성원 제거에 실패했습니다.')
-    }
-  }
-
-  const deleteGroup = async (group: CustomerRelationGroup) => {
-    if (!token?.trim()) return
-    const confirmed = await confirm({
-      title: '연계 고객 그룹을 삭제할까요?',
-      message: '그룹 연결만 삭제되며 고객 정보는 삭제되지 않습니다.',
-      confirmLabel: '삭제',
-      cancelLabel: '취소',
-      tone: 'danger',
-    })
-    if (!confirmed) return
-    try {
-      await deleteCustomerRelationGroup(token, group.id)
-      setNotice('그룹을 삭제했습니다.')
-      await loadAll()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '그룹 삭제에 실패했습니다.')
-    }
-  }
-
-  const linkLegacy = async (target: CustomerRecord) => {
-    if (!token?.trim()) return
-    if (relations.some((r) => r.relatedCustomerId === target.id)) {
-      setNotice('이미 연결된 고객입니다.')
-      return
-    }
-    setLinking(true)
-    try {
-      await createCustomerRelation(token, customerId, target.id)
-      setNotice(`${target.name} 고객과 연결했습니다.`)
-      setLegacyLinkOpen(false)
-      await loadAll()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '연결에 실패했습니다.')
-    } finally {
-      setLinking(false)
+      setError(e instanceof Error ? e.message : '관계 수정에 실패했습니다.')
     }
   }
 
@@ -382,58 +443,145 @@ export function CustomerRelationsStrip({
     }
   }
 
-  const renderSearchHits = (mode: 'create' | 'add' | 'legacy') => (
-    <ul className="customer-relations-result-list">
-      {hits.map((h) => {
-        const alreadyInPending = pendingMembers.some((m) => m.customerId === h.id)
-        const alreadyInGroup = groupMemberIdSet.has(h.id)
-        const alreadyLegacy = relations.some((r) => r.relatedCustomerId === h.id)
-        const disabled =
-          linking ||
-          createBusy ||
-          (mode === 'create' && (alreadyInPending || alreadyInGroup)) ||
-          (mode === 'add' && alreadyInGroup) ||
-          (mode === 'legacy' && alreadyLegacy)
-        const birth = formatBirthYmdDotFromSsn(h.ssn)
-        const phone = formatCustomerPhoneUi(h.phone) || '-'
-        const onPick = () => {
-          if (disabled) return
-          if (mode === 'create') queuePendingMember(h)
-          else if (mode === 'add') void addMemberToGroup(h)
-          else void linkLegacy(h)
-        }
-        return (
-          <li key={h.id} className="customer-relations-result-list__item">
-            <button
-              type="button"
-              className={`customer-relations-result-item${disabled ? ' customer-relations-result-item--linked' : ''}`}
-              disabled={disabled}
-              onClick={onPick}
-              aria-label={`${h.name} 선택`}
-            >
-              <span className="customer-relations-result-item__main">
-                <span className="customer-relations-result-item__name">{h.name}</span>
-                {disabled ? (
-                  <span className="ui-status-badge ui-status-badge--success">포함됨</span>
-                ) : null}
-              </span>
-              <span className="customer-relations-result-item__sub">
-                <span className="customer-relations-result-item__birth">{birth}</span>
-                <span className="customer-relations-result-item__dot" aria-hidden>
-                  ·
-                </span>
-                <span className="customer-relations-result-item__phone">{phone}</span>
-              </span>
-            </button>
-          </li>
-        )
-      })}
-      {hits.length === 0 && !searchBusy ? (
-        <li className="customer-relations-result-list__item customer-relations-result-list__empty">
-          검색 결과가 없습니다.
-        </li>
+  const hitStatus = (h: CustomerRecord, mode: 'create' | 'add' | 'legacy') => {
+    const alreadyInPending = pendingMembers.some((m) => m.customerId === h.id)
+    const alreadyInGroup = groupMemberIdSet.has(h.id)
+    const alreadyLegacy = relations.some((r) => r.relatedCustomerId === h.id)
+    const groupName = memberGroupNameByCustomerId.get(h.id)
+    if (mode === 'create' && alreadyInPending) {
+      return { disabled: true, badge: '이미 추가됨' as const }
+    }
+    if ((mode === 'create' || mode === 'add') && alreadyInGroup) {
+      return {
+        disabled: true,
+        badge: (groupName ? `이미 “${groupName}” 포함` : '이미 포함됨') as string,
+      }
+    }
+    if (mode === 'legacy' && alreadyLegacy) {
+      return { disabled: true, badge: '이미 연결됨' as const }
+    }
+    return { disabled: linking || createBusy, badge: null as string | null }
+  }
+
+  const renderSearchHits = (mode: 'create' | 'add' | 'legacy') => {
+    const q = searchQ.trim()
+    return (
+      <div className="customer-relations-modal__results">
+        {!q ? (
+          <p className="customer-relations-modal__search-status">
+            고객명 또는 휴대폰번호를 입력해 검색하세요.
+          </p>
+        ) : null}
+        {q && searchBusy ? (
+          <p className="customer-relations-modal__search-status">검색 중…</p>
+        ) : null}
+        {q && !searchBusy ? (
+          <ul className="customer-relations-result-list">
+            {hits.map((h) => {
+              const status = hitStatus(h, mode)
+              const birth = formatBirthYmdDotFromSsn(h.ssn)
+              const phone = formatCustomerPhoneUi(h.phone) || '-'
+              const selected = selectedCustomer?.id === h.id
+              const onPick = () => {
+                if (status.disabled) return
+                if (mode === 'legacy') {
+                  void linkLegacy(h)
+                  return
+                }
+                setSelectedCustomer(h)
+                setLabelError('')
+                setNotice('')
+              }
+              return (
+                <li key={h.id} className="customer-relations-result-list__item">
+                  <button
+                    type="button"
+                    className={`customer-relations-result-item${
+                      status.disabled ? ' customer-relations-result-item--linked' : ''
+                    }${selected ? ' customer-relations-result-item--selected' : ''}`}
+                    disabled={status.disabled}
+                    onClick={onPick}
+                    aria-label={`${h.name} 선택`}
+                    aria-pressed={selected}
+                  >
+                    <span className="customer-relations-result-item__main">
+                      <span className="customer-relations-result-item__name">{h.name}</span>
+                      {status.badge ? (
+                        <span className="ui-status-badge ui-status-badge--success">{status.badge}</span>
+                      ) : null}
+                      {selected && !status.badge ? (
+                        <span className="ui-status-badge ui-status-badge--success">선택됨</span>
+                      ) : null}
+                    </span>
+                    <span className="customer-relations-result-item__sub">
+                      <span className="customer-relations-result-item__birth">{birth}</span>
+                      <span className="customer-relations-result-item__dot" aria-hidden>
+                        ·
+                      </span>
+                      <span className="customer-relations-result-item__phone">{phone}</span>
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+            {hits.length === 0 ? (
+              <li className="customer-relations-result-list__item customer-relations-result-list__empty">
+                검색 결과가 없습니다.
+              </li>
+            ) : null}
+          </ul>
+        ) : null}
+      </div>
+    )
+  }
+
+  const renderSelectedAndRelation = (mode: 'create' | 'add') => (
+    <div className="customer-relation-group-picker">
+      {selectedCustomer ? (
+        <div className="customer-relation-group-picker__selected" role="status">
+          <span className="customer-relation-group-picker__selected-label">선택 고객</span>
+          <strong className="customer-relation-group-picker__selected-name">
+            {selectedCustomer.name}
+          </strong>
+          <span className="customer-relation-group-picker__selected-phone">
+            {formatCustomerPhoneUi(selectedCustomer.phone) || '-'}
+          </span>
+        </div>
+      ) : (
+        <p className="customer-relation-group-form__hint">검색 결과에서 고객을 선택하세요.</p>
+      )}
+      <CustomerRelationLabelField
+        option={pickOption}
+        custom={pickCustom}
+        onOptionChange={(next) => {
+          setPickOption(next)
+          setLabelError('')
+          if (next !== '기타') setPickCustom('')
+        }}
+        onCustomChange={(next) => {
+          setPickCustom(next)
+          setLabelError('')
+        }}
+        disabled={createBusy || linking}
+        selectLabel="관계"
+      />
+      {labelError ? (
+        <p className="customer-relations-strip__status customer-relations-strip__status--error" role="alert">
+          {labelError}
+        </p>
       ) : null}
-    </ul>
+      <FormButton
+        htmlType="button"
+        variant="secondary"
+        disabled={createBusy || linking || !selectedCustomer}
+        onClick={() => {
+          if (mode === 'create') queuePendingMember()
+          else void addMemberToGroup()
+        }}
+      >
+        {mode === 'create' ? '그룹에 추가' : '구성원으로 추가'}
+      </FormButton>
+    </div>
   )
 
   return (
@@ -450,8 +598,8 @@ export function CustomerRelationsStrip({
             size="sm"
             onClick={() => {
               setError('')
+              resetPickerState('배우자')
               setLegacyLinkOpen(true)
-              setSearchQ('')
             }}
           >
             기존 연결
@@ -495,8 +643,7 @@ export function CustomerRelationsStrip({
                     type="button"
                     className="ui-button ui-button--sm ui-button--secondary"
                     onClick={() => {
-                      setPickLabel('자녀')
-                      setSearchQ('')
+                      resetPickerState('자녀')
                       setAddMemberGroupId(group.id)
                     }}
                   >
@@ -552,13 +699,16 @@ export function CustomerRelationsStrip({
                         <button
                           type="button"
                           className="ui-button ui-button--sm ui-button--secondary"
-                          onClick={() =>
+                          onClick={() => {
+                            const split = splitRelationshipLabelForEdit(m.relationshipLabel || '기타')
+                            setLabelError('')
                             setEditLabelTarget({
                               groupId: group.id,
                               customerId: m.customerId,
-                              label: m.relationshipLabel || '기타',
+                              option: split.option,
+                              custom: split.custom,
                             })
-                          }
+                          }}
                         >
                           관계
                         </button>
@@ -633,6 +783,7 @@ export function CustomerRelationsStrip({
         ariaLabel="가족 그룹 만들기"
         panelClassName="customer-relations-modal customer-relation-group-modal"
         closeOnBackdrop={false}
+        usePortal
         onEscapeRequest={() => {
           if (!createBusy) setCreateOpen(false)
         }}
@@ -652,50 +803,54 @@ export function CustomerRelationsStrip({
           <p className="customer-relation-group-form__hint">
             현재 고객({customerName || '본인'})은 관계 「본인」으로 자동 포함됩니다.
           </p>
-          <label className="customer-relation-group-form__field">
-            <span>추가할 고객 관계</span>
-            <FormSelect
-              value={pickLabel}
-              onChange={(e) => setPickLabel(e.target.value)}
-              options={RELATIONSHIP_LABEL_OPTIONS.filter((l) => l !== '본인').map((label) => ({
-                value: label,
-                label,
-              }))}
-            />
-          </label>
+
           <div className="customer-relations-modal__search">
+            <span className="customer-relation-group-form__field-label">추가할 고객</span>
             <form
               className="customer-relations-modal__search-form"
               onSubmit={(e: FormEvent) => e.preventDefault()}
             >
               <FormInput
                 type="search"
-                placeholder="이름 또는 전화번호 검색"
+                className="customer-relations-modal__search-input"
+                placeholder="고객명 또는 휴대폰번호 검색"
                 value={searchQ}
-                onChange={(e) => setSearchQ(e.target.value)}
+                onChange={(e) => {
+                  setSearchQ(e.target.value)
+                  setSelectedCustomer(null)
+                }}
                 autoComplete="off"
               />
             </form>
-            {searchBusy ? <p className="customer-relations-modal__search-status">검색 중…</p> : null}
           </div>
-          {pendingMembers.length > 0 ? (
-            <ul className="customer-relation-group-pending">
-              {pendingMembers.map((m) => (
-                <li key={m.customerId}>
-                  {m.name} / {m.relationshipLabel}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setPendingMembers((prev) => prev.filter((x) => x.customerId !== m.customerId))
-                    }
-                  >
-                    제외
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : null}
           {renderSearchHits('create')}
+          {renderSelectedAndRelation('create')}
+
+          {pendingMembers.length > 0 ? (
+            <div className="customer-relation-group-pending-wrap">
+              <h4 className="customer-relation-group-pending__title">추가된 고객</h4>
+              <ul className="customer-relation-group-pending">
+                {pendingMembers.map((m) => (
+                  <li key={m.customerId} className="customer-relation-group-pending__item">
+                    <div className="customer-relation-group-pending__main">
+                      <strong>{m.name}</strong>
+                      <span>{formatCustomerPhoneUi(m.phone) || '-'}</span>
+                      <span className="customer-relation-group-pending__label">{m.relationshipLabel}</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="ui-button ui-button--sm ui-button--secondary"
+                      onClick={() =>
+                        setPendingMembers((prev) => prev.filter((x) => x.customerId !== m.customerId))
+                      }
+                    >
+                      제거
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
         <footer className="customer-relations-modal__footer">
           <FormButton
@@ -725,6 +880,7 @@ export function CustomerRelationsStrip({
         ariaLabel="그룹 구성원 추가"
         panelClassName="customer-relations-modal customer-relation-group-modal"
         closeOnBackdrop={false}
+        usePortal
         onEscapeRequest={() => {
           if (!linking) setAddMemberGroupId(null)
         }}
@@ -733,27 +889,22 @@ export function CustomerRelationsStrip({
           <h3 className="customer-relations-modal__title">구성원 추가</h3>
         </header>
         <div className="customer-relations-modal__body">
-          <label className="customer-relation-group-form__field">
-            <span>관계 라벨</span>
-            <FormSelect
-              value={pickLabel}
-              onChange={(e) => setPickLabel(e.target.value)}
-              options={RELATIONSHIP_LABEL_OPTIONS.filter((l) => l !== '본인').map((label) => ({
-                value: label,
-                label,
-              }))}
-            />
-          </label>
           <div className="customer-relations-modal__search">
+            <span className="customer-relation-group-form__field-label">추가할 고객</span>
             <FormInput
               type="search"
-              placeholder="이름 또는 전화번호 검색"
+              className="customer-relations-modal__search-input"
+              placeholder="고객명 또는 휴대폰번호 검색"
               value={searchQ}
-              onChange={(e) => setSearchQ(e.target.value)}
+              onChange={(e) => {
+                setSearchQ(e.target.value)
+                setSelectedCustomer(null)
+              }}
               autoComplete="off"
             />
           </div>
           {renderSearchHits('add')}
+          {renderSelectedAndRelation('add')}
         </div>
         <footer className="customer-relations-modal__footer">
           <FormButton
@@ -775,6 +926,7 @@ export function CustomerRelationsStrip({
         ariaLabel="기존 1:1 연결"
         panelClassName="customer-relations-modal"
         closeOnBackdrop={false}
+        usePortal
         onEscapeRequest={() => {
           if (!linking) setLegacyLinkOpen(false)
         }}
@@ -789,7 +941,8 @@ export function CustomerRelationsStrip({
           <div className="customer-relations-modal__search">
             <FormInput
               type="search"
-              placeholder="이름 또는 전화번호 검색"
+              className="customer-relations-modal__search-input"
+              placeholder="고객명 또는 휴대폰번호 검색"
               value={searchQ}
               onChange={(e) => setSearchQ(e.target.value)}
               autoComplete="off"
@@ -815,6 +968,7 @@ export function CustomerRelationsStrip({
         ariaLabel="그룹명 수정"
         panelClassName="customer-relations-modal"
         closeOnBackdrop={false}
+        usePortal
       >
         <header className="customer-relations-modal__header">
           <h3 className="customer-relations-modal__title">그룹명 수정</h3>
@@ -838,26 +992,37 @@ export function CustomerRelationsStrip({
         ariaLabel="관계 라벨 수정"
         panelClassName="customer-relations-modal"
         closeOnBackdrop={false}
+        usePortal
       >
         <header className="customer-relations-modal__header">
           <h3 className="customer-relations-modal__title">관계 라벨 수정</h3>
         </header>
         <div className="customer-relations-modal__body">
-          <FormSelect
-            value={editLabelTarget?.label ?? '기타'}
-            onChange={(e) =>
-              setEditLabelTarget((prev) => (prev ? { ...prev, label: e.target.value } : prev))
-            }
-            options={RELATIONSHIP_LABEL_OPTIONS.map((label) => ({ value: label, label }))}
-          />
-          <FormInput
-            className="customer-relation-group-form__custom-label"
-            placeholder="직접 입력"
-            value={editLabelTarget?.label ?? ''}
-            onChange={(e) =>
-              setEditLabelTarget((prev) => (prev ? { ...prev, label: e.target.value } : prev))
-            }
-          />
+          {editLabelTarget ? (
+            <CustomerRelationLabelField
+              includeSelf
+              option={editLabelTarget.option}
+              custom={editLabelTarget.custom}
+              onOptionChange={(next) =>
+                setEditLabelTarget((prev) =>
+                  prev
+                    ? { ...prev, option: next, custom: next === '기타' ? prev.custom : '' }
+                    : prev,
+                )
+              }
+              onCustomChange={(next) =>
+                setEditLabelTarget((prev) => (prev ? { ...prev, custom: next } : prev))
+              }
+            />
+          ) : null}
+          {labelError ? (
+            <p
+              className="customer-relations-strip__status customer-relations-strip__status--error"
+              role="alert"
+            >
+              {labelError}
+            </p>
+          ) : null}
         </div>
         <footer className="customer-relations-modal__footer">
           <FormButton htmlType="button" variant="secondary" onClick={() => setEditLabelTarget(null)}>

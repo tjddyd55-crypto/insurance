@@ -7647,6 +7647,12 @@ div.cta-button.customers-page__action-btn[role='button'] {
   display: none;
 }
 
+/* 모달(포털 포함) 검색 결과는 PC에서도 리스트 표시 — related-list--pc 마크업 없이도 동작 */
+.customers-page--pc .customer-relations-modal .customer-relations-result-list,
+.customer-ui-modal-panel.customer-relations-modal .customer-relations-result-list {
+  display: block;
+}
+
 .customers-page--mobile .customer-relations-strip .related-list--pc {
   display: none;
 }

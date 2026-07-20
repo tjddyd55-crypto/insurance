@@ -38,3 +38,11 @@ test('does not invent a separate legacyLinkOpen open-customer function', () => {
 test('onOpenCustomer is a required Props field', () => {
   assert.match(src, /onOpenCustomer:\s*\(id:\s*number,\s*name\?:\s*string\)\s*=>\s*void/)
 })
+
+test('create/add member flow uses searchable picker and custom label field', () => {
+  assert.match(src, /CustomerRelationLabelField/)
+  assert.match(src, /고객명 또는 휴대폰번호 검색/)
+  assert.match(src, /그룹에 추가/)
+  assert.match(src, /resolveRelationshipLabel/)
+  assert.match(src, /usePortal/)
+})
