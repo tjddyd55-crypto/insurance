@@ -48,8 +48,26 @@ test('legacy link uses createCustomerRelation(token, customerId, relatedCustomer
 
 test('legacy modal title remains 고객 검색 후 연결', () => {
   assert.match(legacy, /고객 검색 후 연결/)
-  assert.match(legacy, /customer-relations-result-list/)
-  assert.equal(legacy.includes('related-list--pc'), false)
+  assert.match(legacy, /CustomerRelationSearchResultList/)
+  assert.match(legacy, /CustomerRelationSearchField/)
+})
+
+test('legacy and groups reuse shared search result list', () => {
+  assert.match(groups, /CustomerRelationSearchResultList/)
+  assert.match(groups, /CustomerRelationSearchField/)
+  assert.equal(groups.includes('customer-relation-group-picker__selected-name'), false)
+})
+
+test('shared search list exposes PC table columns', () => {
+  const sharedPath = join(
+    dir,
+    '../../src/features/customers/components/CustomerRelationSearchResultList.tsx',
+  )
+  const shared = readFileSync(sharedPath, 'utf8')
+  assert.match(shared, /related-list--pc/)
+  assert.match(shared, /이름/)
+  assert.match(shared, /생년월일/)
+  assert.match(shared, /연락처/)
 })
 
 test('legacy chip click uses onOpenCustomer prop', () => {
