@@ -51,10 +51,23 @@ describe('alimtalk registration template UJ_6324', () => {
 
   it('builds approved-style message and button payload', () => {
     const msg = buildCustomerRegistrationLinkMessage({ managerName: '박담당' })
-    assert.match(msg, /박담당입니다\./)
-    assert.match(msg, /\[고객정보 등록\]/)
+    assert.equal(
+      msg,
+      [
+        '안녕하세요.',
+        '박담당입니다.',
+        '',
+        '보험 상담 및 업무 진행을 위해 고객정보 등록 링크를 안내드립니다.',
+        '아래 [고객정보 등록] 버튼을 눌러 필요한 정보를 입력해 주세요.',
+        '',
+        '※ 본 링크는 보험 상담 및 업무 처리를 위한 고객정보 등록 안내입니다.',
+        '',
+        '버튼명:',
+        '고객정보 등록',
+      ].join('\n'),
+    )
     const button = buildCustomerRegistrationLinkButtonPayload({
-      registrationUrl: 'https://example.com/customer/register?ref=a&ga=B',
+      registrationUrl: 'http://example.com/customer/register?ref=a&ga=B',
     })
     assert.equal(button.button[0].name, '고객정보 등록')
     assert.equal(button.button[0].linkMo, 'https://example.com/customer/register?ref=a&ga=B')

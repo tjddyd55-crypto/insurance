@@ -1,13 +1,16 @@
 /**
  * 보험 CRM 알림톡 템플릿 레지스트리.
  *
- * 고객앱 링크: UJ_6184 (@crm솔루션 / 고객앱 접속 링크 안내)
- * 검수중 — 승인 전 실발송은 approval flag + DRY_RUN 으로 차단.
+ * 승인 원문 SSOT = Aligo template/list (inspStatus=APR) 기준.
+ * message_1 / button 은 승인 템플릿과 100% 일치해야 한다.
+ * (불일치 시 Aligo code 0 접수 후에도 Kakao rslt=U "메시지가 템플릿과 일치하지않음")
  */
+
+import { forceHttpsPublicUrl } from './alimtalkPublicUrl.js'
 
 export const TEMPLATE_KEY_CUSTOMER_APP_LINK = 'INSURANCE_CUSTOMER_APP_LINK'
 
-/** 검수·승인 예정 템플릿 코드 (카카오 비즈메시지) */
+/** 검수·승인 템플릿 코드 (카카오 비즈메시지) */
 export const CUSTOMER_APP_LINK_TPL_CODE = 'UJ_6184'
 
 export const PLACEHOLDER_TPL_CODE = 'PLACEHOLDER'
@@ -17,22 +20,28 @@ const CUSTOMER_APP_LINK_BUTTON_NAME = '고객앱 열기'
 const CUSTOMER_APP_LINK_TEMPLATE_NAME = '고객앱 접속 링크 안내'
 const CUSTOMER_APP_LINK_CHANNEL_NAME = '@crm솔루션'
 
+/** Aligo template/list templtContent (UJ_6184) — 변수 치환 전 원문 */
+export const CUSTOMER_APP_LINK_APPROVED_TEMPLATE = [
+  '#{고객명}님, 안녕하세요.',
+  '#{담당자명}입니다.',
+  '',
+  '요청하신 보험 업무 확인 및 자료 첨부를 위해 고객앱 접속 링크를 안내드립니다.',
+  '아래 [고객앱 열기] 버튼을 눌러 내용을 확인해 주세요.',
+  '',
+  '※ 본 링크는 고객님의 보험 업무 확인 및 자료 제출을 위한 안내입니다.',
+].join('\n')
+
 /**
- * 카카오 심사 신청 문구와 100% 일치해야 실발송 가능.
- * (검수 완료 후 승인 원문이 다르면 즉시 교체)
+ * 카카오 승인 문구에 변수 치환 (국가지원사업과 동일 패턴).
+ * @param {{ customerName: string, managerName: string }} input
  */
 export function buildCustomerAppLinkMessage({ customerName, managerName }) {
   const name = String(customerName ?? '').trim() || '고객'
   const manager = String(managerName ?? '').trim() || '담당자'
-  return [
-    `${name}님, 안녕하세요.`,
-    `${manager}입니다.`,
-    '',
-    '요청하신 보험 업무 확인 및 자료 첨부를 위해 고객앱 접속 링크를 안내드립니다.',
-    '아래 [고객앱 열기] 버튼을 눌러 내용을 확인해 주세요.',
-    '',
-    '※ 본 링크는 고객님의 보험 업무 확인 및 자료 제출을 위한 안내입니다.',
-  ].join('\n')
+  return CUSTOMER_APP_LINK_APPROVED_TEMPLATE.replaceAll('#{고객명}', name).replaceAll(
+    '#{담당자명}',
+    manager,
+  )
 }
 
 /**
@@ -42,7 +51,7 @@ export function buildCustomerAppLinkMessage({ customerName, managerName }) {
  * }} input
  */
 export function buildCustomerAppLinkButtonPayload(input) {
-  const url = String(input.customerAppUrl ?? '').trim()
+  const url = forceHttpsPublicUrl(String(input.customerAppUrl ?? '').trim())
   const name = String(input.buttonName ?? CUSTOMER_APP_LINK_BUTTON_NAME).trim() || CUSTOMER_APP_LINK_BUTTON_NAME
   return {
     button: [
@@ -101,33 +110,42 @@ export function getCustomerAppLinkTemplate(env = process.env) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* 고객정보 등록 링크 — UJ_6324 (검수중)                                           */
+/* 고객정보 등록 링크 — UJ_6324                                                  */
 /* -------------------------------------------------------------------------- */
 
 export const TEMPLATE_KEY_CUSTOMER_REGISTRATION_LINK = 'INSURANCE_CUSTOMER_REGISTRATION_LINK'
 
-/** 검수중 템플릿 코드 */
+/** 승인 템플릿 코드 */
 export const CUSTOMER_REGISTRATION_LINK_TPL_CODE = 'UJ_6324'
 
 const CUSTOMER_REGISTRATION_LINK_SUBJECT = '고객정보 등록 안내'
 const CUSTOMER_REGISTRATION_LINK_BUTTON_NAME = '고객정보 등록'
-const CUSTOMER_REGISTRATION_LINK_TEMPLATE_NAME = '고객정보 등록 링크 안내'
+const CUSTOMER_REGISTRATION_LINK_TEMPLATE_NAME = '고객정보 등록 안내'
 const CUSTOMER_REGISTRATION_LINK_CHANNEL_NAME = '@crm솔루션'
 
 /**
- * 카카오 심사 신청 문구와 100% 일치해야 실발송 가능.
+ * Aligo template/list templtContent (UJ_6324) — 승인 원문에 "버튼명:" 블록 포함.
+ * 이 블록을 빼면 Kakao rslt=U (템플릿 불일치) 가 난다.
+ */
+export const CUSTOMER_REGISTRATION_LINK_APPROVED_TEMPLATE = [
+  '안녕하세요.',
+  '#{담당자명}입니다.',
+  '',
+  '보험 상담 및 업무 진행을 위해 고객정보 등록 링크를 안내드립니다.',
+  '아래 [고객정보 등록] 버튼을 눌러 필요한 정보를 입력해 주세요.',
+  '',
+  '※ 본 링크는 보험 상담 및 업무 처리를 위한 고객정보 등록 안내입니다.',
+  '',
+  '버튼명:',
+  '고객정보 등록',
+].join('\n')
+
+/**
+ * @param {{ managerName: string }} input
  */
 export function buildCustomerRegistrationLinkMessage({ managerName }) {
   const manager = String(managerName ?? '').trim() || '담당자'
-  return [
-    '안녕하세요.',
-    `${manager}입니다.`,
-    '',
-    '보험 상담 및 업무 진행을 위해 고객정보 등록 링크를 안내드립니다.',
-    '아래 [고객정보 등록] 버튼을 눌러 필요한 정보를 입력해 주세요.',
-    '',
-    '※ 본 링크는 보험 상담 및 업무 처리를 위한 고객정보 등록 안내입니다.',
-  ].join('\n')
+  return CUSTOMER_REGISTRATION_LINK_APPROVED_TEMPLATE.replaceAll('#{담당자명}', manager)
 }
 
 /**
@@ -137,7 +155,7 @@ export function buildCustomerRegistrationLinkMessage({ managerName }) {
  * }} input
  */
 export function buildCustomerRegistrationLinkButtonPayload(input) {
-  const url = String(input.registrationUrl ?? '').trim()
+  const url = forceHttpsPublicUrl(String(input.registrationUrl ?? '').trim())
   const name =
     String(input.buttonName ?? CUSTOMER_REGISTRATION_LINK_BUTTON_NAME).trim() ||
     CUSTOMER_REGISTRATION_LINK_BUTTON_NAME

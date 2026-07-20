@@ -1,5 +1,10 @@
 import express from 'express'
-import { profileListViaAligo, sendAlimtalkViaAligo } from '../lib/aligoKakaoClient.mjs'
+import {
+  historyDetailViaAligo,
+  historyListViaAligo,
+  profileListViaAligo,
+  sendAlimtalkViaAligo,
+} from '../lib/aligoKakaoClient.mjs'
 import { logCrmGatewayEvent } from '../lib/crmGatewayLog.mjs'
 
 function readBearerToken(req) {
@@ -21,6 +26,7 @@ function crmAlimtalkAuth(req, res, next) {
       providerCode: null,
       providerMessage: 'CRM Alimtalk Gateway token is not configured.',
       providerMessageId: null,
+      info: null,
       raw: {},
     })
     return
@@ -32,6 +38,7 @@ function crmAlimtalkAuth(req, res, next) {
       providerCode: null,
       providerMessage: 'Gateway 인증에 실패했습니다.',
       providerMessageId: null,
+      info: null,
       raw: {},
     })
     return
@@ -56,6 +63,12 @@ function validateSendPayload(body) {
   return { ok: true }
 }
 
+function maskReceiver(value) {
+  const digits = String(value ?? '').replace(/\D/g, '')
+  if (digits.length < 7) return '***'
+  return `${digits.slice(0, 3)}****${digits.slice(-4)}`
+}
+
 export function createCrmAlimtalkRouter() {
   const router = express.Router()
   router.use(crmAlimtalkAuth)
@@ -76,6 +89,7 @@ export function createCrmAlimtalkRouter() {
         providerCode: null,
         providerMessage: validation.message,
         providerMessageId: null,
+        info: null,
         raw: {},
       })
       return
@@ -92,11 +106,27 @@ export function createCrmAlimtalkRouter() {
       durationMs: result.durationMs,
     })
 
+    // 안전한 운영 로그 (credentials / 수신번호 원문 / Authorization 금지)
+    console.info('[crm-alimtalk] send result', {
+      tplCode: String(req.body?.tpl_code ?? req.body?.tplCode ?? ''),
+      via: 'aligo',
+      httpStatus: result.httpStatus,
+      providerCode: result.providerCode,
+      providerMessage: result.providerMessage,
+      providerMessageId: result.providerMessageId,
+      info: result.info,
+      receiverMasked: maskReceiver(req.body?.receiver_1 ?? req.body?.receiver),
+      testMode: result.testMode,
+      failover: String(req.body?.failover ?? 'N'),
+      durationMs: result.durationMs,
+    })
+
     res.status(result.success ? 200 : 502).json({
       success: result.success,
       providerCode: result.providerCode,
       providerMessage: result.providerMessage,
       providerMessageId: result.providerMessageId,
+      info: result.info,
       httpStatus: result.httpStatus,
       raw: result.raw,
     })
@@ -116,6 +146,55 @@ export function createCrmAlimtalkRouter() {
       return
     }
     const result = await profileListViaAligo(req.body)
+    res.status(result.success ? 200 : 502).json({
+      success: result.success,
+      providerCode: result.providerCode,
+      providerMessage: result.providerMessage,
+      list: result.list,
+      httpStatus: result.httpStatus,
+      raw: result.raw,
+    })
+  })
+
+  router.post('/history-list', async (req, res) => {
+    const apikey = String(req.body?.apikey ?? req.body?.apiKey ?? '').trim()
+    const userid = String(req.body?.userid ?? req.body?.userId ?? '').trim()
+    if (!apikey || !userid) {
+      res.status(400).json({
+        success: false,
+        providerCode: null,
+        providerMessage: 'apikey and userid are required',
+        list: [],
+        raw: {},
+      })
+      return
+    }
+    const result = await historyListViaAligo(req.body)
+    res.status(result.success ? 200 : 502).json({
+      success: result.success,
+      providerCode: result.providerCode,
+      providerMessage: result.providerMessage,
+      list: result.list,
+      httpStatus: result.httpStatus,
+      raw: result.raw,
+    })
+  })
+
+  router.post('/history-detail', async (req, res) => {
+    const apikey = String(req.body?.apikey ?? req.body?.apiKey ?? '').trim()
+    const userid = String(req.body?.userid ?? req.body?.userId ?? '').trim()
+    const mid = String(req.body?.mid ?? '').trim()
+    if (!apikey || !userid || !mid) {
+      res.status(400).json({
+        success: false,
+        providerCode: null,
+        providerMessage: 'apikey, userid, mid are required',
+        list: [],
+        raw: {},
+      })
+      return
+    }
+    const result = await historyDetailViaAligo(req.body)
     res.status(result.success ? 200 : 502).json({
       success: result.success,
       providerCode: result.providerCode,

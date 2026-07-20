@@ -68,7 +68,7 @@ describe('alimtalkProvider', () => {
     assert.match(String(result.providerMessage), /가입된/)
   })
 
-  it('code === 0 is sent', async () => {
+  it('code === 0 is accepted with mid', async () => {
     const result = await sendAligoAlimtalk({
       config: loadInsuranceAlimtalkConfig({
         INSURANCE_ALIGO_KAKAO_DRY_RUN: 'false',
@@ -78,6 +78,7 @@ describe('alimtalkProvider', () => {
         INSURANCE_ALIGO_KAKAO_SENDER: '01011112222',
       }),
       dryRun: false,
+      templateKey: 'INSURANCE_CUSTOMER_APP_LINK',
       tplCode: 'UJ_6184',
       receiver: '01012345678',
       subject: '고객앱 안내',
@@ -85,13 +86,90 @@ describe('alimtalkProvider', () => {
       buttonPayload: { button: [{ name: 'x', linkType: 'WL', linkTypeName: '웹링크', linkMo: 'https://x', linkPc: 'https://x' }] },
       fetchImpl: async () => ({
         status: 200,
-        text: async () => JSON.stringify({ code: 0, message: 'ok', info: { mid: 'M1' } }),
+        text: async () => JSON.stringify({ code: 0, message: 'ok', info: { mid: 'M1', type: 'AT', scnt: 1, fcnt: 0 } }),
       }),
     })
     assert.equal(result.ok, true)
-    assert.equal(result.status, 'sent')
+    assert.equal(result.status, 'accepted')
     assert.equal(result.providerCode, 0)
     assert.equal(result.providerMessageId, 'M1')
+  })
+
+  it('normalizes boolean/false testMode to N in gateway body', async () => {
+    /** @type {string | null} */
+    let body = null
+    await sendAligoAlimtalk({
+      config: loadInsuranceAlimtalkConfig({
+        INSURANCE_ALIGO_KAKAO_DRY_RUN: 'false',
+        INSURANCE_ALIGO_KAKAO_API_KEY: 'k',
+        INSURANCE_ALIGO_KAKAO_USER_ID: 'u',
+        INSURANCE_ALIGO_KAKAO_SENDER_KEY: 's',
+        INSURANCE_ALIGO_KAKAO_SENDER: '01011112222',
+        INSURANCE_ALIGO_KAKAO_TEST_MODE: 'false',
+        INSURANCE_ALIGO_KAKAO_GATEWAY_URL: 'http://gateway.example/api/crm-alimtalk',
+        INSURANCE_ALIGO_KAKAO_GATEWAY_TOKEN: 'tok',
+      }),
+      dryRun: false,
+      templateKey: 'INSURANCE_CUSTOMER_REGISTRATION_LINK',
+      tplCode: 'UJ_6324',
+      receiver: '01012345678',
+      subject: '고객정보 등록 안내',
+      message: 'hello',
+      buttonPayload: {
+        button: [{ name: '고객정보 등록', linkType: 'WL', linkTypeName: '웹링크', linkMo: 'https://x', linkPc: 'https://x' }],
+      },
+      fetchImpl: async (_url, init) => {
+        body = String(init?.body ?? '')
+        return {
+          status: 200,
+          text: async () =>
+            JSON.stringify({
+              success: true,
+              providerCode: 0,
+              providerMessage: 'ok',
+              providerMessageId: 'MID9',
+              info: { mid: 'MID9', scnt: 1, fcnt: 0 },
+            }),
+        }
+      },
+    })
+    assert.match(String(body), /"testMode":"N"/)
+    assert.match(String(body), /"failover":"N"/)
+  })
+
+  it('reads mid from gateway nested raw.info', async () => {
+    const result = await sendAligoAlimtalk({
+      config: loadInsuranceAlimtalkConfig({
+        INSURANCE_ALIGO_KAKAO_DRY_RUN: 'false',
+        INSURANCE_ALIGO_KAKAO_API_KEY: 'k',
+        INSURANCE_ALIGO_KAKAO_USER_ID: 'u',
+        INSURANCE_ALIGO_KAKAO_SENDER_KEY: 's',
+        INSURANCE_ALIGO_KAKAO_SENDER: '01011112222',
+        INSURANCE_ALIGO_KAKAO_GATEWAY_URL: 'http://gateway.example/api/crm-alimtalk',
+        INSURANCE_ALIGO_KAKAO_GATEWAY_TOKEN: 'tok',
+      }),
+      dryRun: false,
+      templateKey: 'INSURANCE_CUSTOMER_APP_LINK',
+      tplCode: 'UJ_6184',
+      receiver: '01012345678',
+      subject: '고객앱 안내',
+      message: 'hello',
+      buttonPayload: {
+        button: [{ name: '고객앱 열기', linkType: 'WL', linkTypeName: '웹링크', linkMo: 'https://x', linkPc: 'https://x' }],
+      },
+      fetchImpl: async () => ({
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            success: true,
+            providerCode: 0,
+            providerMessage: 'ok',
+            raw: { code: 0, message: 'ok', info: { mid: 'NESTED1', type: 'AT', scnt: 1, fcnt: 0 } },
+          }),
+      }),
+    })
+    assert.equal(result.status, 'accepted')
+    assert.equal(result.providerMessageId, 'NESTED1')
   })
 
   it('gateway mode posts JSON to relay and maps providerCode', async () => {
@@ -110,6 +188,7 @@ describe('alimtalkProvider', () => {
         INSURANCE_ALIGO_KAKAO_GATEWAY_TOKEN: 'tok',
       }),
       dryRun: false,
+      templateKey: 'INSURANCE_CUSTOMER_REGISTRATION_LINK',
       tplCode: 'UJ_6324',
       receiver: '01012345678',
       subject: '고객정보 등록 안내',

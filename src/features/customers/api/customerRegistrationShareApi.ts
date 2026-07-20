@@ -19,7 +19,7 @@ export type CustomerRegistrationSmsSendResult = {
 }
 
 export type CustomerRegistrationAlimtalkResult = {
-  status: 'dry_run' | 'sent' | 'blocked' | 'failed'
+  status: 'dry_run' | 'accepted' | 'sent' | 'blocked' | 'failed'
   templateKey?: string
   tplCode?: string
   receiverMasked?: string

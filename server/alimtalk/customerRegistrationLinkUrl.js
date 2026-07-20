@@ -1,7 +1,10 @@
 /**
  * 고객등록 초대 링크 URL (서버).
  * 클라 `buildCustomerRegistrationInviteUrl` 과 동일 규칙.
+ * 알림톡 승인 버튼 URL 은 https 고정.
  */
+
+import { forceHttpsPublicOrigin, forceHttpsPublicUrl } from './alimtalkPublicUrl.js'
 
 /**
  * @param {{
@@ -11,9 +14,7 @@
  * }} input
  */
 export function buildCustomerRegistrationInviteUrl(input) {
-  const origin = String(input?.origin ?? '')
-    .trim()
-    .replace(/\/$/, '')
+  const origin = forceHttpsPublicOrigin(String(input?.origin ?? '').trim())
   const refUsername = String(input?.refUsername ?? '').trim()
   const gaCode = String(input?.gaCode ?? '')
     .trim()
@@ -21,7 +22,9 @@ export function buildCustomerRegistrationInviteUrl(input) {
   if (!origin || !refUsername || !gaCode) {
     return ''
   }
-  return `${origin}/customer/register?ref=${encodeURIComponent(refUsername)}&ga=${encodeURIComponent(gaCode)}`
+  return forceHttpsPublicUrl(
+    `${origin}/customer/register?ref=${encodeURIComponent(refUsername)}&ga=${encodeURIComponent(gaCode)}`,
+  )
 }
 
 /**
@@ -38,10 +41,10 @@ export function resolveCustomerRegistrationPublicOrigin(reqLike, env = process.e
   )
     .trim()
     .replace(/\/$/, '')
-  if (fromEnv) return fromEnv
+  if (fromEnv) return forceHttpsPublicOrigin(fromEnv)
   const protocol = String(reqLike?.protocol ?? 'https').replace(/:$/, '')
   const host = String(reqLike?.host ?? '').trim()
-  if (host) return `${protocol}://${host}`
+  if (host) return forceHttpsPublicOrigin(`${protocol}://${host}`)
   return ''
 }
 

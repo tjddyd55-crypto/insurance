@@ -211,6 +211,7 @@ export async function sendCustomerRegistrationLinkAlimtalk(pool, params) {
     config,
     dryRun: effectiveDryRun,
     tplCode: template.tplCode,
+    templateKey: template.key,
     receiver: phoneDigits,
     subject: template.subject,
     message,
@@ -219,8 +220,8 @@ export async function sendCustomerRegistrationLinkAlimtalk(pool, params) {
   })
 
   const status =
-    providerResult.status === 'sent'
-      ? 'sent'
+    providerResult.status === 'accepted' || providerResult.status === 'sent'
+      ? 'accepted'
       : providerResult.status === 'dry_run'
         ? 'dry_run'
         : 'failed'
@@ -267,12 +268,12 @@ export async function sendCustomerRegistrationLinkAlimtalk(pool, params) {
     }
   }
 
-  if (status === 'sent') {
+  if (status === 'accepted') {
     return {
       success: true,
       httpStatus: 200,
       data: {
-        status: 'sent',
+        status: 'accepted',
         templateKey: template.key,
         tplCode: template.tplCode,
         receiverMasked,

@@ -33,21 +33,73 @@ export function pickAligoAlimtalkMessageId(raw) {
   if (!raw || typeof raw !== 'object') return null
   const obj = /** @type {Record<string, unknown>} */ (raw)
   const info = obj.info && typeof obj.info === 'object' ? /** @type {Record<string, unknown>} */ (obj.info) : null
+  const nestedRaw =
+    obj.raw && typeof obj.raw === 'object' ? /** @type {Record<string, unknown>} */ (obj.raw) : null
+  const nestedInfo =
+    nestedRaw?.info && typeof nestedRaw.info === 'object'
+      ? /** @type {Record<string, unknown>} */ (nestedRaw.info)
+      : null
   const id =
     (info && info.mid) ||
+    (nestedInfo && nestedInfo.mid) ||
     obj.mid ||
     obj.message_id ||
     obj.msg_id ||
     obj.providerMessageId
-  return id != null ? String(id) : null
+  return id != null && String(id).trim() !== '' ? String(id) : null
 }
 
 /**
- * code === 0 만 성공. HTTP 200 단독으로는 성공 처리하지 않음.
+ * Aligo info 객체(또는 gateway raw.info)에서 비민감 요약만 추출.
+ * @param {unknown} raw
+ */
+export function pickAligoAlimtalkInfoSummary(raw) {
+  if (!raw || typeof raw !== 'object') return null
+  const obj = /** @type {Record<string, unknown>} */ (raw)
+  const nestedRaw =
+    obj.raw && typeof obj.raw === 'object' ? /** @type {Record<string, unknown>} */ (obj.raw) : null
+  const infoCandidate =
+    (obj.info && typeof obj.info === 'object' ? obj.info : null) ||
+    (nestedRaw?.info && typeof nestedRaw.info === 'object' ? nestedRaw.info : null)
+  if (!infoCandidate || typeof infoCandidate !== 'object') return null
+  const info = /** @type {Record<string, unknown>} */ (infoCandidate)
+  return {
+    mid: info.mid != null ? String(info.mid) : null,
+    type: info.type != null ? String(info.type) : null,
+    scnt: info.scnt != null ? Number(info.scnt) : null,
+    fcnt: info.fcnt != null ? Number(info.fcnt) : null,
+    pcnt: info.pcnt != null ? Number(info.pcnt) : null,
+    total: info.total != null ? Number(info.total) : null,
+    unit: info.unit != null ? Number(info.unit) : null,
+  }
+}
+
+/**
+ * code === 0 만 접수 성공. HTTP 200 단독으로는 성공 처리하지 않음.
+ * (최종 카카오 수신은 history/detail 의 rslt 로 확인)
  * @param {number | null} code
  */
 export function isAligoAlimtalkSuccessCode(code) {
   return code === 0
+}
+
+/**
+ * boolean / 문자열 env 값을 Aligo testMode(Y|N) 로 정규화.
+ * 국가지원사업 EC2 와 동일: false/"false"/0 → N, true/"true"/Y → Y
+ * @param {unknown} raw
+ */
+export function normalizeAligoTestMode(raw) {
+  if (raw === true) return 'Y'
+  if (raw === false || raw == null) return 'N'
+  const s = String(raw).trim().toUpperCase()
+  if (s === 'Y' || s === '1' || s === 'TRUE' || s === 'YES' || s === 'ON' || s === 'T') return 'Y'
+  return 'N'
+}
+
+function maskReceiverForLog(digits) {
+  const d = String(digits ?? '').replace(/\D/g, '')
+  if (d.length < 7) return '****'
+  return `${d.slice(0, 3)}****${d.slice(-4)}`
 }
 
 /**
@@ -74,7 +126,7 @@ function buildSendFormParams(config, input) {
   params.set('message_1', String(input.message ?? ''))
   params.set('button_1', JSON.stringify(input.buttonPayload))
   params.set('failover', 'N')
-  params.set('testMode', config.testMode)
+  params.set('testMode', normalizeAligoTestMode(config.testMode))
   return params
 }
 
@@ -172,7 +224,7 @@ export async function sendAligoAlimtalk(input) {
         message_1: input.message,
         button_1: input.buttonPayload,
         failover: 'N',
-        testMode: config.testMode,
+        testMode: normalizeAligoTestMode(config.testMode),
         via: config.useGateway ? 'gateway' : 'direct',
       },
     }
@@ -218,27 +270,34 @@ export async function sendAligoAlimtalk(input) {
     let providerMessage = null
     let providerMessageId = null
     let httpStatus = null
+    /** @type {ReturnType<typeof pickAligoAlimtalkInfoSummary>} */
+    let infoSummary = null
+    /** @type {string | null} */
+    let receiverMaskedForLog = null
 
     if (config.useGateway) {
+      const receiverDigits = String(input.receiver).replace(/\D/g, '')
       const gatewayBody = {
         apikey: config.apiKey,
         userid: config.userId,
         senderkey: config.senderKey,
         tpl_code: tplCode,
         sender: config.sender,
-        receiver_1: String(input.receiver).replace(/\D/g, ''),
+        receiver_1: receiverDigits,
         recvname_1: String(input.recvName ?? '고객').trim() || '고객',
         subject_1: String(input.subject ?? '').trim(),
         message_1: String(input.message ?? ''),
         button_1: input.buttonPayload,
         failover: 'N',
-        testMode: config.testMode,
+        testMode: normalizeAligoTestMode(config.testMode),
       }
       const gw = await postGatewayJson(config, gatewayBody, fetchImpl, 'send')
       httpStatus = gw.httpStatus
       providerCode = pickAligoAlimtalkCode(gw.parsed)
       providerMessage = pickAligoAlimtalkMessage(gw.parsed) || 'aligo response'
       providerMessageId = pickAligoAlimtalkMessageId(gw.parsed)
+      infoSummary = pickAligoAlimtalkInfoSummary(gw.parsed)
+      receiverMaskedForLog = maskReceiverForLog(receiverDigits)
     } else {
       const params = buildSendFormParams(config, { ...input, tplCode })
       const controller = new AbortController()
@@ -261,6 +320,8 @@ export async function sendAligoAlimtalk(input) {
       providerCode = pickAligoAlimtalkCode(parsed)
       providerMessage = pickAligoAlimtalkMessage(parsed) || 'aligo response'
       providerMessageId = pickAligoAlimtalkMessageId(parsed)
+      infoSummary = pickAligoAlimtalkInfoSummary(parsed)
+      receiverMaskedForLog = maskReceiverForLog(String(input.receiver).replace(/\D/g, ''))
     }
 
     console.info('[alimtalk] provider result', {
@@ -270,19 +331,34 @@ export async function sendAligoAlimtalk(input) {
       httpStatus,
       providerCode,
       providerMessage,
+      providerMessageId,
+      info: infoSummary,
+      receiverMasked: receiverMaskedForLog,
+      receiverLength: String(input.receiver ?? '').replace(/\D/g, '').length,
+      testMode: normalizeAligoTestMode(config.testMode),
+      failover: 'N',
+      buttonCount: Array.isArray(input.buttonPayload?.button) ? input.buttonPayload.button.length : 0,
       credentialConfigured: true,
       senderKeyConfigured: Boolean(config.senderKey),
     })
 
     if (isAligoAlimtalkSuccessCode(providerCode)) {
+      if (!providerMessageId) {
+        console.warn('[alimtalk] accepted without provider message id', {
+          templateKey: input.templateKey ?? null,
+          tplCode,
+          via: config.useGateway ? 'gateway' : 'direct',
+        })
+      }
       return {
         ok: true,
-        status: /** @type {'sent'} */ ('sent'),
+        status: /** @type {'accepted'} */ ('accepted'),
         dryRun: false,
         provider: config.provider,
         providerMessageId,
         providerCode,
         providerMessage,
+        info: infoSummary,
         httpStatus,
         requestedAt,
         sentAt: new Date().toISOString(),

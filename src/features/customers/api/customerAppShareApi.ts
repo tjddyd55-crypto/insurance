@@ -19,7 +19,7 @@ export type CustomerAppSmsSendResult = {
 }
 
 export type CustomerAppAlimtalkShareResult = {
-  status: 'dry_run' | 'sent' | 'blocked' | 'failed' | 'missing_receiver'
+  status: 'dry_run' | 'accepted' | 'sent' | 'blocked' | 'failed' | 'missing_receiver'
   templateKey?: string
   tplCode?: string
   receiverMasked?: string

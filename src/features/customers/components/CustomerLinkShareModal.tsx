@@ -323,8 +323,8 @@ export default function CustomerLinkShareModal({
           const msg = '고객앱 링크 카카오톡 발송 테스트가 완료되었습니다.'
           showStatus(msg, 'success')
           onFeedback(msg)
-        } else if (result.status === 'sent') {
-          const msg = '고객앱 링크 카카오톡을 발송했습니다.'
+        } else if (result.status === 'accepted' || result.status === 'sent') {
+          const msg = '고객앱 링크 카카오톡 발송 요청이 접수되었습니다.'
           showStatus(msg, 'success')
           onFeedback(msg)
         } else if (result.status === 'blocked') {
@@ -350,8 +350,8 @@ export default function CustomerLinkShareModal({
           const msg = '고객등록 카카오톡 발송 테스트가 완료되었습니다.'
           showStatus(msg, 'success')
           onFeedback(msg)
-        } else if (result.status === 'sent') {
-          const msg = '고객등록 링크 카카오톡을 발송했습니다.'
+        } else if (result.status === 'accepted' || result.status === 'sent') {
+          const msg = '고객등록 카카오톡 발송 요청이 접수되었습니다.'
           showStatus(msg, 'success')
           onFeedback(msg)
         } else if (result.status === 'blocked') {

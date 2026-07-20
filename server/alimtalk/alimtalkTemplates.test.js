@@ -36,9 +36,9 @@ describe('alimtalkTemplates', () => {
     )
   })
 
-  it('puts customerAppUrl into button_1 linkMo/linkPc', () => {
+  it('puts https customerAppUrl into button even when http given', () => {
     const payload = buildCustomerAppLinkButtonPayload({
-      customerAppUrl: 'https://example.com/customer-app/link?code=ABC',
+      customerAppUrl: 'http://example.com/customer-app/link?code=ABC',
     })
     assert.equal(payload.button[0].linkType, 'WL')
     assert.equal(payload.button[0].name, '고객앱 열기')
