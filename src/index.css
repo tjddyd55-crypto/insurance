@@ -5051,9 +5051,24 @@ div.cta-button.customers-page__action-btn[role='button'] {
   color: var(--text-secondary);
 }
 
+/*
+ * FormInput 은 portal(body) 로 렌더되어 .pc-root .form-input { padding: 0 12px } 가
+ * 적용되지 않는다. Tailwind preflight 의 input padding:0 만 남아 값이 테두리에 붙는다.
+ * 모달 스코프에서만 FormInput SSOT 좌우 여백을 복구한다.
+ */
 .customer-registration-share-modal__field .form-input {
+  box-sizing: border-box;
+  width: 100%;
   min-height: 48px;
   border-radius: 10px;
+  padding: 0 12px;
+}
+
+.customer-registration-share-modal__field .form-input:focus:not(:disabled):not([readonly]),
+.customer-registration-share-modal__field .form-input:focus-visible:not(:disabled):not([readonly]) {
+  outline: none;
+  border-color: var(--input-focus-border);
+  box-shadow: none;
 }
 
 .customer-registration-share-modal__hint {
