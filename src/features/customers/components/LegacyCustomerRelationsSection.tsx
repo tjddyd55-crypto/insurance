@@ -339,59 +339,6 @@ export function LegacyCustomerRelationsSection({
                 </li>
               ) : null}
             </ul>
-            <div className="related-list related-list--pc">
-              <div className="related-list__header row" role="presentation">
-                <div className="name">이름</div>
-                <div className="birth">생년월일</div>
-                <div className="phone">연락처</div>
-              </div>
-              <ul className="related-list__body" role="list">
-                {hits.map((h) => {
-                  const alreadyLinked = relatedIdSet.has(h.id)
-                  const disabled = linking || alreadyLinked
-                  const birth = formatBirthYmdDotFromSsn(h.ssn)
-                  const phone = formatCustomerPhoneUi(h.phone) || '-'
-                  const triggerLink = () => {
-                    if (disabled) return
-                    void linkTo(h)
-                  }
-                  return (
-                    <li
-                      key={h.id}
-                      className={`row related-list__row${disabled ? ' related-list__row--disabled' : ''}`}
-                      role="button"
-                      tabIndex={disabled ? -1 : 0}
-                      aria-disabled={disabled}
-                      aria-label={`${h.name} 연결`}
-                      onClick={triggerLink}
-                      onKeyDown={(e) => {
-                        if (disabled) return
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault()
-                          triggerLink()
-                        }
-                      }}
-                    >
-                      <div className="name" title={h.name}>
-                        {h.name}
-                      </div>
-                      <div className="birth">{birth}</div>
-                      <div className="phone">
-                        <span>{phone}</span>
-                        {alreadyLinked ? (
-                          <span className="related-list__linked" aria-label="이미 연결됨">
-                            연결됨
-                          </span>
-                        ) : null}
-                      </div>
-                    </li>
-                  )
-                })}
-                {hits.length === 0 && !searchBusy ? (
-                  <li className="related-list__empty">검색 결과가 없습니다.</li>
-                ) : null}
-              </ul>
-            </div>
           </div>
         </div>
         <footer className="customer-relations-modal__footer">

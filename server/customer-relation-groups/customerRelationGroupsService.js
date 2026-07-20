@@ -83,9 +83,10 @@ export async function getOwnedActiveGroup(db, { groupId, userId, gaId }) {
 
 /**
  * @param {import('pg').Pool | import('pg').PoolClient} db
- * @param {{ groupId: number, currentCustomerId: number }} args
+ * @param {{ groupId: number, currentCustomerId: number, userId: string, gaId: number }} args
  */
-export async function listActiveGroupMembers(db, { groupId, currentCustomerId }) {
+export async function listActiveGroupMembers(db, { groupId, currentCustomerId, userId, gaId }) {
+  // safeQuery 는 SQL 에 ga_id 토큰이 없으면 거부한다. 멤버 조회도 그룹 스코프로 묶는다.
   const r = await safeQuery(
     db,
     `
@@ -96,6 +97,11 @@ export async function listActiveGroupMembers(db, { groupId, currentCustomerId })
       c.name AS customer_name,
       c.phone AS customer_phone
     FROM customer_relation_group_members m
+    INNER JOIN customer_relation_groups g
+      ON g.id = m.group_id
+     AND g.user_id = $2
+     AND g.ga_id = $3
+     AND g.deleted_at IS NULL
     INNER JOIN customers c
       ON c.id = m.customer_id
      AND c.deleted_at IS NULL
@@ -103,7 +109,7 @@ export async function listActiveGroupMembers(db, { groupId, currentCustomerId })
       AND m.deleted_at IS NULL
     ORDER BY m.sort_order ASC, m.id ASC
     `,
-    [groupId],
+    [groupId, userId, gaId],
   )
   return r.rows.map((row) => {
     const customerId = Number(row.customer_id)
@@ -143,7 +149,12 @@ export async function listRelationGroupsForCustomer(db, { customerId, userId, ga
   const out = []
   for (const row of groupsResult.rows) {
     const groupId = Number(row.id)
-    const members = await listActiveGroupMembers(db, { groupId, currentCustomerId: customerId })
+    const members = await listActiveGroupMembers(db, {
+      groupId,
+      currentCustomerId: customerId,
+      userId,
+      gaId,
+    })
     out.push({
       id: groupId,
       name: String(row.name ?? ''),
@@ -263,7 +274,12 @@ export async function createRelationGroup(client, args) {
     sortOrder += 1
   }
 
-  const membersOut = await listActiveGroupMembers(client, { groupId, currentCustomerId: customerId })
+  const membersOut = await listActiveGroupMembers(client, {
+    groupId,
+    currentCustomerId: customerId,
+    userId,
+    gaId,
+  })
   return {
     ok: true,
     data: {
@@ -361,11 +377,19 @@ export async function addRelationGroupMember(client, args) {
   const existingInGroup = await safeQuery(
     client,
     `
-    SELECT id FROM customer_relation_group_members
-    WHERE group_id = $1 AND customer_id = $2 AND deleted_at IS NULL
+    SELECT m.id
+    FROM customer_relation_group_members m
+    INNER JOIN customer_relation_groups g
+      ON g.id = m.group_id
+     AND g.user_id = $3
+     AND g.ga_id = $4
+     AND g.deleted_at IS NULL
+    WHERE m.group_id = $1
+      AND m.customer_id = $2
+      AND m.deleted_at IS NULL
     LIMIT 1
     `,
-    [args.groupId, customerId],
+    [args.groupId, customerId, args.userId, args.gaId],
   )
   if (existingInGroup.rowCount > 0) {
     return { ok: false, status: 409, message: '이미 이 그룹에 포함된 고객입니다.' }
@@ -391,11 +415,17 @@ export async function addRelationGroupMember(client, args) {
   const maxSort = await safeQuery(
     client,
     `
-    SELECT COALESCE(MAX(sort_order), -1) AS max_sort
-    FROM customer_relation_group_members
-    WHERE group_id = $1 AND deleted_at IS NULL
+    SELECT COALESCE(MAX(m.sort_order), -1) AS max_sort
+    FROM customer_relation_group_members m
+    INNER JOIN customer_relation_groups g
+      ON g.id = m.group_id
+     AND g.user_id = $2
+     AND g.ga_id = $3
+     AND g.deleted_at IS NULL
+    WHERE m.group_id = $1
+      AND m.deleted_at IS NULL
     `,
-    [args.groupId],
+    [args.groupId, args.userId, args.gaId],
   )
   const sortOrder = Number(maxSort.rows[0]?.max_sort ?? -1) + 1
   const label = normalizeRelationshipLabel(args.relationshipLabel, '기타') || '기타'
@@ -436,19 +466,32 @@ export async function updateRelationGroupMemberLabel(db, args) {
   const r = await safeQuery(
     db,
     `
-    UPDATE customer_relation_group_members
+    UPDATE customer_relation_group_members m
     SET relationship_label = $1, updated_at = NOW()
-    WHERE group_id = $2 AND customer_id = $3 AND deleted_at IS NULL
-    RETURNING id
+    FROM customer_relation_groups g
+    WHERE m.group_id = g.id
+      AND g.id = $2
+      AND g.user_id = $4
+      AND g.ga_id = $5
+      AND g.deleted_at IS NULL
+      AND m.customer_id = $3
+      AND m.deleted_at IS NULL
+    RETURNING m.id
     `,
-    [label, args.groupId, args.customerId],
+    [label, args.groupId, args.customerId, args.userId, args.gaId],
   )
   if (r.rowCount === 0) {
     return { ok: false, status: 404, message: '그룹 구성원을 찾을 수 없습니다.' }
   }
-  await safeQuery(db, `UPDATE customer_relation_groups SET updated_at = NOW() WHERE id = $1`, [
-    args.groupId,
-  ])
+  await safeQuery(
+    db,
+    `
+    UPDATE customer_relation_groups
+    SET updated_at = NOW()
+    WHERE id = $1 AND user_id = $2 AND ga_id = $3 AND deleted_at IS NULL
+    `,
+    [args.groupId, args.userId, args.gaId],
+  )
   return { ok: true, data: { relationshipLabel: label } }
 }
 
@@ -515,11 +558,17 @@ export async function softDeleteRelationGroup(db, args) {
   await safeQuery(
     db,
     `
-    UPDATE customer_relation_group_members
+    UPDATE customer_relation_group_members m
     SET deleted_at = NOW(), updated_at = NOW()
-    WHERE group_id = $1 AND deleted_at IS NULL
+    FROM customer_relation_groups g
+    WHERE m.group_id = g.id
+      AND g.id = $1
+      AND g.user_id = $2
+      AND g.ga_id = $3
+      AND g.deleted_at IS NULL
+      AND m.deleted_at IS NULL
     `,
-    [args.groupId],
+    [args.groupId, args.userId, args.gaId],
   )
   await safeQuery(
     db,

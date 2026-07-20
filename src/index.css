@@ -7647,10 +7647,15 @@ div.cta-button.customers-page__action-btn[role='button'] {
   display: none;
 }
 
-/* 모달(포털 포함) 검색 결과는 PC에서도 리스트 표시 — related-list--pc 마크업 없이도 동작 */
+/* 모달(포털)은 카드 리스트만 사용 — PC 테이블 헤더(이름/생년월일/연락처) 중복 노출 방지 */
 .customers-page--pc .customer-relations-modal .customer-relations-result-list,
 .customer-ui-modal-panel.customer-relations-modal .customer-relations-result-list {
   display: block;
+}
+
+.customer-relations-modal__results .related-list--pc,
+.customer-ui-modal-panel.customer-relations-modal .related-list--pc {
+  display: none;
 }
 
 .customers-page--mobile .customer-relations-strip .related-list--pc {
@@ -7750,21 +7755,6 @@ div.cta-button.customers-page__action-btn[role='button'] {
   margin: 0;
   padding: 0;
   max-height: 260px;
-  overflow-y: auto;
-}
-
-.customer-relations-modal__results .related-list--pc {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.customer-relations-modal__results .related-list--pc .related-list__body {
-  flex: 1 1 auto;
-  min-height: 0;
-  max-height: none;
   overflow-y: auto;
 }
 

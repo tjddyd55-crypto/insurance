@@ -12,6 +12,67 @@ import {
 } from '../customer-relation-groups/customerRelationGroupsService.js'
 
 /**
+ * 내부 DB/가드 오류를 안전한 사용자 메시지로 매핑한다.
+ * PostgreSQL 원문·테이블명·SQL 은 응답에 넣지 않는다.
+ * @param {unknown} error
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {Function} _handleDbError
+ * @param {'create' | 'mutate' | 'list'} action
+ */
+function respondRelationGroupDbError(error, req, res, _handleDbError, action = 'mutate') {
+  const err = /** @type {{ message?: string, code?: string, constraint?: string, table?: string, column?: string }} */ (
+    error && typeof error === 'object' ? error : {}
+  )
+  const rawMessage = String(err.message ?? '')
+  const pgCode = err.code ? String(err.code) : ''
+
+  console.error('[relation-groups] db failure', {
+    action,
+    path: req?.originalUrl ?? req?.url,
+    actorUserId: Boolean(req?.user?.id),
+    gaId: Boolean(req?.gaId ?? req?.user?.gaId),
+    pgCode: pgCode || undefined,
+    constraint: err.constraint || undefined,
+    table: err.table || undefined,
+    column: err.column || undefined,
+    message: rawMessage.slice(0, 160),
+  })
+
+  if (pgCode === '42P01' || /relation .+ does not exist/i.test(rawMessage)) {
+    res.status(503).json({
+      success: false,
+      message: '가족 그룹 저장 준비가 완료되지 않았습니다. 잠시 후 다시 시도해 주세요.',
+      error: '가족 그룹 저장 준비가 완료되지 않았습니다. 잠시 후 다시 시도해 주세요.',
+      data: { code: 'RELATION_GROUP_SCHEMA_MISSING' },
+    })
+    return
+  }
+
+  if (pgCode === '23505' || /already_in_family|uq_crgm_active/i.test(String(err.constraint ?? ''))) {
+    res.status(409).json({
+      success: false,
+      message: '이미 다른 가족 그룹에 포함된 고객이 있습니다.',
+      error: '이미 다른 가족 그룹에 포함된 고객이 있습니다.',
+      data: { code: 'RELATION_GROUP_DUPLICATE_MEMBER' },
+    })
+    return
+  }
+
+  const fallback =
+    action === 'list'
+      ? '가족 그룹을 불러오지 못했습니다. 다시 시도해 주세요.'
+      : '가족 그룹을 저장하지 못했습니다. 다시 시도해 주세요.'
+
+  res.status(500).json({
+    success: false,
+    message: fallback,
+    error: fallback,
+    data: { code: 'RELATION_GROUP_CREATE_FAILED' },
+  })
+}
+
+/**
  * @param {import('express').Router} apiRouter
  * @param {{ pool: import('pg').Pool, requireAuth: Function, handleDbError: Function }} ctx
  */
@@ -64,7 +125,7 @@ export function registerCustomerRelationGroupsApi(apiRouter, { pool, requireAuth
       })
       res.json({ success: true, data })
     } catch (error) {
-      handleDbError(error, req, res)
+      respondRelationGroupDbError(error, req, res, handleDbError, 'list')
     }
   })
 
@@ -99,6 +160,14 @@ export function registerCustomerRelationGroupsApi(apiRouter, { pool, requireAuth
         })
       }
 
+      console.info('[relation-groups] create start', {
+        actorUserId: Boolean(scope.userId),
+        gaId: Boolean(scope.gaId),
+        currentCustomerId: customerId,
+        memberCount: members.length + 1,
+        groupType: String(req.body?.groupType ?? req.body?.group_type ?? 'FAMILY'),
+      })
+
       await client.query('BEGIN')
       const result = await createRelationGroup(client, {
         customerId,
@@ -114,8 +183,9 @@ export function registerCustomerRelationGroupsApi(apiRouter, { pool, requireAuth
         res.status(result.status || 400).json({
           success: false,
           message: result.message,
+          error: result.message,
           code: result.code,
-          data: result.data,
+          data: result.data ?? { code: result.code || 'RELATION_GROUP_CREATE_REJECTED' },
         })
         return
       }
@@ -127,7 +197,7 @@ export function registerCustomerRelationGroupsApi(apiRouter, { pool, requireAuth
       } catch {
         /* ignore */
       }
-      handleDbError(error, req, res)
+      respondRelationGroupDbError(error, req, res, handleDbError, 'create')
     } finally {
       client.release()
     }
@@ -156,7 +226,7 @@ export function registerCustomerRelationGroupsApi(apiRouter, { pool, requireAuth
       }
       res.json({ success: true, data: result.data })
     } catch (error) {
-      handleDbError(error, req, res)
+      respondRelationGroupDbError(error, req, res, handleDbError, 'mutate')
     }
   })
 
@@ -193,6 +263,7 @@ export function registerCustomerRelationGroupsApi(apiRouter, { pool, requireAuth
         res.status(result.status || 400).json({
           success: false,
           message: result.message,
+          error: result.message,
           code: result.code,
           data: result.data,
         })
@@ -206,7 +277,7 @@ export function registerCustomerRelationGroupsApi(apiRouter, { pool, requireAuth
       } catch {
         /* ignore */
       }
-      handleDbError(error, req, res)
+      respondRelationGroupDbError(error, req, res, handleDbError, 'mutate')
     } finally {
       client.release()
     }
@@ -238,7 +309,7 @@ export function registerCustomerRelationGroupsApi(apiRouter, { pool, requireAuth
         }
         res.json({ success: true, data: result.data })
       } catch (error) {
-        handleDbError(error, req, res)
+        respondRelationGroupDbError(error, req, res, handleDbError, 'mutate')
       }
     },
   )
@@ -277,7 +348,7 @@ export function registerCustomerRelationGroupsApi(apiRouter, { pool, requireAuth
         } catch {
           /* ignore */
         }
-        handleDbError(error, req, res)
+        respondRelationGroupDbError(error, req, res, handleDbError, 'mutate')
       } finally {
         client.release()
       }
@@ -304,7 +375,7 @@ export function registerCustomerRelationGroupsApi(apiRouter, { pool, requireAuth
       }
       res.json({ success: true, data: { ok: true } })
     } catch (error) {
-      handleDbError(error, req, res)
+      respondRelationGroupDbError(error, req, res, handleDbError, 'mutate')
     }
   })
 }
