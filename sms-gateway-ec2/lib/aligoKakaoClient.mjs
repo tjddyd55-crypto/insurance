@@ -75,6 +75,29 @@ function pickMid(raw) {
   return id != null ? String(id) : null
 }
 
+function pickInfo(raw) {
+  if (!raw || typeof raw !== 'object' || !raw.info || typeof raw.info !== 'object') return null
+  const info = raw.info
+  return {
+    mid: info.mid != null ? String(info.mid) : null,
+    type: info.type != null ? String(info.type) : null,
+    scnt: info.scnt != null ? Number(info.scnt) : null,
+    fcnt: info.fcnt != null ? Number(info.fcnt) : null,
+    pcnt: info.pcnt != null ? Number(info.pcnt) : null,
+    total: info.total != null ? Number(info.total) : null,
+    unit: info.unit != null ? Number(info.unit) : null,
+  }
+}
+
+/** 국가지원사업 EC2 와 동일: false/"false" → N */
+function normalizeTestMode(raw) {
+  if (raw === true) return 'Y'
+  if (raw === false || raw == null) return 'N'
+  const s = String(raw).trim().toUpperCase()
+  if (s === 'Y' || s === '1' || s === 'TRUE' || s === 'YES' || s === 'ON' || s === 'T') return 'Y'
+  return 'N'
+}
+
 /**
  * Relay Aligo Kakao alimtalk/send from EC2 (IP-whitelisted).
  * Credentials are passed from Railway in the request body (same pattern as CRM SMS).
@@ -95,7 +118,8 @@ export async function sendAlimtalkViaAligo(payload) {
   const button = payload.button_1 ?? payload.buttonPayload
   params.set('button_1', typeof button === 'string' ? button : JSON.stringify(button ?? { button: [] }))
   params.set('failover', String(payload.failover ?? 'N'))
-  params.set('testMode', String(payload.testMode ?? 'N'))
+  const testMode = normalizeTestMode(payload.testMode)
+  params.set('testMode', testMode)
 
   const { data, httpStatus, network } = await postForm(ALIGO_ALIMTALK_SEND_URL, params)
   if (network || !data) {
@@ -104,24 +128,29 @@ export async function sendAlimtalkViaAligo(payload) {
       providerCode: null,
       providerMessage: 'network error',
       providerMessageId: null,
+      info: null,
       httpStatus: null,
       raw: sanitizeRaw({ network_error: true }),
       durationMs: Date.now() - started,
+      testMode,
     }
   }
 
   const providerCode = pickCode(data)
   const providerMessage = pickMessage(data) || 'aligo response'
   const providerMessageId = pickMid(data)
+  const info = pickInfo(data)
   const ok = providerCode === 0
   return {
     success: ok,
     providerCode,
     providerMessage,
     providerMessageId,
+    info,
     httpStatus,
     raw: sanitizeRaw(data),
     durationMs: Date.now() - started,
+    testMode,
   }
 }
 
@@ -156,3 +185,82 @@ export async function profileListViaAligo(payload) {
     durationMs: Date.now() - started,
   }
 }
+
+/**
+ * Aligo kakao history/list — mid 단위 접수 이력 조회 (수신 여부 확인용).
+ * @param {Record<string, unknown>} payload
+ */
+export async function historyListViaAligo(payload) {
+  const started = Date.now()
+  const params = new URLSearchParams()
+  params.set('apikey', String(payload.apikey ?? payload.apiKey ?? ''))
+  params.set('userid', String(payload.userid ?? payload.userId ?? ''))
+  if (payload.startdate) params.set('startdate', String(payload.startdate))
+  if (payload.enddate) params.set('enddate', String(payload.enddate))
+  if (payload.page) params.set('page', String(payload.page))
+  if (payload.limit) params.set('limit', String(payload.limit))
+  const { data, httpStatus, network } = await postForm(
+    'https://kakaoapi.aligo.in/akv10/history/list/',
+    params,
+  )
+  if (network || !data) {
+    return {
+      success: false,
+      providerCode: null,
+      providerMessage: 'network error',
+      list: [],
+      httpStatus: null,
+      raw: sanitizeRaw({ network_error: true }),
+      durationMs: Date.now() - started,
+    }
+  }
+  const providerCode = pickCode(data)
+  return {
+    success: providerCode === 0,
+    providerCode,
+    providerMessage: pickMessage(data),
+    list: Array.isArray(data?.list) ? data.list : [],
+    httpStatus,
+    raw: sanitizeRaw(data),
+    durationMs: Date.now() - started,
+  }
+}
+
+/**
+ * Aligo kakao history/detail — mid 상세(수신 결과 rslt 등).
+ * @param {Record<string, unknown>} payload
+ */
+export async function historyDetailViaAligo(payload) {
+  const started = Date.now()
+  const params = new URLSearchParams()
+  params.set('apikey', String(payload.apikey ?? payload.apiKey ?? ''))
+  params.set('userid', String(payload.userid ?? payload.userId ?? ''))
+  params.set('mid', String(payload.mid ?? ''))
+  const { data, httpStatus, network } = await postForm(
+    'https://kakaoapi.aligo.in/akv10/history/detail/',
+    params,
+  )
+  if (network || !data) {
+    return {
+      success: false,
+      providerCode: null,
+      providerMessage: 'network error',
+      list: [],
+      httpStatus: null,
+      raw: sanitizeRaw({ network_error: true }),
+      durationMs: Date.now() - started,
+    }
+  }
+  const providerCode = pickCode(data)
+  return {
+    success: providerCode === 0,
+    providerCode,
+    providerMessage: pickMessage(data),
+    list: Array.isArray(data?.list) ? data.list : [],
+    httpStatus,
+    raw: sanitizeRaw(data),
+    durationMs: Date.now() - started,
+  }
+}
+
+export { normalizeTestMode }

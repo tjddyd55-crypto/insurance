@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto'
+import { forceHttpsPublicUrl } from './alimtalkPublicUrl.js'
 
 /**
  * 고객앱 연결용 https URL — customerClaimAppApi 와 동일 규칙.
+ * 알림톡 승인 템플릿 버튼은 https 고정이므로 공개 URL 은 https 로 정규화한다.
  * @param {{ protocol?: string, host?: string } | null | undefined} reqLike
  * @param {string} linkCode
  * @param {NodeJS.ProcessEnv} [env]
@@ -15,7 +17,8 @@ export function buildCustomerAppUniversalLinkOpenUrl(reqLike, linkCode, env = pr
   const host = String(reqLike?.host ?? '').trim()
   const fallback = host ? `${protocol}://${host}/customer-app/link` : 'https://localhost/customer-app/link'
   const base = (envPage || legacy || fallback).replace(/\/+$/, '')
-  return `${base}?code=${encodeURIComponent(String(linkCode))}`
+  const url = `${base}?code=${encodeURIComponent(String(linkCode))}`
+  return forceHttpsPublicUrl(url)
 }
 
 function generateLinkCode() {
