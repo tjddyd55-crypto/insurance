@@ -269,7 +269,7 @@
   flex-direction: column;
   width: min(calc(100vw - 32px), 480px);
   max-width: none;
-  max-height: min(80vh, 640px);
+  max-height: calc(100dvh - 32px);
   padding: 24px;
   overflow: hidden;
   text-align: left;
@@ -293,11 +293,15 @@
   flex-direction: column;
   min-height: 0;
   gap: 12px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .customer-relations-modal__search {
   flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .customer-relations-modal__search-form {
@@ -326,10 +330,11 @@
 }
 
 .customer-relations-modal__results {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  max-height: min(240px, 36dvh);
   overflow: hidden;
 }
 
@@ -348,7 +353,7 @@
   flex: 1 1 auto;
   min-height: 0;
   width: 100%;
-  margin: 14px 0 0;
+  margin: 0;
   padding: 0;
   overflow-y: auto;
   border: 1px solid var(--border-default);
@@ -387,6 +392,10 @@
 
 .customer-relations-result-item:hover:not(:disabled) {
   background: color-mix(in srgb, var(--brand-primary) 8%, transparent);
+}
+
+.customer-relations-result-item--selected:not(:disabled) {
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
 }
 
 .customer-relations-result-item:disabled {
@@ -437,7 +446,7 @@
   .customer-ui-modal-panel.customer-relations-modal,
   .customer-relations-strip .customer-relations-modal {
     width: calc(100vw - 32px);
-    max-height: min(80vh, 640px);
+    max-height: calc(100dvh - 32px);
   }
 }
 
@@ -591,42 +600,124 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-bottom: 12px;
+  margin-bottom: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.customer-relation-group-form__field-label {
+  display: block;
+  margin: 0;
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-secondary);
 }
 
 .customer-relation-group-form__hint {
-  margin: 0 0 12px;
+  margin: 0;
   font-size: 0.85rem;
   color: var(--text-secondary);
   line-height: 1.45;
 }
 
+.customer-relation-group-form__custom-label {
+  width: 100%;
+}
+
+.customer-relation-label-field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.customer-relation-group-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--bg-soft, var(--bg-surface));
+}
+
+.customer-relation-group-picker__selected {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.customer-relation-group-picker__selected-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.customer-relation-group-picker__selected-name {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.customer-relation-group-picker__selected-phone {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.customer-relation-group-pending-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.customer-relation-group-pending__title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
 .customer-relation-group-pending {
   list-style: none;
-  margin: 0 0 12px;
+  margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
+.customer-relation-group-pending__item,
 .customer-relation-group-pending li {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 8px;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
   border: 1px solid var(--border-default);
-  background: var(--bg-soft);
+  background: var(--bg-surface);
   font-size: 0.85rem;
+  min-height: 48px;
+}
+
+.customer-relation-group-pending__main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.customer-relation-group-pending__label {
+  color: var(--brand, var(--text-primary));
+  font-weight: 600;
+}
+
+.customer-relation-group-modal.customer-ui-modal-panel,
+.customer-relation-group-modal {
+  max-height: calc(100dvh - 32px);
 }
 
 .customer-relation-group-modal .customer-relations-modal__body {
-  max-height: min(60vh, 520px);
+  max-height: none;
   overflow-y: auto;
 }
 
