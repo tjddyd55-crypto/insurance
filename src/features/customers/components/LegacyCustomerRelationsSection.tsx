@@ -1,6 +1,5 @@
-import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useConfirmDialog } from '../../../components/dialog'
-import { FormInput } from '../../../components/form'
 import Modal from '../../../components/ui/Modal'
 import { useBackButtonClose } from '../../../hooks/useBackButtonClose'
 import { listCustomers, searchCustomers } from '../api/customersApi'
@@ -11,8 +10,8 @@ import {
   type CustomerRelationRow,
 } from '../api/customerExtraApi'
 import type { CustomerRecord } from '../domain/types'
-import { formatCustomerPhoneUi } from '../utils/customerDisplayFormat'
-import { parseBirthDateFromRrn } from '../utils/insuranceAge'
+import { CustomerRelationSearchField } from './CustomerRelationSearchField'
+import { CustomerRelationSearchResultList } from './CustomerRelationSearchResultList'
 
 type Props = {
   customerId: number
@@ -24,17 +23,6 @@ type Props = {
   addOpen: boolean
   onAddOpenChange: (open: boolean) => void
   onStatus?: (payload: { error?: string; notice?: string }) => void
-}
-
-function formatBirthYmdDotFromSsn(ssn: string | null | undefined): string {
-  const birthDate = parseBirthDateFromRrn(String(ssn ?? ''))
-  if (!birthDate) {
-    return '-'
-  }
-  const y = String(birthDate.getFullYear())
-  const m = String(birthDate.getMonth() + 1).padStart(2, '0')
-  const d = String(birthDate.getDate()).padStart(2, '0')
-  return `${y}.${m}.${d}`
 }
 
 /**
@@ -278,68 +266,24 @@ export function LegacyCustomerRelationsSection({
         </header>
         <div className="customer-relations-modal__body">
           <div className="customer-relations-modal__search">
-            <form
-              className="customer-relations-modal__search-form"
-              onSubmit={(e: FormEvent) => {
-                e.preventDefault()
-              }}
-            >
-              <FormInput
-                type="search"
-                className="customer-relations-modal__search-input"
-                placeholder="이름 또는 전화번호 검색"
-                value={searchQ}
-                onChange={(e) => setSearchQ(e.target.value)}
-                autoFocus
-                autoComplete="off"
-              />
-            </form>
-            {searchBusy ? (
-              <p className="customer-relations-modal__search-status">검색 중…</p>
-            ) : null}
+            <CustomerRelationSearchField
+              value={searchQ}
+              onChange={setSearchQ}
+              placeholder="이름 또는 전화번호 검색"
+              disabled={linking}
+              autoFocus
+            />
           </div>
-          <div className="customer-relations-modal__results">
-            <ul className="customer-relations-result-list">
-              {hits.map((h) => {
-                const alreadyLinked = relatedIdSet.has(h.id)
-                const disabled = linking || alreadyLinked
-                const birth = formatBirthYmdDotFromSsn(h.ssn)
-                const phone = formatCustomerPhoneUi(h.phone) || '-'
-                return (
-                  <li key={h.id} className="customer-relations-result-list__item">
-                    <button
-                      type="button"
-                      className={`customer-relations-result-item${
-                        alreadyLinked ? ' customer-relations-result-item--linked' : ''
-                      }`}
-                      disabled={disabled}
-                      onClick={() => void linkTo(h)}
-                      aria-label={`${h.name} 연결`}
-                    >
-                      <span className="customer-relations-result-item__main">
-                        <span className="customer-relations-result-item__name">{h.name}</span>
-                        {alreadyLinked ? (
-                          <span className="ui-status-badge ui-status-badge--success">연결됨</span>
-                        ) : null}
-                      </span>
-                      <span className="customer-relations-result-item__sub">
-                        <span className="customer-relations-result-item__birth">{birth}</span>
-                        <span className="customer-relations-result-item__dot" aria-hidden>
-                          ·
-                        </span>
-                        <span className="customer-relations-result-item__phone">{phone}</span>
-                      </span>
-                    </button>
-                  </li>
-                )
-              })}
-              {hits.length === 0 && !searchBusy ? (
-                <li className="customer-relations-result-list__item customer-relations-result-list__empty">
-                  검색 결과가 없습니다.
-                </li>
-              ) : null}
-            </ul>
-          </div>
+          <CustomerRelationSearchResultList
+            hits={hits}
+            busy={searchBusy}
+            resolveStatus={(h) => ({
+              disabled: linking || relatedIdSet.has(h.id),
+              badge: relatedIdSet.has(h.id) ? '연결됨' : null,
+            })}
+            onSelect={(h) => void linkTo(h)}
+            actionLabel="연결"
+          />
         </div>
         <footer className="customer-relations-modal__footer">
           <button

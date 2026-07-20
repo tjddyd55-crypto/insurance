@@ -1,4 +1,4 @@
-import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useConfirmDialog } from '../../../components/dialog'
 import { FormButton, FormInput } from '../../../components/form'
 import Modal from '../../../components/ui/Modal'
@@ -17,12 +17,13 @@ import {
 } from '../api/customerRelationGroupsApi'
 import type { CustomerRecord } from '../domain/types'
 import { formatCustomerPhoneUi } from '../utils/customerDisplayFormat'
-import { parseBirthDateFromRrn } from '../utils/insuranceAge'
 import {
   resolveRelationshipLabel,
   splitRelationshipLabelForEdit,
 } from '../utils/relationshipLabel.js'
 import { CustomerRelationLabelField } from './CustomerRelationLabelField'
+import { CustomerRelationSearchField } from './CustomerRelationSearchField'
+import { CustomerRelationSearchResultList } from './CustomerRelationSearchResultList'
 
 type Props = {
   customerId: number
@@ -39,15 +40,6 @@ type PendingMember = {
   name: string
   phone: string
   relationshipLabel: string
-}
-
-function formatBirthYmdDotFromSsn(ssn: string | null | undefined): string {
-  const birthDate = parseBirthDateFromRrn(String(ssn ?? ''))
-  if (!birthDate) return '-'
-  const y = String(birthDate.getFullYear())
-  const m = String(birthDate.getMonth() + 1).padStart(2, '0')
-  const d = String(birthDate.getDate()).padStart(2, '0')
-  return `${y}.${m}.${d}`
 }
 
 function groupTypeLabel(type: string): string {
@@ -145,6 +137,12 @@ export function CustomerRelationGroupsSection({
   useEffect(() => {
     void loadGroups()
   }, [loadGroups])
+
+  useEffect(() => {
+    if (!notice) return
+    const timer = window.setTimeout(() => setNotice(''), 2800)
+    return () => window.clearTimeout(timer)
+  }, [notice])
 
   const searchModalOpen = createOpen || addMemberGroupId != null
   useBackButtonClose(searchModalOpen, () => {
@@ -250,7 +248,7 @@ export function CustomerRelationGroupsSection({
         relationshipLabel: label,
       },
     ])
-    setNotice(`${selectedCustomer.name}을(를) 추가 목록에 넣었습니다.`)
+    setNotice(`${selectedCustomer.name} 고객을 추가 목록에 넣었습니다.`)
     setSelectedCustomer(null)
     setPickOption('배우자')
     setPickCustom('')
@@ -305,7 +303,8 @@ export function CustomerRelationGroupsSection({
         customerId: selectedCustomer.id,
         relationshipLabel: label,
       })
-      setNotice(`${selectedCustomer.name}을(를) 그룹에 추가했습니다.`)
+      setNotice(`${selectedCustomer.name} 고객을 그룹에 추가했습니다.`)
+      setAddMemberGroupId(null)
       setSelectedCustomer(null)
       setPickOption('자녀')
       setPickCustom('')
@@ -395,96 +394,49 @@ export function CustomerRelationGroupsSection({
     const alreadyInGroup = groupMemberIdSet.has(h.id)
     const groupName = memberGroupNameByCustomerId.get(h.id)
     if (mode === 'create' && alreadyInPending) {
-      return { disabled: true, badge: '이미 추가됨' as const }
+      return { disabled: true, badge: '이미 추가됨' as const, selected: false }
     }
     if (alreadyInGroup) {
       return {
         disabled: true,
         badge: (groupName ? `이미 “${groupName}” 포함` : '이미 포함됨') as string,
+        selected: false,
       }
     }
-    return { disabled: linking || createBusy, badge: null as string | null }
+    return {
+      disabled: linking || createBusy,
+      badge: null as string | null,
+      selected: selectedCustomer?.id === h.id,
+    }
   }
 
   const renderSearchHits = (mode: 'create' | 'add') => {
     const q = searchQ.trim()
     return (
-      <div className="customer-relations-modal__results">
-        {!q ? (
-          <p className="customer-relations-modal__search-status">
-            고객명 또는 휴대폰번호를 입력해 검색하세요.
-          </p>
-        ) : null}
-        {q && searchBusy ? (
-          <p className="customer-relations-modal__search-status">검색 중…</p>
-        ) : null}
-        {q && !searchBusy ? (
-          <ul className="customer-relations-result-list">
-            {hits.map((h) => {
-              const status = hitStatus(h, mode)
-              const birth = formatBirthYmdDotFromSsn(h.ssn)
-              const phone = formatCustomerPhoneUi(h.phone) || '-'
-              const selected = selectedCustomer?.id === h.id
-              return (
-                <li key={h.id} className="customer-relations-result-list__item">
-                  <button
-                    type="button"
-                    className={`customer-relations-result-item${
-                      status.disabled ? ' customer-relations-result-item--linked' : ''
-                    }${selected ? ' customer-relations-result-item--selected' : ''}`}
-                    disabled={status.disabled}
-                    onClick={() => {
-                      if (status.disabled) return
-                      setSelectedCustomer(h)
-                      setLabelError('')
-                      setNotice('')
-                    }}
-                    aria-label={`${h.name} 선택`}
-                    aria-pressed={selected}
-                  >
-                    <span className="customer-relations-result-item__main">
-                      <span className="customer-relations-result-item__name">{h.name}</span>
-                      {status.badge ? (
-                        <span className="ui-status-badge ui-status-badge--success">{status.badge}</span>
-                      ) : null}
-                      {selected && !status.badge ? (
-                        <span className="ui-status-badge ui-status-badge--success">선택됨</span>
-                      ) : null}
-                    </span>
-                    <span className="customer-relations-result-item__sub">
-                      <span className="customer-relations-result-item__birth">{birth}</span>
-                      <span className="customer-relations-result-item__dot" aria-hidden>
-                        ·
-                      </span>
-                      <span className="customer-relations-result-item__phone">{phone}</span>
-                    </span>
-                  </button>
-                </li>
-              )
-            })}
-            {hits.length === 0 ? (
-              <li className="customer-relations-result-list__item customer-relations-result-list__empty">
-                검색 결과가 없습니다.
-              </li>
-            ) : null}
-          </ul>
-        ) : null}
-      </div>
+      <CustomerRelationSearchResultList
+        hits={hits}
+        busy={Boolean(q) && searchBusy}
+        idleHint={q ? null : '고객명 또는 휴대폰번호를 입력해 검색하세요.'}
+        resolveStatus={(h) => hitStatus(h, mode)}
+        onSelect={(h) => {
+          setSelectedCustomer(h)
+          setLabelError('')
+          setNotice('')
+        }}
+        actionLabel="선택"
+      />
     )
   }
 
   const renderSelectedAndRelation = (mode: 'create' | 'add') => (
     <div className="customer-relation-group-picker">
       {selectedCustomer ? (
-        <div className="customer-relation-group-picker__selected" role="status">
-          <span className="customer-relation-group-picker__selected-label">선택 고객</span>
-          <strong className="customer-relation-group-picker__selected-name">
-            {selectedCustomer.name}
-          </strong>
-          <span className="customer-relation-group-picker__selected-phone">
-            {formatCustomerPhoneUi(selectedCustomer.phone) || '-'}
-          </span>
-        </div>
+        <p className="customer-relation-group-picker__selected-line" role="status">
+          선택 고객:{' '}
+          <strong>{selectedCustomer.name}</strong>
+          {' · '}
+          {formatCustomerPhoneUi(selectedCustomer.phone) || '-'}
+        </p>
       ) : (
         <p className="customer-relation-group-form__hint">검색 결과에서 고객을 선택하세요.</p>
       )}
@@ -606,37 +558,44 @@ export function CustomerRelationGroupsSection({
                         onOpenCustomer(m.customerId, m.name)
                       }}
                     >
-                      <span className="customer-relation-group-member__name">{m.name}</span>
+                      <span className="customer-relation-group-member__name-row">
+                        <span className="customer-relation-group-member__name">{m.name}</span>
+                        {m.isCurrentCustomer ? (
+                          <span className="customer-relation-group-member__current-badge">현재</span>
+                        ) : null}
+                      </span>
                       <span className="customer-relation-group-member__meta">
                         {m.relationshipLabel || '관계 미지정'}
-                        {m.isCurrentCustomer ? ' · 현재 고객' : ` · ${phone}`}
+                        {m.isCurrentCustomer ? '' : ` · ${phone}`}
                       </span>
                     </button>
                     <div className="customer-relation-group-member__ops">
-                      <button
-                        type="button"
-                        className="ui-button ui-button--sm ui-button--secondary"
-                        onClick={() => {
-                          const split = splitRelationshipLabelForEdit(m.relationshipLabel || '기타')
-                          setLabelError('')
-                          setEditLabelTarget({
-                            groupId: group.id,
-                            customerId: m.customerId,
-                            option: split.option,
-                            custom: split.custom,
-                          })
-                        }}
-                      >
-                        관계
-                      </button>
                       {!m.isCurrentCustomer ? (
-                        <button
-                          type="button"
-                          className="ui-button ui-button--sm ui-button--secondary"
-                          onClick={() => void removeMember(group.id, m)}
-                        >
-                          제거
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            className="ui-button ui-button--sm ui-button--secondary customer-relation-group-member__op"
+                            onClick={() => {
+                              const split = splitRelationshipLabelForEdit(m.relationshipLabel || '기타')
+                              setLabelError('')
+                              setEditLabelTarget({
+                                groupId: group.id,
+                                customerId: m.customerId,
+                                option: split.option,
+                                custom: split.custom,
+                              })
+                            }}
+                          >
+                            관계
+                          </button>
+                          <button
+                            type="button"
+                            className="ui-button ui-button--sm ui-button--secondary customer-relation-group-member__op customer-relation-group-member__op--danger"
+                            onClick={() => void removeMember(group.id, m)}
+                          >
+                            제거
+                          </button>
+                        </>
                       ) : null}
                     </div>
                   </li>
@@ -677,22 +636,14 @@ export function CustomerRelationGroupsSection({
           </p>
           <div className="customer-relations-modal__search">
             <span className="customer-relation-group-form__field-label">추가할 고객</span>
-            <form
-              className="customer-relations-modal__search-form"
-              onSubmit={(e: FormEvent) => e.preventDefault()}
-            >
-              <FormInput
-                type="search"
-                className="customer-relations-modal__search-input"
-                placeholder="고객명 또는 휴대폰번호 검색"
-                value={searchQ}
-                onChange={(e) => {
-                  setSearchQ(e.target.value)
-                  setSelectedCustomer(null)
-                }}
-                autoComplete="off"
-              />
-            </form>
+            <CustomerRelationSearchField
+              value={searchQ}
+              onChange={(next) => {
+                setSearchQ(next)
+                setSelectedCustomer(null)
+              }}
+              disabled={createBusy}
+            />
           </div>
           {renderSearchHits('create')}
           {renderSelectedAndRelation('create')}
@@ -761,16 +712,13 @@ export function CustomerRelationGroupsSection({
         <div className="customer-relations-modal__body">
           <div className="customer-relations-modal__search">
             <span className="customer-relation-group-form__field-label">추가할 고객</span>
-            <FormInput
-              type="search"
-              className="customer-relations-modal__search-input"
-              placeholder="고객명 또는 휴대폰번호 검색"
+            <CustomerRelationSearchField
               value={searchQ}
-              onChange={(e) => {
-                setSearchQ(e.target.value)
+              onChange={(next) => {
+                setSearchQ(next)
                 setSelectedCustomer(null)
               }}
-              autoComplete="off"
+              disabled={linking}
             />
           </div>
           {renderSearchHits('add')}

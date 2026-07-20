@@ -231,6 +231,8 @@
 
 .customer-relations-strip__status--notice {
   color: var(--brand, #1f9d55);
+  margin: 0 0 6px;
+  font-size: 0.82rem;
 }
 
 .customer-relations-strip--in-detail .customer-relations-strip__chip-list {
@@ -308,19 +310,80 @@
   margin: 0;
 }
 
-.customer-relations-modal__search-input {
+.customer-relations-modal__search-wrap {
+  position: relative;
   display: block;
   width: 100%;
-  box-sizing: border-box;
-  min-height: 44px;
-  padding: 0 14px;
-  border-radius: 12px;
 }
 
-.customer-relations-modal__search-input:focus {
+/*
+ * portal 모달은 .pc-root 밖이라 FormInput SSOT padding 이 빠진다.
+ * 연계 모달 스코프에서만 공통 입력 규격을 복구한다.
+ */
+.customer-ui-modal-panel.customer-relations-modal .form-input,
+.customer-relations-modal .form-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 48px;
+  height: 48px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--input-border, var(--border-default));
+  background: var(--input-bg, var(--bg-surface));
+  color: var(--text-primary);
+  font-size: 15px;
+}
+
+.customer-ui-modal-panel.customer-relations-modal .form-input:focus:not(:disabled):not([readonly]),
+.customer-ui-modal-panel.customer-relations-modal .form-input:focus-visible:not(:disabled):not([readonly]),
+.customer-relations-modal .form-input:focus:not(:disabled):not([readonly]),
+.customer-relations-modal .form-input:focus-visible:not(:disabled):not([readonly]) {
   outline: none;
   border-color: var(--input-focus-border);
-  box-shadow: 0 0 0 3px var(--input-focus-ring);
+  box-shadow: none;
+}
+
+.customer-relations-modal__search-input.customer-relations-modal__search-input--with-clear {
+  padding-right: 44px;
+}
+
+.customer-relations-modal__search-input[type='search']::-webkit-search-cancel-button,
+.customer-relations-modal__search-input[type='search']::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.customer-relations-modal__search-clear {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.customer-relations-modal__search-clear:hover:not(:disabled) {
+  background: var(--bg-soft, #f3f4f6);
+  color: var(--text-primary);
+}
+
+.customer-relations-modal__search-clear:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .customer-relations-modal__search-status {
@@ -334,7 +397,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  max-height: min(240px, 36dvh);
+  max-height: min(280px, 40dvh);
   overflow: hidden;
 }
 
@@ -396,6 +459,7 @@
 
 .customer-relations-result-item--selected:not(:disabled) {
   background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+  box-shadow: inset 3px 0 0 var(--input-focus-border, var(--brand-primary));
 }
 
 .customer-relations-result-item:disabled {
@@ -442,6 +506,147 @@
   text-align: center;
 }
 
+/* 모달 portal PC 테이블 — page modifier / .pc-root 없이 동작 */
+.customer-ui-modal-panel.customer-relations-modal .related-list.customer-relations-related-list,
+.customer-relations-modal .related-list.customer-relations-related-list {
+  display: none;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-card);
+}
+
+.customer-ui-modal-panel.customer-relations-modal .related-list .row,
+.customer-relations-modal .related-list .row {
+  display: grid;
+  grid-template-columns: minmax(72px, 1fr) minmax(84px, 0.8fr) minmax(96px, 1.2fr);
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-default);
+  min-width: 0;
+}
+
+.customer-ui-modal-panel.customer-relations-modal .related-list .row:last-child,
+.customer-relations-modal .related-list .row:last-child {
+  border-bottom: none;
+}
+
+.customer-ui-modal-panel.customer-relations-modal .related-list__header,
+.customer-relations-modal .related-list__header {
+  font-size: 12px;
+  color: var(--text-sub);
+  background: var(--bg-soft);
+}
+
+.customer-ui-modal-panel.customer-relations-modal .related-list .name,
+.customer-relations-modal .related-list .name {
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.customer-ui-modal-panel.customer-relations-modal .related-list .birth,
+.customer-ui-modal-panel.customer-relations-modal .related-list .phone,
+.customer-relations-modal .related-list .birth,
+.customer-relations-modal .related-list .phone {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.customer-ui-modal-panel.customer-relations-modal .related-list .phone,
+.customer-relations-modal .related-list .phone {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.customer-ui-modal-panel.customer-relations-modal .related-list__linked,
+.customer-relations-modal .related-list__linked {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--brand-primary) 18%, transparent);
+  color: var(--brand);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.customer-ui-modal-panel.customer-relations-modal .related-list__body,
+.customer-relations-modal .related-list__body {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.customer-ui-modal-panel.customer-relations-modal .related-list__row,
+.customer-relations-modal .related-list__row {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.customer-ui-modal-panel.customer-relations-modal .related-list__row:hover:not(.related-list__row--disabled),
+.customer-relations-modal .related-list__row:hover:not(.related-list__row--disabled) {
+  background: color-mix(in srgb, var(--brand-primary) 8%, transparent);
+}
+
+.customer-ui-modal-panel.customer-relations-modal .related-list__row--selected:not(.related-list__row--disabled),
+.customer-relations-modal .related-list__row--selected:not(.related-list__row--disabled) {
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+  box-shadow: inset 3px 0 0 var(--input-focus-border, var(--brand-primary));
+}
+
+.customer-ui-modal-panel.customer-relations-modal .related-list__row--disabled,
+.customer-relations-modal .related-list__row--disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.customer-ui-modal-panel.customer-relations-modal .related-list__empty,
+.customer-relations-modal .related-list__empty {
+  padding: 14px 12px;
+  color: var(--text-sub);
+  font-size: 13px;
+}
+
+@media (min-width: 769px) {
+  .customer-ui-modal-panel.customer-relations-modal .customer-relations-result-list,
+  .customer-relations-modal .customer-relations-result-list {
+    display: none;
+  }
+
+  .customer-ui-modal-panel.customer-relations-modal .related-list.customer-relations-related-list,
+  .customer-relations-modal .related-list.customer-relations-related-list {
+    display: flex;
+  }
+}
+
+@media (max-width: 768px) {
+  .customer-ui-modal-panel.customer-relations-modal .related-list.customer-relations-related-list,
+  .customer-relations-modal .related-list.customer-relations-related-list {
+    display: none;
+  }
+
+  .customer-ui-modal-panel.customer-relations-modal .customer-relations-result-list,
+  .customer-relations-modal .customer-relations-result-list {
+    display: block;
+  }
+}
+
 @media (max-width: 480px) {
   .customer-ui-modal-panel.customer-relations-modal,
   .customer-relations-strip .customer-relations-modal {
@@ -473,16 +678,16 @@
 
 .customer-relation-group-card {
   border: 1px solid var(--border-default);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--bg-surface);
-  padding: 12px;
+  padding: 8px 10px;
 }
 
 .customer-relation-group-card__header {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 6px;
+  margin-bottom: 6px;
 }
 
 .customer-relation-group-card__title-wrap {
@@ -494,7 +699,7 @@
 
 .customer-relation-group-card__title {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: var(--text-primary);
 }
@@ -502,19 +707,26 @@
 .customer-relation-group-card__type {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
-  border-radius: 8px;
+  padding: 1px 7px;
+  border-radius: 6px;
   border: 1px solid var(--border-default);
   background: var(--bg-soft);
   color: var(--text-secondary);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 600;
 }
 
 .customer-relation-group-card__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
+}
+
+.customer-relation-group-card__actions .ui-button--sm {
+  min-height: 32px;
+  padding: 0 8px;
+  font-size: 12px;
+  border-radius: 8px;
 }
 
 .customer-relation-group-card__members {
@@ -523,18 +735,19 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 .customer-relation-group-member {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
   gap: 8px;
-  padding: 10px;
+  padding: 6px 8px;
   border: 1px solid var(--border-default);
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--bg-base, var(--bg-elevated));
-  min-height: 52px;
+  min-height: 0;
 }
 
 .customer-relation-group-member--current {
@@ -550,8 +763,9 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
-  width: 100%;
+  gap: 1px;
+  flex: 1 1 auto;
+  min-width: 0;
   margin: 0;
   padding: 0;
   border: 0;
@@ -565,22 +779,65 @@
   cursor: default;
 }
 
+.customer-relation-group-member__name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  width: 100%;
+}
+
 .customer-relation-group-member__name {
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   font-weight: 700;
   color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.customer-relation-group-member__current-badge {
+  flex-shrink: 0;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: 1px solid var(--hint-border, var(--border-default));
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.5;
 }
 
 .customer-relation-group-member__meta {
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   color: var(--text-secondary);
-  line-height: 1.4;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .customer-relation-group-member__ops {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+  gap: 4px;
+  align-items: center;
+}
+
+.customer-relation-group-member__op.ui-button--sm {
+  min-height: 34px;
+  min-width: 40px;
+  padding: 0 8px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+
+.customer-relation-group-member__op--danger {
+  color: var(--danger, #b91c1c);
+  border-color: color-mix(in srgb, var(--danger, #b91c1c) 35%, var(--border-default));
 }
 
 .customer-relations-legacy {
@@ -645,44 +902,35 @@
 .customer-relation-group-picker {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 12px;
-  border: 1px solid var(--border-default);
-  border-radius: 12px;
-  background: var(--bg-soft, var(--bg-surface));
+  gap: 10px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
 }
 
-.customer-relation-group-picker__selected {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.customer-relation-group-picker__selected-label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.customer-relation-group-picker__selected-name {
-  font-size: 0.95rem;
-  color: var(--text-primary);
-}
-
-.customer-relation-group-picker__selected-phone {
+.customer-relation-group-picker__selected-line {
+  margin: 0;
+  padding: 0;
   font-size: 0.85rem;
+  line-height: 1.4;
   color: var(--text-secondary);
+}
+
+.customer-relation-group-picker__selected-line strong {
+  color: var(--text-primary);
+  font-weight: 700;
 }
 
 .customer-relation-group-pending-wrap {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .customer-relation-group-pending__title {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 700;
   color: var(--text-primary);
 }
@@ -693,7 +941,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 .customer-relation-group-pending__item,
@@ -701,19 +949,21 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 10px;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
   border: 1px solid var(--border-default);
   background: var(--bg-surface);
-  font-size: 0.85rem;
-  min-height: 48px;
+  font-size: 0.82rem;
+  min-height: 0;
 }
 
 .customer-relation-group-pending__main {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
   min-width: 0;
 }
 
@@ -733,16 +983,14 @@
 }
 
 @media (min-width: 769px) {
-  .customer-relation-group-member {
+  .customer-relation-group-card__header {
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
   }
 
-  .customer-relation-group-card__header {
-    flex-direction: row;
-    align-items: flex-start;
-    justify-content: space-between;
+  .customer-relation-group-member__meta {
+    white-space: nowrap;
   }
 }
 
