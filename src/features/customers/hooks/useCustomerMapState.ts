@@ -25,6 +25,10 @@ import {
   sameCustomerMapId,
 } from '../utils/customerMapCustomerId'
 import {
+  clearCustomerMapSelection,
+  shouldOpenMarkerCardOnRecenter,
+} from '../utils/customerMapSelection'
+import {
   CUSTOMER_MAP_DEFAULT_CENTER,
   CUSTOMER_MAP_FOCUS_ZOOM,
   CUSTOMER_MAP_RENDER_MODE,
@@ -167,6 +171,8 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
       (initialFocusCustomerId != null && initialFocusCustomerId > 0 ? CUSTOMER_MAP_FOCUS_ZOOM : null),
   )
   const focusHandledRef = useRef(false)
+  /** 사용자가 마커 카드를 닫으면 true — path 고객 rehydrate 로 다시 열지 않음 */
+  const userDismissedMarkerCardRef = useRef(false)
   const focusUnavailableMessageRef = useRef(focusUnavailableMessage)
   focusUnavailableMessageRef.current = focusUnavailableMessage
 
@@ -221,6 +227,7 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
     pendingFocusCustomerIdRef.current = initialFocusCustomerId
     pendingFocusZoomRef.current = CUSTOMER_MAP_FOCUS_ZOOM
     focusHandledRef.current = false
+    userDismissedMarkerCardRef.current = false
   }, [initialFocusCustomerId])
 
   const markerGroups = useMemo(
@@ -340,15 +347,21 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
   /**
    * focusCustomerId /「고객 위치로 이동」공통 — 메뉴 지도 focus 와 동일 center·zoom·강조.
    * 목록 재조회·지도 remount 없음.
+   * openMarkerCard=false 이면 pan/zoom 만 (닫은 카드 강제 재오픈 금지).
    */
   const applyCustomerFocus = useCallback(
-    (customerId: number, zoomOverride?: number | null): boolean => {
+    (
+      customerId: number,
+      zoomOverride?: number | null,
+      options?: { openMarkerCard?: boolean },
+    ): boolean => {
       const customer = findMapCustomerById(mapCustomers, customerId)
       if (!customer || !isValidMapCustomerPosition(customer)) {
         setFocusNotice(focusUnavailableMessageRef.current)
         return false
       }
       const zoom = zoomOverride ?? CUSTOMER_MAP_FOCUS_ZOOM
+      const openMarkerCard = options?.openMarkerCard !== false
       setFocusNotice(null)
       setSkipAutoFit(true)
       setUseExplicitCenter(false)
@@ -361,10 +374,13 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
       setViewportCenterLat(nextLat)
       setViewportCenterLng(nextLng)
       setViewportZoom(zoom)
-      setSelectedGroupKey(
-        group?.groupKey ?? buildCoordinateGroupKey(customer.latitude, customer.longitude),
-      )
-      setSelectedCustomerId(Number(customer.id))
+      if (openMarkerCard) {
+        userDismissedMarkerCardRef.current = false
+        setSelectedGroupKey(
+          group?.groupKey ?? buildCoordinateGroupKey(customer.latitude, customer.longitude),
+        )
+        setSelectedCustomerId(Number(customer.id))
+      }
       setMapCenterApplyKey((key) => key + 1)
       return true
     },
@@ -443,46 +459,19 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
       setFocusNotice(focusUnavailableMessageRef.current)
       return
     }
-    applyCustomerFocus(Number(marker.id), CUSTOMER_MAP_FOCUS_ZOOM)
+    applyCustomerFocus(Number(marker.id), CUSTOMER_MAP_FOCUS_ZOOM, {
+      openMarkerCard: shouldOpenMarkerCardOnRecenter({
+        selectedCustomerId,
+        selectedGroupKey,
+      }),
+    })
   }, [
     loading,
     mapCustomers,
     selectedCustomerId,
+    selectedGroupKey,
     initialFocusCustomerId,
     applyCustomerFocus,
-  ])
-
-  /** 상세 지도: path 고객이 마커에 있는데 selection 이 비었으면 복구 */
-  useEffect(() => {
-    if (!openDetailInWorkspaceMap) {
-      return
-    }
-    if (initialFocusCustomerId == null || initialFocusCustomerId <= 0) {
-      return
-    }
-    if (loading || boundsLoading) {
-      return
-    }
-    const pathMarker = findMapCustomerById(mapCustomers, initialFocusCustomerId)
-    if (!pathMarker || !isValidMapCustomerPosition(pathMarker)) {
-      return
-    }
-    if (selectedCustomerId != null && findMapCustomerById(mapCustomers, selectedCustomerId)) {
-      return
-    }
-    const group = findMarkerGroupByCustomerId(markerGroups, pathMarker.id)
-    setSelectedCustomerId(Number(pathMarker.id))
-    setSelectedGroupKey(
-      group?.groupKey ?? buildCoordinateGroupKey(pathMarker.latitude, pathMarker.longitude),
-    )
-  }, [
-    openDetailInWorkspaceMap,
-    initialFocusCustomerId,
-    mapCustomers,
-    markerGroups,
-    selectedCustomerId,
-    loading,
-    boundsLoading,
   ])
 
   useEffect(() => {
@@ -565,6 +554,7 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
         return
       }
       pendingSelectedCustomerIdRef.current = null
+      userDismissedMarkerCardRef.current = false
       setSelectedGroupKey(groupKey)
       setSelectedCustomerId(customerId ?? group.customers[0]?.id ?? null)
     },
@@ -575,11 +565,17 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
     setSelectedCustomerId(customerId)
   }, [])
 
-  const onCloseMarkerCard = useCallback(() => {
+  const clearMapCustomerSelection = useCallback(() => {
+    const cleared = clearCustomerMapSelection()
     pendingSelectedCustomerIdRef.current = null
-    setSelectedCustomerId(null)
-    setSelectedGroupKey(null)
+    userDismissedMarkerCardRef.current = true
+    setSelectedCustomerId(cleared.selectedCustomerId)
+    setSelectedGroupKey(cleared.selectedGroupKey)
   }, [])
+
+  const onCloseMarkerCard = useCallback(() => {
+    clearMapCustomerSelection()
+  }, [clearMapCustomerSelection])
 
   const onToggleUnmappedList = useCallback(() => {
     setShowUnmappedList((prev) => !prev)

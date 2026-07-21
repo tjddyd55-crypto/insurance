@@ -101,7 +101,12 @@ export default function CustomerMapMarkerCard({
               {highlightedCustomer.name || '이름 없음'}
             </h2>
           </div>
-          <button type="button" className="customer-map-marker-card__close" onClick={onClose}>
+          <button
+            type="button"
+            className="customer-map-marker-card__close"
+            aria-label="고객 목록 닫기"
+            onClick={onClose}
+          >
             닫기
           </button>
         </div>
@@ -148,7 +153,12 @@ export default function CustomerMapMarkerCard({
             {group.address.trim() || '주소 없음'}
           </p>
         </div>
-        <button type="button" className="customer-map-marker-card__close" onClick={onClose}>
+        <button
+          type="button"
+          className="customer-map-marker-card__close"
+          aria-label="고객 목록 닫기"
+          onClick={onClose}
+        >
           닫기
         </button>
       </div>
