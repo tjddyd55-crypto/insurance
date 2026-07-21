@@ -11,8 +11,8 @@ import {
 import { CustomerMedicalHistoryReadSection } from './CustomerMedicalHistoryRead'
 import { resolveMedicalHistoryFromCustomer } from '../utils/customerMedicalHistory'
 import {
-  formatCustomerInflowSourceLabel,
-  isCustomerInflowSourceReferral,
+  formatCustomerInflowSourceDisplay,
+  getInflowSourceDetailFieldMeta,
 } from '../config/customerInflowSource.config'
 import { CustomerCopyButton } from './CustomerAccountNumberField'
 import { CustomerCarsReadSection } from './CustomerCarsReadSection'
@@ -237,15 +237,20 @@ export default function CustomerDetailReadView({
         <DetailReadInfoRow>
           <span className="customer-detail-read__info-label">유입 경로:</span>{' '}
           <span className="customer-detail-read__info-value">
-            {formatCustomerInflowSourceLabel(c.inflowSource)}
+            {formatCustomerInflowSourceDisplay(c.inflowSource)}
           </span>
         </DetailReadInfoRow>
-        {isCustomerInflowSourceReferral(c.inflowSource) && c.referrerName?.trim() ? (
-          <DetailReadInfoRow>
-            <span className="customer-detail-read__info-label">소개자:</span>{' '}
-            <span className="customer-detail-read__info-value">{c.referrerName.trim()}</span>
-          </DetailReadInfoRow>
-        ) : null}
+        {(() => {
+          const detailMeta = getInflowSourceDetailFieldMeta(c.inflowSource)
+          const detailName = c.referrerName?.trim()
+          if (!detailMeta || !detailName) return null
+          return (
+            <DetailReadInfoRow>
+              <span className="customer-detail-read__info-label">{detailMeta.readLabel}:</span>{' '}
+              <span className="customer-detail-read__info-value">{detailName}</span>
+            </DetailReadInfoRow>
+          )
+        })()}
         <DetailReadInfoRow>
           <span className="customer-detail-read__info-label">핸드폰번호:</span>{' '}
           <span className="customer-detail-read__info-value">{formatCustomerPhoneUi(c.phone) || '—'}</span>

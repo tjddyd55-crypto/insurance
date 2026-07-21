@@ -12,6 +12,7 @@ import {
 import {
   CUSTOMER_INFLOW_SOURCE_OPTIONS,
   normalizeInflowSourceForDb,
+  normalizeReferrerNameForDb,
   parseInflowSourceFilterQuery,
 } from './customerInflowSource.js'
 import { normalizeContactResultForDb } from './customerConsultationFollowUp.js'
@@ -167,6 +168,15 @@ test('parseInflowSourceFilterQuery — 미지정 filter', () => {
 test('CUSTOMER_INFLOW_SOURCE_OPTIONS contains expected labels', () => {
   assert.ok(CUSTOMER_INFLOW_SOURCE_OPTIONS.includes('DB수급'))
   assert.ok(CUSTOMER_INFLOW_SOURCE_OPTIONS.includes('광고/마케팅'))
+  assert.ok(CUSTOMER_INFLOW_SOURCE_OPTIONS.includes('이관고객'))
+})
+
+test('normalizeReferrerNameForDb — 소개·이관고객만 유지', () => {
+  assert.equal(normalizeReferrerNameForDb('소개', ' 홍길동 '), '홍길동')
+  assert.equal(normalizeReferrerNameForDb('이관고객', ' 김영희 '), '김영희')
+  assert.equal(normalizeReferrerNameForDb('지인', '홍길동'), null)
+  assert.equal(normalizeReferrerNameForDb('이관고객', '  '), null)
+  assert.deepEqual(normalizeInflowSourceForDb('이관고객'), { ok: true, value: '이관고객' })
 })
 
 test('normalizeContactResultForDb — 미지정 and valid', () => {

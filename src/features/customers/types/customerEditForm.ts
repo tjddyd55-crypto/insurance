@@ -27,7 +27,7 @@ export type CustomerEditFormState = {
   crmExtensionFields: Record<string, string>
   /** 유입 경로 — 빈 문자열은 미지정 */
   inflowSource: string
-  /** 유입 경로가 소개일 때 소개자 이름 */
+  /** 유입 경로 상세(소개자·이관한 사람) — referrer_name 재사용 */
   referrerName: string
   /** CRM 문자(단체/예약/자동) 수신거부 */
   smsOptOut: boolean

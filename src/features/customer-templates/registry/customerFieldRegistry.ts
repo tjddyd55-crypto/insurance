@@ -1988,6 +1988,7 @@ export const CUSTOMER_FIELD_REGISTRY_BY_KEY = Object.freeze({
           '직접문의',
           '제휴',
           '기타',
+          '이관고객',
         ]),
       },
     }),
