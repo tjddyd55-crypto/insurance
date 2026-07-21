@@ -334,6 +334,9 @@ function mount(app, opts) {
       receiverMasked: maskReceiver(req.body?.receiver_1 ?? req.body?.receiver),
       testMode: result.testMode,
       failover: String(req.body?.failover ?? 'N'),
+      emtitleConfigured: Boolean(String(req.body?.emtitle_1 ?? req.body?.emtitle ?? '').trim()),
+      emtitleLength: String(req.body?.emtitle_1 ?? req.body?.emtitle ?? '').trim().length || 0,
+      subjectConfigured: Boolean(String(req.body?.subject_1 ?? req.body?.subject ?? '').trim()),
       durationMs: result.durationMs,
     })
 
