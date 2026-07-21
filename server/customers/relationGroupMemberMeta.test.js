@@ -108,3 +108,38 @@ describe('formatCustomerBirthDateDot', () => {
     assert.equal(formatCustomerBirthDateDot(null), '')
   })
 })
+
+describe('relation group member birthDate resolve SSOT', () => {
+  it('uses resolveCustomerBirthDateYmd when birth_date is null but ssn exists', async () => {
+    const { resolveCustomerBirthDateYmd } = await import('../lib/customerBirthDateResolve.js')
+    // 840218-1… → 1984-02-18 (검색 목록과 동일 SSOT)
+    assert.equal(
+      resolveCustomerBirthDateYmd({ birth_date: null, ssn: '8402181******' }),
+      '1984-02-18',
+    )
+    assert.equal(
+      formatRelationGroupMemberMetaLine({
+        relationshipLabel: '본인',
+        gender: 'male',
+        birthDate: resolveCustomerBirthDateYmd({ birth_date: null, ssn: '8402181******' }),
+      }),
+      '본인 · 남 · 1984.02.18',
+    )
+    assert.equal(
+      formatRelationGroupMemberMetaLine({
+        relationshipLabel: '어머니',
+        gender: 'female',
+        birthDate: resolveCustomerBirthDateYmd({ birth_date: null, ssn: '6204102******' }),
+      }),
+      '어머니 · 여 · 1962.04.10',
+    )
+  })
+
+  it('prefers birth_date column over ssn', async () => {
+    const { resolveCustomerBirthDateYmd } = await import('../lib/customerBirthDateResolve.js')
+    assert.equal(
+      resolveCustomerBirthDateYmd({ birth_date: '1983-06-03', ssn: '8402181******' }),
+      '1983-06-03',
+    )
+  })
+})
