@@ -7,6 +7,8 @@ import {
 import {
   buildCustomerRegistrationLinkButtonPayload,
   buildCustomerRegistrationLinkMessage,
+  CUSTOMER_REGISTRATION_LINK_EMTITLE,
+  CUSTOMER_REGISTRATION_LINK_SUBTITLE,
   CUSTOMER_REGISTRATION_LINK_TPL_CODE,
   getCustomerRegistrationLinkTemplate,
 } from './alimtalkTemplates.js'
@@ -38,15 +40,27 @@ describe('customer registration invite url', () => {
   })
 })
 
-describe('alimtalk registration template UJ_6324', () => {
-  it('defaults tplCode to UJ_6324', () => {
-    assert.equal(CUSTOMER_REGISTRATION_LINK_TPL_CODE, 'UJ_6324')
+describe('alimtalk registration template UJ_6670', () => {
+  it('defaults tplCode to UJ_6670', () => {
+    assert.equal(CUSTOMER_REGISTRATION_LINK_TPL_CODE, 'UJ_6670')
     const tpl = getCustomerRegistrationLinkTemplate({})
-    assert.equal(tpl.tplCode, 'UJ_6324')
+    assert.equal(tpl.tplCode, 'UJ_6670')
     assert.equal(tpl.key, 'INSURANCE_CUSTOMER_REGISTRATION_LINK')
     assert.equal(tpl.subject, '고객정보 등록 안내')
+    assert.equal(tpl.emtitle, '고객정보 등록 안내')
+    assert.equal(tpl.subtitle, '보험 상담을 위한 고객정보 등록')
     assert.equal(tpl.buttonName, '고객정보 등록')
     assert.equal(tpl.failover, 'N')
+    assert.equal(tpl.templateEmType, 'TEXT')
+    assert.equal(CUSTOMER_REGISTRATION_LINK_EMTITLE, '고객정보 등록 안내')
+    assert.equal(CUSTOMER_REGISTRATION_LINK_SUBTITLE, '보험 상담을 위한 고객정보 등록')
+  })
+
+  it('applies env override for tplCode', () => {
+    const tpl = getCustomerRegistrationLinkTemplate({
+      INSURANCE_ALIGO_KAKAO_TPL_CUSTOMER_REGISTRATION_LINK: 'UJ_6670',
+    })
+    assert.equal(tpl.tplCode, 'UJ_6670')
   })
 
   it('builds approved-style message and button payload', () => {
@@ -55,17 +69,16 @@ describe('alimtalk registration template UJ_6324', () => {
       msg,
       [
         '안녕하세요.',
-        '박담당입니다.',
+        '담당자 박담당입니다.',
         '',
         '보험 상담 및 업무 진행을 위해 고객정보 등록 링크를 안내드립니다.',
+        '',
         '아래 [고객정보 등록] 버튼을 눌러 필요한 정보를 입력해 주세요.',
         '',
         '※ 본 링크는 보험 상담 및 업무 처리를 위한 고객정보 등록 안내입니다.',
-        '',
-        '버튼명:',
-        '고객정보 등록',
       ].join('\n'),
     )
+    assert.equal(msg.includes('버튼명:'), false)
     const button = buildCustomerRegistrationLinkButtonPayload({
       registrationUrl: 'http://example.com/customer/register?ref=a&ga=B',
     })
@@ -103,7 +116,7 @@ describe('sendCustomerRegistrationLinkAlimtalk', () => {
     }
   }
 
-  it('dry-run uses UJ_6324 and button url without HTTP', async () => {
+  it('dry-run uses UJ_6670 and button url without HTTP', async () => {
     /** @type {unknown} */
     let sendInput = null
     const result = await sendCustomerRegistrationLinkAlimtalk(createPool(), {
@@ -132,12 +145,14 @@ describe('sendCustomerRegistrationLinkAlimtalk', () => {
     })
     assert.equal(result.success, true)
     assert.equal(result.data.status, 'dry_run')
-    assert.equal(result.data.tplCode, 'UJ_6324')
+    assert.equal(result.data.tplCode, 'UJ_6670')
     assert.equal(result.data.receiverMasked, '010****5678')
-    assert.equal(sendInput?.tplCode, 'UJ_6324')
+    assert.equal(sendInput?.tplCode, 'UJ_6670')
     assert.equal(sendInput?.subject, '고객정보 등록 안내')
+    assert.equal(sendInput?.emtitle, '고객정보 등록 안내')
     assert.equal(sendInput?.buttonPayload?.button?.[0]?.name, '고객정보 등록')
     assert.match(String(sendInput?.buttonPayload?.button?.[0]?.linkMo), /\/customer\/register\?/)
+    assert.match(String(sendInput?.message), /담당자 박담당입니다/)
   })
 
   it('blocks real send when registration approval is false', async () => {
@@ -164,7 +179,7 @@ describe('sendCustomerRegistrationLinkAlimtalk', () => {
     })
     assert.equal(result.success, true)
     assert.equal(result.data.status, 'blocked')
-    assert.equal(result.data.tplCode, 'UJ_6324')
+    assert.equal(result.data.tplCode, 'UJ_6670')
     assert.equal(sendCalled, false)
   })
 

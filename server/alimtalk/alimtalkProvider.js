@@ -111,6 +111,7 @@ function maskReceiverForLog(digits) {
  *   message: string,
  *   buttonPayload: { button: Array<Record<string, string>> },
  *   recvName?: string,
+ *   emtitle?: string | null,
  * }} input
  */
 function buildSendFormParams(config, input) {
@@ -124,6 +125,10 @@ function buildSendFormParams(config, input) {
   params.set('recvname_1', String(input.recvName ?? '고객').trim() || '고객')
   params.set('subject_1', String(input.subject ?? '').trim())
   params.set('message_1', String(input.message ?? ''))
+  const emtitle = String(input.emtitle ?? '').trim()
+  if (emtitle) {
+    params.set('emtitle_1', emtitle)
+  }
   params.set('button_1', JSON.stringify(input.buttonPayload))
   params.set('failover', 'N')
   params.set('testMode', normalizeAligoTestMode(config.testMode))
@@ -198,12 +203,14 @@ async function postGatewayJson(config, body, fetchImpl, path) {
  *   recvName?: string,
  *   fetchImpl?: typeof fetch,
  *   templateKey?: string,
+ *   emtitle?: string | null,
  * }} input
  */
 export async function sendAligoAlimtalk(input) {
   const config = input.config ?? loadInsuranceAlimtalkConfig()
   const dryRun = input.dryRun != null ? Boolean(input.dryRun) : config.dryRun
   const requestedAt = new Date().toISOString()
+  const emtitle = String(input.emtitle ?? '').trim() || null
 
   if (dryRun) {
     return {
@@ -222,6 +229,7 @@ export async function sendAligoAlimtalk(input) {
         tpl_code: input.tplCode,
         subject_1: input.subject,
         message_1: input.message,
+        ...(emtitle ? { emtitle_1: emtitle } : {}),
         button_1: input.buttonPayload,
         failover: 'N',
         testMode: normalizeAligoTestMode(config.testMode),
@@ -287,6 +295,7 @@ export async function sendAligoAlimtalk(input) {
         recvname_1: String(input.recvName ?? '고객').trim() || '고객',
         subject_1: String(input.subject ?? '').trim(),
         message_1: String(input.message ?? ''),
+        ...(emtitle ? { emtitle_1: emtitle } : {}),
         button_1: input.buttonPayload,
         failover: 'N',
         testMode: normalizeAligoTestMode(config.testMode),

@@ -16,8 +16,8 @@ SMS(`ALIGO_*`, `SMS_MODULE_*`)·자동문자와 **완전히 분리**합니다.
 | `INSURANCE_ALIGO_KAKAO_TEST_MODE` | `N` | Aligo `testMode` (`Y`/`N`) |
 | `INSURANCE_ALIGO_KAKAO_TPL_CUSTOMER_APP_LINK` | `UJ_6184` | 고객앱 링크 템플릿 코드 |
 | `INSURANCE_ALIGO_KAKAO_CUSTOMER_APP_LINK_APPROVED` | `false` | UJ_6184 검수 완료 후에만 `true` |
-| `INSURANCE_ALIGO_KAKAO_TPL_CUSTOMER_REGISTRATION_LINK` | `UJ_6324` | 고객등록 링크 템플릿 코드 |
-| `INSURANCE_ALIGO_KAKAO_CUSTOMER_REGISTRATION_LINK_APPROVED` | `false` | UJ_6324 검수 완료 후에만 `true` |
+| `INSURANCE_ALIGO_KAKAO_TPL_CUSTOMER_REGISTRATION_LINK` | `UJ_6670` | 고객등록 링크 템플릿 코드(강조표기형) |
+| `INSURANCE_ALIGO_KAKAO_CUSTOMER_REGISTRATION_LINK_APPROVED` | `false` | UJ_6670 승인 완료 후에만 `true` |
 
 **secret 커밋 금지.** API Key / User ID / Sender Key 는 Railway(또는 로컬 `server/.env`)에만 둡니다.
 
@@ -71,11 +71,14 @@ INSURANCE_ALIGO_KAKAO_ALLOW_REAL_SEND=false
 | 항목 | 값 |
 |---|---|
 | 카카오채널 | `@crm솔루션` |
-| 템플릿명 | 고객정보 등록 링크 안내 |
-| 템플릿코드 | `UJ_6324` |
-| 상태 | **검수중** → `*_APPROVED=false` |
+| 템플릿명 | 고객정보 등록 안내 |
+| 템플릿코드 | `UJ_6670` |
+| 유형 | 강조표기형 (`templateEmType=TEXT`) |
+| 상태 | **승인완료** → 실발송 전 `*_APPROVED=true` |
 | 대체문자 | 발송안함 (`failover=N`) |
-| subject | 고객정보 등록 안내 |
+| subject_1 | 고객정보 등록 안내 |
+| emtitle_1 | 고객정보 등록 안내 (강조 타이틀) |
+| templtSubtitle | 보험 상담을 위한 고객정보 등록 (템플릿 등록 고정 · send 필드 없음) |
 | 버튼 | 고객정보 등록 |
 
 ## 승인 전 기본 차단값 (필수)
@@ -85,7 +88,7 @@ INSURANCE_ALIGO_KAKAO_DRY_RUN=true
 INSURANCE_ALIGO_KAKAO_ALLOW_REAL_SEND=false
 INSURANCE_ALIGO_KAKAO_TPL_CUSTOMER_APP_LINK=UJ_6184
 INSURANCE_ALIGO_KAKAO_CUSTOMER_APP_LINK_APPROVED=false
-INSURANCE_ALIGO_KAKAO_TPL_CUSTOMER_REGISTRATION_LINK=UJ_6324
+INSURANCE_ALIGO_KAKAO_TPL_CUSTOMER_REGISTRATION_LINK=UJ_6670
 INSURANCE_ALIGO_KAKAO_CUSTOMER_REGISTRATION_LINK_APPROVED=false
 ```
 
@@ -106,14 +109,15 @@ INSURANCE_ALIGO_KAKAO_CUSTOMER_REGISTRATION_LINK_APPROVED=false
 - `INSURANCE_ALIGO_KAKAO_TPL_CUSTOMER_APP_LINK=UJ_6184`
 - 고객앱 링크 생성 성공
 
-고객등록 (`UJ_6324`) 추가:
+고객등록 (`UJ_6670`) 추가:
 - `INSURANCE_ALIGO_KAKAO_CUSTOMER_REGISTRATION_LINK_APPROVED=true`
-- `INSURANCE_ALIGO_KAKAO_TPL_CUSTOMER_REGISTRATION_LINK=UJ_6324`
+- `INSURANCE_ALIGO_KAKAO_TPL_CUSTOMER_REGISTRATION_LINK=UJ_6670`
 - 고객등록 링크 생성 성공
+- 강조표기 `emtitle_1` = `고객정보 등록 안내`
 
 ## 승인 후 오픈 순서
 
-1. 승인 본문·버튼명과 코드 `message_1` / button name 100% 일치 확인  
+1. 승인 본문·버튼명·emtitle 과 코드 `message_1` / button name / `emtitle_1` 100% 일치 확인  
 2. 해당 `*_APPROVED=true` 만 먼저 설정  
 3. `ALLOW_REAL_SEND=true` 후 `DRY_RUN=false`  
 4. 본인 번호로 1건씩 테스트 (고객앱 → 고객등록)  
@@ -132,7 +136,7 @@ INSURANCE_ALIGO_KAKAO_CUSTOMER_REGISTRATION_LINK_APPROVED=false
 - credentials: true (설정 후)
 - senderKey: true
 - customerAppTplCode: `UJ_6184`
-- customerRegistrationTplCode: `UJ_6324`
+- customerRegistrationTplCode: `UJ_6670`
 - dryRun: true
 - allowRealSend: false
 - customerAppApproved: false

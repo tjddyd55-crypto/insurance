@@ -74,7 +74,7 @@ export function loadInsuranceAlimtalkConfig(env = process.env) {
     provider: useGateway ? 'aligo_alimtalk_gateway' : 'aligo_alimtalk',
     /** UJ_6184 검수 완료 후에만 true */
     customerAppLinkApproved,
-    /** UJ_6324 검수 완료 후에만 true */
+    /** UJ_6670 승인 완료 후에만 true */
     customerRegistrationLinkApproved,
     /** 전역 실발송 허용 (기본 false) */
     allowRealSend,

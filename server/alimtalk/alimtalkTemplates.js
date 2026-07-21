@@ -110,34 +110,50 @@ export function getCustomerAppLinkTemplate(env = process.env) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* 고객정보 등록 링크 — UJ_6324                                                  */
+/* 고객정보 등록 링크 — UJ_6670 (강조표기형)                                       */
 /* -------------------------------------------------------------------------- */
 
 export const TEMPLATE_KEY_CUSTOMER_REGISTRATION_LINK = 'INSURANCE_CUSTOMER_REGISTRATION_LINK'
 
-/** 승인 템플릿 코드 */
-export const CUSTOMER_REGISTRATION_LINK_TPL_CODE = 'UJ_6324'
+/** 승인 템플릿 코드 (강조표기형 · TEXT) */
+export const CUSTOMER_REGISTRATION_LINK_TPL_CODE = 'UJ_6670'
 
+/**
+ * Aligo subject_1 — 알림톡 제목(필수).
+ * 승인 타이틀과 동일하게 유지.
+ */
 const CUSTOMER_REGISTRATION_LINK_SUBJECT = '고객정보 등록 안내'
+
+/**
+ * Aligo emtitle_1 — 강조표기형 타이틀(templtTitle).
+ * 공식 send API 필드명: emtitle_1 (알리고 카카오 알림톡 API).
+ */
+export const CUSTOMER_REGISTRATION_LINK_EMTITLE = '고객정보 등록 안내'
+
+/**
+ * 강조표기형 서브타이틀(templtSubtitle).
+ * 템플릿 등록 시 고정값 — Aligo send API 전송 필드 없음(emtitle_1 만 존재).
+ * 승인 원문 SSOT 검증용으로만 보관.
+ */
+export const CUSTOMER_REGISTRATION_LINK_SUBTITLE = '보험 상담을 위한 고객정보 등록'
+
 const CUSTOMER_REGISTRATION_LINK_BUTTON_NAME = '고객정보 등록'
 const CUSTOMER_REGISTRATION_LINK_TEMPLATE_NAME = '고객정보 등록 안내'
 const CUSTOMER_REGISTRATION_LINK_CHANNEL_NAME = '@crm솔루션'
 
 /**
- * Aligo template/list templtContent (UJ_6324) — 승인 원문에 "버튼명:" 블록 포함.
- * 이 블록을 빼면 Kakao rslt=U (템플릿 불일치) 가 난다.
+ * Aligo template/list templtContent (UJ_6670) — 승인 원문 그대로.
+ * (UJ_6324 의 "버튼명:" 블록은 본문에서 제거됨)
  */
 export const CUSTOMER_REGISTRATION_LINK_APPROVED_TEMPLATE = [
   '안녕하세요.',
-  '#{담당자명}입니다.',
+  '담당자 #{담당자명}입니다.',
   '',
   '보험 상담 및 업무 진행을 위해 고객정보 등록 링크를 안내드립니다.',
+  '',
   '아래 [고객정보 등록] 버튼을 눌러 필요한 정보를 입력해 주세요.',
   '',
   '※ 본 링크는 보험 상담 및 업무 처리를 위한 고객정보 등록 안내입니다.',
-  '',
-  '버튼명:',
-  '고객정보 등록',
 ].join('\n')
 
 /**
@@ -189,10 +205,15 @@ export function getCustomerRegistrationLinkTemplate(env = process.env) {
   return {
     key: TEMPLATE_KEY_CUSTOMER_REGISTRATION_LINK,
     subject: CUSTOMER_REGISTRATION_LINK_SUBJECT,
+    /** Aligo emtitle_1 */
+    emtitle: CUSTOMER_REGISTRATION_LINK_EMTITLE,
+    /** 템플릿 등록 고정값(전송 필드 아님) */
+    subtitle: CUSTOMER_REGISTRATION_LINK_SUBTITLE,
     buttonName: CUSTOMER_REGISTRATION_LINK_BUTTON_NAME,
     templateName: CUSTOMER_REGISTRATION_LINK_TEMPLATE_NAME,
     channelName: CUSTOMER_REGISTRATION_LINK_CHANNEL_NAME,
     failover: 'N',
+    templateEmType: 'TEXT',
     tplCode,
     isPlaceholder: isPlaceholderTplCode(tplCode),
     buildMessage: buildCustomerRegistrationLinkMessage,
