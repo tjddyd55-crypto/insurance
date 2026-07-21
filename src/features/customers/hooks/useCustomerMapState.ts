@@ -20,6 +20,11 @@ import {
   type CustomerMapMarkerGroup,
 } from '../utils/customerMapMarkerGroups'
 import {
+  findMapCustomerById,
+  isValidMapCustomerPosition,
+  sameCustomerMapId,
+} from '../utils/customerMapCustomerId'
+import {
   CUSTOMER_MAP_DEFAULT_CENTER,
   CUSTOMER_MAP_FOCUS_ZOOM,
   CUSTOMER_MAP_RENDER_MODE,
@@ -338,8 +343,8 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
    */
   const applyCustomerFocus = useCallback(
     (customerId: number, zoomOverride?: number | null): boolean => {
-      const customer = mapCustomers.find((row) => row.id === customerId)
-      if (!customer) {
+      const customer = findMapCustomerById(mapCustomers, customerId)
+      if (!customer || !isValidMapCustomerPosition(customer)) {
         setFocusNotice(focusUnavailableMessageRef.current)
         return false
       }
@@ -359,7 +364,7 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
       setSelectedGroupKey(
         group?.groupKey ?? buildCoordinateGroupKey(customer.latitude, customer.longitude),
       )
-      setSelectedCustomerId(customer.id)
+      setSelectedCustomerId(Number(customer.id))
       setMapCenterApplyKey((key) => key + 1)
       return true
     },
@@ -375,9 +380,13 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
       return
     }
 
-    const customer = mapCustomers.find((row) => row.id === focusId)
-    if (!customer) {
+    const customer = findMapCustomerById(mapCustomers, focusId)
+    if (!customer || !isValidMapCustomerPosition(customer)) {
       if (mapCustomers.length === 0 && stats == null) {
+        return
+      }
+      /** 상세 탭: bounds 로드 후 나타날 수 있으므로 초기 목록에 없어도 포기하지 않음 */
+      if (openDetailInWorkspaceMap && initialFocusCustomerId != null) {
         return
       }
       focusHandledRef.current = true
@@ -394,29 +403,87 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
     pendingSelectedCustomerIdRef.current = null
     applyCustomerFocus(customer.id, zoom)
     clearFocusQuery()
-  }, [loading, mapCustomers, stats, restored, clearFocusQuery, applyCustomerFocus])
+  }, [
+    loading,
+    mapCustomers,
+    stats,
+    restored,
+    clearFocusQuery,
+    applyCustomerFocus,
+    openDetailInWorkspaceMap,
+    initialFocusCustomerId,
+  ])
 
+  /**
+   * recenter 대상: 지도에서 고른 고객 → 없으면 path 의 상세 고객.
+   * 활성 여부는 mapCustomers 마커 좌표 SSOT (상세 API lat/lng 단독 판단 금지).
+   */
+  const recenterTargetId = selectedCustomerId ?? initialFocusCustomerId ?? null
+  const recenterTargetMarker = useMemo(
+    () => findMapCustomerById(mapCustomers, recenterTargetId),
+    [mapCustomers, recenterTargetId],
+  )
   const canRecenterToSelectedCustomer = useMemo(
-    () =>
-      selectedCustomerId != null && mapCustomers.some((row) => row.id === selectedCustomerId),
-    [selectedCustomerId, mapCustomers],
+    () => isValidMapCustomerPosition(recenterTargetMarker),
+    [recenterTargetMarker],
   )
 
   const onRecenterToSelectedCustomer = useCallback(() => {
-    if (selectedCustomerId == null) {
-      setFocusNotice('선택한 고객의 위치 정보가 없습니다.')
-      return
-    }
-    if (loading) {
+    if (loading && mapCustomers.length === 0) {
       setFocusNotice('고객 위치를 불러오는 중입니다.')
       return
     }
-    if (!mapCustomers.some((row) => row.id === selectedCustomerId)) {
+    const targetId = selectedCustomerId ?? initialFocusCustomerId
+    if (targetId == null) {
+      setFocusNotice('선택한 고객의 위치 정보가 없습니다.')
+      return
+    }
+    const marker = findMapCustomerById(mapCustomers, targetId)
+    if (!marker || !isValidMapCustomerPosition(marker)) {
       setFocusNotice(focusUnavailableMessageRef.current)
       return
     }
-    applyCustomerFocus(selectedCustomerId, CUSTOMER_MAP_FOCUS_ZOOM)
-  }, [selectedCustomerId, loading, mapCustomers, applyCustomerFocus])
+    applyCustomerFocus(Number(marker.id), CUSTOMER_MAP_FOCUS_ZOOM)
+  }, [
+    loading,
+    mapCustomers,
+    selectedCustomerId,
+    initialFocusCustomerId,
+    applyCustomerFocus,
+  ])
+
+  /** 상세 지도: path 고객이 마커에 있는데 selection 이 비었으면 복구 */
+  useEffect(() => {
+    if (!openDetailInWorkspaceMap) {
+      return
+    }
+    if (initialFocusCustomerId == null || initialFocusCustomerId <= 0) {
+      return
+    }
+    if (loading || boundsLoading) {
+      return
+    }
+    const pathMarker = findMapCustomerById(mapCustomers, initialFocusCustomerId)
+    if (!pathMarker || !isValidMapCustomerPosition(pathMarker)) {
+      return
+    }
+    if (selectedCustomerId != null && findMapCustomerById(mapCustomers, selectedCustomerId)) {
+      return
+    }
+    const group = findMarkerGroupByCustomerId(markerGroups, pathMarker.id)
+    setSelectedCustomerId(Number(pathMarker.id))
+    setSelectedGroupKey(
+      group?.groupKey ?? buildCoordinateGroupKey(pathMarker.latitude, pathMarker.longitude),
+    )
+  }, [
+    openDetailInWorkspaceMap,
+    initialFocusCustomerId,
+    mapCustomers,
+    markerGroups,
+    selectedCustomerId,
+    loading,
+    boundsLoading,
+  ])
 
   useEffect(() => {
     setSkipAutoFit(false)
@@ -433,10 +500,10 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
     if (mapBounds == null) {
       return
     }
-    if (mapCustomers.some((c) => c.id === pending)) {
+    if (findMapCustomerById(mapCustomers, pending)) {
       const group = findMarkerGroupByCustomerId(markerGroups, pending)
-      const row = mapCustomers.find((c) => c.id === pending)
-      setSelectedCustomerId(pending)
+      const row = findMapCustomerById(mapCustomers, pending)
+      setSelectedCustomerId(Number(pending))
       setSelectedGroupKey(
         group?.groupKey ??
           (row ? buildCoordinateGroupKey(row.latitude, row.longitude) : null),
@@ -445,9 +512,21 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
       return
     }
     pendingSelectedCustomerIdRef.current = null
+    /** 상세 path 고객은 selection clear 하지 않음 — recenter 가 path fallback 사용 */
+    if (openDetailInWorkspaceMap && sameCustomerMapId(pending, initialFocusCustomerId)) {
+      return
+    }
     setSelectedCustomerId(null)
     setSelectedGroupKey(null)
-  }, [mapCustomers, markerGroups, loading, boundsLoading, mapBounds])
+  }, [
+    mapCustomers,
+    markerGroups,
+    loading,
+    boundsLoading,
+    mapBounds,
+    openDetailInWorkspaceMap,
+    initialFocusCustomerId,
+  ])
 
   useEffect(() => {
     if (selectedCustomerId == null) {
@@ -459,11 +538,25 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
     if (loading || boundsLoading) {
       return
     }
-    if (!mapCustomers.some((c) => c.id === selectedCustomerId)) {
-      setSelectedCustomerId(null)
-      setSelectedGroupKey(null)
+    if (findMapCustomerById(mapCustomers, selectedCustomerId)) {
+      return
     }
-  }, [mapCustomers, selectedCustomerId, loading, boundsLoading])
+    if (
+      openDetailInWorkspaceMap &&
+      sameCustomerMapId(selectedCustomerId, initialFocusCustomerId)
+    ) {
+      return
+    }
+    setSelectedCustomerId(null)
+    setSelectedGroupKey(null)
+  }, [
+    mapCustomers,
+    selectedCustomerId,
+    loading,
+    boundsLoading,
+    openDetailInWorkspaceMap,
+    initialFocusCustomerId,
+  ])
 
   const onSelectMarkerGroup = useCallback(
     (groupKey: string, customerId?: number | null) => {

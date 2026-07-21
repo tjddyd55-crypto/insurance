@@ -58,7 +58,15 @@ describe('buildGroupMarkerLabel', () => {
         makeCustomer(2, 37.5, 127.0, '김가족'),
         makeCustomer(3, 37.5, 127.0, '김기타'),
       ]),
-    ).toBe('3명')
+    ).toBe('김도훈 외 2명')
+  })
+
+  it('finds group by string or number customer id', () => {
+    const groups = groupMapCustomersByCoordinate([
+      makeCustomer(556, 37.5, 127.0),
+      makeCustomer(2, 37.6, 127.1),
+    ])
+    expect(findMarkerGroupByCustomerId(groups, '556')?.customers[0]?.id).toBe(556)
   })
 })
 

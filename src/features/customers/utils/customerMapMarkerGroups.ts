@@ -1,4 +1,5 @@
 import type { CustomerMapListItem } from '../api/customerMapApi'
+import { sameCustomerMapId } from './customerMapCustomerId'
 
 export const COORDINATE_GROUP_PRECISION = 6
 
@@ -40,9 +41,13 @@ export function groupMapCustomersByCoordinate(customers: CustomerMapListItem[]):
 
 export function findMarkerGroupByCustomerId(
   groups: CustomerMapMarkerGroup[],
-  customerId: number,
+  customerId: number | string,
 ): CustomerMapMarkerGroup | null {
-  return groups.find((group) => group.customers.some((customer) => customer.id === customerId)) ?? null
+  return (
+    groups.find((group) =>
+      group.customers.some((customer) => sameCustomerMapId(customer.id, customerId)),
+    ) ?? null
+  )
 }
 
 export function buildGroupMarkerLabel(customers: CustomerMapListItem[]): string {

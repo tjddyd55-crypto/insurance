@@ -229,13 +229,13 @@ export default function CustomerMapShell({
             className="customers-map-page__recenter-customer"
             aria-label="고객 위치로 이동"
             title={
-              loading
-                ? '고객 위치를 불러오는 중입니다.'
-                : canRecenterToSelectedCustomer
-                  ? '고객 위치로 이동'
+              canRecenterToSelectedCustomer
+                ? '고객 위치로 이동'
+                : loading && mapCustomers.length === 0
+                  ? '고객 위치를 불러오는 중입니다.'
                   : '선택한 고객의 위치 정보가 없습니다.'
             }
-            disabled={!canRecenterToSelectedCustomer || loading}
+            disabled={!canRecenterToSelectedCustomer}
             onClick={onRecenterToSelectedCustomer}
           >
             <span className="customers-map-page__recenter-customer-icon" aria-hidden="true">
