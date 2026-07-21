@@ -53,6 +53,9 @@ export default function CustomerMapShell({
   onToggleUnmappedList,
   onViewportChange,
   onBoundsIdle,
+  mapCenterApplyKey,
+  onRecenterToSelectedCustomer,
+  canRecenterToSelectedCustomer,
 }: CustomerMapShellProps) {
   const { token } = useAuth()
   const isMobile = variant === 'mobile'
@@ -220,6 +223,38 @@ export default function CustomerMapShell({
       {!isMobile && !embedInWorkspace ? unmappedPanel : null}
 
       <div className="customers-map-page__map-wrap">
+        {embedInWorkspace ? (
+          <button
+            type="button"
+            className="customers-map-page__recenter-customer"
+            aria-label="고객 위치로 이동"
+            title={
+              loading
+                ? '고객 위치를 불러오는 중입니다.'
+                : canRecenterToSelectedCustomer
+                  ? '고객 위치로 이동'
+                  : '선택한 고객의 위치 정보가 없습니다.'
+            }
+            disabled={!canRecenterToSelectedCustomer || loading}
+            onClick={onRecenterToSelectedCustomer}
+          >
+            <span className="customers-map-page__recenter-customer-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3" />
+                <line x1="12" y1="2" x2="12" y2="6" />
+                <line x1="12" y1="18" x2="12" y2="22" />
+                <line x1="2" y1="12" x2="6" y2="12" />
+                <line x1="18" y1="12" x2="22" y2="12" />
+              </svg>
+            </span>
+            <span className="customers-map-page__recenter-customer-label customers-map-page__recenter-customer-label--full">
+              고객 위치로 이동
+            </span>
+            <span className="customers-map-page__recenter-customer-label customers-map-page__recenter-customer-label--short">
+              고객 위치
+            </span>
+          </button>
+        ) : null}
         {isMobile && !embedInWorkspace ? (
           <div className="customer-map-mobile-toolbar" role="toolbar" aria-label="고객 지도 도구">
             <FormButton
@@ -309,6 +344,7 @@ export default function CustomerMapShell({
                     selectedGroupKey={selectedGroupKey}
                     autoFitKey={mapAutoFitKey}
                     skipAutoFit={skipAutoFit}
+                    centerApplyKey={mapCenterApplyKey}
                     onViewportChange={onViewportChange}
                     onBoundsIdle={onBoundsIdle}
                     onSelectMarkerGroup={onSelectMarkerGroup}
