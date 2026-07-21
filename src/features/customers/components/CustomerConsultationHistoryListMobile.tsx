@@ -5,6 +5,7 @@ import {
 } from './CustomerWorkspaceActionButtons'
 import { formatContactResultMetaLabel } from '../config/customerConsultationFollowUp.config'
 import { parseConsultationStoredBody } from '../utils/consultationBodyFormat'
+import { formatDateWithKoreanWeekday } from '../../../utils/formatDateWithKoreanWeekday'
 import type { CustomerConsultationRow } from '../api/customerExtraApi'
 
 type CustomerConsultationHistoryListMobileProps = {
@@ -30,6 +31,7 @@ export default function CustomerConsultationHistoryListMobile({
           r.createdAt,
           r.consultationDate ?? null,
         )
+        const dateDisplay = formatDateWithKoreanWeekday(dateLabel)
         const contactMeta = formatContactResultMetaLabel(r)
         return (
           <li
@@ -41,7 +43,7 @@ export default function CustomerConsultationHistoryListMobile({
             }}
           >
             <div className="customer-consultation-item__content">
-              <div className="customer-consultation-item__date">{dateLabel}</div>
+              <div className="customer-consultation-item__date">{dateDisplay}</div>
               <div className="customer-consultation-item__body">{text || '—'}</div>
               {contactMeta ? (
                 <div
