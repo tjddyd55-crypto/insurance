@@ -82,7 +82,6 @@ export function CustomerRelationGroupsSection({
   const [notice, setNotice] = useState('')
 
   const [createName, setCreateName] = useState('')
-  const [createMemo, setCreateMemo] = useState('')
   const [createBusy, setCreateBusy] = useState(false)
   const [pendingMembers, setPendingMembers] = useState<PendingMember[]>([])
 
@@ -218,7 +217,6 @@ export function CustomerRelationGroupsSection({
   useEffect(() => {
     if (!createOpen) return
     setCreateName(`${customerName.trim() || '고객'} 가족`)
-    setCreateMemo('')
     setPendingMembers([])
     resetPickerState('배우자')
     setError('')
@@ -270,13 +268,16 @@ export function CustomerRelationGroupsSection({
 
   const submitCreate = async () => {
     if (!token?.trim() || createBusy) return
+    if (!createName.trim() || pendingMembers.length < 1) {
+      setError('가족 그룹에 추가할 고객을 한 명 이상 선택해 주세요.')
+      return
+    }
     setCreateBusy(true)
     setError('')
     try {
       await createCustomerRelationGroup(token, customerId, {
         name: createName.trim() || `${customerName.trim() || '고객'} 가족`,
         groupType: 'FAMILY',
-        memo: createMemo,
         members: pendingMembers.map((m) => ({
           customerId: m.customerId,
           relationshipLabel: m.relationshipLabel,
@@ -464,7 +465,7 @@ export function CustomerRelationGroupsSection({
           setPickCustom(next)
           setLabelError('')
         }}
-        disabled={createBusy || linking}
+        disabled={createBusy || linking || !selectedCustomer}
         selectLabel="관계"
       />
       {labelError ? (
@@ -485,6 +486,8 @@ export function CustomerRelationGroupsSection({
       </FormButton>
     </div>
   )
+
+  const canCreateGroup = createName.trim().length > 0 && pendingMembers.length > 0
 
   return (
     <div className="customer-relation-groups-section">
@@ -636,44 +639,53 @@ export function CustomerRelationGroupsSection({
           <h3 className="customer-relations-modal__title">가족 그룹 만들기</h3>
         </header>
         <div className="customer-relations-modal__body">
-          <label className="customer-relation-group-form__field">
-            <span>그룹명</span>
-            <FormInput value={createName} onChange={(e) => setCreateName(e.target.value)} />
-          </label>
-          <label className="customer-relation-group-form__field">
-            <span>메모</span>
-            <FormInput value={createMemo} onChange={(e) => setCreateMemo(e.target.value)} />
-          </label>
-          <p className="customer-relation-group-form__hint">
-            현재 고객({customerName || '본인'})은 관계 「본인」으로 자동 포함됩니다.
-          </p>
-          <div className="customer-relations-modal__search">
-            <span className="customer-relation-group-form__field-label">추가할 고객</span>
-            <CustomerRelationSearchField
-              value={searchQ}
-              onChange={(next) => {
-                setSearchQ(next)
-                setSelectedCustomer(null)
-              }}
-              disabled={createBusy}
-            />
+          <div className="customer-relation-group-compose">
+            <label className="customer-relation-group-form__field">
+              <span>그룹명</span>
+              <FormInput value={createName} onChange={(e) => setCreateName(e.target.value)} />
+            </label>
+            <p className="customer-relation-group-form__hint">
+              현재 고객({customerName || '본인'})은 관계 「본인」으로 자동 포함됩니다.
+            </p>
+            <div className="customer-relations-modal__search">
+              <span className="customer-relation-group-form__field-label">고객 검색</span>
+              <CustomerRelationSearchField
+                value={searchQ}
+                onChange={(next) => {
+                  setSearchQ(next)
+                  setSelectedCustomer(null)
+                }}
+                disabled={createBusy}
+              />
+            </div>
+            {renderSearchHits('create')}
+            {renderSelectedAndRelation('create')}
           </div>
-          {renderSearchHits('create')}
-          {renderSelectedAndRelation('create')}
           {pendingMembers.length > 0 ? (
-            <div className="customer-relation-group-pending-wrap">
-              <h4 className="customer-relation-group-pending__title">추가된 고객</h4>
-              <ul className="customer-relation-group-pending">
+            <div
+              className={`customer-relation-group-pending-wrap${
+                pendingMembers.length >= 4
+                  ? ' customer-relation-group-pending-wrap--scroll'
+                  : ''
+              }`}
+            >
+              <h4 className="customer-relation-group-pending__title">
+                추가된 고객 ({pendingMembers.length})
+              </h4>
+              <ul className="customer-relation-group-pending" aria-label="추가된 고객">
                 {pendingMembers.map((m) => (
                   <li key={m.customerId} className="customer-relation-group-pending__item">
                     <div className="customer-relation-group-pending__main">
-                      <strong>{m.name}</strong>
-                      <span>{formatCustomerPhoneUi(m.phone) || '-'}</span>
-                      <span className="customer-relation-group-pending__label">{m.relationshipLabel}</span>
+                      <strong className="customer-relation-group-pending__name">{m.name}</strong>
+                      <span className="customer-relation-group-pending__meta">
+                        {m.relationshipLabel}
+                        {' · '}
+                        {formatCustomerPhoneUi(m.phone) || '-'}
+                      </span>
                     </div>
                     <button
                       type="button"
-                      className="ui-button ui-button--sm ui-button--secondary"
+                      className="ui-button ui-button--sm ui-button--secondary customer-relation-group-pending__remove"
                       onClick={() =>
                         setPendingMembers((prev) => prev.filter((x) => x.customerId !== m.customerId))
                       }
@@ -684,7 +696,11 @@ export function CustomerRelationGroupsSection({
                 ))}
               </ul>
             </div>
-          ) : null}
+          ) : (
+            <p className="customer-relation-group-form__hint">
+              가족 그룹에 추가할 고객을 한 명 이상 선택해 주세요.
+            </p>
+          )}
         </div>
         <footer className="customer-relations-modal__footer">
           <FormButton
@@ -699,6 +715,7 @@ export function CustomerRelationGroupsSection({
             htmlType="button"
             variant="primary"
             loading={createBusy}
+            disabled={!canCreateGroup || createBusy}
             onClick={() => void submitCreate()}
           >
             만들기
