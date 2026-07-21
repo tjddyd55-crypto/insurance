@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDateWithKoreanWeekday } from './formatDateWithKoreanWeekday'
+import { formatDateWithKoreanWeekday, getKoreanWeekdayLabel } from './formatDateWithKoreanWeekday'
 
 describe('formatDateWithKoreanWeekday', () => {
   it('formats date-only as YYYY-MM-DD (weekday)', () => {
@@ -27,5 +27,19 @@ describe('formatDateWithKoreanWeekday', () => {
     expect(formatDateWithKoreanWeekday(undefined)).toBe('—')
     expect(formatDateWithKoreanWeekday('')).toBe('—')
     expect(formatDateWithKoreanWeekday('   ')).toBe('—')
+  })
+})
+
+describe('getKoreanWeekdayLabel', () => {
+  it('returns weekday only for date-only values', () => {
+    expect(getKoreanWeekdayLabel('2026-07-21')).toBe('화')
+    expect(getKoreanWeekdayLabel('2026-07-22')).toBe('수')
+    expect(getKoreanWeekdayLabel('2026-07-26')).toBe('일')
+  })
+
+  it('returns empty for empty or invalid values', () => {
+    expect(getKoreanWeekdayLabel(null)).toBe('')
+    expect(getKoreanWeekdayLabel('')).toBe('')
+    expect(getKoreanWeekdayLabel('2026-13-40')).toBe('')
   })
 })
