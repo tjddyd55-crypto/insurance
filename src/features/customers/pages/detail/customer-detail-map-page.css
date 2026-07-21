@@ -65,7 +65,8 @@
   position: absolute;
   top: 12px;
   right: 52px;
-  z-index: 6;
+  z-index: 30;
+  pointer-events: auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -96,6 +97,7 @@
 .customers-map-page--workspace-embed .customers-map-page__recenter-customer:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  pointer-events: auto;
 }
 
 .customers-map-page--workspace-embed .customers-map-page__recenter-customer-icon {
