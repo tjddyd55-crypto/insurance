@@ -9,7 +9,11 @@ export const CUSTOMER_INFLOW_SOURCE_OPTIONS = [
   '기존고객',
   '광고/마케팅',
   '기타',
+  '이관고객',
 ]
+
+/** 상세 이름(referrer_name) 입력이 필요한 유입 경로 */
+const INFLOW_SOURCES_REQUIRING_DETAIL = new Set(['소개', '이관고객'])
 
 /**
  * @param {unknown} raw
@@ -62,12 +66,20 @@ export function parseInflowSourceFilterQuery(query) {
 }
 
 /**
+ * @param {string | null | undefined} inflowSourceValue
+ * @returns {boolean}
+ */
+export function requiresInflowSourceDetail(inflowSourceValue) {
+  return INFLOW_SOURCES_REQUIRING_DETAIL.has(String(inflowSourceValue ?? '').trim())
+}
+
+/**
  * @param {string | null | undefined} inflowSourceValue — normalizeInflowSourceForDb 결과
  * @param {unknown} referrerNameRaw
  * @returns {string | null}
  */
 export function normalizeReferrerNameForDb(inflowSourceValue, referrerNameRaw) {
-  if (inflowSourceValue !== '소개') {
+  if (!requiresInflowSourceDetail(inflowSourceValue)) {
     return null
   }
   const s = String(referrerNameRaw ?? '').trim()

@@ -1,7 +1,8 @@
 import { FormInput, FormSelect } from '../../../components/form'
 import {
   CUSTOMER_INFLOW_SOURCE_FORM_OPTIONS,
-  isCustomerInflowSourceReferral,
+  getInflowSourceDetailFieldMeta,
+  requiresInflowSourceDetail,
 } from '../config/customerInflowSource.config'
 
 type CustomerInflowSourceFieldsProps = {
@@ -17,7 +18,8 @@ export default function CustomerInflowSourceFields({
   onInflowSourceChange,
   onReferrerNameChange,
 }: CustomerInflowSourceFieldsProps) {
-  const showReferrerName = isCustomerInflowSourceReferral(inflowSource)
+  const showDetail = requiresInflowSourceDetail(inflowSource)
+  const detailMeta = getInflowSourceDetailFieldMeta(inflowSource)
 
   return (
     <div className="customer-inflow-fields">
@@ -30,12 +32,12 @@ export default function CustomerInflowSourceFields({
           options={CUSTOMER_INFLOW_SOURCE_FORM_OPTIONS}
         />
       </label>
-      {showReferrerName ? (
+      {showDetail && detailMeta ? (
         <label className="field">
-          <span className="field__label">소개자 이름</span>
+          <span className="field__label">{detailMeta.label}</span>
           <FormInput
             className="field__control"
-            placeholder="예: 홍길동"
+            placeholder={detailMeta.placeholder}
             value={referrerName}
             onChange={(event) => onReferrerNameChange(event.target.value)}
           />
