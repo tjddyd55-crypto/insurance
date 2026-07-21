@@ -31,12 +31,19 @@ const FormInput = forwardRef<HTMLInputElement, Props>(function FormInput(
   },
   ref,
 ) {
-  const toneClass = readOnly || disabled ? 'field--readonly' : 'field--editable'
-  const mergedClassName = ['form-input', toneClass, className].filter(Boolean).join(' ')
-  const inputType = String(props.type ?? '').toLowerCase()
+  const inputType = String(props.type ?? 'text').toLowerCase()
   const isFileInput = inputType === 'file'
+  const isRadio = inputType === 'radio'
   const isCheckbox = inputType === 'checkbox'
-  const omitValueProp = isCheckbox || isFileInput
+  const isChoiceControl = isRadio || isCheckbox
+  /*
+   * radio/checkbox 는 텍스트 입력 SSOT(.form-input 48px)와 분리한다.
+   * choice 컨트롤에 field--editable border 를 붙이면 원형/박스가 깨진다.
+   */
+  const controlClass = isRadio ? 'form-radio' : isCheckbox ? 'form-checkbox' : 'form-input'
+  const toneClass = isChoiceControl ? '' : readOnly || disabled ? 'field--readonly' : 'field--editable'
+  const mergedClassName = [controlClass, toneClass, className].filter(Boolean).join(' ')
+  const omitValueProp = isCheckbox || isFileInput || isRadio
   const rawValue = value ?? ''
   const normalizedValue =
     format && !omitValueProp ? applyFormInputFormat(format, String(rawValue)) : rawValue
