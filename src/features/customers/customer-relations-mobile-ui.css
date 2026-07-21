@@ -433,12 +433,13 @@
 }
 
 .customer-relations-modal__results {
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
+  max-height: 240px;
+  overflow-x: hidden;
+  overflow-y: auto;
   min-height: 0;
-  max-height: min(280px, 40dvh);
-  overflow: hidden;
 }
 
 .customer-relations-modal__footer {
@@ -453,12 +454,11 @@
 
 .customer-relations-modal__results .customer-relations-result-list {
   list-style: none;
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 0 0 auto;
   width: 100%;
   margin: 0;
   padding: 0;
-  overflow-y: auto;
+  overflow: visible;
   border: 1px solid var(--border-default);
   border-radius: 14px;
   background: var(--bg-card);
@@ -932,6 +932,14 @@
   gap: 10px;
 }
 
+.customer-relation-group-compose {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
 .customer-relation-group-picker {
   display: flex;
   flex-direction: column;
@@ -940,6 +948,7 @@
   border: none;
   border-radius: 0;
   background: transparent;
+  flex: 0 0 auto;
 }
 
 .customer-relation-group-picker__selected-line {
@@ -956,9 +965,16 @@
 }
 
 .customer-relation-group-pending-wrap {
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
+}
+
+.customer-relation-group-pending-wrap--scroll .customer-relation-group-pending {
+  max-height: 200px;
+  overflow-y: auto;
 }
 
 .customer-relation-group-pending__title {
@@ -988,21 +1004,46 @@
   border: 1px solid var(--border-default);
   background: var(--bg-surface);
   font-size: 0.82rem;
+  line-height: 1.35;
   min-height: 0;
 }
 
 .customer-relation-group-pending__main {
   display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
   min-width: 0;
+  flex: 1 1 auto;
+}
+
+.customer-relation-group-pending__name {
+  font-weight: 700;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.customer-relation-group-pending__meta {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .customer-relation-group-pending__label {
   color: var(--brand, var(--text-primary));
   font-weight: 600;
+}
+
+.customer-relation-group-pending__remove {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 0 10px;
 }
 
 .customer-relation-group-modal.customer-ui-modal-panel,
@@ -1013,6 +1054,7 @@
 .customer-relation-group-modal .customer-relations-modal__body {
   max-height: none;
   overflow-y: auto;
+  min-height: 0;
 }
 
 @media (min-width: 769px) {

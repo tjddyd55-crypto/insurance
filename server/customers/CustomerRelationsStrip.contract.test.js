@@ -106,6 +106,35 @@ test('group member click uses onOpenCustomer prop', () => {
   assert.match(groups, /onOpenCustomer\(m\.customerId,\s*m\.name\)/)
 })
 
+test('groups create omits memo UI and payload memo field', () => {
+  assert.equal(groups.includes('createMemo'), false)
+  assert.equal(groups.includes('setCreateMemo'), false)
+  assert.equal(groups.includes('>메모<'), false)
+  assert.equal(groups.includes('memo: createMemo'), false)
+  assert.match(groups, /groupType:\s*'FAMILY'/)
+  assert.match(groups, /members:\s*pendingMembers\.map/)
+  assert.match(groups, /canCreateGroup/)
+  assert.match(groups, /customer-relation-group-compose/)
+  assert.match(groups, /customer-relation-group-pending-wrap--scroll/)
+})
+
+test('relation modal search results do not flex-shrink away', () => {
+  const cssPath = join(dir, '../../src/features/customers/customer-relations-mobile-ui.css')
+  const css = readFileSync(cssPath, 'utf8')
+  assert.match(
+    css,
+    /\.customer-relations-modal__results\s*\{[^}]*flex:\s*0\s+0\s+auto/s,
+  )
+  assert.match(
+    css,
+    /\.customer-relations-modal__results\s*\{[^}]*max-height:\s*240px/s,
+  )
+  assert.match(
+    css,
+    /\.customer-relation-group-pending-wrap--scroll\s+\.customer-relation-group-pending\s*\{[^}]*max-height:\s*200px/s,
+  )
+})
+
 test('customerExtraApi createCustomerRelation body is { relatedCustomerId }', () => {
   assert.match(api, /JSON\.stringify\(\{\s*relatedCustomerId\s*\}\)/)
   assert.match(
