@@ -1,6 +1,5 @@
 /**
- * backButtonCloseHistory.ts 와 동일 계약의 순수 검증 (node:test, TS 빌드 없이 실행).
- * 구현이 바뀌면 이 파일의 기대값도 함께 갱신한다.
+ * backButtonCloseHistory.ts 계약 검증 (node:test).
  */
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
@@ -26,10 +25,19 @@ function isOwnUiLayerTop(top, layerKind, layerId) {
   return top[UI_LAYER_STATE_KEY] === layerKind && top[UI_LAYER_ID_STATE_KEY] === layerId
 }
 
-function shouldPopSyntheticEntryOnDismiss(params) {
+function shouldStripSyntheticEntryOnDismiss(params) {
   if (!params.pushed) return false
-  if (params.historyLength <= 1) return false
   return isOwnUiLayerTop(params.top, params.layerKind, params.layerId)
+}
+
+function stripOwnUiLayerMarker(top, layerKind, layerId) {
+  const base =
+    top != null && typeof top === 'object' && !Array.isArray(top) ? { ...top } : {}
+  if (isOwnUiLayerTop(base, layerKind, layerId)) {
+    delete base[UI_LAYER_STATE_KEY]
+    delete base[UI_LAYER_ID_STATE_KEY]
+  }
+  return base
 }
 
 function hasUiLayerTrapOnTop(top) {
@@ -61,38 +69,48 @@ describe('backButtonCloseHistory', () => {
     assert.equal(isOwnUiLayerTop(own, 'customer-app-link-modal', 'b'), false)
   })
 
-  it('X 닫기: marker 일치 + historyLength>1 일 때만 pop 후보', () => {
-    const top = buildUiLayerPushState(null, 'customer-app-link-modal', 'x')
+  it('X/성공 닫기: marker 일치 시에만 strip 후보 (history.back 없음)', () => {
+    const top = buildUiLayerPushState({ keep: 1 }, 'customer-relation-group-modal', 'x')
     assert.equal(
-      shouldPopSyntheticEntryOnDismiss({
+      shouldStripSyntheticEntryOnDismiss({
         pushed: true,
         top,
-        layerKind: 'customer-app-link-modal',
+        layerKind: 'customer-relation-group-modal',
         layerId: 'x',
-        historyLength: 2,
       }),
       true,
     )
     assert.equal(
-      shouldPopSyntheticEntryOnDismiss({
-        pushed: true,
+      shouldStripSyntheticEntryOnDismiss({
+        pushed: false,
         top,
-        layerKind: 'customer-app-link-modal',
+        layerKind: 'customer-relation-group-modal',
         layerId: 'x',
-        historyLength: 1,
       }),
       false,
     )
     assert.equal(
-      shouldPopSyntheticEntryOnDismiss({
+      shouldStripSyntheticEntryOnDismiss({
         pushed: true,
         top: { __uiLayer: 'other', __uiLayerId: 'y' },
-        layerKind: 'customer-app-link-modal',
+        layerKind: 'customer-relation-group-modal',
         layerId: 'x',
-        historyLength: 2,
       }),
       false,
     )
+  })
+
+  it('strip 은 marker 만 제거하고 기존 state·route 용 필드는 유지', () => {
+    const top = buildUiLayerPushState(
+      { customerListExpanded: true, customerId: 168 },
+      'customer-relation-group-modal',
+      'g1',
+    )
+    const cleaned = stripOwnUiLayerMarker(top, 'customer-relation-group-modal', 'g1')
+    assert.equal(cleaned.__uiLayer, undefined)
+    assert.equal(cleaned.__uiLayerId, undefined)
+    assert.equal(cleaned.customerListExpanded, true)
+    assert.equal(cleaned.customerId, 168)
   })
 
   it('UI trap 감지: 고객앱 연결 모달 · BaseDialog · 카드 펼침', () => {

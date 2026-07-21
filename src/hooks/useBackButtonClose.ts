@@ -3,7 +3,8 @@ import { useEffect, useId, useRef } from 'react'
 import {
   buildUiLayerPushState,
   isOwnUiLayerTop,
-  shouldPopSyntheticEntryOnDismiss,
+  shouldStripSyntheticEntryOnDismiss,
+  stripOwnUiLayerMarker,
 } from './backButtonCloseHistory'
 
 export type UseBackButtonCloseOptions = {
@@ -21,7 +22,8 @@ export type UseBackButtonCloseOptions = {
  * 동작:
  *   1. isOpen === true 로 진입하면 history.pushState 로 가짜 히스토리 1개를 쌓는다.
  *   2. 뒤로가기(popstate) 가 오면 onClose() 만 호출한다. 추가 history.back() 금지.
- *   3. X/취소로 isOpen 이 false 가 되면, top marker 가 내 것일 때만 history.back() 으로 정리.
+ *   3. X/취소/성공으로 isOpen 이 false 가 되면, top marker 가 내 것일 때만
+ *      replaceState 로 marker 를 제거한다 (history.back 금지 — SPA 이전 route 이탈 방지).
  *   4. insurance-before-global-back(네이티브 bridge) 도 가로채 모달만 닫는다.
  *
  * BaseDialog closeOnHistoryBack 과 같은 모달에 중복 적용하지 말 것.
@@ -40,7 +42,7 @@ export function useBackButtonClose(
   }, [onClose])
 
   const pushedRef = useRef(false)
-  /** popstate 로 이미 닫는 중이면 cleanup 의 history.back() 을 건너뛴다. */
+  /** popstate 로 이미 닫는 중이면 cleanup 의 marker strip 을 건너뛴다. */
   const closedByPopRef = useRef(false)
 
   useEffect(() => {
@@ -94,18 +96,22 @@ export function useBackButtonClose(
         return
       }
 
-      const shouldPop = shouldPopSyntheticEntryOnDismiss({
+      const shouldStrip = shouldStripSyntheticEntryOnDismiss({
         pushed: pushedRef.current,
         top: window.history.state,
         layerKind,
         layerId,
-        historyLength: window.history.length,
       })
       pushedRef.current = false
-      if (!shouldPop) {
+      if (!shouldStrip) {
         return
       }
-      window.history.back()
+      try {
+        const cleaned = stripOwnUiLayerMarker(window.history.state, layerKind, layerId)
+        window.history.replaceState(cleaned, '', window.location.href)
+      } catch {
+        /* ignore */
+      }
     }
   }, [isOpen, layerId, layerKind])
 }

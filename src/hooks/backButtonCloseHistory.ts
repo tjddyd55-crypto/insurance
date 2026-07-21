@@ -45,9 +45,23 @@ export function isOwnUiLayerTop(
 }
 
 /**
- * X/취소 cleanup: top 이 내 marker 일 때만 history.back() 후보.
- * marker 불일치 · 빈 history 에서는 back 금지.
+ * X/취소·성공 닫기 cleanup: top 이 내 marker 일 때만 synthetic entry 정리 후보.
+ * history.back() 은 React Router 이전 entry 로 이탈할 수 있어 쓰지 않는다.
+ * marker 불일치면 정리 금지.
  */
+export function shouldStripSyntheticEntryOnDismiss(params: {
+  pushed: boolean
+  top: unknown
+  layerKind: string
+  layerId: string
+}): boolean {
+  if (!params.pushed) {
+    return false
+  }
+  return isOwnUiLayerTop(params.top, params.layerKind, params.layerId)
+}
+
+/** @deprecated use shouldStripSyntheticEntryOnDismiss — back() 기반 dismiss 는 SPA 이탈 위험이 있음 */
 export function shouldPopSyntheticEntryOnDismiss(params: {
   pushed: boolean
   top: unknown
@@ -55,13 +69,27 @@ export function shouldPopSyntheticEntryOnDismiss(params: {
   layerId: string
   historyLength: number
 }): boolean {
-  if (!params.pushed) {
-    return false
-  }
   if (params.historyLength <= 1) {
     return false
   }
-  return isOwnUiLayerTop(params.top, params.layerKind, params.layerId)
+  return shouldStripSyntheticEntryOnDismiss(params)
+}
+
+/** dismiss 시 marker 만 제거하고 URL/라우트는 유지 (BaseDialog closeOnHistoryBack 과 동일 전략). */
+export function stripOwnUiLayerMarker(
+  top: unknown,
+  layerKind: string,
+  layerId: string,
+): Record<string, unknown> {
+  const base =
+    top != null && typeof top === 'object' && !Array.isArray(top)
+      ? { ...(top as Record<string, unknown>) }
+      : {}
+  if (isOwnUiLayerTop(base, layerKind, layerId)) {
+    delete base[UI_LAYER_STATE_KEY]
+    delete base[UI_LAYER_ID_STATE_KEY]
+  }
+  return base
 }
 
 /** history top 에 UI 레이어 trap 이 있으면 네이티브 back 을 웹 history.back 에 위임한다. */

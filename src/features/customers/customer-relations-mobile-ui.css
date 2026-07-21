@@ -195,10 +195,10 @@
 
 .customer-relations-strip--in-detail .customer-relations-strip__header {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px 12px;
   margin-top: 1.125rem;
   margin-bottom: 0.5rem;
 }
@@ -213,6 +213,46 @@
   font-weight: 700;
   line-height: 1.35;
   color: var(--text-main);
+}
+
+.customer-relations-strip__header-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+/*
+ * 헤더 액션: CRM compact secondary (ui-button--sm).
+ * pill(9999px) 금지. 모바일 전역 button padding:0 오버라이드에서도 높이 유지.
+ */
+.customer-relations-strip__action-btn.ui-button--sm {
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 480px) {
+  .customer-relations-strip--in-detail .customer-relations-strip__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .customer-relations-strip__header-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .customer-relations-strip__action-btn.ui-button--sm {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
 }
 
 .customer-relations-strip__status {
@@ -656,13 +696,6 @@
 }
 
 /* ── 연계 고객 그룹 카드 ── */
-.customer-relations-strip__header-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
 .customer-relations-strip__empty {
   margin: 0;
   padding: 10px 0;
