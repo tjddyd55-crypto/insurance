@@ -60,6 +60,69 @@
   min-height: 0;
 }
 
+/* 상세 지도 — 선택 고객 위치로 복귀 (줌 컨트롤과 겹치지 않도록 우측 inset) */
+.customers-map-page--workspace-embed .customers-map-page__recenter-customer {
+  position: absolute;
+  top: 12px;
+  right: 52px;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--bg-surface, #fff);
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.2;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+  cursor: pointer;
+}
+
+.customers-map-page--workspace-embed .customers-map-page__recenter-customer:hover:not(:disabled) {
+  background: var(--bg-soft, #f8fafc);
+  color: var(--text-primary);
+}
+
+.customers-map-page--workspace-embed .customers-map-page__recenter-customer:focus-visible {
+  outline: 2px solid var(--input-focus-border, #2563eb);
+  outline-offset: 2px;
+}
+
+.customers-map-page--workspace-embed .customers-map-page__recenter-customer:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.customers-map-page--workspace-embed .customers-map-page__recenter-customer-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.customers-map-page--workspace-embed .customers-map-page__recenter-customer-label--short {
+  display: none;
+}
+
+.customers-map-page--workspace-embed.customers-map-page--mobile .customers-map-page__recenter-customer {
+  right: 12px;
+  top: 10px;
+  min-width: 40px;
+  padding: 0 10px;
+}
+
+.customers-map-page--workspace-embed.customers-map-page--mobile .customers-map-page__recenter-customer-label--full {
+  display: none;
+}
+
+.customers-map-page--workspace-embed.customers-map-page--mobile .customers-map-page__recenter-customer-label--short {
+  display: inline;
+}
+
 .workspace-mobile-outlet-modal__body .customers-map-page--workspace-embed {
   min-height: min(70vh, 640px);
 }

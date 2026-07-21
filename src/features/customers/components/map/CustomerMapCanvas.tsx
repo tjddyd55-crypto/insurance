@@ -32,6 +32,8 @@ type CustomerMapCanvasProps = {
   selectedGroupKey: string | null
   autoFitKey: string
   skipAutoFit?: boolean
+  /** 동일 좌표라도 증가 시 center/zoom 재적용 (고객 위치로 이동) */
+  centerApplyKey?: number
   onViewportChange: (centerLat: number, centerLng: number, zoom: number) => void
   onBoundsIdle: (bounds: CustomerMapViewportBounds) => void
   onSelectMarkerGroup: (groupKey: string, customerId?: number | null) => void
@@ -148,6 +150,7 @@ export default function CustomerMapCanvas({
   selectedGroupKey,
   autoFitKey,
   skipAutoFit = false,
+  centerApplyKey = 0,
   onViewportChange,
   onBoundsIdle,
   onSelectMarkerGroup,
@@ -335,7 +338,7 @@ export default function CustomerMapCanvas({
     window.setTimeout(() => {
       skipCenterSyncRef.current = false
     }, 0)
-  }, [centerLat, centerLng, zoom, provider])
+  }, [centerLat, centerLng, zoom, provider, centerApplyKey])
 
   useEffect(() => {
     const map = mapRef.current

@@ -89,6 +89,11 @@ export type CustomerMapViewProps = {
   onToggleUnmappedList: () => void
   onViewportChange: (centerLat: number, centerLng: number, zoom: number) => void
   onBoundsIdle: (bounds: CustomerMapViewportBounds) => void
+  /** canvas 가 동일 좌표라도 center 재적용하도록 증가 */
+  mapCenterApplyKey: number
+  /** 선택 고객 좌표로 pan/zoom (데이터 재조회·remount 없음) */
+  onRecenterToSelectedCustomer: () => void
+  canRecenterToSelectedCustomer: boolean
 }
 
 function parseRestoredState(locationState: unknown): CustomerMapPersistedState | null {
@@ -196,6 +201,7 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
   const [showUnmappedList, setShowUnmappedList] = useState(false)
   const [focusNotice, setFocusNotice] = useState<string | null>(null)
   const [skipAutoFit, setSkipAutoFit] = useState(false)
+  const [mapCenterApplyKey, setMapCenterApplyKey] = useState(0)
   /** 지도 복귀 시 mapCustomers 로드 전 selectedCustomerId 가 null 로 지워지지 않도록 보관 */
   const pendingSelectedCustomerIdRef = useRef<number | null>(restoredSelectedId)
   const [mapBounds, setMapBounds] = useState<CustomerMapViewportBounds | null>(null)
@@ -327,6 +333,40 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
     setSearchParams(next, { replace: true })
   }, [searchParams, setSearchParams])
 
+  /**
+   * focusCustomerId /「고객 위치로 이동」공통 — 메뉴 지도 focus 와 동일 center·zoom·강조.
+   * 목록 재조회·지도 remount 없음.
+   */
+  const applyCustomerFocus = useCallback(
+    (customerId: number, zoomOverride?: number | null): boolean => {
+      const customer = mapCustomers.find((row) => row.id === customerId)
+      if (!customer) {
+        setFocusNotice(focusUnavailableMessageRef.current)
+        return false
+      }
+      const zoom = zoomOverride ?? CUSTOMER_MAP_FOCUS_ZOOM
+      setFocusNotice(null)
+      setSkipAutoFit(true)
+      setUseExplicitCenter(false)
+      setRadiusKm(null)
+      const group = findMarkerGroupByCustomerId(markerGroups, customer.id)
+      const nextLat = group?.lat ?? customer.latitude
+      const nextLng = group?.lng ?? customer.longitude
+      setCenterLat(nextLat)
+      setCenterLng(nextLng)
+      setViewportCenterLat(nextLat)
+      setViewportCenterLng(nextLng)
+      setViewportZoom(zoom)
+      setSelectedGroupKey(
+        group?.groupKey ?? buildCoordinateGroupKey(customer.latitude, customer.longitude),
+      )
+      setSelectedCustomerId(customer.id)
+      setMapCenterApplyKey((key) => key + 1)
+      return true
+    },
+    [mapCustomers, markerGroups],
+  )
+
   useEffect(() => {
     const focusId = pendingFocusCustomerIdRef.current
     if (focusId == null || focusHandledRef.current || restored) {
@@ -353,24 +393,31 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
     pendingFocusCustomerIdRef.current = null
     pendingFocusZoomRef.current = null
     pendingSelectedCustomerIdRef.current = null
-    setFocusNotice(null)
-    setSkipAutoFit(true)
-    setUseExplicitCenter(false)
-    setRadiusKm(null)
-    const group = findMarkerGroupByCustomerId(markerGroups, customer.id)
-    const centerLat = group?.lat ?? customer.latitude
-    const centerLng = group?.lng ?? customer.longitude
-    setCenterLat(centerLat)
-    setCenterLng(centerLng)
-    setViewportCenterLat(centerLat)
-    setViewportCenterLng(centerLng)
-    setViewportZoom(zoom)
-    setSelectedGroupKey(
-      group?.groupKey ?? buildCoordinateGroupKey(customer.latitude, customer.longitude),
-    )
-    setSelectedCustomerId(customer.id)
+    applyCustomerFocus(customer.id, zoom)
     clearFocusQuery()
-  }, [loading, mapCustomers, markerGroups, stats, restored, clearFocusQuery])
+  }, [loading, mapCustomers, stats, restored, clearFocusQuery, applyCustomerFocus])
+
+  const canRecenterToSelectedCustomer = useMemo(
+    () =>
+      selectedCustomerId != null && mapCustomers.some((row) => row.id === selectedCustomerId),
+    [selectedCustomerId, mapCustomers],
+  )
+
+  const onRecenterToSelectedCustomer = useCallback(() => {
+    if (selectedCustomerId == null) {
+      setFocusNotice('선택한 고객의 위치 정보가 없습니다.')
+      return
+    }
+    if (loading) {
+      setFocusNotice('고객 위치를 불러오는 중입니다.')
+      return
+    }
+    if (!mapCustomers.some((row) => row.id === selectedCustomerId)) {
+      setFocusNotice(focusUnavailableMessageRef.current)
+      return
+    }
+    applyCustomerFocus(selectedCustomerId, CUSTOMER_MAP_FOCUS_ZOOM)
+  }, [selectedCustomerId, loading, mapCustomers, applyCustomerFocus])
 
   useEffect(() => {
     setSkipAutoFit(false)
@@ -573,6 +620,9 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
     showUnmappedList,
     focusNotice,
     skipAutoFit,
+    mapCenterApplyKey,
+    canRecenterToSelectedCustomer,
+    onRecenterToSelectedCustomer,
     onRadiusChange: (nextRadius) => {
       setRadiusKm(nextRadius)
       if (nextRadius != null && nextRadius > 0) {
