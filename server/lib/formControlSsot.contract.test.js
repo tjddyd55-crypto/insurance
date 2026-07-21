@@ -1,5 +1,6 @@
 /**
  * Form control SSOT — portal/모바일에서도 .pc-root 없이 스타일이 적용되어야 한다.
+ * radio/checkbox 는 텍스트 입력 SSOT 와 분리한다.
  */
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -9,6 +10,7 @@ import { fileURLToPath } from 'node:url'
 
 const dir = dirname(fileURLToPath(import.meta.url))
 const css = readFileSync(join(dir, '../../src/index.css'), 'utf8')
+const formInput = readFileSync(join(dir, '../../src/components/form/FormInput.tsx'), 'utf8')
 const todoDialog = readFileSync(
   join(dir, '../../src/features/todos/components/TodoEditorDialog.tsx'),
   'utf8',
@@ -18,15 +20,22 @@ const claimDetail = readFileSync(
   'utf8',
 )
 
-test('form-input/select/textarea SSOT is root-agnostic (not only .pc-root)', () => {
-  assert.match(css, /\.form-input,\s*\n\.form-select,\s*\n\.form-textarea\s*\{[^}]*border-radius:\s*10px/s)
-  assert.match(css, /\.form-input,\s*\n\.form-select\s*\{[^}]*min-height:\s*48px/s)
-  assert.match(css, /\.form-textarea\s*\{[^}]*padding:\s*12px/s)
+test('form-input SSOT excludes radio/checkbox and keeps text field chrome', () => {
+  assert.match(css, /:not\(\[type='radio'\]\):not\(\[type='checkbox'\]\)/)
+  assert.match(css, /min-height:\s*48px/)
+  assert.match(css, /border-radius:\s*10px/)
+  assert.match(css, /border-color:\s*var\(--input-focus-border\)/)
   assert.match(css, /\.form-select\s*\{[^}]*appearance:\s*none/s)
-  assert.match(
-    css,
-    /\.form-input:focus:not\(:disabled\):not\(\[readonly\]\),\s*\n\.form-input:focus-visible[^\{]*\{[^}]*border-color:\s*var\(--input-focus-border\)/s,
-  )
+})
+
+test('FormInput maps radio/checkbox to form-radio/form-checkbox classes', () => {
+  assert.match(formInput, /form-radio/)
+  assert.match(formInput, /form-checkbox/)
+  assert.match(formInput, /isChoiceControl/)
+  assert.match(css, /\.form-radio[\s,][^]*?width:\s*20px/)
+  assert.match(css, /\.form-checkbox[\s,][^]*?width:\s*18px/)
+  assert.match(css, /\.customer-form-gender-options label[\s\S]*?white-space:\s*nowrap/)
+  assert.match(css, /\.customer-driving-radio-option__label[\s\S]*?white-space:\s*nowrap/)
 })
 
 test('TodoEditorDialog uses FormInput/FormTextarea/AppDateInput', () => {
