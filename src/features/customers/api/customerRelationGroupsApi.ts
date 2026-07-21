@@ -6,6 +6,8 @@ export type RelationGroupMember = {
   customerId: number
   name: string
   phone: string
+  gender?: 'male' | 'female' | null
+  birthDate?: string | null
   relationshipLabel: string
   isCurrentCustomer: boolean
   sortOrder?: number

@@ -16,7 +16,10 @@ import {
   type CustomerRelationGroup,
 } from '../api/customerRelationGroupsApi'
 import type { CustomerRecord } from '../domain/types'
-import { formatCustomerPhoneUi } from '../utils/customerDisplayFormat'
+import {
+  formatCustomerPhoneUi,
+  formatRelationGroupMemberMetaLine,
+} from '../utils/customerDisplayFormat'
 import {
   resolveRelationshipLabel,
   splitRelationshipLabelForEdit,
@@ -548,7 +551,11 @@ export function CustomerRelationGroupsSection({
             </header>
             <ul className="customer-relation-group-card__members">
               {group.members.map((m) => {
-                const phone = formatCustomerPhoneUi(m.phone) || '-'
+                const meta = formatRelationGroupMemberMetaLine({
+                  relationshipLabel: m.relationshipLabel,
+                  gender: m.gender ?? null,
+                  birthDate: m.birthDate ?? null,
+                })
                 const isFocused =
                   focusedCustomerId != null && focusedCustomerId === m.customerId
                 return (
@@ -573,10 +580,7 @@ export function CustomerRelationGroupsSection({
                           <span className="customer-relation-group-member__current-badge">현재</span>
                         ) : null}
                       </span>
-                      <span className="customer-relation-group-member__meta">
-                        {m.relationshipLabel || '관계 미지정'}
-                        {m.isCurrentCustomer ? '' : ` · ${phone}`}
-                      </span>
+                      <span className="customer-relation-group-member__meta">{meta}</span>
                     </button>
                     <div className="customer-relation-group-member__ops">
                       {!m.isCurrentCustomer ? (

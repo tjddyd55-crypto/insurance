@@ -37,5 +37,8 @@ describe('customer relation groups helpers', () => {
     const slice = src.slice(fnStart, fnStart + 1200)
     assert.match(slice, /g\.ga_id\s*=\s*\$3/)
     assert.match(slice, /INNER JOIN customer_relation_groups g/)
+    assert.match(slice, /c\.gender\s+AS\s+customer_gender/)
+    assert.match(slice, /c\.birth_date\s+AS\s+customer_birth_date/)
+    assert.match(slice, /c\.phone\s+AS\s+customer_phone/)
   })
 })

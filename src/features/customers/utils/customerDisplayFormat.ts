@@ -66,4 +66,57 @@ export function formatCustomerPhoneUi(raw: string | null | undefined): string {
   return formatKoreanMobilePhone(text)
 }
 
+/**
+ * birth_date 등 → YYYY.MM.DD. 없거나 파싱 불가면 '' (표시 생략).
+ * 주민번호에서 추출하지 않는다.
+ */
+export function formatCustomerBirthDateDot(raw: string | Date | null | undefined): string {
+  if (raw == null || raw === '') {
+    return ''
+  }
+  if (raw instanceof Date && !Number.isNaN(raw.getTime())) {
+    const y = raw.getFullYear()
+    const m = String(raw.getMonth() + 1).padStart(2, '0')
+    const d = String(raw.getDate()).padStart(2, '0')
+    return `${y}.${m}.${d}`
+  }
+  const s = String(raw).trim()
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (iso) {
+    return `${iso[1]}.${iso[2]}.${iso[3]}`
+  }
+  const compact = s.match(/^(\d{4})(\d{2})(\d{2})$/)
+  if (compact) {
+    return `${compact[1]}.${compact[2]}.${compact[3]}`
+  }
+  const dotted = s.match(/^(\d{4})\.(\d{2})\.(\d{2})$/)
+  if (dotted) {
+    return `${dotted[1]}.${dotted[2]}.${dotted[3]}`
+  }
+  return ''
+}
+
+/**
+ * 가족 그룹 구성원 보조정보: 관계 · 성별 · 생년월일 (빈 값 구분점 생략).
+ * 성별은 formatCustomerGenderReadLabel 재사용. '-' 는 생략.
+ */
+export function formatRelationGroupMemberMetaLine(input: {
+  relationshipLabel?: string | null
+  gender?: 'male' | 'female' | null
+  birthDate?: string | Date | null
+}): string {
+  const parts: string[] = []
+  const relation = String(input.relationshipLabel ?? '').trim() || '관계 미지정'
+  parts.push(relation)
+  const genderLabel = formatCustomerGenderReadLabel(input.gender ?? null, null)
+  if (genderLabel && genderLabel !== '-') {
+    parts.push(genderLabel)
+  }
+  const birth = formatCustomerBirthDateDot(input.birthDate ?? null)
+  if (birth) {
+    parts.push(birth)
+  }
+  return parts.join(' · ')
+}
+
 export { formatCustomerMobileCarrierDisplay } from '../config/customerMobileCarrier.config'
