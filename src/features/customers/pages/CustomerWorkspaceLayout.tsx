@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { navigateToCustomerOnMap } from '../utils/customerMapFocusNavigation'
 import { parseWorkspaceCustomerIdFromPath } from '../utils/customerWorkspaceNavigation'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
 import { useAuth } from '../../auth/AuthProvider'
@@ -22,6 +21,7 @@ function parseSelectedCustomerId(raw: string | null): number | null {
 }
 
 export type CustomerWorkspaceTab =
+  | 'map'
   | 'files'
   | 'consultations'
   | 'auto'
@@ -64,6 +64,10 @@ function resolveWorkspacePathTab(pathname: string): CustomerWorkspaceTab | null 
   }
   if (pathname.includes('/files')) {
     return 'files'
+  }
+  /** 메뉴 `/customers/map` 과 구분 */
+  if (/\/customers\/\d+\/map(?:\/|$)/.test(pathname)) {
+    return 'map'
   }
   return null
 }
@@ -287,12 +291,12 @@ export default function CustomerWorkspaceLayout() {
     })
   }
 
-  const handleClickViewOnMap = useCallback(() => {
+  const handleClickViewOnMap = () => {
     if (!selectedCustomerId) {
       return
     }
-    navigateToCustomerOnMap(navigate, selectedCustomerId)
-  }, [navigate, selectedCustomerId])
+    moveTo(`/customers/${selectedCustomerId}/map`)
+  }
 
   const rightPanelProps: CustomerWorkspaceLayoutPCProps = {
     pathname: location.pathname,

@@ -36,6 +36,7 @@ import CustomerFilesPage from './features/customers/pages/CustomerFilesPage'
 import CustomerGaExcelPage from './features/customers/pages/CustomerGaExcelPage'
 import CustomerMemosPage from './features/customers/pages/CustomerMemosPage'
 import CustomerMapPage from './features/customers/pages/CustomerMapPage'
+import CustomerDetailMapPage from './features/customers/pages/CustomerDetailMapPage'
 import NaverMapSmokePage from './features/customers/pages/NaverMapSmokePage'
 import CustomerWorkspaceLayout from './features/customers/pages/CustomerWorkspaceLayout'
 import CustomerWorkspaceHomePage from './features/customers/pages/CustomerWorkspaceHomePage'
@@ -356,6 +357,7 @@ export const appRouter = createBrowserRouter([
                 element: <CustomerWorkspaceLayout />,
                 children: [
                   { index: true, element: <CustomerWorkspaceHomePage /> },
+                  { path: ':customerId/map', element: <CustomerDetailMapPage /> },
                   { path: ':customerId/files', element: <CustomerFilesPage /> },
                   { path: ':customerId/consultations', element: <CustomerConsultationsPage /> },
                   { path: ':customerId/ga-excel', element: <CustomerGaExcelPage /> },
