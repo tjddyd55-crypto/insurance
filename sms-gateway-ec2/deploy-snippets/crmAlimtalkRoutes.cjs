@@ -134,6 +134,10 @@ async function sendAlimtalkViaAligo(payload) {
   params.set('recvname_1', String(payload.recvname_1 ?? payload.recvName ?? '고객').trim() || '고객')
   params.set('subject_1', String(payload.subject_1 ?? payload.subject ?? '').trim())
   params.set('message_1', String(payload.message_1 ?? payload.message ?? ''))
+  const emtitle = String(payload.emtitle_1 ?? payload.emtitle ?? '').trim()
+  if (emtitle) {
+    params.set('emtitle_1', emtitle)
+  }
   const button = payload.button_1 ?? payload.buttonPayload
   params.set('button_1', typeof button === 'string' ? button : JSON.stringify(button ?? { button: [] }))
   params.set('failover', String(payload.failover ?? 'N'))

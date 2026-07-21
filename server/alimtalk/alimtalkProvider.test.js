@@ -111,9 +111,10 @@ describe('alimtalkProvider', () => {
       }),
       dryRun: false,
       templateKey: 'INSURANCE_CUSTOMER_REGISTRATION_LINK',
-      tplCode: 'UJ_6324',
+      tplCode: 'UJ_6670',
       receiver: '01012345678',
       subject: '고객정보 등록 안내',
+      emtitle: '고객정보 등록 안내',
       message: 'hello',
       buttonPayload: {
         button: [{ name: '고객정보 등록', linkType: 'WL', linkTypeName: '웹링크', linkMo: 'https://x', linkPc: 'https://x' }],
@@ -135,6 +136,7 @@ describe('alimtalkProvider', () => {
     })
     assert.match(String(body), /"testMode":"N"/)
     assert.match(String(body), /"failover":"N"/)
+    assert.match(String(body), /"emtitle_1":"고객정보 등록 안내"/)
   })
 
   it('reads mid from gateway nested raw.info', async () => {
@@ -189,9 +191,10 @@ describe('alimtalkProvider', () => {
       }),
       dryRun: false,
       templateKey: 'INSURANCE_CUSTOMER_REGISTRATION_LINK',
-      tplCode: 'UJ_6324',
+      tplCode: 'UJ_6670',
       receiver: '01012345678',
       subject: '고객정보 등록 안내',
+      emtitle: '고객정보 등록 안내',
       message: 'hello',
       buttonPayload: {
         button: [{ name: '고객정보 등록', linkType: 'WL', linkTypeName: '웹링크', linkMo: 'https://x', linkPc: 'https://x' }],
@@ -211,7 +214,8 @@ describe('alimtalkProvider', () => {
       },
     })
     assert.match(String(calledUrl), /crm-alimtalk\/send/)
-    assert.match(String(body), /"tpl_code":"UJ_6324"/)
+    assert.match(String(body), /"tpl_code":"UJ_6670"/)
+    assert.match(String(body), /"emtitle_1":"고객정보 등록 안내"/)
     assert.match(String(body), /"failover":"N"/)
     assert.match(String(body), /"testMode":"N"/)
     assert.equal(result.ok, false)

@@ -214,6 +214,7 @@ export async function sendCustomerRegistrationLinkAlimtalk(pool, params) {
     templateKey: template.key,
     receiver: phoneDigits,
     subject: template.subject,
+    emtitle: template.emtitle ?? null,
     message,
     buttonPayload,
     recvName: '고객',
