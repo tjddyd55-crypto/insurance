@@ -25,7 +25,7 @@
 
 .customer-consultations-page--pc .customer-consultations-composer__toolbar {
   display: grid;
-  grid-template-columns: minmax(150px, 200px) minmax(140px, 220px) auto;
+  grid-template-columns: minmax(168px, 220px) minmax(140px, 220px) auto;
   align-items: end;
   gap: 12px;
 }
@@ -70,10 +70,36 @@
 }
 
 /* AppDateInput / FormSelect 를 toolbar 칸에 맞춤 */
+.customer-consultations-page--pc .customer-consultations-composer__field--date .customer-consultations-date-with-weekday,
 .customer-consultations-page--pc .customer-consultations-composer__field--date .app-date-input,
 .customer-consultations-page--pc .customer-consultations-composer__field--date .app-date-input__text,
 .customer-consultations-page--pc .customer-consultations-composer__field--contact .form-select {
   width: 100%;
+}
+
+/* 상담일자: value는 YYYY-MM-DD, 요일은 달력 아이콘 왼쪽 보조 텍스트 */
+.customer-consultations-date-with-weekday {
+  position: relative;
+  width: 100%;
+}
+
+.customer-consultations-date-with-weekday--has-weekday .app-date-input__text {
+  padding-right: 72px;
+}
+
+.customer-consultations-date-with-weekday__weekday {
+  position: absolute;
+  right: 40px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  z-index: 1;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 1;
+  white-space: nowrap;
+  user-select: none;
 }
 
 .customer-consultations-page--pc .customer-consultations-history {
@@ -145,7 +171,7 @@
 
 .customer-consultations-page--pc .customer-consultations-history__edit-row {
   display: grid;
-  grid-template-columns: minmax(150px, 200px) minmax(140px, 220px);
+  grid-template-columns: minmax(168px, 220px) minmax(140px, 220px);
   align-items: end;
   gap: 12px;
 }

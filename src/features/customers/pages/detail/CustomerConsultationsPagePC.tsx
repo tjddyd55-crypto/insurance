@@ -1,10 +1,10 @@
 import { EmptyState, StatusMessage } from '../../../../components/feedback'
 import { FormTextarea } from '../../../../components/form'
-import AppDateInput from '../../../../components/common/AppDateInput'
 import {
   CUSTOMER_WORKSPACE_ACTION_PRIMARY_CLASS,
 } from '../../components/CustomerWorkspaceActionButtons'
 import CustomerConsultationContactResultField from '../../components/CustomerConsultationContactResultField'
+import CustomerConsultationDateInput from '../../components/CustomerConsultationDateInput'
 import CustomerConsultationHistoryList from '../../components/CustomerConsultationHistoryList'
 import type { CustomerConsultationsPCViewProps } from './customerConsultationsViewProps'
 
@@ -44,7 +44,7 @@ export default function CustomerConsultationsPagePC({
             <div className="customer-consultations-composer__toolbar">
               <label className="customer-consultations-composer__field customer-consultations-composer__field--date">
                 <span className="customer-consultations-composer__label">상담 일자</span>
-                <AppDateInput value={consultDate} onChange={onSetConsultDate} />
+                <CustomerConsultationDateInput value={consultDate} onChange={onSetConsultDate} />
               </label>
               <CustomerConsultationContactResultField
                 layout="toolbar"
