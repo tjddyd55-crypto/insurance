@@ -1,0 +1,129 @@
+/**
+ * 고객 상세 작업영역 — 선택 고객 지도 탭.
+ * 메뉴 `/customers/map` 전체 지도와 레이아웃·상태를 공유하지 않는다.
+ */
+
+.customer-detail-map-page {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  gap: 10px;
+}
+
+.customer-detail-map-page__header {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.customer-detail-map-page__title {
+  margin: 0 0 4px;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.customer-detail-map-page__name {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.35;
+}
+
+.customer-detail-map-page__address {
+  margin: 2px 0 0;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.customer-detail-map-page__address--empty {
+  color: var(--text-secondary);
+}
+
+.customer-detail-map-page__status {
+  margin: 6px 0 0;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.customer-detail-map-page__status--error {
+  color: var(--danger-text, #b91c1c);
+}
+
+.customer-detail-map-page__map-section {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.customer-detail-map-page--pc .customer-detail-map-page__map-section {
+  min-height: 520px;
+}
+
+.customer-detail-map-page--mobile .customer-detail-map-page__map-section {
+  min-height: 360px;
+}
+
+.customer-detail-map-page__map-frame {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg-surface);
+}
+
+.customer-detail-map-page__map-frame .customer-map-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.customer-detail-map-page__placeholder {
+  flex: 1 1 auto;
+  min-height: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  text-align: center;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--bg-soft, var(--bg-surface));
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+/* workspace right-body: 지도 탭이 패널 높이를 채우도록 */
+.customer-workspace-layout__right-body:has(.customer-detail-map-page) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.customer-workspace-layout__right-body > .customer-detail-map-page {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.workspace-mobile-outlet-modal__body .customer-detail-map-page {
+  min-height: min(70vh, 640px);
+}

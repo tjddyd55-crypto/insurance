@@ -9,13 +9,15 @@ import type { CustomerRecord } from '../../domain/types'
 import type { CustomerWorkspaceLayoutPCProps } from './CustomerWorkspaceLayoutPC'
 import { formatKstDateTimeDisplay } from '../../../../utils/displayDateTime'
 import { filterRecentRegisteredCustomers } from '../../utils/customerRecentRegistration'
-import type { CustomerWorkspaceLayoutPCProps } from './CustomerWorkspaceLayoutPC'
 
 const RECENT_CUSTOMER_SCROLL_RETRY_LIMIT = 12
 const RECENT_CUSTOMER_SCROLL_RETRY_DELAY_MS = 40
 
-/** 모바일 상세 모달 헤더 — 신청서·개인메시지·청구·메모에서는 지도 버튼을 숨긴다. */
+/** 모바일 상세 모달 헤더 — 지도·신청서·개인메시지·청구·메모에서는 지도 버튼을 숨긴다. */
 function shouldShowMobileOutletMapButton(pathname: string): boolean {
+  if (/\/customers\/\d+\/map(?:\/|$)/.test(pathname)) {
+    return false
+  }
   if (pathname.includes('/application-documents')) {
     return false
   }
@@ -29,6 +31,9 @@ function shouldShowMobileOutletMapButton(pathname: string): boolean {
 }
 
 function resolveMobileSheetTitle(pathname: string, search: string): string {
+  if (/\/customers\/\d+\/map(?:\/|$)/.test(pathname)) {
+    return '지도'
+  }
   if (pathname.includes('/claim-requests')) {
     const tab = new URLSearchParams(search).get('claimTab')
     return tab === 'news-personal' ? '개인메시지' : '청구 관리'
@@ -121,7 +126,7 @@ export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLa
 
   const isMobileDetailRoute = useMemo(
     () =>
-      /^\/customers\/\d+\/(?:files|consultations|ga-excel|memos|auto-form|application-documents|signatures|claim-requests)(?:\/|$)/.test(
+      /^\/customers\/\d+\/(?:map|files|consultations|ga-excel|memos|auto-form|application-documents|signatures|claim-requests)(?:\/|$)/.test(
         location.pathname,
       ),
     [location.pathname],

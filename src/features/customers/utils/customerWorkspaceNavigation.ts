@@ -1,4 +1,5 @@
 export const WORKSPACE_SIDE_DETAIL_TABS = [
+  'map',
   'files',
   'consultations',
   'ga-excel',
@@ -16,9 +17,10 @@ const WORKSPACE_SIDE_DETAIL_PATH_RE = new RegExp(
 )
 
 /**
- * 오른쪽 작업영역(파일·상담·메모·GA 등)이 라우트로 고객을 고정한 상태인지 판정한다.
+ * 오른쪽 작업영역(지도·파일·상담·메모·GA 등)이 라우트로 고객을 고정한 상태인지 판정한다.
  *
  * 이 경로 위에서는 좌측 카드 펼침 상태가 `?customerId=` 쿼리를 덮어쓰면 안 된다.
+ * 메뉴 전체 지도(`/customers/map`)는 여기에 포함되지 않는다.
  */
 export function isCustomerWorkspaceSideDetailPath(pathname: string): boolean {
   return WORKSPACE_SIDE_DETAIL_PATH_RE.test(pathname)
@@ -41,6 +43,7 @@ export function parseWorkspaceCustomerIdFromPath(pathname: string): number | nul
  *
  * 예:
  * - /customers/123/memos      → memos
+ * - /customers/123/map        → map
  * - /customers/123/auto-form  → auto-form
  * - /customers/123            → consultations
  */
@@ -68,6 +71,10 @@ export function resolveCustomerWorkspaceTab(pathname: string): CustomerWorkspace
   }
   if (pathname.includes('/files')) {
     return 'files'
+  }
+  /** `/customers/map`(메뉴)와 구분: 숫자 id 뒤의 `/map` 만 상세 탭 */
+  if (/\/customers\/\d+\/map(?:\/|$)/.test(pathname)) {
+    return 'map'
   }
   return 'consultations'
 }

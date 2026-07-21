@@ -7,6 +7,7 @@ import CustomerHeaderAppLinkCompact from './CustomerHeaderAppLinkCompact'
 import './CustomerWorkspaceLayoutPC.css'
 
 type WorkspaceActiveTab =
+  | 'map'
   | 'files'
   | 'consultations'
   | 'auto'
@@ -51,6 +52,9 @@ export type CustomerWorkspaceLayoutPCProps = {
  * 이 함수와 `resolveWorkspacePathTab` 두 곳만 함께 업데이트하면 된다.
  */
 function rightTitle(pathname: string): string {
+  if (/\/customers\/\d+\/map(?:\/|$)/.test(pathname)) {
+    return '선택 고객 지도'
+  }
   if (pathname.includes('/auto-form')) {
     return '자동차 신청서'
   }
@@ -162,7 +166,9 @@ export default function CustomerWorkspaceLayoutPC({
             <FormButton
               htmlType="button"
               variant="action"
-              className="customer-workspace-layout__tab"
+              className={`customer-workspace-layout__tab${
+                activeTab === 'map' ? ' customer-workspace-layout__tab--active' : ''
+              }`}
               disabled={!selectedCustomerId}
               onClick={onClickViewOnMap}
             >

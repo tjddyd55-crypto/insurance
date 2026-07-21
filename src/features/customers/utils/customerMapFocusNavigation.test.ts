@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildCustomerDetailMapPath,
   buildCustomerMapFocusPath,
   parseFocusCustomerId,
   parseFocusZoom,
@@ -32,8 +33,14 @@ describe('parseFocusZoom', () => {
   })
 })
 
+describe('buildCustomerDetailMapPath', () => {
+  it('builds workspace detail map path', () => {
+    expect(buildCustomerDetailMapPath(191)).toBe('/customers/191/map')
+  })
+})
+
 describe('buildCustomerMapFocusPath', () => {
-  it('builds focusCustomerId query path', () => {
+  it('builds overview focusCustomerId query path', () => {
     expect(buildCustomerMapFocusPath(191)).toBe('/customers/map?focusCustomerId=191&zoom=17')
     expect(buildCustomerMapFocusPath(42, { zoom: 12 })).toBe(
       '/customers/map?focusCustomerId=42&zoom=12',
