@@ -145,12 +145,20 @@ export function CustomerRelationGroupsSection({
   }, [notice])
 
   const searchModalOpen = createOpen || addMemberGroupId != null
-  useBackButtonClose(searchModalOpen, () => {
-    if (createBusy || linking) return
-    onCreateOpenChange(false)
-    setAddMemberGroupId(null)
-    setSelectedCustomer(null)
-  })
+  /*
+   * back 은 busy 여부와 무관하게 모달만 닫는다.
+   * dismiss 시 useBackButtonClose 가 replaceState 로 marker 만 제거해
+   * 고객 상세 route(/customers/:id/…) 를 유지한다.
+   */
+  useBackButtonClose(
+    searchModalOpen,
+    () => {
+      onCreateOpenChange(false)
+      setAddMemberGroupId(null)
+      setSelectedCustomer(null)
+    },
+    { layerKind: 'customer-relation-group-modal' },
+  )
 
   useEffect(() => {
     if (!searchModalOpen || !token?.trim()) return
@@ -271,9 +279,10 @@ export function CustomerRelationGroupsSection({
           relationshipLabel: m.relationshipLabel,
         })),
       })
-      onCreateOpenChange(false)
-      setNotice('가족 그룹을 만들었습니다.')
+      // 전체 고객 목록/상세 route 는 건드리지 않고 그룹 목록만 갱신
       await loadGroups()
+      setNotice('가족 그룹을 만들었습니다.')
+      onCreateOpenChange(false)
     } catch (e) {
       if (e instanceof ApiError && e.code === 'already_in_family_group') {
         setError(familyConflictMessage(e))

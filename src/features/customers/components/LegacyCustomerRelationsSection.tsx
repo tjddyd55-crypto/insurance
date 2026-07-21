@@ -79,10 +79,13 @@ export function LegacyCustomerRelationsSection({
     void loadRelations()
   }, [loadRelations])
 
-  useBackButtonClose(addOpen, () => {
-    if (linking) return
-    onAddOpenChange(false)
-  })
+  useBackButtonClose(
+    addOpen,
+    () => {
+      onAddOpenChange(false)
+    },
+    { layerKind: 'customer-legacy-relation-modal' },
+  )
 
   useEffect(() => {
     if (!addOpen || !token?.trim()) return
@@ -190,7 +193,7 @@ export function LegacyCustomerRelationsSection({
 
   return (
     <div className="customer-relations-legacy-section">
-      <h5 className="customer-relations-legacy__title">기존 연결</h5>
+      <h5 className="customer-relations-legacy__title">개별 연결</h5>
       {loading ? (
         <p className="customer-relations-strip__status customer-relations-strip__status--loading">
           불러오는 중…

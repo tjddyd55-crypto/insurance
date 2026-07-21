@@ -46,6 +46,28 @@ test('legacy link uses createCustomerRelation(token, customerId, relatedCustomer
   assert.equal(legacy.includes('가족 그룹을 권장'), false)
 })
 
+test('strip header labels use 개별 연결 (not 기존 연결)', () => {
+  assert.match(strip, /개별 연결/)
+  assert.match(strip, /가족 그룹 만들기/)
+  assert.equal(strip.includes('기존 연결'), false)
+  assert.match(strip, /customer-relations-strip__action-btn/)
+  assert.match(strip, /ui-button--sm/)
+})
+
+test('legacy section title is 개별 연결', () => {
+  assert.match(legacy, /customer-relations-legacy__title/)
+  assert.match(legacy, />개별 연결</)
+  assert.equal(legacy.includes('>기존 연결<'), false)
+})
+
+test('groups create success reloads groups only before closing modal', () => {
+  assert.match(groups, /await loadGroups\(\)/)
+  assert.match(groups, /onCreateOpenChange\(false\)/)
+  assert.equal(groups.includes('loadCustomers'), false)
+  assert.equal(groups.includes('window.location'), false)
+  assert.equal(groups.includes('CUSTOMERS_LIST_REFRESH'), false)
+})
+
 test('legacy modal title remains 고객 검색 후 연결', () => {
   assert.match(legacy, /고객 검색 후 연결/)
   assert.match(legacy, /CustomerRelationSearchResultList/)
