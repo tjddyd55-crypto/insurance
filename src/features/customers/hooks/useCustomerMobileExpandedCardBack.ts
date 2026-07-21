@@ -83,17 +83,41 @@ export function useCustomerMobileExpandedCardBack({
         clearMobileModalRef.current()
         return
       }
-      if (expandedIdRef.current != null) {
-        collapseFromPopstateRef.current = true
-        expandedHistoryPushedRef.current = false
-        setExpandedId(null)
+      if (expandedIdRef.current == null) {
+        return
       }
+      /*
+       * 모달(useBackButtonClose) 이 expanded entry 위에 쌓인 뒤 먼저 pop 되면
+       * 남은 top 은 여전히 customerListExpanded 이다. 이 경우 카드는 유지한다.
+       * expanded entry 자체가 pop 되어 top 에 마커가 없을 때만 접는다.
+       */
+      const top = window.history.state as { customerListExpanded?: boolean } | null
+      if (top?.customerListExpanded) {
+        return
+      }
+      collapseFromPopstateRef.current = true
+      expandedHistoryPushedRef.current = false
+      setExpandedId(null)
     }
 
     const handleBeforeGlobalBack = (event: Event) => {
+      const top = window.history.state as {
+        modal?: boolean
+        customerListExpanded?: boolean
+        __uiLayer?: string
+        __BASE_DIALOG_BACK_TRAP__?: boolean
+      } | null
+
+      /*
+       * 고객앱 연결 등 UI 레이어 trap 이 top 이면 전역/카드 핸들러는 양보한다.
+       * (useBackButtonClose 가 같은 이벤트에서 preventDefault + close 처리)
+       */
+      if (top?.__uiLayer || top?.__BASE_DIALOG_BACK_TRAP__) {
+        return
+      }
+
       if (activeMobileModalRef.current != null) {
         event.preventDefault()
-        const top = window.history.state as { modal?: boolean } | null
         if (top?.modal === true) {
           window.history.back()
         } else {
@@ -105,7 +129,6 @@ export function useCustomerMobileExpandedCardBack({
         return
       }
       event.preventDefault()
-      const top = window.history.state as { customerListExpanded?: boolean } | null
       if (expandedHistoryPushedRef.current && top?.customerListExpanded) {
         expandedHistoryPushedRef.current = false
         window.history.back()

@@ -436,7 +436,9 @@ export default function CustomerLinkShareModal({
    * BaseDialog closeOnHistoryBack 과 이중 trap 하지 않는다.
    * back 은 busy 여부와 무관하게 닫는다(trap 소비 후 모달만 남는 회귀 방지).
    */
-  useBackButtonClose(open, onClose)
+  useBackButtonClose(open, onClose, {
+    layerKind: isCustomerApp ? 'customer-app-link-modal' : 'customer-registration-link-modal',
+  })
 
   return (
     <BaseDialog

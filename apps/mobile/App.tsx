@@ -247,6 +247,18 @@ function AppContent() {
         return true;
       }
 
+      /*
+       * history.pushState(모달/카드 펼침) 는 onNavigationStateChange 를 안 태워
+       * canGoBack 이 stale false 로 남는 경우가 있다. 그때 return false 하면 앱이 종료된다.
+       * UI trap 이 top 이면 history.back(), 아니면 웹 전역 back 핸들러에 위임한다(앱 종료 금지).
+       */
+      if (webViewRef.current) {
+        webViewRef.current.injectJavaScript(
+          "(function(){try{var st=window.history.state||{};var hasTrap=!!(st.__uiLayer||st.__BASE_DIALOG_BACK_TRAP__||st.modal===true||st.customerListExpanded===true);if(hasTrap){window.history.back();}else{window.dispatchEvent(new CustomEvent('insurance-global-back'));}}catch(e){}true;})();",
+        );
+        return true;
+      }
+
       return false;
     });
 
