@@ -556,7 +556,7 @@ body {
 
 .app-date-input__text {
   width: 100%;
-  padding-right: 42px;
+  padding-right: 44px;
   pointer-events: auto;
 }
 
@@ -9361,12 +9361,157 @@ div.cta-button.customers-page__action-btn[role='button'] {
 .form-input,
 .form-select,
 .form-textarea {
+  box-sizing: border-box;
+  width: 100%;
   font: inherit;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--text-primary);
+  background-color: var(--input-bg, #fff);
+  border: 1px solid var(--input-border, var(--border-default));
+  border-radius: 10px;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.form-input,
+.form-select {
+  min-height: 48px;
+  height: 48px;
+  padding: 0 12px;
+}
+
+.form-textarea {
+  min-height: 96px;
+  padding: 12px;
+  resize: vertical;
+}
+
+.form-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 40px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px 16px;
+}
+
+.form-input::placeholder,
+.form-textarea::placeholder {
+  color: var(--placeholder, var(--text-muted));
+  opacity: 1;
+}
+
+.form-input:focus:not(:disabled):not([readonly]),
+.form-input:focus-visible:not(:disabled):not([readonly]),
+.form-select:focus:not(:disabled),
+.form-select:focus-visible:not(:disabled),
+.form-textarea:focus:not(:disabled):not([readonly]),
+.form-textarea:focus-visible:not(:disabled):not([readonly]) {
+  outline: none;
+  border-color: var(--input-focus-border);
+  box-shadow: none;
+}
+
+.form-input.field--readonly,
+.form-select.field--readonly,
+.form-textarea.field--readonly,
+.form-input:disabled,
+.form-select:disabled,
+.form-textarea:disabled,
+.form-input:read-only,
+.form-textarea:read-only {
+  background-color: var(--disabled-bg, color-mix(in srgb, var(--bg-card) 86%, var(--bg-base)));
+  color: var(--disabled-text, var(--text-muted));
+  border-color: var(--border-subtle, var(--border-default));
+  cursor: not-allowed;
 }
 
 .field__control--textarea {
   min-height: 82px;
   resize: vertical;
+}
+
+/* 할 일 추가/수정 모달 — portal 에서도 Form* SSOT 적용, 필드 간격 통일 */
+.todo-editor-dialog__body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.todo-editor-dialog__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  width: 100%;
+  min-width: 0;
+}
+
+.todo-editor-dialog__label {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.todo-editor-dialog__hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.todo-editor-dialog__suggest-link {
+  align-self: flex-start;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--link, var(--primary));
+  font-size: 0.8rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.todo-editor-dialog__suggest-link.inline {
+  display: inline;
+  align-self: auto;
+}
+
+.todo-editor-dialog__suggest-link:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.todo-editor-dialog__hits {
+  max-height: 160px;
+  overflow-y: auto;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--bg-surface, var(--bg-card));
+}
+
+.todo-editor-dialog__hit {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: none;
+  border-bottom: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.todo-editor-dialog__hits li:last-child .todo-editor-dialog__hit {
+  border-bottom: none;
+}
+
+.todo-editor-dialog__hit:hover:not(:disabled) {
+  background: var(--bg-soft);
 }
 
 .checkbox-field {
@@ -15692,12 +15837,12 @@ textarea.memo-sticky-note__textarea:focus {
   border-radius: var(--radius-md);
 }
 
-/* Input/select/search (workspace form controls only) */
+/* Input/select/search (workspace form controls) — root-agnostic SSOT 와 동일 톤 유지 */
 .pc-root .form-input,
 .pc-root .form-select,
 .pc-root .form-textarea,
 .pc-root .field__control {
-  border-radius: var(--radius-md);
+  border-radius: 10px;
   border: 1px solid var(--input-border);
   background: var(--input-bg);
   color: var(--text-primary);
@@ -15706,20 +15851,26 @@ textarea.memo-sticky-note__textarea:focus {
 .pc-root .form-input,
 .pc-root .form-select,
 .pc-root .field__control {
-  height: 38px;
-  min-height: 38px;
+  height: 48px;
+  min-height: 48px;
   padding: 0 12px;
+}
+
+.pc-root .form-select {
+  padding-right: 40px;
 }
 
 .pc-root .field__control.form-textarea.customer-form-textarea--large {
   height: auto;
   min-height: calc(1.5em * 4 + 24px);
-  padding: 10px 12px;
+  padding: 12px;
 }
 
 .pc-root .form-textarea,
 .pc-root .field__control--textarea {
-  padding: 10px 12px;
+  height: auto;
+  min-height: 96px;
+  padding: 12px;
 }
 
 .pc-root .form-input::placeholder,
@@ -16705,7 +16856,7 @@ textarea.memo-sticky-note__textarea:focus {
 
 .claim-request-detail-surface .claim-status-control-row {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 8px;
   flex-wrap: wrap;
 }
@@ -16717,10 +16868,16 @@ textarea.memo-sticky-note__textarea:focus {
   max-width: none;
 }
 
+.claim-request-detail-surface .claim-status-control-row .button {
+  flex: 0 0 auto;
+  min-height: 48px;
+  align-self: stretch;
+}
+
 .claim-request-detail-surface .claim-status-note-textarea {
   width: 100%;
   min-height: 120px;
-  margin-top: 10px;
+  margin-top: 12px;
   resize: vertical;
   box-sizing: border-box;
 }
