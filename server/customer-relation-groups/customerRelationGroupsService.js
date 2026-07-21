@@ -1,3 +1,4 @@
+import { resolveCustomerBirthDateYmd } from '../lib/customerBirthDateResolve.js'
 import { safeQuery } from '../utils/dbSafeQuery.js'
 
 export const RELATION_GROUP_TYPES = Object.freeze(['FAMILY', 'BUSINESS', 'ETC'])
@@ -97,7 +98,8 @@ export async function listActiveGroupMembers(db, { groupId, currentCustomerId, u
       c.name AS customer_name,
       c.phone AS customer_phone,
       c.gender AS customer_gender,
-      c.birth_date AS customer_birth_date
+      c.birth_date AS customer_birth_date,
+      c.ssn AS customer_ssn
     FROM customer_relation_group_members m
     INNER JOIN customer_relation_groups g
       ON g.id = m.group_id
@@ -115,12 +117,18 @@ export async function listActiveGroupMembers(db, { groupId, currentCustomerId, u
   )
   return r.rows.map((row) => {
     const customerId = Number(row.customer_id)
+    // birth_date 우선, 없으면 주민번호 앞자리로 파생 (customerBirthDateResolve SSOT).
+    // ssn 은 응답에 넣지 않는다.
+    const birthYmd = resolveCustomerBirthDateYmd({
+      birth_date: row.customer_birth_date,
+      ssn: row.customer_ssn,
+    })
     return {
       customerId,
       name: String(row.customer_name ?? ''),
       phone: String(row.customer_phone ?? ''),
       gender: normalizeMemberGender(row.customer_gender),
-      birthDate: normalizeMemberBirthDate(row.customer_birth_date),
+      birthDate: birthYmd || null,
       relationshipLabel: row.relationship_label ? String(row.relationship_label) : '',
       isCurrentCustomer: customerId === currentCustomerId,
       sortOrder: Number(row.sort_order) || 0,
@@ -139,24 +147,6 @@ function normalizeMemberGender(raw) {
   if (!s) return null
   if (s === 'male' || s === 'm' || s === '남' || s === '남성') return 'male'
   if (s === 'female' || s === 'f' || s === '여' || s === '여성') return 'female'
-  return null
-}
-
-/**
- * @param {unknown} raw
- * @returns {string | null} YYYY-MM-DD
- */
-function normalizeMemberBirthDate(raw) {
-  if (raw == null || raw === '') return null
-  if (raw instanceof Date && !Number.isNaN(raw.getTime())) {
-    const y = raw.getFullYear()
-    const m = String(raw.getMonth() + 1).padStart(2, '0')
-    const d = String(raw.getDate()).padStart(2, '0')
-    return `${y}-${m}-${d}`
-  }
-  const s = String(raw).trim()
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10)
-  if (/^\d{8}$/.test(s)) return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`
   return null
 }
 
