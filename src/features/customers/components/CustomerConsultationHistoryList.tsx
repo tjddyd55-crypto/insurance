@@ -1,4 +1,4 @@
-import { FormInput, FormTextarea } from '../../../components/form'
+import { FormTextarea } from '../../../components/form'
 import AppDateInput from '../../../components/common/AppDateInput'
 import {
   CustomerWorkspaceDangerActionButton,
@@ -45,7 +45,7 @@ export default function CustomerConsultationHistoryList({
   onAddTodoFromConsultation,
 }: CustomerConsultationHistoryListProps) {
   return (
-    <ul style={{ listStyle: 'none', padding: 0 }}>
+    <ul className="customer-consultations-history__list">
       {rows.map((r) => {
         const { dateLabel, text } = parseConsultationStoredBody(
           r.body,
@@ -55,34 +55,31 @@ export default function CustomerConsultationHistoryList({
         const contactMeta = formatContactResultMetaLabel(r)
         const isEditing = editingConsultId === r.id
         return (
-          <li
-            key={r.id}
-            style={{
-              borderBottom: '1px solid var(--border-default)',
-              padding: '12px 0',
-            }}
-          >
+          <li key={r.id} className="customer-consultations-history__item">
             {isEditing ? (
-              <div style={{ display: 'grid', gap: 8 }}>
-                <label style={{ display: 'block' }}>
-                  상담 일자{' '}
-                  <AppDateInput
-                    value={editConsultDate}
-                    onChange={onSetEditConsultDate}
+              <div className="customer-consultations-history__edit">
+                <div className="customer-consultations-history__edit-row">
+                  <label className="customer-consultations-composer__field customer-consultations-composer__field--date">
+                    <span className="customer-consultations-composer__label">상담 일자</span>
+                    <AppDateInput value={editConsultDate} onChange={onSetEditConsultDate} />
+                  </label>
+                  <CustomerConsultationContactResultField
+                    layout="toolbar"
+                    contactResult={editContactResult}
+                    onContactResultChange={onSetEditContactResult}
+                    disabled={busy}
+                  />
+                </div>
+                <label className="customer-consultations-composer__field customer-consultations-composer__field--body">
+                  <span className="customer-consultations-composer__label">상담 내용</span>
+                  <FormTextarea
+                    className="customer-consultations-composer__textarea"
+                    value={editConsultBody}
+                    onChange={(ev) => onSetEditConsultBody(ev.target.value)}
+                    rows={3}
+                    maxLength={19500}
                   />
                 </label>
-                <FormTextarea
-                  value={editConsultBody}
-                  onChange={(ev) => onSetEditConsultBody(ev.target.value)}
-                  rows={4}
-                  style={{ width: '100%', padding: 8 }}
-                  maxLength={19500}
-                />
-                <CustomerConsultationContactResultField
-                  contactResult={editContactResult}
-                  onContactResultChange={onSetEditContactResult}
-                  disabled={busy}
-                />
                 <CustomerWorkspaceItemActions>
                   <CustomerWorkspacePrimaryActionButton disabled={busy} onClick={() => void onSaveEdit(r.id)}>
                     {busy ? '저장 중…' : '저장'}
@@ -94,17 +91,8 @@ export default function CustomerConsultationHistoryList({
               </div>
             ) : (
               <>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 8,
-                    marginBottom: 6,
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <div style={{ fontWeight: 600 }}>{dateLabel}</div>
+                <div className="customer-consultations-history__item-head">
+                  <div className="customer-consultations-history__date">{dateLabel}</div>
                   <CustomerWorkspaceItemActions>
                     <CustomerWorkspaceSecondaryActionButton disabled={busy} onClick={() => onStartEdit(r)}>
                       수정
@@ -122,14 +110,9 @@ export default function CustomerConsultationHistoryList({
                     ) : null}
                   </CustomerWorkspaceItemActions>
                 </div>
-                <div style={{ whiteSpace: 'pre-wrap', marginTop: 6 }}>{text || '—'}</div>
+                <div className="customer-consultations-history__body">{text || '—'}</div>
                 {contactMeta ? (
-                  <div
-                    className="customer-consultation-history__contact-meta"
-                    style={{ marginTop: 8, fontSize: '0.875rem', color: 'var(--text-secondary)' }}
-                  >
-                    {contactMeta}
-                  </div>
+                  <div className="customer-consultations-history__contact-meta">{contactMeta}</div>
                 ) : null}
               </>
             )}
