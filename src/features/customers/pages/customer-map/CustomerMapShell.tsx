@@ -15,10 +15,13 @@ import './customer-map-page.css'
 
 type CustomerMapShellProps = CustomerMapViewProps & {
   variant: 'pc' | 'mobile'
+  /** 고객 상세 우측 패널 임베드 — 전체 페이지 툴바 축소, 높이 fill */
+  embedInWorkspace?: boolean
 }
 
 export default function CustomerMapShell({
   variant,
+  embedInWorkspace = false,
   loading,
   boundsLoading,
   error,
@@ -63,7 +66,7 @@ export default function CustomerMapShell({
     'page',
     'customers-map-page',
     modifier,
-    'page--with-back',
+    embedInWorkspace ? 'customers-map-page--workspace-embed' : 'page--with-back',
     showUnmappedList ? 'customers-map-page--unmapped-open' : '',
     showFilterPanel ? 'customers-map-page--filter-open' : '',
     showSearchPanel ? 'customers-map-page--search-open' : '',
@@ -171,8 +174,8 @@ export default function CustomerMapShell({
   ) : null
 
   return (
-    <main className={pageClassName}>
-      {!isMobile ? (
+    <main className={pageClassName} aria-label={embedInWorkspace ? '선택 고객 지도' : undefined}>
+      {!isMobile && !embedInWorkspace ? (
         <div className="customers-map-page__toolbar">
           {stats ? (
             <div className="customers-map-page__toolbar-row customers-map-page__toolbar-row--summary">
@@ -218,10 +221,10 @@ export default function CustomerMapShell({
         </p>
       ) : null}
 
-      {!isMobile ? unmappedPanel : null}
+      {!isMobile && !embedInWorkspace ? unmappedPanel : null}
 
       <div className="customers-map-page__map-wrap">
-        {isMobile ? (
+        {isMobile && !embedInWorkspace ? (
           <div className="customer-map-mobile-toolbar" role="toolbar" aria-label="고객 지도 도구">
             <FormButton
               htmlType="button"
@@ -299,7 +302,7 @@ export default function CustomerMapShell({
             </FormButton>
           </div>
         ) : null}
-        {isMobile ? unmappedPanel : null}
+        {isMobile && !embedInWorkspace ? unmappedPanel : null}
         <MapProviderLoader>
           {({ provider, clientKey, ready, error: sdkError, errorCode }) => {
             const useStaticFallback =
