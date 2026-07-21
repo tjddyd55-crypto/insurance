@@ -27,6 +27,7 @@ import {
 } from '../config/customerMap.config'
 import { openCustomerDetailFromMap } from '../utils/customerMapDetailNavigation'
 import {
+  buildCustomerDetailMapPath,
   CUSTOMER_MAP_FOCUS_UNAVAILABLE_MESSAGE,
   FOCUS_CUSTOMER_ID_QUERY_KEY,
   FOCUS_ZOOM_QUERY_KEY,
@@ -36,6 +37,21 @@ import {
 
 const BOUNDS_DEBOUNCE_MS = 400
 const BOUNDS_KEY_PRECISION = 4
+
+export type UseCustomerMapStateOptions = {
+  /**
+   * 고객 상세 `/customers/:id/map` 진입 시 path 의 고객 id.
+   * 메뉴 지도의 `?focusCustomerId=` 와 동일하게 초기 center/강조 처리.
+   */
+  initialFocusCustomerId?: number | null
+  /**
+   * true: 마커「상세」가 `/customers/:id/map` 으로 workspace 유지.
+   * false(기본): 메뉴 지도의 openCustomerDetailFromMap.
+   */
+  openDetailInWorkspaceMap?: boolean
+  /** focus 고객 좌표 없을 때 안내 (상세 탭용 문구 등) */
+  focusUnavailableMessage?: string
+}
 
 export type CustomerMapViewProps = {
   loading: boolean
@@ -117,7 +133,12 @@ function boundsToKey(bounds: CustomerMapViewportBounds): string {
     .join(',')
 }
 
-export function useCustomerMapState(): CustomerMapViewProps {
+export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): CustomerMapViewProps {
+  const {
+    initialFocusCustomerId = null,
+    openDetailInWorkspaceMap = false,
+    focusUnavailableMessage = CUSTOMER_MAP_FOCUS_UNAVAILABLE_MESSAGE,
+  } = options
   const { token } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -125,12 +146,19 @@ export function useCustomerMapState(): CustomerMapViewProps {
   const isMobile = useIsMobile()
   const restored = useMemo(() => parseRestoredState(location.state), [location.state])
   const pendingFocusCustomerIdRef = useRef<number | null>(
-    restored ? null : parseFocusCustomerId(searchParams.get(FOCUS_CUSTOMER_ID_QUERY_KEY)),
+    restored
+      ? null
+      : initialFocusCustomerId != null && initialFocusCustomerId > 0
+        ? initialFocusCustomerId
+        : parseFocusCustomerId(searchParams.get(FOCUS_CUSTOMER_ID_QUERY_KEY)),
   )
   const pendingFocusZoomRef = useRef<number | null>(
-    parseFocusZoom(searchParams.get(FOCUS_ZOOM_QUERY_KEY)),
+    parseFocusZoom(searchParams.get(FOCUS_ZOOM_QUERY_KEY)) ??
+      (initialFocusCustomerId != null && initialFocusCustomerId > 0 ? CUSTOMER_MAP_FOCUS_ZOOM : null),
   )
   const focusHandledRef = useRef(false)
+  const focusUnavailableMessageRef = useRef(focusUnavailableMessage)
+  focusUnavailableMessageRef.current = focusUnavailableMessage
 
   const [loading, setLoading] = useState(true)
   const [boundsLoading, setBoundsLoading] = useState(false)
@@ -173,6 +201,16 @@ export function useCustomerMapState(): CustomerMapViewProps {
   const loadSeq = useRef(0)
   const boundsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastBoundsKeyRef = useRef<string | null>(null)
+
+  /** path customerId 변경 시 focus 재적용 (Outlet remount 없을 때 대비) */
+  useEffect(() => {
+    if (initialFocusCustomerId == null || initialFocusCustomerId <= 0) {
+      return
+    }
+    pendingFocusCustomerIdRef.current = initialFocusCustomerId
+    pendingFocusZoomRef.current = CUSTOMER_MAP_FOCUS_ZOOM
+    focusHandledRef.current = false
+  }, [initialFocusCustomerId])
 
   const markerGroups = useMemo(
     () => groupMapCustomersByCoordinate(mapCustomers),
@@ -304,7 +342,7 @@ export function useCustomerMapState(): CustomerMapViewProps {
       }
       focusHandledRef.current = true
       pendingFocusCustomerIdRef.current = null
-      setFocusNotice(CUSTOMER_MAP_FOCUS_UNAVAILABLE_MESSAGE)
+      setFocusNotice(focusUnavailableMessageRef.current)
       clearFocusQuery()
       return
     }
@@ -432,6 +470,12 @@ export function useCustomerMapState(): CustomerMapViewProps {
 
   const onOpenCustomerDetail = useCallback(
     (customerId: number) => {
+      if (openDetailInWorkspaceMap) {
+        const qs = new URLSearchParams()
+        qs.set('customerId', String(customerId))
+        navigate(`${buildCustomerDetailMapPath(customerId)}?${qs.toString()}`)
+        return
+      }
       const customer =
         mapCustomers.find((row) => row.id === customerId) ??
         unmappedCustomers.find((row) => row.id === customerId)
@@ -443,7 +487,14 @@ export function useCustomerMapState(): CustomerMapViewProps {
         navigate,
       })
     },
-    [mapCustomers, unmappedCustomers, isMobile, buildMapState, navigate],
+    [
+      openDetailInWorkspaceMap,
+      mapCustomers,
+      unmappedCustomers,
+      isMobile,
+      buildMapState,
+      navigate,
+    ],
   )
 
   const onBoundsIdle = useCallback((bounds: CustomerMapViewportBounds) => {
