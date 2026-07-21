@@ -894,6 +894,14 @@
   width: 100%;
 }
 
+/** PC 우측 작업영역 — 상담 이력 등 액션 묶음 gap SSOT */
+.customer-workspace-layout__right-body .customer-workspace-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 .customer-inline-notes--workspace-pc button.customer-workspace-action-button,
 .customer-inline-notes--workspace-pc a.customer-workspace-action-button,
 .customer-workspace-layout__right-body button.customer-workspace-action-button,

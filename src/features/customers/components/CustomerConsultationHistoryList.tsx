@@ -9,6 +9,7 @@ import {
 import CustomerConsultationContactResultField from './CustomerConsultationContactResultField'
 import { formatContactResultMetaLabel } from '../config/customerConsultationFollowUp.config'
 import { parseConsultationStoredBody } from '../utils/consultationBodyFormat'
+import { formatDateWithKoreanWeekday } from '../../../utils/formatDateWithKoreanWeekday'
 import type { CustomerConsultationRow } from '../api/customerExtraApi'
 
 type CustomerConsultationHistoryListProps = {
@@ -52,6 +53,7 @@ export default function CustomerConsultationHistoryList({
           r.createdAt,
           r.consultationDate ?? null,
         )
+        const dateDisplay = formatDateWithKoreanWeekday(dateLabel)
         const contactMeta = formatContactResultMetaLabel(r)
         const isEditing = editingConsultId === r.id
         return (
@@ -92,7 +94,7 @@ export default function CustomerConsultationHistoryList({
             ) : (
               <>
                 <div className="customer-consultations-history__item-head">
-                  <div className="customer-consultations-history__date">{dateLabel}</div>
+                  <div className="customer-consultations-history__date">{dateDisplay}</div>
                   <CustomerWorkspaceItemActions>
                     <CustomerWorkspaceSecondaryActionButton disabled={busy} onClick={() => onStartEdit(r)}>
                       수정
