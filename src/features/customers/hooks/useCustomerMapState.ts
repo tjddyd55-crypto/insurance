@@ -20,8 +20,10 @@ import {
   type CustomerMapMarkerGroup,
 } from '../utils/customerMapMarkerGroups'
 import {
+  canRecenterToKnownMapCustomer,
   findMapCustomerById,
   isValidMapCustomerPosition,
+  mergeKnownMapCustomers,
   sameCustomerMapId,
 } from '../utils/customerMapCustomerId'
 import {
@@ -182,6 +184,11 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
   const [error, setError] = useState<string | null>(null)
   const [customers, setCustomers] = useState<CustomerMapMarker[]>([])
   const [mapCustomers, setMapCustomers] = useState<CustomerMapListItem[]>([])
+  /**
+   * bounds/viewport 와 무관한 누적 지도 고객 SSOT.
+   * 패닝으로 현재 화면 목록에서 빠져도 recenter 활성·좌표 이동에 사용.
+   */
+  const [knownMapCustomers, setKnownMapCustomers] = useState<CustomerMapListItem[]>([])
   const [unmappedCustomers, setUnmappedCustomers] = useState<CustomerMapUnmappedItem[]>([])
   const [mapMeta, setMapMeta] = useState<CustomerMapDynamicMapMeta | null>(null)
   const [staticMap, setStaticMap] = useState<CustomerMapStaticMapMeta | null>(null)
@@ -275,6 +282,11 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
     setMapBounds(null)
   }, [favoriteOnly, keyword, radiusKm, useExplicitCenter, centerLat, centerLng])
 
+  /** 검색·필터 변경 시에만 누적 SSOT 리셋 (viewport 변경은 리셋하지 않음) */
+  useEffect(() => {
+    setKnownMapCustomers([])
+  }, [favoriteOnly, keyword, radiusKm, token])
+
   useEffect(() => {
     return () => {
       if (boundsDebounceRef.current) {
@@ -287,6 +299,7 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
     if (!token?.trim()) {
       setCustomers([])
       setMapCustomers([])
+      setKnownMapCustomers([])
       setUnmappedCustomers([])
       setMapMeta(null)
       setStaticMap(null)
@@ -311,6 +324,7 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
       }
       setCustomers(res.customers)
       setMapCustomers(res.mapCustomers)
+      setKnownMapCustomers((prev) => mergeKnownMapCustomers(prev, res.mapCustomers))
       setUnmappedCustomers(res.unmappedCustomers ?? [])
       setMapMeta(res.map)
       setStaticMap(res.staticMap)
@@ -349,6 +363,7 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
    * focusCustomerId /「고객 위치로 이동」공통 — 메뉴 지도 focus 와 동일 center·zoom·강조.
    * 목록 재조회·지도 remount 없음.
    * openMarkerCard=false 이면 pan/zoom 만 (닫은 카드 강제 재오픈 금지).
+   * 좌표 조회는 viewport 목록이 아니라 knownMapCustomers (bounds 밖이어도 이동 가능).
    */
   const applyCustomerFocus = useCallback(
     (
@@ -356,7 +371,7 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
       zoomOverride?: number | null,
       options?: { openMarkerCard?: boolean },
     ): boolean => {
-      const customer = findMapCustomerById(mapCustomers, customerId)
+      const customer = findMapCustomerById(knownMapCustomers, customerId)
       if (!customer || !isValidMapCustomerPosition(customer)) {
         setFocusNotice(focusUnavailableMessageRef.current)
         return false
@@ -385,7 +400,7 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
       setMapCenterApplyKey((key) => key + 1)
       return true
     },
-    [mapCustomers, markerGroups],
+    [knownMapCustomers, markerGroups],
   )
 
   useEffect(() => {
@@ -397,9 +412,9 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
       return
     }
 
-    const customer = findMapCustomerById(mapCustomers, focusId)
+    const customer = findMapCustomerById(knownMapCustomers, focusId)
     if (!customer || !isValidMapCustomerPosition(customer)) {
-      if (mapCustomers.length === 0 && stats == null) {
+      if (knownMapCustomers.length === 0 && stats == null) {
         return
       }
       /** 상세 탭: bounds 로드 후 나타날 수 있으므로 초기 목록에 없어도 포기하지 않음 */
@@ -422,7 +437,7 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
     clearFocusQuery()
   }, [
     loading,
-    mapCustomers,
+    knownMapCustomers,
     stats,
     restored,
     clearFocusQuery,
@@ -433,20 +448,20 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
 
   /**
    * recenter 대상: 지도에서 고른 고객 → 없으면 path 의 상세 고객.
-   * 활성 여부는 mapCustomers 마커 좌표 SSOT (상세 API lat/lng 단독 판단 금지).
+   * 활성 여부는 knownMapCustomers 좌표 SSOT (현재 viewport mapCustomers 아님).
    */
   const recenterTargetId = selectedCustomerId ?? initialFocusCustomerId ?? null
-  const recenterTargetMarker = useMemo(
-    () => findMapCustomerById(mapCustomers, recenterTargetId),
-    [mapCustomers, recenterTargetId],
-  )
   const canRecenterToSelectedCustomer = useMemo(
-    () => isValidMapCustomerPosition(recenterTargetMarker),
-    [recenterTargetMarker],
+    () =>
+      canRecenterToKnownMapCustomer({
+        targetId: recenterTargetId,
+        knownMapCustomers,
+      }),
+    [knownMapCustomers, recenterTargetId],
   )
 
   const onRecenterToSelectedCustomer = useCallback(() => {
-    if (loading && mapCustomers.length === 0) {
+    if (loading && knownMapCustomers.length === 0) {
       setFocusNotice('고객 위치를 불러오는 중입니다.')
       return
     }
@@ -455,7 +470,7 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
       setFocusNotice('선택한 고객의 위치 정보가 없습니다.')
       return
     }
-    const marker = findMapCustomerById(mapCustomers, targetId)
+    const marker = findMapCustomerById(knownMapCustomers, targetId)
     if (!marker || !isValidMapCustomerPosition(marker)) {
       setFocusNotice(focusUnavailableMessageRef.current)
       return
@@ -468,7 +483,7 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
     })
   }, [
     loading,
-    mapCustomers,
+    knownMapCustomers,
     selectedCustomerId,
     selectedGroupKey,
     initialFocusCustomerId,
