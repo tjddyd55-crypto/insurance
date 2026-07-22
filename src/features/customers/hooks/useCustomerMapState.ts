@@ -23,6 +23,7 @@ import {
   canRecenterToKnownMapCustomer,
   findMapCustomerById,
   isValidMapCustomerPosition,
+  mergeFocusCustomerIntoVisible,
   mergeKnownMapCustomers,
   sameCustomerMapId,
 } from '../utils/customerMapCustomerId'
@@ -188,6 +189,11 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
    * 패닝으로 현재 화면 목록에서 빠져도 recenter 활성·좌표 이동에 사용.
    */
   const [knownMapCustomers, setKnownMapCustomers] = useState<CustomerMapListItem[]>([])
+  const knownMapCustomersRef = useRef(knownMapCustomers)
+  knownMapCustomersRef.current = knownMapCustomers
+  const selectedCustomerIdRef = useRef<number | null>(null)
+  const initialFocusCustomerIdRef = useRef(initialFocusCustomerId)
+  initialFocusCustomerIdRef.current = initialFocusCustomerId
   const [unmappedCustomers, setUnmappedCustomers] = useState<CustomerMapUnmappedItem[]>([])
   const [mapMeta, setMapMeta] = useState<CustomerMapDynamicMapMeta | null>(null)
   const [staticMap, setStaticMap] = useState<CustomerMapStaticMapMeta | null>(null)
@@ -214,6 +220,7 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
       ? restored.selectedCustomerId
       : null
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(restoredSelectedId)
+  selectedCustomerIdRef.current = selectedCustomerId
   const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null)
   const [showUnmappedList, setShowUnmappedList] = useState(false)
   const [focusNotice, setFocusNotice] = useState<string | null>(null)
@@ -276,10 +283,15 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
     [centerLat, centerLng, radiusKm, useExplicitCenter, favoriteOnly, keyword, mapBounds],
   )
 
+  /**
+   * 필터/반경 모드 변경 시에만 bounds 를 비운다.
+   * centerLat/Lng 는 applyCustomerFocus 에서도 바뀌므로 deps 에 넣으면
+   * recenter 직후 unbounded fetch(최근 상담순 100건)로 마커가 비는 회귀가 난다.
+   */
   useEffect(() => {
     lastBoundsKeyRef.current = null
     setMapBounds(null)
-  }, [favoriteOnly, keyword, radiusKm, useExplicitCenter, centerLat, centerLng])
+  }, [favoriteOnly, keyword, radiusKm, useExplicitCenter])
 
   /** 검색·필터 변경 시에만 누적 SSOT 리셋 (viewport 변경은 리셋하지 않음) */
   useEffect(() => {
@@ -322,8 +334,11 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
         return
       }
       setCustomers(res.customers)
-      setMapCustomers(res.mapCustomers)
-      setKnownMapCustomers((prev) => mergeKnownMapCustomers(prev, res.mapCustomers))
+      const focusId = selectedCustomerIdRef.current ?? initialFocusCustomerIdRef.current ?? null
+      const focusCustomer = findMapCustomerById(knownMapCustomersRef.current, focusId)
+      const nextVisible = mergeFocusCustomerIntoVisible(res.mapCustomers, focusCustomer)
+      setMapCustomers(nextVisible)
+      setKnownMapCustomers((prev) => mergeKnownMapCustomers(prev, nextVisible))
       setUnmappedCustomers(res.unmappedCustomers ?? [])
       setMapMeta(res.map)
       setStaticMap(res.staticMap)
@@ -381,6 +396,8 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
       setSkipAutoFit(true)
       setUseExplicitCenter(false)
       setRadiusKm(null)
+      /** 새 viewport bounds 가 이전 key 와 같아도 수용되도록 리셋 */
+      lastBoundsKeyRef.current = null
       const group = findMarkerGroupByCustomerId(markerGroups, customer.id)
       const nextLat = group?.lat ?? customer.latitude
       const nextLng = group?.lng ?? customer.longitude

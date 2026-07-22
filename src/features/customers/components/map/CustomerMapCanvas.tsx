@@ -21,6 +21,7 @@ import {
   wasNaverSdkCallbackCompleted,
   zoomFromKakaoLevel,
 } from './mapSdkLoader'
+import { resolveMapIdleSyncAction } from '../../utils/customerMapIdleSync'
 
 type CustomerMapCanvasProps = {
   provider: MapProviderName
@@ -220,12 +221,12 @@ export default function CustomerMapCanvas({
           })
           mapRef.current = map
           maps.Event.addListener(map, 'idle', () => {
-            if (skipCenterSyncRef.current) {
-              return
-            }
             const c = map.getCenter()
             const currentZoom = map.getZoom()
-            onViewportChangeRef.current(c.lat(), c.lng(), currentZoom)
+            const action = resolveMapIdleSyncAction(skipCenterSyncRef.current)
+            if (action === 'viewport_and_bounds') {
+              onViewportChangeRef.current(c.lat(), c.lng(), currentZoom)
+            }
             const bounds = readMapViewportBounds(provider, map, currentZoom)
             if (bounds) {
               onBoundsIdleRef.current(bounds)
@@ -244,12 +245,12 @@ export default function CustomerMapCanvas({
           })
           mapRef.current = map
           maps.event.addListener(map, 'idle', () => {
-            if (skipCenterSyncRef.current) {
-              return
-            }
             const c = map.getCenter()
             const currentZoom = zoomFromKakaoLevel(map.getLevel())
-            onViewportChangeRef.current(c.getLat(), c.getLng(), currentZoom)
+            const action = resolveMapIdleSyncAction(skipCenterSyncRef.current)
+            if (action === 'viewport_and_bounds') {
+              onViewportChangeRef.current(c.getLat(), c.getLng(), currentZoom)
+            }
             const bounds = readMapViewportBounds(provider, map, currentZoom)
             if (bounds) {
               onBoundsIdleRef.current(bounds)
@@ -335,9 +336,17 @@ export default function CustomerMapCanvas({
       )
       ;(map as { setLevel: (l: number) => void }).setLevel(kakaoLevelFromZoom(zoom))
     }
-    window.setTimeout(() => {
+    /**
+     * idle 은 setCenter 중에 발생할 수 있다.
+     * viewport 피드백만 잠시 막고, bounds sync 는 idle 핸들러가 계속 수행한다.
+     */
+    const timer = window.setTimeout(() => {
       skipCenterSyncRef.current = false
-    }, 0)
+    }, 150)
+    return () => {
+      window.clearTimeout(timer)
+      skipCenterSyncRef.current = false
+    }
   }, [centerLat, centerLng, zoom, provider, centerApplyKey])
 
   useEffect(() => {

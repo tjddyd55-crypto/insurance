@@ -4,6 +4,7 @@ import {
   canRecenterToKnownMapCustomer,
   findMapCustomerById,
   isValidMapCustomerPosition,
+  mergeFocusCustomerIntoVisible,
   mergeKnownMapCustomers,
   sameCustomerMapId,
 } from './customerMapCustomerId'
@@ -92,5 +93,21 @@ describe('canRecenterToKnownMapCustomer', () => {
         knownMapCustomers: knownAfterPanAway,
       }),
     ).toBe(true)
+  })
+})
+
+describe('mergeFocusCustomerIntoVisible', () => {
+  it('adds focus customer when missing from bounds result', () => {
+    const visible = [marker({ id: 1 })]
+    const focus = marker({ id: 190, latitude: 37.5665, longitude: 126.978 })
+    const merged = mergeFocusCustomerIntoVisible(visible, focus)
+    expect(findMapCustomerById(merged, 190)?.id).toBe(190)
+    expect(merged).toHaveLength(2)
+  })
+
+  it('does not duplicate focus customer already in visible list', () => {
+    const visible = [marker({ id: 190 })]
+    const merged = mergeFocusCustomerIntoVisible(visible, marker({ id: 190 }))
+    expect(merged).toHaveLength(1)
   })
 })

@@ -66,3 +66,20 @@ export function canRecenterToKnownMapCustomer(input: {
   const customer = findMapCustomerById(input.knownMapCustomers, input.targetId)
   return isValidMapCustomerPosition(customer)
 }
+
+/**
+ * bounds 응답에 focus 고객이 수치 오차로 빠졌을 때 안전망으로 포함.
+ * 주변 고객 목록을 대체하지 않고 1명만 추가한다.
+ */
+export function mergeFocusCustomerIntoVisible(
+  visible: CustomerMapListItem[],
+  focusCustomer: CustomerMapListItem | null | undefined,
+): CustomerMapListItem[] {
+  if (!focusCustomer || !isValidMapCustomerPosition(focusCustomer)) {
+    return visible
+  }
+  if (findMapCustomerById(visible, focusCustomer.id)) {
+    return visible
+  }
+  return [...visible, focusCustomer]
+}
