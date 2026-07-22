@@ -161,7 +161,7 @@ export function ProfilePage() {
   const copyReferralCode = async () => {
     clearReferralCopyFeedbackTimer()
     setReferralCopyNotice('')
-    const code = referralSummary?.referralCode?.trim()
+    const code = (referralSummary?.referralCode ?? user?.username ?? '').trim()
     if (!code) {
       scheduleReferralCopyNotice('추천코드를 불러오지 못했습니다.', 2000)
       return
@@ -675,8 +675,10 @@ export function ProfilePage() {
         <h2 className="profile-page__section-title">추천 코드</h2>
         <div className="profile-page__team-row profile-page__team-row--referral">
           <div className="profile-page__referral-code-display">
-            <span className="profile-page__referral-code-label">내 추천코드</span>
-            <span className="profile-page__referral-code-value">{referralSummary?.referralCode ?? '—'}</span>
+            <span className="profile-page__referral-code-label">고객등록 추천인 코드</span>
+            <span className="profile-page__referral-code-value">
+              {referralSummary?.referralCode ?? user?.username ?? '—'}
+            </span>
           </div>
           <FormButton
             htmlType="button"
@@ -698,6 +700,9 @@ export function ProfilePage() {
           </p>
         ) : null}
         <p className="profile-page__status profile-page__status--muted profile-page__status--spaced">
+          로그인 아이디와 동일합니다. 고객등록 링크의 추천인(ref) 값으로 사용됩니다.
+        </p>
+        <p className="profile-page__status profile-page__status--muted">
           추천받은 사용자가 유료 이용 중일 때만 할인 대상입니다.
         </p>
         <p className="profile-page__status profile-page__status--muted">추천 할인은 최대 8명까지 적용됩니다.</p>

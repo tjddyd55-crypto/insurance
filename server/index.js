@@ -20,6 +20,7 @@ import {
   bootstrapInsuranceBillingSubscriptionOnSignup,
 } from './insurance-billing/subscriptionLifecycle.js'
 import { ensureReferralCodeForUser } from './referrals/referralCode.js'
+import { resolveCustomerInviteRef } from './referrals/resolveCustomerInviteRef.js'
 import { planSignupCodes, applySignupCodesPlan } from './signup/processSignupCodes.js'
 import { applySignupAutoPromotionOnSignup } from './signup/signupAutoPromotion.js'
 import { readPolicyActive } from './subscription/appSettings.js'
@@ -6112,69 +6113,29 @@ async function resolveExternalCreateRefContext(pool, data, res) {
       return null
     }
 
-    const userByName = await systemQuery(
-      pool,
-      `SELECT id, role, ga_id FROM users WHERE username = $1 AND is_deleted = false`,
-      [refUsername],
-    )
-    if (userByName.rowCount === 0) {
-      logExternalCreateError('REF_USER_NOT_FOUND', { refUsername, gaCode: gaCodeNorm })
-      res.status(400).json({ message: '유효하지 않은 소개 링크입니다.' })
-      return null
-    }
-    if (normalizeUserRole(userByName.rows[0].role) !== 'USER') {
-      logExternalCreateError('REF_USER_NOT_ALLOWED_ROLE', {
+    /** username 우선 → 기존 referral_codes fallback (과거 발송 링크 호환) */
+    const resolved = await resolveCustomerInviteRef(pool, {
+      ref: refUsername,
+      gaCodeNorm,
+    })
+    if (!resolved.ok) {
+      logExternalCreateError('REF_RESOLVE_FAILED', {
         refUsername,
         gaCode: gaCodeNorm,
-        refUserId: String(userByName.rows[0].id),
-        role: userByName.rows[0].role,
+        reason: resolved.reason,
+        lookupMode: resolved.lookupMode ?? null,
       })
-      res.status(400).json({ message: '고객 정보를 받을 수 있는 계정이 아닙니다.' })
-      return null
-    }
-    const userGaId = parseGaId(userByName.rows[0].ga_id)
-    if (userGaId == null) {
-      logExternalCreateError('REF_USER_NO_GA', { refUsername, gaCode: gaCodeNorm, refUserId: String(userByName.rows[0].id) })
-      res.status(400).json({ message: '소개 계정에 GA가 연결되지 않았습니다.' })
+      res.status(400).json({ message: resolved.message })
       return null
     }
 
-    const gaRow = await systemQuery(
-      pool,
-      `SELECT id, status FROM ga_companies WHERE code = $1 AND is_deleted = false`,
-      [gaCodeNorm],
-    )
-    if (gaRow.rowCount === 0) {
-      logExternalCreateError('GA_CODE_UNKNOWN', { refUsername, gaCode: gaCodeNorm, refUserId: String(userByName.rows[0].id) })
-      res.status(400).json({ message: '잘못된 접근입니다' })
-      return null
-    }
-    if (String(gaRow.rows[0].status ?? '').toLowerCase() !== 'active') {
-      logExternalCreateError('GA_INACTIVE', {
-        refUsername,
-        gaCode: gaCodeNorm,
-        refUserId: String(userByName.rows[0].id),
-        gaId: gaRow.rows[0].id,
-        status: gaRow.rows[0].status,
-      })
-      res.status(400).json({ message: '잘못된 접근입니다' })
-      return null
-    }
-    const gaIdFromCode = parseGaId(gaRow.rows[0].id)
-    if (gaIdFromCode == null || gaIdFromCode !== userGaId) {
-      logExternalCreateError('GA_MISMATCH', {
-        refUsername,
-        gaCode: gaCodeNorm,
-        refUserId: String(userByName.rows[0].id),
-        userGaId,
-        gaIdFromCode: gaIdFromCode ?? null,
-      })
-      res.status(400).json({ message: '잘못된 접근입니다' })
-      return null
-    }
-
-    refUserId = String(userByName.rows[0].id)
-    refGaId = gaIdFromCode
+    console.info('[external-create-ref]', {
+      lookupMode: resolved.lookupMode,
+      matched: true,
+      gaMatched: true,
+    })
+    refUserId = resolved.refUserId
+    refGaId = resolved.refGaId
   } else if (refUserIdLegacy) {
     const userRow = await systemQuery(pool, `SELECT id, role, ga_id FROM users WHERE id = $1`, [refUserIdLegacy])
     if (userRow.rowCount === 0) {

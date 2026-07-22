@@ -19,24 +19,71 @@ export async function validateReferralCodeForSignup(executor, codeNorm) {
   }
 
   const owner = await lookupReferralCodeOwner(executor, code)
-  if (!owner) {
-    return { ok: false, message: '유효하지 않은 추천인 코드입니다.' }
+  if (owner) {
+    const referrer = await systemQuery(
+      executor,
+      `SELECT id, status FROM users WHERE id = $1 AND is_deleted = false LIMIT 1`,
+      [owner.ownerUserId],
+    )
+    const refRow = referrer.rows[0]
+    if (!refRow) {
+      return { ok: false, message: '유효하지 않은 추천인 코드입니다.' }
+    }
+    if (String(refRow.status ?? 'active').toLowerCase() !== 'active') {
+      return { ok: false, message: '유효하지 않은 추천인 코드입니다.' }
+    }
+    return { ok: true, referrerUserId: owner.ownerUserId, code: owner.code }
   }
 
-  const referrer = await systemQuery(
+  /** 신규: 로그인 아이디(username) 를 추천 코드로 공유한 경우 */
+  const byUsername = await systemQuery(
     executor,
-    `SELECT id, status FROM users WHERE id = $1 AND is_deleted = false LIMIT 1`,
-    [owner.ownerUserId],
+    `
+    SELECT id, status, username
+    FROM users
+    WHERE username = $1
+      AND is_deleted = false
+    LIMIT 2
+    `,
+    [String(codeNorm ?? '').trim()],
   )
-  const refRow = referrer.rows[0]
-  if (!refRow) {
+  if (byUsername.rowCount === 0) {
+    const byUsernameCi = await systemQuery(
+      executor,
+      `
+      SELECT id, status, username
+      FROM users
+      WHERE LOWER(TRIM(username)) = LOWER(TRIM($1))
+        AND is_deleted = false
+      LIMIT 2
+      `,
+      [String(codeNorm ?? '').trim()],
+    )
+    if (byUsernameCi.rowCount !== 1) {
+      return { ok: false, message: '유효하지 않은 추천인 코드입니다.' }
+    }
+    const row = byUsernameCi.rows[0]
+    if (String(row.status ?? 'active').toLowerCase() !== 'active') {
+      return { ok: false, message: '유효하지 않은 추천인 코드입니다.' }
+    }
+    return {
+      ok: true,
+      referrerUserId: String(row.id),
+      code: String(row.username ?? '').trim() || code,
+    }
+  }
+  if (byUsername.rowCount !== 1) {
     return { ok: false, message: '유효하지 않은 추천인 코드입니다.' }
   }
-  if (String(refRow.status ?? 'active').toLowerCase() !== 'active') {
+  const row = byUsername.rows[0]
+  if (String(row.status ?? 'active').toLowerCase() !== 'active') {
     return { ok: false, message: '유효하지 않은 추천인 코드입니다.' }
   }
-
-  return { ok: true, referrerUserId: owner.ownerUserId, code: owner.code }
+  return {
+    ok: true,
+    referrerUserId: String(row.id),
+    code: String(row.username ?? '').trim() || code,
+  }
 }
 
 /**
@@ -300,7 +347,17 @@ export async function loadUserReferralAuditByUsername(executor, username) {
 export async function getReferralSummaryForUser(executor, userId) {
   const uid = String(userId ?? '').trim()
   const policyActive = await readPolicyActive()
-  const referralCode = await ensureReferralCodeForUser(executor, uid)
+  /**
+   * 화면·공유용 SSOT 는 username.
+   * referral_codes 난수 행은 과거 고객등록/가입 링크 호환용으로만 유지(스키마 VARCHAR(8)).
+   */
+  await ensureReferralCodeForUser(executor, uid)
+  const userRes = await systemQuery(
+    executor,
+    `SELECT username FROM users WHERE id = $1 AND is_deleted = false LIMIT 1`,
+    [uid],
+  )
+  const referralCode = String(userRes.rows[0]?.username ?? '').trim()
 
   const listRes = await systemQuery(
     executor,

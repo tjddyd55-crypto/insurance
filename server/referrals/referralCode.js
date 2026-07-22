@@ -26,9 +26,11 @@ function generateReferralCodeCandidate() {
 }
 
 /**
- * @param {import('pg').Pool | import('pg').PoolClient} executor
- * @param {string} userId
- * @returns {Promise<string>}
+ * 사용자별 추천 코드 행 보장.
+ * - 이미 있으면 기존 code 유지 (과거 고객등록/가입 링크 호환, DB 덮어쓰기 금지)
+ * - 없을 때만 짧은 난수 생성: referral_codes.code 는 VARCHAR(8) 이라
+ *   username(최대 50자)을 저장할 수 없음. 고객등록 링크 SSOT 는 username 이며
+ *   이 테이블 코드는 legacy fallback·가입 추천 할인 호환용이다.
  */
 export async function ensureReferralCodeForUser(executor, userId) {
   const uid = String(userId ?? '').trim()
