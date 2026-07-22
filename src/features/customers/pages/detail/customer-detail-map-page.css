@@ -110,11 +110,18 @@
   display: none;
 }
 
+/**
+ * 모바일: 줌 컨트롤(우측 상단)과 분리 — 좌측 상단 + 짧은 라벨.
+ * PC는 right: 52px 유지.
+ */
 .customers-map-page--workspace-embed.customers-map-page--mobile .customers-map-page__recenter-customer {
-  right: 12px;
-  top: 10px;
+  top: 12px;
+  left: 12px;
+  right: auto;
+  z-index: 30;
   min-width: 40px;
   padding: 0 10px;
+  pointer-events: auto;
 }
 
 .customers-map-page--workspace-embed.customers-map-page--mobile .customers-map-page__recenter-customer-label--full {
@@ -123,6 +130,12 @@
 
 .customers-map-page--workspace-embed.customers-map-page--mobile .customers-map-page__recenter-customer-label--short {
   display: inline;
+}
+
+.customers-map-page--workspace-embed.customers-map-page--mobile .customer-map-marker-card {
+  z-index: 25;
+  bottom: 28px;
+  max-height: min(46dvh, 400px);
 }
 
 .workspace-mobile-outlet-modal__body .customers-map-page--workspace-embed {

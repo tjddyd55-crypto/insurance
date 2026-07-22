@@ -43,28 +43,36 @@ function CustomerMapMarkerRow({
     }
   }, [highlighted])
 
+  const phoneLabel = formatCustomerPhoneUi(customer.phone) || '연락처 없음'
+  const consultLabel = formatLastConsult(customer.lastConsultDate)
+
   return (
     <article
       ref={rowRef}
       className={`customer-map-marker-card__row${highlighted ? ' customer-map-marker-card__row--highlighted' : ''}`}
       onClick={() => onHighlightCustomer(customer.id)}
     >
-      <div className="customer-map-marker-card__row-head">
-        <h3 className="customer-map-marker-card__row-name">{customer.name || '이름 없음'}</h3>
-        <span className="customer-map-marker-card__row-meta">
-          {customer.genderLabel || '-'} · {formatBirthDateYmd(customer.birthDateYmd)}
-        </span>
+      <div className="customer-map-marker-card__row-main">
+        <div className="customer-map-marker-card__row-head">
+          <h3 className="customer-map-marker-card__row-name">{customer.name || '이름 없음'}</h3>
+          <span className="customer-map-marker-card__row-meta">
+            {customer.genderLabel || '-'} · {formatBirthDateYmd(customer.birthDateYmd)}
+          </span>
+        </div>
+        <p className="customer-map-marker-card__row-compact-meta">
+          {phoneLabel} · {consultLabel}
+        </p>
+        <dl className="customer-map-marker-card__row-fields">
+          <div>
+            <dt>연락처</dt>
+            <dd>{phoneLabel}</dd>
+          </div>
+          <div>
+            <dt>최근 상담</dt>
+            <dd>{consultLabel}</dd>
+          </div>
+        </dl>
       </div>
-      <dl className="customer-map-marker-card__row-fields">
-        <div>
-          <dt>연락처</dt>
-          <dd>{formatCustomerPhoneUi(customer.phone) || '연락처 없음'}</dd>
-        </div>
-        <div>
-          <dt>최근 상담</dt>
-          <dd>{formatLastConsult(customer.lastConsultDate)}</dd>
-        </div>
-      </dl>
       <FormButton
         htmlType="button"
         variant="primary"
@@ -92,6 +100,10 @@ export default function CustomerMapMarkerCard({
     group.customers.find((customer) => customer.id === highlightedCustomerId) ?? group.customers[0]
 
   if (!isGroup && highlightedCustomer) {
+    const phoneLabel = formatCustomerPhoneUi(highlightedCustomer.phone) || '연락처 없음'
+    const consultLabel = formatLastConsult(highlightedCustomer.lastConsultDate)
+    const genderBirth = `${highlightedCustomer.genderLabel || '-'} · ${formatBirthDateYmd(highlightedCustomer.birthDateYmd)}`
+
     return (
       <aside className="customer-map-marker-card" aria-label="고객 요약">
         <div className="customer-map-marker-card__header">
@@ -110,6 +122,14 @@ export default function CustomerMapMarkerCard({
             닫기
           </button>
         </div>
+        <p className="customer-map-marker-card__compact-meta customer-map-marker-card__compact-meta--single">
+          {genderBirth}
+          <br />
+          {phoneLabel} · {consultLabel}
+        </p>
+        <p className="customer-map-marker-card__address customer-map-marker-card__address--single-compact">
+          {highlightedCustomer.address.trim() || '-'}
+        </p>
         <dl className="customer-map-marker-card__fields">
           <div>
             <dt>성별</dt>
@@ -121,7 +141,7 @@ export default function CustomerMapMarkerCard({
           </div>
           <div>
             <dt>연락처</dt>
-            <dd>{formatCustomerPhoneUi(highlightedCustomer.phone) || '연락처 없음'}</dd>
+            <dd>{phoneLabel}</dd>
           </div>
           <div>
             <dt>주소</dt>
@@ -129,7 +149,7 @@ export default function CustomerMapMarkerCard({
           </div>
           <div>
             <dt>최근 상담</dt>
-            <dd>{formatLastConsult(highlightedCustomer.lastConsultDate)}</dd>
+            <dd>{consultLabel}</dd>
           </div>
         </dl>
         <FormButton
