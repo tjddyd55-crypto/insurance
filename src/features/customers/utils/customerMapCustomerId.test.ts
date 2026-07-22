@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { CustomerMapListItem } from '../api/customerMapApi'
 import {
+  canRecenterToKnownMapCustomer,
   findMapCustomerById,
   isValidMapCustomerPosition,
+  mergeKnownMapCustomers,
   sameCustomerMapId,
 } from './customerMapCustomerId'
 
@@ -45,5 +47,50 @@ describe('isValidMapCustomerPosition', () => {
     expect(isValidMapCustomerPosition(marker({ id: 1 }))).toBe(true)
     expect(isValidMapCustomerPosition(marker({ id: 1, latitude: Number.NaN }))).toBe(false)
     expect(isValidMapCustomerPosition(null)).toBe(false)
+  })
+})
+
+describe('mergeKnownMapCustomers', () => {
+  it('keeps previously known customers when current viewport list drops them', () => {
+    const known = [marker({ id: 190, latitude: 37.1, longitude: 127.1 })]
+    const visibleOnly = [marker({ id: 200, latitude: 37.2, longitude: 127.2 })]
+    const merged = mergeKnownMapCustomers(known, visibleOnly)
+    expect(findMapCustomerById(merged, 190)?.latitude).toBe(37.1)
+    expect(findMapCustomerById(merged, 200)?.id).toBe(200)
+  })
+})
+
+describe('canRecenterToKnownMapCustomer', () => {
+  it('stays true when customer is outside current visible markers', () => {
+    const known = [marker({ id: 190 })]
+    const visible: CustomerMapListItem[] = []
+    expect(
+      canRecenterToKnownMapCustomer({ targetId: '190', knownMapCustomers: known }),
+    ).toBe(true)
+    expect(
+      canRecenterToKnownMapCustomer({ targetId: 190, knownMapCustomers: visible }),
+    ).toBe(false)
+  })
+
+  it('is false when coordinates are missing', () => {
+    expect(
+      canRecenterToKnownMapCustomer({
+        targetId: 190,
+        knownMapCustomers: [marker({ id: 190, latitude: Number.NaN })],
+      }),
+    ).toBe(false)
+  })
+
+  it('does not depend on bounds/visible list when known has coords', () => {
+    const knownAfterPanAway = mergeKnownMapCustomers(
+      [marker({ id: 190 })],
+      [marker({ id: 999 })],
+    )
+    expect(
+      canRecenterToKnownMapCustomer({
+        targetId: '190',
+        knownMapCustomers: knownAfterPanAway,
+      }),
+    ).toBe(true)
   })
 })
