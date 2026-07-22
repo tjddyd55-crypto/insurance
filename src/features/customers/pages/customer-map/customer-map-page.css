@@ -502,6 +502,16 @@
   width: 100%;
 }
 
+.customer-map-marker-card__row-compact-meta,
+.customer-map-marker-card__compact-meta,
+.customer-map-marker-card__address--single-compact {
+  display: none;
+}
+
+.customer-map-marker-card__row-main {
+  min-width: 0;
+}
+
 .customer-map-name-marker--group .customer-map-name-marker__label {
   display: inline-flex;
   align-items: center;
@@ -715,10 +725,146 @@
   margin-top: 10px;
 }
 
+.customers-map-page--mobile .customer-map-marker-card {
+  left: 12px;
+  right: 12px;
+  bottom: 24px;
+  width: auto;
+  max-height: min(48dvh, 420px);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  z-index: 20;
+  pointer-events: auto;
+}
+
 .customers-map-page--mobile .customer-map-marker-card--group {
   left: 12px;
   right: 12px;
   width: auto;
+  max-height: min(48dvh, 420px);
+}
+
+.customers-map-page--mobile .customer-map-marker-card__header {
+  flex: 0 0 auto;
+  align-items: flex-start;
+  gap: 6px;
+  padding-bottom: 6px;
+}
+
+.customers-map-page--mobile .customer-map-marker-card__name {
+  font-size: 0.9375rem;
+  line-height: 1.3;
+}
+
+.customers-map-page--mobile .customer-map-marker-card__address {
+  font-size: 0.75rem;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.customers-map-page--mobile .customer-map-marker-card__close {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+  min-height: 32px;
+  padding: 4px 6px;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.customers-map-page--mobile .customer-map-marker-card__fields {
+  display: none;
+}
+
+.customers-map-page--mobile .customer-map-marker-card__compact-meta {
+  display: block;
+  margin: 0 0 6px;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.customers-map-page--mobile .customer-map-marker-card__address--single-compact {
+  display: -webkit-box;
+  margin: 0 0 8px;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--text-muted, #6b7280);
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.customers-map-page--mobile .customer-map-marker-card__group-list {
+  gap: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.customers-map-page--mobile .customer-map-marker-card__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.customers-map-page--mobile .customer-map-marker-card__row-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.customers-map-page--mobile .customer-map-marker-card__row-head {
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.customers-map-page--mobile .customer-map-marker-card__row-name {
+  font-size: 0.875rem;
+  line-height: 1.3;
+}
+
+.customers-map-page--mobile .customer-map-marker-card__row-meta {
+  font-size: 0.75rem;
+}
+
+.customers-map-page--mobile .customer-map-marker-card__row-fields {
+  display: none;
+}
+
+.customers-map-page--mobile .customer-map-marker-card__row-compact-meta {
+  display: block;
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.customers-map-page--mobile .customer-map-marker-card__detail-btn {
+  width: auto;
+  flex: 0 0 auto;
+  align-self: center;
+  min-height: 40px;
+  height: 40px;
+  max-height: 44px;
+  padding: 0 14px;
+  margin: 0;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+}
+
+.customers-map-page--mobile .customer-map-marker-card:not(.customer-map-marker-card--group) .customer-map-marker-card__detail-btn {
+  width: 100%;
+  height: 42px;
+  max-height: 42px;
 }
 
 .customers-map-page--mobile .customer-map-unmapped-list__items {
