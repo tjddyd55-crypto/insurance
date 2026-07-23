@@ -6,10 +6,13 @@ import {
   createGlobalNewsletterBoard,
   createGaNewsletterBoard,
   deleteNewsletterBoard,
+  disableNewsletterBoard,
+  enableNewsletterBoard,
   listAdminNewsletterBoards,
   updateNewsletterBoard,
 } from '../services/insurerNews.service'
 import type { NewsletterBoard } from '../types'
+import { isLossAdjusterSystemMenuBoard } from '../utils/newsletterBoardMenuLinks'
 import NewsletterBoardAdminMobileView from './NewsletterBoardAdmin/NewsletterBoardAdminMobileView'
 import NewsletterBoardAdminPCView from './NewsletterBoardAdmin/NewsletterBoardAdminPCView'
 import { NewsletterBoardEditModal } from './NewsletterBoardAdmin/NewsletterBoardEditModal'
@@ -98,6 +101,10 @@ export function NewsletterBoardAdminPage() {
     if (!token?.trim() || busy) {
       return
     }
+    if (isLossAdjusterSystemMenuBoard(board)) {
+      void handleDisable(board)
+      return
+    }
     void (async () => {
       const ok = await confirm({
         title: '소식지 삭제',
@@ -117,6 +124,59 @@ export function NewsletterBoardAdminPage() {
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : '소식지 삭제에 실패했습니다.')
+      } finally {
+        setBusy(false)
+      }
+    })()
+  }
+
+  const handleDisable = (board: NewsletterBoard) => {
+    if (!token?.trim() || busy) {
+      return
+    }
+    void (async () => {
+      const displayName = board.label.trim() || '손해사정사 소식지'
+      const ok = await confirm({
+        title: `${displayName}를 사용 중지할까요?`,
+        message:
+          `${displayName} 메뉴가 사용자 화면에서 숨겨집니다. 기존 게시글과 첨부파일은 삭제되지 않으며 나중에 다시 사용할 수 있습니다.`,
+        tone: 'danger',
+        confirmLabel: '사용 중지',
+        cancelLabel: '취소',
+      })
+      if (!ok) {
+        return
+      }
+      setBusy(true)
+      setError('')
+      try {
+        const updated = isLossAdjusterSystemMenuBoard(board)
+          ? (await deleteNewsletterBoard(token, board.id)) ??
+            (await disableNewsletterBoard(token, board.id, { role }))
+          : await disableNewsletterBoard(token, board.id, { role })
+        setBoards((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
+        setNotice(`「${updated.label}」을(를) 사용 중지했습니다.`)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : '사용 중지에 실패했습니다.')
+      } finally {
+        setBusy(false)
+      }
+    })()
+  }
+
+  const handleEnable = (board: NewsletterBoard) => {
+    if (!token?.trim() || busy) {
+      return
+    }
+    void (async () => {
+      setBusy(true)
+      setError('')
+      try {
+        const updated = await enableNewsletterBoard(token, board.id, { role })
+        setBoards((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
+        setNotice(`「${updated.label}」을(를) 다시 사용합니다.`)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : '다시 사용에 실패했습니다.')
       } finally {
         setBusy(false)
       }
@@ -167,12 +227,19 @@ export function NewsletterBoardAdminPage() {
         if (selectedBoard?.id === updated.id) {
           setSelectedBoard(updated)
         }
+        const isSystem = isLossAdjusterSystemMenuBoard(editingBoard)
         const isGlobal = editingBoard.boardScope === 'global' || editingBoard.contentScope === 'global'
-        setNotice(isGlobal ? '공용 소식지가 수정되었습니다.' : 'GA전용 소식지가 수정되었습니다.')
+        setNotice(
+          isSystem
+            ? '기본 소식지 이름이 수정되었습니다.'
+            : isGlobal
+              ? '공용 소식지가 수정되었습니다.'
+              : 'GA전용 소식지가 수정되었습니다.',
+        )
         closeEditModal()
         setError('')
       } catch (e) {
-        setEditError(e instanceof Error ? e.message : '공용 소식지 수정에 실패했습니다.')
+        setEditError(e instanceof Error ? e.message : '소식지 수정에 실패했습니다.')
       } finally {
         setEditBusy(false)
       }
@@ -206,6 +273,8 @@ export function NewsletterBoardAdminPage() {
     onCreateModeChange: setCreateMode,
     onCreate: handleCreate,
     onDelete: handleDelete,
+    onDisable: handleDisable,
+    onEnable: handleEnable,
     onEdit: handleEdit,
     onSelectBoard: setSelectedBoard,
     onWriterBusyChange: setWriterBusy,

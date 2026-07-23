@@ -3983,6 +3983,10 @@ async function ensureNewsletterBoardScopeSchema(executor) {
     ALTER TABLE newsletter_boards
     ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true
   `)
+  await executor.query(`
+    ALTER TABLE newsletter_boards
+    ADD COLUMN IF NOT EXISTS system_key TEXT
+  `)
 
   await executor.query(`
     UPDATE newsletter_boards
@@ -4010,6 +4014,11 @@ async function ensureNewsletterBoardScopeSchema(executor) {
     CREATE INDEX IF NOT EXISTS idx_newsletter_boards_scope_owner
     ON newsletter_boards (board_scope, owner_ga_id, is_deleted)
     WHERE is_deleted = false
+  `)
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_newsletter_boards_ga_system_key
+    ON newsletter_boards (owner_ga_id, system_key)
+    WHERE is_deleted = false AND system_key IS NOT NULL AND owner_ga_id IS NOT NULL
   `)
 
   await executor.query(`

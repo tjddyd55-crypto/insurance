@@ -117,6 +117,10 @@ export function mapNewsletterBoardDto(row) {
     gaName: row.ga_name == null ? null : String(row.ga_name),
     sortOrder: Number(row.sort_order ?? 0) || 0,
     isActive: row.is_active == null ? true : Boolean(row.is_active),
+    systemKey:
+      row.system_key == null || String(row.system_key).trim() === ''
+        ? null
+        : String(row.system_key).trim().toUpperCase(),
     createdAt: toIso(row.created_at),
     updatedAt: toIso(row.updated_at),
   }

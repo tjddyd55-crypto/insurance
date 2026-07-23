@@ -90,8 +90,62 @@ describe('buildAppMenuForSession — GA전용 소식지 메뉴', () => {
     const userLabels = linkLabels(buildAppMenuForSession('USER', 'TEST', 'Test GA', {}))
     expect(userLabels).toContain('원수사소식지')
     expect(userLabels).toContain('원수사 연락처')
+    expect(userLabels).toContain('손해사정사 소식지')
 
     const insurerLabels = linkLabels(buildAppMenuForSession('INSURER_MANAGER', 'TEST', 'Test GA', {}))
     expect(insurerLabels).toContain('원수사 소식지 조회')
+  })
+
+  it('활성 손해사정사 시스템 보드는 표시 이름을 쓰고 고정 path 를 유지한다', () => {
+    const labels = linkLabels(
+      buildAppMenuForSession('USER', 'TEST', 'Test GA', {
+        dynamicNewsletterBoards: [
+          {
+            label: '보상 실무 자료',
+            slug: 'system-loss-adjuster',
+            boardScope: 'ga',
+            systemKey: 'LOSS_ADJUSTER',
+            isActive: true,
+          },
+        ],
+      }),
+    )
+    expect(labels).toContain('보상 실무 자료')
+    expect(labels).not.toContain('손해사정사 소식지')
+    const paths = buildAppMenuForSession('USER', 'TEST', 'Test GA', {
+      dynamicNewsletterBoards: [
+        {
+          label: '보상 실무 자료',
+          slug: 'system-loss-adjuster',
+          boardScope: 'ga',
+          systemKey: 'LOSS_ADJUSTER',
+          isActive: true,
+        },
+      ],
+    })
+      .filter((e) => e.type === 'link')
+      .map((e) => (e.type === 'link' ? e.path : ''))
+    expect(paths).toContain('/portal/adjuster-news')
+    expect(paths).not.toContain('/portal/boards/system-loss-adjuster')
+  })
+
+  it('비활성 손해사정사 시스템 보드는 일반 사용자 메뉴에서 숨긴다', () => {
+    const labels = linkLabels(
+      buildAppMenuForSession('USER', 'TEST', 'Test GA', {
+        dynamicNewsletterBoards: [
+          {
+            label: '손해사정사 소식지',
+            slug: 'system-loss-adjuster',
+            boardScope: 'ga',
+            systemKey: 'LOSS_ADJUSTER',
+            isActive: false,
+          },
+          { label: '영진서울중앙', slug: 'yeongjin', boardScope: 'ga' },
+        ],
+      }),
+    )
+    expect(labels).not.toContain('손해사정사 소식지')
+    expect(labels).toContain('원수사소식지')
+    expect(labels).toContain('영진서울중앙')
   })
 })

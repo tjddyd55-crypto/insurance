@@ -14,7 +14,11 @@ import {
 } from '../auth/roleGuards'
 import { isPublicGeneralAccount } from '../auth/generalGa'
 import { applyPublicAccountMenuPathRestrictions } from '../auth/publicAccountRestrictedRoutes'
-import { buildDynamicNewsletterBoardMenuEntries } from '../insurer-news/utils/newsletterBoardMenuLinks'
+import {
+  buildDynamicNewsletterBoardMenuEntries,
+  buildLossAdjusterPortalMenuEntry,
+  partitionNewsletterBoardsForMenu,
+} from '../insurer-news/utils/newsletterBoardMenuLinks'
 import type { DynamicNewsletterBoardMenuItem } from '../insurer-news/utils/newsletterBoardMenuLinks'
 
 export type { DynamicNewsletterBoardMenuItem }
@@ -159,6 +163,14 @@ export function buildGaTenantDashboardMenu(
     menuRole,
   } = options
 
+  const { lossAdjuster, dynamicBoards } = partitionNewsletterBoardsForMenu(dynamicNewsletterBoards)
+  // 보드 목록 로딩 전([]): 기본 메뉴 유지. 로딩 후 비활성/미포함이면 숨김.
+  const lossAdjusterMenuEntry =
+    buildLossAdjusterPortalMenuEntry(lossAdjuster) ??
+    (dynamicNewsletterBoards.length === 0
+      ? ({ type: 'link', label: '손해사정사 소식지', path: '/portal/adjuster-news' } as const)
+      : null)
+
   const workConvenienceLinks: GaTenantDashboardMenuEntry[] = [
     { type: 'link', label: '문자 발송', path: '/sms/settings' },
     { type: 'link', label: '원수사 연락처', path: '/insurance/contacts' },
@@ -238,8 +250,8 @@ export function buildGaTenantDashboardMenu(
 
     { type: 'section', label: '소식지' },
     { type: 'link', label: '원수사소식지', path: '/portal/newsletters' },
-    { type: 'link', label: '손해사정사 소식지', path: '/portal/adjuster-news' },
-    ...buildDynamicNewsletterBoardMenuEntries(dynamicNewsletterBoards, menuRole),
+    ...(lossAdjusterMenuEntry ? [lossAdjusterMenuEntry] : []),
+    ...buildDynamicNewsletterBoardMenuEntries(dynamicBoards, menuRole),
 
     { type: 'section', label: '신청서' },
     ...applicationItems,
