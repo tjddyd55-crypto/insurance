@@ -79,6 +79,34 @@
   color: #1d4ed8;
 }
 
+.newsletter-board-admin-page__scope-badge--system {
+  border-color: #c7d2fe;
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.newsletter-board-admin-page__status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border: 1px solid #e5e7eb;
+}
+
+.newsletter-board-admin-page__status-badge--active {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.newsletter-board-admin-page__status-badge--inactive {
+  border-color: #e5e7eb;
+  background: #f9fafb;
+  color: #6b7280;
+}
+
 .newsletter-board-admin-page__table-wrap {
   overflow-x: auto;
 }

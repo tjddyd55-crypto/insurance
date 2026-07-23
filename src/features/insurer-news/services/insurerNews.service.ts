@@ -93,9 +93,49 @@ export async function createNewsletterBoard(
   return createGaNewsletterBoard(token, { label: input.label })
 }
 
-export async function deleteNewsletterBoard(token: string, boardId: string): Promise<void> {
-  await apiRequest<void>(`/api/admin/newsletter-boards/${encodeURIComponent(boardId)}`, {
-    method: 'DELETE',
+export async function deleteNewsletterBoard(
+  token: string,
+  boardId: string,
+): Promise<NewsletterBoard | null> {
+  // 일반 보드: 204 soft-delete. 손해사정사 시스템 보드: 200 + 비활성 JSON.
+  const result = await apiRequest<NewsletterBoard | void>(
+    `/api/admin/newsletter-boards/${encodeURIComponent(boardId)}`,
+    {
+      method: 'DELETE',
+      token,
+    },
+  )
+  return result && typeof result === 'object' && 'id' in result ? result : null
+}
+
+export async function enableNewsletterBoard(
+  token: string,
+  boardId: string,
+  options?: { role?: string },
+): Promise<NewsletterBoard> {
+  const role = String(options?.role ?? '').toUpperCase()
+  const path =
+    role === 'GA_ADMIN' || role === 'GA_STAFF'
+      ? `/api/ga-admin/newsletter-boards/${encodeURIComponent(boardId)}/enable`
+      : `/api/admin/newsletter-boards/${encodeURIComponent(boardId)}/enable`
+  return apiRequest<NewsletterBoard>(path, {
+    method: 'POST',
+    token,
+  })
+}
+
+export async function disableNewsletterBoard(
+  token: string,
+  boardId: string,
+  options?: { role?: string },
+): Promise<NewsletterBoard> {
+  const role = String(options?.role ?? '').toUpperCase()
+  const path =
+    role === 'GA_ADMIN' || role === 'GA_STAFF'
+      ? `/api/ga-admin/newsletter-boards/${encodeURIComponent(boardId)}/disable`
+      : `/api/admin/newsletter-boards/${encodeURIComponent(boardId)}/disable`
+  return apiRequest<NewsletterBoard>(path, {
+    method: 'POST',
     token,
   })
 }

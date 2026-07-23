@@ -20,6 +20,7 @@ import {
 } from './lib/newsletterBoardAccess.js'
 import {
   DISABLE_NEWSLETTER_BOARD_SQL,
+  ENABLE_NEWSLETTER_BOARD_SQL,
   GA_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL,
   GA_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL,
   GA_ADMIN_NEWSLETTER_BOARDS_LIST_SQL,
@@ -33,6 +34,11 @@ import {
   SUPER_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL,
   SUPER_ADMIN_NEWSLETTER_BOARDS_LIST_SQL,
 } from './lib/newsletterBoardAdminSql.js'
+import {
+  ensureLossAdjusterNewsletterBoard,
+  isLossAdjusterNewsletterActiveForGa,
+  isLossAdjusterSystemBoard,
+} from './lib/lossAdjusterNewsletterBoard.js'
 import { parseBoardMetadataPatch } from './lib/newsletterBoardMetadata.js'
 import { canDeleteNewsletter } from './lib/newsletterDeletePermission.js'
 import { insertDynamicBoardNewsletter } from './lib/dynamicBoardNewsletterWrite.js'
@@ -1574,6 +1580,11 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     try {
       const tenantGaId = effectiveTenantGaId(req)
       const gaId = Number.isInteger(tenantGaId) && tenantGaId > 0 ? tenantGaId : 0
+      if (gaId > 0) {
+        await ensureLossAdjusterNewsletterBoard(pool, gaId, {
+          createdByUserId: String(req.user?.id ?? '') || null,
+        })
+      }
       const r = await safeQuery(pool, NEWSLETTER_BOARDS_VISIBLE_LIST_SQL, [gaId])
       res.json(r.rows.map(mapNewsletterBoard))
     } catch (eBoards) {
@@ -1588,6 +1599,14 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         return
       }
       const isSuperAdmin = isSuperAdminRole(req.user?.role)
+      if (!isSuperAdmin) {
+        const gaId = effectiveTenantGaId(req)
+        if (Number.isInteger(gaId) && gaId > 0) {
+          await ensureLossAdjusterNewsletterBoard(pool, gaId, {
+            createdByUserId: String(req.user?.id ?? '') || null,
+          })
+        }
+      }
       const r = isSuperAdmin
         ? await adminNewsletterBoardQuery(pool, SUPER_ADMIN_NEWSLETTER_BOARDS_LIST_SQL, [])
         : await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARDS_LIST_SQL, [effectiveTenantGaId(req)])
@@ -1603,7 +1622,13 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         res.status(403).json({ message: 'GA 관리자만 이용할 수 있습니다.' })
         return
       }
-      const r = await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARDS_LIST_SQL, [effectiveTenantGaId(req)])
+      const gaId = effectiveTenantGaId(req)
+      if (Number.isInteger(gaId) && gaId > 0) {
+        await ensureLossAdjusterNewsletterBoard(pool, gaId, {
+          createdByUserId: String(req.user?.id ?? '') || null,
+        })
+      }
+      const r = await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARDS_LIST_SQL, [gaId])
       res.json(r.rows.map(mapNewsletterBoard))
     } catch (eGaBoards) {
       handleDbError(eGaBoards, req, res)
@@ -1865,6 +1890,11 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         res.status(403).json({ message: '공용게시판은 최고 관리자만 삭제할 수 있습니다.' })
         return
       }
+      if (isLossAdjusterSystemBoard(board)) {
+        const disabled = await safeQuery(pool, DISABLE_NEWSLETTER_BOARD_SQL, [boardId])
+        res.status(200).json(mapNewsletterBoard(disabled.rows[0]))
+        return
+      }
       if (isSuperAdmin) {
         await adminNewsletterBoardQuery(pool, SUPER_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL, [boardId])
       } else {
@@ -1873,6 +1903,54 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       res.status(204).send()
     } catch (eBoardsDelete) {
       handleDbError(eBoardsDelete, req, res)
+    }
+  })
+
+  apiRouter.post('/ga-admin/newsletter-boards/:boardId/enable', requireAuth, async (req, res) => {
+    try {
+      if (!isGaNewsletterBoardManagerRole(req.user?.role)) {
+        res.status(403).json({ message: 'GA 관리자만 다시 사용할 수 있습니다.' })
+        return
+      }
+      const boardId = String(req.params.boardId ?? '').trim()
+      const gaId = effectiveTenantGaId(req)
+      const boardRes = await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL, [boardId, gaId])
+      if (boardRes.rowCount === 0) {
+        res.status(404).json({ message: '게시판을 찾을 수 없습니다.' })
+        return
+      }
+      const r = await safeQuery(pool, ENABLE_NEWSLETTER_BOARD_SQL, [boardId])
+      res.json(mapNewsletterBoard(r.rows[0]))
+    } catch (eEnable) {
+      handleDbError(eEnable, req, res)
+    }
+  })
+
+  apiRouter.post('/admin/newsletter-boards/:boardId/enable', requireAuth, async (req, res) => {
+    try {
+      if (!canManageNewsletterBoards(req)) {
+        res.status(403).json({ message: '소식지 메뉴 관리 권한이 없습니다.' })
+        return
+      }
+      const boardId = String(req.params.boardId ?? '').trim()
+      const isSuperAdmin = isSuperAdminRole(req.user?.role)
+      const gaId = effectiveTenantGaId(req)
+      let boardRes
+      if (isSuperAdmin) {
+        boardRes = await systemQuery(pool, SUPER_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL, [boardId])
+      } else {
+        boardRes = await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL, [boardId, gaId])
+      }
+      if (boardRes.rowCount === 0) {
+        res.status(404).json({ message: '게시판을 찾을 수 없습니다.' })
+        return
+      }
+      const r = isSuperAdmin
+        ? await systemQuery(pool, ENABLE_NEWSLETTER_BOARD_SQL, [boardId])
+        : await safeQuery(pool, ENABLE_NEWSLETTER_BOARD_SQL, [boardId])
+      res.json(mapNewsletterBoard(r.rows[0]))
+    } catch (eAdminEnable) {
+      handleDbError(eAdminEnable, req, res)
     }
   })
 
@@ -2061,6 +2139,18 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       if (gaId == null) {
         res.status(400).json({ message: 'GA 컨텍스트를 확인할 수 없습니다.' })
         return
+      }
+
+      if (channel === NEWS_CHANNEL_LOSS_ADJUSTER) {
+        const active = await isLossAdjusterNewsletterActiveForGa(pool, gaId)
+        const canBypassInactive =
+          canManageNewsletterBoards(req) ||
+          isLossAdjusterRole(req.user?.role) ||
+          isSuperAdminRole(req.user?.role)
+        if (!active && !canBypassInactive) {
+          res.json({ newsletters: [], insurers: [] })
+          return
+        }
       }
 
       const userId = String(req.user?.id ?? '')
@@ -2620,6 +2710,17 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     const body = req.body && typeof req.body === 'object' ? req.body : {}
     try {
       const channel = resolveManagerChannel(req)
+      if (channel === NEWS_CHANNEL_LOSS_ADJUSTER) {
+        const gaId = effectiveTenantGaId(req)
+        const active = await isLossAdjusterNewsletterActiveForGa(pool, gaId)
+        if (!active) {
+          res.status(403).json({
+            message: '현재 사용하지 않는 소식지에는 글을 등록할 수 없습니다.',
+            code: 'LOSS_ADJUSTER_NEWSLETTER_INACTIVE',
+          })
+          return
+        }
+      }
       const normalizedScope = await resolveNewsWriteScope(req, body, channel)
       const payload = buildPayloadFromBody(body, normalizedScope, channel)
       const attachmentScope = {

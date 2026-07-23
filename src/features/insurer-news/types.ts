@@ -25,6 +25,8 @@ export interface NewsletterBoard {
   gaName: string | null
   sortOrder?: number
   isActive?: boolean
+  /** 손해사정사 기본 채널 등 — null 이면 사용자 생성 보드 */
+  systemKey?: string | null
   createdAt: string
   updatedAt: string
 }

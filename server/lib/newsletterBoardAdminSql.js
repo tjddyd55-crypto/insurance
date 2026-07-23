@@ -26,14 +26,22 @@ export const GA_NEWSLETTER_BOARD_DUPLICATE_SLUG_SQL = `
 /** @deprecated GLOBAL_NEWSLETTER_BOARD_DUPLICATE_SLUG_SQL 사용 */
 export const NEWSLETTER_BOARD_DUPLICATE_SLUG_SQL = GLOBAL_NEWSLETTER_BOARD_DUPLICATE_SLUG_SQL
 
-/** 사용자 메뉴 — global + 접근 가능한 ga 보드 */
+/** 사용자 메뉴 — global + 접근 가능한 ga 보드
+ *  손해사정사 시스템 보드는 비활성이어도 내려보내 메뉴 label/숨김을 클라이언트가 판단한다.
+ */
 export const NEWSLETTER_BOARDS_VISIBLE_LIST_SQL = `
   SELECT b.*, gc.code AS ga_code, gc.name AS ga_name
   FROM newsletter_boards b
   LEFT JOIN ga_companies gc ON gc.id = b.owner_ga_id
   WHERE b.is_deleted = false
-    AND COALESCE(b.is_active, true) = true
     AND b.board_scope IN ('global', 'ga')
+    AND (
+      COALESCE(b.is_active, true) = true
+      OR (
+        UPPER(TRIM(COALESCE(b.system_key, ''))) = 'LOSS_ADJUSTER'
+        AND b.board_scope = 'ga'
+      )
+    )
     AND (
       b.board_scope = 'global'
       OR (
@@ -159,6 +167,14 @@ export const GA_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL = `
 export const DISABLE_NEWSLETTER_BOARD_SQL = `
   UPDATE newsletter_boards
   SET is_active = false, updated_at = NOW()
+  WHERE id = $1
+    AND is_deleted = false
+  RETURNING *
+`
+
+export const ENABLE_NEWSLETTER_BOARD_SQL = `
+  UPDATE newsletter_boards
+  SET is_active = true, updated_at = NOW()
   WHERE id = $1
     AND is_deleted = false
   RETURNING *
