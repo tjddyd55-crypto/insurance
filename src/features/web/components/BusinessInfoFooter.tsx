@@ -1,10 +1,14 @@
 import type { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import {
   businessInfo,
   formatPhoneForTelLink,
   getFtcBusinessVerificationUrl,
 } from '../../../config/businessInfo.config'
+import {
+  buildPolicyHref,
+  resolveReturnToForPolicyLink,
+} from '../../legal/legalPageNavigation'
 
 type FooterItemProps = {
   label: string
@@ -21,8 +25,15 @@ function FooterItem({ label, children }: FooterItemProps) {
 }
 
 export function BusinessInfoFooter() {
+  const location = useLocation()
+  const [searchParams] = useSearchParams()
   const privacyPhoneHref = `tel:${formatPhoneForTelLink(businessInfo.privacyOfficerPhone)}`
   const businessEmailHref = `mailto:${businessInfo.businessEmail}`
+  const returnTo = resolveReturnToForPolicyLink({
+    pathname: location.pathname,
+    search: location.search,
+    currentReturnTo: searchParams.get('returnTo'),
+  })
 
   return (
     <footer className="intro-business-footer" aria-label="사업자 정보">
@@ -66,19 +77,22 @@ export function BusinessInfoFooter() {
         ) : null}
 
         <nav className="intro-business-footer__links" aria-label="법적 고지 링크">
-          <Link to="/terms" className="intro-business-footer__nav-link">
+          <Link to={buildPolicyHref('/terms', returnTo)} className="intro-business-footer__nav-link">
             이용약관
           </Link>
           <span className="intro-business-footer__sep" aria-hidden="true">
             |
           </span>
-          <Link to="/privacy" className="intro-business-footer__nav-link">
+          <Link to={buildPolicyHref('/privacy', returnTo)} className="intro-business-footer__nav-link">
             개인정보처리방침
           </Link>
           <span className="intro-business-footer__sep" aria-hidden="true">
             |
           </span>
-          <Link to="/account-deletion" className="intro-business-footer__nav-link">
+          <Link
+            to={buildPolicyHref('/account-deletion', returnTo)}
+            className="intro-business-footer__nav-link"
+          >
             계정 삭제 안내
           </Link>
           <span className="intro-business-footer__sep" aria-hidden="true">

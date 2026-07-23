@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { termsSiteConfig } from '../features/legal/termsSiteConfig'
+import { PUBLIC_LEGAL_PATHS, isPublicLegalPath } from '../features/legal/legalPageNavigation'
 
 export const PUBLIC_LEGAL_FOOTER_ROUTES = {
   terms: '/terms',
@@ -12,6 +13,13 @@ describe('public legal routes', () => {
     expect(PUBLIC_LEGAL_FOOTER_ROUTES.terms).toBe('/terms')
     expect(PUBLIC_LEGAL_FOOTER_ROUTES.privacy).toBe('/privacy')
     expect(PUBLIC_LEGAL_FOOTER_ROUTES.accountDeletion).toBe('/account-deletion')
+  })
+
+  it('keeps public legal path SSOT aligned', () => {
+    expect(PUBLIC_LEGAL_PATHS).toEqual(
+      expect.arrayContaining(['/terms', '/privacy', '/account-deletion', '/privacy-policy']),
+    )
+    expect(isPublicLegalPath('/terms')).toBe(true)
   })
 
   it('uses the same operator name as terms config', () => {

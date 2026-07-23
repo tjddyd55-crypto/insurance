@@ -1,6 +1,8 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { BusinessInfoFooter } from '../web/components/BusinessInfoFooter'
+import LegalInternalLink from './LegalInternalLink'
+import LegalPageShell from './LegalPageShell'
 import { accountDeletionSiteConfig as C } from './accountDeletionSiteConfig'
 
 function setOrCreateMeta(name: string, content: string) {
@@ -30,8 +32,8 @@ export default function AccountDeletionPage() {
   }, [])
 
   return (
-    <>
-      <main className="legal-doc-page" id="account-deletion-top">
+    <LegalPageShell title="계정 삭제 안내" pageId="account-deletion-top">
+      <main className="legal-doc-page">
       <article className="legal-doc">
         <header className="legal-doc__header">
           <p className="legal-doc__meta">개정일 {C.lastRevisedDate}</p>
@@ -176,9 +178,9 @@ export default function AccountDeletionPage() {
 
         <footer className="legal-doc__footer">
           <p className="legal-doc__footer-note">
-            <Link to={C.privacyPolicyPath} className="legal-doc__link">
+            <LegalInternalLink to={C.privacyPolicyPath} className="legal-doc__link">
               개인정보처리방침
-            </Link>
+            </LegalInternalLink>
             <span aria-hidden="true"> · </span>
             <Link to="/login" className="legal-doc__link">
               서비스 로그인
@@ -192,6 +194,6 @@ export default function AccountDeletionPage() {
       </article>
     </main>
     <BusinessInfoFooter />
-    </>
+    </LegalPageShell>
   )
 }

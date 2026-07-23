@@ -7,6 +7,7 @@ import {
   IntroPlatformDownloadCard,
   type IntroPlatformDownloadCardProps,
 } from '../components/introduction/IntroPlatformDownloadCard'
+import LegalPageShell from '../../legal/LegalPageShell'
 
 const GPT_PROMPT_TEXT = `다음 작업을 수행해줘.
 
@@ -137,6 +138,7 @@ const DOWNLOAD_CARDS: IntroPlatformDownloadCardProps[] = [
 
 export function IntroductionInstallPage() {
   return (
+    <LegalPageShell title="앱 설치 안내">
     <main className="intro-install">
       <section className="intro-install-hero">
         <div className="intro-v2-shell">
@@ -262,5 +264,6 @@ export function IntroductionInstallPage() {
       </section>
       <BusinessInfoFooter />
     </main>
+    </LegalPageShell>
   )
 }
