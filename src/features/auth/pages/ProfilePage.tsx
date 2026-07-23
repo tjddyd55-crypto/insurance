@@ -4,6 +4,7 @@ import { ApiError } from '../../../lib/apiClient'
 import { normalizeKrMobile, validateKrMobileDigits } from '../../../lib/phoneNormalize'
 import { FormButton, FormInput } from '../../../components/form'
 import { Button, Modal } from '../../../components/ui'
+import { buildPolicyHref } from '../../legal/legalPageNavigation'
 import {
   fetchMe,
   patchMe,
@@ -945,13 +946,22 @@ export function ProfilePage() {
       </BaseDialog>
 
       <footer className="profile-page__legal-footer">
-        <Link to="/privacy" className="profile-page__legal-link">
+        <Link to={buildPolicyHref('/terms', '/profile')} className="profile-page__legal-link">
+          이용약관
+        </Link>
+        <span className="profile-page__legal-sep" aria-hidden="true">
+          ·
+        </span>
+        <Link to={buildPolicyHref('/privacy', '/profile')} className="profile-page__legal-link">
           개인정보처리방침
         </Link>
         <span className="profile-page__legal-sep" aria-hidden="true">
           ·
         </span>
-        <Link to="/account-deletion" className="profile-page__legal-link profile-page__legal-link--danger">
+        <Link
+          to={buildPolicyHref('/account-deletion', '/profile')}
+          className="profile-page__legal-link profile-page__legal-link--danger"
+        >
           계정 삭제 요청
         </Link>
       </footer>

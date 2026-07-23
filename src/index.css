@@ -141,11 +141,11 @@ body {
 }
 
 .app-root.app-root--public-legal .main-container {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
 }
 
 /* 모바일 로그인 — 셸은 고정, 본문(.auth-page--mobile-login)만 스크롤 */
@@ -11752,9 +11752,24 @@ a.contacts-public-auth__link {
   overscroll-behavior-y: contain;
 }
 
-/* 모바일·Electron WebView: 셸 밖(body) 스크롤 방지, legal 본문만 스크롤 */
-html:has(.app-root--public-legal),
-body:has(.app-root--public-legal) {
+/* 공개 소개 페이지도 LegalPageShell 스크롤 축 사용 */
+.app-root:has(.legal-page-shell) .main-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.app-root:has(.legal-page-shell) {
+  height: 100%;
+  min-height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+html:has(.legal-page-shell),
+body:has(.legal-page-shell) {
   height: 100%;
   overflow: hidden;
 }

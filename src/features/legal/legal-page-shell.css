@@ -1,0 +1,117 @@
+/**
+ * 정책·안내 standalone 페이지 공통 헤더/스크롤 셸.
+ * 본문(.legal-doc) 내용은 변경하지 않는다.
+ */
+
+.legal-page-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  background: var(--bg-main, #fff);
+  color: var(--text-primary, var(--text-main));
+}
+
+.app-root.app-root--public-legal .legal-page-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.legal-page-shell__header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: minmax(7.5rem, auto) 1fr minmax(4.5rem, auto);
+  align-items: center;
+  gap: 8px;
+  min-height: 56px;
+  padding: 8px max(12px, env(safe-area-inset-right, 0px)) 8px
+    max(12px, env(safe-area-inset-left, 0px));
+  padding-top: calc(8px + env(safe-area-inset-top, 0px));
+  background: var(--bg-surface, #fff);
+  border-bottom: 1px solid var(--border-default, var(--border, #e5e7eb));
+  box-sizing: border-box;
+}
+
+.legal-page-shell__title {
+  margin: 0;
+  min-width: 0;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text-primary, var(--text-main));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.legal-page-shell__nav-btn {
+  min-height: 40px;
+  height: 40px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.legal-page-shell__nav-btn--back {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legal-page-shell__nav-btn--close {
+  justify-self: end;
+}
+
+.legal-page-shell__nav-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.legal-page-shell__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* 셸 본문 안에서 기존 legal-doc-page 스크롤 규칙을 흡수 */
+.legal-page-shell__body > .legal-doc-page {
+  min-height: 0;
+  height: auto;
+  overflow: visible;
+}
+
+.legal-page-shell__body > .intro-v2,
+.legal-page-shell__body > .intro-install-page {
+  min-height: 0;
+}
+
+@media (max-width: 480px) {
+  .legal-page-shell__header {
+    grid-template-columns: auto 1fr auto;
+    gap: 4px;
+    min-height: 52px;
+    padding-inline: 8px;
+  }
+
+  .legal-page-shell__title {
+    font-size: 0.9375rem;
+  }
+
+  .legal-page-shell__nav-btn {
+    min-height: 40px;
+    padding: 0 10px;
+    font-size: 0.8125rem;
+  }
+
+  .legal-page-shell__nav-label {
+    /* 매우 좁은 폭에서도 텍스트 유지 — 아이콘만 금지 요구 */
+  }
+}

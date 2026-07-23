@@ -6,6 +6,7 @@ import {
   IntroductionFeatureShowcase,
   IntroductionFinalCta,
 } from '../components/introduction/IntroductionFeatureShowcase'
+import LegalPageShell from '../../legal/LegalPageShell'
 
 export function IntroductionPage() {
   const structureItems = [
@@ -28,6 +29,7 @@ export function IntroductionPage() {
   ] as const
 
   return (
+    <LegalPageShell title="서비스 소개">
     <main className="intro-v2">
       <section className="intro-v2-hero">
         <div className="intro-v2-hero__bg" />
@@ -115,5 +117,6 @@ export function IntroductionPage() {
       <IntroductionFinalCta />
       <BusinessInfoFooter />
     </main>
+    </LegalPageShell>
   )
 }

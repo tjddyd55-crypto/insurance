@@ -45,7 +45,7 @@ export function AppLayout() {
        * 창 최소화/최대화/닫기 버튼은 비인증 상태에서도 제공되어야 하기 때문.
        * (`ElectronTitleBar` 내부의 GA 테넌트·뒤로가기 로직은 이미 비인증을 고려한다)
        */}
-      {isElectronApp() && !hidePublicIntroChrome && !isPublicLegalRoute ? <ElectronTitleBar /> : null}
+      {isElectronApp() && !isExternalAccountVaultRoute ? <ElectronTitleBar /> : null}
       {!isElectronApp() && isAuthenticated && !hidePublicIntroChrome && !isExternalAccountVaultRoute ? (
         <WebProgramTopBar />
       ) : null}

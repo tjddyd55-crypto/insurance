@@ -2,6 +2,8 @@ import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { businessInfo } from '../../config/businessInfo.config'
 import { BusinessInfoFooter } from '../web/components/BusinessInfoFooter'
+import LegalInternalLink from './LegalInternalLink'
+import LegalPageShell from './LegalPageShell'
 import { termsSiteConfig as C } from './termsSiteConfig'
 
 function setOrCreateMeta(name: string, content: string) {
@@ -31,8 +33,8 @@ export default function TermsOfServicePage() {
   }, [])
 
   return (
-    <>
-      <main className="legal-doc-page" id="terms-top">
+    <LegalPageShell title="이용약관" pageId="terms-top">
+      <main className="legal-doc-page">
         <article className="legal-doc">
           <header className="legal-doc__header">
             <p className="legal-doc__meta">
@@ -197,9 +199,9 @@ export default function TermsOfServicePage() {
             <p>
               회사는 관련 법령이 정하는 바에 따라 이용자의 개인정보를 보호합니다. 개인정보의 수집·이용·보관·파기
               등에 관한 사항은{' '}
-              <Link to="/privacy" className="legal-doc__link">
+              <LegalInternalLink to="/privacy" className="legal-doc__link">
                 개인정보처리방침
-              </Link>
+              </LegalInternalLink>
               에 따릅니다.
             </p>
             <ul className="legal-doc__list legal-doc__contact">
@@ -265,9 +267,9 @@ export default function TermsOfServicePage() {
                 서비스 로그인
               </Link>
               <span aria-hidden="true"> · </span>
-              <Link to="/privacy" className="legal-doc__link">
+              <LegalInternalLink to="/privacy" className="legal-doc__link">
                 개인정보처리방침
-              </Link>
+              </LegalInternalLink>
               <span aria-hidden="true"> · </span>
               <a href="#terms-top" className="legal-doc__link">
                 맨 위로
@@ -277,6 +279,6 @@ export default function TermsOfServicePage() {
         </article>
       </main>
       <BusinessInfoFooter />
-    </>
+    </LegalPageShell>
   )
 }
