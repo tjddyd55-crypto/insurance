@@ -1,14 +1,20 @@
 import { useCallback, useEffect, useState } from 'react'
-import { FormButton, FormInput } from '../../../../components/form'
+import { FormButton } from '../../../../components/form'
+import { useConfirmDialog } from '../../../../components/dialog'
 import type { NewsletterBoard } from '../../types'
 import {
   checkBoardWriterLoginId,
   createBoardWriterAccountForBoard,
   listBoardWriterAccountsForBoard,
-  resetBoardWriterAccountPassword,
   setBoardWriterAccountStatus,
+  updateBoardWriterAccountForBoard,
   type PublicBoardWriterAccount,
 } from '../../services/publicBoardWriter.service'
+import {
+  WriterAccountFormDialog,
+  type WriterAccountFormState,
+} from './WriterAccountFormDialog'
+import { WriterAccountTable } from './WriterAccountTable'
 
 type NewsletterBoardWriterPanelProps = {
   board: NewsletterBoard
@@ -17,6 +23,15 @@ type NewsletterBoardWriterPanelProps = {
   busy: boolean
   onBusyChange: (busy: boolean) => void
 }
+
+const emptyForm = (): WriterAccountFormState => ({
+  organizationName: '',
+  authorName: '',
+  loginId: '',
+  password: '',
+  passwordConfirm: '',
+  isActive: true,
+})
 
 export function NewsletterBoardWriterPanel({
   board,
@@ -27,13 +42,14 @@ export function NewsletterBoardWriterPanel({
 }: NewsletterBoardWriterPanelProps) {
   const [writers, setWriters] = useState<PublicBoardWriterAccount[]>([])
   const [loading, setLoading] = useState(true)
-  const [loginId, setLoginId] = useState('')
-  const [password, setPassword] = useState('')
-  const [displayName, setDisplayName] = useState('')
+  const [error, setError] = useState('')
+  const [registerOpen, setRegisterOpen] = useState(false)
+  const [editing, setEditing] = useState<PublicBoardWriterAccount | null>(null)
+  const [form, setForm] = useState<WriterAccountFormState>(emptyForm())
+  const [formError, setFormError] = useState('')
   const [loginIdAvailability, setLoginIdAvailability] = useState<{ available: boolean } | null>(null)
   const [checkMessage, setCheckMessage] = useState('')
-  const [error, setError] = useState('')
-  const [resetPasswordById, setResetPasswordById] = useState<Record<string, string>>({})
+  const { confirm, confirmDialog } = useConfirmDialog()
 
   const loadWriters = useCallback(async () => {
     if (!token.trim()) {
@@ -57,108 +73,231 @@ export function NewsletterBoardWriterPanel({
   }, [loadWriters])
 
   useEffect(() => {
-    setLoginId('')
-    setPassword('')
-    setDisplayName('')
+    setRegisterOpen(false)
+    setEditing(null)
+    setForm(emptyForm())
+    setFormError('')
     setLoginIdAvailability(null)
     setCheckMessage('')
     setError('')
-    setResetPasswordById({})
   }, [board.id])
 
+  const closeModals = () => {
+    if (busy) {
+      return
+    }
+    setRegisterOpen(false)
+    setEditing(null)
+    setForm(emptyForm())
+    setFormError('')
+    setLoginIdAvailability(null)
+    setCheckMessage('')
+  }
+
+  const openRegister = () => {
+    setFormError('')
+    setEditing(null)
+    setForm(emptyForm())
+    setLoginIdAvailability(null)
+    setCheckMessage('')
+    setRegisterOpen(true)
+  }
+
+  const openEdit = (writer: PublicBoardWriterAccount) => {
+    setFormError('')
+    setRegisterOpen(false)
+    setEditing(writer)
+    setForm({
+      organizationName: String(writer.organizationName ?? '').trim(),
+      authorName: String(writer.name ?? '').trim() || writer.loginId,
+      loginId: writer.loginId,
+      password: '',
+      passwordConfirm: '',
+      isActive: writer.isActive,
+    })
+    setLoginIdAvailability(null)
+    setCheckMessage('')
+  }
+
   const handleLoginIdChange = (value: string) => {
-    setLoginId(value)
+    setForm((prev) => ({ ...prev, loginId: value }))
     setLoginIdAvailability(null)
     setCheckMessage('')
   }
 
   const handleCheckLoginId = () => {
-    if (!token.trim() || busy || !loginId.trim()) {
+    if (!token.trim() || busy || !form.loginId.trim()) {
       return
     }
     void (async () => {
       onBusyChange(true)
-      setError('')
+      setFormError('')
       try {
-        const result = await checkBoardWriterLoginId(token, role, board.id, loginId.trim())
-        setLoginIdAvailability({ available: result.available })
-        setCheckMessage(
-          result.available ? '사용 가능한 아이디입니다.' : '이미 사용 중인 아이디입니다.',
-        )
+        const result = await checkBoardWriterLoginId(token, role, board.id, form.loginId.trim())
+        const sameAsEditing =
+          editing != null && form.loginId.trim().toLowerCase() === editing.loginId.trim().toLowerCase()
+        const available = sameAsEditing || result.available
+        setLoginIdAvailability({ available })
+        setCheckMessage(available ? '사용 가능한 아이디입니다.' : '이미 사용 중인 아이디입니다.')
       } catch (e) {
         setLoginIdAvailability(null)
-        setError(e instanceof Error ? e.message : '아이디 중복 확인에 실패했습니다.')
+        setFormError(e instanceof Error ? e.message : '아이디 중복 확인에 실패했습니다.')
       } finally {
         onBusyChange(false)
       }
     })()
   }
 
-  const canCreateWriterAccount =
-    loginId.trim().length > 0 &&
-    password.trim().length > 0 &&
-    loginIdAvailability?.available === true &&
-    !busy
+  const validateForm = (mode: 'create' | 'edit'): string | null => {
+    if (!form.organizationName.trim()) {
+      return '소속명을 입력해 주세요.'
+    }
+    if (!form.authorName.trim()) {
+      return '작성자 이름을 입력해 주세요.'
+    }
+    if (!form.loginId.trim() || form.loginId.trim().length < 3) {
+      return '아이디는 3자 이상 입력해 주세요.'
+    }
+    if (mode === 'create') {
+      if (!form.password.trim() || form.password.trim().length < 8) {
+        return '비밀번호는 8자 이상 입력해 주세요.'
+      }
+      if (form.password !== form.passwordConfirm) {
+        return '비밀번호 확인이 일치하지 않습니다.'
+      }
+      if (loginIdAvailability?.available !== true) {
+        return '아이디 중복 확인을 완료해 주세요.'
+      }
+    } else {
+      const loginIdChanged =
+        editing != null &&
+        form.loginId.trim().toLowerCase() !== editing.loginId.trim().toLowerCase()
+      if (loginIdChanged && loginIdAvailability?.available !== true) {
+        return '아이디 중복 확인을 완료해 주세요.'
+      }
+      if (form.password.trim() || form.passwordConfirm.trim()) {
+        if (form.password.trim().length < 8) {
+          return '비밀번호는 8자 이상 입력해 주세요.'
+        }
+        if (form.password !== form.passwordConfirm) {
+          return '비밀번호 확인이 일치하지 않습니다.'
+        }
+      }
+    }
+    return null
+  }
 
   const handleCreate = () => {
-    if (!canCreateWriterAccount) {
+    if (!token.trim() || busy) {
+      return
+    }
+    const validationError = validateForm('create')
+    if (validationError) {
+      setFormError(validationError)
       return
     }
     void (async () => {
       onBusyChange(true)
-      setError('')
+      setFormError('')
       try {
         await createBoardWriterAccountForBoard(token, role, board.id, {
-          loginId: loginId.trim(),
-          password: password.trim(),
-          displayName: displayName.trim() || loginId.trim(),
+          organizationName: form.organizationName.trim(),
+          displayName: form.authorName.trim(),
+          loginId: form.loginId.trim(),
+          password: form.password.trim(),
+          isActive: form.isActive,
         })
-        setLoginId('')
-        setPassword('')
-        setDisplayName('')
-        setLoginIdAvailability(null)
-        setCheckMessage('')
+        closeModals()
         await loadWriters()
       } catch (e) {
-        setError(e instanceof Error ? e.message : '작성자 계정 생성에 실패했습니다.')
+        setFormError(e instanceof Error ? e.message : '작성자 계정 등록에 실패했습니다.')
       } finally {
         onBusyChange(false)
       }
     })()
   }
 
-  const handleResetPassword = (accountId: string) => {
-    const nextPassword = resetPasswordById[accountId]?.trim() ?? ''
-    if (!nextPassword || busy) {
+  const handleUpdate = () => {
+    if (!token.trim() || !editing || busy) {
+      return
+    }
+    const validationError = validateForm('edit')
+    if (validationError) {
+      setFormError(validationError)
       return
     }
     void (async () => {
       onBusyChange(true)
-      setError('')
+      setFormError('')
       try {
-        await resetBoardWriterAccountPassword(token, role, board.id, accountId, nextPassword)
-        setResetPasswordById((prev) => ({ ...prev, [accountId]: '' }))
+        await updateBoardWriterAccountForBoard(token, role, board.id, editing.id, {
+          organizationName: form.organizationName.trim(),
+          displayName: form.authorName.trim(),
+          loginId: form.loginId.trim(),
+          ...(form.password.trim() ? { password: form.password.trim() } : {}),
+          isActive: form.isActive,
+        })
+        closeModals()
         await loadWriters()
       } catch (e) {
-        setError(e instanceof Error ? e.message : '비밀번호 초기화에 실패했습니다.')
+        setFormError(e instanceof Error ? e.message : '작성자 계정 수정에 실패했습니다.')
       } finally {
         onBusyChange(false)
       }
     })()
   }
 
-  const handleToggleStatus = (writer: PublicBoardWriterAccount) => {
-    if (busy) {
+  const handleDisable = (writer: PublicBoardWriterAccount) => {
+    if (!token.trim() || busy) {
       return
     }
     void (async () => {
+      const authorLabel = writer.name?.trim() || writer.loginId
+      const ok = await confirm({
+        title: '작성자 계정을 사용 중지할까요?',
+        message: `${authorLabel} 계정은 더 이상 로그인하거나 게시글을 등록할 수 없습니다. 기존 작성글은 삭제되지 않습니다.`,
+        tone: 'danger',
+        confirmLabel: '사용 중지',
+        cancelLabel: '취소',
+      })
+      if (!ok) {
+        return
+      }
       onBusyChange(true)
       setError('')
       try {
-        await setBoardWriterAccountStatus(token, role, board.id, writer.id, !writer.isActive)
+        await setBoardWriterAccountStatus(token, role, board.id, writer.id, false)
         await loadWriters()
       } catch (e) {
-        setError(e instanceof Error ? e.message : '계정 상태 변경에 실패했습니다.')
+        setError(e instanceof Error ? e.message : '사용 중지에 실패했습니다.')
+      } finally {
+        onBusyChange(false)
+      }
+    })()
+  }
+
+  const handleEnable = (writer: PublicBoardWriterAccount) => {
+    if (!token.trim() || busy) {
+      return
+    }
+    void (async () => {
+      const authorLabel = writer.name?.trim() || writer.loginId
+      const ok = await confirm({
+        title: '작성자 계정을 다시 사용할까요?',
+        message: `${authorLabel} 계정으로 다시 로그인하고 게시글을 등록할 수 있습니다.`,
+        confirmLabel: '다시 사용',
+        cancelLabel: '취소',
+      })
+      if (!ok) {
+        return
+      }
+      onBusyChange(true)
+      setError('')
+      try {
+        await setBoardWriterAccountStatus(token, role, board.id, writer.id, true)
+        await loadWriters()
+      } catch (e) {
+        setError(e instanceof Error ? e.message : '다시 사용에 실패했습니다.')
       } finally {
         onBusyChange(false)
       }
@@ -166,116 +305,80 @@ export function NewsletterBoardWriterPanel({
   }
 
   return (
-    <div className="newsletter-board-writer-panel">
-      <h4 className="newsletter-board-writer-panel__title">작성자 계정 추가</h4>
-      <div className="newsletter-board-writer-panel__form">
-        <label className="form-field newsletter-board-writer-panel__field newsletter-board-writer-panel__field--login">
-          <span className="form-label">아이디</span>
-          <div className="newsletter-board-writer-panel__login-row">
-            <FormInput value={loginId} onChange={(event) => handleLoginIdChange(event.target.value)} />
-            <FormButton
-              htmlType="button"
-              variant="secondary"
-              disabled={busy || !loginId.trim()}
-              onClick={handleCheckLoginId}
-            >
-              중복 확인
-            </FormButton>
-          </div>
-          {checkMessage ? (
-            <span
-              className={
-                loginIdAvailability?.available
-                  ? 'newsletter-board-writer-panel__check newsletter-board-writer-panel__check--ok'
-                  : 'newsletter-board-writer-panel__check newsletter-board-writer-panel__check--bad'
-              }
-            >
-              {checkMessage}
-            </span>
-          ) : null}
-        </label>
-        <label className="form-field newsletter-board-writer-panel__field">
-          <span className="form-label">비밀번호</span>
-          <FormInput type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
-        </label>
-        <label className="form-field newsletter-board-writer-panel__field">
-          <span className="form-label">표시명 (선택)</span>
-          <FormInput
-            value={displayName}
-            onChange={(event) => setDisplayName(event.target.value)}
-            placeholder="미입력 시 아이디 사용"
-          />
-        </label>
-        <div className="newsletter-board-writer-panel__submit">
-          <FormButton htmlType="button" variant="primary" disabled={!canCreateWriterAccount} onClick={handleCreate}>
-            작성자 계정 생성
-          </FormButton>
-        </div>
+    <div className="newsletter-board-writer-panel admin-user-management">
+      <div className="newsletter-board-writer-panel__header">
+        <h4 className="newsletter-board-writer-panel__title">{board.label} 작성자 관리</h4>
+        <p className="newsletter-board-writer-panel__help">
+          게시판 작성자가 사용할 로그인 계정(아이디·비밀번호)을 관리합니다.
+        </p>
       </div>
 
-      <h4 className="newsletter-board-writer-panel__title newsletter-board-writer-panel__title--list">
-        등록된 작성자 계정
-      </h4>
-      {loading ? <p className="newsletter-board-writer-panel__muted">불러오는 중...</p> : null}
-      {!loading && writers.length === 0 ? (
-        <p className="newsletter-board-writer-panel__muted">등록된 작성자 계정이 없습니다.</p>
-      ) : null}
-      {!loading && writers.length > 0 ? (
-        <div className="newsletter-board-writer-panel__table-wrap">
-          <table className="newsletter-board-writer-panel__table">
-            <thead>
-              <tr>
-                <th>아이디</th>
-                <th>표시명</th>
-                <th>상태</th>
-                <th>관리</th>
-              </tr>
-            </thead>
-            <tbody>
-              {writers.map((writer) => (
-                <tr key={writer.id}>
-                  <td>{writer.loginId}</td>
-                  <td>{writer.name}</td>
-                  <td>{writer.isActive ? '활성' : '비활성'}</td>
-                  <td>
-                    <div className="newsletter-board-writer-panel__actions">
-                      <FormInput
-                        type="password"
-                        placeholder="새 비밀번호"
-                        value={resetPasswordById[writer.id] ?? ''}
-                        onChange={(event) =>
-                          setResetPasswordById((prev) => ({
-                            ...prev,
-                            [writer.id]: event.target.value,
-                          }))
-                        }
-                      />
-                      <FormButton
-                        htmlType="button"
-                        variant="secondary"
-                        disabled={busy || !(resetPasswordById[writer.id]?.trim() ?? '')}
-                        onClick={() => handleResetPassword(writer.id)}
-                      >
-                        비밀번호 초기화
-                      </FormButton>
-                      <FormButton
-                        htmlType="button"
-                        variant="secondary"
-                        disabled={busy}
-                        onClick={() => handleToggleStatus(writer)}
-                      >
-                        {writer.isActive ? '비활성' : '활성화'}
-                      </FormButton>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : null}
+      <section className="admin-toolbar card auth-card newsletter-board-writer-panel__toolbar">
+        <FormButton
+          htmlType="button"
+          variant="primary"
+          className="button button--primary"
+          disabled={busy}
+          onClick={openRegister}
+        >
+          등록
+        </FormButton>
+      </section>
+
+      <div className="card newsletter-board-writer-panel__list-card">
+        {loading ? <p className="newsletter-board-writer-panel__muted">불러오는 중...</p> : null}
+        {!loading ? (
+          <WriterAccountTable
+            writers={writers}
+            busy={busy}
+            onEdit={openEdit}
+            onDisable={handleDisable}
+            onEnable={handleEnable}
+          />
+        ) : null}
+      </div>
 
       {error ? <p className="status status--error">{error}</p> : null}
+
+      <WriterAccountFormDialog
+        mode="create"
+        open={registerOpen}
+        busy={busy}
+        form={form}
+        formError={formError}
+        checkMessage={checkMessage}
+        loginIdAvailable={loginIdAvailability?.available ?? null}
+        onClose={closeModals}
+        onChangeOrganizationName={(value) => setForm((prev) => ({ ...prev, organizationName: value }))}
+        onChangeAuthorName={(value) => setForm((prev) => ({ ...prev, authorName: value }))}
+        onChangeLoginId={handleLoginIdChange}
+        onChangePassword={(value) => setForm((prev) => ({ ...prev, password: value }))}
+        onChangePasswordConfirm={(value) => setForm((prev) => ({ ...prev, passwordConfirm: value }))}
+        onChangeIsActive={(value) => setForm((prev) => ({ ...prev, isActive: value }))}
+        onCheckLoginId={handleCheckLoginId}
+        onSubmit={handleCreate}
+      />
+
+      <WriterAccountFormDialog
+        mode="edit"
+        open={editing != null}
+        busy={busy}
+        form={form}
+        formError={formError}
+        checkMessage={checkMessage}
+        loginIdAvailable={loginIdAvailability?.available ?? null}
+        onClose={closeModals}
+        onChangeOrganizationName={(value) => setForm((prev) => ({ ...prev, organizationName: value }))}
+        onChangeAuthorName={(value) => setForm((prev) => ({ ...prev, authorName: value }))}
+        onChangeLoginId={handleLoginIdChange}
+        onChangePassword={(value) => setForm((prev) => ({ ...prev, password: value }))}
+        onChangePasswordConfirm={(value) => setForm((prev) => ({ ...prev, passwordConfirm: value }))}
+        onChangeIsActive={(value) => setForm((prev) => ({ ...prev, isActive: value }))}
+        onCheckLoginId={handleCheckLoginId}
+        onSubmit={handleUpdate}
+      />
+
+      {confirmDialog}
     </div>
   )
 }

@@ -680,7 +680,9 @@ export function registerPublicBoardWriterApi(apiRouter, ctx) {
           boardId: ctx.boardId,
           loginId: String(body.loginId ?? '').trim(),
           password: String(body.password ?? ''),
-          displayName: String(body.displayName ?? body.name ?? '').trim(),
+          displayName: String(body.displayName ?? body.name ?? body.authorName ?? '').trim(),
+          organizationName: String(body.organizationName ?? body.companyName ?? '').trim(),
+          isActive: body.isActive == null ? true : Boolean(body.isActive),
           writerScope: ctx.writerScope,
           ownerGaId: ctx.ownerGaId,
           createdByUserId: String(req.user?.id ?? '') || null,
@@ -752,6 +754,56 @@ export function registerPublicBoardWriterApi(apiRouter, ctx) {
       handleDbError(e, req, res)
     }
   }
+
+  async function patchBoardScopedWriterProfile(req, res) {
+    try {
+      const ctx = await loadBoardWriterAdminContext(req, res)
+      if (!ctx) {
+        return
+      }
+      const accountId = String(req.params.accountId ?? '').trim()
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      const patch = {}
+      if (body.organizationName != null || body.companyName != null) {
+        patch.organizationName = String(body.organizationName ?? body.companyName ?? '').trim()
+      }
+      if (body.displayName != null || body.name != null || body.authorName != null) {
+        patch.displayName = String(body.displayName ?? body.name ?? body.authorName ?? '').trim()
+      }
+      if (body.loginId != null) {
+        patch.loginId = String(body.loginId).trim()
+      }
+      if (body.password != null && String(body.password).trim()) {
+        patch.password = String(body.password).trim()
+      }
+      if (body.isActive != null) {
+        patch.isActive = Boolean(body.isActive)
+      }
+      if (Object.keys(patch).length === 0) {
+        res.status(400).json({ message: '수정할 항목이 없습니다.' })
+        return
+      }
+      const patched = await patchWriterAccountForBoard(pool, accountId, ctx.boardId, patch, bcryptLib)
+      if (!patched.ok) {
+        res.status(patched.status).json({ message: patched.message })
+        return
+      }
+      res.json(mapBoardWriterRow(patched.row, patched.allowedBoardIds))
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  }
+
+  apiRouter.patch(
+    '/admin/newsletter-boards/:boardId/writer-accounts/:accountId',
+    requireAuth,
+    patchBoardScopedWriterProfile,
+  )
+  apiRouter.patch(
+    '/ga-admin/newsletter-boards/:boardId/writer-accounts/:accountId',
+    requireAuth,
+    patchBoardScopedWriterProfile,
+  )
 
   apiRouter.patch(
     '/admin/newsletter-boards/:boardId/writer-accounts/:accountId/password',

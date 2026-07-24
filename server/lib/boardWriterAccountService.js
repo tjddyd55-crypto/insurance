@@ -17,13 +17,15 @@ const WRITER_TOKEN_EXPIRES_IN = '12h'
 /**
  * @param {import('pg').Pool | import('pg').PoolClient} executor
  * @param {string} loginId
+ * @param {string | null | undefined} [excludeWriterId]
  */
-export async function isWriterLoginIdTaken(executor, loginId) {
+export async function isWriterLoginIdTaken(executor, loginId, excludeWriterId = null) {
   const normalized = String(loginId ?? '').trim()
   if (!normalized) {
     return true
   }
   const lower = normalized.toLowerCase()
+  const excludeId = excludeWriterId == null ? '' : String(excludeWriterId).trim()
 
   const checks = [
     systemQuery(
@@ -33,8 +35,10 @@ export async function isWriterLoginIdTaken(executor, loginId) {
     ),
     systemQuery(
       executor,
-      `SELECT id FROM board_writer_accounts WHERE LOWER(TRIM(login_id)) = $1 LIMIT 1`,
-      [lower],
+      excludeId
+        ? `SELECT id FROM board_writer_accounts WHERE LOWER(TRIM(login_id)) = $1 AND id <> $2 LIMIT 1`
+        : `SELECT id FROM board_writer_accounts WHERE LOWER(TRIM(login_id)) = $1 LIMIT 1`,
+      excludeId ? [lower, excludeId] : [lower],
     ),
     systemQuery(
       executor,
@@ -207,6 +211,8 @@ export async function authenticateBoardWriterCredentials(executor, loginId, pass
  *   loginId: string
  *   password: string
  *   displayName?: string
+ *   organizationName?: string
+ *   isActive?: boolean
  *   writerScope: 'global' | 'ga'
  *   ownerGaId?: number | null
  *   createdByUserId?: string | null
@@ -217,8 +223,16 @@ export async function createWriterAccountForBoard(executor, input, bcryptLib) {
   const loginId = String(input.loginId ?? '').trim()
   const password = String(input.password ?? '')
   const displayName = String(input.displayName ?? '').trim() || loginId
+  const organizationName = String(input.organizationName ?? '').trim()
   const boardId = String(input.boardId ?? '').trim()
+  const isActive = input.isActive == null ? true : Boolean(input.isActive)
 
+  if (!organizationName) {
+    return { ok: false, status: 400, message: '소속명을 입력해 주세요.' }
+  }
+  if (!displayName) {
+    return { ok: false, status: 400, message: '작성자 이름을 입력해 주세요.' }
+  }
   if (!loginId || loginId.length < 3) {
     return { ok: false, status: 400, message: '아이디는 3자 이상 입력해 주세요.' }
   }
@@ -251,8 +265,8 @@ export async function createWriterAccountForBoard(executor, input, bcryptLib) {
     executor,
     `
     INSERT INTO board_writer_accounts
-      (id, login_id, password_hash, name, writer_scope, owner_ga_id, is_active, created_by_user_id)
-    VALUES ($1, $2, $3, $4, $5, $6, true, $7)
+      (id, login_id, password_hash, name, organization_name, writer_scope, owner_ga_id, is_active, created_by_user_id)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     RETURNING *
     `,
     [
@@ -260,8 +274,10 @@ export async function createWriterAccountForBoard(executor, input, bcryptLib) {
       loginId,
       passwordHash,
       displayName,
+      organizationName,
       input.writerScope,
       input.writerScope === 'ga' ? Number(input.ownerGaId) : null,
+      isActive,
       input.createdByUserId ?? null,
     ],
   )
@@ -274,7 +290,7 @@ export async function createWriterAccountForBoard(executor, input, bcryptLib) {
  * @param {import('pg').Pool | import('pg').PoolClient} executor
  * @param {string} writerId
  * @param {string} boardId
- * @param {{ password?: string, isActive?: boolean, displayName?: string }} patch
+ * @param {{ password?: string, isActive?: boolean, displayName?: string, organizationName?: string, loginId?: string }} patch
  * @param {typeof import('bcryptjs')} bcryptLib
  */
 export async function patchWriterAccountForBoard(executor, writerId, boardId, patch, bcryptLib) {
@@ -295,16 +311,43 @@ export async function patchWriterAccountForBoard(executor, writerId, boardId, pa
 
   const sets = []
   const vals = []
+  if (patch.organizationName != null) {
+    const organizationName = String(patch.organizationName).trim()
+    if (!organizationName) {
+      return { ok: false, status: 400, message: '소속명을 입력해 주세요.' }
+    }
+    vals.push(organizationName)
+    sets.push(`organization_name = $${vals.length}`)
+  }
   if (patch.displayName != null) {
-    vals.push(String(patch.displayName).trim())
+    const displayName = String(patch.displayName).trim()
+    if (!displayName) {
+      return { ok: false, status: 400, message: '작성자 이름을 입력해 주세요.' }
+    }
+    vals.push(displayName)
     sets.push(`name = $${vals.length}`)
+  }
+  if (patch.loginId != null) {
+    const loginId = String(patch.loginId).trim()
+    if (!loginId || loginId.length < 3) {
+      return { ok: false, status: 400, message: '아이디는 3자 이상 입력해 주세요.' }
+    }
+    if (await isWriterLoginIdTaken(executor, loginId, writerId)) {
+      return { ok: false, status: 409, message: '이미 사용 중인 아이디입니다.' }
+    }
+    vals.push(loginId)
+    sets.push(`login_id = $${vals.length}`)
   }
   if (patch.isActive != null) {
     vals.push(Boolean(patch.isActive))
     sets.push(`is_active = $${vals.length}`)
   }
   if (patch.password != null && String(patch.password).trim()) {
-    vals.push(await bcryptLib.hash(String(patch.password), 10))
+    const password = String(patch.password).trim()
+    if (password.length < 8) {
+      return { ok: false, status: 400, message: '비밀번호는 8자 이상 입력해 주세요.' }
+    }
+    vals.push(await bcryptLib.hash(password, 10))
     sets.push(`password_hash = $${vals.length}`)
   }
   if (sets.length > 0) {
