@@ -15,6 +15,7 @@ import {
   buildInsuranceSharedStorageKey,
   normalizeInsuranceGaCode,
 } from './insuranceStorageLayout.js'
+import { isLossAdjusterSystemBoard } from './lossAdjusterNewsletterBoard.js'
 import { isGlobalBoardScope, resolveBoardPostGaId } from './newsletterBoardScope.js'
 import {
   normalizeNewsletterLinkPreview,
@@ -32,6 +33,12 @@ const ALLOWED_UPLOAD_MIME = new Set([
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024
 const MAX_PDF_BYTES = 10 * 1024 * 1024
 const NEWS_CHANNEL_INSURER = 'INSURER'
+const NEWS_CHANNEL_LOSS_ADJUSTER = 'LOSS_ADJUSTER'
+
+/** @param {Record<string, unknown>} board */
+export function resolveBoardWriterNewsChannel(board) {
+  return isLossAdjusterSystemBoard(board) ? NEWS_CHANNEL_LOSS_ADJUSTER : NEWS_CHANNEL_INSURER
+}
 
 /** @param {string} contentType */
 function maxBytesForMime(contentType) {
@@ -172,16 +179,22 @@ export function buildDynamicBoardPayload(board, writerId, status, linkPreviewInp
   const label = String(board.label ?? '').trim() || slug
   const global = isGlobalBoardScope(board)
   const nowIso = new Date().toISOString()
+  const newsChannel = resolveBoardWriterNewsChannel(board)
+  const isLossAdjuster = newsChannel === NEWS_CHANNEL_LOSS_ADJUSTER
+  // 손해사정사: 기존 feed(/portal/adjuster-news) 계약을 위해 newsChannel 만 사용.
+  // dynamicBoardSlug 를 넣지 않아 기존 LOSS_ADJUSTER 게시글과 동일 축으로 합쳐진다.
   const payload = {
-    dynamicBoardSlug: slug,
     contentScope: global ? 'global' : 'ga',
-    insurerSlug: boardWriterCompanySlug(board),
-    insurerCode: 'BOARD',
+    insurerSlug: isLossAdjuster ? 'loss-adjuster' : boardWriterCompanySlug(board),
+    insurerCode: isLossAdjuster ? 'LOSS_ADJUSTER' : 'BOARD',
     insurerName: label,
-    newsChannel: NEWS_CHANNEL_INSURER,
+    newsChannel,
     gaCode: global ? 'GLOBAL' : undefined,
     publishedAt: status === 'PUBLISHED' ? nowIso : null,
     publisherId: writerId,
+  }
+  if (!isLossAdjuster) {
+    payload.dynamicBoardSlug = slug
   }
   if (linkPreviewInput !== undefined) {
     const normalized = normalizeNewsletterLinkPreview(linkPreviewInput)
@@ -225,8 +238,13 @@ export function mapBoardWriterNewsletterListRow(row, gaCodeUpper) {
     gaCode: gaCodeUpper,
     insurerCode: String(payload.insurerCode ?? 'BOARD').trim() || 'BOARD',
     insurerName: insurerName || String(row.company_name_snapshot ?? ''),
-    insurerSlug: String(payload.insurerSlug ?? '').trim() || boardWriterCompanySlug({ slug: payload.dynamicBoardSlug }),
-    newsChannel: NEWS_CHANNEL_INSURER,
+    insurerSlug:
+      String(payload.insurerSlug ?? '').trim() ||
+      boardWriterCompanySlug({ slug: payload.dynamicBoardSlug }),
+    newsChannel:
+      String(payload.newsChannel ?? '').trim().toUpperCase() === NEWS_CHANNEL_LOSS_ADJUSTER
+        ? NEWS_CHANNEL_LOSS_ADJUSTER
+        : NEWS_CHANNEL_INSURER,
     publisherId: String(payload.publisherId ?? '').trim() || undefined,
     title: '',
     summary,
@@ -278,7 +296,10 @@ export function mapBoardWriterNewsletterDetail(row, attRows) {
     insurerCode: String(payload.insurerCode ?? 'BOARD').trim() || 'BOARD',
     insurerName: insurerName || String(row.company_name_snapshot ?? ''),
     insurerSlug: String(payload.insurerSlug ?? '').trim() || 'board',
-    newsChannel: NEWS_CHANNEL_INSURER,
+    newsChannel:
+      String(payload.newsChannel ?? '').trim().toUpperCase() === NEWS_CHANNEL_LOSS_ADJUSTER
+        ? NEWS_CHANNEL_LOSS_ADJUSTER
+        : NEWS_CHANNEL_INSURER,
     publisherId: String(payload.publisherId ?? '').trim() || undefined,
     title: '',
     summary,
@@ -383,14 +404,19 @@ async function loadAttachmentsForNewsletter(executor, newsletterId, gaId) {
  * @param {number | null | undefined} writerOwnerGaId
  */
 export async function listBoardWriterNewsletters(executor, board, writerOwnerGaId) {
-  const slug = String(board.slug ?? '').trim()
   const postFilter = buildBoardWriterPostGaFilter(board, writerOwnerGaId)
-  const params = [slug]
+  const isLossAdjuster = isLossAdjusterSystemBoard(board)
+  const params = isLossAdjuster
+    ? [NEWS_CHANNEL_LOSS_ADJUSTER]
+    : [String(board.slug ?? '').trim().toLowerCase()]
   let gaFilterSql = postFilter.sql
   if (postFilter.params.length > 0) {
     params.push(postFilter.params[0])
     gaFilterSql = gaFilterSql.replace('$PARAM', `$${params.length}`)
   }
+  const boardMatchSql = isLossAdjuster
+    ? `COALESCE(NULLIF(TRIM(n.payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $1`
+    : `LOWER(TRIM(n.payload->>'dynamicBoardSlug')) = $1`
   const r = await systemQuery(
     executor,
     `
@@ -406,7 +432,7 @@ export async function listBoardWriterNewsletters(executor, board, writerOwnerGaI
         WHERE a.newsletter_id = n.id AND a.mime_type <> 'application/pdf'
         ORDER BY a.sort_order ASC LIMIT 1) AS hero_object_key
     FROM insurance_company_newsletters n
-    WHERE LOWER(TRIM(n.payload->>'dynamicBoardSlug')) = $1
+    WHERE ${boardMatchSql}
       AND n.deleted_at IS NULL
       ${gaFilterSql}
       AND COALESCE((n.payload->>'customerVisible')::boolean, false) = false
@@ -422,14 +448,19 @@ export async function listBoardWriterNewsletters(executor, board, writerOwnerGaI
  * @param {import('pg').Pool | import('pg').PoolClient} executor
  */
 export async function loadBoardWriterNewsletterById(executor, board, newsletterId, writerOwnerGaId) {
-  const slug = String(board.slug ?? '').trim()
   const postFilter = buildBoardWriterPostGaFilter(board, writerOwnerGaId)
-  const params = [newsletterId, slug]
+  const isLossAdjuster = isLossAdjusterSystemBoard(board)
+  const params = isLossAdjuster
+    ? [newsletterId, NEWS_CHANNEL_LOSS_ADJUSTER]
+    : [newsletterId, String(board.slug ?? '').trim().toLowerCase()]
   let gaFilterSql = postFilter.sql.replace(/\bn\./g, '')
   if (postFilter.params.length > 0) {
     params.push(postFilter.params[0])
     gaFilterSql = gaFilterSql.replace('$PARAM', `$${params.length}`)
   }
+  const boardMatchSql = isLossAdjuster
+    ? `COALESCE(NULLIF(TRIM(payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $2`
+    : `LOWER(TRIM(payload->>'dynamicBoardSlug')) = $2`
   const r = await systemQuery(
     executor,
     `
@@ -437,7 +468,7 @@ export async function loadBoardWriterNewsletterById(executor, board, newsletterI
     FROM insurance_company_newsletters
     WHERE id = $1
       AND deleted_at IS NULL
-      AND LOWER(TRIM(payload->>'dynamicBoardSlug')) = $2
+      AND ${boardMatchSql}
       ${gaFilterSql}
       AND COALESCE((payload->>'customerVisible')::boolean, false) = false
     LIMIT 1
@@ -458,6 +489,12 @@ export async function loadBoardWriterNewsletterById(executor, board, newsletterI
  */
 export async function createBoardWriterNewsletter(pool, withTransaction, input) {
   const { board, writerId, writerOwnerGaId, bodyText, status, attachments, linkPreview } = input
+  if (board && board.is_active === false) {
+    throw Object.assign(new Error('현재 사용하지 않는 게시판에는 글을 등록할 수 없습니다.'), {
+      httpStatus: 403,
+      code: 'NEWSLETTER_BOARD_INACTIVE',
+    })
+  }
   const global = isGlobalBoardScope(board)
   const gaId = global ? null : resolveBoardPostGaId(board, writerOwnerGaId)
   if (!global && gaId == null) {

@@ -67,6 +67,13 @@ export function registerPublicBoardWriterApi(apiRouter, ctx) {
       res.status(404).json({ message: '소식지를 찾을 수 없습니다.' })
       return null
     }
+    if (board.is_active === false) {
+      res.status(403).json({
+        message: '현재 사용하지 않는 게시판에는 글을 등록할 수 없습니다.',
+        code: 'NEWSLETTER_BOARD_INACTIVE',
+      })
+      return null
+    }
     const access = await assertWriterBoardAccess(pool, writerId, board)
     if (!access.ok) {
       res.status(access.status).json({ message: access.message })

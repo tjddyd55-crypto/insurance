@@ -5,7 +5,6 @@ import { useAuth } from '../../auth/AuthProvider'
 import {
   createGlobalNewsletterBoard,
   createGaNewsletterBoard,
-  deleteNewsletterBoard,
   disableNewsletterBoard,
   enableNewsletterBoard,
   listAdminNewsletterBoards,
@@ -89,41 +88,9 @@ export function NewsletterBoardAdminPage() {
         setBoards((prev) => [...prev, created])
         setLabel('')
         setDescription('')
+        setNotice('게시판이 추가되었습니다.')
       } catch (e) {
         setError(e instanceof Error ? e.message : '소식지 추가에 실패했습니다.')
-      } finally {
-        setBusy(false)
-      }
-    })()
-  }
-
-  const handleDelete = (board: NewsletterBoard) => {
-    if (!token?.trim() || busy) {
-      return
-    }
-    if (isLossAdjusterSystemMenuBoard(board)) {
-      void handleDisable(board)
-      return
-    }
-    void (async () => {
-      const ok = await confirm({
-        title: '소식지 삭제',
-        message: `"${board.label}" 소식지를 삭제하시겠습니까? 기존 글은 삭제하지 않고 메뉴에서만 제외됩니다.`,
-        tone: 'danger',
-      })
-      if (!ok) {
-        return
-      }
-      setBusy(true)
-      setError('')
-      try {
-        await deleteNewsletterBoard(token, board.id)
-        setBoards((prev) => prev.filter((item) => item.id !== board.id))
-        if (selectedBoard?.id === board.id) {
-          setSelectedBoard(null)
-        }
-      } catch (e) {
-        setError(e instanceof Error ? e.message : '소식지 삭제에 실패했습니다.')
       } finally {
         setBusy(false)
       }
@@ -135,11 +102,11 @@ export function NewsletterBoardAdminPage() {
       return
     }
     void (async () => {
-      const displayName = board.label.trim() || '손해사정사 소식지'
+      const displayName = board.label.trim() || '게시판'
       const ok = await confirm({
-        title: `${displayName}를 사용 중지할까요?`,
+        title: `${displayName}을(를) 사용 중지할까요?`,
         message:
-          `${displayName} 메뉴가 사용자 화면에서 숨겨집니다. 기존 게시글과 첨부파일은 삭제되지 않으며 나중에 다시 사용할 수 있습니다.`,
+          `${displayName} 메뉴가 사용자 화면에서 숨겨집니다. 기존 게시글과 첨부파일·작성자 계정은 삭제되지 않으며 나중에 다시 사용할 수 있습니다.`,
         tone: 'danger',
         confirmLabel: '사용 중지',
         cancelLabel: '취소',
@@ -150,10 +117,7 @@ export function NewsletterBoardAdminPage() {
       setBusy(true)
       setError('')
       try {
-        const updated = isLossAdjusterSystemMenuBoard(board)
-          ? (await deleteNewsletterBoard(token, board.id)) ??
-            (await disableNewsletterBoard(token, board.id, { role }))
-          : await disableNewsletterBoard(token, board.id, { role })
+        const updated = await disableNewsletterBoard(token, board.id, { role })
         setBoards((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
         setNotice(`「${updated.label}」을(를) 사용 중지했습니다.`)
       } catch (e) {
@@ -227,14 +191,10 @@ export function NewsletterBoardAdminPage() {
         if (selectedBoard?.id === updated.id) {
           setSelectedBoard(updated)
         }
-        const isSystem = isLossAdjusterSystemMenuBoard(editingBoard)
-        const isGlobal = editingBoard.boardScope === 'global' || editingBoard.contentScope === 'global'
         setNotice(
-          isSystem
-            ? '기본 소식지 이름이 수정되었습니다.'
-            : isGlobal
-              ? '공용 소식지가 수정되었습니다.'
-              : 'GA전용 소식지가 수정되었습니다.',
+          isLossAdjusterSystemMenuBoard(editingBoard)
+            ? '기본 게시판 이름이 수정되었습니다.'
+            : '게시판 이름이 수정되었습니다.',
         )
         closeEditModal()
         setError('')
@@ -272,7 +232,7 @@ export function NewsletterBoardAdminPage() {
     onDescriptionChange: setDescription,
     onCreateModeChange: setCreateMode,
     onCreate: handleCreate,
-    onDelete: handleDelete,
+    onDelete: handleDisable,
     onDisable: handleDisable,
     onEnable: handleEnable,
     onEdit: handleEdit,
