@@ -7,12 +7,22 @@ test('boardWriterCompanySlug prefixes board slug', () => {
   assert.equal(boardWriterCompanySlug({ slug: 'notice' }), 'board-notice')
 })
 
-test('buildDynamicBoardPayload marks global posts', () => {
-  const payload = buildDynamicBoardPayload({ slug: 'notice', label: '공지', board_scope: 'global' }, 'writer-1', 'PUBLISHED')
-  assert.equal(payload.dynamicBoardSlug, 'notice')
-  assert.equal(payload.contentScope, 'global')
+test('buildDynamicBoardPayload uses LOSS_ADJUSTER channel for system board', () => {
+  const payload = buildDynamicBoardPayload(
+    {
+      slug: 'system-loss-adjuster',
+      label: '손해사정사 소식지',
+      board_scope: 'ga',
+      owner_ga_id: 7,
+      system_key: 'LOSS_ADJUSTER',
+    },
+    'writer-1',
+    'PUBLISHED',
+  )
+  assert.equal(payload.newsChannel, 'LOSS_ADJUSTER')
+  assert.equal(payload.insurerCode, 'LOSS_ADJUSTER')
+  assert.equal(payload.dynamicBoardSlug, undefined)
   assert.equal(payload.publisherId, 'writer-1')
-  assert.equal(payload.insurerSlug, 'board-notice')
 })
 
 test('buildDynamicBoardPayload stores normalized linkPreview', () => {
