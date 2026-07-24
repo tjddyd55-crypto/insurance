@@ -4105,6 +4105,10 @@ async function ensureNewsletterBoardScopeSchema(executor) {
     ALTER TABLE board_writer_accounts
     ADD COLUMN IF NOT EXISTS user_id TEXT REFERENCES users(id) ON DELETE SET NULL
   `)
+  await executor.query(`
+    ALTER TABLE board_writer_accounts
+    ADD COLUMN IF NOT EXISTS organization_name TEXT NOT NULL DEFAULT ''
+  `)
 
   await executor.query(`
     INSERT INTO board_writer_accounts (

@@ -9,6 +9,7 @@ export type PublicBoardWriterAccount = {
   id: string
   loginId: string
   name: string
+  organizationName?: string | null
   writerScope?: string
   isActive: boolean
   allowedBoardIds: string[] | null
@@ -283,9 +284,8 @@ export async function createGaScopedBoardPost(token: string, boardSlug: string, 
 }
 
 function boardWriterAdminApiBase(role: string) {
-  return String(role ?? '').trim().toUpperCase() === 'GA_ADMIN'
-    ? '/api/ga-admin'
-    : '/api/admin'
+  const normalized = String(role ?? '').trim().toUpperCase()
+  return normalized === 'GA_ADMIN' || normalized === 'GA_STAFF' ? '/api/ga-admin' : '/api/admin'
 }
 
 export async function listBoardWriterAccountsForBoard(token: string, role: string, boardId: string) {
@@ -317,13 +317,43 @@ export async function createBoardWriterAccountForBoard(
   token: string,
   role: string,
   boardId: string,
-  input: { loginId: string; password: string; displayName?: string },
+  input: {
+    loginId: string
+    password: string
+    displayName: string
+    organizationName: string
+    isActive?: boolean
+  },
 ) {
   const base = boardWriterAdminApiBase(role)
   return apiRequest<PublicBoardWriterAccount>(
     `${base}/newsletter-boards/${encodeURIComponent(boardId)}/writer-accounts`,
     {
       method: 'POST',
+      token,
+      body: JSON.stringify(input),
+    },
+  )
+}
+
+export async function updateBoardWriterAccountForBoard(
+  token: string,
+  role: string,
+  boardId: string,
+  accountId: string,
+  input: {
+    organizationName?: string
+    displayName?: string
+    loginId?: string
+    password?: string
+    isActive?: boolean
+  },
+) {
+  const base = boardWriterAdminApiBase(role)
+  return apiRequest<PublicBoardWriterAccount>(
+    `${base}/newsletter-boards/${encodeURIComponent(boardId)}/writer-accounts/${encodeURIComponent(accountId)}`,
+    {
+      method: 'PATCH',
       token,
       body: JSON.stringify(input),
     },

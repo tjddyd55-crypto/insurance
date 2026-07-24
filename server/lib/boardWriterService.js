@@ -16,6 +16,7 @@ export function mapBoardWriterRow(row, allowedBoardIds = null) {
     id: String(row.id),
     loginId: String(row.login_id ?? ''),
     name: String(row.name ?? ''),
+    organizationName: String(row.organization_name ?? '').trim(),
     writerScope: String(row.writer_scope ?? 'global'),
     ownerGaId: row.owner_ga_id == null ? null : Number(row.owner_ga_id),
     isActive: Boolean(row.is_active),
