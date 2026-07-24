@@ -39,10 +39,11 @@ const MAX_IMAGE_BYTES = 10 * 1024 * 1024
 const MAX_PDF_BYTES = 10 * 1024 * 1024
 const NEWS_CHANNEL_INSURER = 'INSURER'
 const NEWS_CHANNEL_LOSS_ADJUSTER = 'LOSS_ADJUSTER'
+const NEWS_CHANNEL_BOARD = 'BOARD'
 
 /** @param {Record<string, unknown>} board */
 export function resolveBoardWriterNewsChannel(board) {
-  return isLossAdjusterSystemBoard(board) ? NEWS_CHANNEL_LOSS_ADJUSTER : NEWS_CHANNEL_INSURER
+  return isLossAdjusterSystemBoard(board) ? NEWS_CHANNEL_LOSS_ADJUSTER : NEWS_CHANNEL_BOARD
 }
 
 /** @param {string} contentType */
@@ -206,15 +207,15 @@ export function buildDynamicBoardPayload(
         },
     boardLabel,
   )
-  // 손해사정사: 기존 feed(/portal/adjuster-news) 계약을 위해 newsChannel 만 사용.
-  // dynamicBoardSlug 를 넣지 않아 기존 LOSS_ADJUSTER 게시글과 동일 축으로 합쳐진다.
-  // insurerName 은 UI 글쓴이 표시 호환용 — 게시판명이 아니라 작성자 표시명.
+  // 손해사정사: 기존 feed(/portal/adjuster-news) 계약을 위해 newsChannel=LOSS_ADJUSTER 만 사용.
+  // 일반/공용 게시판: newsChannel=BOARD + dynamicBoardSlug — 원수사 INSURER 피드에 섞이지 않음.
+  // insurerName 은 원수사 회사명 전용. 작성자 표시는 author* 필드만 사용.
   const payload = {
     contentScope: global ? 'global' : 'ga',
     insurerSlug: isLossAdjuster ? 'loss-adjuster' : boardWriterCompanySlug(board),
     insurerCode: isLossAdjuster ? 'LOSS_ADJUSTER' : 'BOARD',
-    insurerName: author.authorDisplayName,
     boardLabel,
+    newsletterBoardId: String(board.id ?? '').trim() || undefined,
     authorAccountId: author.authorAccountId || String(writerId),
     authorName: author.authorName,
     authorOrganizationName: author.authorOrganizationName,
@@ -286,7 +287,11 @@ export function mapBoardWriterNewsletterListRow(row, gaCodeUpper) {
     newsChannel:
       String(payload.newsChannel ?? '').trim().toUpperCase() === NEWS_CHANNEL_LOSS_ADJUSTER
         ? NEWS_CHANNEL_LOSS_ADJUSTER
-        : NEWS_CHANNEL_INSURER,
+        : String(payload.newsChannel ?? '').trim().toUpperCase() === NEWS_CHANNEL_BOARD ||
+            Boolean(String(payload.dynamicBoardSlug ?? '').trim()) ||
+            String(payload.insurerCode ?? '').trim().toUpperCase() === 'BOARD'
+          ? NEWS_CHANNEL_BOARD
+          : NEWS_CHANNEL_INSURER,
     publisherId: String(payload.publisherId ?? '').trim() || undefined,
     title: '',
     summary,
@@ -352,7 +357,11 @@ export function mapBoardWriterNewsletterDetail(row, attRows) {
     newsChannel:
       String(payload.newsChannel ?? '').trim().toUpperCase() === NEWS_CHANNEL_LOSS_ADJUSTER
         ? NEWS_CHANNEL_LOSS_ADJUSTER
-        : NEWS_CHANNEL_INSURER,
+        : String(payload.newsChannel ?? '').trim().toUpperCase() === NEWS_CHANNEL_BOARD ||
+            Boolean(String(payload.dynamicBoardSlug ?? '').trim()) ||
+            String(payload.insurerCode ?? '').trim().toUpperCase() === 'BOARD'
+          ? NEWS_CHANNEL_BOARD
+          : NEWS_CHANNEL_INSURER,
     publisherId: String(payload.publisherId ?? '').trim() || undefined,
     title: '',
     summary,

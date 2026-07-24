@@ -10,6 +10,7 @@ test('boardWriterCompanySlug prefixes board slug', () => {
 test('buildDynamicBoardPayload uses LOSS_ADJUSTER channel for system board', () => {
   const payload = buildDynamicBoardPayload(
     {
+      id: 'board-la',
       slug: 'system-loss-adjuster',
       label: '손해사정사 소식지',
       board_scope: 'ga',
@@ -31,14 +32,14 @@ test('buildDynamicBoardPayload uses LOSS_ADJUSTER channel for system board', () 
   assert.equal(payload.dynamicBoardSlug, undefined)
   assert.equal(payload.publisherId, 'writer-1')
   assert.equal(payload.boardLabel, '손해사정사 소식지')
-  assert.equal(payload.insurerName, '영진 · 홍길동')
   assert.equal(payload.authorDisplayName, '영진 · 홍길동')
-  assert.notEqual(payload.insurerName, payload.boardLabel)
+  assert.equal(payload.insurerName, undefined)
+  assert.notEqual(payload.newsChannel, 'INSURER')
 })
 
-test('buildDynamicBoardPayload does not use board label as author', () => {
+test('buildDynamicBoardPayload isolates GA board from insurer channel', () => {
   const payload = buildDynamicBoardPayload(
-    { slug: 'test', label: '테스트', board_scope: 'ga', owner_ga_id: 1 },
+    { id: 'board-1', slug: 'test', label: '테스트', board_scope: 'ga', owner_ga_id: 1 },
     'writer-1',
     'PUBLISHED',
     undefined,
@@ -50,10 +51,14 @@ test('buildDynamicBoardPayload does not use board label as author', () => {
     },
   )
   assert.equal(payload.boardLabel, '테스트')
+  assert.equal(payload.newsletterBoardId, 'board-1')
+  assert.equal(payload.dynamicBoardSlug, 'test')
+  assert.equal(payload.newsChannel, 'BOARD')
+  assert.equal(payload.insurerCode, 'BOARD')
   assert.equal(payload.authorName, '홍길동')
   assert.equal(payload.authorOrganizationName, '영진')
   assert.equal(payload.authorDisplayName, '영진 · 홍길동')
-  assert.equal(payload.insurerName, '영진 · 홍길동')
+  assert.equal(payload.insurerName, undefined)
 })
 
 test('buildDynamicBoardPayload stores normalized linkPreview', () => {

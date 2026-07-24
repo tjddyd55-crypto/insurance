@@ -43,6 +43,10 @@ import { parseBoardMetadataPatch } from './lib/newsletterBoardMetadata.js'
 import { canDeleteNewsletter } from './lib/newsletterDeletePermission.js'
 import { insertDynamicBoardNewsletter } from './lib/dynamicBoardNewsletterWrite.js'
 import { resolveNewsletterRowAuthorDisplay } from './lib/newsletterPostAuthorLabel.js'
+import {
+  classifyNewsletterNewsChannel,
+  sqlExcludeDynamicBoardFromInsurerFeed,
+} from './lib/newsletterFeedChannelSql.js'
 import { grantBoardToAllGlobalWriters } from './lib/boardWriterService.js'
 import {
   consentGetBuffer,
@@ -112,8 +116,7 @@ function isNewsManagerRole(role) {
 
 /** @param {unknown} raw */
 function normalizeNewsChannel(raw) {
-  const n = String(raw ?? '').trim().toUpperCase()
-  return n === NEWS_CHANNEL_LOSS_ADJUSTER ? NEWS_CHANNEL_LOSS_ADJUSTER : NEWS_CHANNEL_INSURER
+  return classifyNewsletterNewsChannel(raw)
 }
 
 /** @param {string} channel */
@@ -2216,6 +2219,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           AND n.status = 'PUBLISHED'
           AND n.deleted_at IS NULL
           AND COALESCE(NULLIF(TRIM(n.payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $2
+          ${sqlExcludeDynamicBoardFromInsurerFeed('n')}
           AND COALESCE((n.payload->>'customerVisible')::boolean, false) = false
           AND COALESCE(NULLIF(TRIM(n.payload->>'insurerSlug'), ''), '') <> 'customer-news'
           AND UPPER(COALESCE(NULLIF(TRIM(n.payload->>'insurerCode'), ''), '')) <> 'CUSTOMER_NEWS'
@@ -2268,6 +2272,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           AND n.status = 'PUBLISHED'
           AND n.deleted_at IS NULL
           AND COALESCE(NULLIF(TRIM(n.payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $3
+          ${sqlExcludeDynamicBoardFromInsurerFeed('n')}
           AND COALESCE((n.payload->>'customerVisible')::boolean, false) = false
           AND COALESCE(NULLIF(TRIM(n.payload->>'insurerSlug'), ''), '') <> 'customer-news'
           AND UPPER(COALESCE(NULLIF(TRIM(n.payload->>'insurerCode'), ''), '')) <> 'CUSTOMER_NEWS'
@@ -2680,6 +2685,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         WHERE n.ga_id = $1
           AND n.deleted_at IS NULL
           AND COALESCE(NULLIF(TRIM(n.payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $2
+          ${sqlExcludeDynamicBoardFromInsurerFeed('n')}
           AND COALESCE((n.payload->>'customerVisible')::boolean, false) = false
           AND COALESCE(NULLIF(TRIM(n.payload->>'insurerSlug'), ''), '') <> 'customer-news'
           AND UPPER(COALESCE(NULLIF(TRIM(n.payload->>'insurerCode'), ''), '')) <> 'CUSTOMER_NEWS'
@@ -2722,6 +2728,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           AND ga_id = $2
           AND deleted_at IS NULL
           AND COALESCE(NULLIF(TRIM(payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $3
+          ${sqlExcludeDynamicBoardFromInsurerFeed('')}
           AND COALESCE((payload->>'customerVisible')::boolean, false) = false
           AND COALESCE(NULLIF(TRIM(payload->>'insurerSlug'), ''), '') <> 'customer-news'
           AND UPPER(COALESCE(NULLIF(TRIM(payload->>'insurerCode'), ''), '')) <> 'CUSTOMER_NEWS'
@@ -2888,6 +2895,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           AND ga_id = $2
           AND deleted_at IS NULL
           AND COALESCE(NULLIF(TRIM(payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $3
+          ${sqlExcludeDynamicBoardFromInsurerFeed('')}
         `,
         [newsletterId, gaIdForSelect, channel],
       )
@@ -3018,6 +3026,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           AND ga_id = $2
           AND deleted_at IS NULL
           AND COALESCE(NULLIF(TRIM(payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $3
+          ${sqlExcludeDynamicBoardFromInsurerFeed('')}
         `,
         [newsletterId, scope.gaId, channel],
       )
@@ -3055,6 +3064,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           AND ga_id = $2
           AND deleted_at IS NULL
           AND COALESCE(NULLIF(TRIM(payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $3
+          ${sqlExcludeDynamicBoardFromInsurerFeed('')}
         `,
         [newsletterId, gaId, channel],
       )

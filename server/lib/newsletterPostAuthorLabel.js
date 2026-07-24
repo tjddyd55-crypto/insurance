@@ -110,11 +110,15 @@ export function resolveNewsletterRowAuthorDisplay(input = {}) {
   const isBoardWriterPost =
     Boolean(trim(payload.dynamicBoardSlug)) ||
     String(payload.insurerCode ?? '').trim().toUpperCase() === 'BOARD' ||
+    String(payload.newsChannel ?? '').trim().toUpperCase() === 'BOARD' ||
+    Boolean(trim(payload.newsletterBoardId)) ||
     Boolean(trim(payload.authorAccountId)) ||
     Boolean(trim(payload.authorName)) ||
     Boolean(trim(payload.authorDisplayName)) ||
     Boolean(trim(payload.authorOrganizationName)) ||
-    hasWriterJoin
+    (hasWriterJoin &&
+      (String(payload.newsChannel ?? '').trim().toUpperCase() === 'LOSS_ADJUSTER' ||
+        String(payload.insurerCode ?? '').trim().toUpperCase() === 'LOSS_ADJUSTER'))
 
   if (!isBoardWriterPost) {
     return {

@@ -4,7 +4,7 @@
  */
 
 export type NewsletterPublishStatus = 'DRAFT' | 'PUBLISHED'
-export type NewsChannel = 'INSURER' | 'LOSS_ADJUSTER'
+export type NewsChannel = 'INSURER' | 'LOSS_ADJUSTER' | 'BOARD'
 
 export type UploadStatus = 'pending' | 'uploading' | 'completed' | 'failed'
 
