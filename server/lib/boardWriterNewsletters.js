@@ -22,6 +22,11 @@ import {
   parseNewsletterPayload,
   resolveNewsletterDetailLinkPreview,
 } from './newsletterLinkPreview.js'
+import {
+  buildNewsletterAuthorSnapshotFromWriter,
+  resolveNewsletterRowAuthorDisplay,
+} from './newsletterPostAuthorLabel.js'
+import { mapBoardWriterRow } from './boardWriterService.js'
 
 const ALLOWED_UPLOAD_MIME = new Set([
   'image/jpeg',
@@ -173,21 +178,47 @@ async function assertAttachmentsExistInR2(normalized) {
 /**
  * @param {Record<string, unknown>} board
  * @param {string} writerId
+ * @param {'DRAFT' | 'PUBLISHED'} status
+ * @param {unknown} [linkPreviewInput]
+ * @param {ReturnType<typeof mapBoardWriterRow> | Record<string, unknown> | null} [writerAccount]
  */
-export function buildDynamicBoardPayload(board, writerId, status, linkPreviewInput = undefined) {
+export function buildDynamicBoardPayload(
+  board,
+  writerId,
+  status,
+  linkPreviewInput = undefined,
+  writerAccount = null,
+) {
   const slug = String(board.slug ?? '').trim()
-  const label = String(board.label ?? '').trim() || slug
+  const boardLabel = String(board.label ?? '').trim() || slug
   const global = isGlobalBoardScope(board)
   const nowIso = new Date().toISOString()
   const newsChannel = resolveBoardWriterNewsChannel(board)
   const isLossAdjuster = newsChannel === NEWS_CHANNEL_LOSS_ADJUSTER
+  const author = buildNewsletterAuthorSnapshotFromWriter(
+    writerAccount
+      ? writerAccount
+      : {
+          id: writerId,
+          name: '',
+          organizationName: '',
+          loginId: '',
+        },
+    boardLabel,
+  )
   // 손해사정사: 기존 feed(/portal/adjuster-news) 계약을 위해 newsChannel 만 사용.
   // dynamicBoardSlug 를 넣지 않아 기존 LOSS_ADJUSTER 게시글과 동일 축으로 합쳐진다.
+  // insurerName 은 UI 글쓴이 표시 호환용 — 게시판명이 아니라 작성자 표시명.
   const payload = {
     contentScope: global ? 'global' : 'ga',
     insurerSlug: isLossAdjuster ? 'loss-adjuster' : boardWriterCompanySlug(board),
     insurerCode: isLossAdjuster ? 'LOSS_ADJUSTER' : 'BOARD',
-    insurerName: label,
+    insurerName: author.authorDisplayName,
+    boardLabel,
+    authorAccountId: author.authorAccountId || String(writerId),
+    authorName: author.authorName,
+    authorOrganizationName: author.authorOrganizationName,
+    authorDisplayName: author.authorDisplayName,
     newsChannel,
     gaCode: global ? 'GLOBAL' : undefined,
     publishedAt: status === 'PUBLISHED' ? nowIso : null,
@@ -226,7 +257,14 @@ export function buildBoardWriterPostGaFilter(board, writerOwnerGaId) {
  */
 export function mapBoardWriterNewsletterListRow(row, gaCodeUpper) {
   const payload = row.payload && typeof row.payload === 'object' ? row.payload : {}
-  const insurerName = String(payload.insurerName ?? row.company_name_snapshot ?? '').trim()
+  const author = resolveNewsletterRowAuthorDisplay({
+    payload,
+    companyNameSnapshot: row.company_name_snapshot,
+    writerName: row.writer_name,
+    writerOrganizationName: row.writer_organization_name,
+    writerLoginId: row.writer_login_id,
+    boardLabel: payload.boardLabel,
+  })
   const publishedAt = payload.publishedAt ? String(payload.publishedAt) : toIso(row.updated_at)
   const summary =
     String(row.body_text ?? '').trim() ||
@@ -237,7 +275,11 @@ export function mapBoardWriterNewsletterListRow(row, gaCodeUpper) {
     id: String(row.id),
     gaCode: gaCodeUpper,
     insurerCode: String(payload.insurerCode ?? 'BOARD').trim() || 'BOARD',
-    insurerName: insurerName || String(row.company_name_snapshot ?? ''),
+    insurerName: author.insurerName,
+    boardLabel: author.boardLabel || undefined,
+    authorName: author.authorName || undefined,
+    authorOrganizationName: author.authorOrganizationName || undefined,
+    authorDisplayName: author.authorDisplayName,
     insurerSlug:
       String(payload.insurerSlug ?? '').trim() ||
       boardWriterCompanySlug({ slug: payload.dynamicBoardSlug }),
@@ -283,7 +325,14 @@ export function mapBoardWriterNewsletterDetail(row, attRows) {
       }
     })
   const images = attachments.filter((x) => x.kind === 'image')
-  const insurerName = String(payload.insurerName ?? row.company_name_snapshot ?? '').trim()
+  const author = resolveNewsletterRowAuthorDisplay({
+    payload,
+    companyNameSnapshot: row.company_name_snapshot,
+    writerName: row.writer_name,
+    writerOrganizationName: row.writer_organization_name,
+    writerLoginId: row.writer_login_id,
+    boardLabel: payload.boardLabel,
+  })
   const publishedAt = payload.publishedAt ? String(payload.publishedAt) : toIso(row.updated_at)
   const summary =
     String(row.body_text ?? '').trim() ||
@@ -294,7 +343,11 @@ export function mapBoardWriterNewsletterDetail(row, attRows) {
     id: String(row.id),
     gaCode: String(payload.gaCode ?? 'GLOBAL').trim().toUpperCase() || 'GLOBAL',
     insurerCode: String(payload.insurerCode ?? 'BOARD').trim() || 'BOARD',
-    insurerName: insurerName || String(row.company_name_snapshot ?? ''),
+    insurerName: author.insurerName,
+    boardLabel: author.boardLabel || undefined,
+    authorName: author.authorName || undefined,
+    authorOrganizationName: author.authorOrganizationName || undefined,
+    authorDisplayName: author.authorDisplayName,
     insurerSlug: String(payload.insurerSlug ?? '').trim() || 'board',
     newsChannel:
       String(payload.newsChannel ?? '').trim().toUpperCase() === NEWS_CHANNEL_LOSS_ADJUSTER
@@ -421,6 +474,9 @@ export async function listBoardWriterNewsletters(executor, board, writerOwnerGaI
     executor,
     `
     SELECT n.*,
+      w.name AS writer_name,
+      w.organization_name AS writer_organization_name,
+      w.login_id AS writer_login_id,
       (SELECT COUNT(*) FROM insurance_company_newsletter_attachments a
         WHERE a.newsletter_id = n.id AND a.mime_type <> 'application/pdf') AS img_cnt,
       (SELECT COUNT(*) FROM insurance_company_newsletter_attachments a
@@ -432,6 +488,8 @@ export async function listBoardWriterNewsletters(executor, board, writerOwnerGaI
         WHERE a.newsletter_id = n.id AND a.mime_type <> 'application/pdf'
         ORDER BY a.sort_order ASC LIMIT 1) AS hero_object_key
     FROM insurance_company_newsletters n
+    LEFT JOIN board_writer_accounts w
+      ON w.id = NULLIF(TRIM(COALESCE(n.payload->>'authorAccountId', n.payload->>'publisherId', '')), '')
     WHERE ${boardMatchSql}
       AND n.deleted_at IS NULL
       ${gaFilterSql}
@@ -453,24 +511,29 @@ export async function loadBoardWriterNewsletterById(executor, board, newsletterI
   const params = isLossAdjuster
     ? [newsletterId, NEWS_CHANNEL_LOSS_ADJUSTER]
     : [newsletterId, String(board.slug ?? '').trim().toLowerCase()]
-  let gaFilterSql = postFilter.sql.replace(/\bn\./g, '')
+  let gaFilterSql = postFilter.sql
   if (postFilter.params.length > 0) {
     params.push(postFilter.params[0])
     gaFilterSql = gaFilterSql.replace('$PARAM', `$${params.length}`)
   }
   const boardMatchSql = isLossAdjuster
-    ? `COALESCE(NULLIF(TRIM(payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $2`
-    : `LOWER(TRIM(payload->>'dynamicBoardSlug')) = $2`
+    ? `COALESCE(NULLIF(TRIM(n.payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $2`
+    : `LOWER(TRIM(n.payload->>'dynamicBoardSlug')) = $2`
   const r = await systemQuery(
     executor,
     `
-    SELECT *
-    FROM insurance_company_newsletters
-    WHERE id = $1
-      AND deleted_at IS NULL
+    SELECT n.*,
+      w.name AS writer_name,
+      w.organization_name AS writer_organization_name,
+      w.login_id AS writer_login_id
+    FROM insurance_company_newsletters n
+    LEFT JOIN board_writer_accounts w
+      ON w.id = NULLIF(TRIM(COALESCE(n.payload->>'authorAccountId', n.payload->>'publisherId', '')), '')
+    WHERE n.id = $1
+      AND n.deleted_at IS NULL
       AND ${boardMatchSql}
       ${gaFilterSql}
-      AND COALESCE((payload->>'customerVisible')::boolean, false) = false
+      AND COALESCE((n.payload->>'customerVisible')::boolean, false) = false
     LIMIT 1
     `,
     params,
@@ -481,6 +544,22 @@ export async function loadBoardWriterNewsletterById(executor, board, newsletterI
   const gaId = isGlobalBoardScope(board) ? null : postFilter.gaId ?? null
   const attRows = await loadAttachmentsForNewsletter(executor, newsletterId, gaId)
   return mapBoardWriterNewsletterDetail(r.rows[0], attRows)
+}
+
+async function loadBoardWriterAccountById(executor, writerId) {
+  const id = String(writerId ?? '').trim()
+  if (!id) {
+    return null
+  }
+  const r = await systemQuery(
+    executor,
+    `SELECT * FROM board_writer_accounts WHERE id = $1 LIMIT 1`,
+    [id],
+  )
+  if (r.rowCount === 0) {
+    return null
+  }
+  return mapBoardWriterRow(r.rows[0])
 }
 
 /**
@@ -506,8 +585,9 @@ export async function createBoardWriterNewsletter(pool, withTransaction, input) 
   const rowsToInsert = prepareAttachmentsForWrite(attIn, attachmentScope)
   await assertAttachmentsExistInR2(rowsToInsert)
 
+  const writerAccount = await loadBoardWriterAccountById(pool, writerId)
   const id = randomUUID()
-  const payload = buildDynamicBoardPayload(board, writerId, status, linkPreview)
+  const payload = buildDynamicBoardPayload(board, writerId, status, linkPreview, writerAccount)
   const label = String(board.label ?? '').trim() || String(board.slug ?? '')
 
   await withTransaction(async (client) => {
@@ -558,7 +638,8 @@ export async function updateBoardWriterNewsletter(pool, withTransaction, input) 
 
   const linkPreviewForPayload =
     linkPreview !== undefined ? linkPreview : existing.linkPreview ?? null
-  const payload = buildDynamicBoardPayload(board, writerId, status, linkPreviewForPayload)
+  const writerAccount = await loadBoardWriterAccountById(pool, writerId)
+  const payload = buildDynamicBoardPayload(board, writerId, status, linkPreviewForPayload, writerAccount)
   const label = String(board.label ?? '').trim() || String(board.slug ?? '')
   const prevAttRows = await loadAttachmentsForNewsletter(pool, newsletterId, gaId)
   const prevObjectKeys = prevAttRows.map((row) => String(row.object_key ?? '').trim()).filter(Boolean)

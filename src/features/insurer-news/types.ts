@@ -62,6 +62,11 @@ export interface NewsletterItem {
   insurerCode: string
   insurerName: string
   insurerSlug: string
+  /** 게시판 표시명 — 글쓴이와 분리 */
+  boardLabel?: string
+  authorName?: string
+  authorOrganizationName?: string
+  authorDisplayName?: string
   newsChannel?: NewsChannel
   publisherId?: string
   title: string

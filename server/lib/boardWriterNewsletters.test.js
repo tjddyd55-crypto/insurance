@@ -18,11 +18,42 @@ test('buildDynamicBoardPayload uses LOSS_ADJUSTER channel for system board', () 
     },
     'writer-1',
     'PUBLISHED',
+    undefined,
+    {
+      id: 'writer-1',
+      name: '홍길동',
+      organizationName: '영진',
+      loginId: 'staff02',
+    },
   )
   assert.equal(payload.newsChannel, 'LOSS_ADJUSTER')
   assert.equal(payload.insurerCode, 'LOSS_ADJUSTER')
   assert.equal(payload.dynamicBoardSlug, undefined)
   assert.equal(payload.publisherId, 'writer-1')
+  assert.equal(payload.boardLabel, '손해사정사 소식지')
+  assert.equal(payload.insurerName, '영진 · 홍길동')
+  assert.equal(payload.authorDisplayName, '영진 · 홍길동')
+  assert.notEqual(payload.insurerName, payload.boardLabel)
+})
+
+test('buildDynamicBoardPayload does not use board label as author', () => {
+  const payload = buildDynamicBoardPayload(
+    { slug: 'test', label: '테스트', board_scope: 'ga', owner_ga_id: 1 },
+    'writer-1',
+    'PUBLISHED',
+    undefined,
+    {
+      id: 'writer-1',
+      name: '홍길동',
+      organizationName: '영진',
+      loginId: 'staff02',
+    },
+  )
+  assert.equal(payload.boardLabel, '테스트')
+  assert.equal(payload.authorName, '홍길동')
+  assert.equal(payload.authorOrganizationName, '영진')
+  assert.equal(payload.authorDisplayName, '영진 · 홍길동')
+  assert.equal(payload.insurerName, '영진 · 홍길동')
 })
 
 test('buildDynamicBoardPayload stores normalized linkPreview', () => {
