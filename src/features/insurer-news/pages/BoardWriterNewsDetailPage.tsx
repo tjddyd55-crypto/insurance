@@ -62,7 +62,7 @@ export function BoardWriterNewsDetailPage() {
         }
         setWriterId(me.id)
         setDetail(row)
-        setBoardLabel(row.insurerName || '소식지')
+        setBoardLabel(row.boardLabel || '소식지')
       } catch {
         if (!cancelled) {
           clearPublicBoardWriterSession()

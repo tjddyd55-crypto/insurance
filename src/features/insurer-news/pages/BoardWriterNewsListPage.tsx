@@ -64,7 +64,7 @@ export function BoardWriterNewsListPage() {
       return items
     }
     return items.filter((item) =>
-      [item.insurerName, item.title, item.summary, item.publishedAt, formatTimestampSearchHaystack(item.publishedAt)]
+      [item.authorDisplayName, item.authorName, item.insurerName, item.title, item.summary, item.publishedAt, formatTimestampSearchHaystack(item.publishedAt)]
         .map((value) => String(value ?? '').toLowerCase())
         .join('\n')
         .includes(q),

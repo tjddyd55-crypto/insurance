@@ -4,6 +4,7 @@ import { formatInsurerNewsDateLabel } from '../utils/formatInsurerNewsDate'
 import FormButton from '../../../components/form/FormButton'
 import { resolveInsurerNewsListCardImageUrl, insurerNewsListItemHasImageSource } from '../utils/resolveInsurerNewsImageUrl'
 import { normalizeInsurerNewsText } from '../utils/insurerNewsText'
+import { resolveNewsletterPostAuthorLabel } from '../utils/resolveNewsletterPostAuthorLabel'
 
 /**
  * PC/Mobile 분기는 `variant` prop 으로 승격 (AGENTS.md §8-5 Tier 4/3 참조).
@@ -21,13 +22,26 @@ type Props = {
 function cardAriaLabel(item: NewsletterItem): string {
   const headline = normalizeInsurerNewsText(item.summary) || normalizeInsurerNewsText(item.title)
   const head = headline ? headline.slice(0, 40) : ''
-  const parts = [item.insurerName, head].filter(Boolean)
+  const author = resolveNewsletterPostAuthorLabel({
+    authorDisplayName: item.authorDisplayName,
+    organizationName: item.authorOrganizationName,
+    authorName: item.authorName,
+    legacyAuthorLabel: item.insurerName,
+    boardLabel: item.boardLabel,
+  })
+  const parts = [author, head].filter(Boolean)
   return parts.length > 0 ? `${parts.join(' — ')} 소식` : '소식지'
 }
 
 export function NewsCard({ item, onOpen, onDelete, deleteBusy, variant }: Props) {
   const isMobile = variant === 'mobile'
-  const companyName = item.insurerName?.trim() || '—'
+  const companyName = resolveNewsletterPostAuthorLabel({
+    authorDisplayName: item.authorDisplayName,
+    organizationName: item.authorOrganizationName,
+    authorName: item.authorName,
+    legacyAuthorLabel: item.insurerName,
+    boardLabel: item.boardLabel,
+  })
   const dateLabel = formatInsurerNewsDateLabel(item.publishedAt)
   const headline = normalizeInsurerNewsText(item.summary) || normalizeInsurerNewsText(item.title)
   const hasHeadline = headline.length > 0

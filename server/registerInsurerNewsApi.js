@@ -42,6 +42,7 @@ import {
 import { parseBoardMetadataPatch } from './lib/newsletterBoardMetadata.js'
 import { canDeleteNewsletter } from './lib/newsletterDeletePermission.js'
 import { insertDynamicBoardNewsletter } from './lib/dynamicBoardNewsletterWrite.js'
+import { resolveNewsletterRowAuthorDisplay } from './lib/newsletterPostAuthorLabel.js'
 import { grantBoardToAllGlobalWriters } from './lib/boardWriterService.js'
 import {
   consentGetBuffer,
@@ -900,7 +901,14 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     const images = attachments.filter((x) => x.kind === 'image')
     const insurerCode = String(payload.insurerCode ?? '').trim()
     const insurerSlug = String(payload.insurerSlug ?? '').trim()
-    const insurerName = String(payload.insurerName ?? row.company_name_snapshot ?? '').trim()
+    const author = resolveNewsletterRowAuthorDisplay({
+      payload,
+      companyNameSnapshot: row.company_name_snapshot,
+      writerName: row.writer_name,
+      writerOrganizationName: row.writer_organization_name,
+      writerLoginId: row.writer_login_id,
+      boardLabel: payload.boardLabel,
+    })
     const newsChannel = normalizeNewsChannel(payload.newsChannel)
     const publishedAt = payload.publishedAt ? String(payload.publishedAt) : toIso(row.updated_at)
     const summary =
@@ -914,7 +922,11 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       id: String(row.id),
       gaCode: String(payload.gaCode ?? '').trim().toUpperCase(),
       insurerCode: insurerCode || '—',
-      insurerName: insurerName || String(row.company_name_snapshot ?? ''),
+      insurerName: author.insurerName,
+      boardLabel: author.boardLabel || undefined,
+      authorName: author.authorName || undefined,
+      authorOrganizationName: author.authorOrganizationName || undefined,
+      authorDisplayName: author.authorDisplayName,
       insurerSlug: insurerSlug || 'insurer',
       newsChannel,
       publisherId: String(payload.publisherId ?? '').trim() || undefined,
@@ -1106,7 +1118,14 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     const newsChannel = normalizeNewsChannel(payload.newsChannel)
     const insurerCode = String(payload.insurerCode ?? '').trim()
     const insurerSlug = String(payload.insurerSlug ?? '').trim()
-    const insurerName = String(payload.insurerName ?? row.company_name_snapshot ?? '').trim()
+    const author = resolveNewsletterRowAuthorDisplay({
+      payload,
+      companyNameSnapshot: row.company_name_snapshot,
+      writerName: row.writer_name,
+      writerOrganizationName: row.writer_organization_name,
+      writerLoginId: row.writer_login_id,
+      boardLabel: payload.boardLabel,
+    })
     const publishedAt = payload.publishedAt ? String(payload.publishedAt) : toIso(row.updated_at)
     const summary =
       String(row.body_text ?? '').trim() ||
@@ -1129,7 +1148,11 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       id: newsletterId,
       gaCode: gaCodeUpper,
       insurerCode: insurerCode || '—',
-      insurerName: insurerName || String(row.company_name_snapshot ?? ''),
+      insurerName: author.insurerName,
+      boardLabel: author.boardLabel || undefined,
+      authorName: author.authorName || undefined,
+      authorOrganizationName: author.authorOrganizationName || undefined,
+      authorDisplayName: author.authorDisplayName,
       insurerSlug: insurerSlug || 'insurer',
       newsChannel,
       publisherId: String(payload.publisherId ?? '').trim() || undefined,
@@ -2004,6 +2027,9 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         pool,
         `
         SELECT n.*, g.code AS ga_code_join,
+          w.name AS writer_name,
+          w.organization_name AS writer_organization_name,
+          w.login_id AS writer_login_id,
           (SELECT COUNT(*) FROM insurance_company_newsletter_attachments a
             WHERE a.newsletter_id = n.id AND a.mime_type <> 'application/pdf') AS img_cnt,
           (SELECT COUNT(*) FROM insurance_company_newsletter_attachments a
@@ -2019,6 +2045,8 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
             ORDER BY a.sort_order ASC LIMIT 1) AS hero_attachment_id
         FROM insurance_company_newsletters n
         LEFT JOIN ga_companies g ON g.id = n.ga_id
+        LEFT JOIN board_writer_accounts w
+          ON w.id = NULLIF(TRIM(COALESCE(n.payload->>'authorAccountId', n.payload->>'publisherId', '')), '')
         WHERE n.status = 'PUBLISHED'
           AND n.deleted_at IS NULL
           AND LOWER(TRIM(n.payload->>'dynamicBoardSlug')) = $1
@@ -2062,16 +2090,21 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       const nRes = await safeQuery(
         pool,
         `
-        SELECT *
-        FROM insurance_company_newsletters
-        WHERE id = $1
-          AND LOWER(TRIM(payload->>'dynamicBoardSlug')) = $2
-          AND status = 'PUBLISHED'
-          AND deleted_at IS NULL
-          ${postFilter.sql}
-          AND COALESCE((payload->>'customerVisible')::boolean, false) = false
-          AND COALESCE(NULLIF(TRIM(payload->>'insurerSlug'), ''), '') <> 'customer-news'
-          AND UPPER(COALESCE(NULLIF(TRIM(payload->>'insurerCode'), ''), '')) <> 'CUSTOMER_NEWS'
+        SELECT n.*,
+          w.name AS writer_name,
+          w.organization_name AS writer_organization_name,
+          w.login_id AS writer_login_id
+        FROM insurance_company_newsletters n
+        LEFT JOIN board_writer_accounts w
+          ON w.id = NULLIF(TRIM(COALESCE(n.payload->>'authorAccountId', n.payload->>'publisherId', '')), '')
+        WHERE n.id = $1
+          AND LOWER(TRIM(n.payload->>'dynamicBoardSlug')) = $2
+          AND n.status = 'PUBLISHED'
+          AND n.deleted_at IS NULL
+          ${postFilter.sql.replace(/\bga_id\b/g, 'n.ga_id')}
+          AND COALESCE((n.payload->>'customerVisible')::boolean, false) = false
+          AND COALESCE(NULLIF(TRIM(n.payload->>'insurerSlug'), ''), '') <> 'customer-news'
+          AND UPPER(COALESCE(NULLIF(TRIM(n.payload->>'insurerCode'), ''), '')) <> 'CUSTOMER_NEWS'
         `,
         params,
       )
@@ -2159,6 +2192,9 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
 
       let listSql = `
         SELECT n.*, g.code AS ga_code_join,
+          w.name AS writer_name,
+          w.organization_name AS writer_organization_name,
+          w.login_id AS writer_login_id,
           (SELECT COUNT(*) FROM insurance_company_newsletter_attachments a
             WHERE a.newsletter_id = n.id AND a.mime_type <> 'application/pdf') AS img_cnt,
           (SELECT COUNT(*) FROM insurance_company_newsletter_attachments a
@@ -2174,6 +2210,8 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
             ORDER BY a.sort_order ASC LIMIT 1) AS hero_attachment_id
         FROM insurance_company_newsletters n
         INNER JOIN ga_companies g ON g.id = n.ga_id
+        LEFT JOIN board_writer_accounts w
+          ON w.id = NULLIF(TRIM(COALESCE(n.payload->>'authorAccountId', n.payload->>'publisherId', '')), '')
         WHERE n.ga_id = $1
           AND n.status = 'PUBLISHED'
           AND n.deleted_at IS NULL
@@ -2218,16 +2256,21 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       const nRes = await safeQuery(
         pool,
         `
-        SELECT *
-        FROM insurance_company_newsletters
-        WHERE id = $1
-          AND ga_id = $2
-          AND status = 'PUBLISHED'
-          AND deleted_at IS NULL
-          AND COALESCE(NULLIF(TRIM(payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $3
-          AND COALESCE((payload->>'customerVisible')::boolean, false) = false
-          AND COALESCE(NULLIF(TRIM(payload->>'insurerSlug'), ''), '') <> 'customer-news'
-          AND UPPER(COALESCE(NULLIF(TRIM(payload->>'insurerCode'), ''), '')) <> 'CUSTOMER_NEWS'
+        SELECT n.*,
+          w.name AS writer_name,
+          w.organization_name AS writer_organization_name,
+          w.login_id AS writer_login_id
+        FROM insurance_company_newsletters n
+        LEFT JOIN board_writer_accounts w
+          ON w.id = NULLIF(TRIM(COALESCE(n.payload->>'authorAccountId', n.payload->>'publisherId', '')), '')
+        WHERE n.id = $1
+          AND n.ga_id = $2
+          AND n.status = 'PUBLISHED'
+          AND n.deleted_at IS NULL
+          AND COALESCE(NULLIF(TRIM(n.payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $3
+          AND COALESCE((n.payload->>'customerVisible')::boolean, false) = false
+          AND COALESCE(NULLIF(TRIM(n.payload->>'insurerSlug'), ''), '') <> 'customer-news'
+          AND UPPER(COALESCE(NULLIF(TRIM(n.payload->>'insurerCode'), ''), '')) <> 'CUSTOMER_NEWS'
         `,
         [newsletterId, gaId, channel],
       )
