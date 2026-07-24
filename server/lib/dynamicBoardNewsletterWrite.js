@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { isGlobalBoardScope, resolveBoardPostGaId } from './newsletterBoardScope.js'
+import { NEWS_CHANNEL_BOARD } from './newsletterFeedChannelSql.js'
 
 /**
  * 동적 소식지 게시판 글 INSERT 공통 로직.
@@ -28,11 +29,12 @@ export async function insertDynamicBoardNewsletter(executor, input) {
   const nowIso = new Date().toISOString()
   const payload = {
     dynamicBoardSlug: slug,
+    newsletterBoardId: String(board.id ?? '').trim() || undefined,
     contentScope: global ? 'global' : 'ga',
     insurerSlug: `board-${slug}`,
     insurerCode: 'BOARD',
-    insurerName: label,
-    newsChannel: 'INSURER',
+    boardLabel: label,
+    newsChannel: NEWS_CHANNEL_BOARD,
     publishedAt: status === 'PUBLISHED' ? nowIso : null,
     publisherId: publisherId ? String(publisherId) : null,
   }
