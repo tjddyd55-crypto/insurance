@@ -2,6 +2,7 @@ export const WORKSPACE_SIDE_DETAIL_TABS = [
   'map',
   'files',
   'consultations',
+  'premium-payments',
   'ga-excel',
   'memos',
   'auto-form',
@@ -50,6 +51,9 @@ export function parseWorkspaceCustomerIdFromPath(pathname: string): number | nul
 export function resolveCustomerWorkspaceTab(pathname: string): CustomerWorkspaceTab {
   if (pathname.includes('/claim-requests')) {
     return 'claim-requests'
+  }
+  if (pathname.includes('/premium-payments')) {
+    return 'premium-payments'
   }
   if (pathname.includes('/signatures')) {
     return 'signatures'

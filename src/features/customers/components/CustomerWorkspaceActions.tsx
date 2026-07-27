@@ -14,6 +14,7 @@ export type CustomerWorkspaceActionsProps = {
   claimsFeatureEnabled: boolean
   onOpenFilesModal: (customerId: number) => void
   onOpenConsultationsModal: (customerId: number) => void
+  onOpenPremiumPayments: (customerId: number) => void
   onOpenAutoModal: (customerId: number) => void
   onOpenSignatures: (customerId: number) => void
   onOpenGaModal: (customerId: number) => void
@@ -41,6 +42,7 @@ export function CustomerWorkspaceActions({
   claimsFeatureEnabled,
   onOpenFilesModal,
   onOpenConsultationsModal,
+  onOpenPremiumPayments,
   onOpenAutoModal,
   onOpenSignatures,
   onOpenGaModal,
@@ -94,6 +96,17 @@ export function CustomerWorkspaceActions({
               💬
             </span>
             <MobileActionText>상담 내역</MobileActionText>
+          </FormButton>
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            className="button button--secondary customer-mobile-action-btn"
+            onClick={() => onOpenPremiumPayments(customerId)}
+          >
+            <span className="customer-mobile-action-btn__icon" aria-hidden>
+              💳
+            </span>
+            <MobileActionText>보험료 결제</MobileActionText>
           </FormButton>
           <FormButton
             htmlType="button"
@@ -209,6 +222,14 @@ export function CustomerWorkspaceActions({
         onClick={() => onOpenConsultationsModal(customerId)}
       >
         상담 내역
+      </FormButton>
+      <FormButton
+        htmlType="button"
+        variant="secondary"
+        className="button button--secondary customer-workspace-action-button"
+        onClick={() => onOpenPremiumPayments(customerId)}
+      >
+        보험료 결제
       </FormButton>
       {carFeatureEnabled ? (
         <FormButton

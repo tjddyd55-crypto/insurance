@@ -219,6 +219,7 @@ export function buildGaTenantDashboardMenu(
   const customerManagementLinks: GaTenantDashboardMenuEntry[] = [
     { type: 'link', label: '고객리스트', path: '/customers' },
     { type: 'link', label: '고객 지도', path: '/customers/map' },
+    { type: 'link', label: '보험료 결제', path: '/premium-payments' },
   ]
   if (includeCustomerManagementNewsletter) {
     customerManagementLinks.push({

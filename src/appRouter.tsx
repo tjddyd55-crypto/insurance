@@ -37,6 +37,8 @@ import CustomerGaExcelPage from './features/customers/pages/CustomerGaExcelPage'
 import CustomerMemosPage from './features/customers/pages/CustomerMemosPage'
 import CustomerMapPage from './features/customers/pages/CustomerMapPage'
 import CustomerDetailMapPage from './features/customers/pages/CustomerDetailMapPage'
+import CustomerPremiumPaymentsPage from './features/premium-payments/pages/CustomerPremiumPaymentsPage'
+import PremiumPaymentsOverviewPage from './features/premium-payments/pages/PremiumPaymentsOverviewPage'
 import NaverMapSmokePage from './features/customers/pages/NaverMapSmokePage'
 import CustomerWorkspaceLayout from './features/customers/pages/CustomerWorkspaceLayout'
 import CustomerWorkspaceHomePage from './features/customers/pages/CustomerWorkspaceHomePage'
@@ -404,6 +406,7 @@ export const appRouter = createBrowserRouter([
                 ],
               },
               { path: 'customers/map', element: <CustomerMapPage /> },
+              { path: 'premium-payments', element: <PremiumPaymentsOverviewPage /> },
               {
                 path: 'customers',
                 element: <CustomerWorkspaceLayout />,
@@ -412,6 +415,7 @@ export const appRouter = createBrowserRouter([
                   { path: ':customerId/map', element: <CustomerDetailMapPage /> },
                   { path: ':customerId/files', element: <CustomerFilesPage /> },
                   { path: ':customerId/consultations', element: <CustomerConsultationsPage /> },
+                  { path: ':customerId/premium-payments', element: <CustomerPremiumPaymentsPage /> },
                   { path: ':customerId/ga-excel', element: <CustomerGaExcelPage /> },
                   { path: ':customerId/memos', element: <CustomerMemosPage /> },
                   { path: ':customerId/auto-form', element: <CustomerAutoFormPage /> },

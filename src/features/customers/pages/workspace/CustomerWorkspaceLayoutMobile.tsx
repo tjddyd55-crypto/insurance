@@ -41,6 +41,9 @@ function resolveMobileSheetTitle(pathname: string, search: string): string {
   if (pathname.includes('/consultations')) {
     return '상담'
   }
+  if (pathname.includes('/premium-payments')) {
+    return '보험료 결제'
+  }
   if (pathname.includes('/ga-excel') || pathname.includes('/ga')) {
     return 'GA 데이터 보기'
   }
@@ -126,7 +129,7 @@ export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLa
 
   const isMobileDetailRoute = useMemo(
     () =>
-      /^\/customers\/\d+\/(?:map|files|consultations|ga-excel|memos|auto-form|application-documents|signatures|claim-requests)(?:\/|$)/.test(
+      /^\/customers\/\d+\/(?:map|files|consultations|premium-payments|ga-excel|memos|auto-form|application-documents|signatures|claim-requests)(?:\/|$)/.test(
         location.pathname,
       ),
     [location.pathname],
