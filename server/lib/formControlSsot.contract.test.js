@@ -22,10 +22,12 @@ const claimDetail = readFileSync(
 
 test('form-input SSOT excludes radio/checkbox and keeps text field chrome', () => {
   assert.match(css, /:not\(\[type='radio'\]\):not\(\[type='checkbox'\]\)/)
-  assert.match(css, /min-height:\s*48px/)
+  assert.match(css, /min-height:\s*var\(--control-height-md,\s*40px\)/)
   assert.match(css, /border-radius:\s*10px/)
   assert.match(css, /border-color:\s*var\(--input-focus-border\)/)
   assert.match(css, /\.form-select\s*\{[^}]*appearance:\s*none/s)
+  assert.match(css, /\.form-textarea\s*\{[^}]*height:\s*auto/s)
+  assert.match(css, /\.form-textarea\s*\{[^}]*min-height:\s*96px/s)
 })
 
 test('FormInput maps radio/checkbox to form-radio/form-checkbox classes', () => {

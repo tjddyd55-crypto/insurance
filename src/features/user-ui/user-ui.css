@@ -115,8 +115,9 @@
   display: block;
   width: 100%;
   box-sizing: border-box;
-  min-height: 48px;
-  padding: 10px 12px;
+  min-height: var(--control-height-md, 40px);
+  height: var(--control-height-md, 40px);
+  padding: 0 12px;
   border: 1px solid var(--border-default);
   border-radius: 10px;
   background: var(--input-bg);
@@ -196,6 +197,7 @@
 .user-app-shell .storage-workspace__search.user-form-control,
 .user-app-shell .customers-page__search-input.user-form-control,
 .user-app-shell .shared-account-workspace__search-input.user-form-control {
+  height: 44px;
   min-height: 44px;
 }
 
