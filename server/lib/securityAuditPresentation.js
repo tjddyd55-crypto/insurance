@@ -61,6 +61,8 @@ const SENSITIVE_META_KEYS = new Set([
   'secret',
   'password_hash',
   'passwordHash',
+  'cardNumber',
+  'reauthToken',
 ])
 
 const LOGIN_FAIL_REASON_LABELS = Object.freeze({

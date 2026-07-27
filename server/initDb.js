@@ -1837,6 +1837,51 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS customer_premium_payment_methods (
+      id BIGSERIAL PRIMARY KEY,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id) ON DELETE CASCADE,
+      owner_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      insurance_company TEXT NOT NULL DEFAULT '',
+      policy_number TEXT NOT NULL DEFAULT '',
+      cardholder_name TEXT NOT NULL DEFAULT '',
+      card_number_ciphertext TEXT NOT NULL,
+      encryption_key_version TEXT NOT NULL DEFAULT '1',
+      card_number_last4 TEXT NOT NULL DEFAULT '',
+      card_brand TEXT NULL,
+      card_expiry_month SMALLINT NOT NULL,
+      card_expiry_year SMALLINT NOT NULL,
+      memo TEXT NOT NULL DEFAULT '',
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_by TEXT NULL,
+      updated_by TEXT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      deleted_at TIMESTAMPTZ NULL,
+      CONSTRAINT customer_premium_payment_methods_expiry_month_check
+        CHECK (card_expiry_month BETWEEN 1 AND 12),
+      CONSTRAINT customer_premium_payment_methods_expiry_year_check
+        CHECK (card_expiry_year BETWEEN 2000 AND 2100)
+    )
+  `)
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_premium_payments_customer_active
+    ON customer_premium_payment_methods(customer_id, is_active)
+    WHERE deleted_at IS NULL
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_premium_payments_ga_owner
+    ON customer_premium_payment_methods(ga_id, owner_user_id)
+    WHERE deleted_at IS NULL
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_premium_payments_last4
+    ON customer_premium_payment_methods(card_number_last4)
+    WHERE deleted_at IS NULL
+  `)
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS ga_customer_excel_settings (
       ga_id INTEGER PRIMARY KEY REFERENCES ga_companies(id) ON DELETE CASCADE,
       feature_enabled BOOLEAN NOT NULL DEFAULT false,
