@@ -121,6 +121,7 @@ export type CustomerListCardProps = {
   onDeleteCustomer: (c: CustomerRecord) => void
   onOpenFilesModal: (customerId: number) => void
   onOpenConsultationsModal: (customerId: number) => void
+  onOpenPremiumPayments: (customerId: number) => void
   onOpenAutoModal: (customerId: number) => void
   onOpenSignatures: (customerId: number) => void
   onOpenGaModal: (customerId: number) => void
@@ -171,6 +172,7 @@ const CustomerListCard = memo(function CustomerListCard({
   onDeleteCustomer,
   onOpenFilesModal,
   onOpenConsultationsModal,
+  onOpenPremiumPayments,
   onOpenAutoModal,
   onOpenSignatures,
   onOpenGaModal,
@@ -436,6 +438,7 @@ const CustomerListCard = memo(function CustomerListCard({
                   claimsFeatureEnabled={claimsFeatureEnabled}
                   onOpenFilesModal={onOpenFilesModal}
                   onOpenConsultationsModal={onOpenConsultationsModal}
+                  onOpenPremiumPayments={onOpenPremiumPayments}
                   onOpenAutoModal={onOpenAutoModal}
                   onOpenSignatures={onOpenSignatures}
                   onOpenGaModal={onOpenGaModal}

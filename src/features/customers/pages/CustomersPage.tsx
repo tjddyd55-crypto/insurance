@@ -1318,6 +1318,15 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     [openMobileModal],
   )
 
+  const handleOpenPremiumPayments = useCallback(
+    (customerId: number) => {
+      const next = new URLSearchParams(searchParams)
+      next.set('customerId', String(customerId))
+      navigate(buildCustomerWorkspacePath({ customerId, tab: 'premium-payments', query: next }))
+    },
+    [navigate, searchParams],
+  )
+
   const handleOpenAutoModal = useCallback(
     (customerId: number) => {
       const hit =
@@ -1768,6 +1777,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
               onDeleteCustomer={handleDeleteCustomer}
               onOpenFilesModal={handleOpenFilesModal}
               onOpenConsultationsModal={handleOpenConsultationsModal}
+              onOpenPremiumPayments={handleOpenPremiumPayments}
               onOpenAutoModal={handleOpenAutoModal}
               onOpenSignatures={handleOpenSignatures}
               onOpenGaModal={handleOpenGaModal}

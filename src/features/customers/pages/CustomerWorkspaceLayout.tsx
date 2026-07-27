@@ -24,6 +24,7 @@ export type CustomerWorkspaceTab =
   | 'map'
   | 'files'
   | 'consultations'
+  | 'premium-payments'
   | 'auto'
   | 'pdf-documents'
   | 'ga-excel'
@@ -43,6 +44,9 @@ export type CustomerWorkspaceTab =
 function resolveWorkspacePathTab(pathname: string): CustomerWorkspaceTab | null {
   if (pathname.includes('/claim-requests')) {
     return 'claims'
+  }
+  if (pathname.includes('/premium-payments')) {
+    return 'premium-payments'
   }
   if (pathname.includes('/application-documents')) {
     return 'pdf-documents'
@@ -243,6 +247,13 @@ export default function CustomerWorkspaceLayout() {
     moveTo(`/customers/${selectedCustomerId}/consultations`)
   }
 
+  const handleClickPremiumPayments = () => {
+    if (!selectedCustomerId) {
+      return
+    }
+    moveTo(`/customers/${selectedCustomerId}/premium-payments`)
+  }
+
   const handleClickCarForm = () => {
     if (!selectedCustomerId) {
       return
@@ -314,6 +325,7 @@ export default function CustomerWorkspaceLayout() {
         : undefined,
     onClickFiles: handleClickFiles,
     onClickConsultations: handleClickConsultations,
+    onClickPremiumPayments: handleClickPremiumPayments,
     onClickCarForm: handleClickCarForm,
     onClickGaExcel: handleClickGaExcel,
     onClickMemos: handleClickMemos,

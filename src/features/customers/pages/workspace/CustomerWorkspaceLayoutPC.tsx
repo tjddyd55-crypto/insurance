@@ -10,6 +10,7 @@ type WorkspaceActiveTab =
   | 'map'
   | 'files'
   | 'consultations'
+  | 'premium-payments'
   | 'auto'
   | 'pdf-documents'
   | 'ga-excel'
@@ -33,6 +34,7 @@ export type CustomerWorkspaceLayoutPCProps = {
   gaExcelMenuTitleHint: string | undefined
   onClickFiles: () => void
   onClickConsultations: () => void
+  onClickPremiumPayments: () => void
   onClickCarForm: () => void
   onClickGaExcel: () => void
   onClickMemos: () => void
@@ -70,6 +72,9 @@ function rightTitle(pathname: string): string {
   if (pathname.includes('/consultations')) {
     return '고객 상담 작업'
   }
+  if (pathname.includes('/premium-payments')) {
+    return '보험료 결제'
+  }
   if (pathname.includes('/ga-excel')) {
     return 'GA 고객 데이터'
   }
@@ -103,6 +108,7 @@ export default function CustomerWorkspaceLayoutPC({
   gaExcelMenuTitleHint,
   onClickFiles,
   onClickConsultations,
+  onClickPremiumPayments,
   onClickCarForm,
   onClickGaExcel,
   onClickMemos,
@@ -208,6 +214,17 @@ export default function CustomerWorkspaceLayoutPC({
               onClick={onClickConsultations}
             >
               상담 이력
+            </FormButton>
+            <FormButton
+              htmlType="button"
+              variant="action"
+              className={`customer-workspace-layout__tab${
+                activeTab === 'premium-payments' ? ' customer-workspace-layout__tab--active' : ''
+              }`}
+              disabled={!selectedCustomerId}
+              onClick={onClickPremiumPayments}
+            >
+              보험료 결제
             </FormButton>
             {showCarInsuranceInWorkspace ? (
               <FormButton
