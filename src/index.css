@@ -14029,6 +14029,13 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 }
 
 /* ——— Sticky 메모 — Windows 스티커 메모 톤 ——— */
+:root {
+  /* 카드 연노랑 위에서, 입력 중만 더 밝고 깨끗한 크림으로 구분 */
+  --memo-card-bg: #fff7c2;
+  --memo-editor-bg: transparent;
+  --memo-editor-focus-bg: #fffdf2;
+}
+
 .memo-sticky-note__root {
   position: absolute;
   display: flex;
@@ -14036,7 +14043,7 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   overflow: hidden;
   border-radius: 4px;
   box-sizing: border-box;
-  background: #fff7c2;
+  background: var(--memo-card-bg, #fff7c2);
   color: #334155;
   border: 1px solid #efd66b;
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.16);
@@ -14168,7 +14175,7 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  background: #fff7c2;
+  background: var(--memo-card-bg, #fff7c2);
   padding: 0;
 }
 
@@ -14190,7 +14197,7 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   max-height: none;
   resize: none;
   box-sizing: border-box;
-  background: transparent;
+  background: var(--memo-editor-bg, transparent);
   border: 0;
   border-radius: 0;
   padding: 10px 12px;
@@ -14203,6 +14210,7 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: rgba(100, 116, 139, 0.35) transparent;
+  transition: background-color 120ms ease;
 }
 
 .memo-sticky-note__content > textarea.form-textarea.memo-sticky-note__textarea--bold,
@@ -14226,12 +14234,27 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   outline: none;
   border: 0;
   box-shadow: none;
+  /* 카드 연노랑(#fff7c2) 대비 더 밝고 옅은 크림 — textarea 포커스에만 적용 */
+  background: var(--memo-editor-focus-bg, #fffdf2);
 }
 
+/*
+ * isEditing 클래스만으로는 입력 포커스 색을 쓰지 않는다.
+ * (카드 클릭·툴바 조작 시 포커스 없는 입력칸이 밝아지는 회귀 방지)
+ */
 .memo-sticky-note__content > textarea.form-textarea.memo-sticky-note__textarea--editing,
 .pc-root .memo-sticky-note__content > textarea.form-textarea.memo-sticky-note__textarea--editing,
 .mobile-root .memo-sticky-note__content > textarea.form-textarea.memo-sticky-note__textarea--editing {
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--memo-editor-bg, transparent);
+}
+
+.memo-sticky-note__content > textarea.form-textarea.memo-sticky-note__textarea--editing:focus,
+.memo-sticky-note__content > textarea.form-textarea.memo-sticky-note__textarea--editing:focus-visible,
+.pc-root .memo-sticky-note__content > textarea.form-textarea.memo-sticky-note__textarea--editing:focus,
+.pc-root .memo-sticky-note__content > textarea.form-textarea.memo-sticky-note__textarea--editing:focus-visible,
+.mobile-root .memo-sticky-note__content > textarea.form-textarea.memo-sticky-note__textarea--editing:focus,
+.mobile-root .memo-sticky-note__content > textarea.form-textarea.memo-sticky-note__textarea--editing:focus-visible {
+  background: var(--memo-editor-focus-bg, #fffdf2);
 }
 
 .memo-sticky-note__resize {
