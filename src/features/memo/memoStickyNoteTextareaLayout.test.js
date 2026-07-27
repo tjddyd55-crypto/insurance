@@ -33,4 +33,24 @@ describe('memo sticky note textarea fill layout', () => {
     assert.match(indexCss, /\.memo-sticky-note__content\s*\{[^}]*min-height:\s*0/s)
     assert.match(indexCss, /\.memo-sticky-note__footer\s*\{[^}]*flex-shrink:\s*0/s)
   })
+
+  it('uses distinct editor vs focus background tokens without changing fill layout', () => {
+    assert.match(indexCss, /--memo-editor-bg:\s*transparent/)
+    assert.match(indexCss, /--memo-editor-focus-bg:\s*#fffdf2/)
+    assert.match(
+      indexCss,
+      /textarea\.form-textarea\.memo-sticky-note__textarea:focus[\s\S]*?background:\s*var\(--memo-editor-focus-bg/,
+    )
+    assert.match(
+      indexCss,
+      /textarea\.form-textarea\.memo-sticky-note__textarea--editing\s*,[\s\S]*?background:\s*var\(--memo-editor-bg/,
+    )
+    const focusBlock = indexCss.match(
+      /\.memo-sticky-note__content\s*>\s*textarea\.form-textarea\.memo-sticky-note__textarea:focus[\s\S]*?background:\s*var\(--memo-editor-focus-bg[^;]*;/,
+    )?.[0]
+    assert.ok(focusBlock)
+    assert.doesNotMatch(focusBlock, /height\s*:/)
+    assert.doesNotMatch(focusBlock, /flex\s*:/)
+    assert.doesNotMatch(focusBlock, /resize\s*:/)
+  })
 })
