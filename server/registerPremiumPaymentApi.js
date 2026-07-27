@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs'
+import { randomUUID } from 'node:crypto'
 import jwt from 'jsonwebtoken'
 import { systemQuery } from './utils/dbSafeQuery.js'
 import { logSecurityEvent } from './lib/securityAudit.js'
@@ -19,6 +20,18 @@ import {
 
 const REAUTH_SCOPE = 'premium-payment-card-reveal'
 const REAUTH_TTL = '3m'
+const REAUTH_TTL_SECONDS = 180
+
+/** @type {Map<string, number>} jti → expiresAtMs */
+const pendingReauthGrants = new Map()
+
+function pruneExpiredReauthGrants(now = Date.now()) {
+  for (const [jti, exp] of pendingReauthGrants) {
+    if (exp <= now) {
+      pendingReauthGrants.delete(jti)
+    }
+  }
+}
 
 /**
  * @param {import('express').Response} res
@@ -44,12 +57,17 @@ function parsePositiveInt(raw) {
  * @param {{ JWT_SECRET: string; userId: string; customerId: number; paymentId: number }} p
  */
 function issuePremiumPaymentReauthToken(p) {
+  const jti = randomUUID()
+  const expiresAtMs = Date.now() + REAUTH_TTL_SECONDS * 1000
+  pruneExpiredReauthGrants()
+  pendingReauthGrants.set(jti, expiresAtMs)
   return jwt.sign(
     {
       scope: REAUTH_SCOPE,
       sub: p.userId,
       customerId: p.customerId,
       paymentId: p.paymentId,
+      jti,
     },
     p.JWT_SECRET,
     { expiresIn: REAUTH_TTL },
@@ -60,8 +78,9 @@ function issuePremiumPaymentReauthToken(p) {
  * @param {string} token
  * @param {string} JWT_SECRET
  * @param {{ userId: string; customerId: number; paymentId: number }} expected
+ * @param {{ consume?: boolean }} [opts]
  */
-function verifyPremiumPaymentReauthToken(token, JWT_SECRET, expected) {
+function verifyPremiumPaymentReauthToken(token, JWT_SECRET, expected, opts = {}) {
   const decoded = jwt.verify(String(token ?? ''), JWT_SECRET)
   if (!decoded || typeof decoded !== 'object') {
     throw new Error('invalid_reauth')
@@ -79,7 +98,42 @@ function verifyPremiumPaymentReauthToken(token, JWT_SECRET, expected) {
   if (Number(payload.paymentId) !== expected.paymentId) {
     throw new Error('invalid_reauth_payment')
   }
+  const jti = String(payload.jti ?? '').trim()
+  if (!jti) {
+    throw new Error('invalid_reauth_jti')
+  }
+  pruneExpiredReauthGrants()
+  if (!pendingReauthGrants.has(jti)) {
+    throw new Error('reauth_already_used_or_expired')
+  }
+  if (opts.consume !== false) {
+    pendingReauthGrants.delete(jti)
+  }
   return payload
+}
+
+/**
+ * @param {import('express').Request} req
+ * @param {import('pg').Pool} pool
+ * @param {object} row
+ * @param {string} action
+ * @param {number | null} [gaId]
+ * @param {object} [meta]
+ */
+function auditPremiumPayment(pool, req, row, action, gaId, meta = {}) {
+  void logSecurityEvent(pool, {
+    actorUserId: String(req.user?.id ?? ''),
+    actorRole: String(req.user?.role ?? ''),
+    action,
+    targetType: 'premium_payment_method',
+    targetId: String(row?.id ?? ''),
+    gaId: gaId ?? null,
+    meta: {
+      customerId: row?.customerId ?? row?.customer_id ?? null,
+      cardNumberLast4: row?.cardNumberLast4 ?? row?.card_number_last4 ?? null,
+      ...meta,
+    },
+  })
 }
 
 /**
@@ -124,6 +178,8 @@ export function registerPremiumPaymentApi(apiRouter, { pool, requireAuth, handle
         res.status(result.error.status).json({ message: result.error.message })
         return
       }
+      const actor = resolvePremiumPaymentActor(req)
+      auditPremiumPayment(pool, req, result.row, 'premium_payment_created', 'error' in actor ? null : actor.gaId)
       res.status(201).json(result.row)
     } catch (error) {
       handleDbError(error, req, res)
@@ -144,6 +200,8 @@ export function registerPremiumPaymentApi(apiRouter, { pool, requireAuth, handle
         res.status(result.error.status).json({ message: result.error.message })
         return
       }
+      const actor = resolvePremiumPaymentActor(req)
+      auditPremiumPayment(pool, req, result.row, 'premium_payment_updated', 'error' in actor ? null : actor.gaId)
       res.json(result.row)
     } catch (error) {
       handleDbError(error, req, res)
@@ -164,6 +222,8 @@ export function registerPremiumPaymentApi(apiRouter, { pool, requireAuth, handle
         res.status(result.error.status).json({ message: result.error.message })
         return
       }
+      const actor = resolvePremiumPaymentActor(req)
+      auditPremiumPayment(pool, req, result.row, 'premium_payment_disabled', 'error' in actor ? null : actor.gaId)
       res.json(result.row)
     } catch (error) {
       handleDbError(error, req, res)
@@ -184,6 +244,8 @@ export function registerPremiumPaymentApi(apiRouter, { pool, requireAuth, handle
         res.status(result.error.status).json({ message: result.error.message })
         return
       }
+      const actor = resolvePremiumPaymentActor(req)
+      auditPremiumPayment(pool, req, result.row, 'premium_payment_enabled', 'error' in actor ? null : actor.gaId)
       res.json(result.row)
     } catch (error) {
       handleDbError(error, req, res)
@@ -246,6 +308,10 @@ export function registerPremiumPaymentApi(apiRouter, { pool, requireAuth, handle
           res.status(loaded.error.status).json({ message: loaded.error.message })
           return
         }
+        if (loaded.row.is_active === false) {
+          res.status(403).json({ message: '사용 중지된 결제 정보는 카드번호를 확인할 수 없습니다.' })
+          return
+        }
 
         const userR = await systemQuery(
           pool,
@@ -294,7 +360,7 @@ export function registerPremiumPaymentApi(apiRouter, { pool, requireAuth, handle
         })
         res.json({
           reauthToken,
-          expiresInSeconds: 180,
+          expiresInSeconds: REAUTH_TTL_SECONDS,
           maskedCardNumber: maskCardNumberDisplay(String(loaded.row.card_number_last4 ?? '')),
         })
       } catch (error) {
@@ -326,6 +392,16 @@ export function registerPremiumPaymentApi(apiRouter, { pool, requireAuth, handle
           return
         }
 
+        const loaded = await loadPremiumPaymentCiphertextRow(pool, req, customerId, paymentId)
+        if (loaded.error) {
+          res.status(loaded.error.status).json({ message: loaded.error.message })
+          return
+        }
+        if (loaded.row.is_active === false) {
+          res.status(403).json({ message: '사용 중지된 결제 정보는 카드번호를 확인할 수 없습니다.' })
+          return
+        }
+
         try {
           verifyPremiumPaymentReauthToken(reauthToken, JWT_SECRET, {
             userId: actor.userId,
@@ -337,11 +413,6 @@ export function registerPremiumPaymentApi(apiRouter, { pool, requireAuth, handle
           return
         }
 
-        const loaded = await loadPremiumPaymentCiphertextRow(pool, req, customerId, paymentId)
-        if (loaded.error) {
-          res.status(loaded.error.status).json({ message: loaded.error.message })
-          return
-        }
         const decrypted = decryptPremiumPaymentRowCard(loaded.row)
         if ('error' in decrypted) {
           res.status(500).json({ message: decrypted.error })
