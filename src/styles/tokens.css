@@ -62,6 +62,8 @@
   --placeholder: #9ca3af;
   --disabled-bg: #f3f4f6;
   --disabled-text: #9ca3af;
+  /* 단일행 text/select 기본 높이 (textarea·multiline 제외) */
+  --control-height-md: 40px;
 
   /* ── Button ── */
   --btn-primary-bg: var(--brand-primary);

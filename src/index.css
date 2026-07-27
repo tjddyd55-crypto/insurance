@@ -5065,7 +5065,8 @@ div.cta-button.customers-page__action-btn[role='button'] {
 .customer-registration-share-modal__field .form-input {
   box-sizing: border-box;
   width: 100%;
-  min-height: 48px;
+  min-height: var(--control-height-md, 40px);
+  height: var(--control-height-md, 40px);
   border-radius: 10px;
   padding: 0 12px;
 }
@@ -9334,11 +9335,13 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .field__control {
   width: 100%;
-  min-height: 46px;
+  box-sizing: border-box;
+  min-height: var(--control-height-md, 40px);
+  height: var(--control-height-md, 40px);
   border-radius: 10px;
   border: 1px solid var(--border-default);
   font-size: 16px;
-  padding: 10px 12px;
+  padding: 0 12px;
   background-color: var(--input-bg);
   color: var(--text-primary);
 }
@@ -9399,12 +9402,13 @@ div.cta-button.customers-page__action-btn[role='button'] {
     [type='color']
   ):not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset']):not([type='image']),
 .form-select {
-  min-height: 48px;
-  height: 48px;
+  min-height: var(--control-height-md, 40px);
+  height: var(--control-height-md, 40px);
   padding: 0 12px;
 }
 
 .form-textarea {
+  height: auto;
   min-height: 96px;
   padding: 12px;
   resize: vertical;
@@ -9495,7 +9499,9 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 .field__control--textarea {
+  height: auto;
   min-height: 82px;
+  padding: 12px;
   resize: vertical;
 }
 
@@ -15962,8 +15968,8 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   ):not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset']):not([type='image']),
 .pc-root .form-select,
 .pc-root .field__control:not([type='radio']):not([type='checkbox']):not(textarea) {
-  height: 48px;
-  min-height: 48px;
+  height: var(--control-height-md, 40px);
+  min-height: var(--control-height-md, 40px);
   padding: 0 12px;
 }
 
