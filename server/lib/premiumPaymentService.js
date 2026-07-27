@@ -93,18 +93,19 @@ export async function assertPremiumPaymentCustomerAccess(pool, req, customerId) 
 /**
  * @param {import('pg').Pool} pool
  * @param {number} customerId
+ * @param {number} gaId
  * @returns {Promise<{ ownerUserId: string; customerName: string } | null>}
  */
-async function loadCustomerOwner(pool, customerId) {
+async function loadCustomerOwner(pool, customerId, gaId) {
   const r = await safeQuery(
     pool,
     `
     SELECT user_id, name
     FROM customers
-    WHERE id = $1 AND deleted_at IS NULL
+    WHERE id = $1 AND ga_id = $2 AND deleted_at IS NULL
     LIMIT 1
     `,
-    [customerId],
+    [customerId, gaId],
   )
   const row = r.rows[0]
   if (!row) {
@@ -309,7 +310,7 @@ export async function createPremiumPaymentMethod(pool, req, customerId, body) {
     return { error: { status: 400, message: '카드번호를 입력해 주세요.' } }
   }
 
-  const owner = await loadCustomerOwner(pool, customerId)
+  const owner = await loadCustomerOwner(pool, customerId, actor.gaId)
   if (!owner) {
     return { error: { status: 404, message: '고객을 찾을 수 없습니다.' } }
   }
