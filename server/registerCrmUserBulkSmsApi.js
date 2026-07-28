@@ -1,11 +1,13 @@
 import {
-  getCrmUserBulkSmsRuntimeInfo,
   previewCrmUserBulkSms,
   sendCrmUserBulkSms,
   listCrmUserBulkSmsCampaigns,
   getCrmUserBulkSmsCampaignDetail,
 } from './lib/crmUserBulkSmsService.js'
-import { isCrmUserBulkSmsEnabled } from './lib/crmUserBulkSmsConfig.js'
+import {
+  getCrmUserBulkSmsRuntimeInfo,
+  isCrmUserBulkSmsEnabled,
+} from './lib/crmUserBulkSmsConfig.js'
 
 /**
  * @param {import('express').Router} apiRouter
