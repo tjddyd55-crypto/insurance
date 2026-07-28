@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { FormDialog, useConfirmDialog } from '../../../components/dialog'
 import { EmptyState, StatusMessage } from '../../../components/feedback'
 import { FieldWrapper, FormButton, FormInput, FormSelect } from '../../../components/form'
+import { formatKrMobileDisplay } from '../../sms/smsDisplayUtils'
 import { useAuth } from '../../auth/AuthProvider'
 import {
   deleteAdminUser,
@@ -14,12 +15,19 @@ import {
   type UserRole,
 } from '../../auth/authApi'
 import {
+  fetchCrmUserBulkSmsRuntime,
+  listCrmUserBulkSmsHistory,
+  type CrmUserBulkSmsCampaign,
+  type CrmUserBulkSmsRuntime,
+} from '../api/crmUserBulkSmsApi'
+import {
   ADMIN_USER_SUBSCRIPTION_FILTER_OPTIONS,
   formatAdminUserLastLogin,
   formatAdminUserSubscriptionListLabel,
   resolveAdminUserSubscriptionBadgeClass,
   type AdminUserSubscriptionFilter,
 } from '../adminUserPresentation'
+import CrmUserBulkSmsComposerDialog from '../components/CrmUserBulkSmsComposerDialog'
 
 const ACCOUNT_STATUS_META: Record<EntityStatus, { label: string; fg: string; bg: string }> = {
   active: {
@@ -45,12 +53,30 @@ const ACCOUNT_STATUS_OPTIONS: { value: EntityStatus; label: string }[] = [
   { value: 'inactive', label: '비활성' },
 ]
 
+const ROLE_FILTER_OPTIONS: { value: string; label: string }[] = [
+  { value: '', label: '전체' },
+  { value: 'USER', label: 'USER (일반)' },
+  { value: 'GA_ADMIN', label: 'GA_ADMIN' },
+  { value: 'GA_STAFF', label: 'GA_STAFF' },
+  { value: 'SUPER_ADMIN', label: 'SUPER_ADMIN' },
+  { value: 'INSURER_MANAGER', label: 'INSURER_MANAGER' },
+  { value: 'LOSS_ADJUSTER', label: 'LOSS_ADJUSTER' },
+]
+
 function normalizeUserStatus(s: string | undefined): EntityStatus {
   const v = String(s ?? '').toLowerCase()
-  if (v === 'blocked' || v === 'inactive') {
-    return v
-  }
+  if (v === 'blocked' || v === 'inactive') return v
   return 'active'
+}
+
+function hasSendablePhone(row: AdminUserRow): boolean {
+  const digits = String(row.phone_number ?? '').replace(/\D/g, '')
+  return /^01[0-9]\d{7,8}$/.test(digits)
+}
+
+function formatPhoneCell(row: AdminUserRow): string {
+  if (!row.phone_number?.trim()) return '연락처 없음'
+  return formatKrMobileDisplay(row.phone_number)
 }
 
 function AccountStatusBadge({ status }: { status: EntityStatus }) {
@@ -83,9 +109,7 @@ function formatReferrer(row: AdminUserRow): string {
   const displayName = String(row.referrer_display_name ?? '').trim()
   const username = String(row.referrer_username ?? '').trim()
   const gaName = String(row.referrer_ga_company_name ?? '').trim()
-  if (!displayName && !username) {
-    return '—'
-  }
+  if (!displayName && !username) return '—'
   const name = displayName || username
   const userSuffix = displayName && username ? ` (${username})` : ''
   return gaName ? `${name}${userSuffix} / ${gaName}` : `${name}${userSuffix}`
@@ -104,9 +128,13 @@ export default function UserManagementPage() {
   const [gaList, setGaList] = useState<GaCompanyRow[]>([])
   const [gaFilter, setGaFilter] = useState<number | 'all'>('all')
   const [subscriptionFilter, setSubscriptionFilter] = useState<AdminUserSubscriptionFilter>('')
+  const [roleFilter, setRoleFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState<EntityStatus | ''>('')
+  const [hasPhoneFilter, setHasPhoneFilter] = useState<'' | 'yes' | 'no'>('')
   const [searchQuery, setSearchQuery] = useState('')
   const [rows, setRows] = useState<AdminUserRow[]>([])
   const [loadError, setLoadError] = useState('')
+  const [listActionError, setListActionError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [editing, setEditing] = useState<AdminUserRow | null>(null)
   const [editGaId, setEditGaId] = useState<number>(0)
@@ -115,22 +143,21 @@ export default function UserManagementPage() {
   const [saveError, setSaveError] = useState('')
   const [saveOk, setSaveOk] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+  const [composerOpen, setComposerOpen] = useState(false)
+  const [runtime, setRuntime] = useState<CrmUserBulkSmsRuntime | null>(null)
+  const [history, setHistory] = useState<CrmUserBulkSmsCampaign[]>([])
+  const [historyError, setHistoryError] = useState('')
 
   useEffect(() => {
-    if (user?.role !== 'SUPER_ADMIN' || !token?.trim()) {
-      return
-    }
+    if (user?.role !== 'SUPER_ADMIN' || !token?.trim()) return
     let cancelled = false
     ;(async () => {
       try {
         const gas = await listGaCompanies(token)
-        if (!cancelled) {
-          setGaList(gas)
-        }
+        if (!cancelled) setGaList(gas)
       } catch {
-        if (!cancelled) {
-          setLoadError('GA 목록을 불러오지 못했습니다.')
-        }
+        if (!cancelled) setLoadError('GA 목록을 불러오지 못했습니다.')
       }
     })()
     return () => {
@@ -139,9 +166,7 @@ export default function UserManagementPage() {
   }, [user?.role, token])
 
   const loadUsers = useCallback(async () => {
-    if (!token?.trim() || user?.role !== 'SUPER_ADMIN') {
-      return
-    }
+    if (!token?.trim() || user?.role !== 'SUPER_ADMIN') return
     setLoadError('')
     setIsLoading(true)
     try {
@@ -149,18 +174,76 @@ export default function UserManagementPage() {
         gaId: gaFilter === 'all' ? undefined : gaFilter,
         subscriptionStatus: subscriptionFilter || undefined,
         q: searchQuery.trim() || undefined,
+        role: roleFilter || undefined,
+        status: statusFilter || undefined,
+        hasPhone: hasPhoneFilter || undefined,
       })
       setRows(users.map((u) => ({ ...u, status: normalizeUserStatus(u.status as string) })))
+      setSelectedIds(new Set())
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : '사용자 목록을 불러오지 못했습니다.')
     } finally {
       setIsLoading(false)
     }
-  }, [token, user?.role, gaFilter, subscriptionFilter, searchQuery])
+  }, [
+    token,
+    user?.role,
+    gaFilter,
+    subscriptionFilter,
+    searchQuery,
+    roleFilter,
+    statusFilter,
+    hasPhoneFilter,
+  ])
 
   useEffect(() => {
     void loadUsers()
   }, [loadUsers])
+
+  const loadHistory = useCallback(async () => {
+    if (!token?.trim() || user?.role !== 'SUPER_ADMIN') return
+    setHistoryError('')
+    try {
+      const [rt, items] = await Promise.all([
+        fetchCrmUserBulkSmsRuntime(token),
+        listCrmUserBulkSmsHistory(token),
+      ])
+      setRuntime(rt)
+      setHistory(items)
+    } catch (e) {
+      setHistoryError(e instanceof Error ? e.message : '문자 발송 이력을 불러오지 못했습니다.')
+    }
+  }, [token, user?.role])
+
+  useEffect(() => {
+    void loadHistory()
+  }, [loadHistory])
+
+  const selectableRows = useMemo(() => rows.filter((r) => hasSendablePhone(r)), [rows])
+  const selectedSendableCount = useMemo(
+    () => rows.filter((r) => selectedIds.has(r.id) && hasSendablePhone(r)).length,
+    [rows, selectedIds],
+  )
+  const selectedNoPhoneCount = useMemo(
+    () => rows.filter((r) => selectedIds.has(r.id) && !hasSendablePhone(r)).length,
+    [rows, selectedIds],
+  )
+
+  const toggleSelect = (id: string, enabled: boolean) => {
+    if (!enabled) return
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const selectCurrentPageSendable = () => {
+    setSelectedIds(new Set(selectableRows.map((r) => r.id)))
+  }
+
+  const clearSelection = () => setSelectedIds(new Set())
 
   const openEdit = (r: AdminUserRow) => {
     setSaveOk('')
@@ -172,17 +255,13 @@ export default function UserManagementPage() {
   }
 
   const closeEdit = () => {
-    if (isSaving) {
-      return
-    }
+    if (isSaving) return
     setEditing(null)
     setSaveError('')
   }
 
   const submitEdit = async () => {
-    if (!editing || !token?.trim()) {
-      return
-    }
+    if (!editing || !token?.trim()) return
     setSaveError('')
     setSaveOk('')
     setIsSaving(true)
@@ -201,6 +280,7 @@ export default function UserManagementPage() {
                 ga_company_name: updated.ga_company_name,
                 role: updated.role,
                 display_name: updated.display_name,
+                phone_number: updated.phone_number ?? row.phone_number,
                 status: normalizeUserStatus(updated.status as string),
               }
             : row,
@@ -216,34 +296,51 @@ export default function UserManagementPage() {
   }
 
   const confirmDeleteUser = async (row: AdminUserRow) => {
-    if (!token?.trim()) {
-      return
-    }
+    if (!token?.trim()) return
     const confirmed = await confirm({
       title: '사용자 삭제',
       message: '해당 사용자를 삭제하시겠습니까?',
       tone: 'danger',
     })
-    if (!confirmed) {
-      return
-    }
+    if (!confirmed) return
+    setListActionError('')
     try {
       await deleteAdminUser(token, row.id)
       setRows((prev) => prev.filter((u) => u.id !== row.id))
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        next.delete(row.id)
+        return next
+      })
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : '삭제에 실패했습니다.')
+      setListActionError(e instanceof Error ? e.message : '삭제에 실패했습니다.')
     }
   }
 
   const renderRowCells = (r: AdminUserRow) => {
     const displayName = String(r.display_name ?? '').trim()
+    const canSms = hasSendablePhone(r)
     return (
       <>
+        <td className="admin-user-table__select">
+          <input
+            type="checkbox"
+            checked={selectedIds.has(r.id)}
+            disabled={!canSms}
+            title={canSms ? '문자 발송 대상' : '등록된 연락처가 없어 문자를 보낼 수 없습니다.'}
+            onChange={() => toggleSelect(r.id, canSms)}
+            aria-label={`${displayName || r.username} 선택`}
+          />
+        </td>
         <td>{r.ga_company_name}</td>
         <td>{displayName || '—'}</td>
         <td>{r.username}</td>
+        <td>{formatPhoneCell(r)}</td>
         <td>{formatReferrer(r)}</td>
         <td>{r.role}</td>
+        <td>
+          <AccountStatusBadge status={normalizeUserStatus(r.status as string)} />
+        </td>
         <td>
           <SubscriptionStatusBadge row={r} />
         </td>
@@ -255,7 +352,13 @@ export default function UserManagementPage() {
         </td>
         <td className="admin-table-cell--actions">
           <div className="admin-table-actions">
-            <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={() => openEdit(r)} disabled={isLoading}>
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              className="button button--secondary"
+              onClick={() => openEdit(r)}
+              disabled={isLoading}
+            >
               수정
             </FormButton>
             <FormButton
@@ -275,8 +378,21 @@ export default function UserManagementPage() {
 
   const renderUserCard = (r: AdminUserRow) => {
     const displayName = String(r.display_name ?? '').trim()
+    const canSms = hasSendablePhone(r)
     return (
       <article key={r.id} className="admin-user-card">
+        <div className="admin-user-card__row admin-user-card__row--select">
+          <label className="admin-user-card__select">
+            <input
+              type="checkbox"
+              checked={selectedIds.has(r.id)}
+              disabled={!canSms}
+              title={canSms ? '문자 발송 대상' : '등록된 연락처가 없어 문자를 보낼 수 없습니다.'}
+              onChange={() => toggleSelect(r.id, canSms)}
+            />
+            <span>선택</span>
+          </label>
+        </div>
         <div className="admin-user-card__row">
           <span className="admin-user-card__label">GA</span>
           <span className="admin-user-card__value">{r.ga_company_name}</span>
@@ -290,12 +406,22 @@ export default function UserManagementPage() {
           <span className="admin-user-card__value">{r.username}</span>
         </div>
         <div className="admin-user-card__row">
+          <span className="admin-user-card__label">연락처</span>
+          <span className="admin-user-card__value">{formatPhoneCell(r)}</span>
+        </div>
+        <div className="admin-user-card__row">
           <span className="admin-user-card__label">추천인</span>
           <span className="admin-user-card__value">{formatReferrer(r)}</span>
         </div>
         <div className="admin-user-card__row">
           <span className="admin-user-card__label">역할</span>
           <span className="admin-user-card__value">{r.role}</span>
+        </div>
+        <div className="admin-user-card__row">
+          <span className="admin-user-card__label">상태</span>
+          <span className="admin-user-card__value">
+            <AccountStatusBadge status={normalizeUserStatus(r.status as string)} />
+          </span>
         </div>
         <div className="admin-user-card__row">
           <span className="admin-user-card__label">구독 상태</span>
@@ -308,10 +434,22 @@ export default function UserManagementPage() {
           <span className="admin-user-card__value">{formatAdminUserLastLogin(r.last_login_at, true)}</span>
         </div>
         <div className="admin-user-card__actions">
-          <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={() => openEdit(r)} disabled={isLoading}>
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            className="button button--secondary"
+            onClick={() => openEdit(r)}
+            disabled={isLoading}
+          >
             수정
           </FormButton>
-          <FormButton htmlType="button" variant="danger" className="button button--danger" onClick={() => void confirmDeleteUser(r)} disabled={isLoading}>
+          <FormButton
+            htmlType="button"
+            variant="danger"
+            className="button button--danger"
+            onClick={() => void confirmDeleteUser(r)}
+            disabled={isLoading}
+          >
             삭제
           </FormButton>
         </div>
@@ -334,10 +472,15 @@ export default function UserManagementPage() {
     <main className="page page--with-back admin-user-management">
       <header className="page-header">
         <h1>유저 관리</h1>
-        <p>{loadError || saveOk || 'GA별로 사용자를 조회합니다.'}</p>
+        <p>{loadError || saveOk || 'GA별로 사용자를 조회하고 안내 문자를 발송합니다.'}</p>
       </header>
 
-      <section className="admin-toolbar admin-user-management__toolbar card auth-card" style={{ maxWidth: 'none', margin: 0 }}>
+      <StatusMessage message={listActionError} tone="error" className="m-0" />
+
+      <section
+        className="admin-toolbar admin-user-management__toolbar card auth-card"
+        style={{ maxWidth: 'none', margin: 0 }}
+      >
         <FieldWrapper label="GA 선택" className="admin-modal-field">
           <FormSelect
             className="admin-form-input"
@@ -349,7 +492,53 @@ export default function UserManagementPage() {
             }}
             disabled={isLoading}
             aria-busy={isLoading}
-            options={[{ value: '', label: '전체' }, ...gaList.map((g) => ({ value: String(g.id), label: g.name }))]}
+            options={[
+              { value: '', label: '전체' },
+              ...gaList.map((g) => ({ value: String(g.id), label: g.name })),
+            ]}
+          />
+        </FieldWrapper>
+        <FieldWrapper label="역할" className="admin-modal-field">
+          <FormSelect
+            className="admin-form-input"
+            value={roleFilter}
+            onChange={(e) => {
+              setSaveOk('')
+              setRoleFilter(e.target.value)
+            }}
+            disabled={isLoading}
+            options={ROLE_FILTER_OPTIONS}
+          />
+        </FieldWrapper>
+        <FieldWrapper label="계정 상태" className="admin-modal-field">
+          <FormSelect
+            className="admin-form-input"
+            value={statusFilter}
+            onChange={(e) => {
+              setSaveOk('')
+              setStatusFilter(e.target.value as EntityStatus | '')
+            }}
+            disabled={isLoading}
+            options={[
+              { value: '', label: '전체' },
+              ...ACCOUNT_STATUS_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label })),
+            ]}
+          />
+        </FieldWrapper>
+        <FieldWrapper label="연락처" className="admin-modal-field">
+          <FormSelect
+            className="admin-form-input"
+            value={hasPhoneFilter}
+            onChange={(e) => {
+              setSaveOk('')
+              setHasPhoneFilter(e.target.value as '' | 'yes' | 'no')
+            }}
+            disabled={isLoading}
+            options={[
+              { value: '', label: '전체' },
+              { value: 'yes', label: '연락처 있음' },
+              { value: 'no', label: '연락처 없음' },
+            ]}
           />
         </FieldWrapper>
         <FieldWrapper label="구독 상태" className="admin-modal-field">
@@ -367,7 +556,7 @@ export default function UserManagementPage() {
             }))}
           />
         </FieldWrapper>
-        <FieldWrapper label="이름 / 아이디 검색" className="admin-modal-field admin-user-management__search">
+        <FieldWrapper label="이름 / 아이디 / 연락처 검색" className="admin-modal-field admin-user-management__search">
           <FormInput
             className="admin-form-input"
             value={searchQuery}
@@ -375,22 +564,68 @@ export default function UserManagementPage() {
               setSaveOk('')
               setSearchQuery(e.target.value)
             }}
-            placeholder="이름 또는 아이디"
+            placeholder="이름, 아이디, 연락처"
             disabled={isLoading}
           />
         </FieldWrapper>
       </section>
 
-      <div className="card admin-user-management__table-wrap" style={{ maxWidth: 'none', margin: '16px 0 0', padding: 0 }}>
+      <section className="admin-user-management__bulk-bar card auth-card">
+        <p className="admin-user-management__bulk-summary">
+          {selectedIds.size}명 선택 · 발송 가능 {selectedSendableCount}명
+          {selectedNoPhoneCount > 0 ? ` · 연락처 없음 ${selectedNoPhoneCount}명` : ''}
+          <span className="admin-user-management__bulk-note">
+            {' '}
+            (현재 화면에 표시된 사용자만 선택합니다)
+          </span>
+        </p>
+        <div className="admin-user-management__bulk-actions">
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            className="button button--secondary"
+            onClick={selectCurrentPageSendable}
+            disabled={isLoading || selectableRows.length === 0}
+          >
+            현재 목록 전체 선택
+          </FormButton>
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            className="button button--secondary"
+            onClick={clearSelection}
+            disabled={selectedIds.size === 0}
+          >
+            선택 해제
+          </FormButton>
+          <FormButton
+            htmlType="button"
+            variant="primary"
+            className="button button--primary"
+            onClick={() => setComposerOpen(true)}
+            disabled={selectedSendableCount < 1}
+          >
+            문자 보내기 ({selectedSendableCount})
+          </FormButton>
+        </div>
+      </section>
+
+      <div
+        className="card admin-user-management__table-wrap"
+        style={{ maxWidth: 'none', margin: '16px 0 0', padding: 0 }}
+      >
         <div className="table-container table-container--desktop">
           <table className="admin-user-table admin-data-table">
             <thead>
               <tr>
+                <th scope="col">선택</th>
                 <th scope="col">GA</th>
                 <th scope="col">이름</th>
                 <th scope="col">아이디</th>
+                <th scope="col">연락처</th>
                 <th scope="col">추천인</th>
                 <th scope="col">역할</th>
+                <th scope="col">상태</th>
                 <th scope="col">구독 상태</th>
                 <th scope="col">최근 접속일</th>
                 <th scope="col" className="admin-table-cell--actions">
@@ -401,7 +636,7 @@ export default function UserManagementPage() {
             <tbody>
               {rows.length === 0 && !isLoading ? (
                 <tr>
-                  <td colSpan={8} style={{ padding: '20px 14px', color: 'var(--text-sub)' }}>
+                  <td colSpan={11} style={{ padding: '20px 14px', color: 'var(--text-sub)' }}>
                     표시할 사용자가 없습니다.
                   </td>
                 </tr>
@@ -420,6 +655,41 @@ export default function UserManagementPage() {
           )}
         </div>
       </div>
+
+      <section className="card admin-user-management__history" style={{ maxWidth: 'none', margin: '16px 0 0' }}>
+        <header className="admin-user-management__history-header">
+          <h2>문자 발송 이력</h2>
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            className="button button--secondary"
+            onClick={() => void loadHistory()}
+          >
+            새로고침
+          </FormButton>
+        </header>
+        <StatusMessage message={historyError} tone="error" className="m-0" />
+        {history.length === 0 ? (
+          <EmptyState message="발송 이력이 없습니다." className="m-0 px-1 py-2 text-[var(--text-sub)]" />
+        ) : (
+          <ul className="admin-user-management__history-list">
+            {history.map((c) => (
+              <li key={c.id}>
+                <strong>{c.title}</strong>
+                <span>
+                  #{c.id} · {c.status}
+                  {c.dryRun ? ' · dry-run' : ''} · {c.smsType} · 대상 {c.targetCount} · 성공{' '}
+                  {c.successCount} · 실패 {c.failedCount} · 제외 {c.excludedCount}
+                </span>
+                <span className="admin-user-management__history-meta">
+                  {c.requestedByDisplayName || c.requestedByUsername || c.requestedBy || '—'} ·{' '}
+                  {c.createdAt ? String(c.createdAt).slice(0, 19).replace('T', ' ') : '—'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       {editing ? (
         <FormDialog
@@ -464,6 +734,10 @@ export default function UserManagementPage() {
               />
             </FieldWrapper>
             <div className="admin-modal-field">
+              <span className="admin-user-card__label">연락처</span>
+              <div style={{ marginTop: 6, color: 'var(--text-primary)' }}>{formatPhoneCell(editing)}</div>
+            </div>
+            <div className="admin-modal-field">
               <span className="admin-user-card__label">현재 구독 상태</span>
               <div style={{ marginTop: 6 }}>
                 <SubscriptionStatusBadge row={editing} />
@@ -483,14 +757,41 @@ export default function UserManagementPage() {
             </div>
           </div>
           <div className="admin-modal-actions">
-            <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={closeEdit} disabled={isSaving}>
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              className="button button--secondary"
+              onClick={closeEdit}
+              disabled={isSaving}
+            >
               취소
             </FormButton>
-            <FormButton htmlType="button" variant="primary" className="button button--primary" loading={isSaving} loadingText="저장 중…" onClick={() => void submitEdit()}>
+            <FormButton
+              htmlType="button"
+              variant="primary"
+              className="button button--primary"
+              loading={isSaving}
+              loadingText="저장 중…"
+              onClick={() => void submitEdit()}
+            >
               저장
             </FormButton>
           </div>
         </FormDialog>
+      ) : null}
+
+      {token ? (
+        <CrmUserBulkSmsComposerDialog
+          open={composerOpen}
+          token={token}
+          selectedUserIds={[...selectedIds]}
+          runtime={runtime}
+          onClose={() => setComposerOpen(false)}
+          onSent={() => {
+            clearSelection()
+            void loadHistory()
+          }}
+        />
       ) : null}
       {confirmDialog}
     </main>

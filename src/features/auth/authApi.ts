@@ -578,6 +578,8 @@ export interface AdminUserRow {
   display_name: string
   ga_company_name: string
   username: string
+  /** CRM 사용자 프로필 연락처 SSOT (`users.phone_number`). 없으면 null */
+  phone_number: string | null
   role: UserRole
   status: EntityStatus
   created_at: string
@@ -596,6 +598,9 @@ export type AdminUserListFilters = {
   gaId?: number
   subscriptionStatus?: string
   q?: string
+  role?: string
+  status?: EntityStatus | ''
+  hasPhone?: 'yes' | 'no' | ''
 }
 
 /** 슈퍼 관리자 — GA 담당자(GA_ADMIN/GA_STAFF) 전용. 비밀번호는 관리 목적 평문(일반 유저와 무관). */
@@ -683,6 +688,15 @@ export async function listAdminUsers(
   }
   if (filters.q?.trim()) {
     params.set('q', filters.q.trim())
+  }
+  if (filters.role?.trim()) {
+    params.set('role', filters.role.trim())
+  }
+  if (filters.status?.trim()) {
+    params.set('status', filters.status.trim())
+  }
+  if (filters.hasPhone === 'yes' || filters.hasPhone === 'no') {
+    params.set('has_phone', filters.hasPhone)
   }
   const qs = params.toString()
   return apiRequest<AdminUserRow[]>(`/api/admin/users${qs ? `?${qs}` : ''}`, { method: 'GET', token })
