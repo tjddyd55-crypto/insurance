@@ -75,6 +75,21 @@ function hasSendablePhone(row: AdminUserRow): boolean {
   return /^01[0-9]\d{7,8}$/.test(digits)
 }
 
+/** 안내문자 선택: 일반 USER + 유효 연락처. 관리자·스탭·작성자 역할 제외. */
+function isBulkSmsSelectableUser(row: AdminUserRow): boolean {
+  return String(row.role ?? '').toUpperCase() === 'USER' && hasSendablePhone(row)
+}
+
+function bulkSmsDisabledReason(row: AdminUserRow): string {
+  if (String(row.role ?? '').toUpperCase() !== 'USER') {
+    return '일반 가입 사용자만 안내 문자를 받을 수 있습니다.'
+  }
+  if (!hasSendablePhone(row)) {
+    return '등록된 연락처가 없어 문자를 보낼 수 없습니다.'
+  }
+  return ''
+}
+
 function formatPhoneCell(row: AdminUserRow): string {
   if (!row.phone_number?.trim()) return '연락처 없음'
   return formatKrMobileDisplay(row.phone_number)
@@ -221,19 +236,22 @@ export default function UserManagementPage() {
     void loadHistory()
   }, [loadHistory])
 
-  const selectableRows = useMemo(() => rows.filter((r) => hasSendablePhone(r)), [rows])
+  const selectableRows = useMemo(() => rows.filter((r) => isBulkSmsSelectableUser(r)), [rows])
   const selectedSendableCount = useMemo(
-    () => rows.filter((r) => selectedIds.has(r.id) && hasSendablePhone(r)).length,
+    () => rows.filter((r) => selectedIds.has(r.id) && isBulkSmsSelectableUser(r)).length,
     [rows, selectedIds],
   )
   const selectedNoPhoneCount = useMemo(
-    () => rows.filter((r) => selectedIds.has(r.id) && !hasSendablePhone(r)).length,
+    () =>
+      rows.filter(
+        (r) => selectedIds.has(r.id) && String(r.role ?? '').toUpperCase() === 'USER' && !hasSendablePhone(r),
+      ).length,
     [rows, selectedIds],
   )
   const selectedDuplicatePhoneCount = useMemo(() => {
     const phoneCounts = new Map<string, number>()
     for (const row of rows) {
-      if (!selectedIds.has(row.id) || !hasSendablePhone(row)) continue
+      if (!selectedIds.has(row.id) || !isBulkSmsSelectableUser(row)) continue
       const digits = String(row.phone_number ?? '').replace(/\D/g, '')
       phoneCounts.set(digits, (phoneCounts.get(digits) ?? 0) + 1)
     }
@@ -245,7 +263,7 @@ export default function UserManagementPage() {
   }, [rows, selectedIds])
   const estimatedUniqueSendCount = Math.max(0, selectedSendableCount - selectedDuplicatePhoneCount)
   const selectedSendableUserIds = useMemo(
-    () => rows.filter((r) => selectedIds.has(r.id) && hasSendablePhone(r)).map((r) => r.id),
+    () => rows.filter((r) => selectedIds.has(r.id) && isBulkSmsSelectableUser(r)).map((r) => r.id),
     [rows, selectedIds],
   )
 
@@ -339,7 +357,8 @@ export default function UserManagementPage() {
 
   const renderRowCells = (r: AdminUserRow) => {
     const displayName = String(r.display_name ?? '').trim()
-    const canSms = hasSendablePhone(r)
+    const canSms = isBulkSmsSelectableUser(r)
+    const disabledReason = bulkSmsDisabledReason(r)
     return (
       <>
         <td className="admin-user-table__select">
@@ -347,7 +366,7 @@ export default function UserManagementPage() {
             type="checkbox"
             checked={selectedIds.has(r.id)}
             disabled={!canSms}
-            title={canSms ? '문자 발송 대상' : '등록된 연락처가 없어 문자를 보낼 수 없습니다.'}
+            title={canSms ? '문자 발송 대상' : disabledReason}
             onChange={() => toggleSelect(r.id, canSms)}
             aria-label={`${displayName || r.username} 선택`}
           />
@@ -398,7 +417,8 @@ export default function UserManagementPage() {
 
   const renderUserCard = (r: AdminUserRow) => {
     const displayName = String(r.display_name ?? '').trim()
-    const canSms = hasSendablePhone(r)
+    const canSms = isBulkSmsSelectableUser(r)
+    const disabledReason = bulkSmsDisabledReason(r)
     return (
       <article key={r.id} className="admin-user-card">
         <div className="admin-user-card__row admin-user-card__row--select">
@@ -407,7 +427,7 @@ export default function UserManagementPage() {
               type="checkbox"
               checked={selectedIds.has(r.id)}
               disabled={!canSms}
-              title={canSms ? '문자 발송 대상' : '등록된 연락처가 없어 문자를 보낼 수 없습니다.'}
+              title={canSms ? '문자 발송 대상' : disabledReason}
               onChange={() => toggleSelect(r.id, canSms)}
             />
             <span>선택</span>

@@ -79,3 +79,48 @@ test('resolveCrmUserBulkSmsRecipients excludes no-phone and duplicates', () => {
   assert.equal(recipients.filter((r) => r.status === 'PENDING').length, 1)
   assert.equal(recipients.find((r) => r.userId === 'u1')?.status, 'PENDING')
 })
+
+test('resolveCrmUserBulkSmsRecipients excludes non-USER roles', () => {
+  const { summary, recipients } = resolveCrmUserBulkSmsRecipients(
+    [
+      {
+        id: 'staff1',
+        display_name: 'Staff',
+        username: 'staff',
+        role: 'GA_STAFF',
+        status: 'active',
+        is_deleted: false,
+        phone_number: '01099998888',
+        ga_id: 1,
+        ga_company_name: 'GA1',
+      },
+      {
+        id: 'admin1',
+        display_name: 'Admin',
+        username: 'admin',
+        role: 'GA_ADMIN',
+        status: 'active',
+        is_deleted: false,
+        phone_number: '01077776666',
+        ga_id: 1,
+        ga_company_name: 'GA1',
+      },
+      {
+        id: 'user1',
+        display_name: 'User',
+        username: 'user',
+        role: 'USER',
+        status: 'active',
+        is_deleted: false,
+        phone_number: '01055554444',
+        ga_id: 1,
+        ga_company_name: 'GA1',
+      },
+    ],
+    '점검 안내입니다.',
+  )
+
+  assert.equal(summary.eligibleCount, 1)
+  assert.equal(summary.exclusionBreakdown.UNAUTHORIZED_SCOPE, 2)
+  assert.equal(recipients.find((r) => r.userId === 'user1')?.status, 'PENDING')
+})
