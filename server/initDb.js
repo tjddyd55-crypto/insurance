@@ -3953,6 +3953,9 @@ export async function initDb() {
   const { ensureSmsModuleSchema } = await import('./sms/ensureSmsModuleSchema.js')
   await ensureSmsModuleSchema(pool)
   console.log('[initDb][sms-module] schema ensure 완료')
+  const { ensureCrmUserBulkSmsSchema } = await import('./lib/crmUserBulkSmsSchema.js')
+  await ensureCrmUserBulkSmsSchema(pool)
+  console.log('[initDb][crm-user-bulk-sms] schema ensure 완료')
   await ensureNewsletterBoardScopeSchema(pool)
 
   console.log(`[initDb] 완료 (${Date.now() - startedAt}ms)`)

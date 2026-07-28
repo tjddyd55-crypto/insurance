@@ -40,7 +40,10 @@ import { registerTaCallApi } from './apis/taCallApi.js'
 import { registerSuperAdminAnalyticsApi } from './registerSuperAdminAnalyticsApi.js'
 import {
   mapAdminUserListRow,
+  parseAdminUserHasPhoneFilter,
+  parseAdminUserRoleFilter,
   parseAdminUserSearchQuery,
+  parseAdminUserStatusFilter,
   parseAdminUserSubscriptionFilter,
 } from './lib/adminUsersPresentation.js'
 import { registerGaCustomerExcelApi } from './apis/gaCustomerExcelApi.js'
@@ -149,6 +152,7 @@ import { registerInsurerSitesApi } from './registerInsurerSitesApi.js'
 import { registerPlatformAdminApi } from './registerPlatformAdminApi.js'
 import { registerCrmCustomerTemplateAdminApi } from './registerCrmCustomerTemplateAdminApi.js'
 import { registerSmsModuleApi } from './registerSmsModuleApi.js'
+import { registerCrmUserBulkSmsApi } from './registerCrmUserBulkSmsApi.js'
 import { startSmsAutomationScheduler } from './sms/smsAutomationScheduler.js'
 import { logSmsModuleEnvironmentHint, validateSmsModuleStartupConfig } from './sms/smsModuleConfig.js'
 import { registerContractPublicOtpApi } from './apis/contractPublicOtpApi.js'
@@ -1632,6 +1636,7 @@ registerInsurerSitesApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handl
 registerPlatformAdminApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
 registerCrmCustomerTemplateAdminApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
 registerSmsModuleApi(apiRouter, { pool, requireAuth, handleDbError })
+registerCrmUserBulkSmsApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
 const smsStartup = validateSmsModuleStartupConfig()
 if (!smsStartup.ok) {
   console.error(`[sms-module] startup blocked: ${smsStartup.message}`)
@@ -4001,6 +4006,11 @@ apiRouter.get('/admin/users', requireAuth, requireSuperAdmin, async (req, res) =
       req.query.subscription_status ?? req.query.subscriptionStatus,
     )
     const searchQuery = parseAdminUserSearchQuery(req.query.q ?? req.query.keyword)
+    const roleFilter = parseAdminUserRoleFilter(req.query.role)
+    const statusFilter = parseAdminUserStatusFilter(req.query.status)
+    const hasPhoneFilter = parseAdminUserHasPhoneFilter(
+      req.query.has_phone ?? req.query.hasPhone,
+    )
     const params = [filterGa]
     let paramIndex = 2
     let subscriptionClause = ''
@@ -4015,9 +4025,31 @@ apiRouter.get('/admin/users', requireAuth, requireSuperAdmin, async (req, res) =
     }
     let searchClause = ''
     if (searchQuery) {
-      searchClause = `AND (u.username ILIKE '%' || $${paramIndex} || '%' OR u.display_name ILIKE '%' || $${paramIndex} || '%')`
+      searchClause = `AND (
+        u.username ILIKE '%' || $${paramIndex} || '%'
+        OR u.display_name ILIKE '%' || $${paramIndex} || '%'
+        OR COALESCE(u.phone_number, '') ILIKE '%' || $${paramIndex} || '%'
+      )`
       params.push(searchQuery)
       paramIndex += 1
+    }
+    let roleClause = ''
+    if (roleFilter) {
+      roleClause = `AND UPPER(TRIM(u.role)) = $${paramIndex}`
+      params.push(roleFilter)
+      paramIndex += 1
+    }
+    let statusClause = ''
+    if (statusFilter) {
+      statusClause = `AND LOWER(TRIM(u.status)) = $${paramIndex}`
+      params.push(statusFilter)
+      paramIndex += 1
+    }
+    let phoneClause = ''
+    if (hasPhoneFilter === 'yes') {
+      phoneClause = `AND NULLIF(TRIM(COALESCE(u.phone_number, '')), '') IS NOT NULL`
+    } else if (hasPhoneFilter === 'no') {
+      phoneClause = `AND NULLIF(TRIM(COALESCE(u.phone_number, '')), '') IS NULL`
     }
     const r = await safeQuery(pool,
       `
@@ -4027,6 +4059,7 @@ apiRouter.get('/admin/users', requireAuth, requireSuperAdmin, async (req, res) =
         u.display_name,
         g.name AS ga_company_name,
         u.username,
+        u.phone_number,
         u.role,
         u.status,
         u.created_at,
@@ -4056,6 +4089,9 @@ apiRouter.get('/admin/users', requireAuth, requireSuperAdmin, async (req, res) =
         AND ($1::int IS NULL OR u.ga_id = $1::int)
         ${subscriptionClause}
         ${searchClause}
+        ${roleClause}
+        ${statusClause}
+        ${phoneClause}
       ORDER BY g.name ASC, u.username ASC
       `,
       params,
