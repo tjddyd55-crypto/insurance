@@ -80,7 +80,6 @@ export default function CrmUserBulkSmsHistoryDetailDialog({
       overlayClassName="admin-modal-backdrop admin-user-bulk-sms-modal-backdrop"
       closeOnBackdrop={false}
       closeOnEsc={!loading}
-      panelPreset="largeForm"
       footer={
         <div className="admin-user-bulk-sms-history-modal__footer admin-modal-actions">
           <FormButton

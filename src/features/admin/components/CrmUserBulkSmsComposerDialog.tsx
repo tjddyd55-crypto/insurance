@@ -124,7 +124,6 @@ export default function CrmUserBulkSmsComposerDialog({
         overlayClassName="admin-modal-backdrop admin-user-bulk-sms-modal-backdrop"
         closeOnBackdrop={false}
         closeOnEsc={!busy}
-        panelPreset="largeForm"
         footer={
           <div className="admin-user-bulk-sms-modal__footer admin-modal-actions">
             <FormButton
