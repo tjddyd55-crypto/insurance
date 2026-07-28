@@ -318,9 +318,11 @@
 }
 
 /*
- * largeForm preset 기본폭(min(1080px,92vw))이 이 폼에는 과도하다.
- * 작성·이력 모달만 720px 셸로 좁히고 header/body/footer flex 를 고정한다.
+ * FormDialog default preset(max-w-md) 과 admin-modal-panel(max-width:400px) 을
+ * 이 모달에서만 720px flex 셸로 대체한다. largeForm(1080px !important) 은 쓰지 않는다.
  */
+.customer-ui-modal-panel.admin-modal-panel.admin-user-bulk-sms-modal,
+.customer-ui-modal-panel.admin-modal-panel.admin-user-bulk-sms-history-modal,
 .admin-modal-panel.admin-user-bulk-sms-modal,
 .admin-modal-panel.admin-user-bulk-sms-history-modal {
   width: min(720px, calc(100vw - 32px)) !important;
@@ -531,6 +533,8 @@
     padding: 8px;
   }
 
+  .customer-ui-modal-panel.admin-modal-panel.admin-user-bulk-sms-modal,
+  .customer-ui-modal-panel.admin-modal-panel.admin-user-bulk-sms-history-modal,
   .admin-modal-panel.admin-user-bulk-sms-modal,
   .admin-modal-panel.admin-user-bulk-sms-history-modal {
     width: calc(100vw - 16px) !important;
