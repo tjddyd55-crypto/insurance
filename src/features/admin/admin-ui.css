@@ -310,10 +310,174 @@
   font-size: 12px;
 }
 
+.admin-user-bulk-sms-modal-backdrop.admin-modal-backdrop {
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  box-sizing: border-box;
+}
+
+/*
+ * largeForm preset 기본폭(min(1080px,92vw))이 이 폼에는 과도하다.
+ * 작성·이력 모달만 720px 셸로 좁히고 header/body/footer flex 를 고정한다.
+ */
+.admin-modal-panel.admin-user-bulk-sms-modal,
+.admin-modal-panel.admin-user-bulk-sms-history-modal {
+  width: min(720px, calc(100vw - 32px)) !important;
+  max-width: min(720px, calc(100vw - 32px)) !important;
+  max-height: min(820px, calc(100vh - 48px)) !important;
+  margin: 0;
+  padding: 0 !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  box-sizing: border-box;
+}
+
+.admin-user-bulk-sms-modal > h2,
+.admin-user-bulk-sms-history-modal > h2 {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 20px 24px 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* FormDialog children wrapper (.mt-4) — body scroll */
+.admin-user-bulk-sms-modal > .mt-4,
+.admin-user-bulk-sms-history-modal > .mt-4 {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-top: 0 !important;
+  padding: 16px 24px 8px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+/* FormDialog footer wrapper (.mt-5) — sticky footer */
+.admin-user-bulk-sms-modal > .mt-5,
+.admin-user-bulk-sms-history-modal > .mt-5 {
+  flex: 0 0 auto;
+  margin-top: 0 !important;
+  padding: 16px 24px 20px;
+  border-top: 1px solid var(--border-default);
+  background: var(--bg-elevated, var(--bg-surface));
+  box-sizing: border-box;
+}
+
+.admin-user-bulk-sms-modal__body,
 .admin-user-bulk-sms-history-modal__body {
   display: flex;
   flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.admin-user-bulk-sms-modal__hint {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.admin-user-bulk-sms-modal .admin-modal-field {
+  gap: 8px;
+}
+
+.admin-user-bulk-sms-modal .admin-form-input:not(textarea) {
+  height: var(--control-height-md, 40px);
+  min-height: var(--control-height-md, 40px);
+  max-height: var(--control-height-md, 40px);
+  padding: 0 12px;
+  box-sizing: border-box;
+}
+
+.admin-user-bulk-sms-modal__message-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
+}
+
+.admin-user-bulk-sms-modal__message-meta {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.admin-user-bulk-sms-modal__textarea,
+.admin-user-bulk-sms-modal textarea.form-textarea.admin-user-bulk-sms-modal__textarea {
+  display: block;
+  width: 100%;
+  min-height: 160px;
+  height: auto;
+  max-height: none;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background: var(--input-bg, var(--bg-input));
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.5;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.admin-user-bulk-sms-modal__textarea:focus,
+.admin-user-bulk-sms-modal__textarea:focus-visible {
+  border-color: var(--input-focus-border, var(--brand-primary));
+  outline: none;
+  box-shadow: none;
+}
+
+.admin-user-bulk-sms-modal__vars {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+.admin-user-bulk-sms-modal__preview {
+  margin: 0;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--hint-border, var(--border-default));
+  background: var(--hint-bg, var(--bg-soft));
+  color: var(--hint-text, var(--text-secondary));
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.admin-user-bulk-sms-modal__preview p {
+  margin: 0 0 6px;
+}
+
+.admin-user-bulk-sms-modal__preview p:last-child {
+  margin-bottom: 0;
+}
+
+.admin-user-bulk-sms-modal__preview-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.admin-user-bulk-sms-modal__footer.admin-modal-actions,
+.admin-user-bulk-sms-history-modal__footer.admin-modal-actions {
+  margin-top: 0;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.admin-user-bulk-sms-modal__footer .button,
+.admin-user-bulk-sms-history-modal__footer .button {
+  min-height: var(--control-height-md, 40px);
+  height: var(--control-height-md, 40px);
+  padding: 0 14px;
 }
 
 .admin-user-bulk-sms-history-modal__loading,
@@ -343,7 +507,7 @@
 
 .admin-user-bulk-sms-history-modal__table-wrap {
   overflow-x: auto;
-  max-height: min(48vh, 420px);
+  max-height: min(42vh, 360px);
   border: 1px solid var(--border-default);
   border-radius: 8px;
 }
@@ -362,39 +526,59 @@
   vertical-align: top;
 }
 
+@media (max-width: 480px) {
+  .admin-user-bulk-sms-modal-backdrop.admin-modal-backdrop {
+    padding: 8px;
+  }
+
+  .admin-modal-panel.admin-user-bulk-sms-modal,
+  .admin-modal-panel.admin-user-bulk-sms-history-modal {
+    width: calc(100vw - 16px) !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100vh - 16px) !important;
+  }
+
+  .admin-user-bulk-sms-modal > h2,
+  .admin-user-bulk-sms-history-modal > h2 {
+    padding: 16px 16px 0;
+  }
+
+  .admin-user-bulk-sms-modal > .mt-4,
+  .admin-user-bulk-sms-history-modal > .mt-4 {
+    padding: 12px 16px 8px;
+  }
+
+  .admin-user-bulk-sms-modal > .mt-5,
+  .admin-user-bulk-sms-history-modal > .mt-5 {
+    padding: 12px 16px 16px;
+  }
+
+  .admin-user-bulk-sms-modal__textarea,
+  .admin-user-bulk-sms-modal textarea.form-textarea.admin-user-bulk-sms-modal__textarea {
+    min-height: 140px;
+  }
+
+  .admin-user-bulk-sms-modal__footer.admin-modal-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .admin-user-bulk-sms-modal__footer.admin-modal-actions .button:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .admin-user-bulk-sms-modal__footer .button,
+  .admin-user-bulk-sms-history-modal__footer .button {
+    width: 100%;
+  }
+}
+
 @media (max-width: 768px) {
   .admin-user-management__history-row {
     flex-direction: column;
     align-items: stretch;
   }
-}
-
-.admin-user-bulk-sms-modal__hint,
-.admin-user-bulk-sms-modal__vars {
-  margin: 0 0 8px;
-  color: var(--text-secondary);
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.admin-user-bulk-sms-modal__textarea {
-  min-height: 140px;
-  resize: vertical;
-}
-
-.admin-user-bulk-sms-modal__preview {
-  margin-top: 8px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--hint-border, var(--border-default));
-  background: var(--hint-bg, var(--bg-soft));
-  color: var(--hint-text, var(--text-secondary));
-  font-size: 13px;
-}
-
-.admin-user-bulk-sms-modal__preview-list {
-  margin: 8px 0 0;
-  padding-left: 18px;
 }
 
 @media (max-width: 768px) {

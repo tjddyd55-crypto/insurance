@@ -121,12 +121,52 @@ export default function CrmUserBulkSmsComposerDialog({
         }}
         title="사용자 단체문자 보내기"
         panelClassName="admin-modal-panel admin-user-bulk-sms-modal"
-        overlayClassName="admin-modal-backdrop"
+        overlayClassName="admin-modal-backdrop admin-user-bulk-sms-modal-backdrop"
         closeOnBackdrop={false}
         closeOnEsc={!busy}
         panelPreset="largeForm"
+        footer={
+          <div className="admin-user-bulk-sms-modal__footer admin-modal-actions">
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              className="button button--secondary"
+              onClick={onClose}
+              disabled={busy}
+            >
+              취소
+            </FormButton>
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              className="button button--secondary"
+              onClick={() => void runPreview()}
+              disabled={busy || !message.trim() || selectedUserIds.length === 0}
+              loading={busy && !preview}
+              loadingText="미리보기…"
+            >
+              미리보기
+            </FormButton>
+            <FormButton
+              htmlType="button"
+              variant="primary"
+              className="button button--primary"
+              onClick={() => void runSend()}
+              disabled={
+                busy ||
+                !preview ||
+                preview.summary.eligibleCount < 1 ||
+                (Boolean(preview.runtime.realSendEnabled) && !preview.senderNumber)
+              }
+              loading={busy && Boolean(preview)}
+              loadingText="발송 중…"
+            >
+              발송
+            </FormButton>
+          </div>
+        }
       >
-        <div className="admin-modal-content admin-user-bulk-sms-modal__body">
+        <div className="admin-user-bulk-sms-modal__body">
           <p className="admin-user-bulk-sms-modal__hint">
             선택한 CRM 사용자에게 안내 문자를 발송합니다. 광고·홍보성 문자는 이 기능으로 발송할 수
             없습니다.
@@ -153,22 +193,25 @@ export default function CrmUserBulkSmsComposerDialog({
             />
           </FieldWrapper>
 
-          <FieldWrapper
-            label={`문자 내용 (${byteCount}byte · 예상 ${localType})`}
-            className="admin-modal-field"
-          >
+          <div className="admin-modal-field admin-user-bulk-sms-modal__message-field">
+            <div className="admin-user-bulk-sms-modal__message-label-row">
+              <span className="field__label">문자 내용</span>
+              <span className="admin-user-bulk-sms-modal__message-meta">
+                {byteCount}byte · 예상 {localType}
+              </span>
+            </div>
             <FormTextarea
-              className="admin-form-input admin-user-bulk-sms-modal__textarea"
+              className="admin-user-bulk-sms-modal__textarea"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               disabled={busy}
               rows={6}
               placeholder="{사용자명}님, 서비스 점검 안내드립니다."
             />
-          </FieldWrapper>
-          <p className="admin-user-bulk-sms-modal__vars">
-            변수: {'{사용자명}'} {'{아이디}'} {'{소속명}'} {'{서비스명}'}
-          </p>
+            <p className="admin-user-bulk-sms-modal__vars">
+              변수: {'{사용자명}'} {'{아이디}'} {'{소속명}'} {'{서비스명}'}
+            </p>
+          </div>
 
           {preview ? (
             <div className="admin-user-bulk-sms-modal__preview">
@@ -193,45 +236,6 @@ export default function CrmUserBulkSmsComposerDialog({
               </ul>
             </div>
           ) : null}
-        </div>
-
-        <div className="admin-modal-actions">
-          <FormButton
-            htmlType="button"
-            variant="secondary"
-            className="button button--secondary"
-            onClick={onClose}
-            disabled={busy}
-          >
-            취소
-          </FormButton>
-          <FormButton
-            htmlType="button"
-            variant="secondary"
-            className="button button--secondary"
-            onClick={() => void runPreview()}
-            disabled={busy || !message.trim() || selectedUserIds.length === 0}
-            loading={busy && !preview}
-            loadingText="미리보기…"
-          >
-            미리보기
-          </FormButton>
-          <FormButton
-            htmlType="button"
-            variant="primary"
-            className="button button--primary"
-            onClick={() => void runSend()}
-            disabled={
-              busy ||
-              !preview ||
-              preview.summary.eligibleCount < 1 ||
-              (Boolean(preview.runtime.realSendEnabled) && !preview.senderNumber)
-            }
-            loading={busy && Boolean(preview)}
-            loadingText="발송 중…"
-          >
-            발송
-          </FormButton>
         </div>
       </FormDialog>
       {confirmDialog}

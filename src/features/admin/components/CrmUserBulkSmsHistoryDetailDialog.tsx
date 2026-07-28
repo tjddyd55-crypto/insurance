@@ -77,12 +77,25 @@ export default function CrmUserBulkSmsHistoryDetailDialog({
       }}
       title="문자 발송 상세"
       panelClassName="admin-modal-panel admin-user-bulk-sms-history-modal"
-      overlayClassName="admin-modal-backdrop"
+      overlayClassName="admin-modal-backdrop admin-user-bulk-sms-modal-backdrop"
       closeOnBackdrop={false}
       closeOnEsc={!loading}
       panelPreset="largeForm"
+      footer={
+        <div className="admin-user-bulk-sms-history-modal__footer admin-modal-actions">
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            className="button button--secondary"
+            onClick={onClose}
+            disabled={loading}
+          >
+            닫기
+          </FormButton>
+        </div>
+      }
     >
-      <div className="admin-modal-content admin-user-bulk-sms-history-modal__body">
+      <div className="admin-user-bulk-sms-history-modal__body">
         <StatusMessage message={error} tone="error" className="m-0" />
         {loading ? <p className="admin-user-bulk-sms-history-modal__loading">불러오는 중…</p> : null}
         {!loading && campaign ? (
@@ -148,17 +161,6 @@ export default function CrmUserBulkSmsHistoryDetailDialog({
             )}
           </>
         ) : null}
-      </div>
-      <div className="admin-modal-actions">
-        <FormButton
-          htmlType="button"
-          variant="secondary"
-          className="button button--secondary"
-          onClick={onClose}
-          disabled={loading}
-        >
-          닫기
-        </FormButton>
       </div>
     </FormDialog>
   )
