@@ -148,6 +148,57 @@ body {
   overflow: hidden;
 }
 
+/*
+ * 공개 공유 계정관리 (/share/account-credentials/*)
+ * — 문서(document) 세로 스크롤.
+ *
+ * 원인: 로그인 상태(PC≥1024)에서 `.app-root--authenticated` 가
+ * `height:100dvh + overflow:hidden` 으로 셸을 고정하는데,
+ * 공유 페이지에는 내부 scroll container 가 없어 하단 행·저장 버튼이 잘린다.
+ * `.content-wrapper { height:100% }` 도 뷰포트에 맞춰 높이를 고정한다.
+ *
+ * AppLayout 이 `.app-root--external-account-vault` 를 붙이므로
+ * 이 라우트만 document scroll 로 풀어 다른 CRM 화면에 영향 주지 않는다.
+ */
+html:has(.app-root--external-account-vault),
+body:has(.app-root--external-account-vault) {
+  height: auto;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+#root:has(.app-root--external-account-vault) {
+  height: auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.app-root.app-root--external-account-vault {
+  height: auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  max-height: none;
+  overflow: visible;
+}
+
+.app-root.app-root--external-account-vault .main-container {
+  display: block;
+  height: auto;
+  min-height: 0;
+  flex: none;
+  overflow: visible;
+}
+
+.app-root.app-root--external-account-vault .external-account-vault-page.content-wrapper,
+.app-root.app-root--external-account-vault .shared-account-workspace-page.content-wrapper {
+  height: auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: visible;
+  padding-bottom: max(24px, env(safe-area-inset-bottom, 0px));
+}
+
 /* 모바일 로그인 — 셸은 고정, 본문(.auth-page--mobile-login)만 스크롤 */
 .app-root:not(.app-root--authenticated):has(.auth-page--mobile-login) {
   height: 100%;
@@ -200,6 +251,26 @@ body {
     flex: 1 1 auto;
     min-height: 0;
     overflow: hidden;
+  }
+
+  /*
+   * 공개 공유 계정관리: 인증 셸 viewport lock 을 이 라우트에서만 해제한다.
+   * (위 authenticated 규칙보다 구체도를 한 단계 높여 document scroll 유지)
+   */
+  .app-root.app-root--authenticated.app-root--external-account-vault {
+    height: auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .app-root.app-root--authenticated.app-root--external-account-vault .main-container {
+    display: block;
+    flex: none;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
   }
 }
 
