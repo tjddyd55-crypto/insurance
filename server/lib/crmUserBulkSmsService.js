@@ -619,10 +619,13 @@ export async function getCrmUserBulkSmsCampaignDetail(pool, campaignId) {
   }
   const c = await systemQuery(
     pool,
-    `SELECT id, title, status, dry_run, sms_type, message_template, sender_number,
-            target_count, eligible_count, success_count, failed_count, excluded_count,
-            created_at, started_at, completed_at, requested_by
-     FROM crm_user_bulk_sms_campaigns WHERE id = $1`,
+    `SELECT c.id, c.title, c.status, c.dry_run, c.sms_type, c.message_template, c.sender_number,
+            c.target_count, c.eligible_count, c.success_count, c.failed_count, c.excluded_count,
+            c.created_at, c.started_at, c.completed_at, c.requested_by,
+            u.username AS requested_by_username, u.display_name AS requested_by_display_name
+     FROM crm_user_bulk_sms_campaigns c
+     LEFT JOIN users u ON u.id = c.requested_by
+     WHERE c.id = $1`,
     [id],
   )
   if (!c.rows[0]) {
@@ -645,6 +648,8 @@ export async function getCrmUserBulkSmsCampaignDetail(pool, campaignId) {
     campaign: {
       ...mapCampaignRow(c.rows[0]),
       messageTemplate: c.rows[0].message_template,
+      requestedByUsername: c.rows[0].requested_by_username ?? null,
+      requestedByDisplayName: c.rows[0].requested_by_display_name ?? null,
     },
     recipients: recipients.rows.map((r) => ({
       userId: r.user_id,

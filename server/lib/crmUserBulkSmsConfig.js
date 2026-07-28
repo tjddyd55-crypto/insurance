@@ -5,12 +5,29 @@ function normalizeBooleanEnv(raw) {
   return s === '1' || s === 'TRUE' || s === 'YES' || s === 'Y' || s === 'ON' || s === 'T'
 }
 
-function isProductionRuntime() {
-  const nodeEnv = String(process.env.NODE_ENV ?? '').trim().toLowerCase()
-  if (nodeEnv === 'production') return true
-  if (String(process.env.RAILWAY_ENVIRONMENT ?? '').trim()) return true
-  const appEnv = String(process.env.APP_ENV ?? '').trim().toLowerCase()
-  return appEnv === 'production'
+/**
+ * Railway develop 도 NODE_ENV=production 인 경우가 많아,
+ * RAILWAY_ENVIRONMENT / APP_ENV 를 우선한다.
+ * (아무 Railway env 값이나 production 으로 오판하지 않음)
+ */
+export function isProductionRuntime(env = process.env) {
+  const railwayEnv = String(env.RAILWAY_ENVIRONMENT ?? '').trim().toLowerCase()
+  if (railwayEnv === 'production' || railwayEnv === 'prod') return true
+  if (
+    railwayEnv === 'development' ||
+    railwayEnv === 'dev' ||
+    railwayEnv === 'staging' ||
+    railwayEnv === 'preview'
+  ) {
+    return false
+  }
+
+  const appEnv = String(env.APP_ENV ?? '').trim().toLowerCase()
+  if (appEnv === 'production' || appEnv === 'prod') return true
+  if (appEnv === 'development' || appEnv === 'dev' || appEnv === 'staging') return false
+
+  const nodeEnv = String(env.NODE_ENV ?? '').trim().toLowerCase()
+  return nodeEnv === 'production'
 }
 
 /** Feature gate — 기본 true (API 노출). false 면 403. */

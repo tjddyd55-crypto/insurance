@@ -28,6 +28,7 @@ import {
   type AdminUserSubscriptionFilter,
 } from '../adminUserPresentation'
 import CrmUserBulkSmsComposerDialog from '../components/CrmUserBulkSmsComposerDialog'
+import CrmUserBulkSmsHistoryDetailDialog from '../components/CrmUserBulkSmsHistoryDetailDialog'
 
 const ACCOUNT_STATUS_META: Record<EntityStatus, { label: string; fg: string; bg: string }> = {
   active: {
@@ -148,6 +149,7 @@ export default function UserManagementPage() {
   const [runtime, setRuntime] = useState<CrmUserBulkSmsRuntime | null>(null)
   const [history, setHistory] = useState<CrmUserBulkSmsCampaign[]>([])
   const [historyError, setHistoryError] = useState('')
+  const [historyDetailId, setHistoryDetailId] = useState<number | null>(null)
 
   useEffect(() => {
     if (user?.role !== 'SUPER_ADMIN' || !token?.trim()) return
@@ -226,6 +228,24 @@ export default function UserManagementPage() {
   )
   const selectedNoPhoneCount = useMemo(
     () => rows.filter((r) => selectedIds.has(r.id) && !hasSendablePhone(r)).length,
+    [rows, selectedIds],
+  )
+  const selectedDuplicatePhoneCount = useMemo(() => {
+    const phoneCounts = new Map<string, number>()
+    for (const row of rows) {
+      if (!selectedIds.has(row.id) || !hasSendablePhone(row)) continue
+      const digits = String(row.phone_number ?? '').replace(/\D/g, '')
+      phoneCounts.set(digits, (phoneCounts.get(digits) ?? 0) + 1)
+    }
+    let duplicateExcluded = 0
+    for (const count of phoneCounts.values()) {
+      if (count > 1) duplicateExcluded += count - 1
+    }
+    return duplicateExcluded
+  }, [rows, selectedIds])
+  const estimatedUniqueSendCount = Math.max(0, selectedSendableCount - selectedDuplicatePhoneCount)
+  const selectedSendableUserIds = useMemo(
+    () => rows.filter((r) => selectedIds.has(r.id) && hasSendablePhone(r)).map((r) => r.id),
     [rows, selectedIds],
   )
 
@@ -572,8 +592,11 @@ export default function UserManagementPage() {
 
       <section className="admin-user-management__bulk-bar card auth-card">
         <p className="admin-user-management__bulk-summary">
-          {selectedIds.size}명 선택 · 발송 가능 {selectedSendableCount}명
+          {selectedIds.size}명 선택 · 발송 가능 {estimatedUniqueSendCount}명
           {selectedNoPhoneCount > 0 ? ` · 연락처 없음 ${selectedNoPhoneCount}명` : ''}
+          {selectedDuplicatePhoneCount > 0
+            ? ` · 중복 연락처 ${selectedDuplicatePhoneCount}명 제외`
+            : ''}
           <span className="admin-user-management__bulk-note">
             {' '}
             (현재 화면에 표시된 사용자만 선택합니다)
@@ -605,7 +628,7 @@ export default function UserManagementPage() {
             onClick={() => setComposerOpen(true)}
             disabled={selectedSendableCount < 1}
           >
-            문자 보내기 ({selectedSendableCount})
+            문자 보내기 ({estimatedUniqueSendCount})
           </FormButton>
         </div>
       </section>
@@ -675,16 +698,28 @@ export default function UserManagementPage() {
           <ul className="admin-user-management__history-list">
             {history.map((c) => (
               <li key={c.id}>
-                <strong>{c.title}</strong>
-                <span>
-                  #{c.id} · {c.status}
-                  {c.dryRun ? ' · dry-run' : ''} · {c.smsType} · 대상 {c.targetCount} · 성공{' '}
-                  {c.successCount} · 실패 {c.failedCount} · 제외 {c.excludedCount}
-                </span>
-                <span className="admin-user-management__history-meta">
-                  {c.requestedByDisplayName || c.requestedByUsername || c.requestedBy || '—'} ·{' '}
-                  {c.createdAt ? String(c.createdAt).slice(0, 19).replace('T', ' ') : '—'}
-                </span>
+                <div className="admin-user-management__history-row">
+                  <div className="admin-user-management__history-main">
+                    <strong>{c.title}</strong>
+                    <span>
+                      #{c.id} · {c.status}
+                      {c.dryRun ? ' · dry-run' : ''} · {c.smsType} · 대상 {c.targetCount} · 성공{' '}
+                      {c.successCount} · 실패 {c.failedCount} · 제외 {c.excludedCount}
+                    </span>
+                    <span className="admin-user-management__history-meta">
+                      {c.requestedByDisplayName || c.requestedByUsername || c.requestedBy || '—'} ·{' '}
+                      {c.createdAt ? String(c.createdAt).slice(0, 19).replace('T', ' ') : '—'}
+                    </span>
+                  </div>
+                  <FormButton
+                    htmlType="button"
+                    variant="secondary"
+                    className="button button--secondary"
+                    onClick={() => setHistoryDetailId(c.id)}
+                  >
+                    상세보기
+                  </FormButton>
+                </div>
               </li>
             ))}
           </ul>
@@ -784,13 +819,21 @@ export default function UserManagementPage() {
         <CrmUserBulkSmsComposerDialog
           open={composerOpen}
           token={token}
-          selectedUserIds={[...selectedIds]}
+          selectedUserIds={selectedSendableUserIds}
           runtime={runtime}
           onClose={() => setComposerOpen(false)}
           onSent={() => {
             clearSelection()
             void loadHistory()
           }}
+        />
+      ) : null}
+      {token ? (
+        <CrmUserBulkSmsHistoryDetailDialog
+          open={historyDetailId != null}
+          token={token}
+          campaignId={historyDetailId}
+          onClose={() => setHistoryDetailId(null)}
         />
       ) : null}
       {confirmDialog}

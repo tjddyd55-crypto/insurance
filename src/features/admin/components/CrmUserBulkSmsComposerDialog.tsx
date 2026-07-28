@@ -122,7 +122,7 @@ export default function CrmUserBulkSmsComposerDialog({
         title="사용자 단체문자 보내기"
         panelClassName="admin-modal-panel admin-user-bulk-sms-modal"
         overlayClassName="admin-modal-backdrop"
-        closeOnBackdrop={!busy}
+        closeOnBackdrop={false}
         closeOnEsc={!busy}
         panelPreset="largeForm"
       >
