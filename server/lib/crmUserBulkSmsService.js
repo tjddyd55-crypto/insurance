@@ -260,9 +260,40 @@ export async function previewCrmUserBulkSms(pool, input) {
       (summary.exclusionBreakdown.UNAUTHORIZED_SCOPE ?? 0) + 1
   }
 
-  const sender =
+  const senderFromInputOrEnv =
     normalizeSenderNumber(input.senderNumber) ||
     normalizeSenderNumber(getCrmUserBulkSmsDefaultSender())
+
+  let sender = senderFromInputOrEnv
+  if (!sender && input.actorUserId) {
+    try {
+      const senderRow = await systemQuery(
+        pool,
+        `
+        SELECT COALESCE(
+          NULLIF(regexp_replace(COALESCE(p.default_sender, ''), '[^0-9]', '', 'g'), ''),
+          (
+            SELECT regexp_replace(s.sender_number, '[^0-9]', '', 'g')
+            FROM sms_sender_numbers s
+            WHERE s.user_id = $1
+              AND COALESCE(s.status, '') IN ('approved', 'APPROVED', 'active', 'ACTIVE')
+            ORDER BY s.is_default DESC NULLS LAST, s.id ASC
+            LIMIT 1
+          )
+        ) AS sender
+        FROM users u
+        LEFT JOIN sms_provider_accounts p ON p.user_id = u.id
+        WHERE u.id = $1
+        LIMIT 1
+        `,
+        [String(input.actorUserId)],
+      )
+      sender = normalizeSenderNumber(senderRow.rows[0]?.sender) || null
+    } catch {
+      // 스키마/테이블이 없어도 preview 자체는 계속 진행
+      sender = null
+    }
+  }
 
   return {
     runtime: getCrmUserBulkSmsRuntimeInfo(),
@@ -330,18 +361,23 @@ export async function sendCrmUserBulkSms(pool, input) {
     throw err
   }
 
-  const senderNumber = preview.senderNumber
-  if (!senderNumber) {
-    const err = new Error('sender_required')
-    err.status = 400
-    err.publicMessage = '발신번호를 설정해 주세요.'
-    throw err
-  }
-
   const realSend = isCrmUserBulkSmsRealSendEnabled()
   const allowlist = getCrmUserBulkSmsDevAllowlist()
   const production = getCrmUserBulkSmsRuntimeInfo().productionRuntime
   const dryRun = !realSend
+
+  // dry-run 은 발신번호 없이도 캠페인 기록을 남긴다. 실발송만 필수.
+  let senderNumber = preview.senderNumber
+  if (!senderNumber) {
+    if (dryRun) {
+      senderNumber = '00000000000'
+    } else {
+      const err = new Error('sender_required')
+      err.status = 400
+      err.publicMessage = '발신번호를 설정해 주세요.'
+      throw err
+    }
+  }
 
   const client = await pool.connect()
   let campaignId

@@ -177,6 +177,12 @@ export default function CrmUserBulkSmsComposerDialog({
                 제외 {preview.summary.excludedCount}명 · {preview.summary.smsType}
                 {preview.runtime.realSendEnabled ? '' : ' · dry-run'}
               </p>
+              {!preview.senderNumber && !preview.runtime.realSendEnabled ? (
+                <p>발신번호 미설정 — dry-run 기록만 남깁니다. 실발송 전 발신번호를 설정하세요.</p>
+              ) : null}
+              {!preview.senderNumber && preview.runtime.realSendEnabled ? (
+                <p>발신번호가 없어 실발송할 수 없습니다.</p>
+              ) : null}
               <ul className="admin-user-bulk-sms-modal__preview-list">
                 {preview.recipients.slice(0, 12).map((r) => (
                   <li key={r.userId}>
@@ -215,7 +221,12 @@ export default function CrmUserBulkSmsComposerDialog({
             variant="primary"
             className="button button--primary"
             onClick={() => void runSend()}
-            disabled={busy || !preview || preview.summary.eligibleCount < 1}
+            disabled={
+              busy ||
+              !preview ||
+              preview.summary.eligibleCount < 1 ||
+              (Boolean(preview.runtime.realSendEnabled) && !preview.senderNumber)
+            }
             loading={busy && Boolean(preview)}
             loadingText="발송 중…"
           >
