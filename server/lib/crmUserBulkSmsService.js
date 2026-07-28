@@ -17,6 +17,9 @@ const SERVICE_NAME = 'ONE FC'
 export const CRM_USER_BULK_SMS_AUDIENCE = 'CRM_USER'
 export const CRM_USER_BULK_SMS_SOURCE = 'SUPER_ADMIN_BULK_NOTICE'
 
+/** CRM 일반 가입 사용자만 안내문자 대상. 관리자·스탭·작성자 역할은 제외. */
+export const CRM_USER_BULK_SMS_ELIGIBLE_ROLES = new Set(['USER'])
+
 /**
  * @param {string | null | undefined} phone
  */
@@ -121,6 +124,15 @@ export function resolveCrmUserBulkSmsRecipients(rows, messageTemplate) {
 
     if (isDeleted) {
       resolved.push({ ...base, status: 'EXCLUDED', exclusionReason: 'DELETED_USER', renderedMessage: null })
+      continue
+    }
+    if (!CRM_USER_BULK_SMS_ELIGIBLE_ROLES.has(String(row.role ?? '').toUpperCase())) {
+      resolved.push({
+        ...base,
+        status: 'EXCLUDED',
+        exclusionReason: 'UNAUTHORIZED_SCOPE',
+        renderedMessage: null,
+      })
       continue
     }
     if (!phone) {
