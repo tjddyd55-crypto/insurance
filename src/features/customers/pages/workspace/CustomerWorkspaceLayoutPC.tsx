@@ -73,7 +73,7 @@ function rightTitle(pathname: string): string {
     return '고객 상담 작업'
   }
   if (pathname.includes('/premium-payments')) {
-    return '보험료 결제'
+    return '카드 수납'
   }
   if (pathname.includes('/ga-excel')) {
     return 'GA 고객 데이터'
@@ -224,7 +224,7 @@ export default function CustomerWorkspaceLayoutPC({
               disabled={!selectedCustomerId}
               onClick={onClickPremiumPayments}
             >
-              보험료 결제
+              카드 수납
             </FormButton>
             {showCarInsuranceInWorkspace ? (
               <FormButton

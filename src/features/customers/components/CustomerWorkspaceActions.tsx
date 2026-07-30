@@ -106,7 +106,7 @@ export function CustomerWorkspaceActions({
             <span className="customer-mobile-action-btn__icon" aria-hidden>
               💳
             </span>
-            <MobileActionText>보험료 결제</MobileActionText>
+            <MobileActionText>카드 수납</MobileActionText>
           </FormButton>
           <FormButton
             htmlType="button"
@@ -229,7 +229,7 @@ export function CustomerWorkspaceActions({
         className="button button--secondary customer-workspace-action-button"
         onClick={() => onOpenPremiumPayments(customerId)}
       >
-        보험료 결제
+        카드 수납
       </FormButton>
       {carFeatureEnabled ? (
         <FormButton

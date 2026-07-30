@@ -1,128 +1,230 @@
 import { FormButton, FormInput, FormSelect } from '../../../../components/form'
+import {
+  formatLastCompletedAt,
+  formatPaymentDay,
+  formatPremiumAmount,
+  monthStatusLabel,
+} from '../../api/premiumPaymentsApi'
 import type { PremiumPaymentsOverviewViewProps } from './premiumPaymentsOverviewViewProps'
-import '../../premium-payments.css'
 
-export function PremiumPaymentsOverviewBody({ state, onOpenCustomer }: PremiumPaymentsOverviewViewProps) {
+const statusOptions = [
+  { value: '', label: '전체 상태' },
+  { value: 'PENDING', label: '처리 필요' },
+  { value: 'COMPLETED', label: '처리 완료' },
+  { value: 'PAUSED', label: '보류' },
+]
+
+const paymentDayOptions = [
+  { value: '', label: '전체 결제일' },
+  { value: 'today', label: '오늘' },
+  { value: '1-10', label: '1~10일' },
+  { value: '11-20', label: '11~20일' },
+  { value: '21-31', label: '21~말일' },
+  { value: 'missing', label: '결제일 미입력' },
+]
+
+function formatMonthTitle(month: string): string {
+  const [y, m] = month.split('-')
+  if (!y || !m) return month
+  return `${y}년 ${Number(m)}월 카드 수납`
+}
+
+export function PremiumPaymentsOverviewBody(props: PremiumPaymentsOverviewViewProps) {
   const {
-    rows,
-    total,
-    draftQ,
-    setDraftQ,
-    activeFilter,
-    setActiveFilter,
+    month,
+    setMonth,
+    status,
+    setStatus,
+    search,
+    setSearch,
+    paymentDay,
+    setPaymentDay,
+    insuranceCompany,
+    setInsuranceCompany,
+    targetMonth,
+    summary,
+    groups,
     error,
     busy,
-    formatCardExpiry,
-    submitSearch,
-  } = state
+    copyHint,
+    copyPolicyNumber,
+    copyCardNumber,
+    copyCardExpiry,
+    onOpenCustomer,
+    onConfirmComplete,
+    onConfirmReopen,
+    reload,
+  } = props
 
   return (
-    <>
-      <form
-        className="premium-payments-overview-filters"
-        onSubmit={(e) => {
-          e.preventDefault()
-          submitSearch()
-        }}
-      >
-        <FormInput
-          value={draftQ}
-          onChange={(e) => setDraftQ(e.target.value)}
-          placeholder="고객명·보험회사·증권번호·끝4자리"
-        />
-        <FormSelect
-          value={activeFilter}
-          onChange={(e) => setActiveFilter(e.target.value as 'all' | 'active' | 'inactive')}
-          options={[
-            { value: 'all', label: '전체 상태' },
-            { value: 'active', label: '사용중' },
-            { value: 'inactive', label: '중지' },
-          ]}
-        />
-        <FormButton htmlType="submit" variant="primary" disabled={busy}>
+    <div className="premium-payments-overview">
+      <p className="premium-payments-page__desc">
+        카드로 직접 수납해야 하는 보험계약과 고객 카드정보를 관리합니다.
+      </p>
+
+      <div className="premium-payments-toolbar">
+        <label>
+          기준 월
+          <FormInput type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
+        </label>
+        <label>
           검색
+          <FormInput
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="고객명·연락처·보험회사·증권번호·끝4자리"
+          />
+        </label>
+        <label>
+          상태
+          <FormSelect value={status} onChange={(e) => setStatus(e.target.value)} options={statusOptions} />
+        </label>
+        <label>
+          결제일
+          <FormSelect
+            value={paymentDay}
+            onChange={(e) => setPaymentDay(e.target.value)}
+            options={paymentDayOptions}
+          />
+        </label>
+        <label>
+          보험회사
+          <FormInput
+            value={insuranceCompany}
+            onChange={(e) => setInsuranceCompany(e.target.value)}
+            placeholder="보험회사"
+          />
+        </label>
+        <FormButton htmlType="button" variant="secondary" size="sm" onClick={() => void reload()} disabled={busy}>
+          새로고침
         </FormButton>
-      </form>
+      </div>
 
-      {error ? <p className="premium-payments-error">{error}</p> : null}
-      <p className="premium-payments-overview-count">총 {total}건</p>
+      <h2 className="premium-payments-overview__title">{formatMonthTitle(targetMonth)}</h2>
+      <div className="premium-payments-summary">
+        <div className="premium-payments-summary__item">전체 {summary.total}건</div>
+        <div className="premium-payments-summary__item">처리 필요 {summary.pending}건</div>
+        <div className="premium-payments-summary__item">처리 완료 {summary.completed}건</div>
+        <div className="premium-payments-summary__item">보류 {summary.paused}건</div>
+      </div>
 
-      {rows.length === 0 && !busy ? (
-        <p className="premium-payments-empty">검색 결과가 없습니다.</p>
+      {error ? (
+        <p className="premium-payments-page__error" role="alert">
+          {error}
+        </p>
       ) : null}
+      {copyHint ? <p className="premium-payments-page__hint">{copyHint}</p> : null}
 
-      <div className="premium-payments-overview-table-wrap">
-        <table className="premium-payments-overview-table">
-          <thead>
-            <tr>
-              <th>고객</th>
-              <th>보험회사</th>
-              <th>증권번호</th>
-              <th>명의자</th>
-              <th>카드</th>
-              <th>유효기간</th>
-              <th>상태</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id}>
-                <td>
+      {groups.length === 0 ? (
+        <p className="premium-payments-page__empty">표시할 카드 수납 대상이 없습니다.</p>
+      ) : (
+        <div className="premium-payments-groups">
+          {groups.map((group) => (
+            <section key={group.customerId} className="premium-payments-group">
+              <header className="premium-payments-group__header">
+                <div>
                   <button
                     type="button"
-                    className="premium-payment-card__linkish"
-                    onClick={() => onOpenCustomer(row.customerId)}
+                    className="premium-payments-group__customer-link"
+                    onClick={() => onOpenCustomer(group.customerId)}
                   >
-                    {row.customerName || `고객 #${row.customerId}`}
+                    {group.customerName}
                   </button>
-                </td>
-                <td>{row.insuranceCompany}</td>
-                <td>{row.policyNumber}</td>
-                <td>{row.cardholderName}</td>
-                <td>{row.maskedCardNumber}</td>
-                <td>{formatCardExpiry(row.cardExpiryMonth, row.cardExpiryYear)}</td>
-                <td>{row.isActive ? '사용중' : '중지'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="premium-payments-overview-cards">
-        {rows.map((row) => (
-          <article
-            key={`m-${row.id}`}
-            className={`premium-payment-card${row.isActive ? '' : ' premium-payment-card--inactive'}`}
-          >
-            <div className="premium-payment-card__head">
-              <button
-                type="button"
-                className="premium-payment-card__linkish"
-                onClick={() => onOpenCustomer(row.customerId)}
-              >
-                <strong>{row.customerName || `고객 #${row.customerId}`}</strong>
-              </button>
-              <span className={`premium-payment-card__badge${row.isActive ? '' : ' is-off'}`}>
-                {row.isActive ? '사용중' : '중지'}
-              </span>
-            </div>
-            <dl className="premium-payment-card__meta">
-              <div>
-                <dt>보험회사</dt>
-                <dd>{row.insuranceCompany}</dd>
-              </div>
-              <div>
-                <dt>카드</dt>
-                <dd>{row.maskedCardNumber}</dd>
-              </div>
-              <div>
-                <dt>유효기간</dt>
-                <dd>{formatCardExpiry(row.cardExpiryMonth, row.cardExpiryYear)}</dd>
-              </div>
-            </dl>
-          </article>
-        ))}
-      </div>
-    </>
+                  <span className="premium-payments-group__phone">
+                    {group.customerPhone || '연락처 없음'}
+                  </span>
+                  {group.ownerDisplayName ? (
+                    <span className="premium-payments-group__owner">담당 {group.ownerDisplayName}</span>
+                  ) : null}
+                </div>
+                <FormButton
+                  htmlType="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => onOpenCustomer(group.customerId)}
+                >
+                  고객 보기
+                </FormButton>
+              </header>
+              <ul className="premium-payments-group__contracts">
+                {group.contracts.map((row) => (
+                  <li key={row.id} className="premium-payments-group__contract">
+                    <div className="premium-payments-group__contract-main">
+                      <strong>{row.insuranceCompany}</strong>
+                      <span>
+                        {row.policyNumber ? `증권번호 ${row.policyNumber}` : '증권번호 없음'}
+                      </span>
+                      <span>{row.productName || '상품명 미입력'}</span>
+                      <span>{formatPremiumAmount(row.premiumAmount)}</span>
+                      <span>{formatPaymentDay(row.paymentDay)}</span>
+                      <span>
+                        {row.card
+                          ? `${row.card.label || '카드'} · 끝 ${row.card.cardNumberLast4}`
+                          : '카드 미연결'}
+                      </span>
+                      <span>{monthStatusLabel(row.monthStatus)}</span>
+                      <span>최근 처리: {formatLastCompletedAt(row.lastCompletedAt || row.monthCompletedAt)}</span>
+                    </div>
+                    <div className="premium-payments-inline-actions">
+                      {row.policyNumber ? (
+                        <FormButton
+                          htmlType="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => void copyPolicyNumber(row.policyNumber)}
+                        >
+                          증권번호 복사
+                        </FormButton>
+                      ) : null}
+                      {row.card?.cardNumber ? (
+                        <FormButton
+                          htmlType="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => void copyCardNumber(row.card?.cardNumber)}
+                        >
+                          카드번호 복사
+                        </FormButton>
+                      ) : null}
+                      {row.card?.cardExpiry ? (
+                        <FormButton
+                          htmlType="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => void copyCardExpiry(row.card?.cardExpiry)}
+                        >
+                          유효기간 복사
+                        </FormButton>
+                      ) : null}
+                      {row.monthStatus === 'PENDING' ? (
+                        <FormButton
+                          htmlType="button"
+                          variant="primary"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => void onConfirmComplete(row)}
+                        >
+                          처리 완료
+                        </FormButton>
+                      ) : (
+                        <FormButton
+                          htmlType="button"
+                          variant="secondary"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => void onConfirmReopen(row)}
+                        >
+                          처리 필요로 변경
+                        </FormButton>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }

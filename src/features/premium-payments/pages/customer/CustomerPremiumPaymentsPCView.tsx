@@ -5,8 +5,8 @@ export default function CustomerPremiumPaymentsPCView(props: CustomerPremiumPaym
   return (
     <main className="page premium-payments-page premium-payments-page--pc page--with-back">
       <header className="premium-payments-page__header">
-        <h1>보험료 결제</h1>
-        <p>고객별 보험료 결제 카드 정보를 관리합니다. 카드번호는 암호화 저장되며 목록에는 마스킹만 표시됩니다.</p>
+        <h1>카드 수납</h1>
+        <p>카드로 직접 수납해야 하는 보험계약과 고객 카드정보를 관리합니다.</p>
       </header>
       <CustomerPremiumPaymentsBody {...props} />
     </main>

@@ -6,6 +6,7 @@ import { useCustomerPremiumPaymentsState } from '../hooks/useCustomerPremiumPaym
 import CustomerPremiumPaymentsPCView from './customer/CustomerPremiumPaymentsPCView'
 import CustomerPremiumPaymentsMobileView from './customer/CustomerPremiumPaymentsMobileView'
 import type { CustomerPremiumPaymentsViewProps } from './customer/customerPremiumPaymentsViewProps'
+import '../premium-payments.css'
 
 export default function CustomerPremiumPaymentsPage() {
   const { customerId: rawId } = useParams()
@@ -16,37 +17,53 @@ export default function CustomerPremiumPaymentsPage() {
 
   const viewProps: CustomerPremiumPaymentsViewProps = {
     customerId,
+    customerName: '',
     state,
-    onConfirmDisable: async (rowId) => {
-      const row = state.rows.find((r) => r.id === rowId)
-      if (!row) {
-        return
-      }
+    onConfirmDeleteCard: async (cardId) => {
+      const card = state.cards.find((item) => item.id === cardId)
+      if (!card) return
       const ok = await confirm({
-        title: '결제 정보 사용 중지',
-        message: '이 카드 정보를 사용 중지할까요? 나중에 다시 사용할 수 있습니다.',
-        confirmLabel: '사용 중지',
+        title: '카드정보 삭제',
+        message: '이 카드정보를 삭제할까요? 연결된 수납 대상의 카드 연결은 해제됩니다.',
+        confirmLabel: '삭제',
         tone: 'danger',
       })
-      if (!ok) {
-        return
-      }
-      await state.toggleActive(row, false)
+      if (!ok) return
+      await state.removeCard(card)
     },
-    onConfirmEnable: async (rowId) => {
-      const row = state.rows.find((r) => r.id === rowId)
-      if (!row) {
-        return
-      }
+    onConfirmDeleteContract: async (contractId) => {
+      const row = state.contracts.find((item) => item.id === contractId)
+      if (!row) return
       const ok = await confirm({
-        title: '결제 정보 다시 사용',
-        message: '이 카드 정보를 다시 사용할까요?',
-        confirmLabel: '다시 사용',
+        title: '수납 대상 삭제',
+        message: `${row.insuranceCompany} 수납 대상을 삭제할까요?`,
+        confirmLabel: '삭제',
+        tone: 'danger',
       })
-      if (!ok) {
-        return
-      }
-      await state.toggleActive(row, true)
+      if (!ok) return
+      await state.removeContract(row)
+    },
+    onConfirmComplete: async (contractId) => {
+      const row = state.contracts.find((item) => item.id === contractId)
+      if (!row) return
+      const ok = await confirm({
+        title: '카드 수납을 완료 처리할까요?',
+        message: `고객의 ${row.insuranceCompany} 카드 수납 건을 완료로 기록합니다.`,
+        confirmLabel: '처리 완료',
+      })
+      if (!ok) return
+      await state.markComplete(row)
+    },
+    onConfirmReopen: async (contractId) => {
+      const row = state.contracts.find((item) => item.id === contractId)
+      if (!row) return
+      const ok = await confirm({
+        title: '처리 필요로 변경',
+        message: `${row.insuranceCompany} 건을 처리 필요로 되돌릴까요?`,
+        confirmLabel: '변경',
+      })
+      if (!ok) return
+      await state.markReopen(row)
     },
   }
 

@@ -236,3 +236,222 @@
 .premium-payments-page--mobile .premium-payment-card__meta {
   grid-template-columns: 1fr;
 }
+
+.premium-payments-page__desc,
+.premium-payments-page__empty,
+.premium-payments-page__hint {
+  margin: 0 0 12px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.premium-payments-page__error {
+  margin: 0 0 12px;
+  color: var(--danger, #b91c1c);
+}
+
+.premium-payments-section {
+  margin-bottom: 24px;
+  padding: 14px;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--bg-surface);
+}
+
+.premium-payments-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.premium-payments-section__header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.premium-payments-card-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.premium-payments-card-list__item {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--bg-base);
+}
+
+.premium-payments-card-list__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.premium-payments-card-list__actions,
+.premium-payments-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.premium-payments-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.premium-payments-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.premium-payments-table th,
+.premium-payments-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-default);
+  text-align: left;
+  vertical-align: top;
+}
+
+.premium-payments-form__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.premium-payments-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.premium-payments-summary__item {
+  padding: 8px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--bg-soft, var(--bg-base));
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.premium-payments-overview__title {
+  margin: 0 0 10px;
+  font-size: 1.1rem;
+}
+
+.premium-payments-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.premium-payments-group {
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--bg-surface);
+  padding: 12px;
+}
+
+.premium-payments-group__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.premium-payments-group__customer-link {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.premium-payments-group__phone,
+.premium-payments-group__owner {
+  display: inline-block;
+  margin-left: 8px;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.premium-payments-group__contracts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.premium-payments-group__contract {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--bg-base);
+}
+
+.premium-payments-group__contract-main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.premium-payments-page--mobile .premium-payments-table-wrap {
+  overflow-x: hidden;
+}
+
+.premium-payments-page--mobile .premium-payments-table,
+.premium-payments-page--mobile .premium-payments-table thead {
+  display: block;
+}
+
+.premium-payments-page--mobile .premium-payments-table tbody,
+.premium-payments-page--mobile .premium-payments-table tr,
+.premium-payments-page--mobile .premium-payments-table td {
+  display: block;
+  width: 100%;
+}
+
+.premium-payments-page--mobile .premium-payments-table thead {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.premium-payments-page--mobile .premium-payments-table tr {
+  margin-bottom: 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  padding: 10px;
+  background: var(--bg-base);
+}
+
+.premium-payments-page--mobile .premium-payments-table td {
+  border: 0;
+  padding: 4px 0;
+}
