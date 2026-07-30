@@ -1,18 +1,8 @@
 import { FormButton, FormInput, FormSelect } from '../../../../components/form'
-import {
-  formatLastCompletedAt,
-  formatPaymentDay,
-  formatPremiumAmount,
-  monthStatusLabel,
-} from '../../api/premiumPaymentsApi'
+import { CardPaymentRowActions } from '../../components/CardPaymentRowActions'
+import { formatPaymentDay, formatPremiumAmount } from '../../api/premiumPaymentsApi'
+import { formatLinkedCardLabel } from '../../utils/formatLinkedCardLabel.js'
 import type { PremiumPaymentsOverviewViewProps } from './premiumPaymentsOverviewViewProps'
-
-const statusOptions = [
-  { value: '', label: '전체 상태' },
-  { value: 'PENDING', label: '처리 필요' },
-  { value: 'COMPLETED', label: '처리 완료' },
-  { value: 'PAUSED', label: '보류' },
-]
 
 const paymentDayOptions = [
   { value: '', label: '전체 결제일' },
@@ -31,10 +21,6 @@ function formatMonthTitle(month: string): string {
 
 export function PremiumPaymentsOverviewBody(props: PremiumPaymentsOverviewViewProps) {
   const {
-    month,
-    setMonth,
-    status,
-    setStatus,
     search,
     setSearch,
     paymentDay,
@@ -42,7 +28,7 @@ export function PremiumPaymentsOverviewBody(props: PremiumPaymentsOverviewViewPr
     insuranceCompany,
     setInsuranceCompany,
     targetMonth,
-    summary,
+    totalCount,
     groups,
     error,
     busy,
@@ -51,22 +37,13 @@ export function PremiumPaymentsOverviewBody(props: PremiumPaymentsOverviewViewPr
     copyCardNumber,
     copyCardExpiry,
     onOpenCustomer,
-    onConfirmComplete,
-    onConfirmReopen,
+    onConfirmDeleteContract,
     reload,
   } = props
 
   return (
     <div className="premium-payments-overview">
-      <p className="premium-payments-page__desc">
-        카드로 직접 수납해야 하는 보험계약과 고객 카드정보를 관리합니다.
-      </p>
-
       <div className="premium-payments-toolbar">
-        <label>
-          기준 월
-          <FormInput type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
-        </label>
         <label>
           검색
           <FormInput
@@ -74,10 +51,6 @@ export function PremiumPaymentsOverviewBody(props: PremiumPaymentsOverviewViewPr
             onChange={(e) => setSearch(e.target.value)}
             placeholder="고객명·연락처·보험회사·증권번호·끝4자리"
           />
-        </label>
-        <label>
-          상태
-          <FormSelect value={status} onChange={(e) => setStatus(e.target.value)} options={statusOptions} />
         </label>
         <label>
           결제일
@@ -102,10 +75,7 @@ export function PremiumPaymentsOverviewBody(props: PremiumPaymentsOverviewViewPr
 
       <h2 className="premium-payments-overview__title">{formatMonthTitle(targetMonth)}</h2>
       <div className="premium-payments-summary">
-        <div className="premium-payments-summary__item">전체 {summary.total}건</div>
-        <div className="premium-payments-summary__item">처리 필요 {summary.pending}건</div>
-        <div className="premium-payments-summary__item">처리 완료 {summary.completed}건</div>
-        <div className="premium-payments-summary__item">보류 {summary.paused}건</div>
+        <div className="premium-payments-summary__item">전체 {totalCount}건</div>
       </div>
 
       {error ? (
@@ -157,13 +127,7 @@ export function PremiumPaymentsOverviewBody(props: PremiumPaymentsOverviewViewPr
                       <span>{row.productName || '상품명 미입력'}</span>
                       <span>{formatPremiumAmount(row.premiumAmount)}</span>
                       <span>{formatPaymentDay(row.paymentDay)}</span>
-                      <span>
-                        {row.card
-                          ? `${row.card.label || '카드'} · 끝 ${row.card.cardNumberLast4}`
-                          : '카드 미연결'}
-                      </span>
-                      <span>{monthStatusLabel(row.monthStatus)}</span>
-                      <span>최근 처리: {formatLastCompletedAt(row.lastCompletedAt || row.monthCompletedAt)}</span>
+                      <span>{formatLinkedCardLabel(row.card)}</span>
                     </div>
                     <div className="premium-payments-inline-actions">
                       {row.policyNumber ? (
@@ -196,27 +160,12 @@ export function PremiumPaymentsOverviewBody(props: PremiumPaymentsOverviewViewPr
                           유효기간 복사
                         </FormButton>
                       ) : null}
-                      {row.monthStatus === 'PENDING' ? (
-                        <FormButton
-                          htmlType="button"
-                          variant="primary"
-                          size="sm"
-                          disabled={busy}
-                          onClick={() => void onConfirmComplete(row)}
-                        >
-                          처리 완료
-                        </FormButton>
-                      ) : (
-                        <FormButton
-                          htmlType="button"
-                          variant="secondary"
-                          size="sm"
-                          disabled={busy}
-                          onClick={() => void onConfirmReopen(row)}
-                        >
-                          처리 필요로 변경
-                        </FormButton>
-                      )}
+                      <CardPaymentRowActions
+                        variant="form"
+                        disabled={busy}
+                        onEdit={() => onOpenCustomer(row.customerId)}
+                        onDelete={() => void onConfirmDeleteContract(row)}
+                      />
                     </div>
                   </li>
                 ))}

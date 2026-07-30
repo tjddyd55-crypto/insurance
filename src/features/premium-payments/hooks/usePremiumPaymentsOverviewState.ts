@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { copyTextToClipboard } from '../../../lib/clipboard'
 import {
-  completeCardPaymentContract,
+  deleteCardPaymentContract,
   listCardPaymentContractsOverview,
-  reopenCardPaymentContract,
   type CardPaymentContractRow,
-  type OverviewSummary,
 } from '../api/premiumPaymentsApi'
 
 function currentMonthInputValue(): string {
@@ -28,18 +26,11 @@ export type CustomerContractGroup = {
 }
 
 export function usePremiumPaymentsOverviewState(token: string | null) {
-  const [month, setMonth] = useState(currentMonthInputValue)
-  const [status, setStatus] = useState('')
+  const [month] = useState(currentMonthInputValue)
   const [search, setSearch] = useState('')
   const [paymentDay, setPaymentDay] = useState('')
   const [insuranceCompany, setInsuranceCompany] = useState('')
   const [contracts, setContracts] = useState<CardPaymentContractRow[]>([])
-  const [summary, setSummary] = useState<OverviewSummary>({
-    total: 0,
-    pending: 0,
-    completed: 0,
-    paused: 0,
-  })
   const [targetMonth, setTargetMonth] = useState(month)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -53,18 +44,16 @@ export function usePremiumPaymentsOverviewState(token: string | null) {
     try {
       const data = await listCardPaymentContractsOverview(token, {
         month,
-        status: status || undefined,
         search: search || undefined,
         paymentDay: paymentDay || undefined,
         insuranceCompany: insuranceCompany || undefined,
       })
       setContracts(data.contracts)
-      setSummary(data.summary)
       setTargetMonth(data.targetMonth)
     } catch (e) {
       setError(e instanceof Error ? e.message : '목록을 불러오지 못했습니다.')
     }
-  }, [insuranceCompany, month, paymentDay, search, status, token])
+  }, [insuranceCompany, month, paymentDay, search, token])
 
   useEffect(() => {
     void loadAll()
@@ -125,79 +114,24 @@ export function usePremiumPaymentsOverviewState(token: string | null) {
     [showCopyHint],
   )
 
-  const patchContractLocal = useCallback((next: CardPaymentContractRow) => {
-    setContracts((prev) => {
-      const updated = prev.map((row) => (row.id === next.id ? next : row))
-      return updated
-    })
-    setSummary((prev) => {
-      const all = contracts.map((row) => (row.id === next.id ? next : row))
-      return {
-        total: all.length,
-        pending: all.filter((r) => r.monthStatus === 'PENDING').length,
-        completed: all.filter((r) => r.monthStatus === 'COMPLETED').length,
-        paused: all.filter((r) => r.monthStatus === 'PAUSED').length,
-      }
-    })
-  }, [contracts])
-
-  const markComplete = useCallback(
+  const removeContract = useCallback(
     async (row: CardPaymentContractRow) => {
       if (!token?.trim() || busy) return
       setBusy(true)
       setError('')
       try {
-        const result = await completeCardPaymentContract(token, row.customerId, row.id, targetMonth)
-        setContracts((prev) => {
-          const updated = prev.map((item) => (item.id === row.id ? result.contract : item))
-          setSummary({
-            total: updated.length,
-            pending: updated.filter((r) => r.monthStatus === 'PENDING').length,
-            completed: updated.filter((r) => r.monthStatus === 'COMPLETED').length,
-            paused: updated.filter((r) => r.monthStatus === 'PAUSED').length,
-          })
-          return updated
-        })
+        await deleteCardPaymentContract(token, row.customerId, row.id)
+        setContracts((prev) => prev.filter((item) => item.id !== row.id))
       } catch (e) {
-        setError(e instanceof Error ? e.message : '완료 처리하지 못했습니다.')
+        setError(e instanceof Error ? e.message : '삭제하지 못했습니다.')
       } finally {
         setBusy(false)
       }
     },
-    [busy, targetMonth, token],
-  )
-
-  const markReopen = useCallback(
-    async (row: CardPaymentContractRow) => {
-      if (!token?.trim() || busy) return
-      setBusy(true)
-      setError('')
-      try {
-        const result = await reopenCardPaymentContract(token, row.customerId, row.id, targetMonth)
-        setContracts((prev) => {
-          const updated = prev.map((item) => (item.id === row.id ? result.contract : item))
-          setSummary({
-            total: updated.length,
-            pending: updated.filter((r) => r.monthStatus === 'PENDING').length,
-            completed: updated.filter((r) => r.monthStatus === 'COMPLETED').length,
-            paused: updated.filter((r) => r.monthStatus === 'PAUSED').length,
-          })
-          return updated
-        })
-      } catch (e) {
-        setError(e instanceof Error ? e.message : '상태를 변경하지 못했습니다.')
-      } finally {
-        setBusy(false)
-      }
-    },
-    [busy, targetMonth, token],
+    [busy, token],
   )
 
   return {
-    month,
-    setMonth,
-    status,
-    setStatus,
     search,
     setSearch,
     paymentDay,
@@ -205,7 +139,7 @@ export function usePremiumPaymentsOverviewState(token: string | null) {
     insuranceCompany,
     setInsuranceCompany,
     targetMonth,
-    summary,
+    totalCount: contracts.length,
     groups,
     contracts,
     error,
@@ -214,10 +148,8 @@ export function usePremiumPaymentsOverviewState(token: string | null) {
     copyPolicyNumber,
     copyCardNumber,
     copyCardExpiry,
-    markComplete,
-    markReopen,
+    removeContract,
     reload: loadAll,
-    patchContractLocal,
   }
 }
 
