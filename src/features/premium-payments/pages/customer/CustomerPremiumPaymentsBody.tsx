@@ -1,28 +1,17 @@
-import { FormDialog } from '../../../../components/dialog'
-import { FormButton, FormInput, FormSelect } from '../../../../components/form'
-import {
-  formatLastCompletedAt,
-  formatPaymentDay,
-  formatPremiumAmount,
-  monthStatusLabel,
-} from '../../api/premiumPaymentsApi'
+import { FormButton } from '../../../../components/form'
+import { CardPaymentFormDialog } from '../../components/CardPaymentFormDialog'
+import { CardPaymentRowActions } from '../../components/CardPaymentRowActions'
+import { CollectionTargetForm } from '../../components/CollectionTargetForm'
+import { PaymentCardForm } from '../../components/PaymentCardForm'
+import { formatPaymentDay, formatPremiumAmount } from '../../api/premiumPaymentsApi'
+import { formatLinkedCardLabel } from '../../utils/formatLinkedCardLabel.js'
 import type { CustomerPremiumPaymentsViewProps } from './customerPremiumPaymentsViewProps'
-
-const paymentDayOptions = [
-  { value: '', label: '결제일 미입력' },
-  ...Array.from({ length: 31 }, (_, i) => ({
-    value: String(i + 1),
-    label: `매월 ${i + 1}일`,
-  })),
-]
 
 export function CustomerPremiumPaymentsBody({
   customerName,
   state,
   onConfirmDeleteCard,
   onConfirmDeleteContract,
-  onConfirmComplete,
-  onConfirmReopen,
 }: CustomerPremiumPaymentsViewProps) {
   const {
     cards,
@@ -59,9 +48,21 @@ export function CustomerPremiumPaymentsBody({
 
   return (
     <div className="premium-payments-page__workspace">
-      <p className="premium-payments-page__desc">
-        카드로 직접 수납해야 하는 보험계약과 고객 카드정보를 관리합니다.
-      </p>
+      <div className="premium-payments-page__top-actions">
+        <FormButton htmlType="button" variant="primary" size="sm" onClick={openCreateCard} disabled={busy}>
+          카드정보 등록
+        </FormButton>
+        <FormButton
+          htmlType="button"
+          variant="primary"
+          size="sm"
+          onClick={openCreateContract}
+          disabled={busy}
+        >
+          수납 대상 추가
+        </FormButton>
+      </div>
+
       {error ? (
         <p className="premium-payments-page__error" role="alert">
           {error}
@@ -72,9 +73,6 @@ export function CustomerPremiumPaymentsBody({
       <section className="premium-payments-section" aria-labelledby="card-info-heading">
         <div className="premium-payments-section__header">
           <h2 id="card-info-heading">카드정보</h2>
-          <FormButton htmlType="button" variant="primary" size="sm" onClick={openCreateCard} disabled={busy}>
-            카드정보 등록
-          </FormButton>
         </div>
         {cards.length === 0 ? (
           <p className="premium-payments-page__empty">등록된 카드정보가 없습니다.</p>
@@ -85,8 +83,8 @@ export function CustomerPremiumPaymentsBody({
                 <div className="premium-payments-card-list__meta">
                   <strong>{card.label || '카드'}</strong>
                   <span>소유주: {card.cardOwnerName}</span>
-                  <span>
-                    카드번호: {card.cardNumberDisplay ?? '-'}{' '}
+                  <span className="premium-payments-card-list__value-row">
+                    카드번호: {card.cardNumberDisplay ?? '-'}
                     <FormButton
                       htmlType="button"
                       variant="secondary"
@@ -96,8 +94,8 @@ export function CustomerPremiumPaymentsBody({
                       복사
                     </FormButton>
                   </span>
-                  <span>
-                    유효기간: {card.cardExpiry}{' '}
+                  <span className="premium-payments-card-list__value-row">
+                    유효기간: {card.cardExpiry}
                     <FormButton
                       htmlType="button"
                       variant="secondary"
@@ -109,17 +107,11 @@ export function CustomerPremiumPaymentsBody({
                   </span>
                 </div>
                 <div className="premium-payments-card-list__actions">
-                  <FormButton htmlType="button" variant="secondary" size="sm" onClick={() => openEditCard(card)}>
-                    수정
-                  </FormButton>
-                  <FormButton
-                    htmlType="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => void onConfirmDeleteCard(card.id)}
-                  >
-                    삭제
-                  </FormButton>
+                  <CardPaymentRowActions
+                    disabled={busy}
+                    onEdit={() => openEditCard(card)}
+                    onDelete={() => void onConfirmDeleteCard(card.id)}
+                  />
                 </div>
               </li>
             ))}
@@ -130,15 +122,6 @@ export function CustomerPremiumPaymentsBody({
       <section className="premium-payments-section" aria-labelledby="contract-heading">
         <div className="premium-payments-section__header">
           <h2 id="contract-heading">카드 수납 대상</h2>
-          <FormButton
-            htmlType="button"
-            variant="primary"
-            size="sm"
-            onClick={openCreateContract}
-            disabled={busy}
-          >
-            수납 대상 추가
-          </FormButton>
         </div>
         {contracts.length === 0 ? (
           <p className="premium-payments-page__empty">등록된 수납 대상이 없습니다.</p>
@@ -147,25 +130,25 @@ export function CustomerPremiumPaymentsBody({
             <table className="premium-payments-table">
               <thead>
                 <tr>
-                  <th>보험회사</th>
-                  <th>증권번호</th>
-                  <th>상품명</th>
-                  <th>보험료</th>
-                  <th>결제일</th>
-                  <th>사용 카드</th>
-                  <th>최근 처리일</th>
-                  <th>상태</th>
-                  <th>관리</th>
+                  <th className="premium-payments-table__col--company">보험회사</th>
+                  <th className="premium-payments-table__col--policy">증권번호</th>
+                  <th className="premium-payments-table__col--product">상품명</th>
+                  <th className="premium-payments-table__col--amount">보험료</th>
+                  <th className="premium-payments-table__col--day">결제일</th>
+                  <th className="premium-payments-table__col--card">사용 카드</th>
+                  <th className="premium-payments-table__col--actions">관리</th>
                 </tr>
               </thead>
               <tbody>
                 {contracts.map((row) => (
                   <tr key={row.id}>
-                    <td>{row.insuranceCompany}</td>
-                    <td>
+                    <td className="premium-payments-table__col--company" data-label="보험회사">
+                      {row.insuranceCompany}
+                    </td>
+                    <td className="premium-payments-table__col--policy" data-label="증권번호">
                       {row.policyNumber ? (
-                        <>
-                          {row.policyNumber}{' '}
+                        <span className="premium-payments-card-list__value-row">
+                          {row.policyNumber}
                           <FormButton
                             htmlType="button"
                             variant="secondary"
@@ -174,81 +157,29 @@ export function CustomerPremiumPaymentsBody({
                           >
                             복사
                           </FormButton>
-                        </>
+                        </span>
                       ) : (
                         '증권번호 없음'
                       )}
                     </td>
-                    <td>{row.productName || '-'}</td>
-                    <td>{formatPremiumAmount(row.premiumAmount)}</td>
-                    <td>{formatPaymentDay(row.paymentDay)}</td>
-                    <td>
-                      {row.card ? (
-                        <div className="premium-payments-inline-actions">
-                          <span>
-                            {row.card.label || '카드'} · 끝 {row.card.cardNumberLast4}
-                          </span>
-                          <FormButton
-                            htmlType="button"
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => void copyCardNumber(row.card?.cardNumber)}
-                          >
-                            카드번호 복사
-                          </FormButton>
-                          <FormButton
-                            htmlType="button"
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => void copyCardExpiry(row.card?.cardExpiry)}
-                          >
-                            유효기간 복사
-                          </FormButton>
-                        </div>
-                      ) : (
-                        '-'
-                      )}
+                    <td className="premium-payments-table__col--product" data-label="상품명">
+                      {row.productName || '-'}
                     </td>
-                    <td>{formatLastCompletedAt(row.lastCompletedAt || row.monthCompletedAt)}</td>
-                    <td>{monthStatusLabel(row.monthStatus)}</td>
-                    <td>
-                      <div className="premium-payments-inline-actions">
-                        {row.monthStatus === 'PENDING' ? (
-                          <FormButton
-                            htmlType="button"
-                            variant="primary"
-                            size="sm"
-                            onClick={() => void onConfirmComplete(row.id)}
-                          >
-                            처리 완료
-                          </FormButton>
-                        ) : (
-                          <FormButton
-                            htmlType="button"
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => void onConfirmReopen(row.id)}
-                          >
-                            처리 필요로 변경
-                          </FormButton>
-                        )}
-                        <FormButton
-                          htmlType="button"
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => openEditContract(row)}
-                        >
-                          수정
-                        </FormButton>
-                        <FormButton
-                          htmlType="button"
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => void onConfirmDeleteContract(row.id)}
-                        >
-                          삭제
-                        </FormButton>
-                      </div>
+                    <td className="premium-payments-table__col--amount" data-label="보험료">
+                      {formatPremiumAmount(row.premiumAmount)}
+                    </td>
+                    <td className="premium-payments-table__col--day" data-label="결제일">
+                      {formatPaymentDay(row.paymentDay)}
+                    </td>
+                    <td className="premium-payments-table__col--card" data-label="사용 카드">
+                      {formatLinkedCardLabel(row.card)}
+                    </td>
+                    <td className="premium-payments-table__col--actions" data-label="관리">
+                      <CardPaymentRowActions
+                        disabled={busy}
+                        onEdit={() => openEditContract(row)}
+                        onDelete={() => void onConfirmDeleteContract(row.id)}
+                      />
                     </td>
                   </tr>
                 ))}
@@ -258,167 +189,38 @@ export function CustomerPremiumPaymentsBody({
         )}
       </section>
 
-      <FormDialog
+      <CardPaymentFormDialog
         open={cardFormOpen}
         onClose={closeCardForm}
         title={editingCard ? '카드정보 수정' : '카드정보 등록'}
-        closeOnBackdrop={false}
-        panelPreset="largeForm"
-        footer={
-          <>
-            <FormButton htmlType="button" variant="secondary" onClick={closeCardForm} disabled={busy}>
-              취소
-            </FormButton>
-            <FormButton htmlType="submit" form="card-payment-card-form" variant="primary" disabled={busy}>
-              저장
-            </FormButton>
-          </>
-        }
+        formId="card-payment-card-form"
+        formClassName="premium-payments-form--card"
+        busy={busy}
+        onSubmit={submitCardForm}
       >
-        <form id="card-payment-card-form" className="premium-payments-form" onSubmit={submitCardForm}>
-          <label>
-            카드 구분명
-            <FormInput
-              value={cardForm.label}
-              onChange={(e) => setCardForm((prev) => ({ ...prev, label: e.target.value }))}
-              placeholder="본인카드"
-            />
-          </label>
-          <label>
-            카드 소유주
-            <FormInput
-              value={cardForm.cardOwnerName}
-              onChange={(e) => setCardForm((prev) => ({ ...prev, cardOwnerName: e.target.value }))}
-              placeholder={customerName || '소유주'}
-              required
-            />
-          </label>
-          <label>
-            카드번호{editingCard ? ' (변경 시에만 입력)' : ''}
-            <FormInput
-              value={cardForm.cardNumber}
-              onChange={(e) => setCardForm((prev) => ({ ...prev, cardNumber: e.target.value }))}
-              placeholder={editingCard ? `현재 끝 ${editingCard.cardNumberLast4}` : '숫자·하이픈 붙여넣기 가능'}
-              required={!editingCard}
-              autoComplete="off"
-            />
-          </label>
-          <div className="premium-payments-form__row">
-            <label>
-              유효기간(월)
-              <FormInput
-                value={cardForm.cardExpiryMonth}
-                onChange={(e) => setCardForm((prev) => ({ ...prev, cardExpiryMonth: e.target.value }))}
-                placeholder="08"
-                required
-              />
-            </label>
-            <label>
-              유효기간(연)
-              <FormInput
-                value={cardForm.cardExpiryYear}
-                onChange={(e) => setCardForm((prev) => ({ ...prev, cardExpiryYear: e.target.value }))}
-                placeholder="2029"
-                required
-              />
-            </label>
-          </div>
-        </form>
-      </FormDialog>
+        <PaymentCardForm
+          value={cardForm}
+          onChange={setCardForm}
+          editing={Boolean(editingCard)}
+          ownerPlaceholder={customerName || '소유주'}
+        />
+      </CardPaymentFormDialog>
 
-      <FormDialog
+      <CardPaymentFormDialog
         open={contractFormOpen}
         onClose={closeContractForm}
         title={editingContract ? '카드 수납 대상 수정' : '카드 수납 대상 추가'}
-        closeOnBackdrop={false}
-        panelPreset="largeForm"
-        footer={
-          <>
-            <FormButton htmlType="button" variant="secondary" onClick={closeContractForm} disabled={busy}>
-              취소
-            </FormButton>
-            <FormButton htmlType="submit" form="card-payment-contract-form" variant="primary" disabled={busy}>
-              저장
-            </FormButton>
-          </>
-        }
+        formId="card-payment-contract-form"
+        formClassName="premium-payments-form--contract"
+        busy={busy}
+        onSubmit={submitContractForm}
       >
-        <form
-          id="card-payment-contract-form"
-          className="premium-payments-form"
-          onSubmit={submitContractForm}
-        >
-          <label>
-            보험회사 *
-            <FormInput
-              value={contractForm.insuranceCompany}
-              onChange={(e) => setContractForm((prev) => ({ ...prev, insuranceCompany: e.target.value }))}
-              required
-            />
-          </label>
-          <label>
-            증권번호
-            <FormInput
-              value={contractForm.policyNumber}
-              onChange={(e) => setContractForm((prev) => ({ ...prev, policyNumber: e.target.value }))}
-            />
-          </label>
-          <label>
-            상품명
-            <FormInput
-              value={contractForm.productName}
-              onChange={(e) => setContractForm((prev) => ({ ...prev, productName: e.target.value }))}
-            />
-          </label>
-          <label>
-            보험료
-            <FormInput
-              value={contractForm.premiumAmount}
-              onChange={(e) => setContractForm((prev) => ({ ...prev, premiumAmount: e.target.value }))}
-              placeholder="125000"
-            />
-          </label>
-          <label>
-            결제일
-            <FormSelect
-              value={contractForm.paymentDay}
-              onChange={(e) => setContractForm((prev) => ({ ...prev, paymentDay: e.target.value }))}
-              options={paymentDayOptions}
-            />
-          </label>
-          <label>
-            사용할 카드
-            <FormSelect
-              value={contractForm.paymentCardId}
-              onChange={(e) => setContractForm((prev) => ({ ...prev, paymentCardId: e.target.value }))}
-              options={[{ value: '', label: '연결 안 함' }, ...cardOptions]}
-            />
-          </label>
-          <label>
-            메모
-            <FormInput
-              value={contractForm.memo}
-              onChange={(e) => setContractForm((prev) => ({ ...prev, memo: e.target.value }))}
-            />
-          </label>
-          <label>
-            상태
-            <FormSelect
-              value={contractForm.status}
-              onChange={(e) =>
-                setContractForm((prev) => ({
-                  ...prev,
-                  status: e.target.value === 'PAUSED' ? 'PAUSED' : 'PENDING',
-                }))
-              }
-              options={[
-                { value: 'PENDING', label: '처리 필요' },
-                { value: 'PAUSED', label: '보류' },
-              ]}
-            />
-          </label>
-        </form>
-      </FormDialog>
+        <CollectionTargetForm
+          value={contractForm}
+          onChange={setContractForm}
+          cardOptions={cardOptions}
+        />
+      </CardPaymentFormDialog>
     </div>
   )
 }

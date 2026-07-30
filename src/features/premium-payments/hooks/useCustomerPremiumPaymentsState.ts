@@ -2,14 +2,12 @@ import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react
 import { ApiError } from '../../../lib/apiClient'
 import { copyTextToClipboard } from '../../../lib/clipboard'
 import {
-  completeCardPaymentContract,
   createCardPaymentContract,
   createPaymentCard,
   deleteCardPaymentContract,
   deletePaymentCard,
   listCardPaymentContracts,
   listPaymentCards,
-  reopenCardPaymentContract,
   updateCardPaymentContract,
   updatePaymentCard,
   type CardPaymentContractRow,
@@ -34,6 +32,7 @@ export type ContractFormState = {
   paymentDay: string
   paymentCardId: string
   memo: string
+  /** UI 미노출 — 수정 시 기존 값 유지용 */
   status: 'PENDING' | 'PAUSED'
 }
 
@@ -181,7 +180,7 @@ export function useCustomerPremiumPaymentsState(
       label: card.label,
       cardOwnerName: card.cardOwnerName,
       cardNumber: '',
-      cardExpiryMonth: String(card.cardExpiryMonth),
+      cardExpiryMonth: String(card.cardExpiryMonth).padStart(2, '0'),
       cardExpiryYear: String(card.cardExpiryYear),
     })
     setCardFormOpen(true)
@@ -330,49 +329,13 @@ export function useCustomerPremiumPaymentsState(
     [busy, customerId, loadAll, token],
   )
 
-  const markComplete = useCallback(
-    async (row: CardPaymentContractRow) => {
-      if (!token?.trim() || busy) {
-        return
-      }
-      setBusy(true)
-      setError('')
-      try {
-        const result = await completeCardPaymentContract(token, customerId, row.id, targetMonth)
-        setContracts((prev) => prev.map((item) => (item.id === row.id ? result.contract : item)))
-      } catch (e) {
-        setError(e instanceof Error ? e.message : '완료 처리하지 못했습니다.')
-      } finally {
-        setBusy(false)
-      }
-    },
-    [busy, customerId, targetMonth, token],
-  )
-
-  const markReopen = useCallback(
-    async (row: CardPaymentContractRow) => {
-      if (!token?.trim() || busy) {
-        return
-      }
-      setBusy(true)
-      setError('')
-      try {
-        const result = await reopenCardPaymentContract(token, customerId, row.id, targetMonth)
-        setContracts((prev) => prev.map((item) => (item.id === row.id ? result.contract : item)))
-      } catch (e) {
-        setError(e instanceof Error ? e.message : '상태를 변경하지 못했습니다.')
-      } finally {
-        setBusy(false)
-      }
-    },
-    [busy, customerId, targetMonth, token],
-  )
-
   const cardOptions = useMemo(
     () =>
       cards.map((card) => ({
         value: String(card.id),
-        label: `${card.label || '카드'} · ${card.cardOwnerName} · 끝 ${card.cardNumberLast4}`,
+        label: [card.label?.trim(), card.cardOwnerName?.trim(), `끝 ${card.cardNumberLast4}`]
+          .filter(Boolean)
+          .join(' · '),
       })),
     [cards],
   )
@@ -381,7 +344,6 @@ export function useCustomerPremiumPaymentsState(
     cards,
     contracts,
     targetMonth,
-    setTargetMonth,
     error,
     busy,
     notFound,
@@ -404,8 +366,6 @@ export function useCustomerPremiumPaymentsState(
     closeContractForm,
     submitContractForm,
     removeContract,
-    markComplete,
-    markReopen,
     copyPolicyNumber,
     copyCardNumber,
     copyCardExpiry,
