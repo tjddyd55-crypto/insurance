@@ -1,4 +1,4 @@
-import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError } from '../../../lib/apiClient'
 import { copyTextToClipboard } from '../../../lib/clipboard'
 import {
@@ -87,11 +87,13 @@ export function useCustomerPremiumPaymentsState(
   const [contractFormOpen, setContractFormOpen] = useState(false)
   const [editingContract, setEditingContract] = useState<CardPaymentContractRow | null>(null)
   const [contractForm, setContractForm] = useState<ContractFormState>(emptyContractForm())
+  const loadSeqRef = useRef(0)
 
   const loadAll = useCallback(async () => {
     if (!token?.trim() || !validId) {
       return
     }
+    const seq = ++loadSeqRef.current
     setError('')
     setNotFound(false)
     try {
@@ -99,10 +101,16 @@ export function useCustomerPremiumPaymentsState(
         listPaymentCards(token, customerId),
         listCardPaymentContracts(token, customerId, targetMonth),
       ])
+      if (seq !== loadSeqRef.current) {
+        return
+      }
       setCards(cardList)
       setContracts(contractList.contracts)
       setTargetMonth(contractList.targetMonth)
     } catch (e) {
+      if (seq !== loadSeqRef.current) {
+        return
+      }
       if (e instanceof ApiError && e.status === 404) {
         setNotFound(true)
         setCards([])
@@ -114,8 +122,16 @@ export function useCustomerPremiumPaymentsState(
   }, [customerId, targetMonth, token, validId])
 
   useEffect(() => {
+    loadSeqRef.current += 1
     setCards([])
     setContracts([])
+    setError('')
+    setNotFound(false)
+    setCopyHint('')
+    setCardFormOpen(false)
+    setEditingCard(null)
+    setContractFormOpen(false)
+    setEditingContract(null)
   }, [customerId])
 
   useEffect(() => {
@@ -193,10 +209,10 @@ export function useCustomerPremiumPaymentsState(
   }, [])
 
   const submitCardForm = useCallback(
-    async (event: FormEvent) => {
+    async (event: FormEvent): Promise<boolean> => {
       event.preventDefault()
       if (!token?.trim() || !validId || busy) {
-        return
+        return false
       }
       const payload: PaymentCardWritePayload = {
         label: cardForm.label.trim(),
@@ -217,8 +233,10 @@ export function useCustomerPremiumPaymentsState(
         }
         closeCardForm()
         await loadAll()
+        return true
       } catch (e) {
         setError(e instanceof Error ? e.message : '저장하지 못했습니다.')
+        return false
       } finally {
         setBusy(false)
       }
@@ -274,10 +292,10 @@ export function useCustomerPremiumPaymentsState(
   }, [])
 
   const submitContractForm = useCallback(
-    async (event: FormEvent) => {
+    async (event: FormEvent): Promise<boolean> => {
       event.preventDefault()
       if (!token?.trim() || !validId || busy) {
-        return
+        return false
       }
       const payload: ContractWritePayload = {
         insuranceCompany: contractForm.insuranceCompany.trim(),
@@ -301,8 +319,10 @@ export function useCustomerPremiumPaymentsState(
         }
         closeContractForm()
         await loadAll()
+        return true
       } catch (e) {
         setError(e instanceof Error ? e.message : '저장하지 못했습니다.')
+        return false
       } finally {
         setBusy(false)
       }

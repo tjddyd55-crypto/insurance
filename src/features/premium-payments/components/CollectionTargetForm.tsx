@@ -21,7 +21,12 @@ export function CollectionTargetForm({ value, onChange, cardOptions }: Props) {
   return (
     <>
       <label className="premium-payments-field">
-        보험회사 <span className="premium-payments-required">*</span>
+        <span className="premium-payments-field__label">
+          보험회사
+          <span className="premium-payments-required" aria-hidden="true">
+            *
+          </span>
+        </span>
         <FormInput
           value={value.insuranceCompany}
           onChange={(e) => onChange((prev) => ({ ...prev, insuranceCompany: e.target.value }))}
@@ -30,7 +35,7 @@ export function CollectionTargetForm({ value, onChange, cardOptions }: Props) {
         />
       </label>
       <label className="premium-payments-field">
-        증권번호
+        <span className="premium-payments-field__label">증권번호</span>
         <FormInput
           value={value.policyNumber}
           onChange={(e) => onChange((prev) => ({ ...prev, policyNumber: e.target.value }))}
@@ -38,7 +43,7 @@ export function CollectionTargetForm({ value, onChange, cardOptions }: Props) {
         />
       </label>
       <label className="premium-payments-field">
-        상품명
+        <span className="premium-payments-field__label">상품명</span>
         <FormInput
           value={value.productName}
           onChange={(e) => onChange((prev) => ({ ...prev, productName: e.target.value }))}
@@ -46,7 +51,7 @@ export function CollectionTargetForm({ value, onChange, cardOptions }: Props) {
         />
       </label>
       <label className="premium-payments-field">
-        보험료
+        <span className="premium-payments-field__label">보험료</span>
         <FormInput
           value={value.premiumAmount}
           onChange={(e) => onChange((prev) => ({ ...prev, premiumAmount: e.target.value }))}
@@ -55,7 +60,7 @@ export function CollectionTargetForm({ value, onChange, cardOptions }: Props) {
         />
       </label>
       <label className="premium-payments-field">
-        결제일
+        <span className="premium-payments-field__label">결제일</span>
         <FormSelect
           value={value.paymentDay}
           onChange={(e) => onChange((prev) => ({ ...prev, paymentDay: e.target.value }))}
@@ -63,7 +68,7 @@ export function CollectionTargetForm({ value, onChange, cardOptions }: Props) {
         />
       </label>
       <label className="premium-payments-field">
-        사용할 카드
+        <span className="premium-payments-field__label">사용할 카드</span>
         <FormSelect
           value={value.paymentCardId}
           onChange={(e) => onChange((prev) => ({ ...prev, paymentCardId: e.target.value }))}
@@ -71,7 +76,7 @@ export function CollectionTargetForm({ value, onChange, cardOptions }: Props) {
         />
       </label>
       <label className="premium-payments-field premium-payments-field--memo">
-        메모
+        <span className="premium-payments-field__label">메모</span>
         <textarea
           className="premium-payments-textarea"
           value={value.memo}

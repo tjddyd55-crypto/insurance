@@ -21,8 +21,9 @@ export type BaseDialogProps = {
   /**
    * 기본(default)은 좁은 알림형 패널(w-[90%] max-w-md p-4).
    * largeForm 은 헤더·스크롤 바디·고정 풋터용 넓은 폼 모달(폭·높이·flex는 Tailwind 로 고정).
+   * cardPayment / collectionTarget 은 카드 수납 등록·수정 폼(중간 폭).
    */
-  panelPreset?: 'default' | 'largeForm'
+  panelPreset?: 'default' | 'largeForm' | 'cardPayment' | 'collectionTarget'
   usePortal?: boolean
   /**
    * true 이면 모달이 열린 동안 `history.pushState` 로 sentinel 을 쌓고,
@@ -59,7 +60,11 @@ export function BaseDialog({
   const panelSizingClasses =
     panelPreset === 'largeForm'
       ? '!w-[min(1080px,92vw)] !max-w-none !max-h-[86vh] !min-h-0 !flex !flex-col !overflow-hidden !p-0'
-      : 'w-[90%] max-w-md p-4'
+      : panelPreset === 'cardPayment'
+        ? '!w-[min(680px,calc(100vw-32px))] !max-w-none !max-h-[min(720px,calc(100vh-48px))] !min-h-0 !flex !flex-col !overflow-hidden !p-0'
+        : panelPreset === 'collectionTarget'
+          ? '!w-[min(760px,calc(100vw-32px))] !max-w-none !max-h-[min(760px,calc(100vh-48px))] !min-h-0 !flex !flex-col !overflow-hidden !p-0'
+          : 'w-[90%] max-w-md p-4'
 
   useEffect(() => {
     if (!open) {
