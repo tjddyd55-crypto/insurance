@@ -1109,14 +1109,14 @@ export async function listCardPaymentContractsOverview(pool, req, query) {
           created_at: null,
           updated_at: null,
         },
-        { includeCardNumber: true },
+        { includeCardNumber: false },
       )
       card = {
         id: mapped.id,
         label: mapped.label,
         cardOwnerName: mapped.cardOwnerName,
         cardNumberLast4: mapped.cardNumberLast4,
-        cardNumber: mapped.cardNumber,
+        cardNumber: null,
         cardNumberDisplay: mapped.cardNumberDisplay,
         cardExpiry: mapped.cardExpiry,
         cardExpiryMonth: mapped.cardExpiryMonth,

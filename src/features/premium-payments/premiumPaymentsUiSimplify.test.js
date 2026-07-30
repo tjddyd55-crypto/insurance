@@ -21,14 +21,19 @@ describe('card payment UI simplification contracts', () => {
 
   it('customer detail has no completion/status UI columns or handlers', () => {
     const body = read('pages/customer/CustomerPremiumPaymentsBody.tsx')
+    const panels = read('components/CustomerCardPaymentPanels.tsx')
+    const cards = read('components/PaymentCardsSection.tsx')
+    const targets = read('components/CollectionTargetsSection.tsx')
     const page = read('pages/CustomerPremiumPaymentsPage.tsx')
     const hook = read('hooks/useCustomerPremiumPaymentsState.ts')
     assert.doesNotMatch(body, /최근 처리일|처리 완료|처리 필요|monthStatusLabel|onConfirmComplete|onConfirmReopen/)
+    assert.doesNotMatch(panels, /최근 처리일|처리 완료|처리 필요|monthStatusLabel|onConfirmComplete|onConfirmReopen/)
     assert.doesNotMatch(page, /onConfirmComplete|onConfirmReopen|처리 완료/)
     assert.doesNotMatch(hook, /markComplete|markReopen|completeCardPaymentContract|reopenCardPaymentContract/)
-    assert.match(body, /카드정보 등록/)
-    assert.match(body, /수납 대상 추가/)
-    assert.match(body, /CardPaymentRowActions/)
+    assert.match(body, /CustomerCardPaymentPanels/)
+    assert.match(cards, /카드정보 등록/)
+    assert.match(targets, /수납 대상 추가/)
+    assert.match(cards, /CardPaymentRowActions/)
   })
 
   it('collection target form has no status field', () => {
@@ -56,7 +61,8 @@ describe('card payment UI simplification contracts', () => {
     assert.doesNotMatch(body, /처리 필요|처리 완료|최근 처리|monthStatusLabel|onConfirmComplete/)
     assert.doesNotMatch(page, /onConfirmComplete|onConfirmReopen/)
     assert.doesNotMatch(hook, /markComplete|markReopen|setStatus/)
-    assert.match(body, /CardPaymentRowActions/)
+    assert.match(body, /CustomerCardPaymentPanels/)
+    assert.match(body, /PremiumPaymentsCustomerSidebar/)
   })
 
   it('keeps server complete/reopen API registration', () => {
