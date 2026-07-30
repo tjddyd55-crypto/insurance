@@ -1,5 +1,6 @@
 type Props = {
   pcUrl: string
+  /** Google Play 상세 페이지 등 Android 설치 URL */
   apkUrl: string
 }
 
@@ -16,10 +17,15 @@ export function DownloadCards({ pcUrl, apkUrl }: Props) {
           </a>
         </article>
         <article className="intro-panel">
-          <h3 className="intro-panel-title">모바일 APK 다운로드</h3>
-          <p className="intro-panel-text">안드로이드 휴대폰에 직접 설치하는 파일</p>
-          <a className="intro-btn intro-btn--secondary" href={apkUrl} target="_blank" rel="noreferrer">
-            APK 다운로드
+          <h3 className="intro-panel-title">안드로이드 앱 다운로드</h3>
+          <p className="intro-panel-text">Google Play에서 ONE FC 앱을 설치합니다</p>
+          <a
+            className="intro-btn intro-btn--secondary"
+            href={apkUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            안드로이드 다운로드
           </a>
         </article>
       </div>

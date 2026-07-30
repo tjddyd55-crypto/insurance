@@ -1,5 +1,5 @@
 import { DOWNLOAD_LINKS } from '../constants/downloadLinks'
-import { ONE_FC_APP_STORE_URL } from '../constants/appInstallLinks'
+import { ANDROID_APP_DOWNLOAD_URL, ONE_FC_APP_STORE_URL } from '../constants/appInstallLinks'
 import { FormButton } from '../../../components/form'
 import { downloadCustomerUploadSampleXlsx } from '../../customers/utils/customerExcelUpload'
 import { BusinessInfoFooter } from '../components/BusinessInfoFooter'
@@ -94,10 +94,10 @@ const PC_STEPS = [
 ]
 
 const FC_MOBILE_STEPS = [
-  '안드로이드 APK를 다운로드한다',
-  '휴대폰 설정에서 알 수 없는 앱 설치 허용을 켠다',
-  '다운로드한 APK를 눌러 설치를 진행한다',
-  '설치 완료 후 앱 실행 후 로그인한다',
+  '안드로이드 다운로드 버튼을 눌러 Google Play로 이동한다',
+  'Google Play에서 ONE FC 앱을 설치한다',
+  '설치 완료 후 앱을 실행한다',
+  '로그인 후 사용한다',
 ]
 
 const DOWNLOAD_CARDS: IntroPlatformDownloadCardProps[] = [
@@ -114,12 +114,12 @@ const DOWNLOAD_CARDS: IntroPlatformDownloadCardProps[] = [
   },
   {
     title: '안드로이드 앱 다운로드',
-    description: '안드로이드 휴대폰에 직접 설치하는 파일입니다.',
-    href: DOWNLOAD_LINKS.fcMobile,
+    description: 'Google Play에서 ONE FC 앱을 설치합니다.',
+    href: ANDROID_APP_DOWNLOAD_URL,
     buttonLabel: '안드로이드 다운로드',
     badge: 'Android',
-    iconLabel: 'APK',
-    download: true,
+    iconLabel: 'Play',
+    external: true,
     iconVariant: 'platform',
     badgeVariant: 'platform',
   },
@@ -150,7 +150,7 @@ export function IntroductionInstallPage() {
             <a href={DOWNLOAD_LINKS.pc} download>
               PC 다운로드
             </a>
-            <a href={DOWNLOAD_LINKS.fcMobile} download>
+            <a href={ANDROID_APP_DOWNLOAD_URL} target="_blank" rel="noopener noreferrer">
               안드로이드 다운로드
             </a>
             <a href={ONE_FC_APP_STORE_URL} target="_blank" rel="noopener noreferrer">
@@ -191,13 +191,13 @@ export function IntroductionInstallPage() {
               <div className="intro-install-guide-note">설치 중 경고창이 나오면 신뢰된 앱으로 허용한 뒤 계속 진행하세요.</div>
             </article>
             <article className="intro-install-guide-card">
-              <h3>안드로이드 APK 설치 방법</h3>
+              <h3>안드로이드 앱 설치 방법</h3>
               <ol>
                 {FC_MOBILE_STEPS.map((step, index) => (
                   <li key={step}><span>{index + 1}</span>{step}</li>
                 ))}
               </ol>
-              <div className="intro-install-guide-note">Android 13 이상에서는 앱별 설치 권한을 추가로 허용해야 할 수 있습니다.</div>
+              <div className="intro-install-guide-note">Google Play에서 ONE FC(com.onefc.app)를 설치합니다.</div>
             </article>
           </div>
         </div>
@@ -255,7 +255,9 @@ export function IntroductionInstallPage() {
           <p>프로그램 설치 -&gt; 샘플 다운로드 -&gt; 엑셀 작성 -&gt; 업로드</p>
           <div className="intro-install-cta__actions">
             <a href={DOWNLOAD_LINKS.pc} download>PC 다운로드</a>
-            <a href={DOWNLOAD_LINKS.fcMobile} download>안드로이드 다운로드</a>
+            <a href={ANDROID_APP_DOWNLOAD_URL} target="_blank" rel="noopener noreferrer">
+              안드로이드 다운로드
+            </a>
             <a href={ONE_FC_APP_STORE_URL} target="_blank" rel="noopener noreferrer">
               아이폰 다운로드
             </a>

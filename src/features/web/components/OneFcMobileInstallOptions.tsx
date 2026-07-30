@@ -1,6 +1,6 @@
 import {
+  ANDROID_APP_DOWNLOAD_URL,
   ONE_FC_APP_STORE_URL,
-  USER_ANDROID_APK_DOWNLOAD_URL,
 } from '../constants/appInstallLinks'
 import { IntroPlatformDownloadCard } from './introduction/IntroPlatformDownloadCard'
 
@@ -9,7 +9,7 @@ type OneFcMobileInstallOptionsProps = {
   className?: string
 }
 
-/** 소개 페이지 — Android APK / iPhone App Store 설치 CTA */
+/** 소개 페이지 — Android Google Play / iPhone App Store 설치 CTA */
 export function OneFcMobileInstallOptions({
   variant,
   className = '',
@@ -34,11 +34,11 @@ export function OneFcMobileInstallOptions({
         <IntroPlatformDownloadCard
           title="안드로이드 앱 다운로드"
           badge="Android"
-          iconLabel="APK"
-          description="안드로이드 휴대폰에 직접 설치하는 파일입니다."
-          href={USER_ANDROID_APK_DOWNLOAD_URL}
+          iconLabel="Play"
+          description="Google Play에서 ONE FC 앱을 설치합니다."
+          href={ANDROID_APP_DOWNLOAD_URL}
           buttonLabel="안드로이드 다운로드"
-          download
+          external
           iconVariant="platform"
           badgeVariant="platform"
         />

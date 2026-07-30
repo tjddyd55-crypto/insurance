@@ -12,7 +12,10 @@ const FALLBACK_DESKTOP_URL =
 /** @deprecated legacy CDN — 파일 미존재 시 FALLBACK_DESKTOP_URL 사용 */
 const LEGACY_DESKTOP_URL =
   'https://cdn.platform-assets.com/insurer/download/InsuranceApp%20Setup%201.0.7.exe'
-const LEGACY_MOBILE_APK_URL = 'https://cdn.platform-assets.com/insurer/download/FC-app-release.apk'
+
+/** 설계사용 Android — Google Play 정식 상세 (SSOT, frontend ANDROID_APP_DOWNLOAD_URL 과 동일) */
+export const ANDROID_APP_DOWNLOAD_URL =
+  'https://play.google.com/store/apps/details?id=com.onefc.app'
 
 function firstNonEmpty(...values) {
   for (const value of values) {
@@ -47,13 +50,16 @@ export function resolveDesktopDownloadUrl() {
   )
 }
 
-/** @returns {string} public redirect 대상 APK URL (없으면 빈 문자열) */
+/**
+ * @returns {string} public redirect 대상 Android 설치 URL
+ * Play Store 상세를 기본값으로 사용한다. APK CDN 폴백은 사용하지 않는다.
+ */
 export function resolveMobileDownloadUrl() {
   return firstNonEmpty(
+    process.env.ANDROID_APP_DOWNLOAD_URL,
     process.env.MOBILE_DOWNLOAD_URL,
     process.env.ANDROID_APK_DOWNLOAD_URL,
-    cdnUrlForKey(PLATFORM_DOWNLOAD_CDN_KEYS.mobileLatest),
-    LEGACY_MOBILE_APK_URL,
+    ANDROID_APP_DOWNLOAD_URL,
   )
 }
 

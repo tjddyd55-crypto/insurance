@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom'
 import {
+  ANDROID_APP_DOWNLOAD_URL,
   DESKTOP_DOWNLOAD_URL,
   ONE_FC_APP_STORE_URL,
-  USER_ANDROID_APK_DOWNLOAD_URL,
 } from '../../constants/appInstallLinks'
 import {
   introCustomerCapabilities,
@@ -124,8 +124,9 @@ export function IntroductionFinalCta() {
           </a>
           <a
             className="intro-v2-cta__action intro-v2-cta__action--white"
-            href={USER_ANDROID_APK_DOWNLOAD_URL}
-            download
+            href={ANDROID_APP_DOWNLOAD_URL}
+            target="_blank"
+            rel="noopener noreferrer"
           >
             안드로이드 다운로드
           </a>
