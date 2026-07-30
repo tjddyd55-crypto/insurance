@@ -1,69 +1,93 @@
-import { type FormEvent, useCallback, useEffect, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { ApiError } from '../../../lib/apiClient'
 import { copyTextToClipboard } from '../../../lib/clipboard'
 import {
-  createCustomerPremiumPayment,
-  disableCustomerPremiumPayment,
-  enableCustomerPremiumPayment,
-  formatCardExpiry,
-  listCustomerPremiumPayments,
-  reauthenticatePremiumPaymentCard,
-  revealPremiumPaymentCardNumber,
-  updateCustomerPremiumPayment,
-  type PremiumPaymentMethodRow,
-  type PremiumPaymentWritePayload,
+  completeCardPaymentContract,
+  createCardPaymentContract,
+  createPaymentCard,
+  deleteCardPaymentContract,
+  deletePaymentCard,
+  listCardPaymentContracts,
+  listPaymentCards,
+  reopenCardPaymentContract,
+  updateCardPaymentContract,
+  updatePaymentCard,
+  type CardPaymentContractRow,
+  type ContractWritePayload,
+  type PaymentCardRow,
+  type PaymentCardWritePayload,
 } from '../api/premiumPaymentsApi'
 
-export type PremiumPaymentFormState = {
-  insuranceCompany: string
-  policyNumber: string
-  cardholderName: string
+export type CardFormState = {
+  label: string
+  cardOwnerName: string
   cardNumber: string
   cardExpiryMonth: string
   cardExpiryYear: string
-  memo: string
 }
 
-const emptyForm = (): PremiumPaymentFormState => ({
-  insuranceCompany: '',
-  policyNumber: '',
-  cardholderName: '',
+export type ContractFormState = {
+  insuranceCompany: string
+  policyNumber: string
+  productName: string
+  premiumAmount: string
+  paymentDay: string
+  paymentCardId: string
+  memo: string
+  status: 'PENDING' | 'PAUSED'
+}
+
+const emptyCardForm = (ownerName = ''): CardFormState => ({
+  label: '',
+  cardOwnerName: ownerName,
   cardNumber: '',
   cardExpiryMonth: '',
   cardExpiryYear: '',
-  memo: '',
 })
 
-function toPayload(form: PremiumPaymentFormState, includeCard: boolean): PremiumPaymentWritePayload {
-  const payload: PremiumPaymentWritePayload = {
-    insuranceCompany: form.insuranceCompany.trim(),
-    policyNumber: form.policyNumber.trim(),
-    cardholderName: form.cardholderName.trim(),
-    cardExpiryMonth: Number(form.cardExpiryMonth),
-    cardExpiryYear: Number(form.cardExpiryYear),
-    memo: form.memo.trim(),
-  }
-  if (includeCard && form.cardNumber.trim()) {
-    payload.cardNumber = form.cardNumber.trim()
-  }
-  return payload
+const emptyContractForm = (): ContractFormState => ({
+  insuranceCompany: '',
+  policyNumber: '',
+  productName: '',
+  premiumAmount: '',
+  paymentDay: '',
+  paymentCardId: '',
+  memo: '',
+  status: 'PENDING',
+})
+
+function currentMonthInputValue(): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+  }).formatToParts(new Date())
+  const y = parts.find((p) => p.type === 'year')?.value ?? '2026'
+  const m = parts.find((p) => p.type === 'month')?.value ?? '01'
+  return `${y}-${m}`
 }
 
-export function useCustomerPremiumPaymentsState(customerId: number, token: string | null) {
+export function useCustomerPremiumPaymentsState(
+  customerId: number,
+  token: string | null,
+  customerName = '',
+) {
   const validId = Number.isInteger(customerId) && customerId > 0
-  const [rows, setRows] = useState<PremiumPaymentMethodRow[]>([])
+  const [cards, setCards] = useState<PaymentCardRow[]>([])
+  const [contracts, setContracts] = useState<CardPaymentContractRow[]>([])
+  const [targetMonth, setTargetMonth] = useState(currentMonthInputValue)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [notFound, setNotFound] = useState(false)
-  const [formOpen, setFormOpen] = useState(false)
-  const [editing, setEditing] = useState<PremiumPaymentMethodRow | null>(null)
-  const [form, setForm] = useState<PremiumPaymentFormState>(emptyForm)
   const [copyHint, setCopyHint] = useState('')
-  const [revealOpen, setRevealOpen] = useState(false)
-  const [revealTarget, setRevealTarget] = useState<PremiumPaymentMethodRow | null>(null)
-  const [revealPassword, setRevealPassword] = useState('')
-  const [revealedCardNumber, setRevealedCardNumber] = useState('')
-  const [revealError, setRevealError] = useState('')
+
+  const [cardFormOpen, setCardFormOpen] = useState(false)
+  const [editingCard, setEditingCard] = useState<PaymentCardRow | null>(null)
+  const [cardForm, setCardForm] = useState<CardFormState>(emptyCardForm(customerName))
+
+  const [contractFormOpen, setContractFormOpen] = useState(false)
+  const [editingContract, setEditingContract] = useState<CardPaymentContractRow | null>(null)
+  const [contractForm, setContractForm] = useState<ContractFormState>(emptyContractForm())
 
   const loadAll = useCallback(async () => {
     if (!token?.trim() || !validId) {
@@ -72,213 +96,322 @@ export function useCustomerPremiumPaymentsState(customerId: number, token: strin
     setError('')
     setNotFound(false)
     try {
-      const list = await listCustomerPremiumPayments(token, customerId)
-      setRows(list)
+      const [cardList, contractList] = await Promise.all([
+        listPaymentCards(token, customerId),
+        listCardPaymentContracts(token, customerId, targetMonth),
+      ])
+      setCards(cardList)
+      setContracts(contractList.contracts)
+      setTargetMonth(contractList.targetMonth)
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) {
         setNotFound(true)
-        setRows([])
+        setCards([])
+        setContracts([])
         return
       }
       setError(e instanceof Error ? e.message : '불러오지 못했습니다.')
     }
-  }, [customerId, token, validId])
+  }, [customerId, targetMonth, token, validId])
 
   useEffect(() => {
-    setRows([])
+    setCards([])
+    setContracts([])
   }, [customerId])
 
   useEffect(() => {
     void loadAll()
   }, [loadAll])
 
-  const openCreate = useCallback(() => {
-    setEditing(null)
-    setForm(emptyForm())
-    setFormOpen(true)
-    setError('')
+  const showCopyHint = useCallback((message: string) => {
+    setCopyHint(message)
+    window.setTimeout(() => setCopyHint(''), 1800)
   }, [])
 
-  const openEdit = useCallback((row: PremiumPaymentMethodRow) => {
-    setEditing(row)
-    setForm({
-      insuranceCompany: row.insuranceCompany,
-      policyNumber: row.policyNumber,
-      cardholderName: row.cardholderName,
+  const copyPolicyNumber = useCallback(
+    async (value: string | null | undefined) => {
+      if (!value?.trim()) {
+        return
+      }
+      const ok = await copyTextToClipboard(value.trim())
+      if (ok) {
+        showCopyHint('증권번호를 복사했습니다.')
+      }
+    },
+    [showCopyHint],
+  )
+
+  const copyCardNumber = useCallback(
+    async (digits: string | null | undefined) => {
+      const normalized = String(digits ?? '').replace(/\D/g, '')
+      if (!normalized) {
+        return
+      }
+      const ok = await copyTextToClipboard(normalized)
+      if (ok) {
+        showCopyHint('카드번호를 복사했습니다.')
+      }
+    },
+    [showCopyHint],
+  )
+
+  const copyCardExpiry = useCallback(
+    async (expiry: string | null | undefined) => {
+      if (!expiry?.trim()) {
+        return
+      }
+      const ok = await copyTextToClipboard(expiry.trim())
+      if (ok) {
+        showCopyHint('유효기간을 복사했습니다.')
+      }
+    },
+    [showCopyHint],
+  )
+
+  const openCreateCard = useCallback(() => {
+    setEditingCard(null)
+    setCardForm(emptyCardForm(customerName))
+    setCardFormOpen(true)
+    setError('')
+  }, [customerName])
+
+  const openEditCard = useCallback((card: PaymentCardRow) => {
+    setEditingCard(card)
+    setCardForm({
+      label: card.label,
+      cardOwnerName: card.cardOwnerName,
       cardNumber: '',
-      cardExpiryMonth: String(row.cardExpiryMonth),
-      cardExpiryYear: String(row.cardExpiryYear),
-      memo: row.memo,
+      cardExpiryMonth: String(card.cardExpiryMonth),
+      cardExpiryYear: String(card.cardExpiryYear),
     })
-    setFormOpen(true)
+    setCardFormOpen(true)
     setError('')
   }, [])
 
-  const closeForm = useCallback(() => {
-    if (busy) {
-      return
-    }
-    setFormOpen(false)
-    setEditing(null)
-  }, [busy])
+  const closeCardForm = useCallback(() => {
+    setCardFormOpen(false)
+    setEditingCard(null)
+  }, [])
 
-  const submitForm = useCallback(
+  const submitCardForm = useCallback(
     async (event: FormEvent) => {
       event.preventDefault()
       if (!token?.trim() || !validId || busy) {
         return
       }
+      const payload: PaymentCardWritePayload = {
+        label: cardForm.label.trim(),
+        cardOwnerName: cardForm.cardOwnerName.trim(),
+        cardExpiryMonth: Number(cardForm.cardExpiryMonth),
+        cardExpiryYear: Number(cardForm.cardExpiryYear),
+      }
+      if (cardForm.cardNumber.trim() || !editingCard) {
+        payload.cardNumber = cardForm.cardNumber.trim()
+      }
       setBusy(true)
       setError('')
       try {
-        if (editing) {
-          await updateCustomerPremiumPayment(
-            token,
-            customerId,
-            editing.id,
-            toPayload(form, Boolean(form.cardNumber.trim())),
-          )
+        if (editingCard) {
+          await updatePaymentCard(token, customerId, editingCard.id, payload)
         } else {
-          if (!form.cardNumber.trim()) {
-            setError('카드번호를 입력해 주세요.')
-            setBusy(false)
-            return
-          }
-          await createCustomerPremiumPayment(token, customerId, toPayload(form, true))
+          await createPaymentCard(token, customerId, payload)
         }
-        setFormOpen(false)
-        setEditing(null)
+        closeCardForm()
         await loadAll()
       } catch (e) {
-        setError(e instanceof Error ? e.message : '저장에 실패했습니다.')
+        setError(e instanceof Error ? e.message : '저장하지 못했습니다.')
       } finally {
         setBusy(false)
       }
     },
-    [busy, customerId, editing, form, loadAll, token, validId],
+    [busy, cardForm, closeCardForm, customerId, editingCard, loadAll, token, validId],
   )
 
-  const toggleActive = useCallback(
-    async (row: PremiumPaymentMethodRow, nextActive: boolean) => {
+  const removeCard = useCallback(
+    async (card: PaymentCardRow) => {
+      if (!token?.trim() || busy) {
+        return
+      }
+      setBusy(true)
+      setError('')
+      try {
+        await deletePaymentCard(token, customerId, card.id)
+        await loadAll()
+      } catch (e) {
+        setError(e instanceof Error ? e.message : '삭제하지 못했습니다.')
+      } finally {
+        setBusy(false)
+      }
+    },
+    [busy, customerId, loadAll, token],
+  )
+
+  const openCreateContract = useCallback(() => {
+    setEditingContract(null)
+    setContractForm(emptyContractForm())
+    setContractFormOpen(true)
+    setError('')
+  }, [])
+
+  const openEditContract = useCallback((row: CardPaymentContractRow) => {
+    setEditingContract(row)
+    setContractForm({
+      insuranceCompany: row.insuranceCompany,
+      policyNumber: row.policyNumber ?? '',
+      productName: row.productName ?? '',
+      premiumAmount: row.premiumAmount == null ? '' : String(row.premiumAmount),
+      paymentDay: row.paymentDay == null ? '' : String(row.paymentDay),
+      paymentCardId: row.paymentCardId == null ? '' : String(row.paymentCardId),
+      memo: row.memo ?? '',
+      status: row.status,
+    })
+    setContractFormOpen(true)
+    setError('')
+  }, [])
+
+  const closeContractForm = useCallback(() => {
+    setContractFormOpen(false)
+    setEditingContract(null)
+  }, [])
+
+  const submitContractForm = useCallback(
+    async (event: FormEvent) => {
+      event.preventDefault()
       if (!token?.trim() || !validId || busy) {
         return
       }
+      const payload: ContractWritePayload = {
+        insuranceCompany: contractForm.insuranceCompany.trim(),
+        policyNumber: contractForm.policyNumber.trim() || null,
+        productName: contractForm.productName.trim() || null,
+        memo: contractForm.memo.trim(),
+        status: contractForm.status,
+        paymentCardId: contractForm.paymentCardId ? Number(contractForm.paymentCardId) : null,
+        paymentDay: contractForm.paymentDay ? Number(contractForm.paymentDay) : null,
+        premiumAmount: contractForm.premiumAmount
+          ? Number(contractForm.premiumAmount.replace(/[^\d]/g, ''))
+          : null,
+      }
       setBusy(true)
       setError('')
       try {
-        if (nextActive) {
-          await enableCustomerPremiumPayment(token, customerId, row.id)
+        if (editingContract) {
+          await updateCardPaymentContract(token, customerId, editingContract.id, payload)
         } else {
-          await disableCustomerPremiumPayment(token, customerId, row.id)
+          await createCardPaymentContract(token, customerId, payload)
         }
+        closeContractForm()
         await loadAll()
       } catch (e) {
-        setError(e instanceof Error ? e.message : '상태 변경에 실패했습니다.')
+        setError(e instanceof Error ? e.message : '저장하지 못했습니다.')
       } finally {
         setBusy(false)
       }
     },
-    [busy, customerId, loadAll, token, validId],
+    [busy, closeContractForm, contractForm, customerId, editingContract, loadAll, token, validId],
   )
 
-  const copyField = useCallback(async (label: string, value: string) => {
-    const ok = await copyTextToClipboard(value)
-    setCopyHint(ok ? `${label}을(를) 복사했습니다.` : '복사에 실패했습니다.')
-    window.setTimeout(() => setCopyHint(''), 2000)
-  }, [])
-
-  const openReveal = useCallback((row: PremiumPaymentMethodRow) => {
-    setRevealTarget(row)
-    setRevealPassword('')
-    setRevealedCardNumber('')
-    setRevealError('')
-    setRevealOpen(true)
-  }, [])
-
-  const closeReveal = useCallback(() => {
-    if (busy) {
-      return
-    }
-    setRevealOpen(false)
-    setRevealTarget(null)
-    setRevealPassword('')
-    setRevealedCardNumber('')
-    setRevealError('')
-  }, [busy])
-
-  const submitReveal = useCallback(
-    async (event: FormEvent) => {
-      event.preventDefault()
-      if (!token?.trim() || !validId || !revealTarget || busy) {
-        return
-      }
-      if (!revealPassword.trim()) {
-        setRevealError('비밀번호를 입력해 주세요.')
+  const removeContract = useCallback(
+    async (row: CardPaymentContractRow) => {
+      if (!token?.trim() || busy) {
         return
       }
       setBusy(true)
-      setRevealError('')
+      setError('')
       try {
-        const reauth = await reauthenticatePremiumPaymentCard(
-          token,
-          customerId,
-          revealTarget.id,
-          revealPassword,
-        )
-        const revealed = await revealPremiumPaymentCardNumber(
-          token,
-          customerId,
-          revealTarget.id,
-          reauth.reauthToken,
-        )
-        setRevealedCardNumber(revealed.cardNumber)
-        setRevealPassword('')
+        await deleteCardPaymentContract(token, customerId, row.id)
+        await loadAll()
       } catch (e) {
-        setRevealError(e instanceof Error ? e.message : '카드번호를 확인할 수 없습니다.')
-        setRevealedCardNumber('')
+        setError(e instanceof Error ? e.message : '삭제하지 못했습니다.')
       } finally {
         setBusy(false)
       }
     },
-    [busy, customerId, revealPassword, revealTarget, token, validId],
+    [busy, customerId, loadAll, token],
   )
 
-  const copyRevealedCard = useCallback(async () => {
-    if (!revealedCardNumber) {
-      return
-    }
-    await copyField('카드번호', revealedCardNumber)
-  }, [copyField, revealedCardNumber])
+  const markComplete = useCallback(
+    async (row: CardPaymentContractRow) => {
+      if (!token?.trim() || busy) {
+        return
+      }
+      setBusy(true)
+      setError('')
+      try {
+        const result = await completeCardPaymentContract(token, customerId, row.id, targetMonth)
+        setContracts((prev) => prev.map((item) => (item.id === row.id ? result.contract : item)))
+      } catch (e) {
+        setError(e instanceof Error ? e.message : '완료 처리하지 못했습니다.')
+      } finally {
+        setBusy(false)
+      }
+    },
+    [busy, customerId, targetMonth, token],
+  )
+
+  const markReopen = useCallback(
+    async (row: CardPaymentContractRow) => {
+      if (!token?.trim() || busy) {
+        return
+      }
+      setBusy(true)
+      setError('')
+      try {
+        const result = await reopenCardPaymentContract(token, customerId, row.id, targetMonth)
+        setContracts((prev) => prev.map((item) => (item.id === row.id ? result.contract : item)))
+      } catch (e) {
+        setError(e instanceof Error ? e.message : '상태를 변경하지 못했습니다.')
+      } finally {
+        setBusy(false)
+      }
+    },
+    [busy, customerId, targetMonth, token],
+  )
+
+  const cardOptions = useMemo(
+    () =>
+      cards.map((card) => ({
+        value: String(card.id),
+        label: `${card.label || '카드'} · ${card.cardOwnerName} · 끝 ${card.cardNumberLast4}`,
+      })),
+    [cards],
+  )
 
   return {
-    rows,
+    cards,
+    contracts,
+    targetMonth,
+    setTargetMonth,
     error,
     busy,
     notFound,
-    formOpen,
-    editing,
-    form,
-    setForm,
     copyHint,
-    revealOpen,
-    revealTarget,
-    revealPassword,
-    setRevealPassword,
-    revealedCardNumber,
-    revealError,
-    formatCardExpiry,
-    openCreate,
-    openEdit,
-    closeForm,
-    submitForm,
-    toggleActive,
-    copyField,
-    openReveal,
-    closeReveal,
-    submitReveal,
-    copyRevealedCard,
+    cardFormOpen,
+    editingCard,
+    cardForm,
+    setCardForm,
+    openCreateCard,
+    openEditCard,
+    closeCardForm,
+    submitCardForm,
+    removeCard,
+    contractFormOpen,
+    editingContract,
+    contractForm,
+    setContractForm,
+    openCreateContract,
+    openEditContract,
+    closeContractForm,
+    submitContractForm,
+    removeContract,
+    markComplete,
+    markReopen,
+    copyPolicyNumber,
+    copyCardNumber,
+    copyCardExpiry,
+    cardOptions,
     reload: loadAll,
   }
 }
 
-export type CustomerPremiumPaymentsState = ReturnType<typeof useCustomerPremiumPaymentsState>
+export type CustomerCardPaymentState = ReturnType<typeof useCustomerPremiumPaymentsState>

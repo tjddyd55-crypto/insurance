@@ -42,7 +42,7 @@ function resolveMobileSheetTitle(pathname: string, search: string): string {
     return '상담'
   }
   if (pathname.includes('/premium-payments')) {
-    return '보험료 결제'
+    return '카드 수납'
   }
   if (pathname.includes('/ga-excel') || pathname.includes('/ga')) {
     return 'GA 데이터 보기'

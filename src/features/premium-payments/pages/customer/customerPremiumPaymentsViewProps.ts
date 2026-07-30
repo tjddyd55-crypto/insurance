@@ -1,8 +1,11 @@
-import type { CustomerPremiumPaymentsState } from '../../hooks/useCustomerPremiumPaymentsState'
+import type { CustomerCardPaymentState } from '../../hooks/useCustomerPremiumPaymentsState'
 
 export type CustomerPremiumPaymentsViewProps = {
   customerId: number
-  state: CustomerPremiumPaymentsState
-  onConfirmDisable: (rowId: number) => Promise<void>
-  onConfirmEnable: (rowId: number) => Promise<void>
+  customerName: string
+  state: CustomerCardPaymentState
+  onConfirmDeleteCard: (cardId: number) => Promise<void>
+  onConfirmDeleteContract: (contractId: number) => Promise<void>
+  onConfirmComplete: (contractId: number) => Promise<void>
+  onConfirmReopen: (contractId: number) => Promise<void>
 }
