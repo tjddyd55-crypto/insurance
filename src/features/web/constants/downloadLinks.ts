@@ -1,6 +1,6 @@
 import {
+  ANDROID_APP_DOWNLOAD_URL,
   DESKTOP_DOWNLOAD_URL,
-  MOBILE_DOWNLOAD_URL,
 } from './appInstallLinks'
 
 export type DownloadLinkMap = {
@@ -12,7 +12,7 @@ export type DownloadLinkMap = {
 
 const DEFAULT_DOWNLOAD_LINKS: DownloadLinkMap = Object.freeze({
   pc: DESKTOP_DOWNLOAD_URL,
-  fcMobile: MOBILE_DOWNLOAD_URL,
+  fcMobile: ANDROID_APP_DOWNLOAD_URL,
   customerApp: 'https://cdn.platform-assets.com/insurer/download/customer-app-release.apk',
   sampleExcel: '',
 })
@@ -24,7 +24,7 @@ function normalizeLink(value: unknown, fallback: string): string {
 
 export const DOWNLOAD_LINKS: DownloadLinkMap = Object.freeze({
   pc: DESKTOP_DOWNLOAD_URL,
-  fcMobile: MOBILE_DOWNLOAD_URL,
+  fcMobile: ANDROID_APP_DOWNLOAD_URL,
   customerApp: normalizeLink(
     import.meta.env.VITE_DOWNLOAD_CUSTOMER_APP_URL,
     DEFAULT_DOWNLOAD_LINKS.customerApp,
