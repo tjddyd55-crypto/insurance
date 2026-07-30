@@ -56,6 +56,7 @@ import { registerCustomerCarsApi } from './apis/customerCarsApi.js'
 import { registerCustomerSpecialDatesApi } from './apis/customerSpecialDatesApi.js'
 import { registerCustomerMapApi } from './apis/customerMapApi.js'
 import { registerPremiumPaymentApi } from './registerPremiumPaymentApi.js'
+import { registerCardPaymentApi } from './registerCardPaymentApi.js'
 import { recordAnalyticsEvent } from './lib/analyticsEvents.js'
 import { ensureYesterdayAnalyticsAggregated } from './lib/analyticsAggregation.js'
 import { tickAnalyticsAggregationScheduler } from './lib/analyticsScheduler.js'
@@ -1651,6 +1652,7 @@ registerSubscriptionEndpoints(apiRouter, { requireAuth })
 registerCustomerCarsApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCustomerSpecialDatesApi(apiRouter, { pool, requireAuth, handleDbError })
 registerPremiumPaymentApi(apiRouter, { pool, requireAuth, handleDbError, JWT_SECRET })
+registerCardPaymentApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCustomerMapApi(apiRouter, { pool, requireAuth, handleDbError, requireInsuranceFormUserId })
 
 registerCustomerClaimAppApi(apiRouter, {

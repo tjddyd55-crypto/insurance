@@ -1844,6 +1844,116 @@ export async function initDb() {
     WHERE deleted_at IS NULL
   `)
 
+  /* 카드 수납: 고객 카드정보 / 수납 대상 계약 / 월별 완료 이력 */
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS customer_payment_cards (
+      id BIGSERIAL PRIMARY KEY,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id) ON DELETE CASCADE,
+      owner_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      label TEXT NOT NULL DEFAULT '',
+      card_owner_name TEXT NOT NULL DEFAULT '',
+      card_number_ciphertext TEXT NOT NULL,
+      encryption_key_version TEXT NOT NULL DEFAULT '1',
+      card_number_last4 TEXT NOT NULL DEFAULT '',
+      card_expiry_month SMALLINT NOT NULL,
+      card_expiry_year SMALLINT NOT NULL,
+      is_default BOOLEAN NOT NULL DEFAULT FALSE,
+      created_by TEXT NULL,
+      updated_by TEXT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      deleted_at TIMESTAMPTZ NULL,
+      CONSTRAINT customer_payment_cards_expiry_month_check
+        CHECK (card_expiry_month BETWEEN 1 AND 12),
+      CONSTRAINT customer_payment_cards_expiry_year_check
+        CHECK (card_expiry_year BETWEEN 2000 AND 2100)
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_payment_cards_customer
+    ON customer_payment_cards(customer_id)
+    WHERE deleted_at IS NULL
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_payment_cards_ga_owner
+    ON customer_payment_cards(ga_id, owner_user_id)
+    WHERE deleted_at IS NULL
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_payment_cards_last4
+    ON customer_payment_cards(card_number_last4)
+    WHERE deleted_at IS NULL
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS customer_card_payment_contracts (
+      id BIGSERIAL PRIMARY KEY,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id) ON DELETE CASCADE,
+      owner_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      payment_card_id BIGINT NULL REFERENCES customer_payment_cards(id) ON DELETE SET NULL,
+      insurance_company TEXT NOT NULL DEFAULT '',
+      policy_number TEXT NULL,
+      product_name TEXT NULL,
+      premium_amount NUMERIC(14, 0) NULL,
+      payment_day SMALLINT NULL,
+      memo TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'PENDING',
+      last_completed_at TIMESTAMPTZ NULL,
+      created_by TEXT NULL,
+      updated_by TEXT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      deleted_at TIMESTAMPTZ NULL,
+      CONSTRAINT customer_card_payment_contracts_payment_day_check
+        CHECK (payment_day IS NULL OR (payment_day BETWEEN 1 AND 31)),
+      CONSTRAINT customer_card_payment_contracts_status_check
+        CHECK (status IN ('PENDING', 'PAUSED'))
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_card_payment_contracts_customer
+    ON customer_card_payment_contracts(customer_id)
+    WHERE deleted_at IS NULL
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_card_payment_contracts_ga
+    ON customer_card_payment_contracts(ga_id, owner_user_id)
+    WHERE deleted_at IS NULL
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_card_payment_contracts_company
+    ON customer_card_payment_contracts(insurance_company)
+    WHERE deleted_at IS NULL
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS customer_card_payment_completions (
+      id BIGSERIAL PRIMARY KEY,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id) ON DELETE CASCADE,
+      contract_id BIGINT NOT NULL REFERENCES customer_card_payment_contracts(id) ON DELETE CASCADE,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      target_month TEXT NOT NULL,
+      completed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      completed_by TEXT NULL,
+      memo TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT customer_card_payment_completions_month_check
+        CHECK (target_month ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'),
+      CONSTRAINT customer_card_payment_completions_unique
+        UNIQUE (contract_id, target_month)
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_card_payment_completions_month
+    ON customer_card_payment_completions(ga_id, target_month)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_card_payment_completions_customer
+    ON customer_card_payment_completions(customer_id, target_month)
+  `)
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS ga_customer_excel_settings (
       ga_id INTEGER PRIMARY KEY REFERENCES ga_companies(id) ON DELETE CASCADE,
