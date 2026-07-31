@@ -18,24 +18,6 @@ SMS(`ALIGO_*`, `SMS_MODULE_*`)·자동문자와 **완전히 분리**합니다.
 | `INSURANCE_ALIGO_KAKAO_CUSTOMER_APP_LINK_APPROVED` | `false` | UJ_6184 검수 완료 후에만 `true` |
 | `INSURANCE_ALIGO_KAKAO_TPL_CUSTOMER_REGISTRATION_LINK` | `UJ_6670` | 고객등록 링크 템플릿 코드(강조표기형) |
 | `INSURANCE_ALIGO_KAKAO_CUSTOMER_REGISTRATION_LINK_APPROVED` | `false` | UJ_6670 승인 완료 후에만 `true` |
-| `INSURANCE_ALIGO_KAKAO_CLAIM_RECEIVED_ENABLED` | `true` | 청구 접수 알림톡 on/off (기존 APPROVED 와 독립) |
-| `INSURANCE_ALIGO_KAKAO_CLAIM_RECEIVED_TEMPLATE_CODE` | `UJ_9750` | 청구 접수 템플릿 |
-| `INSURANCE_ALIGO_KAKAO_CLAIM_RECEIVED_ALLOW_REAL_SEND` | `true` | 청구 알림톡 실발송 (전역 DRY_RUN 무시) |
-| `INSURANCE_ALIGO_KAKAO_DEV_REAL_SEND_ENABLED` | `false` | development 실발송 허용 |
-| `INSURANCE_ALIGO_KAKAO_DEV_RECIPIENT_ALLOWLIST` | (빈값) | development 허용 번호(쉼표 구분) |
-
-## 템플릿 C — 보험 청구 접수 (`INSURANCE_CLAIM_RECEIVED`)
-
-| 항목 | 값 |
-|---|---|
-| 수신자 | 담당 CRM 사용자 (`agentId`) |
-| 템플릿명 | 보험 청구 접수 알림 |
-| 템플릿코드 | `UJ_9750` |
-| 변수 | `#{고객명}`, `#{접수일시}` |
-| 버튼/링크 | 없음 |
-| 대체문자 | 발송안함 |
-| 전달 | `claim_alimtalk_outbox` 비동기 (청구 COMMIT 이후) |
-| 미승인 | Aligo 거절 → FAILED(영구), 청구 저장·종알림·push 유지 |
 
 **secret 커밋 금지.** API Key / User ID / Sender Key 는 Railway(또는 로컬 `server/.env`)에만 둡니다.
 
