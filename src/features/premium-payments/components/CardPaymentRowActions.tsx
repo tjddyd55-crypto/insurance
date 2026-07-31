@@ -14,7 +14,7 @@ type Props = {
   layout?: 'inline' | 'stacked'
 }
 
-/** 카드 수납 수정·삭제 액션 SSOT */
+/** 카드 수납 수정·삭제 액션 SSOT — 항상 가로 한 줄 */
 export function CardPaymentRowActions({
   onEdit,
   onDelete,
@@ -24,7 +24,7 @@ export function CardPaymentRowActions({
 }: Props) {
   if (variant === 'form') {
     return (
-      <div className="premium-payments-inline-actions">
+      <div className="premium-payments-row-actions premium-payments-inline-actions">
         <FormButton htmlType="button" variant="secondary" size="sm" disabled={disabled} onClick={onEdit}>
           수정
         </FormButton>
@@ -36,13 +36,15 @@ export function CardPaymentRowActions({
   }
 
   return (
-    <CustomerWorkspaceItemActions layout={layout}>
-      <CustomerWorkspaceSecondaryActionButton disabled={disabled} onClick={onEdit}>
-        수정
-      </CustomerWorkspaceSecondaryActionButton>
-      <CustomerWorkspaceDangerActionButton disabled={disabled} onClick={onDelete}>
-        삭제
-      </CustomerWorkspaceDangerActionButton>
-    </CustomerWorkspaceItemActions>
+    <div className="premium-payments-row-actions">
+      <CustomerWorkspaceItemActions layout={layout}>
+        <CustomerWorkspaceSecondaryActionButton disabled={disabled} onClick={onEdit}>
+          수정
+        </CustomerWorkspaceSecondaryActionButton>
+        <CustomerWorkspaceDangerActionButton disabled={disabled} onClick={onDelete}>
+          삭제
+        </CustomerWorkspaceDangerActionButton>
+      </CustomerWorkspaceItemActions>
+    </div>
   )
 }

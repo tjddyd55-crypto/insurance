@@ -6,6 +6,7 @@ import {
 } from '../api/premiumPaymentsApi'
 import { formatLinkedCardLabel } from '../utils/formatLinkedCardLabel.js'
 import { CardPaymentRowActions } from './CardPaymentRowActions'
+import { InlineCopyValue } from './InlineCopyValue'
 
 type Props = {
   contracts: CardPaymentContractRow[]
@@ -62,54 +63,58 @@ export function CollectionTargetsSection({
                 return (
                   <tr key={row.id}>
                     <td className="premium-payments-table__col--company" data-label="보험회사">
-                      {row.insuranceCompany}
+                      <span className="premium-payments-cell-inner">
+                        <span className="premium-payments-cell-text">{row.insuranceCompany}</span>
+                      </span>
                     </td>
                     <td className="premium-payments-table__col--policy" data-label="증권번호">
-                      {row.policyNumber ? (
-                        <span className="premium-payments-inline-value">
-                          <span className="premium-payments-ellipsis" title={row.policyNumber}>
-                            {row.policyNumber}
-                          </span>
-                          <FormButton
-                            htmlType="button"
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => onCopyPolicyNumber(row.policyNumber)}
-                          >
-                            복사
-                          </FormButton>
-                        </span>
-                      ) : (
-                        '증권번호 없음'
-                      )}
+                      <span className="premium-payments-cell-inner">
+                        <InlineCopyValue
+                          value={row.policyNumber}
+                          emptyLabel="증권번호 없음"
+                          onCopy={(trimmed) => onCopyPolicyNumber(trimmed)}
+                        />
+                      </span>
                     </td>
                     <td
                       className="premium-payments-table__col--product"
                       data-label="상품명"
                       title={row.productName || undefined}
                     >
-                      <span className="premium-payments-ellipsis">{row.productName || '-'}</span>
+                      <span className="premium-payments-cell-inner">
+                        <span className="premium-payments-cell-text">{row.productName || '-'}</span>
+                      </span>
                     </td>
                     <td className="premium-payments-table__col--amount" data-label="보험료">
-                      {formatPremiumAmount(row.premiumAmount)}
+                      <span className="premium-payments-cell-inner premium-payments-cell-inner--end">
+                        <span className="premium-payments-cell-text">{formatPremiumAmount(row.premiumAmount)}</span>
+                      </span>
                     </td>
                     <td className="premium-payments-table__col--day" data-label="결제일">
-                      {formatPaymentDay(row.paymentDay)}
+                      <span className="premium-payments-cell-inner premium-payments-cell-inner--center">
+                        <span className="premium-payments-cell-text premium-payments-cell-text--nowrap">
+                          {formatPaymentDay(row.paymentDay)}
+                        </span>
+                      </span>
                     </td>
                     <td
                       className="premium-payments-table__col--card"
                       data-label="사용 카드"
                       title={cardLabel}
                     >
-                      <span className="premium-payments-ellipsis">{cardLabel}</span>
+                      <span className="premium-payments-cell-inner">
+                        <span className="premium-payments-cell-text">{cardLabel}</span>
+                      </span>
                     </td>
                     <td className="premium-payments-table__col--actions" data-label="관리">
-                      <CardPaymentRowActions
-                        variant={actionVariant}
-                        disabled={busy}
-                        onEdit={() => onEdit(row)}
-                        onDelete={() => onDelete(row.id)}
-                      />
+                      <span className="premium-payments-cell-inner premium-payments-cell-inner--end">
+                        <CardPaymentRowActions
+                          variant={actionVariant}
+                          disabled={busy}
+                          onEdit={() => onEdit(row)}
+                          onDelete={() => onDelete(row.id)}
+                        />
+                      </span>
                     </td>
                   </tr>
                 )

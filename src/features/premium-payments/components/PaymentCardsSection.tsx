@@ -1,6 +1,7 @@
 import { FormButton } from '../../../components/form'
 import type { PaymentCardRow } from '../api/premiumPaymentsApi'
 import { CardPaymentRowActions } from './CardPaymentRowActions'
+import { InlineCopyValue } from './InlineCopyValue'
 
 type Props = {
   cards: PaymentCardRow[]
@@ -55,44 +56,44 @@ export function PaymentCardsSection({
               {cards.map((card) => (
                 <tr key={card.id}>
                   <td className="premium-payments-card-table__col--label" data-label="카드 구분명">
-                    {card.label || '카드'}
+                    <span className="premium-payments-cell-inner">
+                      <span className="premium-payments-cell-text">{card.label || '카드'}</span>
+                    </span>
                   </td>
                   <td className="premium-payments-card-table__col--owner" data-label="카드 소유주">
-                    {card.cardOwnerName}
+                    <span className="premium-payments-cell-inner">
+                      <span className="premium-payments-cell-text">{card.cardOwnerName}</span>
+                    </span>
                   </td>
                   <td className="premium-payments-card-table__col--number" data-label="카드번호">
-                    <span className="premium-payments-inline-value">
-                      <span className="premium-payments-mono">{card.cardNumberDisplay ?? '-'}</span>
-                      <FormButton
-                        htmlType="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => onCopyCardNumber(card.cardNumber)}
-                      >
-                        복사
-                      </FormButton>
+                    <span className="premium-payments-cell-inner">
+                      <InlineCopyValue
+                        value={card.cardNumber || card.cardNumberDisplay}
+                        display={card.cardNumberDisplay ?? card.cardNumber}
+                        mono
+                        emptyLabel="-"
+                        onCopy={(trimmed) => onCopyCardNumber(card.cardNumber || trimmed)}
+                      />
                     </span>
                   </td>
                   <td className="premium-payments-card-table__col--expiry" data-label="유효기간">
-                    <span className="premium-payments-inline-value">
-                      <span>{card.cardExpiry}</span>
-                      <FormButton
-                        htmlType="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => onCopyExpiry(card.cardExpiry)}
-                      >
-                        복사
-                      </FormButton>
+                    <span className="premium-payments-cell-inner">
+                      <InlineCopyValue
+                        value={card.cardExpiry}
+                        emptyLabel="-"
+                        onCopy={(trimmed) => onCopyExpiry(trimmed)}
+                      />
                     </span>
                   </td>
                   <td className="premium-payments-card-table__col--actions" data-label="관리">
-                    <CardPaymentRowActions
-                      variant={actionVariant}
-                      disabled={busy}
-                      onEdit={() => onEdit(card)}
-                      onDelete={() => onDelete(card.id)}
-                    />
+                    <span className="premium-payments-cell-inner premium-payments-cell-inner--end">
+                      <CardPaymentRowActions
+                        variant={actionVariant}
+                        disabled={busy}
+                        onEdit={() => onEdit(card)}
+                        onDelete={() => onDelete(card.id)}
+                      />
+                    </span>
                   </td>
                 </tr>
               ))}
