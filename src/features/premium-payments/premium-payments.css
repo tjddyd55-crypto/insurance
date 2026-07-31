@@ -58,9 +58,21 @@
 .premium-payments-inline-value {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
+  max-width: 100%;
   white-space: nowrap;
+}
+
+.premium-payments-inline-value__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.premium-payments-inline-value__copy {
+  flex-shrink: 0;
 }
 
 .premium-payments-ellipsis {
@@ -69,7 +81,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  vertical-align: bottom;
+  vertical-align: middle;
 }
 
 .premium-payments-mono {
@@ -77,11 +89,55 @@
   letter-spacing: 0.02em;
 }
 
-.premium-payments-inline-actions {
+.premium-payments-cell-inner {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
   align-items: center;
+  min-width: 0;
+  width: 100%;
+  min-height: 32px;
+  line-height: 1.3;
+}
+
+.premium-payments-cell-inner--end {
+  justify-content: flex-end;
+}
+
+.premium-payments-cell-inner--center {
+  justify-content: center;
+}
+
+.premium-payments-cell-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.3;
+  margin: 0;
+}
+
+.premium-payments-cell-text--nowrap {
+  white-space: nowrap;
+}
+
+.premium-payments-row-actions,
+.premium-payments-inline-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.premium-payments-row-actions .customer-workspace-item-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  margin: 0;
+  width: auto;
 }
 
 /* —— compact card info table —— */
@@ -124,7 +180,7 @@
 }
 
 .premium-payments-card-table__col--label {
-  width: 140px;
+  width: 120px;
 }
 
 .premium-payments-card-table__col--owner {
@@ -133,6 +189,7 @@
 
 .premium-payments-card-table__col--number {
   width: auto;
+  min-width: 0;
 }
 
 .premium-payments-card-table__col--expiry {
@@ -140,34 +197,43 @@
 }
 
 .premium-payments-card-table__col--actions {
-  width: 120px;
+  width: 128px;
+  min-width: 128px;
   text-align: right;
 }
 
 .premium-payments-table__col--company {
-  width: 12%;
+  width: 11%;
   text-align: left;
 }
 
 .premium-payments-table__col--policy {
   width: 16%;
-  min-width: 120px;
+  min-width: 140px;
   text-align: left;
 }
 
 .premium-payments-table__col--product {
-  width: 16%;
+  width: 14%;
   min-width: 100px;
   text-align: left;
 }
 
 .premium-payments-table__col--amount {
-  width: 12%;
+  width: 11%;
+  text-align: right;
+}
+
+.premium-payments-table thead .premium-payments-table__col--amount {
   text-align: right;
 }
 
 .premium-payments-table__col--day {
-  width: 12%;
+  width: 11%;
+  text-align: center;
+}
+
+.premium-payments-table thead .premium-payments-table__col--day {
   text-align: center;
 }
 
@@ -178,7 +244,8 @@
 }
 
 .premium-payments-table__col--actions {
-  width: 14%;
+  width: 128px;
+  min-width: 128px;
   text-align: right;
 }
 
@@ -566,9 +633,32 @@
   text-align: left;
 }
 
+.premium-payments-page--mobile .premium-payments-cell-inner,
+.premium-payments-page--mobile .premium-payments-cell-inner--end,
+.premium-payments-page--mobile .premium-payments-cell-inner--center {
+  justify-content: flex-start;
+  min-height: 0;
+}
+
 .premium-payments-page--mobile .premium-payments-inline-value {
   white-space: normal;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  max-width: 100%;
+}
+
+.premium-payments-page--mobile .premium-payments-row-actions,
+.premium-payments-page--mobile .premium-payments-inline-actions,
+.premium-payments-page--mobile .premium-payments-row-actions .customer-workspace-item-actions {
+  display: flex;
+  width: 100%;
+  justify-content: stretch;
+  flex-wrap: nowrap;
+}
+
+.premium-payments-page--mobile .premium-payments-row-actions > *,
+.premium-payments-page--mobile .premium-payments-inline-actions > *,
+.premium-payments-page--mobile .premium-payments-row-actions .customer-workspace-item-actions > * {
+  flex: 1 1 0;
 }
 
 .premium-payments-page--pc .premium-payments-table-wrap,
