@@ -220,3 +220,69 @@ export function getCustomerRegistrationLinkTemplate(env = process.env) {
     buildButtonPayload: buildCustomerRegistrationLinkButtonPayload,
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* 보험 청구 접수 알림 — UJ_9750 (담당 CRM 사용자 · 버튼/링크 없음)                 */
+/* -------------------------------------------------------------------------- */
+
+export const TEMPLATE_KEY_CLAIM_RECEIVED = 'INSURANCE_CLAIM_RECEIVED'
+export const CLAIM_RECEIVED_TPL_CODE = 'UJ_9750'
+export const CLAIM_RECEIVED_SUBJECT = '보험 청구 접수 알림'
+export const CLAIM_RECEIVED_TEMPLATE_NAME = '보험 청구 접수 알림'
+
+/**
+ * 승인 요청 본문 SSOT — 공백·줄바꿈 유지. 민감정보/링크/버튼/접수구분 금지.
+ */
+export const CLAIM_RECEIVED_APPROVED_TEMPLATE = [
+  '[ONE FC 청구 알림]',
+  '',
+  '#{고객명} 고객님의 새로운 보험 청구가 접수되었습니다.',
+  '',
+  '접수일시: #{접수일시}',
+  '',
+  'ONE FC 앱 또는 PC에서 청구 내용을 확인해 주세요.',
+].join('\n')
+
+/**
+ * @param {{ customerName?: string | null, submittedAtLabel?: string | null }} input
+ */
+export function buildClaimReceivedMessage(input) {
+  const customerName = String(input.customerName ?? '').trim() || '고객'
+  const submittedAtLabel = String(input.submittedAtLabel ?? '').trim() || '—'
+  return CLAIM_RECEIVED_APPROVED_TEMPLATE.replaceAll('#{고객명}', customerName).replaceAll(
+    '#{접수일시}',
+    submittedAtLabel,
+  )
+}
+
+/** 버튼 없는 템플릿 — 빈 button 배열 */
+export function buildClaimReceivedButtonPayload() {
+  return { button: [] }
+}
+
+/**
+ * @param {NodeJS.ProcessEnv} [env]
+ */
+export function resolveClaimReceivedTplCode(env = process.env) {
+  const fromEnv = String(env.INSURANCE_ALIGO_KAKAO_CLAIM_RECEIVED_TEMPLATE_CODE ?? '').trim()
+  if (fromEnv) return fromEnv
+  return CLAIM_RECEIVED_TPL_CODE
+}
+
+/**
+ * @param {NodeJS.ProcessEnv} [env]
+ */
+export function getClaimReceivedTemplate(env = process.env) {
+  const tplCode = resolveClaimReceivedTplCode(env)
+  return {
+    key: TEMPLATE_KEY_CLAIM_RECEIVED,
+    subject: CLAIM_RECEIVED_SUBJECT,
+    templateName: CLAIM_RECEIVED_TEMPLATE_NAME,
+    channelName: '@crm솔루션',
+    failover: 'N',
+    tplCode,
+    isPlaceholder: isPlaceholderTplCode(tplCode),
+    buildMessage: buildClaimReceivedMessage,
+    buildButtonPayload: buildClaimReceivedButtonPayload,
+  }
+}

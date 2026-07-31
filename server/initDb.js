@@ -3289,6 +3289,44 @@ export async function initDb() {
     ON notification_push_outbox (status, next_attempt_at)
   `)
 
+  // 고객앱 청구 접수 → 담당자 카카오 알림톡 outbox (동기 청구 API와 분리)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS claim_alimtalk_outbox (
+      id BIGSERIAL PRIMARY KEY,
+      event_type TEXT NOT NULL DEFAULT 'CUSTOMER_CLAIM_SUBMITTED',
+      channel TEXT NOT NULL DEFAULT 'KAKAO_ALIMTALK',
+      recipient_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      ga_id INTEGER NULL,
+      claim_request_id BIGINT NOT NULL,
+      customer_id INTEGER NULL,
+      template_code TEXT NOT NULL,
+      customer_name TEXT NOT NULL,
+      submitted_at_label TEXT NOT NULL,
+      receiver_digits TEXT NOT NULL,
+      receiver_masked TEXT NOT NULL,
+      dedupe_key TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'PENDING',
+      attempt_count INTEGER NOT NULL DEFAULT 0,
+      next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      sent_at TIMESTAMPTZ NULL,
+      provider_code INTEGER NULL,
+      provider_message_id TEXT NULL,
+      last_error TEXT NULL,
+      permanent_failure BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_claim_alimtalk_outbox_dedupe_recipient
+    ON claim_alimtalk_outbox (dedupe_key, recipient_user_id)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_claim_alimtalk_outbox_pending
+    ON claim_alimtalk_outbox (status, next_attempt_at)
+    WHERE permanent_failure = false
+  `)
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS admin_notices (
       id BIGSERIAL PRIMARY KEY,

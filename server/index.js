@@ -158,6 +158,11 @@ import { registerSmsModuleApi } from './registerSmsModuleApi.js'
 import { registerCrmUserBulkSmsApi } from './registerCrmUserBulkSmsApi.js'
 import { startSmsAutomationScheduler } from './sms/smsAutomationScheduler.js'
 import { processPendingPushOutbox } from './lib/push/pushOutboxService.js'
+import {
+  getClaimReceivedAlimtalkDiagnostics,
+  processPendingClaimAlimtalkOutbox,
+} from './alimtalk/claimReceivedAlimtalk.js'
+import { loadInsuranceAlimtalkConfig } from './alimtalk/alimtalkConfig.js'
 import { logSmsModuleEnvironmentHint, validateSmsModuleStartupConfig } from './sms/smsModuleConfig.js'
 import { registerContractPublicOtpApi } from './apis/contractPublicOtpApi.js'
 import { registerContractPublicApi } from './apis/contractPublicApi.js'
@@ -7755,6 +7760,21 @@ async function startServer() {
       console.error('[push-outbox] tick failed', err instanceof Error ? err.message : err),
     )
   }, PUSH_OUTBOX_TICK_MS)
+
+  const CLAIM_ALIMTALK_TICK_MS = 15 * 1000
+  const claimAlimtalkDiag = getClaimReceivedAlimtalkDiagnostics(loadInsuranceAlimtalkConfig())
+  console.info('[claim-alimtalk] diagnostics', {
+    ...claimAlimtalkDiag,
+    workerRunning: true,
+  })
+  void processPendingClaimAlimtalkOutbox(pool).catch((err) =>
+    console.error('[claim-alimtalk] tick failed', err instanceof Error ? err.message : err),
+  )
+  setInterval(() => {
+    void processPendingClaimAlimtalkOutbox(pool).catch((err) =>
+      console.error('[claim-alimtalk] tick failed', err instanceof Error ? err.message : err),
+    )
+  }, CLAIM_ALIMTALK_TICK_MS)
 }
 
 startServer().catch((error) => {
