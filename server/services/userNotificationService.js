@@ -559,6 +559,10 @@ export async function createClaimRequestReceivedNotification(db, safeQueryExec, 
   }
 
   const customerName = String(input.customerName ?? '').trim() || '고객'
+  const hasFiles = Boolean(input.hasFiles)
+  const message = hasFiles
+    ? `${customerName} 고객이 청구 파일을 등록했습니다.`
+    : `${customerName} 고객이 청구 내용을 등록했습니다.`
   return upsertUserNotification(db, safeQueryExec, {
     userId,
     gaId,
@@ -568,7 +572,7 @@ export async function createClaimRequestReceivedNotification(db, safeQueryExec, 
     targetDate: null,
     claimRequestId,
     specialDateId: null,
-    message: `${customerName} 고객님의 새 보험청구 문의가 접수되었습니다.`,
+    message,
     referenceId: String(claimRequestId),
   })
 }
@@ -578,6 +582,7 @@ export async function createClaimRequestReceivedNotification(db, safeQueryExec, 
  * @param {typeof import('../utils/dbSafeQuery.js').safeQuery} safeQueryExec
  * @param {object} input
  */
+
 async function upsertUserNotification(db, safeQueryExec, input) {
   const normalizedTargetDate = input.targetDate ? toDateOnlyString(input.targetDate) : null
   if (input.targetDate && !normalizedTargetDate) {

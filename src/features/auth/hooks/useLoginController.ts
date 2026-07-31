@@ -10,6 +10,19 @@ import useIsMobile from '../../../hooks/useIsMobile'
 import { isFreeLaunchBillingUiHidden } from '../../billing/freeLaunchPolicy'
 import { setPublicBoardWriterToken } from '../../insurer-news/services/publicBoardWriter.service'
 
+/** ProtectedRoute state.from — deep link / push 복귀용. 고객앱·외부 URL 차단. */
+function resolveSafeReturnPath(from: unknown): string | null {
+  const raw = typeof from === 'string' ? from.trim() : ''
+  if (!raw.startsWith('/')) return null
+  if (raw.startsWith('//') || raw.includes('://')) return null
+  const lower = raw.toLowerCase()
+  if (lower.includes('/customer-app') || lower.includes('/customer/register')) return null
+  if (raw.startsWith('/customers/') || raw.startsWith('/customers?') || raw === '/customers') {
+    return raw
+  }
+  return null
+}
+
 /**
  * 로그인 페이지가 소비하는 "일시적 플래시 메시지".
  * 비밀번호 재설정·계정 초기화 후 리다이렉트 되어 오는 사용자에게 1회성으로만 노출된다.
@@ -61,6 +74,7 @@ export function useLoginController(): UseLoginControllerResult {
   const { isAuthenticated, login, user, token } = useAuth()
   const isMobile = useIsMobile()
   const flash = (location.state ?? {}) as LoginFlash
+  const returnPath = resolveSafeReturnPath((location.state as { from?: unknown } | null)?.from)
 
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -70,6 +84,10 @@ export function useLoginController(): UseLoginControllerResult {
 
   useEffect(() => {
     if (!isAuthenticated) {
+      return
+    }
+    if (returnPath) {
+      navigate(returnPath, { replace: true })
       return
     }
     const defaultPath = resolveAuthLandingPath(isMobile, user?.role)
@@ -94,7 +112,7 @@ export function useLoginController(): UseLoginControllerResult {
     return () => {
       cancelled = true
     }
-  }, [isAuthenticated, isMobile, navigate, token, user?.role])
+  }, [isAuthenticated, isMobile, navigate, returnPath, token, user?.role])
 
   useEffect(() => {
     let cancelled = false
@@ -135,6 +153,10 @@ export function useLoginController(): UseLoginControllerResult {
         return
       }
       login({ token: session.token, user: session.user })
+      if (returnPath) {
+        navigate(returnPath, { replace: true })
+        return
+      }
       const defaultPath = resolveAuthLandingPath(isMobile, session.user.role)
       if (isInsuranceBillingEnabledClient() && session.user.role === 'USER' && !isFreeLaunchBillingUiHidden()) {
         try {

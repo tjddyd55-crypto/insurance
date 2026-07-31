@@ -379,7 +379,7 @@ test('createClaimRequestReceivedNotification stores claim_request_received type'
 
   assert.equal(params[2], USER_NOTIFICATION_TYPES.CLAIM_REQUEST_RECEIVED)
   assert.equal(params[8], 777)
-  assert.match(params[4], /새 보험청구 문의/)
+  assert.match(params[4], /청구 내용을 등록했습니다/)
   assert.match(insertSql, /DO NOTHING/)
 })
 

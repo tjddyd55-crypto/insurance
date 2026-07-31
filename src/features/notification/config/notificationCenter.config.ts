@@ -28,7 +28,7 @@ export const NOTIFICATION_SECTIONS: NotificationSectionConfig[] = [
   },
   {
     type: 'claim_request_received',
-    title: '청구요청',
+    title: '새로운 보험 청구',
     dateColumnLabel: '접수일',
     sectionClass: 'claim',
   },
