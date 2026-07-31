@@ -123,7 +123,7 @@
 .premium-payments-inline-actions {
   display: inline-flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 8px;
   flex-wrap: nowrap;
   white-space: nowrap;
@@ -132,7 +132,7 @@
 .premium-payments-row-actions .customer-workspace-item-actions {
   display: inline-flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 8px;
   flex-wrap: nowrap;
   white-space: nowrap;
@@ -199,7 +199,12 @@
 .premium-payments-card-table__col--actions {
   width: 128px;
   min-width: 128px;
-  text-align: right;
+  text-align: center;
+}
+
+.premium-payments-table thead .premium-payments-card-table__col--actions,
+.premium-payments-card-table thead .premium-payments-card-table__col--actions {
+  text-align: center;
 }
 
 .premium-payments-table__col--company {
@@ -246,7 +251,11 @@
 .premium-payments-table__col--actions {
   width: 128px;
   min-width: 128px;
-  text-align: right;
+  text-align: center;
+}
+
+.premium-payments-table thead .premium-payments-table__col--actions {
+  text-align: center;
 }
 
 /* —— form dialog —— */

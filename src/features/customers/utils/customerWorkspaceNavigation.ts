@@ -2,13 +2,13 @@ export const WORKSPACE_SIDE_DETAIL_TABS = [
   'map',
   'files',
   'consultations',
-  'premium-payments',
   'ga-excel',
   'memos',
   'auto-form',
   'application-documents',
   'signatures',
   'claim-requests',
+  'premium-payments',
 ] as const
 
 export type CustomerWorkspaceTab = (typeof WORKSPACE_SIDE_DETAIL_TABS)[number]

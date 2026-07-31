@@ -86,7 +86,7 @@ export function PaymentCardsSection({
                     </span>
                   </td>
                   <td className="premium-payments-card-table__col--actions" data-label="관리">
-                    <span className="premium-payments-cell-inner premium-payments-cell-inner--end">
+                    <span className="premium-payments-cell-inner premium-payments-cell-inner--center">
                       <CardPaymentRowActions
                         variant={actionVariant}
                         disabled={busy}
