@@ -26,6 +26,18 @@ import {
 } from './lib/checkExpoUpdate';
 import { fetchClientVersionPolicy } from './lib/clientVersionPolicy';
 import { sendClientLog } from './lib/sendClientLog';
+import { AUTH_BRIDGE_INJECTED_JS, isSafeInternalReturnPath, parseAuthBridgeMessage } from './lib/authBridge';
+import {
+  buildClaimWebRoute,
+  claimPushDataFromNotification,
+  ensureClaimNotificationChannel,
+  markNotificationReadRemote,
+  parseOneFcDeepLink,
+  resolveApiOrigin,
+  syncPushRegistrationAfterLogin,
+  unregisterPushDeviceWithServer,
+} from './lib/claimPush';
+import * as Notifications from 'expo-notifications';
 
 /**
  * react-native-webview의 onShouldStartLoadWithRequest 반환값은
@@ -37,7 +49,7 @@ import { sendClientLog } from './lib/sendClientLog';
 const ALLOW_WEBVIEW_TO_LOAD_URL = true;
 const CANCEL_WEBVIEW_LOAD = false;
 
-const LOGIN_URL = 'https://insurance-production-7bd8.up.railway.app/login';
+const LOGIN_URL = `${resolveApiOrigin()}/login`;
 
 const SERVICE_HOST = new URL(LOGIN_URL).hostname;
 
@@ -128,6 +140,38 @@ function AppContent() {
   /** BackHandler 등록/해제를 URL 변경마다 맞추기 위한 상태 (onNavigationStateChange 동기화) */
   const [mainWebViewNavUrl, setMainWebViewNavUrl] = useState('');
   const lastExternalOpenUrlRef = useRef<string | null>(null);
+  const authTokenRef = useRef<string | null>(null);
+  const pendingClaimRouteRef = useRef<string | null>(null);
+  const pushRegisteredForTokenRef = useRef<string | null>(null);
+
+  const navigateWebToPath = useCallback((path: string) => {
+    const safe = isSafeInternalReturnPath(path) ? path : null;
+    if (!safe) return;
+    const target = `${resolveApiOrigin()}${safe}`;
+    webViewRef.current?.injectJavaScript(
+      `window.location.href = ${JSON.stringify(target)}; true;`,
+    );
+  }, []);
+
+  const openClaimRoute = useCallback(
+    (route: string | null, opts?: { notificationId?: string }) => {
+      if (!route || !isSafeInternalReturnPath(route)) return;
+      const token = authTokenRef.current;
+      if (!token) {
+        pendingClaimRouteRef.current = route;
+        navigateWebToPath('/login');
+        return;
+      }
+      navigateWebToPath(route);
+      if (opts?.notificationId) {
+        void markNotificationReadRemote({
+          authToken: token,
+          notificationId: opts.notificationId,
+        });
+      }
+    },
+    [navigateWebToPath],
+  );
 
   const scheduleExternalOpen = useCallback((url: string) => {
     if (lastExternalOpenUrlRef.current === url) {
@@ -164,6 +208,64 @@ function AppContent() {
     return () => sub.remove();
   }, []);
 
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    void ensureClaimNotificationChannel();
+
+    const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = claimPushDataFromNotification(response.notification.request.content);
+      const route = buildClaimWebRoute(data) ?? parseOneFcDeepLink(String(data?.route ?? ''));
+      openClaimRoute(route, { notificationId: data?.notificationId });
+    });
+
+    void Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (!response) return;
+      const data = claimPushDataFromNotification(response.notification.request.content);
+      const route = buildClaimWebRoute(data);
+      openClaimRoute(route, { notificationId: data?.notificationId });
+    });
+
+    const linkingSub = Linking.addEventListener('url', ({ url }) => {
+      const route = parseOneFcDeepLink(url);
+      openClaimRoute(route);
+    });
+    void Linking.getInitialURL().then((url) => {
+      if (!url) return;
+      openClaimRoute(parseOneFcDeepLink(url));
+    });
+
+    return () => {
+      responseSub.remove();
+      linkingSub.remove();
+    };
+  }, [openClaimRoute]);
+
+  const handleWebMessage = useCallback(
+    (event: { nativeEvent: { data: string } }) => {
+      const parsed = parseAuthBridgeMessage(event.nativeEvent.data);
+      if (!parsed) return;
+      if (parsed.type === 'AUTH_LOGOUT') {
+        const prev = authTokenRef.current;
+        authTokenRef.current = null;
+        pushRegisteredForTokenRef.current = null;
+        if (prev) {
+          void unregisterPushDeviceWithServer({ authToken: prev });
+        }
+        return;
+      }
+      authTokenRef.current = parsed.token;
+      if (pushRegisteredForTokenRef.current !== parsed.token) {
+        pushRegisteredForTokenRef.current = parsed.token;
+        void syncPushRegistrationAfterLogin(parsed.token);
+      }
+      const pending = pendingClaimRouteRef.current;
+      if (pending) {
+        pendingClaimRouteRef.current = null;
+        navigateWebToPath(pending);
+      }
+    },
+    [navigateWebToPath],
+  );
   const handleMainWebViewShouldStartLoad = useCallback(
     (request: MainWebViewLoadRequest) => {
       const requestUrl = request.url;
@@ -286,11 +388,14 @@ function AppContent() {
           domStorageEnabled
           {...WEBVIEW_ALWAYS_FRESH_PROPS}
           onShouldStartLoadWithRequest={handleMainWebViewShouldStartLoad}
+          injectedJavaScript={AUTH_BRIDGE_INJECTED_JS}
+          onMessage={handleWebMessage}
           onNavigationStateChange={(nav) => {
             const url = nav.url ?? '';
             currentUrlRef.current = url;
             canGoBackRef.current = nav.canGoBack;
             setMainWebViewNavUrl(url);
+            webViewRef.current?.injectJavaScript(AUTH_BRIDGE_INJECTED_JS);
           }}
         />
       </View>

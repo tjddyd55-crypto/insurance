@@ -3,6 +3,7 @@
     "name": "ONE FC",
     "slug": "fc-helper",
     "version": "1.0.2",
+    "scheme": "onefc",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -34,11 +35,33 @@
       "predictiveBackGestureEnabled": false,
       "navigationBar": {
         "backgroundColor": "#0f1115"
-      }
+      },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": false,
+          "data": [
+            {
+              "scheme": "onefc",
+              "host": "customers"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "claim_notifications",
+          "sounds": []
+        }
+      ]
+    ],
     "updates": {
       "url": "https://u.expo.dev/46c22c3a-0cf3-4a85-b877-908dab8116fe"
     },
