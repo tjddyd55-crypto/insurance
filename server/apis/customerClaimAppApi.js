@@ -39,6 +39,7 @@ import {
   pipeClaimFilesZip,
 } from '../lib/claimRequestFileBundle.js'
 import { createClaimRequestReceivedNotification } from '../services/userNotificationService.js'
+import { enqueueClaimReceivedAlimtalk } from '../alimtalk/claimReceivedAlimtalk.js'
 import { safeQuery } from '../utils/dbSafeQuery.js'
 
 const CUSTOMER_APP_TOKEN_KIND = 'CUSTOMER_APP'
@@ -2956,12 +2957,27 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
           `SELECT name FROM customers WHERE id = $1 LIMIT 1`,
           [context.customerId],
         )
+        const customerName = customerNameRow.rows[0]?.name
         await createClaimRequestReceivedNotification(pool, safeQuery, {
           ownerUserId: context.agentId,
           gaId: claimGaId,
           customerId: context.customerId,
-          customerName: customerNameRow.rows[0]?.name,
+          customerName,
           claimRequestId: requestId,
+        })
+        // Kakao alimtalk async via claim_alimtalk_outbox — never fail the claim response
+        void enqueueClaimReceivedAlimtalk(pool, {
+          agentId: context.agentId,
+          gaId: claimGaId,
+          customerId: context.customerId,
+          claimRequestId: requestId,
+          customerName,
+          submittedAt: requestInsert.rows[0].submitted_at,
+        }).catch((err) => {
+          console.error(
+            '[claim-alimtalk] enqueue failed',
+            err instanceof Error ? err.message : err,
+          )
         })
       }
       res.status(201).json({
