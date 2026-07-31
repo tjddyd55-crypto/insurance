@@ -39,6 +39,7 @@ import {
   pipeClaimFilesZip,
 } from '../lib/claimRequestFileBundle.js'
 import { createClaimRequestReceivedNotification } from '../services/userNotificationService.js'
+import { enqueueClaimSubmittedPush } from '../lib/push/claimSubmittedPush.js'
 import { safeQuery } from '../utils/dbSafeQuery.js'
 
 const CUSTOMER_APP_TOKEN_KIND = 'CUSTOMER_APP'
@@ -2956,12 +2957,27 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
           `SELECT name FROM customers WHERE id = $1 LIMIT 1`,
           [context.customerId],
         )
-        await createClaimRequestReceivedNotification(pool, safeQuery, {
+        const customerName = customerNameRow.rows[0]?.name
+        const hasFiles = files.length > 0
+        const notificationId = await createClaimRequestReceivedNotification(pool, safeQuery, {
           ownerUserId: context.agentId,
           gaId: claimGaId,
           customerId: context.customerId,
-          customerName: customerNameRow.rows[0]?.name,
+          customerName,
           claimRequestId: requestId,
+          hasFiles,
+        })
+        // Push is async via outbox — never fail the claim response
+        void enqueueClaimSubmittedPush(pool, {
+          notificationId,
+          recipientUserId: context.agentId,
+          customerId: context.customerId,
+          claimRequestId: requestId,
+          customerName,
+          hasFiles,
+          submissionKind: hasFiles ? 'CLAIM_FILE_UPLOADED' : 'CLAIM_INQUIRY_CREATED',
+        }).catch((err) => {
+          console.error('[push] enqueue claim submitted failed', err instanceof Error ? err.message : err)
         })
       }
       res.status(201).json({

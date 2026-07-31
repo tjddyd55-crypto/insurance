@@ -30,6 +30,7 @@ import { registerTeamApi } from './apis/teamApi.js'
 import { registerAdminNoticesApi } from './registerAdminNoticesApi.js'
 import { registerNoticesApi } from './apis/noticesApi.js'
 import { registerNotificationsApi } from './apis/notificationsApi.js'
+import { registerPushDevicesApi } from './apis/registerPushDevicesApi.js'
 import { registerMemoApi } from './apis/memoApi.js'
 import { registerUserInsurerAccountsApi } from './apis/userInsurerAccountsApi.js'
 import { registerUserInsurerAccountShareApi } from './apis/userInsurerAccountShareApi.js'
@@ -156,6 +157,7 @@ import { registerGovernmentSupportApi } from './registerGovernmentSupportApi.js'
 import { registerSmsModuleApi } from './registerSmsModuleApi.js'
 import { registerCrmUserBulkSmsApi } from './registerCrmUserBulkSmsApi.js'
 import { startSmsAutomationScheduler } from './sms/smsAutomationScheduler.js'
+import { processPendingPushOutbox } from './lib/push/pushOutboxService.js'
 import { logSmsModuleEnvironmentHint, validateSmsModuleStartupConfig } from './sms/smsModuleConfig.js'
 import { registerContractPublicOtpApi } from './apis/contractPublicOtpApi.js'
 import { registerContractPublicApi } from './apis/contractPublicApi.js'
@@ -1597,6 +1599,7 @@ registerGaCustomerMatchAliasesApi(apiRouter, {
 })
 
 registerNotificationsApi(apiRouter, { pool, requireAuth, handleDbError })
+registerPushDevicesApi(apiRouter, { pool, requireAuth, handleDbError })
 registerNoticesApi(apiRouter, { pool, requireAuth, handleDbError })
 registerAdminNoticesApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
 
@@ -7742,6 +7745,16 @@ async function startServer() {
   }, ANALYTICS_TICK_MS)
 
   startSmsAutomationScheduler(pool)
+
+  const PUSH_OUTBOX_TICK_MS = 15 * 1000
+  void processPendingPushOutbox(pool).catch((err) =>
+    console.error('[push-outbox] tick failed', err instanceof Error ? err.message : err),
+  )
+  setInterval(() => {
+    void processPendingPushOutbox(pool).catch((err) =>
+      console.error('[push-outbox] tick failed', err instanceof Error ? err.message : err),
+    )
+  }, PUSH_OUTBOX_TICK_MS)
 }
 
 startServer().catch((error) => {

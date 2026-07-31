@@ -3232,6 +3232,63 @@ export async function initDb() {
     ON user_notification_settings (user_id, ga_id)
   `)
 
+  // CRM 사용자 Android FCM device tokens (고객앱 customer_app_push_tokens 와 분리)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS user_push_devices (
+      id BIGSERIAL PRIMARY KEY,
+      ga_id INTEGER NULL REFERENCES ga_companies(id),
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      platform TEXT NOT NULL DEFAULT 'ANDROID',
+      device_token TEXT NOT NULL,
+      app_package TEXT NOT NULL DEFAULT 'com.onefc.app',
+      installation_id TEXT NOT NULL,
+      app_version TEXT NULL,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      revoked_at TIMESTAMPTZ NULL
+    )
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_user_push_devices_device_token
+    ON user_push_devices (device_token)
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_user_push_devices_user_installation
+    ON user_push_devices (user_id, installation_id)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_user_push_devices_user_active
+    ON user_push_devices (user_id, is_active)
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS notification_push_outbox (
+      id BIGSERIAL PRIMARY KEY,
+      notification_id BIGINT NULL REFERENCES notifications(id) ON DELETE SET NULL,
+      recipient_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      event_type TEXT NOT NULL,
+      dedupe_key TEXT NOT NULL,
+      payload_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+      status TEXT NOT NULL DEFAULT 'PENDING',
+      attempt_count INTEGER NOT NULL DEFAULT 0,
+      next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      sent_at TIMESTAMPTZ NULL,
+      last_error TEXT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_notification_push_outbox_dedupe_recipient
+    ON notification_push_outbox (dedupe_key, recipient_user_id)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_notification_push_outbox_pending
+    ON notification_push_outbox (status, next_attempt_at)
+  `)
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS admin_notices (
       id BIGSERIAL PRIMARY KEY,
