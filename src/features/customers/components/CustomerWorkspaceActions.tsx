@@ -101,17 +101,6 @@ export function CustomerWorkspaceActions({
             htmlType="button"
             variant="secondary"
             className="button button--secondary customer-mobile-action-btn"
-            onClick={() => onOpenPremiumPayments(customerId)}
-          >
-            <span className="customer-mobile-action-btn__icon" aria-hidden>
-              💳
-            </span>
-            <MobileActionText>카드 수납</MobileActionText>
-          </FormButton>
-          <FormButton
-            htmlType="button"
-            variant="secondary"
-            className="button button--secondary customer-mobile-action-btn"
             disabled={!carFeatureEnabled}
             title={!carFeatureEnabled ? '자동차 신청서 기능이 비활성화되어 있습니다.' : undefined}
             onClick={() => onOpenAutoModal(customerId)}
@@ -200,6 +189,17 @@ export function CustomerWorkspaceActions({
             </span>
             <MobileActionText>복사</MobileActionText>
           </FormButton>
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            className="button button--secondary customer-mobile-action-btn"
+            onClick={() => onOpenPremiumPayments(customerId)}
+          >
+            <span className="customer-mobile-action-btn__icon" aria-hidden>
+              💳
+            </span>
+            <MobileActionText>카드 수납</MobileActionText>
+          </FormButton>
         </div>
       </>
     )
@@ -222,14 +222,6 @@ export function CustomerWorkspaceActions({
         onClick={() => onOpenConsultationsModal(customerId)}
       >
         상담 내역
-      </FormButton>
-      <FormButton
-        htmlType="button"
-        variant="secondary"
-        className="button button--secondary customer-workspace-action-button"
-        onClick={() => onOpenPremiumPayments(customerId)}
-      >
-        카드 수납
       </FormButton>
       {carFeatureEnabled ? (
         <FormButton
@@ -263,6 +255,14 @@ export function CustomerWorkspaceActions({
         }
       >
         GA 데이터 보기
+      </FormButton>
+      <FormButton
+        htmlType="button"
+        variant="secondary"
+        className="button button--secondary customer-workspace-action-button"
+        onClick={() => onOpenPremiumPayments(customerId)}
+      >
+        카드 수납
       </FormButton>
     </div>
   )

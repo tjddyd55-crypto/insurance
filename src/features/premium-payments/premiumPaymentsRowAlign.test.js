@@ -37,6 +37,8 @@ describe('card payment compact row alignment + policy copy', () => {
     assert.match(actions, /premium-payments-row-actions/)
     assert.match(css, /premium-payments-row-actions[\s\S]*flex-wrap:\s*nowrap/)
     assert.match(css, /premium-payments-card-table__col--actions[\s\S]*min-width:\s*128px/)
+    assert.match(css, /premium-payments-table__col--actions[\s\S]*text-align:\s*center/)
+    assert.match(css, /premium-payments-row-actions[\s\S]*justify-content:\s*center/)
   })
 
   it('amount and day cells share vertical center cell-inner', () => {

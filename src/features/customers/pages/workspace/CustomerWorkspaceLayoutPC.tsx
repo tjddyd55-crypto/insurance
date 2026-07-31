@@ -215,17 +215,6 @@ export default function CustomerWorkspaceLayoutPC({
             >
               상담 이력
             </FormButton>
-            <FormButton
-              htmlType="button"
-              variant="action"
-              className={`customer-workspace-layout__tab${
-                activeTab === 'premium-payments' ? ' customer-workspace-layout__tab--active' : ''
-              }`}
-              disabled={!selectedCustomerId}
-              onClick={onClickPremiumPayments}
-            >
-              카드 수납
-            </FormButton>
             {showCarInsuranceInWorkspace ? (
               <FormButton
                 htmlType="button"
@@ -291,6 +280,17 @@ export default function CustomerWorkspaceLayoutPC({
                 청구관리
               </FormButton>
             ) : null}
+            <FormButton
+              htmlType="button"
+              variant="action"
+              className={`customer-workspace-layout__tab${
+                activeTab === 'premium-payments' ? ' customer-workspace-layout__tab--active' : ''
+              }`}
+              disabled={!selectedCustomerId}
+              onClick={onClickPremiumPayments}
+            >
+              카드 수납
+            </FormButton>
           </div>
         </nav>
       </header>
