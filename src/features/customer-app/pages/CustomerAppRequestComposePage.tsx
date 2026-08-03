@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import FileUploader from '../../../components/common/FileUploader'
+import { BaseDialog } from '../../../components/dialog'
+import { DialogActions } from '../../../components/dialog/DialogActions'
 import { StatusMessage } from '../../../components/feedback'
 import { FormButton, FormTextarea } from '../../../components/form'
+import { Button } from '../../../components/ui/Button'
 import {
   createCustomerClaimRequest,
   getCustomerAppProfile,
@@ -46,7 +49,9 @@ export default function CustomerAppRequestComposePage() {
   const [files, setFiles] = useState<UploadReadyFile[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [result, setResult] = useState('')
+  const [successOpen, setSuccessOpen] = useState(false)
+  const [createdRequestId, setCreatedRequestId] = useState<number | null>(null)
+  const submitLockRef = useRef(false)
 
   useEffect(() => {
     if (!session) {
@@ -93,6 +98,23 @@ export default function CustomerAppRequestComposePage() {
         </section>
       </main>
     )
+  }
+
+  const resetComposeForm = () => {
+    setMemo('')
+    setFiles([])
+    setError('')
+  }
+
+  const goToRequestList = () => {
+    const claimId = createdRequestId
+    setSuccessOpen(false)
+    resetComposeForm()
+    if (claimId != null && Number.isInteger(claimId) && claimId > 0) {
+      navigate(`/customer-app/requests?claimId=${claimId}`, { replace: true })
+      return
+    }
+    navigate('/customer-app/requests', { replace: true })
   }
 
   const validateClaimFile = (file: File): string | null => {
@@ -163,13 +185,16 @@ export default function CustomerAppRequestComposePage() {
   }
 
   const handleSubmit = async () => {
+    if (busy || submitLockRef.current || successOpen) {
+      return
+    }
     if (!memo.trim()) {
       setError('청구 내용을 입력해 주세요.')
       return
     }
+    submitLockRef.current = true
     setBusy(true)
     setError('')
-    setResult('')
     try {
       const uploadedFiles = []
       for (const item of files) {
@@ -186,7 +211,7 @@ export default function CustomerAppRequestComposePage() {
       const snapshotName = String(session.customerName || profile?.name || '').trim()
       const snapshotBirth = String(profile?.birthDate || session.requesterBirthDate || '').trim()
       const snapshotPhone = String(profile?.phone || session.requesterPhone || '').trim()
-      await createCustomerClaimRequest(session.appToken, {
+      const created = await createCustomerClaimRequest(session.appToken, {
         memo: memo.trim(),
         files: uploadedFiles,
         ...(snapshotName && snapshotBirth && snapshotPhone
@@ -199,13 +224,15 @@ export default function CustomerAppRequestComposePage() {
             }
           : {}),
       })
-      setResult('요청이 전송되었습니다.')
-      setMemo('')
-      setFiles([])
+      const requestId = Number(created?.requestId)
+      setCreatedRequestId(Number.isInteger(requestId) && requestId > 0 ? requestId : null)
+      resetComposeForm()
+      setSuccessOpen(true)
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : '요청 전송에 실패했습니다.')
     } finally {
       setBusy(false)
+      submitLockRef.current = false
     }
   }
 
@@ -215,91 +242,126 @@ export default function CustomerAppRequestComposePage() {
   return (
     <div className="customer-app-claim-page">
       <StatusMessage message={error} tone="error" />
-        <StatusMessage message={result} tone="success" />
 
-        <section className="customer-app-claim-card customer-app-claim-profile">
-          <div className="customer-app-claim-profile__main">
-            <div className="customer-app-claim-profile__label">요청자 정보</div>
-            {displayName ? (
-              <>
-                <div className="customer-app-claim-profile__name">{displayName}</div>
-                {displaySub ? <div className="customer-app-claim-profile__sub">{displaySub}</div> : null}
-              </>
-            ) : (
-              <div className="customer-app-claim-profile__sub">연결된 고객 정보를 불러오는 중입니다.</div>
-            )}
-          </div>
-        </section>
-
-        <section className="customer-app-claim-card">
-          <h2 className="customer-app-claim-section-title">청구 내용</h2>
-          <p className="customer-app-claim-section-description">
-            병원명, 사고/진료 내용, 요청사항을 간단히 적어 주세요.
-          </p>
-          <div className="customer-app-claim-field" style={{ marginTop: 12 }}>
-            <span className="customer-app-claim-field__label">내용</span>
-            <FormTextarea
-              className="customer-app-claim-textarea"
-              rows={5}
-              value={memo}
-              onChange={(event) => setMemo(event.target.value)}
-              placeholder="예: 4월 25일 통원 치료 보험금 청구 요청합니다. 진료비 영수증과 세부내역서 첨부했습니다."
-            />
-          </div>
-        </section>
-
-        <section className="customer-app-claim-card">
-          <h2 className="customer-app-claim-section-title">첨부 파일</h2>
-          <p className="customer-app-claim-section-description">
-            영수증, 진료비 세부내역서, 처방전 등 이미지를 첨부할 수 있습니다.
-          </p>
-          <div style={{ marginTop: 12 }}>
-            <FileUploader
-              accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
-              validateFile={validateClaimFile}
-              onFiles={handleAppendFiles}
-              onInvalidBatch={(failures) => {
-                const firstMessage = failures[0]?.message
-                if (firstMessage) {
-                  setError(firstMessage)
-                }
-              }}
-              disabled={busy}
-              primaryHint="이미지 또는 PDF를 선택해 주세요."
-              hintLines={['JPG · PNG · WEBP · GIF · PDF', '각 파일 최대 10MB']}
-            />
-            {files.length > 0 ? (
-              <ul className="customer-app-claim-file-list">
-                {files.map((item) => (
-                  <li key={item.id} className="customer-app-claim-file-row">
-                    <span className="customer-app-claim-file-row__icon">{fileTypeLabel(item.file)}</span>
-                    <div className="customer-app-claim-file-row__main">
-                      <div className="customer-app-claim-file-row__name">{item.file.name}</div>
-                      <div className="customer-app-claim-file-row__meta">{formatFileSize(item.file.size)}</div>
-                    </div>
-                    <FormButton
-                      htmlType="button"
-                      variant="secondary"
-                      className="!h-8 !px-3 text-[12px]"
-                      onClick={() => handleRemoveFile(item.id)}
-                    >
-                      삭제
-                    </FormButton>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-        </section>
-
-        <div className="customer-app-claim-actions">
-          <FormButton htmlType="button" variant="primary" onClick={() => void handleSubmit()} loading={busy}>
-            요청 전송
-          </FormButton>
-          <FormButton htmlType="button" variant="secondary" onClick={() => navigate('/customer-app/requests')}>
-            내역 보기
-          </FormButton>
+      <section className="customer-app-claim-card customer-app-claim-profile">
+        <div className="customer-app-claim-profile__main">
+          <div className="customer-app-claim-profile__label">요청자 정보</div>
+          {displayName ? (
+            <>
+              <div className="customer-app-claim-profile__name">{displayName}</div>
+              {displaySub ? <div className="customer-app-claim-profile__sub">{displaySub}</div> : null}
+            </>
+          ) : (
+            <div className="customer-app-claim-profile__sub">연결된 고객 정보를 불러오는 중입니다.</div>
+          )}
         </div>
+      </section>
+
+      <section className="customer-app-claim-card">
+        <h2 className="customer-app-claim-section-title">청구 내용</h2>
+        <p className="customer-app-claim-section-description">
+          병원명, 사고/진료 내용, 요청사항을 간단히 적어 주세요.
+        </p>
+        <div className="customer-app-claim-field" style={{ marginTop: 12 }}>
+          <span className="customer-app-claim-field__label">내용</span>
+          <FormTextarea
+            className="customer-app-claim-textarea"
+            rows={5}
+            value={memo}
+            onChange={(event) => setMemo(event.target.value)}
+            placeholder="예: 4월 25일 통원 치료 보험금 청구 요청합니다. 진료비 영수증과 세부내역서 첨부했습니다."
+            disabled={busy || successOpen}
+          />
+        </div>
+      </section>
+
+      <section className="customer-app-claim-card">
+        <h2 className="customer-app-claim-section-title">첨부 파일</h2>
+        <p className="customer-app-claim-section-description">
+          영수증, 진료비 세부내역서, 처방전 등 이미지를 첨부할 수 있습니다.
+        </p>
+        <div style={{ marginTop: 12 }}>
+          <FileUploader
+            accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+            validateFile={validateClaimFile}
+            onFiles={handleAppendFiles}
+            onInvalidBatch={(failures) => {
+              const firstMessage = failures[0]?.message
+              if (firstMessage) {
+                setError(firstMessage)
+              }
+            }}
+            disabled={busy || successOpen}
+            primaryHint="이미지 또는 PDF를 선택해 주세요."
+            hintLines={['JPG · PNG · WEBP · GIF · PDF', '각 파일 최대 10MB']}
+          />
+          {files.length > 0 ? (
+            <ul className="customer-app-claim-file-list">
+              {files.map((item) => (
+                <li key={item.id} className="customer-app-claim-file-row">
+                  <span className="customer-app-claim-file-row__icon">{fileTypeLabel(item.file)}</span>
+                  <div className="customer-app-claim-file-row__main">
+                    <div className="customer-app-claim-file-row__name">{item.file.name}</div>
+                    <div className="customer-app-claim-file-row__meta">{formatFileSize(item.file.size)}</div>
+                  </div>
+                  <FormButton
+                    htmlType="button"
+                    variant="secondary"
+                    className="!h-8 !px-3 text-[12px]"
+                    onClick={() => handleRemoveFile(item.id)}
+                    disabled={busy || successOpen}
+                  >
+                    삭제
+                  </FormButton>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      </section>
+
+      <div className="customer-app-claim-actions">
+        <FormButton
+          htmlType="button"
+          variant="primary"
+          onClick={() => void handleSubmit()}
+          loading={busy}
+          disabled={busy || successOpen}
+        >
+          요청 전송
+        </FormButton>
+        <FormButton
+          htmlType="button"
+          variant="secondary"
+          onClick={() => navigate('/customer-app/requests')}
+          disabled={busy}
+        >
+          내역 보기
+        </FormButton>
       </div>
+
+      <BaseDialog
+        open={successOpen}
+        onClose={goToRequestList}
+        ariaLabel="요청이 접수되었습니다"
+        closeOnBackdrop={false}
+        closeOnEsc={false}
+        usePortal
+        panelClassName="max-w-lg"
+      >
+        <h3 className="text-lg font-semibold text-[var(--text-primary)]">요청이 접수되었습니다</h3>
+        <p className="mt-3 text-sm text-[var(--text-secondary)] whitespace-pre-wrap break-words">
+          보험 청구 요청이 정상적으로 접수되었습니다.
+        </p>
+        <p className="mt-2 text-sm text-[var(--text-secondary)] whitespace-pre-wrap break-words">
+          접수된 내용은 문의내역에서 확인할 수 있습니다.
+        </p>
+        <DialogActions className="user-modal-actions">
+          <Button type="button" variant="primary" onClick={goToRequestList}>
+            문의내역 확인
+          </Button>
+        </DialogActions>
+      </BaseDialog>
+    </div>
   )
 }
