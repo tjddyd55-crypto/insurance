@@ -7752,14 +7752,28 @@ async function startServer() {
   startSmsAutomationScheduler(pool)
 
   const PUSH_OUTBOX_TICK_MS = 15 * 1000
-  void processPendingPushOutbox(pool).catch((err) =>
-    console.error('[push-outbox] tick failed', err instanceof Error ? err.message : err),
-  )
-  setInterval(() => {
-    void processPendingPushOutbox(pool).catch((err) =>
-      console.error('[push-outbox] tick failed', err instanceof Error ? err.message : err),
-    )
-  }, PUSH_OUTBOX_TICK_MS)
+  const pushTickRunning = { current: false }
+  const claimAlimtalkTickRunning = { current: false }
+  let lastPushTickError = ''
+  let lastClaimAlimtalkTickError = ''
+
+  const runPushTick = () => {
+    if (pushTickRunning.current) return
+    pushTickRunning.current = true
+    void processPendingPushOutbox(pool)
+      .catch((err) => {
+        const msg = err instanceof Error ? err.message : String(err)
+        if (msg !== lastPushTickError) {
+          lastPushTickError = msg
+          console.error('[push-outbox] tick failed', msg)
+        }
+      })
+      .finally(() => {
+        pushTickRunning.current = false
+      })
+  }
+  runPushTick()
+  setInterval(runPushTick, PUSH_OUTBOX_TICK_MS)
 
   const CLAIM_ALIMTALK_TICK_MS = 15 * 1000
   const claimAlimtalkDiag = getClaimReceivedAlimtalkDiagnostics(loadInsuranceAlimtalkConfig())
@@ -7767,14 +7781,23 @@ async function startServer() {
     ...claimAlimtalkDiag,
     workerRunning: true,
   })
-  void processPendingClaimAlimtalkOutbox(pool).catch((err) =>
-    console.error('[claim-alimtalk] tick failed', err instanceof Error ? err.message : err),
-  )
-  setInterval(() => {
-    void processPendingClaimAlimtalkOutbox(pool).catch((err) =>
-      console.error('[claim-alimtalk] tick failed', err instanceof Error ? err.message : err),
-    )
-  }, CLAIM_ALIMTALK_TICK_MS)
+  const runClaimAlimtalkTick = () => {
+    if (claimAlimtalkTickRunning.current) return
+    claimAlimtalkTickRunning.current = true
+    void processPendingClaimAlimtalkOutbox(pool)
+      .catch((err) => {
+        const msg = err instanceof Error ? err.message : String(err)
+        if (msg !== lastClaimAlimtalkTickError) {
+          lastClaimAlimtalkTickError = msg
+          console.error('[claim-alimtalk] tick failed', msg)
+        }
+      })
+      .finally(() => {
+        claimAlimtalkTickRunning.current = false
+      })
+  }
+  runClaimAlimtalkTick()
+  setInterval(runClaimAlimtalkTick, CLAIM_ALIMTALK_TICK_MS)
 }
 
 startServer().catch((error) => {

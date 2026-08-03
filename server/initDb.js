@@ -3281,12 +3281,28 @@ export async function initDb() {
     )
   `)
   await pool.query(`
+    ALTER TABLE notification_push_outbox
+    ADD COLUMN IF NOT EXISTS ga_id INTEGER NULL REFERENCES ga_companies(id)
+  `)
+  await pool.query(`
+    UPDATE notification_push_outbox o
+    SET ga_id = u.ga_id
+    FROM users u
+    WHERE o.ga_id IS NULL
+      AND o.recipient_user_id = u.id
+      AND u.ga_id IS NOT NULL
+  `)
+  await pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS uq_notification_push_outbox_dedupe_recipient
     ON notification_push_outbox (dedupe_key, recipient_user_id)
   `)
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_notification_push_outbox_pending
     ON notification_push_outbox (status, next_attempt_at)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_notification_push_outbox_ga_pending
+    ON notification_push_outbox (ga_id, status, next_attempt_at)
   `)
 
   // 고객앱 청구 접수 → 담당자 카카오 알림톡 outbox (동기 청구 API와 분리)
@@ -3324,6 +3340,11 @@ export async function initDb() {
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_claim_alimtalk_outbox_pending
     ON claim_alimtalk_outbox (status, next_attempt_at)
+    WHERE permanent_failure = false
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_claim_alimtalk_outbox_ga_pending
+    ON claim_alimtalk_outbox (ga_id, status, next_attempt_at)
     WHERE permanent_failure = false
   `)
 

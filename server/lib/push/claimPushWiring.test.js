@@ -29,6 +29,7 @@ describe('claim push wiring contracts', () => {
     assert.match(api, /await client\.query\('COMMIT'\)/)
     assert.match(api, /enqueueClaimSubmittedPush/)
     assert.match(api, /void enqueueClaimSubmittedPush/)
+    assert.match(api, /gaId: claimGaId/)
     assert.match(api, /enqueueClaimReceivedAlimtalk/)
     assert.match(api, /hasFiles/)
   })

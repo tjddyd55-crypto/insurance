@@ -5,6 +5,10 @@
 
 import { safeQuery } from '../utils/dbSafeQuery.js'
 import {
+  listOutboxGaIdsWithDueRows,
+  quarantineOutboxRowsMissingGaId,
+} from '../lib/outboxWorkerGaScope.js'
+import {
   getClaimReceivedAlimtalkDiagnostics,
   isClaimReceivedRealSendAllowed,
   isInsuranceAlimtalkCredentialsComplete,
@@ -87,19 +91,22 @@ export function isClaimAlimtalkPermanentFailure(input) {
 /**
  * @param {import('pg').Pool | import('pg').PoolClient} db
  * @param {string} agentId
+ * @param {number} gaId
  */
-export async function loadClaimAlimtalkRecipient(db, agentId) {
+export async function loadClaimAlimtalkRecipient(db, agentId, gaId) {
   const id = String(agentId ?? '').trim()
-  if (!id) return null
+  const scopedGaId = Number(gaId)
+  if (!id || !Number.isInteger(scopedGaId) || scopedGaId < 1) return null
   const r = await safeQuery(
     db,
     `
     SELECT id, ga_id, phone_number, status, is_deleted
     FROM users
     WHERE id = $1
+      AND ga_id = $2
     LIMIT 1
     `,
-    [id],
+    [id, scopedGaId],
   )
   const row = r.rows[0]
   if (!row) return null
@@ -143,21 +150,40 @@ export async function enqueueClaimReceivedAlimtalk(db, input) {
 
   const claimRequestId = Number(input.claimRequestId)
   const customerId = Number(input.customerId)
+  const contextGaId = Number(input.gaId)
   if (!Number.isInteger(claimRequestId) || claimRequestId < 1) {
     return { enqueued: false, reason: 'invalid_claim' }
   }
   if (!Number.isInteger(customerId) || customerId < 1) {
     return { enqueued: false, reason: 'invalid_customer' }
   }
+  if (!Number.isInteger(contextGaId) || contextGaId < 1) {
+    console.info('[claim-alimtalk] skip enqueue', {
+      reason: 'missing_ga',
+      claimRequestId,
+      agentIdPresent: Boolean(String(input.agentId ?? '').trim()),
+    })
+    return { enqueued: false, reason: 'missing_ga' }
+  }
 
-  const recipient = await loadClaimAlimtalkRecipient(db, input.agentId)
+  const recipient = await loadClaimAlimtalkRecipient(db, input.agentId, contextGaId)
   if (!recipient || recipient.skipReason) {
     console.info('[claim-alimtalk] skip enqueue', {
       reason: recipient?.skipReason ?? 'no_recipient',
       claimRequestId,
+      gaId: contextGaId,
       agentIdPresent: Boolean(String(input.agentId ?? '').trim()),
     })
     return { enqueued: false, reason: recipient?.skipReason ?? 'no_recipient' }
+  }
+  if (!Number.isInteger(recipient.gaId) || recipient.gaId < 1 || recipient.gaId !== contextGaId) {
+    console.info('[claim-alimtalk] skip enqueue', {
+      reason: 'ga_mismatch',
+      claimRequestId,
+      gaId: contextGaId,
+      recipientUserId: recipient.userId,
+    })
+    return { enqueued: false, reason: 'ga_mismatch' }
   }
 
   const customerName = String(input.customerName ?? '').trim() || '고객'
@@ -193,7 +219,7 @@ export async function enqueueClaimReceivedAlimtalk(db, input) {
       CLAIM_RECEIVED_EVENT,
       CLAIM_ALIMTALK_CHANNEL,
       recipient.userId,
-      recipient.gaId ?? input.gaId ?? null,
+      contextGaId,
       claimRequestId,
       customerId,
       tplCode,
@@ -220,69 +246,82 @@ export async function enqueueClaimReceivedAlimtalk(db, input) {
 export async function processPendingClaimAlimtalkOutbox(pool, opts = {}) {
   const config = opts.config ?? loadInsuranceAlimtalkConfig()
   const sendFn = opts.sendFn ?? sendAligoAlimtalk
-  const limit = Math.min(Math.max(Number(opts.limit) || 20, 1), 100)
+  const limitPerGa = Math.min(Math.max(Number(opts.limit) || 20, 1), 100)
 
   if (!config.claimReceivedEnabled) {
     return { processed: 0, skipped: true, reason: 'disabled' }
   }
 
-  const due = await safeQuery(
-    pool,
-    `
-    SELECT *
-    FROM claim_alimtalk_outbox
-    WHERE status IN ('PENDING', 'FAILED')
-      AND permanent_failure = false
-      AND next_attempt_at <= NOW()
-      AND attempt_count < $1
-    ORDER BY id ASC
-    LIMIT $2
-    `,
-    [MAX_ATTEMPTS, limit],
-  )
+  await quarantineOutboxRowsMissingGaId(pool, 'claim_alimtalk_outbox').catch(() => 0)
+  const gaIds = await listOutboxGaIdsWithDueRows(pool, {
+    table: 'claim_alimtalk_outbox',
+    maxAttempts: MAX_ATTEMPTS,
+  })
 
   let processed = 0
-  for (const row of due.rows) {
-    const claimed = await safeQuery(
+  for (const gaId of gaIds) {
+    const due = await safeQuery(
       pool,
       `
-      UPDATE claim_alimtalk_outbox
-      SET status = 'PROCESSING', updated_at = NOW()
-      WHERE id = $1 AND status IN ('PENDING', 'FAILED') AND permanent_failure = false
-      RETURNING id
+      SELECT *
+      FROM claim_alimtalk_outbox
+      WHERE ga_id = $1
+        AND status IN ('PENDING', 'FAILED')
+        AND permanent_failure = false
+        AND next_attempt_at <= NOW()
+        AND attempt_count < $2
+      ORDER BY id ASC
+      LIMIT $3
       `,
-      [row.id],
+      [gaId, MAX_ATTEMPTS, limitPerGa],
     )
-    if (!claimed.rows[0]) continue
 
-    try {
-      await deliverClaimAlimtalkRow(pool, row, { config, sendFn })
-      processed += 1
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      const attempt = Number(row.attempt_count ?? 0) + 1
-      const permanent = /permanent:/i.test(message) || attempt >= MAX_ATTEMPTS
-      const delaySec = Math.min(60 * 2 ** Math.min(attempt, 5), 1800)
-      await safeQuery(
+    for (const row of due.rows) {
+      const claimed = await safeQuery(
         pool,
         `
         UPDATE claim_alimtalk_outbox
-        SET status = 'FAILED',
-            attempt_count = $2,
-            next_attempt_at = NOW() + ($3 || ' seconds')::interval,
-            last_error = $4,
-            permanent_failure = $5,
-            updated_at = NOW()
+        SET status = 'PROCESSING', updated_at = NOW()
         WHERE id = $1
+          AND ga_id = $2
+          AND status IN ('PENDING', 'FAILED')
+          AND permanent_failure = false
+        RETURNING id
         `,
-        [row.id, attempt, String(delaySec), message.slice(0, 1000), permanent],
+        [row.id, gaId],
       )
+      if (!claimed.rows[0]) continue
+
+      try {
+        await deliverClaimAlimtalkRow(pool, { ...row, ga_id: gaId }, { config, sendFn })
+        processed += 1
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        const attempt = Number(row.attempt_count ?? 0) + 1
+        const permanent = /permanent:/i.test(message) || attempt >= MAX_ATTEMPTS
+        const delaySec = Math.min(60 * 2 ** Math.min(attempt, 5), 1800)
+        await safeQuery(
+          pool,
+          `
+          UPDATE claim_alimtalk_outbox
+          SET status = 'FAILED',
+              attempt_count = $3,
+              next_attempt_at = NOW() + ($4 || ' seconds')::interval,
+              last_error = $5,
+              permanent_failure = $6,
+              updated_at = NOW()
+          WHERE id = $1 AND ga_id = $2
+          `,
+          [row.id, gaId, attempt, String(delaySec), message.slice(0, 1000), permanent],
+        )
+      }
     }
   }
 
   return {
     processed,
     skipped: false,
+    gaCount: gaIds.length,
     diagnostics: getClaimReceivedAlimtalkDiagnostics(config),
   }
 }
@@ -397,14 +436,14 @@ async function deliverClaimAlimtalkRow(pool, row, deps) {
       SET status = 'SENT',
           sent_at = NOW(),
           attempt_count = attempt_count + 1,
-          provider_code = $2,
-          provider_message_id = $3,
+          provider_code = $3,
+          provider_message_id = $4,
           last_error = NULL,
           permanent_failure = false,
           updated_at = NOW()
-      WHERE id = $1
+      WHERE id = $1 AND ga_id = $2
       `,
-      [row.id, result.providerCode, result.providerMessageId],
+      [row.id, row.ga_id, result.providerCode, result.providerMessageId],
     )
     return
   }
@@ -424,17 +463,18 @@ async function deliverClaimAlimtalkRow(pool, row, deps) {
     `
     UPDATE claim_alimtalk_outbox
     SET status = 'FAILED',
-        attempt_count = $2,
-        next_attempt_at = NOW() + ($3 || ' seconds')::interval,
-        last_error = $4,
-        provider_code = $5,
-        provider_message_id = $6,
-        permanent_failure = $7,
+        attempt_count = $3,
+        next_attempt_at = NOW() + ($4 || ' seconds')::interval,
+        last_error = $5,
+        provider_code = $6,
+        provider_message_id = $7,
+        permanent_failure = $8,
         updated_at = NOW()
-    WHERE id = $1
+    WHERE id = $1 AND ga_id = $2
     `,
     [
       row.id,
+      row.ga_id,
       attempt,
       String(delaySec),
       errText,
@@ -462,13 +502,13 @@ async function markPermanentFailed(pool, row, info) {
     UPDATE claim_alimtalk_outbox
     SET status = 'FAILED',
         attempt_count = attempt_count + 1,
-        last_error = $2,
-        provider_code = $3,
+        last_error = $3,
+        provider_code = $4,
         permanent_failure = true,
         updated_at = NOW()
-    WHERE id = $1
+    WHERE id = $1 AND ga_id = $2
     `,
-    [row.id, String(info.lastError).slice(0, 1000), info.providerCode],
+    [row.id, row.ga_id, String(info.lastError).slice(0, 1000), info.providerCode],
   )
 }
 

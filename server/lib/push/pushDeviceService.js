@@ -43,15 +43,29 @@ export async function registerUserPushDevice(db, input) {
   }
 
   // device_token UNIQUE — clear any other row (other user/installation, including inactive)
-  await safeQuery(
-    db,
-    `
-    DELETE FROM user_push_devices
-    WHERE device_token = $1
-      AND NOT (user_id = $2 AND installation_id = $3)
-    `,
-    [deviceToken, userId, installationId],
-  )
+  if (gaId != null) {
+    await safeQuery(
+      db,
+      `
+      DELETE FROM user_push_devices
+      WHERE device_token = $1
+        AND ga_id = $2
+        AND NOT (user_id = $3 AND installation_id = $4)
+      `,
+      [deviceToken, gaId, userId, installationId],
+    )
+  } else {
+    await safeQuery(
+      db,
+      `
+      DELETE FROM user_push_devices
+      WHERE device_token = $1
+        AND ga_id IS NOT NULL
+        AND NOT (user_id = $2 AND installation_id = $3)
+      `,
+      [deviceToken, userId, installationId],
+    )
+  }
 
   const r = await safeQuery(
     db,
@@ -105,7 +119,10 @@ export async function unregisterUserPushDevice(db, input) {
       `
       UPDATE user_push_devices
       SET is_active = false, revoked_at = NOW(), updated_at = NOW()
-      WHERE user_id = $1 AND installation_id = $2 AND is_active = true
+      WHERE user_id = $1
+        AND installation_id = $2
+        AND is_active = true
+        AND ga_id IS NOT NULL
       `,
       [userId, installationId],
     )
@@ -117,7 +134,10 @@ export async function unregisterUserPushDevice(db, input) {
     `
     UPDATE user_push_devices
     SET is_active = false, revoked_at = NOW(), updated_at = NOW()
-    WHERE user_id = $1 AND device_token = $2 AND is_active = true
+    WHERE user_id = $1
+      AND device_token = $2
+      AND is_active = true
+      AND ga_id IS NOT NULL
     `,
     [userId, deviceToken],
   )
@@ -127,21 +147,24 @@ export async function unregisterUserPushDevice(db, input) {
 /**
  * @param {import('pg').Pool | import('pg').PoolClient} db
  * @param {string} userId
+ * @param {number} gaId
  */
-export async function listActivePushDevicesForUser(db, userId) {
+export async function listActivePushDevicesForUser(db, userId, gaId) {
   const id = String(userId ?? '').trim()
-  if (!id) return []
+  const scopedGaId = Number(gaId)
+  if (!id || !Number.isInteger(scopedGaId) || scopedGaId < 1) return []
   const r = await safeQuery(
     db,
     `
-    SELECT id, device_token, installation_id, app_package, platform
+    SELECT id, device_token, installation_id, app_package, platform, ga_id
     FROM user_push_devices
     WHERE user_id = $1
+      AND ga_id = $2
       AND is_active = true
       AND revoked_at IS NULL
     ORDER BY last_seen_at DESC
     `,
-    [id],
+    [id, scopedGaId],
   )
   return r.rows
 }
@@ -149,16 +172,32 @@ export async function listActivePushDevicesForUser(db, userId) {
 /**
  * @param {import('pg').Pool | import('pg').PoolClient} db
  * @param {string} deviceToken
+ * @param {number | null} [gaId]
  */
-export async function revokePushDeviceByToken(db, deviceToken) {
+export async function revokePushDeviceByToken(db, deviceToken, gaId = null) {
   const token = String(deviceToken ?? '').trim()
   if (!token) return
+  const scopedGaId = Number(gaId)
+  if (Number.isInteger(scopedGaId) && scopedGaId >= 1) {
+    await safeQuery(
+      db,
+      `
+      UPDATE user_push_devices
+      SET is_active = false, revoked_at = NOW(), updated_at = NOW()
+      WHERE device_token = $1
+        AND ga_id = $2
+        AND is_active = true
+      `,
+      [token, scopedGaId],
+    )
+    return
+  }
   await safeQuery(
     db,
     `
     UPDATE user_push_devices
     SET is_active = false, revoked_at = NOW(), updated_at = NOW()
-    WHERE device_token = $1 AND is_active = true
+    WHERE device_token = $1 AND is_active = true AND ga_id IS NOT NULL
     `,
     [token],
   )

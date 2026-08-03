@@ -158,10 +158,12 @@ describe('claim received alimtalk wiring', () => {
     const init = readFileSync(join(root, 'server/initDb.js'), 'utf8')
     assert.match(init, /CREATE TABLE IF NOT EXISTS claim_alimtalk_outbox/)
     assert.match(init, /uq_claim_alimtalk_outbox_dedupe_recipient/)
+    assert.match(init, /idx_claim_alimtalk_outbox_ga_pending/)
 
     const index = readFileSync(join(root, 'server/index.js'), 'utf8')
     assert.match(index, /processPendingClaimAlimtalkOutbox/)
     assert.match(index, /\[claim-alimtalk\] diagnostics/)
+    assert.match(index, /claimAlimtalkTickRunning/)
   })
 
   it('does not add SMS failover for claim template', () => {

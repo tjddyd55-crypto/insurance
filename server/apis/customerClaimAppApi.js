@@ -2972,6 +2972,7 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         void enqueueClaimSubmittedPush(pool, {
           notificationId,
           recipientUserId: context.agentId,
+          gaId: claimGaId,
           customerId: context.customerId,
           claimRequestId: requestId,
           customerName,

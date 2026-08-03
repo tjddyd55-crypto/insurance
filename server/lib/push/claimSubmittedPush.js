@@ -44,6 +44,7 @@ export function buildClaimSubmittedInternalMessage(input) {
  * @param {{
  *   notificationId: number | null
  *   recipientUserId: string
+ *   gaId: number
  *   customerId: number
  *   claimRequestId: number
  *   customerName?: string | null
@@ -55,10 +56,14 @@ export async function enqueueClaimSubmittedPush(db, input) {
   const recipientUserId = String(input.recipientUserId ?? '').trim()
   const customerId = Number(input.customerId)
   const claimRequestId = Number(input.claimRequestId)
+  const gaId = Number(input.gaId)
   if (!recipientUserId || !Number.isInteger(customerId) || customerId < 1) {
     return null
   }
   if (!Number.isInteger(claimRequestId) || claimRequestId < 1) {
+    return null
+  }
+  if (!Number.isInteger(gaId) || gaId < 1) {
     return null
   }
 
@@ -77,6 +82,7 @@ export async function enqueueClaimSubmittedPush(db, input) {
       : null
 
   return enqueuePushOutbox(db, {
+    gaId,
     notificationId,
     recipientUserId,
     eventType: CLAIM_SUBMITTED_EVENT,
