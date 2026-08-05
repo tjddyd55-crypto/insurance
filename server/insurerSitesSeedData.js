@@ -4,7 +4,7 @@
  * - 현대해상: 시드 sales/home 은 hic.co.kr 이지만 공시 랜딩은 hi.co.kr 사용(그룹 공시 도메인).
  * - DB손해: 홈은 dbins.co.kr 표기가 있으나 손해 공시는 idbins.com 경로가 공식.
  * - DGB생명: 구 DGB → iM라이프(imlifeins.co.kr) 공시 경로 사용.
- * - 푸본현대생명: 직접 랜딩 URL을 확정하지 못해 빈 값 → 수퍼관리자에서 입력.
+ * - 푸본현대생명: 공식 홈 https://www.fubonhyundai.com/
  * 빈 disclosureUrl 은 일반 화면에서 공시실 버튼 비활성(준비중), 관리자 목록에서 「미입력」 표시.
  *
  * 번들 기본 로고: `public/assets/insurers/{logoFile}.png` 를 두고 DB `logo_path` 는
@@ -315,10 +315,10 @@ export const INSURER_SITES_SEED = [
     category: 'life',
     name: '푸본현대생명',
     logoFile: 'fubon_hyundai_life',
-    salesUrl: 'https://www.fubonhyundailife.com/',
-    homepageUrl: 'https://www.fubonhyundailife.com/',
+    salesUrl: 'https://www.fubonhyundai.com/',
+    homepageUrl: 'https://www.fubonhyundai.com/',
     disclosureUrl: '',
-    claimUrl: 'https://www.fubonhyundailife.com/',
+    claimUrl: 'https://www.fubonhyundai.com/',
     sortOrder: 170,
   },
   {
