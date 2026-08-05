@@ -36,9 +36,14 @@ test('login and introduction Android CTAs use ANDROID_APP_DOWNLOAD_URL', () => {
     join(ROOT, 'src/features/web/pages/IntroductionInstallPage.tsx'),
     'utf8',
   )
+  const landingContent = readFileSync(
+    join(ROOT, 'src/features/web/config/introductionLandingContent.ts'),
+    'utf8',
+  )
   assert.match(login, /href=\{ANDROID_APP_DOWNLOAD_URL\}/)
   assert.match(intro, /href=\{ANDROID_APP_DOWNLOAD_URL\}/)
   assert.match(install, /href=\{ANDROID_APP_DOWNLOAD_URL\}/)
+  assert.match(landingContent, /href:\s*ANDROID_APP_DOWNLOAD_URL/)
   assert.doesNotMatch(
     login,
     /href=\{ANDROID_APP_DOWNLOAD_URL\}[^>]*\bdownload\b/,
