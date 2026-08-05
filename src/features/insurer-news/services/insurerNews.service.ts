@@ -96,16 +96,34 @@ export async function createNewsletterBoard(
 export async function deleteNewsletterBoard(
   token: string,
   boardId: string,
-): Promise<NewsletterBoard | null> {
-  // 일반 보드: 204 soft-delete. 손해사정사 시스템 보드: 200 + 비활성 JSON.
-  const result = await apiRequest<NewsletterBoard | void>(
-    `/api/admin/newsletter-boards/${encodeURIComponent(boardId)}`,
-    {
-      method: 'DELETE',
-      token,
-    },
-  )
+): Promise<NewsletterBoard | { ok: true; id: string; label: string; postCount: number; writerCount: number } | null> {
+  // 일반 보드: 200 soft-delete JSON. 손해사정사 시스템 보드: 200 + 비활성 JSON.
+  const result = await apiRequest<
+    NewsletterBoard | { ok: true; id: string; label: string; postCount: number; writerCount: number } | void
+  >(`/api/admin/newsletter-boards/${encodeURIComponent(boardId)}`, {
+    method: 'DELETE',
+    token,
+  })
   return result && typeof result === 'object' && 'id' in result ? result : null
+}
+
+export type NewsletterBoardDeleteImpact = {
+  boardId: string
+  label: string
+  postCount: number
+  writerCount: number
+  attachmentCount: number
+  canDelete: boolean
+}
+
+export async function fetchNewsletterBoardDeleteImpact(
+  token: string,
+  boardId: string,
+): Promise<NewsletterBoardDeleteImpact> {
+  return apiRequest<NewsletterBoardDeleteImpact>(
+    `/api/admin/newsletter-boards/${encodeURIComponent(boardId)}/delete-impact`,
+    { token },
+  )
 }
 
 export async function enableNewsletterBoard(

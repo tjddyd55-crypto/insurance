@@ -164,6 +164,13 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  max-width: 320px;
+}
+
+.newsletter-board-admin-page__table th:last-child,
+.newsletter-board-admin-page__table td:last-child {
+  min-width: 220px;
+  width: 28%;
 }
 
 .newsletter-board-writer-panel {

@@ -24,6 +24,7 @@ export function NewsletterBoardAdminView({
   onLabelChange,
   onDescriptionChange,
   onCreate,
+  onDelete,
   onDisable,
   onEnable,
   onEdit,
@@ -120,6 +121,7 @@ export function NewsletterBoardAdminView({
           busy={busy}
           canManageWriters
           selectedBoardId={selectedBoard?.id ?? null}
+          onDelete={onDelete}
           onDisable={onDisable}
           onEnable={onEnable}
           onEdit={onEdit}
@@ -150,6 +152,7 @@ export function NewsletterBoardAdminView({
           busy={busy}
           canManageWriters={canManageWriters}
           selectedBoardId={selectedBoard?.id ?? null}
+          onDelete={onDelete}
           onDisable={onDisable}
           onEnable={onEnable}
           onEdit={onEdit}
@@ -182,6 +185,7 @@ function BoardTable({
   busy,
   canManageWriters = false,
   selectedBoardId,
+  onDelete,
   onDisable,
   onEnable,
   onEdit,
@@ -195,6 +199,7 @@ function BoardTable({
   busy: boolean
   canManageWriters?: boolean
   selectedBoardId: string | null
+  onDelete: (board: NewsletterBoard) => void
   onDisable: (board: NewsletterBoard) => void
   onEnable: (board: NewsletterBoard) => void
   onEdit: (board: NewsletterBoard) => void
@@ -324,7 +329,6 @@ function BoardTable({
                           <FormButton
                             htmlType="button"
                             variant="secondary"
-                            className="newsletter-board-admin-page__delete-btn"
                             disabled={busy}
                             onClick={(event) => {
                               event.stopPropagation()
@@ -345,6 +349,20 @@ function BoardTable({
                             }}
                           >
                             다시 사용
+                          </FormButton>
+                        ) : null}
+                        {actions.canDelete ? (
+                          <FormButton
+                            htmlType="button"
+                            variant="secondary"
+                            className="newsletter-board-admin-page__delete-btn"
+                            disabled={busy}
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              onDelete(board)
+                            }}
+                          >
+                            삭제
                           </FormButton>
                         ) : null}
                       </div>

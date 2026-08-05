@@ -13,6 +13,7 @@ export type NewsletterBoardPermissionFlags = {
   canEdit: boolean
   canDisable: boolean
   canEnable: boolean
+  canDelete: boolean
   showUploadLink: boolean
   portalPath: string
   kindLabel: string
@@ -36,6 +37,7 @@ export function resolveNewsletterBoardAdminActions(
     canEdit: canManage,
     canDisable: canManage && isActive,
     canEnable: canManage && !isActive,
+    canDelete: canManage && !isSystemDefault,
     showUploadLink: !isSystemDefault && (isGaOnlyNewsletterBoard(board) || isGlobal),
     portalPath: isSystemDefault ? LOSS_ADJUSTER_PORTAL_PATH : `/portal/boards/${board.slug}`,
     kindLabel: isSystemDefault ? '기본' : isGlobal ? '공용 소식지' : 'GA 게시판',

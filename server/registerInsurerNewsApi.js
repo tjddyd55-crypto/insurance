@@ -21,6 +21,7 @@ import {
 import {
   DISABLE_NEWSLETTER_BOARD_SQL,
   ENABLE_NEWSLETTER_BOARD_SQL,
+  GA_ADMIN_NEWSLETTER_BOARD_BY_ID_ANY_SQL,
   GA_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL,
   GA_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL,
   GA_ADMIN_NEWSLETTER_BOARDS_LIST_SQL,
@@ -30,6 +31,7 @@ import {
   INSERT_GLOBAL_NEWSLETTER_BOARD_SQL,
   NEWSLETTER_BOARDS_VISIBLE_LIST_SQL,
   PATCH_NEWSLETTER_BOARD_SQL,
+  SUPER_ADMIN_NEWSLETTER_BOARD_BY_ID_ANY_SQL,
   SUPER_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL,
   SUPER_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL,
   SUPER_ADMIN_NEWSLETTER_BOARDS_LIST_SQL,
@@ -70,6 +72,10 @@ import {
 } from './lib/rbacScope.js'
 import { INSURER_R2_ACTIVE_CATEGORY, INSURER_R2_CATEGORY } from './lib/insurerR2Layout.js'
 import { insurerNewsLog } from './lib/logger.js'
+import {
+  loadNewsletterBoardDeleteImpact,
+  softDeleteNewsletterBoardRecord,
+} from './lib/newsletterBoardSoftDelete.js'
 import { isR2ObjectRootEnabled, stripR2ObjectRootIfPresent, withR2ObjectRoot } from './lib/r2KeyPolicy.js'
 import {
   INSURANCE_STORAGE_CATEGORY,
@@ -1887,47 +1893,141 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     }
   })
 
-  apiRouter.delete('/admin/newsletter-boards/:boardId', requireAuth, async (req, res) => {
+  apiRouter.get('/admin/newsletter-boards/:boardId/delete-impact', requireAuth, async (req, res) => {
     try {
       if (!canManageNewsletterBoards(req)) {
-        res.status(403).json({ message: '소식지 메뉴 관리 권한이 없습니다.' })
+        res.status(403).json({
+          code: 'BOARD_DELETE_FORBIDDEN',
+          message: '공용 소식지를 삭제할 권한이 없습니다.',
+        })
         return
       }
       const boardId = String(req.params.boardId ?? '').trim()
       if (!boardId) {
-        res.status(400).json({ message: '게시판 ID가 없습니다.' })
+        res.status(400).json({ code: 'BOARD_NOT_FOUND', message: '공용 소식지를 찾을 수 없습니다.' })
+        return
+      }
+      const isSuperAdmin = isSuperAdminRole(req.user?.role)
+      const gaId = effectiveTenantGaId(req)
+      const boardRes = isSuperAdmin
+        ? await systemQuery(pool, SUPER_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL, [boardId])
+        : await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL, [boardId, gaId])
+      if (boardRes.rowCount === 0) {
+        res.status(404).json({ code: 'BOARD_NOT_FOUND', message: '공용 소식지를 찾을 수 없습니다.' })
+        return
+      }
+      const board = boardRes.rows[0]
+      if (!isSuperAdmin && isGlobalBoardScope(board)) {
+        res.status(403).json({
+          code: 'BOARD_DELETE_FORBIDDEN',
+          message: '공용 소식지를 삭제할 권한이 없습니다.',
+        })
+        return
+      }
+      const impact = await loadNewsletterBoardDeleteImpact(pool, board)
+      res.json({
+        boardId: String(board.id),
+        label: String(board.label ?? ''),
+        ...impact,
+        canDelete: !isLossAdjusterSystemBoard(board),
+      })
+    } catch (eImpact) {
+      handleDbError(eImpact, req, res)
+    }
+  })
+
+  apiRouter.delete('/admin/newsletter-boards/:boardId', requireAuth, async (req, res) => {
+    try {
+      if (!canManageNewsletterBoards(req)) {
+        res.status(403).json({
+          code: 'BOARD_DELETE_FORBIDDEN',
+          message: '공용 소식지를 삭제할 권한이 없습니다.',
+        })
+        return
+      }
+      const boardId = String(req.params.boardId ?? '').trim()
+      if (!boardId) {
+        res.status(400).json({ code: 'BOARD_NOT_FOUND', message: '공용 소식지를 찾을 수 없습니다.' })
         return
       }
       const isSuperAdmin = isSuperAdminRole(req.user?.role)
       const gaId = effectiveTenantGaId(req)
       let boardRes
       if (isSuperAdmin) {
-        boardRes = await systemQuery(pool, SUPER_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL, [boardId])
+        boardRes = await systemQuery(pool, SUPER_ADMIN_NEWSLETTER_BOARD_BY_ID_ANY_SQL, [boardId])
       } else {
-        boardRes = await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL, [boardId, gaId])
+        boardRes = await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARD_BY_ID_ANY_SQL, [boardId, gaId])
       }
       if (boardRes.rowCount === 0) {
-        res.status(404).json({ message: '소식지 메뉴를 찾을 수 없습니다.' })
+        res.status(404).json({ code: 'BOARD_NOT_FOUND', message: '공용 소식지를 찾을 수 없습니다.' })
         return
       }
       const board = boardRes.rows[0]
       if (!isSuperAdmin && isGlobalBoardScope(board)) {
-        res.status(403).json({ message: '공용게시판은 최고 관리자만 삭제할 수 있습니다.' })
+        res.status(403).json({
+          code: 'BOARD_DELETE_FORBIDDEN',
+          message: '공용 소식지를 삭제할 권한이 없습니다.',
+        })
         return
       }
       if (isLossAdjusterSystemBoard(board)) {
+        if (board.is_deleted === true) {
+          res.status(409).json({
+            code: 'BOARD_ALREADY_DELETED',
+            message: '이미 삭제된 공용 소식지입니다.',
+          })
+          return
+        }
         const disabled = await safeQuery(pool, DISABLE_NEWSLETTER_BOARD_SQL, [boardId])
         res.status(200).json(mapNewsletterBoard(disabled.rows[0]))
         return
       }
-      if (isSuperAdmin) {
-        await adminNewsletterBoardQuery(pool, SUPER_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL, [boardId])
-      } else {
-        await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL, [boardId, gaId])
+
+      const result = await softDeleteNewsletterBoardRecord(pool, {
+        board,
+        softDeleteSql: isSuperAdmin
+          ? SUPER_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL
+          : GA_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL,
+        softDeleteParams: isSuperAdmin ? [boardId] : [boardId, gaId],
+        actorUserId: String(req.user?.id ?? '') || null,
+        actorRole: String(req.user?.role ?? '') || null,
+        requestId: req.requestId != null ? String(req.requestId) : null,
+        runQuery: (sql, params) =>
+          isSuperAdmin
+            ? adminNewsletterBoardQuery(pool, sql, params)
+            : safeQuery(pool, sql, params),
+      })
+      if (!result.ok) {
+        res.status(result.status).json({ code: result.code, message: result.message })
+        return
       }
-      res.status(204).send()
+      insurerNewsLog.info({
+        event: 'public-board-deleted',
+        boardId: result.boardId,
+        postCount: result.postCount,
+        writerCount: result.writerCount,
+        actorUserId: req.user?.id ?? null,
+      })
+      res.status(200).json({
+        ok: true,
+        id: result.boardId,
+        label: result.label,
+        postCount: result.postCount,
+        writerCount: result.writerCount,
+        attachmentCount: result.attachmentCount,
+      })
     } catch (eBoardsDelete) {
-      handleDbError(eBoardsDelete, req, res)
+      insurerNewsLog.error({
+        event: 'public-board-delete-failed',
+        boardId: String(req.params.boardId ?? ''),
+        err: eBoardsDelete instanceof Error ? eBoardsDelete.message : String(eBoardsDelete),
+      })
+      if (!res.headersSent) {
+        res.status(500).json({
+          code: 'BOARD_DELETE_FAILED',
+          message: '공용 소식지를 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+        })
+      }
     }
   })
 
