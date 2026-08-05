@@ -10,6 +10,7 @@ import {
   listAllowedBoardIdsForWriter,
   listBoardsForWriter,
   mapBoardWriterRow,
+  revokeWriterBoardPermission,
 } from './boardWriterService.js'
 
 const WRITER_TOKEN_EXPIRES_IN = '12h'
@@ -307,6 +308,20 @@ export async function patchWriterAccountForBoard(executor, writerId, boardId, pa
   )
   if (existing.rowCount === 0) {
     return { ok: false, status: 404, message: '계정을 찾을 수 없습니다.' }
+  }
+
+  // 여러 소식지에 권한이 있는 계정을 이 소식지에서만 중지하면 relation만 제거한다.
+  // 단일 소식지 계정은 계정 자체를 비활성화한다.
+  if (patch.isActive === false) {
+    const allowedBoardIds = await listAllowedBoardIdsForWriter(executor, writerId)
+    if (allowedBoardIds.length > 1) {
+      await revokeWriterBoardPermission(executor, writerId, boardId)
+      const rowRes = await systemQuery(executor, `SELECT * FROM board_writer_accounts WHERE id = $1 LIMIT 1`, [
+        writerId,
+      ])
+      const remaining = await listAllowedBoardIdsForWriter(executor, writerId)
+      return { ok: true, row: rowRes.rows[0], allowedBoardIds: remaining, revokedBoardOnly: true }
+    }
   }
 
   const sets = []

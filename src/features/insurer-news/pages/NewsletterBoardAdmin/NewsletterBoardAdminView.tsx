@@ -129,6 +129,7 @@ export function NewsletterBoardAdminView({
             token.trim() &&
             globalBoards.some((board) => board.id === selectedBoard.id) ? (
               <NewsletterBoardWriterPanel
+                key={selectedBoard.id}
                 board={selectedBoard}
                 token={token}
                 role={role}
@@ -158,6 +159,7 @@ export function NewsletterBoardAdminView({
             token.trim() &&
             gaBoards.some((board) => board.id === selectedBoard.id) ? (
               <NewsletterBoardWriterPanel
+                key={selectedBoard.id}
                 board={selectedBoard}
                 token={token}
                 role={role}

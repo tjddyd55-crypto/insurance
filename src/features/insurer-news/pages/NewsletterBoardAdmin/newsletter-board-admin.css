@@ -215,6 +215,21 @@
   color: var(--text-secondary, #6b7280);
 }
 
+.newsletter-board-writer-panel__empty {
+  padding: 20px;
+}
+
+.newsletter-board-writer-panel__empty-title {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.newsletter-board-writer-panel__empty .newsletter-board-writer-panel__muted {
+  padding: 0;
+}
+
 .newsletter-board-writer-panel__login-row {
   display: flex;
   gap: 8px;

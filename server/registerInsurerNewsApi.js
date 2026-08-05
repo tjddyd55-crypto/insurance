@@ -47,7 +47,6 @@ import {
   classifyNewsletterNewsChannel,
   sqlExcludeDynamicBoardFromInsurerFeed,
 } from './lib/newsletterFeedChannelSql.js'
-import { grantBoardToAllGlobalWriters } from './lib/boardWriterService.js'
 import {
   consentGetBuffer,
   consentPutInsurerAttachment,
@@ -917,7 +916,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         isActive,
         createdByUserId,
       ])
-      await grantBoardToAllGlobalWriters(pool, id)
+      // 작성자 권한은 게시판별로 수동 등록한다. 신규 공용 소식지에 기존 global 작성자를 자동 부여하지 않는다.
       return { row: r.rows[0] }
     }
     const gaId = Number(ownerGaId)

@@ -35,7 +35,7 @@ export function PublicBoardWriterAdminPage() {
       setWriters(writerRows)
       const globalBoards = boardRows.filter((b) => b.boardScope === 'global' || b.contentScope === 'global' || b.isPublic)
       setBoards(globalBoards)
-      setSelectedBoardIds((prev) => (prev.length > 0 ? prev : globalBoards.map((b) => b.id)))
+      setSelectedBoardIds((prev) => prev.filter((id) => globalBoards.some((b) => b.id === id)))
       setError('')
     } catch (e) {
       setError(e instanceof Error ? e.message : '목록을 불러오지 못했습니다.')
@@ -57,6 +57,10 @@ export function PublicBoardWriterAdminPage() {
 
   const handleCreate = () => {
     if (!token?.trim() || busy) {
+      return
+    }
+    if (selectedBoardIds.length === 0) {
+      setError('작성 권한을 부여할 공용 소식지를 1개 이상 선택해 주세요.')
       return
     }
     void (async () => {

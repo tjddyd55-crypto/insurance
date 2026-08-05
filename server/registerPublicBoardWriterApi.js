@@ -8,8 +8,6 @@ import {
   assertBoardAssignableToWriterScope,
   assertWriterBoardAccess,
   BOARD_WRITER_JWT_KIND,
-  grantAllGaBoardsToWriter,
-  grantAllGlobalBoardsToWriter,
   listAllowedBoardIdsForWriter,
   listBoardsForWriter,
   loadNewsletterBoardBySlug,
@@ -392,6 +390,10 @@ export function registerPublicBoardWriterApi(apiRouter, ctx) {
         res.status(400).json({ message: '비밀번호는 8자 이상 입력해 주세요.' })
         return
       }
+      if (boardIds.length === 0) {
+        res.status(400).json({ message: '작성 권한을 부여할 공용 소식지를 1개 이상 선택해 주세요.' })
+        return
+      }
       for (const boardId of boardIds) {
         const check = await assertBoardAssignableToWriterScope(pool, boardId, 'global', null)
         if (!check.ok) {
@@ -420,11 +422,7 @@ export function registerPublicBoardWriterApi(apiRouter, ctx) {
         `,
         [id, loginId, passwordHash, name || loginId, String(req.user?.id ?? '') || null],
       )
-      if (boardIds.length > 0) {
-        await replaceWriterBoardPermissions(pool, id, boardIds)
-      } else {
-        await grantAllGlobalBoardsToWriter(pool, id)
-      }
+      await replaceWriterBoardPermissions(pool, id, boardIds)
       const allowedBoardIds = await listAllowedBoardIdsForWriter(pool, id)
       res.status(201).json(mapBoardWriterRow(ins.rows[0], allowedBoardIds))
     } catch (e) {
@@ -560,6 +558,10 @@ export function registerPublicBoardWriterApi(apiRouter, ctx) {
         res.status(400).json({ message: '비밀번호는 8자 이상 입력해 주세요.' })
         return
       }
+      if (boardIds.length === 0) {
+        res.status(400).json({ message: '작성 권한을 부여할 GA 소식지를 1개 이상 선택해 주세요.' })
+        return
+      }
       for (const boardId of boardIds) {
         const check = await assertBoardAssignableToWriterScope(pool, boardId, 'ga', gaId)
         if (!check.ok) {
@@ -588,11 +590,7 @@ export function registerPublicBoardWriterApi(apiRouter, ctx) {
         `,
         [id, loginId, passwordHash, name || loginId, gaId, String(req.user?.id ?? '') || null],
       )
-      if (boardIds.length > 0) {
-        await replaceWriterBoardPermissions(pool, id, boardIds)
-      } else {
-        await grantAllGaBoardsToWriter(pool, id, gaId)
-      }
+      await replaceWriterBoardPermissions(pool, id, boardIds)
       const allowedBoardIds = await listAllowedBoardIdsForWriter(pool, id)
       res.status(201).json(mapBoardWriterRow(ins.rows[0], allowedBoardIds))
     } catch (e) {
