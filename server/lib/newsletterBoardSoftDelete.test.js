@@ -17,9 +17,24 @@ test('board delete handler revokes writer permissions and writes PUBLIC_BOARD_DE
   assert.match(soft, /DELETE FROM board_writer_permissions WHERE board_id = \$1/)
   assert.match(soft, /action: 'PUBLIC_BOARD_DELETED'/)
   assert.match(soft, /loadNewsletterBoardDeleteImpact/)
+  assert.match(soft, /buildNewsletterBoardPostMatch/)
+  assert.doesNotMatch(soft, /dynamicBoardSlug/)
   assert.doesNotMatch(soft, /DELETE FROM insurance_company_newsletters/)
   assert.doesNotMatch(soft, /DELETE FROM insurance_company_newsletter_attachments/)
   assert.doesNotMatch(soft, /DELETE FROM board_writer_accounts/)
+})
+
+test('delete impact and board writer list share board-id post match helper', () => {
+  const writerSrc = fs.readFileSync(path.join(repoRoot, 'server/lib/boardWriterNewsletters.js'), 'utf8')
+  const apiSrc = fs.readFileSync(path.join(repoRoot, 'server/registerInsurerNewsApi.js'), 'utf8')
+  assert.match(writerSrc, /buildNewsletterBoardPostMatch/)
+  assert.match(apiSrc, /buildNewsletterBoardPostMatch/)
+  const listFn = writerSrc.slice(
+    writerSrc.indexOf('export async function listBoardWriterNewsletters'),
+    writerSrc.indexOf('export async function loadBoardWriterNewsletterById'),
+  )
+  assert.match(listFn, /boardMatch\.sql/)
+  assert.doesNotMatch(listFn, /dynamicBoardSlug/)
 })
 
 test('admin board delete UI wires dedicated delete handler and button', () => {
@@ -35,6 +50,7 @@ test('admin board delete UI wires dedicated delete handler and button', () => {
   assert.doesNotMatch(page, /onDelete: handleDisable/)
   assert.match(page, /공용 소식지를 삭제할까요\?/)
   assert.match(page, /fetchNewsletterBoardDeleteImpact/)
+  assert.match(page, /impact\.boardId/)
   assert.match(view, />\s*삭제\s*</)
   assert.match(view, /actions\.canDelete/)
 })

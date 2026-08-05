@@ -1,27 +1,18 @@
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { isLossAdjusterSystemBoard } from './lossAdjusterNewsletterBoard.js'
 import { isGlobalBoardScope } from './newsletterBoardScope.js'
+import { buildNewsletterBoardPostMatch } from './newsletterBoardPostScope.js'
 import { logSecurityEvent } from './securityAudit.js'
 
 /**
- * @param {Record<string, unknown>} board
- */
-function boardSlugKey(board) {
-  return String(board.slug ?? '')
-    .trim()
-    .toLowerCase()
-}
-
-/**
  * 게시판 삭제 영향 건수. 게시글·첨부는 soft-delete 대상이 아니며 카운트만 한다.
+ * 게시글은 payload.newsletterBoardId(= board.id) 기준 — slug/name 으로 합산하지 않는다.
  *
  * @param {import('pg').Pool | import('pg').PoolClient} executor
  * @param {Record<string, unknown>} board
  */
 export async function loadNewsletterBoardDeleteImpact(executor, board) {
   const boardId = String(board.id ?? '').trim()
-  const slug = boardSlugKey(board)
-  const isLossAdjuster = isLossAdjusterSystemBoard(board)
 
   const writerRes = await systemQuery(
     executor,
@@ -30,25 +21,25 @@ export async function loadNewsletterBoardDeleteImpact(executor, board) {
   )
   const writerCount = Number(writerRes.rows[0]?.c ?? 0) || 0
 
-  if (!slug && !isLossAdjuster) {
-    return { postCount: 0, writerCount, attachmentCount: 0 }
+  const match = buildNewsletterBoardPostMatch(board, {
+    alias: 'n',
+    boardIdParamIndex: 1,
+    lossAdjusterChannelParamIndex: 1,
+  })
+  if (match.usesBoardId && !boardId) {
+    return { boardId, postCount: 0, writerCount, attachmentCount: 0 }
   }
-
-  const boardMatchSql = isLossAdjuster
-    ? `COALESCE(NULLIF(TRIM(n.payload->>'newsChannel'), ''), 'INSURER') = 'LOSS_ADJUSTER'`
-    : `LOWER(TRIM(n.payload->>'dynamicBoardSlug')) = $1`
-  const postParams = isLossAdjuster ? [] : [slug]
 
   const postRes = await systemQuery(
     executor,
     `
     SELECT COUNT(*)::int AS c
     FROM insurance_company_newsletters n
-    WHERE ${boardMatchSql}
+    WHERE ${match.sql}
       AND n.deleted_at IS NULL
       AND COALESCE((n.payload->>'customerVisible')::boolean, false) = false
     `,
-    postParams,
+    match.params,
   )
   const postCount = Number(postRes.rows[0]?.c ?? 0) || 0
 
@@ -58,15 +49,15 @@ export async function loadNewsletterBoardDeleteImpact(executor, board) {
     SELECT COUNT(*)::int AS c
     FROM insurance_company_newsletter_attachments a
     INNER JOIN insurance_company_newsletters n ON n.id = a.newsletter_id
-    WHERE ${boardMatchSql}
+    WHERE ${match.sql}
       AND n.deleted_at IS NULL
       AND COALESCE((n.payload->>'customerVisible')::boolean, false) = false
     `,
-    postParams,
+    match.params,
   )
   const attachmentCount = Number(attachmentRes.rows[0]?.c ?? 0) || 0
 
-  return { postCount, writerCount, attachmentCount }
+  return { boardId, postCount, writerCount, attachmentCount }
 }
 
 /**

@@ -76,6 +76,7 @@ import {
   loadNewsletterBoardDeleteImpact,
   softDeleteNewsletterBoardRecord,
 } from './lib/newsletterBoardSoftDelete.js'
+import { buildNewsletterBoardPostMatch } from './lib/newsletterBoardPostScope.js'
 import { isR2ObjectRootEnabled, stripR2ObjectRootIfPresent, withR2ObjectRoot } from './lib/r2KeyPolicy.js'
 import {
   INSURANCE_STORAGE_CATEGORY,
@@ -2142,7 +2143,12 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       }
       const rawLimit = Number(req.query.limit ?? 500)
       const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(500, Math.floor(rawLimit))) : 500
-      const params = [String(board.slug)]
+      const boardMatch = buildNewsletterBoardPostMatch(board, {
+        alias: 'n',
+        boardIdParamIndex: 1,
+        lossAdjusterChannelParamIndex: 1,
+      })
+      const params = [...boardMatch.params]
       const postFilter = buildDynamicBoardPostGaFilter(board, effectiveTenantGaId(req), params.length + 1)
       params.push(...postFilter.params)
       params.push(limit)
@@ -2173,7 +2179,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           ON w.id = NULLIF(TRIM(COALESCE(n.payload->>'authorAccountId', n.payload->>'publisherId', '')), '')
         WHERE n.status = 'PUBLISHED'
           AND n.deleted_at IS NULL
-          AND LOWER(TRIM(n.payload->>'dynamicBoardSlug')) = $1
+          AND ${boardMatch.sql}
           ${postFilter.sql}
           AND COALESCE((n.payload->>'customerVisible')::boolean, false) = false
           AND COALESCE(NULLIF(TRIM(n.payload->>'insurerSlug'), ''), '') <> 'customer-news'
@@ -2208,7 +2214,12 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       if (!board) {
         return
       }
-      const params = [String(req.params.newsletterId ?? ''), String(board.slug)]
+      const boardMatch = buildNewsletterBoardPostMatch(board, {
+        alias: 'n',
+        boardIdParamIndex: 2,
+        lossAdjusterChannelParamIndex: 2,
+      })
+      const params = [String(req.params.newsletterId ?? ''), ...boardMatch.params]
       const postFilter = buildDynamicBoardPostGaFilterBare(board, effectiveTenantGaId(req), params.length + 1)
       params.push(...postFilter.params)
       const nRes = await safeQuery(
@@ -2222,7 +2233,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         LEFT JOIN board_writer_accounts w
           ON w.id = NULLIF(TRIM(COALESCE(n.payload->>'authorAccountId', n.payload->>'publisherId', '')), '')
         WHERE n.id = $1
-          AND LOWER(TRIM(n.payload->>'dynamicBoardSlug')) = $2
+          AND ${boardMatch.sql}
           AND n.status = 'PUBLISHED'
           AND n.deleted_at IS NULL
           ${postFilter.sql.replace(/\bga_id\b/g, 'n.ga_id')}
