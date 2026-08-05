@@ -67,7 +67,6 @@ import PdfIssuanceHistoryPage from './features/pdf-engine/pages/PdfIssuanceHisto
 import { ConsentFormPage } from './features/consent/pages/ConsentFormPage'
 import { DashboardPage } from './features/dashboard/pages/DashboardPage'
 import { IntroductionPage } from './features/web/pages/IntroductionPage'
-import { IntroductionInstallPage } from './features/web/pages/IntroductionInstallPage'
 import FeatureRequestPage from './features/feature-request/pages/FeatureRequestPage'
 import FeatureRequestsAdminPage from './features/feature-request/pages/FeatureRequestsAdminPage'
 import ProgramInquiriesAdminPage from './features/admin/pages/ProgramInquiriesAdminPage'
@@ -247,7 +246,8 @@ export const appRouter = createBrowserRouter([
       { path: 'terms', element: <TermsOfServicePage /> },
       { path: 'account-deletion', element: <AccountDeletionPage /> },
       { path: 'introduction', element: <IntroductionPage /> },
-      { path: 'introduction/install', element: <IntroductionInstallPage /> },
+      // 과거 install 전용 페이지는 랜딩 다운로드 섹션으로 통일 (권장 정책 2)
+      { path: 'introduction/install', element: <Navigate to="/introduction#download" replace /> },
       { path: 'naver-map-smoke', element: <NaverMapSmokePage /> },
       /* 외부 고객 입력(소개 링크) — 비로그인 유지. API는 /api/customer/external-create + ref·ga 검증 */
       { path: 'customer/input', element: <CustomerInputPage /> },

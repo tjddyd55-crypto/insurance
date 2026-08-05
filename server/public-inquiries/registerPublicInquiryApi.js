@@ -206,6 +206,23 @@ export function registerPublicInquiryApi(apiRouter, ctx) {
         createdAt: row.created_at,
       })
     } catch (error) {
+      const code = error && typeof error === 'object' ? error.code : null
+      // 42P01 = undefined_table — ensure 실패 시 silent 500 대신 표준 코드
+      if (code === '42P01') {
+        console.error('[public-inquiry] schema unavailable', {
+          code,
+          requestId: req.requestId || req.headers['x-request-id'] || null,
+        })
+        if (!res.headersSent) {
+          jsonError(
+            res,
+            503,
+            'INQUIRY_SCHEMA_UNAVAILABLE',
+            '문의 서비스를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.',
+          )
+        }
+        return
+      }
       if (typeof handleDbError === 'function') {
         handleDbError(error, req, res)
       }
