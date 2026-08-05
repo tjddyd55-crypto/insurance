@@ -17,19 +17,21 @@ import {
 } from './introContactFormValidation'
 
 /**
- * 도입 문의 폼 — 1단계(클라이언트 전용).
+ * 도입 문의 폼.
  *
- * 이 단계에서는 네트워크 호출을 하지 않는다. 검증까지만 수행하고,
- * 실제 접수 처리는 `onValidSubmit` 을 주입하는 상위(2단계 API 연동)가 담당한다.
- * 주입이 없으면 "접수됨" 이라고 말하지 않고 전화 안내만 노출한다.
+ * 검증을 통과한 값은 `onValidSubmit` 으로 넘긴다.
+ * Promise 를 반환하면 로딩·성공·실패 UI 를 이 컴포넌트가 관리한다.
  */
 
-type SubmitStatus = 'idle' | 'invalid' | 'guided'
+type SubmitStatus = 'idle' | 'invalid' | 'success' | 'error' | 'rateLimited'
 
 const PLACEHOLDER_INQUIRY_TYPE = '문의 유형을 선택해 주세요'
 const PLACEHOLDER_CONTACT_TIME = '상담 가능 시간 선택 (선택)'
-const GUIDED_MESSAGE = `문의 접수 기능은 곧 연결됩니다. 급한 문의는 전화 ${INTRO_PHONE_DISPLAY}로 연락해 주세요.`
 const INVALID_MESSAGE = '입력하지 않았거나 형식이 맞지 않는 항목이 있습니다.'
+const SUCCESS_TITLE = '문의가 등록되었습니다.'
+const SUCCESS_BODY = '남겨주신 연락처로 확인 후 안내드리겠습니다.'
+const FAIL_MESSAGE = `문의 등록에 실패했습니다. 잠시 후 다시 시도하거나 ${INTRO_PHONE_DISPLAY}로 연락해 주세요.`
+const RATE_LIMIT_MESSAGE = `요청이 많습니다. 잠시 후 다시 시도하거나 ${INTRO_PHONE_DISPLAY}로 연락해 주세요.`
 
 const INQUIRY_TYPE_OPTIONS = [
   { value: '', label: PLACEHOLDER_INQUIRY_TYPE },
@@ -41,9 +43,18 @@ const CONTACT_TIME_OPTIONS = [
 ]
 
 export type IntroContactFormProps = {
-  /** 2단계 연동 지점. 검증을 통과한 값만 전달된다. */
-  onValidSubmit?: (values: IntroContactFormValues) => void
+  /** 검증을 통과한 값만 전달된다. Promise 면 로딩·결과 UI 를 연동한다. */
+  onValidSubmit?: (values: IntroContactFormValues) => void | Promise<void>
+  /** 상위가 외부 로딩을 제어할 때 사용. Promise 제출 중에는 내부 loading 과 OR 된다. */
   submitting?: boolean
+}
+
+function resolveStatusMessage(status: SubmitStatus): string {
+  if (status === 'invalid') return INVALID_MESSAGE
+  if (status === 'success') return `${SUCCESS_TITLE} ${SUCCESS_BODY}`
+  if (status === 'error') return FAIL_MESSAGE
+  if (status === 'rateLimited') return RATE_LIMIT_MESSAGE
+  return ''
 }
 
 export function IntroContactForm({ onValidSubmit, submitting = false }: IntroContactFormProps) {
@@ -51,6 +62,9 @@ export function IntroContactForm({ onValidSubmit, submitting = false }: IntroCon
   const [values, setValues] = useState<IntroContactFormValues>(INTRO_CONTACT_FORM_INITIAL_VALUES)
   const [errors, setErrors] = useState<IntroContactFormErrors>({})
   const [status, setStatus] = useState<SubmitStatus>('idle')
+  const [internalSubmitting, setInternalSubmitting] = useState(false)
+
+  const isSubmitting = submitting || internalSubmitting
 
   const updateField = useCallback(
     <Field extends keyof IntroContactFormValues>(field: Field, value: IntroContactFormValues[Field]) => {
@@ -61,11 +75,15 @@ export function IntroContactForm({ onValidSubmit, submitting = false }: IntroCon
   )
 
   const handleSubmit = useCallback(
-    (event: FormEvent<HTMLFormElement>) => {
+    async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault()
-      // 봇 제출은 오류를 노출하지 않고 조용히 무시한다.
+      if (isSubmitting) return
+
+      // 봇 제출은 오류를 노출하지 않고 조용히 성공처럼 보이게 한다.
       if (isIntroContactFormBot(values)) {
-        setStatus('guided')
+        setStatus('success')
+        setValues(INTRO_CONTACT_FORM_INITIAL_VALUES)
+        setErrors({})
         return
       }
 
@@ -76,13 +94,34 @@ export function IntroContactForm({ onValidSubmit, submitting = false }: IntroCon
         return
       }
 
-      setStatus('guided')
-      onValidSubmit?.(values)
+      if (!onValidSubmit) {
+        setStatus('error')
+        return
+      }
+
+      setInternalSubmitting(true)
+      setStatus('idle')
+      try {
+        await onValidSubmit(values)
+        setStatus('success')
+        setValues(INTRO_CONTACT_FORM_INITIAL_VALUES)
+        setErrors({})
+      } catch (error) {
+        const rateLimited =
+          error != null &&
+          typeof error === 'object' &&
+          'status' in error &&
+          (error as { status?: number }).status === 429
+        setStatus(rateLimited ? 'rateLimited' : 'error')
+        // 실패 시 입력값은 유지한다.
+      } finally {
+        setInternalSubmitting(false)
+      }
     },
-    [values, onValidSubmit],
+    [values, onValidSubmit, isSubmitting],
   )
 
-  const statusMessage = status === 'invalid' ? INVALID_MESSAGE : status === 'guided' ? GUIDED_MESSAGE : ''
+  const statusMessage = resolveStatusMessage(status)
 
   return (
     <form className="intro-landing-form" noValidate onSubmit={handleSubmit}>
@@ -94,6 +133,7 @@ export function IntroContactForm({ onValidSubmit, submitting = false }: IntroCon
             maxLength={INTRO_CONTACT_FORM_LIMITS.nameMax}
             autoComplete="name"
             aria-invalid={Boolean(errors.name)}
+            disabled={isSubmitting}
             onChange={(event) => updateField('name', event.target.value)}
           />
         </FieldWrapper>
@@ -104,6 +144,7 @@ export function IntroContactForm({ onValidSubmit, submitting = false }: IntroCon
             format="phone"
             value={values.phone}
             aria-invalid={Boolean(errors.phone)}
+            disabled={isSubmitting}
             onChange={(event) => updateField('phone', event.target.value)}
           />
         </FieldWrapper>
@@ -115,6 +156,7 @@ export function IntroContactForm({ onValidSubmit, submitting = false }: IntroCon
             maxLength={INTRO_CONTACT_FORM_LIMITS.organizationNameMax}
             autoComplete="organization"
             aria-invalid={Boolean(errors.organizationName)}
+            disabled={isSubmitting}
             onChange={(event) => updateField('organizationName', event.target.value)}
           />
         </FieldWrapper>
@@ -127,6 +169,7 @@ export function IntroContactForm({ onValidSubmit, submitting = false }: IntroCon
             maxLength={INTRO_CONTACT_FORM_LIMITS.emailMax}
             autoComplete="email"
             aria-invalid={Boolean(errors.email)}
+            disabled={isSubmitting}
             onChange={(event) => updateField('email', event.target.value)}
           />
         </FieldWrapper>
@@ -137,6 +180,7 @@ export function IntroContactForm({ onValidSubmit, submitting = false }: IntroCon
             value={values.inquiryType}
             options={INQUIRY_TYPE_OPTIONS}
             aria-invalid={Boolean(errors.inquiryType)}
+            disabled={isSubmitting}
             onChange={(event) =>
               updateField('inquiryType', event.target.value as IntroContactFormValues['inquiryType'])
             }
@@ -148,6 +192,7 @@ export function IntroContactForm({ onValidSubmit, submitting = false }: IntroCon
             name="preferredContactTime"
             value={values.preferredContactTime}
             options={CONTACT_TIME_OPTIONS}
+            disabled={isSubmitting}
             onChange={(event) =>
               updateField(
                 'preferredContactTime',
@@ -171,6 +216,7 @@ export function IntroContactForm({ onValidSubmit, submitting = false }: IntroCon
           value={values.message}
           maxLength={INTRO_CONTACT_FORM_LIMITS.messageMax}
           aria-invalid={Boolean(errors.message)}
+          disabled={isSubmitting}
           onChange={(event) => updateField('message', event.target.value)}
         />
       </FieldWrapper>
@@ -195,6 +241,7 @@ export function IntroContactForm({ onValidSubmit, submitting = false }: IntroCon
             name="privacyConsent"
             checked={values.privacyConsent}
             aria-invalid={Boolean(errors.privacyConsent)}
+            disabled={isSubmitting}
             onChange={(event) => updateField('privacyConsent', event.target.checked)}
           />
           <span>
@@ -210,12 +257,27 @@ export function IntroContactForm({ onValidSubmit, submitting = false }: IntroCon
       </div>
 
       <div className="intro-landing-form__footer">
-        <FormButton htmlType="submit" variant="primary" loading={submitting} fullWidth>
+        <FormButton htmlType="submit" variant="primary" loading={isSubmitting} fullWidth>
           문의 남기기
         </FormButton>
-        <p className="intro-landing-form__status" role="status" aria-live="polite">
-          {statusMessage}
-        </p>
+        {status === 'success' ? (
+          <div className="intro-landing-form__status" role="status" aria-live="polite">
+            <p className="intro-landing-form__status-title">{SUCCESS_TITLE}</p>
+            <p className="intro-landing-form__status-body">{SUCCESS_BODY}</p>
+          </div>
+        ) : statusMessage ? (
+          <p
+            className={`intro-landing-form__status${
+              status === 'error' || status === 'rateLimited' || status === 'invalid'
+                ? ' intro-landing-form__status--error'
+                : ''
+            }`}
+            role="status"
+            aria-live="polite"
+          >
+            {statusMessage}
+          </p>
+        ) : null}
       </div>
     </form>
   )

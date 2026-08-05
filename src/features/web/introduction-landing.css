@@ -795,6 +795,20 @@
   color: var(--primary-active);
 }
 
+.intro-landing-form__status--error {
+  background: var(--hint-bg, #fef3c7);
+  color: var(--hint-text, #92400e);
+}
+
+.intro-landing-form__status-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.intro-landing-form__status-body {
+  margin: 4px 0 0;
+}
+
 /* Mobile menu */
 .intro-landing-mobile-menu {
   position: fixed;
