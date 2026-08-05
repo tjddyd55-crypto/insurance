@@ -1,3 +1,4 @@
+import { submitPublicInquiry, toPublicInquiryPayload } from '../api/publicInquiryApi'
 import { BusinessInfoFooter } from '../components/BusinessInfoFooter'
 import {
   IntroContactForm,
@@ -5,6 +6,7 @@ import {
   IntroLandingSections,
   IntroMobileMenu,
 } from '../components/introduction/landing'
+import type { IntroContactFormValues } from '../components/introduction/landing/introContactFormValidation'
 import { useIntroductionLandingState } from '../hooks/useIntroductionLandingState'
 import '../introduction-landing.css'
 
@@ -19,12 +21,19 @@ import '../introduction-landing.css'
 export function IntroductionPage() {
   const state = useIntroductionLandingState()
 
+  const handleContactSubmit = async (values: IntroContactFormValues) => {
+    await submitPublicInquiry(toPublicInquiryPayload(values))
+  }
+
   return (
     <div className="intro-landing">
       <IntroLandingHeader state={state} />
       <IntroMobileMenu state={state} />
       <main id="introduction-main">
-        <IntroLandingSections goToSection={state.goToSection} contactForm={<IntroContactForm />} />
+        <IntroLandingSections
+          goToSection={state.goToSection}
+          contactForm={<IntroContactForm onValidSubmit={handleContactSubmit} />}
+        />
       </main>
       <BusinessInfoFooter />
     </div>

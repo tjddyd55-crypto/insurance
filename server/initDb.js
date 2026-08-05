@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs'
 import { randomUUID } from 'node:crypto'
 import { ensurePromotionCodesSchema } from './promotions/ensurePromotionCodesSchema.js'
+import { ensurePublicServiceInquiriesSchema } from './public-inquiries/ensurePublicServiceInquiriesSchema.js'
 import pool from './db.js'
 import {
   runCompanyDirectorySanitize,
@@ -4255,6 +4256,13 @@ export async function initDb() {
   await ensurePromotionCodeSchema(pool)
   await ensurePromotionCodesSchema(pool)
   console.log('[initDb][promotion-codes] schema ensure 완료')
+  try {
+    await ensurePublicServiceInquiriesSchema(pool)
+    console.log('[initDb][public-service-inquiries] schema ensure 완료')
+  } catch (error) {
+    // 공개 문의 테이블 실패가 전체 앱 기동을 막지 않도록 격리한다.
+    console.error('[initDb][public-service-inquiries] schema ensure 실패', error)
+  }
   const { ensureSmsModuleSchema } = await import('./sms/ensureSmsModuleSchema.js')
   await ensureSmsModuleSchema(pool)
   console.log('[initDb][sms-module] schema ensure 완료')
