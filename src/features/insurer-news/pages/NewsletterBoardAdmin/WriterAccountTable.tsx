@@ -61,7 +61,7 @@ export function WriterAccountTable({
             {writers.length === 0 ? (
               <tr>
                 <td colSpan={6} style={{ padding: 20, color: 'var(--text-sub)' }}>
-                  등록된 작성자 계정이 없습니다.
+                  등록된 작성자가 없습니다.
                 </td>
               </tr>
             ) : (
@@ -122,7 +122,7 @@ export function WriterAccountTable({
 
       <div className="admin-responsive-card-list newsletter-board-writer-panel__mobile">
         {writers.length === 0 ? (
-          <p className="newsletter-board-writer-panel__muted">등록된 작성자 계정이 없습니다.</p>
+          <p className="newsletter-board-writer-panel__muted">등록된 작성자가 없습니다.</p>
         ) : (
           writers.map((writer) => (
             <article key={writer.id} className="admin-user-card">

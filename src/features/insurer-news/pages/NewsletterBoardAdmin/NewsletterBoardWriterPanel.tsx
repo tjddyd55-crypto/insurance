@@ -73,6 +73,8 @@ export function NewsletterBoardWriterPanel({
   }, [loadWriters])
 
   useEffect(() => {
+    setWriters([])
+    setLoading(true)
     setRegisterOpen(false)
     setEditing(null)
     setForm(emptyForm())
@@ -253,11 +255,14 @@ export function NewsletterBoardWriterPanel({
     }
     void (async () => {
       const authorLabel = writer.name?.trim() || writer.loginId
+      const multiBoard = (writer.allowedBoardIds?.length ?? 0) > 1
       const ok = await confirm({
-        title: '작성자 계정을 사용 중지할까요?',
-        message: `${authorLabel} 계정은 더 이상 로그인하거나 게시글을 등록할 수 없습니다. 기존 작성글은 삭제되지 않습니다.`,
+        title: multiBoard ? '이 소식지 작성 권한을 제거할까요?' : '작성자 계정을 사용 중지할까요?',
+        message: multiBoard
+          ? `${authorLabel} 계정의 이 소식지 작성 권한만 제거됩니다. 다른 소식지 권한과 계정 상태는 유지됩니다.`
+          : `${authorLabel} 계정은 더 이상 로그인하거나 게시글을 등록할 수 없습니다. 기존 작성글은 삭제되지 않습니다.`,
         tone: 'danger',
-        confirmLabel: '사용 중지',
+        confirmLabel: multiBoard ? '권한 제거' : '사용 중지',
         cancelLabel: '취소',
       })
       if (!ok) {
@@ -327,7 +332,15 @@ export function NewsletterBoardWriterPanel({
 
       <div className="card newsletter-board-writer-panel__list-card">
         {loading ? <p className="newsletter-board-writer-panel__muted">불러오는 중...</p> : null}
-        {!loading ? (
+        {!loading && writers.length === 0 ? (
+          <div className="newsletter-board-writer-panel__empty">
+            <p className="newsletter-board-writer-panel__empty-title">등록된 작성자가 없습니다.</p>
+            <p className="newsletter-board-writer-panel__muted">
+              이 소식지에 글을 등록할 작성자 계정을 추가해 주세요.
+            </p>
+          </div>
+        ) : null}
+        {!loading && writers.length > 0 ? (
           <WriterAccountTable
             writers={writers}
             busy={busy}

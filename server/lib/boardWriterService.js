@@ -164,6 +164,22 @@ export async function grantWriterBoardPermission(executor, writerId, boardId) {
 
 /**
  * @param {import('pg').Pool | import('pg').PoolClient} executor
+ * @param {string} writerId
+ * @param {string} boardId
+ */
+export async function revokeWriterBoardPermission(executor, writerId, boardId) {
+  await systemQuery(
+    executor,
+    `
+    DELETE FROM board_writer_permissions
+    WHERE writer_account_id = $1 AND board_id = $2
+    `,
+    [String(writerId), String(boardId)],
+  )
+}
+
+/**
+ * @param {import('pg').Pool | import('pg').PoolClient} executor
  */
 export async function listActiveGlobalBoardIds(executor) {
   const r = await adminNewsletterBoardQuery(
@@ -200,6 +216,9 @@ export async function listActiveGlobalWriterIds(executor) {
 }
 
 /**
+ * 신규 공용 소식지에 기존 global 작성자 전원을 자동 부여하던 레거시 헬퍼.
+ * 게시판별 독립 운영 정책으로 신규 생성 경로에서는 호출하지 않는다.
+ *
  * @param {import('pg').Pool | import('pg').PoolClient} executor
  * @param {string} boardId
  */
