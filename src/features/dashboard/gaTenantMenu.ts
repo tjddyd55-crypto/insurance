@@ -187,7 +187,6 @@ export function buildGaTenantDashboardMenu(
     { type: 'link', label: '설계사이트', path: '/insurance/insurer-sites' },
   ]
 
-  void gaCode
   void gaName
 
   const applicationItems: GaTenantDashboardMenuEntry[] = [
@@ -273,6 +272,9 @@ export function buildGaTenantDashboardMenu(
     { type: 'section', label: '내정보' },
     { type: 'link', label: '내 저장공간', path: '/storage' },
     { type: 'link', label: '내정보관리', path: '/profile' },
+    ...(normalizeGaMenuCode(gaCode) === 'PLAY_REVIEW'
+      ? ([{ type: 'link', label: '구독 및 결제', path: '/billing/checkout' }] as const)
+      : []),
     { type: 'link', label: '문의요청', path: '/feature-request' },
   ]
 }

@@ -5,7 +5,7 @@ import { isInsuranceBillingEnabledClient } from '../insuranceBillingConfig'
 import { fetchBillingManageSummary, type CheckoutSummary } from '../api/insuranceBillingApi'
 import { buildBillingStatusBadgeView } from '../billingStatusBadgeUtils'
 import { isSubscriptionSubjectRole } from '../../subscription/policy'
-import { isFreeLaunchBillingUiHidden } from '../../billing/freeLaunchPolicy'
+import { isBillingUiVisibleForUser } from '../../billing/storeReviewBillingAccess'
 import '../billing-status-badge.css'
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'error'
@@ -18,7 +18,7 @@ export default function BillingStatusBadge() {
 
   const shouldLoad =
     isInsuranceBillingEnabledClient() &&
-    !isFreeLaunchBillingUiHidden() &&
+    isBillingUiVisibleForUser(user) &&
     Boolean(token?.trim()) &&
     isSubscriptionSubjectRole(user?.role)
 

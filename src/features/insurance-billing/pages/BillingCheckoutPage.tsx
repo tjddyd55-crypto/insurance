@@ -17,6 +17,9 @@ import {
   type BillingCheckoutMode,
 } from '../billingCheckoutViewState'
 import {
+  canReviewTenantStartCheckoutPayment,
+} from '../../billing/storeReviewBillingAccess'
+import {
   isApplyPromotionTrialingSuccess,
   resolveApplyPromotionTrialEndsAt,
 } from '../billingApplyPromotion'
@@ -143,6 +146,7 @@ export default function BillingCheckoutPage() {
   )
 
   const promoAllowed = canApplyPromotionCodeOnCheckout(checkoutMode)
+  const reviewCheckoutOpen = canReviewTenantStartCheckoutPayment(user)
 
   const displayAmount = useMemo(() => {
     if (promoValidated) return 0
@@ -151,13 +155,16 @@ export default function BillingCheckoutPage() {
   }, [summary, billingCycle, promoValidated])
 
   const ctaLabel = useMemo(() => {
+    if (reviewCheckoutOpen && (checkoutMode === 'active_paid' || checkoutMode === 'legacy_entitled')) {
+      return '결제하기'
+    }
     if (checkoutMode === 'trialing') return '결제수단 등록'
     if (checkoutMode === 'active_paid') return '결제 내역 보기'
     if (checkoutMode === 'legacy_entitled') return '내 결제 상태 보기'
     if (promoValidated?.freeMonths) return `${promoValidated.freeMonths}개월 무료로 시작하기`
     if (displayAmount === 0) return '무료로 시작하기'
     return '결제하기'
-  }, [checkoutMode, promoValidated, displayAmount])
+  }, [checkoutMode, promoValidated, displayAmount, reviewCheckoutOpen])
 
   const handleValidatePromo = async () => {
     if (!token?.trim() || !promoCode.trim() || !promoAllowed) return
@@ -192,7 +199,10 @@ export default function BillingCheckoutPage() {
   const handlePrimaryAction = async () => {
     if (!token?.trim()) return
 
-    if (checkoutMode === 'active_paid' || checkoutMode === 'legacy_entitled') {
+    if (
+      !reviewCheckoutOpen &&
+      (checkoutMode === 'active_paid' || checkoutMode === 'legacy_entitled')
+    ) {
       navigate('/billing/manage')
       return
     }
@@ -233,7 +243,8 @@ export default function BillingCheckoutPage() {
   const showPaymentSummary =
     checkoutMode === 'pending_payment' ||
     checkoutMode === 'payment_required' ||
-    checkoutMode === 'trialing'
+    checkoutMode === 'trialing' ||
+    reviewCheckoutOpen
 
   return (
     <main className="insurance-billing-page">

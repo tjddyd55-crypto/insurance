@@ -20,7 +20,7 @@ import { isInsuranceBillingEnabledClient } from '../../insurance-billing/insuran
 import {
   validateReferralCodeForSignup,
 } from '../../referrals/referralApi'
-import { isFreeLaunchBillingUiHidden } from '../../billing/freeLaunchPolicy'
+import { isBillingUiHiddenForUser } from '../../billing/storeReviewBillingAccess'
 import {
   getSignupUsernameValidationError,
   SIGNUP_USERNAME_RULE_MESSAGE,
@@ -534,7 +534,7 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
       if (
         signupIndustry === 'insurance' &&
         isInsuranceBillingEnabledClient() &&
-        !isFreeLaunchBillingUiHidden()
+        !isBillingUiHiddenForUser(session.user)
       ) {
         navigate('/billing/checkout', { replace: true })
         return

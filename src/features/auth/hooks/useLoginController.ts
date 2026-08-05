@@ -7,7 +7,7 @@ import { fetchCheckoutSummary } from '../../insurance-billing/api/insuranceBilli
 import { isInsuranceBillingEnabledClient } from '../../insurance-billing/insuranceBillingConfig'
 import { resolveInsuranceBillingAuthPath } from '../../insurance-billing/insuranceBillingLanding'
 import useIsMobile from '../../../hooks/useIsMobile'
-import { isFreeLaunchBillingUiHidden } from '../../billing/freeLaunchPolicy'
+import { isBillingUiHiddenForUser } from '../../billing/storeReviewBillingAccess'
 import { setPublicBoardWriterToken } from '../../insurer-news/services/publicBoardWriter.service'
 
 /** ProtectedRoute state.from — deep link / push 복귀용. 고객앱·외부 URL 차단. */
@@ -91,7 +91,12 @@ export function useLoginController(): UseLoginControllerResult {
       return
     }
     const defaultPath = resolveAuthLandingPath(isMobile, user?.role)
-    if (!isInsuranceBillingEnabledClient() || user?.role !== 'USER' || !token?.trim() || isFreeLaunchBillingUiHidden()) {
+    if (
+      !isInsuranceBillingEnabledClient() ||
+      user?.role !== 'USER' ||
+      !token?.trim() ||
+      isBillingUiHiddenForUser(user)
+    ) {
       navigate(defaultPath, { replace: true })
       return
     }
@@ -158,7 +163,11 @@ export function useLoginController(): UseLoginControllerResult {
         return
       }
       const defaultPath = resolveAuthLandingPath(isMobile, session.user.role)
-      if (isInsuranceBillingEnabledClient() && session.user.role === 'USER' && !isFreeLaunchBillingUiHidden()) {
+      if (
+        isInsuranceBillingEnabledClient() &&
+        session.user.role === 'USER' &&
+        !isBillingUiHiddenForUser(session.user)
+      ) {
         try {
           const summary = await fetchCheckoutSummary(session.token)
           navigate(resolveInsuranceBillingAuthPath(defaultPath, summary.subscriptionStatus), { replace: true })
