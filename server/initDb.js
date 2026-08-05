@@ -2290,11 +2290,8 @@ export async function initDb() {
       deleted_at TIMESTAMPTZ
     )
   `)
-  await pool.query(`
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_newsletter_boards_active_slug
-    ON newsletter_boards(slug)
-    WHERE is_deleted = false
-  `)
+  // 활성 slug unique 는 board_scope/owner_ga_id 기준으로 아래에서 생성한다.
+  // 여기서 전역 UNIQUE(slug) 를 만들면 이후 DROP 후 재기동 시 중복 slug 데이터에 막혀 startup 이 실패한다.
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_newsletter_boards_visible
     ON newsletter_boards(is_public, ga_id, is_deleted)
@@ -4279,6 +4276,27 @@ async function ensureNewsletterBoardScopeSchema(executor) {
   `)
 
   await executor.query(`DROP INDEX IF EXISTS idx_newsletter_boards_active_slug`)
+  // 활성 (slug, owner_ga) 중복이 있으면 unique index 생성이 실패하므로 최신 1건만 남기고 soft-delete.
+  await executor.query(`
+    WITH ranked AS (
+      SELECT id,
+        ROW_NUMBER() OVER (
+          PARTITION BY slug, COALESCE(owner_ga_id, 0)
+          ORDER BY created_at DESC NULLS LAST, id DESC
+        ) AS rn
+      FROM newsletter_boards
+      WHERE is_deleted = false
+        AND board_scope IN ('global', 'ga')
+    )
+    UPDATE newsletter_boards b
+    SET is_deleted = true,
+        deleted_at = COALESCE(b.deleted_at, NOW()),
+        is_active = false,
+        updated_at = NOW()
+    FROM ranked r
+    WHERE b.id = r.id
+      AND r.rn > 1
+  `)
   await executor.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_newsletter_boards_active_slug_scope
     ON newsletter_boards (slug, COALESCE(owner_ga_id, 0))
