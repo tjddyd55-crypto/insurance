@@ -1,0 +1,209 @@
+/* 프로그램 문의 관리 — AdminPageShell 하위 스코프 */
+
+.program-inquiries-admin-page .program-inquiries-admin__filters {
+  margin-bottom: 16px;
+}
+
+.program-inquiries-admin-page .program-inquiries-admin__filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px 16px;
+  align-items: end;
+}
+
+.program-inquiries-admin-page .program-inquiries-admin__field--search {
+  grid-column: span 2;
+  min-width: 0;
+}
+
+.program-inquiries-admin-page .program-inquiries-admin__filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.program-inquiries-admin-page .program-inquiries-admin__meta {
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.program-inquiries-admin-page .program-inquiries-admin__preview {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.program-inquiries-admin-page .program-inquiries-admin__badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--bg-soft);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+}
+
+.program-inquiries-admin-page .program-inquiries-admin__badge--new {
+  background: var(--hint-bg, #eff6ff);
+  border-color: var(--hint-border, #bfdbfe);
+  color: var(--hint-text, #1e40af);
+}
+
+.program-inquiries-admin-page .program-inquiries-admin__badge--completed {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #065f46;
+}
+
+.program-inquiries-admin-page .program-inquiries-admin__badge--spam {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.program-inquiries-admin-page .program-inquiries-admin__cards {
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.program-inquiries-admin-page .program-inquiries-admin__card {
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--bg-surface);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.program-inquiries-admin-page .program-inquiries-admin__card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.program-inquiries-admin-page .program-inquiries-admin__card-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.program-inquiries-admin-page .program-inquiries-admin__card-meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.program-inquiries-admin-page .program-inquiries-admin__card-message {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.program-inquiries-admin-page .program-inquiries-admin__card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.program-inquiries-admin-page .program-inquiries-admin__muted {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.program-inquiries-admin-page .program-inquiries-admin__pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* 상세 모달은 portal 가능 → 페이지 root 없이 자체 스코프 */
+.program-inquiries-admin__detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.program-inquiries-admin__detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+  margin: 0;
+}
+
+.program-inquiries-admin__detail-grid dt {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0 0 2px;
+}
+
+.program-inquiries-admin__detail-grid dd {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.program-inquiries-admin__detail-section h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.program-inquiries-admin__message-pre {
+  margin: 0;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-soft, #f8fafc);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-primary);
+}
+
+.program-inquiries-admin__assign-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .program-inquiries-admin-page .program-inquiries-admin__table-wrap {
+    display: none;
+  }
+
+  .program-inquiries-admin-page .program-inquiries-admin__cards {
+    display: flex;
+  }
+
+  .program-inquiries-admin-page .program-inquiries-admin__field--search {
+    grid-column: span 1;
+  }
+
+  .program-inquiries-admin__detail-grid {
+    grid-template-columns: 1fr;
+  }
+}

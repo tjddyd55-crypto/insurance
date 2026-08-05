@@ -143,6 +143,7 @@ import { registerConsentApi } from './registerConsentApi.js'
 import { registerInsurerNewsApi } from './registerInsurerNewsApi.js'
 import { registerPublicBoardWriterApi } from './registerPublicBoardWriterApi.js'
 import { registerPublicInquiryApi } from './public-inquiries/registerPublicInquiryApi.js'
+import { registerPublicInquiryAdminApi } from './public-inquiries/registerPublicInquiryAdminApi.js'
 import { registerSignatureApi } from './registerSignatureApi.js'
 import { registerClientLogRoutes } from './routes/client-log.js'
 import { registerVersionRoutes } from './routes/version.js'
@@ -1510,6 +1511,12 @@ registerPublicBoardWriterApi(apiRouter, {
 
 registerPublicInquiryApi(apiRouter, {
   pool,
+  handleDbError,
+})
+registerPublicInquiryAdminApi(apiRouter, {
+  pool,
+  requireAuth,
+  requireSuperAdmin,
   handleDbError,
 })
 
