@@ -5,8 +5,10 @@ import { useAuth } from '../../auth/AuthProvider'
 import {
   createGlobalNewsletterBoard,
   createGaNewsletterBoard,
+  deleteNewsletterBoard,
   disableNewsletterBoard,
   enableNewsletterBoard,
+  fetchNewsletterBoardDeleteImpact,
   listAdminNewsletterBoards,
   updateNewsletterBoard,
 } from '../services/insurerNews.service'
@@ -128,6 +130,70 @@ export function NewsletterBoardAdminPage() {
     })()
   }
 
+  const handleDelete = (board: NewsletterBoard) => {
+    if (!token?.trim() || busy) {
+      return
+    }
+    void (async () => {
+      const displayName = board.label.trim() || '소식지'
+      setBusy(true)
+      setError('')
+      let impact = { postCount: 0, writerCount: 0, attachmentCount: 0 }
+      try {
+        impact = await fetchNewsletterBoardDeleteImpact(token, board.id)
+      } catch (e) {
+        setBusy(false)
+        setError(e instanceof Error ? e.message : '삭제 영향 범위를 확인하지 못했습니다.')
+        return
+      }
+      setBusy(false)
+
+      const hasRelated =
+        impact.postCount > 0 || impact.writerCount > 0 || impact.attachmentCount > 0
+      const ok = await confirm({
+        title: '공용 소식지를 삭제할까요?',
+        message: hasRelated ? (
+          <>
+            <p>
+              ‘{displayName}’ 소식지와 연결된 게시글 및 작성자 접근이 모두 중지됩니다. 삭제된
+              소식지는 일반 화면에서 확인할 수 없습니다.
+            </p>
+            <ul style={{ margin: '12px 0 0', paddingLeft: 18 }}>
+              <li>게시글 {impact.postCount}건</li>
+              <li>작성자 {impact.writerCount}명</li>
+            </ul>
+          </>
+        ) : (
+          `‘${displayName}’ 소식지가 삭제됩니다.`
+        ),
+        tone: 'danger',
+        confirmLabel: '삭제',
+        cancelLabel: '취소',
+      })
+      if (!ok) {
+        return
+      }
+
+      setBusy(true)
+      setError('')
+      try {
+        await deleteNewsletterBoard(token, board.id)
+        setBoards((prev) => prev.filter((item) => item.id !== board.id))
+        if (selectedBoard?.id === board.id) {
+          setSelectedBoard(null)
+        }
+        if (editingBoard?.id === board.id) {
+          setEditingBoard(null)
+        }
+        setNotice(`「${displayName}」 소식지를 삭제했습니다.`)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : '공용 소식지를 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.')
+      } finally {
+        setBusy(false)
+      }
+    })()
+  }
+
   const handleEnable = (board: NewsletterBoard) => {
     if (!token?.trim() || busy) {
       return
@@ -232,7 +298,7 @@ export function NewsletterBoardAdminPage() {
     onDescriptionChange: setDescription,
     onCreateModeChange: setCreateMode,
     onCreate: handleCreate,
-    onDelete: handleDisable,
+    onDelete: handleDelete,
     onDisable: handleDisable,
     onEnable: handleEnable,
     onEdit: handleEdit,

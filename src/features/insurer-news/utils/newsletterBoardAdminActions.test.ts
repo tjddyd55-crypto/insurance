@@ -35,10 +35,27 @@ describe('resolveNewsletterBoardAdminActions', () => {
     expect(la.canManageAuthors).toBe(true)
     expect(ga.canDisable).toBe(true)
     expect(la.canDisable).toBe(true)
+    expect(ga.canDelete).toBe(true)
+    expect(la.canDelete).toBe(false)
     expect(la.portalPath).toBe('/portal/adjuster-news')
     expect(ga.portalPath).toBe('/portal/boards/edu')
     expect(la.kindLabel).toBe('기본')
     expect(ga.kindLabel).toBe('GA 게시판')
+  })
+
+  it('allows super admin to delete global boards but not loss-adjuster system boards', () => {
+    const globalBoard: NewsletterBoard = {
+      ...baseGa,
+      id: 'g1',
+      boardScope: 'global',
+      contentScope: 'global',
+      isPublic: true,
+      ownerGaId: null,
+      gaId: null,
+    }
+    const flags = resolveNewsletterBoardAdminActions(globalBoard, 'SUPER_ADMIN')
+    expect(flags.canDelete).toBe(true)
+    expect(resolveNewsletterBoardAdminActions(lossAdjuster, 'SUPER_ADMIN').canDelete).toBe(false)
   })
 
   it('hides manage actions for normal users', () => {
@@ -46,5 +63,6 @@ describe('resolveNewsletterBoardAdminActions', () => {
     expect(flags.canManageAuthors).toBe(false)
     expect(flags.canEdit).toBe(false)
     expect(flags.canDisable).toBe(false)
+    expect(flags.canDelete).toBe(false)
   })
 })

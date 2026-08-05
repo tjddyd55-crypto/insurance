@@ -150,7 +150,9 @@ export const SUPER_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL = `
       updated_at = NOW(),
       is_active = false
   WHERE id = $1
+    AND is_deleted = false
     AND board_scope IN ('global', 'ga')
+  RETURNING *
 `
 
 export const GA_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL = `
@@ -160,8 +162,30 @@ export const GA_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL = `
       updated_at = NOW(),
       is_active = false
   WHERE id = $1
+    AND is_deleted = false
     AND board_scope = 'ga'
     AND owner_ga_id = $2
+  RETURNING *
+`
+
+/** 삭제 여부 포함 단건 조회 (이미 삭제된 보드 구분용) */
+export const SUPER_ADMIN_NEWSLETTER_BOARD_BY_ID_ANY_SQL = `
+  SELECT b.*, gc.code AS ga_code, gc.name AS ga_name
+  FROM newsletter_boards b
+  LEFT JOIN ga_companies gc ON gc.id = b.owner_ga_id
+  WHERE b.id = $1
+    AND b.board_scope IN ('global', 'ga')
+  LIMIT 1
+`
+
+export const GA_ADMIN_NEWSLETTER_BOARD_BY_ID_ANY_SQL = `
+  SELECT b.*, gc.code AS ga_code, gc.name AS ga_name
+  FROM newsletter_boards b
+  LEFT JOIN ga_companies gc ON gc.id = b.owner_ga_id
+  WHERE b.id = $1
+    AND b.board_scope = 'ga'
+    AND b.owner_ga_id = $2
+  LIMIT 1
 `
 
 export const DISABLE_NEWSLETTER_BOARD_SQL = `
