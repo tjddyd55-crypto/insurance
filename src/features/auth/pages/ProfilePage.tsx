@@ -23,7 +23,7 @@ import { fetchReferralSummary, type ReferralSummaryResponse } from '../../referr
 import { requestAccountDeletion } from '../../account/services/accountDeleteApi'
 import { BaseDialog } from '../../../components/dialog/BaseDialog'
 import { DialogActions } from '../../../components/dialog/DialogActions'
-import { isFreeLaunchBillingUiHidden } from '../../billing/freeLaunchPolicy'
+import { isBillingUiVisibleForUser } from '../../billing/storeReviewBillingAccess'
 
 const CODE_TTL_SEC = 180
 const RESEND_COOLDOWN_SEC = 60
@@ -724,13 +724,18 @@ export function ProfilePage() {
         )}
       </section>
 
-      {!isFreeLaunchBillingUiHidden() ? (
+      {isBillingUiVisibleForUser(user) ? (
       <section className="profile-page__section">
-        <h2 className="profile-page__section-title">결제 관리</h2>
-        <p className="profile-page__section-desc">월 이용료 구독 상태와 결제 내역을 확인할 수 있습니다.</p>
-        <Link to="/account/billing" className="profile-page__btn button button--secondary button--full profile-page__section-action">
-          결제 관리로 이동
+        <h2 className="profile-page__section-title">구독 및 결제</h2>
+        <p className="profile-page__section-desc">요금제와 결제 수단을 확인하고 결제를 진행할 수 있습니다.</p>
+        <Link to="/billing/checkout" className="profile-page__btn button button--secondary button--full profile-page__section-action">
+          구독 및 결제로 이동
         </Link>
+        <div className="profile-page__section-action">
+          <Link to="/account/billing" className="profile-page__btn button button--secondary button--full">
+            결제 내역 보기
+          </Link>
+        </div>
       </section>
       ) : null}
 
