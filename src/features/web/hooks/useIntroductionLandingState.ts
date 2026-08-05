@@ -33,6 +33,15 @@ export function useIntroductionLandingState() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  // /introduction#download 및 /introduction/install → #download 진입 시 섹션으로 이동
+  useEffect(() => {
+    const raw = typeof window !== 'undefined' ? window.location.hash.replace(/^#/, '') : ''
+    if (!raw) return
+    if (!(INTRO_SECTION_IDS as readonly string[]).includes(raw)) return
+    const id = window.setTimeout(() => scrollToIntroSection(raw), 0)
+    return () => window.clearTimeout(id)
+  }, [])
+
   useEffect(() => {
     const sections = INTRO_SECTION_IDS.map((id) => document.getElementById(id)).filter(
       (n): n is HTMLElement => Boolean(n),
