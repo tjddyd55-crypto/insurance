@@ -170,6 +170,22 @@ export const SEED_DATA = [
     contacts: [],
     general: {},
   },
+
+  // ================= 푸본현대생명 =================
+  {
+    company: {
+      companyCode: 'INS_SEED_011',
+      category: 'LIFE',
+      name: '푸본현대생명',
+      // 공식 홈페이지 https://www.fubonhyundai.com/ HTML 확인값
+      customer_center: '1577-3311',
+      system_phone: '',
+      incall_number: '',
+      visit_info: '',
+    },
+    contacts: [],
+    general: {},
+  },
 ]
 
 /**
