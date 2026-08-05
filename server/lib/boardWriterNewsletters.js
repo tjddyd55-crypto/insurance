@@ -17,6 +17,7 @@ import {
 } from './insuranceStorageLayout.js'
 import { isLossAdjusterSystemBoard } from './lossAdjusterNewsletterBoard.js'
 import { isGlobalBoardScope, resolveBoardPostGaId } from './newsletterBoardScope.js'
+import { buildNewsletterBoardPostMatch } from './newsletterBoardPostScope.js'
 import {
   normalizeNewsletterLinkPreview,
   parseNewsletterPayload,
@@ -467,18 +468,17 @@ async function loadAttachmentsForNewsletter(executor, newsletterId, gaId) {
  */
 export async function listBoardWriterNewsletters(executor, board, writerOwnerGaId) {
   const postFilter = buildBoardWriterPostGaFilter(board, writerOwnerGaId)
-  const isLossAdjuster = isLossAdjusterSystemBoard(board)
-  const params = isLossAdjuster
-    ? [NEWS_CHANNEL_LOSS_ADJUSTER]
-    : [String(board.slug ?? '').trim().toLowerCase()]
+  const boardMatch = buildNewsletterBoardPostMatch(board, {
+    alias: 'n',
+    boardIdParamIndex: 1,
+    lossAdjusterChannelParamIndex: 1,
+  })
+  const params = [...boardMatch.params]
   let gaFilterSql = postFilter.sql
   if (postFilter.params.length > 0) {
     params.push(postFilter.params[0])
     gaFilterSql = gaFilterSql.replace('$PARAM', `$${params.length}`)
   }
-  const boardMatchSql = isLossAdjuster
-    ? `COALESCE(NULLIF(TRIM(n.payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $1`
-    : `LOWER(TRIM(n.payload->>'dynamicBoardSlug')) = $1`
   const r = await systemQuery(
     executor,
     `
@@ -499,7 +499,7 @@ export async function listBoardWriterNewsletters(executor, board, writerOwnerGaI
     FROM insurance_company_newsletters n
     LEFT JOIN board_writer_accounts w
       ON w.id = NULLIF(TRIM(COALESCE(n.payload->>'authorAccountId', n.payload->>'publisherId', '')), '')
-    WHERE ${boardMatchSql}
+    WHERE ${boardMatch.sql}
       AND n.deleted_at IS NULL
       ${gaFilterSql}
       AND COALESCE((n.payload->>'customerVisible')::boolean, false) = false
@@ -516,18 +516,17 @@ export async function listBoardWriterNewsletters(executor, board, writerOwnerGaI
  */
 export async function loadBoardWriterNewsletterById(executor, board, newsletterId, writerOwnerGaId) {
   const postFilter = buildBoardWriterPostGaFilter(board, writerOwnerGaId)
-  const isLossAdjuster = isLossAdjusterSystemBoard(board)
-  const params = isLossAdjuster
-    ? [newsletterId, NEWS_CHANNEL_LOSS_ADJUSTER]
-    : [newsletterId, String(board.slug ?? '').trim().toLowerCase()]
+  const boardMatch = buildNewsletterBoardPostMatch(board, {
+    alias: 'n',
+    boardIdParamIndex: 2,
+    lossAdjusterChannelParamIndex: 2,
+  })
+  const params = [newsletterId, ...boardMatch.params]
   let gaFilterSql = postFilter.sql
   if (postFilter.params.length > 0) {
     params.push(postFilter.params[0])
     gaFilterSql = gaFilterSql.replace('$PARAM', `$${params.length}`)
   }
-  const boardMatchSql = isLossAdjuster
-    ? `COALESCE(NULLIF(TRIM(n.payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $2`
-    : `LOWER(TRIM(n.payload->>'dynamicBoardSlug')) = $2`
   const r = await systemQuery(
     executor,
     `
@@ -540,7 +539,7 @@ export async function loadBoardWriterNewsletterById(executor, board, newsletterI
       ON w.id = NULLIF(TRIM(COALESCE(n.payload->>'authorAccountId', n.payload->>'publisherId', '')), '')
     WHERE n.id = $1
       AND n.deleted_at IS NULL
-      AND ${boardMatchSql}
+      AND ${boardMatch.sql}
       ${gaFilterSql}
       AND COALESCE((n.payload->>'customerVisible')::boolean, false) = false
     LIMIT 1

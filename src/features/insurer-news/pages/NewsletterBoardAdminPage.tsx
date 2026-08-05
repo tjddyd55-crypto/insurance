@@ -138,9 +138,12 @@ export function NewsletterBoardAdminPage() {
       const displayName = board.label.trim() || '소식지'
       setBusy(true)
       setError('')
-      let impact = { postCount: 0, writerCount: 0, attachmentCount: 0 }
+      let impact = { boardId: board.id, postCount: 0, writerCount: 0, attachmentCount: 0 }
       try {
         impact = await fetchNewsletterBoardDeleteImpact(token, board.id)
+        if (String(impact.boardId ?? '') !== String(board.id)) {
+          throw new Error('삭제 영향 정보가 선택한 소식지와 일치하지 않습니다.')
+        }
       } catch (e) {
         setBusy(false)
         setError(e instanceof Error ? e.message : '삭제 영향 범위를 확인하지 못했습니다.')
