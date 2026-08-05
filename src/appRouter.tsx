@@ -70,6 +70,7 @@ import { IntroductionPage } from './features/web/pages/IntroductionPage'
 import { IntroductionInstallPage } from './features/web/pages/IntroductionInstallPage'
 import FeatureRequestPage from './features/feature-request/pages/FeatureRequestPage'
 import FeatureRequestsAdminPage from './features/feature-request/pages/FeatureRequestsAdminPage'
+import ProgramInquiriesAdminPage from './features/admin/pages/ProgramInquiriesAdminPage'
 import AdminAnalyticsPage from './features/analytics/pages/AdminAnalyticsPage'
 import AdminInsurerSitesPage from './features/insurer-sites/pages/AdminInsurerSitesPage'
 import AdminNoticeListPage from './features/admin-notices/pages/AdminNoticeListPage'
@@ -469,6 +470,10 @@ export const appRouter = createBrowserRouter([
                   {
                     path: 'internal/admin/feature-requests',
                     element: <FeatureRequestsAdminPage />,
+                  },
+                  {
+                    path: 'internal/admin/program-inquiries',
+                    element: <ProgramInquiriesAdminPage />,
                   },
                   {
                     path: 'admin/analytics',

@@ -413,6 +413,7 @@ function buildSuperAdminMenuEntries(): GaTenantDashboardMenuEntry[] {
       { label: '소식지 관리', path: '/admin/newsletter-boards' },
       { label: '운영 통계', path: '/admin/analytics' },
       { label: '기능 요청 관리', path: '/internal/admin/feature-requests' },
+      { label: '프로그램 문의', path: '/internal/admin/program-inquiries' },
     ]),
   )
 
