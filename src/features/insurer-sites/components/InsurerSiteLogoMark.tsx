@@ -59,12 +59,12 @@ function UserCardPlaceholder({ name }: { name: string }) {
       aria-label={`${name} 로고`}
       style={{
         width: '100%',
-        maxWidth: 140,
-        height: 80,
+        height: '100%',
+        minHeight: 64,
         margin: '0 auto',
-        borderRadius: 12,
-        background: 'color-mix(in srgb, var(--text-secondary) 10%, transparent)',
-        border: placeholderBorder,
+        borderRadius: 0,
+        background: 'transparent',
+        border: 'none',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -146,8 +146,8 @@ function InsurerSiteLogoMarkInner({ name, variant, resolvedSrc }: InnerProps) {
         : {
             display: 'block',
             margin: '0 auto',
-            maxWidth: 140,
-            maxHeight: 80,
+            maxWidth: '100%',
+            maxHeight: '100%',
             width: 'auto',
             height: 'auto',
             objectFit: 'contain',
@@ -166,7 +166,15 @@ function InsurerSiteLogoMarkInner({ name, variant, resolvedSrc }: InnerProps) {
     <div
       style={
         variant === 'userCard'
-          ? { position: 'relative', width: '100%', textAlign: 'center' }
+          ? {
+              position: 'relative',
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              textAlign: 'center',
+            }
           : { position: 'relative', display: 'inline-block' }
       }
     >
