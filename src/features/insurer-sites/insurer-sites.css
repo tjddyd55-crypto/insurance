@@ -1,30 +1,232 @@
-/* 보험사 설계사이트 카드 격자 — 참고 레이아웃(손해/생명 탭 + 카드) */
+/* 보험사 설계사이트 — Figma INSURER_SITE_REDESIGN (카드 3링크: 설계·공식홈·공시실) */
+
+.insurer-sites-page {
+  max-width: 1180px;
+}
+
+.insurer-sites-page .page-header p {
+  color: var(--text-secondary);
+}
+
+/* —— Category tabs —— */
+.insurer-sites-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 20px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+  background: var(--bg-surface);
+  min-height: 56px;
+}
+
+.insurer-sites-tabs__btn {
+  flex: 1;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  min-height: 56px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+}
+
+.insurer-sites-tabs__btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--primary-soft) 45%, var(--bg-surface));
+}
+
+.insurer-sites-tabs__btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+  z-index: 1;
+}
+
+.insurer-sites-tabs__btn--active {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary-soft) 55%, var(--bg-surface));
+  box-shadow: inset 0 -3px 0 var(--primary);
+}
+
+/* —— Card grid (content-width oriented) —— */
 .insurer-sites-grid {
   display: grid;
-  gap: 8px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
 }
 
-@media (max-width: 399px) {
+@media (min-width: 560px) and (max-width: 767px) {
   .insurer-sites-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
   }
 }
 
-@media (min-width: 768px) and (max-width: 1099px) {
+@media (min-width: 768px) and (max-width: 959px) {
+  .insurer-sites-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+
+@media (min-width: 960px) and (max-width: 1099px) {
   .insurer-sites-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
   }
 }
 
-@media (min-width: 1100px) and (max-width: 1399px) {
+@media (min-width: 1100px) and (max-width: 1279px) {
+  .insurer-sites-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+
+@media (min-width: 1280px) and (max-width: 1439px) {
+  .insurer-sites-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+
+@media (min-width: 1440px) {
   .insurer-sites-grid {
     grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 18px;
   }
 }
 
-@media (min-width: 1400px) {
-  .insurer-sites-grid {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+/* —— Card —— */
+.insurer-site-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 268px;
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--text-primary) 4%, transparent);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+}
+
+.insurer-site-card:hover {
+  transform: translateY(-4px);
+  border-color: color-mix(in srgb, var(--primary) 55%, var(--border-default));
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--text-primary) 14%, transparent);
+}
+
+.insurer-site-card:active {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--text-primary) 8%, transparent);
+}
+
+.insurer-site-card:focus-within {
+  border-color: var(--primary);
+  outline: 2px solid color-mix(in srgb, var(--primary) 35%, transparent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .insurer-site-card {
+    transition: none;
   }
+
+  .insurer-site-card:hover,
+  .insurer-site-card:active {
+    transform: none;
+  }
+}
+
+.insurer-site-card__logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 140px;
+  height: 80px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--text-secondary) 6%, var(--bg-base, #f8fafc));
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.insurer-site-card__name {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  margin: 0;
+  padding: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+
+.insurer-site-card__primary {
+  width: 100%;
+  min-height: 44px;
+  font-weight: 600;
+}
+
+.insurer-site-card__primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.insurer-site-card__secondary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+  margin-top: 2px;
+}
+
+.insurer-site-card__secondary-btn {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 6px;
+}
+
+.insurer-site-card__secondary-btn:disabled {
+  cursor: not-allowed;
+  background: color-mix(in srgb, var(--text-secondary) 8%, transparent);
+  color: var(--text-secondary);
+  opacity: 0.85;
+}
+
+/* —— Notice —— */
+.insurer-sites-notice {
+  margin-top: 24px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--primary-border);
+  background: color-mix(in srgb, var(--primary-soft) 55%, var(--bg-surface));
+}
+
+.insurer-sites-notice__title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.insurer-sites-notice__body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-secondary);
 }
