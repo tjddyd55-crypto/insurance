@@ -753,21 +753,35 @@ async function ensureMasterCompanyCode(client, masterId, gaId) {
     throw err
   }
   const code = formatInsCompanyCode(masterIdNum)
+  // 시드·stub 코드(INS_SEED_*, INS_FHL_* 등)가 있으면 유지한다. 빈 값만 INS{id}로 채운다.
   const updated = await safeQuery(client,
     `
     UPDATE insurance_company_master
     SET company_code = $1
-    WHERE id = $2 AND ga_id = $3
+    WHERE id = $2
+      AND ga_id = $3
+      AND (company_code IS NULL OR TRIM(company_code) = '')
     RETURNING *
     `,
     [code, masterIdNum, tenantGa],
   )
-  if (updated.rowCount === 0) {
+  if (updated.rowCount > 0) {
+    return updated.rows[0]
+  }
+  const existing = await safeQuery(client,
+    `
+    SELECT *
+    FROM insurance_company_master
+    WHERE id = $1 AND ga_id = $2
+    `,
+    [masterIdNum, tenantGa],
+  )
+  if (existing.rowCount === 0) {
     const err = new Error('보험사 코드를 갱신할 수 없습니다.')
     err.httpStatus = 404
     throw err
   }
-  return updated.rows[0]
+  return existing.rows[0]
 }
 
 function mapInsuranceCompanyMaster(row) {
@@ -5056,7 +5070,8 @@ apiRouter.post('/company/full-save', requireAuth, requireGaTenantAdmin, async (r
     const contactsList = Array.isArray(contactsIn) ? contactsIn : []
 
     const companyId = await withTransaction(async (client) => {
-      if (!existingId && /^INS\d+$/.test(codeIn)) {
+      // STATIC: 직접입력 후보는 제외. INS\d+ · INS_SEED_* · INS_FHL_* 등 기존 master code 로 UPDATE 분기.
+      if (!existingId && codeIn && !codeIn.startsWith('STATIC:')) {
         const foundByCode = await safeQuery(client,
           `SELECT id FROM insurance_company_master WHERE ga_id = $1 AND company_code = $2`,
           [tenantGa, codeIn],
@@ -5359,7 +5374,7 @@ apiRouter.post('/company/general-save', requireAuth, requireGaTenantAdmin, async
 
     const { company: co, general: g } = req.body ?? {}
     const code = String(co?.companyCode ?? co?.company_code ?? '').trim()
-    if (!code || !/^INS\d+$/.test(code)) {
+    if (!code || code.startsWith('STATIC:')) {
       res.status(400).json({ message: '보험사 코드(companyCode)가 필요합니다.' })
       return
     }

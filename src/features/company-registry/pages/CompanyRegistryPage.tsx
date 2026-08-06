@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useConfirmDialog } from '../../../components/dialog'
 import { FieldWrapper, FormButton, FormInput, FormSelect } from '../../../components/form'
+import { ApiError } from '../../../lib/apiClient'
 import { logger } from '../../../lib/logger'
 import { useAuth } from '../../auth/AuthProvider'
 import { canMutateInsuranceDirectory, isInsuranceOpsRole } from '../../auth/roleGuards'
@@ -38,7 +39,7 @@ const EMPTY_COMPANY_FIELDS: Omit<InsuranceCompanyFormState, 'id' | 'category' | 
 const DEFAULT_STATUS_HELP =
   '보험 종류·보험사를 선택하면 이미 저장된 동일 보험사 데이터가 있으면 자동으로 불러옵니다. 등록된 목록은 「연락처 조회」에서 확인할 수 있습니다.'
 
-const SAVE_SUCCESS_MESSAGE = '저장했습니다.'
+const SAVE_FAILURE_MESSAGE = '보험회사 연락처를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.'
 const SAVE_SUCCESS_CLEAR_MS = 3000
 const INPUT_DIAGNOSTIC_WINDOW_MS = 45_000
 
@@ -386,7 +387,7 @@ export default function CompanyRegistryPage() {
         },
         contacts,
       }
-      await fullSaveCompanyDirectory(body, token)
+      const saved = await fullSaveCompanyDirectory(body, token)
       inputDiagnosticUntilRef.current = Date.now() + INPUT_DIAGNOSTIC_WINDOW_MS
       inputDiagnosticFocusLoggedRef.current = false
       logger.warn('company-registry.input-diagnostic.session-started', {
@@ -394,9 +395,18 @@ export default function CompanyRegistryPage() {
       })
       pendingLocalEditRef.current = false
       await loadList()
-      showSaveFeedback(SAVE_SUCCESS_MESSAGE, 'success', SAVE_SUCCESS_CLEAR_MS)
+      const nextCode = String(saved?.companyCode ?? company.companyCode).trim()
+      if (isInsuranceCategory(company.category) && nextCode) {
+        commitDirectorySelection(company.category, nextCode)
+      }
+      const savedName = String(saved?.name ?? company.name).trim() || '보험사'
+      showSaveFeedback(`${savedName} 연락처가 저장되었습니다.`, 'success', SAVE_SUCCESS_CLEAR_MS)
     } catch (error) {
-      showSaveFeedback(error instanceof Error ? error.message : '저장에 실패했습니다.', 'error')
+      const msg =
+        error instanceof ApiError && error.message.trim()
+          ? error.message.trim()
+          : SAVE_FAILURE_MESSAGE
+      showSaveFeedback(msg, 'error')
     } finally {
       setIsSaving(false)
     }
@@ -427,7 +437,7 @@ export default function CompanyRegistryPage() {
     setStatusText('')
     try {
       await deleteHardCompanyMaster(company.id, token)
-      window.alert('삭제했습니다. 동일 이름으로 다시 등록할 수 있습니다.')
+      showInlineStatus('삭제했습니다. 동일 이름으로 다시 등록할 수 있습니다.', 'success', SAVE_SUCCESS_CLEAR_MS)
       pendingLocalEditRef.current = false
       await loadList()
       commitDirectorySelection('', '')
@@ -696,7 +706,7 @@ export default function CompanyRegistryPage() {
               loading={isSaving}
               loadingText="저장 중…"
             >
-              {company.id != null ? '수정 저장' : '신규 저장'}
+              {company.id != null || hasDirectoryEntryForSelection ? '저장' : '신규 저장'}
             </FormButton>
           ) : null}
 

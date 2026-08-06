@@ -75,3 +75,18 @@ test('insurer sites seed uses official fubonhyundai.com homepage', () => {
   assert.match(src, /name:\s*'푸본현대생명'[\s\S]*?homepageUrl:\s*'https:\/\/www\.fubonhyundai\.com\/'/)
   assert.doesNotMatch(src, /fubonhyundailife\.com/)
 })
+
+test('full-save and directory FE treat seed company codes as persisted masters', () => {
+  const indexSrc = readFileSync(path.join(repoRoot, 'server/index.js'), 'utf8')
+  assert.match(indexSrc, /!codeIn\.startsWith\('STATIC:'\)/)
+  assert.match(
+    indexSrc,
+    /company_code IS NULL OR TRIM\(company_code\) = ''/,
+  )
+  const feSrc = readFileSync(
+    path.join(repoRoot, 'src/features/company-registry/domain/companyCode.ts'),
+    'utf8',
+  )
+  assert.match(feSrc, /isPersistedDirectoryCompanyCode/)
+  assert.match(feSrc, /STATIC_COMPANY_CODE_PREFIX/)
+})

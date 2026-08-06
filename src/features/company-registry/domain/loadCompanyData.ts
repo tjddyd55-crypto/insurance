@@ -1,9 +1,5 @@
 import { canonicalInsuranceCategoryForFilter, normalizeInsuranceCategory, resolveTabCategory } from './categoryUtils'
-import {
-  buildStaticCompanyCode,
-  isInsCompanyCode,
-  parseStaticCompanyCode,
-} from './companyCode'
+import { isPersistedDirectoryCompanyCode, parseStaticCompanyCode } from './companyCode'
 import type { InsuranceCategory } from './insuranceConstants'
 import type {
   CompanyDirectoryEntry,
@@ -60,8 +56,9 @@ export function formStateFromDirectoryEntry(entry: CompanyDirectoryEntry): {
 }
 
 /**
- * 선택 companyCode(INS… 또는 STATIC:…)와 목록 행 매칭.
- * STATIC → 동일 표준명으로 이미 저장된 행이 있으면 반환(최초 등록 전에는 undefined).
+ * 선택 companyCode(INS… / INS_SEED_* / INS_FHL_* / STATIC:…)와 목록 행 매칭.
+ * - 마스터에 이미 있는 company_code 는 형식과 무관하게 정확 일치로 찾는다.
+ * - STATIC → 동일 표준명으로 이미 저장된 행이 있으면 반환(최초 등록 전에는 undefined).
  */
 export function findSavedEntryForSelection(
   rows: CompanyDirectoryEntry[],
@@ -76,7 +73,7 @@ export function findSavedEntryForSelection(
   if (!want) {
     return undefined
   }
-  if (isInsCompanyCode(code)) {
+  if (isPersistedDirectoryCompanyCode(code)) {
     return rows.find(
       (e) =>
         e.companyCode === code &&
@@ -180,4 +177,9 @@ export function loadCompanyData(
   }
 }
 
-export { buildStaticCompanyCode, isInsCompanyCode, parseStaticCompanyCode }
+export {
+  buildStaticCompanyCode,
+  isInsCompanyCode,
+  isPersistedDirectoryCompanyCode,
+  parseStaticCompanyCode,
+} from './companyCode'
