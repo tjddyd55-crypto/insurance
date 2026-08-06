@@ -238,12 +238,17 @@
 /* —— Breakpoint density (콘텐츠 폭 기준 track 하한만 조정) —— */
 @media (max-width: 599px) {
   .insurer-sites-page {
-    --insurer-site-card-min: 156px;
+    --insurer-site-card-min: 140px;
     --insurer-site-card-max: 196px;
     --insurer-site-card-gap: 10px;
     --insurer-site-card-pad: 12px;
     --insurer-site-logo-w: 110px;
     --insurer-site-logo-h: 56px;
+  }
+
+  /* 좁은 뷰포트에서도 2열 밀도 유지 (카드는 max-width로 상한) */
+  .insurer-sites-grid {
+    grid-template-columns: repeat(2, minmax(0, var(--insurer-site-card-max)));
   }
 
   .insurer-sites-page .insurer-site-card .button.insurer-site-card__primary,
