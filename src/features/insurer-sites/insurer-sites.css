@@ -6,9 +6,12 @@
   --insurer-site-card-min: 190px;
   --insurer-site-card-max: 200px;
   --insurer-site-card-gap: 12px;
-  --insurer-site-card-pad: 13px;
-  --insurer-site-logo-w: 118px;
-  --insurer-site-logo-h: 60px;
+  --insurer-site-card-pad: 10px;
+  --insurer-site-inner-gap: 6px;
+  --insurer-site-logo-w: 112px;
+  --insurer-site-name-h: 32px;
+  --insurer-site-primary-h: 34px;
+  --insurer-site-secondary-h: 32px;
   max-width: 1480px;
 }
 
@@ -94,12 +97,21 @@
   );
 }
 
-/* —— Card (1:1, max ~200px) —— */
+/*
+ * Card (1:1, max ~200px)
+ * 4행 grid: logo(남는 공간) / name / primary / secondary
+ * → 고정 높이 합이 content box를 초과하지 않도록 행을 명시
+ */
 .insurer-site-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
+  display: grid;
+  grid-template-rows:
+    minmax(0, 1fr)
+    var(--insurer-site-name-h)
+    var(--insurer-site-primary-h)
+    var(--insurer-site-secondary-h);
+  gap: var(--insurer-site-inner-gap);
+  align-content: stretch;
+  justify-items: stretch;
   box-sizing: border-box;
   min-width: 0;
   width: 100%;
@@ -131,8 +143,8 @@
 
 .insurer-site-card:focus-within {
   border-color: var(--primary);
-  outline: 2px solid color-mix(in srgb, var(--primary) 35%, transparent);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 35%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -150,11 +162,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 auto;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
   width: 100%;
-  max-width: var(--insurer-site-logo-w);
-  height: var(--insurer-site-logo-h);
-  max-height: var(--insurer-site-logo-h);
+  max-width: 100%;
+  height: 100%;
+  margin: 0 auto;
   padding: 0;
   border: none;
   border-radius: 0;
@@ -169,7 +183,7 @@
 }
 
 .insurer-site-card__logo img {
-  max-width: 100%;
+  max-width: min(100%, var(--insurer-site-logo-w));
   max-height: 100%;
   width: auto;
   height: auto;
@@ -180,29 +194,35 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
   width: 100%;
-  min-height: 38px;
+  height: 100%;
   margin: 0;
   padding: 0;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  line-height: 1.3;
+  line-height: 1.25;
   text-align: center;
   color: var(--text-primary);
+  overflow: hidden;
   overflow-wrap: anywhere;
   word-break: keep-all;
 }
 
-/* 공용 .button min-height(48) 를 카드 밀도에 맞게 축소 */
+/* 공용 .button min-height(48) / padding 을 카드 행 높이에 맞춤 */
 .insurer-sites-page .insurer-site-card .button.insurer-site-card__primary {
-  flex-shrink: 0;
+  box-sizing: border-box;
   width: 100%;
-  min-height: 36px;
-  margin-top: auto;
-  padding: 6px 8px;
-  font-size: 13px;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  margin: 0;
+  padding: 0 6px;
+  font-size: 12px;
   font-weight: 600;
+  line-height: 1.2;
 }
 
 .insurer-site-card__primary:disabled {
@@ -213,19 +233,27 @@
 .insurer-site-card__secondary {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-  flex-shrink: 0;
+  gap: 5px;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
   width: 100%;
-  margin-top: 0;
+  height: 100%;
+  margin: 0;
 }
 
 .insurer-sites-page .insurer-site-card .button.insurer-site-card__secondary-btn {
+  box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  min-height: 34px;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  margin: 0;
+  padding: 0 3px;
   font-size: 11px;
   font-weight: 600;
-  padding: 6px 4px;
+  line-height: 1.15;
 }
 
 .insurer-site-card__secondary-btn:disabled {
@@ -235,25 +263,31 @@
   opacity: 0.85;
 }
 
-/* —— Breakpoint density (콘텐츠 폭 기준 track 하한만 조정) —— */
+/* —— Breakpoint density —— */
 @media (max-width: 599px) {
   .insurer-sites-page {
     --insurer-site-card-min: 140px;
     --insurer-site-card-max: 196px;
     --insurer-site-card-gap: 10px;
-    --insurer-site-card-pad: 12px;
-    --insurer-site-logo-w: 110px;
-    --insurer-site-logo-h: 56px;
+    --insurer-site-card-pad: 8px;
+    --insurer-site-inner-gap: 4px;
+    --insurer-site-logo-w: 100px;
+    --insurer-site-name-h: 28px;
+    --insurer-site-primary-h: 32px;
+    --insurer-site-secondary-h: 30px;
   }
 
-  /* 좁은 뷰포트에서도 2열 밀도 유지 (카드는 max-width로 상한) */
+  /* 좁은 뷰포트에서도 2열 밀도 유지 */
   .insurer-sites-grid {
     grid-template-columns: repeat(2, minmax(0, var(--insurer-site-card-max)));
   }
 
-  .insurer-sites-page .insurer-site-card .button.insurer-site-card__primary,
+  .insurer-sites-page .insurer-site-card .button.insurer-site-card__primary {
+    font-size: 11.5px;
+  }
+
   .insurer-sites-page .insurer-site-card .button.insurer-site-card__secondary-btn {
-    min-height: 40px;
+    font-size: 10.5px;
   }
 }
 
@@ -276,7 +310,7 @@
   .insurer-sites-page {
     --insurer-site-card-min: 190px;
     --insurer-site-card-max: 200px;
-    --insurer-site-card-gap: 14px;
+    --insurer-site-card-gap: 16px;
   }
 }
 

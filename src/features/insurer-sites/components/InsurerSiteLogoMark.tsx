@@ -60,7 +60,7 @@ function UserCardPlaceholder({ name }: { name: string }) {
       style={{
         width: '100%',
         height: '100%',
-        minHeight: 56,
+        minHeight: 0,
         margin: '0 auto',
         borderRadius: 0,
         background: 'transparent',
