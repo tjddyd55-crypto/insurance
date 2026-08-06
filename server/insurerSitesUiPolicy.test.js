@@ -66,4 +66,18 @@ describe('insurer-sites UI policy (보상홈 미노출)', () => {
     assert.doesNotMatch(ts, /claimUrl:/)
     assert.match(ts, /claimUrl은 UI 미노출/)
   })
+
+  it('compact square card CSS keeps actions inside 200px box', () => {
+    const css = readFileSync(path.join(root, 'src/features/insurer-sites/insurer-sites.css'), 'utf8')
+    assert.match(css, /aspect-ratio:\s*1\s*\/\s*1/)
+    assert.match(css, /--insurer-site-card-max:\s*200px/)
+    assert.match(css, /\.insurer-site-card\s*\{[\s\S]*?box-sizing:\s*border-box/)
+    assert.match(css, /grid-template-rows:/)
+    assert.match(css, /--insurer-site-primary-h/)
+    assert.match(css, /--insurer-site-secondary-h/)
+    assert.match(css, /\.insurer-site-card__secondary\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2/)
+    assert.match(css, /\.insurer-site-card__logo\s*\{[\s\S]*?background:\s*transparent/)
+    assert.doesNotMatch(css, /보상홈/)
+    assert.doesNotMatch(css, /margin-top:\s*auto/)
+  })
 })
