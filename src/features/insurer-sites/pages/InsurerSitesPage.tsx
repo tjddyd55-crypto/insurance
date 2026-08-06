@@ -73,7 +73,7 @@ export default function InsurerSitesPage() {
               htmlType="button"
               role="tab"
               aria-selected={active}
-              variant={active ? 'primary' : 'secondary'}
+              variant="action"
               className={`insurer-sites-tabs__btn${active ? ' insurer-sites-tabs__btn--active' : ''}`}
               onClick={() => setTab(t.id)}
             >
