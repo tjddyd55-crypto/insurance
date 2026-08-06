@@ -6002,7 +6002,43 @@ async function ensureInsurerSitesSchema(executor) {
     console.log('[initDb] insurer_sites 시드 완료:', INSURER_SITES_SEED.length)
   }
 
+  await ensureMissingInsurerSitesFromSeed(executor)
   await backfillInsurerSiteBundledLogos(executor)
+}
+
+/**
+ * 시드에만 있고 DB에 없는 보험사 행을 추가한다.
+ * (테이블이 이미 채워진 뒤 시드에 회사가 추가된 경우 — 예: 하나생명)
+ */
+async function ensureMissingInsurerSitesFromSeed(executor) {
+  let inserted = 0
+  for (const row of INSURER_SITES_SEED) {
+    const exists = await executor.query(`SELECT 1 FROM insurer_sites WHERE name = $1 LIMIT 1`, [row.name])
+    if (exists.rows.length > 0) continue
+    const logoPath = insurerSiteBundledLogoPath(row.logoFile)
+    await executor.query(
+      `
+      INSERT INTO insurer_sites (
+        category, name, logo_path, sales_url, homepage_url, disclosure_url, claim_url, sort_order, is_active
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true)
+      `,
+      [
+        row.category,
+        row.name,
+        logoPath,
+        row.salesUrl,
+        row.homepageUrl,
+        row.disclosureUrl ?? '',
+        row.claimUrl,
+        row.sortOrder,
+      ],
+    )
+    inserted += 1
+  }
+  if (inserted > 0) {
+    console.log('[initDb] insurer_sites 시드 누락 행 추가:', inserted)
+  }
 }
 
 /**
