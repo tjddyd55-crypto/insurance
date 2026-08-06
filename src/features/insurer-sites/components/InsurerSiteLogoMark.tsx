@@ -60,7 +60,7 @@ function UserCardPlaceholder({ name }: { name: string }) {
       style={{
         width: '100%',
         height: '100%',
-        minHeight: 64,
+        minHeight: 56,
         margin: '0 auto',
         borderRadius: 0,
         background: 'transparent',
@@ -68,7 +68,7 @@ function UserCardPlaceholder({ name }: { name: string }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: 700,
         color: 'var(--text-secondary)',
       }}
