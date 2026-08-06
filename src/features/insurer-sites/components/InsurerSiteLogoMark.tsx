@@ -55,19 +55,20 @@ function UserCardPlaceholder({ name }: { name: string }) {
   const mark = initialsFromName(name)
   return (
     <div
-      aria-hidden
+      role="img"
+      aria-label={`${name} 로고`}
       style={{
         width: '100%',
-        maxWidth: 120,
-        height: 52,
+        maxWidth: 140,
+        height: 80,
         margin: '0 auto',
-        borderRadius: 8,
-        background: 'color-mix(in srgb, var(--text-secondary) 12%, transparent)',
+        borderRadius: 12,
+        background: 'color-mix(in srgb, var(--text-secondary) 10%, transparent)',
         border: placeholderBorder,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontSize: 15,
+        fontSize: 18,
         fontWeight: 700,
         color: 'var(--text-secondary)',
       }}
@@ -145,8 +146,8 @@ function InsurerSiteLogoMarkInner({ name, variant, resolvedSrc }: InnerProps) {
         : {
             display: 'block',
             margin: '0 auto',
-            maxWidth: '100%',
-            maxHeight: 52,
+            maxWidth: 140,
+            maxHeight: 80,
             width: 'auto',
             height: 'auto',
             objectFit: 'contain',
@@ -172,7 +173,7 @@ function InsurerSiteLogoMarkInner({ name, variant, resolvedSrc }: InnerProps) {
       {raw ? (
         <img
           src={raw}
-          alt=""
+          alt={showImg && variant === 'userCard' ? `${name} 로고` : ''}
           onLoad={handleLoad}
           onError={handleError}
           style={showImg ? imgStyle : hiddenLoaderStyle}

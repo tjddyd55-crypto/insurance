@@ -13,6 +13,7 @@ import {
   uploadAdminInsurerLogo,
 } from '../api/insurerSitesApi'
 import { InsurerSiteLogoMark } from '../components/InsurerSiteLogoMark'
+import { buildAdminInsurerSiteSaveBody } from '../lib/adminInsurerSiteSaveBody'
 import { normalizeOptionalUrl } from '../lib/normalizeOptionalUrl'
 import './admin-insurer-sites-modal.css'
 
@@ -59,6 +60,7 @@ type FormState = {
   salesUrl: string
   homepageUrl: string
   disclosureUrl: string
+  /** UI 미노출. 편집 시 기존 값 보존용으로만 유지하며 PATCH/POST에 보내지 않음. */
   claimUrl: string
   sortOrder: string
   isActive: boolean
@@ -98,7 +100,6 @@ function formDirtySnapshot(f: FormState, logoPicked: boolean): string {
     salesUrl: f.salesUrl,
     homepageUrl: f.homepageUrl,
     disclosureUrl: f.disclosureUrl,
-    claimUrl: f.claimUrl,
     sortOrder: f.sortOrder,
     isActive: f.isActive,
     logoPicked,
@@ -228,38 +229,24 @@ export default function AdminInsurerSitesPage() {
     if (homepageUrl === null) return
     const disclosureUrl = normLabel('공시실 URL', form.disclosureUrl)
     if (disclosureUrl === null) return
-    const claimUrl = normLabel('보상홈 URL', form.claimUrl)
-    if (claimUrl === null) return
 
     setSaving(true)
     setError('')
     try {
-      const sortOrder = Number(form.sortOrder)
-      const sort = Number.isFinite(sortOrder) ? Math.trunc(sortOrder) : 0
+      const body = buildAdminInsurerSiteSaveBody({
+        category: form.category,
+        name,
+        logoPath: form.logoPath,
+        salesUrl,
+        homepageUrl,
+        disclosureUrl,
+        sortOrder: form.sortOrder,
+        isActive: form.isActive,
+      })
       if (editingId == null) {
-        await createAdminInsurerSite(token, {
-          category: form.category,
-          name,
-          logoPath: form.logoPath.trim(),
-          salesUrl,
-          homepageUrl,
-          disclosureUrl,
-          claimUrl,
-          sortOrder: sort,
-          isActive: form.isActive,
-        })
+        await createAdminInsurerSite(token, body)
       } else {
-        await patchAdminInsurerSite(token, editingId, {
-          category: form.category,
-          name,
-          logoPath: form.logoPath.trim(),
-          salesUrl,
-          homepageUrl,
-          disclosureUrl,
-          claimUrl,
-          sortOrder: sort,
-          isActive: form.isActive,
-        })
+        await patchAdminInsurerSite(token, editingId, body)
         if (logoFile) {
           const up = await uploadAdminInsurerLogo(token, editingId, logoFile)
           if (up.item?.logoPath) {
@@ -347,7 +334,7 @@ export default function AdminInsurerSitesPage() {
         style={{ maxWidth: 'none', padding: 0, overflow: 'hidden' }}
       >
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', minWidth: 1280, borderCollapse: 'collapse' }}>
+          <table style={{ width: '100%', minWidth: 1120, borderCollapse: 'collapse' }}>
             <thead>
               <tr>
                 <th>정렬</th>
@@ -357,7 +344,6 @@ export default function AdminInsurerSitesPage() {
                 <th>설계사이트 URL</th>
                 <th>공식홈 URL</th>
                 <th>공시실 URL</th>
-                <th>보상홈 URL</th>
                 <th>노출 여부</th>
                 <th>수정</th>
                 <th>비활성화</th>
@@ -380,9 +366,6 @@ export default function AdminInsurerSitesPage() {
                   </td>
                   <td>
                     <AdminUrlCell url={s.disclosureUrl} />
-                  </td>
-                  <td>
-                    <AdminUrlCell url={s.claimUrl} />
                   </td>
                   <td>{s.isActive ? 'Y' : 'N'}</td>
                   <td>
@@ -507,14 +490,11 @@ export default function AdminInsurerSitesPage() {
               >
                 <FormInput value={form.homepageUrl} onChange={(e) => setForm((f) => ({ ...f, homepageUrl: e.target.value }))} />
               </FieldWrapper>
-              <FieldWrapper label="공시실 URL" helperText="비우면 일반 화면에서 공시실 버튼이 준비중 처리됩니다.">
+              <FieldWrapper label="공시실 URL" helperText="비우면 일반 화면에서 공시실 버튼이 비활성됩니다.">
                 <FormInput
                   value={form.disclosureUrl}
                   onChange={(e) => setForm((f) => ({ ...f, disclosureUrl: e.target.value }))}
                 />
-              </FieldWrapper>
-              <FieldWrapper label="보상홈 URL" helperText="비우면 일반 화면에서 비활성.">
-                <FormInput value={form.claimUrl} onChange={(e) => setForm((f) => ({ ...f, claimUrl: e.target.value }))} />
               </FieldWrapper>
             </div>
           </div>
