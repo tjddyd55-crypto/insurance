@@ -323,6 +323,16 @@ export const INSURER_SITES_SEED = [
   },
   {
     category: 'life',
+    name: '하나생명',
+    logoFile: 'hana_life',
+    salesUrl: 'https://ga.hanalife.co.kr/cm/pt/comm/LoginView.do',
+    homepageUrl: 'https://www.hanalife.co.kr/',
+    disclosureUrl: 'https://www.hanalife.co.kr/anm/product/productIntro.do',
+    claimUrl: 'https://www.hanalife.co.kr/',
+    sortOrder: 175,
+  },
+  {
+    category: 'life',
     name: 'BNP파리바카디프생명',
     logoFile: 'bnp_cardif_life',
     salesUrl: 'https://www.cardif.co.kr/',

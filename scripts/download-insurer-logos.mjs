@@ -49,6 +49,7 @@ const SOURCE_FILENAME_BY_NAME = {
   메트라이프생명: '메트라이프생명.png',
   KDB생명: 'KDB생명.png',
   푸본현대생명: '푸본현대생명.png',
+  하나생명: '하나생명.png',
   BNP파리바카디프생명: 'BNP파리바카디프생명.png',
   IBK연금보험: 'IBK연금보험.png',
 }
