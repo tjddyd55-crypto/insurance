@@ -23,11 +23,12 @@ export interface FullSaveCompanyBody {
 export async function fullSaveCompanyDirectory(
   body: FullSaveCompanyBody,
   token: string,
-): Promise<{ success: boolean; data: CompanyDirectoryEntry | null }> {
+): Promise<CompanyDirectoryEntry | null> {
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
   }
-  return apiRequest<{ success: boolean; data: CompanyDirectoryEntry | null }>('/api/company/full-save', {
+  // apiRequest → safeApiResponse 가 `{ success, data }` 를 data 로 unwrap 한다.
+  return apiRequest<CompanyDirectoryEntry | null>('/api/company/full-save', {
     method: 'POST',
     token,
     body: JSON.stringify(body),

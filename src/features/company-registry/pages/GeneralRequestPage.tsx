@@ -94,12 +94,17 @@ export default function GeneralRequestPage() {
       setStatusText('보험 종류와 보험사를 선택하세요.')
       return
     }
-    if (!/^INS\d+$/.test(selectedCompanyCode.trim())) {
+    const code = selectedCompanyCode.trim()
+    if (code.startsWith('STATIC:')) {
       setStatusText('일반화재 설계의뢰는 먼저 「연락처 입력/관리」에서 해당 보험사를 저장해 코드(INS…)를 받은 뒤 선택해 주세요.')
       return
     }
 
-    const row = list.find((e) => e.companyCode === selectedCompanyCode.trim())
+    const row = list.find((e) => e.companyCode === code)
+    if (!row?.id) {
+      setStatusText('일반화재 설계의뢰는 먼저 「연락처 입력/관리」에서 해당 보험사를 저장해 코드(INS…)를 받은 뒤 선택해 주세요.')
+      return
+    }
 
     setIsSaving(true)
     setStatusText('')
@@ -109,13 +114,13 @@ export default function GeneralRequestPage() {
           company: {
             category: selectedType,
             name: row?.name.trim() ?? '',
-            companyCode: selectedCompanyCode.trim(),
+            companyCode: code,
           },
           general,
         },
         token,
       )
-      window.alert('일반화재 설계의뢰 정보를 저장했습니다.')
+      setStatusText('일반화재 설계의뢰 정보를 저장했습니다.')
       await loadList()
     } catch (error) {
       setStatusText(error instanceof Error ? error.message : '저장에 실패했습니다.')
