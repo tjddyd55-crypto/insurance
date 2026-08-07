@@ -1,10 +1,17 @@
 /*
- * BaseDialog panelPreset=largeForm 은 Tailwind `!w-[min(1080px,92vw)]` 를 붙인다.
- * GPT 안내 모달은 스펙상 약 720~860px 이므로 동일 축에서 폭만 덮는다.
+ * BaseDialog default preset 은 `w-[90%] max-w-md p-4` 를 붙인다.
+ * GPT 안내 모달은 넓은 읽기 폭 + header/body/footer flex 셸이 필요하므로
+ * 패널 클래스로 크기를 재정의한다 (!important 는 preset utility 를 이기기 위함).
  */
-.customer-excel-gpt-guide-dialog {
+.customer-ui-modal-panel.customer-excel-gpt-guide-dialog {
   width: min(840px, 92vw) !important;
   max-width: min(840px, 92vw) !important;
+  max-height: min(86vh, 900px) !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  padding: 0 !important;
 }
 
 .customer-excel-gpt-guide {
