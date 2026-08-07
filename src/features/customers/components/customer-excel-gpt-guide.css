@@ -1,7 +1,10 @@
-.customer-excel-gpt-guide-dialog.base-dialog__panel,
-.modal-panel.customer-excel-gpt-guide-dialog {
-  width: min(840px, 92vw);
-  max-width: min(840px, 92vw);
+/*
+ * BaseDialog panelPreset=largeForm 은 Tailwind `!w-[min(1080px,92vw)]` 를 붙인다.
+ * GPT 안내 모달은 스펙상 약 720~860px 이므로 동일 축에서 폭만 덮는다.
+ */
+.customer-excel-gpt-guide-dialog {
+  width: min(840px, 92vw) !important;
+  max-width: min(840px, 92vw) !important;
 }
 
 .customer-excel-gpt-guide {
