@@ -1,7 +1,17 @@
-.customer-excel-gpt-guide-dialog.base-dialog__panel,
-.modal-panel.customer-excel-gpt-guide-dialog {
-  width: min(840px, 92vw);
-  max-width: min(840px, 92vw);
+/*
+ * BaseDialog default preset 은 `w-[90%] max-w-md p-4` 를 붙인다.
+ * GPT 안내 모달은 넓은 읽기 폭 + header/body/footer flex 셸이 필요하므로
+ * 패널 클래스로 크기를 재정의한다 (!important 는 preset utility 를 이기기 위함).
+ */
+.customer-ui-modal-panel.customer-excel-gpt-guide-dialog {
+  width: min(840px, 92vw) !important;
+  max-width: min(840px, 92vw) !important;
+  max-height: min(86vh, 900px) !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  padding: 0 !important;
 }
 
 .customer-excel-gpt-guide {

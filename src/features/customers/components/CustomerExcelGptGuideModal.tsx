@@ -84,7 +84,8 @@ export function CustomerExcelGptGuideModal({
       open={open}
       onClose={handleClose}
       ariaLabel={CUSTOMER_EXCEL_GPT_GUIDE_TITLE}
-      panelPreset="largeForm"
+      /* largeForm(1080px) 대신 전용 폭 840px — CSS에서 flex/scroll 셸 구성 */
+      panelPreset="default"
       closeOnBackdrop={false}
       closeOnEsc={false}
       onEscapeRequest={handleClose}
