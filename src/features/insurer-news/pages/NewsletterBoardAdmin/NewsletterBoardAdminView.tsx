@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { FormButton, FormInput } from '../../../../components/form'
-import { canUseNewsletterBoardAdminRoutes } from '../../../auth/roleGuards'
+import { canManageGaBoardWriters } from '../../../auth/roleGuards'
 import type { NewsletterBoard } from '../../types'
 import { buildNewsletterBoardUploadPath } from '../../utils/newsletterBoardMenuLinks'
 import { resolveNewsletterBoardAdminActions } from '../../utils/newsletterBoardAdminActions'
@@ -32,8 +32,8 @@ export function NewsletterBoardAdminView({
   onWriterBusyChange,
 }: NewsletterBoardAdminViewProps) {
   const isSuperAdmin = role === 'SUPER_ADMIN'
-  const canManageGaBoards = role === 'GA_ADMIN' || role === 'GA_STAFF'
-  const canManageWriters = canUseNewsletterBoardAdminRoutes(role)
+  const canManageGaBoards = role === 'GA_ADMIN'
+  const canManageWriters = canManageGaBoardWriters(role)
 
   return (
     <>

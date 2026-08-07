@@ -26,7 +26,7 @@ export function resolveNewsletterBoardAdminActions(
 ): NewsletterBoardPermissionFlags {
   const normalized = String(role ?? '').trim().toUpperCase()
   const isSuper = normalized === 'SUPER_ADMIN'
-  const isGaManager = normalized === 'GA_ADMIN' || normalized === 'GA_STAFF'
+  const isGaManager = normalized === 'GA_ADMIN'
   const isSystemDefault = isLossAdjusterSystemMenuBoard(board)
   const isGlobal = board.boardScope === 'global' || board.contentScope === 'global'
   const isActive = board.isActive !== false

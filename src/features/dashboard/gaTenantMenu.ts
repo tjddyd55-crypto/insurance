@@ -1,14 +1,15 @@
 /**
- * GA 테넌트 대시보드 메뉴(USER / GA_ADMIN).
- * GA_STAFF 는 GA_STAFF_MENU 단독(원수사 관리 전용).
- * INSURER_MANAGER 는 INSURER_MANAGER_MENU 별도.
+ * GA 테넌트 대시보드 메뉴.
+ * - USER: CRM 업무 메뉴
+ * - GA_ADMIN: 관리 전용 메뉴 (CRM 미포함)
+ * - GA_STAFF: 원수사 운영 도구 + 보험청구/문서 설정 (소식지 게시판 관리 제외)
+ * - INSURER_MANAGER / LOSS_ADJUSTER: 채널 전용 메뉴
  */
 
 import { isAllowedForExpiredFrontend } from '../subscription/expiredAllowlist'
 import { canAccessContractSignatureAdminConsole } from '../contracts/testConsole/contractSignatureTestConsoleFlags'
 import {
   canUseInsuranceClaimAdminRoutes,
-  canUseInsuranceClaimUserRoutes,
   canUseNewsletterBoardAdminRoutes,
   canUsePdfTemplateAdminRoutes,
 } from '../auth/roleGuards'
@@ -384,16 +385,23 @@ function buildGaTenantAdminMenuEntries(role: string | undefined): GaTenantDashbo
   }
 
   if (canUseNewsletterBoardAdminRoutes(role)) {
-    const newsletterLabel =
-      role === 'SUPER_ADMIN'
-        ? '소식지 관리'
-        : role === 'GA_ADMIN' || role === 'GA_STAFF'
-          ? 'GA전용 소식지 관리'
-          : '소식지 관리'
+    const newsletterLabel = role === 'SUPER_ADMIN' ? '소식지 관리' : 'GA전용 소식지 관리'
     entries.push({ type: 'section', label: '공지 / 운영 관리' })
     entries.push({ type: 'link', label: newsletterLabel, path: '/admin/newsletter-boards' })
   }
 
+  return entries
+}
+
+/** GA_ADMIN 전용 — 관리 메뉴만 (CRM 업무 섹션 없음) */
+function buildGaAdminManagementMenuEntries(): GaTenantDashboardMenuEntry[] {
+  const entries = buildGaTenantAdminMenuEntries('GA_ADMIN')
+  entries.push(
+    { type: 'section', label: '보안 / 감사' },
+    { type: 'link', label: AUDIT_LOG_ENTRY.label, path: AUDIT_LOG_ENTRY.path },
+    { type: 'section', label: '계정' },
+    { type: 'link', label: '계정 설정', path: '/profile' },
+  )
   return entries
 }
 
@@ -478,6 +486,8 @@ export function buildAppMenuForSession(
       return itemsToEntries(LOSS_ADJUSTER_MENU)
     }
     if (role === 'GA_STAFF') {
+      // 스태프: 보험청구 설정·전자문서 관리 + 원수사 운영 도구.
+      // GA전용 소식지 관리/작성자 관리는 roleGuards 에서 제외되어 adminEntries 에 안 붙는다.
       const adminEntries = buildGaTenantAdminMenuEntries(role)
       const operational = itemsToEntries([
         CONTRACT_SIGNATURE_USER_SEND,
@@ -494,30 +504,20 @@ export function buildAppMenuForSession(
       }
       return [...adminEntries, { type: 'divider' }, ...withDynamicBoards]
     }
-    if (role === 'GA_ADMIN' || role === 'USER') {
-      const isClaimUser = canUseInsuranceClaimUserRoutes(role)
-      const entries = buildGaTenantDashboardMenu(gaCode, gaName, {
-        includeUserContractSignatures:
-          role === 'USER' && USER_MENU_FEATURE_FLAGS.topLevelElectronicSignature,
-        includeCustomerManagementNewsletter:
-          isClaimUser && USER_MENU_FEATURE_FLAGS.customerManagementNewsletter,
-        includeCustomerManagementClaim:
-          isClaimUser && USER_MENU_FEATURE_FLAGS.customerManagementClaim,
-        includeTopLevelInsuranceClaim:
-          isClaimUser && USER_MENU_FEATURE_FLAGS.topLevelInsuranceClaim,
-        includeSharedAccountManagement: role === 'GA_ADMIN',
+    if (role === 'GA_ADMIN') {
+      // GA 관리자: 일반 사용자 CRM 메뉴 없이 운영·관리 메뉴만.
+      return buildGaAdminManagementMenuEntries()
+    }
+    if (role === 'USER') {
+      return buildGaTenantDashboardMenu(gaCode, gaName, {
+        includeUserContractSignatures: USER_MENU_FEATURE_FLAGS.topLevelElectronicSignature,
+        includeCustomerManagementNewsletter: USER_MENU_FEATURE_FLAGS.customerManagementNewsletter,
+        includeCustomerManagementClaim: USER_MENU_FEATURE_FLAGS.customerManagementClaim,
+        includeTopLevelInsuranceClaim: USER_MENU_FEATURE_FLAGS.topLevelInsuranceClaim,
+        includeSharedAccountManagement: false,
         dynamicNewsletterBoards,
         menuRole: role,
       })
-      if (role === 'GA_ADMIN') {
-        entries.push(...buildGaTenantAdminMenuEntries('GA_ADMIN'))
-        entries.push(
-          { type: 'divider' },
-          { type: 'section', label: '보안 / 감사' },
-          { type: 'link', label: AUDIT_LOG_ENTRY.label, path: AUDIT_LOG_ENTRY.path },
-        )
-      }
-      return entries
     }
     return []
   })()

@@ -13,7 +13,8 @@ import { isSuperAdminRole } from './rbacScope.js'
  */
 function isGaBoardManagerRole(role) {
   const r = String(role ?? '').trim().toUpperCase()
-  return r === 'GA_ADMIN' || r === 'GA_STAFF'
+  // GA 게시판 관리·작성자 관리: GA_ADMIN 만 (GA_STAFF 제외 — 메뉴/route 정책과 일치)
+  return r === 'GA_ADMIN'
 }
 
 /**
