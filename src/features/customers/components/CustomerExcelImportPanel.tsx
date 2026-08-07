@@ -11,6 +11,8 @@ import {
   prepareCustomerExcelImport,
   uploadCustomers,
 } from '../utils/customerExcelUpload'
+import { CustomerExcelGptGuideModal } from './CustomerExcelGptGuideModal'
+import './customer-excel-gpt-guide.css'
 
 export type CustomerExcelImportPanelProps = {
   token: string
@@ -20,6 +22,8 @@ export type CustomerExcelImportPanelProps = {
 export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerExcelImportPanelProps) {
   const { confirm, confirmDialog } = useConfirmDialog()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const gptGuideTriggerRef = useRef<HTMLSpanElement>(null)
+  const [gptGuideOpen, setGptGuideOpen] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
@@ -103,16 +107,34 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
 
   return (
     <div className="customers-excel-import-panel" aria-label="고객 엑셀 업로드">
-      <FormButton
-        htmlType="button"
-        variant="action"
-        className="link-btn link-btn--compact"
-        onClick={() => {
-          downloadCustomerUploadSampleXlsx()
-        }}
-      >
-        샘플 다운로드
-      </FormButton>
+      <div className="customers-excel-import-panel__toolbar">
+        <FormButton
+          htmlType="button"
+          variant="action"
+          className="link-btn link-btn--compact"
+          onClick={() => {
+            downloadCustomerUploadSampleXlsx()
+          }}
+        >
+          샘플 다운로드
+        </FormButton>
+        <span ref={gptGuideTriggerRef}>
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            className="link-btn link-btn--compact"
+            aria-haspopup="dialog"
+            aria-expanded={gptGuideOpen}
+            onClick={() => setGptGuideOpen(true)}
+          >
+            GPT 활용법
+          </FormButton>
+        </span>
+      </div>
+
+      <p className="customers-excel-import-panel__hint">
+        기존 고객 엑셀을 샘플 양식에 맞게 변환해야 한다면 GPT 활용법을 확인해 주세요.
+      </p>
 
       <p className="customers-excel-import-panel__intro text-sm text-[var(--text-secondary)] mb-2">
         이름은 필수이며, 연락처와 주민번호 중 하나만 있어도 업로드할 수 있습니다. 성별이 비어 있어도 주민번호가
@@ -332,6 +354,11 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
         </FormButton>
       ) : null}
       {confirmDialog}
+      <CustomerExcelGptGuideModal
+        open={gptGuideOpen}
+        onClose={() => setGptGuideOpen(false)}
+        triggerRef={gptGuideTriggerRef}
+      />
     </div>
   )
 }

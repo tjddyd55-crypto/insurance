@@ -739,11 +739,9 @@ export function ProfilePage() {
       </section>
       ) : null}
 
-      <section className="profile-page__section">
-        <h2 className="profile-page__section-title">고객 데이터 업로드</h2>
-        <PCOnlySection
-          fallback={<div className="profile-page__pc-only-notice">해당 기능은 PC에서만 사용 가능합니다.</div>}
-        >
+      <PCOnlySection fallback={null}>
+        <section className="profile-page__section" data-testid="customer-excel-import-section">
+          <h2 className="profile-page__section-title">고객 데이터 업로드</h2>
           <div className="profile-page__excel-toolbar">
             <CustomerExcelImportPanel
               token={token}
@@ -756,8 +754,8 @@ export function ProfilePage() {
             이름은 필수이며, 연락처와 주민번호 중 하나만 있어도 업로드할 수 있습니다. 샘플 다운로드 후 양식에
             맞게 작성한 파일을 업로드해 주세요.
           </p>
-        </PCOnlySection>
-      </section>
+        </section>
+      </PCOnlySection>
 
       <section className="profile-page__section">
         <h2 className="profile-page__section-title">GA 데이터 업로드</h2>
