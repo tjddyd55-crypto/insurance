@@ -1,0 +1,209 @@
+.customer-excel-gpt-guide-dialog.base-dialog__panel,
+.modal-panel.customer-excel-gpt-guide-dialog {
+  width: min(840px, 92vw);
+  max-width: min(840px, 92vw);
+}
+
+.customer-excel-gpt-guide {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  color: var(--text-primary);
+}
+
+.customer-excel-gpt-guide__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.customer-excel-gpt-guide__header-text {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.customer-excel-gpt-guide__title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-primary);
+}
+
+.customer-excel-gpt-guide__desc {
+  margin: 8px 0 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.customer-excel-gpt-guide__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.customer-excel-gpt-guide__steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.customer-excel-gpt-guide__step {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-surface);
+}
+
+.customer-excel-gpt-guide__step-index {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--bg-soft);
+  border: 1px solid var(--border-default);
+}
+
+.customer-excel-gpt-guide__step-label {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--text-primary);
+}
+
+.customer-excel-gpt-guide__prompt-block {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
+.customer-excel-gpt-guide__prompt-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-soft);
+}
+
+.customer-excel-gpt-guide__prompt-title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.customer-excel-gpt-guide__prompt {
+  margin: 0;
+  padding: 12px 14px;
+  max-height: min(42vh, 420px);
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--text-primary);
+  background: var(--input-bg, var(--bg-surface));
+  user-select: text;
+}
+
+.customer-excel-gpt-guide__cautions {
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--hint-border, var(--border-default));
+  background: var(--hint-bg, var(--bg-soft));
+  color: var(--hint-text, var(--text-secondary));
+}
+
+.customer-excel-gpt-guide__cautions-title {
+  margin: 0 0 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.customer-excel-gpt-guide__cautions-list {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.customer-excel-gpt-guide__notice {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.customer-excel-gpt-guide__notice--ok {
+  color: var(--text-primary);
+}
+
+.customer-excel-gpt-guide__notice--err {
+  color: var(--danger, #b91c1c);
+}
+
+.customer-excel-gpt-guide__footer {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border-default);
+  background: var(--bg-surface);
+}
+
+.customers-excel-import-panel__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.customers-excel-import-panel__hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 900px) {
+  .customer-excel-gpt-guide__steps {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .customer-excel-gpt-guide__steps {
+    grid-template-columns: 1fr;
+  }
+}
