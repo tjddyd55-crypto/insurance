@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
 import { useConfirmDialog } from '../../../components/dialog'
 import { useAuth } from '../../auth/AuthProvider'
+import { canUseNewsletterBoardAdminRoutes } from '../../auth/roleGuards'
 import {
   createGlobalNewsletterBoard,
   createGaNewsletterBoard,
@@ -42,7 +43,7 @@ export function NewsletterBoardAdminPage() {
   const [editError, setEditError] = useState('')
   const { confirm, confirmDialog } = useConfirmDialog()
 
-  const canManage = role === 'SUPER_ADMIN' || role === 'GA_ADMIN' || role === 'GA_STAFF'
+  const canManage = canUseNewsletterBoardAdminRoutes(role)
 
   const loadBoards = useCallback(async () => {
     if (!token?.trim() || !canManage) {

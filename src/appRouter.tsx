@@ -105,6 +105,7 @@ import ClaimRequestHistoryPage from './features/insurance-claim/pages/ClaimReque
 import { InsurerManagerOnlyRoute } from './features/auth/InsurerManagerOnlyRoute'
 import { RequireNotInsurerManagerRoute } from './features/auth/RequireNotInsurerManagerRoute'
 import { AuditLogReaderRoute } from './features/auth/AuditLogReaderRoute'
+import { NewsletterBoardAdminRoute } from './features/auth/NewsletterBoardAdminRoute'
 import { InsurerListPage } from './features/insurer-news/pages/InsurerListPage'
 import { InsurerNewsletterListPage } from './features/insurer-news/pages/InsurerNewsletterListPage'
 import { NewsletterDetailPage } from './features/insurer-news/pages/NewsletterDetailPage'
@@ -404,7 +405,10 @@ export const appRouter = createBrowserRouter([
               { path: 'admin/delegates', element: <GaDelegateManagementPage /> },
               { path: 'admin/create-staff', element: <Navigate to="/admin/delegates" replace /> },
               { path: 'admin/users', element: <UserManagementPage /> },
-              { path: 'admin/newsletter-boards', element: <NewsletterBoardAdminPage /> },
+              {
+                element: <NewsletterBoardAdminRoute />,
+                children: [{ path: 'admin/newsletter-boards', element: <NewsletterBoardAdminPage /> }],
+              },
               { path: 'admin/public-board-writers', element: <PublicBoardWriterAdminPage /> },
               {
                 element: <SuperAdminRoute />,

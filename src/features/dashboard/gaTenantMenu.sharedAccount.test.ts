@@ -11,11 +11,11 @@ function linkPaths(entries: ReturnType<typeof buildAppMenuForSession>): string[]
 }
 
 describe('buildAppMenuForSession — 공유 계정관리 노출 정책', () => {
-  it('GA_ADMIN 에게 공유 계정관리 메뉴를 노출한다', () => {
+  it('GA_ADMIN 관리 전용 메뉴에는 공유 계정관리를 넣지 않는다', () => {
     const paths = linkPaths(buildAppMenuForSession('GA_ADMIN', 'TEST', 'Test GA'))
-    expect(paths).toContain(SHARED_ACCOUNT_PATH)
-    // 본인 계정관리 링크도 그대로 유지
-    expect(paths).toContain('/insurance/account-credentials')
+    expect(paths).not.toContain(SHARED_ACCOUNT_PATH)
+    expect(paths).not.toContain('/insurance/account-credentials')
+    expect(paths).toContain('/admin/newsletter-boards')
   })
 
   it('GA_STAFF 에게 공유 계정관리 메뉴를 노출한다', () => {

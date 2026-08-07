@@ -65,4 +65,12 @@ describe('resolveNewsletterBoardAdminActions', () => {
     expect(flags.canDisable).toBe(false)
     expect(flags.canDelete).toBe(false)
   })
+
+  it('hides manage actions for GA_STAFF', () => {
+    const flags = resolveNewsletterBoardAdminActions(baseGa, 'GA_STAFF')
+    expect(flags.canManageAuthors).toBe(false)
+    expect(flags.canEdit).toBe(false)
+    expect(flags.canDisable).toBe(false)
+    expect(flags.canDelete).toBe(false)
+  })
 })

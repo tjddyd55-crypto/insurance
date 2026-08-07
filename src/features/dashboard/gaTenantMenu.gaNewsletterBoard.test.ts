@@ -63,27 +63,28 @@ describe('buildBoardWriterNavLabels', () => {
 })
 
 describe('buildAppMenuForSession — GA전용 소식지 메뉴', () => {
-  it('GA_STAFF 메뉴에 GA전용 소식지 관리와 동적 조회·업로드가 포함된다', () => {
+  it('GA_STAFF 메뉴에 GA전용 소식지 관리는 없고 동적 조회·업로드만 유지한다', () => {
     const labels = linkLabels(
       buildAppMenuForSession('GA_STAFF', 'TEST', 'Test GA', {
         dynamicNewsletterBoards: [GA_BOARD],
       }),
     )
-    expect(labels).toContain('GA전용 소식지 관리')
+    expect(labels).not.toContain('GA전용 소식지 관리')
     expect(labels).toContain('내부공지')
     expect(labels).toContain('내부공지 업로드')
     expect(labels).not.toContain('내부공지 조회')
   })
 
-  it('GA_ADMIN 메뉴에도 동적 조회·업로드가 포함된다', () => {
+  it('GA_ADMIN 메뉴는 관리 전용이며 동적 사용자 소식지 링크를 붙이지 않는다', () => {
     const labels = linkLabels(
       buildAppMenuForSession('GA_ADMIN', 'TEST', 'Test GA', {
         dynamicNewsletterBoards: [GA_BOARD],
       }),
     )
     expect(labels).toContain('GA전용 소식지 관리')
-    expect(labels).toContain('내부공지')
-    expect(labels).toContain('내부공지 업로드')
+    expect(labels).not.toContain('내부공지')
+    expect(labels).not.toContain('내부공지 업로드')
+    expect(labels).not.toContain('고객리스트')
   })
 
   it('고정 메뉴(원수사소식지·연락처 등)는 그대로 유지한다', () => {

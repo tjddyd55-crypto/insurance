@@ -46,6 +46,12 @@ describe('newsletterBoardPermissions', () => {
     assert.equal(ga.canHardDelete, true)
   })
 
+  it('blocks GA_STAFF from managing GA boards (menu/API policy)', () => {
+    assert.equal(canManageNewsletterBoard(gaBoard, { role: 'GA_STAFF', tenantGaId: 7 }), false)
+    assert.equal(canManageNewsletterAuthors(gaBoard, { role: 'GA_STAFF', tenantGaId: 7 }), false)
+    assert.equal(canWriteNewsletterBoard(gaBoard, { role: 'GA_STAFF', tenantGaId: 7 }, {}), false)
+  })
+
   it('blocks other GA managers', () => {
     assert.equal(
       canManageNewsletterBoard(lossAdjusterBoard, { role: 'GA_ADMIN', tenantGaId: 99 }),
