@@ -87,6 +87,7 @@ import {
   FEATURE_REQUEST_COMMENT_SELECT_SQL,
 } from './lib/featureRequestCommentsSql.js'
 import { resolveTenantByAuthenticatedLegacyGaId } from './lib/resolveTenantByAuthenticatedLegacyGaId.js'
+import { ensureInsuranceTenantForLegacyGa } from './lib/ensureInsuranceTenantForLegacyGa.js'
 import { isGeneralGaCompanyCode, resolveSignupGaCompany } from './lib/generalGa.js'
 import {
   isDevSignupPhoneBypassEnabled,
@@ -2015,17 +2016,23 @@ async function attachTenantMembershipSignup(poolExec, params) {
   let industryId = params?.industryId != null ? Number(params.industryId) : undefined
 
   if (!(typeof tenantDbId === 'number' && Number.isSafeInteger(tenantDbId) && tenantDbId > 0)) {
-    const lr = await systemQuery(
-      poolExec,
-      `SELECT id, industry_id FROM tenants WHERE legacy_ga_id = $1 ORDER BY id ASC LIMIT 1`,
-      [gaParsed],
-    )
-    const tw = lr.rows[0]
-    if (!tw) {
-      return
+    const ensured = await ensureInsuranceTenantForLegacyGa(poolExec, { gaId: gaParsed })
+    if (ensured.ok) {
+      tenantDbId = ensured.tenantId
+      industryId = ensured.industryId > 0 ? ensured.industryId : industryId
+    } else {
+      const lr = await systemQuery(
+        poolExec,
+        `SELECT id, industry_id FROM tenants WHERE legacy_ga_id = $1 ORDER BY id ASC LIMIT 1`,
+        [gaParsed],
+      )
+      const tw = lr.rows[0]
+      if (!tw) {
+        return
+      }
+      tenantDbId = Number(tw.id)
+      industryId = Number(tw.industry_id)
     }
-    tenantDbId = Number(tw.id)
-    industryId = Number(tw.industry_id)
   }
 
   if (!(typeof industryId === 'number' && Number.isSafeInteger(industryId) && industryId > 0)) {
@@ -3777,7 +3784,22 @@ apiRouter.post('/admin/ga', requireAuth, requireSuperAdmin, async (req, res) => 
       `,
       [name, code],
     )
-    res.status(201).json(ins.rows[0])
+    const createdGa = ins.rows[0]
+    const createdGaId = parseGaId(createdGa?.id)
+    if (createdGaId != null) {
+      const tenantEnsured = await ensureInsuranceTenantForLegacyGa(pool, {
+        gaId: createdGaId,
+        gaCode: code,
+        gaName: name,
+      })
+      if (!tenantEnsured.ok) {
+        console.error('[POST /admin/ga] tenant provision failed', {
+          gaId: createdGaId,
+          code: tenantEnsured.code,
+        })
+      }
+    }
+    res.status(201).json(createdGa)
   } catch (error) {
     if (error?.code === '23505') {
       res.status(409).json({ message: '이미 존재하는 코드입니다' })
