@@ -890,6 +890,10 @@ export function CustomerForm({ onStatusMessage, onInternalSaveSuccess }: Custome
       }
 
       const created = await saveCustomer(token, payload)
+      if (!(Number.isInteger(created?.id) && created.id > 0)) {
+        onStatusMessage?.('고객을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.')
+        return
+      }
 
       if (industryCtx.isInsuranceLayout) {
         try {
@@ -931,8 +935,13 @@ export function CustomerForm({ onStatusMessage, onInternalSaveSuccess }: Custome
       onInternalSaveSuccess?.()
 
     } catch (e) {
-
-      onStatusMessage?.(e instanceof Error ? e.message : '저장에 실패했습니다.')
+      // 실패 시 입력값 유지 — finally/reset 금지
+      const msg = e instanceof Error ? e.message.trim() : ''
+      onStatusMessage?.(
+        msg && !/GA 필터|safeQuery|legacy_ga_id|DB_ERROR/i.test(msg)
+          ? msg
+          : '고객을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+      )
 
     }
 

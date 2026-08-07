@@ -80,12 +80,26 @@ export function assertCustomerDataRecord(
 /**
  * 고객 생성·수정 API: 서버는 `{ success, data: CustomerRecord }`를 주고,
  * apiRequest → safeApiResponse 가 `data`만 펼친 경우도 있다. 둘 다 처리한다.
+ * LENIENT_DB_RESPONSES 등으로 `success:false` / 빈 data 가 2xx로 오면 성공으로 취급하지 않는다.
  */
-function normalizeCustomerMutationResponse(raw: unknown): unknown {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-    return raw
+export function normalizeCustomerMutationResponse(raw: unknown): unknown {
+  if (raw == null) {
+    throw new ApiError('고객을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.', 500)
+  }
+  if (Array.isArray(raw)) {
+    throw new ApiError('고객을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.', 500)
+  }
+  if (typeof raw !== 'object') {
+    throw new ApiError('고객을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.', 500)
   }
   const o = raw as Record<string, unknown>
+  if (o.success === false) {
+    const msg =
+      typeof o.message === 'string' && o.message.trim()
+        ? o.message.trim()
+        : '고객을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.'
+    throw new ApiError(msg, 500)
+  }
   if ('success' in o && 'data' in o && o.data !== undefined) {
     return o.data
   }
@@ -447,7 +461,13 @@ export async function saveCustomer(
     token,
     body: JSON.stringify(payload),
   })
-  return assertCustomerDataRecord(normalizeCustomerMutationResponse(raw), { context: '고객 등록' })
+  const created = assertCustomerDataRecord(normalizeCustomerMutationResponse(raw), {
+    context: '고객 등록',
+  })
+  if (!(Number.isInteger(created.id) && created.id > 0)) {
+    throw new ApiError('고객을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.', 500)
+  }
+  return created
 }
 
 /** 로그인 없이 ref(담당자 user id) 계정으로 고객 저장 (외부 입력 전용) */
