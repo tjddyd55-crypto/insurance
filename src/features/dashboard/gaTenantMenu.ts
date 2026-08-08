@@ -505,7 +505,9 @@ export function buildAppMenuForSession(
       return [...adminEntries, { type: 'divider' }, ...withDynamicBoards]
     }
     if (role === 'GA_ADMIN') {
-      // GA 관리자: 일반 사용자 CRM 메뉴 없이 운영·관리 메뉴만.
+      // GA 관리자: buildGaAdminManagementMenuEntries 만 반환.
+      // teamMenuManageVisible / dynamicNewsletterBoards 옵션은 의도적으로 무시한다
+      // (CRM·작성자 업로드 메뉴가 관리자 셸에 섞이지 않도록).
       return buildGaAdminManagementMenuEntries()
     }
     if (role === 'USER') {
@@ -523,8 +525,9 @@ export function buildAppMenuForSession(
   })()
 
   // 팀 관리 주입: `/team/files` 바로 다음 자리에 고정.
+  // GA_ADMIN 관리 셸·비 USER 역할에는 주입하지 않는다 (클릭 후 권한 없음 방지).
   const withTeam: GaTenantDashboardMenuEntry[] = (() => {
-    if (!teamMenuManageVisible) {
+    if (!teamMenuManageVisible || role !== 'USER') {
       return base
     }
     const filesIdx = base.findIndex(

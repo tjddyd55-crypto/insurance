@@ -18,6 +18,8 @@ const GA_ADMIN_EXACT_PATHS = new Set([
 const GA_ADMIN_PREFIXES = [
   '/admin/',
   '/internal/admin/',
+  // 계정·구독 결제 (헤더 결제 배지 / 계정 설정의 구독 섹션)
+  '/billing/',
 ]
 
 /**
