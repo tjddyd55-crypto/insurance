@@ -74,7 +74,7 @@ export default function PCTopNavigation({
         setTeamMenuManageVisible(false)
         return
       }
-      if (user?.role !== 'USER' && user?.role !== 'GA_ADMIN') {
+      if (user?.role !== 'USER') {
         setTeamMenuManageVisible(false)
         return
       }
@@ -103,7 +103,8 @@ export default function PCTopNavigation({
 
   useEffect(() => {
     let cancelled = false
-    if (!token?.trim() || (user?.role !== 'USER' && user?.role !== 'GA_ADMIN' && user?.role !== 'GA_STAFF')) {
+    if (!token?.trim() || (user?.role !== 'USER' && user?.role !== 'GA_STAFF')) {
+      // GA_ADMIN 은 관리 메뉴만 쓰므로 동적 소식지 업로드 메뉴를 주입하지 않는다.
       setDynamicNewsletterBoards([])
       return () => {
         cancelled = true

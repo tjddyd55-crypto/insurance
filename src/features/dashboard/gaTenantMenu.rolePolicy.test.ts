@@ -41,7 +41,17 @@ describe('buildAppMenuForSession — 역할별 메뉴 정책', () => {
   })
 
   it('GA_ADMIN 에게 관리 메뉴만 노출하고 일반 CRM 메뉴는 숨긴다', () => {
-    const labels = linkLabels(buildAppMenuForSession('GA_ADMIN', 'TEST', 'Test GA'))
+    const entries = buildAppMenuForSession('GA_ADMIN', 'TEST', 'Test GA', {
+      teamMenuManageVisible: true,
+      dynamicNewsletterBoards: [
+        {
+          label: '보드',
+          slug: 'board-x',
+          boardScope: 'GA_ONLY',
+        },
+      ],
+    })
+    const labels = linkLabels(entries)
     for (const label of GA_ADMIN_OPS_LABELS) {
       expect(labels).toContain(label)
     }
@@ -49,8 +59,16 @@ describe('buildAppMenuForSession — 역할별 메뉴 정책', () => {
       expect(labels).not.toContain(label)
     }
     expect(labels).not.toContain('공유 계정관리')
-    expect(linkPaths(buildAppMenuForSession('GA_ADMIN', 'TEST', 'Test GA'))).not.toContain(
-      '/customers',
+    expect(labels).not.toContain('팀 관리')
+    expect(labels).not.toContain('보드')
+    expect(linkPaths(entries)).not.toContain('/customers')
+    expect(linkPaths(entries)).toEqual(
+      expect.arrayContaining([
+        '/admin/claim/insurance-companies',
+        '/admin/newsletter-boards',
+        '/admin/audit-logs',
+        '/profile',
+      ]),
     )
   })
 

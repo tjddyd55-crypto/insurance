@@ -6,6 +6,8 @@ import {
   canManageGaBoardWriters,
   canUseNewsletterBoardAdminRoutes,
   canAccessUserCrmWorkspace,
+  canAccessSelfProfilePage,
+  canUseCrmNotificationChrome,
 } from './roleGuards'
 
 describe('resolveAuthLandingPath — 역할별 랜딩', () => {
@@ -29,6 +31,8 @@ describe('gaAdminPathPolicy', () => {
     expect(isGaAdminAllowedPath('/admin/audit-logs')).toBe(true)
     expect(isGaAdminAllowedPath('/profile')).toBe(true)
     expect(isGaAdminAllowedPath('/dashboard')).toBe(true)
+    expect(isGaAdminAllowedPath('/billing/checkout')).toBe(true)
+    expect(isGaAdminAllowedPath('/account/billing')).toBe(true)
   })
 
   it('일반 CRM path 는 차단한다', () => {
@@ -38,6 +42,7 @@ describe('gaAdminPathPolicy', () => {
     expect(isGaAdminAllowedPath('/application/documents')).toBe(false)
     expect(isGaAdminAllowedPath('/insurance/company-registry')).toBe(false)
     expect(isGaAdminAllowedPath('/sms/settings')).toBe(false)
+    expect(isGaAdminAllowedPath('/notifications')).toBe(false)
   })
 })
 
@@ -55,5 +60,14 @@ describe('roleGuards — 소식지 관리 / CRM', () => {
     expect(canAccessUserCrmWorkspace('USER')).toBe(true)
     expect(canAccessUserCrmWorkspace('GA_ADMIN')).toBe(false)
     expect(canAccessUserCrmWorkspace('GA_STAFF')).toBe(false)
+  })
+
+  it('본인 프로필·CRM 알림 크롬 정책을 구분한다', () => {
+    expect(canAccessSelfProfilePage('USER')).toBe(true)
+    expect(canAccessSelfProfilePage('GA_ADMIN')).toBe(true)
+    expect(canAccessSelfProfilePage('GA_STAFF')).toBe(false)
+    expect(canUseCrmNotificationChrome('USER')).toBe(true)
+    expect(canUseCrmNotificationChrome('GA_ADMIN')).toBe(false)
+    expect(canUseCrmNotificationChrome('GA_STAFF')).toBe(false)
   })
 })

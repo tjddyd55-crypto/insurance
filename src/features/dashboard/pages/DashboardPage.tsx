@@ -64,7 +64,7 @@ export function DashboardPage() {
         setTeamMenuManageVisible(false)
         return
       }
-      if (role !== 'USER' && role !== 'GA_ADMIN') {
+      if (role !== 'USER') {
         setTeamMenuManageVisible(false)
         return
       }
@@ -93,7 +93,7 @@ export function DashboardPage() {
 
   useEffect(() => {
     let cancelled = false
-    if (!token?.trim() || (role !== 'USER' && role !== 'GA_ADMIN' && role !== 'GA_STAFF')) {
+    if (!token?.trim() || (role !== 'USER' && role !== 'GA_STAFF')) {
       setDynamicNewsletterBoards([])
       return () => {
         cancelled = true

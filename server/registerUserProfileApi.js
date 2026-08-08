@@ -92,9 +92,14 @@ export function registerUserProfileApi(apiRouter, ctx) {
 
   const showDebugCode = exposeSmsDebugCode(RUNNING_IN_PRODUCTION)
 
-  function requireProfileUser(req, res, next) {
-    if (req.user?.role !== 'USER') {
-      res.status(403).json({ message: '프로필은 일반 설계사(USER) 계정에서만 이용할 수 있습니다.' })
+  /**
+   * 본인 프로필(/api/me*) — USER CRM 자기관리 + GA_ADMIN 계정 설정.
+   * 추천·팀·고객 Excel 등 USER 전용 API 는 여기 포함하지 않는다.
+   */
+  function requireSelfProfileAccess(req, res, next) {
+    const role = String(req.user?.role ?? '').trim()
+    if (role !== 'USER' && role !== 'GA_ADMIN') {
+      res.status(403).json({ message: '프로필은 일반 설계사(USER) 또는 GA 관리자 계정에서만 이용할 수 있습니다.' })
       return
     }
     next()
@@ -551,7 +556,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
     }
   })
 
-  apiRouter.get('/me', requireAuth, requireProfileUser, async (req, res) => {
+  apiRouter.get('/me', requireAuth, requireSelfProfileAccess, async (req, res) => {
     try {
       const uid = String(req.user?.id ?? '').trim()
       const r = await systemQuery(
@@ -591,7 +596,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
     }
   })
 
-  apiRouter.patch('/me', requireAuth, requireProfileUser, async (req, res) => {
+  apiRouter.patch('/me', requireAuth, requireSelfProfileAccess, async (req, res) => {
     const client = await pool.connect()
     try {
       const uid = String(req.user?.id ?? '').trim()
@@ -745,7 +750,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
     }
   })
 
-  apiRouter.post('/me/send-phone-change-code', requireAuth, requireProfileUser, async (req, res) => {
+  apiRouter.post('/me/send-phone-change-code', requireAuth, requireSelfProfileAccess, async (req, res) => {
     const clientIp = getClientIp(req)
     const client = await pool.connect()
     let phoneNorm = ''
@@ -907,7 +912,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
     res.json(payload)
   })
 
-  apiRouter.post('/me/verify-phone-change-code', requireAuth, requireProfileUser, async (req, res) => {
+  apiRouter.post('/me/verify-phone-change-code', requireAuth, requireSelfProfileAccess, async (req, res) => {
     const clientIp = getClientIp(req)
     const clientUa = getClientUserAgent(req)
     const tx = await pool.connect()

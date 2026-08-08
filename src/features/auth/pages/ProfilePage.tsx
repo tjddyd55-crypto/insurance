@@ -13,6 +13,7 @@ import {
   type MeResponse,
 } from '../authApi'
 import { useAuth } from '../AuthProvider'
+import { canAccessSelfProfilePage } from '../roleGuards'
 import { createTeam, fetchTeamMembers, joinTeam } from '../../team/api/teamApi'
 import { DesktopUpdateSection } from '../../../components/DesktopUpdateSection'
 import { UserGaExcelManagePanel } from '../../profile/components/UserGaExcelManagePanel'
@@ -32,10 +33,6 @@ const ACCOUNT_DELETE_CONFIRM_PHRASES = new Set(['삭제', '계정삭제'])
 function isAccountDeletePhraseValid(value: string): boolean {
   const normalized = value.replace(/\s/g, '')
   return ACCOUNT_DELETE_CONFIRM_PHRASES.has(normalized)
-}
-
-function canAccessMyInfoPage(role: string | undefined): boolean {
-  return role === 'USER' || role === 'GA_ADMIN'
 }
 
 export function ProfilePage() {
@@ -332,8 +329,16 @@ export function ProfilePage() {
 
   useEffect(() => {
     void load()
+  }, [load])
+
+  useEffect(() => {
+    if (user?.role !== 'USER') {
+      setReferralSummary(null)
+      setReferralLoadError('')
+      return
+    }
     void loadReferralSummary()
-  }, [load, loadReferralSummary])
+  }, [user?.role, loadReferralSummary])
 
   useEffect(() => {
     if (!token || !user || !me) {
@@ -351,9 +356,11 @@ export function ProfilePage() {
     return <Navigate to="/login" replace />
   }
 
-  if (!canAccessMyInfoPage(user.role)) {
+  if (!canAccessSelfProfilePage(user.role)) {
     return <Navigate to="/dashboard" replace />
   }
+
+  const showUserCrmProfileSections = user.role === 'USER'
 
   const normalizedEditPhone = normalizeKrMobile(phoneEditDigits)
   const phoneChangedPending =
@@ -609,9 +616,11 @@ export function ProfilePage() {
         </form>
       </section>
 
-      <section className="profile-page__section">
-        <h2 className="profile-page__section-title">팀 관리</h2>
-        <div className="profile-page__team-row">
+      {showUserCrmProfileSections ? (
+        <>
+          <section className="profile-page__section">
+            <h2 className="profile-page__section-title">팀 관리</h2>
+            <div className="profile-page__team-row">
               <FormButton
                 htmlType="button"
                 variant="action"
@@ -654,75 +663,77 @@ export function ProfilePage() {
               >
                 팀 연결
               </FormButton>
-        </div>
-        {teamCopyNotice ? (
-          <p className="profile-page__status profile-page__status--muted" role="status">
-            {teamCopyNotice}
-          </p>
-        ) : null}
-        {teamActionError ? (
-          <p className="profile-page__status profile-page__status--error" role="alert">
-            {teamActionError}
-          </p>
-        ) : null}
-        {teamActionInfo ? (
-          <p className="profile-page__status profile-page__status--muted" role="status">
-            {teamActionInfo}
-          </p>
-        ) : null}
-      </section>
+            </div>
+            {teamCopyNotice ? (
+              <p className="profile-page__status profile-page__status--muted" role="status">
+                {teamCopyNotice}
+              </p>
+            ) : null}
+            {teamActionError ? (
+              <p className="profile-page__status profile-page__status--error" role="alert">
+                {teamActionError}
+              </p>
+            ) : null}
+            {teamActionInfo ? (
+              <p className="profile-page__status profile-page__status--muted" role="status">
+                {teamActionInfo}
+              </p>
+            ) : null}
+          </section>
 
-      <section className="profile-page__section">
-        <h2 className="profile-page__section-title">추천 코드</h2>
-        <div className="profile-page__team-row profile-page__team-row--referral">
-          <div className="profile-page__referral-code-display">
-            <span className="profile-page__referral-code-label">고객등록 추천인 코드</span>
-            <span className="profile-page__referral-code-value">
-              {referralSummary?.referralCode ?? user?.username ?? '—'}
-            </span>
-          </div>
-          <FormButton
-            htmlType="button"
-            variant="action"
-            className="profile-page__btn button--outline profile-page__team-btn"
-            onClick={() => void copyReferralCode()}
-          >
-            {referralCodeCopied ? '복사됨 ✓' : '복사'}
-          </FormButton>
-        </div>
-        {referralCopyNotice ? (
-          <p className="profile-page__status profile-page__status--muted" role="status">
-            {referralCopyNotice}
-          </p>
-        ) : null}
-        {referralLoadError ? (
-          <p className="profile-page__status profile-page__status--error" role="alert">
-            {referralLoadError}
-          </p>
-        ) : null}
-        <p className="profile-page__status profile-page__status--muted profile-page__status--spaced">
-          로그인 아이디와 동일합니다. 고객등록 링크의 추천인(ref) 값으로 사용됩니다.
-        </p>
-        <p className="profile-page__status profile-page__status--muted">
-          추천받은 사용자가 유료 이용 중일 때만 할인 대상입니다.
-        </p>
-        <p className="profile-page__status profile-page__status--muted">추천 할인은 최대 8명까지 적용됩니다.</p>
+          <section className="profile-page__section">
+            <h2 className="profile-page__section-title">추천 코드</h2>
+            <div className="profile-page__team-row profile-page__team-row--referral">
+              <div className="profile-page__referral-code-display">
+                <span className="profile-page__referral-code-label">고객등록 추천인 코드</span>
+                <span className="profile-page__referral-code-value">
+                  {referralSummary?.referralCode ?? user?.username ?? '—'}
+                </span>
+              </div>
+              <FormButton
+                htmlType="button"
+                variant="action"
+                className="profile-page__btn button--outline profile-page__team-btn"
+                onClick={() => void copyReferralCode()}
+              >
+                {referralCodeCopied ? '복사됨 ✓' : '복사'}
+              </FormButton>
+            </div>
+            {referralCopyNotice ? (
+              <p className="profile-page__status profile-page__status--muted" role="status">
+                {referralCopyNotice}
+              </p>
+            ) : null}
+            {referralLoadError ? (
+              <p className="profile-page__status profile-page__status--error" role="alert">
+                {referralLoadError}
+              </p>
+            ) : null}
+            <p className="profile-page__status profile-page__status--muted profile-page__status--spaced">
+              로그인 아이디와 동일합니다. 고객등록 링크의 추천인(ref) 값으로 사용됩니다.
+            </p>
+            <p className="profile-page__status profile-page__status--muted">
+              추천받은 사용자가 유료 이용 중일 때만 할인 대상입니다.
+            </p>
+            <p className="profile-page__status profile-page__status--muted">추천 할인은 최대 8명까지 적용됩니다.</p>
 
-        <h3 className="profile-page__subsection-title">내가 추천한 사람</h3>
-        {referralSummary?.referredUsers?.length ? (
-          <ul className="profile-page__referral-list">
-            {referralSummary.referredUsers.map((row, index) => (
-              <li key={`${row.name}-${index}`} className="profile-page__referral-list-item">
-                <span className="profile-page__referral-list-name">{row.name}</span>
-                <span className="profile-page__referral-list-sep">·</span>
-                <span className="profile-page__referral-list-status">{row.statusLabel}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="profile-page__status profile-page__status--muted">아직 추천한 사용자가 없습니다.</p>
-        )}
-      </section>
+            <h3 className="profile-page__subsection-title">내가 추천한 사람</h3>
+            {referralSummary?.referredUsers?.length ? (
+              <ul className="profile-page__referral-list">
+                {referralSummary.referredUsers.map((row, index) => (
+                  <li key={`${row.name}-${index}`} className="profile-page__referral-list-item">
+                    <span className="profile-page__referral-list-name">{row.name}</span>
+                    <span className="profile-page__referral-list-sep">·</span>
+                    <span className="profile-page__referral-list-status">{row.statusLabel}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="profile-page__status profile-page__status--muted">아직 추천한 사용자가 없습니다.</p>
+            )}
+          </section>
+        </>
+      ) : null}
 
       {isBillingUiVisibleForUser(user) ? (
       <section className="profile-page__section">
@@ -739,6 +750,8 @@ export function ProfilePage() {
       </section>
       ) : null}
 
+      {showUserCrmProfileSections ? (
+        <>
       <PCOnlySection fallback={null}>
         <section className="profile-page__section" data-testid="customer-excel-import-section">
           <h2 className="profile-page__section-title">고객 데이터 업로드</h2>
@@ -781,29 +794,23 @@ export function ProfilePage() {
           저장된 고객·상담·파일 등 계정 데이터가 삭제됩니다. 되돌릴 수 없습니다.
         </p>
         <div className="profile-page__account-actions">
-          {user?.role === 'USER' ? (
-            <>
-              <Link
-                to="/account/reset"
-                className="profile-page__btn button button--danger profile-page__account-reset"
-              >
-                계정 초기화
-              </Link>
-              <button
-                type="button"
-                className="profile-page__btn account-delete-button profile-page__account-delete"
-                onClick={openAccountDeleteModal}
-              >
-                계정 삭제
-              </button>
-            </>
-          ) : (
-            <Link to="/account/reset" className="profile-page__btn button button--danger profile-page__account-reset">
-              계정 초기화
-            </Link>
-          )}
+          <Link
+            to="/account/reset"
+            className="profile-page__btn button button--danger profile-page__account-reset"
+          >
+            계정 초기화
+          </Link>
+          <button
+            type="button"
+            className="profile-page__btn account-delete-button profile-page__account-delete"
+            onClick={openAccountDeleteModal}
+          >
+            계정 삭제
+          </button>
         </div>
       </section>
+        </>
+      ) : null}
 
       <div className="profile-page__back-link">
         <Link to="/dashboard" className="profile-page__inline-link">

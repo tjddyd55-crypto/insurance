@@ -68,6 +68,19 @@ export function canAccessGaAdminManagementShell(role: string | undefined): boole
   return role === 'GA_ADMIN'
 }
 
+/**
+ * 본인 계정 설정(/profile · /api/me*) 접근.
+ * USER CRM 자기관리 + GA_ADMIN 운영 계정 설정. 추천·고객 Excel 등은 USER 전용 UI.
+ */
+export function canAccessSelfProfilePage(role: string | undefined): boolean {
+  return role === 'USER' || role === 'GA_ADMIN'
+}
+
+/** CRM 알림 벨·할일 계열 헤더 액션 — 일반 설계사만 */
+export function canUseCrmNotificationChrome(role: string | undefined): boolean {
+  return role === 'USER'
+}
+
 /** 동의서 템플릿 관리(등록/수정) — GA_STAFF 제외 */
 export const CONSENT_TEMPLATE_ADMIN_ROLES: UserRole[] = ['GA_ADMIN', 'SUPER_ADMIN']
 

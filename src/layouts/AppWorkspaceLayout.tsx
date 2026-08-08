@@ -4,6 +4,7 @@ import { FormButton } from '../components/form'
 import ResponsiveLayout from '../components/ResponsiveLayout'
 import PCHeader from '../components/layout/PCHeader'
 import { useAuth } from '../features/auth/AuthProvider'
+import { canUseCrmNotificationChrome } from '../features/auth/roleGuards'
 import { PublicAccountGaOnlyOutletGuard } from '../features/auth/PublicAccountGaOnlyOutletGuard'
 import { formatGaBannerLabel, resolveStoreReviewTenantDisplayName, shouldShowGaTenantChrome } from '../navigation/gaTenantBarShared'
 import { buildAppMenuForSession } from '../features/dashboard/gaTenantMenu'
@@ -135,7 +136,7 @@ function AppWorkspaceLayoutMobileShell() {
         setTeamMenuManageVisible(false)
         return
       }
-      if (user?.role !== 'USER' && user?.role !== 'GA_ADMIN') {
+      if (user?.role !== 'USER') {
         setTeamMenuManageVisible(false)
         return
       }
@@ -164,7 +165,7 @@ function AppWorkspaceLayoutMobileShell() {
 
   useEffect(() => {
     let cancelled = false
-    if (!token?.trim() || (user?.role !== 'USER' && user?.role !== 'GA_ADMIN' && user?.role !== 'GA_STAFF')) {
+    if (!token?.trim() || (user?.role !== 'USER' && user?.role !== 'GA_STAFF')) {
       setDynamicNewsletterBoards([])
       return () => {
         cancelled = true
@@ -369,7 +370,7 @@ function AppWorkspaceLayoutPCShell() {
   const tenantChrome = shouldShowGaTenantChrome(isAuthenticated, user?.gaId, location.pathname)
   const isNewsManager = isSpecialNewsletterAccount(user?.role)
   const userShellActive = isUserWorkspacePath(location.pathname)
-  const showGaUserActions = tenantChrome && !isNewsManager
+  const showGaUserActions = tenantChrome && !isNewsManager && canUseCrmNotificationChrome(user?.role)
   const workspaceHeaderTitle = tenantChrome
     ? formatGaBannerLabel(user?.gaName ?? '', user?.gaCode ?? '', user?.username)
     : '업무 메뉴'
