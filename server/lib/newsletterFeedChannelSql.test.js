@@ -4,6 +4,7 @@ import {
   classifyNewsletterNewsChannel,
   isInsurerFeedEligiblePayload,
   sqlExcludeDynamicBoardFromInsurerFeed,
+  sqlFeedChannelExtraGuards,
 } from './newsletterFeedChannelSql.js'
 
 describe('newsletter feed channel isolation', () => {
@@ -51,5 +52,13 @@ describe('newsletter feed channel isolation', () => {
     assert.match(sql, /newsChannel/)
     assert.doesNotMatch(sql, /insurerName/)
     assert.doesNotMatch(sql, /company_name_snapshot/)
+  })
+
+  it('keeps LOSS_ADJUSTER feed posts that carry newsletterBoardId', () => {
+    assert.equal(sqlFeedChannelExtraGuards('LOSS_ADJUSTER', 'n'), '')
+    assert.equal(sqlFeedChannelExtraGuards('loss_adjuster', ''), '')
+    const insurerGuard = sqlFeedChannelExtraGuards('INSURER', 'n')
+    assert.match(insurerGuard, /newsletterBoardId/)
+    assert.equal(insurerGuard, sqlExcludeDynamicBoardFromInsurerFeed('n'))
   })
 })
