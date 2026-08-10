@@ -21,6 +21,9 @@ SMS(`ALIGO_*`, `SMS_MODULE_*`)·자동문자와 **완전히 분리**합니다.
 | `INSURANCE_ALIGO_KAKAO_CLAIM_RECEIVED_ENABLED` | `true` | 청구 접수 알림톡 on/off (기존 APPROVED 와 독립) |
 | `INSURANCE_ALIGO_KAKAO_CLAIM_RECEIVED_TEMPLATE_CODE` | `UJ_9750` | 청구 접수 템플릿 |
 | `INSURANCE_ALIGO_KAKAO_CLAIM_RECEIVED_ALLOW_REAL_SEND` | `true` | 청구 알림톡 실발송 (전역 DRY_RUN 무시) |
+| `INSURANCE_CUSTOMER_REGISTRATION_ALIMTALK_ENABLED` | `false` | public 고객등록 완료 알림톡 on/off |
+| `INSURANCE_ALIGO_KAKAO_CUSTOMER_REGISTRATION_COMPLETED_TEMPLATE_CODE` | (빈값) | 고객등록 완료 템플릿 코드(승인 후 입력) |
+| `INSURANCE_ALIGO_KAKAO_CUSTOMER_REGISTRATION_COMPLETED_ALLOW_REAL_SEND` | `false` | 고객등록 완료 실발송 |
 | `INSURANCE_ALIGO_KAKAO_DEV_REAL_SEND_ENABLED` | `false` | development 실발송 허용 |
 | `INSURANCE_ALIGO_KAKAO_DEV_RECIPIENT_ALLOWLIST` | (빈값) | development 허용 번호(쉼표 구분) |
 
@@ -38,6 +41,20 @@ SMS(`ALIGO_*`, `SMS_MODULE_*`)·자동문자와 **완전히 분리**합니다.
 | 미승인 | Aligo 거절 → FAILED(영구), 청구 저장·종알림·push 유지 |
 
 **secret 커밋 금지.** API Key / User ID / Sender Key 는 Railway(또는 로컬 `server/.env`)에만 둡니다.
+
+## 템플릿 D — public 고객등록 완료 (`INSURANCE_CUSTOMER_REGISTRATION_COMPLETED`)
+
+| 항목 | 값 |
+|---|---|
+| 수신자 | 고객등록 링크 소유 CRM 사용자 (`ref` → `users.id`) |
+| 템플릿명 | ONE FC 고객등록 완료 알림 |
+| 템플릿코드 | Railway `INSURANCE_ALIGO_KAKAO_CUSTOMER_REGISTRATION_COMPLETED_TEMPLATE_CODE` (승인 후) |
+| 변수 | `#{고객명}`, `#{등록일시}` |
+| 버튼 | `고객 확인하기` → CRM `/customers/{id}/consultations?customerId={id}` |
+| 트리거 | `POST /api/customer/external-invite-registration/batch` 및 inviteRegistration external-create **만** |
+| 비트리거 | `POST /api/customers`, Excel, admin 직접 생성 |
+| 전달 | `customer_registration_alimtalk_outbox` (고객 COMMIT 이후 enqueue) |
+| 기본 | `INSURANCE_CUSTOMER_REGISTRATION_ALIMTALK_ENABLED=false` · realSend=false |
 
 ## 정부지원 CRM ↔ 보험 CRM 매핑
 

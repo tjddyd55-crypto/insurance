@@ -286,3 +286,93 @@ export function getClaimReceivedTemplate(env = process.env) {
     buildButtonPayload: buildClaimReceivedButtonPayload,
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* 고객등록 링크 완료 알림 — 담당 CRM 사용자 · 고객 확인하기 버튼                    */
+/* -------------------------------------------------------------------------- */
+
+export const TEMPLATE_KEY_CUSTOMER_REGISTRATION_COMPLETED =
+  'INSURANCE_CUSTOMER_REGISTRATION_COMPLETED'
+
+/** 알리고 승인 전엔 env 미설정 → enqueue skip. 승인 후 TEMPLATE_CODE env 만 채운다. */
+export const CUSTOMER_REGISTRATION_COMPLETED_SUBJECT = 'ONE FC 고객등록 완료 알림'
+export const CUSTOMER_REGISTRATION_COMPLETED_TEMPLATE_NAME = 'ONE FC 고객등록 완료 알림'
+export const CUSTOMER_REGISTRATION_COMPLETED_BUTTON_NAME = '고객 확인하기'
+
+/**
+ * 승인 요청 본문 SSOT — 민감정보 금지. URL 은 본문이 아니라 버튼에만.
+ */
+export const CUSTOMER_REGISTRATION_COMPLETED_APPROVED_TEMPLATE = [
+  '[ONE FC 고객등록 완료]',
+  '',
+  '#{고객명} 고객님의 정보 등록이 완료되었습니다.',
+  '',
+  '고객등록 링크를 통해 접수된 고객입니다.',
+  '아래 버튼을 눌러 등록 내용을 확인해 주세요.',
+  '',
+  '등록일시: #{등록일시}',
+].join('\n')
+
+/**
+ * @param {{ customerName?: string | null, registeredAtLabel?: string | null }} input
+ */
+export function buildCustomerRegistrationCompletedMessage(input) {
+  const customerName = String(input.customerName ?? '').trim() || '신규 고객'
+  const registeredAtLabel = String(input.registeredAtLabel ?? '').trim() || '—'
+  return CUSTOMER_REGISTRATION_COMPLETED_APPROVED_TEMPLATE.replaceAll(
+    '#{고객명}',
+    customerName,
+  ).replaceAll('#{등록일시}', registeredAtLabel)
+}
+
+/**
+ * @param {{
+ *   customerCheckUrl: string,
+ *   buttonName?: string,
+ * }} input
+ */
+export function buildCustomerRegistrationCompletedButtonPayload(input) {
+  const url = forceHttpsPublicUrl(String(input.customerCheckUrl ?? '').trim())
+  const name =
+    String(input.buttonName ?? CUSTOMER_REGISTRATION_COMPLETED_BUTTON_NAME).trim() ||
+    CUSTOMER_REGISTRATION_COMPLETED_BUTTON_NAME
+  return {
+    button: [
+      {
+        name,
+        linkType: 'WL',
+        linkTypeName: '웹링크',
+        linkMo: url,
+        linkPc: url,
+      },
+    ],
+  }
+}
+
+/**
+ * @param {NodeJS.ProcessEnv} [env]
+ */
+export function resolveCustomerRegistrationCompletedTplCode(env = process.env) {
+  return String(
+    env.INSURANCE_ALIGO_KAKAO_CUSTOMER_REGISTRATION_COMPLETED_TEMPLATE_CODE ?? '',
+  ).trim()
+}
+
+/**
+ * @param {NodeJS.ProcessEnv} [env]
+ */
+export function getCustomerRegistrationCompletedTemplate(env = process.env) {
+  const tplCode = resolveCustomerRegistrationCompletedTplCode(env)
+  return {
+    key: TEMPLATE_KEY_CUSTOMER_REGISTRATION_COMPLETED,
+    subject: CUSTOMER_REGISTRATION_COMPLETED_SUBJECT,
+    buttonName: CUSTOMER_REGISTRATION_COMPLETED_BUTTON_NAME,
+    templateName: CUSTOMER_REGISTRATION_COMPLETED_TEMPLATE_NAME,
+    channelName: '@crm솔루션',
+    failover: 'N',
+    tplCode,
+    isPlaceholder: isPlaceholderTplCode(tplCode),
+    buildMessage: buildCustomerRegistrationCompletedMessage,
+    buildButtonPayload: buildCustomerRegistrationCompletedButtonPayload,
+  }
+}

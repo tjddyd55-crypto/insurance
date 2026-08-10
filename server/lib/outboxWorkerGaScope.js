@@ -5,10 +5,18 @@
 
 import { systemQuery } from '../utils/dbSafeQuery.js'
 
+/** @typedef {'claim_alimtalk_outbox' | 'notification_push_outbox' | 'customer_registration_alimtalk_outbox'} OutboxTableName */
+
+const ALLOWED_OUTBOX_TABLES = new Set([
+  'claim_alimtalk_outbox',
+  'notification_push_outbox',
+  'customer_registration_alimtalk_outbox',
+])
+
 /**
  * @param {import('pg').Pool | import('pg').PoolClient} db
  * @param {{
- *   table: 'claim_alimtalk_outbox' | 'notification_push_outbox'
+ *   table: OutboxTableName
  *   maxAttempts: number
  * }} input
  * @returns {Promise<number[]>}
@@ -16,12 +24,14 @@ import { systemQuery } from '../utils/dbSafeQuery.js'
 export async function listOutboxGaIdsWithDueRows(db, input) {
   const table = input.table
   const maxAttempts = Math.max(1, Number(input.maxAttempts) || 1)
-  if (table !== 'claim_alimtalk_outbox' && table !== 'notification_push_outbox') {
+  if (!ALLOWED_OUTBOX_TABLES.has(table)) {
     return []
   }
 
   const permanentClause =
-    table === 'claim_alimtalk_outbox' ? 'AND permanent_failure = false' : ''
+    table === 'claim_alimtalk_outbox' || table === 'customer_registration_alimtalk_outbox'
+      ? 'AND permanent_failure = false'
+      : ''
 
   const r = await systemQuery(
     db,
@@ -46,17 +56,17 @@ export async function listOutboxGaIdsWithDueRows(db, input) {
 /**
  * ga_id NULL 인 due row 는 발송하지 않고 quarantine.
  * @param {import('pg').Pool | import('pg').PoolClient} db
- * @param {'claim_alimtalk_outbox' | 'notification_push_outbox'} table
+ * @param {OutboxTableName} table
  */
 export async function quarantineOutboxRowsMissingGaId(db, table) {
-  if (table !== 'claim_alimtalk_outbox' && table !== 'notification_push_outbox') {
+  if (!ALLOWED_OUTBOX_TABLES.has(table)) {
     return 0
   }
-  if (table === 'claim_alimtalk_outbox') {
+  if (table === 'claim_alimtalk_outbox' || table === 'customer_registration_alimtalk_outbox') {
     const r = await systemQuery(
       db,
       `
-      UPDATE claim_alimtalk_outbox
+      UPDATE ${table}
       SET status = 'FAILED',
           permanent_failure = true,
           last_error = 'missing_ga_id',

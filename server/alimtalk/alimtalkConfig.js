@@ -104,6 +104,32 @@ export function loadInsuranceAlimtalkConfig(env = process.env) {
       env.INSURANCE_ALIGO_KAKAO_DEV_RECIPIENT_ALLOWLIST ??
         env.INSURANCE_ALIGO_KAKAO_CLAIM_RECEIVED_DEV_RECIPIENT_ALLOWLIST,
     ),
+    /**
+     * public 고객등록 링크 완료 → 담당 CRM 사용자 알림톡.
+     * 템플릿 승인 전: enabled=false · allowRealSend=false · template code 미설정.
+     */
+    customerRegistrationCompletedEnabled: normalizeBooleanEnv(
+      env.INSURANCE_CUSTOMER_REGISTRATION_ALIMTALK_ENABLED ??
+        env.INSURANCE_ALIGO_KAKAO_CUSTOMER_REGISTRATION_COMPLETED_ENABLED,
+      false,
+    ),
+    customerRegistrationCompletedAllowRealSend: normalizeBooleanEnv(
+      env.INSURANCE_ALIGO_KAKAO_CUSTOMER_REGISTRATION_COMPLETED_ALLOW_REAL_SEND,
+      false,
+    ),
+    customerRegistrationCompletedTplCode: String(
+      env.INSURANCE_ALIGO_KAKAO_CUSTOMER_REGISTRATION_COMPLETED_TEMPLATE_CODE ?? '',
+    ).trim(),
+    /** development 실발송 — claim allowlist 와 동일 키 재사용 (별도 credential 금지) */
+    customerRegistrationCompletedDevRealSendEnabled: normalizeBooleanEnv(
+      env.INSURANCE_ALIGO_KAKAO_DEV_REAL_SEND_ENABLED ??
+        env.INSURANCE_ALIGO_KAKAO_CUSTOMER_REGISTRATION_COMPLETED_DEV_REAL_SEND_ENABLED,
+      false,
+    ),
+    customerRegistrationCompletedDevRecipientAllowlist: parsePhoneAllowlist(
+      env.INSURANCE_ALIGO_KAKAO_DEV_RECIPIENT_ALLOWLIST ??
+        env.INSURANCE_ALIGO_KAKAO_CUSTOMER_REGISTRATION_COMPLETED_DEV_RECIPIENT_ALLOWLIST,
+    ),
   }
 }
 
@@ -206,6 +232,51 @@ export function getClaimReceivedAlimtalkDiagnostics(config = loadInsuranceAlimta
     gatewayConfigured: Boolean(config.useGateway && config.gatewayUrl),
     globalDryRun: Boolean(config.dryRun),
     globalAllowRealSend: Boolean(config.allowRealSend),
+  }
+}
+
+/**
+ * public 고객등록 완료 알림톡 실발송 가능 여부.
+ * @param {ReturnType<typeof loadInsuranceAlimtalkConfig>} config
+ * @param {{ receiverDigits?: string, nodeEnv?: string }} [opts]
+ */
+export function isCustomerRegistrationCompletedRealSendAllowed(config, opts = {}) {
+  if (!config?.customerRegistrationCompletedEnabled) return false
+  if (!config?.customerRegistrationCompletedAllowRealSend) return false
+  if (!isInsuranceAlimtalkCredentialsComplete(config)) return false
+  const tpl = String(config.customerRegistrationCompletedTplCode ?? '').trim()
+  if (!tpl) return false
+  const tier = resolveAlimtalkRuntimeTier(opts)
+  if (tier === 'production') return true
+  if (!config.customerRegistrationCompletedDevRealSendEnabled) return false
+  const digits = String(opts.receiverDigits ?? '').replace(/\D/g, '')
+  if (!digits) return false
+  return Array.isArray(config.customerRegistrationCompletedDevRecipientAllowlist)
+    ? config.customerRegistrationCompletedDevRecipientAllowlist.includes(digits)
+    : false
+}
+
+/**
+ * 비밀값 없는 고객등록 완료 알림톡 diagnostics.
+ * @param {ReturnType<typeof loadInsuranceAlimtalkConfig>} [config]
+ */
+export function getCustomerRegistrationCompletedAlimtalkDiagnostics(
+  config = loadInsuranceAlimtalkConfig(),
+) {
+  const tplCode = String(config.customerRegistrationCompletedTplCode ?? '').trim()
+  return {
+    credentials: isInsuranceAlimtalkCredentialsComplete(config) ? 'present' : 'missing',
+    senderKey: config.senderKey ? 'present' : 'missing',
+    sender: config.sender ? 'present' : 'missing',
+    templateCode: tplCode || null,
+    enabled: Boolean(config.customerRegistrationCompletedEnabled),
+    realSend: Boolean(config.customerRegistrationCompletedAllowRealSend),
+    dryRun: Boolean(config.dryRun),
+    devRealSendEnabled: Boolean(config.customerRegistrationCompletedDevRealSendEnabled),
+    devAllowlistCount: Array.isArray(config.customerRegistrationCompletedDevRecipientAllowlist)
+      ? config.customerRegistrationCompletedDevRecipientAllowlist.length
+      : 0,
+    gatewayConfigured: Boolean(config.useGateway && config.gatewayUrl),
   }
 }
 
