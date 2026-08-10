@@ -27,8 +27,17 @@ describe('outbox GA scope contracts', () => {
   it('workers prevent tick overlap and rate-limit identical errors', () => {
     const index = read('server/index.js')
     assert.match(index, /claimAlimtalkTickRunning/)
+    assert.match(index, /registrationAlimtalkTickRunning/)
     assert.match(index, /lastClaimAlimtalkTickError/)
     assert.doesNotMatch(index, /processPendingPushOutbox/)
+  })
+
+  it('customer registration alimtalk worker is ga-scoped', () => {
+    const src = read('server/alimtalk/customerRegistrationCompletedAlimtalk.js')
+    assert.match(src, /WHERE ga_id = \$1/)
+    assert.match(src, /AND ga_id = \$2/)
+    assert.match(src, /listOutboxGaIdsWithDueRows/)
+    assert.match(src, /customer_registration_alimtalk_outbox/)
   })
 
   it('outbox GA helper lists tenants via systemQuery only', () => {

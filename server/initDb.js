@@ -3310,6 +3310,48 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS customer_registration_alimtalk_outbox (
+      id BIGSERIAL PRIMARY KEY,
+      event_type TEXT NOT NULL DEFAULT 'PUBLIC_CUSTOMER_REGISTRATION_COMPLETED',
+      channel TEXT NOT NULL DEFAULT 'KAKAO_ALIMTALK',
+      recipient_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      ga_id INTEGER NULL,
+      customer_id INTEGER NOT NULL,
+      template_code TEXT NOT NULL,
+      customer_name TEXT NOT NULL,
+      registered_at_label TEXT NOT NULL,
+      customer_check_url TEXT NOT NULL,
+      receiver_digits TEXT NOT NULL,
+      receiver_masked TEXT NOT NULL,
+      dedupe_key TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'PENDING',
+      attempt_count INTEGER NOT NULL DEFAULT 0,
+      next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      sent_at TIMESTAMPTZ NULL,
+      provider_code INTEGER NULL,
+      provider_message_id TEXT NULL,
+      last_error TEXT NULL,
+      permanent_failure BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_customer_registration_alimtalk_outbox_dedupe_recipient
+    ON customer_registration_alimtalk_outbox (dedupe_key, recipient_user_id)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_registration_alimtalk_outbox_pending
+    ON customer_registration_alimtalk_outbox (status, next_attempt_at)
+    WHERE permanent_failure = false
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_registration_alimtalk_outbox_ga_pending
+    ON customer_registration_alimtalk_outbox (ga_id, status, next_attempt_at)
+    WHERE permanent_failure = false
+  `)
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS admin_notices (
       id BIGSERIAL PRIMARY KEY,
       title TEXT NOT NULL,

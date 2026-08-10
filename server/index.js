@@ -164,6 +164,11 @@ import {
   getClaimReceivedAlimtalkDiagnostics,
   processPendingClaimAlimtalkOutbox,
 } from './alimtalk/claimReceivedAlimtalk.js'
+import {
+  enqueueCustomerRegistrationCompletedAlimtalk,
+  getCustomerRegistrationCompletedAlimtalkDiagnostics,
+  processPendingCustomerRegistrationAlimtalkOutbox,
+} from './alimtalk/customerRegistrationCompletedAlimtalk.js'
 import { loadInsuranceAlimtalkConfig } from './alimtalk/alimtalkConfig.js'
 import { logSmsModuleEnvironmentHint, validateSmsModuleStartupConfig } from './sms/smsModuleConfig.js'
 import { registerContractPublicOtpApi } from './apis/contractPublicOtpApi.js'
@@ -6516,6 +6521,20 @@ apiRouter.post('/customer/external-create', async (req, res) => {
         editableUntil: new Date(deadlineMs).toISOString(),
         canEdit: Date.now() < deadlineMs,
       }
+
+      void enqueueCustomerRegistrationCompletedAlimtalk(pool, {
+        agentId: refUserId,
+        gaId: refGaId,
+        customerId: Number(insertedRow.id),
+        customerName: String(insertedRow.name ?? ''),
+        registeredAt: firstSubmittedAt,
+        reqLike: { protocol: req.protocol, host: req.get?.('host') ?? req.headers?.host },
+      }).catch((err) => {
+        console.error(
+          '[customer-registration-alimtalk] enqueue failed',
+          err instanceof Error ? err.message : err,
+        )
+      })
     }
 
     res.status(201).json({
@@ -6597,6 +6616,23 @@ apiRouter.post('/customer/external-invite-registration/batch', async (req, res) 
       'Set-Cookie',
       buildInviteRegSetCookieHeader(newTok, maxAgeSec, { secure: RUNNING_IN_PRODUCTION }),
     )
+
+    const reqLike = { protocol: req.protocol, host: req.get?.('host') ?? req.headers?.host }
+    for (const row of created) {
+      void enqueueCustomerRegistrationCompletedAlimtalk(pool, {
+        agentId: refUserId,
+        gaId: refGaId,
+        customerId: row.id,
+        customerName: row.name,
+        registeredAt: firstSubmittedAt,
+        reqLike,
+      }).catch((err) => {
+        console.error(
+          '[customer-registration-alimtalk] enqueue failed',
+          err instanceof Error ? err.message : err,
+        )
+      })
+    }
 
     res.status(201).json({
       ok: true,
@@ -7834,6 +7870,13 @@ async function startServer() {
     ...claimAlimtalkDiag,
     workerRunning: true,
   })
+  const registrationAlimtalkDiag = getCustomerRegistrationCompletedAlimtalkDiagnostics(
+    loadInsuranceAlimtalkConfig(),
+  )
+  console.info('[customer-registration-alimtalk] diagnostics', {
+    ...registrationAlimtalkDiag,
+    workerRunning: true,
+  })
   const runClaimAlimtalkTick = () => {
     if (claimAlimtalkTickRunning.current) return
     claimAlimtalkTickRunning.current = true
@@ -7851,6 +7894,26 @@ async function startServer() {
   }
   runClaimAlimtalkTick()
   setInterval(runClaimAlimtalkTick, CLAIM_ALIMTALK_TICK_MS)
+
+  const registrationAlimtalkTickRunning = { current: false }
+  let lastRegistrationAlimtalkTickError = ''
+  const runRegistrationAlimtalkTick = () => {
+    if (registrationAlimtalkTickRunning.current) return
+    registrationAlimtalkTickRunning.current = true
+    void processPendingCustomerRegistrationAlimtalkOutbox(pool)
+      .catch((err) => {
+        const msg = err instanceof Error ? err.message : String(err)
+        if (msg !== lastRegistrationAlimtalkTickError) {
+          lastRegistrationAlimtalkTickError = msg
+          console.error('[customer-registration-alimtalk] tick failed', msg)
+        }
+      })
+      .finally(() => {
+        registrationAlimtalkTickRunning.current = false
+      })
+  }
+  runRegistrationAlimtalkTick()
+  setInterval(runRegistrationAlimtalkTick, CLAIM_ALIMTALK_TICK_MS)
 }
 
 startServer().catch((error) => {
