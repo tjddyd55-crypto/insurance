@@ -11,8 +11,8 @@ export const businessInfo = {
   customerServicePhone: '010-2222-1382',
   privacyOfficerName: '박성용',
   privacyOfficerPhone: '010-2222-1382',
-  /** 통신판매업 신고번호 확정 전까지 null — Footer에서 숨김 */
-  mailOrderRegistrationNumber: null as string | null,
+  /** Footer 라벨 `통신판매업 신고번호` 뒤에 붙는 값 */
+  mailOrderRegistrationNumber: '제 2026-서울광진-1256 호' as string | null,
   /** 호스팅 제공자 법인명 확정 전까지 null — Footer에서 숨김 */
   hostingProviderName: null as string | null,
   businessTypes: '정보통신업 / 도매 및 소매업 / 정보통신업',
