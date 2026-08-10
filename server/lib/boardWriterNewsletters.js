@@ -209,6 +209,8 @@ export function buildDynamicBoardPayload(
     boardLabel,
   )
   // 손해사정사: 기존 feed(/portal/adjuster-news) 계약을 위해 newsChannel=LOSS_ADJUSTER 만 사용.
+  // newsletterBoardId 는 보드 관리/삭제 영향 집계용으로 유지한다.
+  // USER 피드(sqlFeedChannelExtraGuards)는 LOSS_ADJUSTER 채널에서 이 필드를 제외 조건으로 쓰지 않는다.
   // 일반/공용 게시판: newsChannel=BOARD + dynamicBoardSlug — 원수사 INSURER 피드에 섞이지 않음.
   // insurerName 은 원수사 회사명 전용. 작성자 표시는 author* 필드만 사용.
   const payload = {
