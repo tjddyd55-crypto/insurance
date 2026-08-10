@@ -23,8 +23,8 @@ describe('businessInfo SSOT', () => {
     expect(serialized).not.toContain('540-99-01608')
   })
 
-  it('keeps optional disclosure fields null until confirmed', () => {
-    expect(businessInfo.mailOrderRegistrationNumber).toBeNull()
+  it('exposes confirmed mail-order registration number', () => {
+    expect(businessInfo.mailOrderRegistrationNumber).toBe('제 2026-서울광진-1256 호')
     expect(businessInfo.hostingProviderName).toBeNull()
   })
 
