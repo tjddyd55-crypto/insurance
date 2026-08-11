@@ -84,8 +84,8 @@ export function CustomerCarsEditor({ cars, onChange, disabled }: CustomerCarsEdi
       headerExtra={
         <FormButton
           htmlType="button"
-          className="customer-cars-editor__add-button filter-button"
           variant="secondary"
+          size="sm"
           disabled={disabled}
           onClick={addCar}
         >

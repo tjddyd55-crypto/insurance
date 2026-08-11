@@ -45,8 +45,8 @@ export function CustomerSpecialDatesEditor({
       headerExtra={
         <FormButton
           htmlType="button"
-          className="customer-special-dates-editor__add-button filter-button"
           variant="secondary"
+          size="sm"
           disabled={disabled}
           onClick={addItem}
         >

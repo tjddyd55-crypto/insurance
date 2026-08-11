@@ -469,10 +469,9 @@ export default function CustomerIndustryTemplateFields({
             }}
           />
           <FormButton
-            className="filter-button"
             htmlType="button"
-            variant="action"
-            style={{ fontSize: '0.875rem', padding: '4px 10px' }}
+            variant="secondary"
+            size="sm"
             onClick={() => pushDraftNoteFixed(String(value.noteDraft ?? ''))}
           >
             추가
