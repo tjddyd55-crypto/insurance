@@ -36,6 +36,7 @@ describe('customer registration completed alimtalk template', () => {
       registeredAtLabel: '2026-08-10 22:45',
     })
     assert.match(message, /홍길동 고객님의 정보 등록이 완료되었습니다/)
+    assert.match(message, /ONE FC 고객관리에서 등록 내용을 확인해 주세요/)
     assert.match(message, /등록일시: 2026-08-10 22:45/)
     assert.doesNotMatch(message, /#\{/)
 
@@ -44,11 +45,25 @@ describe('customer registration completed alimtalk template', () => {
     })
     assert.equal(buttons.button[0].name, '고객 확인하기')
     assert.equal(buttons.button[0].linkType, 'WL')
+    // UK_2268: http://#{고객확인링크} — scheme 제외값만 전달 (https://https:// 방지)
     assert.equal(
       buttons.button[0].linkMo,
-      'https://example.com/customers/42/consultations?customerId=42',
+      'example.com/customers/42/consultations?customerId=42',
     )
     assert.equal(buttons.button[0].linkPc, buttons.button[0].linkMo)
+    assert.doesNotMatch(buttons.button[0].linkMo, /^https?:\/\//i)
+  })
+
+  it('strips scheme even when full https CRM URL is provided', () => {
+    const buttons = buildCustomerRegistrationCompletedButtonPayload({
+      customerCheckUrl:
+        'https://insurance-production-7bd8.up.railway.app/customers/91/consultations?customerId=91',
+    })
+    assert.equal(
+      buttons.button[0].linkMo,
+      'insurance-production-7bd8.up.railway.app/customers/91/consultations?customerId=91',
+    )
+    assert.doesNotMatch(buttons.button[0].linkMo, /https?:\/\/https?/i)
   })
 
   it('falls back customer name to 신규 고객', () => {
