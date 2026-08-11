@@ -2,7 +2,7 @@
  * Additive CRM alimtalk relay for live sms-server (CommonJS).
  * Mount: require('./crmAlimtalkRoutes').mount(app, { requireGatewayAuth })
  *
- * Railway → POST /api/crm-alimtalk/send | profile-list | history-* (Bearer)
+ * Railway → POST /api/crm-alimtalk/send | profile-list | template-list | history-* (Bearer)
  * → Aligo kakaoapi from EC2 allowlisted IP.
  * Credentials are passed in the request body (same pattern as /api/crm-sms).
  *
@@ -16,6 +16,7 @@
 
 const ALIGO_ALIMTALK_SEND_URL = 'https://kakaoapi.aligo.in/akv10/alimtalk/send/'
 const ALIGO_ALIMTALK_PROFILE_LIST_URL = 'https://kakaoapi.aligo.in/akv10/profile/list/'
+const ALIGO_ALIMTALK_TEMPLATE_LIST_URL = 'https://kakaoapi.aligo.in/akv10/template/list/'
 const ALIGO_ALIMTALK_HISTORY_LIST_URL = 'https://kakaoapi.aligo.in/akv10/history/list/'
 const ALIGO_ALIMTALK_HISTORY_DETAIL_URL = 'https://kakaoapi.aligo.in/akv10/history/detail/'
 
@@ -206,6 +207,42 @@ async function profileListViaAligo(payload) {
   }
 }
 
+async function templateListViaAligo(payload) {
+  const started = Date.now()
+  const params = new URLSearchParams()
+  params.set('apikey', String(payload.apikey ?? payload.apiKey ?? ''))
+  params.set('userid', String(payload.userid ?? payload.userId ?? ''))
+  params.set('senderkey', String(payload.senderkey ?? payload.senderKey ?? ''))
+  const tplCode = String(payload.tpl_code ?? payload.tplCode ?? '').trim()
+  if (tplCode) params.set('tpl_code', tplCode)
+  const { data, httpStatus, network } = await postForm(
+    ALIGO_ALIMTALK_TEMPLATE_LIST_URL,
+    params,
+    timeoutMs(),
+  )
+  if (network || !data) {
+    return {
+      success: false,
+      providerCode: null,
+      providerMessage: 'network error',
+      list: [],
+      httpStatus: null,
+      raw: sanitizeRaw({ network_error: true }),
+      durationMs: Date.now() - started,
+    }
+  }
+  const providerCode = pickCode(data)
+  return {
+    success: providerCode === 0,
+    providerCode,
+    providerMessage: pickMessage(data),
+    list: Array.isArray(data.list) ? data.list : [],
+    httpStatus,
+    raw: sanitizeRaw(data),
+    durationMs: Date.now() - started,
+  }
+}
+
 async function historyListViaAligo(payload) {
   const started = Date.now()
   const params = new URLSearchParams()
@@ -365,6 +402,31 @@ function mount(app, opts) {
       return
     }
     const result = await profileListViaAligo(req.body)
+    res.status(result.success ? 200 : 502).json({
+      success: result.success,
+      providerCode: result.providerCode,
+      providerMessage: result.providerMessage,
+      list: result.list,
+      httpStatus: result.httpStatus,
+      raw: result.raw,
+    })
+  })
+
+  app.post('/api/crm-alimtalk/template-list', requireGatewayAuth, async (req, res) => {
+    const apikey = String(req.body?.apikey ?? req.body?.apiKey ?? '').trim()
+    const userid = String(req.body?.userid ?? req.body?.userId ?? '').trim()
+    const senderkey = String(req.body?.senderkey ?? req.body?.senderKey ?? '').trim()
+    if (!apikey || !userid || !senderkey) {
+      res.status(400).json({
+        success: false,
+        providerCode: null,
+        providerMessage: 'apikey, userid, senderkey are required',
+        list: [],
+        raw: {},
+      })
+      return
+    }
+    const result = await templateListViaAligo(req.body)
     res.status(result.success ? 200 : 502).json({
       success: result.success,
       providerCode: result.providerCode,

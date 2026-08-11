@@ -294,10 +294,12 @@ export function getClaimReceivedTemplate(env = process.env) {
 export const TEMPLATE_KEY_CUSTOMER_REGISTRATION_COMPLETED =
   'INSURANCE_CUSTOMER_REGISTRATION_COMPLETED'
 
-/** 알리고 승인 전엔 env 미설정 → enqueue skip. 승인 후 TEMPLATE_CODE env 만 채운다. */
+/** 알리고 승인 전엔 env 미설정 → enqueue skip. production 템플릿 코드: UK_2268 */
 export const CUSTOMER_REGISTRATION_COMPLETED_SUBJECT = 'ONE FC 고객등록 완료 알림'
 export const CUSTOMER_REGISTRATION_COMPLETED_TEMPLATE_NAME = 'ONE FC 고객등록 완료 알림'
 export const CUSTOMER_REGISTRATION_COMPLETED_BUTTON_NAME = '고객 확인하기'
+/** Aligo 등록 템플릿 코드(검수중→승인 후 동일 코드 유지) */
+export const CUSTOMER_REGISTRATION_COMPLETED_EXPECTED_TPL_CODE = 'UK_2268'
 
 /**
  * 승인 요청 본문 SSOT — 민감정보 금지. URL 은 본문이 아니라 버튼에만.
