@@ -75,7 +75,7 @@ import {
   parseYmdMs,
 } from '../utils/customerListFilters'
 import { buildSsnDuplicateHighlightByCustomerId } from '../utils/customerSsnDuplicateHighlight'
-import { CUSTOMERS_LIST_REFRESH_EVENT } from '../utils/customerListRefresh'
+import { CUSTOMERS_LIST_REFRESH_EVENT, dispatchCustomersListRefresh } from '../utils/customerListRefresh'
 import {
   recordToEditForm,
   normalizeBirthDateForSaveApi,
@@ -1853,6 +1853,8 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         onStatusMessage={setStatusText}
         onInternalSaveSuccess={() => {
           void loadCustomers()
+          // 고객 직접 등록 성공 → 최근등록 영역(CustomerWorkspaceHomePage)도 즉시 갱신
+          dispatchCustomersListRefresh()
           navigateToCustomerListReplace()
         }}
       />
