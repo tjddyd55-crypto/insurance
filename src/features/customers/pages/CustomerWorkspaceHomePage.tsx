@@ -7,6 +7,7 @@ import { listCustomers } from '../api/customersApi'
 import type { CustomerRecord } from '../domain/types'
 import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
 import { filterRecentRegisteredCustomers } from '../utils/customerRecentRegistration'
+import { CUSTOMERS_LIST_REFRESH_EVENT } from '../utils/customerListRefresh'
 
 type CustomerWorkspaceOutletContext = {
   selectedCustomerId: number | null
@@ -62,6 +63,16 @@ export default function CustomerWorkspaceHomePage() {
 
   useEffect(() => {
     void loadRecentCustomers()
+  }, [loadRecentCustomers])
+
+  // 직접 고객등록 성공, 외부 등록 완료 notification 등 모든 경로의 refresh 이벤트를 구독.
+  // CustomersPage의 고객 목록과 동일한 SSOT 이벤트를 사용해 새로운 별도 경로를 만들지 않는다.
+  useEffect(() => {
+    const handler = () => {
+      void loadRecentCustomers()
+    }
+    window.addEventListener(CUSTOMERS_LIST_REFRESH_EVENT, handler)
+    return () => window.removeEventListener(CUSTOMERS_LIST_REFRESH_EVENT, handler)
   }, [loadRecentCustomers])
 
   const openRecentCustomer = useCallback(
