@@ -30,3 +30,14 @@ export function forceHttpsPublicOrigin(origin) {
   if (!raw) return ''
   return forceHttpsPublicUrl(raw).replace(/\/$/, '')
 }
+
+/**
+ * Aligo 웹링크 버튼이 `http(s)://#{변수}` 형태일 때 전달값.
+ * scheme 을 한 번 더 붙이지 않도록 `host/path?query` 만 반환한다.
+ * @param {string} url
+ */
+export function toAligoEmbeddedWebLinkValue(url) {
+  const full = forceHttpsPublicUrl(String(url ?? '').trim())
+  if (!full) return ''
+  return full.replace(/^https?:\/\//i, '')
+}

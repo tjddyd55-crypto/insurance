@@ -6,7 +6,7 @@
  * (불일치 시 Aligo code 0 접수 후에도 Kakao rslt=U "메시지가 템플릿과 일치하지않음")
  */
 
-import { forceHttpsPublicUrl } from './alimtalkPublicUrl.js'
+import { forceHttpsPublicUrl, toAligoEmbeddedWebLinkValue } from './alimtalkPublicUrl.js'
 
 export const TEMPLATE_KEY_CUSTOMER_APP_LINK = 'INSURANCE_CUSTOMER_APP_LINK'
 
@@ -295,14 +295,15 @@ export const TEMPLATE_KEY_CUSTOMER_REGISTRATION_COMPLETED =
   'INSURANCE_CUSTOMER_REGISTRATION_COMPLETED'
 
 /** 알리고 승인 전엔 env 미설정 → enqueue skip. production 템플릿 코드: UK_2268 */
-export const CUSTOMER_REGISTRATION_COMPLETED_SUBJECT = 'ONE FC 고객등록 완료 알림'
-export const CUSTOMER_REGISTRATION_COMPLETED_TEMPLATE_NAME = 'ONE FC 고객등록 완료 알림'
+export const CUSTOMER_REGISTRATION_COMPLETED_SUBJECT = 'ONE FC 고객등록 완료'
+export const CUSTOMER_REGISTRATION_COMPLETED_TEMPLATE_NAME = 'ONE FC 고객등록 완료'
 export const CUSTOMER_REGISTRATION_COMPLETED_BUTTON_NAME = '고객 확인하기'
 /** Aligo 등록 템플릿 코드(검수중→승인 후 동일 코드 유지) */
 export const CUSTOMER_REGISTRATION_COMPLETED_EXPECTED_TPL_CODE = 'UK_2268'
 
 /**
- * 승인 요청 본문 SSOT — 민감정보 금지. URL 은 본문이 아니라 버튼에만.
+ * 승인 요청 본문 SSOT — Aligo UK_2268 실제 templtContent 와 일치해야 함.
+ * URL 은 본문이 아니라 버튼에만. 버튼 계약: http://#{고객확인링크}
  */
 export const CUSTOMER_REGISTRATION_COMPLETED_APPROVED_TEMPLATE = [
   '[ONE FC 고객등록 완료]',
@@ -310,7 +311,7 @@ export const CUSTOMER_REGISTRATION_COMPLETED_APPROVED_TEMPLATE = [
   '#{고객명} 고객님의 정보 등록이 완료되었습니다.',
   '',
   '고객등록 링크를 통해 접수된 고객입니다.',
-  '아래 버튼을 눌러 등록 내용을 확인해 주세요.',
+  'ONE FC 고객관리에서 등록 내용을 확인해 주세요.',
   '',
   '등록일시: #{등록일시}',
 ].join('\n')
@@ -334,7 +335,8 @@ export function buildCustomerRegistrationCompletedMessage(input) {
  * }} input
  */
 export function buildCustomerRegistrationCompletedButtonPayload(input) {
-  const url = forceHttpsPublicUrl(String(input.customerCheckUrl ?? '').trim())
+  // UK_2268 버튼 계약: http://#{고객확인링크} → scheme 제외값만 전달 (이중 scheme 금지)
+  const url = toAligoEmbeddedWebLinkValue(String(input.customerCheckUrl ?? '').trim())
   const name =
     String(input.buttonName ?? CUSTOMER_REGISTRATION_COMPLETED_BUTTON_NAME).trim() ||
     CUSTOMER_REGISTRATION_COMPLETED_BUTTON_NAME
