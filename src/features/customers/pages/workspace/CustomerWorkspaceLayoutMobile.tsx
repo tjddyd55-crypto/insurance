@@ -9,6 +9,7 @@ import type { CustomerRecord } from '../../domain/types'
 import type { CustomerWorkspaceLayoutPCProps } from './CustomerWorkspaceLayoutPC'
 import { formatKstDateTimeDisplay } from '../../../../utils/displayDateTime'
 import { filterRecentRegisteredCustomers } from '../../utils/customerRecentRegistration'
+import { CUSTOMERS_LIST_REFRESH_EVENT } from '../../utils/customerListRefresh'
 
 const RECENT_CUSTOMER_SCROLL_RETRY_LIMIT = 12
 const RECENT_CUSTOMER_SCROLL_RETRY_DELAY_MS = 40
@@ -169,6 +170,17 @@ export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLa
     void loadRecentCustomers()
   }, [isMobileDetailRoute, loadRecentCustomers])
 
+  // 모바일 최근등록 SSOT: CustomersPage 직접등록 성공·외부 등록 등 refresh event.
+  // CustomerWorkspaceHomePage(PC 우측 패널) 와 동일 이벤트를 구독한다.
+  // create(?mode=create) 중에도 이 layout 은 mount 유지되므로 listener 가 이벤트를 받는다.
+  useEffect(() => {
+    const handler = () => {
+      void loadRecentCustomers()
+    }
+    window.addEventListener(CUSTOMERS_LIST_REFRESH_EVENT, handler)
+    return () => window.removeEventListener(CUSTOMERS_LIST_REFRESH_EVENT, handler)
+  }, [loadRecentCustomers])
+
   const handleClose = () => {
     if (props.selectedCustomerId) {
       navigate(`/customers?customerId=${props.selectedCustomerId}`, { replace: true })
@@ -226,9 +238,8 @@ export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLa
         className="customer-recent-mobile-trigger"
         onClick={() => {
           setRecentOpen(true)
-          if (sortedRecentCustomers.length === 0) {
-            void loadRecentCustomers()
-          }
+          // 모달 오픈 = 최근등록 화면 active. event 미수신·stale local state 대비로 항상 최신 fetch.
+          void loadRecentCustomers()
         }}
       >
         최근 등록 {recentRegistrationCount > 0 ? `${recentRegistrationCount}` : ''}
