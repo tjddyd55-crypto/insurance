@@ -116,8 +116,12 @@ describe('customer registration completed helpers', () => {
     )
     assert.doesNotMatch(url, /https:\/\/https:\/\//)
     const buttons = buildCustomerRegistrationCompletedButtonPayload({ customerCheckUrl: url })
-    assert.equal(buttons.button[0].linkMo, url)
-    assert.equal(buttons.button[0].linkPc, url)
+    assert.equal(
+      buttons.button[0].linkMo,
+      'insurance-production-7bd8.up.railway.app/customers/91/consultations?customerId=91',
+    )
+    assert.equal(buttons.button[0].linkPc, buttons.button[0].linkMo)
+    assert.doesNotMatch(buttons.button[0].linkMo, /https?:\/\/https?/i)
   })
 
   it('real send requires enabled + template + credentials; development needs allowlist', () => {
