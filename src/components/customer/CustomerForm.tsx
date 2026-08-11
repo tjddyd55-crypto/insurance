@@ -756,15 +756,12 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
           />
 
           <FormButton
-            className="filter-button"
             htmlType="button"
-            variant="action"
-            style={{ fontSize: '0.875rem', padding: '4px 10px' }}
+            variant="secondary"
+            size="sm"
             onClick={() => pushDraftNoteFixed(form.noteDraft)}
           >
-
             추가
-
           </FormButton>
 
         </div>
@@ -978,7 +975,7 @@ export function CustomerForm({ onStatusMessage, onInternalSaveSuccess }: Custome
         />
       )}
 
-      <FormButton className="button button--primary button--full" htmlType="submit" variant="primary">
+      <FormButton htmlType="submit" variant="primary" fullWidth>
         저장
       </FormButton>
     </form>

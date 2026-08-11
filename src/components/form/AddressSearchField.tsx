@@ -154,7 +154,6 @@ export default function AddressSearchField({
           <FormButton
             htmlType="button"
             variant="secondary"
-            size="sm"
             fullWidth
             disabled={frozen}
             onClick={openDialog}

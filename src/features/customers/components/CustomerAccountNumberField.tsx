@@ -52,6 +52,7 @@ export function CustomerCopyButton({ text, disabled, label = '복사', ariaLabel
       <FormButton
         htmlType="button"
         variant="secondary"
+        size="sm"
         className="customer-account-number__copy"
         disabled={disabled || !trimmed}
         aria-label={ariaLabel}

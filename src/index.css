@@ -8137,10 +8137,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
   text-align: center;
 }
 
-.customer-edit-actions__btn.button--primary,
-.customer-edit-actions__btn.button--secondary {
-  border-radius: 12px;
-}
+/* radius 는 공통 .button(10px) SSOT 유지 — 여기서 덮지 않는다. */
 
 /* 고객 등록·수정 폼 — 섹션 래퍼 */
 .customer-form-section {
@@ -8361,11 +8358,6 @@ div.cta-button.customers-page__action-btn[role='button'] {
   margin-top: 4px;
 }
 
-.customer-cars-editor__add-button {
-  font-size: 0.875rem;
-  padding: 4px 10px;
-}
-
 .customer-cars-editor__list {
   display: flex;
   flex-direction: column;
@@ -8375,11 +8367,6 @@ div.cta-button.customers-page__action-btn[role='button'] {
 .customer-special-dates-editor {
   grid-column: 1 / -1;
   margin-top: 4px;
-}
-
-.customer-special-dates-editor__add-button {
-  font-size: 0.875rem;
-  padding: 4px 10px;
 }
 
 .customer-special-dates-editor__list {
@@ -15494,7 +15481,12 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
    아이콘 버튼은 `.customers-page--pc .customer-card__actions .icon-box button` 등으로만 제한한다.
    ========================= */
 
-.customers-page--mobile button:not(.customer-detail-action-button):not(.customer-mobile-action-btn):not(.customer-detail-toggle-btn):not(.customer-header-app-link-compact__send):not(.customer-filter-chip):not(.customers-page__action-btn):not(.storage-file-list__action-button):not(.customer-workspace-action-button):not(.customer-workspace-action-icon-button):not(.ui-button):not(.linked-customer-chip__main):not(.linked-customer-chip__remove):not(.customer-relations-result-item):not(.customer-edit-actions__btn):not(.customer-list-scroll-top-button):not(.customer-relations-strip__action-btn),
+/*
+ * 아이콘/텍스트 링크형 원시 button 만 리셋.
+ * FormButton/Button SSOT(`.button`) 는 padding·min-height 를 유지해야
+ * 고객등록 폼(주소 검색·섹션 추가·복사·저장)이 일관된 네모 버튼으로 보인다.
+ */
+.customers-page--mobile button:not(.button):not(.customer-detail-action-button):not(.customer-mobile-action-btn):not(.customer-detail-toggle-btn):not(.customer-header-app-link-compact__send):not(.customer-filter-chip):not(.customers-page__action-btn):not(.storage-file-list__action-button):not(.customer-workspace-action-button):not(.customer-workspace-action-icon-button):not(.ui-button):not(.linked-customer-chip__main):not(.linked-customer-chip__remove):not(.customer-relations-result-item):not(.customer-edit-actions__btn):not(.customer-list-scroll-top-button):not(.customer-relations-strip__action-btn),
 .customers-page--mobile a:not(.storage-file-list__action-button):not(.customer-workspace-action-button) {
   min-height: unset !important;
   height: auto !important;
