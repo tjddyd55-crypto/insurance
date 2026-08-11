@@ -264,14 +264,22 @@ export function getCustomerRegistrationCompletedAlimtalkDiagnostics(
   config = loadInsuranceAlimtalkConfig(),
 ) {
   const tplCode = String(config.customerRegistrationCompletedTplCode ?? '').trim()
+  const credentialsReady = isInsuranceAlimtalkCredentialsComplete(config)
+  const enabled = Boolean(config.customerRegistrationCompletedEnabled)
+  const allowRealSend = Boolean(config.customerRegistrationCompletedAllowRealSend)
   return {
-    credentials: isInsuranceAlimtalkCredentialsComplete(config) ? 'present' : 'missing',
+    credentials: credentialsReady ? 'present' : 'missing',
+    credentialsReady,
     senderKey: config.senderKey ? 'present' : 'missing',
+    senderKeyReady: Boolean(config.senderKey),
     sender: config.sender ? 'present' : 'missing',
     templateCode: tplCode || null,
-    enabled: Boolean(config.customerRegistrationCompletedEnabled),
-    realSend: Boolean(config.customerRegistrationCompletedAllowRealSend),
+    enabled,
+    allowRealSend,
+    realSend: allowRealSend,
     dryRun: Boolean(config.dryRun),
+    globalAllowRealSend: Boolean(config.allowRealSend),
+    globalDryRun: Boolean(config.dryRun),
     devRealSendEnabled: Boolean(config.customerRegistrationCompletedDevRealSendEnabled),
     devAllowlistCount: Array.isArray(config.customerRegistrationCompletedDevRecipientAllowlist)
       ? config.customerRegistrationCompletedDevRecipientAllowlist.length

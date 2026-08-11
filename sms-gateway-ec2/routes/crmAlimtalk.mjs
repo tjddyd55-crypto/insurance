@@ -4,6 +4,7 @@ import {
   historyListViaAligo,
   profileListViaAligo,
   sendAlimtalkViaAligo,
+  templateListViaAligo,
 } from '../lib/aligoKakaoClient.mjs'
 import { logCrmGatewayEvent } from '../lib/crmGatewayLog.mjs'
 
@@ -146,6 +147,31 @@ export function createCrmAlimtalkRouter() {
       return
     }
     const result = await profileListViaAligo(req.body)
+    res.status(result.success ? 200 : 502).json({
+      success: result.success,
+      providerCode: result.providerCode,
+      providerMessage: result.providerMessage,
+      list: result.list,
+      httpStatus: result.httpStatus,
+      raw: result.raw,
+    })
+  })
+
+  router.post('/template-list', async (req, res) => {
+    const apikey = String(req.body?.apikey ?? req.body?.apiKey ?? '').trim()
+    const userid = String(req.body?.userid ?? req.body?.userId ?? '').trim()
+    const senderkey = String(req.body?.senderkey ?? req.body?.senderKey ?? '').trim()
+    if (!apikey || !userid || !senderkey) {
+      res.status(400).json({
+        success: false,
+        providerCode: null,
+        providerMessage: 'apikey, userid, senderkey are required',
+        list: [],
+        raw: {},
+      })
+      return
+    }
+    const result = await templateListViaAligo(req.body)
     res.status(result.success ? 200 : 502).json({
       success: result.success,
       providerCode: result.providerCode,

@@ -4,13 +4,13 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  getCustomerRegistrationCompletedAlimtalkDiagnostics,
   isCustomerRegistrationCompletedRealSendAllowed,
   loadInsuranceAlimtalkConfig,
 } from './alimtalkConfig.js'
 import {
   buildCustomerRegistrationCompletedDedupeKey,
   formatRegistrationCompletedAtLabel,
+  getCustomerRegistrationCompletedAlimtalkDiagnostics,
 } from './customerRegistrationCompletedAlimtalk.js'
 import { buildCustomerCrmCheckUrl } from './customerCrmCheckUrl.js'
 import {
@@ -90,16 +90,19 @@ describe('customer registration completed helpers', () => {
     )
   })
 
-  it('builds CRM check URL without public registration token', () => {
+  it('builds CRM check URL without double https scheme', () => {
     const url = buildCustomerCrmCheckUrl({
       customerId: 91,
-      origin: 'https://insurance-dev.up.railway.app',
+      origin: 'https://insurance-production-7bd8.up.railway.app',
     })
     assert.equal(
       url,
-      'https://insurance-dev.up.railway.app/customers/91/consultations?customerId=91',
+      'https://insurance-production-7bd8.up.railway.app/customers/91/consultations?customerId=91',
     )
-    assert.doesNotMatch(url, /customer\/register|ref=|secret|token/)
+    assert.doesNotMatch(url, /https:\/\/https:\/\//)
+    const buttons = buildCustomerRegistrationCompletedButtonPayload({ customerCheckUrl: url })
+    assert.equal(buttons.button[0].linkMo, url)
+    assert.equal(buttons.button[0].linkPc, url)
   })
 
   it('real send requires enabled + template + credentials; development needs allowlist', () => {

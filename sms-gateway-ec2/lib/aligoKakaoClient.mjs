@@ -1,5 +1,6 @@
 const ALIGO_ALIMTALK_SEND_URL = 'https://kakaoapi.aligo.in/akv10/alimtalk/send/'
 const ALIGO_ALIMTALK_PROFILE_LIST_URL = 'https://kakaoapi.aligo.in/akv10/profile/list/'
+const ALIGO_ALIMTALK_TEMPLATE_LIST_URL = 'https://kakaoapi.aligo.in/akv10/template/list/'
 
 const SEND_TIMEOUT_MS = (() => {
   const n = Number(process.env.CRM_ALIMTALK_TIMEOUT_MS ?? 8000)
@@ -167,6 +168,44 @@ export async function profileListViaAligo(payload) {
   params.set('apikey', String(payload.apikey ?? payload.apiKey ?? ''))
   params.set('userid', String(payload.userid ?? payload.userId ?? ''))
   const { data, httpStatus, network } = await postForm(ALIGO_ALIMTALK_PROFILE_LIST_URL, params)
+  if (network || !data) {
+    return {
+      success: false,
+      providerCode: null,
+      providerMessage: 'network error',
+      list: [],
+      httpStatus: null,
+      raw: sanitizeRaw({ network_error: true }),
+      durationMs: Date.now() - started,
+    }
+  }
+  const providerCode = pickCode(data)
+  return {
+    success: providerCode === 0,
+    providerCode,
+    providerMessage: pickMessage(data),
+    list: Array.isArray(data?.list) ? data.list : [],
+    httpStatus,
+    raw: sanitizeRaw(data),
+    durationMs: Date.now() - started,
+  }
+}
+
+/**
+ * Aligo kakao template/list — 템플릿 검수상태(inspStatus) 조회.
+ * @param {Record<string, unknown>} payload
+ */
+export async function templateListViaAligo(payload) {
+  const started = Date.now()
+  const params = new URLSearchParams()
+  params.set('apikey', String(payload.apikey ?? payload.apiKey ?? ''))
+  params.set('userid', String(payload.userid ?? payload.userId ?? ''))
+  params.set('senderkey', String(payload.senderkey ?? payload.senderKey ?? ''))
+  const tplCode = String(payload.tpl_code ?? payload.tplCode ?? '').trim()
+  if (tplCode) {
+    params.set('tpl_code', tplCode)
+  }
+  const { data, httpStatus, network } = await postForm(ALIGO_ALIMTALK_TEMPLATE_LIST_URL, params)
   if (network || !data) {
     return {
       success: false,

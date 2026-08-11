@@ -22,8 +22,8 @@ SMS(`ALIGO_*`, `SMS_MODULE_*`)·자동문자와 **완전히 분리**합니다.
 | `INSURANCE_ALIGO_KAKAO_CLAIM_RECEIVED_TEMPLATE_CODE` | `UJ_9750` | 청구 접수 템플릿 |
 | `INSURANCE_ALIGO_KAKAO_CLAIM_RECEIVED_ALLOW_REAL_SEND` | `true` | 청구 알림톡 실발송 (전역 DRY_RUN 무시) |
 | `INSURANCE_CUSTOMER_REGISTRATION_ALIMTALK_ENABLED` | `false` | public 고객등록 완료 알림톡 on/off |
-| `INSURANCE_ALIGO_KAKAO_CUSTOMER_REGISTRATION_COMPLETED_TEMPLATE_CODE` | (빈값) | 고객등록 완료 템플릿 코드(승인 후 입력) |
-| `INSURANCE_ALIGO_KAKAO_CUSTOMER_REGISTRATION_COMPLETED_ALLOW_REAL_SEND` | `false` | 고객등록 완료 실발송 |
+| `INSURANCE_ALIGO_KAKAO_CUSTOMER_REGISTRATION_COMPLETED_TEMPLATE_CODE` | `UK_2268` | 고객등록 완료 템플릿 코드 |
+| `INSURANCE_ALIGO_KAKAO_CUSTOMER_REGISTRATION_COMPLETED_ALLOW_REAL_SEND` | `false` | 고객등록 완료 실발송 허용(검수중에도 true 가능 — 실제 발송은 Aligo `inspStatus=APR` gate) |
 | `INSURANCE_ALIGO_KAKAO_DEV_REAL_SEND_ENABLED` | `false` | development 실발송 허용 |
 | `INSURANCE_ALIGO_KAKAO_DEV_RECIPIENT_ALLOWLIST` | (빈값) | development 허용 번호(쉼표 구분) |
 
@@ -48,13 +48,14 @@ SMS(`ALIGO_*`, `SMS_MODULE_*`)·자동문자와 **완전히 분리**합니다.
 |---|---|
 | 수신자 | 고객등록 링크 소유 CRM 사용자 (`ref` → `users.id`) |
 | 템플릿명 | ONE FC 고객등록 완료 알림 |
-| 템플릿코드 | Railway `INSURANCE_ALIGO_KAKAO_CUSTOMER_REGISTRATION_COMPLETED_TEMPLATE_CODE` (승인 후) |
+| 템플릿코드 | Railway `INSURANCE_ALIGO_KAKAO_CUSTOMER_REGISTRATION_COMPLETED_TEMPLATE_CODE` = `UK_2268` |
 | 변수 | `#{고객명}`, `#{등록일시}` |
-| 버튼 | `고객 확인하기` → CRM `/customers/{id}/consultations?customerId={id}` |
+| 버튼 | `고객 확인하기` → CRM `/customers/{id}/consultations?customerId={id}` (Aligo send API `linkMo`/`linkPc` 전체 https URL) |
 | 트리거 | `POST /api/customer/external-invite-registration/batch` 및 inviteRegistration external-create **만** |
 | 비트리거 | `POST /api/customers`, Excel, admin 직접 생성 |
 | 전달 | `customer_registration_alimtalk_outbox` (고객 COMMIT 이후 enqueue) |
-| 기본 | `INSURANCE_CUSTOMER_REGISTRATION_ALIMTALK_ENABLED=false` · realSend=false |
+| 승인 gate | Aligo `template/list` `inspStatus=APR` 일 때만 provider 실발송. 검수중(REQ/REG)은 `SKIPPED_TEMPLATE_NOT_APPROVED`(terminal) — 승인 후 과거건 일괄 발송 없음 |
+| 기본 | feature/realSend env 는 production 에서 true 가능. 실발송은 APR + credentials + feature gate |
 
 ## 정부지원 CRM ↔ 보험 CRM 매핑
 

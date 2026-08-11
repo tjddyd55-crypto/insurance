@@ -10,7 +10,7 @@ import {
   quarantineOutboxRowsMissingGaId,
 } from '../lib/outboxWorkerGaScope.js'
 import {
-  getCustomerRegistrationCompletedAlimtalkDiagnostics,
+  getCustomerRegistrationCompletedAlimtalkDiagnostics as getCustomerRegistrationCompletedAlimtalkDiagnosticsBase,
   isCustomerRegistrationCompletedRealSendAllowed,
   isInsuranceAlimtalkCredentialsComplete,
   loadInsuranceAlimtalkConfig,
@@ -33,12 +33,18 @@ import {
   loadClaimAlimtalkRecipient,
 } from './claimReceivedAlimtalk.js'
 import { buildCustomerCrmCheckUrl } from './customerCrmCheckUrl.js'
+import {
+  resolveCustomerRegistrationTemplateSendGate,
+  peekCachedAligoTemplateStatus,
+  TEMPLATE_STATUS_CACHE_TTL_MS,
+} from './alimtalkTemplateStatus.js'
 
 export const CUSTOMER_REGISTRATION_COMPLETED_EVENT = 'PUBLIC_CUSTOMER_REGISTRATION_COMPLETED'
 export const CUSTOMER_REGISTRATION_ALIMTALK_CHANNEL = 'KAKAO_ALIMTALK'
 export const OUTBOX_TABLE = 'customer_registration_alimtalk_outbox'
 
 const MAX_ATTEMPTS = 6
+const TEMPLATE_STATUS_RETRY_SEC = Math.max(Math.floor(TEMPLATE_STATUS_CACHE_TTL_MS / 1000), 60)
 
 /** @type {typeof formatClaimSubmittedAtLabel} */
 export const formatRegistrationCompletedAtLabel = formatClaimSubmittedAtLabel
@@ -274,6 +280,44 @@ export async function processPendingCustomerRegistrationAlimtalkOutbox(pool, opt
 }
 
 /**
+ * @param {ReturnType<typeof loadInsuranceAlimtalkConfig>} [config]
+ */
+export function getCustomerRegistrationCompletedAlimtalkDiagnostics(
+  config = loadInsuranceAlimtalkConfig(),
+) {
+  const base = getCustomerRegistrationCompletedAlimtalkDiagnosticsBase(config)
+  const tplCode = String(base.templateCode ?? '').trim()
+  const cached = tplCode ? peekCachedAligoTemplateStatus(tplCode) : null
+  const templateStatus = cached?.inspStatus ?? null
+  let reason = null
+  if (!base.enabled) reason = 'FEATURE_DISABLED'
+  else if (!base.allowRealSend) reason = 'REAL_SEND_DISABLED'
+  else if (!base.credentialsReady) reason = 'CREDENTIALS_MISSING'
+  else if (!tplCode) reason = 'TEMPLATE_NOT_CONFIGURED'
+  else if (!cached) reason = 'TEMPLATE_STATUS_UNKNOWN'
+  else if (!cached.ok) reason = cached.reason || 'TEMPLATE_STATUS_UNAVAILABLE'
+  else if (cached.inspStatus === 'APR') reason = null
+  else if (cached.inspStatus === 'REJ') reason = 'TEMPLATE_REJECTED'
+  else reason = 'SKIPPED_TEMPLATE_NOT_APPROVED'
+
+  const readyToSend =
+    Boolean(base.enabled) &&
+    Boolean(base.allowRealSend) &&
+    Boolean(base.credentialsReady) &&
+    Boolean(tplCode) &&
+    cached?.ok === true &&
+    cached?.inspStatus === 'APR'
+
+  return {
+    ...base,
+    templateStatus,
+    readyToSend,
+    reason,
+    statusCacheTtlMs: TEMPLATE_STATUS_CACHE_TTL_MS,
+  }
+}
+
+/**
  * @param {import('pg').Pool} pool
  * @param {any} row
  * @param {{ config: ReturnType<typeof loadInsuranceAlimtalkConfig>, sendFn: typeof sendAligoAlimtalk }} deps
@@ -297,6 +341,57 @@ async function deliverCustomerRegistrationAlimtalkRow(pool, row, deps) {
       lastError: 'TEMPLATE_NOT_CONFIGURED',
       providerCode: null,
     })
+    return
+  }
+
+  const templateGate = await resolveCustomerRegistrationTemplateSendGate(config, tplCode)
+  if (!templateGate.allowSend) {
+    const reason = templateGate.reason || 'SKIPPED_TEMPLATE_NOT_APPROVED'
+    if (templateGate.terminalSkip) {
+      await markPermanentFailed(pool, row, {
+        lastError: reason,
+        providerCode: null,
+      })
+      await insertAlimtalkSendLog(pool, {
+        gaId: row.ga_id,
+        userId: row.recipient_user_id,
+        customerId: row.customer_id,
+        templateKey: TEMPLATE_KEY_CUSTOMER_REGISTRATION_COMPLETED,
+        tplCode,
+        receiverMasked,
+        status: 'blocked',
+        provider: config.provider,
+        providerMessageId: null,
+        providerCode: null,
+        providerMessage: reason,
+        dryRun: true,
+        requestContext: {
+          eventType: CUSTOMER_REGISTRATION_COMPLETED_EVENT,
+          customerId: row.customer_id,
+          dedupeKey: row.dedupe_key,
+          reason,
+          templateStatus: templateGate.templateStatus,
+        },
+      }).catch(() => {})
+      return
+    }
+    // TEMPLATE_STATUS_UNAVAILABLE 등 — 재시도 (승인 후 과거 일괄 발송과 무관)
+    const attempt = Number(row.attempt_count ?? 0) + 1
+    const delaySec = Math.max(Math.floor(TEMPLATE_STATUS_RETRY_SEC), 60)
+    await safeQuery(
+      pool,
+      `
+      UPDATE ${OUTBOX_TABLE}
+      SET status = 'FAILED',
+          attempt_count = $3,
+          next_attempt_at = NOW() + ($4 || ' seconds')::interval,
+          last_error = $5,
+          permanent_failure = false,
+          updated_at = NOW()
+      WHERE id = $1 AND ga_id = $2
+      `,
+      [row.id, row.ga_id, attempt, String(delaySec), reason.slice(0, 1000)],
+    )
     return
   }
 
@@ -466,5 +561,3 @@ async function markPermanentFailed(pool, row, info) {
     [row.id, row.ga_id, String(info.lastError).slice(0, 1000), info.providerCode],
   )
 }
-
-export { getCustomerRegistrationCompletedAlimtalkDiagnostics }
