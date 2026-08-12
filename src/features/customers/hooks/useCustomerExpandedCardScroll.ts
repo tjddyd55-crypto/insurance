@@ -1,6 +1,17 @@
 import { useLayoutEffect, useRef } from 'react'
-import { resolveCustomerScrollContainer } from '../utils/customerWorkspaceNavigation'
+import {
+  resolveCustomerListScrollContainer,
+  scrollCustomerCardIntoListContainer,
+} from '../utils/resolveCustomerListScrollContainer'
 
+/**
+ * 펼침/연계고객 이동 시 해당 카드가 리스트 scroll owner 안에 보이도록 이동.
+ *
+ * - PC: container-relative scroll (scrollIntoView 금지)
+ * - Mobile: 기존 scrollIntoView + settle timers (WebView 호환)
+ * - layout settle 전까지 여러 번 보정 허용 (1회 제한 race 제거)
+ * - scrollRequestKey 로 마지막 요청 wins
+ */
 export function useCustomerExpandedCardScroll(params: {
   expandedId: number | null
   isMobile: boolean
@@ -8,17 +19,19 @@ export function useCustomerExpandedCardScroll(params: {
 }): void {
   const { expandedId, isMobile, scrollRequestKey } = params
   const observerRef = useRef<ResizeObserver | null>(null)
-  const scrollCountRef = useRef(0)
+  const pendingTargetIdRef = useRef<number | null>(null)
 
   useLayoutEffect(() => {
     if (expandedId == null) {
+      pendingTargetIdRef.current = null
       if (observerRef.current) {
         observerRef.current.disconnect()
         observerRef.current = null
       }
       return
     }
-    scrollCountRef.current = 0
+
+    pendingTargetIdRef.current = expandedId
     if (observerRef.current) {
       observerRef.current.disconnect()
       observerRef.current = null
@@ -27,17 +40,22 @@ export function useCustomerExpandedCardScroll(params: {
     let disposed = false
     let retry = 0
     let rafId = 0
+    let scrollPasses = 0
     const pendingTimers: number[] = []
-    // 모바일(WebView)에서는 카드/리스트 렌더 반영이 늦어 attach 재시도 여유를 더 준다.
-    const maxRetry = isMobile ? 60 : 8
+    const maxRetry = isMobile ? 60 : 24
+    const maxScrollPasses = isMobile ? 1 : 10
+    const requestId = scrollRequestKey
+
+    const isCurrentRequest = () =>
+      !disposed && pendingTargetIdRef.current === expandedId && requestId === scrollRequestKey
 
     const tryAttach = () => {
-      if (disposed) {
+      if (!isCurrentRequest()) {
         return
       }
 
       const target = document.querySelector<HTMLElement>(`[data-customer-id="${expandedId}"]`)
-      if (!target) {
+      if (!target || !target.isConnected) {
         if (retry < maxRetry) {
           retry += 1
           rafId = requestAnimationFrame(tryAttach)
@@ -45,18 +63,11 @@ export function useCustomerExpandedCardScroll(params: {
         return
       }
 
-      // 모바일 전용 스크롤 전략.
-      // 이전에 펼쳐져 있던 카드가 닫힘 애니메이션(≈320ms) 동안 높이가 줄면서
-      // 타깃 카드의 실제 Y 좌표가 계속 변한다. ResizeObserver는 "대상 자신"의 크기 변화만 잡기 때문에
-      // 주변 카드가 축소되는 케이스를 놓친다. 그래서 컨테이너 기준 Y 계산 대신
-      // 네이티브 scrollIntoView(현재 위치 기준)를 애니메이션 구간 전·중·후에 여러 번 호출해
-      // 최종 레이아웃에서 항상 최상단에 고정되도록 한다.
       if (isMobile) {
         const snap = () => {
-          if (disposed || !target.isConnected) {
+          if (!isCurrentRequest() || !target.isConnected) {
             return
           }
-          // options-object 미지원 구형 WebView 호환을 위해 boolean 인자 사용(= block:'start').
           target.scrollIntoView(true)
         }
         rafId = requestAnimationFrame(snap)
@@ -66,39 +77,29 @@ export function useCustomerExpandedCardScroll(params: {
         return
       }
 
-      const container = resolveCustomerScrollContainer(target)
-
       const runScroll = () => {
-        if (disposed || !target.isConnected) {
+        if (!isCurrentRequest() || !target.isConnected) {
           return
         }
-        if (scrollCountRef.current >= 1) {
+        if (scrollPasses >= maxScrollPasses) {
           return
         }
-        scrollCountRef.current += 1
+        scrollPasses += 1
 
-        const containerRect = container.getBoundingClientRect()
-        const targetRect = target.getBoundingClientRect()
+        const container = resolveCustomerListScrollContainer(target)
+        if (!container) {
+          return
+        }
 
-        const y = targetRect.top - containerRect.top + container.scrollTop
-        const stickyElements = container.querySelectorAll<HTMLElement>(
-          '.sticky, .filter-bar, .search-bar',
-        )
-        let stickyHeight = 0
-        stickyElements.forEach((el) => {
-          const rect = el.getBoundingClientRect()
-          // 컨테이너 상단 영역과 실제로 겹치는 요소만 높이에 합산
-          const isOverlapping = rect.bottom >= containerRect.top && rect.top <= containerRect.top
-
-          if (isOverlapping) {
-            stickyHeight += rect.height
-          }
-        })
-
-        container.scrollTo({
-          top: Math.max(0, y - stickyHeight),
+        scrollCustomerCardIntoListContainer({
+          container,
+          card: target,
           behavior: 'auto',
         })
+
+        if (scrollPasses >= maxScrollPasses) {
+          pendingTargetIdRef.current = null
+        }
       }
 
       const observer = new ResizeObserver(() => {
@@ -107,7 +108,9 @@ export function useCustomerExpandedCardScroll(params: {
       observer.observe(target)
       observerRef.current = observer
 
-      requestAnimationFrame(runScroll)
+      rafId = requestAnimationFrame(() => {
+        requestAnimationFrame(runScroll)
+      })
     }
 
     rafId = requestAnimationFrame(tryAttach)

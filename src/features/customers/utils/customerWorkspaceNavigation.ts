@@ -1,3 +1,5 @@
+import { resolveCustomerListScrollContainer } from './resolveCustomerListScrollContainer'
+
 export const WORKSPACE_SIDE_DETAIL_TABS = [
   'map',
   'files',
@@ -98,10 +100,14 @@ export function isScrollableElement(el: Element | null): el is HTMLElement {
   return canScrollY && el.scrollHeight > el.clientHeight + 1
 }
 
+/**
+ * 고객 카드 스크롤용 container — 리스트 FAB 와 동일 SSOT.
+ * @see resolveCustomerListScrollContainer
+ */
 export function resolveCustomerScrollContainer(target: HTMLElement): HTMLElement {
-  const listContainer = document.querySelector('.customers-page__customer-list')
-  if (isScrollableElement(listContainer)) {
-    return listContainer
+  const resolved = resolveCustomerListScrollContainer(target)
+  if (resolved) {
+    return resolved
   }
 
   let current: Element | null = target
