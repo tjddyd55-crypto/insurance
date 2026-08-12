@@ -204,8 +204,6 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   >(null)
   const [activeMobileCustomerId, setActiveMobileCustomerId] = useState<number | null>(null)
   const [scrollRequestKey, setScrollRequestKey] = useState(0)
-  const observerRef = useRef<ResizeObserver | null>(null)
-  const scrollCountRef = useRef(0)
   const expandedIdRef = useRef<number | null>(null)
   const pendingMapExpandIdRef = useRef<number | null>(null)
   const mapEntryExpandPendingRef = useRef<number | null>(null)

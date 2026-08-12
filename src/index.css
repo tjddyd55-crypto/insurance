@@ -12069,6 +12069,18 @@ body:has(.legal-page-shell) {
   background: var(--bg-main);
 }
 
+/* PC/Electron: viewport 폭과 무관하게 좌측 리스트 scroll owner 유지 */
+.pc-root .customer-workspace-layout {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  min-height: 0;
+}
+
+.pc-root .customer-workspace-layout__left {
+  overflow: auto;
+}
+
 .customer-workspace-layout__right {
   flex: 1 1 auto;
   min-width: 0;
@@ -12325,12 +12337,17 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 }
 
 @media (max-width: 860px) {
-  .customer-workspace-layout {
+  /*
+   * 모바일 셸에서만 좌측 패널 overflow 해제.
+   * PC/Electron(.pc-root) 은 Snap·반폭에서도 left 를 scroll owner 로 유지한다
+   * (viewport width 만으로 PC 리스트 스크롤 축을 바꾸지 않음 — AGENTS §8-2/8).
+   */
+  .mobile-root .customer-workspace-layout {
     display: block;
     height: auto;
   }
 
-  .customer-workspace-layout__left {
+  .mobile-root .customer-workspace-layout__left {
     width: 100%;
     min-width: 0;
     max-width: none;
