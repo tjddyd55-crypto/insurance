@@ -4,26 +4,13 @@ import {
   ensureBillingProviderCustomerKey,
   getActiveBillingKeyForUser,
 } from './billingPaymentCredential.js'
-import { isStoreReviewBillingSubject } from '../lib/storeReviewIdentity.js'
 
 /**
  * @param {import('pg').Pool | import('pg').PoolClient} executor
  * @param {string} userId
- * @param {{ gaCode?: string | null; tenantCode?: string | null; username?: string | null } | null} [userContext]
+ * @param {{ gaCode?: string | null; tenantCode?: string | null; username?: string | null } | null} [_userContext]
  */
-export async function buildBillingCheckoutConfig(executor, userId, userContext = null) {
-  if (userContext && isStoreReviewBillingSubject(userContext)) {
-    return {
-      provider: 'mock',
-      mode: 'virtual',
-      clientKey: null,
-      enabled: false,
-      customerKey: null,
-      hasBillingKey: false,
-      allowDevTestCharge: false,
-    }
-  }
-
+export async function buildBillingCheckoutConfig(executor, userId, _userContext = null) {
   const provider = getInsuranceBillingProvider()
   const customerKey = await ensureBillingProviderCustomerKey(executor, userId)
   const credential = await getActiveBillingKeyForUser(executor, userId)

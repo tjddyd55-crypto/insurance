@@ -42,7 +42,7 @@ describe('storeReviewBillingAccess wiring', () => {
     assert.match(menu, /구독 및 결제/)
 
     const checkout = read('src/features/insurance-billing/pages/BillingCheckoutPage.tsx')
-    assert.match(checkout, /canReviewTenantStartCheckoutPayment/)
-    assert.match(checkout, /reviewCheckoutOpen/)
+    assert.doesNotMatch(checkout, /reviewCheckoutOpen/)
+    assert.doesNotMatch(checkout, /canReviewTenantStartCheckoutPayment/)
   })
 })

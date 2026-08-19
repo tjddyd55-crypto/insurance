@@ -19,9 +19,6 @@ import {
   type BillingCheckoutMode,
 } from '../billingCheckoutViewState'
 import {
-  canReviewTenantStartCheckoutPayment,
-} from '../../billing/storeReviewBillingAccess'
-import {
   isApplyPromotionTrialingSuccess,
   resolveApplyPromotionTrialEndsAt,
 } from '../billingApplyPromotion'
@@ -150,7 +147,6 @@ export default function BillingCheckoutPage() {
   )
 
   const promoAllowed = canApplyPromotionCodeOnCheckout(checkoutMode)
-  const reviewCheckoutOpen = canReviewTenantStartCheckoutPayment(user)
 
   const displayAmount = useMemo(() => {
     if (promoValidated) return 0
@@ -162,7 +158,6 @@ export default function BillingCheckoutPage() {
   // customerKey는 Toss auth 시 필요하지만, 버튼 노출 여부는 provider/enabled/clientKey로만 판단.
   // customerKey가 없어도 버튼은 노출하고, 클릭 시 fetch 혹은 에러를 처리한다.
   const canUseToss =
-    !reviewCheckoutOpen &&
     checkoutConfig?.provider === 'toss' &&
     Boolean(checkoutConfig.enabled) &&
     Boolean(checkoutConfig.clientKey)
@@ -171,7 +166,7 @@ export default function BillingCheckoutPage() {
   const isActiveEntitled = checkoutMode === 'legacy_entitled' || checkoutMode === 'active_paid'
 
   // 결제수단 등록/변경 버튼을 별도로 노출할지 여부 (Toss 사용 가능 + 기존 이용자)
-  const showPaymentMethodBtn = isActiveEntitled && canUseToss && !reviewCheckoutOpen
+  const showPaymentMethodBtn = isActiveEntitled && canUseToss
   const paymentMethodBtnLabel = hasBillingKey ? '결제수단 변경' : '결제수단 등록'
 
   // TEST QA 전용 단건결제 — production runtime(allowDevTestCharge=false)에서는 virtual이어도 숨김
@@ -179,13 +174,12 @@ export default function BillingCheckoutPage() {
 
   // primary CTA: 기존 이용자는 Toss 버튼을 별도 표시하므로 primary는 "내 결제 상태 보기"로만 처리
   const ctaLabel = useMemo(() => {
-    if (reviewCheckoutOpen && isActiveEntitled) return '결제하기'
     if (isActiveEntitled) return '내 결제 상태 보기'
     if (checkoutMode === 'trialing') return hasBillingKey ? '결제하기' : '결제수단 등록'
     if (promoValidated?.freeMonths) return `${promoValidated.freeMonths}개월 무료로 시작하기`
     if (displayAmount === 0) return '무료로 시작하기'
     return '결제하기'
-  }, [checkoutMode, promoValidated, displayAmount, reviewCheckoutOpen, isActiveEntitled, hasBillingKey])
+  }, [checkoutMode, promoValidated, displayAmount, isActiveEntitled, hasBillingKey])
 
   const handleValidatePromo = async () => {
     if (!token?.trim() || !promoCode.trim() || !promoAllowed) return
@@ -282,7 +276,7 @@ export default function BillingCheckoutPage() {
     if (!token?.trim()) return
 
     // 기존 이용자/유료 이용자: primary CTA는 manage로 이동 (결제수단은 별도 버튼)
-    if (!reviewCheckoutOpen && isActiveEntitled) {
+    if (isActiveEntitled) {
       navigate('/billing/manage')
       return
     }
@@ -309,7 +303,7 @@ export default function BillingCheckoutPage() {
       }
 
       // trialing: 결제수단이 없으면 register 후 charge, 있으면 바로 charge
-      const registerOnly = checkoutMode === 'trialing' && !reviewCheckoutOpen && !hasBillingKey
+      const registerOnly = checkoutMode === 'trialing' && !hasBillingKey
       const planCode = summary?.plan?.code ?? 'insurance_basic'
 
       if (canUseToss && !hasBillingKey) {
@@ -358,8 +352,7 @@ export default function BillingCheckoutPage() {
   const showPaymentSummary =
     checkoutMode === 'pending_payment' ||
     checkoutMode === 'payment_required' ||
-    checkoutMode === 'trialing' ||
-    reviewCheckoutOpen
+    checkoutMode === 'trialing'
 
   return (
     <main className="insurance-billing-page">

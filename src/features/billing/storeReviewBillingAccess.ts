@@ -75,9 +75,9 @@ export function isBillingUiHiddenForUser(
   return !isBillingUiVisibleForUser(user)
 }
 
-/** checkout 에서 review 는 장기 구독이어도 결제 요청 CTA 유지 (entitlement 만료 금지) */
+/** checkout 에서 review 전용 결제 CTA를 열지 않는다. billing 예외는 제거됨. */
 export function canReviewTenantStartCheckoutPayment(
-  user: StoreReviewBillingSubjectInput | null | undefined,
+  _user: StoreReviewBillingSubjectInput | null | undefined,
 ): boolean {
-  return isBillingReviewAccessEnabled() && isStoreReviewBillingSubject(user)
+  return false
 }

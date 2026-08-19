@@ -4,7 +4,6 @@
  */
 
 import { systemQuery } from '../utils/dbSafeQuery.js'
-import { isStoreReviewBillingSubject } from '../lib/storeReviewIdentity.js'
 import { resolvePaymentSettingsInternal } from '../billing/paymentSettingsResolve.js'
 import { getActiveBillingKeyForUser, assertBillingCredentialModeMatch } from './billingPaymentCredential.js'
 import { recordBillingEvent } from './subscriptionLifecycle.js'
@@ -232,7 +231,6 @@ export async function renewInsuranceSubscription(client, params) {
     cancelAt: sub.cancelAt,
     canceledAt: sub.canceledAt,
     hasBillingCredential,
-    isReviewAccount: isStoreReviewBillingSubject({ gaCode: sub.gaCode, username: sub.username }),
     workerProvider: getInsuranceBillingProvider(),
     now,
     maxRetry: getInsuranceBillingRenewalMaxRetry(),

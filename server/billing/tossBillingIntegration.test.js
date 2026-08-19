@@ -224,24 +224,24 @@ test('assertBillingCustomerKeyMatch succeeds on match', async () => {
 
 // ─── PLAY_REVIEW provider isolation ───────────────────────────────────────────
 
-test('getInsurancePaymentProvider returns mock for PLAY_REVIEW', async () => {
+test('getInsurancePaymentProvider uses env provider even for PLAY_REVIEW', async () => {
   const { getInsurancePaymentProvider } = await import('../insurance-billing/providers/index.js')
   const prev = process.env.INSURANCE_BILLING_PROVIDER
   process.env.INSURANCE_BILLING_PROVIDER = 'toss'
   try {
-    const provider = getInsurancePaymentProvider({
+    const regular = getInsurancePaymentProvider({ gaCode: 'YJASSET', username: 'agent01' })
+    const google = getInsurancePaymentProvider({
       gaCode: 'PLAY_REVIEW',
-      tenantCode: null,
-      username: null,
+      tenantCode: 'play_review',
+      username: 'google_review',
     })
-    await assert.rejects(
-      () => provider.completePayment({}, {}),
-      (e) => String(e?.message).includes('subscription_not_found') || String(e?.message).includes('plan_not_found'),
-    )
-  } catch (e) {
-    if (String(e?.message).startsWith('toss_')) {
-      assert.fail('review tenant should not get toss provider')
-    }
+    const apple = getInsurancePaymentProvider({
+      gaCode: 'PLAY_REVIEW',
+      tenantCode: 'play_review',
+      username: 'apple_review',
+    })
+    assert.equal(google, regular)
+    assert.equal(apple, regular)
   } finally {
     if (prev == null) delete process.env.INSURANCE_BILLING_PROVIDER
     else process.env.INSURANCE_BILLING_PROVIDER = prev

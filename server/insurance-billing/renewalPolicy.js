@@ -109,9 +109,6 @@ export function evaluateRenewalEligibility(input) {
   if (input?.workerProvider && input.workerProvider !== 'toss') {
     return { ok: false, reason: 'provider_not_toss' }
   }
-  if (input?.isReviewAccount) {
-    return { ok: false, reason: 'review_account' }
-  }
   if (input?.canceledAt) {
     return { ok: false, reason: 'canceled' }
   }

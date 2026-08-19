@@ -1,6 +1,5 @@
 import { getInsuranceBillingProvider } from '../config.js'
 import { completeMockInsurancePayment, requestInsurancePayment } from '../subscriptionLifecycle.js'
-import { isStoreReviewBillingSubject } from '../../lib/storeReviewIdentity.js'
 import { tossProvider } from './tossProvider.js'
 
 /**
@@ -23,9 +22,6 @@ const mockProvider = {
  * @param {{ gaCode?: string | null; tenantCode?: string | null; username?: string | null } | null | undefined} user
  * @returns {InsurancePaymentProvider}
  */
-export function getInsurancePaymentProvider(user = null) {
-  if (user && isStoreReviewBillingSubject(user)) {
-    return mockProvider
-  }
+export function getInsurancePaymentProvider(_user = null) {
   return getInsuranceBillingProvider() === 'toss' ? tossProvider : mockProvider
 }
