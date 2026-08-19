@@ -5205,6 +5205,13 @@ async function ensureInsuranceBillingPhase1Schema(executor) {
     ALTER TABLE billing_payments
     ADD COLUMN IF NOT EXISTS provider_error_code TEXT
   `)
+  // 동일 user에 pending 상태 결제가 동시에 2건 이상 생성되는 TOCTOU race 방지.
+  // INSERT 레벨에서 DB가 중복을 강제 차단한다.
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_billing_payments_one_pending_per_user
+    ON billing_payments (user_id)
+    WHERE status = 'pending'
+  `)
 }
 
 /** GA 초대 고객 등록(/customer/register) — 제출 세션(httpOnly cookie) 및 최초 제출 시각(3시간 수정 창구) */
