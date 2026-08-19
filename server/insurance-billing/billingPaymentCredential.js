@@ -51,7 +51,7 @@ export async function ensureBillingProviderCustomerKey(executor, userId) {
 
 /**
  * @param {import('pg').PoolClient} client
- * @param {{ userId: string; customerKey: string; billingKey: string; cardCompany?: string | null; cardNumberMasked?: string | null; cardType?: string | null }} params
+ * @param {{ userId: string; customerKey: string; billingKey: string; issuedMode?: string | null; cardCompany?: string | null; cardNumberMasked?: string | null; cardType?: string | null }} params
  */
 export async function upsertBillingPaymentCredential(client, params) {
   const userId = String(params.userId ?? '').trim()
@@ -62,6 +62,7 @@ export async function upsertBillingPaymentCredential(client, params) {
   }
 
   const billingKeyCiphertext = encryptPaymentSecret(billingKey)
+  const issuedMode = normalizeBillingIssuedMode(params.issuedMode)
   const cardCompany = params.cardCompany ? String(params.cardCompany).trim() : null
   const cardNumberMasked = params.cardNumberMasked ? String(params.cardNumberMasked).trim() : null
   const cardType = params.cardType ? String(params.cardType).trim() : null
@@ -71,9 +72,10 @@ export async function upsertBillingPaymentCredential(client, params) {
     `
     INSERT INTO billing_payment_credentials (
       user_id, provider, provider_customer_key, billing_key_ciphertext,
-      card_company, card_number_masked, card_type, status, registered_at, created_at, updated_at
+      card_company, card_number_masked, card_type, issued_mode,
+      status, registered_at, created_at, updated_at
     )
-    VALUES ($1, 'toss', $2, $3, $4, $5, $6, 'active', NOW(), NOW(), NOW())
+    VALUES ($1, 'toss', $2, $3, $4, $5, $6, $7, 'active', NOW(), NOW(), NOW())
     ON CONFLICT (user_id) DO UPDATE SET
       provider = 'toss',
       provider_customer_key = EXCLUDED.provider_customer_key,
@@ -81,11 +83,12 @@ export async function upsertBillingPaymentCredential(client, params) {
       card_company = EXCLUDED.card_company,
       card_number_masked = EXCLUDED.card_number_masked,
       card_type = EXCLUDED.card_type,
+      issued_mode = EXCLUDED.issued_mode,
       status = 'active',
       registered_at = NOW(),
       updated_at = NOW()
     `,
-    [userId, customerKey, billingKeyCiphertext, cardCompany, cardNumberMasked, cardType],
+    [userId, customerKey, billingKeyCiphertext, cardCompany, cardNumberMasked, cardType, issuedMode],
   )
 }
 
@@ -104,6 +107,22 @@ export async function getActiveBillingKeyForUser(executor, userId) {
     cardCompany: row.card_company ? String(row.card_company) : null,
     cardNumberMasked: row.card_number_masked ? String(row.card_number_masked) : null,
     cardType: row.card_type ? String(row.card_type) : null,
+    issuedMode: normalizeBillingIssuedMode(row.issued_mode),
+  }
+}
+
+export function normalizeBillingIssuedMode(value) {
+  return String(value ?? '').trim().toLowerCase() === 'live' ? 'live' : 'virtual'
+}
+
+/**
+ * TEST(virtual) billingKey 를 LIVE charge 에 쓰지 못하게 한다.
+ * @param {string | null | undefined} issuedMode
+ * @param {string | null | undefined} currentMode
+ */
+export function assertBillingCredentialModeMatch(issuedMode, currentMode) {
+  if (normalizeBillingIssuedMode(issuedMode) !== normalizeBillingIssuedMode(currentMode)) {
+    throw new Error('billing_credential_environment_mismatch')
   }
 }
 

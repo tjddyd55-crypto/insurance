@@ -131,6 +131,7 @@ test('register-only + billingKey 없음 → needsBillingAuth=true (Toss auth 필
 
 function canRunTestCharge(cfg, hasBillingKey) {
   return (
+    Boolean(cfg?.allowDevTestCharge) &&
     cfg?.mode === 'virtual' &&
     cfg?.provider === 'toss' &&
     Boolean(cfg?.enabled) &&
@@ -138,24 +139,33 @@ function canRunTestCharge(cfg, hasBillingKey) {
   )
 }
 
-test('canRunTestCharge — toss + virtual + enabled + billingKey → true', () => {
-  assert.equal(canRunTestCharge({ mode: 'virtual', provider: 'toss', enabled: true }, true), true)
+const DEV_QA_CFG = { mode: 'virtual', provider: 'toss', enabled: true, allowDevTestCharge: true }
+
+test('canRunTestCharge — toss + virtual + enabled + billingKey + allowDevTestCharge → true', () => {
+  assert.equal(canRunTestCharge(DEV_QA_CFG, true), true)
+})
+
+test('canRunTestCharge — production allowDevTestCharge=false → false (virtual이어도 숨김)', () => {
+  assert.equal(
+    canRunTestCharge({ mode: 'virtual', provider: 'toss', enabled: true, allowDevTestCharge: false }, true),
+    false,
+  )
 })
 
 test('canRunTestCharge — mode=live → false (production 차단)', () => {
-  assert.equal(canRunTestCharge({ mode: 'live', provider: 'toss', enabled: true }, true), false)
+  assert.equal(canRunTestCharge({ ...DEV_QA_CFG, mode: 'live' }, true), false)
 })
 
 test('canRunTestCharge — provider=mock → false', () => {
-  assert.equal(canRunTestCharge({ mode: 'virtual', provider: 'mock', enabled: true }, true), false)
+  assert.equal(canRunTestCharge({ ...DEV_QA_CFG, provider: 'mock' }, true), false)
 })
 
 test('canRunTestCharge — enabled=false → false', () => {
-  assert.equal(canRunTestCharge({ mode: 'virtual', provider: 'toss', enabled: false }, true), false)
+  assert.equal(canRunTestCharge({ ...DEV_QA_CFG, enabled: false }, true), false)
 })
 
 test('canRunTestCharge — hasBillingKey=false → false (카드 없으면 charge 버튼 없음)', () => {
-  assert.equal(canRunTestCharge({ mode: 'virtual', provider: 'toss', enabled: true }, false), false)
+  assert.equal(canRunTestCharge(DEV_QA_CFG, false), false)
 })
 
 test('canRunTestCharge — cfg=null → false', () => {

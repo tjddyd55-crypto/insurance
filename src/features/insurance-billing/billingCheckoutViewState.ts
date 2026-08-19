@@ -30,3 +30,27 @@ export function resolveBillingCheckoutMode(status: string | null | undefined): B
 export function canApplyPromotionCodeOnCheckout(mode: BillingCheckoutMode): boolean {
   return mode === 'pending_payment' || mode === 'payment_required'
 }
+
+export type BillingTestChargeConfig = {
+  allowDevTestCharge?: boolean
+  mode?: string | null
+  provider?: string | null
+  enabled?: boolean
+} | null | undefined
+
+/**
+ * development + Toss TEST(virtual) 전용 QA 버튼.
+ * production runtime 은 allowDevTestCharge=false 이므로 mode=virtual 이어도 노출하지 않는다.
+ */
+export function canRunTestCharge(
+  cfg: BillingTestChargeConfig,
+  hasBillingKey: boolean,
+): boolean {
+  return (
+    Boolean(cfg?.allowDevTestCharge) &&
+    cfg?.mode === 'virtual' &&
+    cfg?.provider === 'toss' &&
+    Boolean(cfg?.enabled) &&
+    hasBillingKey
+  )
+}
