@@ -11,9 +11,23 @@ import {
   INSURANCE_BILLING_ENTITLED_STATUSES,
   isInsuranceBillingEntitledStatus as isEntitledStatus,
 } from './subscriptionStatusPolicy.js'
-import { isProductionRuntime as isInsuranceBillingProductionRuntime } from '../lib/crmUserBulkSmsConfig.js'
+import { isProductionRuntime } from '../lib/crmUserBulkSmsConfig.js'
 
 export const INSURANCE_BASIC_PLAN_CODE = 'insurance_basic'
+
+export function isInsuranceBillingProductionRuntime(env = process.env) {
+  const railwayName = String(env.RAILWAY_ENVIRONMENT_NAME ?? '').trim().toLowerCase()
+  if (railwayName === 'production' || railwayName === 'prod') return true
+  if (
+    railwayName === 'development' ||
+    railwayName === 'dev' ||
+    railwayName === 'staging' ||
+    railwayName === 'preview'
+  ) {
+    return false
+  }
+  return isProductionRuntime(env)
+}
 
 export function parseEnvBool(value, defaultValue = false) {
   if (value == null || String(value).trim() === '') {
@@ -53,13 +67,11 @@ export function isMockPaymentAllowed() {
   return true
 }
 
-export { isInsuranceBillingProductionRuntime }
+export function isInsuranceBillingEntitledStatus(status) {
+  return isEntitledStatus(status)
+}
 
 /** @deprecated 이름 호환 — subscriptionStatusPolicy.js 와 동일 */
 export const INSURANCE_BILLING_ALLOWED_STATUSES = INSURANCE_BILLING_ENTITLED_STATUSES
 
 export { INSURANCE_BILLING_BLOCKED_STATUSES }
-
-export function isInsuranceBillingEntitledStatus(status) {
-  return isEntitledStatus(status)
-}

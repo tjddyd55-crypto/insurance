@@ -6,7 +6,7 @@
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { isStoreReviewBillingSubject } from '../lib/storeReviewIdentity.js'
 import { resolvePaymentSettingsInternal } from '../billing/paymentSettingsResolve.js'
-import { getActiveBillingKeyForUser } from './billingPaymentCredential.js'
+import { getActiveBillingKeyForUser, assertBillingCredentialModeMatch } from './billingPaymentCredential.js'
 import { recordBillingEvent } from './subscriptionLifecycle.js'
 import { getInsuranceBillingProvider } from './config.js'
 import {
@@ -249,6 +249,11 @@ export async function renewInsuranceSubscription(client, params) {
   const billingCredential = await getActiveBillingKeyForUser(client, sub.userId)
   if (!billingCredential?.billingKey) {
     return { outcome: 'skipped', reason: 'billing_credential_missing' }
+  }
+  try {
+    assertBillingCredentialModeMatch(billingCredential.issuedMode, settings.mode)
+  } catch {
+    return { outcome: 'skipped', reason: 'billing_credential_environment_mismatch' }
   }
 
   const periodKey = buildRenewalPeriodKey(sub.nextBillingAt)

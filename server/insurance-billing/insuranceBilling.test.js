@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   isMockPaymentAllowed,
   parseEnvBool,
+  isInsuranceBillingProductionRuntime,
 } from './config.js'
 import { isInsuranceBillingEntitledStatus } from './subscriptionStatusPolicy.js'
 import { calculateReferrerDiscountAmount, isTrialExpiredSubscription } from './subscriptionLifecycle.js'
@@ -51,10 +52,23 @@ describe('insurance billing config', () => {
 
   it('mock payment blocked in production node env', () => {
     const prev = process.env.NODE_ENV
+    const prevRailway = process.env.RAILWAY_ENVIRONMENT
+    const prevName = process.env.RAILWAY_ENVIRONMENT_NAME
+    delete process.env.RAILWAY_ENVIRONMENT
+    delete process.env.RAILWAY_ENVIRONMENT_NAME
     process.env.NODE_ENV = 'production'
     process.env.INSURANCE_BILLING_PROVIDER = 'mock'
     assert.equal(isMockPaymentAllowed(), false)
     process.env.NODE_ENV = prev
+    if (prevRailway == null) delete process.env.RAILWAY_ENVIRONMENT
+    else process.env.RAILWAY_ENVIRONMENT = prevRailway
+    if (prevName == null) delete process.env.RAILWAY_ENVIRONMENT_NAME
+    else process.env.RAILWAY_ENVIRONMENT_NAME = prevName
+  })
+
+  it('production runtime prefers RAILWAY_ENVIRONMENT_NAME over NODE_ENV', () => {
+    assert.equal(isInsuranceBillingProductionRuntime({ RAILWAY_ENVIRONMENT_NAME: 'production', NODE_ENV: 'production' }), true)
+    assert.equal(isInsuranceBillingProductionRuntime({ RAILWAY_ENVIRONMENT_NAME: 'development', NODE_ENV: 'production' }), false)
   })
 })
 

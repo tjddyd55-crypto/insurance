@@ -14,6 +14,7 @@ import { normalizeTossBillingError } from '../insurance-billing/providers/toss/t
 import {
   ensureBillingProviderCustomerKey,
   assertBillingCustomerKeyMatch,
+  assertBillingCredentialModeMatch,
 } from '../insurance-billing/billingPaymentCredential.js'
 
 // ─── Key 분류 ─────────────────────────────────────────────────────────────────
@@ -315,4 +316,17 @@ test('registerInsuranceBillingApi is importable and is a function', () => {
 
 test('enforceInsuranceBillingEntitlement is importable and is a function', () => {
   assert.equal(typeof enforceInsuranceBillingEntitlement, 'function')
+})
+
+test('assertBillingCredentialModeMatch allows virtual→virtual and live→live', () => {
+  assert.doesNotThrow(() => assertBillingCredentialModeMatch('virtual', 'virtual'))
+  assert.doesNotThrow(() => assertBillingCredentialModeMatch('live', 'live'))
+  assert.doesNotThrow(() => assertBillingCredentialModeMatch(null, 'virtual'))
+})
+
+test('assertBillingCredentialModeMatch blocks virtual billingKey on live mode', () => {
+  assert.throws(
+    () => assertBillingCredentialModeMatch('virtual', 'live'),
+    (e) => e.message === 'billing_credential_environment_mismatch',
+  )
 })

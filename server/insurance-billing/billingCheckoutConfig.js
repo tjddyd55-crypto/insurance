@@ -1,4 +1,4 @@
-import { getInsuranceBillingProvider } from './config.js'
+import { getInsuranceBillingProvider, isInsuranceBillingProductionRuntime } from './config.js'
 import { resolvePaymentSettingsInternal } from '../billing/paymentSettingsResolve.js'
 import {
   ensureBillingProviderCustomerKey,
@@ -20,6 +20,7 @@ export async function buildBillingCheckoutConfig(executor, userId, userContext =
       enabled: false,
       customerKey: null,
       hasBillingKey: false,
+      allowDevTestCharge: false,
     }
   }
 
@@ -35,6 +36,7 @@ export async function buildBillingCheckoutConfig(executor, userId, userContext =
       enabled: false,
       customerKey: null,
       hasBillingKey: false,
+      allowDevTestCharge: false,
     }
   }
 
@@ -46,6 +48,7 @@ export async function buildBillingCheckoutConfig(executor, userId, userContext =
     enabled: settings.isEnabled && settings.hasClientKey && settings.hasSecretKey,
     customerKey,
     hasBillingKey: Boolean(credential?.billingKey),
+    allowDevTestCharge: !isInsuranceBillingProductionRuntime(),
     cardCompany: credential?.cardCompany ?? null,
     cardNumberMasked: credential?.cardNumberMasked ?? null,
   }

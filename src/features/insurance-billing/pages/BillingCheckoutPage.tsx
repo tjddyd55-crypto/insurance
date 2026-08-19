@@ -14,6 +14,7 @@ import {
 import { requestTossBillingAuth } from '../toss/requestTossBillingAuth'
 import {
   canApplyPromotionCodeOnCheckout,
+  canRunTestCharge as resolveCanRunTestCharge,
   resolveBillingCheckoutMode,
   type BillingCheckoutMode,
 } from '../billingCheckoutViewState'
@@ -173,16 +174,8 @@ export default function BillingCheckoutPage() {
   const showPaymentMethodBtn = isActiveEntitled && canUseToss && !reviewCheckoutOpen
   const paymentMethodBtnLabel = hasBillingKey ? '결제수단 변경' : '결제수단 등록'
 
-  // TEST QA 전용 단건결제 버튼 노출 조건:
-  // - non-production (mode=virtual): production은 mode=live이므로 절대 노출 안 됨
-  // - provider=toss
-  // - enabled=true
-  // - hasBillingKey=true (이미 등록된 카드로 청구)
-  const canRunTestCharge =
-    checkoutConfig?.mode === 'virtual' &&
-    checkoutConfig.provider === 'toss' &&
-    Boolean(checkoutConfig.enabled) &&
-    hasBillingKey
+  // TEST QA 전용 단건결제 — production runtime(allowDevTestCharge=false)에서는 virtual이어도 숨김
+  const canRunTestCharge = resolveCanRunTestCharge(checkoutConfig, hasBillingKey)
 
   // primary CTA: 기존 이용자는 Toss 버튼을 별도 표시하므로 primary는 "내 결제 상태 보기"로만 처리
   const ctaLabel = useMemo(() => {
@@ -513,7 +506,7 @@ export default function BillingCheckoutPage() {
                   </div>
                 ) : null}
 
-                {/* TEST QA 전용 섹션 — production(mode=live)에서는 절대 노출 안 됨 */}
+                {/* TEST QA 전용 섹션 — production runtime 또는 mode≠virtual 이면 숨김 */}
                 {canRunTestCharge ? (
                   <div className="insurance-billing-test-qa-section">
                     <p className="insurance-billing-test-qa-section__title">[TEST] Toss 결제 QA</p>

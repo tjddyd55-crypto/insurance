@@ -5191,6 +5191,17 @@ async function ensureInsuranceBillingPhase1Schema(executor) {
     CREATE INDEX IF NOT EXISTS idx_billing_payment_credentials_status
     ON billing_payment_credentials (status)
   `)
+  await executor.query(`
+    ALTER TABLE billing_payment_credentials
+    ADD COLUMN IF NOT EXISTS issued_mode TEXT
+  `)
+  await executor.query(`
+    UPDATE billing_payment_credentials
+    SET issued_mode = 'virtual'
+    WHERE issued_mode IS NULL
+      AND billing_key_ciphertext IS NOT NULL
+      AND billing_key_ciphertext <> ''
+  `)
 
   await executor.query(`
     ALTER TABLE billing_payments

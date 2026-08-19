@@ -101,6 +101,10 @@ export function registerInsuranceBillingApi(apiRouter, ctx) {
         message: '결제 시크릿 키를 사용할 수 없습니다. 관리자에게 문의해 주세요.',
       },
       toss_billing_key_missing: { status: 502, message: '결제수단 등록에 실패했습니다.' },
+      billing_credential_environment_mismatch: {
+        status: 409,
+        message: '등록된 결제수단이 현재 결제 환경과 맞지 않습니다. 결제수단을 다시 등록해 주세요.',
+      },
       toss_payment_key_missing: { status: 502, message: '결제 승인 결과를 확인할 수 없습니다.' },
     })
     const mapped = table[code]

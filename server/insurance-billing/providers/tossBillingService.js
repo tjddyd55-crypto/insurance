@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { resolvePaymentSettingsInternal } from '../../billing/paymentSettingsResolve.js'
 import { systemQuery } from '../../utils/dbSafeQuery.js'
 import {
+  assertBillingCredentialModeMatch,
   assertBillingCustomerKeyMatch,
   getActiveBillingKeyForUser,
   upsertBillingPaymentCredential,
@@ -276,6 +277,7 @@ export async function confirmTossBillingAuth(client, params) {
     userId,
     customerKey,
     billingKey,
+    issuedMode: settings.mode,
     cardCompany: card.issuerCode ? String(card.issuerCode) : card.company ?? null,
     cardNumberMasked: card.number ? String(card.number) : null,
     cardType: card.cardType ? String(card.cardType) : null,
@@ -327,6 +329,8 @@ export async function requestTossInsurancePayment(client, params) {
       registeredOnly: true,
     }
   }
+
+  assertBillingCredentialModeMatch(billingCredential.issuedMode, settings.mode)
 
   const pending = await createPendingInsurancePaymentRow(client, {
     userId,
