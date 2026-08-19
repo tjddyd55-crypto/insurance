@@ -13,13 +13,16 @@ import {
   resolveSubscriptionStatusTone,
   resolveUsagePeriod,
 } from '../billingManageViewUtils'
-import type { CheckoutSummary } from '../api/insuranceBillingApi'
+import type { BillingCheckoutConfig, CheckoutSummary } from '../api/insuranceBillingApi'
 
 type Props = {
   summary: CheckoutSummary | null | undefined
   subscription: BillingManageSubscription | null | undefined
   payments: BillingManagePayment[]
   showCheckoutLink?: boolean
+  checkoutConfig?: BillingCheckoutConfig | null
+  onRegisterMethod?: () => void
+  registeringMethod?: boolean
 }
 
 function StatusBadge({ label, tone }: { label: string; tone: string }) {
@@ -31,6 +34,9 @@ export default function InsuranceBillingManagePanel({
   subscription,
   payments,
   showCheckoutLink = true,
+  checkoutConfig = null,
+  onRegisterMethod,
+  registeringMethod = false,
 }: Props) {
   const status = subscription?.status ?? summary?.status ?? summary?.subscriptionStatus ?? 'pending_payment'
   const statusLabel = resolveSubscriptionStatusLabel(status)
@@ -39,6 +45,17 @@ export default function InsuranceBillingManagePanel({
   const usagePeriod = resolveUsagePeriod(subscription, summary)
   const nextBillingDate = resolveNextBillingDate(subscription, summary)
   const checkoutCtaLabel = resolveManageCheckoutCtaLabel(status)
+
+  const canUseToss =
+    checkoutConfig?.provider === 'toss' &&
+    Boolean(checkoutConfig.enabled) &&
+    Boolean(checkoutConfig.clientKey) &&
+    Boolean(checkoutConfig.customerKey)
+  const hasBillingKey = Boolean(checkoutConfig?.hasBillingKey)
+  const cardLabel =
+    hasBillingKey
+      ? [checkoutConfig?.cardCompany, checkoutConfig?.cardNumberMasked].filter(Boolean).join(' ') || '등록됨'
+      : '미등록'
 
   return (
     <>
@@ -63,7 +80,23 @@ export default function InsuranceBillingManagePanel({
             <dt>다음 결제일</dt>
             <dd>{formatBillingDotDate(nextBillingDate)}</dd>
           </div>
+          {canUseToss ? (
+            <div className="insurance-billing-manage-meta__row">
+              <dt>결제수단</dt>
+              <dd>{cardLabel}</dd>
+            </div>
+          ) : null}
         </dl>
+        {canUseToss && onRegisterMethod ? (
+          <button
+            type="button"
+            className="insurance-billing-cta insurance-billing-cta--secondary"
+            disabled={registeringMethod}
+            onClick={onRegisterMethod}
+          >
+            {hasBillingKey ? '결제수단 변경' : '결제수단 등록'}
+          </button>
+        ) : null}
         {showCheckoutLink ? (
           <Link to="/billing/checkout" className="insurance-billing-cta insurance-billing-cta--primary">
             {checkoutCtaLabel}

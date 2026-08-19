@@ -155,17 +155,28 @@ export default function BillingCheckoutPage() {
     return billingCycle === 'yearly' ? summary.plan.yearlyTotal : summary.plan.monthlyTotal
   }, [summary, billingCycle, promoValidated])
 
+  const checkoutConfig = summary?.checkoutConfig
+  const canUseToss =
+    !reviewCheckoutOpen &&
+    checkoutConfig?.provider === 'toss' &&
+    Boolean(checkoutConfig.enabled) &&
+    Boolean(checkoutConfig.clientKey) &&
+    Boolean(checkoutConfig.customerKey)
+  const hasBillingKey = Boolean(checkoutConfig?.hasBillingKey)
+
+  // legacy_entitled / active_paid 이면서 결제수단 미등록: 등록 버튼 노출
+  const isActiveEntitled = checkoutMode === 'legacy_entitled' || checkoutMode === 'active_paid'
+  const showRegisterMethodBtn = isActiveEntitled && canUseToss && !hasBillingKey && !reviewCheckoutOpen
+
   const ctaLabel = useMemo(() => {
-    if (reviewCheckoutOpen && (checkoutMode === 'active_paid' || checkoutMode === 'legacy_entitled')) {
-      return '결제하기'
-    }
-    if (checkoutMode === 'trialing') return '결제수단 등록'
-    if (checkoutMode === 'active_paid') return '결제 내역 보기'
-    if (checkoutMode === 'legacy_entitled') return '내 결제 상태 보기'
+    if (reviewCheckoutOpen && isActiveEntitled) return '결제하기'
+    if (showRegisterMethodBtn) return '결제수단 등록'
+    if (checkoutMode === 'trialing') return hasBillingKey ? '결제하기' : '결제수단 등록'
+    if (isActiveEntitled) return hasBillingKey ? '내 결제 상태 보기' : '내 결제 상태 보기'
     if (promoValidated?.freeMonths) return `${promoValidated.freeMonths}개월 무료로 시작하기`
     if (displayAmount === 0) return '무료로 시작하기'
     return '결제하기'
-  }, [checkoutMode, promoValidated, displayAmount, reviewCheckoutOpen])
+  }, [checkoutMode, promoValidated, displayAmount, reviewCheckoutOpen, isActiveEntitled, showRegisterMethodBtn, hasBillingKey])
 
   const handleValidatePromo = async () => {
     if (!token?.trim() || !promoCode.trim() || !promoAllowed) return
@@ -200,10 +211,28 @@ export default function BillingCheckoutPage() {
   const handlePrimaryAction = async () => {
     if (!token?.trim()) return
 
-    if (
-      !reviewCheckoutOpen &&
-      (checkoutMode === 'active_paid' || checkoutMode === 'legacy_entitled')
-    ) {
+    // 기존 이용자/유료 이용자이면서 결제수단 등록 버튼을 클릭한 경우 → register-only Toss auth
+    if (showRegisterMethodBtn && checkoutConfig?.clientKey && checkoutConfig.customerKey) {
+      setSubmitting(true)
+      setError('')
+      try {
+        await requestTossBillingAuth({
+          clientKey: String(checkoutConfig.clientKey),
+          customerKey: String(checkoutConfig.customerKey),
+          intent: 'register',
+          planCode: summary?.plan?.code ?? 'insurance_basic',
+          billingCycle,
+        })
+      } catch (e) {
+        setError(e instanceof Error ? e.message : '결제수단 등록 창을 열지 못했습니다.')
+      } finally {
+        setSubmitting(false)
+      }
+      return
+    }
+
+    // 기존 이용자/유료 이용자이고 결제수단이 이미 있거나 Toss 사용 불가 → manage로 이동
+    if (!reviewCheckoutOpen && isActiveEntitled) {
       navigate('/billing/manage')
       return
     }
@@ -229,20 +258,14 @@ export default function BillingCheckoutPage() {
         return
       }
 
-      const registerOnly = checkoutMode === 'trialing' && !reviewCheckoutOpen
+      // trialing: 결제수단이 없으면 register 후 charge, 있으면 바로 charge
+      const registerOnly = checkoutMode === 'trialing' && !reviewCheckoutOpen && !hasBillingKey
       const planCode = summary?.plan?.code ?? 'insurance_basic'
-      const checkoutConfig = summary?.checkoutConfig
-      const canUseToss =
-        !reviewCheckoutOpen &&
-        checkoutConfig?.provider === 'toss' &&
-        Boolean(checkoutConfig.enabled) &&
-        Boolean(checkoutConfig.clientKey) &&
-        Boolean(checkoutConfig.customerKey)
 
-      if (canUseToss && !checkoutConfig?.hasBillingKey) {
+      if (canUseToss && !hasBillingKey) {
         await requestTossBillingAuth({
-          clientKey: String(checkoutConfig.clientKey),
-          customerKey: String(checkoutConfig.customerKey),
+          clientKey: String(checkoutConfig!.clientKey),
+          customerKey: String(checkoutConfig!.customerKey),
           intent: registerOnly ? 'register' : 'charge',
           planCode,
           billingCycle,
@@ -355,7 +378,20 @@ export default function BillingCheckoutPage() {
               </section>
 
               <section className="insurance-billing-card">
-                <h2>{checkoutMode === 'legacy_entitled' || checkoutMode === 'active_paid' ? '요금제 · 결제 관리' : '결제 요약'}</h2>
+                <h2>{isActiveEntitled ? '요금제 · 결제 관리' : '결제 요약'}</h2>
+
+                {isActiveEntitled && canUseToss ? (
+                  <div className="insurance-billing-manage-meta">
+                    <div className="insurance-billing-manage-meta__row">
+                      <dt>결제수단</dt>
+                      <dd>
+                        {hasBillingKey
+                          ? [checkoutConfig?.cardCompany, checkoutConfig?.cardNumberMasked].filter(Boolean).join(' ') || '등록됨'
+                          : '미등록'}
+                      </dd>
+                    </div>
+                  </div>
+                ) : null}
 
                 {promoAllowed ? (
                   <div className="insurance-billing-field">
@@ -428,7 +464,16 @@ export default function BillingCheckoutPage() {
                   {ctaLabel}
                 </button>
 
-                {(checkoutMode === 'legacy_entitled' || checkoutMode === 'active_paid') && (
+                {isActiveEntitled && !showRegisterMethodBtn && (
+                  <Link
+                    to="/billing/manage"
+                    className="insurance-billing-cta insurance-billing-cta--secondary"
+                  >
+                    내 결제 상태 보기
+                  </Link>
+                )}
+
+                {isActiveEntitled && (
                   <Link
                     to={resolveAuthLandingPath(isMobile, user?.role)}
                     className="insurance-billing-cta insurance-billing-cta--secondary"
