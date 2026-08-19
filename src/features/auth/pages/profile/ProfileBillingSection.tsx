@@ -12,17 +12,12 @@ import {
   resolveSubscriptionStatusLabel,
 } from '../../../insurance-billing/billingManageViewUtils'
 import { resolveInsuranceBillingProfileEntryPath } from '../../../insurance-billing/insuranceBillingLanding'
-import {
-  canReviewTenantStartCheckoutPayment,
-  type StoreReviewBillingSubjectInput,
-} from '../../../billing/storeReviewBillingAccess'
 
 type Props = {
   token: string
-  user: StoreReviewBillingSubjectInput | null | undefined
 }
 
-export default function ProfileBillingSection({ token, user }: Props) {
+export default function ProfileBillingSection({ token }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [data, setData] = useState<BillingManageSummaryResponse | null>(null)
@@ -65,7 +60,6 @@ export default function ProfileBillingSection({ token, user }: Props) {
     ? [checkoutConfig?.cardCompany, checkoutConfig?.cardNumberMasked].filter(Boolean).join(' ') || '등록됨'
     : '미등록'
   const entryPath = resolveInsuranceBillingProfileEntryPath({
-    isReviewSubject: canReviewTenantStartCheckoutPayment(user),
     hasBillingKey,
   })
 

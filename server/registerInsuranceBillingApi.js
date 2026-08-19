@@ -27,7 +27,6 @@ import {
 import { getInsurancePaymentProvider } from './insurance-billing/providers/index.js'
 import { buildBillingCheckoutConfig } from './insurance-billing/billingCheckoutConfig.js'
 import { confirmTossBillingAuth } from './insurance-billing/providers/tossBillingService.js'
-import { isStoreReviewBillingSubject } from './lib/storeReviewIdentity.js'
 import {
   activateBillingPromotionCodeAdmin,
   createBillingPromotionCodeAdmin,
@@ -250,10 +249,6 @@ export function registerInsuranceBillingApi(apiRouter, ctx) {
   })
 
   apiRouter.post('/billing/payment-methods/auth-confirm', requireAuth, requireBillingEnabled, requireBillingSubject, async (req, res) => {
-    if (isStoreReviewBillingSubject(resolveBillingUserContext(req))) {
-      res.status(403).json({ message: '심사용 계정은 실제 카드 등록을 사용할 수 없습니다.' })
-      return
-    }
     const client = await pool.connect()
     try {
       const userId = String(req.user?.id ?? '').trim()

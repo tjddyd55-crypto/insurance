@@ -33,7 +33,11 @@ export const STORE_REVIEW_PROFILES = Object.freeze({
   },
 })
 
-const ACCESS_EXPIRES_ISO = '2099-12-31T23:59:59.999Z'
+const REVIEW_TRIAL_DAYS = 30
+
+function reviewTrialEndsIso(now = new Date()) {
+  return new Date(now.getTime() + REVIEW_TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString()
+}
 
 /**
  * @param {string} profileKey
@@ -311,7 +315,7 @@ async function ensureUserMembership(tx, { userId, tenantId, industryId, scopeId 
  * @param {{ userId: string; tenantId: number }} params
  */
 async function ensureBillingAccess(tx, { userId, tenantId }) {
-  const trialEndsAt = ACCESS_EXPIRES_ISO
+  const trialEndsAt = reviewTrialEndsIso()
   const existing = await systemQuery(
     tx,
     `SELECT id, status FROM billing_subscriptions WHERE user_id = $1 LIMIT 1`,
@@ -441,13 +445,13 @@ export async function provisionStoreReviewAccount(executor, params) {
           role = 'USER',
           status = 'active',
           is_deleted = false,
-          subscription_plan = 'PAID',
-          subscription_expires_at = $6::timestamptz,
+          subscription_plan = 'FREE',
+          subscription_expires_at = NULL,
           sms_auth_failure_count = 0,
           sms_blocked_until = NULL
         WHERE id = $1
         `,
-        [userId, passwordHash, profile.displayName, phoneDigits, gaTenant.gaId, ACCESS_EXPIRES_ISO],
+        [userId, passwordHash, profile.displayName, phoneDigits, gaTenant.gaId],
       )
     } else {
       await systemQuery(
@@ -458,7 +462,7 @@ export async function provisionStoreReviewAccount(executor, params) {
           ga_id, status, is_deleted, subscription_plan, subscription_expires_at,
           invited_by_user_id, sms_auth_failure_count, sms_blocked_until
         )
-        VALUES ($1, $2, $3, 'USER', $4, $5, $6, 'active', false, 'PAID', $7::timestamptz, $1, 0, NULL)
+        VALUES ($1, $2, $3, 'USER', $4, $5, $6, 'active', false, 'FREE', NULL, $1, 0, NULL)
         `,
         [
           userId,
@@ -467,7 +471,6 @@ export async function provisionStoreReviewAccount(executor, params) {
           profile.displayName,
           phoneDigits,
           gaTenant.gaId,
-          ACCESS_EXPIRES_ISO,
         ],
       )
     }

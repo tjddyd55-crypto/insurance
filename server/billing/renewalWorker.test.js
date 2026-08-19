@@ -75,10 +75,10 @@ test('missing credential skip', () => {
   assert.equal(result.reason, 'billing_credential_missing')
 })
 
-test('review account skip', () => {
+test('review account follows the same renewal eligibility as regular USER', () => {
   const result = evaluateRenewalEligibility(eligibleBase({ isReviewAccount: true }))
-  assert.equal(result.ok, false)
-  assert.equal(result.reason, 'review_account')
+  assert.equal(result.ok, true)
+  assert.equal(result.reason, 'due')
 })
 
 test('provider mock skip', () => {

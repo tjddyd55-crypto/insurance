@@ -736,7 +736,7 @@ export function ProfilePage() {
         </>
       ) : null}
 
-      {isBillingUiVisibleForUser(user) ? <ProfileBillingSection token={token} user={user} /> : null}
+      {isBillingUiVisibleForUser(user) ? <ProfileBillingSection token={token} /> : null}
 
       {showUserCrmProfileSections ? (
         <>
