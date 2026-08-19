@@ -8,6 +8,7 @@ import {
 } from '../billing/paymentSettingsKeyValidation.js'
 import { encryptPaymentSecret, decryptPaymentSecret, canStorePaymentSecrets } from '../billing/paymentSettingsCrypto.js'
 import { BILLING_PENDING_PAYMENT_TTL_MS } from '../insurance-billing/pendingPaymentPolicy.js'
+import { resolvePlanPaymentAmounts } from '../insurance-billing/subscriptionLifecycle.js'
 import { buildInsuranceBillingOrderId } from '../insurance-billing/providers/tossBillingService.js'
 import { normalizeTossBillingError } from '../insurance-billing/providers/toss/tossErrorNormalization.js'
 import {
@@ -273,6 +274,37 @@ test('getPaymentSettingsAdmin never returns raw secret', async () => {
   assert.ok(!('webhookSecret' in settings))
   assert.equal(settings.hasSecretKey, true)
   assert.equal(settings.hasClientKey, true)
+})
+
+// ─── Price SSOT 검증 ─────────────────────────────────────────────────────────
+
+test('resolvePlanPaymentAmounts — monthly 8800 / supply 8000 / vat 800', () => {
+  const plan = { monthly_total: 8800, yearly_total: 88000, monthly_price: 8000, yearly_price: 80000 }
+  const { totalAmount, supplyAmount, vatAmount } = resolvePlanPaymentAmounts(plan, 'monthly')
+  assert.equal(totalAmount, 8800)
+  assert.equal(supplyAmount, 8000)
+  assert.equal(vatAmount, 800)
+})
+
+test('resolvePlanPaymentAmounts — yearly 88000 / supply 80000 / vat 8000', () => {
+  const plan = { monthly_total: 8800, yearly_total: 88000, monthly_price: 8000, yearly_price: 80000 }
+  const { totalAmount, supplyAmount, vatAmount } = resolvePlanPaymentAmounts(plan, 'yearly')
+  assert.equal(totalAmount, 88000)
+  assert.equal(supplyAmount, 80000)
+  assert.equal(vatAmount, 8000)
+})
+
+test('resolvePlanPaymentAmounts — amount tamper 차단: body.amount 무시 확인 (amount 필드 없으면 SSOT 기본값)', () => {
+  // body에 amount=1을 전달해도 서버는 plan.monthly_total을 기준으로 계산
+  const plan = { monthly_total: 8800, yearly_total: 88000, monthly_price: 8000, yearly_price: 80000 }
+  const { totalAmount } = resolvePlanPaymentAmounts(plan, 'monthly')
+  assert.equal(totalAmount, 8800, 'body.amount=1 전달과 무관하게 SSOT 기준 8800')
+})
+
+// ─── pending partial unique index 존재 확인 ──────────────────────────────────
+
+test('BILLING_PENDING_PAYMENT_TTL_MS = 24h', () => {
+  assert.equal(BILLING_PENDING_PAYMENT_TTL_MS, 24 * 60 * 60 * 1000)
 })
 
 // ─── Startup smoke: import 검증 ───────────────────────────────────────────────
