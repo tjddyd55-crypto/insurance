@@ -3480,6 +3480,24 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   margin-top: 4px;
 }
 
+.profile-page .profile-billing-meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 12px;
+  row-gap: 8px;
+  margin: 0 0 16px;
+  font-size: 14px;
+}
+
+.profile-page .profile-billing-meta dt {
+  color: var(--text-secondary);
+}
+
+.profile-page .profile-billing-meta dd {
+  margin: 0;
+  color: var(--text-primary);
+}
+
 .profile-page__legal-footer {
   margin-top: clamp(24px, 4vh, 40px);
   padding: 20px 0 calc(20px + env(safe-area-inset-bottom, 0px));

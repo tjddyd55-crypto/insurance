@@ -26,11 +26,19 @@ describe('storeReviewBillingAccess wiring', () => {
 
     const profile = read('src/features/auth/pages/ProfilePage.tsx')
     assert.match(profile, /isBillingUiVisibleForUser/)
-    assert.match(profile, /\/billing\/checkout/)
-    assert.match(profile, /구독 및 결제/)
+    assert.match(profile, /ProfileBillingSection/)
+
+    const profileBilling = read('src/features/auth/pages/profile/ProfileBillingSection.tsx')
+    assert.match(profileBilling, /결제 및 구독/)
+    assert.match(profileBilling, /resolveInsuranceBillingProfileEntryPath/)
+    assert.doesNotMatch(profileBilling, /Toss 결제 QA/)
+
+    const landing = read('src/features/insurance-billing/insuranceBillingLanding.ts')
+    assert.match(landing, /\/billing\/checkout/)
+    assert.match(landing, /\/billing\/manage/)
 
     const menu = read('src/features/dashboard/gaTenantMenu.ts')
-    assert.match(menu, /PLAY_REVIEW/)
+    assert.match(menu, /isBillingUiVisibleForUser/)
     assert.match(menu, /구독 및 결제/)
 
     const checkout = read('src/features/insurance-billing/pages/BillingCheckoutPage.tsx')
