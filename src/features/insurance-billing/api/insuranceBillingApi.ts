@@ -93,7 +93,7 @@ export async function completeMockBillingPayment(
 
 export async function requestBillingPayment(
   token: string,
-  body: { planCode?: string; billingCycle?: string; promotionCode?: string; registerOnly?: boolean },
+  body: { planCode?: string; billingCycle?: string; promotionCode?: string; registerOnly?: boolean; testCode?: string | null },
 ) {
   return apiRequest<{
     ok: boolean
