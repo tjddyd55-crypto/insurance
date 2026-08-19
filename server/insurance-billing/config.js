@@ -46,12 +46,13 @@ export function isMockPaymentAllowed() {
   if (getInsuranceBillingProvider() !== 'mock') {
     return false
   }
-  const nodeEnv = String(process.env.NODE_ENV ?? '').trim().toLowerCase()
-  if (nodeEnv === 'production') {
+  if (isInsuranceBillingProductionRuntime()) {
     return false
   }
   return true
 }
+
+export { isProductionRuntime as isInsuranceBillingProductionRuntime } from '../lib/crmUserBulkSmsConfig.js'
 
 /** @deprecated 이름 호환 — subscriptionStatusPolicy.js 와 동일 */
 export const INSURANCE_BILLING_ALLOWED_STATUSES = INSURANCE_BILLING_ENTITLED_STATUSES

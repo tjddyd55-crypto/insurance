@@ -15,7 +15,8 @@ import { registerReferralApi } from './registerReferralApi.js'
 import { registerPromotionCodesApi } from './registerPromotionCodesApi.js'
 import { registerAdminPromotionCodesApi } from './registerAdminPromotionCodesApi.js'
 import { registerBillingApi } from './registerBillingApi.js'
-import { registerInsuranceBillingApi, enforceInsuranceBillingEntitlement } from './registerInsuranceBillingApi.js'
+import { getInsuranceBillingProvider } from './insurance-billing/config.js'
+import { getPaymentSettingsEncryptionDiagnostics } from './billing/paymentSettingsCrypto.js'
 import {
   bootstrapInsuranceBillingSubscriptionOnSignup,
 } from './insurance-billing/subscriptionLifecycle.js'
@@ -7820,6 +7821,10 @@ async function startServer() {
   app.listen(PORT, () => {
     console.log(`Insurance server listening on port ${PORT}`)
     console.log('Insurance DB engine: PostgreSQL')
+    console.info('[billing] diagnostics', {
+      insuranceBillingProvider: getInsuranceBillingProvider(),
+      paymentSettingsEncryption: getPaymentSettingsEncryptionDiagnostics(),
+    })
   })
 
   const SMS_CODE_PURGE_MS = 15 * 60 * 1000

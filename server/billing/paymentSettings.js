@@ -1,6 +1,7 @@
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import {
   canStorePaymentSecrets,
+  decryptPaymentSecret,
   encryptPaymentSecret,
   maskPaymentCredential,
 } from './paymentSettingsCrypto.js'
@@ -10,6 +11,7 @@ import {
   normalizePaymentMode,
   normalizePaymentProvider,
 } from './paymentSettingsNormalize.js'
+import { validatePaymentKeysForMode } from './paymentSettingsKeyValidation.js'
 
 const DEFAULT_ROW_ID = 1
 
@@ -91,12 +93,54 @@ export async function getPaymentSettingsAdmin(executor) {
  */
 export async function updatePaymentSettings(executor, body, actorUserId) {
   await ensurePaymentSettingsRow(executor)
+  const currentR = await systemQuery(
+    executor,
+    `
+    SELECT provider, mode, client_key, secret_key_ciphertext
+    FROM payment_settings
+    WHERE id = $1
+    LIMIT 1
+    `,
+    [DEFAULT_ROW_ID],
+  )
+  const current = mapPaymentSettingsAdminRow(currentR.rows[0])
+
+  const nextMode = Object.prototype.hasOwnProperty.call(body, 'mode')
+    ? normalizePaymentMode(body.mode)
+    : current.mode
+
+  const nextClientKey = Object.prototype.hasOwnProperty.call(body, 'client_key') ||
+    Object.prototype.hasOwnProperty.call(body, 'clientKey')
+    ? String(body.client_key ?? body.clientKey ?? '').trim()
+    : current.clientKey
+
+  const secretRaw = body.secret_key ?? body.secretKey
+  const nextSecretPlain =
+    secretRaw != null && String(secretRaw).trim() !== '' ? String(secretRaw).trim() : ''
+
+  let secretForValidation = nextSecretPlain
+  if (!secretForValidation && current.secretKeyCiphertext && canStorePaymentSecrets()) {
+    try {
+      secretForValidation = decryptPaymentSecret(current.secretKeyCiphertext)
+    } catch {
+      secretForValidation = ''
+    }
+  }
+
+  const keyValidationError = validatePaymentKeysForMode(nextMode, {
+    clientKey: nextClientKey,
+    secretKey: secretForValidation,
+  })
+  if (keyValidationError) {
+    throw new Error(keyValidationError)
+  }
+
   const sets = []
   const vals = []
   let n = 1
 
   if (Object.prototype.hasOwnProperty.call(body, 'mode')) {
-    const mode = normalizePaymentMode(body.mode)
+    const mode = nextMode
     sets.push(`mode = $${n++}`)
     vals.push(mode)
   }
@@ -113,19 +157,20 @@ export async function updatePaymentSettings(executor, body, actorUserId) {
     vals.push(enabled === true)
   }
 
-  if (Object.prototype.hasOwnProperty.call(body, 'client_key') || Object.prototype.hasOwnProperty.call(body, 'clientKey')) {
-    const clientKey = String(body.client_key ?? body.clientKey ?? '').trim()
+  if (
+    Object.prototype.hasOwnProperty.call(body, 'client_key') ||
+    Object.prototype.hasOwnProperty.call(body, 'clientKey')
+  ) {
     sets.push(`client_key = $${n++}`)
-    vals.push(clientKey || null)
+    vals.push(nextClientKey || null)
   }
 
-  const secretRaw = body.secret_key ?? body.secretKey
-  if (secretRaw != null && String(secretRaw).trim() !== '') {
+  if (nextSecretPlain) {
     if (!canStorePaymentSecrets()) {
       throw new Error('payment_secret_storage_unavailable')
     }
     sets.push(`secret_key_ciphertext = $${n++}`)
-    vals.push(encryptPaymentSecret(String(secretRaw).trim()))
+    vals.push(encryptPaymentSecret(nextSecretPlain))
   }
 
   const webhookRaw = body.webhook_secret ?? body.webhookSecret

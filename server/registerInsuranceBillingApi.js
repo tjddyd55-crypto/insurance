@@ -1,6 +1,7 @@
 import {
   getInsuranceBillingProvider,
   isInsuranceBillingEnabled,
+  isInsuranceBillingProductionRuntime,
   isMockPaymentAllowed,
 } from './insurance-billing/config.js'
 import {
@@ -15,8 +16,6 @@ import {
 import { PROMOTION_ALREADY_USED_ERROR_CODE } from './insurance-billing/billingPromotionRedemptionPolicy.js'
 import {
   applyFreeMonthsPromotion,
-  getBillingReferralForUser,
-  requestInsurancePayment,
 } from './insurance-billing/subscriptionLifecycle.js'
 import { buildBillingManageSummaryResponse } from './insurance-billing/billingManageService.js'
 import {
@@ -26,6 +25,9 @@ import {
   listInsuranceBillingPaymentsAdmin,
 } from './insurance-billing/paymentAdminService.js'
 import { getInsurancePaymentProvider } from './insurance-billing/providers/index.js'
+import { buildBillingCheckoutConfig } from './insurance-billing/billingCheckoutConfig.js'
+import { confirmTossBillingAuth } from './insurance-billing/providers/tossBillingService.js'
+import { isStoreReviewBillingSubject } from './lib/storeReviewIdentity.js'
 import {
   activateBillingPromotionCodeAdmin,
   createBillingPromotionCodeAdmin,
@@ -69,15 +71,65 @@ export function registerInsuranceBillingApi(apiRouter, ctx) {
     next()
   }
 
+  function resolveBillingUserContext(req) {
+    return {
+      gaCode: req.user?.gaCode ?? req.user?.ga_code ?? null,
+      tenantCode: req.user?.tenantCode ?? req.user?.tenant_code ?? null,
+      username: req.user?.username ?? null,
+    }
+  }
+
+  function allowTossTestCode(req) {
+    if (isInsuranceBillingProductionRuntime()) {
+      return null
+    }
+    const raw = String(req.body?.testCode ?? req.body?.test_code ?? '').trim()
+    return raw || null
+  }
+
+  function mapInsuranceBillingError(e, res) {
+    const code = e?.message ?? ''
+    const table = /** @type {Record<string, { status: number; message: string }>} */ ({
+      plan_not_found: { status: 404, message: '요금제를 찾을 수 없습니다.' },
+      subscription_not_found: { status: 404, message: '구독 정보를 찾을 수 없습니다.' },
+      payment_already_pending: { status: 409, message: '이미 처리 대기 중인 결제 요청이 있습니다.' },
+      billing_customer_key_mismatch: { status: 403, message: '결제 인증 정보가 올바르지 않습니다.' },
+      billing_auth_invalid: { status: 400, message: '결제 인증 정보가 올바르지 않습니다.' },
+      toss_billing_not_enabled: { status: 400, message: 'Toss 결제가 아직 활성화되지 않았습니다.' },
+      payment_secret_storage_unavailable: {
+        status: 400,
+        message: '결제 시크릿 키를 사용할 수 없습니다. 관리자에게 문의해 주세요.',
+      },
+      toss_billing_key_missing: { status: 502, message: '결제수단 등록에 실패했습니다.' },
+      toss_payment_key_missing: { status: 502, message: '결제 승인 결과를 확인할 수 없습니다.' },
+    })
+    const mapped = table[code]
+    if (mapped) {
+      res.status(mapped.status).json({ message: mapped.message, errorCode: code })
+      return true
+    }
+    if (String(code).startsWith('toss_')) {
+      res.status(400).json({
+        message: e?.userMessage || '결제 처리에 실패했습니다.',
+        errorCode: code,
+        providerCode: e?.providerCode ?? null,
+      })
+      return true
+    }
+    return false
+  }
+
   apiRouter.get('/billing/checkout/summary', requireAuth, requireBillingEnabled, requireBillingSubject, async (req, res) => {
     try {
       const userId = String(req.user?.id ?? '').trim()
       const summary = await getCheckoutSummary(pool, userId)
+      const checkoutConfig = await buildBillingCheckoutConfig(pool, userId, resolveBillingUserContext(req))
       res.json({
         ...summary,
         billingEnabled: true,
         enforceAccess: process.env.INSURANCE_BILLING_ENFORCE_ACCESS === 'true',
         provider: getInsuranceBillingProvider(),
+        checkoutConfig,
       })
     } catch (e) {
       handleDbError(e, req, res)
@@ -166,7 +218,7 @@ export function registerInsuranceBillingApi(apiRouter, ctx) {
       const planCode = String(req.body?.planCode ?? req.body?.plan_code ?? 'insurance_basic').trim()
       const billingCycle = String(req.body?.billingCycle ?? req.body?.billing_cycle ?? 'monthly').trim()
       await client.query('BEGIN')
-      const provider = getInsurancePaymentProvider()
+      const provider = getInsurancePaymentProvider(resolveBillingUserContext(req))
       const result = await provider.completePayment(client, { userId, planCode, billingCycle })
       await client.query('COMMIT')
       res.json({ ok: true, ...result })
@@ -176,19 +228,49 @@ export function registerInsuranceBillingApi(apiRouter, ctx) {
       } catch {
         /* */
       }
-      const code = e?.message ?? ''
-      if (code === 'plan_not_found') {
-        res.status(404).json({ message: '요금제를 찾을 수 없습니다.' })
-        return
+      if (mapInsuranceBillingError(e, res)) return
+      handleDbError(e, req, res)
+    } finally {
+      client.release()
+    }
+  })
+
+  apiRouter.get('/billing/checkout/config', requireAuth, requireBillingEnabled, requireBillingSubject, async (req, res) => {
+    try {
+      const userId = String(req.user?.id ?? '').trim()
+      const config = await buildBillingCheckoutConfig(pool, userId, resolveBillingUserContext(req))
+      res.json(config)
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.post('/billing/payment-methods/auth-confirm', requireAuth, requireBillingEnabled, requireBillingSubject, async (req, res) => {
+    if (isStoreReviewBillingSubject(resolveBillingUserContext(req))) {
+      res.status(403).json({ message: '심사용 계정은 실제 카드 등록을 사용할 수 없습니다.' })
+      return
+    }
+    const client = await pool.connect()
+    try {
+      const userId = String(req.user?.id ?? '').trim()
+      const authKey = String(req.body?.authKey ?? req.body?.auth_key ?? '').trim()
+      const customerKey = String(req.body?.customerKey ?? req.body?.customer_key ?? '').trim()
+      await client.query('BEGIN')
+      const result = await confirmTossBillingAuth(client, {
+        userId,
+        authKey,
+        customerKey,
+        testCode: allowTossTestCode(req),
+      })
+      await client.query('COMMIT')
+      res.json(result)
+    } catch (e) {
+      try {
+        await client.query('ROLLBACK')
+      } catch {
+        /* */
       }
-      if (code === 'subscription_not_found') {
-        res.status(404).json({ message: '구독 정보를 찾을 수 없습니다.' })
-        return
-      }
-      if (code === 'payment_already_pending') {
-        res.status(409).json({ message: '이미 처리 대기 중인 결제 요청이 있습니다.' })
-        return
-      }
+      if (mapInsuranceBillingError(e, res)) return
       handleDbError(e, req, res)
     } finally {
       client.release()
@@ -202,14 +284,27 @@ export function registerInsuranceBillingApi(apiRouter, ctx) {
       const planCode = String(req.body?.planCode ?? req.body?.plan_code ?? 'insurance_basic').trim()
       const billingCycle = String(req.body?.billingCycle ?? req.body?.billing_cycle ?? 'monthly').trim()
       const promotionCode = req.body?.promotionCode ?? req.body?.promotion_code ?? null
+      const registerOnly = req.body?.registerOnly === true || req.body?.register_only === true
       await client.query('BEGIN')
-      const result = await requestInsurancePayment(client, {
+      const provider = getInsurancePaymentProvider(resolveBillingUserContext(req))
+      const result = await provider.requestPayment(client, {
         userId,
         planCode,
         billingCycle,
         promotionCode,
+        registerOnly,
+        testCode: allowTossTestCode(req),
       })
       await client.query('COMMIT')
+      if (result?.needsBillingAuth) {
+        const checkoutConfig = await buildBillingCheckoutConfig(pool, userId, resolveBillingUserContext(req))
+        res.status(200).json({
+          ok: true,
+          needsBillingAuth: true,
+          checkoutConfig,
+        })
+        return
+      }
       res.status(201).json({ ok: true, ...result })
     } catch (e) {
       try {
@@ -217,19 +312,7 @@ export function registerInsuranceBillingApi(apiRouter, ctx) {
       } catch {
         /* */
       }
-      const code = e?.message ?? ''
-      if (code === 'plan_not_found') {
-        res.status(404).json({ message: '요금제를 찾을 수 없습니다.' })
-        return
-      }
-      if (code === 'subscription_not_found') {
-        res.status(404).json({ message: '구독 정보를 찾을 수 없습니다.' })
-        return
-      }
-      if (code === 'payment_already_pending') {
-        res.status(409).json({ message: '이미 처리 대기 중인 결제 요청이 있습니다.' })
-        return
-      }
+      if (mapInsuranceBillingError(e, res)) return
       handleDbError(e, req, res)
     } finally {
       client.release()

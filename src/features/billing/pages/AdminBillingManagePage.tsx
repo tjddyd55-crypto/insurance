@@ -649,8 +649,20 @@ export default function AdminBillingManagePage() {
               <input type="checkbox" checked={isEnabled} onChange={(e) => setIsEnabled(e.target.checked)} />
             </label>
             </AdminDataCard>
-            <AdminDataCard title="PG 키 (선택)">
-              <p className="status text-sm">가상 결제 모드에서는 키 없이 운영할 수 있습니다.</p>
+            <AdminDataCard title="PG 키 (자동결제 API 개별연동)">
+              <p className="status text-sm">
+                TEST 모드는 virtual + test_ck_ / test_sk_ 만 허용합니다. 결제위젯 키(gck/gsk)는 사용할 수 없습니다.
+                시크릿 키는 저장 후 다시 표시되지 않습니다.
+              </p>
+              <p className="status text-sm">
+                클라이언트 키: {settings?.hasClientKey ? '설정됨' : '미설정'}
+                {settings?.clientKeyMasked ? ` (${settings.clientKeyMasked})` : ''}
+              </p>
+              <p className="status text-sm">시크릿 키: {settings?.hasSecretKey ? '설정됨' : '미설정'}</p>
+              <p className="status text-sm">웹훅 시크릿: {settings?.hasWebhookSecret ? '설정됨' : '미설정'}</p>
+              <p className="status text-sm">
+                암호화 키: {settings?.canStoreSecrets ? '서버 설정됨' : 'PAYMENT_SETTINGS_SECRET_KEY 미설정'}
+              </p>
             <FieldWrapper label="클라이언트 키 (새로 저장)">
               <FormInput value={clientKey} onChange={(e) => setClientKey(e.target.value)} autoComplete="off" />
             </FieldWrapper>

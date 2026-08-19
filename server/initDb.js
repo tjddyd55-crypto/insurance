@@ -5169,6 +5169,42 @@ async function ensureInsuranceBillingPhase1Schema(executor) {
       AND u.role = 'USER'
       AND NOT EXISTS (SELECT 1 FROM billing_subscriptions bs WHERE bs.user_id = u.id)
   `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS billing_payment_credentials (
+      id BIGSERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+      provider TEXT NOT NULL DEFAULT 'toss',
+      provider_customer_key TEXT NOT NULL,
+      billing_key_ciphertext TEXT,
+      card_company TEXT,
+      card_number_masked TEXT,
+      card_type TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      registered_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT billing_payment_credentials_status_check CHECK (status IN ('pending', 'active', 'revoked'))
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_billing_payment_credentials_status
+    ON billing_payment_credentials (status)
+  `)
+
+  await executor.query(`
+    ALTER TABLE billing_payments
+    ADD COLUMN IF NOT EXISTS order_id TEXT
+  `)
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_billing_payments_order_id_unique
+    ON billing_payments (order_id)
+    WHERE order_id IS NOT NULL
+  `)
+  await executor.query(`
+    ALTER TABLE billing_payments
+    ADD COLUMN IF NOT EXISTS provider_error_code TEXT
+  `)
 }
 
 /** GA 초대 고객 등록(/customer/register) — 제출 세션(httpOnly cookie) 및 최초 제출 시각(3시간 수정 창구) */

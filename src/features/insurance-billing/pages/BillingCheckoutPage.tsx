@@ -11,6 +11,7 @@ import {
   validateBillingPromotionCode,
   type CheckoutSummary,
 } from '../api/insuranceBillingApi'
+import { requestTossBillingAuth } from '../toss/requestTossBillingAuth'
 import {
   canApplyPromotionCodeOnCheckout,
   resolveBillingCheckoutMode,
@@ -228,10 +229,50 @@ export default function BillingCheckoutPage() {
         return
       }
 
-      await requestBillingPayment(token, {
-        planCode: summary?.plan?.code ?? 'insurance_basic',
+      const registerOnly = checkoutMode === 'trialing' && !reviewCheckoutOpen
+      const planCode = summary?.plan?.code ?? 'insurance_basic'
+      const checkoutConfig = summary?.checkoutConfig
+      const canUseToss =
+        !reviewCheckoutOpen &&
+        checkoutConfig?.provider === 'toss' &&
+        Boolean(checkoutConfig.enabled) &&
+        Boolean(checkoutConfig.clientKey) &&
+        Boolean(checkoutConfig.customerKey)
+
+      if (canUseToss && !checkoutConfig?.hasBillingKey) {
+        await requestTossBillingAuth({
+          clientKey: String(checkoutConfig.clientKey),
+          customerKey: String(checkoutConfig.customerKey),
+          intent: registerOnly ? 'register' : 'charge',
+          planCode,
+          billingCycle,
+        })
+        return
+      }
+
+      const result = await requestBillingPayment(token, {
+        planCode,
         billingCycle,
+        registerOnly,
       })
+      if (result.needsBillingAuth && result.checkoutConfig?.clientKey && result.checkoutConfig.customerKey) {
+        await requestTossBillingAuth({
+          clientKey: result.checkoutConfig.clientKey,
+          customerKey: result.checkoutConfig.customerKey,
+          intent: registerOnly ? 'register' : 'charge',
+          planCode,
+          billingCycle,
+        })
+        return
+      }
+      if (result.subscriptionStatus === 'active_paid' || result.status === 'paid') {
+        navigate('/billing/success', { replace: true, state: { mode: 'paid' } })
+        return
+      }
+      if (result.registeredOnly || registerOnly) {
+        navigate('/billing/manage', { replace: true })
+        return
+      }
       navigate('/billing/success', { replace: true, state: { mode: 'pending' } })
     } catch (e) {
       setError(e instanceof ApiError ? e.message : e instanceof Error ? e.message : '요청 처리에 실패했습니다.')
