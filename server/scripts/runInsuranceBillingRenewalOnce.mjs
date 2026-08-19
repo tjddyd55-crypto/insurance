@@ -9,7 +9,11 @@ import pool from '../db.js'
 import { runInsuranceBillingRenewalOnce } from '../insurance-billing/insuranceBillingRenewalWorker.js'
 
 const dryRun = String(process.env.DRY_RUN ?? '1').trim() !== '0'
+const testCode = String(process.env.RENEWAL_TEST_CODE ?? '').trim() || null
+if (testCode && String(process.env.RAILWAY_ENVIRONMENT_NAME ?? '').toLowerCase() === 'production') {
+  throw new Error('RENEWAL_TEST_CODE is forbidden in production')
+}
 
-const summary = await runInsuranceBillingRenewalOnce(pool, { dryRun })
+const summary = await runInsuranceBillingRenewalOnce(pool, { dryRun, testCode })
 console.log(JSON.stringify(summary, null, 2))
 await pool.end()
