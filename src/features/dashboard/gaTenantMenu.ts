@@ -21,6 +21,7 @@ import {
   partitionNewsletterBoardsForMenu,
 } from '../insurer-news/utils/newsletterBoardMenuLinks'
 import type { DynamicNewsletterBoardMenuItem } from '../insurer-news/utils/newsletterBoardMenuLinks'
+import { isBillingUiVisibleForUser } from '../billing/storeReviewBillingAccess'
 
 export type { DynamicNewsletterBoardMenuItem }
 
@@ -273,7 +274,7 @@ export function buildGaTenantDashboardMenu(
     { type: 'section', label: '내정보' },
     { type: 'link', label: '내 저장공간', path: '/storage' },
     { type: 'link', label: '내정보관리', path: '/profile' },
-    ...(normalizeGaMenuCode(gaCode) === 'PLAY_REVIEW'
+    ...(isBillingUiVisibleForUser({ gaCode })
       ? ([{ type: 'link', label: '구독 및 결제', path: '/billing/checkout' }] as const)
       : []),
     { type: 'link', label: '문의요청', path: '/feature-request' },

@@ -29,3 +29,17 @@ export function resolveInsuranceBillingAuthPath(
 
   return '/billing/required'
 }
+
+/**
+ * 내정보관리 → 결제 관리 진입 경로.
+ * PLAY_REVIEW 는 mock checkout 유지. 일반 USER 는 credential 유무로 checkout/manage 분기.
+ */
+export function resolveInsuranceBillingProfileEntryPath(options: {
+  isReviewSubject: boolean
+  hasBillingKey: boolean
+}): '/billing/checkout' | '/billing/manage' {
+  if (options.isReviewSubject) {
+    return '/billing/checkout'
+  }
+  return options.hasBillingKey ? '/billing/manage' : '/billing/checkout'
+}
