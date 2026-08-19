@@ -190,6 +190,53 @@
   border-color: var(--btn-secondary-hover-border);
 }
 
+/* TEST QA 전용 섹션 — mode=virtual + hasBillingKey 시에만 노출, production에서는 절대 렌더 안 됨 */
+.insurance-billing-test-qa-section {
+  margin-top: 20px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: var(--hint-bg, #f3f4f6);
+  border: 1px dashed var(--border-default);
+  display: grid;
+  gap: 10px;
+}
+
+.insurance-billing-test-qa-section__title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+.insurance-billing-test-qa-section__hint {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.insurance-billing-cta--test {
+  background: #1a1a2e;
+  color: #e0e0e0;
+  border: 1px solid #444;
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.insurance-billing-cta--test:hover:not(:disabled) {
+  background: #16213e;
+}
+
+.insurance-billing-cta--test:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .insurance-billing-banner {
   margin-top: 24px;
   padding: 14px 16px;
