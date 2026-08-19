@@ -156,27 +156,30 @@ export default function BillingCheckoutPage() {
   }, [summary, billingCycle, promoValidated])
 
   const checkoutConfig = summary?.checkoutConfig
+  // customerKey는 Toss auth 시 필요하지만, 버튼 노출 여부는 provider/enabled/clientKey로만 판단.
+  // customerKey가 없어도 버튼은 노출하고, 클릭 시 fetch 혹은 에러를 처리한다.
   const canUseToss =
     !reviewCheckoutOpen &&
     checkoutConfig?.provider === 'toss' &&
     Boolean(checkoutConfig.enabled) &&
-    Boolean(checkoutConfig.clientKey) &&
-    Boolean(checkoutConfig.customerKey)
+    Boolean(checkoutConfig.clientKey)
   const hasBillingKey = Boolean(checkoutConfig?.hasBillingKey)
 
-  // legacy_entitled / active_paid 이면서 결제수단 미등록: 등록 버튼 노출
   const isActiveEntitled = checkoutMode === 'legacy_entitled' || checkoutMode === 'active_paid'
-  const showRegisterMethodBtn = isActiveEntitled && canUseToss && !hasBillingKey && !reviewCheckoutOpen
 
+  // 결제수단 등록/변경 버튼을 별도로 노출할지 여부 (Toss 사용 가능 + 기존 이용자)
+  const showPaymentMethodBtn = isActiveEntitled && canUseToss && !reviewCheckoutOpen
+  const paymentMethodBtnLabel = hasBillingKey ? '결제수단 변경' : '결제수단 등록'
+
+  // primary CTA: 기존 이용자는 Toss 버튼을 별도 표시하므로 primary는 "내 결제 상태 보기"로만 처리
   const ctaLabel = useMemo(() => {
     if (reviewCheckoutOpen && isActiveEntitled) return '결제하기'
-    if (showRegisterMethodBtn) return '결제수단 등록'
+    if (isActiveEntitled) return '내 결제 상태 보기'
     if (checkoutMode === 'trialing') return hasBillingKey ? '결제하기' : '결제수단 등록'
-    if (isActiveEntitled) return hasBillingKey ? '내 결제 상태 보기' : '내 결제 상태 보기'
     if (promoValidated?.freeMonths) return `${promoValidated.freeMonths}개월 무료로 시작하기`
     if (displayAmount === 0) return '무료로 시작하기'
     return '결제하기'
-  }, [checkoutMode, promoValidated, displayAmount, reviewCheckoutOpen, isActiveEntitled, showRegisterMethodBtn, hasBillingKey])
+  }, [checkoutMode, promoValidated, displayAmount, reviewCheckoutOpen, isActiveEntitled, hasBillingKey])
 
   const handleValidatePromo = async () => {
     if (!token?.trim() || !promoCode.trim() || !promoAllowed) return
@@ -208,30 +211,36 @@ export default function BillingCheckoutPage() {
     }
   }
 
+  // 결제수단 등록/변경 버튼 핸들러 (기존 이용자 전용, charge 없음)
+  const handlePaymentMethodAction = async () => {
+    if (!token?.trim() || !checkoutConfig?.clientKey) return
+    setSubmitting(true)
+    setError('')
+    try {
+      // customerKey가 없으면 서버에서 할당받은 뒤 auth를 시작해야 하나,
+      // checkoutConfig에 customerKey가 있으면 직접 사용한다.
+      if (!checkoutConfig.customerKey) {
+        setError('결제수단 등록을 위한 고객 키를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
+        return
+      }
+      await requestTossBillingAuth({
+        clientKey: String(checkoutConfig.clientKey),
+        customerKey: String(checkoutConfig.customerKey),
+        intent: 'register',
+        planCode: summary?.plan?.code ?? 'insurance_basic',
+        billingCycle,
+      })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '결제수단 등록 창을 열지 못했습니다.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const handlePrimaryAction = async () => {
     if (!token?.trim()) return
 
-    // 기존 이용자/유료 이용자이면서 결제수단 등록 버튼을 클릭한 경우 → register-only Toss auth
-    if (showRegisterMethodBtn && checkoutConfig?.clientKey && checkoutConfig.customerKey) {
-      setSubmitting(true)
-      setError('')
-      try {
-        await requestTossBillingAuth({
-          clientKey: String(checkoutConfig.clientKey),
-          customerKey: String(checkoutConfig.customerKey),
-          intent: 'register',
-          planCode: summary?.plan?.code ?? 'insurance_basic',
-          billingCycle,
-        })
-      } catch (e) {
-        setError(e instanceof Error ? e.message : '결제수단 등록 창을 열지 못했습니다.')
-      } finally {
-        setSubmitting(false)
-      }
-      return
-    }
-
-    // 기존 이용자/유료 이용자이고 결제수단이 이미 있거나 Toss 사용 불가 → manage로 이동
+    // 기존 이용자/유료 이용자: primary CTA는 manage로 이동 (결제수단은 별도 버튼)
     if (!reviewCheckoutOpen && isActiveEntitled) {
       navigate('/billing/manage')
       return
@@ -380,8 +389,8 @@ export default function BillingCheckoutPage() {
               <section className="insurance-billing-card">
                 <h2>{isActiveEntitled ? '요금제 · 결제 관리' : '결제 요약'}</h2>
 
-                {isActiveEntitled && canUseToss ? (
-                  <div className="insurance-billing-manage-meta">
+                {showPaymentMethodBtn ? (
+                  <dl className="insurance-billing-manage-meta">
                     <div className="insurance-billing-manage-meta__row">
                       <dt>결제수단</dt>
                       <dd>
@@ -390,7 +399,7 @@ export default function BillingCheckoutPage() {
                           : '미등록'}
                       </dd>
                     </div>
-                  </div>
+                  </dl>
                 ) : null}
 
                 {promoAllowed ? (
@@ -455,23 +464,27 @@ export default function BillingCheckoutPage() {
                   </div>
                 ) : null}
 
+                {/* 결제수단 등록/변경: 기존 이용자 + Toss 사용 가능 시 최상단 */}
+                {showPaymentMethodBtn ? (
+                  <button
+                    type="button"
+                    className="insurance-billing-cta"
+                    disabled={submitting}
+                    onClick={() => void handlePaymentMethodAction()}
+                  >
+                    {paymentMethodBtnLabel}
+                  </button>
+                ) : null}
+
+                {/* primary CTA: 결제 / 내 결제 상태 보기 / 무료 시작 등 */}
                 <button
                   type="button"
-                  className="insurance-billing-cta"
+                  className={showPaymentMethodBtn ? 'insurance-billing-cta insurance-billing-cta--secondary' : 'insurance-billing-cta'}
                   disabled={submitting}
                   onClick={() => void handlePrimaryAction()}
                 >
                   {ctaLabel}
                 </button>
-
-                {isActiveEntitled && !showRegisterMethodBtn && (
-                  <Link
-                    to="/billing/manage"
-                    className="insurance-billing-cta insurance-billing-cta--secondary"
-                  >
-                    내 결제 상태 보기
-                  </Link>
-                )}
 
                 {isActiveEntitled && (
                   <Link
