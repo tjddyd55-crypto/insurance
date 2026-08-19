@@ -4,14 +4,7 @@ import { assertUserBillingPromotionNotAlreadyUsed } from './billingPromotionRede
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { resolveTenantByGaId } from '../lib/crmPlatformMeta.js'
 import { assertNoActivePendingInsurancePayment } from './pendingPaymentPolicy.js'
-
-const MS_PER_DAY = 86400000
-
-function addMonths(date, months) {
-  const next = new Date(date.getTime())
-  next.setMonth(next.getMonth() + months)
-  return next
-}
+import { resolveNextPeriodEnd, addCalendarMonthsKst as addMonths } from './billingPeriodDate.js'
 
 /**
  * @param {import('pg').Pool | import('pg').PoolClient} executor
@@ -474,8 +467,11 @@ export async function finalizeInsurancePaymentAsPaid(client, params) {
   const userId = String(payment.user_id)
   const billingCycle = String(payment.billing_cycle ?? 'monthly').trim().toLowerCase() === 'yearly' ? 'yearly' : 'monthly'
   const planCode = String(payment.plan_code ?? INSURANCE_BASIC_PLAN_CODE).trim()
-  const now = new Date()
-  const periodEnd = billingCycle === 'yearly' ? addMonths(now, 12) : addMonths(now, 1)
+  const periodStart = params.periodAnchor ? new Date(params.periodAnchor) : new Date()
+  if (Number.isNaN(periodStart.getTime())) {
+    throw new Error('invalid_period_anchor')
+  }
+  const periodEnd = resolveNextPeriodEnd(periodStart, billingCycle)
 
   await systemQuery(
     client,
@@ -495,13 +491,16 @@ export async function finalizeInsurancePaymentAsPaid(client, params) {
       status = 'active_paid',
       plan_code = $2,
       billing_cycle = $3,
-      current_period_start = NOW(),
-      current_period_end = $4,
-      next_billing_at = $4,
+      current_period_start = $4,
+      current_period_end = $5,
+      next_billing_at = $5,
+      renewal_retry_count = 0,
+      last_renewal_failed_at = NULL,
+      next_renewal_retry_at = NULL,
       updated_at = NOW()
     WHERE user_id = $1
     `,
-    [userId, planCode, billingCycle, periodEnd.toISOString()],
+    [userId, planCode, billingCycle, periodStart.toISOString(), periodEnd.toISOString()],
   )
 
   const qualified = await qualifyBillingReferralOnPaidPayment(client, userId)
@@ -517,9 +516,11 @@ export async function finalizeInsurancePaymentAsPaid(client, params) {
   const eventType =
     params.source === 'admin'
       ? 'payment.admin.approved'
-      : params.source === 'toss'
-        ? 'payment.toss.completed'
-        : 'payment.mock.completed'
+      : params.source === 'renewal'
+        ? 'payment.renewal.completed'
+        : params.source === 'toss'
+          ? 'payment.toss.completed'
+          : 'payment.mock.completed'
   await recordBillingEvent(client, {
     tenantId: payment.tenant_id,
     userId,

@@ -19,6 +19,10 @@ import { registerInsuranceBillingApi, enforceInsuranceBillingEntitlement } from 
 import { getInsuranceBillingProvider } from './insurance-billing/config.js'
 import { getPaymentSettingsEncryptionDiagnostics } from './billing/paymentSettingsCrypto.js'
 import {
+  startInsuranceBillingRenewalWorker,
+  getInsuranceBillingRenewalWorkerDiagnostics,
+} from './insurance-billing/insuranceBillingRenewalWorker.js'
+import {
   bootstrapInsuranceBillingSubscriptionOnSignup,
 } from './insurance-billing/subscriptionLifecycle.js'
 import { ensureReferralCodeForUser } from './referrals/referralCode.js'
@@ -7825,6 +7829,7 @@ async function startServer() {
     console.info('[billing] diagnostics', {
       insuranceBillingProvider: getInsuranceBillingProvider(),
       paymentSettingsEncryption: getPaymentSettingsEncryptionDiagnostics(),
+      renewalWorker: getInsuranceBillingRenewalWorkerDiagnostics(),
     })
   })
 
@@ -7842,6 +7847,7 @@ async function startServer() {
   }, ANALYTICS_TICK_MS)
 
   startSmsAutomationScheduler(pool)
+  startInsuranceBillingRenewalWorker(pool)
 
   const PUSH_OUTBOX_TICK_MS = 15 * 1000
   const pushTickRunning = { current: false }
