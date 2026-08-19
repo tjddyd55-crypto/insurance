@@ -15,6 +15,7 @@ import { registerReferralApi } from './registerReferralApi.js'
 import { registerPromotionCodesApi } from './registerPromotionCodesApi.js'
 import { registerAdminPromotionCodesApi } from './registerAdminPromotionCodesApi.js'
 import { registerBillingApi } from './registerBillingApi.js'
+import { registerInsuranceBillingApi, enforceInsuranceBillingEntitlement } from './registerInsuranceBillingApi.js'
 import { getInsuranceBillingProvider } from './insurance-billing/config.js'
 import { getPaymentSettingsEncryptionDiagnostics } from './billing/paymentSettingsCrypto.js'
 import {

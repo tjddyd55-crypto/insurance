@@ -1,5 +1,16 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { registerInsuranceBillingApi, enforceInsuranceBillingEntitlement } from '../registerInsuranceBillingApi.js'
+
+// ─── Startup smoke: import 검증 ───────────────────────────────────────────────
+
+test('registerInsuranceBillingApi is importable and is a function', () => {
+  assert.equal(typeof registerInsuranceBillingApi, 'function')
+})
+
+test('enforceInsuranceBillingEntitlement is importable and is a function', () => {
+  assert.equal(typeof enforceInsuranceBillingEntitlement, 'function')
+})
 import {
   classifyTossBillingCredentialKey,
   validatePaymentKeysForMode,
