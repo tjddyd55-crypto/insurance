@@ -127,6 +127,43 @@ test('register-only + billingKey 없음 → needsBillingAuth=true (Toss auth 필
   }
 })
 
+// ─── canRunTestCharge 노출 조건 (frontend 로직 미러) ─────────────────────────
+
+function canRunTestCharge(cfg, hasBillingKey) {
+  return (
+    cfg?.mode === 'virtual' &&
+    cfg?.provider === 'toss' &&
+    Boolean(cfg?.enabled) &&
+    hasBillingKey
+  )
+}
+
+test('canRunTestCharge — toss + virtual + enabled + billingKey → true', () => {
+  assert.equal(canRunTestCharge({ mode: 'virtual', provider: 'toss', enabled: true }, true), true)
+})
+
+test('canRunTestCharge — mode=live → false (production 차단)', () => {
+  assert.equal(canRunTestCharge({ mode: 'live', provider: 'toss', enabled: true }, true), false)
+})
+
+test('canRunTestCharge — provider=mock → false', () => {
+  assert.equal(canRunTestCharge({ mode: 'virtual', provider: 'mock', enabled: true }, true), false)
+})
+
+test('canRunTestCharge — enabled=false → false', () => {
+  assert.equal(canRunTestCharge({ mode: 'virtual', provider: 'toss', enabled: false }, true), false)
+})
+
+test('canRunTestCharge — hasBillingKey=false → false (카드 없으면 charge 버튼 없음)', () => {
+  assert.equal(canRunTestCharge({ mode: 'virtual', provider: 'toss', enabled: true }, false), false)
+})
+
+test('canRunTestCharge — cfg=null → false', () => {
+  assert.equal(canRunTestCharge(null, true), false)
+})
+
+// ─── register-only=false + billingKey 있음 ───────────────────────────────────
+
 test('register-only=false + billingKey 있음 → createPendingPayment 진행 (실제 charge 시도)', async () => {
   const prev = process.env.PAYMENT_SETTINGS_SECRET_KEY
   process.env.PAYMENT_SETTINGS_SECRET_KEY = '0'.repeat(64)

@@ -173,6 +173,17 @@ export default function BillingCheckoutPage() {
   const showPaymentMethodBtn = isActiveEntitled && canUseToss && !reviewCheckoutOpen
   const paymentMethodBtnLabel = hasBillingKey ? '결제수단 변경' : '결제수단 등록'
 
+  // TEST QA 전용 단건결제 버튼 노출 조건:
+  // - non-production (mode=virtual): production은 mode=live이므로 절대 노출 안 됨
+  // - provider=toss
+  // - enabled=true
+  // - hasBillingKey=true (이미 등록된 카드로 청구)
+  const canRunTestCharge =
+    checkoutConfig?.mode === 'virtual' &&
+    checkoutConfig.provider === 'toss' &&
+    Boolean(checkoutConfig.enabled) &&
+    hasBillingKey
+
   // primary CTA: 기존 이용자는 Toss 버튼을 별도 표시하므로 primary는 "내 결제 상태 보기"로만 처리
   const ctaLabel = useMemo(() => {
     if (reviewCheckoutOpen && isActiveEntitled) return '결제하기'
@@ -234,6 +245,41 @@ export default function BillingCheckoutPage() {
       })
     } catch (e) {
       setError(e instanceof Error ? e.message : '결제수단 등록 창을 열지 못했습니다.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // TEST 환경 전용 단건결제 핸들러 (mode=virtual + hasBillingKey일 때만 호출)
+  const handleTestCharge = async () => {
+    if (!token?.trim() || !canRunTestCharge) return
+    setSubmitting(true)
+    setError('')
+    try {
+      const planCode = summary?.plan?.code ?? 'insurance_basic'
+      const result = await requestBillingPayment(token, {
+        planCode,
+        billingCycle,
+        registerOnly: false,
+        testCode: qaTestCode.trim() || null,
+      })
+      if (result.status === 'paid' || result.subscriptionStatus === 'active_paid') {
+        navigate('/billing/success', { replace: true, state: { mode: 'paid' } })
+        return
+      }
+      if (result.needsBillingAuth && result.checkoutConfig?.clientKey && result.checkoutConfig.customerKey) {
+        await requestTossBillingAuth({
+          clientKey: result.checkoutConfig.clientKey,
+          customerKey: result.checkoutConfig.customerKey,
+          intent: 'charge',
+          planCode,
+          billingCycle,
+        })
+        return
+      }
+      navigate('/billing/success', { replace: true, state: { mode: 'paid' } })
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : e instanceof Error ? e.message : '결제 처리에 실패했습니다.')
     } finally {
       setSubmitting(false)
     }
@@ -467,19 +513,30 @@ export default function BillingCheckoutPage() {
                   </div>
                 ) : null}
 
-                {/* TEST 모드 전용 QA 섹션: testCode 입력 (mode=virtual일 때만 노출) */}
-                {checkoutConfig?.mode === 'virtual' && canUseToss ? (
-                  <div className="insurance-billing-field" style={{ marginBottom: 8 }}>
-                    <label htmlFor="billing-qa-testcode" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                      [TEST] Toss Test Code (예: REJECT_CARD_PAYMENT)
-                    </label>
-                    <input
-                      id="billing-qa-testcode"
-                      value={qaTestCode}
-                      onChange={(e) => setQaTestCode(e.target.value)}
-                      placeholder="빈 값이면 정상 결제"
-                      style={{ fontSize: '0.75rem' }}
-                    />
+                {/* TEST QA 전용 섹션 — production(mode=live)에서는 절대 노출 안 됨 */}
+                {canRunTestCharge ? (
+                  <div className="insurance-billing-test-qa-section">
+                    <p className="insurance-billing-test-qa-section__title">[TEST] Toss 결제 QA</p>
+                    <div className="insurance-billing-field">
+                      <label htmlFor="billing-qa-testcode">Test Code</label>
+                      <input
+                        id="billing-qa-testcode"
+                        value={qaTestCode}
+                        onChange={(e) => setQaTestCode(e.target.value)}
+                        placeholder="빈 값이면 정상 결제 · REJECT_CARD_PAYMENT"
+                      />
+                    </div>
+                    <p className="insurance-billing-test-qa-section__hint">
+                      TEST 결제 금액: {formatKrw(billingCycle === 'yearly' ? (summary?.plan?.yearlyTotal ?? 88000) : (summary?.plan?.monthlyTotal ?? 8800))} (VAT 포함)
+                    </p>
+                    <button
+                      type="button"
+                      className="insurance-billing-cta insurance-billing-cta--test"
+                      disabled={submitting}
+                      onClick={() => void handleTestCharge()}
+                    >
+                      {submitting ? '결제 처리 중...' : 'TEST 결제 실행'}
+                    </button>
                   </div>
                 ) : null}
 
