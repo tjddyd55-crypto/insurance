@@ -42,7 +42,7 @@ export default function BillingSuccessPage() {
         if (authKey && customerKey) {
           await confirmBillingAuth(token, { authKey, customerKey })
           if (intent === 'charge') {
-            const charged = await requestBillingPayment(token, { planCode, billingCycle })
+            const charged = await requestBillingPayment(token, { planCode, billingCycle, registerOnly: false })
             if (cancelled) return
             if (charged.subscriptionStatus === 'active_paid' || charged.status === 'paid') {
               setResultMode('paid')
