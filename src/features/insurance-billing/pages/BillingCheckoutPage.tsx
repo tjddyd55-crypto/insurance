@@ -107,6 +107,8 @@ export default function BillingCheckoutPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [summaryLoadError, setSummaryLoadError] = useState<string | null>(null)
+  // TEST 모드(mode=virtual)에서만 노출하는 QA testCode 입력
+  const [qaTestCode, setQaTestCode] = useState('')
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -286,6 +288,7 @@ export default function BillingCheckoutPage() {
         planCode,
         billingCycle,
         registerOnly,
+        testCode: qaTestCode.trim() || null,
       })
       if (result.needsBillingAuth && result.checkoutConfig?.clientKey && result.checkoutConfig.customerKey) {
         await requestTossBillingAuth({
@@ -461,6 +464,22 @@ export default function BillingCheckoutPage() {
                     {promoValidated.freeMonths ?? 1}개월 무료 이용권 미리보기
                     <br />
                     예상 무료 종료일: {formatDateLabel(promoValidated.trialEndsAt)}
+                  </div>
+                ) : null}
+
+                {/* TEST 모드 전용 QA 섹션: testCode 입력 (mode=virtual일 때만 노출) */}
+                {checkoutConfig?.mode === 'virtual' && canUseToss ? (
+                  <div className="insurance-billing-field" style={{ marginBottom: 8 }}>
+                    <label htmlFor="billing-qa-testcode" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      [TEST] Toss Test Code (예: REJECT_CARD_PAYMENT)
+                    </label>
+                    <input
+                      id="billing-qa-testcode"
+                      value={qaTestCode}
+                      onChange={(e) => setQaTestCode(e.target.value)}
+                      placeholder="빈 값이면 정상 결제"
+                      style={{ fontSize: '0.75rem' }}
+                    />
                   </div>
                 ) : null}
 
