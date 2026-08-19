@@ -54,7 +54,7 @@ async function loadInsurancePlanForPayment(client, planCode) {
 
 /**
  * @param {import('pg').PoolClient} client
- * @param {{ userId: string; planCode: string; billingCycle: string; promotionCode?: string | null; provider?: string }} params
+ * @param {{ userId: string; planCode: string; billingCycle: string; promotionCode?: string | null; provider?: string; paymentSource?: string | null; renewalPeriodKey?: string | null }} params
  */
 export async function createPendingInsurancePaymentRow(client, params) {
   const userId = String(params.userId ?? '').trim()
@@ -62,6 +62,8 @@ export async function createPendingInsurancePaymentRow(client, params) {
     String(params.billingCycle ?? 'monthly').trim().toLowerCase() === 'yearly' ? 'yearly' : 'monthly'
   const planCode = String(params.planCode ?? INSURANCE_BASIC_PLAN_CODE).trim()
   const provider = String(params.provider ?? 'toss').trim()
+  const paymentSource = String(params.paymentSource ?? 'checkout').trim() || 'checkout'
+  const renewalPeriodKey = params.renewalPeriodKey ? String(params.renewalPeriodKey).trim() : null
 
   const subR = await systemQuery(
     client,
@@ -100,9 +102,10 @@ export async function createPendingInsurancePaymentRow(client, params) {
     INSERT INTO billing_payments (
       tenant_id, user_id, subscription_id, provider, provider_payment_key,
       plan_code, billing_cycle, promotion_code, referral_code,
-      amount, vat_amount, total_amount, status, created_at, updated_at
+      amount, vat_amount, total_amount, status, payment_source, renewal_period_key,
+      created_at, updated_at
     )
-    VALUES ($1, $2, $3, $4, NULL, $5, $6, $7, $8, $9, $10, $11, 'pending', NOW(), NOW())
+    VALUES ($1, $2, $3, $4, NULL, $5, $6, $7, $8, $9, $10, $11, 'pending', $12, $13, NOW(), NOW())
     RETURNING id
     `,
     [
@@ -117,6 +120,8 @@ export async function createPendingInsurancePaymentRow(client, params) {
       supplyAmount,
       vatAmount,
       totalAmount,
+      paymentSource,
+      renewalPeriodKey,
     ],
   )
 
@@ -219,7 +224,8 @@ export async function executeTossBillingCharge(client, params) {
 
   return finalizeInsurancePaymentAsPaid(client, {
     paymentId: params.paymentId,
-    source: 'toss',
+    source: params.source === 'renewal' ? 'renewal' : 'toss',
+    periodAnchor: params.periodAnchor ?? null,
   })
 }
 

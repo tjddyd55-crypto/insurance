@@ -5175,6 +5175,34 @@ async function ensureInsuranceBillingPhase1Schema(executor) {
     ON billing_payments (user_id)
     WHERE status = 'pending'
   `)
+  await executor.query(`
+    ALTER TABLE billing_payments
+    ADD COLUMN IF NOT EXISTS payment_source TEXT
+  `)
+  await executor.query(`
+    ALTER TABLE billing_payments
+    ADD COLUMN IF NOT EXISTS renewal_period_key TEXT
+  `)
+  // 같은 구독 + 같은 결제주기에는 pending/paid 가 1건만 존재해야 한다.
+  // failed 는 재시도를 위해 unique 에서 제외한다.
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_billing_payments_renewal_period_unique
+    ON billing_payments (subscription_id, renewal_period_key)
+    WHERE renewal_period_key IS NOT NULL
+      AND status IN ('pending', 'paid')
+  `)
+  await executor.query(`
+    ALTER TABLE billing_subscriptions
+    ADD COLUMN IF NOT EXISTS renewal_retry_count INTEGER NOT NULL DEFAULT 0
+  `)
+  await executor.query(`
+    ALTER TABLE billing_subscriptions
+    ADD COLUMN IF NOT EXISTS last_renewal_failed_at TIMESTAMPTZ
+  `)
+  await executor.query(`
+    ALTER TABLE billing_subscriptions
+    ADD COLUMN IF NOT EXISTS next_renewal_retry_at TIMESTAMPTZ
+  `)
 }
 
 /** GA 초대 고객 등록(/customer/register) — 제출 세션(httpOnly cookie) 및 최초 제출 시각(3시간 수정 창구) */

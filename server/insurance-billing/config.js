@@ -11,6 +11,7 @@ import {
   INSURANCE_BILLING_ENTITLED_STATUSES,
   isInsuranceBillingEntitledStatus as isEntitledStatus,
 } from './subscriptionStatusPolicy.js'
+import { isProductionRuntime as isInsuranceBillingProductionRuntime } from '../lib/crmUserBulkSmsConfig.js'
 
 export const INSURANCE_BASIC_PLAN_CODE = 'insurance_basic'
 
@@ -52,7 +53,7 @@ export function isMockPaymentAllowed() {
   return true
 }
 
-export { isProductionRuntime as isInsuranceBillingProductionRuntime } from '../lib/crmUserBulkSmsConfig.js'
+export { isInsuranceBillingProductionRuntime }
 
 /** @deprecated 이름 호환 — subscriptionStatusPolicy.js 와 동일 */
 export const INSURANCE_BILLING_ALLOWED_STATUSES = INSURANCE_BILLING_ENTITLED_STATUSES
