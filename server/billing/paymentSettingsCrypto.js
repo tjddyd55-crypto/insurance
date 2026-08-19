@@ -18,6 +18,10 @@ export function canStorePaymentSecrets() {
   return deriveKey() != null
 }
 
+export function getPaymentSettingsEncryptionDiagnostics() {
+  return { configured: canStorePaymentSecrets() }
+}
+
 /**
  * @param {string} plain
  * @returns {string}

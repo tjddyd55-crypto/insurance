@@ -1,8 +1,10 @@
 import { getInsuranceBillingProvider } from '../config.js'
 import { completeMockInsurancePayment, requestInsurancePayment } from '../subscriptionLifecycle.js'
+import { isStoreReviewBillingSubject } from '../../lib/storeReviewIdentity.js'
+import { tossProvider } from './tossProvider.js'
 
 /**
- * PG Provider 추상화 — Phase 1: mock 만 구현, toss 는 2차 연동.
+ * PG Provider 추상화 — mock + Toss billing.
  */
 
 /** @typedef {{ requestPayment: (client: import('pg').PoolClient, params: object) => Promise<object>; completePayment: (client: import('pg').PoolClient, params: object) => Promise<object> }} InsurancePaymentProvider */
@@ -17,17 +19,13 @@ const mockProvider = {
   },
 }
 
-/** @type {InsurancePaymentProvider} */
-const tossProviderStub = {
-  async requestPayment() {
-    throw new Error('toss_provider_not_implemented')
-  },
-  async completePayment() {
-    throw new Error('toss_provider_not_implemented')
-  },
-}
-
-/** @returns {InsurancePaymentProvider} */
-export function getInsurancePaymentProvider() {
-  return getInsuranceBillingProvider() === 'toss' ? tossProviderStub : mockProvider
+/**
+ * @param {{ gaCode?: string | null; tenantCode?: string | null; username?: string | null } | null | undefined} user
+ * @returns {InsurancePaymentProvider}
+ */
+export function getInsurancePaymentProvider(user = null) {
+  if (user && isStoreReviewBillingSubject(user)) {
+    return mockProvider
+  }
+  return getInsuranceBillingProvider() === 'toss' ? tossProvider : mockProvider
 }

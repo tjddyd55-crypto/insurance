@@ -3,6 +3,7 @@ import { INSURANCE_BASIC_PLAN_CODE, isInsuranceBillingEnabled } from './config.j
 import { assertUserBillingPromotionNotAlreadyUsed } from './billingPromotionRedemptionPolicy.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { resolveTenantByGaId } from '../lib/crmPlatformMeta.js'
+import { assertNoActivePendingInsurancePayment } from './pendingPaymentPolicy.js'
 
 const MS_PER_DAY = 86400000
 
@@ -383,18 +384,7 @@ export async function createPendingInsurancePayment(client, params) {
     throw new Error('plan_not_found')
   }
 
-  const pendingR = await systemQuery(
-    client,
-    `
-    SELECT id FROM billing_payments
-    WHERE user_id = $1 AND status = 'pending'
-    LIMIT 1
-    `,
-    [userId],
-  )
-  if (pendingR.rowCount > 0) {
-    throw new Error('payment_already_pending')
-  }
+  await assertNoActivePendingInsurancePayment(client, userId)
 
   const { totalAmount, supplyAmount, vatAmount } = resolvePlanPaymentAmounts(plan, billingCycle)
 
@@ -410,11 +400,11 @@ export async function createPendingInsurancePayment(client, params) {
     client,
     `
     INSERT INTO billing_payments (
-      tenant_id, user_id, subscription_id, provider, provider_payment_key,
+      tenant_id, user_id, subscription_id, provider, provider_payment_key, order_id,
       plan_code, billing_cycle, promotion_code, referral_code,
       amount, vat_amount, total_amount, status, created_at, updated_at
     )
-    VALUES ($1, $2, $3, 'mock', $4, $5, $6, $7, $8, $9, $10, $11, 'pending', NOW(), NOW())
+    VALUES ($1, $2, $3, 'mock', $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pending', NOW(), NOW())
     RETURNING id
     `,
     [
@@ -422,6 +412,7 @@ export async function createPendingInsurancePayment(client, params) {
       userId,
       sub.id,
       `mock_req_${randomUUID()}`,
+      `onefc_ib_mock_${randomUUID().replace(/-/g, '')}`,
       planCode,
       billingCycle,
       promotionCode,
@@ -523,7 +514,12 @@ export async function finalizeInsurancePaymentAsPaid(client, params) {
     )
   }
 
-  const eventType = params.source === 'admin' ? 'payment.admin.approved' : 'payment.mock.completed'
+  const eventType =
+    params.source === 'admin'
+      ? 'payment.admin.approved'
+      : params.source === 'toss'
+        ? 'payment.toss.completed'
+        : 'payment.mock.completed'
   await recordBillingEvent(client, {
     tenantId: payment.tenant_id,
     userId,

@@ -20,9 +20,9 @@ import {
 import { REFUND_POLICY_NOTICE } from './billing/policy.js'
 import {
   getPaymentSettingsAdmin,
-  getPaymentSettingsPublic,
   updatePaymentSettings,
 } from './billing/paymentSettings.js'
+import { getPaymentSettingsPublicWithClientKey } from './billing/paymentSettingsResolve.js'
 import { isSubscriptionSubjectRole } from './subscription/policy.js'
 import {
   BASE_MONTHLY_PRICE,
@@ -60,6 +60,30 @@ export function registerBillingApi(apiRouter, ctx) {
       invoice_not_pending: { status: 400, message: '대기 중인 결제만 처리할 수 있습니다.' },
       invalid_payment_mode: { status: 400, message: '결제 모드는 virtual 또는 live 여야 합니다.' },
       invalid_payment_provider: { status: 400, message: 'PG사 설정이 올바르지 않습니다.' },
+      payment_widget_key_not_allowed: {
+        status: 400,
+        message: '결제위젯 키(gck/gsk)는 자동결제에 사용할 수 없습니다. API 개별연동 키(ck/sk)를 입력해 주세요.',
+      },
+      payment_client_key_prefix_invalid: {
+        status: 400,
+        message: '클라이언트 키는 test_ck_ 또는 live_ck_ 로 시작해야 합니다.',
+      },
+      payment_secret_key_prefix_invalid: {
+        status: 400,
+        message: '시크릿 키는 test_sk_ 또는 live_sk_ 로 시작해야 합니다.',
+      },
+      payment_client_key_mode_mismatch: {
+        status: 400,
+        message: '결제 모드와 클라이언트 키 종류가 일치하지 않습니다.',
+      },
+      payment_secret_key_mode_mismatch: {
+        status: 400,
+        message: '결제 모드와 시크릿 키 종류가 일치하지 않습니다.',
+      },
+      payment_key_pair_mismatch: {
+        status: 400,
+        message: '클라이언트 키와 시크릿 키의 TEST/LIVE 종류가 서로 다릅니다.',
+      },
       payment_secret_storage_unavailable: {
         status: 400,
         message:
@@ -86,10 +110,11 @@ export function registerBillingApi(apiRouter, ctx) {
 
   apiRouter.get('/billing/settings', requireAuth, requireBillingSubject, async (req, res) => {
     try {
-      const settings = await getPaymentSettingsPublic(pool)
+      const settings = await getPaymentSettingsPublicWithClientKey(pool)
       res.json({
         provider: settings.provider,
         mode: settings.mode,
+        clientKey: settings.clientKey,
         isEnabled: settings.isEnabled,
         isVirtualMode: settings.mode === 'virtual',
       })

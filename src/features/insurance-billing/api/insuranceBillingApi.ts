@@ -1,6 +1,17 @@
 import { apiRequest } from '../../../lib/apiClient'
 import type { ApplyPromotionResponse } from '../billingApplyPromotion'
 
+export type BillingCheckoutConfig = {
+  provider: string
+  mode: 'virtual' | 'live' | string
+  clientKey: string | null
+  enabled: boolean
+  customerKey: string | null
+  hasBillingKey: boolean
+  cardCompany?: string | null
+  cardNumberMasked?: string | null
+}
+
 export type CheckoutSummary = {
   subscriptionStatus: string
   status?: string
@@ -27,6 +38,7 @@ export type CheckoutSummary = {
   billingEnabled?: boolean
   enforceAccess?: boolean
   provider?: string
+  checkoutConfig?: BillingCheckoutConfig
 }
 
 export type PromotionValidateResult = {
@@ -81,9 +93,18 @@ export async function completeMockBillingPayment(
 
 export async function requestBillingPayment(
   token: string,
-  body: { planCode?: string; billingCycle?: string; promotionCode?: string },
+  body: { planCode?: string; billingCycle?: string; promotionCode?: string; registerOnly?: boolean },
 ) {
-  return apiRequest<{ ok: boolean; paymentId: number; status: string; subscriptionStatus: string; totalAmount: number }>(
+  return apiRequest<{
+    ok: boolean
+    paymentId?: number
+    status?: string
+    subscriptionStatus?: string
+    totalAmount?: number
+    needsBillingAuth?: boolean
+    hasBillingKey?: boolean
+    checkoutConfig?: BillingCheckoutConfig
+  }>(
     '/api/billing/payments/request',
     {
       method: 'POST',
@@ -91,6 +112,24 @@ export async function requestBillingPayment(
       body: JSON.stringify(body),
     },
   )
+}
+
+export async function confirmBillingAuth(
+  token: string,
+  body: { authKey: string; customerKey: string },
+) {
+  return apiRequest<{ ok: boolean; hasBillingKey: boolean }>(
+    '/api/billing/payment-methods/auth-confirm',
+    {
+      method: 'POST',
+      token,
+      body: JSON.stringify(body),
+    },
+  )
+}
+
+export async function fetchBillingCheckoutConfig(token: string) {
+  return apiRequest<BillingCheckoutConfig>('/api/billing/checkout/config', { token })
 }
 
 export type BillingManageSubscription = {
