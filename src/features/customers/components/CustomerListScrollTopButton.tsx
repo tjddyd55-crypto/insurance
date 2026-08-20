@@ -1,10 +1,9 @@
 import { useCallback, useLayoutEffect, useState, type CSSProperties, type RefObject } from 'react'
 import {
-  CUSTOMER_LIST_SCROLL_FAB_BOTTOM_OFFSET_CSS_VAR,
   CUSTOMER_LIST_SCROLL_FAB_HEIGHT_PX,
   CUSTOMER_LIST_SCROLL_FAB_WIDTH_PX,
 } from '../config/customerRecentRegistration.config'
-import { resolveCustomerListScrollFabBottomOffsetPx } from '../utils/resolveCustomerListFloatingBottom'
+import { computeCustomerListFabFixedPosition } from '../utils/resolveCustomerListFabPosition'
 import {
   resolveCustomerListScrollContainer,
   scrollCustomerListPanelToTop,
@@ -24,39 +23,24 @@ export default function CustomerListScrollTopButton({
   const syncFabPosition = useCallback(() => {
     const panel = anchorRef.current
     if (!panel || !panel.isConnected) {
-      document.documentElement.style.removeProperty(CUSTOMER_LIST_SCROLL_FAB_BOTTOM_OFFSET_CSS_VAR)
       setFabStyle({ visibility: 'hidden' })
       return
     }
 
     const container = resolveCustomerListScrollContainer(panel)
     if (!container) {
-      document.documentElement.style.removeProperty(CUSTOMER_LIST_SCROLL_FAB_BOTTOM_OFFSET_CSS_VAR)
       setFabStyle({ visibility: 'hidden' })
       return
     }
 
-    const rect = container.getBoundingClientRect()
-    if (rect.width < CUSTOMER_LIST_SCROLL_FAB_WIDTH_PX || rect.height < CUSTOMER_LIST_SCROLL_FAB_HEIGHT_PX) {
-      document.documentElement.style.removeProperty(CUSTOMER_LIST_SCROLL_FAB_BOTTOM_OFFSET_CSS_VAR)
-      setFabStyle({ visibility: 'hidden' })
-      return
-    }
-
-    const bottomOffsetPx = resolveCustomerListScrollFabBottomOffsetPx(panel)
-    document.documentElement.style.setProperty(
-      CUSTOMER_LIST_SCROLL_FAB_BOTTOM_OFFSET_CSS_VAR,
-      `${bottomOffsetPx}px`,
-    )
-
-    setFabStyle({
-      position: 'fixed',
-      left: rect.left + rect.width / 2,
-      transform: 'translateX(-50%)',
-      zIndex: 50,
-      visibility: 'visible',
+    const next = computeCustomerListFabFixedPosition({
+      containerRect: container.getBoundingClientRect(),
+      variant,
+      fabWidth: variant === 'mobile' ? 40 : CUSTOMER_LIST_SCROLL_FAB_WIDTH_PX,
+      fabHeight: variant === 'mobile' ? 44 : CUSTOMER_LIST_SCROLL_FAB_HEIGHT_PX,
     })
-  }, [anchorRef])
+    setFabStyle(next ?? { visibility: 'hidden' })
+  }, [anchorRef, variant])
 
   useLayoutEffect(() => {
     syncFabPosition()
@@ -85,7 +69,6 @@ export default function CustomerListScrollTopButton({
       window.removeEventListener('resize', syncFabPosition)
       window.removeEventListener('scroll', syncFabPosition, true)
       resizeObserver?.disconnect()
-      document.documentElement.style.removeProperty(CUSTOMER_LIST_SCROLL_FAB_BOTTOM_OFFSET_CSS_VAR)
     }
   }, [anchorRef, syncFabPosition])
 
