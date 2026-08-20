@@ -4902,7 +4902,6 @@ button.filter-button:focus-visible {
   min-width: 44px;
   height: 52px;
   min-height: 52px;
-  bottom: calc(var(--customer-list-scroll-fab-bottom-offset, 10px) + env(safe-area-inset-bottom, 0px));
   margin: 0;
   padding: 0;
   border: 1px solid #a7f3d0;

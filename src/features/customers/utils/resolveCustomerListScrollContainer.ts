@@ -1,26 +1,29 @@
+import { fastScrollCustomerListTo } from './fastScrollCustomerList'
+
 /**
  * 고객 리스트 scroll owner SSOT.
  * 연계고객 카드 이동 · 맨 위 FAB 가 동일 resolver 를 사용한다.
  *
  * 우선순위:
- * 1) `.customer-workspace-layout__left` — 실제 세로 스크롤 가능할 때 (PC 기본)
+ * 1) `.customer-workspace-layout__left` — PC 지정 scroll port (overflow auto/scroll)
  * 2) `.mobile-workspace-content`
- * 3) `.app-main-content` (실제 스크롤 가능할 때)
+ * 3) `.app-main-content` (left 가 없을 때만, 실제 스크롤 가능할 때)
  * 4) ancestor walk (overflowY + scrollHeight)
  *
- * CSS overflow:auto 만 보고 고르지 않는다 — 좁은 폭에서 left 가 높이 제약을
- * 잃으면 overflow:auto 여도 실제 scroll owner 가 아닐 수 있다.
+ * left 가 아직 overflow 중이 아니어도 designated port 로 우선한다.
+ * 그렇지 않으면 좁은 PC 창에서 app-main 으로 올라가 FAB 가 리스트 밖 중앙에 뜬다.
  */
+
+function hasScrollableOverflowY(el: HTMLElement): boolean {
+  const overflowY = window.getComputedStyle(el).overflowY
+  return overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay'
+}
 
 export function isCustomerListScrollableElement(el: Element | null): el is HTMLElement {
   if (!(el instanceof HTMLElement)) {
     return false
   }
-  const style = window.getComputedStyle(el)
-  const overflowY = style.overflowY
-  const canOverflow =
-    overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay'
-  if (!canOverflow) {
+  if (!hasScrollableOverflowY(el)) {
     return false
   }
   return el.scrollHeight > el.clientHeight + 1 || el.scrollTop > 0
@@ -28,13 +31,18 @@ export function isCustomerListScrollableElement(el: Element | null): el is HTMLE
 
 function pickPreferredScrollContainer(anchor: HTMLElement): HTMLElement | null {
   const leftPanel = anchor.closest('.customer-workspace-layout__left')
-  if (leftPanel instanceof HTMLElement && isCustomerListScrollableElement(leftPanel)) {
+  if (leftPanel instanceof HTMLElement && hasScrollableOverflowY(leftPanel)) {
     return leftPanel
   }
 
   const mobileContent = anchor.closest('.mobile-workspace-content')
   if (mobileContent instanceof HTMLElement && isCustomerListScrollableElement(mobileContent)) {
     return mobileContent
+  }
+
+  // left 지정 port 가 있으면 app-main 으로 올리지 않는다 (좁은 PC FAB 오배치 방지).
+  if (leftPanel instanceof HTMLElement) {
+    return null
   }
 
   const appMain = anchor.closest('.app-main-content')
@@ -65,23 +73,16 @@ export function resolveCustomerListScrollContainer(anchor: HTMLElement): HTMLEle
     return preferred
   }
 
+  // left 가 있으면 ancestor walk 로 app-main 에 올라가지 않는다.
+  // (좁은 PC 창에서 FAB 가 리스트 밖 중앙에 뜨는 회귀 방지)
+  const leftPanel = anchor.closest('.customer-workspace-layout__left')
+  if (leftPanel instanceof HTMLElement) {
+    return leftPanel
+  }
+
   const walked = walkScrollableAncestor(anchor)
   if (walked) {
     return walked
-  }
-
-  // PC left 가 overflow:auto 로 지정돼 있으나 아직 컨텐츠가 짧아 scrollHeight 판정이
-  // 실패하는 경우 — 이후 스크롤 가능 시 같은 포트를 쓰도록 designated port 를 반환.
-  const leftPanel = anchor.closest('.customer-workspace-layout__left')
-  if (leftPanel instanceof HTMLElement) {
-    const style = window.getComputedStyle(leftPanel)
-    if (
-      style.overflowY === 'auto' ||
-      style.overflowY === 'scroll' ||
-      style.overflowY === 'overlay'
-    ) {
-      return leftPanel
-    }
   }
 
   return null
@@ -145,10 +146,7 @@ export function scrollCustomerCardIntoListContainer(params: {
   return targetTop
 }
 
-export function scrollCustomerListPanelToTop(
-  anchor: HTMLElement,
-  behavior: ScrollBehavior = 'smooth',
-): void {
+export function scrollCustomerListPanelToTop(anchor: HTMLElement): void {
   const container = resolveCustomerListScrollContainer(anchor)
   if (!container) {
     return
@@ -156,12 +154,12 @@ export function scrollCustomerListPanelToTop(
 
   const pageRoot = anchor.closest('.customers-page')
   if (!(pageRoot instanceof HTMLElement)) {
-    container.scrollTo({ top: 0, behavior })
+    fastScrollCustomerListTo(container, 0)
     return
   }
 
   const containerTop = container.getBoundingClientRect().top
   const pageTop = pageRoot.getBoundingClientRect().top
   const nextTop = Math.max(0, container.scrollTop + (pageTop - containerTop))
-  container.scrollTo({ top: nextTop, behavior })
+  fastScrollCustomerListTo(container, nextTop)
 }
