@@ -29,7 +29,8 @@ describe('customer list scroll wiring', () => {
     assert.match(fab, /resolveCustomerListScrollContainer/)
     assert.match(fab, /scrollCustomerListPanelToTop/)
     assert.match(fab, /computeCustomerListFabFixedPosition/)
-    assert.doesNotMatch(fab, /translateX\(-50%\)/)
+    assert.match(fab, /viewportWidth:\s*window\.innerWidth/)
+    assert.match(fab, /viewportHeight:\s*window\.innerHeight/)
     assert.doesNotMatch(fab, /behavior:\s*['"]smooth['"]/)
 
     const scrollSsot = readFileSync(
@@ -48,9 +49,11 @@ describe('customer list scroll wiring', () => {
       join(root, 'features/customers/utils/resolveCustomerListFabPosition.ts'),
       'utf8',
     )
-    assert.match(fabPos, /containerRect\.right/)
-    assert.doesNotMatch(fabPos, /window\.innerWidth/)
-    assert.doesNotMatch(fabPos, /innerHeight/)
+    assert.match(fabPos, /computeVisibleListRect/)
+    assert.match(fabPos, /visible\.left \+ visible\.width \/ 2/)
+    assert.match(fabPos, /translateX\(-50%\)/)
+    assert.doesNotMatch(fabPos, /CUSTOMER_LIST_SCROLL_FAB_RIGHT_OFFSET/)
+    assert.doesNotMatch(fabPos, /containerRect\.right - fabWidth/)
     assert.match(nav, /resolveCustomerListScrollContainer/)
   })
 

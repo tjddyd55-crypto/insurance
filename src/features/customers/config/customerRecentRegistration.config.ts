@@ -3,9 +3,8 @@ export const RECENT_REGISTRATION_DAYS = 14
 
 export const RECENT_REGISTRATION_LIMIT = 5
 
-/** 상단 이동 FAB — 리스트 scroll container 우측(PC) / 하단 중앙(Mobile) */
-export const CUSTOMER_LIST_SCROLL_FAB_BOTTOM_OFFSET_PX = 16
-export const CUSTOMER_LIST_SCROLL_FAB_RIGHT_OFFSET_PX = 16
+/** 상단 이동 FAB — visible list rect 하단 중앙 (PC/Mobile 공통) */
+export const CUSTOMER_LIST_SCROLL_FAB_BOTTOM_OFFSET_PX = 24
 export const CUSTOMER_LIST_SCROLL_FAB_HEIGHT_PX = 52
 export const CUSTOMER_LIST_SCROLL_FAB_WIDTH_PX = 44
 
