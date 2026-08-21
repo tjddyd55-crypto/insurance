@@ -12091,11 +12091,45 @@ body:has(.legal-page-shell) {
   display: flex;
   flex-direction: row;
   height: 100%;
+  max-height: 100%;
   min-height: 0;
 }
 
+/*
+ * 고객 워크스페이스: app-main 과 left 이중 스크롤 금지.
+ * 초협폭에서 left 높이 제약이 풀리면 app-main 만 스크롤되고
+ * resolver 는 left(scrollTop=0) 를 반환해 FAB 클릭이 no-op 이 된다.
+ * PC 전 폭에서 left 가 유일한 list scroll owner 가 되도록 고정한다.
+ */
+.pc-root .app-main-content.app-main-content--workspace-outlet-host:has(.customer-workspace-layout),
+.pc-root.app-workspace-layout-root
+  .workspace-main.workspace-main--app
+  .app-main-content.app-main-content--workspace-outlet-host:has(.customer-workspace-layout) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.pc-root
+  .app-main-content.app-main-content--workspace-outlet-host:has(.customer-workspace-layout)
+  > .customer-workspace-layout {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+}
+
 .pc-root .customer-workspace-layout__left {
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  min-height: 0;
+  align-self: stretch;
+  /* 초협폭에서도 430px 고정이 viewport 를 밀어 app-main 스크롤로 승격하지 않게 함 */
+  width: min(var(--customer-workspace-left-width, 430px), 100%);
+  min-width: min(var(--customer-workspace-left-width, 430px), 100%);
+  max-width: min(var(--customer-workspace-left-width, 430px), 100%);
+  flex: 0 0 min(var(--customer-workspace-left-width, 430px), 100%);
 }
 
 .customer-workspace-layout__right {

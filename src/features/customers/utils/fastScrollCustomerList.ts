@@ -47,7 +47,16 @@ export function fastScrollCustomerListTo(container: HTMLElement, targetTop: numb
   let rafId = 0
   let finished = false
 
-  const interrupt = () => {
+  const interrupt = (event: Event) => {
+    // FAB 클릭의 pointerdown 이 container 로 bubble 되어 animation 이
+    // 즉시 cancel 되지 않도록 한다. 사용자 wheel/터치/드래그만 중단.
+    if (
+      event.type === 'pointerdown' &&
+      event.target instanceof Element &&
+      event.target.closest('.customer-list-scroll-top-button')
+    ) {
+      return
+    }
     stop(false)
   }
 
