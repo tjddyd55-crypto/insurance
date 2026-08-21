@@ -12097,46 +12097,30 @@ body:has(.legal-page-shell) {
 
 /*
  * 고객 워크스페이스: app-main 과 left 이중 스크롤 금지.
+ * 초협폭에서 left 높이 제약이 풀리면 app-main 만 스크롤되고
+ * resolver 는 left(scrollTop=0) 를 반환해 FAB 클릭이 no-op 이 된다.
+ * PC 전 폭에서 left 가 유일한 list scroll owner 가 되도록 고정한다.
  *
- * React Router <Outlet /> 은 DOM wrapper 를 안 만들지만, 배너·가드·중첩 라우트가
- * 끼면 `> .customer-workspace-layout` 직계 규칙만으로는 높이 체인이 끊긴다.
- * 그 순간 left 는 content 높이로 늘어나고 (scrollTop 항상 0), 실제 스크롤은
- * app-main 이 가져가 FAB 클릭이 no-op 이 된다.
- *
- * host 를 relative + overflow:hidden 으로 두고 workspace 를 absolute inset 으로
- * 채워 중간 wrapper 유무·상단 메뉴 1024 breakpoint 와 무관하게 left 가 owner 유지.
+ * NOTE: absolute/inset 강제(2fa23d35)는 UI 붕괴를 유발해 폐기.
+ * 기준 UI: e320f63d / df870097. scroll action 은 resolver 가 실제 owner 를 따른다.
  */
 .pc-root .app-main-content.app-main-content--workspace-outlet-host:has(.customer-workspace-layout),
 .pc-root.app-workspace-layout-root
   .workspace-main.workspace-main--app
   .app-main-content.app-main-content--workspace-outlet-host:has(.customer-workspace-layout) {
-  position: relative;
-  display: block;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   min-height: 0;
 }
 
-@media (max-width: 1023px) {
-  /* 메뉴 hide/show 와 같은 1023 MQ 안의 overflow-y:auto 를 PC workspace 에서 재덮어씀 */
-  .pc-root.app-workspace-layout-root
-    .workspace-main.workspace-main--app
-    .app-main-content.app-main-content--workspace-outlet-host:has(.customer-workspace-layout) {
-    position: relative;
-    overflow: hidden;
-    min-height: 0;
-  }
-}
-
 .pc-root
-  .app-main-content.app-main-content--workspace-outlet-host
-  .customer-workspace-layout {
-  position: absolute;
-  inset: 0;
-  width: auto;
-  height: auto;
-  max-height: none;
+  .app-main-content.app-main-content--workspace-outlet-host:has(.customer-workspace-layout)
+  > .customer-workspace-layout {
+  flex: 1 1 auto;
   min-height: 0;
-  margin: 0;
+  height: 100%;
+  max-height: 100%;
 }
 
 .pc-root .customer-workspace-layout__left {

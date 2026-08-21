@@ -28,9 +28,8 @@ describe('customer list scroll wiring', () => {
     assert.doesNotMatch(hook, /scrollCountRef/)
     assert.match(fab, /resolveCustomerListScrollContainer/)
     assert.match(fab, /scrollCustomerListPanelToTop/)
-    assert.match(fab, /computeCustomerListFabFixedPosition/)
-    assert.match(fab, /viewportWidth:\s*window\.innerWidth/)
-    assert.match(fab, /viewportHeight:\s*window\.innerHeight/)
+    assert.match(fab, /resolveCustomerListViewportAnchor/)
+    assert.match(fab, /scrollCustomerListPanelToTop/)
     assert.doesNotMatch(fab, /behavior:\s*['"]smooth['"]/)
 
     const scrollSsot = readFileSync(
@@ -39,7 +38,7 @@ describe('customer list scroll wiring', () => {
     )
     assert.match(scrollSsot, /fastScrollCustomerListTo/)
     assert.match(scrollSsot, /customer-workspace-layout__left/)
-    assert.match(scrollSsot, /hasScrollableOverflowY|left 지정|designated/)
+    assert.match(scrollSsot, /isActuallyScrollable|resolveCustomerListScrollToTopTarget/)
     assert.doesNotMatch(
       scrollSsot,
       /scrollCustomerListPanelToTop[\s\S]*behavior:\s*['"]smooth['"]/,
@@ -63,6 +62,10 @@ describe('customer list scroll wiring', () => {
     assert.match(
       css,
       /app-main-content[^{]*:has\(\.customer-workspace-layout\)[^{]*\{[^}]*overflow:\s*hidden/s,
+    )
+    assert.doesNotMatch(
+      css,
+      /\.pc-root\s+\.app-main-content[^{]*\.customer-workspace-layout\s*\{[^}]*position:\s*absolute/s,
     )
     assert.match(
       css,

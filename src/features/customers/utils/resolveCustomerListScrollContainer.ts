@@ -1,17 +1,13 @@
 import { fastScrollCustomerListTo } from './fastScrollCustomerList'
 
 /**
- * 고객 리스트 scroll owner SSOT.
- * 연계고객 카드 이동 · 맨 위 FAB 가 동일 resolver 를 사용한다.
+ * 고객 리스트 scroll SSOT.
  *
- * 우선순위:
- * 1) `.customer-workspace-layout__left` — PC 지정 scroll port (overflow auto/scroll)
- * 2) `.mobile-workspace-content`
- * 3) `.app-main-content` (left 가 없을 때만, 실제 스크롤 가능할 때)
- * 4) ancestor walk (overflowY + scrollHeight)
+ * - Viewport anchor (FAB 위치): 보통 `.customer-workspace-layout__left`
+ * - Scroll owner (실제 scrollTop): DOM 에서 실제로 스크롤 가능한 조상
  *
- * left 가 아직 overflow 중이 아니어도 designated port 로 우선한다.
- * 그렇지 않으면 좁은 PC 창에서 app-main 으로 올라가 FAB 가 리스트 밖 중앙에 뜬다.
+ * width breakpoint 로 owner 를 바꾸지 않는다.
+ * layout 을 바꾸어 owner 를 강제하지 않는다 — owner 가 layout 을 따른다.
  */
 
 function hasScrollableOverflowY(el: HTMLElement): boolean {
@@ -19,44 +15,57 @@ function hasScrollableOverflowY(el: HTMLElement): boolean {
   return overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay'
 }
 
-export function isCustomerListScrollableElement(el: Element | null): el is HTMLElement {
+function hasProgrammaticScrollPortY(el: HTMLElement): boolean {
+  const overflowY = window.getComputedStyle(el).overflowY
+  // auto/scroll/overlay = 사용자 휠 가능
+  // hidden = 레이아웃 강제(e320f63d)로 막혀도 scrollHeight 초과 시 programmatic scroll 가능
+  return (
+    overflowY === 'auto' ||
+    overflowY === 'scroll' ||
+    overflowY === 'overlay' ||
+    overflowY === 'hidden'
+  )
+}
+
+/** 실제 오버플로우 중이거나 이미 스크롤된 요소 (width 분기 없음) */
+export function isActuallyScrollable(el: Element | null): el is HTMLElement {
   if (!(el instanceof HTMLElement)) {
     return false
   }
-  if (!hasScrollableOverflowY(el)) {
+  if (!hasProgrammaticScrollPortY(el)) {
     return false
   }
   return el.scrollHeight > el.clientHeight + 1 || el.scrollTop > 0
 }
 
-function pickPreferredScrollContainer(anchor: HTMLElement): HTMLElement | null {
+/** @deprecated 이름 호환 — isActuallyScrollable 과 동일 */
+export function isCustomerListScrollableElement(el: Element | null): el is HTMLElement {
+  return isActuallyScrollable(el)
+}
+
+/**
+ * FAB 위치용 viewport anchor.
+ * 스크롤 owner 와 달라도 된다 (좁은 PC 에서 owner 가 app-main 이어도
+ * 리스트 패널 rect 기준으로 FAB 를 올린다).
+ */
+export function resolveCustomerListViewportAnchor(anchor: HTMLElement): HTMLElement | null {
   const leftPanel = anchor.closest('.customer-workspace-layout__left')
-  if (leftPanel instanceof HTMLElement && hasScrollableOverflowY(leftPanel)) {
+  if (leftPanel instanceof HTMLElement) {
     return leftPanel
   }
 
   const mobileContent = anchor.closest('.mobile-workspace-content')
-  if (mobileContent instanceof HTMLElement && isCustomerListScrollableElement(mobileContent)) {
+  if (mobileContent instanceof HTMLElement) {
     return mobileContent
-  }
-
-  // left 지정 port 가 있으면 app-main 으로 올리지 않는다 (좁은 PC FAB 오배치 방지).
-  if (leftPanel instanceof HTMLElement) {
-    return null
-  }
-
-  const appMain = anchor.closest('.app-main-content')
-  if (appMain instanceof HTMLElement && isCustomerListScrollableElement(appMain)) {
-    return appMain
   }
 
   return null
 }
 
-function walkScrollableAncestor(from: HTMLElement): HTMLElement | null {
+function walkActuallyScrollableAncestor(from: HTMLElement): HTMLElement | null {
   let node: HTMLElement | null = from
   while (node) {
-    if (isCustomerListScrollableElement(node)) {
+    if (isActuallyScrollable(node)) {
       return node
     }
     node = node.parentElement
@@ -65,27 +74,78 @@ function walkScrollableAncestor(from: HTMLElement): HTMLElement | null {
 }
 
 /**
- * @param anchor 리스트 내부 임의의 노드 (panel / card)
+ * 실제 scroll action owner.
+ * 우선순위 (실제 스크롤 가능 여부 기준):
+ * 1) left
+ * 2) mobile-workspace-content
+ * 3) app-main-content
+ * 4) ancestor walk
+ * 5) designated overflow port (아직 컨텐츠가 짧아 오버플로우 전)
  */
 export function resolveCustomerListScrollContainer(anchor: HTMLElement): HTMLElement | null {
-  const preferred = pickPreferredScrollContainer(anchor)
-  if (preferred) {
-    return preferred
-  }
-
-  // left 가 있으면 ancestor walk 로 app-main 에 올라가지 않는다.
-  // (좁은 PC 창에서 FAB 가 리스트 밖 중앙에 뜨는 회귀 방지)
   const leftPanel = anchor.closest('.customer-workspace-layout__left')
-  if (leftPanel instanceof HTMLElement) {
+  if (leftPanel instanceof HTMLElement && isActuallyScrollable(leftPanel)) {
     return leftPanel
   }
 
-  const walked = walkScrollableAncestor(anchor)
+  const mobileContent = anchor.closest('.mobile-workspace-content')
+  if (mobileContent instanceof HTMLElement && isActuallyScrollable(mobileContent)) {
+    return mobileContent
+  }
+
+  const appMain = anchor.closest('.app-main-content')
+  if (appMain instanceof HTMLElement && isActuallyScrollable(appMain)) {
+    return appMain
+  }
+
+  const walked = walkActuallyScrollableAncestor(anchor)
   if (walked) {
     return walked
   }
 
+  // 아직 오버플로우 전 — 이후 스크롤 가능 시 같은 포트
+  if (leftPanel instanceof HTMLElement && hasScrollableOverflowY(leftPanel)) {
+    return leftPanel
+  }
+  if (mobileContent instanceof HTMLElement && hasScrollableOverflowY(mobileContent)) {
+    return mobileContent
+  }
+
   return null
+}
+
+export type CustomerListScrollTarget = {
+  container: HTMLElement
+  top: number
+}
+
+/**
+ * FAB / 맨 위 이동 목표.
+ * - owner === left → top 0
+ * - owner === app-main 등 상위 → 리스트(left 또는 customers-page) 상단이
+ *   container 상단에 오도록 상대 offset
+ */
+export function resolveCustomerListScrollToTopTarget(anchor: HTMLElement): CustomerListScrollTarget | null {
+  const container = resolveCustomerListScrollContainer(anchor)
+  if (!container) {
+    return null
+  }
+
+  const leftPanel = anchor.closest('.customer-workspace-layout__left')
+  if (leftPanel instanceof HTMLElement && container === leftPanel) {
+    return { container, top: 0 }
+  }
+
+  const listStart: HTMLElement =
+    leftPanel ??
+    (anchor.closest('.customers-page') instanceof HTMLElement
+      ? (anchor.closest('.customers-page') as HTMLElement)
+      : anchor)
+
+  const containerRect = container.getBoundingClientRect()
+  const startRect = listStart.getBoundingClientRect()
+  const top = Math.max(0, Math.round(container.scrollTop + (startRect.top - containerRect.top)))
+  return { container, top }
 }
 
 /**
@@ -147,13 +207,9 @@ export function scrollCustomerCardIntoListContainer(params: {
 }
 
 export function scrollCustomerListPanelToTop(anchor: HTMLElement): void {
-  const container = resolveCustomerListScrollContainer(anchor)
-  if (!container) {
+  const target = resolveCustomerListScrollToTopTarget(anchor)
+  if (!target) {
     return
   }
-
-  // FAB / 맨 위 이동은 list scroll owner 의 scrollTop=0 만 목표로 한다.
-  // (customers-page rect 보정은 잘못된 owner(scrollTop=0)일 때 no-op 이 되어
-  // 초협폭에서 "클릭은 되지만 스크롤 안 됨" 으로 나타났다.)
-  fastScrollCustomerListTo(container, 0)
+  fastScrollCustomerListTo(target.container, target.top)
 }
