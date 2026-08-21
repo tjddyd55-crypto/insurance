@@ -35,7 +35,8 @@ export default function CustomerListScrollTopButton({
 
     const next = computeCustomerListFabFixedPosition({
       containerRect: container.getBoundingClientRect(),
-      variant,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
       fabWidth: variant === 'mobile' ? 40 : CUSTOMER_LIST_SCROLL_FAB_WIDTH_PX,
       fabHeight: variant === 'mobile' ? 44 : CUSTOMER_LIST_SCROLL_FAB_HEIGHT_PX,
     })
