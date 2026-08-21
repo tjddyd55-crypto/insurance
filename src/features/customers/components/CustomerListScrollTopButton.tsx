@@ -75,9 +75,10 @@ export default function CustomerListScrollTopButton({
 
   const handleClick = useCallback(() => {
     const anchor = anchorRef.current
-    if (!anchor) {
+    if (!anchor || !anchor.isConnected) {
       return
     }
+    // 클릭 순간 fresh resolve — resize/breakpoint 후 stale owner 금지
     scrollCustomerListPanelToTop(anchor)
   }, [anchorRef])
 
