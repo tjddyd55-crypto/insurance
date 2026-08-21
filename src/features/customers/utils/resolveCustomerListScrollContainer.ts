@@ -152,14 +152,8 @@ export function scrollCustomerListPanelToTop(anchor: HTMLElement): void {
     return
   }
 
-  const pageRoot = anchor.closest('.customers-page')
-  if (!(pageRoot instanceof HTMLElement)) {
-    fastScrollCustomerListTo(container, 0)
-    return
-  }
-
-  const containerTop = container.getBoundingClientRect().top
-  const pageTop = pageRoot.getBoundingClientRect().top
-  const nextTop = Math.max(0, container.scrollTop + (pageTop - containerTop))
-  fastScrollCustomerListTo(container, nextTop)
+  // FAB / 맨 위 이동은 list scroll owner 의 scrollTop=0 만 목표로 한다.
+  // (customers-page rect 보정은 잘못된 owner(scrollTop=0)일 때 no-op 이 되어
+  // 초협폭에서 "클릭은 되지만 스크롤 안 됨" 으로 나타났다.)
+  fastScrollCustomerListTo(container, 0)
 }

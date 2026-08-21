@@ -59,7 +59,11 @@ describe('customer list scroll wiring', () => {
 
   it('pc-root keeps left panel as scroll owner below 860px media', () => {
     const css = readFileSync(join(root, 'index.css'), 'utf8')
-    assert.match(css, /\.pc-root \.customer-workspace-layout__left\s*\{[^}]*overflow:\s*auto/s)
+    assert.match(css, /\.pc-root \.customer-workspace-layout__left\s*\{[^}]*overflow(?:-y)?:\s*auto/s)
+    assert.match(
+      css,
+      /app-main-content[^{]*:has\(\.customer-workspace-layout\)[^{]*\{[^}]*overflow:\s*hidden/s,
+    )
     assert.match(
       css,
       /\.mobile-root \.customer-workspace-layout__left\s*\{[^}]*overflow:\s*visible/s,

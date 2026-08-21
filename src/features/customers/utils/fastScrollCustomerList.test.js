@@ -22,4 +22,9 @@ describe('fastScrollCustomerList', () => {
     assert.doesNotMatch(source, /window\.scrollTo/)
     assert.doesNotMatch(source, /document\.documentElement\.scroll/)
   })
+
+  it('does not cancel animation on FAB pointerdown bubble', () => {
+    assert.match(source, /customer-list-scroll-top-button/)
+    assert.match(source, /event\.type === 'pointerdown'/)
+  })
 })
