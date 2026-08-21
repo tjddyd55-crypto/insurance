@@ -33,6 +33,18 @@ describe('PC narrow customer list scroll owner', () => {
       css,
       /app-main-content[^{]*:has\(\.customer-workspace-layout\)[^{]*\{[^}]*overflow:\s*hidden/s,
     )
+    assert.match(
+      css,
+      /\.pc-root[\s\S]*?\.customer-workspace-layout\s*\{[^}]*position:\s*absolute[^}]*inset:\s*0/s,
+    )
+  })
+
+  it('B/C. 1023px menu breakpoint MQ still forces workspace app-main overflow hidden', () => {
+    assert.match(css, /@media \(max-width: 1023px\)/)
+    assert.match(
+      css,
+      /@media \(max-width: 1023px\)\s*\{[\s\S]*?:has\(\.customer-workspace-layout\)[\s\S]*?overflow:\s*hidden/,
+    )
   })
 
   it('E. left present blocks app-main promotion in resolver', () => {
