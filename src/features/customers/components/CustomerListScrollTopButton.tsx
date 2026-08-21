@@ -6,6 +6,7 @@ import {
 import { computeCustomerListFabFixedPosition } from '../utils/resolveCustomerListFabPosition'
 import {
   resolveCustomerListScrollContainer,
+  resolveCustomerListViewportAnchor,
   scrollCustomerListPanelToTop,
 } from '../utils/resolveCustomerListScrollContainer'
 
@@ -27,14 +28,16 @@ export default function CustomerListScrollTopButton({
       return
     }
 
-    const container = resolveCustomerListScrollContainer(panel)
-    if (!container) {
+    // 위치는 viewport anchor(left). scroll owner 와 달라도 된다.
+    const viewport =
+      resolveCustomerListViewportAnchor(panel) ?? resolveCustomerListScrollContainer(panel)
+    if (!viewport) {
       setFabStyle({ visibility: 'hidden' })
       return
     }
 
     const next = computeCustomerListFabFixedPosition({
-      containerRect: container.getBoundingClientRect(),
+      containerRect: viewport.getBoundingClientRect(),
       viewportWidth: window.innerWidth,
       viewportHeight: window.innerHeight,
       fabWidth: variant === 'mobile' ? 40 : CUSTOMER_LIST_SCROLL_FAB_WIDTH_PX,
@@ -47,7 +50,10 @@ export default function CustomerListScrollTopButton({
     syncFabPosition()
 
     const panel = anchorRef.current
-    const container = panel ? resolveCustomerListScrollContainer(panel) : null
+    const viewport = panel
+      ? resolveCustomerListViewportAnchor(panel) ?? resolveCustomerListScrollContainer(panel)
+      : null
+    const scrollOwner = panel ? resolveCustomerListScrollContainer(panel) : null
 
     window.addEventListener('resize', syncFabPosition)
     window.addEventListener('scroll', syncFabPosition, true)
@@ -59,8 +65,11 @@ export default function CustomerListScrollTopButton({
           })
         : null
 
-    if (container && resizeObserver) {
-      resizeObserver.observe(container)
+    if (viewport && resizeObserver) {
+      resizeObserver.observe(viewport)
+    }
+    if (scrollOwner && scrollOwner !== viewport && resizeObserver) {
+      resizeObserver.observe(scrollOwner)
     }
     if (panel && resizeObserver) {
       resizeObserver.observe(panel)
@@ -78,7 +87,7 @@ export default function CustomerListScrollTopButton({
     if (!anchor || !anchor.isConnected) {
       return
     }
-    // 클릭 순간 fresh resolve — resize/breakpoint 후 stale owner 금지
+    // 클릭 순간 fresh resolve
     scrollCustomerListPanelToTop(anchor)
   }, [anchorRef])
 
