@@ -45,23 +45,26 @@ describe('customer registration completed alimtalk template', () => {
     })
     assert.equal(buttons.button[0].name, '고객 확인하기')
     assert.equal(buttons.button[0].linkType, 'WL')
-    // UK_2268: http://#{고객확인링크} — scheme 제외값만 전달 (https://https:// 방지)
+    // API button_1 최종 URL = 콘솔 치환 결과와 동일하게 http:// absolute
+    // (승인 버튼 http://#{고객확인링크}; https 는 rslt=U, scheme-less 는 rslt=F)
     assert.equal(
       buttons.button[0].linkMo,
-      'example.com/customers/42/consultations?customerId=42',
+      'http://example.com/customers/42/consultations?customerId=42',
     )
     assert.equal(buttons.button[0].linkPc, buttons.button[0].linkMo)
-    assert.doesNotMatch(buttons.button[0].linkMo, /^https?:\/\//i)
+    assert.match(buttons.button[0].linkMo, /^http:\/\//i)
+    assert.doesNotMatch(buttons.button[0].linkMo, /^https:\/\//i)
+    assert.doesNotMatch(buttons.button[0].linkMo, /https?:\/\/https?/i)
   })
 
-  it('strips scheme even when full https CRM URL is provided', () => {
+  it('normalizes https CRM URL to http absolute for UK_2268 button contract', () => {
     const buttons = buildCustomerRegistrationCompletedButtonPayload({
       customerCheckUrl:
         'https://insurance-production-7bd8.up.railway.app/customers/91/consultations?customerId=91',
     })
     assert.equal(
       buttons.button[0].linkMo,
-      'insurance-production-7bd8.up.railway.app/customers/91/consultations?customerId=91',
+      'http://insurance-production-7bd8.up.railway.app/customers/91/consultations?customerId=91',
     )
     assert.doesNotMatch(buttons.button[0].linkMo, /https?:\/\/https?/i)
   })
@@ -118,7 +121,7 @@ describe('customer registration completed helpers', () => {
     const buttons = buildCustomerRegistrationCompletedButtonPayload({ customerCheckUrl: url })
     assert.equal(
       buttons.button[0].linkMo,
-      'insurance-production-7bd8.up.railway.app/customers/91/consultations?customerId=91',
+      'http://insurance-production-7bd8.up.railway.app/customers/91/consultations?customerId=91',
     )
     assert.equal(buttons.button[0].linkPc, buttons.button[0].linkMo)
     assert.doesNotMatch(buttons.button[0].linkMo, /https?:\/\/https?/i)
