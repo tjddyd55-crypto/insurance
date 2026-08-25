@@ -6,7 +6,7 @@
  * (불일치 시 Aligo code 0 접수 후에도 Kakao rslt=U "메시지가 템플릿과 일치하지않음")
  */
 
-import { forceHttpsPublicUrl, toAligoEmbeddedWebLinkValue } from './alimtalkPublicUrl.js'
+import { forceHttpsPublicUrl } from './alimtalkPublicUrl.js'
 
 export const TEMPLATE_KEY_CUSTOMER_APP_LINK = 'INSURANCE_CUSTOMER_APP_LINK'
 
@@ -335,8 +335,13 @@ export function buildCustomerRegistrationCompletedMessage(input) {
  * }} input
  */
 export function buildCustomerRegistrationCompletedButtonPayload(input) {
-  // UK_2268 버튼 계약: http://#{고객확인링크} → scheme 제외값만 전달 (이중 scheme 금지)
-  const url = toAligoEmbeddedWebLinkValue(String(input.customerCheckUrl ?? '').trim())
+  // Aligo 콘솔 변수 치환: http://#{고객확인링크} + scheme-less → http://host/path
+  // API button_1 은 최종 absolute URL 을 그대로 쓴다.
+  // - scheme-less → Kakao rslt=F(기타 오류)
+  // - https://… → rslt=U(템플릿 불일치) — 승인 버튼이 http://#{…}
+  // → http:// absolute (이중 scheme 없이) 가 콘솔 성공 결과와 동일
+  const httpsUrl = forceHttpsPublicUrl(String(input.customerCheckUrl ?? '').trim())
+  const url = httpsUrl ? httpsUrl.replace(/^https:/i, 'http:') : ''
   const name =
     String(input.buttonName ?? CUSTOMER_REGISTRATION_COMPLETED_BUTTON_NAME).trim() ||
     CUSTOMER_REGISTRATION_COMPLETED_BUTTON_NAME

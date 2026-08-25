@@ -50,7 +50,7 @@ SMS(`ALIGO_*`, `SMS_MODULE_*`)·자동문자와 **완전히 분리**합니다.
 | 템플릿명 | ONE FC 고객등록 완료 알림 |
 | 템플릿코드 | Railway `INSURANCE_ALIGO_KAKAO_CUSTOMER_REGISTRATION_COMPLETED_TEMPLATE_CODE` = `UK_2268` |
 | 변수 | `#{고객명}`, `#{등록일시}` |
-| 버튼 | `고객 확인하기` → Aligo 계약 `http://#{고객확인링크}` 이므로 provider 에는 scheme 제외 CRM path 전달 (`host/customers/{id}/consultations?customerId={id}`) |
+| 버튼 | `고객 확인하기` → 콘솔 변수: `http://#{고객확인링크}` + scheme-less. **API `button_1` 최종 URL은 `http://host/…` absolute** (scheme-less→`rslt=F`, `https://`→`rslt=U`) |
 | 트리거 | `POST /api/customer/external-invite-registration/batch` 및 inviteRegistration external-create **만** |
 | 비트리거 | `POST /api/customers`, Excel, admin 직접 생성 |
 | 전달 | `customer_registration_alimtalk_outbox` (고객 COMMIT 이후 enqueue) |
