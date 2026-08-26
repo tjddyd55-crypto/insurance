@@ -190,6 +190,28 @@
   border-color: var(--btn-secondary-hover-border);
 }
 
+.insurance-billing-cta--quiet {
+  background: transparent;
+  color: var(--text-secondary, #5b6472);
+  border: 1px solid var(--border-default, #d7dde5);
+}
+
+.insurance-billing-cta--quiet:hover {
+  background: var(--hint-bg, #f3f4f6);
+  color: var(--text-primary, #1f2937);
+}
+
+.insurance-billing-manage-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.insurance-billing-manage-meta__muted {
+  color: var(--text-secondary, #6b7280);
+  font-weight: 400;
+}
+
 /* TEST QA 전용 섹션 — mode=virtual + hasBillingKey 시에만 노출, production에서는 절대 렌더 안 됨 */
 .insurance-billing-test-qa-section {
   margin-top: 20px;

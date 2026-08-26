@@ -22,6 +22,7 @@ import {
   isApplyPromotionTrialingSuccess,
   resolveApplyPromotionTrialEndsAt,
 } from '../billingApplyPromotion'
+import { formatBillingCycleLabel } from '../billingManageViewUtils'
 import '../insurance-billing.css'
 
 function formatKrw(amount: number) {
@@ -56,11 +57,11 @@ function checkoutStatusBanner(mode: BillingCheckoutMode, summary: CheckoutSummar
     case 'active_paid':
       return (
         <div className="insurance-billing-notice">
-          유료 이용 중입니다.
+          유료 이용 중입니다. 요금제·자동결제·해지는 구독 관리에서 확인할 수 있습니다.
           {summary.nextBillingAt || summary.currentPeriodEnd ? (
             <>
               <br />
-              다음 결제일: {formatDateLabel(summary.nextBillingAt ?? summary.currentPeriodEnd)}
+              다음 자동결제일: {formatDateLabel(summary.nextBillingAt ?? summary.currentPeriodEnd)}
             </>
           ) : null}
         </div>
@@ -174,7 +175,7 @@ export default function BillingCheckoutPage() {
 
   // primary CTA: 기존 이용자는 Toss 버튼을 별도 표시하므로 primary는 "내 결제 상태 보기"로만 처리
   const ctaLabel = useMemo(() => {
-    if (isActiveEntitled) return '내 결제 상태 보기'
+    if (isActiveEntitled) return '구독 관리'
     if (checkoutMode === 'trialing') return hasBillingKey ? '결제하기' : '결제수단 등록'
     if (promoValidated?.freeMonths) return `${promoValidated.freeMonths}개월 무료로 시작하기`
     if (displayAmount === 0) return '무료로 시작하기'
@@ -387,33 +388,71 @@ export default function BillingCheckoutPage() {
             <div className="insurance-billing-page__grid">
               <section className="insurance-billing-card">
                 <h2>{summary.plan?.name ?? '보험 CRM 베이직'}</h2>
-                <div className="insurance-billing-cycle-toggle">
-                  <button
-                    type="button"
-                    className={billingCycle === 'monthly' ? 'is-active' : ''}
-                    onClick={() => setBillingCycle('monthly')}
-                  >
-                    월간
-                  </button>
-                  <button
-                    type="button"
-                    className={billingCycle === 'yearly' ? 'is-active' : ''}
-                    onClick={() => setBillingCycle('yearly')}
-                  >
-                    연간
-                  </button>
-                </div>
-                <p className="insurance-billing-plan-price">
-                  {formatKrw(
-                    billingCycle === 'yearly'
-                      ? summary.plan?.yearlyPrice ?? 80000
-                      : summary.plan?.monthlyPrice ?? 8000,
-                  )}
-                </p>
-                <p className="insurance-billing-plan-note">VAT 별도</p>
-                {billingCycle === 'yearly' ? (
-                  <p className="insurance-billing-plan-note">연간 결제 · 2개월 무료 혜택</p>
-                ) : null}
+                {checkoutMode === 'active_paid' ? (
+                  <>
+                    <p className="insurance-billing-plan-price">
+                      {formatBillingCycleLabel(summary.billingCycle)} 이용 중
+                    </p>
+                    <p className="insurance-billing-plan-note">
+                      {formatKrw(
+                        summary.billingCycle === 'yearly'
+                          ? summary.plan?.yearlyTotal ?? 88000
+                          : summary.plan?.monthlyTotal ?? 8800,
+                      )}{' '}
+                      / {summary.billingCycle === 'yearly' ? '년' : '월'}
+                      {summary.nextBillingAt || summary.currentPeriodEnd
+                        ? ` · 다음 자동결제 ${formatDateLabel(summary.nextBillingAt ?? summary.currentPeriodEnd)}`
+                        : ''}
+                    </p>
+                    <p className="insurance-billing-plan-note">
+                      요금제 변경·자동결제 해지는 구독 관리에서 할 수 있습니다.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="insurance-billing-cycle-toggle">
+                      <button
+                        type="button"
+                        className={billingCycle === 'monthly' ? 'is-active' : ''}
+                        onClick={() => setBillingCycle('monthly')}
+                      >
+                        월간
+                      </button>
+                      <button
+                        type="button"
+                        className={billingCycle === 'yearly' ? 'is-active' : ''}
+                        onClick={() => setBillingCycle('yearly')}
+                      >
+                        연간
+                      </button>
+                    </div>
+                    <p className="insurance-billing-plan-price">
+                      {formatKrw(
+                        billingCycle === 'yearly'
+                          ? summary.plan?.yearlyTotal ?? 88000
+                          : summary.plan?.monthlyTotal ?? 8800,
+                      )}
+                    </p>
+                    <p className="insurance-billing-plan-note">
+                      VAT 포함 · 공급가{' '}
+                      {formatKrw(
+                        billingCycle === 'yearly'
+                          ? summary.plan?.yearlyPrice ?? 80000
+                          : summary.plan?.monthlyPrice ?? 8000,
+                      )}
+                      {' + '}
+                      VAT{' '}
+                      {formatKrw(
+                        billingCycle === 'yearly'
+                          ? summary.plan?.yearlyVat ?? 8000
+                          : summary.plan?.monthlyVat ?? 800,
+                      )}
+                    </p>
+                    {billingCycle === 'yearly' ? (
+                      <p className="insurance-billing-plan-note">연간 결제 · 2개월 무료 혜택</p>
+                    ) : null}
+                  </>
+                )}
                 <ul className="insurance-billing-benefit-list">
                   <li>고객관리 · 상담 · 파일 · 메모</li>
                   <li>청구/개인메시지 · 고객앱 연동</li>
@@ -422,7 +461,7 @@ export default function BillingCheckoutPage() {
               </section>
 
               <section className="insurance-billing-card">
-                <h2>{isActiveEntitled ? '요금제 · 결제 관리' : '결제 요약'}</h2>
+                <h2>{checkoutMode === 'active_paid' ? '구독 관리' : isActiveEntitled ? '요금제 · 결제 관리' : '결제 요약'}</h2>
 
                 {showPaymentMethodBtn ? (
                   <dl className="insurance-billing-manage-meta">

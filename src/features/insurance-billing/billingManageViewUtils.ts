@@ -1,4 +1,4 @@
-import type { CheckoutSummary } from './api/insuranceBillingApi'
+import type { AutoRenewStatus, CheckoutSummary } from './api/insuranceBillingApi'
 import { formatKstDateDots } from '../../utils/displayDateTime'
 
 export type BillingManageSubscription = {
@@ -6,11 +6,20 @@ export type BillingManageSubscription = {
   planName: string
   planCode: string
   billingCycle: 'monthly' | 'yearly'
+  pendingBillingCycle?: 'monthly' | 'yearly' | null
+  autoRenewStatus?: AutoRenewStatus
+  cancelAt?: string | null
+  canceledAt?: string | null
   currentPeriodStart: string | null
   currentPeriodEnd: string | null
   nextBillingAt: string | null
+  nextChargeAmount?: number | null
+  nextChargeSupplyAmount?: number | null
+  nextChargeVatAmount?: number | null
+  nextChargeBillingCycle?: 'monthly' | 'yearly' | null
   trialStartedAt?: string | null
   trialEndsAt?: string | null
+  hasBillingCredential?: boolean
 }
 
 export type BillingManagePayment = {
@@ -79,9 +88,28 @@ const PAYMENT_STATUS_TONE: Record<string, BillingStatusTone> = {
   failed: 'red',
 }
 
+const AUTO_RENEW_LABEL: Record<AutoRenewStatus, string> = {
+  AUTO_RENEW_ACTIVE: '사용 중',
+  CANCEL_SCHEDULED: '해지 예정',
+  CANCELED: '해지됨',
+  INACTIVE: '사용 안 함',
+}
+
 export function formatBillingDotDate(iso: string | null | undefined) {
   const formatted = formatKstDateDots(iso)
   return formatted || '—'
+}
+
+export function formatBillingKoreanDate(iso: string | null | undefined) {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '—'
+  return new Intl.DateTimeFormat('ko-KR', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  }).format(d)
 }
 
 export function formatBillingPeriod(start: string | null | undefined, end: string | null | undefined) {
@@ -107,6 +135,11 @@ export function resolvePaymentStatusLabel(status: string | null | undefined) {
 export function resolvePaymentStatusTone(status: string | null | undefined): BillingStatusTone {
   const normalized = String(status ?? '').trim().toLowerCase()
   return PAYMENT_STATUS_TONE[normalized] ?? 'gray'
+}
+
+export function resolveAutoRenewLabel(status: AutoRenewStatus | null | undefined) {
+  if (!status) return '—'
+  return AUTO_RENEW_LABEL[status] ?? '—'
 }
 
 export function resolvePlanDisplayName(
@@ -156,9 +189,22 @@ export function formatKrw(amount: number) {
   return `${amount.toLocaleString('ko-KR')}원`
 }
 
+export function formatChargePriceBreakdown(params: {
+  total: number
+  supply: number
+  vat: number
+  cycle: 'monthly' | 'yearly'
+}) {
+  const unit = params.cycle === 'yearly' ? '연' : '월'
+  return {
+    totalLabel: `${unit} ${formatKrw(params.total)}`,
+    breakdownLabel: `(공급가 ${formatKrw(params.supply)} + VAT ${formatKrw(params.vat)})`,
+  }
+}
+
 export function resolveManageCheckoutCtaLabel(status: string | null | undefined) {
   const normalized = String(status ?? '').trim().toLowerCase()
-  if (normalized === 'active_paid' || normalized === 'paid') return '결제/요금제 변경'
+  if (normalized === 'active_paid' || normalized === 'paid') return '구독 관리'
   if (normalized === 'trialing' || normalized === 'trial') return '결제/요금제 확인'
   if (normalized === 'pending_payment' || normalized === 'pending') return '결제하러 가기'
   if (['legacy_active', 'active', 'free'].includes(normalized)) return '요금제 확인'

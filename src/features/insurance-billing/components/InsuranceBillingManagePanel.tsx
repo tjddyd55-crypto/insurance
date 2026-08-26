@@ -3,7 +3,10 @@ import type { BillingManagePayment, BillingManageSubscription } from '../billing
 import {
   formatBillingCycleLabel,
   formatBillingDotDate,
+  formatBillingKoreanDate,
+  formatChargePriceBreakdown,
   formatKrw,
+  resolveAutoRenewLabel,
   resolveManageCheckoutCtaLabel,
   resolveNextBillingDate,
   resolvePaymentStatusLabel,
@@ -23,6 +26,11 @@ type Props = {
   checkoutConfig?: BillingCheckoutConfig | null
   onRegisterMethod?: () => void
   registeringMethod?: boolean
+  onChangeCycle?: (cycle: 'monthly' | 'yearly') => void
+  onClearPendingCycle?: () => void
+  onCancelAutoRenew?: () => void
+  onResumeAutoRenew?: () => void
+  actionBusy?: boolean
 }
 
 function StatusBadge({ label, tone }: { label: string; tone: string }) {
@@ -37,6 +45,11 @@ export default function InsuranceBillingManagePanel({
   checkoutConfig = null,
   onRegisterMethod,
   registeringMethod = false,
+  onChangeCycle,
+  onClearPendingCycle,
+  onCancelAutoRenew,
+  onResumeAutoRenew,
+  actionBusy = false,
 }: Props) {
   const status = subscription?.status ?? summary?.status ?? summary?.subscriptionStatus ?? 'pending_payment'
   const statusLabel = resolveSubscriptionStatusLabel(status)
@@ -45,64 +58,203 @@ export default function InsuranceBillingManagePanel({
   const usagePeriod = resolveUsagePeriod(subscription, summary)
   const nextBillingDate = resolveNextBillingDate(subscription, summary)
   const checkoutCtaLabel = resolveManageCheckoutCtaLabel(status)
+  const isActivePaid = String(status).toLowerCase() === 'active_paid'
+  const billingCycle = subscription?.billingCycle ?? 'monthly'
+  const pendingCycle = subscription?.pendingBillingCycle ?? null
+  const autoRenewStatus = subscription?.autoRenewStatus ?? 'INACTIVE'
+  const cancelAt = subscription?.cancelAt ?? null
 
   const canUseToss =
     checkoutConfig?.provider === 'toss' &&
     Boolean(checkoutConfig.enabled) &&
     Boolean(checkoutConfig.clientKey) &&
     Boolean(checkoutConfig.customerKey)
-  const hasBillingKey = Boolean(checkoutConfig?.hasBillingKey)
+  const hasBillingKey = Boolean(checkoutConfig?.hasBillingKey ?? subscription?.hasBillingCredential)
   const cardLabel =
     hasBillingKey
       ? [checkoutConfig?.cardCompany, checkoutConfig?.cardNumberMasked].filter(Boolean).join(' ') || '등록됨'
       : '미등록'
 
+  const nextChargeCycle = subscription?.nextChargeBillingCycle ?? pendingCycle ?? billingCycle
+  const nextChargeTotal = subscription?.nextChargeAmount ?? null
+  const plan = summary?.plan
+  const fallbackTotal =
+    nextChargeCycle === 'yearly' ? (plan?.yearlyTotal ?? 88000) : (plan?.monthlyTotal ?? 8800)
+  const fallbackSupply =
+    nextChargeCycle === 'yearly' ? (plan?.yearlyPrice ?? 80000) : (plan?.monthlyPrice ?? 8000)
+  const fallbackVat =
+    nextChargeCycle === 'yearly' ? (plan?.yearlyVat ?? 8000) : (plan?.monthlyVat ?? 800)
+  const chargeBreakdown =
+    autoRenewStatus === 'AUTO_RENEW_ACTIVE' || pendingCycle
+      ? formatChargePriceBreakdown({
+          total: nextChargeTotal ?? fallbackTotal,
+          supply: subscription?.nextChargeSupplyAmount ?? fallbackSupply,
+          vat: subscription?.nextChargeVatAmount ?? fallbackVat,
+          cycle: nextChargeCycle,
+        })
+      : null
+
+  const oppositeCycle = billingCycle === 'yearly' ? 'monthly' : 'yearly'
+  const showChangeCycle =
+    isActivePaid && autoRenewStatus === 'AUTO_RENEW_ACTIVE' && !pendingCycle && Boolean(onChangeCycle)
+  const showClearPending = isActivePaid && Boolean(pendingCycle) && Boolean(onClearPendingCycle)
+  const showCancel = isActivePaid && autoRenewStatus === 'AUTO_RENEW_ACTIVE' && Boolean(onCancelAutoRenew)
+  const showResume = isActivePaid && autoRenewStatus === 'CANCEL_SCHEDULED' && Boolean(onResumeAutoRenew)
+
   return (
     <>
       <section className="insurance-billing-card insurance-billing-manage-card">
-        <h2>현재 이용 상태</h2>
+        <h2>현재 구독</h2>
         <dl className="insurance-billing-manage-meta">
           <div className="insurance-billing-manage-meta__row">
-            <dt>현재 상태</dt>
+            <dt>상태</dt>
             <dd>
               <StatusBadge label={statusLabel} tone={statusTone} />
             </dd>
           </div>
           <div className="insurance-billing-manage-meta__row">
-            <dt>요금제</dt>
-            <dd>{planName}</dd>
+            <dt>현재 요금제</dt>
+            <dd>
+              {formatBillingCycleLabel(billingCycle)}
+              <span className="insurance-billing-manage-meta__muted"> · {planName}</span>
+            </dd>
           </div>
+          {pendingCycle ? (
+            <div className="insurance-billing-manage-meta__row">
+              <dt>변경 예정</dt>
+              <dd>
+                {formatBillingCycleLabel(pendingCycle)}
+                <span className="insurance-billing-manage-meta__muted">
+                  {' '}
+                  · 적용일 {formatBillingDotDate(nextBillingDate)}
+                </span>
+              </dd>
+            </div>
+          ) : null}
           <div className="insurance-billing-manage-meta__row">
             <dt>이용기간</dt>
             <dd>{usagePeriod}</dd>
           </div>
           <div className="insurance-billing-manage-meta__row">
-            <dt>다음 결제일</dt>
-            <dd>{formatBillingDotDate(nextBillingDate)}</dd>
+            <dt>자동결제</dt>
+            <dd>{resolveAutoRenewLabel(autoRenewStatus)}</dd>
           </div>
-          {canUseToss ? (
+          {autoRenewStatus === 'CANCEL_SCHEDULED' ? (
             <div className="insurance-billing-manage-meta__row">
-              <dt>결제수단</dt>
-              <dd>{cardLabel}</dd>
+              <dt>이용 종료일</dt>
+              <dd>{formatBillingDotDate(cancelAt ?? subscription?.currentPeriodEnd)}</dd>
             </div>
           ) : null}
+          {autoRenewStatus === 'AUTO_RENEW_ACTIVE' || pendingCycle ? (
+            <>
+              <div className="insurance-billing-manage-meta__row">
+                <dt>다음 자동결제일</dt>
+                <dd>{formatBillingDotDate(nextBillingDate)}</dd>
+              </div>
+              {chargeBreakdown ? (
+                <div className="insurance-billing-manage-meta__row">
+                  <dt>다음 결제금액</dt>
+                  <dd>
+                    <strong>{chargeBreakdown.totalLabel}</strong>
+                    <span className="insurance-billing-manage-meta__muted"> {chargeBreakdown.breakdownLabel}</span>
+                  </dd>
+                </div>
+              ) : null}
+            </>
+          ) : null}
+          {autoRenewStatus === 'AUTO_RENEW_ACTIVE' ? (
+            <p className="insurance-billing-plan-note">
+              다음 결제일에 등록된 카드로 자동결제됩니다.
+            </p>
+          ) : null}
+          {autoRenewStatus === 'CANCEL_SCHEDULED' ? (
+            <p className="insurance-billing-plan-note">
+              {formatBillingKoreanDate(cancelAt ?? subscription?.currentPeriodEnd)}까지 이용할 수 있으며,
+              이후 자동결제는 진행되지 않습니다.
+            </p>
+          ) : null}
+        </dl>
+
+        <div className="insurance-billing-manage-actions">
+          {showChangeCycle ? (
+            <button
+              type="button"
+              className="insurance-billing-cta insurance-billing-cta--primary"
+              disabled={actionBusy}
+              onClick={() => onChangeCycle?.(oppositeCycle)}
+            >
+              {oppositeCycle === 'yearly' ? '연간으로 변경' : '월간으로 변경'}
+            </button>
+          ) : null}
+          {showClearPending ? (
+            <button
+              type="button"
+              className="insurance-billing-cta insurance-billing-cta--secondary"
+              disabled={actionBusy}
+              onClick={() => onClearPendingCycle?.()}
+            >
+              요금제 변경 취소
+            </button>
+          ) : null}
+          {showResume ? (
+            <button
+              type="button"
+              className="insurance-billing-cta insurance-billing-cta--primary"
+              disabled={actionBusy}
+              onClick={() => onResumeAutoRenew?.()}
+            >
+              자동결제 다시 시작
+            </button>
+          ) : null}
+        </div>
+      </section>
+
+      <section className="insurance-billing-card insurance-billing-manage-card">
+        <h2>결제수단</h2>
+        <dl className="insurance-billing-manage-meta">
+          <div className="insurance-billing-manage-meta__row">
+            <dt>등록 카드</dt>
+            <dd>{canUseToss ? cardLabel : '—'}</dd>
+          </div>
         </dl>
         {canUseToss && onRegisterMethod ? (
           <button
             type="button"
             className="insurance-billing-cta insurance-billing-cta--secondary"
-            disabled={registeringMethod}
+            disabled={registeringMethod || actionBusy}
             onClick={onRegisterMethod}
           >
             {hasBillingKey ? '결제수단 변경' : '결제수단 등록'}
           </button>
         ) : null}
-        {showCheckoutLink ? (
+        {showCheckoutLink && !isActivePaid ? (
           <Link to="/billing/checkout" className="insurance-billing-cta insurance-billing-cta--primary">
             {checkoutCtaLabel}
           </Link>
         ) : null}
       </section>
+
+      {isActivePaid ? (
+        <section className="insurance-billing-card insurance-billing-manage-card">
+          <h2>구독 관리</h2>
+          {showCancel ? (
+            <button
+              type="button"
+              className="insurance-billing-cta insurance-billing-cta--quiet"
+              disabled={actionBusy}
+              onClick={() => onCancelAutoRenew?.()}
+            >
+              자동결제 해지
+            </button>
+          ) : (
+            <p className="insurance-billing-plan-note">
+              {autoRenewStatus === 'CANCEL_SCHEDULED'
+                ? '자동결제 해지가 예약되어 있습니다. 이용기간 종료 전에는 다시 시작할 수 있습니다.'
+                : '현재 변경 가능한 구독 작업이 없습니다.'}
+            </p>
+          )}
+        </section>
+      ) : null}
 
       <section className="insurance-billing-card insurance-billing-manage-card">
         <h2>결제 내역</h2>
