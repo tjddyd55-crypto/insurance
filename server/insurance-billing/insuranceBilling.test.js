@@ -277,16 +277,61 @@ describe('insurance billing manage service', () => {
         status: 'active_paid',
         plan_code: 'insurance_basic',
         billing_cycle: 'monthly',
+        pending_billing_cycle: null,
+        cancel_at: null,
+        canceled_at: null,
         current_period_start: '2026-06-21T00:00:00.000Z',
         current_period_end: '2026-07-21T00:00:00.000Z',
         next_billing_at: '2026-07-21T00:00:00.000Z',
       },
-      { planName: '보험 CRM 베이직', planCode: 'insurance_basic', billingCycle: 'monthly' },
+      {
+        planName: '보험 CRM 베이직',
+        planCode: 'insurance_basic',
+        billingCycle: 'monthly',
+        hasBillingCredential: true,
+        planAmounts: {
+          monthly_total: 8800,
+          yearly_total: 88000,
+          monthly_price: 8000,
+          yearly_price: 80000,
+        },
+      },
     )
     assert.equal(view.status, 'active_paid')
     assert.equal(view.planName, '보험 CRM 베이직')
     assert.equal(view.planCode, 'insurance_basic')
-    assert.equal(view.nextBillingAt, '2026-07-21T00:00:00.000Z'    )
+    assert.equal(view.nextBillingAt, '2026-07-21T00:00:00.000Z')
+    assert.equal(view.autoRenewStatus, 'AUTO_RENEW_ACTIVE')
+    assert.equal(view.nextChargeAmount, 8800)
+  })
+
+  it('builds subscription view with pending yearly next charge', async () => {
+    const { buildManageSubscriptionView } = await import('./billingManageService.js')
+    const view = buildManageSubscriptionView(
+      {
+        status: 'active_paid',
+        plan_code: 'insurance_basic',
+        billing_cycle: 'monthly',
+        pending_billing_cycle: 'yearly',
+        cancel_at: null,
+        canceled_at: null,
+        next_billing_at: '2026-09-26T00:00:00.000Z',
+      },
+      {
+        planName: '보험 CRM 베이직',
+        planCode: 'insurance_basic',
+        hasBillingCredential: true,
+        planAmounts: {
+          monthly_total: 8800,
+          yearly_total: 88000,
+          monthly_price: 8000,
+          yearly_price: 80000,
+        },
+      },
+    )
+    assert.equal(view.pendingBillingCycle, 'yearly')
+    assert.equal(view.nextChargeAmount, 88000)
+    assert.equal(view.nextChargeBillingCycle, 'yearly')
   })
 })
 

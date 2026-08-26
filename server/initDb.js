@@ -4981,6 +4981,22 @@ async function ensureInsuranceBillingPhase1Schema(executor) {
     ALTER TABLE billing_subscriptions
     ADD COLUMN IF NOT EXISTS canceled_at TIMESTAMPTZ
   `)
+  await executor.query(`
+    ALTER TABLE billing_subscriptions
+    ADD COLUMN IF NOT EXISTS pending_billing_cycle TEXT
+  `)
+  await executor.query(`
+    ALTER TABLE billing_subscriptions
+    DROP CONSTRAINT IF EXISTS billing_subscriptions_pending_billing_cycle_check
+  `)
+  await executor.query(`
+    ALTER TABLE billing_subscriptions
+    ADD CONSTRAINT billing_subscriptions_pending_billing_cycle_check
+    CHECK (
+      pending_billing_cycle IS NULL
+      OR pending_billing_cycle IN ('monthly', 'yearly')
+    )
+  `)
 
   await executor.query(`
     CREATE TABLE IF NOT EXISTS billing_promotion_codes (
