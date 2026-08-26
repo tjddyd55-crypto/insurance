@@ -19,6 +19,12 @@ import {
 } from './insurance-billing/subscriptionLifecycle.js'
 import { buildBillingManageSummaryResponse } from './insurance-billing/billingManageService.js'
 import {
+  clearPendingBillingCycle,
+  resumeAutoRenew,
+  scheduleCancelAtPeriodEnd,
+  schedulePendingBillingCycle,
+} from './insurance-billing/subscriptionManageActions.js'
+import {
   approveInsuranceBillingPaymentAdmin,
   cancelInsuranceBillingPaymentAdmin,
   getInsuranceBillingPaymentAdmin,
@@ -92,6 +98,31 @@ export function registerInsuranceBillingApi(apiRouter, ctx) {
       plan_not_found: { status: 404, message: '요금제를 찾을 수 없습니다.' },
       subscription_not_found: { status: 404, message: '구독 정보를 찾을 수 없습니다.' },
       payment_already_pending: { status: 409, message: '이미 처리 대기 중인 결제 요청이 있습니다.' },
+      billing_change_in_progress: {
+        status: 409,
+        message: '결제가 진행 중입니다. 결제 완료 후 다시 변경해 주세요.',
+      },
+      subscription_not_active_paid: {
+        status: 409,
+        message: '유료 이용 중인 구독만 변경할 수 있습니다.',
+      },
+      subscription_cancel_scheduled: {
+        status: 409,
+        message: '자동결제 해지를 먼저 취소해 주세요.',
+      },
+      subscription_already_canceled: {
+        status: 409,
+        message: '이미 해지된 구독입니다.',
+      },
+      period_end_missing: {
+        status: 409,
+        message: '이용기간 정보가 없어 해지를 예약할 수 없습니다.',
+      },
+      resume_requires_card: {
+        status: 409,
+        message: '자동결제를 다시 시작하려면 결제수단을 먼저 등록해 주세요.',
+      },
+      user_required: { status: 400, message: '사용자 정보가 필요합니다.' },
       billing_customer_key_mismatch: { status: 403, message: '결제 인증 정보가 올바르지 않습니다.' },
       billing_auth_invalid: { status: 400, message: '결제 인증 정보가 올바르지 않습니다.' },
       toss_billing_not_enabled: { status: 400, message: 'Toss 결제가 아직 활성화되지 않았습니다.' },
@@ -108,7 +139,7 @@ export function registerInsuranceBillingApi(apiRouter, ctx) {
     })
     const mapped = table[code]
     if (mapped) {
-      res.status(mapped.status).json({ message: mapped.message, errorCode: code })
+      res.status(mapped.status).json({ message: mapped.message, errorCode: code, code })
       return true
     }
     if (String(code).startsWith('toss_')) {
@@ -325,6 +356,102 @@ export function registerInsuranceBillingApi(apiRouter, ctx) {
       res.json(payload)
     } catch (e) {
       handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.patch('/billing/subscription/billing-cycle', requireAuth, requireBillingEnabled, requireBillingSubject, async (req, res) => {
+    const client = await pool.connect()
+    try {
+      const userId = String(req.user?.id ?? '').trim()
+      const rawCycle = String(req.body?.billingCycle ?? req.body?.billing_cycle ?? '').trim().toLowerCase()
+      if (rawCycle !== 'monthly' && rawCycle !== 'yearly') {
+        res.status(400).json({ message: '요금제 주기는 monthly 또는 yearly만 가능합니다.', errorCode: 'invalid_billing_cycle' })
+        return
+      }
+      await client.query('BEGIN')
+      const result = await schedulePendingBillingCycle(client, {
+        userId,
+        billingCycle: rawCycle,
+      })
+      await client.query('COMMIT')
+      const summary = await buildBillingManageSummaryResponse(pool, userId)
+      res.json({ ok: true, ...result, subscription: summary.subscription })
+    } catch (e) {
+      try {
+        await client.query('ROLLBACK')
+      } catch {
+        /* */
+      }
+      if (mapInsuranceBillingError(e, res)) return
+      handleDbError(e, req, res)
+    } finally {
+      client.release()
+    }
+  })
+
+  apiRouter.delete('/billing/subscription/pending-billing-cycle', requireAuth, requireBillingEnabled, requireBillingSubject, async (req, res) => {
+    const client = await pool.connect()
+    try {
+      const userId = String(req.user?.id ?? '').trim()
+      await client.query('BEGIN')
+      const result = await clearPendingBillingCycle(client, { userId })
+      await client.query('COMMIT')
+      const summary = await buildBillingManageSummaryResponse(pool, userId)
+      res.json({ ok: true, ...result, subscription: summary.subscription })
+    } catch (e) {
+      try {
+        await client.query('ROLLBACK')
+      } catch {
+        /* */
+      }
+      if (mapInsuranceBillingError(e, res)) return
+      handleDbError(e, req, res)
+    } finally {
+      client.release()
+    }
+  })
+
+  apiRouter.post('/billing/subscription/cancel', requireAuth, requireBillingEnabled, requireBillingSubject, async (req, res) => {
+    const client = await pool.connect()
+    try {
+      const userId = String(req.user?.id ?? '').trim()
+      await client.query('BEGIN')
+      const result = await scheduleCancelAtPeriodEnd(client, { userId })
+      await client.query('COMMIT')
+      const summary = await buildBillingManageSummaryResponse(pool, userId)
+      res.json({ ok: true, ...result, subscription: summary.subscription })
+    } catch (e) {
+      try {
+        await client.query('ROLLBACK')
+      } catch {
+        /* */
+      }
+      if (mapInsuranceBillingError(e, res)) return
+      handleDbError(e, req, res)
+    } finally {
+      client.release()
+    }
+  })
+
+  apiRouter.post('/billing/subscription/resume', requireAuth, requireBillingEnabled, requireBillingSubject, async (req, res) => {
+    const client = await pool.connect()
+    try {
+      const userId = String(req.user?.id ?? '').trim()
+      await client.query('BEGIN')
+      const result = await resumeAutoRenew(client, { userId })
+      await client.query('COMMIT')
+      const summary = await buildBillingManageSummaryResponse(pool, userId)
+      res.json({ ok: true, ...result, subscription: summary.subscription })
+    } catch (e) {
+      try {
+        await client.query('ROLLBACK')
+      } catch {
+        /* */
+      }
+      if (mapInsuranceBillingError(e, res)) return
+      handleDbError(e, req, res)
+    } finally {
+      client.release()
     }
   })
 
