@@ -20,6 +20,9 @@ import {
   getInsuranceBillingRenewalMaxRetry,
   getInsuranceBillingRenewalRetryDelayDays,
 } from './renewalPolicy.js'
+import {
+  resolveEffectiveRenewalBillingCycle,
+} from './subscriptionManageActions.js'
 
 function isUniqueViolation(error) {
   return String(error?.code ?? '') === '23505'
@@ -29,13 +32,23 @@ function isUniqueViolation(error) {
  * @param {object} row
  */
 export function mapDueSubscriptionRow(row) {
+  const billingCycle =
+    String(row.billing_cycle ?? 'monthly').toLowerCase() === 'yearly' ? 'yearly' : 'monthly'
+  const pendingRaw = row.pending_billing_cycle
+  const pendingBillingCycle =
+    pendingRaw == null || String(pendingRaw).trim() === ''
+      ? null
+      : String(pendingRaw).toLowerCase() === 'yearly'
+        ? 'yearly'
+        : 'monthly'
   return {
     id: Number(row.id),
     userId: String(row.user_id),
     tenantId: row.tenant_id == null ? null : Number(row.tenant_id),
     status: String(row.status ?? ''),
     planCode: String(row.plan_code ?? ''),
-    billingCycle: String(row.billing_cycle ?? 'monthly').toLowerCase() === 'yearly' ? 'yearly' : 'monthly',
+    billingCycle,
+    pendingBillingCycle,
     nextBillingAt: row.next_billing_at,
     cancelAt: row.cancel_at,
     canceledAt: row.canceled_at,
@@ -59,6 +72,7 @@ export async function listDueInsuranceRenewals(client, params = {}) {
     `
     SELECT
       bs.id, bs.user_id, bs.tenant_id, bs.status, bs.plan_code, bs.billing_cycle,
+      bs.pending_billing_cycle,
       bs.next_billing_at, bs.cancel_at, bs.canceled_at,
       bs.renewal_retry_count, bs.next_renewal_retry_at,
       gc.code AS ga_code,
@@ -112,6 +126,7 @@ export async function listDueInsuranceRenewalsDryRun(executor, params = {}) {
     `
     SELECT
       bs.id, bs.user_id, bs.tenant_id, bs.status, bs.plan_code, bs.billing_cycle,
+      bs.pending_billing_cycle,
       bs.next_billing_at, bs.cancel_at, bs.canceled_at,
       bs.renewal_retry_count, bs.next_renewal_retry_at,
       gc.code AS ga_code,
@@ -197,6 +212,7 @@ export async function renewInsuranceSubscription(client, params) {
     `
     SELECT
       bs.id, bs.user_id, bs.tenant_id, bs.status, bs.plan_code, bs.billing_cycle,
+      bs.pending_billing_cycle,
       bs.next_billing_at, bs.cancel_at, bs.canceled_at,
       bs.renewal_retry_count, bs.next_renewal_retry_at,
       gc.code AS ga_code,
@@ -255,13 +271,14 @@ export async function renewInsuranceSubscription(client, params) {
   }
 
   const periodKey = buildRenewalPeriodKey(sub.nextBillingAt)
+  const chargeBillingCycle = resolveEffectiveRenewalBillingCycle(sub)
 
   let pending
   try {
     pending = await createPendingInsurancePaymentRow(client, {
       userId: sub.userId,
       planCode: sub.planCode,
-      billingCycle: sub.billingCycle,
+      billingCycle: chargeBillingCycle,
       provider: 'toss',
       paymentSource: 'renewal',
       renewalPeriodKey: periodKey,
@@ -293,6 +310,9 @@ export async function renewInsuranceSubscription(client, params) {
       reason: 'renewed',
       paymentId: pending.paymentId,
       totalAmount: pending.totalAmount,
+      billingCycle: chargeBillingCycle,
+      previousBillingCycle: sub.billingCycle,
+      pendingBillingCycle: sub.pendingBillingCycle,
       subscriptionStatus: paid.subscriptionStatus,
       renewalPeriodKey: periodKey,
     }

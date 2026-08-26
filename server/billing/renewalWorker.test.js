@@ -13,7 +13,8 @@ import {
   isRenewalEligibleStatus,
 } from '../insurance-billing/renewalPolicy.js'
 import { resolvePlanPaymentAmounts } from '../insurance-billing/subscriptionLifecycle.js'
-import { renewInsuranceSubscription } from '../insurance-billing/renewInsuranceSubscription.js'
+import { renewInsuranceSubscription, mapDueSubscriptionRow } from '../insurance-billing/renewInsuranceSubscription.js'
+import { resolveEffectiveRenewalBillingCycle } from '../insurance-billing/subscriptionManageActions.js'
 import { getInsuranceBillingRenewalWorkerDiagnostics } from '../insurance-billing/insuranceBillingRenewalWorker.js'
 
 function eligibleBase(overrides = {}) {
@@ -198,6 +199,32 @@ test('max retry exceeded skip', () => {
 
 test('renewal period key is KST date of scheduled billing', () => {
   assert.equal(buildRenewalPeriodKey('2026-08-19T15:00:00.000Z'), '2026-08-20')
+})
+
+test('effective cycle prefers pending yearly for renewal charge', () => {
+  const mapped = mapDueSubscriptionRow({
+    id: 1,
+    user_id: 'u1',
+    tenant_id: 1,
+    status: 'active_paid',
+    plan_code: 'insurance_basic',
+    billing_cycle: 'monthly',
+    pending_billing_cycle: 'yearly',
+    next_billing_at: '2026-09-26T00:00:00.000Z',
+    cancel_at: null,
+    canceled_at: null,
+    renewal_retry_count: 0,
+    next_renewal_retry_at: null,
+  })
+  assert.equal(mapped.billingCycle, 'monthly')
+  assert.equal(mapped.pendingBillingCycle, 'yearly')
+  assert.equal(resolveEffectiveRenewalBillingCycle(mapped), 'yearly')
+})
+
+test('cancel_at skips renewal charge', () => {
+  const result = evaluateRenewalEligibility(eligibleBase({ cancelAt: '2026-09-26T00:00:00.000Z' }))
+  assert.equal(result.ok, false)
+  assert.equal(result.reason, 'cancel_at_period_end')
 })
 
 test('same-period unique violation is skipped', async () => {
