@@ -133,16 +133,27 @@ export async function fetchBillingCheckoutConfig(token: string) {
   return apiRequest<BillingCheckoutConfig>('/api/billing/checkout/config', { token })
 }
 
+export type AutoRenewStatus = 'AUTO_RENEW_ACTIVE' | 'CANCEL_SCHEDULED' | 'CANCELED' | 'INACTIVE'
+
 export type BillingManageSubscription = {
   status: string
   planName: string
   planCode: string
   billingCycle: 'monthly' | 'yearly'
+  pendingBillingCycle?: 'monthly' | 'yearly' | null
+  autoRenewStatus?: AutoRenewStatus
+  cancelAt?: string | null
+  canceledAt?: string | null
   currentPeriodStart: string | null
   currentPeriodEnd: string | null
   nextBillingAt: string | null
+  nextChargeAmount?: number | null
+  nextChargeSupplyAmount?: number | null
+  nextChargeVatAmount?: number | null
+  nextChargeBillingCycle?: 'monthly' | 'yearly' | null
   trialStartedAt?: string | null
   trialEndsAt?: string | null
+  hasBillingCredential?: boolean
 }
 
 export type BillingManagePayment = {
@@ -169,4 +180,47 @@ export type BillingManageSummaryResponse = {
 
 export async function fetchBillingManageSummary(token: string) {
   return apiRequest<BillingManageSummaryResponse>('/api/billing/manage/summary', { token })
+}
+
+export type BillingSubscriptionActionResponse = {
+  ok: boolean
+  noOp?: boolean
+  billingCycle?: 'monthly' | 'yearly'
+  pendingBillingCycle?: 'monthly' | 'yearly' | null
+  cancelAt?: string | null
+  currentPeriodEnd?: string | null
+  nextBillingAt?: string | null
+  requiresCard?: boolean
+  subscription?: BillingManageSubscription
+}
+
+export async function changeBillingCycle(token: string, billingCycle: 'monthly' | 'yearly') {
+  return apiRequest<BillingSubscriptionActionResponse>('/api/billing/subscription/billing-cycle', {
+    token,
+    method: 'PATCH',
+    body: JSON.stringify({ billingCycle }),
+  })
+}
+
+export async function clearPendingBillingCycleChange(token: string) {
+  return apiRequest<BillingSubscriptionActionResponse>('/api/billing/subscription/pending-billing-cycle', {
+    token,
+    method: 'DELETE',
+  })
+}
+
+export async function cancelBillingSubscription(token: string) {
+  return apiRequest<BillingSubscriptionActionResponse>('/api/billing/subscription/cancel', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({}),
+  })
+}
+
+export async function resumeBillingSubscription(token: string) {
+  return apiRequest<BillingSubscriptionActionResponse>('/api/billing/subscription/resume', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({}),
+  })
 }
