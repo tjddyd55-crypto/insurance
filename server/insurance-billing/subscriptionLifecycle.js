@@ -491,6 +491,7 @@ export async function finalizeInsurancePaymentAsPaid(client, params) {
       status = 'active_paid',
       plan_code = $2,
       billing_cycle = $3,
+      pending_billing_cycle = NULL,
       current_period_start = $4,
       current_period_end = $5,
       next_billing_at = $5,
