@@ -16,6 +16,8 @@ import {
 import { INSURANCE_BASIC_PLAN_CODE, isInsuranceBillingProductionRuntime } from '../config.js'
 import { chargeTossBillingKey, issueTossBillingKey } from './toss/tossHttpClient.js'
 import { normalizeTossApiFailure } from './toss/tossErrorNormalization.js'
+import { resolveCheckoutChargeAmounts } from '../checkoutQuoteService.js'
+import { validateInsurancePromotionCode } from '../promotionService.js'
 
 /**
  * @param {number | string} paymentId
@@ -87,7 +89,40 @@ export async function createPendingInsurancePaymentRow(client, params) {
 
   await assertNoActivePendingInsurancePayment(client, userId)
 
-  const { totalAmount, supplyAmount, vatAmount } = resolvePlanPaymentAmounts(plan, billingCycle)
+  let totalAmount
+  let supplyAmount
+  let vatAmount
+  let discountAmount = 0
+  const promotionCode = params.promotionCode ? String(params.promotionCode).trim() : null
+
+  // renewal 은 pending cycle / plan SSOT 그대로. checkout 만 쿠폰 할인 반영.
+  if (paymentSource === 'renewal' || !promotionCode) {
+    const amounts = resolvePlanPaymentAmounts(plan, billingCycle)
+    totalAmount = amounts.totalAmount
+    supplyAmount = amounts.supplyAmount
+    vatAmount = amounts.vatAmount
+  } else {
+    const validated = await validateInsurancePromotionCode(client, {
+      code: promotionCode,
+      planCode,
+      billingCycle,
+      userId,
+    })
+    if (!validated.valid) {
+      throw new Error('promotion_invalid')
+    }
+    if (validated.type === 'free_months') {
+      throw new Error('promotion_requires_apply_path')
+    }
+    const amounts = resolveCheckoutChargeAmounts(plan, billingCycle, {
+      discountAmount: validated.discountAmount,
+      finalAmount: validated.finalAmount,
+    })
+    totalAmount = amounts.totalAmount
+    supplyAmount = amounts.supplyAmount
+    vatAmount = amounts.vatAmount
+    discountAmount = amounts.discountAmount
+  }
 
   const refR = await systemQuery(
     client,
@@ -95,7 +130,6 @@ export async function createPendingInsurancePaymentRow(client, params) {
     [userId],
   )
   const referralCode = refR.rows[0]?.referral_code ? String(refR.rows[0].referral_code) : null
-  const promotionCode = params.promotionCode ? String(params.promotionCode).trim() : null
 
   const payIns = await systemQuery(
     client,
@@ -145,7 +179,9 @@ export async function createPendingInsurancePaymentRow(client, params) {
       billingCycle,
       planCode,
       totalAmount,
+      discountAmount,
       provider,
+      promotionCode,
     },
   })
 
@@ -155,10 +191,12 @@ export async function createPendingInsurancePaymentRow(client, params) {
     status: 'pending',
     subscriptionStatus: sub.status,
     totalAmount,
+    discountAmount,
     planName: String(plan.name ?? planCode),
     billingCycle,
     planCode,
     tenantId: sub.tenant_id,
+    promotionCode,
   }
 }
 
@@ -339,6 +377,22 @@ export async function requestTossInsurancePayment(client, params) {
     promotionCode: params.promotionCode,
     provider: 'toss',
   })
+
+  // Toss 0원 charge 금지 — 할인으로 최종 0원이면 결제 row 확정만 수행
+  if (Number(pending.totalAmount) <= 0) {
+    const paid = await finalizeInsurancePaymentAsPaid(client, {
+      paymentId: pending.paymentId,
+      source: 'toss',
+    })
+    return {
+      needsBillingAuth: false,
+      hasBillingKey: true,
+      ...pending,
+      ...paid,
+      status: 'paid',
+      zeroAmountActivated: true,
+    }
+  }
 
   const result = await executeTossBillingCharge(client, {
     paymentId: pending.paymentId,

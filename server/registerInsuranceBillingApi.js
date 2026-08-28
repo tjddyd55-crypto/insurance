@@ -24,6 +24,7 @@ import {
   scheduleCancelAtPeriodEnd,
   schedulePendingBillingCycle,
 } from './insurance-billing/subscriptionManageActions.js'
+import { buildCheckoutQuote } from './insurance-billing/checkoutQuoteService.js'
 import {
   approveInsuranceBillingPaymentAdmin,
   cancelInsuranceBillingPaymentAdmin,
@@ -98,6 +99,11 @@ export function registerInsuranceBillingApi(apiRouter, ctx) {
       plan_not_found: { status: 404, message: '요금제를 찾을 수 없습니다.' },
       subscription_not_found: { status: 404, message: '구독 정보를 찾을 수 없습니다.' },
       payment_already_pending: { status: 409, message: '이미 처리 대기 중인 결제 요청이 있습니다.' },
+      promotion_invalid: { status: 400, message: '사용할 수 없는 쿠폰입니다.' },
+      promotion_requires_apply_path: {
+        status: 400,
+        message: '무료 이용권은 결제 대신 무료 시작으로 적용해 주세요.',
+      },
       billing_change_in_progress: {
         status: 409,
         message: '결제가 진행 중입니다. 결제 완료 후 다시 변경해 주세요.',
@@ -166,6 +172,26 @@ export function registerInsuranceBillingApi(apiRouter, ctx) {
         checkoutConfig,
       })
     } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.post('/billing/checkout/quote', requireAuth, requireBillingEnabled, requireBillingSubject, async (req, res) => {
+    try {
+      const userId = String(req.user?.id ?? '').trim()
+      const planCode = String(req.body?.planCode ?? req.body?.plan_code ?? 'insurance_basic').trim()
+      const billingCycle = String(req.body?.billingCycle ?? req.body?.billing_cycle ?? 'monthly').trim()
+      const promotionCode = String(req.body?.promotionCode ?? req.body?.promotion_code ?? '').trim() || null
+      // client amount 무시 — 서버 quote만 사용
+      const quote = await buildCheckoutQuote(pool, {
+        userId,
+        planCode,
+        billingCycle,
+        promotionCode,
+      })
+      res.json({ ok: true, quote })
+    } catch (e) {
+      if (mapInsuranceBillingError(e, res)) return
       handleDbError(e, req, res)
     }
   })
