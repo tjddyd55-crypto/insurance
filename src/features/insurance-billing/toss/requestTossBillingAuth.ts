@@ -45,6 +45,7 @@ export async function requestTossBillingAuth(params: {
   intent: 'register' | 'charge'
   planCode: string
   billingCycle: string
+  promotionCode?: string | null
 }) {
   await loadTossPaymentsScript()
   if (typeof window.TossPayments !== 'function') {
@@ -55,6 +56,9 @@ export async function requestTossBillingAuth(params: {
   success.searchParams.set('intent', params.intent)
   success.searchParams.set('planCode', params.planCode)
   success.searchParams.set('billingCycle', params.billingCycle)
+  if (params.promotionCode?.trim()) {
+    success.searchParams.set('promotionCode', params.promotionCode.trim())
+  }
   const fail = new URL('/billing/fail', origin)
   const tossPayments = window.TossPayments(params.clientKey)
   await tossPayments.requestBillingAuth('카드', {

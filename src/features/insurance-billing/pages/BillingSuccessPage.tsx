@@ -15,7 +15,19 @@ export default function BillingSuccessPage() {
   const navigate = useNavigate()
   const { token, user } = useAuth()
   const isMobile = useIsMobile()
-  const state = (location.state ?? {}) as { mode?: string; trialEndsAt?: string }
+  const state = (location.state ?? {}) as {
+    mode?: string
+    trialEndsAt?: string
+    quote?: {
+      baseAmount?: number
+      discountAmount?: number
+      todayChargeAmount?: number
+      nextChargeAmount?: number
+      nextBillingAt?: string | null
+      billingCycle?: string
+      summaryMessage?: string
+    }
+  }
   const landing = resolveAuthLandingPath(isMobile, user?.role)
   const [verifyState, setVerifyState] = useState<VerifyState>('loading')
   const [verifiedTrialEndsAt, setVerifiedTrialEndsAt] = useState<string | null>(null)
@@ -29,6 +41,7 @@ export default function BillingSuccessPage() {
     intent: String(searchParams.get('intent') ?? 'charge').trim(),
     planCode: String(searchParams.get('planCode') ?? 'insurance_basic').trim(),
     billingCycle: String(searchParams.get('billingCycle') ?? 'monthly').trim(),
+    promotionCode: String(searchParams.get('promotionCode') ?? '').trim(),
   })
   // confirm이 이미 실행됐는지 추적 — 새로고침 후 authKey가 없으면 재실행하지 않음
   const confirmedRef = useRef(false)
@@ -41,7 +54,7 @@ export default function BillingSuccessPage() {
     // 이미 처리된 경우 (URL replace 후 effect 재실행 방지)
     if (confirmedRef.current) return
 
-    const { authKey, customerKey, intent, planCode, billingCycle } = callbackParamsRef.current
+    const { authKey, customerKey, intent, planCode, billingCycle, promotionCode } = callbackParamsRef.current
 
     if (state.mode === 'pending' && !authKey) {
       setVerifyState('verified')
@@ -58,7 +71,12 @@ export default function BillingSuccessPage() {
 
           await confirmBillingAuth(token, { authKey, customerKey })
           if (intent === 'charge') {
-            const charged = await requestBillingPayment(token, { planCode, billingCycle, registerOnly: false })
+            const charged = await requestBillingPayment(token, {
+              planCode,
+              billingCycle,
+              promotionCode: promotionCode || undefined,
+              registerOnly: false,
+            })
             if (cancelled) return
             if (charged.subscriptionStatus === 'active_paid' || charged.status === 'paid') {
               setResultMode('paid')
@@ -162,9 +180,36 @@ export default function BillingSuccessPage() {
           {trialEndsAt ? (
             <div className="insurance-billing-notice">무료 종료일: {trialEndsAt.slice(0, 10)}</div>
           ) : null}
+          {isPaid && state.quote ? (
+            <dl className="insurance-billing-manage-meta">
+              <div className="insurance-billing-manage-meta__row">
+                <dt>요금제</dt>
+                <dd>{state.quote.billingCycle === 'yearly' ? '연간' : '월간'}</dd>
+              </div>
+              <div className="insurance-billing-manage-meta__row">
+                <dt>상품금액</dt>
+                <dd>{Number(state.quote.baseAmount ?? 0).toLocaleString('ko-KR')}원</dd>
+              </div>
+              <div className="insurance-billing-manage-meta__row">
+                <dt>쿠폰 할인</dt>
+                <dd>{Number(state.quote.discountAmount ?? 0).toLocaleString('ko-KR')}원</dd>
+              </div>
+              <div className="insurance-billing-manage-meta__row">
+                <dt>오늘 결제</dt>
+                <dd>{Number(state.quote.todayChargeAmount ?? 0).toLocaleString('ko-KR')}원</dd>
+              </div>
+              <div className="insurance-billing-manage-meta__row">
+                <dt>다음 자동결제</dt>
+                <dd>
+                  {(state.quote.nextBillingAt ?? '').toString().slice(0, 10) || '—'} /{' '}
+                  {Number(state.quote.nextChargeAmount ?? 0).toLocaleString('ko-KR')}원
+                </dd>
+              </div>
+            </dl>
+          ) : null}
           {!isPending ? (
             <Link to={landing} className="insurance-billing-cta">
-              CRM 시작하기
+              ONE FC 시작하기
             </Link>
           ) : (
             <Link to="/billing/manage" className="insurance-billing-cta">
