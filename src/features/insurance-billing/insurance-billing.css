@@ -142,6 +142,39 @@
   color: var(--text-secondary);
 }
 
+.insurance-billing-cancel-scheduled-notice {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.insurance-billing-cancel-scheduled-notice p {
+  margin: 0;
+}
+
+.insurance-billing-cancel-scheduled-notice p + p {
+  margin-top: 6px;
+}
+
+.insurance-billing-cancel-scheduled-notice__hint {
+  color: var(--text-primary);
+}
+
+.insurance-billing-manage-page .insurance-billing-manage-actions .insurance-billing-cta--primary {
+  margin-top: 0;
+}
+
+@media (max-width: 768px) {
+  .insurance-billing-manage-actions .insurance-billing-cta {
+    width: 100%;
+  }
+}
+
 .insurance-billing-cta {
   display: inline-flex;
   align-items: center;

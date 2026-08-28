@@ -281,3 +281,101 @@ test('resume requires card when credential missing', async () => {
 
   await assert.rejects(() => resumeAutoRenew(client, { userId: 'u1' }), /resume_requires_card/)
 })
+
+test('resume clears cancel_at without changing billing cycle', async () => {
+  const prevSecret = process.env.PAYMENT_SETTINGS_SECRET_KEY
+  process.env.PAYMENT_SETTINGS_SECRET_KEY =
+    process.env.PAYMENT_SETTINGS_SECRET_KEY ?? 'a'.repeat(64)
+  let updatedCancelAt = 'still-set'
+  const client = makeClient([
+    {
+      match: (sql) => sql.includes("status = 'pending'") && sql.includes('billing_payments'),
+      run: async () => ({ rows: [] }),
+    },
+    {
+      match: (sql) => sql.includes('FROM billing_subscriptions') && sql.includes('FOR UPDATE'),
+      run: async () => ({
+        rows: [
+          {
+            id: 1,
+            user_id: 'u1',
+            tenant_id: 10,
+            status: 'active_paid',
+            billing_cycle: 'monthly',
+            pending_billing_cycle: null,
+            cancel_at: '2026-09-26T00:00:00.000Z',
+            canceled_at: null,
+            current_period_end: '2026-09-26T00:00:00.000Z',
+          },
+        ],
+      }),
+    },
+    {
+      match: (sql) => sql.includes('FROM billing_payment_credentials'),
+      run: async () => {
+        const { encryptPaymentSecret } = await import('../billing/paymentSettingsCrypto.js')
+        return {
+          rows: [
+            {
+              provider_customer_key: 'onefc_cust_live',
+              billing_key_ciphertext: encryptPaymentSecret('toss_bk_live'),
+              card_company: '51',
+              card_number_masked: '379183******321',
+              card_type: null,
+              status: 'active',
+              issued_mode: 'live',
+            },
+          ],
+        }
+      },
+    },
+    {
+      match: (sql) => sql.includes('SET cancel_at = NULL'),
+      run: async () => {
+        updatedCancelAt = null
+        return { rowCount: 1 }
+      },
+    },
+    {
+      match: (sql) => sql.includes('INSERT INTO billing_events'),
+      run: async () => ({ rows: [] }),
+    },
+  ])
+
+  const result = await resumeAutoRenew(client, { userId: 'u1' })
+  assert.equal(result.ok, true)
+  assert.notEqual(result.noOp, true)
+  assert.equal(updatedCancelAt, null)
+  process.env.PAYMENT_SETTINGS_SECRET_KEY = prevSecret
+})
+
+test('resume no-op when cancel_at already null', async () => {
+  const client = makeClient([
+    {
+      match: (sql) => sql.includes("status = 'pending'") && sql.includes('billing_payments'),
+      run: async () => ({ rows: [] }),
+    },
+    {
+      match: (sql) => sql.includes('FROM billing_subscriptions') && sql.includes('FOR UPDATE'),
+      run: async () => ({
+        rows: [
+          {
+            id: 1,
+            user_id: 'u1',
+            tenant_id: 10,
+            status: 'active_paid',
+            billing_cycle: 'monthly',
+            pending_billing_cycle: null,
+            cancel_at: null,
+            canceled_at: null,
+          },
+        ],
+      }),
+    },
+  ])
+
+  const result = await resumeAutoRenew(client, { userId: 'u1' })
+  assert.equal(result.ok, true)
+  assert.equal(result.noOp, true)
+})
+

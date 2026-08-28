@@ -9,6 +9,7 @@ import {
   resolveAutoRenewLabel,
   resolveManageCheckoutCtaLabel,
   resolveNextBillingDate,
+  resolveNextChargePreview,
   resolvePaymentStatusLabel,
   resolvePaymentStatusTone,
   resolvePlanDisplayName,
@@ -93,6 +94,11 @@ export default function InsuranceBillingManagePanel({
           cycle: nextChargeCycle,
         })
       : null
+  const cancelScheduledEndDate = cancelAt ?? subscription?.currentPeriodEnd ?? null
+  const resumeChargePreview =
+    autoRenewStatus === 'CANCEL_SCHEDULED'
+      ? resolveNextChargePreview(subscription, summary)
+      : null
 
   const oppositeCycle = billingCycle === 'yearly' ? 'monthly' : 'yearly'
   const showChangeCycle =
@@ -142,8 +148,26 @@ export default function InsuranceBillingManagePanel({
           {autoRenewStatus === 'CANCEL_SCHEDULED' ? (
             <div className="insurance-billing-manage-meta__row">
               <dt>이용 종료일</dt>
-              <dd>{formatBillingDotDate(cancelAt ?? subscription?.currentPeriodEnd)}</dd>
+              <dd>{formatBillingDotDate(cancelScheduledEndDate)}</dd>
             </div>
+          ) : null}
+          {autoRenewStatus === 'CANCEL_SCHEDULED' && resumeChargePreview ? (
+            <>
+              <div className="insurance-billing-manage-meta__row">
+                <dt>다음 자동결제일</dt>
+                <dd>{formatBillingDotDate(nextBillingDate)}</dd>
+              </div>
+              <div className="insurance-billing-manage-meta__row">
+                <dt>다음 결제금액</dt>
+                <dd>
+                  <strong>{resumeChargePreview.totalLabel}</strong>
+                  <span className="insurance-billing-manage-meta__muted">
+                    {' '}
+                    {resumeChargePreview.breakdownLabel}
+                  </span>
+                </dd>
+              </div>
+            </>
           ) : null}
           {autoRenewStatus === 'AUTO_RENEW_ACTIVE' || pendingCycle ? (
             <>
@@ -168,10 +192,14 @@ export default function InsuranceBillingManagePanel({
             </p>
           ) : null}
           {autoRenewStatus === 'CANCEL_SCHEDULED' ? (
-            <p className="insurance-billing-plan-note">
-              {formatBillingKoreanDate(cancelAt ?? subscription?.currentPeriodEnd)}까지 이용할 수 있으며,
-              이후 자동결제는 진행되지 않습니다.
-            </p>
+            <div className="insurance-billing-cancel-scheduled-notice">
+              <p>현재 이용기간까지는 정상적으로 이용할 수 있습니다.</p>
+              <p>이용 종료일 전까지 자동결제를 다시 시작할 수 있습니다.</p>
+              <p className="insurance-billing-cancel-scheduled-notice__hint">
+                해지 예약이 취소되면 {formatBillingKoreanDate(nextBillingDate)}부터{' '}
+                {resumeChargePreview?.totalLabel ?? '정상 요금'}이 자동결제됩니다.
+              </p>
+            </div>
           ) : null}
         </dl>
 
@@ -234,25 +262,17 @@ export default function InsuranceBillingManagePanel({
         ) : null}
       </section>
 
-      {isActivePaid ? (
+      {isActivePaid && showCancel ? (
         <section className="insurance-billing-card insurance-billing-manage-card">
           <h2>구독 관리</h2>
-          {showCancel ? (
-            <button
-              type="button"
-              className="insurance-billing-cta insurance-billing-cta--quiet"
-              disabled={actionBusy}
-              onClick={() => onCancelAutoRenew?.()}
-            >
-              자동결제 해지
-            </button>
-          ) : (
-            <p className="insurance-billing-plan-note">
-              {autoRenewStatus === 'CANCEL_SCHEDULED'
-                ? '자동결제 해지가 예약되어 있습니다. 이용기간 종료 전에는 다시 시작할 수 있습니다.'
-                : '현재 변경 가능한 구독 작업이 없습니다.'}
-            </p>
-          )}
+          <button
+            type="button"
+            className="insurance-billing-cta insurance-billing-cta--quiet"
+            disabled={actionBusy}
+            onClick={() => onCancelAutoRenew?.()}
+          >
+            자동결제 해지
+          </button>
         </section>
       ) : null}
 
