@@ -379,7 +379,38 @@ export async function createPendingInsurancePayment(client, params) {
 
   await assertNoActivePendingInsurancePayment(client, userId)
 
-  const { totalAmount, supplyAmount, vatAmount } = resolvePlanPaymentAmounts(plan, billingCycle)
+  const promotionCode = params.promotionCode ? String(params.promotionCode).trim() : null
+  let totalAmount
+  let supplyAmount
+  let vatAmount
+  if (promotionCode) {
+    const { validateInsurancePromotionCode } = await import('./promotionService.js')
+    const { resolveCheckoutChargeAmounts } = await import('./checkoutQuoteService.js')
+    const validated = await validateInsurancePromotionCode(client, {
+      code: promotionCode,
+      planCode,
+      billingCycle,
+      userId,
+    })
+    if (!validated.valid) {
+      throw new Error('promotion_invalid')
+    }
+    if (validated.type === 'free_months') {
+      throw new Error('promotion_requires_apply_path')
+    }
+    const amounts = resolveCheckoutChargeAmounts(plan, billingCycle, {
+      discountAmount: validated.discountAmount,
+      finalAmount: validated.finalAmount,
+    })
+    totalAmount = amounts.totalAmount
+    supplyAmount = amounts.supplyAmount
+    vatAmount = amounts.vatAmount
+  } else {
+    const amounts = resolvePlanPaymentAmounts(plan, billingCycle)
+    totalAmount = amounts.totalAmount
+    supplyAmount = amounts.supplyAmount
+    vatAmount = amounts.vatAmount
+  }
 
   const refR = await systemQuery(
     client,
@@ -387,7 +418,6 @@ export async function createPendingInsurancePayment(client, params) {
     [userId],
   )
   const referralCode = refR.rows[0]?.referral_code ? String(refR.rows[0].referral_code) : null
-  const promotionCode = params.promotionCode ? String(params.promotionCode).trim() : null
 
   const payIns = await systemQuery(
     client,
@@ -532,8 +562,32 @@ export async function finalizeInsurancePaymentAsPaid(client, params) {
       totalAmount: Number(payment.total_amount ?? 0),
       adminUserId: params.adminUserId ?? null,
       referralQualified: Boolean(qualified),
+      promotionCode: payment.promotion_code ?? null,
     },
   })
+
+  // amount_off / percent_off 는 결제 성공 시에만 소진 (free_months 는 apply 경로)
+  if (payment.promotion_code && params.source !== 'renewal') {
+    const { redeemDiscountPromotionOnPaidPayment } = await import('./redeemDiscountPromotion.js')
+    const planR = await systemQuery(
+      client,
+      `
+      SELECT monthly_total, yearly_total, monthly_price, yearly_price
+      FROM billing_plans WHERE code = $1 LIMIT 1
+      `,
+      [planCode],
+    )
+    const base = resolvePlanPaymentAmounts(planR.rows[0] ?? {}, billingCycle)
+    const paidTotal = Number(payment.total_amount ?? 0)
+    await redeemDiscountPromotionOnPaidPayment(client, {
+      userId,
+      paymentId,
+      promotionCode: payment.promotion_code,
+      discountAmount: Math.max(0, base.totalAmount - paidTotal),
+      finalAmount: paidTotal,
+      billingCycle,
+    })
+  }
 
   return {
     paymentId,
