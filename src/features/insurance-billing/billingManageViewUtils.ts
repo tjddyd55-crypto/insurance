@@ -89,8 +89,8 @@ const PAYMENT_STATUS_TONE: Record<string, BillingStatusTone> = {
 }
 
 const AUTO_RENEW_LABEL: Record<AutoRenewStatus, string> = {
-  AUTO_RENEW_ACTIVE: '사용 중',
-  CANCEL_SCHEDULED: '해지 예정',
+  AUTO_RENEW_ACTIVE: '자동결제 사용 중',
+  CANCEL_SCHEDULED: '자동결제 해지 예정',
   CANCELED: '해지됨',
   INACTIVE: '사용 안 함',
 }
@@ -209,4 +209,25 @@ export function resolveManageCheckoutCtaLabel(status: string | null | undefined)
   if (normalized === 'pending_payment' || normalized === 'pending') return '결제하러 가기'
   if (['legacy_active', 'active', 'free'].includes(normalized)) return '요금제 확인'
   return '결제/요금제 변경'
+}
+
+/** manage summary 기준 다음 자동결제 금액 표시용 */
+export function resolveNextChargePreview(
+  subscription: BillingManageSubscription | null | undefined,
+  summary: CheckoutSummary | null | undefined,
+) {
+  const nextChargeCycle = subscription?.nextChargeBillingCycle ?? subscription?.pendingBillingCycle ?? subscription?.billingCycle ?? 'monthly'
+  const plan = summary?.plan
+  const fallbackTotal =
+    nextChargeCycle === 'yearly' ? (plan?.yearlyTotal ?? 88000) : (plan?.monthlyTotal ?? 8800)
+  const fallbackSupply =
+    nextChargeCycle === 'yearly' ? (plan?.yearlyPrice ?? 80000) : (plan?.monthlyPrice ?? 8000)
+  const fallbackVat =
+    nextChargeCycle === 'yearly' ? (plan?.yearlyVat ?? 8000) : (plan?.monthlyVat ?? 800)
+  return formatChargePriceBreakdown({
+    total: subscription?.nextChargeAmount ?? fallbackTotal,
+    supply: subscription?.nextChargeSupplyAmount ?? fallbackSupply,
+    vat: subscription?.nextChargeVatAmount ?? fallbackVat,
+    cycle: nextChargeCycle === 'yearly' ? 'yearly' : 'monthly',
+  })
 }

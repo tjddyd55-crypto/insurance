@@ -17,6 +17,8 @@ import InsuranceBillingManagePanel from '../components/InsuranceBillingManagePan
 import {
   formatBillingKoreanDate,
   formatChargePriceBreakdown,
+  resolveNextBillingDate,
+  resolveNextChargePreview,
 } from '../billingManageViewUtils'
 import { requestTossBillingAuth } from '../toss/requestTossBillingAuth'
 import '../insurance-billing.css'
@@ -200,10 +202,39 @@ export default function BillingManagePage() {
   }, [token, data, confirm, load])
 
   const handleResumeAutoRenew = useCallback(async () => {
-    if (!token?.trim()) return
+    if (!token?.trim() || !data?.subscription) return
+    const sub = data.subscription
+    const hasCredential = Boolean(
+      checkoutConfig?.hasBillingKey ?? sub.hasBillingCredential,
+    )
+    if (!hasCredential) {
+      setError('등록된 결제수단이 없습니다. 결제수단을 등록한 후 다시 시도해 주세요.')
+      navigate('/billing/checkout')
+      return
+    }
+
+    const nextBillingDate = formatBillingKoreanDate(
+      resolveNextBillingDate(sub, data.summary),
+    )
+    const chargePreview = resolveNextChargePreview(sub, data.summary)
+
     const confirmed = await confirm({
       title: '자동결제를 다시 시작할까요?',
-      message: '해지 예약이 취소되고, 다음 자동결제일부터 등록된 카드로 다시 결제됩니다.',
+      message: (
+        <>
+          해지 예약이 취소되고, 현재 등록된 결제수단으로 다음 결제일부터 자동결제가 다시 진행됩니다.
+          <br />
+          <br />
+          오늘 추가 결제는 없습니다.
+          <br />
+          <br />
+          다음 자동결제일: {nextBillingDate}
+          <br />
+          다음 결제금액: {chargePreview.totalLabel}
+          <br />
+          <span className="insurance-billing-manage-meta__muted">{chargePreview.breakdownLabel}</span>
+        </>
+      ),
       confirmLabel: '자동결제 다시 시작',
       cancelLabel: '취소',
     })
@@ -219,18 +250,24 @@ export default function BillingManagePage() {
       } else {
         await load()
       }
-      setActionMessage('자동결제가 다시 시작되었습니다.')
+      setActionMessage(
+        result.noOp ? '이미 자동결제가 사용 중입니다.' : '자동결제가 다시 시작되었습니다.',
+      )
     } catch (e) {
-      if (e instanceof ApiError && (e.code === 'resume_requires_card' || e.message.includes('결제수단'))) {
-        setError(e.message)
+      if (e instanceof ApiError && e.code === 'resume_requires_card') {
+        setError('등록된 결제수단이 없습니다. 결제수단을 등록한 후 다시 시도해 주세요.')
         navigate('/billing/checkout')
+        return
+      }
+      if (e instanceof ApiError && e.code === 'subscription_not_active_paid') {
+        setError('현재 구독 상태에서는 자동결제를 다시 시작할 수 없습니다.')
         return
       }
       setError(e instanceof ApiError ? e.message : e instanceof Error ? e.message : '재시작에 실패했습니다.')
     } finally {
       setActionBusy(false)
     }
-  }, [token, confirm, load, navigate])
+  }, [token, data, checkoutConfig, confirm, load, navigate])
 
   return (
     <main className="insurance-billing-page insurance-billing-manage-page">
