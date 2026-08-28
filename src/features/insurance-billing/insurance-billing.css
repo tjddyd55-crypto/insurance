@@ -212,6 +212,112 @@
   font-weight: 400;
 }
 
+.billing-checkout-layout--pc {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+  gap: 24px;
+  margin-top: 28px;
+  align-items: start;
+}
+
+.billing-checkout-layout__aside {
+  position: sticky;
+  top: 24px;
+}
+
+.billing-checkout-layout--mobile {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+  padding-bottom: 88px;
+}
+
+.insurance-billing-plan-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.insurance-billing-plan-card {
+  display: grid;
+  gap: 6px;
+  text-align: left;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.insurance-billing-plan-card.is-active {
+  border-color: var(--btn-primary-bg, #16a34a);
+  box-shadow: 0 0 0 1px var(--btn-primary-bg, #16a34a);
+}
+
+.insurance-billing-plan-card__label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.insurance-billing-plan-card__note {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.insurance-billing-coupon-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.insurance-billing-coupon-row input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--input-border, var(--border-default));
+  border-radius: 10px;
+  background: var(--input-bg, var(--bg-surface));
+  color: var(--text-primary);
+}
+
+.insurance-billing-coupon-applied {
+  display: grid;
+  gap: 12px;
+}
+
+.insurance-billing-checkout-next {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-default);
+}
+
+.insurance-billing-checkout-auto-note {
+  margin-top: 12px;
+}
+
+.billing-checkout-mobile-cta-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  padding: 12px 0 calc(12px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, transparent, var(--bg-base) 28%);
+}
+
+@media (max-width: 900px) {
+  .billing-checkout-layout--pc {
+    grid-template-columns: 1fr;
+  }
+
+  .billing-checkout-layout__aside {
+    position: static;
+  }
+
+  .insurance-billing-plan-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* TEST QA 전용 섹션 — mode=virtual + hasBillingKey 시에만 노출, production에서는 절대 렌더 안 됨 */
 .insurance-billing-test-qa-section {
   margin-top: 20px;

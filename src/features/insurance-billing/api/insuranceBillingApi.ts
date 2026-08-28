@@ -50,6 +50,46 @@ export type PromotionValidateResult = {
   discountAmount?: number
   finalAmount?: number
   message?: string
+  errorCode?: string
+}
+
+export type CheckoutQuote = {
+  valid: boolean
+  planCode: string
+  planName: string
+  billingCycle: 'monthly' | 'yearly'
+  baseAmount: number
+  baseSupplyAmount?: number
+  baseVatAmount?: number
+  discountAmount: number
+  todayChargeAmount: number
+  todaySupplyAmount?: number
+  todayVatAmount?: number
+  nextChargeAmount: number
+  nextBillingAt: string | null
+  coupon: {
+    code: string
+    type: string
+    freeMonths?: number | null
+    discountAmount: number
+    finalAmount: number
+    message?: string | null
+  } | null
+  message?: string | null
+  errorCode?: string | null
+  summaryMessage: string
+  benefitKind: 'none' | 'free_months' | 'amount_off' | 'percent_off' | string | null
+}
+
+export async function fetchCheckoutQuote(
+  token: string,
+  body: { planCode?: string; billingCycle: string; promotionCode?: string | null },
+) {
+  return apiRequest<{ ok: boolean; quote: CheckoutQuote }>('/api/billing/checkout/quote', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(body),
+  })
 }
 
 export async function fetchCheckoutSummary(token: string) {
