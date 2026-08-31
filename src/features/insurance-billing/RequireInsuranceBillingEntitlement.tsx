@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
-import { fetchCheckoutSummary } from '../insurance-billing/api/insuranceBillingApi'
+import { fetchCheckoutSummary, type CheckoutSummary } from '../insurance-billing/api/insuranceBillingApi'
 import {
   INSURANCE_BILLING_BLOCKED_REDIRECT,
   isInsuranceBillingAllowlistedPath,
   isInsuranceBillingEnabledClient,
   isInsuranceBillingEnforceAccessClient,
-  isInsuranceBillingEntitledStatus,
 } from '../insurance-billing/insuranceBillingConfig'
+import { hasActiveBillingEntitlementClient } from '../insurance-billing/insuranceBillingEntitlement'
 import { isBillingUiHiddenForUser } from '../billing/storeReviewBillingAccess'
 
 /**
@@ -21,7 +21,8 @@ import { isBillingUiHiddenForUser } from '../billing/storeReviewBillingAccess'
 export function RequireInsuranceBillingEntitlement() {
   const { token, user } = useAuth()
   const location = useLocation()
-  const [status, setStatus] = useState<string | null>(null)
+  const [summary, setSummary] = useState<CheckoutSummary | null>(null)
+  const [fetchFailed, setFetchFailed] = useState(false)
   const [checked, setChecked] = useState(!isInsuranceBillingEnabledClient())
 
   useEffect(() => {
@@ -36,13 +37,15 @@ export function RequireInsuranceBillingEntitlement() {
     let cancelled = false
     void (async () => {
       try {
-        const summary = await fetchCheckoutSummary(token)
+        const nextSummary = await fetchCheckoutSummary(token)
         if (!cancelled) {
-          setStatus(summary.subscriptionStatus)
+          setSummary(nextSummary)
+          setFetchFailed(false)
         }
       } catch {
         if (!cancelled) {
-          setStatus(null)
+          setSummary(null)
+          setFetchFailed(true)
         }
       } finally {
         if (!cancelled) {
@@ -79,7 +82,19 @@ export function RequireInsuranceBillingEntitlement() {
     return <Outlet />
   }
 
-  if (isInsuranceBillingEntitledStatus(status)) {
+  if (fetchFailed) {
+    return <Outlet />
+  }
+
+  if (
+    hasActiveBillingEntitlementClient({
+      subscriptionStatus: summary?.subscriptionStatus,
+      status: summary?.status,
+      trialEndsAt: summary?.trialEndsAt,
+      currentPeriodEnd: summary?.currentPeriodEnd,
+      isEntitled: summary?.isEntitled,
+    })
+  ) {
     return <Outlet />
   }
 

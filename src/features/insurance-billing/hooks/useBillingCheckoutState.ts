@@ -86,7 +86,11 @@ export function useBillingCheckoutState(): BillingCheckoutViewProps & {
     Boolean(checkoutConfig.enabled) &&
     Boolean(checkoutConfig.clientKey)
   const hasBillingKey = Boolean(checkoutConfig?.hasBillingKey)
-  const isActiveEntitled = checkoutMode === 'legacy_entitled' || checkoutMode === 'active_paid'
+  const isActiveEntitled =
+    checkoutMode === 'legacy_entitled' ||
+    checkoutMode === 'active_paid' ||
+    checkoutMode === 'trialing' ||
+    Boolean(summary?.isEntitled)
   const canRunTestCharge = resolveCanRunTestCharge(checkoutConfig, hasBillingKey)
   const planCode = summary?.plan?.code ?? 'insurance_basic'
 

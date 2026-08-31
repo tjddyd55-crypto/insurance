@@ -164,6 +164,97 @@ describe('insurance billing trial expiry helper', () => {
   })
 })
 
+describe('insurance billing active entitlement policy', () => {
+  it('trialing with future trial_ends_at is entitled', async () => {
+    const { evaluateActiveBillingEntitlement } = await import('./subscriptionEntitlementPolicy.js')
+    const future = new Date(Date.now() + 30 * 86400000).toISOString()
+    const verdict = evaluateActiveBillingEntitlement({
+      status: 'trialing',
+      trial_ends_at: future,
+    })
+    assert.equal(verdict.entitled, true)
+    assert.equal(verdict.reason, 'trial_active')
+  })
+
+  it('trialing with past trial_ends_at is not entitled', async () => {
+    const { evaluateActiveBillingEntitlement } = await import('./subscriptionEntitlementPolicy.js')
+    const past = new Date(Date.now() - 30 * 86400000).toISOString()
+    const verdict = evaluateActiveBillingEntitlement({
+      status: 'trialing',
+      trial_ends_at: past,
+    })
+    assert.equal(verdict.entitled, false)
+    assert.equal(verdict.reason, 'trial_expired')
+  })
+
+  it('trialing without credential is still entitled when trial active', async () => {
+    const { evaluateActiveBillingEntitlement } = await import('./subscriptionEntitlementPolicy.js')
+    const future = '2026-09-21T00:00:00.000Z'
+    assert.equal(
+      evaluateActiveBillingEntitlement({ status: 'trialing', trial_ends_at: future }).entitled,
+      true,
+    )
+  })
+
+  it('pending_payment is not entitled', async () => {
+    const { evaluateActiveBillingEntitlement } = await import('./subscriptionEntitlementPolicy.js')
+    assert.equal(evaluateActiveBillingEntitlement({ status: 'pending_payment' }).entitled, false)
+  })
+
+  it('active_paid is entitled', async () => {
+    const { evaluateActiveBillingEntitlement } = await import('./subscriptionEntitlementPolicy.js')
+    assert.equal(evaluateActiveBillingEntitlement({ status: 'active_paid' }).entitled, true)
+  })
+
+  it('enrichBillingManageSummary marks valid trialing as entitled', async () => {
+    const { enrichBillingManageSummary } = await import('./billingSummaryService.js')
+    const future = new Date(Date.now() + 30 * 86400000).toISOString()
+    const enriched = enrichBillingManageSummary({
+      subscriptionStatus: 'trialing',
+      plan: null,
+      billingCycle: 'monthly',
+      trialEndsAt: future,
+      referral: null,
+    })
+    assert.equal(enriched.isEntitled, true)
+    assert.equal(enriched.entitlementReason, 'trial_active')
+  })
+
+  it('evaluateInsuranceBillingEntitlement delegates to active entitlement when enforce enabled', async () => {
+    const { evaluateInsuranceBillingEntitlement } = await import('./entitlement.js')
+    const { evaluateActiveBillingEntitlement } = await import('./subscriptionEntitlementPolicy.js')
+    const future = new Date(Date.now() + 30 * 86400000).toISOString()
+    const subscription = {
+      status: 'trialing',
+      trial_ends_at: future,
+    }
+    const baseVerdict = evaluateActiveBillingEntitlement(subscription)
+    assert.equal(baseVerdict.entitled, true)
+    assert.equal(baseVerdict.reason, 'trial_active')
+
+    const prevEnabled = process.env.INSURANCE_BILLING_ENABLED
+    const prevEnforce = process.env.INSURANCE_BILLING_ENFORCE_ACCESS
+    process.env.INSURANCE_BILLING_ENABLED = 'true'
+    process.env.INSURANCE_BILLING_ENFORCE_ACCESS = 'true'
+    try {
+      const verdict = evaluateInsuranceBillingEntitlement(subscription)
+      assert.equal(verdict.entitled, true)
+      assert.equal(verdict.reason, 'trial_active')
+    } finally {
+      if (prevEnabled === undefined) {
+        delete process.env.INSURANCE_BILLING_ENABLED
+      } else {
+        process.env.INSURANCE_BILLING_ENABLED = prevEnabled
+      }
+      if (prevEnforce === undefined) {
+        delete process.env.INSURANCE_BILLING_ENFORCE_ACCESS
+      } else {
+        process.env.INSURANCE_BILLING_ENFORCE_ACCESS = prevEnforce
+      }
+    }
+  })
+})
+
 describe('insurance billing apply promotion response', () => {
   it('builds success payload with trialing subscription', async () => {
     const { buildApplyPromotionSuccessPayload, isApplyPromotionTrialingSuccessPayload } = await import(
