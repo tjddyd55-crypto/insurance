@@ -23,6 +23,7 @@ export type CheckoutSummary = {
   planName?: string
   accessPlan?: string
   isEntitled?: boolean
+  entitlementReason?: string
   daysRemaining?: number | null
   plan: {
     code: string

@@ -5,6 +5,7 @@ import { systemQuery } from '../utils/dbSafeQuery.js'
 import { resolveTenantByGaId } from '../lib/crmPlatformMeta.js'
 import { assertNoActivePendingInsurancePayment } from './pendingPaymentPolicy.js'
 import { resolveNextPeriodEnd, addCalendarMonthsKst as addMonths } from './billingPeriodDate.js'
+import { isTrialPeriodActiveKst } from './subscriptionEntitlementPolicy.js'
 
 /**
  * @param {import('pg').Pool | import('pg').PoolClient} executor
@@ -252,8 +253,7 @@ export function isTrialExpiredSubscription(subscription) {
   if (!endsAtRaw) {
     return false
   }
-  const endsAt = new Date(endsAtRaw)
-  return !Number.isNaN(endsAt.getTime()) && endsAt.getTime() <= Date.now()
+  return !isTrialPeriodActiveKst(endsAtRaw)
 }
 
 /**

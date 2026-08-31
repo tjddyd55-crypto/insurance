@@ -3,6 +3,7 @@ import {
   isInsuranceBillingEnforceAccess,
 } from './config.js'
 import { isInsuranceBillingEntitledStatus } from './subscriptionStatusPolicy.js'
+import { evaluateActiveBillingEntitlement } from './subscriptionEntitlementPolicy.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { syncSubscriptionTrialExpiry } from './subscriptionLifecycle.js'
 import { resolveApiPolicyPath } from '../utils/apiPolicyPath.js'
@@ -86,10 +87,12 @@ export function evaluateInsuranceBillingEntitlement(subscription) {
     }
   }
   const status = String(subscription?.status ?? 'none').trim().toLowerCase()
+  const verdict = evaluateActiveBillingEntitlement(subscription)
   return {
-    entitled: isInsuranceBillingEntitledStatus(status),
+    entitled: verdict.entitled,
     enforce: true,
     status,
+    reason: verdict.reason,
   }
 }
 

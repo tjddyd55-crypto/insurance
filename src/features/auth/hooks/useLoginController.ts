@@ -89,7 +89,16 @@ export function useLoginController(): UseLoginControllerResult {
         if (cancelled) {
           return
         }
-        navigate(resolveInsuranceBillingAuthPath(defaultPath, summary.subscriptionStatus), { replace: true })
+        navigate(
+          resolveInsuranceBillingAuthPath(defaultPath, {
+            subscriptionStatus: summary.subscriptionStatus,
+            status: summary.status,
+            trialEndsAt: summary.trialEndsAt,
+            currentPeriodEnd: summary.currentPeriodEnd,
+            isEntitled: summary.isEntitled,
+          }),
+          { replace: true },
+        )
       } catch {
         if (!cancelled) {
           navigate(defaultPath, { replace: true })
@@ -148,7 +157,16 @@ export function useLoginController(): UseLoginControllerResult {
       ) {
         try {
           const summary = await fetchCheckoutSummary(session.token)
-          navigate(resolveInsuranceBillingAuthPath(defaultPath, summary.subscriptionStatus), { replace: true })
+          navigate(
+          resolveInsuranceBillingAuthPath(defaultPath, {
+            subscriptionStatus: summary.subscriptionStatus,
+            status: summary.status,
+            trialEndsAt: summary.trialEndsAt,
+            currentPeriodEnd: summary.currentPeriodEnd,
+            isEntitled: summary.isEntitled,
+          }),
+          { replace: true },
+        )
           return
         } catch {
           /* checkout summary 실패 시 기본 랜딩 */

@@ -2,6 +2,11 @@ import {
   isInsuranceBillingEnabledClient,
   isInsuranceBillingEntitledStatus,
 } from './insuranceBillingConfig'
+import type { BillingEntitlementInput } from './insuranceBillingEntitlement'
+import {
+  hasActiveBillingEntitlementClient,
+  resolveBillingAccessRedirectPath,
+} from './insuranceBillingEntitlement'
 
 /**
  * 결제단 활성화 시 로그인/가입 후 랜딩 경로 보정.
@@ -12,30 +17,37 @@ import {
  */
 export function resolveInsuranceBillingAuthPath(
   defaultPath: string,
-  subscriptionStatus: string | null | undefined,
+  subscriptionStatusOrSummary: string | BillingEntitlementInput | null | undefined,
 ): string {
   if (!isInsuranceBillingEnabledClient()) {
     return defaultPath
   }
 
-  const status = String(subscriptionStatus ?? '').trim().toLowerCase()
-  if (isInsuranceBillingEntitledStatus(status)) {
-    return defaultPath
+  if (typeof subscriptionStatusOrSummary === 'string') {
+    const status = subscriptionStatusOrSummary.trim().toLowerCase()
+    if (isInsuranceBillingEntitledStatus(status)) {
+      return defaultPath
+    }
+    if (!status || status === 'pending_payment' || status === 'none') {
+      return '/billing/checkout'
+    }
+    return '/billing/required'
   }
 
-  if (!status || status === 'pending_payment' || status === 'none') {
-    return '/billing/checkout'
-  }
+  return resolveBillingAccessRedirectPath(defaultPath, subscriptionStatusOrSummary)
+}
 
-  return '/billing/required'
+/**
+ * @deprecated hasActiveBillingEntitlementClient / summary.isEntitled 사용
+ */
+export function isInsuranceBillingAuthEntitled(
+  input: BillingEntitlementInput | null | undefined,
+): boolean {
+  return hasActiveBillingEntitlementClient(input)
 }
 
 /**
  * 내정보관리 → 결제 관리 진입 경로.
- * credential 유무로 checkout/manage 분기. review 계정 예외 없음.
+ * credential 유무 + entitlement 로 checkout/manage 분기.
  */
-export function resolveInsuranceBillingProfileEntryPath(options: {
-  hasBillingKey: boolean
-}): '/billing/checkout' | '/billing/manage' {
-  return options.hasBillingKey ? '/billing/manage' : '/billing/checkout'
-}
+export { resolveBillingProfileEntryPath as resolveInsuranceBillingProfileEntryPath } from './insuranceBillingEntitlement'

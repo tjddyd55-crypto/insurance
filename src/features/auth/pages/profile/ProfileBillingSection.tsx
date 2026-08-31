@@ -61,6 +61,11 @@ export default function ProfileBillingSection({ token }: Props) {
     : '미등록'
   const entryPath = resolveInsuranceBillingProfileEntryPath({
     hasBillingKey,
+    subscriptionStatus: status,
+    trialEndsAt: data?.subscription?.trialEndsAt ?? data?.summary?.trialEndsAt ?? null,
+    currentPeriodEnd:
+      data?.subscription?.currentPeriodEnd ?? data?.summary?.currentPeriodEnd ?? null,
+    isEntitled: data?.summary?.isEntitled,
   })
 
   return (
