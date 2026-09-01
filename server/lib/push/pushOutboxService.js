@@ -3,6 +3,7 @@ import {
   listOutboxGaIdsWithDueRows,
   quarantineOutboxRowsMissingGaId,
 } from '../outboxWorkerGaScope.js'
+import { isQaSafeMode } from '../qaSafeMode.js'
 import { getFirebaseMessaging, isFirebasePushConfigured } from './fcmClient.js'
 import { listActivePushDevicesForUser, revokePushDeviceByToken } from './pushDeviceService.js'
 
@@ -20,6 +21,9 @@ const MAX_ATTEMPTS = 8
  * }} input
  */
 export async function enqueuePushOutbox(db, input) {
+  if (isQaSafeMode()) {
+    return null
+  }
   const recipientUserId = String(input.recipientUserId ?? '').trim()
   const eventType = String(input.eventType ?? '').trim()
   const dedupeKey = String(input.dedupeKey ?? '').trim()
@@ -61,6 +65,9 @@ export async function enqueuePushOutbox(db, input) {
  * @param {{ limit?: number }} [opts]
  */
 export async function processPendingPushOutbox(pool, opts = {}) {
+  if (isQaSafeMode()) {
+    return { processed: 0, skipped: true, reason: 'qa_safe_mode' }
+  }
   if (!isFirebasePushConfigured()) {
     return { processed: 0, skipped: true, reason: 'firebase_not_configured' }
   }

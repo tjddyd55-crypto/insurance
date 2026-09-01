@@ -2,6 +2,8 @@
  * Toss Payments API HTTP 클라이언트 (자동결제/billing).
  */
 
+import { assertExternalSideEffectAllowed } from '../../../lib/qaSafeMode.js'
+
 const TOSS_API_BASE = 'https://api.tosspayments.com'
 
 /**
@@ -21,6 +23,7 @@ export function buildTossAuthorizationHeader(secretKey) {
  * @param {string | null | undefined} [params.testCode]
  */
 export async function tossApiRequest(params) {
+  assertExternalSideEffectAllowed(`toss.${String(params.method).toLowerCase()}`)
   const url = `${TOSS_API_BASE}${params.path}`
   const headers = {
     Authorization: buildTossAuthorizationHeader(params.secretKey),

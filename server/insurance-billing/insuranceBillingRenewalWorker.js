@@ -13,6 +13,7 @@ import {
   listDueInsuranceRenewalsDryRun,
   renewInsuranceSubscription,
 } from './renewInsuranceSubscription.js'
+import { isQaSafeMode } from '../lib/qaSafeMode.js'
 
 const diagnostics = {
   enabled: false,
@@ -146,6 +147,12 @@ async function runTick(pool) {
  * @param {import('pg').Pool} pool
  */
 export function startInsuranceBillingRenewalWorker(pool) {
+  if (isQaSafeMode()) {
+    diagnostics.enabled = false
+    diagnostics.running = false
+    console.info('[billing-renewal] disabled (QA_SAFE_MODE=true)')
+    return
+  }
   const enabled = isInsuranceBillingRenewalWorkerEnabled()
   const intervalMs = getInsuranceBillingRenewalIntervalMs()
   diagnostics.enabled = enabled

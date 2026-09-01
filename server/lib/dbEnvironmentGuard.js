@@ -47,7 +47,7 @@ export function classifyDbTarget(connectionString, env = process.env) {
     return 'local'
   }
 
-  if (hostname === 'postgres.railway.internal') {
+  if (/^postgres(?:-[a-z0-9]+)?\.railway\.internal$/i.test(hostname)) {
     const railwayEnv = String(env.RAILWAY_ENVIRONMENT ?? env.RAILWAY_ENVIRONMENT_NAME ?? '').toLowerCase()
     if (railwayEnv === 'production') {
       return 'railway-production-internal'

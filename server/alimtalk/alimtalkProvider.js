@@ -2,6 +2,7 @@ import {
   isInsuranceAlimtalkCredentialsComplete,
   loadInsuranceAlimtalkConfig,
 } from './alimtalkConfig.js'
+import { assertExternalSideEffectAllowed } from '../lib/qaSafeMode.js'
 
 /**
  * @param {unknown} raw
@@ -237,6 +238,8 @@ export async function sendAligoAlimtalk(input) {
       },
     }
   }
+
+  assertExternalSideEffectAllowed('alimtalk.send')
 
   if (!isInsuranceAlimtalkCredentialsComplete(config)) {
     return {

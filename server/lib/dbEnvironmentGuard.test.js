@@ -36,6 +36,11 @@ test('classifyDbTarget: railway internal by RAILWAY_ENVIRONMENT', () => {
   const url = 'postgresql://postgres:secret@postgres.railway.internal:5432/railway'
   assert.equal(classifyDbTarget(url, { RAILWAY_ENVIRONMENT: 'production' }), 'railway-production-internal')
   assert.equal(classifyDbTarget(url, { RAILWAY_ENVIRONMENT: 'development' }), 'railway-development-internal')
+  const suffixedUrl = 'postgresql://postgres:secret@postgres-gou7.railway.internal:5432/railway'
+  assert.equal(
+    classifyDbTarget(suffixedUrl, { RAILWAY_ENVIRONMENT: 'development' }),
+    'railway-development-internal',
+  )
 })
 
 test('parseConnectionMeta: no password in returned object', () => {

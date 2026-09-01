@@ -3,6 +3,7 @@ import { isSmsAutomationSchedulerEnabled, isSmsRealSendEnabled } from './smsModu
 import { runAutomationRule } from './smsAutomationExecutionService.js'
 import { tryAcquireSchedulerLock } from './smsAutomationRunRepository.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
+import { isQaSafeMode } from '../lib/qaSafeMode.js'
 
 const KST = 'Asia/Seoul'
 
@@ -109,6 +110,10 @@ let schedulerTimer = null
  * @param {import('pg').Pool} pool
  */
 export function startSmsAutomationScheduler(pool) {
+  if (isQaSafeMode()) {
+    console.info('[sms-automation] scheduler disabled (QA_SAFE_MODE=true)')
+    return { started: false, reason: 'qa_safe_mode' }
+  }
   if (!isSmsAutomationSchedulerEnabled()) {
     console.info('[sms-automation] scheduler disabled (SMS_AUTOMATION_SCHEDULER_ENABLED=false)')
     return { started: false }

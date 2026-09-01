@@ -6,6 +6,7 @@ import {
   recordSmsSendFailure,
   recordSmsSendSuccess,
 } from './smsCircuitBreaker.js'
+import { assertExternalSideEffectAllowed } from '../lib/qaSafeMode.js'
 
 const ALIGO_API_KEY = process.env.ALIGO_API_KEY
 const ALIGO_USER_ID = process.env.ALIGO_USER_ID
@@ -774,12 +775,14 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
       logAuthGatewayRequestContract(purposeNorm, authGatewayEndpoint, gatewayHeaders, gatewayPayload)
     }
 
-    const runOnce = () =>
-      axios.post(gatewayUrl, gatewayPayload, {
+    const runOnce = () => {
+      assertExternalSideEffectAllowed('sms.gateway.send')
+      return axios.post(gatewayUrl, gatewayPayload, {
         headers: gatewayHeaders,
         timeout: SMS_SEND_TIMEOUT_MS,
         validateStatus: () => true,
       })
+    }
 
     let response
     try {
@@ -874,6 +877,7 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
   }
 
   const runAligo = () => {
+    assertExternalSideEffectAllowed('sms.aligo.send')
     const body = new URLSearchParams({
       key: String(ALIGO_API_KEY),
       user_id: String(ALIGO_USER_ID),

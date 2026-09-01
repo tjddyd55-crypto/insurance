@@ -8,6 +8,7 @@ import {
   getSmsModuleRuntimeInfo,
   getSmsOutboundServerIpHint,
 } from './smsModuleConfig.js'
+import { assertExternalSideEffectAllowed } from '../lib/qaSafeMode.js'
 
 /**
  * @param {import('./providers/smsProvider.js').SmsProvider} provider
@@ -17,6 +18,7 @@ function wrapSmsProviderWithRealSendGuard(provider) {
   return {
     send(input) {
       assertSmsRealSendAllowed()
+      assertExternalSideEffectAllowed('sms.module.send')
       return provider.send(input)
     },
     getBalance(input) {

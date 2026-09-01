@@ -8,6 +8,7 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { assertQaStorageMutationAllowed } from './qaSafeMode.js'
 
 const LOCAL_ROOT = path.join(process.cwd(), 'server-data', 'consent-storage')
 
@@ -76,6 +77,7 @@ export function isConsentR2Enabled() {
  * @returns {Promise<boolean>} R2에서 삭제 시도했으면 true
  */
 export async function r2DeleteObject(key) {
+  assertQaStorageMutationAllowed(key)
   const c = r2Credentials()
   const client = getS3()
   if (!client || !c) {
@@ -159,6 +161,7 @@ export async function r2DeleteStorageObjectOrThrow(key) {
   if (!k) {
     return
   }
+  assertQaStorageMutationAllowed(k)
   const c = r2Credentials()
   const client = getS3()
   if (!client || !c) {
@@ -189,6 +192,7 @@ export async function r2DeleteStorageObjectOrThrow(key) {
 }
 
 export async function consentPutObject(key, body, contentType = 'application/octet-stream') {
+  assertQaStorageMutationAllowed(key)
   const c = r2Credentials()
   const client = getS3()
   if (client && c) {
@@ -214,6 +218,7 @@ export async function consentPutObject(key, body, contentType = 'application/oct
  * @param {string} contentType
  */
 export async function consentPutInsurerAttachment(key, body, contentType) {
+  assertQaStorageMutationAllowed(key)
   const c = r2Credentials()
   const client = getS3()
   const cacheControl = getR2InsurerAttachmentsCacheControl()
@@ -287,6 +292,7 @@ export function getR2InsurerAttachmentsCacheControl() {
  * @param {{ cacheControl?: string | null }} [opts]
  */
 export async function r2GetPresignedPutUrl(key, contentType, expiresSec = 900, opts = {}) {
+  assertQaStorageMutationAllowed(key)
   const c = r2Credentials()
   const client = getS3()
   if (!client || !c) {

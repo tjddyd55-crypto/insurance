@@ -8,6 +8,7 @@ import path from 'node:path'
 import pool from './db.js'
 import { safeQuery, systemQuery } from './utils/dbSafeQuery.js'
 import { initDb } from './initDb.js'
+import { validateQaSafeRuntime } from './lib/qaSafeMode.js'
 import { registerAuthAccountSmsApi } from './registerAuthAccountSmsApi.js'
 import { formatKstDate } from '../shared/dateTimeKst.js'
 import { registerUserProfileApi } from './registerUserProfileApi.js'
@@ -7810,6 +7811,13 @@ async function runInitDbOnStartup() {
 }
 
 async function startServer() {
+  const qaRuntime = validateQaSafeRuntime()
+  if (qaRuntime.enabled) {
+    console.info('[qa-safe-mode] runtime validated', {
+      dbTarget: qaRuntime.dbTarget,
+      objectRoot: qaRuntime.objectRoot,
+    })
+  }
   if (JWT_SECRET === DEFAULT_JWT_SECRET && RUNNING_IN_PRODUCTION) {
     console.error('='.repeat(70))
     console.error('[DEPLOY-BLOCKER] JWT_SECRET이 기본값입니다.')
