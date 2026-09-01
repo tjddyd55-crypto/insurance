@@ -215,6 +215,7 @@ export default function GeneralRequestPage() {
               <span className="field__label">전화</span>
               <FormInput
                 className="field__control"
+                format="phone"
                 value={general.phone}
                 disabled={readOnlyUi}
                 onChange={(e) => setGeneral({ ...general, phone: e.target.value })}

@@ -31,6 +31,7 @@ describe('formatKoreanMobilePhone', () => {
 
   it('formats 10-digit mobile as 3-3-4', () => {
     expect(formatKoreanMobilePhone('0111234567')).toBe('011-123-4567')
+    expect(formatKoreanMobilePhone('0101234567')).toBe('010-123-4567')
   })
 
   it('builds progressive input', () => {

@@ -673,6 +673,7 @@ export default function CompanyRegistryPage() {
                 <FormInput
                   className="field__control"
                   placeholder="전화"
+                  format="phone"
                   value={row.phone}
                   disabled={readOnlyUi}
                   onChange={(e) => updateContact(index, { phone: e.target.value })}
