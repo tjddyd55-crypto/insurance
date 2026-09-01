@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { getKstDateString } from '../../shared/dateTimeKst.js'
 import {
   RESET_ORDER,
   TABLE_ORDER,
@@ -160,6 +161,9 @@ function prepareRow(table, sourceRow, target, idMaps, seed, fixtures) {
   if (table === 'customer_card_payment_contracts') {
     row.payment_card_id = null
     row.policy_number = `QA-${String(sourceRow.id).padStart(6, '0')}`
+  }
+  if (table === 'ta_call_assignments') {
+    row.assignment_date = getKstDateString()
   }
   delete row.id
   return row

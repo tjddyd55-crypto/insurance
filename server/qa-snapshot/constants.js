@@ -51,7 +51,7 @@ export const SOURCE_SQL = Object.freeze({
   customer_relations: `SELECT * FROM customer_relations WHERE customer_id = ANY($1::int[]) AND related_customer_id = ANY($1::int[]) ORDER BY id`,
   todos: `SELECT * FROM todos WHERE related_entity_type = 'customer' AND related_entity_id = ANY($1::text[]) ORDER BY id`,
   ta_call_settings: `SELECT * FROM ta_call_settings WHERE user_id = ANY($1::text[]) ORDER BY id`,
-  ta_call_assignments: `SELECT * FROM ta_call_assignments WHERE customer_id = ANY($1::int[]) ORDER BY id`,
+  ta_call_assignments: `SELECT DISTINCT ON (customer_id) * FROM ta_call_assignments WHERE customer_id = ANY($1::int[]) ORDER BY customer_id, id DESC`,
   customer_card_payment_contracts: `SELECT * FROM customer_card_payment_contracts WHERE customer_id = ANY($1::int[]) AND deleted_at IS NULL ORDER BY id`,
   notifications: `SELECT * FROM notifications WHERE customer_id = ANY($1::int[]) ORDER BY id`,
   customer_app_links: `SELECT * FROM customer_app_links WHERE customer_id = ANY($1::int[]) ORDER BY id`,
