@@ -104,6 +104,7 @@ function parseNotificationListFilters(query) {
     USER_NOTIFICATION_TYPES.INSURANCE_AGE_DATE,
     USER_NOTIFICATION_TYPES.CLAIM_REQUEST_RECEIVED,
     USER_NOTIFICATION_TYPES.SPECIAL_DATE,
+    USER_NOTIFICATION_TYPES.CUSTOMER_CREATED,
   ])
   let view = 'active'
   if (allowedViews.has(viewRaw)) {
@@ -163,18 +164,25 @@ export function buildNotificationListWhere(
     }
 
     pushWindowedType(
-      settings.insuranceAge.enabled,
+      settings.workAlert.enabled && settings.insuranceAge.enabled,
       USER_NOTIFICATION_TYPES.INSURANCE_AGE_DATE,
       settings.insuranceAge.daysBefore,
     )
-    pushWindowedType(settings.carExpiry.enabled, USER_NOTIFICATION_TYPES.CAR_EXPIRY, settings.carExpiry.daysBefore)
     pushWindowedType(
-      settings.specialDate.enabled,
+      settings.workAlert.enabled && settings.carExpiry.enabled,
+      USER_NOTIFICATION_TYPES.CAR_EXPIRY,
+      settings.carExpiry.daysBefore,
+    )
+    pushWindowedType(
+      settings.workAlert.enabled && settings.specialDate.enabled,
       USER_NOTIFICATION_TYPES.SPECIAL_DATE,
       settings.specialDate.daysBefore,
     )
-    if (settings.claimRequest.enabled) {
+    if (settings.claimRequest.enabled || settings.customerAppFile.enabled) {
       typeClauses.push(`(type = '${USER_NOTIFICATION_TYPES.CLAIM_REQUEST_RECEIVED}')`)
+    }
+    if (settings.newCustomer.enabled) {
+      typeClauses.push(`(type = '${USER_NOTIFICATION_TYPES.CUSTOMER_CREATED}')`)
     }
 
     if (typeClauses.length === 0) {

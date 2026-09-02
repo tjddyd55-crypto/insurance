@@ -1,25 +1,62 @@
 import { buildInternalCustomerClaimRoute } from '../internalCustomerClaimRoute.js'
+import { getUserNotificationSettings } from '../../services/userNotificationSettingsService.js'
 import { enqueuePushOutbox } from './pushOutboxService.js'
+import { resolveClaimPushEventKind, shouldDeliverAppPush } from './pushPreferenceGate.js'
 
 export const CLAIM_SUBMITTED_EVENT = 'CUSTOMER_CLAIM_SUBMITTED'
+export const CLAIM_CREATED_TYPE = 'CLAIM_CREATED'
+export const CUSTOMER_FILE_CREATED_TYPE = 'CUSTOMER_FILE_CREATED'
+export const CUSTOMER_INQUIRY_CREATED_TYPE = 'CUSTOMER_INQUIRY_CREATED'
 
 /**
  * @param {{
  *   customerName?: string | null
  *   hasFiles?: boolean
+ *   submissionKind?: string | null
+ * }} input
+ */
+export function resolveClaimPushPayloadType(input) {
+  if (input?.hasFiles) {
+    return CUSTOMER_FILE_CREATED_TYPE
+  }
+  const kind = String(input?.submissionKind ?? '').trim().toUpperCase()
+  if (kind.includes('INQUIRY')) {
+    return CUSTOMER_INQUIRY_CREATED_TYPE
+  }
+  if (kind.includes('FILE')) {
+    return CUSTOMER_FILE_CREATED_TYPE
+  }
+  return CLAIM_CREATED_TYPE
+}
+
+/**
+ * @param {{
+ *   customerName?: string | null
+ *   hasFiles?: boolean
+ *   submissionKind?: string | null
  * }} input
  */
 export function buildClaimSubmittedPushCopy(input) {
   const name = String(input.customerName ?? '').trim()
-  const hasFiles = Boolean(input.hasFiles)
-  const title = '새로운 보험 청구가 접수되었습니다.'
-  let body = '고객앱에서 새로운 청구가 접수되었습니다.'
-  if (name) {
-    body = hasFiles
-      ? `${name} 고객이 청구 파일을 등록했습니다.`
-      : `${name} 고객이 청구 내용을 등록했습니다.`
+  const payloadType = resolveClaimPushPayloadType(input)
+  if (payloadType === CUSTOMER_FILE_CREATED_TYPE) {
+    return {
+      title: '고객 파일 등록',
+      body: name ? `${name} 고객이 새 파일을 등록했습니다.` : '고객이 새 파일을 등록했습니다.',
+    }
   }
-  return { title, body }
+  if (payloadType === CUSTOMER_INQUIRY_CREATED_TYPE) {
+    return {
+      title: '고객 문의 등록',
+      body: name ? `${name} 고객의 새 문의가 도착했습니다.` : '고객의 새 문의가 도착했습니다.',
+    }
+  }
+  return {
+    title: '보험금 청구 요청',
+    body: name
+      ? `${name} 고객의 청구 요청이 도착했습니다.`
+      : '고객의 청구 요청이 도착했습니다.',
+  }
 }
 
 /**
@@ -67,9 +104,19 @@ export async function enqueueClaimSubmittedPush(db, input) {
     return null
   }
 
+  const settings = await getUserNotificationSettings(db, recipientUserId, gaId).catch(() => null)
+  const eventKind = resolveClaimPushEventKind({
+    hasFiles: input.hasFiles,
+    submissionKind: input.submissionKind,
+  })
+  if (!shouldDeliverAppPush(settings, eventKind)) {
+    return null
+  }
+
   const { title, body } = buildClaimSubmittedPushCopy({
     customerName: input.customerName,
     hasFiles: input.hasFiles,
+    submissionKind: input.submissionKind,
   })
   const route = buildInternalCustomerClaimRoute({
     customerId,
@@ -80,6 +127,10 @@ export async function enqueueClaimSubmittedPush(db, input) {
     input.notificationId != null && Number.isInteger(Number(input.notificationId))
       ? Number(input.notificationId)
       : null
+  const payloadType = resolveClaimPushPayloadType({
+    hasFiles: input.hasFiles,
+    submissionKind: input.submissionKind,
+  })
 
   return enqueuePushOutbox(db, {
     gaId,
@@ -91,7 +142,7 @@ export async function enqueueClaimSubmittedPush(db, input) {
       title,
       body,
       data: {
-        type: CLAIM_SUBMITTED_EVENT,
+        type: payloadType,
         customerId: String(customerId),
         claimId: String(claimRequestId),
         route,

@@ -16,12 +16,22 @@ test('syncDueUserNotifications loads user settings before creating due alerts', 
   assert.match(serviceSource, /settings\.insuranceAge/)
   assert.match(serviceSource, /settings\.carExpiry/)
   assert.match(serviceSource, /settings\.specialDate/)
-  assert.match(serviceSource, /settings\.claimRequest\.enabled/)
 })
 
-test('claim request create respects claimRequest.enabled', () => {
+test('claim request create always writes in-app notification (push gated separately)', () => {
   assert.match(serviceSource, /createClaimRequestReceivedNotification/)
-  assert.match(serviceSource, /if \(!settings\.claimRequest\.enabled\)/)
+  assert.doesNotMatch(
+    serviceSource.slice(
+      serviceSource.indexOf('export async function createClaimRequestReceivedNotification'),
+      serviceSource.indexOf('export async function createCustomerCreatedNotification'),
+    ),
+    /if \(!settings\.claimRequest\.enabled\)/,
+  )
+})
+
+test('customer created notification helper exists', () => {
+  assert.match(serviceSource, /createCustomerCreatedNotification/)
+  assert.match(serviceSource, /CUSTOMER_CREATED/)
 })
 
 test('special date sync uses special_date_id unique conflict target', () => {
@@ -37,4 +47,8 @@ test('settings service upserts user_notification_settings table', () => {
   assert.match(settingsSource, /car_expiry_days_before/)
   assert.match(settingsSource, /special_date_days_before/)
   assert.match(settingsSource, /claim_request_enabled/)
+  assert.match(settingsSource, /app_push_enabled/)
+  assert.match(settingsSource, /new_customer_enabled/)
+  assert.match(settingsSource, /customer_app_file_enabled/)
+  assert.match(settingsSource, /work_alert_enabled/)
 })
