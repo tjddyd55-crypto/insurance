@@ -9,6 +9,10 @@ import { listActivePushDevicesForUser, revokePushDeviceByToken } from './pushDev
 const MAX_ATTEMPTS = 8
 
 /**
+ * App Push(FCM) is allowed under QA_SAFE_MODE.
+ * Kakao/SMS/payment remain blocked by their own QA gates.
+ * Delivery still filters devices by DEV/PROD app_package.
+ *
  * @param {import('pg').Pool | import('pg').PoolClient} db
  * @param {{
  *   gaId: number
