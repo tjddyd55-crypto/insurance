@@ -3124,6 +3124,12 @@ export async function initDb() {
       AND claim_request_id IS NOT NULL
   `)
   await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS notifications_unique_customer_created
+    ON notifications (user_id, ga_id, type, customer_id)
+    WHERE type = 'customer_created'
+      AND customer_id IS NOT NULL
+  `)
+  await pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS notifications_unique_special_date
     ON notifications (user_id, ga_id, type, special_date_id, target_date)
     WHERE type = 'special_date'
@@ -3175,11 +3181,19 @@ export async function initDb() {
       special_date_enabled BOOLEAN NOT NULL DEFAULT true,
       special_date_days_before INTEGER NOT NULL DEFAULT 30,
       claim_request_enabled BOOLEAN NOT NULL DEFAULT true,
+      app_push_enabled BOOLEAN NOT NULL DEFAULT true,
+      new_customer_enabled BOOLEAN NOT NULL DEFAULT true,
+      customer_app_file_enabled BOOLEAN NOT NULL DEFAULT true,
+      work_alert_enabled BOOLEAN NOT NULL DEFAULT true,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       UNIQUE (ga_id, user_id)
     )
   `)
+  await pool.query(`ALTER TABLE user_notification_settings ADD COLUMN IF NOT EXISTS app_push_enabled BOOLEAN NOT NULL DEFAULT true`)
+  await pool.query(`ALTER TABLE user_notification_settings ADD COLUMN IF NOT EXISTS new_customer_enabled BOOLEAN NOT NULL DEFAULT true`)
+  await pool.query(`ALTER TABLE user_notification_settings ADD COLUMN IF NOT EXISTS customer_app_file_enabled BOOLEAN NOT NULL DEFAULT true`)
+  await pool.query(`ALTER TABLE user_notification_settings ADD COLUMN IF NOT EXISTS work_alert_enabled BOOLEAN NOT NULL DEFAULT true`)
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS alimtalk_send_logs (

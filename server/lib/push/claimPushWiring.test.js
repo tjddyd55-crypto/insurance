@@ -41,6 +41,13 @@ describe('claim push wiring contracts', () => {
     assert.match(push, /buildInternalCustomerClaimRoute/)
   })
 
+  it('enqueues customer-created push after invite registration without removing kakao', () => {
+    const index = read('server/index.js')
+    assert.match(index, /enqueueCustomerRegistrationCompletedAlimtalk/)
+    assert.match(index, /createCustomerCreatedNotification/)
+    assert.match(index, /enqueueCustomerCreatedPush/)
+  })
+
   it('android app has claim push helpers and scheme hooks', () => {
     const appJson = read('apps/mobile/app.json')
     assert.match(appJson, /"package": "com\.onefc\.app"/)

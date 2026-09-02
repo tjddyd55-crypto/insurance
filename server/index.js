@@ -177,6 +177,8 @@ import {
   getCustomerRegistrationCompletedAlimtalkDiagnostics,
   processPendingCustomerRegistrationAlimtalkOutbox,
 } from './alimtalk/customerRegistrationCompletedAlimtalk.js'
+import { createCustomerCreatedNotification } from './services/userNotificationService.js'
+import { enqueueCustomerCreatedPush } from './lib/push/customerCreatedPush.js'
 import { loadInsuranceAlimtalkConfig } from './alimtalk/alimtalkConfig.js'
 import { logSmsModuleEnvironmentHint, validateSmsModuleStartupConfig } from './sms/smsModuleConfig.js'
 import { registerContractPublicOtpApi } from './apis/contractPublicOtpApi.js'
@@ -6509,6 +6511,29 @@ apiRouter.post('/customer/external-create', async (req, res) => {
           err instanceof Error ? err.message : err,
         )
       })
+
+      void (async () => {
+        try {
+          const notificationId = await createCustomerCreatedNotification(pool, safeQuery, {
+            ownerUserId: refUserId,
+            gaId: refGaId,
+            customerId: Number(insertedRow.id),
+            customerName: String(insertedRow.name ?? ''),
+          })
+          await enqueueCustomerCreatedPush(pool, {
+            notificationId,
+            recipientUserId: refUserId,
+            gaId: refGaId,
+            customerId: Number(insertedRow.id),
+            customerName: String(insertedRow.name ?? ''),
+          })
+        } catch (err) {
+          console.error(
+            '[customer-created-push] enqueue failed',
+            err instanceof Error ? err.message : err,
+          )
+        }
+      })()
     }
 
     res.status(201).json({
@@ -6606,6 +6631,28 @@ apiRouter.post('/customer/external-invite-registration/batch', async (req, res) 
           err instanceof Error ? err.message : err,
         )
       })
+      void (async () => {
+        try {
+          const notificationId = await createCustomerCreatedNotification(pool, safeQuery, {
+            ownerUserId: refUserId,
+            gaId: refGaId,
+            customerId: row.id,
+            customerName: row.name,
+          })
+          await enqueueCustomerCreatedPush(pool, {
+            notificationId,
+            recipientUserId: refUserId,
+            gaId: refGaId,
+            customerId: row.id,
+            customerName: row.name,
+          })
+        } catch (err) {
+          console.error(
+            '[customer-created-push] enqueue failed',
+            err instanceof Error ? err.message : err,
+          )
+        }
+      })()
     }
 
     res.status(201).json({

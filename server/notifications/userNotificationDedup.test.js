@@ -383,25 +383,10 @@ test('createClaimRequestReceivedNotification stores claim_request_received type'
   assert.match(insertSql, /DO NOTHING/)
 })
 
-test('createClaimRequestReceivedNotification skips when claimRequest disabled', async () => {
+test('createClaimRequestReceivedNotification still writes when claimRequest disabled (push gated elsewhere)', async () => {
   const tracker = createInsertTracker()
   const pool = {}
   const safeQuery = createSafeQueryMock(async (sql, params) => {
-    if (sql.includes('user_notification_settings')) {
-      return {
-        rows: [
-          {
-            insurance_age_enabled: true,
-            insurance_age_days_before: 30,
-            car_expiry_enabled: true,
-            car_expiry_days_before: 30,
-            special_date_enabled: true,
-            special_date_days_before: 30,
-            claim_request_enabled: false,
-          },
-        ],
-      }
-    }
     const insertResult = tracker.tryInsert(sql, params)
     if (insertResult) {
       return insertResult
@@ -417,6 +402,6 @@ test('createClaimRequestReceivedNotification skips when claimRequest disabled', 
     claimRequestId: 901,
   })
 
-  assert.equal(id, null)
-  assert.equal(tracker.inserts.length, 0)
+  assert.equal(id, 1)
+  assert.equal(tracker.inserts.length, 1)
 })
