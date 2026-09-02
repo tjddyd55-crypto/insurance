@@ -190,6 +190,27 @@ describe('customer registration completed helpers', () => {
   })
 })
 
+describe('customer registration completed channel policy', () => {
+  it('DEV policy skips Kakao enqueue for customer_created', async () => {
+    const { enqueueCustomerRegistrationCompletedAlimtalk } = await import(
+      './customerRegistrationCompletedAlimtalk.js'
+    )
+    const result = await enqueueCustomerRegistrationCompletedAlimtalk(
+      {},
+      {
+        agentId: 'agent-1',
+        gaId: 1,
+        customerId: 10,
+        registeredAt: new Date().toISOString(),
+        channelPolicyOpts: { runtimeTier: 'development' },
+        config: { customerRegistrationCompletedEnabled: true },
+      },
+    )
+    assert.equal(result.enqueued, false)
+    assert.equal(result.reason, 'dev_native_push_replaces_kakao')
+  })
+})
+
 describe('customer registration completed wiring', () => {
   it('enqueues only on public invite registration paths after commit', () => {
     const indexSource = readFileSync(join(root, 'server/index.js'), 'utf8')

@@ -8,6 +8,8 @@ import {
   listOutboxGaIdsWithDueRows,
   quarantineOutboxRowsMissingGaId,
 } from '../lib/outboxWorkerGaScope.js'
+import { isQaSafeMode } from '../lib/qaSafeMode.js'
+import { isKakaoDeliveryAllowedForEvent } from '../lib/notifications/eventChannelPolicy.js'
 import {
   getClaimReceivedAlimtalkDiagnostics,
   isClaimReceivedRealSendAllowed,
@@ -143,6 +145,12 @@ export async function loadClaimAlimtalkRecipient(db, agentId, gaId) {
  * }} input
  */
 export async function enqueueClaimReceivedAlimtalk(db, input) {
+  if (isQaSafeMode()) {
+    return { enqueued: false, reason: 'qa_safe_mode' }
+  }
+  if (!isKakaoDeliveryAllowedForEvent('claim_request_received', input.channelPolicyOpts ?? {})) {
+    return { enqueued: false, reason: 'dev_native_push_replaces_kakao' }
+  }
   const config = input.config ?? loadInsuranceAlimtalkConfig()
   if (!config.claimReceivedEnabled) {
     return { enqueued: false, reason: 'disabled' }
@@ -244,6 +252,12 @@ export async function enqueueClaimReceivedAlimtalk(db, input) {
  * @param {{ limit?: number, sendFn?: typeof sendAligoAlimtalk, config?: ReturnType<typeof loadInsuranceAlimtalkConfig> }} [opts]
  */
 export async function processPendingClaimAlimtalkOutbox(pool, opts = {}) {
+  if (isQaSafeMode()) {
+    return { processed: 0, skipped: true, reason: 'qa_safe_mode' }
+  }
+  if (!isKakaoDeliveryAllowedForEvent('claim_request_received', opts.channelPolicyOpts ?? {})) {
+    return { processed: 0, skipped: true, reason: 'dev_native_push_replaces_kakao' }
+  }
   const config = opts.config ?? loadInsuranceAlimtalkConfig()
   const sendFn = opts.sendFn ?? sendAligoAlimtalk
   const limitPerGa = Math.min(Math.max(Number(opts.limit) || 20, 1), 100)

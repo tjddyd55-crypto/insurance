@@ -148,6 +148,44 @@ describe('claim received alimtalk formatting and guards', () => {
   })
 })
 
+describe('claim received alimtalk channel policy', () => {
+  it('DEV policy skips Kakao enqueue for claim_request_received', async () => {
+    const { enqueueClaimReceivedAlimtalk } = await import('./claimReceivedAlimtalk.js')
+    const result = await enqueueClaimReceivedAlimtalk(
+      {},
+      {
+        agentId: 'agent-1',
+        gaId: 1,
+        customerId: 10,
+        claimRequestId: 20,
+        submittedAt: new Date().toISOString(),
+        channelPolicyOpts: { runtimeTier: 'development' },
+        config: { claimReceivedEnabled: true },
+      },
+    )
+    assert.equal(result.enqueued, false)
+    assert.equal(result.reason, 'dev_native_push_replaces_kakao')
+  })
+
+  it('PROD policy does not short-circuit before enabled flag', async () => {
+    const { enqueueClaimReceivedAlimtalk } = await import('./claimReceivedAlimtalk.js')
+    const result = await enqueueClaimReceivedAlimtalk(
+      {},
+      {
+        agentId: 'agent-1',
+        gaId: 1,
+        customerId: 10,
+        claimRequestId: 20,
+        submittedAt: new Date().toISOString(),
+        channelPolicyOpts: { runtimeTier: 'production' },
+        config: { claimReceivedEnabled: false },
+      },
+    )
+    assert.equal(result.enqueued, false)
+    assert.equal(result.reason, 'disabled')
+  })
+})
+
 describe('claim received alimtalk wiring', () => {
   it('hooks after COMMIT and creates outbox schema', () => {
     const api = readFileSync(join(root, 'server/apis/customerClaimAppApi.js'), 'utf8')
