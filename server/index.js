@@ -36,6 +36,7 @@ import { registerTeamApi } from './apis/teamApi.js'
 import { registerAdminNoticesApi } from './registerAdminNoticesApi.js'
 import { registerNoticesApi } from './apis/noticesApi.js'
 import { registerNotificationsApi } from './apis/notificationsApi.js'
+import { registerPushDevicesApi } from './apis/registerPushDevicesApi.js'
 import { registerMemoApi } from './apis/memoApi.js'
 import { registerUserInsurerAccountsApi } from './apis/userInsurerAccountsApi.js'
 import { registerUserInsurerAccountShareApi } from './apis/userInsurerAccountShareApi.js'
@@ -166,6 +167,7 @@ import { registerCrmCustomerTemplateAdminApi } from './registerCrmCustomerTempla
 import { registerSmsModuleApi } from './registerSmsModuleApi.js'
 import { registerCrmUserBulkSmsApi } from './registerCrmUserBulkSmsApi.js'
 import { startSmsAutomationScheduler } from './sms/smsAutomationScheduler.js'
+import { processPendingPushOutbox } from './lib/push/pushOutboxService.js'
 import {
   getClaimReceivedAlimtalkDiagnostics,
   processPendingClaimAlimtalkOutbox,
@@ -175,6 +177,8 @@ import {
   getCustomerRegistrationCompletedAlimtalkDiagnostics,
   processPendingCustomerRegistrationAlimtalkOutbox,
 } from './alimtalk/customerRegistrationCompletedAlimtalk.js'
+import { createCustomerCreatedNotification } from './services/userNotificationService.js'
+import { enqueueCustomerCreatedPush } from './lib/push/customerCreatedPush.js'
 import { loadInsuranceAlimtalkConfig } from './alimtalk/alimtalkConfig.js'
 import { logSmsModuleEnvironmentHint, validateSmsModuleStartupConfig } from './sms/smsModuleConfig.js'
 import { registerContractPublicOtpApi } from './apis/contractPublicOtpApi.js'
@@ -1642,6 +1646,7 @@ registerGaCustomerMatchAliasesApi(apiRouter, {
 })
 
 registerNotificationsApi(apiRouter, { pool, requireAuth, handleDbError })
+registerPushDevicesApi(apiRouter, { pool, requireAuth, handleDbError })
 registerNoticesApi(apiRouter, { pool, requireAuth, handleDbError })
 registerAdminNoticesApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
 
@@ -6541,6 +6546,29 @@ apiRouter.post('/customer/external-create', async (req, res) => {
           err instanceof Error ? err.message : err,
         )
       })
+
+      void (async () => {
+        try {
+          const notificationId = await createCustomerCreatedNotification(pool, safeQuery, {
+            ownerUserId: refUserId,
+            gaId: refGaId,
+            customerId: Number(insertedRow.id),
+            customerName: String(insertedRow.name ?? ''),
+          })
+          await enqueueCustomerCreatedPush(pool, {
+            notificationId,
+            recipientUserId: refUserId,
+            gaId: refGaId,
+            customerId: Number(insertedRow.id),
+            customerName: String(insertedRow.name ?? ''),
+          })
+        } catch (err) {
+          console.error(
+            '[customer-created-push] enqueue failed',
+            err instanceof Error ? err.message : err,
+          )
+        }
+      })()
     }
 
     res.status(201).json({
@@ -6638,6 +6666,28 @@ apiRouter.post('/customer/external-invite-registration/batch', async (req, res) 
           err instanceof Error ? err.message : err,
         )
       })
+      void (async () => {
+        try {
+          const notificationId = await createCustomerCreatedNotification(pool, safeQuery, {
+            ownerUserId: refUserId,
+            gaId: refGaId,
+            customerId: row.id,
+            customerName: row.name,
+          })
+          await enqueueCustomerCreatedPush(pool, {
+            notificationId,
+            recipientUserId: refUserId,
+            gaId: refGaId,
+            customerId: row.id,
+            customerName: row.name,
+          })
+        } catch (err) {
+          console.error(
+            '[customer-created-push] enqueue failed',
+            err instanceof Error ? err.message : err,
+          )
+        }
+      })()
     }
 
     res.status(201).json({
@@ -7873,6 +7923,27 @@ async function startServer() {
 
   startSmsAutomationScheduler(pool)
   startInsuranceBillingRenewalWorker(pool)
+
+  const PUSH_OUTBOX_TICK_MS = 15 * 1000
+  const pushTickRunning = { current: false }
+  let lastPushTickError = ''
+  const runPushTick = () => {
+    if (pushTickRunning.current) return
+    pushTickRunning.current = true
+    void processPendingPushOutbox(pool)
+      .catch((err) => {
+        const msg = err instanceof Error ? err.message : String(err)
+        if (msg !== lastPushTickError) {
+          lastPushTickError = msg
+          console.error('[push-outbox] tick failed', msg)
+        }
+      })
+      .finally(() => {
+        pushTickRunning.current = false
+      })
+  }
+  runPushTick()
+  setInterval(runPushTick, PUSH_OUTBOX_TICK_MS)
 
   const CLAIM_ALIMTALK_TICK_MS = 15 * 1000
   const claimAlimtalkTickRunning = { current: false }

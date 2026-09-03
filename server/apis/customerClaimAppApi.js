@@ -39,6 +39,7 @@ import {
   pipeClaimFilesZip,
 } from '../lib/claimRequestFileBundle.js'
 import { createClaimRequestReceivedNotification } from '../services/userNotificationService.js'
+import { enqueueClaimSubmittedPush } from '../lib/push/claimSubmittedPush.js'
 import { enqueueClaimReceivedAlimtalk } from '../alimtalk/claimReceivedAlimtalk.js'
 import { safeQuery } from '../utils/dbSafeQuery.js'
 
@@ -2958,12 +2959,27 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
           [context.customerId],
         )
         const customerName = customerNameRow.rows[0]?.name
-        await createClaimRequestReceivedNotification(pool, safeQuery, {
+        const hasFiles = files.length > 0
+        const notificationId = await createClaimRequestReceivedNotification(pool, safeQuery, {
           ownerUserId: context.agentId,
           gaId: claimGaId,
           customerId: context.customerId,
           customerName,
           claimRequestId: requestId,
+          hasFiles,
+        })
+        // Push is async via outbox — never fail the claim response
+        void enqueueClaimSubmittedPush(pool, {
+          notificationId,
+          recipientUserId: context.agentId,
+          gaId: claimGaId,
+          customerId: context.customerId,
+          claimRequestId: requestId,
+          customerName,
+          hasFiles,
+          submissionKind: hasFiles ? 'CLAIM_FILE_UPLOADED' : 'CLAIM_INQUIRY_CREATED',
+        }).catch((err) => {
+          console.error('[push] enqueue claim submitted failed', err instanceof Error ? err.message : err)
         })
         // Kakao alimtalk async via claim_alimtalk_outbox — never fail the claim response
         void enqueueClaimReceivedAlimtalk(pool, {

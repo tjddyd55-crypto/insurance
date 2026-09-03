@@ -551,14 +551,12 @@ export async function createClaimRequestReceivedNotification(db, safeQueryExec, 
     return null
   }
 
-  const settings = await getUserNotificationSettings(db, userId, gaId, safeQueryExec).catch(() =>
-    getDefaultUserNotificationSettings(),
-  )
-  if (!settings.claimRequest.enabled) {
-    return null
-  }
-
+  // In-app notification row is always created (SSOT). Push delivery is gated separately.
   const customerName = String(input.customerName ?? '').trim() || '고객'
+  const hasFiles = Boolean(input.hasFiles)
+  const message = hasFiles
+    ? `${customerName} 고객이 청구 파일을 등록했습니다.`
+    : `${customerName} 고객이 청구 내용을 등록했습니다.`
   return upsertUserNotification(db, safeQueryExec, {
     userId,
     gaId,
@@ -568,8 +566,38 @@ export async function createClaimRequestReceivedNotification(db, safeQueryExec, 
     targetDate: null,
     claimRequestId,
     specialDateId: null,
-    message: `${customerName} 고객님의 새 보험청구 문의가 접수되었습니다.`,
+    message,
     referenceId: String(claimRequestId),
+  })
+}
+
+/**
+ * Invite/external customer registration → in-app notification center.
+ * @param {import('pg').Pool | import('pg').PoolClient} db
+ * @param {typeof import('../utils/dbSafeQuery.js').safeQuery} safeQueryExec
+ * @param {object} input
+ */
+export async function createCustomerCreatedNotification(db, safeQueryExec, input) {
+  const userId = String(input.ownerUserId ?? input.recipientUserId ?? '').trim()
+  const gaId = Number(input.gaId)
+  const customerId = Number(input.customerId)
+  if (!userId || !Number.isInteger(gaId) || gaId < 1 || !Number.isInteger(customerId) || customerId < 1) {
+    return null
+  }
+
+  const customerName = String(input.customerName ?? '').trim() || '고객'
+  const message = `${customerName} 고객이 등록되었습니다.`
+  return upsertUserNotification(db, safeQueryExec, {
+    userId,
+    gaId,
+    type: USER_NOTIFICATION_TYPES.CUSTOMER_CREATED,
+    customerId,
+    customerName,
+    targetDate: null,
+    claimRequestId: null,
+    specialDateId: null,
+    message,
+    referenceId: String(customerId),
   })
 }
 
@@ -608,6 +636,25 @@ async function upsertUserNotification(db, safeQueryExec, input) {
       VALUES ($1, $2, NULL, $3, $4, $5, $6, $7, $8, $9, $10)
       ON CONFLICT (user_id, ga_id, type, claim_request_id)
       WHERE type = 'claim_request_received' AND claim_request_id IS NOT NULL
+      DO NOTHING
+      RETURNING id
+      `,
+      params,
+    )
+    return r.rows[0]?.id ?? null
+  }
+
+  if (input.type === USER_NOTIFICATION_TYPES.CUSTOMER_CREATED) {
+    const r = await safeQueryExec(
+      db,
+      `
+      INSERT INTO notifications (
+        user_id, ga_id, team_id, type, reference_id, message,
+        customer_id, customer_name, target_date, claim_request_id, special_date_id
+      )
+      VALUES ($1, $2, NULL, $3, $4, $5, $6, $7, $8, $9, $10)
+      ON CONFLICT (user_id, ga_id, type, customer_id)
+      WHERE type = 'customer_created' AND customer_id IS NOT NULL
       DO NOTHING
       RETURNING id
       `,
