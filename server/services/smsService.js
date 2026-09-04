@@ -324,8 +324,10 @@ export function buildAuthSmsGatewayPayload({ phone, message, purpose }, env = pr
 }
 
 /**
- * 필수 인증 SMS provider 선택 — gateway URL이 있으면 기본 gateway 우선.
- * Railway에서 Aligo 직접 발송은 AUTH_SMS_PROVIDER=aligo 명시 시에만 허용한다.
+ * 필수 인증 SMS provider 선택.
+ * - AUTH_SMS_PROVIDER=aligo → Railway → Aligo direct (권장)
+ * - AUTH_SMS_PROVIDER=gateway → EC2 gateway (rollback 전용)
+ * - unset: Aligo credential 이 있으면 direct, 없으면 gateway (레거시)
  * @param {NodeJS.ProcessEnv} [env]
  */
 export function resolveAuthSmsProvider(env = process.env) {
@@ -334,22 +336,34 @@ export function resolveAuthSmsProvider(env = process.env) {
   const aligoConfigured = isAligoCredentialsConfigured(env)
   const gatewayConfigured = isGatewayConfigured(env)
 
-  if (authProvider === 'aligo') {
-    if (aligoConfigured) {
-      return { provider: 'aligo', aligoConfigured, gatewayConfigured }
+  if (authProvider === 'gateway') {
+    if (gatewayConfigured) {
+      return { provider: 'gateway', aligoConfigured, gatewayConfigured }
     }
     return {
       provider: null,
       aligoConfigured,
       gatewayConfigured,
-      errorCode: 'aligo_unconfigured',
-      errorMessage: 'AUTH_SMS_PROVIDER=aligo but Aligo credentials are missing',
+      errorCode: 'gateway_unconfigured',
+      errorMessage: 'AUTH_SMS_PROVIDER=gateway but SMS gateway is not configured',
     }
   }
 
-  if (authProvider === 'gateway' || !authProvider) {
-    if (gatewayConfigured) {
+  if (authProvider === 'aligo' || !authProvider) {
+    if (aligoConfigured) {
+      return { provider: 'aligo', aligoConfigured, gatewayConfigured }
+    }
+    if (!authProvider && gatewayConfigured) {
       return { provider: 'gateway', aligoConfigured, gatewayConfigured }
+    }
+    if (authProvider === 'aligo') {
+      return {
+        provider: null,
+        aligoConfigured,
+        gatewayConfigured,
+        errorCode: 'aligo_unconfigured',
+        errorMessage: 'AUTH_SMS_PROVIDER=aligo but Aligo credentials are missing',
+      }
     }
     return {
       provider: null,
@@ -742,9 +756,8 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
   }
 
   const authGatewayEndpoint = isAuthPurpose ? resolveAuthSmsGatewayEndpoint() : null
-  const shouldUseGateway = isAuthPurpose
-    ? authProviderSelection?.provider === 'gateway'
-    : Boolean(SMS_HTTP_GATEWAY_URL)
+  /** 인증·비인증 모두 Railway Aligo direct 가 기본. gateway 는 AUTH_SMS_PROVIDER=gateway 일 때만. */
+  const shouldUseGateway = isAuthPurpose && authProviderSelection?.provider === 'gateway'
 
   if (shouldUseGateway) {
     const gatewayUrl = isAuthPurpose

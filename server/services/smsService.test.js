@@ -28,7 +28,6 @@ const BASE_LEGACY_GATEWAY_ENV = {
 const BASE_CRM_GATEWAY_ENV = {
   SMS_MODULE_GATEWAY_URL: 'http://gateway.example/api/crm-sms',
   SMS_MODULE_GATEWAY_TOKEN: 'crm-token',
-  ...BASE_ALIGO_ENV,
 }
 
 const ORIGINAL_ENV = { ...process.env }
@@ -210,19 +209,29 @@ test('evaluateGatewayDispatchAcceptance: Aligo raw -102 API 인증오류 → rej
   assert.equal(result.errorMessage, 'API 인증오류입니다.')
 })
 
-test('resolveAuthSmsProvider: SIGNUP — CRM gateway 설정 시 gateway 선택', () => {
-  const signup = resolveAuthSmsProvider({ ...BASE_CRM_GATEWAY_ENV })
-  assert.equal(signup.provider, 'gateway')
+test('resolveAuthSmsProvider: unset + Aligo credential → aligo direct (preferred)', () => {
+  const signup = resolveAuthSmsProvider({ ...BASE_ALIGO_ENV, ...BASE_CRM_GATEWAY_ENV })
+  assert.equal(signup.provider, 'aligo')
+  assert.equal(signup.aligoConfigured, true)
   assert.equal(signup.gatewayConfigured, true)
+})
 
+test('resolveAuthSmsProvider: AUTH_SMS_PROVIDER=gateway → gateway (rollback)', () => {
   const passwordReset = resolveAuthSmsProvider({
+    ...BASE_ALIGO_ENV,
     ...BASE_CRM_GATEWAY_ENV,
     AUTH_SMS_PROVIDER: 'gateway',
   })
   assert.equal(passwordReset.provider, 'gateway')
 })
 
-test('resolveAuthSmsProvider: CRM+legacy 모두 있으면 CRM 기준 gateway configured', () => {
+test('resolveAuthSmsProvider: CRM URL만(Aligo 없음) → unconfigured', () => {
+  const signup = resolveAuthSmsProvider({ ...BASE_CRM_GATEWAY_ENV })
+  assert.equal(signup.provider, null)
+  assert.equal(signup.errorCode, 'gateway_unconfigured')
+})
+
+test('resolveAuthSmsProvider: CRM+legacy(Aligo 없음) → legacy gateway', () => {
   const result = resolveAuthSmsProvider({
     ...BASE_CRM_GATEWAY_ENV,
     ...BASE_LEGACY_GATEWAY_ENV,
@@ -232,16 +241,24 @@ test('resolveAuthSmsProvider: CRM+legacy 모두 있으면 CRM 기준 gateway con
     ...BASE_CRM_GATEWAY_ENV,
     ...BASE_LEGACY_GATEWAY_ENV,
   })
+  assert.equal(endpoint?.mode, 'legacy')
+})
+
+test('resolveAuthSmsProvider: CRM+Aligo + AUTH_SMS_PROVIDER=gateway → crm gateway', () => {
+  const env = { ...BASE_CRM_GATEWAY_ENV, ...BASE_ALIGO_ENV, AUTH_SMS_PROVIDER: 'gateway' }
+  const result = resolveAuthSmsProvider(env)
+  assert.equal(result.provider, 'gateway')
+  const endpoint = resolveAuthSmsGatewayEndpoint(env)
   assert.equal(endpoint?.mode, 'crm')
   assert.equal(endpoint?.endpointPath, '/send')
 })
 
-test('resolveAuthSmsProvider: ALIGO+legacy gateway → gateway', () => {
+test('resolveAuthSmsProvider: ALIGO+legacy gateway unset → aligo direct', () => {
   const result = resolveAuthSmsProvider({
     ...BASE_ALIGO_ENV,
     ...BASE_LEGACY_GATEWAY_ENV,
   })
-  assert.equal(result.provider, 'gateway')
+  assert.equal(result.provider, 'aligo')
   assert.equal(result.aligoConfigured, true)
   assert.equal(result.gatewayConfigured, true)
 })
@@ -253,15 +270,6 @@ test('resolveAuthSmsProvider: AUTH_SMS_PROVIDER=aligo → aligo', () => {
     AUTH_SMS_PROVIDER: 'aligo',
   })
   assert.equal(result.provider, 'aligo')
-})
-
-test('resolveAuthSmsProvider: AUTH_SMS_PROVIDER=gateway → gateway', () => {
-  const result = resolveAuthSmsProvider({
-    ...BASE_ALIGO_ENV,
-    ...BASE_LEGACY_GATEWAY_ENV,
-    AUTH_SMS_PROVIDER: 'gateway',
-  })
-  assert.equal(result.provider, 'gateway')
 })
 
 test('resolveAuthSmsProvider: legacy gateway만 → gateway', () => {
@@ -294,7 +302,7 @@ test('resolveAuthSmsProvider: invalid AUTH_SMS_PROVIDER → invalid_auth_sms_pro
 test('buildAuthSmsGatewayPayload: CRM 모드는 단체문자 contract(receiver, user_id, api_key)', () => {
   const payload = buildAuthSmsGatewayPayload(
     { phone: '01099998888', message: '인증번호는 123456 입니다.', purpose: 'SIGNUP' },
-    BASE_CRM_GATEWAY_ENV,
+    { ...BASE_CRM_GATEWAY_ENV, ...BASE_ALIGO_ENV },
   )
   assert.equal(payload.provider, 'aligo')
   assert.equal(payload.receiver, '01099998888')
@@ -319,7 +327,7 @@ test('buildAuthSmsGatewayPayload: legacy 모드는 phone/message/purpose', () =>
 })
 
 test('buildAuthSmsGatewayHeaders: CRM 모드 Bearer token', () => {
-  const headers = buildAuthSmsGatewayHeaders(BASE_CRM_GATEWAY_ENV)
+  const headers = buildAuthSmsGatewayHeaders({ ...BASE_CRM_GATEWAY_ENV, ...BASE_ALIGO_ENV })
   assert.equal(headers.Authorization, 'Bearer crm-token')
   assert.equal(headers['Content-Type'], 'application/json')
 })
