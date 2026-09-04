@@ -45,8 +45,10 @@ export function loadInsuranceAlimtalkConfig(env = process.env) {
   const allowRealSend = normalizeBooleanEnv(env.INSURANCE_ALIGO_KAKAO_ALLOW_REAL_SEND, false)
 
   /**
-   * Railway → EC2 relay (알리고 IP 화이트리스트).
-   * 미설정 시 kakaoapi.aligo.in 직접 호출(Railway IP 미등록 시 -99 실패).
+   * Railway → Aligo direct (권장) 또는 EC2 gateway relay (rollback).
+   * - INSURANCE_ALIMTALK_PROVIDER=aligo → direct (gateway URL 유지해도 무시)
+   * - INSURANCE_ALIMTALK_PROVIDER=gateway → gateway (URL 필수)
+   * - unset: gateway URL 있으면 gateway, 없으면 direct
    */
   const gatewayUrl = String(env.INSURANCE_ALIGO_KAKAO_GATEWAY_URL ?? '')
     .trim()
@@ -54,7 +56,15 @@ export function loadInsuranceAlimtalkConfig(env = process.env) {
   const gatewayToken = String(
     env.INSURANCE_ALIGO_KAKAO_GATEWAY_TOKEN ?? env.SMS_MODULE_GATEWAY_TOKEN ?? '',
   ).trim()
-  const useGateway = Boolean(gatewayUrl)
+  const providerRaw = String(env.INSURANCE_ALIMTALK_PROVIDER ?? '').trim().toLowerCase()
+  let useGateway = Boolean(gatewayUrl)
+  if (providerRaw === 'aligo') {
+    useGateway = false
+  } else if (providerRaw === 'gateway') {
+    useGateway = Boolean(gatewayUrl)
+  }
+
+  const provider = useGateway ? 'aligo_alimtalk_gateway' : 'aligo_alimtalk'
 
   return {
     apiKey: String(env.INSURANCE_ALIGO_KAKAO_API_KEY ?? '').trim(),
@@ -71,7 +81,8 @@ export function loadInsuranceAlimtalkConfig(env = process.env) {
     gatewayUrl,
     gatewayToken,
     useGateway,
-    provider: useGateway ? 'aligo_alimtalk_gateway' : 'aligo_alimtalk',
+    provider,
+    alimtalkProviderEnv: providerRaw || null,
     /** UJ_6184 검수 완료 후에만 true */
     customerAppLinkApproved,
     /** UJ_6670 승인 완료 후에만 true */

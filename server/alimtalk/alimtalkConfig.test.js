@@ -67,4 +67,35 @@ describe('alimtalkConfig', () => {
     assert.equal(config.provider, 'aligo_alimtalk_gateway')
     assert.equal(config.testMode, 'N')
   })
+
+  it('INSURANCE_ALIMTALK_PROVIDER=aligo forces direct even with gateway URL', () => {
+    const config = loadInsuranceAlimtalkConfig({
+      INSURANCE_ALIMTALK_PROVIDER: 'aligo',
+      INSURANCE_ALIGO_KAKAO_GATEWAY_URL: 'http://gateway.example/api/crm-alimtalk',
+      INSURANCE_ALIGO_KAKAO_GATEWAY_TOKEN: 'tok',
+    })
+    assert.equal(config.useGateway, false)
+    assert.equal(config.provider, 'aligo_alimtalk')
+    assert.equal(config.gatewayUrl, 'http://gateway.example/api/crm-alimtalk')
+  })
+
+  it('INSURANCE_ALIMTALK_PROVIDER=gateway requires gateway URL', () => {
+    const config = loadInsuranceAlimtalkConfig({
+      INSURANCE_ALIMTALK_PROVIDER: 'gateway',
+      INSURANCE_ALIGO_KAKAO_GATEWAY_URL: 'http://gateway.example/api/crm-alimtalk',
+    })
+    assert.equal(config.useGateway, true)
+    assert.equal(config.provider, 'aligo_alimtalk_gateway')
+  })
+
+  it('unset provider + no gateway URL → direct', () => {
+    const config = loadInsuranceAlimtalkConfig({
+      INSURANCE_ALIGO_KAKAO_API_KEY: 'k',
+      INSURANCE_ALIGO_KAKAO_USER_ID: 'u',
+      INSURANCE_ALIGO_KAKAO_SENDER_KEY: 's',
+      INSURANCE_ALIGO_KAKAO_SENDER: '01011112222',
+    })
+    assert.equal(config.useGateway, false)
+    assert.equal(config.provider, 'aligo_alimtalk')
+  })
 })

@@ -174,6 +174,46 @@ describe('alimtalkProvider', () => {
     assert.equal(result.providerMessageId, 'NESTED1')
   })
 
+  it('direct mode posts form-urlencoded to kakaoapi.aligo.in', async () => {
+    /** @type {string | null} */
+    let calledUrl = null
+    /** @type {string | null} */
+    let body = null
+    const result = await sendAligoAlimtalk({
+      config: loadInsuranceAlimtalkConfig({
+        INSURANCE_ALIMTALK_PROVIDER: 'aligo',
+        INSURANCE_ALIGO_KAKAO_DRY_RUN: 'false',
+        INSURANCE_ALIGO_KAKAO_API_KEY: 'k',
+        INSURANCE_ALIGO_KAKAO_USER_ID: 'u',
+        INSURANCE_ALIGO_KAKAO_SENDER_KEY: 's',
+        INSURANCE_ALIGO_KAKAO_SENDER: '01011112222',
+      }),
+      dryRun: false,
+      tplCode: 'UJ_6184',
+      receiver: '01012345678',
+      subject: '고객앱 안내',
+      message: 'hello',
+      buttonPayload: {
+        button: [{ name: '고객앱 열기', linkType: 'WL', linkTypeName: '웹링크', linkMo: 'https://x', linkPc: 'https://x' }],
+      },
+      fetchImpl: async (url, init) => {
+        calledUrl = String(url)
+        body = String(init?.body ?? '')
+        return {
+          status: 200,
+          text: async () => JSON.stringify({ code: 0, message: 'ok', info: { mid: 'DIRECT1', scnt: 1, fcnt: 0 } }),
+        }
+      },
+    })
+    assert.match(String(calledUrl), /kakaoapi\.aligo\.in\/akv10\/alimtalk\/send/)
+    assert.match(String(body), /apikey=k/)
+    assert.match(String(body), /tpl_code=UJ_6184/)
+    assert.match(String(body), /failover=N/)
+    assert.equal(result.status, 'accepted')
+    assert.equal(result.provider, 'aligo_alimtalk')
+    assert.equal(result.providerMessageId, 'DIRECT1')
+  })
+
   it('gateway mode posts JSON to relay and maps providerCode', async () => {
     /** @type {string | null} */
     let calledUrl = null

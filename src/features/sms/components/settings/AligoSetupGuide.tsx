@@ -108,11 +108,11 @@ function AligoServerIpCard({ ips }: { ips: string[] }) {
         </p>
       )}
       <p className="sms-aligo-setup__ip-note">
-        알리고 문자 API의 발송 서버 IP 허용 목록에 아래 Railway Static IP를 모두 등록해 주세요.
+        알리고 API의 발송 서버 IP 허용 목록에 아래 Railway Static IP를 모두 등록해 주세요.
       </p>
       <p className="sms-aligo-setup__ip-note sms-aligo-setup__ip-note--secondary">
-        인증문자(가입·비밀번호·전화변경·계정초기화)와 CRM 문자가 동일한 Railway → Aligo direct
-        경로를 사용합니다. Railway Outbound Static IP가 변경되면 Aligo에도 동일하게 갱신해야 합니다.
+        인증문자·CRM 문자·알림톡이 동일한 Railway → Aligo direct 경로를 사용합니다. Railway
+        Outbound Static IP가 변경되면 Aligo에도 동일하게 갱신해야 합니다.
       </p>
     </div>
   )
