@@ -181,6 +181,7 @@ import { createCustomerCreatedNotification } from './services/userNotificationSe
 import { enqueueCustomerCreatedPush } from './lib/push/customerCreatedPush.js'
 import { loadInsuranceAlimtalkConfig } from './alimtalk/alimtalkConfig.js'
 import { logSmsModuleEnvironmentHint, validateSmsModuleStartupConfig } from './sms/smsModuleConfig.js'
+import { logPhoneVerificationStartupDiagnostics } from './services/phoneVerificationCredentials.js'
 import { registerContractPublicOtpApi } from './apis/contractPublicOtpApi.js'
 import { registerContractPublicApi } from './apis/contractPublicApi.js'
 import { registerContractAdminApi } from './apis/contractAdminApi.js'
@@ -1696,6 +1697,7 @@ if (!smsStartup.ok) {
   console.log(`[sms-module] ${smsStartup.note}`)
 }
 logSmsModuleEnvironmentHint(process.env.DATABASE_URL)
+logPhoneVerificationStartupDiagnostics()
 
 registerSubscriptionEndpoints(apiRouter, { requireAuth })
 
