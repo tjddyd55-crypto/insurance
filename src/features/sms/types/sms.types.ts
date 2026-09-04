@@ -12,6 +12,8 @@ export interface SmsSettings {
   isActive: boolean
   lastBalanceCheckedAt: string | null
   outboundServerIpHint: string
+  /** Railway Outbound Static IP 목록 (Aligo ACL 등록용) */
+  outboundServerIps?: string[]
   aligoApiSettingsUrl: string
   moduleEnabled: boolean
   realSendEnabled: boolean
@@ -34,6 +36,7 @@ export const EMPTY_SMS_SETTINGS: SmsSettings = {
   isActive: false,
   lastBalanceCheckedAt: null,
   outboundServerIpHint: '',
+  outboundServerIps: [],
   aligoApiSettingsUrl: ALIGO_API_SETTINGS_URL,
   moduleEnabled: true,
   realSendEnabled: false,
@@ -55,6 +58,9 @@ export function normalizeSmsSettings(raw: unknown): SmsSettings {
     defaultSender: row.defaultSender ?? '',
     adDisplayName: row.adDisplayName ?? '',
     outboundServerIpHint: row.outboundServerIpHint ?? '',
+    outboundServerIps: Array.isArray(row.outboundServerIps)
+      ? row.outboundServerIps.map((ip) => String(ip ?? '').trim()).filter(Boolean)
+      : [],
     aligoApiSettingsUrl: row.aligoApiSettingsUrl ?? EMPTY_SMS_SETTINGS.aligoApiSettingsUrl,
   }
 }

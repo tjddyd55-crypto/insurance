@@ -7,6 +7,7 @@ import {
   getConfiguredSmsModuleProviderMode,
   getSmsModuleRuntimeInfo,
   getSmsOutboundServerIpHint,
+  getSmsOutboundServerIpList,
 } from './smsModuleConfig.js'
 
 /**
@@ -47,4 +48,4 @@ export function resolveSmsProvider() {
   return wrapSmsProviderWithRealSendGuard(mockSmsProvider)
 }
 
-export { getSmsOutboundServerIpHint, getSmsModuleRuntimeInfo }
+export { getSmsOutboundServerIpHint, getSmsOutboundServerIpList, getSmsModuleRuntimeInfo }

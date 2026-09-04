@@ -389,11 +389,29 @@
   background: var(--bg-soft);
 }
 
+.sms-aligo-setup__ip-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
 .sms-aligo-setup__ip-label {
-  margin: 0 0 0.35rem;
+  margin: 0;
   font-size: 0.8125rem;
   font-weight: 600;
   color: var(--text-secondary);
+}
+
+.sms-aligo-setup__ip-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
 .sms-aligo-setup__ip-row {
@@ -414,11 +432,22 @@
   border: 1px solid var(--border-default);
 }
 
+.sms-aligo-setup__ip-empty {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
 .sms-aligo-setup__ip-note {
   margin: 0.5rem 0 0;
   font-size: 0.8125rem;
   color: var(--text-secondary);
   line-height: 1.5;
+}
+
+.sms-aligo-setup__ip-note--secondary {
+  margin-top: 0.25rem;
+  color: var(--hint-text);
 }
 
 .sms-aligo-setup__links {

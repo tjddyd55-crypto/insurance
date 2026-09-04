@@ -218,7 +218,10 @@ export default function SmsModuleBody(props: Props) {
 
       {!loading && !moduleDisabled && !authRequired && !authRequired && tab === 'settings' ? (
         <section className="sms-module__panel">
-          <AligoSetupGuide serverIp={settings?.outboundServerIpHint} />
+          <AligoSetupGuide
+            outboundServerIps={settings?.outboundServerIps}
+            outboundServerIpHint={settings?.outboundServerIpHint}
+          />
           <EmptySettingsNotice visible={!settings?.configured} loading={loading} />
           <div className="sms-module__settings-fields">
             <div className="sms-module__field-block">

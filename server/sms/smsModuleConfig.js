@@ -245,9 +245,11 @@ export function canVerifySenderFromTestSend(runtime = readSmsModuleRuntimeInfo()
   return runtime.mode === 'aligo' || runtime.mode === 'gateway'
 }
 
-export function getSmsOutboundServerIpHint() {
-  return String(process.env.SMS_MODULE_OUTBOUND_IP_HINT ?? process.env.SMS_OUTBOUND_IP_HINT ?? '').trim()
-}
+export {
+  getSmsOutboundServerIpHint,
+  getSmsOutboundServerIpList,
+  parseSmsOutboundIpList,
+} from './smsOutboundIp.js'
 
 /**
  * @param {unknown} connectionString

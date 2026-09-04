@@ -3,40 +3,42 @@ import FormButton from '../../../../components/form/FormButton'
 import {
   ALIGO_SETUP_CHECKLIST,
   ALIGO_SETUP_EXTERNAL_LINKS,
-  DEFAULT_ALIGO_OUTBOUND_IP,
+  resolveAligoOutboundIps,
 } from '../../config/aligoSetup.config'
 
 type Props = {
+  /** @deprecated use outboundServerIps */
   serverIp?: string
+  outboundServerIps?: string[]
+  outboundServerIpHint?: string
 }
 
-function resolveServerIp(serverIp?: string) {
-  const trimmed = String(serverIp ?? '').trim()
-  return trimmed || DEFAULT_ALIGO_OUTBOUND_IP
+async function copyText(value: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value)
+    return
+  }
+  const textarea = document.createElement('textarea')
+  textarea.value = value
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'absolute'
+  textarea.style.left = '-9999px'
+  document.body.appendChild(textarea)
+  textarea.select()
+  const ok = document.execCommand('copy')
+  document.body.removeChild(textarea)
+  if (!ok) {
+    throw new Error('copy failed')
+  }
 }
 
-function AligoServerIpCard({ serverIp }: { serverIp: string }) {
+function AligoOutboundIpRow({ ip }: { ip: string }) {
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
 
   const handleCopy = useCallback(() => {
     void (async () => {
       try {
-        if (navigator.clipboard?.writeText) {
-          await navigator.clipboard.writeText(serverIp)
-        } else {
-          const textarea = document.createElement('textarea')
-          textarea.value = serverIp
-          textarea.setAttribute('readonly', '')
-          textarea.style.position = 'absolute'
-          textarea.style.left = '-9999px'
-          document.body.appendChild(textarea)
-          textarea.select()
-          const ok = document.execCommand('copy')
-          document.body.removeChild(textarea)
-          if (!ok) {
-            throw new Error('copy failed')
-          }
-        }
+        await copyText(ip)
         setCopyState('copied')
         window.setTimeout(() => setCopyState('idle'), 2000)
       } catch {
@@ -44,29 +46,83 @@ function AligoServerIpCard({ serverIp }: { serverIp: string }) {
         window.setTimeout(() => setCopyState('idle'), 2500)
       }
     })()
-  }, [serverIp])
+  }, [ip])
 
   const copyLabel =
     copyState === 'copied' ? '복사됨' : copyState === 'failed' ? '복사 실패' : '복사'
 
   return (
+    <div className="sms-aligo-setup__ip-row">
+      <code className="sms-aligo-setup__ip-value">{ip}</code>
+      <FormButton htmlType="button" variant="secondary" size="sm" onClick={handleCopy}>
+        {copyLabel}
+      </FormButton>
+    </div>
+  )
+}
+
+function AligoServerIpCard({ ips }: { ips: string[] }) {
+  const [copyAllState, setCopyAllState] = useState<'idle' | 'copied' | 'failed'>('idle')
+
+  const handleCopyAll = useCallback(() => {
+    void (async () => {
+      try {
+        await copyText(ips.join('\n'))
+        setCopyAllState('copied')
+        window.setTimeout(() => setCopyAllState('idle'), 2000)
+      } catch {
+        setCopyAllState('failed')
+        window.setTimeout(() => setCopyAllState('idle'), 2500)
+      }
+    })()
+  }, [ips])
+
+  const copyAllLabel =
+    copyAllState === 'copied' ? '전체 복사됨' : copyAllState === 'failed' ? '복사 실패' : '전체 복사'
+
+  return (
     <div className="sms-aligo-setup__ip-card">
-      <p className="sms-aligo-setup__ip-label">현재 CRM 발송 서버 IP</p>
-      <div className="sms-aligo-setup__ip-row">
-        <code className="sms-aligo-setup__ip-value">{serverIp}</code>
-        <FormButton htmlType="button" variant="secondary" size="sm" onClick={handleCopy}>
-          {copyLabel}
-        </FormButton>
+      <div className="sms-aligo-setup__ip-card-head">
+        <p className="sms-aligo-setup__ip-label">
+          {ips.length > 0
+            ? `현재 CRM 발송 서버 IP (${ips.length}개)`
+            : '현재 CRM 발송 서버 IP'}
+        </p>
+        {ips.length > 1 ? (
+          <FormButton htmlType="button" variant="secondary" size="sm" onClick={handleCopyAll}>
+            {copyAllLabel}
+          </FormButton>
+        ) : null}
       </div>
+      {ips.length > 0 ? (
+        <ul className="sms-aligo-setup__ip-list">
+          {ips.map((ip) => (
+            <li key={ip}>
+              <AligoOutboundIpRow ip={ip} />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="sms-aligo-setup__ip-empty">
+          서버에 Railway Outbound Static IP 목록이 아직 설정되지 않았습니다. 관리자에게 문의해 주세요.
+        </p>
+      )}
       <p className="sms-aligo-setup__ip-note">
-        알리고 문자 API의 발송 서버 IP 항목에 이 IP를 등록해 주세요.
+        알리고 문자 API의 발송 서버 IP 허용 목록에 아래 IP를 모두 등록해 주세요.
+      </p>
+      <p className="sms-aligo-setup__ip-note sms-aligo-setup__ip-note--secondary">
+        Railway Outbound Static IP가 변경되면 Aligo에도 동일하게 갱신해야 합니다.
       </p>
     </div>
   )
 }
 
-export function AligoSetupGuide({ serverIp }: Props) {
-  const ip = resolveServerIp(serverIp)
+export function AligoSetupGuide({ serverIp, outboundServerIps, outboundServerIpHint }: Props) {
+  const ips = resolveAligoOutboundIps({
+    outboundServerIps,
+    outboundServerIpHint: outboundServerIpHint ?? serverIp,
+  })
+  const ipsLabel = ips.length > 0 ? ips.join(', ') : '(미설정)'
 
   return (
     <div className="sms-aligo-setup">
@@ -74,13 +130,15 @@ export function AligoSetupGuide({ serverIp }: Props) {
         <h2 id="aligo-setup-title" className="sms-aligo-setup__title">
           알리고 문자 연동 준비 절차
         </h2>
-        <p className="sms-aligo-setup__lead">처음 연동할 때는 아래 3단계만 먼저 확인해 주세요.</p>
+        <p className="sms-aligo-setup__lead">처음 연동할 때는 아래 단계를 확인해 주세요.</p>
         <ol className="sms-aligo-setup__summary-steps">
           <li>
-            <strong>알리고 준비</strong> — 회원가입, 문자 충전, 발신번호 등록 승인, 문자 API에서 API Key 발급
+            <strong>알리고 준비</strong> — 회원가입, 문자 충전, 발신번호 등록 승인, 문자 API에서 API Key
+            발급
           </li>
           <li>
-            <strong>발송 서버 IP 등록</strong> — 알리고 문자 API에 CRM 발송 서버 IP 등록
+            <strong>Railway Outbound Static IP 전체 등록</strong> — 알리고 문자 API 발송 서버 IP 허용
+            목록에 CRM 발송 IP를 모두 등록
           </li>
           <li>
             <strong>CRM 입력·테스트</strong> — 아래 입력칸 저장 후 즉시발송에서 테스트 문자 발송
@@ -88,7 +146,7 @@ export function AligoSetupGuide({ serverIp }: Props) {
         </ol>
       </section>
 
-      <AligoServerIpCard serverIp={ip} />
+      <AligoServerIpCard ips={ips} />
 
       <div className="sms-aligo-setup__links" aria-label="알리고 외부 링크">
         {ALIGO_SETUP_EXTERNAL_LINKS.map((link) => (
@@ -140,8 +198,8 @@ export function AligoSetupGuide({ serverIp }: Props) {
               발신번호 등록 위치: 알리고 로그인 → 발신번호 → 발신번호 관리 → 발신번호 추가하기
             </p>
             <p>
-              발신번호 등록 시 통신서비스 이용증명원 등 증빙서류가 필요할 수 있습니다. 등록 심사 후 승인된
-              번호만 문자 발송에 사용할 수 있습니다.
+              발신번호 등록 시 통신서비스 이용증명원 등 증빙서류가 필요할 수 있습니다. 등록 심사 후
+              승인된 번호만 문자 발송에 사용할 수 있습니다.
             </p>
           </article>
           <article className="sms-aligo-setup__step">
@@ -151,14 +209,23 @@ export function AligoSetupGuide({ serverIp }: Props) {
             <p>해당 화면에서 담당자 정보를 등록하고 API Key를 발급받습니다.</p>
           </article>
           <article className="sms-aligo-setup__step">
-            <h4>5. 발송 서버 IP 등록</h4>
-            <p>알리고 문자 API의 발송 서버 IP 항목에 아래 IP를 등록해 주세요.</p>
-            <p>
-              현재 CRM 발송 서버 IP: <strong>{ip}</strong>
-            </p>
+            <h4>5. Railway Outbound Static IP 전체 등록</h4>
+            <p>알리고 문자 API의 발송 서버 IP 허용 목록에 아래 IP를 모두 등록해 주세요.</p>
+            <ul>
+              {ips.length > 0 ? (
+                ips.map((ip) => (
+                  <li key={ip}>
+                    <strong>{ip}</strong>
+                  </li>
+                ))
+              ) : (
+                <li>(서버 IP 목록 미설정)</li>
+              )}
+            </ul>
             <p className="sms-aligo-setup__warn">
               주의: 알리고에 등록되지 않은 IP에서 API를 호출하면 인증 오류 또는 IP 오류가 발생할 수
-              있습니다. 발송 서버 IP는 실제 문자를 보내는 서버의 고정 IP여야 합니다.
+              있습니다. Railway HA Static IP는 여러 개이므로 전부 등록해야 합니다. IP가 변경되면
+              Aligo에도 동일하게 갱신해야 합니다.
             </p>
           </article>
           <article className="sms-aligo-setup__step">
@@ -192,21 +259,23 @@ export function AligoSetupGuide({ serverIp }: Props) {
           <article className="sms-aligo-setup__faq">
             <h4>IP 오류</h4>
             <p>
-              <strong>원인:</strong> 알리고에 CRM 발송 서버 IP가 등록되지 않은 경우 발생할 수 있습니다.
+              <strong>원인:</strong> 알리고에 CRM 발송 서버 IP가 등록되지 않은 경우 발생할 수
+              있습니다.
             </p>
             <p>
-              <strong>해결:</strong> 알리고 문자 API → 신청/인증 → 발송 서버 IP에 현재 CRM 서버 IP(
-              {ip})를 등록해 주세요.
+              <strong>해결:</strong> 알리고 문자 API → 신청/인증 → 발송 서버 IP 허용 목록에 현재 CRM
+              Railway Outbound IP 전체({ipsLabel})를 등록해 주세요.
             </p>
           </article>
           <article className="sms-aligo-setup__faq">
             <h4>발신번호 오류</h4>
             <p>
-              <strong>원인:</strong> 알리고에 등록·승인되지 않은 발신번호를 CRM에 입력한 경우 발생할 수
-              있습니다.
+              <strong>원인:</strong> 알리고에 등록·승인되지 않은 발신번호를 CRM에 입력한 경우 발생할
+              수 있습니다.
             </p>
             <p>
-              <strong>해결:</strong> 알리고 발신번호 관리에서 발신번호 등록 승인 여부를 확인해 주세요.
+              <strong>해결:</strong> 알리고 발신번호 관리에서 발신번호 등록 승인 여부를 확인해
+              주세요.
             </p>
           </article>
           <article className="sms-aligo-setup__faq">

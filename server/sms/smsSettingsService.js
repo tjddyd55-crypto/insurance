@@ -6,7 +6,11 @@ import {
   maskSmsCredential,
 } from './smsCredentialsCrypto.js'
 import { normalizeSenderNumber } from './smsPhone.js'
-import { getSmsOutboundServerIpHint, readSmsModuleRuntimeInfo } from './smsModuleConfig.js'
+import {
+  getSmsOutboundServerIpHint,
+  getSmsOutboundServerIpList,
+  readSmsModuleRuntimeInfo,
+} from './smsModuleConfig.js'
 import { loadActiveSmsProviderAccount } from './smsScope.js'
 
 const ALIGO_API_SETTINGS_URL = 'https://smartsms.aligo.in/admin/api/auth.html'
@@ -22,6 +26,7 @@ function mapSettingsRow(row, apiKeyMasked) {
     providerMisconfigured: runtime.providerMisconfigured,
     aligoTestMode: runtime.testMode,
     outboundServerIpHint: getSmsOutboundServerIpHint(),
+    outboundServerIps: getSmsOutboundServerIpList(),
     aligoApiSettingsUrl: ALIGO_API_SETTINGS_URL,
   }
   if (!row) {

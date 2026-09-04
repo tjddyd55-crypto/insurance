@@ -13,11 +13,16 @@ test('sms settings uses AligoSetupGuide with IP copy and external links', () => 
     path.join(root, 'src/features/sms/components/settings/AligoSetupGuide.tsx'),
     'utf8',
   )
+  const configSrc = readFileSync(path.join(root, 'src/features/sms/config/aligoSetup.config.ts'), 'utf8')
 
   assert.match(bodySrc, /AligoSetupGuide/)
+  assert.match(bodySrc, /outboundServerIps/)
   assert.doesNotMatch(bodySrc, /function GuideBox/)
   assert.match(guideSrc, /navigator\.clipboard/)
   assert.match(guideSrc, /rel="noopener noreferrer"/)
   assert.match(guideSrc, /ALIGO_SETUP_CHECKLIST/)
   assert.match(guideSrc, /자주 발생하는 오류/)
+  assert.match(guideSrc, /발송 서버 IP 허용 목록에 아래 IP를 모두 등록/)
+  assert.match(guideSrc, /Railway Outbound Static IP가 변경되면/)
+  assert.doesNotMatch(configSrc, /100\.54\.92\.161/)
 })
