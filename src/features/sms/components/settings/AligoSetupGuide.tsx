@@ -85,8 +85,8 @@ function AligoServerIpCard({ ips }: { ips: string[] }) {
       <div className="sms-aligo-setup__ip-card-head">
         <p className="sms-aligo-setup__ip-label">
           {ips.length > 0
-            ? `현재 CRM 발송 서버 IP (${ips.length}개)`
-            : '현재 CRM 발송 서버 IP'}
+            ? `현재 Railway 발송 서버 IP (${ips.length}개)`
+            : '현재 Railway 발송 서버 IP'}
         </p>
         {ips.length > 1 ? (
           <FormButton htmlType="button" variant="secondary" size="sm" onClick={handleCopyAll}>
@@ -108,10 +108,11 @@ function AligoServerIpCard({ ips }: { ips: string[] }) {
         </p>
       )}
       <p className="sms-aligo-setup__ip-note">
-        알리고 문자 API의 발송 서버 IP 허용 목록에 아래 IP를 모두 등록해 주세요.
+        알리고 문자 API의 발송 서버 IP 허용 목록에 아래 Railway Static IP를 모두 등록해 주세요.
       </p>
       <p className="sms-aligo-setup__ip-note sms-aligo-setup__ip-note--secondary">
-        Railway Outbound Static IP가 변경되면 Aligo에도 동일하게 갱신해야 합니다.
+        인증문자(가입·비밀번호·전화변경·계정초기화)와 CRM 문자가 동일한 Railway → Aligo direct
+        경로를 사용합니다. Railway Outbound Static IP가 변경되면 Aligo에도 동일하게 갱신해야 합니다.
       </p>
     </div>
   )
@@ -138,7 +139,7 @@ export function AligoSetupGuide({ serverIp, outboundServerIps, outboundServerIpH
           </li>
           <li>
             <strong>Railway Outbound Static IP 전체 등록</strong> — 알리고 문자 API 발송 서버 IP 허용
-            목록에 CRM 발송 IP를 모두 등록
+            목록에 Railway Static IP를 모두 등록 (인증·CRM 문자 공통)
           </li>
           <li>
             <strong>CRM 입력·테스트</strong> — 아래 입력칸 저장 후 즉시발송에서 테스트 문자 발송
@@ -210,7 +211,9 @@ export function AligoSetupGuide({ serverIp, outboundServerIps, outboundServerIpH
           </article>
           <article className="sms-aligo-setup__step">
             <h4>5. Railway Outbound Static IP 전체 등록</h4>
-            <p>알리고 문자 API의 발송 서버 IP 허용 목록에 아래 IP를 모두 등록해 주세요.</p>
+            <p>
+              알리고 문자 API의 발송 서버 IP 허용 목록에 아래 Railway Static IP를 모두 등록해 주세요.
+            </p>
             <ul>
               {ips.length > 0 ? (
                 ips.map((ip) => (
@@ -259,11 +262,11 @@ export function AligoSetupGuide({ serverIp, outboundServerIps, outboundServerIpH
           <article className="sms-aligo-setup__faq">
             <h4>IP 오류</h4>
             <p>
-              <strong>원인:</strong> 알리고에 CRM 발송 서버 IP가 등록되지 않은 경우 발생할 수
+              <strong>원인:</strong> 알리고에 Railway 발송 서버 IP가 등록되지 않은 경우 발생할 수
               있습니다.
             </p>
             <p>
-              <strong>해결:</strong> 알리고 문자 API → 신청/인증 → 발송 서버 IP 허용 목록에 현재 CRM
+              <strong>해결:</strong> 알리고 문자 API → 신청/인증 → 발송 서버 IP 허용 목록에 현재
               Railway Outbound IP 전체({ipsLabel})를 등록해 주세요.
             </p>
           </article>
