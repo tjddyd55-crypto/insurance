@@ -14,11 +14,17 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '22.19.0'
           cache: npm
       - run: node --version
       - run: npm ci
       - run: npm test
         env:
-          NODE_OPTIONS: --experimental-strip-types
           TZ: Asia/Seoul
+          CI: true
+      - name: Show test failure summary
+        if: failure()
+        run: |
+          if [ -f server/.test-ci-failures.json ]; then
+            cat server/.test-ci-failures.json
+          fi
