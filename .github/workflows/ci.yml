@@ -16,5 +16,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - run: node --version
       - run: npm ci
       - run: npm test
+        env:
+          NODE_OPTIONS: --experimental-strip-types
+          TZ: Asia/Seoul
