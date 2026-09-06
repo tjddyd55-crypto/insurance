@@ -78,4 +78,18 @@ export default defineConfig({
     host: '0.0.0.0',
     allowedHosts: true,
   },
+  test: {
+    environment: 'node',
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    exclude: [
+      'src/**/*.test.js',
+      'src/features/billing/storeReviewBillingAccess.test.ts',
+      'src/features/customer-app/pages/CustomerAppRequestComposePage.test.ts',
+      'src/features/customers/config/customerInflowSource.config.test.ts',
+      'src/features/customers/utils/customerSpecialDateFormUtils.test.ts',
+      'src/features/insurer-news/utils/resolveNewsletterPostAuthorLabel.test.ts',
+      'src/features/storage/utils/storageFolderTree.test.ts',
+    ],
+    passWithNoTests: false,
+  },
 })

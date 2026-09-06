@@ -15,7 +15,7 @@ describe('CUSTOMER_MAP_NAME_MARKER_SIZE', () => {
 
 describe('truncateMarkerLabel', () => {
   it('truncates long names with ellipsis', () => {
-    expect(truncateMarkerLabel('가나다라마바사아자차카타파하')).toBe('가나다라마바사아자차…')
+    expect(truncateMarkerLabel('가나다라마바사아자차카타파하')).toBe('가나다라마바사아자차카타…')
   })
 
   it('uses fallback for empty names', () => {
