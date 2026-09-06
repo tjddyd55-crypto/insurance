@@ -45,3 +45,8 @@ apps/customer-mobile/.expo/
 *.njsproj
 *.sln
 *.sw?
+
+# Operator-local production QA evidence (screenshots, JSON dumps — never commit)
+server/scripts/_prodCheckoutQa/
+server/scripts/_prodResumeQa/*.png
+server/scripts/_prodResumeQa/results.json
