@@ -21,7 +21,7 @@
     "preview": "node server/index.js",
     "preview:vite": "vite preview",
     "start": "node server/index.js",
-    "test": "node --test \"server/**/*.test.js\"",
+    "test": "node server/runServerTests.mjs",
     "seed:insurance": "node server/runSeedInsurance.js",
     "import:partner-excel": "node server/scripts/runPartnerExcelImport.mjs",
     "import:cleaned-excel": "node server/scripts/runCleanedExcelImport.mjs",
