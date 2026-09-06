@@ -16,7 +16,11 @@ describe('news detail viewer modal', () => {
   it('does not close on backdrop click', () => {
     const src = fs.readFileSync(modalPath, 'utf8')
     assert.match(src, /news-detail-viewer-backdrop/)
-    assert.doesNotMatch(src, /news-detail-viewer-backdrop[\s\S]*onClick=\{onClose\}/)
+    const backdropLine = src
+      .split('\n')
+      .find((line) => line.includes('className="news-detail-viewer-backdrop"'))
+    assert.ok(backdropLine)
+    assert.doesNotMatch(backdropLine ?? '', /onClick=/)
     assert.doesNotMatch(src, /onClick=\{closeDetailModal\}/)
     assert.match(src, /useBodyScrollLock/)
   })
@@ -34,8 +38,11 @@ describe('news detail viewer modal', () => {
     assert.match(css, /\.news-detail-viewer-panel[\s\S]*overflow:\s*hidden/)
     assert.match(css, /\.news-detail-viewer-backdrop[\s\S]*overflow:\s*hidden/)
     assert.match(css, /\.news-detail-viewer-panel[\s\S]*height:\s*90vh/)
-    assert.doesNotMatch(css, /\.news-detail-viewer-panel[\s\S]*height:\s*auto/)
-    assert.doesNotMatch(css, /\.news-detail-viewer-panel[\s\S]*fit-content/)
+    for (const match of css.matchAll(/\.news-detail-viewer-panel[^{]*\{([^}]*)\}/g)) {
+      const body = match[1] ?? ''
+      assert.doesNotMatch(body, /height:\s*auto/)
+      assert.doesNotMatch(body, /fit-content/)
+    }
   })
 
   it('is adopted by insurer and customer news list views', () => {

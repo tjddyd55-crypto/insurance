@@ -91,6 +91,10 @@ test('computeNextAnnualOccurrence keeps today and rolls past dates to next year'
 
 test('getDefaultUserNotificationSettings returns ON + 30 days defaults', () => {
   assert.deepEqual(getDefaultUserNotificationSettings(), {
+    appPush: { enabled: true },
+    newCustomer: { enabled: true },
+    customerAppFile: { enabled: true },
+    workAlert: { enabled: true },
     insuranceAge: { enabled: true, daysBefore: 30 },
     carExpiry: { enabled: true, daysBefore: 30 },
     specialDate: { enabled: true, daysBefore: 30 },

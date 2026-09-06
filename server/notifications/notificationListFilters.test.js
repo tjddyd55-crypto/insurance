@@ -54,6 +54,7 @@ test('buildNotificationListWhere keeps upcoming windowed types within settings d
   assert.match(active.clause, /type = 'car_expiry'/)
   assert.match(active.clause, /type = 'special_date'/)
   assert.match(active.clause, /type = 'claim_request_received'/)
+  assert.match(active.clause, /type = 'customer_created'/)
   assert.match(active.clause, /target_date >=/)
   assert.match(active.clause, /target_date <=/)
   // userId, gaId + 3 windowed types * (today, upper) = 8
@@ -69,6 +70,8 @@ test('buildNotificationListWhere keeps upcoming windowed types within settings d
       carExpiry: { enabled: false, daysBefore: 30 },
       specialDate: { enabled: false, daysBefore: 30 },
       claimRequest: { enabled: false },
+      customerAppFile: { enabled: false },
+      newCustomer: { enabled: false },
     },
   )
   assert.match(narrow.clause, /insurance_age_date/)
@@ -82,6 +85,10 @@ test('buildNotificationListWhere keeps upcoming windowed types within settings d
     1,
     { view: 'active', type: 'all' },
     {
+      ...getDefaultUserNotificationSettings(),
+      workAlert: { enabled: false },
+      newCustomer: { enabled: false },
+      customerAppFile: { enabled: false },
       insuranceAge: { enabled: false, daysBefore: 30 },
       carExpiry: { enabled: false, daysBefore: 30 },
       specialDate: { enabled: false, daysBefore: 30 },

@@ -334,7 +334,12 @@ test('updatePaymentSettings blocks secret storage without encryption key', async
       },
     }
     await assert.rejects(
-      () => updatePaymentSettings(executor, { secretKey: 'should-not-store' }, 'admin'),
+      () =>
+        updatePaymentSettings(
+          executor,
+          { secretKey: 'test_sk_abcd1234', clientKey: 'test_ck_abcd1234' },
+          'admin',
+        ),
       (e) => e?.message === 'payment_secret_storage_unavailable',
     )
   } finally {

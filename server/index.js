@@ -2600,8 +2600,10 @@ async function handleLogin(req, res) {
         return
       }
       if (loginDebug) {
-        console.log('입력 비번:', password)
-        console.log(`DB hash (${managerMeta.role.toLowerCase()}):`, manager.password_hash)
+        console.log('[login-debug] manager credential check', {
+          username: normalizedUsername,
+          role: managerMeta.role,
+        })
       }
       const managerMatch = await bcrypt.compare(password, manager.password_hash)
       if (!managerMatch) {
@@ -2695,8 +2697,9 @@ async function handleLogin(req, res) {
     }
 
     if (loginDebug) {
-      console.log('입력 비번:', password)
-      console.log('DB hash:', user.password_hash)
+      console.log('[login-debug] user credential check', {
+        username: normalizedUsername,
+      })
     }
 
     const match = await bcrypt.compare(password, user.password_hash)

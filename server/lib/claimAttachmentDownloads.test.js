@@ -65,13 +65,13 @@ test('세 화면이 공통 bundle API · 고객 청구페이지 열기 · 상세
   const mobileView = readSrc('src/features/claim-requests/pages/claim-requests/ClaimRequestsClaimsMobileView.tsx')
   const api = readSrc('src/features/claim-requests/api/claimRequestsApi.ts')
 
-  assert.match(inbox, /ClaimRequestAttachmentActions/)
-  assert.match(customerDetail, /ClaimRequestAttachmentActions/)
+  assert.match(inbox, /ClaimRequestDetailBody/)
+  assert.match(customerDetail, /ClaimRequestDetailBody/)
 
   for (const src of [inbox, customerDetail, mobileContainer]) {
     assert.match(src, /downloadClaimRequestFilesPdf/)
     assert.match(src, /downloadClaimRequestFilesZip/)
-    assert.match(src, /ensureCustomerClaimPageUrl|openCustomerClaimPageUrl/)
+    assert.match(src, /ensureCustomerClaimPageUrl|openCustomerClaimPageUrl|openCustomerClaimWorkspace/)
   }
 
   assert.match(mobileView, /ClaimRequestDetailBody/)
