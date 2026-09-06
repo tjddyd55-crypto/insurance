@@ -46,7 +46,26 @@ ops/
   recovery/       # insurer manager recovery (existing run*.mjs)
 ```
 
-Tracked `run*.mjs` scripts remain at `server/scripts/` until import paths and `package.json` scripts are updated.
+## Phase 2B prep: `server/index.js` auth/login dependency map
+
+| Symbol / route | Lines (approx) | Depends on | Phase 2B extract target |
+|----------------|----------------|------------|-------------------------|
+| `JWT_SECRET`, `INVITE_SIGNUP_SECRET` | ~192–194 | `process.env` | `server/auth/secrets.js` |
+| `requireAuth` middleware | ~1005–1173 | `jwt`, `pool`, role/GA guards | `server/auth/requireAuth.js` |
+| `registerAuthAccountSmsApi` | ~1559 | `apiRouter`, SMS providers | keep wiring in index; logic already modular |
+| `handleRegister` | ~2103–2495 | bcrypt, invite HMAC, `pool`, SMS proof | `server/auth/register.js` |
+| `auditLoginFailure` | ~2497–2509 | `pool`, security audit | `server/auth/loginAudit.js` |
+| `handleLogin` | ~2511–2925 | bcrypt, JWT sign, manager/user paths, `pool` | `server/auth/login.js` |
+| `POST /login`, `/auth/login` | ~2982–2983 | `handleLogin` | route table / `authRoutes.js` |
+| `POST /register`, `/auth/register`, `/auth/signup` | ~2927–2929 | `handleRegister` | route table |
+| `GET /auth/invite-signup-url` | ~2931+ | `requireAuth`, invite signing | `server/auth/inviteSignup.js` |
+| `GET /auth/username-availability` | ~2984+ | `pool` read-only | same module as register |
+| Production JWT guard | ~7865–7870 | `RUNNING_IN_PRODUCTION` | `server/auth/bootGuards.js` |
+
+**Wiring order today:** secrets → `requireAuth` definition → `register*Api(..., { requireAuth, JWT_SECRET })` block (~1500–1730) → inline auth routes (~2927–2983) → production boot guard (~7865).
+
+**Do not move yet:** `enforceActiveSubscription`, `enforceInsuranceBillingEntitlement` (subscription domain, but login-adjacent).
+
 
 ## Example (readonly baseline)
 
