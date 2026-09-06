@@ -2,7 +2,33 @@
 
 Operator-only scripts under `server/scripts/`. **Do not run mutation/smoke scripts against production without explicit approval.**
 
-## Classification (Phase 2A audit)
+## Classification (Phase 2B — updated)
+
+| File | Mode | Guard before | Guard after | Tracking |
+|------|------|--------------|-------------|----------|
+| `prodBillingBaselineReadonly.mjs` | READONLY | local `.env` only | `productionSafetyGuard` readonly banner + masked DB | **TRACK** (when committed) |
+| `alimtalkDirectProductionSmoke.mjs` | MUTATION | provider preflight | + production mutation opt-in (`INSURANCE_OPS_ALLOW_PRODUCTION_MUTATION`) | **TRACK** |
+| `authSmsDirectCutoverSmoke.mjs` | MUTATION | provider preflight | + mutation opt-in guard | **TRACK** |
+| `crmSmsDirectCutoverSmoke.mjs` | MUTATION | provider/JWT checks | + mutation opt-in guard | **TRACK** |
+| `_prodBillingProbe.mjs` | READONLY | none | readonly guard + masked DB | **KEEP_LOCAL** |
+| `_prodTjddyd55Baseline.mjs` | READONLY | none | readonly guard | **KEEP_LOCAL** |
+| `_prodCheckoutUiQa.mjs` | READONLY | env presence | readonly guard + target URL | **KEEP_LOCAL** |
+| `_prodResumeManageQa.mjs` | MUTATION | **none** | dry-run default + prod target + mutation opt-in | **KEEP_LOCAL** (high risk) |
+| `_prodResumeMobileQa.mjs` | READONLY | prod URL hardcoded | readonly guard + configurable URL | **KEEP_LOCAL** |
+| `_prodResumeQa/*` | ARCHIVE | N/A | gitignored evidence | **ARCHIVE** |
+
+Shared helper: `server/scripts/ops/lib/productionSafetyGuard.mjs` (reuses `dbEnvironmentGuard`).
+
+### Mutation env (names only)
+
+| Env | Purpose |
+|-----|---------|
+| `INSURANCE_OPS_TARGET_ENVIRONMENT` | `production` \| `development` \| `local` |
+| `INSURANCE_OPS_ALLOW_PRODUCTION_MUTATION` | explicit `true` required for prod mutation |
+| `INSURANCE_OPS_DRY_RUN` | `true` (default for `_prodResumeManageQa`) skips mutation steps |
+| `INSURANCE_OPS_TARGET_URL` | optional API/UI base override |
+
+## Classification (Phase 2A audit — superseded table)
 
 | File | Class | Readonly / Mutation | Guards | Action |
 |------|-------|---------------------|--------|--------|
@@ -46,7 +72,15 @@ ops/
   recovery/       # insurer manager recovery (existing run*.mjs)
 ```
 
-## Phase 2B prep: `server/index.js` auth/login dependency map
+## Phase 2B: auth extraction status
+
+Login/register handlers moved to `server/auth/registerAuthApi.js`. `requireAuth` and JWT secrets remain in `server/index.js` (Phase 2C).
+
+| Symbol | Location after 2B |
+|--------|-------------------|
+| `handleLogin`, `handleRegister`, `auditLoginFailure` | `server/auth/registerAuthApi.js` |
+| Auth routes (`/login`, `/register`, invite URL, username availability) | `registerAuthApi()` |
+| `requireAuth`, `JWT_SECRET`, boot guard | `server/index.js` |
 
 | Symbol / route | Lines (approx) | Depends on | Phase 2B extract target |
 |----------------|----------------|------------|-------------------------|
