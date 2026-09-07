@@ -99,6 +99,18 @@ export async function getTossPayment(params) {
 }
 
 /**
+ * @param {{ secretKey: string; orderId: string }} params
+ */
+export async function getTossPaymentByOrderId(params) {
+  const orderId = encodeURIComponent(params.orderId)
+  return tossApiRequest({
+    secretKey: params.secretKey,
+    method: 'GET',
+    path: `/v1/payments/orders/${orderId}`,
+  })
+}
+
+/**
  * @param {{ secretKey: string; paymentKey: string; cancelReason?: string }} params
  */
 export async function cancelTossPayment(params) {
