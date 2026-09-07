@@ -2,13 +2,22 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../AuthProvider'
 import { login as loginApi } from '../authApi'
-import { resolveAuthLandingPath } from '../landing'
-import { fetchCheckoutSummary } from '../../insurance-billing/api/insuranceBillingApi'
-import { isInsuranceBillingEnabledClient } from '../../insurance-billing/insuranceBillingConfig'
-import { resolveInsuranceBillingAuthPath } from '../../insurance-billing/insuranceBillingLanding'
 import useIsMobile from '../../../hooks/useIsMobile'
-import { isBillingUiHiddenForUser } from '../../billing/storeReviewBillingAccess'
 import { setPublicBoardWriterToken } from '../../insurer-news/services/publicBoardWriter.service'
+import { resolvePostAuthNavigationPath } from '../../insurance-billing/postAuthNavigation'
+
+/** ProtectedRoute state.from — deep link / push 복귀용. 고객앱·외부 URL 차단. */
+function resolveSafeReturnPath(from: unknown): string | null {
+  const raw = typeof from === 'string' ? from.trim() : ''
+  if (!raw.startsWith('/')) return null
+  if (raw.startsWith('//') || raw.includes('://')) return null
+  const lower = raw.toLowerCase()
+  if (lower.includes('/customer-app') || lower.includes('/customer/register')) return null
+  if (raw.startsWith('/customers/') || raw.startsWith('/customers?') || raw === '/customers') {
+    return raw
+  }
+  return null
+}
 
 /**
  * 로그인 페이지가 소비하는 "일시적 플래시 메시지".
@@ -61,6 +70,7 @@ export function useLoginController(): UseLoginControllerResult {
   const { isAuthenticated, login, user, token } = useAuth()
   const isMobile = useIsMobile()
   const flash = (location.state ?? {}) as LoginFlash
+  const returnPath = resolveSafeReturnPath((location.state as { from?: unknown } | null)?.from)
 
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -69,46 +79,20 @@ export function useLoginController(): UseLoginControllerResult {
   const [version, setVersion] = useState('')
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      return
-    }
-    const defaultPath = resolveAuthLandingPath(isMobile, user?.role)
-    if (
-      !isInsuranceBillingEnabledClient() ||
-      user?.role !== 'USER' ||
-      !token?.trim() ||
-      isBillingUiHiddenForUser(user)
-    ) {
-      navigate(defaultPath, { replace: true })
+    if (!isAuthenticated || !token?.trim()) {
       return
     }
     let cancelled = false
     void (async () => {
-      try {
-        const summary = await fetchCheckoutSummary(token)
-        if (cancelled) {
-          return
-        }
-        navigate(
-          resolveInsuranceBillingAuthPath(defaultPath, {
-            subscriptionStatus: summary.subscriptionStatus,
-            status: summary.status,
-            trialEndsAt: summary.trialEndsAt,
-            currentPeriodEnd: summary.currentPeriodEnd,
-            isEntitled: summary.isEntitled,
-          }),
-          { replace: true },
-        )
-      } catch {
-        if (!cancelled) {
-          navigate(defaultPath, { replace: true })
-        }
+      const nextPath = await resolvePostAuthNavigationPath(token, user, isMobile, returnPath)
+      if (!cancelled) {
+        navigate(nextPath, { replace: true })
       }
     })()
     return () => {
       cancelled = true
     }
-  }, [isAuthenticated, isMobile, navigate, token, user?.role])
+  }, [isAuthenticated, isMobile, navigate, returnPath, token, user])
 
   useEffect(() => {
     let cancelled = false
@@ -149,30 +133,13 @@ export function useLoginController(): UseLoginControllerResult {
         return
       }
       login({ token: session.token, user: session.user })
-      const defaultPath = resolveAuthLandingPath(isMobile, session.user.role)
-      if (
-        isInsuranceBillingEnabledClient() &&
-        session.user.role === 'USER' &&
-        !isBillingUiHiddenForUser(session.user)
-      ) {
-        try {
-          const summary = await fetchCheckoutSummary(session.token)
-          navigate(
-          resolveInsuranceBillingAuthPath(defaultPath, {
-            subscriptionStatus: summary.subscriptionStatus,
-            status: summary.status,
-            trialEndsAt: summary.trialEndsAt,
-            currentPeriodEnd: summary.currentPeriodEnd,
-            isEntitled: summary.isEntitled,
-          }),
-          { replace: true },
-        )
-          return
-        } catch {
-          /* checkout summary 실패 시 기본 랜딩 */
-        }
-      }
-      navigate(defaultPath, { replace: true })
+      const nextPath = await resolvePostAuthNavigationPath(
+        session.token,
+        session.user,
+        isMobile,
+        returnPath,
+      )
+      navigate(nextPath, { replace: true })
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '로그인에 실패했습니다.')
     } finally {

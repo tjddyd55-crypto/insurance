@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
-import GaRequiredNotice from '../../../components/access/GaRequiredNotice'
+import GaRestrictedFeatureNotice from '../../../components/access/GaRestrictedFeatureNotice'
 import { formatTimestampSearchHaystack } from '../../../utils/displayDateTime'
 import { useAuth } from '../../auth/AuthProvider'
 import { isPublicGeneralAccount } from '../../auth/generalGa'
@@ -96,7 +96,7 @@ export function DynamicNewsletterBoardPage() {
     (accessForbidden || (board != null && isGaOnlyNewsletterBoard(board)))
 
   if (showGaRequiredNotice) {
-    return <GaRequiredNotice />
+    return <GaRestrictedFeatureNotice feature="loss-adjuster-board" />
   }
 
   const viewProps: DynamicNewsletterBoardViewProps = {

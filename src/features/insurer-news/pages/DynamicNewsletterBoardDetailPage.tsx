@@ -5,7 +5,7 @@ import {
   NEWS_DETAIL_VIEWER_ZOOM_STEP,
   clampNewsDetailViewerZoom,
 } from '../../../components/news-detail-viewer/newsDetailViewerZoom'
-import GaRequiredNotice from '../../../components/access/GaRequiredNotice'
+import GaRestrictedFeatureNotice from '../../../components/access/GaRestrictedFeatureNotice'
 import { useAuth } from '../../auth/AuthProvider'
 import { isPublicGeneralAccount } from '../../auth/generalGa'
 import { ApiError } from '../../../lib/apiClient'
@@ -83,7 +83,7 @@ export function DynamicNewsletterBoardDetailPage() {
   }, [boardSlug, newsletterId, token])
 
   if (isPublicAccount && !loading && accessForbidden) {
-    return <GaRequiredNotice />
+    return <GaRestrictedFeatureNotice feature="loss-adjuster-board" />
   }
 
   const viewerError =

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
-import GaRequiredNotice from '../../../components/access/GaRequiredNotice'
+import GaRestrictedFeatureNotice from '../../../components/access/GaRestrictedFeatureNotice'
 import { useConfirmDialog } from '../../../components/dialog'
 import { formatTimestampSearchHaystack } from '../../../utils/displayDateTime'
 import { useAuth } from '../../auth/AuthProvider'
@@ -155,7 +155,11 @@ export function InsurerManagerNewsListPage({
   }, [items, searchQuery])
 
   if (isPublicAccount) {
-    return <GaRequiredNotice />
+    return (
+      <GaRestrictedFeatureNotice
+        feature={channel === 'LOSS_ADJUSTER' ? 'loss-adjuster-newsletter' : 'insurer-newsletter'}
+      />
+    )
   }
 
   if (!gaCode || (requiresCompanyScope && companyId == null)) {

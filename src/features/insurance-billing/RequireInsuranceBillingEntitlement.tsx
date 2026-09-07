@@ -3,12 +3,14 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { fetchCheckoutSummary, type CheckoutSummary } from '../insurance-billing/api/insuranceBillingApi'
 import {
-  INSURANCE_BILLING_BLOCKED_REDIRECT,
   isInsuranceBillingAllowlistedPath,
   isInsuranceBillingEnabledClient,
   isInsuranceBillingEnforceAccessClient,
 } from '../insurance-billing/insuranceBillingConfig'
-import { hasActiveBillingEntitlementClient } from '../insurance-billing/insuranceBillingEntitlement'
+import {
+  hasActiveBillingEntitlementClient,
+  resolveBillingAccessRedirectPath,
+} from '../insurance-billing/insuranceBillingEntitlement'
 import { isBillingUiHiddenForUser } from '../billing/storeReviewBillingAccess'
 
 /**
@@ -100,7 +102,13 @@ export function RequireInsuranceBillingEntitlement() {
 
   return (
     <Navigate
-      to={INSURANCE_BILLING_BLOCKED_REDIRECT}
+      to={resolveBillingAccessRedirectPath(location.pathname, {
+        subscriptionStatus: summary?.subscriptionStatus,
+        status: summary?.status,
+        trialEndsAt: summary?.trialEndsAt,
+        currentPeriodEnd: summary?.currentPeriodEnd,
+        isEntitled: summary?.isEntitled,
+      })}
       replace
       state={{ from: location.pathname, reason: 'insurance-billing-required' }}
     />

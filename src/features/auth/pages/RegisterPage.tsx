@@ -14,13 +14,11 @@ import {
 } from '../authApi'
 import { FormButton, FormInput } from '../../../components/form'
 import { useAuth } from '../AuthProvider'
-import { resolveAuthLandingPath } from '../landing'
 import useIsMobile from '../../../hooks/useIsMobile'
-import { isInsuranceBillingEnabledClient } from '../../insurance-billing/insuranceBillingConfig'
+import { resolvePostAuthNavigationPath } from '../../insurance-billing/postAuthNavigation'
 import {
   validateReferralCodeForSignup,
 } from '../../referrals/referralApi'
-import { isBillingUiHiddenForUser } from '../../billing/storeReviewBillingAccess'
 import {
   getSignupUsernameValidationError,
   SIGNUP_USERNAME_RULE_MESSAGE,
@@ -64,7 +62,7 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
   const navigate = useNavigate()
   const isMobile = useIsMobile()
   const [searchParams] = useSearchParams()
-  const { isAuthenticated, login } = useAuth()
+  const { isAuthenticated, login, user, token } = useAuth()
   const tenantCodeMode = signupIndustry === 'gym' || signupIndustry === 'government'
   const [gaCode, setGaCode] = useState('')
   const [registrationCode, setRegistrationCode] = useState('')
@@ -94,7 +92,6 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
   const [referralCodeError, setReferralCodeError] = useState('')
   const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(null)
   const [devPhoneBypassEnabled, setDevPhoneBypassEnabled] = useState(false)
-  const [signupPhoneVerificationRequired, setSignupPhoneVerificationRequired] = useState(true)
 
   useEffect(() => {
     let cancelled = false
@@ -102,7 +99,6 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
       const policy = await fetchSignupPhonePolicy()
       if (!cancelled) {
         setDevPhoneBypassEnabled(Boolean(policy.devBypassEnabled))
-        setSignupPhoneVerificationRequired(policy.signupPhoneVerificationRequired !== false)
       }
     })()
     return () => {
@@ -111,10 +107,20 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
   }, [])
 
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/dashboard', { replace: true })
+    if (!isAuthenticated || !token?.trim()) {
+      return
     }
-  }, [isAuthenticated, navigate])
+    let cancelled = false
+    void (async () => {
+      const nextPath = await resolvePostAuthNavigationPath(token, user, isMobile)
+      if (!cancelled) {
+        navigate(nextPath, { replace: true })
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [isAuthenticated, isMobile, navigate, token, user])
 
   useEffect(() => {
     const ga = searchParams.get('ga')?.trim()
@@ -132,6 +138,17 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
     const ts = searchParams.get('ts')?.trim()
     setInviteTs(ts ?? '')
   }, [searchParams])
+
+  useEffect(() => {
+    if (signupIndustry !== 'government') {
+      return
+    }
+    const stored = sessionStorage.getItem('government_join_agency_code')?.trim()
+    if (stored) {
+      setRegistrationCode(stored.toUpperCase())
+      sessionStorage.removeItem('government_join_agency_code')
+    }
+  }, [signupIndustry])
 
   useEffect(() => {
     if (secondsLeft <= 0) {
@@ -257,7 +274,7 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
           }
           if (data.valid) {
             setReferralCodeValid(true)
-            setReferralCodeHint(data.message ?? '추천인 코드가 확인되었습니다.')
+            setReferralCodeHint(data.benefitSummary ?? data.message ?? '추천인 코드가 확인되었습니다.')
             setReferralCodeError('')
           } else {
             setReferralCodeValid(false)
@@ -307,7 +324,7 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
   const phoneDigits = normalizeKrMobile(phone)
   const gaCodeTrim = gaCode.trim()
   const regCodeTrim = registrationCode.trim().replace(/\s+/g, '').toUpperCase()
-  const needsPhoneAuth = signupPhoneVerificationRequired && !devPhoneBypassEnabled
+  const needsPhoneAuth = !devPhoneBypassEnabled
 
   const requestSignupSms = async () => {
     setErrorMessage('')
@@ -522,15 +539,8 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
         return
       }
       login({ token: session.token, user: session.user })
-      if (
-        signupIndustry === 'insurance' &&
-        isInsuranceBillingEnabledClient() &&
-        !isBillingUiHiddenForUser(session.user)
-      ) {
-        navigate('/billing/checkout', { replace: true })
-        return
-      }
-      navigate(resolveAuthLandingPath(isMobile, session.user?.role), { replace: true })
+      const nextPath = await resolvePostAuthNavigationPath(session.token, session.user, isMobile)
+      navigate(nextPath, { replace: true })
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '회원가입에 실패했습니다.')
     } finally {
@@ -706,11 +716,7 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
           </label>
 
           <div className="verify-section">
-            {!signupPhoneVerificationRequired ? (
-              <p className="status" style={{ color: 'var(--text-secondary)' }}>
-                현재는 휴대폰 인증 없이 가입할 수 있습니다.
-              </p>
-            ) : devPhoneBypassEnabled ? (
+            {devPhoneBypassEnabled ? (
               <p className="status" style={{ color: 'var(--text-secondary)' }}>
                 develop 환경: 휴대폰 SMS 인증 없이 가입할 수 있습니다. (테스트용)
               </p>

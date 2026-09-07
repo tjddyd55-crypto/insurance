@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { isPublicGeneralAccount, isPublicGeneralGaName } from './generalGa'
 import {
+  applyPublicAccountMenuPathRestrictions,
   isPublicAccountGaOnlyMenuPath,
   isPublicAccountGaOnlyPath,
   toPublicAccountRestrictedPath,
@@ -31,6 +32,7 @@ describe('public account restricted paths', () => {
     expect(isPublicAccountGaOnlyMenuPath('/team/files')).toBe(true)
     expect(isPublicAccountGaOnlyMenuPath('/portal/newsletters')).toBe(true)
     expect(isPublicAccountGaOnlyMenuPath('/portal/adjuster-news')).toBe(true)
+    expect(isPublicAccountGaOnlyMenuPath('/insurance/contacts')).toBe(true)
     expect(isPublicAccountGaOnlyMenuPath('/portal/boards/global-test')).toBe(false)
     expect(isPublicAccountGaOnlyMenuPath('/dashboard')).toBe(false)
   })
@@ -40,6 +42,7 @@ describe('public account restricted paths', () => {
     expect(isPublicAccountGaOnlyPath('/application/documents/history')).toBe(true)
     expect(isPublicAccountGaOnlyPath('/portal/newsletters/123')).toBe(true)
     expect(isPublicAccountGaOnlyPath('/portal/adjuster-news/recent')).toBe(true)
+    expect(isPublicAccountGaOnlyPath('/insurance/contacts')).toBe(true)
     expect(isPublicAccountGaOnlyPath('/portal/boards/global-test')).toBe(false)
     expect(isPublicAccountGaOnlyPath('/contract-signatures')).toBe(false)
     expect(isPublicAccountGaOnlyPath('/customers/12/application-documents')).toBe(true)
@@ -52,5 +55,24 @@ describe('public account restricted paths', () => {
     expect(toPublicAccountRestrictedPath('/team/members')).toBe(
       '/public-account-restricted?from=%2Fteam%2Fmembers',
     )
+    expect(toPublicAccountRestrictedPath('/insurance/contacts')).toBe(
+      '/public-account-restricted?from=%2Finsurance%2Fcontacts',
+    )
+  })
+
+  it('rewrites ga-only menu paths without disabling or badge', () => {
+    const entries = applyPublicAccountMenuPathRestrictions(
+      [
+        { type: 'link', label: '신청서 작성', path: '/application/documents' },
+        { type: 'link', label: '원수사 연락처', path: '/insurance/contacts' },
+        { type: 'link', label: '공용안내', path: '/portal/boards/shared-news' },
+      ],
+      true,
+    )
+    expect(entries[0]?.path).toBe('/public-account-restricted?from=%2Fapplication%2Fdocuments')
+    expect(entries[0]?.disabled).toBeUndefined()
+    expect(entries[0]?.badge).toBeUndefined()
+    expect(entries[1]?.path).toBe('/public-account-restricted?from=%2Finsurance%2Fcontacts')
+    expect(entries[2]?.path).toBe('/portal/boards/shared-news')
   })
 })

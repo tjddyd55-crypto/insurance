@@ -16,6 +16,7 @@ const PUBLIC_ACCOUNT_GA_ONLY_PREFIXES: readonly string[] = Object.freeze([
   '/app/auto-insurance',
   '/portal/newsletters',
   '/portal/adjuster-news',
+  '/insurance/contacts',
 ])
 
 const PUBLIC_ACCOUNT_GA_ONLY_CUSTOMER_RE =
@@ -69,8 +70,6 @@ export function toPublicAccountRestrictedPath(fromPath: string): string {
   return `${PUBLIC_ACCOUNT_RESTRICTED_PATH}?from=${encodeURIComponent(from)}`
 }
 
-const PUBLIC_ACCOUNT_RESTRICTED_BADGE = 'GA 소속 계정 전용'
-
 export function applyPublicAccountMenuPathRestrictions<T extends { type: string; path?: string; disabled?: boolean; preparing?: boolean; badge?: string }>(
   entries: T[],
   isPublicAccount: boolean,
@@ -91,7 +90,6 @@ export function applyPublicAccountMenuPathRestrictions<T extends { type: string;
     return {
       ...entry,
       path: toPublicAccountRestrictedPath(entry.path),
-      badge: entry.badge ?? PUBLIC_ACCOUNT_RESTRICTED_BADGE,
     }
   })
 }

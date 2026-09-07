@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useConfirmDialog } from '../../../components/dialog'
 import NewsDetailViewerModal from '../../../components/news-detail-viewer/NewsDetailViewerModal'
 import {
   NEWS_DETAIL_VIEWER_ZOOM_STEP,
   clampNewsDetailViewerZoom,
 } from '../../../components/news-detail-viewer/newsDetailViewerZoom'
-import GaRequiredNotice from '../../../components/access/GaRequiredNotice'
+import GaRestrictedFeatureNotice from '../../../components/access/GaRestrictedFeatureNotice'
 import { useAuth } from '../../auth/AuthProvider'
 import { isPublicGeneralAccount } from '../../auth/generalGa'
 import {
@@ -13,8 +14,8 @@ import {
   InsurerNewsDetailViewerContent,
 } from '../components/InsurerNewsDetailViewerContent'
 import { NewsletterViewerHeaderActions } from '../components/NewsletterViewerHeaderActions'
-import { useNewsletterDelete } from '../hooks/useNewsletterDelete'
-import { getNewsletterDetail, getNewsletterDetailForInsurerManager } from '../services/insurerNews.service'
+import { deleteManagerNewsletter, getNewsletterDetail, getNewsletterDetailForInsurerManager } from '../services/insurerNews.service'
+import { canDeleteNewsletter } from '../utils/newsletterDeletePermission'
 import type { NewsChannel, NewsletterDetail } from '../types'
 
 const ZOOM_STEP = NEWS_DETAIL_VIEWER_ZOOM_STEP
@@ -39,9 +40,11 @@ export function InsurerManagerNewsDetailPage({
     !isPublicAccount &&
     Boolean(token?.trim() && gaCode && (!requiresCompanyScope || companyId != null) && newsletterId)
   const [detail, setDetail] = useState<NewsletterDetail | null>(null)
-  const { canDelete, deleteNewsletter, busyId, error: deleteError, confirmDialog } = useNewsletterDelete(channel)
+  const { confirm, confirmDialog } = useConfirmDialog()
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
+  const [deleteBusy, setDeleteBusy] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
   const [zoom, setZoom] = useState(1)
 
   useEffect(() => {
@@ -83,25 +86,44 @@ export function InsurerManagerNewsDetailPage({
   }, [canFetch, detailScope, channel, token, gaCode, companyId, newsletterId])
 
   if (isPublicAccount) {
-    return <GaRequiredNotice />
+    return (
+      <GaRestrictedFeatureNotice
+        feature={channel === 'LOSS_ADJUSTER' ? 'loss-adjuster-newsletter' : 'insurer-newsletter'}
+      />
+    )
   }
 
   if (!gaCode || (requiresCompanyScope && companyId == null)) {
     return null
   }
 
-  const showDelete = detail ? canDelete(detail) : false
-  const deleteBusy = Boolean(newsletterId && busyId === newsletterId)
+  const canDelete = detail ? canDeleteNewsletter(detail, user) : false
   const heroDownloadUrl = buildInsurerNewsDetailHeroDownloadUrl(detail, null)
   const viewerError = deleteError || fetchError || null
 
   const handleDelete = () => {
-    if (!detail) {
+    if (!newsletterId || !token?.trim() || deleteBusy) {
       return
     }
-    void deleteNewsletter(detail, () => {
-      navigate(listPath, { replace: true })
-    })
+    void (async () => {
+      const confirmed = await confirm({
+        title: '소식지 삭제',
+        message: '이 소식지를 삭제하시겠습니까? 삭제하면 첨부 파일도 함께 영구 삭제됩니다.',
+        tone: 'danger',
+      })
+      if (!confirmed) {
+        return
+      }
+      setDeleteError('')
+      setDeleteBusy(true)
+      try {
+        await deleteManagerNewsletter(token, newsletterId, { channel })
+        navigate(listPath, { replace: true })
+      } catch (e) {
+        setDeleteError(e instanceof Error ? e.message : '소식지 삭제에 실패했습니다.')
+        setDeleteBusy(false)
+      }
+    })()
   }
 
   return (
@@ -121,7 +143,7 @@ export function InsurerManagerNewsDetailPage({
         headerActions={
           <NewsletterViewerHeaderActions
             heroDownloadUrl={heroDownloadUrl}
-            canDelete={showDelete}
+            canDelete={canDelete}
             onDelete={handleDelete}
             deleteBusy={deleteBusy}
           />

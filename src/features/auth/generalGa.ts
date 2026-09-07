@@ -35,8 +35,9 @@ export type PublicGeneralAccountLike = {
 }
 
 /**
- * 공용 테스트 계정 여부 — GENERAL 코드 또는 공용/GENERAL 계열 GA 이름.
- * role=USER 단독으로는 판정하지 않는다.
+ * 공용(GENERAL) 소속 설계사 여부 — GA 미소속 개인 사용자 판별 SSOT.
+ * 가입 시 GA 코드 입력 여부가 아니라 현재 세션의 GA 회사(코드·이름)로 판단한다.
+ * GA 전용 기능 게이트: `!isPublicGeneralAccount(user)` 이면 정상 이용.
  */
 export function isPublicGeneralAccount(user: PublicGeneralAccountLike | null | undefined): boolean {
   if (!user) {

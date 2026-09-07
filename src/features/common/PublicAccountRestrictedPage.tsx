@@ -1,8 +1,14 @@
-import GaRequiredNotice from '../../components/access/GaRequiredNotice'
+import { useSearchParams } from 'react-router-dom'
+import GaRestrictedFeatureNotice from '../../components/access/GaRestrictedFeatureNotice'
+import { resolveGaRestrictedFeatureFromPath } from '../auth/gaRestrictedFeatures'
 
 /**
- * 공용(GENERAL) 계정이 GA 전용 메뉴(신청서·전자서명·팀·GA전용 소식지)에 접근할 때 표시한다.
+ * GA 미소속 사용자가 GA 전용 메뉴·URL에 접근할 때 표시한다.
  */
 export default function PublicAccountRestrictedPage() {
-  return <GaRequiredNotice />
+  const [searchParams] = useSearchParams()
+  const from = searchParams.get('from') ?? ''
+  const feature = resolveGaRestrictedFeatureFromPath(from)
+
+  return <GaRestrictedFeatureNotice feature={feature} />
 }
