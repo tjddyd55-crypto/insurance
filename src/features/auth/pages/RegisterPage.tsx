@@ -615,9 +615,6 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
             </label>
           : <label className="field">
               <span className="field__label">GA 코드 (선택)</span>
-              <p className="text-xs text-gray-400 mb-2">
-                소속 코드가 있으면 입력하세요. 비워 두면 공용 소속으로 가입됩니다.
-              </p>
               <FormInput
                 value={gaCode}
                 onChange={(e) => {
@@ -632,6 +629,22 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
               {gaError ? <div className="ga-error">{gaError}</div> : null}
             </label>
           }
+
+          <label className="field">
+            <span className="field__label">추천인 코드</span>
+            <FormInput
+              value={referralCode}
+              onChange={(e) => setReferralCode(e.target.value.toUpperCase().replace(/\s+/g, ''))}
+              autoComplete="off"
+              placeholder="추천인 코드가 있으면 입력해 주세요"
+            />
+            {referralCodeHint ? (
+              <p className="status" style={{ color: 'var(--success)' }}>
+                {referralCodeHint}
+              </p>
+            ) : null}
+            {referralCodeError ? <p className="status status--error">{referralCodeError}</p> : null}
+          </label>
 
           <label className="field">
             <span className="field__label">아이디</span>
@@ -699,22 +712,6 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
             />
           </label>
 
-          <label className="field">
-            <span className="field__label">추천인 코드</span>
-            <FormInput
-              value={referralCode}
-              onChange={(e) => setReferralCode(e.target.value.toUpperCase().replace(/\s+/g, ''))}
-              autoComplete="off"
-              placeholder="추천인 코드가 있으면 입력해 주세요"
-            />
-            {referralCodeHint ? (
-              <p className="status" style={{ color: 'var(--success)' }}>
-                {referralCodeHint}
-              </p>
-            ) : null}
-            {referralCodeError ? <p className="status status--error">{referralCodeError}</p> : null}
-          </label>
-
           <div className="verify-section">
             {devPhoneBypassEnabled ? (
               <p className="status" style={{ color: 'var(--text-secondary)' }}>
@@ -771,7 +768,7 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
             <FormButton
               htmlType="button"
               variant="secondary"
-              className="button button--secondary"
+              className="button button--secondary register-verify-confirm-button"
               onClick={() => void handleVerifyCode()}
               disabled={smsConfirmDisabled}
             >

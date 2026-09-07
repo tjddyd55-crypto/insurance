@@ -2817,6 +2817,10 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   align-self: stretch;
 }
 
+.auth-page .auth-form--register .register-verify-confirm-button {
+  justify-self: start;
+}
+
 .auth-page .auth-form--register .register-phone-request-row {
   display: flex;
   flex-wrap: wrap;
@@ -2857,6 +2861,8 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   pointer-events: auto;
   height: auto;
   z-index: 1;
+  display: grid;
+  gap: 12px;
 }
 
 .auth-page .auth-form--register .verify-section .verify-overlay {
