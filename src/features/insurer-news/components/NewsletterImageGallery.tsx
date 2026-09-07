@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { resolveInsurerNewsImageUrl } from '../utils/resolveInsurerNewsImageUrl'
 
 type Props = {
@@ -18,10 +18,6 @@ type GallerySlideProps = {
 function GallerySlide({ rawUrl, alt, loading, resolveUrls }: GallerySlideProps) {
   const src = resolveUrls ? resolveInsurerNewsImageUrl(rawUrl) : String(rawUrl ?? '').trim()
   const [failed, setFailed] = useState(false)
-
-  useEffect(() => {
-    setFailed(false)
-  }, [src])
 
   if (!src || failed) {
     return (

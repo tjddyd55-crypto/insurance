@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { NewsletterItem } from '../types'
 import { formatInsurerNewsDateLabel } from '../utils/formatInsurerNewsDate'
 import FormButton from '../../../components/form/FormButton'
@@ -33,31 +33,46 @@ function cardAriaLabel(item: NewsletterItem): string {
   return parts.length > 0 ? `${parts.join(' — ')} 소식` : '소식지'
 }
 
-export function NewsCard({ item, onOpen, onDelete, deleteBusy, variant }: Props) {
-  const isMobile = variant === 'mobile'
-  const companyName = resolveNewsletterPostAuthorLabel({
-    authorDisplayName: item.authorDisplayName,
-    organizationName: item.authorOrganizationName,
-    authorName: item.authorName,
-    legacyAuthorLabel: item.insurerName,
-    boardLabel: item.boardLabel,
-  })
-  const dateLabel = formatInsurerNewsDateLabel(item.publishedAt)
-  const headline = normalizeInsurerNewsText(item.summary) || normalizeInsurerNewsText(item.title)
-  const hasHeadline = headline.length > 0
-  const hasImageUrl = insurerNewsListItemHasImageSource(item)
-  const imageUrl = resolveInsurerNewsListCardImageUrl(item)
+function MobileNewsCardImage({
+  imageUrl,
+  onFailed,
+}: {
+  imageUrl: string
+  onFailed: () => void
+}) {
+  const [failed, setFailed] = useState(false)
+  if (failed) {
+    return null
+  }
+  return (
+    <img
+      className="news-card__mobile-image"
+      src={imageUrl}
+      alt=""
+      loading="lazy"
+      onError={() => {
+        setFailed(true)
+        onFailed()
+      }}
+    />
+  )
+}
+
+function MobileNewsCardMedia({
+  imageInstanceKey,
+  imageUrl,
+  hasImageUrl,
+  hasHeadline,
+  headline,
+}: {
+  imageInstanceKey: string
+  imageUrl: string | null
+  hasImageUrl: boolean
+  hasHeadline: boolean
+  headline: string
+}) {
   const [imageLoadFailed, setImageLoadFailed] = useState(false)
-
-  useEffect(() => {
-    setImageLoadFailed(false)
-  }, [item.id, imageUrl])
-
-  const shouldShowImage = hasImageUrl && !imageLoadFailed
-  // 이미지가 없을 때만, 그리고 실제 텍스트가 있을 때만 텍스트 미리보기를 노출한다.
-  // (이미지 없음 + 텍스트 없음 → placeholder 문구를 강제로 만들지 않는다)
-  const shouldShowTextPreview = isMobile && !hasImageUrl && hasHeadline
-  const shouldShowImageFailed = isMobile && hasImageUrl && imageLoadFailed
+  const shouldShowTextPreview = !hasImageUrl && hasHeadline
 
   const textPreviewPlaceholder = (
     <div className="news-card__placeholder news-card__placeholder--content" aria-hidden>
@@ -73,6 +88,45 @@ export function NewsCard({ item, onOpen, onDelete, deleteBusy, variant }: Props)
     </div>
   )
 
+  return (
+    <>
+      {hasImageUrl && imageUrl && !imageLoadFailed ? (
+        <MobileNewsCardImage
+          key={imageInstanceKey}
+          imageUrl={imageUrl}
+          onFailed={() => setImageLoadFailed(true)}
+        />
+      ) : null}
+      {shouldShowTextPreview ? textPreviewPlaceholder : null}
+      {hasImageUrl && imageLoadFailed ? imageLoadFailedPlaceholder : null}
+    </>
+  )
+}
+
+export function NewsCard({ item, onOpen, onDelete, deleteBusy, variant }: Props) {
+  const isMobile = variant === 'mobile'
+  const companyName = resolveNewsletterPostAuthorLabel({
+    authorDisplayName: item.authorDisplayName,
+    organizationName: item.authorOrganizationName,
+    authorName: item.authorName,
+    legacyAuthorLabel: item.insurerName,
+    boardLabel: item.boardLabel,
+  })
+  const dateLabel = formatInsurerNewsDateLabel(item.publishedAt)
+  const headline = normalizeInsurerNewsText(item.summary) || normalizeInsurerNewsText(item.title)
+  const hasHeadline = headline.length > 0
+  const hasImageUrl = insurerNewsListItemHasImageSource(item)
+  const imageUrl = resolveInsurerNewsListCardImageUrl(item)
+  const imageInstanceKey = `${item.id}:${imageUrl ?? ''}`
+
+  const textPreviewPlaceholder = (
+    <div className="news-card__placeholder news-card__placeholder--content" aria-hidden>
+      <span className="news-card__placeholder-label news-card__placeholder-label--headline">
+        {headline}
+      </span>
+    </div>
+  )
+
   const cardMeta = (
     <div className="news-card__meta">
       <div className="news-card__meta-name">{companyName}</div>
@@ -81,19 +135,14 @@ export function NewsCard({ item, onOpen, onDelete, deleteBusy, variant }: Props)
   )
 
   const media = isMobile ? (
-    <>
-      {shouldShowImage ? (
-        <img
-          className="news-card__mobile-image"
-          src={imageUrl}
-          alt=""
-          loading="lazy"
-          onError={() => setImageLoadFailed(true)}
-        />
-      ) : null}
-      {shouldShowTextPreview ? textPreviewPlaceholder : null}
-      {shouldShowImageFailed ? imageLoadFailedPlaceholder : null}
-    </>
+    <MobileNewsCardMedia
+      key={imageInstanceKey}
+      imageInstanceKey={imageInstanceKey}
+      imageUrl={imageUrl}
+      hasImageUrl={hasImageUrl}
+      hasHeadline={hasHeadline}
+      headline={headline}
+    />
   ) : (
     <div className="news-card__media">
       {hasImageUrl ? (
