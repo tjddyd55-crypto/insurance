@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { BaseDialog } from '../../../../components/dialog'
 import { DialogActions } from '../../../../components/dialog/DialogActions'
 import { FormButton, FormInput } from '../../../../components/form'
@@ -21,32 +21,30 @@ function boardEditTitle(board: NewsletterBoard): string {
   return 'GA전용 소식지 수정'
 }
 
-export function NewsletterBoardEditModal({
+function BoardEditFields({
   board,
-  open,
   busy,
   error,
   onClose,
   onSubmit,
   onRequestClose,
-}: NewsletterBoardEditModalProps) {
-  const [label, setLabel] = useState('')
-  const [description, setDescription] = useState('')
+}: {
+  board: NewsletterBoard
+  busy: boolean
+  error: string
+  onClose: () => void
+  onSubmit: (input: { label: string; description: string }) => void
+  onRequestClose: () => void
+}) {
+  const [label, setLabel] = useState(board.label)
+  const [description, setDescription] = useState(board.description ?? '')
 
-  useEffect(() => {
-    if (!open || !board) {
-      return
-    }
-    setLabel(board.label)
-    setDescription(board.description ?? '')
-  }, [board, open])
-
-  const isDirty = useMemo(() => {
-    if (!board) {
-      return false
-    }
-    return label.trim() !== board.label.trim() || description.trim() !== String(board.description ?? '').trim()
-  }, [board, description, label])
+  const isDirty = useMemo(
+    () =>
+      label.trim() !== board.label.trim() ||
+      description.trim() !== String(board.description ?? '').trim(),
+    [board, description, label],
+  )
 
   const handleRequestClose = () => {
     if (busy) {
@@ -59,13 +57,9 @@ export function NewsletterBoardEditModal({
     onClose()
   }
 
-  if (!board) {
-    return null
-  }
-
   return (
     <BaseDialog
-      open={open}
+      open
       onClose={handleRequestClose}
       ariaLabel={boardEditTitle(board)}
       panelClassName="newsletter-board-admin-page__edit-modal"
@@ -109,5 +103,31 @@ export function NewsletterBoardEditModal({
         </FormButton>
       </DialogActions>
     </BaseDialog>
+  )
+}
+
+export function NewsletterBoardEditModal({
+  board,
+  open,
+  busy,
+  error,
+  onClose,
+  onSubmit,
+  onRequestClose,
+}: NewsletterBoardEditModalProps) {
+  if (!open || !board) {
+    return null
+  }
+
+  return (
+    <BoardEditFields
+      key={board.id}
+      board={board}
+      busy={busy}
+      error={error}
+      onClose={onClose}
+      onSubmit={onSubmit}
+      onRequestClose={onRequestClose}
+    />
   )
 }

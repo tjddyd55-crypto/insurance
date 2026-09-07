@@ -8,6 +8,7 @@
 | 구분 | 경로 | Aligo ACL IP |
 |------|------|----------------|
 | **CRM 문자** | Railway → Aligo SMS API (`SMS_MODULE_PROVIDER=aligo`) | Railway Production Outbound Static IP 전부 |
+| **CRM 문자 (예약/큐)** | Railway `sms-sender-worker` → Aligo direct | 동일 |
 | **운영 인증문자** | Railway → Aligo SMS API (`AUTH_SMS_PROVIDER=aligo`) | 동일 |
 | **알림톡** | Railway → Aligo Kakao API (`INSURANCE_ALIMTALK_PROVIDER=aligo`) | **동일** (문자 API 신청/인증 화면 단일 allowlist) |
 

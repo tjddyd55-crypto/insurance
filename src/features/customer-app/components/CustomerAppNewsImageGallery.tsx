@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type TouchEvent } from 'react'
+import { useCallback, useRef, useState, type TouchEvent } from 'react'
 import { resolveAbsoluteApiUrl } from '../../../lib/apiClient'
 
 export type CustomerAppNewsGallerySlideAction = {
@@ -124,17 +124,47 @@ export default function CustomerAppNewsImageGallery({
   slideActions = [],
   appToken = '',
 }: Props) {
+  const urls = imageUrls.filter(Boolean).map((url) => resolveAbsoluteApiUrl(url))
+  const urlsSignature = urls.join('|')
+
+  return (
+    <GallerySlides
+      key={urlsSignature}
+      urls={urls}
+      altBase={altBase}
+      className={className}
+      alwaysShowPager={alwaysShowPager}
+      showSlideCounter={showSlideCounter}
+      onRequestFullscreen={onRequestFullscreen}
+      slideActions={slideActions}
+      appToken={appToken}
+    />
+  )
+}
+
+function GallerySlides({
+  urls,
+  altBase,
+  className,
+  alwaysShowPager,
+  showSlideCounter,
+  onRequestFullscreen,
+  slideActions,
+  appToken,
+}: {
+  urls: string[]
+  altBase: string
+  className: string
+  alwaysShowPager: boolean
+  showSlideCounter: boolean
+  onRequestFullscreen?: (index: number) => void
+  slideActions: CustomerAppNewsGallerySlideAction[]
+  appToken: string
+}) {
   const [index, setIndex] = useState(0)
   const [brokenIndices, setBrokenIndices] = useState<Set<number>>(() => new Set())
   const touchStartX = useRef<number | null>(null)
-  const urls = imageUrls.filter(Boolean).map((url) => resolveAbsoluteApiUrl(url))
   const n = urls.length
-  const urlsSignature = urls.join('|')
-
-  useEffect(() => {
-    setIndex(0)
-    setBrokenIndices(new Set())
-  }, [urlsSignature])
 
   const markBroken = useCallback((idx: number) => {
     setBrokenIndices((prev) => {

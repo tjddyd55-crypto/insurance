@@ -17,18 +17,16 @@ export type GaRequiredNoticeProps = {
 export default function GaRequiredNotice({ publicNewsletterPath }: GaRequiredNoticeProps) {
   const navigate = useNavigate()
   const { token } = useAuth()
-  const [resolvedPublicNewsletterPath, setResolvedPublicNewsletterPath] = useState(
-    publicNewsletterPath ?? '',
-  )
+  const staticPath = publicNewsletterPath?.trim() || null
+  const [asyncPath, setAsyncPath] = useState<string | null>(null)
 
   useEffect(() => {
-    if (publicNewsletterPath) {
-      setResolvedPublicNewsletterPath(publicNewsletterPath)
-      return
+    if (staticPath) {
+      return undefined
     }
     if (!token?.trim()) {
-      setResolvedPublicNewsletterPath('/dashboard')
-      return
+      setAsyncPath('/dashboard')
+      return undefined
     }
     let cancelled = false
     void listVisibleNewsletterBoards(token)
@@ -38,20 +36,22 @@ export default function GaRequiredNotice({ publicNewsletterPath }: GaRequiredNot
         }
         const globalBoard = boards.find((board) => isGlobalNewsletterBoard(board))
         if (globalBoard?.slug) {
-          setResolvedPublicNewsletterPath(`/portal/boards/${encodeURIComponent(globalBoard.slug)}`)
+          setAsyncPath(`/portal/boards/${encodeURIComponent(globalBoard.slug)}`)
           return
         }
-        setResolvedPublicNewsletterPath('/dashboard')
+        setAsyncPath('/dashboard')
       })
       .catch(() => {
         if (!cancelled) {
-          setResolvedPublicNewsletterPath('/dashboard')
+          setAsyncPath('/dashboard')
         }
       })
     return () => {
       cancelled = true
     }
-  }, [publicNewsletterPath, token])
+  }, [staticPath, token])
+
+  const resolvedPublicNewsletterPath = staticPath ?? asyncPath ?? '/dashboard'
 
   const handlePublicNewsletter = () => {
     navigate(resolvedPublicNewsletterPath || '/dashboard')

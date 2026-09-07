@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
 import GaRequiredNotice from '../../../components/access/GaRequiredNotice'
 import { formatTimestampSearchHaystack } from '../../../utils/displayDateTime'
 import { useAuth } from '../../auth/AuthProvider'
 import { isPublicGeneralAccount } from '../../auth/generalGa'
 import { getDynamicNewsletterBoardFeed } from '../services/insurerNews.service'
-import type { NewsletterBoard, NewsletterItem } from '../types'
 import { isGaOnlyNewsletterBoard } from '../utils/newsletterBoardScope'
 import DynamicNewsletterBoardMobileView from './DynamicNewsletterBoard/DynamicNewsletterBoardMobileView'
 import DynamicNewsletterBoardPCView from './DynamicNewsletterBoard/DynamicNewsletterBoardPCView'
@@ -16,66 +16,32 @@ export function DynamicNewsletterBoardPage() {
   const { boardSlug = '' } = useParams<{ boardSlug: string }>()
   const { user, token } = useAuth()
   const isPublicAccount = isPublicGeneralAccount(user)
-  const [board, setBoard] = useState<NewsletterBoard | null>(null)
-  const [items, setItems] = useState<NewsletterItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [accessForbidden, setAccessForbidden] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const canLoad = Boolean(token?.trim() && boardSlug.trim())
   const idleError = '소식지 메뉴를 불러올 수 없습니다.'
 
-  useEffect(() => {
-    if (!canLoad) {
-      return undefined
-    }
-    let cancelled = false
-    setLoading(true)
-    setError('')
-    setAccessForbidden(false)
-    void getDynamicNewsletterBoardFeed(boardSlug, token)
-      .then((result) => {
-        if (cancelled) {
-          return
-        }
-        if (result.kind === 'success') {
-          setBoard(result.board)
-          setItems(result.newsletters)
-          return
-        }
-        setBoard(null)
-        setItems([])
-        if (result.kind === 'forbidden') {
-          setAccessForbidden(true)
-          return
-        }
-        if (result.kind === 'not_found') {
-          setError(result.message)
-          return
-        }
-        setError(result.message)
-      })
-      .catch((e) => {
-        if (!cancelled) {
-          setBoard(null)
-          setItems([])
-          setError(e instanceof Error ? e.message : '소식지 목록을 불러오지 못했습니다.')
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false)
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [boardSlug, canLoad, token])
+  const query = useQuery({
+    queryKey: ['dynamic-newsletter-board-feed', boardSlug, token],
+    queryFn: () => getDynamicNewsletterBoardFeed(boardSlug, token!),
+    enabled: canLoad,
+  })
+
+  const board = query.data?.kind === 'success' ? query.data.board : null
+  const items = query.data?.kind === 'success' ? query.data.newsletters : []
+  const accessForbidden = query.data?.kind === 'forbidden'
+  const feedError =
+    query.data?.kind === 'not_found' || query.data?.kind === 'error'
+      ? query.data.message
+      : query.isError
+        ? query.error instanceof Error
+          ? query.error.message
+          : '소식지 목록을 불러오지 못했습니다.'
+        : ''
 
   const viewBoard = canLoad ? board : null
   const viewItems = canLoad ? items : []
-  const viewLoading = canLoad ? loading : false
-  const viewError = canLoad ? error : idleError
+  const viewLoading = canLoad ? query.isLoading : false
+  const viewError = canLoad ? feedError : idleError
   const viewAccessForbidden = canLoad ? accessForbidden : false
 
   const filteredItems = useMemo(() => {

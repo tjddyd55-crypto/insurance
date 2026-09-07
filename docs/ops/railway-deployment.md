@@ -153,7 +153,40 @@ public URL·도메인 불필요. worker replica 확장 시에도 `SKIP LOCKED` +
 
 ---
 
-## 6. 관련 문서
+## 6. Static Outbound IP (Messaging)
+
+Production Railway **app** 및 **sms-sender-worker**는 Static Outbound IP를 사용한다.
+Aligo 문자·알림톡 API allowlist와 **반드시 일치**해야 한다.
+
+### Production IP (2026-06 기준)
+
+- `162.220.232.251`
+- `152.55.177.181`
+- `152.55.177.193`
+
+### 메시징 경로 SSOT
+
+| 채널 | 경로 |
+|------|------|
+| Auth SMS | Railway app → Aligo direct |
+| CRM SMS (즉시) | Railway app → Aligo direct |
+| CRM SMS (예약/큐) | Railway `sms-sender-worker` → Aligo direct |
+| 알림톡 | Railway app → Aligo Kakao API direct |
+| EC2 gateway | **rollback only** |
+
+### 재발 방지 체크리스트 (Aligo allowlist ↔ Railway egress mismatch)
+
+1. Railway 서비스(app/worker) Static Outbound IP 변경 시 Aligo allowlist **즉시** 갱신
+2. `SMS_MODULE_OUTBOUND_IP_HINT` env와 UI 표시 IP가 문서·실제 egress와 일치하는지 확인
+3. SMS direct smoke 후 알림톡 smoke (동일 allowlist 공유)
+4. 장애 시 `AUTH_SMS_PROVIDER=gateway` / `SMS_MODULE_PROVIDER=aligo_gateway` / `INSURANCE_ALIMTALK_PROVIDER=gateway` rollback env 유지 여부 확인
+5. EC2 IP를 allowlist에 다시 넣지 않음 (rollback 경로만)
+
+상세: `docs/ops/railway-messaging-direct.md`, `docs/ops/sms-crm-vs-auth-outbound.md`
+
+---
+
+## 7. 관련 문서
 
 - `AGENTS.md` §1–§3 — 에이전트·브랜치·파이프라인 규칙
 - `docs/ops/database-environments.md` — dev/prod DB 분리
