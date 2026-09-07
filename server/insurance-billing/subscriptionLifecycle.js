@@ -490,11 +490,30 @@ export async function finalizeInsurancePaymentAsPaid(client, params) {
   if (!payment) {
     throw new Error('payment_not_found')
   }
+  const userId = String(payment.user_id)
   if (String(payment.status) !== 'pending') {
+    if (String(payment.status) === 'paid') {
+      const subR = await systemQuery(
+        client,
+        `
+        SELECT status
+        FROM billing_subscriptions
+        WHERE user_id = $1
+        LIMIT 1
+        `,
+        [userId],
+      )
+      return {
+        paymentId,
+        subscriptionStatus: String(subR.rows[0]?.status ?? 'active_paid'),
+        totalAmount: Number(payment.total_amount ?? 0),
+        referralQualified: false,
+        referrerDiscount: null,
+        alreadyPaid: true,
+      }
+    }
     throw new Error('payment_not_pending')
   }
-
-  const userId = String(payment.user_id)
   const billingCycle = String(payment.billing_cycle ?? 'monthly').trim().toLowerCase() === 'yearly' ? 'yearly' : 'monthly'
   const planCode = String(payment.plan_code ?? INSURANCE_BASIC_PLAN_CODE).trim()
   const periodStart = params.periodAnchor ? new Date(params.periodAnchor) : new Date()

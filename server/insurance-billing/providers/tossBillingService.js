@@ -217,6 +217,13 @@ export async function executeTossBillingCharge(client, params) {
 
   if (!chargeRes.ok) {
     const normalized = normalizeTossApiFailure(chargeRes)
+    if (normalized.providerCode === 'ALREADY_PROCESSED_PAYMENT') {
+      return finalizeInsurancePaymentAsPaid(client, {
+        paymentId: params.paymentId,
+        source: params.source === 'renewal' ? 'renewal' : 'toss',
+        periodAnchor: params.periodAnchor ?? null,
+      })
+    }
     await systemQuery(
       client,
       `

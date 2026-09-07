@@ -6,7 +6,7 @@
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { resolvePaymentSettingsInternal } from '../billing/paymentSettingsResolve.js'
 import { getActiveBillingKeyForUser, assertBillingCredentialModeMatch } from './billingPaymentCredential.js'
-import { recordBillingEvent } from './subscriptionLifecycle.js'
+import { finalizeInsurancePaymentAsPaid, recordBillingEvent } from './subscriptionLifecycle.js'
 import { getInsuranceBillingProvider } from './config.js'
 import {
   createPendingInsurancePaymentRow,
@@ -320,7 +320,22 @@ export async function renewInsuranceSubscription(client, params) {
     const providerCode = error?.providerCode ?? null
     const errorClass = classifyRenewalTossError(providerCode)
     if (errorClass === 'already_processed') {
-      return { outcome: 'skipped', reason: 'already_processed', paymentId: pending.paymentId }
+      const paid = await finalizeInsurancePaymentAsPaid(client, {
+        paymentId: pending.paymentId,
+        source: 'renewal',
+        periodAnchor: sub.nextBillingAt,
+      })
+      return {
+        outcome: 'paid',
+        reason: 'already_processed',
+        paymentId: pending.paymentId,
+        totalAmount: pending.totalAmount,
+        billingCycle: chargeBillingCycle,
+        previousBillingCycle: sub.billingCycle,
+        pendingBillingCycle: sub.pendingBillingCycle,
+        subscriptionStatus: paid.subscriptionStatus,
+        renewalPeriodKey: periodKey,
+      }
     }
     const failure = await markRenewalFailure(client, sub, errorClass, providerCode)
     return {
