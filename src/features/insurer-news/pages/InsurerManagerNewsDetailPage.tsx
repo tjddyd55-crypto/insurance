@@ -6,7 +6,7 @@ import {
   NEWS_DETAIL_VIEWER_ZOOM_STEP,
   clampNewsDetailViewerZoom,
 } from '../../../components/news-detail-viewer/newsDetailViewerZoom'
-import GaRequiredNotice from '../../../components/access/GaRequiredNotice'
+import GaRestrictedFeatureNotice from '../../../components/access/GaRestrictedFeatureNotice'
 import { useAuth } from '../../auth/AuthProvider'
 import { isPublicGeneralAccount } from '../../auth/generalGa'
 import {
@@ -86,7 +86,11 @@ export function InsurerManagerNewsDetailPage({
   }, [canFetch, detailScope, channel, token, gaCode, companyId, newsletterId])
 
   if (isPublicAccount) {
-    return <GaRequiredNotice />
+    return (
+      <GaRestrictedFeatureNotice
+        feature={channel === 'LOSS_ADJUSTER' ? 'loss-adjuster-newsletter' : 'insurer-newsletter'}
+      />
+    )
   }
 
   if (!gaCode || (requiresCompanyScope && companyId == null)) {
