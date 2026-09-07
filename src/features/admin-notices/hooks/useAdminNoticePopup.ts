@@ -9,8 +9,6 @@ export function useAdminNoticePopup(token: string | null | undefined) {
 
   useEffect(() => {
     if (!authToken) {
-      setNotice(null)
-      setOpen(false)
       return
     }
     let cancelled = false
@@ -35,6 +33,9 @@ export function useAdminNoticePopup(token: string | null | undefined) {
     }
   }, [authToken])
 
+  const visibleNotice = authToken ? notice : null
+  const visibleOpen = authToken ? open : false
+
   const close = useCallback(
     async (options?: { suppressToday?: boolean }) => {
       setOpen(false)
@@ -54,10 +55,10 @@ export function useAdminNoticePopup(token: string | null | undefined) {
 
   return useMemo(
     () => ({
-      notice,
-      open,
+      notice: visibleNotice,
+      open: visibleOpen,
       close,
     }),
-    [close, notice, open],
+    [close, visibleNotice, visibleOpen],
   )
 }

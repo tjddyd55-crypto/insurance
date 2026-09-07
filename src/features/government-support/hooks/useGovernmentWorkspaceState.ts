@@ -44,10 +44,8 @@ export function useGovernmentWorkspaceState(token: string | null, defaultTenantI
     if (!token) return
     const rows = await fetchGovProfiles(token)
     setProfiles(rows)
-    if (rows.length > 0 && !selectedId) {
-      setSelectedId(rows[0].id)
-    }
-  }, [token, selectedId])
+    setSelectedId((current) => current ?? rows[0]?.id ?? null)
+  }, [token])
 
   const reloadDetail = useCallback(async () => {
     if (!token || !selectedId) {
@@ -76,8 +74,37 @@ export function useGovernmentWorkspaceState(token: string | null, defaultTenantI
   }, [token, reloadProfiles])
 
   useEffect(() => {
-    void reloadDetail()
-  }, [reloadDetail])
+    if (!token) {
+      setPriorLoans([])
+      setCases([])
+      return undefined
+    }
+    if (!selectedId) {
+      setPriorLoans([])
+      setCases([])
+      return undefined
+    }
+    let cancelled = false
+    void Promise.all([
+      fetchGovPriorLoans(token, selectedId),
+      fetchGovApplicationCases(token, selectedId),
+    ])
+      .then(([loans, appCases]) => {
+        if (!cancelled) {
+          setPriorLoans(loans)
+          setCases(appCases)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPriorLoans([])
+          setCases([])
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [token, selectedId])
 
   const saveProfile = useCallback(
     async (patch: Partial<GovSupportProfile>) => {

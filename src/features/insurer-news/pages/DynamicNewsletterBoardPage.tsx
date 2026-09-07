@@ -22,19 +22,14 @@ export function DynamicNewsletterBoardPage() {
   const [error, setError] = useState('')
   const [accessForbidden, setAccessForbidden] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const canLoad = Boolean(token?.trim() && boardSlug.trim())
+  const idleError = '소식지 메뉴를 불러올 수 없습니다.'
 
   useEffect(() => {
-    let cancelled = false
-    if (!token?.trim() || !boardSlug.trim()) {
-      setBoard(null)
-      setItems([])
-      setAccessForbidden(false)
-      setLoading(false)
-      setError('소식지 메뉴를 불러올 수 없습니다.')
-      return () => {
-        cancelled = true
-      }
+    if (!canLoad) {
+      return undefined
     }
+    let cancelled = false
     setLoading(true)
     setError('')
     setAccessForbidden(false)
@@ -75,25 +70,31 @@ export function DynamicNewsletterBoardPage() {
     return () => {
       cancelled = true
     }
-  }, [boardSlug, token])
+  }, [boardSlug, canLoad, token])
+
+  const viewBoard = canLoad ? board : null
+  const viewItems = canLoad ? items : []
+  const viewLoading = canLoad ? loading : false
+  const viewError = canLoad ? error : idleError
+  const viewAccessForbidden = canLoad ? accessForbidden : false
 
   const filteredItems = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
     if (!q) {
-      return items
+      return viewItems
     }
-    return items.filter((item) =>
+    return viewItems.filter((item) =>
       [item.authorDisplayName, item.authorName, item.insurerName, item.title, item.summary, item.publishedAt, formatTimestampSearchHaystack(item.publishedAt)]
         .map((value) => String(value ?? '').toLowerCase())
         .join('\n')
         .includes(q),
     )
-  }, [items, searchQuery])
+  }, [searchQuery, viewItems])
 
   const showGaRequiredNotice =
     isPublicAccount &&
-    !loading &&
-    (accessForbidden || (board != null && isGaOnlyNewsletterBoard(board)))
+    !viewLoading &&
+    (viewAccessForbidden || (viewBoard != null && isGaOnlyNewsletterBoard(viewBoard)))
 
   if (showGaRequiredNotice) {
     return <GaRequiredNotice />
@@ -101,10 +102,10 @@ export function DynamicNewsletterBoardPage() {
 
   const viewProps: DynamicNewsletterBoardViewProps = {
     boardSlug,
-    board,
+    board: viewBoard,
     items: filteredItems,
-    error,
-    loading,
+    error: viewError,
+    loading: viewLoading,
     searchQuery,
     onSearchQueryChange: setSearchQuery,
     openPathPrefix: `/portal/boards/${encodeURIComponent(boardSlug)}`,
