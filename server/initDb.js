@@ -5243,6 +5243,11 @@ async function ensureInsuranceBillingPhase1Schema(executor) {
     WHERE order_id IS NOT NULL
   `)
   await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_billing_payments_provider_payment_key_unique
+    ON billing_payments (provider, provider_payment_key)
+    WHERE provider_payment_key IS NOT NULL
+  `)
+  await executor.query(`
     ALTER TABLE billing_payments
     ADD COLUMN IF NOT EXISTS provider_error_code TEXT
   `)
