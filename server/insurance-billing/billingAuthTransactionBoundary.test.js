@@ -25,6 +25,8 @@ test('auth-confirm API no longer wraps Toss issue call in BEGIN/COMMIT', () => {
 })
 
 test('applyTossBillingAuthIssueResult upserts credential idempotently per user', async () => {
+  const prev = process.env.PAYMENT_SETTINGS_SECRET_KEY
+  process.env.PAYMENT_SETTINGS_SECRET_KEY = '0'.repeat(64)
   const queries = []
   const client = {
     async query(sql, params) {
@@ -39,38 +41,43 @@ test('applyTossBillingAuthIssueResult upserts credential idempotently per user',
     },
   }
 
-  const first = await applyTossBillingAuthIssueResult(client, {
-    userId: 'user-1',
-    customerKey: 'onefc_cust_1',
-    settingsMode: 'virtual',
-    issueRes: {
-      ok: true,
-      json: {
-        billingKey: 'toss_bk_1',
-        card: { issuerCode: '신한', number: '1234-****-****-5678' },
+  try {
+    const first = await applyTossBillingAuthIssueResult(client, {
+      userId: 'user-1',
+      customerKey: 'onefc_cust_1',
+      settingsMode: 'virtual',
+      issueRes: {
+        ok: true,
+        json: {
+          billingKey: 'toss_bk_1',
+          card: { issuerCode: '신한', number: '1234-****-****-5678' },
+        },
       },
-    },
-  })
-  const second = await applyTossBillingAuthIssueResult(client, {
-    userId: 'user-1',
-    customerKey: 'onefc_cust_1',
-    settingsMode: 'virtual',
-    issueRes: {
-      ok: true,
-      json: {
-        billingKey: 'toss_bk_2',
-        card: { issuerCode: '신한', number: '1234-****-****-9999' },
+    })
+    const second = await applyTossBillingAuthIssueResult(client, {
+      userId: 'user-1',
+      customerKey: 'onefc_cust_1',
+      settingsMode: 'virtual',
+      issueRes: {
+        ok: true,
+        json: {
+          billingKey: 'toss_bk_2',
+          card: { issuerCode: '신한', number: '1234-****-****-9999' },
+        },
       },
-    },
-  })
+    })
 
-  assert.equal(first.hasBillingKey, true)
-  assert.equal(second.hasBillingKey, true)
-  assert.equal(
-    queries.filter((sql) => sql.includes('INSERT INTO billing_payment_credentials')).length,
-    2,
-  )
-  assert.match(queries.join('\n'), /ON CONFLICT \(user_id\) DO UPDATE/)
+    assert.equal(first.hasBillingKey, true)
+    assert.equal(second.hasBillingKey, true)
+    assert.equal(
+      queries.filter((sql) => sql.includes('INSERT INTO billing_payment_credentials')).length,
+      2,
+    )
+    assert.match(queries.join('\n'), /ON CONFLICT \(user_id\) DO UPDATE/)
+  } finally {
+    if (prev == null) delete process.env.PAYMENT_SETTINGS_SECRET_KEY
+    else process.env.PAYMENT_SETTINGS_SECRET_KEY = prev
+  }
 })
 
 test('applyTossBillingAuthIssueResult rejects provider failure before credential write', async () => {
