@@ -343,6 +343,15 @@ export function assertInsuranceUserStorageKey(objectKey, gaCode, userId, categor
       return /^(draft|[^/]+)\/([^/]+)\/\d{4}\/\d{2}\/\d+-.+/.test(rest)
     }
     if (category === INSURANCE_STORAGE_CATEGORY.CUSTOMER_MESSAGES) {
+      const customerId = scope.customerId != null ? sanitizeInsurancePathSegment(scope.customerId) : ''
+      if (customerId && customerId !== '_') {
+        return (
+          rest.startsWith(`${customerId}/`) &&
+          new RegExp(
+            `^${customerId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/([^/]+)/\\d{4}/\\d{2}/\\d+-.+`,
+          ).test(rest)
+        )
+      }
       return /^(draft|[^/]+)\/(draft|[^/]+)\/\d{4}\/\d{2}\/\d+-.+/.test(rest)
     }
     return rest.length > 0
