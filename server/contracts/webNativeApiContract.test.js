@@ -39,6 +39,24 @@ test('login response: web preserves CRM bridge fields native currently ignores',
   const web = parseWebLoginSession(fixture)
   assert.equal(web.crmIndustryCode, 'insurance')
   assert.equal(web.hasTenantCrm, true)
+  const native = parseNativeLoginSession(fixture)
+  assert.equal(native.crmIndustryCode, null)
+  assert.equal(native.hasTenantCrm, false)
+})
+
+test('login contract C-02: classified as future-native drift (Web CRM bridge only)', () => {
+  const webAuthApi = readFileSync(
+    join(dir, '../../../insurance/src/features/auth/authApi.ts'),
+    'utf8',
+  )
+  const nativeAuthApi = readFileSync(
+    join(dir, '../../../insurance-mobile/src/api/authApi.ts'),
+    'utf8',
+  )
+  assert.match(webAuthApi, /crm_industry_code/)
+  assert.match(webAuthApi, /tenant_crm/)
+  assert.equal(nativeAuthApi.includes('crm_industry_code'), false)
+  assert.equal(nativeAuthApi.includes('tenant_crm'), false)
 })
 
 test('customer relations POST: web and native both accept ack payload', () => {
