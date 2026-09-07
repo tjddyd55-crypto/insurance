@@ -14,13 +14,11 @@ import {
 } from '../authApi'
 import { FormButton, FormInput } from '../../../components/form'
 import { useAuth } from '../AuthProvider'
-import { resolveAuthLandingPath } from '../landing'
 import useIsMobile from '../../../hooks/useIsMobile'
-import { isInsuranceBillingEnabledClient } from '../../insurance-billing/insuranceBillingConfig'
+import { resolvePostAuthNavigationPath } from '../../insurance-billing/postAuthNavigation'
 import {
   validateReferralCodeForSignup,
 } from '../../referrals/referralApi'
-import { isBillingUiHiddenForUser } from '../../billing/storeReviewBillingAccess'
 import {
   getSignupUsernameValidationError,
   SIGNUP_USERNAME_RULE_MESSAGE,
@@ -64,7 +62,7 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
   const navigate = useNavigate()
   const isMobile = useIsMobile()
   const [searchParams] = useSearchParams()
-  const { isAuthenticated, login } = useAuth()
+  const { isAuthenticated, login, user, token } = useAuth()
   const tenantCodeMode = signupIndustry === 'gym' || signupIndustry === 'government'
   const [gaCode, setGaCode] = useState('')
   const [registrationCode, setRegistrationCode] = useState('')
@@ -109,10 +107,20 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
   }, [])
 
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/dashboard', { replace: true })
+    if (!isAuthenticated || !token?.trim()) {
+      return
     }
-  }, [isAuthenticated, navigate])
+    let cancelled = false
+    void (async () => {
+      const nextPath = await resolvePostAuthNavigationPath(token, user, isMobile)
+      if (!cancelled) {
+        navigate(nextPath, { replace: true })
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [isAuthenticated, isMobile, navigate, token, user])
 
   useEffect(() => {
     const ga = searchParams.get('ga')?.trim()
@@ -531,15 +539,8 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
         return
       }
       login({ token: session.token, user: session.user })
-      if (
-        signupIndustry === 'insurance' &&
-        isInsuranceBillingEnabledClient() &&
-        !isBillingUiHiddenForUser(session.user)
-      ) {
-        navigate('/billing/checkout', { replace: true })
-        return
-      }
-      navigate(resolveAuthLandingPath(isMobile, session.user?.role), { replace: true })
+      const nextPath = await resolvePostAuthNavigationPath(session.token, session.user, isMobile)
+      navigate(nextPath, { replace: true })
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '회원가입에 실패했습니다.')
     } finally {

@@ -5182,6 +5182,23 @@ async function ensureInsuranceBillingPhase1Schema(executor) {
   `)
 
   await executor.query(`
+    INSERT INTO billing_promotion_codes (
+      code, name, type, free_months, applies_to_product, applies_to_plan_code, is_active
+    )
+    VALUES (
+      'SYA6KABE', '3개월 이용 프로모션', 'free_months', 3, 'insurance', 'insurance_basic', true
+    )
+    ON CONFLICT (code) DO UPDATE SET
+      name = EXCLUDED.name,
+      type = EXCLUDED.type,
+      free_months = EXCLUDED.free_months,
+      applies_to_product = EXCLUDED.applies_to_product,
+      applies_to_plan_code = EXCLUDED.applies_to_plan_code,
+      is_active = EXCLUDED.is_active,
+      updated_at = NOW()
+  `)
+
+  await executor.query(`
     INSERT INTO billing_subscriptions (user_id, tenant_id, plan_code, status, billing_cycle, created_at, updated_at)
     SELECT
       u.id,
