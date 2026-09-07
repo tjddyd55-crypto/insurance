@@ -41,12 +41,12 @@ describe('outbox GA scope contracts', () => {
   })
 
   it('workers prevent tick overlap and rate-limit identical errors', () => {
-    const index = read('server/index.js')
-    assert.match(index, /pushTickRunning/)
-    assert.match(index, /claimAlimtalkTickRunning/)
-    assert.match(index, /registrationAlimtalkTickRunning/)
-    assert.match(index, /lastPushTickError/)
-    assert.match(index, /lastClaimAlimtalkTickError/)
+    const workers = read('server/boot/backgroundWorkers.js')
+    assert.match(workers, /pushTickRunning/)
+    assert.match(workers, /claimAlimtalkTickRunning/)
+    assert.match(workers, /registrationAlimtalkTickRunning/)
+    assert.match(workers, /lastPushTickError/)
+    assert.match(workers, /lastClaimAlimtalkTickError/)
   })
 
   it('customer registration alimtalk worker is ga-scoped', () => {

@@ -21,7 +21,10 @@ describe('claim push wiring contracts', () => {
   it('registers push device API and outbox worker', () => {
     const index = read('server/index.js')
     assert.match(index, /registerPushDevicesApi/)
-    assert.match(index, /processPendingPushOutbox/)
+    assert.match(index, /startBackgroundWorkers/)
+
+    const workers = read('server/boot/backgroundWorkers.js')
+    assert.match(workers, /processPendingPushOutbox/)
   })
 
   it('enqueues push after claim commit without failing claim', () => {

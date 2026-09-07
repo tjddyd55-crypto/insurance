@@ -1,5 +1,5 @@
 /**
- * Railway Persistent Worker — sms_send_jobs claim 후 gateway 발송 (기본 모드).
+ * Railway Persistent Worker — sms_send_jobs claim 후 Aligo direct 발송 (기본 모드).
  *
  * Command: node server/sms/runSmsSendWorker.js
  *

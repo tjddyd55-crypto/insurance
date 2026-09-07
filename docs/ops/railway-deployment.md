@@ -91,15 +91,15 @@ curl -s https://insurance-production-7bd8.up.railway.app/backend/health
 ## 5. 예약문자 Outbox — scheduler + sender-worker
 
 예약문자는 **scheduler(큐 생성)** 와 **sender-worker(실발송)** 로 분리한다.
-웹 서버는 예약 CRUD만 담당하고, gateway 발송은 sender-worker만 수행한다.
+웹 서버는 예약 CRUD만 담당하고, **Aligo direct 발송**은 `sms-sender-worker`만 수행한다.
 
 ### 서비스 구성 (production 최종)
 
 | 서비스 | 유형 | Command | Schedule | 역할 |
 |---|---|---|---|---|
 | **app** | Web | (기존) | — | 예약 CRUD · 발송내역 조회 |
-| **sms-scheduler** | **Cron Job** | `node server/sms/runScheduledSmsScheduler.js` | `*/5 * * * *` (UTC) | due 예약 → `sms_scheduled_runs` + `sms_send_jobs` 생성 (gateway 발송 없음) |
-| **sms-sender-worker** | **Persistent Worker** | `node server/sms/runSmsSendWorker.js` | **Cron 설정 없음** | `sms_send_jobs` claim → gateway 발송 → delivery/history 갱신 |
+| **sms-scheduler** | **Cron Job** | `node server/sms/runScheduledSmsScheduler.js` | `*/5 * * * *` (UTC) | due 예약 → `sms_scheduled_runs` + `sms_send_jobs` 생성 (발송 없음) |
+| **sms-sender-worker** | **Persistent Worker** | `node server/sms/runSmsSendWorker.js` | **Cron 설정 없음** | `sms_send_jobs` claim → **Railway Aligo direct** 발송 → delivery/history 갱신 |
 
 호환 alias: `node server/sms/runScheduledSmsJob.js` → scheduler 실행
 
