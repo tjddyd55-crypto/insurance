@@ -52,16 +52,30 @@ function getS3() {
 }
 
 /**
+ * @param {string | undefined | null} value
+ */
+function maskR2CredentialForLog(value) {
+  const raw = String(value ?? '').trim()
+  if (!raw) {
+    return raw
+  }
+  if (raw.length <= 4) {
+    return '****'
+  }
+  return `${raw.slice(0, 2)}****${raw.slice(-2)}`
+}
+
+/**
  * R2 미구성(503) 원인 분기용. 하나라도 undefined/빈 값이면 환경변수, 모두 있으면 init·SDK·네트워크 측을 의심.
- * 시크릿이 평문으로 로그에 남으므로 원인 확인 후 제거하거나 로깅 레벨을 제한할 것.
  */
 export function logR2EnvDiagnosticCheck() {
   console.log('R2 ENV CHECK', {
     accountId: process.env.R2_ACCOUNT_ID,
     endpoint: process.env.R2_ENDPOINT,
-    accessKey: process.env.R2_ACCESS_KEY_ID ?? process.env.R2_ACCESS_KEY,
-    secretKey: process.env.R2_SECRET_ACCESS_KEY ?? process.env.R2_SECRET_KEY,
+    accessKey: maskR2CredentialForLog(process.env.R2_ACCESS_KEY_ID ?? process.env.R2_ACCESS_KEY),
+    secretKey: maskR2CredentialForLog(process.env.R2_SECRET_ACCESS_KEY ?? process.env.R2_SECRET_KEY),
     bucket: process.env.R2_BUCKET_NAME ?? process.env.R2_BUCKET,
+    configured: Boolean(r2Credentials()),
   })
 }
 

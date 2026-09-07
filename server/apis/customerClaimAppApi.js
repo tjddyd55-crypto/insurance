@@ -968,11 +968,6 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
    * }} payload
    */
   function buildClaimFileOpenUrl(req, payload) {
-    const storageKey = String(payload.storageKey ?? '').trim().replace(/^\//, '')
-    if (storageKey && isConsentR2Enabled()) {
-      const cdnBase = getR2PublicCdnBase().replace(/\/$/, '')
-      return `${cdnBase}/${storageKey}`
-    }
     return buildClaimFileAccessUrl(req, {
       scope: payload.scope,
       fileId: payload.fileId,
@@ -2029,6 +2024,11 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         res.status(400).json({ message: 'customerId가 필요합니다.' })
         return
       }
+      const access = await assertAgentCanAccessCustomer(pool, agentId, customerId, req.user)
+      if (!access.ok) {
+        res.status(access.status).json({ message: access.message })
+        return
+      }
       const messageId = String(body.messageId ?? body.message_id ?? 'draft').trim() || 'draft'
       const objectKey = buildCustomerNewsMessageObjectKey(
         gaPath,
@@ -2084,7 +2084,21 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         return
       }
       const gaPath = await resolveGaPathByGaId(pool, gaId)
-      if (!gaPath || !objectKey || !assertCustomerNewsMessageObjectKey(objectKey, agentId, gaPath)) {
+      const customerId = Number(req.query.customerId ?? req.headers['x-customer-id'] ?? '')
+      if (!Number.isInteger(customerId) || customerId < 1) {
+        res.status(400).json({ message: 'customerId가 필요합니다.' })
+        return
+      }
+      const access = await assertAgentCanAccessCustomer(pool, agentId, customerId, req.user)
+      if (!access.ok) {
+        res.status(access.status).json({ message: access.message })
+        return
+      }
+      if (
+        !gaPath ||
+        !objectKey ||
+        !assertCustomerNewsMessageObjectKey(objectKey, agentId, gaPath, customerId)
+      ) {
         res.status(403).json({ message: '허용되지 않은 업로드 경로입니다.' })
         return
       }

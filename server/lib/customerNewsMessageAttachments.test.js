@@ -80,6 +80,11 @@ test('assertCustomerNewsMessageObjectKey: agent scoped', () => {
   assert.equal(assertCustomerNewsMessageObjectKey(key, 'agent-2', 'ga1', 519), false)
 })
 
+test('assertCustomerNewsMessageObjectKey: rejects wrong customerId in scoped key', () => {
+  const key = buildCustomerNewsMessageObjectKey('ga1', 'agent-1', 'test.pdf', 519, 'msg_1')
+  assert.equal(assertCustomerNewsMessageObjectKey(key, 'agent-1', 'ga1', 520), false)
+})
+
 test('normalizeCustomerNewsAttachments: preserves stored attachment id', () => {
   const storedId = '11111111-2222-4333-8444-555555555555'
   const rows = normalizeCustomerNewsAttachments([

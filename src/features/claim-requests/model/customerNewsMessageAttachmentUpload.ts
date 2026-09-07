@@ -86,6 +86,7 @@ export async function uploadCustomerNewsMessageAttachment(
       objectKey: presign.objectKey,
       contentType,
       fileSize: String(item.file.size),
+      customerId: String(customerId),
     })
     const proxyResp = await fetch(
       resolveApiUrl(`/api/agent/customer-news/attachments/upload-proxy?${q.toString()}`),
