@@ -1,0 +1,32 @@
+{
+  "notifications": [
+    {
+      "id": "notif-1",
+      "userId": "agent-uuid-1",
+      "gaId": 12,
+      "teamId": null,
+      "type": "claim_request_received",
+      "referenceId": "claim-1",
+      "message": "청구 요청이 접수되었습니다.",
+      "isRead": false,
+      "isDismissed": false,
+      "customerId": 519,
+      "customerName": "김고객",
+      "targetDate": null,
+      "claimRequestId": 901,
+      "specialDateId": null,
+      "createdAt": "2026-09-07T00:00:00.000Z",
+      "confirmedAt": null
+    }
+  ],
+  "settings": {
+    "appPush": { "enabled": true },
+    "newCustomer": { "enabled": true },
+    "customerAppFile": { "enabled": true },
+    "workAlert": { "enabled": true },
+    "insuranceAge": { "enabled": true, "daysBefore": 30 },
+    "carExpiry": { "enabled": true, "daysBefore": 30 },
+    "specialDate": { "enabled": true, "daysBefore": 30 },
+    "claimRequest": { "enabled": true }
+  }
+}
