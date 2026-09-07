@@ -377,33 +377,26 @@ export async function executeTossBillingCharge(client, params) {
 }
 
 /**
- * @param {import('pg').PoolClient} client
- * @param {{ userId: string; authKey: string; customerKey: string; testCode?: string | null }} params
+ * DB transaction 밖 Toss billing key 발급 network call.
+ * @param {{ secretKey: string; authKey: string; customerKey: string; mode: string; testCode?: string | null }} params
  */
-export async function confirmTossBillingAuth(client, params) {
-  const userId = String(params.userId ?? '').trim()
-  const authKey = String(params.authKey ?? '').trim()
-  const customerKey = String(params.customerKey ?? '').trim()
-  if (!authKey || !customerKey) {
-    throw new Error('billing_auth_invalid')
-  }
-
-  await assertBillingCustomerKeyMatch(client, userId, customerKey)
-
-  const settings = await resolvePaymentSettingsInternal(client)
-  if (settings.provider !== 'toss' || !settings.isEnabled) {
-    throw new Error('toss_billing_not_enabled')
-  }
-  if (!settings.hasSecretKey || !settings.secretKey) {
-    throw new Error('payment_secret_storage_unavailable')
-  }
-
-  const issueRes = await issueTossBillingKey({
-    secretKey: settings.secretKey,
-    authKey,
-    customerKey,
-    testCode: resolveTossTestCode(settings.mode, params.testCode),
+export async function performTossBillingKeyIssueNetwork(params) {
+  return issueTossBillingKey({
+    secretKey: params.secretKey,
+    authKey: params.authKey,
+    customerKey: params.customerKey,
+    testCode: resolveTossTestCode(params.mode, params.testCode),
   })
+}
+
+/**
+ * @param {import('pg').PoolClient} client
+ * @param {{ userId: string; customerKey: string; issueRes: { ok: boolean; json?: unknown }; settingsMode: string }} params
+ */
+export async function applyTossBillingAuthIssueResult(client, params) {
+  const userId = String(params.userId ?? '').trim()
+  const customerKey = String(params.customerKey ?? '').trim()
+  const issueRes = params.issueRes
 
   if (!issueRes.ok) {
     const normalized = normalizeTossApiFailure(issueRes)
@@ -423,7 +416,7 @@ export async function confirmTossBillingAuth(client, params) {
     userId,
     customerKey,
     billingKey,
-    issuedMode: settings.mode,
+    issuedMode: params.settingsMode,
     cardCompany: card.issuerCode ? String(card.issuerCode) : card.company ?? null,
     cardNumberMasked: card.number ? String(card.number) : null,
     cardType: card.cardType ? String(card.cardType) : null,
@@ -444,6 +437,67 @@ export async function confirmTossBillingAuth(client, params) {
     cardCompany: card.issuerCode ?? card.company ?? null,
     cardNumberMasked: card.number ? String(card.number) : null,
   }
+}
+
+/**
+ * @param {import('pg').Pool} pool
+ * @param {{ userId: string; authKey: string; customerKey: string; testCode?: string | null }} params
+ */
+export async function confirmTossBillingAuth(pool, params) {
+  const userId = String(params.userId ?? '').trim()
+  const authKey = String(params.authKey ?? '').trim()
+  const customerKey = String(params.customerKey ?? '').trim()
+  if (!authKey || !customerKey) {
+    throw new Error('billing_auth_invalid')
+  }
+
+  const prepared = await withShortBillingTransaction(pool, async (client) => {
+    await assertBillingCustomerKeyMatch(client, userId, customerKey)
+    const settings = await resolvePaymentSettingsInternal(client)
+    if (settings.provider !== 'toss' || !settings.isEnabled) {
+      throw new Error('toss_billing_not_enabled')
+    }
+    if (!settings.hasSecretKey || !settings.secretKey) {
+      throw new Error('payment_secret_storage_unavailable')
+    }
+    return settings
+  })
+
+  let issueRes
+  try {
+    issueRes = await performTossBillingKeyIssueNetwork({
+      secretKey: prepared.secretKey,
+      authKey,
+      customerKey,
+      mode: prepared.mode,
+      testCode: params.testCode ?? null,
+    })
+  } catch (networkError) {
+    const err = new Error('toss_billing_issue_network_error')
+    err.cause = networkError
+    throw err
+  }
+
+  return withShortBillingTransaction(pool, async (client) =>
+    applyTossBillingAuthIssueResult(client, {
+      userId,
+      customerKey,
+      issueRes,
+      settingsMode: prepared.mode,
+    }),
+  )
+}
+
+/**
+ * @param {import('pg').PoolClient} client
+ * @deprecated Use confirmTossBillingAuth(pool, params).
+ */
+export async function confirmTossBillingAuthWithClient(client, params) {
+  const pool = client?.connection?.pool ?? client?.pool
+  if (!pool || typeof pool.connect !== 'function') {
+    throw new Error('billing_auth_requires_pool_executor')
+  }
+  return confirmTossBillingAuth(pool, params)
 }
 
 /**

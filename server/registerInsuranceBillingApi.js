@@ -300,30 +300,20 @@ export function registerInsuranceBillingApi(apiRouter, ctx) {
   })
 
   apiRouter.post('/billing/payment-methods/auth-confirm', requireAuth, requireBillingEnabled, requireBillingSubject, async (req, res) => {
-    const client = await pool.connect()
     try {
       const userId = String(req.user?.id ?? '').trim()
       const authKey = String(req.body?.authKey ?? req.body?.auth_key ?? '').trim()
       const customerKey = String(req.body?.customerKey ?? req.body?.customer_key ?? '').trim()
-      await client.query('BEGIN')
-      const result = await confirmTossBillingAuth(client, {
+      const result = await confirmTossBillingAuth(pool, {
         userId,
         authKey,
         customerKey,
         testCode: allowTossTestCode(req),
       })
-      await client.query('COMMIT')
       res.json(result)
     } catch (e) {
-      try {
-        await client.query('ROLLBACK')
-      } catch {
-        /* */
-      }
       if (mapInsuranceBillingError(e, res)) return
       handleDbError(e, req, res)
-    } finally {
-      client.release()
     }
   })
 
