@@ -82,15 +82,12 @@ export async function runInsuranceBillingRenewalOnce(pool, options = {}) {
 
   for (const row of due) {
     summary.attempted += 1
-    const itemClient = await pool.connect()
     try {
-      await itemClient.query('BEGIN')
-      const result = await renewInsuranceSubscription(itemClient, {
+      const result = await renewInsuranceSubscription(pool, {
         subscriptionId: row.id,
         now,
         testCode: options.testCode ?? null,
       })
-      await itemClient.query('COMMIT')
       if (result.outcome === 'paid') summary.paid += 1
       else if (result.outcome === 'failed') summary.failed += 1
       else summary.skipped += 1
@@ -101,18 +98,11 @@ export async function runInsuranceBillingRenewalOnce(pool, options = {}) {
         reason: result.reason,
       })
     } catch (error) {
-      try {
-        await itemClient.query('ROLLBACK')
-      } catch {
-        // ignore
-      }
       summary.failed += 1
       console.error('[billing-renewal] item-error', {
         subscriptionId: row.id,
         error: error instanceof Error ? error.message : String(error),
       })
-    } finally {
-      itemClient.release()
     }
   }
 

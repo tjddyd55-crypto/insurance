@@ -1,20 +1,21 @@
 import { getInsuranceBillingProvider } from '../config.js'
 import { completeMockInsurancePayment, requestInsurancePayment } from '../subscriptionLifecycle.js'
+import { withShortBillingTransaction } from '../billingTransaction.js'
 import { tossProvider } from './tossProvider.js'
 
 /**
  * PG Provider 추상화 — mock + Toss billing.
  */
 
-/** @typedef {{ requestPayment: (client: import('pg').PoolClient, params: object) => Promise<object>; completePayment: (client: import('pg').PoolClient, params: object) => Promise<object> }} InsurancePaymentProvider */
+/** @typedef {{ requestPayment: (pool: import('pg').Pool, params: object) => Promise<object>; completePayment: (pool: import('pg').Pool, params: object) => Promise<object> }} InsurancePaymentProvider */
 
 /** @type {InsurancePaymentProvider} */
 const mockProvider = {
-  async requestPayment(client, params) {
-    return requestInsurancePayment(client, params)
+  async requestPayment(pool, params) {
+    return withShortBillingTransaction(pool, async (client) => requestInsurancePayment(client, params))
   },
-  async completePayment(client, params) {
-    return completeMockInsurancePayment(client, params)
+  async completePayment(pool, params) {
+    return withShortBillingTransaction(pool, async (client) => completeMockInsurancePayment(client, params))
   },
 }
 

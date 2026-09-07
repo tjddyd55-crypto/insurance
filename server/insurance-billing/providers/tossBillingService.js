@@ -18,7 +18,10 @@ import { chargeTossBillingKey, issueTossBillingKey } from './toss/tossHttpClient
 import { normalizeTossApiFailure } from './toss/tossErrorNormalization.js'
 import { resolveCheckoutChargeAmounts } from '../checkoutQuoteService.js'
 import { validateInsurancePromotionCode } from '../promotionService.js'
+import { validateTossPaymentAgainstExpected } from './toss/tossPaymentValidation.js'
+import { finalizeReconciledTossPayment, reconcilePendingInsurancePayment } from '../reconcileInsurancePayment.js'
 
+import { withShortBillingTransaction } from '../billingTransaction.js'
 /**
  * @param {number | string} paymentId
  */
@@ -95,7 +98,6 @@ export async function createPendingInsurancePaymentRow(client, params) {
   let discountAmount = 0
   const promotionCode = params.promotionCode ? String(params.promotionCode).trim() : null
 
-  // renewal 은 pending cycle / plan SSOT 그대로. checkout 만 쿠폰 할인 반영.
   if (paymentSource === 'renewal' || !promotionCode) {
     const amounts = resolvePlanPaymentAmounts(plan, billingCycle)
     totalAmount = amounts.totalAmount
@@ -201,29 +203,48 @@ export async function createPendingInsurancePaymentRow(client, params) {
 }
 
 /**
- * @param {import('pg').PoolClient} client
- * @param {{ paymentId: number; userId: string; billingKey: string; customerKey: string; orderName: string; totalAmount: number; orderId: string; secretKey: string; mode: string; testCode?: string | null }} params
+ * DB transaction 밖 Toss billing charge network call.
+ * @param {{ secretKey: string; billingKey: string; customerKey: string; amount: number; orderId: string; orderName: string; mode: string; testCode?: string | null }} params
  */
-export async function executeTossBillingCharge(client, params) {
-  const chargeRes = await chargeTossBillingKey({
+export async function performTossBillingChargeNetwork(params) {
+  return chargeTossBillingKey({
     secretKey: params.secretKey,
     billingKey: params.billingKey,
     customerKey: params.customerKey,
-    amount: params.totalAmount,
+    amount: params.amount,
     orderId: params.orderId,
     orderName: params.orderName,
     testCode: resolveTossTestCode(params.mode, params.testCode),
   })
+}
+
+/**
+ * @param {import('pg').PoolClient} client
+ * @param {{ chargeRes: { ok: boolean; status: number; json: unknown }; paymentId: number; userId: string; orderId: string; totalAmount: number; source?: string; periodAnchor?: Date | string | null; secretKey?: string }} params
+ */
+export async function applyTossBillingChargeResult(client, params) {
+  const { chargeRes, paymentId, userId, orderId, totalAmount } = params
+  const source = params.source === 'renewal' ? 'renewal' : 'toss'
 
   if (!chargeRes.ok) {
     const normalized = normalizeTossApiFailure(chargeRes)
     if (normalized.providerCode === 'ALREADY_PROCESSED_PAYMENT') {
+      const reconciled = await reconcilePendingInsurancePayment(client, {
+        paymentId,
+        secretKey: params.secretKey ?? null,
+        source,
+        periodAnchor: params.periodAnchor ?? null,
+      })
+      if (reconciled.outcome === 'reconciled' || reconciled.outcome === 'already_paid') {
+        return reconciled
+      }
       return finalizeInsurancePaymentAsPaid(client, {
-        paymentId: params.paymentId,
-        source: params.source === 'renewal' ? 'renewal' : 'toss',
+        paymentId,
+        source,
         periodAnchor: params.periodAnchor ?? null,
       })
     }
+
     await systemQuery(
       client,
       `
@@ -235,15 +256,16 @@ export async function executeTossBillingCharge(client, params) {
         provider_error_code = $3,
         updated_at = NOW()
       WHERE id = $1
+        AND status = 'pending'
       `,
-      [params.paymentId, normalized.userMessage, normalized.providerCode],
+      [paymentId, normalized.userMessage, normalized.providerCode],
     )
     await recordBillingEvent(client, {
-      userId: params.userId,
+      userId,
       eventType: 'payment.toss.failed',
       payload: {
-        paymentId: params.paymentId,
-        orderId: params.orderId,
+        paymentId,
+        orderId,
         providerCode: normalized.providerCode,
       },
     })
@@ -253,26 +275,105 @@ export async function executeTossBillingCharge(client, params) {
     throw err
   }
 
-  const paymentKey = String(chargeRes.json?.paymentKey ?? '').trim()
-  if (!paymentKey) {
-    throw new Error('toss_payment_key_missing')
-  }
-
-  await systemQuery(
+  const payR = await systemQuery(
     client,
     `
-    UPDATE billing_payments
-    SET provider_payment_key = $2, updated_at = NOW()
+    SELECT *
+    FROM billing_payments
     WHERE id = $1
+    FOR UPDATE
     `,
-    [params.paymentId, paymentKey],
+    [paymentId],
   )
+  const payment = payR.rows[0]
+  if (!payment) {
+    throw new Error('payment_not_found')
+  }
 
-  return finalizeInsurancePaymentAsPaid(client, {
-    paymentId: params.paymentId,
-    source: params.source === 'renewal' ? 'renewal' : 'toss',
+  const validated = validateTossPaymentAgainstExpected(chargeRes.json, {
+    orderId,
+    totalAmount,
+  })
+  if (!validated.ok) {
+    console.warn('[billing/toss] amount/order validation failed', {
+      paymentId,
+      orderId,
+      reason: validated.reason,
+      expectedAmount: totalAmount,
+      providerAmount: validated.providerAmount ?? null,
+    })
+    const err = new Error(`toss_payment_${validated.reason}`)
+    err.validation = validated
+    throw err
+  }
+
+  return finalizeReconciledTossPayment(client, {
+    payment,
+    tossPayment: chargeRes.json,
+    source,
     periodAnchor: params.periodAnchor ?? null,
   })
+}
+
+/**
+ * @param {import('pg').Pool} pool
+ * @param {{ paymentId: number; userId: string; billingKey: string; customerKey: string; orderName: string; totalAmount: number; orderId: string; secretKey: string; mode: string; testCode?: string | null; source?: string; periodAnchor?: Date | string | null }} params
+ */
+export async function runTossBillingChargeOutsideTransaction(pool, params) {
+  let chargeRes
+  try {
+    chargeRes = await performTossBillingChargeNetwork({
+      secretKey: params.secretKey,
+      billingKey: params.billingKey,
+      customerKey: params.customerKey,
+      amount: params.totalAmount,
+      orderId: params.orderId,
+      orderName: params.orderName,
+      mode: params.mode,
+      testCode: params.testCode ?? null,
+    })
+  } catch (networkError) {
+    const reconciled = await reconcilePendingInsurancePayment(pool, {
+      paymentId: params.paymentId,
+      secretKey: params.secretKey,
+      source: params.source === 'renewal' ? 'renewal' : 'toss',
+      periodAnchor: params.periodAnchor ?? null,
+    })
+    if (reconciled.outcome === 'reconciled' || reconciled.outcome === 'already_paid') {
+      return reconciled
+    }
+    const err = new Error('toss_charge_network_error')
+    err.cause = networkError
+    err.paymentId = params.paymentId
+    err.orderId = params.orderId
+    err.needsReconciliation = true
+    throw err
+  }
+
+  return withShortBillingTransaction(pool, async (client) =>
+    applyTossBillingChargeResult(client, {
+      chargeRes,
+      paymentId: params.paymentId,
+      userId: params.userId,
+      orderId: params.orderId,
+      totalAmount: params.totalAmount,
+      source: params.source,
+      periodAnchor: params.periodAnchor ?? null,
+      secretKey: params.secretKey,
+    }),
+  )
+}
+
+/**
+ * @param {import('pg').PoolClient} client
+ * @deprecated Use runTossBillingChargeOutsideTransaction(pool, params). Kept for legacy callers/tests.
+ */
+export async function executeTossBillingCharge(client, params) {
+  const pool = client?.connection?.pool ?? client?.pool
+  if (!pool || typeof pool.connect !== 'function') {
+    throw new Error('toss_charge_requires_pool_executor')
+  }
+  return runTossBillingChargeOutsideTransaction(pool, params)
 }
 
 /**
@@ -346,51 +447,69 @@ export async function confirmTossBillingAuth(client, params) {
 }
 
 /**
- * @param {import('pg').PoolClient} client
+ * @param {import('pg').Pool} pool
  * @param {{ userId: string; planCode?: string; billingCycle?: string; promotionCode?: string | null; testCode?: string | null; registerOnly?: boolean }} params
  */
-export async function requestTossInsurancePayment(client, params) {
+export async function requestTossInsurancePayment(pool, params) {
   const userId = String(params.userId ?? '').trim()
-  const settings = await resolvePaymentSettingsInternal(client)
-  if (settings.provider !== 'toss' || !settings.isEnabled) {
-    throw new Error('toss_billing_not_enabled')
-  }
-  if (!settings.hasSecretKey || !settings.secretKey) {
-    throw new Error('payment_secret_storage_unavailable')
-  }
 
-  const billingCredential = await getActiveBillingKeyForUser(client, userId)
-  if (!billingCredential?.billingKey) {
-    return {
-      needsBillingAuth: true,
-      hasBillingKey: false,
+  const prepared = await withShortBillingTransaction(pool, async (client) => {
+    const settings = await resolvePaymentSettingsInternal(client)
+    if (settings.provider !== 'toss' || !settings.isEnabled) {
+      throw new Error('toss_billing_not_enabled')
     }
-  }
-
-  if (params.registerOnly) {
-    return {
-      needsBillingAuth: false,
-      hasBillingKey: true,
-      registeredOnly: true,
+    if (!settings.hasSecretKey || !settings.secretKey) {
+      throw new Error('payment_secret_storage_unavailable')
     }
-  }
 
-  assertBillingCredentialModeMatch(billingCredential.issuedMode, settings.mode)
+    const billingCredential = await getActiveBillingKeyForUser(client, userId)
+    if (!billingCredential?.billingKey) {
+      return { needsBillingAuth: true, hasBillingKey: false, settings: null, billingCredential: null, pending: null }
+    }
 
-  const pending = await createPendingInsurancePaymentRow(client, {
-    userId,
-    planCode: params.planCode,
-    billingCycle: params.billingCycle,
-    promotionCode: params.promotionCode,
-    provider: 'toss',
+    if (params.registerOnly) {
+      return {
+        needsBillingAuth: false,
+        hasBillingKey: true,
+        registeredOnly: true,
+        settings,
+        billingCredential,
+        pending: null,
+      }
+    }
+
+    assertBillingCredentialModeMatch(billingCredential.issuedMode, settings.mode)
+
+    const pending = await createPendingInsurancePaymentRow(client, {
+      userId,
+      planCode: params.planCode,
+      billingCycle: params.billingCycle,
+      promotionCode: params.promotionCode,
+      provider: 'toss',
+    })
+
+    return { needsBillingAuth: false, hasBillingKey: true, settings, billingCredential, pending }
   })
 
-  // Toss 0원 charge 금지 — 할인으로 최종 0원이면 결제 row 확정만 수행
+  if (prepared.needsBillingAuth) {
+    return { needsBillingAuth: true, hasBillingKey: false }
+  }
+  if (prepared.registeredOnly) {
+    return { needsBillingAuth: false, hasBillingKey: true, registeredOnly: true }
+  }
+
+  const { settings, billingCredential, pending } = prepared
+  if (!settings || !billingCredential || !pending) {
+    throw new Error('toss_payment_prepare_failed')
+  }
+
   if (Number(pending.totalAmount) <= 0) {
-    const paid = await finalizeInsurancePaymentAsPaid(client, {
-      paymentId: pending.paymentId,
-      source: 'toss',
-    })
+    const paid = await withShortBillingTransaction(pool, async (client) =>
+      finalizeInsurancePaymentAsPaid(client, {
+        paymentId: pending.paymentId,
+        source: 'toss',
+      }),
+    )
     return {
       needsBillingAuth: false,
       hasBillingKey: true,
@@ -401,7 +520,7 @@ export async function requestTossInsurancePayment(client, params) {
     }
   }
 
-  const result = await executeTossBillingCharge(client, {
+  const result = await runTossBillingChargeOutsideTransaction(pool, {
     paymentId: pending.paymentId,
     userId,
     billingKey: billingCredential.billingKey,
@@ -412,6 +531,7 @@ export async function requestTossInsurancePayment(client, params) {
     secretKey: settings.secretKey,
     mode: settings.mode,
     testCode: params.testCode,
+    source: 'checkout',
   })
 
   return {
@@ -423,9 +543,9 @@ export async function requestTossInsurancePayment(client, params) {
 }
 
 /**
- * @param {import('pg').PoolClient} client
+ * @param {import('pg').Pool} pool
  * @param {{ userId: string; planCode?: string; billingCycle?: string; testCode?: string | null }} params
  */
-export async function completeTossInsurancePayment(client, params) {
-  return requestTossInsurancePayment(client, params)
+export async function completeTossInsurancePayment(pool, params) {
+  return requestTossInsurancePayment(pool, params)
 }

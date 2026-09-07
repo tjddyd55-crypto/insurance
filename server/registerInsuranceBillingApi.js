@@ -31,6 +31,10 @@ import {
   getInsuranceBillingPaymentAdmin,
   listInsuranceBillingPaymentsAdmin,
 } from './insurance-billing/paymentAdminService.js'
+import {
+  reconcilePendingInsurancePayment,
+  reconcileStalePendingInsurancePayments,
+} from './insurance-billing/reconcileInsurancePayment.js'
 import { getInsurancePaymentProvider } from './insurance-billing/providers/index.js'
 import { buildBillingCheckoutConfig } from './insurance-billing/billingCheckoutConfig.js'
 import { confirmTossBillingAuth } from './insurance-billing/providers/tossBillingService.js'
@@ -272,26 +276,16 @@ export function registerInsuranceBillingApi(apiRouter, ctx) {
       res.status(403).json({ message: 'mock 결제는 develop/test 환경에서만 사용할 수 있습니다.' })
       return
     }
-    const client = await pool.connect()
     try {
       const userId = String(req.user?.id ?? '').trim()
       const planCode = String(req.body?.planCode ?? req.body?.plan_code ?? 'insurance_basic').trim()
       const billingCycle = String(req.body?.billingCycle ?? req.body?.billing_cycle ?? 'monthly').trim()
-      await client.query('BEGIN')
       const provider = getInsurancePaymentProvider(resolveBillingUserContext(req))
-      const result = await provider.completePayment(client, { userId, planCode, billingCycle })
-      await client.query('COMMIT')
+      const result = await provider.completePayment(pool, { userId, planCode, billingCycle })
       res.json({ ok: true, ...result })
     } catch (e) {
-      try {
-        await client.query('ROLLBACK')
-      } catch {
-        /* */
-      }
       if (mapInsuranceBillingError(e, res)) return
       handleDbError(e, req, res)
-    } finally {
-      client.release()
     }
   })
 
@@ -334,16 +328,14 @@ export function registerInsuranceBillingApi(apiRouter, ctx) {
   })
 
   apiRouter.post('/billing/payments/request', requireAuth, requireBillingEnabled, requireBillingSubject, async (req, res) => {
-    const client = await pool.connect()
     try {
       const userId = String(req.user?.id ?? '').trim()
       const planCode = String(req.body?.planCode ?? req.body?.plan_code ?? 'insurance_basic').trim()
       const billingCycle = String(req.body?.billingCycle ?? req.body?.billing_cycle ?? 'monthly').trim()
       const promotionCode = req.body?.promotionCode ?? req.body?.promotion_code ?? null
       const registerOnly = req.body?.registerOnly === true || req.body?.register_only === true
-      await client.query('BEGIN')
       const provider = getInsurancePaymentProvider(resolveBillingUserContext(req))
-      const result = await provider.requestPayment(client, {
+      const result = await provider.requestPayment(pool, {
         userId,
         planCode,
         billingCycle,
@@ -351,7 +343,6 @@ export function registerInsuranceBillingApi(apiRouter, ctx) {
         registerOnly,
         testCode: allowTossTestCode(req),
       })
-      await client.query('COMMIT')
       if (result?.needsBillingAuth) {
         const checkoutConfig = await buildBillingCheckoutConfig(pool, userId, resolveBillingUserContext(req))
         res.status(200).json({
@@ -361,17 +352,30 @@ export function registerInsuranceBillingApi(apiRouter, ctx) {
         })
         return
       }
+      if (result?.needsReconciliation) {
+        res.status(202).json({
+          ok: false,
+          needsReconciliation: true,
+          paymentId: result.paymentId ?? null,
+          orderId: result.orderId ?? null,
+          message: '결제 처리 중입니다. 잠시 후 다시 확인해 주세요.',
+        })
+        return
+      }
       res.status(201).json({ ok: true, ...result })
     } catch (e) {
-      try {
-        await client.query('ROLLBACK')
-      } catch {
-        /* */
+      if (e && typeof e === 'object' && e.needsReconciliation) {
+        res.status(202).json({
+          ok: false,
+          needsReconciliation: true,
+          paymentId: e.paymentId ?? null,
+          orderId: e.orderId ?? null,
+          message: '결제 처리 중입니다. 잠시 후 다시 확인해 주세요.',
+        })
+        return
       }
       if (mapInsuranceBillingError(e, res)) return
       handleDbError(e, req, res)
-    } finally {
-      client.release()
     }
   })
 
@@ -707,6 +711,45 @@ export function registerInsuranceBillingApi(apiRouter, ctx) {
           res.status(404).json({ message: '결제 요청을 찾을 수 없습니다.' })
           return
         }
+        handleDbError(e, req, res)
+      }
+    })
+
+    apiRouter.post('/admin/billing/payments/:paymentId/reconcile', requireAuth, requireSuperAdmin, async (req, res) => {
+      try {
+        const paymentId = req.params.paymentId
+        const result = await reconcilePendingInsurancePayment(pool, { paymentId })
+        res.json({ ok: true, ...result })
+      } catch (e) {
+        const code = e?.message ?? ''
+        if (code === 'invalid_payment_id') {
+          res.status(400).json({ message: '유효하지 않은 결제 ID입니다.' })
+          return
+        }
+        if (code === 'payment_not_found') {
+          res.status(404).json({ message: '결제 요청을 찾을 수 없습니다.' })
+          return
+        }
+        if (code === 'payment_not_reconcilable') {
+          res.status(409).json({ message: '복구할 수 없는 결제 상태입니다.' })
+          return
+        }
+        if (code === 'toss_payment_amount_mismatch' || code === 'toss_payment_order_mismatch') {
+          res.status(409).json({ message: '결제 금액 또는 주문번호가 일치하지 않습니다.' })
+          return
+        }
+        handleDbError(e, req, res)
+      }
+    })
+
+    apiRouter.post('/admin/billing/payments/reconcile-stale', requireAuth, requireSuperAdmin, async (req, res) => {
+      try {
+        const summary = await reconcileStalePendingInsurancePayments(pool, {
+          olderThanMs: Number(req.body?.olderThanMs ?? 120_000),
+          limit: Number(req.body?.limit ?? 20),
+        })
+        res.json({ ok: true, ...summary })
+      } catch (e) {
         handleDbError(e, req, res)
       }
     })

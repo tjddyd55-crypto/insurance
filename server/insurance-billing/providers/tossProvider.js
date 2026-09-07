@@ -2,10 +2,10 @@ import { requestTossInsurancePayment, completeTossInsurancePayment } from './tos
 
 /** @type {import('./index.js').InsurancePaymentProvider} */
 export const tossProvider = {
-  async requestPayment(client, params) {
-    return requestTossInsurancePayment(client, params)
+  async requestPayment(pool, params) {
+    return requestTossInsurancePayment(pool, params)
   },
-  async completePayment(client, params) {
-    return completeTossInsurancePayment(client, params)
+  async completePayment(pool, params) {
+    return completeTossInsurancePayment(pool, params)
   },
 }

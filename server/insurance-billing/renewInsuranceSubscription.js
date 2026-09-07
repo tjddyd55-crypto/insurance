@@ -6,12 +6,13 @@
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { resolvePaymentSettingsInternal } from '../billing/paymentSettingsResolve.js'
 import { getActiveBillingKeyForUser, assertBillingCredentialModeMatch } from './billingPaymentCredential.js'
-import { finalizeInsurancePaymentAsPaid, recordBillingEvent } from './subscriptionLifecycle.js'
+import { recordBillingEvent } from './subscriptionLifecycle.js'
 import { getInsuranceBillingProvider } from './config.js'
 import {
   createPendingInsurancePaymentRow,
-  executeTossBillingCharge,
+  runTossBillingChargeOutsideTransaction,
 } from './providers/tossBillingService.js'
+import { reconcilePendingInsurancePayment } from './reconcileInsurancePayment.js'
 import { buildRenewalPeriodKey } from './billingPeriodDate.js'
 import { addCalendarDaysKst } from './billingPeriodDate.js'
 import {
@@ -20,9 +21,8 @@ import {
   getInsuranceBillingRenewalMaxRetry,
   getInsuranceBillingRenewalRetryDelayDays,
 } from './renewalPolicy.js'
-import {
-  resolveEffectiveRenewalBillingCycle,
-} from './subscriptionManageActions.js'
+import { resolveEffectiveRenewalBillingCycle } from './subscriptionManageActions.js'
+import { withShortBillingTransaction } from './billingTransaction.js'
 
 function isUniqueViolation(error) {
   return String(error?.code ?? '') === '23505'
@@ -162,136 +162,155 @@ export async function listDueInsuranceRenewalsDryRun(executor, params = {}) {
   return r.rows.map(mapDueSubscriptionRow)
 }
 
-async function markRenewalFailure(client, sub, errorClass, providerCode) {
-  const nextCount = Number(sub.retryCount ?? 0) + 1
-  const maxRetry = getInsuranceBillingRenewalMaxRetry()
-  const delays = getInsuranceBillingRenewalRetryDelayDays()
-  const delayDays = delays[Math.min(nextCount - 1, delays.length - 1)] ?? 1
-  const nextRetryAt = addCalendarDaysKst(sub.nextBillingAt, delayDays)
-  const terminal = nextCount >= maxRetry || errorClass === 'terminal'
-  const nextStatus = terminal && nextCount >= maxRetry ? 'past_due' : 'active_paid'
+async function markRenewalFailure(pool, sub, errorClass, providerCode) {
+  return withShortBillingTransaction(pool, async (client) => {
+    const nextCount = Number(sub.retryCount ?? 0) + 1
+    const maxRetry = getInsuranceBillingRenewalMaxRetry()
+    const delays = getInsuranceBillingRenewalRetryDelayDays()
+    const delayDays = delays[Math.min(nextCount - 1, delays.length - 1)] ?? 1
+    const nextRetryAt = addCalendarDaysKst(sub.nextBillingAt, delayDays)
+    const terminal = nextCount >= maxRetry || errorClass === 'terminal'
+    const nextStatus = terminal && nextCount >= maxRetry ? 'past_due' : 'active_paid'
 
-  await systemQuery(
-    client,
-    `
-    UPDATE billing_subscriptions
-    SET
-      status = $2,
-      renewal_retry_count = $3,
-      last_renewal_failed_at = NOW(),
-      next_renewal_retry_at = $4,
-      updated_at = NOW()
-    WHERE id = $1
-    `,
-    [sub.id, nextStatus, nextCount, nextRetryAt.toISOString()],
-  )
+    await systemQuery(
+      client,
+      `
+      UPDATE billing_subscriptions
+      SET
+        status = $2,
+        renewal_retry_count = $3,
+        last_renewal_failed_at = NOW(),
+        next_renewal_retry_at = $4,
+        updated_at = NOW()
+      WHERE id = $1
+      `,
+      [sub.id, nextStatus, nextCount, nextRetryAt.toISOString()],
+    )
 
-  await recordBillingEvent(client, {
-    tenantId: sub.tenantId,
-    userId: sub.userId,
-    eventType: 'payment.renewal.failed',
-    payload: {
-      subscriptionId: sub.id,
-      retryCount: nextCount,
-      providerCode: providerCode ?? null,
-      nextStatus,
-    },
+    await recordBillingEvent(client, {
+      tenantId: sub.tenantId,
+      userId: sub.userId,
+      eventType: 'payment.renewal.failed',
+      payload: {
+        subscriptionId: sub.id,
+        retryCount: nextCount,
+        providerCode: providerCode ?? null,
+        nextStatus,
+      },
+    })
+
+    return { retryCount: nextCount, nextRetryAt: nextRetryAt.toISOString(), status: nextStatus }
   })
-
-  return { retryCount: nextCount, nextRetryAt: nextRetryAt.toISOString(), status: nextStatus }
 }
 
 /**
- * @param {import('pg').PoolClient} client
+ * @param {import('pg').Pool} pool
  * @param {{ subscriptionId: number; now?: Date; testCode?: string | null }} params
  */
-export async function renewInsuranceSubscription(client, params) {
+export async function renewInsuranceSubscription(pool, params) {
   const now = params.now ?? new Date()
-  const subR = await systemQuery(
-    client,
-    `
-    SELECT
-      bs.id, bs.user_id, bs.tenant_id, bs.status, bs.plan_code, bs.billing_cycle,
-      bs.pending_billing_cycle,
-      bs.next_billing_at, bs.cancel_at, bs.canceled_at,
-      bs.renewal_retry_count, bs.next_renewal_retry_at,
-      gc.code AS ga_code,
-      u.username
-    FROM billing_subscriptions bs
-    JOIN users u ON u.id = bs.user_id
-    LEFT JOIN ga_companies gc ON gc.id = u.ga_id
-    WHERE bs.id = $1
-    LIMIT 1
-    FOR UPDATE OF bs SKIP LOCKED
-    `,
-    [params.subscriptionId],
-  )
-  const sub = subR.rows[0] ? mapDueSubscriptionRow(subR.rows[0]) : null
-  if (!sub) {
-    return { outcome: 'skipped', reason: 'subscription_not_found' }
-  }
 
-  let hasBillingCredential = false
-  try {
-    const cred = await getActiveBillingKeyForUser(client, sub.userId)
-    hasBillingCredential = Boolean(cred?.billingKey)
-  } catch {
-    return { outcome: 'skipped', reason: 'billing_credential_invalid' }
-  }
-
-  const eligibility = evaluateRenewalEligibility({
-    status: sub.status,
-    nextBillingAt: sub.nextBillingAt,
-    retryCount: sub.retryCount,
-    nextRetryAt: sub.nextRetryAt,
-    cancelAt: sub.cancelAt,
-    canceledAt: sub.canceledAt,
-    hasBillingCredential,
-    workerProvider: getInsuranceBillingProvider(),
-    now,
-    maxRetry: getInsuranceBillingRenewalMaxRetry(),
-  })
-  if (!eligibility.ok) {
-    return { outcome: 'skipped', reason: eligibility.reason }
-  }
-
-  const settings = await resolvePaymentSettingsInternal(client)
-  if (settings.provider !== 'toss' || !settings.isEnabled || !settings.secretKey) {
-    return { outcome: 'skipped', reason: 'toss_billing_not_enabled' }
-  }
-
-  const billingCredential = await getActiveBillingKeyForUser(client, sub.userId)
-  if (!billingCredential?.billingKey) {
-    return { outcome: 'skipped', reason: 'billing_credential_missing' }
-  }
-  try {
-    assertBillingCredentialModeMatch(billingCredential.issuedMode, settings.mode)
-  } catch {
-    return { outcome: 'skipped', reason: 'billing_credential_environment_mismatch' }
-  }
-
-  const periodKey = buildRenewalPeriodKey(sub.nextBillingAt)
-  const chargeBillingCycle = resolveEffectiveRenewalBillingCycle(sub)
-
-  let pending
-  try {
-    pending = await createPendingInsurancePaymentRow(client, {
-      userId: sub.userId,
-      planCode: sub.planCode,
-      billingCycle: chargeBillingCycle,
-      provider: 'toss',
-      paymentSource: 'renewal',
-      renewalPeriodKey: periodKey,
-    })
-  } catch (error) {
-    if (isUniqueViolation(error)) {
-      return { outcome: 'skipped', reason: 'already_renewed_or_pending' }
+  const prepared = await withShortBillingTransaction(pool, async (client) => {
+    const subR = await systemQuery(
+      client,
+      `
+      SELECT
+        bs.id, bs.user_id, bs.tenant_id, bs.status, bs.plan_code, bs.billing_cycle,
+        bs.pending_billing_cycle,
+        bs.next_billing_at, bs.cancel_at, bs.canceled_at,
+        bs.renewal_retry_count, bs.next_renewal_retry_at,
+        gc.code AS ga_code,
+        u.username
+      FROM billing_subscriptions bs
+      JOIN users u ON u.id = bs.user_id
+      LEFT JOIN ga_companies gc ON gc.id = u.ga_id
+      WHERE bs.id = $1
+      LIMIT 1
+      FOR UPDATE OF bs SKIP LOCKED
+      `,
+      [params.subscriptionId],
+    )
+    const sub = subR.rows[0] ? mapDueSubscriptionRow(subR.rows[0]) : null
+    if (!sub) {
+      return { skipped: true, reason: 'subscription_not_found' }
     }
-    throw error
+
+    let hasBillingCredential = false
+    try {
+      const cred = await getActiveBillingKeyForUser(client, sub.userId)
+      hasBillingCredential = Boolean(cred?.billingKey)
+    } catch {
+      return { skipped: true, reason: 'billing_credential_invalid' }
+    }
+
+    const eligibility = evaluateRenewalEligibility({
+      status: sub.status,
+      nextBillingAt: sub.nextBillingAt,
+      retryCount: sub.retryCount,
+      nextRetryAt: sub.nextRetryAt,
+      cancelAt: sub.cancelAt,
+      canceledAt: sub.canceledAt,
+      hasBillingCredential,
+      workerProvider: getInsuranceBillingProvider(),
+      now,
+      maxRetry: getInsuranceBillingRenewalMaxRetry(),
+    })
+    if (!eligibility.ok) {
+      return { skipped: true, reason: eligibility.reason }
+    }
+
+    const settings = await resolvePaymentSettingsInternal(client)
+    if (settings.provider !== 'toss' || !settings.isEnabled || !settings.secretKey) {
+      return { skipped: true, reason: 'toss_billing_not_enabled' }
+    }
+
+    const billingCredential = await getActiveBillingKeyForUser(client, sub.userId)
+    if (!billingCredential?.billingKey) {
+      return { skipped: true, reason: 'billing_credential_missing' }
+    }
+    try {
+      assertBillingCredentialModeMatch(billingCredential.issuedMode, settings.mode)
+    } catch {
+      return { skipped: true, reason: 'billing_credential_environment_mismatch' }
+    }
+
+    const periodKey = buildRenewalPeriodKey(sub.nextBillingAt)
+    const chargeBillingCycle = resolveEffectiveRenewalBillingCycle(sub)
+
+    try {
+      const pending = await createPendingInsurancePaymentRow(client, {
+        userId: sub.userId,
+        planCode: sub.planCode,
+        billingCycle: chargeBillingCycle,
+        provider: 'toss',
+        paymentSource: 'renewal',
+        renewalPeriodKey: periodKey,
+      })
+      return {
+        skipped: false,
+        sub,
+        pending,
+        settings,
+        billingCredential,
+        periodKey,
+        chargeBillingCycle,
+      }
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        return { skipped: true, reason: 'already_renewed_or_pending' }
+      }
+      throw error
+    }
+  })
+
+  if (prepared.skipped) {
+    return { outcome: 'skipped', reason: prepared.reason }
   }
 
+  const { sub, pending, settings, billingCredential, periodKey, chargeBillingCycle } = prepared
+
   try {
-    const paid = await executeTossBillingCharge(client, {
+    const paid = await runTossBillingChargeOutsideTransaction(pool, {
       paymentId: pending.paymentId,
       userId: sub.userId,
       billingKey: billingCredential.billingKey,
@@ -319,25 +338,40 @@ export async function renewInsuranceSubscription(client, params) {
   } catch (error) {
     const providerCode = error?.providerCode ?? null
     const errorClass = classifyRenewalTossError(providerCode)
-    if (errorClass === 'already_processed') {
-      const paid = await finalizeInsurancePaymentAsPaid(client, {
-        paymentId: pending.paymentId,
-        source: 'renewal',
-        periodAnchor: sub.nextBillingAt,
-      })
-      return {
-        outcome: 'paid',
-        reason: 'already_processed',
-        paymentId: pending.paymentId,
-        totalAmount: pending.totalAmount,
-        billingCycle: chargeBillingCycle,
-        previousBillingCycle: sub.billingCycle,
-        pendingBillingCycle: sub.pendingBillingCycle,
-        subscriptionStatus: paid.subscriptionStatus,
-        renewalPeriodKey: periodKey,
+    if (errorClass === 'already_processed' || error?.needsReconciliation) {
+      try {
+        const reconciled = await reconcilePendingInsurancePayment(pool, {
+          paymentId: pending.paymentId,
+          secretKey: settings.secretKey,
+          source: 'renewal',
+          periodAnchor: sub.nextBillingAt,
+        })
+        if (reconciled.outcome === 'reconciled' || reconciled.outcome === 'already_paid') {
+          return {
+            outcome: 'paid',
+            reason: reconciled.outcome === 'already_paid' ? 'already_paid' : 'already_processed',
+            paymentId: pending.paymentId,
+            totalAmount: pending.totalAmount,
+            billingCycle: chargeBillingCycle,
+            previousBillingCycle: sub.billingCycle,
+            pendingBillingCycle: sub.pendingBillingCycle,
+            subscriptionStatus: reconciled.subscriptionStatus,
+            renewalPeriodKey: periodKey,
+          }
+        }
+      } catch {
+        /* fall through */
       }
     }
-    const failure = await markRenewalFailure(client, sub, errorClass, providerCode)
+    if (error?.needsReconciliation) {
+      return {
+        outcome: 'pending_reconciliation',
+        reason: 'toss_charge_network_error',
+        paymentId: pending.paymentId,
+        orderId: pending.orderId,
+      }
+    }
+    const failure = await markRenewalFailure(pool, sub, errorClass, providerCode)
     return {
       outcome: 'failed',
       reason: error?.message ?? 'renewal_charge_failed',

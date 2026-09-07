@@ -17,6 +17,15 @@ import { renewInsuranceSubscription, mapDueSubscriptionRow } from '../insurance-
 import { resolveEffectiveRenewalBillingCycle } from '../insurance-billing/subscriptionManageActions.js'
 import { getInsuranceBillingRenewalWorkerDiagnostics } from '../insurance-billing/insuranceBillingRenewalWorker.js'
 
+function asBillingPool(executor) {
+  return {
+    connect: async () => ({
+      query: executor.query.bind(executor),
+      release() {},
+    }),
+  }
+}
+
 function eligibleBase(overrides = {}) {
   return {
     status: 'active_paid',
@@ -260,7 +269,7 @@ test('same-period unique violation is skipped', async () => {
   const prevProvider = process.env.INSURANCE_BILLING_PROVIDER
   process.env.INSURANCE_BILLING_PROVIDER = 'toss'
   try {
-    const result = await renewInsuranceSubscription(client, {
+    const result = await renewInsuranceSubscription(asBillingPool(client), {
       subscriptionId: 1,
       now: new Date('2026-08-19T00:00:00.000Z'),
     })

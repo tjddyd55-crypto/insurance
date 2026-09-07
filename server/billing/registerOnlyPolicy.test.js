@@ -6,6 +6,15 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { requestTossInsurancePayment } from '../insurance-billing/providers/tossBillingService.js'
 
+function asBillingPool(executor) {
+  return {
+    connect: async () => ({
+      query: executor.query.bind(executor),
+      release() {},
+    }),
+  }
+}
+
 // ─── checkout mode 분류 — legacy_entitled 정책 ────────────────────────────────
 // frontend billingCheckoutViewState.ts 의 resolveBillingCheckoutMode 로직 미러
 
@@ -91,7 +100,7 @@ test('register-only + billingKey 있음 → registeredOnly=true, charge 없음',
   process.env.PAYMENT_SETTINGS_SECRET_KEY = '0'.repeat(64)
   try {
     const executor = makeSettingsExecutor(true)
-    const result = await requestTossInsurancePayment(executor, {
+    const result = await requestTossInsurancePayment(asBillingPool(executor), {
       userId: 'user-legacy',
       planCode: 'insurance_basic',
       billingCycle: 'monthly',
@@ -112,7 +121,7 @@ test('register-only + billingKey 없음 → needsBillingAuth=true (Toss auth 필
   process.env.PAYMENT_SETTINGS_SECRET_KEY = '0'.repeat(64)
   try {
     const executor = makeSettingsExecutor(false)
-    const result = await requestTossInsurancePayment(executor, {
+    const result = await requestTossInsurancePayment(asBillingPool(executor), {
       userId: 'user-no-key',
       planCode: 'insurance_basic',
       billingCycle: 'monthly',
@@ -183,7 +192,7 @@ test('register-only=false + billingKey 있음 → createPendingPayment 진행 (�
     // 실제 Toss 호출은 mock하지 않으므로 network error 예상 — 그것이 목적
     // 여기서는 subscription 없음으로 plan_not_found / subscription_not_found 에러가 예상됨
     await assert.rejects(
-      () => requestTossInsurancePayment(executor, {
+      () => requestTossInsurancePayment(asBillingPool(executor), {
         userId: 'user-legacy',
         planCode: 'insurance_basic',
         billingCycle: 'monthly',
