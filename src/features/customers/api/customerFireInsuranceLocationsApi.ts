@@ -65,7 +65,7 @@ export async function createCustomerFireInsuranceLocation(
   assertToken(token)
   const raw = await apiRequest<Record<string, unknown>>(
     `/api/customers/${customerId}/fire-insurance-locations`,
-    { method: 'POST', token, body: input },
+    { method: 'POST', token, body: JSON.stringify(input) },
   )
   return mapLocation(raw)
 }
@@ -79,7 +79,7 @@ export async function updateCustomerFireInsuranceLocation(
   assertToken(token)
   const raw = await apiRequest<Record<string, unknown>>(
     `/api/customers/${customerId}/fire-insurance-locations/${locationId}`,
-    { method: 'PATCH', token, body: input },
+    { method: 'PATCH', token, body: JSON.stringify(input) },
   )
   return mapLocation(raw)
 }

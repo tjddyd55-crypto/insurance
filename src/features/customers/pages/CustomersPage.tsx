@@ -114,6 +114,10 @@ import {
 import { coerceCustomersStatePayload } from '../utils/customerStateGuards'
 import { dedupeCustomersById } from '../utils/customerSearchDedupe'
 import {
+  mergeCustomerInList,
+  resolveCustomerCardKeepOpenId,
+} from '../utils/customerListOpenState'
+import {
   CUSTOMER_LIST_PATH,
   CUSTOMER_CREATE_MODE_QUERY,
   buildCustomerWorkspacePath,
@@ -209,6 +213,8 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   const [editForm, setEditForm] = useState<CustomerEditFormState | null>(null)
   const [editSaving, setEditSaving] = useState(false)
   const editSavingRef = useRef(false)
+  const [editDetailReady, setEditDetailReady] = useState(true)
+  const editDetailReadyRef = useRef(true)
   const [activeMobileModal, setActiveMobileModal] = useState<
     null | 'files' | 'consultations' | 'ga' | 'signatures'
   >(null)
@@ -224,6 +230,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   expandedIdRef.current = expandedId
   editingIdRef.current = editingId
   editFormRef.current = editForm
+  editDetailReadyRef.current = editDetailReady
 
   useCustomerExpandedCardScroll({
     expandedId,
@@ -245,6 +252,22 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       setScrollRequestKey((prev) => prev + 1)
     }
   }, [])
+
+  const mergeCustomerInListState = useCallback((updated: CustomerRecord) => {
+    setCustomers((prev) => mergeCustomerInList(prev, updated))
+    setAdvSearchHits((hits) =>
+      hits == null ? hits : mergeCustomerInList(hits, updated),
+    )
+    setPinnedWorkspaceCustomer((prev) => (prev?.id === updated.id ? updated : prev))
+  }, [])
+
+  const keepCustomerCardOpen = useCallback(
+    (customerId: number) => {
+      pinnedListCustomerIdRef.current = customerId
+      applyListCustomerExpand(customerId, false)
+    },
+    [applyListCustomerExpand],
+  )
 
   /**
    * expandedId state 와 `?customerId=` 쿼리를 같은 호출에서 원자적으로 갱신하는 래퍼.
@@ -618,7 +641,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     onEnterExcelSelectMode,
   })
 
-  const loadCustomers = useCallback(async () => {
+  const loadCustomers = useCallback(async (options?: { silent?: boolean }) => {
     if (!token || user?.role !== 'USER') {
       setIsLoading(false)
       setCustomersTotalCount(0)
@@ -628,7 +651,9 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       setStatusText('기준 날짜를 선택해 주세요.')
       return
     }
-    setIsLoading(true)
+    if (!options?.silent) {
+      setIsLoading(true)
+    }
     try {
       const listOpts: Parameters<typeof listCustomers>[1] = { limit: CUSTOMER_LIST_FETCH_LIMIT }
       if (appliedConsultationFilter === 'none' || appliedConsultationFilter === 'has') {
@@ -659,7 +684,9 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     } catch (error) {
       setStatusText(error instanceof Error ? error.message : '목록을 불러오지 못했습니다.')
     } finally {
-      setIsLoading(false)
+      if (!options?.silent) {
+        setIsLoading(false)
+      }
     }
   }, [
     token,
@@ -993,6 +1020,8 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     if (editingId != null && expandedId !== editingId) {
       setEditingId(null)
       setEditForm(null)
+      setEditDetailReady(true)
+      editDetailReadyRef.current = true
     }
   }, [expandedId, editingId])
 
@@ -1008,6 +1037,8 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   const cancelEdit = useCallback(() => {
     setEditingId(null)
     setEditForm(null)
+    setEditDetailReady(true)
+    editDetailReadyRef.current = true
   }, [])
 
   const handleUpdateCustomer = useCallback(async () => {
@@ -1054,6 +1085,10 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         return
       }
     }
+    if (crm.isInsuranceLayout && !editDetailReadyRef.current) {
+      setStatusText('상세 정보를 불러오는 중입니다. 잠시 후 다시 저장해 주세요.')
+      return
+    }
     const name = activeEditForm.name.trim()
     const normalizedCars = normalizeCustomerCarsForSave(activeEditForm.cars)
     const primaryCar = pickPrimaryCustomerCar(normalizedCars)
@@ -1070,7 +1105,11 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
               fields: {},
             },
           }
-      await updateCustomer(token, activeEditingId, {
+      const keepOpenCustomerId = resolveCustomerCardKeepOpenId(
+        activeEditingId,
+        expandedIdRef.current,
+      )
+      const updatedCustomer = await updateCustomer(token, activeEditingId, {
         name,
         ssn: activeEditForm.ssn,
         phone: activeEditForm.phone,
@@ -1128,7 +1167,14 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           '고객 정보는 수정했습니다. 자동차 정보 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.',
         )
         cancelEdit()
-        await loadCustomers()
+        mergeCustomerInListState(updatedCustomer)
+        if (keepOpenCustomerId != null) {
+          keepCustomerCardOpen(keepOpenCustomerId)
+        }
+        await loadCustomers({ silent: true })
+        if (keepOpenCustomerId != null) {
+          keepCustomerCardOpen(keepOpenCustomerId)
+        }
         return
       }
       try {
@@ -1144,7 +1190,14 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           '고객 정보는 수정했습니다. 화재보험 소재지 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.',
         )
         cancelEdit()
-        await loadCustomers()
+        mergeCustomerInListState(updatedCustomer)
+        if (keepOpenCustomerId != null) {
+          keepCustomerCardOpen(keepOpenCustomerId)
+        }
+        await loadCustomers({ silent: true })
+        if (keepOpenCustomerId != null) {
+          keepCustomerCardOpen(keepOpenCustomerId)
+        }
         return
       }
       try {
@@ -1172,12 +1225,19 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       }
       setStatusText('고객 정보를 수정했습니다.')
       cancelEdit()
-      await loadCustomers()
+      mergeCustomerInListState(updatedCustomer)
+      if (keepOpenCustomerId != null) {
+        keepCustomerCardOpen(keepOpenCustomerId)
+      }
+      await loadCustomers({ silent: true })
+      if (keepOpenCustomerId != null) {
+        keepCustomerCardOpen(keepOpenCustomerId)
+      }
     } catch (error) {
       const msg = error instanceof Error ? error.message : '수정에 실패했습니다.'
       setStatusText(msg)
     }
-  }, [token, user?.role, cancelEdit, loadCustomers])
+  }, [token, user?.role, cancelEdit, loadCustomers, mergeCustomerInListState, keepCustomerCardOpen])
 
   const handleEditSaveRequest = useCallback(async () => {
     if (editSavingRef.current) {
@@ -1259,11 +1319,17 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       const base = recordToEditForm(cl)
       setEditForm(base)
       if (!token?.trim()) {
+        setEditDetailReady(true)
+        editDetailReadyRef.current = true
         return
       }
       if (!crmIndustryRef.current.isInsuranceLayout) {
+        setEditDetailReady(true)
+        editDetailReadyRef.current = true
         return
       }
+      setEditDetailReady(false)
+      editDetailReadyRef.current = false
       const customerId = cl.id
       void (async () => {
         try {
@@ -1286,9 +1352,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
               ...(serverCars.length > 0
                 ? { cars: serverCars.map(customerCarRecordToFormItem) }
                 : {}),
-              ...(serverDetail?.businessInfo
-                ? { businessInfo: customerBusinessInfoToForm(serverDetail.businessInfo) }
-                : {}),
+              businessInfo: customerBusinessInfoToForm(serverDetail?.businessInfo ?? null),
               specialDates: serverSpecialDates.map(customerSpecialDateRecordToFormItem),
               fireInsuranceLocations: ensureCustomerFireInsuranceLocationFormItems(
                 serverFireLocations.map(customerFireInsuranceLocationRecordToFormItem),
@@ -1297,6 +1361,11 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           })
         } catch {
           setStatusText('자동차·기념일·화재보험 목록을 불러오지 못했습니다. 기본 정보로 편집합니다.')
+        } finally {
+          if (editingIdRef.current === customerId) {
+            setEditDetailReady(true)
+            editDetailReadyRef.current = true
+          }
         }
       })()
     },
@@ -1801,7 +1870,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
               setEditForm={setEditForm}
               onEditSubmit={handleEditFormSubmit}
               onEditSaveRequest={handleEditSaveRequest}
-              editSaving={editSaving}
+              editSaving={editSaving || (editingId != null && !editDetailReady)}
               editStatusText={editingId === c.id ? statusText : undefined}
               carFeatureEnabled={carFeatureEnabled}
               contractSignaturesEnabled={contractSignaturesEnabled}
