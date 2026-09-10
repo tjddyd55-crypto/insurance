@@ -5,6 +5,8 @@ import { customerRecordToCarFormItems } from './customerCarFormUtils'
 import { normalizeCustomerCarrierForForm } from '../config/customerMobileCarrier.config'
 import { resolveMedicalHistoryFromCustomer } from './customerMedicalHistory'
 import { inferGenderFromResidentNumberDigits } from './inferGenderFromResidentNumberDigits'
+import { customerBusinessInfoToForm } from '../domain/customerBusinessInfo'
+import { createEmptyCustomerFireInsuranceLocation } from './customerFireInsuranceLocationFormUtils'
 
 export function inferIsDriverFromDriving(driving: string): boolean | null {
   const t = String(driving ?? '').trim()
@@ -47,6 +49,8 @@ export function recordToEditForm(c: CustomerRecord): CustomerEditFormState {
     insuranceHistory: normalizeCustomerNotesBag(c.notes).insuranceHistory,
     accountNumber: normalizeCustomerNotesBag(c.notes).accountNumber,
     cars: customerRecordToCarFormItems(c),
+    businessInfo: customerBusinessInfoToForm(c.businessInfo),
+    fireInsuranceLocations: [createEmptyCustomerFireInsuranceLocation()],
     specialDates: [],
     customFields: [],
     crmExtensionFields: { ...(c.crmExtension?.fields ?? {}) },

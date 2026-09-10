@@ -1838,6 +1838,53 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    ALTER TABLE customers
+    ADD COLUMN IF NOT EXISTS business_representative_name TEXT NOT NULL DEFAULT ''
+  `)
+  await pool.query(`
+    ALTER TABLE customers
+    ADD COLUMN IF NOT EXISTS business_number TEXT NOT NULL DEFAULT ''
+  `)
+  await pool.query(`
+    ALTER TABLE customers
+    ADD COLUMN IF NOT EXISTS business_address TEXT NOT NULL DEFAULT ''
+  `)
+  await pool.query(`
+    ALTER TABLE customers
+    ADD COLUMN IF NOT EXISTS business_memo TEXT NOT NULL DEFAULT ''
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS customer_fire_insurance_locations (
+      id BIGSERIAL PRIMARY KEY,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id) ON DELETE CASCADE,
+      address TEXT NOT NULL DEFAULT '',
+      memo TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      deleted_at TIMESTAMPTZ NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_fire_insurance_locations_customer_id
+    ON customer_fire_insurance_locations(customer_id)
+    WHERE deleted_at IS NULL
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_fire_insurance_locations_user_customer
+    ON customer_fire_insurance_locations(user_id, customer_id)
+    WHERE deleted_at IS NULL
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_fire_insurance_locations_ga_customer
+    ON customer_fire_insurance_locations(ga_id, customer_id)
+    WHERE deleted_at IS NULL
+  `)
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS customer_custom_fields (
       id BIGSERIAL PRIMARY KEY,
       customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,

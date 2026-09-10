@@ -1,4 +1,6 @@
+import type { CustomerBusinessInfo } from '../domain/customerBusinessInfo'
 import type { CustomerCarFormItem } from './customerCarForm'
+import type { CustomerFireInsuranceLocationFormItem } from './customerFireInsuranceLocationForm'
 import type { CustomerSpecialDateFormItem } from './customerSpecialDateForm'
 import type { CustomerCustomFieldFormItem } from './customerCustomFieldForm'
 
@@ -24,6 +26,8 @@ export type CustomerEditFormState = {
   /** 계좌번호 — notes.jsonb.accountNumber 로 저장(자유 텍스트) */
   accountNumber: string
   cars: CustomerCarFormItem[]
+  businessInfo: CustomerBusinessInfo
+  fireInsuranceLocations: CustomerFireInsuranceLocationFormItem[]
   specialDates: CustomerSpecialDateFormItem[]
   customFields: CustomerCustomFieldFormItem[]
   crmExtensionFields: Record<string, string>

@@ -1,4 +1,14 @@
 import type { CustomerCrmExtension } from './crmExtension'
+import type { CustomerBusinessInfo } from './customerBusinessInfo'
+import { normalizeCustomerBusinessInfo } from './customerBusinessInfo'
+
+export type CustomerFireInsuranceLocation = {
+  id: number
+  customerId?: number
+  address: string
+  memo: string
+  sortOrder?: number
+}
 
 export interface CustomerNote {
   id: string
@@ -129,5 +139,36 @@ export interface CustomerRecord {
   smsOptOut: boolean
   /** 업종별 확장 필드 (government / gym 등) — canonical fieldKey SSOT */
   crmExtension?: CustomerCrmExtension
+  /** 사업자 정보 — null이면 미입력 */
+  businessInfo?: CustomerBusinessInfo | null
+  /** 화재보험 소재지 — 상세 조회 시 포함, 목록에서는 생략 가능 */
+  fireInsuranceLocations?: CustomerFireInsuranceLocation[]
   createdAt: string
 }
+
+export function normalizeCustomerFireInsuranceLocations(raw: unknown): CustomerFireInsuranceLocation[] {
+  if (!Array.isArray(raw)) {
+    return []
+  }
+  const out: CustomerFireInsuranceLocation[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') {
+      continue
+    }
+    const o = item as Record<string, unknown>
+    const id = Number(o.id)
+    if (!Number.isFinite(id)) {
+      continue
+    }
+    out.push({
+      id,
+      customerId: o.customerId != null ? Number(o.customerId) : undefined,
+      address: String(o.address ?? '').trim(),
+      memo: String(o.memo ?? '').trim(),
+      sortOrder: o.sortOrder != null ? Number(o.sortOrder) : undefined,
+    })
+  }
+  return out
+}
+
+export { normalizeCustomerBusinessInfo }

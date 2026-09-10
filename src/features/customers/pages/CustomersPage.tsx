@@ -92,6 +92,13 @@ import {
   customerSpecialDateRecordToFormItem,
   saveCustomerSpecialDatesForCustomer,
 } from '../utils/customerSpecialDatesSaveUtils'
+import { listCustomerFireInsuranceLocations } from '../api/customerFireInsuranceLocationsApi'
+import {
+  customerFireInsuranceLocationRecordToFormItem,
+  saveCustomerFireInsuranceLocationsForCustomer,
+} from '../utils/customerFireInsuranceLocationsSaveUtils'
+import { ensureCustomerFireInsuranceLocationFormItems } from '../utils/customerFireInsuranceLocationFormUtils'
+import { isCustomerBusinessInfoFormEmpty } from '../domain/customerBusinessInfo'
 import { getCustomerSpecialDatesValidationError } from '../utils/customerSpecialDateFormUtils'
 import {
   customerCustomFieldRecordToFormItem,
@@ -1141,6 +1148,9 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           activeEditForm.inflowSource,
           activeEditForm.referrerName,
         ),
+        businessInfo: isCustomerBusinessInfoFormEmpty(activeEditForm.businessInfo)
+          ? null
+          : activeEditForm.businessInfo,
         ...industryExt,
       })
       try {
@@ -1164,6 +1174,22 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         if (keepOpenCustomerId != null) {
           keepCustomerCardOpen(keepOpenCustomerId)
         }
+        return
+      }
+      try {
+        if (token?.trim() && crmIndustryRef.current.isInsuranceLayout) {
+          await saveCustomerFireInsuranceLocationsForCustomer({
+            token,
+            customerId: activeEditingId,
+            formItems: activeEditForm.fireInsuranceLocations,
+          })
+        }
+      } catch {
+        setStatusText(
+          '고객 정보는 수정했습니다. 화재보험 소재지 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+        )
+        cancelEdit()
+        await loadCustomers()
         return
       }
       try {
@@ -1316,10 +1342,12 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       const customerId = cl.id
       void (async () => {
         try {
-          const [serverCars, serverSpecialDates, serverCustomFields] = await Promise.all([
+          const [serverCars, serverSpecialDates, serverCustomFields, serverFireLocations] =
+            await Promise.all([
             listCustomerCars(token, cl.id),
             listCustomerSpecialDates(token, cl.id),
             listCustomerCustomFields(token, cl.id),
+            listCustomerFireInsuranceLocations(token, cl.id),
           ])
           if (editingIdRef.current !== customerId) {
             return
@@ -1335,10 +1363,15 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
                 : {}),
               specialDates: serverSpecialDates.map(customerSpecialDateRecordToFormItem),
               customFields: serverCustomFields.map(customerCustomFieldRecordToFormItem),
+              fireInsuranceLocations: ensureCustomerFireInsuranceLocationFormItems(
+                serverFireLocations.map(customerFireInsuranceLocationRecordToFormItem),
+              ),
             }
           })
         } catch {
-          setStatusText('자동차·기념일·추가 정보 목록을 불러오지 못했습니다. 기본 정보로 편집합니다.')
+          setStatusText(
+            '자동차·기념일·추가 정보·화재보험 목록을 불러오지 못했습니다. 기본 정보로 편집합니다.',
+          )
         }
       })()
     },
