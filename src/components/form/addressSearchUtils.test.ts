@@ -9,7 +9,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { formatAddressForSave } from './addressSearchUtils'
+import { formatAddressForSave, parseAddressFromSave } from './addressSearchUtils'
 
 test('formatAddressForSave: 우편번호 + 기본 + 상세 모두 있으면 단일 공백으로 합쳐진다', () => {
   const out = formatAddressForSave({
@@ -54,4 +54,25 @@ test('formatAddressForSave: 각 조각의 앞뒤 공백은 trim 된다', () => {
     detailAddress: ' 101동  ',
   })
   assert.equal(out, '(06236) 서울특별시 강남구 테헤란로 123 101동')
+})
+
+test('parseAddressFromSave: formatAddressForSave 결과를 역분해한다', () => {
+  const saved = formatAddressForSave({
+    zonecode: '06236',
+    baseAddress: '서울특별시 강남구 테헤란로 123',
+    detailAddress: '101동',
+  })
+  assert.deepEqual(parseAddressFromSave(saved), {
+    zonecode: '06236',
+    baseAddress: '서울특별시 강남구 테헤란로 123 101동',
+    detailAddress: '',
+  })
+})
+
+test('parseAddressFromSave: 우편번호 없는 레거시 주소는 baseAddress로 복원한다', () => {
+  assert.deepEqual(parseAddressFromSave('서울특별시 테스트구 테스트로 10'), {
+    zonecode: '',
+    baseAddress: '서울특별시 테스트구 테스트로 10',
+    detailAddress: '',
+  })
 })

@@ -26,3 +26,20 @@ export function formatAddressForSave(value: AddressSearchValue): string {
   const head = zip ? `(${zip})` : ''
   return [head, base, detail].filter(Boolean).join(' ').trim()
 }
+
+/** 저장된 단일 address 문자열을 편집 폼용으로 분해한다. */
+export function parseAddressFromSave(address: string): AddressSearchValue {
+  const trimmed = address.trim()
+  if (!trimmed) {
+    return { zonecode: '', baseAddress: '', detailAddress: '' }
+  }
+  const match = trimmed.match(/^\((\d{5})\)\s*(.*)$/)
+  if (!match) {
+    return { zonecode: '', baseAddress: trimmed, detailAddress: '' }
+  }
+  return {
+    zonecode: match[1],
+    baseAddress: match[2].trim(),
+    detailAddress: '',
+  }
+}
