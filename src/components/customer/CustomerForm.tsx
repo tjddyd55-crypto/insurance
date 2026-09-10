@@ -73,7 +73,7 @@ export function drivingText(isDriver: boolean | null): string {
 
   if (isDriver === false) {
 
-    return '운전 안함'
+    return '운전안함'
 
   }
 
@@ -323,6 +323,9 @@ export function createEmptyIndustryCustomerForm(): CustomerFormState {
 export function getCustomerFormValidationError(form: CustomerFormState): string | null {
   if (!form.name?.trim()) {
     return '이름은 필수입니다.'
+  }
+  if (form.isDriver !== true && form.isDriver !== false) {
+    return '운전 여부를 선택해 주세요.'
   }
   return getCustomerSpecialDatesValidationError(form.specialDates)
 }

@@ -362,7 +362,7 @@ function drivingTextFromIsDriver(isDriver: boolean | null): string {
     return '운전함'
   }
   if (isDriver === false) {
-    return '운전 안함'
+    return '운전안함'
   }
   return ''
 }

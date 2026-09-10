@@ -1073,6 +1073,10 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         setStatusText(msg)
         return
       }
+      if (activeEditForm.isDriver !== true && activeEditForm.isDriver !== false) {
+        setStatusText('운전 여부를 선택해 주세요.')
+        return
+      }
       const specialDatesErr = getCustomerSpecialDatesValidationError(activeEditForm.specialDates)
       if (specialDatesErr) {
         setStatusText(specialDatesErr)
