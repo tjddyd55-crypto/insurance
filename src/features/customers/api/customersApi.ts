@@ -1,6 +1,11 @@
 import type { InsuranceApplicationRecord } from '../../application/domain/types'
 import { ApiError, apiRequest } from '../../../lib/apiClient'
+import type { CustomerBusinessInfo } from '../domain/customerBusinessInfo'
 import type { CustomerNote, CustomerNotesBag, CustomerRecord } from '../domain/types'
+import {
+  normalizeCustomerBusinessInfo,
+  normalizeCustomerFireInsuranceLocations,
+} from '../domain/types'
 import { normalizeCustomerCrmExtension, type CustomerCrmExtension } from '../domain/crmExtension'
 import type { CustomerCarFormItem } from '../types/customerCarForm'
 import {
@@ -66,6 +71,11 @@ export function assertCustomerDataRecord(
   const referrerName =
     typeof referrerRaw === 'string' && referrerRaw.trim() ? referrerRaw.trim() : null
 
+  const businessInfo = normalizeCustomerBusinessInfo(row.businessInfo ?? row.business_info)
+  const fireInsuranceLocations = normalizeCustomerFireInsuranceLocations(
+    row.fireInsuranceLocations ?? row.fire_insurance_locations,
+  )
+
   return {
     ...withFlag,
     phone,
@@ -74,6 +84,8 @@ export function assertCustomerDataRecord(
     smsOptOut: withFlag.smsOptOut === true || row.sms_opt_out === true,
     crmExtension,
     referrerName,
+    businessInfo,
+    ...(fireInsuranceLocations.length > 0 ? { fireInsuranceLocations } : {}),
   }
 }
 
@@ -332,6 +344,7 @@ export interface SaveCustomerPayload {
   /** 유입 경로 — 미지정·빈 문자열은 null 저장 */
   inflowSource?: string | null
   referrerName?: string | null
+  businessInfo?: CustomerBusinessInfo | null
 }
 
 export interface UpdateCustomerCarPayload {

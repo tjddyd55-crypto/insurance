@@ -2,6 +2,7 @@
  * Customers 테이블 행 → 공개 API 형식 (server/index.js 와 동일 규약).
  */
 import { parseCrmExtensionFromDb } from './customerCrmExtension.js'
+import { mapBusinessInfoFromRow } from './customerBusinessInfo.js'
 import { summarizeConsultationBody } from './customerConsultationListQuery.js'
 import { isClosedFollowUpStatus } from './customerConsultationFollowUp.js'
 import { inflowSourceFromDbRow, referrerNameFromDbRow } from './customerInflowSource.js'
@@ -232,6 +233,7 @@ export function mapCustomerRow(row) {
     isFavorite: row.is_favorite === true,
     smsOptOut: row.sms_opt_out === true,
     crmExtension: crmParsed,
+    businessInfo: mapBusinessInfoFromRow(row),
     createdAt: toIsoString(row.created_at),
   }
 }
