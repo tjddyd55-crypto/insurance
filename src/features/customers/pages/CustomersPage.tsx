@@ -98,7 +98,10 @@ import {
   saveCustomerFireInsuranceLocationsForCustomer,
 } from '../utils/customerFireInsuranceLocationsSaveUtils'
 import { ensureCustomerFireInsuranceLocationFormItems } from '../utils/customerFireInsuranceLocationFormUtils'
-import { isCustomerBusinessInfoFormEmpty } from '../domain/customerBusinessInfo'
+import {
+  customerBusinessInfoToForm,
+  isCustomerBusinessInfoFormEmpty,
+} from '../domain/customerBusinessInfo'
 import { getCustomerSpecialDatesValidationError } from '../utils/customerSpecialDateFormUtils'
 import {
   isCustomerWorkspaceSideDetailPath,
@@ -1264,10 +1267,12 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       const customerId = cl.id
       void (async () => {
         try {
-          const [serverCars, serverSpecialDates, serverFireLocations] = await Promise.all([
+          const [serverCars, serverSpecialDates, serverFireLocations, serverDetail] =
+            await Promise.all([
             listCustomerCars(token, cl.id),
             listCustomerSpecialDates(token, cl.id),
             listCustomerFireInsuranceLocations(token, cl.id),
+            getCustomerById(token, cl.id),
           ])
           if (editingIdRef.current !== customerId) {
             return
@@ -1280,6 +1285,9 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
               ...prev,
               ...(serverCars.length > 0
                 ? { cars: serverCars.map(customerCarRecordToFormItem) }
+                : {}),
+              ...(serverDetail?.businessInfo
+                ? { businessInfo: customerBusinessInfoToForm(serverDetail.businessInfo) }
                 : {}),
               specialDates: serverSpecialDates.map(customerSpecialDateRecordToFormItem),
               fireInsuranceLocations: ensureCustomerFireInsuranceLocationFormItems(
