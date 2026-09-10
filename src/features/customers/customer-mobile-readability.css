@@ -6,12 +6,12 @@
   .customers-page--mobile,
   .workspace-mobile-outlet-modal,
   .customer-recent-mobile-modal {
-    --customer-mobile-font-base: 16px;
-    --customer-mobile-font-small: 14px;
-    --customer-mobile-font-title: 18px;
-    --customer-mobile-font-subtitle: 15px;
-    --customer-mobile-font-button: 14px;
-    --customer-mobile-font-button-strong: 15px;
+    --customer-mobile-font-base: 17px;
+    --customer-mobile-font-small: 15px;
+    --customer-mobile-font-title: 20px;
+    --customer-mobile-font-subtitle: 16px;
+    --customer-mobile-font-button: 15px;
+    --customer-mobile-font-button-strong: 16px;
 
     --customer-mobile-line-base: 1.45;
     --customer-mobile-line-tight: 1.32;
@@ -192,4 +192,26 @@
     line-height: var(--customer-mobile-line-button);
     letter-spacing: var(--customer-mobile-letter-button);
   }
+
+  .customers-page--mobile .customer-form-section__title,
+  .customers-page--mobile .customer-detail-read__section-title,
+  .customers-page--mobile .customer-fire-location-edit-card__title,
+  .mobile-root .customer-form-section__title {
+    white-space: nowrap;
+  }
+
+  .customers-page--mobile .customer-fire-locations-editor__add.button,
+  .customers-page--mobile .customer-detail-action-button.button {
+    white-space: nowrap;
+  }
+
+  .customers-page--mobile .customer-expand-detail .field__control,
+  .customers-page--mobile .customer-expand-detail input,
+  .customers-page--mobile .customer-expand-detail textarea,
+  .customers-page--mobile .customer-expand-detail .address-search-field {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
 }
