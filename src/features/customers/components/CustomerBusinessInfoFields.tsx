@@ -1,4 +1,10 @@
-import { FormInput, FormTextarea } from '../../../components/form'
+import {
+  AddressSearchField,
+  FormInput,
+  FormTextarea,
+  formatAddressForSave,
+  parseAddressFromSave,
+} from '../../../components/form'
 import type { CustomerBusinessInfo } from '../domain/customerBusinessInfo'
 import { CustomerFormSection } from './CustomerFormSection'
 
@@ -39,15 +45,15 @@ export function CustomerBusinessInfoFields({
           onChange={(e) => update({ businessNumber: e.target.value })}
         />
       </label>
-      <label className="field field--wide">
+      <div className="field field--wide">
         <span className="field__label">사업장 주소</span>
-        <FormInput
-          className="field__control"
-          value={value.businessAddress}
+        <AddressSearchField
+          className="address-search-field"
+          value={parseAddressFromSave(value.businessAddress)}
           disabled={disabled}
-          onChange={(e) => update({ businessAddress: e.target.value })}
+          onChange={(next) => update({ businessAddress: formatAddressForSave(next) })}
         />
-      </label>
+      </div>
       <label className="field field--wide">
         <span className="field__label">메모</span>
         <FormTextarea

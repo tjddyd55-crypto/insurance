@@ -305,6 +305,18 @@ export default function CustomerDetailReadView({
       </div>
       <hr className="customer-detail-read__divider" />
       <CustomerCarsReadSection customer={c} token={token} enabled={fetchCarsEnabled} />
+      {token?.trim() ? (
+        <>
+          <hr className="customer-detail-read__divider" />
+          <CustomerRelationsStrip
+            customerId={c.id}
+            customerName={c.name}
+            token={token}
+            focusedCustomerId={expandedId}
+            onOpenCustomer={onOpenRelatedCustomer}
+          />
+        </>
+      ) : null}
       <hr className="customer-detail-read__divider" />
       <CustomerBusinessInfoReadSection
         customerId={c.id}
@@ -352,15 +364,6 @@ export default function CustomerDetailReadView({
           ) : null}
         </div>
       </section>
-      {token?.trim() ? (
-        <CustomerRelationsStrip
-          customerId={c.id}
-          customerName={c.name}
-          token={token}
-          focusedCustomerId={expandedId}
-          onOpenCustomer={onOpenRelatedCustomer}
-        />
-      ) : null}
     </div>
   )
 }
