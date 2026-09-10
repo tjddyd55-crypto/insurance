@@ -472,13 +472,10 @@ const CustomerListCard = memo(function CustomerListCard({
             {!isMobile || mobileInfoExpanded ? (
               <>
                 <div
-                  className={`customer-detail-toolbar customer-card-expanded-header${
+                  className={`customer-detail-toolbar customer-card-expanded-header customer-detail-toolbar--actions-only${
                     isMobile ? ' customer-detail-toolbar--mobile-actions' : ''
                   }`}
                 >
-                  <div className="customer-detail-toolbar__title customer-card-expanded-header__name">
-                    {c.name}
-                  </div>
                   <div
                     className={`customer-detail-action-bar${
                       isEditingThisCard
