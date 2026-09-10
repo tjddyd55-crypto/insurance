@@ -15,7 +15,9 @@ import {
   getInflowSourceDetailFieldMeta,
 } from '../config/customerInflowSource.config'
 import { CustomerCopyButton } from './CustomerAccountNumberField'
+import { CustomerBusinessInfoReadSection } from './CustomerBusinessInfoReadSection'
 import { CustomerCarsReadSection } from './CustomerCarsReadSection'
+import { CustomerFireInsuranceLocationsReadSection } from './CustomerFireInsuranceLocationsReadSection'
 import { CustomerSpecialDatesReadSection } from './CustomerSpecialDatesReadSection'
 import { CustomerRelationsStrip } from './CustomerRelationsStrip'
 import type { CustomerIndustryTemplate } from '../../customer-templates/customerTemplate.types'
@@ -303,6 +305,14 @@ export default function CustomerDetailReadView({
       </div>
       <hr className="customer-detail-read__divider" />
       <CustomerCarsReadSection customer={c} token={token} enabled={fetchCarsEnabled} />
+      <hr className="customer-detail-read__divider" />
+      <CustomerBusinessInfoReadSection businessInfo={c.businessInfo} />
+      <hr className="customer-detail-read__divider" />
+      <CustomerFireInsuranceLocationsReadSection
+        customer={c}
+        token={token}
+        enabled={fetchCarsEnabled}
+      />
       <hr className="customer-detail-read__divider" />
       <CustomerSpecialDatesReadSection customer={c} token={token} enabled={fetchCarsEnabled} />
       <hr className="customer-detail-read__divider" />

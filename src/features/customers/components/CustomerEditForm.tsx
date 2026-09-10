@@ -18,7 +18,9 @@ import CustomerMobileCarrierSelect from './CustomerMobileCarrierSelect'
 import { resolveGenderAfterSsnInput } from '../utils/inferGenderFromResidentNumberDigits'
 import type { CustomerEditFormState } from '../types/customerEditForm'
 import { CustomerAccountNumberField } from './CustomerAccountNumberField'
+import { CustomerBusinessInfoFields } from './CustomerBusinessInfoFields'
 import { CustomerCarsEditor } from './CustomerCarsEditor'
+import { CustomerFireInsuranceLocationsEditor } from './CustomerFireInsuranceLocationsEditor'
 import { CustomerSpecialDatesEditor } from './CustomerSpecialDatesEditor'
 import { CustomerDrivingRadioGroup } from './CustomerDrivingRadioGroup'
 import CustomerIndustryTemplateFields from './CustomerIndustryTemplateFields'
@@ -244,6 +246,20 @@ export default function CustomerEditForm({
             cars={editForm.cars}
             onChange={(next) =>
               setEditForm((prev) => (prev ? { ...prev, cars: next } : prev))
+            }
+          />
+          <CustomerBusinessInfoFields
+            value={editForm.businessInfo}
+            disabled={saving}
+            onChange={(next) =>
+              setEditForm((prev) => (prev ? { ...prev, businessInfo: next } : prev))
+            }
+          />
+          <CustomerFireInsuranceLocationsEditor
+            locations={editForm.fireInsuranceLocations}
+            disabled={saving}
+            onChange={(next) =>
+              setEditForm((prev) => (prev ? { ...prev, fireInsuranceLocations: next } : prev))
             }
           />
           <CustomerSpecialDatesEditor

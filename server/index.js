@@ -61,6 +61,11 @@ import { registerCustomerAppShareApi } from './apis/registerCustomerAppShareApi.
 import { registerCustomerRegistrationShareApi } from './apis/registerCustomerRegistrationShareApi.js'
 import { registerCustomerCarsApi } from './apis/customerCarsApi.js'
 import { registerCustomerSpecialDatesApi } from './apis/customerSpecialDatesApi.js'
+import {
+  listFireInsuranceLocationsForCustomer,
+  registerCustomerFireInsuranceLocationsApi,
+} from './apis/customerFireInsuranceLocationsApi.js'
+import { normalizeBusinessInfoForDb } from './lib/customerBusinessInfo.js'
 import { registerCustomerMapApi } from './apis/customerMapApi.js'
 import { registerPremiumPaymentApi } from './registerPremiumPaymentApi.js'
 import { registerCardPaymentApi } from './registerCardPaymentApi.js'
@@ -1703,6 +1708,7 @@ registerSubscriptionEndpoints(apiRouter, { requireAuth })
 
 registerCustomerCarsApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCustomerSpecialDatesApi(apiRouter, { pool, requireAuth, handleDbError })
+registerCustomerFireInsuranceLocationsApi(apiRouter, { pool, requireAuth, handleDbError })
 registerPremiumPaymentApi(apiRouter, { pool, requireAuth, handleDbError, JWT_SECRET })
 registerCardPaymentApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCustomerMapApi(apiRouter, { pool, requireAuth, handleDbError, requireInsuranceFormUserId })
@@ -6165,6 +6171,7 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
       data.referrerName ?? data.referrer_name,
     )
     const smsOptOut = data.smsOptOut === true || data.sms_opt_out === true
+    const businessInfo = normalizeBusinessInfoForDb(data.businessInfo ?? data.business_info)
 
     const inserted = await safeQuery(pool,
       `
@@ -6178,8 +6185,12 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
         inflow_source,
         referrer_name,
         sms_opt_out,
+        business_representative_name,
+        business_number,
+        business_address,
+        business_memo,
         tenant_id, owner_user_id, created_by_user_id, visibility_scope
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, CAST($22 AS jsonb), $23, CAST($24 AS jsonb), $25, $26, $27, $28, $29, $30, $31)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, CAST($22 AS jsonb), $23, CAST($24 AS jsonb), $25, $26, $27, $28, $29, $30, $31, $32, $33, $34)
       RETURNING
         id, user_id, name, birth_date, ssn, phone, carrier, address, height, weight, job, driving, medical,
         car_number, car_model, car_year, renewal_date,
@@ -6188,7 +6199,11 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
         crm_extension,
         inflow_source,
         referrer_name,
-        sms_opt_out
+        sms_opt_out,
+        business_representative_name,
+        business_number,
+        business_address,
+        business_memo
       `,
       [
         userId,
@@ -6218,6 +6233,10 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
         inflowParsed.value,
         referrerNameSql,
         smsOptOut,
+        businessInfo.representativeName,
+        businessInfo.businessNumber,
+        businessInfo.businessAddress,
+        businessInfo.memo,
         custTenantId,
         userId,
         userId,
@@ -6232,7 +6251,17 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
       gaId,
       address: inserted.rows[0].address,
     })
-    res.status(201).json({ success: true, data: mapCustomerRow(inserted.rows[0]) })
+    const createdRow = mapCustomerRow(inserted.rows[0])
+    const fireInsuranceLocations = await listFireInsuranceLocationsForCustomer(
+      pool,
+      createdRow.id,
+      userId,
+      gaId,
+    )
+    res.status(201).json({
+      success: true,
+      data: { ...createdRow, fireInsuranceLocations },
+    })
   } catch (error) {
     handleDbError(error, req, res)
   }
@@ -7084,6 +7113,20 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
       vals.push(stringifyCrmExtensionForDb(rawExt))
     }
 
+    if (hasKey('businessInfo') || hasKey('business_info')) {
+      const businessInfo = normalizeBusinessInfoForDb(
+        hasKey('businessInfo') ? data.businessInfo : data.business_info,
+      )
+      parts.push(`business_representative_name = $${n++}`)
+      vals.push(businessInfo.representativeName)
+      parts.push(`business_number = $${n++}`)
+      vals.push(businessInfo.businessNumber)
+      parts.push(`business_address = $${n++}`)
+      vals.push(businessInfo.businessAddress)
+      parts.push(`business_memo = $${n++}`)
+      vals.push(businessInfo.memo)
+    }
+
     if (hasKey('inflowSource') || hasKey('inflow_source')) {
       const inflowParsed = normalizeInflowSourceForDb(
         hasKey('inflowSource') ? data.inflowSource : data.inflow_source,
@@ -7155,7 +7198,11 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
         crm_extension,
         inflow_source,
         referrer_name,
-        sms_opt_out
+        sms_opt_out,
+        business_representative_name,
+        business_number,
+        business_address,
+        business_memo
       `,
       vals,
     )
@@ -7175,7 +7222,14 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
       })
     }
 
-    res.json({ success: true, data: mapCustomerRow(updated.rows[0]) })
+    const updatedRow = mapCustomerRow(updated.rows[0])
+    const fireInsuranceLocations = await listFireInsuranceLocationsForCustomer(
+      pool,
+      updatedRow.id,
+      userId,
+      gaId,
+    )
+    res.json({ success: true, data: { ...updatedRow, fireInsuranceLocations } })
   } catch (error) {
     handleDbError(error, req, res)
   }
@@ -7474,6 +7528,10 @@ apiRouter.get('/customers/:id', requireAuth, async (req, res) => {
         c.inflow_source,
         c.referrer_name,
         c.sms_opt_out,
+        c.business_representative_name,
+        c.business_number,
+        c.business_address,
+        c.business_memo,
         lc.last_consult_date,
         lc.consultation_count,
         lcm.last_consultation_body,
@@ -7494,7 +7552,14 @@ apiRouter.get('/customers/:id', requireAuth, async (req, res) => {
       return
     }
 
-    res.json(mapCustomerRow(result.rows[0]))
+    const detailRow = mapCustomerRow(result.rows[0])
+    const fireInsuranceLocations = await listFireInsuranceLocationsForCustomer(
+      pool,
+      detailRow.id,
+      userId,
+      gaId,
+    )
+    res.json({ ...detailRow, fireInsuranceLocations })
   } catch (error) {
     handleDbError(error, req, res)
   }
