@@ -8554,8 +8554,13 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 .customer-special-dates-read__item {
-  font-size: 14px;
+  font-size: 1.0625rem;
   line-height: 1.45;
+}
+
+.customer-special-dates-read__purpose {
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 .customer-special-dates-read__purpose {
@@ -8574,7 +8579,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 /* 고객 상세 읽기 전용 — CustomerDetailReadView / cars grid / 연계 고객 헤더 공통 */
 .customer-detail-read {
-  font-size: 14px;
+  font-size: 1rem;
   line-height: 1.45;
   color: var(--text-main);
 }
@@ -8673,13 +8678,35 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .customer-detail-read__info-label {
   font-weight: 600;
-  font-size: 0.9375rem;
+  font-size: 1rem;
   color: var(--text-main);
 }
 
 .customer-detail-read__info-value {
-  font-size: 1rem;
+  font-size: 1.0625rem;
+  font-weight: 600;
   color: var(--text-main);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* 자동차 카드 행 — 기본정보 info-label/value 와 동일 타이포 SSOT */
+.customer-car-read-card {
+  font-size: inherit;
+}
+
+.customer-car-read-card__label {
+  font-size: 1rem;
+  font-weight: 600;
+  opacity: 1;
+  color: var(--text-main);
+}
+
+.customer-car-read-card__value {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: var(--text-main);
+  min-width: 0;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
@@ -9093,7 +9120,6 @@ div.cta-button.customers-page__action-btn[role='button'] {
   border: 1px solid var(--border-muted);
   border-radius: 8px;
   background: var(--bg-soft, rgba(0, 0, 0, 0.04));
-  font-size: 14px;
   line-height: 1.45;
 }
 
@@ -9129,7 +9155,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 .customer-car-read-card__label {
-  opacity: 0.8;
+  opacity: 1;
   font-weight: 600;
 }
 
