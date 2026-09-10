@@ -306,7 +306,12 @@ export default function CustomerDetailReadView({
       <hr className="customer-detail-read__divider" />
       <CustomerCarsReadSection customer={c} token={token} enabled={fetchCarsEnabled} />
       <hr className="customer-detail-read__divider" />
-      <CustomerBusinessInfoReadSection businessInfo={c.businessInfo} />
+      <CustomerBusinessInfoReadSection
+        customerId={c.id}
+        businessInfo={c.businessInfo}
+        token={token}
+        enabled={fetchCarsEnabled}
+      />
       <hr className="customer-detail-read__divider" />
       <CustomerFireInsuranceLocationsReadSection
         customer={c}
