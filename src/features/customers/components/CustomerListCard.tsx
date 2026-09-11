@@ -70,7 +70,9 @@ export type CustomerListCardProps = {
   onEditSubmit: (e: FormEvent<HTMLFormElement>) => void | Promise<void>
   onEditSaveRequest: () => void | Promise<void>
   editSaving: boolean
+  editSaveDisabled?: boolean
   editStatusText?: string
+  onBeforeCollapseEdit?: () => Promise<boolean>
   carFeatureEnabled: boolean
   contractSignaturesEnabled: boolean
   gaExcelEnabled: boolean
@@ -122,7 +124,9 @@ const CustomerListCard = memo(function CustomerListCard({
   onEditSubmit,
   onEditSaveRequest,
   editSaving,
+  editSaveDisabled = false,
   editStatusText,
+  onBeforeCollapseEdit,
   carFeatureEnabled,
   contractSignaturesEnabled,
   gaExcelEnabled,
@@ -174,6 +178,7 @@ const CustomerListCard = memo(function CustomerListCard({
     expandedId,
     setExpandedId,
     interactionDisabled: isSelectMode,
+    beforeCollapse: isEditingThisCard ? onBeforeCollapseEdit : undefined,
   })
 
   if (
@@ -421,13 +426,13 @@ const CustomerListCard = memo(function CustomerListCard({
                           size="sm"
                           className="customer-detail-action-button customer-detail-action-button--save-inline"
                           title="변경 저장"
-                          aria-label="저장"
-                          disabled={editSaving}
+                          aria-label="변경 저장"
+                          disabled={editSaveDisabled}
                           loading={editSaving}
                           loadingText="저장 중…"
                           onClick={() => void onEditSaveRequest()}
                         >
-                          저장
+                          변경 저장
                         </FormButton>
                         <FormButton
                           htmlType="button"
@@ -509,6 +514,7 @@ const CustomerListCard = memo(function CustomerListCard({
                     onEditSubmit={onEditSubmit}
                     onEditSaveRequest={onEditSaveRequest}
                     saving={editSaving}
+                    saveDisabled={editSaveDisabled}
                     statusText={editStatusText}
                     onCancelEdit={onCancelEdit}
                     isInsuranceLayout={crmIsInsuranceLayout}

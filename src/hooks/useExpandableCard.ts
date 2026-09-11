@@ -26,6 +26,8 @@ export type UseExpandableCardOptions = {
   setExpandedId: Dispatch<SetStateAction<number | null>>
   /** 호환용(미사용). 멀티 선택 모드에서도 펼침 토글은 허용한다. */
   interactionDisabled?: boolean
+  /** 펼침 닫기 직전 — false 반환 시 닫기를 취소한다(미저장 편집 확인 등). */
+  beforeCollapse?: () => Promise<boolean>
 }
 
 export type UseExpandableCardResult = {
@@ -48,6 +50,7 @@ export function useExpandableCard({
   cardId,
   expandedId,
   setExpandedId,
+  beforeCollapse,
 }: UseExpandableCardOptions): UseExpandableCardResult {
   const [detailClosing, setDetailClosing] = useState(false)
   const closingCardIdRef = useRef<number | null>(null)
@@ -81,14 +84,25 @@ export function useExpandableCard({
       return
     }
     if (expandedId === cardId) {
-      closingCardIdRef.current = cardId
-      setDetailClosing(true)
+      const startClose = () => {
+        closingCardIdRef.current = cardId
+        setDetailClosing(true)
+      }
+      if (beforeCollapse) {
+        void beforeCollapse().then((ok) => {
+          if (ok) {
+            startClose()
+          }
+        })
+        return
+      }
+      startClose()
       return
     }
     closingCardIdRef.current = null
     setDetailClosing(false)
     setExpandedId(() => cardId)
-  }, [cardId, detailClosing, expandedId, isValidCard, setExpandedId])
+  }, [beforeCollapse, cardId, detailClosing, expandedId, isValidCard, setExpandedId])
 
   const handleDetailTransitionEnd = useCallback(
     (e: TransitionEvent<HTMLDivElement>) => {

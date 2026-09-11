@@ -8157,6 +8157,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .customer-edit-actions {
   display: flex;
+  flex-wrap: nowrap;
   gap: 8px;
   margin-top: 12px;
 }
@@ -8170,6 +8171,13 @@ div.cta-button.customers-page__action-btn[role='button'] {
   min-height: 44px;
   padding: 0 16px;
   text-align: center;
+}
+
+.customers-page .customer-edit-actions__btn--cancel.button--secondary,
+.customers-page .customer-detail-action-button--cancel-inline.button--secondary {
+  border: 1px solid var(--btn-secondary-border);
+  background-color: var(--btn-secondary-surface);
+  color: var(--btn-secondary-text);
 }
 
 /* radius 는 공통 .button(10px) SSOT 유지 — 여기서 덮지 않는다. */
