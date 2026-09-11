@@ -118,6 +118,7 @@ export type CustomerListCardProps = {
   onCopyCustomer: (c: CustomerRecord) => void
   onStartEdit: (c: CustomerRecord) => void
   onCancelEdit: () => void
+  onMinimizeEdit?: () => void
   onDeleteCustomer: (c: CustomerRecord) => void
   onOpenFilesModal: (customerId: number) => void
   onOpenConsultationsModal: (customerId: number) => void
@@ -169,6 +170,7 @@ const CustomerListCard = memo(function CustomerListCard({
   onCopyCustomer,
   onStartEdit,
   onCancelEdit,
+  onMinimizeEdit,
   onDeleteCustomer,
   onOpenFilesModal,
   onOpenConsultationsModal,
@@ -514,6 +516,24 @@ const CustomerListCard = memo(function CustomerListCard({
                           onClick={onCancelEdit}
                         >
                           취소
+                        </FormButton>
+                        <FormButton
+                          htmlType="button"
+                          variant="secondary"
+                          size="sm"
+                          className="customer-detail-action-button customer-detail-action-button--minimize-inline"
+                          title="편집 최소화"
+                          aria-label="최소"
+                          disabled={editSaving}
+                          onClick={() => {
+                            if (onMinimizeEdit) {
+                              onMinimizeEdit()
+                              return
+                            }
+                            onCancelEdit()
+                          }}
+                        >
+                          최소
                         </FormButton>
                       </>
                     ) : (

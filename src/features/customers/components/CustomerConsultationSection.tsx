@@ -178,9 +178,9 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
   }
 
   const compactBtn: CSSProperties = {
-    fontSize: '0.875rem',
-    padding: '4px 10px',
-    minHeight: 0,
+    fontSize: '1rem',
+    padding: '6px 12px',
+    minHeight: 40,
   }
 
   return (
@@ -190,7 +190,7 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
         <Button
           type="button"
           variant="secondary"
-          className="!px-3 !py-1.5 text-xs shrink-0"
+          className="!px-3 !py-1.5 text-base shrink-0"
           disabled={!token?.trim()}
           onClick={openConsultModal}
         >
@@ -199,7 +199,7 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
       </div>
 
       {listError && !consultModalOpen ? (
-        <p style={{ color: '#b00020', margin: '0 0 8px', fontSize: '0.9rem' }} role="alert">
+        <p style={{ color: '#b00020', margin: '0 0 8px', fontSize: '1.0625rem' }} role="alert">
           {listError}
         </p>
       ) : null}
@@ -207,7 +207,7 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
       {loading && rows.length === 0 ? (
         <p className="customer-form-history__status">불러오는 중…</p>
       ) : rows.length === 0 ? (
-        <div className="text-sm text-[var(--text-secondary)] mt-2">등록된 내용이 없습니다.</div>
+        <div className="customer-consultation-block__empty text-[var(--text-secondary)] mt-2">등록된 내용이 없습니다.</div>
       ) : (
         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
           {rows.map((r, idx) => {
@@ -229,8 +229,8 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
                 }}
               >
                 <div
+                  className="customer-consultation-block__date"
                   style={{
-                    fontWeight: 700,
                     flexShrink: 0,
                     minWidth: '7.5rem',
                   }}
@@ -238,11 +238,11 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
                   ● {dateLabel}
                 </div>
                 <div
+                  className="customer-consultation-block__body"
                   style={{
                     flex: 1,
                     minWidth: 0,
                     whiteSpace: 'pre-wrap',
-                    fontSize: '0.95rem',
                     wordBreak: 'break-word',
                   }}
                 >

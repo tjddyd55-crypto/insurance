@@ -227,6 +227,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   const [pinnedWorkspaceCustomer, setPinnedWorkspaceCustomer] = useState<CustomerRecord | null>(null)
   const editingIdRef = useRef<number | null>(null)
   const editFormRef = useRef<CustomerEditFormState | null>(null)
+  const editBaselineRef = useRef<string | null>(null)
   expandedIdRef.current = expandedId
   editingIdRef.current = editingId
   editFormRef.current = editForm
@@ -1020,6 +1021,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     if (editingId != null && expandedId !== editingId) {
       setEditingId(null)
       setEditForm(null)
+      editBaselineRef.current = null
       setEditDetailReady(true)
       editDetailReadyRef.current = true
     }
@@ -1034,12 +1036,44 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     }
   }, [tab, isSelectMode])
 
+  const leaveEdit = useCallback(
+    async (collapse: boolean) => {
+      const current = editFormRef.current
+      const baseline = editBaselineRef.current
+      const dirty =
+        current != null && baseline != null && JSON.stringify(current) !== baseline
+      if (dirty) {
+        const ok = await confirm({
+          title: '변경사항 닫기',
+          message: '변경사항이 저장되지 않았습니다. 닫으시겠습니까?',
+          confirmLabel: '저장안함',
+          cancelLabel: '계속 편집',
+          tone: 'danger',
+        })
+        if (!ok) {
+          return
+        }
+      }
+      const activeId = editingIdRef.current
+      setEditingId(null)
+      setEditForm(null)
+      editBaselineRef.current = null
+      setEditDetailReady(true)
+      editDetailReadyRef.current = true
+      if (collapse && activeId != null) {
+        setExpandedId((prev) => (prev === activeId ? null : prev))
+      }
+    },
+    [confirm],
+  )
+
   const cancelEdit = useCallback(() => {
-    setEditingId(null)
-    setEditForm(null)
-    setEditDetailReady(true)
-    editDetailReadyRef.current = true
-  }, [])
+    void leaveEdit(false)
+  }, [leaveEdit])
+
+  const minimizeEdit = useCallback(() => {
+    void leaveEdit(true)
+  }, [leaveEdit])
 
   const handleUpdateCustomer = useCallback(async () => {
     if (!token?.trim()) {
@@ -1322,6 +1356,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       setEditingId(cl.id)
       const base = recordToEditForm(cl)
       setEditForm(base)
+      editBaselineRef.current = JSON.stringify(base)
       if (!token?.trim()) {
         setEditDetailReady(true)
         editDetailReadyRef.current = true
@@ -1351,7 +1386,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
             if (editingIdRef.current !== customerId || !prev) {
               return prev
             }
-            return {
+            const next = {
               ...prev,
               ...(serverCars.length > 0
                 ? { cars: serverCars.map(customerCarRecordToFormItem) }
@@ -1362,6 +1397,8 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
                 serverFireLocations.map(customerFireInsuranceLocationRecordToFormItem),
               ),
             }
+            editBaselineRef.current = JSON.stringify(next)
+            return next
           })
         } catch {
           setStatusText('자동차·기념일·화재보험 목록을 불러오지 못했습니다. 기본 정보로 편집합니다.')
@@ -1883,6 +1920,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
               onCopyCustomer={copyCustomer}
               onStartEdit={startEdit}
               onCancelEdit={cancelEdit}
+              onMinimizeEdit={minimizeEdit}
               onDeleteCustomer={handleDeleteCustomer}
               onOpenFilesModal={handleOpenFilesModal}
               onOpenConsultationsModal={handleOpenConsultationsModal}

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { FormButton } from '../../../components/form'
 import { CustomerRelationGroupsSection } from './CustomerRelationGroupsSection'
 import { LegacyCustomerRelationsSection } from './LegacyCustomerRelationsSection'
 
@@ -31,24 +32,28 @@ export function CustomerRelationsStrip({
       <div className="customer-relations-header customer-relations-strip__header">
         <h4 className="customer-relations-strip__title">연계 고객</h4>
         <div className="customer-relations-header__actions customer-relations-strip__header-actions">
-          <button
-            type="button"
-            className="ui-button ui-button--sm ui-button--secondary customer-relations-strip__action-btn"
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            size="sm"
+            className="customer-relations-strip__action-btn"
             onClick={() => setGroupCreateOpen(true)}
             title="가족 그룹 만들기"
             aria-label="가족 그룹 만들기"
           >
             가족 그룹 만들기
-          </button>
-          <button
-            type="button"
-            className="ui-button ui-button--sm ui-button--secondary customer-relations-strip__action-btn"
+          </FormButton>
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            size="sm"
+            className="customer-relations-strip__action-btn"
             onClick={() => setLegacyAddOpen(true)}
             title="개별 연결"
             aria-label="개별 연결"
           >
             개별 연결
-          </button>
+          </FormButton>
         </div>
       </div>
 
