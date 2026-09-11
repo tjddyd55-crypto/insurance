@@ -24,7 +24,7 @@ export function CustomerBusinessInfoFields({
   }
 
   return (
-    <CustomerFormSection title="사업자 정보" className="customer-form-section--grid-full">
+    <CustomerFormSection title="사업자 정보" sectionId="business" className="customer-form-section--grid-full">
       <label className="field">
         <span className="field__label">대표자명</span>
         <FormInput

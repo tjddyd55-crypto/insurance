@@ -42,6 +42,7 @@ export function CustomerFireInsuranceLocationsEditor({
   return (
     <CustomerFormSection
       title="화재보험 정보"
+      sectionId="fire"
       className="customer-form-section--grid-full customer-fire-locations-editor"
     >
       <div className="customer-fire-locations-editor__list">

@@ -80,6 +80,7 @@ export function CustomerCarsEditor({ cars, onChange, disabled }: CustomerCarsEdi
   return (
     <CustomerFormSection
       title="자동차 정보"
+      sectionId="car"
       className="customer-form-section--grid-full customer-cars-editor"
       headerExtra={
         <FormButton
