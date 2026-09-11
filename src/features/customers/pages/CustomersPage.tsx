@@ -114,6 +114,8 @@ import {
 import { coerceCustomersStatePayload } from '../utils/customerStateGuards'
 import { dedupeCustomersById } from '../utils/customerSearchDedupe'
 import {
+  customerIdsEqual,
+  findCustomerByIdInList,
   mergeCustomerInList,
   resolveCustomerCardKeepOpenId,
 } from '../utils/customerListOpenState'
@@ -224,6 +226,8 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   const pendingMapExpandIdRef = useRef<number | null>(null)
   const mapEntryExpandPendingRef = useRef<number | null>(null)
   const pinnedListCustomerIdRef = useRef<number | null>(null)
+  const listRefreshPreserveCustomerIdRef = useRef<number | null>(null)
+  const setExpandedIdRef = useRef<Dispatch<SetStateAction<number | null>>>(rawSetExpandedId)
   const [pinnedWorkspaceCustomer, setPinnedWorkspaceCustomer] = useState<CustomerRecord | null>(null)
   const editingIdRef = useRef<number | null>(null)
   const editFormRef = useRef<CustomerEditFormState | null>(null)
@@ -259,15 +263,25 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     setAdvSearchHits((hits) =>
       hits == null ? hits : mergeCustomerInList(hits, updated),
     )
-    setPinnedWorkspaceCustomer((prev) => (prev?.id === updated.id ? updated : prev))
+    setPinnedWorkspaceCustomer((prev) =>
+      prev != null && customerIdsEqual(prev.id, updated.id) ? updated : prev,
+    )
   }, [])
 
   const keepCustomerCardOpen = useCallback(
-    (customerId: number) => {
-      pinnedListCustomerIdRef.current = customerId
-      applyListCustomerExpand(customerId, false)
+    (customerId: number, freshRow?: CustomerRecord | null) => {
+      const id = parseSelectedCustomerId(String(customerId))
+      if (id == null) {
+        return
+      }
+      pinnedListCustomerIdRef.current = id
+      pendingMapExpandIdRef.current = id
+      setExpandedIdRef.current(id)
+      if (freshRow != null && customerIdsEqual(freshRow.id, id)) {
+        setPinnedWorkspaceCustomer(freshRow)
+      }
     },
-    [applyListCustomerExpand],
+    [],
   )
 
   /**
@@ -305,6 +319,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     },
     [location.pathname, searchParams, setSearchParams],
   )
+  setExpandedIdRef.current = setExpandedId
 
   // NOTE: Router supports only one blocker. Global AppExitConfirm handles POP blocking (including customer create).
   const [searchInput, setSearchInput] = useState('')
@@ -642,7 +657,10 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     onEnterExcelSelectMode,
   })
 
-  const loadCustomers = useCallback(async (options?: { silent?: boolean }) => {
+  const loadCustomers = useCallback(async (options?: {
+    silent?: boolean
+    preserveExpandedCustomerId?: number | null
+  }) => {
     if (!token || user?.role !== 'USER') {
       setIsLoading(false)
       setCustomersTotalCount(0)
@@ -682,6 +700,22 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       const safeData = coerceCustomersStatePayload(rows)
       setCustomers(safeData)
       setCustomersTotalCount(total)
+      const preserveId =
+        options?.preserveExpandedCustomerId ??
+        listRefreshPreserveCustomerIdRef.current
+      if (!isMobile && preserveId != null) {
+        const parsedId = parseSelectedCustomerId(String(preserveId))
+        if (parsedId != null) {
+          pinnedListCustomerIdRef.current = parsedId
+          pendingMapExpandIdRef.current = parsedId
+          setExpandedIdRef.current(parsedId)
+          const freshRow = findCustomerByIdInList(parsedId, safeData)
+          if (freshRow) {
+            setPinnedWorkspaceCustomer(freshRow)
+          }
+        }
+      }
+      listRefreshPreserveCustomerIdRef.current = null
     } catch (error) {
       setStatusText(error instanceof Error ? error.message : '목록을 불러오지 못했습니다.')
     } finally {
@@ -699,6 +733,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     appliedConsultationTo,
     appliedInflowSource,
     appliedListSort,
+    isMobile,
   ])
 
   const handleToggleFavorite = useCallback(
@@ -829,11 +864,17 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
 
   useEffect(() => {
     const handler = () => {
-      void loadCustomers()
+      if (!isMobile) {
+        listRefreshPreserveCustomerIdRef.current = resolveCustomerCardKeepOpenId(
+          editingIdRef.current,
+          expandedIdRef.current,
+        )
+      }
+      void loadCustomers({ silent: true })
     }
     window.addEventListener(CUSTOMERS_LIST_REFRESH_EVENT, handler)
     return () => window.removeEventListener(CUSTOMERS_LIST_REFRESH_EVENT, handler)
-  }, [loadCustomers])
+  }, [isMobile, loadCustomers])
 
   /** 고객 지도·전역 청구관리 → 상세: 필터 초기화 + 리스트 카드 펼침(목록 로딩 후 재시도 포함). */
   useEffect(() => {
@@ -880,8 +921,9 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   /** URL path/query 의 고객 id → 좌측 리스트 expandedId 동기화 */
   useEffect(() => {
     if (activeListCustomerId == null) {
-      pinnedListCustomerIdRef.current = null
-      setPinnedWorkspaceCustomer(null)
+      if (expandedIdRef.current == null && pinnedListCustomerIdRef.current == null) {
+        setPinnedWorkspaceCustomer(null)
+      }
       return
     }
 
@@ -894,11 +936,11 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       return
     }
 
-    const inMainList = customers.some((c) => c.id === pendingId)
-    const inAdvHits = advSearchHits?.some((c) => c.id === pendingId) ?? false
+    const inMainList = customers.some((c) => customerIdsEqual(c.id, pendingId))
+    const inAdvHits = advSearchHits?.some((c) => customerIdsEqual(c.id, pendingId)) ?? false
     if (inMainList) {
       pendingMapExpandIdRef.current = null
-      const row = customers.find((c) => c.id === pendingId)
+      const row = customers.find((c) => customerIdsEqual(c.id, pendingId))
       if (row) {
         setPinnedWorkspaceCustomer(row)
       }
@@ -906,7 +948,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     }
     if (inAdvHits) {
       pendingMapExpandIdRef.current = null
-      const row = advSearchHits?.find((c) => c.id === pendingId)
+      const row = advSearchHits?.find((c) => customerIdsEqual(c.id, pendingId))
       if (row) {
         setPinnedWorkspaceCustomer(row)
       }
@@ -922,8 +964,8 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         if (!row) {
           pendingMapExpandIdRef.current = null
           if (
-            expandedIdRef.current === pendingId &&
-            pinnedListCustomerIdRef.current !== pendingId
+            customerIdsEqual(expandedIdRef.current, pendingId) &&
+            !customerIdsEqual(pinnedListCustomerIdRef.current, pendingId)
           ) {
             rawSetExpandedId(null)
           }
@@ -954,17 +996,17 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     if (expandedId == null) {
       return
     }
-    if (pendingMapExpandIdRef.current === expandedId) {
+    if (customerIdsEqual(pendingMapExpandIdRef.current, expandedId)) {
       return
     }
-    if (pinnedListCustomerIdRef.current === expandedId) {
+    if (customerIdsEqual(pinnedListCustomerIdRef.current, expandedId)) {
       return
     }
-    if (activeListCustomerId === expandedId) {
+    if (customerIdsEqual(activeListCustomerId, expandedId)) {
       return
     }
-    const inMainList = customers.some((c) => c.id === expandedId)
-    const inAdvHits = advSearchHits?.some((c) => c.id === expandedId) ?? false
+    const inMainList = customers.some((c) => customerIdsEqual(c.id, expandedId))
+    const inAdvHits = advSearchHits?.some((c) => customerIdsEqual(c.id, expandedId)) ?? false
     if (!inMainList && !inAdvHits) {
       rawSetExpandedId(null)
     }
@@ -1207,12 +1249,12 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         cancelEdit()
         mergeCustomerInListState(updatedCustomer)
         if (keepOpenCustomerId != null) {
-          keepCustomerCardOpen(keepOpenCustomerId)
+          keepCustomerCardOpen(keepOpenCustomerId, updatedCustomer)
         }
-        await loadCustomers({ silent: true })
-        if (keepOpenCustomerId != null) {
-          keepCustomerCardOpen(keepOpenCustomerId)
-        }
+        await loadCustomers({
+          silent: true,
+          preserveExpandedCustomerId: keepOpenCustomerId,
+        })
         return
       }
       try {
@@ -1230,12 +1272,12 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         cancelEdit()
         mergeCustomerInListState(updatedCustomer)
         if (keepOpenCustomerId != null) {
-          keepCustomerCardOpen(keepOpenCustomerId)
+          keepCustomerCardOpen(keepOpenCustomerId, updatedCustomer)
         }
-        await loadCustomers({ silent: true })
-        if (keepOpenCustomerId != null) {
-          keepCustomerCardOpen(keepOpenCustomerId)
-        }
+        await loadCustomers({
+          silent: true,
+          preserveExpandedCustomerId: keepOpenCustomerId,
+        })
         return
       }
       try {
@@ -1253,24 +1295,24 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         cancelEdit()
         mergeCustomerInListState(updatedCustomer)
         if (keepOpenCustomerId != null) {
-          keepCustomerCardOpen(keepOpenCustomerId)
+          keepCustomerCardOpen(keepOpenCustomerId, updatedCustomer)
         }
-        await loadCustomers({ silent: true })
-        if (keepOpenCustomerId != null) {
-          keepCustomerCardOpen(keepOpenCustomerId)
-        }
+        await loadCustomers({
+          silent: true,
+          preserveExpandedCustomerId: keepOpenCustomerId,
+        })
         return
       }
       setStatusText('고객 정보를 수정했습니다.')
       cancelEdit()
       mergeCustomerInListState(updatedCustomer)
       if (keepOpenCustomerId != null) {
-        keepCustomerCardOpen(keepOpenCustomerId)
+        keepCustomerCardOpen(keepOpenCustomerId, updatedCustomer)
       }
-      await loadCustomers({ silent: true })
-      if (keepOpenCustomerId != null) {
-        keepCustomerCardOpen(keepOpenCustomerId)
-      }
+      await loadCustomers({
+        silent: true,
+        preserveExpandedCustomerId: keepOpenCustomerId,
+      })
     } catch (error) {
       const msg = error instanceof Error ? error.message : '수정에 실패했습니다.'
       setStatusText(msg)

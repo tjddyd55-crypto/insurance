@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { CustomerRecord } from '../api/customersApi'
 import {
+  customerIdsEqual,
+  findCustomerByIdInList,
   mergeCustomerInList,
   resolveCustomerCardKeepOpenId,
 } from './customerListOpenState'
@@ -37,6 +39,37 @@ describe('mergeCustomerInList', () => {
   it('returns the original list when updated customer has no id', () => {
     const rows = [makeCustomer(1, 'A')]
     expect(mergeCustomerInList(rows, { name: 'orphan' } as CustomerRecord)).toBe(rows)
+  })
+})
+
+describe('customerIdsEqual', () => {
+  it('matches numeric and string ids', () => {
+    expect(customerIdsEqual(42, 42)).toBe(true)
+    expect(customerIdsEqual(42, '42')).toBe(true)
+    expect(customerIdsEqual('42', 42)).toBe(true)
+    expect(customerIdsEqual(42, 43)).toBe(false)
+  })
+})
+
+describe('findCustomerByIdInList', () => {
+  it('finds customer by id after list refresh', () => {
+    const rows = [makeCustomer(1, 'A'), { id: '2', name: 'B' } as CustomerRecord]
+    expect(findCustomerByIdInList(2, rows)?.name).toBe('B')
+  })
+})
+
+describe('saveCustomer preserves selected customer id after list refresh', () => {
+  it('resolveCustomerCardKeepOpenId keeps editing customer during save', () => {
+    const editingId = 1342
+    const expandedId = 99
+    expect(resolveCustomerCardKeepOpenId(editingId, expandedId)).toBe(1342)
+  })
+
+  it('findCustomerByIdInList restores selection from refreshed list by id', () => {
+    const refreshed = [makeCustomer(1, 'A'), makeCustomer(1342, 'Updated Name')]
+    const found = findCustomerByIdInList(1342, refreshed)
+    expect(found?.name).toBe('Updated Name')
+    expect(found?.id).toBe(1342)
   })
 })
 
