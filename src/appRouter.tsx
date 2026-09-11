@@ -197,6 +197,9 @@ export const appRouter = createBrowserRouter([
       { path: 'introduction', element: <IntroductionPage /> },
       // 과거 install 전용 페이지는 랜딩 다운로드 섹션으로 통일 (권장 정책 2)
       { path: 'introduction/install', element: <Navigate to="/introduction#download" replace /> },
+      // production·외부 공유 URL 오타 호환 — SSOT: introductionPublicRoutes.ts
+      { path: 'intodution', element: <IntroductionPage /> },
+      { path: 'intodution/install', element: <Navigate to="/intodution#download" replace /> },
       { path: 'naver-map-smoke', element: <NaverMapSmokePage /> },
       /* 외부 고객 입력(소개 링크) — 비로그인 유지. API는 /api/customer/external-create + ref·ga 검증 */
       { path: 'customer/input', element: <CustomerInputPage /> },

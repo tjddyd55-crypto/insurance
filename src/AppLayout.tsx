@@ -10,12 +10,13 @@ import { isCustomerCreateMode } from './navigation/backNavigationPolicy'
 import { GaSettingsProvider } from './features/ga-settings/GaSettingsProvider'
 import useIsMobile from './hooks/useIsMobile'
 import { FocusDebugLogger } from './components/debug/FocusDebugLogger'
+import { isIntroductionPublicPath } from './features/web/introductionPublicRoutes'
 
 export function AppLayout() {
   const { isAuthenticated } = useAuth()
   const location = useLocation()
   const isMobile = useIsMobile()
-  const isIntroductionRoute = location.pathname === '/introduction' || location.pathname === '/introduction/install'
+  const isIntroductionRoute = isIntroductionPublicPath(location.pathname)
 
   /** 고객 등록(?mode=create)은 CustomersPage ExitConfirmDialog만 사용 (네이티브·웹 이중 확인 방지) */
   const hideAppExitConfirm = isCustomerCreateMode(location.pathname, location.search ?? '')
