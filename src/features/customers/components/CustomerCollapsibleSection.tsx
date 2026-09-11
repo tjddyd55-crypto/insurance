@@ -36,7 +36,6 @@ export function CustomerCollapsibleSection({
       onClick={() => setExpanded((prev) => !prev)}
     >
       <span className="customer-detail-section__accent-bar" aria-hidden />
-      <span className="customer-detail-section__icon-dot" aria-hidden />
       <h4 id={headingId} className="customer-detail-section__title">{title}</h4>
       {headerExtra ? (
         <div className="customer-detail-section__header-extra" onClick={(e) => e.stopPropagation()}>
@@ -50,7 +49,6 @@ export function CustomerCollapsibleSection({
   ) : (
     <div className="customer-detail-section__header customer-detail-section__header--static">
       <span className="customer-detail-section__accent-bar" aria-hidden />
-      <span className="customer-detail-section__icon-dot" aria-hidden />
       <h4 id={headingId} className="customer-detail-section__title">{title}</h4>
       {headerExtra ? (
         <div className="customer-detail-section__header-extra">{headerExtra}</div>
