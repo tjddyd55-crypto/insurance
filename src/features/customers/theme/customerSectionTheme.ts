@@ -7,6 +7,7 @@ export type CustomerSectionId =
   | 'fire'
   | 'anniversary'
   | 'consultation'
+  | 'actions'
   | 'insurance-history'
   | 'account'
 
@@ -24,6 +25,8 @@ export const CUSTOMER_SECTION_THEMES: Record<CustomerSectionId, CustomerSectionT
   fire: { id: 'fire', accent: '#D97706', tint: '#FFFBEB' },
   anniversary: { id: 'anniversary', accent: '#7C3AED', tint: '#F5F3FF' },
   consultation: { id: 'consultation', accent: '#16A34A', tint: '#F0FDF4' },
+  /** 고객 업무 — brand primary (기본 정보 slate와 구분) */
+  actions: { id: 'actions', accent: '#16A34A', tint: '#ECFDF5' },
   'insurance-history': { id: 'insurance-history', accent: '#334155', tint: '#F8FAFC' },
   account: { id: 'account', accent: '#334155', tint: '#F8FAFC' },
 }

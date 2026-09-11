@@ -26,12 +26,7 @@ export function CustomerFormSection({
       data-customer-section={sectionId ?? undefined}
     >
       <div className="customer-form-section__header">
-        {sectionId ? (
-          <>
-            <span className="customer-form-section__accent-bar" aria-hidden />
-            <span className="customer-form-section__icon-dot" aria-hidden />
-          </>
-        ) : null}
+        {sectionId ? <span className="customer-form-section__accent-bar" aria-hidden /> : null}
         <div className="customer-form-section__title-row">
           <h3 className="customer-form-section__title">{title}</h3>
           {headerExtra ? (

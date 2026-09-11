@@ -18,6 +18,8 @@
   --customer-section-anniversary-tint: #f5f3ff;
   --customer-section-consultation-accent: #16a34a;
   --customer-section-consultation-tint: #f0fdf4;
+  --customer-section-actions-accent: #16a34a;
+  --customer-section-actions-tint: #ecfdf5;
   --customer-contact-action-color: #16a34a;
   --customer-contact-plate-size: 40px;
   --customer-detail-section-radius: 12px;
@@ -58,7 +60,7 @@
   flex-direction: row;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 0.625rem;
+  gap: 0.5rem;
   width: 100%;
   min-width: 0;
   min-height: 44px;
@@ -110,6 +112,11 @@
   background: var(--customer-section-consultation-tint);
 }
 
+.customer-detail-section[data-customer-section='actions'] .customer-detail-section__header,
+.customer-detail-section[data-customer-section='actions'] .customer-detail-section__header--static {
+  background: var(--customer-section-actions-tint);
+}
+
 .customer-detail-section__accent-bar {
   flex-shrink: 0;
   width: 3px;
@@ -148,36 +155,8 @@
   background: var(--customer-section-consultation-accent);
 }
 
-.customer-detail-section__icon-dot {
-  flex-shrink: 0;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--customer-section-basic-accent);
-}
-
-.customer-detail-section[data-customer-section='car'] .customer-detail-section__icon-dot {
-  background: var(--customer-section-car-accent);
-}
-
-.customer-detail-section[data-customer-section='linked'] .customer-detail-section__icon-dot {
-  background: var(--customer-section-linked-accent);
-}
-
-.customer-detail-section[data-customer-section='business'] .customer-detail-section__icon-dot {
-  background: var(--customer-section-business-accent);
-}
-
-.customer-detail-section[data-customer-section='fire'] .customer-detail-section__icon-dot {
-  background: var(--customer-section-fire-accent);
-}
-
-.customer-detail-section[data-customer-section='anniversary'] .customer-detail-section__icon-dot {
-  background: var(--customer-section-anniversary-accent);
-}
-
-.customer-detail-section[data-customer-section='consultation'] .customer-detail-section__icon-dot {
-  background: var(--customer-section-consultation-accent);
+.customer-detail-section[data-customer-section='actions'] .customer-detail-section__accent-bar {
+  background: var(--customer-section-actions-accent);
 }
 
 .customer-detail-section__title {
@@ -224,7 +203,7 @@
 .customer-detail-read__info-list {
   display: flex;
   flex-direction: column;
-  gap: 0.625rem;
+  gap: 0.5rem;
 }
 
 .customer-detail-read__info-row {
@@ -383,7 +362,7 @@
   flex-direction: row;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 0.625rem;
+  gap: 0.5rem;
   margin: 0;
   padding: 0.75rem 1rem;
   border-bottom: none;
@@ -449,29 +428,6 @@
 }
 
 .customer-form-section[data-customer-section='anniversary'] .customer-form-section__accent-bar {
-  background: var(--customer-section-anniversary-accent);
-}
-
-.customer-form-section[data-customer-section] .customer-form-section__icon-dot {
-  flex-shrink: 0;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-}
-
-.customer-form-section[data-customer-section='car'] .customer-form-section__icon-dot {
-  background: var(--customer-section-car-accent);
-}
-
-.customer-form-section[data-customer-section='business'] .customer-form-section__icon-dot {
-  background: var(--customer-section-business-accent);
-}
-
-.customer-form-section[data-customer-section='fire'] .customer-form-section__icon-dot {
-  background: var(--customer-section-fire-accent);
-}
-
-.customer-form-section[data-customer-section='anniversary'] .customer-form-section__icon-dot {
   background: var(--customer-section-anniversary-accent);
 }
 
