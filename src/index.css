@@ -7703,13 +7703,13 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .customers-page--pc .customer-relations-strip .related-customer-tag__name {
   padding: 4px 10px !important;
-  font-size: 13px !important;
+  font-size: 1rem !important;
   color: var(--text-main);
 }
 
 .customers-page--pc .customer-relations-strip .related-customer-tag__remove {
   padding: 4px 8px !important;
-  font-size: 13px !important;
+  font-size: 1rem !important;
   color: var(--text-sub);
 }
 
@@ -7719,7 +7719,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
   background: transparent !important;
   border-radius: 6px !important;
   padding: 4px 10px !important;
-  font-size: 13px !important;
+  font-size: 1rem !important;
 }
 
 /* ======================================================================
@@ -7768,7 +7768,8 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 .customers-page--pc .customer-relations-strip .related-list__header {
-  font-size: 12px;
+  font-size: 1rem;
+  font-weight: 600;
   color: var(--text-sub);
   background: var(--bg-soft);
 }
@@ -7787,7 +7788,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: 1.0625rem;
 }
 
 .customers-page--pc .customer-relations-strip .related-list .phone {
@@ -7796,7 +7797,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
   gap: 8px;
   min-width: 0;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: 1.0625rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -7814,7 +7815,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
   border-radius: 999px;
   background: color-mix(in srgb, var(--brand-primary) 18%, transparent);
   color: var(--brand);
-  font-size: 11px;
+  font-size: 0.875rem;
   font-weight: 600;
   line-height: 1.4;
 }
@@ -7850,7 +7851,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 .customers-page--pc .customer-relations-strip .related-list__empty {
   padding: 14px 12px;
   color: var(--text-sub);
-  font-size: 13px;
+  font-size: 1.0625rem;
 }
 
 /* 모바일 고객관리 — 필터 칩 (공통 .button--small 기반) */
@@ -8276,7 +8277,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 .customer-fire-location-edit-card__title {
   margin: 0;
   padding: 0;
-  font-size: 0.9375rem;
+  font-size: 1rem;
   font-weight: 700;
   line-height: 36px;
   height: 36px;
@@ -8503,7 +8504,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .customer-special-dates-editor__empty-hint {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: 1rem;
   color: var(--text-secondary);
 }
 
@@ -8528,19 +8529,19 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .customer-special-date-edit-card__title {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 600;
 }
 
 .customer-special-date-edit-card__remove {
-  font-size: 0.8125rem;
+  font-size: 1rem;
   padding: 4px 10px;
 }
 
 .customer-special-dates-read__loading,
 .customer-special-dates-read__empty {
   margin: 0;
-  font-size: 14px;
+  font-size: 1.0625rem;
   opacity: 0.9;
 }
 
@@ -8574,7 +8575,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .customer-special-dates-read__memo {
   color: var(--text-secondary);
-  font-size: 0.875rem;
+  font-size: 1rem;
 }
 
 /* 고객 상세 읽기 전용 — CustomerDetailReadView / cars grid / 연계 고객 헤더 공통 */
@@ -8688,6 +8689,46 @@ div.cta-button.customers-page__action-btn[role='button'] {
   color: var(--text-main);
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+
+/* 편집 폼·화재/기념일 카드 입력 — 기본정보 label 16 / value 17 SSOT */
+.customer-expand-detail .field__label,
+.customer-edit-form .field__label,
+.customer-fire-location-edit-card .field__label,
+.customer-special-date-edit-card .field__label {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--text-main);
+}
+
+.customer-expand-detail .field__control,
+.customer-edit-form .field__control,
+.customer-fire-location-edit-card .field__control,
+.customer-special-date-edit-card .field__control {
+  font-size: 1.0625rem;
+  line-height: 1.45;
+}
+
+.customer-fire-location-read-block__title {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.45;
+  color: var(--text-main);
+}
+
+.customer-consultation-block,
+.customer-consultation-block .customer-form-history__status,
+.customer-consultation-block .customer-consultation-block__empty,
+.customer-consultation-block .customer-consultation-block__body,
+.customer-consultation-block .customer-consultation-block__date {
+  font-size: 1.0625rem;
+  line-height: 1.45;
+}
+
+.customer-consultation-block .customer-consultation-block__date {
+  font-weight: 700;
 }
 
 /* 자동차 카드 행 — 기본정보 info-label/value 와 동일 타이포 SSOT */

@@ -252,5 +252,40 @@
     font-weight: 600;
   }
 
+  .customers-page--mobile .customer-relations-strip__title,
+  .workspace-mobile-outlet-modal .customer-relations-strip__title,
+  .customers-page--mobile .customer-relations-legacy__title,
+  .workspace-mobile-outlet-modal .customer-relations-legacy__title,
+  .customers-page--mobile .customer-relation-groups-section__title,
+  .workspace-mobile-outlet-modal .customer-relation-groups-section__title {
+    font-size: var(--customer-mobile-font-small);
+    font-weight: 700;
+  }
+
+  .customers-page--mobile .linked-customer-chip__main,
+  .workspace-mobile-outlet-modal .linked-customer-chip__main,
+  .customers-page--mobile .customer-relations-strip__description,
+  .workspace-mobile-outlet-modal .customer-relations-strip__description,
+  .customers-page--mobile .customer-consultation-block,
+  .workspace-mobile-outlet-modal .customer-consultation-block {
+    font-size: var(--customer-mobile-font-subtitle);
+    line-height: var(--customer-mobile-line-base);
+  }
+
+  .customers-page--mobile .customer-fire-location-edit-card__title,
+  .workspace-mobile-outlet-modal .customer-fire-location-edit-card__title,
+  .customers-page--mobile .customer-fire-location-read-block__title,
+  .workspace-mobile-outlet-modal .customer-fire-location-read-block__title,
+  .customers-page--mobile .customer-special-date-edit-card__title,
+  .workspace-mobile-outlet-modal .customer-special-date-edit-card__title {
+    font-size: var(--customer-mobile-font-small);
+    font-weight: 700;
+  }
+
+  .customers-page--mobile .customer-relations-strip__action-btn.button,
+  .workspace-mobile-outlet-modal .customer-relations-strip__action-btn.button {
+    font-size: var(--customer-mobile-font-button);
+    min-height: 40px;
+  }
 
 }

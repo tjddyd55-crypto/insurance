@@ -48,7 +48,7 @@ export default function CustomerConsultationHistoryListMobile({
               {contactMeta ? (
                 <div
                   className="customer-consultation-history__contact-meta customer-consultation-item__meta"
-                  style={{ marginTop: 8, fontSize: '0.875rem', color: 'var(--text-secondary)' }}
+                  style={{ marginTop: 8, fontSize: '1.0625rem', color: 'var(--text-secondary)' }}
                 >
                   {contactMeta}
                 </div>
