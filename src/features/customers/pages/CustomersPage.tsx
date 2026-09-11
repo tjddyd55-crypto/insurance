@@ -82,6 +82,14 @@ import {
   normalizeCustomerEditCarYearForApi,
   normalizeCustomerEditRenewalDateForApi,
 } from '../utils/customerEditFormState'
+import {
+  cloneCustomerEditFormState,
+  isCustomerEditFormDirty,
+} from '../utils/customerEditFormDirty'
+import {
+  CustomerUnsavedChangesDialog,
+  type CustomerUnsavedChangesChoice,
+} from '../components/CustomerUnsavedChangesDialog'
 import { getCustomerIndustryTemplateFormValidationError } from '../utils/customerIndustryTemplateFormValidation'
 import { normalizeCustomerCarsForSave, pickPrimaryCustomerCar } from '../utils/customerCarFormUtils'
 import {
@@ -217,6 +225,11 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   const editSavingRef = useRef(false)
   const [editDetailReady, setEditDetailReady] = useState(true)
   const editDetailReadyRef = useRef(true)
+  const [editBaseline, setEditBaseline] = useState<CustomerEditFormState | null>(null)
+  const [unsavedChangesOpen, setUnsavedChangesOpen] = useState(false)
+  const unsavedChangesResolverRef = useRef<((choice: CustomerUnsavedChangesChoice) => void) | null>(
+    null,
+  )
   const [activeMobileModal, setActiveMobileModal] = useState<
     null | 'files' | 'consultations' | 'ga' | 'signatures'
   >(null)
@@ -231,11 +244,19 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   const [pinnedWorkspaceCustomer, setPinnedWorkspaceCustomer] = useState<CustomerRecord | null>(null)
   const editingIdRef = useRef<number | null>(null)
   const editFormRef = useRef<CustomerEditFormState | null>(null)
-  const editBaselineRef = useRef<string | null>(null)
+  const editBaselineRef = useRef<CustomerEditFormState | null>(null)
   expandedIdRef.current = expandedId
   editingIdRef.current = editingId
   editFormRef.current = editForm
   editDetailReadyRef.current = editDetailReady
+  editBaselineRef.current = editBaseline
+
+  const editDirty = useMemo(() => {
+    if (!editForm || !editBaseline || !editDetailReady) {
+      return false
+    }
+    return isCustomerEditFormDirty(editBaseline, editForm)
+  }, [editBaseline, editDetailReady, editForm])
 
   useCustomerExpandedCardScroll({
     expandedId,
@@ -294,13 +315,8 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
    * useState 의 raw setter 를 감싸기 때문에 기존 호출부와 `useExpandableCard`
    * prop 에도 별도 변경 없이 URL 동기화가 따라붙는다.
    */
-  const setExpandedId = useCallback<Dispatch<SetStateAction<number | null>>>(
-    (updater) => {
-      const prev = expandedIdRef.current
-      const next =
-        typeof updater === 'function'
-          ? (updater as (prev: number | null) => number | null)(prev)
-          : updater
+  const applyExpandedIdDirect = useCallback(
+    (next: number | null) => {
       rawSetExpandedId(next)
       if (isCustomerWorkspaceSideDetailPath(location.pathname)) {
         return
@@ -318,6 +334,38 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       setSearchParams(nextParams, { replace: true })
     },
     [location.pathname, searchParams, setSearchParams],
+  )
+
+  const expandGuardInFlightRef = useRef(false)
+  const attemptCloseEditRef = useRef<
+    (options?: { nextExpandedId?: number | null }) => Promise<boolean>
+  >(async () => true)
+
+  const setExpandedId = useCallback<Dispatch<SetStateAction<number | null>>>(
+    (updater) => {
+      const prev = expandedIdRef.current
+      const next =
+        typeof updater === 'function'
+          ? (updater as (prev: number | null) => number | null)(prev)
+          : updater
+      const activeEditingId = editingIdRef.current
+      if (
+        activeEditingId != null &&
+        editFormRef.current != null &&
+        next !== activeEditingId &&
+        !expandGuardInFlightRef.current
+      ) {
+        expandGuardInFlightRef.current = true
+        void attemptCloseEditRef
+          .current({ nextExpandedId: next })
+          .finally(() => {
+            expandGuardInFlightRef.current = false
+          })
+        return
+      }
+      applyExpandedIdDirect(next)
+    },
+    [applyExpandedIdDirect],
   )
   setExpandedIdRef.current = setExpandedId
 
@@ -634,6 +682,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     setExpandedId(null)
     setEditingId(null)
     setEditForm(null)
+    setEditBaseline(null)
     setStatusText('')
   }, [setExpandedId])
   const {
@@ -1060,16 +1109,6 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   }, [deepSearch, keyword, token, user?.role])
 
   useEffect(() => {
-    if (editingId != null && expandedId !== editingId) {
-      setEditingId(null)
-      setEditForm(null)
-      editBaselineRef.current = null
-      setEditDetailReady(true)
-      editDetailReadyRef.current = true
-    }
-  }, [expandedId, editingId])
-
-  useEffect(() => {
     if (tab !== 'list' && isSelectMode) {
       setIsSelectMode(false)
       setSelectedCustomerIds([])
@@ -1078,68 +1117,51 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     }
   }, [tab, isSelectMode])
 
-  const leaveEdit = useCallback(
-    async (collapse: boolean) => {
-      const current = editFormRef.current
-      const baseline = editBaselineRef.current
-      const dirty =
-        current != null && baseline != null && JSON.stringify(current) !== baseline
-      if (dirty) {
-        const ok = await confirm({
-          title: '변경사항 닫기',
-          message: '변경사항이 저장되지 않았습니다. 닫으시겠습니까?',
-          confirmLabel: '저장안함',
-          cancelLabel: '계속 편집',
-          tone: 'danger',
-        })
-        if (!ok) {
-          return
-        }
-      }
-      const activeId = editingIdRef.current
-      setEditingId(null)
-      setEditForm(null)
-      editBaselineRef.current = null
-      setEditDetailReady(true)
-      editDetailReadyRef.current = true
-      if (collapse && activeId != null) {
-        setExpandedId((prev) => (prev === activeId ? null : prev))
-      }
-    },
-    [confirm],
-  )
+  const promptUnsavedChanges = useCallback((): Promise<CustomerUnsavedChangesChoice> => {
+    return new Promise((resolve) => {
+      unsavedChangesResolverRef.current = resolve
+      setUnsavedChangesOpen(true)
+    })
+  }, [])
 
-  const cancelEdit = useCallback(() => {
-    void leaveEdit(false)
-  }, [leaveEdit])
+  const resolveUnsavedChanges = useCallback((choice: CustomerUnsavedChangesChoice) => {
+    setUnsavedChangesOpen(false)
+    const resolve = unsavedChangesResolverRef.current
+    unsavedChangesResolverRef.current = null
+    resolve?.(choice)
+  }, [])
 
-  const minimizeEdit = useCallback(() => {
-    void leaveEdit(true)
-  }, [leaveEdit])
+  const clearEditState = useCallback(() => {
+    setEditingId(null)
+    setEditForm(null)
+    setEditBaseline(null)
+    setEditDetailReady(true)
+    editDetailReadyRef.current = true
+  }, [])
 
-  const handleUpdateCustomer = useCallback(async () => {
+  const handleUpdateCustomer = useCallback(async (): Promise<boolean> => {
     if (!token?.trim()) {
       const msg = '로그인이 필요합니다.'
       setStatusText(msg)
-      return
+      return false
     }
     if (user?.role !== 'USER') {
       const msg = '고객 정보를 수정할 권한이 없습니다.'
       setStatusText(msg)
-      return
+      return false
     }
     const activeEditingId = editingIdRef.current
     const activeEditForm = editFormRef.current
     if (activeEditingId == null || !activeEditForm) {
       const msg = '수정 중인 고객이 없습니다.'
       setStatusText(msg)
-      return
+      return false
     }
     const base = customersRef.current.find((x) => x.id === activeEditingId)
     if (!base) {
       const msg = '고객 정보를 찾을 수 없습니다.'
       setStatusText(msg)
-      return
+      return false
     }
     const crm = crmIndustryRef.current
     if (crm.isInsuranceLayout) {
@@ -1147,27 +1169,27 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       if (!name) {
         const msg = '이름은 필수입니다.'
         setStatusText(msg)
-        return
+        return false
       }
       if (activeEditForm.isDriver !== true && activeEditForm.isDriver !== false) {
         setStatusText('운전 여부를 선택해 주세요.')
-        return
+        return false
       }
       const specialDatesErr = getCustomerSpecialDatesValidationError(activeEditForm.specialDates)
       if (specialDatesErr) {
         setStatusText(specialDatesErr)
-        return
+        return false
       }
     } else {
       const verr = getCustomerIndustryTemplateFormValidationError(activeEditForm, crm.resolvedTemplate)
       if (verr) {
         setStatusText(verr)
-        return
+        return false
       }
     }
     if (crm.isInsuranceLayout && !editDetailReadyRef.current) {
       setStatusText('상세 정보를 불러오는 중입니다. 잠시 후 다시 저장해 주세요.')
-      return
+      return false
     }
     const name = activeEditForm.name.trim()
     const normalizedCars = normalizeCustomerCarsForSave(activeEditForm.cars)
@@ -1246,7 +1268,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         setStatusText(
           '고객 정보는 수정했습니다. 자동차 정보 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.',
         )
-        cancelEdit()
+        clearEditState()
         mergeCustomerInListState(updatedCustomer)
         if (keepOpenCustomerId != null) {
           keepCustomerCardOpen(keepOpenCustomerId, updatedCustomer)
@@ -1255,7 +1277,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           silent: true,
           preserveExpandedCustomerId: keepOpenCustomerId,
         })
-        return
+        return true
       }
       try {
         if (token?.trim() && crmIndustryRef.current.isInsuranceLayout) {
@@ -1269,7 +1291,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         setStatusText(
           '고객 정보는 수정했습니다. 화재보험 소재지 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.',
         )
-        cancelEdit()
+        clearEditState()
         mergeCustomerInListState(updatedCustomer)
         if (keepOpenCustomerId != null) {
           keepCustomerCardOpen(keepOpenCustomerId, updatedCustomer)
@@ -1278,7 +1300,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           silent: true,
           preserveExpandedCustomerId: keepOpenCustomerId,
         })
-        return
+        return true
       }
       try {
         if (token?.trim() && crmIndustryRef.current.isInsuranceLayout) {
@@ -1292,7 +1314,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         setStatusText(
           '고객 정보는 수정했습니다. 기념일 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.',
         )
-        cancelEdit()
+        clearEditState()
         mergeCustomerInListState(updatedCustomer)
         if (keepOpenCustomerId != null) {
           keepCustomerCardOpen(keepOpenCustomerId, updatedCustomer)
@@ -1301,10 +1323,10 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           silent: true,
           preserveExpandedCustomerId: keepOpenCustomerId,
         })
-        return
+        return true
       }
       setStatusText('고객 정보를 수정했습니다.')
-      cancelEdit()
+      clearEditState()
       mergeCustomerInListState(updatedCustomer)
       if (keepOpenCustomerId != null) {
         keepCustomerCardOpen(keepOpenCustomerId, updatedCustomer)
@@ -1313,25 +1335,91 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         silent: true,
         preserveExpandedCustomerId: keepOpenCustomerId,
       })
+      return true
     } catch (error) {
       const msg = error instanceof Error ? error.message : '수정에 실패했습니다.'
       setStatusText(msg)
+      return false
     }
-  }, [token, user?.role, cancelEdit, loadCustomers, mergeCustomerInListState, keepCustomerCardOpen])
+  }, [token, user?.role, clearEditState, loadCustomers, mergeCustomerInListState, keepCustomerCardOpen])
 
-  const handleEditSaveRequest = useCallback(async () => {
+  const handleEditSaveRequest = useCallback(async (): Promise<boolean> => {
     if (editSavingRef.current) {
-      return
+      return false
     }
     editSavingRef.current = true
     setEditSaving(true)
     try {
-      await handleUpdateCustomer()
+      return await handleUpdateCustomer()
     } finally {
       editSavingRef.current = false
       setEditSaving(false)
     }
   }, [handleUpdateCustomer])
+
+  const attemptCloseEdit = useCallback(
+    async (options: { nextExpandedId?: number | null } = {}): Promise<boolean> => {
+      const current = editFormRef.current
+      const baseline = editBaselineRef.current
+      const editing = editingIdRef.current
+
+      const finishClose = () => {
+        clearEditState()
+        if (options.nextExpandedId !== undefined) {
+          applyExpandedIdDirect(options.nextExpandedId)
+        }
+      }
+
+      if (editing == null || !current || !baseline) {
+        if (options.nextExpandedId !== undefined) {
+          applyExpandedIdDirect(options.nextExpandedId)
+        }
+        return true
+      }
+
+      if (!isCustomerEditFormDirty(baseline, current)) {
+        finishClose()
+        return true
+      }
+
+      const choice = await promptUnsavedChanges()
+      if (choice === 'cancel') {
+        return false
+      }
+      if (choice === 'discard') {
+        finishClose()
+        return true
+      }
+
+      const saved = await handleEditSaveRequest()
+      if (!saved) {
+        return false
+      }
+      if (options.nextExpandedId !== undefined) {
+        applyExpandedIdDirect(options.nextExpandedId)
+      }
+      return true
+    },
+    [applyExpandedIdDirect, clearEditState, handleEditSaveRequest, promptUnsavedChanges],
+  )
+
+  attemptCloseEditRef.current = attemptCloseEdit
+
+  const cancelEdit = useCallback(() => {
+    void attemptCloseEdit({ nextExpandedId: expandedIdRef.current })
+  }, [attemptCloseEdit])
+
+  const minimizeEdit = useCallback(() => {
+    void attemptCloseEdit({ nextExpandedId: null })
+  }, [attemptCloseEdit])
+
+  const beforeCollapseExpanded = useCallback(() => {
+    return attemptCloseEdit({ nextExpandedId: null })
+  }, [attemptCloseEdit])
+
+  const beforeCollapseEditingCard = useCallback(() => {
+    return attemptCloseEdit({ nextExpandedId: null })
+  }, [attemptCloseEdit])
 
   const handleEditFormSubmit = useCallback(
     async (e: FormEvent<HTMLFormElement>) => {
@@ -1396,9 +1484,9 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     (cl: CustomerRecord) => {
       setExpandedId(cl.id)
       setEditingId(cl.id)
-      const base = recordToEditForm(cl)
+      const base = cloneCustomerEditFormState(recordToEditForm(cl))
       setEditForm(base)
-      editBaselineRef.current = JSON.stringify(base)
+      setEditBaseline(cloneCustomerEditFormState(base))
       if (!token?.trim()) {
         setEditDetailReady(true)
         editDetailReadyRef.current = true
@@ -1428,7 +1516,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
             if (editingIdRef.current !== customerId || !prev) {
               return prev
             }
-            const next = {
+            const next = cloneCustomerEditFormState({
               ...prev,
               ...(serverCars.length > 0
                 ? { cars: serverCars.map(customerCarRecordToFormItem) }
@@ -1438,8 +1526,8 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
               fireInsuranceLocations: ensureCustomerFireInsuranceLocationFormItems(
                 serverFireLocations.map(customerFireInsuranceLocationRecordToFormItem),
               ),
-            }
-            editBaselineRef.current = JSON.stringify(next)
+            })
+            setEditBaseline(cloneCustomerEditFormState(next))
             return next
           })
         } catch {
@@ -1490,6 +1578,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     activeMobileModal,
     setExpandedId,
     clearMobileModal,
+    beforeCollapseExpanded,
   })
 
   const handleOpenFilesModal = useCallback(
@@ -1953,8 +2042,12 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
               setEditForm={setEditForm}
               onEditSubmit={handleEditFormSubmit}
               onEditSaveRequest={handleEditSaveRequest}
-              editSaving={editSaving || (editingId != null && !editDetailReady)}
+              editSaving={editSaving}
+              editSaveDisabled={editSaving || !editDetailReady || !editDirty}
               editStatusText={editingId === c.id ? statusText : undefined}
+              onBeforeCollapseEdit={
+                editingId === c.id && editForm ? beforeCollapseEditingCard : undefined
+              }
               carFeatureEnabled={carFeatureEnabled}
               contractSignaturesEnabled={contractSignaturesEnabled}
               gaExcelEnabled={gaExcelEnabled}
@@ -2062,6 +2155,13 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         gaCode={(user?.gaCode ?? '').trim().toUpperCase()}
         onClose={() => setRegistrationShareOpen(false)}
         onFeedback={setStatusText}
+      />
+      <CustomerUnsavedChangesDialog
+        open={unsavedChangesOpen}
+        busy={editSaving}
+        onCancel={() => resolveUnsavedChanges('cancel')}
+        onDiscard={() => resolveUnsavedChanges('discard')}
+        onSave={() => resolveUnsavedChanges('save')}
       />
     </>
   )

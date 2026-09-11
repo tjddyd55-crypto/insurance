@@ -36,6 +36,7 @@ type CustomerEditFormProps = {
   /** 저장 요청 — submit 이벤트와 분리된 직접 저장 경로(모바일 터치 안정화). */
   onEditSaveRequest: () => void | Promise<void>
   saving?: boolean
+  saveDisabled?: boolean
   statusText?: string
   onCancelEdit: () => void
   isInsuranceLayout: boolean
@@ -49,6 +50,7 @@ export default function CustomerEditForm({
   onEditSubmit: _onEditSubmit,
   onEditSaveRequest,
   saving = false,
+  saveDisabled = false,
   statusText,
   onCancelEdit,
   isInsuranceLayout,
@@ -323,25 +325,26 @@ export default function CustomerEditForm({
         ) : null}
         <div className="customer-edit-actions">
           <FormButton
-            className="customer-edit-actions__btn"
+            className="customer-edit-actions__btn customer-edit-actions__btn--cancel"
+            htmlType="button"
+            variant="secondary"
+            disabled={saving}
+            onClick={onCancelEdit}
+          >
+            취소
+          </FormButton>
+          <FormButton
+            className="customer-edit-actions__btn customer-edit-actions__btn--save"
             htmlType="button"
             variant="primary"
-            disabled={saving}
+            disabled={saveDisabled}
             loading={saving}
             loadingText="저장 중…"
             onClick={() => {
               void onEditSaveRequest()
             }}
           >
-            수정 저장
-          </FormButton>
-          <FormButton
-            className="customer-edit-actions__btn"
-            htmlType="button"
-            variant="secondary"
-            onClick={onCancelEdit}
-          >
-            취소
+            변경 저장
           </FormButton>
         </div>
       </form>

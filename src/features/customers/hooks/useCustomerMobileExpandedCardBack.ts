@@ -13,6 +13,11 @@ type Params = {
   activeMobileModal: MobileCustomerModal
   setExpandedId: Dispatch<SetStateAction<number | null>>
   clearMobileModal: () => void
+  /**
+   * 펼친 카드 닫기 직전 확인. false 시 닫지 않고 history 를 복원한다.
+   * 고객 수정 미저장 확인(attemptCloseEdit) SSOT.
+   */
+  beforeCollapseExpanded?: () => Promise<boolean>
 }
 
 /**
@@ -28,16 +33,19 @@ export function useCustomerMobileExpandedCardBack({
   activeMobileModal,
   setExpandedId,
   clearMobileModal,
+  beforeCollapseExpanded,
 }: Params): void {
   const expandedIdRef = useRef(expandedId)
   const activeMobileModalRef = useRef(activeMobileModal)
   const expandedHistoryPushedRef = useRef(false)
   const collapseFromPopstateRef = useRef(false)
   const clearMobileModalRef = useRef(clearMobileModal)
+  const beforeCollapseExpandedRef = useRef(beforeCollapseExpanded)
 
   expandedIdRef.current = expandedId
   activeMobileModalRef.current = activeMobileModal
   clearMobileModalRef.current = clearMobileModal
+  beforeCollapseExpandedRef.current = beforeCollapseExpanded
 
   const backHandlingEnabled =
     isMobile &&
@@ -84,9 +92,25 @@ export function useCustomerMobileExpandedCardBack({
         return
       }
       if (expandedIdRef.current != null) {
-        collapseFromPopstateRef.current = true
-        expandedHistoryPushedRef.current = false
-        setExpandedId(null)
+        const customerId = expandedIdRef.current
+        const proceedCollapse = () => {
+          collapseFromPopstateRef.current = true
+          expandedHistoryPushedRef.current = false
+          setExpandedId(null)
+        }
+        const beforeCollapse = beforeCollapseExpandedRef.current
+        if (beforeCollapse) {
+          void beforeCollapse().then((ok) => {
+            if (ok) {
+              proceedCollapse()
+              return
+            }
+            window.history.pushState({ customerListExpanded: true, customerId }, '')
+            expandedHistoryPushedRef.current = true
+          })
+          return
+        }
+        proceedCollapse()
       }
     }
 
@@ -111,7 +135,23 @@ export function useCustomerMobileExpandedCardBack({
         window.history.back()
         return
       }
-      setExpandedId(null)
+      const customerId = expandedIdRef.current
+      const proceedCollapse = () => {
+        setExpandedId(null)
+      }
+      const beforeCollapse = beforeCollapseExpandedRef.current
+      if (beforeCollapse && customerId != null) {
+        void beforeCollapse().then((ok) => {
+          if (ok) {
+            proceedCollapse()
+            return
+          }
+          window.history.pushState({ customerListExpanded: true, customerId }, '')
+          expandedHistoryPushedRef.current = true
+        })
+        return
+      }
+      proceedCollapse()
     }
 
     window.addEventListener('popstate', handlePopState)
