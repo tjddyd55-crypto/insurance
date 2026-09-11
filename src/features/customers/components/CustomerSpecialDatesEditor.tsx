@@ -41,6 +41,7 @@ export function CustomerSpecialDatesEditor({
   return (
     <CustomerFormSection
       title="기념일"
+      sectionId="anniversary"
       className="customer-form-section--grid-full customer-special-dates-editor"
       headerExtra={
         <FormButton

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { getCustomerById } from '../api/customersApi'
 import type { CustomerBusinessInfo } from '../domain/customerBusinessInfo'
 import { formatBusinessNumberDisplay } from '../domain/customerBusinessInfo'
+import { CustomerCollapsibleSection } from './CustomerCollapsibleSection'
 
 export type CustomerBusinessInfoReadSectionProps = {
   customerId: number
@@ -77,32 +78,30 @@ export function CustomerBusinessInfoReadSection({
   )
 
   return (
-    <section className="customer-detail-read__section" aria-labelledby="customer-business-info-heading">
-      <div className="customer-detail-read__section-header">
-        <h4 id="customer-business-info-heading" className="customer-detail-read__section-title">
-          사업자 정보
-        </h4>
-      </div>
-      <div className="customer-detail-read__section-body">
-        {errorMessage ? (
-          <p className="customer-detail-read__api-warn" role="status">{errorMessage}</p>
-        ) : null}
-        {isLoading ? <p className="customer-detail-read__loading-hint">불러오는 중…</p> : null}
-        {!isLoading && hasAny ? (
-          <>
-            <ReadRow label="대표자명" value={displayInfo.representativeName} />
-            <ReadRow
-              label="사업자번호"
-              value={formatBusinessNumberDisplay(displayInfo.businessNumber)}
-            />
-            <ReadRow label="사업장 주소" value={displayInfo.businessAddress} />
-            {displayInfo.memo.trim() ? (
-              <div className="customer-detail-read__memo-block">{displayInfo.memo}</div>
-            ) : null}
-          </>
-        ) : null}
-        {!isLoading && !hasAny && !errorMessage ? '내용 없음' : null}
-      </div>
-    </section>
+    <CustomerCollapsibleSection
+      sectionId="business"
+      title="사업자 정보"
+      headingId="customer-business-info-heading"
+      defaultExpanded={false}
+    >
+      {errorMessage ? (
+        <p className="customer-detail-read__api-warn" role="status">{errorMessage}</p>
+      ) : null}
+      {isLoading ? <p className="customer-detail-read__loading-hint">불러오는 중…</p> : null}
+      {!isLoading && hasAny ? (
+        <>
+          <ReadRow label="대표자명" value={displayInfo.representativeName} />
+          <ReadRow
+            label="사업자번호"
+            value={formatBusinessNumberDisplay(displayInfo.businessNumber)}
+          />
+          <ReadRow label="사업장 주소" value={displayInfo.businessAddress} />
+          {displayInfo.memo.trim() ? (
+            <div className="customer-detail-read__memo-block">{displayInfo.memo}</div>
+          ) : null}
+        </>
+      ) : null}
+      {!isLoading && !hasAny && !errorMessage ? '내용 없음' : null}
+    </CustomerCollapsibleSection>
   )
 }

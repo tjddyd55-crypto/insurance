@@ -1,5 +1,6 @@
 import type { CustomerRecord } from '../domain/types'
 import { CustomerCarsReadGrid } from './CustomerCarsReadGrid'
+import { CustomerCollapsibleSection } from './CustomerCollapsibleSection'
 import { useCustomerCars } from '../hooks/useCustomerCars'
 import { customerCarRecordToFormItem } from '../utils/customerCarsSaveUtils'
 import { resolveCustomerCarsForPicker } from '../utils/resolveCustomerCarsForDisplay'
@@ -34,13 +35,19 @@ export function CustomerCarsReadSection({ customer, token, enabled }: CustomerCa
   }
 
   return (
-    <div className="customer-detail-read__cars-wrap">
+    <CustomerCollapsibleSection
+      sectionId="car"
+      title="자동차 정보"
+      headingId="customer-cars-read-heading"
+      defaultExpanded
+      className="customer-detail-read__cars-wrap"
+    >
       {showApiWarning ? (
         <p className="customer-detail-read__api-warn" role="status">
           자동차 목록을 불러오지 못해 저장된 기본 정보로 표시합니다.
         </p>
       ) : null}
       <CustomerCarsReadGrid cars={displayCars} loading={shouldFetch && isLoading} />
-    </div>
+    </CustomerCollapsibleSection>
   )
 }

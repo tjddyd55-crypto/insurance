@@ -29,6 +29,7 @@ import {
 } from '../utils/governmentCustomerStatusSummary'
 import { CustomerSmsOptOutReadBadge } from './CustomerSmsOptOutReadBadge'
 import GovernmentProgressReadSection from './GovernmentProgressReadSection'
+import { CustomerCollapsibleSection } from './CustomerCollapsibleSection'
 
 export type CustomerDetailInsuranceDisplay = {
   ageText: string
@@ -51,9 +52,19 @@ function MaturityDdayBadge({ maturityYmd }: { maturityYmd: string | null }) {
   return <span className={`customer-detail-read__dday-inline ${toneClass}`}>({label})</span>
 }
 
-function DetailReadInfoRow({ children, rowClassName }: { children: ReactNode; rowClassName?: string }) {
+function DetailReadInfoRow({
+  children,
+  rowClassName,
+  emphasis,
+}: {
+  children: ReactNode
+  rowClassName?: string
+  emphasis?: boolean
+}) {
   return (
-    <div className={`customer-detail-read__info-row${rowClassName ? ` ${rowClassName}` : ''}`}>
+    <div
+      className={`customer-detail-read__info-row${emphasis ? ' customer-detail-read__info-row--emphasis' : ''}${rowClassName ? ` ${rowClassName}` : ''}`}
+    >
       <span className="customer-detail-read__info-bullet" aria-hidden>
         •
       </span>
@@ -208,24 +219,20 @@ export default function CustomerDetailReadView({
 
   return (
     <div className="customer-detail-read">
-      <section
-        id="customer-detail-read-basic-info"
-        className="customer-detail-read__section"
-        aria-labelledby="customer-detail-read-basic-info-heading"
+      <CustomerCollapsibleSection
+        sectionId="basic"
+        title="기본 정보"
+        headingId="customer-detail-read-basic-info-heading"
+        defaultExpanded
+        className="customer-detail-read__basic-section"
       >
-        <div className="customer-detail-read__section-header">
-          <h4 id="customer-detail-read-basic-info-heading" className="customer-detail-read__section-title">
-            기본 정보
-          </h4>
-        </div>
-        <div className="customer-detail-read__section-body">
-          <div className="customer-detail-read__info-list">
-            <DetailReadInfoRow>
-              <span className="customer-detail-read__info-label">이름:</span>{' '}
+          <div className="customer-detail-read__info-list" id="customer-detail-read-basic-info">
+            <DetailReadInfoRow emphasis>
+              <span className="customer-detail-read__info-label">이름</span>
               <span className="customer-detail-read__info-value">{c.name?.trim() || '—'}</span>
             </DetailReadInfoRow>
-            <DetailReadInfoRow>
-              <span className="customer-detail-read__info-label">연락처:</span>{' '}
+            <DetailReadInfoRow emphasis>
+              <span className="customer-detail-read__info-label">연락처</span>
               <span className="customer-detail-read__info-value">{formatCustomerPhoneUi(c.phone) || '—'}</span>
             </DetailReadInfoRow>
             <DetailReadInfoRow>
@@ -247,8 +254,8 @@ export default function CustomerDetailReadView({
               <span className="customer-detail-read__info-value">{ins.dateText}</span>
               <MaturityDdayBadge maturityYmd={ins.maturityYmd} />
             </DetailReadInfoRow>
-            <DetailReadInfoRow>
-              <span className="customer-detail-read__info-label">보험나이:</span>{' '}
+            <DetailReadInfoRow emphasis>
+              <span className="customer-detail-read__info-label">보험나이</span>
               <span className="customer-detail-read__info-value">{ins.ageText}</span>
             </DetailReadInfoRow>
             <DetailReadInfoRow>
@@ -314,13 +321,10 @@ export default function CustomerDetailReadView({
               />
             </DetailReadInfoRow>
           </div>
-        </div>
-      </section>
-      <hr className="customer-detail-read__divider" />
+      </CustomerCollapsibleSection>
       <CustomerCarsReadSection customer={c} token={token} enabled={fetchCarsEnabled} />
       {token?.trim() ? (
         <>
-          <hr className="customer-detail-read__divider" />
           <CustomerRelationsStrip
             customerId={c.id}
             customerName={c.name}
@@ -330,42 +334,37 @@ export default function CustomerDetailReadView({
           />
         </>
       ) : null}
-      <hr className="customer-detail-read__divider" />
       <CustomerBusinessInfoReadSection
         customerId={c.id}
         businessInfo={c.businessInfo}
         token={token}
         enabled={fetchCarsEnabled}
       />
-      <hr className="customer-detail-read__divider" />
       <CustomerFireInsuranceLocationsReadSection
         customer={c}
         token={token}
         enabled={fetchCarsEnabled}
       />
-      <hr className="customer-detail-read__divider" />
       <CustomerSpecialDatesReadSection customer={c} token={token} enabled={fetchCarsEnabled} />
-      <hr className="customer-detail-read__divider" />
-      <section className="customer-detail-read__section" aria-labelledby="customer-insurance-history-heading">
-        <div className="customer-detail-read__section-header">
-          <h4 id="customer-insurance-history-heading" className="customer-detail-read__section-title">
-            보험가입내역
-          </h4>
-        </div>
-        <div className="customer-detail-read__section-body customer-insurance-history-body">
+      <CustomerCollapsibleSection
+        sectionId="insurance-history"
+        title="보험가입내역"
+        headingId="customer-insurance-history-heading"
+        defaultExpanded={false}
+      >
+        <div className="customer-insurance-history-body">
           {normalizeCustomerNotesBag(c.notes).insuranceHistory?.trim()
             ? normalizeCustomerNotesBag(c.notes).insuranceHistory
             : '내용 없음'}
         </div>
-      </section>
-      <hr className="customer-detail-read__divider" />
-      <section className="customer-detail-read__section" aria-labelledby="customer-account-number-heading">
-        <div className="customer-detail-read__section-header">
-          <h4 id="customer-account-number-heading" className="customer-detail-read__section-title">
-            계좌번호
-          </h4>
-        </div>
-        <div className="customer-detail-read__section-body customer-account-number-read">
+      </CustomerCollapsibleSection>
+      <CustomerCollapsibleSection
+        sectionId="account"
+        title="계좌번호"
+        headingId="customer-account-number-heading"
+        defaultExpanded={false}
+      >
+        <div className="customer-account-number-read">
           <span className="customer-account-number-read__value">
             {normalizeCustomerNotesBag(c.notes).accountNumber?.trim() || '내용 없음'}
           </span>
@@ -376,7 +375,7 @@ export default function CustomerDetailReadView({
             />
           ) : null}
         </div>
-      </section>
+      </CustomerCollapsibleSection>
     </div>
   )
 }
