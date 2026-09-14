@@ -6,6 +6,7 @@ import FormInput from './FormInput'
 import type { AddressSearchValue } from './addressSearchUtils'
 import {
   loadKakaoPostcode,
+  resetKakaoPostcodeLoader,
   type DaumPostcodeData,
   type DaumPostcodeInstance,
 } from '../../lib/kakaoPostcode/loadKakaoPostcode'
@@ -81,6 +82,7 @@ export default function AddressSearchField({
 }: AddressSearchFieldProps) {
   const [open, setOpen] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [loadAttempt, setLoadAttempt] = useState(0)
   const embedRef = useRef<HTMLDivElement | null>(null)
   const instanceRef = useRef<DaumPostcodeInstance | null>(null)
   const detailInputRef = useRef<HTMLInputElement | null>(null)
@@ -90,6 +92,12 @@ export default function AddressSearchField({
     setLoadError(null)
     setOpen(true)
   }, [disabled, previewStatic])
+
+  const retryLoad = useCallback(() => {
+    resetKakaoPostcodeLoader()
+    setLoadError(null)
+    setLoadAttempt((previous) => previous + 1)
+  }, [])
 
   const patch = useCallback(
     (next: Partial<AddressSearchValue>) => {
@@ -141,7 +149,7 @@ export default function AddressSearchField({
     return () => {
       cancelled = true
     }
-  }, [open, handleSelect, previewStatic])
+  }, [open, handleSelect, previewStatic, loadAttempt])
 
   const current = value ?? EMPTY_VALUE
   const rootClass = ['customer-address-field', className].filter(Boolean).join(' ')
@@ -215,11 +223,21 @@ export default function AddressSearchField({
             </FormButton>
           </div>
           {loadError ? (
-            <p className="address-search-field__error">
-              {loadError}
-              <br />
-              네트워크 상태를 확인하고 다시 시도해 주세요.
-            </p>
+            <div className="address-search-field__error">
+              <p>
+                주소 검색 서비스를 불러오지 못했습니다. 다시 시도해 주세요.
+                <br />
+                {loadError}
+              </p>
+              <FormButton
+                htmlType="button"
+                variant="secondary"
+                size="sm"
+                onClick={retryLoad}
+              >
+                다시 시도
+              </FormButton>
+            </div>
           ) : null}
           <div
             ref={embedRef}
