@@ -12759,7 +12759,7 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 }
 
 /* 앱 링크 줄 바로 아래 2열 그리드: 위쪽 중복 border 없음 — 아래만 얕게 구분(한 줄) */
-.customers-page--mobile .customer-mobile-expanded-app-link + .customer-detail-feature-actions--mobile-priority.customer-detail-feature-actions--mobile-grid-8 {
+.customers-page--mobile .customer-mobile-expanded-app-link + .customer-detail-feature-actions--mobile-priority.customer-detail-feature-actions--mobile-grid {
   margin-top: 8px;
   padding-top: 8px;
   border-top: none;
@@ -12909,7 +12909,7 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   color: #dc2626;
 }
 
-.customers-page--mobile .customer-detail-feature-actions--mobile-grid-8 {
+.customers-page--mobile .customer-detail-feature-actions--mobile-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 

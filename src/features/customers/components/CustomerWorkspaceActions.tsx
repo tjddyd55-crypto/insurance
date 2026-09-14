@@ -63,18 +63,7 @@ export function CustomerWorkspaceActions({
             customerPhone={customerPhone}
           />
         </div>
-        <div className="customer-detail-feature-actions customer-detail-feature-actions--mobile-priority customer-detail-feature-actions--mobile-grid-8">
-          <FormButton
-            htmlType="button"
-            variant="secondary"
-            className="button button--secondary customer-mobile-action-btn customer-mobile-action-btn--map"
-            onClick={() => onOpenOnMap(customerId)}
-          >
-            <span className="customer-mobile-action-btn__icon" aria-hidden>
-              🗺️
-            </span>
-            <MobileActionText>지도에서 보기</MobileActionText>
-          </FormButton>
+        <div className="customer-detail-feature-actions customer-detail-feature-actions--mobile-priority customer-detail-feature-actions--mobile-grid">
           <FormButton
             htmlType="button"
             variant="secondary"
@@ -188,17 +177,6 @@ export function CustomerWorkspaceActions({
               📄
             </span>
             <MobileActionText>복사</MobileActionText>
-          </FormButton>
-          <FormButton
-            htmlType="button"
-            variant="secondary"
-            className="button button--secondary customer-mobile-action-btn"
-            onClick={() => onOpenPremiumPayments(customerId)}
-          >
-            <span className="customer-mobile-action-btn__icon" aria-hidden>
-              💳
-            </span>
-            <MobileActionText>카드 수납</MobileActionText>
           </FormButton>
         </div>
       </>
