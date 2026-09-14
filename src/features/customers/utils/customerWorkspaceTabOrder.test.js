@@ -29,15 +29,13 @@ describe('customer workspace tab order — premium-payments last', () => {
     assert.ok(paymentsIdx > claimsIdx)
   })
 
-  it('mobile actions render 카드 수납 after 복사', () => {
+  it('mobile actions hide map and card payment', () => {
     const actions = read('src/features/customers/components/CustomerWorkspaceActions.tsx')
     const mobileSlice = actions.slice(
       0,
       actions.indexOf('customer-detail-feature-actions customer-workspace-action-bar'),
     )
-    const copyIdx = mobileSlice.lastIndexOf('고객정보 복사')
-    const paymentsIdx = mobileSlice.lastIndexOf('카드 수납')
-    assert.ok(copyIdx > 0)
-    assert.ok(paymentsIdx > copyIdx)
+    assert.equal(mobileSlice.includes('지도에서 보기'), false)
+    assert.equal(mobileSlice.includes('카드 수납'), false)
   })
 })
