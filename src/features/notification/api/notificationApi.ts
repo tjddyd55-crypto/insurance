@@ -180,7 +180,7 @@ export function notificationTypeLabel(type: string): string {
     case 'claim_request_received':
       return '청구알림'
     case 'special_date':
-      return '알림일'
+      return '지정일'
     default:
       return type || '알림'
   }

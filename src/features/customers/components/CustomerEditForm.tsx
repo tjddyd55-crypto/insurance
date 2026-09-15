@@ -18,9 +18,7 @@ import CustomerMobileCarrierSelect from './CustomerMobileCarrierSelect'
 import { resolveGenderAfterSsnInput } from '../utils/inferGenderFromResidentNumberDigits'
 import type { CustomerEditFormState } from '../types/customerEditForm'
 import { CustomerAccountNumberField } from './CustomerAccountNumberField'
-import { CustomerBusinessInfoFields } from './CustomerBusinessInfoFields'
 import { CustomerCarsEditor } from './CustomerCarsEditor'
-import { CustomerFireInsuranceLocationsEditor } from './CustomerFireInsuranceLocationsEditor'
 import { CustomerSpecialDatesEditor } from './CustomerSpecialDatesEditor'
 import { CustomerDrivingRadioGroup } from './CustomerDrivingRadioGroup'
 import CustomerIndustryTemplateFields from './CustomerIndustryTemplateFields'
@@ -36,7 +34,6 @@ type CustomerEditFormProps = {
   /** 저장 요청 — submit 이벤트와 분리된 직접 저장 경로(모바일 터치 안정화). */
   onEditSaveRequest: () => void | Promise<void>
   saving?: boolean
-  saveDisabled?: boolean
   statusText?: string
   onCancelEdit: () => void
   isInsuranceLayout: boolean
@@ -50,7 +47,6 @@ export default function CustomerEditForm({
   onEditSubmit: _onEditSubmit,
   onEditSaveRequest,
   saving = false,
-  saveDisabled = false,
   statusText,
   onCancelEdit,
   isInsuranceLayout,
@@ -252,17 +248,17 @@ export default function CustomerEditForm({
           />
           <CustomerBusinessInfoFields
             value={editForm.businessInfo}
-            disabled={saving}
             onChange={(next) =>
               setEditForm((prev) => (prev ? { ...prev, businessInfo: next } : prev))
             }
+            disabled={saving}
           />
           <CustomerFireInsuranceLocationsEditor
             locations={editForm.fireInsuranceLocations}
-            disabled={saving}
             onChange={(next) =>
               setEditForm((prev) => (prev ? { ...prev, fireInsuranceLocations: next } : prev))
             }
+            disabled={saving}
           />
           <CustomerSpecialDatesEditor
             specialDates={editForm.specialDates}
@@ -325,26 +321,25 @@ export default function CustomerEditForm({
         ) : null}
         <div className="customer-edit-actions">
           <FormButton
-            className="customer-edit-actions__btn customer-edit-actions__btn--cancel"
-            htmlType="button"
-            variant="secondary"
-            disabled={saving}
-            onClick={onCancelEdit}
-          >
-            취소
-          </FormButton>
-          <FormButton
-            className="customer-edit-actions__btn customer-edit-actions__btn--save"
+            className="customer-edit-actions__btn"
             htmlType="button"
             variant="primary"
-            disabled={saveDisabled}
+            disabled={saving}
             loading={saving}
             loadingText="저장 중…"
             onClick={() => {
               void onEditSaveRequest()
             }}
           >
-            변경 저장
+            수정 저장
+          </FormButton>
+          <FormButton
+            className="customer-edit-actions__btn"
+            htmlType="button"
+            variant="secondary"
+            onClick={onCancelEdit}
+          >
+            취소
           </FormButton>
         </div>
       </form>

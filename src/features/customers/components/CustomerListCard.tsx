@@ -9,7 +9,6 @@ import { buildGovernmentCustomerStatusSummary, formatGovernmentListMetaSecondary
 import { formatIndustryCustomerListSecondaryLine } from '../utils/industryCustomerListSummary'
 import type { CustomerEditFormState } from '../types/customerEditForm'
 import CustomerDetailReadView from './CustomerDetailReadView'
-import { CustomerContactActions } from './CustomerContactActions'
 import CustomerEditForm from './CustomerEditForm'
 import { CustomerWorkspaceActions } from './CustomerWorkspaceActions'
 function customerInsuranceDisplay(c: CustomerRecord): {
@@ -37,6 +36,14 @@ function genderSummaryLabel(c: CustomerRecord): string {
   return '—'
 }
 
+function customerPhoneHref(phone: string | undefined, scheme: 'tel' | 'sms'): string | null {
+  const digits = String(phone ?? '').replace(/\D/g, '')
+  if (digits.length < 8) {
+    return null
+  }
+  return `${scheme}:${digits}`
+}
+
 /** 카드 상단: API가 phone / phoneNumber / phone_number 중 무엇으로 주든 통일 */
 function resolveCustomerListPhone(
   customer: CustomerRecord & { phoneNumber?: unknown; phone_number?: unknown },
@@ -46,6 +53,39 @@ function resolveCustomerListPhone(
     return ''
   }
   return typeof raw === 'string' ? raw : String(raw)
+}
+
+/**
+ * 전화 아이콘 — 이모지(📞)는 OS/브라우저에서 멀티컬러 비트맵으로 그려져 `color`/`text-*`가
+ * 적용되지 않는 경우가 많음. SVG + currentColor로 테마·부모 링크와 분리해 색을 준다.
+ */
+function CustomerListTelSvg({
+  hasPhone,
+  withLinkHover,
+}: {
+  hasPhone: boolean
+  withLinkHover?: boolean
+}) {
+  const tone = hasPhone
+    ? withLinkHover
+      ? 'h-5 w-5 shrink-0 !text-green-500 transition-colors group-hover:!text-green-400 active:!text-green-600'
+      : 'h-5 w-5 shrink-0 !text-green-500 transition-colors'
+    : 'h-5 w-5 shrink-0 text-gray-400 transition-colors'
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={tone}
+      aria-hidden
+    >
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+    </svg>
+  )
 }
 
 export type CustomerSsnDupHighlight = {
@@ -70,9 +110,7 @@ export type CustomerListCardProps = {
   onEditSubmit: (e: FormEvent<HTMLFormElement>) => void | Promise<void>
   onEditSaveRequest: () => void | Promise<void>
   editSaving: boolean
-  editSaveDisabled?: boolean
   editStatusText?: string
-  onBeforeCollapseEdit?: () => Promise<boolean>
   carFeatureEnabled: boolean
   contractSignaturesEnabled: boolean
   gaExcelEnabled: boolean
@@ -80,7 +118,6 @@ export type CustomerListCardProps = {
   onCopyCustomer: (c: CustomerRecord) => void
   onStartEdit: (c: CustomerRecord) => void
   onCancelEdit: () => void
-  onMinimizeEdit?: () => void
   onDeleteCustomer: (c: CustomerRecord) => void
   onOpenFilesModal: (customerId: number) => void
   onOpenConsultationsModal: (customerId: number) => void
@@ -124,9 +161,7 @@ const CustomerListCard = memo(function CustomerListCard({
   onEditSubmit,
   onEditSaveRequest,
   editSaving,
-  editSaveDisabled = false,
   editStatusText,
-  onBeforeCollapseEdit,
   carFeatureEnabled,
   contractSignaturesEnabled,
   gaExcelEnabled,
@@ -134,7 +169,6 @@ const CustomerListCard = memo(function CustomerListCard({
   onCopyCustomer,
   onStartEdit,
   onCancelEdit,
-  onMinimizeEdit,
   onDeleteCustomer,
   onOpenFilesModal,
   onOpenConsultationsModal,
@@ -178,7 +212,6 @@ const CustomerListCard = memo(function CustomerListCard({
     expandedId,
     setExpandedId,
     interactionDisabled: isSelectMode,
-    beforeCollapse: isEditingThisCard ? onBeforeCollapseEdit : undefined,
   })
 
   if (
@@ -193,6 +226,9 @@ const CustomerListCard = memo(function CustomerListCard({
 
   const ins = customerInsuranceDisplay(c)
   const phone = resolveCustomerListPhone(c)
+  const hasPhone = typeof phone === 'string' && phone.trim() !== ''
+  const smsHref = customerPhoneHref(phone, 'sms')
+  const telHref = customerPhoneHref(phone, 'tel')
   const isGovTemplate = isGovernmentIndustryTemplate(crmIndustryTemplate)
   const govListSummary = isGovTemplate ? buildGovernmentCustomerStatusSummary(c, crmIndustryTemplate) : null
   const govMetaLine =
@@ -336,11 +372,44 @@ const CustomerListCard = memo(function CustomerListCard({
                       )}
                     </FormButton>
                   </div>
-                  <CustomerContactActions
-                    phone={phone}
-                    smsDisabled={c.smsOptOut === true}
-                    variant="card"
-                  />
+                  {/* 전화/문자 아이콘은 모바일(터치 디바이스)에서만 의미가 있어 PC에서는 DOM 자체를 넣지 않는다.
+                      CSS display:none 대신 조건부 렌더로 의도를 명시해 향후 유틸리티 override 위험을 제거한다. */}
+                  {isMobile ? (
+                    <>
+                      <div className="icon-box icon-box--sms">
+                        {smsHref ? (
+                          <a
+                            href={smsHref}
+                            className="text-lg text-blue-500 leading-none"
+                            aria-label="문자 보내기"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            💬
+                          </a>
+                        ) : (
+                          <span className="text-lg opacity-35 grayscale" aria-hidden>
+                            💬
+                          </span>
+                        )}
+                      </div>
+                      <div className="icon-box icon-box--tel">
+                        {telHref ? (
+                          <a
+                            href={telHref}
+                            className="group transition-opacity hover:opacity-90 active:opacity-80"
+                            aria-label="전화 걸기"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <CustomerListTelSvg hasPhone withLinkHover />
+                          </a>
+                        ) : (
+                          <span aria-hidden>
+                            <CustomerListTelSvg hasPhone={hasPhone} />
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  ) : null}
                 </div>
                 <span className="customer-expand-summary__hint" aria-hidden="true">
                   {showExpandedChrome ? '▲' : '▼'}
@@ -403,10 +472,13 @@ const CustomerListCard = memo(function CustomerListCard({
             {!isMobile || mobileInfoExpanded ? (
               <>
                 <div
-                  className={`customer-detail-toolbar customer-card-expanded-header customer-detail-toolbar--actions-only${
+                  className={`customer-detail-toolbar customer-card-expanded-header${
                     isMobile ? ' customer-detail-toolbar--mobile-actions' : ''
                   }`}
                 >
+                  <div className="customer-detail-toolbar__title customer-card-expanded-header__name">
+                    {c.name}
+                  </div>
                   <div
                     className={`customer-detail-action-bar${
                       isEditingThisCard
@@ -426,13 +498,13 @@ const CustomerListCard = memo(function CustomerListCard({
                           size="sm"
                           className="customer-detail-action-button customer-detail-action-button--save-inline"
                           title="변경 저장"
-                          aria-label="변경 저장"
-                          disabled={editSaveDisabled}
+                          aria-label="저장"
+                          disabled={editSaving}
                           loading={editSaving}
                           loadingText="저장 중…"
                           onClick={() => void onEditSaveRequest()}
                         >
-                          변경 저장
+                          저장
                         </FormButton>
                         <FormButton
                           htmlType="button"
@@ -445,24 +517,6 @@ const CustomerListCard = memo(function CustomerListCard({
                           onClick={onCancelEdit}
                         >
                           취소
-                        </FormButton>
-                        <FormButton
-                          htmlType="button"
-                          variant="secondary"
-                          size="sm"
-                          className="customer-detail-action-button customer-detail-action-button--minimize-inline"
-                          title="편집 최소화"
-                          aria-label="최소"
-                          disabled={editSaving}
-                          onClick={() => {
-                            if (onMinimizeEdit) {
-                              onMinimizeEdit()
-                              return
-                            }
-                            onCancelEdit()
-                          }}
-                        >
-                          최소
                         </FormButton>
                       </>
                     ) : (
@@ -514,7 +568,6 @@ const CustomerListCard = memo(function CustomerListCard({
                     onEditSubmit={onEditSubmit}
                     onEditSaveRequest={onEditSaveRequest}
                     saving={editSaving}
-                    saveDisabled={editSaveDisabled}
                     statusText={editStatusText}
                     onCancelEdit={onCancelEdit}
                     isInsuranceLayout={crmIsInsuranceLayout}

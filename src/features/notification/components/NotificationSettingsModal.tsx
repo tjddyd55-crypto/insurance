@@ -155,7 +155,7 @@ export function NotificationSettingsModal({
           </ToggleRow>
 
           <ToggleRow
-            label="알림일"
+            label="지정일 알림"
             enabled={draft.specialDate.enabled}
             onToggle={(enabled) =>
               onChange({

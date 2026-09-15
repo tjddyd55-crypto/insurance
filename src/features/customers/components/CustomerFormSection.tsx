@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import type { CustomerSectionId } from '../theme/customerSectionTheme'
 
 export type CustomerFormSectionProps = {
   title: string
@@ -8,8 +7,6 @@ export type CustomerFormSectionProps = {
   headerExtra?: ReactNode
   children: ReactNode
   className?: string
-  /** Figma section accent — 지정 시 tinted header 적용 */
-  sectionId?: CustomerSectionId
 }
 
 export function CustomerFormSection({
@@ -18,15 +15,10 @@ export function CustomerFormSection({
   headerExtra,
   children,
   className,
-  sectionId,
 }: CustomerFormSectionProps) {
   return (
-    <section
-      className={`customer-form-section${className ? ` ${className}` : ''}`}
-      data-customer-section={sectionId ?? undefined}
-    >
+    <section className={`customer-form-section${className ? ` ${className}` : ''}`}>
       <div className="customer-form-section__header">
-        {sectionId ? <span className="customer-form-section__accent-bar" aria-hidden /> : null}
         <div className="customer-form-section__title-row">
           <h3 className="customer-form-section__title">{title}</h3>
           {headerExtra ? (

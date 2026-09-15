@@ -553,7 +553,7 @@ export function CustomerRelationGroupsSection({
               </div>
             </header>
             <ul className="customer-relation-group-card__members">
-              {group.members.filter((m) => !m.isCurrentCustomer).map((m) => {
+              {group.members.map((m) => {
                 const meta = formatRelationGroupMemberMetaLine({
                   relationshipLabel: m.relationshipLabel,
                   gender: m.gender ?? null,

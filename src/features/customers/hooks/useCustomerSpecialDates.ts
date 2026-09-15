@@ -34,7 +34,7 @@ export function useCustomerSpecialDates(params: {
       setSpecialDates(rows)
     } catch (e) {
       setSpecialDates([])
-      setErrorMessage(e instanceof Error ? e.message : '알림일 목록을 불러오지 못했습니다.')
+      setErrorMessage(e instanceof Error ? e.message : '기념일 목록을 불러오지 못했습니다.')
     } finally {
       setIsLoading(false)
     }

@@ -22,8 +22,8 @@ export const NOTIFICATION_SECTIONS: NotificationSectionConfig[] = [
   },
   {
     type: 'special_date',
-    title: '알림일',
-    dateColumnLabel: '알림일',
+    title: '지정일',
+    dateColumnLabel: '지정일',
     sectionClass: 'special',
   },
   {

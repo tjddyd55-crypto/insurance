@@ -117,7 +117,7 @@
   border-radius: 0;
   background: transparent;
   color: var(--text-primary);
-  font-size: 1.0625rem;
+  font-size: 14px;
   font-weight: 700;
   font-family: inherit;
   line-height: 1.2;
@@ -228,12 +228,11 @@
  * 헤더 액션: CRM compact secondary (ui-button--sm).
  * pill(9999px) 금지. 모바일 전역 button padding:0 오버라이드에서도 높이 유지.
  */
-.customer-relations-strip__action-btn.ui-button--sm,
-.customer-relations-strip__action-btn.button {
+.customer-relations-strip__action-btn.ui-button--sm {
   min-height: 40px;
   padding: 0 12px;
   border-radius: 10px;
-  font-size: 1rem;
+  font-size: 13px;
   font-weight: 700;
   white-space: nowrap;
   flex: 0 0 auto;
@@ -258,8 +257,8 @@
 
 .customer-relations-strip__status {
   margin: 0 0 8px;
-  font-size: 1.0625rem;
-  line-height: 1.45;
+  font-size: 0.9rem;
+  line-height: 1.4;
 }
 
 .customer-relations-strip__status--loading {
@@ -273,7 +272,7 @@
 .customer-relations-strip__status--notice {
   color: var(--brand, #1f9d55);
   margin: 0 0 6px;
-  font-size: 1rem;
+  font-size: 0.82rem;
 }
 
 .customer-relations-strip--in-detail .customer-relations-strip__chip-list {
@@ -293,8 +292,8 @@
 
 .customer-relations-strip__description {
   margin: 12px 0 0;
-  font-size: 1.0625rem;
-  line-height: 1.45;
+  font-size: 14px;
+  line-height: 1.5;
   color: var(--text-secondary);
 }
 
@@ -884,42 +883,14 @@
   margin-top: 14px;
   padding-top: 12px;
   border-top: 1px solid var(--border-default);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-width: 0;
-  width: 100%;
-}
-
-.customer-relations-legacy-section .customer-relations-strip__chip-list {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  width: 100%;
-  min-width: 0;
-}
-
-.customer-relations-legacy-section .linked-customer-chip {
-  min-height: 40px;
-}
-
-.customer-relations-legacy-section .linked-customer-chip__main {
-  font-size: 1.0625rem;
-  font-weight: 600;
-  line-height: 1.45;
-  padding: 0 12px;
 }
 
 .customer-relations-legacy__title,
 .customer-relation-groups-section__title {
   margin: 0 0 8px;
-  font-size: 1rem;
+  font-size: 0.85rem;
   font-weight: 700;
-  color: var(--text-main);
+  color: var(--text-secondary);
 }
 
 .customer-relation-groups-section {
@@ -931,22 +902,22 @@
   flex-direction: column;
   gap: 6px;
   margin-bottom: 0;
-  font-size: 1rem;
+  font-size: 0.85rem;
   font-weight: 600;
-  color: var(--text-main);
+  color: var(--text-secondary);
 }
 
 .customer-relation-group-form__field-label {
   display: block;
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.85rem;
   font-weight: 600;
-  color: var(--text-main);
+  color: var(--text-secondary);
 }
 
 .customer-relation-group-form__hint {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.85rem;
   color: var(--text-secondary);
   line-height: 1.45;
 }
@@ -983,8 +954,8 @@
 .customer-relation-group-picker__selected-line {
   margin: 0;
   padding: 0;
-  font-size: 1.0625rem;
-  line-height: 1.45;
+  font-size: 0.85rem;
+  line-height: 1.4;
   color: var(--text-secondary);
 }
 
@@ -1008,7 +979,7 @@
 
 .customer-relation-group-pending__title {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.85rem;
   font-weight: 700;
   color: var(--text-primary);
 }
@@ -1032,8 +1003,8 @@
   border-radius: 8px;
   border: 1px solid var(--border-default);
   background: var(--bg-surface);
-  font-size: 1.0625rem;
-  line-height: 1.45;
+  font-size: 0.82rem;
+  line-height: 1.35;
   min-height: 0;
 }
 
@@ -1057,7 +1028,7 @@
 
 .customer-relation-group-pending__meta {
   color: var(--text-secondary);
-  font-size: 1rem;
+  font-size: 0.78rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

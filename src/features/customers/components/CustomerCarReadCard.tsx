@@ -35,20 +35,20 @@ export function CustomerCarReadCard({ car, index }: CustomerCarReadCardProps) {
         </h4>
       </div>
       <div className="customer-car-read-card__row">
-        <span className="customer-detail-read__info-label customer-car-read-card__label">차량번호</span>
-        <span className="customer-detail-read__info-value customer-car-read-card__value">{dashOr(car.carNumber)}</span>
+        <span className="customer-car-read-card__label">차량번호</span>
+        <span className="customer-car-read-card__value">{dashOr(car.carNumber)}</span>
       </div>
       <div className="customer-car-read-card__row">
-        <span className="customer-detail-read__info-label customer-car-read-card__label">차종</span>
-        <span className="customer-detail-read__info-value customer-car-read-card__value">{dashOr(car.carModel)}</span>
+        <span className="customer-car-read-card__label">차종</span>
+        <span className="customer-car-read-card__value">{dashOr(car.carModel)}</span>
       </div>
       <div className="customer-car-read-card__row">
-        <span className="customer-detail-read__info-label customer-car-read-card__label">연식</span>
-        <span className="customer-detail-read__info-value customer-car-read-card__value">{dashOr(car.carYear)}</span>
+        <span className="customer-car-read-card__label">연식</span>
+        <span className="customer-car-read-card__value">{dashOr(car.carYear)}</span>
       </div>
       <div className="customer-car-read-card__row">
-        <span className="customer-detail-read__info-label customer-car-read-card__label">만기일</span>
-        <span className="customer-detail-read__info-value customer-car-read-card__value">
+        <span className="customer-car-read-card__label">만기일</span>
+        <span className="customer-car-read-card__value">
           {dashOr(car.renewalDate)}{' '}
           {car.renewalDate?.trim() ? <RenewalDdayBadge renewalDate={car.renewalDate} /> : null}
         </span>

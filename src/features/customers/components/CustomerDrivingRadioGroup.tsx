@@ -1,7 +1,7 @@
 import FormInput from '../../../components/form/FormInput'
 
 export type CustomerDrivingRadioGroupProps = {
-  /** 미선택(null)은 저장 전 검증에서 막으며, UI에는 운전함/운전안함만 제공 */
+  /** 미선택 시 null — 두 라디오 모두 해제 */
   value: boolean | null
   onChange: (next: boolean) => void
   name: string
@@ -36,7 +36,7 @@ export function CustomerDrivingRadioGroup({
           disabled={disabled}
           onChange={() => onChange(false)}
         />
-        <span className="customer-driving-radio-option__label">운전안함</span>
+        <span className="customer-driving-radio-option__label">운전 안함</span>
       </label>
     </div>
   )

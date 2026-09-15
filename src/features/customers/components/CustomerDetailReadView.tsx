@@ -29,7 +29,6 @@ import {
 } from '../utils/governmentCustomerStatusSummary'
 import { CustomerSmsOptOutReadBadge } from './CustomerSmsOptOutReadBadge'
 import GovernmentProgressReadSection from './GovernmentProgressReadSection'
-import { CustomerCollapsibleSection } from './CustomerCollapsibleSection'
 
 export type CustomerDetailInsuranceDisplay = {
   ageText: string
@@ -52,19 +51,9 @@ function MaturityDdayBadge({ maturityYmd }: { maturityYmd: string | null }) {
   return <span className={`customer-detail-read__dday-inline ${toneClass}`}>({label})</span>
 }
 
-function DetailReadInfoRow({
-  children,
-  rowClassName,
-  emphasis,
-}: {
-  children: ReactNode
-  rowClassName?: string
-  emphasis?: boolean
-}) {
+function DetailReadInfoRow({ children, rowClassName }: { children: ReactNode; rowClassName?: string }) {
   return (
-    <div
-      className={`customer-detail-read__info-row${emphasis ? ' customer-detail-read__info-row--emphasis' : ''}${rowClassName ? ` ${rowClassName}` : ''}`}
-    >
+    <div className={`customer-detail-read__info-row${rowClassName ? ` ${rowClassName}` : ''}`}>
       <span className="customer-detail-read__info-bullet" aria-hidden>
         •
       </span>
@@ -219,152 +208,134 @@ export default function CustomerDetailReadView({
 
   return (
     <div className="customer-detail-read">
-      <CustomerCollapsibleSection
-        sectionId="basic"
-        title="기본 정보"
-        headingId="customer-detail-read-basic-info-heading"
-        defaultExpanded
-        className="customer-detail-read__basic-section"
-      >
-          <div className="customer-detail-read__info-list" id="customer-detail-read-basic-info">
-            <DetailReadInfoRow emphasis>
-              <span className="customer-detail-read__info-label">이름</span>
-              <span className="customer-detail-read__info-value">{c.name?.trim() || '—'}</span>
-            </DetailReadInfoRow>
-            <DetailReadInfoRow emphasis>
-              <span className="customer-detail-read__info-label">연락처</span>
-              <span className="customer-detail-read__info-value">{formatCustomerPhoneUi(c.phone) || '—'}</span>
-            </DetailReadInfoRow>
-            <DetailReadInfoRow>
-              <div className="customer-detail-read__ssn-gender-cluster">
-                <span className="customer-detail-read__ssn-gender-cluster__ssn">
-                  <span className="customer-detail-read__info-label">주민번호:</span>{' '}
-                  <span className="customer-detail-read__info-value">{formatCustomerSsnUi(c.ssn) || '—'}</span>
-                </span>
-                <span className="customer-detail-read__ssn-gender-cluster__gender">
-                  <span className="customer-detail-read__info-label">성별:</span>{' '}
-                  <span className="customer-detail-read__info-value">
-                    {formatCustomerGenderReadLabel(c.gender, c.ssn)}
-                  </span>
-                </span>
-              </div>
-            </DetailReadInfoRow>
-            <DetailReadInfoRow>
+      <div className="customer-detail-read__info-list">
+        <DetailReadInfoRow>
+          <div className="customer-detail-read__ssn-gender-cluster">
+            <span className="customer-detail-read__ssn-gender-cluster__ssn">
+              <span className="customer-detail-read__info-label">주민번호:</span>{' '}
+              <span className="customer-detail-read__info-value">{formatCustomerSsnUi(c.ssn) || '—'}</span>
+            </span>
+            <span className="customer-detail-read__ssn-gender-cluster__gender">
+              <span className="customer-detail-read__info-label">성별:</span>{' '}
+              <span className="customer-detail-read__info-value">
+                {formatCustomerGenderReadLabel(c.gender, c.ssn)}
+              </span>
+            </span>
+          </div>
+        </DetailReadInfoRow>
+        <DetailReadInfoRow>
+          <div className="customer-detail-read__info-main--cluster">
+            <span>
+              <span className="customer-detail-read__info-label">보험나이:</span>{' '}
+              <span className="customer-detail-read__info-value">{ins.ageText}</span>
+            </span>
+            <span>
               <span className="customer-detail-read__info-label">상령일:</span>{' '}
               <span className="customer-detail-read__info-value">{ins.dateText}</span>
               <MaturityDdayBadge maturityYmd={ins.maturityYmd} />
-            </DetailReadInfoRow>
-            <DetailReadInfoRow emphasis>
-              <span className="customer-detail-read__info-label">보험나이</span>
-              <span className="customer-detail-read__info-value">{ins.ageText}</span>
-            </DetailReadInfoRow>
-            <DetailReadInfoRow>
-              <span className="customer-detail-read__info-label">문자 수신:</span>{' '}
-              <CustomerSmsOptOutReadBadge smsOptOut={c.smsOptOut === true} />
-            </DetailReadInfoRow>
-            <DetailReadInfoRow>
-              <span className="customer-detail-read__info-label">통신사:</span>{' '}
-              <span className="customer-detail-read__info-value">
-                {formatCustomerMobileCarrierDisplay(c.carrier) || '—'}
-              </span>
-            </DetailReadInfoRow>
-            <DetailReadInfoRow>
-              <span className="customer-detail-read__info-label">주소:</span>{' '}
-              <span className="customer-detail-read__info-value">{c.address || '—'}</span>
-            </DetailReadInfoRow>
-            <DetailReadInfoRow>
-              <span className="customer-detail-read__info-label">키/몸무게:</span>{' '}
-              <span className="customer-detail-read__info-value">
-                {c.height?.trim() || c.weight?.trim()
-                  ? `${c.height?.trim() || '—'}/${c.weight?.trim() || '—'}`
-                  : '—'}
-              </span>
-            </DetailReadInfoRow>
-            <DetailReadInfoRow>
-              <span className="customer-detail-read__info-label">직업/회사명/하는일/지역:</span>{' '}
-              <span className="customer-detail-read__info-value">{c.job?.trim() || '—'}</span>
-            </DetailReadInfoRow>
-            <DetailReadInfoRow>
-              <span className="customer-detail-read__info-label">운전여부:</span>{' '}
-              <span className="customer-detail-read__info-value">
-                {c.isDriver === true
-                  ? '운전함'
-                  : c.isDriver === false
-                    ? '운전안함'
-                    : c.driving || '—'}
-              </span>
-            </DetailReadInfoRow>
-            <DetailReadInfoRow>
-              <span className="customer-detail-read__info-label">유입 경로:</span>{' '}
-              <span className="customer-detail-read__info-value">
-                {formatCustomerInflowSourceDisplay(c.inflowSource)}
-              </span>
-            </DetailReadInfoRow>
-            {(() => {
-              const detailMeta = getInflowSourceDetailFieldMeta(c.inflowSource)
-              const detailName = c.referrerName?.trim()
-              if (!detailMeta || !detailName) return null
-              return (
-                <DetailReadInfoRow>
-                  <span className="customer-detail-read__info-label">{detailMeta.readLabel}:</span>{' '}
-                  <span className="customer-detail-read__info-value">{detailName}</span>
-                </DetailReadInfoRow>
-              )
-            })()}
-            <DetailReadInfoRow>
-              <span className="customer-detail-read__info-label">차종:</span>{' '}
-              <span className="customer-detail-read__info-value">{c.carType.trim() || '—'}</span>
-            </DetailReadInfoRow>
-            <DetailReadInfoRow>
-              <CustomerMedicalHistoryReadSection
-                {...resolveMedicalHistoryFromCustomer(c)}
-              />
-            </DetailReadInfoRow>
+            </span>
           </div>
-      </CustomerCollapsibleSection>
-      <CustomerCarsReadSection customer={c} token={token} enabled={fetchCarsEnabled} />
-      {token?.trim() ? (
-        <>
-          <CustomerRelationsStrip
-            customerId={c.id}
-            customerName={c.name}
-            token={token}
-            focusedCustomerId={expandedId}
-            onOpenCustomer={onOpenRelatedCustomer}
+        </DetailReadInfoRow>
+        <DetailReadInfoRow>
+          <span className="customer-detail-read__info-label">유입 경로:</span>{' '}
+          <span className="customer-detail-read__info-value">
+            {formatCustomerInflowSourceDisplay(c.inflowSource)}
+          </span>
+        </DetailReadInfoRow>
+        {(() => {
+          const detailMeta = getInflowSourceDetailFieldMeta(c.inflowSource)
+          const detailName = c.referrerName?.trim()
+          if (!detailMeta || !detailName) return null
+          return (
+            <DetailReadInfoRow>
+              <span className="customer-detail-read__info-label">{detailMeta.readLabel}:</span>{' '}
+              <span className="customer-detail-read__info-value">{detailName}</span>
+            </DetailReadInfoRow>
+          )
+        })()}
+        <DetailReadInfoRow>
+          <span className="customer-detail-read__info-label">핸드폰번호:</span>{' '}
+          <span className="customer-detail-read__info-value">{formatCustomerPhoneUi(c.phone) || '—'}</span>
+        </DetailReadInfoRow>
+        <DetailReadInfoRow>
+          <span className="customer-detail-read__info-label">문자 수신:</span>{' '}
+          <CustomerSmsOptOutReadBadge smsOptOut={c.smsOptOut === true} />
+        </DetailReadInfoRow>
+        <DetailReadInfoRow>
+          <span className="customer-detail-read__info-label">통신사:</span>{' '}
+          <span className="customer-detail-read__info-value">
+            {formatCustomerMobileCarrierDisplay(c.carrier) || '—'}
+          </span>
+        </DetailReadInfoRow>
+        <DetailReadInfoRow>
+          <span className="customer-detail-read__info-label">주소:</span>{' '}
+          <span className="customer-detail-read__info-value">{c.address || '—'}</span>
+        </DetailReadInfoRow>
+        <DetailReadInfoRow>
+          <span className="customer-detail-read__info-label">키/몸무게:</span>{' '}
+          <span className="customer-detail-read__info-value">
+            {c.height?.trim() || c.weight?.trim()
+              ? `${c.height?.trim() || '—'}/${c.weight?.trim() || '—'}`
+              : '—'}
+          </span>
+        </DetailReadInfoRow>
+        <DetailReadInfoRow>
+          <span className="customer-detail-read__info-label">직업/회사명/하는일/지역:</span>{' '}
+          <span className="customer-detail-read__info-value">{c.job?.trim() || '—'}</span>
+        </DetailReadInfoRow>
+        <DetailReadInfoRow>
+          <span className="customer-detail-read__info-label">운전여부:</span>{' '}
+          <span className="customer-detail-read__info-value">
+            {c.isDriver === true
+              ? '운전함'
+              : c.isDriver === false
+                ? '운전 안함'
+                : c.driving || '—'}
+          </span>
+        </DetailReadInfoRow>
+        <DetailReadInfoRow>
+          <span className="customer-detail-read__info-label">차종:</span>{' '}
+          <span className="customer-detail-read__info-value">{c.carType.trim() || '—'}</span>
+        </DetailReadInfoRow>
+        <DetailReadInfoRow>
+          <CustomerMedicalHistoryReadSection
+            {...resolveMedicalHistoryFromCustomer(c)}
           />
-        </>
-      ) : null}
-      <CustomerBusinessInfoReadSection
-        customerId={c.id}
-        businessInfo={c.businessInfo}
-        token={token}
-        enabled={fetchCarsEnabled}
-      />
+        </DetailReadInfoRow>
+      </div>
+      <hr className="customer-detail-read__divider" />
+      <CustomerCarsReadSection customer={c} token={token} enabled={fetchCarsEnabled} />
+      <hr className="customer-detail-read__divider" />
+      <CustomerBusinessInfoReadSection businessInfo={c.businessInfo} />
+      <hr className="customer-detail-read__divider" />
       <CustomerFireInsuranceLocationsReadSection
         customer={c}
         token={token}
         enabled={fetchCarsEnabled}
       />
+      <hr className="customer-detail-read__divider" />
       <CustomerSpecialDatesReadSection customer={c} token={token} enabled={fetchCarsEnabled} />
-      <CustomerCollapsibleSection
-        sectionId="insurance-history"
-        title="보험가입내역"
-        headingId="customer-insurance-history-heading"
-        defaultExpanded={false}
-      >
-        <div className="customer-insurance-history-body">
+      <hr className="customer-detail-read__divider" />
+      <section className="customer-detail-read__section" aria-labelledby="customer-insurance-history-heading">
+        <div className="customer-detail-read__section-header">
+          <h4 id="customer-insurance-history-heading" className="customer-detail-read__section-title">
+            보험가입내역
+          </h4>
+        </div>
+        <div className="customer-detail-read__section-body customer-insurance-history-body">
           {normalizeCustomerNotesBag(c.notes).insuranceHistory?.trim()
             ? normalizeCustomerNotesBag(c.notes).insuranceHistory
             : '내용 없음'}
         </div>
-      </CustomerCollapsibleSection>
-      <CustomerCollapsibleSection
-        sectionId="account"
-        title="계좌번호"
-        headingId="customer-account-number-heading"
-        defaultExpanded={false}
-      >
-        <div className="customer-account-number-read">
+      </section>
+      <hr className="customer-detail-read__divider" />
+      <section className="customer-detail-read__section" aria-labelledby="customer-account-number-heading">
+        <div className="customer-detail-read__section-header">
+          <h4 id="customer-account-number-heading" className="customer-detail-read__section-title">
+            계좌번호
+          </h4>
+        </div>
+        <div className="customer-detail-read__section-body customer-account-number-read">
           <span className="customer-account-number-read__value">
             {normalizeCustomerNotesBag(c.notes).accountNumber?.trim() || '내용 없음'}
           </span>
@@ -375,7 +346,16 @@ export default function CustomerDetailReadView({
             />
           ) : null}
         </div>
-      </CustomerCollapsibleSection>
+      </section>
+      {token?.trim() ? (
+        <CustomerRelationsStrip
+          customerId={c.id}
+          customerName={c.name}
+          token={token}
+          focusedCustomerId={expandedId}
+          onOpenCustomer={onOpenRelatedCustomer}
+        />
+      ) : null}
     </div>
   )
 }
