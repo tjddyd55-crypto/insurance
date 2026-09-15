@@ -236,7 +236,9 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
     const nextErrors: Record<string, string> = {}
     let firstErrorLocalId: string | null = null
     for (const item of forms) {
-      const msg = getCustomerFormValidationError(item.values)
+      const msg = getCustomerFormValidationError(item.values, {
+        skipSpecialDatesValidation: inviteRegistrationFlow,
+      })
       if (msg) {
         nextErrors[item.localId] = msg
         if (!firstErrorLocalId) {
@@ -525,6 +527,7 @@ export default function CustomerInputPage({ inviteRegistrationFlow = false }: Pr
               onFormChange={(next) => updateFormAt(item.localId, next)}
               radioSuffix={`external-${item.localId}`}
               onStatusMessage={setNotice}
+              presentation={inviteRegistrationFlow ? 'publicRegistration' : 'crm'}
             />
             {formErrors[item.localId] ? (
               <p className="page-header-notice" role="alert">

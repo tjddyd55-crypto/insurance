@@ -73,6 +73,7 @@ type CustomerAccountNumberFieldProps = {
   disabled?: boolean
   /** 같은 화면에서 여러 번 렌더될 때 id 충돌 방지용 접미사 */
   idSuffix?: string
+  placeholder?: string
 }
 
 /**
@@ -84,6 +85,7 @@ export function CustomerAccountNumberField({
   onChange,
   disabled,
   idSuffix,
+  placeholder = CUSTOMER_ACCOUNT_NUMBER_PLACEHOLDER,
 }: CustomerAccountNumberFieldProps) {
   const inputId = `customer-account-number${idSuffix ? `-${idSuffix}` : ''}`
   return (
@@ -94,7 +96,7 @@ export function CustomerAccountNumberField({
           className="field__control customer-account-number__input"
           value={value}
           disabled={disabled}
-          placeholder={CUSTOMER_ACCOUNT_NUMBER_PLACEHOLDER}
+          placeholder={placeholder}
           aria-label="계좌번호"
           onChange={(e) => onChange(e.target.value)}
         />
