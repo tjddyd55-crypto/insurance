@@ -22,8 +22,11 @@ export const CUSTOMER_MEDICAL_HISTORY_PLACEHOLDER =
 /** 등록·수정 폼 보험가입내역 textarea placeholder */
 export const CUSTOMER_INSURANCE_HISTORY_PLACEHOLDER = '보험가입내역을 입력하세요'
 
-/** 등록·수정 폼 계좌번호 input placeholder (은행명/예금주 포함 자유 입력 허용) */
+/** CRM 등록·수정 폼 계좌번호 input placeholder (은행명/예금주 포함 자유 입력 허용) */
 export const CUSTOMER_ACCOUNT_NUMBER_PLACEHOLDER = '계좌번호 입력 (은행명·예금주 자유 입력 가능)'
+
+/** 고객 등록 public form — 모바일 폭에서 잘리지 않는 짧은 placeholder */
+export const CUSTOMER_ACCOUNT_NUMBER_PLACEHOLDER_PUBLIC = '은행명 / 계좌번호'
 
 /** 카드·상세 읽기: 저장 성별 우선, 없으면 주민번호 7번째 자리, 불가면 `-` */
 export function formatCustomerGenderReadLabel(

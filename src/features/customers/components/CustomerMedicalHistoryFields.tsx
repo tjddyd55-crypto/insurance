@@ -16,6 +16,8 @@ export type CustomerMedicalHistoryFieldsProps = {
   onMedicationChange: (value: string) => void
   treatmentName?: string
   medicationName?: string
+  /** false면 질문 아래 형식 안내 문구를 숨긴다 (public registration). */
+  showFormatHint?: boolean
 }
 
 export default function CustomerMedicalHistoryFields({
@@ -25,6 +27,7 @@ export default function CustomerMedicalHistoryFields({
   onMedicationChange,
   treatmentName = 'customer-medical-treatment',
   medicationName = 'customer-medical-medication',
+  showFormatHint = true,
 }: CustomerMedicalHistoryFieldsProps) {
   const showDivider = hasBothMedicalHistoryNotes(treatmentHistoryNote, medicationHistoryNote)
 
@@ -32,7 +35,9 @@ export default function CustomerMedicalHistoryFields({
     <CustomerFormSection
       title={CUSTOMER_MEDICAL_QUESTION_TEXT}
       className="field field--wide"
-      description="입력 형식은 아래 칸의 예시(placeholder)를 참고하세요."
+      description={
+        showFormatHint ? '입력 형식은 아래 칸의 예시(placeholder)를 참고하세요.' : undefined
+      }
     >
       <div
         className={

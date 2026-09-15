@@ -38,6 +38,7 @@ import CustomerMedicalHistoryFields from '../../features/customers/components/Cu
 import CustomerMobileCarrierSelect from '../../features/customers/components/CustomerMobileCarrierSelect'
 import { normalizeCustomerCarrierForSave } from '../../features/customers/config/customerMobileCarrier.config'
 import {
+  CUSTOMER_ACCOUNT_NUMBER_PLACEHOLDER_PUBLIC,
   CUSTOMER_INSURANCE_HISTORY_PLACEHOLDER,
 } from '../../features/customers/utils/customerDisplayFormat'
 import { buildLegacyMedicalColumnValue } from '../../features/customers/utils/customerMedicalHistory'
@@ -318,14 +319,29 @@ export function createEmptyIndustryCustomerForm(): CustomerFormState {
 
 
 
+export type CustomerFormValidationOptions = {
+  /** public registration — 기념일/알림일 UI 미노출 시 검증도 생략 */
+  skipSpecialDatesValidation?: boolean
+}
+
 /** 저장/전송 전 검증 — 통과 시 null (필수: 이름만) */
 
-export function getCustomerFormValidationError(form: CustomerFormState): string | null {
+export function getCustomerFormValidationError(
+  form: CustomerFormState,
+  options?: CustomerFormValidationOptions,
+): string | null {
   if (!form.name?.trim()) {
     return '이름은 필수입니다.'
   }
+  if (options?.skipSpecialDatesValidation) {
+    return null
+  }
   return getCustomerSpecialDatesValidationError(form.specialDates)
 }
+
+
+
+export type CustomerFormPresentation = 'crm' | 'publicRegistration'
 
 
 
@@ -423,11 +439,20 @@ export type CustomerFormFieldsProps = {
 
   onStatusMessage?: (message: string) => void
 
+  presentation?: CustomerFormPresentation
+
 }
 
 
 
-export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMessage }: CustomerFormFieldsProps) {
+export function CustomerFormFields({
+  form,
+  onFormChange,
+  radioSuffix,
+  onStatusMessage,
+  presentation = 'crm',
+}: CustomerFormFieldsProps) {
+  const isPublicRegistration = presentation === 'publicRegistration'
 
   function pushDraftNoteFixed(draft: string) {
 
@@ -683,16 +708,19 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
       />
 
-      <CustomerSpecialDatesEditor
-        specialDates={form.specialDates}
-        onChange={(next) => onFormChange({ ...form, specialDates: next })}
-      />
+      {!isPublicRegistration ? (
+        <CustomerSpecialDatesEditor
+          specialDates={form.specialDates}
+          onChange={(next) => onFormChange({ ...form, specialDates: next })}
+        />
+      ) : null}
 
       <CustomerMedicalHistoryFields
         treatmentHistoryNote={form.treatmentHistoryNote}
         medicationHistoryNote={form.medicationHistoryNote}
         onTreatmentChange={(value) => onFormChange({ ...form, treatmentHistoryNote: value })}
         onMedicationChange={(value) => onFormChange({ ...form, medicationHistoryNote: value })}
+        showFormatHint={!isPublicRegistration}
       />
 
       <CustomerFormSection title="보험가입내역" className="field field--wide">
@@ -720,6 +748,11 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
             value={form.accountNumber}
             onChange={(next) => onFormChange({ ...form, accountNumber: next })}
             idSuffix="create"
+            placeholder={
+              isPublicRegistration
+                ? CUSTOMER_ACCOUNT_NUMBER_PLACEHOLDER_PUBLIC
+                : undefined
+            }
           />
         </label>
       </CustomerFormSection>
