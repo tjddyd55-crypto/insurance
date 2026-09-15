@@ -93,7 +93,7 @@ test('getDefaultUserNotificationSettings returns ON + 30 days defaults', () => {
   assert.deepEqual(getDefaultUserNotificationSettings(), {
     insuranceAge: { enabled: true, daysBefore: 30 },
     carExpiry: { enabled: true, daysBefore: 30 },
-    specialDate: { enabled: true, daysBefore: 30 },
+    specialDate: { enabled: true, daysBefore: 0 },
     claimRequest: { enabled: true },
   })
 })

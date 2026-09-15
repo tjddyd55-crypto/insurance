@@ -502,12 +502,17 @@ async function syncSpecialDateNotifications(db, safeQueryExec, userId, gaId, tod
   }
 
   for (const row of specialRows.rows) {
-    const occurrence = computeNextAnnualOccurrence(row.date_value, today)
+    let occurrence = ''
+    if (row.date_value instanceof Date) {
+      occurrence = row.date_value.toISOString().slice(0, 10)
+    } else if (row.date_value) {
+      occurrence = String(row.date_value).slice(0, 10)
+    }
     if (!occurrence || !isSpecialDateDueForNotification(occurrence, today, setting.daysBefore)) {
       continue
     }
     const customerName = String(row.customer_name ?? '').trim() || '고객'
-    const title = String(row.title ?? '').trim() || '지정일'
+    const title = String(row.title ?? '').trim() || '알림일'
     const specialDateId = Number(row.special_date_id)
     if (!Number.isInteger(specialDateId) || specialDateId < 1) {
       continue
@@ -522,7 +527,7 @@ async function syncSpecialDateNotifications(db, safeQueryExec, userId, gaId, tod
         targetDate: occurrence,
         claimRequestId: null,
         specialDateId,
-        message: `${customerName} 고객님의 「${title}」 지정일이 다가왔습니다. 지정일: ${occurrence}`,
+        message: `오늘은 ${customerName} 고객의 "${title}" 알림일입니다.`,
         referenceId: String(specialDateId),
       })
     } catch (error) {

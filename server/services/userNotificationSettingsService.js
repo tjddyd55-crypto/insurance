@@ -28,7 +28,7 @@ export function getDefaultUserNotificationSettings() {
     workAlert: { enabled: true },
     insuranceAge: { enabled: true, daysBefore: DEFAULT_NOTIFICATION_DAYS_BEFORE },
     carExpiry: { enabled: true, daysBefore: DEFAULT_NOTIFICATION_DAYS_BEFORE },
-    specialDate: { enabled: true, daysBefore: DEFAULT_NOTIFICATION_DAYS_BEFORE },
+    specialDate: { enabled: true, daysBefore: 0 },
     claimRequest: { enabled: true },
   }
 }
@@ -158,7 +158,7 @@ export function normalizeUserNotificationSettingsPatch(body, base = getDefaultUs
   for (const [key, label] of [
     ['insuranceAge', '상령일 알림'],
     ['carExpiry', '자동차 만기 알림'],
-    ['specialDate', '지정일 알림'],
+    ['specialDate', '알림일'],
   ]) {
     const err = applyWindowed(key, label)
     if (err) {
