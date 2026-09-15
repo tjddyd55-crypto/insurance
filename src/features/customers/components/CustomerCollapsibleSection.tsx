@@ -7,6 +7,8 @@ export type CustomerCollapsibleSectionProps = {
   headingId: string
   children: ReactNode
   defaultExpanded?: boolean
+  expanded?: boolean
+  onExpandedChange?: (expanded: boolean) => void
   /** 헤더 우측(토글 앞) — 연계 고객 액션 등 */
   headerExtra?: ReactNode
   className?: string
@@ -20,11 +22,20 @@ export function CustomerCollapsibleSection({
   headingId,
   children,
   defaultExpanded = true,
+  expanded: expandedProp,
+  onExpandedChange,
   headerExtra,
   className,
   collapsible = true,
 }: CustomerCollapsibleSectionProps) {
-  const [expanded, setExpanded] = useState(defaultExpanded)
+  const [internalExpanded, setInternalExpanded] = useState(defaultExpanded)
+  const expanded = expandedProp ?? internalExpanded
+  const setExpanded = (next: boolean) => {
+    if (expandedProp === undefined) {
+      setInternalExpanded(next)
+    }
+    onExpandedChange?.(next)
+  }
   const isOpen = collapsible ? expanded : true
 
   const header = collapsible ? (
@@ -33,7 +44,7 @@ export function CustomerCollapsibleSection({
       className="customer-detail-section__header"
       aria-expanded={isOpen}
       aria-controls={`${headingId}-body`}
-      onClick={() => setExpanded((prev) => !prev)}
+      onClick={() => setExpanded(!expanded)}
     >
       <span className="customer-detail-section__accent-bar" aria-hidden />
       <h4 id={headingId} className="customer-detail-section__title">{title}</h4>
