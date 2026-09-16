@@ -1,4 +1,4 @@
-import type { MutableRefObject } from 'react'
+import { useEffect, useRef, type MutableRefObject } from 'react'
 import { Outlet } from 'react-router-dom'
 import { EmptyState } from '../../../../components/feedback'
 import { FormButton } from '../../../../components/form'
@@ -129,6 +129,15 @@ export default function CustomerWorkspaceLayoutPC({
       ? `보험나이 ${selectedCustomer.insuranceAge}세`
       : null
   const isCustomerIndexPath = pathname === '/customers' || pathname === '/customers/'
+  const rightBodyRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const body = rightBodyRef.current
+    if (!body) {
+      return
+    }
+    body.scrollTop = 0
+  }, [selectedCustomerId])
 
   return (
     <section className="customer-workspace-layout__right" aria-label="고객 연동 작업영역">
@@ -295,7 +304,7 @@ export default function CustomerWorkspaceLayoutPC({
         </nav>
       </header>
 
-      <div className="customer-workspace-layout__right-body">
+      <div ref={rightBodyRef} className="customer-workspace-layout__right-body">
         {selectedCustomerId || isCustomerIndexPath ? (
           /**
            * 고객 id 를 자식 서브트리 `key` 로 선언(routing-ssot.mdc 7).

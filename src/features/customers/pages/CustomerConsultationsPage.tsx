@@ -73,6 +73,11 @@ export default function CustomerConsultationsPage() {
       return
     }
     setRows([])
+    setEditingConsultId(null)
+    setEditConsultBody('')
+    setEditContactResult('')
+    setEditConsultDate('')
+    setEditOriginalConsultDate('')
   }, [resolvedCustomerId, token, validId])
 
   const loadAll = useCallback(async () => {

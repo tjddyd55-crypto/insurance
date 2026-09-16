@@ -189,7 +189,7 @@ export default function ClaimRequestsPage() {
       const rows = res.rows || []
       setRows(rows)
       if (rows.length > 0) {
-        setSelectedId((prev) => prev ?? rows[0].id)
+        setSelectedId(rows[0].id)
       } else {
         setSelectedId(null)
         setDetail(null)
@@ -219,6 +219,9 @@ export default function ClaimRequestsPage() {
   }, [token, selectedId])
 
   useEffect(() => {
+    setRows([])
+    setSelectedId(null)
+    setDetail(null)
     void loadList()
   }, [loadList])
 

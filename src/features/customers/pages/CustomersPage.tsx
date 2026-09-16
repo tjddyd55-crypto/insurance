@@ -129,9 +129,12 @@ import {
   CUSTOMER_LIST_PATH,
   CUSTOMER_CREATE_MODE_QUERY,
   buildCustomerWorkspacePath,
-  PC_DEFAULT_CUSTOMER_WORKSPACE_TAB,
   buildCustomerListPath,
 } from '../utils/customerRoutePaths'
+import {
+  buildPcCustomerSwitchTarget,
+  prepareCustomerWorkspaceSwitchSideEffects,
+} from '../utils/customerWorkspaceCustomerSwitch'
 import { navigateToCustomerOnMap } from '../utils/customerMapFocusNavigation'
 import { parseMapEntryExpandCustomerId } from '../utils/customerMapDetailNavigation'
 import { parseClaimWorkspaceExpandCustomerId } from '../utils/customerClaimWorkspaceNavigation'
@@ -789,13 +792,12 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       if (isMobile) {
         return
       }
-      const next = new URLSearchParams(searchParams)
-      next.set('customerId', String(c.id))
+      prepareCustomerWorkspaceSwitchSideEffects(c.id)
       navigate(
-        buildCustomerWorkspacePath({
-          customerId: c.id,
-          tab: PC_DEFAULT_CUSTOMER_WORKSPACE_TAB,
-          query: next,
+        buildPcCustomerSwitchTarget({
+          pathname: location.pathname,
+          nextCustomerId: c.id,
+          searchParams,
         }),
         {
           replace: true,
@@ -803,7 +805,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         },
       )
     },
-    [isMobile, navigate, searchParams],
+    [isMobile, location.pathname, navigate, searchParams],
   )
 
   const handleOpenRelatedCustomer = useCallback(
@@ -829,11 +831,12 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         return
       }
 
+      prepareCustomerWorkspaceSwitchSideEffects(customerId)
       navigate(
-        buildCustomerWorkspacePath({
-          customerId,
-          tab: PC_DEFAULT_CUSTOMER_WORKSPACE_TAB,
-          query: next,
+        buildPcCustomerSwitchTarget({
+          pathname: location.pathname,
+          nextCustomerId: customerId,
+          searchParams: next,
         }),
         {
           replace: true,
@@ -841,7 +844,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         },
       )
     },
-    [isMobile, navigate, searchParams, setExpandedId],
+    [isMobile, location.pathname, navigate, searchParams, setExpandedId],
   )
 
   useEffect(() => {
