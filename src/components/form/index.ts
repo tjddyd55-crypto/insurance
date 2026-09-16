@@ -12,6 +12,7 @@ export {
 } from './AddressSearchField'
 export {
   formatAddressForSave,
+  parseAddressFromSave,
   parseAddressFromStored,
   type AddressSearchValue,
 } from './addressSearchUtils'

@@ -27,24 +27,24 @@ export function formatAddressForSave(value: AddressSearchValue): string {
   return [head, base, detail].filter(Boolean).join(' ').trim()
 }
 
-const EMPTY_ADDRESS_VALUE: AddressSearchValue = {
-  zonecode: '',
-  baseAddress: '',
-  detailAddress: '',
-}
-
-/**
- * `formatAddressForSave` 로 저장된 단일 주소 문자열을 편집 폼용 3-튜플로 복원한다.
- * 상세주소는 저장 시 base 와 합쳐져 있을 수 있어, 우편번호·기본주소만 분리하고 나머지는 base 에 둔다.
- */
-export function parseAddressFromStored(stored: string | null | undefined): AddressSearchValue {
-  const trimmed = String(stored ?? '').trim()
+/** 저장된 단일 address 문자열을 편집 폼용으로 분해한다. */
+export function parseAddressFromSave(address: string): AddressSearchValue {
+  const trimmed = address.trim()
   if (!trimmed) {
-    return { ...EMPTY_ADDRESS_VALUE }
+    return { zonecode: '', baseAddress: '', detailAddress: '' }
   }
-  const zipMatch = trimmed.match(/^\((\d{5})\)\s*(.+)$/)
-  if (!zipMatch) {
+  const match = trimmed.match(/^\((\d{5})\)\s*(.*)$/)
+  if (!match) {
     return { zonecode: '', baseAddress: trimmed, detailAddress: '' }
   }
-  return { zonecode: zipMatch[1], baseAddress: zipMatch[2], detailAddress: '' }
+  return {
+    zonecode: match[1],
+    baseAddress: match[2].trim(),
+    detailAddress: '',
+  }
+}
+
+/** null-safe wrapper for quick CRUD read/modal prefill. */
+export function parseAddressFromStored(stored: string | null | undefined): AddressSearchValue {
+  return parseAddressFromSave(String(stored ?? ''))
 }
