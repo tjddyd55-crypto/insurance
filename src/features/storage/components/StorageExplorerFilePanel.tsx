@@ -160,7 +160,9 @@ export default function StorageExplorerFilePanel({
                 <div className="storage-explorer-files__name-cell">
                   <span className="storage-explorer-files__icon">{renderFileIcon(file)}</span>
                   <span className="storage-explorer-files__name-block">
-                    <span className="storage-explorer-files__name">{file.displayName}</span>
+                    <span className="storage-explorer-files__name" title={file.displayName}>
+                      {file.displayName}
+                    </span>
                     {isAllFilesView ? (
                       <span className="storage-explorer-files__folder-path">
                         {resolveStorageFileFolderLabel(folders, file)}
@@ -223,59 +225,126 @@ export default function StorageExplorerFilePanel({
                   </CustomerWorkspaceItemActions>
                 ) : (
                   <div className="storage-explorer-files__actions">
-                    <button
-                      type="button"
-                      className={EXPLORER_FILE_ACTION_BUTTON_CLASS}
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        onOpen(file)
-                      }}
-                    >
-                      열기
-                    </button>
-                    {downloadHref ? (
-                      <a
-                        href={downloadHref}
-                        download
-                        className={EXPLORER_FILE_ACTION_BUTTON_CLASS}
-                        onClick={(event) => {
-                          event.stopPropagation()
-                        }}
-                      >
-                        다운로드
-                      </a>
-                    ) : (
+                    <div className="storage-explorer-files__actions-inline">
                       <button
                         type="button"
                         className={EXPLORER_FILE_ACTION_BUTTON_CLASS}
-                        disabled
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          onOpen(file)
+                        }}
+                      >
+                        열기
+                      </button>
+                      {downloadHref ? (
+                        <a
+                          href={downloadHref}
+                          download
+                          className={EXPLORER_FILE_ACTION_BUTTON_CLASS}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                          }}
+                        >
+                          다운로드
+                        </a>
+                      ) : (
+                        <button
+                          type="button"
+                          className={EXPLORER_FILE_ACTION_BUTTON_CLASS}
+                          disabled
+                          onClick={(event) => {
+                            event.stopPropagation()
+                          }}
+                        >
+                          {downloadFailed ? '준비 실패' : '준비 중'}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className={EXPLORER_FILE_ACTION_BUTTON_CLASS}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          onRename(file)
+                        }}
+                      >
+                        이름 변경
+                      </button>
+                      <button
+                        type="button"
+                        className={EXPLORER_FILE_ACTION_DANGER_CLASS}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          onDelete(file)
+                        }}
+                      >
+                        삭제
+                      </button>
+                    </div>
+                    <details className="storage-explorer-files__actions-menu">
+                      <summary
+                        className="storage-explorer-files__actions-menu-trigger"
                         onClick={(event) => {
                           event.stopPropagation()
                         }}
                       >
-                        {downloadFailed ? '준비 실패' : '준비 중'}
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className={EXPLORER_FILE_ACTION_BUTTON_CLASS}
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        onRename(file)
-                      }}
-                    >
-                      이름 변경
-                    </button>
-                    <button
-                      type="button"
-                      className={EXPLORER_FILE_ACTION_DANGER_CLASS}
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        onDelete(file)
-                      }}
-                    >
-                      삭제
-                    </button>
+                        더보기
+                      </summary>
+                      <div className="storage-explorer-files__actions-menu-panel">
+                        <button
+                          type="button"
+                          className={EXPLORER_FILE_ACTION_BUTTON_CLASS}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            onOpen(file)
+                          }}
+                        >
+                          열기
+                        </button>
+                        {downloadHref ? (
+                          <a
+                            href={downloadHref}
+                            download
+                            className={EXPLORER_FILE_ACTION_BUTTON_CLASS}
+                            onClick={(event) => {
+                              event.stopPropagation()
+                            }}
+                          >
+                            다운로드
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            className={EXPLORER_FILE_ACTION_BUTTON_CLASS}
+                            disabled
+                            onClick={(event) => {
+                              event.stopPropagation()
+                            }}
+                          >
+                            {downloadFailed ? '준비 실패' : '준비 중'}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className={EXPLORER_FILE_ACTION_BUTTON_CLASS}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            onRename(file)
+                          }}
+                        >
+                          이름 변경
+                        </button>
+                        <button
+                          type="button"
+                          className={EXPLORER_FILE_ACTION_DANGER_CLASS}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            onDelete(file)
+                          }}
+                        >
+                          삭제
+                        </button>
+                      </div>
+                    </details>
                   </div>
                 )}
               </div>
