@@ -1,0 +1,7 @@
+﻿const fs = require('fs')
+let s = fs.readFileSync('qa/verifyPolishNow.mjs', 'utf8')
+if (s.charCodeAt(0) === 0xFEFF) s = s.slice(1)
+s = s.split('사업화재QA').join('고객사업자화재QA')
+s = s.split("await search.fill('고객사업자화재QA')").join("await search.fill('01099090910')")
+fs.writeFileSync('qa/verifyPolishNow.mjs', s)
+console.log('ok', (s.match(/고객사업자화재QA/g) || []).length)

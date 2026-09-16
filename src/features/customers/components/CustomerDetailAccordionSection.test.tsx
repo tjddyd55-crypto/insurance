@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { CustomerDetailAccordionSection } from './CustomerDetailAccordionSection'
 
 describe('CustomerDetailAccordionSection', () => {
-  it('renders native-style accent bar and white surface classes without gray fill', () => {
+  it('renders native-style accent bar without card border inline styles', () => {
     const html = renderToStaticMarkup(
       <CustomerDetailAccordionSection
         sectionId="vehicle"
@@ -19,5 +19,6 @@ describe('CustomerDetailAccordionSection', () => {
     expect(html).toContain('customer-detail-accordion--expanded')
     expect(html).not.toContain('bg-soft')
     expect(html).toContain('background-color:#2563EB')
+    expect(html).not.toContain('border-width:')
   })
 })

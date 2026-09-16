@@ -1,0 +1,3 @@
+﻿PCTitleBar.tsx:35:aria-label="최소화"
+CustomerFilterControls.tsx:328:<span>보험나이 최소</span>
+TaCallSettingsDialog.tsx:137:placeholder="최소"

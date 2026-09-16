@@ -1,0 +1,73 @@
+[
+  {
+    "name": "pc",
+    "ok": true,
+    "errors": [],
+    "hasName": true,
+    "hasPhone": true,
+    "hasInsAge": true,
+    "noOldPhone": true,
+    "basicLabel": {
+      "fontSize": "16px",
+      "fontWeight": "600"
+    },
+    "basicValue": {
+      "fontSize": "17px",
+      "fontWeight": "600"
+    },
+    "overflow": false,
+    "sameAsCar": true,
+    "sameAsBiz": true,
+    "screenshot": "C:\\workspace\\insurance-prod-push\\qa\\basic-fields\\unify2-pc.png"
+  },
+  {
+    "name": "m360",
+    "ok": true,
+    "errors": [],
+    "hasName": true,
+    "hasPhone": true,
+    "hasInsAge": true,
+    "noOldPhone": true,
+    "basicLabel": {
+      "fontSize": "16px",
+      "fontWeight": "600"
+    },
+    "basicValue": {
+      "fontSize": "17px",
+      "fontWeight": "600"
+    },
+    "overflow": false,
+    "sameAsCar": true,
+    "sameAsBiz": true,
+    "screenshot": "C:\\workspace\\insurance-prod-push\\qa\\basic-fields\\unify2-m360.png"
+  },
+  {
+    "name": "m390",
+    "ok": true,
+    "errors": [],
+    "hasName": true,
+    "hasPhone": true,
+    "hasInsAge": true,
+    "noOldPhone": true,
+    "basicLabel": {
+      "fontSize": "16px",
+      "fontWeight": "600"
+    },
+    "basicValue": {
+      "fontSize": "17px",
+      "fontWeight": "600"
+    },
+    "bizLabel": {
+      "fontSize": "16px",
+      "fontWeight": "600"
+    },
+    "bizValue": {
+      "fontSize": "17px",
+      "fontWeight": "600"
+    },
+    "overflow": false,
+    "sameAsCar": true,
+    "sameAsBiz": true,
+    "screenshot": "C:\\workspace\\insurance-prod-push\\qa\\basic-fields\\unify2-m390.png"
+  }
+]

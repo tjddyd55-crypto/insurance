@@ -1,0 +1,42 @@
+[
+  {
+    "name": "pc",
+    "width": 1440,
+    "ok": false,
+    "labels": [],
+    "errors": [
+      "page.waitForSelector: Timeout 20000ms exceeded.\nCall log:\n  - waiting for locator('#customer-detail-read-basic-info') to be visible\n    40 × locator resolved to 668 elements. Proceeding with the first one: <section id=\"customer-detail-read-basic-info\" class=\"customer-detail-read__section\" aria-labelledby=\"customer-detail-read-basic-info-heading\">…</section>\n\n    at C:\\workspace\\insurance-prod-push\\qa\\_qaWebBasicFields3.mjs:84:16"
+    ],
+    "screenshot": "C:\\workspace\\insurance-prod-push\\qa\\basic-fields\\web3-pc-err.png"
+  },
+  {
+    "name": "m360",
+    "width": 360,
+    "ok": false,
+    "labels": [],
+    "errors": [
+      "page.waitForSelector: Timeout 20000ms exceeded.\nCall log:\n  - waiting for locator('#customer-detail-read-basic-info') to be visible\n    40 × locator resolved to 668 elements. Proceeding with the first one: <section id=\"customer-detail-read-basic-info\" class=\"customer-detail-read__section\" aria-labelledby=\"customer-detail-read-basic-info-heading\">…</section>\n\n    at C:\\workspace\\insurance-prod-push\\qa\\_qaWebBasicFields3.mjs:84:16"
+    ],
+    "screenshot": "C:\\workspace\\insurance-prod-push\\qa\\basic-fields\\web3-m360-err.png"
+  },
+  {
+    "name": "m390",
+    "width": 390,
+    "ok": false,
+    "labels": [],
+    "errors": [
+      "page.waitForSelector: Timeout 20000ms exceeded.\nCall log:\n  - waiting for locator('#customer-detail-read-basic-info') to be visible\n    40 × locator resolved to 668 elements. Proceeding with the first one: <section id=\"customer-detail-read-basic-info\" class=\"customer-detail-read__section\" aria-labelledby=\"customer-detail-read-basic-info-heading\">…</section>\n\n    at C:\\workspace\\insurance-prod-push\\qa\\_qaWebBasicFields3.mjs:84:16"
+    ],
+    "screenshot": "C:\\workspace\\insurance-prod-push\\qa\\basic-fields\\web3-m390-err.png"
+  },
+  {
+    "name": "m412",
+    "width": 412,
+    "ok": false,
+    "labels": [],
+    "errors": [
+      "page.waitForSelector: Timeout 20000ms exceeded.\nCall log:\n  - waiting for locator('#customer-detail-read-basic-info') to be visible\n    40 × locator resolved to 668 elements. Proceeding with the first one: <section id=\"customer-detail-read-basic-info\" class=\"customer-detail-read__section\" aria-labelledby=\"customer-detail-read-basic-info-heading\">…</section>\n\n    at C:\\workspace\\insurance-prod-push\\qa\\_qaWebBasicFields3.mjs:84:16"
+    ],
+    "screenshot": "C:\\workspace\\insurance-prod-push\\qa\\basic-fields\\web3-m412-err.png"
+  }
+]

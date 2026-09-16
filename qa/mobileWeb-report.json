@@ -1,0 +1,487 @@
+{
+  "viewports": {
+    "360": {
+      "viewport": {
+        "name": "360",
+        "width": 360,
+        "height": 800
+      },
+      "checks": {
+        "detailOrder": {
+          "positions": {
+            "자동차": 458,
+            "연계": 487,
+            "사업자": 55,
+            "화재": 58,
+            "기념": 652,
+            "상담": 125
+          },
+          "titles": [
+            "검색·필터 결과: 1명고객사업자화재QA남보험나이 37세상령일: 2026-",
+            "자동차보험 정보등록된 자동차 정보가 없습니다.",
+            "자동차보험 정보",
+            "자동차보험 정보",
+            "등록된 자동차 정보가 없습니다.",
+            "등록된 자동차 정보가 없습니다.",
+            "연계 고객가족 그룹 만들기개별 연결가족 그룹가족 그룹이 없습니다.개별 연",
+            "가족 그룹가족 그룹이 없습니다.",
+            "가족 그룹",
+            "개별 연결고객사업자화재QA님과 연결된 다른 고객입니다. 이름을 누르면 해",
+            "사업자 정보불러오는 중…",
+            "사업자 정보",
+            "사업자 정보",
+            "불러오는 중…",
+            "화재보험 정보불러오는 중…",
+            "화재보험 정보",
+            "화재보험 정보",
+            "불러오는 중…",
+            "기념일기념일 불러오는 중…",
+            "기념일"
+          ],
+          "bizBeforeFire": false,
+          "bodyHasBiz": true,
+          "bodyHasFire": true
+        },
+        "detailOverflow": {
+          "scrollW": 360,
+          "clientW": 360,
+          "overflow": false,
+          "offenderCount": 0,
+          "offenders": []
+        },
+        "addressSearch": {
+          "found": true,
+          "label": "주소 검색",
+          "rect": {
+            "left": 28,
+            "right": 332,
+            "top": 368.421875,
+            "bottom": 412.421875,
+            "width": 304,
+            "height": 44
+          },
+          "vw": 360,
+          "clipped": false
+        },
+        "longAddress": {
+          "found": true,
+          "tag": "INPUT",
+          "whiteSpace": "normal",
+          "overflowX": "clip",
+          "scrollW": 302,
+          "clientW": 304,
+          "wrapsOrScrollsLocally": true
+        },
+        "textarea": {
+          "found": true,
+          "disabled": false,
+          "visible": true,
+          "height": 96,
+          "width": 304,
+          "vw": 360,
+          "withinViewport": true
+        },
+        "fire": {
+          "found": true,
+          "hasLocHints": true,
+          "snippet": "화재보험 정보\n소재지 추가\n소재지 1\n삭제\n주소\n주소 검색\n메모\n소재지 2\n삭제\n주소\n주소 검색\n메모"
+        },
+        "editOrder": {
+          "positions": {
+            "자동차": 384,
+            "사업자": 55,
+            "화재": 58,
+            "기념": 521
+          },
+          "titles": [
+            "자동차 정보",
+            "자동차 정보",
+            "자동차 정보",
+            "자동차 정보",
+            "자동차 추가",
+            "자동차 정보",
+            "자동차 정보 1차량번호차종(차량)연식만기(갱신)일",
+            "자동차 정보 1차량번호차종(차량)연식만기(갱신)일",
+            "사업자 정보",
+            "사업자 정보",
+            "사업자 정보",
+            "사업자 정보",
+            "대표자명사업자번호사업장 주소주소 검색메모경영인 정기보험 상담 예정",
+            "화재보험 정보",
+            "화재보험 정보",
+            "화재보험 정보",
+            "소재지 추가",
+            "화재보험 정보",
+            "소재지 1삭제주소주소 검색메모본사소재지 2삭제주소주소 검색메모물류창고",
+            "소재지 1삭제주소주소 검색메모본사"
+          ],
+          "bizBeforeFire": true,
+          "bodyHasBiz": true,
+          "bodyHasFire": true
+        },
+        "editOverflow": {
+          "scrollW": 360,
+          "clientW": 360,
+          "overflow": false,
+          "offenderCount": 0,
+          "offenders": []
+        }
+      },
+      "screenshots": [
+        "C:\\workspace\\insurance-prod-push\\qa\\screenshots\\mobile-360-detail.png",
+        "C:\\workspace\\insurance-prod-push\\qa\\screenshots\\mobile-360-edit-top.png",
+        "C:\\workspace\\insurance-prod-push\\qa\\screenshots\\mobile-360-edit-business.png",
+        "C:\\workspace\\insurance-prod-push\\qa\\screenshots\\mobile-360-edit-fire.png"
+      ],
+      "pass": true,
+      "errors": [],
+      "notes": []
+    },
+    "390": {
+      "viewport": {
+        "name": "390",
+        "width": 390,
+        "height": 844
+      },
+      "checks": {
+        "detailOrder": {
+          "positions": {
+            "자동차": 458,
+            "연계": 487,
+            "사업자": 55,
+            "화재": 58,
+            "기념": 652,
+            "상담": 125
+          },
+          "titles": [
+            "검색·필터 결과: 1명고객사업자화재QA남보험나이 37세상령일: 2026-",
+            "자동차보험 정보등록된 자동차 정보가 없습니다.",
+            "자동차보험 정보",
+            "자동차보험 정보",
+            "등록된 자동차 정보가 없습니다.",
+            "등록된 자동차 정보가 없습니다.",
+            "연계 고객가족 그룹 만들기개별 연결가족 그룹가족 그룹이 없습니다.개별 연",
+            "가족 그룹가족 그룹이 없습니다.",
+            "가족 그룹",
+            "개별 연결고객사업자화재QA님과 연결된 다른 고객입니다. 이름을 누르면 해",
+            "사업자 정보불러오는 중…",
+            "사업자 정보",
+            "사업자 정보",
+            "불러오는 중…",
+            "화재보험 정보불러오는 중…",
+            "화재보험 정보",
+            "화재보험 정보",
+            "불러오는 중…",
+            "기념일기념일 불러오는 중…",
+            "기념일"
+          ],
+          "bizBeforeFire": false,
+          "bodyHasBiz": true,
+          "bodyHasFire": true
+        },
+        "detailOverflow": {
+          "scrollW": 390,
+          "clientW": 390,
+          "overflow": false,
+          "offenderCount": 0,
+          "offenders": []
+        },
+        "addressSearch": {
+          "found": true,
+          "label": "주소 검색",
+          "rect": {
+            "left": 28,
+            "right": 362,
+            "top": 389.9375,
+            "bottom": 433.9375,
+            "width": 334,
+            "height": 44
+          },
+          "vw": 390,
+          "clipped": false
+        },
+        "longAddress": {
+          "found": true,
+          "tag": "INPUT",
+          "whiteSpace": "normal",
+          "overflowX": "clip",
+          "scrollW": 332,
+          "clientW": 334,
+          "wrapsOrScrollsLocally": true
+        },
+        "textarea": {
+          "found": true,
+          "disabled": false,
+          "visible": true,
+          "height": 96,
+          "width": 334,
+          "vw": 390,
+          "withinViewport": true
+        },
+        "fire": {
+          "found": true,
+          "hasLocHints": true,
+          "snippet": "화재보험 정보\n소재지 추가\n소재지 1\n삭제\n주소\n주소 검색\n메모\n소재지 2\n삭제\n주소\n주소 검색\n메모"
+        },
+        "editOrder": {
+          "positions": {
+            "자동차": 384,
+            "사업자": 55,
+            "화재": 58,
+            "기념": 521
+          },
+          "titles": [
+            "자동차 정보",
+            "자동차 정보",
+            "자동차 정보",
+            "자동차 정보",
+            "자동차 추가",
+            "자동차 정보",
+            "자동차 정보 1차량번호차종(차량)연식만기(갱신)일",
+            "자동차 정보 1차량번호차종(차량)연식만기(갱신)일",
+            "사업자 정보",
+            "사업자 정보",
+            "사업자 정보",
+            "사업자 정보",
+            "대표자명사업자번호사업장 주소주소 검색메모경영인 정기보험 상담 예정",
+            "화재보험 정보",
+            "화재보험 정보",
+            "화재보험 정보",
+            "소재지 추가",
+            "화재보험 정보",
+            "소재지 1삭제주소주소 검색메모본사소재지 2삭제주소주소 검색메모물류창고",
+            "소재지 1삭제주소주소 검색메모본사"
+          ],
+          "bizBeforeFire": true,
+          "bodyHasBiz": true,
+          "bodyHasFire": true
+        },
+        "editOverflow": {
+          "scrollW": 390,
+          "clientW": 390,
+          "overflow": false,
+          "offenderCount": 0,
+          "offenders": []
+        },
+        "saveSmoke": {
+          "saveMs": 5422,
+          "apiMemo": "Mobile Web QA 390",
+          "saveOk": true
+        }
+      },
+      "screenshots": [
+        "C:\\workspace\\insurance-prod-push\\qa\\screenshots\\mobile-390-detail.png",
+        "C:\\workspace\\insurance-prod-push\\qa\\screenshots\\mobile-390-edit-top.png",
+        "C:\\workspace\\insurance-prod-push\\qa\\screenshots\\mobile-390-edit-business.png",
+        "C:\\workspace\\insurance-prod-push\\qa\\screenshots\\mobile-390-edit-fire.png"
+      ],
+      "pass": true,
+      "errors": [],
+      "notes": []
+    },
+    "412": {
+      "viewport": {
+        "name": "412",
+        "width": 412,
+        "height": 915
+      },
+      "checks": {
+        "detailOrder": {
+          "positions": {
+            "자동차": 458,
+            "연계": 487,
+            "사업자": 55,
+            "화재": 58,
+            "기념": 652,
+            "상담": 125
+          },
+          "titles": [
+            "검색·필터 결과: 1명고객사업자화재QA남보험나이 37세상령일: 2026-",
+            "자동차보험 정보등록된 자동차 정보가 없습니다.",
+            "자동차보험 정보",
+            "자동차보험 정보",
+            "등록된 자동차 정보가 없습니다.",
+            "등록된 자동차 정보가 없습니다.",
+            "연계 고객가족 그룹 만들기개별 연결가족 그룹가족 그룹이 없습니다.개별 연",
+            "가족 그룹가족 그룹이 없습니다.",
+            "가족 그룹",
+            "개별 연결고객사업자화재QA님과 연결된 다른 고객입니다. 이름을 누르면 해",
+            "사업자 정보불러오는 중…",
+            "사업자 정보",
+            "사업자 정보",
+            "불러오는 중…",
+            "화재보험 정보불러오는 중…",
+            "화재보험 정보",
+            "화재보험 정보",
+            "불러오는 중…",
+            "기념일기념일 불러오는 중…",
+            "기념일"
+          ],
+          "bizBeforeFire": false,
+          "bodyHasBiz": true,
+          "bodyHasFire": true
+        },
+        "detailOverflow": {
+          "scrollW": 412,
+          "clientW": 412,
+          "overflow": false,
+          "offenderCount": 0,
+          "offenders": []
+        },
+        "addressSearch": {
+          "found": true,
+          "label": "주소 검색",
+          "rect": {
+            "left": 28,
+            "right": 384,
+            "top": 425.9375,
+            "bottom": 469.9375,
+            "width": 356,
+            "height": 44
+          },
+          "vw": 412,
+          "clipped": false
+        },
+        "longAddress": {
+          "found": true,
+          "tag": "INPUT",
+          "whiteSpace": "normal",
+          "overflowX": "clip",
+          "scrollW": 354,
+          "clientW": 356,
+          "wrapsOrScrollsLocally": true
+        },
+        "textarea": {
+          "found": true,
+          "disabled": false,
+          "visible": true,
+          "height": 96,
+          "width": 356,
+          "vw": 412,
+          "withinViewport": true
+        },
+        "fire": {
+          "found": true,
+          "hasLocHints": true,
+          "snippet": "화재보험 정보\n소재지 추가\n소재지 1\n삭제\n주소\n주소 검색\n메모\n소재지 2\n삭제\n주소\n주소 검색\n메모"
+        },
+        "editOrder": {
+          "positions": {
+            "자동차": 384,
+            "사업자": 55,
+            "화재": 58,
+            "기념": 521
+          },
+          "titles": [
+            "자동차 정보",
+            "자동차 정보",
+            "자동차 정보",
+            "자동차 정보",
+            "자동차 추가",
+            "자동차 정보",
+            "자동차 정보 1차량번호차종(차량)연식만기(갱신)일",
+            "자동차 정보 1차량번호차종(차량)연식만기(갱신)일",
+            "사업자 정보",
+            "사업자 정보",
+            "사업자 정보",
+            "사업자 정보",
+            "대표자명사업자번호사업장 주소주소 검색메모경영인 정기보험 상담 예정",
+            "화재보험 정보",
+            "화재보험 정보",
+            "화재보험 정보",
+            "소재지 추가",
+            "화재보험 정보",
+            "소재지 1삭제주소주소 검색메모본사소재지 2삭제주소주소 검색메모물류창고",
+            "소재지 1삭제주소주소 검색메모본사"
+          ],
+          "bizBeforeFire": true,
+          "bodyHasBiz": true,
+          "bodyHasFire": true
+        },
+        "editOverflow": {
+          "scrollW": 412,
+          "clientW": 412,
+          "overflow": false,
+          "offenderCount": 0,
+          "offenders": []
+        }
+      },
+      "screenshots": [
+        "C:\\workspace\\insurance-prod-push\\qa\\screenshots\\mobile-412-detail.png",
+        "C:\\workspace\\insurance-prod-push\\qa\\screenshots\\mobile-412-edit-top.png",
+        "C:\\workspace\\insurance-prod-push\\qa\\screenshots\\mobile-412-edit-business.png",
+        "C:\\workspace\\insurance-prod-push\\qa\\screenshots\\mobile-412-edit-fire.png"
+      ],
+      "pass": true,
+      "errors": [],
+      "notes": []
+    }
+  },
+  "saveSmoke": {
+    "saveMs": 5422,
+    "apiMemo": "Mobile Web QA 390",
+    "saveOk": true
+  },
+  "blockers": [],
+  "finalState": {
+    "businessInfo": {
+      "representativeName": "홍길동",
+      "businessNumber": "123-45-67890",
+      "businessAddress": "서울특별시 테스트구 테스트로 10",
+      "memo": "경영인 정기보험 상담 예정"
+    },
+    "fire": [
+      {
+        "id": 11,
+        "customerId": 1342,
+        "address": "서울특별시 테스트구 화재로 1",
+        "memo": "본사",
+        "sortOrder": 0,
+        "createdAt": "2026-09-10T10:05:52.999Z",
+        "updatedAt": "2026-09-10T10:05:52.999Z"
+      },
+      {
+        "id": 12,
+        "customerId": 1342,
+        "address": "경기도 테스트시 창고로 20",
+        "memo": "물류창고",
+        "sortOrder": 1,
+        "createdAt": "2026-09-10T10:05:54.588Z",
+        "updatedAt": "2026-09-10T10:05:54.588Z"
+      }
+    ]
+  },
+  "notes": [
+    {
+      "baselineBefore": {
+        "businessInfo": {
+          "representativeName": "홍길동",
+          "businessNumber": "123-45-67890",
+          "businessAddress": "서울특별시 테스트구 테스트로 10",
+          "memo": "경영인 정기보험 상담 예정"
+        },
+        "fire": [
+          {
+            "id": 11,
+            "customerId": 1342,
+            "address": "서울특별시 테스트구 화재로 1",
+            "memo": "본사",
+            "sortOrder": 0,
+            "createdAt": "2026-09-10T10:05:52.999Z",
+            "updatedAt": "2026-09-10T10:05:52.999Z"
+          },
+          {
+            "id": 12,
+            "customerId": 1342,
+            "address": "경기도 테스트시 창고로 20",
+            "memo": "물류창고",
+            "sortOrder": 1,
+            "createdAt": "2026-09-10T10:05:54.588Z",
+            "updatedAt": "2026-09-10T10:05:54.588Z"
+          }
+        ]
+      }
+    }
+  ],
+  "allPass": true
+}

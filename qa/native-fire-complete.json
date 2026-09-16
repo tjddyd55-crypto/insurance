@@ -1,0 +1,87 @@
+{
+  "pass": false,
+  "results": [
+    {
+      "baseline": [
+        {
+          "id": 11,
+          "customerId": 1342,
+          "address": "서울특별시 테스트구 화재로 1",
+          "memo": "본사",
+          "sortOrder": 0,
+          "createdAt": "2026-09-10T10:05:52.999Z",
+          "updatedAt": "2026-09-10T10:05:52.999Z"
+        },
+        {
+          "id": 12,
+          "customerId": 1342,
+          "address": "경기도 테스트시 창고로 20",
+          "memo": "물류창고",
+          "sortOrder": 1,
+          "createdAt": "2026-09-10T10:05:54.588Z",
+          "updatedAt": "2026-09-10T10:05:54.588Z"
+        }
+      ]
+    },
+    {
+      "seek": 0,
+      "hasAdd": false,
+      "sample": [
+        "소재지 1"
+      ]
+    },
+    {
+      "seek": 1,
+      "hasAdd": false,
+      "sample": [
+        "소재지 1"
+      ]
+    },
+    {
+      "seek": 2,
+      "hasAdd": false,
+      "sample": [
+        "소재지 1",
+        "소재지 2"
+      ]
+    },
+    {
+      "seek": 3,
+      "hasAdd": false,
+      "sample": [
+        "소재지 1",
+        "소재지 2"
+      ]
+    },
+    {
+      "seek": 4,
+      "hasAdd": false,
+      "sample": [
+        "소재지 2",
+        "소재지 3"
+      ]
+    },
+    {
+      "seek": 5,
+      "hasAdd": false,
+      "sample": [
+        "소재지 2",
+        "소재지 3"
+      ]
+    },
+    {
+      "seek": 6,
+      "hasAdd": true,
+      "sample": [
+        "소재지 3",
+        "소재지 추가"
+      ]
+    },
+    {
+      "daumOk": false
+    },
+    {
+      "error": "Error: no save btn"
+    }
+  ]
+}

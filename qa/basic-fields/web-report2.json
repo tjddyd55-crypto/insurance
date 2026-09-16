@@ -1,0 +1,46 @@
+[
+  {
+    "name": "pc",
+    "width": 1440,
+    "ok": false,
+    "labels": [],
+    "overflowSuspect": false,
+    "errors": [
+      "page.goto: Timeout 45000ms exceeded.\nCall log:\n  - navigating to \"http://127.0.0.1:3000/\", waiting until \"networkidle\"\n\n    at C:\\workspace\\insurance-prod-push\\qa\\_qaWebBasicFields2.mjs:13:16\n    at async login (C:\\workspace\\insurance-prod-push\\qa\\_qaWebBasicFields2.mjs:12:3)\n    at async file:///C:/workspace/insurance-prod-push/qa/_qaWebBasicFields2.mjs:83:5"
+    ],
+    "screenshot": "C:\\workspace\\insurance-prod-push\\qa\\basic-fields\\web-pc-err.png"
+  },
+  {
+    "name": "m360",
+    "width": 360,
+    "ok": false,
+    "labels": [],
+    "overflowSuspect": false,
+    "errors": [
+      "page.goto: Timeout 45000ms exceeded.\nCall log:\n  - navigating to \"http://127.0.0.1:3000/\", waiting until \"networkidle\"\n\n    at C:\\workspace\\insurance-prod-push\\qa\\_qaWebBasicFields2.mjs:13:16\n    at async login (C:\\workspace\\insurance-prod-push\\qa\\_qaWebBasicFields2.mjs:12:3)\n    at async file:///C:/workspace/insurance-prod-push/qa/_qaWebBasicFields2.mjs:83:5"
+    ],
+    "screenshot": "C:\\workspace\\insurance-prod-push\\qa\\basic-fields\\web-m360-err.png"
+  },
+  {
+    "name": "m390",
+    "width": 390,
+    "ok": false,
+    "labels": [],
+    "overflowSuspect": false,
+    "errors": [
+      "page.goto: Timeout 45000ms exceeded.\nCall log:\n  - navigating to \"http://127.0.0.1:3000/\", waiting until \"networkidle\"\n\n    at C:\\workspace\\insurance-prod-push\\qa\\_qaWebBasicFields2.mjs:13:16\n    at async login (C:\\workspace\\insurance-prod-push\\qa\\_qaWebBasicFields2.mjs:12:3)\n    at async file:///C:/workspace/insurance-prod-push/qa/_qaWebBasicFields2.mjs:83:5"
+    ],
+    "screenshot": "C:\\workspace\\insurance-prod-push\\qa\\basic-fields\\web-m390-err.png"
+  },
+  {
+    "name": "m412",
+    "width": 412,
+    "ok": false,
+    "labels": [],
+    "overflowSuspect": false,
+    "errors": [
+      "page.goto: Timeout 45000ms exceeded.\nCall log:\n  - navigating to \"http://127.0.0.1:3000/\", waiting until \"networkidle\"\n\n    at C:\\workspace\\insurance-prod-push\\qa\\_qaWebBasicFields2.mjs:13:16\n    at async login (C:\\workspace\\insurance-prod-push\\qa\\_qaWebBasicFields2.mjs:12:3)\n    at async file:///C:/workspace/insurance-prod-push/qa/_qaWebBasicFields2.mjs:83:5"
+    ],
+    "screenshot": "C:\\workspace\\insurance-prod-push\\qa\\basic-fields\\web-m412-err.png"
+  }
+]

@@ -1,0 +1,12 @@
+{
+  "nativeToWeb": {
+    "pass": true,
+    "memo": "Native Cross QA"
+  },
+  "webToNative": {
+    "pass": true,
+    "uiSeen": true,
+    "apiMemo": "Web Cross QA"
+  },
+  "pass": true
+}

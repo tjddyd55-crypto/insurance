@@ -24,7 +24,7 @@ describe('customer list scroll wiring', () => {
     assert.match(hook, /resolveCustomerListScrollContainer/)
     assert.match(hook, /scrollCustomerCardIntoListContainer/)
     assert.match(hook, /pendingTargetIdRef/)
-    assert.match(hook, /maxScrollPasses/)
+    assert.doesNotMatch(hook, /ResizeObserver/)
     assert.doesNotMatch(hook, /scrollCountRef/)
     assert.match(fab, /resolveCustomerListScrollContainer/)
     assert.match(fab, /scrollCustomerListPanelToTop/)

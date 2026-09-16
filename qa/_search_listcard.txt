@@ -1,0 +1,24 @@
+﻿3:import { FormButton, FormInput } from '../../../components/form'
+284:isSelectMode ? undefined : `${c.name} 상세 ${showExpandedChrome ? '접기' : '펼치기'}`
+352:<FormButton
+373:</FormButton>
+461:<FormButton
+467:{mobileInfoExpanded ? '고객 정보 접기 ▲' : '고객 정보 펼치기 ▼'}
+468:</FormButton>
+492:<FormButton
+497:title="변경 저장"
+498:aria-label="저장"
+501:loadingText="저장 중…"
+504:저장
+505:</FormButton>
+506:<FormButton
+511:title="편집 취소"
+512:aria-label="취소"
+516:취소
+517:</FormButton>
+522:<FormButton
+532:</FormButton>
+534:<FormButton
+544:</FormButton>
+545:<FormButton
+555:</FormButton>

@@ -1,0 +1,31 @@
+{
+  "sectionOrder": {
+    "found": [
+      "기본 정보",
+      "자동차 정보",
+      "사업자 정보",
+      "화재보험 정보",
+      "기념일"
+    ],
+    "expected": [
+      "기본 정보",
+      "자동차 정보",
+      "연계 고객",
+      "사업자 정보",
+      "화재보험 정보",
+      "기념일",
+      "상담"
+    ],
+    "pass": false
+  },
+  "accordion": {
+    "defaultClosed": true,
+    "multiOpen": true,
+    "pass": true
+  },
+  "driving": {
+    "inBasic": false,
+    "driveInsideCarOnly": false,
+    "pass": false
+  }
+}

@@ -1,0 +1,70 @@
+[
+  {
+    "where": "open",
+    "interesting": [
+      {
+        "text": "소재지 1",
+        "desc": "",
+        "clickable": "false",
+        "bounds": "[87,1795][993,1861]"
+      },
+      {
+        "text": "",
+        "desc": "삭제",
+        "clickable": "true",
+        "bounds": "[87,1873][993,1991]"
+      },
+      {
+        "text": "삭제",
+        "desc": "",
+        "clickable": "false",
+        "bounds": "[501,1906][579,1972]"
+      }
+    ]
+  },
+  {
+    "where": "scroll0",
+    "items": [
+      {
+        "text": "소재지 1",
+        "desc": "",
+        "clickable": "false",
+        "bounds": "[87,1203][993,1269]"
+      }
+    ]
+  },
+  {
+    "where": "scroll1",
+    "items": [
+      {
+        "text": "소재지 1",
+        "desc": "",
+        "clickable": "false",
+        "bounds": "[87,610][993,676]"
+      },
+      {
+        "text": "소재지 2",
+        "desc": "",
+        "clickable": "false",
+        "bounds": "[87,1900][993,1966]"
+      }
+    ]
+  },
+  {
+    "where": "scroll2",
+    "items": [
+      {
+        "text": "소재지 1",
+        "desc": "",
+        "clickable": "false",
+        "bounds": "[87,247][993,74]"
+      },
+      {
+        "text": "소재지 2",
+        "desc": "",
+        "clickable": "false",
+        "bounds": "[87,1298][993,1364]"
+      }
+    ]
+  }
+]

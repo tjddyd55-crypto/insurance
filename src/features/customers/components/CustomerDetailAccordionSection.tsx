@@ -1,10 +1,6 @@
 import { type ReactNode, useId } from 'react'
 import type { CustomerDetailCoreSectionId } from '../config/customerDetailCoreSectionOrder'
-import {
-  CUSTOMER_DETAIL_COLLAPSED_BORDER_WIDTH,
-  CUSTOMER_DETAIL_EXPANDED_BORDER_WIDTH,
-  customerDetailSectionTheme,
-} from '../config/customerSectionTheme'
+import { customerDetailSectionTheme } from '../config/customerSectionTheme'
 
 export type CustomerDetailAccordionSectionProps = {
   sectionId: CustomerDetailCoreSectionId
@@ -33,10 +29,6 @@ export function CustomerDetailAccordionSection({
       data-section-id={sectionId}
       style={{
         ['--customer-section-accent' as string]: theme.accent,
-        borderWidth: expanded
-          ? CUSTOMER_DETAIL_EXPANDED_BORDER_WIDTH
-          : CUSTOMER_DETAIL_COLLAPSED_BORDER_WIDTH,
-        borderColor: expanded ? theme.accent : undefined,
       }}
     >
       <button
@@ -44,7 +36,10 @@ export function CustomerDetailAccordionSection({
         className="customer-detail-accordion__trigger"
         aria-expanded={expanded}
         aria-controls={headingId}
-        onClick={() => onExpandedChange(!expanded)}
+        onClick={(event) => {
+          event.currentTarget.focus({ preventScroll: true })
+          onExpandedChange(!expanded)
+        }}
       >
         <span className="customer-detail-accordion__title-wrap">
           <span

@@ -1,0 +1,333 @@
+[
+  {
+    "base": "http://127.0.0.1:3000",
+    "name": "3000-pc",
+    "size": {
+      "width": 1440,
+      "height": 900
+    },
+    "urlAfterLogin": "http://127.0.0.1:3000/customers",
+    "urlCustomers": "http://127.0.0.1:3000/customers",
+    "labels": [
+      "이름",
+      "연락처",
+      "주민번호",
+      "성별",
+      "상령일",
+      "보험나이",
+      "문자 수신",
+      "통신사",
+      "주소",
+      "키/몸무게",
+      "직업/회사명/하는일/지역",
+      "운전여부",
+      "유입 경로",
+      "차종",
+      "5년안에 병원에서 진단이나 입원, 수술, 치료 또는 약복용중이신거 있으신가요?"
+    ],
+    "hasBasicSection": true,
+    "hasName": true,
+    "hasPhone": true,
+    "hasInsAge": true,
+    "overflowSuspect": false,
+    "screenshot": "C:\\workspace\\insurance-prod-push\\qa\\basic-fields\\3000-pc-1440.png",
+    "errors": [],
+    "metrics": {
+      "sw": 403,
+      "cw": 403,
+      "sh": 563,
+      "ch": 563
+    },
+    "box": {
+      "x": 25,
+      "y": 218.953125,
+      "width": 403,
+      "height": 562.90625
+    }
+  },
+  {
+    "base": "http://127.0.0.1:3000",
+    "name": "3000-m360",
+    "size": {
+      "width": 360,
+      "height": 800
+    },
+    "urlAfterLogin": "http://127.0.0.1:3000/customers",
+    "urlCustomers": "http://127.0.0.1:3000/customers",
+    "labels": [
+      "이름",
+      "연락처",
+      "주민번호",
+      "성별",
+      "상령일",
+      "보험나이",
+      "문자 수신",
+      "통신사",
+      "주소",
+      "키/몸무게",
+      "직업/회사명/하는일/지역",
+      "운전여부",
+      "유입 경로",
+      "차종",
+      "5년안에 병원에서 진단이나 입원, 수술, 치료 또는 약복용중이신거 있으신가요?"
+    ],
+    "hasBasicSection": true,
+    "hasName": true,
+    "hasPhone": true,
+    "hasInsAge": true,
+    "overflowSuspect": false,
+    "screenshot": "C:\\workspace\\insurance-prod-push\\qa\\basic-fields\\3000-m360-360.png",
+    "errors": [],
+    "metrics": {
+      "sw": 293,
+      "cw": 293,
+      "sh": 581,
+      "ch": 581
+    },
+    "box": {
+      "x": 33,
+      "y": 328.953125,
+      "width": 293,
+      "height": 581.09375
+    }
+  },
+  {
+    "base": "http://127.0.0.1:3000",
+    "name": "3000-m390",
+    "size": {
+      "width": 390,
+      "height": 844
+    },
+    "urlAfterLogin": "http://127.0.0.1:3000/customers",
+    "urlCustomers": "http://127.0.0.1:3000/customers",
+    "labels": [
+      "이름",
+      "연락처",
+      "주민번호",
+      "성별",
+      "상령일",
+      "보험나이",
+      "문자 수신",
+      "통신사",
+      "주소",
+      "키/몸무게",
+      "직업/회사명/하는일/지역",
+      "운전여부",
+      "유입 경로",
+      "차종",
+      "5년안에 병원에서 진단이나 입원, 수술, 치료 또는 약복용중이신거 있으신가요?"
+    ],
+    "hasBasicSection": true,
+    "hasName": true,
+    "hasPhone": true,
+    "hasInsAge": true,
+    "overflowSuspect": false,
+    "screenshot": "C:\\workspace\\insurance-prod-push\\qa\\basic-fields\\3000-m390-390.png",
+    "errors": [],
+    "metrics": {
+      "sw": 323,
+      "cw": 323,
+      "sh": 581,
+      "ch": 581
+    },
+    "box": {
+      "x": 33,
+      "y": 328.953125,
+      "width": 323,
+      "height": 581.09375
+    }
+  },
+  {
+    "base": "http://127.0.0.1:3000",
+    "name": "3000-m412",
+    "size": {
+      "width": 412,
+      "height": 915
+    },
+    "urlAfterLogin": "http://127.0.0.1:3000/customers",
+    "urlCustomers": "http://127.0.0.1:3000/customers",
+    "labels": [
+      "이름",
+      "연락처",
+      "주민번호",
+      "성별",
+      "상령일",
+      "보험나이",
+      "문자 수신",
+      "통신사",
+      "주소",
+      "키/몸무게",
+      "직업/회사명/하는일/지역",
+      "운전여부",
+      "유입 경로",
+      "차종",
+      "5년안에 병원에서 진단이나 입원, 수술, 치료 또는 약복용중이신거 있으신가요?"
+    ],
+    "hasBasicSection": true,
+    "hasName": true,
+    "hasPhone": true,
+    "hasInsAge": true,
+    "overflowSuspect": false,
+    "screenshot": "C:\\workspace\\insurance-prod-push\\qa\\basic-fields\\3000-m412-412.png",
+    "errors": [],
+    "metrics": {
+      "sw": 345,
+      "cw": 345,
+      "sh": 581,
+      "ch": 581
+    },
+    "box": {
+      "x": 33,
+      "y": 328.953125,
+      "width": 345,
+      "height": 581.09375
+    }
+  },
+  {
+    "base": "http://127.0.0.1:3001",
+    "name": "3001-pc",
+    "size": {
+      "width": 1440,
+      "height": 900
+    },
+    "urlAfterLogin": "http://127.0.0.1:3001/customers",
+    "urlCustomers": "http://127.0.0.1:3001/customers",
+    "labels": [
+      "주민번호",
+      "성별",
+      "보험나이",
+      "상령일",
+      "유입 경로",
+      "핸드폰번호",
+      "문자 수신",
+      "통신사",
+      "주소",
+      "키/몸무게",
+      "직업/회사명/하는일/지역",
+      "운전여부",
+      "차종",
+      "5년안에 병원에서 진단이나 입원, 수술, 치료 또는 약복용중이신거 있으신가요?",
+      "대표자명",
+      "사업자번호",
+      "사업장 주소",
+      "주소",
+      "주소"
+    ],
+    "hasBasicSection": false,
+    "hasName": false,
+    "hasPhone": false,
+    "hasInsAge": true,
+    "overflowSuspect": false,
+    "screenshot": "C:\\workspace\\insurance-prod-push\\qa\\basic-fields\\3001-pc-1440.png",
+    "errors": []
+  },
+  {
+    "base": "http://127.0.0.1:3001",
+    "name": "3001-m360",
+    "size": {
+      "width": 360,
+      "height": 800
+    },
+    "urlAfterLogin": "http://127.0.0.1:3001/customers",
+    "urlCustomers": "http://127.0.0.1:3001/customers",
+    "labels": [
+      "주민번호",
+      "성별",
+      "보험나이",
+      "상령일",
+      "유입 경로",
+      "핸드폰번호",
+      "문자 수신",
+      "통신사",
+      "주소",
+      "키/몸무게",
+      "직업/회사명/하는일/지역",
+      "운전여부",
+      "차종",
+      "5년안에 병원에서 진단이나 입원, 수술, 치료 또는 약복용중이신거 있으신가요?"
+    ],
+    "hasBasicSection": false,
+    "hasName": false,
+    "hasPhone": false,
+    "hasInsAge": true,
+    "overflowSuspect": false,
+    "screenshot": "C:\\workspace\\insurance-prod-push\\qa\\basic-fields\\3001-m360-360.png",
+    "errors": []
+  },
+  {
+    "base": "http://127.0.0.1:3001",
+    "name": "3001-m390",
+    "size": {
+      "width": 390,
+      "height": 844
+    },
+    "urlAfterLogin": "http://127.0.0.1:3001/customers",
+    "urlCustomers": "http://127.0.0.1:3001/customers",
+    "labels": [
+      "주민번호",
+      "성별",
+      "보험나이",
+      "상령일",
+      "유입 경로",
+      "핸드폰번호",
+      "문자 수신",
+      "통신사",
+      "주소",
+      "키/몸무게",
+      "직업/회사명/하는일/지역",
+      "운전여부",
+      "차종",
+      "5년안에 병원에서 진단이나 입원, 수술, 치료 또는 약복용중이신거 있으신가요?",
+      "대표자명",
+      "사업자번호",
+      "사업장 주소",
+      "주소",
+      "주소"
+    ],
+    "hasBasicSection": false,
+    "hasName": false,
+    "hasPhone": false,
+    "hasInsAge": true,
+    "overflowSuspect": false,
+    "screenshot": "C:\\workspace\\insurance-prod-push\\qa\\basic-fields\\3001-m390-390.png",
+    "errors": []
+  },
+  {
+    "base": "http://127.0.0.1:3001",
+    "name": "3001-m412",
+    "size": {
+      "width": 412,
+      "height": 915
+    },
+    "urlAfterLogin": "http://127.0.0.1:3001/customers",
+    "urlCustomers": "http://127.0.0.1:3001/customers",
+    "labels": [
+      "주민번호",
+      "성별",
+      "보험나이",
+      "상령일",
+      "유입 경로",
+      "핸드폰번호",
+      "문자 수신",
+      "통신사",
+      "주소",
+      "키/몸무게",
+      "직업/회사명/하는일/지역",
+      "운전여부",
+      "차종",
+      "5년안에 병원에서 진단이나 입원, 수술, 치료 또는 약복용중이신거 있으신가요?",
+      "대표자명",
+      "사업자번호",
+      "사업장 주소",
+      "주소",
+      "주소"
+    ],
+    "hasBasicSection": false,
+    "hasName": false,
+    "hasPhone": false,
+    "hasInsAge": true,
+    "overflowSuspect": false,
+    "screenshot": "C:\\workspace\\insurance-prod-push\\qa\\basic-fields\\3001-m412-412.png",
+    "errors": []
+  }
+]

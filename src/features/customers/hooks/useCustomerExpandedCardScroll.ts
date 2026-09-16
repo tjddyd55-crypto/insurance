@@ -9,8 +9,8 @@ import {
  *
  * - PC: container-relative scroll (scrollIntoView 금지)
  * - Mobile: 기존 scrollIntoView + settle timers (WebView 호환)
- * - layout settle 전까지 여러 번 보정 허용 (1회 제한 race 제거)
  * - scrollRequestKey 로 마지막 요청 wins
+ * - PC: 카드 최초 펼침 시에만 1회 보정 (accordion open 등 내부 resize 에는 반응하지 않음)
  */
 export function useCustomerExpandedCardScroll(params: {
   expandedId: number | null
@@ -18,32 +18,21 @@ export function useCustomerExpandedCardScroll(params: {
   scrollRequestKey: number
 }): void {
   const { expandedId, isMobile, scrollRequestKey } = params
-  const observerRef = useRef<ResizeObserver | null>(null)
   const pendingTargetIdRef = useRef<number | null>(null)
 
   useLayoutEffect(() => {
     if (expandedId == null) {
       pendingTargetIdRef.current = null
-      if (observerRef.current) {
-        observerRef.current.disconnect()
-        observerRef.current = null
-      }
       return
     }
 
     pendingTargetIdRef.current = expandedId
-    if (observerRef.current) {
-      observerRef.current.disconnect()
-      observerRef.current = null
-    }
 
     let disposed = false
     let retry = 0
     let rafId = 0
-    let scrollPasses = 0
     const pendingTimers: number[] = []
     const maxRetry = isMobile ? 60 : 24
-    const maxScrollPasses = isMobile ? 1 : 10
     const requestId = scrollRequestKey
 
     const isCurrentRequest = () =>
@@ -81,36 +70,22 @@ export function useCustomerExpandedCardScroll(params: {
         if (!isCurrentRequest() || !target.isConnected) {
           return
         }
-        if (scrollPasses >= maxScrollPasses) {
-          return
-        }
-        scrollPasses += 1
-
         const container = resolveCustomerListScrollContainer(target)
         if (!container) {
           return
         }
-
         scrollCustomerCardIntoListContainer({
           container,
           card: target,
           behavior: 'auto',
         })
-
-        if (scrollPasses >= maxScrollPasses) {
-          pendingTargetIdRef.current = null
-        }
+        pendingTargetIdRef.current = null
       }
-
-      const observer = new ResizeObserver(() => {
-        runScroll()
-      })
-      observer.observe(target)
-      observerRef.current = observer
 
       rafId = requestAnimationFrame(() => {
         requestAnimationFrame(runScroll)
       })
+      pendingTimers.push(window.setTimeout(runScroll, 120))
     }
 
     rafId = requestAnimationFrame(tryAttach)
@@ -121,10 +96,6 @@ export function useCustomerExpandedCardScroll(params: {
         cancelAnimationFrame(rafId)
       }
       pendingTimers.forEach((id) => window.clearTimeout(id))
-      if (observerRef.current) {
-        observerRef.current.disconnect()
-        observerRef.current = null
-      }
     }
   }, [expandedId, isMobile, scrollRequestKey])
 }
