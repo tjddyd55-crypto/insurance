@@ -581,6 +581,7 @@ const CustomerListCard = memo(function CustomerListCard({
                     expandedId={expandedId}
                     fetchCarsEnabled={expanded && editingId !== c.id}
                     onOpenRelatedCustomer={onOpenRelatedCustomer}
+                    onStartEditBasic={() => onStartEdit(c)}
                     crmIsInsuranceLayout={crmIsInsuranceLayout}
                     crmIndustryTemplate={crmIndustryTemplate}
                   />
