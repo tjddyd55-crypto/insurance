@@ -132,6 +132,7 @@ export type CustomerListCardProps = {
   /** 모바일 카드 상단 복사 피드백(부모 `CustomersPage` 상태) */
   mobileCopyFeedback: { customerId: number; message: string; tone: 'success' | 'error' } | null
   onOpenRelatedCustomer: (customerId: number, customerName?: string) => void
+  onCustomerUpdated?: (customer: CustomerRecord) => void
   token: string | null
   onToggleFavorite: (c: CustomerRecord) => void | Promise<void>
   /**
@@ -182,6 +183,7 @@ const CustomerListCard = memo(function CustomerListCard({
   onOpenOnMap,
   mobileCopyFeedback,
   onOpenRelatedCustomer,
+  onCustomerUpdated,
   token,
   onToggleFavorite,
   variant,
@@ -582,6 +584,7 @@ const CustomerListCard = memo(function CustomerListCard({
                     fetchCarsEnabled={expanded && editingId !== c.id}
                     onOpenRelatedCustomer={onOpenRelatedCustomer}
                     onStartEditBasic={() => onStartEdit(c)}
+                    onCustomerUpdated={onCustomerUpdated}
                     crmIsInsuranceLayout={crmIsInsuranceLayout}
                     crmIndustryTemplate={crmIndustryTemplate}
                   />

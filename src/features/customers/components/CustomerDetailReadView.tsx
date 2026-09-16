@@ -20,10 +20,10 @@ import {
   getInflowSourceDetailFieldMeta,
 } from '../config/customerInflowSource.config'
 import { CustomerCopyButton } from './CustomerAccountNumberField'
-import { CustomerBusinessInfoReadSection } from './CustomerBusinessInfoReadSection'
-import { CustomerCarsReadSection } from './CustomerCarsReadSection'
-import { CustomerFireInsuranceLocationsReadSection } from './CustomerFireInsuranceLocationsReadSection'
-import { CustomerSpecialDatesReadSection } from './CustomerSpecialDatesReadSection'
+import { CustomerBusinessQuickSection } from './detail-quick-crud/CustomerBusinessQuickSection'
+import { CustomerCarsQuickSection } from './detail-quick-crud/CustomerCarsQuickSection'
+import { CustomerFireInsuranceQuickSection } from './detail-quick-crud/CustomerFireInsuranceQuickSection'
+import { CustomerSpecialDatesQuickSection } from './detail-quick-crud/CustomerSpecialDatesQuickSection'
 import { CustomerBasicInlineCustomFieldsRead } from './CustomerBasicInlineCustomFieldsRead'
 import { CustomerDetailAccordionSection } from './CustomerDetailAccordionSection'
 import { CustomerRelationsStrip } from './CustomerRelationsStrip'
@@ -78,6 +78,7 @@ type CustomerDetailReadViewProps = {
   fetchCarsEnabled: boolean
   onOpenRelatedCustomer: (customerId: number, customerName?: string) => void
   onStartEditBasic?: () => void
+  onCustomerUpdated?: (customer: CustomerRecord) => void
   crmIsInsuranceLayout: boolean
   crmIndustryTemplate: CustomerIndustryTemplate
 }
@@ -90,6 +91,7 @@ export default function CustomerDetailReadView({
   fetchCarsEnabled,
   onOpenRelatedCustomer,
   onStartEditBasic,
+  onCustomerUpdated,
   crmIsInsuranceLayout,
   crmIndustryTemplate,
 }: CustomerDetailReadViewProps) {
@@ -356,7 +358,7 @@ export default function CustomerDetailReadView({
       </div>
     ),
     vehicle: (
-      <CustomerCarsReadSection
+      <CustomerCarsQuickSection
         customer={c}
         token={token}
         enabled={fetchCarsEnabled}
@@ -376,16 +378,23 @@ export default function CustomerDetailReadView({
       <p className="customer-detail-read__api-warn">연계 고객을 보려면 로그인이 필요합니다.</p>
     ),
     fireInsurance: (
-      <CustomerFireInsuranceLocationsReadSection
+      <CustomerFireInsuranceQuickSection
         customer={c}
         token={token}
         enabled={fetchCarsEnabled}
         embedded
       />
     ),
-    business: <CustomerBusinessInfoReadSection businessInfo={c.businessInfo} embedded />,
+    business: (
+      <CustomerBusinessQuickSection
+        customer={c}
+        token={token}
+        onCustomerUpdated={onCustomerUpdated}
+        embedded
+      />
+    ),
     alertDates: (
-      <CustomerSpecialDatesReadSection
+      <CustomerSpecialDatesQuickSection
         customer={c}
         token={token}
         enabled={fetchCarsEnabled}

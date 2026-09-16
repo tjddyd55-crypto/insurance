@@ -1898,6 +1898,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
               onOpenOnMap={handleOpenOnMap}
               mobileCopyFeedback={mobileCopyFeedback}
               onOpenRelatedCustomer={handleOpenRelatedCustomer}
+              onCustomerUpdated={mergeCustomerInListState}
               token={token}
               onToggleFavorite={handleToggleFavorite}
               variant={isMobile ? 'mobile' : 'pc'}

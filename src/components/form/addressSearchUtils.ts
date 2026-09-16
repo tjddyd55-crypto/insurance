@@ -26,3 +26,25 @@ export function formatAddressForSave(value: AddressSearchValue): string {
   const head = zip ? `(${zip})` : ''
   return [head, base, detail].filter(Boolean).join(' ').trim()
 }
+
+const EMPTY_ADDRESS_VALUE: AddressSearchValue = {
+  zonecode: '',
+  baseAddress: '',
+  detailAddress: '',
+}
+
+/**
+ * `formatAddressForSave` 로 저장된 단일 주소 문자열을 편집 폼용 3-튜플로 복원한다.
+ * 상세주소는 저장 시 base 와 합쳐져 있을 수 있어, 우편번호·기본주소만 분리하고 나머지는 base 에 둔다.
+ */
+export function parseAddressFromStored(stored: string | null | undefined): AddressSearchValue {
+  const trimmed = String(stored ?? '').trim()
+  if (!trimmed) {
+    return { ...EMPTY_ADDRESS_VALUE }
+  }
+  const zipMatch = trimmed.match(/^\((\d{5})\)\s*(.+)$/)
+  if (!zipMatch) {
+    return { zonecode: '', baseAddress: trimmed, detailAddress: '' }
+  }
+  return { zonecode: zipMatch[1], baseAddress: zipMatch[2], detailAddress: '' }
+}
