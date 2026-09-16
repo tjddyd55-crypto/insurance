@@ -38,8 +38,12 @@ import {
   type StorageExplorerPersistScope,
   type StorageExplorerSelection,
 } from '../utils/storageFolderTree'
+import {
+  FILE_NAME_MAX_LENGTH,
+  isValidStorageFileName,
+  normalizeStorageFileName,
+} from '../utils/storageFileNameValidation'
 
-const FILE_NAME_MAX_LENGTH = 120
 const FOLDER_NAME_MAX_LENGTH = 12
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 const ALLOWED_MIME = new Set([
@@ -50,7 +54,6 @@ const ALLOWED_MIME = new Set([
   'application/vnd.ms-excel',
   'text/csv',
 ])
-const FILE_NAME_REGEX = /^[A-Za-z0-9._\-() \u3131-\u318e\uac00-\ud7a3]+$/
 const FOLDER_NAME_REGEX = /^[A-Za-z0-9 \u3131-\u318e\uac00-\ud7a3]+$/
 
 function isAbortError(error: unknown): boolean {
@@ -89,15 +92,16 @@ type StorageWorkspaceProps = {
 }
 
 function normalizeName(raw: string, maxLength: number): string {
-  return String(raw ?? '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, maxLength)
+  return maxLength === FILE_NAME_MAX_LENGTH
+    ? normalizeStorageFileName(raw, maxLength)
+    : String(raw ?? '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, maxLength)
 }
 
 function isValidFileName(raw: string): boolean {
-  const value = normalizeName(raw, FILE_NAME_MAX_LENGTH)
-  return Boolean(value) && FILE_NAME_REGEX.test(value)
+  return isValidStorageFileName(raw, FILE_NAME_MAX_LENGTH)
 }
 
 function isValidFolderName(raw: string): boolean {
