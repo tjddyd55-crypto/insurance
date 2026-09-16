@@ -2817,10 +2817,6 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   align-self: stretch;
 }
 
-.auth-page .auth-form--register .register-verify-confirm-button {
-  justify-self: start;
-}
-
 .auth-page .auth-form--register .register-phone-request-row {
   display: flex;
   flex-wrap: wrap;
@@ -2861,8 +2857,6 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   pointer-events: auto;
   height: auto;
   z-index: 1;
-  display: grid;
-  gap: 12px;
 }
 
 .auth-page .auth-form--register .verify-section .verify-overlay {
@@ -8467,6 +8461,90 @@ div.cta-button.customers-page__action-btn[role='button'] {
 .customer-special-dates-read__memo {
   color: var(--text-secondary);
   font-size: 0.875rem;
+}
+
+.customer-custom-fields-editor {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+}
+
+.customer-custom-fields-editor__list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.customer-custom-fields-editor__empty-hint {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.customer-custom-fields-editor__row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(160px, 2fr) auto;
+  gap: 10px 12px;
+  align-items: end;
+  padding: 12px;
+  border: 1px solid var(--border-muted);
+  border-radius: 8px;
+  background: var(--bg-soft, rgba(0, 0, 0, 0.04));
+}
+
+.customer-custom-fields-editor__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.customer-custom-fields-editor__remove {
+  align-self: end;
+  margin-bottom: 2px;
+}
+
+@media (max-width: 640px) {
+  .customer-custom-fields-editor__row {
+    grid-template-columns: 1fr;
+  }
+
+  .customer-custom-fields-editor__remove {
+    justify-self: start;
+  }
+}
+
+.customer-custom-fields-read__loading,
+.customer-custom-fields-read__empty {
+  margin: 0;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.customer-custom-fields-read__list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.customer-custom-fields-read__item {
+  display: grid;
+  gap: 4px;
+}
+
+.customer-custom-fields-read__label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.customer-custom-fields-read__value {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* 고객 상세 읽기 전용 — CustomerDetailReadView / cars grid / 연계 고객 헤더 공통 */
@@ -14736,19 +14814,45 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 
 .storage-explorer {
   --storage-explorer-folder-width: 260px;
-  --storage-explorer-chrome-pad-y: 10px;
   --storage-explorer-chrome-pad-x: 12px;
   --storage-explorer-chrome-border: 1px solid #e5e7eb;
   --storage-explorer-chrome-bg: #f8fafc;
-  --storage-explorer-breadcrumb-min-height: 38px;
-  --storage-explorer-panel-header-min-height: 40px;
+  --storage-explorer-breadcrumb-row-height: 38px;
+  --storage-explorer-column-header-row-height: 40px;
+  --storage-explorer-breadcrumb-min-height: var(--storage-explorer-breadcrumb-row-height);
+  --storage-explorer-panel-header-min-height: var(--storage-explorer-column-header-row-height);
   --storage-explorer-row-min-height: 40px;
+  --storage-explorer-file-name-min-width: 120px;
   --storage-explorer-file-grid-columns:
-    minmax(200px, 1fr) 64px 80px 116px minmax(0, max-content);
+    minmax(0, 1fr) 56px 72px 108px minmax(0, max-content);
   display: grid;
   grid-template-columns: var(--storage-explorer-folder-width) minmax(0, 1fr);
   gap: 12px;
   min-height: 420px;
+}
+
+.storage-explorer-chrome__breadcrumb-row,
+.storage-explorer-chrome__column-header-row {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  padding-left: var(--storage-explorer-chrome-pad-x);
+  padding-right: var(--storage-explorer-chrome-pad-x);
+  border-bottom: var(--storage-explorer-chrome-border);
+  background: var(--storage-explorer-chrome-bg);
+}
+
+.storage-explorer-chrome__breadcrumb-row {
+  height: var(--storage-explorer-breadcrumb-row-height);
+  min-height: var(--storage-explorer-breadcrumb-row-height);
+  max-height: var(--storage-explorer-breadcrumb-row-height);
+}
+
+.storage-explorer-chrome__column-header-row {
+  height: var(--storage-explorer-column-header-row-height);
+  min-height: var(--storage-explorer-column-header-row-height);
+  max-height: var(--storage-explorer-column-header-row-height);
 }
 
 .storage-explorer-tree {
@@ -14763,13 +14867,6 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 }
 
 .storage-explorer-tree__breadcrumb-spacer {
-  display: flex;
-  align-items: center;
-  min-height: var(--storage-explorer-breadcrumb-min-height);
-  padding: var(--storage-explorer-chrome-pad-y) var(--storage-explorer-chrome-pad-x);
-  border-bottom: var(--storage-explorer-chrome-border);
-  background: var(--storage-explorer-chrome-bg);
-  box-sizing: border-box;
   visibility: hidden;
   user-select: none;
   pointer-events: none;
@@ -14781,17 +14878,10 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 }
 
 .storage-explorer-tree__header {
-  display: flex;
-  align-items: center;
-  min-height: var(--storage-explorer-panel-header-min-height);
-  padding: var(--storage-explorer-chrome-pad-y) var(--storage-explorer-chrome-pad-x);
-  border-bottom: var(--storage-explorer-chrome-border);
   color: #111827;
   font-size: 0.76rem;
   font-weight: 600;
   line-height: 1.35;
-  background: var(--storage-explorer-chrome-bg);
-  box-sizing: border-box;
 }
 
 .storage-explorer-tree__body {
@@ -14804,7 +14894,9 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   align-items: center;
   gap: 4px;
   min-height: var(--storage-explorer-row-min-height);
-  padding: 4px 8px 4px 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-right: var(--storage-explorer-chrome-pad-x);
   border-left: 3px solid transparent;
   box-sizing: border-box;
 }
@@ -14921,15 +15013,9 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 }
 
 .storage-explorer-files__breadcrumb {
-  display: flex;
   flex-wrap: wrap;
-  align-items: center;
   gap: 4px;
-  min-height: var(--storage-explorer-breadcrumb-min-height);
-  padding: var(--storage-explorer-chrome-pad-y) var(--storage-explorer-chrome-pad-x);
-  border-bottom: var(--storage-explorer-chrome-border);
-  background: var(--storage-explorer-chrome-bg);
-  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .storage-explorer-files__crumb-sep {
@@ -14975,7 +15061,8 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   grid-template-columns: var(--storage-explorer-file-grid-columns);
   gap: 8px;
   align-items: center;
-  padding: 8px var(--storage-explorer-chrome-pad-x);
+  padding-left: var(--storage-explorer-chrome-pad-x);
+  padding-right: var(--storage-explorer-chrome-pad-x);
   box-sizing: border-box;
 }
 
@@ -14983,9 +15070,6 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   position: sticky;
   top: 0;
   z-index: 1;
-  min-height: var(--storage-explorer-panel-header-min-height);
-  border-bottom: var(--storage-explorer-chrome-border);
-  background: var(--storage-explorer-chrome-bg);
   color: #64748b;
   font-size: 0.76rem;
   font-weight: 600;
@@ -14994,6 +15078,8 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 
 .storage-explorer-files__row {
   min-height: var(--storage-explorer-row-min-height);
+  padding-top: 0;
+  padding-bottom: 0;
   border-bottom: 1px solid #f1f5f9;
   cursor: pointer;
   background: #ffffff;
@@ -15011,7 +15097,7 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   display: flex;
   align-items: center;
   gap: 8px;
-  min-width: 0;
+  min-width: var(--storage-explorer-file-name-min-width);
   overflow: hidden;
 }
 
@@ -15147,8 +15233,9 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 
 @media (max-width: 1400px) {
   .storage-explorer {
+    --storage-explorer-file-name-min-width: 100px;
     --storage-explorer-file-grid-columns:
-      minmax(180px, 1fr) 60px 72px 104px minmax(0, max-content);
+      minmax(0, 1fr) 52px 68px 100px minmax(0, max-content);
   }
 
   .storage-workspace--explorer .storage-explorer-file-action-button {
@@ -15160,8 +15247,9 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 
 @media (max-width: 1200px) {
   .storage-explorer {
+    --storage-explorer-file-name-min-width: 96px;
     --storage-explorer-file-grid-columns:
-      minmax(180px, 1fr) 56px 68px minmax(0, max-content);
+      minmax(0, 1fr) 52px 64px minmax(0, max-content);
   }
 
   .storage-explorer-files__head > :nth-child(4),
@@ -15180,13 +15268,22 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   }
 
   .storage-explorer {
+    --storage-explorer-file-name-min-width: 88px;
     --storage-explorer-file-grid-columns:
-      minmax(160px, 1fr) 52px minmax(0, max-content);
+      minmax(0, 1fr) 48px minmax(0, max-content);
   }
 
   .storage-explorer-files__head > :nth-child(3),
   .storage-explorer-files__size {
     display: none;
+  }
+
+  .storage-explorer-files__actions-inline {
+    display: none;
+  }
+
+  .storage-explorer-files__actions-menu {
+    display: block;
   }
 
   .storage-workspace--explorer .storage-explorer-file-action-button {
@@ -15199,8 +15296,9 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 @media (max-width: 960px) {
   .storage-explorer {
     grid-template-columns: 1fr;
+    --storage-explorer-file-name-min-width: 80px;
     --storage-explorer-file-grid-columns:
-      minmax(140px, 1fr) minmax(0, max-content);
+      minmax(0, 1fr) 44px minmax(0, max-content);
   }
 
   .storage-explorer-toolbar {
@@ -15209,19 +15307,6 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 
   .storage-explorer-toolbar__search-group {
     min-width: 0;
-  }
-
-  .storage-explorer-files__head > :nth-child(2),
-  .storage-explorer-files__type {
-    display: none;
-  }
-
-  .storage-explorer-files__actions-inline {
-    display: none;
-  }
-
-  .storage-explorer-files__actions-menu {
-    display: block;
   }
 }
 

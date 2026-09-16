@@ -91,7 +91,10 @@ export default function StorageExplorerFilePanel({
 }: StorageExplorerFilePanelProps) {
   return (
     <section className="storage-explorer-files" aria-label="파일 목록">
-      <nav className="storage-explorer-files__breadcrumb" aria-label="현재 위치">
+      <nav
+        className="storage-explorer-chrome__breadcrumb-row storage-explorer-files__breadcrumb"
+        aria-label="현재 위치"
+      >
         {breadcrumb.map((segment, index) => {
           const isLast = index === breadcrumb.length - 1
           return (
@@ -119,19 +122,23 @@ export default function StorageExplorerFilePanel({
         <p className="storage-explorer-files__empty" role="alert">
           {listFetchError.trim()}
         </p>
-      ) : files.length === 0 ? (
-        <p className="storage-explorer-files__empty">
-          {searchActive ? '검색 결과 없음' : isAllFilesView ? '전체 파일 없음' : '선택된 폴더에 파일 없음'}
-        </p>
       ) : (
         <div className="storage-explorer-files__list">
-          <div className="storage-explorer-files__head" aria-hidden="true">
+          <div
+            className="storage-explorer-chrome__column-header-row storage-explorer-files__head"
+            aria-hidden="true"
+          >
             <span>파일명</span>
             <span>유형</span>
             <span>크기</span>
             <span>등록일</span>
             <span>액션</span>
           </div>
+          {files.length === 0 ? (
+            <p className="storage-explorer-files__empty">
+              {searchActive ? '검색 결과 없음' : isAllFilesView ? '전체 파일 없음' : '선택된 폴더에 파일 없음'}
+            </p>
+          ) : null}
           {files.map((file) => {
             const selected = selectedFileId === file.id
             const downloadEntry = downloadLinksByFileId[file.id]
