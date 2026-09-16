@@ -46,6 +46,7 @@ import { resolveGenderAfterSsnInput } from '../../features/customers/utils/infer
 import CustomerIndustryTemplateFields from '../../features/customers/components/CustomerIndustryTemplateFields'
 import { CustomerCarsEditor } from '../../features/customers/components/CustomerCarsEditor'
 import { CustomerSpecialDatesEditor } from '../../features/customers/components/CustomerSpecialDatesEditor'
+import { CustomerCustomFieldsEditor } from '../../features/customers/components/CustomerCustomFieldsEditor'
 import { CustomerDrivingRadioGroup } from '../../features/customers/components/CustomerDrivingRadioGroup'
 import { CustomerFormSection } from '../../features/customers/components/CustomerFormSection'
 import { CustomerAccountNumberField } from '../../features/customers/components/CustomerAccountNumberField'
@@ -54,6 +55,7 @@ import { useCustomerCrmIndustryContext } from '../../features/customers/hooks/us
 import { getCustomerIndustryTemplateFormValidationError } from '../../features/customers/utils/customerIndustryTemplateFormValidation'
 import type { CustomerCarFormItem } from '../../features/customers/types/customerCarForm'
 import type { CustomerSpecialDateFormItem } from '../../features/customers/types/customerSpecialDateForm'
+import type { CustomerCustomFieldFormItem } from '../../features/customers/types/customerCustomFieldForm'
 import {
   createEmptyCustomerCar,
   normalizeCustomerCarsForSave,
@@ -61,6 +63,8 @@ import {
 } from '../../features/customers/utils/customerCarFormUtils'
 import { getCustomerSpecialDatesValidationError } from '../../features/customers/utils/customerSpecialDateFormUtils'
 import { saveCustomerSpecialDatesForCustomer } from '../../features/customers/utils/customerSpecialDatesSaveUtils'
+import { getCustomerCustomFieldsValidationError } from '../../features/customers/utils/customerCustomFieldFormUtils'
+import { saveCustomerCustomFieldsForCustomer } from '../../features/customers/utils/customerCustomFieldsSaveUtils'
 
 
 
@@ -199,6 +203,8 @@ export type CustomerFormState = {
 
   specialDates: CustomerSpecialDateFormItem[]
 
+  customFields: CustomerCustomFieldFormItem[]
+
   treatmentHistoryNote: string
 
   medicationHistoryNote: string
@@ -265,6 +271,8 @@ const EMPTY_FORM: CustomerFormState = {
 
   specialDates: [],
 
+  customFields: [],
+
   treatmentHistoryNote: '',
 
   medicationHistoryNote: '',
@@ -303,6 +311,8 @@ export function createEmptyCustomerForm(): CustomerFormState {
 
     specialDates: [],
 
+    customFields: [],
+
   }
 
 }
@@ -336,7 +346,11 @@ export function getCustomerFormValidationError(
   if (options?.skipSpecialDatesValidation) {
     return null
   }
-  return getCustomerSpecialDatesValidationError(form.specialDates)
+  const specialDatesErr = getCustomerSpecialDatesValidationError(form.specialDates)
+  if (specialDatesErr) {
+    return specialDatesErr
+  }
+  return getCustomerCustomFieldsValidationError(form.customFields)
 }
 
 
@@ -757,6 +771,13 @@ export function CustomerFormFields({
         </label>
       </CustomerFormSection>
 
+      {!isPublicRegistration ? (
+        <CustomerCustomFieldsEditor
+          customFields={form.customFields}
+          onChange={(next) => onFormChange({ ...form, customFields: next })}
+        />
+      ) : null}
+
       <div className="field field--wide">
 
         <span className="field__label">메모 (최대 {NOTE_MAX_LENGTH}자, Enter로 추가)</span>
@@ -949,6 +970,20 @@ export function CustomerForm({ onStatusMessage, onInternalSaveSuccess }: Custome
         } catch {
           onStatusMessage?.(
             '고객 정보를 저장했습니다. 기념일 일부 저장에 실패했습니다. 고객 수정 화면에서 다시 확인해 주세요.',
+          )
+          setForm(createEmptyCustomerForm())
+          onInternalSaveSuccess?.()
+          return
+        }
+        try {
+          await saveCustomerCustomFieldsForCustomer({
+            token,
+            customerId: created.id,
+            formItems: form.customFields,
+          })
+        } catch {
+          onStatusMessage?.(
+            '고객 정보를 저장했습니다. 추가 정보 일부 저장에 실패했습니다. 고객 수정 화면에서 다시 확인해 주세요.',
           )
           setForm(createEmptyCustomerForm())
           onInternalSaveSuccess?.()

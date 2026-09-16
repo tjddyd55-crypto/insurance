@@ -51,6 +51,7 @@ export function recordToEditForm(c: CustomerRecord): CustomerEditFormState {
     businessInfo: customerBusinessInfoToForm(c.businessInfo ?? null),
     fireInsuranceLocations: [],
     specialDates: [],
+    customFields: [],
     crmExtensionFields: { ...(c.crmExtension?.fields ?? {}) },
     inflowSource: c.inflowSource ?? '',
     referrerName: c.referrerName ?? '',

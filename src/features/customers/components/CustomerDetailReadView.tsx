@@ -19,6 +19,7 @@ import { CustomerBusinessInfoReadSection } from './CustomerBusinessInfoReadSecti
 import { CustomerCarsReadSection } from './CustomerCarsReadSection'
 import { CustomerFireInsuranceLocationsReadSection } from './CustomerFireInsuranceLocationsReadSection'
 import { CustomerSpecialDatesReadSection } from './CustomerSpecialDatesReadSection'
+import { CustomerCustomFieldsReadSection } from './CustomerCustomFieldsReadSection'
 import { CustomerRelationsStrip } from './CustomerRelationsStrip'
 import type { CustomerIndustryTemplate } from '../../customer-templates/customerTemplate.types'
 import { governmentDetailSummaryRows, isGovernmentIndustryTemplate, buildGovernmentProgressMvp } from '../utils/governmentCustomerUi'
@@ -347,6 +348,8 @@ export default function CustomerDetailReadView({
           ) : null}
         </div>
       </section>
+      <hr className="customer-detail-read__divider" />
+      <CustomerCustomFieldsReadSection customer={c} token={token} enabled={fetchCarsEnabled} />
       {token?.trim() ? (
         <CustomerRelationsStrip
           customerId={c.id}

@@ -2,6 +2,7 @@ import type { CustomerBusinessInfo } from '../domain/customerBusinessInfo'
 import type { CustomerCarFormItem } from './customerCarForm'
 import type { CustomerFireInsuranceLocationFormItem } from './customerFireInsuranceLocationForm'
 import type { CustomerSpecialDateFormItem } from './customerSpecialDateForm'
+import type { CustomerCustomFieldFormItem } from './customerCustomFieldForm'
 
 export type CustomerEditFormState = {
   name: string
@@ -28,6 +29,7 @@ export type CustomerEditFormState = {
   businessInfo: CustomerBusinessInfo
   fireInsuranceLocations: CustomerFireInsuranceLocationFormItem[]
   specialDates: CustomerSpecialDateFormItem[]
+  customFields: CustomerCustomFieldFormItem[]
   crmExtensionFields: Record<string, string>
   /** 유입 경로 — 빈 문자열은 미지정 */
   inflowSource: string
