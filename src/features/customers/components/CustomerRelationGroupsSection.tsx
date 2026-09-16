@@ -34,8 +34,6 @@ type Props = {
   token: string
   onOpenCustomer: (id: number, name?: string) => void
   focusedCustomerId: number | null
-  createOpen: boolean
-  onCreateOpenChange: (open: boolean) => void
 }
 
 type PendingMember = {
@@ -72,10 +70,9 @@ export function CustomerRelationGroupsSection({
   token,
   onOpenCustomer,
   focusedCustomerId,
-  createOpen,
-  onCreateOpenChange,
 }: Props) {
   const { confirm, confirmDialog } = useConfirmDialog()
+  const [createOpen, setCreateOpen] = useState(false)
   const [groups, setGroups] = useState<CustomerRelationGroup[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -155,7 +152,7 @@ export function CustomerRelationGroupsSection({
   useBackButtonClose(
     searchModalOpen,
     () => {
-      onCreateOpenChange(false)
+      setCreateOpen(false)
       setAddMemberGroupId(null)
       setSelectedCustomer(null)
     },
@@ -286,7 +283,7 @@ export function CustomerRelationGroupsSection({
       // 전체 고객 목록/상세 route 는 건드리지 않고 그룹 목록만 갱신
       await loadGroups()
       setNotice('가족 그룹을 만들었습니다.')
-      onCreateOpenChange(false)
+      setCreateOpen(false)
     } catch (e) {
       if (e instanceof ApiError && e.code === 'already_in_family_group') {
         setError(familyConflictMessage(e))
@@ -509,7 +506,19 @@ export function CustomerRelationGroupsSection({
       ) : null}
 
       {!loading && groups.length === 0 ? (
-        <p className="customer-relations-strip__empty">가족 그룹이 없습니다.</p>
+        <>
+          <p className="customer-relations-strip__empty">등록된 가족 그룹이 없습니다.</p>
+          <div className="customer-relations-subsection__add">
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setCreateOpen(true)}
+            >
+              + 가족 그룹 만들기
+            </FormButton>
+          </div>
+        </>
       ) : null}
 
       <div className="customer-relation-groups">
@@ -525,7 +534,7 @@ export function CustomerRelationGroupsSection({
               <div className="customer-relation-group-card__actions">
                 <button
                   type="button"
-                  className="ui-button ui-button--sm ui-button--secondary"
+                  className="ui-button ui-button--sm ui-button--primary"
                   onClick={() => {
                     resetPickerState('자녀')
                     setAddMemberGroupId(group.id)
@@ -545,7 +554,7 @@ export function CustomerRelationGroupsSection({
                 </button>
                 <button
                   type="button"
-                  className="ui-button ui-button--sm ui-button--secondary"
+                  className="ui-button ui-button--sm ui-button--secondary customer-relation-group-card__action--danger"
                   onClick={() => void deleteGroup(group)}
                 >
                   그룹 삭제
@@ -625,14 +634,14 @@ export function CustomerRelationGroupsSection({
       <Modal
         open={createOpen}
         onClose={() => {
-          if (!createBusy) onCreateOpenChange(false)
+          if (!createBusy) setCreateOpen(false)
         }}
         ariaLabel="가족 그룹 만들기"
         panelClassName="customer-relations-modal customer-relation-group-modal"
         closeOnBackdrop={false}
         usePortal
         onEscapeRequest={() => {
-          if (!createBusy) onCreateOpenChange(false)
+          if (!createBusy) setCreateOpen(false)
         }}
       >
         <header className="customer-relations-modal__header">
@@ -707,7 +716,7 @@ export function CustomerRelationGroupsSection({
             htmlType="button"
             variant="secondary"
             disabled={createBusy}
-            onClick={() => onCreateOpenChange(false)}
+            onClick={() => setCreateOpen(false)}
           >
             취소
           </FormButton>
