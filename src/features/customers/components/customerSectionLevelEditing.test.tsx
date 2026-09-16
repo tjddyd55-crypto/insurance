@@ -34,8 +34,17 @@ describe('customerSectionLevelEditing', () => {
     expect(readViewSource).not.toContain('onStartEditBasic')
   })
 
-  it('uses pc detail horizontal padding', () => {
+  it('keeps pc expanded detail full card width without extra horizontal inset', () => {
     expect(indexCss).toMatch(
+      /\.customers-page--pc \.customer-expand-detail\s*\{[^}]*width:\s*100%/s,
+    )
+    expect(indexCss).toMatch(
+      /\.customers-page--pc \.customer-expand-detail\s*\{[^}]*max-width:\s*none/s,
+    )
+    expect(indexCss).toMatch(
+      /\.customers-page--pc \.customer-expand-detail\s*\{[^}]*padding:\s*0/s,
+    )
+    expect(indexCss).not.toMatch(
       /\.customers-page--pc \.customer-expand-detail\s*\{[^}]*padding:\s*0 16px/s,
     )
   })

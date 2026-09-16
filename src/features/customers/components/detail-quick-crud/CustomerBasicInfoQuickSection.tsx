@@ -250,14 +250,22 @@ export function CustomerBasicInfoSection({
       <CustomerMedicalHistoryReadSection {...resolveMedicalHistoryFromCustomer(customer)} />
       <div className="customer-detail-read__subsection">
         <h5 className="customer-detail-read__subsection-title">보험 가입</h5>
-        <div className="customer-insurance-history-body">
+        <div
+          className={`customer-insurance-history-body${
+            notes.insuranceHistory?.trim() ? '' : ' customer-detail-read__empty'
+          }`}
+        >
           {notes.insuranceHistory?.trim() ? notes.insuranceHistory : '내용 없음'}
         </div>
       </div>
       <div className="customer-detail-read__subsection">
         <h5 className="customer-detail-read__subsection-title">계좌</h5>
         <div className="customer-account-number-read">
-          <span className="customer-account-number-read__value">
+          <span
+            className={`customer-account-number-read__value${
+              notes.accountNumber?.trim() ? '' : ' customer-detail-read__empty'
+            }`}
+          >
             {notes.accountNumber?.trim() || '내용 없음'}
           </span>
           {notes.accountNumber?.trim() ? (
