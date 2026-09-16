@@ -82,7 +82,7 @@ function FolderTreeItem({
       ]
         .filter(Boolean)
         .join(' ')}
-      style={{ paddingLeft: `${8 + depth * 14}px` }}
+      style={{ paddingLeft: `${12 + depth * 14}px` }}
     >
       {onToggleExpand ? (
         <button
@@ -179,10 +179,15 @@ export default function StorageFolderTreePanel(props: StorageFolderTreePanelProp
 
   return (
     <aside className="storage-explorer-tree" aria-label="폴더 구조">
-      <div className="storage-explorer-tree__breadcrumb-spacer" aria-hidden="true">
+      <div
+        className="storage-explorer-chrome__breadcrumb-row storage-explorer-tree__breadcrumb-spacer"
+        aria-hidden="true"
+      >
         <span className="storage-explorer-tree__breadcrumb-spacer-text">위치</span>
       </div>
-      <div className="storage-explorer-tree__header">폴더</div>
+      <div className="storage-explorer-chrome__column-header-row storage-explorer-tree__header">
+        폴더
+      </div>
       <div className="storage-explorer-tree__body">
         <FolderTreeItem
           selected={allSelected}
