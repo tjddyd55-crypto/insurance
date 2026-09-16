@@ -14822,9 +14822,6 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   --storage-explorer-breadcrumb-min-height: var(--storage-explorer-breadcrumb-row-height);
   --storage-explorer-panel-header-min-height: var(--storage-explorer-column-header-row-height);
   --storage-explorer-row-min-height: 40px;
-  --storage-explorer-file-name-min-width: 120px;
-  --storage-explorer-file-grid-columns:
-    minmax(0, 1fr) 56px 72px 108px minmax(0, max-content);
   display: grid;
   grid-template-columns: var(--storage-explorer-folder-width) minmax(0, 1fr);
   gap: 12px;
@@ -15002,6 +14999,12 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 }
 
 .storage-explorer-files {
+  /* 고객 workspace 분할 시 실제 파일 패널 폭 기준 responsive (viewport와 무관) */
+  container-type: inline-size;
+  container-name: storage-explorer-files;
+  --storage-explorer-file-name-min-width: 160px;
+  --storage-explorer-file-grid-columns:
+    minmax(0, 1fr) 56px 72px 108px minmax(0, max-content);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -15231,23 +15234,12 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   cursor: not-allowed;
 }
 
-@media (max-width: 1400px) {
-  .storage-explorer {
-    --storage-explorer-file-name-min-width: 100px;
-    --storage-explorer-file-grid-columns:
-      minmax(0, 1fr) 52px 68px 100px minmax(0, max-content);
-  }
+/* 파일 패널 >= 900px: 파일명 | 유형 | 크기 | 등록일 | 액션 (기본) */
 
-  .storage-workspace--explorer .storage-explorer-file-action-button {
-    min-width: 48px;
-    padding: 0 8px;
-    font-size: 12px;
-  }
-}
-
-@media (max-width: 1200px) {
-  .storage-explorer {
-    --storage-explorer-file-name-min-width: 96px;
+/* 파일 패널 681–899px: 등록일 숨김 */
+@container storage-explorer-files (max-width: 899px) {
+  .storage-explorer-files {
+    --storage-explorer-file-name-min-width: 150px;
     --storage-explorer-file-grid-columns:
       minmax(0, 1fr) 52px 64px minmax(0, max-content);
   }
@@ -15258,17 +15250,10 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   }
 }
 
-@media (max-width: 1100px) {
-  .storage-explorer-toolbar {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .storage-explorer-toolbar__center {
-    grid-column: 1 / -1;
-  }
-
-  .storage-explorer {
-    --storage-explorer-file-name-min-width: 88px;
+/* 파일 패널 <= 680px: 크기 숨김 + 액션 overflow menu (유형 유지) */
+@container storage-explorer-files (max-width: 680px) {
+  .storage-explorer-files {
+    --storage-explorer-file-name-min-width: 140px;
     --storage-explorer-file-grid-columns:
       minmax(0, 1fr) 48px minmax(0, max-content);
   }
@@ -15290,15 +15275,23 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
     min-width: 44px;
     height: 26px;
     padding: 0 6px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .storage-explorer-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .storage-explorer-toolbar__center {
+    grid-column: 1 / -1;
   }
 }
 
 @media (max-width: 960px) {
   .storage-explorer {
     grid-template-columns: 1fr;
-    --storage-explorer-file-name-min-width: 80px;
-    --storage-explorer-file-grid-columns:
-      minmax(0, 1fr) 44px minmax(0, max-content);
   }
 
   .storage-explorer-toolbar {
