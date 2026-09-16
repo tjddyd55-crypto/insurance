@@ -179,6 +179,9 @@ export default function StorageFolderTreePanel(props: StorageFolderTreePanelProp
 
   return (
     <aside className="storage-explorer-tree" aria-label="폴더 구조">
+      <div className="storage-explorer-tree__breadcrumb-spacer" aria-hidden="true">
+        <span className="storage-explorer-tree__breadcrumb-spacer-text">위치</span>
+      </div>
       <div className="storage-explorer-tree__header">폴더</div>
       <div className="storage-explorer-tree__body">
         <FolderTreeItem

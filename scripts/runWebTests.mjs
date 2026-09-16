@@ -16,6 +16,7 @@ const NODE_TEST_TS = new Set([
   'src/features/customers/config/customerInflowSource.config.test.ts',
   'src/features/customers/utils/customerSpecialDateFormUtils.test.ts',
   'src/features/customers/utils/customerCustomFieldFormUtils.test.ts',
+  'src/features/storage/components/storageExplorerLayout.contract.test.ts',
   'src/features/insurer-news/utils/resolveNewsletterPostAuthorLabel.test.ts',
   'src/features/storage/utils/storageFolderTree.test.ts',
 ])
