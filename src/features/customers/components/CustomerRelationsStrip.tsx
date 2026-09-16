@@ -8,6 +8,7 @@ type Props = {
   token: string
   onOpenCustomer: (id: number, name?: string) => void
   focusedCustomerId: number | null
+  embedded?: boolean
 }
 
 /**
@@ -22,14 +23,17 @@ export function CustomerRelationsStrip({
   token,
   onOpenCustomer,
   focusedCustomerId,
+  embedded = false,
 }: Props) {
   const [legacyAddOpen, setLegacyAddOpen] = useState(false)
   const [groupCreateOpen, setGroupCreateOpen] = useState(false)
 
   return (
-    <section className="customer-relations-strip customer-relations-strip--in-detail">
+    <section
+      className={`customer-relations-strip customer-relations-strip--in-detail${embedded ? ' customer-relations-strip--embedded' : ''}`}
+    >
       <div className="customer-relations-header customer-relations-strip__header">
-        <h4 className="customer-relations-strip__title">연계 고객</h4>
+        {embedded ? null : <h4 className="customer-relations-strip__title">연계 고객</h4>}
         <div className="customer-relations-header__actions customer-relations-strip__header-actions">
           <button
             type="button"

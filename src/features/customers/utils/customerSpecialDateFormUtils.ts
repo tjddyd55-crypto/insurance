@@ -37,11 +37,11 @@ export function getCustomerSpecialDatesValidationError(items: CustomerSpecialDat
       continue
     }
     if (!trim(item.title)) {
-      return `기념일 ${i + 1}: 라벨을 입력해 주세요.`
+      return `알림일 ${i + 1}: 라벨을 입력해 주세요.`
     }
     const date = trim(item.dateValue).slice(0, 10)
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return `기념일 ${i + 1}: 날짜를 YYYY-MM-DD 형식으로 입력해 주세요.`
+      return `알림일 ${i + 1}: 날짜를 YYYY-MM-DD 형식으로 입력해 주세요.`
     }
   }
   return null

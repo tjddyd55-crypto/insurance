@@ -9,9 +9,15 @@ export type CustomerCarsReadSectionProps = {
   customer: CustomerRecord
   token: string | null
   enabled: boolean
+  embedded?: boolean
 }
 
-export function CustomerCarsReadSection({ customer, token, enabled }: CustomerCarsReadSectionProps) {
+export function CustomerCarsReadSection({
+  customer,
+  token,
+  enabled,
+  embedded = false,
+}: CustomerCarsReadSectionProps) {
   const shouldFetch = Boolean(enabled && token?.trim())
   const { cars, isLoading, errorMessage } = useCustomerCars({
     token,
@@ -40,7 +46,11 @@ export function CustomerCarsReadSection({ customer, token, enabled }: CustomerCa
           자동차 목록을 불러오지 못해 저장된 기본 정보로 표시합니다.
         </p>
       ) : null}
-      <CustomerCarsReadGrid cars={displayCars} loading={shouldFetch && isLoading} />
+      <CustomerCarsReadGrid
+        cars={displayCars}
+        loading={shouldFetch && isLoading}
+        embedded={embedded}
+      />
     </div>
   )
 }

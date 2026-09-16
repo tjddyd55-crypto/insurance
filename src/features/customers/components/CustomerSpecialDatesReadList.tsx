@@ -8,10 +8,10 @@ export type CustomerSpecialDatesReadListProps = {
 
 export function CustomerSpecialDatesReadList({ items, loading }: CustomerSpecialDatesReadListProps) {
   if (loading) {
-    return <p className="customer-special-dates-read__loading">기념일 불러오는 중…</p>
+    return <p className="customer-special-dates-read__loading">알림일을 불러오는 중…</p>
   }
   if (!items.length) {
-    return <p className="customer-special-dates-read__empty">등록된 기념일이 없습니다.</p>
+    return <p className="customer-special-dates-read__empty">등록된 알림일이 없습니다.</p>
   }
   return (
     <ul className="customer-special-dates-read__list">
