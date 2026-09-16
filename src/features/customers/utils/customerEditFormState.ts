@@ -48,6 +48,7 @@ export function recordToEditForm(c: CustomerRecord): CustomerEditFormState {
     accountNumber: normalizeCustomerNotesBag(c.notes).accountNumber,
     cars: customerRecordToCarFormItems(c),
     specialDates: [],
+    customFields: [],
     crmExtensionFields: { ...(c.crmExtension?.fields ?? {}) },
     inflowSource: c.inflowSource ?? '',
     referrerName: c.referrerName ?? '',

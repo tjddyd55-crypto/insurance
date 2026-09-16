@@ -1,5 +1,6 @@
 import type { CustomerCarFormItem } from './customerCarForm'
 import type { CustomerSpecialDateFormItem } from './customerSpecialDateForm'
+import type { CustomerCustomFieldFormItem } from './customerCustomFieldForm'
 
 export type CustomerEditFormState = {
   name: string
@@ -24,6 +25,7 @@ export type CustomerEditFormState = {
   accountNumber: string
   cars: CustomerCarFormItem[]
   specialDates: CustomerSpecialDateFormItem[]
+  customFields: CustomerCustomFieldFormItem[]
   crmExtensionFields: Record<string, string>
   /** 유입 경로 — 빈 문자열은 미지정 */
   inflowSource: string

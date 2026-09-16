@@ -20,6 +20,7 @@ import type { CustomerEditFormState } from '../types/customerEditForm'
 import { CustomerAccountNumberField } from './CustomerAccountNumberField'
 import { CustomerCarsEditor } from './CustomerCarsEditor'
 import { CustomerSpecialDatesEditor } from './CustomerSpecialDatesEditor'
+import { CustomerCustomFieldsEditor } from './CustomerCustomFieldsEditor'
 import { CustomerDrivingRadioGroup } from './CustomerDrivingRadioGroup'
 import CustomerIndustryTemplateFields from './CustomerIndustryTemplateFields'
 import { CustomerFormSection } from './CustomerFormSection'
@@ -290,6 +291,12 @@ export default function CustomerEditForm({
               />
             </label>
           </CustomerFormSection>
+          <CustomerCustomFieldsEditor
+            customFields={editForm.customFields}
+            onChange={(next) =>
+              setEditForm((prev) => (prev ? { ...prev, customFields: next } : prev))
+            }
+          />
         </div>
         ) : (
           <CustomerIndustryTemplateFields

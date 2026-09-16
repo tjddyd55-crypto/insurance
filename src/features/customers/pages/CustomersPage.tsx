@@ -94,6 +94,12 @@ import {
 } from '../utils/customerSpecialDatesSaveUtils'
 import { getCustomerSpecialDatesValidationError } from '../utils/customerSpecialDateFormUtils'
 import {
+  customerCustomFieldRecordToFormItem,
+  saveCustomerCustomFieldsForCustomer,
+} from '../utils/customerCustomFieldsSaveUtils'
+import { getCustomerCustomFieldsValidationError } from '../utils/customerCustomFieldFormUtils'
+import { listCustomerCustomFields } from '../api/customerCustomFieldsApi'
+import {
   isCustomerWorkspaceSideDetailPath,
   parseWorkspaceCustomerIdFromPath,
   parseSelectedCustomerId,
@@ -1063,6 +1069,11 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         setStatusText(specialDatesErr)
         return
       }
+      const customFieldsErr = getCustomerCustomFieldsValidationError(activeEditForm.customFields)
+      if (customFieldsErr) {
+        setStatusText(customFieldsErr)
+        return
+      }
     } else {
       const verr = getCustomerIndustryTemplateFormValidationError(activeEditForm, crm.resolvedTemplate)
       if (verr) {
@@ -1166,6 +1177,29 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       } catch {
         setStatusText(
           '고객 정보는 수정했습니다. 기념일 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+        )
+        cancelEdit()
+        mergeCustomerInListState(updatedCustomer)
+        if (keepOpenCustomerId != null) {
+          keepCustomerCardOpen(keepOpenCustomerId)
+        }
+        await loadCustomers({ silent: true })
+        if (keepOpenCustomerId != null) {
+          keepCustomerCardOpen(keepOpenCustomerId)
+        }
+        return
+      }
+      try {
+        if (token?.trim() && crmIndustryRef.current.isInsuranceLayout) {
+          await saveCustomerCustomFieldsForCustomer({
+            token,
+            customerId: activeEditingId,
+            formItems: activeEditForm.customFields,
+          })
+        }
+      } catch {
+        setStatusText(
+          '고객 정보는 수정했습니다. 추가 정보 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.',
         )
         cancelEdit()
         mergeCustomerInListState(updatedCustomer)
@@ -1282,9 +1316,10 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       const customerId = cl.id
       void (async () => {
         try {
-          const [serverCars, serverSpecialDates] = await Promise.all([
+          const [serverCars, serverSpecialDates, serverCustomFields] = await Promise.all([
             listCustomerCars(token, cl.id),
             listCustomerSpecialDates(token, cl.id),
+            listCustomerCustomFields(token, cl.id),
           ])
           if (editingIdRef.current !== customerId) {
             return
@@ -1299,10 +1334,11 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
                 ? { cars: serverCars.map(customerCarRecordToFormItem) }
                 : {}),
               specialDates: serverSpecialDates.map(customerSpecialDateRecordToFormItem),
+              customFields: serverCustomFields.map(customerCustomFieldRecordToFormItem),
             }
           })
         } catch {
-          setStatusText('자동차·기념일 목록을 불러오지 못했습니다. 기본 정보로 편집합니다.')
+          setStatusText('자동차·기념일·추가 정보 목록을 불러오지 못했습니다. 기본 정보로 편집합니다.')
         }
       })()
     },

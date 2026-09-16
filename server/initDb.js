@@ -1838,6 +1838,42 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS customer_custom_fields (
+      id BIGSERIAL PRIMARY KEY,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id) ON DELETE CASCADE,
+      label TEXT NOT NULL DEFAULT '',
+      value TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      deleted_at TIMESTAMPTZ NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_custom_fields_customer_id
+    ON customer_custom_fields(customer_id)
+    WHERE deleted_at IS NULL
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_custom_fields_user_customer
+    ON customer_custom_fields(user_id, customer_id)
+    WHERE deleted_at IS NULL
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_custom_fields_ga_customer
+    ON customer_custom_fields(ga_id, customer_id)
+    WHERE deleted_at IS NULL
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_custom_fields_customer_sort
+    ON customer_custom_fields(customer_id, sort_order)
+    WHERE deleted_at IS NULL
+  `)
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS customer_premium_payment_methods (
       id BIGSERIAL PRIMARY KEY,
       ga_id INTEGER NOT NULL REFERENCES ga_companies(id) ON DELETE CASCADE,

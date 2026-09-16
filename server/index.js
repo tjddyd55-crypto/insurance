@@ -61,6 +61,7 @@ import { registerCustomerAppShareApi } from './apis/registerCustomerAppShareApi.
 import { registerCustomerRegistrationShareApi } from './apis/registerCustomerRegistrationShareApi.js'
 import { registerCustomerCarsApi } from './apis/customerCarsApi.js'
 import { registerCustomerSpecialDatesApi } from './apis/customerSpecialDatesApi.js'
+import { registerCustomerCustomFieldsApi } from './apis/customerCustomFieldsApi.js'
 import { registerCustomerMapApi } from './apis/customerMapApi.js'
 import { registerPremiumPaymentApi } from './registerPremiumPaymentApi.js'
 import { registerCardPaymentApi } from './registerCardPaymentApi.js'
@@ -1686,6 +1687,7 @@ registerSubscriptionEndpoints(apiRouter, { requireAuth })
 
 registerCustomerCarsApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCustomerSpecialDatesApi(apiRouter, { pool, requireAuth, handleDbError })
+registerCustomerCustomFieldsApi(apiRouter, { pool, requireAuth, handleDbError })
 registerPremiumPaymentApi(apiRouter, { pool, requireAuth, handleDbError, JWT_SECRET })
 registerCardPaymentApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCustomerMapApi(apiRouter, { pool, requireAuth, handleDbError, requireInsuranceFormUserId })
