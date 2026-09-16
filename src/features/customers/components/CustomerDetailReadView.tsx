@@ -1,8 +1,7 @@
-import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { CustomerRecord } from '../domain/types'
 import {
   CUSTOMER_DETAIL_CORE_SECTIONS,
-  CUSTOMER_DETAIL_DEFAULT_OPEN_SECTION,
   type CustomerDetailCoreSectionId,
 } from '../config/customerDetailCoreSectionOrder'
 import { normalizeCustomerNotesBag } from '../domain/types'
@@ -36,8 +35,11 @@ import {
 } from '../utils/governmentCustomerStatusSummary'
 import { CustomerSmsOptOutReadBadge } from './CustomerSmsOptOutReadBadge'
 import GovernmentProgressReadSection from './GovernmentProgressReadSection'
-import { applyAccordionScrollCompensation } from '../utils/customerDetailAccordionScroll'
-import { resolveCustomerListScrollContainer } from '../utils/resolveCustomerListScrollContainer'
+import {
+  createDefaultCustomerDetailOpenSections,
+  resetCustomerDetailOpenSectionsForCustomer,
+  toggleCustomerDetailSectionOpen,
+} from '../utils/customerDetailAccordionOpenState'
 
 export type CustomerDetailInsuranceDisplay = {
   ageText: string
@@ -97,61 +99,17 @@ export default function CustomerDetailReadView({
   crmIsInsuranceLayout,
   crmIndustryTemplate,
 }: CustomerDetailReadViewProps) {
-  const [openSections, setOpenSections] = useState<Record<CustomerDetailCoreSectionId, boolean>>(() => ({
-    basic: CUSTOMER_DETAIL_DEFAULT_OPEN_SECTION === 'basic',
-    vehicle: false,
-    linked: false,
-    fireInsurance: false,
-    business: false,
-    alertDates: false,
-  }))
-  const sectionRefs = useRef<Partial<Record<CustomerDetailCoreSectionId, HTMLElement | null>>>({})
-  const pendingScrollRef = useRef<{
-    sectionId: CustomerDetailCoreSectionId
-    beforeTop: number
-  } | null>(null)
+  const [openSections, setOpenSections] = useState(createDefaultCustomerDetailOpenSections)
+
+  useEffect(() => {
+    setOpenSections(resetCustomerDetailOpenSectionsForCustomer())
+  }, [c.id])
 
   const setSectionOpen = useCallback((sectionId: CustomerDetailCoreSectionId, expanded: boolean) => {
-    const sectionEl = sectionRefs.current[sectionId]
-    pendingScrollRef.current = {
-      sectionId,
-      beforeTop: sectionEl?.getBoundingClientRect().top ?? 0,
-    }
-    setOpenSections((previous) => {
-      if (!expanded) {
-        return { ...previous, [sectionId]: false }
-      }
-      return {
-        basic: sectionId === 'basic',
-        vehicle: sectionId === 'vehicle',
-        linked: sectionId === 'linked',
-        fireInsurance: sectionId === 'fireInsurance',
-        business: sectionId === 'business',
-        alertDates: sectionId === 'alertDates',
-      }
-    })
+    setOpenSections((previous) =>
+      toggleCustomerDetailSectionOpen(previous, sectionId, expanded),
+    )
   }, [])
-
-  useLayoutEffect(() => {
-    const pending = pendingScrollRef.current
-    if (!pending) {
-      return
-    }
-    pendingScrollRef.current = null
-    const sectionEl = sectionRefs.current[pending.sectionId]
-    if (!sectionEl) {
-      return
-    }
-    const container = resolveCustomerListScrollContainer(sectionEl)
-    if (!container) {
-      return
-    }
-    applyAccordionScrollCompensation({
-      container,
-      beforeTop: pending.beforeTop,
-      target: sectionEl,
-    })
-  }, [openSections])
   if (!crmIsInsuranceLayout) {
     const dynTabs = [...crmIndustryTemplate.detailTabs]
       .filter((t) => t.visibleDefault !== false)
@@ -458,9 +416,6 @@ export default function CustomerDetailReadView({
           testId={section.testId}
           expanded={openSections[section.id]}
           onExpandedChange={(expanded) => setSectionOpen(section.id, expanded)}
-          sectionRef={(element) => {
-            sectionRefs.current[section.id] = element
-          }}
         >
           {sectionById[section.id]}
         </CustomerDetailAccordionSection>

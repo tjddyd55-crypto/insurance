@@ -12,7 +12,6 @@ export type CustomerDetailAccordionSectionProps = {
   testId: string
   expanded: boolean
   onExpandedChange: (expanded: boolean) => void
-  sectionRef?: (element: HTMLElement | null) => void
   children: ReactNode
 }
 
@@ -22,7 +21,6 @@ export function CustomerDetailAccordionSection({
   testId,
   expanded,
   onExpandedChange,
-  sectionRef,
   children,
 }: CustomerDetailAccordionSectionProps) {
   const headingId = useId()
@@ -30,7 +28,6 @@ export function CustomerDetailAccordionSection({
 
   return (
     <section
-      ref={sectionRef}
       className={`customer-detail-accordion${expanded ? ' customer-detail-accordion--expanded' : ''}`}
       data-testid={testId}
       data-section-id={sectionId}
