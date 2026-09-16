@@ -8562,9 +8562,13 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .customer-detail-accordion {
   border: 1px solid var(--border-default);
-  border-radius: 10px;
-  background: var(--bg-soft);
+  border-radius: 12px;
+  background: var(--bg-surface);
   overflow: hidden;
+}
+
+.customer-detail-accordion--expanded {
+  background: var(--bg-surface);
 }
 
 .customer-detail-accordion__trigger {
@@ -8573,14 +8577,38 @@ div.cta-button.customers-page__action-btn[role='button'] {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 12px;
+  min-height: 44px;
+  padding: 12px;
   border: 0;
-  background: transparent;
+  background: var(--bg-surface);
   color: var(--text-main);
   font: inherit;
+  font-size: 17px;
   font-weight: 700;
   text-align: left;
   cursor: pointer;
+}
+
+.customer-detail-accordion__title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.customer-detail-accordion__accent {
+  width: 3px;
+  height: 20px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.customer-detail-accordion__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .customer-detail-accordion__chevron {
@@ -8590,6 +8618,8 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .customer-detail-accordion__panel {
   padding: 0 12px 12px;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-default);
 }
 
 .customer-detail-read__grid {
@@ -8606,6 +8636,15 @@ div.cta-button.customers-page__action-btn[role='button'] {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+}
+
+.customer-detail-read--accordion .customer-detail-read__subsection {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-default);
+}
+
+.customer-detail-read--accordion .customer-detail-read__info-list {
+  background: transparent;
 }
 
 .customer-detail-read__subsection-title {
@@ -9228,7 +9267,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
   padding: 10px 12px;
   border: 1px solid var(--border-default, #e5e7eb);
   border-radius: 10px;
-  background: var(--bg-soft, #f9fafb);
+  background: var(--bg-surface);
 }
 
 .customer-quick-crud-card--row {
