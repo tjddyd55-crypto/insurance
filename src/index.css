@@ -9188,6 +9188,112 @@ div.cta-button.customers-page__action-btn[role='button'] {
   word-break: break-word;
 }
 
+.customer-quick-crud-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.customer-quick-crud-section__add {
+  margin-top: 4px;
+}
+
+.customer-quick-crud-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 960px) {
+  .customer-quick-crud-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.customer-quick-crud-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.customer-quick-crud-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-default, #e5e7eb);
+  border-radius: 10px;
+  background: var(--bg-soft, #f9fafb);
+}
+
+.customer-quick-crud-card--row {
+  align-items: center;
+}
+
+.customer-quick-crud-card__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(72px, auto) minmax(0, 1fr));
+  gap: 6px 10px;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.customer-quick-crud-card__fields--inline {
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+}
+
+.customer-quick-crud-card__row {
+  display: contents;
+}
+
+.customer-quick-crud-card__row--wide {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 8px 10px;
+}
+
+.customer-quick-crud-card__label {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.customer-quick-crud-card__value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.customer-quick-crud-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.customer-quick-form-dialog__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.customer-quick-form-dialog__fields .field--wide {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 640px) {
+  .customer-quick-form-dialog__fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .customer-dday {
   display: inline-block;
   margin-left: 6px;

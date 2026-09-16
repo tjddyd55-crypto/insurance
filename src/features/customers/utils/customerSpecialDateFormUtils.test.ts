@@ -38,7 +38,7 @@ test('getCustomerSpecialDatesValidationError — 라벨·날짜 필수', () => {
     getCustomerSpecialDatesValidationError([
       { purposeType: 'NOTICE', title: '보장분석', dateValue: '', memo: '' },
     ]),
-    '기념일 1: 날짜를 YYYY-MM-DD 형식으로 입력해 주세요.',
+    '알림일 1: 날짜를 YYYY-MM-DD 형식으로 입력해 주세요.',
   )
   assert.equal(
     getCustomerSpecialDatesValidationError([
