@@ -163,14 +163,21 @@ export function CustomerCustomFieldsQuickInlineSection({
         <p className="customer-detail-read__empty-hint">등록된 추가 정보가 없습니다.</p>
       ) : null}
       {!isLoading && items.length > 0 ? (
-        <ul className="customer-quick-crud-list">
+        <ul className="customer-quick-crud-list customer-custom-fields-read__list">
           {items.map((item) => (
-            <li key={item.id ?? item.label} className="customer-quick-crud-card customer-quick-crud-card--row">
-              <div className="customer-quick-crud-card__fields customer-quick-crud-card__fields--inline">
-                <span className="customer-quick-crud-card__label">라벨</span>
-                <span className="customer-quick-crud-card__value">{item.label || '—'}</span>
-                <span className="customer-quick-crud-card__label">내용</span>
-                <span className="customer-quick-crud-card__value">{item.value || '—'}</span>
+            <li
+              key={item.id ?? item.label}
+              className="customer-quick-crud-card customer-quick-crud-card--row customer-custom-fields-read__row"
+            >
+              <div className="customer-custom-fields-read__item">
+                <span className="customer-custom-fields-read__label">{item.label}</span>
+                <span
+                  className={`customer-custom-fields-read__value${
+                    item.value.trim() ? '' : ' customer-detail-read__empty'
+                  }`}
+                >
+                  {item.value.trim() ? item.value : '내용 없음'}
+                </span>
               </div>
               {canMutate && item.id != null ? (
                 <div className="customer-quick-crud-card__actions">
