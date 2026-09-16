@@ -23,7 +23,8 @@ import { CustomerBusinessQuickSection } from './detail-quick-crud/CustomerBusine
 import { CustomerCarsQuickSection } from './detail-quick-crud/CustomerCarsQuickSection'
 import { CustomerFireInsuranceQuickSection } from './detail-quick-crud/CustomerFireInsuranceQuickSection'
 import { CustomerSpecialDatesQuickSection } from './detail-quick-crud/CustomerSpecialDatesQuickSection'
-import { CustomerBasicInlineCustomFieldsRead } from './CustomerBasicInlineCustomFieldsRead'
+import { CustomerBasicInfoEditAction } from './detail-quick-crud/CustomerBasicInfoQuickSection'
+import { CustomerCustomFieldsQuickInlineSection } from './detail-quick-crud/CustomerCustomFieldsQuickInlineSection'
 import { CustomerDetailAccordionSection } from './CustomerDetailAccordionSection'
 import { DetailReadFieldRow } from './DetailReadFieldRow'
 import { CustomerRelationsStrip } from './CustomerRelationsStrip'
@@ -82,7 +83,6 @@ type CustomerDetailReadViewProps = {
   /** 펼친 읽기 모드에서만 customer_cars API 조회 */
   fetchCarsEnabled: boolean
   onOpenRelatedCustomer: (customerId: number, customerName?: string) => void
-  onStartEditBasic?: () => void
   onCustomerUpdated?: (customer: CustomerRecord) => void
   crmIsInsuranceLayout: boolean
   crmIndustryTemplate: CustomerIndustryTemplate
@@ -95,7 +95,6 @@ export default function CustomerDetailReadView({
   expandedId,
   fetchCarsEnabled,
   onOpenRelatedCustomer,
-  onStartEditBasic,
   onCustomerUpdated,
   crmIsInsuranceLayout,
   crmIndustryTemplate,
@@ -295,22 +294,16 @@ export default function CustomerDetailReadView({
             ) : null}
           </div>
         </div>
-        <CustomerBasicInlineCustomFieldsRead
+        <CustomerCustomFieldsQuickInlineSection
           customer={c}
           token={token}
           enabled={fetchCarsEnabled}
         />
-        {onStartEditBasic ? (
-          <div className="customer-detail-read__section-edit-action">
-            <button
-              type="button"
-              className="ui-button ui-button--sm ui-button--secondary customer-detail-read__edit-basic-btn"
-              onClick={onStartEditBasic}
-            >
-              수정하기
-            </button>
-          </div>
-        ) : null}
+        <CustomerBasicInfoEditAction
+          customer={c}
+          token={token}
+          onCustomerUpdated={onCustomerUpdated}
+        />
       </div>
     ),
     vehicle: (

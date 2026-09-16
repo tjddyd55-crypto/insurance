@@ -193,6 +193,7 @@ const CustomerListCard = memo(function CustomerListCard({
   const isMobile = variant === 'mobile'
   /** 확장 헤더 액션: PC는 복사/수정/삭제, 모바일은 수정/삭제를 고객명 오른쪽에 고정한다. */
   const isEditingThisCard = editingId === c.id && Boolean(editForm)
+  const useFullEditForm = isMobile || !crmIsInsuranceLayout
   const [mobileInfoExpanded, setMobileInfoExpanded] = useState(false)
   const validCustomerId =
     c != null &&
@@ -532,7 +533,7 @@ const CustomerListCard = memo(function CustomerListCard({
                             htmlType="button"
                             variant="secondary"
                             size="sm"
-                            className="customer-detail-action-button customer-detail-action-button--copy"
+                            className="customer-detail-action-button customer-detail-action-button--copy customer-detail-action-button--compact"
                             title="카톡 복사 형식으로 복사"
                             aria-label="복사"
                             onClick={() => void onCopyCustomer(c)}
@@ -540,22 +541,26 @@ const CustomerListCard = memo(function CustomerListCard({
                             복사
                           </FormButton>
                         ) : null}
+                        {useFullEditForm ? (
+                          <FormButton
+                            htmlType="button"
+                            variant="secondary"
+                            size="sm"
+                            className="customer-detail-action-button"
+                            title="고객 정보 수정"
+                            aria-label="수정"
+                            onClick={() => onStartEdit(c)}
+                          >
+                            수정
+                          </FormButton>
+                        ) : null}
                         <FormButton
                           htmlType="button"
-                          variant="secondary"
+                          variant={isMobile ? 'danger' : 'secondary'}
                           size="sm"
-                          className="customer-detail-action-button"
-                          title="고객 정보 수정"
-                          aria-label="수정"
-                          onClick={() => onStartEdit(c)}
-                        >
-                          수정
-                        </FormButton>
-                        <FormButton
-                          htmlType="button"
-                          variant="danger"
-                          size="sm"
-                          className="customer-detail-action-button customer-detail-action-button--danger"
+                          className={`customer-detail-action-button customer-detail-action-button--danger${
+                            isMobile ? '' : ' customer-detail-action-button--compact customer-detail-action-button--danger-muted'
+                          }`}
                           title="고객 삭제"
                           aria-label="삭제"
                           onClick={() => void onDeleteCustomer(c)}
@@ -566,7 +571,7 @@ const CustomerListCard = memo(function CustomerListCard({
                     )}
                   </div>
                 </div>
-                {editingId === c.id && editForm ? (
+                {useFullEditForm && editingId === c.id && editForm ? (
                   <CustomerEditForm
                     customerId={c.id}
                     editForm={editForm}
@@ -585,9 +590,8 @@ const CustomerListCard = memo(function CustomerListCard({
                     ins={ins}
                     token={token}
                     expandedId={expandedId}
-                    fetchCarsEnabled={expanded && editingId !== c.id}
+                    fetchCarsEnabled={expanded && (!useFullEditForm || editingId !== c.id)}
                     onOpenRelatedCustomer={onOpenRelatedCustomer}
-                    onStartEditBasic={() => onStartEdit(c)}
                     onCustomerUpdated={onCustomerUpdated}
                     crmIsInsuranceLayout={crmIsInsuranceLayout}
                     crmIndustryTemplate={crmIndustryTemplate}
