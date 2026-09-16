@@ -50,3 +50,8 @@ test('storage explorer file panel uses container queries instead of viewport col
     /@container storage-explorer-files[\s\S]*\.storage-explorer-files__type[\s\S]*display:\s*none/,
   )
 })
+
+test('storage explorer compact actions use floating portal menu', () => {
+  assert.match(css, /\.storage-explorer-files__actions-menu-panel--floating\s*\{[^}]*position:\s*fixed/)
+  assert.match(css, /z-index:\s*850/)
+})

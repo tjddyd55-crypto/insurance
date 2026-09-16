@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react'
 import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
+import { StorageExplorerFileActionsMenu } from './StorageExplorerFileActionsMenu'
 import type { StorageFileDownloadLinkEntry, StorageFileRow, StorageFolderRow } from '../api/storageApi'
 import type { StorageActionVariant } from './StorageFileList'
 import { resolveStorageFileFolderLabel } from '../utils/storageFolderTree'
@@ -89,6 +91,8 @@ export default function StorageExplorerFilePanel({
   onDelete,
   onSelectBreadcrumbFolder,
 }: StorageExplorerFilePanelProps) {
+  const [openActionMenuFileId, setOpenActionMenuFileId] = useState<number | null>(null)
+
   return (
     <section className="storage-explorer-files" aria-label="파일 목록">
       <nav
@@ -287,71 +291,18 @@ export default function StorageExplorerFilePanel({
                         삭제
                       </button>
                     </div>
-                    <details className="storage-explorer-files__actions-menu">
-                      <summary
-                        className="storage-explorer-files__actions-menu-trigger"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                        }}
-                      >
-                        더보기
-                      </summary>
-                      <div className="storage-explorer-files__actions-menu-panel">
-                        <button
-                          type="button"
-                          className={EXPLORER_FILE_ACTION_BUTTON_CLASS}
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            onOpen(file)
-                          }}
-                        >
-                          열기
-                        </button>
-                        {downloadHref ? (
-                          <a
-                            href={downloadHref}
-                            download
-                            className={EXPLORER_FILE_ACTION_BUTTON_CLASS}
-                            onClick={(event) => {
-                              event.stopPropagation()
-                            }}
-                          >
-                            다운로드
-                          </a>
-                        ) : (
-                          <button
-                            type="button"
-                            className={EXPLORER_FILE_ACTION_BUTTON_CLASS}
-                            disabled
-                            onClick={(event) => {
-                              event.stopPropagation()
-                            }}
-                          >
-                            {downloadFailed ? '준비 실패' : '준비 중'}
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          className={EXPLORER_FILE_ACTION_BUTTON_CLASS}
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            onRename(file)
-                          }}
-                        >
-                          이름 변경
-                        </button>
-                        <button
-                          type="button"
-                          className={EXPLORER_FILE_ACTION_DANGER_CLASS}
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            onDelete(file)
-                          }}
-                        >
-                          삭제
-                        </button>
-                      </div>
-                    </details>
+                    <StorageExplorerFileActionsMenu
+                      file={file}
+                      downloadHref={downloadHref}
+                      downloadFailed={downloadFailed}
+                      open={openActionMenuFileId === file.id}
+                      onOpenChange={(nextOpen) => {
+                        setOpenActionMenuFileId(nextOpen ? file.id : null)
+                      }}
+                      onOpenFile={onOpen}
+                      onRename={onRename}
+                      onDelete={onDelete}
+                    />
                   </div>
                 )}
               </div>

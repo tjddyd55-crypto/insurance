@@ -15154,7 +15154,6 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 
 .storage-explorer-files__actions-menu {
   display: none;
-  position: relative;
 }
 
 .storage-explorer-files__actions-menu-trigger {
@@ -15175,15 +15174,7 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   list-style: none;
 }
 
-.storage-explorer-files__actions-menu-trigger::-webkit-details-marker {
-  display: none;
-}
-
 .storage-explorer-files__actions-menu-panel {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 4px);
-  z-index: 4;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -15193,6 +15184,12 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   border-radius: 10px;
   background: #ffffff;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+.storage-explorer-files__actions-menu-panel--floating {
+  position: fixed;
+  z-index: 850;
+  margin: 0;
 }
 
 .storage-workspace--explorer .storage-explorer-file-action-button {
