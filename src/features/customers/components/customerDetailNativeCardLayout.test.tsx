@@ -12,6 +12,10 @@ const readViewSource = readFileSync(
   join(root, 'features/customers/components/CustomerDetailReadView.tsx'),
   'utf8',
 )
+const basicSectionSource = readFileSync(
+  join(root, 'features/customers/components/detail-quick-crud/CustomerBasicInfoQuickSection.tsx'),
+  'utf8',
+)
 const scrollHookSource = readFileSync(
   join(root, 'features/customers/hooks/useCustomerExpandedCardScroll.ts'),
   'utf8',
@@ -57,13 +61,14 @@ describe('customerDetailNativeCardLayout', () => {
   })
 
   it('uses label/value field rows in basic info', () => {
-    expect(readViewSource).toContain('customer-detail-read__field-list')
-    expect(readViewSource).toContain('DetailReadFieldRow')
+    expect(readViewSource).toContain('CustomerBasicInfoSection')
+    expect(basicSectionSource).toContain('customer-detail-read__field-list')
+    expect(basicSectionSource).toContain('DetailReadFieldRow')
     expect(indexCss).toMatch(/\.customer-detail-read__field-row\s*\{[^}]*grid-template-columns:\s*140px/s)
   })
 
   it('keeps health subsection and full-width question block', () => {
-    expect(readViewSource).toContain('CustomerMedicalHistoryReadSection')
+    expect(basicSectionSource).toContain('CustomerMedicalHistoryReadSection')
     expect(indexCss).toContain('customer-detail-read__subsection--health')
     expect(indexCss).toContain('customer-detail-read__field-block--full')
   })

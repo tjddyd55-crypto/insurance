@@ -5,28 +5,12 @@ import {
   type CustomerDetailCoreSectionId,
 } from '../config/customerDetailCoreSectionOrder'
 import { normalizeCustomerNotesBag } from '../domain/types'
-import { getDDay, getDDayBadgeClass } from '../utils/dday'
-import {
-  formatCustomerGenderReadLabel,
-  formatCustomerMobileCarrierDisplay,
-  formatCustomerPhoneUi,
-  formatCustomerSsnUi,
-} from '../utils/customerDisplayFormat'
-import { CustomerMedicalHistoryReadSection } from './CustomerMedicalHistoryRead'
-import { resolveMedicalHistoryFromCustomer } from '../utils/customerMedicalHistory'
-import {
-  formatCustomerInflowSourceDisplay,
-  getInflowSourceDetailFieldMeta,
-} from '../config/customerInflowSource.config'
-import { CustomerCopyButton } from './CustomerAccountNumberField'
 import { CustomerBusinessQuickSection } from './detail-quick-crud/CustomerBusinessQuickSection'
 import { CustomerCarsQuickSection } from './detail-quick-crud/CustomerCarsQuickSection'
 import { CustomerFireInsuranceQuickSection } from './detail-quick-crud/CustomerFireInsuranceQuickSection'
 import { CustomerSpecialDatesQuickSection } from './detail-quick-crud/CustomerSpecialDatesQuickSection'
-import { CustomerBasicInfoEditAction } from './detail-quick-crud/CustomerBasicInfoQuickSection'
-import { CustomerCustomFieldsQuickInlineSection } from './detail-quick-crud/CustomerCustomFieldsQuickInlineSection'
+import { CustomerBasicInfoSection } from './detail-quick-crud/CustomerBasicInfoQuickSection'
 import { CustomerDetailAccordionSection } from './CustomerDetailAccordionSection'
-import { DetailReadFieldRow } from './DetailReadFieldRow'
 import { CustomerRelationsStrip } from './CustomerRelationsStrip'
 import type { CustomerIndustryTemplate } from '../../customer-templates/customerTemplate.types'
 import { governmentDetailSummaryRows, isGovernmentIndustryTemplate, buildGovernmentProgressMvp } from '../utils/governmentCustomerUi'
@@ -48,20 +32,6 @@ export type CustomerDetailInsuranceDisplay = {
   dateText: string
   maturityYmd: string | null
   insuranceAgeNum: number | null
-}
-
-function MaturityDdayBadge({ maturityYmd }: { maturityYmd: string | null }) {
-  if (!maturityYmd) {
-    return null
-  }
-  const dday = getDDay(maturityYmd)
-  if (dday === null) {
-    return null
-  }
-  const hot = dday >= 0 && dday <= 30
-  const label = `D-${dday}`
-  const toneClass = hot ? getDDayBadgeClass(dday) : 'customer-dday'
-  return <span className={`customer-detail-read__dday-inline ${toneClass}`}>({label})</span>
 }
 
 function DetailReadInfoRow({ children, rowClassName }: { children: ReactNode; rowClassName?: string }) {
@@ -100,9 +70,11 @@ export default function CustomerDetailReadView({
   crmIndustryTemplate,
 }: CustomerDetailReadViewProps) {
   const [openSections, setOpenSections] = useState(createDefaultCustomerDetailOpenSections)
+  const [basicEditing, setBasicEditing] = useState(false)
 
   useEffect(() => {
     setOpenSections(resetCustomerDetailOpenSectionsForCustomer())
+    setBasicEditing(false)
   }, [c.id])
 
   const setSectionOpen = useCallback((sectionId: CustomerDetailCoreSectionId, expanded: boolean) => {
@@ -232,79 +204,16 @@ export default function CustomerDetailReadView({
     )
   }
 
-  const notes = normalizeCustomerNotesBag(c.notes)
-  const inflowDetailMeta = getInflowSourceDetailFieldMeta(c.inflowSource)
-  const inflowDetailName = c.referrerName?.trim()
-
   const sectionById = {
     basic: (
-      <div className="customer-detail-read__field-list">
-        <DetailReadFieldRow label="이름">{c.name || '—'}</DetailReadFieldRow>
-        <DetailReadFieldRow label="연락처">{formatCustomerPhoneUi(c.phone) || '—'}</DetailReadFieldRow>
-        <DetailReadFieldRow label="주민번호">{formatCustomerSsnUi(c.ssn) || '—'}</DetailReadFieldRow>
-        <DetailReadFieldRow label="성별">
-          {formatCustomerGenderReadLabel(c.gender, c.ssn)}
-        </DetailReadFieldRow>
-        <DetailReadFieldRow label="상령일">
-          {ins.dateText}
-          <MaturityDdayBadge maturityYmd={ins.maturityYmd} />
-        </DetailReadFieldRow>
-        <DetailReadFieldRow label="보험나이">{ins.ageText}</DetailReadFieldRow>
-        <DetailReadFieldRow label="문자 수신">
-          <CustomerSmsOptOutReadBadge smsOptOut={c.smsOptOut === true} />
-        </DetailReadFieldRow>
-        <DetailReadFieldRow label="통신사">
-          {formatCustomerMobileCarrierDisplay(c.carrier) || '—'}
-        </DetailReadFieldRow>
-        <DetailReadFieldRow label="주소">{c.address || '—'}</DetailReadFieldRow>
-        <DetailReadFieldRow label="키/몸무게">
-          {c.height?.trim() || c.weight?.trim()
-            ? `${c.height?.trim() || '—'}/${c.weight?.trim() || '—'}`
-            : '—'}
-        </DetailReadFieldRow>
-        <DetailReadFieldRow label="직업/회사명/하는일/지역">{c.job?.trim() || '—'}</DetailReadFieldRow>
-        <DetailReadFieldRow label="운전 여부">
-          {c.isDriver === true
-            ? '운전함'
-            : c.isDriver === false
-              ? '운전 안함'
-              : c.driving || '—'}
-        </DetailReadFieldRow>
-        <DetailReadFieldRow label="유입 경로">
-          {formatCustomerInflowSourceDisplay(c.inflowSource)}
-        </DetailReadFieldRow>
-        {inflowDetailMeta && inflowDetailName ? (
-          <DetailReadFieldRow label={inflowDetailMeta.readLabel}>{inflowDetailName}</DetailReadFieldRow>
-        ) : null}
-        <CustomerMedicalHistoryReadSection {...resolveMedicalHistoryFromCustomer(c)} />
-        <div className="customer-detail-read__subsection">
-          <h5 className="customer-detail-read__subsection-title">보험 가입</h5>
-          <div className="customer-insurance-history-body">
-            {notes.insuranceHistory?.trim() ? notes.insuranceHistory : '내용 없음'}
-          </div>
-        </div>
-        <div className="customer-detail-read__subsection">
-          <h5 className="customer-detail-read__subsection-title">계좌</h5>
-          <div className="customer-account-number-read">
-            <span className="customer-account-number-read__value">
-              {notes.accountNumber?.trim() || '내용 없음'}
-            </span>
-            {notes.accountNumber?.trim() ? (
-              <CustomerCopyButton text={notes.accountNumber} ariaLabel="계좌번호 복사" />
-            ) : null}
-          </div>
-        </div>
-        <CustomerCustomFieldsQuickInlineSection
-          customer={c}
-          token={token}
-          enabled={fetchCarsEnabled}
-        />
-        <CustomerBasicInfoEditAction
-          customer={c}
-          token={token}
-          onCustomerUpdated={onCustomerUpdated}
-        />
-      </div>
+      <CustomerBasicInfoSection
+        customer={c}
+        ins={ins}
+        token={token}
+        fetchCarsEnabled={fetchCarsEnabled}
+        onCustomerUpdated={onCustomerUpdated}
+        onEditingChange={setBasicEditing}
+      />
     ),
     vehicle: (
       <CustomerCarsQuickSection
@@ -358,7 +267,7 @@ export default function CustomerDetailReadView({
         <CustomerDetailAccordionSection
           key={section.id}
           sectionId={section.id}
-          title={section.title}
+          title={section.id === 'basic' && basicEditing ? '기본 정보 수정 중' : section.title}
           testId={section.testId}
           expanded={openSections[section.id]}
           onExpandedChange={(expanded) => setSectionOpen(section.id, expanded)}

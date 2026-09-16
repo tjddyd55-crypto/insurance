@@ -28,9 +28,9 @@ describe('customerSectionLevelEditing', () => {
     expect(listCardSource).toContain('useFullEditForm && editingId === c.id && editForm')
   })
 
-  it('keeps basic info section edit action and custom fields quick crud', () => {
-    expect(readViewSource).toContain('CustomerBasicInfoEditAction')
-    expect(readViewSource).toContain('CustomerCustomFieldsQuickInlineSection')
+  it('keeps basic info inline section editing and custom fields quick crud', () => {
+    expect(readViewSource).toContain('CustomerBasicInfoSection')
+    expect(readViewSource).not.toContain('CustomerBasicInfoEditAction')
     expect(readViewSource).not.toContain('onStartEditBasic')
   })
 

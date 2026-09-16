@@ -25,6 +25,7 @@ export type CustomerBasicCoreEditFieldsProps = {
   addressValue: AddressSearchValue
   onAddressChange: (next: AddressSearchValue) => void
   disabled?: boolean
+  inline?: boolean
 }
 
 export function CustomerBasicCoreEditFields({
@@ -34,13 +35,18 @@ export function CustomerBasicCoreEditFields({
   addressValue,
   onAddressChange,
   disabled = false,
+  inline = false,
 }: CustomerBasicCoreEditFieldsProps) {
   const patch = (next: Partial<CustomerBasicCoreFormDraft>) => {
     setDraft((prev) => ({ ...prev, ...next }))
   }
 
   return (
-    <div className="customer-basic-core-edit-fields customer-quick-form-dialog__fields">
+    <div
+      className={`customer-basic-core-edit-fields${
+        inline ? ' customer-basic-core-edit-fields--inline' : ' customer-quick-form-dialog__fields'
+      }`}
+    >
       <div className="customer-form-compact-grid field--wide">
         <label className="field">
           <span className="field__label">이름</span>

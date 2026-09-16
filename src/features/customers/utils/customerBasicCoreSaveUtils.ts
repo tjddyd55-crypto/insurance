@@ -1,11 +1,11 @@
-import { formatAddressForSave } from '../../../components/form'
+import { formatAddressForSave, parseAddressFromStored } from '../../../components/form'
 import { updateCustomer } from '../api/customersApi'
 import { resolveReferrerNameForSave } from '../config/customerInflowSource.config'
 import { normalizeCustomerCarrierForSave } from '../config/customerMobileCarrier.config'
 import type { CustomerRecord } from '../domain/types'
-import { customerNoteItems, normalizeCustomerNotesBag } from '../domain/types'
+import { normalizeCustomerNotesBag } from '../domain/types'
 import { buildLegacyMedicalColumnValue } from './customerMedicalHistory'
-import { normalizeBirthDateForSaveApi } from './customerEditFormState'
+import { normalizeBirthDateForSaveApi, recordToEditForm } from './customerEditFormState'
 import { drivingText } from '../../../components/customer/CustomerForm'
 
 export type CustomerBasicCoreFormDraft = {
@@ -29,6 +29,41 @@ export type CustomerBasicCoreFormDraft = {
   medicationHistoryNote: string
   insuranceHistory: string
   accountNumber: string
+}
+
+export function recordToBasicCoreDraft(customer: CustomerRecord): CustomerBasicCoreFormDraft {
+  const form = recordToEditForm(customer)
+  const parsed = parseAddressFromStored(customer.address ?? '')
+  const notes = normalizeCustomerNotesBag(customer.notes)
+  return {
+    name: form.name,
+    gender: form.gender,
+    ssn: form.ssn,
+    phone: form.phone,
+    carrier: form.carrier,
+    smsOptOut: form.smsOptOut,
+    inflowSource: form.inflowSource,
+    referrerName: form.referrerName,
+    birthDate: form.birthDate,
+    zonecode: parsed.zonecode,
+    address: parsed.baseAddress,
+    addressDetail: parsed.detailAddress,
+    height: form.height,
+    weight: form.weight,
+    job: form.job,
+    isDriver: form.isDriver,
+    treatmentHistoryNote: form.treatmentHistoryNote,
+    medicationHistoryNote: form.medicationHistoryNote,
+    insuranceHistory: notes.insuranceHistory ?? '',
+    accountNumber: notes.accountNumber ?? '',
+  }
+}
+
+export function isCustomerBasicCoreDraftDirty(
+  customer: CustomerRecord,
+  draft: CustomerBasicCoreFormDraft,
+): boolean {
+  return JSON.stringify(recordToBasicCoreDraft(customer)) !== JSON.stringify(draft)
 }
 
 export function getCustomerBasicCoreValidationError(draft: CustomerBasicCoreFormDraft): string | null {
