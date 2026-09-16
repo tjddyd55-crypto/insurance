@@ -13348,7 +13348,7 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   box-shadow: none;
 }
 
-.customers-page--pc .customer-detail-toolbar--pc-actions-only {
+.customers-page--pc .customer-detail-toolbar--pc-save-cancel {
   display: flex;
   justify-content: flex-end;
   align-items: center;
@@ -13356,9 +13356,55 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   margin-bottom: 4px;
 }
 
-.customers-page--pc .customer-detail-toolbar--pc-actions-only .customer-detail-action-bar {
+.customers-page--pc .customer-detail-toolbar--pc-save-cancel .customer-detail-action-bar {
   margin-left: auto;
   gap: 6px;
+}
+
+.customers-page--pc .customer-card__copy-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+}
+
+.customers-page--pc .customer-card__actions .icon-box--copy > button:not(:disabled):hover .customer-card__copy-action svg,
+.customers-page--pc .customer-card__actions .icon-box--copy > button:not(:disabled):focus-visible .customer-card__copy-action svg {
+  color: var(--text-main);
+}
+
+.customer-detail-delete-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-default);
+}
+
+.customers-page--pc .customer-detail-delete-footer {
+  padding-inline: 12px;
+}
+
+.customer-detail-delete-footer__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.customer-detail-delete-footer__icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.customer-custom-fields-read__row {
+  align-items: flex-start;
+}
+
+.customer-custom-fields-read__row .customer-custom-fields-read__item {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .customers-page--pc .customer-detail-action-button--compact {

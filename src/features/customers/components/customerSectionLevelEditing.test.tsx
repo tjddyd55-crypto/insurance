@@ -17,8 +17,8 @@ const indexCss = readFileSync(join(root, 'index.css'), 'utf8')
 describe('customerSectionLevelEditing', () => {
   it('removes pc global edit button for insurance layout', () => {
     expect(listCardSource).toContain('const useFullEditForm = isMobile || !crmIsInsuranceLayout')
-    expect(listCardSource).toContain('customer-detail-action-button--compact')
-    expect(listCardSource).toContain('customer-detail-action-button--danger-muted')
+    expect(listCardSource).toContain('showPcHeaderCopyAction')
+    expect(listCardSource).toContain('showPcDeleteFooter')
     const editButtonBlock = listCardSource.match(
       /\{useFullEditForm \? \([\s\S]*?\) : null\}/,
     )?.[0]
@@ -49,8 +49,10 @@ describe('customerSectionLevelEditing', () => {
     )
   })
 
-  it('styles compact pc copy/delete actions', () => {
-    expect(indexCss).toContain('customer-detail-action-button--compact')
-    expect(indexCss).toContain('customer-detail-action-button--danger-muted')
+  it('styles pc header copy icon and bottom delete footer', () => {
+    expect(listCardSource).toContain('CustomerListCopySvg')
+    expect(listCardSource).toContain('customer-detail-delete-footer')
+    expect(indexCss).toContain('.customers-page--pc .customer-card__copy-action')
+    expect(indexCss).toContain('.customer-detail-delete-footer')
   })
 })
