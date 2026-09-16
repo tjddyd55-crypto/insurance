@@ -37,10 +37,10 @@ function ReadRow({ label, value }: { label: string; value: string }) {
     return null
   }
   return (
-    <p className="customer-detail-read__info-line">
-      <span className="customer-detail-read__info-label">{label}:</span>{' '}
-      <span className="customer-detail-read__info-value">{value}</span>
-    </p>
+    <div className="customer-detail-read__field-row">
+      <span className="customer-detail-read__field-label">{label}</span>
+      <span className="customer-detail-read__field-value">{value}</span>
+    </div>
   )
 }
 
@@ -138,7 +138,7 @@ export function CustomerBusinessQuickSection({
   const modalOpen = modal.mode === 'open'
 
   const body = (
-    <div className="customer-detail-read__section-body customer-detail-read__grid customer-quick-crud-section">
+    <div className="customer-detail-read__section-body customer-detail-read__field-list customer-quick-crud-section">
       {hasAny ? (
         <>
           <ReadRow label="대표자명" value={businessInfo?.representativeName ?? ''} />

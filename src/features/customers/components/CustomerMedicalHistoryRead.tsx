@@ -60,13 +60,16 @@ export function CustomerMedicalHistoryReadSection({
   medicationHistoryNote,
 }: CustomerMedicalHistoryReadProps) {
   return (
-    <div>
-      <span className="customer-detail-read__info-label">{CUSTOMER_MEDICAL_QUESTION_TEXT}</span>
-      <p className="customer-detail-read__info-hint">{CUSTOMER_MEDICAL_QUESTION_HINT}</p>
-      <CustomerMedicalHistoryRead
-        treatmentHistoryNote={treatmentHistoryNote}
-        medicationHistoryNote={medicationHistoryNote}
-      />
+    <div className="customer-detail-read__subsection customer-detail-read__subsection--health">
+      <h5 className="customer-detail-read__subsection-title">건강/보험 참고</h5>
+      <div className="customer-detail-read__field-block customer-detail-read__field-block--full">
+        <p className="customer-detail-read__field-question">{CUSTOMER_MEDICAL_QUESTION_TEXT}</p>
+        <p className="customer-detail-read__info-hint">{CUSTOMER_MEDICAL_QUESTION_HINT}</p>
+        <CustomerMedicalHistoryRead
+          treatmentHistoryNote={treatmentHistoryNote}
+          medicationHistoryNote={medicationHistoryNote}
+        />
+      </div>
     </div>
   )
 }

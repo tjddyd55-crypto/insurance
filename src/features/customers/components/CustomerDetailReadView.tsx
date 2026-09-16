@@ -25,6 +25,7 @@ import { CustomerFireInsuranceQuickSection } from './detail-quick-crud/CustomerF
 import { CustomerSpecialDatesQuickSection } from './detail-quick-crud/CustomerSpecialDatesQuickSection'
 import { CustomerBasicInlineCustomFieldsRead } from './CustomerBasicInlineCustomFieldsRead'
 import { CustomerDetailAccordionSection } from './CustomerDetailAccordionSection'
+import { DetailReadFieldRow } from './DetailReadFieldRow'
 import { CustomerRelationsStrip } from './CustomerRelationsStrip'
 import type { CustomerIndustryTemplate } from '../../customer-templates/customerTemplate.types'
 import { governmentDetailSummaryRows, isGovernmentIndustryTemplate, buildGovernmentProgressMvp } from '../utils/governmentCustomerUi'
@@ -238,100 +239,52 @@ export default function CustomerDetailReadView({
 
   const sectionById = {
     basic: (
-      <div className="customer-detail-read__info-list customer-detail-read__grid">
-        <DetailReadInfoRow>
-          <span className="customer-detail-read__info-label">고객명:</span>{' '}
-          <span className="customer-detail-read__info-value">{c.name || '—'}</span>
-        </DetailReadInfoRow>
-        <DetailReadInfoRow>
-          <span className="customer-detail-read__info-label">연락처:</span>{' '}
-          <span className="customer-detail-read__info-value">{formatCustomerPhoneUi(c.phone) || '—'}</span>
-        </DetailReadInfoRow>
-        <DetailReadInfoRow>
-          <div className="customer-detail-read__ssn-gender-cluster">
-            <span className="customer-detail-read__ssn-gender-cluster__ssn">
-              <span className="customer-detail-read__info-label">주민번호:</span>{' '}
-              <span className="customer-detail-read__info-value">{formatCustomerSsnUi(c.ssn) || '—'}</span>
-            </span>
-            <span className="customer-detail-read__ssn-gender-cluster__gender">
-              <span className="customer-detail-read__info-label">성별:</span>{' '}
-              <span className="customer-detail-read__info-value">
-                {formatCustomerGenderReadLabel(c.gender, c.ssn)}
-              </span>
-            </span>
-          </div>
-        </DetailReadInfoRow>
-        <DetailReadInfoRow>
-          <div className="customer-detail-read__info-main--cluster">
-            <span>
-              <span className="customer-detail-read__info-label">보험나이:</span>{' '}
-              <span className="customer-detail-read__info-value">{ins.ageText}</span>
-            </span>
-            <span>
-              <span className="customer-detail-read__info-label">상령일:</span>{' '}
-              <span className="customer-detail-read__info-value">{ins.dateText}</span>
-              <MaturityDdayBadge maturityYmd={ins.maturityYmd} />
-            </span>
-          </div>
-        </DetailReadInfoRow>
-        <DetailReadInfoRow>
-          <span className="customer-detail-read__info-label">문자 수신:</span>{' '}
+      <div className="customer-detail-read__field-list">
+        <DetailReadFieldRow label="이름">{c.name || '—'}</DetailReadFieldRow>
+        <DetailReadFieldRow label="연락처">{formatCustomerPhoneUi(c.phone) || '—'}</DetailReadFieldRow>
+        <DetailReadFieldRow label="주민번호">{formatCustomerSsnUi(c.ssn) || '—'}</DetailReadFieldRow>
+        <DetailReadFieldRow label="성별">
+          {formatCustomerGenderReadLabel(c.gender, c.ssn)}
+        </DetailReadFieldRow>
+        <DetailReadFieldRow label="상령일">
+          {ins.dateText}
+          <MaturityDdayBadge maturityYmd={ins.maturityYmd} />
+        </DetailReadFieldRow>
+        <DetailReadFieldRow label="보험나이">{ins.ageText}</DetailReadFieldRow>
+        <DetailReadFieldRow label="문자 수신">
           <CustomerSmsOptOutReadBadge smsOptOut={c.smsOptOut === true} />
-        </DetailReadInfoRow>
-        <DetailReadInfoRow>
-          <span className="customer-detail-read__info-label">통신사:</span>{' '}
-          <span className="customer-detail-read__info-value">
-            {formatCustomerMobileCarrierDisplay(c.carrier) || '—'}
-          </span>
-        </DetailReadInfoRow>
-        <DetailReadInfoRow rowClassName="customer-detail-read__grid-span-all">
-          <span className="customer-detail-read__info-label">주소:</span>{' '}
-          <span className="customer-detail-read__info-value">{c.address || '—'}</span>
-        </DetailReadInfoRow>
-        <DetailReadInfoRow>
-          <span className="customer-detail-read__info-label">키/몸무게:</span>{' '}
-          <span className="customer-detail-read__info-value">
-            {c.height?.trim() || c.weight?.trim()
-              ? `${c.height?.trim() || '—'}/${c.weight?.trim() || '—'}`
-              : '—'}
-          </span>
-        </DetailReadInfoRow>
-        <DetailReadInfoRow>
-          <span className="customer-detail-read__info-label">직업/회사명/하는일/지역:</span>{' '}
-          <span className="customer-detail-read__info-value">{c.job?.trim() || '—'}</span>
-        </DetailReadInfoRow>
-        <DetailReadInfoRow>
-          <span className="customer-detail-read__info-label">운전여부:</span>{' '}
-          <span className="customer-detail-read__info-value">
-            {c.isDriver === true
-              ? '운전함'
-              : c.isDriver === false
-                ? '운전 안함'
-                : c.driving || '—'}
-          </span>
-        </DetailReadInfoRow>
-        <DetailReadInfoRow>
-          <span className="customer-detail-read__info-label">유입 경로:</span>{' '}
-          <span className="customer-detail-read__info-value">
-            {formatCustomerInflowSourceDisplay(c.inflowSource)}
-          </span>
-        </DetailReadInfoRow>
+        </DetailReadFieldRow>
+        <DetailReadFieldRow label="통신사">
+          {formatCustomerMobileCarrierDisplay(c.carrier) || '—'}
+        </DetailReadFieldRow>
+        <DetailReadFieldRow label="주소">{c.address || '—'}</DetailReadFieldRow>
+        <DetailReadFieldRow label="키/몸무게">
+          {c.height?.trim() || c.weight?.trim()
+            ? `${c.height?.trim() || '—'}/${c.weight?.trim() || '—'}`
+            : '—'}
+        </DetailReadFieldRow>
+        <DetailReadFieldRow label="직업/회사명/하는일/지역">{c.job?.trim() || '—'}</DetailReadFieldRow>
+        <DetailReadFieldRow label="운전 여부">
+          {c.isDriver === true
+            ? '운전함'
+            : c.isDriver === false
+              ? '운전 안함'
+              : c.driving || '—'}
+        </DetailReadFieldRow>
+        <DetailReadFieldRow label="유입 경로">
+          {formatCustomerInflowSourceDisplay(c.inflowSource)}
+        </DetailReadFieldRow>
         {inflowDetailMeta && inflowDetailName ? (
-          <DetailReadInfoRow>
-            <span className="customer-detail-read__info-label">{inflowDetailMeta.readLabel}:</span>{' '}
-            <span className="customer-detail-read__info-value">{inflowDetailName}</span>
-          </DetailReadInfoRow>
+          <DetailReadFieldRow label={inflowDetailMeta.readLabel}>{inflowDetailName}</DetailReadFieldRow>
         ) : null}
-        <DetailReadInfoRow rowClassName="customer-detail-read__grid-span-all">
-          <CustomerMedicalHistoryReadSection {...resolveMedicalHistoryFromCustomer(c)} />
-        </DetailReadInfoRow>
-        <div className="customer-detail-read__subsection customer-detail-read__grid-span-all">
+        <CustomerMedicalHistoryReadSection {...resolveMedicalHistoryFromCustomer(c)} />
+        <div className="customer-detail-read__subsection">
           <h5 className="customer-detail-read__subsection-title">보험 가입</h5>
           <div className="customer-insurance-history-body">
             {notes.insuranceHistory?.trim() ? notes.insuranceHistory : '내용 없음'}
           </div>
         </div>
-        <div className="customer-detail-read__subsection customer-detail-read__grid-span-all">
+        <div className="customer-detail-read__subsection">
           <h5 className="customer-detail-read__subsection-title">계좌</h5>
           <div className="customer-account-number-read">
             <span className="customer-account-number-read__value">
@@ -348,7 +301,7 @@ export default function CustomerDetailReadView({
           enabled={fetchCarsEnabled}
         />
         {onStartEditBasic ? (
-          <div className="customer-detail-read__section-edit-action customer-detail-read__grid-span-all">
+          <div className="customer-detail-read__section-edit-action">
             <button
               type="button"
               className="ui-button ui-button--sm ui-button--secondary customer-detail-read__edit-basic-btn"
