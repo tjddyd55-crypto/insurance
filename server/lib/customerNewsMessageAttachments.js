@@ -208,7 +208,7 @@ export function validateCustomerNewsMessageCreateInput(input) {
   const content = String(input?.content ?? '').trim()
   const attachments = normalizeCustomerNewsAttachments(input?.attachments)
   if (!title && !content && attachments.length === 0) {
-    return { ok: false, message: '제목, 내용, 첨부파일 중 하나 이상을 입력해 주세요.' }
+    return { ok: false, message: '내용 또는 첨부파일을 입력해 주세요.' }
   }
   const titleForRow =
     title || (attachments.length > 0 ? CUSTOMER_NEWS_ATTACHMENT_ONLY_TITLE : '고객 메시지')
