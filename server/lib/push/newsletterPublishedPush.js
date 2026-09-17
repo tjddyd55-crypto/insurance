@@ -7,25 +7,22 @@ import { getUserNotificationSettings } from '../../services/userNotificationSett
 import { enqueuePushOutbox } from './pushOutboxService.js'
 import { shouldDeliverAppPush } from './pushPreferenceGate.js'
 
-export const CUSTOMER_CREATED_EVENT = PUSH_EVENT_TYPES.CUSTOMER_CREATED
+export const NEWSLETTER_PUBLISHED_EVENT = PUSH_EVENT_TYPES.NEWSLETTER_PUBLISHED
 
 /**
- * @param {{ customerName?: string | null }} input
+ * @param {{ title?: string | null }} [input]
  */
-export function buildCustomerCreatedPushCopy(input) {
-  const name = String(input.customerName ?? '').trim()
+export function buildNewsletterPublishedPushCopy(input = {}) {
+  const title = String(input.title ?? '').trim()
   return {
-    title: '신규 고객 등록',
-    body: name ? `${name} 고객이 등록되었습니다.` : '신규 고객이 등록되었습니다.',
+    title: '새 소식지',
+    body: title ? `${title}` : '새로운 소식지가 등록되었습니다.',
   }
 }
 
-/**
- * @param {{ customerName?: string | null }} input
- */
-export function buildCustomerCreatedInternalMessage(input) {
-  const name = String(input.customerName ?? '').trim() || '고객'
-  return `${name} 고객이 등록되었습니다.`
+export function buildNewsletterPublishedInternalMessage(input = {}) {
+  const title = String(input.title ?? '').trim()
+  return title ? `새 소식지: ${title}` : '새로운 소식지가 등록되었습니다.'
 }
 
 /**
@@ -34,15 +31,17 @@ export function buildCustomerCreatedInternalMessage(input) {
  *   notificationId: number | null
  *   recipientUserId: string
  *   gaId: number
- *   customerId: number
- *   customerName?: string | null
+ *   newsletterId: string
+ *   newsChannel?: string | null
+ *   boardSlug?: string | null
+ *   title?: string | null
  * }} input
  */
-export async function enqueueCustomerCreatedPush(db, input) {
+export async function enqueueNewsletterPublishedPush(db, input) {
   const recipientUserId = String(input.recipientUserId ?? '').trim()
-  const customerId = Number(input.customerId)
+  const newsletterId = String(input.newsletterId ?? '').trim()
   const gaId = Number(input.gaId)
-  if (!recipientUserId || !Number.isInteger(customerId) || customerId < 1) {
+  if (!recipientUserId || !newsletterId) {
     return null
   }
   if (!Number.isInteger(gaId) || gaId < 1) {
@@ -50,23 +49,25 @@ export async function enqueueCustomerCreatedPush(db, input) {
   }
 
   const settings = await getUserNotificationSettings(db, recipientUserId, gaId).catch(() => null)
-  if (!shouldDeliverAppPush(settings, 'new_customer')) {
+  if (!shouldDeliverAppPush(settings, 'work')) {
     return null
   }
 
-  const { title, body } = buildCustomerCreatedPushCopy({ customerName: input.customerName })
-  const dedupeKey = `customer-created:${customerId}:${recipientUserId}`
+  const { title, body } = buildNewsletterPublishedPushCopy({ title: input.title })
+  const dedupeKey = `newsletter-published:${newsletterId}:${recipientUserId}`
   const notificationId =
     input.notificationId != null && Number.isInteger(Number(input.notificationId))
       ? Number(input.notificationId)
       : null
   const data = buildPushDataPayload({
-    type: CUSTOMER_CREATED_EVENT,
+    type: NEWSLETTER_PUBLISHED_EVENT,
     notificationId,
     dedupeKey,
     target: {
-      type: NOTIFICATION_TARGET_TYPES.CUSTOMER,
-      customerId,
+      type: NOTIFICATION_TARGET_TYPES.NEWSLETTER,
+      newsletterId,
+      newsChannel: input.newsChannel,
+      boardSlug: input.boardSlug,
     },
   })
 
@@ -74,7 +75,7 @@ export async function enqueueCustomerCreatedPush(db, input) {
     gaId,
     notificationId,
     recipientUserId,
-    eventType: CUSTOMER_CREATED_EVENT,
+    eventType: NEWSLETTER_PUBLISHED_EVENT,
     dedupeKey,
     payload: {
       title,

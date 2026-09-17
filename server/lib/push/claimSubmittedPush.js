@@ -1,9 +1,13 @@
-import { buildInternalCustomerClaimRoute } from '../internalCustomerClaimRoute.js'
+import {
+  NOTIFICATION_TARGET_TYPES,
+  PUSH_EVENT_TYPES,
+  buildPushDataPayload,
+} from '../notifications/notificationTarget.js'
 import { getUserNotificationSettings } from '../../services/userNotificationSettingsService.js'
 import { enqueuePushOutbox } from './pushOutboxService.js'
 import { resolveClaimPushEventKind, shouldDeliverAppPush } from './pushPreferenceGate.js'
 
-export const CLAIM_SUBMITTED_EVENT = 'CUSTOMER_CLAIM_SUBMITTED'
+export const CLAIM_SUBMITTED_EVENT = PUSH_EVENT_TYPES.CUSTOMER_CLAIM_SUBMITTED
 export const CLAIM_CREATED_TYPE = 'CLAIM_CREATED'
 export const CUSTOMER_FILE_CREATED_TYPE = 'CUSTOMER_FILE_CREATED'
 export const CUSTOMER_INQUIRY_CREATED_TYPE = 'CUSTOMER_INQUIRY_CREATED'
@@ -118,10 +122,6 @@ export async function enqueueClaimSubmittedPush(db, input) {
     hasFiles: input.hasFiles,
     submissionKind: input.submissionKind,
   })
-  const route = buildInternalCustomerClaimRoute({
-    customerId,
-    claimRequestId,
-  })
   const dedupeKey = `claim-submitted:${claimRequestId}:${recipientUserId}`
   const notificationId =
     input.notificationId != null && Number.isInteger(Number(input.notificationId))
@@ -131,6 +131,17 @@ export async function enqueueClaimSubmittedPush(db, input) {
     hasFiles: input.hasFiles,
     submissionKind: input.submissionKind,
   })
+  const data = buildPushDataPayload({
+    type: payloadType,
+    notificationId,
+    dedupeKey,
+    target: {
+      type: NOTIFICATION_TARGET_TYPES.CLAIM,
+      customerId,
+      claimRequestId,
+    },
+  })
+  data.submissionKind = String(input.submissionKind ?? 'CLAIM_CONTENT_ADDED')
 
   return enqueuePushOutbox(db, {
     gaId,
@@ -141,15 +152,7 @@ export async function enqueueClaimSubmittedPush(db, input) {
     payload: {
       title,
       body,
-      data: {
-        type: payloadType,
-        customerId: String(customerId),
-        claimId: String(claimRequestId),
-        route,
-        notificationId: notificationId != null ? String(notificationId) : '',
-        dedupeKey,
-        submissionKind: String(input.submissionKind ?? 'CLAIM_CONTENT_ADDED'),
-      },
+      data,
     },
   })
 }

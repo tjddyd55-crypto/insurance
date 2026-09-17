@@ -108,21 +108,19 @@ describe('customer registration completed helpers', () => {
     )
   })
 
-  it('builds CRM check URL without double https scheme', () => {
+  it('builds CRM check URL via staff native open redirect', () => {
     const url = buildCustomerCrmCheckUrl({
       customerId: 91,
       origin: 'https://insurance-production-7bd8.up.railway.app',
+      env: { PUSH_APP_PACKAGE: 'com.onefc.app' },
     })
-    assert.equal(
-      url,
-      'https://insurance-production-7bd8.up.railway.app/customers/91/consultations?customerId=91',
-    )
+    assert.match(url, /^https:\/\/insurance-production-7bd8\.up\.railway\.app\/staff-app\/open\?/)
+    assert.match(url, /target=customer/)
+    assert.match(url, /customerId=91/)
+    assert.match(url, /native=onefc%3A%2F%2Fcustomers%2F91/)
     assert.doesNotMatch(url, /https:\/\/https:\/\//)
     const buttons = buildCustomerRegistrationCompletedButtonPayload({ customerCheckUrl: url })
-    assert.equal(
-      buttons.button[0].linkMo,
-      'http://insurance-production-7bd8.up.railway.app/customers/91/consultations?customerId=91',
-    )
+    assert.match(buttons.button[0].linkMo, /^http:\/\/insurance-production-7bd8\.up\.railway\.app\/staff-app\/open\?/)
     assert.equal(buttons.button[0].linkPc, buttons.button[0].linkMo)
     assert.doesNotMatch(buttons.button[0].linkMo, /https?:\/\/https?/i)
   })

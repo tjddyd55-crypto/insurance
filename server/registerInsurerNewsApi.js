@@ -92,6 +92,26 @@ import {
   parseNewsletterPayload,
   resolveNewsletterDetailLinkPreview,
 } from './lib/newsletterLinkPreview.js'
+import { scheduleNewsletterPublishedNotifications } from './lib/notifications/newsletterPublishedWiring.js'
+
+function voidScheduleNewsletterPublished(pool, input) {
+  void scheduleNewsletterPublishedNotifications(pool, input).catch((err) => {
+    console.error(
+      '[newsletter-published-notification] schedule failed',
+      err instanceof Error ? err.message : err,
+    )
+  })
+}
+
+function newsletterPublishedTitleFromRow(row, payload = null) {
+  const title = String(row?.title ?? '').trim()
+  if (title) return title
+  const parsed = payload ?? parseNewsletterPayload(row?.payload)
+  const insurerName = String(parsed?.insurerName ?? '').trim()
+  if (insurerName) return insurerName
+  const body = String(row?.body_text ?? '').trim()
+  return body.slice(0, 80)
+}
 
 /** 프론트 `attachmentUploadPolicy.ts` 와 동기화 */
 const ALLOWED_UPLOAD_MIME = new Set([
@@ -2097,6 +2117,17 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         status,
         publisherId: String(req.user?.id ?? ''),
       })
+      if (String(row.status ?? '') === 'PUBLISHED') {
+        const payload = parseNewsletterPayload(row.payload)
+        voidScheduleNewsletterPublished(pool, {
+          gaId: tenantGaId,
+          newsletterId: String(row.id),
+          newsChannel: String(payload?.newsChannel ?? NEWS_CHANNEL_INSURER),
+          boardSlug: String(board.slug ?? ''),
+          title: newsletterPublishedTitleFromRow(row, payload),
+          publisherUserId: String(req.user?.id ?? ''),
+        })
+      }
       res.status(201).json({
         id: String(row.id),
         status: String(row.status),
@@ -2974,6 +3005,16 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         objectKeys: orphanKeys,
       })
 
+      if (status === 'PUBLISHED' && insertedNewsletterRow) {
+        voidScheduleNewsletterPublished(pool, {
+          gaId: normalizedScope.gaId,
+          newsletterId: id,
+          newsChannel: String(payload.newsChannel ?? channel),
+          title: newsletterPublishedTitleFromRow(insertedNewsletterRow, payload),
+          publisherUserId: String(req.user?.id ?? ''),
+        })
+      }
+
       const attRes = await safeQuery(pool, SQL_ATTACHMENTS_BY_NEWSLETTER_GA, [id, normalizedScope.gaId])
       const accessContext = buildAttachmentAccessContext(req, normalizedScope.gaId)
       res.status(201).json(mapNewsletterDetail(insertedNewsletterRow, attRes.rows, req, accessContext))
@@ -3126,6 +3167,17 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         objectKeys: orphanKeys,
         removedObjectKeys,
       })
+
+      const previousStatus = String(nRes.rows[0]?.status ?? '').toUpperCase()
+      if (status === 'PUBLISHED' && previousStatus !== 'PUBLISHED') {
+        voidScheduleNewsletterPublished(pool, {
+          gaId: scope.gaId,
+          newsletterId,
+          newsChannel: String(payload.newsChannel ?? channel),
+          title: newsletterPublishedTitleFromRow(nRes.rows[0], payload),
+          publisherUserId: String(req.user?.id ?? ''),
+        })
+      }
 
       const fresh = await safeQuery(
         pool,
