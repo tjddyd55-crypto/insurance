@@ -38,7 +38,8 @@ describe('claim push wiring contracts', () => {
     const push = read('server/lib/push/claimSubmittedPush.js')
     assert.match(push, /claim-submitted:\$\{claimRequestId\}:\$\{recipientUserId\}/)
     assert.match(push, /CUSTOMER_CLAIM_SUBMITTED/)
-    assert.match(push, /buildInternalCustomerClaimRoute/)
+    assert.match(push, /buildPushDataPayload/)
+    assert.match(push, /NOTIFICATION_TARGET_TYPES\.CLAIM/)
   })
 
   it('enqueues customer-created push after invite registration without removing kakao', () => {
