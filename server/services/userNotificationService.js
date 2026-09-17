@@ -565,6 +565,36 @@ export async function createClaimRequestReceivedNotification(db, safeQueryExec, 
  * @param {typeof import('../utils/dbSafeQuery.js').safeQuery} safeQueryExec
  * @param {object} input
  */
+/**
+ * 소식지 게시 → in-app notification center.
+ * @param {import('pg').Pool | import('pg').PoolClient} db
+ * @param {typeof import('../utils/dbSafeQuery.js').safeQuery} safeQueryExec
+ * @param {object} input
+ */
+export async function createNewsletterPublishedNotification(db, safeQueryExec, input) {
+  const userId = String(input.recipientUserId ?? '').trim()
+  const gaId = Number(input.gaId)
+  const newsletterId = String(input.newsletterId ?? '').trim()
+  if (!userId || !Number.isInteger(gaId) || gaId < 1 || !newsletterId) {
+    return null
+  }
+
+  const title = String(input.title ?? '').trim()
+  const message = title ? `새 소식지: ${title}` : '새로운 소식지가 등록되었습니다.'
+  return upsertUserNotification(db, safeQueryExec, {
+    userId,
+    gaId,
+    type: USER_NOTIFICATION_TYPES.NEWSLETTER_PUBLISHED,
+    customerId: null,
+    customerName: null,
+    targetDate: null,
+    claimRequestId: null,
+    specialDateId: null,
+    message,
+    referenceId: newsletterId,
+  })
+}
+
 export async function createCustomerCreatedNotification(db, safeQueryExec, input) {
   const userId = String(input.ownerUserId ?? input.recipientUserId ?? '').trim()
   const gaId = Number(input.gaId)
@@ -644,6 +674,25 @@ async function upsertUserNotification(db, safeQueryExec, input) {
       VALUES ($1, $2, NULL, $3, $4, $5, $6, $7, $8, $9, $10)
       ON CONFLICT (user_id, ga_id, type, customer_id)
       WHERE type = 'customer_created' AND customer_id IS NOT NULL
+      DO NOTHING
+      RETURNING id
+      `,
+      params,
+    )
+    return r.rows[0]?.id ?? null
+  }
+
+  if (input.type === USER_NOTIFICATION_TYPES.NEWSLETTER_PUBLISHED) {
+    const r = await safeQueryExec(
+      db,
+      `
+      INSERT INTO notifications (
+        user_id, ga_id, team_id, type, reference_id, message,
+        customer_id, customer_name, target_date, claim_request_id, special_date_id
+      )
+      VALUES ($1, $2, NULL, $3, $4, $5, $6, $7, $8, $9, $10)
+      ON CONFLICT (user_id, ga_id, type, reference_id)
+      WHERE type = 'newsletter_published' AND reference_id IS NOT NULL
       DO NOTHING
       RETURNING id
       `,

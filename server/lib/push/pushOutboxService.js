@@ -188,18 +188,34 @@ async function deliverOutboxRow(pool, row) {
 
   for (const device of devices) {
     try {
-      await messaging.send({
+      const platform = String(device.platform ?? 'ANDROID').trim().toUpperCase()
+      /** @type {import('firebase-admin/messaging').Message} */
+      const message = {
         token: device.device_token,
         notification: { title, body },
         data,
-        android: {
+      }
+      if (platform === 'IOS') {
+        message.apns = {
+          headers: {
+            'apns-priority': '10',
+          },
+          payload: {
+            aps: {
+              sound: 'default',
+            },
+          },
+        }
+      } else {
+        message.android = {
           priority: 'high',
           notification: {
             channelId: 'claim_notifications',
             sound: 'default',
           },
-        },
-      })
+        }
+      }
+      await messaging.send(message)
     } catch (error) {
       const code = error?.code || error?.errorInfo?.code || ''
       if (

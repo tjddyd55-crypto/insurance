@@ -141,6 +141,7 @@ import ClaimRequestsRoutePage from './features/claim-requests/pages/ClaimRequest
 import CustomerAppConnectPage from './features/customer-app/pages/CustomerAppConnectPage'
 import CustomerAppHomePage from './features/customer-app/pages/CustomerAppHomePage'
 import CustomerAppLinkOpenPage from './features/customer-app/pages/CustomerAppLinkOpenPage'
+import StaffNativeOpenPage from './features/staff-app/pages/StaffNativeOpenPage'
 import CustomerAppRequestComposePage from './features/customer-app/pages/CustomerAppRequestComposePage'
 import CustomerAppRequestsPage from './features/customer-app/pages/CustomerAppRequestsPage'
 import CustomerAppRequestDetailPage from './features/customer-app/pages/CustomerAppRequestDetailPage'
@@ -253,6 +254,7 @@ export const appRouter = createBrowserRouter([
       /* 외부 고객 입력(소개 링크) — 비로그인 유지. API는 /api/customer/external-create + ref·ga 검증 */
       { path: 'customer/input', element: <CustomerInputPage /> },
       { path: 'customer/register', element: <CustomerRegisterPage /> },
+      { path: 'staff-app/open', element: <StaffNativeOpenPage /> },
       { path: 'contracts/sign/:linkCode', element: <ContractSignPage /> },
       {
         path: 'share/account-credentials/shared/:token/:userId',

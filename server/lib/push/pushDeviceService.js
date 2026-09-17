@@ -2,25 +2,32 @@ import { safeQuery } from '../../utils/dbSafeQuery.js'
 
 export const ANDROID_PACKAGE_PROD = 'com.onefc.app'
 export const ANDROID_PACKAGE_DEV = 'com.onefc.app.dev'
+export const IOS_BUNDLE_PROD = 'com.onefc.app'
+export const IOS_BUNDLE_DEV = 'com.onefc.app.dev'
 export const ALLOWED_ANDROID_PACKAGES = new Set([ANDROID_PACKAGE_PROD, ANDROID_PACKAGE_DEV])
+export const ALLOWED_IOS_BUNDLES = new Set([IOS_BUNDLE_PROD, IOS_BUNDLE_DEV])
+export const ALLOWED_PUSH_APP_PACKAGES = new Set([
+  ...ALLOWED_ANDROID_PACKAGES,
+  ...ALLOWED_IOS_BUNDLES,
+])
 
 /**
  * DEV 서버는 DEV 앱 토큰만, PROD 서버는 PROD 앱 토큰만 배달한다.
  * @returns {string}
  */
-export function resolveAllowedPushAppPackageForRuntime() {
-  const explicit = String(process.env.PUSH_APP_PACKAGE ?? '').trim()
-  if (ALLOWED_ANDROID_PACKAGES.has(explicit)) {
+export function resolveAllowedPushAppPackageForRuntime(env = process.env) {
+  const explicit = String(env.PUSH_APP_PACKAGE ?? '').trim()
+  if (ALLOWED_PUSH_APP_PACKAGES.has(explicit)) {
     return explicit
   }
 
   const signals = [
-    process.env.APP_VARIANT,
-    process.env.NODE_ENV,
-    process.env.RAILWAY_SERVICE_NAME,
-    process.env.RAILWAY_ENVIRONMENT_NAME,
-    process.env.RAILWAY_PUBLIC_DOMAIN,
-    process.env.FIREBASE_PROJECT_ID,
+    env.APP_VARIANT,
+    env.NODE_ENV,
+    env.RAILWAY_SERVICE_NAME,
+    env.RAILWAY_ENVIRONMENT_NAME,
+    env.RAILWAY_PUBLIC_DOMAIN,
+    env.FIREBASE_PROJECT_ID,
   ]
     .map((value) => String(value ?? '').trim().toLowerCase())
     .join(' ')
@@ -65,13 +72,19 @@ export async function registerUserPushDevice(db, input) {
     err.status = 400
     throw err
   }
-  if (platform !== 'ANDROID') {
-    const err = new Error('Only ANDROID platform is supported in phase 1')
+  if (platform !== 'ANDROID' && platform !== 'IOS') {
+    const err = new Error('Unsupported platform')
     err.status = 400
     throw err
   }
-  if (!ALLOWED_ANDROID_PACKAGES.has(appPackage)) {
+  if (!ALLOWED_PUSH_APP_PACKAGES.has(appPackage)) {
     const err = new Error('Unsupported app package')
+    err.status = 400
+    throw err
+  }
+  const allowedPackage = resolveAllowedPushAppPackageForRuntime()
+  if (appPackage !== allowedPackage) {
+    const err = new Error('App package does not match server environment')
     err.status = 400
     throw err
   }

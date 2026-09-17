@@ -3213,6 +3213,12 @@ export async function initDb() {
       AND customer_id IS NOT NULL
   `)
   await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS notifications_unique_newsletter_published
+    ON notifications (user_id, ga_id, type, reference_id)
+    WHERE type = 'newsletter_published'
+      AND reference_id IS NOT NULL
+  `)
+  await pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS notifications_unique_special_date
     ON notifications (user_id, ga_id, type, special_date_id, target_date)
     WHERE type = 'special_date'
