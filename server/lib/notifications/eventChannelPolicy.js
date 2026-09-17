@@ -1,16 +1,37 @@
 /**
- * Business event → delivery channel policy.
- * Push / Kakao / in-app 은 서로 독립 채널이며, 이 모듈은 이벤트별 ON/OFF 만 결정한다.
+ * Notification delivery channel policy (environment + event kind).
  *
- * DEV: 고객등록·청구는 Native Push 로 대체 → Kakao OFF (PROD 카카오 유지).
- * Production Push 실기기 검증 전에는 PROD Kakao 를 끄지 않는다.
+ * Push / Kakao / in-app 알림함은 서로 독립 채널이다.
+ * Push token 유무·Push 성공/실패는 Kakao 발송 조건에 사용하지 않는다.
+ * per-user "Push 없으면 Kakao fallback" 로직은 구현하지 않는다.
+ *
+ * Production 최종 정책:
+ * | 이벤트              | Kakao | Push |
+ * |---------------------|-------|------|
+ * | customer_created    | ON    | ON   |
+ * | claim_request_received | ON | ON   |
+ * | newsletter_published   | OFF| ON   |
+ *
+ * Development:
+ * | customer_created / claim_request_received | OFF | ON |
+ * | newsletter_published                      | OFF | ON |
+ *
+ * Kakao outbox / template / credential 구조는 변경하지 않는다.
+ * DEV에서만 운영 Kakao 실발송을 막는다 (tier gate).
  */
 
 import { resolveAlimtalkRuntimeTier } from '../../alimtalk/alimtalkConfig.js'
 
-/** @typedef {'customer_created' | 'claim_request_received'} PushReplacingKakaoEvent */
+/** @typedef {'customer_created' | 'claim_request_received' | 'newsletter_published'} NotificationDeliveryEventKind */
 
-const PUSH_REPLACING_KAKAO_EVENTS = new Set([
+/** 소식지는 Push only — Kakao 알림톡을 만들거나 발송하지 않는다. */
+const KAKAO_DISABLED_EVENT_KINDS = new Set(['newsletter_published'])
+
+/**
+ * DEV 환경에서 운영 Kakao 실발송을 막는 이벤트.
+ * Production에서는 Kakao ON (기존 운영 정책 유지).
+ */
+const DEV_KAKAO_DISABLED_EVENT_KINDS = new Set([
   'customer_created',
   'claim_request_received',
 ])
@@ -27,18 +48,23 @@ export function resolveEventChannelPolicy(eventKind, opts = {}) {
       ? opts.runtimeTier
       : resolveAlimtalkRuntimeTier(opts)
 
-  // 기본: 양쪽 채널 허용 (개별 feature flag / preference 가 추가 게이트)
-  const policy = { appPush: true, kakao: true }
-
-  if (PUSH_REPLACING_KAKAO_EVENTS.has(kind) && tier !== 'production') {
+  if (KAKAO_DISABLED_EVENT_KINDS.has(kind)) {
     return {
       appPush: true,
       kakao: false,
-      reason: 'dev_native_push_replaces_kakao',
+      reason: 'newsletter_push_only',
     }
   }
 
-  return policy
+  if (DEV_KAKAO_DISABLED_EVENT_KINDS.has(kind) && tier !== 'production') {
+    return {
+      appPush: true,
+      kakao: false,
+      reason: 'development_operational_kakao_disabled',
+    }
+  }
+
+  return { appPush: true, kakao: true }
 }
 
 /**
@@ -47,4 +73,12 @@ export function resolveEventChannelPolicy(eventKind, opts = {}) {
  */
 export function isKakaoDeliveryAllowedForEvent(eventKind, opts = {}) {
   return resolveEventChannelPolicy(eventKind, opts).kakao === true
+}
+
+/**
+ * @param {string} eventKind
+ * @param {{ nodeEnv?: string, runtimeTier?: 'production' | 'development' }} [opts]
+ */
+export function isAppPushDeliveryAllowedForEvent(eventKind, opts = {}) {
+  return resolveEventChannelPolicy(eventKind, opts).appPush === true
 }

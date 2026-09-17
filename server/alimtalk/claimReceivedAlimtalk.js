@@ -145,7 +145,7 @@ export async function loadClaimAlimtalkRecipient(db, agentId, gaId) {
  */
 export async function enqueueClaimReceivedAlimtalk(db, input) {
   if (!isKakaoDeliveryAllowedForEvent('claim_request_received', input.channelPolicyOpts ?? {})) {
-    return { enqueued: false, reason: 'dev_native_push_replaces_kakao' }
+    return { enqueued: false, reason: 'development_operational_kakao_disabled' }
   }
   const config = input.config ?? loadInsuranceAlimtalkConfig()
   if (!config.claimReceivedEnabled) {
@@ -249,7 +249,7 @@ export async function enqueueClaimReceivedAlimtalk(db, input) {
  */
 export async function processPendingClaimAlimtalkOutbox(pool, opts = {}) {
   if (!isKakaoDeliveryAllowedForEvent('claim_request_received', opts.channelPolicyOpts ?? {})) {
-    return { processed: 0, skipped: true, reason: 'dev_native_push_replaces_kakao' }
+    return { processed: 0, skipped: true, reason: 'development_operational_kakao_disabled' }
   }
   const config = opts.config ?? loadInsuranceAlimtalkConfig()
   const sendFn = opts.sendFn ?? sendAligoAlimtalk

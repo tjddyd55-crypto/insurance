@@ -74,7 +74,7 @@ export function buildCustomerRegistrationCompletedDedupeKey(input) {
  */
 export async function enqueueCustomerRegistrationCompletedAlimtalk(db, input) {
   if (!isKakaoDeliveryAllowedForEvent('customer_created', input.channelPolicyOpts ?? {})) {
-    return { enqueued: false, reason: 'dev_native_push_replaces_kakao' }
+    return { enqueued: false, reason: 'development_operational_kakao_disabled' }
   }
   const config = input.config ?? loadInsuranceAlimtalkConfig()
   if (!config.customerRegistrationCompletedEnabled) {
@@ -202,7 +202,7 @@ export async function enqueueCustomerRegistrationCompletedAlimtalk(db, input) {
  */
 export async function processPendingCustomerRegistrationAlimtalkOutbox(pool, opts = {}) {
   if (!isKakaoDeliveryAllowedForEvent('customer_created', opts.channelPolicyOpts ?? {})) {
-    return { processed: 0, skipped: true, reason: 'dev_native_push_replaces_kakao' }
+    return { processed: 0, skipped: true, reason: 'development_operational_kakao_disabled' }
   }
   const config = opts.config ?? loadInsuranceAlimtalkConfig()
   const sendFn = opts.sendFn ?? sendAligoAlimtalk

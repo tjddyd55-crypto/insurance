@@ -164,7 +164,7 @@ describe('claim received alimtalk channel policy', () => {
       },
     )
     assert.equal(result.enqueued, false)
-    assert.equal(result.reason, 'dev_native_push_replaces_kakao')
+    assert.equal(result.reason, 'development_operational_kakao_disabled')
   })
 
   it('PROD policy does not short-circuit before enabled flag', async () => {
