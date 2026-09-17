@@ -2488,6 +2488,24 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS customer_news_comments (
+      id TEXT PRIMARY KEY,
+      newsletter_id TEXT NOT NULL REFERENCES insurance_company_newsletters(id) ON DELETE CASCADE,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id),
+      author_user_id TEXT NOT NULL REFERENCES users(id),
+      author_type TEXT NOT NULL DEFAULT 'agent',
+      author_name TEXT NOT NULL DEFAULT '',
+      content TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_news_comments_newsletter_created
+    ON customer_news_comments (newsletter_id, created_at ASC)
+  `)
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS insurance_company_merge_logs (
       id SERIAL PRIMARY KEY,
       keep_id INTEGER NOT NULL,

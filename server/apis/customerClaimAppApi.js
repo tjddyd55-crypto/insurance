@@ -42,6 +42,12 @@ import { createClaimRequestReceivedNotification } from '../services/userNotifica
 import { enqueueClaimSubmittedPush } from '../lib/push/claimSubmittedPush.js'
 import { enqueueClaimReceivedAlimtalk } from '../alimtalk/claimReceivedAlimtalk.js'
 import { safeQuery } from '../utils/dbSafeQuery.js'
+import {
+  insertCustomerNewsComment,
+  listCustomerNewsComments,
+  loadCustomerNewsForAgentComment,
+  validateCustomerNewsCommentContent,
+} from '../lib/customerNewsComments.js'
 
 const CUSTOMER_APP_TOKEN_KIND = 'CUSTOMER_APP'
 const CUSTOMER_APP_TOKEN_EXPIRES_IN = '180d'
@@ -2329,6 +2335,74 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
           targetCustomerName: String(row.payload?.targetCustomerName ?? ''),
         })),
       })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.get('/agent/customer-news/:newsId/comments', requireAuth, async (req, res) => {
+    try {
+      const agentId = String(req.user?.id ?? '').trim()
+      if (!agentId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const newsId = String(req.params.newsId ?? '').trim()
+      if (!newsId) {
+        res.status(400).json({ message: '소식지 ID가 필요합니다.' })
+        return
+      }
+      const gaId = await resolveAgentGaId(pool, agentId)
+      if (gaId == null) {
+        res.status(400).json({ message: 'GA 컨텍스트를 확인할 수 없습니다.' })
+        return
+      }
+      const access = await loadCustomerNewsForAgentComment(pool, { newsId, agentId, gaId })
+      if (!access.ok) {
+        res.status(access.status).json({ message: access.message })
+        return
+      }
+      const comments = await listCustomerNewsComments(pool, { newsId, gaId })
+      res.json({ success: true, data: comments })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.post('/agent/customer-news/:newsId/comments', requireAuth, async (req, res) => {
+    try {
+      const agentId = String(req.user?.id ?? '').trim()
+      if (!agentId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const newsId = String(req.params.newsId ?? '').trim()
+      if (!newsId) {
+        res.status(400).json({ message: '소식지 ID가 필요합니다.' })
+        return
+      }
+      const validatedContent = validateCustomerNewsCommentContent(req.body?.content)
+      if (!validatedContent.ok) {
+        res.status(validatedContent.status).json({ message: validatedContent.message })
+        return
+      }
+      const gaId = await resolveAgentGaId(pool, agentId)
+      if (gaId == null) {
+        res.status(400).json({ message: 'GA 컨텍스트를 확인할 수 없습니다.' })
+        return
+      }
+      const access = await loadCustomerNewsForAgentComment(pool, { newsId, agentId, gaId })
+      if (!access.ok) {
+        res.status(access.status).json({ message: access.message })
+        return
+      }
+      const comment = await insertCustomerNewsComment(pool, {
+        newsId,
+        gaId,
+        agentId,
+        content: validatedContent.content,
+      })
+      res.status(201).json({ success: true, data: comment })
     } catch (error) {
       handleDbError(error, req, res)
     }
