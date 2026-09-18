@@ -1,4 +1,48 @@
 /**
+ * 앱/공개 API 게시자(회사·소속) 표시 SSOT.
+ * 개인 작성자명·로그인 ID 는 사용하지 않는다.
+ *
+ * @param {{
+ *   organizationName?: unknown,
+ *   authorOrganizationName?: unknown,
+ *   authorDisplayName?: unknown,
+ *   authorName?: unknown,
+ *   loginId?: unknown,
+ *   legacyAuthorLabel?: unknown,
+ *   insurerName?: unknown,
+ *   boardLabel?: unknown,
+ * }} input
+ * @returns {string}
+ */
+export function resolveNewsletterPublisherName(input = {}) {
+  const boardLabel = trim(input.boardLabel)
+  const organizationName = trim(input.organizationName ?? input.authorOrganizationName)
+  if (organizationName) {
+    return organizationName
+  }
+
+  const legacy = trim(input.legacyAuthorLabel ?? input.insurerName)
+  if (legacy && legacy !== boardLabel) {
+    return legacy
+  }
+
+  const authorDisplayName = trim(input.authorDisplayName)
+  if (authorDisplayName && authorDisplayName !== boardLabel) {
+    if (authorDisplayName.includes(' · ')) {
+      const orgPart = trim(authorDisplayName.split(' · ')[0])
+      if (orgPart) {
+        return orgPart
+      }
+    }
+    if (!trim(input.authorName) && !trim(input.loginId)) {
+      return authorDisplayName
+    }
+  }
+
+  return '—'
+}
+
+/**
  * 게시글 글쓴이 표시 SSOT.
  * 게시판명(board.label)은 fallback 에 포함하지 않는다.
  *
@@ -74,7 +118,7 @@ export function buildNewsletterAuthorSnapshotFromWriter(writer, boardLabel = '')
   const authorName = trim(writer.name) || trim(writer.loginId ?? writer.login_id)
   const authorOrganizationName = trim(writer.organizationName ?? writer.organization_name)
   const loginId = trim(writer.loginId ?? writer.login_id)
-  const authorDisplayName = resolveNewsletterPostAuthorLabel({
+  const authorDisplayName = resolveNewsletterPublisherName({
     organizationName: authorOrganizationName,
     authorName,
     loginId,
@@ -121,12 +165,18 @@ export function resolveNewsletterRowAuthorDisplay(input = {}) {
         String(payload.insurerCode ?? '').trim().toUpperCase() === 'LOSS_ADJUSTER'))
 
   if (!isBoardWriterPost) {
+    const publisherName = resolveNewsletterPublisherName({
+      legacyAuthorLabel: payload.insurerName ?? input.companyNameSnapshot,
+      insurerName: payload.insurerName ?? input.companyNameSnapshot,
+      boardLabel,
+    })
     return {
       boardLabel,
       authorName: '',
       authorOrganizationName: '',
-      authorDisplayName: trim(payload.insurerName ?? input.companyNameSnapshot) || '—',
-      insurerName: trim(payload.insurerName ?? input.companyNameSnapshot) || '—',
+      authorDisplayName: publisherName,
+      insurerName: publisherName,
+      publisherName,
     }
   }
 
@@ -134,11 +184,10 @@ export function resolveNewsletterRowAuthorDisplay(input = {}) {
     trim(payload.authorName) || trim(input.writerName) || trim(payload.displayName)
   const authorOrganizationName =
     trim(payload.authorOrganizationName) || trim(input.writerOrganizationName)
-  const authorDisplayName = resolveNewsletterPostAuthorLabel({
+  const publisherName = resolveNewsletterPublisherName({
     authorDisplayName: payload.authorDisplayName,
     organizationName: authorOrganizationName,
     authorName,
-    displayName: payload.authorName ?? input.writerName,
     loginId: input.writerLoginId ?? payload.loginId,
     legacyAuthorLabel: payload.insurerName ?? input.companyNameSnapshot,
     boardLabel,
@@ -146,10 +195,11 @@ export function resolveNewsletterRowAuthorDisplay(input = {}) {
 
   return {
     boardLabel,
-    authorName: authorName || (authorDisplayName === '—' ? '' : authorDisplayName),
+    authorName: authorName || '',
     authorOrganizationName,
-    authorDisplayName,
-    insurerName: authorDisplayName,
+    authorDisplayName: publisherName,
+    insurerName: publisherName,
+    publisherName,
   }
 }
 

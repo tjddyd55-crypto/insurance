@@ -3,8 +3,52 @@ import { describe, it } from 'node:test'
 import {
   buildNewsletterAuthorSnapshotFromWriter,
   resolveNewsletterPostAuthorLabel,
+  resolveNewsletterPublisherName,
   resolveNewsletterRowAuthorDisplay,
 } from './newsletterPostAuthorLabel.js'
+
+describe('resolveNewsletterPublisherName', () => {
+  it('uses organization name only for board writer accounts', () => {
+    assert.equal(
+      resolveNewsletterPublisherName({
+        organizationName: '더도움손해사정',
+        authorName: '이영민',
+        loginId: 'thelee',
+      }),
+      '더도움손해사정',
+    )
+  })
+
+  it('uses insurer master name for insurer manager posts', () => {
+    assert.equal(
+      resolveNewsletterPublisherName({
+        legacyAuthorLabel: 'DB손보',
+        loginId: 'dbfire',
+      }),
+      'DB손보',
+    )
+  })
+
+  it('never falls back to loginId', () => {
+    assert.equal(
+      resolveNewsletterPublisherName({
+        loginId: 'thelee',
+        authorName: '이영민',
+      }),
+      '—',
+    )
+  })
+
+  it('parses legacy organization from authorDisplayName snapshot', () => {
+    assert.equal(
+      resolveNewsletterPublisherName({
+        authorDisplayName: '영진 · 홍길동',
+        authorName: '홍길동',
+      }),
+      '영진',
+    )
+  })
+})
 
 describe('resolveNewsletterPostAuthorLabel', () => {
   it('prefers organization · author name', () => {
@@ -51,7 +95,7 @@ describe('buildNewsletterAuthorSnapshotFromWriter', () => {
       },
       '테스트',
     )
-    assert.equal(snap.authorDisplayName, '영진 · 홍길동')
+    assert.equal(snap.authorDisplayName, '영진')
     assert.equal(snap.authorName, '홍길동')
     assert.equal(snap.authorOrganizationName, '영진')
   })
@@ -73,8 +117,9 @@ describe('resolveNewsletterRowAuthorDisplay', () => {
       writerLoginId: 'staff02',
       boardLabel: '테스트',
     })
-    assert.equal(resolved.insurerName, '영진 · 홍길동')
-    assert.equal(resolved.authorDisplayName, '영진 · 홍길동')
+    assert.equal(resolved.publisherName, '영진')
+    assert.equal(resolved.insurerName, '영진')
+    assert.equal(resolved.authorDisplayName, '영진')
     assert.equal(resolved.boardLabel, '테스트')
   })
 
