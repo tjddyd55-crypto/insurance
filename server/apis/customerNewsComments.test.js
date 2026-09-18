@@ -287,6 +287,14 @@ test('POST comment rejects empty content', async () => {
   assert.match(String(res.body?.message ?? ''), /댓글/)
 })
 
+test('validateCustomerNewsCommentContent rejects over-max content', () => {
+  const result = validateCustomerNewsCommentContent('x'.repeat(2001))
+  assert.equal(result.ok, false)
+  if (!result.ok) {
+    assert.equal(result.status, 400)
+  }
+})
+
 test('POST comment denies cross-tenant newsletter access', async () => {
   const pool = createCommentsPoolMock({
     newsletters: [{ id: NEWS_ID, gaId: GA_B, publisherId: AGENT_B }],
