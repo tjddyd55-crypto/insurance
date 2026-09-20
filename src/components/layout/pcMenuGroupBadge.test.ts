@@ -27,6 +27,38 @@ describe('resolvePcMenuGroupBadgeLabels', () => {
     expect(resolvePcMenuGroupBadgeLabels(items)).toEqual(['유료', 'GA 전용'])
   })
 
+  it('ignores disabled dev placeholders when resolving application group badges', () => {
+    const items = applyEntitlementMenuBadges(
+      [
+        { type: 'link', label: '신청서 작성', path: '/application/documents' },
+        { type: 'link', label: '신청서 작성내역', path: '/application/documents/history' },
+        {
+          type: 'link',
+          label: '렌트(사고대차)',
+          path: '#',
+          disabled: true,
+          badge: '개발중',
+        },
+      ],
+      FREE_GENERAL,
+    )
+    expect(resolvePcMenuGroupBadgeLabels(items)).toEqual(['유료', 'GA 전용'])
+  })
+
+  it('shows paid group badge when every eligible customer submenu is gated', () => {
+    const items = applyEntitlementMenuBadges(
+      [
+        { type: 'link', label: '고객리스트', path: '/customers' },
+        { type: 'link', label: '고객 지도', path: '/customers/map' },
+        { type: 'link', label: '카드 수납', path: '/premium-payments' },
+        { type: 'link', label: '고객소식지', path: '/claim-requests?claimTab=news-all' },
+        { type: 'link', label: '청구관리', path: '/claim-requests' },
+      ],
+      FREE_GENERAL,
+    )
+    expect(resolvePcMenuGroupBadgeLabels(items)).toEqual(['유료'])
+  })
+
   it('hides group badge for mixed free and gated children', () => {
     const items = applyEntitlementMenuBadges(
       [

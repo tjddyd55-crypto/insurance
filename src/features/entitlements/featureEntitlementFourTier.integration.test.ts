@@ -26,6 +26,8 @@ describe('4-tier web route entitlement integration', () => {
     expect(routeAllowed('/insurance/insurer-sites', 'FREE_GENERAL')).toBe(true)
     expect(routeAllowed('/portal/boards/shared-news', 'FREE_GENERAL')).toBe(true)
     expect(routeAllowed('/customers', 'FREE_GENERAL')).toBe(false)
+    expect(routeAllowed('/premium-payments', 'FREE_GENERAL')).toBe(false)
+    expect(routeAllowed('/claim-requests', 'FREE_GENERAL')).toBe(false)
     expect(routeAllowed('/team/files', 'FREE_GENERAL')).toBe(false)
     expect(routeAllowed('/storage', 'FREE_GENERAL')).toBe(false)
     expect(routeAllowed('/application', 'FREE_GENERAL')).toBe(false)

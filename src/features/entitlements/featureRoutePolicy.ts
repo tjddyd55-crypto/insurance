@@ -53,6 +53,12 @@ export function resolveFeatureKeyFromPath(
     return FEATURE_KEYS.INSURER_SITES
   }
   if (normalized === '/customers' || normalized.startsWith('/customers/')) return FEATURE_KEYS.CUSTOMERS
+  if (normalized === '/premium-payments' || normalized.startsWith('/premium-payments/')) {
+    return FEATURE_KEYS.CUSTOMERS
+  }
+  if (normalized === '/claim-requests' || normalized.startsWith('/claim-requests/')) {
+    return FEATURE_KEYS.CUSTOMERS
+  }
   if (normalized === '/team' || normalized.startsWith('/team/')) return FEATURE_KEYS.TEAM
   if (normalized === '/storage' || normalized.startsWith('/storage/')) return FEATURE_KEYS.STORAGE
   if (normalized === '/profile' || normalized.startsWith('/profile/')) return FEATURE_KEYS.PROFILE
