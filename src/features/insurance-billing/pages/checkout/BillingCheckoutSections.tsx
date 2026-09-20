@@ -103,7 +103,6 @@ export function CheckoutPlanSection({ props }: { props: BillingCheckoutViewProps
 
 export function CheckoutCouponSection({ props }: { props: BillingCheckoutViewProps }) {
   const {
-    promoAllowed,
     promoCode,
     onPromoCodeChange,
     onApplyPromo,
@@ -111,17 +110,13 @@ export function CheckoutCouponSection({ props }: { props: BillingCheckoutViewPro
     promoMessage,
     quote,
     submitting,
+    isActiveEntitled,
   } = props
-  if (!promoAllowed) {
-    return (
-      <section className="insurance-billing-card">
-        <h2>② 쿠폰 및 할인</h2>
-        <p className="insurance-billing-plan-note">현재 상태에서는 쿠폰을 적용할 수 없습니다.</p>
-      </section>
-    )
-  }
 
   const applied = quote?.valid && quote.coupon
+  const helperText = isActiveEntitled
+    ? '쿠폰 적용 시 현재 이용기간 이후로 혜택이 연장됩니다.'
+    : '쿠폰을 등록하면 쿠폰에 설정된 이용기간이 적용됩니다.'
 
   return (
     <section className="insurance-billing-card">
@@ -165,9 +160,12 @@ export function CheckoutCouponSection({ props }: { props: BillingCheckoutViewPro
               적용
             </button>
           </div>
-          <p className="insurance-billing-plan-note">쿠폰이 있다면 입력해 주세요.</p>
+          <p className="insurance-billing-plan-note">{helperText}</p>
         </>
       )}
+      {applied && quote.summaryMessage ? (
+        <p className="insurance-billing-plan-note">{quote.summaryMessage}</p>
+      ) : null}
       {promoMessage ? <p className="insurance-billing-notice">{promoMessage}</p> : null}
     </section>
   )
@@ -224,14 +222,41 @@ export function CheckoutSummaryPanel({ props }: { props: BillingCheckoutViewProp
     onTestCharge,
   } = props
 
+  const hasAppliedFreeMonthsCoupon =
+    Boolean(quote?.valid && quote.coupon && quote.benefitKind === 'free_months')
+
   if (isActiveEntitled) {
     return (
       <section className="insurance-billing-card insurance-billing-checkout-summary">
-        <h2>구독 관리</h2>
-        <p className="insurance-billing-plan-note">이미 유료 이용 중입니다.</p>
-        <button type="button" className="insurance-billing-cta" onClick={onGoManage}>
-          구독 관리
-        </button>
+        <h2>{hasAppliedFreeMonthsCoupon ? '쿠폰 적용' : '구독 관리'}</h2>
+        {hasAppliedFreeMonthsCoupon ? (
+          <>
+            {quote?.summaryMessage ? (
+              <p className="insurance-billing-plan-note">{quote.summaryMessage}</p>
+            ) : (
+              <p className="insurance-billing-plan-note">
+                쿠폰 적용 시 현재 이용기간 이후로 혜택이 연장됩니다.
+              </p>
+            )}
+            <button
+              type="button"
+              className="insurance-billing-cta"
+              disabled={ctaDisabled}
+              onClick={onPrimaryAction}
+            >
+              {submitting ? '처리 중...' : ctaLabel}
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="insurance-billing-plan-note">
+              이용 중인 계정도 쿠폰을 등록할 수 있습니다. 위에서 쿠폰을 입력해 주세요.
+            </p>
+            <button type="button" className="insurance-billing-cta" onClick={onGoManage}>
+              구독 관리
+            </button>
+          </>
+        )}
         <button type="button" className="insurance-billing-cta insurance-billing-cta--secondary" onClick={onGoCrm}>
           CRM으로 이동
         </button>

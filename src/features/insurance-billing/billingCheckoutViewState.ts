@@ -27,8 +27,9 @@ export function resolveBillingCheckoutMode(status: string | null | undefined): B
   return 'pending_payment'
 }
 
-export function canApplyPromotionCodeOnCheckout(mode: BillingCheckoutMode): boolean {
-  return mode === 'pending_payment' || mode === 'payment_required'
+/** 결제 상태와 무관하게 쿠폰 입력·검증·적용을 허용한다. 차단은 쿠폰 자체 조건에서만 수행. */
+export function canApplyPromotionCodeOnCheckout(_mode?: BillingCheckoutMode): boolean {
+  return true
 }
 
 export type BillingTestChargeConfig = {

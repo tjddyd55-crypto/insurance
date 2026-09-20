@@ -19,7 +19,7 @@ import {
   resolveBillingCheckoutMode,
 } from '../billingCheckoutViewState'
 import {
-  isApplyPromotionTrialingSuccess,
+  isApplyPromotionExtensionSuccess,
   resolveApplyPromotionTrialEndsAt,
 } from '../billingApplyPromotion'
 import type { BillingCheckoutViewProps } from '../pages/checkout/billingCheckoutViewProps'
@@ -96,7 +96,11 @@ export function useBillingCheckoutState(): BillingCheckoutViewProps & {
 
   const refreshQuote = useCallback(
     async (cycle: 'monthly' | 'yearly', promotionCode: string | null) => {
-      if (!token?.trim() || isActiveEntitled) {
+      if (!token?.trim()) {
+        setQuote(null)
+        return
+      }
+      if (isActiveEntitled && !promotionCode) {
         setQuote(null)
         return
       }
@@ -129,24 +133,31 @@ export function useBillingCheckoutState(): BillingCheckoutViewProps & {
 
   const todayAmount = quote?.todayChargeAmount ?? (billingCycle === 'yearly' ? 88000 : 8800)
 
+  const hasAppliedFreeMonthsCoupon =
+    Boolean(appliedPromoCode) && quote?.benefitKind === 'free_months' && quote.valid
+
   const ctaLabel = useMemo(() => {
-    if (isActiveEntitled) return '구독 관리'
+    if (isActiveEntitled) {
+      if (hasAppliedFreeMonthsCoupon) return '쿠폰 적용하기'
+      return '구독 관리'
+    }
     if (checkoutMode === 'trialing') return hasBillingKey ? '결제하기' : '결제수단 등록'
     if (quote?.benefitKind === 'free_months' && quote.coupon?.freeMonths) {
       return `${quote.coupon.freeMonths}개월 무료로 시작하기`
     }
     if (todayAmount === 0) return '무료 이용 시작하기'
     return `${formatKrw(todayAmount)} 결제하기`
-  }, [isActiveEntitled, checkoutMode, hasBillingKey, quote, todayAmount])
+  }, [isActiveEntitled, hasAppliedFreeMonthsCoupon, checkoutMode, hasBillingKey, quote, todayAmount])
 
   const ctaDisabled =
     submitting ||
     loading ||
-    (!isActiveEntitled &&
-      (quoteLoading ||
+    (isActiveEntitled
+      ? !hasAppliedFreeMonthsCoupon
+      : quoteLoading ||
         !quote ||
         !quote.valid ||
-        (quote.benefitKind !== 'free_months' && !canUseToss)))
+        (quote.benefitKind !== 'free_months' && !canUseToss))
 
   const onSelectCycle = (cycle: 'monthly' | 'yearly') => {
     setBillingCycle(cycle)
@@ -210,9 +221,42 @@ export function useBillingCheckoutState(): BillingCheckoutViewProps & {
     }
   }
 
+  const applyFreeMonthsCoupon = async () => {
+    if (!token?.trim() || !appliedPromoCode) return
+    const applied = await applyBillingPromotionCode(token, {
+      code: appliedPromoCode,
+      planCode,
+      billingCycle,
+    })
+    if (!isApplyPromotionExtensionSuccess(applied)) {
+      setError(applied.message ?? '쿠폰 적용이 완료되지 않았습니다.')
+      return
+    }
+    navigate('/billing/success', {
+      replace: true,
+      state: {
+        mode: 'trial',
+        trialEndsAt: resolveApplyPromotionTrialEndsAt(applied),
+        quote,
+      },
+    })
+  }
+
   const onPrimaryAction = async () => {
     if (!token?.trim()) return
     if (isActiveEntitled) {
+      if (hasAppliedFreeMonthsCoupon) {
+        setSubmitting(true)
+        setError('')
+        try {
+          await applyFreeMonthsCoupon()
+        } catch (e) {
+          setError(e instanceof ApiError ? e.message : e instanceof Error ? e.message : '쿠폰 적용에 실패했습니다.')
+        } finally {
+          setSubmitting(false)
+        }
+        return
+      }
       navigate('/billing/manage')
       return
     }
@@ -225,7 +269,7 @@ export function useBillingCheckoutState(): BillingCheckoutViewProps & {
           planCode,
           billingCycle,
         })
-        if (!isApplyPromotionTrialingSuccess(applied)) {
+        if (!isApplyPromotionExtensionSuccess(applied)) {
           setError(applied.message ?? '무료 이용권 적용이 완료되지 않았습니다.')
           return
         }

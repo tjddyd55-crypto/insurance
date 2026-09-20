@@ -7,6 +7,10 @@ import { INSURANCE_BASIC_PLAN_CODE } from './config.js'
 import { resolveNextPeriodEnd } from './billingPeriodDate.js'
 import { resolvePlanPaymentAmounts } from './subscriptionLifecycle.js'
 import { validateInsurancePromotionCode } from './promotionService.js'
+import {
+  computeFreeMonthsPromotionEndAt,
+  resolvePromotionExtensionBaseDate,
+} from './promotionPeriodExtension.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 
 /**
@@ -123,6 +127,20 @@ export async function buildCheckoutQuote(executor, params) {
     }
   }
 
+  const subR = userId
+    ? await systemQuery(
+        executor,
+        `
+        SELECT status, trial_ends_at, current_period_end, next_billing_at
+        FROM billing_subscriptions
+        WHERE user_id = $1
+        LIMIT 1
+        `,
+        [userId],
+      )
+    : { rows: [] }
+  const subscription = subR.rows[0] ?? null
+
   const amounts = resolveCheckoutChargeAmounts(plan, billingCycle, coupon)
   const type = coupon?.type ? String(coupon.type) : null
   const isFreeMonths = type === 'free_months'
@@ -136,11 +154,15 @@ export async function buildCheckoutQuote(executor, params) {
   if (isFreeMonths && coupon?.freeMonths) {
     benefitKind = 'free_months'
     todayChargeAmount = 0
-    const trialEnd = new Date(now)
-    trialEnd.setMonth(trialEnd.getMonth() + Number(coupon.freeMonths))
-    nextBillingAt = trialEnd.toISOString()
+    const entitlementEnd = computeFreeMonthsPromotionEndAt(subscription, coupon.freeMonths, now)
+    nextBillingAt = entitlementEnd.toISOString()
     nextChargeAmount = resolvePlanPaymentAmounts(plan, billingCycle).totalAmount
-    summaryMessage = `오늘 결제는 없고 ${coupon.freeMonths}개월 무료 이용 후 ${nextChargeAmount.toLocaleString('ko-KR')}원이 자동결제됩니다.`
+    const hasFutureEntitlement =
+      Boolean(subscription) &&
+      resolvePromotionExtensionBaseDate(subscription, now).getTime() > now.getTime()
+    summaryMessage = hasFutureEntitlement
+      ? `쿠폰 적용 시 현재 이용기간 종료 후 ${coupon.freeMonths}개월이 추가되어 ${entitlementEnd.toLocaleDateString('ko-KR')}까지 이용할 수 있습니다.`
+      : `오늘 결제는 없고 ${coupon.freeMonths}개월 무료 이용 후 ${nextChargeAmount.toLocaleString('ko-KR')}원이 자동결제됩니다.`
   } else if (amounts.discountAmount > 0) {
     benefitKind = type === 'percent_off' ? 'percent_off' : 'amount_off'
     summaryMessage =

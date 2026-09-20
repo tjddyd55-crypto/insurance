@@ -6,6 +6,11 @@ import { resolveTenantByGaId } from '../lib/crmPlatformMeta.js'
 import { assertNoActivePendingInsurancePayment } from './pendingPaymentPolicy.js'
 import { resolveNextPeriodEnd, addCalendarMonthsKst as addMonths } from './billingPeriodDate.js'
 import { isTrialPeriodActiveKst } from './subscriptionEntitlementPolicy.js'
+import {
+  computeFreeMonthsPromotionEndAt,
+  resolvePromotionApplyTargetStatus,
+  resolvePromotionExtensionBaseDate,
+} from './promotionPeriodExtension.js'
 
 /**
  * @param {import('pg').Pool | import('pg').PoolClient} executor
@@ -712,11 +717,16 @@ export async function applyFreeMonthsPromotion(client, params) {
   const billingCycle = String(params.billingCycle ?? 'monthly').trim().toLowerCase() === 'yearly' ? 'yearly' : 'monthly'
 
   const now = new Date()
-  const trialEndsAt = addMonths(now, freeMonths)
 
   const subR = await systemQuery(
     client,
-    `SELECT id, tenant_id FROM billing_subscriptions WHERE user_id = $1 LIMIT 1`,
+    `
+    SELECT id, tenant_id, status, trial_started_at, trial_ends_at,
+           current_period_start, current_period_end, next_billing_at
+    FROM billing_subscriptions
+    WHERE user_id = $1
+    LIMIT 1
+    `,
     [userId],
   )
   let sub = subR.rows[0]
@@ -727,30 +737,48 @@ export async function applyFreeMonthsPromotion(client, params) {
       `
       INSERT INTO billing_subscriptions (user_id, tenant_id, plan_code, status, billing_cycle, created_at, updated_at)
       VALUES ($1, $2, $3, 'pending_payment', $4, NOW(), NOW())
-      RETURNING id, tenant_id
+      RETURNING id, tenant_id, status, trial_started_at, trial_ends_at,
+                current_period_start, current_period_end, next_billing_at
       `,
       [userId, tenantId, planCode, billingCycle],
     )
     sub = ins.rows[0]
   }
 
+  const extensionBaseDate = resolvePromotionExtensionBaseDate(sub, now)
+  const entitlementEndsAt = computeFreeMonthsPromotionEndAt(sub, freeMonths, now)
+  const nextStatus = resolvePromotionApplyTargetStatus(sub.status)
+  const entitlementEndsAtIso = entitlementEndsAt.toISOString()
+  const extensionBaseIso = extensionBaseDate.toISOString()
+  const isTrialLike = nextStatus === 'trialing' || nextStatus === 'trial'
+
   await systemQuery(
     client,
     `
     UPDATE billing_subscriptions
     SET
-      status = 'trialing',
-      plan_code = $2,
-      billing_cycle = $3,
-      trial_started_at = NOW(),
-      trial_ends_at = $4,
-      current_period_start = NOW(),
-      current_period_end = $4,
-      promotion_code_id = $5,
+      status = $2,
+      plan_code = $3,
+      billing_cycle = $4,
+      trial_started_at = CASE
+        WHEN $5::boolean THEN COALESCE(trial_started_at, NOW())
+        ELSE trial_started_at
+      END,
+      trial_ends_at = CASE
+        WHEN $5::boolean THEN $6::timestamptz
+        ELSE trial_ends_at
+      END,
+      current_period_start = COALESCE(current_period_start, NOW()),
+      current_period_end = $6::timestamptz,
+      next_billing_at = CASE
+        WHEN $5::boolean THEN next_billing_at
+        ELSE $6::timestamptz
+      END,
+      promotion_code_id = $7,
       updated_at = NOW()
     WHERE user_id = $1
     `,
-    [userId, planCode, billingCycle, trialEndsAt.toISOString(), promo.id],
+    [userId, nextStatus, planCode, billingCycle, isTrialLike, entitlementEndsAtIso, promo.id],
   )
 
   await systemQuery(
@@ -760,15 +788,21 @@ export async function applyFreeMonthsPromotion(client, params) {
       promotion_code_id, user_id, tenant_id, subscription_id,
       redeemed_at, free_starts_at, free_ends_at, discount_snapshot_json
     )
-    VALUES ($1, $2, $3, $4, NOW(), NOW(), $5, $6::jsonb)
+    VALUES ($1, $2, $3, $4, NOW(), $5::timestamptz, $6::timestamptz, $7::jsonb)
     `,
     [
       promo.id,
       userId,
       sub.tenant_id,
       sub.id,
-      trialEndsAt.toISOString(),
-      JSON.stringify({ type: promo.type, freeMonths, code: promo.code }),
+      extensionBaseIso,
+      entitlementEndsAtIso,
+      JSON.stringify({
+        type: promo.type,
+        freeMonths,
+        code: promo.code,
+        extensionBaseAt: extensionBaseIso,
+      }),
     ],
   )
 
@@ -782,10 +816,22 @@ export async function applyFreeMonthsPromotion(client, params) {
     tenantId: sub.tenant_id,
     userId,
     eventType: 'promotion.free_months.applied',
-    payload: { code: promo.code, freeMonths, trialEndsAt: trialEndsAt.toISOString() },
+    payload: {
+      code: promo.code,
+      freeMonths,
+      extensionBaseAt: extensionBaseIso,
+      entitlementEndsAt: entitlementEndsAtIso,
+      status: nextStatus,
+    },
   })
 
-  return { status: 'trialing', trialEndsAt: trialEndsAt.toISOString(), freeMonths }
+  return {
+    status: nextStatus,
+    trialEndsAt: entitlementEndsAtIso,
+    entitlementEndsAt: entitlementEndsAtIso,
+    freeMonths,
+    extensionBaseAt: extensionBaseIso,
+  }
 }
 
 export { addMonths }
