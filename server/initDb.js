@@ -2201,15 +2201,30 @@ export async function initDb() {
     UPDATE insurance_contacts c
     SET ga_id = g.id
     FROM ga_companies g
-    WHERE g.code = 'YJASSET' AND c.ga_id IS NULL
+    WHERE g.code = 'YJASSET'
+      AND c.ga_id IS NULL
+      AND COALESCE(c.owner_scope, 'GA') = 'GA'
+      AND c.user_id IS NULL
   `)
   const nullIcGa = await pool.query(
-    `SELECT COUNT(*) AS c FROM insurance_contacts WHERE ga_id IS NULL`,
+    `
+    SELECT COUNT(*) AS c
+    FROM insurance_contacts
+    WHERE ga_id IS NULL
+      AND COALESCE(owner_scope, 'GA') = 'GA'
+      AND user_id IS NULL
+    `,
   )
   if ((nullIcGa.rows[0]?.c ?? 0) > 0) {
     throw new Error('[initDb] insurance_contacts.ga_id NULL')
   }
-  await pool.query(`ALTER TABLE insurance_contacts ALTER COLUMN ga_id SET NOT NULL`)
+  await pool.query(`
+    DO $$ BEGIN
+      ALTER TABLE insurance_contacts ALTER COLUMN ga_id SET NOT NULL;
+    EXCEPTION
+      WHEN not_null_violation THEN NULL;
+    END $$
+  `)
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_insurance_contacts_ga
     ON insurance_contacts(ga_id)
@@ -2224,6 +2239,11 @@ export async function initDb() {
     UPDATE insurance_contacts
     SET owner_scope = 'GA'
     WHERE owner_scope IS NULL OR TRIM(owner_scope) = ''
+  `)
+  await pool.query(`
+    UPDATE insurance_contacts
+    SET ga_id = NULL
+    WHERE owner_scope = 'USER' AND ga_id IS NOT NULL
   `)
   await pool.query(`ALTER TABLE insurance_contacts ALTER COLUMN ga_id DROP NOT NULL`)
   await pool.query(`
