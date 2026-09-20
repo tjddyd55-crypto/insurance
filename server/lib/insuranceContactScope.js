@@ -37,16 +37,16 @@ export function resolveInsuranceContactScope(deps, req) {
 /**
  * @param {{ scope?: string | null, gaId?: number | null, userId?: string | null }} contactScope
  */
-export function buildInsuranceContactWhereClause(contactScope) {
+export function buildInsuranceContactWhereClause(contactScope, paramOffset = 1) {
   if (contactScope.scope === 'GA') {
     return {
-      sql: 'ga_id = $1 AND owner_scope = $2',
+      sql: `ga_id = $${paramOffset} AND owner_scope = $${paramOffset + 1}`,
       params: [contactScope.gaId, 'GA'],
     }
   }
   if (contactScope.scope === 'USER') {
     return {
-      sql: 'user_id = $1 AND owner_scope = $2',
+      sql: `user_id = $${paramOffset} AND owner_scope = $${paramOffset + 1}`,
       params: [contactScope.userId, 'USER'],
     }
   }

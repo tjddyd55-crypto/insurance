@@ -366,7 +366,7 @@ export function registerInsuranceContactsApi(apiRouter, deps) {
         res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
         return
       }
-      const where = buildInsuranceContactWhereClause(contactScope)
+      const where = buildInsuranceContactWhereClause(contactScope, 2)
       if (!where) {
         res.status(401).json({ message: '인증이 필요합니다.' })
         return
