@@ -28,7 +28,6 @@ import {
 import { ensureReferralCodeForUser } from './referrals/referralCode.js'
 import { resolveCustomerInviteRef } from './referrals/resolveCustomerInviteRef.js'
 import { planSignupCodes, applySignupCodesPlan } from './signup/processSignupCodes.js'
-import { applySignupAutoPromotionOnSignup } from './signup/signupAutoPromotion.js'
 import { readPolicyActive } from './subscription/appSettings.js'
 import { registerCustomerExtraApi } from './apis/customerExtraApi.js'
 import { registerCustomerRelationGroupsApi } from './apis/registerCustomerRelationGroupsApi.js'
@@ -93,7 +92,7 @@ import {
 import { mapBoardWriterRow } from './lib/boardWriterService.js'
 import { parseGaId } from './lib/parseGaId.js'
 import { registerFeatureRequestsApi } from './apis/registerFeatureRequestsApi.js'
-import { registerInsuranceContactsReadApi } from './apis/registerInsuranceContactsReadApi.js'
+import { registerInsuranceContactsApi } from './apis/registerInsuranceContactsApi.js'
 import {
   createInsuranceContactVCard as createVCardContent,
   mapInsuranceContactRow as mapContactRow,
@@ -1628,7 +1627,7 @@ registerFeatureRequestsApi(apiRouter, {
   handleDbError,
   parseGaId,
 })
-registerInsuranceContactsReadApi(apiRouter, {
+registerInsuranceContactsApi(apiRouter, {
   pool,
   safeQuery,
   requireAuth,
@@ -1637,6 +1636,7 @@ registerInsuranceContactsReadApi(apiRouter, {
   forbiddenResponse,
   isNewsManagerRole,
   toIsoString,
+  withTransaction,
 })
 
 registerMemoApi(apiRouter, { pool, requireAuth, handleDbError })

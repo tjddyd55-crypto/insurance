@@ -48,7 +48,7 @@ import TeamPostsPage from './features/team/pages/TeamPostsPage'
 import TeamFilesPage from './features/team/pages/TeamFilesPage'
 import CompanyRegistryPage from './features/company-registry/pages/CompanyRegistryPage'
 import GeneralRequestPage from './features/company-registry/pages/GeneralRequestPage'
-import InsuranceCompanyContactsViewPage from './features/company-registry/pages/InsuranceCompanyContactsViewPage'
+import InsurerContactsEntryPage from './features/contacts/pages/InsurerContactsEntryPage'
 import UserInsurerAccountsPage from './features/user-insurer-accounts/pages/UserInsurerAccountsPage'
 import ExternalAccountVaultPage from './features/user-insurer-accounts/pages/ExternalAccountVaultPage'
 import PublicSharedAccountVaultWorkspacePage from './features/user-insurer-accounts/pages/PublicSharedAccountVaultWorkspacePage'
@@ -589,7 +589,7 @@ export const appRouter = createBrowserRouter([
                 ],
               },
               { path: 'contacts', element: <Navigate to="/insurance/contacts" replace /> },
-              { path: 'insurance/contacts', element: <InsuranceCompanyContactsViewPage /> },
+              { path: 'insurance/contacts', element: <InsurerContactsEntryPage /> },
               { path: 'ta-call', element: <TaCallPage /> },
               { path: 'sms', element: <Navigate to="/sms/settings" replace /> },
               { path: 'sms/bulk', element: <Navigate to="/sms/groups" replace /> },
