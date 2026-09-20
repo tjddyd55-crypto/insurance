@@ -2203,7 +2203,9 @@ export async function initDb() {
     FROM ga_companies g
     WHERE g.code = 'YJASSET' AND c.ga_id IS NULL
   `)
-  const nullIcGa = await pool.query(`SELECT COUNT(*) AS c FROM insurance_contacts WHERE ga_id IS NULL`)
+  const nullIcGa = await pool.query(
+    `SELECT COUNT(*) AS c FROM insurance_contacts WHERE ga_id IS NULL`,
+  )
   if ((nullIcGa.rows[0]?.c ?? 0) > 0) {
     throw new Error('[initDb] insurance_contacts.ga_id NULL')
   }
@@ -2211,6 +2213,34 @@ export async function initDb() {
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_insurance_contacts_ga
     ON insurance_contacts(ga_id)
+  `)
+
+  await pool.query(`
+    ALTER TABLE insurance_contacts
+    ADD COLUMN IF NOT EXISTS user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+    ADD COLUMN IF NOT EXISTS owner_scope TEXT NOT NULL DEFAULT 'GA'
+  `)
+  await pool.query(`
+    UPDATE insurance_contacts
+    SET owner_scope = 'GA'
+    WHERE owner_scope IS NULL OR TRIM(owner_scope) = ''
+  `)
+  await pool.query(`ALTER TABLE insurance_contacts ALTER COLUMN ga_id DROP NOT NULL`)
+  await pool.query(`
+    DO $$ BEGIN
+      ALTER TABLE insurance_contacts ADD CONSTRAINT insurance_contacts_owner_invariant
+      CHECK (
+        (owner_scope = 'GA' AND ga_id IS NOT NULL AND user_id IS NULL)
+        OR (owner_scope = 'USER' AND user_id IS NOT NULL AND ga_id IS NULL)
+      );
+    EXCEPTION
+      WHEN duplicate_object THEN NULL;
+    END $$
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_insurance_contacts_user
+    ON insurance_contacts(user_id)
+    WHERE user_id IS NOT NULL
   `)
 
   await pool.query(`

@@ -36,8 +36,10 @@ export async function getInsuranceUpdates(token: string) {
 export async function createInsuranceContact(
   payload: UpsertInsuranceContactPayload,
   token: string,
+  options?: { personal?: boolean },
 ) {
-  return apiRequest<InsuranceContact>('/api/admin/insurance/contacts', {
+  const path = options?.personal ? '/api/insurance/contacts' : '/api/admin/insurance/contacts'
+  return apiRequest<InsuranceContact>(path, {
     method: 'POST',
     token,
     body: JSON.stringify(payload),
@@ -48,8 +50,12 @@ export async function updateInsuranceContact(
   contactId: string,
   payload: UpsertInsuranceContactPayload,
   token: string,
+  options?: { personal?: boolean },
 ) {
-  return apiRequest<InsuranceContact>(`/api/admin/insurance/contacts/${contactId}`, {
+  const path = options?.personal
+    ? `/api/insurance/contacts/${encodeURIComponent(contactId)}`
+    : `/api/admin/insurance/contacts/${contactId}`
+  return apiRequest<InsuranceContact>(path, {
     method: 'PUT',
     token,
     body: JSON.stringify(payload),
@@ -60,8 +66,12 @@ export async function deleteInsuranceContact(
   contactId: string,
   token: string,
   description?: string,
+  options?: { personal?: boolean },
 ) {
-  return apiRequest<void>(`/api/admin/insurance/contacts/${contactId}`, {
+  const path = options?.personal
+    ? `/api/insurance/contacts/${encodeURIComponent(contactId)}`
+    : `/api/admin/insurance/contacts/${contactId}`
+  return apiRequest<void>(path, {
     method: 'DELETE',
     token,
     body: JSON.stringify({ description }),

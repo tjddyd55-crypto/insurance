@@ -92,6 +92,8 @@ import {
 } from './lib/boardWriterAccountService.js'
 import { mapBoardWriterRow } from './lib/boardWriterService.js'
 import { parseGaId } from './lib/parseGaId.js'
+import { registerFeatureRequestsApi } from './apis/registerFeatureRequestsApi.js'
+import { registerInsuranceContactsApi } from './apis/registerInsuranceContactsApi.js'
 import {
   FEATURE_REQUEST_COMMENT_COUNT_SUBQUERY_SQL,
   FEATURE_REQUEST_COMMENT_INSERT_SQL,
@@ -1655,6 +1657,25 @@ registerNotificationsApi(apiRouter, { pool, requireAuth, handleDbError })
 registerPushDevicesApi(apiRouter, { pool, requireAuth, handleDbError })
 registerNoticesApi(apiRouter, { pool, requireAuth, handleDbError })
 registerAdminNoticesApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
+registerFeatureRequestsApi(apiRouter, {
+  pool,
+  safeQuery,
+  requireAuth,
+  requireSuperAdmin,
+  handleDbError,
+  parseGaId,
+})
+registerInsuranceContactsApi(apiRouter, {
+  pool,
+  safeQuery,
+  requireAuth,
+  handleDbError,
+  effectiveTenantGaId,
+  forbiddenResponse,
+  isNewsManagerRole,
+  toIsoString,
+  withTransaction,
+})
 
 registerMemoApi(apiRouter, { pool, requireAuth, handleDbError })
 // user-insurer-accounts: 문자열 경로(share-visibility 등)를 :id 파라미터 라우트보다 먼저 등록해야

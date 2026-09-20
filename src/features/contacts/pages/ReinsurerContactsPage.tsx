@@ -6,6 +6,7 @@ import { StatusMessage } from '../../../components/feedback'
 import { PageToolbar } from '../../../components/layout'
 import { useAuth } from '../../auth/AuthProvider'
 import { isInsuranceOpsRole } from '../../auth/roleGuards'
+import { isGaMemberUser } from '../../entitlements/featureEntitlementPolicy'
 import {
   createInsuranceContact,
   deleteInsuranceContact,
@@ -60,12 +61,20 @@ function toPayload(form: ContactFormState): UpsertInsuranceContactPayload {
   }
 }
 
-export function ReinsurerContactsPage() {
+type ReinsurerContactsPageProps = {
+  /** GENERAL 사용자 개인 연락처 관리 */
+  mode?: 'default' | 'personal'
+}
+
+export function ReinsurerContactsPage({ mode = 'default' }: ReinsurerContactsPageProps) {
   const navigate = useNavigate()
   const { user, token, isAuthenticated } = useAuth()
   const { confirm, confirmDialog } = useConfirmDialog()
+  const isPersonalMode = mode === 'personal' || !isGaMemberUser(user)
   const isAdmin =
     isAuthenticated && !!user && isInsuranceOpsRole(user.role)
+  const canManageContacts =
+    isAdmin || (isPersonalMode && isAuthenticated && user?.role === 'USER')
   const [contacts, setContacts] = useState<InsuranceContact[]>([])
   const [lastUpdatedAt, setLastUpdatedAt] = useState('')
   const [searchText, setSearchText] = useState('')
@@ -149,8 +158,8 @@ export function ReinsurerContactsPage() {
   }
 
   const handleSubmit = async () => {
-    if (!isAdmin || !token) {
-      setStatusText('관리자 로그인 후 저장할 수 있습니다.')
+    if (!canManageContacts || !token) {
+      setStatusText('로그인 후 저장할 수 있습니다.')
       return
     }
 
@@ -163,10 +172,10 @@ export function ReinsurerContactsPage() {
     setIsSubmitting(true)
     try {
       if (form.id) {
-        await updateInsuranceContact(form.id, payload, token)
+        await updateInsuranceContact(form.id, payload, token, { personal: isPersonalMode })
         setStatusText('연락처를 수정했습니다.')
       } else {
-        await createInsuranceContact(payload, token)
+        await createInsuranceContact(payload, token, { personal: isPersonalMode })
         setStatusText('연락처를 등록했습니다.')
       }
       setForm(EMPTY_FORM)
@@ -179,8 +188,8 @@ export function ReinsurerContactsPage() {
   }
 
   const handleDelete = async (contact: InsuranceContact) => {
-    if (!isAdmin || !token) {
-      setStatusText('관리자 로그인 후 삭제할 수 있습니다.')
+    if (!canManageContacts || !token) {
+      setStatusText('로그인 후 삭제할 수 있습니다.')
       return
     }
     const confirmed = await confirm({
@@ -193,7 +202,7 @@ export function ReinsurerContactsPage() {
     }
 
     try {
-      await deleteInsuranceContact(contact.id, token, '연락처 삭제')
+      await deleteInsuranceContact(contact.id, token, '연락처 삭제', { personal: isPersonalMode })
       if (form.id === contact.id) {
         setForm(EMPTY_FORM)
       }
@@ -282,9 +291,11 @@ export function ReinsurerContactsPage() {
         status={<StatusMessage message={statusText} />}
       />
 
-      {isAdmin ? (
+      {canManageContacts ? (
         <section className="card contacts-admin-form">
-          <h2 className="dashboard-section-title">관리자 입력</h2>
+          <h2 className="dashboard-section-title">
+            {isPersonalMode ? '내 원수사 연락처' : '관리자 입력'}
+          </h2>
           <div className="contacts-admin-grid">
             <FieldWrapper label="구분">
               <FormSelect
