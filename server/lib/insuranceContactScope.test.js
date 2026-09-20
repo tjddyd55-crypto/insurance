@@ -38,5 +38,12 @@ describe('insuranceContactScope', () => {
     })
     assert.match(userWhere.sql, /user_id/)
     assert.deepEqual(userWhere.params, ['user-b', 'USER'])
+
+    const offsetWhere = buildInsuranceContactWhereClause(
+      { scope: 'USER', gaId: null, userId: 'user-c' },
+      2,
+    )
+    assert.match(offsetWhere.sql, /\$2/)
+    assert.match(offsetWhere.sql, /\$3/)
   })
 })

@@ -6,6 +6,17 @@ function normalizePathname(pathname: string): string {
   return base.endsWith('/') && base.length > 1 ? base.replace(/\/+$/, '') : base
 }
 
+const GLOBAL_NEWSLETTER_BOARD_SLUG = 'shared-news'
+
+function inferNewsletterBoardScopeFromPath(normalized: string): string | null {
+  const match = normalized.match(/^\/portal\/boards\/([^/]+)/)
+  if (!match) return null
+  if (match[1] === GLOBAL_NEWSLETTER_BOARD_SLUG) {
+    return 'global'
+  }
+  return null
+}
+
 /** @param boardScope global 보드는 shared-newsletter (FREE) */
 export function resolveNewsletterBoardFeature(
   boardScope?: string | null,
@@ -56,7 +67,9 @@ export function resolveFeatureKeyFromPath(
     return FEATURE_KEYS.LOSS_ADJUSTER_NEWSLETTER
   }
   if (normalized.startsWith('/portal/boards/')) {
-    return resolveNewsletterBoardFeature(options?.newsletterBoardScope)
+    const boardScope =
+      options?.newsletterBoardScope ?? inferNewsletterBoardScopeFromPath(normalized)
+    return resolveNewsletterBoardFeature(boardScope)
   }
   if (normalized === '/application' || normalized.startsWith('/application/')) {
     return FEATURE_KEYS.APPLICATION
