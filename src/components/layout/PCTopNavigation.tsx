@@ -12,6 +12,11 @@ import { listVisibleNewsletterBoards } from '../../features/insurer-news/service
 import { mapNewsletterBoardsToMenuItems } from '../../features/insurer-news/utils/newsletterBoardMenuLinks'
 import { NotificationBell } from '../../features/notification/components/NotificationBell'
 import BillingStatusBadge from '../../features/insurance-billing/components/BillingStatusBadge'
+import { useInsuranceBillingSummary } from '../../features/insurance-billing/hooks/useInsuranceBillingSummary'
+import {
+  resolveEntitlementMenuNavigationPath,
+  resolveHasActivePaidAccess,
+} from '../../features/entitlements/featureEntitlementGuard'
 import { isActivePcNavigationPath } from './pcNavigationUtils'
 import './pc-top-navigation.css'
 
@@ -151,11 +156,15 @@ export default function PCTopNavigation({
     }
   }, [])
 
+  const { summary: billingSummary } = useInsuranceBillingSummary()
+  const hasActivePaidAccess = resolveHasActivePaidAccess(user, billingSummary)
+
   const items = useMemo(() => {
     return buildAppMenuForSession(user?.role, user?.gaCode, user?.gaName, {
       teamMenuManageVisible,
       dynamicNewsletterBoards,
       subscriptionExpired: user?.subscription?.effectiveStatus === 'EXPIRED',
+      hasActivePaidAccess,
     })
   }, [
     teamMenuManageVisible,
@@ -164,6 +173,7 @@ export default function PCTopNavigation({
     user?.gaCode,
     user?.gaName,
     user?.subscription?.effectiveStatus,
+    hasActivePaidAccess,
   ])
 
   const groups = useMemo(() => buildMenuGroups(items), [items])
@@ -269,7 +279,7 @@ export default function PCTopNavigation({
                     if (!item.path.trim() || item.path === '#') {
                       return
                     }
-                    navigate(item.path)
+                    navigate(resolveEntitlementMenuNavigationPath(item, billingSummary))
                     closeSubMenus()
                   }}
                 >

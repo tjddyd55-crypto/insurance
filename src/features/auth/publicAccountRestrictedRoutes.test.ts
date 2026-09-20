@@ -29,10 +29,10 @@ describe('public account restricted paths', () => {
   it('blocks ga-only menu paths', () => {
     expect(isPublicAccountGaOnlyMenuPath('/application/documents')).toBe(true)
     expect(isPublicAccountGaOnlyMenuPath('/contracts/signatures/send')).toBe(true)
-    expect(isPublicAccountGaOnlyMenuPath('/team/files')).toBe(true)
     expect(isPublicAccountGaOnlyMenuPath('/portal/newsletters')).toBe(true)
     expect(isPublicAccountGaOnlyMenuPath('/portal/adjuster-news')).toBe(true)
-    expect(isPublicAccountGaOnlyMenuPath('/insurance/contacts')).toBe(true)
+    expect(isPublicAccountGaOnlyMenuPath('/team/files')).toBe(false)
+    expect(isPublicAccountGaOnlyMenuPath('/insurance/contacts')).toBe(false)
     expect(isPublicAccountGaOnlyMenuPath('/portal/boards/global-test')).toBe(false)
     expect(isPublicAccountGaOnlyMenuPath('/dashboard')).toBe(false)
   })
@@ -42,7 +42,7 @@ describe('public account restricted paths', () => {
     expect(isPublicAccountGaOnlyPath('/application/documents/history')).toBe(true)
     expect(isPublicAccountGaOnlyPath('/portal/newsletters/123')).toBe(true)
     expect(isPublicAccountGaOnlyPath('/portal/adjuster-news/recent')).toBe(true)
-    expect(isPublicAccountGaOnlyPath('/insurance/contacts')).toBe(true)
+    expect(isPublicAccountGaOnlyPath('/insurance/contacts')).toBe(false)
     expect(isPublicAccountGaOnlyPath('/portal/boards/global-test')).toBe(false)
     expect(isPublicAccountGaOnlyPath('/contract-signatures')).toBe(false)
     expect(isPublicAccountGaOnlyPath('/customers/12/application-documents')).toBe(true)
@@ -60,7 +60,7 @@ describe('public account restricted paths', () => {
     )
   })
 
-  it('rewrites ga-only menu paths without disabling or badge', () => {
+  it('does not rewrite menu paths (badge + route guard policy)', () => {
     const entries = applyPublicAccountMenuPathRestrictions(
       [
         { type: 'link', label: '신청서 작성', path: '/application/documents' },
@@ -69,10 +69,8 @@ describe('public account restricted paths', () => {
       ],
       true,
     )
-    expect(entries[0]?.path).toBe('/public-account-restricted?from=%2Fapplication%2Fdocuments')
-    expect(entries[0]?.disabled).toBeUndefined()
-    expect(entries[0]?.badge).toBeUndefined()
-    expect(entries[1]?.path).toBe('/public-account-restricted?from=%2Finsurance%2Fcontacts')
+    expect(entries[0]?.path).toBe('/application/documents')
+    expect(entries[1]?.path).toBe('/insurance/contacts')
     expect(entries[2]?.path).toBe('/portal/boards/shared-news')
   })
 })

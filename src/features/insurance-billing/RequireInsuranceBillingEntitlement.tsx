@@ -1,64 +1,29 @@
-import { useEffect, useState } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
-import { fetchCheckoutSummary, type CheckoutSummary } from '../insurance-billing/api/insuranceBillingApi'
+import { isBillingUiHiddenForUser } from '../billing/storeReviewBillingAccess'
+import {
+  buildFeatureAccessContext,
+  evaluateRouteFeatureAccess,
+} from '../entitlements/featureEntitlementGuard'
 import {
   isInsuranceBillingAllowlistedPath,
   isInsuranceBillingEnabledClient,
   isInsuranceBillingEnforceAccessClient,
-} from '../insurance-billing/insuranceBillingConfig'
+} from './insuranceBillingConfig'
 import {
   hasActiveBillingEntitlementClient,
   resolveBillingAccessRedirectPath,
-} from '../insurance-billing/insuranceBillingEntitlement'
-import { isBillingUiHiddenForUser } from '../billing/storeReviewBillingAccess'
+} from './insuranceBillingEntitlement'
+import { useInsuranceBillingSummary } from './hooks/useInsuranceBillingSummary'
 
 /**
- * 보험 CRM 결제단 Phase 1 라우트 가드.
- * INSURANCE_BILLING_ENABLED + ENFORCE_ACCESS 가 켜진 경우에만 차단한다.
- *
- * AppWorkspaceLayout(상단바·메뉴·로그아웃) 바깥이 아니라, 레이아웃 안의 CRM 라우트만 감싼다.
- * /billing/* 는 형제 라우트로 레이아웃을 유지한 채 접근 가능하다.
+ * 보험 CRM 결제단 라우트 가드.
+ * feature SSOT 기준으로 유료 기능만 차단하고, 무료 허용 기능은 통과한다.
  */
 export function RequireInsuranceBillingEntitlement() {
-  const { token, user } = useAuth()
+  const { user } = useAuth()
   const location = useLocation()
-  const [summary, setSummary] = useState<CheckoutSummary | null>(null)
-  const [fetchFailed, setFetchFailed] = useState(false)
-  const [checked, setChecked] = useState(!isInsuranceBillingEnabledClient())
-
-  useEffect(() => {
-    if (!isInsuranceBillingEnabledClient() || user?.role !== 'USER') {
-      setChecked(true)
-      return
-    }
-    if (!token?.trim()) {
-      setChecked(true)
-      return
-    }
-    let cancelled = false
-    void (async () => {
-      try {
-        const nextSummary = await fetchCheckoutSummary(token)
-        if (!cancelled) {
-          setSummary(nextSummary)
-          setFetchFailed(false)
-        }
-      } catch {
-        if (!cancelled) {
-          setSummary(null)
-          setFetchFailed(true)
-        }
-      } finally {
-        if (!cancelled) {
-          setChecked(true)
-        }
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [token, user?.role])
+  const { summary, checked, fetchFailed } = useInsuranceBillingSummary()
 
   if (!isInsuranceBillingEnabledClient()) {
     return <Outlet />
@@ -86,6 +51,30 @@ export function RequireInsuranceBillingEntitlement() {
 
   if (fetchFailed) {
     return <Outlet />
+  }
+
+  const ctx = buildFeatureAccessContext(user, summary)
+  const { featureKey, verdict } = evaluateRouteFeatureAccess(location.pathname, ctx)
+
+  if (featureKey && verdict) {
+    if (verdict.allowed || verdict.reason === 'ga_required') {
+      return <Outlet />
+    }
+    if (verdict.reason === 'paid_required') {
+      return (
+        <Navigate
+          to={resolveBillingAccessRedirectPath(location.pathname, {
+            subscriptionStatus: summary?.subscriptionStatus,
+            status: summary?.status,
+            trialEndsAt: summary?.trialEndsAt,
+            currentPeriodEnd: summary?.currentPeriodEnd,
+            isEntitled: summary?.isEntitled,
+          })}
+          replace
+          state={{ from: location.pathname, reason: 'insurance-billing-required' }}
+        />
+      )
+    }
   }
 
   if (
