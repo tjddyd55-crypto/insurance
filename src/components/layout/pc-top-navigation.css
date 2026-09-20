@@ -50,6 +50,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 6px;
     padding: 0 14px;
     border: 0;
     border-radius: 10px;
@@ -158,10 +159,20 @@
     cursor: not-allowed;
   }
 
+  .pc-top-navigation__group-label,
   .pc-top-navigation__item-label {
     white-space: nowrap;
   }
 
+  .pc-top-navigation__group-badges,
+  .pc-top-navigation__item-badges {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+  }
+
+  .pc-top-navigation__badge-chip,
   .pc-top-navigation__item-badge {
     flex: 0 0 auto;
     padding: 2px 6px;
@@ -241,6 +252,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 6px;
     padding: 0 14px;
     border: 0;
     border-radius: 10px;
@@ -363,10 +375,20 @@
     cursor: not-allowed;
   }
 
+  .pc-top-navigation__group-label,
   .pc-top-navigation__item-label {
     white-space: nowrap;
   }
 
+  .pc-top-navigation__group-badges,
+  .pc-top-navigation__item-badges {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+  }
+
+  .pc-top-navigation__badge-chip,
   .pc-top-navigation__item-badge {
     flex: 0 0 auto;
     padding: 2px 6px;

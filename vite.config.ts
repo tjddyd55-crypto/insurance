@@ -16,6 +16,11 @@ const insurancePkg = JSON.parse(
  * (모바일 WebView 처럼 문서를 자동 reload 하지 않는 환경에서 "옛 번들 고착" 을 끊기 위함)
  */
 const WEB_BUILD_ID = process.env.INSURANCE_WEB_BUILD_ID?.trim() || Date.now().toString()
+const GIT_COMMIT_SHA =
+  process.env.RAILWAY_GIT_COMMIT_SHA?.trim() ||
+  process.env.GITHUB_SHA?.trim() ||
+  process.env.GIT_COMMIT?.trim() ||
+  ''
 
 /** dist/version.json 을 방출한다. 클라이언트는 이 파일을 polling 해 buildId 변화를 본다. */
 function emitVersionManifest(buildId: string, version: string): Plugin {
@@ -26,7 +31,11 @@ function emitVersionManifest(buildId: string, version: string): Plugin {
       this.emitFile({
         type: 'asset',
         fileName: 'version.json',
-        source: JSON.stringify({ buildId, version }),
+        source: JSON.stringify({
+          buildId,
+          version,
+          ...(GIT_COMMIT_SHA ? { gitCommitSha: GIT_COMMIT_SHA } : {}),
+        }),
       })
     },
   }
