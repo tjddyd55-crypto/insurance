@@ -5,6 +5,7 @@ import {
   resolveShareLinkAlimtalkSendMode,
 } from './alimtalkConfig.js'
 import { ensureCustomerAppUniversalUrl } from './customerAppLinkForAlimtalk.js'
+import { buildCustomerAppAlimtalkButtonUrl } from './alimtalkShareLinkPublicUrl.js'
 import { ensureAlimtalkSendLogsTable, insertAlimtalkSendLog } from './alimtalkLogService.js'
 import { maskAlimtalkReceiver, normalizeAlimtalkPhone, validateAlimtalkPhone } from './alimtalkPhone.js'
 import { sendAligoAlimtalk } from './alimtalkProvider.js'
@@ -210,8 +211,23 @@ export async function sendCustomerAppLinkAlimtalk(pool, params) {
     }
   }
 
-  const buttonPayload = template.buildButtonPayload({ customerAppUrl: link.customerAppUrl })
   const runtimeEnv = params.templateEnv ?? process.env
+  const alimtalkButtonUrl = buildCustomerAppAlimtalkButtonUrl(link.linkCode, runtimeEnv)
+  if (!alimtalkButtonUrl) {
+    return {
+      success: false,
+      httpStatus: 500,
+      error: '고객앱 알림톡 버튼 URL을 생성하지 못했습니다.',
+      data: {
+        status: 'failed',
+        templateKey: template.key,
+        receiverMasked,
+        provider: config.provider,
+        providerMessage: 'alimtalk button url build failed',
+      },
+    }
+  }
+  const buttonPayload = template.buildButtonPayload({ customerAppUrl: alimtalkButtonUrl })
   const { wouldAttemptRealSend, effectiveDryRun } = resolveShareLinkAlimtalkSendMode(config, {
     forceDryRun: params.forceDryRun,
     receiverDigits: phoneDigits,
@@ -336,7 +352,8 @@ export async function sendCustomerAppLinkAlimtalk(pool, params) {
       apikey: config.apiKey,
       senderkey: config.senderKey,
       receiver_1: phoneDigits,
-      linkMo: link.customerAppUrl,
+      linkMo: alimtalkButtonUrl,
+      customerAppUrlUi: link.customerAppUrl,
     },
   }).catch(() => null)
 

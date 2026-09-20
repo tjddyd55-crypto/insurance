@@ -152,7 +152,37 @@ describe('sendCustomerRegistrationLinkAlimtalk', () => {
     assert.equal(sendInput?.emtitle, '고객정보 등록 안내')
     assert.equal(sendInput?.buttonPayload?.button?.[0]?.name, '고객정보 등록')
     assert.match(String(sendInput?.buttonPayload?.button?.[0]?.linkMo), /\/customer\/register\?/)
+    assert.match(
+      String(sendInput?.buttonPayload?.button?.[0]?.linkMo),
+      /insurance-production-7bd8\.up\.railway\.app/,
+    )
     assert.match(String(sendInput?.message), /담당자 박담당입니다/)
+  })
+
+  it('uses approved production domain for alimtalk button when req host is dev', async () => {
+    /** @type {unknown} */
+    let sendInput = null
+    await sendCustomerRegistrationLinkAlimtalk(createPool(), {
+      agentId: 'user-1',
+      receiver: '01012345678',
+      user: { id: 'user-1', role: 'USER', gaId: 1, username: 'tjddyd55', gaCode: 'YJASSET' },
+      reqLike: { protocol: 'https', host: 'insurance-dev.up.railway.app' },
+      forceDryRun: true,
+      config: loadInsuranceAlimtalkConfig({
+        INSURANCE_ALIGO_KAKAO_DRY_RUN: 'true',
+        INSURANCE_ALIGO_KAKAO_API_KEY: 'k',
+        INSURANCE_ALIGO_KAKAO_USER_ID: 'u',
+        INSURANCE_ALIGO_KAKAO_SENDER_KEY: 's',
+        INSURANCE_ALIGO_KAKAO_SENDER: '01011112222',
+      }),
+      sendFn: async (input) => {
+        sendInput = input
+        return { ok: true, status: 'dry_run', dryRun: true, provider: 'aligo_alimtalk', providerMessage: 'dry run' }
+      },
+    })
+    const linkMo = String(sendInput?.buttonPayload?.button?.[0]?.linkMo ?? '')
+    assert.match(linkMo, /insurance-production-7bd8\.up\.railway\.app\/customer\/register\?ref=tjddyd55&ga=YJASSET/)
+    assert.doesNotMatch(linkMo, /insurance-dev/)
   })
 
   it('keeps dry_run for non-allowlisted receiver in development', async () => {

@@ -109,12 +109,53 @@ describe('alimtalkService customer app link', () => {
     assert.equal(sendInput?.tplCode, 'UJ_6184')
     assert.equal(sendInput?.subject, '고객앱 안내')
     assert.equal(sendInput?.buttonPayload?.button?.[0]?.name, '고객앱 열기')
-    assert.equal(sendInput?.buttonPayload?.button?.[0]?.linkMo, 'https://example.com/customer-app/link?code=ABC123')
+    assert.equal(
+      sendInput?.buttonPayload?.button?.[0]?.linkMo,
+      'https://insurance-production-7bd8.up.railway.app/customer-app/link?code=ABC123',
+    )
     assert.match(String(sendInput?.message), /김철수님, 안녕하세요\./)
     assert.match(String(sendInput?.message), /박담당입니다\./)
     // sendFn is our stub — "fetch" not used; dryRun path does not need HTTP
     assert.equal(typeof sendInput, 'object')
     void fetchCalled
+  })
+
+  it('uses approved production domain for alimtalk button while keeping ui url from link helper', async () => {
+    /** @type {unknown} */
+    let sendInput = null
+    const result = await sendCustomerAppLinkAlimtalk(createMockPool({
+      id: 10,
+      name: '김철수',
+      phone: '01012345678',
+      deleted_at: null,
+    }), {
+      agentId: 'user-1',
+      customerId: 10,
+      user: { id: 'user-1', role: 'USER', gaId: 1 },
+      reqLike: { protocol: 'https', host: 'insurance-dev.up.railway.app' },
+      forceDryRun: true,
+      skipEnsureLogTable: true,
+      config: loadInsuranceAlimtalkConfig({ INSURANCE_ALIGO_KAKAO_DRY_RUN: 'true' }),
+      ensureLinkFn: async () => ({
+        ok: true,
+        error: null,
+        customerAppUrl: 'https://insurance-dev.up.railway.app/customer-app/link?code=ABC123',
+        linkCode: 'ABC123',
+      }),
+      sendFn: async (input) => {
+        sendInput = input
+        return { ok: true, status: 'dry_run', dryRun: true, providerMessage: 'dry run' }
+      },
+    })
+    assert.equal(result.success, true)
+    assert.equal(
+      result.data.customerAppUrl,
+      'https://insurance-dev.up.railway.app/customer-app/link?code=ABC123',
+    )
+    assert.equal(
+      sendInput?.buttonPayload?.button?.[0]?.linkMo,
+      'https://insurance-production-7bd8.up.railway.app/customer-app/link?code=ABC123',
+    )
   })
 
   it('uses body receiver override when provided', async () => {

@@ -6,8 +6,8 @@ import {
 } from './alimtalkConfig.js'
 import {
   buildCustomerRegistrationInviteUrl,
-  resolveCustomerRegistrationPublicOrigin,
 } from './customerRegistrationLinkUrl.js'
+import { resolveApprovedAlimtalkPublicOrigin } from './alimtalkShareLinkPublicUrl.js'
 import { ensureAlimtalkSendLogsTable, insertAlimtalkSendLog } from './alimtalkLogService.js'
 import { maskAlimtalkReceiver, normalizeAlimtalkPhone, validateAlimtalkPhone } from './alimtalkPhone.js'
 import { sendAligoAlimtalk } from './alimtalkProvider.js'
@@ -118,7 +118,8 @@ export async function sendCustomerRegistrationLinkAlimtalk(pool, params) {
       .toUpperCase()
   const managerName = profile?.managerName || '담당자'
 
-  const origin = resolveCustomerRegistrationPublicOrigin(params.reqLike)
+  const runtimeEnv = params.templateEnv ?? process.env
+  const origin = resolveApprovedAlimtalkPublicOrigin(runtimeEnv)
   const registrationUrl = buildCustomerRegistrationInviteUrl({
     origin,
     refUsername,
@@ -141,7 +142,6 @@ export async function sendCustomerRegistrationLinkAlimtalk(pool, params) {
 
   const message = template.buildMessage({ managerName })
   const buttonPayload = template.buildButtonPayload({ registrationUrl })
-  const runtimeEnv = params.templateEnv ?? process.env
   const { wouldAttemptRealSend, effectiveDryRun } = resolveShareLinkAlimtalkSendMode(config, {
     forceDryRun: params.forceDryRun,
     receiverDigits: phoneDigits,
