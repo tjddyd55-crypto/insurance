@@ -28,7 +28,6 @@ import {
 import { ensureReferralCodeForUser } from './referrals/referralCode.js'
 import { resolveCustomerInviteRef } from './referrals/resolveCustomerInviteRef.js'
 import { planSignupCodes, applySignupCodesPlan } from './signup/processSignupCodes.js'
-import { applySignupAutoPromotionOnSignup } from './signup/signupAutoPromotion.js'
 import { readPolicyActive } from './subscription/appSettings.js'
 import { registerCustomerExtraApi } from './apis/customerExtraApi.js'
 import { registerCustomerRelationGroupsApi } from './apis/registerCustomerRelationGroupsApi.js'
@@ -2479,12 +2478,6 @@ async function handleRegister(req, res) {
       throw e
     }
     client.release()
-
-    try {
-      await applySignupAutoPromotionOnSignup(pool, { userId: id, gaId })
-    } catch (autoPromoErr) {
-      console.warn('[handleRegister] launch auto promotion skipped:', autoPromoErr?.message ?? autoPromoErr)
-    }
 
     if (phoneNorm) {
       await pool.query(`DELETE FROM sms_verification_codes WHERE purpose = 'SIGNUP' AND phone_number = $1`, [
