@@ -4,8 +4,8 @@ import { describe, it } from 'node:test'
 import { isSignupAutoPromotionEnabled } from './freeLaunchPolicy.js'
 
 describe('signup flow integration policy', () => {
-  it('registerAuthApi does not invoke applySignupAutoPromotionOnSignup', () => {
-    const source = readFileSync(new URL('../auth/registerAuthApi.js', import.meta.url), 'utf8')
+  it('signup handler does not invoke applySignupAutoPromotionOnSignup', () => {
+    const source = readFileSync(new URL('../index.js', import.meta.url), 'utf8')
     assert.doesNotMatch(source, /applySignupAutoPromotionOnSignup/)
   })
 
