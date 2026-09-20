@@ -38,6 +38,12 @@ const DISABLE_VARS = {
   INSURANCE_ALIGO_KAKAO_DEV_RECIPIENT_ALLOWLIST: '',
 }
 
+const DISABLE_DELETE_KEYS = [
+  'INSURANCE_ALIGO_KAKAO_API_KEY',
+  'INSURANCE_ALIGO_KAKAO_USER_ID',
+  'INSURANCE_ALIGO_KAKAO_SENDER_KEY',
+]
+
 function sh(cmd) {
   return execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim()
 }
@@ -48,10 +54,9 @@ function readVars(environment) {
 }
 
 function setDevVars(pairs) {
-  const args = Object.entries(pairs)
-    .map(([key, value]) => `${key}=${value}`)
-    .join(' ')
-  sh(`railway variables -e development -s app --set ${args}`)
+  for (const [key, value] of Object.entries(pairs)) {
+    sh(`railway variable set ${key}=${value} -e development -s app --json`)
+  }
 }
 
 function safeStatus(vars) {
@@ -99,9 +104,16 @@ if (MODE === 'enable') {
   process.exit(0)
 }
 
+function deleteDevVars(keys) {
+  for (const key of keys) {
+    sh(`railway variable delete ${key} -e development -s app --json`)
+  }
+}
+
 if (MODE === 'disable') {
   setDevVars(DISABLE_VARS)
-  console.log(JSON.stringify({ mode: 'disable', development: safeStatus({ ...readVars('development'), ...DISABLE_VARS }) }, null, 2))
+  deleteDevVars(DISABLE_DELETE_KEYS)
+  console.log(JSON.stringify({ mode: 'disable', development: safeStatus(readVars('development')) }, null, 2))
   process.exit(0)
 }
 
