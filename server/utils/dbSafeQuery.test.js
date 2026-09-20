@@ -1,11 +1,34 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { sqlHasNewsletterBoardTenantVisibilityScope } from './dbSafeQuery.js'
+import {
+  sqlHasNewsletterBoardTenantVisibilityScope,
+  sqlHasUserOwnershipScope,
+} from './dbSafeQuery.js'
 import {
   GA_ADMIN_NEWSLETTER_BOARDS_LIST_SQL,
   NEWSLETTER_BOARD_BY_SLUG_TENANT_SQL,
   NEWSLETTER_BOARDS_VISIBLE_LIST_SQL,
 } from '../lib/newsletterBoardAdminSql.js'
+
+test('user ownership scope — insurance contacts GENERAL list SQL approved', () => {
+  assert.equal(
+    sqlHasUserOwnershipScope(`
+      SELECT * FROM insurance_contacts
+      WHERE user_id = $1 AND owner_scope = $2
+      ORDER BY sort_order ASC, id ASC
+    `),
+    true,
+  )
+})
+
+test('user ownership scope — user_id without owner_scope rejected', () => {
+  assert.equal(
+    sqlHasUserOwnershipScope(`
+      SELECT * FROM insurance_contacts WHERE user_id = $1
+    `),
+    false,
+  )
+})
 
 test('newsletter board visibility scope — visible list SQL approved', () => {
   assert.equal(sqlHasNewsletterBoardTenantVisibilityScope(NEWSLETTER_BOARDS_VISIBLE_LIST_SQL), true)

@@ -25,6 +25,10 @@ describe('4-tier web route entitlement integration', () => {
     expect(routeAllowed('/insurance/contacts', 'FREE_GENERAL')).toBe(true)
     expect(routeAllowed('/insurance/insurer-sites', 'FREE_GENERAL')).toBe(true)
     expect(routeAllowed('/portal/boards/shared-news', 'FREE_GENERAL')).toBe(true)
+    expect(
+      routeAllowed('/portal/boards/%EA%B3%B5%EC%9A%A9-%EC%86%8C%EC%8B%9D%EC%A7%80', 'FREE_GENERAL'),
+    ).toBe(true)
+    expect(routeAllowed('/portal/adjuster-news', 'FREE_GENERAL')).toBe(false)
     expect(routeAllowed('/customers', 'FREE_GENERAL')).toBe(false)
     expect(routeAllowed('/premium-payments', 'FREE_GENERAL')).toBe(false)
     expect(routeAllowed('/claim-requests', 'FREE_GENERAL')).toBe(false)

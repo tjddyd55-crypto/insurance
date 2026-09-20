@@ -8,11 +8,57 @@ function normalizePathname(pathname: string): string {
 
 const GLOBAL_NEWSLETTER_BOARD_SLUG = 'shared-news'
 
-function inferNewsletterBoardScopeFromPath(normalized: string): string | null {
+/** Production 및 레거시 공유 소식지 slug — API 로드 전 guard/안내 문구 폴백 */
+const KNOWN_GLOBAL_NEWSLETTER_BOARD_SLUGS = new Set([
+  GLOBAL_NEWSLETTER_BOARD_SLUG,
+  '공용-소식지',
+])
+
+export function isKnownGlobalNewsletterBoardSlug(slug: string | null | undefined): boolean {
+  const normalized = String(slug ?? '').trim()
+  return normalized ? KNOWN_GLOBAL_NEWSLETTER_BOARD_SLUGS.has(normalized) : false
+}
+
+export function extractNewsletterBoardSlugFromPath(pathname: string): string | null {
+  const normalized = normalizePathname(pathname)
   const match = normalized.match(/^\/portal\/boards\/([^/]+)/)
-  if (!match) return null
-  if (match[1] === GLOBAL_NEWSLETTER_BOARD_SLUG) {
+  if (!match?.[1]) return null
+  try {
+    return decodeURIComponent(match[1])
+  } catch {
+    return match[1]
+  }
+}
+
+export function buildNewsletterBoardSlugScopeMap(
+  boards: Array<{ slug?: string | null; boardScope?: string | null }>,
+): Record<string, string> {
+  const map: Record<string, string> = {}
+  for (const board of boards) {
+    const slug = String(board.slug ?? '').trim()
+    const boardScope = String(board.boardScope ?? '').trim()
+    if (slug && boardScope) {
+      map[slug] = boardScope
+    }
+  }
+  return map
+}
+
+function inferNewsletterBoardScopeFromPath(
+  normalized: string,
+  slugScopeBySlug?: Record<string, string | null | undefined> | null,
+): string | null {
+  const slug = extractNewsletterBoardSlugFromPath(normalized)
+  if (!slug) return null
+  if (isKnownGlobalNewsletterBoardSlug(slug)) {
     return 'global'
+  }
+  const mapped = slugScopeBySlug?.[slug]
+  if (mapped === 'global') {
+    return 'global'
+  }
+  if (mapped === 'ga' || mapped === 'system') {
+    return 'ga'
   }
   return null
 }
@@ -29,7 +75,10 @@ export function resolveNewsletterBoardFeature(
 
 export function resolveFeatureKeyFromPath(
   pathname: string,
-  options?: { newsletterBoardScope?: string | null },
+  options?: {
+    newsletterBoardScope?: string | null
+    newsletterBoardSlugScopes?: Record<string, string | null | undefined> | null
+  },
 ): FeatureKey | null {
   const normalized = normalizePathname(pathname)
   if (!normalized) return null
@@ -73,8 +122,11 @@ export function resolveFeatureKeyFromPath(
     return FEATURE_KEYS.LOSS_ADJUSTER_NEWSLETTER
   }
   if (normalized.startsWith('/portal/boards/')) {
+    const slug = extractNewsletterBoardSlugFromPath(normalized)
     const boardScope =
-      options?.newsletterBoardScope ?? inferNewsletterBoardScopeFromPath(normalized)
+      options?.newsletterBoardScope ??
+      (slug ? options?.newsletterBoardSlugScopes?.[slug] : null) ??
+      inferNewsletterBoardScopeFromPath(normalized, options?.newsletterBoardSlugScopes)
     return resolveNewsletterBoardFeature(boardScope)
   }
   if (normalized === '/application' || normalized.startsWith('/application/')) {

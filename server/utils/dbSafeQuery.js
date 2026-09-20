@@ -41,11 +41,23 @@ export function sqlHasNewsletterBoardTenantVisibilityScope(sql) {
 }
 
 /**
+ * GENERAL 개인 연락처 등 user-owned row scope.
+ * @param {string} sql
+ * @returns {boolean}
+ */
+export function sqlHasUserOwnershipScope(sql) {
+  return /\buser_id\b/i.test(sql) && /\bowner_scope\b/i.test(sql)
+}
+
+/**
  * @param {string} sql
  * @returns {boolean}
  */
 function sqlHasTenantGaFilter(sql) {
   if (/\bga_id\b/i.test(sql)) {
+    return true
+  }
+  if (sqlHasUserOwnershipScope(sql)) {
     return true
   }
   return sqlHasNewsletterBoardTenantVisibilityScope(sql)

@@ -67,7 +67,10 @@ export function buildFeatureAccessContext(
 export function evaluateRouteFeatureAccess(
   pathname: string,
   ctx: FeatureAccessContext,
-  options?: { newsletterBoardScope?: string | null },
+  options?: {
+    newsletterBoardScope?: string | null
+    newsletterBoardSlugScopes?: Record<string, string | null | undefined> | null
+  },
 ) {
   const featureKey = resolveFeatureKeyFromPath(pathname, options)
   if (!featureKey) {
@@ -83,7 +86,10 @@ export function resolveFeatureEntitlementRedirectPath(
   pathname: string,
   ctx: FeatureAccessContext,
   billingSummary?: CheckoutSummary | null,
-  options?: { newsletterBoardScope?: string | null },
+  options?: {
+    newsletterBoardScope?: string | null
+    newsletterBoardSlugScopes?: Record<string, string | null | undefined> | null
+  },
 ): string | null {
   const { verdict } = evaluateRouteFeatureAccess(pathname, ctx, options)
   if (!verdict || verdict.allowed) {
