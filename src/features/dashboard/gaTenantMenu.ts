@@ -13,8 +13,13 @@ import {
   canUseNewsletterBoardAdminRoutes,
   canUsePdfTemplateAdminRoutes,
 } from '../auth/roleGuards'
-import { isPublicGeneralAccount } from '../auth/generalGa'
-import { applyPublicAccountMenuPathRestrictions } from '../auth/publicAccountRestrictedRoutes'
+import { applyEntitlementMenuBadges } from '../entitlements/applyEntitlementMenuBadges'
+import { isGaMemberUser, type FeatureAccessContext } from '../entitlements/featureEntitlementPolicy'
+import { buildNewsletterBoardViewPath } from '../insurer-news/utils/newsletterBoardMenuLinks'
+import {
+  isInsuranceBillingEnforceAccessClient,
+  isInsuranceBillingEnabledClient,
+} from '../insurance-billing/insuranceBillingConfig'
 import {
   buildDynamicNewsletterBoardMenuEntries,
   buildLossAdjusterPortalMenuEntry,
@@ -62,8 +67,12 @@ export type GaTenantDashboardMenuEntry =
       disabled?: boolean
       /** true: 페이지 이동 없이 준비중 안내만 (path는 플레이스홀더) */
       preparing?: boolean
-      /** "개발중" 같이 항목 옆에 표시되는 짧은 배지 라벨(정보 전용). */
+      /** "개발중" / "유료" / "GA 전용" 등 항목 옆 배지 라벨(정보 전용). */
       badge?: string
+      /** entitlement 정책으로 접근 제한되는 항목 — path 는 유지하고 badge 로 표시 */
+      entitlementBlocked?: boolean
+      entitlementReason?: 'paid_required' | 'ga_required' | null
+      featureKey?: string
     }
   | { type: 'divider' }
   | { type: 'section'; label: string }
@@ -320,6 +329,40 @@ export type AppMenuBuildOptions = {
    * 적용해 "보이는데 들어가면 403" 이라는 UX 불일치를 없앤다.
    */
   subscriptionExpired?: boolean
+  /** 결제/쿠폰 이용권 활성 — 미전달 시 billing enforce OFF 이면 true */
+  hasActivePaidAccess?: boolean
+}
+
+function buildNewsletterBoardScopeHints(
+  boards: DynamicNewsletterBoardMenuItem[] = [],
+): { path: string; boardScope: string | null }[] {
+  return boards
+    .filter((board) => board.slug.trim())
+    .map((board) => ({
+      path: buildNewsletterBoardViewPath(board.slug),
+      boardScope: board.boardScope ?? null,
+    }))
+}
+
+function applyEntitlementBadgesForSession(
+  entries: GaTenantDashboardMenuEntry[],
+  gaCode: string | undefined,
+  gaName: string | undefined,
+  options: AppMenuBuildOptions,
+): GaTenantDashboardMenuEntry[] {
+  const billingEnforced =
+    isInsuranceBillingEnabledClient() && isInsuranceBillingEnforceAccessClient()
+  const ctx: FeatureAccessContext = {
+    hasActivePaidAccess: billingEnforced
+      ? options.hasActivePaidAccess === true
+      : true,
+    isGaMember: isGaMemberUser({ gaCode, gaName }),
+  }
+  return applyEntitlementMenuBadges(
+    entries,
+    ctx,
+    buildNewsletterBoardScopeHints(options.dynamicNewsletterBoards),
+  )
 }
 
 const AUDIT_LOG_ENTRY: GaTenantMenuItem = { label: '보안 감사 로그', path: '/admin/audit-logs' }
@@ -539,16 +582,8 @@ export function buildAppMenuForSession(
     return [...base, teamManageEntry]
   })()
 
-  if (!subscriptionExpired) {
-    return applyPublicAccountMenuPathRestrictions(
-      withTeam,
-      isPublicGeneralAccount({ gaCode, gaName }),
-    )
-  }
-  return applyPublicAccountMenuPathRestrictions(
-    filterMenuForExpired(withTeam),
-    isPublicGeneralAccount({ gaCode, gaName }),
-  )
+  const filtered = subscriptionExpired ? filterMenuForExpired(withTeam) : withTeam
+  return applyEntitlementBadgesForSession(filtered, gaCode, gaName, options)
 }
 
 function filterMenuForExpired(

@@ -5,7 +5,12 @@ import ResponsiveLayout from '../components/ResponsiveLayout'
 import PCHeader from '../components/layout/PCHeader'
 import { useAuth } from '../features/auth/AuthProvider'
 import { canUseCrmNotificationChrome } from '../features/auth/roleGuards'
-import { PublicAccountGaOnlyOutletGuard } from '../features/auth/PublicAccountGaOnlyOutletGuard'
+import { FeatureEntitlementOutletGuard } from '../features/entitlements/FeatureEntitlementOutletGuard'
+import {
+  resolveEntitlementMenuNavigationPath,
+  resolveHasActivePaidAccess,
+} from '../features/entitlements/featureEntitlementGuard'
+import { useInsuranceBillingSummary } from '../features/insurance-billing/hooks/useInsuranceBillingSummary'
 import { formatGaBannerLabel, resolveStoreReviewTenantDisplayName, shouldShowGaTenantChrome } from '../navigation/gaTenantBarShared'
 import { buildAppMenuForSession } from '../features/dashboard/gaTenantMenu'
 import { isSpecialNewsletterAccount } from '../features/auth/roleGuards'
@@ -111,11 +116,15 @@ function AppWorkspaceLayoutMobileShell() {
    *
    * 메모는 `buildAppMenuForSession` 의 `/memo` 링크로 진입한다 (플로팅 FAB 없음).
    */
+  const { summary: billingSummary } = useInsuranceBillingSummary()
+  const hasActivePaidAccess = resolveHasActivePaidAccess(user, billingSummary)
+
   const sidebarItems = useMemo(() => {
     return buildAppMenuForSession(user?.role, user?.gaCode, user?.gaName, {
       teamMenuManageVisible,
       dynamicNewsletterBoards,
       subscriptionExpired: user?.subscription?.effectiveStatus === 'EXPIRED',
+      hasActivePaidAccess,
     })
   }, [
     teamMenuManageVisible,
@@ -124,6 +133,7 @@ function AppWorkspaceLayoutMobileShell() {
     user?.gaCode,
     user?.gaName,
     user?.subscription?.effectiveStatus,
+    hasActivePaidAccess,
   ])
 
   useEffect(() => {
@@ -313,8 +323,9 @@ function AppWorkspaceLayoutMobileShell() {
                     }
                     const nextCustomerId = extractCustomerIdFromPath(item.path)
                     setMobileSelectedCustomer(nextCustomerId)
-                    pushMobilePage(item.path)
-                    navigate(item.path)
+                    const targetPath = resolveEntitlementMenuNavigationPath(item, billingSummary)
+                    pushMobilePage(targetPath)
+                    navigate(targetPath)
                     setDrawerOpen(false)
                   }}
                 >
@@ -355,7 +366,7 @@ function AppWorkspaceLayoutMobileShell() {
         data-page-stack-depth={String(mobilePageStack.length)}
       >
         <ExpiredBanner />
-        <PublicAccountGaOnlyOutletGuard />
+        <FeatureEntitlementOutletGuard />
       </main>
     </div>
   )
@@ -405,7 +416,7 @@ function AppWorkspaceLayoutPCShell() {
               .join(' ')}
           >
             <ExpiredBanner />
-            <PublicAccountGaOnlyOutletGuard />
+            <FeatureEntitlementOutletGuard />
           </div>
         </div>
       </div>

@@ -14,6 +14,11 @@ import {
   type GaTenantDashboardMenuEntry,
 } from '../gaTenantMenu'
 import { isActivePcNavigationPath } from '../../../components/layout/pcNavigationUtils'
+import {
+  resolveEntitlementMenuNavigationPath,
+  resolveHasActivePaidAccess,
+} from '../../entitlements/featureEntitlementGuard'
+import { useInsuranceBillingSummary } from '../../insurance-billing/hooks/useInsuranceBillingSummary'
 
 type MenuEntry = GaTenantDashboardMenuEntry
 
@@ -125,12 +130,16 @@ export function DashboardPage() {
    *
    * 메모는 `buildAppMenuForSession` 의 `/memo` 정식 메뉴로 진입한다 (gaTenantMenu.ts 참조).
    */
+  const { summary: billingSummary } = useInsuranceBillingSummary()
+  const hasActivePaidAccess = resolveHasActivePaidAccess(user, billingSummary)
+
   const menuItems = useMemo<MenuEntry[]>(() => {
     return buildAppMenuForSession(role, user?.gaCode, user?.gaName, {
       teamMenuManageVisible,
       dynamicNewsletterBoards,
+      hasActivePaidAccess,
     })
-  }, [role, user?.gaCode, user?.gaName, teamMenuManageVisible, dynamicNewsletterBoards])
+  }, [role, user?.gaCode, user?.gaName, teamMenuManageVisible, dynamicNewsletterBoards, hasActivePaidAccess])
 
   return (
     <main className="page dashboard-page--centered">
@@ -210,7 +219,7 @@ export function DashboardPage() {
                     if (!entry.path.trim() || entry.path === '#') {
                       return
                     }
-                    navigate(entry.path)
+                    navigate(resolveEntitlementMenuNavigationPath(entry, billingSummary))
                   }}
                 >
                   <span className="menu-item__label">{entry.label}</span>

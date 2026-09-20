@@ -11,12 +11,10 @@ const PUBLIC_ACCOUNT_GA_ONLY_PREFIXES: readonly string[] = Object.freeze([
   '/contracts/signatures',
   '/admin/contract-signatures',
   '/admin/contract-signature-test',
-  '/team',
   '/my-forms',
   '/app/auto-insurance',
   '/portal/newsletters',
   '/portal/adjuster-news',
-  '/insurance/contacts',
 ])
 
 const PUBLIC_ACCOUNT_GA_ONLY_CUSTOMER_RE =
@@ -70,26 +68,13 @@ export function toPublicAccountRestrictedPath(fromPath: string): string {
   return `${PUBLIC_ACCOUNT_RESTRICTED_PATH}?from=${encodeURIComponent(from)}`
 }
 
+/**
+ * @deprecated path 치환 대신 `applyEntitlementMenuBadges` 사용.
+ * GA 전용 path 는 badge 만 표시하고 route guard 가 차단한다.
+ */
 export function applyPublicAccountMenuPathRestrictions<T extends { type: string; path?: string; disabled?: boolean; preparing?: boolean; badge?: string }>(
   entries: T[],
-  isPublicAccount: boolean,
+  _isPublicAccount: boolean,
 ): T[] {
-  if (!isPublicAccount) {
-    return entries
-  }
-  return entries.map((entry) => {
-    if (entry.type !== 'link' || !entry.path) {
-      return entry
-    }
-    if (entry.disabled || entry.preparing) {
-      return entry
-    }
-    if (!isPublicAccountGaOnlyMenuPath(entry.path)) {
-      return entry
-    }
-    return {
-      ...entry,
-      path: toPublicAccountRestrictedPath(entry.path),
-    }
-  })
+  return entries
 }
