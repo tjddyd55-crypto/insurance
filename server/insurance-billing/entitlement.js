@@ -8,6 +8,8 @@ import { systemQuery } from '../utils/dbSafeQuery.js'
 import { syncSubscriptionTrialExpiry } from './subscriptionLifecycle.js'
 import { resolveApiPolicyPath } from '../utils/apiPolicyPath.js'
 import { isFreeLaunchGrantMode } from '../signup/freeLaunchPolicy.js'
+import { evaluateApiFeatureAccess, isFeatureFreeApiPath } from '../entitlements/featureApiPolicy.js'
+import { isGaMemberUser } from '../entitlements/featureEntitlementPolicy.js'
 
 const BILLING_API_ALLOW_PREFIXES = Object.freeze([
   '/api/auth/',
@@ -121,22 +123,42 @@ export async function enforceInsuranceBillingEntitlement(req, res, next, pool) {
       return
     }
     const policyPath = resolveApiPolicyPath(req)
-    if (isInsuranceBillingAllowlistedApi(policyPath)) {
+    if (isInsuranceBillingAllowlistedApi(policyPath) || isFeatureFreeApiPath(policyPath)) {
       next()
       return
     }
 
     const subscription = await getInsuranceBillingSubscription(pool, String(req.user.id))
-    const verdict = evaluateInsuranceBillingEntitlement(subscription)
-    if (verdict.entitled) {
+    const billingVerdict = evaluateActiveBillingEntitlement(subscription)
+    const accessCtx = {
+      hasActivePaidAccess: Boolean(billingVerdict.entitled),
+      isGaMember: isGaMemberUser({
+        gaCode: req.user?.gaCode,
+        gaName: req.user?.gaName,
+      }),
+    }
+    const featureVerdict = evaluateApiFeatureAccess(policyPath, accessCtx)
+    if (featureVerdict.allowed) {
       next()
       return
     }
 
+    if (featureVerdict.reason === 'ga_required') {
+      res.status(403).json({
+        error: 'GA_MEMBERSHIP_REQUIRED',
+        message: '이 기능은 GA 등록 사용자가 이용할 수 있습니다.',
+        feature: featureVerdict.feature ?? null,
+        redirectPath: '/public-account-restricted',
+      })
+      return
+    }
+
+    const legacyVerdict = evaluateInsuranceBillingEntitlement(subscription)
     res.status(403).json({
       error: 'INSURANCE_BILLING_REQUIRED',
-      message: '서비스 이용을 위해 결제가 필요합니다.',
-      status: verdict.status,
+      message: '이 기능은 유료 이용권이 필요합니다.',
+      status: legacyVerdict.status,
+      feature: featureVerdict.feature ?? null,
       redirectPath: '/billing/required',
     })
   } catch (error) {
