@@ -64,12 +64,13 @@ async function touchContactLastUpdatedAt(client, contactScope) {
   }
 }
 
-async function loadLastUpdatedAt(pool, safeQuery, contactScope, toIsoString) {
+async function loadLastUpdatedAt(pool, systemQuery, contactScope, toIsoString) {
   const metaKey =
     contactScope.scope === 'GA'
       ? `contact_last_updated_at:${contactScope.gaId}`
       : `contact_last_updated_at:user:${contactScope.userId}`
-  const metaResult = await safeQuery(
+  // meta_key 자체에 tenant scope가 인코딩되어 있어 ga_id 컬럼이 없음 — systemQuery 사용
+  const metaResult = await systemQuery(
     pool,
     `
     SELECT meta_value
@@ -88,6 +89,7 @@ export function registerInsuranceContactsApi(apiRouter, deps) {
   const {
     pool,
     safeQuery,
+    systemQuery,
     requireAuth,
     handleDbError,
     effectiveTenantGaId,
@@ -146,7 +148,7 @@ export function registerInsuranceContactsApi(apiRouter, deps) {
           : ''
 
       const lastUpdatedAt =
-        (await loadLastUpdatedAt(pool, safeQuery, contactScope, toIsoString)) || fallbackUpdatedAt
+        (await loadLastUpdatedAt(pool, systemQuery, contactScope, toIsoString)) || fallbackUpdatedAt
 
       res.json({
         scope: contactScope.scope,

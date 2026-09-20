@@ -180,11 +180,20 @@ function createContactsStore() {
     return { rowCount: 0, rows: [] }
   }
 
+  const systemQuery = async (_executor, sql, params = []) => {
+    const text = String(sql)
+    if (text.includes('FROM insurance_contact_meta')) {
+      return { rowCount: 0, rows: [] }
+    }
+    return { rowCount: 0, rows: [] }
+  }
+
   return {
     contacts,
     gaIdByUser,
     pool: { query: safeQuery },
     safeQuery,
+    systemQuery,
     async withTransaction(task) {
       return task({ query: safeQuery })
     },
@@ -196,6 +205,7 @@ function registerRoutes(store) {
   registerInsuranceContactsApi(apiRouter, {
     pool: store.pool,
     safeQuery: store.safeQuery,
+    systemQuery: store.systemQuery,
     requireAuth: (_req, _res, next) => next(),
     handleDbError: (error, _req, res) => {
       res.status(500).json({ message: String(error) })

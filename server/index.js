@@ -1668,6 +1668,7 @@ registerFeatureRequestsApi(apiRouter, {
 registerInsuranceContactsApi(apiRouter, {
   pool,
   safeQuery,
+  systemQuery,
   requireAuth,
   handleDbError,
   effectiveTenantGaId,
