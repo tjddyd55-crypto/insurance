@@ -174,6 +174,48 @@ export function isCustomerRegistrationLinkRealSendApproved(config) {
 }
 
 /**
+ * 고객등록/고객앱 링크 공유 알림톡 — development 수신번호 allowlist gate.
+ * SSOT env: INSURANCE_ALIGO_KAKAO_DEV_REAL_SEND_ENABLED, INSURANCE_ALIGO_KAKAO_DEV_RECIPIENT_ALLOWLIST
+ * (청구 접수·등록완료 알림톡과 동일 키 재사용)
+ * @param {ReturnType<typeof loadInsuranceAlimtalkConfig>} config
+ * @param {{ receiverDigits?: string, nodeEnv?: string }} [opts]
+ */
+export function isShareLinkAlimtalkDevRecipientAllowed(config, opts = {}) {
+  const tier = resolveAlimtalkRuntimeTier({ nodeEnv: opts.nodeEnv, env: opts.env })
+  if (tier === 'production') return true
+  if (!config?.claimDevRealSendEnabled) return false
+  const digits = String(opts.receiverDigits ?? '').replace(/\D/g, '')
+  if (!digits) return false
+  return Array.isArray(config.claimDevRecipientAllowlist)
+    ? config.claimDevRecipientAllowlist.includes(digits)
+    : false
+}
+
+/**
+ * @param {ReturnType<typeof loadInsuranceAlimtalkConfig>} config
+ * @param {{ receiverDigits?: string, forceDryRun?: boolean, nodeEnv?: string }} [opts]
+ * @returns {{ wouldAttemptRealSend: boolean, effectiveDryRun: boolean }}
+ */
+export function resolveShareLinkAlimtalkSendMode(config, opts = {}) {
+  const configDryRun = Boolean(opts.forceDryRun) || Boolean(config?.dryRun)
+  const devRecipientAllowed = isShareLinkAlimtalkDevRecipientAllowed(config, opts)
+  const wouldAttemptRealSend = !configDryRun && devRecipientAllowed
+  return {
+    wouldAttemptRealSend,
+    effectiveDryRun: !wouldAttemptRealSend,
+  }
+}
+
+/**
+ * global dryRun=false 이어도 development 비허용 번호는 dry_run 유지.
+ * @param {ReturnType<typeof loadInsuranceAlimtalkConfig>} config
+ * @param {{ receiverDigits?: string, forceDryRun?: boolean, nodeEnv?: string }} [opts]
+ */
+export function resolveShareLinkAlimtalkEffectiveDryRun(config, opts = {}) {
+  return resolveShareLinkAlimtalkSendMode(config, opts).effectiveDryRun
+}
+
+/**
  * @param {ReturnType<typeof loadInsuranceAlimtalkConfig>} config
  */
 export function isInsuranceAlimtalkCredentialsComplete(config) {
@@ -185,10 +227,9 @@ export function isInsuranceAlimtalkCredentialsComplete(config) {
  * @param {{ nodeEnv?: string }} [opts]
  */
 export function resolveAlimtalkRuntimeTier(opts = {}) {
-  const dbEnv = String(process.env.INSURANCE_DB_ENVIRONMENT ?? '').trim().toLowerCase()
-  const railwayEnv = String(
-    process.env.RAILWAY_ENVIRONMENT_NAME ?? process.env.RAILWAY_ENVIRONMENT ?? '',
-  )
+  const env = opts.env ?? process.env
+  const dbEnv = String(env.INSURANCE_DB_ENVIRONMENT ?? '').trim().toLowerCase()
+  const railwayEnv = String(env.RAILWAY_ENVIRONMENT_NAME ?? env.RAILWAY_ENVIRONMENT ?? '')
     .trim()
     .toLowerCase()
   if (dbEnv === 'production' || railwayEnv === 'production') return 'production'
@@ -200,7 +241,7 @@ export function resolveAlimtalkRuntimeTier(opts = {}) {
   ) {
     return 'development'
   }
-  const nodeEnv = String(opts.nodeEnv ?? process.env.NODE_ENV ?? '').trim().toLowerCase()
+  const nodeEnv = String(opts.nodeEnv ?? env.NODE_ENV ?? '').trim().toLowerCase()
   return nodeEnv === 'production' ? 'production' : 'development'
 }
 

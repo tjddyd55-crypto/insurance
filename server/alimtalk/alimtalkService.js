@@ -2,6 +2,7 @@ import {
   isCustomerAppLinkRealSendApproved,
   isInsuranceAlimtalkCredentialsComplete,
   loadInsuranceAlimtalkConfig,
+  resolveShareLinkAlimtalkSendMode,
 } from './alimtalkConfig.js'
 import { ensureCustomerAppUniversalUrl } from './customerAppLinkForAlimtalk.js'
 import { ensureAlimtalkSendLogsTable, insertAlimtalkSendLog } from './alimtalkLogService.js'
@@ -210,11 +211,15 @@ export async function sendCustomerAppLinkAlimtalk(pool, params) {
   }
 
   const buttonPayload = template.buildButtonPayload({ customerAppUrl: link.customerAppUrl })
-  const forceDryRun = Boolean(params.forceDryRun)
-  const effectiveDryRun = Boolean(config.dryRun) || forceDryRun
+  const runtimeEnv = params.templateEnv ?? process.env
+  const { wouldAttemptRealSend, effectiveDryRun } = resolveShareLinkAlimtalkSendMode(config, {
+    forceDryRun: params.forceDryRun,
+    receiverDigits: phoneDigits,
+    env: runtimeEnv,
+  })
 
   // placeholder tpl: dry-run 만 허용. 실발송 시도는 차단.
-  if (!effectiveDryRun && isPlaceholderTplCode(template.tplCode)) {
+  if (wouldAttemptRealSend && isPlaceholderTplCode(template.tplCode)) {
     await insertAlimtalkSendLog(pool, {
       gaId: access.gaId,
       userId: params.agentId,
@@ -243,7 +248,7 @@ export async function sendCustomerAppLinkAlimtalk(pool, params) {
   }
 
   // 검수중(승인 flag false): 실발송 HTTP 호출 금지
-  if (!effectiveDryRun && !isCustomerAppLinkRealSendApproved(config)) {
+  if (wouldAttemptRealSend && !isCustomerAppLinkRealSendApproved(config)) {
     await insertAlimtalkSendLog(pool, {
       gaId: access.gaId,
       userId: params.agentId,
@@ -276,7 +281,7 @@ export async function sendCustomerAppLinkAlimtalk(pool, params) {
     }
   }
 
-  if (!effectiveDryRun && !isInsuranceAlimtalkCredentialsComplete(config)) {
+  if (wouldAttemptRealSend && !isInsuranceAlimtalkCredentialsComplete(config)) {
     return {
       success: false,
       httpStatus: 503,

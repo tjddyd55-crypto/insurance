@@ -2,8 +2,11 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
   isCustomerAppLinkRealSendApproved,
+  isShareLinkAlimtalkDevRecipientAllowed,
   loadInsuranceAlimtalkConfig,
   isInsuranceAlimtalkCredentialsComplete,
+  resolveShareLinkAlimtalkEffectiveDryRun,
+  resolveAlimtalkRuntimeTier,
 } from './alimtalkConfig.js'
 
 describe('alimtalkConfig', () => {
@@ -86,6 +89,51 @@ describe('alimtalkConfig', () => {
     })
     assert.equal(config.useGateway, true)
     assert.equal(config.provider, 'aligo_alimtalk_gateway')
+  })
+
+  it('share-link dev allowlist gates real send by receiver', () => {
+    const base = loadInsuranceAlimtalkConfig({
+      INSURANCE_ALIGO_KAKAO_DRY_RUN: 'false',
+      INSURANCE_ALIGO_KAKAO_DEV_REAL_SEND_ENABLED: 'true',
+      INSURANCE_ALIGO_KAKAO_DEV_RECIPIENT_ALLOWLIST: '01022221382',
+      RAILWAY_ENVIRONMENT_NAME: 'development',
+    })
+    assert.equal(resolveAlimtalkRuntimeTier({ nodeEnv: 'production' }), 'production')
+    assert.equal(
+      isShareLinkAlimtalkDevRecipientAllowed(base, {
+        receiverDigits: '01022221382',
+        nodeEnv: 'production',
+      }),
+      true,
+    )
+    assert.equal(
+      isShareLinkAlimtalkDevRecipientAllowed(base, {
+        receiverDigits: '01022221382',
+        nodeEnv: 'development',
+      }),
+      true,
+    )
+    assert.equal(
+      isShareLinkAlimtalkDevRecipientAllowed(base, {
+        receiverDigits: '01099998888',
+        nodeEnv: 'development',
+      }),
+      false,
+    )
+    assert.equal(
+      resolveShareLinkAlimtalkEffectiveDryRun(base, {
+        receiverDigits: '01022221382',
+        nodeEnv: 'development',
+      }),
+      false,
+    )
+    assert.equal(
+      resolveShareLinkAlimtalkEffectiveDryRun(base, {
+        receiverDigits: '01099998888',
+        nodeEnv: 'development',
+      }),
+      true,
+    )
   })
 
   it('unset provider + no gateway URL → direct', () => {

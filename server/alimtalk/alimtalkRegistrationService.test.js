@@ -155,6 +155,30 @@ describe('sendCustomerRegistrationLinkAlimtalk', () => {
     assert.match(String(sendInput?.message), /담당자 박담당입니다/)
   })
 
+  it('keeps dry_run for non-allowlisted receiver in development', async () => {
+    let sendDryRun = null
+    const result = await sendCustomerRegistrationLinkAlimtalk(createPool(), {
+      agentId: 'user-1',
+      receiver: '01099998888',
+      user: { id: 'user-1', role: 'USER', gaId: 1, username: 'tjddyd55', gaCode: 'YJASSET' },
+      reqLike: { protocol: 'https', host: 'example.com' },
+      config: loadInsuranceAlimtalkConfig({
+        INSURANCE_ALIGO_KAKAO_DRY_RUN: 'false',
+        INSURANCE_ALIGO_KAKAO_ALLOW_REAL_SEND: 'true',
+        INSURANCE_ALIGO_KAKAO_CUSTOMER_REGISTRATION_LINK_APPROVED: 'true',
+        INSURANCE_ALIGO_KAKAO_DEV_REAL_SEND_ENABLED: 'true',
+        INSURANCE_ALIGO_KAKAO_DEV_RECIPIENT_ALLOWLIST: '01022221382',
+      }),
+      templateEnv: { RAILWAY_ENVIRONMENT_NAME: 'development' },
+      sendFn: async (input) => {
+        sendDryRun = input.dryRun
+        return { ok: true, status: 'dry_run', dryRun: true, providerMessage: 'dry run' }
+      },
+    })
+    assert.equal(sendDryRun, true)
+    assert.equal(result.data.status, 'dry_run')
+  })
+
   it('blocks real send when registration approval is false', async () => {
     let sendCalled = false
     const result = await sendCustomerRegistrationLinkAlimtalk(createPool(), {
@@ -172,6 +196,7 @@ describe('sendCustomerRegistrationLinkAlimtalk', () => {
         INSURANCE_ALIGO_KAKAO_CUSTOMER_REGISTRATION_LINK_APPROVED: 'false',
         INSURANCE_ALIGO_KAKAO_ALLOW_REAL_SEND: 'false',
       }),
+      templateEnv: { RAILWAY_ENVIRONMENT_NAME: 'production' },
       sendFn: async () => {
         sendCalled = true
         return { ok: true, status: 'sent', dryRun: false, providerCode: 0 }

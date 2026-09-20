@@ -2,6 +2,7 @@ import {
   isCustomerRegistrationLinkRealSendApproved,
   isInsuranceAlimtalkCredentialsComplete,
   loadInsuranceAlimtalkConfig,
+  resolveShareLinkAlimtalkSendMode,
 } from './alimtalkConfig.js'
 import {
   buildCustomerRegistrationInviteUrl,
@@ -140,10 +141,14 @@ export async function sendCustomerRegistrationLinkAlimtalk(pool, params) {
 
   const message = template.buildMessage({ managerName })
   const buttonPayload = template.buildButtonPayload({ registrationUrl })
-  const forceDryRun = Boolean(params.forceDryRun)
-  const effectiveDryRun = Boolean(config.dryRun) || forceDryRun
+  const runtimeEnv = params.templateEnv ?? process.env
+  const { wouldAttemptRealSend, effectiveDryRun } = resolveShareLinkAlimtalkSendMode(config, {
+    forceDryRun: params.forceDryRun,
+    receiverDigits: phoneDigits,
+    env: runtimeEnv,
+  })
 
-  if (!effectiveDryRun && isPlaceholderTplCode(template.tplCode)) {
+  if (wouldAttemptRealSend && isPlaceholderTplCode(template.tplCode)) {
     return {
       success: false,
       httpStatus: 503,
@@ -158,7 +163,7 @@ export async function sendCustomerRegistrationLinkAlimtalk(pool, params) {
     }
   }
 
-  if (!effectiveDryRun && !isCustomerRegistrationLinkRealSendApproved(config)) {
+  if (wouldAttemptRealSend && !isCustomerRegistrationLinkRealSendApproved(config)) {
     await insertAlimtalkSendLog(pool, {
       gaId: resolvedGaId,
       userId: params.agentId,
@@ -192,7 +197,7 @@ export async function sendCustomerRegistrationLinkAlimtalk(pool, params) {
     }
   }
 
-  if (!effectiveDryRun && !isInsuranceAlimtalkCredentialsComplete(config)) {
+  if (wouldAttemptRealSend && !isInsuranceAlimtalkCredentialsComplete(config)) {
     return {
       success: false,
       httpStatus: 503,

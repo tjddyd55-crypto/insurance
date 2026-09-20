@@ -222,7 +222,7 @@ describe('alimtalkService customer app link', () => {
         INSURANCE_ALIGO_KAKAO_CUSTOMER_APP_LINK_APPROVED: 'false',
         INSURANCE_ALIGO_KAKAO_ALLOW_REAL_SEND: 'false',
       }),
-      templateEnv: {},
+      templateEnv: { RAILWAY_ENVIRONMENT_NAME: 'production' },
       ensureLinkFn: async () => ({
         ok: true,
         customerAppUrl: 'https://example.com/customer-app/link?code=ABC',
@@ -307,7 +307,10 @@ describe('alimtalkService customer app link', () => {
         INSURANCE_ALIGO_KAKAO_SENDER_KEY: 's',
         INSURANCE_ALIGO_KAKAO_SENDER: '01011112222',
       }),
-      templateEnv: { INSURANCE_ALIGO_KAKAO_TPL_CUSTOMER_APP_LINK: 'PLACEHOLDER' },
+      templateEnv: {
+        RAILWAY_ENVIRONMENT_NAME: 'production',
+        INSURANCE_ALIGO_KAKAO_TPL_CUSTOMER_APP_LINK: 'PLACEHOLDER',
+      },
       ensureLinkFn: async () => ({
         ok: true,
         customerAppUrl: 'https://example.com/customer-app/link?code=ABC',
