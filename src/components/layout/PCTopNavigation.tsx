@@ -18,6 +18,8 @@ import {
   resolveHasActivePaidAccess,
 } from '../../features/entitlements/featureEntitlementGuard'
 import { isActivePcNavigationPath } from './pcNavigationUtils'
+import { PcMenuEntitlementBadges } from './PcMenuEntitlementBadges'
+import { resolvePcMenuGroupBadgeLabels } from './pcMenuGroupBadge'
 import './pc-top-navigation.css'
 
 type LinkEntry = Extract<GaTenantDashboardMenuEntry, { type: 'link' }>
@@ -212,6 +214,7 @@ export default function PCTopNavigation({
             const isActive = activeGroup?.label === group.label
             const isOpen = openGroupLabel === group.label
             const isPinned = pinnedGroupLabel === group.label
+            const groupBadgeLabels = resolvePcMenuGroupBadgeLabels(group.items)
             return (
               <button
                 key={group.label}
@@ -228,7 +231,11 @@ export default function PCTopNavigation({
                   setHoveredGroupLabel(group.label)
                 }}
               >
-                {group.label}
+                <span className="pc-top-navigation__group-label">{group.label}</span>
+                <PcMenuEntitlementBadges
+                  labels={groupBadgeLabels}
+                  className="pc-top-navigation__group-badges"
+                />
               </button>
             )
           })}
@@ -284,7 +291,11 @@ export default function PCTopNavigation({
                   }}
                 >
                   <span className="pc-top-navigation__item-label">{item.label}</span>
-                  {item.badge ? <span className="pc-top-navigation__item-badge">{item.badge}</span> : null}
+                  <PcMenuEntitlementBadges
+                    badge={item.badge}
+                    className="pc-top-navigation__item-badges"
+                    chipClassName="pc-top-navigation__item-badge"
+                  />
                 </FormButton>
               )
             })}
