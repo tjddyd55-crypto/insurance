@@ -11,13 +11,14 @@ export function splitEntitlementBadgeLabels(badge: string): string[] {
  * 모든 하위 항목이 동일 entitlement badge를 가질 때만 대분류에 표시한다.
  */
 export function resolvePcMenuGroupBadgeLabels(
-  items: Array<{ badge?: string | null }>,
+  items: Array<{ badge?: string | null; disabled?: boolean; preparing?: boolean }>,
 ): string[] | null {
-  if (items.length === 0) {
+  const eligibleItems = items.filter((item) => !item.disabled && !item.preparing)
+  if (eligibleItems.length === 0) {
     return null
   }
 
-  const badges = items.map((item) => String(item.badge ?? '').trim())
+  const badges = eligibleItems.map((item) => String(item.badge ?? '').trim())
   if (badges.some((badge) => !badge)) {
     return null
   }
