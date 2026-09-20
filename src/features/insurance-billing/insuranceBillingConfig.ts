@@ -33,6 +33,7 @@ export const INSURANCE_BILLING_FRONTEND_ALLOW_PATHS = [
   '/account/billing',
   '/account/reset',
   '/feature-request',
+  '/public-account-restricted',
 ] as const
 
 export function isInsuranceBillingAllowlistedPath(pathname: string): boolean {
