@@ -3,7 +3,6 @@ import { safeQuery, systemQuery } from '../utils/dbSafeQuery.js'
 import { bootstrapInsuranceBillingSubscriptionOnSignup } from '../insurance-billing/subscriptionLifecycle.js'
 import { ensureReferralCodeForUser } from '../referrals/referralCode.js'
 import { planSignupCodes, applySignupCodesPlan } from '../signup/processSignupCodes.js'
-import { applySignupAutoPromotionOnSignup } from '../signup/signupAutoPromotion.js'
 import { readPolicyActive } from '../subscription/appSettings.js'
 import { verifySignupPhoneProof, verifyRegistrationSignupPhoneProof } from '../lib/signupPhoneProof.js'
 import { evaluateTenantMembershipLoginBlock, pickPrimaryTenantMembershipForLogin } from '../lib/tenantMembershipAuth.js'
@@ -424,12 +423,6 @@ async function handleRegister(req, res) {
       throw e
     }
     client.release()
-
-    try {
-      await applySignupAutoPromotionOnSignup(pool, { userId: id, gaId })
-    } catch (autoPromoErr) {
-      console.warn('[handleRegister] launch auto promotion skipped:', autoPromoErr?.message ?? autoPromoErr)
-    }
 
     if (phoneNorm) {
       await pool.query(`DELETE FROM sms_verification_codes WHERE purpose = 'SIGNUP' AND phone_number = $1`, [

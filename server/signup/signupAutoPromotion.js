@@ -5,7 +5,7 @@ import {
   recordBillingEvent,
 } from '../insurance-billing/subscriptionLifecycle.js'
 import { assertUserBillingPromotionNotAlreadyUsed } from '../insurance-billing/billingPromotionRedemptionPolicy.js'
-import { getSignupAutoPromotionCode, isFreeLaunchGrantMode } from './freeLaunchPolicy.js'
+import { getSignupAutoPromotionCode, isSignupAutoPromotionEnabled } from './freeLaunchPolicy.js'
 
 /**
  * 신규 가입 system grant — SIGNUP_AUTO_PROMOTION_CODE env 기준.
@@ -16,7 +16,7 @@ import { getSignupAutoPromotionCode, isFreeLaunchGrantMode } from './freeLaunchP
  */
 export async function applySignupAutoPromotionOnSignup(executor, params) {
   const userId = String(params.userId ?? '').trim()
-  if (!userId || !isFreeLaunchGrantMode()) {
+  if (!userId || !isSignupAutoPromotionEnabled()) {
     return { applied: false, reason: 'not_configured' }
   }
 
