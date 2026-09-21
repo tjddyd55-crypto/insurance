@@ -7,6 +7,7 @@ import { getFirebaseMessaging, isFirebasePushConfigured } from './fcmClient.js'
 import { listActivePushDevicesForUser, revokePushDeviceByToken } from './pushDeviceService.js'
 
 const MAX_ATTEMPTS = 8
+export const NO_ACTIVE_PUSH_DEVICES_ERROR = 'no_active_push_devices'
 
 /**
  * App Push(FCM) is allowed under QA_SAFE_MODE.
@@ -174,7 +175,7 @@ async function deliverOutboxRow(pool, row) {
 
   const devices = await listActivePushDevicesForUser(pool, recipientUserId, gaId)
   if (devices.length === 0) {
-    return
+    throw new Error(NO_ACTIVE_PUSH_DEVICES_ERROR)
   }
 
   const payload = row.payload_json && typeof row.payload_json === 'object' ? row.payload_json : {}
