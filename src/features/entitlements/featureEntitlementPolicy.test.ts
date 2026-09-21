@@ -41,22 +41,35 @@ describe('featureEntitlementPolicy matrix', () => {
 
   it('ACTIVE_GENERAL — paid CRM allowed, GA-only blocked', () => {
     expect(evaluateFeatureAccess(FEATURE_KEYS.CUSTOMERS, tiers.ACTIVE_GENERAL).allowed).toBe(true)
+    expect(evaluateFeatureAccess(FEATURE_KEYS.CUSTOMERS, tiers.ACTIVE_GENERAL).badges).toEqual([])
     expect(evaluateFeatureAccess(FEATURE_KEYS.TEAM, tiers.ACTIVE_GENERAL).allowed).toBe(true)
+    expect(evaluateFeatureAccess(FEATURE_KEYS.TEAM, tiers.ACTIVE_GENERAL).badges).toEqual([])
     expect(evaluateFeatureAccess(FEATURE_KEYS.INSURER_NEWSLETTER, tiers.ACTIVE_GENERAL).allowed).toBe(
       false,
     )
+    expect(evaluateFeatureAccess(FEATURE_KEYS.INSURER_NEWSLETTER, tiers.ACTIVE_GENERAL).badges).toEqual([
+      'GA 전용',
+    ])
     expect(evaluateFeatureAccess(FEATURE_KEYS.APPLICATION, tiers.ACTIVE_GENERAL).allowed).toBe(false)
+    expect(evaluateFeatureAccess(FEATURE_KEYS.APPLICATION, tiers.ACTIVE_GENERAL).badges).toEqual([
+      'GA 전용',
+    ])
   })
 
   it('FREE_GA — GA newsletters allowed without payment', () => {
     expect(evaluateFeatureAccess(FEATURE_KEYS.INSURER_NEWSLETTER, tiers.FREE_GA).allowed).toBe(true)
+    expect(evaluateFeatureAccess(FEATURE_KEYS.INSURER_NEWSLETTER, tiers.FREE_GA).badges).toEqual([])
     expect(evaluateFeatureAccess(FEATURE_KEYS.CUSTOMERS, tiers.FREE_GA).allowed).toBe(false)
+    expect(evaluateFeatureAccess(FEATURE_KEYS.CUSTOMERS, tiers.FREE_GA).badges).toEqual(['유료'])
     expect(evaluateFeatureAccess(FEATURE_KEYS.APPLICATION, tiers.FREE_GA).reason).toBe('paid_required')
+    expect(evaluateFeatureAccess(FEATURE_KEYS.APPLICATION, tiers.FREE_GA).badges).toEqual(['유료'])
   })
 
   it('ACTIVE_GA — paid + GA features allowed', () => {
     expect(evaluateFeatureAccess(FEATURE_KEYS.APPLICATION, tiers.ACTIVE_GA).allowed).toBe(true)
+    expect(evaluateFeatureAccess(FEATURE_KEYS.APPLICATION, tiers.ACTIVE_GA).badges).toEqual([])
     expect(evaluateFeatureAccess(FEATURE_KEYS.INSURER_NEWSLETTER, tiers.ACTIVE_GA).allowed).toBe(true)
+    expect(evaluateFeatureAccess(FEATURE_KEYS.INSURER_NEWSLETTER, tiers.ACTIVE_GA).badges).toEqual([])
   })
 
   it('detects GA membership excluding GENERAL', () => {

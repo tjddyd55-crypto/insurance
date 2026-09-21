@@ -3,6 +3,9 @@ import { applyEntitlementMenuBadges } from '../../features/entitlements/applyEnt
 import { resolvePcMenuGroupBadgeLabels } from './pcMenuGroupBadge'
 
 const FREE_GENERAL = { hasActivePaidAccess: false, isGaMember: false }
+const ACTIVE_GENERAL = { hasActivePaidAccess: true, isGaMember: false }
+const FREE_GA = { hasActivePaidAccess: false, isGaMember: true }
+const ACTIVE_GA = { hasActivePaidAccess: true, isGaMember: true }
 
 describe('resolvePcMenuGroupBadgeLabels', () => {
   it('shows a uniform paid badge on gated sections', () => {
@@ -57,6 +60,52 @@ describe('resolvePcMenuGroupBadgeLabels', () => {
       FREE_GENERAL,
     )
     expect(resolvePcMenuGroupBadgeLabels(items)).toEqual(['유료'])
+  })
+
+  it('hides paid group badge for ACTIVE_GENERAL customer submenu', () => {
+    const items = applyEntitlementMenuBadges(
+      [
+        { type: 'link', label: '고객리스트', path: '/customers' },
+        { type: 'link', label: '고객 지도', path: '/customers/map' },
+      ],
+      ACTIVE_GENERAL,
+    )
+    expect(items.every((item) => !item.badge)).toBe(true)
+    expect(resolvePcMenuGroupBadgeLabels(items)).toBeNull()
+  })
+
+  it('shows only GA badge on application group for ACTIVE_GENERAL', () => {
+    const items = applyEntitlementMenuBadges(
+      [
+        { type: 'link', label: '신청서 작성', path: '/application/documents' },
+        { type: 'link', label: '신청서 작성내역', path: '/application/documents/history' },
+      ],
+      ACTIVE_GENERAL,
+    )
+    expect(resolvePcMenuGroupBadgeLabels(items)).toEqual(['GA 전용'])
+  })
+
+  it('shows only paid badge on application group for FREE_GA', () => {
+    const items = applyEntitlementMenuBadges(
+      [
+        { type: 'link', label: '신청서 작성', path: '/application/documents' },
+        { type: 'link', label: '신청서 작성내역', path: '/application/documents/history' },
+      ],
+      FREE_GA,
+    )
+    expect(resolvePcMenuGroupBadgeLabels(items)).toEqual(['유료'])
+  })
+
+  it('hides all group badges for ACTIVE_GA application submenu', () => {
+    const items = applyEntitlementMenuBadges(
+      [
+        { type: 'link', label: '신청서 작성', path: '/application/documents' },
+        { type: 'link', label: '신청서 작성내역', path: '/application/documents/history' },
+      ],
+      ACTIVE_GA,
+    )
+    expect(items.every((item) => !item.badge)).toBe(true)
+    expect(resolvePcMenuGroupBadgeLabels(items)).toBeNull()
   })
 
   it('hides group badge for mixed free and gated children', () => {

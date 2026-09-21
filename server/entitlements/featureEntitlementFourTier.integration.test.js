@@ -72,4 +72,15 @@ describe('4-tier feature badge expectations', () => {
     assert.equal(evaluateFeatureAccess(FEATURE_KEYS.APPLICATION, tiers.ACTIVE_GENERAL).allowed, false)
     assert.equal(evaluateFeatureAccess(FEATURE_KEYS.TEAM, tiers.ACTIVE_GENERAL).allowed, true)
   })
+
+  it('badge matrix shows only missing requirements per tier', () => {
+    assert.deepEqual(evaluateFeatureAccess(FEATURE_KEYS.CUSTOMERS, tiers.ACTIVE_GENERAL).badges, [])
+    assert.deepEqual(
+      evaluateFeatureAccess(FEATURE_KEYS.INSURER_NEWSLETTER, tiers.ACTIVE_GENERAL).badges,
+      ['GA 전용'],
+    )
+    assert.deepEqual(evaluateFeatureAccess(FEATURE_KEYS.APPLICATION, tiers.FREE_GA).badges, ['유료'])
+    assert.deepEqual(evaluateFeatureAccess(FEATURE_KEYS.INSURER_NEWSLETTER, tiers.FREE_GA).badges, [])
+    assert.deepEqual(evaluateFeatureAccess(FEATURE_KEYS.APPLICATION, tiers.ACTIVE_GA).badges, [])
+  })
 })

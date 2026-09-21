@@ -36,13 +36,13 @@ export function applyEntitlementMenuBadges(
       return entry
     }
     const verdict = evaluateFeatureAccess(featureKey as FeatureKey, ctx)
-    const badge = formatFeatureAccessBadge(verdict.badges)
-    if (!badge) {
+    if (verdict.allowed) {
       return entry
     }
+    const badge = formatFeatureAccessBadge(verdict.badges)
     return {
       ...entry,
-      badge: entry.badge ? `${entry.badge} · ${badge}` : badge,
+      badge: badge ? (entry.badge ? `${entry.badge} · ${badge}` : badge) : entry.badge,
       entitlementBlocked: true,
       entitlementReason: verdict.reason,
       featureKey,
