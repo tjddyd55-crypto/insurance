@@ -562,10 +562,12 @@ export function registerUserProfileApi(apiRouter, ctx) {
       const r = await systemQuery(
         pool,
         `
-        SELECT id, username, display_name, phone_number, role, ga_id, status, team_id,
-               subscription_plan, subscription_started_at, subscription_expires_at
-        FROM users
-        WHERE id = $1 AND is_deleted = false
+        SELECT u.id, u.username, u.display_name, u.phone_number, u.role, u.ga_id, u.status, u.team_id,
+               u.subscription_plan, u.subscription_started_at, u.subscription_expires_at,
+               g.code AS ga_code, g.name AS ga_name
+        FROM users u
+        LEFT JOIN ga_companies g ON g.id = u.ga_id AND g.is_deleted = false
+        WHERE u.id = $1 AND u.is_deleted = false
         `,
         [uid],
       )
@@ -587,6 +589,8 @@ export function registerUserProfileApi(apiRouter, ctx) {
         phone_number: normalizeKrMobile(row.phone_number ?? ''),
         role: String(row.role ?? ''),
         ga_id: row.ga_id,
+        ga_code: row.ga_code != null ? String(row.ga_code).trim() : '',
+        ga_name: row.ga_name != null ? String(row.ga_name).trim() : '',
         status: String(row.status ?? 'active').toLowerCase(),
         team_id: row.team_id != null ? String(row.team_id) : null,
         subscription,
