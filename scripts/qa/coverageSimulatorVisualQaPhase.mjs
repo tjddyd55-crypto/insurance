@@ -30,16 +30,13 @@ async function main() {
   const page = await context.newPage()
   const log = []
 
-  await login(page)
-  log.push(`login ok -> ${page.url()}`)
-
   await setViewport(page, 390)
-  await page.goto(`${BASE}/coverage-simulator`, { waitUntil: 'domcontentloaded' })
-  await page.waitForURL(/\/coverage-simulator\/?$/, { timeout: 30000 })
+  await page.goto(`${BASE}${PREVIEW}`, { waitUntil: 'domcontentloaded' })
+  await page.waitForURL(/\/coverage-simulator-preview\/?$/, { timeout: 30000 })
   await page.waitForSelector('[data-testid="coverage-simulator-root"]', { timeout: 30000 })
   log.push(await shot(page, 'coverage-simulator-home-390'))
 
-  await page.goto(`${BASE}/coverage-simulator/cancer`, { waitUntil: 'domcontentloaded' })
+  await page.goto(`${BASE}${PREVIEW}/cancer`, { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('[data-testid="coverage-scenario-editor"]')
   log.push(await shot(page, 'coverage-simulator-cancer-390-before'))
   log.push(await shot(page, 'coverage-simulator-cancer-390'))
@@ -73,13 +70,13 @@ async function main() {
   const savedUrl = page.url()
   log.push(`saved url: ${savedUrl}`)
 
-  await page.goto(`${BASE}/coverage-simulator/saved`, { waitUntil: 'domcontentloaded' })
+  await page.goto(`${BASE}${PREVIEW}/saved`, { waitUntil: 'domcontentloaded' })
   log.push(await shot(page, 'coverage-simulator-saved-390'))
 
   const scenarioIdMatch = savedUrl.match(/scenarios\/([^/]+)/)
   const scenarioId = scenarioIdMatch?.[1]
   if (scenarioId) {
-    await page.goto(`${BASE}/coverage-simulator/scenarios/${scenarioId}/pdf`, {
+    await page.goto(`${BASE}${PREVIEW}/scenarios/${scenarioId}/pdf`, {
       waitUntil: 'domcontentloaded',
     })
     await page.waitForSelector('.coverage-simulator-print-root', { timeout: 30000 })
@@ -107,13 +104,13 @@ async function main() {
   }
 
   await setViewport(page, 1440, 1200)
-  await page.goto(`${BASE}/coverage-simulator/cancer`, { waitUntil: 'domcontentloaded' })
+  await page.goto(`${BASE}${PREVIEW}/cancer`, { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('[data-testid="coverage-scenario-editor"]', { timeout: 30000 })
   log.push(await shot(page, 'coverage-simulator-desktop-1440'))
 
   for (const width of [360, 375, 412]) {
     await setViewport(page, width)
-    await page.goto(`${BASE}/coverage-simulator/cancer`, { waitUntil: 'domcontentloaded' })
+    await page.goto(`${BASE}${PREVIEW}/cancer`, { waitUntil: 'domcontentloaded' })
     await page.waitForSelector('[data-testid="coverage-scenario-editor"]', { timeout: 30000 })
     log.push(await shot(page, `coverage-simulator-cancer-${width}`))
   }
