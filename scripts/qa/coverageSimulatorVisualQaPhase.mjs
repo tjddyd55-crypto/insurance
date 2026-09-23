@@ -102,7 +102,8 @@ async function capturePcFlow(page, log) {
   await page.locator('.coverage-simulator-add-slot--pc, .coverage-simulator-add-slot').first().click()
   await page.waitForSelector('.coverage-simulator-sheet', { timeout: 10000 })
   log.push(await shot(page, 'pc-preview-add-sheet-1440', { fullPage: false }))
-  await page.keyboard.press('Escape')
+  await page.locator('.coverage-simulator-sheet-backdrop').click({ force: true, position: { x: 8, y: 8 } })
+  await page.waitForSelector('.coverage-simulator-sheet', { state: 'hidden', timeout: 5000 })
 
   await page.getByRole('button', { name: '저장' }).first().click()
   await page.waitForTimeout(800)
