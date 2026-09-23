@@ -698,8 +698,199 @@ body.coverage-simulator-immersive .pc-workspace-layout > main {
   color: var(--cs-color-text-muted);
 }
 
+.coverage-simulator-card-memo {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--cs-color-text-muted);
+}
+
+.coverage-simulator-mobile-preview-root {
+  min-height: 100dvh;
+  background: #d5dde8;
+}
+
+.coverage-simulator-mobile-preview-frame {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  min-height: calc(100dvh - 30px);
+  background: var(--cs-color-bg);
+  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.08);
+}
+
+.coverage-simulator-pc-preview-root {
+  min-height: 100dvh;
+  min-width: 1024px;
+  overflow-x: auto;
+  background: #e3e9f0;
+}
+
+.coverage-simulator-root--pc-preview .coverage-simulator-shell {
+  max-width: 1120px;
+}
+
+.coverage-simulator-root--mobile-preview .coverage-simulator-shell {
+  max-width: 100%;
+}
+
+.coverage-simulator-root--mobile-preview .coverage-simulator-sheet-backdrop {
+  align-items: end;
+  padding: 0;
+}
+
+.coverage-simulator-root--mobile-preview .coverage-simulator-sheet {
+  border-radius: var(--cs-radius-sheet);
+  max-width: 100%;
+}
+
+.coverage-simulator-content--pc-select .coverage-simulator-scenario-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cs-space-3);
+}
+
+.coverage-simulator-content--pc-select .coverage-simulator-scenario-card {
+  margin-bottom: 0;
+}
+
+.coverage-simulator-pc-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--cs-space-4);
+  padding: var(--cs-space-4) var(--cs-space-6);
+  background: var(--cs-color-surface);
+  border-bottom: 1px solid var(--cs-color-border);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.coverage-simulator-pc-toolbar__title {
+  flex: 1;
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 800;
+}
+
+.coverage-simulator-pc-toolbar__actions {
+  display: flex;
+  gap: var(--cs-space-2);
+}
+
+.coverage-simulator-pc-workspace {
+  padding: var(--cs-space-6);
+  padding-bottom: 120px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: var(--cs-space-6);
+  align-items: start;
+}
+
+.coverage-simulator-pc-intro {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: var(--cs-space-4);
+  padding: var(--cs-space-5);
+  border-radius: var(--cs-radius-card);
+  background: var(--cs-color-surface);
+  border: 1px solid var(--cs-color-border);
+  box-shadow: var(--cs-shadow-card);
+}
+
+.coverage-simulator-pc-compare-labels {
+  grid-column: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--cs-space-4);
+  font-size: var(--cs-font-caption);
+  font-weight: 700;
+  color: var(--cs-color-text-muted);
+  padding: 0 var(--cs-space-2);
+}
+
+.coverage-simulator-pc-compare-labels__proposed {
+  color: var(--cs-color-proposed);
+}
+
+.coverage-simulator-pc-timeline {
+  grid-column: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cs-space-3);
+}
+
+.coverage-simulator-pc-timeline__block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cs-space-2);
+}
+
+.coverage-simulator-pc-card {
+  border: 1px solid var(--cs-color-border);
+  border-radius: var(--cs-radius-card);
+  background: var(--cs-color-surface);
+  box-shadow: var(--cs-shadow-card);
+  padding: var(--cs-space-4) var(--cs-space-5);
+}
+
+.coverage-simulator-pc-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--cs-space-3);
+  margin-bottom: var(--cs-space-3);
+}
+
+.coverage-simulator-pc-card__title {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 800;
+}
+
+.coverage-simulator-pc-amount-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--cs-space-4);
+}
+
+.coverage-simulator-amount-box__value--pc {
+  font-size: 1.375rem;
+}
+
+.coverage-simulator-card-actions--pc {
+  margin-top: var(--cs-space-4);
+}
+
+.coverage-simulator-pc-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cs-space-4);
+  padding: var(--cs-space-4);
+  border: 1px dashed #c5d0dc;
+  border-radius: 10px;
+  background: #f6f8fb;
+  font-weight: 700;
+  color: #475569;
+}
+
+.coverage-simulator-pc-summary {
+  grid-column: 2;
+  grid-row: 2 / span 2;
+  position: sticky;
+  top: 88px;
+  padding: var(--cs-space-4);
+  border-radius: var(--cs-radius-card);
+  background: var(--cs-color-surface);
+  border: 1px solid var(--cs-color-border);
+  box-shadow: var(--cs-shadow-card);
+}
+
+.coverage-simulator-add-slot--pc {
+  max-width: 280px;
+}
+
 @media (min-width: 768px) {
-  .coverage-simulator-content {
+  .coverage-simulator-root:not(.coverage-simulator-root--mobile-preview) .coverage-simulator-content {
     padding: var(--cs-space-6);
   }
 }

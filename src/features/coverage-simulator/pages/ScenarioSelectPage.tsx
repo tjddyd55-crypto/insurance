@@ -6,24 +6,32 @@ import { SCENARIO_TYPE_CARDS } from '../domain/templates'
 
 export function ScenarioSelectPage() {
   const navigate = useNavigate()
-  const { basePath } = useCoverageSimulatorScope()
+  const { basePath, layoutMode } = useCoverageSimulatorScope()
+  const isPublicPreview = layoutMode === 'preview-pc' || layoutMode === 'preview-mobile'
 
   return (
     <CoverageSimulatorLayout>
       <header className="coverage-simulator-appbar">
-        <button
-          type="button"
-          className="coverage-simulator-icon-btn"
-          onClick={() => navigate(coverageSimulatorExitPath(basePath))}
-        >
-          ←
-        </button>
+        {isPublicPreview ? (
+          <span className="coverage-simulator-icon-btn" aria-hidden="true" />
+        ) : (
+          <button
+            type="button"
+            className="coverage-simulator-icon-btn"
+            onClick={() => navigate(coverageSimulatorExitPath(basePath))}
+          >
+            ←
+          </button>
+        )}
         <div className="coverage-simulator-appbar__title">보장 시뮬레이션</div>
         <span />
       </header>
-      <main className="coverage-simulator-content">
+      <main
+        className={`coverage-simulator-content${layoutMode === 'preview-pc' ? ' coverage-simulator-content--pc-select' : ''}`}
+      >
         <h1 className="coverage-simulator-page-title">보장 시뮬레이션</h1>
         <p className="coverage-simulator-page-desc">상담할 시나리오를 선택하세요.</p>
+        <div className="coverage-simulator-scenario-list">
         {SCENARIO_TYPE_CARDS.map((card) => (
           <button
             key={card.diseaseType}
@@ -36,6 +44,7 @@ export function ScenarioSelectPage() {
             <div className="coverage-simulator-scenario-card__desc">{card.description}</div>
           </button>
         ))}
+        </div>
         <button
           type="button"
           className="coverage-simulator-primary-btn"

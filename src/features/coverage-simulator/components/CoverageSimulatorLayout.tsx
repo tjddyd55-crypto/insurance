@@ -4,7 +4,7 @@ import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
 import '../styles/coverage-simulator.css'
 
 export function CoverageSimulatorLayout({ children }: { children: React.ReactNode }) {
-  const { isPublicPreview } = useCoverageSimulatorScope()
+  const { isPublicPreview, layoutMode } = useCoverageSimulatorScope()
 
   useEffect(() => {
     if (isPublicPreview) {
@@ -17,7 +17,16 @@ export function CoverageSimulatorLayout({ children }: { children: React.ReactNod
   }, [isPublicPreview])
 
   return (
-    <div className="coverage-simulator-root" data-testid="coverage-simulator-root">
+    <div
+      className={[
+        'coverage-simulator-root',
+        layoutMode === 'preview-pc' ? 'coverage-simulator-root--pc-preview' : '',
+        layoutMode === 'preview-mobile' ? 'coverage-simulator-root--mobile-preview' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      data-testid="coverage-simulator-root"
+    >
       <div className="coverage-simulator-shell">{children}</div>
     </div>
   )

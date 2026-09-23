@@ -128,7 +128,10 @@ import MemoRoutePage from './features/memo/pages/MemoRoutePage'
 import { PdfPreviewPage } from './features/coverage-simulator/pages/PdfPreviewPage'
 import { SavedScenariosPage } from './features/coverage-simulator/pages/SavedScenariosPage'
 import { ScenarioEditorPage } from './features/coverage-simulator/pages/ScenarioEditorPage'
-import { CoverageSimulatorPublicLayout } from './features/coverage-simulator/pages/CoverageSimulatorPublicLayout'
+import {
+  CoverageSimulatorPublicMobileLayout,
+  CoverageSimulatorPublicPcLayout,
+} from './features/coverage-simulator/pages/CoverageSimulatorPublicLayout'
 import { ScenarioSelectPage } from './features/coverage-simulator/pages/ScenarioSelectPage'
 import PublicAccountRestrictedPage from './features/common/PublicAccountRestrictedPage'
 import { PublicBoardWriterAdminPage } from './features/insurer-news/pages/PublicBoardWriterAdminPage'
@@ -255,8 +258,19 @@ export const appRouter = createBrowserRouter([
       // 과거 install 전용 페이지는 랜딩 다운로드 섹션으로 통일 (권장 정책 2)
       { path: 'introduction/install', element: <Navigate to="/introduction#download" replace /> },
       {
-        path: 'coverage-simulator-preview',
-        element: <CoverageSimulatorPublicLayout />,
+        path: 'coverage-simulator-preview/pc',
+        element: <CoverageSimulatorPublicPcLayout />,
+        children: [
+          { index: true, element: <ScenarioSelectPage /> },
+          { path: 'saved', element: <SavedScenariosPage /> },
+          { path: 'scenarios/:scenarioId/pdf', element: <PdfPreviewPage /> },
+          { path: 'scenarios/:scenarioId', element: <ScenarioEditorPage /> },
+          { path: ':diseaseType', element: <ScenarioEditorPage /> },
+        ],
+      },
+      {
+        path: 'coverage-simulator-preview/mobile',
+        element: <CoverageSimulatorPublicMobileLayout />,
         children: [
           { index: true, element: <ScenarioSelectPage /> },
           { path: 'saved', element: <SavedScenariosPage /> },

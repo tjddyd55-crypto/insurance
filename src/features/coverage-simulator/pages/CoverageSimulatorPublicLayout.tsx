@@ -1,33 +1,41 @@
 import { Outlet } from 'react-router-dom'
 
 import {
-  COVERAGE_SIMULATOR_PREVIEW_BASE_PATH,
   CoverageSimulatorScopeProvider,
+  previewScopeMobile,
+  previewScopePc,
 } from '../CoverageSimulatorScope'
-import { COVERAGE_SIMULATOR_PREVIEW_USER_KEY } from '../storage/scenarioRepository'
 import '../styles/coverage-simulator.css'
 
-/**
- * CRM AppWorkspaceLayout·인증과 완전 분리된 공개 보장 시뮬레이션 Shell.
- * `/introduction`과 동일 Public Route Layer에만 등록한다.
- */
-export function CoverageSimulatorPublicLayout() {
+function PreviewChrome({ label }: { label: string }) {
   return (
-    <CoverageSimulatorScopeProvider
-      basePath={COVERAGE_SIMULATOR_PREVIEW_BASE_PATH}
-      userKey={COVERAGE_SIMULATOR_PREVIEW_USER_KEY}
-      isPublicPreview
-    >
-      <div className="coverage-simulator-public-root" data-testid="coverage-simulator-public-root">
-        <p className="coverage-simulator-public-chrome" aria-hidden="true">
-          <span className="coverage-simulator-public-chrome__badge">PREVIEW</span>
-          보장 시뮬레이션
-        </p>
+    <p className="coverage-simulator-public-chrome" aria-hidden="true">
+      <span className="coverage-simulator-public-chrome__badge">PREVIEW</span>
+      {label}
+    </p>
+  )
+}
+
+export function CoverageSimulatorPublicPcLayout() {
+  return (
+    <CoverageSimulatorScopeProvider {...previewScopePc}>
+      <div className="coverage-simulator-pc-preview-root" data-testid="coverage-simulator-public-pc-root">
+        <PreviewChrome label="보장 시뮬레이션 · PC" />
         <Outlet />
       </div>
     </CoverageSimulatorScopeProvider>
   )
 }
 
-/** 라우터 호환 alias */
-export const CoverageSimulatorPreviewLayout = CoverageSimulatorPublicLayout
+export function CoverageSimulatorPublicMobileLayout() {
+  return (
+    <CoverageSimulatorScopeProvider {...previewScopeMobile}>
+      <div className="coverage-simulator-mobile-preview-root" data-testid="coverage-simulator-public-mobile-root">
+        <PreviewChrome label="보장 시뮬레이션 · Mobile" />
+        <div className="coverage-simulator-mobile-preview-frame">
+          <Outlet />
+        </div>
+      </div>
+    </CoverageSimulatorScopeProvider>
+  )
+}
