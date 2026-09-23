@@ -1,3 +1,4 @@
+import { CUSTOMER_DESIGNATED_DATE_LABEL } from '../../../../shared/customerDesignatedDateCopy.js'
 import { labelForCustomerSpecialDatePurpose } from '../config/customerSpecialDatePurpose.config'
 import type { CustomerSpecialDateRecord } from '../api/customerSpecialDatesApi'
 
@@ -8,10 +9,10 @@ export type CustomerSpecialDatesReadListProps = {
 
 export function CustomerSpecialDatesReadList({ items, loading }: CustomerSpecialDatesReadListProps) {
   if (loading) {
-    return <p className="customer-special-dates-read__loading">알림일을 불러오는 중…</p>
+    return <p className="customer-special-dates-read__loading">{CUSTOMER_DESIGNATED_DATE_LABEL}을 불러오는 중…</p>
   }
   if (!items.length) {
-    return <p className="customer-special-dates-read__empty">등록된 알림일이 없습니다.</p>
+    return <p className="customer-special-dates-read__empty">등록된 {CUSTOMER_DESIGNATED_DATE_LABEL}이 없습니다.</p>
   }
   return (
     <ul className="customer-special-dates-read__list">

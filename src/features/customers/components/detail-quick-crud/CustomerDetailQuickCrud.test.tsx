@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { CUSTOMER_DETAIL_CORE_SECTIONS } from '../../config/customerDetailCoreSectionOrder'
@@ -5,6 +8,13 @@ import { CustomerCarsQuickSection } from './CustomerCarsQuickSection'
 import { CustomerFireInsuranceQuickSection } from './CustomerFireInsuranceQuickSection'
 import { CustomerBusinessQuickSection } from './CustomerBusinessQuickSection'
 import { CustomerSpecialDatesQuickSection } from './CustomerSpecialDatesQuickSection'
+
+const srcRoot = join(dirname(fileURLToPath(import.meta.url)), '../../../..')
+const indexCss = readFileSync(join(srcRoot, 'index.css'), 'utf8')
+const specialDatesSource = readFileSync(
+  join(dirname(fileURLToPath(import.meta.url)), 'CustomerSpecialDatesQuickSection.tsx'),
+  'utf8',
+)
 
 const baseCustomer = {
   id: 1,
@@ -71,7 +81,18 @@ describe('CustomerDetailQuickCrud sections', () => {
     const html = renderToStaticMarkup(
       <CustomerSpecialDatesQuickSection customer={baseCustomer} token="tok" enabled={false} embedded />,
     )
-    expect(html).toContain('+ 알림일 추가')
-    expect(html).toContain('등록된 알림일이 없습니다.')
+    expect(html).toContain('+ 지정일 추가')
+    expect(html).toContain('등록된 지정일이 없습니다.')
+    expect(html).not.toContain('customer-quick-crud-card__fields--inline')
+  })
+
+  it('lays designated dates out as a horizontal name and date row', () => {
+    expect(specialDatesSource).toContain('customer-special-date-row__title')
+    expect(specialDatesSource).toContain('customer-special-date-row__date')
+    expect(specialDatesSource).not.toContain('customer-quick-crud-card__fields--inline')
+    expect(indexCss).not.toContain('customer-quick-crud-card__fields--inline')
+    expect(indexCss).toMatch(/\.customer-special-date-row\s*\{[^}]*flex-wrap:\s*nowrap/s)
+    expect(indexCss).toMatch(/\.customer-special-date-row__date\s*\{[^}]*white-space:\s*nowrap/s)
+    expect(indexCss).toMatch(/\.customer-special-date-row__title\s*\{[^}]*word-break:\s*keep-all/s)
   })
 })

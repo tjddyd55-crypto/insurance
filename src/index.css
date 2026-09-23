@@ -8656,10 +8656,6 @@ div.cta-button.customers-page__action-btn[role='button'] {
   gap: 8px 12px;
 }
 
-.customers-page--pc .customer-detail-read--accordion .customer-quick-crud-card__fields--inline {
-  grid-template-columns: 140px minmax(0, 1fr) 140px minmax(0, 1fr);
-}
-
 .customers-page--pc .customer-detail-read--accordion .customer-quick-crud-list .customer-quick-crud-card:last-child {
   border-bottom: none;
 }
@@ -8828,10 +8824,6 @@ div.cta-button.customers-page__action-btn[role='button'] {
   .customers-page--pc .customer-detail-read__field-row,
   .customers-page--pc .customer-detail-read--accordion .customer-quick-crud-card__fields,
   .customers-page--pc .customer-detail-read--accordion .customer-quick-crud-card__row--wide {
-    grid-template-columns: 120px minmax(0, 1fr);
-  }
-
-  .customers-page--pc .customer-detail-read--accordion .customer-quick-crud-card__fields--inline {
     grid-template-columns: 120px minmax(0, 1fr);
   }
 
@@ -9494,16 +9486,60 @@ div.cta-button.customers-page__action-btn[role='button'] {
   align-items: center;
 }
 
+/* 지정일 한 줄: 좌측 430px 패널에서 라벨 칸이 값을 0px로 눌러 글자가 세로로 깨지지 않게 한다. */
+.customer-special-date-row {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+.customers-page--pc .customer-detail-read--accordion .customer-special-date-row {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+.customer-special-date-row__text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 8px 12px;
+  min-width: 0;
+}
+
+.customer-special-date-row__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
+}
+
+.customer-special-date-row__date {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+.customer-special-date-row .customer-quick-crud-card__actions {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  margin-left: 0;
+}
+
+.customer-special-date-row .customer-quick-crud-card__actions .button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .customer-quick-crud-card__fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(72px, auto) minmax(0, 1fr));
   gap: 6px 10px;
   flex: 1 1 220px;
   min-width: 0;
-}
-
-.customer-quick-crud-card__fields--inline {
-  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
 }
 
 .customer-quick-crud-card__row {

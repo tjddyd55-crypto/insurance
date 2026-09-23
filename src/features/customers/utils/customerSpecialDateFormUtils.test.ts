@@ -32,13 +32,13 @@ test('getCustomerSpecialDatesValidationError — 라벨·날짜 필수', () => {
     getCustomerSpecialDatesValidationError([
       { purposeType: 'THANKS', title: '', dateValue: '2024-01-01', memo: '' },
     ]),
-    '알림일 1: 라벨을 입력해 주세요.',
+    '지정일 1: 이름을 입력해 주세요.',
   )
   assert.equal(
     getCustomerSpecialDatesValidationError([
       { purposeType: 'NOTICE', title: '보장분석', dateValue: '', memo: '' },
     ]),
-    '알림일 1: 날짜를 YYYY-MM-DD 형식으로 입력해 주세요.',
+    '지정일 1: 날짜를 YYYY-MM-DD 형식으로 입력해 주세요.',
   )
   assert.equal(
     getCustomerSpecialDatesValidationError([

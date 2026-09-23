@@ -3,6 +3,7 @@ import AppDateInput from '../../../../components/common/AppDateInput'
 import { useConfirmDialog } from '../../../../components/dialog'
 import { FormButton, FormInput } from '../../../../components/form'
 import { ApiError } from '../../../../lib/apiClient'
+import { CUSTOMER_DESIGNATED_DATE_LABEL } from '../../../../../shared/customerDesignatedDateCopy.js'
 import {
   createCustomerSpecialDate,
   deleteCustomerSpecialDate,
@@ -119,8 +120,8 @@ export function CustomerSpecialDatesQuickSection({
         return
       }
       const ok = await confirm({
-        title: '알림일 삭제',
-        message: '이 알림일을 삭제할까요?',
+        title: `${CUSTOMER_DESIGNATED_DATE_LABEL} 삭제`,
+        message: `이 ${CUSTOMER_DESIGNATED_DATE_LABEL}을 삭제할까요?`,
         confirmLabel: '삭제',
         tone: 'danger',
       })
@@ -152,21 +153,21 @@ export function CustomerSpecialDatesQuickSection({
       {errorMessage ? (
         <p className="customer-detail-read__api-warn" role="status">{errorMessage}</p>
       ) : null}
-      {isLoading ? <p className="customer-special-dates-read__loading">알림일을 불러오는 중…</p> : null}
+      {isLoading ? (
+        <p className="customer-special-dates-read__loading">{CUSTOMER_DESIGNATED_DATE_LABEL}을 불러오는 중…</p>
+      ) : null}
       {!isLoading && specialDates.length === 0 ? (
-        <p className="customer-special-dates-read__empty">등록된 알림일이 없습니다.</p>
+        <p className="customer-special-dates-read__empty">등록된 {CUSTOMER_DESIGNATED_DATE_LABEL}이 없습니다.</p>
       ) : null}
       {!isLoading && specialDates.length > 0 ? (
         <ul className="customer-quick-crud-list">
           {specialDates.map((record) => {
             const item = customerSpecialDateRecordToFormItem(record)
             return (
-              <li key={item.id ?? item.title} className="customer-quick-crud-card customer-quick-crud-card--row">
-                <div className="customer-quick-crud-card__fields customer-quick-crud-card__fields--inline">
-                  <span className="customer-quick-crud-card__label">알림명</span>
-                  <span className="customer-quick-crud-card__value">{item.title || '—'}</span>
-                  <span className="customer-quick-crud-card__label">날짜</span>
-                  <span className="customer-quick-crud-card__value">{item.dateValue || '—'}</span>
+              <li key={item.id ?? item.title} className="customer-quick-crud-card customer-special-date-row">
+                <div className="customer-special-date-row__text">
+                  <span className="customer-special-date-row__title">{item.title || '—'}</span>
+                  <span className="customer-special-date-row__date">{item.dateValue || '—'}</span>
                 </div>
                 {canMutate && item.id != null ? (
                   <div className="customer-quick-crud-card__actions">
@@ -198,14 +199,18 @@ export function CustomerSpecialDatesQuickSection({
       {canMutate ? (
         <div className="customer-quick-crud-section__add">
           <FormButton htmlType="button" variant="secondary" size="sm" disabled={saving} onClick={openCreate}>
-            + 알림일 추가
+            + {CUSTOMER_DESIGNATED_DATE_LABEL} 추가
           </FormButton>
         </div>
       ) : null}
 
       <CustomerQuickFormDialog
         open={modalOpen}
-        title={modal.mode === 'edit' ? '알림일 수정' : '알림일 등록'}
+        title={
+          modal.mode === 'edit'
+            ? `${CUSTOMER_DESIGNATED_DATE_LABEL} 수정`
+            : `${CUSTOMER_DESIGNATED_DATE_LABEL} 등록`
+        }
         saving={saving}
         errorMessage={formError}
         onClose={closeModal}
@@ -214,7 +219,7 @@ export function CustomerSpecialDatesQuickSection({
         {activeDraft ? (
           <div className="customer-quick-form-dialog__fields">
             <label className="field">
-              <span className="field__label">알림명</span>
+              <span className="field__label">이름</span>
               <FormInput
                 className="field__control"
                 placeholder="예: 결혼기념일, 첫 계약일"
@@ -247,7 +252,7 @@ export function CustomerSpecialDatesQuickSection({
     <section className="customer-detail-read__section" aria-labelledby="customer-special-dates-heading">
       <div className="customer-detail-read__section-header">
         <h4 id="customer-special-dates-heading" className="customer-detail-read__section-title">
-          알림일
+          {CUSTOMER_DESIGNATED_DATE_LABEL}
         </h4>
       </div>
       {body}

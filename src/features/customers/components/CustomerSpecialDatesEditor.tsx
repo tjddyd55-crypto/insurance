@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import { FormButton } from '../../../components/form'
+import { CUSTOMER_DESIGNATED_DATE_LABEL } from '../../../../shared/customerDesignatedDateCopy.js'
 import type { CustomerSpecialDateFormItem } from '../types/customerSpecialDateForm'
 import { createEmptyCustomerSpecialDate } from '../utils/customerSpecialDateFormUtils'
 import { CustomerFormSection } from './CustomerFormSection'
@@ -40,7 +41,7 @@ export function CustomerSpecialDatesEditor({
 
   return (
     <CustomerFormSection
-      title="알림일"
+      title={CUSTOMER_DESIGNATED_DATE_LABEL}
       className="customer-form-section--grid-full customer-special-dates-editor"
       headerExtra={
         <FormButton
@@ -50,12 +51,14 @@ export function CustomerSpecialDatesEditor({
           disabled={disabled}
           onClick={addItem}
         >
-          알림일 추가
+          {CUSTOMER_DESIGNATED_DATE_LABEL} 추가
         </FormButton>
       }
     >
       {list.length === 0 ? (
-        <p className="customer-special-dates-editor__empty-hint">등록된 알림일이 없습니다. 추가 버튼으로 입력하세요.</p>
+        <p className="customer-special-dates-editor__empty-hint">
+          등록된 {CUSTOMER_DESIGNATED_DATE_LABEL}이 없습니다. 추가 버튼으로 입력하세요.
+        </p>
       ) : (
         <div className="customer-special-dates-editor__list">
           {list.map((item, i) => (
