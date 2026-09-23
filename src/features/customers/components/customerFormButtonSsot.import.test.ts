@@ -26,7 +26,7 @@ describe('고객등록/수정 폼 버튼 SSOT wiring', () => {
   })
 
   it('알림일 추가는 자동차 추가와 동일 variant/size', () => {
-    expect(special).toMatch(/알림일 추가/)
+    expect(special).toMatch(/CUSTOMER_ALERT_DATE_LABEL\} 추가/)
     expect(special).toMatch(/variant="secondary"/)
     expect(special).toMatch(/size="sm"/)
     expect(special).not.toMatch(/filter-button/)

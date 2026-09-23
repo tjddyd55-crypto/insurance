@@ -1,5 +1,6 @@
 import { addDaysToDateOnly, formatDateOnly, getKstDateString } from '../../shared/dateTimeKst.js'
 import { computeNextAnnualOccurrence } from '../../shared/annualOccurrenceDate.js'
+import { CUSTOMER_ALERT_DATE_LABEL } from '../../shared/customerAlertDateCopy.js'
 import { USER_NOTIFICATION_TYPES } from '../notifications/userNotificationTypes.js'
 import {
   DEFAULT_NOTIFICATION_DAYS_BEFORE,
@@ -512,7 +513,7 @@ async function syncSpecialDateNotifications(db, safeQueryExec, userId, gaId, tod
       continue
     }
     const customerName = String(row.customer_name ?? '').trim() || '고객'
-    const title = String(row.title ?? '').trim() || '알림일'
+    const title = String(row.title ?? '').trim() || CUSTOMER_ALERT_DATE_LABEL
     const specialDateId = Number(row.special_date_id)
     if (!Number.isInteger(specialDateId) || specialDateId < 1) {
       continue
@@ -527,7 +528,7 @@ async function syncSpecialDateNotifications(db, safeQueryExec, userId, gaId, tod
         targetDate: occurrence,
         claimRequestId: null,
         specialDateId,
-        message: `오늘은 ${customerName} 고객의 "${title}" 알림일입니다.`,
+        message: `${customerName} 고객의 「${title}」 ${CUSTOMER_ALERT_DATE_LABEL}이 다가왔습니다.`,
         referenceId: String(specialDateId),
       })
     } catch (error) {

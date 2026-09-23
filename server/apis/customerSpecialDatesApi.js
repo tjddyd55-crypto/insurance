@@ -1,3 +1,4 @@
+import { CUSTOMER_ALERT_DATE_LABEL } from '../../shared/customerAlertDateCopy.js'
 import { safeQuery } from '../utils/dbSafeQuery.js'
 import { parseGaId } from '../lib/parseGaId.js'
 
@@ -147,11 +148,11 @@ export function registerCustomerSpecialDatesApi(apiRouter, { pool, requireAuth, 
     const memo = trimStr(body.memo)
     const dateValue = normalizeDateValueOrNull(body.dateValue)
     if (!title) {
-      res.status(400).json({ message: '기념일 라벨을 입력해 주세요.' })
+      res.status(400).json({ message: `${CUSTOMER_ALERT_DATE_LABEL} 이름을 입력해 주세요.` })
       return
     }
     if (!dateValue) {
-      res.status(400).json({ message: '기념일 날짜는 YYYY-MM-DD 형식이어야 합니다.' })
+      res.status(400).json({ message: `${CUSTOMER_ALERT_DATE_LABEL} 날짜는 YYYY-MM-DD 형식이어야 합니다.` })
       return
     }
 
@@ -228,7 +229,7 @@ export function registerCustomerSpecialDatesApi(apiRouter, { pool, requireAuth, 
       )
       if (cur.rowCount === 0) {
         await client.query('ROLLBACK')
-        res.status(404).json({ message: '기념일을 찾을 수 없습니다.' })
+        res.status(404).json({ message: `${CUSTOMER_ALERT_DATE_LABEL}을 찾을 수 없습니다.` })
         return
       }
       const row = cur.rows[0]
@@ -241,7 +242,7 @@ export function registerCustomerSpecialDatesApi(apiRouter, { pool, requireAuth, 
         const next = normalizePurposeTypeOrNull(body.purposeType)
         if (!next) {
           await client.query('ROLLBACK')
-          res.status(400).json({ message: '유효한 기념일 타입이 아닙니다.' })
+          res.status(400).json({ message: `유효한 ${CUSTOMER_ALERT_DATE_LABEL} 타입이 아닙니다.` })
           return
         }
         purposeType = next
@@ -250,7 +251,7 @@ export function registerCustomerSpecialDatesApi(apiRouter, { pool, requireAuth, 
         title = trimStr(body.title)
         if (!title) {
           await client.query('ROLLBACK')
-          res.status(400).json({ message: '기념일 라벨을 입력해 주세요.' })
+          res.status(400).json({ message: `${CUSTOMER_ALERT_DATE_LABEL} 이름을 입력해 주세요.` })
           return
         }
       }
@@ -261,7 +262,7 @@ export function registerCustomerSpecialDatesApi(apiRouter, { pool, requireAuth, 
         const n = normalizeDateValueOrNull(body.dateValue)
         if (!n) {
           await client.query('ROLLBACK')
-          res.status(400).json({ message: '기념일 날짜는 YYYY-MM-DD 형식이어야 합니다.' })
+          res.status(400).json({ message: `${CUSTOMER_ALERT_DATE_LABEL} 날짜는 YYYY-MM-DD 형식이어야 합니다.` })
           return
         }
         dateValue = n
@@ -328,7 +329,7 @@ export function registerCustomerSpecialDatesApi(apiRouter, { pool, requireAuth, 
       )
       if (del.rowCount === 0) {
         await client.query('ROLLBACK')
-        res.status(404).json({ message: '기념일을 찾을 수 없습니다.' })
+        res.status(404).json({ message: `${CUSTOMER_ALERT_DATE_LABEL}을 찾을 수 없습니다.` })
         return
       }
       await client.query('COMMIT')

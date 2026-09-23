@@ -17,6 +17,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useConfirmDialog } from '../../../components/dialog'
 import { getPublicOrigin } from '../../../lib/publicOrigin'
 import { copyTextToClipboard } from '../../../lib/clipboard'
+import { CUSTOMER_ALERT_DATE_LABEL } from '../../../../shared/customerAlertDateCopy.js'
 import { useAuth } from '../../auth/AuthProvider'
 import { isCarInsuranceFeatureEnabledForGa } from '../../dashboard/gaTenantMenu'
 import { canShowCustomerDetailElectronicSignature } from '../config/customerDetailFeatureFlags'
@@ -1246,7 +1247,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         }
       } catch {
         setStatusText(
-          '고객 정보는 수정했습니다. 기념일 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+          `고객 정보는 수정했습니다. ${CUSTOMER_ALERT_DATE_LABEL} 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.`,
         )
         cancelEdit()
         mergeCustomerInListState(updatedCustomer)
@@ -1421,7 +1422,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           })
         } catch {
           setStatusText(
-            '자동차·기념일·추가 정보·화재보험 목록을 불러오지 못했습니다. 기본 정보로 편집합니다.',
+            `자동차·${CUSTOMER_ALERT_DATE_LABEL}·추가 정보·화재보험 목록을 불러오지 못했습니다. 기본 정보로 편집합니다.`,
           )
         }
       })()

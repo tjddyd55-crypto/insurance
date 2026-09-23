@@ -1,6 +1,12 @@
 import type { ReactNode } from 'react'
 import { FormButton, FormInput } from '../../../components/form'
 import { FormDialog } from '../../../components/dialog/FormDialog'
+import {
+  CAR_EXPIRY_NOTIFICATION_SETTINGS_HINT,
+  CUSTOMER_ALERT_DATE_LABEL,
+  CUSTOMER_ALERT_DATE_SETTINGS_HINT,
+  INSURANCE_AGE_NOTIFICATION_SETTINGS_HINT,
+} from '../../../../shared/customerAlertDateCopy.js'
 import type { UserAlertSettings } from '../api/notificationApi'
 
 export type NotificationSettingsModalProps = {
@@ -130,6 +136,7 @@ export function NotificationSettingsModal({
                 })
               }
             />
+            <p className="notification-settings-modal__hint">{INSURANCE_AGE_NOTIFICATION_SETTINGS_HINT}</p>
           </ToggleRow>
 
           <ToggleRow
@@ -152,10 +159,11 @@ export function NotificationSettingsModal({
                 })
               }
             />
+            <p className="notification-settings-modal__hint">{CAR_EXPIRY_NOTIFICATION_SETTINGS_HINT}</p>
           </ToggleRow>
 
           <ToggleRow
-            label="지정일 알림"
+            label={`${CUSTOMER_ALERT_DATE_LABEL} 알림`}
             enabled={draft.specialDate.enabled}
             onToggle={(enabled) =>
               onChange({
@@ -174,6 +182,7 @@ export function NotificationSettingsModal({
                 })
               }
             />
+            <p className="notification-settings-modal__hint">{CUSTOMER_ALERT_DATE_SETTINGS_HINT}</p>
           </ToggleRow>
 
           <ToggleRow

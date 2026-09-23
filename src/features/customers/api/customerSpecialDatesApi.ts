@@ -1,4 +1,5 @@
 import { ApiError, apiRequest } from '../../../lib/apiClient'
+import { CUSTOMER_ALERT_DATE_LABEL } from '../../../../shared/customerAlertDateCopy.js'
 import type { CustomerSpecialDatePurposeType } from '../types/customerSpecialDateForm'
 
 export type CustomerSpecialDateRecord = {
@@ -75,7 +76,7 @@ export async function createCustomerSpecialDate(
     body: JSON.stringify(payload),
   })
   if (!raw || typeof raw !== 'object') {
-    throw new ApiError('기념일 등록 응답이 올바르지 않습니다.', 502)
+    throw new ApiError(`${CUSTOMER_ALERT_DATE_LABEL} 등록 응답이 올바르지 않습니다.`, 502)
   }
   return mapSpecialDate(raw as Record<string, unknown>)
 }
@@ -93,7 +94,7 @@ export async function updateCustomerSpecialDate(
     body: JSON.stringify(payload),
   })
   if (!raw || typeof raw !== 'object') {
-    throw new ApiError('기념일 수정 응답이 올바르지 않습니다.', 502)
+    throw new ApiError(`${CUSTOMER_ALERT_DATE_LABEL} 수정 응답이 올바르지 않습니다.`, 502)
   }
   return mapSpecialDate(raw as Record<string, unknown>)
 }

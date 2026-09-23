@@ -1,4 +1,6 @@
-/** PC/Native 고객 상세 핵심 정보 섹션 SSOT */
+import { CUSTOMER_ALERT_DATE_LABEL } from '../../../../shared/customerAlertDateCopy.js'
+
+/** PC 고객 상세 핵심 정보 섹션 SSOT. 알림일 표기는 알림 대시보드 카드와 같다. */
 export type CustomerDetailCoreSectionId =
   | 'basic'
   | 'vehicle'
@@ -17,7 +19,7 @@ export const CUSTOMER_DETAIL_CORE_SECTIONS: readonly {
   { id: 'linked', title: '연계 고객', testId: 'customer-detail-section-linked-customers' },
   { id: 'fireInsurance', title: '화재보험 정보', testId: 'customer-detail-section-fire-insurance' },
   { id: 'business', title: '사업자 정보', testId: 'customer-detail-section-business' },
-  { id: 'alertDates', title: '알림일', testId: 'customer-detail-section-special-dates' },
+  { id: 'alertDates', title: CUSTOMER_ALERT_DATE_LABEL, testId: 'customer-detail-section-special-dates' },
 ]
 
 export const CUSTOMER_DETAIL_DEFAULT_OPEN_SECTION: CustomerDetailCoreSectionId = 'basic'

@@ -6,7 +6,7 @@ import {
 } from './customerDetailCoreSectionOrder'
 
 describe('customerDetailCoreSectionOrder', () => {
-  it('matches native mobile core section order and labels', () => {
+  it('keeps core section order and uses the notification dashboard label for designated dates', () => {
     expect(CUSTOMER_DETAIL_CORE_SECTIONS.map((section) => section.title)).toEqual([
       '기본 정보',
       '자동차 정보',

@@ -1,3 +1,4 @@
+import { CUSTOMER_ALERT_DATE_LABEL } from '../../../../shared/customerAlertDateCopy.js'
 import type { NotificationListType, UserAlertSettings } from '../api/notificationApi'
 
 export type NotificationSectionConfig = {
@@ -22,8 +23,8 @@ export const NOTIFICATION_SECTIONS: NotificationSectionConfig[] = [
   },
   {
     type: 'special_date',
-    title: '지정일',
-    dateColumnLabel: '지정일',
+    title: CUSTOMER_ALERT_DATE_LABEL,
+    dateColumnLabel: CUSTOMER_ALERT_DATE_LABEL,
     sectionClass: 'special',
   },
   {

@@ -1,4 +1,5 @@
 import { ApiError, apiRequest } from '../../../lib/apiClient'
+import { CUSTOMER_ALERT_DATE_LABEL } from '../../../../shared/customerAlertDateCopy.js'
 
 export type NotificationRow = {
   id: string
@@ -180,7 +181,7 @@ export function notificationTypeLabel(type: string): string {
     case 'claim_request_received':
       return '청구알림'
     case 'special_date':
-      return '지정일'
+      return CUSTOMER_ALERT_DATE_LABEL
     default:
       return type || '알림'
   }

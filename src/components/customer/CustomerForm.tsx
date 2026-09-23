@@ -330,7 +330,7 @@ export function createEmptyIndustryCustomerForm(): CustomerFormState {
 
 
 export type CustomerFormValidationOptions = {
-  /** public registration — 기념일/알림일 UI 미노출 시 검증도 생략 */
+  /** public registration — 알림일 UI 미노출 시 검증도 생략 */
   skipSpecialDatesValidation?: boolean
 }
 
