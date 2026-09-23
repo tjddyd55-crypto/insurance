@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { useAuth } from '../../auth/AuthProvider'
+import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
 import { CoverageSimulatorLayout } from '../components/CoverageSimulatorLayout'
 import type { DiseaseType } from '../domain/types'
 import { filterSavedByDisease, listSavedScenarios } from '../storage/scenarioRepository'
@@ -16,8 +16,7 @@ const FILTERS: { id: DiseaseType | 'all'; label: string }[] = [
 
 export function SavedScenariosPage() {
   const navigate = useNavigate()
-  const { user } = useAuth()
-  const userKey = user?.id ?? 'guest'
+  const { basePath, userKey } = useCoverageSimulatorScope()
   const [filter, setFilter] = useState<DiseaseType | 'all'>('all')
 
   const rows = useMemo(() => {
@@ -28,7 +27,7 @@ export function SavedScenariosPage() {
   return (
     <CoverageSimulatorLayout>
       <header className="coverage-simulator-appbar">
-        <button type="button" className="coverage-simulator-icon-btn" onClick={() => navigate('/coverage-simulator')}>
+        <button type="button" className="coverage-simulator-icon-btn" onClick={() => navigate(basePath)}>
           ←
         </button>
         <div className="coverage-simulator-appbar__title">저장된 상담</div>
@@ -55,7 +54,7 @@ export function SavedScenariosPage() {
               key={row.id}
               type="button"
               className="coverage-simulator-saved-row"
-              onClick={() => navigate(`/coverage-simulator/scenarios/${row.id}`)}
+              onClick={() => navigate(`${basePath}/scenarios/${row.id}`)}
             >
               <div>
                 <div className="coverage-simulator-saved-row__title">

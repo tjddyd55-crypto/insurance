@@ -16,11 +16,12 @@ export function AppLayout() {
   const location = useLocation()
   const isMobile = useIsMobile()
   const isIntroductionRoute = location.pathname === '/introduction' || location.pathname === '/introduction/install'
+  const isCoverageSimulatorPublicRoute = location.pathname.startsWith('/coverage-simulator-preview')
 
   /** 고객 등록(?mode=create)은 CustomersPage ExitConfirmDialog만 사용 (네이티브·웹 이중 확인 방지) */
   const hideAppExitConfirm = isCustomerCreateMode(location.pathname, location.search ?? '')
   const hideMobileLoginTopChrome = !isAuthenticated && isMobile && location.pathname === '/login'
-  const hidePublicIntroChrome = isIntroductionRoute
+  const hidePublicIntroChrome = isIntroductionRoute || isCoverageSimulatorPublicRoute
   const isPublicLegalRoute =
     location.pathname === '/privacy' ||
     location.pathname === '/account-deletion' ||

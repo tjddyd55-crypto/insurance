@@ -4,6 +4,8 @@
   margin: 0 auto;
   background: #fff;
   color: #111827;
+  --cs-print-proposed: #2563eb;
+  --cs-print-soft: #eaf2ff;
   padding: 14mm 12mm 18mm;
   box-sizing: border-box;
   font-family: 'Pretendard Variable', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
@@ -40,15 +42,20 @@
 }
 
 .coverage-simulator-print-table th {
-  background: #f8fafc;
+  background: #f3f5f8;
   text-align: left;
+  font-weight: 700;
+}
+
+.coverage-simulator-print-marker td {
+  text-align: center;
+  font-weight: 700;
+  color: #334155;
+  background: #f8fafc;
+  padding: 12px !important;
 }
 
 .coverage-simulator-print-marker {
-  margin: 14px 0 8px;
-  text-align: center;
-  font-weight: 700;
-  color: #4b5563;
   break-inside: avoid;
   page-break-inside: avoid;
 }

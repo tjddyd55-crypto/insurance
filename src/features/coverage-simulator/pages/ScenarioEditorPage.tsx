@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
-import { useAuth } from '../../auth/AuthProvider'
+import { coverageSimulatorExitPath, useCoverageSimulatorScope } from '../CoverageSimulatorScope'
 import { AddItemSheet } from '../components/AddItemSheet'
 import { AmountEditSheet } from '../components/AmountEditSheet'
 import { CoverageBadge } from '../components/CoverageBadge'
@@ -25,8 +25,7 @@ export function ScenarioEditorPage() {
   const params = useParams()
   const scenarioId = params.scenarioId
   const diseaseType = params.diseaseType ?? 'cancer'
-  const { user } = useAuth()
-  const userKey = user?.id ?? 'guest'
+  const { basePath, userKey } = useCoverageSimulatorScope()
 
   const [scenario, setScenario] = useState<CoverageScenario | null>(null)
   const [addAfterOrder, setAddAfterOrder] = useState<number | null>(null)
@@ -64,7 +63,7 @@ export function ScenarioEditorPage() {
     const saved = saveScenario(userKey, next)
     setScenario(saved)
     if (!scenarioId) {
-      navigate(`/coverage-simulator/scenarios/${saved.id}`, { replace: true })
+      navigate(`${basePath}/scenarios/${saved.id}`, { replace: true })
     }
   }
 
@@ -114,10 +113,17 @@ export function ScenarioEditorPage() {
   const renderItem = (item: ScenarioItem) => {
     if (item.type === 'time-marker') {
       return (
-        <div key={item.id} className="coverage-simulator-time-marker">
-          🕐 {item.label}
-          <div className="coverage-simulator-card-actions" style={{ justifyContent: 'center' }}>
-            <button type="button" onClick={() => persist(removeScenarioItem(scenario, item.id))}>삭제</button>
+        <div key={item.id} className="coverage-simulator-timeline-row coverage-simulator-timeline-row--marker">
+          <div className="coverage-simulator-timeline-dot coverage-simulator-timeline-dot--marker" aria-hidden="true" />
+          <div className="coverage-simulator-time-marker">
+            <span className="coverage-simulator-time-marker__label">🕐 {item.label}</span>
+            <button
+              type="button"
+              className="coverage-simulator-time-marker__delete"
+              onClick={() => persist(removeScenarioItem(scenario, item.id))}
+            >
+              삭제
+            </button>
           </div>
         </div>
       )
@@ -133,7 +139,11 @@ export function ScenarioEditorPage() {
   return (
     <CoverageSimulatorLayout>
       <header className="coverage-simulator-appbar">
-        <button type="button" className="coverage-simulator-icon-btn" onClick={() => navigate('/coverage-simulator')}>
+        <button
+          type="button"
+          className="coverage-simulator-icon-btn"
+          onClick={() => navigate(coverageSimulatorExitPath(basePath))}
+        >
           ←
         </button>
         <div className="coverage-simulator-appbar__title">{scenario.title}</div>
@@ -147,20 +157,25 @@ export function ScenarioEditorPage() {
       </header>
       <main className="coverage-simulator-content" data-testid="coverage-scenario-editor">
         <section className="coverage-simulator-intro">
-          <div className="coverage-simulator-intro__icon">◎</div>
+          <div className="coverage-simulator-intro__icon" aria-hidden="true">🎗️</div>
           <div>
             <div className="coverage-simulator-intro__title">{scenario.title}</div>
             <div className="coverage-simulator-intro__desc">{scenario.description}</div>
           </div>
         </section>
 
-        <div className="coverage-simulator-compare-header">
-          <span />
-          <span className="coverage-simulator-compare-header__label">항목</span>
-          <span className="coverage-simulator-compare-header__label">기존 보장</span>
-          <span className="coverage-simulator-compare-header__label coverage-simulator-compare-header__label--proposed">
-            제안 보장
-          </span>
+        <div className="coverage-simulator-compare-header" aria-hidden="true">
+          <span className="coverage-simulator-compare-header__spacer" />
+          <div className="coverage-simulator-compare-header__cols">
+            <span className="coverage-simulator-compare-header__label">
+              <span className="coverage-simulator-compare-header__main">기존 보장</span>
+              <span className="coverage-simulator-compare-header__sub">(현재 가입 보험)</span>
+            </span>
+            <span className="coverage-simulator-compare-header__label coverage-simulator-compare-header__label--proposed">
+              <span className="coverage-simulator-compare-header__main">제안 보장</span>
+              <span className="coverage-simulator-compare-header__sub">(추천 설계안)</span>
+            </span>
+          </div>
         </div>
 
         {sortedItems.map((item) => (
@@ -185,7 +200,7 @@ export function ScenarioEditorPage() {
               {formatTotalAmountLabel(totals.currentTotal)}
             </span>
           </div>
-          <div className="coverage-simulator-summary__row">
+          <div className="coverage-simulator-summary__row coverage-simulator-summary__row--proposed">
             <span className="coverage-simulator-summary__label">제안 총 보장금액 (입력 항목 합계)</span>
             <span className="coverage-simulator-summary__value coverage-simulator-summary__value--proposed">
               {formatTotalAmountLabel(totals.proposedTotal)}
@@ -208,7 +223,7 @@ export function ScenarioEditorPage() {
         <button
           type="button"
           className="coverage-simulator-primary-btn"
-          onClick={() => navigate(`/coverage-simulator/scenarios/${scenario.id}/pdf`)}
+          onClick={() => navigate(`${basePath}/scenarios/${scenario.id}/pdf`)}
         >
           PDF 미리보기
         </button>

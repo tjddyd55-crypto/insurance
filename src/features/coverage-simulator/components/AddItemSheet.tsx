@@ -47,7 +47,12 @@ export function AddItemSheet({ open, onClose, onSelectCoverage, onSelectTimeMark
         aria-label="항목 추가"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="coverage-simulator-sheet__title">항목 추가</div>
+        <div className="coverage-simulator-sheet-header">
+          <div className="coverage-simulator-sheet__title">항목 추가</div>
+          <button type="button" className="coverage-simulator-sheet-close" onClick={onClose} aria-label="닫기">
+            ×
+          </button>
+        </div>
         <div className="coverage-simulator-tabs">
           {CATALOG_TABS.map((entry) => (
             <button
@@ -71,8 +76,8 @@ export function AddItemSheet({ open, onClose, onSelectCoverage, onSelectTimeMark
                 onClose()
               }}
             >
-              {item.defaultFavorite ? '★ ' : ''}
-              {item.label}
+              <span>{item.label}</span>
+              {item.defaultFavorite ? <span className="coverage-simulator-catalog-item__star" aria-hidden="true">★</span> : <span />}
             </button>
           ))}
           <button
@@ -84,7 +89,8 @@ export function AddItemSheet({ open, onClose, onSelectCoverage, onSelectTimeMark
               onClose()
             }}
           >
-            기타 직접 입력
+            <span>+ 기타 직접 입력</span>
+            <span />
           </button>
         </div>
 
@@ -112,8 +118,8 @@ export function AddItemSheet({ open, onClose, onSelectCoverage, onSelectTimeMark
           </select>
         </div>
 
-        <div className="coverage-simulator-sheet__title" style={{ marginTop: 20 }}>시간 구간</div>
-        <div className="coverage-simulator-catalog-grid">
+        <div className="coverage-simulator-sheet__title" style={{ marginTop: 8, marginBottom: 12 }}>시간 구간</div>
+        <div className="coverage-simulator-catalog-grid coverage-simulator-catalog-grid--time">
           {TIME_MARKER_PRESETS.map((label) => (
             <button
               key={label}

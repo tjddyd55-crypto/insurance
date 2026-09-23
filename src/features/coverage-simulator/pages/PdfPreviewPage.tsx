@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
-import { useAuth } from '../../auth/AuthProvider'
+import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
 import { CoverageSimulatorLayout } from '../components/CoverageSimulatorLayout'
 import { CoverageSimulatorPrintDocument } from '../pdf/CoverageSimulatorPrintDocument'
 import { downloadCoveragePdfFromPrintRoot, printCoverageDocument } from '../pdf/generateCoveragePdf'
@@ -10,8 +10,7 @@ import { getScenarioById } from '../storage/scenarioRepository'
 export function PdfPreviewPage() {
   const { scenarioId = '' } = useParams()
   const navigate = useNavigate()
-  const { user } = useAuth()
-  const userKey = user?.id ?? 'guest'
+  const { basePath, userKey } = useCoverageSimulatorScope()
   const printRef = useRef<HTMLDivElement>(null)
   const [busy, setBusy] = useState(false)
 
@@ -38,7 +37,7 @@ export function PdfPreviewPage() {
         <button
           type="button"
           className="coverage-simulator-icon-btn"
-          onClick={() => navigate(`/coverage-simulator/scenarios/${scenario.id}`)}
+          onClick={() => navigate(`${basePath}/scenarios/${scenario.id}`)}
         >
           ←
         </button>
