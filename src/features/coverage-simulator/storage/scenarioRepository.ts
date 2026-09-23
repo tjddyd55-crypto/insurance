@@ -2,15 +2,19 @@ import type { CoverageScenario, DiseaseType, SavedScenarioSummary } from '../dom
 
 const CRM_STORAGE_KEY_PREFIX = 'onefc:coverage-simulator:v1'
 
-/** Public web preview (로그인 없음) — CRM·사용자 키와 절대 공유하지 않는다. */
-export const COVERAGE_SIMULATOR_PREVIEW_STORAGE_KEY = 'coverage-simulator-preview:v1'
+/** Public PC / Mobile preview (로그인 없음) */
+export const COVERAGE_SIMULATOR_PREVIEW_PC_STORAGE_KEY = 'coverage-simulator-preview-pc:v1'
+export const COVERAGE_SIMULATOR_PREVIEW_MOBILE_STORAGE_KEY = 'coverage-simulator-preview-mobile:v1'
 
-/** @internal repository에서 preview 모드 판별용 */
-export const COVERAGE_SIMULATOR_PREVIEW_USER_KEY = '__coverage_sim_preview__'
+export const COVERAGE_SIMULATOR_PREVIEW_PC_USER_KEY = '__coverage_sim_preview_pc__'
+export const COVERAGE_SIMULATOR_PREVIEW_MOBILE_USER_KEY = '__coverage_sim_preview_mobile__'
 
 function storageKey(userKey: string): string {
-  if (userKey === COVERAGE_SIMULATOR_PREVIEW_USER_KEY) {
-    return COVERAGE_SIMULATOR_PREVIEW_STORAGE_KEY
+  if (userKey === COVERAGE_SIMULATOR_PREVIEW_PC_USER_KEY) {
+    return COVERAGE_SIMULATOR_PREVIEW_PC_STORAGE_KEY
+  }
+  if (userKey === COVERAGE_SIMULATOR_PREVIEW_MOBILE_USER_KEY) {
+    return COVERAGE_SIMULATOR_PREVIEW_MOBILE_STORAGE_KEY
   }
   return `${CRM_STORAGE_KEY_PREFIX}:${userKey || 'guest'}`
 }
