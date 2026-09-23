@@ -59,7 +59,7 @@ describe('customerQuickCrudValidation', () => {
         dateValue: '2026-01-01',
         memo: '',
       }),
-    ).toContain('지정일')
+    ).toContain('알림일')
     expect(
       getCustomerSpecialDateQuickCrudValidationError({
         purposeType: 'CELEBRATION',

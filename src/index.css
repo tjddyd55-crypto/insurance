@@ -9486,7 +9486,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
   align-items: center;
 }
 
-/* 지정일 한 줄: 좌측 430px 패널에서 라벨 칸이 값을 0px로 눌러 글자가 세로로 깨지지 않게 한다. */
+/* 알림일 한 줄: 좌측 430px 패널에서 라벨 칸이 값을 0px로 눌러 글자가 세로로 깨지지 않게 한다. */
 .customer-special-date-row {
   flex-wrap: nowrap;
   align-items: center;

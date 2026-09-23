@@ -1,4 +1,4 @@
-import { CUSTOMER_DESIGNATED_DATE_LABEL } from '../../shared/customerDesignatedDateCopy.js'
+import { CUSTOMER_ALERT_DATE_LABEL } from '../../shared/customerAlertDateCopy.js'
 import { safeQuery } from '../utils/dbSafeQuery.js'
 
 export const DEFAULT_NOTIFICATION_DAYS_BEFORE = 30
@@ -159,7 +159,7 @@ export function normalizeUserNotificationSettingsPatch(body, base = getDefaultUs
   for (const [key, label] of [
     ['insuranceAge', '상령일 알림'],
     ['carExpiry', '자동차 만기 알림'],
-    ['specialDate', `${CUSTOMER_DESIGNATED_DATE_LABEL} 알림`],
+    ['specialDate', `${CUSTOMER_ALERT_DATE_LABEL} 알림`],
   ]) {
     const err = applyWindowed(key, label)
     if (err) {

@@ -1,4 +1,4 @@
-import { CUSTOMER_DESIGNATED_DATE_LABEL } from '../../../../shared/customerDesignatedDateCopy.js'
+import { CUSTOMER_ALERT_DATE_LABEL } from '../../../../shared/customerAlertDateCopy.js'
 import type { CustomerRecord } from '../domain/types'
 import { useCustomerSpecialDates } from '../hooks/useCustomerSpecialDates'
 import { CustomerSpecialDatesReadList } from './CustomerSpecialDatesReadList'
@@ -42,7 +42,7 @@ export function CustomerSpecialDatesReadSection({
     <section className="customer-detail-read__section" aria-labelledby="customer-special-dates-heading">
       <div className="customer-detail-read__section-header">
         <h4 id="customer-special-dates-heading" className="customer-detail-read__section-title">
-          {CUSTOMER_DESIGNATED_DATE_LABEL}
+          {CUSTOMER_ALERT_DATE_LABEL}
         </h4>
       </div>
       {body}

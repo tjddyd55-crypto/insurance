@@ -81,8 +81,8 @@ describe('CustomerDetailQuickCrud sections', () => {
     const html = renderToStaticMarkup(
       <CustomerSpecialDatesQuickSection customer={baseCustomer} token="tok" enabled={false} embedded />,
     )
-    expect(html).toContain('+ 지정일 추가')
-    expect(html).toContain('등록된 지정일이 없습니다.')
+    expect(html).toContain('+ 알림일 추가')
+    expect(html).toContain('등록된 알림일이 없습니다.')
     expect(html).not.toContain('customer-quick-crud-card__fields--inline')
   })
 

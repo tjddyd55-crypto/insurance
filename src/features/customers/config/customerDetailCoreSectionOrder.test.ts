@@ -13,7 +13,7 @@ describe('customerDetailCoreSectionOrder', () => {
       '연계 고객',
       '화재보험 정보',
       '사업자 정보',
-      '지정일',
+      '알림일',
     ])
     expect(CUSTOMER_DETAIL_DEFAULT_OPEN_SECTION).toBe('basic')
   })

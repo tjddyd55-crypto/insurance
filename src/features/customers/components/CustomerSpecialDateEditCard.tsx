@@ -1,6 +1,6 @@
 import { memo, useCallback } from 'react'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
-import { CUSTOMER_DESIGNATED_DATE_LABEL } from '../../../../shared/customerDesignatedDateCopy.js'
+import { CUSTOMER_ALERT_DATE_LABEL } from '../../../../shared/customerAlertDateCopy.js'
 import AppDateInput from '../../../components/common/AppDateInput'
 import {
   CUSTOMER_SPECIAL_DATE_PURPOSE_OPTIONS,
@@ -33,9 +33,9 @@ export const CustomerSpecialDateEditCard = memo(function CustomerSpecialDateEdit
   )
 
   return (
-    <section className="customer-special-date-edit-card" aria-label={`${CUSTOMER_DESIGNATED_DATE_LABEL} ${n}`}>
+    <section className="customer-special-date-edit-card" aria-label={`${CUSTOMER_ALERT_DATE_LABEL} ${n}`}>
       <div className="customer-special-date-edit-card__header">
-        <h4 className="customer-special-date-edit-card__title">{CUSTOMER_DESIGNATED_DATE_LABEL} {n}</h4>
+        <h4 className="customer-special-date-edit-card__title">{CUSTOMER_ALERT_DATE_LABEL} {n}</h4>
         <FormButton
           htmlType="button"
           className="customer-special-date-edit-card__remove"

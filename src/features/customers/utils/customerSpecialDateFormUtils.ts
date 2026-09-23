@@ -1,4 +1,4 @@
-import { CUSTOMER_DESIGNATED_DATE_LABEL } from '../../../../shared/customerDesignatedDateCopy.js'
+import { CUSTOMER_ALERT_DATE_LABEL } from '../../../../shared/customerAlertDateCopy.js'
 import type { CustomerSpecialDateFormItem } from '../types/customerSpecialDateForm'
 
 export function createEmptyCustomerSpecialDate(): CustomerSpecialDateFormItem {
@@ -38,11 +38,11 @@ export function getCustomerSpecialDatesValidationError(items: CustomerSpecialDat
       continue
     }
     if (!trim(item.title)) {
-      return `${CUSTOMER_DESIGNATED_DATE_LABEL} ${i + 1}: 이름을 입력해 주세요.`
+      return `${CUSTOMER_ALERT_DATE_LABEL} ${i + 1}: 이름을 입력해 주세요.`
     }
     const date = trim(item.dateValue).slice(0, 10)
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return `${CUSTOMER_DESIGNATED_DATE_LABEL} ${i + 1}: 날짜를 YYYY-MM-DD 형식으로 입력해 주세요.`
+      return `${CUSTOMER_ALERT_DATE_LABEL} ${i + 1}: 날짜를 YYYY-MM-DD 형식으로 입력해 주세요.`
     }
   }
   return null

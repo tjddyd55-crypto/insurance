@@ -3,7 +3,7 @@ import AppDateInput from '../../../../components/common/AppDateInput'
 import { useConfirmDialog } from '../../../../components/dialog'
 import { FormButton, FormInput } from '../../../../components/form'
 import { ApiError } from '../../../../lib/apiClient'
-import { CUSTOMER_DESIGNATED_DATE_LABEL } from '../../../../../shared/customerDesignatedDateCopy.js'
+import { CUSTOMER_ALERT_DATE_LABEL } from '../../../../../shared/customerAlertDateCopy.js'
 import {
   createCustomerSpecialDate,
   deleteCustomerSpecialDate,
@@ -120,8 +120,8 @@ export function CustomerSpecialDatesQuickSection({
         return
       }
       const ok = await confirm({
-        title: `${CUSTOMER_DESIGNATED_DATE_LABEL} 삭제`,
-        message: `이 ${CUSTOMER_DESIGNATED_DATE_LABEL}을 삭제할까요?`,
+        title: `${CUSTOMER_ALERT_DATE_LABEL} 삭제`,
+        message: `이 ${CUSTOMER_ALERT_DATE_LABEL}을 삭제할까요?`,
         confirmLabel: '삭제',
         tone: 'danger',
       })
@@ -154,10 +154,10 @@ export function CustomerSpecialDatesQuickSection({
         <p className="customer-detail-read__api-warn" role="status">{errorMessage}</p>
       ) : null}
       {isLoading ? (
-        <p className="customer-special-dates-read__loading">{CUSTOMER_DESIGNATED_DATE_LABEL}을 불러오는 중…</p>
+        <p className="customer-special-dates-read__loading">{CUSTOMER_ALERT_DATE_LABEL}을 불러오는 중…</p>
       ) : null}
       {!isLoading && specialDates.length === 0 ? (
-        <p className="customer-special-dates-read__empty">등록된 {CUSTOMER_DESIGNATED_DATE_LABEL}이 없습니다.</p>
+        <p className="customer-special-dates-read__empty">등록된 {CUSTOMER_ALERT_DATE_LABEL}이 없습니다.</p>
       ) : null}
       {!isLoading && specialDates.length > 0 ? (
         <ul className="customer-quick-crud-list">
@@ -199,7 +199,7 @@ export function CustomerSpecialDatesQuickSection({
       {canMutate ? (
         <div className="customer-quick-crud-section__add">
           <FormButton htmlType="button" variant="secondary" size="sm" disabled={saving} onClick={openCreate}>
-            + {CUSTOMER_DESIGNATED_DATE_LABEL} 추가
+            + {CUSTOMER_ALERT_DATE_LABEL} 추가
           </FormButton>
         </div>
       ) : null}
@@ -208,8 +208,8 @@ export function CustomerSpecialDatesQuickSection({
         open={modalOpen}
         title={
           modal.mode === 'edit'
-            ? `${CUSTOMER_DESIGNATED_DATE_LABEL} 수정`
-            : `${CUSTOMER_DESIGNATED_DATE_LABEL} 등록`
+            ? `${CUSTOMER_ALERT_DATE_LABEL} 수정`
+            : `${CUSTOMER_ALERT_DATE_LABEL} 등록`
         }
         saving={saving}
         errorMessage={formError}
@@ -252,7 +252,7 @@ export function CustomerSpecialDatesQuickSection({
     <section className="customer-detail-read__section" aria-labelledby="customer-special-dates-heading">
       <div className="customer-detail-read__section-header">
         <h4 id="customer-special-dates-heading" className="customer-detail-read__section-title">
-          {CUSTOMER_DESIGNATED_DATE_LABEL}
+          {CUSTOMER_ALERT_DATE_LABEL}
         </h4>
       </div>
       {body}
