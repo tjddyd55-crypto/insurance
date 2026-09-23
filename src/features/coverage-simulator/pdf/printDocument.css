@@ -1,0 +1,97 @@
+.coverage-simulator-print-root {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  background: #fff;
+  color: #111827;
+  padding: 14mm 12mm 18mm;
+  box-sizing: border-box;
+  font-family: 'Pretendard Variable', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+}
+
+.coverage-simulator-print-header {
+  border-bottom: 2px solid #dbe3ee;
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+}
+
+.coverage-simulator-print-header h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.coverage-simulator-print-header p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.coverage-simulator-print-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.coverage-simulator-print-table th,
+.coverage-simulator-print-table td {
+  border: 1px solid #dbe3ee;
+  padding: 8px 10px;
+  vertical-align: top;
+}
+
+.coverage-simulator-print-table th {
+  background: #f8fafc;
+  text-align: left;
+}
+
+.coverage-simulator-print-marker {
+  margin: 14px 0 8px;
+  text-align: center;
+  font-weight: 700;
+  color: #4b5563;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.coverage-simulator-print-row {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.coverage-simulator-print-footer {
+  margin-top: 18px;
+  padding-top: 10px;
+  border-top: 1px solid #e5e7eb;
+  font-size: 10px;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.coverage-simulator-print-summary {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.coverage-simulator-print-summary div {
+  border: 1px solid #dbe3ee;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .coverage-simulator-print-root,
+  .coverage-simulator-print-root * {
+    visibility: visible;
+  }
+  .coverage-simulator-print-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 210mm;
+  }
+}

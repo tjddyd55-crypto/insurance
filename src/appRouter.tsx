@@ -125,6 +125,10 @@ import { LossAdjusterNewsletterHubPage } from './features/insurer-news/pages/Los
 import { LossAdjusterNewsletterPortalLayout } from './features/insurer-news/pages/LossAdjusterNewsletterPortalLayout'
 import { NewsletterBoardAdminPage } from './features/insurer-news/pages/NewsletterBoardAdminPage'
 import MemoRoutePage from './features/memo/pages/MemoRoutePage'
+import { PdfPreviewPage } from './features/coverage-simulator/pages/PdfPreviewPage'
+import { SavedScenariosPage } from './features/coverage-simulator/pages/SavedScenariosPage'
+import { ScenarioEditorPage } from './features/coverage-simulator/pages/ScenarioEditorPage'
+import { ScenarioSelectPage } from './features/coverage-simulator/pages/ScenarioSelectPage'
 import PublicAccountRestrictedPage from './features/common/PublicAccountRestrictedPage'
 import { PublicBoardWriterAdminPage } from './features/insurer-news/pages/PublicBoardWriterAdminPage'
 import { PublicBoardWriterLoginPage } from './features/insurer-news/pages/PublicBoardWriterLoginPage'
@@ -448,6 +452,11 @@ export const appRouter = createBrowserRouter([
               { path: 'team/posts', element: <TeamPostsPage /> },
               { path: 'team/files', element: <TeamFilesPage /> },
               { path: 'memo', element: <MemoRoutePage /> },
+              { path: 'coverage-simulator', element: <ScenarioSelectPage /> },
+              { path: 'coverage-simulator/saved', element: <SavedScenariosPage /> },
+              { path: 'coverage-simulator/scenarios/:scenarioId/pdf', element: <PdfPreviewPage /> },
+              { path: 'coverage-simulator/scenarios/:scenarioId', element: <ScenarioEditorPage /> },
+              { path: 'coverage-simulator/:diseaseType', element: <ScenarioEditorPage /> },
               { path: 'insurer-managers', element: <InsurerManagersPage /> },
               { path: 'loss-adjusters', element: <LossAdjustersPage /> },
               { path: 'customer-car', element: <CustomerCarPage /> },
