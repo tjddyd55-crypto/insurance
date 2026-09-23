@@ -128,6 +128,7 @@ import MemoRoutePage from './features/memo/pages/MemoRoutePage'
 import { PdfPreviewPage } from './features/coverage-simulator/pages/PdfPreviewPage'
 import { SavedScenariosPage } from './features/coverage-simulator/pages/SavedScenariosPage'
 import { ScenarioEditorPage } from './features/coverage-simulator/pages/ScenarioEditorPage'
+import { CoverageSimulatorPublicLayout } from './features/coverage-simulator/pages/CoverageSimulatorPublicLayout'
 import { ScenarioSelectPage } from './features/coverage-simulator/pages/ScenarioSelectPage'
 import PublicAccountRestrictedPage from './features/common/PublicAccountRestrictedPage'
 import { PublicBoardWriterAdminPage } from './features/insurer-news/pages/PublicBoardWriterAdminPage'
@@ -253,6 +254,17 @@ export const appRouter = createBrowserRouter([
       { path: 'introduction', element: <IntroductionPage /> },
       // 과거 install 전용 페이지는 랜딩 다운로드 섹션으로 통일 (권장 정책 2)
       { path: 'introduction/install', element: <Navigate to="/introduction#download" replace /> },
+      {
+        path: 'coverage-simulator-preview',
+        element: <CoverageSimulatorPublicLayout />,
+        children: [
+          { index: true, element: <ScenarioSelectPage /> },
+          { path: 'saved', element: <SavedScenariosPage /> },
+          { path: 'scenarios/:scenarioId/pdf', element: <PdfPreviewPage /> },
+          { path: 'scenarios/:scenarioId', element: <ScenarioEditorPage /> },
+          { path: ':diseaseType', element: <ScenarioEditorPage /> },
+        ],
+      },
       { path: 'naver-map-smoke', element: <NaverMapSmokePage /> },
       /* 외부 고객 입력(소개 링크) — 비로그인 유지. API는 /api/customer/external-create + ref·ga 검증 */
       { path: 'customer/input', element: <CustomerInputPage /> },

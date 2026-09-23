@@ -35,15 +35,20 @@ export function AmountEditSheet({ open, item, onClose, onSave }: AmountEditSheet
   if (!open || !item) return null
 
   return (
-    <div className="coverage-simulator-sheet-backdrop" role="presentation" onClick={onClose}>
+    <div className="coverage-simulator-sheet-backdrop" role="presentation">
       <div
-        className="coverage-simulator-sheet"
+        className="coverage-simulator-sheet coverage-simulator-sheet--amount"
         role="dialog"
         aria-modal="true"
         aria-label="금액 수정"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="coverage-simulator-sheet__title">보장 금액 수정</div>
+        <div className="coverage-simulator-sheet-header">
+          <div className="coverage-simulator-sheet__title">금액 입력</div>
+          <button type="button" className="coverage-simulator-sheet-close" onClick={onClose} aria-label="닫기">
+            ×
+          </button>
+        </div>
         <div className="coverage-simulator-form-field">
           <label htmlFor="edit-label">항목명</label>
           <input id="edit-label" value={label} onChange={(event) => setLabel(event.target.value)} />
@@ -90,7 +95,7 @@ export function AmountEditSheet({ open, item, onClose, onSave }: AmountEditSheet
           <label htmlFor="edit-memo">메모</label>
           <textarea id="edit-memo" value={memo} onChange={(event) => setMemo(event.target.value)} />
         </div>
-        <div className="coverage-simulator-bottom-bar" style={{ position: 'static', padding: 0, border: 0 }}>
+        <div className="coverage-simulator-sheet-actions">
           <button type="button" className="coverage-simulator-secondary-btn" onClick={onClose}>취소</button>
           <button
             type="button"

@@ -1,13 +1,13 @@
 .coverage-simulator-root {
-  --cs-color-bg: #f4f6f9;
+  --cs-color-bg: #eef1f6;
   --cs-color-surface: #ffffff;
   --cs-color-border: #e6ebf2;
   --cs-color-text: #111827;
   --cs-color-text-muted: #6b7280;
-  --cs-color-primary: #2563eb;
-  --cs-color-primary-soft: #eff6ff;
-  --cs-color-proposed: #1d4ed8;
-  --cs-color-current-bg: #f8fafc;
+  --cs-color-primary: #2f6fed;
+  --cs-color-primary-soft: #eaf2ff;
+  --cs-color-proposed: #2563eb;
+  --cs-color-current-bg: #f3f5f8;
   --cs-color-diagnosis: #e11d48;
   --cs-color-diagnosis-soft: #fff1f2;
   --cs-color-treatment: #ea580c;
@@ -20,7 +20,7 @@
   --cs-font-title: 1.25rem;
   --cs-font-section: 1rem;
   --cs-font-label: 0.9375rem;
-  --cs-font-amount: 1.0625rem;
+  --cs-font-amount: 1.125rem;
   --cs-font-caption: 0.8125rem;
 
   --cs-space-1: 4px;
@@ -31,14 +31,14 @@
   --cs-space-6: 24px;
   --cs-space-8: 32px;
 
-  --cs-radius-card: 16px;
+  --cs-radius-card: 12px;
   --cs-radius-input: 12px;
   --cs-radius-sheet: 20px 20px 0 0;
   --cs-radius-button: 12px;
 
-  --cs-shadow-card: 0 1px 2px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.04);
+  --cs-shadow-card: 0 1px 2px rgba(15, 23, 42, 0.05), 0 4px 14px rgba(15, 23, 42, 0.04);
   --cs-layout-max: 880px;
-  --cs-timeline-width: 28px;
+  --cs-timeline-width: 24px;
   --cs-amount-col-min: 0;
   --cs-control-height: 44px;
 }
