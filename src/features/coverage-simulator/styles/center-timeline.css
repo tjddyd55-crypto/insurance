@@ -62,7 +62,7 @@
 }
 
 .cs-mobile-dock--totals-only {
-  padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px));
+  padding: 4px 8px calc(4px + env(safe-area-inset-bottom, 0px));
 }
 
 .cs-mobile-dock__summary--compact {
