@@ -48,4 +48,15 @@
   --cs-mobile-dock-height: calc(var(--cs-mobile-dock-content-height) + env(safe-area-inset-bottom, 0px));
   --cs-mobile-editor-header-height: 46px;
   --cs-axis-insert-height: 16px;
+
+  /* Mobile preview timeline rhythm (center-axis) */
+  --cs-timeline-item-pad-x: var(--cs-space-2);
+  --cs-timeline-item-pad-top: var(--cs-space-2);
+  --cs-timeline-title-amount-gap: var(--cs-space-2);
+  --cs-timeline-amount-insert-gap: var(--cs-space-2);
+  --cs-timeline-insert-visual-height: 10px;
+  --cs-timeline-insert-touch-size: 44px;
+  --cs-timeline-insert-plus-size: 22px;
+  --cs-timeline-marker-pad-y: var(--cs-space-2);
+  --cs-timeline-amount-row-height: 40px;
 }

@@ -260,16 +260,37 @@
   break-inside: avoid;
 }
 
+.coverage-simulator-root--mobile-preview .cs-axis-block {
+  display: flex;
+  flex-direction: column;
+}
+
 .coverage-simulator-root--mobile-preview .cs-axis-event {
-  padding: var(--cs-space-3) var(--cs-space-2);
+  padding: var(--cs-timeline-amount-insert-gap) var(--cs-timeline-item-pad-x)
+    var(--cs-timeline-amount-insert-gap);
+  margin: 0;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-block:first-child .cs-axis-event,
+.coverage-simulator-root--mobile-preview .cs-axis-block:first-child .cs-axis-marker {
+  padding-top: var(--cs-timeline-item-pad-top);
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-event__head {
-  margin-bottom: var(--cs-space-2);
+  align-items: center;
+  margin-bottom: var(--cs-timeline-title-amount-gap);
 }
 
-.coverage-simulator-root--mobile-preview .cs-axis-amount {
-  min-height: 36px;
+.coverage-simulator-root--mobile-preview .cs-axis-event__compare {
+  min-height: var(--cs-timeline-amount-row-height);
+  align-items: stretch;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-amount,
+.coverage-simulator-root--mobile-preview .coverage-simulator-amount-box {
+  min-height: var(--cs-timeline-amount-row-height);
+  padding: 6px var(--cs-space-2);
+  box-sizing: border-box;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-main.coverage-simulator-content {
@@ -278,15 +299,56 @@
   padding-right: var(--cs-space-3);
 }
 
+.coverage-simulator-root--mobile-preview .cs-axis-marker.coverage-simulator-time-marker {
+  margin: 0;
+  padding: var(--cs-timeline-marker-pad-y) var(--cs-timeline-item-pad-x);
+  gap: 2px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .coverage-simulator-root--mobile-preview .cs-axis-marker {
-  padding: var(--cs-space-2) var(--cs-space-2);
+  padding: var(--cs-timeline-marker-pad-y) var(--cs-timeline-item-pad-x);
   background: transparent;
   border: none;
+  border-top: none;
+  border-bottom: none;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-marker__rail {
+  margin-bottom: 2px;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-marker__dot {
+  width: 8px;
+  height: 8px;
+  box-shadow: 0 0 0 3px #f1f5f9;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-marker__label {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-marker__arrow {
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-marker__content {
+  gap: 0;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-marker__delete {
-  margin-top: 0;
-  font-size: 0.6875rem;
+  margin-top: 2px;
+  padding: 0;
+  font-size: 0.625rem;
+  line-height: 1.2;
+  text-decoration: none;
+  color: #94a3b8;
 }
 
 .coverage-simulator-root--mobile-preview .cs-mobile-editor-header {
@@ -381,28 +443,39 @@
 
 .cs-axis-insert {
   position: relative;
+  display: flex;
+  align-items: center;
   height: var(--cs-axis-insert-height, 16px);
   margin: 0;
+  padding: 0 var(--cs-space-2);
   overflow: visible;
+  pointer-events: none;
+  box-sizing: content-box;
+}
+
+.cs-axis-insert__track {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
 }
 
 .cs-axis-insert__line {
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  top: 50%;
+  flex: 1;
+  min-width: 0;
   height: 1px;
-  background: var(--cs-timeline-row-divider, #e8edf3);
-  transform: translateY(-50%);
+  background: #dce3ec;
   pointer-events: none;
 }
 
 .cs-axis-insert__btn {
-  position: absolute;
-  left: 50%;
-  top: 50%;
+  position: relative;
   z-index: 2;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 44px;
   height: 44px;
   margin: 0;
@@ -410,18 +483,15 @@
   border: none;
   background: transparent;
   cursor: pointer;
-  transform: translate(-50%, -50%);
   pointer-events: auto;
 }
 
-.cs-axis-insert__btn::before {
-  content: '+';
+.cs-axis-insert__plus {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 24px;
   height: 24px;
-  margin: 0 auto;
   border-radius: 50%;
   border: 1px solid var(--cs-color-primary);
   background: #fff;
@@ -430,6 +500,33 @@
   font-weight: 700;
   line-height: 1;
   box-shadow: none;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-insert {
+  height: var(--cs-timeline-insert-visual-height);
+  padding: 0 var(--cs-timeline-item-pad-x);
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-insert__btn {
+  width: var(--cs-timeline-insert-touch-size);
+  height: var(--cs-timeline-insert-touch-size);
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-insert__plus {
+  width: var(--cs-timeline-insert-plus-size);
+  height: var(--cs-timeline-insert-plus-size);
+  font-size: 0.875rem;
+  border-color: #b8c8dc;
+  color: var(--cs-color-primary);
+  background: #fff;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-insert__line {
+  background: #dce3ec;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-timeline {
+  padding: 0 0 var(--cs-space-2);
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-add.coverage-simulator-add-slot {
