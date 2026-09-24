@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom'
 
+import { CoverageSimulatorCustomerProvider } from '../context/CoverageSimulatorCustomerContext'
 import {
   CoverageSimulatorScopeProvider,
   previewScopeMobile,
@@ -19,10 +20,12 @@ function PreviewChrome({ label }: { label: string }) {
 export function CoverageSimulatorPublicPcLayout() {
   return (
     <CoverageSimulatorScopeProvider {...previewScopePc}>
-      <div className="coverage-simulator-pc-preview-root" data-testid="coverage-simulator-public-pc-root">
-        <PreviewChrome label="보장 시뮬레이션 · PC" />
-        <Outlet />
-      </div>
+      <CoverageSimulatorCustomerProvider>
+        <div className="coverage-simulator-pc-preview-root" data-testid="coverage-simulator-public-pc-root">
+          <PreviewChrome label="보장 시뮬레이션 · PC" />
+          <Outlet />
+        </div>
+      </CoverageSimulatorCustomerProvider>
     </CoverageSimulatorScopeProvider>
   )
 }
@@ -30,15 +33,17 @@ export function CoverageSimulatorPublicPcLayout() {
 export function CoverageSimulatorPublicMobileLayout() {
   return (
     <CoverageSimulatorScopeProvider {...previewScopeMobile}>
-      <div
-        className="coverage-simulator-mobile-preview-root"
-        data-testid="coverage-simulator-public-mobile-root"
-        data-coverage-simulator-preview="mobile"
-      >
-        <div className="coverage-simulator-mobile-preview-frame">
-          <Outlet />
+      <CoverageSimulatorCustomerProvider>
+        <div
+          className="coverage-simulator-mobile-preview-root"
+          data-testid="coverage-simulator-public-mobile-root"
+          data-coverage-simulator-preview="mobile"
+        >
+          <div className="coverage-simulator-mobile-preview-frame">
+            <Outlet />
+          </div>
         </div>
-      </div>
+      </CoverageSimulatorCustomerProvider>
     </CoverageSimulatorScopeProvider>
   )
 }

@@ -133,6 +133,7 @@ import {
   CoverageSimulatorPublicPcLayout,
 } from './features/coverage-simulator/pages/CoverageSimulatorPublicLayout'
 import { NewScenarioTemplatePage } from './features/coverage-simulator/pages/NewScenarioTemplatePage'
+import { CoverageSimulatorCrmRouteLayout } from './features/coverage-simulator/pages/CoverageSimulatorCrmRouteLayout'
 import { ScenarioSelectPage } from './features/coverage-simulator/pages/ScenarioSelectPage'
 import { CoverageScenarioTemplateEditorPage } from './features/coverage-simulator/pages/CoverageScenarioTemplateEditorPage'
 import PublicAccountRestrictedPage from './features/common/PublicAccountRestrictedPage'
@@ -484,11 +485,17 @@ export const appRouter = createBrowserRouter([
               { path: 'team/posts', element: <TeamPostsPage /> },
               { path: 'team/files', element: <TeamFilesPage /> },
               { path: 'memo', element: <MemoRoutePage /> },
-              { path: 'coverage-simulator', element: <ScenarioSelectPage /> },
-              { path: 'coverage-simulator/saved', element: <SavedScenariosPage /> },
-              { path: 'coverage-simulator/scenarios/:scenarioId/pdf', element: <PdfPreviewPage /> },
-              { path: 'coverage-simulator/scenarios/:scenarioId', element: <ScenarioEditorPage /> },
-              { path: 'coverage-simulator/:diseaseType', element: <ScenarioEditorPage /> },
+              {
+                path: 'coverage-simulator',
+                element: <CoverageSimulatorCrmRouteLayout />,
+                children: [
+                  { index: true, element: <ScenarioSelectPage /> },
+                  { path: 'saved', element: <SavedScenariosPage /> },
+                  { path: 'scenarios/:scenarioId/pdf', element: <PdfPreviewPage /> },
+                  { path: 'scenarios/:scenarioId', element: <ScenarioEditorPage /> },
+                  { path: ':diseaseType', element: <ScenarioEditorPage /> },
+                ],
+              },
               { path: 'insurer-managers', element: <InsurerManagersPage /> },
               { path: 'loss-adjusters', element: <LossAdjustersPage /> },
               { path: 'customer-car', element: <CustomerCarPage /> },

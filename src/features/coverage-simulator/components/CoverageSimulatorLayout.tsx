@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
 
-import { CoverageSimulatorCustomerProvider } from '../context/CoverageSimulatorCustomerContext'
 import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
 import '../styles/coverage-simulator.css'
 
@@ -28,9 +27,7 @@ export function CoverageSimulatorLayout({ children }: { children: React.ReactNod
         .join(' ')}
       data-testid="coverage-simulator-root"
     >
-      <div className="coverage-simulator-shell">
-        <CoverageSimulatorCustomerProvider>{children}</CoverageSimulatorCustomerProvider>
-      </div>
+      <div className="coverage-simulator-shell">{children}</div>
     </div>
   )
 }

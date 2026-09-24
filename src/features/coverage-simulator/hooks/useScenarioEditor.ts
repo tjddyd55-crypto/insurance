@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
-import { useCoverageSimulatorCustomer } from '../context/CoverageSimulatorCustomerContext'
+import { readSessionCustomerDraft } from '../context/CoverageSimulatorCustomerContext'
 import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
 import {
   insertCoverageItemAfter,
@@ -24,7 +24,6 @@ export function useScenarioEditor() {
   const scenarioId = params.scenarioId
   const diseaseType = params.diseaseType ?? 'cancer'
   const { basePath, userKey } = useCoverageSimulatorScope()
-  const { draft: customerDraft } = useCoverageSimulatorCustomer()
 
   const [scenario, setScenario] = useState<CoverageScenario | null>(null)
   const [addAfterOrder, setAddAfterOrder] = useState<number | null>(null)
@@ -45,14 +44,14 @@ export function useScenarioEditor() {
         createConsultationFromTemplate(systemTemplate, {
           diseaseType: diseaseType as DiseaseType,
           description: systemTemplate.description ?? '',
-          customer: customerDraft,
+          customer: readSessionCustomerDraft(userKey),
         }),
       )
       return
     }
     const created = createScenarioFromTemplate(diseaseType as DiseaseType)
     setScenario(created)
-  }, [customerDraft, diseaseType, scenarioId, userKey])
+  }, [diseaseType, scenarioId, userKey])
 
   const totals = useMemo(
     () => (scenario ? calculateScenarioTotals(scenario) : { currentTotal: 0, proposedTotal: 0 }),

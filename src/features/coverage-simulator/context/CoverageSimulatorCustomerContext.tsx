@@ -30,7 +30,8 @@ function sessionKey(userKey: string): string {
   return `coverage-simulator:session-customer:v1:${userKey}`
 }
 
-function readDraft(userKey: string): ConsultationCustomerDraft {
+/** 다음 상담 시작용 session draft — editor는 저장된 Consultation SSOT 사용 */
+export function readSessionCustomerDraft(userKey: string): ConsultationCustomerDraft {
   try {
     const raw = sessionStorage.getItem(sessionKey(userKey))
     if (!raw) return emptyCustomerDraft()
@@ -59,7 +60,7 @@ export function CoverageSimulatorCustomerProvider({
   searchProvider?: CoverageSimulatorCustomerSearchProvider
 }) {
   const { userKey } = useCoverageSimulatorScope()
-  const [draft, setDraft] = useState<ConsultationCustomerDraft>(() => readDraft(userKey))
+  const [draft, setDraft] = useState<ConsultationCustomerDraft>(() => readSessionCustomerDraft(userKey))
 
   const provider = useMemo(
     () => searchProvider ?? createMockCustomerSearchProvider(),
