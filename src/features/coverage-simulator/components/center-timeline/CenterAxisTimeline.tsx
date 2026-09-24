@@ -1,8 +1,12 @@
+import { useMemo } from 'react'
+
 import { CoverageBadge } from '../CoverageBadge'
 import { formatCoverageAmountLabel, formatTotalAmountLabel } from '../../domain/formatAmount'
+import { periodTotalsByEndMarkerId } from '../../domain/periodTotals'
 import type { CoverageScenarioItem, ScenarioItem } from '../../domain/types'
 import { EventRowMenu } from './EventRowMenu'
 import { TimelineInsertControl } from './TimelineInsertControl'
+import { TimelinePeriodSubtotal } from './TimelinePeriodSubtotal'
 
 export type CenterAxisTimelineProps = {
   items: ScenarioItem[]
@@ -102,6 +106,7 @@ export function CenterAxisTimeline({
   onAddAfter,
 }: CenterAxisTimelineProps) {
   const handlers = { onEditItem, onMoveItem, onRemoveItem }
+  const periodByMarkerId = useMemo(() => periodTotalsByEndMarkerId(items), [items])
 
   return (
     <section className={`cs-axis-sheet cs-axis-sheet--${variant}`} aria-label="보장 비교 타임라인">
@@ -119,12 +124,22 @@ export function CenterAxisTimeline({
           ) : null}
           {items.map((item) => (
             <div key={item.id} className="cs-axis-block">
-              {item.type === 'time-marker'
-                ? renderTimeMarker(item, onRemoveItem)
-                : renderCoverageRow(item, variant, handlers)}
-              {compactInsert ? (
-                <TimelineInsertControl afterOrder={item.order} onInsert={onAddAfter} />
+              {item.type === 'time-marker' ? (
+                <>
+                  {periodByMarkerId.has(item.id) ? (
+                    <TimelinePeriodSubtotal
+                      currentTotal={periodByMarkerId.get(item.id)!.currentTotal}
+                      proposedTotal={periodByMarkerId.get(item.id)!.proposedTotal}
+                    />
+                  ) : null}
+                  {renderTimeMarker(item, onRemoveItem)}
+                </>
               ) : (
+                renderCoverageRow(item, variant, handlers)
+              )}
+              {compactInsert && item.type !== 'time-marker' ? (
+                <TimelineInsertControl afterOrder={item.order} onInsert={onAddAfter} />
+              ) : !compactInsert ? (
                 <button
                   type="button"
                   className="cs-axis-add coverage-simulator-add-slot"
@@ -132,7 +147,7 @@ export function CenterAxisTimeline({
                 >
                   + 항목 추가
                 </button>
-              )}
+              ) : null}
             </div>
           ))}
         </div>

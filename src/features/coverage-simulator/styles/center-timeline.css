@@ -435,6 +435,49 @@
   font-weight: 500;
 }
 
+.coverage-simulator-root--mobile-preview .cs-axis-period-total {
+  padding: 0 var(--cs-timeline-item-pad-x) var(--cs-space-1);
+  margin-bottom: 2px;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-period-total__label {
+  margin: 0 0 2px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  color: #94a3b8;
+  letter-spacing: 0.02em;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-period-total__compare {
+  display: grid;
+  grid-template-columns: 1fr 16px 1fr;
+  gap: 4px;
+  align-items: center;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-period-total__value {
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  color: #334155;
+  white-space: nowrap;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-period-total__value--proposed {
+  color: var(--cs-color-proposed);
+  font-weight: 800;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-period-total__spine {
+  width: 1px;
+  height: 12px;
+  margin: 0 auto;
+  background: #e2e8f0;
+}
+
 .coverage-simulator-root--mobile-preview .cs-mobile-editor-header {
   position: sticky;
   top: 0;
