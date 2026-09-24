@@ -372,8 +372,7 @@
 
 .coverage-simulator-root--mobile-preview .cs-axis-marker.coverage-simulator-time-marker {
   margin: 0;
-  padding: var(--cs-timeline-amount-insert-gap) var(--cs-timeline-item-pad-x);
-  gap: 4px;
+  padding: var(--cs-space-2) var(--cs-timeline-item-pad-x) var(--cs-timeline-amount-insert-gap);
   border: none;
   border-radius: 0;
   background: transparent;
@@ -381,25 +380,31 @@
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-marker {
-  padding: var(--cs-timeline-amount-insert-gap) var(--cs-timeline-item-pad-x);
+  padding: var(--cs-space-2) var(--cs-timeline-item-pad-x);
   background: transparent;
   border: none;
-  border-top: none;
-  border-bottom: none;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-marker__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-marker__hline {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-marker__hline-seg {
   flex: 1;
   min-width: 0;
   height: 1px;
-  background: #dce3ec;
+  background: #cbd5e1;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-marker__hline-label {
@@ -407,74 +412,112 @@
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
-  padding: 0 6px;
+  padding: 0 8px;
   background: var(--cs-axis-title-mask-bg);
-  line-height: 1.15;
+  line-height: 1.2;
+  z-index: 2;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-marker__label {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 700;
-  line-height: 1.15;
-  color: #64748b;
+  line-height: 1.2;
+  color: #475569;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-marker__arrow {
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   line-height: 1;
   color: #94a3b8;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-marker__delete {
+  flex-shrink: 0;
   margin: 0;
-  padding: 0;
+  padding: 4px 0 4px 4px;
+  border: none;
+  background: transparent;
   font-size: 0.5625rem;
   line-height: 1.2;
   text-decoration: none;
   color: #cbd5e1;
   font-weight: 500;
+  cursor: pointer;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-period-total {
-  padding: 0 var(--cs-timeline-item-pad-x) var(--cs-space-1);
-  margin-bottom: 2px;
+  position: relative;
+  z-index: 2;
+  margin-top: var(--cs-space-2);
+  margin-bottom: var(--cs-space-2);
+  padding: var(--cs-space-2) var(--cs-timeline-item-pad-x);
+  border-radius: 8px;
+  background: #f8fafc;
 }
 
-.coverage-simulator-root--mobile-preview .cs-axis-period-total__label {
-  margin: 0 0 2px;
-  font-size: 0.625rem;
-  font-weight: 700;
-  line-height: 1.2;
+.coverage-simulator-root--mobile-preview .cs-axis-period-total__heading {
+  margin: 0 0 6px;
   text-align: center;
-  color: #94a3b8;
-  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-period-total__heading-mask {
+  display: inline-block;
+  padding: 2px 10px;
+  background: #f8fafc;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #334155;
+  letter-spacing: -0.01em;
+  box-shadow: 0 0 0 4px #f8fafc;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-period-total__compare {
   display: grid;
-  grid-template-columns: 1fr 16px 1fr;
-  gap: 4px;
+  grid-template-columns: 1fr 12px 1fr;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-period-total__col {
+  display: flex;
+  flex-direction: column;
   align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-period-total__side {
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 1.1;
+  color: #94a3b8;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-period-total__value-mask {
+  display: inline-block;
+  padding: 0 6px;
+  background: #f8fafc;
+  box-shadow: 0 0 0 2px #f8fafc;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-period-total__value {
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: 0.875rem;
+  font-weight: 800;
   line-height: 1.2;
   text-align: center;
-  color: #334155;
+  color: #1e293b;
   white-space: nowrap;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-period-total__value--proposed {
   color: var(--cs-color-proposed);
-  font-weight: 800;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-period-total__spine {
   width: 1px;
-  height: 12px;
-  margin: 0 auto;
+  align-self: stretch;
+  margin: 4px auto;
   background: #e2e8f0;
 }
 
