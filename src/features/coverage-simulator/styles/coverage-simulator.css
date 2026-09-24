@@ -491,6 +491,17 @@ body.coverage-simulator-immersive .pc-workspace-layout > main {
   justify-items: center;
 }
 
+.coverage-simulator-sheet-backdrop--item-action {
+  background: rgba(15, 23, 42, 0.58);
+  z-index: var(--cs-z-sheet-overlay);
+  padding-bottom: var(--cs-mobile-dock-height, 0px);
+  box-sizing: border-box;
+}
+
+.coverage-simulator-sheet-backdrop--item-action .coverage-simulator-sheet--item-actions {
+  box-shadow: 0 -16px 48px rgba(15, 23, 42, 0.22);
+}
+
 .coverage-simulator-sheet-header {
   display: flex;
   align-items: center;
@@ -1052,6 +1063,23 @@ body.coverage-simulator-immersive .pc-workspace-layout > main {
 
 .cs-item-action-sheet__row--danger {
   color: #dc2626;
+}
+
+.cs-item-action-sheet__subject {
+  display: flex;
+  align-items: center;
+  gap: var(--cs-space-2);
+  margin-bottom: var(--cs-space-3);
+  padding: var(--cs-space-2) var(--cs-space-3);
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.cs-item-action-sheet__subject-label {
+  font-size: var(--cs-font-label);
+  font-weight: 600;
+  color: var(--cs-color-text);
+  line-height: 1.35;
 }
 
 .cs-item-action-sheet__cancel {

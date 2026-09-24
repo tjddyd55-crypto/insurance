@@ -273,6 +273,39 @@
   flex-direction: column;
 }
 
+.coverage-simulator-root--mobile-preview .cs-period-section-wrap {
+  margin-bottom: var(--cs-space-1);
+}
+
+.coverage-simulator-root--mobile-preview .cs-period-section {
+  margin: 0 var(--cs-space-1);
+  padding: var(--cs-space-1) 0;
+  border-radius: 10px;
+}
+
+.coverage-simulator-root--mobile-preview .cs-period-section--tint-a {
+  background: var(--cs-period-section-tint-a);
+}
+
+.coverage-simulator-root--mobile-preview .cs-period-section--tint-b {
+  background: var(--cs-period-section-tint-b);
+}
+
+.coverage-simulator-root--mobile-preview .cs-period-section .cs-axis-block {
+  border-bottom: none;
+}
+
+.coverage-simulator-root--mobile-preview .cs-period-section .cs-axis-block--subtotal {
+  padding-top: var(--cs-space-1);
+}
+
+.coverage-simulator-root--mobile-preview .cs-period-boundary {
+  position: relative;
+  z-index: 2;
+  margin: var(--cs-space-2) 0 var(--cs-space-1);
+  background: var(--cs-color-surface);
+}
+
 .coverage-simulator-root--mobile-preview .cs-axis-event {
   padding: var(--cs-timeline-amount-insert-gap) var(--cs-timeline-item-pad-x)
     var(--cs-timeline-amount-insert-gap);

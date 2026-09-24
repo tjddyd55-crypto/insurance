@@ -3,12 +3,14 @@ import { createPortal } from 'react-dom'
 
 import { ItemActionSheet } from '../ItemActionSheet'
 import { coverageItemMoveState } from '../../domain/timelinePeriodBounds'
-import type { ScenarioItem } from '../../domain/types'
+import type { ScenarioItem, ScenarioItemCategory } from '../../domain/types'
 
 type EventRowMenuProps = {
   menuMode?: 'popover' | 'action-sheet'
   items?: ScenarioItem[]
   itemId?: string
+  itemCategory?: ScenarioItemCategory
+  itemLabel?: string
   onEditAmount: () => void
   onMoveUp: () => void
   onMoveDown: () => void
@@ -43,6 +45,8 @@ export function EventRowMenu({
   menuMode = 'popover',
   items = [],
   itemId = '',
+  itemCategory,
+  itemLabel,
   onEditAmount,
   onMoveUp,
   onMoveDown,
@@ -179,6 +183,11 @@ export function EventRowMenu({
         <ItemActionSheet
           open={open}
           title="항목 작업"
+          subject={
+            itemCategory && itemLabel
+              ? { category: itemCategory, label: itemLabel }
+              : undefined
+          }
           onClose={() => setOpen(false)}
           actions={sheetActions}
         />

@@ -1,3 +1,9 @@
+import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
+
+import { CoverageBadge } from './CoverageBadge'
+import type { ScenarioItemCategory } from '../domain/types'
+
 export type ItemActionSheetAction = {
   id: string
   label: string
@@ -6,18 +12,37 @@ export type ItemActionSheetAction = {
   destructive?: boolean
 }
 
+type Subject = {
+  category: ScenarioItemCategory
+  label: string
+}
+
 type Props = {
   open: boolean
   title: string
+  subject?: Subject
   onClose: () => void
   actions: ItemActionSheetAction[]
 }
 
-export function ItemActionSheet({ open, title, onClose, actions }: Props) {
+export function ItemActionSheet({ open, title, subject, onClose, actions }: Props) {
+  useEffect(() => {
+    if (!open) return undefined
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previous
+    }
+  }, [open])
+
   if (!open) return null
 
-  return (
-    <div className="coverage-simulator-sheet-backdrop" role="presentation" onClick={onClose}>
+  const sheet = (
+    <div
+      className="coverage-simulator-sheet-backdrop coverage-simulator-sheet-backdrop--item-action"
+      role="presentation"
+      onClick={onClose}
+    >
       <div
         className="coverage-simulator-sheet coverage-simulator-sheet--compact coverage-simulator-sheet--item-actions"
         role="dialog"
@@ -29,6 +54,12 @@ export function ItemActionSheet({ open, title, onClose, actions }: Props) {
             {title}
           </h2>
         </div>
+        {subject ? (
+          <div className="cs-item-action-sheet__subject">
+            <CoverageBadge category={subject.category} />
+            <span className="cs-item-action-sheet__subject-label">{subject.label}</span>
+          </div>
+        ) : null}
         <div className="cs-item-action-sheet__list" role="menu">
           {actions.map((action) => (
             <button
@@ -58,4 +89,6 @@ export function ItemActionSheet({ open, title, onClose, actions }: Props) {
       </div>
     </div>
   )
+
+  return createPortal(sheet, document.body)
 }

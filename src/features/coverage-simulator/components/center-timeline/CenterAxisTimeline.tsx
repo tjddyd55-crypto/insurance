@@ -3,6 +3,10 @@ import { useMemo } from 'react'
 import { CoverageBadge } from '../CoverageBadge'
 import { formatCoverageAmountLabel, formatTotalAmountLabel } from '../../domain/formatAmount'
 import { periodTotalsByEndMarkerId } from '../../domain/periodTotals'
+import {
+  buildTimelinePeriodSections,
+  type TimelineRenderBlock,
+} from '../../domain/timelinePeriodSections'
 import { shouldShowTimelineInsertAfterItem } from '../../domain/timelineInsertVisibility'
 import type { CoverageScenarioItem, ScenarioItem } from '../../domain/types'
 import { EventRowMenu } from './EventRowMenu'
@@ -25,10 +29,12 @@ export type CenterAxisTimelineProps = {
   onAddAfter: (afterOrder: number) => void
 }
 
+type Handlers = Pick<CenterAxisTimelineProps, 'onEditItem' | 'onMoveItem' | 'onRemoveItem'>
+
 function renderCoverageRow(
   item: CoverageScenarioItem,
   variant: CenterAxisTimelineProps['variant'],
-  handlers: Pick<CenterAxisTimelineProps, 'onEditItem' | 'onMoveItem' | 'onRemoveItem'>,
+  handlers: Handlers,
   options: Pick<CenterAxisTimelineProps, 'items' | 'itemMenuMode'>,
 ) {
   return (
@@ -45,6 +51,8 @@ function renderCoverageRow(
             menuMode={options.itemMenuMode}
             items={options.items}
             itemId={item.id}
+            itemCategory={item.category}
+            itemLabel={item.label}
             onEditAmount={() => handlers.onEditItem(item)}
             onMoveUp={() => handlers.onMoveItem(item.id, 'up')}
             onMoveDown={() => handlers.onMoveItem(item.id, 'down')}
@@ -101,6 +109,138 @@ function renderTimeMarker(
   )
 }
 
+function renderBlock(
+  block: TimelineRenderBlock,
+  blockKey: string,
+  variant: CenterAxisTimelineProps['variant'],
+  handlers: Handlers,
+  options: Pick<CenterAxisTimelineProps, 'items' | 'itemMenuMode'>,
+  onAddAfter: (afterOrder: number) => void,
+) {
+  if (block.kind === 'coverage') {
+    return (
+      <div key={blockKey} className="cs-axis-block">
+        {renderCoverageRow(block.item, variant, handlers, options)}
+      </div>
+    )
+  }
+  if (block.kind === 'insert') {
+    return (
+      <div key={blockKey} className="cs-axis-block cs-axis-block--insert">
+        <TimelineInsertControl
+          afterOrder={block.afterOrder}
+          onInsert={onAddAfter}
+          variant={block.variant}
+        />
+      </div>
+    )
+  }
+  return (
+    <div key={blockKey} className="cs-axis-block cs-axis-block--subtotal">
+      <TimelinePeriodSubtotal
+        markerLabel={block.markerLabel}
+        currentTotal={block.currentTotal}
+        proposedTotal={block.proposedTotal}
+      />
+    </div>
+  )
+}
+
+function renderFlatTimeline(
+  props: CenterAxisTimelineProps,
+  handlers: Handlers,
+  periodByMarkerId: Map<string, { currentTotal: number; proposedTotal: number }>,
+  markerMenuMode: 'inline-delete' | 'action-sheet',
+  removeMarker: (id: string) => void,
+) {
+  const {
+    items,
+    variant,
+    compactInsert,
+    itemMenuMode,
+    onAddAfter,
+  } = props
+
+  return (
+    <>
+      {compactInsert && items.length === 0 ? (
+        <TimelineInsertControl afterOrder={-1} onInsert={onAddAfter} />
+      ) : null}
+      {items.map((item) => (
+        <div key={item.id} className="cs-axis-block">
+          {item.type === 'time-marker' ? (
+            <>
+              {periodByMarkerId.has(item.id) ? (
+                <TimelinePeriodSubtotal
+                  markerLabel={item.label}
+                  currentTotal={periodByMarkerId.get(item.id)!.currentTotal}
+                  proposedTotal={periodByMarkerId.get(item.id)!.proposedTotal}
+                />
+              ) : null}
+              {renderTimeMarker(item, removeMarker, markerMenuMode)}
+            </>
+          ) : (
+            renderCoverageRow(item, variant, handlers, { items, itemMenuMode })
+          )}
+          {compactInsert && shouldShowTimelineInsertAfterItem(item, items, compactInsert) ? (
+            <TimelineInsertControl
+              afterOrder={item.order}
+              onInsert={onAddAfter}
+              variant={item.type === 'time-marker' ? 'marker-tail' : 'default'}
+            />
+          ) : !compactInsert ? (
+            <button
+              type="button"
+              className="cs-axis-add coverage-simulator-add-slot"
+              onClick={() => onAddAfter(item.order)}
+            >
+              + 항목 추가
+            </button>
+          ) : null}
+        </div>
+      ))}
+    </>
+  )
+}
+
+function renderPeriodSections(
+  props: CenterAxisTimelineProps,
+  handlers: Handlers,
+  markerMenuMode: 'inline-delete' | 'action-sheet',
+  removeMarker: (id: string) => void,
+  periodByMarkerId: Map<string, { currentTotal: number; proposedTotal: number }>,
+) {
+  const sections = buildTimelinePeriodSections(props.items, true, periodByMarkerId)
+  const options = { items: props.items, itemMenuMode: props.itemMenuMode }
+
+  return sections.map((section) => (
+    <div key={section.key} className="cs-period-section-wrap">
+      <div
+        className={[
+          'cs-period-section',
+          section.tintIndex % 2 === 0 ? 'cs-period-section--tint-a' : 'cs-period-section--tint-b',
+        ].join(' ')}
+      >
+        {section.blocks.map((block, index) =>
+          renderBlock(
+            block,
+            `${section.key}-${index}`,
+            props.variant,
+            handlers,
+            options,
+            props.onAddAfter,
+          ),
+        )}
+      </div>
+      {section.boundaryMarker ? (
+        <div className="cs-period-boundary">
+          {renderTimeMarker(section.boundaryMarker, removeMarker, markerMenuMode)}
+        </div>
+      ) : null}
+    </div>
+  ))
+}
+
 export function CenterAxisTimeline({
   items,
   currentTotal,
@@ -119,6 +259,22 @@ export function CenterAxisTimeline({
   const periodByMarkerId = useMemo(() => periodTotalsByEndMarkerId(items), [items])
   const markerMenuMode = itemMenuMode === 'action-sheet' ? 'action-sheet' : 'inline-delete'
   const removeMarker = onRemoveTimeMarker ?? onRemoveItem
+  const usePeriodSections = compactInsert && variant === 'mobile'
+
+  const timelineProps: CenterAxisTimelineProps = {
+    items,
+    currentTotal,
+    proposedTotal,
+    variant,
+    showInlineSummary,
+    compactInsert,
+    itemMenuMode,
+    onEditItem,
+    onMoveItem,
+    onRemoveItem,
+    onRemoveTimeMarker,
+    onAddAfter,
+  }
 
   return (
     <section className={`cs-axis-sheet cs-axis-sheet--${variant}`} aria-label="보장 비교 타임라인">
@@ -131,42 +287,9 @@ export function CenterAxisTimeline({
       <div className="cs-axis-timeline">
         <div className="cs-axis-timeline__line" aria-hidden="true" />
         <div className="cs-axis-timeline__rows">
-          {compactInsert && items.length === 0 ? (
-            <TimelineInsertControl afterOrder={-1} onInsert={onAddAfter} />
-          ) : null}
-          {items.map((item) => (
-            <div key={item.id} className="cs-axis-block">
-              {item.type === 'time-marker' ? (
-                <>
-                  {periodByMarkerId.has(item.id) ? (
-                    <TimelinePeriodSubtotal
-                      markerLabel={item.label}
-                      currentTotal={periodByMarkerId.get(item.id)!.currentTotal}
-                      proposedTotal={periodByMarkerId.get(item.id)!.proposedTotal}
-                    />
-                  ) : null}
-                  {renderTimeMarker(item, removeMarker, markerMenuMode)}
-                </>
-              ) : (
-                renderCoverageRow(item, variant, handlers, { items, itemMenuMode })
-              )}
-              {compactInsert && shouldShowTimelineInsertAfterItem(item, items, compactInsert) ? (
-                <TimelineInsertControl
-                  afterOrder={item.order}
-                  onInsert={onAddAfter}
-                  variant={item.type === 'time-marker' ? 'marker-tail' : 'default'}
-                />
-              ) : !compactInsert ? (
-                <button
-                  type="button"
-                  className="cs-axis-add coverage-simulator-add-slot"
-                  onClick={() => onAddAfter(item.order)}
-                >
-                  + 항목 추가
-                </button>
-              ) : null}
-            </div>
-          ))}
+          {usePeriodSections
+            ? renderPeriodSections(timelineProps, handlers, markerMenuMode, removeMarker, periodByMarkerId)
+            : renderFlatTimeline(timelineProps, handlers, periodByMarkerId, markerMenuMode, removeMarker)}
         </div>
       </div>
 
