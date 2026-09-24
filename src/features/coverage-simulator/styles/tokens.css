@@ -59,4 +59,8 @@
   --cs-timeline-insert-plus-size: 22px;
   --cs-timeline-marker-pad-y: var(--cs-space-2);
   --cs-timeline-amount-row-height: 40px;
+  --cs-axis-title-mask-bg: var(--cs-color-surface);
+  --cs-axis-title-mask-pad-x: 8px;
+  --cs-axis-event-badge-col-width: 44px;
+  --cs-axis-event-menu-col-width: 32px;
 }

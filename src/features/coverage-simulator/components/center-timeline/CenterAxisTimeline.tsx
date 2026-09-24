@@ -25,12 +25,12 @@ function renderCoverageRow(
   return (
     <div key={item.id} className="cs-axis-event">
       <div className="cs-axis-event__head">
-        <div className="cs-axis-event__head-center">
-          <div className="cs-axis-event__title-group">
-            <CoverageBadge category={item.category} />
-            <span className="cs-axis-event__label">{item.label}</span>
-          </div>
+        <div className="cs-axis-event__badge">
+          <CoverageBadge category={item.category} />
         </div>
+        <p className="cs-axis-event__title-axis">
+          <span className="cs-axis-event__label">{item.label}</span>
+        </p>
         <div className="cs-axis-event__menu">
           <EventRowMenu
             onEditAmount={() => handlers.onEditItem(item)}
