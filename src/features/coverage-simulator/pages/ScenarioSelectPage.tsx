@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 
+import { CustomerContextBar } from '../components/CustomerContextBar'
 import { ScenarioSelectPreviewView } from '../components/ScenarioSelectPreviewView'
 import { CoverageSimulatorLayout } from '../components/CoverageSimulatorLayout'
 import { coverageSimulatorExitPath, useCoverageSimulatorScope } from '../CoverageSimulatorScope'
@@ -35,6 +36,8 @@ export function ScenarioSelectPage() {
         {isPublicPreview && (layoutMode === 'preview-pc' || layoutMode === 'preview-mobile') ? (
           <ScenarioSelectPreviewView layoutMode={layoutMode} />
         ) : (
+        <>
+        <CustomerContextBar />
         <div className="coverage-simulator-scenario-list">
         {SCENARIO_TYPE_CARDS.map((card) => (
           <button
@@ -49,6 +52,7 @@ export function ScenarioSelectPage() {
           </button>
         ))}
         </div>
+        </>
         )}
         {!isPublicPreview ? (
         <button

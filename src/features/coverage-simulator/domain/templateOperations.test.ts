@@ -37,6 +37,22 @@ describe('templateOperations', () => {
     expect(copy.items[0].id).not.toBe(source.items[0].id)
   })
 
+  it('createConsultationFromTemplate attaches optional customer', () => {
+    const template = sampleUserTemplate()
+    const consultation = createConsultationFromTemplate(template, {
+      customer: { customerId: 'c-1', customerNameSnapshot: '김민수' },
+    })
+    expect(consultation.customerId).toBe('c-1')
+    expect(consultation.customerNameSnapshot).toBe('김민수')
+    expect(consultation.templateId).toBe(template.id)
+  })
+
+  it('createConsultationFromTemplate leaves customer null when omitted', () => {
+    const consultation = createConsultationFromTemplate(sampleUserTemplate())
+    expect(consultation.customerId).toBeNull()
+    expect(consultation.customerNameSnapshot).toBeNull()
+  })
+
   it('createConsultationFromTemplate clones items and keeps template reference', () => {
     const template = sampleUserTemplate()
     const consultation = createConsultationFromTemplate(template)

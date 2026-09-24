@@ -3,8 +3,15 @@ import { useNavigate } from 'react-router-dom'
 
 import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
 import { CoverageSimulatorLayout } from '../components/CoverageSimulatorLayout'
-import type { DiseaseType } from '../domain/types'
-import { filterSavedByDisease, listSavedScenarios } from '../storage/scenarioRepository'
+import { customerDisplayLabel } from '../domain/customerContext'
+import type { ConsultationCustomerFilter, DiseaseType } from '../domain/types'
+import { filterSavedByCustomer, filterSavedByDisease, listSavedScenarios } from '../storage/scenarioRepository'
+
+const CUSTOMER_FILTERS: { id: ConsultationCustomerFilter; label: string }[] = [
+  { id: 'all', label: '전체' },
+  { id: 'linked', label: '고객 연결' },
+  { id: 'unassigned', label: '미지정' },
+]
 
 const FILTERS: { id: DiseaseType | 'all'; label: string }[] = [
   { id: 'all', label: '전체' },
@@ -18,11 +25,13 @@ export function SavedScenariosPage() {
   const navigate = useNavigate()
   const { basePath, userKey } = useCoverageSimulatorScope()
   const [filter, setFilter] = useState<DiseaseType | 'all'>('all')
+  const [customerFilter, setCustomerFilter] = useState<ConsultationCustomerFilter>('all')
 
   const rows = useMemo(() => {
     const all = listSavedScenarios(userKey)
-    return filterSavedByDisease(all, filter)
-  }, [filter, userKey])
+    const byCustomer = filterSavedByCustomer(all, customerFilter)
+    return filterSavedByDisease(byCustomer, filter)
+  }, [filter, customerFilter, userKey])
 
   return (
     <CoverageSimulatorLayout>
@@ -34,6 +43,18 @@ export function SavedScenariosPage() {
         <span />
       </header>
       <main className="coverage-simulator-content">
+        <div className="coverage-simulator-saved-filter coverage-simulator-saved-filter--customer">
+          {CUSTOMER_FILTERS.map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              className={`coverage-simulator-tab${customerFilter === entry.id ? ' coverage-simulator-tab--active' : ''}`}
+              onClick={() => setCustomerFilter(entry.id)}
+            >
+              {entry.label}
+            </button>
+          ))}
+        </div>
         <div className="coverage-simulator-saved-filter">
           {FILTERS.map((entry) => (
             <button
@@ -57,9 +78,12 @@ export function SavedScenariosPage() {
               onClick={() => navigate(`${basePath}/scenarios/${row.id}`)}
             >
               <div>
-                <div className="coverage-simulator-saved-row__title">
-                  {row.customerName ? `${row.customerName} · ` : ''}
-                  {row.title}
+                <div className="coverage-simulator-saved-row__title">{row.title}</div>
+                <div className="coverage-simulator-saved-row__customer">
+                  {customerDisplayLabel({
+                    customerId: row.customerId ?? null,
+                    customerNameSnapshot: row.customerNameSnapshot ?? row.customerName ?? null,
+                  })}
                 </div>
                 <div className="coverage-simulator-saved-row__meta">
                   상담일 {row.consultationDate} · 수정 {new Date(row.updatedAt).toLocaleString('ko-KR')}

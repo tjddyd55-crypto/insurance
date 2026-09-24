@@ -34,6 +34,10 @@ export type CoverageScenario = {
   title: string
   diseaseType: DiseaseType
   description: string
+  /** Consultation SSOT — Template에는 없음 */
+  customerId?: string | null
+  customerNameSnapshot?: string | null
+  /** @deprecated customerNameSnapshot 사용. 하위 호환 */
   customerName?: string
   consultationDate: string
   items: ScenarioItem[]
@@ -49,7 +53,12 @@ export type SavedScenarioSummary = {
   id: string
   title: string
   diseaseType: DiseaseType
+  customerId?: string | null
+  customerNameSnapshot?: string | null
+  /** @deprecated */
   customerName?: string
   consultationDate: string
   updatedAt: string
 }
+
+export type ConsultationCustomerFilter = 'all' | 'linked' | 'unassigned'

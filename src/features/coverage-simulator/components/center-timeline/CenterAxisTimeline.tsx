@@ -25,16 +25,20 @@ function renderCoverageRow(
   return (
     <div key={item.id} className="cs-axis-event">
       <div className="cs-axis-event__head">
-        <div className="cs-axis-event__title">
-          <CoverageBadge category={item.category} />
-          <span className="cs-axis-event__label">{item.label}</span>
+        <div className="cs-axis-event__head-center">
+          <div className="cs-axis-event__title-group">
+            <CoverageBadge category={item.category} />
+            <span className="cs-axis-event__label">{item.label}</span>
+          </div>
         </div>
-        <EventRowMenu
-          onEditAmount={() => handlers.onEditItem(item)}
-          onMoveUp={() => handlers.onMoveItem(item.id, 'up')}
-          onMoveDown={() => handlers.onMoveItem(item.id, 'down')}
-          onDelete={() => handlers.onRemoveItem(item.id)}
-        />
+        <div className="cs-axis-event__menu">
+          <EventRowMenu
+            onEditAmount={() => handlers.onEditItem(item)}
+            onMoveUp={() => handlers.onMoveItem(item.id, 'up')}
+            onMoveDown={() => handlers.onMoveItem(item.id, 'down')}
+            onDelete={() => handlers.onRemoveItem(item.id)}
+          />
+        </div>
       </div>
       <div className="cs-axis-event__compare">
         <button

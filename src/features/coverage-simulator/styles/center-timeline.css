@@ -277,8 +277,15 @@
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-event__head {
-  align-items: center;
   margin-bottom: var(--cs-timeline-title-amount-gap);
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-event__title-group .cs-axis-event__label {
+  font-size: 0.875rem;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-event__compare {
@@ -534,20 +541,42 @@
 }
 
 .cs-axis-event__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--cs-space-2);
+  position: relative;
   margin-bottom: var(--cs-space-3);
+  min-height: 32px;
+}
+
+.cs-axis-event__head-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0 36px;
+  min-height: 32px;
+}
+
+.cs-axis-event__title-group {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.cs-axis-event__menu {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
 }
 
 .cs-axis-event__title {
-  display: flex;
-  flex-wrap: wrap;
+  display: inline-flex;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 6px;
   min-width: 0;
-  flex: 1;
 }
 
 .cs-axis-event__label {

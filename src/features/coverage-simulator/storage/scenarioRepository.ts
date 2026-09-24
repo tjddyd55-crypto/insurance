@@ -1,6 +1,7 @@
 import type { CoverageScenario, DiseaseType, SavedScenarioSummary } from '../domain/types'
 import {
   deleteConsultation,
+  filterConsultationsByCustomer,
   filterConsultationsByDisease,
   getConsultationById,
   listConsultations,
@@ -19,5 +20,6 @@ export const getScenarioById = getConsultationById
 export const saveScenario = saveConsultation
 export const deleteScenario = deleteConsultation
 export const filterSavedByDisease = filterConsultationsByDisease
+export const filterSavedByCustomer = filterConsultationsByCustomer
 
 export type { CoverageScenario, SavedScenarioSummary, DiseaseType }

@@ -19,7 +19,10 @@ export function CoverageSimulatorPrintDocument({ scenario }: CoverageSimulatorPr
         <h1>보장 시뮬레이션</h1>
         <p>
           {scenario.title}
-          {scenario.customerName ? ` · ${scenario.customerName}` : ''} · 상담일 {scenario.consultationDate}
+          {scenario.customerNameSnapshot || scenario.customerName
+            ? ` · ${scenario.customerNameSnapshot ?? scenario.customerName}`
+            : ''}{' '}
+          · 상담일 {scenario.consultationDate}
         </p>
       </header>
 

@@ -1,4 +1,6 @@
 import { createScenarioId } from './ids'
+import type { ConsultationCustomerDraft } from './customerContext'
+import { emptyCustomerDraft } from './customerContext'
 import type { CoverageScenario, DiseaseType, ScenarioItem } from './types'
 import type { ScenarioTemplate } from './templateTypes'
 
@@ -43,15 +45,24 @@ export function cloneUserTemplate(
 
 export function createConsultationFromTemplate(
   template: Pick<ScenarioTemplate, 'id' | 'name' | 'items'>,
-  options?: { diseaseType?: DiseaseType; description?: string },
+  options?: {
+    diseaseType?: DiseaseType
+    description?: string
+    customer?: ConsultationCustomerDraft | null
+  },
 ): CoverageScenario {
   const now = new Date().toISOString()
+  const customer = options?.customer ?? emptyCustomerDraft()
+  const snapshot = customer.customerNameSnapshot
   return {
     id: createScenarioId(),
     kind: 'consultation',
     title: template.name,
     diseaseType: options?.diseaseType ?? 'custom',
     description: options?.description ?? '',
+    customerId: customer.customerId,
+    customerNameSnapshot: snapshot,
+    customerName: snapshot ?? undefined,
     consultationDate: now.slice(0, 10),
     items: cloneScenarioItems(template.items),
     templateId: template.id,

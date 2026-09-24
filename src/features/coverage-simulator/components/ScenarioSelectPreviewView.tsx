@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import { CustomerContextBar } from './CustomerContextBar'
+import { useCoverageSimulatorCustomer } from '../context/CoverageSimulatorCustomerContext'
 import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
 import { startConsultationFromSystemDisease, startConsultationFromUserTemplate } from '../domain/startConsultation'
 import { listSystemTemplateSummaries } from '../domain/systemTemplateCatalog'
@@ -15,6 +17,7 @@ type Props = {
 export function ScenarioSelectPreviewView({ layoutMode }: Props) {
   const navigate = useNavigate()
   const { basePath, userKey } = useCoverageSimulatorScope()
+  const { draft: customerDraft } = useCoverageSimulatorCustomer()
   const isPc = layoutMode === 'preview-pc'
   const [menuTemplateId, setMenuTemplateId] = useState<string | null>(null)
 
@@ -22,14 +25,14 @@ export function ScenarioSelectPreviewView({ layoutMode }: Props) {
   const myTemplates = listUserTemplates(userKey)
 
   const startSystem = (diseaseType: DiseaseType) => {
-    const saved = startConsultationFromSystemDisease(userKey, diseaseType)
+    const saved = startConsultationFromSystemDisease(userKey, diseaseType, customerDraft)
     if (saved) navigate(`${basePath}/scenarios/${saved.id}`)
   }
 
   const startUser = (templateId: string) => {
     const template = getUserTemplateById(userKey, templateId)
     if (!template) return
-    const saved = startConsultationFromUserTemplate(userKey, template)
+    const saved = startConsultationFromUserTemplate(userKey, template, customerDraft)
     navigate(`${basePath}/scenarios/${saved.id}`)
   }
 
@@ -58,6 +61,7 @@ export function ScenarioSelectPreviewView({ layoutMode }: Props) {
 
   return (
     <>
+      <CustomerContextBar />
       <section className="cs-select-section">
         <h2 className="cs-select-section__title">기본 시나리오</h2>
         <div className={`cs-select-grid${isPc ? ' cs-select-grid--pc' : ''}`}>

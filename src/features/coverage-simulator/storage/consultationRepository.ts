@@ -1,4 +1,5 @@
-import type { CoverageScenario, DiseaseType, SavedScenarioSummary } from '../domain/types'
+import { normalizeConsultation, resolveCustomerNameSnapshot } from '../domain/normalizeConsultation'
+import type { ConsultationCustomerFilter, CoverageScenario, DiseaseType, SavedScenarioSummary } from '../domain/types'
 import {
   isPreviewUserKey,
   previewConsultationStorageKey,
@@ -33,7 +34,7 @@ function readAll(userKey: string): CoverageScenario[] {
     const raw = localStorage.getItem(resolveStorageKey(userKey))
     if (!raw) return []
     const parsed = JSON.parse(raw) as CoverageScenario[]
-    return Array.isArray(parsed) ? parsed : []
+    return Array.isArray(parsed) ? parsed.map(normalizeConsultation) : []
   } catch {
     return []
   }
@@ -49,7 +50,9 @@ export function listConsultations(userKey: string): SavedScenarioSummary[] {
       id: scenario.id,
       title: scenario.title,
       diseaseType: scenario.diseaseType,
-      customerName: scenario.customerName,
+      customerId: scenario.customerId ?? null,
+      customerNameSnapshot: resolveCustomerNameSnapshot(scenario),
+      customerName: resolveCustomerNameSnapshot(scenario) ?? undefined,
       consultationDate: scenario.consultationDate,
       updatedAt: scenario.updatedAt,
     }))
@@ -61,11 +64,11 @@ export function getConsultationById(userKey: string, id: string): CoverageScenar
 }
 
 export function saveConsultation(userKey: string, scenario: CoverageScenario): CoverageScenario {
-  const next: CoverageScenario = {
+  const next = normalizeConsultation({
     ...scenario,
     kind: 'consultation',
     updatedAt: new Date().toISOString(),
-  }
+  })
   const all = readAll(userKey)
   const index = all.findIndex((row) => row.id === next.id)
   if (index >= 0) {
@@ -87,4 +90,15 @@ export function filterConsultationsByDisease(
 ): SavedScenarioSummary[] {
   if (filter === 'all') return summaries
   return summaries.filter((row) => row.diseaseType === filter)
+}
+
+export function filterConsultationsByCustomer(
+  summaries: SavedScenarioSummary[],
+  filter: ConsultationCustomerFilter,
+): SavedScenarioSummary[] {
+  if (filter === 'all') return summaries
+  if (filter === 'linked') {
+    return summaries.filter((row) => Boolean(row.customerId))
+  }
+  return summaries.filter((row) => !row.customerId)
 }
