@@ -277,9 +277,9 @@
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-event__head {
-  display: grid;
-  grid-template-columns: var(--cs-axis-event-badge-col-width) 1fr var(--cs-axis-event-menu-col-width);
+  display: flex;
   align-items: center;
+  justify-content: flex-start;
   min-height: 28px;
   margin-bottom: var(--cs-timeline-title-amount-gap);
 }
@@ -288,7 +288,17 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
+  flex: 0 0 var(--cs-axis-event-badge-col-width);
+  width: var(--cs-axis-event-badge-col-width);
   z-index: 2;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-event__badge .coverage-simulator-badge {
+  margin-bottom: 0;
+  line-height: 1;
+  min-height: 20px;
+  padding: 2px 8px;
+  box-sizing: border-box;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-event__title-axis {
@@ -309,7 +319,7 @@
   padding: 0 var(--cs-axis-title-mask-pad-x);
   background: var(--cs-axis-title-mask-bg);
   font-size: 0.875rem;
-  line-height: 1.25;
+  line-height: 1.15;
   font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
@@ -323,17 +333,23 @@
   top: auto;
   right: auto;
   transform: none;
-  justify-self: end;
+  flex: 0 0 var(--cs-axis-event-menu-col-width);
+  width: var(--cs-axis-event-menu-col-width);
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
   z-index: 2;
 }
 
-.coverage-simulator-root--mobile-preview .cs-axis-marker__label {
-  display: inline-block;
-  padding: 0 var(--cs-axis-title-mask-pad-x);
-  background: var(--cs-axis-title-mask-bg);
-  position: relative;
-  z-index: 2;
-  box-shadow: 0 0 0 1px var(--cs-axis-title-mask-bg);
+.coverage-simulator-root--mobile-preview .cs-axis-row-menu__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  line-height: 1;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-event__compare {
@@ -356,8 +372,8 @@
 
 .coverage-simulator-root--mobile-preview .cs-axis-marker.coverage-simulator-time-marker {
   margin: 0;
-  padding: var(--cs-timeline-marker-pad-y) var(--cs-timeline-item-pad-x);
-  gap: 2px;
+  padding: var(--cs-timeline-amount-insert-gap) var(--cs-timeline-item-pad-x);
+  gap: 4px;
   border: none;
   border-radius: 0;
   background: transparent;
@@ -365,45 +381,58 @@
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-marker {
-  padding: var(--cs-timeline-marker-pad-y) var(--cs-timeline-item-pad-x);
+  padding: var(--cs-timeline-amount-insert-gap) var(--cs-timeline-item-pad-x);
   background: transparent;
   border: none;
   border-top: none;
   border-bottom: none;
 }
 
-.coverage-simulator-root--mobile-preview .cs-axis-marker__rail {
-  margin-bottom: 2px;
+.coverage-simulator-root--mobile-preview .cs-axis-marker__hline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
 }
 
-.coverage-simulator-root--mobile-preview .cs-axis-marker__dot {
-  width: 8px;
-  height: 8px;
-  box-shadow: 0 0 0 3px #f1f5f9;
+.coverage-simulator-root--mobile-preview .cs-axis-marker__hline-seg {
+  flex: 1;
+  min-width: 0;
+  height: 1px;
+  background: #dce3ec;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-marker__hline-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 0 6px;
+  background: var(--cs-axis-title-mask-bg);
+  line-height: 1.15;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-marker__label {
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.15;
+  color: #64748b;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-marker__arrow {
-  font-size: 0.75rem;
+  font-size: 0.625rem;
   line-height: 1;
-}
-
-.coverage-simulator-root--mobile-preview .cs-axis-marker__content {
-  gap: 0;
+  color: #94a3b8;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-marker__delete {
-  margin-top: 2px;
+  margin: 0;
   padding: 0;
-  font-size: 0.625rem;
+  font-size: 0.5625rem;
   line-height: 1.2;
   text-decoration: none;
-  color: #94a3b8;
+  color: #cbd5e1;
+  font-weight: 500;
 }
 
 .coverage-simulator-root--mobile-preview .cs-mobile-editor-header {
@@ -704,6 +733,29 @@
   border-radius: 50%;
   background: #94a3b8;
   box-shadow: 0 0 0 4px #f1f5f9;
+}
+
+.cs-axis-marker__hline {
+  display: flex;
+  align-items: center;
+  gap: var(--cs-space-2);
+  width: 100%;
+}
+
+.cs-axis-marker__hline-seg {
+  flex: 1;
+  min-width: 0;
+  height: 1px;
+  background: var(--cs-color-border);
+}
+
+.cs-axis-marker__hline-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 0 var(--cs-space-2);
+  background: var(--cs-color-surface);
 }
 
 .cs-axis-marker__content {

@@ -10,6 +10,10 @@ for (const width of [390, 360]) {
   if (await cancer.count()) await cancer.click()
   await page.waitForURL(/scenarios\//, { timeout: 30000 })
   await page.waitForSelector('[data-testid="coverage-scenario-editor"]', { timeout: 30000 })
+  const marker = page.locator('.cs-axis-marker__hline').first()
+  if (await marker.count()) {
+    await marker.scrollIntoViewIfNeeded()
+  }
   await page.screenshot({
     path: `store-screenshots/coverage-simulator/mobile-event-header-${width}.png`,
     fullPage: false,

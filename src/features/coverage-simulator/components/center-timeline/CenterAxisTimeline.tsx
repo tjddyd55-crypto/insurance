@@ -70,20 +70,21 @@ function renderTimeMarker(
 ) {
   return (
     <div key={item.id} className="cs-axis-marker coverage-simulator-time-marker">
-      <div className="cs-axis-marker__rail" aria-hidden="true">
-        <span className="cs-axis-marker__dot" />
+      <div className="cs-axis-marker__hline" role="presentation">
+        <span className="cs-axis-marker__hline-seg" aria-hidden="true" />
+        <span className="cs-axis-marker__hline-label">
+          <span className="cs-axis-marker__label">{item.label}</span>
+          <span className="cs-axis-marker__arrow" aria-hidden="true">↓</span>
+        </span>
+        <span className="cs-axis-marker__hline-seg" aria-hidden="true" />
       </div>
-      <div className="cs-axis-marker__content">
-        <span className="cs-axis-marker__label">{item.label}</span>
-        <span className="cs-axis-marker__arrow" aria-hidden="true">↓</span>
-        <button
-          type="button"
-          className="cs-axis-marker__delete coverage-simulator-time-marker__delete"
-          onClick={() => onRemove(item.id)}
-        >
-          삭제
-        </button>
-      </div>
+      <button
+        type="button"
+        className="cs-axis-marker__delete coverage-simulator-time-marker__delete"
+        onClick={() => onRemove(item.id)}
+      >
+        삭제
+      </button>
     </div>
   )
 }
