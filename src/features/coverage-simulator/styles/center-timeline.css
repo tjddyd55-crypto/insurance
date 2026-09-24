@@ -206,6 +206,81 @@
   break-inside: avoid;
 }
 
+.coverage-simulator-root--mobile-preview .cs-axis-event {
+  padding: var(--cs-space-3) var(--cs-space-2);
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-event__head {
+  margin-bottom: var(--cs-space-2);
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-amount {
+  min-height: 40px;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-amount--current .cs-axis-amount__value,
+.coverage-simulator-root--mobile-preview .cs-axis-amount--proposed .cs-axis-amount__value {
+  font-size: 1rem;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-block {
+  border-bottom: none;
+}
+
+.cs-axis-insert {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  margin: 2px 0;
+}
+
+.cs-axis-insert__line {
+  position: absolute;
+  left: var(--cs-space-3);
+  right: var(--cs-space-3);
+  top: 50%;
+  height: 1px;
+  background: var(--cs-timeline-row-divider, #e8edf3);
+}
+
+.cs-axis-insert__btn {
+  position: relative;
+  z-index: 2;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cs-axis-insert__btn::before {
+  content: '+';
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--cs-color-primary);
+  background: #fff;
+  color: var(--cs-color-primary);
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.12);
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-add.coverage-simulator-add-slot {
+  display: none;
+}
+
 .cs-axis-event__head {
   display: flex;
   align-items: flex-start;

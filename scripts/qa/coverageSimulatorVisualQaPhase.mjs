@@ -34,7 +34,7 @@ async function captureMobileFlow(page, log) {
   await page.waitForSelector('[data-testid="coverage-scenario-editor"]', { timeout: 30000 })
   log.push(await shot(page, 'mobile-preview-cancer-390'))
 
-  const addButtons = page.locator('.coverage-simulator-add-slot')
+  const addButtons = page.locator('.cs-axis-insert__btn, .coverage-simulator-add-slot')
   await addButtons.first().click()
   await page.waitForSelector('.coverage-simulator-sheet')
   log.push(await shot(page, 'mobile-preview-add-sheet-390', { fullPage: false }))

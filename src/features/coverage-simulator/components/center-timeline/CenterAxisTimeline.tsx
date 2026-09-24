@@ -2,6 +2,7 @@ import { CoverageBadge } from '../CoverageBadge'
 import { formatCoverageAmountLabel, formatTotalAmountLabel } from '../../domain/formatAmount'
 import type { CoverageScenarioItem, ScenarioItem } from '../../domain/types'
 import { EventRowMenu } from './EventRowMenu'
+import { TimelineInsertControl } from './TimelineInsertControl'
 
 export type CenterAxisTimelineProps = {
   items: ScenarioItem[]
@@ -9,6 +10,7 @@ export type CenterAxisTimelineProps = {
   proposedTotal: number
   variant: 'mobile' | 'pc'
   showInlineSummary?: boolean
+  compactInsert?: boolean
   onEditItem: (item: CoverageScenarioItem) => void
   onMoveItem: (id: string, direction: 'up' | 'down') => void
   onRemoveItem: (id: string) => void
@@ -88,6 +90,7 @@ export function CenterAxisTimeline({
   proposedTotal,
   variant,
   showInlineSummary = true,
+  compactInsert = false,
   onEditItem,
   onMoveItem,
   onRemoveItem,
@@ -106,23 +109,25 @@ export function CenterAxisTimeline({
       <div className="cs-axis-timeline">
         <div className="cs-axis-timeline__line" aria-hidden="true" />
         <div className="cs-axis-timeline__rows">
-          {items.length === 0 ? (
-            <button type="button" className="cs-axis-add coverage-simulator-add-slot" onClick={() => onAddAfter(-1)}>
-              + 항목 추가
-            </button>
+          {compactInsert && items.length === 0 ? (
+            <TimelineInsertControl afterOrder={-1} onInsert={onAddAfter} />
           ) : null}
           {items.map((item) => (
             <div key={item.id} className="cs-axis-block">
               {item.type === 'time-marker'
                 ? renderTimeMarker(item, onRemoveItem)
                 : renderCoverageRow(item, variant, handlers)}
-              <button
-                type="button"
-                className="cs-axis-add coverage-simulator-add-slot"
-                onClick={() => onAddAfter(item.order)}
-              >
-                + 항목 추가
-              </button>
+              {compactInsert ? (
+                <TimelineInsertControl afterOrder={item.order} onInsert={onAddAfter} />
+              ) : (
+                <button
+                  type="button"
+                  className="cs-axis-add coverage-simulator-add-slot"
+                  onClick={() => onAddAfter(item.order)}
+                >
+                  + 항목 추가
+                </button>
+              )}
             </div>
           ))}
         </div>

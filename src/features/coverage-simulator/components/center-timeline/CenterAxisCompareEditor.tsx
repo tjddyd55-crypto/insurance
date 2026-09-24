@@ -17,7 +17,7 @@ const SCENARIO_BLURB: Record<string, string> = {
 }
 
 export function CenterAxisCompareEditor({ editor, variant }: Props) {
-  const { layoutMode } = useCoverageSimulatorScope()
+  const { layoutMode, userKey } = useCoverageSimulatorScope()
   const { confirm, confirmDialog } = useConfirmDialog()
   const useMobileStickyDock = variant === 'mobile' && layoutMode === 'preview-mobile'
 
@@ -145,6 +145,7 @@ export function CenterAxisCompareEditor({ editor, variant }: Props) {
           proposedTotal={totals.proposedTotal}
           variant={variant}
           showInlineSummary={!useMobileStickyDock}
+          compactInsert={useMobileStickyDock}
           onEditItem={setEditingItem}
           onMoveItem={moveItem}
           onRemoveItem={removeItem}
@@ -189,12 +190,15 @@ export function CenterAxisCompareEditor({ editor, variant }: Props) {
         onClose={() => setAddSheetOpen(false)}
         onSelectCoverage={onSelectCoverage}
         onSelectTimeMarker={onSelectTimeMarker}
+        mobileCompact={useMobileStickyDock}
+        favoriteUserKey={useMobileStickyDock ? userKey : null}
       />
       <AmountEditSheet
         open={Boolean(editingItem)}
         item={editingItem}
         onClose={() => setEditingItem(null)}
         onSave={onSaveAmount}
+        mobileCompact={useMobileStickyDock}
       />
       {confirmDialog}
     </CoverageSimulatorLayout>

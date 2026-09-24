@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest'
 import {
   formatCoverageAmountLabel,
   formatManWonInput,
+  formatManWonInputDisplay,
   formatTotalAmountLabel,
   parseManWonInput,
+  sanitizeManWonInputTyping,
 } from './formatAmount'
 
 describe('formatAmount', () => {
@@ -20,5 +22,11 @@ describe('formatAmount', () => {
 
   it('formats large totals', () => {
     expect(formatTotalAmountLabel(125_000_000)).toBe('1억 2,500만원')
+  })
+
+  it('formats man-won input display with commas', () => {
+    expect(formatManWonInputDisplay(10_000_000)).toBe('1,000')
+    expect(sanitizeManWonInputTyping('10,000,000')).toBe('10,000,000')
+    expect(parseManWonInput('1,000')).toBe(10_000_000)
   })
 })

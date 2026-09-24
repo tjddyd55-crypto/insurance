@@ -14,6 +14,20 @@ export function formatManWonInput(amount: number | null | undefined): string {
   return man > 0 ? String(man) : ''
 }
 
+/** 만원 단위 입력 필드 표시용 (천 단위 콤마) */
+export function formatManWonInputDisplay(amount: number | null | undefined): string {
+  const digits = formatManWonInput(amount)
+  if (!digits) return ''
+  return Number(digits).toLocaleString('ko-KR')
+}
+
+/** 입력 중 콤마 포함 문자열 → 표시용 digits only with commas */
+export function sanitizeManWonInputTyping(raw: string): string {
+  const digits = String(raw ?? '').replace(/[^\d]/g, '')
+  if (!digits) return ''
+  return Number(digits).toLocaleString('ko-KR')
+}
+
 export function formatCoverageAmountLabel(amount: number | null | undefined): string {
   if (amount == null || amount <= 0) return '없음'
   if (amount % MAN_WON === 0) {
