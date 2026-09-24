@@ -8,6 +8,7 @@ import type { CoverageScenarioItem, ScenarioItem } from '../../domain/types'
 import { EventRowMenu } from './EventRowMenu'
 import { TimelineInsertControl } from './TimelineInsertControl'
 import { TimelinePeriodSubtotal } from './TimelinePeriodSubtotal'
+import { TimeMarkerRowMenu } from './TimeMarkerRowMenu'
 
 export type CenterAxisTimelineProps = {
   items: ScenarioItem[]
@@ -16,9 +17,11 @@ export type CenterAxisTimelineProps = {
   variant: 'mobile' | 'pc'
   showInlineSummary?: boolean
   compactInsert?: boolean
+  itemMenuMode?: 'popover' | 'action-sheet'
   onEditItem: (item: CoverageScenarioItem) => void
   onMoveItem: (id: string, direction: 'up' | 'down') => void
   onRemoveItem: (id: string) => void
+  onRemoveTimeMarker?: (id: string) => void
   onAddAfter: (afterOrder: number) => void
 }
 
@@ -26,6 +29,7 @@ function renderCoverageRow(
   item: CoverageScenarioItem,
   variant: CenterAxisTimelineProps['variant'],
   handlers: Pick<CenterAxisTimelineProps, 'onEditItem' | 'onMoveItem' | 'onRemoveItem'>,
+  options: Pick<CenterAxisTimelineProps, 'items' | 'itemMenuMode'>,
 ) {
   return (
     <div key={item.id} className="cs-axis-event">
@@ -38,6 +42,9 @@ function renderCoverageRow(
         </p>
         <div className="cs-axis-event__menu">
           <EventRowMenu
+            menuMode={options.itemMenuMode}
+            items={options.items}
+            itemId={item.id}
             onEditAmount={() => handlers.onEditItem(item)}
             onMoveUp={() => handlers.onMoveItem(item.id, 'up')}
             onMoveDown={() => handlers.onMoveItem(item.id, 'down')}
@@ -72,6 +79,7 @@ function renderCoverageRow(
 function renderTimeMarker(
   item: Extract<ScenarioItem, { type: 'time-marker' }>,
   onRemove: (id: string) => void,
+  markerMenuMode: 'inline-delete' | 'action-sheet',
 ) {
   return (
     <div key={item.id} className="cs-axis-marker coverage-simulator-time-marker">
@@ -84,13 +92,10 @@ function renderTimeMarker(
           </span>
           <span className="cs-axis-marker__hline-seg" aria-hidden="true" />
         </div>
-        <button
-          type="button"
-          className="cs-axis-marker__delete coverage-simulator-time-marker__delete"
-          onClick={() => onRemove(item.id)}
-        >
-          삭제
-        </button>
+        <TimeMarkerRowMenu
+          menuMode={markerMenuMode}
+          onDelete={() => onRemove(item.id)}
+        />
       </div>
     </div>
   )
@@ -103,13 +108,17 @@ export function CenterAxisTimeline({
   variant,
   showInlineSummary = true,
   compactInsert = false,
+  itemMenuMode = 'popover',
   onEditItem,
   onMoveItem,
   onRemoveItem,
+  onRemoveTimeMarker,
   onAddAfter,
 }: CenterAxisTimelineProps) {
   const handlers = { onEditItem, onMoveItem, onRemoveItem }
   const periodByMarkerId = useMemo(() => periodTotalsByEndMarkerId(items), [items])
+  const markerMenuMode = itemMenuMode === 'action-sheet' ? 'action-sheet' : 'inline-delete'
+  const removeMarker = onRemoveTimeMarker ?? onRemoveItem
 
   return (
     <section className={`cs-axis-sheet cs-axis-sheet--${variant}`} aria-label="보장 비교 타임라인">
@@ -136,10 +145,10 @@ export function CenterAxisTimeline({
                       proposedTotal={periodByMarkerId.get(item.id)!.proposedTotal}
                     />
                   ) : null}
-                  {renderTimeMarker(item, onRemoveItem)}
+                  {renderTimeMarker(item, removeMarker, markerMenuMode)}
                 </>
               ) : (
-                renderCoverageRow(item, variant, handlers)
+                renderCoverageRow(item, variant, handlers, { items, itemMenuMode })
               )}
               {compactInsert && shouldShowTimelineInsertAfterItem(item, items, compactInsert) ? (
                 <TimelineInsertControl

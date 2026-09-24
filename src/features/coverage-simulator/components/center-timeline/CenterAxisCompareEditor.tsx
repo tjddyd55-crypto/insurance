@@ -57,6 +57,28 @@ export function CenterAxisCompareEditor({ editor, variant }: Props) {
 
   const backTo = isTemplate ? basePath : coverageSimulatorExitPath(basePath)
 
+  const requestRemoveCoverageItem = async (id: string) => {
+    const ok = await confirm({
+      title: '이 항목을 삭제할까요?',
+      message: '삭제 후 되돌릴 수 없습니다.',
+      confirmLabel: '삭제',
+      cancelLabel: '취소',
+      tone: 'danger',
+    })
+    if (ok) removeItem(id)
+  }
+
+  const requestRemoveTimeMarker = async (id: string) => {
+    const ok = await confirm({
+      title: '이 시간 구간을 삭제할까요?',
+      message: '삭제 후 되돌릴 수 없습니다.',
+      confirmLabel: '삭제',
+      cancelLabel: '취소',
+      tone: 'danger',
+    })
+    if (ok) removeItem(id)
+  }
+
   const requestReset = async () => {
     const ok = await confirm(
       isTemplate
@@ -148,9 +170,11 @@ export function CenterAxisCompareEditor({ editor, variant }: Props) {
           variant={variant}
           showInlineSummary={!useMobileStickyDock}
           compactInsert={useMobileStickyDock}
+          itemMenuMode={useMobileStickyDock ? 'action-sheet' : 'popover'}
           onEditItem={setEditingItem}
           onMoveItem={moveItem}
-          onRemoveItem={removeItem}
+          onRemoveItem={requestRemoveCoverageItem}
+          onRemoveTimeMarker={requestRemoveTimeMarker}
           onAddAfter={openAddSheet}
         />
       </main>

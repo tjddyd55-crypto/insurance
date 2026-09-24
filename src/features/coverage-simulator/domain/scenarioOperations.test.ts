@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import { createScenarioFromTemplate } from './templates'
-import { insertCoverageItemAfter, removeScenarioItem } from './scenarioOperations'
+import { createScenarioId } from './ids'
+import { insertCoverageItemAfter, moveScenarioItem, removeScenarioItem } from './scenarioOperations'
+import type { ScenarioItem } from './types'
 import { calculateScenarioTotals } from './totals'
 
 describe('scenarioOperations', () => {
@@ -28,6 +30,36 @@ describe('scenarioOperations', () => {
       .filter((item) => item.type === 'coverage')
       .map((item) => item.label)
     expect(labels).toContain('간병비')
+  })
+
+  it('does not move coverage across time markers', () => {
+    const scenario = createScenarioFromTemplate('cancer')!
+    const sorted = scenario.items.slice().sort((a, b) => a.order - b.order)
+    const marker: ScenarioItem = {
+      id: createScenarioId(),
+      type: 'time-marker',
+      label: '1년 후',
+      order: sorted.length,
+    }
+    const withMarker = {
+      ...scenario,
+      items: [...sorted, marker].map((item, index) => ({ ...item, order: index })),
+    }
+    const lastCoverage = withMarker.items
+      .slice()
+      .sort((a, b) => a.order - b.order)
+      .filter((item) => item.type === 'coverage')
+      .at(-1)!
+    const next = moveScenarioItem(withMarker, lastCoverage.id, 'down')
+    const labels = next.items
+      .slice()
+      .sort((a, b) => a.order - b.order)
+      .map((item) => (item.type === 'coverage' ? item.label : `[${item.label}]`))
+    const before = withMarker.items
+      .slice()
+      .sort((a, b) => a.order - b.order)
+      .map((item) => (item.type === 'coverage' ? item.label : `[${item.label}]`))
+    expect(labels).toEqual(before)
   })
 
   it('removes items and keeps order normalized', () => {

@@ -969,6 +969,21 @@
   color: #dc2626 !important;
 }
 
+.cs-axis-row-menu__panel button:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.cs-axis-row-menu__panel button:disabled:hover {
+  background: transparent;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-marker__menu-trigger {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 4px 8px;
+}
+
 .cs-axis-summary {
   margin: 0;
   padding: var(--cs-space-5) var(--cs-space-4);

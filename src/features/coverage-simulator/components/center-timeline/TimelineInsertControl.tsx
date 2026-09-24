@@ -5,6 +5,7 @@ type Props = {
 }
 
 export function TimelineInsertControl({ afterOrder, onInsert, variant = 'default' }: Props) {
+  const ariaLabel = variant === 'marker-tail' ? '이 구간에 항목 추가' : '항목 추가'
   return (
     <div
       className={[
@@ -20,7 +21,7 @@ export function TimelineInsertControl({ afterOrder, onInsert, variant = 'default
         <button
           type="button"
           className="cs-axis-insert__btn"
-          aria-label="항목 추가"
+          aria-label={ariaLabel}
           onClick={() => onInsert(afterOrder)}
         >
           <span className="cs-axis-insert__plus" aria-hidden="true">+</span>

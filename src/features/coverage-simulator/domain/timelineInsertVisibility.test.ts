@@ -33,9 +33,17 @@ describe('shouldShowTimelineInsertAfterItem', () => {
     expect(shouldShowTimelineInsertAfterItem(m, items, true)).toBe(false)
   })
 
-  it('shows insert after last marker only', () => {
+  it('shows insert after last marker', () => {
     const m = marker(2)
     const items = [coverage(0), coverage(1), m]
     expect(shouldShowTimelineInsertAfterItem(m, items, true)).toBe(true)
+  })
+
+  it('shows insert between consecutive markers (empty period)', () => {
+    const m1 = marker(0)
+    const m2 = marker(1)
+    const items = [m1, m2]
+    expect(shouldShowTimelineInsertAfterItem(m1, items, true)).toBe(true)
+    expect(shouldShowTimelineInsertAfterItem(m2, items, true)).toBe(true)
   })
 })

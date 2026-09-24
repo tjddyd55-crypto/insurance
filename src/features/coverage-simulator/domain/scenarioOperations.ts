@@ -99,8 +99,29 @@ export function moveScenarioItem(
   const items = normalizeOrders(scenario.items)
   const index = items.findIndex((item) => item.id === itemId)
   if (index < 0) return scenario
+  const current = items[index]
+  if (current.type !== 'coverage') return scenario
+
   const target = direction === 'up' ? index - 1 : index + 1
   if (target < 0 || target >= items.length) return scenario
+  if (items[target].type !== 'coverage') return scenario
+
+  let periodStart = 0
+  for (let i = index - 1; i >= 0; i -= 1) {
+    if (items[i].type === 'time-marker') {
+      periodStart = i + 1
+      break
+    }
+  }
+  let periodEnd = items.length - 1
+  for (let i = index + 1; i < items.length; i += 1) {
+    if (items[i].type === 'time-marker') {
+      periodEnd = i - 1
+      break
+    }
+  }
+  if (target < periodStart || target > periodEnd) return scenario
+
   const copy = items.slice()
   const [removed] = copy.splice(index, 1)
   copy.splice(target, 0, removed)

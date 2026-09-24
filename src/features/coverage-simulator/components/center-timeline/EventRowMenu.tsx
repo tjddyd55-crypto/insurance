@@ -1,7 +1,14 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
+import { ItemActionSheet } from '../ItemActionSheet'
+import { coverageItemMoveState } from '../../domain/timelinePeriodBounds'
+import type { ScenarioItem } from '../../domain/types'
+
 type EventRowMenuProps = {
+  menuMode?: 'popover' | 'action-sheet'
+  items?: ScenarioItem[]
+  itemId?: string
   onEditAmount: () => void
   onMoveUp: () => void
   onMoveDown: () => void
@@ -32,23 +39,36 @@ function measurePanelPosition(trigger: HTMLElement, panel: HTMLElement): PanelPo
   return { top, left }
 }
 
-export function EventRowMenu({ onEditAmount, onMoveUp, onMoveDown, onDelete }: EventRowMenuProps) {
+export function EventRowMenu({
+  menuMode = 'popover',
+  items = [],
+  itemId = '',
+  onEditAmount,
+  onMoveUp,
+  onMoveDown,
+  onDelete,
+}: EventRowMenuProps) {
   const [open, setOpen] = useState(false)
   const [position, setPosition] = useState<PanelPosition | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
 
+  const moveState = useMemo(
+    () => (itemId ? coverageItemMoveState(items, itemId) : { canMoveUp: false, canMoveDown: false }),
+    [items, itemId],
+  )
+
   useLayoutEffect(() => {
-    if (!open || !triggerRef.current || !panelRef.current) {
+    if (menuMode !== 'popover' || !open || !triggerRef.current || !panelRef.current) {
       setPosition(null)
       return
     }
     setPosition(measurePanelPosition(triggerRef.current, panelRef.current))
-  }, [open])
+  }, [open, menuMode])
 
   useEffect(() => {
-    if (!open) return undefined
+    if (menuMode !== 'popover' || !open) return undefined
     const onDoc = (event: MouseEvent) => {
       const target = event.target as Node
       if (rootRef.current?.contains(target) || panelRef.current?.contains(target)) return
@@ -67,43 +87,80 @@ export function EventRowMenu({ onEditAmount, onMoveUp, onMoveDown, onDelete }: E
       window.removeEventListener('resize', onReflow)
       window.removeEventListener('scroll', onReflow, true)
     }
-  }, [open])
+  }, [open, menuMode])
 
-  const panel = open ? (
-    <div
-      ref={panelRef}
-      className="cs-axis-row-menu__panel cs-axis-row-menu__panel--portal"
-      role="menu"
-      style={
-        position
-          ? {
-              position: 'fixed',
-              top: position.top,
-              left: position.left,
-              zIndex: 'var(--cs-z-item-popover)',
-            }
-          : { position: 'fixed', top: -9999, left: 0, visibility: 'hidden' as const }
-      }
-    >
-      <button type="button" role="menuitem" onClick={() => { setOpen(false); onEditAmount() }}>
-        금액·항목 수정
-      </button>
-      <button type="button" role="menuitem" onClick={() => { setOpen(false); onMoveUp() }}>
-        위로 이동
-      </button>
-      <button type="button" role="menuitem" onClick={() => { setOpen(false); onMoveDown() }}>
-        아래로 이동
-      </button>
-      <button
-        type="button"
-        role="menuitem"
-        className="cs-axis-row-menu__danger"
-        onClick={() => { setOpen(false); onDelete() }}
+  const sheetActions = [
+    {
+      id: 'edit',
+      label: '항목 수정',
+      onSelect: onEditAmount,
+    },
+    {
+      id: 'up',
+      label: '위로 이동',
+      onSelect: onMoveUp,
+      disabled: !moveState.canMoveUp,
+    },
+    {
+      id: 'down',
+      label: '아래로 이동',
+      onSelect: onMoveDown,
+      disabled: !moveState.canMoveDown,
+    },
+    {
+      id: 'delete',
+      label: '삭제',
+      onSelect: onDelete,
+      destructive: true,
+    },
+  ]
+
+  const panel =
+    menuMode === 'popover' && open ? (
+      <div
+        ref={panelRef}
+        className="cs-axis-row-menu__panel cs-axis-row-menu__panel--portal"
+        role="menu"
+        style={
+          position
+            ? {
+                position: 'fixed',
+                top: position.top,
+                left: position.left,
+                zIndex: 'var(--cs-z-item-popover)',
+              }
+            : { position: 'fixed', top: -9999, left: 0, visibility: 'hidden' as const }
+        }
       >
-        삭제
-      </button>
-    </div>
-  ) : null
+        <button type="button" role="menuitem" onClick={() => { setOpen(false); onEditAmount() }}>
+          항목 수정
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          disabled={!moveState.canMoveUp}
+          onClick={() => { setOpen(false); onMoveUp() }}
+        >
+          위로 이동
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          disabled={!moveState.canMoveDown}
+          onClick={() => { setOpen(false); onMoveDown() }}
+        >
+          아래로 이동
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          className="cs-axis-row-menu__danger"
+          onClick={() => { setOpen(false); onDelete() }}
+        >
+          삭제
+        </button>
+      </div>
+    ) : null
 
   return (
     <div className="cs-axis-row-menu" ref={rootRef}>
@@ -117,7 +174,15 @@ export function EventRowMenu({ onEditAmount, onMoveUp, onMoveDown, onDelete }: E
       >
         ⋯
       </button>
-      {panel ? createPortal(panel, document.body) : null}
+      {menuMode === 'popover' && panel ? createPortal(panel, document.body) : null}
+      {menuMode === 'action-sheet' ? (
+        <ItemActionSheet
+          open={open}
+          title="항목 작업"
+          onClose={() => setOpen(false)}
+          actions={sheetActions}
+        />
+      ) : null}
     </div>
   )
 }
