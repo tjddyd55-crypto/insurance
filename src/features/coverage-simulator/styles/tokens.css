@@ -41,4 +41,8 @@
   --cs-timeline-width: 24px;
   --cs-amount-col-min: 0;
   --cs-control-height: 44px;
+
+  --cs-z-sticky-dock: 110;
+  --cs-z-sheet-overlay: 1200;
+  --cs-mobile-dock-height: calc(104px + env(safe-area-inset-bottom, 0px));
 }

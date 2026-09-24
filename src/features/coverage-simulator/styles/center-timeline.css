@@ -42,6 +42,81 @@
   background: #f8fafc;
 }
 
+.cs-axis-main--mobile-dock {
+  padding-bottom: calc(var(--cs-mobile-dock-height) + var(--cs-space-4));
+}
+
+.coverage-simulator-root--mobile-preview .cs-mobile-dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--cs-z-sticky-dock);
+  margin: 0 auto;
+  max-width: 420px;
+  background: rgba(255, 255, 255, 0.98);
+  border-top: 1px solid var(--cs-color-border);
+  box-shadow: 0 -4px 24px rgba(15, 23, 42, 0.08);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  backdrop-filter: blur(10px);
+}
+
+.cs-mobile-dock__summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--cs-space-3);
+  padding: var(--cs-space-3) var(--cs-space-4) var(--cs-space-2);
+}
+
+.cs-mobile-dock__col {
+  min-width: 0;
+  text-align: center;
+}
+
+.cs-mobile-dock__label {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--cs-color-text-muted);
+  margin-bottom: 2px;
+}
+
+.cs-mobile-dock__value {
+  display: block;
+  font-size: 1.0625rem;
+  font-weight: 800;
+  color: #1f2937;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cs-mobile-dock__value--proposed {
+  color: var(--cs-color-proposed);
+}
+
+.cs-mobile-dock__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--cs-space-4) var(--cs-space-2);
+  gap: var(--cs-space-4);
+}
+
+.cs-mobile-dock__action {
+  border: none;
+  background: transparent;
+  padding: var(--cs-space-2) var(--cs-space-1);
+  font-size: var(--cs-font-caption);
+  font-weight: 600;
+  color: var(--cs-color-text-muted);
+  cursor: pointer;
+}
+
+.cs-mobile-dock__action--secondary {
+  color: var(--cs-color-primary);
+}
+
 .cs-axis-main--pc {
   padding: var(--cs-space-6) var(--cs-space-8) 48px;
   max-width: 1120px;

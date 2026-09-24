@@ -1,7 +1,9 @@
+import { useConfirmDialog } from '../../../../components/dialog'
 import { AddItemSheet } from '../AddItemSheet'
 import { AmountEditSheet } from '../AmountEditSheet'
+import { MobilePreviewStickyDock } from '../MobilePreviewStickyDock'
 import { CoverageSimulatorLayout } from '../CoverageSimulatorLayout'
-import { coverageSimulatorExitPath } from '../../CoverageSimulatorScope'
+import { coverageSimulatorExitPath, useCoverageSimulatorScope } from '../../CoverageSimulatorScope'
 import { CenterAxisTimeline } from './CenterAxisTimeline'
 import { isTemplateEditorMode, type TimelineEditorController } from './TimelineEditorController'
 
@@ -15,6 +17,10 @@ const SCENARIO_BLURB: Record<string, string> = {
 }
 
 export function CenterAxisCompareEditor({ editor, variant }: Props) {
+  const { layoutMode } = useCoverageSimulatorScope()
+  const { confirm, confirmDialog } = useConfirmDialog()
+  const useMobileStickyDock = variant === 'mobile' && layoutMode === 'preview-mobile'
+
   const {
     scenario,
     totals,
@@ -49,6 +55,27 @@ export function CenterAxisCompareEditor({ editor, variant }: Props) {
     : SCENARIO_BLURB[scenario.diseaseType] ?? scenario.description
 
   const backTo = isTemplate ? basePath : coverageSimulatorExitPath(basePath)
+
+  const requestReset = async () => {
+    const ok = await confirm(
+      isTemplate
+        ? {
+            title: '템플릿 항목을 비울까요?',
+            message: '현재 템플릿에 저장된 항목이 모두 제거됩니다.',
+            confirmLabel: '비우기',
+            cancelLabel: '취소',
+            tone: 'danger',
+          }
+        : {
+            title: '작성 내용을 초기화할까요?',
+            message: '현재 입력한 보장 내용이 모두 기본 상태로 돌아갑니다.',
+            confirmLabel: '초기화',
+            cancelLabel: '취소',
+            tone: 'danger',
+          },
+    )
+    if (ok) resetToCancerDefaults()
+  }
 
   return (
     <CoverageSimulatorLayout>
@@ -103,7 +130,12 @@ export function CenterAxisCompareEditor({ editor, variant }: Props) {
       )}
 
       <main
-        className={variant === 'pc' ? 'cs-axis-main cs-axis-main--pc' : 'cs-axis-main coverage-simulator-content'}
+        className={[
+          variant === 'pc' ? 'cs-axis-main cs-axis-main--pc' : 'cs-axis-main coverage-simulator-content',
+          useMobileStickyDock ? 'cs-axis-main--mobile-dock' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
         data-testid="coverage-scenario-editor"
       >
         <p className="cs-axis-lead">{blurb}</p>
@@ -112,6 +144,7 @@ export function CenterAxisCompareEditor({ editor, variant }: Props) {
           currentTotal={totals.currentTotal}
           proposedTotal={totals.proposedTotal}
           variant={variant}
+          showInlineSummary={!useMobileStickyDock}
           onEditItem={setEditingItem}
           onMoveItem={moveItem}
           onRemoveItem={removeItem}
@@ -119,9 +152,26 @@ export function CenterAxisCompareEditor({ editor, variant }: Props) {
         />
       </main>
 
-      {variant === 'mobile' && !isTemplate ? (
+      {useMobileStickyDock && !isTemplate ? (
+        <MobilePreviewStickyDock
+          currentTotal={totals.currentTotal}
+          proposedTotal={totals.proposedTotal}
+          onReset={requestReset}
+          onPdf={() => navigate(`${basePath}/scenarios/${scenario.id}/pdf`)}
+        />
+      ) : null}
+      {useMobileStickyDock && isTemplate ? (
+        <MobilePreviewStickyDock
+          currentTotal={totals.currentTotal}
+          proposedTotal={totals.proposedTotal}
+          onReset={requestReset}
+          resetLabel="항목 비우기"
+          secondaryAction={{ label: '템플릿 저장', onClick: () => persist(scenario) }}
+        />
+      ) : null}
+      {variant === 'mobile' && !useMobileStickyDock && !isTemplate ? (
         <footer className="coverage-simulator-bottom-bar">
-          <button type="button" className="coverage-simulator-secondary-btn" onClick={resetToCancerDefaults}>
+          <button type="button" className="coverage-simulator-secondary-btn" onClick={requestReset}>
             초기화
           </button>
           <button
@@ -130,16 +180,6 @@ export function CenterAxisCompareEditor({ editor, variant }: Props) {
             onClick={() => navigate(`${basePath}/scenarios/${scenario.id}/pdf`)}
           >
             PDF 미리보기
-          </button>
-        </footer>
-      ) : null}
-      {variant === 'mobile' && isTemplate ? (
-        <footer className="coverage-simulator-bottom-bar">
-          <button type="button" className="coverage-simulator-secondary-btn" onClick={resetToCancerDefaults}>
-            항목 비우기
-          </button>
-          <button type="button" className="coverage-simulator-primary-btn" onClick={() => persist(scenario)}>
-            템플릿 저장
           </button>
         </footer>
       ) : null}
@@ -156,6 +196,7 @@ export function CenterAxisCompareEditor({ editor, variant }: Props) {
         onClose={() => setEditingItem(null)}
         onSave={onSaveAmount}
       />
+      {confirmDialog}
     </CoverageSimulatorLayout>
   )
 }
