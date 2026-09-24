@@ -9,7 +9,7 @@ import '../styles/coverage-simulator.css'
 
 function PreviewChrome({ label }: { label: string }) {
   return (
-    <p className="coverage-simulator-public-chrome" aria-hidden="true">
+    <p className="coverage-simulator-public-chrome" data-coverage-simulator-preview-chrome="true">
       <span className="coverage-simulator-public-chrome__badge">PREVIEW</span>
       {label}
     </p>
@@ -30,8 +30,11 @@ export function CoverageSimulatorPublicPcLayout() {
 export function CoverageSimulatorPublicMobileLayout() {
   return (
     <CoverageSimulatorScopeProvider {...previewScopeMobile}>
-      <div className="coverage-simulator-mobile-preview-root" data-testid="coverage-simulator-public-mobile-root">
-        <PreviewChrome label="보장 시뮬레이션 · Mobile" />
+      <div
+        className="coverage-simulator-mobile-preview-root"
+        data-testid="coverage-simulator-public-mobile-root"
+        data-coverage-simulator-preview="mobile"
+      >
         <div className="coverage-simulator-mobile-preview-frame">
           <Outlet />
         </div>

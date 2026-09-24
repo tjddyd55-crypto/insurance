@@ -61,6 +61,42 @@
   backdrop-filter: blur(10px);
 }
 
+.cs-mobile-dock--totals-only {
+  padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px));
+}
+
+.cs-mobile-dock__summary--compact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+}
+
+.cs-mobile-dock__divider {
+  width: 1px;
+  align-self: stretch;
+  min-height: 28px;
+  background: var(--cs-color-border);
+  flex-shrink: 0;
+}
+
+.cs-mobile-dock__summary--compact .cs-mobile-dock__col {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+.cs-mobile-dock__summary--compact .cs-mobile-dock__label {
+  font-size: 0.625rem;
+  margin-bottom: 0;
+  line-height: 1.2;
+}
+
+.cs-mobile-dock__summary--compact .cs-mobile-dock__value {
+  font-size: 0.875rem;
+  line-height: 1.25;
+}
+
 .cs-mobile-dock__summary {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -215,7 +251,72 @@
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-amount {
-  min-height: 40px;
+  min-height: 36px;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-main.coverage-simulator-content {
+  padding-top: var(--cs-space-2);
+  padding-left: var(--cs-space-3);
+  padding-right: var(--cs-space-3);
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-marker {
+  padding: var(--cs-space-2) var(--cs-space-2);
+  background: transparent;
+  border: none;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-marker__delete {
+  margin-top: 0;
+  font-size: 0.6875rem;
+}
+
+.cs-mobile-editor-header {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--cs-mobile-editor-header-height, 52px);
+  max-height: var(--cs-mobile-editor-header-height, 52px);
+  padding: 6px 8px;
+}
+
+.cs-mobile-editor-header__title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.cs-mobile-editor-header__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.cs-mobile-editor-header__action {
+  border: none;
+  background: transparent;
+  padding: 6px 4px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--cs-color-text-muted);
+  white-space: nowrap;
+}
+
+.cs-mobile-editor-header__action--save {
+  color: var(--cs-color-proposed);
+  font-weight: 700;
+}
+
+.cs-mobile-editor-header__action--muted {
+  color: #94a3b8;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-amount--current .cs-axis-amount__value,
@@ -229,24 +330,27 @@
 
 .cs-axis-insert {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 28px;
-  margin: 2px 0;
+  height: var(--cs-axis-insert-height, 16px);
+  margin: 0;
+  overflow: visible;
+  pointer-events: none;
 }
 
 .cs-axis-insert__line {
   position: absolute;
-  left: var(--cs-space-3);
-  right: var(--cs-space-3);
+  left: 10px;
+  right: 10px;
   top: 50%;
   height: 1px;
   background: var(--cs-timeline-row-divider, #e8edf3);
+  transform: translateY(-50%);
+  pointer-events: none;
 }
 
 .cs-axis-insert__btn {
-  position: relative;
+  position: absolute;
+  left: 50%;
+  top: 50%;
   z-index: 2;
   width: 44px;
   height: 44px;
@@ -255,9 +359,8 @@
   border: none;
   background: transparent;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
 }
 
 .cs-axis-insert__btn::before {
@@ -265,16 +368,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 24px;
+  height: 24px;
+  margin: 0 auto;
   border-radius: 50%;
   border: 1px solid var(--cs-color-primary);
   background: #fff;
   color: var(--cs-color-primary);
-  font-size: 1.125rem;
+  font-size: 0.9375rem;
   font-weight: 700;
   line-height: 1;
-  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.12);
+  box-shadow: none;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-add.coverage-simulator-add-slot {

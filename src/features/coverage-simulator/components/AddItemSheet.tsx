@@ -70,10 +70,18 @@ export function AddItemSheet({
     onClose()
   }
 
+  const submitDirectAdd = () => {
+    const label = customLabel.trim()
+    if (!label) return
+    onSelectCoverage({ label, category: customCategory })
+    setCustomLabel('')
+    onClose()
+  }
+
   return (
     <div className="coverage-simulator-sheet-backdrop" role="presentation" onClick={onClose}>
       <div
-        className={`coverage-simulator-sheet${mobileCompact ? ' coverage-simulator-sheet--compact' : ''}`}
+        className={`coverage-simulator-sheet${mobileCompact ? ' coverage-simulator-sheet--compact coverage-simulator-sheet--mobile-add' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label="항목 추가"
@@ -85,7 +93,7 @@ export function AddItemSheet({
             ×
           </button>
         </div>
-        <div className="coverage-simulator-tabs">
+        <div className="coverage-simulator-tabs coverage-simulator-tabs--compact">
           {CATALOG_TABS.map((entry) => (
             <button
               key={entry.id}
@@ -99,75 +107,110 @@ export function AddItemSheet({
         </div>
 
         {mobileCompact ? (
-          tab === 'favorite' && items.length === 0 ? (
-            <p className="cs-catalog-empty">
-              즐겨찾기한 항목이 없습니다.
-              <br />
-              다른 목록의 ☆를 눌러 추가할 수 있습니다.
-            </p>
-          ) : (
-            <div className="coverage-simulator-catalog-list">
-              {items.map((item) => (
-                <div key={item.id} className="coverage-simulator-catalog-row">
-                  <button type="button" className="coverage-simulator-catalog-row__main" onClick={() => selectItem(item)}>
-                    <span>{item.label}</span>
-                  </button>
-                  {useFavorites ? (
-                    <button
-                      type="button"
-                      className={`coverage-simulator-catalog-row__star${favoriteIds.includes(item.id) ? ' coverage-simulator-catalog-row__star--on' : ''}`}
-                      aria-label={favoriteIds.includes(item.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        toggleFavorite(item.id)
-                      }}
-                    >
-                      {favoriteIds.includes(item.id) ? '★' : '☆'}
+          <div className="cs-sheet-body-scroll">
+            {tab === 'favorite' && items.length === 0 ? (
+              <p className="cs-catalog-empty">
+                즐겨찾기한 항목이 없습니다.
+                <br />
+                다른 목록의 ☆를 눌러 추가할 수 있습니다.
+              </p>
+            ) : (
+              <div className="coverage-simulator-catalog-list">
+                {items.map((item) => (
+                  <div key={item.id} className="coverage-simulator-catalog-row">
+                    <button type="button" className="coverage-simulator-catalog-row__main" onClick={() => selectItem(item)}>
+                      <span>{item.label}</span>
                     </button>
-                  ) : null}
-                </div>
+                    {useFavorites ? (
+                      <button
+                        type="button"
+                        className={`coverage-simulator-catalog-row__star${favoriteIds.includes(item.id) ? ' coverage-simulator-catalog-row__star--on' : ''}`}
+                        aria-label={favoriteIds.includes(item.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          toggleFavorite(item.id)
+                        }}
+                      >
+                        {favoriteIds.includes(item.id) ? '★' : '☆'}
+                      </button>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="cs-direct-add">
+              <div className="cs-direct-add__label">직접 추가</div>
+              <div className="cs-direct-add__row">
+                <input
+                  id="custom-label"
+                  value={customLabel}
+                  placeholder="항목명을 입력하세요"
+                  onChange={(event) => setCustomLabel(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault()
+                      submitDirectAdd()
+                    }
+                  }}
+                />
+                <button type="button" className="cs-direct-add__submit" onClick={submitDirectAdd}>
+                  추가
+                </button>
+              </div>
+              <CategoryChipPicker compact value={customCategory} onChange={setCustomCategory} />
+            </div>
+
+            <div className="coverage-simulator-sheet__title coverage-simulator-sheet__title--subsection">시간 구간</div>
+            <div className="coverage-simulator-catalog-grid coverage-simulator-catalog-grid--time">
+              {TIME_MARKER_PRESETS.map((label) => (
+                <button
+                  key={label}
+                  type="button"
+                  className="coverage-simulator-catalog-item"
+                  onClick={() => {
+                    onSelectTimeMarker(label)
+                    onClose()
+                  }}
+                >
+                  🕐 {label}
+                </button>
               ))}
             </div>
-          )
-        ) : (
-          <div className="coverage-simulator-catalog-grid">
-            {items.map((item) => (
-              <button key={item.id} type="button" className="coverage-simulator-catalog-item" onClick={() => selectItem(item)}>
-                <span>{item.label}</span>
-                {item.defaultFavorite ? <span className="coverage-simulator-catalog-item__star" aria-hidden="true">★</span> : <span />}
-              </button>
-            ))}
+            <div className="coverage-simulator-form-field coverage-simulator-form-field--compact">
+              <label htmlFor="custom-time">직접 입력</label>
+              <div className="coverage-simulator-amount-input-row">
+                <input
+                  id="custom-time"
+                  value={customTimeLabel}
+                  onChange={(event) => setCustomTimeLabel(event.target.value)}
+                  placeholder="예: 18개월 후"
+                />
+                <button
+                  type="button"
+                  className="coverage-simulator-primary-btn"
+                  style={{ padding: '0 12px', height: 36 }}
+                  onClick={() => {
+                    if (!customTimeLabel.trim()) return
+                    onSelectTimeMarker(customTimeLabel.trim())
+                    onClose()
+                  }}
+                >
+                  추가
+                </button>
+              </div>
+            </div>
           </div>
-        )}
-
-        {mobileCompact ? (
-          <>
-            <button
-              type="button"
-              className="coverage-simulator-catalog-row coverage-simulator-catalog-row--custom"
-              onClick={() => {
-                onSelectCoverage({ label: customLabel.trim() || '직접 입력 항목', category: customCategory })
-                onClose()
-              }}
-            >
-              <span>+ 기타 직접 입력</span>
-            </button>
-            <div className="coverage-simulator-form-field coverage-simulator-form-field--compact">
-              <label htmlFor="custom-label">직접 항목명</label>
-              <input
-                id="custom-label"
-                value={customLabel}
-                onChange={(event) => setCustomLabel(event.target.value)}
-                placeholder="예: 간병비"
-              />
-            </div>
-            <div className="coverage-simulator-form-field coverage-simulator-form-field--compact">
-              <span className="coverage-simulator-form-field__label">카테고리</span>
-              <CategoryChipPicker value={customCategory} onChange={setCustomCategory} />
-            </div>
-          </>
         ) : (
           <>
+            <div className="coverage-simulator-catalog-grid">
+              {items.map((item) => (
+                <button key={item.id} type="button" className="coverage-simulator-catalog-item" onClick={() => selectItem(item)}>
+                  <span>{item.label}</span>
+                  {item.defaultFavorite ? <span className="coverage-simulator-catalog-item__star" aria-hidden="true">★</span> : <span />}
+                </button>
+              ))}
+            </div>
             <button
               type="button"
               className="coverage-simulator-catalog-item"
@@ -201,48 +244,47 @@ export function AddItemSheet({
                 <option value="other">기타</option>
               </select>
             </div>
+            <div className="coverage-simulator-sheet__title coverage-simulator-sheet__title--subsection">시간 구간</div>
+            <div className="coverage-simulator-catalog-grid coverage-simulator-catalog-grid--time">
+              {TIME_MARKER_PRESETS.map((label) => (
+                <button
+                  key={label}
+                  type="button"
+                  className="coverage-simulator-catalog-item"
+                  onClick={() => {
+                    onSelectTimeMarker(label)
+                    onClose()
+                  }}
+                >
+                  🕐 {label}
+                </button>
+              ))}
+            </div>
+            <div className="coverage-simulator-form-field coverage-simulator-form-field--compact">
+              <label htmlFor="custom-time">직접 입력</label>
+              <div className="coverage-simulator-amount-input-row">
+                <input
+                  id="custom-time"
+                  value={customTimeLabel}
+                  onChange={(event) => setCustomTimeLabel(event.target.value)}
+                  placeholder="예: 18개월 후"
+                />
+                <button
+                  type="button"
+                  className="coverage-simulator-primary-btn"
+                  style={{ padding: '0 12px', height: 40 }}
+                  onClick={() => {
+                    if (!customTimeLabel.trim()) return
+                    onSelectTimeMarker(customTimeLabel.trim())
+                    onClose()
+                  }}
+                >
+                  추가
+                </button>
+              </div>
+            </div>
           </>
         )}
-
-        <div className="coverage-simulator-sheet__title coverage-simulator-sheet__title--subsection">시간 구간</div>
-        <div className="coverage-simulator-catalog-grid coverage-simulator-catalog-grid--time">
-          {TIME_MARKER_PRESETS.map((label) => (
-            <button
-              key={label}
-              type="button"
-              className="coverage-simulator-catalog-item"
-              onClick={() => {
-                onSelectTimeMarker(label)
-                onClose()
-              }}
-            >
-              🕐 {label}
-            </button>
-          ))}
-        </div>
-        <div className="coverage-simulator-form-field coverage-simulator-form-field--compact">
-          <label htmlFor="custom-time">직접 입력</label>
-          <div className="coverage-simulator-amount-input-row">
-            <input
-              id="custom-time"
-              value={customTimeLabel}
-              onChange={(event) => setCustomTimeLabel(event.target.value)}
-              placeholder="예: 18개월 후"
-            />
-            <button
-              type="button"
-              className="coverage-simulator-primary-btn"
-              style={{ padding: '0 12px', height: 40 }}
-              onClick={() => {
-                if (!customTimeLabel.trim()) return
-                onSelectTimeMarker(customTimeLabel.trim())
-                onClose()
-              }}
-            >
-              추가
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   )

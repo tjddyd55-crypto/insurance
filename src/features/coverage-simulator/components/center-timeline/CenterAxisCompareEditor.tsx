@@ -1,6 +1,7 @@
 import { useConfirmDialog } from '../../../../components/dialog'
 import { AddItemSheet } from '../AddItemSheet'
 import { AmountEditSheet } from '../AmountEditSheet'
+import { MobilePreviewEditorHeader } from '../MobilePreviewEditorHeader'
 import { MobilePreviewStickyDock } from '../MobilePreviewStickyDock'
 import { CoverageSimulatorLayout } from '../CoverageSimulatorLayout'
 import { coverageSimulatorExitPath, useCoverageSimulatorScope } from '../../CoverageSimulatorScope'
@@ -79,22 +80,23 @@ export function CenterAxisCompareEditor({ editor, variant }: Props) {
 
   return (
     <CoverageSimulatorLayout>
-      {variant === 'mobile' ? (
+      {variant === 'mobile' && useMobileStickyDock ? (
+        <MobilePreviewEditorHeader
+          title={scenario.title}
+          onBack={() => navigate(backTo)}
+          onReset={requestReset}
+          onSave={() => persist(scenario)}
+          onPdf={!isTemplate ? () => navigate(`${basePath}/scenarios/${scenario.id}/pdf`) : undefined}
+          showPdf={!isTemplate}
+          resetLabel={isTemplate ? '비우기' : '초기화'}
+        />
+      ) : variant === 'mobile' ? (
         <header className="cs-axis-header coverage-simulator-appbar">
-          <button
-            type="button"
-            className="coverage-simulator-icon-btn"
-            onClick={() => navigate(backTo)}
-          >
-            ←
-          </button>
+          <button type="button" className="coverage-simulator-icon-btn" onClick={() => navigate(backTo)}>←</button>
           <div className="cs-axis-header__titles">
-            <div className="cs-axis-header__product">{isTemplate ? '템플릿 편집' : '보장 시뮬레이션'}</div>
             <div className="coverage-simulator-appbar__title">{scenario.title}</div>
           </div>
-          <button type="button" className="coverage-simulator-text-btn" onClick={() => persist(scenario)}>
-            저장
-          </button>
+          <button type="button" className="coverage-simulator-text-btn" onClick={() => persist(scenario)}>저장</button>
         </header>
       ) : (
         <header className="cs-axis-header cs-axis-header--pc coverage-simulator-pc-toolbar">
@@ -138,7 +140,7 @@ export function CenterAxisCompareEditor({ editor, variant }: Props) {
           .join(' ')}
         data-testid="coverage-scenario-editor"
       >
-        <p className="cs-axis-lead">{blurb}</p>
+        {!useMobileStickyDock ? <p className="cs-axis-lead">{blurb}</p> : null}
         <CenterAxisTimeline
           items={sortedItems}
           currentTotal={totals.currentTotal}
@@ -153,22 +155,8 @@ export function CenterAxisCompareEditor({ editor, variant }: Props) {
         />
       </main>
 
-      {useMobileStickyDock && !isTemplate ? (
-        <MobilePreviewStickyDock
-          currentTotal={totals.currentTotal}
-          proposedTotal={totals.proposedTotal}
-          onReset={requestReset}
-          onPdf={() => navigate(`${basePath}/scenarios/${scenario.id}/pdf`)}
-        />
-      ) : null}
-      {useMobileStickyDock && isTemplate ? (
-        <MobilePreviewStickyDock
-          currentTotal={totals.currentTotal}
-          proposedTotal={totals.proposedTotal}
-          onReset={requestReset}
-          resetLabel="항목 비우기"
-          secondaryAction={{ label: '템플릿 저장', onClick: () => persist(scenario) }}
-        />
+      {useMobileStickyDock ? (
+        <MobilePreviewStickyDock currentTotal={totals.currentTotal} proposedTotal={totals.proposedTotal} />
       ) : null}
       {variant === 'mobile' && !useMobileStickyDock && !isTemplate ? (
         <footer className="coverage-simulator-bottom-bar">

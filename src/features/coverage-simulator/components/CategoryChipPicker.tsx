@@ -6,11 +6,16 @@ const CATEGORIES: ScenarioItemCategory[] = ['diagnosis', 'treatment', 'recovery'
 type Props = {
   value: ScenarioItemCategory
   onChange: (value: ScenarioItemCategory) => void
+  compact?: boolean
 }
 
-export function CategoryChipPicker({ value, onChange }: Props) {
+export function CategoryChipPicker({ value, onChange, compact = false }: Props) {
   return (
-    <div className="cs-category-chips" role="group" aria-label="카테고리">
+    <div
+      className={`cs-category-chips${compact ? ' cs-category-chips--compact' : ''}`}
+      role="group"
+      aria-label="카테고리"
+    >
       {CATEGORIES.map((category) => (
         <button
           key={category}

@@ -1067,6 +1067,79 @@ body.coverage-simulator-immersive .pc-workspace-layout > main {
   gap: 6px;
 }
 
+.cs-category-chips--compact {
+  flex-wrap: nowrap;
+  gap: 4px;
+  justify-content: space-between;
+}
+
+.cs-category-chips--compact .cs-category-chip {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 4px 2px;
+  font-size: 0.625rem;
+  text-align: center;
+}
+
+.cs-sheet-body-scroll {
+  max-height: min(42dvh, 320px);
+  overflow-y: auto;
+  margin-bottom: var(--cs-space-2);
+}
+
+.cs-direct-add {
+  margin: var(--cs-space-2) 0 var(--cs-space-3);
+  padding-top: var(--cs-space-2);
+  border-top: 1px solid var(--cs-color-border);
+}
+
+.cs-direct-add__label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--cs-color-text-muted);
+  margin-bottom: 6px;
+}
+
+.cs-direct-add__row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.cs-direct-add__row input {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--cs-color-border);
+  border-radius: 10px;
+  font: inherit;
+}
+
+.cs-direct-add__submit {
+  flex-shrink: 0;
+  height: 40px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 10px;
+  background: var(--cs-color-primary);
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.coverage-simulator-tabs--compact .coverage-simulator-tab {
+  padding: 6px 10px;
+  font-size: 0.75rem;
+}
+
+.coverage-simulator-sheet--mobile-add {
+  max-height: min(78dvh, 640px);
+  display: flex;
+  flex-direction: column;
+}
+
 .cs-category-chip {
   border: 1px solid var(--cs-color-border);
   border-radius: 999px;
