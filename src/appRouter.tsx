@@ -132,7 +132,9 @@ import {
   CoverageSimulatorPublicMobileLayout,
   CoverageSimulatorPublicPcLayout,
 } from './features/coverage-simulator/pages/CoverageSimulatorPublicLayout'
+import { NewScenarioTemplatePage } from './features/coverage-simulator/pages/NewScenarioTemplatePage'
 import { ScenarioSelectPage } from './features/coverage-simulator/pages/ScenarioSelectPage'
+import { CoverageScenarioTemplateEditorPage } from './features/coverage-simulator/pages/CoverageScenarioTemplateEditorPage'
 import PublicAccountRestrictedPage from './features/common/PublicAccountRestrictedPage'
 import { PublicBoardWriterAdminPage } from './features/insurer-news/pages/PublicBoardWriterAdminPage'
 import { PublicBoardWriterLoginPage } from './features/insurer-news/pages/PublicBoardWriterLoginPage'
@@ -262,6 +264,8 @@ export const appRouter = createBrowserRouter([
         element: <CoverageSimulatorPublicPcLayout />,
         children: [
           { index: true, element: <ScenarioSelectPage /> },
+          { path: 'templates/new', element: <NewScenarioTemplatePage /> },
+          { path: 'templates/:templateId/edit', element: <CoverageScenarioTemplateEditorPage /> },
           { path: 'saved', element: <SavedScenariosPage /> },
           { path: 'scenarios/:scenarioId/pdf', element: <PdfPreviewPage /> },
           { path: 'scenarios/:scenarioId', element: <ScenarioEditorPage /> },
@@ -273,6 +277,8 @@ export const appRouter = createBrowserRouter([
         element: <CoverageSimulatorPublicMobileLayout />,
         children: [
           { index: true, element: <ScenarioSelectPage /> },
+          { path: 'templates/new', element: <NewScenarioTemplatePage /> },
+          { path: 'templates/:templateId/edit', element: <CoverageScenarioTemplateEditorPage /> },
           { path: 'saved', element: <SavedScenariosPage /> },
           { path: 'scenarios/:scenarioId/pdf', element: <PdfPreviewPage /> },
           { path: 'scenarios/:scenarioId', element: <ScenarioEditorPage /> },

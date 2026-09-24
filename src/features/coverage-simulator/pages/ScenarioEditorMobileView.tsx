@@ -1,8 +1,9 @@
 import { AddItemSheet } from '../components/AddItemSheet'
 import { AmountEditSheet } from '../components/AmountEditSheet'
 import { CoverageBadge } from '../components/CoverageBadge'
+import { CenterAxisCompareEditor } from '../components/center-timeline/CenterAxisCompareEditor'
 import { CoverageSimulatorLayout } from '../components/CoverageSimulatorLayout'
-import { coverageSimulatorExitPath } from '../CoverageSimulatorScope'
+import { coverageSimulatorExitPath, useCoverageSimulatorScope } from '../CoverageSimulatorScope'
 import { formatCoverageAmountLabel, formatTotalAmountLabel } from '../domain/formatAmount'
 import type { ScenarioEditorController } from '../hooks/useScenarioEditor'
 import type { CoverageScenarioItem, ScenarioItem } from '../domain/types'
@@ -10,6 +11,11 @@ import type { CoverageScenarioItem, ScenarioItem } from '../domain/types'
 type Props = { editor: ScenarioEditorController }
 
 export function ScenarioEditorMobileView({ editor }: Props) {
+  const { layoutMode } = useCoverageSimulatorScope()
+  if (layoutMode === 'preview-mobile') {
+    return <CenterAxisCompareEditor editor={editor} variant="mobile" />
+  }
+
   const {
     scenario,
     totals,

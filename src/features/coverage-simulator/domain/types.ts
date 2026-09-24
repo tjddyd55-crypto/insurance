@@ -39,6 +39,10 @@ export type CoverageScenario = {
   items: ScenarioItem[]
   createdAt: string
   updatedAt: string
+  /** 상담 데이터(consultation). 템플릿 편집과 분리 */
+  kind?: 'consultation'
+  templateId?: string
+  templateNameSnapshot?: string
 }
 
 export type SavedScenarioSummary = {

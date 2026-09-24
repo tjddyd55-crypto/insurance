@@ -10,18 +10,14 @@ import {
   resetScenarioItems,
   updateCoverageItem,
 } from '../domain/scenarioOperations'
-import { createConsultationFromTemplate } from '../domain/templateOperations'
-import { buildSystemTemplateSnapshot } from '../domain/systemTemplateCatalog'
-import { createCancerDefaultItems, createScenarioFromTemplate } from '../domain/templates'
+import { scenarioToUserTemplate, templateToEditableScenario } from '../domain/templateOperations'
 import { calculateScenarioTotals } from '../domain/totals'
-import type { CoverageScenario, CoverageScenarioItem, DiseaseType } from '../domain/types'
-import { getScenarioById, saveScenario } from '../storage/scenarioRepository'
+import type { CoverageScenario, CoverageScenarioItem } from '../domain/types'
+import { getUserTemplateById, saveUserTemplate } from '../storage/templateRepository'
 
-export function useScenarioEditor() {
+export function useTemplateEditor() {
   const navigate = useNavigate()
-  const params = useParams()
-  const scenarioId = params.scenarioId
-  const diseaseType = params.diseaseType ?? 'cancer'
+  const { templateId } = useParams()
   const { basePath, userKey } = useCoverageSimulatorScope()
 
   const [scenario, setScenario] = useState<CoverageScenario | null>(null)
@@ -30,26 +26,12 @@ export function useScenarioEditor() {
   const [editingItem, setEditingItem] = useState<CoverageScenarioItem | null>(null)
 
   useEffect(() => {
-    if (scenarioId) {
-      const saved = getScenarioById(userKey, scenarioId)
-      if (saved) {
-        setScenario(saved)
-        return
-      }
+    if (!templateId) return
+    const template = getUserTemplateById(userKey, templateId)
+    if (template) {
+      setScenario(templateToEditableScenario(template))
     }
-    const systemTemplate = buildSystemTemplateSnapshot(diseaseType as DiseaseType)
-    if (systemTemplate) {
-      setScenario(
-        createConsultationFromTemplate(systemTemplate, {
-          diseaseType: diseaseType as DiseaseType,
-          description: systemTemplate.description ?? '',
-        }),
-      )
-      return
-    }
-    const created = createScenarioFromTemplate(diseaseType as DiseaseType)
-    setScenario(created)
-  }, [diseaseType, scenarioId, userKey])
+  }, [templateId, userKey])
 
   const totals = useMemo(
     () => (scenario ? calculateScenarioTotals(scenario) : { currentTotal: 0, proposedTotal: 0 }),
@@ -59,11 +41,10 @@ export function useScenarioEditor() {
   const sortedItems = scenario ? scenario.items.slice().sort((a, b) => a.order - b.order) : []
 
   const persist = (next: CoverageScenario) => {
-    const saved = saveScenario(userKey, next)
-    setScenario(saved)
-    if (!scenarioId) {
-      navigate(`${basePath}/scenarios/${saved.id}`, { replace: true })
-    }
+    if (!templateId) return
+    const existing = getUserTemplateById(userKey, templateId)
+    const saved = saveUserTemplate(userKey, scenarioToUserTemplate(next, existing ?? undefined))
+    setScenario(templateToEditableScenario(saved))
   }
 
   const openAddSheet = (afterOrder: number) => {
@@ -84,9 +65,10 @@ export function useScenarioEditor() {
     setEditingItem,
     basePath,
     navigate,
+    editorMode: 'template' as const,
     resetToCancerDefaults: () => {
       if (!scenario) return
-      setScenario(resetScenarioItems(scenario, createCancerDefaultItems()))
+      setScenario(resetScenarioItems(scenario, []))
     },
     onSelectCoverage: (input: { label: string; category: CoverageScenarioItem['category'] }) => {
       if (!scenario || addAfterOrder == null) return
@@ -114,8 +96,7 @@ export function useScenarioEditor() {
       if (!scenario) return
       persist(removeScenarioItem(scenario, id))
     },
-    editorMode: 'consultation' as const,
   }
 }
 
-export type ScenarioEditorController = ReturnType<typeof useScenarioEditor>
+export type TemplateEditorController = ReturnType<typeof useTemplateEditor>

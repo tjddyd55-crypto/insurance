@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 
+import { ScenarioSelectPreviewView } from '../components/ScenarioSelectPreviewView'
 import { CoverageSimulatorLayout } from '../components/CoverageSimulatorLayout'
 import { coverageSimulatorExitPath, useCoverageSimulatorScope } from '../CoverageSimulatorScope'
 import { SCENARIO_TYPE_CARDS } from '../domain/templates'
@@ -31,6 +32,9 @@ export function ScenarioSelectPage() {
       >
         <h1 className="coverage-simulator-page-title">보장 시뮬레이션</h1>
         <p className="coverage-simulator-page-desc">상담할 시나리오를 선택하세요.</p>
+        {isPublicPreview && (layoutMode === 'preview-pc' || layoutMode === 'preview-mobile') ? (
+          <ScenarioSelectPreviewView layoutMode={layoutMode} />
+        ) : (
         <div className="coverage-simulator-scenario-list">
         {SCENARIO_TYPE_CARDS.map((card) => (
           <button
@@ -45,6 +49,8 @@ export function ScenarioSelectPage() {
           </button>
         ))}
         </div>
+        )}
+        {!isPublicPreview ? (
         <button
           type="button"
           className="coverage-simulator-primary-btn"
@@ -53,6 +59,7 @@ export function ScenarioSelectPage() {
         >
           저장된 상담 불러오기
         </button>
+        ) : null}
       </main>
     </CoverageSimulatorLayout>
   )

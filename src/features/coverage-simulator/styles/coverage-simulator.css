@@ -1,4 +1,5 @@
 @import './tokens.css';
+@import './center-timeline.css';
 
 .coverage-simulator-public-root {
   min-height: 100dvh;
@@ -887,6 +888,125 @@ body.coverage-simulator-immersive .pc-workspace-layout > main {
 
 .coverage-simulator-add-slot--pc {
   max-width: 280px;
+}
+
+.cs-select-section {
+  margin-bottom: var(--cs-space-6);
+}
+
+.cs-select-section__title {
+  margin: 0 0 var(--cs-space-3);
+  font-size: var(--cs-font-section);
+  font-weight: 800;
+}
+
+.cs-select-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cs-space-3);
+  margin-bottom: var(--cs-space-3);
+}
+
+.cs-select-section__head .cs-select-section__title {
+  margin: 0;
+}
+
+.cs-select-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cs-space-3);
+}
+
+.cs-select-grid--pc {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.cs-select-new-btn {
+  padding: 8px 14px;
+  font-size: var(--cs-font-caption);
+}
+
+.cs-select-new-cta {
+  width: 100%;
+  margin-top: var(--cs-space-4);
+}
+
+.cs-select-new-cta--pc {
+  display: none;
+}
+
+.cs-template-card-wrap {
+  position: relative;
+}
+
+.cs-template-card__meta {
+  margin-top: 6px;
+  font-size: 0.75rem;
+  color: var(--cs-color-text-muted);
+}
+
+.cs-template-card__menu {
+  position: absolute;
+  top: 10px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+}
+
+.cs-template-card__menu-panel {
+  position: absolute;
+  top: 44px;
+  right: 8px;
+  z-index: 25;
+  min-width: 168px;
+  padding: 4px;
+  border: 1px solid var(--cs-color-border);
+  border-radius: 10px;
+  background: var(--cs-color-surface);
+  box-shadow: var(--cs-shadow-card);
+}
+
+.cs-template-card__menu-panel button {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  font-size: var(--cs-font-caption);
+  cursor: pointer;
+}
+
+.cs-template-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: var(--cs-space-4);
+  font-size: var(--cs-font-caption);
+  font-weight: 600;
+}
+
+.coverage-simulator-input {
+  width: 100%;
+  min-height: var(--cs-control-height);
+  padding: 10px 12px;
+  border: 1px solid var(--cs-color-border);
+  border-radius: var(--cs-radius-input);
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.cs-template-create-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cs-space-3);
 }
 
 @media (min-width: 768px) {
