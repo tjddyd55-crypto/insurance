@@ -1,3 +1,5 @@
+import { mobilePreviewHeaderTitle } from '../domain/mobilePreviewHeaderTitle'
+
 type Props = {
   title: string
   onBack: () => void
@@ -17,12 +19,14 @@ export function MobilePreviewEditorHeader({
   resetLabel = '초기화',
   showPdf = true,
 }: Props) {
+  const displayTitle = mobilePreviewHeaderTitle(title)
+
   return (
-    <header className="cs-mobile-editor-header coverage-simulator-appbar">
-      <button type="button" className="coverage-simulator-icon-btn" onClick={onBack} aria-label="뒤로">
+    <header className="cs-mobile-editor-header">
+      <button type="button" className="cs-mobile-editor-header__back" onClick={onBack} aria-label="뒤로">
         ←
       </button>
-      <h1 className="cs-mobile-editor-header__title" title={title}>{title}</h1>
+      <h1 className="cs-mobile-editor-header__title" title={title}>{displayTitle}</h1>
       <div className="cs-mobile-editor-header__actions">
         <button type="button" className="cs-mobile-editor-header__action" onClick={onReset}>
           {resetLabel}
