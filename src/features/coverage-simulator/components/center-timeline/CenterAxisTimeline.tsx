@@ -3,6 +3,7 @@ import { useMemo } from 'react'
 import { CoverageBadge } from '../CoverageBadge'
 import { formatCoverageAmountLabel, formatTotalAmountLabel } from '../../domain/formatAmount'
 import { periodTotalsByEndMarkerId } from '../../domain/periodTotals'
+import { shouldShowTimelineInsertAfterItem } from '../../domain/timelineInsertVisibility'
 import type { CoverageScenarioItem, ScenarioItem } from '../../domain/types'
 import { EventRowMenu } from './EventRowMenu'
 import { TimelineInsertControl } from './TimelineInsertControl'
@@ -140,8 +141,12 @@ export function CenterAxisTimeline({
               ) : (
                 renderCoverageRow(item, variant, handlers)
               )}
-              {compactInsert && item.type !== 'time-marker' ? (
-                <TimelineInsertControl afterOrder={item.order} onInsert={onAddAfter} />
+              {compactInsert && shouldShowTimelineInsertAfterItem(item, items, compactInsert) ? (
+                <TimelineInsertControl
+                  afterOrder={item.order}
+                  onInsert={onAddAfter}
+                  variant={item.type === 'time-marker' ? 'marker-tail' : 'default'}
+                />
               ) : !compactInsert ? (
                 <button
                   type="button"

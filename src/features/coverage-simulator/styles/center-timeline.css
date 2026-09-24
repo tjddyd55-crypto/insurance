@@ -192,6 +192,14 @@
   box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
 }
 
+.coverage-simulator-root--mobile-preview .cs-axis-sheet {
+  overflow: visible;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-block {
+  overflow: visible;
+}
+
 .cs-axis-sheet--pc {
   border-radius: 12px;
 }
@@ -915,13 +923,30 @@
   position: absolute;
   top: 100%;
   right: 0;
-  z-index: 30;
+  z-index: var(--cs-z-item-popover, 115);
   min-width: 148px;
   padding: var(--cs-space-1);
   border: 1px solid var(--cs-color-border);
   border-radius: 10px;
   background: var(--cs-color-surface);
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+.cs-axis-row-menu__panel--portal {
+  position: fixed;
+  z-index: var(--cs-z-item-popover, 115);
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-insert--marker-tail .cs-axis-insert__line {
+  display: none;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-insert--marker-tail .cs-axis-insert__track {
+  justify-content: center;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-insert--marker-tail {
+  margin-top: var(--cs-space-1);
 }
 
 .cs-axis-row-menu__panel button {

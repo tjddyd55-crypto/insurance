@@ -1,11 +1,20 @@
 type Props = {
   afterOrder: number
   onInsert: (afterOrder: number) => void
+  variant?: 'default' | 'marker-tail'
 }
 
-export function TimelineInsertControl({ afterOrder, onInsert }: Props) {
+export function TimelineInsertControl({ afterOrder, onInsert, variant = 'default' }: Props) {
   return (
-    <div className="cs-axis-insert" role="presentation">
+    <div
+      className={[
+        'cs-axis-insert',
+        variant === 'marker-tail' ? 'cs-axis-insert--marker-tail' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      role="presentation"
+    >
       <div className="cs-axis-insert__track">
         <span className="cs-axis-insert__line" aria-hidden="true" />
         <button
