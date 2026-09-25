@@ -9,6 +9,7 @@ import { chromium } from 'playwright'
 
 const BASE = (process.argv[2] || 'https://insurance-dev.up.railway.app').replace(/\/$/, '')
 const MOBILE = `${BASE}/coverage-simulator-preview/mobile`
+const PDF_RASTER_MODULE_BASE = process.env.COVERAGE_PDF_RASTER_BASE || 'http://localhost:3000'
 const STORAGE_KEY = 'coverage-simulator-preview-mobile:consultations:v1'
 const MAN = 10_000
 const outDir = join(process.cwd(), 'store-screenshots', 'coverage-simulator', 'pdf')
@@ -68,7 +69,7 @@ function buildQaScenario(extraItems = 0) {
 
 async function renderActualPdfPages(page, pdfBytes, tag) {
   const rasterPage = await page.context().newPage()
-  await rasterPage.goto(BASE, { waitUntil: 'domcontentloaded' })
+  await rasterPage.goto(PDF_RASTER_MODULE_BASE, { waitUntil: 'domcontentloaded' })
   const pageImages = await rasterPage.evaluate(async ({ base64 }) => {
     const pdfjs = await import('/node_modules/.vite/deps/pdfjs-dist.js')
     pdfjs.GlobalWorkerOptions.workerSrc =
