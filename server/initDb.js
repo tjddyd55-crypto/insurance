@@ -4441,6 +4441,10 @@ export async function initDb() {
     './coverage-simulator/coverageSimulationShareSchema.js'
   )
   await ensureCoverageSimulationShareSchema(pool)
+  const { ensurePersonalBinderSchema } = await import(
+    './personal-binder/personalBinderSchema.js'
+  )
+  await ensurePersonalBinderSchema(pool)
   await ensureReferralSchema(pool)
   await ensureBillingSchema(pool)
   await ensureInsuranceBillingPhase1Schema(pool)
