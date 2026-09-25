@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { useCoverageSimulatorOverlayScrollLock } from '../hooks/useCoverageSimulatorOverlayScrollLock'
+import { coverageItemMoveState } from '../domain/timelinePeriodBounds'
 
 import {
   formatManWonInput,
@@ -8,13 +9,14 @@ import {
   parseManWonInput,
   sanitizeManWonInputTyping,
 } from '../domain/formatAmount'
-import type { CoverageScenarioItem, ScenarioItemCategory } from '../domain/types'
+import type { CoverageScenarioItem, ScenarioItem, ScenarioItemCategory } from '../domain/types'
 import { CategoryChipPicker } from './CategoryChipPicker'
 import { CoverageSimulatorOverlayShell } from './CoverageSimulatorOverlayShell'
 
 type AmountEditSheetProps = {
   open: boolean
   item: CoverageScenarioItem | null
+  allItems?: ScenarioItem[]
   onClose: () => void
   mobileCompact?: boolean
   onSave: (patch: {
@@ -24,15 +26,33 @@ type AmountEditSheetProps = {
     proposedAmount: number | null
     memo?: string
   }) => void
+  onMoveUp?: () => void
+  onMoveDown?: () => void
+  onDelete?: () => void
 }
 
-export function AmountEditSheet({ open, item, onClose, mobileCompact = false, onSave }: AmountEditSheetProps) {
+export function AmountEditSheet({
+  open,
+  item,
+  allItems = [],
+  onClose,
+  mobileCompact = false,
+  onSave,
+  onMoveUp,
+  onMoveDown,
+  onDelete,
+}: AmountEditSheetProps) {
   useCoverageSimulatorOverlayScrollLock(open && !mobileCompact)
   const [label, setLabel] = useState('')
   const [category, setCategory] = useState<ScenarioItemCategory>('treatment')
   const [currentInput, setCurrentInput] = useState('')
   const [proposedInput, setProposedInput] = useState('')
   const [memo, setMemo] = useState('')
+
+  const moveState = useMemo(
+    () => (item ? coverageItemMoveState(allItems, item.id) : { canMoveUp: false, canMoveDown: false }),
+    [allItems, item],
+  )
 
   useEffect(() => {
     if (!item) return
@@ -57,7 +77,7 @@ export function AmountEditSheet({ open, item, onClose, mobileCompact = false, on
   const title = mobileCompact ? '항목 수정' : '금액 입력'
 
   const body = (
-    <>
+    <div className={mobileCompact ? 'cs-amount-sheet__scroll' : undefined}>
       <div
         className={
           mobileCompact
@@ -98,40 +118,60 @@ export function AmountEditSheet({ open, item, onClose, mobileCompact = false, on
         )}
       </div>
       <div
-        className={`coverage-simulator-amount-pair${mobileCompact ? ' coverage-simulator-amount-pair--compact' : ''}`}
+        className={`coverage-simulator-amount-pair${mobileCompact ? ' coverage-simulator-amount-pair--compact cs-amount-sheet__amount-pair' : ''}`}
       >
         <div className="coverage-simulator-form-field coverage-simulator-form-field--compact">
           <label htmlFor="edit-current">기존 보장</label>
-          <div className="coverage-simulator-amount-input-row">
+          <div className="coverage-simulator-amount-input-row cs-amount-sheet__amount-field">
             <input
               id="edit-current"
               inputMode="numeric"
               value={currentInput}
               onChange={(event) => onAmountChange(setCurrentInput)(event.target.value)}
             />
-            <span>만원</span>
+            <span className="cs-amount-sheet__unit">만원</span>
           </div>
         </div>
         <div className="coverage-simulator-form-field coverage-simulator-form-field--compact">
           <label htmlFor="edit-proposed">제안 보장</label>
-          <div className="coverage-simulator-amount-input-row coverage-simulator-amount-input-row--proposed">
+          <div className="coverage-simulator-amount-input-row coverage-simulator-amount-input-row--proposed cs-amount-sheet__amount-field">
             <input
               id="edit-proposed"
               inputMode="numeric"
               value={proposedInput}
               onChange={(event) => onAmountChange(setProposedInput)(event.target.value)}
             />
-            <span>만원</span>
+            <span className="cs-amount-sheet__unit">만원</span>
           </div>
         </div>
       </div>
+      {mobileCompact && onMoveUp && onMoveDown ? (
+        <div className="cs-amount-sheet__move-row">
+          <button type="button" className="cs-amount-sheet__move-btn" disabled={!moveState.canMoveUp} onClick={onMoveUp}>
+            ↑ 위로 이동
+          </button>
+          <button
+            type="button"
+            className="cs-amount-sheet__move-btn"
+            disabled={!moveState.canMoveDown}
+            onClick={onMoveDown}
+          >
+            ↓ 아래로 이동
+          </button>
+        </div>
+      ) : null}
+      {mobileCompact && onDelete ? (
+        <button type="button" className="cs-amount-sheet__delete-btn" onClick={onDelete}>
+          삭제
+        </button>
+      ) : null}
       {!mobileCompact ? (
         <div className="coverage-simulator-form-field">
           <label htmlFor="edit-memo">메모</label>
           <textarea id="edit-memo" value={memo} onChange={(event) => setMemo(event.target.value)} />
         </div>
       ) : null}
-      <div className="coverage-simulator-sheet-actions coverage-simulator-sheet-actions--compact">
+      <div className="coverage-simulator-sheet-actions coverage-simulator-sheet-actions--compact cs-amount-sheet__footer-actions">
         <button type="button" className="coverage-simulator-secondary-btn" onClick={onClose}>취소</button>
         <button
           type="button"
@@ -147,10 +187,10 @@ export function AmountEditSheet({ open, item, onClose, mobileCompact = false, on
             onClose()
           }}
         >
-          확인
+          {mobileCompact ? '저장' : '확인'}
         </button>
       </div>
-    </>
+    </div>
   )
 
   if (mobileCompact) {

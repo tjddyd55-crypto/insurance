@@ -163,11 +163,13 @@ export function useScenarioEditor() {
 
   const mutate = useCallback(
     (updater: (current: CoverageScenario) => CoverageScenario) => {
-      if (!scenario) return
-      const next = updater(scenario)
-      applyLocal(next)
+      setScenario((current) => {
+        if (!current) return current
+        const next = updater(current)
+        return next
+      })
     },
-    [applyLocal, scenario],
+    [],
   )
 
   return {

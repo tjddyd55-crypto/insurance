@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
-import { ItemActionSheet } from '../ItemActionSheet'
 import { coverageItemMoveState } from '../../domain/timelinePeriodBounds'
 import type { ScenarioItem, ScenarioItemCategory } from '../../domain/types'
 
@@ -45,8 +44,6 @@ export function EventRowMenu({
   menuMode = 'popover',
   items = [],
   itemId = '',
-  itemCategory,
-  itemLabel,
   onEditAmount,
   onMoveUp,
   onMoveDown,
@@ -93,34 +90,23 @@ export function EventRowMenu({
     }
   }, [open, menuMode])
 
-  const sheetActions = [
-    {
-      id: 'edit',
-      label: '항목 수정',
-      onSelect: onEditAmount,
-    },
-    {
-      id: 'up',
-      label: '위로 이동',
-      onSelect: onMoveUp,
-      disabled: !moveState.canMoveUp,
-    },
-    {
-      id: 'down',
-      label: '아래로 이동',
-      onSelect: onMoveDown,
-      disabled: !moveState.canMoveDown,
-    },
-    {
-      id: 'delete',
-      label: '삭제',
-      onSelect: onDelete,
-      destructive: true,
-    },
-  ]
+  if (menuMode === 'action-sheet') {
+    return (
+      <div className="cs-axis-row-menu">
+        <button
+          type="button"
+          className="cs-axis-row-menu__trigger"
+          aria-label="항목 수정"
+          onClick={onEditAmount}
+        >
+          ⋯
+        </button>
+      </div>
+    )
+  }
 
   const panel =
-    menuMode === 'popover' && open ? (
+    open ? (
       <div
         ref={panelRef}
         className="cs-axis-row-menu__panel cs-axis-row-menu__panel--portal"
@@ -178,20 +164,7 @@ export function EventRowMenu({
       >
         ⋯
       </button>
-      {menuMode === 'popover' && panel ? createPortal(panel, document.body) : null}
-      {menuMode === 'action-sheet' ? (
-        <ItemActionSheet
-          open={open}
-          title="항목 작업"
-          subject={
-            itemCategory && itemLabel
-              ? { category: itemCategory, label: itemLabel }
-              : undefined
-          }
-          onClose={() => setOpen(false)}
-          actions={sheetActions}
-        />
-      ) : null}
+      {panel ? createPortal(panel, document.body) : null}
     </div>
   )
 }

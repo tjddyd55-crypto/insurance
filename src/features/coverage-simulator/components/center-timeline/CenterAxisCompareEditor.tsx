@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import { useConfirmDialog } from '../../../../components/dialog'
 import { AddItemSheet } from '../AddItemSheet'
@@ -137,6 +137,36 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
       tone: 'danger',
     })
     if (ok) removeItem(id)
+  }
+
+  useEffect(() => {
+    if (!editingItem || !scenario) return
+    const fresh = scenario.items.find((entry) => entry.id === editingItem.id)
+    if (fresh?.type === 'coverage' && fresh.order !== editingItem.order) {
+      setEditingItem(fresh)
+    }
+  }, [scenario, editingItem?.id, editingItem?.order, setEditingItem])
+
+  const handleEditSheetMove = useCallback(
+    (direction: 'up' | 'down') => {
+      if (!editingItem) return
+      moveItem(editingItem.id, direction)
+    },
+    [editingItem, moveItem],
+  )
+
+  const handleEditSheetDelete = async () => {
+    if (!editingItem) return
+    const ok = await confirm({
+      title: '이 항목을 삭제할까요?',
+      message: '삭제 후 되돌릴 수 없습니다.',
+      confirmLabel: '삭제',
+      cancelLabel: '취소',
+      tone: 'danger',
+    })
+    if (!ok) return
+    removeItem(editingItem.id)
+    setEditingItem(null)
   }
 
   const requestRemoveTimeMarker = async (id: string) => {
@@ -286,9 +316,13 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
       <AmountEditSheet
         open={Boolean(editingItem)}
         item={editingItem}
+        allItems={sortedItems}
         onClose={() => setEditingItem(null)}
         onSave={onSaveAmount}
         mobileCompact={useMobileStickyDock}
+        onMoveUp={useMobileStickyDock ? () => handleEditSheetMove('up') : undefined}
+        onMoveDown={useMobileStickyDock ? () => handleEditSheetMove('down') : undefined}
+        onDelete={useMobileStickyDock ? handleEditSheetDelete : undefined}
       />
       {confirmDialog}
       {!isTemplate ? (

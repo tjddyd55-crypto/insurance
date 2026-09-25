@@ -22,12 +22,14 @@ const shots = [
     },
   },
   {
-    id: 'item-action-sheet',
+    id: 'item-direct-edit-sheet',
     setup: async (page) => {
       await page.goto(`${MOBILE}/cancer/new`, { waitUntil: 'domcontentloaded' })
       await page.waitForSelector('[data-testid="coverage-scenario-editor"]', { timeout: 60000 })
       await page.locator('.cs-axis-row-menu__trigger').first().click()
-      await page.waitForSelector('.cs-item-action-sheet', { timeout: 10000 })
+      await page.waitForSelector('.cs-amount-sheet', { timeout: 10000 })
+      const hasItemAction = (await page.locator('.cs-item-action-sheet').count()) > 0
+      if (hasItemAction) throw new Error('item action sheet should not open on ⋯')
       return true
     },
   },

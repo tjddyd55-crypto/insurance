@@ -32,6 +32,31 @@ describe('scenarioOperations', () => {
     expect(labels).toContain('간병비')
   })
 
+  it('swaps coverage order within the same period', () => {
+    const scenario = createScenarioFromTemplate('cancer')!
+    const sorted = scenario.items.slice().sort((a, b) => a.order - b.order)
+    let targetId: string | null = null
+    let neighborLabel: string | null = null
+    for (let i = 1; i < sorted.length; i += 1) {
+      if (sorted[i].type !== 'coverage' || sorted[i - 1].type !== 'coverage') continue
+      targetId = sorted[i].id
+      neighborLabel = sorted[i - 1].label
+      break
+    }
+    expect(targetId).toBeTruthy()
+    const next = moveScenarioItem(scenario, targetId!, 'up')
+    const labels = next.items
+      .slice()
+      .sort((a, b) => a.order - b.order)
+      .filter((item) => item.type === 'coverage')
+      .map((item) => item.label)
+    const moved = sorted.find((item) => item.id === targetId)!
+    expect(labels).toContain(moved.label)
+    const movedIndex = labels.indexOf(moved.label)
+    expect(movedIndex).toBeGreaterThan(0)
+    expect(labels[movedIndex - 1]).toBe(neighborLabel)
+  })
+
   it('does not move coverage across time markers', () => {
     const scenario = createScenarioFromTemplate('cancer')!
     const sorted = scenario.items.slice().sort((a, b) => a.order - b.order)

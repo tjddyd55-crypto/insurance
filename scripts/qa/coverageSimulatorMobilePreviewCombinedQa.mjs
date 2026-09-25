@@ -86,7 +86,6 @@ async function main() {
 
   // Scroll lock with full edit sheet
   await page.locator('.cs-axis-row-menu__trigger').first().click()
-  await page.getByRole('menuitem', { name: '항목 수정' }).click()
   await page.waitForSelector('.cs-amount-sheet', { timeout: 8000 })
   const locked = await page.evaluate(() =>
     document.documentElement.classList.contains('coverage-simulator-overlay-scroll-lock'),

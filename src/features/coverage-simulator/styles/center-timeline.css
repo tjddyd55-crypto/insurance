@@ -418,9 +418,9 @@
 
 .coverage-simulator-root--mobile-preview .cs-axis-amount__inline-input {
   flex: 0 1 auto;
-  width: 3.5ch;
-  min-width: 2ch;
-  max-width: 9ch;
+  width: 5.5em;
+  min-width: 4.25em;
+  max-width: 6.5em;
   margin: 0;
   padding: 0;
   border: none;
