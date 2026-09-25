@@ -34,12 +34,9 @@ async function printRootToJsPdf(root: HTMLElement): Promise<jsPDF> {
 
 export async function buildCoveragePdfBlobFromPrintRoot(root: HTMLElement): Promise<Blob> {
   const pdf = await printRootToJsPdf(root)
-  return pdf.output('blob')
-}
-
-export async function downloadCoveragePdfFromPrintRoot(root: HTMLElement, fileName: string): Promise<void> {
-  const pdf = await printRootToJsPdf(root)
-  pdf.save(fileName)
+  const blob = pdf.output('blob') as Blob
+  if (blob.type === 'application/pdf') return blob
+  return new Blob([blob], { type: 'application/pdf' })
 }
 
 export function printCoverageDocument(): void {

@@ -1644,6 +1644,36 @@ html.coverage-simulator-overlay-scroll-lock .cs-axis-main {
   color: var(--cs-color-text-muted);
 }
 
+.cs-share-dialog-history {
+  margin-top: var(--cs-space-3);
+  padding-top: var(--cs-space-3);
+  border-top: 1px solid var(--cs-color-border);
+}
+
+.cs-share-dialog-history__title {
+  margin: 0 0 var(--cs-space-2);
+  font-size: var(--cs-font-body);
+  font-weight: 700;
+}
+
+.cs-share-dialog-history__muted {
+  margin: 0;
+  font-size: var(--cs-font-caption);
+  color: var(--cs-color-text-muted);
+}
+
+.cs-share-dialog-history__error {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cs-space-2);
+  font-size: var(--cs-font-caption);
+  color: var(--cs-color-text-muted);
+}
+
+.cs-share-dialog-history__error p {
+  margin: 0;
+}
+
 @media (min-width: 768px) {
   .cs-share-public-shell .coverage-simulator-shell {
     max-width: 720px;

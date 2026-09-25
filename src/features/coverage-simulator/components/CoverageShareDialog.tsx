@@ -1,15 +1,24 @@
 import { BaseDialog } from '../../../components/dialog/BaseDialog'
 import FormButton from '../../../components/form/FormButton'
+import type { CoverageShareListItem } from '../api/coverageSimulatorShareApi'
+import { CoverageShareDialogHistory } from './CoverageShareDialogHistory'
 
 type Props = {
   open: boolean
   phase: 'confirm' | 'result'
   loading: boolean
+  createError: string | null
   shareUrl: string | null
+  historyShares: CoverageShareListItem[]
+  historyLoading: boolean
+  historyError: string | null
   onClose: () => void
   onCreateShare: () => void
   onCopyLink: () => void
   onNativeShare: () => void
+  onRetryHistory: () => void
+  onCopyHistoryLink: (url: string | null) => void
+  onRevokeShare: (shareId: string) => void
   canNativeShare: boolean
 }
 
@@ -17,11 +26,18 @@ export function CoverageShareDialog({
   open,
   phase,
   loading,
+  createError,
   shareUrl,
+  historyShares,
+  historyLoading,
+  historyError,
   onClose,
   onCreateShare,
   onCopyLink,
   onNativeShare,
+  onRetryHistory,
+  onCopyHistoryLink,
+  onRevokeShare,
   canNativeShare,
 }: Props) {
   if (!open) return null
@@ -38,6 +54,7 @@ export function CoverageShareDialog({
           공유 링크가 생성되었습니다. 고객은 로그인 없이 아래 링크에서 상담 내용을 확인할 수 있습니다.
         </p>
       )}
+      {createError ? <p className="coverage-simulator-dialog__error">{createError}</p> : null}
       {phase === 'result' && shareUrl ? (
         <input
           className="coverage-simulator-dialog__input cs-share-dialog__url"
@@ -46,6 +63,14 @@ export function CoverageShareDialog({
           aria-label="공유 링크"
         />
       ) : null}
+      <CoverageShareDialogHistory
+        shares={historyShares}
+        loading={historyLoading}
+        error={historyError}
+        onRetry={onRetryHistory}
+        onCopyLink={onCopyHistoryLink}
+        onRevoke={onRevokeShare}
+      />
       <div className="coverage-simulator-dialog__actions">
         {phase === 'confirm' ? (
           <>

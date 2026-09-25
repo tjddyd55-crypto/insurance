@@ -440,8 +440,9 @@
   }
 
   .coverage-simulator-pdf-preview__scroll {
-    overflow-x: auto;
+    overflow: auto;
     -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
   }
 
   .coverage-simulator-pdf-preview__page {
@@ -450,11 +451,15 @@
     min-width: min(100%, 210mm);
   }
 
-  @media (max-width: 420px) {
-    .coverage-simulator-pdf-preview__page .coverage-simulator-print-root {
-      transform: scale(calc(100vw / 210mm));
-      transform-origin: top center;
-      margin-bottom: -12%;
-    }
+  .coverage-simulator-pdf-preview__zoom-surface {
+    width: 100%;
+    touch-action: pan-x pan-y pinch-zoom;
+  }
+
+  .coverage-simulator-pdf-preview__zoom-inner {
+    width: 100%;
+    max-width: 210mm;
+    margin: 0 auto;
+    will-change: transform;
   }
 }

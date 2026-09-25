@@ -2,19 +2,22 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
+import { CoveragePdfPreviewZoomSurface } from '../components/CoveragePdfPreviewZoomSurface'
 import { CoverageSimulatorLayout } from '../components/CoverageSimulatorLayout'
+import { CoverageSimulatorToastProvider, useCoverageSimulatorToast } from '../components/CoverageSimulatorToast'
 import FormButton from '../../../components/form/FormButton'
 import { buildCoveragePdfFileName } from '../pdf/coveragePdfFileName'
+import { downloadCoveragePdfFromPrintRoot } from '../pdf/coveragePdfDownload'
 import { CoverageSimulatorPrintDocument } from '../pdf/CoverageSimulatorPrintDocument'
-import { downloadCoveragePdfFromPrintRoot } from '../pdf/generateCoveragePdf'
 import { getScenarioById } from '../storage/scenarioRepository'
 
-export function PdfPreviewPage() {
+function PdfPreviewPageBody() {
   const { scenarioId = '' } = useParams()
   const navigate = useNavigate()
   const { basePath, userKey } = useCoverageSimulatorScope()
   const printRef = useRef<HTMLDivElement>(null)
   const [busy, setBusy] = useState(false)
+  const { showToast } = useCoverageSimulatorToast()
 
   const scenario = getScenarioById(userKey, scenarioId)
 
@@ -37,7 +40,12 @@ export function PdfPreviewPage() {
     if (!printRef.current?.firstElementChild) return
     setBusy(true)
     try {
-      await downloadCoveragePdfFromPrintRoot(printRef.current.firstElementChild as HTMLElement, fileName)
+      const zoomInner = printRef.current.querySelector('.coverage-simulator-pdf-preview__zoom-inner')
+      const printRoot = (zoomInner?.firstElementChild ?? printRef.current.firstElementChild) as HTMLElement
+      await downloadCoveragePdfFromPrintRoot(printRoot, fileName)
+      showToast('PDF 다운로드를 시작했습니다.')
+    } catch {
+      showToast('PDF를 저장하지 못했습니다. 다시 시도해 주세요.')
     } finally {
       setBusy(false)
     }
@@ -59,7 +67,9 @@ export function PdfPreviewPage() {
       <main className="coverage-simulator-content coverage-simulator-pdf-preview" style={{ paddingBottom: 96 }}>
         <div className="coverage-simulator-pdf-preview__scroll">
           <div ref={printRef} className="coverage-simulator-pdf-preview__page">
-            <CoverageSimulatorPrintDocument scenario={scenario} />
+            <CoveragePdfPreviewZoomSurface>
+              <CoverageSimulatorPrintDocument scenario={scenario} />
+            </CoveragePdfPreviewZoomSurface>
           </div>
         </div>
       </main>
@@ -76,5 +86,13 @@ export function PdfPreviewPage() {
         </FormButton>
       </footer>
     </CoverageSimulatorLayout>
+  )
+}
+
+export function PdfPreviewPage() {
+  return (
+    <CoverageSimulatorToastProvider>
+      <PdfPreviewPageBody />
+    </CoverageSimulatorToastProvider>
   )
 }

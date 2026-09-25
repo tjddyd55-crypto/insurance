@@ -8,7 +8,6 @@ import { CoverageSimulatorMobileItemForm } from '../CoverageSimulatorMobileItemF
 import { CoverageSimulatorLayout } from '../CoverageSimulatorLayout'
 import { CoverageSimulatorToastProvider, useCoverageSimulatorToast } from '../CoverageSimulatorToast'
 import { CoverageShareDialog } from '../CoverageShareDialog'
-import { CoverageShareHistoryPanel } from '../CoverageShareHistoryPanel'
 import { MobilePreviewEditorHeader } from '../MobilePreviewEditorHeader'
 import { useCoverageShareFlow } from '../../hooks/useCoverageShareFlow'
 import { MobilePreviewStickyDock } from '../MobilePreviewStickyDock'
@@ -340,9 +339,6 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
           onInlineAmountEditChange={handleInlineAmountEditChange}
           onInlineAmountCommit={handleInlineAmountCommit}
         />
-        {!isTemplate && shareFlow.canShare ? (
-          <CoverageShareHistoryPanel consultationId={scenario.id} showToast={showToast} />
-        ) : null}
       </main>
 
       {useMobileStickyDock ? (
@@ -400,11 +396,18 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
           open={shareFlow.dialogOpen}
           phase={shareFlow.phase}
           loading={shareFlow.sharing}
+          createError={shareFlow.createError}
           shareUrl={shareFlow.shareUrl}
+          historyShares={shareFlow.shareHistory}
+          historyLoading={shareFlow.shareHistoryLoading}
+          historyError={shareFlow.shareHistoryError}
           onClose={shareFlow.closeDialog}
           onCreateShare={() => void shareFlow.createShare()}
           onCopyLink={() => void shareFlow.copyShareLink()}
           onNativeShare={() => void shareFlow.nativeShare()}
+          onRetryHistory={shareFlow.reloadShareHistory}
+          onCopyHistoryLink={(url) => void shareFlow.copyHistoryLink(url)}
+          onRevokeShare={(shareId) => void shareFlow.revokeShare(shareId)}
           canNativeShare={shareFlow.canNativeShare}
         />
       ) : null}
