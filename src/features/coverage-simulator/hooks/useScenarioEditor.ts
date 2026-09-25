@@ -17,6 +17,7 @@ import { buildSystemTemplateSnapshot } from '../domain/systemTemplateCatalog'
 import { createConsultationFromTemplate } from '../domain/templateOperations'
 import { createCancerDefaultItems, createScenarioFromTemplate } from '../domain/templates'
 import { calculateScenarioTotals } from '../domain/totals'
+import type { CoverageSimulatorFormMode } from '../domain/coverageSimulatorFormMode'
 import type { CoverageScenario, CoverageScenarioItem, DiseaseType } from '../domain/types'
 import { getScenarioById, saveScenario } from '../storage/scenarioRepository'
 
@@ -37,9 +38,7 @@ export function useScenarioEditor() {
   const diseaseType = (diseaseTypeParam ?? 'cancer') as DiseaseType
 
   const [scenario, setScenario] = useState<CoverageScenario | null>(null)
-  const [addAfterOrder, setAddAfterOrder] = useState<number | null>(null)
-  const [addSheetOpen, setAddSheetOpen] = useState(false)
-  const [editingItem, setEditingItem] = useState<CoverageScenarioItem | null>(null)
+  const [formMode, setFormMode] = useState<CoverageSimulatorFormMode>(null)
   const [isSaving, setIsSaving] = useState(false)
   const persistedSnapshotRef = useRef<string | null>(null)
 
@@ -84,6 +83,12 @@ export function useScenarioEditor() {
   )
 
   const sortedItems = scenario ? scenario.items.slice().sort((a, b) => a.order - b.order) : []
+
+  const editingItem = useMemo((): CoverageScenarioItem | null => {
+    if (!scenario || formMode?.type !== 'edit') return null
+    const found = scenario.items.find((entry) => entry.id === formMode.itemId)
+    return found?.type === 'coverage' ? found : null
+  }, [formMode, scenario])
 
   const isDirty = useCallback(() => {
     if (!scenario) return false
@@ -156,10 +161,17 @@ export function useScenarioEditor() {
     [basePath, isDirty, isNewDraft, navigate, scenario, scenarioId, userKey],
   )
 
-  const openAddSheet = (afterOrder: number) => {
-    setAddAfterOrder(afterOrder)
-    setAddSheetOpen(true)
-  }
+  const closeForm = useCallback(() => {
+    setFormMode(null)
+  }, [])
+
+  const openAddForm = useCallback((afterOrder: number) => {
+    setFormMode({ type: 'add', afterOrder })
+  }, [])
+
+  const openEditForm = useCallback((itemId: string) => {
+    setFormMode({ type: 'edit', itemId })
+  }, [])
 
   const mutate = useCallback(
     (updater: (current: CoverageScenario) => CoverageScenario) => {
@@ -181,12 +193,11 @@ export function useScenarioEditor() {
     isSaving,
     isDirty,
     requestSaveConsultation,
-    openAddSheet,
-    addSheetOpen,
-    setAddSheetOpen,
-    addAfterOrder,
+    formMode,
+    closeForm,
+    openAddForm,
+    openEditForm,
     editingItem,
-    setEditingItem,
     basePath,
     navigate,
     diseaseType,
@@ -196,12 +207,12 @@ export function useScenarioEditor() {
       applyLocal(next)
     },
     onSelectCoverage: (input: { label: string; category: CoverageScenarioItem['category'] }) => {
-      if (!scenario || addAfterOrder == null) return
-      mutate((current) => insertCoverageItemAfter(current, addAfterOrder, input))
+      if (formMode?.type !== 'add') return
+      mutate((current) => insertCoverageItemAfter(current, formMode.afterOrder, input))
     },
     onSelectTimeMarker: (label: string) => {
-      if (!scenario || addAfterOrder == null) return
-      mutate((current) => insertTimeMarkerAfter(current, addAfterOrder, label))
+      if (formMode?.type !== 'add') return
+      mutate((current) => insertTimeMarkerAfter(current, formMode.afterOrder, label))
     },
     onSaveAmount: (patch: {
       label: string
@@ -210,8 +221,8 @@ export function useScenarioEditor() {
       proposedAmount: number | null
       memo?: string
     }) => {
-      if (!scenario || !editingItem) return
-      mutate((current) => updateCoverageItem(current, editingItem.id, patch))
+      if (formMode?.type !== 'edit') return
+      mutate((current) => updateCoverageItem(current, formMode.itemId, patch))
     },
     patchCoverageItem: (
       itemId: string,

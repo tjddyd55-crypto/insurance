@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
+import type { CoverageSimulatorFormMode } from '../domain/coverageSimulatorFormMode'
 import {
   insertCoverageItemAfter,
   insertTimeMarkerAfter,
@@ -21,9 +22,7 @@ export function useTemplateEditor() {
   const { basePath, userKey } = useCoverageSimulatorScope()
 
   const [scenario, setScenario] = useState<CoverageScenario | null>(null)
-  const [addAfterOrder, setAddAfterOrder] = useState<number | null>(null)
-  const [addSheetOpen, setAddSheetOpen] = useState(false)
-  const [editingItem, setEditingItem] = useState<CoverageScenarioItem | null>(null)
+  const [formMode, setFormMode] = useState<CoverageSimulatorFormMode>(null)
 
   useEffect(() => {
     if (!templateId) return
@@ -40,6 +39,12 @@ export function useTemplateEditor() {
 
   const sortedItems = scenario ? scenario.items.slice().sort((a, b) => a.order - b.order) : []
 
+  const editingItem = useMemo((): CoverageScenarioItem | null => {
+    if (!scenario || formMode?.type !== 'edit') return null
+    const found = scenario.items.find((entry) => entry.id === formMode.itemId)
+    return found?.type === 'coverage' ? found : null
+  }, [formMode, scenario])
+
   const persist = (next: CoverageScenario) => {
     if (!templateId) return
     const existing = getUserTemplateById(userKey, templateId)
@@ -47,22 +52,28 @@ export function useTemplateEditor() {
     setScenario(templateToEditableScenario(saved))
   }
 
-  const openAddSheet = (afterOrder: number) => {
-    setAddAfterOrder(afterOrder)
-    setAddSheetOpen(true)
-  }
+  const closeForm = useCallback(() => {
+    setFormMode(null)
+  }, [])
+
+  const openAddForm = useCallback((afterOrder: number) => {
+    setFormMode({ type: 'add', afterOrder })
+  }, [])
+
+  const openEditForm = useCallback((itemId: string) => {
+    setFormMode({ type: 'edit', itemId })
+  }, [])
 
   return {
     scenario,
     totals,
     sortedItems,
     persist,
-    openAddSheet,
-    addSheetOpen,
-    setAddSheetOpen,
-    addAfterOrder,
+    formMode,
+    closeForm,
+    openAddForm,
+    openEditForm,
     editingItem,
-    setEditingItem,
     basePath,
     navigate,
     editorMode: 'template' as const,
@@ -71,12 +82,12 @@ export function useTemplateEditor() {
       setScenario(resetScenarioItems(scenario, []))
     },
     onSelectCoverage: (input: { label: string; category: CoverageScenarioItem['category'] }) => {
-      if (!scenario || addAfterOrder == null) return
-      persist(insertCoverageItemAfter(scenario, addAfterOrder, input))
+      if (!scenario || formMode?.type !== 'add') return
+      persist(insertCoverageItemAfter(scenario, formMode.afterOrder, input))
     },
     onSelectTimeMarker: (label: string) => {
-      if (!scenario || addAfterOrder == null) return
-      persist(insertTimeMarkerAfter(scenario, addAfterOrder, label))
+      if (!scenario || formMode?.type !== 'add') return
+      persist(insertTimeMarkerAfter(scenario, formMode.afterOrder, label))
     },
     onSaveAmount: (patch: {
       label: string
@@ -85,8 +96,8 @@ export function useTemplateEditor() {
       proposedAmount: number | null
       memo?: string
     }) => {
-      if (!scenario || !editingItem) return
-      persist(updateCoverageItem(scenario, editingItem.id, patch))
+      if (!scenario || formMode?.type !== 'edit') return
+      persist(updateCoverageItem(scenario, formMode.itemId, patch))
     },
     patchCoverageItem: (
       itemId: string,

@@ -14,6 +14,11 @@ function normalizeOrders(items: ScenarioItem[]): ScenarioItem[] {
     .map((item, index) => ({ ...item, order: index }))
 }
 
+/** Repository load boundary — preserve stored array order, reindex order 0..n */
+export function normalizeScenarioItemOrders(items: ScenarioItem[]): ScenarioItem[] {
+  return items.map((item, index) => ({ ...item, order: index }))
+}
+
 export function insertCoverageItemAfter(
   scenario: CoverageScenario,
   afterOrder: number,

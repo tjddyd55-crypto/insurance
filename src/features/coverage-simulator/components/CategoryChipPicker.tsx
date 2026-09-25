@@ -1,3 +1,5 @@
+import FormButton from '../../../components/form/FormButton'
+
 import { categoryLabel } from '../domain/itemCatalog'
 import type { ScenarioItemCategory } from '../domain/types'
 
@@ -17,15 +19,15 @@ export function CategoryChipPicker({ value, onChange, compact = false }: Props) 
       aria-label="카테고리"
     >
       {CATEGORIES.map((category) => (
-        <button
+        <FormButton
           key={category}
-          type="button"
+          variant="action"
           className={`cs-category-chip cs-category-chip--${category}${value === category ? ' cs-category-chip--active' : ''}`}
           aria-pressed={value === category}
           onClick={() => onChange(category)}
         >
           {categoryLabel(category)}
-        </button>
+        </FormButton>
       ))}
     </div>
   )

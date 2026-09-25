@@ -84,23 +84,58 @@ async function main() {
   if (currentText?.includes('500')) pass('A-none-to-amount', currentText.trim())
   else fail('A-none-to-amount', currentText ?? '')
 
-  // Scroll lock with full edit sheet
+  // Exclusive full-screen edit form (no timeline / dock / overlay scroll lock)
   await page.locator('.cs-axis-row-menu__trigger').first().click()
   await page.waitForSelector('.cs-form-screen', { timeout: 8000 })
-  const locked = await page.evaluate(() =>
-    document.documentElement.classList.contains('coverage-simulator-overlay-scroll-lock'),
-  )
-  if (locked) pass('A-scroll-lock-class', 'overlay scroll lock active')
-  else fail('A-scroll-lock-class', 'lock class missing')
-
-  const scrollBefore = await page.evaluate(() => window.scrollY)
-  await page.mouse.wheel(0, 400)
-  await page.waitForTimeout(200)
-  const scrollAfterWheel = await page.evaluate(() => window.scrollY)
-  if (Math.abs(scrollAfterWheel - scrollBefore) < 8) pass('A-scroll-lock-wheel', `y=${scrollBefore}`)
-  else fail('A-scroll-lock-wheel', `before=${scrollBefore} after=${scrollAfterWheel}`)
+  const editExclusive = await page.evaluate(() => {
+    const root = document.querySelector('.coverage-simulator-root')
+    const form = document.querySelector('[data-testid="coverage-simulator-form-screen"]')
+    const timeline = document.querySelector('.cs-axis-timeline')
+    const dock = document.querySelector('.cs-mobile-dock')
+    const locked = document.documentElement.classList.contains('coverage-simulator-overlay-scroll-lock')
+    const formStyles = form ? getComputedStyle(form) : null
+    const rootStyles = root ? getComputedStyle(root) : null
+    const body = document.querySelector('.cs-form-screen__body')
+    const bodyPad = body ? parseFloat(getComputedStyle(body).paddingLeft) : 0
+    const section = document.querySelector('.cs-form-primitive__section')
+    const sectionGap = section ? parseFloat(getComputedStyle(section).marginBottom) : 0
+    const input = document.querySelector('.cs-form-primitive__amount-input, .form-input')
+    const inputRadius = input ? parseFloat(getComputedStyle(input).borderRadius) : 0
+    return {
+      rootContainsForm: Boolean(root && form && root.contains(form)),
+      timelineAbsent: timeline === null,
+      dockAbsent: dock === null,
+      overlayLockAbsent: !locked,
+      bg: formStyles?.backgroundColor ?? '',
+      surface: rootStyles?.getPropertyValue('--cs-color-surface').trim() ?? '',
+      space4: rootStyles?.getPropertyValue('--cs-space-4').trim() ?? '',
+      controlH: rootStyles?.getPropertyValue('--cs-control-height').trim() ?? '',
+      bodyPad,
+      sectionGap,
+      inputRadius,
+    }
+  })
+  if (editExclusive.rootContainsForm) pass('A-edit-in-root', 'form inside coverage-simulator-root')
+  else fail('A-edit-in-root', JSON.stringify(editExclusive))
+  if (editExclusive.timelineAbsent && editExclusive.dockAbsent) pass('A-edit-exclusive-dom', 'timeline and dock unmounted')
+  else fail('A-edit-exclusive-dom', JSON.stringify(editExclusive))
+  if (editExclusive.overlayLockAbsent) pass('A-edit-no-overlay-lock', 'no html overlay scroll lock')
+  else fail('A-edit-no-overlay-lock', 'overlay lock still active')
+  if (editExclusive.bg && editExclusive.bg !== 'rgba(0, 0, 0, 0)' && editExclusive.surface && editExclusive.space4 && editExclusive.controlH) {
+    pass('A-edit-tokens', `${editExclusive.surface} / pad=${editExclusive.bodyPad}`)
+  } else fail('A-edit-tokens', JSON.stringify(editExclusive))
+  if (editExclusive.bodyPad > 0 && editExclusive.sectionGap > 0 && editExclusive.inputRadius > 0) {
+    pass('A-edit-spacing', `pad=${editExclusive.bodyPad} gap=${editExclusive.sectionGap}`)
+  } else fail('A-edit-spacing', JSON.stringify(editExclusive))
 
   await page.locator('.cs-form-screen__back').click()
+  const afterClose = await page.evaluate(() => ({
+    form: document.querySelector('.cs-form-screen'),
+    timeline: document.querySelector('.cs-axis-timeline'),
+    dock: document.querySelector('[data-testid="coverage-simulator-mobile-sticky-dock"]'),
+  }))
+  if (!afterClose.form && afterClose.timeline && afterClose.dock) pass('A-edit-close-restore', 'timeline and dock restored')
+  else fail('A-edit-close-restore', JSON.stringify(afterClose))
   await page.screenshot({ path: join(outDir, 'inline-amount-390.png') })
 
   // Save draft + F5
@@ -125,19 +160,20 @@ async function main() {
   if (trimmedBefore.length >= 2) {
     await page.locator('.cs-axis-row-menu__trigger').first().click()
     await page.waitForSelector('.cs-form-screen', { timeout: 8000 })
-    const upBtn = page.locator('.cs-form-screen__move-btn').first()
-    const downBtn = page.locator('.cs-form-screen__move-btn').nth(1)
+    const upBtn = page.locator('.cs-form-primitive__move-btn').first()
+    const downBtn = page.locator('.cs-form-primitive__move-btn').nth(1)
     if (await upBtn.isDisabled()) pass('A-reorder-up-disabled-first', 'first item cannot move up')
     else fail('A-reorder-up-disabled-first', 'expected disabled')
     await downBtn.click()
     await page.waitForTimeout(300)
+    await page.locator('.cs-form-screen__back').click()
+    await page.waitForSelector('.cs-axis-timeline', { timeout: 8000 })
     const labelsAfterMove = await page.locator('.cs-axis-event__label').allTextContents()
     const trimmedAfter = labelsAfterMove.map((t) => t.trim()).filter(Boolean)
     const swapped =
       trimmedAfter[0] === trimmedBefore[1] && trimmedAfter[1] === trimmedBefore[0]
     if (swapped) pass('A-reorder-down', `${trimmedBefore[0]} ↔ ${trimmedBefore[1]}`)
     else fail('A-reorder-down', `before=${trimmedBefore.slice(0, 2).join('|')} after=${trimmedAfter.slice(0, 2).join('|')}`)
-    await page.locator('.cs-form-screen__back').click()
     await page.locator('.cs-mobile-editor-header__action--save').click()
     await page.locator('.coverage-simulator-dialog__input').fill('QA Reorder')
     await page.locator('.coverage-simulator-dialog__actions .coverage-simulator-primary-btn').click()

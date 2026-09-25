@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { useConfirmDialog } from '../../../../components/dialog'
+import FormButton from '../../../../components/form/FormButton'
 import { AddItemSheet } from '../AddItemSheet'
 import { AmountEditSheet } from '../AmountEditSheet'
+import { CoverageSimulatorMobileItemForm } from '../CoverageSimulatorMobileItemForm'
 import { CoverageSimulatorLayout } from '../CoverageSimulatorLayout'
 import { CoverageSimulatorToastProvider, useCoverageSimulatorToast } from '../CoverageSimulatorToast'
 import { MobilePreviewEditorHeader } from '../MobilePreviewEditorHeader'
@@ -28,6 +30,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   const { confirm, confirmDialog } = useConfirmDialog()
   const { showToast } = useCoverageSimulatorToast()
   const useMobileStickyDock = variant === 'mobile' && layoutMode === 'preview-mobile'
+  const useMobileExclusiveForm = variant === 'mobile'
   const [titleDialogOpen, setTitleDialogOpen] = useState(false)
   const [titleValidationError, setTitleValidationError] = useState<string | null>(null)
   const [inlineAmountEdit, setInlineAmountEdit] = useState<InlineAmountEditTarget>(null)
@@ -39,11 +42,11 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
     persist,
     requestSaveConsultation,
     isSaving,
-    openAddSheet,
-    addSheetOpen,
-    setAddSheetOpen,
+    formMode,
+    closeForm,
+    openAddForm,
+    openEditForm,
     editingItem,
-    setEditingItem,
     basePath,
     navigate,
     resetToCancerDefaults,
@@ -58,12 +61,11 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   const handleInlineAmountEditChange = useCallback(
     (target: InlineAmountEditTarget) => {
       if (target) {
-        setAddSheetOpen(false)
-        setEditingItem(null)
+        closeForm()
       }
       setInlineAmountEdit(target)
     },
-    [setAddSheetOpen, setEditingItem],
+    [closeForm],
   )
 
   const handleInlineAmountCommit = useCallback(
@@ -77,37 +79,29 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   const openAddSheetForOrder = useCallback(
     (afterOrder: number) => {
       setInlineAmountEdit(null)
-      openAddSheet(afterOrder)
+      openAddForm(afterOrder)
     },
-    [openAddSheet],
+    [openAddForm],
   )
 
   const openFullAmountEdit = useCallback(
-    (item: Parameters<typeof setEditingItem>[0]) => {
+    (item: { id: string }) => {
       setInlineAmountEdit(null)
-      setEditingItem(item)
+      openEditForm(item.id)
     },
-    [setEditingItem],
+    [openEditForm],
   )
-
-  useEffect(() => {
-    if (!editingItem || !scenario) return
-    const fresh = scenario.items.find((entry) => entry.id === editingItem.id)
-    if (fresh?.type === 'coverage' && fresh.order !== editingItem.order) {
-      setEditingItem(fresh)
-    }
-  }, [scenario, editingItem?.id, editingItem?.order, setEditingItem])
 
   const handleEditSheetMove = useCallback(
     (direction: 'up' | 'down') => {
-      if (!editingItem) return
-      moveItem(editingItem.id, direction)
+      if (formMode?.type !== 'edit') return
+      moveItem(formMode.itemId, direction)
     },
-    [editingItem, moveItem],
+    [formMode, moveItem],
   )
 
   const handleEditSheetDelete = useCallback(async () => {
-    if (!editingItem) return
+    if (formMode?.type !== 'edit') return
     const ok = await confirm({
       title: '이 항목을 삭제할까요?',
       message: '삭제 후 되돌릴 수 없습니다.',
@@ -116,9 +110,15 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
       tone: 'danger',
     })
     if (!ok) return
-    removeItem(editingItem.id)
-    setEditingItem(null)
-  }, [confirm, editingItem, removeItem, setEditingItem])
+    removeItem(formMode.itemId)
+    closeForm()
+  }, [closeForm, confirm, formMode, removeItem])
+
+  useEffect(() => {
+    if (!scenario || formMode?.type !== 'edit') return
+    const exists = scenario.items.some((entry) => entry.id === formMode.itemId && entry.type === 'coverage')
+    if (!exists) closeForm()
+  }, [closeForm, formMode, scenario])
 
   if (!scenario) {
     return (
@@ -201,6 +201,40 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
     if (ok) resetToCancerDefaults()
   }
 
+  if (useMobileExclusiveForm && formMode) {
+    return (
+      <CoverageSimulatorLayout shellClassName="coverage-simulator-shell--exclusive-form">
+        <CoverageSimulatorMobileItemForm
+          formMode={formMode}
+          favoriteUserKey={useMobileStickyDock ? userKey : null}
+          editingItem={editingItem}
+          allItems={sortedItems}
+          onClose={closeForm}
+          onSelectCoverage={onSelectCoverage}
+          onSelectTimeMarker={onSelectTimeMarker}
+          onSaveAmount={onSaveAmount}
+          onMoveUp={() => handleEditSheetMove('up')}
+          onMoveDown={() => handleEditSheetMove('down')}
+          onDelete={handleEditSheetDelete}
+        />
+        {confirmDialog}
+        {!isTemplate ? (
+          <SaveConsultationTitleDialog
+            open={titleDialogOpen}
+            initialTitle={scenario.title}
+            validationError={titleValidationError}
+            saving={isSaving}
+            onClose={() => {
+              setTitleDialogOpen(false)
+              setTitleValidationError(null)
+            }}
+            onConfirm={handleTitleConfirm}
+          />
+        ) : null}
+      </CoverageSimulatorLayout>
+    )
+  }
+
   return (
     <CoverageSimulatorLayout>
       {variant === 'mobile' && useMobileStickyDock ? (
@@ -216,42 +250,48 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
         />
       ) : variant === 'mobile' ? (
         <header className="cs-axis-header coverage-simulator-appbar">
-          <button type="button" className="coverage-simulator-icon-btn" onClick={() => navigate(backTo)}>←</button>
+          <FormButton variant="action" className="coverage-simulator-icon-btn" onClick={() => navigate(backTo)}>
+            ←
+          </FormButton>
           <div className="cs-axis-header__titles">
             <div className="coverage-simulator-appbar__title">{scenario.title}</div>
           </div>
-          <button type="button" className="coverage-simulator-text-btn" onClick={isTemplate ? () => persist(scenario) : handleSave}>
+          <FormButton
+            variant="action"
+            className="coverage-simulator-text-btn"
+            onClick={isTemplate ? () => persist(scenario) : handleSave}
+          >
             {isSaving ? '저장 중…' : '저장'}
-          </button>
+          </FormButton>
         </header>
       ) : (
         <header className="cs-axis-header cs-axis-header--pc coverage-simulator-pc-toolbar">
-          <button
-            type="button"
-            className="coverage-simulator-icon-btn"
-            onClick={() => navigate(backTo)}
-          >
+          <FormButton variant="action" className="coverage-simulator-icon-btn" onClick={() => navigate(backTo)}>
             ← 시나리오 선택
-          </button>
+          </FormButton>
           <div className="cs-axis-header__titles cs-axis-header__titles--pc">
             <div className="cs-axis-header__product">{isTemplate ? '템플릿 편집' : '보장 시뮬레이션'}</div>
             <h1 className="coverage-simulator-pc-toolbar__title">{scenario.title}</h1>
           </div>
           <div className="coverage-simulator-pc-toolbar__actions">
-            <button type="button" className="coverage-simulator-secondary-btn" onClick={resetToCancerDefaults}>
+            <FormButton variant="secondary" className="coverage-simulator-secondary-btn" onClick={resetToCancerDefaults}>
               초기화
-            </button>
-            <button type="button" className="coverage-simulator-secondary-btn" onClick={isTemplate ? () => persist(scenario) : handleSave}>
+            </FormButton>
+            <FormButton
+              variant="secondary"
+              className="coverage-simulator-secondary-btn"
+              onClick={isTemplate ? () => persist(scenario) : handleSave}
+            >
               {isSaving ? '저장 중…' : '저장'}
-            </button>
+            </FormButton>
             {!isTemplate ? (
-              <button
-                type="button"
+              <FormButton
+                variant="primary"
                 className="coverage-simulator-primary-btn"
                 onClick={() => navigate(`${basePath}/scenarios/${scenario.id}/pdf`)}
               >
                 PDF
-              </button>
+              </FormButton>
             ) : null}
           </div>
         </header>
@@ -292,38 +332,37 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
       ) : null}
       {variant === 'mobile' && !useMobileStickyDock && !isTemplate ? (
         <footer className="coverage-simulator-bottom-bar">
-          <button type="button" className="coverage-simulator-secondary-btn" onClick={requestReset}>
+          <FormButton variant="secondary" className="coverage-simulator-secondary-btn" onClick={requestReset}>
             초기화
-          </button>
-          <button
-            type="button"
+          </FormButton>
+          <FormButton
+            variant="primary"
             className="coverage-simulator-primary-btn"
             onClick={() => navigate(`${basePath}/scenarios/${scenario.id}/pdf`)}
           >
             PDF 미리보기
-          </button>
+          </FormButton>
         </footer>
       ) : null}
 
-      <AddItemSheet
-        open={addSheetOpen}
-        onClose={() => setAddSheetOpen(false)}
-        onSelectCoverage={onSelectCoverage}
-        onSelectTimeMarker={onSelectTimeMarker}
-        mobileCompact={useMobileStickyDock}
-        favoriteUserKey={useMobileStickyDock ? userKey : null}
-      />
-      <AmountEditSheet
-        open={Boolean(editingItem)}
-        item={editingItem}
-        allItems={sortedItems}
-        onClose={() => setEditingItem(null)}
-        onSave={onSaveAmount}
-        mobileCompact={useMobileStickyDock}
-        onMoveUp={useMobileStickyDock ? () => handleEditSheetMove('up') : undefined}
-        onMoveDown={useMobileStickyDock ? () => handleEditSheetMove('down') : undefined}
-        onDelete={useMobileStickyDock ? handleEditSheetDelete : undefined}
-      />
+      {variant === 'pc' || !useMobileExclusiveForm ? (
+        <>
+          <AddItemSheet
+            open={formMode?.type === 'add'}
+            onClose={closeForm}
+            onSelectCoverage={onSelectCoverage}
+            onSelectTimeMarker={onSelectTimeMarker}
+            favoriteUserKey={useMobileStickyDock ? userKey : null}
+          />
+          <AmountEditSheet
+            open={formMode?.type === 'edit'}
+            item={editingItem}
+            allItems={sortedItems}
+            onClose={closeForm}
+            onSave={onSaveAmount}
+          />
+        </>
+      ) : null}
       {confirmDialog}
       {!isTemplate ? (
         <SaveConsultationTitleDialog

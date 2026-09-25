@@ -1,3 +1,4 @@
+import { normalizeScenarioItemOrders } from './scenarioOperations'
 import type { CoverageScenario } from './types'
 
 export function normalizeConsultation(scenario: CoverageScenario): CoverageScenario {
@@ -8,6 +9,7 @@ export function normalizeConsultation(scenario: CoverageScenario): CoverageScena
     customerId: scenario.customerId ?? null,
     customerNameSnapshot: snapshot,
     customerName: snapshot ?? undefined,
+    items: normalizeScenarioItemOrders(scenario.items ?? []),
   }
 }
 

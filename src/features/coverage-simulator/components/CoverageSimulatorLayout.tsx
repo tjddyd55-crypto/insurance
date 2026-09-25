@@ -3,7 +3,13 @@ import { useEffect } from 'react'
 import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
 import '../styles/coverage-simulator.css'
 
-export function CoverageSimulatorLayout({ children }: { children: React.ReactNode }) {
+export function CoverageSimulatorLayout({
+  children,
+  shellClassName = '',
+}: {
+  children: React.ReactNode
+  shellClassName?: string
+}) {
   const { isPublicPreview, layoutMode } = useCoverageSimulatorScope()
 
   useEffect(() => {
@@ -27,7 +33,7 @@ export function CoverageSimulatorLayout({ children }: { children: React.ReactNod
         .join(' ')}
       data-testid="coverage-simulator-root"
     >
-      <div className="coverage-simulator-shell">{children}</div>
+      <div className={['coverage-simulator-shell', shellClassName].filter(Boolean).join(' ')}>{children}</div>
     </div>
   )
 }
