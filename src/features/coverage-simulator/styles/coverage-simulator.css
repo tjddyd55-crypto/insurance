@@ -619,7 +619,8 @@ body.coverage-simulator-immersive .pc-workspace-layout > main {
 .cs-item-action-overlay {
   position: fixed;
   inset: 0;
-  z-index: var(--cs-z-sheet-overlay);
+  /* Portaled to document.body — outside .coverage-simulator-root token scope */
+  z-index: 1200;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
