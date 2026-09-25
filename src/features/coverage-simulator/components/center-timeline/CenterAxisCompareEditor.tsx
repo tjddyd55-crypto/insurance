@@ -1,10 +1,15 @@
+import { useState } from 'react'
+
 import { useConfirmDialog } from '../../../../components/dialog'
 import { AddItemSheet } from '../AddItemSheet'
 import { AmountEditSheet } from '../AmountEditSheet'
+import { CoverageSimulatorLayout } from '../CoverageSimulatorLayout'
+import { CoverageSimulatorToastProvider, useCoverageSimulatorToast } from '../CoverageSimulatorToast'
 import { MobilePreviewEditorHeader } from '../MobilePreviewEditorHeader'
 import { MobilePreviewStickyDock } from '../MobilePreviewStickyDock'
-import { CoverageSimulatorLayout } from '../CoverageSimulatorLayout'
-import { coverageSimulatorExitPath, useCoverageSimulatorScope } from '../../CoverageSimulatorScope'
+import { SaveConsultationTitleDialog } from '../SaveConsultationTitleDialog'
+import { diseaseTypeTitle } from '../../domain/diseaseTypeLabels'
+import { useCoverageSimulatorScope } from '../../CoverageSimulatorScope'
 import { CenterAxisTimeline } from './CenterAxisTimeline'
 import { isTemplateEditorMode, type TimelineEditorController } from './TimelineEditorController'
 
@@ -17,16 +22,21 @@ const SCENARIO_BLURB: Record<string, string> = {
   cancer: '암 치료 과정에 따라 현재 보장과 제안 보장을 비교합니다.',
 }
 
-export function CenterAxisCompareEditor({ editor, variant }: Props) {
+function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   const { layoutMode, userKey } = useCoverageSimulatorScope()
   const { confirm, confirmDialog } = useConfirmDialog()
+  const { showToast } = useCoverageSimulatorToast()
   const useMobileStickyDock = variant === 'mobile' && layoutMode === 'preview-mobile'
+  const [titleDialogOpen, setTitleDialogOpen] = useState(false)
+  const [titleValidationError, setTitleValidationError] = useState<string | null>(null)
 
   const {
     scenario,
     totals,
     sortedItems,
     persist,
+    requestSaveConsultation,
+    isSaving,
     openAddSheet,
     addSheetOpen,
     setAddSheetOpen,
@@ -55,7 +65,30 @@ export function CenterAxisCompareEditor({ editor, variant }: Props) {
     ? '템플릿 항목 순서, 시점, 기본 금액을 저장합니다. 상담 시작 시 복사본으로 사용됩니다.'
     : SCENARIO_BLURB[scenario.diseaseType] ?? scenario.description
 
-  const backTo = isTemplate ? basePath : coverageSimulatorExitPath(basePath)
+  const backTo = isTemplate ? basePath : `${basePath}/${scenario.diseaseType}`
+
+  const handleSave = async () => {
+    const result = await requestSaveConsultation()
+    if ('needsTitle' in result && result.needsTitle) {
+      setTitleValidationError(result.validationError ?? null)
+      setTitleDialogOpen(true)
+      return
+    }
+    showToast(result.ok ? result.toast : result.toast)
+  }
+
+  const handleTitleConfirm = async (title: string) => {
+    const result = await requestSaveConsultation(title)
+    if ('needsTitle' in result && result.needsTitle) {
+      setTitleValidationError(result.validationError ?? '제목을 입력해 주세요.')
+      return
+    }
+    setTitleDialogOpen(false)
+    setTitleValidationError(null)
+    showToast(result.ok ? result.toast : result.toast)
+  }
+
+  const editorHeaderTitle = isTemplate ? scenario.title : diseaseTypeTitle(scenario.diseaseType)
 
   const requestRemoveCoverageItem = async (id: string) => {
     const ok = await confirm({
@@ -104,10 +137,11 @@ export function CenterAxisCompareEditor({ editor, variant }: Props) {
     <CoverageSimulatorLayout>
       {variant === 'mobile' && useMobileStickyDock ? (
         <MobilePreviewEditorHeader
-          title={scenario.title}
+          title={editorHeaderTitle}
           onBack={() => navigate(backTo)}
           onReset={requestReset}
-          onSave={() => persist(scenario)}
+          onSave={isTemplate ? () => persist(scenario) : handleSave}
+          saving={!isTemplate && isSaving}
           onPdf={!isTemplate ? () => navigate(`${basePath}/scenarios/${scenario.id}/pdf`) : undefined}
           showPdf={!isTemplate}
           resetLabel={isTemplate ? '비우기' : '초기화'}
@@ -118,7 +152,9 @@ export function CenterAxisCompareEditor({ editor, variant }: Props) {
           <div className="cs-axis-header__titles">
             <div className="coverage-simulator-appbar__title">{scenario.title}</div>
           </div>
-          <button type="button" className="coverage-simulator-text-btn" onClick={() => persist(scenario)}>저장</button>
+          <button type="button" className="coverage-simulator-text-btn" onClick={isTemplate ? () => persist(scenario) : handleSave}>
+            {isSaving ? '저장 중…' : '저장'}
+          </button>
         </header>
       ) : (
         <header className="cs-axis-header cs-axis-header--pc coverage-simulator-pc-toolbar">
@@ -137,8 +173,8 @@ export function CenterAxisCompareEditor({ editor, variant }: Props) {
             <button type="button" className="coverage-simulator-secondary-btn" onClick={resetToCancerDefaults}>
               초기화
             </button>
-            <button type="button" className="coverage-simulator-secondary-btn" onClick={() => persist(scenario)}>
-              저장
+            <button type="button" className="coverage-simulator-secondary-btn" onClick={isTemplate ? () => persist(scenario) : handleSave}>
+              {isSaving ? '저장 중…' : '저장'}
             </button>
             {!isTemplate ? (
               <button
@@ -213,6 +249,27 @@ export function CenterAxisCompareEditor({ editor, variant }: Props) {
         mobileCompact={useMobileStickyDock}
       />
       {confirmDialog}
+      {!isTemplate ? (
+        <SaveConsultationTitleDialog
+          open={titleDialogOpen}
+          initialTitle={scenario.title}
+          validationError={titleValidationError}
+          saving={isSaving}
+          onClose={() => {
+            setTitleDialogOpen(false)
+            setTitleValidationError(null)
+          }}
+          onConfirm={handleTitleConfirm}
+        />
+      ) : null}
     </CoverageSimulatorLayout>
+  )
+}
+
+export function CenterAxisCompareEditor(props: Props) {
+  return (
+    <CoverageSimulatorToastProvider>
+      <CenterAxisCompareEditorBody {...props} />
+    </CoverageSimulatorToastProvider>
   )
 }

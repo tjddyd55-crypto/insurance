@@ -13,7 +13,9 @@ export function ScenarioSelectPage() {
 
   return (
     <CoverageSimulatorLayout>
-      <header className="coverage-simulator-appbar">
+      <header
+        className={`coverage-simulator-appbar${isPublicPreview && layoutMode === 'preview-mobile' ? ' coverage-simulator-appbar--compact' : ''}`}
+      >
         {isPublicPreview ? (
           <span className="coverage-simulator-icon-btn" aria-hidden="true" />
         ) : (
@@ -31,8 +33,12 @@ export function ScenarioSelectPage() {
       <main
         className={`coverage-simulator-content${layoutMode === 'preview-pc' ? ' coverage-simulator-content--pc-select' : ''}`}
       >
-        <h1 className="coverage-simulator-page-title">보장 시뮬레이션</h1>
-        <p className="coverage-simulator-page-desc">상담할 시나리오를 선택하세요.</p>
+        {isPublicPreview && layoutMode === 'preview-pc' ? (
+          <>
+            <h1 className="coverage-simulator-page-title">보장 시뮬레이션</h1>
+            <p className="coverage-simulator-page-desc">상담할 시나리오를 선택하세요.</p>
+          </>
+        ) : null}
         {isPublicPreview && (layoutMode === 'preview-pc' || layoutMode === 'preview-mobile') ? (
           <ScenarioSelectPreviewView layoutMode={layoutMode} />
         ) : (

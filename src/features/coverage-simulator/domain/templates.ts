@@ -76,7 +76,7 @@ export function createScenarioFromTemplate(diseaseType: DiseaseType): CoverageSc
   if (diseaseType === 'cancer') {
     return {
       id: createScenarioId(),
-      title: '암 치료 시나리오',
+      title: '암 치료',
       diseaseType,
       description: '일반적인 암 치료 과정을 기준으로 현재 보장과 제안 보장을 비교합니다.',
       consultationDate,
@@ -96,7 +96,7 @@ export const SCENARIO_TYPE_CARDS: {
 }[] = [
   {
     diseaseType: 'cancer',
-    title: '암 치료 시나리오',
+    title: '암 치료',
     description: '진단부터 항암·수술·방사선 치료 흐름 비교',
     enabled: true,
   },

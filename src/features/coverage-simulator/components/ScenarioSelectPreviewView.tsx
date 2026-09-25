@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { CustomerContextBar } from './CustomerContextBar'
 import { useCoverageSimulatorCustomer } from '../context/CoverageSimulatorCustomerContext'
 import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
-import { startConsultationFromSystemDisease, startConsultationFromUserTemplate } from '../domain/startConsultation'
+import { startConsultationFromUserTemplate } from '../domain/startConsultation'
 import { listSystemTemplateSummaries } from '../domain/systemTemplateCatalog'
 import type { DiseaseType } from '../domain/types'
 import { cloneUserTemplate } from '../domain/templateOperations'
@@ -24,9 +24,8 @@ export function ScenarioSelectPreviewView({ layoutMode }: Props) {
   const systemCards = listSystemTemplateSummaries()
   const myTemplates = listUserTemplates(userKey)
 
-  const startSystem = (diseaseType: DiseaseType) => {
-    const saved = startConsultationFromSystemDisease(userKey, diseaseType, customerDraft)
-    if (saved) navigate(`${basePath}/scenarios/${saved.id}`)
+  const openDiseaseList = (diseaseType: DiseaseType) => {
+    navigate(`${basePath}/${diseaseType}`)
   }
 
   const startUser = (templateId: string) => {
@@ -63,7 +62,7 @@ export function ScenarioSelectPreviewView({ layoutMode }: Props) {
     <>
       <CustomerContextBar />
       <section className="cs-select-section">
-        <h2 className="cs-select-section__title">기본 시나리오</h2>
+        <h2 className="cs-select-section__title">시나리오</h2>
         <div className={`cs-select-grid${isPc ? ' cs-select-grid--pc' : ''}`}>
           {systemCards.map((card) => (
             <button
@@ -71,7 +70,7 @@ export function ScenarioSelectPreviewView({ layoutMode }: Props) {
               type="button"
               className={`coverage-simulator-scenario-card${card.enabled ? '' : ' coverage-simulator-scenario-card--disabled'}`}
               disabled={!card.enabled}
-              onClick={() => card.enabled && startSystem(card.diseaseType)}
+              onClick={() => card.enabled && openDiseaseList(card.diseaseType)}
             >
               <div className="coverage-simulator-scenario-card__title">{card.name}</div>
               <div className="coverage-simulator-scenario-card__desc">{card.description}</div>

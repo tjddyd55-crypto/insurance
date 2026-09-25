@@ -23,12 +23,21 @@ export function startConsultationFromSystemDisease(
   diseaseType: DiseaseType,
   customer?: ConsultationCustomerDraft | null,
 ): CoverageScenario | null {
+  const draft = createDraftFromSystemDisease(diseaseType, customer)
+  if (!draft) return null
+  return saveConsultation(userKey, draft)
+}
+
+/** localStorage에 쓰지 않는 신규 편집 draft */
+export function createDraftFromSystemDisease(
+  diseaseType: DiseaseType,
+  customer?: ConsultationCustomerDraft | null,
+): CoverageScenario | null {
   const system = buildSystemTemplateSnapshot(diseaseType)
   if (!system) return null
-  const consultation = createConsultationFromTemplate(system, {
+  return createConsultationFromTemplate(system, {
     diseaseType,
     description: system.description ?? '',
     customer,
   })
-  return saveConsultation(userKey, consultation)
 }

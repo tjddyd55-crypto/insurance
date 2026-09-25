@@ -54,9 +54,22 @@ export function listConsultations(userKey: string): SavedScenarioSummary[] {
       customerNameSnapshot: resolveCustomerNameSnapshot(scenario),
       customerName: resolveCustomerNameSnapshot(scenario) ?? undefined,
       consultationDate: scenario.consultationDate,
+      createdAt: scenario.createdAt,
       updatedAt: scenario.updatedAt,
     }))
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+}
+
+export function listConsultationsByDisease(
+  userKey: string,
+  diseaseType: DiseaseType,
+  customerId?: string | null,
+): SavedScenarioSummary[] {
+  return listConsultations(userKey).filter((row) => {
+    if (row.diseaseType !== diseaseType) return false
+    if (customerId) return row.customerId === customerId
+    return true
+  })
 }
 
 export function getConsultationById(userKey: string, id: string): CoverageScenario | null {
@@ -64,12 +77,15 @@ export function getConsultationById(userKey: string, id: string): CoverageScenar
 }
 
 export function saveConsultation(userKey: string, scenario: CoverageScenario): CoverageScenario {
+  const all = readAll(userKey)
+  const existing = all.find((row) => row.id === scenario.id)
+  const now = new Date().toISOString()
   const next = normalizeConsultation({
     ...scenario,
     kind: 'consultation',
-    updatedAt: new Date().toISOString(),
+    createdAt: existing?.createdAt ?? scenario.createdAt ?? now,
+    updatedAt: now,
   })
-  const all = readAll(userKey)
   const index = all.findIndex((row) => row.id === next.id)
   if (index >= 0) {
     all[index] = next

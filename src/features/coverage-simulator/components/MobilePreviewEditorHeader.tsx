@@ -5,6 +5,7 @@ type Props = {
   onBack: () => void
   onReset: () => void
   onSave: () => void
+  saving?: boolean
   onPdf?: () => void
   resetLabel?: string
   showPdf?: boolean
@@ -15,6 +16,7 @@ export function MobilePreviewEditorHeader({
   onBack,
   onReset,
   onSave,
+  saving = false,
   onPdf,
   resetLabel = '초기화',
   showPdf = true,
@@ -31,8 +33,13 @@ export function MobilePreviewEditorHeader({
         <button type="button" className="cs-mobile-editor-header__action" onClick={onReset}>
           {resetLabel}
         </button>
-        <button type="button" className="cs-mobile-editor-header__action cs-mobile-editor-header__action--save" onClick={onSave}>
-          저장
+        <button
+          type="button"
+          className="cs-mobile-editor-header__action cs-mobile-editor-header__action--save"
+          onClick={onSave}
+          disabled={saving}
+        >
+          {saving ? '저장 중…' : '저장'}
         </button>
         {showPdf && onPdf ? (
           <button type="button" className="cs-mobile-editor-header__action cs-mobile-editor-header__action--muted" onClick={onPdf}>

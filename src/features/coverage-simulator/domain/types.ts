@@ -58,6 +58,7 @@ export type SavedScenarioSummary = {
   /** @deprecated */
   customerName?: string
   consultationDate: string
+  createdAt: string
   updatedAt: string
 }
 

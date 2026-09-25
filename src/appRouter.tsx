@@ -135,6 +135,7 @@ import {
 import { NewScenarioTemplatePage } from './features/coverage-simulator/pages/NewScenarioTemplatePage'
 import { CoverageSimulatorCrmRouteLayout } from './features/coverage-simulator/pages/CoverageSimulatorCrmRouteLayout'
 import { ScenarioSelectPage } from './features/coverage-simulator/pages/ScenarioSelectPage'
+import { SimulationListPage } from './features/coverage-simulator/pages/SimulationListPage'
 import { CoverageScenarioTemplateEditorPage } from './features/coverage-simulator/pages/CoverageScenarioTemplateEditorPage'
 import PublicAccountRestrictedPage from './features/common/PublicAccountRestrictedPage'
 import { PublicBoardWriterAdminPage } from './features/insurer-news/pages/PublicBoardWriterAdminPage'
@@ -270,7 +271,8 @@ export const appRouter = createBrowserRouter([
           { path: 'saved', element: <SavedScenariosPage /> },
           { path: 'scenarios/:scenarioId/pdf', element: <PdfPreviewPage /> },
           { path: 'scenarios/:scenarioId', element: <ScenarioEditorPage /> },
-          { path: ':diseaseType', element: <ScenarioEditorPage /> },
+          { path: ':diseaseType/new', element: <ScenarioEditorPage /> },
+          { path: ':diseaseType', element: <SimulationListPage /> },
         ],
       },
       {
@@ -283,7 +285,8 @@ export const appRouter = createBrowserRouter([
           { path: 'saved', element: <SavedScenariosPage /> },
           { path: 'scenarios/:scenarioId/pdf', element: <PdfPreviewPage /> },
           { path: 'scenarios/:scenarioId', element: <ScenarioEditorPage /> },
-          { path: ':diseaseType', element: <ScenarioEditorPage /> },
+          { path: ':diseaseType/new', element: <ScenarioEditorPage /> },
+          { path: ':diseaseType', element: <SimulationListPage /> },
         ],
       },
       { path: 'naver-map-smoke', element: <NaverMapSmokePage /> },
@@ -493,7 +496,8 @@ export const appRouter = createBrowserRouter([
                   { path: 'saved', element: <SavedScenariosPage /> },
                   { path: 'scenarios/:scenarioId/pdf', element: <PdfPreviewPage /> },
                   { path: 'scenarios/:scenarioId', element: <ScenarioEditorPage /> },
-                  { path: ':diseaseType', element: <ScenarioEditorPage /> },
+                  { path: ':diseaseType/new', element: <ScenarioEditorPage /> },
+                  { path: ':diseaseType', element: <SimulationListPage /> },
                 ],
               },
               { path: 'insurer-managers', element: <InsurerManagersPage /> },

@@ -72,6 +72,102 @@ body.coverage-simulator-immersive .pc-workspace-layout > main {
   border-bottom: 1px solid var(--cs-color-border);
 }
 
+.coverage-simulator-appbar--compact {
+  min-height: 46px;
+  padding: 6px var(--cs-space-3);
+}
+
+.coverage-simulator-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--cs-mobile-dock-height, 72px) + 16px);
+  transform: translateX(-50%);
+  z-index: calc(var(--cs-z-sheet-overlay) + 2);
+  max-width: min(92vw, 360px);
+  margin: 0;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #fff;
+  font-size: 0.875rem;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.2);
+  pointer-events: none;
+}
+
+.coverage-simulator-dialog__title {
+  margin: 0 0 var(--cs-space-3);
+  font-size: var(--cs-font-section);
+  font-weight: 700;
+}
+
+.coverage-simulator-dialog__input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--cs-color-border);
+  border-radius: 10px;
+  font: inherit;
+}
+
+.coverage-simulator-dialog__error {
+  margin: var(--cs-space-2) 0 0;
+  font-size: 0.8125rem;
+  color: #dc2626;
+}
+
+.coverage-simulator-dialog__actions {
+  display: flex;
+  gap: var(--cs-space-2);
+  margin-top: var(--cs-space-4);
+}
+
+.coverage-simulator-dialog__actions .coverage-simulator-primary-btn,
+.coverage-simulator-dialog__actions .coverage-simulator-secondary-btn {
+  flex: 1;
+}
+
+.cs-simulation-list__heading {
+  margin: var(--cs-space-3) 0 var(--cs-space-2);
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--cs-color-text-muted);
+}
+
+.cs-simulation-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cs-space-2);
+  margin-bottom: var(--cs-space-4);
+}
+
+.cs-simulation-list__card {
+  width: 100%;
+  text-align: left;
+  padding: var(--cs-space-3);
+  border: 1px solid var(--cs-color-border);
+  border-radius: 12px;
+  background: var(--cs-color-surface);
+  cursor: pointer;
+  font: inherit;
+}
+
+.cs-simulation-list__title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.cs-simulation-list__meta {
+  font-size: 0.75rem;
+  color: var(--cs-color-text-muted);
+  line-height: 1.4;
+}
+
+.cs-simulation-list__cta {
+  width: 100%;
+}
+
 .coverage-simulator-appbar__title {
   font-size: var(--cs-font-section);
   font-weight: 700;
