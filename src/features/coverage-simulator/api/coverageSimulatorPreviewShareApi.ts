@@ -39,3 +39,20 @@ export async function uploadPreviewCoverageSharePdf(shareId: string, pdfBlob: Bl
     },
   )
 }
+
+export async function createPreviewCoveragePdfArtifact(
+  pdfBlob: Blob,
+  fileName: string,
+): Promise<{ downloadUrl: string; fileName: string }> {
+  return apiRequest<{ downloadUrl: string; fileName: string }>(
+    '/api/dev/coverage-simulator/pdf-artifacts',
+    {
+      method: 'POST',
+      body: pdfBlob,
+      headers: {
+        'Content-Type': 'application/pdf',
+        'X-Coverage-Pdf-Filename': encodeURIComponent(fileName),
+      },
+    },
+  )
+}

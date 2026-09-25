@@ -13,6 +13,13 @@ import {
   toPublicViewerPayload,
 } from '../coverage-simulator/coverageSimulationShareService.js'
 import { buildCoveragePdfFileNameFromScenario } from '../coverage-simulator/coverageSharePdfFileName.js'
+import {
+  buildCoveragePdfArtifactDownloadUrl,
+  createCoveragePdfArtifact,
+  decodeCoveragePdfFileNameHeader,
+  loadCoveragePdfArtifact,
+} from '../coverage-simulator/coveragePdfArtifactService.js'
+import { buildAttachmentContentDisposition } from '../lib/storageContentDisposition.js'
 
 const pdfUpload = express.raw({ type: 'application/pdf', limit: '16mb' })
 
@@ -131,6 +138,48 @@ export function registerCoverageSimulatorShareApi(apiRouter, ctx) {
     }
   })
 
+  apiRouter.post('/coverage-simulator/pdf-artifacts', requireAuth, pdfUpload, async (req, res) => {
+    try {
+      const owner = resolveShareOwnerContext(req, res)
+      if (!owner) return
+      const artifact = await createCoveragePdfArtifact(pool, {
+        buffer: req.body,
+        fileName: decodeCoveragePdfFileNameHeader(req.headers['x-coverage-pdf-filename']),
+        sourceMode: 'crm',
+        gaId: owner.gaId,
+        userId: owner.userId,
+      })
+      res.status(201).json({
+        downloadUrl: buildCoveragePdfArtifactDownloadUrl(req, artifact.token),
+        fileName: artifact.fileName,
+      })
+    } catch (error) {
+      if (error?.httpStatus) {
+        res.status(error.httpStatus).json({ message: error.message })
+        return
+      }
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.get('/public/coverage-pdf-artifacts/:token/download', async (req, res) => {
+    try {
+      const resolved = await loadCoveragePdfArtifact(pool, req.params.token)
+      if (resolved.status !== 'ok') {
+        res.status(resolved.status === 'expired' ? 410 : 404).send('PDF를 찾을 수 없습니다.')
+        return
+      }
+      res.setHeader('Content-Type', 'application/pdf')
+      res.setHeader('Content-Disposition', buildAttachmentContentDisposition(resolved.fileName))
+      res.setHeader('Content-Length', String(resolved.buffer.length))
+      res.setHeader('Cache-Control', 'private, no-store')
+      res.setHeader('X-Content-Type-Options', 'nosniff')
+      res.send(resolved.buffer)
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
   apiRouter.get('/public/coverage-shares/:token', async (req, res) => {
     try {
       const token = String(req.params.token ?? '').trim()
@@ -161,7 +210,7 @@ export function registerCoverageSimulatorShareApi(apiRouter, ctx) {
       }
       const fileName = buildCoveragePdfFileNameFromScenario(resolved.row.scenario_snapshot)
       res.setHeader('Content-Type', 'application/pdf')
-      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+      res.setHeader('Content-Disposition', buildAttachmentContentDisposition(fileName))
       res.setHeader('Cache-Control', 'private, no-store')
       res.setHeader('X-Robots-Tag', 'noindex, nofollow')
       res.send(resolved.buffer)

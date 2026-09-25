@@ -11,6 +11,11 @@ import {
   listCoverageSimulationShares,
   revokeCoverageSimulationShare,
 } from '../coverage-simulator/coverageSimulationShareService.js'
+import {
+  buildCoveragePdfArtifactDownloadUrl,
+  createCoveragePdfArtifact,
+  decodeCoveragePdfFileNameHeader,
+} from '../coverage-simulator/coveragePdfArtifactService.js'
 
 const pdfUpload = express.raw({ type: 'application/pdf', limit: '16mb' })
 
@@ -118,6 +123,32 @@ export function registerCoverageSimulatorPreviewShareApi(apiRouter, ctx) {
       }
       await attachCoverageSharePdf(pool, owner.gaId, owner.userId, shareId, req.body)
       res.json({ ok: true, pdfReady: true })
+    } catch (error) {
+      if (error?.httpStatus) {
+        res.status(error.httpStatus).json({ message: error.message })
+        return
+      }
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.post('/dev/coverage-simulator/pdf-artifacts', pdfUpload, async (req, res) => {
+    try {
+      if (!owner) {
+        res.status(503).json({ message: 'Preview share가 설정되지 않았습니다.' })
+        return
+      }
+      const artifact = await createCoveragePdfArtifact(pool, {
+        buffer: req.body,
+        fileName: decodeCoveragePdfFileNameHeader(req.headers['x-coverage-pdf-filename']),
+        sourceMode: 'preview-dev',
+        gaId: owner.gaId,
+        userId: owner.userId,
+      })
+      res.status(201).json({
+        downloadUrl: buildCoveragePdfArtifactDownloadUrl(req, artifact.token),
+        fileName: artifact.fileName,
+      })
     } catch (error) {
       if (error?.httpStatus) {
         res.status(error.httpStatus).json({ message: error.message })

@@ -72,6 +72,25 @@ export async function uploadCoverageSharePdf(token: string, shareId: string, pdf
   )
 }
 
+export async function createCoveragePdfArtifact(
+  token: string,
+  pdfBlob: Blob,
+  fileName: string,
+): Promise<{ downloadUrl: string; fileName: string }> {
+  return apiRequest<{ downloadUrl: string; fileName: string }>(
+    '/api/coverage-simulator/pdf-artifacts',
+    {
+      method: 'POST',
+      token,
+      body: pdfBlob,
+      headers: {
+        'Content-Type': 'application/pdf',
+        'X-Coverage-Pdf-Filename': encodeURIComponent(fileName),
+      },
+    },
+  )
+}
+
 export async function fetchPublicCoverageShare(token: string): Promise<PublicCoverageSharePayload> {
   return apiRequest<PublicCoverageSharePayload>(
     `/api/public/coverage-shares/${encodeURIComponent(token)}`,

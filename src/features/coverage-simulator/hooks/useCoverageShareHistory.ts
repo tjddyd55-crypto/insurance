@@ -1,18 +1,16 @@
 import { useCallback, useRef, useState } from 'react'
 
-import { listCoverageSimulationShares, type CoverageShareListItem } from '../api/coverageSimulatorShareApi'
-import { listPreviewCoverageSimulationShares } from '../api/coverageSimulatorPreviewShareApi'
+import type { CoverageShareListItem } from '../api/coverageSimulatorShareApi'
 import { mapCoverageShareHistoryError } from '../api/mapCoverageShareApiError'
-import type { CoverageShareProviderMode } from '../share/coverageShareProviderMode'
+import type { CoverageShareProvider } from '../share/CoverageShareProvider'
 
 type Params = {
-  providerMode: CoverageShareProviderMode
-  token: string | null
+  provider: CoverageShareProvider | null
   consultationId: string | null
   enabled: boolean
 }
 
-export function useCoverageShareHistory({ providerMode, token, consultationId, enabled }: Params) {
+export function useCoverageShareHistory({ provider, consultationId, enabled }: Params) {
   const [shares, setShares] = useState<CoverageShareListItem[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -20,19 +18,15 @@ export function useCoverageShareHistory({ providerMode, token, consultationId, e
 
   const load = useCallback(
     async (force = false) => {
-      if (!enabled || !consultationId) return
-      if (providerMode === 'crm' && !token) return
-      const cacheKey = `${providerMode}:${token ?? 'preview'}:${consultationId}`
+      if (!enabled || !provider || !consultationId) return
+      const cacheKey = `${provider.mode}:${consultationId}`
       if (!force && loadedForRef.current === cacheKey) {
         return
       }
       setLoading(true)
       setError(null)
       try {
-        const res =
-          providerMode === 'preview-dev'
-            ? await listPreviewCoverageSimulationShares(consultationId)
-            : await listCoverageSimulationShares(token!, consultationId)
+        const res = await provider.listShares(consultationId)
         setShares(res.shares)
         loadedForRef.current = cacheKey
       } catch (err) {
@@ -41,7 +35,7 @@ export function useCoverageShareHistory({ providerMode, token, consultationId, e
         setLoading(false)
       }
     },
-    [consultationId, enabled, providerMode, token],
+    [consultationId, enabled, provider],
   )
 
   const invalidate = useCallback(() => {

@@ -1,20 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 
-import { fetchMe } from '../../auth/authApi'
 import { useAuth } from '../../auth/AuthProvider'
 import { mapCoverageShareCreateError } from '../api/mapCoverageShareApiError'
-import {
-  createCoverageSimulationShare,
-  revokeCoverageSimulationShare,
-  uploadCoverageSharePdf,
-  type CreateCoverageShareResponse,
-} from '../api/coverageSimulatorShareApi'
-import {
-  createPreviewCoverageSimulationShare,
-  revokePreviewCoverageSimulationShare,
-  uploadPreviewCoverageSharePdf,
-} from '../api/coverageSimulatorPreviewShareApi'
+import type { CreateCoverageShareResponse } from '../api/coverageSimulatorShareApi'
 import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
 import { buildCoverageShareWebSharePayload } from '../domain/coverageShareCopy'
 import { normalizeConsultation } from '../domain/normalizeConsultation'
@@ -28,6 +17,7 @@ import {
   isPreviewShareClientEnabled,
   resolveCoverageShareProviderMode,
 } from '../share/coverageShareProviderMode'
+import { createCoverageShareProvider } from '../share/createCoverageShareProvider'
 import { getScenarioById } from '../storage/scenarioRepository'
 import type { SaveConsultationResult } from './useScenarioEditor'
 import { useCoverageShareHistory } from './useCoverageShareHistory'
@@ -54,7 +44,7 @@ async function buildSharePdfBlob(scenario: CoverageScenario): Promise<Blob> {
   host.style.left = '-10000px'
   host.style.top = '0'
   host.style.width = '794px'
-  host.style.background = '#fff'
+  host.style.background = 'var(--cs-color-surface, white)'
   document.body.appendChild(host)
   const mount = document.createElement('div')
   host.appendChild(mount)
@@ -86,6 +76,10 @@ export function useCoverageShareFlow({
   const { token, isAuthenticated } = useAuth()
   const { userKey, layoutMode } = useCoverageSimulatorScope()
   const providerMode = resolveCoverageShareProviderMode(layoutMode)
+  const provider = useMemo(
+    () => createCoverageShareProvider(providerMode, token),
+    [providerMode, token],
+  )
   const [dialogOpen, setDialogOpen] = useState(false)
   const [phase, setPhase] = useState<'confirm' | 'result'>('confirm')
   const [sharing, setSharing] = useState(false)
@@ -113,8 +107,7 @@ export function useCoverageShareFlow({
     (providerMode === 'preview-dev' ? isPreviewShareClientEnabled() : Boolean(token))
 
   const history = useCoverageShareHistory({
-    providerMode,
-    token,
+    provider,
     consultationId,
     enabled: historyEnabled,
   })
@@ -125,17 +118,6 @@ export function useCoverageShareFlow({
     if (!dialogOpen || !historyEnabled) return
     void loadShareHistory()
   }, [dialogOpen, historyEnabled, loadShareHistory])
-
-  const ensureAuthSession = useCallback(async (): Promise<boolean> => {
-    if (providerMode === 'preview-dev') return true
-    if (!token) return false
-    try {
-      await fetchMe(token)
-      return true
-    } catch {
-      return false
-    }
-  }, [providerMode, token])
 
   const ensureSaved = useCallback(async (): Promise<CoverageScenario | null> => {
     if (!scenario) return null
@@ -184,7 +166,7 @@ export function useCoverageShareFlow({
     const saved = await ensureSaved()
     if (!saved) return
     if (providerMode === 'crm') {
-      const authed = await ensureAuthSession()
+      const authed = await provider?.ensureAccess()
       if (!authed) {
         showToast('로그인이 만료되었습니다. 다시 로그인해 주세요.')
         return
@@ -194,28 +176,25 @@ export function useCoverageShareFlow({
     setCreateError(null)
     setPhase('confirm')
     setDialogOpen(true)
-  }, [ensureAuthSession, ensureSaved, providerMode, showShareButton, showToast, token])
+  }, [ensureSaved, provider, providerMode, showShareButton, showToast, token])
 
   const uploadPdfInBackground = useCallback(
     async (shareId: string, snapshot: CoverageScenario) => {
+      if (!provider) return
       try {
         const blob = await buildSharePdfBlob(snapshot)
-        if (providerMode === 'preview-dev') {
-          await uploadPreviewCoverageSharePdf(shareId, blob)
-        } else if (token) {
-          await uploadCoverageSharePdf(token, shareId, blob)
-        }
+        await provider.uploadSharePdf(shareId, blob)
       } catch {
         // public viewer snapshot fallback
       }
     },
-    [providerMode, token],
+    [provider],
   )
 
   const createShare = useCallback(async () => {
-    if (!scenario || shareBusyRef.current || !canExecuteShare) return
-    const authed = await ensureAuthSession()
-    if (!authed) {
+    if (!scenario || !provider || shareBusyRef.current || !canExecuteShare) return
+    const authed = await provider.ensureAccess()
+    if (!authed && provider.mode === 'crm') {
       setCreateError('로그인이 만료되었습니다. 다시 로그인한 후 공유해 주세요.')
       return
     }
@@ -224,22 +203,23 @@ export function useCoverageShareFlow({
     setSharing(true)
     setCreateError(null)
     try {
-      const created =
-        providerMode === 'preview-dev'
-          ? await createPreviewCoverageSimulationShare(snapshot.id, snapshot)
-          : await createCoverageSimulationShare(token!, snapshot.id, snapshot)
+      const created = await provider.createShare(snapshot)
       setShareResult(created)
       setPhase('result')
       history.invalidate()
       void history.load(true)
       void uploadPdfInBackground(created.shareId, snapshot)
     } catch (error) {
-      setCreateError(mapCoverageShareCreateError(error))
+      setCreateError(
+        provider.mode === 'preview-dev'
+          ? 'DEV 공유 링크를 생성하지 못했습니다. 다시 시도해 주세요.'
+          : mapCoverageShareCreateError(error),
+      )
     } finally {
       setSharing(false)
       shareBusyRef.current = false
     }
-  }, [canExecuteShare, ensureAuthSession, history, providerMode, scenario, token, uploadPdfInBackground, userKey])
+  }, [canExecuteShare, history, provider, scenario, uploadPdfInBackground, userKey])
 
   const closeDialog = useCallback(() => {
     if (sharing) return
@@ -262,19 +242,16 @@ export function useCoverageShareFlow({
 
   const revokeShare = useCallback(
     async (shareId: string) => {
+      if (!provider) return
       try {
-        if (providerMode === 'preview-dev') {
-          await revokePreviewCoverageSimulationShare(shareId)
-        } else if (token) {
-          await revokeCoverageSimulationShare(token, shareId)
-        }
+        await provider.revokeShare(shareId)
         history.invalidate()
         await history.load(true)
       } catch {
         setCreateError('공유 중지에 실패했습니다. 다시 시도해 주세요.')
       }
     },
-    [history, providerMode, token],
+    [history, provider],
   )
 
   const nativeShare = useCallback(async () => {

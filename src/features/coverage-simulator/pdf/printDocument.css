@@ -449,8 +449,20 @@
 
   .coverage-simulator-pdf-preview__zoom-viewport {
     width: 100%;
-    touch-action: none;
+    min-height: 100%;
+    overflow: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-x pan-y;
     user-select: none;
+  }
+
+  .coverage-simulator-pdf-preview__zoom-viewport--zoomed {
+    touch-action: none;
+    cursor: grab;
+  }
+
+  .coverage-simulator-pdf-preview__zoom-viewport--zoomed:active {
+    cursor: grabbing;
   }
 
   .coverage-simulator-pdf-preview__zoom-spacer {
