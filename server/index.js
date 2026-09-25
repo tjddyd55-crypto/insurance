@@ -180,6 +180,7 @@ import { logSmsModuleEnvironmentHint, validateSmsModuleStartupConfig } from './s
 import { logPhoneVerificationStartupDiagnostics } from './services/phoneVerificationCredentials.js'
 import { registerContractPublicOtpApi } from './apis/contractPublicOtpApi.js'
 import { registerContractPublicApi } from './apis/contractPublicApi.js'
+import { registerCoverageSimulatorShareApi } from './apis/coverageSimulatorShareApi.js'
 import { registerContractAdminApi } from './apis/contractAdminApi.js'
 import { registerContractUserApi } from './apis/contractUserApi.js'
 import { registerSubscriptionEndpoints } from './subscription/endpoints.js'
@@ -1538,6 +1539,8 @@ registerAuthAccountSmsApi(apiRouter, {
 registerContractPublicOtpApi(apiRouter, { pool, handleDbError })
 
 registerContractPublicApi(apiRouter, { pool, handleDbError })
+
+registerCoverageSimulatorShareApi(apiRouter, { pool, requireAuth, handleDbError })
 
 registerContractAdminApi(apiRouter, {
   pool,

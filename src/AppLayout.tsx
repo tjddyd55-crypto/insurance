@@ -28,12 +28,14 @@ export function AppLayout() {
     location.pathname === '/terms' ||
     location.pathname === '/privacy-policy'
   const isExternalAccountVaultRoute = location.pathname.startsWith('/share/account-credentials/')
+  const isCoverageSharePublicRoute = location.pathname.startsWith('/coverage/share/')
 
   const rootClass = [
     'app-root',
     isAuthenticated ? 'app-root--authenticated' : '',
     isPublicLegalRoute ? 'app-root--public-legal' : '',
     isExternalAccountVaultRoute ? 'app-root--external-account-vault' : '',
+    isCoverageSharePublicRoute ? 'app-root--coverage-share-public' : '',
   ]
     .filter(Boolean)
     .join(' ')
@@ -46,8 +48,12 @@ export function AppLayout() {
        * 창 최소화/최대화/닫기 버튼은 비인증 상태에서도 제공되어야 하기 때문.
        * (`ElectronTitleBar` 내부의 GA 테넌트·뒤로가기 로직은 이미 비인증을 고려한다)
        */}
-      {isElectronApp() && !isExternalAccountVaultRoute ? <ElectronTitleBar /> : null}
-      {!isElectronApp() && isAuthenticated && !hidePublicIntroChrome && !isExternalAccountVaultRoute ? (
+      {isElectronApp() && !isExternalAccountVaultRoute && !isCoverageSharePublicRoute ? <ElectronTitleBar /> : null}
+      {!isElectronApp() &&
+      isAuthenticated &&
+      !hidePublicIntroChrome &&
+      !isExternalAccountVaultRoute &&
+      !isCoverageSharePublicRoute ? (
         <WebProgramTopBar />
       ) : null}
       {!hideMobileLoginTopChrome && !hidePublicIntroChrome && !isPublicLegalRoute && !isExternalAccountVaultRoute ? (

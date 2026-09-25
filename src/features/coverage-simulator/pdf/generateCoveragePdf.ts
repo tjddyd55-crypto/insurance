@@ -1,7 +1,7 @@
 import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
 
-export async function downloadCoveragePdfFromPrintRoot(root: HTMLElement, fileName: string): Promise<void> {
+async function printRootToJsPdf(root: HTMLElement): Promise<jsPDF> {
   const canvas = await html2canvas(root, {
     scale: 2,
     useCORS: true,
@@ -29,6 +29,16 @@ export async function downloadCoveragePdfFromPrintRoot(root: HTMLElement, fileNa
     heightLeft -= pageHeight
   }
 
+  return pdf
+}
+
+export async function buildCoveragePdfBlobFromPrintRoot(root: HTMLElement): Promise<Blob> {
+  const pdf = await printRootToJsPdf(root)
+  return pdf.output('blob')
+}
+
+export async function downloadCoveragePdfFromPrintRoot(root: HTMLElement, fileName: string): Promise<void> {
+  const pdf = await printRootToJsPdf(root)
   pdf.save(fileName)
 }
 

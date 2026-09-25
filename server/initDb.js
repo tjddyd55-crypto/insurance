@@ -4437,6 +4437,10 @@ export async function initDb() {
   await ensureContractSelfSmsSchema(pool)
   await ensureInsurerSitesSchema(pool)
   await ensurePublicCustomerInviteSessionsSchema(pool)
+  const { ensureCoverageSimulationShareSchema } = await import(
+    './coverage-simulator/coverageSimulationShareSchema.js'
+  )
+  await ensureCoverageSimulationShareSchema(pool)
   await ensureReferralSchema(pool)
   await ensureBillingSchema(pool)
   await ensureInsuranceBillingPhase1Schema(pool)

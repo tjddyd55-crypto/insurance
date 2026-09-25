@@ -7,8 +7,11 @@ type Props = {
   onSave: () => void
   saving?: boolean
   onPdf?: () => void
+  onShare?: () => void
+  shareDisabled?: boolean
   resetLabel?: string
   showPdf?: boolean
+  showShare?: boolean
 }
 
 export function MobilePreviewEditorHeader({
@@ -18,8 +21,11 @@ export function MobilePreviewEditorHeader({
   onSave,
   saving = false,
   onPdf,
+  onShare,
+  shareDisabled = false,
   resetLabel = '초기화',
   showPdf = true,
+  showShare = false,
 }: Props) {
   const displayTitle = mobilePreviewHeaderTitle(title)
 
@@ -41,6 +47,16 @@ export function MobilePreviewEditorHeader({
         >
           {saving ? '저장 중…' : '저장'}
         </button>
+        {showShare && onShare ? (
+          <button
+            type="button"
+            className="cs-mobile-editor-header__action cs-mobile-editor-header__action--muted"
+            onClick={onShare}
+            disabled={shareDisabled}
+          >
+            공유
+          </button>
+        ) : null}
         {showPdf && onPdf ? (
           <button type="button" className="cs-mobile-editor-header__action cs-mobile-editor-header__action--muted" onClick={onPdf}>
             PDF

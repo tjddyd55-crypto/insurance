@@ -7,7 +7,10 @@ import { AmountEditSheet } from '../AmountEditSheet'
 import { CoverageSimulatorMobileItemForm } from '../CoverageSimulatorMobileItemForm'
 import { CoverageSimulatorLayout } from '../CoverageSimulatorLayout'
 import { CoverageSimulatorToastProvider, useCoverageSimulatorToast } from '../CoverageSimulatorToast'
+import { CoverageShareDialog } from '../CoverageShareDialog'
+import { CoverageShareHistoryPanel } from '../CoverageShareHistoryPanel'
 import { MobilePreviewEditorHeader } from '../MobilePreviewEditorHeader'
+import { useCoverageShareFlow } from '../../hooks/useCoverageShareFlow'
 import { MobilePreviewStickyDock } from '../MobilePreviewStickyDock'
 import { SaveConsultationTitleDialog } from '../SaveConsultationTitleDialog'
 import { diseaseTypeTitle } from '../../domain/diseaseTypeLabels'
@@ -42,6 +45,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
     persist,
     requestSaveConsultation,
     isSaving,
+    isDirty,
     formMode,
     closeForm,
     openAddForm,
@@ -111,6 +115,15 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
     const exists = scenario.items.some((entry) => entry.id === formMode.itemId && entry.type === 'coverage')
     if (!exists) closeForm()
   }, [closeForm, formMode, scenario])
+
+  const isTemplateEarly = isTemplateEditorMode(editor)
+  const shareFlow = useCoverageShareFlow({
+    scenario: isTemplateEarly ? null : scenario,
+    isDirty,
+    requestSaveConsultation,
+    showToast,
+    confirm,
+  })
 
   if (!scenario) {
     return (
@@ -234,6 +247,9 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
           onSave={isTemplate ? () => persist(scenario) : handleSave}
           saving={!isTemplate && isSaving}
           onPdf={!isTemplate ? () => navigate(`${basePath}/scenarios/${scenario.id}/pdf`) : undefined}
+          onShare={!isTemplate && shareFlow.canShare ? () => void shareFlow.openShareDialog() : undefined}
+          shareDisabled={shareFlow.sharing}
+          showShare={!isTemplate && shareFlow.canShare}
           showPdf={!isTemplate}
           resetLabel={isTemplate ? '비우기' : '초기화'}
         />
@@ -273,6 +289,16 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
             >
               {isSaving ? '저장 중…' : '저장'}
             </FormButton>
+            {!isTemplate && shareFlow.canShare ? (
+              <FormButton
+                variant="secondary"
+                className="coverage-simulator-secondary-btn"
+                disabled={shareFlow.sharing}
+                onClick={() => void shareFlow.openShareDialog()}
+              >
+                {shareFlow.sharing ? '공유 중…' : '공유'}
+              </FormButton>
+            ) : null}
             {!isTemplate ? (
               <FormButton
                 variant="primary"
@@ -314,6 +340,9 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
           onInlineAmountEditChange={handleInlineAmountEditChange}
           onInlineAmountCommit={handleInlineAmountCommit}
         />
+        {!isTemplate && shareFlow.canShare ? (
+          <CoverageShareHistoryPanel consultationId={scenario.id} showToast={showToast} />
+        ) : null}
       </main>
 
       {useMobileStickyDock ? (
@@ -364,6 +393,19 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
             setTitleValidationError(null)
           }}
           onConfirm={handleTitleConfirm}
+        />
+      ) : null}
+      {!isTemplate ? (
+        <CoverageShareDialog
+          open={shareFlow.dialogOpen}
+          phase={shareFlow.phase}
+          loading={shareFlow.sharing}
+          shareUrl={shareFlow.shareUrl}
+          onClose={shareFlow.closeDialog}
+          onCreateShare={() => void shareFlow.createShare()}
+          onCopyLink={() => void shareFlow.copyShareLink()}
+          onNativeShare={() => void shareFlow.nativeShare()}
+          canNativeShare={shareFlow.canNativeShare}
         />
       ) : null}
     </CoverageSimulatorLayout>

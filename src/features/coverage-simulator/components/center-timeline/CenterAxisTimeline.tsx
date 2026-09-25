@@ -30,6 +30,7 @@ export type CenterAxisTimelineProps = {
   currentTotal: number
   proposedTotal: number
   variant: 'mobile' | 'pc'
+  readOnly?: boolean
   showInlineSummary?: boolean
   compactInsert?: boolean
   itemMenuMode?: 'popover' | 'action-sheet'
@@ -64,6 +65,7 @@ function renderAmountCell(
   variant: CenterAxisTimelineProps['variant'],
   handlers: Handlers,
   inline: InlineAmountOptions | null,
+  readOnly: boolean,
 ) {
   const amount = field === 'current' ? item.currentAmount : item.proposedAmount
   const baseClass = [
@@ -74,6 +76,14 @@ function renderAmountCell(
   ]
     .filter(Boolean)
     .join(' ')
+
+  if (readOnly) {
+    return (
+      <div className={baseClass}>
+        <span className="cs-axis-amount__value">{formatCoverageAmountLabel(amount)}</span>
+      </div>
+    )
+  }
 
   if (variant === 'mobile' && inline) {
     const active = inline.inlineAmountEdit?.itemId === item.id && inline.inlineAmountEdit?.field === field
@@ -101,10 +111,10 @@ function renderCoverageRow(
   item: CoverageScenarioItem,
   variant: CenterAxisTimelineProps['variant'],
   handlers: Handlers,
-  options: Pick<CenterAxisTimelineProps, 'items' | 'itemMenuMode'>,
+  options: Pick<CenterAxisTimelineProps, 'items' | 'itemMenuMode' | 'readOnly'>,
   inline: InlineAmountOptions | null,
 ) {
-  const showTimelineReorder = options.itemMenuMode === 'action-sheet'
+  const showTimelineReorder = !options.readOnly && options.itemMenuMode === 'action-sheet'
 
   return (
     <div key={item.id} className="cs-axis-event">
@@ -115,28 +125,30 @@ function renderCoverageRow(
         <p className="cs-axis-event__title-axis">
           <span className="cs-axis-event__label">{item.label}</span>
         </p>
-        <div className="cs-axis-event__actions">
-          {showTimelineReorder ? (
-            <CoverageTimelineReorderButtons
-              items={options.items}
-              itemId={item.id}
-              onMoveUp={() => handlers.onMoveItem(item.id, 'up')}
-              onMoveDown={() => handlers.onMoveItem(item.id, 'down')}
+        {!options.readOnly ? (
+          <div className="cs-axis-event__actions">
+            {showTimelineReorder ? (
+              <CoverageTimelineReorderButtons
+                items={options.items}
+                itemId={item.id}
+                onMoveUp={() => handlers.onMoveItem(item.id, 'up')}
+                onMoveDown={() => handlers.onMoveItem(item.id, 'down')}
+              />
+            ) : null}
+            <EventRowMenu
+              menuMode={options.itemMenuMode}
+              itemCategory={item.category}
+              itemLabel={item.label}
+              onEditAmount={() => handlers.onEditItem(item)}
+              onDelete={() => handlers.onRemoveItem(item.id)}
             />
-          ) : null}
-          <EventRowMenu
-            menuMode={options.itemMenuMode}
-            itemCategory={item.category}
-            itemLabel={item.label}
-            onEditAmount={() => handlers.onEditItem(item)}
-            onDelete={() => handlers.onRemoveItem(item.id)}
-          />
-        </div>
+          </div>
+        ) : null}
       </div>
       <div className="cs-axis-event__compare">
-        {renderAmountCell(item, 'current', variant, handlers, inline)}
+        {renderAmountCell(item, 'current', variant, handlers, inline, Boolean(options.readOnly))}
         <div className="cs-axis-event__spine" aria-hidden="true" />
-        {renderAmountCell(item, 'proposed', variant, handlers, inline)}
+        {renderAmountCell(item, 'proposed', variant, handlers, inline, Boolean(options.readOnly))}
       </div>
       {variant === 'pc' && item.memo ? (
         <p className="cs-axis-event__memo">{item.memo}</p>
@@ -149,6 +161,7 @@ function renderTimeMarker(
   item: Extract<ScenarioItem, { type: 'time-marker' }>,
   onRemove: (id: string) => void,
   markerMenuMode: 'inline-delete' | 'action-sheet',
+  readOnly: boolean,
 ) {
   return (
     <div key={item.id} className="cs-axis-marker coverage-simulator-time-marker">
@@ -162,12 +175,11 @@ function renderTimeMarker(
           </span>
           <span className="cs-axis-marker__hline-seg" aria-hidden="true" />
         </div>
-        <div className="cs-axis-marker__menu-slot">
-          <TimeMarkerRowMenu
-            menuMode={markerMenuMode}
-            onDelete={() => onRemove(item.id)}
-          />
-        </div>
+        {!readOnly ? (
+          <div className="cs-axis-marker__menu-slot">
+            <TimeMarkerRowMenu menuMode={markerMenuMode} onDelete={() => onRemove(item.id)} />
+          </div>
+        ) : null}
       </div>
     </div>
   )
@@ -178,16 +190,20 @@ function renderBlock(
   blockKey: string,
   variant: CenterAxisTimelineProps['variant'],
   handlers: Handlers,
-  options: Pick<CenterAxisTimelineProps, 'items' | 'itemMenuMode'>,
+  options: Pick<CenterAxisTimelineProps, 'items' | 'itemMenuMode' | 'readOnly'>,
   inline: InlineAmountOptions | null,
   onAddAfter: (afterOrder: number) => void,
+  readOnly: boolean,
 ) {
   if (block.kind === 'coverage') {
     return (
       <div key={blockKey} className="cs-axis-block">
-        {renderCoverageRow(block.item, variant, handlers, options, inline)}
+        {renderCoverageRow(block.item, variant, handlers, { ...options, readOnly }, inline)}
       </div>
     )
+  }
+  if (readOnly && block.kind === 'insert') {
+    return null
   }
   if (block.kind === 'insert') {
     return (
@@ -226,11 +242,12 @@ function renderFlatTimeline(
     compactInsert,
     itemMenuMode,
     onAddAfter,
+    readOnly = false,
   } = props
 
   return (
     <>
-      {compactInsert && items.length === 0 ? (
+      {!readOnly && compactInsert && items.length === 0 ? (
         <TimelineInsertControl afterOrder={-1} onInsert={onAddAfter} />
       ) : null}
       {items.map((item) => (
@@ -245,18 +262,18 @@ function renderFlatTimeline(
                   hideColumnLabels={variant === 'mobile'}
                 />
               ) : null}
-              {renderTimeMarker(item, removeMarker, markerMenuMode)}
+              {renderTimeMarker(item, removeMarker, markerMenuMode, readOnly)}
             </>
           ) : (
-            renderCoverageRow(item, variant, handlers, { items, itemMenuMode }, inline)
+            renderCoverageRow(item, variant, handlers, { items, itemMenuMode, readOnly }, inline)
           )}
-          {compactInsert && shouldShowTimelineInsertAfterItem(item, items, compactInsert) ? (
+          {!readOnly && compactInsert && shouldShowTimelineInsertAfterItem(item, items, compactInsert) ? (
             <TimelineInsertControl
               afterOrder={item.order}
               onInsert={onAddAfter}
               variant={item.type === 'time-marker' ? 'marker-tail' : 'default'}
             />
-          ) : !compactInsert ? (
+          ) : !readOnly && !compactInsert ? (
             <button
               type="button"
               className="cs-axis-add coverage-simulator-add-slot"
@@ -280,7 +297,7 @@ function renderPeriodSections(
   inline: InlineAmountOptions | null,
 ) {
   const sections = buildTimelinePeriodSections(props.items, true, periodByMarkerId)
-  const options = { items: props.items, itemMenuMode: props.itemMenuMode }
+  const options = { items: props.items, itemMenuMode: props.itemMenuMode, readOnly: props.readOnly ?? false }
 
   return sections.map((section) => (
     <div key={section.key} className="cs-period-section-wrap">
@@ -294,12 +311,13 @@ function renderPeriodSections(
             options,
             inline,
             props.onAddAfter,
+            props.readOnly ?? false,
           ),
         )}
       </div>
       {section.boundaryMarker ? (
         <div className="cs-period-boundary">
-          {renderTimeMarker(section.boundaryMarker, removeMarker, markerMenuMode)}
+          {renderTimeMarker(section.boundaryMarker, removeMarker, markerMenuMode, props.readOnly ?? false)}
         </div>
       ) : null}
     </div>
@@ -311,6 +329,7 @@ export function CenterAxisTimeline({
   currentTotal,
   proposedTotal,
   variant,
+  readOnly = false,
   showInlineSummary = true,
   compactInsert = false,
   itemMenuMode = 'popover',
@@ -353,6 +372,7 @@ export function CenterAxisTimeline({
     currentTotal,
     proposedTotal,
     variant,
+    readOnly,
     showInlineSummary,
     compactInsert,
     itemMenuMode,

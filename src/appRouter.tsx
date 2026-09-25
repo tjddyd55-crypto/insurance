@@ -137,6 +137,7 @@ import { CoverageSimulatorCrmRouteLayout } from './features/coverage-simulator/p
 import { ScenarioSelectPage } from './features/coverage-simulator/pages/ScenarioSelectPage'
 import { SimulationListPage } from './features/coverage-simulator/pages/SimulationListPage'
 import { CoverageScenarioTemplateEditorPage } from './features/coverage-simulator/pages/CoverageScenarioTemplateEditorPage'
+import { CoverageSharePublicPage } from './features/coverage-simulator/pages/CoverageSharePublicPage'
 import PublicAccountRestrictedPage from './features/common/PublicAccountRestrictedPage'
 import { PublicBoardWriterAdminPage } from './features/insurer-news/pages/PublicBoardWriterAdminPage'
 import { PublicBoardWriterLoginPage } from './features/insurer-news/pages/PublicBoardWriterLoginPage'
@@ -293,6 +294,7 @@ export const appRouter = createBrowserRouter([
       /* 외부 고객 입력(소개 링크) — 비로그인 유지. API는 /api/customer/external-create + ref·ga 검증 */
       { path: 'customer/input', element: <CustomerInputPage /> },
       { path: 'customer/register', element: <CustomerRegisterPage /> },
+      { path: 'coverage/share/:token', element: <CoverageSharePublicPage /> },
       { path: 'contracts/sign/:linkCode', element: <ContractSignPage /> },
       {
         path: 'share/account-credentials/shared/:token/:userId',
