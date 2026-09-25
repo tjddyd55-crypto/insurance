@@ -3,8 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom'
 
 import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
 import { CoverageSimulatorLayout } from '../components/CoverageSimulatorLayout'
+import FormButton from '../../../components/form/FormButton'
+import { buildCoveragePdfFileName } from '../pdf/coveragePdfFileName'
 import { CoverageSimulatorPrintDocument } from '../pdf/CoverageSimulatorPrintDocument'
-import { downloadCoveragePdfFromPrintRoot, printCoverageDocument } from '../pdf/generateCoveragePdf'
+import { downloadCoveragePdfFromPrintRoot } from '../pdf/generateCoveragePdf'
 import { getScenarioById } from '../storage/scenarioRepository'
 
 export function PdfPreviewPage() {
@@ -29,74 +31,49 @@ export function PdfPreviewPage() {
     )
   }
 
-  const fileName = `coverage-simulator-${scenario.title.replace(/\s+/g, '-')}.pdf`
+  const fileName = buildCoveragePdfFileName(scenario)
+
+  const savePdf = async () => {
+    if (!printRef.current?.firstElementChild) return
+    setBusy(true)
+    try {
+      await downloadCoveragePdfFromPrintRoot(printRef.current.firstElementChild as HTMLElement, fileName)
+    } finally {
+      setBusy(false)
+    }
+  }
 
   return (
     <CoverageSimulatorLayout>
       <header className="coverage-simulator-appbar">
-        <button
-          type="button"
+        <FormButton
+          variant="action"
           className="coverage-simulator-icon-btn"
           onClick={() => navigate(`${basePath}/scenarios/${scenario.id}`)}
         >
           ←
-        </button>
+        </FormButton>
         <div className="coverage-simulator-appbar__title">PDF 미리보기</div>
         <span />
       </header>
-      <main className="coverage-simulator-content" style={{ paddingBottom: 120 }}>
-        <div style={{ overflowX: 'auto' }}>
-          <div ref={printRef}>
+      <main className="coverage-simulator-content coverage-simulator-pdf-preview" style={{ paddingBottom: 96 }}>
+        <div className="coverage-simulator-pdf-preview__scroll">
+          <div ref={printRef} className="coverage-simulator-pdf-preview__page">
             <CoverageSimulatorPrintDocument scenario={scenario} />
           </div>
         </div>
       </main>
-      <footer className="coverage-simulator-bottom-bar" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
-        <button type="button" className="coverage-simulator-secondary-btn" onClick={() => printCoverageDocument()}>
-          인쇄
-        </button>
-        <button
-          type="button"
-          className="coverage-simulator-secondary-btn"
-          disabled={busy}
-          onClick={async () => {
-            if (!printRef.current?.firstElementChild) return
-            setBusy(true)
-            try {
-              await downloadCoveragePdfFromPrintRoot(
-                printRef.current.firstElementChild as HTMLElement,
-                fileName,
-              )
-            } finally {
-              setBusy(false)
-            }
-          }}
-        >
+      <footer className="coverage-simulator-bottom-bar" style={{ gridTemplateColumns: '1fr 1fr' }}>
+        <FormButton variant="secondary" className="coverage-simulator-secondary-btn" disabled={busy} onClick={savePdf}>
           PDF 저장
-        </button>
-        <button
-          type="button"
+        </FormButton>
+        <FormButton
+          variant="primary"
           className="coverage-simulator-primary-btn"
-          onClick={async () => {
-            if (!printRef.current?.firstElementChild) return
-            setBusy(true)
-            try {
-              await downloadCoveragePdfFromPrintRoot(
-                printRef.current.firstElementChild as HTMLElement,
-                fileName,
-              )
-              if (navigator.share) {
-                await navigator.share({ title: scenario.title, text: '보장 시뮬레이션 PDF' })
-              }
-            } catch {
-              /* user cancelled share */
-            } finally {
-              setBusy(false)
-            }
-          }}
+          onClick={() => navigate(`${basePath}/scenarios/${scenario.id}`)}
         >
-          공유
-        </button>
+          닫기
+        </FormButton>
       </footer>
     </CoverageSimulatorLayout>
   )
