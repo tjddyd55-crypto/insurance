@@ -1532,6 +1532,10 @@ html.coverage-simulator-overlay-scroll-lock .cs-axis-main {
   padding: var(--cs-space-3) var(--cs-space-3) var(--cs-space-6);
 }
 
+.cs-share-public--with-dock {
+  padding-bottom: calc(var(--cs-mobile-dock-height) + var(--cs-space-4));
+}
+
 .cs-share-public__header {
   padding: var(--cs-space-4) var(--cs-space-3) var(--cs-space-2);
   border-bottom: 1px solid var(--cs-color-border);

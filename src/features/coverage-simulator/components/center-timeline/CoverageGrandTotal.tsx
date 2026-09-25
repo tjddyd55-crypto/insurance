@@ -1,4 +1,5 @@
 import { formatTotalAmountLabel } from '../../domain/formatAmount'
+import { MobilePreviewStickyDock } from '../MobilePreviewStickyDock'
 
 type Props = {
   currentTotal: number
@@ -14,6 +15,12 @@ export function CoverageGrandTotal({
   sticky = false,
   className = '',
 }: Props) {
+  if (sticky) {
+    return (
+      <MobilePreviewStickyDock currentTotal={currentTotal} proposedTotal={proposedTotal} />
+    )
+  }
+
   return (
     <footer
       className={[

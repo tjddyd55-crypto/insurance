@@ -1,21 +1,19 @@
 import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
 
-async function waitForPrintFonts(): Promise<void> {
-  if (document.fonts?.ready) {
-    await document.fonts.ready
-  }
-  await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)))
-}
+import { COVERAGE_PDF_CAPTURE_WIDTH_PX, waitForCoveragePdfLayout } from './coveragePdfCapture'
 
 async function printRootToJsPdf(root: HTMLElement): Promise<jsPDF> {
-  await waitForPrintFonts()
+  await waitForCoveragePdfLayout(root)
+  const captureWidth = root.offsetWidth > 0 ? root.offsetWidth : COVERAGE_PDF_CAPTURE_WIDTH_PX
   const canvas = await html2canvas(root, {
     scale: 2,
     useCORS: true,
     backgroundColor: '#ffffff',
-    width: root.offsetWidth,
-    windowWidth: root.offsetWidth,
+    width: captureWidth,
+    windowWidth: captureWidth,
+    scrollX: 0,
+    scrollY: 0,
   })
   const imageData = canvas.toDataURL('image/jpeg', 0.98)
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })

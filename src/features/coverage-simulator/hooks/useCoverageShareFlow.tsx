@@ -11,6 +11,10 @@ import type { CoverageScenario } from '../domain/types'
 import { canUseWebShare, copyTextToClipboard } from '../lib/clipboard'
 import { buildCoveragePdfFileName } from '../pdf/coveragePdfFileName'
 import { CoverageSimulatorPrintDocument } from '../pdf/CoverageSimulatorPrintDocument'
+import {
+  COVERAGE_PDF_CAPTURE_WIDTH_PX,
+  waitForCoveragePdfLayout,
+} from '../pdf/coveragePdfCapture'
 import { buildCoveragePdfBlobFromPrintRoot } from '../pdf/generateCoveragePdf'
 import {
   canShowCoverageShareButton,
@@ -43,7 +47,7 @@ async function buildSharePdfBlob(scenario: CoverageScenario): Promise<Blob> {
   host.style.position = 'fixed'
   host.style.left = '-10000px'
   host.style.top = '0'
-  host.style.width = '794px'
+  host.style.width = `${COVERAGE_PDF_CAPTURE_WIDTH_PX}px`
   host.style.background = 'var(--cs-color-surface, white)'
   document.body.appendChild(host)
   const mount = document.createElement('div')
@@ -52,15 +56,11 @@ async function buildSharePdfBlob(scenario: CoverageScenario): Promise<Blob> {
   try {
     root = createRoot(mount)
     root.render(<CoverageSimulatorPrintDocument scenario={scenario} />)
-    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)))
-    if (document.fonts?.ready) {
-      await document.fonts.ready
-    }
-    await new Promise((resolve) => setTimeout(resolve, 80))
     const printRoot = mount.firstElementChild as HTMLElement | null
     if (!printRoot) {
       throw new Error('PDF 렌더 루트를 찾을 수 없습니다.')
     }
+    await waitForCoveragePdfLayout(printRoot)
     return await buildCoveragePdfBlobFromPrintRoot(printRoot)
   } finally {
     root?.unmount()

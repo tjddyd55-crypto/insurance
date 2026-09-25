@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom'
 import FormButton from '../../../components/form/FormButton'
 import { ApiError } from '../../../lib/apiClient'
 import { CoverageScenarioTimeline } from '../components/center-timeline/CoverageScenarioTimeline'
+import { MobilePreviewStickyDock } from '../components/MobilePreviewStickyDock'
 import { CoverageSimulatorLayout } from '../components/CoverageSimulatorLayout'
 import {
   fetchPublicCoverageShare,
@@ -143,11 +144,17 @@ function CoverageSharePublicPageBody() {
           PDF 다운로드
         </FormButton>
       </header>
-      <main className="cs-share-public">
+      <main className="cs-share-public cs-share-public--with-dock">
         {viewModel ? (
-          <CoverageScenarioTimeline mode="readonly" viewModel={viewModel} variant="mobile" showGrandTotal />
+          <CoverageScenarioTimeline mode="readonly" viewModel={viewModel} variant="mobile" showGrandTotal={false} />
         ) : null}
       </main>
+      {viewModel ? (
+        <MobilePreviewStickyDock
+          currentTotal={viewModel.totals.currentTotal}
+          proposedTotal={viewModel.totals.proposedTotal}
+        />
+      ) : null}
     </CoverageSimulatorLayout>
   )
 }

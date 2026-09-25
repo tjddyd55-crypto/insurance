@@ -58,7 +58,8 @@ export function CoverageScenarioTimeline({
   const readOnly = mode !== 'editable'
   const resolvedCompactInsert = compactInsert ?? variant === 'mobile'
   const resolvedItemMenuMode = itemMenuMode ?? (variant === 'mobile' ? 'action-sheet' : 'popover')
-  const preserveActionsGeometry = readOnly && resolvedItemMenuMode === 'action-sheet'
+  const preserveActionsGeometry =
+    readOnly && mode !== 'print' && resolvedItemMenuMode === 'action-sheet'
 
   return (
     <div

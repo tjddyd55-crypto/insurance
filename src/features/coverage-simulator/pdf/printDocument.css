@@ -12,7 +12,8 @@
   --cs-print-badge-col: 44px;
   --cs-print-actions-col: 0px;
 
-  width: 210mm;
+  width: 794px;
+  max-width: 794px;
   min-height: 297mm;
   margin: 0 auto;
   padding: 0;
@@ -480,7 +481,7 @@
     position: fixed;
     left: -12000px;
     top: 0;
-    width: 210mm;
+    width: 794px;
     pointer-events: none;
     opacity: 0;
     z-index: -1;
@@ -509,4 +510,48 @@
 .coverage-simulator-print-root .cs-axis-summary__value {
   line-height: 1.4;
   overflow: visible;
+}
+
+.coverage-simulator-print-root .cs-axis-event__actions--spacer,
+.coverage-simulator-print-root .cs-axis-marker__menu-slot--spacer {
+  display: none;
+}
+
+.coverage-simulator-print-root .cs-axis-event__title-axis {
+  max-width: calc(100% - var(--cs-axis-event-badge-col-width) - 12px);
+}
+
+.coverage-simulator-print-root .cs-axis-event__title-axis .cs-axis-event__label {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  word-break: keep-all;
+  line-height: 1.35;
+  min-height: 1.35em;
+}
+
+.coverage-simulator-print-root .cs-axis-event__head {
+  min-height: 28px;
+  align-items: center;
+}
+
+.coverage-simulator-print-root .cs-axis-event,
+.coverage-simulator-print-root .cs-axis-block,
+.coverage-simulator-print-root .cs-axis-period-total,
+.coverage-simulator-print-root .cs-axis-marker,
+.coverage-simulator-print-root .cs-axis-summary,
+.coverage-simulator-print-root .cs-period-section-wrap {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.coverage-simulator-print-root .cs-axis-amount__value {
+  white-space: nowrap;
+  overflow: visible;
+}
+
+.coverage-simulator-print-root .cs-axis-period-total__heading-mask,
+.coverage-simulator-print-root .cs-axis-marker__label {
+  overflow: visible;
+  line-height: 1.35;
 }
