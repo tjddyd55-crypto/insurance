@@ -5,13 +5,15 @@ import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock'
 const HTML_LOCK_CLASS = 'coverage-simulator-overlay-scroll-lock'
 
 const SCROLLABLE_SURFACE_SELECTOR = [
+  '.cs-overlay',
+  '.cs-overlay__panel',
   '.coverage-simulator-sheet',
   '.coverage-simulator-sheet-backdrop',
   '.cs-sheet-body-scroll',
-  '.cs-item-action-overlay',
+  '.cs-list-action-sheet',
   '.cs-item-action-sheet',
-  '.cs-sim-list-action-overlay',
-  '.cs-sim-list-action-sheet',
+  '.cs-amount-sheet',
+  '.cs-add-sheet',
   '.coverage-simulator-dialog',
 ].join(',')
 

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
 import {
-  formatCoverageAmountLabel,
   formatManWonInputDisplay,
   parseManWonInput,
   sanitizeManWonInputTyping,
@@ -16,7 +15,15 @@ type Props = {
   className: string
   onActivate: () => void
   onCommit: (amount: number | null) => void
-  onCancel: () => void
+  onEndEdit: () => void
+}
+
+function displayAmountParts(amount: number | null): { primary: string; showUnit: boolean } {
+  if (amount == null || amount <= 0) {
+    return { primary: '없음', showUnit: false }
+  }
+  const formatted = formatManWonInputDisplay(amount)
+  return { primary: formatted, showUnit: true }
 }
 
 export function InlineAmountQuickEdit({
@@ -26,13 +33,23 @@ export function InlineAmountQuickEdit({
   className,
   onActivate,
   onCommit,
-  onCancel,
+  onEndEdit,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [draft, setDraft] = useState('')
+  const draftRef = useRef(draft)
+  draftRef.current = draft
+  const skipCommitOnDeactivateRef = useRef(false)
+
+  const commitDraft = () => {
+    const trimmed = draftRef.current.trim()
+    const next = trimmed ? parseManWonInput(trimmed) : null
+    onCommit(next)
+  }
 
   useEffect(() => {
-    if (!active) return
+    if (!active) return undefined
+    skipCommitOnDeactivateRef.current = false
     setDraft(formatManWonInputDisplay(amount))
     const frame = window.requestAnimationFrame(() => {
       const input = inputRef.current
@@ -41,28 +58,26 @@ export function InlineAmountQuickEdit({
       input.select()
       input.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
     })
-    return () => window.cancelAnimationFrame(frame)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      if (skipCommitOnDeactivateRef.current) return
+      commitDraft()
+    }
   }, [active, amount])
 
-  const commit = () => {
-    const trimmed = draft.trim()
-    const next = trimmed ? parseManWonInput(trimmed) : null
-    onCommit(next)
-  }
+  const { primary, showUnit } = displayAmountParts(amount)
 
   if (!active) {
     return (
       <button type="button" className={className} onClick={onActivate}>
-        <span className="cs-axis-amount__value">{formatCoverageAmountLabel(amount)}</span>
+        <span className="cs-axis-amount__value">{primary}</span>
+        {showUnit ? <span className="cs-axis-amount__unit"> 만원</span> : null}
       </button>
     )
   }
 
   return (
-    <div
-      className={`${className} cs-axis-amount--inline-editing`}
-      data-inline-amount-field={field}
-    >
+    <div className={`${className} cs-axis-amount--inline-editing`} data-inline-amount-field={field}>
       <input
         ref={inputRef}
         className="cs-axis-amount__inline-input"
@@ -72,24 +87,23 @@ export function InlineAmountQuickEdit({
         aria-label={field === 'current' ? '기존 보장 금액' : '제안 보장 금액'}
         value={draft}
         onChange={(event) => setDraft(sanitizeManWonInputTyping(event.target.value))}
+        onBlur={() => {
+          commitDraft()
+          onEndEdit()
+        }}
         onKeyDown={(event) => {
           if (event.key === 'Enter') {
             event.preventDefault()
-            commit()
+            void inputRef.current?.blur()
           }
           if (event.key === 'Escape') {
             event.preventDefault()
-            onCancel()
+            skipCommitOnDeactivateRef.current = true
+            onEndEdit()
           }
         }}
       />
-      <span className="cs-axis-amount__unit">만원</span>
-      <button type="button" className="cs-axis-amount__inline-confirm" aria-label="확인" onClick={commit}>
-        ✓
-      </button>
-      <button type="button" className="cs-axis-amount__inline-cancel" aria-label="취소" onClick={onCancel}>
-        ×
-      </button>
+      <span className="cs-axis-amount__unit"> 만원</span>
     </div>
   )
 }

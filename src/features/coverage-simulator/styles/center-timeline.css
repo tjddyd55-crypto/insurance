@@ -405,64 +405,62 @@
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-amount--inline-editing {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  min-height: var(--cs-control-height);
+  gap: 0;
+  min-height: var(--cs-timeline-amount-row-height);
   min-width: 0;
-  padding: 0 2px;
+  max-width: 100%;
+  padding: 0;
   box-sizing: border-box;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-amount__inline-input {
-  flex: 1 1 auto;
-  min-width: 0;
-  max-width: 100%;
+  flex: 0 1 auto;
+  width: 3.5ch;
+  min-width: 2ch;
+  max-width: 9ch;
   margin: 0;
-  padding: 2px 0;
+  padding: 0;
   border: none;
-  border-bottom: 1px solid var(--cs-color-primary);
   border-radius: 0;
   background: transparent;
-  font-size: var(--cs-font-amount);
+  box-shadow: none;
+  font-size: 0.9375rem;
   font-weight: 700;
-  text-align: right;
+  line-height: 1.25;
+  text-align: center;
   color: inherit;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-amount--current .cs-axis-amount__inline-input {
-  color: var(--cs-color-text);
+  color: #1e293b;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-amount--proposed .cs-axis-amount__inline-input {
   color: var(--cs-color-proposed);
+  font-weight: 800;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-amount__unit {
   flex-shrink: 0;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--cs-color-text-muted);
-}
-
-.coverage-simulator-root--mobile-preview .cs-axis-amount__inline-confirm,
-.coverage-simulator-root--mobile-preview .cs-axis-amount__inline-cancel {
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: none;
-  border-radius: 8px;
-  background: #f1f5f9;
-  font-size: 0.875rem;
-  line-height: 1;
-  color: var(--cs-color-text);
-}
-
-.coverage-simulator-root--mobile-preview .cs-axis-amount__inline-confirm {
-  color: var(--cs-color-primary);
+  font-size: 0.9375rem;
   font-weight: 700;
+  line-height: 1.25;
+  color: inherit;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-amount--current .cs-axis-amount__unit {
+  color: #1e293b;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-amount--proposed .cs-axis-amount__unit {
+  color: var(--cs-color-proposed);
+  font-weight: 800;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-main.coverage-simulator-content {

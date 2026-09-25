@@ -83,11 +83,8 @@ function renderAmountCell(
         active={active}
         className={baseClass}
         onActivate={() => inline.onInlineAmountEditChange({ itemId: item.id, field })}
-        onCommit={(next) => {
-          inline.onInlineAmountCommit(item.id, field, next)
-          inline.onInlineAmountEditChange(null)
-        }}
-        onCancel={() => inline.onInlineAmountEditChange(null)}
+        onCommit={(next) => inline.onInlineAmountCommit(item.id, field, next)}
+        onEndEdit={() => inline.onInlineAmountEditChange(null)}
       />
     )
   }

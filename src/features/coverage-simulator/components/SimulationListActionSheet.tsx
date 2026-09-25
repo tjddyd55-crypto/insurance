@@ -1,6 +1,4 @@
-import { createPortal } from 'react-dom'
-
-import { useCoverageSimulatorOverlayScrollLock } from '../hooks/useCoverageSimulatorOverlayScrollLock'
+import { CoverageSimulatorOverlayShell } from './CoverageSimulatorOverlayShell'
 
 type Props = {
   open: boolean
@@ -19,54 +17,46 @@ export function SimulationListActionSheet({
   onRename,
   onDelete,
 }: Props) {
-  useCoverageSimulatorOverlayScrollLock(open)
-
-  if (!open) return null
-
   const runAction = (action: () => void) => {
     onClose()
     action()
   }
 
-  const sheet = (
-    <div className="cs-sim-list-action-overlay" role="presentation" onClick={onClose}>
-      <div
-        className="cs-sim-list-action-sheet"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="cs-sim-list-action-title"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <header className="cs-sim-list-action-header">
-          <h2 id="cs-sim-list-action-title" className="cs-sim-list-action-header__title">
-            시뮬레이션
-          </h2>
-        </header>
-        <p className="cs-sim-list-action-subject">{documentTitle}</p>
-        <div className="cs-sim-list-action-list" role="menu">
-          <button type="button" role="menuitem" className="cs-sim-list-action-row" onClick={() => runAction(onOpen)}>
-            열기
-          </button>
-          <button type="button" role="menuitem" className="cs-sim-list-action-row" onClick={() => runAction(onRename)}>
-            제목 수정
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="cs-sim-list-action-row cs-sim-list-action-row--danger"
-            onClick={() => runAction(onDelete)}
-          >
-            삭제
-          </button>
-        </div>
-        <footer className="cs-sim-list-action-footer">
-          <button type="button" className="cs-sim-list-action-cancel" onClick={onClose}>
-            취소
-          </button>
-        </footer>
+  return (
+    <CoverageSimulatorOverlayShell
+      open={open}
+      layer="action"
+      panelClassName="cs-list-action-sheet"
+      ariaLabelledBy="cs-list-action-title"
+      onClose={onClose}
+    >
+      <header>
+        <h2 id="cs-list-action-title" className="cs-list-action-sheet__title">
+          시뮬레이션
+        </h2>
+      </header>
+      <p className="cs-list-action-sheet__subject">{documentTitle}</p>
+      <div className="cs-list-action-sheet__list" role="menu">
+        <button type="button" role="menuitem" className="cs-list-action-sheet__row" onClick={() => runAction(onOpen)}>
+          열기
+        </button>
+        <button type="button" role="menuitem" className="cs-list-action-sheet__row" onClick={() => runAction(onRename)}>
+          제목 수정
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          className="cs-list-action-sheet__row cs-list-action-sheet__row--danger"
+          onClick={() => runAction(onDelete)}
+        >
+          삭제
+        </button>
       </div>
-    </div>
+      <footer className="cs-list-action-sheet__footer">
+        <button type="button" className="cs-list-action-sheet__cancel" onClick={onClose}>
+          취소
+        </button>
+      </footer>
+    </CoverageSimulatorOverlayShell>
   )
-
-  return createPortal(sheet, document.body)
 }

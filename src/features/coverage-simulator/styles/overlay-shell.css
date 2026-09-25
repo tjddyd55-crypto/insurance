@@ -1,0 +1,281 @@
+/**
+ * Mobile preview overlays — portal root only.
+ * Z-index tokens live on :root so portaled UI works outside .coverage-simulator-root.
+ */
+:root {
+  --cs-z-sticky-dock-global: 110;
+  --cs-z-overlay-backdrop: 1000;
+  --cs-z-action-sheet: 1200;
+  --cs-z-edit-sheet: 1300;
+  --cs-z-dialog: 1400;
+}
+
+.cs-overlay {
+  position: fixed;
+  inset: 0;
+  max-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: stretch;
+  isolation: isolate;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+.cs-overlay[data-cs-overlay-layer='action'] {
+  z-index: var(--cs-z-action-sheet);
+}
+
+.cs-overlay[data-cs-overlay-layer='edit'] {
+  z-index: var(--cs-z-edit-sheet);
+}
+
+.cs-overlay__backdrop {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: rgba(15, 23, 42, 0.62);
+  cursor: default;
+  pointer-events: auto;
+}
+
+.cs-overlay__panel {
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  flex-shrink: 0;
+  height: auto;
+  max-height: min(72dvh, 520px);
+  overflow: hidden;
+  background: #ffffff;
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -20px 56px rgba(15, 23, 42, 0.28);
+  padding: 16px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+}
+
+/* --- Simulation list action sheet --- */
+.cs-list-action-sheet.cs-overlay__panel {
+  max-height: min(68dvh, 420px);
+}
+
+.cs-list-action-sheet .cs-list-action-sheet__title {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: #111827;
+}
+
+.cs-list-action-sheet .cs-list-action-sheet__subject {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #111827;
+  word-break: break-word;
+}
+
+.cs-list-action-sheet .cs-list-action-sheet__list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid #e6ebf2;
+  border-bottom: 1px solid #e6ebf2;
+}
+
+.cs-list-action-sheet .cs-list-action-sheet__row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 12px;
+  border: none;
+  border-bottom: 1px solid #eef1f6;
+  background: #ffffff;
+  text-align: left;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #111827;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.cs-list-action-sheet .cs-list-action-sheet__row:last-child {
+  border-bottom: none;
+}
+
+.cs-list-action-sheet .cs-list-action-sheet__row--danger {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.cs-list-action-sheet .cs-list-action-sheet__footer {
+  margin-top: 8px;
+  padding: 0;
+}
+
+.cs-list-action-sheet .cs-list-action-sheet__cancel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  margin: 0;
+  padding: 0 12px;
+  border: none;
+  border-radius: 12px;
+  background: #f1f5f9;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #111827;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+/* --- Item action sheet --- */
+.cs-item-action-sheet.cs-overlay__panel {
+  max-height: min(70dvh, 480px);
+}
+
+.cs-item-action-sheet .cs-item-action-sheet__title {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: #111827;
+}
+
+.cs-item-action-sheet .cs-item-action-sheet__subject {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.cs-item-action-sheet .cs-item-action-sheet__subject-label {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #111827;
+  line-height: 1.35;
+}
+
+.cs-item-action-sheet .cs-item-action-sheet__list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid #e6ebf2;
+  border-bottom: 1px solid #e6ebf2;
+}
+
+.cs-item-action-sheet .cs-item-action-sheet__row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 12px;
+  border: none;
+  border-bottom: 1px solid #eef1f6;
+  background: #ffffff;
+  text-align: left;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #111827;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.cs-item-action-sheet .cs-item-action-sheet__row:last-of-type {
+  border-bottom: none;
+}
+
+.cs-item-action-sheet .cs-item-action-sheet__row:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.cs-item-action-sheet .cs-item-action-sheet__row--danger {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.cs-item-action-sheet .cs-item-action-sheet__footer {
+  margin-top: 8px;
+}
+
+.cs-item-action-sheet .cs-item-action-sheet__cancel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  border: none;
+  border-radius: 12px;
+  background: #f1f5f9;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #111827;
+  cursor: pointer;
+}
+
+/* --- Amount / Add edit sheets (mobile preview portaled) --- */
+.cs-amount-sheet.cs-overlay__panel,
+.cs-add-sheet.cs-overlay__panel {
+  max-height: min(78dvh, 640px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.cs-amount-sheet .cs-amount-sheet__header,
+.cs-add-sheet .cs-add-sheet__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.cs-amount-sheet .cs-amount-sheet__title,
+.cs-add-sheet .cs-add-sheet__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.cs-amount-sheet .cs-amount-sheet__close,
+.cs-add-sheet .cs-add-sheet__close {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.cs-add-sheet .cs-sheet-body-scroll,
+.cs-add-sheet .cs-add-sheet__body-scroll {
+  max-height: min(42dvh, 320px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin-bottom: 8px;
+}

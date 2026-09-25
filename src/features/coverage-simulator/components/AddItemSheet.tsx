@@ -12,6 +12,7 @@ import {
 import type { ScenarioItemCategory } from '../domain/types'
 import { getFavoriteCatalogIds, toggleFavoriteCatalogId } from '../storage/favoriteRepository'
 import { CategoryChipPicker } from './CategoryChipPicker'
+import { CoverageSimulatorOverlayShell } from './CoverageSimulatorOverlayShell'
 
 type AddItemSheetProps = {
   open: boolean
@@ -45,7 +46,7 @@ export function AddItemSheet({
   favoriteUserKey = null,
   mobileCompact = false,
 }: AddItemSheetProps) {
-  useCoverageSimulatorOverlayScrollLock(open)
+  useCoverageSimulatorOverlayScrollLock(open && !mobileCompact)
   const [tab, setTab] = useState<CatalogTabId>('favorite')
   const [customLabel, setCustomLabel] = useState('')
   const [customCategory, setCustomCategory] = useState<ScenarioItemCategory>('other')
@@ -81,18 +82,22 @@ export function AddItemSheet({
     onClose()
   }
 
-  return (
-    <div className="coverage-simulator-sheet-backdrop" role="presentation" onClick={onClose}>
-      <div
-        className={`coverage-simulator-sheet${mobileCompact ? ' coverage-simulator-sheet--compact coverage-simulator-sheet--mobile-add' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label="항목 추가"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="coverage-simulator-sheet-header coverage-simulator-sheet-header--compact">
-          <div className="coverage-simulator-sheet__title">항목 추가</div>
-          <button type="button" className="coverage-simulator-sheet-close" onClick={onClose} aria-label="닫기">
+  const sheetInner = (
+    <>
+        <div
+          className={
+            mobileCompact
+              ? 'cs-add-sheet__header'
+              : 'coverage-simulator-sheet-header coverage-simulator-sheet-header--compact'
+          }
+        >
+          <div className={mobileCompact ? 'cs-add-sheet__title' : 'coverage-simulator-sheet__title'}>항목 추가</div>
+          <button
+            type="button"
+            className={mobileCompact ? 'cs-add-sheet__close' : 'coverage-simulator-sheet-close'}
+            onClick={onClose}
+            aria-label="닫기"
+          >
             ×
           </button>
         </div>
@@ -288,6 +293,33 @@ export function AddItemSheet({
             </div>
           </>
         )}
+    </>
+  )
+
+  if (mobileCompact) {
+    return (
+      <CoverageSimulatorOverlayShell
+        open={open}
+        layer="edit"
+        panelClassName="cs-add-sheet coverage-simulator-sheet--compact coverage-simulator-sheet--mobile-add"
+        ariaLabel="항목 추가"
+        onClose={onClose}
+      >
+        {sheetInner}
+      </CoverageSimulatorOverlayShell>
+    )
+  }
+
+  return (
+    <div className="coverage-simulator-sheet-backdrop" role="presentation" onClick={onClose}>
+      <div
+        className="coverage-simulator-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-label="항목 추가"
+        onClick={(event) => event.stopPropagation()}
+      >
+        {sheetInner}
       </div>
     </div>
   )
