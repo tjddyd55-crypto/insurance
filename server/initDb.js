@@ -4426,6 +4426,10 @@ export async function initDb() {
   await ensureContractSelfSmsSchema(pool)
   await ensureInsurerSitesSchema(pool)
   await ensurePublicCustomerInviteSessionsSchema(pool)
+  const { ensurePersonalBinderSchema } = await import(
+    './personal-binder/personalBinderSchema.js'
+  )
+  await ensurePersonalBinderSchema(pool)
   await ensureReferralSchema(pool)
   await ensureBillingSchema(pool)
   await ensureInsuranceBillingPhase1Schema(pool)

@@ -191,6 +191,7 @@ import { logSmsModuleEnvironmentHint, validateSmsModuleStartupConfig } from './s
 import { logPhoneVerificationStartupDiagnostics } from './services/phoneVerificationCredentials.js'
 import { registerContractPublicOtpApi } from './apis/contractPublicOtpApi.js'
 import { registerContractPublicApi } from './apis/contractPublicApi.js'
+import { registerPersonalBinderApi } from './apis/personalBinderApi.js'
 import { registerContractAdminApi } from './apis/contractAdminApi.js'
 import { registerContractUserApi } from './apis/contractUserApi.js'
 import { registerSubscriptionEndpoints } from './subscription/endpoints.js'
@@ -1576,6 +1577,8 @@ registerAuthAccountSmsApi(apiRouter, {
 registerContractPublicOtpApi(apiRouter, { pool, handleDbError })
 
 registerContractPublicApi(apiRouter, { pool, handleDbError })
+
+registerPersonalBinderApi(apiRouter, { pool, requireAuth, handleDbError })
 
 registerContractAdminApi(apiRouter, {
   pool,
