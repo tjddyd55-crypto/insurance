@@ -39,6 +39,47 @@ function expectStatus(result, status, label) {
   return result.payload
 }
 
+async function cleanupPreviousQaArtifacts(token) {
+  const binders = expectStatus(
+    await request('/api/personal-binders', { token }),
+    200,
+    'preflight binder list',
+  )
+  for (const binder of binders.filter((entry) => String(entry.title).startsWith('QA 바인더 '))) {
+    await request(`/api/personal-binders/${binder.id}`, { token, method: 'DELETE' })
+  }
+  const materials = expectStatus(
+    await request('/api/personal-binders/materials', { token }),
+    200,
+    'preflight material list',
+  )
+  for (const material of materials.filter((entry) => String(entry.title).startsWith('QA 자료 '))) {
+    const removed = await request(`/api/personal-binders/materials/${material.id}`, {
+      token,
+      method: 'DELETE',
+    })
+    if (removed.response.ok && removed.payload?.fileId) {
+      await request(`/api/storage/files/${removed.payload.fileId}`, {
+        token,
+        method: 'DELETE',
+      })
+    }
+  }
+  const files = expectStatus(
+    await request('/api/storage/files', { token }),
+    200,
+    'preflight storage list',
+  )
+  const oneHourAgo = Date.now() - 60 * 60 * 1000
+  for (const file of files.filter(
+    (entry) =>
+      entry.originalName === basename(PDF_PATH) &&
+      new Date(entry.createdAt).getTime() >= oneHourAgo,
+  )) {
+    await request(`/api/storage/files/${file.id}`, { token, method: 'DELETE' })
+  }
+}
+
 async function main() {
   const login = expectStatus(
     await request('/api/auth/login', {
@@ -50,6 +91,7 @@ async function main() {
   )
   const token = login.token
   if (!token) throw new Error('login token missing')
+  await cleanupPreviousQaArtifacts(token)
 
   const pdf = await readFile(PDF_PATH)
   const fileName = basename(PDF_PATH)
@@ -92,7 +134,7 @@ async function main() {
         customerId: null,
       },
     }),
-    200,
+    201,
     'storage save',
   )
 

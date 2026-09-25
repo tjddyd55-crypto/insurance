@@ -632,8 +632,7 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         res.status(404).json({ message: '바인더를 찾을 수 없습니다.' })
         return
       }
-      const result = await safeQuery(
-        pool,
+      const result = await pool.query(
         `
         INSERT INTO personal_binder_sections (binder_id, title, sort_order)
         SELECT $1, $2, COALESCE(MAX(sort_order), -1) + 1
@@ -665,8 +664,7 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         res.status(404).json({ message: '섹션을 찾을 수 없습니다.' })
         return
       }
-      await safeQuery(
-        pool,
+      await pool.query(
         `UPDATE personal_binder_sections SET title = $1, updated_at = NOW() WHERE id = $2`,
         [title, sectionId],
       )
@@ -758,8 +756,7 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         return
       }
       const selection = normalizePageSelection(req.body?.pageSelection, Number(material.rows[0].page_count))
-      const result = await safeQuery(
-        pool,
+      const result = await pool.query(
         `
         INSERT INTO personal_binder_items (section_id, material_id, sort_order, page_selection)
         SELECT $1, $2, COALESCE(MAX(sort_order), -1) + 1, $3::jsonb
@@ -768,7 +765,7 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         `,
         [sectionId, materialId, selection == null ? null : JSON.stringify(selection)],
       )
-      await safeQuery(pool, `UPDATE personal_binders SET updated_at = NOW() WHERE id = $1`, [section.binder_id])
+      await pool.query(`UPDATE personal_binders SET updated_at = NOW() WHERE id = $1`, [section.binder_id])
       res.status(201).json({ id: String(result.rows[0].id) })
     } catch (error) {
       sendError(error, req, res, handleDbError)
@@ -798,12 +795,11 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         return
       }
       const selection = normalizePageSelection(req.body?.pageSelection, Number(owned.rows[0].page_count))
-      await safeQuery(
-        pool,
+      await pool.query(
         `UPDATE personal_binder_items SET page_selection = $1::jsonb, updated_at = NOW() WHERE id = $2`,
         [selection == null ? null : JSON.stringify(selection), itemId],
       )
-      await safeQuery(pool, `UPDATE personal_binders SET updated_at = NOW() WHERE id = $1`, [owned.rows[0].binder_id])
+      await pool.query(`UPDATE personal_binders SET updated_at = NOW() WHERE id = $1`, [owned.rows[0].binder_id])
       res.json({ ok: true })
     } catch (error) {
       sendError(error, req, res, handleDbError)
