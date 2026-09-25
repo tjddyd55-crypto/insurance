@@ -486,3 +486,27 @@
     z-index: -1;
   }
 }
+
+.cs-print-timeline-body {
+  width: 100%;
+}
+
+.coverage-simulator-print-root .cs-axis-sheet--print {
+  width: 100%;
+  max-width: 100%;
+  box-shadow: none;
+}
+
+.coverage-simulator-print-root .cs-axis-event__title-axis .cs-axis-event__label {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  line-height: 1.4;
+}
+
+.coverage-simulator-print-root .cs-axis-amount__value,
+.coverage-simulator-print-root .cs-axis-period-total__value,
+.coverage-simulator-print-root .cs-axis-summary__value {
+  line-height: 1.4;
+  overflow: visible;
+}

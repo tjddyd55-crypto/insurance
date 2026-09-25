@@ -1,7 +1,15 @@
 import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
 
+async function waitForPrintFonts(): Promise<void> {
+  if (document.fonts?.ready) {
+    await document.fonts.ready
+  }
+  await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)))
+}
+
 async function printRootToJsPdf(root: HTMLElement): Promise<jsPDF> {
+  await waitForPrintFonts()
   const canvas = await html2canvas(root, {
     scale: 2,
     useCORS: true,

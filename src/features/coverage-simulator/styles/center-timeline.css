@@ -376,6 +376,19 @@
   z-index: 2;
 }
 
+.coverage-simulator-root--mobile-preview .cs-axis-event__actions--spacer {
+  min-height: 36px;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-marker__menu-slot--spacer {
+  min-width: 36px;
+  min-height: 36px;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .coverage-simulator-root--mobile-preview .cs-axis-reorder {
   display: inline-flex;
   align-items: center;

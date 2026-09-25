@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { useConfirmDialog } from '../../../../components/dialog'
 import FormButton from '../../../../components/form/FormButton'
@@ -14,7 +14,8 @@ import { MobilePreviewStickyDock } from '../MobilePreviewStickyDock'
 import { SaveConsultationTitleDialog } from '../SaveConsultationTitleDialog'
 import { diseaseTypeTitle } from '../../domain/diseaseTypeLabels'
 import { useCoverageSimulatorScope } from '../../CoverageSimulatorScope'
-import { CenterAxisTimeline, type InlineAmountEditTarget } from './CenterAxisTimeline'
+import { buildCoverageTimelineViewModel } from '../../domain/buildCoverageTimelineViewModel'
+import { CoverageScenarioTimeline, type InlineAmountEditTarget } from './CoverageScenarioTimeline'
 import type { InlineAmountField } from './InlineAmountQuickEdit'
 import { isTemplateEditorMode, type TimelineEditorController } from './TimelineEditorController'
 
@@ -124,6 +125,11 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
     showToast,
     confirm,
   })
+
+  const viewModel = useMemo(() => {
+    if (!scenario) return null
+    return buildCoverageTimelineViewModel(scenario, { compactInsert: useMobileStickyDock })
+  }, [scenario, useMobileStickyDock])
 
   if (!scenario) {
     return (
@@ -322,12 +328,12 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
         data-testid="coverage-scenario-editor"
       >
         {!useMobileStickyDock ? <p className="cs-axis-lead">{blurb}</p> : null}
-        <CenterAxisTimeline
-          items={sortedItems}
-          currentTotal={totals.currentTotal}
-          proposedTotal={totals.proposedTotal}
+        {viewModel ? (
+        <CoverageScenarioTimeline
+          mode="editable"
+          viewModel={viewModel}
           variant={variant}
-          showInlineSummary={!useMobileStickyDock}
+          showGrandTotal={!useMobileStickyDock}
           compactInsert={useMobileStickyDock}
           itemMenuMode={useMobileStickyDock ? 'action-sheet' : 'popover'}
           onEditItem={openFullAmountEdit}
@@ -340,6 +346,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
           onInlineAmountEditChange={handleInlineAmountEditChange}
           onInlineAmountCommit={handleInlineAmountCommit}
         />
+        ) : null}
       </main>
 
       {useMobileStickyDock ? (

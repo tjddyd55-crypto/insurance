@@ -53,7 +53,10 @@ async function buildSharePdfBlob(scenario: CoverageScenario): Promise<Blob> {
     root = createRoot(mount)
     root.render(<CoverageSimulatorPrintDocument scenario={scenario} />)
     await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)))
-    await new Promise((resolve) => setTimeout(resolve, 50))
+    if (document.fonts?.ready) {
+      await document.fonts.ready
+    }
+    await new Promise((resolve) => setTimeout(resolve, 80))
     const printRoot = mount.firstElementChild as HTMLElement | null
     if (!printRoot) {
       throw new Error('PDF 렌더 루트를 찾을 수 없습니다.')
@@ -81,7 +84,7 @@ export function useCoverageShareFlow({
     [providerMode, token],
   )
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [phase, setPhase] = useState<'confirm' | 'result'>('confirm')
+  const [phase] = useState<'result'>('result')
   const [sharing, setSharing] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [shareResult, setShareResult] = useState<CreateCoverageShareResponse | null>(null)
@@ -175,7 +178,6 @@ export function useCoverageShareFlow({
     }
     setShareResult(null)
     setCreateError(null)
-    setPhase('confirm')
     setDialogOpen(true)
   }, [ensureSaved, provider, providerMode, showShareButton, showToast, token])
 
@@ -192,12 +194,13 @@ export function useCoverageShareFlow({
     [provider],
   )
 
-  const createShare = useCallback(async () => {
-    if (!scenario || !provider || shareBusyRef.current || !canExecuteShare) return
+  const ensureShareLink = useCallback(async (): Promise<string | null> => {
+    if (shareResult?.shareUrl) return shareResult.shareUrl
+    if (!scenario || !provider || shareBusyRef.current || !canExecuteShare) return null
     const authed = await provider.ensureAccess()
     if (!authed && provider.mode === 'crm') {
       setCreateError('로그인이 만료되었습니다. 다시 로그인한 후 공유해 주세요.')
-      return
+      return null
     }
     const snapshot = normalizeConsultation(getScenarioById(userKey, scenario.id) ?? scenario)
     shareBusyRef.current = true
@@ -206,21 +209,26 @@ export function useCoverageShareFlow({
     try {
       const created = await provider.createShare(snapshot)
       setShareResult(created)
-      setPhase('result')
       history.invalidate()
       void history.load(true)
       void uploadPdfInBackground(created.shareId, snapshot)
+      return created.shareUrl
     } catch (error) {
       setCreateError(
         provider.mode === 'preview-dev'
           ? 'DEV 공유 링크를 생성하지 못했습니다. 다시 시도해 주세요.'
           : mapCoverageShareCreateError(error),
       )
+      return null
     } finally {
       setSharing(false)
       shareBusyRef.current = false
     }
-  }, [canExecuteShare, history, provider, scenario, uploadPdfInBackground, userKey])
+  }, [canExecuteShare, history, provider, scenario, shareResult?.shareUrl, uploadPdfInBackground, userKey])
+
+  const createShare = useCallback(async () => {
+    await ensureShareLink()
+  }, [ensureShareLink])
 
   const closeDialog = useCallback(() => {
     if (sharing) return
@@ -229,11 +237,11 @@ export function useCoverageShareFlow({
   }, [sharing])
 
   const copyShareLink = useCallback(async () => {
-    const url = shareResult?.shareUrl
+    const url = await ensureShareLink()
     if (!url) return
     const ok = await copyTextToClipboard(url)
     showToast(ok ? '공유 링크를 복사했습니다.' : '링크를 복사하지 못했습니다.')
-  }, [shareResult?.shareUrl, showToast])
+  }, [ensureShareLink, showToast])
 
   const copyHistoryLink = useCallback(async (url: string | null) => {
     if (!url) return
@@ -256,8 +264,9 @@ export function useCoverageShareFlow({
   )
 
   const nativeShare = useCallback(async () => {
-    const url = shareResult?.shareUrl
-    if (!url || !canUseWebShare()) return
+    if (!canUseWebShare()) return
+    const url = await ensureShareLink()
+    if (!url) return
     const payload = buildCoverageShareWebSharePayload({
       shareUrl: url,
       customerName: scenario?.customerNameSnapshot ?? scenario?.customerName,
@@ -269,7 +278,7 @@ export function useCoverageShareFlow({
       if (error instanceof DOMException && error.name === 'AbortError') return
       showToast('공유하기를 실행하지 못했습니다.')
     }
-  }, [scenario?.customerName, scenario?.customerNameSnapshot, scenario?.title, shareResult?.shareUrl, showToast])
+  }, [ensureShareLink, scenario?.customerName, scenario?.customerNameSnapshot, scenario?.title, showToast])
 
   return {
     showShareButton,

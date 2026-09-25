@@ -1,13 +1,12 @@
-import { buildTimelinePeriodSections } from '../domain/timelinePeriodSections'
-import { periodTotalsByEndMarkerId } from '../domain/periodTotals'
-import { calculateScenarioTotals } from '../domain/totals'
+import { buildCoverageTimelineViewModel } from '../domain/buildCoverageTimelineViewModel'
 import type { CoverageScenario } from '../domain/types'
 
-/** PDF / Print — same section blocks as mobile timeline (compactInsert), no insert controls. */
+/** @deprecated buildCoverageTimelineViewModel 사용 — PDF/Print/Viewer SSOT */
 export function buildPrintTimelineModel(scenario: CoverageScenario) {
-  const items = scenario.items
-  const periodByMarkerId = periodTotalsByEndMarkerId(items)
-  const sections = buildTimelinePeriodSections(items, true, periodByMarkerId)
-  const totals = calculateScenarioTotals(scenario)
-  return { sections, totals, items }
+  const viewModel = buildCoverageTimelineViewModel(scenario, { compactInsert: true })
+  return {
+    sections: viewModel.sections,
+    totals: viewModel.totals,
+    items: viewModel.items,
+  }
 }

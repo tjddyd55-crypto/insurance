@@ -3,14 +3,15 @@ import { useParams } from 'react-router-dom'
 
 import FormButton from '../../../components/form/FormButton'
 import { ApiError } from '../../../lib/apiClient'
-import { CenterAxisTimeline } from '../components/center-timeline/CenterAxisTimeline'
+import { CoverageScenarioTimeline } from '../components/center-timeline/CoverageScenarioTimeline'
 import { CoverageSimulatorLayout } from '../components/CoverageSimulatorLayout'
 import {
   fetchPublicCoverageShare,
   publicCoverageSharePdfDownloadUrl,
   type PublicCoverageSharePayload,
 } from '../api/coverageSimulatorShareApi'
-import { calculateScenarioTotals } from '../domain/totals'
+import { CoverageSimulatorScopeProvider, previewScopeMobile } from '../CoverageSimulatorScope'
+import { buildCoverageTimelineViewModel } from '../domain/buildCoverageTimelineViewModel'
 import { resolveCustomerNameSnapshot } from '../domain/normalizeConsultation'
 import type { CoverageScenario } from '../domain/types'
 import '../styles/coverage-simulator.css'
@@ -20,10 +21,11 @@ type LoadState =
   | { status: 'error'; code: 'NOT_FOUND' | 'REVOKED' | 'EXPIRED' | 'UNKNOWN'; message: string }
   | { status: 'ok'; payload: PublicCoverageSharePayload }
 
-function formatSharedDate(iso: string): string {
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return ''
-  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`
+function formatConsultationDate(iso: string | undefined): string {
+  const raw = (iso ?? '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return ''
+  const [year, month, day] = raw.split('-')
+  return `${year}.${month}.${day}`
 }
 
 function ShareStatusScreen({ title, message }: { title: string; message: string }) {
@@ -37,11 +39,7 @@ function ShareStatusScreen({ title, message }: { title: string; message: string 
   )
 }
 
-function noop() {
-  /* read-only */
-}
-
-export function CoverageSharePublicPage() {
+function CoverageSharePublicPageBody() {
   const { token = '' } = useParams()
   const [state, setState] = useState<LoadState>({ status: 'loading' })
 
@@ -65,7 +63,10 @@ export function CoverageSharePublicPage() {
         const payload = await fetchPublicCoverageShare(token)
         if (cancelled) return
         setState({ status: 'ok', payload })
-        document.title = `${payload.title} · 보장 시뮬레이션`
+        const customerName = resolveCustomerNameSnapshot(payload.scenario)
+        document.title = customerName
+          ? `${customerName}님 보장 시뮬레이션`
+          : '보장 시뮬레이션'
       } catch (error) {
         if (cancelled) return
         const status = error instanceof ApiError ? error.status : 0
@@ -92,14 +93,9 @@ export function CoverageSharePublicPage() {
   }, [token])
 
   const scenario = state.status === 'ok' ? state.payload.scenario : null
-  const sortedItems = useMemo(() => {
-    if (!scenario) return []
-    return scenario.items.slice().sort((a, b) => a.order - b.order)
-  }, [scenario])
-
-  const totals = useMemo(() => {
-    if (!scenario) return { currentTotal: 0, proposedTotal: 0 }
-    return calculateScenarioTotals(scenario as CoverageScenario)
+  const viewModel = useMemo(() => {
+    if (!scenario) return null
+    return buildCoverageTimelineViewModel(scenario as CoverageScenario, { compactInsert: true })
   }, [scenario])
 
   if (state.status === 'loading') {
@@ -124,7 +120,7 @@ export function CoverageSharePublicPage() {
 
   const payload = state.payload
   const customerName = resolveCustomerNameSnapshot(payload.scenario)
-  const sharedLabel = formatSharedDate(payload.sharedAt)
+  const wroteLabel = formatConsultationDate(payload.scenario.consultationDate)
   const downloadPdf = () => {
     if (!payload.pdfReady) {
       window.alert('PDF를 준비하고 있습니다. 잠시 후 다시 시도해 주세요.')
@@ -136,9 +132,9 @@ export function CoverageSharePublicPage() {
   return (
     <CoverageSimulatorLayout shellClassName="cs-share-public-shell">
       <header className="cs-share-public__header">
-        <h1 className="cs-share-public__title">{payload.title}</h1>
+        <h1 className="cs-share-public__title">보장 시뮬레이션</h1>
         {customerName ? <p className="cs-share-public__customer">{customerName} 고객님</p> : null}
-        {sharedLabel ? <p className="cs-share-public__date">공유일 {sharedLabel}</p> : null}
+        {wroteLabel ? <p className="cs-share-public__date">작성일 {wroteLabel}</p> : null}
         <FormButton
           variant="primary"
           className="coverage-simulator-primary-btn cs-share-public__pdf-btn"
@@ -148,30 +144,18 @@ export function CoverageSharePublicPage() {
         </FormButton>
       </header>
       <main className="cs-share-public">
-        <CenterAxisTimeline
-          readOnly
-          items={sortedItems}
-          currentTotal={totals.currentTotal}
-          proposedTotal={totals.proposedTotal}
-          variant="mobile"
-          showInlineSummary
-          compactInsert
-          itemMenuMode="action-sheet"
-          onEditItem={noop}
-          onMoveItem={noop}
-          onRemoveItem={noop}
-          onAddAfter={noop}
-        />
+        {viewModel ? (
+          <CoverageScenarioTimeline mode="readonly" viewModel={viewModel} variant="mobile" showGrandTotal />
+        ) : null}
       </main>
-      <footer className="cs-share-public__footer">
-        <FormButton
-          variant="primary"
-          className="coverage-simulator-primary-btn cs-share-public__pdf-btn"
-          onClick={downloadPdf}
-        >
-          PDF 다운로드
-        </FormButton>
-      </footer>
     </CoverageSimulatorLayout>
+  )
+}
+
+export function CoverageSharePublicPage() {
+  return (
+    <CoverageSimulatorScopeProvider {...previewScopeMobile}>
+      <CoverageSharePublicPageBody />
+    </CoverageSimulatorScopeProvider>
   )
 }

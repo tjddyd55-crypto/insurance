@@ -128,6 +128,11 @@ import {
   readCookieFromHeader,
 } from './lib/customerInviteRegistrationPublic.js'
 import { injectAccountVaultShareMeta } from './lib/accountVaultSharePublicMeta.js'
+import { injectCoverageSharePublicMeta } from './lib/coverageSharePublicMeta.js'
+import {
+  getPublicCoverageShareByToken,
+  toPublicViewerPayload,
+} from './coverage-simulator/coverageSimulationShareService.js'
 import {
   normalizeShareToken,
   resolveActiveShareTokenContext,
@@ -6472,6 +6477,38 @@ if (fs.existsSync(DIST_PATH)) {
       } catch (err) {
         console.warn(
           '[spa] account-vault share meta inject failed:',
+          err instanceof Error ? err.message : String(err),
+        )
+      }
+    }
+
+    if (p.startsWith('/coverage/share/')) {
+      try {
+        const tokenRaw = p.slice('/coverage/share/'.length).split('/')[0] ?? ''
+        const token = decodeURIComponent(tokenRaw).trim()
+        const htmlPath = path.join(DIST_PATH, 'index.html')
+        const raw = fs.readFileSync(htmlPath, 'utf8')
+        if (token) {
+          const resolved = await getPublicCoverageShareByToken(pool, token)
+          if (resolved.status === 'ok') {
+            const payload = toPublicViewerPayload(resolved.row)
+            res
+              .type('html')
+              .send(
+                injectCoverageSharePublicMeta(
+                  raw,
+                  { customerName: payload.customerName },
+                  req,
+                ),
+              )
+            return
+          }
+        }
+        res.type('html').send(injectCoverageSharePublicMeta(raw, { customerName: null }, req))
+        return
+      } catch (err) {
+        console.warn(
+          '[spa] coverage share meta inject failed:',
           err instanceof Error ? err.message : String(err),
         )
       }

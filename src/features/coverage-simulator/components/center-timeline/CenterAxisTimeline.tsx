@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 
 import { CoverageBadge } from '../CoverageBadge'
-import { formatCoverageAmountLabel, formatTotalAmountLabel } from '../../domain/formatAmount'
+import { formatCoverageAmountLabel } from '../../domain/formatAmount'
 import { periodTotalsByEndMarkerId } from '../../domain/periodTotals'
 import {
   buildTimelinePeriodSections,
@@ -9,6 +9,9 @@ import {
 } from '../../domain/timelinePeriodSections'
 import { shouldShowTimelineInsertAfterItem } from '../../domain/timelineInsertVisibility'
 import type { CoverageScenarioItem, ScenarioItem } from '../../domain/types'
+import { CoverageGrandTotal } from './CoverageGrandTotal'
+
+export type CoverageTimelineMode = 'editable' | 'readonly' | 'print'
 import { CoverageTimelineReorderButtons } from './CoverageTimelineReorderButtons'
 import { EventRowMenu } from './EventRowMenu'
 import { InlineAmountQuickEdit, type InlineAmountField } from './InlineAmountQuickEdit'
@@ -30,7 +33,10 @@ export type CenterAxisTimelineProps = {
   currentTotal: number
   proposedTotal: number
   variant: 'mobile' | 'pc'
+  mode?: CoverageTimelineMode
   readOnly?: boolean
+  preserveActionsGeometry?: boolean
+  displayTitleByItemId?: ReadonlyMap<string, string>
   showInlineSummary?: boolean
   compactInsert?: boolean
   itemMenuMode?: 'popover' | 'action-sheet'
@@ -107,14 +113,26 @@ function renderAmountCell(
   )
 }
 
+function resolveItemDisplayTitle(
+  item: CoverageScenarioItem,
+  displayTitleByItemId?: ReadonlyMap<string, string>,
+): string {
+  return displayTitleByItemId?.get(item.id) ?? item.label
+}
+
 function renderCoverageRow(
   item: CoverageScenarioItem,
   variant: CenterAxisTimelineProps['variant'],
   handlers: Handlers,
-  options: Pick<CenterAxisTimelineProps, 'items' | 'itemMenuMode' | 'readOnly'>,
+  options: Pick<
+    CenterAxisTimelineProps,
+    'items' | 'itemMenuMode' | 'readOnly' | 'preserveActionsGeometry' | 'displayTitleByItemId'
+  >,
   inline: InlineAmountOptions | null,
 ) {
   const showTimelineReorder = !options.readOnly && options.itemMenuMode === 'action-sheet'
+  const displayTitle = resolveItemDisplayTitle(item, options.displayTitleByItemId)
+  const showActionSpacer = Boolean(options.readOnly && options.preserveActionsGeometry)
 
   return (
     <div key={item.id} className="cs-axis-event">
@@ -123,7 +141,7 @@ function renderCoverageRow(
           <CoverageBadge category={item.category} />
         </div>
         <p className="cs-axis-event__title-axis">
-          <span className="cs-axis-event__label">{item.label}</span>
+          <span className="cs-axis-event__label">{displayTitle}</span>
         </p>
         {!options.readOnly ? (
           <div className="cs-axis-event__actions">
@@ -138,11 +156,13 @@ function renderCoverageRow(
             <EventRowMenu
               menuMode={options.itemMenuMode}
               itemCategory={item.category}
-              itemLabel={item.label}
+              itemLabel={displayTitle}
               onEditAmount={() => handlers.onEditItem(item)}
               onDelete={() => handlers.onRemoveItem(item.id)}
             />
           </div>
+        ) : showActionSpacer ? (
+          <div className="cs-axis-event__actions cs-axis-event__actions--spacer" aria-hidden="true" />
         ) : null}
       </div>
       <div className="cs-axis-event__compare">
@@ -162,6 +182,7 @@ function renderTimeMarker(
   onRemove: (id: string) => void,
   markerMenuMode: 'inline-delete' | 'action-sheet',
   readOnly: boolean,
+  preserveActionsGeometry: boolean,
 ) {
   return (
     <div key={item.id} className="cs-axis-marker coverage-simulator-time-marker">
@@ -179,6 +200,8 @@ function renderTimeMarker(
           <div className="cs-axis-marker__menu-slot">
             <TimeMarkerRowMenu menuMode={markerMenuMode} onDelete={() => onRemove(item.id)} />
           </div>
+        ) : preserveActionsGeometry ? (
+          <div className="cs-axis-marker__menu-slot cs-axis-marker__menu-slot--spacer" aria-hidden="true" />
         ) : null}
       </div>
     </div>
@@ -190,10 +213,14 @@ function renderBlock(
   blockKey: string,
   variant: CenterAxisTimelineProps['variant'],
   handlers: Handlers,
-  options: Pick<CenterAxisTimelineProps, 'items' | 'itemMenuMode' | 'readOnly'>,
+  options: Pick<
+    CenterAxisTimelineProps,
+    'items' | 'itemMenuMode' | 'readOnly' | 'preserveActionsGeometry' | 'displayTitleByItemId'
+  >,
   inline: InlineAmountOptions | null,
   onAddAfter: (afterOrder: number) => void,
   readOnly: boolean,
+  _preserveActionsGeometry: boolean,
 ) {
   if (block.kind === 'coverage') {
     return (
@@ -243,7 +270,16 @@ function renderFlatTimeline(
     itemMenuMode,
     onAddAfter,
     readOnly = false,
+    preserveActionsGeometry = false,
+    displayTitleByItemId,
   } = props
+  const rowOptions = {
+    items,
+    itemMenuMode,
+    readOnly,
+    preserveActionsGeometry,
+    displayTitleByItemId,
+  }
 
   return (
     <>
@@ -262,10 +298,10 @@ function renderFlatTimeline(
                   hideColumnLabels={variant === 'mobile'}
                 />
               ) : null}
-              {renderTimeMarker(item, removeMarker, markerMenuMode, readOnly)}
+              {renderTimeMarker(item, removeMarker, markerMenuMode, readOnly, preserveActionsGeometry)}
             </>
           ) : (
-            renderCoverageRow(item, variant, handlers, { items, itemMenuMode, readOnly }, inline)
+            renderCoverageRow(item, variant, handlers, rowOptions, inline)
           )}
           {!readOnly && compactInsert && shouldShowTimelineInsertAfterItem(item, items, compactInsert) ? (
             <TimelineInsertControl
@@ -297,7 +333,14 @@ function renderPeriodSections(
   inline: InlineAmountOptions | null,
 ) {
   const sections = buildTimelinePeriodSections(props.items, true, periodByMarkerId)
-  const options = { items: props.items, itemMenuMode: props.itemMenuMode, readOnly: props.readOnly ?? false }
+  const preserveActionsGeometry = props.preserveActionsGeometry ?? false
+  const options = {
+    items: props.items,
+    itemMenuMode: props.itemMenuMode,
+    readOnly: props.readOnly ?? false,
+    preserveActionsGeometry,
+    displayTitleByItemId: props.displayTitleByItemId,
+  }
 
   return sections.map((section) => (
     <div key={section.key} className="cs-period-section-wrap">
@@ -312,12 +355,19 @@ function renderPeriodSections(
             inline,
             props.onAddAfter,
             props.readOnly ?? false,
+            preserveActionsGeometry,
           ),
         )}
       </div>
       {section.boundaryMarker ? (
         <div className="cs-period-boundary">
-          {renderTimeMarker(section.boundaryMarker, removeMarker, markerMenuMode, props.readOnly ?? false)}
+          {renderTimeMarker(
+            section.boundaryMarker,
+            removeMarker,
+            markerMenuMode,
+            props.readOnly ?? false,
+            preserveActionsGeometry,
+          )}
         </div>
       ) : null}
     </div>
@@ -329,7 +379,10 @@ export function CenterAxisTimeline({
   currentTotal,
   proposedTotal,
   variant,
+  mode = 'editable',
   readOnly = false,
+  preserveActionsGeometry = false,
+  displayTitleByItemId,
   showInlineSummary = true,
   compactInsert = false,
   itemMenuMode = 'popover',
@@ -367,12 +420,17 @@ export function CenterAxisTimeline({
   const removeMarker = onRemoveTimeMarker ?? onRemoveItem
   const usePeriodSections = compactInsert && variant === 'mobile'
 
+  const resolvedReadOnly = readOnly || mode !== 'editable'
+
   const timelineProps: CenterAxisTimelineProps = {
     items,
     currentTotal,
     proposedTotal,
     variant,
-    readOnly,
+    mode,
+    readOnly: resolvedReadOnly,
+    preserveActionsGeometry,
+    displayTitleByItemId,
     showInlineSummary,
     compactInsert,
     itemMenuMode,
@@ -387,8 +445,17 @@ export function CenterAxisTimeline({
     onInlineAmountCommit,
   }
 
+  const sheetClass = [
+    'cs-axis-sheet',
+    `cs-axis-sheet--${variant}`,
+    mode === 'print' ? 'cs-axis-sheet--print' : '',
+    mode === 'readonly' ? 'cs-axis-sheet--readonly' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   return (
-    <section className={`cs-axis-sheet cs-axis-sheet--${variant}`} aria-label="보장 비교 타임라인">
+    <section className={sheetClass} aria-label="보장 비교 타임라인">
       <div className="cs-axis-col-header" aria-hidden="true">
         <span className="cs-axis-col-header__current">기존 보장</span>
         <span className="cs-axis-col-header__axis" />
@@ -405,23 +472,11 @@ export function CenterAxisTimeline({
       </div>
 
       {showInlineSummary ? (
-        <footer className="cs-axis-summary coverage-simulator-summary">
-          <div className="cs-axis-summary__compare">
-            <div className="cs-axis-summary__col">
-              <span className="cs-axis-summary__label">기존 총 보장</span>
-              <span className="cs-axis-summary__value coverage-simulator-summary__value">
-                {formatTotalAmountLabel(currentTotal)}
-              </span>
-            </div>
-            <div className="cs-axis-summary__spine" aria-hidden="true" />
-            <div className="cs-axis-summary__col cs-axis-summary__col--proposed">
-              <span className="cs-axis-summary__label">제안 총 보장</span>
-              <span className="cs-axis-summary__value cs-axis-summary__value--proposed coverage-simulator-summary__value coverage-simulator-summary__value--proposed">
-                {formatTotalAmountLabel(proposedTotal)}
-              </span>
-            </div>
-          </div>
-        </footer>
+        <CoverageGrandTotal
+          currentTotal={currentTotal}
+          proposedTotal={proposedTotal}
+          sticky={mode === 'editable'}
+        />
       ) : null}
     </section>
   )
