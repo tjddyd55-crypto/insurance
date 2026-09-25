@@ -9,6 +9,7 @@ import {
 } from '../../domain/timelinePeriodSections'
 import { shouldShowTimelineInsertAfterItem } from '../../domain/timelineInsertVisibility'
 import type { CoverageScenarioItem, ScenarioItem } from '../../domain/types'
+import { CoverageTimelineReorderButtons } from './CoverageTimelineReorderButtons'
 import { EventRowMenu } from './EventRowMenu'
 import { InlineAmountQuickEdit, type InlineAmountField } from './InlineAmountQuickEdit'
 import { TimelineInsertControl } from './TimelineInsertControl'
@@ -103,6 +104,8 @@ function renderCoverageRow(
   options: Pick<CenterAxisTimelineProps, 'items' | 'itemMenuMode'>,
   inline: InlineAmountOptions | null,
 ) {
+  const showTimelineReorder = options.itemMenuMode === 'action-sheet'
+
   return (
     <div key={item.id} className="cs-axis-event">
       <div className="cs-axis-event__head">
@@ -112,16 +115,20 @@ function renderCoverageRow(
         <p className="cs-axis-event__title-axis">
           <span className="cs-axis-event__label">{item.label}</span>
         </p>
-        <div className="cs-axis-event__menu">
+        <div className="cs-axis-event__actions">
+          {showTimelineReorder ? (
+            <CoverageTimelineReorderButtons
+              items={options.items}
+              itemId={item.id}
+              onMoveUp={() => handlers.onMoveItem(item.id, 'up')}
+              onMoveDown={() => handlers.onMoveItem(item.id, 'down')}
+            />
+          ) : null}
           <EventRowMenu
             menuMode={options.itemMenuMode}
-            items={options.items}
-            itemId={item.id}
             itemCategory={item.category}
             itemLabel={item.label}
             onEditAmount={() => handlers.onEditItem(item)}
-            onMoveUp={() => handlers.onMoveItem(item.id, 'up')}
-            onMoveDown={() => handlers.onMoveItem(item.id, 'down')}
             onDelete={() => handlers.onRemoveItem(item.id)}
           />
         </div>

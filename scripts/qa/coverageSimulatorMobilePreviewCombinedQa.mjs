@@ -84,8 +84,26 @@ async function main() {
   if (currentText?.includes('500')) pass('A-none-to-amount', currentText.trim())
   else fail('A-none-to-amount', currentText ?? '')
 
+  const amountSample = await page.locator('.cs-axis-amount--proposed .cs-axis-amount__value').first().textContent()
+  if (amountSample?.includes(' 만원')) pass('A-amount-spacing', amountSample.trim())
+  else fail('A-amount-spacing', amountSample ?? '')
+
+  const hierarchy = await page.evaluate(() => {
+    const sub = document.querySelector('.cs-axis-period-total__value')
+    const dock = document.querySelector('.cs-mobile-dock__amount--proposed')
+    if (!sub || !dock) return null
+    const subSize = parseFloat(getComputedStyle(sub).fontSize)
+    const dockSize = parseFloat(getComputedStyle(dock).fontSize)
+    return { subSize, dockSize }
+  })
+  if (hierarchy && hierarchy.dockSize > hierarchy.subSize) {
+    pass('A-total-hierarchy', `dock=${hierarchy.dockSize} sub=${hierarchy.subSize}`)
+  } else fail('A-total-hierarchy', JSON.stringify(hierarchy))
+
   // Exclusive full-screen edit form (no timeline / dock / overlay scroll lock)
   await page.locator('.cs-axis-row-menu__trigger').first().click()
+  await page.waitForSelector('.cs-item-action-sheet', { timeout: 8000 })
+  await page.getByRole('menuitem', { name: '항목 수정' }).click()
   await page.waitForSelector('.cs-form-screen', { timeout: 8000 })
   const editExclusive = await page.evaluate(() => {
     const root = document.querySelector('.coverage-simulator-root')
@@ -152,22 +170,19 @@ async function main() {
   if (reloaded?.includes('2,500') || reloaded?.includes('2,500')) pass('A-f5', reloaded?.trim() ?? '')
   else fail('A-f5', reloaded ?? '')
 
-  // Reorder (same period) via full-screen edit form
+  // Reorder (same period) via timeline ↑ ↓
   await page.goto(`${MOBILE}/cancer/new`, { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('[data-testid="coverage-scenario-editor"]', { timeout: 60000 })
   const labelsBefore = await page.locator('.cs-axis-event__label').allTextContents()
   const trimmedBefore = labelsBefore.map((t) => t.trim()).filter(Boolean)
   if (trimmedBefore.length >= 2) {
-    await page.locator('.cs-axis-row-menu__trigger').first().click()
-    await page.waitForSelector('.cs-form-screen', { timeout: 8000 })
-    const upBtn = page.locator('.cs-form-primitive__move-btn').first()
-    const downBtn = page.locator('.cs-form-primitive__move-btn').nth(1)
+    const firstRow = page.locator('.cs-axis-event').first()
+    const upBtn = firstRow.locator('.cs-axis-reorder__btn').first()
+    const downBtn = firstRow.locator('.cs-axis-reorder__btn').nth(1)
     if (await upBtn.isDisabled()) pass('A-reorder-up-disabled-first', 'first item cannot move up')
     else fail('A-reorder-up-disabled-first', 'expected disabled')
     await downBtn.click()
     await page.waitForTimeout(300)
-    await page.locator('.cs-form-screen__back').click()
-    await page.waitForSelector('.cs-axis-timeline', { timeout: 8000 })
     const labelsAfterMove = await page.locator('.cs-axis-event__label').allTextContents()
     const trimmedAfter = labelsAfterMove.map((t) => t.trim()).filter(Boolean)
     const swapped =

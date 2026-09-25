@@ -1,18 +1,15 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
-import { coverageItemMoveState } from '../../domain/timelinePeriodBounds'
-import type { ScenarioItem, ScenarioItemCategory } from '../../domain/types'
+import FormButton from '../../../../components/form/FormButton'
+import { ItemActionSheet } from '../ItemActionSheet'
+import type { ScenarioItemCategory } from '../../domain/types'
 
 type EventRowMenuProps = {
   menuMode?: 'popover' | 'action-sheet'
-  items?: ScenarioItem[]
-  itemId?: string
   itemCategory?: ScenarioItemCategory
   itemLabel?: string
   onEditAmount: () => void
-  onMoveUp: () => void
-  onMoveDown: () => void
   onDelete: () => void
 }
 
@@ -42,30 +39,22 @@ function measurePanelPosition(trigger: HTMLElement, panel: HTMLElement): PanelPo
 
 export function EventRowMenu({
   menuMode = 'popover',
-  items = [],
-  itemId = '',
+  itemCategory,
+  itemLabel = '',
   onEditAmount,
-  onMoveUp,
-  onMoveDown,
   onDelete,
 }: EventRowMenuProps) {
   const [open, setOpen] = useState(false)
+  const [sheetOpen, setSheetOpen] = useState(false)
   const [position, setPosition] = useState<PanelPosition | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
-  const triggerRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
 
-  const moveState = useMemo(
-    () => (itemId ? coverageItemMoveState(items, itemId) : { canMoveUp: false, canMoveDown: false }),
-    [items, itemId],
-  )
-
   useLayoutEffect(() => {
-    if (menuMode !== 'popover' || !open || !triggerRef.current || !panelRef.current) {
-      setPosition(null)
-      return
-    }
-    setPosition(measurePanelPosition(triggerRef.current, panelRef.current))
+    if (menuMode !== 'popover' || !open) return
+    const trigger = rootRef.current?.querySelector('button')
+    if (!trigger || !panelRef.current) return
+    setPosition(measurePanelPosition(trigger as HTMLElement, panelRef.current))
   }, [open, menuMode])
 
   useEffect(() => {
@@ -76,8 +65,9 @@ export function EventRowMenu({
       setOpen(false)
     }
     const onReflow = () => {
-      if (triggerRef.current && panelRef.current) {
-        setPosition(measurePanelPosition(triggerRef.current, panelRef.current))
+      const trigger = rootRef.current?.querySelector('button')
+      if (trigger && panelRef.current) {
+        setPosition(measurePanelPosition(trigger as HTMLElement, panelRef.current))
       }
     }
     document.addEventListener('mousedown', onDoc)
@@ -92,16 +82,28 @@ export function EventRowMenu({
 
   if (menuMode === 'action-sheet') {
     return (
-      <div className="cs-axis-row-menu">
-        <button
-          type="button"
-          className="cs-axis-row-menu__trigger"
-          aria-label="항목 수정"
-          onClick={onEditAmount}
-        >
-          ⋯
-        </button>
-      </div>
+      <>
+        <div className="cs-axis-row-menu">
+          <FormButton
+            variant="action"
+            className="cs-axis-row-menu__trigger"
+            aria-label="항목 메뉴"
+            onClick={() => setSheetOpen(true)}
+          >
+            ⋯
+          </FormButton>
+        </div>
+        <ItemActionSheet
+          open={sheetOpen}
+          title="항목"
+          subject={itemCategory ? { category: itemCategory, label: itemLabel } : undefined}
+          onClose={() => setSheetOpen(false)}
+          actions={[
+            { id: 'edit', label: '항목 수정', onSelect: onEditAmount },
+            { id: 'delete', label: '삭제', destructive: true, onSelect: onDelete },
+          ]}
+        />
+      </>
     )
   }
 
@@ -128,22 +130,6 @@ export function EventRowMenu({
         <button
           type="button"
           role="menuitem"
-          disabled={!moveState.canMoveUp}
-          onClick={() => { setOpen(false); onMoveUp() }}
-        >
-          위로 이동
-        </button>
-        <button
-          type="button"
-          role="menuitem"
-          disabled={!moveState.canMoveDown}
-          onClick={() => { setOpen(false); onMoveDown() }}
-        >
-          아래로 이동
-        </button>
-        <button
-          type="button"
-          role="menuitem"
           className="cs-axis-row-menu__danger"
           onClick={() => { setOpen(false); onDelete() }}
         >
@@ -154,16 +140,15 @@ export function EventRowMenu({
 
   return (
     <div className="cs-axis-row-menu" ref={rootRef}>
-      <button
-        ref={triggerRef}
-        type="button"
+      <FormButton
+        variant="action"
         className="cs-axis-row-menu__trigger"
         aria-label="항목 메뉴"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
         ⋯
-      </button>
+      </FormButton>
       {panel ? createPortal(panel, document.body) : null}
     </div>
   )

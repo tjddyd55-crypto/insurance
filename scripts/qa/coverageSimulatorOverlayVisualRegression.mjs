@@ -27,9 +27,7 @@ const shots = [
       await page.goto(`${MOBILE}/cancer/new`, { waitUntil: 'domcontentloaded' })
       await page.waitForSelector('[data-testid="coverage-scenario-editor"]', { timeout: 60000 })
       await page.locator('.cs-axis-row-menu__trigger').first().click()
-      await page.waitForSelector('.cs-form-screen', { timeout: 10000 })
-      const hasItemAction = (await page.locator('.cs-item-action-sheet').count()) > 0
-      if (hasItemAction) throw new Error('item action sheet should not open on ⋯')
+      await page.waitForSelector('.cs-item-action-sheet', { timeout: 10000 })
       return true
     },
   },
@@ -39,7 +37,17 @@ const shots = [
       await page.goto(`${MOBILE}/cancer/new`, { waitUntil: 'domcontentloaded' })
       await page.waitForSelector('[data-testid="coverage-scenario-editor"]', { timeout: 60000 })
       await page.locator('.cs-axis-row-menu__trigger').first().click()
+      await page.waitForSelector('.cs-item-action-sheet', { timeout: 10000 })
+      await page.getByRole('menuitem', { name: '항목 수정' }).click()
       await page.waitForSelector('.cs-form-screen', { timeout: 10000 })
+      return true
+    },
+  },
+  {
+    id: 'timeline-reorder-controls',
+    setup: async (page) => {
+      await page.goto(`${MOBILE}/cancer/new`, { waitUntil: 'domcontentloaded' })
+      await page.waitForSelector('[data-testid="coverage-timeline-reorder"]', { timeout: 60000 })
       return true
     },
   },

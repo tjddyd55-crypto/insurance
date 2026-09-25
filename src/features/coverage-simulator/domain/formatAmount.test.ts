@@ -23,6 +23,22 @@ describe('formatAmount', () => {
 
   it('formats large totals', () => {
     expect(formatTotalAmountLabel(125_000_000)).toBe('1억 2,500 만원')
+    expect(formatTotalAmountLabel(30_000_000)).toBe('3,000 만원')
+    expect(formatTotalAmountLabel(100_000_000)).toBe('1억')
+  })
+
+  it('keeps a space before 만원 in man-won labels', () => {
+    const labels = [
+      formatCoverageAmountLabel(30_000_000),
+      formatTotalAmountLabel(30_000_000),
+      formatTotalAmountLabel(125_000_000),
+    ]
+    for (const label of labels) {
+      if (label.includes('만원')) {
+        expect(label).toMatch(/,\d{3} 만원|억 \d|^\d+ 만원/)
+        expect(label).not.toMatch(/\d만원/)
+      }
+    }
   })
 
   it('formats man-won input display with commas', () => {

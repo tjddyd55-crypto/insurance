@@ -66,6 +66,8 @@ await page.waitForSelector('.cs-axis-timeline', { timeout: 8000 })
 if (!(await assertNoCrash('add-close'))) failed = true
 
 await page.locator('.cs-axis-row-menu__trigger').first().click()
+await page.waitForSelector('.cs-item-action-sheet', { timeout: 8000 })
+await page.getByRole('menuitem', { name: '항목 수정' }).click()
 await page.waitForSelector('[data-testid="coverage-simulator-form-screen"]', { timeout: 8000 })
 if (!(await assertNoCrash('edit-open'))) failed = true
 await page.locator('.cs-form-screen__back').click()

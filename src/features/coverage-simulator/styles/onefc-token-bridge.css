@@ -37,7 +37,7 @@
   --cs-radius-button: var(--radius-md, 8px);
   --cs-control-height: var(--control-height-md, 40px);
 
-  --cs-period-subtotal-bg: color-mix(in srgb, var(--primary-soft) 88%, transparent);
+  --cs-period-subtotal-bg: color-mix(in srgb, var(--cs-color-border, #e2e8f0) 35%, transparent);
   --cs-period-subtotal-heading: var(--text-main);
   --cs-period-marker-line: var(--primary-border);
   --cs-period-marker-text: var(--primary-active, #166534);

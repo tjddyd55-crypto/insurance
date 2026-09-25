@@ -2,7 +2,7 @@ import { useRef } from 'react'
 
 import type { CoverageSimulatorFormMode } from '../domain/coverageSimulatorFormMode'
 import { isAddFormMode, isEditFormMode } from '../domain/coverageSimulatorFormMode'
-import type { CoverageScenarioItem, ScenarioItem, ScenarioItemCategory } from '../domain/types'
+import type { CoverageScenarioItem, ScenarioItemCategory } from '../domain/types'
 import { AddItemFormBody, type AddItemFormBodyHandle } from './AddItemFormBody'
 import { CoverageSimulatorFormScreen } from './CoverageSimulatorFormScreen'
 import { EditItemFormBody, type EditItemFormBodyHandle } from './EditItemFormBody'
@@ -12,7 +12,6 @@ type Props = {
   formMode: CoverageSimulatorFormMode
   favoriteUserKey?: string | null
   editingItem: CoverageScenarioItem | null
-  allItems: ScenarioItem[]
   onClose: () => void
   onSelectCoverage: (input: { label: string; category: ScenarioItemCategory }) => void
   onSelectTimeMarker: (label: string) => void
@@ -23,8 +22,6 @@ type Props = {
     proposedAmount: number | null
     memo?: string
   }) => void
-  onMoveUp: () => void
-  onMoveDown: () => void
   onDelete: () => void
 }
 
@@ -32,13 +29,10 @@ export function CoverageSimulatorMobileItemForm({
   formMode,
   favoriteUserKey,
   editingItem,
-  allItems,
   onClose,
   onSelectCoverage,
   onSelectTimeMarker,
   onSaveAmount,
-  onMoveUp,
-  onMoveDown,
   onDelete,
 }: Props) {
   const editRef = useRef<EditItemFormBodyHandle>(null)
@@ -89,9 +83,6 @@ export function CoverageSimulatorMobileItemForm({
           ref={editRef}
           key={editingItem.id}
           item={editingItem}
-          allItems={allItems}
-          onMoveUp={onMoveUp}
-          onMoveDown={onMoveDown}
           onDelete={onDelete}
           onSave={onSaveAmount}
         />

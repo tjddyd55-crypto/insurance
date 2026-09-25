@@ -92,14 +92,6 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
     [openEditForm],
   )
 
-  const handleEditSheetMove = useCallback(
-    (direction: 'up' | 'down') => {
-      if (formMode?.type !== 'edit') return
-      moveItem(formMode.itemId, direction)
-    },
-    [formMode, moveItem],
-  )
-
   const handleEditSheetDelete = useCallback(async () => {
     if (formMode?.type !== 'edit') return
     const ok = await confirm({
@@ -208,13 +200,10 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
           formMode={formMode}
           favoriteUserKey={useMobileStickyDock ? userKey : null}
           editingItem={editingItem}
-          allItems={sortedItems}
           onClose={closeForm}
           onSelectCoverage={onSelectCoverage}
           onSelectTimeMarker={onSelectTimeMarker}
           onSaveAmount={onSaveAmount}
-          onMoveUp={() => handleEditSheetMove('up')}
-          onMoveDown={() => handleEditSheetMove('down')}
           onDelete={handleEditSheetDelete}
         />
         {confirmDialog}

@@ -42,4 +42,5 @@
   --cs-axis-title-mask-pad-x: 8px;
   --cs-axis-event-badge-col-width: 44px;
   --cs-axis-event-menu-col-width: 32px;
+  --cs-axis-event-actions-col-width: 100px;
 }

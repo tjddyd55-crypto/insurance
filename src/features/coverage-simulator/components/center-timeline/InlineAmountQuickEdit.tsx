@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 import {
+  formatCoverageAmountLabel,
   formatManWonInputDisplay,
   parseManWonInput,
   sanitizeManWonInputTyping,
@@ -16,14 +17,6 @@ type Props = {
   onActivate: () => void
   onCommit: (amount: number | null) => void
   onEndEdit: () => void
-}
-
-function displayAmountParts(amount: number | null): { primary: string; showUnit: boolean } {
-  if (amount == null || amount <= 0) {
-    return { primary: '없음', showUnit: false }
-  }
-  const formatted = formatManWonInputDisplay(amount)
-  return { primary: formatted, showUnit: true }
 }
 
 export function InlineAmountQuickEdit({
@@ -65,13 +58,10 @@ export function InlineAmountQuickEdit({
     }
   }, [active, amount])
 
-  const { primary, showUnit } = displayAmountParts(amount)
-
   if (!active) {
     return (
       <button type="button" className={className} onClick={onActivate}>
-        <span className="cs-axis-amount__value">{primary}</span>
-        {showUnit ? <span className="cs-axis-amount__unit"> 만원</span> : null}
+        <span className="cs-axis-amount__value">{formatCoverageAmountLabel(amount)}</span>
       </button>
     )
   }
