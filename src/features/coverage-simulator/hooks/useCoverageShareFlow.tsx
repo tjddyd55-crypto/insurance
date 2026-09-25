@@ -88,10 +88,11 @@ export function useCoverageShareFlow({
   const shareBusyRef = useRef(false)
 
   const consultationId = scenario?.id ?? null
-  const isPersistedConsultation = useMemo(() => {
-    if (!consultationId) return false
-    return Boolean(getScenarioById(userKey, consultationId))
-  }, [consultationId, userKey])
+  // Draft와 저장본은 동일 id를 유지하므로 consultationId만으로 memoize하면
+  // 저장 직후에도 false가 고정된다. 렌더마다 localStorage SSOT를 확인한다.
+  const isPersistedConsultation = Boolean(
+    consultationId && getScenarioById(userKey, consultationId),
+  )
 
   const showShareButton = canShowCoverageShareButton({ isTemplate, hasScenario: Boolean(scenario) })
 
@@ -131,7 +132,7 @@ export function useCoverageShareFlow({
       if (!ok) return null
     }
     if (isDirty() || !isPersistedConsultation) {
-      const saveResult = await requestSaveConsultation()
+      const saveResult = await requestSaveConsultation(scenario.title)
       if ('needsTitle' in saveResult && saveResult.needsTitle) {
         showToast(saveResult.validationError ?? '제목을 입력한 후 저장해 주세요.')
         return null
