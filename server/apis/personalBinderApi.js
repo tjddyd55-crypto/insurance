@@ -104,8 +104,7 @@ async function getOwnedSection(executor, sectionId, scope) {
 async function loadBinderDetail(executor, binderId, scope) {
   const binder = await getOwnedBinder(executor, binderId, scope)
   if (!binder) return null
-  const sections = await safeQuery(
-    executor,
+  const sections = await executor.query(
     `
     SELECT id, title, sort_order, created_at, updated_at
     FROM personal_binder_sections
@@ -114,8 +113,7 @@ async function loadBinderDetail(executor, binderId, scope) {
     `,
     [binderId],
   )
-  const items = await safeQuery(
-    executor,
+  const items = await executor.query(
     `
     SELECT
       i.id,
