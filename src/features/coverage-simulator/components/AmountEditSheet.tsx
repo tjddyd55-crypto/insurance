@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 
+import { useCoverageSimulatorOverlayScrollLock } from '../hooks/useCoverageSimulatorOverlayScrollLock'
+
 import {
   formatManWonInput,
   formatManWonInputDisplay,
@@ -24,6 +26,7 @@ type AmountEditSheetProps = {
 }
 
 export function AmountEditSheet({ open, item, onClose, mobileCompact = false, onSave }: AmountEditSheetProps) {
+  useCoverageSimulatorOverlayScrollLock(open)
   const [label, setLabel] = useState('')
   const [category, setCategory] = useState<ScenarioItemCategory>('treatment')
   const [currentInput, setCurrentInput] = useState('')

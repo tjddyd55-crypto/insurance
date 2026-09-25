@@ -901,6 +901,25 @@ body.coverage-simulator-immersive .pc-workspace-layout > main {
   box-shadow: 0 8px 32px rgba(15, 23, 42, 0.08);
 }
 
+html.coverage-simulator-overlay-scroll-lock,
+html.coverage-simulator-overlay-scroll-lock body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html.coverage-simulator-overlay-scroll-lock .coverage-simulator-mobile-preview-frame,
+html.coverage-simulator-overlay-scroll-lock .cs-axis-main {
+  overscroll-behavior: contain;
+  touch-action: none;
+}
+
+.coverage-simulator-sheet,
+.cs-sheet-body-scroll,
+.cs-item-action-sheet {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
 .coverage-simulator-pc-preview-root {
   min-height: 100dvh;
   min-width: 1024px;

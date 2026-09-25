@@ -1,6 +1,6 @@
-import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 
+import { useCoverageSimulatorOverlayScrollLock } from '../hooks/useCoverageSimulatorOverlayScrollLock'
 import { CoverageBadge } from './CoverageBadge'
 import type { ScenarioItemCategory } from '../domain/types'
 
@@ -26,14 +26,7 @@ type Props = {
 }
 
 export function ItemActionSheet({ open, title, subject, onClose, actions }: Props) {
-  useEffect(() => {
-    if (!open) return undefined
-    const previous = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = previous
-    }
-  }, [open])
+  useCoverageSimulatorOverlayScrollLock(open)
 
   if (!open) return null
 

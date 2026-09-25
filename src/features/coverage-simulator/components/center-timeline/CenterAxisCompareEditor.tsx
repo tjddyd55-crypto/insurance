@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 
 import { useConfirmDialog } from '../../../../components/dialog'
 import { AddItemSheet } from '../AddItemSheet'
@@ -10,7 +10,8 @@ import { MobilePreviewStickyDock } from '../MobilePreviewStickyDock'
 import { SaveConsultationTitleDialog } from '../SaveConsultationTitleDialog'
 import { diseaseTypeTitle } from '../../domain/diseaseTypeLabels'
 import { useCoverageSimulatorScope } from '../../CoverageSimulatorScope'
-import { CenterAxisTimeline } from './CenterAxisTimeline'
+import { CenterAxisTimeline, type InlineAmountEditTarget } from './CenterAxisTimeline'
+import type { InlineAmountField } from './InlineAmountQuickEdit'
 import { isTemplateEditorMode, type TimelineEditorController } from './TimelineEditorController'
 
 type Props = {
@@ -29,6 +30,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   const useMobileStickyDock = variant === 'mobile' && layoutMode === 'preview-mobile'
   const [titleDialogOpen, setTitleDialogOpen] = useState(false)
   const [titleValidationError, setTitleValidationError] = useState<string | null>(null)
+  const [inlineAmountEdit, setInlineAmountEdit] = useState<InlineAmountEditTarget>(null)
 
   const {
     scenario,
@@ -48,6 +50,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
     onSelectCoverage,
     onSelectTimeMarker,
     onSaveAmount,
+    patchCoverageItem,
     moveItem,
     removeItem,
   } = editor
@@ -111,6 +114,41 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
     })
     if (ok) removeItem(id)
   }
+
+  const handleInlineAmountEditChange = useCallback(
+    (target: InlineAmountEditTarget) => {
+      if (target) {
+        setAddSheetOpen(false)
+        setEditingItem(null)
+      }
+      setInlineAmountEdit(target)
+    },
+    [setAddSheetOpen, setEditingItem],
+  )
+
+  const handleInlineAmountCommit = useCallback(
+    (itemId: string, field: InlineAmountField, amount: number | null) => {
+      const patch = field === 'current' ? { currentAmount: amount } : { proposedAmount: amount }
+      patchCoverageItem(itemId, patch)
+    },
+    [patchCoverageItem],
+  )
+
+  const openAddSheetForOrder = useCallback(
+    (afterOrder: number) => {
+      setInlineAmountEdit(null)
+      openAddSheet(afterOrder)
+    },
+    [openAddSheet],
+  )
+
+  const openFullAmountEdit = useCallback(
+    (item: Parameters<typeof setEditingItem>[0]) => {
+      setInlineAmountEdit(null)
+      setEditingItem(item)
+    },
+    [setEditingItem],
+  )
 
   const requestReset = async () => {
     const ok = await confirm(
@@ -207,11 +245,15 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
           showInlineSummary={!useMobileStickyDock}
           compactInsert={useMobileStickyDock}
           itemMenuMode={useMobileStickyDock ? 'action-sheet' : 'popover'}
-          onEditItem={setEditingItem}
+          onEditItem={openFullAmountEdit}
           onMoveItem={moveItem}
           onRemoveItem={requestRemoveCoverageItem}
           onRemoveTimeMarker={requestRemoveTimeMarker}
-          onAddAfter={openAddSheet}
+          onAddAfter={openAddSheetForOrder}
+          enableInlineAmountEdit={useMobileStickyDock}
+          inlineAmountEdit={inlineAmountEdit}
+          onInlineAmountEditChange={handleInlineAmountEditChange}
+          onInlineAmountCommit={handleInlineAmountCommit}
         />
       </main>
 

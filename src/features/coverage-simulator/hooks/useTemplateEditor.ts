@@ -88,6 +88,15 @@ export function useTemplateEditor() {
       if (!scenario || !editingItem) return
       persist(updateCoverageItem(scenario, editingItem.id, patch))
     },
+    patchCoverageItem: (
+      itemId: string,
+      patch: Partial<
+        Pick<CoverageScenarioItem, 'label' | 'category' | 'currentAmount' | 'proposedAmount' | 'memo'>
+      >,
+    ) => {
+      if (!scenario) return
+      persist(updateCoverageItem(scenario, itemId, patch))
+    },
     moveItem: (id: string, direction: 'up' | 'down') => {
       if (!scenario) return
       persist(moveScenarioItem(scenario, id, direction))

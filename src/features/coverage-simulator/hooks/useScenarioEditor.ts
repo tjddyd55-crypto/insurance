@@ -211,6 +211,15 @@ export function useScenarioEditor() {
       if (!scenario || !editingItem) return
       mutate((current) => updateCoverageItem(current, editingItem.id, patch))
     },
+    patchCoverageItem: (
+      itemId: string,
+      patch: Partial<
+        Pick<CoverageScenarioItem, 'label' | 'category' | 'currentAmount' | 'proposedAmount' | 'memo'>
+      >,
+    ) => {
+      if (!scenario) return
+      mutate((current) => updateCoverageItem(current, itemId, patch))
+    },
     moveItem: (id: string, direction: 'up' | 'down') => {
       if (!scenario) return
       mutate((current) => moveScenarioItem(current, id, direction))

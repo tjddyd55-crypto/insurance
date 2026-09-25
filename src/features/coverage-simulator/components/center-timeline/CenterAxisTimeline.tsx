@@ -10,9 +10,19 @@ import {
 import { shouldShowTimelineInsertAfterItem } from '../../domain/timelineInsertVisibility'
 import type { CoverageScenarioItem, ScenarioItem } from '../../domain/types'
 import { EventRowMenu } from './EventRowMenu'
+import { InlineAmountQuickEdit, type InlineAmountField } from './InlineAmountQuickEdit'
 import { TimelineInsertControl } from './TimelineInsertControl'
 import { TimelinePeriodSubtotal } from './TimelinePeriodSubtotal'
 import { TimeMarkerRowMenu } from './TimeMarkerRowMenu'
+
+export type InlineAmountEditTarget = { itemId: string; field: InlineAmountField } | null
+
+type InlineAmountOptions = {
+  enableInlineAmountEdit: boolean
+  inlineAmountEdit: InlineAmountEditTarget
+  onInlineAmountEditChange: (target: InlineAmountEditTarget) => void
+  onInlineAmountCommit: (itemId: string, field: InlineAmountField, amount: number | null) => void
+}
 
 export type CenterAxisTimelineProps = {
   items: ScenarioItem[]
@@ -27,15 +37,74 @@ export type CenterAxisTimelineProps = {
   onRemoveItem: (id: string) => void
   onRemoveTimeMarker?: (id: string) => void
   onAddAfter: (afterOrder: number) => void
+  enableInlineAmountEdit?: boolean
+  inlineAmountEdit?: InlineAmountEditTarget
+  onInlineAmountEditChange?: (target: InlineAmountEditTarget) => void
+  onInlineAmountCommit?: (itemId: string, field: InlineAmountField, amount: number | null) => void
 }
 
 type Handlers = Pick<CenterAxisTimelineProps, 'onEditItem' | 'onMoveItem' | 'onRemoveItem'>
+
+function resolveInlineOptions(props: CenterAxisTimelineProps): InlineAmountOptions | null {
+  if (!props.enableInlineAmountEdit || !props.onInlineAmountEditChange || !props.onInlineAmountCommit) {
+    return null
+  }
+  return {
+    enableInlineAmountEdit: true,
+    inlineAmountEdit: props.inlineAmountEdit ?? null,
+    onInlineAmountEditChange: props.onInlineAmountEditChange,
+    onInlineAmountCommit: props.onInlineAmountCommit,
+  }
+}
+
+function renderAmountCell(
+  item: CoverageScenarioItem,
+  field: InlineAmountField,
+  variant: CenterAxisTimelineProps['variant'],
+  handlers: Handlers,
+  inline: InlineAmountOptions | null,
+) {
+  const amount = field === 'current' ? item.currentAmount : item.proposedAmount
+  const baseClass = [
+    'cs-axis-amount',
+    field === 'current' ? 'cs-axis-amount--current' : 'cs-axis-amount--proposed',
+    'coverage-simulator-amount-box',
+    field === 'proposed' ? 'coverage-simulator-amount-box--proposed' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  if (variant === 'mobile' && inline) {
+    const active = inline.inlineAmountEdit?.itemId === item.id && inline.inlineAmountEdit?.field === field
+    return (
+      <InlineAmountQuickEdit
+        amount={amount}
+        field={field}
+        active={active}
+        className={baseClass}
+        onActivate={() => inline.onInlineAmountEditChange({ itemId: item.id, field })}
+        onCommit={(next) => {
+          inline.onInlineAmountCommit(item.id, field, next)
+          inline.onInlineAmountEditChange(null)
+        }}
+        onCancel={() => inline.onInlineAmountEditChange(null)}
+      />
+    )
+  }
+
+  return (
+    <button type="button" className={baseClass} onClick={() => handlers.onEditItem(item)}>
+      <span className="cs-axis-amount__value">{formatCoverageAmountLabel(amount)}</span>
+    </button>
+  )
+}
 
 function renderCoverageRow(
   item: CoverageScenarioItem,
   variant: CenterAxisTimelineProps['variant'],
   handlers: Handlers,
   options: Pick<CenterAxisTimelineProps, 'items' | 'itemMenuMode'>,
+  inline: InlineAmountOptions | null,
 ) {
   return (
     <div key={item.id} className="cs-axis-event">
@@ -61,21 +130,9 @@ function renderCoverageRow(
         </div>
       </div>
       <div className="cs-axis-event__compare">
-        <button
-          type="button"
-          className="cs-axis-amount cs-axis-amount--current coverage-simulator-amount-box"
-          onClick={() => handlers.onEditItem(item)}
-        >
-          <span className="cs-axis-amount__value">{formatCoverageAmountLabel(item.currentAmount)}</span>
-        </button>
+        {renderAmountCell(item, 'current', variant, handlers, inline)}
         <div className="cs-axis-event__spine" aria-hidden="true" />
-        <button
-          type="button"
-          className="cs-axis-amount cs-axis-amount--proposed coverage-simulator-amount-box coverage-simulator-amount-box--proposed"
-          onClick={() => handlers.onEditItem(item)}
-        >
-          <span className="cs-axis-amount__value">{formatCoverageAmountLabel(item.proposedAmount)}</span>
-        </button>
+        {renderAmountCell(item, 'proposed', variant, handlers, inline)}
       </div>
       {variant === 'pc' && item.memo ? (
         <p className="cs-axis-event__memo">{item.memo}</p>
@@ -118,12 +175,13 @@ function renderBlock(
   variant: CenterAxisTimelineProps['variant'],
   handlers: Handlers,
   options: Pick<CenterAxisTimelineProps, 'items' | 'itemMenuMode'>,
+  inline: InlineAmountOptions | null,
   onAddAfter: (afterOrder: number) => void,
 ) {
   if (block.kind === 'coverage') {
     return (
       <div key={blockKey} className="cs-axis-block">
-        {renderCoverageRow(block.item, variant, handlers, options)}
+        {renderCoverageRow(block.item, variant, handlers, options, inline)}
       </div>
     )
   }
@@ -156,6 +214,7 @@ function renderFlatTimeline(
   periodByMarkerId: Map<string, { currentTotal: number; proposedTotal: number }>,
   markerMenuMode: 'inline-delete' | 'action-sheet',
   removeMarker: (id: string) => void,
+  inline: InlineAmountOptions | null,
 ) {
   const {
     items,
@@ -185,7 +244,7 @@ function renderFlatTimeline(
               {renderTimeMarker(item, removeMarker, markerMenuMode)}
             </>
           ) : (
-            renderCoverageRow(item, variant, handlers, { items, itemMenuMode })
+            renderCoverageRow(item, variant, handlers, { items, itemMenuMode }, inline)
           )}
           {compactInsert && shouldShowTimelineInsertAfterItem(item, items, compactInsert) ? (
             <TimelineInsertControl
@@ -214,6 +273,7 @@ function renderPeriodSections(
   markerMenuMode: 'inline-delete' | 'action-sheet',
   removeMarker: (id: string) => void,
   periodByMarkerId: Map<string, { currentTotal: number; proposedTotal: number }>,
+  inline: InlineAmountOptions | null,
 ) {
   const sections = buildTimelinePeriodSections(props.items, true, periodByMarkerId)
   const options = { items: props.items, itemMenuMode: props.itemMenuMode }
@@ -228,6 +288,7 @@ function renderPeriodSections(
             props.variant,
             handlers,
             options,
+            inline,
             props.onAddAfter,
           ),
         )}
@@ -254,8 +315,30 @@ export function CenterAxisTimeline({
   onRemoveItem,
   onRemoveTimeMarker,
   onAddAfter,
+  enableInlineAmountEdit = false,
+  inlineAmountEdit = null,
+  onInlineAmountEditChange,
+  onInlineAmountCommit,
 }: CenterAxisTimelineProps) {
   const handlers = { onEditItem, onMoveItem, onRemoveItem }
+  const inline = resolveInlineOptions({
+    items,
+    currentTotal,
+    proposedTotal,
+    variant,
+    showInlineSummary,
+    compactInsert,
+    itemMenuMode,
+    onEditItem,
+    onMoveItem,
+    onRemoveItem,
+    onRemoveTimeMarker,
+    onAddAfter,
+    enableInlineAmountEdit,
+    inlineAmountEdit,
+    onInlineAmountEditChange,
+    onInlineAmountCommit,
+  })
   const periodByMarkerId = useMemo(() => periodTotalsByEndMarkerId(items), [items])
   const markerMenuMode = itemMenuMode === 'action-sheet' ? 'action-sheet' : 'inline-delete'
   const removeMarker = onRemoveTimeMarker ?? onRemoveItem
@@ -274,6 +357,10 @@ export function CenterAxisTimeline({
     onRemoveItem,
     onRemoveTimeMarker,
     onAddAfter,
+    enableInlineAmountEdit,
+    inlineAmountEdit,
+    onInlineAmountEditChange,
+    onInlineAmountCommit,
   }
 
   return (
@@ -288,8 +375,8 @@ export function CenterAxisTimeline({
         <div className="cs-axis-timeline__line" aria-hidden="true" />
         <div className="cs-axis-timeline__rows">
           {usePeriodSections
-            ? renderPeriodSections(timelineProps, handlers, markerMenuMode, removeMarker, periodByMarkerId)
-            : renderFlatTimeline(timelineProps, handlers, periodByMarkerId, markerMenuMode, removeMarker)}
+            ? renderPeriodSections(timelineProps, handlers, markerMenuMode, removeMarker, periodByMarkerId, inline)
+            : renderFlatTimeline(timelineProps, handlers, periodByMarkerId, markerMenuMode, removeMarker, inline)}
         </div>
       </div>
 

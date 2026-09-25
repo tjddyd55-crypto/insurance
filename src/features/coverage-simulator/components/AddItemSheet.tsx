@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 
+import { useCoverageSimulatorOverlayScrollLock } from '../hooks/useCoverageSimulatorOverlayScrollLock'
+
 import {
   CATALOG_TABS,
   COVERAGE_ITEM_CATALOG,
@@ -43,6 +45,7 @@ export function AddItemSheet({
   favoriteUserKey = null,
   mobileCompact = false,
 }: AddItemSheetProps) {
+  useCoverageSimulatorOverlayScrollLock(open)
   const [tab, setTab] = useState<CatalogTabId>('favorite')
   const [customLabel, setCustomLabel] = useState('')
   const [customCategory, setCustomCategory] = useState<ScenarioItemCategory>('other')
