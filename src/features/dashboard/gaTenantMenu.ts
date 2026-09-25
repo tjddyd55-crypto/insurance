@@ -183,6 +183,7 @@ export function buildGaTenantDashboardMenu(
       : null)
 
   const workConvenienceLinks: GaTenantDashboardMenuEntry[] = [
+    { type: 'link', label: '내 바인더', path: '/personal-binders' },
     { type: 'link', label: '문자 발송', path: '/sms/settings' },
     { type: 'link', label: '원수사 연락처', path: '/insurance/contacts' },
     { type: 'link', label: '계정관리', path: '/insurance/account-credentials' },
