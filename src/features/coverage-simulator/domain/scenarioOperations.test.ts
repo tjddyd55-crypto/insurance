@@ -32,13 +32,30 @@ describe('scenarioOperations', () => {
     expect(labels).toContain('간병비')
   })
 
+  it('moves first coverage item down within period', () => {
+    const scenario = createScenarioFromTemplate('cancer')!
+    const sorted = scenario.items.slice().sort((a, b) => a.order - b.order)
+    const first = sorted.find((item) => item.type === 'coverage')!
+    expect(first.label).toBe('암 진단금')
+    const next = moveScenarioItem(scenario, first.id, 'down')
+    const labels = next.items
+      .slice()
+      .sort((a, b) => a.order - b.order)
+      .filter((item) => item.type === 'coverage')
+      .map((item) => item.label)
+    expect(labels[0]).toBe('암 수술비')
+    expect(labels[1]).toBe('암 진단금')
+  })
+
   it('swaps coverage order within the same period', () => {
     const scenario = createScenarioFromTemplate('cancer')!
     const sorted = scenario.items.slice().sort((a, b) => a.order - b.order)
+    let targetIndex = -1
     let targetId: string | null = null
     let neighborLabel: string | null = null
     for (let i = 1; i < sorted.length; i += 1) {
       if (sorted[i].type !== 'coverage' || sorted[i - 1].type !== 'coverage') continue
+      targetIndex = i
       targetId = sorted[i].id
       neighborLabel = sorted[i - 1].label
       break
@@ -53,8 +70,8 @@ describe('scenarioOperations', () => {
     const moved = sorted.find((item) => item.id === targetId)!
     expect(labels).toContain(moved.label)
     const movedIndex = labels.indexOf(moved.label)
-    expect(movedIndex).toBeGreaterThan(0)
-    expect(labels[movedIndex - 1]).toBe(neighborLabel)
+    expect(movedIndex).toBe(targetIndex - 1)
+    expect(labels[movedIndex + 1]).toBe(neighborLabel)
   })
 
   it('does not move coverage across time markers', () => {

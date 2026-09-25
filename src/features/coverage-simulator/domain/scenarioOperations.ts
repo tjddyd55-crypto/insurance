@@ -122,12 +122,15 @@ export function moveScenarioItem(
   }
   if (target < periodStart || target > periodEnd) return scenario
 
-  const copy = items.slice()
-  const [removed] = copy.splice(index, 1)
-  copy.splice(target, 0, removed)
+  const neighbor = items[target]
+  const swapped = items.map((item) => {
+    if (item.id === current.id) return { ...item, order: neighbor.order }
+    if (item.id === neighbor.id) return { ...item, order: current.order }
+    return item
+  })
   return {
     ...scenario,
-    items: normalizeOrders(copy),
+    items: normalizeOrders(swapped),
     updatedAt: new Date().toISOString(),
   }
 }

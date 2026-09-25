@@ -55,7 +55,7 @@ async function main() {
 
   await proposedCell.click()
   const inlineInput = page.locator('.cs-axis-amount__inline-input').first()
-  const fullSheet = page.locator('.cs-form-sheet')
+  const fullSheet = page.locator('.cs-form-screen')
   if (await inlineInput.isVisible({ timeout: 3000 }).catch(() => false)) {
     pass('A-inline-opens', 'inline input visible')
   } else if (await fullSheet.isVisible().catch(() => false)) {
@@ -86,7 +86,7 @@ async function main() {
 
   // Scroll lock with full edit sheet
   await page.locator('.cs-axis-row-menu__trigger').first().click()
-  await page.waitForSelector('.cs-form-sheet', { timeout: 8000 })
+  await page.waitForSelector('.cs-form-screen', { timeout: 8000 })
   const locked = await page.evaluate(() =>
     document.documentElement.classList.contains('coverage-simulator-overlay-scroll-lock'),
   )
@@ -100,7 +100,7 @@ async function main() {
   if (Math.abs(scrollAfterWheel - scrollBefore) < 8) pass('A-scroll-lock-wheel', `y=${scrollBefore}`)
   else fail('A-scroll-lock-wheel', `before=${scrollBefore} after=${scrollAfterWheel}`)
 
-  await page.locator('.cs-form-sheet__close').click()
+  await page.locator('.cs-form-screen__back').click()
   await page.screenshot({ path: join(outDir, 'inline-amount-390.png') })
 
   // Save draft + F5
@@ -117,7 +117,48 @@ async function main() {
   if (reloaded?.includes('2,500') || reloaded?.includes('2,500')) pass('A-f5', reloaded?.trim() ?? '')
   else fail('A-f5', reloaded ?? '')
 
+  // Reorder (same period) via full-screen edit form
+  await page.goto(`${MOBILE}/cancer/new`, { waitUntil: 'domcontentloaded' })
+  await page.waitForSelector('[data-testid="coverage-scenario-editor"]', { timeout: 60000 })
+  const labelsBefore = await page.locator('.cs-axis-event__label').allTextContents()
+  const trimmedBefore = labelsBefore.map((t) => t.trim()).filter(Boolean)
+  if (trimmedBefore.length >= 2) {
+    await page.locator('.cs-axis-row-menu__trigger').first().click()
+    await page.waitForSelector('.cs-form-screen', { timeout: 8000 })
+    const upBtn = page.locator('.cs-form-screen__move-btn').first()
+    const downBtn = page.locator('.cs-form-screen__move-btn').nth(1)
+    if (await upBtn.isDisabled()) pass('A-reorder-up-disabled-first', 'first item cannot move up')
+    else fail('A-reorder-up-disabled-first', 'expected disabled')
+    await downBtn.click()
+    await page.waitForTimeout(300)
+    const labelsAfterMove = await page.locator('.cs-axis-event__label').allTextContents()
+    const trimmedAfter = labelsAfterMove.map((t) => t.trim()).filter(Boolean)
+    const swapped =
+      trimmedAfter[0] === trimmedBefore[1] && trimmedAfter[1] === trimmedBefore[0]
+    if (swapped) pass('A-reorder-down', `${trimmedBefore[0]} ↔ ${trimmedBefore[1]}`)
+    else fail('A-reorder-down', `before=${trimmedBefore.slice(0, 2).join('|')} after=${trimmedAfter.slice(0, 2).join('|')}`)
+    await page.locator('.cs-form-screen__back').click()
+    await page.locator('.cs-mobile-editor-header__action--save').click()
+    await page.locator('.coverage-simulator-dialog__input').fill('QA Reorder')
+    await page.locator('.coverage-simulator-dialog__actions .coverage-simulator-primary-btn').click()
+    await toast(page)
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    const labelsReload = (await page.locator('.cs-axis-event__label').allTextContents()).map((t) => t.trim()).filter(Boolean)
+    if (labelsReload[0] === trimmedBefore[1] && labelsReload[1] === trimmedBefore[0]) {
+      pass('A-reorder-f5', labelsReload.slice(0, 2).join('|'))
+    } else fail('A-reorder-f5', labelsReload.slice(0, 2).join('|'))
+  } else {
+    fail('A-reorder-setup', `need >=2 items, got ${trimmedBefore.length}`)
+  }
+
   // --- B. List action sheet ---
+  await page.evaluate((key) => localStorage.removeItem(key), STORAGE_KEY)
+  await page.goto(`${MOBILE}/cancer/new`, { waitUntil: 'domcontentloaded' })
+  await page.waitForSelector('[data-testid="coverage-scenario-editor"]', { timeout: 60000 })
+  await page.locator('.cs-mobile-editor-header__action--save').click()
+  await page.locator('.coverage-simulator-dialog__input').fill('QA Combined B Seed')
+  await page.locator('.coverage-simulator-dialog__actions .coverage-simulator-primary-btn').click()
+  await toast(page)
   await page.goto(`${MOBILE}/cancer`, { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.cs-simulation-list__more', { timeout: 20000 })
   await page.locator('.cs-simulation-list__more').first().click()

@@ -1,6 +1,7 @@
 @import './tokens.css';
 @import './overlay-shell.css';
 @import './form-sheet.css';
+@import './form-screen.css';
 @import './center-timeline.css';
 
 .coverage-simulator-public-root {
