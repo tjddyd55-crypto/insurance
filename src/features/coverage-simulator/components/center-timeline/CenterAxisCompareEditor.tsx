@@ -55,6 +55,41 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
     removeItem,
   } = editor
 
+  const handleInlineAmountEditChange = useCallback(
+    (target: InlineAmountEditTarget) => {
+      if (target) {
+        setAddSheetOpen(false)
+        setEditingItem(null)
+      }
+      setInlineAmountEdit(target)
+    },
+    [setAddSheetOpen, setEditingItem],
+  )
+
+  const handleInlineAmountCommit = useCallback(
+    (itemId: string, field: InlineAmountField, amount: number | null) => {
+      const patch = field === 'current' ? { currentAmount: amount } : { proposedAmount: amount }
+      patchCoverageItem(itemId, patch)
+    },
+    [patchCoverageItem],
+  )
+
+  const openAddSheetForOrder = useCallback(
+    (afterOrder: number) => {
+      setInlineAmountEdit(null)
+      openAddSheet(afterOrder)
+    },
+    [openAddSheet],
+  )
+
+  const openFullAmountEdit = useCallback(
+    (item: Parameters<typeof setEditingItem>[0]) => {
+      setInlineAmountEdit(null)
+      setEditingItem(item)
+    },
+    [setEditingItem],
+  )
+
   if (!scenario) {
     return (
       <CoverageSimulatorLayout>
@@ -114,41 +149,6 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
     })
     if (ok) removeItem(id)
   }
-
-  const handleInlineAmountEditChange = useCallback(
-    (target: InlineAmountEditTarget) => {
-      if (target) {
-        setAddSheetOpen(false)
-        setEditingItem(null)
-      }
-      setInlineAmountEdit(target)
-    },
-    [setAddSheetOpen, setEditingItem],
-  )
-
-  const handleInlineAmountCommit = useCallback(
-    (itemId: string, field: InlineAmountField, amount: number | null) => {
-      const patch = field === 'current' ? { currentAmount: amount } : { proposedAmount: amount }
-      patchCoverageItem(itemId, patch)
-    },
-    [patchCoverageItem],
-  )
-
-  const openAddSheetForOrder = useCallback(
-    (afterOrder: number) => {
-      setInlineAmountEdit(null)
-      openAddSheet(afterOrder)
-    },
-    [openAddSheet],
-  )
-
-  const openFullAmountEdit = useCallback(
-    (item: Parameters<typeof setEditingItem>[0]) => {
-      setInlineAmountEdit(null)
-      setEditingItem(item)
-    },
-    [setEditingItem],
-  )
 
   const requestReset = async () => {
     const ok = await confirm(
