@@ -1,4 +1,4 @@
-import { apiRequest, resolveAbsoluteApiUrl, resolveApiUrl } from '../../../lib/apiClient'
+import { apiRequest, resolveAbsoluteApiUrl } from '../../../lib/apiClient'
 import type { CoverageScenario } from '../domain/types'
 
 export type CreateCoverageShareResponse = {
@@ -99,23 +99,4 @@ export async function fetchPublicCoverageShare(token: string): Promise<PublicCov
 
 export function publicCoverageSharePdfDownloadUrl(shareToken: string): string {
   return resolveAbsoluteApiUrl(`/api/public/coverage-shares/${encodeURIComponent(shareToken)}/pdf`)
-}
-
-export async function downloadPublicCoverageSharePdf(shareToken: string, fileName: string): Promise<void> {
-  const url = resolveApiUrl(`/api/public/coverage-shares/${encodeURIComponent(shareToken)}/pdf`)
-  const response = await fetch(url)
-  if (!response.ok) {
-    const payload = (await response.json().catch(() => ({}))) as { message?: string; code?: string }
-    throw new Error(payload.message ?? 'PDF를 다운로드하지 못했습니다.')
-  }
-  const blob = await response.blob()
-  const objectUrl = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = objectUrl
-  anchor.download = fileName
-  anchor.rel = 'noopener'
-  document.body.appendChild(anchor)
-  anchor.click()
-  anchor.remove()
-  URL.revokeObjectURL(objectUrl)
 }
