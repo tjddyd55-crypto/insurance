@@ -142,14 +142,43 @@ body.coverage-simulator-immersive .pc-workspace-layout > main {
 }
 
 .cs-simulation-list__card {
+  display: flex;
+  align-items: stretch;
+  gap: var(--cs-space-1);
   width: 100%;
-  text-align: left;
   padding: var(--cs-space-3);
   border: 1px solid var(--cs-color-border);
   border-radius: 12px;
   background: var(--cs-color-surface);
+  font: inherit;
+}
+
+.cs-simulation-list__card-main {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
   cursor: pointer;
   font: inherit;
+}
+
+.cs-simulation-list__more {
+  flex-shrink: 0;
+  width: 40px;
+  min-height: 40px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--cs-color-text-muted);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cs-simulation-list__more:hover {
+  background: #f1f5f9;
 }
 
 .cs-simulation-list__title {
@@ -587,15 +616,60 @@ body.coverage-simulator-immersive .pc-workspace-layout > main {
   justify-items: center;
 }
 
-.coverage-simulator-sheet-backdrop--item-action {
-  background: rgba(15, 23, 42, 0.58);
+.cs-item-action-overlay {
+  position: fixed;
+  inset: 0;
   z-index: var(--cs-z-sheet-overlay);
-  padding-bottom: var(--cs-mobile-dock-height, 0px);
-  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  background: rgba(15, 23, 42, 0.55);
+  isolation: isolate;
+  overflow: hidden;
+  max-height: 100dvh;
 }
 
-.coverage-simulator-sheet-backdrop--item-action .coverage-simulator-sheet--item-actions {
+.cs-item-action-sheet {
+  width: 100%;
+  max-width: 100%;
+  flex-shrink: 0;
+  background: var(--cs-color-surface);
+  border-radius: 16px 16px 0 0;
+  padding: var(--cs-space-4) var(--cs-space-4) calc(var(--cs-space-3) + env(safe-area-inset-bottom, 0px));
   box-shadow: 0 -16px 48px rgba(15, 23, 42, 0.22);
+  overflow: hidden;
+}
+
+.cs-item-action-sheet__header {
+  margin-bottom: var(--cs-space-2);
+}
+
+.cs-item-action-sheet__title {
+  margin: 0;
+  font-size: var(--cs-font-section);
+  font-weight: 700;
+  color: var(--cs-color-text);
+  line-height: 1.35;
+}
+
+.cs-item-action-sheet__group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: var(--cs-space-2);
+  padding: var(--cs-space-1) 0;
+  border-top: 1px solid var(--cs-color-border);
+}
+
+.cs-item-action-sheet__group:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.cs-item-action-sheet__group--footer {
+  border-top: 1px solid var(--cs-color-border);
+  margin-bottom: 0;
+  padding-bottom: 0;
 }
 
 .coverage-simulator-sheet-header {

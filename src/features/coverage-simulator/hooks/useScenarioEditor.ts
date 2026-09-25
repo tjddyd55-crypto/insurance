@@ -93,8 +93,7 @@ export function useScenarioEditor() {
 
   const commitScenario = useCallback(
     (next: CoverageScenario, options?: { writeStorage?: boolean }) => {
-      const writeStorage = options?.writeStorage ?? !isNewDraft
-      if (!writeStorage) {
+      if (!options?.writeStorage) {
         setScenario(next)
         return next
       }
@@ -106,7 +105,7 @@ export function useScenarioEditor() {
       }
       return saved
     },
-    [basePath, isNewDraft, navigate, scenarioId, userKey],
+    [basePath, navigate, scenarioId, userKey],
   )
 
   const persist = useCallback(
@@ -166,13 +165,9 @@ export function useScenarioEditor() {
     (updater: (current: CoverageScenario) => CoverageScenario) => {
       if (!scenario) return
       const next = updater(scenario)
-      if (isNewDraft) {
-        applyLocal(next)
-      } else {
-        persist(next)
-      }
+      applyLocal(next)
     },
-    [applyLocal, isNewDraft, persist, scenario],
+    [applyLocal, scenario],
   )
 
   return {
@@ -196,8 +191,7 @@ export function useScenarioEditor() {
     resetToCancerDefaults: () => {
       if (!scenario) return
       const next = resetScenarioItems(scenario, createCancerDefaultItems())
-      if (isNewDraft) applyLocal(next)
-      else persist(next)
+      applyLocal(next)
     },
     onSelectCoverage: (input: { label: string; category: CoverageScenarioItem['category'] }) => {
       if (!scenario || addAfterOrder == null) return

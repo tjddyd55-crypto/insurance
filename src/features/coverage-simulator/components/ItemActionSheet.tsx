@@ -38,29 +38,26 @@ export function ItemActionSheet({ open, title, subject, onClose, actions }: Prop
   if (!open) return null
 
   const sheet = (
-    <div
-      className="coverage-simulator-sheet-backdrop coverage-simulator-sheet-backdrop--item-action"
-      role="presentation"
-      onClick={onClose}
-    >
+    <div className="cs-item-action-overlay" role="presentation" onClick={onClose}>
       <div
-        className="coverage-simulator-sheet coverage-simulator-sheet--compact coverage-simulator-sheet--item-actions"
+        className="cs-item-action-sheet"
         role="dialog"
+        aria-modal="true"
         aria-labelledby="cs-item-action-sheet-title"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="coverage-simulator-sheet-header coverage-simulator-sheet-header--compact">
-          <h2 id="cs-item-action-sheet-title" className="coverage-simulator-sheet__title">
+        <header className="cs-item-action-sheet__header">
+          <h2 id="cs-item-action-sheet-title" className="cs-item-action-sheet__title">
             {title}
           </h2>
-        </div>
+        </header>
         {subject ? (
           <div className="cs-item-action-sheet__subject">
             <CoverageBadge category={subject.category} />
             <span className="cs-item-action-sheet__subject-label">{subject.label}</span>
           </div>
         ) : null}
-        <div className="cs-item-action-sheet__list" role="menu">
+        <div className="cs-item-action-sheet__group" role="menu">
           {actions.map((action) => (
             <button
               key={action.id}
@@ -83,9 +80,11 @@ export function ItemActionSheet({ open, title, subject, onClose, actions }: Prop
             </button>
           ))}
         </div>
-        <button type="button" className="cs-item-action-sheet__cancel" onClick={onClose}>
-          취소
-        </button>
+        <div className="cs-item-action-sheet__group cs-item-action-sheet__group--footer">
+          <button type="button" className="cs-item-action-sheet__cancel" onClick={onClose}>
+            취소
+          </button>
+        </div>
       </div>
     </div>
   )

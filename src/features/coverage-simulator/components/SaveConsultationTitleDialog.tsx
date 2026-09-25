@@ -5,6 +5,7 @@ import { BaseDialog } from '../../../components/dialog/BaseDialog'
 type Props = {
   open: boolean
   initialTitle: string
+  dialogTitle?: string
   validationError?: string | null
   saving?: boolean
   onClose: () => void
@@ -14,6 +15,7 @@ type Props = {
 export function SaveConsultationTitleDialog({
   open,
   initialTitle,
+  dialogTitle = '제목',
   validationError,
   saving = false,
   onClose,
@@ -29,7 +31,7 @@ export function SaveConsultationTitleDialog({
 
   return (
     <BaseDialog open={open} onClose={onClose} ariaLabel="시뮬레이션 제목">
-      <h2 className="coverage-simulator-dialog__title">제목</h2>
+      <h2 className="coverage-simulator-dialog__title">{dialogTitle}</h2>
       <input
         className="coverage-simulator-dialog__input"
         value={title}

@@ -21,6 +21,6 @@ export const saveScenario = saveConsultation
 export const deleteScenario = deleteConsultation
 export const filterSavedByDisease = filterConsultationsByDisease
 export const filterSavedByCustomer = filterConsultationsByCustomer
-export { listConsultationsByDisease } from './consultationRepository'
+export { listConsultationsByDisease, renameConsultation } from './consultationRepository'
 
 export type { CoverageScenario, SavedScenarioSummary, DiseaseType }

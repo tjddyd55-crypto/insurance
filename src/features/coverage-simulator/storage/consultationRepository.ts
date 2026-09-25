@@ -100,6 +100,25 @@ export function deleteConsultation(userKey: string, id: string): void {
   writeAll(userKey, readAll(userKey).filter((row) => row.id !== id))
 }
 
+export function renameConsultation(userKey: string, id: string, title: string): CoverageScenario | null {
+  const trimmed = title.trim()
+  if (!trimmed) return null
+  const all = readAll(userKey)
+  const index = all.findIndex((row) => row.id === id)
+  if (index < 0) return null
+  const existing = all[index]
+  const now = new Date().toISOString()
+  const next = normalizeConsultation({
+    ...existing,
+    title: trimmed,
+    createdAt: existing.createdAt,
+    updatedAt: now,
+  })
+  all[index] = next
+  writeAll(userKey, all)
+  return next
+}
+
 export function filterConsultationsByDisease(
   summaries: SavedScenarioSummary[],
   filter: DiseaseType | 'all',
