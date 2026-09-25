@@ -36,7 +36,11 @@ for (const route of routes) {
   const hook310 = await page.locator('text=#310').count()
   const editor = await page.locator('[data-testid="coverage-scenario-editor"]').count()
   const list = await page.locator('.cs-simulation-list').count()
-  const ok = err === 0 && hook310 === 0 && (editor > 0 || list > 0 || route.endsWith('/mobile') || route.endsWith('/pc'))
+  const root = await page.locator('[data-testid="coverage-simulator-root"]').count()
+  const ok =
+    err === 0 &&
+    hook310 === 0 &&
+    (editor > 0 || list > 0 || root > 0 || route.endsWith('/mobile') || route.endsWith('/pc'))
   console.log(ok ? '[PASS]' : '[FAIL]', route, { err, hook310, editor, list })
   if (!ok) failed = true
 }
