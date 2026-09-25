@@ -11,7 +11,7 @@ import {
 } from '../domain/formatAmount'
 import type { CoverageScenarioItem, ScenarioItem, ScenarioItemCategory } from '../domain/types'
 import { CategoryChipPicker } from './CategoryChipPicker'
-import { CoverageSimulatorOverlayShell } from './CoverageSimulatorOverlayShell'
+import { CoverageSimulatorFormSheet } from './CoverageSimulatorFormSheet'
 
 type AmountEditSheetProps = {
   open: boolean
@@ -76,25 +76,19 @@ export function AmountEditSheet({
 
   const title = mobileCompact ? '항목 수정' : '금액 입력'
 
-  const body = (
-    <div className={mobileCompact ? 'cs-amount-sheet__scroll' : undefined}>
-      <div
-        className={
-          mobileCompact
-            ? 'cs-amount-sheet__header'
-            : 'coverage-simulator-sheet-header coverage-simulator-sheet-header--compact'
-        }
-      >
-        <div className={mobileCompact ? 'cs-amount-sheet__title' : 'coverage-simulator-sheet__title'}>{title}</div>
-        <button
-          type="button"
-          className={mobileCompact ? 'cs-amount-sheet__close' : 'coverage-simulator-sheet-close'}
-          onClick={onClose}
-          aria-label="닫기"
-        >
-          ×
-        </button>
-      </div>
+  const save = () => {
+    onSave({
+      label: label.trim() || item.label,
+      category,
+      currentAmount: parseManWonInput(currentInput),
+      proposedAmount: parseManWonInput(proposedInput),
+      memo: mobileCompact ? undefined : memo.trim() || undefined,
+    })
+    onClose()
+  }
+
+  const formFields = (
+    <>
       <div className="coverage-simulator-form-field coverage-simulator-form-field--compact">
         <label htmlFor="edit-label">항목명</label>
         <input id="edit-label" value={label} onChange={(event) => setLabel(event.target.value)} />
@@ -118,41 +112,41 @@ export function AmountEditSheet({
         )}
       </div>
       <div
-        className={`coverage-simulator-amount-pair${mobileCompact ? ' coverage-simulator-amount-pair--compact cs-amount-sheet__amount-pair' : ''}`}
+        className={`coverage-simulator-amount-pair${mobileCompact ? ' coverage-simulator-amount-pair--compact' : ''}`}
       >
         <div className="coverage-simulator-form-field coverage-simulator-form-field--compact">
           <label htmlFor="edit-current">기존 보장</label>
-          <div className="coverage-simulator-amount-input-row cs-amount-sheet__amount-field">
+          <div className="coverage-simulator-amount-input-row cs-form-sheet__amount-field">
             <input
               id="edit-current"
               inputMode="numeric"
               value={currentInput}
               onChange={(event) => onAmountChange(setCurrentInput)(event.target.value)}
             />
-            <span className="cs-amount-sheet__unit">만원</span>
+            <span className="cs-form-sheet__unit">만원</span>
           </div>
         </div>
         <div className="coverage-simulator-form-field coverage-simulator-form-field--compact">
           <label htmlFor="edit-proposed">제안 보장</label>
-          <div className="coverage-simulator-amount-input-row coverage-simulator-amount-input-row--proposed cs-amount-sheet__amount-field">
+          <div className="coverage-simulator-amount-input-row coverage-simulator-amount-input-row--proposed cs-form-sheet__amount-field">
             <input
               id="edit-proposed"
               inputMode="numeric"
               value={proposedInput}
               onChange={(event) => onAmountChange(setProposedInput)(event.target.value)}
             />
-            <span className="cs-amount-sheet__unit">만원</span>
+            <span className="cs-form-sheet__unit">만원</span>
           </div>
         </div>
       </div>
       {mobileCompact && onMoveUp && onMoveDown ? (
-        <div className="cs-amount-sheet__move-row">
-          <button type="button" className="cs-amount-sheet__move-btn" disabled={!moveState.canMoveUp} onClick={onMoveUp}>
+        <div className="cs-form-sheet__move-row">
+          <button type="button" className="cs-form-sheet__move-btn" disabled={!moveState.canMoveUp} onClick={onMoveUp}>
             ↑ 위로 이동
           </button>
           <button
             type="button"
-            className="cs-amount-sheet__move-btn"
+            className="cs-form-sheet__move-btn"
             disabled={!moveState.canMoveDown}
             onClick={onMoveDown}
           >
@@ -161,7 +155,7 @@ export function AmountEditSheet({
         </div>
       ) : null}
       {mobileCompact && onDelete ? (
-        <button type="button" className="cs-amount-sheet__delete-btn" onClick={onDelete}>
+        <button type="button" className="cs-form-sheet__delete-btn" onClick={onDelete}>
           삭제
         </button>
       ) : null}
@@ -171,39 +165,23 @@ export function AmountEditSheet({
           <textarea id="edit-memo" value={memo} onChange={(event) => setMemo(event.target.value)} />
         </div>
       ) : null}
-      <div className="coverage-simulator-sheet-actions coverage-simulator-sheet-actions--compact cs-amount-sheet__footer-actions">
-        <button type="button" className="coverage-simulator-secondary-btn" onClick={onClose}>취소</button>
-        <button
-          type="button"
-          className="coverage-simulator-primary-btn"
-          onClick={() => {
-            onSave({
-              label: label.trim() || item.label,
-              category,
-              currentAmount: parseManWonInput(currentInput),
-              proposedAmount: parseManWonInput(proposedInput),
-              memo: mobileCompact ? undefined : memo.trim() || undefined,
-            })
-            onClose()
-          }}
-        >
-          {mobileCompact ? '저장' : '확인'}
-        </button>
-      </div>
+    </>
+  )
+
+  const footer = (
+    <div className="coverage-simulator-sheet-actions coverage-simulator-sheet-actions--compact cs-form-sheet__footer-actions">
+      <button type="button" className="coverage-simulator-secondary-btn" onClick={onClose}>취소</button>
+      <button type="button" className="coverage-simulator-primary-btn" onClick={save}>
+        {mobileCompact ? '저장' : '확인'}
+      </button>
     </div>
   )
 
   if (mobileCompact) {
     return (
-      <CoverageSimulatorOverlayShell
-        open={open}
-        layer="edit"
-        panelClassName="cs-amount-sheet"
-        ariaLabel="항목 수정"
-        onClose={onClose}
-      >
-        {body}
-      </CoverageSimulatorOverlayShell>
+      <CoverageSimulatorFormSheet open={open} title={title} onClose={onClose} footer={footer}>
+        {formFields}
+      </CoverageSimulatorFormSheet>
     )
   }
 
@@ -216,7 +194,14 @@ export function AmountEditSheet({
         aria-label="금액 수정"
         onClick={(event) => event.stopPropagation()}
       >
-        {body}
+        <div className="coverage-simulator-sheet-header coverage-simulator-sheet-header--compact">
+          <div className="coverage-simulator-sheet__title">{title}</div>
+          <button type="button" className="coverage-simulator-sheet-close" onClick={onClose} aria-label="닫기">
+            ×
+          </button>
+        </div>
+        {formFields}
+        {footer}
       </div>
     </div>
   )

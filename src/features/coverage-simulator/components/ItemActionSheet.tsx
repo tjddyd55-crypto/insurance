@@ -1,5 +1,5 @@
 import { CoverageBadge } from './CoverageBadge'
-import { CoverageSimulatorOverlayShell } from './CoverageSimulatorOverlayShell'
+import { CoverageSimulatorActionSheetShell } from './CoverageSimulatorActionSheetShell'
 import type { ScenarioItemCategory } from '../domain/types'
 
 export type ItemActionSheetAction = {
@@ -25,9 +25,8 @@ type Props = {
 
 export function ItemActionSheet({ open, title, subject, onClose, actions }: Props) {
   return (
-    <CoverageSimulatorOverlayShell
+    <CoverageSimulatorActionSheetShell
       open={open}
-      layer="action"
       panelClassName="cs-item-action-sheet"
       ariaLabelledBy="cs-item-action-sheet-title"
       onClose={onClose}
@@ -71,6 +70,6 @@ export function ItemActionSheet({ open, title, subject, onClose, actions }: Prop
           취소
         </button>
       </footer>
-    </CoverageSimulatorOverlayShell>
+    </CoverageSimulatorActionSheetShell>
   )
 }

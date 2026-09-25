@@ -52,7 +52,7 @@ export function CoverageSimulatorPrintDocument({ scenario }: CoverageSimulatorPr
                   {item.memo ? <div style={{ color: '#6b7280', marginTop: 4 }}>{item.memo}</div> : null}
                 </td>
                 <td>{formatCoverageAmountLabel(item.currentAmount)}</td>
-                <td style={{ color: '#2563eb', fontWeight: 700 }}>
+                <td style={{ color: '#16a34a', fontWeight: 700 }}>
                   {formatCoverageAmountLabel(item.proposedAmount)}
                 </td>
               </tr>
@@ -68,7 +68,7 @@ export function CoverageSimulatorPrintDocument({ scenario }: CoverageSimulatorPr
         </div>
         <div>
           <div style={{ fontSize: 11, color: '#6b7280' }}>제안 총 보장금액 (입력 항목 합계)</div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: '#2563eb' }}>
+          <div style={{ fontSize: 16, fontWeight: 800, color: '#16a34a' }}>
             {formatTotalAmountLabel(totals.proposedTotal)}
           </div>
         </div>

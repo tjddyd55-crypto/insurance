@@ -1,4 +1,4 @@
-import { CoverageSimulatorOverlayShell } from './CoverageSimulatorOverlayShell'
+import { CoverageSimulatorActionSheetShell } from './CoverageSimulatorActionSheetShell'
 
 type Props = {
   open: boolean
@@ -23,9 +23,8 @@ export function SimulationListActionSheet({
   }
 
   return (
-    <CoverageSimulatorOverlayShell
+    <CoverageSimulatorActionSheetShell
       open={open}
-      layer="action"
       panelClassName="cs-list-action-sheet"
       ariaLabelledBy="cs-list-action-title"
       onClose={onClose}
@@ -57,6 +56,6 @@ export function SimulationListActionSheet({
           취소
         </button>
       </footer>
-    </CoverageSimulatorOverlayShell>
+    </CoverageSimulatorActionSheetShell>
   )
 }

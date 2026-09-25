@@ -27,7 +27,7 @@ const shots = [
       await page.goto(`${MOBILE}/cancer/new`, { waitUntil: 'domcontentloaded' })
       await page.waitForSelector('[data-testid="coverage-scenario-editor"]', { timeout: 60000 })
       await page.locator('.cs-axis-row-menu__trigger').first().click()
-      await page.waitForSelector('.cs-amount-sheet', { timeout: 10000 })
+      await page.waitForSelector('.cs-form-sheet', { timeout: 10000 })
       const hasItemAction = (await page.locator('.cs-item-action-sheet').count()) > 0
       if (hasItemAction) throw new Error('item action sheet should not open on ⋯')
       return true
@@ -40,7 +40,7 @@ const shots = [
       await page.waitForSelector('[data-testid="coverage-scenario-editor"]', { timeout: 60000 })
       await page.locator('.cs-axis-row-menu__trigger').first().click()
       await page.getByRole('menuitem', { name: '항목 수정' }).click()
-      await page.waitForSelector('.cs-amount-sheet', { timeout: 10000 })
+      await page.waitForSelector('.cs-form-sheet', { timeout: 10000 })
       return true
     },
   },
@@ -50,7 +50,7 @@ const shots = [
       await page.goto(`${MOBILE}/cancer/new`, { waitUntil: 'domcontentloaded' })
       await page.waitForSelector('[data-testid="coverage-scenario-editor"]', { timeout: 60000 })
       await page.locator('.cs-axis-insert__btn').first().click()
-      await page.waitForSelector('.cs-add-sheet', { timeout: 10000 })
+      await page.waitForSelector('.cs-form-sheet', { timeout: 10000 })
       return true
     },
   },

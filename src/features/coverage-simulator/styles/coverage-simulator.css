@@ -1,5 +1,6 @@
 @import './tokens.css';
 @import './overlay-shell.css';
+@import './form-sheet.css';
 @import './center-timeline.css';
 
 .coverage-simulator-public-root {
@@ -351,7 +352,7 @@ body.coverage-simulator-immersive .pc-workspace-layout > main {
 }
 
 .coverage-simulator-compare-header__label--proposed .coverage-simulator-compare-header__sub {
-  color: #60a5fa;
+  color: var(--cs-color-primary);
 }
 
 .coverage-simulator-timeline-row {
@@ -377,7 +378,7 @@ body.coverage-simulator-immersive .pc-workspace-layout > main {
 
 .coverage-simulator-timeline-dot--marker {
   margin-top: 22px;
-  border-color: #93c5fd;
+  border-color: var(--cs-color-primary-border);
   background: var(--cs-color-primary-soft);
 }
 
@@ -597,20 +598,24 @@ body.coverage-simulator-immersive .pc-workspace-layout > main {
 }
 
 .coverage-simulator-primary-btn {
-  background: var(--cs-color-primary);
-  color: #fff;
+  background: var(--btn-primary-bg, var(--cs-color-primary));
+  color: var(--btn-primary-text, var(--text-on-primary, #fff));
+}
+
+.coverage-simulator-primary-btn:hover {
+  background: var(--btn-primary-hover-bg, var(--primary-hover, var(--cs-color-primary)));
 }
 
 .coverage-simulator-secondary-btn {
-  background: #fff;
-  border-color: var(--cs-color-border);
-  color: var(--cs-color-text);
+  background: var(--btn-secondary-surface, var(--cs-color-surface));
+  border-color: var(--btn-secondary-border, var(--cs-color-border));
+  color: var(--btn-secondary-text, var(--cs-color-text));
 }
 
 .coverage-simulator-sheet-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
+  background: var(--cs-color-overlay);
   z-index: var(--cs-z-sheet-overlay);
   display: grid;
   align-items: end;
@@ -684,9 +689,9 @@ body.coverage-simulator-immersive .pc-workspace-layout > main {
 }
 
 .coverage-simulator-tab--active {
-  border-color: #93c5fd;
+  border-color: var(--cs-color-primary-border);
   background: var(--cs-color-primary-soft);
-  color: var(--cs-color-proposed);
+  color: var(--cs-color-primary);
   font-weight: 700;
 }
 

@@ -55,7 +55,7 @@ async function main() {
 
   await proposedCell.click()
   const inlineInput = page.locator('.cs-axis-amount__inline-input').first()
-  const fullSheet = page.locator('.cs-amount-sheet')
+  const fullSheet = page.locator('.cs-form-sheet')
   if (await inlineInput.isVisible({ timeout: 3000 }).catch(() => false)) {
     pass('A-inline-opens', 'inline input visible')
   } else if (await fullSheet.isVisible().catch(() => false)) {
@@ -86,7 +86,7 @@ async function main() {
 
   // Scroll lock with full edit sheet
   await page.locator('.cs-axis-row-menu__trigger').first().click()
-  await page.waitForSelector('.cs-amount-sheet', { timeout: 8000 })
+  await page.waitForSelector('.cs-form-sheet', { timeout: 8000 })
   const locked = await page.evaluate(() =>
     document.documentElement.classList.contains('coverage-simulator-overlay-scroll-lock'),
   )
@@ -100,7 +100,7 @@ async function main() {
   if (Math.abs(scrollAfterWheel - scrollBefore) < 8) pass('A-scroll-lock-wheel', `y=${scrollBefore}`)
   else fail('A-scroll-lock-wheel', `before=${scrollBefore} after=${scrollAfterWheel}`)
 
-  await page.locator('.cs-amount-sheet__close').click()
+  await page.locator('.cs-form-sheet__close').click()
   await page.screenshot({ path: join(outDir, 'inline-amount-390.png') })
 
   // Save draft + F5

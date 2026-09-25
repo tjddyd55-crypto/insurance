@@ -12,7 +12,7 @@ import {
 import type { ScenarioItemCategory } from '../domain/types'
 import { getFavoriteCatalogIds, toggleFavoriteCatalogId } from '../storage/favoriteRepository'
 import { CategoryChipPicker } from './CategoryChipPicker'
-import { CoverageSimulatorOverlayShell } from './CoverageSimulatorOverlayShell'
+import { CoverageSimulatorFormSheet } from './CoverageSimulatorFormSheet'
 
 type AddItemSheetProps = {
   open: boolean
@@ -82,25 +82,8 @@ export function AddItemSheet({
     onClose()
   }
 
-  const sheetInner = (
+  const tabsAndBody = (
     <>
-        <div
-          className={
-            mobileCompact
-              ? 'cs-add-sheet__header'
-              : 'coverage-simulator-sheet-header coverage-simulator-sheet-header--compact'
-          }
-        >
-          <div className={mobileCompact ? 'cs-add-sheet__title' : 'coverage-simulator-sheet__title'}>항목 추가</div>
-          <button
-            type="button"
-            className={mobileCompact ? 'cs-add-sheet__close' : 'coverage-simulator-sheet-close'}
-            onClick={onClose}
-            aria-label="닫기"
-          >
-            ×
-          </button>
-        </div>
         <div className="coverage-simulator-tabs coverage-simulator-tabs--compact">
           {CATALOG_TABS.map((entry) => (
             <button
@@ -298,15 +281,9 @@ export function AddItemSheet({
 
   if (mobileCompact) {
     return (
-      <CoverageSimulatorOverlayShell
-        open={open}
-        layer="edit"
-        panelClassName="cs-add-sheet coverage-simulator-sheet--compact coverage-simulator-sheet--mobile-add"
-        ariaLabel="항목 추가"
-        onClose={onClose}
-      >
-        {sheetInner}
-      </CoverageSimulatorOverlayShell>
+      <CoverageSimulatorFormSheet open={open} title="항목 추가" onClose={onClose} panelExtraClassName="coverage-simulator-sheet--mobile-add">
+        {tabsAndBody}
+      </CoverageSimulatorFormSheet>
     )
   }
 
@@ -319,7 +296,13 @@ export function AddItemSheet({
         aria-label="항목 추가"
         onClick={(event) => event.stopPropagation()}
       >
-        {sheetInner}
+        <div className="coverage-simulator-sheet-header coverage-simulator-sheet-header--compact">
+          <div className="coverage-simulator-sheet__title">항목 추가</div>
+          <button type="button" className="coverage-simulator-sheet-close" onClick={onClose} aria-label="닫기">
+            ×
+          </button>
+        </div>
+        {tabsAndBody}
       </div>
     </div>
   )
