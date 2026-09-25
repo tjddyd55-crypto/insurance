@@ -13,6 +13,9 @@ import {
 import { calculateScenarioTotals } from '../domain/totals'
 import { resolveCustomerNameSnapshot } from '../domain/normalizeConsultation'
 import { buildCoveragePdfFileName } from '../pdf/coveragePdfFileName'
+import { CoverageSimulatorPrintDocument } from '../pdf/CoverageSimulatorPrintDocument'
+import { buildCoveragePdfBlobFromPrintRoot } from '../pdf/generateCoveragePdf'
+import { createRoot } from 'react-dom/client'
 import type { CoverageScenario } from '../domain/types'
 import '../styles/coverage-simulator.css'
 
@@ -126,11 +129,53 @@ export function CoverageSharePublicPage() {
   const sharedLabel = formatSharedDate(payload.sharedAt)
   const fileName = buildCoveragePdfFileName(payload.scenario)
 
+  const downloadPdfFromSnapshot = async () => {
+    const host = document.createElement('div')
+    host.style.position = 'fixed'
+    host.style.left = '-10000px'
+    host.style.width = '794px'
+    document.body.appendChild(host)
+    const mount = document.createElement('div')
+    host.appendChild(mount)
+    const root = createRoot(mount)
+    try {
+      root.render(<CoverageSimulatorPrintDocument scenario={payload.scenario} />)
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)))
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      const printRoot = mount.firstElementChild as HTMLElement | null
+      if (!printRoot) throw new Error('PDF 렌더에 실패했습니다.')
+      const blob = await buildCoveragePdfBlobFromPrintRoot(printRoot)
+      const objectUrl = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = objectUrl
+      anchor.download = fileName
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      URL.revokeObjectURL(objectUrl)
+    } finally {
+      root.unmount()
+      host.remove()
+    }
+  }
+
   const downloadPdf = async () => {
     setPdfBusy(true)
     try {
       await downloadPublicCoverageSharePdf(token, fileName)
     } catch (error) {
+      const notReady =
+        error instanceof Error &&
+        (error.message.includes('준비되지 않') || error.message.includes('PDF_NOT_READY'))
+      if (notReady) {
+        try {
+          await downloadPdfFromSnapshot()
+          return
+        } catch {
+          window.alert('PDF를 다운로드하지 못했습니다.')
+          return
+        }
+      }
       const message = error instanceof Error ? error.message : 'PDF를 다운로드하지 못했습니다.'
       window.alert(message)
     } finally {
