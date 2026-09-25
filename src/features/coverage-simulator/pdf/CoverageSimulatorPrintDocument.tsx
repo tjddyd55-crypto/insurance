@@ -32,7 +32,7 @@ export function CoverageSimulatorPrintDocument({ scenario }: CoverageSimulatorPr
 
   return (
     <div
-      className="coverage-simulator-print-root coverage-simulator-root coverage-simulator-root--mobile-preview"
+      className="coverage-simulator-print-root coverage-simulator-print-root--korean-text-safe coverage-simulator-root coverage-simulator-root--mobile-preview"
       data-testid="coverage-simulator-print-root"
     >
       <header className="cs-print-doc-header">

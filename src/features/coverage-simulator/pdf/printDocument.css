@@ -498,41 +498,114 @@
   box-shadow: none;
 }
 
-.coverage-simulator-print-root .cs-axis-event__title-axis .cs-axis-event__label {
-  white-space: normal;
-  overflow: visible;
-  text-overflow: unset;
-  line-height: 1.4;
-}
-
-.coverage-simulator-print-root .cs-axis-amount__value,
-.coverage-simulator-print-root .cs-axis-period-total__value,
-.coverage-simulator-print-root .cs-axis-summary__value {
-  line-height: 1.4;
-  overflow: visible;
-}
-
 .coverage-simulator-print-root .cs-axis-event__actions--spacer,
 .coverage-simulator-print-root .cs-axis-marker__menu-slot--spacer {
   display: none;
 }
 
-.coverage-simulator-print-root .cs-axis-event__title-axis {
-  max-width: calc(100% - var(--cs-axis-event-badge-col-width) - 12px);
-}
+/* --- Print-only Korean text safety (does not affect screen / share viewer) --- */
 
-.coverage-simulator-print-root .cs-axis-event__title-axis .cs-axis-event__label {
-  white-space: normal;
+.coverage-simulator-print-root--korean-text-safe .cs-print-doc-header__title,
+.coverage-simulator-print-root--korean-text-safe .cs-print-doc-header__subtitle,
+.coverage-simulator-print-root--korean-text-safe .cs-print-doc-header__meta {
   overflow: visible;
-  text-overflow: unset;
-  word-break: keep-all;
-  line-height: 1.35;
-  min-height: 1.35em;
+  line-height: 1.4;
+  padding-block: 1px;
 }
 
-.coverage-simulator-print-root .cs-axis-event__head {
-  min-height: 28px;
+.coverage-simulator-print-root--korean-text-safe .cs-axis-event__head {
+  display: grid;
+  grid-template-columns: var(--cs-axis-event-badge-col-width) minmax(0, 1fr) var(--cs-axis-event-badge-col-width);
   align-items: center;
+  min-height: 2.75em;
+  padding-block: 4px;
+  box-sizing: border-box;
+}
+
+.coverage-simulator-print-root--korean-text-safe .cs-axis-event__badge {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+  z-index: 2;
+}
+
+.coverage-simulator-print-root--korean-text-safe .cs-axis-event__title-axis {
+  position: relative;
+  left: auto;
+  top: auto;
+  transform: none;
+  grid-column: 1 / -1;
+  grid-row: 1;
+  justify-self: center;
+  align-self: center;
+  width: auto;
+  max-width: calc(100% - (var(--cs-axis-event-badge-col-width) * 2) - 12px);
+  margin: 0;
+  z-index: 3;
+  pointer-events: none;
+  text-align: center;
+}
+
+.coverage-simulator-print-root--korean-text-safe .cs-axis-event__title-axis .cs-axis-event__label {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: keep-all;
+  line-height: 1.45;
+  min-height: 1.45em;
+  max-height: calc(1.45em * 2 + 6px);
+  padding-block: 3px;
+  padding-inline: 6px;
+  box-shadow: none;
+  background: var(--cs-axis-title-mask-bg, #fff);
+}
+
+.coverage-simulator-print-root--korean-text-safe .coverage-simulator-badge {
+  line-height: 1.35;
+  min-height: 22px;
+  padding-block: 3px;
+  overflow: visible;
+}
+
+.coverage-simulator-print-root--korean-text-safe .cs-axis-amount__value,
+.coverage-simulator-print-root--korean-text-safe .cs-axis-period-total__value,
+.coverage-simulator-print-root--korean-text-safe .cs-axis-summary__value {
+  line-height: 1.45;
+  overflow: visible;
+  padding-block: 1px;
+}
+
+.coverage-simulator-print-root--korean-text-safe .cs-axis-amount {
+  min-height: 1.5em;
+  align-items: center;
+}
+
+.coverage-simulator-print-root--korean-text-safe .cs-axis-period-total__heading,
+.coverage-simulator-print-root--korean-text-safe .cs-axis-period-total__heading-mask,
+.coverage-simulator-print-root--korean-text-safe .cs-axis-marker__label {
+  overflow: visible;
+  line-height: 1.45;
+  padding-block: 2px;
+}
+
+.coverage-simulator-print-root--korean-text-safe .cs-axis-summary {
+  min-height: 3.5em;
+  padding-block: 6px;
+}
+
+.coverage-simulator-print-root--korean-text-safe .cs-axis-summary__label,
+.coverage-simulator-print-root--korean-text-safe .cs-axis-summary__value {
+  line-height: 1.45;
+  overflow: visible;
+}
+
+.coverage-simulator-print-root--korean-text-safe .cs-axis-block--subtotal,
+.coverage-simulator-print-root--korean-text-safe .cs-period-boundary {
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 .coverage-simulator-print-root .cs-axis-event,
