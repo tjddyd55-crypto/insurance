@@ -92,6 +92,7 @@ function renderTimeMarker(
   return (
     <div key={item.id} className="cs-axis-marker coverage-simulator-time-marker">
       <div className="cs-axis-marker__row">
+        <span className="cs-axis-marker__gutter" aria-hidden="true" />
         <div className="cs-axis-marker__hline" role="presentation">
           <span className="cs-axis-marker__hline-seg" aria-hidden="true" />
           <span className="cs-axis-marker__hline-label">
@@ -100,10 +101,12 @@ function renderTimeMarker(
           </span>
           <span className="cs-axis-marker__hline-seg" aria-hidden="true" />
         </div>
-        <TimeMarkerRowMenu
-          menuMode={markerMenuMode}
-          onDelete={() => onRemove(item.id)}
-        />
+        <div className="cs-axis-marker__menu-slot">
+          <TimeMarkerRowMenu
+            menuMode={markerMenuMode}
+            onDelete={() => onRemove(item.id)}
+          />
+        </div>
       </div>
     </div>
   )
@@ -141,6 +144,7 @@ function renderBlock(
         markerLabel={block.markerLabel}
         currentTotal={block.currentTotal}
         proposedTotal={block.proposedTotal}
+        hideColumnLabels={variant === 'mobile'}
       />
     </div>
   )
@@ -175,6 +179,7 @@ function renderFlatTimeline(
                   markerLabel={item.label}
                   currentTotal={periodByMarkerId.get(item.id)!.currentTotal}
                   proposedTotal={periodByMarkerId.get(item.id)!.proposedTotal}
+                  hideColumnLabels={variant === 'mobile'}
                 />
               ) : null}
               {renderTimeMarker(item, removeMarker, markerMenuMode)}

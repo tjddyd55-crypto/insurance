@@ -32,23 +32,23 @@ export function formatCoverageAmountLabel(amount: number | null | undefined): st
   if (amount == null || amount <= 0) return '없음'
   if (amount % MAN_WON === 0) {
     const man = amount / MAN_WON
-    return `${man.toLocaleString('ko-KR')}만원`
+    return `${man.toLocaleString('ko-KR')} 만원`
   }
-  return `${amount.toLocaleString('ko-KR')}원`
+  return `${amount.toLocaleString('ko-KR')} 원`
 }
 
 export function formatTotalAmountLabel(amount: number): string {
-  if (amount <= 0) return '0원'
+  if (amount <= 0) return '0 원'
   if (amount >= 100_000_000 && amount % MAN_WON === 0) {
     const eok = Math.floor(amount / 100_000_000)
     const restMan = (amount % 100_000_000) / MAN_WON
     if (restMan === 0) {
-      return `${eok.toLocaleString('ko-KR')}억원`
+      return `${eok.toLocaleString('ko-KR')}억`
     }
-    return `${eok.toLocaleString('ko-KR')}억 ${restMan.toLocaleString('ko-KR')}만원`
+    return `${eok.toLocaleString('ko-KR')}억 ${restMan.toLocaleString('ko-KR')} 만원`
   }
   if (amount % MAN_WON === 0) {
-    return `${(amount / MAN_WON).toLocaleString('ko-KR')}만원`
+    return `${(amount / MAN_WON).toLocaleString('ko-KR')} 만원`
   }
-  return `${amount.toLocaleString('ko-KR')}원`
+  return `${amount.toLocaleString('ko-KR')} 원`
 }

@@ -5,6 +5,7 @@ type Props = {
   markerLabel: string
   currentTotal: number
   proposedTotal: number
+  hideColumnLabels?: boolean
 }
 
 function formatPeriodSide(amount: number): string {
@@ -12,7 +13,12 @@ function formatPeriodSide(amount: number): string {
   return formatTotalAmountLabel(amount)
 }
 
-export function TimelinePeriodSubtotal({ markerLabel, currentTotal, proposedTotal }: Props) {
+export function TimelinePeriodSubtotal({
+  markerLabel,
+  currentTotal,
+  proposedTotal,
+  hideColumnLabels = false,
+}: Props) {
   const heading = periodSubtotalLabelFromMarker(markerLabel)
 
   return (
@@ -22,14 +28,14 @@ export function TimelinePeriodSubtotal({ markerLabel, currentTotal, proposedTota
       </p>
       <div className="cs-axis-period-total__compare" aria-label={`${heading} 기존 및 제안`}>
         <div className="cs-axis-period-total__col">
-          <span className="cs-axis-period-total__side">기존</span>
+          {hideColumnLabels ? null : <span className="cs-axis-period-total__side">기존</span>}
           <span className="cs-axis-period-total__value cs-axis-period-total__value-mask">
             {formatPeriodSide(currentTotal)}
           </span>
         </div>
         <span className="cs-axis-period-total__spine" aria-hidden="true" />
         <div className="cs-axis-period-total__col cs-axis-period-total__col--proposed">
-          <span className="cs-axis-period-total__side">제안</span>
+          {hideColumnLabels ? null : <span className="cs-axis-period-total__side">제안</span>}
           <span className="cs-axis-period-total__value cs-axis-period-total__value--proposed cs-axis-period-total__value-mask">
             {formatPeriodSide(proposedTotal)}
           </span>

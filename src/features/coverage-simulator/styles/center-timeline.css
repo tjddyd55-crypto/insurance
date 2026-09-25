@@ -385,14 +385,23 @@
 
 .coverage-simulator-root--mobile-preview .cs-axis-event__compare {
   min-height: var(--cs-timeline-amount-row-height);
-  align-items: stretch;
+  align-items: center;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-amount,
 .coverage-simulator-root--mobile-preview .coverage-simulator-amount-box {
-  min-height: var(--cs-timeline-amount-row-height);
-  padding: 6px var(--cs-space-2);
+  min-height: var(--cs-control-height);
+  padding: 0 var(--cs-space-1);
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   box-sizing: border-box;
+}
+
+.coverage-simulator-root--mobile-preview .coverage-simulator-amount-box--proposed {
+  background: transparent;
+  border-color: transparent;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-main.coverage-simulator-content {
@@ -417,18 +426,30 @@
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-marker__row {
-  display: flex;
+  display: grid;
+  grid-template-columns: var(--cs-axis-event-menu-col-width) minmax(0, 1fr) var(--cs-axis-event-menu-col-width);
   align-items: center;
-  gap: 10px;
   width: 100%;
 }
 
+.coverage-simulator-root--mobile-preview .cs-axis-marker__gutter {
+  width: var(--cs-axis-event-menu-col-width);
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-marker__menu-slot {
+  display: flex;
+  justify-content: flex-end;
+  width: var(--cs-axis-event-menu-col-width);
+}
+
 .coverage-simulator-root--mobile-preview .cs-axis-marker__hline {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex: 1;
+  gap: 0;
   min-width: 0;
+  min-height: 28px;
+  z-index: 2;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-marker__hline-seg {
@@ -439,14 +460,20 @@
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-marker__hline-label {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   display: inline-flex;
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
-  padding: 0 8px;
-  background: transparent;
+  padding: 0 10px;
+  background: var(--cs-color-surface);
   line-height: 1.2;
-  z-index: 2;
+  z-index: 3;
+  box-shadow: 0 0 0 4px var(--cs-color-surface);
+  white-space: nowrap;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-marker__label {
@@ -495,7 +522,7 @@
   display: inline-block;
   padding: 0;
   background: transparent;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 700;
   color: var(--cs-period-subtotal-heading);
   letter-spacing: -0.01em;
@@ -513,8 +540,10 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  justify-content: center;
+  gap: 0;
   min-width: 0;
+  min-height: var(--cs-control-height);
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-period-total__side {
@@ -532,7 +561,7 @@
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-period-total__value {
-  font-size: 0.9375rem;
+  font-size: 1.0625rem;
   font-weight: 800;
   line-height: 1.25;
   text-align: center;
@@ -634,7 +663,19 @@
 
 .coverage-simulator-root--mobile-preview .cs-axis-amount--current .cs-axis-amount__value,
 .coverage-simulator-root--mobile-preview .cs-axis-amount--proposed .cs-axis-amount__value {
-  font-size: 1rem;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-amount--current .cs-axis-amount__value {
+  color: #1e293b;
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-amount--proposed .cs-axis-amount__value {
+  color: var(--cs-color-proposed);
+  font-weight: 800;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-block {

@@ -17,11 +17,12 @@ describe('formatAmount', () => {
 
   it('formats coverage labels', () => {
     expect(formatCoverageAmountLabel(null)).toBe('없음')
-    expect(formatCoverageAmountLabel(30_000_000)).toBe('3,000만원')
+    expect(formatCoverageAmountLabel(30_000_000)).toBe('3,000 만원')
+    expect(formatCoverageAmountLabel(3_000_000)).toBe('300 만원')
   })
 
   it('formats large totals', () => {
-    expect(formatTotalAmountLabel(125_000_000)).toBe('1억 2,500만원')
+    expect(formatTotalAmountLabel(125_000_000)).toBe('1억 2,500 만원')
   })
 
   it('formats man-won input display with commas', () => {

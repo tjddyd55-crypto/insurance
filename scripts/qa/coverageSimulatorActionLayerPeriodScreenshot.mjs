@@ -22,7 +22,7 @@ for (const width of [390, 360]) {
   await page.waitForSelector('.cs-period-section', { timeout: 10000 })
 
   await page.screenshot({
-    path: join(outDir, `mobile-period-visual-hierarchy-${width}.png`),
+    path: join(outDir, `mobile-amount-period-labels-${width}.png`),
     fullPage: false,
   })
 
