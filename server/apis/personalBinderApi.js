@@ -229,10 +229,11 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
       const result = await safeQuery(
         pool,
         `
-        SELECT m.*, COUNT(DISTINCT s.binder_id)::int AS binder_count
+        SELECT m.*, COUNT(DISTINCT b.id)::int AS binder_count
         FROM personal_binder_materials m
         LEFT JOIN personal_binder_items i ON i.material_id = m.id
         LEFT JOIN personal_binder_sections s ON s.id = i.section_id
+        LEFT JOIN personal_binders b ON b.id = s.binder_id AND b.deleted_at IS NULL
         WHERE m.owner_user_id = $1 AND m.ga_id = $2 AND m.deleted_at IS NULL
         GROUP BY m.id
         ORDER BY m.updated_at DESC, m.id DESC
@@ -257,10 +258,11 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
       const result = await safeQuery(
         pool,
         `
-        SELECT m.*, COUNT(DISTINCT s.binder_id)::int AS binder_count
+        SELECT m.*, COUNT(DISTINCT b.id)::int AS binder_count
         FROM personal_binder_materials m
         LEFT JOIN personal_binder_items i ON i.material_id = m.id
         LEFT JOIN personal_binder_sections s ON s.id = i.section_id
+        LEFT JOIN personal_binders b ON b.id = s.binder_id AND b.deleted_at IS NULL
         WHERE m.owner_user_id = $1 AND m.ga_id = $2
           AND m.checksum_sha256 = $3 AND m.deleted_at IS NULL
         GROUP BY m.id
@@ -367,9 +369,10 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         SET title = $1, updated_at = NOW()
         WHERE id = $2 AND owner_user_id = $3 AND ga_id = $4 AND deleted_at IS NULL
         RETURNING *, (
-          SELECT COUNT(DISTINCT s.binder_id)::int
+          SELECT COUNT(DISTINCT b.id)::int
           FROM personal_binder_items i
           INNER JOIN personal_binder_sections s ON s.id = i.section_id
+          INNER JOIN personal_binders b ON b.id = s.binder_id AND b.deleted_at IS NULL
           WHERE i.material_id = personal_binder_materials.id
         ) AS binder_count
         `,
@@ -397,10 +400,11 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
       const material = await safeQuery(
         pool,
         `
-        SELECT m.id, m.file_id, COUNT(DISTINCT s.binder_id)::int AS binder_count
+        SELECT m.id, m.file_id, COUNT(DISTINCT b.id)::int AS binder_count
         FROM personal_binder_materials m
         LEFT JOIN personal_binder_items i ON i.material_id = m.id
         LEFT JOIN personal_binder_sections s ON s.id = i.section_id
+        LEFT JOIN personal_binders b ON b.id = s.binder_id AND b.deleted_at IS NULL
         WHERE m.id = $1 AND m.owner_user_id = $2 AND m.ga_id = $3 AND m.deleted_at IS NULL
         GROUP BY m.id
         `,
@@ -539,28 +543,49 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
   })
 
   apiRouter.delete('/personal-binders/:binderId', requireAuth, async (req, res) => {
+    const client = await pool.connect()
     try {
       const scope = requestScope(req, res)
       if (!scope) return
       const binderId = positiveId(req.params.binderId)
-      const result = binderId
-        ? await safeQuery(
-          pool,
-          `
-          UPDATE personal_binders SET deleted_at = NOW(), updated_at = NOW()
-          WHERE id = $1 AND owner_user_id = $2 AND ga_id = $3 AND deleted_at IS NULL
-          RETURNING id
-          `,
-          [binderId, scope.userId, scope.gaId],
-        )
-        : { rowCount: 0 }
+      if (!binderId) {
+        res.status(400).json({ message: '잘못된 바인더 ID입니다.' })
+        return
+      }
+      await client.query('BEGIN')
+      const result = await client.query(
+        `
+        UPDATE personal_binders SET deleted_at = NOW(), updated_at = NOW()
+        WHERE id = $1 AND owner_user_id = $2 AND ga_id = $3 AND deleted_at IS NULL
+        RETURNING id
+        `,
+        [binderId, scope.userId, scope.gaId],
+      )
       if (result.rowCount === 0) {
+        await client.query('ROLLBACK')
         res.status(404).json({ message: '바인더를 찾을 수 없습니다.' })
         return
       }
+      await client.query(
+        `
+        DELETE FROM personal_binder_items
+        WHERE section_id IN (
+          SELECT id FROM personal_binder_sections WHERE binder_id = $1
+        )
+        `,
+        [binderId],
+      )
+      await client.query(
+        `DELETE FROM personal_binder_sections WHERE binder_id = $1`,
+        [binderId],
+      )
+      await client.query('COMMIT')
       res.json({ ok: true })
     } catch (error) {
+      await client.query('ROLLBACK').catch(() => {})
       sendError(error, req, res, handleDbError)
+    } finally {
+      client.release()
     }
   })
 
