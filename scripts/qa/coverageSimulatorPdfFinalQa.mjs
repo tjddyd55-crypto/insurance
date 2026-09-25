@@ -84,9 +84,14 @@ async function runScenario(page, scenario, tag) {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.screenshot({ path: join(outDir, `pdf-preview-${tag}-390.png`), fullPage: true })
 
-  const downloadPromise = page.waitForEvent('download', { timeout: 120000 })
-  await page.getByRole('button', { name: 'PDF 저장' }).click()
-  const download = await downloadPromise
+  page.on('pageerror', (err) => console.error('[pageerror]', err.message))
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') console.error('[console]', msg.text())
+  })
+  const [download] = await Promise.all([
+    page.waitForEvent('download', { timeout: 180000 }),
+    page.getByRole('button', { name: 'PDF 저장' }).click(),
+  ])
   const pdfPath = join(outDir, `coverage-simulator-${tag}.pdf`)
   await download.saveAs(pdfPath)
 
@@ -100,7 +105,11 @@ async function runScenario(page, scenario, tag) {
 async function main() {
   await mkdir(outDir, { recursive: true })
   const browser = await chromium.launch({ headless: true })
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true })
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    acceptDownloads: true,
+  })
   const page = await context.newPage()
 
   const version = await fetch(`${BASE}/version.json`).then((r) => r.json())
