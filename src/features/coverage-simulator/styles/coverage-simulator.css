@@ -197,6 +197,117 @@ body.coverage-simulator-immersive .pc-workspace-layout > main {
   width: 100%;
 }
 
+/* 저장된 시뮬레이션 목록 카드 ⋯ — 전용 bottom action sheet (item sheet와 namespace 분리) */
+.cs-sim-list-action-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: stretch;
+  background: rgba(15, 23, 42, 0.62);
+  isolation: isolate;
+  overflow: hidden;
+  max-height: 100dvh;
+  box-sizing: border-box;
+}
+
+.cs-sim-list-action-sheet {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  flex-shrink: 0;
+  background: #ffffff;
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -20px 56px rgba(15, 23, 42, 0.28);
+  padding: var(--cs-space-4) var(--cs-space-4) calc(var(--cs-space-3) + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.cs-sim-list-action-header {
+  margin: 0 0 var(--cs-space-2);
+}
+
+.cs-sim-list-action-header__title {
+  margin: 0;
+  font-size: var(--cs-font-section);
+  font-weight: 700;
+  line-height: 1.35;
+  color: #111827;
+}
+
+.cs-sim-list-action-subject {
+  margin: 0 0 var(--cs-space-3);
+  padding: var(--cs-space-2) var(--cs-space-3);
+  border-radius: 10px;
+  background: #f8fafc;
+  font-size: var(--cs-font-label);
+  font-weight: 600;
+  line-height: 1.4;
+  color: #111827;
+  word-break: break-word;
+}
+
+.cs-sim-list-action-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid #e6ebf2;
+  border-bottom: 1px solid #e6ebf2;
+}
+
+.cs-sim-list-action-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 var(--cs-space-3);
+  border: none;
+  border-bottom: 1px solid #eef1f6;
+  background: #ffffff;
+  text-align: left;
+  font-size: var(--cs-font-label);
+  font-weight: 500;
+  color: #111827;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.cs-sim-list-action-row:last-child {
+  border-bottom: none;
+}
+
+.cs-sim-list-action-row--danger {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.cs-sim-list-action-footer {
+  margin: var(--cs-space-2) 0 0;
+  padding: 0;
+}
+
+.cs-sim-list-action-cancel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  margin: 0;
+  padding: 0 var(--cs-space-3);
+  border: none;
+  border-radius: 12px;
+  background: #f1f5f9;
+  font-size: var(--cs-font-label);
+  font-weight: 600;
+  color: #111827;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
 .coverage-simulator-appbar__title {
   font-size: var(--cs-font-section);
   font-weight: 700;

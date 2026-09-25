@@ -5,7 +5,7 @@ import { useConfirmDialog } from '../../../components/dialog'
 import { CustomerContextBar } from '../components/CustomerContextBar'
 import { CoverageSimulatorLayout } from '../components/CoverageSimulatorLayout'
 import { CoverageSimulatorToastProvider, useCoverageSimulatorToast } from '../components/CoverageSimulatorToast'
-import { ItemActionSheet } from '../components/ItemActionSheet'
+import { SimulationListActionSheet } from '../components/SimulationListActionSheet'
 import { SaveConsultationTitleDialog } from '../components/SaveConsultationTitleDialog'
 import { useCoverageSimulatorCustomer } from '../context/CoverageSimulatorCustomerContext'
 import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
@@ -94,32 +94,6 @@ function SimulationListPageContent() {
     }
   }
 
-  const menuActions = menuRow
-    ? [
-        {
-          id: 'open',
-          label: '열기',
-          onSelect: () => openScenario(menuRow.id),
-        },
-        {
-          id: 'rename',
-          label: '제목 수정',
-          onSelect: () => {
-            setRenameValidationError(null)
-            setRenameRow(menuRow)
-          },
-        },
-        {
-          id: 'delete',
-          label: '삭제',
-          destructive: true,
-          onSelect: () => {
-            void requestDelete(menuRow)
-          },
-        },
-      ]
-    : []
-
   return (
     <CoverageSimulatorLayout>
       <header className="coverage-simulator-appbar coverage-simulator-appbar--compact">
@@ -163,11 +137,23 @@ function SimulationListPageContent() {
           + 새 시뮬레이션 만들기
         </button>
       </main>
-      <ItemActionSheet
+      <SimulationListActionSheet
         open={menuRow != null}
-        title="시뮬레이션"
+        documentTitle={menuRow?.title ?? ''}
         onClose={() => setMenuRow(null)}
-        actions={menuActions}
+        onOpen={() => {
+          if (!menuRow) return
+          openScenario(menuRow.id)
+        }}
+        onRename={() => {
+          if (!menuRow) return
+          setRenameValidationError(null)
+          setRenameRow(menuRow)
+        }}
+        onDelete={() => {
+          if (!menuRow) return
+          void requestDelete(menuRow)
+        }}
       />
       <SaveConsultationTitleDialog
         open={renameRow != null}

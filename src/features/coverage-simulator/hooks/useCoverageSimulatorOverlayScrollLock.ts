@@ -10,6 +10,8 @@ const SCROLLABLE_SURFACE_SELECTOR = [
   '.cs-sheet-body-scroll',
   '.cs-item-action-overlay',
   '.cs-item-action-sheet',
+  '.cs-sim-list-action-overlay',
+  '.cs-sim-list-action-sheet',
   '.coverage-simulator-dialog',
 ].join(',')
 
