@@ -1,15 +1,18 @@
 import { useCallback, useRef, useState } from 'react'
 
 import { listCoverageSimulationShares, type CoverageShareListItem } from '../api/coverageSimulatorShareApi'
+import { listPreviewCoverageSimulationShares } from '../api/coverageSimulatorPreviewShareApi'
 import { mapCoverageShareHistoryError } from '../api/mapCoverageShareApiError'
+import type { CoverageShareProviderMode } from '../share/coverageShareProviderMode'
 
 type Params = {
+  providerMode: CoverageShareProviderMode
   token: string | null
   consultationId: string | null
   enabled: boolean
 }
 
-export function useCoverageShareHistory({ token, consultationId, enabled }: Params) {
+export function useCoverageShareHistory({ providerMode, token, consultationId, enabled }: Params) {
   const [shares, setShares] = useState<CoverageShareListItem[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -17,15 +20,19 @@ export function useCoverageShareHistory({ token, consultationId, enabled }: Para
 
   const load = useCallback(
     async (force = false) => {
-      if (!enabled || !token || !consultationId) return
-      const cacheKey = `${token}:${consultationId}`
+      if (!enabled || !consultationId) return
+      if (providerMode === 'crm' && !token) return
+      const cacheKey = `${providerMode}:${token ?? 'preview'}:${consultationId}`
       if (!force && loadedForRef.current === cacheKey) {
         return
       }
       setLoading(true)
       setError(null)
       try {
-        const res = await listCoverageSimulationShares(token, consultationId)
+        const res =
+          providerMode === 'preview-dev'
+            ? await listPreviewCoverageSimulationShares(consultationId)
+            : await listCoverageSimulationShares(token!, consultationId)
         setShares(res.shares)
         loadedForRef.current = cacheKey
       } catch (err) {
@@ -34,7 +41,7 @@ export function useCoverageShareHistory({ token, consultationId, enabled }: Para
         setLoading(false)
       }
     },
-    [consultationId, enabled, token],
+    [consultationId, enabled, providerMode, token],
   )
 
   const invalidate = useCallback(() => {

@@ -181,6 +181,7 @@ import { logPhoneVerificationStartupDiagnostics } from './services/phoneVerifica
 import { registerContractPublicOtpApi } from './apis/contractPublicOtpApi.js'
 import { registerContractPublicApi } from './apis/contractPublicApi.js'
 import { registerCoverageSimulatorShareApi } from './apis/coverageSimulatorShareApi.js'
+import { registerCoverageSimulatorPreviewShareApi } from './apis/coverageSimulatorPreviewShareApi.js'
 import { registerContractAdminApi } from './apis/contractAdminApi.js'
 import { registerContractUserApi } from './apis/contractUserApi.js'
 import { registerSubscriptionEndpoints } from './subscription/endpoints.js'
@@ -1541,6 +1542,8 @@ registerContractPublicOtpApi(apiRouter, { pool, handleDbError })
 registerContractPublicApi(apiRouter, { pool, handleDbError })
 
 registerCoverageSimulatorShareApi(apiRouter, { pool, requireAuth, handleDbError })
+
+registerCoverageSimulatorPreviewShareApi(apiRouter, { pool, handleDbError })
 
 registerContractAdminApi(apiRouter, {
   pool,

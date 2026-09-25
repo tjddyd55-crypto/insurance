@@ -15,7 +15,7 @@ function PdfPreviewPageBody() {
   const { scenarioId = '' } = useParams()
   const navigate = useNavigate()
   const { basePath, userKey } = useCoverageSimulatorScope()
-  const printRef = useRef<HTMLDivElement>(null)
+  const printSourceRef = useRef<HTMLDivElement>(null)
   const [busy, setBusy] = useState(false)
   const { showToast } = useCoverageSimulatorToast()
 
@@ -37,11 +37,10 @@ function PdfPreviewPageBody() {
   const fileName = buildCoveragePdfFileName(scenario)
 
   const savePdf = async () => {
-    if (!printRef.current?.firstElementChild) return
+    const printRoot = printSourceRef.current?.querySelector('.coverage-simulator-print-root') as HTMLElement | null
+    if (!printRoot) return
     setBusy(true)
     try {
-      const zoomInner = printRef.current.querySelector('.coverage-simulator-pdf-preview__zoom-inner')
-      const printRoot = (zoomInner?.firstElementChild ?? printRef.current.firstElementChild) as HTMLElement
       await downloadCoveragePdfFromPrintRoot(printRoot, fileName)
       showToast('PDF 다운로드를 시작했습니다.')
     } catch {
@@ -66,13 +65,14 @@ function PdfPreviewPageBody() {
       </header>
       <main className="coverage-simulator-content coverage-simulator-pdf-preview" style={{ paddingBottom: 96 }}>
         <div className="coverage-simulator-pdf-preview__scroll">
-          <div ref={printRef} className="coverage-simulator-pdf-preview__page">
-            <CoveragePdfPreviewZoomSurface>
-              <CoverageSimulatorPrintDocument scenario={scenario} />
-            </CoveragePdfPreviewZoomSurface>
-          </div>
+          <CoveragePdfPreviewZoomSurface documentKey={scenario.id}>
+            <CoverageSimulatorPrintDocument scenario={scenario} />
+          </CoveragePdfPreviewZoomSurface>
         </div>
       </main>
+      <div ref={printSourceRef} className="coverage-simulator-pdf-print-source" aria-hidden="true">
+        <CoverageSimulatorPrintDocument scenario={scenario} />
+      </div>
       <footer className="coverage-simulator-bottom-bar" style={{ gridTemplateColumns: '1fr 1fr' }}>
         <FormButton variant="secondary" className="coverage-simulator-secondary-btn" disabled={busy} onClick={savePdf}>
           PDF 저장

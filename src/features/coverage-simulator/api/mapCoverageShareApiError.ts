@@ -11,6 +11,9 @@ export function mapCoverageShareCreateError(error: unknown): string {
     if (error.status === 400) {
       return '저장된 상담 내용을 확인한 후 다시 시도해 주세요.'
     }
+    if (error.status === 503) {
+      return 'Preview 공유 서버 설정이 필요합니다. DEV 환경 변수를 확인해 주세요.'
+    }
   }
   return '공유 링크를 생성하지 못했습니다. 다시 시도해 주세요.'
 }

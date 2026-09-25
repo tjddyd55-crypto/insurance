@@ -443,23 +443,34 @@
     overflow: auto;
     -webkit-overflow-scrolling: touch;
     touch-action: pan-x pan-y;
+    padding: 8px;
+    box-sizing: border-box;
   }
 
-  .coverage-simulator-pdf-preview__page {
-    display: flex;
-    justify-content: center;
-    min-width: min(100%, 210mm);
-  }
-
-  .coverage-simulator-pdf-preview__zoom-surface {
+  .coverage-simulator-pdf-preview__zoom-viewport {
     width: 100%;
-    touch-action: pan-x pan-y pinch-zoom;
+    touch-action: none;
+    user-select: none;
   }
 
-  .coverage-simulator-pdf-preview__zoom-inner {
-    width: 100%;
-    max-width: 210mm;
+  .coverage-simulator-pdf-preview__zoom-spacer {
+    position: relative;
     margin: 0 auto;
-    will-change: transform;
+  }
+
+  .coverage-simulator-pdf-preview__zoom-doc {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+
+  .coverage-simulator-pdf-print-source {
+    position: fixed;
+    left: -12000px;
+    top: 0;
+    width: 210mm;
+    pointer-events: none;
+    opacity: 0;
+    z-index: -1;
   }
 }

@@ -118,6 +118,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   const isTemplateEarly = isTemplateEditorMode(editor)
   const shareFlow = useCoverageShareFlow({
     scenario: isTemplateEarly ? null : scenario,
+    isTemplate: isTemplateEarly,
     isDirty,
     requestSaveConsultation,
     showToast,
@@ -246,9 +247,9 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
           onSave={isTemplate ? () => persist(scenario) : handleSave}
           saving={!isTemplate && isSaving}
           onPdf={!isTemplate ? () => navigate(`${basePath}/scenarios/${scenario.id}/pdf`) : undefined}
-          onShare={!isTemplate && shareFlow.canShare ? () => void shareFlow.openShareDialog() : undefined}
+          onShare={shareFlow.showShareButton ? () => void shareFlow.openShareDialog() : undefined}
           shareDisabled={shareFlow.sharing}
-          showShare={!isTemplate && shareFlow.canShare}
+          showShare={shareFlow.showShareButton}
           showPdf={!isTemplate}
           resetLabel={isTemplate ? '비우기' : '초기화'}
         />
@@ -288,7 +289,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
             >
               {isSaving ? '저장 중…' : '저장'}
             </FormButton>
-            {!isTemplate && shareFlow.canShare ? (
+            {!isTemplate && shareFlow.showShareButton ? (
               <FormButton
                 variant="secondary"
                 className="coverage-simulator-secondary-btn"
