@@ -11,7 +11,9 @@ import {
 import {
   applyCoveragePdfCaptureCloneFixes,
   assertCoveragePdfTitleTextSafety,
+  readCoveragePdfBadgeComputedStyle,
   readCoveragePdfTitleComputedStyle,
+  type CoveragePdfBadgeComputedStyle,
   type CoveragePdfTitleComputedStyle,
 } from './coveragePdfTitleTextSafety'
 
@@ -37,6 +39,7 @@ type CoveragePdfDiagnostics = {
   finalPdfPageCount: number
   renderScale: number
   title: CoveragePdfTitleComputedStyle | null
+  badge: CoveragePdfBadgeComputedStyle | null
 }
 
 declare global {
@@ -181,6 +184,9 @@ async function printRootToJsPdf(root: HTMLElement): Promise<jsPDF> {
   })
 
   const representativeTitle = findRepresentativeTitle(root)
+  const representativeBadge = root.querySelector<HTMLElement>(
+    '.coverage-simulator-badge',
+  )
   const diagnostics: CoveragePdfDiagnostics = {
     captureWidthPx: captureWidth,
     captureHeightPx: captureHeight,
@@ -197,6 +203,9 @@ async function printRootToJsPdf(root: HTMLElement): Promise<jsPDF> {
     renderScale: pagePlan.renderScale,
     title: representativeTitle
       ? readCoveragePdfTitleComputedStyle(representativeTitle)
+      : null,
+    badge: representativeBadge
+      ? readCoveragePdfBadgeComputedStyle(representativeBadge)
       : null,
   }
   publishDebugCapture(canvas, pdf, diagnostics)

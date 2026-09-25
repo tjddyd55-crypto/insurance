@@ -1,0 +1,99 @@
+{
+  "idleStart": {
+    "fitScale": 0.43073,
+    "zoom": 1,
+    "renderCount": 0,
+    "resizeCallbackCount": 1,
+    "scrollLeft": 0,
+    "scrollTop": 0,
+    "visibleDocumentCount": 1,
+    "printSourceCount": 1,
+    "printRootCount": 2,
+    "sourceIntersectsViewport": false,
+    "viewportWidth": 358,
+    "viewportScrollWidth": 358,
+    "viewportScrollHeight": 594
+  },
+  "idleEnd": {
+    "fitScale": 0.43073,
+    "zoom": 1,
+    "renderCount": 0,
+    "resizeCallbackCount": 1,
+    "scrollLeft": 0,
+    "scrollTop": 0,
+    "visibleDocumentCount": 1,
+    "printSourceCount": 1,
+    "printRootCount": 2,
+    "sourceIntersectsViewport": false,
+    "viewportWidth": 358,
+    "viewportScrollWidth": 358,
+    "viewportScrollHeight": 594
+  },
+  "fitScales": [
+    0.43073
+  ],
+  "zoomValues": [
+    1
+  ],
+  "afterPinch": {
+    "fitScale": 0.43073,
+    "zoom": 2.2,
+    "renderCount": 0,
+    "resizeCallbackCount": 2,
+    "scrollLeft": 0,
+    "scrollTop": 0,
+    "visibleDocumentCount": 1,
+    "printSourceCount": 1,
+    "printRootCount": 2,
+    "sourceIntersectsViewport": false,
+    "viewportWidth": 358,
+    "viewportScrollWidth": 752,
+    "viewportScrollHeight": 1064
+  },
+  "afterHorizontalPan": {
+    "fitScale": 0.43073,
+    "zoom": 2.2,
+    "renderCount": 0,
+    "resizeCallbackCount": 2,
+    "scrollLeft": 90,
+    "scrollTop": 0,
+    "visibleDocumentCount": 1,
+    "printSourceCount": 1,
+    "printRootCount": 2,
+    "sourceIntersectsViewport": false,
+    "viewportWidth": 358,
+    "viewportScrollWidth": 752,
+    "viewportScrollHeight": 1064
+  },
+  "afterPan": {
+    "fitScale": 0.43073,
+    "zoom": 2.2,
+    "renderCount": 0,
+    "resizeCallbackCount": 2,
+    "scrollLeft": 90,
+    "scrollTop": 90,
+    "visibleDocumentCount": 1,
+    "printSourceCount": 1,
+    "printRootCount": 2,
+    "sourceIntersectsViewport": false,
+    "viewportWidth": 358,
+    "viewportScrollWidth": 752,
+    "viewportScrollHeight": 1064
+  },
+  "afterZoomOut": {
+    "fitScale": 0.43073,
+    "zoom": 1,
+    "renderCount": 0,
+    "resizeCallbackCount": 3,
+    "scrollLeft": 0,
+    "scrollTop": 0,
+    "visibleDocumentCount": 1,
+    "printSourceCount": 1,
+    "printRootCount": 2,
+    "sourceIntersectsViewport": false,
+    "viewportWidth": 358,
+    "viewportScrollWidth": 358,
+    "viewportScrollHeight": 594
+  },
+  "failures": []
+}

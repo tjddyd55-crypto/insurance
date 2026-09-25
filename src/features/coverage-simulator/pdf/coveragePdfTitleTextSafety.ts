@@ -16,6 +16,20 @@ export const COVERAGE_PDF_INLINE_TITLE_LABEL_STYLES: Partial<CSSStyleDeclaration
   webkitBoxOrient: 'initial',
 }
 
+export const COVERAGE_PDF_INLINE_BADGE_STYLES: Partial<CSSStyleDeclaration> = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  height: '22px',
+  minHeight: '22px',
+  padding: '0 8px',
+  boxSizing: 'border-box',
+  lineHeight: '1',
+  overflow: 'visible',
+  verticalAlign: 'middle',
+  transform: 'none',
+}
+
 export type CoveragePdfTitleSafetyIssue = {
   label: string
   reason: string
@@ -41,6 +55,43 @@ export type CoveragePdfTitleComputedStyle = {
     y: number
     width: number
     height: number
+  }
+}
+
+export type CoveragePdfBadgeComputedStyle = {
+  label: string
+  display: string
+  height: number
+  minHeight: string
+  lineHeight: string
+  paddingTop: string
+  paddingBottom: string
+  alignItems: string
+  justifyContent: string
+  fontSize: string
+  fontFamily: string
+  transform: string
+  verticalAlign: string
+}
+
+export function readCoveragePdfBadgeComputedStyle(
+  badge: HTMLElement,
+): CoveragePdfBadgeComputedStyle {
+  const style = window.getComputedStyle(badge)
+  return {
+    label: badge.textContent?.trim() ?? '',
+    display: style.display,
+    height: badge.getBoundingClientRect().height,
+    minHeight: style.minHeight,
+    lineHeight: style.lineHeight,
+    paddingTop: style.paddingTop,
+    paddingBottom: style.paddingBottom,
+    alignItems: style.alignItems,
+    justifyContent: style.justifyContent,
+    fontSize: style.fontSize,
+    fontFamily: style.fontFamily,
+    transform: style.transform,
+    verticalAlign: style.verticalAlign,
   }
 }
 
@@ -140,10 +191,7 @@ export function applyCoveragePdfCaptureCloneFixes(root: HTMLElement): void {
   })
 
   root.querySelectorAll<HTMLElement>('.coverage-simulator-badge').forEach((badge) => {
-    badge.style.lineHeight = '1.35'
-    badge.style.minHeight = '22px'
-    badge.style.paddingBlock = '3px'
-    badge.style.overflow = 'visible'
+    Object.assign(badge.style, COVERAGE_PDF_INLINE_BADGE_STYLES)
   })
 
   root.querySelectorAll<HTMLElement>('.cs-axis-amount__value').forEach((amount) => {

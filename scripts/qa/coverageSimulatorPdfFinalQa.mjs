@@ -9,8 +9,10 @@ import { chromium } from 'playwright'
 
 const BASE = (process.argv[2] || 'https://insurance-dev.up.railway.app').replace(/\/$/, '')
 const MOBILE = `${BASE}/coverage-simulator-preview/mobile`
+const PC = `${BASE}/coverage-simulator-preview/pc`
 const PDF_RASTER_MODULE_BASE = process.env.COVERAGE_PDF_RASTER_BASE || 'http://localhost:3000'
-const STORAGE_KEY = 'coverage-simulator-preview-mobile:consultations:v1'
+const MOBILE_STORAGE_KEY = 'coverage-simulator-preview-mobile:consultations:v1'
+const PC_STORAGE_KEY = 'coverage-simulator-preview-pc:consultations:v1'
 const MAN = 10_000
 const outDir = join(process.cwd(), 'store-screenshots', 'coverage-simulator', 'pdf')
 
@@ -101,17 +103,17 @@ async function renderActualPdfPages(page, pdfBytes, tag) {
   return paths
 }
 
-async function runScenario(page, scenario, tag) {
+async function runScenario(page, scenario, tag, surface) {
   await page.evaluate(
     ({ key, seed }) => {
       const rows = JSON.parse(localStorage.getItem(key) ?? '[]')
       const next = [seed, ...rows.filter((row) => row.id !== seed.id)]
       localStorage.setItem(key, JSON.stringify(next))
     },
-    { key: STORAGE_KEY, seed: scenario },
+    { key: surface.storageKey, seed: scenario },
   )
 
-  await page.goto(`${MOBILE}/scenarios/${scenario.id}/pdf?coveragePdfDebug=1`, {
+  await page.goto(`${surface.basePath}/scenarios/${scenario.id}/pdf?coveragePdfDebug=1`, {
     waitUntil: 'domcontentloaded',
     timeout: 90000,
   })
@@ -246,14 +248,30 @@ async function main() {
   const results = []
 
   await page.goto(MOBILE, { waitUntil: 'domcontentloaded' })
-  await page.evaluate((key) => localStorage.removeItem(key), STORAGE_KEY)
+  await page.evaluate((key) => localStorage.removeItem(key), MOBILE_STORAGE_KEY)
 
-  const onePage = await runScenario(page, buildQaScenario(0), 'qa-1p')
+  const mobileSurface = { basePath: MOBILE, storageKey: MOBILE_STORAGE_KEY }
+  const onePage = await runScenario(page, buildQaScenario(0), 'qa-1p', mobileSurface)
   results.push({ id: 'pdf-1p', ...onePage })
 
-  const long = await runScenario(page, buildQaScenario(14), 'qa-long')
+  const long = await runScenario(page, buildQaScenario(14), 'qa-long', mobileSurface)
   results.push({ id: 'pdf-long', ...long })
 
+  const pcContext = await browser.newContext({
+    viewport: { width: 1440, height: 1000 },
+    acceptDownloads: true,
+  })
+  const pcPage = await pcContext.newPage()
+  await pcPage.goto(PC, { waitUntil: 'domcontentloaded' })
+  await pcPage.evaluate((key) => localStorage.removeItem(key), PC_STORAGE_KEY)
+  const pcOnePage = await runScenario(
+    pcPage,
+    buildQaScenario(0),
+    'qa-pc-1p',
+    { basePath: PC, storageKey: PC_STORAGE_KEY },
+  )
+  results.push({ id: 'pdf-pc-1p', ...pcOnePage })
+  await pcContext.close()
   await browser.close()
 
   const failures = []
@@ -268,6 +286,18 @@ async function main() {
   if (onePage.diagnostics.title?.overflow !== 'visible') failures.push('title-overflow')
   if (onePage.diagnostics.title?.whiteSpace !== 'normal') failures.push('title-white-space')
   if (onePage.diagnostics.title?.transform !== 'none') failures.push('title-transform')
+  for (const [surface, result] of [['mobile', onePage], ['pc', pcOnePage]]) {
+    const badge = result.diagnostics.badge
+    if (!['flex', 'inline-flex'].includes(badge?.display)) {
+      failures.push(`${surface}-badge-display`)
+    }
+    if (badge?.alignItems !== 'center') failures.push(`${surface}-badge-align`)
+    if (badge?.justifyContent !== 'center') failures.push(`${surface}-badge-justify`)
+    if (badge?.lineHeight !== '10px') failures.push(`${surface}-badge-line-height`)
+    if (badge?.paddingTop !== badge?.paddingBottom) failures.push(`${surface}-badge-padding`)
+    if (badge?.transform !== 'none') failures.push(`${surface}-badge-transform`)
+  }
+  if (pcOnePage.pageCount !== 1) failures.push(`pc-short-page-count:${pcOnePage.pageCount}`)
 
   await writeFile(join(outDir, 'pdf-final-qa-results.json'), JSON.stringify({ version, results, failures }, null, 2))
 

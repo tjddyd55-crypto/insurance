@@ -445,16 +445,30 @@
   }
 
   .coverage-simulator-pdf-preview__scroll {
-    overflow: auto;
-    -webkit-overflow-scrolling: touch;
-    touch-action: pan-x pan-y;
+    overflow: hidden;
     padding: 8px;
     box-sizing: border-box;
   }
 
+  .coverage-simulator-pdf-preview-shell {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .coverage-simulator-pdf-preview {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
   .coverage-simulator-pdf-preview__zoom-viewport {
+    flex: 1 1 auto;
     width: 100%;
-    min-height: 100%;
+    height: 100%;
+    min-height: 0;
     overflow: auto;
     overscroll-behavior: contain;
     touch-action: pan-x pan-y;
@@ -483,12 +497,11 @@
 
   .coverage-simulator-pdf-print-source {
     position: fixed;
-    left: -12000px;
+    left: -100000px;
     top: 0;
     width: 794px;
     pointer-events: none;
-    opacity: 0;
-    z-index: -1;
+    contain: layout style paint;
   }
 }
 
@@ -567,10 +580,17 @@
 }
 
 .coverage-simulator-print-root--korean-text-safe .coverage-simulator-badge {
-  line-height: 1.35;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
   min-height: 22px;
-  padding-block: 3px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  line-height: 1;
   overflow: visible;
+  vertical-align: middle;
+  transform: none;
 }
 
 .coverage-simulator-print-root--korean-text-safe .cs-axis-amount__value,

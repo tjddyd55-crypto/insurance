@@ -69,7 +69,7 @@ function PdfPreviewPageBody() {
   }
 
   return (
-    <CoverageSimulatorLayout>
+    <CoverageSimulatorLayout shellClassName="coverage-simulator-pdf-preview-shell">
       <header className="coverage-simulator-appbar">
         <FormButton
           variant="action"
@@ -82,13 +82,16 @@ function PdfPreviewPageBody() {
         <span />
       </header>
       <main className="coverage-simulator-content coverage-simulator-pdf-preview" style={{ paddingBottom: 96 }}>
-        <div className="coverage-simulator-pdf-preview__scroll">
-          <CoveragePdfPreviewZoomSurface key={scenario.id} documentKey={scenario.id}>
-            <CoverageSimulatorPrintDocument scenario={scenario} />
-          </CoveragePdfPreviewZoomSurface>
-        </div>
+        <CoveragePdfPreviewZoomSurface key={scenario.id} documentKey={scenario.id}>
+          <CoverageSimulatorPrintDocument scenario={scenario} />
+        </CoveragePdfPreviewZoomSurface>
       </main>
-      <div ref={printSourceRef} className="coverage-simulator-pdf-print-source" aria-hidden="true">
+      <div
+        ref={printSourceRef}
+        className="coverage-simulator-pdf-print-source"
+        data-testid="coverage-pdf-print-source"
+        aria-hidden="true"
+      >
         <CoverageSimulatorPrintDocument scenario={scenario} />
       </div>
       <footer className="coverage-simulator-bottom-bar" style={{ gridTemplateColumns: '1fr 1fr' }}>
