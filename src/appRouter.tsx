@@ -184,6 +184,9 @@ import BillingFailPage from './features/insurance-billing/pages/BillingFailPage'
 import BillingManagePage from './features/insurance-billing/pages/BillingManagePage'
 import { RequireInsuranceBillingEntitlement } from './features/insurance-billing/RequireInsuranceBillingEntitlement'
 import FreeLaunchBillingGuard from './features/billing/FreeLaunchBillingGuard'
+import PersonalBinderHomePage from './features/personal-binder/pages/PersonalBinderHomePage'
+import PersonalBinderEditorPage from './features/personal-binder/pages/PersonalBinderEditorPage'
+import PersonalBinderViewerPage from './features/personal-binder/pages/PersonalBinderViewerPage'
 
 export const appRouter = createBrowserRouter([
   {
@@ -481,6 +484,10 @@ export const appRouter = createBrowserRouter([
                 ],
               },
               { path: 'storage', element: <MyStoragePage /> },
+              { path: 'personal-binders', element: <PersonalBinderHomePage /> },
+              { path: 'personal-binders/materials', element: <PersonalBinderHomePage /> },
+              { path: 'personal-binders/:binderId/edit', element: <PersonalBinderEditorPage /> },
+              { path: 'personal-binders/:binderId/view', element: <PersonalBinderViewerPage /> },
               { path: 'todos', element: <TodosWorkspacePage /> },
               { path: 'notifications', element: <NotificationsPlaceholderPage /> },
               { path: 'team/members', element: <TeamMembersPage /> },
