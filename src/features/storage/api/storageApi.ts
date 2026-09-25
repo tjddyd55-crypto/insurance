@@ -302,6 +302,19 @@ export async function createStorageFileDownloadUrl(token: string, fileId: number
   return resolveAbsoluteApiUrl(openUrl)
 }
 
+export async function createStorageFilePreviewUrl(token: string, fileId: number): Promise<string> {
+  assertToken(token)
+  const { openUrl } = await apiRequest<{ openUrl: string }>(
+    `/api/storage/files/${fileId}/open-token`,
+    {
+      method: 'POST',
+      token,
+      body: JSON.stringify({ disposition: 'inline' }),
+    },
+  )
+  return resolveAbsoluteApiUrl(openUrl)
+}
+
 /**
  * 열기(확인용): inline open-token 으로 새 창/내장 뷰어에서 미리보기합니다.
  * (`window.open` — 다운로드 전용 로직과 합치지 말 것)
