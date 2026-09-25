@@ -274,21 +274,12 @@
 }
 
 .coverage-simulator-root--mobile-preview .cs-period-section-wrap {
-  margin-bottom: var(--cs-space-1);
+  margin-bottom: 0;
 }
 
 .coverage-simulator-root--mobile-preview .cs-period-section {
-  margin: 0 var(--cs-space-1);
-  padding: var(--cs-space-1) 0;
-  border-radius: 10px;
-}
-
-.coverage-simulator-root--mobile-preview .cs-period-section--tint-a {
-  background: var(--cs-period-section-tint-a);
-}
-
-.coverage-simulator-root--mobile-preview .cs-period-section--tint-b {
-  background: var(--cs-period-section-tint-b);
+  margin: 0;
+  padding: 0;
 }
 
 .coverage-simulator-root--mobile-preview .cs-period-section .cs-axis-block {
@@ -303,7 +294,6 @@
   position: relative;
   z-index: 2;
   margin: var(--cs-space-2) 0 var(--cs-space-1);
-  background: var(--cs-color-surface);
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-event {
@@ -445,7 +435,7 @@
   flex: 1;
   min-width: 0;
   height: 1px;
-  background: #cbd5e1;
+  background: var(--cs-period-marker-line);
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-marker__hline-label {
@@ -454,7 +444,7 @@
   gap: 4px;
   flex-shrink: 0;
   padding: 0 8px;
-  background: var(--cs-axis-title-mask-bg);
+  background: transparent;
   line-height: 1.2;
   z-index: 2;
 }
@@ -463,13 +453,13 @@
   font-size: 0.8125rem;
   font-weight: 700;
   line-height: 1.2;
-  color: #475569;
+  color: var(--cs-period-marker-text);
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-marker__arrow {
   font-size: 0.6875rem;
   line-height: 1;
-  color: #94a3b8;
+  color: var(--cs-period-marker-arrow);
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-marker__delete {
@@ -481,7 +471,7 @@
   font-size: 0.5625rem;
   line-height: 1.2;
   text-decoration: none;
-  color: #cbd5e1;
+  color: #94a3b8;
   font-weight: 500;
   cursor: pointer;
 }
@@ -489,28 +479,27 @@
 .coverage-simulator-root--mobile-preview .cs-axis-period-total {
   position: relative;
   z-index: 2;
-  margin-top: var(--cs-space-2);
-  margin-bottom: var(--cs-space-2);
-  padding: var(--cs-space-2) var(--cs-timeline-item-pad-x);
+  margin: var(--cs-space-2) var(--cs-space-1);
+  padding: var(--cs-space-2) var(--cs-space-3);
   border-radius: 8px;
-  background: #f8fafc;
+  background: var(--cs-period-subtotal-bg);
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-period-total__heading {
-  margin: 0 0 6px;
+  margin: 0 0 8px;
   text-align: center;
   line-height: 1.2;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-period-total__heading-mask {
   display: inline-block;
-  padding: 2px 10px;
-  background: #f8fafc;
+  padding: 0;
+  background: transparent;
   font-size: 0.8125rem;
   font-weight: 700;
-  color: #334155;
+  color: var(--cs-period-subtotal-heading);
   letter-spacing: -0.01em;
-  box-shadow: 0 0 0 4px #f8fafc;
+  box-shadow: none;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-period-total__compare {
@@ -537,15 +526,15 @@
 
 .coverage-simulator-root--mobile-preview .cs-axis-period-total__value-mask {
   display: inline-block;
-  padding: 0 6px;
-  background: #f8fafc;
-  box-shadow: 0 0 0 2px #f8fafc;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-period-total__value {
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   font-weight: 800;
-  line-height: 1.2;
+  line-height: 1.25;
   text-align: center;
   color: #1e293b;
   white-space: nowrap;

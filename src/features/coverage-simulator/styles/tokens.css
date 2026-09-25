@@ -45,8 +45,11 @@
   --cs-z-sticky-dock: 110;
   --cs-z-item-popover: 115;
   --cs-z-sheet-overlay: 1200;
-  --cs-period-section-tint-a: rgba(241, 245, 249, 0.92);
-  --cs-period-section-tint-b: rgba(248, 250, 252, 0.55);
+  --cs-period-subtotal-bg: rgba(239, 246, 255, 0.88);
+  --cs-period-subtotal-heading: #334155;
+  --cs-period-marker-line: #93c5fd;
+  --cs-period-marker-text: #2563eb;
+  --cs-period-marker-arrow: #3b82f6;
   --cs-mobile-dock-content-height: 54px;
   --cs-mobile-dock-height: calc(var(--cs-mobile-dock-content-height) + env(safe-area-inset-bottom, 0px));
   --cs-mobile-editor-header-height: 46px;

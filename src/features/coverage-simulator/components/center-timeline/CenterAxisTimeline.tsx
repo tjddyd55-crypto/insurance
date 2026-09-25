@@ -215,12 +215,7 @@ function renderPeriodSections(
 
   return sections.map((section) => (
     <div key={section.key} className="cs-period-section-wrap">
-      <div
-        className={[
-          'cs-period-section',
-          section.tintIndex % 2 === 0 ? 'cs-period-section--tint-a' : 'cs-period-section--tint-b',
-        ].join(' ')}
-      >
+      <div className="cs-period-section">
         {section.blocks.map((block, index) =>
           renderBlock(
             block,
