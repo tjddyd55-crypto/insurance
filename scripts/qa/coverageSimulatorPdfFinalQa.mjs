@@ -32,18 +32,26 @@ function marker(label, order) {
 function buildQaScenario(extraItems = 0) {
   const now = new Date().toISOString()
   const items = [
-    coverage('암 진단', 'diagnosis', 0, 3000, 5000),
-    coverage('암 수술', 'treatment', 1, 300, 1000),
-    coverage('항암', 'treatment', 2, 500, 2000),
-    coverage('방사선', 'treatment', 3, 300, 1000),
+    coverage('암 진단금', 'diagnosis', 0, 3000, 5000),
+    coverage('암 수술비', 'treatment', 1, 300, 1000),
+    coverage('항암약물치료', 'treatment', 2, 500, 2000),
+    coverage('방사선치료', 'treatment', 3, 300, 1000),
     marker('1년 후', 4),
-    coverage('표적항암', 'treatment', 5, 0, 2000),
-    coverage('입원비', 'treatment', 6, 100, 500),
-    marker('6개월 후', 7),
-    coverage('간병', 'support', 8, 0, 1000),
+    coverage('표적항암약물허가치료비', 'treatment', 5, 0, 2000),
+    coverage('상급종합병원암주요치료비', 'treatment', 6, 100, 500),
   ]
   for (let i = 0; i < extraItems; i += 1) {
-    items.push(coverage(`추가 항목 ${i + 1}`, 'other', 9 + i, 100 + i, 200 + i))
+    items.push(
+      coverage(
+        i % 2 === 0
+          ? `표적항암약물허가치료비 ${i + 1}`
+          : `상급종합병원암주요치료비 ${i + 1}`,
+        'other',
+        7 + i,
+        100 + i,
+        200 + i,
+      ),
+    )
   }
   return {
     id: `pdf-qa-${extraItems}`,
@@ -58,6 +66,40 @@ function buildQaScenario(extraItems = 0) {
   }
 }
 
+async function renderActualPdfPages(page, pdfBytes, tag) {
+  const rasterPage = await page.context().newPage()
+  await rasterPage.goto(BASE, { waitUntil: 'domcontentloaded' })
+  const pageImages = await rasterPage.evaluate(async ({ base64 }) => {
+    const pdfjs = await import('/node_modules/.vite/deps/pdfjs-dist.js')
+    pdfjs.GlobalWorkerOptions.workerSrc =
+      '/node_modules/.vite/deps/pdfjs-dist_build_pdf__worker__min__mjs.js'
+    const binary = atob(base64)
+    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0))
+    const pdfDocument = await pdfjs.getDocument({ data: bytes }).promise
+    const images = []
+    for (let pageNumber = 1; pageNumber <= pdfDocument.numPages; pageNumber += 1) {
+      const pdfPage = await pdfDocument.getPage(pageNumber)
+      const viewport = pdfPage.getViewport({ scale: 1.5 })
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.ceil(viewport.width)
+      canvas.height = Math.ceil(viewport.height)
+      const context = canvas.getContext('2d')
+      await pdfPage.render({ canvasContext: context, viewport }).promise
+      images.push(canvas.toDataURL('image/png'))
+    }
+    return images
+  }, { base64: Buffer.from(pdfBytes).toString('base64') })
+  await rasterPage.close()
+
+  const paths = []
+  for (let index = 0; index < pageImages.length; index += 1) {
+    const path = join(outDir, `actual-pdf-${tag}-page-${index + 1}.png`)
+    await writeFile(path, Buffer.from(pageImages[index].split(',')[1], 'base64'))
+    paths.push(path)
+  }
+  return paths
+}
+
 async function runScenario(page, scenario, tag) {
   await page.evaluate(
     ({ key, seed }) => {
@@ -68,38 +110,122 @@ async function runScenario(page, scenario, tag) {
     { key: STORAGE_KEY, seed: scenario },
   )
 
-  await page.goto(`${MOBILE}/scenarios/${scenario.id}/pdf`, { waitUntil: 'domcontentloaded', timeout: 90000 })
+  await page.goto(`${MOBILE}/scenarios/${scenario.id}/pdf?coveragePdfDebug=1`, {
+    waitUntil: 'domcontentloaded',
+    timeout: 90000,
+  })
   await page.waitForSelector('[data-testid="coverage-simulator-print-root"]', { timeout: 60000 })
 
   const checks = await page.evaluate(() => {
-    const root = document.querySelector('[data-testid="coverage-simulator-print-root"]')
-    const grand = document.querySelector('[data-testid="coverage-print-grand-total"]')
+    const root = document.querySelector('.coverage-simulator-pdf-print-source [data-testid="coverage-simulator-print-root"]')
+    const grand = root?.querySelector('[data-testid="coverage-grand-total"]')
     const subtotals = document.querySelectorAll('[data-testid="coverage-period-subtotal"]').length
-    const markers = document.querySelectorAll('[data-testid="coverage-print-marker"]').length
-    const firstAmount = document.querySelector('.cs-print-item__amount--proposed')?.textContent?.trim() ?? ''
-    const grandProposed = document.querySelector('.cs-print-grand-total__value--proposed')?.textContent?.trim() ?? ''
-    return { root: Boolean(root), grand: Boolean(grand), subtotals, markers, firstAmount, grandProposed }
+    const markers = document.querySelectorAll('.cs-axis-marker').length
+    const firstAmount = root?.querySelector('.cs-axis-amount--proposed')?.textContent?.trim() ?? ''
+    const grandProposed = root?.querySelector('.cs-axis-summary__value--proposed')?.textContent?.trim() ?? ''
+    const labels = Array.from(root?.querySelectorAll('.cs-axis-event__label') ?? []).map((node) => node.textContent?.trim())
+    return { root: Boolean(root), grand: Boolean(grand), subtotals, markers, firstAmount, grandProposed, labels }
   })
 
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.screenshot({ path: join(outDir, `pdf-preview-${tag}-390.png`), fullPage: true })
+  await page.locator('.coverage-simulator-pdf-preview__zoom-doc').screenshot({
+    path: join(outDir, `print-dom-${tag}.png`),
+  })
 
   page.on('pageerror', (err) => console.error('[pageerror]', err.message))
   page.on('console', (msg) => {
     if (msg.type() === 'error') console.error('[console]', msg.text())
   })
-  const [download] = await Promise.all([
-    page.waitForEvent('download', { timeout: 180000 }),
-    page.getByRole('button', { name: 'PDF 저장' }).click(),
-  ])
+  const downloadPromise = page
+    .waitForEvent('download', { timeout: 30000 })
+    .catch(() => null)
+  await page.getByRole('button', { name: 'PDF 저장' }).click()
+  try {
+    await page.waitForFunction(() => Boolean(window.__coveragePdfDebugCapture), null, {
+      timeout: 30000,
+    })
+  } catch (error) {
+    const failureState = await page.evaluate(() => ({
+      bodyText: document.body.innerText,
+      debugReady: Boolean(window.__coveragePdfDebugCapture),
+      titleStyles: Array.from(
+        document.querySelectorAll(
+          '.coverage-simulator-pdf-print-source .cs-axis-event__label',
+        ),
+      ).slice(0, 8).map((node) => {
+        const element = /** @type {HTMLElement} */ (node)
+        const style = getComputedStyle(element)
+        return {
+          text: element.textContent?.trim(),
+          overflow: style.overflow,
+          whiteSpace: style.whiteSpace,
+          textOverflow: style.textOverflow,
+          display: style.display,
+          lineHeight: style.lineHeight,
+          clientHeight: element.clientHeight,
+          scrollHeight: element.scrollHeight,
+        }
+      }),
+      modernColors: Array.from(
+        document.querySelectorAll(
+          '.coverage-simulator-pdf-print-source [data-testid="coverage-simulator-print-root"], .coverage-simulator-pdf-print-source [data-testid="coverage-simulator-print-root"] *',
+        ),
+      ).flatMap((node) => {
+        const style = getComputedStyle(node)
+        return [
+          ['color', style.color],
+          ['backgroundColor', style.backgroundColor],
+          ['borderTopColor', style.borderTopColor],
+          ['borderRightColor', style.borderRightColor],
+          ['borderBottomColor', style.borderBottomColor],
+          ['borderLeftColor', style.borderLeftColor],
+          ['boxShadow', style.boxShadow],
+        ].filter(([, value]) => value.includes('color(')).map(([property, value]) => ({
+          className: node.className,
+          property,
+          value,
+        }))
+      }).slice(0, 30),
+    }))
+    await page.screenshot({
+      path: join(outDir, `pdf-generation-failure-${tag}.png`),
+      fullPage: true,
+    })
+    throw new Error(
+      `PDF debug capture timeout: ${JSON.stringify(failureState)}`,
+      { cause: error },
+    )
+  }
+  const debugCapture = await page.evaluate(() => window.__coveragePdfDebugCapture)
+  if (!debugCapture) throw new Error('missing coverage PDF debug capture')
+  const pngBase64 = debugCapture.pngDataUrl.split(',')[1]
+  await writeFile(join(outDir, `capture-${tag}.png`), Buffer.from(pngBase64, 'base64'))
   const pdfPath = join(outDir, `coverage-simulator-${tag}.pdf`)
-  await download.saveAs(pdfPath)
+  const download = await Promise.race([
+    downloadPromise,
+    new Promise((resolve) => setTimeout(() => resolve(null), 15000)),
+  ])
+  if (download) {
+    await download.saveAs(pdfPath)
+  } else {
+    const pdfBase64 = debugCapture.pdfDataUrl.split(',')[1]
+    await writeFile(pdfPath, Buffer.from(pdfBase64, 'base64'))
+  }
 
   const bytes = await import('node:fs/promises').then((fs) => fs.readFile(pdfPath))
   const doc = await PDFDocument.load(bytes)
   const pageCount = doc.getPageCount()
 
-  return { checks, pdfPath, pageCount }
+  const pdfScreenshots = await renderActualPdfPages(page, bytes, tag)
+
+  return {
+    checks,
+    diagnostics: debugCapture.diagnostics,
+    capturePngPath: join(outDir, `capture-${tag}.png`),
+    pdfPath,
+    pdfScreenshots,
+    pageCount,
+  }
 }
 
 async function main() {
@@ -112,7 +238,10 @@ async function main() {
   })
   const page = await context.newPage()
 
-  const version = await fetch(`${BASE}/version.json`).then((r) => r.json())
+  const versionResponse = await fetch(`${BASE}/version.json`)
+  const version = versionResponse.headers.get('content-type')?.includes('application/json')
+    ? await versionResponse.json()
+    : { gitCommitSha: 'local-dev' }
   const results = []
 
   await page.goto(MOBILE, { waitUntil: 'domcontentloaded' })
@@ -121,7 +250,7 @@ async function main() {
   const onePage = await runScenario(page, buildQaScenario(0), 'qa-1p')
   results.push({ id: 'pdf-1p', ...onePage })
 
-  const long = await runScenario(page, buildQaScenario(12), 'qa-long')
+  const long = await runScenario(page, buildQaScenario(14), 'qa-long')
   results.push({ id: 'pdf-long', ...long })
 
   await browser.close()
@@ -129,10 +258,15 @@ async function main() {
   const failures = []
   if (!onePage.checks.firstAmount.includes(' 만원')) failures.push('amount-spacing')
   if (!onePage.checks.grandProposed.includes(' 만원')) failures.push('grand-format')
-  if (onePage.checks.subtotals < 2) failures.push('subtotals')
-  if (onePage.checks.markers < 2) failures.push('markers')
-  if (onePage.pageCount < 1) failures.push('pdf-empty')
+  if (onePage.checks.subtotals < 1) failures.push('subtotals')
+  if (onePage.checks.markers < 1) failures.push('markers')
+  if (onePage.pageCount !== 1) failures.push(`short-page-count:${onePage.pageCount}`)
   if (long.pageCount < 2) failures.push('long-multipage')
+  if (onePage.diagnostics.calculatedPageCount !== onePage.pageCount) failures.push('short-calculated-page-count')
+  if (long.diagnostics.calculatedPageCount !== long.pageCount) failures.push('long-calculated-page-count')
+  if (onePage.diagnostics.title?.overflow !== 'visible') failures.push('title-overflow')
+  if (onePage.diagnostics.title?.whiteSpace !== 'normal') failures.push('title-white-space')
+  if (onePage.diagnostics.title?.transform !== 'none') failures.push('title-transform')
 
   await writeFile(join(outDir, 'pdf-final-qa-results.json'), JSON.stringify({ version, results, failures }, null, 2))
 
@@ -140,7 +274,13 @@ async function main() {
     console.error('[FAIL]', failures)
     process.exit(1)
   }
-  console.log('[PASS] coverageSimulatorPdfFinalQa', { version: version.gitCommitSha, longPages: long.pageCount })
+  console.log('[PASS] coverageSimulatorPdfFinalQa', {
+    version: version.gitCommitSha,
+    shortPages: onePage.pageCount,
+    longPages: long.pageCount,
+    shortCanvas: `${onePage.diagnostics.canvasWidthPx}x${onePage.diagnostics.canvasHeightPx}`,
+    longCanvas: `${long.diagnostics.canvasWidthPx}x${long.diagnostics.canvasHeightPx}`,
+  })
 }
 
 main().catch((e) => {

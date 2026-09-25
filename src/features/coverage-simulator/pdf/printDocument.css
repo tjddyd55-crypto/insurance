@@ -14,7 +14,7 @@
 
   width: 794px;
   max-width: 794px;
-  min-height: 297mm;
+  min-height: 0;
   margin: 0 auto;
   padding: 0;
   box-sizing: border-box;
@@ -440,6 +440,10 @@
     box-shadow: 0 8px 32px rgba(15, 23, 42, 0.08);
   }
 
+  .coverage-simulator-pdf-preview__zoom-doc .coverage-simulator-print-root {
+    min-height: 297mm;
+  }
+
   .coverage-simulator-pdf-preview__scroll {
     overflow: auto;
     -webkit-overflow-scrolling: touch;
@@ -517,7 +521,8 @@
   display: grid;
   grid-template-columns: var(--cs-axis-event-badge-col-width) minmax(0, 1fr) var(--cs-axis-event-badge-col-width);
   align-items: center;
-  min-height: 2.75em;
+  height: auto;
+  min-height: 34px;
   padding-block: 4px;
   box-sizing: border-box;
 }
@@ -547,16 +552,14 @@
 }
 
 .coverage-simulator-print-root--korean-text-safe .cs-axis-event__title-axis .cs-axis-event__label {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
+  display: inline-block;
+  overflow: visible;
   text-overflow: clip;
   white-space: normal;
   word-break: keep-all;
   line-height: 1.45;
   min-height: 1.45em;
-  max-height: calc(1.45em * 2 + 6px);
+  max-height: none;
   padding-block: 3px;
   padding-inline: 6px;
   box-shadow: none;
@@ -589,6 +592,11 @@
   overflow: visible;
   line-height: 1.45;
   padding-block: 2px;
+}
+
+.coverage-simulator-print-root--korean-text-safe .cs-axis-period-total {
+  background: #f4f6f9;
+  border-color: #e8edf3;
 }
 
 .coverage-simulator-print-root--korean-text-safe .cs-axis-summary {

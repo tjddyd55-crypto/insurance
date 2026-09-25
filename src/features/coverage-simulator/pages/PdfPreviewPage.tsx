@@ -60,7 +60,8 @@ function PdfPreviewPageBody() {
       const pdfBlob = await buildCoveragePdfBlobFromPrintRoot(printRoot)
       const artifact = await provider.createPdfArtifact(pdfBlob, fileName)
       window.location.assign(artifact.downloadUrl)
-    } catch {
+    } catch (error) {
+      console.error('[coverage-pdf] PDF generation or upload failed', error)
       showToast('PDF를 저장하지 못했습니다. 다시 시도해 주세요.')
     } finally {
       setBusy(false)

@@ -13,11 +13,64 @@ export const COVERAGE_PDF_INLINE_TITLE_LABEL_STYLES: Partial<CSSStyleDeclaration
   maxHeight: 'none',
   boxShadow: 'none',
   webkitLineClamp: 'unset',
+  webkitBoxOrient: 'initial',
 }
 
 export type CoveragePdfTitleSafetyIssue = {
   label: string
   reason: string
+}
+
+export type CoveragePdfTitleComputedStyle = {
+  label: string
+  fontFamily: string
+  fontSize: string
+  fontWeight: string
+  lineHeight: string
+  height: number
+  minHeight: string
+  scrollHeight: number
+  clientHeight: number
+  overflow: string
+  whiteSpace: string
+  textOverflow: string
+  transform: string
+  display: string
+  rect: {
+    x: number
+    y: number
+    width: number
+    height: number
+  }
+}
+
+export function readCoveragePdfTitleComputedStyle(
+  label: HTMLElement,
+): CoveragePdfTitleComputedStyle {
+  const style = window.getComputedStyle(label)
+  const rect = label.getBoundingClientRect()
+  return {
+    label: label.textContent?.trim() ?? '',
+    fontFamily: style.fontFamily,
+    fontSize: style.fontSize,
+    fontWeight: style.fontWeight,
+    lineHeight: style.lineHeight,
+    height: rect.height,
+    minHeight: style.minHeight,
+    scrollHeight: label.scrollHeight,
+    clientHeight: label.clientHeight,
+    overflow: style.overflow,
+    whiteSpace: style.whiteSpace,
+    textOverflow: style.textOverflow,
+    transform: style.transform,
+    display: style.display,
+    rect: {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+    },
+  }
 }
 
 export function collectCoveragePdfTitleSafetyIssues(root: HTMLElement): CoveragePdfTitleSafetyIssue[] {
@@ -37,6 +90,9 @@ export function collectCoveragePdfTitleSafetyIssues(root: HTMLElement): Coverage
     }
     if (whiteSpace === 'nowrap' && label.scrollWidth > label.clientWidth + 1) {
       issues.push({ label: text, reason: 'nowrap title exceeds visible width' })
+    }
+    if (label.scrollHeight > label.clientHeight + 1 && overflow !== 'visible') {
+      issues.push({ label: text, reason: 'title content is vertically clipped' })
     }
 
     const lineHeight = Number.parseFloat(style.lineHeight)
@@ -64,7 +120,8 @@ export function assertCoveragePdfTitleTextSafety(root: HTMLElement): void {
 /** html2canvas clone — inline overrides so screen ellipsis/transform never rasterize. */
 export function applyCoveragePdfCaptureCloneFixes(root: HTMLElement): void {
   root.querySelectorAll<HTMLElement>('.cs-axis-event__head').forEach((head) => {
-    head.style.minHeight = '2.75em'
+    head.style.height = 'auto'
+    head.style.minHeight = '34px'
     head.style.paddingBlock = '4px'
     head.style.alignItems = 'center'
   })
