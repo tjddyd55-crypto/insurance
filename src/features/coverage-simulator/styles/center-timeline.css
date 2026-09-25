@@ -717,7 +717,7 @@
 }
 
 .cs-mobile-editor-header__action--muted {
-  color: #94a3b8;
+  color: var(--cs-color-text-muted);
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-amount--current .cs-axis-amount__value,
