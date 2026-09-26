@@ -35,7 +35,7 @@ export const COVERAGE_PDF_INLINE_BADGE_GLYPH_STYLES: Partial<CSSStyleDeclaration
   display: 'block',
   margin: '0',
   lineHeight: '1',
-  transform: 'translateY(-1.1px)',
+  transform: 'translateY(-2.5px)',
 }
 
 export type CoveragePdfTitleSafetyIssue = {
