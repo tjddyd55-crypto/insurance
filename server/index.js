@@ -188,6 +188,7 @@ import { registerContractPublicApi } from './apis/contractPublicApi.js'
 import { registerCoverageSimulatorShareApi } from './apis/coverageSimulatorShareApi.js'
 import { registerCoverageSimulatorPreviewShareApi } from './apis/coverageSimulatorPreviewShareApi.js'
 import { registerPersonalBinderApi } from './apis/personalBinderApi.js'
+import { registerPersonalBinderPageImageApi } from './personal-binder/registerPersonalBinderPageImageApi.js'
 import { registerContractAdminApi } from './apis/contractAdminApi.js'
 import { registerContractUserApi } from './apis/contractUserApi.js'
 import { registerSubscriptionEndpoints } from './subscription/endpoints.js'
@@ -1551,6 +1552,12 @@ registerCoverageSimulatorShareApi(apiRouter, { pool, requireAuth, handleDbError 
 
 registerCoverageSimulatorPreviewShareApi(apiRouter, { pool, handleDbError })
 registerPersonalBinderApi(apiRouter, { pool, requireAuth, handleDbError })
+registerPersonalBinderPageImageApi(apiRouter, {
+  pool,
+  requireAuth,
+  handleDbError,
+  JWT_SECRET,
+})
 
 registerContractAdminApi(apiRouter, {
   pool,

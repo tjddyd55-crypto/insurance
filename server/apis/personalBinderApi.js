@@ -105,7 +105,7 @@ async function getOwnedSection(executor, sectionId, scope) {
   return result.rows[0] ?? null
 }
 
-async function loadBinderDetail(executor, binderId, scope) {
+export async function loadBinderDetail(executor, binderId, scope) {
   const binder = await getOwnedBinder(executor, binderId, scope)
   if (!binder) return null
   const sections = await executor.query(
