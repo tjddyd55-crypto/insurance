@@ -2,6 +2,7 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: var(--space-6, 24px);
+  overflow-x: clip;
   color: var(--text-main);
 }
 
@@ -190,6 +191,7 @@
 
 .personal-binder-editor-header > div:last-child {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -305,7 +307,8 @@
 
 .personal-binder-page-dialog__desktop {
   display: grid;
-  grid-template-columns: 220px minmax(360px, 1fr) 300px;
+  grid-template-columns: minmax(140px, 220px) minmax(0, 1fr) minmax(160px, 280px);
+  min-width: 0;
   min-height: 0;
   flex: 1;
   overflow: hidden;
@@ -389,8 +392,14 @@
 
 .personal-binder-thumbnails {
   display: grid;
-  grid-template-columns: repeat(3, minmax(76px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
   gap: 8px;
+  min-width: 0;
+}
+
+.personal-binder-thumbnail-slot {
+  min-width: 76px;
+  min-height: 112px;
 }
 
 .personal-binder-thumbnail {
@@ -453,11 +462,16 @@
 }
 
 .personal-binder-page-dialog__footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   border-top: 1px solid var(--border-default);
   border-bottom: 0;
+  background: var(--bg-card);
   padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
 }
 
@@ -480,6 +494,10 @@
   width: max-content;
 }
 
+.personal-binder-page-dialog__mobile-thumbnails .personal-binder-thumbnail-slot {
+  flex: 0 0 auto;
+}
+
 .personal-binder-viewer {
   position: fixed;
   inset: 0;
@@ -487,6 +505,8 @@
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: pan-y;
   background: var(--bg-base);
   color: var(--text-main);
 }
@@ -569,6 +589,25 @@
 .personal-binder-viewer__toc {
   display: grid;
   gap: 6px;
+}
+
+@media (max-width: 800px) {
+  .personal-binder-page-dialog__desktop {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(200px, 1fr) minmax(140px, 32vh);
+    overflow: auto;
+  }
+
+  .personal-binder-tree {
+    max-height: 112px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border-default);
+  }
+
+  .personal-binder-page-panel {
+    border-left: 0;
+    border-top: 1px solid var(--border-default);
+  }
 }
 
 @media (max-width: 900px) {

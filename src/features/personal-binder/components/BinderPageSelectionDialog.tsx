@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { BaseDialog } from '../../../components/dialog/BaseDialog'
+import { useConfirmDialog } from '../../../components/dialog'
 import FormButton from '../../../components/form/FormButton'
 import FormInput from '../../../components/form/FormInput'
-import useIsMobile from '../../../hooks/useIsMobile'
 import {
   formatSelectedPages,
   normalizeSelectedPages,
   parsePageRangeInput,
+  togglePageSelection,
 } from '../domain/pageSelection'
 import { useBinderPdfDocument } from '../hooks/useBinderPdfDocument'
 import type {
@@ -18,6 +19,7 @@ import { BinderPdfPageCanvas, BinderPdfThumbnail } from './BinderPdfCanvas'
 
 type Props = {
   open: boolean
+  variant: 'desktop' | 'mobile'
   binder: PersonalBinder
   material: PersonalBinderMaterial | null
   pdfUrl: string | null
@@ -28,6 +30,7 @@ type Props = {
 
 export function BinderPageSelectionDialog({
   open,
+  variant,
   binder,
   material,
   pdfUrl,
@@ -35,7 +38,8 @@ export function BinderPageSelectionDialog({
   onClose,
   onComplete,
 }: Props) {
-  const isMobile = useIsMobile()
+  const isMobile = variant === 'mobile'
+  const { confirm, confirmDialog } = useConfirmDialog()
   const pdf = useBinderPdfDocument(open ? pdfUrl : null)
   const [mode, setMode] = useState<'all' | 'partial'>('all')
   const [currentPage, setCurrentPage] = useState(1)
@@ -45,6 +49,7 @@ export function BinderPageSelectionDialog({
   const [zoom, setZoom] = useState(1)
   const lastSelectedRef = useRef<number | null>(null)
   const swipeStartRef = useRef<number | null>(null)
+  const initialKeyRef = useRef('')
 
   useEffect(() => {
     if (!open || !material) return
@@ -59,9 +64,17 @@ export function BinderPageSelectionDialog({
       setCurrentPage(1)
       setZoom(1)
       lastSelectedRef.current = null
+      initialKeyRef.current = `${initialSelection == null ? 'all' : 'partial'}:${formatSelectedPages(next)}`
     })
     return () => cancelAnimationFrame(frame)
   }, [initialSelection, material, open])
+
+  useEffect(() => {
+    if (!open) return
+    document
+      .querySelector(`.personal-binder-page-dialog [data-binder-page="${currentPage}"]`)
+      ?.scrollIntoView({ inline: 'center', block: 'nearest' })
+  }, [currentPage, open])
 
   if (!open || !material) return null
 
@@ -79,18 +92,28 @@ export function BinderPageSelectionDialog({
   ) => {
     setCurrentPage(page)
     if (mode !== 'partial') return
-    const next = new Set(selected)
-    if (event.shiftKey && lastSelectedRef.current != null) {
-      const start = Math.min(lastSelectedRef.current, page)
-      const end = Math.max(lastSelectedRef.current, page)
-      for (let entry = start; entry <= end; entry += 1) next.add(entry)
-    } else if (next.has(page)) {
-      next.delete(page)
-    } else {
-      next.add(page)
+    const additive = isMobile || event.metaKey || event.ctrlKey
+    const next = togglePageSelection(selected, page, {
+      additive,
+      shiftFrom: !isMobile && event.shiftKey ? lastSelectedRef.current : null,
+    })
+    if (!event.shiftKey) lastSelectedRef.current = page
+    setPartialSelection(next)
+  }
+  const requestClose = async () => {
+    const currentKey = `${mode}:${mode === 'partial' ? formatSelectedPages(selected) : ''}`
+    const openedKey = initialKeyRef.current
+    const dirty = openedKey !== '' && currentKey !== openedKey
+    if (dirty) {
+      const accepted = await confirm({
+        title: '페이지 선택을 닫을까요?',
+        message: '변경사항이 저장되지 않았습니다. 닫으시겠습니까?',
+        confirmLabel: '닫기',
+        cancelLabel: '계속 편집',
+      })
+      if (!accepted) return
     }
-    lastSelectedRef.current = page
-    setPartialSelection([...next])
+    onClose()
   }
   const applyRange = () => {
     const parsed = parsePageRangeInput(rangeInput, pageCount)
@@ -121,8 +144,9 @@ export function BinderPageSelectionDialog({
     <div
       className="personal-binder-page-preview"
       onPointerDown={(event) => {
-        if (event.pointerType === 'touch' && zoom === 1) {
+        if (isMobile && zoom === 1 && event.button === 0) {
           swipeStartRef.current = event.clientX
+          event.currentTarget.setPointerCapture(event.pointerId)
         }
       }}
       onPointerUp={(event) => {
@@ -173,6 +197,7 @@ export function BinderPageSelectionDialog({
           pageNumber={page}
           selected={mode === 'all' || selected.includes(page)}
           current={currentPage === page}
+          priority={Math.abs(page - currentPage) <= 2}
           onClick={(event) => handlePageClick(page, event)}
         />
       ))}
@@ -182,7 +207,7 @@ export function BinderPageSelectionDialog({
   return (
     <BaseDialog
       open={open}
-      onClose={onClose}
+      onClose={() => void requestClose()}
       closeOnBackdrop={false}
       closeOnEsc={false}
       usePortal
@@ -196,7 +221,7 @@ export function BinderPageSelectionDialog({
           <h2>{material.title}</h2>
           <p>{material.originalFileName} · {pageCount}페이지</p>
         </div>
-        <FormButton variant="action" onClick={onClose}>닫기</FormButton>
+        <FormButton variant="action" onClick={() => void requestClose()}>닫기</FormButton>
       </header>
 
       {isMobile ? (
@@ -271,6 +296,7 @@ export function BinderPageSelectionDialog({
         </span>
         <FormButton variant="primary" onClick={complete}>선택 완료</FormButton>
       </footer>
+      {confirmDialog}
     </BaseDialog>
   )
 }

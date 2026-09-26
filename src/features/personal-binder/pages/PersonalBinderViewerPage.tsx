@@ -23,6 +23,10 @@ import {
 import { BinderPdfPageCanvas } from '../components/BinderPdfCanvas'
 import { buildBinderViewerPages } from '../domain/pageSelection'
 import { getPersonalBinder } from '../personalBinder.api'
+import {
+  downloadPersonalBinderPdf,
+  printPersonalBinderPdf,
+} from '../personalBinderPdf'
 import type {
   PersonalBinder,
   PersonalBinderMaterial,
@@ -42,11 +46,16 @@ export default function PersonalBinderViewerPage() {
   const navigate = useNavigate()
   const [binder, setBinder] = useState<PersonalBinder | null>(null)
   const [index, setIndex] = useState(0)
-  const [currentDocument, setCurrentDocument] = useState<PDFDocumentProxy | null>(null)
+  const [frame, setFrame] = useState<{
+    materialId: string
+    document: PDFDocumentProxy
+    pageNumber: number
+  } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [tocOpen, setTocOpen] = useState(false)
   const [controlsVisible, setControlsVisible] = useState(true)
+  const [exporting, setExporting] = useState(false)
   const [zoom, setZoom] = useState(1)
   const viewportRef = useRef<HTMLDivElement>(null)
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null)
@@ -122,35 +131,61 @@ export default function PersonalBinderViewerPage() {
     return promise
   }, [token])
 
-  const currentMaterialId = current?.material.id ?? null
+  const displayFrame = useMemo(() => {
+    if (!current) return null
+    const cached = loadedRef.current.get(current.material.id)
+    if (cached) {
+      return {
+        materialId: current.material.id,
+        document: cached.document,
+        pageNumber: current.pdfPageNumber,
+      }
+    }
+    return frame
+  }, [current, frame])
 
   useEffect(() => {
-    if (!currentMaterialId || !current) return
+    if (!current) return undefined
+    const materialId = current.material.id
+    const pageNumber = current.pdfPageNumber
+    const cached = loadedRef.current.get(materialId)
+    if (cached) {
+      setFrame((previous) => {
+        if (
+          previous?.materialId === materialId &&
+          previous.document === cached.document &&
+          previous.pageNumber === pageNumber
+        ) {
+          return previous
+        }
+        return { materialId, document: cached.document, pageNumber }
+      })
+      return undefined
+    }
     let cancelled = false
     setError('')
     void loadMaterial(current.material)
       .then((entry) => {
-        if (!cancelled) setCurrentDocument(entry.document)
+        if (cancelled) return
+        setFrame({ materialId, document: entry.document, pageNumber })
       })
       .catch(() => {
-        if (!cancelled) {
-          setCurrentDocument(null)
-          setError('PDF 페이지를 불러오지 못했습니다.')
-        }
+        if (!cancelled) setError('PDF 페이지를 불러오지 못했습니다.')
       })
     return () => {
       cancelled = true
     }
-  }, [current, currentMaterialId, loadMaterial])
+    // 같은 자료의 다음 페이지는 캐시된 PDFDocument를 유지한다. null로 비우지 않는다.
+  }, [current, loadMaterial])
 
   useEffect(() => {
-    if (!current) return
+    if (!current?.key) return
     setZoom(1)
     viewportRef.current?.scrollTo({ left: 0, top: 0 })
-  }, [current?.key, index])
+  }, [current?.key])
 
   useEffect(() => {
-    for (const neighborIndex of [index - 1, index + 1]) {
+    for (const neighborIndex of [index - 1, index + 1, index + 2]) {
       const neighbor = pages[neighborIndex]
       if (neighbor) void loadMaterial(neighbor.material).catch(() => {})
     }
@@ -208,6 +243,22 @@ export default function PersonalBinderViewerPage() {
     if (opened) opened.opener = null
     window.setTimeout(() => opened?.print(), 1000)
   }
+  const exportBinder = async (mode: 'download' | 'print') => {
+    if (!binder || exporting) return
+    setExporting(true)
+    setError('')
+    try {
+      if (mode === 'download') {
+        await downloadPersonalBinderPdf(token, binder.id, binder.title)
+      } else {
+        await printPersonalBinderPdf(token, binder.id)
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '바인더 PDF를 만들지 못했습니다.')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   return (
     <main
@@ -219,7 +270,11 @@ export default function PersonalBinderViewerPage() {
         .join(' ')}
     >
       <header className="personal-binder-viewer__header">
-        <FormButton variant="action" onClick={() => navigate(`/personal-binders/${binder.id}/edit`)}>
+        <FormButton
+          variant="action"
+          aria-label="편집으로"
+          onClick={() => navigate(`/personal-binders/${binder.id}/edit`)}
+        >
           ←
         </FormButton>
         <div>
@@ -228,6 +283,7 @@ export default function PersonalBinderViewerPage() {
         </div>
         <FormButton variant="action" onClick={() => setTocOpen(true)}>목차</FormButton>
       </header>
+      {error ? <p className="personal-binder-error">{error}</p> : null}
 
       <div
         ref={viewportRef}
@@ -236,7 +292,12 @@ export default function PersonalBinderViewerPage() {
           zoom > 1 ? 'personal-binder-viewer__viewport--zoomed' : '',
         ].filter(Boolean).join(' ')}
         onPointerDown={(event) => {
-          if (zoom === 1) swipeStartRef.current = { x: event.clientX, y: event.clientY }
+          if (zoom !== 1 || event.button !== 0) return
+          swipeStartRef.current = { x: event.clientX, y: event.clientY }
+          event.currentTarget.setPointerCapture(event.pointerId)
+        }}
+        onPointerCancel={() => {
+          swipeStartRef.current = null
         }}
         onPointerUp={(event) => {
           const start = swipeStartRef.current
@@ -244,17 +305,17 @@ export default function PersonalBinderViewerPage() {
           if (!start || zoom !== 1) return
           const dx = event.clientX - start.x
           const dy = event.clientY - start.y
-          if (Math.abs(dx) >= 56 && Math.abs(dx) > Math.abs(dy)) {
+          if (Math.abs(dx) >= 48 && Math.abs(dx) > Math.abs(dy) * 1.2) {
             move(dx < 0 ? 1 : -1)
           } else if (Math.abs(dx) < 8 && Math.abs(dy) < 8) {
             setControlsVisible((visible) => !visible)
           }
         }}
       >
-        {currentDocument && current ? (
+        {displayFrame ? (
           <BinderPdfPageCanvas
-            document={currentDocument}
-            pageNumber={current.pdfPageNumber}
+            document={displayFrame.document}
+            pageNumber={displayFrame.pageNumber}
             zoom={zoom}
             className="personal-binder-viewer__page"
             onError={() => setError('페이지를 표시하지 못했습니다.')}
@@ -267,16 +328,19 @@ export default function PersonalBinderViewerPage() {
       </div>
 
       <footer className="personal-binder-viewer__controls">
-        <FormButton variant="action" disabled={index === 0} onClick={() => move(-1)}>‹</FormButton>
+        <FormButton variant="action" aria-label="이전 페이지" disabled={index === 0} onClick={() => move(-1)}>‹</FormButton>
         <div>
           <strong>{index + 1} / {pages.length}</strong>
           <span>{current?.sectionTitle}</span>
         </div>
-        <FormButton variant="action" disabled={index === pages.length - 1} onClick={() => move(1)}>›</FormButton>
-        <FormButton variant="action" onClick={() => setViewerZoom(zoom - 0.25)}>축소</FormButton>
+        <FormButton variant="action" aria-label="다음 페이지" disabled={index === pages.length - 1} onClick={() => move(1)}>›</FormButton>
+        <FormButton variant="action" onClick={() => setViewerZoom(Math.max(1, zoom - 0.25))}>축소</FormButton>
         <FormButton variant="action" onClick={() => setViewerZoom(zoom + 0.25)}>확대</FormButton>
+        <FormButton variant="action" onClick={() => setViewerZoom(1)}>폭 맞춤</FormButton>
         <FormButton variant="secondary" onClick={() => void downloadCurrent()}>원본 다운로드</FormButton>
-        <FormButton variant="secondary" onClick={() => void printCurrent()}>출력</FormButton>
+        <FormButton variant="secondary" onClick={() => void printCurrent()}>자료 출력</FormButton>
+        <FormButton variant="secondary" loading={exporting} onClick={() => void exportBinder('download')}>전체 PDF</FormButton>
+        <FormButton variant="secondary" loading={exporting} onClick={() => void exportBinder('print')}>전체 출력</FormButton>
       </footer>
 
       <BaseDialog

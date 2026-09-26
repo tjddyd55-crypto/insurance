@@ -294,7 +294,11 @@ export default function PersonalBinderHomePage() {
                 <h2>{material.title}</h2>
                 <p>{material.originalFileName}</p>
                 <small>
-                  {material.pageCount}페이지 · {formatFileSize(material.fileSize)} · 바인더 {material.binderCount ?? 0}개
+                  {material.pageCount}페이지 · {formatFileSize(material.fileSize)}
+                  {material.createdAt
+                    ? ` · ${new Date(material.createdAt).toLocaleDateString('ko-KR')} 업로드`
+                    : ''}
+                  {' · '}바인더 {material.binderCount ?? 0}개
                 </small>
               </div>
               <div className="personal-binder-material-row__actions">

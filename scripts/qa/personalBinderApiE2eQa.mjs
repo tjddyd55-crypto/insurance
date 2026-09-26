@@ -226,6 +226,22 @@ async function main() {
     throw new Error('duplicated binder did not reuse material')
   }
 
+  const exported = await fetch(`${BASE}/api/personal-binders/${binder.id}/export`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  const exportedBytes = Buffer.from(await exported.arrayBuffer())
+  if (!exported.ok || exportedBytes.subarray(0, 5).toString() !== '%PDF-') {
+    throw new Error(`binder export failed ${exported.status}`)
+  }
+  const { PDFDocument } = await import('pdf-lib')
+  const exportedPdf = await PDFDocument.load(exportedBytes)
+  const expectedPages = Array.isArray(detail.sections?.[0]?.items?.[0]?.pageSelection)
+    ? detail.sections[0].items[0].pageSelection.length
+    : material.pageCount
+  if (exportedPdf.getPageCount() !== expectedPages) {
+    throw new Error(`export page count ${exportedPdf.getPageCount()} !== ${expectedPages}`)
+  }
+
   const open = expectStatus(
     await request(`/api/storage/files/${stored.id}/open-token`, {
       token,
