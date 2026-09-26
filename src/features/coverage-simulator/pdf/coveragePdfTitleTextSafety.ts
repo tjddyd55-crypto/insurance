@@ -33,7 +33,7 @@ export const COVERAGE_PDF_INLINE_BADGE_STYLES: Partial<CSSStyleDeclaration> = {
 /** html2canvas raster — 한글 badge glyph optical center (print namespace only). */
 export const COVERAGE_PDF_INLINE_BADGE_GLYPH_STYLES: Partial<CSSStyleDeclaration> = {
   display: 'block',
-  margin: '-3px 0 0',
+  margin: '-4px 0 0',
   lineHeight: '1',
   transform: 'none',
 }
