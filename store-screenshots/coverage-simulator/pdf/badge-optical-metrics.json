@@ -2,15 +2,15 @@
   "badgeMetrics": [
     {
       "label": "진단",
-      "topGap": 3.5,
-      "bottomGap": 8.5,
-      "glyphTransform": "matrix(1, 0, 0, 1, 0, -2.5)"
+      "topGap": 4,
+      "bottomGap": 8,
+      "glyphTransform": "none"
     },
     {
       "label": "치료",
-      "topGap": 3.5,
-      "bottomGap": 8.5,
-      "glyphTransform": "matrix(1, 0, 0, 1, 0, -2.5)"
+      "topGap": 4,
+      "bottomGap": 8,
+      "glyphTransform": "none"
     }
   ],
   "diagnostics": {
