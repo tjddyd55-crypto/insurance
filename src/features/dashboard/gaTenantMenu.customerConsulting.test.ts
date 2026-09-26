@@ -34,9 +34,12 @@ function sectionOfLink(entries: GaTenantDashboardMenuEntry[], path: string): str
   return ''
 }
 
-function linksInSection(entries: GaTenantDashboardMenuEntry[], sectionLabel: string): string[] {
+function linksInSection(
+  entries: GaTenantDashboardMenuEntry[],
+  sectionLabel: string,
+): { label: string; path: string }[] {
   let inSection = false
-  const paths: string[] = []
+  const links: { label: string; path: string }[] = []
   for (const entry of entries) {
     if (entry.type === 'section') {
       if (inSection) {
@@ -46,14 +49,14 @@ function linksInSection(entries: GaTenantDashboardMenuEntry[], sectionLabel: str
       continue
     }
     if (inSection && entry.type === 'link') {
-      paths.push(entry.path)
+      links.push({ label: entry.label, path: entry.path })
     }
   }
-  return paths
+  return links
 }
 
 describe('buildAppMenuForSession — 고객 상담', () => {
-  it('USER 메뉴의 고객 상담은 내 바인더와 보장 시뮬레이션만 가진다', () => {
+  it('USER 메뉴의 고객 상담은 내 바인더와 시뮬레이션만 가진다', () => {
     const menu = buildAppMenuForSession('USER', 'TEST', 'Test GA')
     const sections = sectionLabels(menu)
     const customerIndex = sections.indexOf('고객관리')
@@ -63,9 +66,10 @@ describe('buildAppMenuForSession — 고객 상담', () => {
     expect(consultingIndex).toBe(customerIndex + 1)
     expect(newsletterIndex).toBe(consultingIndex + 1)
     expect(linksInSection(menu, CUSTOMER_CONSULTING_SECTION_LABEL)).toEqual([
-      PERSONAL_BINDER_MENU_ITEM.path,
-      COVERAGE_SIMULATION_MENU_ITEM.path,
+      { label: '내 바인더', path: PERSONAL_BINDER_MENU_ITEM.path },
+      { label: '시뮬레이션', path: COVERAGE_SIMULATION_MENU_ITEM.path },
     ])
+    expect(COVERAGE_SIMULATION_MENU_ITEM.path).toBe('/coverage-simulator')
     expect(sectionOfLink(menu, PERSONAL_BINDER_MENU_ITEM.path)).toBe(CUSTOMER_CONSULTING_SECTION_LABEL)
     expect(sectionOfLink(menu, COVERAGE_SIMULATION_MENU_ITEM.path)).toBe(
       CUSTOMER_CONSULTING_SECTION_LABEL,
