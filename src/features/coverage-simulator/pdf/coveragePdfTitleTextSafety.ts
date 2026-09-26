@@ -33,9 +33,9 @@ export const COVERAGE_PDF_INLINE_BADGE_STYLES: Partial<CSSStyleDeclaration> = {
 /** html2canvas raster — 한글 badge glyph optical center (print namespace only). */
 export const COVERAGE_PDF_INLINE_BADGE_GLYPH_STYLES: Partial<CSSStyleDeclaration> = {
   display: 'block',
-  margin: '0',
+  margin: '-3px 0 0',
   lineHeight: '1',
-  transform: 'translateY(-2.5px)',
+  transform: 'none',
 }
 
 export type CoveragePdfTitleSafetyIssue = {

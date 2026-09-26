@@ -601,9 +601,9 @@
 
 .coverage-simulator-print-root--korean-text-safe .coverage-simulator-badge__glyph {
   display: block;
-  margin: 0;
+  margin: -3px 0 0;
   line-height: 1;
-  transform: translateY(-2.5px);
+  transform: none;
 }
 
 .coverage-simulator-print-root--korean-text-safe .cs-axis-amount__value,

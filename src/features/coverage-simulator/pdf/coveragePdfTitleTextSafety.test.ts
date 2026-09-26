@@ -26,6 +26,7 @@ describe('coveragePdfTitleTextSafety', () => {
 
   it('applies optical glyph correction for Korean badge raster', () => {
     expect(COVERAGE_PDF_INLINE_BADGE_GLYPH_STYLES.lineHeight).toBe('1')
-    expect(COVERAGE_PDF_INLINE_BADGE_GLYPH_STYLES.transform).toBe('translateY(-2.5px)')
+    expect(COVERAGE_PDF_INLINE_BADGE_GLYPH_STYLES.margin).toBe('-3px 0 0')
+    expect(COVERAGE_PDF_INLINE_BADGE_GLYPH_STYLES.transform).toBe('none')
   })
 })

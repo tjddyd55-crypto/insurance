@@ -1,0 +1,68 @@
+{
+  "badgeMetrics": [
+    {
+      "label": "진단",
+      "topGap": 3.5,
+      "bottomGap": 8.5,
+      "glyphTransform": "matrix(1, 0, 0, 1, 0, -2.5)"
+    },
+    {
+      "label": "치료",
+      "topGap": 3.5,
+      "bottomGap": 8.5,
+      "glyphTransform": "matrix(1, 0, 0, 1, 0, -2.5)"
+    }
+  ],
+  "diagnostics": {
+    "captureWidthPx": 794,
+    "captureHeightPx": 607,
+    "canvasWidthPx": 1588,
+    "canvasHeightPx": 1214,
+    "pdfPageWidthMm": 210.0015555555555,
+    "pdfPageHeightMm": 297.0000833333333,
+    "marginTopMm": 0,
+    "marginBottomMm": 0,
+    "usableHeightMm": 297.0000833333333,
+    "scaledImageHeightMm": 160.54275090959976,
+    "calculatedPageCount": 1,
+    "finalPdfPageCount": 1,
+    "renderScale": 1,
+    "title": {
+      "label": "암 진단금",
+      "fontFamily": "\"Pretendard Variable\", \"Apple SD Gothic Neo\", \"Noto Sans KR\", sans-serif",
+      "fontSize": "14px",
+      "fontWeight": "700",
+      "lineHeight": "20.3px",
+      "height": 26.296875,
+      "minHeight": "20.3px",
+      "scrollHeight": 26,
+      "clientHeight": 26,
+      "overflow": "visible",
+      "whiteSpace": "normal",
+      "textOverflow": "clip",
+      "transform": "none",
+      "display": "inline-block",
+      "rect": {
+        "x": -99636.734375,
+        "y": 204.671875,
+        "width": 67.453125,
+        "height": 26.296875
+      }
+    },
+    "badge": {
+      "label": "진단",
+      "display": "flex",
+      "height": 22,
+      "minHeight": "22px",
+      "lineHeight": "10px",
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "alignItems": "center",
+      "justifyContent": "center",
+      "fontSize": "10px",
+      "fontFamily": "\"Pretendard Variable\", \"Apple SD Gothic Neo\", \"Noto Sans KR\", sans-serif",
+      "transform": "none",
+      "verticalAlign": "middle"
+    }
+  }
+}
