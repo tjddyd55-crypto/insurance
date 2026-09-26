@@ -2,6 +2,10 @@ import { createHash } from 'node:crypto'
 import { PDFDocument } from 'pdf-lib'
 
 import { readStorageFileBufferFromPath } from '../lib/storageFileObjectKey.js'
+import {
+  assembleBinderPdf,
+  planBinderExport,
+} from '../personal-binder/exportPersonalBinderPdf.js'
 import { safeQuery } from '../utils/dbSafeQuery.js'
 
 function requestScope(req, res) {
@@ -209,6 +213,45 @@ export async function normalizeOrder(client, table, parentColumn, parentId, ids)
       [index, requested[index], parentId],
     )
   }
+}
+
+function exportFileName(title) {
+  const base = String(title ?? '')
+    .replace(/[\\/:*?"<>|\r\n]+/g, ' ')
+    .trim()
+    .slice(0, 80)
+  return `${base || '내 바인더'}.pdf`
+}
+
+async function readOwnedMaterialPdf(executor, materialId, scope) {
+  const result = await safeQuery(
+    executor,
+    `
+    SELECT f.file_path
+    FROM personal_binder_materials m
+    INNER JOIN files f ON f.id = m.file_id
+    WHERE m.id = $1
+      AND m.owner_user_id = $2
+      AND m.ga_id = $3
+      AND m.deleted_at IS NULL
+      AND f.user_id = $2
+      AND f.ga_id = $3
+      AND f.customer_id IS NULL
+      AND f.status = 'active'
+      AND f.deleted_at IS NULL
+    LIMIT 1
+    `,
+    [materialId, scope.userId, scope.gaId],
+  )
+  const objectKey = String(result.rows[0]?.file_path ?? '').trim()
+  if (!objectKey) {
+    throw Object.assign(new Error('원본 PDF를 찾을 수 없습니다.'), { httpStatus: 404 })
+  }
+  const buffer = await readStorageFileBufferFromPath(objectKey)
+  if (!buffer?.length) {
+    throw Object.assign(new Error('원본 PDF를 찾을 수 없습니다.'), { httpStatus: 404 })
+  }
+  return buffer
 }
 
 function sendError(error, req, res, handleDbError) {
@@ -865,6 +908,41 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
       sendError(error, req, res, handleDbError)
     } finally {
       client.release()
+    }
+  })
+
+  apiRouter.get('/personal-binders/:binderId/export', requireAuth, async (req, res) => {
+    try {
+      const scope = requestScope(req, res)
+      if (!scope) return
+      const binderId = positiveId(req.params.binderId)
+      const detail = binderId ? await loadBinderDetail(pool, binderId, scope) : null
+      if (!detail) {
+        res.status(404).json({ message: '바인더를 찾을 수 없습니다.' })
+        return
+      }
+      const jobs = planBinderExport(detail)
+      const buffers = new Map()
+      const segments = []
+      for (const job of jobs) {
+        let buffer = buffers.get(job.materialId)
+        if (!buffer) {
+          buffer = await readOwnedMaterialPdf(pool, job.materialId, scope)
+          buffers.set(job.materialId, buffer)
+        }
+        segments.push({ buffer, pages: job.pages })
+      }
+      const pdf = await assembleBinderPdf(segments)
+      const fileName = exportFileName(detail.title)
+      res.setHeader('Content-Type', 'application/pdf')
+      res.setHeader('Cache-Control', 'no-store')
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+      )
+      res.send(pdf)
+    } catch (error) {
+      sendError(error, req, res, handleDbError)
     }
   })
 

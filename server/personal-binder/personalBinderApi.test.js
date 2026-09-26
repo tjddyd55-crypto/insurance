@@ -26,7 +26,10 @@ test('personal binder API source enforces owner and GA scope', async () => {
   assert.match(source, /owner_user_id = \$2 AND ga_id = \$3/)
   assert.match(source, /b\.owner_user_id = \$2/)
   assert.match(source, /MATERIAL_IN_USE/)
+  assert.match(source, /personal-binders\/:binderId\/export/)
+  assert.match(source, /readOwnedMaterialPdf/)
   assert.doesNotMatch(source, /req\.body\?\.ownerUserId/)
+  assert.doesNotMatch(source, /req\.body\?\.file_path|req\.body\?\.storageUrl|req\.body\?\.objectKey/)
 })
 
 test('personal binder reorder rejects missing or foreign ids', async () => {

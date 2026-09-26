@@ -31,10 +31,11 @@ describe('personal binder page selection', () => {
     expect(normalizeSelectedPages([3, 1, 3, 0, 9], 5)).toEqual([1, 3])
   })
 
-  it('supports additive and shift range selection', () => {
-    expect(togglePageSelection([3], 6, { shiftFrom: 3, additive: true })).toEqual([
-      3, 4, 5, 6,
-    ])
+  it('supports single, additive, and shift range selection', () => {
+    expect(togglePageSelection([1, 2, 3], 5)).toEqual([5])
+    expect(togglePageSelection([1, 2], 2, { additive: true })).toEqual([1])
+    expect(togglePageSelection([1, 2], 4, { additive: true })).toEqual([1, 2, 4])
+    expect(togglePageSelection([3], 8, { shiftFrom: 3 })).toEqual([3, 4, 5, 6, 7, 8])
   })
 
   it('connects multiple PDFs into one deterministic viewer sequence', () => {

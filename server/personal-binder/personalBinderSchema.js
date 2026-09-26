@@ -91,4 +91,9 @@ export async function ensurePersonalBinderSchema(executor) {
     CREATE INDEX IF NOT EXISTS personal_binder_items_material_idx
     ON personal_binder_items (material_id)
   `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS personal_binder_materials_owner_active_idx
+    ON personal_binder_materials (owner_user_id, ga_id, updated_at DESC)
+    WHERE deleted_at IS NULL
+  `)
 }

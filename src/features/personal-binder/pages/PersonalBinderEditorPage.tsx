@@ -12,6 +12,10 @@ import { createStorageFilePreviewUrl } from '../../storage/api/storageApi'
 import { BinderPageSelectionDialog } from '../components/BinderPageSelectionDialog'
 import { formatSelectedPages } from '../domain/pageSelection'
 import {
+  downloadPersonalBinderPdf,
+  printPersonalBinderPdf,
+} from '../personalBinderPdf'
+import {
   addPersonalBinderItem,
   createPersonalBinderSection,
   deletePersonalBinderItem,
@@ -61,6 +65,7 @@ export default function PersonalBinderEditorPage() {
   const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [error, setError] = useState('')
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [sectionDialog, setSectionDialog] = useState<{
@@ -253,6 +258,22 @@ export default function PersonalBinderEditorPage() {
       setSaving(false)
     }
   }
+  const exportBinder = async (mode: 'download' | 'print') => {
+    if (exporting) return
+    setExporting(true)
+    setError('')
+    try {
+      if (mode === 'download') {
+        await downloadPersonalBinderPdf(token, binder.id, binder.title)
+      } else {
+        await printPersonalBinderPdf(token, binder.id)
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '바인더 PDF를 만들지 못했습니다.')
+    } finally {
+      setExporting(false)
+    }
+  }
   const removeItem = async (item: PersonalBinderItem) => {
     const accepted = await confirm({
       title: '바인더에서 자료를 뺄까요?',
@@ -276,7 +297,21 @@ export default function PersonalBinderEditorPage() {
         </div>
         <div>
           <FormButton variant="secondary" onClick={() => navigate(`/personal-binders/${binder.id}/view`)}>
-            미리보기
+            상담 시작
+          </FormButton>
+          <FormButton
+            variant="secondary"
+            loading={exporting}
+            onClick={() => void exportBinder('download')}
+          >
+            전체 PDF
+          </FormButton>
+          <FormButton
+            variant="secondary"
+            loading={exporting}
+            onClick={() => void exportBinder('print')}
+          >
+            전체 출력
           </FormButton>
           <FormButton variant="primary" loading={saving} onClick={() => void saveBinder()}>
             저장
@@ -471,6 +506,7 @@ export default function PersonalBinderEditorPage() {
 
       <BinderPageSelectionDialog
         open={pageTarget != null}
+        variant={isMobile ? 'mobile' : 'desktop'}
         binder={binder}
         material={pageTarget?.material ?? null}
         pdfUrl={pdfUrl}

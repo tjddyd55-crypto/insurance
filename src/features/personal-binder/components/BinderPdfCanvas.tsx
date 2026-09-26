@@ -92,20 +92,44 @@ export function BinderPdfThumbnail({
   pageNumber,
   selected,
   current,
+  priority = false,
   onClick,
 }: {
   document: PDFDocumentProxy
   pageNumber: number
   selected: boolean
   current: boolean
+  priority?: boolean
   onClick: (event: React.MouseEvent<HTMLButtonElement>) => void
 }) {
+  const slotRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const taskRef = useRef<RenderTask | null>(null)
+  const [visible, setVisible] = useState(priority)
+  const shouldRender = priority || visible
+
+  useEffect(() => {
+    const slot = slotRef.current
+    if (!slot) return undefined
+    const observer = new IntersectionObserver(
+      ([entry]) => setVisible(entry.isIntersecting),
+      { root: slot.closest('.personal-binder-page-panel, .personal-binder-page-dialog__mobile-thumbnails'), rootMargin: '160px' },
+    )
+    observer.observe(slot)
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas) return undefined
+    if (!canvas || !shouldRender) {
+      taskRef.current?.cancel()
+      taskRef.current = null
+      if (canvas) {
+        canvas.width = 0
+        canvas.height = 0
+      }
+      return undefined
+    }
     let cancelled = false
     void (async () => {
       try {
@@ -134,25 +158,28 @@ export function BinderPdfThumbnail({
       cancelled = true
       taskRef.current?.cancel()
     }
-  }, [document, pageNumber])
+  }, [document, pageNumber, shouldRender])
 
   return (
-    <FormButton
-      variant="action"
-      className={[
-        'personal-binder-thumbnail',
-        selected ? 'personal-binder-thumbnail--selected' : '',
-        current ? 'personal-binder-thumbnail--current' : '',
-      ]
-        .filter(Boolean)
-        .join(' ')}
-      onClick={onClick}
-      aria-pressed={selected}
-      aria-label={`${pageNumber}페이지${selected ? ' 선택됨' : ''}`}
-    >
-      <canvas ref={canvasRef} />
-      <span>{pageNumber}</span>
-      {selected ? <strong aria-hidden="true">✓</strong> : null}
-    </FormButton>
+    <div ref={slotRef} className="personal-binder-thumbnail-slot" data-binder-page={pageNumber}>
+      <FormButton
+        variant="action"
+        className={[
+          'personal-binder-thumbnail',
+          selected ? 'personal-binder-thumbnail--selected' : '',
+          current ? 'personal-binder-thumbnail--current' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        onClick={onClick}
+        aria-pressed={selected}
+        aria-current={current ? 'true' : undefined}
+        aria-label={`${pageNumber}페이지${selected ? ' 선택됨' : ''}`}
+      >
+        <canvas ref={canvasRef} />
+        <span>{pageNumber}</span>
+        {selected ? <strong aria-hidden="true">✓</strong> : null}
+      </FormButton>
+    </div>
   )
 }
