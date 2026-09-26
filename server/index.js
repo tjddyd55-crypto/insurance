@@ -132,6 +132,11 @@ import {
   readCookieFromHeader,
 } from './lib/customerInviteRegistrationPublic.js'
 import { injectAccountVaultShareMeta } from './lib/accountVaultSharePublicMeta.js'
+import { injectCoverageSharePublicMeta } from './lib/coverageSharePublicMeta.js'
+import {
+  getPublicCoverageShareByToken,
+  toPublicViewerPayload,
+} from './coverage-simulator/coverageSimulationShareService.js'
 import {
   normalizeShareToken,
   resolveActiveShareTokenContext,
@@ -191,6 +196,10 @@ import { logSmsModuleEnvironmentHint, validateSmsModuleStartupConfig } from './s
 import { logPhoneVerificationStartupDiagnostics } from './services/phoneVerificationCredentials.js'
 import { registerContractPublicOtpApi } from './apis/contractPublicOtpApi.js'
 import { registerContractPublicApi } from './apis/contractPublicApi.js'
+import { registerCoverageSimulatorShareApi } from './apis/coverageSimulatorShareApi.js'
+import { registerCoverageSimulatorPreviewShareApi } from './apis/coverageSimulatorPreviewShareApi.js'
+import { registerPersonalBinderApi } from './apis/personalBinderApi.js'
+import { registerPersonalBinderPageImageApi } from './personal-binder/registerPersonalBinderPageImageApi.js'
 import { registerContractAdminApi } from './apis/contractAdminApi.js'
 import { registerContractUserApi } from './apis/contractUserApi.js'
 import { registerSubscriptionEndpoints } from './subscription/endpoints.js'
@@ -1576,6 +1585,16 @@ registerAuthAccountSmsApi(apiRouter, {
 registerContractPublicOtpApi(apiRouter, { pool, handleDbError })
 
 registerContractPublicApi(apiRouter, { pool, handleDbError })
+
+registerCoverageSimulatorShareApi(apiRouter, { pool, requireAuth, handleDbError })
+registerCoverageSimulatorPreviewShareApi(apiRouter, { pool, handleDbError })
+registerPersonalBinderApi(apiRouter, { pool, requireAuth, handleDbError })
+registerPersonalBinderPageImageApi(apiRouter, {
+  pool,
+  requireAuth,
+  handleDbError,
+  JWT_SECRET,
+})
 
 registerContractAdminApi(apiRouter, {
   pool,
@@ -7919,6 +7938,38 @@ if (fs.existsSync(DIST_PATH)) {
       } catch (err) {
         console.warn(
           '[spa] account-vault share meta inject failed:',
+          err instanceof Error ? err.message : String(err),
+        )
+      }
+    }
+
+    if (p.startsWith('/coverage/share/')) {
+      try {
+        const tokenRaw = p.slice('/coverage/share/'.length).split('/')[0] ?? ''
+        const token = decodeURIComponent(tokenRaw).trim()
+        const htmlPath = path.join(DIST_PATH, 'index.html')
+        const raw = fs.readFileSync(htmlPath, 'utf8')
+        if (token) {
+          const resolved = await getPublicCoverageShareByToken(pool, token)
+          if (resolved.status === 'ok') {
+            const payload = toPublicViewerPayload(resolved.row)
+            res
+              .type('html')
+              .send(
+                injectCoverageSharePublicMeta(
+                  raw,
+                  { customerName: payload.customerName },
+                  req,
+                ),
+              )
+            return
+          }
+        }
+        res.type('html').send(injectCoverageSharePublicMeta(raw, { customerName: null }, req))
+        return
+      } catch (err) {
+        console.warn(
+          '[spa] coverage share meta inject failed:',
           err instanceof Error ? err.message : String(err),
         )
       }

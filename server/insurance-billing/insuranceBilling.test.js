@@ -189,7 +189,7 @@ describe('insurance billing active entitlement policy', () => {
 
   it('trialing without credential is still entitled when trial active', async () => {
     const { evaluateActiveBillingEntitlement } = await import('./subscriptionEntitlementPolicy.js')
-    const future = '2026-09-21T00:00:00.000Z'
+    const future = new Date(Date.now() + 30 * 86400000).toISOString()
     assert.equal(
       evaluateActiveBillingEntitlement({ status: 'trialing', trial_ends_at: future }).entitled,
       true,
