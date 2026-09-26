@@ -122,31 +122,39 @@ export default function PersonalBinderViewerPage() {
     return promise
   }, [token])
 
+  const currentMaterialId = current?.material.id ?? null
+
   useEffect(() => {
-    if (!current) return
+    if (!currentMaterialId || !current) return
     let cancelled = false
-    const resetFrame = requestAnimationFrame(() => {
-      setError('')
-      setCurrentDocument(null)
-      setZoom(1)
-      viewportRef.current?.scrollTo({ left: 0, top: 0 })
-    })
+    setError('')
     void loadMaterial(current.material)
       .then((entry) => {
         if (!cancelled) setCurrentDocument(entry.document)
       })
       .catch(() => {
-        if (!cancelled) setError('PDF 페이지를 불러오지 못했습니다.')
+        if (!cancelled) {
+          setCurrentDocument(null)
+          setError('PDF 페이지를 불러오지 못했습니다.')
+        }
       })
+    return () => {
+      cancelled = true
+    }
+  }, [current, currentMaterialId, loadMaterial])
+
+  useEffect(() => {
+    if (!current) return
+    setZoom(1)
+    viewportRef.current?.scrollTo({ left: 0, top: 0 })
+  }, [current?.key, index])
+
+  useEffect(() => {
     for (const neighborIndex of [index - 1, index + 1]) {
       const neighbor = pages[neighborIndex]
       if (neighbor) void loadMaterial(neighbor.material).catch(() => {})
     }
-    return () => {
-      cancelled = true
-      cancelAnimationFrame(resetFrame)
-    }
-  }, [current, index, loadMaterial, pages])
+  }, [index, loadMaterial, pages])
 
   useEffect(() => () => {
     for (const entry of loadedRef.current.values()) {

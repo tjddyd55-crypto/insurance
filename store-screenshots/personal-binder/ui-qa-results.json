@@ -1,0 +1,33 @@
+{
+  "fixture": {
+    "binderId": "13",
+    "duplicatedBinderId": "14",
+    "sectionId": "12",
+    "itemId": "12",
+    "materialId": "8",
+    "fileId": 677,
+    "binderTitle": "QA 바인더 1790384592811",
+    "materialTitle": "QA 자료 1790384592120",
+    "pageCount": 3,
+    "consultingPageCount": 2
+  },
+  "responsive": [
+    {
+      "width": 360,
+      "overflow": 0
+    },
+    {
+      "width": 390,
+      "overflow": 0
+    },
+    {
+      "width": 412,
+      "overflow": 0
+    },
+    {
+      "width": 768,
+      "overflow": 0
+    }
+  ],
+  "passed": true
+}
