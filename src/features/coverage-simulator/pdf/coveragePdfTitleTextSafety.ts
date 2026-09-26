@@ -30,6 +30,14 @@ export const COVERAGE_PDF_INLINE_BADGE_STYLES: Partial<CSSStyleDeclaration> = {
   transform: 'none',
 }
 
+/** html2canvas raster — 한글 badge glyph optical center (print namespace only). */
+export const COVERAGE_PDF_INLINE_BADGE_GLYPH_STYLES: Partial<CSSStyleDeclaration> = {
+  display: 'block',
+  margin: '0',
+  lineHeight: '1',
+  transform: 'translateY(-0.75px)',
+}
+
 export type CoveragePdfTitleSafetyIssue = {
   label: string
   reason: string
@@ -192,6 +200,9 @@ export function applyCoveragePdfCaptureCloneFixes(root: HTMLElement): void {
 
   root.querySelectorAll<HTMLElement>('.coverage-simulator-badge').forEach((badge) => {
     Object.assign(badge.style, COVERAGE_PDF_INLINE_BADGE_STYLES)
+    badge.querySelectorAll<HTMLElement>('.coverage-simulator-badge__glyph').forEach((glyph) => {
+      Object.assign(glyph.style, COVERAGE_PDF_INLINE_BADGE_GLYPH_STYLES)
+    })
   })
 
   root.querySelectorAll<HTMLElement>('.cs-axis-amount__value').forEach((amount) => {
