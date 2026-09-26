@@ -603,7 +603,7 @@
   display: block;
   margin: 0;
   line-height: 1;
-  transform: translateY(-0.75px);
+  transform: translateY(-1.1px);
 }
 
 .coverage-simulator-print-root--korean-text-safe .cs-axis-amount__value,
