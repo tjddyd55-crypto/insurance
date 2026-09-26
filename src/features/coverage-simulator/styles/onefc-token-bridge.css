@@ -1,0 +1,49 @@
+/**
+ * ONE FC Design System bridge (Web SSOT: src/styles/tokens.css)
+ * Native semantic parity: insurance-mobile/src/design-system/themes.ts (green primary)
+ *
+ * Coverage feature tokens alias global semantic variables — no feature-local blue primary.
+ */
+.coverage-simulator-root {
+  --cs-color-bg: var(--bg-base, #f8fafc);
+  --cs-color-surface: var(--bg-surface, #ffffff);
+  --cs-color-border: var(--border-default, #e5e7eb);
+  --cs-color-text: var(--text-main, #111827);
+  --cs-color-text-muted: var(--text-secondary, #6b7280);
+  --cs-color-primary: var(--primary, #16a34a);
+  --cs-color-primary-soft: var(--primary-soft, #dcfce7);
+  --cs-color-primary-border: var(--primary-border, #bbf7d0);
+  --cs-color-proposed: var(--primary, #16a34a);
+  --cs-color-proposed-soft: var(--primary-soft, #dcfce7);
+  --cs-color-current-bg: var(--bg-soft, #f1f5f9);
+  --cs-color-danger: var(--danger, #dc2626);
+  --cs-color-overlay: var(--overlay-backdrop, rgb(15 23 42 / 0.55));
+
+  /* Domain category accents (coverage-only semantics) */
+  --cs-color-diagnosis: #e11d48;
+  --cs-color-diagnosis-soft: #fff1f2;
+  --cs-color-treatment: #ea580c;
+  --cs-color-treatment-soft: #fff7ed;
+  --cs-color-recovery: var(--success, #16a34a);
+  --cs-color-recovery-soft: var(--primary-soft, #dcfce7);
+  --cs-color-support: #7c3aed;
+  --cs-color-support-soft: #f5f3ff;
+  --cs-color-other: var(--text-secondary, #6b7280);
+  --cs-color-other-soft: var(--bg-soft, #f1f5f9);
+
+  --cs-radius-card: var(--radius-lg, 12px);
+  --cs-radius-input: var(--radius-md, 8px);
+  --cs-radius-sheet: var(--radius-xxl, 20px) var(--radius-xxl, 20px) 0 0;
+  --cs-radius-button: var(--radius-md, 8px);
+  --cs-control-height: var(--control-height-md, 40px);
+
+  --cs-period-subtotal-bg: color-mix(in srgb, var(--cs-color-border, #e2e8f0) 35%, transparent);
+  --cs-period-subtotal-heading: var(--text-main);
+  --cs-period-marker-line: var(--primary-border);
+  --cs-period-marker-text: var(--primary-active, #166534);
+  --cs-period-marker-arrow: var(--primary);
+
+  --cs-input-bg: var(--input-bg, #ffffff);
+  --cs-input-border: var(--input-border, #e5e7eb);
+  --cs-input-focus-border: var(--input-focus-border, #16a34a);
+}

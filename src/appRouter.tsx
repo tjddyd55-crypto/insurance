@@ -167,6 +167,19 @@ import FreeLaunchBillingGuard from './features/billing/FreeLaunchBillingGuard'
 import PersonalBinderHomePage from './features/personal-binder/pages/PersonalBinderHomePage'
 import PersonalBinderEditorPage from './features/personal-binder/pages/PersonalBinderEditorPage'
 import PersonalBinderViewerPage from './features/personal-binder/pages/PersonalBinderViewerPage'
+import { PdfPreviewPage } from './features/coverage-simulator/pages/PdfPreviewPage'
+import { SavedScenariosPage } from './features/coverage-simulator/pages/SavedScenariosPage'
+import { ScenarioEditorPage } from './features/coverage-simulator/pages/ScenarioEditorPage'
+import {
+  CoverageSimulatorPublicMobileLayout,
+  CoverageSimulatorPublicPcLayout,
+} from './features/coverage-simulator/pages/CoverageSimulatorPublicLayout'
+import { NewScenarioTemplatePage } from './features/coverage-simulator/pages/NewScenarioTemplatePage'
+import { CoverageSimulatorCrmRouteLayout } from './features/coverage-simulator/pages/CoverageSimulatorCrmRouteLayout'
+import { ScenarioSelectPage } from './features/coverage-simulator/pages/ScenarioSelectPage'
+import { SimulationListPage } from './features/coverage-simulator/pages/SimulationListPage'
+import { CoverageScenarioTemplateEditorPage } from './features/coverage-simulator/pages/CoverageScenarioTemplateEditorPage'
+import { CoverageSharePublicPage } from './features/coverage-simulator/pages/CoverageSharePublicPage'
 
 export const appRouter = createBrowserRouter([
   {
@@ -204,10 +217,39 @@ export const appRouter = createBrowserRouter([
       // production·외부 공유 URL 오타 호환 — SSOT: introductionPublicRoutes.ts
       { path: 'intodution', element: <IntroductionPage /> },
       { path: 'intodution/install', element: <Navigate to="/intodution#download" replace /> },
+      {
+        path: 'coverage-simulator-preview/pc',
+        element: <CoverageSimulatorPublicPcLayout />,
+        children: [
+          { index: true, element: <ScenarioSelectPage /> },
+          { path: 'templates/new', element: <NewScenarioTemplatePage /> },
+          { path: 'templates/:templateId/edit', element: <CoverageScenarioTemplateEditorPage /> },
+          { path: 'saved', element: <SavedScenariosPage /> },
+          { path: 'scenarios/:scenarioId/pdf', element: <PdfPreviewPage /> },
+          { path: 'scenarios/:scenarioId', element: <ScenarioEditorPage /> },
+          { path: ':diseaseType/new', element: <ScenarioEditorPage /> },
+          { path: ':diseaseType', element: <SimulationListPage /> },
+        ],
+      },
+      {
+        path: 'coverage-simulator-preview/mobile',
+        element: <CoverageSimulatorPublicMobileLayout />,
+        children: [
+          { index: true, element: <ScenarioSelectPage /> },
+          { path: 'templates/new', element: <NewScenarioTemplatePage /> },
+          { path: 'templates/:templateId/edit', element: <CoverageScenarioTemplateEditorPage /> },
+          { path: 'saved', element: <SavedScenariosPage /> },
+          { path: 'scenarios/:scenarioId/pdf', element: <PdfPreviewPage /> },
+          { path: 'scenarios/:scenarioId', element: <ScenarioEditorPage /> },
+          { path: ':diseaseType/new', element: <ScenarioEditorPage /> },
+          { path: ':diseaseType', element: <SimulationListPage /> },
+        ],
+      },
       { path: 'naver-map-smoke', element: <NaverMapSmokePage /> },
       /* 외부 고객 입력(소개 링크) — 비로그인 유지. API는 /api/customer/external-create + ref·ga 검증 */
       { path: 'customer/input', element: <CustomerInputPage /> },
       { path: 'customer/register', element: <CustomerRegisterPage /> },
+      { path: 'coverage/share/:token', element: <CoverageSharePublicPage /> },
       { path: 'staff-app/open', element: <StaffNativeOpenPage /> },
       { path: 'contracts/sign/:linkCode', element: <ContractSignPage /> },
       {
@@ -408,6 +450,18 @@ export const appRouter = createBrowserRouter([
               { path: 'team/posts', element: <TeamPostsPage /> },
               { path: 'team/files', element: <TeamFilesPage /> },
               { path: 'memo', element: <MemoRoutePage /> },
+              {
+                path: 'coverage-simulator',
+                element: <CoverageSimulatorCrmRouteLayout />,
+                children: [
+                  { index: true, element: <ScenarioSelectPage /> },
+                  { path: 'saved', element: <SavedScenariosPage /> },
+                  { path: 'scenarios/:scenarioId/pdf', element: <PdfPreviewPage /> },
+                  { path: 'scenarios/:scenarioId', element: <ScenarioEditorPage /> },
+                  { path: ':diseaseType/new', element: <ScenarioEditorPage /> },
+                  { path: ':diseaseType', element: <SimulationListPage /> },
+                ],
+              },
               { path: 'insurer-managers', element: <InsurerManagersPage /> },
               { path: 'loss-adjusters', element: <LossAdjustersPage /> },
               { path: 'customer-car', element: <CustomerCarPage /> },

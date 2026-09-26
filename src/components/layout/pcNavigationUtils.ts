@@ -162,5 +162,11 @@ export function isActivePcNavigationPath(
   if (menuPathname === '/memo') {
     return pathname === '/memo' || pathname.startsWith('/memo/')
   }
+  if (menuPathname === '/personal-binders') {
+    return pathname === '/personal-binders' || pathname.startsWith('/personal-binders/')
+  }
+  if (menuPathname === '/coverage-simulator') {
+    return pathname === '/coverage-simulator' || pathname.startsWith('/coverage-simulator/')
+  }
   return pathname === menuPathname
 }

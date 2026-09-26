@@ -47,6 +47,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1023.0",
     "@aws-sdk/s3-request-presigner": "^3.1023.0",
+    "@napi-rs/canvas": "^0.1.96",
     "@pdf-lib/fontkit": "^1.1.1",
     "@tanstack/react-query": "^5.96.2",
     "@tiptap/extension-color": "^3.27.1",

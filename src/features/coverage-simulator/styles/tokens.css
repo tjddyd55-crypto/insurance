@@ -1,0 +1,46 @@
+@import './onefc-token-bridge.css';
+
+.coverage-simulator-root {
+  --cs-font-title: 1.25rem;
+  --cs-font-section: 1rem;
+  --cs-font-label: 0.9375rem;
+  --cs-font-amount: 1.125rem;
+  --cs-font-caption: 0.8125rem;
+
+  --cs-space-1: 4px;
+  --cs-space-2: 8px;
+  --cs-space-3: 12px;
+  --cs-space-4: 16px;
+  --cs-space-5: 20px;
+  --cs-space-6: 24px;
+  --cs-space-8: 32px;
+
+  --cs-shadow-card: 0 1px 2px rgb(15 23 42 / 0.05), 0 4px 14px rgb(15 23 42 / 0.04);
+  --cs-layout-max: 880px;
+  --cs-timeline-width: 24px;
+  --cs-amount-col-min: 0;
+
+  --cs-z-sticky-dock: 110;
+  --cs-z-item-popover: 115;
+  --cs-z-sheet-overlay: 1200;
+
+  --cs-mobile-dock-content-height: 54px;
+  --cs-mobile-dock-height: calc(var(--cs-mobile-dock-content-height) + env(safe-area-inset-bottom, 0px));
+  --cs-mobile-editor-header-height: 46px;
+  --cs-axis-insert-height: 16px;
+
+  --cs-timeline-item-pad-x: var(--cs-space-2);
+  --cs-timeline-item-pad-top: var(--cs-space-2);
+  --cs-timeline-title-amount-gap: var(--cs-space-2);
+  --cs-timeline-amount-insert-gap: var(--cs-space-2);
+  --cs-timeline-insert-visual-height: 10px;
+  --cs-timeline-insert-touch-size: 44px;
+  --cs-timeline-insert-plus-size: 22px;
+  --cs-timeline-marker-pad-y: var(--cs-space-2);
+  --cs-timeline-amount-row-height: 40px;
+  --cs-axis-title-mask-bg: var(--cs-color-surface);
+  --cs-axis-title-mask-pad-x: 8px;
+  --cs-axis-event-badge-col-width: 44px;
+  --cs-axis-event-menu-col-width: 32px;
+  --cs-axis-event-actions-col-width: 100px;
+}
