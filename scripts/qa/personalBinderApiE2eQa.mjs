@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 
 const BASE = (process.argv[2] || 'http://localhost:3000').replace(/\/$/, '')
@@ -7,6 +7,8 @@ const PASSWORD = process.env.COVERAGE_BINDER_QA_PASS
 const PDF_PATH =
   process.env.COVERAGE_BINDER_QA_PDF ||
   join(process.cwd(), 'store-screenshots', 'coverage-simulator', 'pdf', 'coverage-simulator-qa-1p.pdf')
+const KEEP_FIXTURE = process.env.COVERAGE_BINDER_QA_KEEP === 'true'
+const OUTPUT_DIR = join(process.cwd(), 'store-screenshots', 'personal-binder')
 
 if (!USERNAME || !PASSWORD) {
   throw new Error('COVERAGE_BINDER_QA_USER / COVERAGE_BINDER_QA_PASS가 필요합니다.')
@@ -177,7 +179,10 @@ async function main() {
     await request(`/api/personal-binders/sections/${section.id}/items`, {
       token,
       method: 'POST',
-      body: { materialId: material.id, pageSelection: [1] },
+      body: {
+        materialId: material.id,
+        pageSelection: material.pageCount > 1 ? [1, 2] : [1],
+      },
     }),
     201,
     'item create',
@@ -235,46 +240,71 @@ async function main() {
     throw new Error('private PDF preview failed')
   }
 
-  expectStatus(
-    await request(`/api/personal-binders/${duplicated.id}`, {
-      token,
-      method: 'DELETE',
-    }),
-    200,
-    'duplicate cleanup',
-  )
-  expectStatus(
-    await request(`/api/personal-binders/items/${item.id}`, {
-      token,
-      method: 'DELETE',
-    }),
-    200,
-    'item cleanup',
-  )
-  expectStatus(
-    await request(`/api/personal-binders/${binder.id}`, {
-      token,
-      method: 'DELETE',
-    }),
-    200,
-    'binder cleanup',
-  )
-  expectStatus(
-    await request(`/api/personal-binders/materials/${material.id}`, {
-      token,
-      method: 'DELETE',
-    }),
-    200,
-    'material cleanup',
-  )
-  expectStatus(
-    await request(`/api/storage/files/${stored.id}`, {
-      token,
-      method: 'DELETE',
-    }),
-    200,
-    'storage cleanup',
-  )
+  if (KEEP_FIXTURE) {
+    await mkdir(OUTPUT_DIR, { recursive: true })
+    await writeFile(
+      join(OUTPUT_DIR, 'api-e2e-fixture.json'),
+      JSON.stringify({
+        binderId: binder.id,
+        duplicatedBinderId: duplicated.id,
+        sectionId: section.id,
+        itemId: item.id,
+        materialId: material.id,
+        fileId: stored.id,
+        binderTitle: binder.title,
+        materialTitle: material.title,
+        pageCount: material.pageCount,
+        consultingPageCount: (() => {
+          const firstItem = detail.sections?.[0]?.items?.[0]
+          const selection = firstItem?.pageSelection
+          if (Array.isArray(selection) && selection.length > 0) return selection.length
+          if (firstItem?.material?.pageCount) return firstItem.material.pageCount
+          return 1
+        })(),
+      }, null, 2),
+    )
+  } else {
+    expectStatus(
+      await request(`/api/personal-binders/${duplicated.id}`, {
+        token,
+        method: 'DELETE',
+      }),
+      200,
+      'duplicate cleanup',
+    )
+    expectStatus(
+      await request(`/api/personal-binders/items/${item.id}`, {
+        token,
+        method: 'DELETE',
+      }),
+      200,
+      'item cleanup',
+    )
+    expectStatus(
+      await request(`/api/personal-binders/${binder.id}`, {
+        token,
+        method: 'DELETE',
+      }),
+      200,
+      'binder cleanup',
+    )
+    expectStatus(
+      await request(`/api/personal-binders/materials/${material.id}`, {
+        token,
+        method: 'DELETE',
+      }),
+      200,
+      'material cleanup',
+    )
+    expectStatus(
+      await request(`/api/storage/files/${stored.id}`, {
+        token,
+        method: 'DELETE',
+      }),
+      200,
+      'storage cleanup',
+    )
+  }
 
   console.log('[PASS] personalBinderApiE2eQa', {
     binderId: binder.id,
