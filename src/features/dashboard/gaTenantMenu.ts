@@ -52,10 +52,16 @@ export type GaTenantMenuItem = { label: string; path: string }
  * USER 「고객 상담」 대분류.
  * 하위는 이미 구현된 라우트만 연결한다. 기능 코드를 복제하지 않는다.
  *
+ * 하위는 정확히 두 개다.
+ * - 내 바인더: `/personal-binders` (기존 업무편의 항목을 이 섹션으로 이동. URL 유지)
  * - 보장 시뮬레이션: `/coverage-simulator` (시나리오 선택·편집·저장·PDF·공유)
- * - 내 바인더는 상담 도구이지만 업무편의에 그대로 둔다.
  */
 export const CUSTOMER_CONSULTING_SECTION_LABEL = '고객 상담'
+
+export const PERSONAL_BINDER_MENU_ITEM = {
+  label: '내 바인더',
+  path: '/personal-binders',
+} as const
 
 export const COVERAGE_SIMULATION_MENU_ITEM = {
   label: '보장 시뮬레이션',
@@ -132,12 +138,12 @@ export const BASE_GA_MENU: GaTenantMenuItem[] = []
  *
  *   1. 할일 및 알림 · 오늘의 TA · 할일 · 메모 · 알림
  *   2. 고객관리 · 고객리스트 · 고객소식지 · 청구관리
- *   3. 고객 상담 · 보장 시뮬레이션 (기존 `/coverage-simulator` 라우트 재사용)
+ *   3. 고객 상담 · 내 바인더 · 보장 시뮬레이션 (기존 라우트 재사용, URL 유지)
  *   4. 소식지 · 원수사소식지 · 손해사정사 소식지 · 세무사 소식지(개발중 플레이스홀더, 요구 목록에 없어서도 기존 연결 유지)
  *   5. 신청서 · 신청서 작성 · 신청서 작성내역 · 렌트(사고대차)(개발중)
  *   6. 전자서명(USER 한정) · 전자서명 발송 · 전자서명 발송내역 — inject via buildGaTenantDashboardMenu 옵션
  *   7. 팀관리 · 팀원리스트 · 팀 게시판 · 팀 자료 · (팀 관리 — 오너만, `/team/files` 뒤 주입)
- *   8. 업무편의 · 내 바인더 · 원수사 연락처 · 설계사이트
+ *   8. 업무편의 · 문자 발송 · 원수사 연락처 · 설계사이트
  *   9. 내정보 · 내 저장공간 · 내정보관리 · 문의요청
  *   — 레거시 자동차 전용 허브(`/application` 메뉴 노출 등) 규칙 기존대로.
  *
@@ -198,7 +204,6 @@ export function buildGaTenantDashboardMenu(
       : null)
 
   const workConvenienceLinks: GaTenantDashboardMenuEntry[] = [
-    { type: 'link', label: '내 바인더', path: '/personal-binders' },
     { type: 'link', label: '문자 발송', path: '/sms/settings' },
     { type: 'link', label: '원수사 연락처', path: '/insurance/contacts' },
     { type: 'link', label: '계정관리', path: '/insurance/account-credentials' },
@@ -277,6 +282,11 @@ export function buildGaTenantDashboardMenu(
     ...customerManagementLinks,
 
     { type: 'section', label: CUSTOMER_CONSULTING_SECTION_LABEL },
+    {
+      type: 'link',
+      label: PERSONAL_BINDER_MENU_ITEM.label,
+      path: PERSONAL_BINDER_MENU_ITEM.path,
+    },
     {
       type: 'link',
       label: COVERAGE_SIMULATION_MENU_ITEM.label,

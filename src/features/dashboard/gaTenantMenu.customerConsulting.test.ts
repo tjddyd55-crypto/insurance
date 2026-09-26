@@ -5,6 +5,7 @@ import {
   buildAppMenuForSession,
   COVERAGE_SIMULATION_MENU_ITEM,
   CUSTOMER_CONSULTING_SECTION_LABEL,
+  PERSONAL_BINDER_MENU_ITEM,
   type GaTenantDashboardMenuEntry,
 } from './gaTenantMenu'
 
@@ -33,8 +34,26 @@ function sectionOfLink(entries: GaTenantDashboardMenuEntry[], path: string): str
   return ''
 }
 
+function linksInSection(entries: GaTenantDashboardMenuEntry[], sectionLabel: string): string[] {
+  let inSection = false
+  const paths: string[] = []
+  for (const entry of entries) {
+    if (entry.type === 'section') {
+      if (inSection) {
+        break
+      }
+      inSection = entry.label === sectionLabel
+      continue
+    }
+    if (inSection && entry.type === 'link') {
+      paths.push(entry.path)
+    }
+  }
+  return paths
+}
+
 describe('buildAppMenuForSession — 고객 상담', () => {
-  it('USER 메뉴에서 고객관리 다음, 소식지 앞에 보장 시뮬레이션을 둔다', () => {
+  it('USER 메뉴의 고객 상담은 내 바인더와 보장 시뮬레이션만 가진다', () => {
     const menu = buildAppMenuForSession('USER', 'TEST', 'Test GA')
     const sections = sectionLabels(menu)
     const customerIndex = sections.indexOf('고객관리')
@@ -43,15 +62,17 @@ describe('buildAppMenuForSession — 고객 상담', () => {
 
     expect(consultingIndex).toBe(customerIndex + 1)
     expect(newsletterIndex).toBe(consultingIndex + 1)
-    expect(menu).toContainEqual({
-      type: 'link',
-      label: COVERAGE_SIMULATION_MENU_ITEM.label,
-      path: COVERAGE_SIMULATION_MENU_ITEM.path,
-    })
+    expect(linksInSection(menu, CUSTOMER_CONSULTING_SECTION_LABEL)).toEqual([
+      PERSONAL_BINDER_MENU_ITEM.path,
+      COVERAGE_SIMULATION_MENU_ITEM.path,
+    ])
+    expect(sectionOfLink(menu, PERSONAL_BINDER_MENU_ITEM.path)).toBe(CUSTOMER_CONSULTING_SECTION_LABEL)
     expect(sectionOfLink(menu, COVERAGE_SIMULATION_MENU_ITEM.path)).toBe(
       CUSTOMER_CONSULTING_SECTION_LABEL,
     )
-    expect(sectionOfLink(menu, '/personal-binders')).toBe('업무편의')
+    expect(sectionOfLink(menu, '/sms/settings')).toBe('업무편의')
+    expect(linkPaths(menu).filter((path) => path === PERSONAL_BINDER_MENU_ITEM.path)).toHaveLength(1)
+    expect(menu.some((entry) => entry.type === 'link' && entry.label === '보장 분석')).toBe(false)
   })
 
   it('USER 가 아닌 역할 메뉴에는 고객 상담을 넣지 않는다', () => {
@@ -59,6 +80,7 @@ describe('buildAppMenuForSession — 고객 상담', () => {
       const menu = buildAppMenuForSession(role, 'TEST', 'Test GA')
       expect(sectionLabels(menu)).not.toContain(CUSTOMER_CONSULTING_SECTION_LABEL)
       expect(linkPaths(menu)).not.toContain(COVERAGE_SIMULATION_MENU_ITEM.path)
+      expect(linkPaths(menu)).not.toContain(PERSONAL_BINDER_MENU_ITEM.path)
     }
   })
 
@@ -66,6 +88,7 @@ describe('buildAppMenuForSession — 고객 상담', () => {
     const menu = buildAppMenuForSession('USER', 'TEST', 'Test GA', { subscriptionExpired: true })
     expect(sectionLabels(menu)).not.toContain(CUSTOMER_CONSULTING_SECTION_LABEL)
     expect(linkPaths(menu)).not.toContain(COVERAGE_SIMULATION_MENU_ITEM.path)
+    expect(linkPaths(menu)).not.toContain(PERSONAL_BINDER_MENU_ITEM.path)
     expect(linkPaths(menu)).toContain('/profile')
   })
 })
@@ -86,5 +109,16 @@ describe('isActivePcNavigationPath — 보장 시뮬레이션', () => {
       isActivePcNavigationPath('/coverage-simulator-preview/pc', COVERAGE_SIMULATION_MENU_ITEM.path),
     ).toBe(false)
     expect(isActivePcNavigationPath('/customers', COVERAGE_SIMULATION_MENU_ITEM.path)).toBe(false)
+  })
+
+  it('내 바인더 하위 경로를 메뉴 활성으로 본다', () => {
+    expect(isActivePcNavigationPath('/personal-binders', PERSONAL_BINDER_MENU_ITEM.path)).toBe(true)
+    expect(
+      isActivePcNavigationPath('/personal-binders/materials', PERSONAL_BINDER_MENU_ITEM.path),
+    ).toBe(true)
+    expect(
+      isActivePcNavigationPath('/personal-binders/binder-1/edit', PERSONAL_BINDER_MENU_ITEM.path),
+    ).toBe(true)
+    expect(isActivePcNavigationPath('/customers', PERSONAL_BINDER_MENU_ITEM.path)).toBe(false)
   })
 })
