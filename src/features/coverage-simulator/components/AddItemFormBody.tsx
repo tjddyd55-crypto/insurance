@@ -97,33 +97,49 @@ export const AddItemFormBody = forwardRef<AddItemFormBodyHandle, Props>(function
             다른 목록의 ☆를 눌러 추가할 수 있습니다.
           </p>
         ) : (
-          <div className="coverage-simulator-catalog-list">
-            {items.map((item) => (
-              <div key={item.id} className="coverage-simulator-catalog-row">
-                <FormButton
-                  variant="action"
-                  className="coverage-simulator-catalog-row__main"
-                  onClick={() => selectItem(item)}
+          <div
+            className="coverage-simulator-catalog-list coverage-simulator-option-grid"
+            data-testid="coverage-catalog-grid"
+          >
+            {items.map((item) => {
+              const isFavorite = favoriteIds.includes(item.id)
+              return (
+                <div
+                  key={item.id}
+                  className={`coverage-simulator-catalog-tile${isFavorite ? ' coverage-simulator-catalog-tile--on' : ''}`}
                 >
-                  {item.label}
-                </FormButton>
-                {useFavorites ? (
-                  <FormButton
-                    variant="action"
-                    className={`coverage-simulator-catalog-row__star${favoriteIds.includes(item.id) ? ' coverage-simulator-catalog-row__star--on' : ''}`}
-                    aria-label={favoriteIds.includes(item.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-                    onClick={() => toggleFavorite(item.id)}
+                  <button
+                    type="button"
+                    className="coverage-simulator-catalog-tile__main"
+                    onClick={() => selectItem(item)}
                   >
-                    {favoriteIds.includes(item.id) ? '★' : '☆'}
-                  </FormButton>
-                ) : null}
-              </div>
-            ))}
+                    {item.label}
+                  </button>
+                  {useFavorites ? (
+                    <button
+                      type="button"
+                      className={`coverage-simulator-catalog-row__star${isFavorite ? ' coverage-simulator-catalog-row__star--on' : ''}`}
+                      aria-pressed={isFavorite}
+                      aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+                      onClick={() => toggleFavorite(item.id)}
+                    >
+                      {isFavorite ? '★' : '☆'}
+                    </button>
+                  ) : null}
+                </div>
+              )
+            })}
           </div>
         )}
       </FormSection>
-      <FormSection title="직접 추가">
-        <div className="cs-form-primitive__direct-add">
+      <section className="cs-form-primitive__section cs-custom-item-card" aria-labelledby="cs-custom-item-card-title">
+        <h2 id="cs-custom-item-card-title" className="cs-form-primitive__section-title cs-custom-item-card__title">
+          직접 추가
+        </h2>
+        <div className="cs-form-primitive__field">
+          <label className="cs-form-primitive__label" htmlFor="cs-add-custom-label">
+            항목명
+          </label>
           <FormInput
             id="cs-add-custom-label"
             value={customLabel}
@@ -137,16 +153,26 @@ export const AddItemFormBody = forwardRef<AddItemFormBodyHandle, Props>(function
               }
             }}
           />
-          <FormButton variant="primary" className="cs-form-primitive__direct-add-btn" onClick={submitDirectAdd}>
-            추가
-          </FormButton>
         </div>
-      </FormSection>
-      <FormSection title="카테고리">
-        <CategoryChipPicker compact value={customCategory} onChange={setCustomCategory} />
-      </FormSection>
+        <div className="cs-form-primitive__field">
+          <span className="cs-form-primitive__label" id="cs-add-custom-category-label">
+            카테고리
+          </span>
+          <CategoryChipPicker compact value={customCategory} onChange={setCustomCategory} />
+        </div>
+        <FormButton
+          variant="primary"
+          className="cs-form-primitive__direct-add-btn cs-custom-item-card__submit"
+          onClick={submitDirectAdd}
+        >
+          추가
+        </FormButton>
+      </section>
       <FormSection title="시간 구간">
-        <div className="coverage-simulator-catalog-grid coverage-simulator-catalog-grid--time">
+        <div
+          className="coverage-simulator-catalog-grid coverage-simulator-catalog-grid--time coverage-simulator-option-grid"
+          data-testid="coverage-time-grid"
+        >
           {TIME_MARKER_PRESETS.map((label) => (
             <FormButton
               key={label}

@@ -271,6 +271,7 @@ export function LegacyCustomerRelationsSection({
         panelClassName="customer-relations-modal"
         closeOnBackdrop={false}
         usePortal
+        verticalAnchor="top"
         onEscapeRequest={() => void requestCloseRelationsModal()}
       >
         <header className="customer-relations-modal__header">

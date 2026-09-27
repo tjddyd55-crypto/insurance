@@ -21,6 +21,8 @@ export type ModalProps = {
   panelPreset?: 'default' | 'largeForm'
   /** true 이면 document.body 에 portal 렌더(중첩 outlet 모달 안 confirm 등). */
   usePortal?: boolean
+  /** 검색 피커는 `top`. 결과 수와 상관없이 제목·검색창 상단을 고정한다. */
+  verticalAnchor?: 'center' | 'top'
 }
 
 export default function Modal({
@@ -35,6 +37,7 @@ export default function Modal({
   onEscapeRequest,
   panelPreset = 'default',
   usePortal = false,
+  verticalAnchor = 'center',
 }: ModalProps) {
   return (
     <BaseDialog
@@ -48,6 +51,7 @@ export default function Modal({
       onEscapeRequest={onEscapeRequest}
       panelPreset={panelPreset}
       usePortal={usePortal}
+      verticalAnchor={verticalAnchor}
     >
       {children}
     </BaseDialog>

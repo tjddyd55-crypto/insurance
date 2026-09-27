@@ -1,5 +1,5 @@
 import type { CustomerRecord } from '../domain/types'
-import { formatCustomerPhoneUi } from '../utils/customerDisplayFormat'
+import { formatCustomerBirthDateDot, formatCustomerPhoneUi } from '../utils/customerDisplayFormat'
 import { parseBirthDateFromRrn } from '../utils/insuranceAge'
 
 export type CustomerRelationSearchHitStatus = {
@@ -20,6 +20,7 @@ export type CustomerRelationSearchResultListProps = {
   actionLabel?: string
 }
 
+/** 주민번호 앞 7자리 → YYYY.MM.DD. 파싱 불가면 `-`. */
 export function formatBirthYmdDotFromSsn(ssn: string | null | undefined): string {
   const birthDate = parseBirthDateFromRrn(String(ssn ?? ''))
   if (!birthDate) return '-'
@@ -27,6 +28,19 @@ export function formatBirthYmdDotFromSsn(ssn: string | null | undefined): string
   const m = String(birthDate.getMonth() + 1).padStart(2, '0')
   const d = String(birthDate.getDate()).padStart(2, '0')
   return `${y}.${m}.${d}`
+}
+
+/**
+ * 검색 행 생년월일. `birthDate`(customers.birth_date)가 있으면 그걸 쓰고,
+ * 없을 때만 주민번호에서 파생한다. 둘 다 없으면 `-`.
+ */
+export function formatCustomerSearchBirthLabel(
+  birthDate: string | Date | null | undefined,
+  ssn?: string | null,
+): string {
+  const fromColumn = formatCustomerBirthDateDot(birthDate)
+  if (fromColumn) return fromColumn
+  return formatBirthYmdDotFromSsn(ssn)
 }
 
 /**
@@ -64,7 +78,7 @@ export function CustomerRelationSearchResultList({
       <ul className="customer-relations-result-list" aria-label="검색 결과">
         {hits.map((h) => {
           const status = resolveStatus(h)
-          const birth = formatBirthYmdDotFromSsn(h.ssn)
+          const birth = formatCustomerSearchBirthLabel(h.birthDate, h.ssn)
           const phone = formatCustomerPhoneUi(h.phone) || '-'
           const disabled = Boolean(status.disabled)
           return (
@@ -118,7 +132,7 @@ export function CustomerRelationSearchResultList({
         <ul className="related-list__body" role="list">
           {hits.map((h) => {
             const status = resolveStatus(h)
-            const birth = formatBirthYmdDotFromSsn(h.ssn)
+            const birth = formatCustomerSearchBirthLabel(h.birthDate, h.ssn)
             const phone = formatCustomerPhoneUi(h.phone) || '-'
             const disabled = Boolean(status.disabled)
             const trigger = () => {

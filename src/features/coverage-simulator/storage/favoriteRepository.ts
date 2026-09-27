@@ -1,15 +1,18 @@
 import { COVERAGE_SIMULATOR_PREVIEW_MOBILE_USER_KEY } from './scenarioRepository'
 
 const MOBILE_FAVORITES_KEY = 'coverage-simulator-preview-mobile:favorites:v1'
+/** CRM·그 외 사용자. 미리보기 모바일 키는 기존 저장값을 그대로 읽는다. */
+const FAVORITES_KEY_PREFIX = 'coverage-simulator:favorites:v1:'
 
 /** 최초 미설정 시 UI에만 적용. localStorage에 쓰기 전까지 사용자 변경과 구분 */
 export const DEFAULT_FAVORITE_CATALOG_IDS = ['nursing', 'hospitalization', 'targeted-therapy'] as const
 
 function storageKeyForUser(userKey: string): string | null {
+  if (!userKey.trim()) return null
   if (userKey === COVERAGE_SIMULATOR_PREVIEW_MOBILE_USER_KEY) {
     return MOBILE_FAVORITES_KEY
   }
-  return null
+  return `${FAVORITES_KEY_PREFIX}${userKey}`
 }
 
 function readPersisted(userKey: string): string[] | null {

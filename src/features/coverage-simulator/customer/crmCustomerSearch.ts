@@ -15,14 +15,18 @@ export type CrmCustomerDirectory = {
 }
 
 export function customerRecordToSimulatorListItem(
-  customer: Pick<CustomerRecord, 'id' | 'name' | 'phone'>,
+  customer: Pick<CustomerRecord, 'id' | 'name' | 'phone' | 'birthDate' | 'ssn'>,
 ): CoverageSimulatorCustomerListItem {
   const name = customer.name.trim() || '이름 없음'
   const phone = customer.phone.trim()
+  const birthDate = typeof customer.birthDate === 'string' ? customer.birthDate.trim() : ''
+  const ssn = typeof customer.ssn === 'string' ? customer.ssn.trim() : ''
   return {
     id: String(customer.id),
     name,
     ...(phone ? { phone } : {}),
+    ...(birthDate ? { birthDate } : {}),
+    ...(ssn ? { ssn } : {}),
   }
 }
 

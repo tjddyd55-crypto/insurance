@@ -34,7 +34,8 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   const { showToast } = useCoverageSimulatorToast()
   // CRM·preview-mobile은 같은 최신 타임라인이다. preview-pc만 넓은 PC 툴바를 유지한다.
   const useLatestMobileEditor = variant === 'mobile'
-  const favoriteUserKey = layoutMode === 'preview-mobile' ? userKey : null
+  // preview-pc 시트는 별 토글이 없다. CRM·모바일 미리보기는 같은 ☆/★ 카탈로그를 쓴다.
+  const favoriteUserKey = layoutMode === 'preview-pc' ? null : userKey
   const useMobileExclusiveForm = variant === 'mobile'
   const [titleDialogOpen, setTitleDialogOpen] = useState(false)
   const [titleValidationError, setTitleValidationError] = useState<string | null>(null)

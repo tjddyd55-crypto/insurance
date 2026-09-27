@@ -8,6 +8,10 @@ export type CoverageSimulatorCustomerListItem = {
   id: string
   name: string
   phone?: string
+  /** customers.birth_date → API `birthDate` (YYYY-MM-DD). 없으면 생략 */
+  birthDate?: string
+  /** 목록/검색 응답에 이미 있는 주민번호. 생년월일 표시 fallback 전용 */
+  ssn?: string
 }
 
 export function emptyCustomerDraft(): ConsultationCustomerDraft {

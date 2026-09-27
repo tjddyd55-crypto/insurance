@@ -145,7 +145,7 @@ export function AddItemSheet({
           />
         </div>
         <div className="coverage-simulator-sheet__title coverage-simulator-sheet__title--subsection">시간 구간</div>
-        <div className="coverage-simulator-catalog-grid coverage-simulator-catalog-grid--time">
+        <div className="coverage-simulator-catalog-grid coverage-simulator-catalog-grid--time coverage-simulator-option-grid">
           {TIME_MARKER_PRESETS.map((label) => (
             <FormButton
               key={label}
