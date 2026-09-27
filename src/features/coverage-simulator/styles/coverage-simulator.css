@@ -74,6 +74,10 @@ body.coverage-simulator-immersive .pc-workspace-layout > main {
   border-bottom: 1px solid var(--cs-color-border);
 }
 
+.coverage-simulator-appbar--with-share {
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+}
+
 .coverage-simulator-appbar--compact {
   min-height: 46px;
   padding: 6px var(--cs-space-3);
@@ -1533,7 +1537,23 @@ html.coverage-simulator-overlay-scroll-lock .cs-axis-main {
 }
 
 .cs-share-public--with-dock {
-  padding-bottom: calc(var(--cs-mobile-dock-height) + var(--cs-space-4));
+  padding-bottom: var(--cs-space-4);
+}
+
+/*
+ * 편집기 모바일 미리보기는 총보장 카드를 화면 하단에 고정한다.
+ * 공개 페이지는 그 고정 레이어가 타임라인 항목 이름을 덮으므로, 이 셸에서만 문서 흐름에 둔다.
+ */
+.coverage-simulator-root--mobile-preview .cs-share-public-shell .cs-mobile-dock {
+  position: static;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  z-index: auto;
+  max-width: none;
+  margin: 0;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
 .cs-share-public__header {
