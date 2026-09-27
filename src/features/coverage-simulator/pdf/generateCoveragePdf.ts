@@ -163,7 +163,7 @@ async function printRootToJsPdf(root: HTMLElement): Promise<jsPDF> {
     scrollY: 0,
     onclone: (_doc, clonedRoot) => {
       if (clonedRoot instanceof HTMLElement) {
-        applyCoveragePdfCaptureCloneFixes(clonedRoot)
+        applyCoveragePdfCaptureCloneFixes(clonedRoot, { rasterShift: true })
       }
     },
   })

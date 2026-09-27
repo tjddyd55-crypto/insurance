@@ -1,33 +1,93 @@
 const TITLE_LABEL_SELECTOR = '.cs-axis-event__title-axis .cs-axis-event__label'
+const BADGE_LABEL_SELECTOR = '.coverage-simulator-badge__label'
+
+/** html2canvas scale 2에서 배지 11px / 제목 14px 라인박스를 맞춘 캡처 전용 값. */
+export const COVERAGE_PDF_BADGE_RASTER_SHIFT_PX = '-6px'
+export const COVERAGE_PDF_TITLE_RASTER_SHIFT_PX = '-8px'
+
+const COVERAGE_PDF_INLINE_HEAD_STYLES: Partial<CSSStyleDeclaration> = {
+  display: 'block',
+  position: 'relative',
+  height: '28px',
+  minHeight: '28px',
+  padding: '0',
+  paddingBlock: '0',
+  overflow: 'visible',
+  boxSizing: 'border-box',
+}
+
+const COVERAGE_PDF_INLINE_BADGE_WRAP_STYLES: Partial<CSSStyleDeclaration> = {
+  position: 'absolute',
+  left: '0',
+  top: '3px',
+  display: 'block',
+  width: 'auto',
+  height: '22px',
+  margin: '0',
+  flex: 'none',
+  overflow: 'visible',
+}
+
+const COVERAGE_PDF_INLINE_TITLE_AXIS_STYLES: Partial<CSSStyleDeclaration> = {
+  position: 'absolute',
+  left: '0',
+  right: '0',
+  top: '3px',
+  height: '22px',
+  margin: '0',
+  transform: 'none',
+  textAlign: 'center',
+  width: 'auto',
+  maxWidth: 'none',
+  pointerEvents: 'none',
+}
 
 export const COVERAGE_PDF_INLINE_TITLE_LABEL_STYLES: Partial<CSSStyleDeclaration> = {
   display: 'inline-block',
+  position: 'relative',
+  top: '0',
   overflow: 'visible',
   textOverflow: 'clip',
   whiteSpace: 'normal',
   wordBreak: 'keep-all',
-  lineHeight: '1.45',
-  paddingBlock: '3px',
+  lineHeight: '22px',
+  height: '22px',
+  padding: '0 6px',
+  paddingBlock: '0',
   paddingInline: '6px',
-  minHeight: '1.45em',
+  minHeight: '0',
   maxHeight: 'none',
+  fontSize: '14px',
+  fontWeight: '700',
   boxShadow: 'none',
   webkitLineClamp: 'unset',
   webkitBoxOrient: 'initial',
 }
 
 export const COVERAGE_PDF_INLINE_BADGE_STYLES: Partial<CSSStyleDeclaration> = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
+  display: 'inline-block',
   height: '22px',
   minHeight: '22px',
+  margin: '0',
   padding: '0 8px',
   boxSizing: 'border-box',
-  lineHeight: '1',
+  lineHeight: '22px',
+  fontSize: '11px',
+  fontWeight: '700',
+  textAlign: 'center',
   overflow: 'visible',
   verticalAlign: 'middle',
   transform: 'none',
+}
+
+export const COVERAGE_PDF_INLINE_BADGE_LABEL_STYLES: Partial<CSSStyleDeclaration> = {
+  display: 'inline-block',
+  position: 'relative',
+  top: '0',
+  lineHeight: '22px',
+  height: '22px',
+  fontSize: '11px',
+  fontWeight: '700',
 }
 
 export type CoveragePdfTitleSafetyIssue = {
@@ -168,31 +228,55 @@ export function assertCoveragePdfTitleTextSafety(root: HTMLElement): void {
   throw new Error(`Coverage PDF title text safety failed: ${detail}`)
 }
 
-/** html2canvas clone — inline overrides so screen ellipsis/transform never rasterize. */
-export function applyCoveragePdfCaptureCloneFixes(root: HTMLElement): void {
+export type CoveragePdfCaptureFixOptions = {
+  /** html2canvas onclone 전용. 라이브 루트에는 두면 미리보기 글자가 위로 밀린다. */
+  rasterShift?: boolean
+}
+
+function assignInlineStyles(element: HTMLElement, styles: Partial<CSSStyleDeclaration>): void {
+  Object.assign(element.style, styles)
+}
+
+function applyPrintRowLineLayout(root: HTMLElement): void {
   root.querySelectorAll<HTMLElement>('.cs-axis-event__head').forEach((head) => {
-    head.style.height = 'auto'
-    head.style.minHeight = '34px'
-    head.style.paddingBlock = '4px'
-    head.style.alignItems = 'center'
+    assignInlineStyles(head, COVERAGE_PDF_INLINE_HEAD_STYLES)
   })
-
+  root.querySelectorAll<HTMLElement>('.cs-axis-event__badge').forEach((wrap) => {
+    assignInlineStyles(wrap, COVERAGE_PDF_INLINE_BADGE_WRAP_STYLES)
+  })
   root.querySelectorAll<HTMLElement>('.cs-axis-event__title-axis').forEach((axis) => {
-    axis.style.position = 'relative'
-    axis.style.left = 'auto'
-    axis.style.top = 'auto'
-    axis.style.transform = 'none'
-    axis.style.margin = '0'
-    axis.style.pointerEvents = 'none'
+    assignInlineStyles(axis, COVERAGE_PDF_INLINE_TITLE_AXIS_STYLES)
   })
-
   root.querySelectorAll<HTMLElement>(TITLE_LABEL_SELECTOR).forEach((label) => {
-    Object.assign(label.style, COVERAGE_PDF_INLINE_TITLE_LABEL_STYLES)
+    assignInlineStyles(label, COVERAGE_PDF_INLINE_TITLE_LABEL_STYLES)
   })
-
   root.querySelectorAll<HTMLElement>('.coverage-simulator-badge').forEach((badge) => {
-    Object.assign(badge.style, COVERAGE_PDF_INLINE_BADGE_STYLES)
+    assignInlineStyles(badge, COVERAGE_PDF_INLINE_BADGE_STYLES)
   })
+  root.querySelectorAll<HTMLElement>(BADGE_LABEL_SELECTOR).forEach((label) => {
+    assignInlineStyles(label, COVERAGE_PDF_INLINE_BADGE_LABEL_STYLES)
+  })
+}
+
+function applyRasterGlyphShift(root: HTMLElement): void {
+  root.querySelectorAll<HTMLElement>(BADGE_LABEL_SELECTOR).forEach((label) => {
+    label.style.top = COVERAGE_PDF_BADGE_RASTER_SHIFT_PX
+  })
+  root.querySelectorAll<HTMLElement>(TITLE_LABEL_SELECTOR).forEach((label) => {
+    label.style.top = COVERAGE_PDF_TITLE_RASTER_SHIFT_PX
+  })
+}
+
+/**
+ * 캡처 직전 인라인 레이아웃.
+ * rasterShift는 html2canvas clone에만 켠다. 화면·라이브 루트는 top 0인 22px 라인박스를 유지한다.
+ */
+export function applyCoveragePdfCaptureCloneFixes(
+  root: HTMLElement,
+  options?: CoveragePdfCaptureFixOptions,
+): void {
+  applyPrintRowLineLayout(root)
+  if (options?.rasterShift) applyRasterGlyphShift(root)
 
   root.querySelectorAll<HTMLElement>('.cs-axis-amount__value').forEach((amount) => {
     amount.style.whiteSpace = 'nowrap'

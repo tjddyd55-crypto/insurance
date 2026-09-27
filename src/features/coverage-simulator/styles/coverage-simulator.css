@@ -426,6 +426,12 @@ body.coverage-simulator-immersive .pc-workspace-layout > main {
   margin-bottom: 6px;
 }
 
+.coverage-simulator-root .coverage-simulator-badge__label {
+  display: inline;
+  font: inherit;
+  line-height: inherit;
+}
+
 .coverage-simulator-badge--diagnosis {
   background: var(--cs-color-diagnosis-soft);
   color: var(--cs-color-diagnosis);
