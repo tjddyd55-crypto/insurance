@@ -6,7 +6,7 @@ export function diseaseTypeTitle(diseaseType: DiseaseType): string {
   return card?.title ?? diseaseType
 }
 
-/** 문서 헤더 둘째 줄. 병명과 시나리오 제목을 한 줄로 둔다. */
+/** 문서 헤더의 시나리오 줄. 병명과 시나리오 제목을 한 줄로 둔다. */
 export function formatCoverageScenarioHeading(diseaseType: DiseaseType, title: string | undefined): string {
   const diseaseTitle = diseaseTypeTitle(diseaseType)
   const trimmed = title?.trim() ?? ''
