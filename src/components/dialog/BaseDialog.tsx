@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { emitFocusDebug } from '../../lib/focusDebug'
+import './search-picker-anchor.css'
 
 export type BaseDialogProps = {
   open: boolean
@@ -26,6 +27,11 @@ export type BaseDialogProps = {
   panelPreset?: 'default' | 'largeForm' | 'cardPayment' | 'collectionTarget'
   usePortal?: boolean
   /**
+   * `top` 이면 검색 피커처럼 결과 수와 상관없이 패널 상단을 고정한다.
+   * 기본 `center` 는 기존 모달과 같다.
+   */
+  verticalAnchor?: 'center' | 'top'
+  /**
    * true 이면 모달이 열린 동안 `history.pushState` 로 sentinel 을 쌓고,
    * Android 뒤로가기 / 브라우저 back(popstate) 시 라우트 이탈 대신 `onEscapeRequest`(또는 onClose) 를 호출한다.
    * 미저장 확인 등은 `onEscapeRequest` 안에서 처리한다. 기본 false(대부분의 다이얼로그는 변경 없음).
@@ -47,6 +53,7 @@ export function BaseDialog({
   panelPreset = 'default',
   usePortal = false,
   closeOnHistoryBack = false,
+  verticalAnchor = 'center',
 }: BaseDialogProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const openRef = useRef(open)
@@ -166,9 +173,13 @@ export function BaseDialog({
    *     z-index 가 필요하다. `z-[10000]` 로 고정해 그 이상은 쓰지 않는다.
    *   - 관련 파일: src/features/customers/components/mobile/CustomerConsultationsModal.tsx
    */
+  const verticalAnchorClass =
+    verticalAnchor === 'top' ? 'search-picker-anchor-overlay' : 'items-center'
+  const panelAnchorClass = verticalAnchor === 'top' ? 'search-picker-anchor-panel' : ''
+
   const dialogNode = (
     <div
-      className={`customer-ui-modal-backdrop fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 p-4 ${overlayClassName}`.trim()}
+      className={`customer-ui-modal-backdrop fixed inset-0 z-[10000] flex justify-center bg-black/50 p-4 ${verticalAnchorClass} ${overlayClassName}`.trim()}
       onClick={(event) => {
         if (closeOnBackdrop && event.target === event.currentTarget) {
           onClose()
@@ -187,7 +198,8 @@ export function BaseDialog({
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel}
-        className={`customer-ui-modal-panel rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] shadow-lg outline-none ${panelSizingClasses} ${panelClassName}`.trim()}
+        data-search-picker-anchor={verticalAnchor === 'top' ? 'top' : undefined}
+        className={`customer-ui-modal-panel rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] shadow-lg outline-none ${panelSizingClasses} ${panelAnchorClass} ${panelClassName}`.trim()}
         onClick={(event) => event.stopPropagation()}
       >
         {children}

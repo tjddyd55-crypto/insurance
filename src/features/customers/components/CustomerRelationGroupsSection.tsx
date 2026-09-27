@@ -640,6 +640,7 @@ export function CustomerRelationGroupsSection({
         panelClassName="customer-relations-modal customer-relation-group-modal"
         closeOnBackdrop={false}
         usePortal
+        verticalAnchor="top"
         onEscapeRequest={() => {
           if (!createBusy) setCreateOpen(false)
         }}
@@ -741,6 +742,7 @@ export function CustomerRelationGroupsSection({
         panelClassName="customer-relations-modal customer-relation-group-modal"
         closeOnBackdrop={false}
         usePortal
+        verticalAnchor="top"
         onEscapeRequest={() => {
           if (!linking) setAddMemberGroupId(null)
         }}

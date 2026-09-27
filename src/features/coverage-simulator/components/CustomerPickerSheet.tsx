@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 
+import '../../../components/dialog/search-picker-anchor.css'
 import type { CoverageSimulatorCustomerListItem } from '../domain/customerContext'
 import { useCoverageSimulatorCustomer } from '../context/CoverageSimulatorCustomerContext'
 
@@ -49,11 +50,16 @@ export function CustomerPickerSheet({ open, onClose }: Props) {
   if (!open) return null
 
   return (
-    <div className="coverage-simulator-sheet-backdrop" role="presentation" onClick={closePicker}>
+    <div
+      className="coverage-simulator-sheet-backdrop search-picker-anchor-overlay"
+      role="presentation"
+      onClick={closePicker}
+    >
       <div
-        className="coverage-simulator-sheet cs-customer-picker-sheet"
+        className="coverage-simulator-sheet cs-customer-picker-sheet search-picker-anchor-panel"
         role="dialog"
         aria-label="고객 선택"
+        data-search-picker-anchor="top"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="coverage-simulator-sheet-header">
@@ -71,7 +77,7 @@ export function CustomerPickerSheet({ open, onClose }: Props) {
             onChange={(e) => setQuery(e.target.value)}
             autoFocus
           />
-          <ul className="cs-customer-picker-sheet__list">
+          <ul className="cs-customer-picker-sheet__list search-picker-anchor-scroll">
             {loading ? <li className="cs-customer-picker-sheet__empty">고객을 불러오는 중…</li> : null}
             {error ? <li className="cs-customer-picker-sheet__empty">{error}</li> : null}
             {rows.map((row) => (
