@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
 import { logger } from '../../../lib/logger'
+import FileUploader from '../../../components/common/FileUploader'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import {
@@ -291,11 +292,13 @@ export default function InsuranceClaimCompanyDetailPage() {
                     <p className="insurance-claim-admin-page__hint">
                       여러 PDF를 선택하면 순서대로 병합됩니다. 좌표는 병합된 PDF 기준 page index(0부터)로 설정합니다.
                     </p>
-                    <FormInput
-                      type="file"
+                    <FileUploader
                       accept="application/pdf,.pdf"
                       multiple
-                      onChange={(e) => setUploadFiles(e.target.files ? Array.from(e.target.files) : [])}
+                      onFiles={setUploadFiles}
+                      selectedNames={uploadFiles.map((file) => file.name)}
+                      primaryHint="파일을 드래그하거나 클릭하여 업로드"
+                      hintLines={['PDF']}
                     />
                     {uploadError ? (
                       <p className="insurance-claim-admin-page__error" role="alert">

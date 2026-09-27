@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useConfirmDialog } from '../../../components/dialog'
-import { FormButton, FormInput } from '../../../components/form'
+import { HiddenFileInput } from '../../../components/common/HiddenFileInput'
+import { FormButton } from '../../../components/form'
 
 import type { CustomerExcelPrepareResult, CustomerUploadBatchResult } from '../utils/customerExcelUpload'
 import {
@@ -142,9 +143,9 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
       </p>
 
       <div className="customers-excel-import-panel__row">
-        <FormInput
+        {/* 미리보기 버튼 옆의 「파일 선택」이 트리거다. 드롭존은 이 한 줄을 밀어 낸다. */}
+        <HiddenFileInput
           ref={fileInputRef}
-          type="file"
           className="customers-excel-import-panel__file-input"
           accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           onChange={(e) => {

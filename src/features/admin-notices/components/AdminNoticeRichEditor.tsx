@@ -7,6 +7,7 @@ import Underline from '@tiptap/extension-underline'
 import StarterKit from '@tiptap/starter-kit'
 import { EditorContent, useEditor, type Editor } from '@tiptap/react'
 import { useEffect, useRef, type ReactNode } from 'react'
+import { HiddenFileInput } from '../../../components/common/HiddenFileInput'
 import { NoticeLinkPreview } from '../extensions/NoticeLinkPreviewExtension'
 import { ResizableImage } from '../extensions/ResizableImageExtension'
 import { insertNoticeLinkPreview, isStandaloneUrl, applyNoticeAlign, isNoticeAlignActive } from '../utils/adminNoticeEditorUtils'
@@ -366,11 +367,10 @@ export function AdminNoticeRichEditor({
 
       <EditorContent editor={editor} className="admin-notice-content admin-notices-rich-editor__content" />
 
-      <input
+      {/* 툴바 「이미지」 버튼이 연다. 편집기 안에 드롭존을 두면 본문 영역이 줄어든다. */}
+      <HiddenFileInput
         ref={fileInputRef}
-        type="file"
         accept="image/jpeg,image/png,image/webp,image/gif"
-        hidden
         disabled={disabled}
         onChange={(event) => {
           const file = event.target.files?.[0] ?? null

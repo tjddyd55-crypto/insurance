@@ -1,3 +1,4 @@
+import FileUploader from '../../../components/common/FileUploader'
 import { FormButton, FormInput, FormTextarea } from '../../../components/form'
 import { type FormEvent, useEffect, useState } from 'react'
 import Modal from '../../../components/ui/Modal'
@@ -148,16 +149,17 @@ export function TeamPostFormModal({
           공지로 등록 {canSetNotice ? null : <span className="text-xs text-[var(--text-secondary)]">(팀장만)</span>}
         </label>
         {mode === 'create' ? (
-          <label className="block text-sm text-[var(--text-secondary)]">
+          <div className="block text-sm text-[var(--text-secondary)]">
             첨부 (이미지·PDF, 최대 10개)
-            <FormInput
-              type="file"
-              className="mt-1 w-full text-sm"
+            <FileUploader
               accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
               multiple
-              onChange={(ev) => setFiles(Array.from(ev.target.files ?? []))}
+              onFiles={setFiles}
+              selectedNames={files.map((file) => file.name)}
+              primaryHint="파일을 드래그하거나 클릭하여 업로드"
+              hintLines={['JPG · PNG · WEBP · GIF · PDF, 최대 10개']}
             />
-          </label>
+          </div>
         ) : (
           <p className="text-xs text-[var(--text-secondary)]">첨부 파일은 수정 화면에서 변경할 수 없습니다.</p>
         )}

@@ -1,3 +1,4 @@
+import FileUploader from '../../../../components/common/FileUploader'
 import { FormButton, FormInput, FormSelect } from '../../../../components/form'
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
@@ -350,14 +351,17 @@ export function TemplateEditorPage() {
 
             <fieldset className="consent-admin__fieldset">
               <legend>PDF</legend>
-              <label>
+              <div>
                 파일 {isEdit ? '(교체 시에만 선택)' : '(필수)'}
-                <FormInput
-                  type="file"
+                <FileUploader
                   accept="application/pdf"
-                  onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)}
+                  multiple={false}
+                  onFiles={(files) => setPdfFile(files[0] ?? null)}
+                  selectedNames={pdfFile ? [pdfFile.name] : []}
+                  primaryHint="파일을 드래그하거나 클릭하여 업로드"
+                  hintLines={['PDF']}
                 />
-              </label>
+              </div>
               {isEdit ? (
                 <p className="consent-admin__coord-hint" style={{ margin: 0 }}>
                   현재: {gaLabel(gaId)} / {insurerLabel(insuranceCompanyId)}
