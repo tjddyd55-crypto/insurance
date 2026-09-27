@@ -15,6 +15,9 @@ import { SaveConsultationTitleDialog } from '../SaveConsultationTitleDialog'
 import { diseaseTypeTitle } from '../../domain/diseaseTypeLabels'
 import { useCoverageSimulatorScope } from '../../CoverageSimulatorScope'
 import { buildCoverageTimelineViewModel } from '../../domain/buildCoverageTimelineViewModel'
+import { CoverageScenarioAlternativeView } from '../alternative-view/CoverageScenarioAlternativeView'
+import { CoverageScenarioViewModeSwitcher } from '../alternative-view/CoverageScenarioViewModeSwitcher'
+import { useCoverageScenarioViewMode } from '../../hooks/useCoverageScenarioViewMode'
 import { CoverageScenarioTimeline, type InlineAmountEditTarget } from './CoverageScenarioTimeline'
 import type { InlineAmountField } from './InlineAmountQuickEdit'
 import { isTemplateEditorMode, type TimelineEditorController } from './TimelineEditorController'
@@ -30,6 +33,7 @@ const SCENARIO_BLURB: Record<string, string> = {
 
 function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   const { layoutMode, userKey } = useCoverageSimulatorScope()
+  const { viewMode, setViewMode } = useCoverageScenarioViewMode({ userKey, layoutMode })
   const { confirm, confirmDialog } = useConfirmDialog()
   const { showToast } = useCoverageSimulatorToast()
   const useMobileStickyDock = variant === 'mobile' && layoutMode === 'preview-mobile'
@@ -327,8 +331,9 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
           .join(' ')}
         data-testid="coverage-scenario-editor"
       >
+        <CoverageScenarioViewModeSwitcher viewMode={viewMode} onChange={setViewMode} />
         {!useMobileStickyDock ? <p className="cs-axis-lead">{blurb}</p> : null}
-        {viewModel ? (
+        {viewModel && viewMode === 'default' ? (
         <CoverageScenarioTimeline
           mode="editable"
           viewModel={viewModel}
@@ -346,6 +351,21 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
           onInlineAmountEditChange={handleInlineAmountEditChange}
           onInlineAmountCommit={handleInlineAmountCommit}
         />
+        ) : null}
+        {viewModel && viewMode !== 'default' ? (
+          <CoverageScenarioAlternativeView
+            viewMode={viewMode}
+            viewModel={viewModel}
+            readOnly={false}
+            items={sortedItems}
+            itemMenuMode={useMobileStickyDock ? 'action-sheet' : 'popover'}
+            showGrandTotal={!useMobileStickyDock}
+            onEditItem={openFullAmountEdit}
+            onMoveItem={moveItem}
+            onRemoveItem={requestRemoveCoverageItem}
+            onRemoveTimeMarker={requestRemoveTimeMarker}
+            onAddAfter={openAddSheetForOrder}
+          />
         ) : null}
       </main>
 
