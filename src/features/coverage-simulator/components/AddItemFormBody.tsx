@@ -132,8 +132,14 @@ export const AddItemFormBody = forwardRef<AddItemFormBodyHandle, Props>(function
           </div>
         )}
       </FormSection>
-      <FormSection title="직접 추가">
-        <div className="cs-form-primitive__direct-add">
+      <section className="cs-form-primitive__section cs-custom-item-card" aria-labelledby="cs-custom-item-card-title">
+        <h2 id="cs-custom-item-card-title" className="cs-form-primitive__section-title cs-custom-item-card__title">
+          직접 추가
+        </h2>
+        <div className="cs-form-primitive__field">
+          <label className="cs-form-primitive__label" htmlFor="cs-add-custom-label">
+            항목명
+          </label>
           <FormInput
             id="cs-add-custom-label"
             value={customLabel}
@@ -147,14 +153,21 @@ export const AddItemFormBody = forwardRef<AddItemFormBodyHandle, Props>(function
               }
             }}
           />
-          <FormButton variant="primary" className="cs-form-primitive__direct-add-btn" onClick={submitDirectAdd}>
-            추가
-          </FormButton>
         </div>
-      </FormSection>
-      <FormSection title="카테고리">
-        <CategoryChipPicker compact value={customCategory} onChange={setCustomCategory} />
-      </FormSection>
+        <div className="cs-form-primitive__field">
+          <span className="cs-form-primitive__label" id="cs-add-custom-category-label">
+            카테고리
+          </span>
+          <CategoryChipPicker compact value={customCategory} onChange={setCustomCategory} />
+        </div>
+        <FormButton
+          variant="primary"
+          className="cs-form-primitive__direct-add-btn cs-custom-item-card__submit"
+          onClick={submitDirectAdd}
+        >
+          추가
+        </FormButton>
+      </section>
       <FormSection title="시간 구간">
         <div
           className="coverage-simulator-catalog-grid coverage-simulator-catalog-grid--time coverage-simulator-option-grid"

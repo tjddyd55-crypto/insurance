@@ -1582,10 +1582,10 @@ html.coverage-simulator-overlay-scroll-lock .cs-axis-main {
 }
 
 .cs-customer-picker-sheet__row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(88px, 0.9fr) minmax(96px, 1.05fr);
   width: 100%;
   align-items: center;
-  justify-content: space-between;
   gap: var(--cs-space-2);
   padding: var(--cs-space-3) var(--cs-space-2);
   border: none;
@@ -1597,12 +1597,25 @@ html.coverage-simulator-overlay-scroll-lock .cs-axis-main {
 }
 
 .cs-customer-picker-sheet__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-weight: 700;
 }
 
+.cs-customer-picker-sheet__birth,
 .cs-customer-picker-sheet__phone {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: var(--cs-font-caption);
   color: var(--cs-color-text-muted);
+}
+
+.cs-customer-picker-sheet__phone {
+  text-align: right;
 }
 
 .cs-customer-picker-sheet__empty {

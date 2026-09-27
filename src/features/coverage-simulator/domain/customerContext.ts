@@ -8,6 +8,8 @@ export type CoverageSimulatorCustomerListItem = {
   id: string
   name: string
   phone?: string
+  /** customers.birth_date → API `birthDate` (YYYY-MM-DD). 없으면 생략 */
+  birthDate?: string
 }
 
 export function emptyCustomerDraft(): ConsultationCustomerDraft {
