@@ -46,10 +46,6 @@
   padding-bottom: calc(var(--cs-mobile-dock-height) + var(--cs-space-4));
 }
 
-.coverage-simulator-root--mobile-preview {
-  --cs-axis-event-badge-col-width: 100px;
-}
-
 .coverage-simulator-root--mobile-preview .cs-mobile-dock {
   position: fixed;
   left: 0;
@@ -345,8 +341,8 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  flex: 0 0 var(--cs-axis-event-badge-col-width);
-  width: var(--cs-axis-event-badge-col-width);
+  flex: 0 0 100px;
+  width: 100px;
   z-index: 2;
 }
 
@@ -365,7 +361,7 @@
   z-index: 3;
   margin: 0;
   transform: translate(-50%, -50%);
-  max-width: calc(100% - var(--cs-axis-event-badge-col-width) - var(--cs-axis-event-actions-col-width) - 16px);
+  max-width: calc(100% - 100px - 100px - 16px);
   pointer-events: none;
   text-align: center;
 }
