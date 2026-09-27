@@ -12,26 +12,44 @@ export function CustomerPickerSheet({ open, onClose }: Props) {
   const { searchProvider, setCustomer } = useCoverageSimulatorCustomer()
   const [query, setQuery] = useState('')
   const [rows, setRows] = useState<CoverageSimulatorCustomerListItem[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     if (!open) return
     let cancelled = false
-    void searchProvider.searchCustomers(query).then((result) => {
-      if (!cancelled) setRows(result)
-    })
+    const handle = window.setTimeout(() => {
+      setLoading(true)
+      setError('')
+      void searchProvider
+        .searchCustomers(query)
+        .then((result) => {
+          if (cancelled) return
+          setRows(result)
+          setLoading(false)
+        })
+        .catch(() => {
+          if (cancelled) return
+          setRows([])
+          setError('고객 목록을 불러오지 못했습니다.')
+          setLoading(false)
+        })
+    }, 200)
     return () => {
       cancelled = true
+      window.clearTimeout(handle)
     }
   }, [open, query, searchProvider])
 
-  useEffect(() => {
-    if (!open) setQuery('')
-  }, [open])
+  const closePicker = () => {
+    setQuery('')
+    onClose()
+  }
 
   if (!open) return null
 
   return (
-    <div className="coverage-simulator-sheet-backdrop" role="presentation" onClick={onClose}>
+    <div className="coverage-simulator-sheet-backdrop" role="presentation" onClick={closePicker}>
       <div
         className="coverage-simulator-sheet cs-customer-picker-sheet"
         role="dialog"
@@ -40,7 +58,7 @@ export function CustomerPickerSheet({ open, onClose }: Props) {
       >
         <div className="coverage-simulator-sheet-header">
           <h2 className="coverage-simulator-sheet__title">고객 선택</h2>
-          <button type="button" className="coverage-simulator-sheet-close" onClick={onClose} aria-label="닫기">
+          <button type="button" className="coverage-simulator-sheet-close" onClick={closePicker} aria-label="닫기">
             ×
           </button>
         </div>
@@ -54,6 +72,8 @@ export function CustomerPickerSheet({ open, onClose }: Props) {
             autoFocus
           />
           <ul className="cs-customer-picker-sheet__list">
+            {loading ? <li className="cs-customer-picker-sheet__empty">고객을 불러오는 중…</li> : null}
+            {error ? <li className="cs-customer-picker-sheet__empty">{error}</li> : null}
             {rows.map((row) => (
               <li key={row.id}>
                 <button
@@ -69,8 +89,10 @@ export function CustomerPickerSheet({ open, onClose }: Props) {
                 </button>
               </li>
             ))}
-            {rows.length === 0 ? (
-              <li className="cs-customer-picker-sheet__empty">검색 결과가 없습니다.</li>
+            {!loading && !error && rows.length === 0 ? (
+              <li className="cs-customer-picker-sheet__empty">
+                {query.trim() ? '검색 결과가 없습니다.' : '등록된 고객이 없습니다.'}
+              </li>
             ) : null}
           </ul>
         </div>

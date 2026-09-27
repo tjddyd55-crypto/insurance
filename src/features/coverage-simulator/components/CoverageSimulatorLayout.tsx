@@ -16,16 +16,17 @@ export function CoverageSimulatorLayout({
   const { isPublicPreview, layoutMode } = useCoverageSimulatorScope()
   const useMobilePreviewChrome = layoutMode === 'preview-mobile' || mobileTimelineChrome
   const useCrmEditorChrome = layoutMode === 'crm' && mobileTimelineChrome
+  const embeddedInWorkspace = layoutMode === 'crm' && !isPublicPreview
 
   useEffect(() => {
-    if (isPublicPreview) {
+    if (isPublicPreview || embeddedInWorkspace) {
       return undefined
     }
     document.body.classList.add('coverage-simulator-immersive')
     return () => {
       document.body.classList.remove('coverage-simulator-immersive')
     }
-  }, [isPublicPreview])
+  }, [embeddedInWorkspace, isPublicPreview])
 
   return (
     <div
@@ -34,6 +35,7 @@ export function CoverageSimulatorLayout({
         layoutMode === 'preview-pc' ? 'coverage-simulator-root--pc-preview' : '',
         useMobilePreviewChrome ? 'coverage-simulator-root--mobile-preview' : '',
         useCrmEditorChrome ? 'coverage-simulator-root--crm-editor' : '',
+        embeddedInWorkspace ? 'coverage-simulator-root--crm' : '',
       ]
         .filter(Boolean)
         .join(' ')}

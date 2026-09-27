@@ -163,7 +163,7 @@ async function printRootToJsPdf(root: HTMLElement): Promise<jsPDF> {
     scrollY: 0,
     onclone: (_doc, clonedRoot) => {
       if (clonedRoot instanceof HTMLElement) {
-        applyCoveragePdfCaptureCloneFixes(clonedRoot)
+        applyCoveragePdfCaptureCloneFixes(clonedRoot, { rasterShift: true })
       }
     },
   })
@@ -218,6 +218,19 @@ export async function buildCoveragePdfBlobFromPrintRoot(root: HTMLElement): Prom
   const blob = pdf.output('blob') as Blob
   if (blob.type === 'application/pdf') return blob
   return new Blob([blob], { type: 'application/pdf' })
+}
+
+/** 브라우저에서 생성한 PDF를 파일로 저장한다. 인증·저장소 업로드가 필요 없다. */
+export function downloadCoveragePdfBlob(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = fileName
+  anchor.rel = 'noopener'
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1500)
 }
 
 export function printCoverageDocument(): void {

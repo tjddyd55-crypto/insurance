@@ -7,6 +7,8 @@ import {
   type ReactNode,
 } from 'react'
 
+import { useAuth } from '../../auth/AuthProvider'
+import { createCrmCustomerSearchProvider } from '../customer/crmCustomerSearch'
 import { createMockCustomerSearchProvider } from '../customer/customerSearchProvider'
 import type { CoverageSimulatorCustomerSearchProvider } from '../customer/customerSearchProvider'
 import {
@@ -59,13 +61,17 @@ export function CoverageSimulatorCustomerProvider({
   children: ReactNode
   searchProvider?: CoverageSimulatorCustomerSearchProvider
 }) {
-  const { userKey } = useCoverageSimulatorScope()
+  const { userKey, layoutMode, isPublicPreview } = useCoverageSimulatorScope()
+  const { token } = useAuth()
   const [draft, setDraft] = useState<ConsultationCustomerDraft>(() => readSessionCustomerDraft(userKey))
 
-  const provider = useMemo(
-    () => searchProvider ?? createMockCustomerSearchProvider(),
-    [searchProvider],
-  )
+  const provider = useMemo(() => {
+    if (searchProvider) return searchProvider
+    if (layoutMode === 'crm' && !isPublicPreview) {
+      return createCrmCustomerSearchProvider(() => token)
+    }
+    return createMockCustomerSearchProvider()
+  }, [isPublicPreview, layoutMode, searchProvider, token])
 
   const setCustomer = useCallback(
     (item: CoverageSimulatorCustomerListItem | null) => {
