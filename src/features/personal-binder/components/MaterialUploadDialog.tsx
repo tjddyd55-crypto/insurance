@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getDocument } from 'pdfjs-dist'
 
+import FileUploader from '../../../components/common/FileUploader'
 import { BaseDialog } from '../../../components/dialog/BaseDialog'
 import FormButton from '../../../components/form/FormButton'
 import FormInput from '../../../components/form/FormInput'
@@ -97,23 +98,15 @@ export function MaterialUploadDialog({
 
   if (!open) return null
 
-  const chooseFile = (next: File | null) => {
+  const validatePdfFile = (next: File): string | null => {
+    const isPdf = next.type === 'application/pdf' || next.name.toLowerCase().endsWith('.pdf')
+    if (!isPdf) return 'PDF 파일만 업로드할 수 있습니다.'
+    if (next.size < 1 || next.size > MAX_PDF_BYTES) return 'PDF 파일은 25MB 이하여야 합니다.'
+    return null
+  }
+
+  const acceptPdfFile = (next: File) => {
     setError('')
-    if (!next) {
-      setFile(null)
-      return
-    }
-    if (
-      next.type !== 'application/pdf' ||
-      !next.name.toLowerCase().endsWith('.pdf')
-    ) {
-      setError('PDF 파일만 업로드할 수 있습니다.')
-      return
-    }
-    if (next.size < 1 || next.size > MAX_PDF_BYTES) {
-      setError('PDF 파일은 25MB 이하여야 합니다.')
-      return
-    }
     setFile(next)
     setTitle(next.name.replace(/\.pdf$/i, ''))
   }
@@ -193,22 +186,25 @@ export function MaterialUploadDialog({
       ariaLabel="PDF 자료 업로드"
     >
       <h2 className="personal-binder-dialog-title">PDF 자료 업로드</h2>
-      <label
-        className="personal-binder-upload-drop"
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={(event) => {
-          event.preventDefault()
-          chooseFile(event.dataTransfer.files?.[0] ?? null)
-        }}
-      >
-        <span>{file ? file.name : 'PDF를 선택하거나 여기에 놓으세요'}</span>
-        <FormInput
-          type="file"
+      <div className="personal-binder-upload-slot">
+        <FileUploader
           accept="application/pdf,.pdf"
+          multiple={false}
           disabled={uploading}
-          onChange={(event) => chooseFile(event.target.files?.[0] ?? null)}
+          validateFile={validatePdfFile}
+          onFiles={(files) => {
+            const next = files[0]
+            if (next) acceptPdfFile(next)
+          }}
+          onInvalidBatch={(failures) => {
+            setFile(null)
+            setError(failures[0]?.message ?? 'PDF 파일만 업로드할 수 있습니다.')
+          }}
+          statusText={uploading ? `업로드 중… ${progress}%` : undefined}
+          primaryHint={file ? file.name : '파일을 드래그하거나 클릭하여 업로드'}
+          hintLines={['PDF, 파일당 최대 25MB']}
         />
-      </label>
+      </div>
       <FormInput
         value={title}
         disabled={uploading}
