@@ -892,6 +892,10 @@ html.coverage-simulator-overlay-scroll-lock .cs-axis-main {
   max-width: 100%;
 }
 
+.coverage-simulator-root--crm-editor.coverage-simulator-root--mobile-preview .coverage-simulator-shell {
+  max-width: var(--cs-layout-max);
+}
+
 .coverage-simulator-root--mobile-preview .coverage-simulator-sheet-backdrop {
   align-items: end;
   padding: 0;
