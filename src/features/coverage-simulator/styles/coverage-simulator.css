@@ -74,6 +74,10 @@ body.coverage-simulator-immersive .pc-workspace-layout > main {
   border-bottom: 1px solid var(--cs-color-border);
 }
 
+.coverage-simulator-appbar--with-share {
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+}
+
 .coverage-simulator-appbar--compact {
   min-height: 46px;
   padding: 6px var(--cs-space-3);

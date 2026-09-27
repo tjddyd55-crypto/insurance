@@ -260,20 +260,48 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
           resetLabel={isTemplate ? '비우기' : '초기화'}
         />
       ) : variant === 'mobile' ? (
-        <header className="cs-axis-header coverage-simulator-appbar">
+        <header
+          className={[
+            'cs-axis-header',
+            'coverage-simulator-appbar',
+            shareFlow.showShareButton ? 'coverage-simulator-appbar--with-share' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        >
           <FormButton variant="action" className="coverage-simulator-icon-btn" onClick={() => navigate(backTo)}>
             ←
           </FormButton>
           <div className="cs-axis-header__titles">
             <div className="coverage-simulator-appbar__title">{scenario.title}</div>
           </div>
-          <FormButton
-            variant="action"
-            className="coverage-simulator-text-btn"
-            onClick={isTemplate ? () => persist(scenario) : handleSave}
-          >
-            {isSaving ? '저장 중…' : '저장'}
-          </FormButton>
+          {shareFlow.showShareButton ? (
+            <div className="cs-mobile-editor-header__actions">
+              <FormButton
+                variant="action"
+                className="coverage-simulator-text-btn"
+                onClick={handleSave}
+              >
+                {isSaving ? '저장 중…' : '저장'}
+              </FormButton>
+              <button
+                type="button"
+                className="cs-mobile-editor-header__action cs-mobile-editor-header__action--muted"
+                onClick={() => void shareFlow.openShareDialog()}
+                disabled={shareFlow.sharing}
+              >
+                공유
+              </button>
+            </div>
+          ) : (
+            <FormButton
+              variant="action"
+              className="coverage-simulator-text-btn"
+              onClick={isTemplate ? () => persist(scenario) : handleSave}
+            >
+              {isSaving ? '저장 중…' : '저장'}
+            </FormButton>
+          )}
         </header>
       ) : (
         <header className="cs-axis-header cs-axis-header--pc coverage-simulator-pc-toolbar">
