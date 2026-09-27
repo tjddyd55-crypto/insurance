@@ -1,9 +1,10 @@
 /**
- * 전자서명 발송 첨부 전용 file input.
- * FormInput 래퍼는 type=file 에서 ref/onChange·표시 숨김 조합 이슈가 있어 네이티브 input만 사용한다.
- * eslint.config.js ignores 에서 no-restricted-syntax 예외 처리.
+ * 전자서명 발송 첨부 파일 선택.
+ * 화면의 「+ 첨부파일 추가」 버튼이 이 입력을 연다.
+ * 드롭존으로 바꾸면 그 버튼과 첨부 목록 흐름이 달라지므로 HiddenFileInput만 쓴다.
  */
 import { forwardRef, type ChangeEventHandler } from 'react'
+import { HiddenFileInput } from '../../../components/common/HiddenFileInput'
 
 type Props = {
   accept?: string
@@ -17,5 +18,14 @@ export const SendAttachmentFileInput = forwardRef<HTMLInputElement, Props>(funct
   { accept, multiple, disabled, className, onChange },
   ref,
 ) {
-  return <input ref={ref} type="file" accept={accept} multiple={multiple} disabled={disabled} className={className} onChange={onChange} />
+  return (
+    <HiddenFileInput
+      ref={ref}
+      accept={accept}
+      multiple={multiple}
+      disabled={disabled}
+      className={className}
+      onChange={onChange}
+    />
+  )
 })

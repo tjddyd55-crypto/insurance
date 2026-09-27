@@ -15923,6 +15923,19 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   font-weight: 500;
 }
 
+/* 버튼이 여는 파일 선택. display:none 은 모바일 onChange를 깨므로 클립으로 숨긴다. */
+.common-hidden-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .storage-toolbar {
   display: flex;
   flex-direction: column;

@@ -1,6 +1,7 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { EmptyState, LoadingState, StatusMessage } from '../../../components/feedback'
+import FileUploader from '../../../components/common/FileUploader'
 import { FieldWrapper, FormButton, FormInput, FormSelect } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import {
@@ -34,6 +35,7 @@ export default function GaCompanyManagePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [sampleBusy, setSampleBusy] = useState(false)
+  const [sampleFile, setSampleFile] = useState<File | null>(null)
   const [status, setStatus] = useState('')
 
   const stateMeta = location.state as { name?: string; code?: string } | undefined
@@ -119,8 +121,7 @@ export default function GaCompanyManagePage() {
     if (!token?.trim()) {
       return
     }
-    const fd = new FormData(e.currentTarget)
-    const file = fd.get('sample') as File | null
+    const file = sampleFile
     if (!file || !file.size) {
       setStatus('파일을 선택해 주세요.')
       return
@@ -131,7 +132,7 @@ export default function GaCompanyManagePage() {
       const r = await uploadGaCustomerExcelSample(token, gaId, file)
       setSettings(r.settings)
       setStatus('샘플 분석이 반영되었습니다. 조회·표시 설정 후 저장해 주세요.')
-      e.currentTarget.reset()
+      setSampleFile(null)
     } catch (err) {
       setStatus(err instanceof Error ? err.message : '샘플 업로드에 실패했습니다.')
     } finally {
@@ -286,7 +287,14 @@ export default function GaCompanyManagePage() {
                   <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-2">3. 샘플 엑셀 업로드 (설정용)</h2>
                   <form onSubmit={(ev) => void onSample(ev)} className="flex flex-wrap items-end gap-2">
                     <FieldWrapper label="파일 (.xlsx / .xls)">
-                      <FormInput type="file" name="sample" accept=".xlsx,.xls" className="block mt-1 text-sm" />
+                      <FileUploader
+                        accept=".xlsx,.xls"
+                        multiple={false}
+                        onFiles={(files) => setSampleFile(files[0] ?? null)}
+                        selectedNames={sampleFile ? [sampleFile.name] : []}
+                        primaryHint="파일을 드래그하거나 클릭하여 업로드"
+                        hintLines={['XLS · XLSX']}
+                      />
                     </FieldWrapper>
                     <FormButton htmlType="submit" variant="secondary" disabled={sampleBusy}>
                       업로드 후 분석

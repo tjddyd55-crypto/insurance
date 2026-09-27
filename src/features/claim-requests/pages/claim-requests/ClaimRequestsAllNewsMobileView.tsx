@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import FileUploader from '../../../../components/common/FileUploader'
 import RichTextContent from '../../../../components/rich-text/RichTextContent'
 import RichTextEditor from '../../../../components/rich-text/RichTextEditor'
 import { stripRichText } from '../../../../components/rich-text/richText'
@@ -107,22 +108,17 @@ export default function ClaimRequestsAllNewsMobileView({
 
         <div className="claim-requests-all-news-mobile__upload-field">
           <span className="claim-requests-all-news-mobile__upload-label">이미지 (권장 9:16)</span>
-          <label className="claim-requests-all-news-mobile__dropzone">
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              multiple
-              disabled={actionBusy}
-              onChange={(event) => {
-                if (event.currentTarget.files?.length) {
-                  onFilesSelected(event.currentTarget.files)
-                }
-                event.currentTarget.value = ''
-              }}
-            />
-            <span>JPG · PNG · WEBP · GIF 이미지를 선택해 주세요.</span>
-            <small>첫 번째 이미지는 고객앱 홈 슬라이드 대표 이미지로 사용됩니다. 각 파일 최대 10MB</small>
-          </label>
+          <FileUploader
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            multiple
+            disabled={actionBusy}
+            onFiles={onFilesSelected}
+            primaryHint="파일을 드래그하거나 클릭하여 업로드"
+            hintLines={[
+              'JPG · PNG · WEBP · GIF 이미지를 선택해 주세요.',
+              '첫 번째 이미지는 고객앱 홈 슬라이드 대표 이미지로 사용됩니다. 각 파일 최대 10MB',
+            ]}
+          />
           {attachments.length > 0 ? (
             <div className="claim-requests-all-news-mobile__attachment-list">
               {attachments.map((item) => (

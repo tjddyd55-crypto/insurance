@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import FileUploader from '../../../components/common/FileUploader'
 import { FieldWrapper, FormButton, FormInput, FormSelect, type FormSelectOption } from '../../../components/form'
 import { Modal } from '../../../components/ui'
 import { StatusMessage } from '../../../components/feedback'
@@ -442,10 +443,13 @@ export default function AdminInsurerSitesPage() {
                     label="로고 업로드"
                     helperText="저장 시 서버에 저장되며 DB의 logo_path가 갱신됩니다. 파일을 고르면 아래에 바로 미리보기됩니다."
                   >
-                    <FormInput
-                      type="file"
+                    <FileUploader
                       accept="image/png,image/jpeg,image/webp"
-                      onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
+                      multiple={false}
+                      onFiles={(files) => setLogoFile(files[0] ?? null)}
+                      selectedNames={logoFile ? [logoFile.name] : []}
+                      primaryHint="파일을 드래그하거나 클릭하여 업로드"
+                      hintLines={['PNG · JPEG · WEBP']}
                     />
                   </FieldWrapper>
                   <div>
