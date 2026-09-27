@@ -13,6 +13,7 @@ import {
 } from '../api/coverageSimulatorShareApi'
 import { CoverageSimulatorScopeProvider, previewScopeMobile } from '../CoverageSimulatorScope'
 import { buildCoverageTimelineViewModel } from '../domain/buildCoverageTimelineViewModel'
+import { formatCoverageScenarioHeading } from '../domain/diseaseTypeLabels'
 import { resolveCustomerNameSnapshot } from '../domain/normalizeConsultation'
 import type { CoverageScenario } from '../domain/types'
 import { buildCoveragePdfFileName } from '../pdf/coveragePdfFileName'
@@ -131,6 +132,7 @@ function CoverageSharePublicPageBody() {
   const shareScenario = payload.scenario as CoverageScenario
   const customerName = resolveCustomerNameSnapshot(shareScenario)
   const wroteLabel = formatConsultationDate(shareScenario.consultationDate)
+  const scenarioHeading = formatCoverageScenarioHeading(shareScenario.diseaseType, shareScenario.title)
   const downloadStoredPdf = () => {
     window.location.assign(publicCoverageSharePdfDownloadUrl(token))
   }
@@ -163,8 +165,13 @@ function CoverageSharePublicPageBody() {
     <CoverageSimulatorLayout shellClassName="cs-share-public-shell">
       <header className="cs-share-public__header">
         <h1 className="cs-share-public__title">보장 시뮬레이션</h1>
-        {customerName ? <p className="cs-share-public__customer">{customerName} 고객님</p> : null}
-        {wroteLabel ? <p className="cs-share-public__date">작성일 {wroteLabel}</p> : null}
+        <p className="cs-share-public__scenario">{scenarioHeading}</p>
+        {customerName || wroteLabel ? (
+          <p className="cs-share-public__meta">
+            {customerName ? <span>고객: {customerName}</span> : null}
+            {wroteLabel ? <span>작성일 {wroteLabel}</span> : null}
+          </p>
+        ) : null}
         <FormButton
           variant="primary"
           className="coverage-simulator-primary-btn cs-share-public__pdf-btn"

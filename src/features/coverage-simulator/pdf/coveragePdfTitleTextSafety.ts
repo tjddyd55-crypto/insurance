@@ -1,7 +1,10 @@
 const TITLE_LABEL_SELECTOR = '.cs-axis-event__title-axis .cs-axis-event__label'
 const BADGE_LABEL_SELECTOR = '.coverage-simulator-badge__label'
 
-/** html2canvas scale 2에서 배지 11px / 제목 14px 라인박스를 맞춘 캡처 전용 값. */
+/**
+ * html2canvas scale 2에서 배지 11px / 항목명 14px 라인박스를 맞춘 캡처 전용 값.
+ * 문서 헤더(시나리오·고객/작성일)에는 적용하지 않는다. 줄 높이가 달라 글자가 잘린다.
+ */
 export const COVERAGE_PDF_BADGE_RASTER_SHIFT_PX = '-6px'
 export const COVERAGE_PDF_TITLE_RASTER_SHIFT_PX = '-8px'
 

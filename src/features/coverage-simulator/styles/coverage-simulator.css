@@ -1589,16 +1589,23 @@ html.coverage-simulator-overlay-scroll-lock .cs-axis-main {
   color: var(--cs-color-text);
 }
 
-.cs-share-public__customer {
-  margin: var(--cs-space-2) 0 0;
-  font-size: var(--cs-font-body);
-  color: var(--cs-color-text);
+.cs-share-public-shell .cs-share-public__scenario,
+.cs-share-public-shell .cs-share-public__meta {
+  margin: 6px 0 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--cs-color-text, #111827);
 }
 
-.cs-share-public__date {
-  margin: var(--cs-space-1) 0 var(--cs-space-3);
-  font-size: var(--cs-font-caption);
-  color: var(--cs-color-text-muted);
+.cs-share-public-shell .cs-share-public__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.cs-share-public-shell .cs-share-public__header > :is(.cs-share-public__scenario, .cs-share-public__meta):last-of-type {
+  margin-bottom: var(--cs-space-3);
 }
 
 .cs-share-public__pdf-btn {

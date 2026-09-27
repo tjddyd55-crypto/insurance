@@ -78,10 +78,12 @@
   line-height: 1.25;
 }
 
-.cs-print-doc-header__subtitle {
-  margin: 4px 0 0;
-  font-size: 0.8125rem;
-  font-weight: 600;
+.cs-print-doc-header__subtitle,
+.cs-print-doc-header__meta {
+  margin: 6px 0 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.5;
   color: var(--cs-print-text);
 }
 
@@ -89,9 +91,6 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px 16px;
-  margin-top: 6px;
-  font-size: 0.6875rem;
-  color: var(--cs-print-muted);
 }
 
 .cs-print-col-header {
@@ -531,12 +530,22 @@
 
 /* --- Print-only Korean text safety (does not affect screen / share viewer) --- */
 
-.coverage-simulator-print-root--korean-text-safe .cs-print-doc-header__title,
-.coverage-simulator-print-root--korean-text-safe .cs-print-doc-header__subtitle,
-.coverage-simulator-print-root--korean-text-safe .cs-print-doc-header__meta {
+.coverage-simulator-print-root--korean-text-safe .cs-print-doc-header__title {
   overflow: visible;
   line-height: 1.4;
   padding-block: 1px;
+}
+
+/*
+ * 시나리오 줄과 고객/작성일 줄은 같은 14px 강조색이다.
+ * COVERAGE_PDF_TITLE_RASTER_SHIFT_PX(-8px)는 항목명 22px 라인박스용이라
+ * 헤더에 쓰면 글자가 제목 쪽으로 올라가 잘린다. 여기는 여백만 둔다.
+ */
+.coverage-simulator-print-root--korean-text-safe .cs-print-doc-header__subtitle,
+.coverage-simulator-print-root--korean-text-safe .cs-print-doc-header__meta {
+  overflow: visible;
+  line-height: 1.5;
+  padding-block: 3px;
 }
 
 /*
