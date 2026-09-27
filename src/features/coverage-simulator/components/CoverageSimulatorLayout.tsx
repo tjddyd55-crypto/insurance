@@ -6,11 +6,16 @@ import '../styles/coverage-simulator.css'
 export function CoverageSimulatorLayout({
   children,
   shellClassName = '',
+  mobileTimelineChrome = false,
 }: {
   children: React.ReactNode
   shellClassName?: string
+  /** CRM 편집기가 preview-mobile과 같은 타임라인 크롬을 쓸 때 */
+  mobileTimelineChrome?: boolean
 }) {
   const { isPublicPreview, layoutMode } = useCoverageSimulatorScope()
+  const useMobilePreviewChrome = layoutMode === 'preview-mobile' || mobileTimelineChrome
+  const useCrmEditorChrome = layoutMode === 'crm' && mobileTimelineChrome
 
   useEffect(() => {
     if (isPublicPreview) {
@@ -27,7 +32,8 @@ export function CoverageSimulatorLayout({
       className={[
         'coverage-simulator-root',
         layoutMode === 'preview-pc' ? 'coverage-simulator-root--pc-preview' : '',
-        layoutMode === 'preview-mobile' ? 'coverage-simulator-root--mobile-preview' : '',
+        useMobilePreviewChrome ? 'coverage-simulator-root--mobile-preview' : '',
+        useCrmEditorChrome ? 'coverage-simulator-root--crm-editor' : '',
       ]
         .filter(Boolean)
         .join(' ')}

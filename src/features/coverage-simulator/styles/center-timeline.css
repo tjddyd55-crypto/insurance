@@ -46,6 +46,10 @@
   padding-bottom: calc(var(--cs-mobile-dock-height) + var(--cs-space-4));
 }
 
+.coverage-simulator-root--mobile-preview {
+  --cs-axis-event-badge-col-width: 100px;
+}
+
 .coverage-simulator-root--mobile-preview .cs-mobile-dock {
   position: fixed;
   left: 0;
@@ -59,6 +63,24 @@
   box-shadow: 0 -6px 28px rgba(15, 23, 42, 0.12);
   padding-bottom: env(safe-area-inset-bottom, 0px);
   backdrop-filter: blur(10px);
+}
+
+/*
+ * CRM 편집기는 앱 작업공간 본문 너비를 유지한다.
+ * 합계 독은 420px 폰 프레임이 아니라 편집기 셸에 붙어 스크롤 영역 하단에 남는다.
+ */
+.coverage-simulator-root--crm-editor.coverage-simulator-root--mobile-preview .cs-mobile-dock {
+  position: sticky;
+  left: auto;
+  right: auto;
+  bottom: 0;
+  width: 100%;
+  max-width: none;
+  margin-top: auto;
+}
+
+.coverage-simulator-root--crm-editor .cs-axis-main--mobile-dock {
+  padding-bottom: var(--cs-space-4);
 }
 
 .cs-mobile-dock--totals-only {
@@ -315,6 +337,8 @@
   justify-content: flex-start;
   min-height: 28px;
   margin-bottom: var(--cs-timeline-title-amount-gap);
+  background: var(--cs-color-surface, #ffffff);
+  z-index: 1;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-event__badge {
@@ -566,8 +590,8 @@
 .coverage-simulator-root--mobile-preview .cs-axis-marker__hline-seg {
   flex: 1;
   min-width: 0;
-  height: 1px;
-  background: var(--cs-period-marker-line);
+  height: 2px;
+  background: #16a34a;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-marker__hline-label {
@@ -588,16 +612,17 @@
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-marker__label {
-  font-size: 0.8125rem;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 900;
   line-height: 1.2;
-  color: var(--cs-period-marker-text);
+  color: #0f172a;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-marker__arrow {
   font-size: 0.6875rem;
   line-height: 1;
-  color: var(--cs-period-marker-arrow);
+  font-weight: 900;
+  color: #0f172a;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-marker__delete {
@@ -634,7 +659,7 @@
   display: inline-block;
   padding: 0;
   background: transparent;
-  font-size: 0.75rem;
+  font-size: 14px;
   font-weight: 600;
   color: var(--cs-color-text-muted);
   letter-spacing: -0.01em;
