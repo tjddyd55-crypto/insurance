@@ -83,16 +83,6 @@ body.coverage-simulator-immersive .pc-workspace-layout > main {
   padding: 6px var(--cs-space-3);
 }
 
-.coverage-simulator-appbar--pdf {
-  grid-template-columns: 40px minmax(0, 1fr) auto;
-}
-
-.coverage-simulator-pdf-download-btn {
-  height: 36px;
-  padding: 0 12px;
-  white-space: nowrap;
-}
-
 .coverage-simulator-toast {
   position: fixed;
   left: 50%;
@@ -1741,15 +1731,23 @@ html.coverage-simulator-overlay-scroll-lock .cs-axis-main {
 
 .coverage-simulator-root.coverage-simulator-root--crm {
   flex: 1 1 auto;
+  width: 100%;
+  align-self: stretch;
   min-height: 0;
   height: auto;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
 }
 
+/*
+ * 셸은 margin: 0 auto 라서 column flex의 교차축에서 내용 너비로 줄어든다.
+ * width 100%로 두면 max-width(880px)까지 블록 시절과 같이 가로를 채운다.
+ */
 .coverage-simulator-root.coverage-simulator-root--crm .coverage-simulator-shell {
   flex: 1 1 auto;
+  width: 100%;
   min-height: 0;
   height: auto;
   max-height: none;
@@ -1768,8 +1766,6 @@ html.coverage-simulator-overlay-scroll-lock .cs-axis-main {
 }
 
 .coverage-simulator-root.coverage-simulator-root--crm .coverage-simulator-pdf-preview-shell {
-  width: 100%;
-  max-width: none;
   height: auto;
   max-height: none;
   min-height: 0;

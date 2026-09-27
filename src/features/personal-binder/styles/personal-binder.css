@@ -158,6 +158,10 @@
   margin-top: 16px;
 }
 
+.personal-binder-upload-slot {
+  margin-bottom: 12px;
+}
+
 .personal-binder-upload-drop {
   display: grid;
   place-items: center;
