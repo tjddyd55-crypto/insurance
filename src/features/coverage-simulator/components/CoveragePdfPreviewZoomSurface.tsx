@@ -15,7 +15,7 @@ import {
 } from '../../../components/news-detail-viewer/useNewsDetailViewerZoomAnchor'
 import { COVERAGE_PDF_CAPTURE_WIDTH_PX } from '../pdf/coveragePdfCapture'
 import {
-  computeFitScale,
+  computePreviewDocumentScale,
   shouldUpdateFitScale,
 } from '../pdf/coveragePdfPreviewZoomMath'
 
@@ -94,7 +94,7 @@ export function CoveragePdfPreviewZoomSurface({ children, documentKey }: Props) 
       }
       const padding = 16
       const available = Math.max(1, viewport.clientWidth - padding)
-      const next = computeFitScale(
+      const next = computePreviewDocumentScale(
         available,
         COVERAGE_PDF_CAPTURE_WIDTH_PX,
       )

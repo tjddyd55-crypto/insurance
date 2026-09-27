@@ -9,7 +9,7 @@ import { CoverageSimulatorToastProvider, useCoverageSimulatorToast } from '../co
 import FormButton from '../../../components/form/FormButton'
 import { buildCoveragePdfFileName } from '../pdf/coveragePdfFileName'
 import { CoverageSimulatorPrintDocument } from '../pdf/CoverageSimulatorPrintDocument'
-import { buildCoveragePdfBlobFromPrintRoot } from '../pdf/generateCoveragePdf'
+import { buildCoveragePdfBlobFromPrintRoot, downloadCoveragePdfBlob } from '../pdf/generateCoveragePdf'
 import { resolveCoverageShareProviderMode } from '../share/coverageShareProviderMode'
 import { createCoverageShareProvider } from '../share/createCoverageShareProvider'
 import { getScenarioById } from '../storage/scenarioRepository'
@@ -44,8 +44,29 @@ function PdfPreviewPageBody() {
     token,
   )
 
+  const readPrintRoot = () =>
+    printSourceRef.current?.querySelector('.coverage-simulator-print-root') as HTMLElement | null
+
+  const downloadPdf = async () => {
+    const printRoot = readPrintRoot()
+    if (!printRoot) {
+      showToast('PDF를 만들지 못했습니다. 다시 시도해 주세요.')
+      return
+    }
+    setBusy(true)
+    try {
+      const pdfBlob = await buildCoveragePdfBlobFromPrintRoot(printRoot)
+      downloadCoveragePdfBlob(pdfBlob, fileName)
+    } catch (error) {
+      console.error('[coverage-pdf] PDF download failed', error)
+      showToast('PDF를 만들지 못했습니다. 다시 시도해 주세요.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const savePdf = async () => {
-    const printRoot = printSourceRef.current?.querySelector('.coverage-simulator-print-root') as HTMLElement | null
+    const printRoot = readPrintRoot()
     if (!printRoot || !provider) {
       showToast('PDF 저장을 위해 로그인이 필요합니다.')
       return
@@ -70,7 +91,7 @@ function PdfPreviewPageBody() {
 
   return (
     <CoverageSimulatorLayout shellClassName="coverage-simulator-pdf-preview-shell">
-      <header className="coverage-simulator-appbar">
+      <header className="coverage-simulator-appbar coverage-simulator-appbar--pdf">
         <FormButton
           variant="action"
           className="coverage-simulator-icon-btn"
@@ -79,9 +100,16 @@ function PdfPreviewPageBody() {
           ←
         </FormButton>
         <div className="coverage-simulator-appbar__title">PDF 미리보기</div>
-        <span />
+        <FormButton
+          variant="primary"
+          className="coverage-simulator-primary-btn coverage-simulator-pdf-download-btn"
+          disabled={busy}
+          onClick={() => void downloadPdf()}
+        >
+          {busy ? '만드는 중…' : 'PDF 다운로드'}
+        </FormButton>
       </header>
-      <main className="coverage-simulator-content coverage-simulator-pdf-preview" style={{ paddingBottom: 96 }}>
+      <main className="coverage-simulator-content coverage-simulator-pdf-preview">
         <CoveragePdfPreviewZoomSurface key={scenario.id} documentKey={scenario.id}>
           <CoverageSimulatorPrintDocument scenario={scenario} />
         </CoveragePdfPreviewZoomSurface>

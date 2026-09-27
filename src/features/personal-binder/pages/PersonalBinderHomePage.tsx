@@ -336,22 +336,25 @@ export default function PersonalBinderHomePage() {
         <h2 className="personal-binder-dialog-title">
           {binderForm?.mode === 'duplicate' ? '바인더 복제' : '새 바인더 만들기'}
         </h2>
-        <FormInput
-          value={binderForm?.title ?? ''}
-          onChange={(event) =>
-            setBinderForm((form) => form ? { ...form, title: event.target.value } : form)
-          }
-          placeholder="바인더 이름"
-          aria-label="바인더 이름"
-        />
-        <FormTextarea
-          value={binderForm?.description ?? ''}
-          onChange={(event) =>
-            setBinderForm((form) => form ? { ...form, description: event.target.value } : form)
-          }
-          placeholder="설명 (선택)"
-          aria-label="바인더 설명"
-        />
+        <div className="personal-binder-dialog-fields">
+          <FormInput
+            value={binderForm?.title ?? ''}
+            onChange={(event) =>
+              setBinderForm((form) => form ? { ...form, title: event.target.value } : form)
+            }
+            placeholder="바인더 이름"
+            aria-label="바인더 이름"
+          />
+          <FormTextarea
+            value={binderForm?.description ?? ''}
+            onChange={(event) =>
+              setBinderForm((form) => form ? { ...form, description: event.target.value } : form)
+            }
+            placeholder="설명 (선택)"
+            aria-label="바인더 설명"
+            rows={4}
+          />
+        </div>
         <div className="personal-binder-dialog-actions">
           <FormButton variant="secondary" onClick={() => setBinderForm(null)}>취소</FormButton>
           <FormButton
