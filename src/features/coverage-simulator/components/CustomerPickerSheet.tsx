@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 
 import '../../../components/dialog/search-picker-anchor.css'
-import { formatCustomerBirthDateDot, formatCustomerPhoneUi } from '../../customers/utils/customerDisplayFormat'
+import { formatCustomerSearchBirthLabel } from '../../customers/components/CustomerRelationSearchResultList'
+import { formatCustomerPhoneUi } from '../../customers/utils/customerDisplayFormat'
 import type { CoverageSimulatorCustomerListItem } from '../domain/customerContext'
 import { useCoverageSimulatorCustomer } from '../context/CoverageSimulatorCustomerContext'
 
@@ -93,7 +94,7 @@ export function CustomerPickerSheet({ open, onClose }: Props) {
                 >
                   <span className="cs-customer-picker-sheet__name">{row.name}</span>
                   <span className="cs-customer-picker-sheet__birth">
-                    {formatCustomerBirthDateDot(row.birthDate) || '-'}
+                    {formatCustomerSearchBirthLabel(row.birthDate, row.ssn)}
                   </span>
                   <span className="cs-customer-picker-sheet__phone">
                     {formatCustomerPhoneUi(row.phone) || '-'}

@@ -7,7 +7,8 @@ import {
 } from './crmCustomerSearch'
 
 function customer(
-  partial: Pick<CustomerRecord, 'id' | 'name' | 'phone'> & Partial<Pick<CustomerRecord, 'birthDate'>>,
+  partial: Pick<CustomerRecord, 'id' | 'name' | 'phone'> &
+    Partial<Pick<CustomerRecord, 'birthDate' | 'ssn'>>,
 ): CustomerRecord {
   return partial as CustomerRecord
 }
@@ -25,6 +26,19 @@ describe('crmCustomerSearch', () => {
     expect(customerRecordToSimulatorListItem(customer({ id: 7, name: '김고객', phone: '  ' }))).toEqual({
       id: '7',
       name: '김고객',
+    })
+  })
+
+  it('keeps ssn from the list response so an empty birthDate can fall back', () => {
+    expect(
+      customerRecordToSimulatorListItem(
+        customer({ id: 8, name: '주민만', phone: '010-2222-3333', birthDate: null, ssn: '840218-1234567' }),
+      ),
+    ).toEqual({
+      id: '8',
+      name: '주민만',
+      phone: '010-2222-3333',
+      ssn: '840218-1234567',
     })
   })
 
