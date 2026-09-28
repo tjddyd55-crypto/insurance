@@ -1,4 +1,4 @@
-import { apiRequest } from '../../lib/apiClient'
+import { ApiError, apiRequest, resolveApiUrl } from '../../lib/apiClient'
 import type {
   PersonalBinder,
   PersonalBinderMaterial,
@@ -83,6 +83,28 @@ export function checkDuplicateBinderMaterial(token: string | null, checksumSha25
       body: JSON.stringify({ checksumSha256 }),
     },
   )
+}
+
+export async function convertBinderImagesToPdf(
+  token: string | null,
+  images: File[],
+): Promise<Blob> {
+  const form = new FormData()
+  images.forEach((image) => form.append('images', image, image.name))
+  const response = await fetch(resolveApiUrl('/api/personal-binders/materials/images-to-pdf'), {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${auth(token)}` },
+    body: form,
+  })
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({})) as { message?: string }
+    throw new ApiError(payload.message || '이미지를 PDF로 변환하지 못했습니다.', response.status)
+  }
+  const blob = await response.blob()
+  if (blob.type !== 'application/pdf' || blob.size < 1) {
+    throw new Error('생성된 PDF가 올바르지 않습니다.')
+  }
+  return blob
 }
 
 export function createPersonalBinderMaterial(

@@ -163,6 +163,113 @@
   max-width: 90%;
 }
 
+.personal-binder-upload-drop small {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.personal-binder-upload-review {
+  display: grid;
+  gap: 8px;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.personal-binder-upload-file {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md, 8px);
+}
+
+.personal-binder-upload-file img,
+.personal-binder-upload-file__pdf {
+  width: 56px;
+  height: 56px;
+  border-radius: 6px;
+  background: var(--bg-soft);
+  object-fit: cover;
+}
+
+.personal-binder-upload-file__pdf {
+  display: grid;
+  place-items: center;
+  color: var(--text-sub);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.personal-binder-upload-file > div:nth-child(2) {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.personal-binder-upload-file strong,
+.personal-binder-upload-file small,
+.personal-binder-upload-file em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.personal-binder-upload-file small {
+  color: var(--text-muted);
+}
+
+.personal-binder-upload-file em {
+  color: var(--danger);
+  font-size: 0.75rem;
+}
+
+.personal-binder-upload-file progress {
+  width: 100%;
+}
+
+.personal-binder-upload-file__order {
+  display: flex;
+  gap: 4px;
+}
+
+.personal-binder-upload-mode {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md, 8px);
+}
+
+.personal-binder-upload-mode label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.personal-binder-upload-mode small {
+  color: var(--text-muted);
+}
+
+.personal-binder-image-preview {
+  max-width: min(96vw, 1200px);
+}
+
+.personal-binder-image-preview__content {
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+}
+
+.personal-binder-image-preview__content img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
 .personal-binder-upload-progress {
   position: relative;
   height: 20px;

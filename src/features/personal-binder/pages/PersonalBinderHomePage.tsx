@@ -26,6 +26,7 @@ import type {
   PersonalBinderSummary,
 } from '../personalBinder.types'
 import { MaterialUploadDialog } from '../components/MaterialUploadDialog'
+import { BinderImagePreviewDialog } from '../components/BinderImagePreviewDialog'
 import '../styles/personal-binder.css'
 
 type BinderFormState = {
@@ -54,6 +55,10 @@ export default function PersonalBinderHomePage() {
   const [materialRename, setMaterialRename] = useState<PersonalBinderMaterial | null>(null)
   const [materialTitle, setMaterialTitle] = useState('')
   const [uploadOpen, setUploadOpen] = useState(false)
+  const [imagePreview, setImagePreview] = useState<{
+    material: PersonalBinderMaterial
+    url: string | null
+  } | null>(null)
   const [saving, setSaving] = useState(false)
 
   const load = useCallback(async (signal?: AbortSignal) => {
@@ -132,7 +137,11 @@ export default function PersonalBinderHomePage() {
   const previewMaterial = async (material: PersonalBinderMaterial) => {
     try {
       const url = await createStorageFilePreviewUrl(token, material.fileId)
-      window.open(url, '_blank', 'noopener,noreferrer')
+      if (material.mimeType.startsWith('image/')) {
+        setImagePreview({ material, url })
+      } else {
+        window.open(url, '_blank', 'noopener,noreferrer')
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '자료를 열지 못했습니다.')
     }
@@ -153,7 +162,7 @@ export default function PersonalBinderHomePage() {
       message:
         material.binderCount && material.binderCount > 0
           ? `이 자료는 ${material.binderCount}개의 바인더에서 사용 중이므로 삭제할 수 없습니다.`
-          : `${material.title} 원본 PDF도 함께 삭제됩니다.`,
+          : `${material.title} 원본 파일도 함께 삭제됩니다.`,
       confirmLabel: material.binderCount ? '확인' : '삭제',
       cancelLabel: '취소',
       tone: material.binderCount ? 'default' : 'danger',
@@ -197,7 +206,7 @@ export default function PersonalBinderHomePage() {
         </div>
         {materialTab ? (
           <FormButton variant="primary" onClick={() => setUploadOpen(true)}>
-            PDF 업로드
+            자료 업로드
           </FormButton>
         ) : (
           <FormButton
@@ -282,7 +291,7 @@ export default function PersonalBinderHomePage() {
       {!loading && materialTab && materials.length === 0 ? (
         <section className="personal-binder-empty">
           <h2>자료 보관함이 비어 있습니다.</h2>
-          <p>PDF를 한 번 업로드하면 여러 바인더에서 재사용할 수 있습니다.</p>
+          <p>PDF와 이미지를 업로드해 상담 자료로 관리할 수 있습니다.</p>
         </section>
       ) : null}
 
@@ -294,7 +303,10 @@ export default function PersonalBinderHomePage() {
                 <h2>{material.title}</h2>
                 <p>{material.originalFileName}</p>
                 <small>
-                  {material.pageCount}페이지 · {formatFileSize(material.fileSize)}
+                  {material.mimeType === 'application/pdf'
+                    ? `${material.pageCount}페이지`
+                    : '이미지'}
+                  {' · '}{formatFileSize(material.fileSize)}
                   {material.createdAt
                     ? ` · ${new Date(material.createdAt).toLocaleDateString('ko-KR')} 업로드`
                     : ''}
@@ -325,6 +337,13 @@ export default function PersonalBinderHomePage() {
         token={token}
         onClose={() => setUploadOpen(false)}
         onUploaded={(material) => setMaterials((rows) => [material, ...rows])}
+      />
+
+      <BinderImagePreviewDialog
+        open={imagePreview != null}
+        title={imagePreview?.material.title ?? ''}
+        url={imagePreview?.url ?? null}
+        onClose={() => setImagePreview(null)}
       />
 
       <BaseDialog

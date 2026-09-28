@@ -1,6 +1,6 @@
 import { FormButton } from '../../../../components/form'
-
-
+import { ScheduleCalendarView } from '../../components/ScheduleCalendarView'
+import { ScheduleViewModeSwitcher } from '../../components/ScheduleViewModeSwitcher'
 import {
   todoSourceLabel,
   todoStatusLabel,
@@ -35,7 +35,9 @@ function sourceTypeOptions() {
 
 export default function TodosWorkspacePCView({
   todos,
+  calendarTodos,
   loading,
+  calendarLoading,
   error,
   quickFilter,
   setQuickFilter,
@@ -43,6 +45,12 @@ export default function TodosWorkspacePCView({
   setRelatedFilter,
   sourceFilter,
   setSourceFilter,
+  viewMode,
+  setViewMode,
+  calendarMonth,
+  showPreviousMonth,
+  showNextMonth,
+  showCurrentMonth,
   openCreateBlank,
   openEdit,
   toggleDone,
@@ -55,9 +63,12 @@ export default function TodosWorkspacePCView({
           <h1 className="text-xl font-semibold text-primary m-0">할 일</h1>
           <p className="text-sm text-muted m-0 mt-1">플랫폼 공통 업무 할 일 목록입니다.</p>
         </div>
-        <FormButton htmlType="button" variant="primary" className="filter-button" onClick={openCreateBlank}>
-          + 할 일 추가
-        </FormButton>
+        <div className="todos-page__header-actions">
+          <ScheduleViewModeSwitcher value={viewMode} onChange={setViewMode} />
+          <FormButton htmlType="button" variant="primary" className="filter-button" onClick={() => openCreateBlank()}>
+            + 할 일 추가
+          </FormButton>
+        </div>
       </header>
 
       {error ? (
@@ -66,7 +77,7 @@ export default function TodosWorkspacePCView({
         </div>
       ) : null}
 
-      <section className="mb-4 space-y-2 rounded-xl border border-border bg-card p-3">
+      {viewMode === 'list' ? <section className="mb-4 space-y-2 rounded-xl border border-border bg-card p-3">
         <div className="text-xs font-semibold text-secondary">기간·상태</div>
         <div className="flex flex-wrap gap-2">
           {(
@@ -128,9 +139,21 @@ export default function TodosWorkspacePCView({
             </select>
           </label>
         </div>
-      </section>
+      </section> : null}
 
-      {loading ? (
+      {viewMode === 'calendar' ? (
+        <ScheduleCalendarView
+          month={calendarMonth}
+          todos={calendarTodos}
+          loading={calendarLoading}
+          compact={false}
+          onPreviousMonth={showPreviousMonth}
+          onNextMonth={showNextMonth}
+          onToday={showCurrentMonth}
+          onEdit={openEdit}
+          onCreate={openCreateBlank}
+        />
+      ) : loading ? (
         <p className="text-muted">불러오는 중…</p>
       ) : todos.length === 0 ? (
         <p className="text-muted">표시할 할 일이 없습니다.</p>

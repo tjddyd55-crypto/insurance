@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto'
+import multer from 'multer'
 import { PDFDocument } from 'pdf-lib'
+import sharp from 'sharp'
 
 import { readStorageFileBufferFromPath } from '../lib/storageFileObjectKey.js'
 import {
@@ -7,6 +9,18 @@ import {
   planBinderExport,
 } from '../personal-binder/exportPersonalBinderPdf.js'
 import { safeQuery } from '../utils/dbSafeQuery.js'
+import { buildRasterImagesPdfBuffer } from '../pdf-engine/raster/rasterImagePdf.js'
+
+const BINDER_MATERIAL_MAX_BYTES = 25 * 1024 * 1024
+const BINDER_IMAGE_MIMES = new Set(['image/jpeg', 'image/png'])
+const binderImageMergeUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { files: 20, fileSize: BINDER_MATERIAL_MAX_BYTES },
+  fileFilter: (_req, file, callback) => {
+    const mime = String(file.mimetype ?? '').toLowerCase()
+    callback(null, BINDER_IMAGE_MIMES.has(mime))
+  },
+})
 
 function requestScope(req, res) {
   const userId = String(req.user?.id ?? '').trim()
@@ -27,6 +41,54 @@ function normalizedText(value, maxLength, required = false) {
   const text = String(value ?? '').trim().slice(0, maxLength)
   if (required && !text) return null
   return text
+}
+
+function badMaterial(message) {
+  return Object.assign(new Error(message), { httpStatus: 400 })
+}
+
+export async function inspectBinderMaterialBuffer(buffer, mimeType, originalName) {
+  const mime = String(mimeType ?? '').trim().toLowerCase()
+  const name = String(originalName ?? '').trim().toLowerCase()
+  if (!buffer?.length || buffer.length > BINDER_MATERIAL_MAX_BYTES) {
+    throw badMaterial('자료 파일은 25MB 이하여야 합니다.')
+  }
+  if (mime === 'application/pdf') {
+    if (!name.endsWith('.pdf') || buffer.subarray(0, 5).toString() !== '%PDF-') {
+      throw badMaterial('PDF 파일 형식이 올바르지 않습니다.')
+    }
+    try {
+      const document = await PDFDocument.load(buffer, { ignoreEncryption: false })
+      const pageCount = document.getPageCount()
+      if (pageCount < 1) throw badMaterial('페이지가 없는 PDF입니다.')
+      return { mimeType: mime, pageCount }
+    } catch (reason) {
+      if (reason?.httpStatus) throw reason
+      throw badMaterial('PDF 파일을 읽을 수 없습니다.')
+    }
+  }
+  if (BINDER_IMAGE_MIMES.has(mime)) {
+    const expectedExtension = mime === 'image/png' ? /\.png$/ : /\.(jpe?g)$/
+    if (!expectedExtension.test(name)) {
+      throw badMaterial('이미지 확장자와 형식이 일치하지 않습니다.')
+    }
+    let metadata
+    try {
+      metadata = await sharp(buffer).metadata()
+    } catch {
+      throw badMaterial('이미지 파일을 읽을 수 없습니다.')
+    }
+    const actualMime = metadata.format === 'png'
+      ? 'image/png'
+      : metadata.format === 'jpeg'
+        ? 'image/jpeg'
+        : ''
+    if (actualMime !== mime || !metadata.width || !metadata.height) {
+      throw badMaterial('이미지 파일 형식이 올바르지 않습니다.')
+    }
+    return { mimeType: mime, pageCount: 1 }
+  }
+  throw badMaterial('PDF, JPG, JPEG, PNG 파일만 자료로 등록할 수 있습니다.')
 }
 
 export function normalizePageSelection(value, pageCount) {
@@ -265,6 +327,49 @@ function sendError(error, req, res, handleDbError) {
 export function registerPersonalBinderApi(apiRouter, ctx) {
   const { pool, requireAuth, handleDbError } = ctx
 
+  apiRouter.post(
+    '/personal-binders/materials/images-to-pdf',
+    requireAuth,
+    binderImageMergeUpload.array('images', 20),
+    async (req, res) => {
+      try {
+        const scope = requestScope(req, res)
+        if (!scope) return
+        const files = Array.isArray(req.files) ? req.files : []
+        if (files.length < 2) {
+          res.status(400).json({ message: 'PDF로 묶을 이미지를 2개 이상 선택해 주세요.' })
+          return
+        }
+        await Promise.all(
+          files.map((file) =>
+            inspectBinderMaterialBuffer(
+              file.buffer,
+              String(file.mimetype ?? '').toLowerCase(),
+              file.originalname,
+            ),
+          ),
+        )
+        const pdf = await buildRasterImagesPdfBuffer(
+          files.map((file) => ({
+            fileName: file.originalname,
+            mime: String(file.mimetype ?? '').toLowerCase(),
+            bytes: file.buffer,
+          })),
+        )
+        if (pdf.length > BINDER_MATERIAL_MAX_BYTES) {
+          res.status(413).json({ message: '생성된 PDF가 25MB를 초과합니다.' })
+          return
+        }
+        res.setHeader('Content-Type', 'application/pdf')
+        res.setHeader('Content-Length', String(pdf.length))
+        res.setHeader('Cache-Control', 'no-store')
+        res.status(200).send(pdf)
+      } catch (error) {
+        sendError(error, req, res, handleDbError)
+      }
+    },
+  )
+
   apiRouter.get('/personal-binders/materials', requireAuth, async (req, res) => {
     try {
       const scope = requestScope(req, res)
@@ -342,23 +447,14 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
       )
       const file = fileResult.rows[0]
       if (!file) {
-        res.status(404).json({ message: '업로드한 PDF 파일을 찾을 수 없습니다.' })
+        res.status(404).json({ message: '업로드한 자료 파일을 찾을 수 없습니다.' })
         return
       }
       const mimeType = String(file.mime_type ?? '').toLowerCase()
       const originalName = String(file.original_name ?? file.display_name ?? '')
-      if (mimeType !== 'application/pdf' || !originalName.toLowerCase().endsWith('.pdf')) {
-        res.status(400).json({ message: 'PDF 파일만 자료로 등록할 수 있습니다.' })
-        return
-      }
       const objectKey = String(file.file_path ?? '').trim()
       const buffer = await readStorageFileBufferFromPath(objectKey)
-      if (!buffer?.length || buffer.subarray(0, 5).toString() !== '%PDF-') {
-        res.status(400).json({ message: 'PDF 파일 형식이 올바르지 않습니다.' })
-        return
-      }
-      const pdf = await PDFDocument.load(buffer, { ignoreEncryption: false })
-      const pageCount = pdf.getPageCount()
+      const inspected = await inspectBinderMaterialBuffer(buffer, mimeType, originalName)
       const checksum = createHash('sha256').update(buffer).digest('hex')
       const duplicate = await safeQuery(
         pool,
@@ -372,7 +468,7 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
       if (duplicate.rowCount > 0) {
         res.status(409).json({
           code: 'DUPLICATE_MATERIAL',
-          message: '이미 자료 보관함에 등록된 PDF입니다.',
+          message: '이미 자료 보관함에 등록된 파일입니다.',
           materialId: String(duplicate.rows[0].id),
         })
         return
@@ -384,10 +480,20 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
           owner_user_id, ga_id, file_id, title, original_file_name,
           mime_type, file_size, page_count, checksum_sha256
         )
-        VALUES ($1, $2, $3, $4, $5, 'application/pdf', $6, $7, $8)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *, 0::int AS binder_count
         `,
-        [scope.userId, scope.gaId, fileId, title, originalName, Number(file.file_size) || buffer.length, pageCount, checksum],
+        [
+          scope.userId,
+          scope.gaId,
+          fileId,
+          title,
+          originalName,
+          inspected.mimeType,
+          Number(file.file_size) || buffer.length,
+          inspected.pageCount,
+          checksum,
+        ],
       )
       res.status(201).json(mapMaterial(insert.rows[0]))
     } catch (error) {
@@ -811,7 +917,7 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
       const material = await safeQuery(
         pool,
         `
-        SELECT id, page_count FROM personal_binder_materials
+        SELECT id, page_count, mime_type FROM personal_binder_materials
         WHERE id = $1 AND owner_user_id = $2 AND ga_id = $3 AND deleted_at IS NULL
         LIMIT 1
         `,
@@ -819,6 +925,13 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
       )
       if (material.rowCount === 0) {
         res.status(404).json({ message: '자료를 찾을 수 없습니다.' })
+        return
+      }
+      if (material.rows[0].mime_type !== 'application/pdf') {
+        res.status(400).json({
+          code: 'BINDER_REQUIRES_PDF',
+          message: '이미지는 PDF로 묶어 업로드한 뒤 바인더에 추가해 주세요.',
+        })
         return
       }
       const selection = normalizePageSelection(req.body?.pageSelection, Number(material.rows[0].page_count))
