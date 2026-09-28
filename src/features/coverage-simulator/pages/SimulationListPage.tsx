@@ -12,10 +12,11 @@ import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
 import { diseaseTypeTitle, isKnownDiseaseType } from '../domain/diseaseTypeLabels'
 import { formatConsultationListDate } from '../domain/formatConsultationDate'
 import type { SavedScenarioSummary } from '../domain/types'
+import { useCoverageSimulatorCrmStorage } from '../context/CoverageSimulatorCrmStorageContext'
 import {
-  deleteScenario,
+  deleteScenarioAsync,
   listConsultationsByDisease,
-  renameConsultation,
+  renameConsultationAsync,
 } from '../storage/scenarioRepository'
 
 function SimulationListPageContent() {
@@ -26,6 +27,7 @@ function SimulationListPageContent() {
   const { confirm, confirmDialog } = useConfirmDialog()
   const { showToast } = useCoverageSimulatorToast()
 
+  const { version: storageVersion } = useCoverageSimulatorCrmStorage()
   const [listVersion, setListVersion] = useState(0)
   const [menuRow, setMenuRow] = useState<SavedScenarioSummary | null>(null)
   const [renameRow, setRenameRow] = useState<SavedScenarioSummary | null>(null)
@@ -41,7 +43,7 @@ function SimulationListPageContent() {
 
   const rows = useMemo(
     () => listConsultationsByDisease(userKey, diseaseType, customerDraft.customerId),
-    [customerDraft.customerId, diseaseType, listVersion, userKey],
+    [customerDraft.customerId, diseaseType, listVersion, storageVersion, userKey],
   )
 
   const refreshList = useCallback(() => {
@@ -61,8 +63,9 @@ function SimulationListPageContent() {
     }
     setRenameSaving(true)
     setRenameValidationError(null)
+    void (async () => {
     try {
-      const updated = renameConsultation(userKey, renameRow.id, trimmed)
+      const updated = await renameConsultationAsync(userKey, renameRow.id, trimmed)
       if (!updated) {
         showToast('제목을 수정하지 못했습니다. 다시 시도해 주세요.')
         return
@@ -75,6 +78,7 @@ function SimulationListPageContent() {
     } finally {
       setRenameSaving(false)
     }
+    })()
   }
 
   const requestDelete = async (row: SavedScenarioSummary) => {
@@ -86,7 +90,7 @@ function SimulationListPageContent() {
     })
     if (!accepted) return
     try {
-      deleteScenario(userKey, row.id)
+      await deleteScenarioAsync(userKey, row.id)
       refreshList()
       showToast('삭제되었습니다.')
     } catch {

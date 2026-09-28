@@ -3,29 +3,36 @@ import { createConsultationFromTemplate } from './templateOperations'
 import { buildSystemTemplateSnapshot } from './systemTemplateCatalog'
 import type { DiseaseType } from './types'
 import type { ScenarioTemplate } from './templateTypes'
-import { saveConsultation } from '../storage/consultationRepository'
+import { saveConsultation, saveConsultationAsync } from '../storage/consultationRepository'
+import { isPreviewUserKey } from '../storage/previewStorageKeys'
 import type { CoverageScenario } from './types'
 
-export function startConsultationFromUserTemplate(
+export async function startConsultationFromUserTemplate(
   userKey: string,
   template: ScenarioTemplate,
   customer?: ConsultationCustomerDraft | null,
-): CoverageScenario {
+): Promise<CoverageScenario> {
   const consultation = createConsultationFromTemplate(template, {
     diseaseType: 'custom',
     customer,
   })
-  return saveConsultation(userKey, consultation)
+  if (isPreviewUserKey(userKey)) {
+    return saveConsultation(userKey, consultation)
+  }
+  return saveConsultationAsync(userKey, consultation)
 }
 
-export function startConsultationFromSystemDisease(
+export async function startConsultationFromSystemDisease(
   userKey: string,
   diseaseType: DiseaseType,
   customer?: ConsultationCustomerDraft | null,
-): CoverageScenario | null {
+): Promise<CoverageScenario | null> {
   const draft = createDraftFromSystemDisease(diseaseType, customer)
   if (!draft) return null
-  return saveConsultation(userKey, draft)
+  if (isPreviewUserKey(userKey)) {
+    return saveConsultation(userKey, draft)
+  }
+  return saveConsultationAsync(userKey, draft)
 }
 
 /** localStorage에 쓰지 않는 신규 편집 draft */

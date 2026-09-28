@@ -1,4 +1,6 @@
 import { useState } from 'react'
+
+import { useCoverageSimulatorCrmStorage } from '../context/CoverageSimulatorCrmStorageContext'
 import { useNavigate } from 'react-router-dom'
 
 import { useConfirmDialog } from '../../../components/dialog'
@@ -10,11 +12,13 @@ import { startConsultationFromUserTemplate } from '../domain/startConsultation'
 import { listSystemTemplateSummaries } from '../domain/systemTemplateCatalog'
 import { cloneUserTemplate } from '../domain/templateOperations'
 import {
-  deleteUserTemplate,
+  deleteUserTemplateAsync,
+  duplicateUserTemplateAsync,
   getUserTemplateById,
   listUserTemplates,
-  saveUserTemplate,
+  saveUserTemplateAsync,
 } from '../storage/templateRepository'
+import { isPreviewUserKey } from '../storage/previewStorageKeys'
 
 export function ScenarioSelectPreviewView() {
   const navigate = useNavigate()
@@ -24,19 +28,25 @@ export function ScenarioSelectPreviewView() {
   const isPc = layoutMode === 'preview-pc' || (layoutMode === 'crm' && !isMobile)
   const { confirm, confirmDialog } = useConfirmDialog()
   const [menuTemplateId, setMenuTemplateId] = useState<string | null>(null)
+  const { version: storageVersion } = useCoverageSimulatorCrmStorage()
 
   const systemCards = listSystemTemplateSummaries()
   const myTemplates = listUserTemplates(userKey)
+  void storageVersion
 
   const openDiseaseList = (diseaseType: string) => {
     navigate(`${basePath}/${diseaseType}`)
   }
 
-  const startUser = (templateId: string) => {
+  const startUser = async (templateId: string) => {
     const template = getUserTemplateById(userKey, templateId)
     if (!template) return
-    const saved = startConsultationFromUserTemplate(userKey, template, customerDraft)
-    navigate(`${basePath}/scenarios/${saved.id}`)
+    try {
+      const saved = await startConsultationFromUserTemplate(userKey, template, customerDraft)
+      navigate(`${basePath}/scenarios/${saved.id}`)
+    } catch {
+      window.alert('시뮬레이션을 시작하지 못했습니다. 다시 시도해 주세요.')
+    }
   }
 
   const onDeleteTemplate = async (templateId: string) => {
@@ -50,25 +60,39 @@ export function ScenarioSelectPreviewView() {
       tone: 'danger',
     })
     if (!accepted) return
-    deleteUserTemplate(userKey, templateId)
-    setMenuTemplateId(null)
+    try {
+      await deleteUserTemplateAsync(userKey, templateId)
+      setMenuTemplateId(null)
+    } catch {
+      window.alert('삭제하지 못했습니다. 다시 시도해 주세요.')
+    }
   }
 
-  const onDuplicate = (templateId: string) => {
+  const onDuplicate = async (templateId: string) => {
     const source = getUserTemplateById(userKey, templateId)
     if (!source) return
-    const copy = saveUserTemplate(userKey, cloneUserTemplate(source))
-    setMenuTemplateId(null)
-    navigate(`${basePath}/templates/${copy.id}/edit`)
+    try {
+      const copy = isPreviewUserKey(userKey)
+        ? await saveUserTemplateAsync(userKey, cloneUserTemplate(source))
+        : await duplicateUserTemplateAsync(userKey, templateId)
+      setMenuTemplateId(null)
+      navigate(`${basePath}/templates/${copy.id}/edit`)
+    } catch {
+      window.alert('복제하지 못했습니다. 다시 시도해 주세요.')
+    }
   }
 
-  const onRename = (templateId: string) => {
+  const onRename = async (templateId: string) => {
     const source = getUserTemplateById(userKey, templateId)
     if (!source) return
     const nextName = window.prompt('시나리오 이름', source.name)
     if (!nextName?.trim()) return
-    saveUserTemplate(userKey, { ...source, name: nextName.trim() })
-    setMenuTemplateId(null)
+    try {
+      await saveUserTemplateAsync(userKey, { ...source, name: nextName.trim() })
+      setMenuTemplateId(null)
+    } catch {
+      window.alert('이름을 변경하지 못했습니다. 다시 시도해 주세요.')
+    }
   }
 
   return (

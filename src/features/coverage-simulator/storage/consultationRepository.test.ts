@@ -2,12 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createScenarioFromTemplate } from '../domain/templates'
 import {
-  deleteConsultation,
-  getConsultationById,
-  listConsultationsByDisease,
-  renameConsultation,
-  saveConsultation,
-} from './consultationRepository'
+  deleteLocalConsultation,
+  getLocalConsultationById,
+  listLocalConsultations,
+  renameLocalConsultation,
+  saveLocalConsultation,
+} from './localConsultationRepository'
 
 describe('consultationRepository', () => {
   const userKey = '__test_consultation_repo__'
@@ -35,10 +35,10 @@ describe('consultationRepository', () => {
   it('preserves createdAt and updates updatedAt on save', () => {
     const scenario = createScenarioFromTemplate('cancer')!
     scenario.title = '첫 저장'
-    const first = saveConsultation(userKey, scenario)
+    const first = saveLocalConsultation(userKey, scenario)
     const createdAt = first.createdAt
 
-    const second = saveConsultation(userKey, { ...first, title: '수정 저장' })
+    const second = saveLocalConsultation(userKey, { ...first, title: '수정 저장' })
     expect(second.createdAt).toBe(createdAt)
     expect(second.updatedAt >= createdAt).toBe(true)
   })
@@ -46,35 +46,35 @@ describe('consultationRepository', () => {
   it('renames consultation and preserves createdAt', () => {
     const scenario = createScenarioFromTemplate('cancer')!
     scenario.title = '암 치료'
-    const saved = saveConsultation(userKey, scenario)
+    const saved = saveLocalConsultation(userKey, scenario)
     const createdAt = saved.createdAt
 
-    const renamed = renameConsultation(userKey, saved.id, '암 치료 1차 상담')
+    const renamed = renameLocalConsultation(userKey, saved.id, '암 치료 1차 상담')
     expect(renamed?.title).toBe('암 치료 1차 상담')
     expect(renamed?.createdAt).toBe(createdAt)
     expect(renamed!.updatedAt >= createdAt).toBe(true)
-    expect(getConsultationById(userKey, saved.id)?.title).toBe('암 치료 1차 상담')
+    expect(getLocalConsultationById(userKey, saved.id)?.title).toBe('암 치료 1차 상담')
   })
 
   it('rejects empty rename title', () => {
     const scenario = createScenarioFromTemplate('cancer')!
-    saveConsultation(userKey, scenario)
-    expect(renameConsultation(userKey, scenario.id, '   ')).toBeNull()
+    saveLocalConsultation(userKey, scenario)
+    expect(renameLocalConsultation(userKey, scenario.id, '   ')).toBeNull()
   })
 
   it('deletes a single consultation', () => {
     const scenario = createScenarioFromTemplate('cancer')!
-    saveConsultation(userKey, scenario)
-    deleteConsultation(userKey, scenario.id)
-    expect(getConsultationById(userKey, scenario.id)).toBeNull()
+    saveLocalConsultation(userKey, scenario)
+    deleteLocalConsultation(userKey, scenario.id)
+    expect(getLocalConsultationById(userKey, scenario.id)).toBeNull()
   })
 
   it('lists consultations by disease type', () => {
     const cancer = createScenarioFromTemplate('cancer')!
     cancer.title = '암 A'
-    saveConsultation(userKey, cancer)
-    const rows = listConsultationsByDisease(userKey, 'cancer')
+    saveLocalConsultation(userKey, cancer)
+    const rows = listLocalConsultations(userKey).filter((row) => row.diseaseType === 'cancer')
     expect(rows.some((row) => row.title === '암 A')).toBe(true)
-    expect(getConsultationById(userKey, cancer.id)?.title).toBe('암 A')
+    expect(getLocalConsultationById(userKey, cancer.id)?.title).toBe('암 A')
   })
 })

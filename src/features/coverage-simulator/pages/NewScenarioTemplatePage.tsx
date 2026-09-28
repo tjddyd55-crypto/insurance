@@ -7,7 +7,8 @@ import { buildSystemTemplateSnapshot, listSystemTemplateSummaries } from '../dom
 import type { DiseaseType } from '../domain/types'
 import { cloneUserTemplate, createEmptyUserTemplate } from '../domain/templateOperations'
 import type { ScenarioTemplate } from '../domain/templateTypes'
-import { getUserTemplateById, listUserTemplates, saveUserTemplate } from '../storage/templateRepository'
+import { useCoverageSimulatorCrmStorage } from '../context/CoverageSimulatorCrmStorageContext'
+import { getUserTemplateById, listUserTemplates, saveUserTemplateAsync } from '../storage/templateRepository'
 
 export function NewScenarioTemplatePage() {
   const navigate = useNavigate()
@@ -17,12 +18,18 @@ export function NewScenarioTemplatePage() {
   const [description, setDescription] = useState('')
   const [step, setStep] = useState<'choose' | 'copy'>('choose')
 
+  const { version: storageVersion } = useCoverageSimulatorCrmStorage()
   const userSummaries = listUserTemplates(userKey)
+  void storageVersion
   const systemTemplates = listSystemTemplateSummaries().filter((row) => row.enabled)
 
-  const finishCreate = (template: ScenarioTemplate) => {
-    const saved = saveUserTemplate(userKey, template)
-    navigate(`${basePath}/templates/${saved.id}/edit`, { replace: true })
+  const finishCreate = async (template: ScenarioTemplate) => {
+    try {
+      const saved = await saveUserTemplateAsync(userKey, template)
+      navigate(`${basePath}/templates/${saved.id}/edit`, { replace: true })
+    } catch {
+      window.alert('시나리오를 저장하지 못했습니다. 다시 시도해 주세요.')
+    }
   }
 
   const onEmptyStart = () => {
