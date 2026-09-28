@@ -11,6 +11,30 @@ function storageHttpError(status, code, message) {
 }
 
 /**
+ * @param {import('pg').Pool} pool
+ * @param {{ userId: string; gaId: number }} owner
+ * @param {string} legacyClientId
+ * @param {'coverage_scenario_templates' | 'coverage_simulations'} table
+ */
+async function loadRowByLegacyClientId(pool, owner, legacyClientId, table) {
+  const r = await safeQuery(
+    pool,
+    `
+    SELECT *
+    FROM ${table}
+    WHERE owner_user_id = $1 AND ga_id = $2 AND legacy_client_id = $3
+    LIMIT 1
+    `,
+    [owner.userId, owner.gaId, legacyClientId],
+  )
+  return r.rows[0] ?? null
+}
+
+function isLegacyUniqueViolation(error) {
+  return error?.code === '23505' && String(error?.constraint ?? '').includes('legacy')
+}
+
+/**
  * @param {import('express').Request} req
  */
 export function resolveCoverageStorageOwner(req, res) {
@@ -129,45 +153,47 @@ export async function createCoverageTemplate(pool, req, owner, body) {
   }
   const v = validated.value
   if (v.legacyClientId) {
-    const existing = await safeQuery(
+    const existing = await loadRowByLegacyClientId(
+      pool,
+      owner,
+      v.legacyClientId,
+      'coverage_scenario_templates',
+    )
+    if (existing) return mapTemplateRow(existing)
+  }
+  try {
+    const r = await safeQuery(
       pool,
       `
-      SELECT id FROM coverage_scenario_templates
-      WHERE owner_user_id = $1 AND ga_id = $2 AND legacy_client_id = $3
-      LIMIT 1
-      `,
-      [owner.userId, owner.gaId, v.legacyClientId],
-    )
-    if (existing.rows[0]) {
-      return mapTemplateRow(
-        (
-          await safeQuery(pool, `SELECT * FROM coverage_scenario_templates WHERE id = $1`, [
-            existing.rows[0].id,
-          ])
-        ).rows[0],
+      INSERT INTO coverage_scenario_templates (
+        owner_user_id, ga_id, legacy_client_id, name, description, disease_type, items_json
       )
-    }
-  }
-  const r = await safeQuery(
-    pool,
-    `
-    INSERT INTO coverage_scenario_templates (
-      owner_user_id, ga_id, legacy_client_id, name, description, disease_type, items_json
+      VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+      RETURNING *
+      `,
+      [
+        owner.userId,
+        owner.gaId,
+        v.legacyClientId,
+        v.name,
+        v.description,
+        v.diseaseType,
+        JSON.stringify(v.items),
+      ],
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
-    RETURNING *
-    `,
-    [
-      owner.userId,
-      owner.gaId,
-      v.legacyClientId,
-      v.name,
-      v.description,
-      v.diseaseType,
-      JSON.stringify(v.items),
-    ],
-  )
-  return mapTemplateRow(r.rows[0])
+    return mapTemplateRow(r.rows[0])
+  } catch (error) {
+    if (v.legacyClientId && isLegacyUniqueViolation(error)) {
+      const existing = await loadRowByLegacyClientId(
+        pool,
+        owner,
+        v.legacyClientId,
+        'coverage_scenario_templates',
+      )
+      if (existing) return mapTemplateRow(existing)
+    }
+    throw error
+  }
 }
 
 /**
@@ -310,48 +336,43 @@ export async function createCoverageSimulation(pool, req, owner, body) {
   const v = validated.value
   await assertCustomerAccessible(pool, req, owner.gaId, v.customerId)
   if (v.legacyClientId) {
-    const existing = await safeQuery(
+    const existing = await loadRowByLegacyClientId(pool, owner, v.legacyClientId, 'coverage_simulations')
+    if (existing) return mapSimulationRow(existing)
+  }
+  try {
+    const r = await safeQuery(
       pool,
       `
-      SELECT id FROM coverage_simulations
-      WHERE owner_user_id = $1 AND ga_id = $2 AND legacy_client_id = $3
-      LIMIT 1
+      INSERT INTO coverage_simulations (
+        owner_user_id, ga_id, legacy_client_id, customer_id, title, disease_type, description,
+        template_id, template_name_snapshot, customer_name_snapshot, consultation_date, items_json
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::date, $12::jsonb)
+      RETURNING *
       `,
-      [owner.userId, owner.gaId, v.legacyClientId],
+      [
+        owner.userId,
+        owner.gaId,
+        v.legacyClientId,
+        v.customerId,
+        v.title,
+        v.diseaseType,
+        v.description ?? '',
+        v.templateId,
+        v.templateNameSnapshot,
+        v.customerNameSnapshot,
+        v.consultationDate,
+        JSON.stringify(v.items),
+      ],
     )
-    if (existing.rows[0]) {
-      const row = (
-        await safeQuery(pool, `SELECT * FROM coverage_simulations WHERE id = $1`, [existing.rows[0].id])
-      ).rows[0]
-      return mapSimulationRow(row)
+    return mapSimulationRow(r.rows[0])
+  } catch (error) {
+    if (v.legacyClientId && isLegacyUniqueViolation(error)) {
+      const existing = await loadRowByLegacyClientId(pool, owner, v.legacyClientId, 'coverage_simulations')
+      if (existing) return mapSimulationRow(existing)
     }
+    throw error
   }
-  const r = await safeQuery(
-    pool,
-    `
-    INSERT INTO coverage_simulations (
-      owner_user_id, ga_id, legacy_client_id, customer_id, title, disease_type, description,
-      template_id, template_name_snapshot, customer_name_snapshot, consultation_date, items_json
-    )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::date, $12::jsonb)
-    RETURNING *
-    `,
-    [
-      owner.userId,
-      owner.gaId,
-      v.legacyClientId,
-      v.customerId,
-      v.title,
-      v.diseaseType,
-      v.description ?? '',
-      v.templateId,
-      v.templateNameSnapshot,
-      v.customerNameSnapshot,
-      v.consultationDate,
-      JSON.stringify(v.items),
-    ],
-  )
-  return mapSimulationRow(r.rows[0])
 }
 
 /**
