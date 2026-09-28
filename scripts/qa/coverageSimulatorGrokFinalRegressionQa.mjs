@@ -66,7 +66,7 @@ async function assertEditorScroll(page, modeId) {
     const clientHeight = el.clientHeight
     el.scrollTop = scrollHeight
     const scrollTop = el.scrollTop
-    const rows = el.querySelectorAll('.cs-axis-event-row, .cs-alt-row')
+    const rows = el.querySelectorAll('.cs-axis-event, .cs-alt-row')
     const last = rows[rows.length - 1]
     let lastVisible = false
     if (last) {
