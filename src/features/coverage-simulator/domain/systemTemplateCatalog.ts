@@ -11,7 +11,7 @@ export type SystemTemplateCard = {
 
 export const SYSTEM_TEMPLATE_CARDS: SystemTemplateCard[] = SCENARIO_TYPE_CARDS.map((card) => ({
   diseaseType: card.diseaseType,
-  title: card.title.replace(/ 시나리오$/, ''),
+  title: card.title,
   description: card.description,
   enabled: card.enabled,
 }))

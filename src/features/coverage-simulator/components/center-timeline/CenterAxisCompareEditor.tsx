@@ -15,6 +15,9 @@ import { SaveConsultationTitleDialog } from '../SaveConsultationTitleDialog'
 import { diseaseTypeTitle } from '../../domain/diseaseTypeLabels'
 import { useCoverageSimulatorScope } from '../../CoverageSimulatorScope'
 import { buildCoverageTimelineViewModel } from '../../domain/buildCoverageTimelineViewModel'
+import { CoverageScenarioAlternativeView } from '../alternative-view/CoverageScenarioAlternativeView'
+import { CoverageScenarioViewModeSwitcher } from '../alternative-view/CoverageScenarioViewModeSwitcher'
+import { useCoverageScenarioViewMode } from '../../hooks/useCoverageScenarioViewMode'
 import { CoverageScenarioTimeline, type InlineAmountEditTarget } from './CoverageScenarioTimeline'
 import type { InlineAmountField } from './InlineAmountQuickEdit'
 import { isTemplateEditorMode, type TimelineEditorController } from './TimelineEditorController'
@@ -30,6 +33,7 @@ const SCENARIO_BLURB: Record<string, string> = {
 
 function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   const { layoutMode, userKey } = useCoverageSimulatorScope()
+  const { viewMode, setViewMode } = useCoverageScenarioViewMode({ userKey, layoutMode })
   const { confirm, confirmDialog } = useConfirmDialog()
   const { showToast } = useCoverageSimulatorToast()
   // CRM·preview-mobile은 같은 최신 타임라인이다. preview-pc만 넓은 PC 툴바를 유지한다.
@@ -317,25 +321,41 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
           .join(' ')}
         data-testid="coverage-scenario-editor"
       >
+        <CoverageScenarioViewModeSwitcher viewMode={viewMode} onChange={setViewMode} />
         {!useLatestMobileEditor ? <p className="cs-axis-lead">{blurb}</p> : null}
-        {viewModel ? (
-        <CoverageScenarioTimeline
-          mode="editable"
-          viewModel={viewModel}
-          variant={variant}
-          showGrandTotal={!useLatestMobileEditor}
-          compactInsert={useLatestMobileEditor}
-          itemMenuMode={useLatestMobileEditor ? 'action-sheet' : 'popover'}
-          onEditItem={openFullAmountEdit}
-          onMoveItem={moveItem}
-          onRemoveItem={requestRemoveCoverageItem}
-          onRemoveTimeMarker={requestRemoveTimeMarker}
-          onAddAfter={openAddSheetForOrder}
-          enableInlineAmountEdit={useLatestMobileEditor}
-          inlineAmountEdit={inlineAmountEdit}
-          onInlineAmountEditChange={handleInlineAmountEditChange}
-          onInlineAmountCommit={handleInlineAmountCommit}
-        />
+        {viewModel && viewMode === 'default' ? (
+          <CoverageScenarioTimeline
+            mode="editable"
+            viewModel={viewModel}
+            variant={variant}
+            showGrandTotal={!useLatestMobileEditor}
+            compactInsert={useLatestMobileEditor}
+            itemMenuMode={useLatestMobileEditor ? 'action-sheet' : 'popover'}
+            onEditItem={openFullAmountEdit}
+            onMoveItem={moveItem}
+            onRemoveItem={requestRemoveCoverageItem}
+            onRemoveTimeMarker={requestRemoveTimeMarker}
+            onAddAfter={openAddSheetForOrder}
+            enableInlineAmountEdit={useLatestMobileEditor}
+            inlineAmountEdit={inlineAmountEdit}
+            onInlineAmountEditChange={handleInlineAmountEditChange}
+            onInlineAmountCommit={handleInlineAmountCommit}
+          />
+        ) : null}
+        {viewModel && viewMode !== 'default' ? (
+          <CoverageScenarioAlternativeView
+            viewMode={viewMode}
+            viewModel={viewModel}
+            readOnly={false}
+            items={sortedItems}
+            itemMenuMode={useLatestMobileEditor ? 'action-sheet' : 'popover'}
+            showGrandTotal={!useLatestMobileEditor}
+            onEditItem={openFullAmountEdit}
+            onMoveItem={moveItem}
+            onRemoveItem={requestRemoveCoverageItem}
+            onRemoveTimeMarker={requestRemoveTimeMarker}
+            onAddAfter={openAddSheetForOrder}
+          />
         ) : null}
       </main>
 

@@ -7,7 +7,8 @@ import { buildSystemTemplateSnapshot, listSystemTemplateSummaries } from '../dom
 import type { DiseaseType } from '../domain/types'
 import { cloneUserTemplate, createEmptyUserTemplate } from '../domain/templateOperations'
 import type { ScenarioTemplate } from '../domain/templateTypes'
-import { getUserTemplateById, listUserTemplates, saveUserTemplate } from '../storage/templateRepository'
+import { useCoverageSimulatorCrmStorage } from '../context/CoverageSimulatorCrmStorageContext'
+import { getUserTemplateById, listUserTemplates, saveUserTemplateAsync } from '../storage/templateRepository'
 
 export function NewScenarioTemplatePage() {
   const navigate = useNavigate()
@@ -17,12 +18,18 @@ export function NewScenarioTemplatePage() {
   const [description, setDescription] = useState('')
   const [step, setStep] = useState<'choose' | 'copy'>('choose')
 
+  const { version: storageVersion } = useCoverageSimulatorCrmStorage()
   const userSummaries = listUserTemplates(userKey)
+  void storageVersion
   const systemTemplates = listSystemTemplateSummaries().filter((row) => row.enabled)
 
-  const finishCreate = (template: ScenarioTemplate) => {
-    const saved = saveUserTemplate(userKey, template)
-    navigate(`${basePath}/templates/${saved.id}/edit`, { replace: true })
+  const finishCreate = async (template: ScenarioTemplate) => {
+    try {
+      const saved = await saveUserTemplateAsync(userKey, template)
+      navigate(`${basePath}/templates/${saved.id}/edit`, { replace: true })
+    } catch {
+      window.alert('시나리오를 저장하지 못했습니다. 다시 시도해 주세요.')
+    }
   }
 
   const onEmptyStart = () => {
@@ -58,11 +65,11 @@ export function NewScenarioTemplatePage() {
         <button type="button" className="coverage-simulator-icon-btn" onClick={() => navigate(basePath)}>
           ←
         </button>
-        <div className="coverage-simulator-appbar__title">새 시나리오</div>
+        <div className="coverage-simulator-appbar__title">시나리오 추가</div>
         <span />
       </header>
       <main className={`coverage-simulator-content${isPc ? ' coverage-simulator-content--pc-select' : ''}`}>
-        <h1 className="coverage-simulator-page-title">새 시나리오 만들기</h1>
+        <h1 className="coverage-simulator-page-title">시나리오 추가</h1>
         <label className="cs-template-form-field">
           <span>시나리오 이름</span>
           <input

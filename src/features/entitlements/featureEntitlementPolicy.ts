@@ -94,22 +94,6 @@ export function resolveUserAccessTier(ctx: FeatureAccessContext): UserAccessTier
   return 'FREE_GENERAL'
 }
 
-export function getMissingEntitlementBadges(params: {
-  requiresPaid: boolean
-  requiresGa: boolean
-  hasActivePaidAccess: boolean
-  isGaMember: boolean
-}): string[] {
-  const badges: string[] = []
-  if (params.requiresPaid && !params.hasActivePaidAccess) {
-    badges.push('유료')
-  }
-  if (params.requiresGa && !params.isGaMember) {
-    badges.push('GA 전용')
-  }
-  return badges
-}
-
 export function evaluateFeatureAccess(
   featureKey: FeatureKey | string,
   ctx: FeatureAccessContext,
@@ -121,19 +105,16 @@ export function evaluateFeatureAccess(
   if (policy.freeAllowed) {
     return { allowed: true, reason: null, badges: [] }
   }
-  const badges = getMissingEntitlementBadges({
-    requiresPaid: policy.requiresPaid,
-    requiresGa: policy.requiresGa,
-    hasActivePaidAccess: ctx.hasActivePaidAccess,
-    isGaMember: ctx.isGaMember,
-  })
+  const badges: string[] = []
+  if (policy.requiresPaid) badges.push('유료')
+  if (policy.requiresGa) badges.push('GA 전용')
   if (policy.requiresPaid && !ctx.hasActivePaidAccess) {
     return { allowed: false, reason: 'paid_required', badges }
   }
   if (policy.requiresGa && !ctx.isGaMember) {
     return { allowed: false, reason: 'ga_required', badges }
   }
-  return { allowed: true, reason: null, badges: [] }
+  return { allowed: true, reason: null, badges }
 }
 
 export function formatFeatureAccessBadge(badges: string[]): string | undefined {
