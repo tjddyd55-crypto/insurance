@@ -193,7 +193,11 @@ async function main() {
   await page.getByTestId('coverage-view-mode-default').click()
   await page.locator('.cs-axis-insert__btn').first().click({ timeout: 15000 })
   await page.getByText('항목 추가').waitFor({ state: 'visible', timeout: 30000 })
-  const favStar = page.locator('.cs-add-item-favorite-btn, .cs-catalog-favorite').first()
+  await page.getByRole('button', { name: '치료' }).click().catch(() => {})
+  const favStar = page.getByRole('button', { name: /즐겨찾기/ }).first()
+  const grid = page.getByTestId('coverage-catalog-grid')
+  if ((await grid.count()) > 0) pass('add-item-grid', 'catalog grid present')
+  else fail('add-item-grid', 'grid missing')
   if ((await favStar.count()) > 0) pass('add-item-favorite-ui', 'favorite control present')
   else fail('add-item-favorite-ui', 'star not found')
 
