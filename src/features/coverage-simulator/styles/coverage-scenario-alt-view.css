@@ -292,7 +292,7 @@
 
 .cs-alt-view--option3 .cs-alt-grid {
   display: grid;
-  grid-template-columns: minmax(2.6rem, max-content) minmax(4.35rem, max-content) minmax(0, 1fr) minmax(4.35rem, max-content) var(--cs-alt-tools);
+  grid-template-columns: 2.6rem 4.35rem minmax(0, 1fr) 4.35rem var(--cs-alt-tools);
   border: 1px solid var(--cs-color-border);
   border-radius: var(--cs-radius-card);
   overflow: hidden;
@@ -330,6 +330,10 @@
 .cs-alt-view--option3 .cs-alt-row {
   min-height: 34px;
   border-bottom: 1px solid var(--cs-color-border);
+}
+
+.cs-alt-view--option3 .cs-alt-row .button.cs-alt-row__hit {
+  grid-column: 1 / -1;
 }
 
 .cs-alt-view--option3 .cs-alt-amount {
