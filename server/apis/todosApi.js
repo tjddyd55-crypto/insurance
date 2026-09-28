@@ -184,6 +184,8 @@ export function registerTodosApi(apiRouter, ctx) {
       const statusQ = typeof req.query.status === 'string' ? req.query.status.trim().toLowerCase() : ''
       const bucket = typeof req.query.bucket === 'string' ? req.query.bucket.trim().toLowerCase() : ''
       const due = typeof req.query.due === 'string' ? req.query.due.trim().toLowerCase() : ''
+      const dueFromRaw = typeof req.query.dueFrom === 'string' ? req.query.dueFrom.trim() : ''
+      const dueToRaw = typeof req.query.dueTo === 'string' ? req.query.dueTo.trim() : ''
       const overdueRaw = String(req.query.overdue ?? '').trim()
       const hasRelatedRaw = typeof req.query.hasRelated === 'string' ? req.query.hasRelated.trim().toLowerCase() : ''
       const sourceType = typeof req.query.sourceType === 'string' ? req.query.sourceType.trim().toLowerCase() : ''
@@ -191,6 +193,13 @@ export function registerTodosApi(apiRouter, ctx) {
       const conditions = [`t.ga_id = $1`, `(t.owner_user_id = $2 OR t.assignee_user_id = $2)`]
       const params = [gaId, userId]
       let p = 3
+
+      const dueFrom = coerceDateOnlyString(dueFromRaw)
+      const dueTo = coerceDateOnlyString(dueToRaw)
+      if ((dueFromRaw && !dueFrom) || (dueToRaw && !dueTo) || (dueFrom && dueTo && dueFrom > dueTo)) {
+        res.status(400).json({ message: '조회할 날짜 범위가 올바르지 않습니다.' })
+        return
+      }
 
       conditions.push(`(${todoCustomerVisibilityExistsSql(req, userId, gaId)})`)
 
@@ -220,6 +229,17 @@ export function registerTodosApi(apiRouter, ctx) {
         conditions.push(`t.due_date >= $${p} AND t.due_date <= $${p + 1}`)
         params.push(start, end)
         p += 2
+      }
+
+      if (dueFrom) {
+        conditions.push(`t.due_date >= $${p}`)
+        params.push(dueFrom)
+        p += 1
+      }
+      if (dueTo) {
+        conditions.push(`t.due_date <= $${p}`)
+        params.push(dueTo)
+        p += 1
       }
 
       if (overdueRaw === '1' || overdueRaw === 'true') {

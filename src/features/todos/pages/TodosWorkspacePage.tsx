@@ -4,6 +4,7 @@ import { useTodosWorkspaceState } from '../hooks/useTodosWorkspaceState'
 import TodosWorkspaceMobileView from './todos-workspace/TodosWorkspaceMobileView'
 import TodosWorkspacePCView from './todos-workspace/TodosWorkspacePCView'
 import type { TodosWorkspaceViewProps } from './todos-workspace/todosWorkspaceViewProps'
+import '../styles/todos-calendar.css'
 
 export default function TodosWorkspacePage() {
   const vm = useTodosWorkspaceState()
@@ -12,7 +13,9 @@ export default function TodosWorkspacePage() {
     token: vm.token,
     gaId: vm.gaId,
     todos: vm.todos,
+    calendarTodos: vm.calendarTodos,
     loading: vm.loading,
+    calendarLoading: vm.calendarLoading,
     error: vm.error,
     quickFilter: vm.quickFilter,
     setQuickFilter: vm.setQuickFilter,
@@ -20,6 +23,12 @@ export default function TodosWorkspacePage() {
     setRelatedFilter: vm.setRelatedFilter,
     sourceFilter: vm.sourceFilter,
     setSourceFilter: vm.setSourceFilter,
+    viewMode: vm.viewMode,
+    setViewMode: vm.setViewMode,
+    calendarMonth: vm.calendarMonth,
+    showPreviousMonth: vm.showPreviousMonth,
+    showNextMonth: vm.showNextMonth,
+    showCurrentMonth: vm.showCurrentMonth,
     openCreateBlank: vm.openCreateBlank,
     openEdit: vm.openEdit,
     toggleDone: vm.toggleDone,
@@ -40,7 +49,11 @@ export default function TodosWorkspacePage() {
         gaId={vm.gaId}
         sessionKey={vm.editorSession}
         editingTodo={vm.editingTodo}
-        onCommitted={() => void vm.reload()}
+        prefill={vm.editorPrefill}
+        onCommitted={() => {
+          void vm.reload()
+          if (vm.viewMode === 'calendar') void vm.reloadCalendar()
+        }}
       />
     </>
   )
