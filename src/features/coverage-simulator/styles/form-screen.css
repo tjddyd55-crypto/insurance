@@ -138,6 +138,26 @@
   padding-right: var(--cs-space-4);
 }
 
+.cs-custom-item-card {
+  padding: var(--cs-space-3);
+  border: 1px solid var(--cs-color-border);
+  border-radius: var(--cs-radius-card, 12px);
+  background: var(--cs-color-surface);
+}
+
+.cs-custom-item-card__title {
+  color: var(--cs-color-text);
+}
+
+.cs-custom-item-card .cs-category-chips--compact {
+  flex-wrap: wrap;
+}
+
+.cs-custom-item-card__submit {
+  width: 100%;
+  margin-top: var(--cs-space-1);
+}
+
 .cs-form-primitive__amount-pair {
   display: grid;
   grid-template-columns: 1fr 1fr;

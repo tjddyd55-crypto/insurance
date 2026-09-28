@@ -36,7 +36,10 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   const { viewMode, setViewMode } = useCoverageScenarioViewMode({ userKey, layoutMode })
   const { confirm, confirmDialog } = useConfirmDialog()
   const { showToast } = useCoverageSimulatorToast()
-  const useMobileStickyDock = variant === 'mobile' && layoutMode === 'preview-mobile'
+  // CRM·preview-mobile은 같은 최신 타임라인이다. preview-pc만 넓은 PC 툴바를 유지한다.
+  const useLatestMobileEditor = variant === 'mobile'
+  // preview-pc 시트는 별 토글이 없다. CRM·모바일 미리보기는 같은 ☆/★ 카탈로그를 쓴다.
+  const favoriteUserKey = layoutMode === 'preview-pc' ? null : userKey
   const useMobileExclusiveForm = variant === 'mobile'
   const [titleDialogOpen, setTitleDialogOpen] = useState(false)
   const [titleValidationError, setTitleValidationError] = useState<string | null>(null)
@@ -132,12 +135,12 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
 
   const viewModel = useMemo(() => {
     if (!scenario) return null
-    return buildCoverageTimelineViewModel(scenario, { compactInsert: useMobileStickyDock })
-  }, [scenario, useMobileStickyDock])
+    return buildCoverageTimelineViewModel(scenario, { compactInsert: useLatestMobileEditor })
+  }, [scenario, useLatestMobileEditor])
 
   if (!scenario) {
     return (
-      <CoverageSimulatorLayout>
+      <CoverageSimulatorLayout mobileTimelineChrome={useLatestMobileEditor}>
         <main className="coverage-simulator-content">시나리오를 준비하는 중…</main>
       </CoverageSimulatorLayout>
     )
@@ -218,10 +221,13 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
 
   if (useMobileExclusiveForm && formMode) {
     return (
-      <CoverageSimulatorLayout shellClassName="coverage-simulator-shell--exclusive-form">
+      <CoverageSimulatorLayout
+        shellClassName="coverage-simulator-shell--exclusive-form"
+        mobileTimelineChrome={useLatestMobileEditor}
+      >
         <CoverageSimulatorMobileItemForm
           formMode={formMode}
-          favoriteUserKey={useMobileStickyDock ? userKey : null}
+          favoriteUserKey={favoriteUserKey}
           editingItem={editingItem}
           onClose={closeForm}
           onSelectCoverage={onSelectCoverage}
@@ -248,8 +254,8 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   }
 
   return (
-    <CoverageSimulatorLayout>
-      {variant === 'mobile' && useMobileStickyDock ? (
+    <CoverageSimulatorLayout mobileTimelineChrome={useLatestMobileEditor}>
+      {useLatestMobileEditor ? (
         <MobilePreviewEditorHeader
           title={editorHeaderTitle}
           onBack={() => navigate(backTo)}
@@ -263,22 +269,6 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
           showPdf={!isTemplate}
           resetLabel={isTemplate ? '비우기' : '초기화'}
         />
-      ) : variant === 'mobile' ? (
-        <header className="cs-axis-header coverage-simulator-appbar">
-          <FormButton variant="action" className="coverage-simulator-icon-btn" onClick={() => navigate(backTo)}>
-            ←
-          </FormButton>
-          <div className="cs-axis-header__titles">
-            <div className="coverage-simulator-appbar__title">{scenario.title}</div>
-          </div>
-          <FormButton
-            variant="action"
-            className="coverage-simulator-text-btn"
-            onClick={isTemplate ? () => persist(scenario) : handleSave}
-          >
-            {isSaving ? '저장 중…' : '저장'}
-          </FormButton>
-        </header>
       ) : (
         <header className="cs-axis-header cs-axis-header--pc coverage-simulator-pc-toolbar">
           <FormButton variant="action" className="coverage-simulator-icon-btn" onClick={() => navigate(backTo)}>
@@ -325,32 +315,32 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
       <main
         className={[
           variant === 'pc' ? 'cs-axis-main cs-axis-main--pc' : 'cs-axis-main coverage-simulator-content',
-          useMobileStickyDock ? 'cs-axis-main--mobile-dock' : '',
+          useLatestMobileEditor ? 'cs-axis-main--mobile-dock' : '',
         ]
           .filter(Boolean)
           .join(' ')}
         data-testid="coverage-scenario-editor"
       >
         <CoverageScenarioViewModeSwitcher viewMode={viewMode} onChange={setViewMode} />
-        {!useMobileStickyDock ? <p className="cs-axis-lead">{blurb}</p> : null}
+        {!useLatestMobileEditor ? <p className="cs-axis-lead">{blurb}</p> : null}
         {viewModel && viewMode === 'default' ? (
-        <CoverageScenarioTimeline
-          mode="editable"
-          viewModel={viewModel}
-          variant={variant}
-          showGrandTotal={!useMobileStickyDock}
-          compactInsert={useMobileStickyDock}
-          itemMenuMode={useMobileStickyDock ? 'action-sheet' : 'popover'}
-          onEditItem={openFullAmountEdit}
-          onMoveItem={moveItem}
-          onRemoveItem={requestRemoveCoverageItem}
-          onRemoveTimeMarker={requestRemoveTimeMarker}
-          onAddAfter={openAddSheetForOrder}
-          enableInlineAmountEdit={useMobileStickyDock}
-          inlineAmountEdit={inlineAmountEdit}
-          onInlineAmountEditChange={handleInlineAmountEditChange}
-          onInlineAmountCommit={handleInlineAmountCommit}
-        />
+          <CoverageScenarioTimeline
+            mode="editable"
+            viewModel={viewModel}
+            variant={variant}
+            showGrandTotal={!useLatestMobileEditor}
+            compactInsert={useLatestMobileEditor}
+            itemMenuMode={useLatestMobileEditor ? 'action-sheet' : 'popover'}
+            onEditItem={openFullAmountEdit}
+            onMoveItem={moveItem}
+            onRemoveItem={requestRemoveCoverageItem}
+            onRemoveTimeMarker={requestRemoveTimeMarker}
+            onAddAfter={openAddSheetForOrder}
+            enableInlineAmountEdit={useLatestMobileEditor}
+            inlineAmountEdit={inlineAmountEdit}
+            onInlineAmountEditChange={handleInlineAmountEditChange}
+            onInlineAmountCommit={handleInlineAmountCommit}
+          />
         ) : null}
         {viewModel && viewMode !== 'default' ? (
           <CoverageScenarioAlternativeView
@@ -358,8 +348,8 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
             viewModel={viewModel}
             readOnly={false}
             items={sortedItems}
-            itemMenuMode={useMobileStickyDock ? 'action-sheet' : 'popover'}
-            showGrandTotal={!useMobileStickyDock}
+            itemMenuMode={useLatestMobileEditor ? 'action-sheet' : 'popover'}
+            showGrandTotal={!useLatestMobileEditor}
             onEditItem={openFullAmountEdit}
             onMoveItem={moveItem}
             onRemoveItem={requestRemoveCoverageItem}
@@ -369,22 +359,8 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
         ) : null}
       </main>
 
-      {useMobileStickyDock ? (
+      {useLatestMobileEditor ? (
         <MobilePreviewStickyDock currentTotal={totals.currentTotal} proposedTotal={totals.proposedTotal} />
-      ) : null}
-      {variant === 'mobile' && !useMobileStickyDock && !isTemplate ? (
-        <footer className="coverage-simulator-bottom-bar">
-          <FormButton variant="secondary" className="coverage-simulator-secondary-btn" onClick={requestReset}>
-            초기화
-          </FormButton>
-          <FormButton
-            variant="primary"
-            className="coverage-simulator-primary-btn"
-            onClick={() => navigate(`${basePath}/scenarios/${scenario.id}/pdf`)}
-          >
-            PDF 미리보기
-          </FormButton>
-        </footer>
       ) : null}
 
       {variant === 'pc' || !useMobileExclusiveForm ? (
@@ -394,7 +370,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
             onClose={closeForm}
             onSelectCoverage={onSelectCoverage}
             onSelectTimeMarker={onSelectTimeMarker}
-            favoriteUserKey={useMobileStickyDock ? userKey : null}
+            favoriteUserKey={favoriteUserKey}
           />
           <AmountEditSheet
             open={formMode?.type === 'edit'}

@@ -5,7 +5,7 @@ export type CoverageSimulatorCustomerSearchProvider = {
   searchCustomers: (query: string) => Promise<CoverageSimulatorCustomerListItem[]>
 }
 
-/** Preview·CRM 1차: mock. CRM 실연동 시 RealCustomerSearchProvider로 교체 */
+/** 공개 미리보기 전용. CRM은 createCrmCustomerSearchProvider를 쓴다. */
 export function createMockCustomerSearchProvider(): CoverageSimulatorCustomerSearchProvider {
   return {
     searchCustomers: async (query) => filterMockCustomers(query),

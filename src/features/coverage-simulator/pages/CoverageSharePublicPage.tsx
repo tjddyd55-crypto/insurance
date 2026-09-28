@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 
 import FormButton from '../../../components/form/FormButton'
@@ -13,8 +13,16 @@ import {
 } from '../api/coverageSimulatorShareApi'
 import { CoverageSimulatorScopeProvider, previewScopeMobile } from '../CoverageSimulatorScope'
 import { buildCoverageTimelineViewModel } from '../domain/buildCoverageTimelineViewModel'
+import { formatCoverageScenarioHeading } from '../domain/diseaseTypeLabels'
+import { formatCoverageDocumentMetaLine } from '../domain/formatCoverageDocumentHeader'
 import { resolveCustomerNameSnapshot } from '../domain/normalizeConsultation'
 import type { CoverageScenario } from '../domain/types'
+import { buildCoveragePdfFileName } from '../pdf/coveragePdfFileName'
+import { CoverageSimulatorPrintDocument } from '../pdf/CoverageSimulatorPrintDocument'
+import {
+  buildCoveragePdfBlobFromPrintRoot,
+  downloadCoveragePdfBlob,
+} from '../pdf/generateCoveragePdf'
 import '../styles/coverage-simulator.css'
 
 type LoadState =
@@ -43,6 +51,8 @@ function ShareStatusScreen({ title, message }: { title: string; message: string 
 function CoverageSharePublicPageBody() {
   const { token = '' } = useParams()
   const [state, setState] = useState<LoadState>({ status: 'loading' })
+  const [pdfBusy, setPdfBusy] = useState(false)
+  const printSourceRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const meta = document.createElement('meta')
@@ -120,28 +130,52 @@ function CoverageSharePublicPageBody() {
   }
 
   const payload = state.payload
-  const customerName = resolveCustomerNameSnapshot(payload.scenario)
-  const wroteLabel = formatConsultationDate(payload.scenario.consultationDate)
-  const downloadPdf = () => {
-    if (!payload.pdfReady) {
-      window.alert('PDF를 준비하고 있습니다. 잠시 후 다시 시도해 주세요.')
+  const shareScenario = payload.scenario as CoverageScenario
+  const customerName = resolveCustomerNameSnapshot(shareScenario)
+  const wroteLabel = formatConsultationDate(shareScenario.consultationDate)
+  const scenarioHeading = formatCoverageScenarioHeading(shareScenario.diseaseType, shareScenario.title)
+  const metaLine = formatCoverageDocumentMetaLine(customerName, wroteLabel)
+  const downloadStoredPdf = () => {
+    window.location.assign(publicCoverageSharePdfDownloadUrl(token))
+  }
+  const downloadGeneratedPdf = async () => {
+    const printRoot = printSourceRef.current?.querySelector('.coverage-simulator-print-root')
+    if (!(printRoot instanceof HTMLElement)) {
+      window.alert('PDF를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.')
       return
     }
-    window.location.assign(publicCoverageSharePdfDownloadUrl(token))
+    setPdfBusy(true)
+    try {
+      const blob = await buildCoveragePdfBlobFromPrintRoot(printRoot)
+      downloadCoveragePdfBlob(blob, buildCoveragePdfFileName(shareScenario))
+    } catch (error) {
+      console.error('[coverage-share] on-demand PDF failed', error)
+      window.alert('PDF를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.')
+    } finally {
+      setPdfBusy(false)
+    }
+  }
+  const downloadPdf = () => {
+    if (payload.pdfReady) {
+      downloadStoredPdf()
+      return
+    }
+    void downloadGeneratedPdf()
   }
 
   return (
     <CoverageSimulatorLayout shellClassName="cs-share-public-shell">
       <header className="cs-share-public__header">
         <h1 className="cs-share-public__title">보장 시뮬레이션</h1>
-        {customerName ? <p className="cs-share-public__customer">{customerName} 고객님</p> : null}
-        {wroteLabel ? <p className="cs-share-public__date">작성일 {wroteLabel}</p> : null}
+        {metaLine ? <p className="cs-share-public__meta">{metaLine}</p> : null}
+        <p className="cs-share-public__scenario">{scenarioHeading}</p>
         <FormButton
           variant="primary"
           className="coverage-simulator-primary-btn cs-share-public__pdf-btn"
+          disabled={pdfBusy}
           onClick={downloadPdf}
         >
-          PDF 다운로드
+          {pdfBusy ? 'PDF 만드는 중…' : 'PDF 다운로드'}
         </FormButton>
       </header>
       <main className="cs-share-public cs-share-public--with-dock">
@@ -155,6 +189,14 @@ function CoverageSharePublicPageBody() {
           proposedTotal={viewModel.totals.proposedTotal}
         />
       ) : null}
+      <div
+        ref={printSourceRef}
+        className="coverage-simulator-pdf-print-source"
+        data-testid="coverage-share-pdf-print-source"
+        aria-hidden="true"
+      >
+        <CoverageSimulatorPrintDocument scenario={shareScenario} />
+      </div>
     </CoverageSimulatorLayout>
   )
 }

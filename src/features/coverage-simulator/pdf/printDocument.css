@@ -78,10 +78,12 @@
   line-height: 1.25;
 }
 
-.cs-print-doc-header__subtitle {
-  margin: 4px 0 0;
-  font-size: 0.8125rem;
-  font-weight: 600;
+.cs-print-doc-header__subtitle,
+.cs-print-doc-header__meta {
+  margin: 6px 0 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.5;
   color: var(--cs-print-text);
 }
 
@@ -89,9 +91,6 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px 16px;
-  margin-top: 6px;
-  font-size: 0.6875rem;
-  color: var(--cs-print-muted);
 }
 
 .cs-print-col-header {
@@ -451,15 +450,17 @@
   }
 
   .coverage-simulator-pdf-preview-shell {
-    height: 100dvh;
+    height: 100%;
     min-height: 0;
+    max-height: 100%;
     overflow: hidden;
+    flex: 1 1 auto;
   }
 
-  .coverage-simulator-pdf-preview-shell .coverage-simulator-content.coverage-simulator-pdf-preview {
-    padding-left: 0;
-    padding-right: 0;
-    padding-top: var(--cs-space-2, 8px);
+  .coverage-simulator-pc-preview-root .coverage-simulator-pdf-preview-shell,
+  .coverage-simulator-mobile-preview-root .coverage-simulator-pdf-preview-shell {
+    height: 100dvh;
+    max-height: 100dvh;
   }
 
   .coverage-simulator-pdf-preview {
@@ -468,6 +469,7 @@
     min-height: 0;
     overflow: hidden;
     box-sizing: border-box;
+    padding-bottom: 0;
   }
 
   .coverage-simulator-pdf-preview__zoom-viewport {
@@ -528,82 +530,112 @@
 
 /* --- Print-only Korean text safety (does not affect screen / share viewer) --- */
 
-.coverage-simulator-print-root--korean-text-safe .cs-print-doc-header__title,
-.coverage-simulator-print-root--korean-text-safe .cs-print-doc-header__subtitle,
-.coverage-simulator-print-root--korean-text-safe .cs-print-doc-header__meta {
+.coverage-simulator-print-root--korean-text-safe .cs-print-doc-header__title {
   overflow: visible;
   line-height: 1.4;
   padding-block: 1px;
 }
 
-.coverage-simulator-print-root--korean-text-safe .cs-axis-event__head {
-  display: grid;
-  grid-template-columns: var(--cs-axis-event-badge-col-width) minmax(0, 1fr) var(--cs-axis-event-badge-col-width);
-  align-items: center;
-  height: auto;
-  min-height: 34px;
-  padding-block: 4px;
+/*
+ * 시나리오 줄과 고객/작성일 줄은 같은 14px 강조색이다.
+ * COVERAGE_PDF_TITLE_RASTER_SHIFT_PX(-8px)는 항목명 22px 라인박스용이라
+ * 헤더에 쓰면 글자가 제목 쪽으로 올라가 잘린다. 여기는 여백만 둔다.
+ */
+.coverage-simulator-print-root--korean-text-safe .cs-print-doc-header__subtitle,
+.coverage-simulator-print-root--korean-text-safe .cs-print-doc-header__meta {
+  overflow: visible;
+  line-height: 1.5;
+  padding-block: 3px;
+}
+
+/*
+ * html2canvas 1.4는 flex/grid의 align-items와 CJK baseline을 무시해
+ * 배지 글자가 알약 아래쪽에 붙고, 배지 상자가 항목명보다 위에 그려진다.
+ * 인쇄 행은 배지(왼쪽)와 항목명을 같은 22px 라인박스에 둔다.
+ * 선택자는 mobile-preview(0,3,0)보다 높아야 한다. 화면 CSS에는 top 음수를 두지 않는다.
+ * 글리프 보정은 capture clone 전용이다 (coveragePdfTitleTextSafety).
+ */
+.coverage-simulator-print-root.coverage-simulator-root--mobile-preview.coverage-simulator-print-root--korean-text-safe .cs-axis-event__head {
+  display: block;
+  position: relative;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  overflow: visible;
   box-sizing: border-box;
 }
 
-.coverage-simulator-print-root--korean-text-safe .cs-axis-event__badge {
-  grid-column: 1;
-  grid-row: 1;
-  justify-self: start;
+.coverage-simulator-print-root.coverage-simulator-root--mobile-preview.coverage-simulator-print-root--korean-text-safe .cs-axis-event__badge {
+  position: absolute;
+  left: 0;
+  top: 3px;
+  display: block;
+  width: auto;
+  height: 22px;
+  margin: 0;
+  flex: none;
+  overflow: visible;
   z-index: 2;
 }
 
-.coverage-simulator-print-root--korean-text-safe .cs-axis-event__title-axis {
-  position: relative;
-  left: auto;
-  top: auto;
+.coverage-simulator-print-root.coverage-simulator-root--mobile-preview.coverage-simulator-print-root--korean-text-safe .cs-axis-event__title-axis {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 3px;
   transform: none;
-  grid-column: 1 / -1;
-  grid-row: 1;
-  justify-self: center;
-  align-self: center;
   width: auto;
-  max-width: calc(100% - (var(--cs-axis-event-badge-col-width) * 2) - 12px);
+  max-width: none;
+  height: 22px;
   margin: 0;
   z-index: 3;
   pointer-events: none;
   text-align: center;
 }
 
-.coverage-simulator-print-root--korean-text-safe .cs-axis-event__title-axis .cs-axis-event__label {
+.coverage-simulator-print-root.coverage-simulator-root--mobile-preview.coverage-simulator-print-root--korean-text-safe .cs-axis-event__title-axis .cs-axis-event__label {
   display: inline-block;
+  position: static;
+  top: auto;
   overflow: visible;
   text-overflow: clip;
   white-space: normal;
   word-break: keep-all;
-  line-height: 1.45;
-  min-height: 1.45em;
+  line-height: 22px;
+  height: 22px;
+  min-height: 0;
   max-height: none;
-  padding-block: 3px;
-  padding-inline: 6px;
+  padding: 0 6px;
+  font-size: 14px;
+  font-weight: 700;
   box-shadow: none;
   background: var(--cs-axis-title-mask-bg, #fff);
 }
 
-.coverage-simulator-print-root--korean-text-safe .coverage-simulator-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.coverage-simulator-print-root.coverage-simulator-root--mobile-preview.coverage-simulator-print-root--korean-text-safe .cs-axis-event__badge .coverage-simulator-badge {
+  display: inline-block;
   height: 22px;
   min-height: 22px;
+  margin: 0;
   padding: 0 8px;
   box-sizing: border-box;
-  line-height: 1;
+  line-height: 22px;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
   overflow: visible;
   vertical-align: middle;
   transform: none;
+  border-radius: 999px;
 }
 
-.coverage-simulator-print-root--korean-text-safe .coverage-simulator-badge__glyph {
-  display: block;
-  margin: -4px 0 0;
-  line-height: 1;
-  transform: none;
+.coverage-simulator-print-root.coverage-simulator-root--mobile-preview.coverage-simulator-print-root--korean-text-safe .coverage-simulator-badge__label {
+  display: inline;
+  position: static;
+  top: auto;
+  line-height: 22px;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .coverage-simulator-print-root--korean-text-safe .cs-axis-amount__value,

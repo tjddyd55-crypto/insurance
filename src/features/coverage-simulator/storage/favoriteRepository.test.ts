@@ -48,8 +48,19 @@ describe('favoriteRepository', () => {
     expect(JSON.parse(localStorage.getItem(KEY)!)).toEqual(['a', 'b'])
   })
 
-  it('ignores unknown user key writes', () => {
+  it('keeps preview mobile favorites off the CRM key', () => {
     expect(setFavoriteCatalogIds('unknown', ['x'])).toEqual(['x'])
     expect(localStorage.getItem(KEY)).toBeNull()
+  })
+
+  it('persists CRM user favorites in localStorage', () => {
+    const crmKey = 'coverage-simulator:favorites:v1:user-42'
+    const saved = toggleFavoriteCatalogId('user-42', 'chemo')
+    expect(saved).toContain('chemo')
+    expect(JSON.parse(localStorage.getItem(crmKey)!)).toEqual(saved)
+    expect(getFavoriteCatalogIds('user-42')).toEqual(saved)
+    const removed = toggleFavoriteCatalogId('user-42', 'nursing')
+    expect(removed).not.toContain('nursing')
+    expect(getFavoriteCatalogIds('user-42')).toEqual(removed)
   })
 })

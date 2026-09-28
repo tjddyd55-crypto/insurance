@@ -1,23 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  COVERAGE_PDF_PREVIEW_HORIZONTAL_GUTTER_PX,
-  computeFitAvailableWidth,
+  COVERAGE_PDF_PREVIEW_LENGTH_ZOOM,
   computeFitScale,
+  computePreviewDocumentScale,
   shouldUpdateFitScale,
 } from './coveragePdfPreviewZoomMath'
 
 describe('coveragePdfPreviewZoomMath', () => {
-  it('reserves a minimal preview gutter outside the PDF viewport', () => {
-    expect(COVERAGE_PDF_PREVIEW_HORIZONTAL_GUTTER_PX).toBe(8)
-    expect(computeFitAvailableWidth(390)).toBe(382)
-  })
-
   it('computes fit scale from viewport width', () => {
-    expect(computeFitScale(computeFitAvailableWidth(360), 794)).toBeCloseTo(
-      (360 - 8) / 794,
-      4,
-    )
+    expect(computeFitScale(360, 794)).toBeCloseTo(360 / 794, 4)
   })
 
   it('does not upscale documents wider than the viewport', () => {
@@ -30,5 +22,11 @@ describe('coveragePdfPreviewZoomMath', () => {
 
   it('updates after a meaningful viewport resize', () => {
     expect(shouldUpdateFitScale(0.448, 0.52)).toBe(true)
+  })
+
+  it('zooms the preview out so more document length is visible', () => {
+    expect(COVERAGE_PDF_PREVIEW_LENGTH_ZOOM).toBeLessThan(1)
+    expect(computePreviewDocumentScale(900, 794)).toBeCloseTo(COVERAGE_PDF_PREVIEW_LENGTH_ZOOM, 4)
+    expect(computePreviewDocumentScale(360, 794)).toBeCloseTo((360 / 794) * COVERAGE_PDF_PREVIEW_LENGTH_ZOOM, 4)
   })
 })

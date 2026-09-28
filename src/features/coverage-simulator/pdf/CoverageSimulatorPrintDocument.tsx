@@ -2,7 +2,8 @@ import { useMemo } from 'react'
 
 import { CoverageScenarioTimeline } from '../components/center-timeline/CoverageScenarioTimeline'
 import { buildCoverageTimelineViewModel } from '../domain/buildCoverageTimelineViewModel'
-import { diseaseTypeTitle } from '../domain/diseaseTypeLabels'
+import { formatCoverageScenarioHeading } from '../domain/diseaseTypeLabels'
+import { formatCoverageDocumentMetaLine } from '../domain/formatCoverageDocumentHeader'
 import { resolveCustomerNameSnapshot } from '../domain/normalizeConsultation'
 import { PDF_DISCLAIMER_LINES } from '../domain/pdfCopy'
 import type { CoverageScenario } from '../domain/types'
@@ -28,7 +29,7 @@ export function CoverageSimulatorPrintDocument({ scenario }: CoverageSimulatorPr
     [scenario],
   )
   const customerName = resolveCustomerNameSnapshot(scenario)
-  const diseaseTitle = diseaseTypeTitle(scenario.diseaseType)
+  const scenarioHeading = formatCoverageScenarioHeading(scenario.diseaseType, scenario.title)
 
   return (
     <div
@@ -37,14 +38,10 @@ export function CoverageSimulatorPrintDocument({ scenario }: CoverageSimulatorPr
     >
       <header className="cs-print-doc-header">
         <h1 className="cs-print-doc-header__title">보장 시뮬레이션</h1>
-        <p className="cs-print-doc-header__subtitle">
-          {diseaseTitle}
-          {scenario.title ? ` — ${scenario.title}` : ''}
+        <p className="cs-print-doc-header__meta">
+          {formatCoverageDocumentMetaLine(customerName, formatPrintDate(scenario.consultationDate))}
         </p>
-        <div className="cs-print-doc-header__meta">
-          {customerName ? <span>고객: {customerName}</span> : null}
-          <span>작성일 {formatPrintDate(scenario.consultationDate)}</span>
-        </div>
+        <p className="cs-print-doc-header__subtitle">{scenarioHeading}</p>
       </header>
 
       <div className="cs-print-timeline-body">

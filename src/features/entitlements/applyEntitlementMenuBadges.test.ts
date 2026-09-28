@@ -25,6 +25,15 @@ describe('applyEntitlementMenuBadges', () => {
     expect(entries[0]?.entitlementBlocked).toBeUndefined()
   })
 
+  it('does not badge paid features when access is allowed', () => {
+    const entries = applyEntitlementMenuBadges(
+      [{ type: 'link', label: '고객관리', path: '/customers' }],
+      { hasActivePaidAccess: true, isGaMember: true },
+    )
+    expect(entries[0]?.badge).toBeUndefined()
+    expect(entries[0]?.entitlementBlocked).toBeUndefined()
+  })
+
   it('uses board scope for dynamic newsletter boards', () => {
     const entries = applyEntitlementMenuBadges(
       [{ type: 'link', label: '공용안내', path: '/portal/boards/shared-news' }],
