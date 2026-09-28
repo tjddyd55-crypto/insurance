@@ -19,7 +19,10 @@ import { createCancerDefaultItems, createScenarioFromTemplate } from '../domain/
 import { calculateScenarioTotals } from '../domain/totals'
 import type { CoverageSimulatorFormMode } from '../domain/coverageSimulatorFormMode'
 import type { CoverageScenario, CoverageScenarioItem, DiseaseType } from '../domain/types'
+import { saveConsultationAsync } from '../storage/consultationRepository'
 import { getScenarioById, saveScenario } from '../storage/scenarioRepository'
+import { useCoverageSimulatorCrmStorage } from '../context/CoverageSimulatorCrmStorageContext'
+import { isPreviewUserKey } from '../storage/previewStorageKeys'
 
 export type SaveConsultationResult =
   | { ok: true; toast: string }
@@ -33,6 +36,7 @@ export function useScenarioEditor() {
   const scenarioId = params.scenarioId
   const diseaseTypeParam = params.diseaseType as DiseaseType | undefined
   const { basePath, userKey } = useCoverageSimulatorScope()
+  const { version: storageVersion } = useCoverageSimulatorCrmStorage()
 
   const isNewDraft = location.pathname.endsWith('/new')
   const diseaseType = (diseaseTypeParam ?? 'cancer') as DiseaseType
@@ -75,7 +79,7 @@ export function useScenarioEditor() {
     const created = createScenarioFromTemplate(diseaseType)
     setScenario(created)
     persistedSnapshotRef.current = null
-  }, [diseaseType, isNewDraft, scenarioId, userKey])
+  }, [diseaseType, isNewDraft, scenarioId, storageVersion, userKey])
 
   const totals = useMemo(
     () => (scenario ? calculateScenarioTotals(scenario) : { currentTotal: 0, proposedTotal: 0 }),
@@ -102,13 +106,16 @@ export function useScenarioEditor() {
         setScenario(next)
         return next
       }
-      const saved = saveScenario(userKey, next)
-      setScenario(saved)
-      persistedSnapshotRef.current = consultationContentSnapshot(saved)
-      if (!scenarioId) {
-        navigate(`${basePath}/scenarios/${saved.id}`, { replace: true })
+      if (isPreviewUserKey(userKey)) {
+        const saved = saveScenario(userKey, next)
+        setScenario(saved)
+        persistedSnapshotRef.current = consultationContentSnapshot(saved)
+        if (!scenarioId) {
+          navigate(`${basePath}/scenarios/${saved.id}`, { replace: true })
+        }
+        return saved
       }
-      return saved
+      throw new Error('CRM에서는 persist 대신 저장을 사용하세요.')
     },
     [basePath, navigate, scenarioId, userKey],
   )
@@ -145,7 +152,7 @@ export function useScenarioEditor() {
       setIsSaving(true)
       try {
         const nextTitle = title?.trim() || scenario.title
-        const saved = saveScenario(userKey, { ...scenario, title: nextTitle })
+        const saved = await saveConsultationAsync(userKey, { ...scenario, title: nextTitle })
         setScenario(saved)
         persistedSnapshotRef.current = consultationContentSnapshot(saved)
         if (isNewDraft || !scenarioId) {

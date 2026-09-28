@@ -455,6 +455,8 @@ export const appRouter = createBrowserRouter([
                 element: <CoverageSimulatorCrmRouteLayout />,
                 children: [
                   { index: true, element: <ScenarioSelectPage /> },
+                  { path: 'templates/new', element: <NewScenarioTemplatePage /> },
+                  { path: 'templates/:templateId/edit', element: <CoverageScenarioTemplateEditorPage /> },
                   { path: 'saved', element: <SavedScenariosPage /> },
                   { path: 'scenarios/:scenarioId/pdf', element: <PdfPreviewPage /> },
                   { path: 'scenarios/:scenarioId', element: <ScenarioEditorPage /> },

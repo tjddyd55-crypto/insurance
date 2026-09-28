@@ -14,7 +14,7 @@ import {
 import { scenarioToUserTemplate, templateToEditableScenario } from '../domain/templateOperations'
 import { calculateScenarioTotals } from '../domain/totals'
 import type { CoverageScenario, CoverageScenarioItem } from '../domain/types'
-import { getUserTemplateById, saveUserTemplate } from '../storage/templateRepository'
+import { getUserTemplateById, saveUserTemplateAsync } from '../storage/templateRepository'
 
 export function useTemplateEditor() {
   const navigate = useNavigate()
@@ -48,8 +48,13 @@ export function useTemplateEditor() {
   const persist = (next: CoverageScenario) => {
     if (!templateId) return
     const existing = getUserTemplateById(userKey, templateId)
-    const saved = saveUserTemplate(userKey, scenarioToUserTemplate(next, existing ?? undefined))
-    setScenario(templateToEditableScenario(saved))
+    void saveUserTemplateAsync(userKey, scenarioToUserTemplate(next, existing ?? undefined))
+      .then((saved) => {
+        setScenario(templateToEditableScenario(saved))
+      })
+      .catch(() => {
+        window.alert('저장에 실패했습니다. 다시 시도해 주세요.')
+      })
   }
 
   const closeForm = useCallback(() => {

@@ -1,63 +1,40 @@
 import { normalizeConsultation, resolveCustomerNameSnapshot } from '../domain/normalizeConsultation'
 import type { ConsultationCustomerFilter, CoverageScenario, DiseaseType, SavedScenarioSummary } from '../domain/types'
+import { isPreviewUserKey } from './previewStorageKeys'
 import {
-  isPreviewUserKey,
-  previewConsultationStorageKey,
-  previewLegacyConsultationStorageKey,
-} from './previewStorageKeys'
-
-const CRM_STORAGE_KEY_PREFIX = 'onefc:coverage-simulator:v1'
-
-function crmStorageKey(userKey: string): string {
-  return `${CRM_STORAGE_KEY_PREFIX}:${userKey || 'guest'}`
-}
-
-function resolveStorageKey(userKey: string): string {
-  const previewKey = previewConsultationStorageKey(userKey)
-  if (previewKey) return previewKey
-  return crmStorageKey(userKey)
-}
-
-function migrateLegacyPreviewIfNeeded(userKey: string): void {
-  if (!isPreviewUserKey(userKey)) return
-  const key = previewConsultationStorageKey(userKey)!
-  const legacyKey = previewLegacyConsultationStorageKey(userKey)!
-  if (localStorage.getItem(key)) return
-  const legacy = localStorage.getItem(legacyKey)
-  if (!legacy) return
-  localStorage.setItem(key, legacy)
-}
-
-function readAll(userKey: string): CoverageScenario[] {
-  migrateLegacyPreviewIfNeeded(userKey)
-  try {
-    const raw = localStorage.getItem(resolveStorageKey(userKey))
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as CoverageScenario[]
-    return Array.isArray(parsed) ? parsed.map(normalizeConsultation) : []
-  } catch {
-    return []
-  }
-}
-
-function writeAll(userKey: string, scenarios: CoverageScenario[]): void {
-  localStorage.setItem(resolveStorageKey(userKey), JSON.stringify(scenarios))
-}
+  deleteLocalConsultation,
+  filterConsultationsByCustomer,
+  filterConsultationsByDisease,
+  getLocalConsultationById,
+  listLocalConsultations,
+  renameLocalConsultation,
+  saveLocalConsultation,
+} from './localConsultationRepository'
+import {
+  deleteCrmConsultation,
+  getCrmConsultationById,
+  isCrmCoverageStorageReady,
+  listCrmConsultations,
+  saveCrmConsultation,
+} from './crmCoverageStorageSession'
 
 export function listConsultations(userKey: string): SavedScenarioSummary[] {
-  return readAll(userKey)
-    .map((scenario) => ({
-      id: scenario.id,
-      title: scenario.title,
-      diseaseType: scenario.diseaseType,
-      customerId: scenario.customerId ?? null,
-      customerNameSnapshot: resolveCustomerNameSnapshot(scenario),
-      customerName: resolveCustomerNameSnapshot(scenario) ?? undefined,
-      consultationDate: scenario.consultationDate,
-      createdAt: scenario.createdAt,
-      updatedAt: scenario.updatedAt,
-    }))
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+  const rows = isPreviewUserKey(userKey)
+    ? listLocalConsultations(userKey)
+    : isCrmCoverageStorageReady(userKey)
+      ? listCrmConsultations().map((scenario) => ({
+          id: scenario.id,
+          title: scenario.title,
+          diseaseType: scenario.diseaseType,
+          customerId: scenario.customerId ?? null,
+          customerNameSnapshot: resolveCustomerNameSnapshot(scenario),
+          customerName: resolveCustomerNameSnapshot(scenario) ?? undefined,
+          consultationDate: scenario.consultationDate,
+          createdAt: scenario.createdAt,
+          updatedAt: scenario.updatedAt,
+        }))
+      : []
+  return rows.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
 }
 
 export function listConsultationsByDisease(
@@ -73,67 +50,65 @@ export function listConsultationsByDisease(
 }
 
 export function getConsultationById(userKey: string, id: string): CoverageScenario | null {
-  return readAll(userKey).find((row) => row.id === id) ?? null
+  if (isPreviewUserKey(userKey)) {
+    return getLocalConsultationById(userKey, id)
+  }
+  if (!isCrmCoverageStorageReady(userKey)) return null
+  const found = getCrmConsultationById(id)
+  return found ? normalizeConsultation(found) : null
 }
 
 export function saveConsultation(userKey: string, scenario: CoverageScenario): CoverageScenario {
-  const all = readAll(userKey)
-  const existing = all.find((row) => row.id === scenario.id)
-  const now = new Date().toISOString()
-  const next = normalizeConsultation({
-    ...scenario,
-    kind: 'consultation',
-    createdAt: existing?.createdAt ?? scenario.createdAt ?? now,
-    updatedAt: now,
-  })
-  const index = all.findIndex((row) => row.id === next.id)
-  if (index >= 0) {
-    all[index] = next
-  } else {
-    all.unshift(next)
+  if (isPreviewUserKey(userKey)) {
+    return saveLocalConsultation(userKey, scenario)
   }
-  writeAll(userKey, all)
-  return next
+  throw new Error('CRM 시뮬레이션 저장은 saveConsultationAsync를 사용하세요.')
+}
+
+export async function saveConsultationAsync(
+  userKey: string,
+  scenario: CoverageScenario,
+): Promise<CoverageScenario> {
+  if (isPreviewUserKey(userKey)) {
+    return saveLocalConsultation(userKey, scenario)
+  }
+  const saved = await saveCrmConsultation(normalizeConsultation(scenario))
+  return normalizeConsultation(saved)
 }
 
 export function deleteConsultation(userKey: string, id: string): void {
-  writeAll(userKey, readAll(userKey).filter((row) => row.id !== id))
+  if (isPreviewUserKey(userKey)) {
+    deleteLocalConsultation(userKey, id)
+    return
+  }
+  throw new Error('CRM 시뮬레이션 삭제는 deleteConsultationAsync를 사용하세요.')
+}
+
+export async function deleteConsultationAsync(userKey: string, id: string): Promise<void> {
+  if (isPreviewUserKey(userKey)) {
+    deleteLocalConsultation(userKey, id)
+    return
+  }
+  await deleteCrmConsultation(id)
 }
 
 export function renameConsultation(userKey: string, id: string, title: string): CoverageScenario | null {
+  if (isPreviewUserKey(userKey)) {
+    return renameLocalConsultation(userKey, id, title)
+  }
+  throw new Error('CRM 제목 변경은 renameConsultationAsync를 사용하세요.')
+}
+
+export async function renameConsultationAsync(
+  userKey: string,
+  id: string,
+  title: string,
+): Promise<CoverageScenario | null> {
   const trimmed = title.trim()
   if (!trimmed) return null
-  const all = readAll(userKey)
-  const index = all.findIndex((row) => row.id === id)
-  if (index < 0) return null
-  const existing = all[index]
-  const now = new Date().toISOString()
-  const next = normalizeConsultation({
-    ...existing,
-    title: trimmed,
-    createdAt: existing.createdAt,
-    updatedAt: now,
-  })
-  all[index] = next
-  writeAll(userKey, all)
-  return next
+  const current = getConsultationById(userKey, id)
+  if (!current) return null
+  return saveConsultationAsync(userKey, { ...current, title: trimmed })
 }
 
-export function filterConsultationsByDisease(
-  summaries: SavedScenarioSummary[],
-  filter: DiseaseType | 'all',
-): SavedScenarioSummary[] {
-  if (filter === 'all') return summaries
-  return summaries.filter((row) => row.diseaseType === filter)
-}
-
-export function filterConsultationsByCustomer(
-  summaries: SavedScenarioSummary[],
-  filter: ConsultationCustomerFilter,
-): SavedScenarioSummary[] {
-  if (filter === 'all') return summaries
-  if (filter === 'linked') {
-    return summaries.filter((row) => Boolean(row.customerId))
-  }
-  return summaries.filter((row) => !row.customerId)
-}
+export { filterConsultationsByDisease, filterConsultationsByCustomer }

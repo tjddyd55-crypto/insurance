@@ -1,65 +1,82 @@
+import { cloneUserTemplate } from '../domain/templateOperations'
 import type { ScenarioTemplate, ScenarioTemplateSummary } from '../domain/templateTypes'
-import { previewTemplateStorageKey } from './previewStorageKeys'
-
-function storageKey(userKey: string): string | null {
-  return previewTemplateStorageKey(userKey)
-}
-
-function readAll(userKey: string): ScenarioTemplate[] {
-  const key = storageKey(userKey)
-  if (!key) return []
-  try {
-    const raw = localStorage.getItem(key)
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as ScenarioTemplate[]
-    return Array.isArray(parsed) ? parsed.filter((t) => t.sourceType === 'user') : []
-  } catch {
-    return []
-  }
-}
-
-function writeAll(userKey: string, templates: ScenarioTemplate[]): void {
-  const key = storageKey(userKey)
-  if (!key) return
-  localStorage.setItem(key, JSON.stringify(templates))
-}
+import { isPreviewUserKey } from './previewStorageKeys'
+import {
+  deleteLocalUserTemplate,
+  getLocalUserTemplateById,
+  listLocalUserTemplates,
+  saveLocalUserTemplate,
+} from './localTemplateRepository'
+import {
+  deleteCrmUserTemplate,
+  duplicateCrmUserTemplate,
+  getCrmUserTemplateById,
+  isCrmCoverageStorageReady,
+  listCrmUserTemplates,
+  saveCrmUserTemplate,
+} from './crmCoverageStorageSession'
 
 export function listUserTemplates(userKey: string): ScenarioTemplateSummary[] {
-  return readAll(userKey)
-    .map((template) => ({
-      id: template.id,
-      name: template.name,
-      description: template.description,
-      sourceType: template.sourceType,
-      itemCount: template.items.length,
-      updatedAt: template.updatedAt,
-    }))
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+  if (isPreviewUserKey(userKey)) {
+    return listLocalUserTemplates(userKey)
+  }
+  if (!isCrmCoverageStorageReady(userKey)) return []
+  return listCrmUserTemplates().map((template) => ({
+    id: template.id,
+    name: template.name,
+    description: template.description,
+    sourceType: template.sourceType,
+    itemCount: template.items.length,
+    updatedAt: template.updatedAt,
+  }))
 }
 
 export function getUserTemplateById(userKey: string, id: string): ScenarioTemplate | null {
-  return readAll(userKey).find((row) => row.id === id) ?? null
+  if (isPreviewUserKey(userKey)) {
+    return getLocalUserTemplateById(userKey, id)
+  }
+  if (!isCrmCoverageStorageReady(userKey)) return null
+  return getCrmUserTemplateById(id)
 }
 
 export function saveUserTemplate(userKey: string, template: ScenarioTemplate): ScenarioTemplate {
-  if (template.sourceType !== 'user') {
-    throw new Error('Only user templates can be saved to local storage')
+  if (isPreviewUserKey(userKey)) {
+    return saveLocalUserTemplate(userKey, template)
   }
-  const next: ScenarioTemplate = {
-    ...template,
-    updatedAt: new Date().toISOString(),
+  throw new Error('CRM 시나리오 저장은 saveUserTemplateAsync를 사용하세요.')
+}
+
+export async function saveUserTemplateAsync(
+  userKey: string,
+  template: ScenarioTemplate,
+): Promise<ScenarioTemplate> {
+  if (isPreviewUserKey(userKey)) {
+    return saveLocalUserTemplate(userKey, template)
   }
-  const all = readAll(userKey)
-  const index = all.findIndex((row) => row.id === next.id)
-  if (index >= 0) {
-    all[index] = next
-  } else {
-    all.unshift(next)
-  }
-  writeAll(userKey, all)
-  return next
+  return saveCrmUserTemplate(template)
 }
 
 export function deleteUserTemplate(userKey: string, id: string): void {
-  writeAll(userKey, readAll(userKey).filter((row) => row.id !== id))
+  if (isPreviewUserKey(userKey)) {
+    deleteLocalUserTemplate(userKey, id)
+    return
+  }
+  throw new Error('CRM 시나리오 삭제는 deleteUserTemplateAsync를 사용하세요.')
+}
+
+export async function deleteUserTemplateAsync(userKey: string, id: string): Promise<void> {
+  if (isPreviewUserKey(userKey)) {
+    deleteLocalUserTemplate(userKey, id)
+    return
+  }
+  await deleteCrmUserTemplate(id)
+}
+
+export async function duplicateUserTemplateAsync(userKey: string, id: string): Promise<ScenarioTemplate> {
+  if (isPreviewUserKey(userKey)) {
+    const source = getLocalUserTemplateById(userKey, id)
+    if (!source) throw new Error('시나리오를 찾을 수 없습니다.')
+    return saveLocalUserTemplate(userKey, cloneUserTemplate(source))
+  }
+  return duplicateCrmUserTemplate(id)
 }

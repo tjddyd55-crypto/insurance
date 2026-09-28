@@ -12,10 +12,11 @@ import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
 import { diseaseTypeTitle, isKnownDiseaseType } from '../domain/diseaseTypeLabels'
 import { formatConsultationListDate } from '../domain/formatConsultationDate'
 import type { SavedScenarioSummary } from '../domain/types'
+import { useCoverageSimulatorCrmStorage } from '../context/CoverageSimulatorCrmStorageContext'
 import {
-  deleteScenario,
+  deleteScenarioAsync,
   listConsultationsByDisease,
-  renameConsultation,
+  renameConsultationAsync,
 } from '../storage/scenarioRepository'
 
 function SimulationListPageContent() {
@@ -26,6 +27,7 @@ function SimulationListPageContent() {
   const { confirm, confirmDialog } = useConfirmDialog()
   const { showToast } = useCoverageSimulatorToast()
 
+  const { version: storageVersion } = useCoverageSimulatorCrmStorage()
   const [listVersion, setListVersion] = useState(0)
   const [menuRow, setMenuRow] = useState<SavedScenarioSummary | null>(null)
   const [renameRow, setRenameRow] = useState<SavedScenarioSummary | null>(null)
@@ -41,7 +43,7 @@ function SimulationListPageContent() {
 
   const rows = useMemo(
     () => listConsultationsByDisease(userKey, diseaseType, customerDraft.customerId),
-    [customerDraft.customerId, diseaseType, listVersion, userKey],
+    [customerDraft.customerId, diseaseType, listVersion, storageVersion, userKey],
   )
 
   const refreshList = useCallback(() => {
@@ -61,8 +63,9 @@ function SimulationListPageContent() {
     }
     setRenameSaving(true)
     setRenameValidationError(null)
+    void (async () => {
     try {
-      const updated = renameConsultation(userKey, renameRow.id, trimmed)
+      const updated = await renameConsultationAsync(userKey, renameRow.id, trimmed)
       if (!updated) {
         showToast('제목을 수정하지 못했습니다. 다시 시도해 주세요.')
         return
@@ -75,6 +78,7 @@ function SimulationListPageContent() {
     } finally {
       setRenameSaving(false)
     }
+    })()
   }
 
   const requestDelete = async (row: SavedScenarioSummary) => {
@@ -86,7 +90,7 @@ function SimulationListPageContent() {
     })
     if (!accepted) return
     try {
-      deleteScenario(userKey, row.id)
+      await deleteScenarioAsync(userKey, row.id)
       refreshList()
       showToast('삭제되었습니다.')
     } catch {
@@ -105,6 +109,22 @@ function SimulationListPageContent() {
       </header>
       <main className="coverage-simulator-content">
         <CustomerContextBar />
+        <div className="cs-simulation-list__actions">
+          <button
+            type="button"
+            className="coverage-simulator-primary-btn"
+            onClick={() => navigate(`${basePath}/${diseaseType}/new`)}
+          >
+            기본 시뮬레이션으로 시작
+          </button>
+          <button
+            type="button"
+            className="coverage-simulator-secondary-btn"
+            onClick={() => navigate(`${basePath}/${diseaseType}/new`)}
+          >
+            + 새 시뮬레이션 만들기
+          </button>
+        </div>
         <h2 className="cs-simulation-list__heading">저장된 시뮬레이션</h2>
         {rows.length === 0 ? (
           <p className="coverage-simulator-page-desc">저장된 시뮬레이션이 없습니다.</p>
@@ -129,13 +149,6 @@ function SimulationListPageContent() {
             ))}
           </div>
         )}
-        <button
-          type="button"
-          className="coverage-simulator-primary-btn cs-simulation-list__cta"
-          onClick={() => navigate(`${basePath}/${diseaseType}/new`)}
-        >
-          + 새 시뮬레이션 만들기
-        </button>
       </main>
       <SimulationListActionSheet
         open={menuRow != null}

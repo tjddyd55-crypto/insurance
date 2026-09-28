@@ -90,25 +90,6 @@ export function resolveUserAccessTier(ctx) {
 }
 
 /**
- * @param {{
- *   requiresPaid: boolean
- *   requiresGa: boolean
- *   hasActivePaidAccess: boolean
- *   isGaMember: boolean
- * }} params
- */
-export function getMissingEntitlementBadges(params) {
-  const badges = []
-  if (params.requiresPaid && !params.hasActivePaidAccess) {
-    badges.push('유료')
-  }
-  if (params.requiresGa && !params.isGaMember) {
-    badges.push('GA 전용')
-  }
-  return badges
-}
-
-/**
  * @param {string} featureKey
  * @param {{ hasActivePaidAccess: boolean, isGaMember: boolean }} ctx
  */
@@ -120,19 +101,22 @@ export function evaluateFeatureAccess(featureKey, ctx) {
   if (policy.freeAllowed) {
     return { allowed: true, reason: null, badges: [] }
   }
-  const badges = getMissingEntitlementBadges({
-    requiresPaid: Boolean(policy.requiresPaid),
-    requiresGa: Boolean(policy.requiresGa),
-    hasActivePaidAccess: Boolean(ctx.hasActivePaidAccess),
-    isGaMember: Boolean(ctx.isGaMember),
-  })
-  if (policy.requiresPaid && !ctx.hasActivePaidAccess) {
+  const badges = []
+  const needsPaid = Boolean(policy.requiresPaid)
+  const needsGa = Boolean(policy.requiresGa)
+  if (needsPaid) {
+    badges.push('유료')
+  }
+  if (needsGa) {
+    badges.push('GA 전용')
+  }
+  if (needsPaid && !ctx.hasActivePaidAccess) {
     return { allowed: false, reason: 'paid_required', badges }
   }
-  if (policy.requiresGa && !ctx.isGaMember) {
+  if (needsGa && !ctx.isGaMember) {
     return { allowed: false, reason: 'ga_required', badges }
   }
-  return { allowed: true, reason: null, badges: [] }
+  return { allowed: true, reason: null, badges }
 }
 
 /**
@@ -140,14 +124,9 @@ export function evaluateFeatureAccess(featureKey, ctx) {
  * @param {{ hasActivePaidAccess: boolean, isGaMember: boolean }} ctx
  */
 export function getFeatureAccessBadges(featureKey, ctx) {
-  const policy = FEATURE_POLICIES[String(featureKey ?? '')]
-  if (!policy || policy.freeAllowed) {
+  const verdict = evaluateFeatureAccess(featureKey, ctx)
+  if (verdict.allowed) {
     return []
   }
-  return getMissingEntitlementBadges({
-    requiresPaid: Boolean(policy.requiresPaid),
-    requiresGa: Boolean(policy.requiresGa),
-    hasActivePaidAccess: Boolean(ctx.hasActivePaidAccess),
-    isGaMember: Boolean(ctx.isGaMember),
-  })
+  return verdict.badges
 }
