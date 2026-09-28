@@ -258,6 +258,13 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
       {useLatestMobileEditor ? (
         <MobilePreviewEditorHeader
           title={editorHeaderTitle}
+          headerLeadingActions={
+            <CoverageScenarioViewModeSwitcher
+              surface="header-select"
+              viewMode={viewMode}
+              onChange={setViewMode}
+            />
+          }
           onBack={() => navigate(backTo)}
           onReset={requestReset}
           onSave={isTemplate ? () => persist(scenario) : handleSave}
@@ -279,6 +286,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
             <h1 className="coverage-simulator-pc-toolbar__title">{scenario.title}</h1>
           </div>
           <div className="coverage-simulator-pc-toolbar__actions">
+            <CoverageScenarioViewModeSwitcher viewMode={viewMode} onChange={setViewMode} />
             <FormButton variant="secondary" className="coverage-simulator-secondary-btn" onClick={resetToCancerDefaults}>
               초기화
             </FormButton>
@@ -321,7 +329,6 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
           .join(' ')}
         data-testid="coverage-scenario-editor"
       >
-        <CoverageScenarioViewModeSwitcher viewMode={viewMode} onChange={setViewMode} />
         {!useLatestMobileEditor ? <p className="cs-axis-lead">{blurb}</p> : null}
         {viewModel && viewMode === 'default' ? (
           <CoverageScenarioTimeline

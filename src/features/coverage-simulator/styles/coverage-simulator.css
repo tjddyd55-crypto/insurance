@@ -1789,10 +1789,27 @@ html.coverage-simulator-overlay-scroll-lock .cs-axis-main {
   flex-shrink: 0;
 }
 
-.coverage-simulator-root.coverage-simulator-root--crm .coverage-simulator-content {
+.coverage-simulator-root.coverage-simulator-root--crm .coverage-simulator-content,
+.coverage-simulator-root.coverage-simulator-root--crm .cs-axis-main.coverage-simulator-content,
+.coverage-simulator-root.coverage-simulator-root--crm-editor .cs-axis-main.coverage-simulator-content {
+  flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
-  padding-bottom: var(--cs-space-4);
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(var(--cs-space-4) + var(--cs-mobile-dock-height, 54px));
+}
+
+.coverage-simulator-root--pc-preview .cs-axis-main--pc {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.coverage-simulator-pc-toolbar__actions {
+  flex-wrap: nowrap;
+  align-items: center;
 }
 
 .coverage-simulator-root.coverage-simulator-root--crm .coverage-simulator-pdf-preview-shell {

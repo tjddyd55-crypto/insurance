@@ -11,10 +11,10 @@ export const COVERAGE_SCENARIO_VIEW_MODE_OPTIONS: {
   id: CoverageScenarioViewMode
   label: string
 }[] = [
-  { id: 'default', label: '기본형' },
-  { id: 'option1', label: '안1' },
-  { id: 'option2', label: '안2' },
-  { id: 'option3', label: '안3' },
+  { id: 'default', label: '기본' },
+  { id: 'option1', label: '1안' },
+  { id: 'option2', label: '2안' },
+  { id: 'option3', label: '3안' },
 ]
 
 export function isCoverageScenarioViewMode(value: string | null | undefined): value is CoverageScenarioViewMode {

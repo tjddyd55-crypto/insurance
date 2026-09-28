@@ -47,6 +47,38 @@ async function waitCrmHydrate(page) {
   }
 }
 
+async function pickViewMode(page, modeId) {
+  const select = page.getByTestId('coverage-view-mode-select')
+  if ((await select.count()) > 0) {
+    await select.selectOption(modeId)
+    await page.waitForTimeout(300)
+    return
+  }
+  await page.getByTestId(`coverage-view-mode-${modeId}`).click()
+  await page.waitForTimeout(300)
+}
+
+async function assertEditorScroll(page, modeId) {
+  await pickViewMode(page, modeId)
+  const main = page.locator('[data-testid="coverage-scenario-editor"]')
+  const meta = await main.evaluate((el) => {
+    const scrollHeight = el.scrollHeight
+    const clientHeight = el.clientHeight
+    el.scrollTop = scrollHeight
+    const scrollTop = el.scrollTop
+    const rows = el.querySelectorAll('.cs-axis-event-row, .cs-alt-row')
+    const last = rows[rows.length - 1]
+    let lastVisible = false
+    if (last) {
+      const r = last.getBoundingClientRect()
+      const m = el.getBoundingClientRect()
+      lastVisible = r.top < m.bottom && r.bottom > m.top
+    }
+    return { scrollHeight, clientHeight, scrollTop, lastVisible, rowCount: rows.length }
+  })
+  return meta
+}
+
 async function modalMetrics(page) {
   const modal = page.locator('.customer-relations-modal').first()
   await modal.waitFor({ state: 'visible', timeout: 30000 })
@@ -187,8 +219,7 @@ async function openCoverageCustomerPicker(page) {
 }
 
 async function columnXs(page, mode) {
-  await page.getByTestId(`coverage-view-mode-${mode}`).click()
-  await page.waitForTimeout(300)
+  await pickViewMode(page, mode)
   if (mode === 'option3') {
     const edgeX = async (loc) => {
       const box = await loc.boundingBox()
@@ -302,6 +333,25 @@ async function main() {
   await page.waitForSelector('[data-testid="coverage-scenario-editor"]', { timeout: 120000 })
 
   const metrics = {}
+  const inContentSwitcher = await page
+    .locator('[data-testid="coverage-scenario-editor"] [data-testid="coverage-view-mode-switcher"]')
+    .count()
+  if (inContentSwitcher === 0) pass('viewmode-not-in-content', 'switcher removed from editor body')
+  else fail('viewmode-not-in-content', `count=${inContentSwitcher}`)
+
+  for (const mode of ['default', 'option1', 'option2', 'option3']) {
+    const scrollMeta = await assertEditorScroll(page, mode)
+    if (scrollMeta.rowCount === 0) {
+      fail(`viewmode-scroll-${mode}`, 'no rows')
+    } else if (scrollMeta.scrollHeight > scrollMeta.clientHeight + 8 && scrollMeta.scrollTop < 8) {
+      fail(`viewmode-scroll-${mode}`, JSON.stringify(scrollMeta))
+    } else if (!scrollMeta.lastVisible && scrollMeta.scrollHeight > scrollMeta.clientHeight + 8) {
+      fail(`viewmode-scroll-${mode}`, JSON.stringify(scrollMeta))
+    } else {
+      pass(`viewmode-scroll-${mode}`, JSON.stringify(scrollMeta))
+    }
+  }
+
   for (const mode of ['option1', 'option2', 'option3']) {
     metrics[mode] = await columnXs(page, mode)
   }
@@ -332,13 +382,13 @@ async function main() {
     { w: 360, h: 800, tag: '360' },
   ]) {
     await page.setViewportSize({ width: vp.w, height: vp.h })
-    await page.getByTestId('coverage-view-mode-option3').click()
+    await pickViewMode(page, 'option3')
     await page.waitForTimeout(200)
     await page.screenshot({ path: join(OUT, `option3-${vp.tag}.png`) })
   }
   await page.setViewportSize({ width: 1280, height: 900 })
 
-  await page.getByTestId('coverage-view-mode-default').click()
+  await pickViewMode(page, 'default')
   const simId = await saveSimulationFromEditor(page, `QA Final PDF ${Date.now()}`)
   if (simId) pass('simulation-save', simId)
   else fail('simulation-save', 'no id')

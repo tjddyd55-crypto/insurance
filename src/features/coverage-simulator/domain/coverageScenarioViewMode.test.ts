@@ -17,10 +17,10 @@ describe('coverageScenarioViewMode', () => {
 
   it('keeps the four labeled modes', () => {
     expect(COVERAGE_SCENARIO_VIEW_MODE_OPTIONS.map((option) => option.label)).toEqual([
-      '기본형',
-      '안1',
-      '안2',
-      '안3',
+      '기본',
+      '1안',
+      '2안',
+      '3안',
     ])
     expect(parseCoverageScenarioViewMode('option1')).toBe('option1')
     expect(parseCoverageScenarioViewMode('option2')).toBe('option2')

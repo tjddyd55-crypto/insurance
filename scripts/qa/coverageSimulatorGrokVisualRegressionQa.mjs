@@ -54,6 +54,17 @@ async function openEditor(page) {
   await page.waitForSelector('[data-testid="coverage-scenario-editor"]', { timeout: 120000 })
 }
 
+async function pickViewMode(page, modeId) {
+  const select = page.getByTestId('coverage-view-mode-select')
+  if ((await select.count()) > 0) {
+    await select.selectOption(modeId)
+    await page.waitForTimeout(400)
+    return
+  }
+  await page.getByTestId(`coverage-view-mode-${modeId}`).click()
+  await page.waitForTimeout(400)
+}
+
 async function measureEditor(page) {
   const root = page.locator('[data-testid="coverage-scenario-editor"]')
   const box = await root.boundingBox()
@@ -66,8 +77,7 @@ async function captureViewModes(page, width) {
   const metrics = {}
   await page.setViewportSize({ width, height: 900 })
   for (const mode of MODES) {
-    await page.getByTestId(`coverage-view-mode-${mode.id}`).click()
-    await page.waitForTimeout(400)
+    await pickViewMode(page, mode.id)
     const path = join(OUT, `${mode.file}-${width}.png`)
     await page.screenshot({ path, fullPage: true })
     metrics[mode.id] = await measureEditor(page)
