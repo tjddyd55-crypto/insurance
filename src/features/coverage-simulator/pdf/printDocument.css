@@ -456,6 +456,12 @@
     overflow: hidden;
   }
 
+  .coverage-simulator-pdf-preview-shell .coverage-simulator-content.coverage-simulator-pdf-preview {
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: var(--cs-space-2, 8px);
+  }
+
   .coverage-simulator-pdf-preview {
     display: flex;
     flex: 1 1 auto;
@@ -590,6 +596,13 @@
   line-height: 1;
   overflow: visible;
   vertical-align: middle;
+  transform: none;
+}
+
+.coverage-simulator-print-root--korean-text-safe .coverage-simulator-badge__glyph {
+  display: block;
+  margin: -4px 0 0;
+  line-height: 1;
   transform: none;
 }
 

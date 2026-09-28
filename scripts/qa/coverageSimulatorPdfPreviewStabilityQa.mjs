@@ -47,6 +47,45 @@ function buildScenario() {
   }
 }
 
+async function readMobilePreviewLayout(page) {
+  return page.evaluate(() => {
+    const viewport = document.querySelector(
+      '[data-testid="coverage-pdf-preview-viewport"]',
+    )
+    const spacer = document.querySelector('.coverage-simulator-pdf-preview__zoom-spacer')
+    const printRoot = document.querySelector(
+      '[data-testid="coverage-pdf-preview-visible-document"] .coverage-simulator-print-root',
+    )
+    const main = document.querySelector('.coverage-simulator-pdf-preview')
+    const viewportStyle = viewport ? getComputedStyle(viewport) : null
+    const mainStyle = main ? getComputedStyle(main) : null
+    const viewportRect = viewport?.getBoundingClientRect()
+    const spacerRect = spacer?.getBoundingClientRect()
+    const printRect = printRoot?.getBoundingClientRect()
+    const leftGutter = spacerRect && viewportRect
+      ? spacerRect.left - viewportRect.left
+      : null
+    const rightGutter = spacerRect && viewportRect
+      ? viewportRect.right - spacerRect.right
+      : null
+    return {
+      innerWidth: window.innerWidth,
+      previewRootWidth: document.querySelector('.coverage-simulator-pdf-preview-shell')?.clientWidth ?? 0,
+      viewportClientWidth: viewport?.clientWidth ?? 0,
+      viewportPaddingLeft: viewportStyle?.paddingLeft ?? '',
+      viewportPaddingRight: viewportStyle?.paddingRight ?? '',
+      mainPaddingLeft: mainStyle?.paddingLeft ?? '',
+      mainPaddingRight: mainStyle?.paddingRight ?? '',
+      spacerWidth: spacerRect?.width ?? 0,
+      renderedPdfWidth: printRect?.width ?? 0,
+      documentFixedWidth: 794,
+      leftGutter,
+      rightGutter,
+      fitScale: Number(viewport?.getAttribute('data-fit-scale') ?? '0'),
+    }
+  })
+}
+
 async function readMetrics(page) {
   return page.evaluate(() => {
     const viewport = document.querySelector(
@@ -162,6 +201,7 @@ async function main() {
   await page.waitForSelector('[data-testid="coverage-pdf-preview-viewport"]')
   await page.waitForTimeout(300)
 
+  const layout = await readMobilePreviewLayout(page)
   const idleStart = await readMetrics(page)
   const samples = []
   for (let index = 0; index < 50; index += 1) {
@@ -213,12 +253,18 @@ async function main() {
   if (afterHorizontalPan.scrollLeft === afterPinch.scrollLeft) failures.push('horizontal-pan')
   if (afterPan.scrollTop === afterHorizontalPan.scrollTop) failures.push('vertical-pan')
   if (Math.abs(afterZoomOut.zoom - 1) >= 0.001) failures.push('zoom-out')
+  if (layout.leftGutter == null || layout.rightGutter == null) {
+    failures.push('preview-layout-metrics')
+  } else if (layout.leftGutter > 10 || layout.rightGutter > 10) {
+    failures.push('preview-horizontal-gutter')
+  }
 
   await page.screenshot({
     path: join(outDir, 'pdf-preview-stability-mobile-390.png'),
     fullPage: true,
   })
   const result = {
+    layout,
     idleStart,
     idleEnd,
     fitScales,
