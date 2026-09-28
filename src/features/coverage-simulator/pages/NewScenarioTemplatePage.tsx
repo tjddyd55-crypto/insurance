@@ -58,11 +58,11 @@ export function NewScenarioTemplatePage() {
         <button type="button" className="coverage-simulator-icon-btn" onClick={() => navigate(basePath)}>
           ←
         </button>
-        <div className="coverage-simulator-appbar__title">새 시나리오</div>
+        <div className="coverage-simulator-appbar__title">시나리오 추가</div>
         <span />
       </header>
       <main className={`coverage-simulator-content${isPc ? ' coverage-simulator-content--pc-select' : ''}`}>
-        <h1 className="coverage-simulator-page-title">새 시나리오 만들기</h1>
+        <h1 className="coverage-simulator-page-title">시나리오 추가</h1>
         <label className="cs-template-form-field">
           <span>시나리오 이름</span>
           <input
