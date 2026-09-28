@@ -326,7 +326,12 @@ export default function PersonalBinderEditorPage() {
       {error ? <p className="personal-binder-error">{error}</p> : null}
 
       <section className="personal-binder-settings">
-        <FormInput value={title} onChange={(event) => setTitle(event.target.value)} aria-label="바인더 이름" />
+        <FormInput
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          placeholder="바인더 제목"
+          aria-label="바인더 제목"
+        />
         <FormTextarea
           value={description}
           onChange={(event) => setDescription(event.target.value)}

@@ -302,11 +302,20 @@
 }
 
 .personal-binder-settings {
-  display: grid;
-  grid-template-columns: minmax(240px, 0.8fr) minmax(320px, 1.2fr);
-  gap: 12px;
-  margin: 20px 0;
-  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+  margin: var(--space-5, 20px) 0;
+  padding: var(--space-4, 16px);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-card);
+}
+
+.personal-binder-settings .form-input,
+.personal-binder-settings .form-textarea {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .personal-binder-section-list {
@@ -734,6 +743,11 @@
   overflow: auto;
   touch-action: pan-y;
   overscroll-behavior: contain;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: var(--space-4, 16px);
+  box-sizing: border-box;
 }
 
 .personal-binder-viewer__viewport--zoomed {
@@ -741,7 +755,15 @@
 }
 
 .personal-binder-viewer__page {
-  min-height: 100%;
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 100%;
+}
+
+.personal-binder-viewer__viewport .personal-binder-pdf-canvas {
+  min-width: 0;
+  width: 100%;
+  padding: 0;
 }
 
 .personal-binder-viewer__controls {
@@ -806,10 +828,6 @@
   }
 
   .personal-binder-card-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .personal-binder-settings {
     grid-template-columns: 1fr;
   }
 
