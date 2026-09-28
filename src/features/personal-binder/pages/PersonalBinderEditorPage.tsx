@@ -477,34 +477,52 @@ export default function PersonalBinderEditorPage() {
         open={materialSectionId != null}
         onClose={() => setMaterialSectionId(null)}
         closeOnBackdrop={false}
+        usePortal
         panelPreset="largeForm"
+        panelClassName="personal-binder-material-picker-dialog"
         ariaLabel="자료 추가"
       >
-        <header className="personal-binder-material-picker__header">
-          <div>
+        <header className="personal-binder-page-dialog__header">
+          <div className="personal-binder-page-dialog__header-copy">
             <h2>자료 추가</h2>
             <p>전체 페이지 또는 일부 페이지를 선택할 수 있습니다.</p>
           </div>
-          <FormButton variant="action" onClick={() => setMaterialSectionId(null)}>닫기</FormButton>
+          <FormButton variant="secondary" size="sm" onClick={() => setMaterialSectionId(null)}>
+            닫기
+          </FormButton>
         </header>
-        <div className="personal-binder-material-picker">
+        <div className="personal-binder-material-picker__body">
           {pdfMaterials.length === 0 ? (
-            <p>바인더에는 PDF만 추가할 수 있습니다. 이미지는 자료 업로드에서 PDF로 묶어 주세요.</p>
-          ) : pdfMaterials.map((material) => (
-            <FormButton
-              variant="action"
-              key={material.id}
-              className="personal-binder-material-picker__row"
-              onClick={() => {
-                if (materialSectionId) {
-                  void selectMaterial(materialSectionId, material)
-                }
-              }}
-            >
-              <strong>{material.title}</strong>
-              <span>{material.originalFileName} · {material.pageCount}페이지</span>
-            </FormButton>
-          ))}
+            <p className="personal-binder-material-picker__empty">
+              추가할 수 있는 PDF 자료가 없습니다. 이미지는 자료 업로드에서 PDF로 묶어 주세요.
+            </p>
+          ) : (
+            <ul className="personal-binder-material-picker__list">
+              {pdfMaterials.map((material) => (
+                <li key={material.id}>
+                  <button
+                    type="button"
+                    className="personal-binder-material-picker__row"
+                    onClick={() => {
+                      if (materialSectionId) {
+                        void selectMaterial(materialSectionId, material)
+                      }
+                    }}
+                  >
+                    <span className="personal-binder-material-picker__row-title">{material.title}</span>
+                    <span className="personal-binder-material-picker__row-meta">
+                      <span className="personal-binder-material-picker__row-filename">
+                        {material.originalFileName}
+                      </span>
+                      <span className="personal-binder-material-picker__row-pages">
+                        · {material.pageCount}페이지
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </BaseDialog>
 
