@@ -47,6 +47,19 @@
 - `develop` 전체를 `main`에 통째로 merge (fast-forward 포함)
 - Railway Source Branch 임의 변경 (변경 시 반드시 보고·문서 갱신)
 - production DB·파괴적 스크립트를 development 검증 없이 실행
+- **`environment` 미지정 `railway service source connect` / disconnect** (동일 서비스가 여러 환경에 있으면 전 환경에 영향 가능)
+
+### CLI 환경 명시 (필수)
+
+Railway source·deploy·variable 작업은 **항상 대상 environment를 명시**한다.
+
+| 작업 | 예시 |
+|---|---|
+| development source 연결 | `railway service source connect --repo tjddyd55-crypto/insurance --branch feat/... --service app --environment development` |
+| production source 연결 | `railway service source connect --repo tjddyd55-crypto/insurance --branch main --service app --environment production` |
+| development 재배포 | `railway redeploy --environment development --service app` |
+
+`railway link -e development` 또는 `-e production`으로 링크한 뒤 명령을 실행해도 되지만, **source connect에는 `--environment`를 생략하지 않는다.**
 
 ---
 
