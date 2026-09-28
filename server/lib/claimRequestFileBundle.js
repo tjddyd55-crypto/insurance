@@ -1,15 +1,20 @@
 import archiver from 'archiver'
-import sharp from 'sharp'
 import { PDFDocument, rgb } from 'pdf-lib'
 import { getKstDateCompactString } from '../../shared/dateTimeKst.js'
 import { embedKoreanFont } from '../pdf-engine/renderer/fontProvider.js'
+import {
+  appendRasterImagePage,
+  getRasterPdfPageLayout,
+  getRasterPdfPageSize,
+  isRasterImageMime,
+  normalizeRasterForPdf,
+} from '../pdf-engine/raster/rasterImagePdf.js'
 
 export const CLAIM_BUNDLE_MAX_FILES = 50
 export const CLAIM_BUNDLE_MAX_TOTAL_BYTES = 200 * 1024 * 1024
 
 const A4_W = 595.28
 const A4_H = 841.89
-const IMAGE_MARGIN = 36
 const NOTICE_MARGIN = 48
 const NOTICE_FONT_SIZE = 11
 const NOTICE_LINE_HEIGHT = 16
@@ -92,10 +97,7 @@ export function buildClaimBundleAsciiFallbackName(dateLike, kind) {
  * @param {number} height
  */
 export function getPdfPageLayoutForImage(width, height) {
-  if (!width || !height) {
-    return 'portrait'
-  }
-  return height >= width ? 'portrait' : 'landscape'
+  return getRasterPdfPageLayout(width, height)
 }
 
 /**
@@ -103,14 +105,14 @@ export function getPdfPageLayoutForImage(width, height) {
  * @param {number} height
  */
 export function getPdfPageSizeForImage(width, height) {
-  return getPdfPageLayoutForImage(width, height) === 'portrait' ? [A4_W, A4_H] : [A4_H, A4_W]
+  return getRasterPdfPageSize(width, height)
 }
 
 /**
  * @param {string} mime
  */
 export function isClaimRasterImageMime(mime) {
-  return mime === 'image/jpeg' || mime === 'image/png' || mime === 'image/webp'
+  return isRasterImageMime(mime)
 }
 
 /**
@@ -205,65 +207,7 @@ export function assertClaimBundleWithinLimits(files) {
  * @param {string} mime
  */
 export async function normalizeImageForPdf(bytes, mime) {
-  const pipeline = sharp(bytes).rotate()
-  const keepPng = mime === 'image/png'
-  const output = keepPng
-    ? await pipeline.png().toBuffer({ resolveWithObject: true })
-    : await pipeline.jpeg({ quality: 92 }).toBuffer({ resolveWithObject: true })
-  return {
-    buffer: output.data,
-    width: output.info.width,
-    height: output.info.height,
-    mime: keepPng ? 'image/png' : 'image/jpeg',
-  }
-}
-
-/**
- * @param {import('pdf-lib').PDFDocument} pdfDoc
- * @param {Buffer} bytes
- * @param {string} mime
- */
-async function tryEmbedNormalizedRaster(pdfDoc, bytes, mime) {
-  let normalized
-  try {
-    normalized = await normalizeImageForPdf(bytes, mime)
-  } catch {
-    return null
-  }
-  try {
-    const image =
-      normalized.mime === 'image/png'
-        ? await pdfDoc.embedPng(normalized.buffer)
-        : await pdfDoc.embedJpg(normalized.buffer)
-    return {
-      image,
-      width: normalized.width,
-      height: normalized.height,
-    }
-  } catch {
-    return null
-  }
-}
-
-/**
- * @param {import('pdf-lib').PDFDocument} pdfDoc
- * @param {import('pdf-lib').PDFImage} image
- * @param {number} displayWidth
- * @param {number} displayHeight
- */
-function drawImageFitPage(pdfDoc, image, displayWidth, displayHeight) {
-  const width = Number(displayWidth ?? image.width)
-  const height = Number(displayHeight ?? image.height)
-  const [pageW, pageH] = getPdfPageSizeForImage(width, height)
-  const page = pdfDoc.addPage([pageW, pageH])
-  const maxW = pageW - IMAGE_MARGIN * 2
-  const maxH = pageH - IMAGE_MARGIN * 2
-  const scale = Math.min(maxW / width, maxH / height)
-  const drawW = width * scale
-  const drawH = height * scale
-  const x = (pageW - drawW) / 2
-  const y = (pageH - drawH) / 2
-  page.drawImage(image, { x, y, width: drawW, height: drawH })
+  return normalizeRasterForPdf(bytes, mime)
 }
 
 /**
@@ -318,12 +262,12 @@ export async function buildClaimFilesPdfBuffer(files, readBuffer) {
     }
 
     if (isClaimRasterImageMime(mime)) {
-      const embedded = await tryEmbedNormalizedRaster(pdfDoc, bytes, mime)
-      if (!embedded) {
+      try {
+        await appendRasterImagePage(pdfDoc, bytes, mime)
+      } catch {
         skipped.push(fileName)
         continue
       }
-      drawImageFitPage(pdfDoc, embedded.image, embedded.width, embedded.height)
       includedPages += 1
       continue
     }
