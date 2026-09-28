@@ -1,17 +1,12 @@
 /*
  * 검색 결과가 줄어도 제목·검색 입력은 같은 상단 위치에 남는다.
  * 패널 하단만 결과 높이에 맞춰 줄거나 늘고, 최대 높이를 넘으면 목록만 스크롤한다.
- * 고객 선택(보장 시뮬레이션)과 연계 고객 검색 피커가 이 클래스를 같이 쓴다.
+ * 연계 고객 검색과 보장 시뮬레이션 고객 선택은 같은 Modal(`verticalAnchor="top"`)을 쓴다.
+ * 패널 폭은 `.customer-relations-modal` 이 고정한다. 이 파일은 세로 위치만 담당한다.
  */
-.customer-ui-modal-backdrop.search-picker-anchor-overlay,
-.coverage-simulator-sheet-backdrop.search-picker-anchor-overlay {
+.customer-ui-modal-backdrop.search-picker-anchor-overlay {
   align-items: flex-start;
   justify-content: center;
-  padding-top: 80px;
-}
-
-.coverage-simulator-root--mobile-preview .coverage-simulator-sheet-backdrop.search-picker-anchor-overlay {
-  align-items: flex-start;
   padding-top: 80px;
 }
 
@@ -21,11 +16,4 @@
   flex-direction: column;
   max-height: min(72vh, 640px);
   overflow: hidden;
-}
-
-.search-picker-anchor-scroll {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
 }

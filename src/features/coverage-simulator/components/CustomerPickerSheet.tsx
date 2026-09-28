@@ -1,16 +1,22 @@
 import { useEffect, useState } from 'react'
 
-import '../../../components/dialog/search-picker-anchor.css'
-import { formatCustomerSearchBirthLabel } from '../../customers/components/CustomerRelationSearchResultList'
-import { formatCustomerPhoneUi } from '../../customers/utils/customerDisplayFormat'
-import type { CoverageSimulatorCustomerListItem } from '../domain/customerContext'
+import Modal from '../../../components/ui/Modal'
+import { CustomerRelationSearchField } from '../../customers/components/CustomerRelationSearchField'
+import { CustomerRelationSearchResultList } from '../../customers/components/CustomerRelationSearchResultList'
 import { useCoverageSimulatorCustomer } from '../context/CoverageSimulatorCustomerContext'
+import type { CoverageSimulatorCustomerListItem } from '../domain/customerContext'
 
 type Props = {
   open: boolean
   onClose: () => void
 }
 
+/**
+ * 보장 시뮬레이션 고객 연결 피커.
+ * 레이아웃·폭·표는 연계 고객 `고객 검색 후 연결` 과 같은 모듈을 쓴다.
+ * (`customer-relations-modal` + 검색 필드 + 결과 테이블)
+ * 패널 폭은 CSS로 고정되어 결과 수와 상관없이 변하지 않고, 상단 앵커라 제목·검색창은 그대로다.
+ */
 export function CustomerPickerSheet({ open, onClose }: Props) {
   const { searchProvider, setCustomer } = useCoverageSimulatorCustomer()
   const [query, setQuery] = useState('')
@@ -49,67 +55,48 @@ export function CustomerPickerSheet({ open, onClose }: Props) {
     onClose()
   }
 
-  if (!open) return null
+  const emptyText = error || (query.trim() ? '검색 결과가 없습니다.' : '등록된 고객이 없습니다.')
 
   return (
-    <div
-      className="coverage-simulator-sheet-backdrop search-picker-anchor-overlay"
-      role="presentation"
-      onClick={closePicker}
+    <Modal
+      open={open}
+      onClose={closePicker}
+      ariaLabel="고객 선택"
+      panelClassName="customer-relations-modal"
+      closeOnBackdrop={false}
+      usePortal
+      verticalAnchor="top"
+      onEscapeRequest={closePicker}
     >
-      <div
-        className="coverage-simulator-sheet cs-customer-picker-sheet search-picker-anchor-panel"
-        role="dialog"
-        aria-label="고객 선택"
-        data-search-picker-anchor="top"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="coverage-simulator-sheet-header">
-          <h2 className="coverage-simulator-sheet__title">고객 선택</h2>
-          <button type="button" className="coverage-simulator-sheet-close" onClick={closePicker} aria-label="닫기">
-            ×
-          </button>
-        </div>
-        <div>
-          <input
-            type="search"
-            className="coverage-simulator-input cs-customer-picker-sheet__search"
-            placeholder="고객명 또는 전화번호"
+      <header className="customer-relations-modal__header">
+        <h3 className="customer-relations-modal__title">고객 선택</h3>
+      </header>
+      <div className="customer-relations-modal__body">
+        <div className="customer-relations-modal__search">
+          <CustomerRelationSearchField
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            autoFocus
+            onChange={setQuery}
+            placeholder="고객명 또는 전화번호"
+            autoFocus={open}
           />
-          <ul className="cs-customer-picker-sheet__list search-picker-anchor-scroll">
-            {loading ? <li className="cs-customer-picker-sheet__empty">고객을 불러오는 중…</li> : null}
-            {error ? <li className="cs-customer-picker-sheet__empty">{error}</li> : null}
-            {rows.map((row) => (
-              <li key={row.id}>
-                <button
-                  type="button"
-                  className="cs-customer-picker-sheet__row"
-                  onClick={() => {
-                    setCustomer(row)
-                    onClose()
-                  }}
-                >
-                  <span className="cs-customer-picker-sheet__name">{row.name}</span>
-                  <span className="cs-customer-picker-sheet__birth">
-                    {formatCustomerSearchBirthLabel(row.birthDate, row.ssn)}
-                  </span>
-                  <span className="cs-customer-picker-sheet__phone">
-                    {formatCustomerPhoneUi(row.phone) || '-'}
-                  </span>
-                </button>
-              </li>
-            ))}
-            {!loading && !error && rows.length === 0 ? (
-              <li className="cs-customer-picker-sheet__empty">
-                {query.trim() ? '검색 결과가 없습니다.' : '등록된 고객이 없습니다.'}
-              </li>
-            ) : null}
-          </ul>
         </div>
+        <CustomerRelationSearchResultList
+          hits={rows}
+          busy={loading}
+          emptyText={emptyText}
+          resolveStatus={() => ({ disabled: false })}
+          onSelect={(row) => {
+            setCustomer(row)
+            onClose()
+          }}
+          actionLabel="선택"
+        />
       </div>
-    </div>
+      <footer className="customer-relations-modal__footer">
+        <button type="button" className="ui-button ui-button--md ui-button--secondary" onClick={closePicker}>
+          닫기
+        </button>
+      </footer>
+    </Modal>
   )
 }
