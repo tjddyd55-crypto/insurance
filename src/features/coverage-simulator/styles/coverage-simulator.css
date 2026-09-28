@@ -130,6 +130,12 @@ body.coverage-simulator-immersive .pc-workspace-layout > main {
   flex: 1;
 }
 
+.cs-simulation-list__actions {
+  display: grid;
+  gap: var(--cs-space-2);
+  margin-bottom: var(--cs-space-3);
+}
+
 .cs-simulation-list__heading {
   margin: var(--cs-space-3) 0 var(--cs-space-2);
   font-size: 0.875rem;

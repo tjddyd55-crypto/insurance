@@ -33,7 +33,7 @@ export function cloneUserTemplate(
   const now = new Date().toISOString()
   return {
     id: createScenarioId(),
-    name: overrides?.name?.trim() || `${source.name} (복사)`,
+    name: overrides?.name?.trim() || `${source.name} 복사본`,
     description: overrides?.description ?? source.description,
     sourceType: 'user',
     category: source.category,

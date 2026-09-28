@@ -105,6 +105,22 @@ function SimulationListPageContent() {
       </header>
       <main className="coverage-simulator-content">
         <CustomerContextBar />
+        <div className="cs-simulation-list__actions">
+          <button
+            type="button"
+            className="coverage-simulator-primary-btn"
+            onClick={() => navigate(`${basePath}/${diseaseType}/new`)}
+          >
+            기본 시뮬레이션으로 시작
+          </button>
+          <button
+            type="button"
+            className="coverage-simulator-secondary-btn"
+            onClick={() => navigate(`${basePath}/${diseaseType}/new`)}
+          >
+            + 새 시뮬레이션 만들기
+          </button>
+        </div>
         <h2 className="cs-simulation-list__heading">저장된 시뮬레이션</h2>
         {rows.length === 0 ? (
           <p className="coverage-simulator-page-desc">저장된 시뮬레이션이 없습니다.</p>
@@ -129,13 +145,6 @@ function SimulationListPageContent() {
             ))}
           </div>
         )}
-        <button
-          type="button"
-          className="coverage-simulator-primary-btn cs-simulation-list__cta"
-          onClick={() => navigate(`${basePath}/${diseaseType}/new`)}
-        >
-          + 새 시뮬레이션 만들기
-        </button>
       </main>
       <SimulationListActionSheet
         open={menuRow != null}
