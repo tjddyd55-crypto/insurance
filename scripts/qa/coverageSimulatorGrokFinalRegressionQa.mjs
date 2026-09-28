@@ -3,6 +3,7 @@
  * Run after coverageSimulatorGrokVisualRegressionQa.mjs or standalone (includes re-run of core checks).
  */
 import { execSync } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { PDFDocument } from 'pdf-lib'
@@ -62,6 +63,93 @@ async function modalMetrics(page) {
   }
 }
 
+async function apiRequest(path, { token, method = 'GET', body } = {}) {
+  const response = await fetch(`${BASE}${path}`, {
+    method,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(body != null ? { 'Content-Type': 'application/json' } : {}),
+    },
+    body: body != null ? JSON.stringify(body) : undefined,
+  })
+  const text = await response.text()
+  let payload = null
+  try {
+    payload = text ? JSON.parse(text) : null
+  } catch {
+    payload = text
+  }
+  return { status: response.status, payload }
+}
+
+async function apiLogin() {
+  const res = await apiRequest('/api/auth/login', {
+    method: 'POST',
+    body: { username: USER_A, password: PASS_A },
+  })
+  if (res.status !== 200 || !res.payload?.token) throw new Error('api login failed')
+  return res.payload.token
+}
+
+async function runDeepCopyApiQa() {
+  const token = await apiLogin()
+  const stamp = Date.now()
+  const itemA = { id: randomUUID(), type: 'coverage', category: 'diagnosis', label: 'QA-A', currentAmount: 100, proposedAmount: 200, order: 0 }
+  const itemB = { id: randomUUID(), type: 'coverage', category: 'treatment', label: 'QA-B', currentAmount: 0, proposedAmount: 300, order: 1 }
+  const created = await apiRequest('/api/coverage-simulator/templates', {
+    token,
+    method: 'POST',
+    body: { name: `QA DeepCopy ${stamp}`, diseaseType: 'custom', items: [itemA, itemB] },
+  })
+  if (created.status !== 201) throw new Error(`template create ${created.status}`)
+  const templateId = created.payload.id
+  const simRes = await apiRequest('/api/coverage-simulator/simulations', {
+    token,
+    method: 'POST',
+    body: {
+      title: `QA DeepCopy sim ${stamp}`,
+      diseaseType: 'custom',
+      consultationDate: '2026-09-28',
+      items: structuredClone(created.payload.items ?? [itemA, itemB]),
+      templateId,
+      templateNameSnapshot: created.payload.name,
+    },
+  })
+  if (simRes.status !== 201) throw new Error(`sim create ${simRes.status}`)
+  const simId = simRes.payload.id
+  const itemC = { id: randomUUID(), type: 'coverage', category: 'other', label: 'QA-C', currentAmount: 0, proposedAmount: 400, order: 2 }
+  const simItems = (simRes.payload.items ?? []).map((it) =>
+    it.label === 'QA-A' ? { ...it, proposedAmount: 999 } : it,
+  )
+  simItems.push(itemC)
+  const simPatch = await apiRequest(`/api/coverage-simulator/simulations/${simId}`, {
+    token,
+    method: 'PATCH',
+    body: { items: simItems },
+  })
+  if (simPatch.status !== 200) throw new Error(`sim patch ${simPatch.status}`)
+  const tplReload = await apiRequest(`/api/coverage-simulator/templates/${templateId}`, { token })
+  const tplItems = tplReload.payload?.items ?? []
+  const tplHasC = tplItems.some((it) => it.label === 'QA-C')
+  const tplA = tplItems.find((it) => it.label === 'QA-A')
+  if (tplHasC || tplA?.proposedAmount === 999) {
+    throw new Error('template mutated with simulation edits')
+  }
+  const itemD = { id: randomUUID(), type: 'coverage', category: 'support', label: 'QA-D', currentAmount: 0, proposedAmount: 500, order: 2 }
+  const tplPatch = await apiRequest(`/api/coverage-simulator/templates/${templateId}`, {
+    token,
+    method: 'PATCH',
+    body: { items: [...tplItems, itemD] },
+  })
+  if (tplPatch.status !== 200) throw new Error(`template patch ${tplPatch.status}`)
+  const simReload = await apiRequest(`/api/coverage-simulator/simulations/${simId}`, { token })
+  const simHasD = (simReload.payload?.items ?? []).some((it) => it.label === 'QA-D')
+  if (simHasD) throw new Error('simulation picked up template item D')
+  await apiRequest(`/api/coverage-simulator/simulations/${simId}`, { token, method: 'DELETE' })
+  await apiRequest(`/api/coverage-simulator/templates/${templateId}`, { token, method: 'DELETE' })
+  return String(templateId)
+}
+
 async function fetchFirstCustomerId() {
   const loginRes = await fetch(`${BASE}/api/auth/login`, {
     method: 'POST',
@@ -104,22 +192,32 @@ async function columnXs(page, mode) {
   if (mode === 'option3') {
     const edgeX = async (loc) => {
       const box = await loc.boundingBox()
-      return box ? Math.round(box.x) : null
+      return box != null ? Math.round(box.x) : null
     }
-    const head = page.locator('.cs-alt-grid__head [role="columnheader"]')
+    const headSelectors = [
+      '.cs-alt-grid__cell--head-0',
+      '.cs-alt-grid__cell--head-1',
+      '.cs-alt-grid__cell--head-2',
+      '.cs-alt-grid__cell--head-3',
+    ]
+    const bodyCellSelectors = [
+      '.cs-alt-grid__cell--category',
+      '.cs-alt-amount--current',
+      '.cs-alt-grid__cell--title',
+      '.cs-alt-amount--proposed',
+    ]
     const headXs = []
-    for (let i = 0; i < (await head.count()); i++) {
-      headXs.push(await edgeX(head.nth(i)))
+    for (const sel of headSelectors) {
+      headXs.push(await edgeX(page.locator(`.cs-alt-view--option3 ${sel}`).first()))
     }
-    const bodyRows = page.locator('.cs-alt-view--option3 .cs-alt-row')
+    const bodyRows = page.locator('.cs-alt-view--option3 .cs-alt-row--option3')
     const rowCount = await bodyRows.count()
     const bodyRowsXs = []
     for (let r = 0; r < Math.min(rowCount, 3); r++) {
       const row = bodyRows.nth(r)
-      const cells = row.locator('.cs-alt-badge, .cs-alt-amount--current, .cs-alt-name, .cs-alt-amount--proposed')
       const xs = []
-      for (let i = 0; i < Math.min(await cells.count(), 4); i++) {
-        xs.push(await edgeX(cells.nth(i)))
+      for (const sel of bodyCellSelectors) {
+        xs.push(await edgeX(row.locator(sel).first()))
       }
       bodyRowsXs.push(xs)
     }
@@ -215,14 +313,30 @@ async function main() {
 
   const o3 = metrics.option3
   const o3Rows = o3?.bodyRows ?? []
+  const OPTION3_X_TOL = 1
   if (o3?.head?.length >= 4 && o3Rows.length >= 2) {
-    const headAligned = o3Rows[0].slice(0, 4).every((x, i) => x != null && o3.head[i] != null && Math.abs(x - o3.head[i]) < 16)
+    const headAligned = o3Rows[0].slice(0, 4).every(
+      (x, i) => x != null && o3.head[i] != null && Math.abs(x - o3.head[i]) <= OPTION3_X_TOL,
+    )
     const stableRows = o3Rows.every((row) =>
-      row.slice(0, 4).every((x, i) => x != null && o3Rows[0][i] != null && Math.abs(x - o3Rows[0][i]) < 4),
+      row.slice(0, 4).every((x, i) => x != null && o3Rows[0][i] != null && Math.abs(x - o3Rows[0][i]) <= OPTION3_X_TOL),
     )
     if (headAligned && stableRows) pass('viewmode-option3-grid', JSON.stringify(o3))
     else fail('viewmode-option3-grid', JSON.stringify(o3))
   } else fail('viewmode-option3-grid', JSON.stringify(o3))
+
+  for (const vp of [
+    { w: 1280, h: 900, tag: '1280' },
+    { w: 412, h: 900, tag: '412' },
+    { w: 390, h: 844, tag: '390' },
+    { w: 360, h: 800, tag: '360' },
+  ]) {
+    await page.setViewportSize({ width: vp.w, height: vp.h })
+    await page.getByTestId('coverage-view-mode-option3').click()
+    await page.waitForTimeout(200)
+    await page.screenshot({ path: join(OUT, `option3-${vp.tag}.png`) })
+  }
+  await page.setViewportSize({ width: 1280, height: 900 })
 
   await page.getByTestId('coverage-view-mode-default').click()
   const simId = await saveSimulationFromEditor(page, `QA Final PDF ${Date.now()}`)
@@ -301,6 +415,34 @@ async function main() {
         await pubDownload.saveAs(join(OUT, 'public-share.pdf'))
         pass('public-share-pdf', 'downloaded')
       } else skip('public-share-pdf', 'download button or flow not found')
+
+      await page.goto(`${BASE}/coverage-simulator/scenarios/${simId}`, { waitUntil: 'domcontentloaded' })
+      await page.getByRole('button', { name: /^공유$/ }).click()
+      await page.waitForSelector('.cs-share-dialog-history', { timeout: 30000 })
+      if ((await page.locator('.cs-share-history__list li').count()) === 0) {
+        await page.getByRole('button', { name: '링크 복사' }).click()
+      }
+      await page.waitForSelector('.cs-share-history__list li', { timeout: 120000 })
+      const revokeBtn = page.getByRole('button', { name: '공유 중지' }).first()
+      if ((await revokeBtn.count()) > 0) {
+        await revokeBtn.click()
+        await page.waitForSelector('.cs-share-history__revoked', { timeout: 30000 })
+        const stopCtx = await browser.newContext()
+        const stopPage = await stopCtx.newPage()
+        await stopPage.goto(`${shareUrl}?revoke-check=${Date.now()}`, { waitUntil: 'domcontentloaded' })
+        await stopPage.waitForFunction(
+          () => {
+            const msg = document.querySelector('.cs-share-public__status-message')?.textContent ?? ''
+            return msg.length > 0 && !msg.includes('불러오는')
+          },
+          { timeout: 60000 },
+        )
+        const msg = (await stopPage.locator('.cs-share-public__status-message').textContent())?.trim() ?? ''
+        await stopCtx.close()
+        if (/중지|만료|찾을 수 없/i.test(msg)) pass('share-stop', msg)
+        else fail('share-stop', msg || 'no status message')
+      } else fail('share-stop', 'revoke button missing')
+
       await publicCtx.close()
     } else fail('share-create', 'no share URL captured')
   } else fail('share-button', 'missing')
@@ -326,23 +468,13 @@ async function main() {
     }
   }
 
-  const stamp = Date.now()
-  await page.goto(`${BASE}/coverage-simulator/templates/new`, { waitUntil: 'domcontentloaded' })
-  await waitCrmHydrate(page)
-  await page.locator('.coverage-simulator-input').first().fill(`QA DeepCopy ${stamp}`)
-  await page.getByRole('button', { name: '빈 템플릿으로 시작' }).click()
-  await page.waitForURL(/templates\/\d+\/edit/, { timeout: 60000 })
-  const templateUrl = page.url()
-  const templateId = templateUrl.match(/templates\/(\d+)/)?.[1]
-
-  await page.goto(`${BASE}/coverage-simulator`, { waitUntil: 'domcontentloaded' })
-  await waitCrmHydrate(page)
-  const deepCard = page.getByText(`QA DeepCopy ${stamp}`)
-  if ((await deepCard.count()) > 0) {
-    await deepCard.first().click()
-    await page.waitForURL(/scenarios\/\d+/, { timeout: 60000 })
-    pass('deep-copy-flow', 'template started simulation')
-  } else skip('deep-copy-flow', 'template card not in list yet')
+  let templateId = null
+  try {
+    templateId = await runDeepCopyApiQa()
+    pass('deep-copy-flow', `template ${templateId} isolated from simulation`)
+  } catch (e) {
+    fail('deep-copy-flow', String(e.message ?? e))
+  }
 
   const ctxB = await browser.newContext({ viewport: { width: 1280, height: 900 } })
   const pageB = await ctxB.newPage()

@@ -3,6 +3,7 @@ import { CoverageScenarioPeriodMarkerRow } from './CoverageScenarioPeriodMarkerR
 import { CoverageScenarioSubtotalRow } from './CoverageScenarioSubtotalRow'
 import { CoverageScenarioViewMode1Row } from './CoverageScenarioViewMode1Row'
 import { CoverageScenarioViewMode2Row } from './CoverageScenarioViewMode2Row'
+import { CoverageScenarioViewMode3Row } from './CoverageScenarioViewMode3Row'
 import type { AlternativeViewRow } from '../../domain/buildAlternativeViewRows'
 import type { AlternativeViewHandlers } from './alternativeViewTypes'
 import type { CoverageScenarioAlternativeViewMode } from '../../domain/coverageScenarioViewMode'
@@ -49,6 +50,10 @@ export function AlternativeViewBlock({ row, viewMode, ...handlers }: Props) {
 
   if (viewMode === 'option2') {
     return <CoverageScenarioViewMode2Row item={row.item} displayTitle={row.displayTitle} {...handlers} />
+  }
+
+  if (viewMode === 'option3') {
+    return <CoverageScenarioViewMode3Row item={row.item} displayTitle={row.displayTitle} {...handlers} />
   }
 
   return <CoverageScenarioViewMode1Row item={row.item} displayTitle={row.displayTitle} {...handlers} />

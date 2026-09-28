@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 
+import '../../styles/coverage-scenario-alt-view.css'
 import { buildAlternativeViewRows } from '../../domain/buildAlternativeViewRows'
 import type { CoverageTimelineViewModel } from '../../domain/buildCoverageTimelineViewModel'
 import type { CoverageScenarioAlternativeViewMode } from '../../domain/coverageScenarioViewMode'

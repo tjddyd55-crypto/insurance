@@ -290,23 +290,36 @@
 .cs-alt-view--option2 .cs-alt-subtotal .cs-alt-amount--proposed { grid-area: prop; }
 .cs-alt-view--option2 .cs-alt-subtotal__spacer:last-child { grid-area: tools; }
 
+/*
+ * 안3: header/body/subtotal이 동일 --coverage-option3-columns SSOT.
+ * subgrid 대신 동일 template repeat(880px content 기준 fixed + 1fr title + tools).
+ */
+.cs-alt-view--option3 {
+  --coverage-option3-columns: 2.6rem 4.35rem minmax(0, 1fr) 4.35rem var(--cs-alt-tools);
+  --coverage-option3-row-pad-x: 8px;
+  --coverage-option3-row-pad-y: 5px;
+  --coverage-option3-col-gap: 6px;
+}
+
 .cs-alt-view--option3 .cs-alt-grid {
   display: grid;
-  grid-template-columns: 2.6rem 4.35rem minmax(0, 1fr) 4.35rem var(--cs-alt-tools);
+  grid-template-columns: var(--coverage-option3-columns);
+  column-gap: var(--coverage-option3-col-gap);
   border: 1px solid var(--cs-color-border);
   border-radius: var(--cs-radius-card);
   overflow: hidden;
 }
 
 .cs-alt-view--option3 .cs-alt-grid__head,
-.cs-alt-view--option3 .cs-alt-row,
+.cs-alt-view--option3 .cs-alt-row--option3,
 .cs-alt-view--option3 .cs-alt-subtotal {
   display: grid;
-  grid-template-columns: subgrid;
+  grid-template-columns: var(--coverage-option3-columns);
   grid-column: 1 / -1;
   align-items: center;
-  column-gap: 6px;
-  padding: 5px 8px;
+  column-gap: var(--coverage-option3-col-gap);
+  padding: var(--coverage-option3-row-pad-y) var(--coverage-option3-row-pad-x);
+  box-sizing: border-box;
 }
 
 .cs-alt-grid__head {
@@ -322,23 +335,100 @@
   letter-spacing: -0.02em;
 }
 
-.cs-alt-grid__head [role='columnheader']:nth-child(2),
-.cs-alt-grid__head [role='columnheader']:nth-child(4) {
+.cs-alt-view--option3 .cs-alt-grid__head [role='columnheader'] {
+  min-width: 0;
+}
+
+.cs-alt-view--option3 .cs-alt-grid__cell--head-0,
+.cs-alt-view--option3 .cs-alt-row--option3 > .cs-alt-grid__cell--category {
+  grid-column: 1;
+  justify-self: stretch;
+}
+
+.cs-alt-view--option3 .cs-alt-grid__cell--head-1,
+.cs-alt-view--option3 .cs-alt-row--option3 > .cs-alt-amount--current {
+  grid-column: 2;
+  justify-self: stretch;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   text-align: right;
 }
 
-.cs-alt-view--option3 .cs-alt-row {
+.cs-alt-view--option3 .cs-alt-grid__cell--head-2,
+.cs-alt-view--option3 .cs-alt-row--option3 > .cs-alt-grid__cell--title {
+  grid-column: 3;
+  justify-self: stretch;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.cs-alt-view--option3 .cs-alt-grid__cell--head-3,
+.cs-alt-view--option3 .cs-alt-row--option3 > .cs-alt-amount--proposed {
+  grid-column: 4;
+  justify-self: stretch;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  text-align: right;
+}
+
+.cs-alt-view--option3 .cs-alt-grid__cell--controls,
+.cs-alt-view--option3 .cs-alt-row--option3 > .cs-alt-row__tools {
+  grid-column: 5;
+  justify-self: end;
+}
+
+.cs-alt-view--option3 .cs-alt-grid__cell--head-1,
+.cs-alt-view--option3 .cs-alt-grid__cell--head-3 {
+  text-align: right;
+}
+
+.cs-alt-view--option3 .cs-alt-row--option3 {
+  position: relative;
   min-height: 34px;
   border-bottom: 1px solid var(--cs-color-border);
 }
 
-.cs-alt-view--option3 .cs-alt-row .button.cs-alt-row__hit {
-  grid-column: 1 / -1;
+.cs-alt-view--option3 .cs-alt-row--option3 .button.cs-alt-row__hit {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: auto;
+  height: auto;
+  margin: 0;
 }
 
-.cs-alt-view--option3 .cs-alt-amount {
+.cs-alt-view--option3 .cs-alt-subtotal > .cs-alt-subtotal__spacer:first-child {
+  grid-column: 1;
+}
+
+.cs-alt-view--option3 .cs-alt-subtotal > .cs-alt-amount--current {
+  grid-column: 2;
+  justify-self: stretch;
+  width: 100%;
   text-align: right;
-  justify-self: end;
+  box-sizing: border-box;
+}
+
+.cs-alt-view--option3 .cs-alt-subtotal > .cs-alt-subtotal__label {
+  grid-column: 3;
+  justify-self: stretch;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.cs-alt-view--option3 .cs-alt-subtotal > .cs-alt-amount--proposed {
+  grid-column: 4;
+  justify-self: stretch;
+  width: 100%;
+  text-align: right;
+  box-sizing: border-box;
+}
+
+.cs-alt-view--option3 .cs-alt-subtotal > .cs-alt-subtotal__spacer:last-child {
+  grid-column: 5;
 }
 
 .cs-alt-view--option3 .cs-alt-marker,
