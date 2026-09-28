@@ -1,10 +1,50 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import sharp from 'sharp'
+import { PDFDocument } from 'pdf-lib'
 
 import {
+  inspectBinderMaterialBuffer,
   normalizeOrder,
   normalizePageSelection,
 } from '../apis/personalBinderApi.js'
+
+test('personal binder material inspection accepts PDF, JPEG, and PNG', async () => {
+  const pdf = await PDFDocument.create()
+  pdf.addPage()
+  const pdfResult = await inspectBinderMaterialBuffer(
+    Buffer.from(await pdf.save()),
+    'application/pdf',
+    'document.pdf',
+  )
+  const jpeg = await sharp({
+    create: { width: 20, height: 30, channels: 3, background: '#ffffff' },
+  }).jpeg().toBuffer()
+  const png = await sharp(jpeg).png().toBuffer()
+  assert.deepEqual(pdfResult, { mimeType: 'application/pdf', pageCount: 1 })
+  assert.deepEqual(
+    await inspectBinderMaterialBuffer(jpeg, 'image/jpeg', 'photo.jpg'),
+    { mimeType: 'image/jpeg', pageCount: 1 },
+  )
+  assert.deepEqual(
+    await inspectBinderMaterialBuffer(png, 'image/png', 'scan.png'),
+    { mimeType: 'image/png', pageCount: 1 },
+  )
+})
+
+test('personal binder material inspection rejects spoofed and corrupt images', async () => {
+  const jpeg = await sharp({
+    create: { width: 20, height: 20, channels: 3, background: '#ffffff' },
+  }).jpeg().toBuffer()
+  await assert.rejects(
+    inspectBinderMaterialBuffer(jpeg, 'image/png', 'photo.png'),
+    /형식/,
+  )
+  await assert.rejects(
+    inspectBinderMaterialBuffer(Buffer.from('broken'), 'image/jpeg', 'photo.jpg'),
+    /읽을 수/,
+  )
+})
 
 test('personal binder page selection normalizes duplicates and order', () => {
   assert.deepEqual(normalizePageSelection([5, 3, 3, 4], 10), [3, 4, 5])

@@ -111,6 +111,10 @@ export default function PersonalBinderEditorPage() {
     () => binder?.sections.slice().sort((left, right) => left.sortOrder - right.sortOrder) ?? [],
     [binder],
   )
+  const pdfMaterials = useMemo(
+    () => materials.filter((material) => material.mimeType === 'application/pdf'),
+    [materials],
+  )
 
   if (!token) return <Navigate to="/login" replace />
   if (loading) return <main className="page personal-binder-status">바인더를 불러오는 중…</main>
@@ -484,9 +488,9 @@ export default function PersonalBinderEditorPage() {
           <FormButton variant="action" onClick={() => setMaterialSectionId(null)}>닫기</FormButton>
         </header>
         <div className="personal-binder-material-picker">
-          {materials.length === 0 ? (
-            <p>자료 보관함에 PDF를 먼저 업로드해 주세요.</p>
-          ) : materials.map((material) => (
+          {pdfMaterials.length === 0 ? (
+            <p>바인더에는 PDF만 추가할 수 있습니다. 이미지는 자료 업로드에서 PDF로 묶어 주세요.</p>
+          ) : pdfMaterials.map((material) => (
             <FormButton
               variant="action"
               key={material.id}
