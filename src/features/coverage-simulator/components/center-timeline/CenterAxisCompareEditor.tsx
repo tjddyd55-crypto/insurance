@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 
 import { useConfirmDialog } from '../../../../components/dialog'
 import FormButton from '../../../../components/form/FormButton'
@@ -22,13 +22,17 @@ import { isTemplateEditorMode, type TimelineEditorController } from './TimelineE
 type Props = {
   editor: TimelineEditorController
   variant: 'mobile' | 'pc'
+  /** 3-pane·고객 workspace 등 — 전체 화면 shell/뒤로가기 생략 */
+  embedChrome?: boolean
+  headerSubtitle?: string | null
+  headerExtras?: ReactNode
 }
 
 const SCENARIO_BLURB: Record<string, string> = {
   cancer: '암 치료 과정에 따라 현재 보장과 제안 보장을 비교합니다.',
 }
 
-function CenterAxisCompareEditorBody({ editor, variant }: Props) {
+function CenterAxisCompareEditorBody({ editor, variant, embedChrome = false, headerSubtitle, headerExtras }: Props) {
   const { layoutMode, userKey } = useCoverageSimulatorScope()
   const { confirm, confirmDialog } = useConfirmDialog()
   const { showToast } = useCoverageSimulatorToast()
@@ -135,9 +139,11 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   }, [scenario, useLatestMobileEditor])
 
   if (!scenario) {
+    const loading = <main className="coverage-simulator-content">시나리오를 준비하는 중…</main>
+    if (embedChrome) return loading
     return (
       <CoverageSimulatorLayout mobileTimelineChrome={useLatestMobileEditor}>
-        <main className="coverage-simulator-content">시나리오를 준비하는 중…</main>
+        {loading}
       </CoverageSimulatorLayout>
     )
   }
@@ -216,6 +222,41 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   }
 
   if (useMobileExclusiveForm && formMode) {
+    const exclusiveForm = (
+      <>
+        <CoverageSimulatorMobileItemForm
+          formMode={formMode}
+          favoriteUserKey={favoriteUserKey}
+          editingItem={editingItem}
+          onClose={closeForm}
+          onSelectCoverage={onSelectCoverage}
+          onSelectTimeMarker={onSelectTimeMarker}
+          onSaveAmount={onSaveAmount}
+          onDelete={handleEditSheetDelete}
+        />
+        {confirmDialog}
+        {!isTemplate ? (
+          <SaveConsultationTitleDialog
+            open={titleDialogOpen}
+            initialTitle={scenario.title}
+            validationError={titleValidationError}
+            saving={isSaving}
+            onClose={() => {
+              setTitleDialogOpen(false)
+              setTitleValidationError(null)
+            }}
+            onConfirm={handleTitleConfirm}
+          />
+        ) : null}
+      </>
+    )
+    if (embedChrome) {
+      return (
+        <div className="coverage-simulator-shell coverage-simulator-shell--embedded coverage-simulator-shell--exclusive-form">
+          {exclusiveForm}
+        </div>
+      )
+    }
     return (
       <CoverageSimulatorLayout
         shellClassName="coverage-simulator-shell--exclusive-form"
@@ -249,29 +290,38 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
     )
   }
 
-  return (
-    <CoverageSimulatorLayout mobileTimelineChrome={useLatestMobileEditor}>
-      {useLatestMobileEditor ? (
-        <MobilePreviewEditorHeader
-          title={editorHeaderTitle}
-          onBack={() => navigate(backTo)}
-          onReset={requestReset}
-          onSave={isTemplate ? () => persist(scenario) : handleSave}
-          saving={!isTemplate && isSaving}
-          onPdf={!isTemplate ? () => navigate(`${basePath}/scenarios/${scenario.id}/pdf`) : undefined}
-          onShare={shareFlow.showShareButton ? () => void shareFlow.openShareDialog() : undefined}
-          shareDisabled={shareFlow.sharing}
-          showShare={shareFlow.showShareButton}
-          showPdf={!isTemplate}
-          resetLabel={isTemplate ? '비우기' : '초기화'}
-        />
-      ) : (
+  const headerBlock = useLatestMobileEditor ? (
+    <>
+      <MobilePreviewEditorHeader
+        title={embedChrome ? scenario.title : editorHeaderTitle}
+        hideBack={embedChrome}
+        onBack={embedChrome ? undefined : () => navigate(backTo)}
+        onReset={requestReset}
+        onSave={isTemplate ? () => persist(scenario) : handleSave}
+        saving={!isTemplate && isSaving}
+        onPdf={!isTemplate ? () => navigate(`${basePath}/scenarios/${scenario.id}/pdf`) : undefined}
+        onShare={shareFlow.showShareButton ? () => void shareFlow.openShareDialog() : undefined}
+        shareDisabled={shareFlow.sharing}
+        showShare={shareFlow.showShareButton}
+        showPdf={!isTemplate}
+        resetLabel={isTemplate ? '비우기' : '초기화'}
+      />
+      {headerSubtitle ? <p className="cs-embedded-editor-subtitle">{headerSubtitle}</p> : null}
+      {headerExtras}
+    </>
+  ) : (
         <header className="cs-axis-header cs-axis-header--pc coverage-simulator-pc-toolbar">
-          <FormButton variant="action" className="coverage-simulator-icon-btn" onClick={() => navigate(backTo)}>
-            ← 시나리오 선택
-          </FormButton>
+          {!embedChrome ? (
+            <FormButton variant="action" className="coverage-simulator-icon-btn" onClick={() => navigate(backTo)}>
+              ← 시나리오 선택
+            </FormButton>
+          ) : (
+            <span className="coverage-simulator-icon-btn" aria-hidden="true" />
+          )}
           <div className="cs-axis-header__titles cs-axis-header__titles--pc">
-            <div className="cs-axis-header__product">{isTemplate ? '템플릿 편집' : '보장 시뮬레이션'}</div>
+            <div className="cs-axis-header__product">
+              {headerSubtitle ?? (isTemplate ? '템플릿 편집' : '보장 시뮬레이션')}
+            </div>
             <h1 className="coverage-simulator-pc-toolbar__title">{scenario.title}</h1>
           </div>
           <div className="coverage-simulator-pc-toolbar__actions">
@@ -306,7 +356,11 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
             ) : null}
           </div>
         </header>
-      )}
+      )
+
+  const editorInner = (
+    <>
+      {headerBlock}
 
       <main
         className={[
@@ -395,8 +449,26 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
           canNativeShare={shareFlow.canNativeShare}
         />
       ) : null}
-    </CoverageSimulatorLayout>
+    </>
   )
+
+  if (embedChrome) {
+    return (
+      <div
+        className={[
+          'coverage-simulator-shell',
+          'coverage-simulator-shell--embedded',
+          useLatestMobileEditor ? 'coverage-simulator-shell--mobile-timeline' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
+        {editorInner}
+      </div>
+    )
+  }
+
+  return <CoverageSimulatorLayout mobileTimelineChrome={useLatestMobileEditor}>{editorInner}</CoverageSimulatorLayout>
 }
 
 export function CenterAxisCompareEditor(props: Props) {

@@ -2,6 +2,7 @@
 @import './overlay-shell.css';
 @import './form-screen.css';
 @import './center-timeline.css';
+@import './coverage-three-pane.css';
 
 .coverage-simulator-public-root {
   min-height: 100dvh;

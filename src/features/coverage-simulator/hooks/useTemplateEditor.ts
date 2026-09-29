@@ -16,21 +16,32 @@ import { calculateScenarioTotals } from '../domain/totals'
 import type { CoverageScenario, CoverageScenarioItem } from '../domain/types'
 import { getScenarioTemplateById, saveScenarioTemplate } from '../storage/templateRepository'
 
-export function useTemplateEditor() {
+export type UseTemplateEditorOptions = {
+  templateIdOverride?: string | null
+  embedded?: boolean
+}
+
+export function useTemplateEditor(options?: UseTemplateEditorOptions) {
   const navigate = useNavigate()
-  const { templateId } = useParams()
+  const params = useParams()
+  const templateId = options?.templateIdOverride ?? params.templateId
+  const embedded = options?.embedded ?? false
   const { basePath, userKey } = useCoverageSimulatorScope()
 
   const [scenario, setScenario] = useState<CoverageScenario | null>(null)
   const [formMode, setFormMode] = useState<CoverageSimulatorFormMode>(null)
 
   useEffect(() => {
+    if (embedded && !templateId) {
+      setScenario(null)
+      return
+    }
     if (!templateId) return
     const template = getScenarioTemplateById(userKey, templateId)
     if (template) {
       setScenario(templateToEditableScenario(template))
     }
-  }, [templateId, userKey])
+  }, [embedded, templateId, userKey])
 
   const totals = useMemo(
     () => (scenario ? calculateScenarioTotals(scenario) : { currentTotal: 0, proposedTotal: 0 }),

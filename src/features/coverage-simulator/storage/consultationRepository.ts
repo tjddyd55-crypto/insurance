@@ -63,6 +63,16 @@ export function listConsultationsByTemplateId(
   })
 }
 
+/** 고객 상세 시뮬레이션 탭 — customerId가 정확히 일치하는 Simulation만 */
+export function listConsultationsByCustomerId(
+  userKey: string,
+  customerId: string,
+): SavedScenarioSummary[] {
+  const normalized = customerId.trim()
+  if (!normalized) return []
+  return listConsultations(userKey).filter((row) => row.customerId === normalized)
+}
+
 export function getConsultationById(userKey: string, id: string): CoverageScenario | null {
   if (isPreviewUserKey(userKey)) {
     return getLocalConsultationById(userKey, id)

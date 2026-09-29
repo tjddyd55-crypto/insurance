@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { consultationContentSnapshot } from '../domain/consultationSnapshot'
 import { readSessionCustomerDraft } from '../context/CoverageSimulatorCustomerContext'
+import { emptyCustomerDraft, type ConsultationCustomerDraft } from '../domain/customerContext'
 import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
 import { createDraftFromSystemDisease } from '../domain/startConsultation'
 import {
@@ -29,11 +30,19 @@ export type SaveConsultationResult =
   | { ok: false; toast: string }
   | { ok: false; needsTitle: true; validationError?: string }
 
-export function useScenarioEditor() {
+export type UseScenarioEditorOptions = {
+  scenarioIdOverride?: string | null
+  embedded?: boolean
+  onSaved?: (scenario: CoverageScenario) => void
+}
+
+export function useScenarioEditor(options?: UseScenarioEditorOptions) {
   const navigate = useNavigate()
   const location = useLocation()
   const params = useParams()
-  const scenarioId = params.scenarioId
+  const scenarioId = options?.scenarioIdOverride ?? params.scenarioId
+  const embedded = options?.embedded ?? false
+  const onSaved = options?.onSaved
   const diseaseTypeParam = params.diseaseType as DiseaseType | undefined
   const { basePath, userKey } = useCoverageSimulatorScope()
   const { version: storageVersion } = useCoverageSimulatorCrmStorage()
@@ -47,6 +56,11 @@ export function useScenarioEditor() {
   const persistedSnapshotRef = useRef<string | null>(null)
 
   useEffect(() => {
+    if (embedded && !scenarioId) {
+      setScenario(null)
+      persistedSnapshotRef.current = null
+      return
+    }
     if (scenarioId) {
       const saved = getScenarioById(userKey, scenarioId)
       if (saved) {
@@ -79,7 +93,7 @@ export function useScenarioEditor() {
     const created = createScenarioFromTemplate(diseaseType)
     setScenario(created)
     persistedSnapshotRef.current = null
-  }, [diseaseType, isNewDraft, scenarioId, storageVersion, userKey])
+  }, [diseaseType, embedded, isNewDraft, scenarioId, storageVersion, userKey])
 
   const totals = useMemo(
     () => (scenario ? calculateScenarioTotals(scenario) : { currentTotal: 0, proposedTotal: 0 }),
@@ -110,14 +124,14 @@ export function useScenarioEditor() {
         const saved = saveScenario(userKey, next)
         setScenario(saved)
         persistedSnapshotRef.current = consultationContentSnapshot(saved)
-        if (!scenarioId) {
+        if (!embedded && !scenarioId) {
           navigate(`${basePath}/scenarios/${saved.id}`, { replace: true })
         }
         return saved
       }
       throw new Error('CRM에서는 persist 대신 저장을 사용하세요.')
     },
-    [basePath, navigate, scenarioId, userKey],
+    [basePath, embedded, navigate, scenarioId, userKey],
   )
 
   const persist = useCallback(
@@ -155,9 +169,10 @@ export function useScenarioEditor() {
         const saved = await saveConsultationAsync(userKey, { ...scenario, title: nextTitle })
         setScenario(saved)
         persistedSnapshotRef.current = consultationContentSnapshot(saved)
-        if (isNewDraft || !scenarioId) {
+        if (!embedded && (isNewDraft || !scenarioId)) {
           navigate(`${basePath}/scenarios/${saved.id}`, { replace: true })
         }
+        onSaved?.(saved)
         return { ok: true, toast: '저장되었습니다.' }
       } catch {
         return { ok: false, toast: '저장하지 못했습니다. 다시 시도해 주세요.' }
@@ -165,7 +180,7 @@ export function useScenarioEditor() {
         setIsSaving(false)
       }
     },
-    [basePath, isDirty, isNewDraft, navigate, scenario, scenarioId, userKey],
+    [basePath, embedded, isDirty, isNewDraft, navigate, onSaved, scenario, scenarioId, userKey],
   )
 
   const closeForm = useCallback(() => {
@@ -247,6 +262,21 @@ export function useScenarioEditor() {
     removeItem: (id: string) => {
       if (!scenario) return
       mutate((current) => removeScenarioItem(current, id))
+    },
+    linkCustomer: (customer: ConsultationCustomerDraft) => {
+      mutate((current) => ({
+        ...current,
+        customerId: customer.customerId,
+        customerNameSnapshot: customer.customerNameSnapshot,
+        customerName: customer.customerNameSnapshot ?? undefined,
+      }))
+    },
+    clearLinkedCustomer: () => {
+      mutate((current) => ({
+        ...current,
+        ...emptyCustomerDraft(),
+        customerName: undefined,
+      }))
     },
     editorMode: 'consultation' as const,
   }
