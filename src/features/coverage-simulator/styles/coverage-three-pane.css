@@ -4,23 +4,9 @@
   min-height: 0;
 }
 
-.coverage-simulator-shell--embedded {
-  max-width: none;
-  min-height: 0;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.coverage-simulator-shell--embedded .cs-axis-main--mobile-dock {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-}
-
 .cs-three-pane {
   display: grid;
-  grid-template-columns: minmax(160px, 18%) minmax(200px, 24%) minmax(0, 1fr);
+  grid-template-columns: minmax(220px, 240px) minmax(280px, 320px) minmax(760px, 1fr);
   flex: 1;
   min-height: 0;
   border-top: 1px solid var(--cs-color-border);
@@ -38,6 +24,23 @@
   border-right: none;
   background: var(--cs-color-bg);
   min-width: 0;
+  overflow: auto;
+}
+
+.coverage-editor-panel-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  min-width: min(100%, 760px);
+}
+
+.coverage-editor-panel-shell__editor {
+  flex: 1;
+  min-height: 0;
+}
+
+.coverage-editor-panel-shell .cs-simulation-customer-field {
+  flex-shrink: 0;
 }
 
 .cs-three-pane__column-header {
@@ -196,13 +199,6 @@
   color: var(--cs-color-text-muted);
 }
 
-.cs-embedded-editor-subtitle {
-  margin: 0;
-  padding: 0 var(--cs-space-4) var(--cs-space-1);
-  font-size: 0.6875rem;
-  color: var(--cs-color-text-muted);
-}
-
 .customer-coverage-simulations {
   padding: var(--cs-space-3);
   min-height: 100%;
@@ -267,6 +263,11 @@
   flex-direction: column;
   min-height: 100%;
   padding: 0;
+}
+
+.customer-coverage-simulations--detail .coverage-editor-panel-shell {
+  flex: 1;
+  min-height: 0;
 }
 
 .customer-coverage-simulations--detail .customer-coverage-simulations__toolbar {

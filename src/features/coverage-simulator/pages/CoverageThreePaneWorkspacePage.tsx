@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 
 import useIsMobile from '../../../hooks/useIsMobile'
 import { useConfirmDialog } from '../../../components/dialog'
-import { CenterAxisCompareEditor } from '../components/center-timeline/CenterAxisCompareEditor'
+import { CoverageEditorPanelShell } from '../components/CoverageEditorPanelShell'
+import { CoverageEditorSsot } from '../components/CoverageEditorSsot'
 import { CoverageSimulatorLayout } from '../components/CoverageSimulatorLayout'
 import { CoverageSimulatorToastProvider, useCoverageSimulatorToast } from '../components/CoverageSimulatorToast'
 import { SimulationCustomerField } from '../components/SimulationCustomerField'
@@ -209,22 +210,18 @@ function CoverageThreePaneBody() {
   const contentPane = (() => {
     if (contentMode.type === 'simulation') {
       return (
-        <CenterAxisCompareEditor
-          editor={simulationEditor}
-          variant="mobile"
-          embedChrome
-          headerExtras={<SimulationCustomerField editor={simulationEditor} />}
-        />
+        <CoverageEditorPanelShell
+          beforeEditor={<SimulationCustomerField editor={simulationEditor} />}
+        >
+          <CoverageEditorSsot editor={simulationEditor} />
+        </CoverageEditorPanelShell>
       )
     }
     if (contentMode.type === 'template-edit') {
       return (
-        <CenterAxisCompareEditor
-          editor={templateEditor}
-          variant="mobile"
-          embedChrome
-          headerSubtitle="시나리오 편집"
-        />
+        <CoverageEditorPanelShell>
+          <CoverageEditorSsot editor={templateEditor} />
+        </CoverageEditorPanelShell>
       )
     }
     return (

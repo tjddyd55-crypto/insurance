@@ -7,7 +7,8 @@ import {
   CoverageSimulatorScopeProvider,
   useCoverageSimulatorScope,
 } from '../../coverage-simulator/CoverageSimulatorScope'
-import { CenterAxisCompareEditor } from '../../coverage-simulator/components/center-timeline/CenterAxisCompareEditor'
+import { CoverageEditorPanelShell } from '../../coverage-simulator/components/CoverageEditorPanelShell'
+import { CoverageEditorSsot } from '../../coverage-simulator/components/CoverageEditorSsot'
 import { CoverageSimulatorToastProvider, useCoverageSimulatorToast } from '../../coverage-simulator/components/CoverageSimulatorToast'
 import { SimulationCustomerField } from '../../coverage-simulator/components/SimulationCustomerField'
 import {
@@ -86,12 +87,11 @@ function CustomerCoverageSimulationsPanel({
             ← 목록
           </button>
         </header>
-        <CenterAxisCompareEditor
-          editor={editor}
-          variant="mobile"
-          embedChrome
-          headerExtras={<SimulationCustomerField editor={editor} readOnlyCustomer />}
-        />
+        <CoverageEditorPanelShell
+          beforeEditor={<SimulationCustomerField editor={editor} readOnlyCustomer />}
+        >
+          <CoverageEditorSsot editor={editor} />
+        </CoverageEditorPanelShell>
       </div>
     )
   }

@@ -2,8 +2,7 @@ import { mobilePreviewHeaderTitle } from '../domain/mobilePreviewHeaderTitle'
 
 type Props = {
   title: string
-  onBack?: () => void
-  hideBack?: boolean
+  onBack: () => void
   onReset: () => void
   onSave: () => void
   saving?: boolean
@@ -18,7 +17,6 @@ type Props = {
 export function MobilePreviewEditorHeader({
   title,
   onBack,
-  hideBack = false,
   onReset,
   onSave,
   saving = false,
@@ -33,13 +31,9 @@ export function MobilePreviewEditorHeader({
 
   return (
     <header className="cs-mobile-editor-header">
-      {hideBack ? (
-        <span className="cs-mobile-editor-header__back cs-mobile-editor-header__back--spacer" aria-hidden="true" />
-      ) : (
-        <button type="button" className="cs-mobile-editor-header__back" onClick={onBack} aria-label="뒤로">
-          ←
-        </button>
-      )}
+      <button type="button" className="cs-mobile-editor-header__back" onClick={onBack} aria-label="뒤로">
+        ←
+      </button>
       <h1 className="cs-mobile-editor-header__title" title={title}>{displayTitle}</h1>
       <div className="cs-mobile-editor-header__actions">
         <button type="button" className="cs-mobile-editor-header__action" onClick={onReset}>
