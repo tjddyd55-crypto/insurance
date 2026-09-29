@@ -2198,42 +2198,15 @@ export async function initDb() {
     ADD COLUMN IF NOT EXISTS ga_id INTEGER REFERENCES ga_companies(id)
   `)
   await pool.query(`
-    UPDATE insurance_contacts c
-    SET ga_id = g.id
-    FROM ga_companies g
-    WHERE g.code = 'YJASSET'
-      AND c.ga_id IS NULL
-      AND COALESCE(c.owner_scope, 'GA') = 'GA'
-      AND c.user_id IS NULL
-  `)
-  const nullIcGa = await pool.query(
-    `
-    SELECT COUNT(*) AS c
-    FROM insurance_contacts
-    WHERE ga_id IS NULL
-      AND COALESCE(owner_scope, 'GA') = 'GA'
-      AND user_id IS NULL
-    `,
-  )
-  if ((nullIcGa.rows[0]?.c ?? 0) > 0) {
-    throw new Error('[initDb] insurance_contacts.ga_id NULL')
-  }
-  await pool.query(`
-    DO $$ BEGIN
-      ALTER TABLE insurance_contacts ALTER COLUMN ga_id SET NOT NULL;
-    EXCEPTION
-      WHEN not_null_violation THEN NULL;
-    END $$
-  `)
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS idx_insurance_contacts_ga
-    ON insurance_contacts(ga_id)
-  `)
-
-  await pool.query(`
     ALTER TABLE insurance_contacts
     ADD COLUMN IF NOT EXISTS user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
     ADD COLUMN IF NOT EXISTS owner_scope TEXT NOT NULL DEFAULT 'GA'
+  `)
+  await pool.query(`
+    UPDATE insurance_contacts
+    SET owner_scope = 'USER'
+    WHERE user_id IS NOT NULL
+      AND owner_scope = 'GA'
   `)
   await pool.query(`
     UPDATE insurance_contacts
@@ -2244,6 +2217,31 @@ export async function initDb() {
     UPDATE insurance_contacts
     SET ga_id = NULL
     WHERE owner_scope = 'USER' AND ga_id IS NOT NULL
+  `)
+  await pool.query(`
+    UPDATE insurance_contacts c
+    SET ga_id = g.id
+    FROM ga_companies g
+    WHERE g.code = 'YJASSET'
+      AND c.owner_scope = 'GA'
+      AND c.ga_id IS NULL
+      AND c.user_id IS NULL
+  `)
+  const nullIcGa = await pool.query(
+    `
+    SELECT COUNT(*) AS c
+    FROM insurance_contacts
+    WHERE owner_scope = 'GA'
+      AND ga_id IS NULL
+      AND user_id IS NULL
+    `,
+  )
+  if ((nullIcGa.rows[0]?.c ?? 0) > 0) {
+    throw new Error('[initDb] insurance_contacts.ga_id NULL')
+  }
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_insurance_contacts_ga
+    ON insurance_contacts(ga_id)
   `)
   await pool.query(`ALTER TABLE insurance_contacts ALTER COLUMN ga_id DROP NOT NULL`)
   await pool.query(`
