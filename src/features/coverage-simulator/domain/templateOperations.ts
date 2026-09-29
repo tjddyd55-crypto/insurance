@@ -33,10 +33,11 @@ export function cloneUserTemplate(
   const now = new Date().toISOString()
   return {
     id: createScenarioId(),
-    name: overrides?.name?.trim() || `${source.name} (복사)`,
+    name: overrides?.name?.trim() || `${source.name} 복사본`,
     description: overrides?.description ?? source.description,
     sourceType: 'user',
     category: source.category,
+    systemDiseaseType: source.systemDiseaseType,
     items: cloneScenarioItems(source.items),
     createdAt: now,
     updatedAt: now,
@@ -96,6 +97,8 @@ export function scenarioToUserTemplate(
     description: scenario.description || existing?.description,
     sourceType: 'user',
     category: existing?.category,
+    seedKey: existing?.seedKey,
+    systemDiseaseType: existing?.systemDiseaseType ?? scenario.diseaseType,
     items: scenario.items,
     createdAt: existing?.createdAt ?? scenario.createdAt ?? now,
     updatedAt: now,

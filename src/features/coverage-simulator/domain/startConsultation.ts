@@ -12,7 +12,8 @@ export function startConsultationFromUserTemplate(
   customer?: ConsultationCustomerDraft | null,
 ): CoverageScenario {
   const consultation = createConsultationFromTemplate(template, {
-    diseaseType: 'custom',
+    diseaseType: template.systemDiseaseType ?? 'custom',
+    description: template.description ?? '',
     customer,
   })
   return saveConsultation(userKey, consultation)
