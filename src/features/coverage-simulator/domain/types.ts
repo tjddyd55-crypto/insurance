@@ -53,6 +53,8 @@ export type SavedScenarioSummary = {
   id: string
   title: string
   diseaseType: DiseaseType
+  templateId?: string
+  templateNameSnapshot?: string
   customerId?: string | null
   customerNameSnapshot?: string | null
   /** @deprecated */

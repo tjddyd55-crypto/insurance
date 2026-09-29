@@ -26,6 +26,8 @@ export function listConsultations(userKey: string): SavedScenarioSummary[] {
           id: scenario.id,
           title: scenario.title,
           diseaseType: scenario.diseaseType,
+          templateId: scenario.templateId,
+          templateNameSnapshot: scenario.templateNameSnapshot,
           customerId: scenario.customerId ?? null,
           customerNameSnapshot: resolveCustomerNameSnapshot(scenario),
           customerName: resolveCustomerNameSnapshot(scenario) ?? undefined,
@@ -44,6 +46,18 @@ export function listConsultationsByDisease(
 ): SavedScenarioSummary[] {
   return listConsultations(userKey).filter((row) => {
     if (row.diseaseType !== diseaseType) return false
+    if (customerId) return row.customerId === customerId
+    return true
+  })
+}
+
+export function listConsultationsByTemplateId(
+  userKey: string,
+  templateId: string,
+  customerId?: string | null,
+): SavedScenarioSummary[] {
+  return listConsultations(userKey).filter((row) => {
+    if (row.templateId !== templateId) return false
     if (customerId) return row.customerId === customerId
     return true
   })

@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom'
 import { CustomerContextBar } from './CustomerContextBar'
 import { useCoverageSimulatorCustomer } from '../context/CoverageSimulatorCustomerContext'
 import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
-import { startConsultationFromUserTemplate } from '../domain/startConsultation'
 import { cloneUserTemplate, createEmptyUserTemplate } from '../domain/templateOperations'
 import {
   deleteScenarioTemplate,
@@ -41,15 +40,12 @@ export function ScenarioLibrarySelectView({ layoutMode }: Props) {
     return () => window.removeEventListener('keydown', onKey)
   }, [menuTemplateId])
 
-  const openEdit = (templateId: string) => {
-    navigate(`${basePath}/templates/${templateId}/edit`)
+  const openSimulationList = (templateId: string) => {
+    navigate(`${basePath}/templates/${templateId}/simulations`)
   }
 
-  const startConsultation = (templateId: string) => {
-    const template = getScenarioTemplateById(userKey, templateId)
-    if (!template) return
-    const saved = startConsultationFromUserTemplate(userKey, template, customerDraft)
-    navigate(`${basePath}/scenarios/${saved.id}`)
+  const openScenarioEdit = (templateId: string) => {
+    navigate(`${basePath}/templates/${templateId}/edit`)
   }
 
   const onDeleteTemplate = (templateId: string) => {
@@ -121,7 +117,7 @@ export function ScenarioLibrarySelectView({ layoutMode }: Props) {
                 <button
                   type="button"
                   className="coverage-simulator-scenario-card cs-template-card"
-                  onClick={() => openEdit(template.id)}
+                  onClick={() => openSimulationList(template.id)}
                 >
                   <div className="coverage-simulator-scenario-card__title">{template.name}</div>
                   {template.description ? (
@@ -141,14 +137,14 @@ export function ScenarioLibrarySelectView({ layoutMode }: Props) {
                 </button>
                 {menuTemplateId === template.id ? (
                   <div className="cs-template-card__menu-panel" role="menu">
+                    <button type="button" onClick={() => openScenarioEdit(template.id)}>
+                      시나리오 편집
+                    </button>
                     <button type="button" onClick={() => onRename(template.id)}>
                       이름 변경
                     </button>
                     <button type="button" onClick={() => onDuplicate(template.id)}>
                       복제
-                    </button>
-                    <button type="button" onClick={() => startConsultation(template.id)}>
-                      이 시나리오로 상담 시작
                     </button>
                     <button
                       type="button"

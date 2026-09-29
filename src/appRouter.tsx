@@ -178,6 +178,7 @@ import { NewScenarioTemplatePage } from './features/coverage-simulator/pages/New
 import { CoverageSimulatorCrmRouteLayout } from './features/coverage-simulator/pages/CoverageSimulatorCrmRouteLayout'
 import { ScenarioSelectPage } from './features/coverage-simulator/pages/ScenarioSelectPage'
 import { SimulationListPage } from './features/coverage-simulator/pages/SimulationListPage'
+import { TemplateSimulationListPage } from './features/coverage-simulator/pages/TemplateSimulationListPage'
 import { CoverageScenarioTemplateEditorPage } from './features/coverage-simulator/pages/CoverageScenarioTemplateEditorPage'
 import { CoverageSharePublicPage } from './features/coverage-simulator/pages/CoverageSharePublicPage'
 
@@ -223,6 +224,7 @@ export const appRouter = createBrowserRouter([
         children: [
           { index: true, element: <ScenarioSelectPage /> },
           { path: 'templates/new', element: <NewScenarioTemplatePage /> },
+          { path: 'templates/:templateId/simulations', element: <TemplateSimulationListPage /> },
           { path: 'templates/:templateId/edit', element: <CoverageScenarioTemplateEditorPage /> },
           { path: 'saved', element: <SavedScenariosPage /> },
           { path: 'scenarios/:scenarioId/pdf', element: <PdfPreviewPage /> },
@@ -237,6 +239,7 @@ export const appRouter = createBrowserRouter([
         children: [
           { index: true, element: <ScenarioSelectPage /> },
           { path: 'templates/new', element: <NewScenarioTemplatePage /> },
+          { path: 'templates/:templateId/simulations', element: <TemplateSimulationListPage /> },
           { path: 'templates/:templateId/edit', element: <CoverageScenarioTemplateEditorPage /> },
           { path: 'saved', element: <SavedScenariosPage /> },
           { path: 'scenarios/:scenarioId/pdf', element: <PdfPreviewPage /> },
@@ -456,6 +459,7 @@ export const appRouter = createBrowserRouter([
                 children: [
                   { index: true, element: <ScenarioSelectPage /> },
                   { path: 'templates/new', element: <NewScenarioTemplatePage /> },
+                  { path: 'templates/:templateId/simulations', element: <TemplateSimulationListPage /> },
                   { path: 'templates/:templateId/edit', element: <CoverageScenarioTemplateEditorPage /> },
                   { path: 'saved', element: <SavedScenariosPage /> },
                   { path: 'scenarios/:scenarioId/pdf', element: <PdfPreviewPage /> },
