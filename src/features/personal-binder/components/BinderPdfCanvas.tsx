@@ -3,13 +3,22 @@ import type { PDFDocumentProxy, RenderTask } from 'pdfjs-dist'
 
 import FormButton from '../../../components/form/FormButton'
 import { setupPdfWorker } from '../../../lib/pdfjs/setupWorker'
+import {
+  computeBinderPdfDisplayScale,
+  type BinderPdfViewerFitMode,
+} from '../domain/binderPdfViewerScale'
 
 setupPdfWorker()
+
+const VIEWER_CANVAS_PADDING = 16
 
 type PageCanvasProps = {
   document: PDFDocumentProxy
   pageNumber: number
   zoom?: number
+  fit?: BinderPdfViewerFitMode
+  containerWidth?: number
+  containerHeight?: number
   className?: string
   onError?: () => void
 }
@@ -18,6 +27,9 @@ export function BinderPdfPageCanvas({
   document,
   pageNumber,
   zoom = 1,
+  fit = 'width',
+  containerWidth = 0,
+  containerHeight = 0,
   className = '',
   onError,
 }: PageCanvasProps) {
@@ -41,7 +53,8 @@ export function BinderPdfPageCanvas({
 
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas || hostWidth <= 0) return undefined
+    const layoutWidth = containerWidth > 0 ? containerWidth : hostWidth
+    if (!canvas || layoutWidth <= 0) return undefined
     let cancelled = false
     void (async () => {
       try {
@@ -49,7 +62,15 @@ export function BinderPdfPageCanvas({
         const page = await document.getPage(pageNumber)
         if (cancelled) return
         const base = page.getViewport({ scale: 1 })
-        const scale = Math.max(0.1, (hostWidth / base.width) * zoom)
+        const scale = computeBinderPdfDisplayScale({
+          pageWidth: base.width,
+          pageHeight: base.height,
+          containerWidth: layoutWidth,
+          containerHeight: containerHeight > 0 ? containerHeight : layoutWidth,
+          fit,
+          zoom,
+          padding: VIEWER_CANVAS_PADDING,
+        })
         const viewport = page.getViewport({ scale })
         const dpr = Math.min(window.devicePixelRatio || 1, 2)
         canvas.width = Math.ceil(viewport.width * dpr)
@@ -75,7 +96,7 @@ export function BinderPdfPageCanvas({
       taskRef.current?.cancel()
       taskRef.current = null
     }
-  }, [document, hostWidth, onError, pageNumber, zoom])
+  }, [containerHeight, containerWidth, document, fit, hostWidth, onError, pageNumber, zoom])
 
   return (
     <div

@@ -15,7 +15,9 @@ import {
 } from '../../../components/news-detail-viewer/useNewsDetailViewerZoomAnchor'
 import { getPdfJsCmapAndStandardFontUrls } from '../../../lib/pdfjs/pdfDocumentInitParams'
 import { setupPdfWorker } from '../../../lib/pdfjs/setupWorker'
+import useIsMobile from '../../../hooks/useIsMobile'
 import { useAuth } from '../../auth/AuthProvider'
+import type { BinderPdfViewerFitMode } from '../domain/binderPdfViewerScale'
 import {
   createStorageFileDownloadUrl,
   createStorageFilePreviewUrl,
@@ -43,6 +45,7 @@ type CachedDocument = {
 export default function PersonalBinderViewerPage() {
   const { binderId = '' } = useParams()
   const { token } = useAuth()
+  const isMobile = useIsMobile()
   const navigate = useNavigate()
   const [binder, setBinder] = useState<PersonalBinder | null>(null)
   const [index, setIndex] = useState(0)
@@ -56,7 +59,9 @@ export default function PersonalBinderViewerPage() {
   const [tocOpen, setTocOpen] = useState(false)
   const [controlsVisible, setControlsVisible] = useState(true)
   const [exporting, setExporting] = useState(false)
+  const [fitMode, setFitMode] = useState<BinderPdfViewerFitMode>(() => (isMobile ? 'width' : 'page'))
   const [zoom, setZoom] = useState(1)
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 })
   const viewportRef = useRef<HTMLDivElement>(null)
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null)
   const zoomAnchorRef = useRef<NewsDetailViewerZoomAnchor>(null)
@@ -71,9 +76,24 @@ export default function PersonalBinderViewerPage() {
 
   const setViewerZoom = useCallback((next: number) => {
     setZoom((value) => {
-      const clamped = Math.max(1, clampNewsDetailViewerZoom(next))
+      const clamped = clampNewsDetailViewerZoom(next)
       return Math.abs(value - clamped) < 0.001 ? value : clamped
     })
+  }, [])
+
+  useEffect(() => {
+    const viewport = viewportRef.current
+    if (!viewport) return undefined
+    const measure = () => {
+      setViewportSize({
+        width: viewport.clientWidth,
+        height: viewport.clientHeight,
+      })
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(viewport)
+    return () => observer.disconnect()
   }, [])
 
   useNewsDetailViewerPinchZoom(
@@ -180,9 +200,10 @@ export default function PersonalBinderViewerPage() {
 
   useEffect(() => {
     if (!current?.key) return
+    setFitMode(isMobile ? 'width' : 'page')
     setZoom(1)
     viewportRef.current?.scrollTo({ left: 0, top: 0 })
-  }, [current?.key])
+  }, [current?.key, isMobile])
 
   useEffect(() => {
     for (const neighborIndex of [index - 1, index + 1, index + 2]) {
@@ -316,7 +337,10 @@ export default function PersonalBinderViewerPage() {
           <BinderPdfPageCanvas
             document={displayFrame.document}
             pageNumber={displayFrame.pageNumber}
+            fit={fitMode}
             zoom={zoom}
+            containerWidth={viewportSize.width}
+            containerHeight={viewportSize.height}
             className="personal-binder-viewer__page"
             onError={() => setError('페이지를 표시하지 못했습니다.')}
           />
@@ -334,9 +358,37 @@ export default function PersonalBinderViewerPage() {
           <span>{current?.sectionTitle}</span>
         </div>
         <FormButton variant="action" aria-label="다음 페이지" disabled={index === pages.length - 1} onClick={() => move(1)}>›</FormButton>
-        <FormButton variant="action" onClick={() => setViewerZoom(Math.max(1, zoom - 0.25))}>축소</FormButton>
+        <FormButton
+          variant="action"
+          onClick={() => {
+            setViewerZoom(zoom - 0.25)
+          }}
+        >
+          축소
+        </FormButton>
         <FormButton variant="action" onClick={() => setViewerZoom(zoom + 0.25)}>확대</FormButton>
-        <FormButton variant="action" onClick={() => setViewerZoom(1)}>폭 맞춤</FormButton>
+        <FormButton
+          variant="action"
+          onClick={() => {
+            setFitMode('width')
+            setZoom(1)
+            viewportRef.current?.scrollTo({ left: 0, top: 0 })
+          }}
+        >
+          폭 맞춤
+        </FormButton>
+        {!isMobile ? (
+          <FormButton
+            variant="action"
+            onClick={() => {
+              setFitMode('page')
+              setZoom(1)
+              viewportRef.current?.scrollTo({ left: 0, top: 0 })
+            }}
+          >
+            쪽 맞춤
+          </FormButton>
+        ) : null}
         <FormButton variant="secondary" onClick={() => void downloadCurrent()}>원본 다운로드</FormButton>
         <FormButton variant="secondary" onClick={() => void printCurrent()}>자료 출력</FormButton>
         <FormButton variant="secondary" loading={exporting} onClick={() => void exportBinder('download')}>전체 PDF</FormButton>
