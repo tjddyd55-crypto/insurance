@@ -33,7 +33,7 @@ describe('templateOperations', () => {
     const copy = cloneUserTemplate(source, { name: '복사본' })
     expect(copy.id).not.toBe(source.id)
     expect(copy.name).toBe('복사본')
-    expect(cloneUserTemplate(source).name).toBe('용종 제거 플랜 복사본')
+    expect(copy.seedKey).toBeUndefined()
     expect(copy.items).toHaveLength(source.items.length)
     expect(copy.items[0].id).not.toBe(source.items[0].id)
   })

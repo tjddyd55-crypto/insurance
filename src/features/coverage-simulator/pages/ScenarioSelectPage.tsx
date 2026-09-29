@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 
-import { ScenarioSelectPreviewView } from '../components/ScenarioSelectPreviewView'
+import { CustomerContextBar } from '../components/CustomerContextBar'
+import { ScenarioLibrarySelectView } from '../components/ScenarioLibrarySelectView'
 import { CoverageSimulatorLayout } from '../components/CoverageSimulatorLayout'
 import { coverageSimulatorExitPath, useCoverageSimulatorScope } from '../CoverageSimulatorScope'
 
@@ -8,6 +9,13 @@ export function ScenarioSelectPage() {
   const navigate = useNavigate()
   const { basePath, layoutMode } = useCoverageSimulatorScope()
   const isPublicPreview = layoutMode === 'preview-pc' || layoutMode === 'preview-mobile'
+
+  const libraryLayoutMode =
+    layoutMode === 'preview-pc'
+      ? 'preview-pc'
+      : layoutMode === 'preview-mobile'
+        ? 'preview-mobile'
+        : 'crm'
 
   return (
     <CoverageSimulatorLayout>
@@ -37,7 +45,8 @@ export function ScenarioSelectPage() {
             <p className="coverage-simulator-page-desc">상담할 시나리오를 선택하세요.</p>
           </>
         ) : null}
-        <ScenarioSelectPreviewView />
+        {libraryLayoutMode === 'crm' ? <CustomerContextBar /> : null}
+        <ScenarioLibrarySelectView layoutMode={libraryLayoutMode} />
       </main>
     </CoverageSimulatorLayout>
   )
