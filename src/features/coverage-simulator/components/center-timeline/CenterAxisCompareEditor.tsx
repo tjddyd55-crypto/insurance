@@ -18,6 +18,8 @@ import { buildCoverageTimelineViewModel } from '../../domain/buildCoverageTimeli
 import { CoverageScenarioAlternativeView } from '../alternative-view/CoverageScenarioAlternativeView'
 import { CoverageScenarioViewModeSwitcher } from '../alternative-view/CoverageScenarioViewModeSwitcher'
 import { useCoverageScenarioViewMode } from '../../hooks/useCoverageScenarioViewMode'
+import { ConsultationCustomerBar } from '../ConsultationCustomerBar'
+import { consultationCustomerFromScenario } from '../../domain/customerContext'
 import { CoverageScenarioTimeline, type InlineAmountEditTarget } from './CoverageScenarioTimeline'
 import type { InlineAmountField } from './InlineAmountQuickEdit'
 import { isTemplateEditorMode, type TimelineEditorController } from './TimelineEditorController'
@@ -44,6 +46,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   const [titleDialogOpen, setTitleDialogOpen] = useState(false)
   const [titleValidationError, setTitleValidationError] = useState<string | null>(null)
   const [inlineAmountEdit, setInlineAmountEdit] = useState<InlineAmountEditTarget>(null)
+  const [inlineTitleItemId, setInlineTitleItemId] = useState<string | null>(null)
 
   const {
     scenario,
@@ -73,6 +76,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
     (target: InlineAmountEditTarget) => {
       if (target) {
         closeForm()
+        setInlineTitleItemId(null)
       }
       setInlineAmountEdit(target)
     },
@@ -87,9 +91,28 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
     [patchCoverageItem],
   )
 
+  const handleInlineTitleEditChange = useCallback(
+    (itemId: string | null) => {
+      if (itemId) {
+        closeForm()
+        setInlineAmountEdit(null)
+      }
+      setInlineTitleItemId(itemId)
+    },
+    [closeForm],
+  )
+
+  const handleInlineTitleCommit = useCallback(
+    (itemId: string, label: string) => {
+      patchCoverageItem(itemId, { label })
+    },
+    [patchCoverageItem],
+  )
+
   const openAddSheetForOrder = useCallback(
     (afterOrder: number) => {
       setInlineAmountEdit(null)
+      setInlineTitleItemId(null)
       openAddForm(afterOrder)
     },
     [openAddForm],
@@ -98,6 +121,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   const openFullAmountEdit = useCallback(
     (item: { id: string }) => {
       setInlineAmountEdit(null)
+      setInlineTitleItemId(null)
       openEditForm(item.id)
     },
     [openEditForm],
@@ -330,6 +354,12 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
         data-testid="coverage-scenario-editor"
       >
         {!useLatestMobileEditor ? <p className="cs-axis-lead">{blurb}</p> : null}
+        {!isTemplateEditorMode(editor) ? (
+          <ConsultationCustomerBar
+            draft={consultationCustomerFromScenario(scenario)}
+            onChange={editor.setConsultationCustomer}
+          />
+        ) : null}
         {viewModel && viewMode === 'default' ? (
           <CoverageScenarioTimeline
             mode="editable"
@@ -343,10 +373,14 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
             onRemoveItem={requestRemoveCoverageItem}
             onRemoveTimeMarker={requestRemoveTimeMarker}
             onAddAfter={openAddSheetForOrder}
-            enableInlineAmountEdit={useLatestMobileEditor}
+            enableInlineAmountEdit
             inlineAmountEdit={inlineAmountEdit}
             onInlineAmountEditChange={handleInlineAmountEditChange}
             onInlineAmountCommit={handleInlineAmountCommit}
+            enableInlineTitleEdit
+            inlineTitleItemId={inlineTitleItemId}
+            onInlineTitleEditChange={handleInlineTitleEditChange}
+            onInlineTitleCommit={handleInlineTitleCommit}
           />
         ) : null}
         {viewModel && viewMode !== 'default' ? (

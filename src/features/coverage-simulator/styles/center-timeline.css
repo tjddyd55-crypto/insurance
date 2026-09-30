@@ -328,9 +328,11 @@
 
 .coverage-simulator-root--mobile-preview .cs-axis-event__head {
   position: relative;
-  display: flex;
+  display: grid;
+  grid-template-columns: var(--cs-axis-head-side) minmax(0, 1fr) var(--cs-axis-head-side);
   align-items: center;
-  justify-content: flex-start;
+  justify-content: stretch;
+  gap: 0;
   min-height: 28px;
   margin-bottom: var(--cs-timeline-title-amount-gap);
   background: var(--cs-color-surface, #ffffff);
@@ -341,8 +343,10 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  flex: 0 0 100px;
-  width: 100px;
+  min-width: 0;
+  width: auto;
+  flex: none;
+  overflow: hidden;
   z-index: 2;
 }
 
@@ -355,29 +359,34 @@
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-event__title-axis {
-  position: absolute;
-  left: 50%;
-  top: 50%;
+  position: relative;
+  left: auto;
+  top: auto;
   z-index: 3;
   margin: 0;
-  transform: translate(-50%, -50%);
-  max-width: calc(100% - 100px - 100px - 16px);
-  pointer-events: none;
+  transform: none;
+  max-width: none;
+  min-width: 0;
+  pointer-events: auto;
   text-align: center;
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-event__title-axis .cs-axis-event__label {
-  display: inline-block;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   max-width: 100%;
   padding: 0 var(--cs-axis-title-mask-pad-x);
   background: var(--cs-axis-title-mask-bg);
   font-size: 0.875rem;
   line-height: 1.15;
   font-weight: 700;
-  white-space: nowrap;
+  white-space: normal;
   overflow: hidden;
   text-overflow: ellipsis;
-  pointer-events: auto;
+  word-break: keep-all;
+  text-align: center;
+  pointer-events: none;
   box-shadow: 0 0 0 1px var(--cs-axis-title-mask-bg);
 }
 
@@ -386,9 +395,10 @@
   top: auto;
   right: auto;
   transform: none;
-  flex: 0 0 var(--cs-axis-event-actions-col-width);
-  width: var(--cs-axis-event-actions-col-width);
-  margin-left: auto;
+  flex: none;
+  width: auto;
+  min-width: 0;
+  margin-left: 0;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -911,9 +921,9 @@
 .cs-axis-event__head {
   position: relative;
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: var(--cs-axis-head-side) minmax(0, 1fr) var(--cs-axis-head-side);
   align-items: center;
-  gap: var(--cs-space-2);
+  gap: 0;
   margin-bottom: var(--cs-space-3);
   min-height: 32px;
 }
@@ -921,13 +931,109 @@
 .cs-axis-event__badge {
   display: flex;
   align-items: center;
-  flex-shrink: 0;
+  justify-content: flex-start;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .cs-axis-event__title-axis {
+  position: relative;
   margin: 0;
   min-width: 0;
   text-align: center;
+}
+
+.cs-axis-event__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.cs-axis-event__title-axis .cs-axis-event__label {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  max-width: 100%;
+  word-break: keep-all;
+  text-align: center;
+}
+
+.cs-axis-event__title-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  opacity: 0.02;
+  color: transparent;
+  caret-color: transparent;
+  text-align: center;
+  font: inherit;
+  font-weight: 700;
+  cursor: text;
+}
+
+.cs-axis-event__title-input.is-active {
+  position: relative;
+  inset: auto;
+  height: auto;
+  opacity: 1;
+  color: inherit;
+  caret-color: auto;
+  background: var(--cs-axis-title-mask-bg, #fff);
+}
+
+.cs-axis-event__title-axis:has(.cs-axis-event__title-input.is-active) .cs-axis-event__label {
+  display: none;
+}
+
+.cs-axis-amount-slot {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cs-axis-amount-slot--reorder-inset {
+  padding-inline: var(--cs-axis-reorder-col);
+}
+
+.cs-axis-amount-slot .cs-axis-amount {
+  width: 100%;
+  min-width: 0;
+}
+
+.cs-axis-reorder-overlay {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--cs-axis-reorder-col);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.cs-axis-reorder-overlay .cs-axis-reorder {
+  display: flex;
+  flex-direction: column;
+  width: var(--cs-axis-reorder-col);
+}
+
+.cs-axis-reorder-overlay .cs-axis-reorder__btn {
+  width: var(--cs-axis-reorder-col);
+  min-width: var(--cs-axis-reorder-col);
+  height: 18px;
+  min-height: 18px;
+  padding: 0;
+  font-size: 0.75rem;
 }
 
 .cs-axis-event__menu {
@@ -974,6 +1080,39 @@
   background: transparent;
   cursor: pointer;
   font: inherit;
+}
+
+.cs-axis-amount__inline-input {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  font: inherit;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  color: inherit;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: text;
+}
+
+.cs-axis-amount--inline-editing .cs-axis-amount__inline-input {
+  flex: 0 1 auto;
+  width: 5.5em;
+}
+
+.cs-axis-amount--current .cs-axis-amount__inline-input {
+  color: #1f2937;
+}
+
+.cs-axis-amount--proposed .cs-axis-amount__inline-input {
+  color: var(--cs-color-proposed);
+  font-weight: 800;
 }
 
 .cs-axis-amount--current .cs-axis-amount__value {
