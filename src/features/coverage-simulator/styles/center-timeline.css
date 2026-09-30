@@ -1359,8 +1359,38 @@
 }
 
 .cs-axis-sheet--pc .cs-axis-amount--current .cs-axis-amount__value,
-.cs-axis-sheet--pc .cs-axis-amount--proposed .cs-axis-amount__value {
+.cs-axis-sheet--pc .cs-axis-amount--proposed .cs-axis-amount__value,
+.cs-axis-sheet--pc .cs-axis-amount__inline-input {
   font-size: 1.3125rem;
+}
+
+/*
+ * index.css 의 input[readonly] 가 배경·글자를 disabled 토큰으로 덮는다.
+ * 특이도가 :not 9개 + [readonly] 이라 클래스만으로는 못 이긴다.
+ * 같은 :not 체인에 시뮬레이터 클래스를 더해, 쉬는 금액도 기존 span 과 같은 글자로 둔다.
+ */
+.coverage-simulator-root input.cs-axis-amount__inline-input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='submit']):not([type='button']):not([type='reset']):not([type='image']):not([type='color']) {
+  background: transparent;
+  background-color: transparent;
+  border: none;
+  box-shadow: none;
+  opacity: 1;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  color: #1f2937;
+  -webkit-text-fill-color: #1f2937;
+}
+
+.coverage-simulator-root .cs-axis-amount--proposed input.cs-axis-amount__inline-input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='submit']):not([type='button']):not([type='reset']):not([type='image']):not([type='color']) {
+  font-weight: 800;
+  color: var(--cs-color-proposed);
+  -webkit-text-fill-color: var(--cs-color-proposed);
+}
+
+.coverage-simulator-root--mobile-preview .cs-axis-amount--current input.cs-axis-amount__inline-input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='submit']):not([type='button']):not([type='reset']):not([type='image']):not([type='color']) {
+  color: #1e293b;
+  -webkit-text-fill-color: #1e293b;
 }
 
 .cs-axis-sheet--pc .cs-axis-col-header {
