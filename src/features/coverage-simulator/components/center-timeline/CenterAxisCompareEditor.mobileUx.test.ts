@@ -14,7 +14,8 @@ describe('CenterAxisCompareEditor mobile UX regression guards', () => {
   it('uses direct-edit row menu and inline outside commit session on mobile', () => {
     const src = readFileSync(editorPath, 'utf8')
     expect(src).toMatch(/itemMenuMode=\{useLatestMobileEditor \? 'direct-edit' : 'popover'\}/)
-    expect(src).toMatch(/commitRegisteredInlineAmount/)
+    expect(src).toMatch(/commitRegisteredInlineEdit/)
+    expect(src).toMatch(/enableInlineTitleEdit/)
     expect(src).toMatch(/pointerdown/)
     expect(src).not.toMatch(/itemMenuMode=\{useLatestMobileEditor \? 'action-sheet'/)
   })

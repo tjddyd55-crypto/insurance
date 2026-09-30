@@ -18,10 +18,12 @@ type EditableHandlers = Pick<
   | 'onRemoveTimeMarker'
   | 'onAddAfter'
   | 'enableInlineAmountEdit'
-  | 'inlineAmountEdit'
-  | 'onInlineAmountEditChange'
+  | 'enableInlineTitleEdit'
+  | 'activeInlineEdit'
+  | 'onActiveInlineEditChange'
   | 'onInlineAmountCommit'
-  | 'onRegisterInlineAmountCommit'
+  | 'onInlineTitleCommit'
+  | 'onRegisterInlineEditCommit'
 >
 
 type Props = {
@@ -52,10 +54,12 @@ export function CoverageScenarioTimeline({
   onRemoveTimeMarker,
   onAddAfter = noop,
   enableInlineAmountEdit = false,
-  inlineAmountEdit = null,
-  onInlineAmountEditChange,
+  enableInlineTitleEdit = true,
+  activeInlineEdit = null,
+  onActiveInlineEditChange,
   onInlineAmountCommit,
-  onRegisterInlineAmountCommit,
+  onInlineTitleCommit,
+  onRegisterInlineEditCommit,
 }: Props) {
   const readOnly = mode !== 'editable'
   const resolvedCompactInsert = compactInsert ?? variant === 'mobile'
@@ -91,10 +95,12 @@ export function CoverageScenarioTimeline({
         onRemoveTimeMarker={onRemoveTimeMarker}
         onAddAfter={onAddAfter}
         enableInlineAmountEdit={mode === 'editable' && enableInlineAmountEdit}
-        inlineAmountEdit={inlineAmountEdit}
-        onInlineAmountEditChange={onInlineAmountEditChange}
+        enableInlineTitleEdit={mode === 'editable' && enableInlineTitleEdit}
+        activeInlineEdit={activeInlineEdit}
+        onActiveInlineEditChange={onActiveInlineEditChange}
         onInlineAmountCommit={onInlineAmountCommit}
-        onRegisterInlineAmountCommit={onRegisterInlineAmountCommit}
+        onInlineTitleCommit={onInlineTitleCommit}
+        onRegisterInlineEditCommit={onRegisterInlineEditCommit}
       />
       {children}
     </div>

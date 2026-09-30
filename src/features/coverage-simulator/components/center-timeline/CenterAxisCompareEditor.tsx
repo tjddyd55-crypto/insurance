@@ -17,10 +17,11 @@ import { diseaseTypeTitle } from '../../domain/diseaseTypeLabels'
 import { useCoverageSimulatorScope } from '../../CoverageSimulatorScope'
 import { buildCoverageTimelineViewModel } from '../../domain/buildCoverageTimelineViewModel'
 import {
-  commitRegisteredInlineAmount,
+  type ActiveInlineEdit,
+  commitRegisteredInlineEdit,
   shouldCommitInlineBeforeNextEdit,
-} from '../../domain/coverageInlineAmountSession'
-import { CoverageScenarioTimeline, type InlineAmountEditTarget } from './CoverageScenarioTimeline'
+} from '../../domain/coverageInlineEditSession'
+import { CoverageScenarioTimeline } from './CoverageScenarioTimeline'
 import type { InlineAmountField } from './InlineAmountQuickEdit'
 import { isTemplateEditorMode, type TimelineEditorController } from './TimelineEditorController'
 
@@ -44,27 +45,28 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   const useMobileExclusiveForm = variant === 'mobile'
   const [titleDialogOpen, setTitleDialogOpen] = useState(false)
   const [titleValidationError, setTitleValidationError] = useState<string | null>(null)
-  const [inlineAmountEdit, setInlineAmountEdit] = useState<InlineAmountEditTarget>(null)
-  const inlineAmountCommitRef = useRef<(() => void) | null>(null)
+  const [activeInlineEdit, setActiveInlineEdit] = useState<ActiveInlineEdit>(null)
+  const inlineEditCommitRef = useRef<(() => void) | null>(null)
 
-  const commitActiveInlineAmount = useCallback(() => {
-    if (!inlineAmountEdit) return
-    commitRegisteredInlineAmount(inlineAmountCommitRef)
-  }, [inlineAmountEdit])
+  const commitActiveInlineEdit = useCallback(() => {
+    if (!activeInlineEdit) return
+    commitRegisteredInlineEdit(inlineEditCommitRef)
+  }, [activeInlineEdit])
 
   useEffect(() => {
-    if (!inlineAmountEdit || !useLatestMobileEditor) return undefined
+    if (!activeInlineEdit) return undefined
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target
       if (!(target instanceof Element)) return
       if (target.closest('.cs-axis-amount--inline-editing')) return
-      commitActiveInlineAmount()
+      if (target.closest('.cs-axis-title--inline-editing')) return
+      commitActiveInlineEdit()
     }
     document.addEventListener('pointerdown', onPointerDown, true)
     return () => {
       document.removeEventListener('pointerdown', onPointerDown, true)
     }
-  }, [commitActiveInlineAmount, inlineAmountEdit, useLatestMobileEditor])
+  }, [activeInlineEdit, commitActiveInlineEdit])
 
   const {
     scenario,
@@ -90,17 +92,17 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
     removeItem,
   } = editor
 
-  const handleInlineAmountEditChange = useCallback(
-    (target: InlineAmountEditTarget) => {
-      if (shouldCommitInlineBeforeNextEdit(inlineAmountEdit, target)) {
-        commitActiveInlineAmount()
+  const handleActiveInlineEditChange = useCallback(
+    (target: ActiveInlineEdit) => {
+      if (shouldCommitInlineBeforeNextEdit(activeInlineEdit, target)) {
+        commitActiveInlineEdit()
       }
       if (target) {
         closeForm()
       }
-      setInlineAmountEdit(target)
+      setActiveInlineEdit(target)
     },
-    [closeForm, commitActiveInlineAmount, inlineAmountEdit],
+    [activeInlineEdit, closeForm, commitActiveInlineEdit],
   )
 
   const handleInlineAmountCommit = useCallback(
@@ -111,22 +113,33 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
     [patchCoverageItem],
   )
 
+  const handleInlineTitleCommit = useCallback(
+    (itemId: string, raw: string) => {
+      if (!scenario) return
+      const item = scenario.items.find((entry) => entry.id === itemId && entry.type === 'coverage')
+      const label = raw.trim() || (item?.type === 'coverage' ? item.label : '')
+      if (!label) return
+      patchCoverageItem(itemId, { label })
+    },
+    [patchCoverageItem, scenario],
+  )
+
   const openAddSheetForOrder = useCallback(
     (afterOrder: number) => {
-      commitActiveInlineAmount()
-      setInlineAmountEdit(null)
+      commitActiveInlineEdit()
+      setActiveInlineEdit(null)
       openAddForm(afterOrder)
     },
-    [commitActiveInlineAmount, openAddForm],
+    [commitActiveInlineEdit, openAddForm],
   )
 
   const openFullAmountEdit = useCallback(
     (item: { id: string }) => {
-      commitActiveInlineAmount()
-      setInlineAmountEdit(null)
+      commitActiveInlineEdit()
+      setActiveInlineEdit(null)
       openEditForm(item.id)
     },
-    [commitActiveInlineAmount, openEditForm],
+    [commitActiveInlineEdit, openEditForm],
   )
 
   const handleEditSheetDelete = useCallback(async () => {
@@ -180,7 +193,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   const backTo = resolveCoverageEditorBackPath(basePath, scenario, { isTemplateEditor: isTemplate })
 
   const handleSave = async () => {
-    commitActiveInlineAmount()
+    commitActiveInlineEdit()
     const result = await requestSaveConsultation()
     if ('needsTitle' in result && result.needsTitle) {
       setTitleValidationError(result.validationError ?? null)
@@ -204,7 +217,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   const editorHeaderTitle = isTemplate ? scenario.title : diseaseTypeTitle(scenario.diseaseType)
 
   const requestRemoveCoverageItem = async (id: string) => {
-    commitActiveInlineAmount()
+    commitActiveInlineEdit()
     const ok = await confirm({
       title: '이 항목을 삭제할까요?',
       message: '삭제 후 되돌릴 수 없습니다.',
@@ -216,7 +229,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   }
 
   const requestRemoveTimeMarker = async (id: string) => {
-    commitActiveInlineAmount()
+    commitActiveInlineEdit()
     const ok = await confirm({
       title: '이 시간 구간을 삭제할까요?',
       message: '삭제 후 되돌릴 수 없습니다.',
@@ -228,7 +241,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   }
 
   const requestReset = async () => {
-    commitActiveInlineAmount()
+    commitActiveInlineEdit()
     const ok = await confirm(
       isTemplate
         ? {
@@ -289,14 +302,14 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
         <MobilePreviewEditorHeader
           title={editorHeaderTitle}
           onBack={() => {
-            commitActiveInlineAmount()
+            commitActiveInlineEdit()
             navigate(backTo)
           }}
           onReset={requestReset}
           onSave={
             isTemplate
               ? () => {
-                  commitActiveInlineAmount()
+                  commitActiveInlineEdit()
                   persist(scenario)
                 }
               : handleSave
@@ -305,7 +318,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
           onPdf={
             !isTemplate
               ? () => {
-                  commitActiveInlineAmount()
+                  commitActiveInlineEdit()
                   navigate(`${basePath}/scenarios/${scenario.id}/pdf`)
                 }
               : undefined
@@ -313,7 +326,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
           onShare={
             shareFlow.showShareButton
               ? () => {
-                  commitActiveInlineAmount()
+                  commitActiveInlineEdit()
                   void shareFlow.openShareDialog()
                 }
               : undefined
@@ -375,9 +388,9 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
           .join(' ')}
         data-testid="coverage-scenario-editor"
         onScrollCapture={
-          useLatestMobileEditor
+          activeInlineEdit
             ? () => {
-                commitActiveInlineAmount()
+                commitActiveInlineEdit()
               }
             : undefined
         }
@@ -393,18 +406,20 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
             itemMenuMode={useLatestMobileEditor ? 'direct-edit' : 'popover'}
             onEditItem={openFullAmountEdit}
             onMoveItem={(id, direction) => {
-              commitActiveInlineAmount()
+              commitActiveInlineEdit()
               moveItem(id, direction)
             }}
             onRemoveItem={requestRemoveCoverageItem}
             onRemoveTimeMarker={requestRemoveTimeMarker}
             onAddAfter={openAddSheetForOrder}
             enableInlineAmountEdit={useLatestMobileEditor}
-            inlineAmountEdit={inlineAmountEdit}
-            onInlineAmountEditChange={handleInlineAmountEditChange}
+            enableInlineTitleEdit
+            activeInlineEdit={activeInlineEdit}
+            onActiveInlineEditChange={handleActiveInlineEditChange}
             onInlineAmountCommit={handleInlineAmountCommit}
-            onRegisterInlineAmountCommit={(commit) => {
-              inlineAmountCommitRef.current = commit
+            onInlineTitleCommit={handleInlineTitleCommit}
+            onRegisterInlineEditCommit={(commit) => {
+              inlineEditCommitRef.current = commit
             }}
           />
         ) : null}

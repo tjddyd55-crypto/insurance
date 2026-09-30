@@ -949,6 +949,53 @@
   line-height: 1.35;
 }
 
+.cs-axis-event__title-trigger {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-align: center;
+}
+
+.cs-axis-event__title-trigger .cs-axis-event__label {
+  display: inline-block;
+  max-width: 100%;
+  padding: 0 var(--cs-axis-title-mask-pad-x);
+  background: var(--cs-axis-title-mask-bg);
+  box-shadow: 0 0 0 1px var(--cs-axis-title-mask-bg);
+}
+
+.cs-axis-title--inline-editing {
+  width: 100%;
+  text-align: center;
+}
+
+.cs-axis-title__inline-input {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0 var(--cs-axis-title-mask-pad-x);
+  border: none;
+  border-bottom: 1px solid var(--cs-color-primary, #2563eb);
+  border-radius: 0;
+  background: var(--cs-axis-title-mask-bg);
+  font-size: var(--cs-font-label);
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  color: inherit;
+  box-sizing: border-box;
+}
+
+.cs-axis-title__inline-input:focus {
+  outline: none;
+}
+
 .cs-axis-event__compare {
   display: grid;
   grid-template-columns: 1fr 24px 1fr;

@@ -6,15 +6,16 @@ import {
 } from './coverageInlineAmountSession'
 
 describe('coverageInlineAmountSession', () => {
-  it('commits before switching to another inline target', () => {
+  it('re-exports inline edit session helpers with amount-shaped targets', () => {
     expect(
       shouldCommitInlineBeforeNextEdit(
-        { itemId: 'a', field: 'current' },
-        { itemId: 'a', field: 'proposed' },
+        { kind: 'amount', itemId: 'a', field: 'current' },
+        { kind: 'amount', itemId: 'a', field: 'proposed' },
       ),
     ).toBe(true)
-    expect(shouldCommitInlineBeforeNextEdit(null, { itemId: 'a', field: 'current' })).toBe(false)
-    expect(shouldCommitInlineBeforeNextEdit({ itemId: 'a', field: 'current' }, null)).toBe(false)
+    expect(shouldCommitInlineBeforeNextEdit(null, { kind: 'amount', itemId: 'a', field: 'current' })).toBe(
+      false,
+    )
   })
 
   it('runs registered commit handler', () => {

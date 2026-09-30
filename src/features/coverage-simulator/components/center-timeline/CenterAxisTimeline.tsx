@@ -14,19 +14,23 @@ import { CoverageGrandTotal } from './CoverageGrandTotal'
 export type CoverageTimelineMode = 'editable' | 'readonly' | 'print'
 import { CoverageTimelineReorderButtons } from './CoverageTimelineReorderButtons'
 import { EventRowMenu } from './EventRowMenu'
+import type { ActiveInlineEdit } from '../../domain/coverageInlineEditSession'
 import { InlineAmountQuickEdit, type InlineAmountField } from './InlineAmountQuickEdit'
+import { InlineTitleQuickEdit } from './InlineTitleQuickEdit'
 import { TimelineInsertControl } from './TimelineInsertControl'
 import { TimelinePeriodSubtotal } from './TimelinePeriodSubtotal'
 import { TimeMarkerRowMenu } from './TimeMarkerRowMenu'
 
-export type InlineAmountEditTarget = { itemId: string; field: InlineAmountField } | null
+export type InlineAmountEditTarget = ActiveInlineEdit
 
-type InlineAmountOptions = {
+type InlineEditOptions = {
   enableInlineAmountEdit: boolean
-  inlineAmountEdit: InlineAmountEditTarget
-  onInlineAmountEditChange: (target: InlineAmountEditTarget) => void
+  enableInlineTitleEdit: boolean
+  activeInlineEdit: ActiveInlineEdit
+  onActiveInlineEditChange: (target: ActiveInlineEdit) => void
   onInlineAmountCommit: (itemId: string, field: InlineAmountField, amount: number | null) => void
-  onRegisterInlineAmountCommit?: (commit: (() => void) | null) => void
+  onInlineTitleCommit: (itemId: string, label: string) => void
+  onRegisterInlineEditCommit?: (commit: (() => void) | null) => void
 }
 
 export type CenterAxisTimelineProps = {
@@ -47,24 +51,28 @@ export type CenterAxisTimelineProps = {
   onRemoveTimeMarker?: (id: string) => void
   onAddAfter: (afterOrder: number) => void
   enableInlineAmountEdit?: boolean
-  inlineAmountEdit?: InlineAmountEditTarget
-  onInlineAmountEditChange?: (target: InlineAmountEditTarget) => void
+  enableInlineTitleEdit?: boolean
+  activeInlineEdit?: ActiveInlineEdit
+  onActiveInlineEditChange?: (target: ActiveInlineEdit) => void
   onInlineAmountCommit?: (itemId: string, field: InlineAmountField, amount: number | null) => void
-  onRegisterInlineAmountCommit?: (commit: (() => void) | null) => void
+  onInlineTitleCommit?: (itemId: string, label: string) => void
+  onRegisterInlineEditCommit?: (commit: (() => void) | null) => void
 }
 
 type Handlers = Pick<CenterAxisTimelineProps, 'onEditItem' | 'onMoveItem' | 'onRemoveItem'>
 
-function resolveInlineOptions(props: CenterAxisTimelineProps): InlineAmountOptions | null {
-  if (!props.enableInlineAmountEdit || !props.onInlineAmountEditChange || !props.onInlineAmountCommit) {
-    return null
-  }
+function resolveInlineOptions(props: CenterAxisTimelineProps): InlineEditOptions | null {
+  const amountReady = props.enableInlineAmountEdit && props.onActiveInlineEditChange && props.onInlineAmountCommit
+  const titleReady = props.enableInlineTitleEdit !== false && props.onActiveInlineEditChange && props.onInlineTitleCommit
+  if (!amountReady && !titleReady) return null
   return {
-    enableInlineAmountEdit: true,
-    inlineAmountEdit: props.inlineAmountEdit ?? null,
-    onInlineAmountEditChange: props.onInlineAmountEditChange,
-    onInlineAmountCommit: props.onInlineAmountCommit,
-    onRegisterInlineAmountCommit: props.onRegisterInlineAmountCommit,
+    enableInlineAmountEdit: Boolean(amountReady),
+    enableInlineTitleEdit: Boolean(titleReady),
+    activeInlineEdit: props.activeInlineEdit ?? null,
+    onActiveInlineEditChange: props.onActiveInlineEditChange!,
+    onInlineAmountCommit: props.onInlineAmountCommit ?? (() => undefined),
+    onInlineTitleCommit: props.onInlineTitleCommit ?? (() => undefined),
+    onRegisterInlineEditCommit: props.onRegisterInlineEditCommit,
   }
 }
 
@@ -73,7 +81,7 @@ function renderAmountCell(
   field: InlineAmountField,
   variant: CenterAxisTimelineProps['variant'],
   handlers: Handlers,
-  inline: InlineAmountOptions | null,
+  inline: InlineEditOptions | null,
   readOnly: boolean,
 ) {
   const amount = field === 'current' ? item.currentAmount : item.proposedAmount
@@ -95,17 +103,22 @@ function renderAmountCell(
   }
 
   if (variant === 'mobile' && inline) {
-    const active = inline.inlineAmountEdit?.itemId === item.id && inline.inlineAmountEdit?.field === field
+    const active =
+      inline.activeInlineEdit?.kind === 'amount' &&
+      inline.activeInlineEdit.itemId === item.id &&
+      inline.activeInlineEdit.field === field
     return (
       <InlineAmountQuickEdit
         amount={amount}
         field={field}
         active={active}
         className={baseClass}
-        onActivate={() => inline.onInlineAmountEditChange({ itemId: item.id, field })}
+        onActivate={() => inline.onActiveInlineEditChange({ kind: 'amount', itemId: item.id, field })}
         onCommit={(next) => inline.onInlineAmountCommit(item.id, field, next)}
-        onEndEdit={() => inline.onInlineAmountEditChange(null)}
-        onRegisterCommit={inline.onRegisterInlineAmountCommit}
+        onEndEdit={() => {
+          if (inline.activeInlineEdit?.kind === 'amount') inline.onActiveInlineEditChange(null)
+        }}
+        onRegisterCommit={inline.onRegisterInlineEditCommit}
       />
     )
   }
@@ -132,7 +145,7 @@ function renderCoverageRow(
     CenterAxisTimelineProps,
     'items' | 'itemMenuMode' | 'readOnly' | 'preserveActionsGeometry' | 'displayTitleByItemId'
   >,
-  inline: InlineAmountOptions | null,
+  inline: InlineEditOptions | null,
 ) {
   const showTimelineReorder =
     !options.readOnly &&
@@ -147,9 +160,25 @@ function renderCoverageRow(
         <div className="cs-axis-event__badge">
           <CoverageBadge category={item.category} />
         </div>
-        <p className="cs-axis-event__title-axis">
-          <span className="cs-axis-event__label">{displayTitle}</span>
-        </p>
+        <div className="cs-axis-event__title-axis">
+          {!options.readOnly && inline?.enableInlineTitleEdit ? (
+            <InlineTitleQuickEdit
+              label={displayTitle}
+              active={
+                inline.activeInlineEdit?.kind === 'title' && inline.activeInlineEdit.itemId === item.id
+              }
+              className="cs-axis-event__title-trigger"
+              onActivate={() => inline.onActiveInlineEditChange({ kind: 'title', itemId: item.id })}
+              onCommit={(next) => inline.onInlineTitleCommit(item.id, next)}
+              onEndEdit={() => {
+                if (inline.activeInlineEdit?.kind === 'title') inline.onActiveInlineEditChange(null)
+              }}
+              onRegisterCommit={inline.onRegisterInlineEditCommit}
+            />
+          ) : (
+            <span className="cs-axis-event__label">{displayTitle}</span>
+          )}
+        </div>
         {!options.readOnly ? (
           <div className="cs-axis-event__actions">
             {showTimelineReorder ? (
@@ -224,7 +253,7 @@ function renderBlock(
     CenterAxisTimelineProps,
     'items' | 'itemMenuMode' | 'readOnly' | 'preserveActionsGeometry' | 'displayTitleByItemId'
   >,
-  inline: InlineAmountOptions | null,
+  inline: InlineEditOptions | null,
   onAddAfter: (afterOrder: number) => void,
   readOnly: boolean,
   _preserveActionsGeometry: boolean,
@@ -268,7 +297,7 @@ function renderFlatTimeline(
   periodByMarkerId: Map<string, { currentTotal: number; proposedTotal: number }>,
   markerMenuMode: 'inline-delete' | 'action-sheet',
   removeMarker: (id: string) => void,
-  inline: InlineAmountOptions | null,
+  inline: InlineEditOptions | null,
 ) {
   const {
     items,
@@ -337,7 +366,7 @@ function renderPeriodSections(
   markerMenuMode: 'inline-delete' | 'action-sheet',
   removeMarker: (id: string) => void,
   periodByMarkerId: Map<string, { currentTotal: number; proposedTotal: number }>,
-  inline: InlineAmountOptions | null,
+  inline: InlineEditOptions | null,
 ) {
   const sections = buildTimelinePeriodSections(props.items, true, periodByMarkerId)
   const preserveActionsGeometry = props.preserveActionsGeometry ?? false
@@ -399,10 +428,12 @@ export function CenterAxisTimeline({
   onRemoveTimeMarker,
   onAddAfter,
   enableInlineAmountEdit = false,
-  inlineAmountEdit = null,
-  onInlineAmountEditChange,
+  enableInlineTitleEdit = true,
+  activeInlineEdit = null,
+  onActiveInlineEditChange,
   onInlineAmountCommit,
-  onRegisterInlineAmountCommit,
+  onInlineTitleCommit,
+  onRegisterInlineEditCommit,
 }: CenterAxisTimelineProps) {
   const handlers = { onEditItem, onMoveItem, onRemoveItem }
   const inline = resolveInlineOptions({
@@ -419,10 +450,12 @@ export function CenterAxisTimeline({
     onRemoveTimeMarker,
     onAddAfter,
     enableInlineAmountEdit,
-    inlineAmountEdit,
-    onInlineAmountEditChange,
+    enableInlineTitleEdit,
+    activeInlineEdit,
+    onActiveInlineEditChange,
     onInlineAmountCommit,
-    onRegisterInlineAmountCommit,
+    onInlineTitleCommit,
+    onRegisterInlineEditCommit,
   })
   const periodByMarkerId = useMemo(() => periodTotalsByEndMarkerId(items), [items])
   const markerMenuMode = itemMenuMode === 'action-sheet' ? 'action-sheet' : 'inline-delete'
@@ -449,10 +482,12 @@ export function CenterAxisTimeline({
     onRemoveTimeMarker,
     onAddAfter,
     enableInlineAmountEdit,
-    inlineAmountEdit,
-    onInlineAmountEditChange,
+    enableInlineTitleEdit,
+    activeInlineEdit,
+    onActiveInlineEditChange,
     onInlineAmountCommit,
-    onRegisterInlineAmountCommit,
+    onInlineTitleCommit,
+    onRegisterInlineEditCommit,
   }
 
   const sheetClass = [
