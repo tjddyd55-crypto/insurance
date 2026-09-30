@@ -139,3 +139,11 @@ export function formatPhoneNumber(raw: string | number | null | undefined): stri
 
   return digits
 }
+
+/**
+ * 클립보드 복사용 — 화면 표시(`formatPhone`)와 동일한 하이픈 포함 문자열.
+ * `tel:` 링크는 `normalizePhoneNumber` / `cleanPhone` 을 사용한다.
+ */
+export function getPhoneClipboardText(raw: string | number | null | undefined): string {
+  return formatPhone(raw)
+}

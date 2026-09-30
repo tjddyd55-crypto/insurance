@@ -6,14 +6,15 @@ import {
   CUSTOMER_MEDICAL_QUESTION_TEXT,
 } from './customerDisplayFormat'
 import { formatMedicalHistoryForLegacyDisplay } from './customerMedicalHistory'
-import { formatCustomerMobileCarrierDisplay } from './customerDisplayFormat'
+import { formatCustomerMobileCarrierDisplay, formatCustomerPhoneUi } from './customerDisplayFormat'
 
 /** 고객 관리 · 카톡 붙여넣기용 (필요 필드만) */
 export function buildKakaoCustomerCopyText(data: CustomerRecord | Partial<CustomerRecord>) {
   const c = data as Partial<CustomerRecord>
   const name = String(c.name ?? '')
   const ssn = String(c.ssn ?? '')
-  const phone = String(c.phone ?? '')
+  const phone =
+    formatCustomerPhoneUi(c.phone) || String(c.phone ?? '').trim()
   const carrier = formatCustomerMobileCarrierDisplay(c.carrier)
   const address = String(c.address ?? '')
   const height = String(c.height ?? '').trim()
