@@ -13,6 +13,7 @@ import GaManagementPage from './features/admin/pages/GaManagementPage'
 import GaCompanyManagePage from './features/admin/pages/GaCompanyManagePage'
 import UserManagementPage from './features/admin/pages/UserManagementPage'
 import AuditLogsPage from './features/admin/pages/AuditLogsPage'
+import MenuPermissionMatrixPage from './features/admin/menu-permissions/MenuPermissionMatrixPage'
 import SubscriptionPolicyPage from './features/admin/pages/SubscriptionPolicyPage'
 import AdminBillingManagePage, { AdminBillingLegacyRedirect } from './features/billing/pages/AdminBillingManagePage'
 import AccountBillingPage from './features/billing/pages/AccountBillingPage'
@@ -561,6 +562,7 @@ export const appRouter = createBrowserRouter([
                   { path: 'admin/notices', element: <AdminNoticeListPage /> },
                   { path: 'admin/notices/new', element: <AdminNoticeEditorPage /> },
                   { path: 'admin/notices/:id', element: <AdminNoticeEditorPage /> },
+                  { path: 'admin/menu-permissions', element: <MenuPermissionMatrixPage /> },
                 ],
               },
               {

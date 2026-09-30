@@ -484,6 +484,7 @@ function buildSuperAdminMenuEntries(): GaTenantDashboardMenuEntry[] {
       { label: 'GA 관리', path: '/admin/ga' },
       { label: '담당자 관리', path: '/admin/delegates' },
       { label: '유저 관리', path: '/admin/users' },
+      { label: '메뉴 권한 SSOT', path: '/admin/menu-permissions' },
     ]),
   )
 
