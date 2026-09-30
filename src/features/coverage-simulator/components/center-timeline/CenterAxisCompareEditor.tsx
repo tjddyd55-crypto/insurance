@@ -12,6 +12,7 @@ import { MobilePreviewEditorHeader } from '../MobilePreviewEditorHeader'
 import { useCoverageShareFlow } from '../../hooks/useCoverageShareFlow'
 import { MobilePreviewStickyDock } from '../MobilePreviewStickyDock'
 import { SaveConsultationTitleDialog } from '../SaveConsultationTitleDialog'
+import { resolveCoverageEditorBackPath } from '../../domain/coverageSimulatorNavigation'
 import { diseaseTypeTitle } from '../../domain/diseaseTypeLabels'
 import { useCoverageSimulatorScope } from '../../CoverageSimulatorScope'
 import { buildCoverageTimelineViewModel } from '../../domain/buildCoverageTimelineViewModel'
@@ -147,7 +148,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
     ? '템플릿 항목 순서, 시점, 기본 금액을 저장합니다. 상담 시작 시 복사본으로 사용됩니다.'
     : SCENARIO_BLURB[scenario.diseaseType] ?? scenario.description
 
-  const backTo = isTemplate ? basePath : `${basePath}/${scenario.diseaseType}`
+  const backTo = resolveCoverageEditorBackPath(basePath, scenario, { isTemplateEditor: isTemplate })
 
   const handleSave = async () => {
     const result = await requestSaveConsultation()
