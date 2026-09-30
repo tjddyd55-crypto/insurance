@@ -1572,6 +1572,48 @@ html.coverage-simulator-overlay-scroll-lock .cs-axis-main {
 .cs-share-public-shell .coverage-simulator-shell {
   max-width: 480px;
   margin: 0 auto;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.cs-share-public-shell .cs-share-public-zoom-host {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.coverage-simulator-public-zoom-viewport {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-x pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+.coverage-simulator-public-zoom-viewport--zoomed {
+  touch-action: none;
+  cursor: grab;
+}
+
+.coverage-simulator-public-zoom-viewport--zoomed:active {
+  cursor: grabbing;
+}
+
+.coverage-simulator-public-zoom-spacer {
+  position: relative;
+  margin: 0 auto;
+}
+
+.coverage-simulator-public-zoom-doc {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .cs-share-public {

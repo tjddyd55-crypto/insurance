@@ -255,6 +255,17 @@ export async function loadCoverageSharePdfBuffer(pool, token) {
     return { status: 'pdf_missing', row: resolved.row }
   }
   const buffer = await consentGetBuffer(key)
+  if (
+    !buffer ||
+    buffer.length < 5 ||
+    buffer[0] !== 0x25 ||
+    buffer[1] !== 0x50 ||
+    buffer[2] !== 0x44 ||
+    buffer[3] !== 0x46 ||
+    buffer[4] !== 0x2d
+  ) {
+    return { status: 'pdf_missing', row: resolved.row }
+  }
   return { status: 'ok', row: resolved.row, buffer }
 }
 

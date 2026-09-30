@@ -3,12 +3,12 @@ import { useParams } from 'react-router-dom'
 
 import FormButton from '../../../components/form/FormButton'
 import { ApiError } from '../../../lib/apiClient'
+import { CoveragePublicZoomSurface } from '../components/CoveragePublicZoomSurface'
 import { CoverageScenarioTimeline } from '../components/center-timeline/CoverageScenarioTimeline'
 import { MobilePreviewStickyDock } from '../components/MobilePreviewStickyDock'
 import { CoverageSimulatorLayout } from '../components/CoverageSimulatorLayout'
 import {
   fetchPublicCoverageShare,
-  publicCoverageSharePdfDownloadUrl,
   type PublicCoverageSharePayload,
 } from '../api/coverageSimulatorShareApi'
 import { CoverageSimulatorScopeProvider, previewScopeMobile } from '../CoverageSimulatorScope'
@@ -19,10 +19,8 @@ import { resolveCustomerNameSnapshot } from '../domain/normalizeConsultation'
 import type { CoverageScenario } from '../domain/types'
 import { buildCoveragePdfFileName } from '../pdf/coveragePdfFileName'
 import { CoverageSimulatorPrintDocument } from '../pdf/CoverageSimulatorPrintDocument'
-import {
-  buildCoveragePdfBlobFromPrintRoot,
-  downloadCoveragePdfBlob,
-} from '../pdf/generateCoveragePdf'
+import { buildCoveragePdfBlobFromPrintRoot } from '../pdf/generateCoveragePdf'
+import { downloadPublicCoverageSharePdf } from '../pdf/publicSharePdfDownload'
 import '../styles/coverage-simulator.css'
 import { useCoveragePublicViewerViewport } from '../hooks/useCoveragePublicViewerViewport'
 
@@ -138,32 +136,26 @@ function CoverageSharePublicPageBody() {
   const wroteLabel = formatConsultationDate(shareScenario.consultationDate)
   const scenarioHeading = formatCoverageScenarioHeading(shareScenario.diseaseType, shareScenario.title)
   const metaLine = formatCoverageDocumentMetaLine(customerName, wroteLabel)
-  const downloadStoredPdf = () => {
-    window.location.assign(publicCoverageSharePdfDownloadUrl(token))
-  }
-  const downloadGeneratedPdf = async () => {
+  const buildGeneratedPdfBlob = async () => {
     const printRoot = printSourceRef.current?.querySelector('.coverage-simulator-print-root')
-    if (!(printRoot instanceof HTMLElement)) {
-      window.alert('PDF를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.')
-      return
-    }
+    if (!(printRoot instanceof HTMLElement)) return null
+    return buildCoveragePdfBlobFromPrintRoot(printRoot)
+  }
+
+  const downloadPdf = async () => {
     setPdfBusy(true)
     try {
-      const blob = await buildCoveragePdfBlobFromPrintRoot(printRoot)
-      downloadCoveragePdfBlob(blob, buildCoveragePdfFileName(shareScenario))
-    } catch (error) {
-      console.error('[coverage-share] on-demand PDF failed', error)
-      window.alert('PDF를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.')
+      const fileName = buildCoveragePdfFileName(shareScenario)
+      const result = await downloadPublicCoverageSharePdf(token, fileName, {
+        preferStored: payload.pdfReady,
+        fallback: buildGeneratedPdfBlob,
+      })
+      if (result === 'failed') {
+        window.alert('PDF를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.')
+      }
     } finally {
       setPdfBusy(false)
     }
-  }
-  const downloadPdf = () => {
-    if (payload.pdfReady) {
-      downloadStoredPdf()
-      return
-    }
-    void downloadGeneratedPdf()
   }
 
   return (
@@ -176,28 +168,30 @@ function CoverageSharePublicPageBody() {
           variant="primary"
           className="coverage-simulator-primary-btn cs-share-public__pdf-btn"
           disabled={pdfBusy}
-          onClick={downloadPdf}
+          onClick={() => void downloadPdf()}
         >
           {pdfBusy ? 'PDF 만드는 중…' : 'PDF 다운로드'}
         </FormButton>
       </header>
-      <main className="cs-share-public cs-share-public--with-dock">
+      <CoveragePublicZoomSurface documentKey={token} className="cs-share-public-zoom-host">
+        <main className="cs-share-public cs-share-public--with-dock">
+          {viewModel ? (
+            <CoverageScenarioTimeline
+              mode="readonly"
+              viewModel={viewModel}
+              variant="mobile"
+              showGrandTotal={false}
+              itemMenuMode="action-sheet"
+            />
+          ) : null}
+        </main>
         {viewModel ? (
-          <CoverageScenarioTimeline
-            mode="readonly"
-            viewModel={viewModel}
-            variant="mobile"
-            showGrandTotal={false}
-            itemMenuMode="action-sheet"
+          <MobilePreviewStickyDock
+            currentTotal={viewModel.totals.currentTotal}
+            proposedTotal={viewModel.totals.proposedTotal}
           />
         ) : null}
-      </main>
-      {viewModel ? (
-        <MobilePreviewStickyDock
-          currentTotal={viewModel.totals.currentTotal}
-          proposedTotal={viewModel.totals.proposedTotal}
-        />
-      ) : null}
+      </CoveragePublicZoomSurface>
       <div
         ref={printSourceRef}
         className="coverage-simulator-pdf-print-source"

@@ -220,17 +220,33 @@ export async function buildCoveragePdfBlobFromPrintRoot(root: HTMLElement): Prom
   return new Blob([blob], { type: 'application/pdf' })
 }
 
+export type CoveragePdfBlob = Blob
+
+export function normalizeCoveragePdfDownloadName(fileName: string): string {
+  const trimmed = String(fileName ?? '').trim() || 'coverage.pdf'
+  return trimmed.toLowerCase().endsWith('.pdf') ? trimmed : `${trimmed}.pdf`
+}
+
+export function toApplicationPdfBlob(blob: Blob): CoveragePdfBlob {
+  if (blob.type === 'application/pdf') return blob
+  return new Blob([blob], { type: 'application/pdf' })
+}
+
 /** 브라우저에서 생성한 PDF를 파일로 저장한다. 인증·저장소 업로드가 필요 없다. */
 export function downloadCoveragePdfBlob(blob: Blob, fileName: string): void {
-  const url = URL.createObjectURL(blob)
+  const pdfBlob = toApplicationPdfBlob(blob)
+  const downloadName = normalizeCoveragePdfDownloadName(fileName)
+  const url = URL.createObjectURL(pdfBlob)
   const anchor = document.createElement('a')
   anchor.href = url
-  anchor.download = fileName
+  anchor.download = downloadName
   anchor.rel = 'noopener'
   document.body.appendChild(anchor)
   anchor.click()
   anchor.remove()
-  window.setTimeout(() => URL.revokeObjectURL(url), 1500)
+  const revoke = () => URL.revokeObjectURL(url)
+  window.setTimeout(revoke, 10_000)
+  window.addEventListener('pagehide', revoke, { once: true })
 }
 
 export function printCoverageDocument(): void {
