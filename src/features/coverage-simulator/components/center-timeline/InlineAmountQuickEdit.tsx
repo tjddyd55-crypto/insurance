@@ -17,6 +17,7 @@ type Props = {
   onActivate: () => void
   onCommit: (amount: number | null) => void
   onEndEdit: () => void
+  onRegisterCommit?: (commit: (() => void) | null) => void
 }
 
 export function InlineAmountQuickEdit({
@@ -27,12 +28,14 @@ export function InlineAmountQuickEdit({
   onActivate,
   onCommit,
   onEndEdit,
+  onRegisterCommit,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [draft, setDraft] = useState('')
   const draftRef = useRef(draft)
   draftRef.current = draft
   const skipCommitOnDeactivateRef = useRef(false)
+  const committedRef = useRef(false)
 
   const commitDraft = () => {
     const trimmed = draftRef.current.trim()
@@ -40,10 +43,24 @@ export function InlineAmountQuickEdit({
     onCommit(next)
   }
 
+  const commitAndClose = () => {
+    if (committedRef.current) return
+    committedRef.current = true
+    commitDraft()
+    onEndEdit()
+  }
+
   useEffect(() => {
-    if (!active) return undefined
+    if (!active) {
+      onRegisterCommit?.(null)
+      return undefined
+    }
     skipCommitOnDeactivateRef.current = false
+    committedRef.current = false
     setDraft(formatManWonInputDisplay(amount))
+    onRegisterCommit?.(() => {
+      commitAndClose()
+    })
     const frame = window.requestAnimationFrame(() => {
       const input = inputRef.current
       if (!input) return
@@ -53,10 +70,11 @@ export function InlineAmountQuickEdit({
     })
     return () => {
       window.cancelAnimationFrame(frame)
-      if (skipCommitOnDeactivateRef.current) return
+      onRegisterCommit?.(null)
+      if (skipCommitOnDeactivateRef.current || committedRef.current) return
       commitDraft()
     }
-  }, [active, amount])
+  }, [active, amount, onRegisterCommit])
 
   if (!active) {
     return (
@@ -78,8 +96,7 @@ export function InlineAmountQuickEdit({
         value={draft}
         onChange={(event) => setDraft(sanitizeManWonInputTyping(event.target.value))}
         onBlur={() => {
-          commitDraft()
-          onEndEdit()
+          commitAndClose()
         }}
         onKeyDown={(event) => {
           if (event.key === 'Enter') {

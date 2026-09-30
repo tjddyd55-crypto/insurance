@@ -1,4 +1,5 @@
 @import './tokens.css';
+@import './share-public-fixed-theme.css';
 @import './overlay-shell.css';
 @import './form-screen.css';
 @import './center-timeline.css';

@@ -1,0 +1,75 @@
+/**
+ * 공유 URL / 공개 뷰어 고정 라이트 테마 SSOT.
+ * index.html data-theme=dark 및 OS color-scheme과 무관하게 동일한 가독성을 보장한다.
+ */
+.coverage-simulator-root:has(.cs-share-public-shell),
+.coverage-simulator-root:has(.coverage-simulator-pdf-preview-shell) {
+  color-scheme: light only;
+  --bg-base: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-soft: #f1f5f9;
+  --text-main: #111827;
+  --text-secondary: #475569;
+  --border-default: #e2e8f0;
+  --primary: #16a34a;
+  --primary-soft: #dcfce7;
+  --primary-border: #bbf7d0;
+  --primary-active: #166534;
+  --input-bg: #ffffff;
+  --input-border: #e2e8f0;
+  --input-focus-border: #16a34a;
+  --overlay-backdrop: rgb(15 23 42 / 0.55);
+  --success: #16a34a;
+  --danger: #dc2626;
+
+  --cs-color-bg: #f8fafc;
+  --cs-color-surface: #ffffff;
+  --cs-color-border: #e2e8f0;
+  --cs-color-text: #111827;
+  --cs-color-text-muted: #475569;
+  --cs-color-primary: #16a34a;
+  --cs-color-primary-soft: #dcfce7;
+  --cs-color-primary-border: #bbf7d0;
+  --cs-color-proposed: #16a34a;
+  --cs-color-proposed-soft: #dcfce7;
+  --cs-color-current-bg: #f1f5f9;
+  --cs-color-danger: #dc2626;
+  --cs-color-overlay: rgb(15 23 42 / 0.55);
+  --cs-color-diagnosis: #e11d48;
+  --cs-color-diagnosis-soft: #fff1f2;
+  --cs-color-treatment: #ea580c;
+  --cs-color-treatment-soft: #fff7ed;
+  --cs-color-recovery: #16a34a;
+  --cs-color-recovery-soft: #dcfce7;
+  --cs-color-support: #7c3aed;
+  --cs-color-support-soft: #f5f3ff;
+  --cs-color-other: #64748b;
+  --cs-color-other-soft: #f1f5f9;
+  --cs-period-subtotal-bg: color-mix(in srgb, #e2e8f0 35%, transparent);
+  --cs-period-subtotal-heading: #111827;
+  --cs-period-marker-line: #bbf7d0;
+  --cs-period-marker-text: #166534;
+  --cs-period-marker-arrow: #16a34a;
+  --cs-input-bg: #ffffff;
+  --cs-input-border: #e2e8f0;
+  --cs-input-focus-border: #16a34a;
+  --cs-axis-title-mask-bg: #ffffff;
+
+  background: var(--cs-color-bg);
+  color: var(--cs-color-text);
+}
+
+.coverage-simulator-root:has(.cs-share-public-shell) .cs-share-public__header {
+  background: var(--cs-color-surface);
+  border-bottom-color: var(--cs-color-border);
+}
+
+.coverage-simulator-root:has(.cs-share-public-shell) .coverage-simulator-root--mobile-preview .cs-axis-amount--current .cs-axis-amount__value,
+.coverage-simulator-root:has(.coverage-simulator-pdf-preview-shell) .cs-axis-amount--current .cs-axis-amount__value {
+  color: #1e293b;
+}
+
+.coverage-simulator-root:has(.cs-share-public-shell) .coverage-simulator-amount-box:not(.coverage-simulator-amount-box--proposed),
+.coverage-simulator-root:has(.coverage-simulator-pdf-preview-shell) .coverage-simulator-amount-box:not(.coverage-simulator-amount-box--proposed) {
+  background: var(--cs-color-current-bg);
+}

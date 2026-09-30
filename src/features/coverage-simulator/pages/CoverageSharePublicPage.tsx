@@ -24,6 +24,7 @@ import {
   downloadCoveragePdfBlob,
 } from '../pdf/generateCoveragePdf'
 import '../styles/coverage-simulator.css'
+import { useCoveragePublicViewerViewport } from '../hooks/useCoveragePublicViewerViewport'
 
 type LoadState =
   | { status: 'loading' }
@@ -53,6 +54,8 @@ function CoverageSharePublicPageBody() {
   const [state, setState] = useState<LoadState>({ status: 'loading' })
   const [pdfBusy, setPdfBusy] = useState(false)
   const printSourceRef = useRef<HTMLDivElement>(null)
+
+  useCoveragePublicViewerViewport()
 
   useEffect(() => {
     const meta = document.createElement('meta')
@@ -180,7 +183,13 @@ function CoverageSharePublicPageBody() {
       </header>
       <main className="cs-share-public cs-share-public--with-dock">
         {viewModel ? (
-          <CoverageScenarioTimeline mode="readonly" viewModel={viewModel} variant="mobile" showGrandTotal={false} />
+          <CoverageScenarioTimeline
+            mode="readonly"
+            viewModel={viewModel}
+            variant="mobile"
+            showGrandTotal={false}
+            itemMenuMode="action-sheet"
+          />
         ) : null}
       </main>
       {viewModel ? (

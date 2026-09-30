@@ -6,7 +6,7 @@ import { ItemActionSheet } from '../ItemActionSheet'
 import type { ScenarioItemCategory } from '../../domain/types'
 
 type EventRowMenuProps = {
-  menuMode?: 'popover' | 'action-sheet'
+  menuMode?: 'popover' | 'action-sheet' | 'direct-edit'
   itemCategory?: ScenarioItemCategory
   itemLabel?: string
   onEditAmount: () => void
@@ -79,6 +79,21 @@ export function EventRowMenu({
       window.removeEventListener('scroll', onReflow, true)
     }
   }, [open, menuMode])
+
+  if (menuMode === 'direct-edit') {
+    return (
+      <div className="cs-axis-row-menu">
+        <FormButton
+          variant="action"
+          className="cs-axis-row-menu__trigger"
+          aria-label="항목 수정"
+          onClick={onEditAmount}
+        >
+          ⋯
+        </FormButton>
+      </div>
+    )
+  }
 
   if (menuMode === 'action-sheet') {
     return (

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useConfirmDialog } from '../../../../components/dialog'
 import FormButton from '../../../../components/form/FormButton'
@@ -16,6 +16,10 @@ import { resolveCoverageEditorBackPath } from '../../domain/coverageSimulatorNav
 import { diseaseTypeTitle } from '../../domain/diseaseTypeLabels'
 import { useCoverageSimulatorScope } from '../../CoverageSimulatorScope'
 import { buildCoverageTimelineViewModel } from '../../domain/buildCoverageTimelineViewModel'
+import {
+  commitRegisteredInlineAmount,
+  shouldCommitInlineBeforeNextEdit,
+} from '../../domain/coverageInlineAmountSession'
 import { CoverageScenarioTimeline, type InlineAmountEditTarget } from './CoverageScenarioTimeline'
 import type { InlineAmountField } from './InlineAmountQuickEdit'
 import { isTemplateEditorMode, type TimelineEditorController } from './TimelineEditorController'
@@ -41,6 +45,26 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   const [titleDialogOpen, setTitleDialogOpen] = useState(false)
   const [titleValidationError, setTitleValidationError] = useState<string | null>(null)
   const [inlineAmountEdit, setInlineAmountEdit] = useState<InlineAmountEditTarget>(null)
+  const inlineAmountCommitRef = useRef<(() => void) | null>(null)
+
+  const commitActiveInlineAmount = useCallback(() => {
+    if (!inlineAmountEdit) return
+    commitRegisteredInlineAmount(inlineAmountCommitRef)
+  }, [inlineAmountEdit])
+
+  useEffect(() => {
+    if (!inlineAmountEdit || !useLatestMobileEditor) return undefined
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (target.closest('.cs-axis-amount--inline-editing')) return
+      commitActiveInlineAmount()
+    }
+    document.addEventListener('pointerdown', onPointerDown, true)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true)
+    }
+  }, [commitActiveInlineAmount, inlineAmountEdit, useLatestMobileEditor])
 
   const {
     scenario,
@@ -68,12 +92,15 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
 
   const handleInlineAmountEditChange = useCallback(
     (target: InlineAmountEditTarget) => {
+      if (shouldCommitInlineBeforeNextEdit(inlineAmountEdit, target)) {
+        commitActiveInlineAmount()
+      }
       if (target) {
         closeForm()
       }
       setInlineAmountEdit(target)
     },
-    [closeForm],
+    [closeForm, commitActiveInlineAmount, inlineAmountEdit],
   )
 
   const handleInlineAmountCommit = useCallback(
@@ -86,18 +113,20 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
 
   const openAddSheetForOrder = useCallback(
     (afterOrder: number) => {
+      commitActiveInlineAmount()
       setInlineAmountEdit(null)
       openAddForm(afterOrder)
     },
-    [openAddForm],
+    [commitActiveInlineAmount, openAddForm],
   )
 
   const openFullAmountEdit = useCallback(
     (item: { id: string }) => {
+      commitActiveInlineAmount()
       setInlineAmountEdit(null)
       openEditForm(item.id)
     },
-    [openEditForm],
+    [commitActiveInlineAmount, openEditForm],
   )
 
   const handleEditSheetDelete = useCallback(async () => {
@@ -151,6 +180,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   const backTo = resolveCoverageEditorBackPath(basePath, scenario, { isTemplateEditor: isTemplate })
 
   const handleSave = async () => {
+    commitActiveInlineAmount()
     const result = await requestSaveConsultation()
     if ('needsTitle' in result && result.needsTitle) {
       setTitleValidationError(result.validationError ?? null)
@@ -174,6 +204,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   const editorHeaderTitle = isTemplate ? scenario.title : diseaseTypeTitle(scenario.diseaseType)
 
   const requestRemoveCoverageItem = async (id: string) => {
+    commitActiveInlineAmount()
     const ok = await confirm({
       title: '이 항목을 삭제할까요?',
       message: '삭제 후 되돌릴 수 없습니다.',
@@ -185,6 +216,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   }
 
   const requestRemoveTimeMarker = async (id: string) => {
+    commitActiveInlineAmount()
     const ok = await confirm({
       title: '이 시간 구간을 삭제할까요?',
       message: '삭제 후 되돌릴 수 없습니다.',
@@ -196,6 +228,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   }
 
   const requestReset = async () => {
+    commitActiveInlineAmount()
     const ok = await confirm(
       isTemplate
         ? {
@@ -255,12 +288,36 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
       {useLatestMobileEditor ? (
         <MobilePreviewEditorHeader
           title={editorHeaderTitle}
-          onBack={() => navigate(backTo)}
+          onBack={() => {
+            commitActiveInlineAmount()
+            navigate(backTo)
+          }}
           onReset={requestReset}
-          onSave={isTemplate ? () => persist(scenario) : handleSave}
+          onSave={
+            isTemplate
+              ? () => {
+                  commitActiveInlineAmount()
+                  persist(scenario)
+                }
+              : handleSave
+          }
           saving={!isTemplate && isSaving}
-          onPdf={!isTemplate ? () => navigate(`${basePath}/scenarios/${scenario.id}/pdf`) : undefined}
-          onShare={shareFlow.showShareButton ? () => void shareFlow.openShareDialog() : undefined}
+          onPdf={
+            !isTemplate
+              ? () => {
+                  commitActiveInlineAmount()
+                  navigate(`${basePath}/scenarios/${scenario.id}/pdf`)
+                }
+              : undefined
+          }
+          onShare={
+            shareFlow.showShareButton
+              ? () => {
+                  commitActiveInlineAmount()
+                  void shareFlow.openShareDialog()
+                }
+              : undefined
+          }
           shareDisabled={shareFlow.sharing}
           showShare={shareFlow.showShareButton}
           showPdf={!isTemplate}
@@ -317,6 +374,13 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
           .filter(Boolean)
           .join(' ')}
         data-testid="coverage-scenario-editor"
+        onScrollCapture={
+          useLatestMobileEditor
+            ? () => {
+                commitActiveInlineAmount()
+              }
+            : undefined
+        }
       >
         {!useLatestMobileEditor ? <p className="cs-axis-lead">{blurb}</p> : null}
         {viewModel ? (
@@ -326,9 +390,12 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
             variant={variant}
             showGrandTotal={!useLatestMobileEditor}
             compactInsert={useLatestMobileEditor}
-            itemMenuMode={useLatestMobileEditor ? 'action-sheet' : 'popover'}
+            itemMenuMode={useLatestMobileEditor ? 'direct-edit' : 'popover'}
             onEditItem={openFullAmountEdit}
-            onMoveItem={moveItem}
+            onMoveItem={(id, direction) => {
+              commitActiveInlineAmount()
+              moveItem(id, direction)
+            }}
             onRemoveItem={requestRemoveCoverageItem}
             onRemoveTimeMarker={requestRemoveTimeMarker}
             onAddAfter={openAddSheetForOrder}
@@ -336,6 +403,9 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
             inlineAmountEdit={inlineAmountEdit}
             onInlineAmountEditChange={handleInlineAmountEditChange}
             onInlineAmountCommit={handleInlineAmountCommit}
+            onRegisterInlineAmountCommit={(commit) => {
+              inlineAmountCommitRef.current = commit
+            }}
           />
         ) : null}
       </main>

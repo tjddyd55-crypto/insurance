@@ -26,6 +26,7 @@ type InlineAmountOptions = {
   inlineAmountEdit: InlineAmountEditTarget
   onInlineAmountEditChange: (target: InlineAmountEditTarget) => void
   onInlineAmountCommit: (itemId: string, field: InlineAmountField, amount: number | null) => void
+  onRegisterInlineAmountCommit?: (commit: (() => void) | null) => void
 }
 
 export type CenterAxisTimelineProps = {
@@ -39,7 +40,7 @@ export type CenterAxisTimelineProps = {
   displayTitleByItemId?: ReadonlyMap<string, string>
   showInlineSummary?: boolean
   compactInsert?: boolean
-  itemMenuMode?: 'popover' | 'action-sheet'
+  itemMenuMode?: 'popover' | 'action-sheet' | 'direct-edit'
   onEditItem: (item: CoverageScenarioItem) => void
   onMoveItem: (id: string, direction: 'up' | 'down') => void
   onRemoveItem: (id: string) => void
@@ -49,6 +50,7 @@ export type CenterAxisTimelineProps = {
   inlineAmountEdit?: InlineAmountEditTarget
   onInlineAmountEditChange?: (target: InlineAmountEditTarget) => void
   onInlineAmountCommit?: (itemId: string, field: InlineAmountField, amount: number | null) => void
+  onRegisterInlineAmountCommit?: (commit: (() => void) | null) => void
 }
 
 type Handlers = Pick<CenterAxisTimelineProps, 'onEditItem' | 'onMoveItem' | 'onRemoveItem'>
@@ -62,6 +64,7 @@ function resolveInlineOptions(props: CenterAxisTimelineProps): InlineAmountOptio
     inlineAmountEdit: props.inlineAmountEdit ?? null,
     onInlineAmountEditChange: props.onInlineAmountEditChange,
     onInlineAmountCommit: props.onInlineAmountCommit,
+    onRegisterInlineAmountCommit: props.onRegisterInlineAmountCommit,
   }
 }
 
@@ -102,6 +105,7 @@ function renderAmountCell(
         onActivate={() => inline.onInlineAmountEditChange({ itemId: item.id, field })}
         onCommit={(next) => inline.onInlineAmountCommit(item.id, field, next)}
         onEndEdit={() => inline.onInlineAmountEditChange(null)}
+        onRegisterCommit={inline.onRegisterInlineAmountCommit}
       />
     )
   }
@@ -130,7 +134,10 @@ function renderCoverageRow(
   >,
   inline: InlineAmountOptions | null,
 ) {
-  const showTimelineReorder = !options.readOnly && options.itemMenuMode === 'action-sheet'
+  const showTimelineReorder =
+    !options.readOnly &&
+    variant === 'mobile' &&
+    (options.itemMenuMode === 'action-sheet' || options.itemMenuMode === 'direct-edit')
   const displayTitle = resolveItemDisplayTitle(item, options.displayTitleByItemId)
   const showActionSpacer = Boolean(options.readOnly && options.preserveActionsGeometry)
 
@@ -395,6 +402,7 @@ export function CenterAxisTimeline({
   inlineAmountEdit = null,
   onInlineAmountEditChange,
   onInlineAmountCommit,
+  onRegisterInlineAmountCommit,
 }: CenterAxisTimelineProps) {
   const handlers = { onEditItem, onMoveItem, onRemoveItem }
   const inline = resolveInlineOptions({
@@ -414,6 +422,7 @@ export function CenterAxisTimeline({
     inlineAmountEdit,
     onInlineAmountEditChange,
     onInlineAmountCommit,
+    onRegisterInlineAmountCommit,
   })
   const periodByMarkerId = useMemo(() => periodTotalsByEndMarkerId(items), [items])
   const markerMenuMode = itemMenuMode === 'action-sheet' ? 'action-sheet' : 'inline-delete'
@@ -443,6 +452,7 @@ export function CenterAxisTimeline({
     inlineAmountEdit,
     onInlineAmountEditChange,
     onInlineAmountCommit,
+    onRegisterInlineAmountCommit,
   }
 
   const sheetClass = [
