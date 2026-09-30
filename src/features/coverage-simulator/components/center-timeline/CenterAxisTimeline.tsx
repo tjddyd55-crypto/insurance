@@ -142,31 +142,6 @@ function resolveItemDisplayTitle(
   return displayTitleByItemId?.get(item.id) ?? item.label
 }
 
-function renderCurrentAmountSlot(
-  item: CoverageScenarioItem,
-  variant: CenterAxisTimelineProps['variant'],
-  handlers: Handlers,
-  options: Pick<CenterAxisTimelineProps, 'items' | 'itemMenuMode' | 'readOnly'>,
-  inline: InlineAmountOptions | null,
-) {
-  const cell = renderAmountCell(item, 'current', variant, handlers, inline, Boolean(options.readOnly))
-  const showReorder = !options.readOnly && options.itemMenuMode === 'action-sheet'
-  if (!showReorder) return cell
-  return (
-    <div className="cs-axis-amount-slot cs-axis-amount-slot--reorder-inset">
-      <div className="cs-axis-reorder-overlay">
-        <CoverageTimelineReorderButtons
-          items={options.items}
-          itemId={item.id}
-          onMoveUp={() => handlers.onMoveItem(item.id, 'up')}
-          onMoveDown={() => handlers.onMoveItem(item.id, 'down')}
-        />
-      </div>
-      {cell}
-    </div>
-  )
-}
-
 function renderTitle(
   item: CoverageScenarioItem,
   displayTitle: string,
@@ -201,6 +176,7 @@ function renderCoverageRow(
 ) {
   const displayTitle = resolveItemDisplayTitle(item, options.displayTitleByItemId)
   const showActionSpacer = Boolean(options.readOnly && options.preserveActionsGeometry)
+  const showReorder = !options.readOnly && options.itemMenuMode === 'action-sheet'
 
   return (
     <div key={item.id} className="cs-axis-event">
@@ -226,8 +202,20 @@ function renderCoverageRow(
         ) : null}
       </div>
       <div className="cs-axis-event__compare">
-        {renderCurrentAmountSlot(item, variant, handlers, options, inline)}
-        <div className="cs-axis-event__spine" aria-hidden="true" />
+        {renderAmountCell(item, 'current', variant, handlers, inline, Boolean(options.readOnly))}
+        <div
+          className={showReorder ? 'cs-axis-event__spine cs-axis-event__spine--reorder' : 'cs-axis-event__spine'}
+          aria-hidden={showReorder ? undefined : true}
+        >
+          {showReorder ? (
+            <CoverageTimelineReorderButtons
+              items={options.items}
+              itemId={item.id}
+              onMoveUp={() => handlers.onMoveItem(item.id, 'up')}
+              onMoveDown={() => handlers.onMoveItem(item.id, 'down')}
+            />
+          ) : null}
+        </div>
         {renderAmountCell(item, 'proposed', variant, handlers, inline, Boolean(options.readOnly))}
       </div>
       {variant === 'pc' && item.memo ? (

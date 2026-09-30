@@ -992,48 +992,43 @@
   display: none;
 }
 
-.cs-axis-amount-slot {
+/*
+ * 모바일 편집의 ↑↓ 는 기존/제안 사이 구분선 한가운데, 금액 행과 같은 높이에 둔다.
+ * 왼쪽 칸은 화살표 폭을 빼지 않아 두 금액 열이 같은 너비다.
+ * 버튼은 구분선 칸(24px)과 열 간격 안에만 있어 금액 글자를 덮지 않는다.
+ */
+.coverage-simulator-root--mobile-preview .cs-axis-event__spine--reorder {
   position: relative;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.cs-axis-amount-slot--reorder-inset {
-  padding-inline: var(--cs-axis-reorder-col);
-}
-
-.cs-axis-amount-slot .cs-axis-amount {
-  width: 100%;
-  min-width: 0;
-}
-
-.cs-axis-reorder-overlay {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: var(--cs-axis-reorder-col);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  overflow: visible;
   z-index: 2;
 }
 
-.cs-axis-reorder-overlay .cs-axis-reorder {
+.coverage-simulator-root--mobile-preview .cs-axis-event__spine--reorder .cs-axis-reorder {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
+  align-items: center;
   width: var(--cs-axis-reorder-col);
+  pointer-events: auto;
 }
 
-.cs-axis-reorder-overlay .cs-axis-reorder__btn {
+.coverage-simulator-root--mobile-preview .cs-axis-event__spine--reorder .cs-axis-reorder__btn {
   width: var(--cs-axis-reorder-col);
   min-width: var(--cs-axis-reorder-col);
   height: 18px;
   min-height: 18px;
   padding: 0;
   font-size: 0.75rem;
+  line-height: 1;
+}
+
+/* 둥근 + 의 44px 터치 영역이 금액 행의 ↑↓ 와 겹치지 않게 위아래 간격을 둔다. */
+.coverage-simulator-root--mobile-preview .cs-axis-event:has(.cs-axis-event__spine--reorder) {
+  padding-top: calc(var(--cs-timeline-amount-insert-gap) + 8px);
+  padding-bottom: calc(var(--cs-timeline-amount-insert-gap) + 8px);
 }
 
 .cs-axis-event__menu {
