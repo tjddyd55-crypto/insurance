@@ -498,11 +498,17 @@
   box-sizing: border-box;
 }
 
+/*
+ * 쉬는 금액은 열 너비 전체를 쓴다.
+ * 5.5em 캡은 '99,999 만원'을 overflow:clip 경계에 붙여 '원'이 잘렸다.
+ * 글자 크기는 기존/제안이 같고, ↑↓ 는 기존 칸 좌우 28px 패딩 밖에 있어 가운데가 맞다.
+ * 입력 중(inline-editing)만 숫자 칸을 줄이고 ' 만원' 단위를 옆에 둔다.
+ */
 .coverage-simulator-root--mobile-preview .cs-axis-amount__inline-input {
-  flex: 0 1 auto;
-  width: 5.5em;
-  min-width: 4.25em;
-  max-width: 6.5em;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   margin: 0;
   padding: 0;
   border: none;
