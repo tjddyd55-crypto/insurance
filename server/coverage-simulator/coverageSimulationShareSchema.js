@@ -30,6 +30,15 @@ export async function ensureCoverageSimulationShareSchema(executor) {
     WHERE revoked_at IS NULL
   `)
   await executor.query(`
+    ALTER TABLE coverage_simulation_shares
+    ADD COLUMN IF NOT EXISTS snapshot_fingerprint TEXT
+  `)
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_coverage_simulation_shares_active_fingerprint
+    ON coverage_simulation_shares (ga_id, created_by_user_id, consultation_id, snapshot_fingerprint)
+    WHERE revoked_at IS NULL AND snapshot_fingerprint IS NOT NULL
+  `)
+  await executor.query(`
     CREATE TABLE IF NOT EXISTS coverage_pdf_artifacts (
       id BIGSERIAL PRIMARY KEY,
       download_token TEXT NOT NULL UNIQUE,

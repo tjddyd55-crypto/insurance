@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto'
 
+import { coverageShareSnapshotFingerprint } from '../../shared/coverageShareFingerprint.js'
 import { consentGetBuffer, consentPutObject } from '../lib/consentStorage.js'
 import { parseGaId } from '../lib/parseGaId.js'
 import { safeQuery } from '../utils/dbSafeQuery.js'
@@ -47,27 +48,50 @@ function assertScenarioPayload(scenario, consultationId) {
   return scenario
 }
 
-/**
- * @param {import('pg').Pool} pool
- * @param {object} input
- */
-export async function createCoverageSimulationShare(pool, input) {
-  const {
-    gaId,
-    userId,
-    consultationId,
-    scenario,
-  } = input
-  const normalized = assertScenarioPayload(scenario, consultationId)
-  const token = generateCoverageShareToken()
-  const title = String(normalized.title ?? '보장 시뮬레이션').trim() || '보장 시뮬레이션'
-  const customerName =
-    normalized.customerNameSnapshot != null
-      ? String(normalized.customerNameSnapshot).trim() || null
-      : normalized.customerName != null
-        ? String(normalized.customerName).trim() || null
-        : null
+const ACTIVE_SHARE_BY_FINGERPRINT_SQL = `
+  SELECT id, share_token, created_at, pdf_object_key
+  FROM coverage_simulation_shares
+  WHERE ga_id = $1
+    AND created_by_user_id = $2
+    AND consultation_id = $3
+    AND snapshot_fingerprint = $4
+    AND revoked_at IS NULL
+  ORDER BY created_at ASC, id ASC
+  LIMIT 1
+`
 
+function isUniqueViolation(error) {
+  return String(error?.code ?? '') === '23505'
+}
+
+function shareTitle(scenario) {
+  return String(scenario.title ?? '보장 시뮬레이션').trim() || '보장 시뮬레이션'
+}
+
+function shareCustomerName(scenario) {
+  if (scenario.customerNameSnapshot != null) {
+    return String(scenario.customerNameSnapshot).trim() || null
+  }
+  if (scenario.customerName != null) {
+    return String(scenario.customerName).trim() || null
+  }
+  return null
+}
+
+async function findActiveShareByFingerprint(pool, gaId, userId, consultationId, fingerprint) {
+  const result = await safeQuery(
+    pool,
+    ACTIVE_SHARE_BY_FINGERPRINT_SQL,
+    [gaId, userId, consultationId, fingerprint],
+    { allowUnscoped: true },
+  )
+  return result.rows[0] ?? null
+}
+
+async function insertCoverageSimulationShare(pool, input) {
+  const { gaId, userId, consultationId, scenario, fingerprint } = input
+  const token = generateCoverageShareToken()
+  const title = shareTitle(scenario)
   const insert = await safeQuery(
     pool,
     `
@@ -80,9 +104,10 @@ export async function createCoverageSimulationShare(pool, input) {
       customer_name_snapshot,
       scenario_name_snapshot,
       scenario_snapshot,
-      created_by_user_id
+      created_by_user_id,
+      snapshot_fingerprint
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10)
     RETURNING id, share_token, created_at, pdf_object_key
     `,
     [
@@ -90,15 +115,45 @@ export async function createCoverageSimulationShare(pool, input) {
       consultationId,
       token,
       title,
-      normalized.customerId != null ? String(normalized.customerId) : null,
-      customerName,
+      scenario.customerId != null ? String(scenario.customerId) : null,
+      shareCustomerName(scenario),
       title,
-      JSON.stringify(normalized),
+      JSON.stringify(scenario),
       userId,
+      fingerprint,
     ],
     { allowUnscoped: true },
   )
   return insert.rows[0]
+}
+
+/**
+ * 같은 스냅샷 지문의 활성 공유가 있으면 그 URL을 돌려준다.
+ * 조회는 클라이언트 메모리가 아니라 coverage_simulation_shares 행이다.
+ * @param {import('pg').Pool} pool
+ * @param {object} input
+ */
+export async function createCoverageSimulationShare(pool, input) {
+  const { gaId, userId, consultationId, scenario } = input
+  const normalized = assertScenarioPayload(scenario, consultationId)
+  const fingerprint = coverageShareSnapshotFingerprint(normalized)
+  const existing = await findActiveShareByFingerprint(pool, gaId, userId, consultationId, fingerprint)
+  if (existing) return existing
+
+  try {
+    return await insertCoverageSimulationShare(pool, {
+      gaId,
+      userId,
+      consultationId,
+      scenario: normalized,
+      fingerprint,
+    })
+  } catch (error) {
+    if (!isUniqueViolation(error)) throw error
+    const raced = await findActiveShareByFingerprint(pool, gaId, userId, consultationId, fingerprint)
+    if (raced) return raced
+    throw error
+  }
 }
 
 /**
