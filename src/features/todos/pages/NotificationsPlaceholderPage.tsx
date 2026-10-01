@@ -87,7 +87,7 @@ export default function NotificationsPlaceholderPage() {
   const onDelete = useCallback(async (event: ReminderEvent) => {
     const accepted = await confirm({
       title: '알림 삭제',
-      message: '이 고객 지정 알림을 삭제하시겠습니까?',
+      message: '이 알림일을 삭제하시겠습니까?',
       confirmLabel: '삭제',
       tone: 'danger',
     })

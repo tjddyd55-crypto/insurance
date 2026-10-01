@@ -11,6 +11,7 @@ type Props = {
   saving?: boolean
   onPdf?: () => void
   onShare?: () => void
+  onShareHistory?: () => void
   shareDisabled?: boolean
   resetLabel?: string
   showPdf?: boolean
@@ -26,6 +27,7 @@ export function MobilePreviewEditorHeader({
   saving = false,
   onPdf,
   onShare,
+  onShareHistory,
   shareDisabled = false,
   resetLabel = '초기화',
   showPdf = true,
@@ -60,6 +62,16 @@ export function MobilePreviewEditorHeader({
             disabled={shareDisabled}
           >
             공유
+          </button>
+        ) : null}
+        {showShare && onShareHistory ? (
+          <button
+            type="button"
+            className="cs-mobile-editor-header__action cs-mobile-editor-header__action--muted"
+            onClick={onShareHistory}
+            aria-label="공유 이력"
+          >
+            이력
           </button>
         ) : null}
         {showPdf && onPdf ? (

@@ -30,6 +30,22 @@ export function formatCoverageSeoulDots(
   return ymd ? ymd.replace(/-/g, '.') : empty
 }
 
+export type CoverageWrittenRecord = {
+  createdAt?: string | null
+  consultationDate?: string | null
+}
+
+/** 작성일은 createdAt 시각의 서울 달력일을 우선한다. 없을 때만 consultationDate. */
+export function coverageWrittenSource(record: CoverageWrittenRecord): string {
+  const createdAt = record.createdAt?.trim()
+  if (createdAt) return createdAt
+  return record.consultationDate?.trim() ?? ''
+}
+
+export function formatCoverageAuthoredDate(record: CoverageWrittenRecord, empty: string): string {
+  return formatCoverageSeoulDots(coverageWrittenSource(record), empty)
+}
+
 /** 목록 작성·수정일. 비어 있으면 `—`. */
 export function formatConsultationListDate(iso: string | undefined | null): string {
   return formatCoverageSeoulDots(iso, '—')

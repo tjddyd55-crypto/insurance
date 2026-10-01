@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest'
 
 import {
   formatConsultationListDate,
+  formatCoverageAuthoredDate,
   formatCoveragePrintDate,
   formatCoverageSeoulDateTimeLabel,
   formatCoverageSeoulYmd,
   formatCoverageShareMetaDate,
+  seoulTodayYmd,
 } from './formatConsultationDate'
 
 describe('coverage simulator Seoul dates', () => {
@@ -15,6 +17,17 @@ describe('coverage simulator Seoul dates', () => {
     expect(formatCoveragePrintDate(instant)).toBe('2026.10.01')
     expect(formatCoverageShareMetaDate(instant)).toBe('2026.10.01')
     expect(formatCoverageSeoulDateTimeLabel(instant)).toBe('2026.10.01 01:30')
+  })
+
+  it('prefers createdAt over a stored UTC consultation day for list, print, and share', () => {
+    const record = {
+      createdAt: '2026-09-30T16:16:00Z',
+      consultationDate: '2026-09-30',
+    }
+    expect(formatConsultationListDate(record.createdAt)).toBe('2026.10.01')
+    expect(formatCoverageAuthoredDate(record, '—')).toBe('2026.10.01')
+    expect(formatCoverageAuthoredDate(record, '')).toBe('2026.10.01')
+    expect(seoulTodayYmd(new Date(record.createdAt))).toBe('2026-10-01')
   })
 
   it('keeps a date-only consultation day', () => {
