@@ -21,6 +21,10 @@ type EditableHandlers = Pick<
   | 'inlineAmountEdit'
   | 'onInlineAmountEditChange'
   | 'onInlineAmountCommit'
+  | 'enableInlineTitleEdit'
+  | 'inlineTitleItemId'
+  | 'onInlineTitleEditChange'
+  | 'onInlineTitleCommit'
 >
 
 type Props = {
@@ -54,6 +58,10 @@ export function CoverageScenarioTimeline({
   inlineAmountEdit = null,
   onInlineAmountEditChange,
   onInlineAmountCommit,
+  enableInlineTitleEdit = false,
+  inlineTitleItemId = null,
+  onInlineTitleEditChange,
+  onInlineTitleCommit,
 }: Props) {
   const readOnly = mode !== 'editable'
   const resolvedCompactInsert = compactInsert ?? variant === 'mobile'
@@ -92,6 +100,10 @@ export function CoverageScenarioTimeline({
         inlineAmountEdit={inlineAmountEdit}
         onInlineAmountEditChange={onInlineAmountEditChange}
         onInlineAmountCommit={onInlineAmountCommit}
+        enableInlineTitleEdit={mode === 'editable' && enableInlineTitleEdit}
+        inlineTitleItemId={inlineTitleItemId}
+        onInlineTitleEditChange={onInlineTitleEditChange}
+        onInlineTitleCommit={onInlineTitleCommit}
       />
       {children}
     </div>

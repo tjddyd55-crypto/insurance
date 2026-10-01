@@ -15,6 +15,9 @@ import { SaveConsultationTitleDialog } from '../SaveConsultationTitleDialog'
 import { diseaseTypeTitle } from '../../domain/diseaseTypeLabels'
 import { useCoverageSimulatorScope } from '../../CoverageSimulatorScope'
 import { buildCoverageTimelineViewModel } from '../../domain/buildCoverageTimelineViewModel'
+import { CoverageScenarioAlternativeView } from '../alternative-view/CoverageScenarioAlternativeView'
+import { CoverageScenarioViewModeSwitcher } from '../alternative-view/CoverageScenarioViewModeSwitcher'
+import { useCoverageScenarioViewMode } from '../../hooks/useCoverageScenarioViewMode'
 import { CoverageScenarioTimeline, type InlineAmountEditTarget } from './CoverageScenarioTimeline'
 import type { InlineAmountField } from './InlineAmountQuickEdit'
 import { isTemplateEditorMode, type TimelineEditorController } from './TimelineEditorController'
@@ -30,6 +33,7 @@ const SCENARIO_BLURB: Record<string, string> = {
 
 function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   const { layoutMode, userKey } = useCoverageSimulatorScope()
+  const { viewMode, setViewMode } = useCoverageScenarioViewMode({ userKey, layoutMode })
   const { confirm, confirmDialog } = useConfirmDialog()
   const { showToast } = useCoverageSimulatorToast()
   // CRM·preview-mobile은 같은 최신 타임라인이다. preview-pc만 넓은 PC 툴바를 유지한다.
@@ -40,6 +44,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   const [titleDialogOpen, setTitleDialogOpen] = useState(false)
   const [titleValidationError, setTitleValidationError] = useState<string | null>(null)
   const [inlineAmountEdit, setInlineAmountEdit] = useState<InlineAmountEditTarget>(null)
+  const [inlineTitleItemId, setInlineTitleItemId] = useState<string | null>(null)
 
   const {
     scenario,
@@ -69,6 +74,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
     (target: InlineAmountEditTarget) => {
       if (target) {
         closeForm()
+        setInlineTitleItemId(null)
       }
       setInlineAmountEdit(target)
     },
@@ -83,9 +89,28 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
     [patchCoverageItem],
   )
 
+  const handleInlineTitleEditChange = useCallback(
+    (itemId: string | null) => {
+      if (itemId) {
+        closeForm()
+        setInlineAmountEdit(null)
+      }
+      setInlineTitleItemId(itemId)
+    },
+    [closeForm],
+  )
+
+  const handleInlineTitleCommit = useCallback(
+    (itemId: string, label: string) => {
+      patchCoverageItem(itemId, { label })
+    },
+    [patchCoverageItem],
+  )
+
   const openAddSheetForOrder = useCallback(
     (afterOrder: number) => {
       setInlineAmountEdit(null)
+      setInlineTitleItemId(null)
       openAddForm(afterOrder)
     },
     [openAddForm],
@@ -94,6 +119,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   const openFullAmountEdit = useCallback(
     (item: { id: string }) => {
       setInlineAmountEdit(null)
+      setInlineTitleItemId(null)
       openEditForm(item.id)
     },
     [openEditForm],
@@ -254,6 +280,13 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
       {useLatestMobileEditor ? (
         <MobilePreviewEditorHeader
           title={editorHeaderTitle}
+          headerLeadingActions={
+            <CoverageScenarioViewModeSwitcher
+              surface="header-select"
+              viewMode={viewMode}
+              onChange={setViewMode}
+            />
+          }
           onBack={() => navigate(backTo)}
           onReset={requestReset}
           onSave={isTemplate ? () => persist(scenario) : handleSave}
@@ -275,6 +308,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
             <h1 className="coverage-simulator-pc-toolbar__title">{scenario.title}</h1>
           </div>
           <div className="coverage-simulator-pc-toolbar__actions">
+            <CoverageScenarioViewModeSwitcher viewMode={viewMode} onChange={setViewMode} />
             <FormButton variant="secondary" className="coverage-simulator-secondary-btn" onClick={resetToCancerDefaults}>
               초기화
             </FormButton>
@@ -318,7 +352,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
         data-testid="coverage-scenario-editor"
       >
         {!useLatestMobileEditor ? <p className="cs-axis-lead">{blurb}</p> : null}
-        {viewModel ? (
+        {viewModel && viewMode === 'default' ? (
           <CoverageScenarioTimeline
             mode="editable"
             viewModel={viewModel}
@@ -331,10 +365,29 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
             onRemoveItem={requestRemoveCoverageItem}
             onRemoveTimeMarker={requestRemoveTimeMarker}
             onAddAfter={openAddSheetForOrder}
-            enableInlineAmountEdit={useLatestMobileEditor}
+            enableInlineAmountEdit
             inlineAmountEdit={inlineAmountEdit}
             onInlineAmountEditChange={handleInlineAmountEditChange}
             onInlineAmountCommit={handleInlineAmountCommit}
+            enableInlineTitleEdit
+            inlineTitleItemId={inlineTitleItemId}
+            onInlineTitleEditChange={handleInlineTitleEditChange}
+            onInlineTitleCommit={handleInlineTitleCommit}
+          />
+        ) : null}
+        {viewModel && viewMode !== 'default' ? (
+          <CoverageScenarioAlternativeView
+            viewMode={viewMode}
+            viewModel={viewModel}
+            readOnly={false}
+            items={sortedItems}
+            itemMenuMode={useLatestMobileEditor ? 'action-sheet' : 'popover'}
+            showGrandTotal={!useLatestMobileEditor}
+            onEditItem={openFullAmountEdit}
+            onMoveItem={moveItem}
+            onRemoveItem={requestRemoveCoverageItem}
+            onRemoveTimeMarker={requestRemoveTimeMarker}
+            onAddAfter={openAddSheetForOrder}
           />
         ) : null}
       </main>

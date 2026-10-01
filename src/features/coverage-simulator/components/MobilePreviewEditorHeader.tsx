@@ -1,7 +1,10 @@
+import type { ReactNode } from 'react'
+
 import { mobilePreviewHeaderTitle } from '../domain/mobilePreviewHeaderTitle'
 
 type Props = {
   title: string
+  headerLeadingActions?: ReactNode
   onBack: () => void
   onReset: () => void
   onSave: () => void
@@ -16,6 +19,7 @@ type Props = {
 
 export function MobilePreviewEditorHeader({
   title,
+  headerLeadingActions,
   onBack,
   onReset,
   onSave,
@@ -36,6 +40,7 @@ export function MobilePreviewEditorHeader({
       </button>
       <h1 className="cs-mobile-editor-header__title" title={title}>{displayTitle}</h1>
       <div className="cs-mobile-editor-header__actions">
+        {headerLeadingActions}
         <button type="button" className="cs-mobile-editor-header__action" onClick={onReset}>
           {resetLabel}
         </button>

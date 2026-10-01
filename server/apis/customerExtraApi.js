@@ -44,6 +44,11 @@ import {
   normalizeNextContactDateForDb,
 } from '../lib/customerConsultationFollowUp.js'
 import { formatConsultationDateYmd } from '../lib/consultationDateFormat.js'
+import {
+  isValidStorageFileName,
+  normalizeStorageFileName,
+  sanitizeStorageFileNameForObjectKey,
+} from '../lib/storageFileNameValidation.js'
 
 const CONSULTATION_BODY_MAX = 20000
 
@@ -184,9 +189,7 @@ const CUSTOMER_FILE_BLOCKED_MIME = new Set([
 const CUSTOMER_FILE_MAX_BYTES = 25 * 1024 * 1024
 const CUSTOMER_FILE_CONTENT_MAX = 100_000
 
-const FILE_NAME_MAX_LENGTH = 120
 const FOLDER_NAME_MAX_LENGTH = 12
-const STORAGE_FILE_NAME_REGEX = /^[A-Za-z0-9._\-() \u3131-\u318e\uac00-\ud7a3]+$/
 const STORAGE_FOLDER_NAME_REGEX = /^[A-Za-z0-9 \u3131-\u318e\uac00-\ud7a3]+$/
 
 function sanitizeUserIdForObjectKeySegment(userId) {
@@ -198,25 +201,6 @@ function sanitizeUserIdForObjectKeySegment(userId) {
 
 function normalizeSpaces(raw) {
   return String(raw ?? '').replace(/\s+/g, ' ').trim()
-}
-
-function normalizeStorageFileName(raw) {
-  const value = normalizeSpaces(raw)
-  if (!value) {
-    return ''
-  }
-  return value.slice(0, FILE_NAME_MAX_LENGTH)
-}
-
-function isValidStorageFileName(raw) {
-  const value = normalizeStorageFileName(raw)
-  if (!value) {
-    return false
-  }
-  if (value.length > FILE_NAME_MAX_LENGTH) {
-    return false
-  }
-  return STORAGE_FILE_NAME_REGEX.test(value)
 }
 
 function normalizeFolderName(raw) {
@@ -344,16 +328,6 @@ async function folderNameExistsForScope(
     [userId, gaId, excludeFolderId, customerId, parentId, folderName],
   )
   return row.rowCount > 0
-}
-
-function sanitizeStorageFileNameForObjectKey(fileNameRaw) {
-  const normalized = normalizeStorageFileName(fileNameRaw)
-  const safe =
-    normalized
-      .replace(/[^\w.\-()\u3131-\u318e\uac00-\ud7a3]/g, '_')
-      .replace(/^_+|_+$/g, '')
-      .slice(0, FILE_NAME_MAX_LENGTH) || 'file'
-  return safe
 }
 
 function buildStorageObjectKey(gaCode, userId, customerId, fileNameRaw) {

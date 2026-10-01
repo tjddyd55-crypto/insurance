@@ -18,6 +18,7 @@ PR #48 merge SHA: `66a09ac93c0cb5893c496ce4014cdc0a81480f3c`.
 - 서비스 연동, 지역별 고객, 알림 달력/전체 알림. develop 기능 커밋 `24a9b29b`를 main 위에 cherry-pick (`1b80ec55` 이후 문서 커밋).
 - 충돌 1건(`src/components/form/index.ts`)은 main의 `parseAddressFromSave` / `parseAddressFromStored`를 유지하고 지역 필드 export를 더했다.
 - main의 `메뉴 권한 SSOT`와 오늘 알림의 `알림일` 라벨(`CUSTOMER_ALERT_DATE_LABEL`)은 그대로 둔다.
+- 기능 매트릭스에서 `PORTED`로 표시한 보장 시뮬레이터 패리티(PR #48 동작), 보기 방식, PDF 파일명, 핀치 팬, 첨부 파일명 검증, 새 달력 `알림일` 라벨을 main 편집기 경로 위에 얹었다. develop 파일을 통째로 덮지 않았다.
 
 ## 이번 릴리스에 넣지 않은 것
 
@@ -25,17 +26,34 @@ PR #48 merge SHA: `66a09ac93c0cb5893c496ce4014cdc0a81480f3c`.
 - B: QA 캡처, 테스트 전용, CI/문서.
 - A 가운데 세 기능이 아닌 이력은 재적용하지 않았다. main이 merge-base 이후 769커밋 앞서 있고, develop 트리를 통째로 합치면 운영 보장분석 3단 편집기, 메뉴 권한 매트릭스, `지정일`→`알림일`이 되돌아간다.
 
-## 지정 점검
+## 기능 매트릭스 (main `8ef3814` vs develop `fd247b4`)
 
-| 항목 | 판단 | 이유 |
+판정은 커밋 개수가 아니라 사용자가 보는 동작이다. `IN_MAIN`은 main에 이미 있다. `PORTED`는 이번 릴리스에서 main 편집기 경로 위에 같은 동작을 얹었다. `DEVELOP_OLDER`는 main이 더 새롭다. `DECISION`은 통째 이식이 운영 회귀라 보류다.
+
+| 기능 | 판정 | 근거 |
 |---|---|---|
-| 보장 시뮬레이터 / PR #48 | D에 가깝게 이미 main에 동등 패치. 파일 트리는 이후 main 편집기가 더 앞섬 | `coverageSeoulDate.js`, `InlineTitleQuickEdit.tsx`는 develop에만 있고 main 편집기 경로가 다르다. 통째 교체는 운영 UI 회귀. |
-| 공개 공유 줌 / PDF | main 유지 | develop PDF 파일명 헬퍼는 main 트리에 없다. 운영 PDF 파이프라인은 main 쪽 최신 커밋을 유지. |
-| 인라인 제목/금액 | main 유지 | main에도 `InlineAmountQuickEdit`가 있다. develop 전용 제목 컴포넌트만 추가 이식하지 않음. |
-| 메뉴/권한 | main 유지 | develop에는 `/admin/menu-permissions`가 없다. 릴리스 메뉴는 main + `서비스 연동`. |
-| 알림 `지정일`→`알림일` | main 유지 | develop 오늘 알림 설정은 아직 `지정일`. 릴리스의 오늘 알림은 `알림일`. 새 달력/목록 유형명은 `고객 지정 알림`. |
-| SMS | 기존 경로 유지 | 알리고 설정 UI는 `/sms/settings`. 새 테이블에 비밀을 복제하지 않음. 운영 인증문자와 CRM 문자는 기존 분리 유지. worker 주석 차이만 develop에 있어 릴리스에 안 넣음. |
-| PR #45 view modes | D / main 유지 | view mode 커밋 patch-id가 main과 동등한 것이 있고, 이후 main이 3단 편집기로 진행. |
+| 3단 편집기 | DEVELOP_OLDER | main `CoverageThreePaneWorkspacePage.tsx`, `CoverageEditorSsot.tsx`. develop는 이 페이지를 지웠다. 유지. |
+| 제목 가운데 정렬, 중앙 구분선 ↑↓, 금액 열 동일 너비 | PORTED | develop `CenterAxisTimeline.tsx`의 spine reorder + `center-timeline.css` / `tokens.css` `--cs-axis-head-side`. 금액 그리드 `1fr 24px 1fr`는 main에도 있었고, 화살표가 액션 열을 먹던 부분만 옮겼다. |
+| 첫 탭 인라인 금액, 토스트 없음 | PORTED | `InlineAmountQuickEdit.tsx`가 버튼 단계 없이 readonly input을 포커스. `enableInlineAmountEdit`는 PC/모바일 모두. |
+| 인라인 제목 | PORTED | `InlineTitleQuickEdit.tsx`를 3단 편집기가 쓰는 `CenterAxisCompareEditor`에 연결. |
+| ⋯ 삭제 확인 | IN_MAIN | `CenterAxisCompareEditor.tsx` `requestRemoveCoverageItem` confirm. `EventRowMenu.tsx`는 main/develop 동일. |
+| 저장 고객 유지 + 칩 | PORTED | id/이름 유지는 main `SimulationCustomerField` + `linkCustomer`. 칩 문구 `이름 · 생년월일 · 연락처`는 `consultationCustomerChip.ts`를 그 필드에 연결. develop `ConsultationCustomerBar`는 넣지 않음(3단에 고객 바가 두 번 생기고 `setConsultationCustomer`가 main 훅에 없음). |
+| PC 대기 금액 색 | PORTED | `center-timeline.css` readonly input `color` / `-webkit-text-fill-color` 오버라이드. |
+| 작성일 KST (`createdAt` 우선) | PORTED | `ef4c9bc0`. `2026-09-30T16:16:00Z` → `2026.10.01`. `server/lib/consultationDateFormat.js`는 상담일 전용이라 그대로. |
+| PDF 파일명 `고객명_시뮬레이션이름.pdf` | PORTED | 클라이언트 `coveragePdfFileName.ts`, 서버 `coverageSharePdfFileName.js`. 질병 라벨·날짜 제거. |
+| 공개 공유 페이지, 줌/핀치 | PORTED (핀치) | 공유 페이지·줌 표면은 main에 있음. 뉴스 팬 훅이 pointerdown을 잡아 핀치를 막던 부분만 `useCoveragePdfPreviewPan.ts`로 교체. |
+| PDF 미리보기 다운로드/페이지 | IN_MAIN | `PdfPreviewPage.tsx`, `CoverageSharePublicPage.tsx`가 `buildCoveragePdfFileName`으로 받는다. |
+| 공유 링크 복사·중복 공유 방지 | IN_MAIN | `CoverageShareDialog.tsx` main/develop diff 없음. |
+| PR #45 보기 방식 | PORTED | 컴포넌트는 main에 있었으나 마운트되지 않았고 테스트가 마운트를 금지했다. 헤더에 `기본/1안/2안/3안`을 붙이고 기본은 기존 타임라인. 3단 셸은 유지. |
+| 메뉴/권한 `/admin/menu-permissions` | DEVELOP_OLDER | main `src/features/admin/menu-permissions/*`, `appRouter.tsx`. develop는 이 트리를 삭제했다. |
+| 오늘 알림 `알림일` | DEVELOP_OLDER | main `shared/customerAlertDateCopy.js`, `notificationCenter.config.test.ts`. develop에는 `CUSTOMER_ALERT_DATE_LABEL`이 없다. |
+| 새 달력/목록 유형 라벨 | PORTED | `고객 지정 알림` → `알림일` (`reminderApi.ts`, `ReminderListPanel.tsx` 칩·수정 제목, 삭제 확인, `reminderEvents.js`). |
+| SMS/알림톡 | IN_MAIN | 파일 집합 동일. develop 차이는 worker 주석뿐이다. |
+| 바인더 이미지 자료 | DECISION | develop `BinderImagePreviewDialog.tsx` + `MaterialUploadDialog.tsx` 대량 분기. main `63b340fa` 상담 릴리스와 트리가 갈라져 통째 이식이 운영 상담 UI를 되돌린다. |
+| 첨부 파일명 공통 모듈 | PORTED | `storageFileNameValidation` (쉼표 등 표시명 허용, 경로 문자는 거부). `customerExtraApi.js`와 `StorageWorkspace.tsx`가 공유. 고객 검색 dedupe 분기는 가져오지 않음. |
+| 서비스 연동 / 지역별 고객 / 알림 허브 | 릴리스에 이미 있음 | cherry-pick. main `8ef3814`에는 없었다. |
+| 일정 관리 | 릴리스 제외 | `feature/schedule-management-ota` PR #51. 이 브랜치에 넣지 않는다. |
+| 감사 로그 상세 모달 | DECISION | develop 전용 `AuditLogDetailModal.tsx` + `AuditLogsPage.tsx` 재작성. 운영 감사 화면과 갈라져 있어 별도 판단. |
 
 ## 아키텍처
 
@@ -49,7 +67,7 @@ PR #48 merge SHA: `66a09ac93c0cb5893c496ce4014cdc0a81480f3c`.
 
 ### 알림 집계
 
-`notifications` 발생 로그가 아니라 예정 원천만 모은다. 상령일은 `customers.next_age_date`, 자동차 만기는 `customer_cars.renewal_date`(없으면 `customers.renewal_date`), 고객 지정 알림은 `customer_special_dates`의 매년 월-일이다. 이벤트는 id, type, title, startDate, customerId, source, owner 범위를 가진다. 날짜 컬럼은 달력 날짜 그대로 쓰고, 오늘/월 이동만 Asia/Seoul이다.
+`notifications` 발생 로그가 아니라 예정 원천만 모은다. 상령일은 `customers.next_age_date`, 자동차 만기는 `customer_cars.renewal_date`(없으면 `customers.renewal_date`), 알림일(`special_date`)은 `customer_special_dates`의 매년 월-일이다. 화면 유형명은 `알림일`이다. 이벤트는 id, type, title, startDate, customerId, source, owner 범위를 가진다. 날짜 컬럼은 달력 날짜 그대로 쓰고, 오늘/월 이동만 Asia/Seoul이다.
 
 ## 마이그레이션과 운영 사전 조회
 
