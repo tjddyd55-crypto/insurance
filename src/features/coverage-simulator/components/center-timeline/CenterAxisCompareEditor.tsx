@@ -292,7 +292,8 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
           onSave={isTemplate ? () => persist(scenario) : handleSave}
           saving={!isTemplate && isSaving}
           onPdf={!isTemplate ? () => navigate(`${basePath}/scenarios/${scenario.id}/pdf`) : undefined}
-          onShare={shareFlow.showShareButton ? () => void shareFlow.openShareDialog() : undefined}
+          onShare={shareFlow.showShareButton ? () => void shareFlow.shareAndCopy() : undefined}
+          onShareHistory={shareFlow.showShareButton ? () => void shareFlow.openShareDialog() : undefined}
           shareDisabled={shareFlow.sharing}
           showShare={shareFlow.showShareButton}
           showPdf={!isTemplate}
@@ -320,14 +321,24 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
               {isSaving ? '저장 중…' : '저장'}
             </FormButton>
             {!isTemplate && shareFlow.showShareButton ? (
-              <FormButton
-                variant="secondary"
-                className="coverage-simulator-secondary-btn"
-                disabled={shareFlow.sharing}
-                onClick={() => void shareFlow.openShareDialog()}
-              >
-                {shareFlow.sharing ? '공유 중…' : '공유'}
-              </FormButton>
+              <>
+                <FormButton
+                  variant="secondary"
+                  className="coverage-simulator-secondary-btn"
+                  disabled={shareFlow.sharing}
+                  onClick={() => void shareFlow.shareAndCopy()}
+                >
+                  {shareFlow.sharing ? '공유 중…' : '공유'}
+                </FormButton>
+                <FormButton
+                  variant="secondary"
+                  className="coverage-simulator-secondary-btn"
+                  onClick={() => void shareFlow.openShareDialog()}
+                  aria-label="공유 이력"
+                >
+                  이력
+                </FormButton>
+              </>
             ) : null}
             {!isTemplate ? (
               <FormButton

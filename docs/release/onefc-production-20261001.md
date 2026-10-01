@@ -40,24 +40,54 @@ PR #48 merge SHA: `66a09ac93c0cb5893c496ce4014cdc0a81480f3c`.
 | 제목 가운데 정렬, 중앙 구분선 ↑↓, 금액 열 동일 너비 | PORTED_IN_RELEASE | `CenterAxisTimeline.tsx` spine reorder + `center-timeline.css` / `tokens.css` `--cs-axis-head-side`. 금액 그리드 `1fr 24px 1fr`는 main에도 있었고, 화살표가 액션 열을 먹던 부분만 옮겼다. |
 | 첫 탭 인라인 금액, 토스트 없음 | PORTED_IN_RELEASE | `InlineAmountQuickEdit.tsx`가 버튼 단계 없이 readonly input을 포커스. `CenterAxisCompareEditor.tsx`의 `enableInlineAmountEdit`는 PC/모바일 모두. |
 | 인라인 제목 | PORTED_IN_RELEASE | `InlineTitleQuickEdit.tsx`를 3단 편집기가 쓰는 `CenterAxisCompareEditor`에 연결. |
-| ⋯ 삭제 확인 | ON_MAIN | `CenterAxisCompareEditor.tsx` `requestRemoveCoverageItem` confirm. `EventRowMenu.tsx`는 main/develop 동일. |
+| ⋯ 삭제 확인 | ON_MAIN | 3단 `CenterAxisCompareEditor`의 `requestRemoveCoverageItem`이 confirm 후 `onRemoveItem`으로 연결된다. 파일 diff가 비어서가 아니라 이 핸들러 연결을 확인했다. `EventRowMenu.tsx`는 main/develop 동일. |
 | 저장 고객 유지 + 칩 | PORTED_IN_RELEASE | id/이름 유지는 main `SimulationCustomerField` + `linkCustomer`. 칩 문구 `이름 · 생년월일 · 연락처`는 `consultationCustomerChip.ts`를 그 필드에 연결. develop `ConsultationCustomerBar`는 넣지 않음. 3단에 고객 바가 두 번 생기고 `setConsultationCustomer`가 main 훅에 없다. |
 | PC 대기 금액 색 | PORTED_IN_RELEASE | `center-timeline.css` readonly input `color` / `-webkit-text-fill-color` 오버라이드. |
 | 작성일 KST (`createdAt` 우선) | PORTED_IN_RELEASE | `ef4c9bc0` `formatCoverageAuthoredDate`. `2026-09-30T16:16:00Z` → `2026.10.01`. `server/lib/consultationDateFormat.js`는 상담일 전용이라 그대로. |
 | PDF 파일명 `고객명_시뮬레이션이름.pdf` | PORTED_IN_RELEASE | 클라이언트 `coveragePdfFileName.ts`, 서버 `coverageSharePdfFileName.js`. 질병 라벨·날짜 제거. |
 | 공개 공유 줌/핀치 | PORTED_IN_RELEASE | 공유 페이지·줌 표면은 main에 있다. 뉴스 팬 훅이 pointerdown을 잡아 핀치를 막던 부분만 `useCoveragePdfPreviewPan.ts`로 교체. |
-| PDF 미리보기 다운로드/페이지 | ON_MAIN | `PdfPreviewPage.tsx`, `CoverageSharePublicPage.tsx`가 `buildCoveragePdfFileName`으로 받는다. |
-| 공유 링크 복사·중복 공유 방지 | ON_MAIN | `CoverageShareDialog.tsx` main/develop diff 없음. |
+| PDF 미리보기 다운로드/페이지 | ON_MAIN | 3단 PDF 버튼은 `/pdf` 라우트다. DEV QA에서 미리보기·다운로드가 통과했다. 파일명 규칙은 아래 PORTED 행이고, 페이지네이션 표면 자체는 main에 있다. |
+| 공유 링크 복사·중복 공유 방지 | PORTED_IN_RELEASE | 이전 `ON_MAIN`은 틀렸다. `CoverageShareDialog.tsx` diff가 비어 있었지만 3단 `공유`는 이력 모달을 먼저 열고, 서버는 매번 INSERT했다. develop·이 저장소 네이티브 트리에도 지문 모듈은 없다. 단일 원천은 `shared/coverageShareFingerprint.js`이고 서버 저장 조회만 쓴다. `공유` 한 번이 현재 스냅샷을 확보해 URL을 복사하고 `복사되었습니다.`를 띄운다. 이력은 `이력` 버튼으로만 연다. 같은 지문은 기존 URL, 내용이 바뀌면 새 URL. 재조회는 DB 행이다. |
 | PR #45 보기 방식 | PORTED_IN_RELEASE | 컴포넌트는 main에 있었으나 마운트되지 않았고 테스트가 마운트를 금지했다. 헤더에 `기본/1안/2안/3안`을 붙이고 기본은 기존 타임라인. 3단 셸은 유지. |
 | 메뉴/권한 `/admin/menu-permissions` | ON_MAIN | main `src/features/admin/menu-permissions/*`, `appRouter.tsx`. develop는 이 트리를 삭제했다. |
 | 오늘 알림 `알림일` | ON_MAIN | main `shared/customerAlertDateCopy.js`, `notificationCenter.config.test.ts`. develop에는 `CUSTOMER_ALERT_DATE_LABEL`이 없다. |
 | 새 달력/목록 유형 라벨 | PORTED_IN_RELEASE | `고객 지정 알림` → `알림일` (`reminderApi.ts`, `ReminderListPanel.tsx` 칩·수정 제목, 삭제 확인, `reminderEvents.js`). |
-| SMS/알림톡 | ON_MAIN | 파일 집합 동일. develop 차이는 worker 주석뿐이다. |
+| SMS/알림톡 | ON_MAIN | `registerSmsModuleApi.js`·`smsModuleConfig.js`·`src/features/sms`는 main `8ef3814`와 같다. DEV `/sms/settings`의 404는 라우트 누락이 아니다. 아래 SMS 조사. |
 | 바인더 이미지 자료 | INTENTIONALLY_EXCLUDED | develop `BinderImagePreviewDialog.tsx`와 `MaterialUploadDialog.tsx`가 main `63b340fa` 상담 릴리스와 갈라져 있다. 통째 이식은 운영 상담 UI를 되돌린다. |
 | 첨부 파일명 공통 모듈 | PORTED_IN_RELEASE | `storageFileNameValidation` (쉼표 등 표시명 허용, 경로 문자는 거부). `customerExtraApi.js`와 `StorageWorkspace.tsx`가 공유. 고객 검색 dedupe 분기는 가져오지 않음. |
 | 서비스 연동 / 지역별 고객 / 알림 허브 | PORTED_IN_RELEASE | cherry-pick. main `8ef3814`에는 없었다. |
 | 일정 관리 | INTENTIONALLY_EXCLUDED | `feature/schedule-management-ota` PR #51. 이 릴리스 브랜치에 넣지 않는다. |
 | 감사 로그 상세 모달 | INTENTIONALLY_EXCLUDED | develop 전용 `AuditLogDetailModal.tsx`와 `AuditLogsPage.tsx` 재작성. 운영 감사 화면과 갈라져 있다. |
+
+## 3단 경로 재확인
+
+`ON_MAIN`을 파일 diff만으로 둔 항목을 3단 클릭 경로와 다시 맞췄다.
+
+- 공유 복사·중복 방지는 위 표대로 `PORTED_IN_RELEASE`로 고쳤다. 다이얼로그 파일이 같다고 동작이 같은 것은 아니었다.
+- 삭제 확인, PDF 미리보기, 3단 편집기 셸은 3단 핸들러·라우트에서 다시 확인했고 `ON_MAIN`을 유지한다.
+- 메뉴 권한과 오늘 알림 `알림일`은 3단 편집기가 아니다. main 파일과 라벨 SSOT가 그대로다.
+- SMS는 3단이 아니다. 라우트 표는 main과 같고, DEV 404 분류는 아래와 같다.
+
+## DEV `/sms/settings` 404
+
+분류: **DEV 환경 설정** (`SMS_MODULE_ENABLED`가 꺼져 모듈 게이트가 404를 반환). 프론트 라우트 누락, API 미등록, 경로 변경 후 남은 링크가 아니다.
+
+증거:
+
+- 화면 라우트 `src/appRouter.tsx` `sms/:tab` → `SmsModulePage`. `/sms/settings`는 그 탭이다. main `8ef3814` 대비 `appRouter.tsx` SMS 경로는 추가·삭제 없이 그대로다.
+- 페이지 로드 시 `useSmsModuleState`가 여섯 경로를 동시에 호출한다. 클라이언트 `/api/sms/...`는 same-origin에서 `/backend/sms/...`가 된다.
+  - `GET /backend/sms/settings`
+  - `GET /backend/sms/senders`
+  - `GET /backend/sms/templates`
+  - `GET /backend/sms/history`
+  - `GET /backend/sms/campaigns`
+  - `GET /backend/sms/opt-outs`
+- 서버 `registerSmsModuleApi`가 같은 여섯 경로를 `requireAuth` 다음 `ensureSmsModuleEnabled`로 등록한다. `8ef3814`와 이 파일의 diff는 비어 있다.
+- 2026-10-01 `https://insurance-dev.up.railway.app` 비로그인 조회: 여섯 경로 모두 HTTP 401 `{"message":"로그인이 필요합니다."}`. Express `Cannot GET`이 아니다. 라우트는 등록되어 있다.
+- 로그인 뒤 404는 `assertSmsModuleFeatureEnabled`다. `SMS_MODULE_ENABLED`가 거짓이면 status 404, code `sms_module_disabled`, 문구 `문자 발송 기능이 아직 활성화되지 않았습니다.` 프론트는 그 code만 `문자 모듈이 비활성화되어 있습니다` 안내로 바꾼다. 없는 경로면 이 안내가 나오지 않는다.
+- 인증문자(가입·비밀번호)는 다른 라우트다. `POST /backend/auth/send-signup-phone-code`는 빈 본문에 400 `휴대폰 번호를 입력해 주세요.` `GET /backend/auth/signup-phone-policy`는 200. CRM 대량 문자·알리고 설정 라우트와 합치지 않았다.
+
+코드는 고치지 않는다. DEV에서 문자 모듈을 쓰려면 `SMS_MODULE_ENABLED=true`가 필요하다.
 
 ## 아키텍처
 
@@ -80,6 +110,7 @@ PR #48 merge SHA: `66a09ac93c0cb5893c496ce4014cdc0a81480f3c`.
 1. `customers.address_sido`, `address_sigungu`, `address_eupmyeondong` (nullable TEXT)
 2. `idx_customers_region_owner` on `(ga_id, COALESCE(owner_user_id, user_id), address_sido, address_sigungu, address_eupmyeondong)` WHERE `deleted_at IS NULL AND address_sido IS NOT NULL`
 3. `service_integrations` + owner_scope CHECK + status CHECK + partial unique indexes
+4. `coverage_simulation_shares.snapshot_fingerprint` (nullable TEXT)와 활성 행 부분 유니크 인덱스 `idx_coverage_simulation_shares_active_fingerprint`. 기존 NULL 행은 갱신하지 않는다.
 
 사전 건수 (프로덕션에서 SELECT만):
 
