@@ -83,21 +83,27 @@ body.coverage-simulator-immersive .pc-workspace-layout > main {
   padding: 6px var(--cs-space-3);
 }
 
+/*
+ * 토스트는 document.body 포탈이다.
+ * CRM `/coverage-simulator/scenarios/:id` 본문은 overflow:hidden 이라
+ * 편집기 형제 노드는 잘리고, --cs-z-sheet-overlay 는 .coverage-simulator-root 안에만 있다.
+ * z-index 는 :root 의 --cs-z-dialog 를 쓴다.
+ */
 .coverage-simulator-toast {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--cs-mobile-dock-height, 72px) + 16px);
+  bottom: var(--space-6, 24px);
   transform: translateX(-50%);
-  z-index: calc(var(--cs-z-sheet-overlay) + 2);
+  z-index: calc(var(--cs-z-dialog, 1400) + 1);
   max-width: min(92vw, 360px);
   margin: 0;
   padding: 10px 16px;
-  border-radius: 10px;
-  background: rgba(15, 23, 42, 0.92);
-  color: #fff;
+  border-radius: var(--radius-md, 8px);
+  background: var(--text-main);
+  color: var(--text-on-primary);
   font-size: 0.875rem;
   text-align: center;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.2);
+  box-shadow: 0 8px 24px rgb(17 24 39 / 0.2);
   pointer-events: none;
 }
 
