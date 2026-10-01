@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { seoulTodayYmd } from './formatConsultationDate'
 import { createCancerDefaultItems } from './templates'
 import {
   cloneScenarioItems,
@@ -46,6 +47,7 @@ describe('templateOperations', () => {
     expect(consultation.customerId).toBe('c-1')
     expect(consultation.customerNameSnapshot).toBe('김민수')
     expect(consultation.templateId).toBe(template.id)
+    expect(consultation.consultationDate).toBe(seoulTodayYmd(new Date(consultation.createdAt)))
   })
 
   it('createConsultationFromTemplate leaves customer null when omitted', () => {
