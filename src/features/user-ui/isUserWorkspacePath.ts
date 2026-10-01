@@ -25,6 +25,7 @@ const USER_UI_SHELL_PATTERNS: RegExp[] = [
   /^\/profile(\/|$)/,
   /^\/todos(\/|$)/,
   /^\/notifications(\/|$)/,
+  /^\/service-integrations(\/|$)/,
   /^\/dashboard(\/|$)/,
   /^\/claim-requests/,
   /^\/feature-request/,

@@ -67,6 +67,10 @@ import {
 } from './apis/customerFireInsuranceLocationsApi.js'
 import { normalizeBusinessInfoForDb } from './lib/customerBusinessInfo.js'
 import { registerCustomerMapApi } from './apis/customerMapApi.js'
+import { registerCustomerRegionApi } from './apis/registerCustomerRegionApi.js'
+import { registerReminderCalendarApi } from './apis/registerReminderCalendarApi.js'
+import { registerServiceIntegrationsApi } from './apis/registerServiceIntegrationsApi.js'
+import { resolveCustomerAddressRegion } from './customers/addressRegion.js'
 import { registerPremiumPaymentApi } from './registerPremiumPaymentApi.js'
 import { registerCardPaymentApi } from './registerCardPaymentApi.js'
 import { recordAnalyticsEvent } from './lib/analyticsEvents.js'
@@ -1715,6 +1719,9 @@ registerSubscriptionEndpoints(apiRouter, { requireAuth })
 
 registerCustomerCarsApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCustomerSpecialDatesApi(apiRouter, { pool, requireAuth, handleDbError })
+registerCustomerRegionApi(apiRouter, { pool, requireAuth, handleDbError })
+registerReminderCalendarApi(apiRouter, { pool, requireAuth, handleDbError })
+registerServiceIntegrationsApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCustomerCustomFieldsApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCustomerFireInsuranceLocationsApi(apiRouter, { pool, requireAuth, handleDbError })
 registerPremiumPaymentApi(apiRouter, { pool, requireAuth, handleDbError, JWT_SECRET })
@@ -4751,6 +4758,8 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
     )
     const smsOptOut = data.smsOptOut === true || data.sms_opt_out === true
     const businessInfo = normalizeBusinessInfoForDb(data.businessInfo ?? data.business_info)
+    const addressText = String(data.address ?? '').trim()
+    const addressRegion = resolveCustomerAddressRegion({ ...data, address: addressText })
 
     const inserted = await safeQuery(pool,
       `
@@ -4768,10 +4777,12 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
         business_number,
         business_address,
         business_memo,
-        tenant_id, owner_user_id, created_by_user_id, visibility_scope
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, CAST($22 AS jsonb), $23, CAST($24 AS jsonb), $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35)
+        tenant_id, owner_user_id, created_by_user_id, visibility_scope,
+        address_sido, address_sigungu, address_eupmyeondong
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, CAST($22 AS jsonb), $23, CAST($24 AS jsonb), $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38)
       RETURNING
         id, user_id, name, birth_date, ssn, phone, carrier, address, height, weight, job, driving, medical,
+        address_sido, address_sigungu, address_eupmyeondong,
         car_number, car_model, car_year, renewal_date,
         gender, insurance_age, next_age_date, is_driver, car_type, notes,
         is_favorite, created_at,
@@ -4820,6 +4831,9 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
         userId,
         userId,
         String(req.user?.customerAccess ?? 'own').trim().toLowerCase() || 'own',
+        addressRegion.addressSido,
+        addressRegion.addressSigungu,
+        addressRegion.addressEupmyeondong,
       ],
     )
 
@@ -5037,6 +5051,8 @@ async function insertCustomerFromExternalBody(executor, data, refUserId, refGaId
   const birthDateSql = birthRaw ? normalizeExpiryDate(birthRaw.slice(0, 10)) || null : null
 
   const crmExtSql = stringifyCrmExtensionForDb(data.crmExtension ?? data.crm_extension)
+  const addressText = String(data.address ?? '').trim()
+  const addressRegion = resolveCustomerAddressRegion({ ...data, address: addressText })
 
   const inserted = await safeQuery(
     executor,
@@ -5047,10 +5063,12 @@ async function insertCustomerFromExternalBody(executor, data, refUserId, refGaId
         car_number, car_model, car_year, renewal_date,
         notes,
         birth_date,
-        crm_extension
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, CAST($22 AS jsonb), $23, CAST($24 AS jsonb))
+        crm_extension,
+        address_sido, address_sigungu, address_eupmyeondong
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, CAST($22 AS jsonb), $23, CAST($24 AS jsonb), $25, $26, $27)
       RETURNING
         id, user_id, name, birth_date, ssn, phone, carrier, address, height, weight, job, driving, medical,
+        address_sido, address_sigungu, address_eupmyeondong,
         car_number, car_model, car_year, renewal_date,
         gender, insurance_age, next_age_date, is_driver, car_type, notes,
         is_favorite, created_at,
@@ -5063,7 +5081,7 @@ async function insertCustomerFromExternalBody(executor, data, refUserId, refGaId
       ssn,
       String(data.phone ?? '').trim(),
       String(data.carrier ?? '').trim(),
-      String(data.address ?? '').trim(),
+      addressText,
       String(data.height ?? '').trim(),
       String(data.weight ?? '').trim(),
       String(data.job ?? '').trim(),
@@ -5081,6 +5099,9 @@ async function insertCustomerFromExternalBody(executor, data, refUserId, refGaId
       JSON.stringify(notes),
       birthDateSql,
       crmExtSql,
+      addressRegion.addressSido,
+      addressRegion.addressSigungu,
+      addressRegion.addressEupmyeondong,
     ],
   )
 
@@ -5433,6 +5454,8 @@ apiRouter.patch('/customer/external-invite-registration', async (req, res) => {
     const birthRaw = String(data.birthDate ?? data.birth_date ?? '').trim()
     const birthDateSql = birthRaw ? normalizeExpiryDate(birthRaw.slice(0, 10)) || null : null
     const crmExtSql = stringifyCrmExtensionForDb(data.crmExtension ?? data.crm_extension)
+    const addressText = String(data.address ?? '').trim()
+    const addressRegion = resolveCustomerAddressRegion({ ...data, address: addressText })
 
     const customerId = Number(sid.customer_id)
     const refAgentId = String(sid.ref_user_id)
@@ -5471,10 +5494,14 @@ apiRouter.patch('/customer/external-invite-registration', async (req, res) => {
         renewal_date = $19,
         notes = CAST($20 AS jsonb),
         birth_date = $21,
-        crm_extension = CAST($22 AS jsonb)
-      WHERE id = $23 AND user_id = $24 AND ga_id = $25 AND deleted_at IS NULL
+        crm_extension = CAST($22 AS jsonb),
+        address_sido = $23,
+        address_sigungu = $24,
+        address_eupmyeondong = $25
+      WHERE id = $26 AND user_id = $27 AND ga_id = $28 AND deleted_at IS NULL
       RETURNING
         id, user_id, name, birth_date, ssn, phone, carrier, address, height, weight, job, driving, medical,
+        address_sido, address_sigungu, address_eupmyeondong,
         car_number, car_model, car_year, renewal_date,
         gender, insurance_age, next_age_date, is_driver, car_type, notes,
         is_favorite, created_at,
@@ -5485,7 +5512,7 @@ apiRouter.patch('/customer/external-invite-registration', async (req, res) => {
         ssn,
         String(data.phone ?? '').trim(),
         String(data.carrier ?? '').trim(),
-        String(data.address ?? '').trim(),
+        addressText,
         String(data.height ?? '').trim(),
         String(data.weight ?? '').trim(),
         String(data.job ?? '').trim(),
@@ -5503,6 +5530,9 @@ apiRouter.patch('/customer/external-invite-registration', async (req, res) => {
         JSON.stringify(notes),
         birthDateSql,
         crmExtSql,
+        addressRegion.addressSido,
+        addressRegion.addressSigungu,
+        addressRegion.addressEupmyeondong,
         customerId,
         refAgentId,
         refGaPk,
@@ -5675,6 +5705,28 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
     if (hasKey('notes')) {
       parts.push(`notes = CAST($${n++} AS jsonb)`)
       vals.push(JSON.stringify(normalizeCustomerNotesInput(data.notes)))
+    }
+
+    const regionTouched = hasKey('address')
+      || hasKey('addressSido')
+      || hasKey('address_sido')
+      || hasKey('sido')
+      || hasKey('addressSigungu')
+      || hasKey('address_sigungu')
+      || hasKey('sigungu')
+      || hasKey('addressEupmyeondong')
+      || hasKey('address_eupmyeondong')
+      || hasKey('bname')
+      || hasKey('bname1')
+      || hasKey('bname2')
+    if (regionTouched) {
+      const addressRegion = resolveCustomerAddressRegion(data)
+      parts.push(`address_sido = $${n++}`)
+      vals.push(addressRegion.addressSido)
+      parts.push(`address_sigungu = $${n++}`)
+      vals.push(addressRegion.addressSigungu)
+      parts.push(`address_eupmyeondong = $${n++}`)
+      vals.push(addressRegion.addressEupmyeondong)
     }
 
     if (hasKey('ssn')) {

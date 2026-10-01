@@ -38,6 +38,14 @@ export interface DaumPostcodeData {
   apartment?: 'Y' | 'N'
   /** 법정동. */
   bname?: string
+  /** 시/도. */
+  sido?: string
+  /** 시/군/구. */
+  sigungu?: string
+  /** 읍/면. */
+  bname2?: string
+  /** 동/리. */
+  bname1?: string
 }
 
 /**

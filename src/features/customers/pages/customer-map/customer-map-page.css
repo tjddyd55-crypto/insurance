@@ -978,3 +978,24 @@
   color: var(--text-main);
   word-break: break-all;
 }
+
+.customers-map-page__mode-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 8px 12px 0;
+}
+
+.customers-map-page__mode-tab {
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 6px 14px;
+  text-decoration: none;
+}
+
+.customers-map-page__mode-tab--active {
+  color: #ffffff;
+  background: var(--primary);
+  border-color: var(--primary);
+}
