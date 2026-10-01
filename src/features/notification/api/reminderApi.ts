@@ -32,17 +32,62 @@ export const REMINDER_TYPE_LABEL: Record<ReminderEventType, string> = {
   special_date: '고객 지정 알림',
 }
 
-export async function fetchReminderCalendar(token: string, month: string): Promise<{
+export type ReminderCalendar = {
   year: number
   month: number
   days: ReminderDayCount[]
   events: ReminderEvent[]
-}> {
-  const raw = await apiRequest<{
-    success: boolean
-    data: { year: number; month: number; days: ReminderDayCount[]; events: ReminderEvent[] }
-  }>(`/api/reminders/calendar?month=${encodeURIComponent(month)}`, { token })
-  return raw.data
+}
+
+const EMPTY_REMINDER_CALENDAR: ReminderCalendar = { year: 0, month: 0, days: [], events: [] }
+
+/**
+ * `apiRequest`는 `{ success, data }`를 `data`로 푼다.
+ * 풀린 달력과 봉투의 `data` 둘 다 읽는다.
+ */
+export function readReminderCalendar(payload: unknown): ReminderCalendar {
+  if (!payload || typeof payload !== 'object') {
+    return EMPTY_REMINDER_CALENDAR
+  }
+  const body = payload as Partial<ReminderCalendar> & { data?: unknown }
+  if ('year' in body || 'month' in body || 'days' in body || 'events' in body) {
+    return {
+      year: typeof body.year === 'number' ? body.year : 0,
+      month: typeof body.month === 'number' ? body.month : 0,
+      days: Array.isArray(body.days) ? body.days : [],
+      events: Array.isArray(body.events) ? body.events : [],
+    }
+  }
+  if (body.data !== undefined) {
+    return readReminderCalendar(body.data)
+  }
+  return EMPTY_REMINDER_CALENDAR
+}
+
+/** 풀린 `{ events }`와 봉투 `{ data: { events } }` 둘 다 읽는다. */
+export function readReminderEvents(payload: unknown): ReminderEvent[] {
+  if (Array.isArray(payload)) {
+    return payload as ReminderEvent[]
+  }
+  if (!payload || typeof payload !== 'object') {
+    return []
+  }
+  const body = payload as { events?: unknown; data?: unknown }
+  if (Array.isArray(body.events)) {
+    return body.events as ReminderEvent[]
+  }
+  if (body.data !== undefined) {
+    return readReminderEvents(body.data)
+  }
+  return []
+}
+
+export async function fetchReminderCalendar(token: string, month: string): Promise<ReminderCalendar> {
+  const raw = await apiRequest<unknown>(
+    `/api/reminders/calendar?month=${encodeURIComponent(month)}`,
+    { token },
+  )
+  return readReminderCalendar(raw)
 }
 
 export async function fetchReminderList(
@@ -55,9 +100,6 @@ export async function fetchReminderList(
   if (query.from) params.set('from', query.from)
   if (query.to) params.set('to', query.to)
   if (query.sort) params.set('sort', query.sort)
-  const raw = await apiRequest<{ success: boolean; data: { events: ReminderEvent[] } }>(
-    `/api/reminders?${params.toString()}`,
-    { token },
-  )
-  return raw.data?.events ?? []
+  const raw = await apiRequest<unknown>(`/api/reminders?${params.toString()}`, { token })
+  return readReminderEvents(raw)
 }
