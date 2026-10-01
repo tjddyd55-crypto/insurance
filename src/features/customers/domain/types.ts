@@ -101,6 +101,9 @@ export interface CustomerRecord {
   /** 레거시: 신규 저장 시 사용 안 함 */
   carrier: string
   address: string
+  addressSido?: string | null
+  addressSigungu?: string | null
+  addressEupmyeondong?: string | null
   height: string
   weight: string
   job: string

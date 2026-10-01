@@ -8,6 +8,7 @@ import {
   FormInput,
   FormTextarea,
   formatAddressForSave,
+  capturedAddressRegionPayload,
   type AddressSearchValue,
 } from '../form'
 import { resolveReferrerNameForSave } from '../../features/customers/config/customerInflowSource.config'
@@ -188,6 +189,15 @@ export type CustomerFormState = {
   /** 우편번호(zonecode). 검색 결과로만 채워진다. */
   zonecode: string
 
+  addressSido: string
+
+  addressSigungu: string
+
+  addressEupmyeondong: string
+
+  /** 카카오 검색으로 지역 칸을 받은 뒤에만 저장 본문에 넣는다. */
+  addressRegionCaptured: boolean
+
   height: string
 
   weight: string
@@ -256,6 +266,14 @@ const EMPTY_FORM: CustomerFormState = {
   addressDetail: '',
 
   zonecode: '',
+
+  addressSido: '',
+
+  addressSigungu: '',
+
+  addressEupmyeondong: '',
+
+  addressRegionCaptured: false,
 
   height: '',
 
@@ -392,6 +410,8 @@ export function customerFormStateToSavePayload(form: CustomerFormState): SaveCus
     carrier: normalizeCustomerCarrierForSave(form.carrier),
 
     address: mergedAddress,
+
+    ...capturedAddressRegionPayload(form),
 
     height: form.height,
 
@@ -708,6 +728,14 @@ export function CustomerFormFields({
               zonecode: next.zonecode,
               address: next.baseAddress,
               addressDetail: next.detailAddress,
+              ...(next.regionCaptured
+                ? {
+                    addressSido: next.sido ?? '',
+                    addressSigungu: next.sigungu ?? '',
+                    addressEupmyeondong: next.eupmyeondong ?? '',
+                    addressRegionCaptured: true,
+                  }
+                : {}),
             })
           }
         />

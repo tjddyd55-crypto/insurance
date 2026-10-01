@@ -235,6 +235,14 @@ export default function CustomerIndustryTemplateFields({
                 zonecode: next.zonecode,
                 address: next.baseAddress,
                 addressDetail: next.detailAddress,
+                ...(next.regionCaptured
+                  ? {
+                      addressSido: next.sido ?? '',
+                      addressSigungu: next.sigungu ?? '',
+                      addressEupmyeondong: next.eupmyeondong ?? '',
+                      addressRegionCaptured: true,
+                    }
+                  : {}),
               })
             }
           />

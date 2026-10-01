@@ -96,7 +96,7 @@ export function isActivePcNavigationPath(
     return pathname === '/todos'
   }
   if (menuPathname === '/notifications') {
-    return pathname === '/notifications'
+    return pathname === '/notifications' || pathname.startsWith('/notifications/')
   }
   if (menuPathname.startsWith('/internal/')) {
     return pathname === menuPathname || pathname.startsWith(`${menuPathname}/`)

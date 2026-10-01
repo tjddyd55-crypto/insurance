@@ -10,4 +10,9 @@ export {
   default as AddressSearchField,
   type AddressSearchFieldProps,
 } from './AddressSearchField'
-export { formatAddressForSave, type AddressSearchValue } from './addressSearchUtils'
+export {
+  capturedAddressRegionPayload,
+  formatAddressForSave,
+  regionFromPostcodeParts,
+  type AddressSearchValue,
+} from './addressSearchUtils'

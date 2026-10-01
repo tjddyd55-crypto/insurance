@@ -36,6 +36,7 @@ import CustomerFilesPage from './features/customers/pages/CustomerFilesPage'
 import CustomerGaExcelPage from './features/customers/pages/CustomerGaExcelPage'
 import CustomerMemosPage from './features/customers/pages/CustomerMemosPage'
 import CustomerMapPage from './features/customers/pages/CustomerMapPage'
+import CustomerRegionPage from './features/customers/pages/CustomerRegionPage'
 import CustomerDetailMapPage from './features/customers/pages/CustomerDetailMapPage'
 import CustomerPremiumPaymentsPage from './features/premium-payments/pages/CustomerPremiumPaymentsPage'
 import PremiumPaymentsOverviewPage from './features/premium-payments/pages/PremiumPaymentsOverviewPage'
@@ -53,6 +54,7 @@ import UserInsurerAccountsPage from './features/user-insurer-accounts/pages/User
 import ExternalAccountVaultPage from './features/user-insurer-accounts/pages/ExternalAccountVaultPage'
 import PublicSharedAccountVaultWorkspacePage from './features/user-insurer-accounts/pages/PublicSharedAccountVaultWorkspacePage'
 import SharedAccountVaultWorkspacePage from './features/user-insurer-accounts/pages/SharedAccountVaultWorkspacePage'
+import ServiceIntegrationsPage from './features/service-integrations/pages/ServiceIntegrationsPage'
 import SmsModulePage from './features/sms/pages/SmsModulePage'
 import SmsAutomationPage from './features/sms/pages/SmsAutomationPage'
 import TaCallPage from './features/ta-call/pages/TaCallPage'
@@ -453,6 +455,7 @@ export const appRouter = createBrowserRouter([
                 ],
               },
               { path: 'customers/map', element: <CustomerMapPage /> },
+              { path: 'customers/map/regions', element: <CustomerRegionPage /> },
               { path: 'premium-payments', element: <PremiumPaymentsOverviewPage /> },
               {
                 path: 'customers',
@@ -490,6 +493,9 @@ export const appRouter = createBrowserRouter([
               { path: 'personal-binders/:binderId/view', element: <PersonalBinderViewerPage /> },
               { path: 'todos', element: <TodosWorkspacePage /> },
               { path: 'notifications', element: <NotificationsPlaceholderPage /> },
+              { path: 'notifications/calendar', element: <NotificationsPlaceholderPage /> },
+              { path: 'notifications/all', element: <NotificationsPlaceholderPage /> },
+              { path: 'service-integrations', element: <ServiceIntegrationsPage /> },
               { path: 'team/members', element: <TeamMembersPage /> },
               { path: 'team/manage', element: <Navigate to="/team/members" replace /> },
               { path: 'team/menu-settings', element: <Navigate to="/team/members" replace /> },

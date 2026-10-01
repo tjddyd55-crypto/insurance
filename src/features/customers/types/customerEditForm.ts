@@ -14,6 +14,10 @@ export type CustomerEditFormState = {
   address: string
   addressDetail: string
   zonecode: string
+  addressSido: string
+  addressSigungu: string
+  addressEupmyeondong: string
+  addressRegionCaptured: boolean
   height: string
   weight: string
   job: string

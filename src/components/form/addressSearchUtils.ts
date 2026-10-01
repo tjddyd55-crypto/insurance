@@ -7,6 +7,62 @@ export interface AddressSearchValue {
   zonecode: string
   baseAddress: string
   detailAddress: string
+  /** 카카오 우편번호 선택 시에만 채운다. */
+  sido?: string
+  sigungu?: string
+  eupmyeondong?: string
+  regionCaptured?: boolean
+}
+
+function isEupMyeonDongToken(token: string): boolean {
+  if (!token || /\s/.test(token)) {
+    return false
+  }
+  if (/\d+가$/.test(token)) {
+    return true
+  }
+  if (/(로|길|대로)$/.test(token)) {
+    return false
+  }
+  return /(읍|면|동|리)$/.test(token)
+}
+
+/** 카카오 oncomplete 원문에서 저장용 지역 칸을 고른다. */
+export function regionFromPostcodeParts(parts: {
+  sido?: string
+  sigungu?: string
+  bname?: string
+  bname1?: string
+  bname2?: string
+}): Pick<AddressSearchValue, 'sido' | 'sigungu' | 'eupmyeondong' | 'regionCaptured'> {
+  const eup = [parts.bname2, parts.bname1, parts.bname]
+    .map((value) => String(value ?? '').trim())
+    .find((token) => isEupMyeonDongToken(token))
+  return {
+    sido: String(parts.sido ?? '').trim(),
+    sigungu: String(parts.sigungu ?? '').trim(),
+    eupmyeondong: eup ?? '',
+    regionCaptured: true,
+  }
+}
+
+export function capturedAddressRegionPayload(form: {
+  addressRegionCaptured?: boolean
+  addressSido?: string
+  addressSigungu?: string
+  addressEupmyeondong?: string
+}): Record<string, string> {
+  if (!form.addressRegionCaptured) {
+    return {}
+  }
+  return {
+    addressSido: form.addressSido ?? '',
+    addressSigungu: form.addressSigungu ?? '',
+    addressEupmyeondong: form.addressEupmyeondong ?? '',
+    sido: form.addressSido ?? '',
+    sigungu: form.addressSigungu ?? '',
+    bname: form.addressEupmyeondong ?? '',
+  }
 }
 
 /**

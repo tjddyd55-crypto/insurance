@@ -11,6 +11,7 @@ import { wasNaverMapAuthFailure } from '../../components/map/mapSdkLoader'
 import { CUSTOMER_MAP_MAX_RADIUS_KM } from '../../config/customerMap.config'
 import type { CustomerMapViewProps } from '../../hooks/useCustomerMapState'
 import CustomerMapRadiusFilterControls from './CustomerMapRadiusFilterControls'
+import CustomerMapModeTabs from './CustomerMapModeTabs'
 import './customer-map-page.css'
 
 type CustomerMapShellProps = CustomerMapViewProps & {
@@ -185,6 +186,7 @@ export default function CustomerMapShell({
 
   return (
     <main className={pageClassName} aria-label={embedInWorkspace ? '선택 고객 지도' : undefined}>
+      {!embedInWorkspace ? <CustomerMapModeTabs /> : null}
       {!isMobile && !embedInWorkspace ? (
         <div className="customers-map-page__toolbar">
           {stats ? (

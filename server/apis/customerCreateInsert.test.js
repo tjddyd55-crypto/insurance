@@ -25,12 +25,15 @@ function extractAuthenticatedCustomerCreateInsert() {
 describe('POST /customers INSERT placeholders', () => {
   it('keeps INSERT column count aligned with VALUES placeholders', () => {
     const { columns, maxPlaceholder, placeholderNumbers } = extractAuthenticatedCustomerCreateInsert()
-    assert.equal(columns.length, 35)
-    assert.equal(maxPlaceholder, 35)
-    assert.equal(placeholderNumbers.length, 35)
+    assert.equal(columns.length, 38)
+    assert.equal(maxPlaceholder, 38)
+    assert.equal(placeholderNumbers.length, 38)
     assert.deepEqual(
       [...new Set(placeholderNumbers)].sort((a, b) => a - b),
-      Array.from({ length: 35 }, (_, i) => i + 1),
+      Array.from({ length: 38 }, (_, i) => i + 1),
     )
+    assert.ok(columns.includes('address_sido'))
+    assert.ok(columns.includes('address_sigungu'))
+    assert.ok(columns.includes('address_eupmyeondong'))
   })
 })
