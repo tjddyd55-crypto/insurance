@@ -9,6 +9,10 @@ export type IndustryTemplateFormBinder = {
   zonecode: string
   address: string
   addressDetail: string
+  addressSido?: string
+  addressSigungu?: string
+  addressEupmyeondong?: string
+  addressRegionCaptured?: boolean
   job: string
   height: string
   weight: string

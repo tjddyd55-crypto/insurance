@@ -45,7 +45,7 @@ import { useDebounce } from '../../../hooks/useDebounce'
 import { ExitConfirmDialog } from '../../../components/ExitConfirmDialog'
 import { MSG_CUSTOMER_CREATE_EXIT } from '../../../navigation/backNavigationPolicy'
 import { searchCustomersAdvanced } from '../api/customerExtraApi'
-import { formatAddressForSave, FormButton, FormInput, FormTextarea } from '../../../components/form'
+import { capturedAddressRegionPayload, formatAddressForSave, FormButton, FormInput, FormTextarea } from '../../../components/form'
 import { useGaSettings } from '../../ga-settings/useGaSettings'
 import { CustomerRelationsStrip } from '../components/CustomerRelationsStrip'
 import CustomerMobileModals from '../components/CustomerMobileModals'
@@ -1157,6 +1157,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           baseAddress: activeEditForm.address ?? '',
           detailAddress: activeEditForm.addressDetail ?? '',
         }),
+        ...capturedAddressRegionPayload(activeEditForm),
         height: activeEditForm.height,
         weight: activeEditForm.weight,
         job: activeEditForm.job,

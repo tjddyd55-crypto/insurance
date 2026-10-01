@@ -17,6 +17,7 @@ const USER_WORK_LABELS = [
   '신청서 작성',
   '팀원리스트',
   '문자 발송',
+  '서비스 연동',
   '내정보관리',
 ]
 
@@ -75,6 +76,7 @@ describe('buildAppMenuForSession — 역할별 메뉴 정책', () => {
   it('USER 에게는 일반 CRM 메뉴를 유지하고 GA 관리 메뉴는 숨긴다', () => {
     const labels = linkLabels(buildAppMenuForSession('USER', 'TEST', 'Test GA'))
     expect(labels).toContain('고객리스트')
+    expect(labels).toContain('서비스 연동')
     expect(labels).toContain('원수사소식지')
     expect(labels).not.toContain('GA전용 소식지 관리')
     expect(labels).not.toContain('보험청구 설정')

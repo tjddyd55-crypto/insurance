@@ -4,6 +4,7 @@ import { BaseDialog } from '../dialog/BaseDialog'
 import FormButton from './FormButton'
 import FormInput from './FormInput'
 import type { AddressSearchValue } from './addressSearchUtils'
+import { regionFromPostcodeParts } from './addressSearchUtils'
 import {
   loadKakaoPostcode,
   resetKakaoPostcodeLoader,
@@ -113,6 +114,7 @@ export default function AddressSearchField({
         zonecode: data.zonecode ?? '',
         baseAddress: buildBaseAddress(data),
         detailAddress: value?.detailAddress ?? '',
+        ...regionFromPostcodeParts(data),
       })
       setOpen(false)
       window.setTimeout(() => {
