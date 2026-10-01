@@ -14,7 +14,7 @@ import {
 import { CoverageSimulatorScopeProvider, previewScopeMobile } from '../CoverageSimulatorScope'
 import { buildCoverageTimelineViewModel } from '../domain/buildCoverageTimelineViewModel'
 import { formatCoverageScenarioHeading } from '../domain/diseaseTypeLabels'
-import { formatCoverageShareMetaDate } from '../domain/formatConsultationDate'
+import { formatCoverageAuthoredDate } from '../domain/formatConsultationDate'
 import { formatCoverageDocumentMetaLine } from '../domain/formatCoverageDocumentHeader'
 import { resolveCustomerNameSnapshot } from '../domain/normalizeConsultation'
 import type { CoverageScenario } from '../domain/types'
@@ -126,7 +126,7 @@ function CoverageSharePublicPageBody() {
   const payload = state.payload
   const shareScenario = payload.scenario as CoverageScenario
   const customerName = resolveCustomerNameSnapshot(shareScenario)
-  const wroteLabel = formatCoverageShareMetaDate(shareScenario.consultationDate)
+  const wroteLabel = formatCoverageAuthoredDate(shareScenario, '')
   const scenarioHeading = formatCoverageScenarioHeading(shareScenario.diseaseType, shareScenario.title)
   const metaLine = formatCoverageDocumentMetaLine(customerName, wroteLabel)
   const downloadStoredPdf = () => {
