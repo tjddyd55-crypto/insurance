@@ -10,6 +10,7 @@ import { useCoverageSimulatorCustomer } from '../context/CoverageSimulatorCustom
 import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
 import { startConsultationFromUserTemplate } from '../domain/startConsultation'
 import { listSystemTemplateSummaries } from '../domain/systemTemplateCatalog'
+import { formatCoverageSeoulYmd } from '../domain/formatConsultationDate'
 import { cloneUserTemplate } from '../domain/templateOperations'
 import {
   deleteUserTemplateAsync,
@@ -145,7 +146,7 @@ export function ScenarioSelectPreviewView() {
                     <div className="coverage-simulator-scenario-card__desc">{template.description}</div>
                   ) : null}
                   <div className="cs-template-card__meta">
-                    {template.itemCount}개 항목 · {template.updatedAt.slice(0, 10)}
+                    {template.itemCount}개 항목 · {formatCoverageSeoulYmd(template.updatedAt)}
                   </div>
                 </button>
                 <button

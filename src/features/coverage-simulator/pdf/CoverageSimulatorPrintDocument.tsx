@@ -3,6 +3,7 @@ import { useMemo } from 'react'
 import { CoverageScenarioTimeline } from '../components/center-timeline/CoverageScenarioTimeline'
 import { buildCoverageTimelineViewModel } from '../domain/buildCoverageTimelineViewModel'
 import { formatCoverageScenarioHeading } from '../domain/diseaseTypeLabels'
+import { formatCoveragePrintDate } from '../domain/formatConsultationDate'
 import { formatCoverageDocumentMetaLine } from '../domain/formatCoverageDocumentHeader'
 import { resolveCustomerNameSnapshot } from '../domain/normalizeConsultation'
 import { PDF_DISCLAIMER_LINES } from '../domain/pdfCopy'
@@ -14,13 +15,6 @@ import './printDocument.css'
 
 type CoverageSimulatorPrintDocumentProps = {
   scenario: CoverageScenario
-}
-
-function formatPrintDate(consultationDate: string | undefined): string {
-  const raw = (consultationDate ?? '').slice(0, 10)
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw || '—'
-  const [year, month, day] = raw.split('-')
-  return `${year}.${month}.${day}`
 }
 
 export function CoverageSimulatorPrintDocument({ scenario }: CoverageSimulatorPrintDocumentProps) {
@@ -39,7 +33,7 @@ export function CoverageSimulatorPrintDocument({ scenario }: CoverageSimulatorPr
       <header className="cs-print-doc-header">
         <h1 className="cs-print-doc-header__title">보장 시뮬레이션</h1>
         <p className="cs-print-doc-header__meta">
-          {formatCoverageDocumentMetaLine(customerName, formatPrintDate(scenario.consultationDate))}
+          {formatCoverageDocumentMetaLine(customerName, formatCoveragePrintDate(scenario.consultationDate))}
         </p>
         <p className="cs-print-doc-header__subtitle">{scenarioHeading}</p>
       </header>
