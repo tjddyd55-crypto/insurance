@@ -1,5 +1,6 @@
 import FormButton from '../../../components/form/FormButton'
 import type { CoverageShareListItem } from '../api/coverageSimulatorShareApi'
+import { formatCoverageSeoulDateTimeLabel } from '../domain/formatConsultationDate'
 
 type Props = {
   shares: CoverageShareListItem[]
@@ -8,17 +9,6 @@ type Props = {
   onRetry: () => void
   onCopyLink: (url: string | null) => void
   onRevoke: (shareId: string) => void
-}
-
-function formatShareDate(iso: string): string {
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return iso
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  const hh = String(date.getHours()).padStart(2, '0')
-  const mm = String(date.getMinutes()).padStart(2, '0')
-  return `${y}.${m}.${d} ${hh}:${mm}`
 }
 
 export function CoverageShareDialogHistory({
@@ -49,7 +39,7 @@ export function CoverageShareDialogHistory({
           {shares.map((entry) => (
             <li key={entry.shareId} className="cs-share-history__item">
               <div className="cs-share-history__meta">
-                <span>{formatShareDate(entry.createdAt)}</span>
+                <span>{formatCoverageSeoulDateTimeLabel(entry.createdAt)}</span>
                 {entry.revokedAt ? <span className="cs-share-history__revoked">중지됨</span> : null}
               </div>
               <div className="cs-share-history__actions">

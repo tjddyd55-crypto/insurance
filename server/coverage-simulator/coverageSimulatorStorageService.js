@@ -1,6 +1,7 @@
 import { safeQuery } from '../utils/dbSafeQuery.js'
 import { parseGaId } from '../lib/parseGaId.js'
 import { assertCustomerRowAccessibleByVisibility } from '../lib/customerRowVisibilitySql.js'
+import { formatCoverageConsultationDateYmd } from './coverageSeoulDate.js'
 import { validateSimulationPayload, validateTemplatePayload } from './coverageSimulatorStorageValidation.js'
 
 function storageHttpError(status, code, message) {
@@ -87,10 +88,7 @@ function mapTemplateRow(row) {
  * @param {import('pg').QueryResultRow} row
  */
 function mapSimulationRow(row) {
-  const consultationDate =
-    row.consultation_date instanceof Date
-      ? row.consultation_date.toISOString().slice(0, 10)
-      : String(row.consultation_date ?? '').slice(0, 10)
+  const consultationDate = formatCoverageConsultationDateYmd(row.consultation_date)
   return {
     id: String(row.id),
     legacyClientId: row.legacy_client_id ?? null,

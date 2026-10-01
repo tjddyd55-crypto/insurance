@@ -580,8 +580,8 @@
 
 .coverage-simulator-print-root.coverage-simulator-root--mobile-preview.coverage-simulator-print-root--korean-text-safe .cs-axis-event__title-axis {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: 52px;
+  right: 52px;
   top: 3px;
   transform: none;
   width: auto;
@@ -599,6 +599,8 @@
   top: auto;
   overflow: visible;
   text-overflow: clip;
+  -webkit-line-clamp: unset;
+  -webkit-box-orient: initial;
   white-space: normal;
   word-break: keep-all;
   line-height: 22px;

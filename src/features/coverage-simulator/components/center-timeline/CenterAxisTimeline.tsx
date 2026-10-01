@@ -15,6 +15,7 @@ export type CoverageTimelineMode = 'editable' | 'readonly' | 'print'
 import { CoverageTimelineReorderButtons } from './CoverageTimelineReorderButtons'
 import { EventRowMenu } from './EventRowMenu'
 import { InlineAmountQuickEdit, type InlineAmountField } from './InlineAmountQuickEdit'
+import { InlineTitleQuickEdit } from './InlineTitleQuickEdit'
 import { TimelineInsertControl } from './TimelineInsertControl'
 import { TimelinePeriodSubtotal } from './TimelinePeriodSubtotal'
 import { TimeMarkerRowMenu } from './TimeMarkerRowMenu'
@@ -26,6 +27,12 @@ type InlineAmountOptions = {
   inlineAmountEdit: InlineAmountEditTarget
   onInlineAmountEditChange: (target: InlineAmountEditTarget) => void
   onInlineAmountCommit: (itemId: string, field: InlineAmountField, amount: number | null) => void
+}
+
+type InlineTitleOptions = {
+  inlineTitleItemId: string | null
+  onInlineTitleEditChange: (itemId: string | null) => void
+  onInlineTitleCommit: (itemId: string, label: string) => void
 }
 
 export type CenterAxisTimelineProps = {
@@ -49,6 +56,10 @@ export type CenterAxisTimelineProps = {
   inlineAmountEdit?: InlineAmountEditTarget
   onInlineAmountEditChange?: (target: InlineAmountEditTarget) => void
   onInlineAmountCommit?: (itemId: string, field: InlineAmountField, amount: number | null) => void
+  enableInlineTitleEdit?: boolean
+  inlineTitleItemId?: string | null
+  onInlineTitleEditChange?: (itemId: string | null) => void
+  onInlineTitleCommit?: (itemId: string, label: string) => void
 }
 
 type Handlers = Pick<CenterAxisTimelineProps, 'onEditItem' | 'onMoveItem' | 'onRemoveItem'>
@@ -65,10 +76,21 @@ function resolveInlineOptions(props: CenterAxisTimelineProps): InlineAmountOptio
   }
 }
 
+function resolveTitleOptions(props: CenterAxisTimelineProps): InlineTitleOptions | null {
+  if (!props.enableInlineTitleEdit || !props.onInlineTitleEditChange || !props.onInlineTitleCommit) {
+    return null
+  }
+  return {
+    inlineTitleItemId: props.inlineTitleItemId ?? null,
+    onInlineTitleEditChange: props.onInlineTitleEditChange,
+    onInlineTitleCommit: props.onInlineTitleCommit,
+  }
+}
+
 function renderAmountCell(
   item: CoverageScenarioItem,
   field: InlineAmountField,
-  variant: CenterAxisTimelineProps['variant'],
+  _variant: CenterAxisTimelineProps['variant'],
   handlers: Handlers,
   inline: InlineAmountOptions | null,
   readOnly: boolean,
@@ -91,7 +113,7 @@ function renderAmountCell(
     )
   }
 
-  if (variant === 'mobile' && inline) {
+  if (inline) {
     const active = inline.inlineAmountEdit?.itemId === item.id && inline.inlineAmountEdit?.field === field
     return (
       <InlineAmountQuickEdit
@@ -120,6 +142,27 @@ function resolveItemDisplayTitle(
   return displayTitleByItemId?.get(item.id) ?? item.label
 }
 
+function renderTitle(
+  item: CoverageScenarioItem,
+  displayTitle: string,
+  readOnly: boolean,
+  titleEdit: InlineTitleOptions | null,
+) {
+  if (readOnly || !titleEdit) {
+    return <span className="cs-axis-event__label">{displayTitle}</span>
+  }
+  const active = titleEdit.inlineTitleItemId === item.id
+  return (
+    <InlineTitleQuickEdit
+      label={displayTitle}
+      active={active}
+      onActivate={() => titleEdit.onInlineTitleEditChange(item.id)}
+      onCommit={(label) => titleEdit.onInlineTitleCommit(item.id, label)}
+      onEndEdit={() => titleEdit.onInlineTitleEditChange(null)}
+    />
+  )
+}
+
 function renderCoverageRow(
   item: CoverageScenarioItem,
   variant: CenterAxisTimelineProps['variant'],
@@ -129,10 +172,11 @@ function renderCoverageRow(
     'items' | 'itemMenuMode' | 'readOnly' | 'preserveActionsGeometry' | 'displayTitleByItemId'
   >,
   inline: InlineAmountOptions | null,
+  titleEdit: InlineTitleOptions | null,
 ) {
-  const showTimelineReorder = !options.readOnly && options.itemMenuMode === 'action-sheet'
   const displayTitle = resolveItemDisplayTitle(item, options.displayTitleByItemId)
   const showActionSpacer = Boolean(options.readOnly && options.preserveActionsGeometry)
+  const showReorder = !options.readOnly && options.itemMenuMode === 'action-sheet'
 
   return (
     <div key={item.id} className="cs-axis-event">
@@ -140,19 +184,11 @@ function renderCoverageRow(
         <div className="cs-axis-event__badge">
           <CoverageBadge category={item.category} />
         </div>
-        <p className="cs-axis-event__title-axis">
-          <span className="cs-axis-event__label">{displayTitle}</span>
-        </p>
+        <div className="cs-axis-event__title-axis">
+          {renderTitle(item, displayTitle, Boolean(options.readOnly), titleEdit)}
+        </div>
         {!options.readOnly ? (
           <div className="cs-axis-event__actions">
-            {showTimelineReorder ? (
-              <CoverageTimelineReorderButtons
-                items={options.items}
-                itemId={item.id}
-                onMoveUp={() => handlers.onMoveItem(item.id, 'up')}
-                onMoveDown={() => handlers.onMoveItem(item.id, 'down')}
-              />
-            ) : null}
             <EventRowMenu
               menuMode={options.itemMenuMode}
               itemCategory={item.category}
@@ -167,7 +203,19 @@ function renderCoverageRow(
       </div>
       <div className="cs-axis-event__compare">
         {renderAmountCell(item, 'current', variant, handlers, inline, Boolean(options.readOnly))}
-        <div className="cs-axis-event__spine" aria-hidden="true" />
+        <div
+          className={showReorder ? 'cs-axis-event__spine cs-axis-event__spine--reorder' : 'cs-axis-event__spine'}
+          aria-hidden={showReorder ? undefined : true}
+        >
+          {showReorder ? (
+            <CoverageTimelineReorderButtons
+              items={options.items}
+              itemId={item.id}
+              onMoveUp={() => handlers.onMoveItem(item.id, 'up')}
+              onMoveDown={() => handlers.onMoveItem(item.id, 'down')}
+            />
+          ) : null}
+        </div>
         {renderAmountCell(item, 'proposed', variant, handlers, inline, Boolean(options.readOnly))}
       </div>
       {variant === 'pc' && item.memo ? (
@@ -218,6 +266,7 @@ function renderBlock(
     'items' | 'itemMenuMode' | 'readOnly' | 'preserveActionsGeometry' | 'displayTitleByItemId'
   >,
   inline: InlineAmountOptions | null,
+  titleEdit: InlineTitleOptions | null,
   onAddAfter: (afterOrder: number) => void,
   readOnly: boolean,
   _preserveActionsGeometry: boolean,
@@ -225,7 +274,7 @@ function renderBlock(
   if (block.kind === 'coverage') {
     return (
       <div key={blockKey} className="cs-axis-block">
-        {renderCoverageRow(block.item, variant, handlers, { ...options, readOnly }, inline)}
+        {renderCoverageRow(block.item, variant, handlers, { ...options, readOnly }, inline, titleEdit)}
       </div>
     )
   }
@@ -262,6 +311,7 @@ function renderFlatTimeline(
   markerMenuMode: 'inline-delete' | 'action-sheet',
   removeMarker: (id: string) => void,
   inline: InlineAmountOptions | null,
+  titleEdit: InlineTitleOptions | null,
 ) {
   const {
     items,
@@ -301,7 +351,7 @@ function renderFlatTimeline(
               {renderTimeMarker(item, removeMarker, markerMenuMode, readOnly, preserveActionsGeometry)}
             </>
           ) : (
-            renderCoverageRow(item, variant, handlers, rowOptions, inline)
+            renderCoverageRow(item, variant, handlers, rowOptions, inline, titleEdit)
           )}
           {!readOnly && compactInsert && shouldShowTimelineInsertAfterItem(item, items, compactInsert) ? (
             <TimelineInsertControl
@@ -331,6 +381,7 @@ function renderPeriodSections(
   removeMarker: (id: string) => void,
   periodByMarkerId: Map<string, { currentTotal: number; proposedTotal: number }>,
   inline: InlineAmountOptions | null,
+  titleEdit: InlineTitleOptions | null,
 ) {
   const sections = buildTimelinePeriodSections(props.items, true, periodByMarkerId)
   const preserveActionsGeometry = props.preserveActionsGeometry ?? false
@@ -353,6 +404,7 @@ function renderPeriodSections(
             handlers,
             options,
             inline,
+            titleEdit,
             props.onAddAfter,
             props.readOnly ?? false,
             preserveActionsGeometry,
@@ -395,6 +447,10 @@ export function CenterAxisTimeline({
   inlineAmountEdit = null,
   onInlineAmountEditChange,
   onInlineAmountCommit,
+  enableInlineTitleEdit = false,
+  inlineTitleItemId = null,
+  onInlineTitleEditChange,
+  onInlineTitleCommit,
 }: CenterAxisTimelineProps) {
   const handlers = { onEditItem, onMoveItem, onRemoveItem }
   const inline = resolveInlineOptions({
@@ -414,6 +470,24 @@ export function CenterAxisTimeline({
     inlineAmountEdit,
     onInlineAmountEditChange,
     onInlineAmountCommit,
+    enableInlineTitleEdit,
+    inlineTitleItemId,
+    onInlineTitleEditChange,
+    onInlineTitleCommit,
+  })
+  const titleEdit = resolveTitleOptions({
+    items,
+    currentTotal,
+    proposedTotal,
+    variant,
+    onEditItem,
+    onMoveItem,
+    onRemoveItem,
+    onAddAfter,
+    enableInlineTitleEdit,
+    inlineTitleItemId,
+    onInlineTitleEditChange,
+    onInlineTitleCommit,
   })
   const periodByMarkerId = useMemo(() => periodTotalsByEndMarkerId(items), [items])
   const markerMenuMode = itemMenuMode === 'action-sheet' ? 'action-sheet' : 'inline-delete'
@@ -443,6 +517,10 @@ export function CenterAxisTimeline({
     inlineAmountEdit,
     onInlineAmountEditChange,
     onInlineAmountCommit,
+    enableInlineTitleEdit,
+    inlineTitleItemId,
+    onInlineTitleEditChange,
+    onInlineTitleCommit,
   }
 
   const sheetClass = [
@@ -466,8 +544,24 @@ export function CenterAxisTimeline({
         <div className="cs-axis-timeline__line" aria-hidden="true" />
         <div className="cs-axis-timeline__rows">
           {usePeriodSections
-            ? renderPeriodSections(timelineProps, handlers, markerMenuMode, removeMarker, periodByMarkerId, inline)
-            : renderFlatTimeline(timelineProps, handlers, periodByMarkerId, markerMenuMode, removeMarker, inline)}
+            ? renderPeriodSections(
+                timelineProps,
+                handlers,
+                markerMenuMode,
+                removeMarker,
+                periodByMarkerId,
+                inline,
+                titleEdit,
+              )
+            : renderFlatTimeline(
+                timelineProps,
+                handlers,
+                periodByMarkerId,
+                markerMenuMode,
+                removeMarker,
+                inline,
+                titleEdit,
+              )}
         </div>
       </div>
 

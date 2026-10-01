@@ -1529,6 +1529,13 @@ html.coverage-simulator-overlay-scroll-lock .cs-axis-main {
   cursor: pointer;
 }
 
+.cs-customer-context-bar__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .cs-customer-context-bar__placeholder {
   color: var(--cs-color-primary);
   font-weight: 600;

@@ -1,3 +1,4 @@
+import { seoulTodayYmd } from './formatConsultationDate'
 import { createScenarioId } from './ids'
 import {
   createCancerDefaultItems,
@@ -44,7 +45,7 @@ const SYSTEM_DEFAULT_META: Record<
 
 export function createScenarioFromTemplate(diseaseType: DiseaseType): CoverageScenario | null {
   const now = new Date().toISOString()
-  const consultationDate = now.slice(0, 10)
+  const consultationDate = seoulTodayYmd()
   const meta = diseaseType === 'custom'
     ? {
         title: '기타',

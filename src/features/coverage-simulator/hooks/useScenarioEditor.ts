@@ -2,6 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { consultationContentSnapshot } from '../domain/consultationSnapshot'
+import {
+  applyConsultationCustomer,
+  consultationSavePayload,
+  type ConsultationCustomerDraft,
+} from '../domain/customerContext'
 import { readSessionCustomerDraft } from '../context/CoverageSimulatorCustomerContext'
 import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
 import { createDraftFromSystemDisease } from '../domain/startConsultation'
@@ -152,7 +157,10 @@ export function useScenarioEditor() {
       setIsSaving(true)
       try {
         const nextTitle = title?.trim() || scenario.title
-        const saved = await saveConsultationAsync(userKey, { ...scenario, title: nextTitle })
+        const saved = await saveConsultationAsync(
+          userKey,
+          consultationSavePayload(scenario, nextTitle),
+        )
         setScenario(saved)
         persistedSnapshotRef.current = consultationContentSnapshot(saved)
         if (isNewDraft || !scenarioId) {
@@ -189,6 +197,13 @@ export function useScenarioEditor() {
       })
     },
     [],
+  )
+
+  const setConsultationCustomer = useCallback(
+    (draft: ConsultationCustomerDraft) => {
+      mutate((current) => applyConsultationCustomer(current, draft))
+    },
+    [mutate],
   )
 
   return {
@@ -248,6 +263,7 @@ export function useScenarioEditor() {
       if (!scenario) return
       mutate((current) => removeScenarioItem(current, id))
     },
+    setConsultationCustomer,
     editorMode: 'consultation' as const,
   }
 }

@@ -4,6 +4,10 @@ import { useNavigate } from 'react-router-dom'
 import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
 import { CoverageSimulatorLayout } from '../components/CoverageSimulatorLayout'
 import { customerDisplayLabel } from '../domain/customerContext'
+import {
+  formatCoverageSeoulDateTimeLabel,
+  formatCoverageSeoulYmd,
+} from '../domain/formatConsultationDate'
 import type { ConsultationCustomerFilter, DiseaseType } from '../domain/types'
 import { filterSavedByCustomer, filterSavedByDisease, listSavedScenarios } from '../storage/scenarioRepository'
 
@@ -86,7 +90,8 @@ export function SavedScenariosPage() {
                   })}
                 </div>
                 <div className="coverage-simulator-saved-row__meta">
-                  상담일 {row.consultationDate} · 수정 {new Date(row.updatedAt).toLocaleString('ko-KR')}
+                  상담일 {formatCoverageSeoulYmd(row.consultationDate) || '—'} · 수정{' '}
+                  {formatCoverageSeoulDateTimeLabel(row.updatedAt) || '—'}
                 </div>
               </div>
               <span aria-hidden="true">⋯</span>

@@ -43,4 +43,6 @@
   --cs-axis-event-badge-col-width: 44px;
   --cs-axis-event-menu-col-width: 32px;
   --cs-axis-event-actions-col-width: 100px;
+  --cs-axis-head-side: 52px;
+  --cs-axis-reorder-col: 28px;
 }

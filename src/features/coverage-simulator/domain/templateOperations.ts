@@ -1,3 +1,4 @@
+import { formatCoverageSeoulYmd, seoulTodayYmd } from './formatConsultationDate'
 import { createScenarioId } from './ids'
 import type { ConsultationCustomerDraft } from './customerContext'
 import { emptyCustomerDraft } from './customerContext'
@@ -63,7 +64,7 @@ export function createConsultationFromTemplate(
     customerId: customer.customerId,
     customerNameSnapshot: snapshot,
     customerName: snapshot ?? undefined,
-    consultationDate: now.slice(0, 10),
+    consultationDate: seoulTodayYmd(),
     items: cloneScenarioItems(template.items),
     templateId: template.id,
     templateNameSnapshot: template.name,
@@ -78,7 +79,7 @@ export function templateToEditableScenario(template: ScenarioTemplate): Coverage
     title: template.name,
     diseaseType: template.systemDiseaseType ?? 'custom',
     description: template.description ?? '',
-    consultationDate: template.updatedAt.slice(0, 10),
+    consultationDate: formatCoverageSeoulYmd(template.updatedAt) || seoulTodayYmd(),
     items: template.items,
     createdAt: template.createdAt,
     updatedAt: template.updatedAt,

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState, type PointerEvent } from 'react'
 
 import {
   formatCoverageAmountLabel,
@@ -30,70 +30,73 @@ export function InlineAmountQuickEdit({
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [draft, setDraft] = useState('')
-  const draftRef = useRef(draft)
-  draftRef.current = draft
-  const skipCommitOnDeactivateRef = useRef(false)
+  const draftRef = useRef('')
+  const skipCommitRef = useRef(false)
+
+  const setDraftValue = (next: string) => {
+    draftRef.current = next
+    setDraft(next)
+  }
 
   const commitDraft = () => {
     const trimmed = draftRef.current.trim()
-    const next = trimmed ? parseManWonInput(trimmed) : null
-    onCommit(next)
+    onCommit(trimmed ? parseManWonInput(trimmed) : null)
   }
 
-  useEffect(() => {
-    if (!active) return undefined
-    skipCommitOnDeactivateRef.current = false
-    setDraft(formatManWonInputDisplay(amount))
-    const frame = window.requestAnimationFrame(() => {
-      const input = inputRef.current
-      if (!input) return
-      input.focus()
-      input.select()
-      input.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-    })
-    return () => {
-      window.cancelAnimationFrame(frame)
-      if (skipCommitOnDeactivateRef.current) return
-      commitDraft()
-    }
-  }, [active, amount])
-
-  if (!active) {
-    return (
-      <button type="button" className={className} onClick={onActivate}>
-        <span className="cs-axis-amount__value">{formatCoverageAmountLabel(amount)}</span>
-      </button>
-    )
+  const beginEdit = (event: PointerEvent<HTMLInputElement>) => {
+    if (active) return
+    if (event.pointerType === 'mouse' && event.button !== 0) return
+    const next = formatManWonInputDisplay(amount)
+    setDraftValue(next)
+    const input = event.currentTarget
+    input.readOnly = false
+    input.value = next
+    input.focus()
+    input.select()
+    onActivate()
   }
 
   return (
-    <div className={`${className} cs-axis-amount--inline-editing`} data-inline-amount-field={field}>
+    <div
+      className={`${className}${active ? ' cs-axis-amount--inline-editing' : ''}`}
+      data-inline-amount-field={field}
+    >
+      {/* 금액 글자 그대로 포커스해야 첫 탭에 키보드가 열린다. FormInput 크롬을 쓰면 행 높이가 깨진다. */}
+      {/* eslint-disable-next-line no-restricted-syntax */}
       <input
         ref={inputRef}
         className="cs-axis-amount__inline-input"
-        inputMode="numeric"
+        inputMode={active ? 'numeric' : 'none'}
         enterKeyHint="done"
         autoComplete="off"
+        readOnly={!active}
         aria-label={field === 'current' ? '기존 보장 금액' : '제안 보장 금액'}
-        value={draft}
-        onChange={(event) => setDraft(sanitizeManWonInputTyping(event.target.value))}
+        value={active ? draft : formatCoverageAmountLabel(amount)}
+        onPointerDown={beginEdit}
+        onChange={(event) => setDraftValue(sanitizeManWonInputTyping(event.target.value))}
         onBlur={() => {
+          if (!active) return
+          if (skipCommitRef.current) {
+            skipCommitRef.current = false
+            onEndEdit()
+            return
+          }
           commitDraft()
           onEndEdit()
         }}
         onKeyDown={(event) => {
           if (event.key === 'Enter') {
             event.preventDefault()
-            void inputRef.current?.blur()
+            event.currentTarget.blur()
           }
           if (event.key === 'Escape') {
             event.preventDefault()
-            skipCommitOnDeactivateRef.current = true
-            onEndEdit()
+            skipCommitRef.current = true
+            event.currentTarget.blur()
           }
         }}
       />
-      <span className="cs-axis-amount__unit"> 만원</span>
+      {active ? <span className="cs-axis-amount__unit"> 만원</span> : null}
     </div>
   )
 }

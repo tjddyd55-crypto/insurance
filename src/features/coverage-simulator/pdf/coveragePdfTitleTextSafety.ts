@@ -31,10 +31,13 @@ const COVERAGE_PDF_INLINE_BADGE_WRAP_STYLES: Partial<CSSStyleDeclaration> = {
   overflow: 'visible',
 }
 
+/** 배지·⋯ 와 같은 너비. 항목명 박스의 중심이 행 중앙 구분선과 맞는다. */
+export const COVERAGE_PDF_TITLE_SIDE_INSET = '52px'
+
 const COVERAGE_PDF_INLINE_TITLE_AXIS_STYLES: Partial<CSSStyleDeclaration> = {
   position: 'absolute',
-  left: '0',
-  right: '0',
+  left: COVERAGE_PDF_TITLE_SIDE_INSET,
+  right: COVERAGE_PDF_TITLE_SIDE_INSET,
   top: '3px',
   height: '22px',
   margin: '0',

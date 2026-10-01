@@ -14,6 +14,7 @@ import {
 import { CoverageSimulatorScopeProvider, previewScopeMobile } from '../CoverageSimulatorScope'
 import { buildCoverageTimelineViewModel } from '../domain/buildCoverageTimelineViewModel'
 import { formatCoverageScenarioHeading } from '../domain/diseaseTypeLabels'
+import { formatCoverageShareMetaDate } from '../domain/formatConsultationDate'
 import { formatCoverageDocumentMetaLine } from '../domain/formatCoverageDocumentHeader'
 import { resolveCustomerNameSnapshot } from '../domain/normalizeConsultation'
 import type { CoverageScenario } from '../domain/types'
@@ -29,13 +30,6 @@ type LoadState =
   | { status: 'loading' }
   | { status: 'error'; code: 'NOT_FOUND' | 'REVOKED' | 'EXPIRED' | 'UNKNOWN'; message: string }
   | { status: 'ok'; payload: PublicCoverageSharePayload }
-
-function formatConsultationDate(iso: string | undefined): string {
-  const raw = (iso ?? '').slice(0, 10)
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return ''
-  const [year, month, day] = raw.split('-')
-  return `${year}.${month}.${day}`
-}
 
 function ShareStatusScreen({ title, message }: { title: string; message: string }) {
   return (
@@ -132,7 +126,7 @@ function CoverageSharePublicPageBody() {
   const payload = state.payload
   const shareScenario = payload.scenario as CoverageScenario
   const customerName = resolveCustomerNameSnapshot(shareScenario)
-  const wroteLabel = formatConsultationDate(shareScenario.consultationDate)
+  const wroteLabel = formatCoverageShareMetaDate(shareScenario.consultationDate)
   const scenarioHeading = formatCoverageScenarioHeading(shareScenario.diseaseType, shareScenario.title)
   const metaLine = formatCoverageDocumentMetaLine(customerName, wroteLabel)
   const downloadStoredPdf = () => {
