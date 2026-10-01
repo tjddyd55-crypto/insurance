@@ -69,6 +69,7 @@ import { registerCustomerCustomFieldsApi } from './apis/customerCustomFieldsApi.
 import { registerCustomerMapApi } from './apis/customerMapApi.js'
 import { registerCustomerRegionApi } from './apis/registerCustomerRegionApi.js'
 import { registerReminderCalendarApi } from './apis/registerReminderCalendarApi.js'
+import { registerScheduleApi } from './apis/registerScheduleApi.js'
 import { registerServiceIntegrationsApi } from './apis/registerServiceIntegrationsApi.js'
 import { resolveCustomerAddressRegion } from './customers/addressRegion.js'
 import { registerPremiumPaymentApi } from './registerPremiumPaymentApi.js'
@@ -1757,6 +1758,7 @@ registerCustomerCarsApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCustomerSpecialDatesApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCustomerRegionApi(apiRouter, { pool, requireAuth, handleDbError })
 registerReminderCalendarApi(apiRouter, { pool, requireAuth, handleDbError })
+registerScheduleApi(apiRouter, { pool, requireAuth, handleDbError })
 registerServiceIntegrationsApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCustomerCustomFieldsApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCustomerFireInsuranceLocationsApi(apiRouter, { pool, requireAuth, handleDbError })

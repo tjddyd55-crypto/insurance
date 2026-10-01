@@ -41,6 +41,43 @@ export function monthRangeYmd(year, month) {
 }
 
 /**
+ * 월간 그리드(일요일 시작, 6주)가 실제로 조회해야 하는 날짜 구간.
+ * @param {number} year
+ * @param {number} month 1-12
+ */
+export function monthGridRangeYmd(year, month) {
+  const monthRange = monthRangeYmd(year, month)
+  const first = new Date(Date.UTC(year, month - 1, 1))
+  const start = addDaysYmd(monthRange.start, -first.getUTCDay())
+  return {
+    start,
+    end: addDaysYmd(start, 41),
+    monthStart: monthRange.start,
+    monthEnd: monthRange.end,
+  }
+}
+
+/**
+ * 주간 보기. 월요일 시작, 일요일 끝.
+ * @param {string} anchorYmd
+ */
+export function weekRangeYmd(anchorYmd) {
+  const [year, month, day] = anchorYmd.split('-').map(Number)
+  const utc = new Date(Date.UTC(year, month - 1, day))
+  const sundayBased = utc.getUTCDay()
+  const mondayOffset = sundayBased === 0 ? -6 : 1 - sundayBased
+  const start = addDaysYmd(anchorYmd, mondayOffset)
+  return { start, end: addDaysYmd(start, 6) }
+}
+
+/**
+ * @param {string} anchorYmd
+ */
+export function dayRangeYmd(anchorYmd) {
+  return { start: anchorYmd, end: anchorYmd }
+}
+
+/**
  * @param {number} year
  * @param {number} month
  * @param {number} day

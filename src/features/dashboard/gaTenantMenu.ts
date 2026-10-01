@@ -135,7 +135,7 @@ export const BASE_GA_MENU: GaTenantMenuItem[] = []
  *
  * ## 구조 — 카테고리 섹션 (USER/GA_ADMIN 공통)
  *
- *   1. 할일 및 알림 · 오늘의 TA · 할일 · 메모 · 알림
+ *   1. 할일 및 알림 · 오늘의 TA · 할일 · 메모 · 알림 · 일정 관리
  *   2. 고객관리 · 고객리스트 · 고객소식지 · 청구관리
  *   3. 고객 상담 · 내 바인더 · 시뮬레이션 (`/coverage-simulator` 시작 화면)
  *   4. 소식지 · 원수사소식지 · 손해사정사 소식지 · 세무사 소식지(개발중 플레이스홀더, 요구 목록에 없어서도 기존 연결 유지)
@@ -276,6 +276,7 @@ export function buildGaTenantDashboardMenu(
     { type: 'link', label: '할일', path: '/todos' },
     { type: 'link', label: '메모', path: '/memo' },
     { type: 'link', label: '알림', path: '/notifications' },
+    { type: 'link', label: '일정 관리', path: '/schedule' },
 
     { type: 'section', label: '고객관리' },
     ...customerManagementLinks,

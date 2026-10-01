@@ -57,6 +57,7 @@ import ExternalAccountVaultPage from './features/user-insurer-accounts/pages/Ext
 import PublicSharedAccountVaultWorkspacePage from './features/user-insurer-accounts/pages/PublicSharedAccountVaultWorkspacePage'
 import SharedAccountVaultWorkspacePage from './features/user-insurer-accounts/pages/SharedAccountVaultWorkspacePage'
 import ServiceIntegrationsPage from './features/service-integrations/pages/ServiceIntegrationsPage'
+import SchedulePage from './features/schedule/pages/SchedulePage'
 import SmsModulePage from './features/sms/pages/SmsModulePage'
 import SmsAutomationPage from './features/sms/pages/SmsAutomationPage'
 import TaCallPage from './features/ta-call/pages/TaCallPage'
@@ -455,6 +456,8 @@ export const appRouter = createBrowserRouter([
               { path: 'notifications/calendar', element: <NotificationsPlaceholderPage /> },
               { path: 'notifications/all', element: <NotificationsPlaceholderPage /> },
               { path: 'service-integrations', element: <ServiceIntegrationsPage /> },
+              { path: 'schedule', element: <SchedulePage /> },
+              { path: 'schedule/:view', element: <SchedulePage /> },
               { path: 'team/members', element: <TeamMembersPage /> },
               { path: 'team/manage', element: <Navigate to="/team/members" replace /> },
               { path: 'team/menu-settings', element: <Navigate to="/team/members" replace /> },
