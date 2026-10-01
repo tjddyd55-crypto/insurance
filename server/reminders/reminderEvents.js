@@ -5,7 +5,7 @@ export const REMINDER_TYPES = ['insurance_age_date', 'car_expiry', 'special_date
 export const REMINDER_TYPE_LABEL = {
   insurance_age_date: '상령일',
   car_expiry: '자동차 만기',
-  special_date: '고객 지정 알림',
+  special_date: '알림일',
 }
 
 /**
