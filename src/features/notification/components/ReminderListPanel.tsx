@@ -7,7 +7,7 @@ const TYPE_OPTIONS = [
   { value: 'all', label: '전체' },
   { value: 'insurance_age_date', label: '상령일' },
   { value: 'car_expiry', label: '자동차 만기' },
-  { value: 'special_date', label: '고객 지정 알림' },
+  { value: 'special_date', label: '알림일' },
 ]
 
 const SORT_OPTIONS = [
@@ -51,7 +51,7 @@ export default function ReminderListPanel(props: NotificationHubViewProps) {
       {props.editing ? (
         <FormDialog
           open
-          title="고객 지정 알림 수정"
+          title="알림일 수정"
           closeOnBackdrop={false}
           closeOnEsc={false}
           onEscapeRequest={props.onCloseEdit}
