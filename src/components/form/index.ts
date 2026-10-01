@@ -11,8 +11,10 @@ export {
   type AddressSearchFieldProps,
 } from './AddressSearchField'
 export {
+  capturedAddressRegionPayload,
   formatAddressForSave,
   parseAddressFromSave,
   parseAddressFromStored,
+  regionFromPostcodeParts,
   type AddressSearchValue,
 } from './addressSearchUtils'

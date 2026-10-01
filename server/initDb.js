@@ -1623,6 +1623,12 @@ export async function initDb() {
     ON customers(inflow_source)
   `)
   await pool.query(`
+    ALTER TABLE customers
+    ADD COLUMN IF NOT EXISTS address_sido TEXT,
+    ADD COLUMN IF NOT EXISTS address_sigungu TEXT,
+    ADD COLUMN IF NOT EXISTS address_eupmyeondong TEXT
+  `)
+  await pool.query(`
     DO $$
     BEGIN
       IF NOT EXISTS (
@@ -1664,6 +1670,17 @@ export async function initDb() {
   `)
   await pool.query(`
     UPDATE customers SET created_by_user_id = user_id WHERE created_by_user_id IS NULL
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customers_region_owner
+    ON customers (
+      ga_id,
+      (COALESCE(owner_user_id, user_id)),
+      address_sido,
+      address_sigungu,
+      address_eupmyeondong
+    )
+    WHERE deleted_at IS NULL AND address_sido IS NOT NULL
   `)
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_customers_tenant_id
@@ -4452,6 +4469,9 @@ export async function initDb() {
   const { ensureSmsModuleSchema } = await import('./sms/ensureSmsModuleSchema.js')
   await ensureSmsModuleSchema(pool)
   console.log('[initDb][sms-module] schema ensure 완료')
+  const { ensureServiceIntegrationsSchema } = await import('./integrations/ensureServiceIntegrationsSchema.js')
+  await ensureServiceIntegrationsSchema(pool)
+  console.log('[initDb][service-integrations] schema ensure 완료')
   const { ensureCrmUserBulkSmsSchema } = await import('./lib/crmUserBulkSmsSchema.js')
   await ensureCrmUserBulkSmsSchema(pool)
   console.log('[initDb][crm-user-bulk-sms] schema ensure 완료')

@@ -3,64 +3,80 @@
  * 기본형(.cs-axis-*) 셀렉터는 여기서 바꾸지 않는다.
  */
 
-.cs-view-mode-switcher {
-  --cs-view-mode-switcher-height: 36px;
-  display: flex;
-  flex-wrap: wrap;
+/* 헤더 액션 영역 — 초기화/저장 왼쪽 compact control */
+.cs-view-mode-switcher--header {
+  display: inline-flex;
   align-items: center;
-  gap: var(--cs-space-1);
-  margin: 0 0 var(--cs-space-2);
-  padding: 3px;
-  min-height: var(--cs-view-mode-switcher-height);
-  background: var(--cs-color-surface);
-  border: 1px solid var(--cs-color-border);
-  border-radius: var(--cs-radius-card);
-  position: sticky;
-  top: var(--cs-alt-sticky-top, 0px);
-  z-index: 18;
+  gap: 2px;
+  margin: 0;
+  padding: 0 8px 0 0;
+  min-height: 0;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--cs-color-border);
+  flex-shrink: 0;
 }
 
-.coverage-simulator-root--mobile-preview .cs-view-mode-switcher {
-  --cs-alt-sticky-top: var(--cs-mobile-editor-header-height);
-}
-
-.coverage-simulator-root--pc-preview .cs-view-mode-switcher {
-  --cs-alt-sticky-top: 73px;
-}
-
-.cs-view-mode-switcher .button.cs-view-mode-switcher__chip {
-  flex: 1 1 calc(25% - var(--cs-space-1));
-  min-width: 3.1rem;
+.cs-view-mode-switcher--header .button.cs-view-mode-switcher__chip {
+  flex: 0 0 auto;
+  min-width: 2rem;
   min-height: 28px;
-  height: auto;
-  padding: 4px 6px;
+  height: 28px;
+  padding: 0 8px;
   border: 1px solid transparent;
   border-radius: var(--cs-radius-button);
   background: transparent;
   color: var(--cs-color-text-muted);
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1;
   letter-spacing: -0.02em;
   cursor: pointer;
   box-shadow: none;
 }
 
-.cs-view-mode-switcher .button.cs-view-mode-switcher__chip:hover {
+.cs-view-mode-switcher--header .button.cs-view-mode-switcher__chip:hover {
   background: var(--cs-color-primary-soft);
   color: var(--cs-color-text);
 }
 
-.cs-view-mode-switcher .button.cs-view-mode-switcher__chip--active,
-.cs-view-mode-switcher .button.cs-view-mode-switcher__chip--active:hover {
+.cs-view-mode-switcher--header .button.cs-view-mode-switcher__chip--active,
+.cs-view-mode-switcher--header .button.cs-view-mode-switcher__chip--active:hover {
   background: var(--cs-color-primary);
   border-color: var(--cs-color-primary);
   color: #ffffff;
 }
 
-.cs-view-mode-switcher__chip:focus-visible {
+.cs-view-mode-switcher--header .cs-view-mode-switcher__chip:focus-visible {
   outline: 2px solid var(--cs-color-primary);
   outline-offset: 1px;
+}
+
+.cs-view-mode-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-right: 2px;
+}
+
+.cs-view-mode-select__label {
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--cs-color-text-muted);
+  white-space: nowrap;
+}
+
+.cs-view-mode-select__control {
+  max-width: 4.5rem;
+  height: 28px;
+  padding: 0 4px;
+  border: 1px solid var(--cs-color-border);
+  border-radius: var(--cs-radius-button);
+  background: var(--cs-color-surface);
+  color: var(--cs-color-text);
+  font-size: 0.6875rem;
+  font-weight: 700;
 }
 
 .cs-alt-view {
@@ -78,6 +94,13 @@
   border: 1px solid var(--cs-color-border);
   border-radius: var(--cs-radius-card);
   background: var(--cs-color-surface);
+}
+
+.cs-alt-list {
+  overflow: visible;
+}
+
+.cs-alt-grid {
   overflow: hidden;
 }
 
@@ -217,12 +240,38 @@
   min-height: 22px;
 }
 
+/*
+ * 안1: category | current | title | proposed | controls — 한 줄 compact (기본형 2줄 대비)
+ */
 .cs-alt-view--option1 .cs-alt-row,
 .cs-alt-view--option1 .cs-alt-subtotal {
   display: grid;
-  grid-template-columns: auto minmax(4.35rem, max-content) minmax(0, 1fr) minmax(4.35rem, max-content) var(--cs-alt-tools);
-  min-height: 36px;
-  padding: 4px 8px;
+  grid-template-columns:
+    minmax(2.75rem, auto)
+    minmax(4.25rem, 4.25rem)
+    minmax(0, 1fr)
+    minmax(4.25rem, 4.25rem)
+    var(--cs-alt-tools);
+  align-items: center;
+  column-gap: 6px;
+  min-height: 32px;
+  padding: 2px 8px;
+}
+
+.cs-alt-view--option1 .cs-alt-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+}
+
+.cs-alt-view--option1 .cs-alt-amount--current {
+  justify-self: stretch;
+  text-align: right;
+}
+
+.cs-alt-view--option1 .cs-alt-amount--proposed {
+  justify-self: stretch;
+  text-align: right;
 }
 
 .cs-alt-view--option1 .cs-alt-name__text {
@@ -244,13 +293,14 @@
 
 .cs-alt-view--option2 .cs-alt-row {
   display: grid;
-  grid-template-columns: minmax(4.5rem, max-content) minmax(0, 1fr) minmax(4.5rem, max-content) var(--cs-alt-tools);
+  grid-template-columns: minmax(4.25rem, 4.25rem) minmax(0, 1fr) minmax(4.25rem, 4.25rem) var(--cs-alt-tools);
   grid-template-areas:
     "cat cat cat tools"
     "cur name prop tools";
-  row-gap: 2px;
-  min-height: 52px;
-  padding: 6px 8px 7px;
+  align-items: center;
+  row-gap: 3px;
+  min-height: 46px;
+  padding: 5px 8px 6px;
 }
 
 .cs-alt-view--option2 .cs-alt-cat { grid-area: cat; }
@@ -324,7 +374,7 @@
 
 .cs-alt-grid__head {
   position: sticky;
-  top: calc(var(--cs-alt-sticky-top, 0px) + var(--cs-view-mode-switcher-height, 36px) + var(--cs-space-2));
+  top: 0;
   z-index: 12;
   min-height: 30px;
   background: var(--cs-color-bg);

@@ -16,6 +16,7 @@ describe('isUserWorkspacePath', () => {
     expect(isUserWorkspacePath('/application/documents/history')).toBe(true)
     expect(isUserWorkspacePath('/insurance/contacts')).toBe(true)
     expect(isUserWorkspacePath('/memo')).toBe(true)
+    expect(isUserWorkspacePath('/service-integrations')).toBe(true)
     expect(isUserWorkspacePath('/storage')).toBe(true)
     expect(isUserWorkspacePath('/contracts/signatures/history')).toBe(true)
     expect(isUserWorkspacePath('/contracts/signatures/send')).toBe(true)

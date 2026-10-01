@@ -1,35 +1,30 @@
-import { diseaseTypeTitle } from '../domain/diseaseTypeLabels'
 import { resolveCustomerNameSnapshot } from '../domain/normalizeConsultation'
 import type { CoverageScenario } from '../domain/types'
 
+const INVALID_FILE_NAME_CHARS = new Set(['\\', '/', ':', '*', '?', '"', '<', '>', '|'])
+const MAX_FILE_NAME_PART_LENGTH = 40
+const SIMULATION_NAME_FALLBACK = '보장시뮬레이션'
+
+function isInvalidFileNameChar(char: string): boolean {
+  const code = char.codePointAt(0) ?? 0
+  if (code <= 0x1f || code === 0x7f) return true
+  return INVALID_FILE_NAME_CHARS.has(char)
+}
+
 function sanitizeFilePart(value: string): string {
-  return value
-    .replace(/[\\/:*?"<>|]/g, '')
-    .replace(/\s+/g, '')
-    .trim()
+  const stripped = Array.from(value).filter((char) => !isInvalidFileNameChar(char)).join('')
+  const collapsed = stripped.replace(/\s+/g, ' ').trim()
+  return Array.from(collapsed).slice(0, MAX_FILE_NAME_PART_LENGTH).join('')
 }
 
-function formatFileDate(consultationDate: string | undefined): string {
-  const raw = (consultationDate ?? '').slice(0, 10)
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-    const today = new Date()
-    const y = today.getFullYear()
-    const m = String(today.getMonth() + 1).padStart(2, '0')
-    const d = String(today.getDate()).padStart(2, '0')
-    return `${y}-${m}-${d}`
-  }
-  return raw
-}
-
+/**
+ * `고객명_시뮬레이션이름.pdf`. 고객이 없으면 `시뮬레이션이름.pdf`.
+ * 시뮬레이션 이름은 scenario.title. 날짜·질병 라벨은 넣지 않는다.
+ */
 export function buildCoveragePdfFileName(scenario: CoverageScenario): string {
-  const customer = resolveCustomerNameSnapshot(scenario)
-  const disease = sanitizeFilePart(diseaseTypeTitle(scenario.diseaseType))
-  const date = formatFileDate(scenario.consultationDate)
-  const parts = [
-    customer ? sanitizeFilePart(customer) : null,
-    disease || '보장시뮬레이션',
-    '보장시뮬레이션',
-    date,
-  ].filter(Boolean)
+  const customer = sanitizeFilePart(resolveCustomerNameSnapshot(scenario) ?? '')
+  const simulation = sanitizeFilePart(scenario.title ?? '')
+  const parts = [customer, simulation].filter(Boolean)
+  if (parts.length === 0) return `${SIMULATION_NAME_FALLBACK}.pdf`
   return `${parts.join('_')}.pdf`
 }

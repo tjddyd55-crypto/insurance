@@ -1,13 +1,17 @@
+import type { ReactNode } from 'react'
+
 import { mobilePreviewHeaderTitle } from '../domain/mobilePreviewHeaderTitle'
 
 type Props = {
   title: string
+  headerLeadingActions?: ReactNode
   onBack: () => void
   onReset: () => void
   onSave: () => void
   saving?: boolean
   onPdf?: () => void
   onShare?: () => void
+  onShareHistory?: () => void
   shareDisabled?: boolean
   resetLabel?: string
   showPdf?: boolean
@@ -16,12 +20,14 @@ type Props = {
 
 export function MobilePreviewEditorHeader({
   title,
+  headerLeadingActions,
   onBack,
   onReset,
   onSave,
   saving = false,
   onPdf,
   onShare,
+  onShareHistory,
   shareDisabled = false,
   resetLabel = '초기화',
   showPdf = true,
@@ -36,6 +42,7 @@ export function MobilePreviewEditorHeader({
       </button>
       <h1 className="cs-mobile-editor-header__title" title={title}>{displayTitle}</h1>
       <div className="cs-mobile-editor-header__actions">
+        {headerLeadingActions}
         <button type="button" className="cs-mobile-editor-header__action" onClick={onReset}>
           {resetLabel}
         </button>
@@ -55,6 +62,16 @@ export function MobilePreviewEditorHeader({
             disabled={shareDisabled}
           >
             공유
+          </button>
+        ) : null}
+        {showShare && onShareHistory ? (
+          <button
+            type="button"
+            className="cs-mobile-editor-header__action cs-mobile-editor-header__action--muted"
+            onClick={onShareHistory}
+            aria-label="공유 이력"
+          >
+            이력
           </button>
         ) : null}
         {showPdf && onPdf ? (

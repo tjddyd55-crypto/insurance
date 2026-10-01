@@ -8,12 +8,21 @@ const editorPath = join(
   'CenterAxisCompareEditor.tsx',
 )
 
-describe('CenterAxisCompareEditor default timeline only', () => {
-  it('does not mount alternative view or view mode switcher', () => {
+describe('CenterAxisCompareEditor view modes on the 3-pane editor', () => {
+  it('mounts the header switcher and keeps the default timeline', () => {
     const src = readFileSync(editorPath, 'utf8')
-    expect(src).not.toMatch(/CoverageScenarioViewModeSwitcher/)
-    expect(src).not.toMatch(/CoverageScenarioAlternativeView/)
-    expect(src).not.toMatch(/useCoverageScenarioViewMode/)
+    expect(src).toMatch(/CoverageScenarioViewModeSwitcher/)
+    expect(src).toMatch(/useCoverageScenarioViewMode/)
+    expect(src).toMatch(/viewMode === 'default'/)
     expect(src).toMatch(/CoverageScenarioTimeline/)
+    expect(src).toMatch(/CoverageScenarioAlternativeView/)
+    expect(src).toMatch(/enableInlineAmountEdit/)
+    expect(src).toMatch(/enableInlineTitleEdit/)
+  })
+
+  it('does not mount a second customer bar inside the compare editor', () => {
+    const src = readFileSync(editorPath, 'utf8')
+    expect(src).not.toMatch(/ConsultationCustomerBar/)
+    expect(src).not.toMatch(/setConsultationCustomer/)
   })
 })

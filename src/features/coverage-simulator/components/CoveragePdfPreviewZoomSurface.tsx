@@ -7,7 +7,7 @@ import {
 } from 'react'
 
 import { clampNewsDetailViewerZoom } from '../../../components/news-detail-viewer/newsDetailViewerZoom'
-import { useNewsDetailViewerPan } from '../../../components/news-detail-viewer/useNewsDetailViewerPan'
+import { useCoveragePdfPreviewPan } from '../pdf/useCoveragePdfPreviewPan'
 import { useNewsDetailViewerPinchZoom } from '../../../components/news-detail-viewer/useNewsDetailViewerPinchZoom'
 import {
   useNewsDetailViewerZoomAnchor,
@@ -50,7 +50,7 @@ export function CoveragePdfPreviewZoomSurface({ children, documentKey }: Props) 
     zoomAnchorRef,
   )
   useNewsDetailViewerZoomAnchor(viewportRef, zoom, zoomAnchorRef)
-  useNewsDetailViewerPan(viewportRef, zoom, true)
+  useCoveragePdfPreviewPan(viewportRef, zoom, true)
 
   useLayoutEffect(() => {
     let cancelled = false
