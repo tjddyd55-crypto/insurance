@@ -92,3 +92,25 @@ export function shiftAnchor(view: ScheduleView, anchor: string, delta: number): 
   const shifted = new Date(Date.UTC(year, month - 1 + delta, 1))
   return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, '0')}-01`
 }
+
+const WEEKDAY_KO = ['일', '월', '화', '수', '목', '금', '토']
+
+function weekdayOf(ymd: string): string {
+  const [year, month, day] = ymd.split('-').map(Number)
+  return WEEKDAY_KO[new Date(Date.UTC(year, month - 1, day)).getUTCDay()] ?? ''
+}
+
+/** 상단 기간 제목. 월간 `2026년 10월`, 주간 `2026.10.12 – 10.18`, 일간 `2026년 10월 2일 (금)` */
+export function periodTitle(view: ScheduleView, anchor: string): string {
+  const [year, month, day] = anchor.split('-').map(Number)
+  if (view === 'week') {
+    const { start, end } = weekRange(anchor)
+    const sameYear = start.slice(0, 4) === end.slice(0, 4)
+    const endLabel = sameYear ? end.slice(5).replace('-', '.') : end.replace(/-/g, '.')
+    return `${start.replace(/-/g, '.')} – ${endLabel}`
+  }
+  if (view === 'day') {
+    return `${year}년 ${month}월 ${day}일 (${weekdayOf(anchor)})`
+  }
+  return `${year}년 ${month}월`
+}

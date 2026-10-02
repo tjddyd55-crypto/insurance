@@ -1,15 +1,17 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { ApiError } from '../../../lib/apiClient'
 import { updateCustomerSpecialDate } from '../../customers/api/customerSpecialDatesApi'
-import { buildCustomerWorkspacePath } from '../../customers/utils/customerRoutePaths'
-import { buildExternalCustomerNavigateTarget } from '../../customers/utils/customerRoutePaths'
+import { buildCustomerWorkspacePath, buildExternalCustomerNavigateTarget } from '../../customers/utils/customerRoutePaths'
 import {
+  EMPTY_GOOGLE_STATE,
   fetchScheduleEvents,
+  SCHEDULE_FILTER_KEYS,
+  scheduleFilterKeyOf,
   type ScheduleEvent,
+  type ScheduleFilterKey,
   type ScheduleGoogleState,
-  type ScheduleSource,
 } from '../api/scheduleApi'
 import {
   scheduleViewFromParam,
@@ -19,26 +21,33 @@ import {
   type ScheduleView,
 } from '../domain/scheduleRange'
 
-const ALL_SOURCES: ScheduleSource[] = ['google', 'customer_alert', 'car_expiry', 'insurance_age', 'personal']
-
 export type ScheduleViewProps = {
   token: string
   view: ScheduleView
   anchor: string
-  sources: ScheduleSource[]
+  today: string
+  sources: ScheduleFilterKey[]
+  calendarIds: string[]
   events: ScheduleEvent[]
   google: ScheduleGoogleState
   loading: boolean
   error: string
+  selectedDate: string
+  detail: ScheduleEvent | null
   editing: ScheduleEvent | null
   editTitle: string
   editDate: string
   editDirty: boolean
   onSelectView: (view: ScheduleView) => void
   onShift: (delta: number) => void
+  onToday: () => void
   onSelectDate: (date: string) => void
-  onToggleSource: (source: ScheduleSource | 'all') => void
+  onOpenDay: (date: string) => void
+  onToggleSource: (source: ScheduleFilterKey | 'all') => void
+  onToggleCalendar: (calendarId: string) => void
   onOpenEvent: (event: ScheduleEvent) => void
+  onCloseDetail: () => void
+  onOpenCustomer: (event: ScheduleEvent) => void
   onOpenIntegrations: () => void
   onEditTitle: (value: string) => void
   onEditDate: (value: string) => void
@@ -46,43 +55,78 @@ export type ScheduleViewProps = {
   onSaveEdit: () => void
 }
 
-function parseSources(raw: string | null): ScheduleSource[] {
+const YMD = /^\d{4}-\d{2}-\d{2}$/
+
+type Owned<T> = { owner: string; value: T }
+
+type FetchResult = {
+  key: string
+  owner: string
+  events: ScheduleEvent[]
+  google: ScheduleGoogleState
+  error: string
+}
+
+const EMPTY_EVENTS: ScheduleEvent[] = []
+const EMPTY_RESULT: FetchResult = { key: '', owner: '', events: EMPTY_EVENTS, google: EMPTY_GOOGLE_STATE, error: '' }
+
+export function parseScheduleSources(raw: string | null): ScheduleFilterKey[] {
   if (!raw || raw === 'all') {
-    return ALL_SOURCES
+    return SCHEDULE_FILTER_KEYS
   }
-  const picked = raw.split(',').filter((item): item is ScheduleSource => ALL_SOURCES.includes(item as ScheduleSource))
-  return picked.length > 0 ? picked : ALL_SOURCES
+  const picked = raw.split(',').filter((item): item is ScheduleFilterKey => SCHEDULE_FILTER_KEYS.includes(item as ScheduleFilterKey))
+  return picked.length > 0 ? picked : SCHEDULE_FILTER_KEYS
+}
+
+/** 전체 → 하나만, 하나씩 켜고 끄기, 모두 꺼지거나 모두 켜지면 전체. */
+export function toggleScheduleSource(current: ScheduleFilterKey[], source: ScheduleFilterKey | 'all'): ScheduleFilterKey[] {
+  if (source === 'all') {
+    return SCHEDULE_FILTER_KEYS
+  }
+  const hasAll = current.length === SCHEDULE_FILTER_KEYS.length
+  const next = hasAll
+    ? [source]
+    : current.includes(source)
+      ? current.filter((item) => item !== source)
+      : [...current, source]
+  return next.length === 0 || next.length === SCHEDULE_FILTER_KEYS.length ? SCHEDULE_FILTER_KEYS : next
 }
 
 function messageOf(error: unknown): string {
   return error instanceof ApiError ? error.message : '일정을 불러오지 못했습니다.'
 }
 
+function isMobileViewport(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia('(max-width: 768px) and (pointer: coarse)').matches
+}
+
 export function useScheduleState(): ScheduleViewProps {
-  const { token } = useAuth()
+  const { token, user } = useAuth()
+  const userKey = user?.id ? String(user.id) : ''
   const navigate = useNavigate()
   const params = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
   const view = scheduleViewFromParam(params.view)
-  const anchor = /^\d{4}-\d{2}-\d{2}$/.test(searchParams.get('date') ?? '')
-    ? String(searchParams.get('date'))
-    : seoulToday()
+  const today = seoulToday()
+  const anchor = YMD.test(searchParams.get('date') ?? '') ? String(searchParams.get('date')) : today
   const sourcesKey = searchParams.get('sources') ?? ''
-  const sources = parseSources(sourcesKey)
-  const [events, setEvents] = useState<ScheduleEvent[]>([])
-  const [google, setGoogle] = useState<ScheduleGoogleState>({
-    configured: false,
-    connected: false,
-    status: 'unconfigured',
-  })
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [editing, setEditing] = useState<ScheduleEvent | null>(null)
+  const sources = useMemo(() => parseScheduleSources(sourcesKey), [sourcesKey])
+  const calendarsKey = searchParams.get('calendars') ?? ''
+  const calendarIds = useMemo(() => calendarsKey.split(',').map((id) => id.trim()).filter(Boolean), [calendarsKey])
+  const [reloadNonce, setReloadNonce] = useState(0)
+  // 조회 결과·열린 상세는 받은 사용자(owner)를 같이 둔다. 로그아웃 → 다른 계정이면 즉시 화면에서 빠진다.
+  const [result, setResult] = useState<FetchResult>(EMPTY_RESULT)
+  const [actionError, setActionError] = useState('')
+  const [selectedDate, setSelectedDate] = useState('')
+  const [detailState, setDetailState] = useState<Owned<ScheduleEvent> | null>(null)
+  const [editingState, setEditingState] = useState<Owned<ScheduleEvent> | null>(null)
   const [editTitle, setEditTitle] = useState('')
   const [editDate, setEditDate] = useState('')
   const [editBaselineTitle, setEditBaselineTitle] = useState('')
   const [editBaselineDate, setEditBaselineDate] = useState('')
-  const [reloadNonce, setReloadNonce] = useState(0)
+
+  const hasToken = Boolean(token?.trim())
+  const requestKey = `${userKey}|${view}|${anchor}|${calendarsKey}|${reloadNonce}`
 
   const replaceQuery = useCallback((patch: Record<string, string>) => {
     const next = new URLSearchParams(searchParams)
@@ -93,53 +137,60 @@ export function useScheduleState(): ScheduleViewProps {
     setSearchParams(next, { replace: true })
   }, [searchParams, setSearchParams])
 
+  // 화면(월·주·일)과 기간이 바뀔 때만 조회. polling 없음. 늦게 온 이전 응답은 버린다.
   useEffect(() => {
     if (!token?.trim()) {
-      setLoading(false)
-      setError('로그인이 필요합니다.')
       return
     }
     const range = viewQueryRange(view, anchor)
-    const requested = sources.includes('google') ? sources : [...sources, 'google' as const]
+    const ids = calendarsKey.split(',').map((id) => id.trim()).filter(Boolean)
     let cancelled = false
-    setLoading(true)
-    setError('')
-    void fetchScheduleEvents(token, { from: range.start, to: range.end, sources: requested })
+    void fetchScheduleEvents(token, { from: range.start, to: range.end, sources: SCHEDULE_FILTER_KEYS, calendarIds: ids })
       .then((data) => {
-        if (cancelled) return
-        setGoogle(data.google)
-        setEvents(data.events.filter((event) => sources.includes(event.source)))
+        if (!cancelled) setResult({ key: requestKey, owner: userKey, events: data.events, google: data.google, error: '' })
       })
       .catch((loadError: unknown) => {
-        if (!cancelled) {
-          setError(messageOf(loadError))
-          setEvents([])
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) setResult({ key: requestKey, owner: userKey, events: [], google: EMPTY_GOOGLE_STATE, error: messageOf(loadError) })
       })
     return () => {
       cancelled = true
     }
-  }, [anchor, reloadNonce, sourcesKey, token, view])
+  }, [anchor, calendarsKey, requestKey, token, userKey, view])
 
-  const onSelectView = useCallback((next: ScheduleView) => {
-    const pathname = next === 'month' ? '/schedule' : `/schedule/${next}`
-    navigate({ pathname, search: searchParams.toString() })
-  }, [navigate, searchParams])
+  const sameOwner = hasToken && result.owner === userKey
+  const events = sameOwner ? result.events : EMPTY_EVENTS
+  const google = sameOwner ? result.google : EMPTY_GOOGLE_STATE
+  const loading = hasToken && result.key !== requestKey
+  const fetchError = result.key === requestKey ? result.error : ''
+  const error = hasToken ? (actionError || fetchError) : '로그인이 필요합니다.'
+  const detail = detailState && detailState.owner === userKey ? detailState.value : null
+  const editing = editingState && editingState.owner === userKey ? editingState.value : null
+
+  // 출처 필터는 받아 둔 기간 데이터에서만 거른다(필터 변경마다 다시 부르지 않음).
+  const visibleEvents = useMemo(
+    () => events.filter((event) => sources.includes(scheduleFilterKeyOf(event))),
+    [events, sources],
+  )
+
+  const onOpenCustomer = useCallback((event: ScheduleEvent) => {
+    if (!event.customerId) {
+      return
+    }
+    setDetailState(null)
+    setEditingState(null)
+    navigate(buildExternalCustomerNavigateTarget({ customerId: event.customerId, isMobile: isMobileViewport() }))
+  }, [navigate])
 
   const onOpenEvent = useCallback((event: ScheduleEvent) => {
     if (event.source === 'google') {
-      if (event.htmlLink) {
-        window.open(event.htmlLink, '_blank', 'noopener,noreferrer')
-      }
+      setDetailState({ owner: userKey, value: event })
       return
     }
-    if (event.source === 'customer_alert' && event.customerId && event.sourceId && event.sourceTitle) {
+    if (event.type === 'customer_alert' && event.customerId && event.sourceId && event.sourceTitle) {
       const title = event.sourceTitle
       const date = event.sourceDate || event.startAt.slice(0, 10)
-      setEditing(event)
+      setEditingState({ owner: userKey, value: event })
+      setActionError('')
       setEditTitle(title)
       setEditDate(date)
       setEditBaselineTitle(title)
@@ -149,71 +200,88 @@ export function useScheduleState(): ScheduleViewProps {
     if (!event.customerId) {
       return
     }
-    const isMobile = window.matchMedia('(max-width: 768px) and (pointer: coarse)').matches
-    if (event.source === 'car_expiry') {
+    if (event.type === 'car_expiry') {
       navigate(buildCustomerWorkspacePath({ customerId: event.customerId, tab: 'auto-form' }))
       return
     }
-    navigate(buildExternalCustomerNavigateTarget({ customerId: event.customerId, isMobile }))
-  }, [navigate])
+    onOpenCustomer(event)
+  }, [navigate, onOpenCustomer, userKey])
 
   const onSaveEdit = useCallback(() => {
-    if (!token?.trim() || !editing?.customerId || editing.source !== 'customer_alert') {
+    if (!token?.trim() || !editing?.customerId || editing.type !== 'customer_alert') {
       return
     }
     const title = editTitle.trim()
     if (!title || !editDate) {
-      setError('내용과 날짜를 입력해 주세요.')
+      setActionError('내용과 날짜를 입력해 주세요.')
       return
     }
     void updateCustomerSpecialDate(token, editing.customerId, Number(editing.sourceId), {
       title,
       dateValue: editDate,
     }).then(() => {
-      setEditing(null)
+      setEditingState(null)
+      setActionError('')
       setReloadNonce((current) => current + 1)
-    }).catch((saveError: unknown) => setError(messageOf(saveError)))
+    }).catch((saveError: unknown) => setActionError(messageOf(saveError)))
   }, [editDate, editTitle, editing, token])
+
+  const goToView = useCallback((next: ScheduleView, date?: string) => {
+    const query = new URLSearchParams(searchParams)
+    if (date) query.set('date', date)
+    const pathname = next === 'month' ? '/schedule' : `/schedule/${next}`
+    navigate({ pathname, search: query.toString() })
+  }, [navigate, searchParams])
 
   return {
     token: token ?? '',
     view,
     anchor,
+    today,
     sources,
-    events,
+    calendarIds,
+    events: visibleEvents,
     google,
     loading,
     error,
+    selectedDate,
+    detail,
     editing,
     editTitle,
     editDate,
     editDirty: editing != null && (editTitle !== editBaselineTitle || editDate !== editBaselineDate),
-    onSelectView,
-    onShift: (delta) => replaceQuery({ date: shiftAnchor(view, anchor, delta) }),
-    onSelectDate: (date) => {
-      const next = new URLSearchParams(searchParams)
-      next.set('date', date)
-      navigate({ pathname: '/schedule/day', search: next.toString() })
+    onSelectView: (next) => goToView(next),
+    onShift: (delta) => {
+      setSelectedDate('')
+      replaceQuery({ date: shiftAnchor(view, anchor, delta) })
     },
+    onToday: () => {
+      setSelectedDate(view === 'month' ? today : '')
+      replaceQuery({ date: today })
+    },
+    onSelectDate: (date) => setSelectedDate((current) => (current === date ? '' : date)),
+    onOpenDay: (date) => goToView('day', date),
     onToggleSource: (source) => {
-      if (source === 'all') {
-        replaceQuery({ sources: '' })
-        return
-      }
-      const hasAll = sources.length === ALL_SOURCES.length
-      const next = hasAll
-        ? [source]
-        : sources.includes(source)
-          ? sources.filter((item) => item !== source)
-          : [...sources, source]
-      const normalized = next.length === 0 || next.length === ALL_SOURCES.length ? [] : next
-      replaceQuery({ sources: normalized.join(',') })
+      const next = toggleScheduleSource(sources, source)
+      replaceQuery({ sources: next.length === SCHEDULE_FILTER_KEYS.length ? '' : next.join(',') })
+    },
+    onToggleCalendar: (calendarId) => {
+      const current = calendarIds.length > 0
+        ? calendarIds
+        : google.calendars.filter((calendar) => calendar.defaultVisible).map((calendar) => calendar.id)
+      const next = current.includes(calendarId)
+        ? current.filter((id) => id !== calendarId)
+        : [...current, calendarId]
+      // 모두 끄면 기본 표시로 돌아간다(빈 목록 = 서버 기본값).
+      replaceQuery({ calendars: next.join(',') })
     },
     onOpenEvent,
+    onCloseDetail: () => setDetailState(null),
+    onOpenCustomer,
     onOpenIntegrations: () => navigate('/service-integrations'),
     onEditTitle: setEditTitle,
     onEditDate: setEditDate,
-    onCloseEdit: () => setEditing(null),
+    onCloseEdit: () => setEditingState(null),
     onSaveEdit,
   }
 }
