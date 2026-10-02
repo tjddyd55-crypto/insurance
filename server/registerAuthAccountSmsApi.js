@@ -1,3 +1,4 @@
+import { isGaOutboundBlocked, logOutboundBlocked, respondIfOutboundBlocked } from './lib/outbound/outboundBlockGuard.js'
 import { randomInt, randomUUID } from 'node:crypto'
 import { parseGaId } from './lib/parseGaId.js'
 import { systemQuery } from './utils/dbSafeQuery.js'
@@ -175,6 +176,12 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         await client.query('ROLLBACK')
         console.error('[sms-auth] request-password-reset-code denied', { reason: 'ga_missing', userId: user.id })
         jsonPublicAuth(res, 500)
+        return
+      }
+      if (await isGaOutboundBlocked(client, userGa)) {
+        await client.query('ROLLBACK')
+        logOutboundBlocked('sms', { gaId: userGa, path: 'auth/request-password-reset-code' })
+        jsonPublicAuth(res, 400)
         return
       }
 
@@ -424,6 +431,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
   })
 
   apiRouter.post('/account/request-reset-account-code', requireAuth, requireEndUser, async (req, res) => {
+    if (await respondIfOutboundBlocked(pool, req, res, 'sms')) return
     const acctClientIp = getClientIp(req)
     const client = await pool.connect()
     let phoneNorm = ''

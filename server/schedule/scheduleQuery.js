@@ -36,6 +36,7 @@ function logSourceFailure(message, error) {
  *   toYmd: string,
  *   sources: string[],
  *   calendarIds?: string[],
+ *   taskListIds?: string[],
  *   viewer?: Record<string, unknown>,
  *   todayYmd?: string,
  *   fetchImpl?: typeof fetch,

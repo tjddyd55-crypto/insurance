@@ -186,6 +186,7 @@ export function registerGoogleIntegrationApi(apiRouter, { pool, requireAuth, han
         fromYmd,
         toYmd,
         todayYmd: seoulYmd(),
+        taskListIds: parseCalendarIds(req.query.taskListIds),
         fetchImpl,
       })
       res.setHeader('Cache-Control', 'no-store')

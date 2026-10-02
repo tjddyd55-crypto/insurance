@@ -1,3 +1,4 @@
+import { respondIfOutboundBlocked } from '../lib/outbound/outboundBlockGuard.js'
 import { sendCustomerAppLinkAlimtalk } from '../alimtalk/alimtalkService.js'
 
 function parsePositiveInt(value) {
@@ -20,6 +21,7 @@ export function registerCustomerAppAlimtalkApi(apiRouter, ctx) {
 
   apiRouter.post('/agent/customers/:customerId/customer-app/alimtalk', requireAuth, async (req, res) => {
     try {
+      if (await respondIfOutboundBlocked(pool, req, res, 'alimtalk')) return
       const customerId = parsePositiveInt(req.params.customerId)
       if (customerId == null) {
         res.status(400).json({ success: false, error: '고객 ID가 올바르지 않습니다.' })

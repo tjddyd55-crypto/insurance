@@ -1,3 +1,4 @@
+import { isBlockedGaCode } from './outbound/outboundBlockGuard.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { resolveMessageType } from '../sms/smsMessageUtils.js'
 import { isValidKoreanMobilePhone, normalizeSenderNumber, normalizeSmsPhone } from '../sms/smsPhone.js'
@@ -82,7 +83,8 @@ export async function loadCrmUsersForBulkSms(executor, userIds) {
       u.is_deleted,
       u.phone_number,
       u.ga_id,
-      g.name AS ga_company_name
+      g.name AS ga_company_name,
+      g.code AS ga_code
     FROM users u
     INNER JOIN ga_companies g ON g.id = u.ga_id AND g.is_deleted = false
     WHERE u.id = ANY($1::text[])
@@ -124,6 +126,11 @@ export function resolveCrmUserBulkSmsRecipients(rows, messageTemplate) {
 
     if (isDeleted) {
       resolved.push({ ...base, status: 'EXCLUDED', exclusionReason: 'DELETED_USER', renderedMessage: null })
+      continue
+    }
+    // T159: QA/데모 GA(QA_DEMO 등) 사용자는 슈퍼관리자 일괄 문자 대상에서 항상 제외
+    if (isBlockedGaCode(row.ga_code)) {
+      resolved.push({ ...base, status: 'EXCLUDED', exclusionReason: 'OUTBOUND_BLOCKED_QA_DEMO', renderedMessage: null })
       continue
     }
     if (!CRM_USER_BULK_SMS_ELIGIBLE_ROLES.has(String(row.role ?? '').toUpperCase())) {

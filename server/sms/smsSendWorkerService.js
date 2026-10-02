@@ -1,3 +1,4 @@
+import { isOutboundBlocked, logOutboundBlocked, OUTBOUND_BLOCKED_ERROR_CODE, OUTBOUND_BLOCKED_SKIP_REASON } from '../lib/outbound/outboundBlockGuard.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { classifyGatewayProviderError } from './smsProviderErrors.js'
 import { isSmsModuleEnabled, isSmsRealSendEnabled } from './smsModuleConfig.js'
@@ -362,6 +363,28 @@ async function processOneSendJob(executor, jobRow) {
     await updateSmsRecipientForJob(executor, job, {
       status: 'skipped',
       skipReason: 'real_send_disabled',
+    })
+    return { outcome: 'skipped' }
+  }
+
+  if (await isOutboundBlocked(executor, { userId: scope.userId })) {
+    logOutboundBlocked('sms', { userId: scope.userId, path: 'sms-send-worker' })
+    await finalizeJob(executor, job, {
+      status: 'skipped',
+      attemptCount,
+      scheduledFor: job.scheduled_for,
+      errorCode: OUTBOUND_BLOCKED_ERROR_CODE,
+      errorMessage: 'QA/데모 계정 외부 발송 차단',
+    })
+    await recordScheduledDelivery(executor, job, {
+      scheduledRunAt,
+      status: 'skipped',
+      errorCode: OUTBOUND_BLOCKED_ERROR_CODE,
+      errorMessage: 'outbound blocked (qa demo)',
+    })
+    await updateSmsRecipientForJob(executor, job, {
+      status: 'skipped',
+      skipReason: OUTBOUND_BLOCKED_SKIP_REASON,
     })
     return { outcome: 'skipped' }
   }

@@ -1,3 +1,4 @@
+import { assertOutboundAllowed } from '../lib/outbound/outboundBlockGuard.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { assertSmsRealSendAllowed } from './smsModuleConfig.js'
 import { composeAdvertisementSmsMessage, renderSmsTemplate, resolveMessageType } from './smsMessageUtils.js'
@@ -20,6 +21,7 @@ import { loadDecryptedAligoCredentials } from './smsSettingsService.js'
  */
 export async function sendSingleSms(executor, scope, input) {
   assertSmsRealSendAllowed()
+  await assertOutboundAllowed(executor, { userId: scope?.userId, gaId: scope?.gaId }, 'sms', 'sendSingleSms')
   const senderNumber = normalizeSenderNumber(input.senderNumber)
   const receiver = normalizeSmsPhone(input.receiver)
   const message = String(input.message ?? '').trim()

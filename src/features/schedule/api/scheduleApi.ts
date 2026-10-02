@@ -180,7 +180,7 @@ export function readScheduleEventsResponse(payload: unknown): ScheduleEventsResp
 
 export async function fetchScheduleEvents(
   token: string,
-  query: { from: string; to: string; sources: ScheduleFilterKey[]; calendarIds?: string[] },
+  query: { from: string; to: string; sources: ScheduleFilterKey[]; calendarIds?: string[]; taskListIds?: string[] },
 ): Promise<ScheduleEventsResponse> {
   const params = new URLSearchParams()
   params.set('from', query.from)
@@ -188,6 +188,9 @@ export async function fetchScheduleEvents(
   params.set('sources', query.sources.join(','))
   if (query.calendarIds && query.calendarIds.length > 0) {
     params.set('calendarIds', query.calendarIds.join(','))
+  }
+  if (query.taskListIds && query.taskListIds.length > 0) {
+    params.set('taskListIds', query.taskListIds.join(','))
   }
   const raw = await apiRequest<unknown>(`/api/schedule/events?${params.toString()}`, { token })
   return readScheduleEventsResponse(raw)

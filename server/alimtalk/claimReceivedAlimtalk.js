@@ -1,3 +1,4 @@
+import { skipIfOutboxGaBlocked } from '../lib/outbound/outboundBlockGuard.js'
 /**
  * 고객앱 청구 접수 → 담당 CRM 사용자 카카오 알림톡 (UJ_9750).
  * COMMIT 이후 enqueue only — Aligo 호출은 outbox worker.
@@ -267,6 +268,7 @@ export async function processPendingClaimAlimtalkOutbox(pool, opts = {}) {
 
   let processed = 0
   for (const gaId of gaIds) {
+    if (await skipIfOutboxGaBlocked(pool, 'claim_alimtalk_outbox', gaId, 'alimtalk')) continue
     const due = await safeQuery(
       pool,
       `

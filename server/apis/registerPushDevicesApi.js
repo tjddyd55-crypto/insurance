@@ -1,3 +1,4 @@
+import { respondIfOutboundBlocked } from '../lib/outbound/outboundBlockGuard.js'
 import {
   registerUserPushDevice,
   unregisterUserPushDevice,
@@ -16,6 +17,8 @@ export function registerPushDevicesApi(apiRouter, { pool, requireAuth, handleDbE
       if (!userId) {
         return res.status(401).json({ message: 'Unauthorized' })
       }
+      // QA/데모 GA: 기기 등록 자체를 거부(푸시 발송 대상이 생기지 않게)
+      if (await respondIfOutboundBlocked(pool, req, res, 'push_device_register')) return
       const body = req.body && typeof req.body === 'object' ? req.body : {}
       const token = String(body.token ?? body.deviceToken ?? '').trim()
       const installationId = String(body.installationId ?? '').trim()

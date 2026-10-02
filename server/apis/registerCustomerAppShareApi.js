@@ -1,3 +1,4 @@
+import { respondIfOutboundBlocked } from '../lib/outbound/outboundBlockGuard.js'
 import { assertCanSendCustomerAppAlimtalk } from '../alimtalk/alimtalkService.js'
 import { ensureCustomerAppUniversalUrl } from '../alimtalk/customerAppLinkForAlimtalk.js'
 import { maskAlimtalkReceiver, normalizeAlimtalkPhone, validateAlimtalkPhone } from '../alimtalk/alimtalkPhone.js'
@@ -75,6 +76,7 @@ export function registerCustomerAppShareApi(apiRouter, ctx) {
 
   apiRouter.post('/agent/customers/:customerId/customer-app/sms', requireAuth, async (req, res) => {
     try {
+      if (await respondIfOutboundBlocked(pool, req, res, 'sms')) return
       const customerId = parsePositiveInt(req.params.customerId)
       if (customerId == null) {
         res.status(400).json({ success: false, error: '고객 ID가 올바르지 않습니다.' })

@@ -1,3 +1,4 @@
+import { assertOutboundAllowed } from '../lib/outbound/outboundBlockGuard.js'
 import {
   isCustomerAppLinkRealSendApproved,
   isInsuranceAlimtalkCredentialsComplete,
@@ -108,6 +109,8 @@ async function loadManagerName(pool, userId) {
  * }} params
  */
 export async function sendCustomerAppLinkAlimtalk(pool, params) {
+  // T159: 라우트 게이트와 별개로 서비스 진입에서도 QA/데모 GA 차단 (provider 호출 0)
+  await assertOutboundAllowed(pool, { userId: params.agentId, gaId: params.user?.gaId }, 'alimtalk', 'customer-app-alimtalk')
   const config = params.config ?? loadInsuranceAlimtalkConfig()
   const template = getCustomerAppLinkTemplate(params.templateEnv ?? process.env)
   const sendFn = params.sendFn ?? sendAligoAlimtalk

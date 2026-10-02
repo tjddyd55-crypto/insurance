@@ -10,6 +10,42 @@ import { listGoogleCalendarEvents, listGoogleCalendars } from './google/googleCa
 import { listGoogleTaskLists, listGoogleTasks } from './google/googleTasksApi.js'
 import { selectScheduleTasks, sortScheduleTasks } from '../schedule/scheduleTasks.js'
 import { clearGoogleUserCache } from './google/googleUserCache.js'
+import { isOutboundBlocked } from '../lib/outbound/outboundBlockGuard.js'
+
+/** QA/데모 GA(QA_DEMO) 사용자에게 보여 줄 Google 캘린더·할 일 목록 이름 (env 로 변경 가능). */
+export const DEFAULT_DEMO_GOOGLE_SCOPE_NAME = 'ONE FC QA'
+
+/**
+ * QA/데모 GA 사용자면 허용 이름('ONE FC QA'), 아니면 null(제한 없음 = 기존 동작).
+ * 데모 계정이 개인 Google 계정을 연결해도 개인 캘린더·할 일 목록은 Google 에서 읽지도 않는다.
+ * @param {import('pg').Pool | import('pg').PoolClient} pool
+ * @param {string} userId
+ * @param {NodeJS.ProcessEnv} [env]
+ */
+export async function resolveDemoGoogleScopeName(pool, userId, env = process.env) {
+  if (!(await isOutboundBlocked(pool, { userId }))) return null
+  return String(env.QA_DEMO_GOOGLE_SCOPE_NAME ?? '').trim() || DEFAULT_DEMO_GOOGLE_SCOPE_NAME
+}
+
+/**
+ * @template {{ name?: string }} T
+ * @param {T[]} items
+ * @param {string | null} demoName
+ * @returns {T[]}
+ */
+export function restrictToDemoGoogleScope(items, demoName) {
+  if (!demoName) return items
+  return items.filter((item) => String(item?.name ?? '').trim() === demoName)
+}
+
+/**
+ * @param {import('pg').Pool | import('pg').PoolClient} pool
+ * @param {{ userId: string, demoScopeName?: string | null }} scope
+ */
+async function demoScopeNameOf(pool, scope) {
+  if (scope.demoScopeName !== undefined) return scope.demoScopeName
+  return resolveDemoGoogleScopeName(pool, scope.userId)
+}
 
 /**
  * Google Calendar·Tasks 읽기 전용 진입점. 모든 함수는 호출자가 넘긴 현재 로그인 사용자 id 로만 동작한다.
@@ -107,11 +143,13 @@ async function withGoogleAccess(pool, scope, run) {
  * @param {{ userId: string, fetchImpl?: typeof fetch }} scope
  */
 export async function loadGoogleCalendarsForUser(pool, scope) {
-  return withGoogleAccess(pool, scope, (accessToken) => listGoogleCalendars({
+  const demoName = await demoScopeNameOf(pool, scope)
+  const calendars = await withGoogleAccess(pool, scope, (accessToken) => listGoogleCalendars({
     userId: scope.userId,
     accessToken,
     fetchImpl: scope.fetchImpl,
   }))
+  return restrictToDemoGoogleScope(calendars, demoName)
 }
 
 /**
@@ -121,11 +159,17 @@ export async function loadGoogleCalendarsForUser(pool, scope) {
  * @param {{ userId: string, fromYmd: string, toYmd: string, calendarIds?: string[], fetchImpl?: typeof fetch }} scope
  */
 export async function loadGoogleEventsForUser(pool, scope) {
+  const demoName = await demoScopeNameOf(pool, scope)
   const result = await withGoogleAccess(pool, scope, async (accessToken) => {
-    const calendars = await listGoogleCalendars({ userId: scope.userId, accessToken, fetchImpl: scope.fetchImpl })
+    const calendars = restrictToDemoGoogleScope(
+      await listGoogleCalendars({ userId: scope.userId, accessToken, fetchImpl: scope.fetchImpl }),
+      demoName,
+    )
     const wanted = scope.calendarIds && scope.calendarIds.length > 0
       ? calendars.filter((calendar) => scope.calendarIds.includes(calendar.id))
-      : calendars.filter((calendar) => calendar.defaultVisible)
+      : demoName
+        ? calendars
+        : calendars.filter((calendar) => calendar.defaultVisible)
     const groups = []
     for (const calendar of wanted) {
       groups.push(await listGoogleCalendarEvents({
@@ -177,8 +221,10 @@ export async function loadGoogleCalendarSchedule(pool, scope) {
 /**
  * 현재 사용자 자기 Google Tasks. tasks.readonly 가 저장된 scope 에 없으면 Google 을 부르지 않고 scope_missing.
  * 모든 목록을 읽고(목록마다 pagination), 화면 기간에 필요한 할 일만 고른다.
+ * taskListIds 를 주면 그 목록만 읽는다(사용자 자기 tasklists 안에서만 재검증, 없는 id 는 무시 → 일치 0 이면 할 일 0).
+ * 목록 요약(taskLists)은 선택 UI 용으로 전체를 돌려준다. 읽기 전용(tasks.readonly), 이동·삭제 없음.
  * @param {import('pg').Pool | import('pg').PoolClient} pool
- * @param {{ userId: string, fromYmd: string, toYmd: string, todayYmd: string, fetchImpl?: typeof fetch }} scope
+ * @param {{ userId: string, fromYmd: string, toYmd: string, todayYmd: string, taskListIds?: string[], fetchImpl?: typeof fetch }} scope
  */
 export async function loadGoogleTasksForUser(pool, scope) {
   const row = await readUserIntegration(pool, scope.userId, GOOGLE_ACCOUNT_PROVIDER_KEY)
@@ -188,10 +234,15 @@ export async function loadGoogleTasksForUser(pool, scope) {
   if (googleRowStatus(row) === 'connected' && !hasTasksReadScope(row.credential?.scope)) {
     throw googleError('scope_missing')
   }
+  const demoName = await demoScopeNameOf(pool, scope)
   const result = await withGoogleAccess(pool, scope, async (accessToken) => {
-    const taskLists = await listGoogleTaskLists({ userId: scope.userId, accessToken, fetchImpl: scope.fetchImpl })
+    const taskLists = restrictToDemoGoogleScope(
+      await listGoogleTaskLists({ userId: scope.userId, accessToken, fetchImpl: scope.fetchImpl }),
+      demoName,
+    )
+    const wantedLists = selectGoogleTaskLists(taskLists, scope.taskListIds)
     const groups = []
-    for (const taskList of taskLists) {
+    for (const taskList of wantedLists) {
       groups.push(await listGoogleTasks({ userId: scope.userId, accessToken, taskList, fetchImpl: scope.fetchImpl }))
     }
     return { taskLists, tasks: groups.flat() }
@@ -204,9 +255,22 @@ export async function loadGoogleTasksForUser(pool, scope) {
 }
 
 /**
+ * taskListIds 가 비어 있으면 전체(기존 동작). 있으면 사용자 자기 목록 중 일치하는 것만.
+ * @param {Array<{ id: string, name: string }>} taskLists
+ * @param {string[] | undefined} taskListIds
+ */
+export function selectGoogleTaskLists(taskLists, taskListIds) {
+  if (!Array.isArray(taskListIds) || taskListIds.length === 0) {
+    return taskLists
+  }
+  const wanted = new Set(taskListIds.map((id) => String(id)))
+  return taskLists.filter((taskList) => wanted.has(String(taskList.id)))
+}
+
+/**
  * 일정 관리 집계용. Tasks 실패는 Calendar·CRM·ONE FC 할 일에 번지지 않는다.
  * @param {import('pg').Pool | import('pg').PoolClient} pool
- * @param {{ userId: string, fromYmd: string, toYmd: string, todayYmd: string, fetchImpl?: typeof fetch }} scope
+ * @param {{ userId: string, fromYmd: string, toYmd: string, todayYmd: string, taskListIds?: string[], fetchImpl?: typeof fetch }} scope
  */
 export async function loadGoogleTasksSchedule(pool, scope) {
   const empty = { taskLists: [], tasks: [] }

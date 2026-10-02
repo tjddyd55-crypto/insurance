@@ -1,3 +1,4 @@
+import { respondIfOutboundBlocked } from '../lib/outbound/outboundBlockGuard.js'
 import { sendCustomerRegistrationLinkAlimtalk } from '../alimtalk/alimtalkRegistrationService.js'
 import {
   buildCustomerRegistrationInviteUrl,
@@ -108,6 +109,7 @@ export function registerCustomerRegistrationShareApi(apiRouter, ctx) {
 
   apiRouter.post('/agent/customer-registration/sms', requireAuth, async (req, res) => {
     try {
+      if (await respondIfOutboundBlocked(pool, req, res, 'sms')) return
       const phoneDigits = normalizeAlimtalkPhone(req.body?.receiver)
       const phoneErr = validateAlimtalkPhone(phoneDigits)
       if (phoneErr) {
@@ -169,6 +171,7 @@ export function registerCustomerRegistrationShareApi(apiRouter, ctx) {
 
   apiRouter.post('/agent/customer-registration/alimtalk', requireAuth, async (req, res) => {
     try {
+      if (await respondIfOutboundBlocked(pool, req, res, 'alimtalk')) return
       const agentId = String(req.user?.id ?? '').trim()
       if (!agentId) {
         res.status(401).json({ success: false, error: '로그인이 필요합니다.', message: '로그인이 필요합니다.' })

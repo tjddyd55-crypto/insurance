@@ -1,3 +1,4 @@
+import { skipIfOutboxGaBlocked } from '../outbound/outboundBlockGuard.js'
 import { safeQuery, systemQuery } from '../../utils/dbSafeQuery.js'
 import {
   listOutboxGaIdsWithDueRows,
@@ -78,6 +79,7 @@ export async function processPendingPushOutbox(pool, opts = {}) {
 
   let processed = 0
   for (const gaId of gaIds) {
+    if (await skipIfOutboxGaBlocked(pool, 'notification_push_outbox', gaId, 'push')) continue
     const due = await safeQuery(
       pool,
       `

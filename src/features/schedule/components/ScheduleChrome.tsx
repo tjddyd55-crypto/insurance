@@ -106,6 +106,8 @@ export default function ScheduleChrome(props: ScheduleViewProps) {
   const activeCalendarIds = props.calendarIds.length > 0
     ? props.calendarIds
     : props.google.calendars.filter((calendar) => calendar.defaultVisible).map((calendar) => calendar.id)
+  const taskLists = props.google.tasks?.taskLists ?? []
+  const activeTaskListIds = props.taskListIds.length > 0 ? props.taskListIds : taskLists.map((taskList) => taskList.id)
   return (
     <>
       <header className="schedule-page__header">
@@ -177,6 +179,25 @@ export default function ScheduleChrome(props: ScheduleViewProps) {
                 onClick={() => props.onToggleCalendar(calendar.id)}
               >
                 {calendar.name}
+              </Button>
+            )
+          })}
+        </div>
+      ) : null}
+      {googleTasksOn && props.google.tasks?.status === 'connected' && taskLists.length > 1 ? (
+        <div className="schedule-page__chips schedule-page__calendars schedule-page__task-lists" role="group" aria-label="Google 할 일 목록">
+          {taskLists.map((taskList) => {
+            const on = activeTaskListIds.includes(taskList.id)
+            return (
+              <Button
+                key={taskList.id}
+                type="button"
+                size="sm"
+                aria-pressed={on}
+                variant={on ? 'primary' : 'secondary'}
+                onClick={() => props.onToggleTaskList(taskList.id)}
+              >
+                {taskList.name}
               </Button>
             )
           })}

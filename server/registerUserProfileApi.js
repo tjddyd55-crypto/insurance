@@ -1,3 +1,4 @@
+import { respondIfOutboundBlocked } from './lib/outbound/outboundBlockGuard.js'
 import { randomInt } from 'node:crypto'
 import { parseGaId } from './lib/parseGaId.js'
 import { issueSignupPhoneProof, issueRegistrationSignupPhoneProof, issuePhoneChangeProof, verifyPhoneChangeProof } from './lib/signupPhoneProof.js'
@@ -755,6 +756,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
   })
 
   apiRouter.post('/me/send-phone-change-code', requireAuth, requireSelfProfileAccess, async (req, res) => {
+    if (await respondIfOutboundBlocked(pool, req, res, 'sms')) return
     const clientIp = getClientIp(req)
     const client = await pool.connect()
     let phoneNorm = ''

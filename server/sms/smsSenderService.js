@@ -1,3 +1,4 @@
+import { assertOutboundAllowed } from '../lib/outbound/outboundBlockGuard.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { normalizeSenderNumber, normalizeSmsPhone } from './smsPhone.js'
 import {
@@ -183,6 +184,7 @@ export async function deleteSmsSender(executor, scope) {
  * @param {{ senderNumber: string; receiver: string; message: string; verifyOnSuccess?: boolean }} input
  */
 export async function testSmsSend(executor, scope, input) {
+  await assertOutboundAllowed(executor, { userId: scope?.userId, gaId: scope?.gaId }, 'sms', 'testSmsSend')
   const senderNumber = normalizeSenderNumber(input.senderNumber)
   const receiver = normalizeSmsPhone(input.receiver)
   const message = String(input.message ?? '').trim()

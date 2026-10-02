@@ -1,3 +1,4 @@
+import { assertOutboundAllowed } from '../lib/outbound/outboundBlockGuard.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import {
   getSangnyeongDday,
@@ -467,6 +468,7 @@ export async function cancelSmsCampaign(executor, scope, campaignId) {
 
 export async function sendSmsCampaignNow(executor, scope, campaignId, input = {}) {
   assertSmsRealSendAllowed()
+  await assertOutboundAllowed(executor, { userId: scope?.userId, gaId: scope?.gaId }, 'sms', 'sendSmsCampaignNow')
 
   if (!input.scheduledRun && input.previewConfirmed !== true) {
     const err = new Error('sms_campaign_preview_required')

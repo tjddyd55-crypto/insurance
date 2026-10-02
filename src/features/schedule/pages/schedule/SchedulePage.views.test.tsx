@@ -122,6 +122,7 @@ function props(overrides: Partial<ScheduleViewProps> = {}): ScheduleViewProps {
     today: '2026-10-02',
     sources: ['google', 'google_task', 'onefc_todo', 'customer_alert', 'car_expiry', 'insurance_age'],
     calendarIds: [],
+    taskListIds: [],
     events: EVENTS,
     tasks: OPEN_TASKS,
     includeCompleted: false,
@@ -143,6 +144,7 @@ function props(overrides: Partial<ScheduleViewProps> = {}): ScheduleViewProps {
     onOpenDay: noop,
     onToggleSource: noop,
     onToggleCalendar: noop,
+    onToggleTaskList: noop,
     onOpenEvent: noop,
     onCloseDetail: noop,
     onToggleCompleted: noop,
@@ -280,6 +282,22 @@ describe('일정 관리 화면 (PC·모바일 웹 공통)', () => {
     expect(html).toContain('aria-label="Google 캘린더"')
     expect(html).toMatch(/aria-pressed="true"[^>]*>내 캘린더/)
     expect(html).toMatch(/aria-pressed="false"[^>]*>팀 캘린더/)
+  })
+
+  it('Google 할 일 목록이 여럿이면 목록별 칩(PC·모바일), taskLists 선택 시 선택한 목록만 ON', () => {
+    const taskLists = [{ id: 'QA', name: 'ONE FC QA' }, { id: 'ME', name: '내 할 일 목록' }]
+    for (const mobile of [false, true]) {
+      const base = { configured: true, connected: true, status: 'connected' as const, calendars: [], tasks: { status: 'connected' as const, needsReconsent: false, taskLists } }
+      const all = render(props({ google: base }), mobile)
+      expect(all).toContain('aria-label="Google 할 일 목록"')
+      expect(all).toMatch(/aria-pressed="true"[^>]*>ONE FC QA/)
+      expect(all).toMatch(/aria-pressed="true"[^>]*>내 할 일 목록/)
+      const onlyQa = render(props({ google: base, taskListIds: ['QA'] }), mobile)
+      expect(onlyQa).toMatch(/aria-pressed="true"[^>]*>ONE FC QA/)
+      expect(onlyQa).toMatch(/aria-pressed="false"[^>]*>내 할 일 목록/)
+    }
+    const single = render(props({ google: { configured: true, connected: true, status: 'connected', calendars: [], tasks: { status: 'connected', needsReconsent: false, taskLists: [taskLists[0]] } } }))
+    expect(single).not.toContain('aria-label="Google 할 일 목록"')
   })
 })
 

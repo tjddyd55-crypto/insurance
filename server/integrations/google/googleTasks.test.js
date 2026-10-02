@@ -11,7 +11,8 @@ import {
   normalizeOnefcTodo,
   selectScheduleTasks,
 } from '../../schedule/scheduleTasks.js'
-import { loadGoogleTasksForUser, loadGoogleTasksSchedule } from '../googleCalendarAdapter.js'
+import { loadGoogleCalendarsForUser, loadGoogleEventsForUser, loadGoogleTasksForUser, loadGoogleTasksSchedule, resolveDemoGoogleScopeName } from '../googleCalendarAdapter.js'
+import { clearOutboundBlockCache } from '../../lib/outbound/outboundBlockGuard.js'
 import { CALENDAR_ONLY_SCOPE, createFakeGoogle, createFakeIntegrationPool } from './googleIntegrationTestKit.js'
 import { GOOGLE_OAUTH_SCOPES, GOOGLE_TASKS_READONLY_SCOPE, hasTasksReadScope } from './googleOAuthConfig.js'
 import { clearGoogleUserCache, googleCacheKeysForTest, resetGoogleCacheForTest } from './googleUserCache.js'
@@ -241,6 +242,59 @@ describe('Google Tasks 읽기 전용 (같은 USER 연결, tasks.readonly)', () =
     assert.equal(/B 비밀 할 일|B 목록|bob@example.com/.test(tasksA.text), false)
     const statusB = await api('user-b', 'GET', '/backend/api/service-integrations/google/status')
     assert.equal(statusB.body.data.accountEmail, 'bob@example.com')
+  })
+
+  it('taskListIds: 선택한 목록만 읽고(다른 목록은 Google 호출도 안 함), 없는 id·남의 목록 id 는 0건, 미지정은 기존 동작', async () => {
+    await connect('user-a', 'gA')
+    await connect('user-b', 'gB')
+    const before = google.calls.length
+    const onlyL2 = await loadGoogleTasksForUser(pool, { userId: 'user-a', ...RANGE, taskListIds: ['L2'] })
+    assert.deepEqual(onlyL2.tasks.map((task) => task.taskListId), ['L2'])
+    assert.deepEqual(onlyL2.taskLists.map((list) => list.id), ['L1', 'L2', 'L3'])
+    const newCalls = google.calls.slice(before).map((call) => call.url)
+    assert.equal(newCalls.some((url) => url.includes('/lists/L1/tasks')), false)
+    const foreign = await loadGoogleTasksForUser(pool, { userId: 'user-a', ...RANGE, taskListIds: ['BL', 'nope'] })
+    assert.deepEqual(foreign.tasks, [])
+    const all = await loadGoogleTasksForUser(pool, { userId: 'user-a', ...RANGE, taskListIds: [] })
+    assert.ok(all.tasks.some((task) => task.taskListId === 'L1'))
+    const viaApi = await api('user-a', 'GET', '/backend/api/service-integrations/google/tasks?start=2026-10-01&end=2026-10-31&taskListIds=L1')
+    assert.equal(viaApi.body.data.tasks.every((task) => task.taskListId === 'L1'), true)
+    assert.equal(/장보기/.test(viaApi.text), false)
+    const schedule = await loadScheduleEvents(pool, { userId: 'user-a', gaId: 1, ...RANGE, sources: ['google_task'], taskListIds: ['L1'] })
+    assert.equal(schedule.tasks.every((task) => task.taskListId === 'L1'), true)
+    assert.ok(schedule.tasks.length > 0)
+  })
+
+  it('QA_DEMO 데모 범위: 지정 이름 목록·캘린더만 (개인 목록은 Google 호출도 안 함, id 로 요청해도 0)', async () => {
+    await connect('user-a', 'gA')
+    const before = google.calls.length
+    const demo = await loadGoogleTasksForUser(pool, { userId: 'user-a', ...RANGE, demoScopeName: '업무' })
+    assert.deepEqual(demo.taskLists.map((list) => list.id), ['L1'])
+    assert.equal(demo.tasks.every((task) => task.taskListId === 'L1'), true)
+    assert.equal(google.calls.slice(before).some((call) => call.url.includes('/lists/L2/tasks')), false)
+    const forced = await loadGoogleTasksForUser(pool, { userId: 'user-a', ...RANGE, demoScopeName: '업무', taskListIds: ['L2'] })
+    assert.deepEqual(forced.tasks, [])
+    const none = await loadGoogleTasksForUser(pool, { userId: 'user-a', ...RANGE, demoScopeName: '없는 이름' })
+    assert.deepEqual(none.taskLists, [])
+    assert.deepEqual(none.tasks, [])
+    const calendars = await loadGoogleCalendarsForUser(pool, { userId: 'user-a', demoScopeName: '없는 이름' })
+    assert.deepEqual(calendars, [])
+    const events = await loadGoogleEventsForUser(pool, { userId: 'user-a', ...RANGE, demoScopeName: '없는 이름' })
+    assert.deepEqual(events.events, [])
+  })
+
+  it('resolveDemoGoogleScopeName: QA_DEMO GA 사용자만 ONE FC QA, 일반 GA·조회 실패는 null', async () => {
+    clearOutboundBlockCache()
+    const db = {
+      async query(text, params) {
+        if (/FROM users/.test(text)) return { rows: [{ ga_id: params[0] === 'qa' ? 7 : 8 }] }
+        if (/FROM ga_companies/.test(text)) return { rows: [{ code: Number(params[0]) === 7 ? 'QA_DEMO' : 'YJASSET' }] }
+        return { rows: [] }
+      },
+    }
+    assert.equal(await resolveDemoGoogleScopeName(db, 'qa', {}), 'ONE FC QA')
+    assert.equal(await resolveDemoGoogleScopeName(db, 'real', {}), null)
+    assert.equal(await resolveDemoGoogleScopeName({ query: async () => { throw new Error('x') } }, 'zz', {}), null)
   })
 
   it('cache 키는 사용자·목록·기간/상태를 포함하고 사용자끼리 섞이지 않는다', async () => {

@@ -32,6 +32,8 @@ export type ScheduleViewProps = {
   today: string
   sources: ScheduleFilterKey[]
   calendarIds: string[]
+  /** URL `taskLists` — 비어 있으면 모든 Google 할 일 목록(기존 동작) */
+  taskListIds: string[]
   events: ScheduleEvent[]
   /** 출처 필터·완료 포함이 반영된 할 일(Google Tasks · ONE FC 할 일) */
   tasks: ScheduleTask[]
@@ -54,6 +56,7 @@ export type ScheduleViewProps = {
   onOpenDay: (date: string) => void
   onToggleSource: (source: ScheduleFilterKey | 'all') => void
   onToggleCalendar: (calendarId: string) => void
+  onToggleTaskList: (taskListId: string) => void
   onOpenEvent: (event: ScheduleEvent) => void
   onCloseDetail: () => void
   onToggleCompleted: () => void
@@ -137,6 +140,8 @@ export function useScheduleState(): ScheduleViewProps {
   const sources = useMemo(() => parseScheduleSources(sourcesKey), [sourcesKey])
   const calendarsKey = searchParams.get('calendars') ?? ''
   const calendarIds = useMemo(() => calendarsKey.split(',').map((id) => id.trim()).filter(Boolean), [calendarsKey])
+  const taskListsKey = searchParams.get('taskLists') ?? ''
+  const taskListIds = useMemo(() => taskListsKey.split(',').map((id) => id.trim()).filter(Boolean), [taskListsKey])
   const includeCompleted = searchParams.get('done') === '1'
   const [reloadNonce, setReloadNonce] = useState(0)
   // 조회 결과·열린 상세는 받은 사용자(owner)를 같이 둔다. 로그아웃 → 다른 계정이면 즉시 화면에서 빠진다.
@@ -152,7 +157,7 @@ export function useScheduleState(): ScheduleViewProps {
   const [editBaselineDate, setEditBaselineDate] = useState('')
 
   const hasToken = Boolean(token?.trim())
-  const requestKey = `${userKey}|${view}|${anchor}|${calendarsKey}|${reloadNonce}`
+  const requestKey = `${userKey}|${view}|${anchor}|${calendarsKey}|${taskListsKey}|${reloadNonce}`
 
   const replaceQuery = useCallback((patch: Record<string, string>) => {
     const next = new URLSearchParams(searchParams)
@@ -170,8 +175,9 @@ export function useScheduleState(): ScheduleViewProps {
     }
     const range = viewQueryRange(view, anchor)
     const ids = calendarsKey.split(',').map((id) => id.trim()).filter(Boolean)
+    const listIds = taskListsKey.split(',').map((id) => id.trim()).filter(Boolean)
     let cancelled = false
-    void fetchScheduleEvents(token, { from: range.start, to: range.end, sources: SCHEDULE_FILTER_KEYS, calendarIds: ids })
+    void fetchScheduleEvents(token, { from: range.start, to: range.end, sources: SCHEDULE_FILTER_KEYS, calendarIds: ids, taskListIds: listIds })
       .then((data) => {
         if (!cancelled) {
           setResult({
@@ -191,7 +197,7 @@ export function useScheduleState(): ScheduleViewProps {
     return () => {
       cancelled = true
     }
-  }, [anchor, calendarsKey, requestKey, token, userKey, view])
+  }, [anchor, calendarsKey, requestKey, taskListsKey, token, userKey, view])
 
   const sameOwner = hasToken && result.owner === userKey
   const events = sameOwner ? result.events : EMPTY_EVENTS
@@ -283,6 +289,7 @@ export function useScheduleState(): ScheduleViewProps {
     today,
     sources,
     calendarIds,
+    taskListIds,
     events: visibleEvents,
     tasks: visibleTasks,
     includeCompleted,
@@ -321,6 +328,16 @@ export function useScheduleState(): ScheduleViewProps {
         : [...current, calendarId]
       // 모두 끄면 기본 표시로 돌아간다(빈 목록 = 서버 기본값).
       replaceQuery({ calendars: next.join(',') })
+    },
+    onToggleTaskList: (taskListId) => {
+      const all = (google.tasks?.taskLists ?? []).map((taskList) => taskList.id)
+      const current = taskListIds.length > 0 ? taskListIds : all
+      const next = current.includes(taskListId)
+        ? current.filter((id) => id !== taskListId)
+        : [...current, taskListId]
+      // 모두 끄거나 모두 켜면 기본(전체 목록)으로 돌아간다(빈 값 = 서버 기본값).
+      const allOn = all.length > 0 && all.every((id) => next.includes(id))
+      replaceQuery({ taskLists: next.length === 0 || allOn ? '' : next.join(',') })
     },
     onOpenEvent,
     onCloseDetail: () => setDetailState(null),

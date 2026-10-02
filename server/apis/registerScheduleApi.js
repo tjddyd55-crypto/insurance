@@ -36,7 +36,8 @@ export function registerScheduleApi(apiRouter, { pool, requireAuth, handleDbErro
       assertScheduleRange(fromYmd, toYmd)
       const sources = parseScheduleSources(req.query.sources)
       const calendarIds = [...new Set(String(req.query.calendarIds ?? '').split(',').map((id) => id.trim()).filter(Boolean))].slice(0, 30)
-      const data = await loadScheduleEvents(pool, { ...scope, fromYmd, toYmd, sources, calendarIds, viewer: req.user })
+      const taskListIds = [...new Set(String(req.query.taskListIds ?? '').split(',').map((id) => id.trim()).filter(Boolean))].slice(0, 30)
+      const data = await loadScheduleEvents(pool, { ...scope, fromYmd, toYmd, sources, calendarIds, taskListIds, viewer: req.user })
       res.setHeader('Cache-Control', 'no-store')
       res.json({ success: true, data })
     } catch (error) {

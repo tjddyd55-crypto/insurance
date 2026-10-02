@@ -1,3 +1,4 @@
+import { isOutboundBlocked, logOutboundBlocked, OUTBOUND_BLOCKED_ERROR_CODE, OUTBOUND_BLOCKED_PUBLIC_MESSAGE } from '../lib/outbound/outboundBlockGuard.js'
 import { createHash, randomInt, randomUUID } from 'node:crypto'
 import { decryptContractTargetPhoneBlob } from '../lib/contractStoredPhone.js'
 import {
@@ -67,7 +68,7 @@ async function loadSendSessionWithCustomerPhone(client, linkCode) {
   }
   const r = await client.query(
     `
-    SELECT css.*, c.phone AS customer_phone_raw
+    SELECT css.*, c.phone AS customer_phone_raw, c.user_id AS customer_owner_user_id
     FROM contract_send_sessions css
     INNER JOIN customers c ON c.id = css.customer_id
     WHERE css.link_code = $1
@@ -265,6 +266,19 @@ export async function contractOtpSend(pool, opts) {
         `,
         [identityRow.id, maskedPhone, otpHash, expiresAt, ipHash, userAgent],
       )
+    }
+
+    // T159: QA/데모 GA 소유 계약 세션이면 외부 SMS 발송 차단(provider 호출 0)
+    if (
+      (await isOutboundBlocked(client, { userId: row.sent_by_user_id })) ||
+      (await isOutboundBlocked(client, { userId: row.customer_owner_user_id }))
+    ) {
+      await client.query('ROLLBACK')
+      logOutboundBlocked('sms', { userId: row.sent_by_user_id ?? row.customer_owner_user_id, path: 'contract-otp' })
+      return {
+        httpStatus: 403,
+        payload: { success: false, error: OUTBOUND_BLOCKED_ERROR_CODE, message: OUTBOUND_BLOCKED_PUBLIC_MESSAGE },
+      }
     }
 
     const sms = await sendContractSelfSmsOtp({
