@@ -3,7 +3,7 @@ import { useMemo } from 'react'
 import { CoverageScenarioTimeline } from '../components/center-timeline/CoverageScenarioTimeline'
 import { buildCoverageTimelineViewModel } from '../domain/buildCoverageTimelineViewModel'
 import { formatCoverageScenarioHeading } from '../domain/diseaseTypeLabels'
-import { formatCoveragePrintDate } from '../domain/formatConsultationDate'
+import { formatCoverageAuthoredDate } from '../domain/formatConsultationDate'
 import { formatCoverageDocumentMetaLine } from '../domain/formatCoverageDocumentHeader'
 import { resolveCustomerNameSnapshot } from '../domain/normalizeConsultation'
 import { PDF_DISCLAIMER_LINES } from '../domain/pdfCopy'
@@ -33,7 +33,7 @@ export function CoverageSimulatorPrintDocument({ scenario }: CoverageSimulatorPr
       <header className="cs-print-doc-header">
         <h1 className="cs-print-doc-header__title">보장 시뮬레이션</h1>
         <p className="cs-print-doc-header__meta">
-          {formatCoverageDocumentMetaLine(customerName, formatCoveragePrintDate(scenario.consultationDate))}
+          {formatCoverageDocumentMetaLine(customerName, formatCoverageAuthoredDate(scenario, '—'))}
         </p>
         <p className="cs-print-doc-header__subtitle">{scenarioHeading}</p>
       </header>

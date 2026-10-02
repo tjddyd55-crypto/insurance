@@ -26,6 +26,9 @@ import { getScenarioById } from '../storage/scenarioRepository'
 import type { SaveConsultationResult } from './useScenarioEditor'
 import { useCoverageShareHistory } from './useCoverageShareHistory'
 
+const SHARE_COPIED_TOAST = '복사되었습니다.'
+const SHARE_COPY_FAILED_TOAST = '링크를 복사하지 못했습니다.'
+
 type ConfirmFn = (options: {
   title: string
   message: string
@@ -195,7 +198,6 @@ export function useCoverageShareFlow({
   )
 
   const ensureShareLink = useCallback(async (): Promise<string | null> => {
-    if (shareResult?.shareUrl) return shareResult.shareUrl
     if (!scenario || !provider || shareBusyRef.current || !canExecuteShare) return null
     const authed = await provider.ensureAccess()
     if (!authed && provider.mode === 'crm') {
@@ -211,7 +213,9 @@ export function useCoverageShareFlow({
       setShareResult(created)
       history.invalidate()
       void history.load(true)
-      void uploadPdfInBackground(created.shareId, snapshot)
+      if (!created.pdfReady) {
+        void uploadPdfInBackground(created.shareId, snapshot)
+      }
       return created.shareUrl
     } catch (error) {
       setCreateError(
@@ -224,7 +228,7 @@ export function useCoverageShareFlow({
       setSharing(false)
       shareBusyRef.current = false
     }
-  }, [canExecuteShare, history, provider, scenario, shareResult?.shareUrl, uploadPdfInBackground, userKey])
+  }, [canExecuteShare, history, provider, scenario, uploadPdfInBackground, userKey])
 
   const createShare = useCallback(async () => {
     await ensureShareLink()
@@ -240,13 +244,67 @@ export function useCoverageShareFlow({
     const url = await ensureShareLink()
     if (!url) return
     const ok = await copyTextToClipboard(url)
-    showToast(ok ? '공유 링크를 복사했습니다.' : '링크를 복사하지 못했습니다.')
+    showToast(ok ? SHARE_COPIED_TOAST : SHARE_COPY_FAILED_TOAST)
   }, [ensureShareLink, showToast])
+
+  const shareAndCopy = useCallback(async () => {
+    if (!showShareButton || shareBusyRef.current) return
+    if (providerMode === 'crm' && !token) {
+      showToast('CRM에 로그인한 후 공유할 수 있습니다.')
+      return
+    }
+    if (providerMode === 'preview-dev' && !isPreviewShareClientEnabled()) {
+      showToast('Preview 공유는 DEV 환경에서만 사용할 수 있습니다.')
+      return
+    }
+    shareBusyRef.current = true
+    setSharing(true)
+    setCreateError(null)
+    try {
+      const saved = await ensureSaved()
+      if (!saved || !provider) return
+      const authed = await provider.ensureAccess()
+      if (!authed && provider.mode === 'crm') {
+        showToast('로그인이 만료되었습니다. 다시 로그인해 주세요.')
+        return
+      }
+      const snapshot = normalizeConsultation(getScenarioById(userKey, saved.id) ?? saved)
+      const created = await provider.createShare(snapshot)
+      setShareResult(created)
+      history.invalidate()
+      void history.load(true)
+      if (!created.pdfReady) {
+        void uploadPdfInBackground(created.shareId, snapshot)
+      }
+      const copied = await copyTextToClipboard(created.shareUrl)
+      showToast(copied ? SHARE_COPIED_TOAST : SHARE_COPY_FAILED_TOAST)
+    } catch (error) {
+      const message =
+        provider.mode === 'preview-dev'
+          ? 'DEV 공유 링크를 생성하지 못했습니다. 다시 시도해 주세요.'
+          : mapCoverageShareCreateError(error)
+      setCreateError(message)
+      showToast(message)
+    } finally {
+      setSharing(false)
+      shareBusyRef.current = false
+    }
+  }, [
+    ensureSaved,
+    history,
+    provider,
+    providerMode,
+    showShareButton,
+    showToast,
+    token,
+    uploadPdfInBackground,
+    userKey,
+  ])
 
   const copyHistoryLink = useCallback(async (url: string | null) => {
     if (!url) return
     const ok = await copyTextToClipboard(url)
-    showToast(ok ? '공유 링크를 복사했습니다.' : '링크를 복사하지 못했습니다.')
+    showToast(ok ? SHARE_COPIED_TOAST : SHARE_COPY_FAILED_TOAST)
   }, [showToast])
 
   const revokeShare = useCallback(
@@ -294,6 +352,7 @@ export function useCoverageShareFlow({
     shareHistoryError: history.error,
     reloadShareHistory: () => void history.load(true),
     openShareDialog,
+    shareAndCopy,
     createShare,
     closeDialog,
     copyShareLink,

@@ -108,7 +108,12 @@
 }
 
 .service-integrations-page__error {
-  color: var(--danger);
+  color: var(--danger, #ef4444);
+}
+
+.service-integrations-page__empty {
+  margin: 16px 0 0;
+  color: var(--text-secondary, #94a3b8);
 }
 
 .service-integrations-page__notice,

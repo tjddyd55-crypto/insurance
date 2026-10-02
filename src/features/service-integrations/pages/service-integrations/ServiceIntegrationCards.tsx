@@ -49,9 +49,21 @@ export default function ServiceIntegrationCards({
     return <p className="service-integrations-page__status">연동 상태를 불러오는 중…</p>
   }
 
+  if (providers.length === 0) {
+    return (
+      <div className="service-integrations-page__body">
+        {error ? (
+          <p className="service-integrations-page__error" role="alert">{error}</p>
+        ) : (
+          <p className="service-integrations-page__empty" role="status">연동 제공자 목록이 비어 있습니다.</p>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="service-integrations-page__body">
-      {error ? <p className="service-integrations-page__error">{error}</p> : null}
+      {error ? <p className="service-integrations-page__error" role="alert">{error}</p> : null}
       {notice ? <p className="service-integrations-page__notice">{notice}</p> : null}
       {groupProviders(providers).map((group) => (
         <section key={group.label} className="service-integrations-page__group" aria-label={group.label}>
