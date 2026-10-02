@@ -16,7 +16,6 @@ import {
   sortScheduleEvents,
 } from '../domain/scheduleEventTime'
 
-const WEEKDAY_MON_FIRST = ['월', '화', '수', '목', '금', '토', '일']
 const WEEKDAY_SUN_FIRST = ['일', '월', '화', '수', '목', '금', '토']
 const HOURS = Array.from({ length: 24 }, (_, index) => index)
 const MONTH_CELL_LIMIT = 3
@@ -103,7 +102,7 @@ export function ScheduleWeek({ anchor, today, events, onOpenEvent }: Pick<Schedu
           <span />
           {days.map((date, index) => (
             <strong key={date} className={date === today ? 'schedule-page__week-day schedule-page__week-day--today' : 'schedule-page__week-day'}>
-              {WEEKDAY_MON_FIRST[index]} {Number(date.slice(8))}
+              {WEEKDAY_SUN_FIRST[index]} {Number(date.slice(8))}
             </strong>
           ))}
         </div>
