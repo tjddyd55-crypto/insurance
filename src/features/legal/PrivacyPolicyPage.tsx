@@ -87,6 +87,9 @@ export default function PrivacyPolicyPage() {
             <li>
               <a href="#s12">개인정보 처리방침의 변경</a>
             </li>
+            <li>
+              <a href="#s13">Google 서비스 연동</a>
+            </li>
           </ol>
         </nav>
 
@@ -117,6 +120,10 @@ export default function PrivacyPolicyPage() {
             <li>
               <strong>도입·이용 문의(소개 페이지)</strong>: 이름, 연락처, 문의 내용 및 선택 입력 항목(소속·GA/지점,
               이메일, 연락 가능 시간 등)
+            </li>
+            <li>
+              <strong>Google 서비스 연동(선택)</strong>: 이용자가 직접 연결한 경우에 한해 Google 계정 이메일, 이름,
+              Google Calendar 캘린더 목록 및 일정 정보 (자세한 내용은 제13조)
             </li>
           </ul>
           <h3>도입·이용 문의 수집·이용</h3>
@@ -259,6 +266,78 @@ export default function PrivacyPolicyPage() {
             이 개인정보 처리방침은 시행일로부터 적용되며, 법령·정책 또는 서비스 변경에 따라 내용의 추가·삭제·수정이
             있을 경우 변경사항 시행 7일 전부터 공지합니다. 다만 정보주체 권리에 중대한 영향을 미치는 경우 최소 30일
             전에 공지할 수 있습니다.
+          </p>
+        </section>
+
+        <section className="legal-doc__section" id="s13">
+          <h2>제13조 Google 서비스 연동</h2>
+          <p>
+            회사는 이용자가 서비스 연동 화면에서 직접 Google 계정 연결을 선택한 경우에만 Google API를 통해 아래 정보를
+            처리합니다. 연결하지 않아도 서비스의 다른 기능은 그대로 이용할 수 있습니다.
+          </p>
+          <ul className="legal-doc__list">
+            <li>
+              <strong>접근하는 정보</strong>: Google 계정 이메일 주소, 기본 프로필 정보(이름, 프로필 사진), Google
+              Calendar 캘린더 목록 및 일정 정보(제목, 일시, 장소, 설명, 캘린더 이름 등)
+            </li>
+            <li>
+              <strong>이용 목적</strong>: 이용자 본인의 Google Calendar 일정을 {C.serviceName} 일정 관리 화면에 읽기
+              전용으로 함께 표시하는 데에만 이용합니다.
+            </li>
+            <li>
+              <strong>권한 범위</strong>: Google Calendar 읽기 전용 권한(calendar.readonly)만 요청하며, 회사는 Google
+              Calendar 일정을 생성·수정·삭제하지 않습니다.
+            </li>
+            <li>
+              <strong>보관</strong>: Google 연결 인증 정보(OAuth 토큰)는 서버에 암호화하여 저장하며, 브라우저(로컬
+              저장소 등)에는 저장하지 않습니다. 연결된 계정을 표시하기 위해 Google 계정 이메일, 이름, 계정 식별자와 연결
+              시각을 보관하며, 프로필 사진은 저장하지 않습니다. Google 일정 정보는 영구 저장하지 않고, 화면 표시를 위해
+              서버 메모리에 약 60초 동안만 임시 보관합니다. 연결 과정에서는 요청 위조 방지를 위한 보안 쿠키를 최대 10분
+              동안 사용합니다.
+            </li>
+            <li>
+              <strong>제공·공유</strong>: Google 사용자 데이터는 다른 {C.serviceName} 이용자(관리자 포함)나 제3자에게
+              제공하지 않으며, 광고 목적으로 이용하지 않습니다. 보안 점검이나 법령 준수에 필요한 경우를 제외하고 사람이
+              열람하지 않습니다.
+            </li>
+            <li>
+              <strong>연결 해제</strong>: 서비스 연동 → Google Calendar → 연결 해제를 누르면 Google 일정 표시가
+              중단되고 저장된 인증 정보가 삭제되며, 회사는 Google에 해당 토큰의 폐기를 요청합니다. Google 계정 권한
+              페이지(
+              <a
+                href="https://myaccount.google.com/permissions"
+                className="legal-doc__link"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                https://myaccount.google.com/permissions
+              </a>
+              )에서도 언제든지 {C.serviceName}의 접근 권한을 철회할 수 있습니다.
+            </li>
+          </ul>
+          <p>
+            회사가 Google API로부터 받은 정보를 이용하고 전송하는 행위는 제한적 사용(Limited Use) 요건을 포함한{' '}
+            <a
+              href={C.googleUserDataPolicyUrl}
+              className="legal-doc__link"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Google API 서비스 사용자 데이터 정책
+            </a>
+            을 준수합니다.
+          </p>
+          <p lang="en">
+            {C.serviceName}&apos;s use and transfer of information received from Google APIs will adhere to the{' '}
+            <a
+              href={C.googleUserDataPolicyUrl}
+              className="legal-doc__link"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Google API Services User Data Policy
+            </a>
+            , including the Limited Use requirements.
           </p>
         </section>
 

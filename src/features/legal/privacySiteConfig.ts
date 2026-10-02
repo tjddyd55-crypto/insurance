@@ -32,5 +32,7 @@ export const privacySiteConfig = {
   /** 방침 시행일 */
   effectiveDate: '2026년 4월 1일',
   /** 최종 개정일 (시행일과 같을 수 있음) */
-  lastRevisedDate: '2026년 7월 13일',
+  lastRevisedDate: '2026년 10월 2일',
+  /** Google API Services User Data Policy (Limited Use 고지 링크) */
+  googleUserDataPolicyUrl: 'https://developers.google.com/terms/api-services-user-data-policy',
 } as const

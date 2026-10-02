@@ -8,5 +8,5 @@ export const termsSiteConfig = {
   serviceName: 'ONE FC',
   operatorLegalName: businessInfo.businessName,
   effectiveDate: '2026년 7월 13일',
-  lastRevisedDate: '2026년 7월 13일',
+  lastRevisedDate: '2026년 10월 2일',
 } as const
