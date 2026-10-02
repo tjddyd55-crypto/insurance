@@ -353,6 +353,7 @@ function SolutionSection() {
           </article>
         ))}
       </div>
+      <p className="intro-landing-solution__note">{INTRO_SOLUTION.note}</p>
     </IntroSectionShell>
   )
 }
