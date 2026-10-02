@@ -6,6 +6,7 @@ import { useAuth } from '../../auth/AuthProvider'
 import type { TodoDto } from '../domain/todoTypes'
 import { completeTodo, listTodos, reopenTodo } from '../api/todosApi'
 import { buildRelatedEntityHref } from '../utils/relatedEntityNavigate'
+import { sortTodosNewestActivityFirst } from '../utils/sortTodosByRecentActivity'
 
 export type TodoQuickFilter =
   | 'all'
@@ -57,7 +58,7 @@ export function useTodosWorkspaceState() {
     setError('')
     try {
       const rows = await listTodos(token, listParams)
-      setTodos(rows)
+      setTodos(sortTodosNewestActivityFirst(rows))
     } catch (e) {
       const msg = e instanceof Error ? e.message : '목록을 불러오지 못했습니다.'
       setError(msg)
@@ -95,7 +96,7 @@ export function useTodosWorkspaceState() {
       } else {
         return
       }
-      setTodos((prev) => prev.map((t) => (t.id === nextRow.id ? nextRow : t)))
+      setTodos((prev) => sortTodosNewestActivityFirst(prev.map((t) => (t.id === nextRow.id ? nextRow : t))))
       await load()
     } catch (e) {
       const msg =
