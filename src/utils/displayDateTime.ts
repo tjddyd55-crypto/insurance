@@ -10,6 +10,7 @@ export {
   formatKstDateTime,
   formatKstDateTimeDisplay,
   formatKstDateTimeParts,
+  formatKstTime,
   formatTargetDateWithDDay,
   formatTimestampSearchHaystack,
   getKstDateCompactString,

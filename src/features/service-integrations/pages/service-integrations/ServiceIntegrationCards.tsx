@@ -20,6 +20,48 @@ function formatSyncedAt(value: string | null): string {
   }).format(date)
 }
 
+function connectLabel(provider: ServiceIntegrationCard, connected: boolean): string {
+  if (provider.key === 'google_calendar') {
+    return connected ? '다시 연결' : 'Google 연결'
+  }
+  return connected ? '다시 연동' : '연동'
+}
+
+/** 한 Google 연결로 쓰는 제품. 서버 products 가 없으면(이전 응답) Calendar 만 있는 것으로 본다. */
+function googleProductsInUse(provider: ServiceIntegrationCard): string {
+  const calendar = provider.products ? provider.products.calendar.status === 'available' : provider.status === 'connected'
+  const tasks = provider.products?.tasks.status === 'available'
+  const names = [calendar ? 'Google Calendar' : '', tasks ? 'Google Tasks' : ''].filter(Boolean)
+  return names.length > 0 ? `${names.join(' · ')} (읽기 전용)` : '없음'
+}
+
+function googleTasksNeedReconsent(provider: ServiceIntegrationCard): boolean {
+  return provider.status === 'connected'
+    && Boolean(provider.needsReconsent || provider.products?.tasks.status === 'scope_missing')
+}
+
+function GoogleAccountMeta({ provider }: { provider: ServiceIntegrationCard }) {
+  if (provider.status === 'disconnected' || provider.status === 'unconfigured') {
+    return null
+  }
+  return (
+    <>
+      <div>
+        <dt>계정</dt>
+        <dd>{provider.accountLabel || '없음'}</dd>
+      </div>
+      <div>
+        <dt>연결 시각</dt>
+        <dd>{formatSyncedAt(provider.connectedAt ?? null)}</dd>
+      </div>
+      <div>
+        <dt>사용 중</dt>
+        <dd>{provider.status === 'connected' ? googleProductsInUse(provider) : '다시 연결 필요'}</dd>
+      </div>
+    </>
+  )
+}
+
 function groupProviders(providers: ServiceIntegrationCard[]) {
   const groups: Array<{ label: string; items: ServiceIntegrationCard[] }> = []
   for (const provider of providers) {
@@ -71,7 +113,10 @@ export default function ServiceIntegrationCards({
           <div className="service-integrations-page__grid">
             {group.items.map((provider) => {
               const unconfigured = provider.status === 'unconfigured'
-              const connected = provider.status === 'connected' || provider.status === 'error'
+              const connected = provider.status === 'connected' || provider.status === 'error' || provider.status === 'needs_reauth'
+              const isGoogle = provider.key === 'google_calendar'
+              // 검증(Testing) 기간 허용 목록 밖: Google 동의 화면으로 보내지 않는다. 이미 연결된 경우 해제는 그대로.
+              const googleNotReady = isGoogle && provider.connectAllowed === false
               return (
                 <article key={provider.key} className="service-integrations-page__card">
                   <div className="service-integrations-page__card-head">
@@ -86,9 +131,25 @@ export default function ServiceIntegrationCards({
                     </div>
                   </div>
                   <p className="service-integrations-page__desc">{provider.description}</p>
+                  {isGoogle && provider.status === 'needs_reauth' ? (
+                    <p className="service-integrations-page__error" role="alert">
+                      Google 연결이 만료되었거나 권한이 취소되었습니다. 다시 연결해 주세요.
+                    </p>
+                  ) : null}
+                  {isGoogle && googleTasksNeedReconsent(provider) ? (
+                    <p className="service-integrations-page__notice" role="status">
+                      Google Tasks 읽기 권한이 없습니다. 다시 연결하면 Google 할 일도 일정 관리에서 볼 수 있습니다.
+                    </p>
+                  ) : null}
+                  {isGoogle && provider.status === 'error' ? (
+                    <p className="service-integrations-page__error" role="alert">
+                      Google 연결 상태를 확인하지 못했습니다. 다시 연결해 주세요.
+                    </p>
+                  ) : null}
                   <dl className="service-integrations-page__meta">
+                    {isGoogle ? <GoogleAccountMeta provider={provider} /> : null}
                     <div>
-                      <dt>마지막 동기화</dt>
+                      <dt>{isGoogle ? '마지막 조회' : '마지막 동기화'}</dt>
                       <dd>{formatSyncedAt(provider.lastSyncedAt)}</dd>
                     </div>
                     {provider.kind === 'aligo' ? (
@@ -123,10 +184,10 @@ export default function ServiceIntegrationCards({
                     <FormButton
                       htmlType="button"
                       variant="primary"
-                      disabled={unconfigured || Boolean(busyKey)}
+                      disabled={unconfigured || googleNotReady || Boolean(busyKey)}
                       onClick={() => onConnect(provider)}
                     >
-                      {connected ? '다시 연동' : '연동'}
+                      {googleNotReady ? 'Google 연동 준비 중' : connectLabel(provider, connected)}
                     </FormButton>
                     <FormButton
                       htmlType="button"
@@ -134,7 +195,7 @@ export default function ServiceIntegrationCards({
                       disabled={!connected || Boolean(busyKey)}
                       onClick={() => onDisconnect(provider)}
                     >
-                      해제
+                      {isGoogle ? '연결 해제' : '해제'}
                     </FormButton>
                     {provider.settingsPath ? (
                       <FormButton htmlType="button" variant="secondary" onClick={() => onOpenSettings(provider)}>

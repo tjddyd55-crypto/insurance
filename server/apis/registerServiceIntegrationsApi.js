@@ -8,6 +8,9 @@ import {
   SERVICE_PROVIDERS,
 } from '../integrations/providerRegistry.js'
 import { disconnectUserIntegration, listUserIntegrationRows, SECRET_MASK } from '../integrations/integrationStore.js'
+import { readGoogleIntegrationStatus } from '../integrations/googleCalendarAdapter.js'
+import { GOOGLE_CALENDAR_CARD_KEY, isGoogleConnectAllowed } from '../integrations/google/googleOAuthConfig.js'
+import { disconnectGoogleForUser, registerGoogleIntegrationApi, startGoogleConnect } from './registerGoogleIntegrationApi.js'
 
 const SECRET_BODY_KEYS = ['apiKey', 'api_key', 'secret', 'accessToken', 'refreshToken', 'password']
 
@@ -32,10 +35,33 @@ function bodyHasSecret(body) {
 }
 
 /**
+ * Google 카드(Calendar·Tasks)는 공용 Google 계정 행(provider_key='google')에서 상태를 읽는다. 항상 현재 사용자 행만.
+ * @param {Awaited<ReturnType<typeof readGoogleIntegrationStatus>>} google
+ * @returns {'connected' | 'disconnected' | 'error' | 'needs_reauth' | 'unconfigured'}
+ */
+function googleCardStatus(google) {
+  if (!google.configured) {
+    return 'unconfigured'
+  }
+  return google.status
+}
+
+/**
+ * 'google' 도 Google Calendar 연결 요청으로 받는다.
+ * @param {unknown} raw
+ */
+function resolveProviderParam(raw) {
+  const key = String(raw ?? '')
+  return findServiceProvider(key === 'google' ? GOOGLE_CALENDAR_CARD_KEY : key)
+}
+
+/**
  * @param {import('express').Router} apiRouter
  * @param {{ pool: import('pg').Pool, requireAuth: import('express').RequestHandler, handleDbError: Function }} deps
  */
 export function registerServiceIntegrationsApi(apiRouter, { pool, requireAuth, handleDbError }) {
+  registerGoogleIntegrationApi(apiRouter, { pool, requireAuth, handleDbError })
+
   apiRouter.get('/service-integrations', requireAuth, async (req, res) => {
     try {
       const scope = await resolveSmsAuthContext(pool, req)
@@ -49,7 +75,30 @@ export function registerServiceIntegrationsApi(apiRouter, { pool, requireAuth, h
           throw error
         }
       }
+      const google = await readGoogleIntegrationStatus(pool, scope.userId)
       const providers = SERVICE_PROVIDERS.map((provider) => {
+        if (provider.key === GOOGLE_CALENDAR_CARD_KEY) {
+          return {
+            key: provider.key,
+            group: provider.group,
+            groupLabel: provider.groupLabel,
+            name: provider.name,
+            description: provider.description,
+            kind: provider.kind,
+            availability: google.configured ? 'ready' : 'unconfigured',
+            status: googleCardStatus(google),
+            lastSyncedAt: google.lastFetchedAt,
+            lastError: null,
+            secretMasked: null,
+            sender: '',
+            accountLabel: google.accountEmail,
+            connectedAt: google.connectedAt,
+            settingsPath: null,
+            products: google.products,
+            needsReconsent: google.needsReconsent,
+            connectAllowed: isGoogleConnectAllowed(req.user),
+          }
+        }
         const availability = resolveProviderAvailability(provider, process.env)
         const stored = byKey.get(provider.key)
         const status = provider.kind === 'aligo'
@@ -85,7 +134,7 @@ export function registerServiceIntegrationsApi(apiRouter, { pool, requireAuth, h
   })
 
   apiRouter.post('/service-integrations/:providerKey/connect', requireAuth, async (req, res) => {
-    const provider = findServiceProvider(String(req.params.providerKey ?? ''))
+    const provider = resolveProviderParam(req.params.providerKey)
     if (!provider) {
       res.status(404).json({ message: '연동 제공자를 찾을 수 없습니다.' })
       return
@@ -97,6 +146,18 @@ export function registerServiceIntegrationsApi(apiRouter, { pool, requireAuth, h
     }
     if (provider.kind === 'aligo') {
       res.json({ success: true, data: { action: 'open_settings', path: '/sms/settings' } })
+      return
+    }
+    if (provider.key === GOOGLE_CALENDAR_CARD_KEY) {
+      try {
+        await startGoogleConnect(pool, req, res)
+      } catch (error) {
+        if (error?.status) {
+          sendKnownError(res, error)
+          return
+        }
+        handleDbError(error, req, res)
+      }
       return
     }
     const availability = resolveProviderAvailability(provider, process.env)
@@ -116,7 +177,7 @@ export function registerServiceIntegrationsApi(apiRouter, { pool, requireAuth, h
   })
 
   apiRouter.post('/service-integrations/:providerKey/disconnect', requireAuth, async (req, res) => {
-    const provider = findServiceProvider(String(req.params.providerKey ?? ''))
+    const provider = resolveProviderParam(req.params.providerKey)
     if (!provider) {
       res.status(404).json({ message: '연동 제공자를 찾을 수 없습니다.' })
       return
@@ -125,6 +186,8 @@ export function registerServiceIntegrationsApi(apiRouter, { pool, requireAuth, h
       const scope = await resolveSmsAuthContext(pool, req)
       if (provider.kind === 'aligo') {
         await deleteAligoSmsSettings(pool, scope)
+      } else if (provider.key === GOOGLE_CALENDAR_CARD_KEY) {
+        await disconnectGoogleForUser(pool, { userId: scope.userId })
       } else {
         await disconnectUserIntegration(pool, scope.userId, provider.key)
       }

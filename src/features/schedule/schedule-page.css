@@ -1,0 +1,464 @@
+/* 일정 관리. 색·모서리·그림자는 디자인 토큰만 쓴다. PC·모바일 웹 공통 마크업, 레이아웃만 다르다. */
+.schedule-page--pc,
+.schedule-page--mobile {
+  background: var(--bg-main);
+  color: var(--text-main);
+}
+
+.schedule-page__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.schedule-page__header h1 {
+  margin: 0;
+  color: var(--text-main);
+}
+
+.schedule-page__nav,
+.schedule-page__views,
+.schedule-page__chips,
+.schedule-page__dialog-actions,
+.schedule-page__day-panel-head {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.schedule-page__views,
+.schedule-page__chips {
+  margin-top: var(--space-3);
+}
+
+.schedule-page__period {
+  color: var(--text-main);
+  font-size: 1rem;
+}
+
+.schedule-page__chip-note {
+  font-size: 0.75rem;
+}
+
+.schedule-page__google-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin: var(--space-3) 0;
+  padding: var(--space-3);
+  background: var(--hint-bg);
+  border: 1px solid var(--hint-border);
+  border-radius: var(--radius-md);
+  color: var(--hint-text);
+}
+
+.schedule-page__google-hint p {
+  margin: 0;
+}
+
+.schedule-page__google-hint--warn {
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+  color: var(--danger-text);
+}
+
+.schedule-page__status {
+  color: var(--text-secondary);
+}
+
+.schedule-page__error {
+  color: var(--danger);
+}
+
+/* 월간 */
+.schedule-page__month {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  margin-top: var(--space-3);
+}
+
+.schedule-page--mobile .schedule-page__month {
+  gap: 2px;
+}
+
+.schedule-page__cell,
+.schedule-page__weekday {
+  min-height: 96px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  color: var(--text-main);
+  min-width: 0;
+}
+
+.schedule-page--mobile .schedule-page__cell {
+  min-height: 72px;
+  padding: 2px;
+  font-size: 0.75rem;
+}
+
+.schedule-page__weekday {
+  min-height: 0;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.schedule-page__cell--muted {
+  opacity: 0.55;
+}
+
+.schedule-page__cell--today .schedule-page__date {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.schedule-page__cell--selected {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary) inset;
+}
+
+.schedule-page__date,
+.schedule-page__chip,
+.schedule-page__more,
+.schedule-page__day-list button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--text-main);
+  padding: 2px 0;
+}
+
+.schedule-page__chip {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-radius: var(--radius-sm);
+  padding: 1px 4px;
+  margin-top: 2px;
+  font-size: 0.8125rem;
+}
+
+.schedule-page--mobile .schedule-page__chip {
+  font-size: 0.6875rem;
+  padding: 0 2px;
+}
+
+.schedule-page__more {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+/* 출처별 표시: 토큰 조합만 사용 */
+.schedule-page__chip--google,
+.schedule-page__block--google,
+.schedule-page__badge--google {
+  background: var(--primary-soft);
+  color: var(--text-main);
+}
+
+.schedule-page__chip--customer_alert,
+.schedule-page__block--customer_alert,
+.schedule-page__badge--customer_alert {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.schedule-page__chip--car_expiry,
+.schedule-page__block--car_expiry,
+.schedule-page__badge--car_expiry {
+  background: var(--accent-car-bg);
+  color: var(--accent-car-text);
+}
+
+.schedule-page__chip--insurance_age,
+.schedule-page__block--insurance_age,
+.schedule-page__badge--insurance_age {
+  background: var(--bg-soft);
+  color: var(--text-secondary);
+}
+
+.schedule-page__badge {
+  display: inline-block;
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.schedule-page__day-panel {
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.schedule-page__day-panel-head {
+  justify-content: space-between;
+}
+
+/* 주간: 좁은 화면은 가로 스크롤 */
+.schedule-page__week {
+  margin-top: var(--space-3);
+  overflow-x: auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.schedule-page__week-grid {
+  min-width: 720px;
+}
+
+.schedule-page__week-head,
+.schedule-page__all-day,
+.schedule-page__hour-row {
+  display: grid;
+  grid-template-columns: 56px repeat(7, minmax(88px, 1fr));
+}
+
+.schedule-page__week-head {
+  border-bottom: 1px solid var(--border);
+  padding: 6px 0;
+  text-align: center;
+}
+
+.schedule-page__week-day {
+  color: var(--text-secondary);
+}
+
+.schedule-page__week-day--today {
+  color: var(--primary);
+}
+
+.schedule-page__all-day,
+.schedule-page__hour-row {
+  min-height: 40px;
+  border-bottom: 1px solid var(--border);
+}
+
+.schedule-page__axis {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  padding: 4px;
+}
+
+.schedule-page__slot {
+  border-left: 1px solid var(--border);
+  padding: 2px;
+  min-width: 0;
+}
+
+.schedule-page__hours {
+  max-height: 640px;
+  overflow-y: auto;
+}
+
+.schedule-page__block {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-radius: var(--radius-sm);
+  padding: 2px 4px;
+  margin-bottom: 2px;
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-page__block-time {
+  font-weight: 600;
+}
+
+/* 일간·목록 */
+.schedule-page__day-list {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.schedule-page__day-list li {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+}
+
+.schedule-page__day-list button {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px var(--space-2);
+}
+
+.schedule-page__row-time {
+  color: var(--text-secondary);
+  min-width: 96px;
+}
+
+.schedule-page__row-title {
+  color: var(--text-main);
+}
+
+.schedule-page__row-meta {
+  color: var(--text-secondary);
+}
+
+.schedule-page__row-desc {
+  flex-basis: 100%;
+  color: var(--text-secondary);
+  white-space: pre-line;
+  font-size: 0.875rem;
+}
+
+.schedule-page--mobile .schedule-page__row-time {
+  flex-basis: 100%;
+}
+
+.schedule-page__empty {
+  margin-top: var(--space-3);
+  color: var(--text-secondary);
+}
+
+/* 다이얼로그 */
+.schedule-page__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+  color: var(--text-secondary);
+}
+
+.schedule-page__dialog-actions {
+  justify-content: flex-end;
+}
+
+.schedule-page__dialog-sub {
+  margin: 0 0 var(--space-2);
+  color: var(--text-secondary);
+}
+
+.schedule-page__detail {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.schedule-page__detail div {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: var(--space-2);
+}
+
+.schedule-page__detail dt {
+  color: var(--text-secondary);
+}
+
+.schedule-page__detail dd {
+  margin: 0;
+  color: var(--text-main);
+  word-break: break-word;
+}
+
+.schedule-page__detail-desc {
+  white-space: pre-line;
+}
+
+.schedule-page__link-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  text-decoration: none;
+}
+
+/* 할 일(Google Tasks · ONE FC 할 일): 일정과 구분되도록 테두리형, 시간 축 밖 */
+.schedule-page__chip--task,
+.schedule-page__block--task {
+  background: var(--bg-card);
+  border: 1px dashed var(--border-strong);
+  color: var(--text-main);
+}
+
+.schedule-page__chip--google_task,
+.schedule-page__block--google_task {
+  border-color: var(--primary-border);
+}
+
+.schedule-page__chip--onefc_todo,
+.schedule-page__block--onefc_todo {
+  border-color: var(--accent);
+}
+
+.schedule-page__chip--done,
+.schedule-page__block--done,
+.schedule-page__task-item--done .schedule-page__row-title {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.schedule-page__chip--overdue,
+.schedule-page__block--overdue {
+  border-style: solid;
+  border-color: var(--danger-border);
+}
+
+.schedule-page__badge--google_task {
+  background: var(--bg-card);
+  border: 1px solid var(--primary-border);
+  color: var(--text-main);
+}
+
+.schedule-page__badge--onefc_todo {
+  background: var(--bg-card);
+  border: 1px solid var(--accent);
+  color: var(--accent-text);
+}
+
+.schedule-page__task-mark {
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+.schedule-page__task-row {
+  background: var(--bg-soft);
+}
+
+.schedule-page__task-section {
+  margin-top: var(--space-3);
+}
+
+.schedule-page__section-title {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--text-main);
+}
+
+.schedule-page__task-list {
+  margin-top: var(--space-2);
+}
+
+.schedule-page__task-item--overdue {
+  border-color: var(--danger-border);
+}
+
+.schedule-page__row-overdue {
+  color: var(--danger-text);
+}
