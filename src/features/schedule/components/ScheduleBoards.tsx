@@ -4,9 +4,10 @@ import { FormDialog } from '../../../components/dialog'
 import { Button } from '../../../components/ui'
 import { formatKstTime } from '../../../utils/displayDateTime'
 import { formatDateWithKoreanWeekday } from '../../../utils/formatDateWithKoreanWeekday'
-import { SCHEDULE_FILTER_LABEL, scheduleFilterKeyOf, type ScheduleEvent } from '../api/scheduleApi'
+import { SCHEDULE_FILTER_LABEL, scheduleFilterKeyOf, type ScheduleEvent, type ScheduleTask } from '../api/scheduleApi'
 import type { ScheduleViewProps } from '../hooks/useScheduleState'
-import { monthCells, weekDays } from '../domain/scheduleRange'
+import { monthCells, viewQueryRange, weekDays } from '../domain/scheduleRange'
+import { groupListTasks, isOverdueTask, sortScheduleTasks, tasksOnDate } from '../domain/scheduleTasks'
 import {
   eventClock,
   eventCoversDate,
@@ -29,11 +30,43 @@ function eventButtonClass(base: string, event: ScheduleEvent): string {
   return `${base} ${base}--${scheduleFilterKeyOf(event)}`
 }
 
-type MonthProps = Pick<ScheduleViewProps, 'anchor' | 'today' | 'events' | 'selectedDate' | 'onSelectDate' | 'onOpenDay' | 'onOpenEvent'>
+export function ScheduleTaskBadge({ task }: { task: ScheduleTask }) {
+  return <span className={`schedule-page__badge schedule-page__badge--${task.source}`}>{SCHEDULE_FILTER_LABEL[task.source]}</span>
+}
 
-export function ScheduleMonth({ anchor, today, events, selectedDate, onSelectDate, onOpenDay, onOpenEvent }: MonthProps) {
+/** 할 일 표시: ○ 열림 / ✓ 완료. 일정과 구분되도록 테두리형 칩. */
+function taskMark(task: ScheduleTask): string {
+  return task.status === 'completed' ? '✓' : '○'
+}
+
+function taskButtonClass(base: string, task: ScheduleTask, today?: string): string {
+  const classes = [base, `${base}--task`, `${base}--${task.source}`]
+  if (task.status === 'completed') classes.push(`${base}--done`)
+  if (today && isOverdueTask(task, today)) classes.push(`${base}--overdue`)
+  return classes.join(' ')
+}
+
+function TaskChip({ task, base, today, onOpenTask }: { task: ScheduleTask; base: string; today?: string; onOpenTask: (task: ScheduleTask) => void }) {
+  return (
+    <button
+      type="button"
+      className={taskButtonClass(base, task, today)}
+      title={`${SCHEDULE_FILTER_LABEL[task.source]} · 할 일 · ${task.title}${task.status === 'completed' ? ' (완료)' : ''}`}
+      onClick={() => onOpenTask(task)}
+    >
+      <span className="schedule-page__task-mark" aria-hidden="true">{taskMark(task)}</span> {task.title}
+    </button>
+  )
+}
+
+type MonthProps = Pick<ScheduleViewProps, 'anchor' | 'today' | 'events' | 'tasks' | 'selectedDate' | 'onSelectDate' | 'onOpenDay' | 'onOpenEvent' | 'onOpenTask'>
+
+export function ScheduleMonth({ anchor, today, events, tasks, selectedDate, onSelectDate, onOpenDay, onOpenEvent, onOpenTask }: MonthProps) {
   const sorted = sortScheduleEvents(events)
+  // 예정일 없는 할 일은 월간 칸에 올리지 않는다(목록 화면 "날짜 없음"에서 보인다).
+  const datedTasks = sortScheduleTasks(tasks.filter((task) => task.dueDate))
   const selectedEvents = selectedDate ? sorted.filter((event) => eventCoversDate(event, selectedDate)) : []
+  const selectedTasks = selectedDate ? tasksOnDate(datedTasks, selectedDate) : []
   return (
     <>
       <div className="schedule-page__month" role="grid" aria-label="월간 일정">
@@ -42,8 +75,10 @@ export function ScheduleMonth({ anchor, today, events, selectedDate, onSelectDat
         ))}
         {monthCells(anchor).map((cell) => {
           const dayEvents = sorted.filter((event) => eventCoversDate(event, cell.date))
+          const dayTasks = tasksOnDate(datedTasks, cell.date)
           const visible = dayEvents.slice(0, MONTH_CELL_LIMIT)
-          const overflow = dayEvents.length - visible.length
+          const visibleTasks = dayTasks.slice(0, Math.max(0, MONTH_CELL_LIMIT - visible.length))
+          const overflow = dayEvents.length + dayTasks.length - visible.length - visibleTasks.length
           const classes = ['schedule-page__cell']
           if (!cell.inMonth) classes.push('schedule-page__cell--muted')
           if (cell.date === today) classes.push('schedule-page__cell--today')
@@ -53,7 +88,7 @@ export function ScheduleMonth({ anchor, today, events, selectedDate, onSelectDat
               <button
                 type="button"
                 className="schedule-page__date"
-                aria-label={`${formatDateWithKoreanWeekday(cell.date)} 일정 ${dayEvents.length}건`}
+                aria-label={`${formatDateWithKoreanWeekday(cell.date)} 일정 ${dayEvents.length}건${dayTasks.length > 0 ? `, 할 일 ${dayTasks.length}건` : ''}`}
                 aria-pressed={cell.date === selectedDate}
                 onClick={() => onSelectDate(cell.date)}
               >
@@ -70,6 +105,9 @@ export function ScheduleMonth({ anchor, today, events, selectedDate, onSelectDat
                   {event.title}
                 </button>
               ))}
+              {visibleTasks.map((task) => (
+                <TaskChip key={task.id} task={task} base="schedule-page__chip" today={today} onOpenTask={onOpenTask} />
+              ))}
               {overflow > 0 ? (
                 <button type="button" className="schedule-page__more" onClick={() => onSelectDate(cell.date)}>
                   +{overflow}
@@ -85,6 +123,9 @@ export function ScheduleMonth({ anchor, today, events, selectedDate, onSelectDat
             <strong>{formatDateWithKoreanWeekday(selectedDate)}</strong>
             <Button type="button" variant="secondary" size="sm" onClick={() => onOpenDay(selectedDate)}>일간 보기</Button>
           </div>
+          {selectedTasks.length > 0 ? (
+            <ScheduleTaskSection title="할 일" tasks={selectedTasks} today={today} onOpenTask={onOpenTask} showDate={false} />
+          ) : null}
           <ScheduleDayList events={selectedEvents} onOpenEvent={onOpenEvent} detailed={false} showDate={false} />
         </section>
       ) : null}
@@ -92,9 +133,10 @@ export function ScheduleMonth({ anchor, today, events, selectedDate, onSelectDat
   )
 }
 
-export function ScheduleWeek({ anchor, today, events, onOpenEvent }: Pick<ScheduleViewProps, 'anchor' | 'today' | 'events' | 'onOpenEvent'>) {
+export function ScheduleWeek({ anchor, today, events, tasks, onOpenEvent, onOpenTask }: Pick<ScheduleViewProps, 'anchor' | 'today' | 'events' | 'tasks' | 'onOpenEvent' | 'onOpenTask'>) {
   const days = weekDays(anchor)
   const sorted = sortScheduleEvents(events)
+  const sortedTasks = sortScheduleTasks(tasks)
   return (
     <div className="schedule-page__week" aria-label="주간 일정">
       <div className="schedule-page__week-grid">
@@ -114,6 +156,17 @@ export function ScheduleWeek({ anchor, today, events, onOpenEvent }: Pick<Schedu
                 <button key={event.id} type="button" className={eventButtonClass('schedule-page__block', event)} onClick={() => onOpenEvent(event)}>
                   {event.title}
                 </button>
+              ))}
+            </div>
+          ))}
+        </div>
+        {/* 할 일은 시간 축에 올리지 않는다(시간을 지어내지 않음). 종일 영역처럼 위쪽 한 줄. */}
+        <div className="schedule-page__all-day schedule-page__task-row" aria-label="할 일">
+          <span className="schedule-page__axis">할 일</span>
+          {days.map((date) => (
+            <div key={date} className="schedule-page__slot">
+              {tasksOnDate(sortedTasks, date).map((task) => (
+                <TaskChip key={task.id} task={task} base="schedule-page__block" today={today} onOpenTask={onOpenTask} />
               ))}
             </div>
           ))}
@@ -166,6 +219,109 @@ export function ScheduleDayList({ events, onOpenEvent, detailed, showDate = true
         </li>
       ))}
     </ul>
+  )
+}
+
+function taskDueLabel(task: ScheduleTask): string {
+  if (!task.dueDate) return '날짜 없음'
+  return task.dueTime ? `${formatDateWithKoreanWeekday(task.dueDate)} ${task.dueTime}` : formatDateWithKoreanWeekday(task.dueDate)
+}
+
+/** 할 일 묶음(일간·목록·월간 날짜 패널). 조회만 하고 순서·상태를 바꾸지 않는다. */
+export function ScheduleTaskSection({ title, tasks, today, onOpenTask, showDate = true, emptyText }: {
+  title: string
+  tasks: ScheduleTask[]
+  today: string
+  onOpenTask: (task: ScheduleTask) => void
+  showDate?: boolean
+  emptyText?: string
+}) {
+  if (tasks.length === 0 && !emptyText) {
+    return null
+  }
+  return (
+    <section className="schedule-page__task-section" aria-label={title}>
+      <h2 className="schedule-page__section-title">{title}</h2>
+      {tasks.length === 0 ? <p className="schedule-page__empty">{emptyText}</p> : (
+        <ul className="schedule-page__day-list schedule-page__task-list">
+          {tasks.map((task) => (
+            <li key={task.id} className={taskButtonClass('schedule-page__task-item', task, today)}>
+              <button type="button" onClick={() => onOpenTask(task)}>
+                <span className="schedule-page__task-mark" aria-hidden="true">{taskMark(task)}</span>
+                {showDate ? <span className="schedule-page__row-time">{taskDueLabel(task)}</span> : null}
+                <strong className="schedule-page__row-title">{task.title}</strong>
+                <ScheduleTaskBadge task={task} />
+                {task.status === 'completed' ? <span className="schedule-page__row-meta">완료</span> : null}
+                {isOverdueTask(task, today) ? <span className="schedule-page__row-meta schedule-page__row-overdue">지남</span> : null}
+                {task.taskListName ? <span className="schedule-page__row-meta">{task.taskListName}</span> : null}
+                {task.customerName ? <span className="schedule-page__row-meta">{task.customerName}</span> : null}
+                {task.notes ? <span className="schedule-page__row-desc">{task.notes}</span> : null}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+/** 일간: 시간 없는 할 일 묶음을 시간 일정과 따로 위에 둔다. */
+export function ScheduleDay({ anchor, today, events, tasks, onOpenEvent, onOpenTask }: Pick<ScheduleViewProps, 'anchor' | 'today' | 'events' | 'tasks' | 'onOpenEvent' | 'onOpenTask'>) {
+  return (
+    <>
+      <ScheduleTaskSection title="할 일" tasks={tasksOnDate(sortScheduleTasks(tasks), anchor)} today={today} onOpenTask={onOpenTask} showDate={false} />
+      <ScheduleDayList events={events} onOpenEvent={onOpenEvent} detailed showDate={false} />
+    </>
+  )
+}
+
+/** 목록: 지난 할 일 → 일정 → 기간 안 할 일 → 날짜 없음. */
+export function ScheduleList({ anchor, today, events, tasks, onOpenEvent, onOpenTask }: Pick<ScheduleViewProps, 'anchor' | 'today' | 'events' | 'tasks' | 'onOpenEvent' | 'onOpenTask'>) {
+  const groups = groupListTasks(tasks, viewQueryRange('list', anchor), today)
+  return (
+    <>
+      <ScheduleTaskSection title="지난 할 일" tasks={groups.overdue} today={today} onOpenTask={onOpenTask} />
+      <ScheduleDayList events={events} onOpenEvent={onOpenEvent} detailed showDate />
+      <ScheduleTaskSection title="할 일" tasks={groups.dated} today={today} onOpenTask={onOpenTask} />
+      <ScheduleTaskSection title="날짜 없음" tasks={groups.undated} today={today} onOpenTask={onOpenTask} />
+    </>
+  )
+}
+
+/** 할 일 읽기 전용 상세. 편집 UI 없음. ONE FC 할 일은 할 일 화면으로만 이동한다. */
+export function ScheduleTaskDetailDialog({ taskDetail, today, onCloseTaskDetail, onOpenTodos }: Pick<ScheduleViewProps, 'taskDetail' | 'today' | 'onCloseTaskDetail' | 'onOpenTodos'>) {
+  if (!taskDetail) {
+    return null
+  }
+  const isGoogle = taskDetail.source === 'google_task'
+  return (
+    <FormDialog
+      open
+      title={taskDetail.title}
+      closeOnBackdrop
+      closeOnEsc
+      onClose={onCloseTaskDetail}
+      footer={(
+        <div className="schedule-page__dialog-actions">
+          {!isGoogle ? (
+            <FormButton htmlType="button" variant="secondary" onClick={onOpenTodos}>할 일 화면에서 보기</FormButton>
+          ) : null}
+          <FormButton htmlType="button" variant="secondary" onClick={onCloseTaskDetail}>닫기</FormButton>
+        </div>
+      )}
+    >
+      <dl className="schedule-page__detail">
+        {isGoogle ? <div><dt>목록</dt><dd>{taskDetail.taskListName || '내 할 일 목록'}</dd></div> : null}
+        <div><dt>예정일</dt><dd>{taskDueLabel(taskDetail)}{isOverdueTask(taskDetail, today) ? ' (지남)' : ''}</dd></div>
+        <div><dt>상태</dt><dd>{taskDetail.status === 'completed' ? '완료' : '진행 중'}</dd></div>
+        {taskDetail.customerName ? <div><dt>고객</dt><dd>{taskDetail.customerName}</dd></div> : null}
+        {taskDetail.notes ? <div><dt>메모</dt><dd className="schedule-page__detail-desc">{taskDetail.notes}</dd></div> : null}
+        <div>
+          <dt>출처</dt>
+          <dd><ScheduleTaskBadge task={taskDetail} /> {isGoogle ? 'Google 출처 · 읽기 전용' : 'ONE FC 할 일'}</dd>
+        </div>
+      </dl>
+    </FormDialog>
   )
 }
 

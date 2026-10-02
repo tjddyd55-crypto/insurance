@@ -388,3 +388,77 @@
   color: var(--btn-primary-text);
   text-decoration: none;
 }
+
+/* 할 일(Google Tasks · ONE FC 할 일): 일정과 구분되도록 테두리형, 시간 축 밖 */
+.schedule-page__chip--task,
+.schedule-page__block--task {
+  background: var(--bg-card);
+  border: 1px dashed var(--border-strong);
+  color: var(--text-main);
+}
+
+.schedule-page__chip--google_task,
+.schedule-page__block--google_task {
+  border-color: var(--primary-border);
+}
+
+.schedule-page__chip--onefc_todo,
+.schedule-page__block--onefc_todo {
+  border-color: var(--accent);
+}
+
+.schedule-page__chip--done,
+.schedule-page__block--done,
+.schedule-page__task-item--done .schedule-page__row-title {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.schedule-page__chip--overdue,
+.schedule-page__block--overdue {
+  border-style: solid;
+  border-color: var(--danger-border);
+}
+
+.schedule-page__badge--google_task {
+  background: var(--bg-card);
+  border: 1px solid var(--primary-border);
+  color: var(--text-main);
+}
+
+.schedule-page__badge--onefc_todo {
+  background: var(--bg-card);
+  border: 1px solid var(--accent);
+  color: var(--accent-text);
+}
+
+.schedule-page__task-mark {
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+.schedule-page__task-row {
+  background: var(--bg-soft);
+}
+
+.schedule-page__task-section {
+  margin-top: var(--space-3);
+}
+
+.schedule-page__section-title {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--text-main);
+}
+
+.schedule-page__task-list {
+  margin-top: var(--space-2);
+}
+
+.schedule-page__task-item--overdue {
+  border-color: var(--danger-border);
+}
+
+.schedule-page__row-overdue {
+  color: var(--danger-text);
+}

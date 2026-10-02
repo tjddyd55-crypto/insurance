@@ -74,7 +74,9 @@ export function useServiceIntegrationsState(): ServiceIntegrationsViewProps {
       return
     }
     if (googleResult === 'connected') {
-      setNotice('Google 계정이 연결되었습니다.')
+      setNotice(googleReason === 'tasks_scope_missing'
+        ? 'Google 계정이 연결되었습니다. Google Tasks 읽기 권한은 허용되지 않아 Google 할 일은 표시되지 않습니다. 다시 연결하면 허용할 수 있습니다.'
+        : 'Google 계정이 연결되었습니다.')
     } else {
       setError(googleConnectErrorMessage(googleReason))
     }

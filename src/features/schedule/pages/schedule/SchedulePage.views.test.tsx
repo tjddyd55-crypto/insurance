@@ -14,8 +14,9 @@ const { default: ScheduleMobileView } = await import('./ScheduleMobileView')
 const { readScheduleEventsResponse } = await import('../../api/scheduleApi')
 const { parseScheduleSources, toggleScheduleSource } = await import('../../hooks/useScheduleState')
 const { eventCoversDate, eventEndDay, eventStartDay } = await import('../../domain/scheduleEventTime')
+const { filterScheduleTasks, groupListTasks, isOverdueTask } = await import('../../domain/scheduleTasks')
 
-import type { ScheduleEvent } from '../../api/scheduleApi'
+import type { ScheduleEvent, ScheduleTask } from '../../api/scheduleApi'
 import type { ScheduleViewProps } from '../../hooks/useScheduleState'
 
 function google(id: string, title: string, startAt: string, endAt: string, extra: Partial<ScheduleEvent> = {}): ScheduleEvent {
@@ -71,6 +72,39 @@ function crm(id: string, type: 'customer_alert' | 'car_expiry' | 'insurance_age'
   }
 }
 
+function task(id: string, source: 'google_task' | 'onefc_todo', title: string, dueDate: string | null, extra: Partial<ScheduleTask> = {}): ScheduleTask {
+  return {
+    id: `${source}:${id}`,
+    source,
+    sourceId: id,
+    taskListId: source === 'google_task' ? 'L1' : null,
+    taskListName: source === 'google_task' ? '업무 목록' : '',
+    title,
+    notes: '',
+    dueDate,
+    dueTime: null,
+    status: 'open',
+    completedAt: null,
+    parentId: null,
+    updatedAt: null,
+    customerId: null,
+    customerName: '',
+    readOnly: true,
+    ...extra,
+  }
+}
+
+const TASKS: ScheduleTask[] = [
+  task('t1', 'google_task', '서류 제출', '2026-10-03', { notes: '원본 서류 지참' }),
+  task('t2', 'google_task', '완료한 일', '2026-10-05', { status: 'completed', completedAt: '2026-10-04T08:00:00.000Z' }),
+  task('t3', 'google_task', '날짜 없는 일', null),
+  task('t4', 'google_task', '지난 일', '2026-09-20'),
+  task('o1', 'onefc_todo', '고객 전화', '2026-10-03', { customerName: '김고객', customerId: 9, notes: '오후 통화' }),
+  task('o2', 'onefc_todo', '날짜 없는 내 할 일', null),
+]
+
+const OPEN_TASKS = TASKS.filter((item) => item.status === 'open')
+
 const EVENTS: ScheduleEvent[] = [
   google('g1', '본사 미팅', '2026-10-02T09:00:00+09:00', '2026-10-02T10:00:00+09:00', { location: '서울 본사', description: '분기 보고' }),
   google('g2', '워크숍', '2026-10-02', '2026-10-03'),
@@ -86,14 +120,18 @@ function props(overrides: Partial<ScheduleViewProps> = {}): ScheduleViewProps {
     view: 'month',
     anchor: '2026-10-02',
     today: '2026-10-02',
-    sources: ['google', 'customer_alert', 'car_expiry', 'insurance_age'],
+    sources: ['google', 'google_task', 'onefc_todo', 'customer_alert', 'car_expiry', 'insurance_age'],
     calendarIds: [],
     events: EVENTS,
-    google: { configured: true, connected: true, status: 'connected', calendars: [] },
+    tasks: OPEN_TASKS,
+    includeCompleted: false,
+    google: { configured: true, connected: true, status: 'connected', calendars: [], tasks: { status: 'connected', needsReconsent: false, taskLists: [] } },
+    sourceStatus: { google: 'connected', google_task: 'connected', onefc_todo: 'ok', crm: 'ok' },
     loading: false,
     error: '',
     selectedDate: '',
     detail: null,
+    taskDetail: null,
     editing: null,
     editTitle: '',
     editDate: '',
@@ -107,6 +145,10 @@ function props(overrides: Partial<ScheduleViewProps> = {}): ScheduleViewProps {
     onToggleCalendar: noop,
     onOpenEvent: noop,
     onCloseDetail: noop,
+    onToggleCompleted: noop,
+    onOpenTask: noop,
+    onCloseTaskDetail: noop,
+    onOpenTodos: noop,
     onOpenCustomer: noop,
     onOpenIntegrations: noop,
     onEditTitle: noop,
@@ -123,15 +165,15 @@ function render(view: ScheduleViewProps, mobile = false) {
 }
 
 describe('일정 관리 화면 (PC·모바일 웹 공통)', () => {
-  it('월간: 기간 제목, 출처 badge, +N, 필터 칩(전체/Google/알림일/자동차 만기/상령일)', () => {
+  it('월간: 기간 제목, 출처 badge, +N, 필터 칩(전체/Google 일정/Google 할 일/ONE FC 할 일/알림일/자동차 만기/상령일)', () => {
     for (const mobile of [false, true]) {
-      const html = render(props(), mobile)
+      const html = render(props({ tasks: [] }), mobile)
       expect(html).toContain('일정 관리')
       expect(html).toContain('2026년 10월')
       expect(html).toContain('이전')
       expect(html).toContain('오늘')
       expect(html).toContain('다음')
-      for (const label of ['월간', '주간', '일간', '전체', 'Google', '알림일', '자동차 만기', '상령일']) {
+      for (const label of ['월간', '주간', '일간', '전체', 'Google 일정', 'Google 할 일', 'ONE FC 할 일', '알림일', '자동차 만기', '상령일', '완료 포함']) {
         expect(html).toContain(label)
       }
       expect(html).not.toContain('개인 일정')
@@ -196,7 +238,7 @@ describe('일정 관리 화면 (PC·모바일 웹 공통)', () => {
       google: { configured: true, connected: false, status: 'disconnected', calendars: [] },
       events: EVENTS.filter((event) => event.source === 'crm'),
     }))
-    expect(html).toContain('Google Calendar를 연결하면 일정을 함께 볼 수 있습니다.')
+    expect(html).toContain('Google을 연결하면 Google Calendar 일정과 Google Tasks 할 일을 함께 볼 수 있습니다.')
     expect(html).toContain('서비스 연동으로 이동')
     expect(html).toContain('schedule-page__chip--customer_alert')
   })
@@ -228,10 +270,125 @@ describe('일정 관리 화면 (PC·모바일 웹 공통)', () => {
   })
 })
 
+describe('일정 관리: 할 일 (Google Tasks · ONE FC 할 일, 읽기 전용)', () => {
+  it('월간: 예정일 있는 할 일은 그 날 칸에 ○ 할 일 칩, 날짜 없는 할 일은 칸에 없음', () => {
+    for (const mobile of [false, true]) {
+      const html = render(props({ events: [] }), mobile)
+      expect(html).toContain('schedule-page__chip--task')
+      expect(html).toContain('schedule-page__chip--google_task')
+      expect(html).toContain('schedule-page__chip--onefc_todo')
+      expect(html).toMatch(/Google 할 일 · 할 일 · 서류 제출/)
+      expect(html).toContain('○')
+      expect(html).toContain('할 일 2건')
+      expect(html).not.toContain('날짜 없는 일')
+      expect(html).not.toContain('날짜 없는 내 할 일')
+    }
+  })
+
+  it('월간: 완료 포함이면 완료 할 일도 ✓ 표시', () => {
+    const html = render(props({ events: [], tasks: TASKS, includeCompleted: true }))
+    expect(html).toContain('schedule-page__chip--done')
+    expect(html).toContain('✓')
+    expect(html).toMatch(/aria-pressed="true"[^>]*>완료 포함/)
+  })
+
+  it('주간: 할 일은 시간 축이 아니라 위쪽 할 일 줄에만', () => {
+    const html = render(props({ view: 'week' }))
+    expect(html).toContain('aria-label="할 일"')
+    const taskRow = html.slice(html.indexOf('schedule-page__task-row'), html.indexOf('schedule-page__hours'))
+    expect(taskRow).toContain('서류 제출')
+    expect(taskRow).toContain('고객 전화')
+    const hours = html.slice(html.indexOf('schedule-page__hours'))
+    expect(hours).not.toContain('서류 제출')
+    expect(hours).not.toContain('schedule-page__block--task')
+  })
+
+  it('일간: 할 일 묶음이 시간 일정과 따로 위에', () => {
+    const html = render(props({ view: 'day', anchor: '2026-10-03', events: [google('g9', '오전 미팅', '2026-10-03T09:00:00+09:00', '2026-10-03T10:00:00+09:00')] }))
+    const section = html.indexOf('schedule-page__task-section')
+    expect(section).toBeGreaterThan(-1)
+    expect(html.indexOf('서류 제출')).toBeGreaterThan(section)
+    expect(html.indexOf('오전 미팅')).toBeGreaterThan(html.indexOf('서류 제출'))
+    expect(html).toContain('김고객')
+    expect(html).not.toContain('지난 일')
+  })
+
+  it('목록: 지난 할 일, 할 일, 날짜 없음 묶음과 출처 badge·목록 이름·메모', () => {
+    for (const mobile of [false, true]) {
+      const html = render(props({ view: 'list', tasks: TASKS, includeCompleted: true }), mobile)
+      expect(html).toContain('aria-label="지난 할 일"')
+      expect(html).toContain('aria-label="날짜 없음"')
+      expect(html.indexOf('지난 일')).toBeLessThan(html.indexOf('본사 미팅'))
+      expect(html.indexOf('날짜 없는 일')).toBeGreaterThan(html.indexOf('서류 제출'))
+      expect(html).toContain('schedule-page__badge--google_task')
+      expect(html).toContain('schedule-page__badge--onefc_todo')
+      expect(html).toContain('schedule-page__badge--google')
+      expect(html).toContain('schedule-page__badge--insurance_age')
+      expect(html).toContain('업무 목록')
+      expect(html).toContain('원본 서류 지참')
+      expect(html).toContain('완료')
+      expect(html).toContain('지남')
+    }
+  })
+
+  it('Google 할 일 상세: 제목·목록·예정일·메모·상태·Google 출처, 편집 UI 없음', () => {
+    const html = render(props({ taskDetail: TASKS[0] }))
+    expect(html).toContain('서류 제출')
+    expect(html).toContain('업무 목록')
+    expect(html).toContain('2026-10-03 (토)')
+    expect(html).toContain('원본 서류 지참')
+    expect(html).toContain('진행 중')
+    expect(html).toContain('Google 출처 · 읽기 전용')
+    expect(html).toContain('data-backdrop="true"')
+    expect(html).not.toContain('저장')
+    expect(html).not.toContain('<input')
+    expect(html).not.toContain('할 일 화면에서 보기')
+  })
+
+  it('ONE FC 할 일 상세는 할 일 화면으로만 이동', () => {
+    const html = render(props({ taskDetail: TASKS[4] }))
+    expect(html).toContain('김고객')
+    expect(html).toContain('할 일 화면에서 보기')
+    expect(html).not.toContain('Google 출처')
+  })
+
+  it('Tasks 권한 없음: 다시 연결 안내, Google 일정·CRM 은 계속', () => {
+    const html = render(props({
+      tasks: OPEN_TASKS.filter((item) => item.source === 'onefc_todo'),
+      google: { configured: true, connected: true, status: 'connected', calendars: [], tasks: { status: 'scope_missing', needsReconsent: true, taskLists: [] } },
+      sourceStatus: { google: 'connected', google_task: 'scope_missing', onefc_todo: 'ok', crm: 'ok' },
+    }))
+    expect(html).toContain('Google 할 일을 보려면 Google을 다시 연결해 Google Tasks 읽기 권한을 허용해 주세요.')
+    expect(html).toContain('재연결 필요')
+    expect(html).toContain('schedule-page__chip--google')
+    expect(html).toContain('schedule-page__chip--customer_alert')
+    expect(html).toContain('schedule-page__chip--onefc_todo')
+  })
+
+  it('Google 할 일 실패·ONE FC 할 일 실패는 해당 출처만 안내하고 다른 출처는 그대로', () => {
+    const html = render(props({
+      view: 'list',
+      tasks: OPEN_TASKS.filter((item) => item.source === 'onefc_todo'),
+      google: { configured: true, connected: true, status: 'connected', calendars: [], tasks: { status: 'error', needsReconsent: false, taskLists: [] } },
+      sourceStatus: { google: 'connected', google_task: 'error', onefc_todo: 'ok', crm: 'ok' },
+    }))
+    expect(html).toContain('Google 할 일을 불러오지 못했습니다.')
+    expect(html).toContain('본사 미팅')
+    expect(html).toContain('고객 전화')
+    const todoFail = render(props({
+      tasks: OPEN_TASKS.filter((item) => item.source === 'google_task'),
+      sourceStatus: { google: 'connected', google_task: 'connected', onefc_todo: 'error', crm: 'ok' },
+    }))
+    expect(todoFail).toContain('ONE FC 할 일을 불러오지 못했습니다.')
+    expect(todoFail).toContain('schedule-page__chip--google_task')
+  })
+})
+
 describe('일정 필터·날짜 규칙', () => {
   it('출처 필터 토글', () => {
     const all = parseScheduleSources(null)
-    expect(all).toEqual(['google', 'customer_alert', 'car_expiry', 'insurance_age'])
+    expect(all).toEqual(['google', 'google_task', 'onefc_todo', 'customer_alert', 'car_expiry', 'insurance_age'])
+    expect(parseScheduleSources('google_task,onefc_todo')).toEqual(['google_task', 'onefc_todo'])
     expect(toggleScheduleSource(all, 'google')).toEqual(['google'])
     expect(toggleScheduleSource(['google'], 'car_expiry')).toEqual(['google', 'car_expiry'])
     expect(toggleScheduleSource(['google'], 'google')).toEqual(all)
@@ -256,5 +413,29 @@ describe('일정 필터·날짜 규칙', () => {
     expect(readScheduleEventsResponse(body).google.status).toBe('disconnected')
     expect(readScheduleEventsResponse({ success: true, data: body }).google.calendars).toEqual([])
     expect(readScheduleEventsResponse(null).google.status).toBe('unconfigured')
+    expect(readScheduleEventsResponse(body).tasks).toEqual([])
+    expect(readScheduleEventsResponse(body).sourceStatus.google_task).toBe('skipped')
+    const withTasks = readScheduleEventsResponse({
+      success: true,
+      data: { ...body, tasks: [TASKS[0]], sourceStatus: { google_task: 'scope_missing' }, google: { ...body.google, tasks: { status: 'scope_missing', needsReconsent: true } } },
+    })
+    expect(withTasks.tasks).toHaveLength(1)
+    expect(withTasks.sourceStatus.google_task).toBe('scope_missing')
+    expect(withTasks.google.tasks?.needsReconsent).toBe(true)
+  })
+
+  it('할 일 날짜 규칙: 지난 할 일은 오늘(KST) 이전·미완료, 완료 포함 필터, 목록 묶음은 겹치지 않는다', () => {
+    expect(isOverdueTask(TASKS[3], '2026-10-02')).toBe(true)
+    expect(isOverdueTask({ ...TASKS[3], status: 'completed' }, '2026-10-02')).toBe(false)
+    expect(isOverdueTask(TASKS[2], '2026-10-02')).toBe(false)
+    expect(isOverdueTask(TASKS[0], '2026-10-03')).toBe(false)
+    const all = ['google', 'google_task', 'onefc_todo'] as const
+    expect(filterScheduleTasks(TASKS, [...all], false).map((item) => item.sourceId)).toEqual(['t1', 't3', 't4', 'o1', 'o2'])
+    expect(filterScheduleTasks(TASKS, [...all], true)).toHaveLength(6)
+    expect(filterScheduleTasks(TASKS, ['onefc_todo'], false).map((item) => item.sourceId)).toEqual(['o1', 'o2'])
+    const groups = groupListTasks(TASKS, { start: '2026-10-01', end: '2026-10-31' }, '2026-10-02')
+    expect(groups.overdue.map((item) => item.sourceId)).toEqual(['t4'])
+    expect(groups.dated.map((item) => item.sourceId)).toEqual(['o1', 't1', 't2'])
+    expect(groups.undated.map((item) => item.sourceId).sort()).toEqual(['o2', 't3'])
   })
 })
