@@ -2,15 +2,20 @@ import { addDaysYmd, seoulYmd } from '../lib/seoulCalendarDate.js'
 import { asYmd } from '../reminders/reminderEvents.js'
 
 /**
- * 화면 필터 키. Google 은 source, CRM 은 type 으로 나뉜다.
+ * 화면 필터 키. Google 일정은 'google', 할 일은 출처(google_task·onefc_todo), CRM 은 type 으로 나뉜다.
  * (전체 = 아래 전부)
  */
 export const SCHEDULE_SOURCES = [
   'google',
+  'google_task',
+  'onefc_todo',
   'customer_alert',
   'car_expiry',
   'insurance_age',
 ]
+
+/** 할 일 출처. events 가 아니라 tasks 배열로 나간다(시간 축에 올리지 않음). */
+export const SCHEDULE_TASK_SOURCES = ['google_task', 'onefc_todo']
 
 const REMINDER_TYPE = {
   special_date: 'customer_alert',
