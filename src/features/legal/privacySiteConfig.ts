@@ -29,10 +29,12 @@ export const privacySiteConfig = {
   privacyEmail: businessInfo.businessEmail,
   /** 문의 전화 (선택) */
   privacyPhone: businessInfo.privacyOfficerPhone,
-  /** 방침 시행일 */
-  effectiveDate: '2026년 4월 1일',
-  /** 최종 개정일 (시행일과 같을 수 있음) */
+  /** 방침 시행일 (현재 판의 시행일. 제12조에 따라 개정 공지일로부터 7일 이후) */
+  effectiveDate: '2026년 10월 9일',
+  /** 최종 개정일 = 개정 공지일 (시행일과 같을 수 있음) */
   lastRevisedDate: '2026년 10월 2일',
+  /** 시행일 전까지 적용되는 종전 방침의 개정일 */
+  previousRevisedDate: '2026년 7월 13일',
   /** Google API Services User Data Policy (Limited Use 고지 링크) */
   googleUserDataPolicyUrl: 'https://developers.google.com/terms/api-services-user-data-policy',
 } as const

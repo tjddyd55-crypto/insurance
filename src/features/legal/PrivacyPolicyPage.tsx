@@ -46,6 +46,11 @@ export default function PrivacyPolicyPage() {
             (이하 &quot;서비스&quot;) 이용과 관련하여 정보주체의 개인정보를 보호하고 권익을 보호하기 위하여 다음과
             같은 처리방침을 둡니다.
           </p>
+          <p className="legal-doc__lead">
+            개정 안내: 이번 개정은 {C.lastRevisedDate}에 공지하며 {C.effectiveDate}부터 시행합니다. 시행일 전까지는 종전
+            개인정보처리방침({C.previousRevisedDate} 개정)이 적용됩니다. 주요 변경 사항은 제2조 처리 항목에 Google 서비스
+            연동(선택) 추가와 제13조 Google 서비스 연동(Google Calendar·Google Tasks 읽기 전용) 신설입니다.
+          </p>
         </header>
 
         <nav className="legal-doc__toc" aria-label="목차">
@@ -298,8 +303,8 @@ export default function PrivacyPolicyPage() {
               동안 사용합니다.
             </li>
             <li>
-              <strong>제공·공유</strong>: Google 사용자 데이터는 다른 {C.serviceName} 이용자(관리자 포함)나 제3자에게
-              제공하지 않으며, 광고 목적으로 이용하지 않습니다. 보안 점검이나 법령 준수에 필요한 경우를 제외하고 사람이
+              <strong>제공·공유</strong>: Google 연결은 이용자의 {C.serviceName} 계정별로 이루어지며, Google 사용자
+              데이터는 연결한 이용자 본인에게만 표시되고 다른 {C.serviceName} 이용자(관리자 포함)나 제3자에게 제공하지 않으며, 광고 목적으로 이용하지 않습니다. 보안 점검이나 법령 준수에 필요한 경우를 제외하고 사람이
               열람하지 않습니다.
             </li>
             <li>
@@ -318,7 +323,7 @@ export default function PrivacyPolicyPage() {
             </li>
           </ul>
           <p>
-            회사가 Google API로부터 받은 정보를 이용하고 전송하는 행위는 제한적 사용(Limited Use) 요건을 포함한{' '}
+            회사가 Google API로부터 받은 정보를 이용하고 다른 앱으로 전송하는 행위는 제한적 사용(Limited Use) 요건을 포함한{' '}
             <a
               href={C.googleUserDataPolicyUrl}
               className="legal-doc__link"
@@ -330,7 +335,8 @@ export default function PrivacyPolicyPage() {
             을 준수합니다.
           </p>
           <p lang="en">
-            {C.serviceName}&apos;s use and transfer of information received from Google APIs will adhere to the{' '}
+            {C.serviceName}&apos;s use and transfer of information received from Google APIs to any other app will adhere
+            to{' '}
             <a
               href={C.googleUserDataPolicyUrl}
               className="legal-doc__link"

@@ -70,7 +70,8 @@ ONE FC is a work tool for insurance agents. When a user explicitly connects thei
 ONE FC는 보험 설계사용 업무 도구입니다. 사용자가 서비스 연동 화면에서 직접 Google 계정을 연결하면, ONE FC는 calendar.readonly 권한으로 그 사용자 본인의 캘린더 목록과 일정을, tasks.readonly 권한으로 본인의 할 일 목록과 할 일을 읽어 ONE FC 일정 관리 화면에 ONE FC 알림 일정·할 일과 함께 읽기 전용으로 표시합니다. ONE FC는 Google Calendar 일정을 생성·수정·삭제하지 않고, Google Tasks 할 일을 생성·수정·완료 처리·삭제하지 않습니다. 데이터는 사용자가 연결한 뒤에만 요청하고, 같은 사용자에게만 보이며(관리자를 포함한 다른 ONE FC 사용자에게 보이지 않음), 영구 저장하지 않습니다(서버 캐시 약 60초). 사용자는 언제든지 연결을 해제할 수 있고, 해제 시 저장된 인증 정보를 삭제하고 토큰을 폐기합니다.
 
 ## 4. 개인정보처리방침 대응 위치
-- `/privacy` 제13조 `Google 서비스 연동`: 접근 정보(Calendar 일정 + Tasks 할 일), 목적, 권한 범위(calendar.readonly + tasks.readonly 만), 보관(암호화·브라우저 미저장·약 60초 캐시), 제공·공유(제3자·광고 미사용), 연결 해제(서비스 연동 화면 + https://myaccount.google.com/permissions), Limited Use 문장(한국어 + 영어, 정책 링크).
+- `/privacy` 제13조 `Google 서비스 연동`: 접근 정보(Calendar 일정 + Tasks 할 일), 목적, 권한 범위(calendar.readonly + tasks.readonly 만), 보관(암호화·브라우저 미저장·약 60초 캐시), 제공·공유(ONE FC 계정별 연결·본인에게만 표시, 다른 ONE FC 이용자·제3자·광고 미사용), 연결 해제(서비스 연동 화면 + https://myaccount.google.com/permissions), Limited Use 문장(한국어 + 영어 "ONE FC's use and transfer of information received from Google APIs to any other app will adhere to Google API Services User Data Policy, including the Limited Use requirements.", 정책 링크).
+- 개정 공지: 개인정보처리방침 제12조·약관 제12조의 "시행 7일 전 공지"에 맞춰 개정일(공지일) 2026-10-02, 시행일 2026-10-09. 두 페이지 머리말에 개정 안내 문단(종전 판 날짜·주요 변경). 운영 배포일이 늦어지면 공지일=배포일, 시행일=배포일+7일로 바꾼 뒤 배포한다.
 - `/privacy` 제2조 수집 항목: Google Calendar 캘린더 목록 및 일정 정보, Google Tasks 할 일 목록 및 할 일 정보.
 - `/terms` 제4조: Google Calendar 및 Google Tasks 연동은 선택·사용자 직접 연결·읽기 전용·언제든 해제, 개인정보처리방침 참조.
 - `/introduction` 주요 기능 요약: Google Calendar 및 Google Tasks 읽기 전용 연동 문장.
