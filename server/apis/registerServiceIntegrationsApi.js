@@ -9,7 +9,7 @@ import {
 } from '../integrations/providerRegistry.js'
 import { disconnectUserIntegration, listUserIntegrationRows, SECRET_MASK } from '../integrations/integrationStore.js'
 import { readGoogleIntegrationStatus } from '../integrations/googleCalendarAdapter.js'
-import { GOOGLE_CALENDAR_CARD_KEY } from '../integrations/google/googleOAuthConfig.js'
+import { GOOGLE_CALENDAR_CARD_KEY, isGoogleConnectAllowed } from '../integrations/google/googleOAuthConfig.js'
 import { disconnectGoogleForUser, registerGoogleIntegrationApi, startGoogleConnect } from './registerGoogleIntegrationApi.js'
 
 const SECRET_BODY_KEYS = ['apiKey', 'api_key', 'secret', 'accessToken', 'refreshToken', 'password']
@@ -96,6 +96,7 @@ export function registerServiceIntegrationsApi(apiRouter, { pool, requireAuth, h
             settingsPath: null,
             products: google.products,
             needsReconsent: google.needsReconsent,
+            connectAllowed: isGoogleConnectAllowed(req.user),
           }
         }
         const availability = resolveProviderAvailability(provider, process.env)

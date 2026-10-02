@@ -128,4 +128,15 @@ describe('서비스 연동 Google 카드', () => {
     expect(googleConnectErrorMessage('scope_missing')).toContain('Calendar')
     expect(googleConnectErrorMessage('???')).toContain('연결하지 못했습니다')
   })
+
+  it('검증 기간 허용 목록 밖(connectAllowed=false): Google 연동 준비 중 버튼 비활성, Google 연결 버튼 없음', () => {
+    for (const mobile of [false, true]) {
+      const html = render(googleCard({ connectAllowed: false }), mobile)
+      expect(html).toMatch(/disabled=""[^>]*>Google 연동 준비 중</)
+      expect(html).not.toContain('>Google 연결<')
+    }
+    const allowed = render(googleCard({ connectAllowed: true }))
+    expect(allowed).toContain('Google 연결')
+    expect(allowed).not.toContain('Google 연동 준비 중')
+  })
 })

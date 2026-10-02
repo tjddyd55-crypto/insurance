@@ -3,6 +3,8 @@
  * 저장 행 하나(provider_key='google')를 Calendar·Tasks(이후 Drive)가 같이 쓰고, scope 만 늘린다.
  */
 
+import { isProductionRuntime } from '../../lib/crmUserBulkSmsConfig.js'
+
 export const GOOGLE_ACCOUNT_PROVIDER_KEY = 'google'
 export const GOOGLE_CALENDAR_CARD_KEY = 'google_calendar'
 
@@ -90,4 +92,29 @@ export function hasTasksReadScope(scopeText) {
   const scopes = grantedScopeList(scopeText)
   return scopes.includes(GOOGLE_TASKS_READONLY_SCOPE)
     || scopes.includes('https://www.googleapis.com/auth/tasks')
+}
+
+/** Google 연결 시작 허용 목록. 쉼표·공백 구분 ONE FC 사용자 id 또는 아이디(username). `*` 이면 모두 허용. */
+export const GOOGLE_CONNECT_ALLOWLIST_ENV = 'GOOGLE_OAUTH_CONNECT_ALLOWLIST'
+
+/**
+ * Google 검증(Testing) 기간에는 허용 목록 사용자만 Google 동의 화면으로 보낸다(그 밖의 사용자가 "액세스 차단됨"을 보지 않도록).
+ * - `*` → 모두 허용 (검증 통과 후 이 값 하나로 전체 공개)
+ * - 비어 있음 → 운영 런타임은 아무도 허용하지 않고, 운영이 아니면(DEV·로컬) 모두 허용
+ * - 그 밖 → 목록의 사용자 id 또는 아이디와 같을 때만(대소문자 무시)
+ * @param {{ id?: unknown, username?: unknown } | null | undefined} user 현재 로그인 세션(req.user)
+ * @param {Record<string, string | undefined>} [env]
+ */
+export function isGoogleConnectAllowed(user, env = process.env) {
+  const raw = String(env[GOOGLE_CONNECT_ALLOWLIST_ENV] ?? '').trim()
+  if (raw === '*') {
+    return true
+  }
+  if (!raw) {
+    return !isProductionRuntime(env)
+  }
+  const entries = new Set(raw.split(/[,;\s]+/).map((item) => item.trim().toLowerCase()).filter(Boolean))
+  const id = String(user?.id ?? '').trim().toLowerCase()
+  const username = String(user?.username ?? '').trim().toLowerCase()
+  return Boolean((id && entries.has(id)) || (username && entries.has(username)))
 }

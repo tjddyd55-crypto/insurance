@@ -47,11 +47,22 @@ callback 오류 `reason`: `access_denied`, `state_invalid`, `state_expired`, `se
 | `GOOGLE_OAUTH_CLIENT_SECRET` | 예 | 같은 클라이언트의 secret |
 | `GOOGLE_OAUTH_REDIRECT_URI` | 권장 | 없으면 `PUBLIC_BASE_URL` → `VITE_BASE_URL` origin + `/backend/service-integrations/google/callback` |
 | `SMS_CREDENTIALS_SECRET_KEY` | 예(기존) | credential 암호화 키 |
+| `GOOGLE_OAUTH_CONNECT_ALLOWLIST` | 운영 검증 기간 | Google 연결 시작 허용 목록. 쉼표·공백 구분 ONE FC 사용자 id 또는 아이디(username). `*` = 전체 허용. 비어 있으면 운영(`RAILWAY_ENVIRONMENT=production`)은 아무도 허용하지 않고, DEV·로컬은 모두 허용 |
+
+### 검증(Testing) 기간 연결 제한
+
+Google OAuth 앱이 Testing 모드인 동안 테스트 사용자가 아닌 계정은 Google 에서 "액세스 차단됨"을 본다. 그래서 허용 목록 밖 사용자는 Google 로 보내지 않는다.
+
+- 서버: `POST /service-integrations/google_calendar/connect`(및 `google`) 가 허용 목록 밖이면 403 `{ code: 'google_connect_not_ready', message: 'Google 연동 준비 중입니다.' }`. state·쿠키를 만들지 않는다.
+- `GET /service-integrations`(Google 카드), `GET /service-integrations/google/status`, `GET /schedule/events`(`google`)에 `connectAllowed` 를 준다.
+- 화면: 카드 버튼은 `Google 연동 준비 중`(비활성). 일정 관리 미연동 안내는 `Google 연동 준비 중입니다. CRM 일정과 ONE FC 할 일은 계속 표시됩니다.`(이동 버튼 없음). 일정 관리 메뉴와 CRM·ONE FC 할 일 출처는 모두에게 그대로.
+- 이미 연결된 사용자의 조회·연결 해제는 막지 않는다.
+- 검증 통과 후 전체 공개: `GOOGLE_OAUTH_CONNECT_ALLOWLIST=*` 하나만 바꾼다.
 
 승인된 리디렉션 URI:
 
 - DEV: `https://insurance-dev.up.railway.app/backend/service-integrations/google/callback`
-- PROD: `https://insurance-production-7bd8.up.railway.app/backend/service-integrations/google/callback`
+- PROD: `https://onefc.platform-assets.com/backend/service-integrations/google/callback` (공식 도메인. `*.up.railway.app` 은 운영 OAuth 클라이언트에 등록하지 않는다)
 
 ## 3. Endpoints
 

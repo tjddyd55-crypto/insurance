@@ -7,7 +7,7 @@ import {
   loadGoogleTasksForUser,
   readGoogleIntegrationStatus,
 } from '../integrations/googleCalendarAdapter.js'
-import { GOOGLE_CALENDAR_CARD_KEY, readGoogleOAuthConfig } from '../integrations/google/googleOAuthConfig.js'
+import { GOOGLE_CALENDAR_CARD_KEY, isGoogleConnectAllowed, readGoogleOAuthConfig } from '../integrations/google/googleOAuthConfig.js'
 import {
   consumeOAuthState,
   createOAuthState,
@@ -113,6 +113,10 @@ export async function startGoogleConnect(pool, req, res) {
     res.status(401).json({ success: false, code: 'unauthorized', message: '로그인이 필요합니다.' })
     return
   }
+  if (!isGoogleConnectAllowed(req.user)) {
+    res.status(403).json({ success: false, code: 'google_connect_not_ready', message: 'Google 연동 준비 중입니다.' })
+    return
+  }
   const config = readGoogleOAuthConfig()
   if (!config.configured) {
     res.status(409).json({
@@ -137,7 +141,7 @@ export function registerGoogleIntegrationApi(apiRouter, { pool, requireAuth, han
     try {
       const data = await readGoogleIntegrationStatus(pool, currentUserId(req))
       res.setHeader('Cache-Control', 'no-store')
-      res.json({ success: true, data })
+      res.json({ success: true, data: { ...data, connectAllowed: isGoogleConnectAllowed(req.user) } })
     } catch (error) {
       sendGoogleError(res, error, req, handleDbError)
     }
