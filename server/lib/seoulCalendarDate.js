@@ -93,3 +93,40 @@ export function ymdOrNull(year, month, day) {
   }
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
+
+/**
+ * 해당 시간대의 그 달력일 00:00 을 UTC ISO 로 돌려준다. 오프셋은 Intl 로 구한다(DST 포함).
+ * 예: zonedDayStartIso('2026-10-02') → '2026-10-01T15:00:00.000Z'
+ * @param {string} ymd
+ * @param {string} [timeZone]
+ */
+export function zonedDayStartIso(ymd, timeZone = SEOUL) {
+  const [year, month, day] = String(ymd).split('-').map(Number)
+  const wallUtc = Date.UTC(year, month - 1, day, 0, 0, 0)
+  let guess = wallUtc - zoneOffsetMs(wallUtc, timeZone)
+  const corrected = wallUtc - zoneOffsetMs(guess, timeZone)
+  if (corrected !== guess) {
+    guess = corrected
+  }
+  return new Date(guess).toISOString()
+}
+
+/**
+ * @param {number} instantMs
+ * @param {string} timeZone
+ */
+function zoneOffsetMs(instantMs, timeZone) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(new Date(instantMs))
+  const pick = (type) => Number(parts.find((part) => part.type === type)?.value ?? 0)
+  const asUtc = Date.UTC(pick('year'), pick('month') - 1, pick('day'), pick('hour'), pick('minute'), pick('second'))
+  return asUtc - Math.floor(instantMs / 1000) * 1000
+}
