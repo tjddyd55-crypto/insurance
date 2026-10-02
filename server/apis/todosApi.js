@@ -196,6 +196,73 @@ function persistedTodoMetadata(raw) {
 }
 
 /**
+ * 할 일 소유 규칙(SSOT): 같은 GA 안에서 내가 만들었거나 나에게 배정된 할 일만. $1 = gaId, $2 = userId.
+ */
+function todoOwnerConditions() {
+  return [`t.ga_id = $1`, `(t.owner_user_id = $2 OR t.assignee_user_id = $2)`]
+}
+
+/**
+ * 고객 연결 할 일은 그 고객을 볼 수 있을 때만(세션 customerAccess 기준).
+ * @param {{ user?: Record<string, unknown> }} req
+ * @param {string} userId
+ * @param {number} gaId
+ */
+function todoVisibilityCondition(req, userId, gaId) {
+  return `(${todoCustomerVisibilityExistsSql(req, userId, gaId)})`
+}
+
+/**
+ * @param {import('pg').Pool} pool
+ * @param {string[]} conditions
+ * @param {unknown[]} params
+ */
+async function selectVisibleTodos(pool, conditions, params) {
+  const whereSql = conditions.map((c) => `(${c})`).join(' AND ')
+  const r = await safeQuery(
+    pool,
+    `
+    SELECT
+      t.*,
+      CASE
+        WHEN t.related_entity_type = 'customer' AND trim(t.related_entity_id) ~ '^[0-9]+$'
+        THEN cu.name
+        ELSE NULL
+      END AS customer_name
+    FROM todos t
+    LEFT JOIN customers cu
+      ON t.related_entity_type = 'customer'
+      AND trim(t.related_entity_id) ~ '^[0-9]+$'
+      AND cu.id = CAST(trim(t.related_entity_id) AS INTEGER)
+      AND cu.ga_id = t.ga_id
+    WHERE ${whereSql}
+    ORDER BY t.due_date NULLS LAST, t.updated_at DESC NULLS LAST, t.id DESC
+    LIMIT 500
+    `,
+    params,
+  )
+  return r.rows
+}
+
+/**
+ * 일정 관리용 ONE FC 할 일 조회. GET /todos 와 같은 소유·고객 가시성 규칙·같은 행 매핑(mapTodoRow)을 쓴다.
+ * 기간 안 예정일 + 예정일 없음 + 오늘 이전의 미완료(지난 할 일). 취소 건은 제외.
+ * @param {import('pg').Pool} pool
+ * @param {{ user?: Record<string, unknown> }} req 현재 로그인 세션(req.user)만 쓴다
+ * @param {{ userId: string, gaId: number, fromYmd: string, toYmd: string, todayYmd: string }} scope
+ */
+export async function listTodosForSchedule(pool, req, scope) {
+  const conditions = [
+    ...todoOwnerConditions(),
+    todoVisibilityCondition(req, scope.userId, scope.gaId),
+    `t.status <> 'canceled'`,
+    `(t.due_date IS NULL OR (t.due_date >= $3::date AND t.due_date <= $4::date) OR (t.status = 'pending' AND t.due_date < $5::date))`,
+  ]
+  const rows = await selectVisibleTodos(pool, conditions, [scope.gaId, scope.userId, scope.fromYmd, scope.toYmd, scope.todayYmd])
+  return rows.map(mapTodoRow)
+}
+
+/**
  * @param {import('express').Router} apiRouter
  * @param {{ pool: import('pg').Pool; requireAuth: import('express').RequestHandler; handleDbError: Function }} ctx
  */
@@ -221,7 +288,7 @@ export function registerTodosApi(apiRouter, ctx) {
       const hasRelatedRaw = typeof req.query.hasRelated === 'string' ? req.query.hasRelated.trim().toLowerCase() : ''
       const sourceType = typeof req.query.sourceType === 'string' ? req.query.sourceType.trim().toLowerCase() : ''
 
-      const conditions = [`t.ga_id = $1`, `(t.owner_user_id = $2 OR t.assignee_user_id = $2)`]
+      const conditions = todoOwnerConditions()
       const params = [gaId, userId]
       let p = 3
 
@@ -232,7 +299,7 @@ export function registerTodosApi(apiRouter, ctx) {
         return
       }
 
-      conditions.push(`(${todoCustomerVisibilityExistsSql(req, userId, gaId)})`)
+      conditions.push(todoVisibilityCondition(req, userId, gaId))
 
       if (statusQ && STATUSES.has(statusQ)) {
         conditions.push(`t.status = $${p}`)
@@ -295,30 +362,8 @@ export function registerTodosApi(apiRouter, ctx) {
         p += 1
       }
 
-      const whereSql = conditions.map((c) => `(${c})`).join(' AND ')
-      const r = await safeQuery(
-        pool,
-        `
-        SELECT
-          t.*,
-          CASE
-            WHEN t.related_entity_type = 'customer' AND trim(t.related_entity_id) ~ '^[0-9]+$'
-            THEN cu.name
-            ELSE NULL
-          END AS customer_name
-        FROM todos t
-        LEFT JOIN customers cu
-          ON t.related_entity_type = 'customer'
-          AND trim(t.related_entity_id) ~ '^[0-9]+$'
-          AND cu.id = CAST(trim(t.related_entity_id) AS INTEGER)
-          AND cu.ga_id = t.ga_id
-        WHERE ${whereSql}
-        ORDER BY t.due_date NULLS LAST, t.updated_at DESC NULLS LAST, t.id DESC
-        LIMIT 500
-        `,
-        params,
-      )
-      res.json(r.rows.map(mapTodoRow))
+      const rows = await selectVisibleTodos(pool, conditions, params)
+      res.json(rows.map(mapTodoRow))
     } catch (error) {
       handleDbError(error, req, res)
     }

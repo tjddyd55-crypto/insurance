@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { ApiError } from '../../../lib/apiClient'
 import { fetchSmsBalance } from '../../sms/api/smsApi'
@@ -7,6 +7,7 @@ import {
   connectServiceIntegration,
   disconnectServiceIntegration,
   fetchServiceIntegrations,
+  googleConnectErrorMessage,
   type ServiceIntegrationCard,
 } from '../api/serviceIntegrationsApi'
 
@@ -33,6 +34,7 @@ function errorMessage(error: unknown): string {
 export function useServiceIntegrationsState(): ServiceIntegrationsViewProps {
   const { token } = useAuth()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [providers, setProviders] = useState<ServiceIntegrationCard[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -49,6 +51,8 @@ export function useServiceIntegrationsState(): ServiceIntegrationsViewProps {
     }
     setLoading(true)
     setError('')
+    // 다른 사용자로 다시 로그인하면 이전 사용자 카드(이메일 등)를 남기지 않는다.
+    setProviders([])
     try {
       setProviders(await fetchServiceIntegrations(token))
     } catch (loadError) {
@@ -62,6 +66,26 @@ export function useServiceIntegrationsState(): ServiceIntegrationsViewProps {
     void load()
   }, [load])
 
+  // Google OAuth callback 이 돌려보낸 결과(?google=connected|error&reason=)를 한 번 보여주고 주소에서 지운다.
+  const googleResult = searchParams.get('google')
+  const googleReason = searchParams.get('reason')
+  useEffect(() => {
+    if (!googleResult) {
+      return
+    }
+    if (googleResult === 'connected') {
+      setNotice(googleReason === 'tasks_scope_missing'
+        ? 'Google 계정이 연결되었습니다. Google Tasks 읽기 권한은 허용되지 않아 Google 할 일은 표시되지 않습니다. 다시 연결하면 허용할 수 있습니다.'
+        : 'Google 계정이 연결되었습니다.')
+    } else {
+      setError(googleConnectErrorMessage(googleReason))
+    }
+    const next = new URLSearchParams(searchParams)
+    next.delete('google')
+    next.delete('reason')
+    setSearchParams(next, { replace: true })
+  }, [googleReason, googleResult, searchParams, setSearchParams])
+
   const onConnect = useCallback((provider: ServiceIntegrationCard) => {
     if (!token?.trim() || busyKey) {
       return
@@ -70,6 +94,11 @@ export function useServiceIntegrationsState(): ServiceIntegrationsViewProps {
     setError('')
     void connectServiceIntegration(token, provider.key)
       .then((result) => {
+        if (result.url) {
+          // 서버가 state 를 만든 Google 동의 화면으로 이동. 토큰은 브라우저에 오지 않는다.
+          window.location.assign(result.url)
+          return
+        }
         if (result.path) {
           navigate(result.path)
           return
