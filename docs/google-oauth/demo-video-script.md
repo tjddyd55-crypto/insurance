@@ -3,7 +3,7 @@
 촬영 원칙
 - 비밀번호, Client secret, 토큰, 환경변수, 브라우저 개발자 도구를 화면에 띄우지 않는다. 로그인 입력은 미리 해 두거나 화면 밖에서 입력한다.
 - Google 동의 화면은 영어로 보이도록 한다. 연결 시작 후 주소창의 Google URL 끝에 `&hl=en` 을 붙이거나, 브라우저 언어를 English 로 둔다.
-- 주소창이 보이게 촬영해 `<OFFICIAL_DOMAIN>` 과 OAuth client 가 일치함을 보여 준다. 동의 화면에서 앱 이름 `ONE FC` 와 `calendar.readonly` 권한 문구가 보여야 한다.
+- 주소창이 보이게 촬영해 `onefc.platform-assets.com` 과 OAuth client 가 일치함을 보여 준다. 동의 화면에서 앱 이름 `ONE FC` 와 `calendar.readonly` 권한 문구가 보여야 한다.
 - 테스트 Google 계정은 일정이 2~3건 있는 전용 계정을 쓴다.
 
 | # | 화면 / 동작 | English narration / caption |
