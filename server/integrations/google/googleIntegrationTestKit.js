@@ -92,8 +92,12 @@ function assertUserScoped(sql) {
   }
 }
 
+export const CALENDAR_ONLY_SCOPE = 'openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/calendar.readonly'
+export const DEFAULT_GRANTED_SCOPE = `${CALENDAR_ONLY_SCOPE} https://www.googleapis.com/auth/tasks.readonly`
+
 /**
  * 가짜 Google. code → 계정, access token → 계정으로 응답한다.
+ * Tasks 는 토큰에 tasks.readonly 가 없으면 실제 Google 처럼 403 을 준다.
  */
 export function createFakeGoogle() {
   const accounts = new Map()
@@ -102,25 +106,45 @@ export function createFakeGoogle() {
   const revoked = []
   const calls = []
   let failCalendar = false
+  let failTasks = false
   let failRevoke = false
   let seq = 0
 
-  function addAccount(sub, email, calendars) {
-    accounts.set(sub, { sub, email, name: email.split('@')[0], calendars, refresh: new Set() })
+  /**
+   * @param {string} sub
+   * @param {string} email
+   * @param {Array<{ meta: object, events: object[] }>} calendars
+   * @param {Array<{ meta: { id: string, title?: string }, tasks: object[] }>} [taskLists]
+   */
+  function addAccount(sub, email, calendars, taskLists = []) {
+    accounts.set(sub, { sub, email, name: email.split('@')[0], calendars, taskLists, refresh: new Set() })
   }
 
   function issueCode(sub, opts = {}) {
     seq += 1
     const code = `code-${sub}-${seq}`
-    codes.set(code, { sub, scope: opts.scope ?? 'openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/calendar.readonly' })
+    codes.set(code, { sub, scope: opts.scope ?? DEFAULT_GRANTED_SCOPE })
     return code
   }
 
-  function issueAccess(sub, expiresIn = 3600) {
+  const accessScopes = new Map()
+  const refreshScopes = new Map()
+
+  function issueAccess(sub, scope, expiresIn = 3600) {
     seq += 1
     const token = `access-${sub}-${seq}`
     accessIndex.set(token, sub)
+    accessScopes.set(token, scope)
     return { access_token: token, expires_in: expiresIn }
+  }
+
+  /** 페이지 크기 2 로 잘라 nextPageToken 을 흉내 낸다. */
+  function paged(items, url, prefix) {
+    const size = 2
+    const token = url.searchParams.get('pageToken') ?? ''
+    const start = token.startsWith(prefix) ? Number(token.slice(prefix.length)) : 0
+    const next = start + size < items.length ? `${prefix}${start + size}` : undefined
+    return { items: items.slice(start, start + size), nextPageToken: next }
   }
 
   async function fetchImpl(input, init = {}) {
@@ -138,13 +162,15 @@ export function createFakeGoogle() {
         seq += 1
         const refresh = `refresh-${entry.sub}-${seq}`
         accounts.get(entry.sub).refresh.add(refresh)
-        return json(200, { ...issueAccess(entry.sub), refresh_token: refresh, scope: entry.scope, token_type: 'Bearer' })
+        refreshScopes.set(refresh, entry.scope)
+        return json(200, { ...issueAccess(entry.sub, entry.scope), refresh_token: refresh, scope: entry.scope, token_type: 'Bearer' })
       }
       if (form.get('grant_type') === 'refresh_token') {
         const refresh = form.get('refresh_token')
         const account = [...accounts.values()].find((item) => item.refresh.has(refresh))
         if (!account || revoked.includes(refresh)) return json(400, { error: 'invalid_grant' })
-        return json(200, issueAccess(account.sub))
+        const scope = refreshScopes.get(refresh)
+        return json(200, { ...issueAccess(account.sub, scope), scope })
       }
       return json(400, { error: 'unsupported_grant_type' })
     }
@@ -177,6 +203,26 @@ export function createFakeGoogle() {
       const items = page === 0 ? calendar.events.slice(0, half) : calendar.events.slice(half)
       return json(200, { items, nextPageToken: page === 0 && calendar.events.length > half ? 'e2' : undefined })
     }
+    if (url.hostname === 'tasks.googleapis.com') {
+      if (!account) return json(401, {})
+      if (!String(accessScopes.get(bearer) ?? '').split(' ').includes('https://www.googleapis.com/auth/tasks.readonly')) {
+        return json(403, { error: { status: 'PERMISSION_DENIED' } })
+      }
+      if (failTasks) return json(503, {})
+      if (url.pathname === '/tasks/v1/users/@me/lists' || url.pathname === '/tasks/v1/users/%40me/lists') {
+        return json(200, paged(account.taskLists.map((list) => ({ kind: 'tasks#taskList', ...list.meta })), url, 'l'))
+      }
+      const tasksMatch = /^\/tasks\/v1\/lists\/([^/]+)\/tasks$/.exec(url.pathname)
+      if (tasksMatch) {
+        const list = account.taskLists.find((item) => item.meta.id === decodeURIComponent(tasksMatch[1]))
+        if (!list) return json(404, {})
+        const showCompleted = url.searchParams.get('showCompleted') === 'true'
+        const showHidden = url.searchParams.get('showHidden') === 'true'
+        const visible = list.tasks.filter((task) => (showCompleted || task.status !== 'completed') && (showHidden || task.hidden !== true))
+        return json(200, paged(visible, url, 't'))
+      }
+      return json(404, {})
+    }
     return json(404, {})
   }
 
@@ -188,6 +234,7 @@ export function createFakeGoogle() {
     calls,
     accounts,
     setCalendarFailure(value) { failCalendar = value },
+    setTasksFailure(value) { failTasks = value },
     setRevokeFailure(value) { failRevoke = value },
     expireAccessTokens() { accessIndex.clear() },
   }

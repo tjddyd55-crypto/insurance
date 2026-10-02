@@ -35,7 +35,7 @@ function bodyHasSecret(body) {
 }
 
 /**
- * Google Calendar 카드는 공용 Google 계정 행(provider_key='google')에서 상태를 읽는다. 항상 현재 사용자 행만.
+ * Google 카드(Calendar·Tasks)는 공용 Google 계정 행(provider_key='google')에서 상태를 읽는다. 항상 현재 사용자 행만.
  * @param {Awaited<ReturnType<typeof readGoogleIntegrationStatus>>} google
  * @returns {'connected' | 'disconnected' | 'error' | 'needs_reauth' | 'unconfigured'}
  */
@@ -94,6 +94,8 @@ export function registerServiceIntegrationsApi(apiRouter, { pool, requireAuth, h
             accountLabel: google.accountEmail,
             connectedAt: google.connectedAt,
             settingsPath: null,
+            products: google.products,
+            needsReconsent: google.needsReconsent,
           }
         }
         const availability = resolveProviderAvailability(provider, process.env)

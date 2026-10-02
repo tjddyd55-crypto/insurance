@@ -6,9 +6,10 @@ import {
 } from '../integrationStore.js'
 import {
   GOOGLE_ACCOUNT_PROVIDER_KEY,
-  GOOGLE_CALENDAR_SCOPES,
+  GOOGLE_OAUTH_SCOPES,
   grantedScopeList,
   hasCalendarReadScope,
+  hasTasksReadScope,
 } from './googleOAuthConfig.js'
 import { clearGoogleUserCache } from './googleUserCache.js'
 
@@ -37,7 +38,7 @@ export function buildGoogleAuthorizationUrl(config, state) {
   url.searchParams.set('client_id', config.clientId)
   url.searchParams.set('redirect_uri', config.redirectUri)
   url.searchParams.set('response_type', 'code')
-  url.searchParams.set('scope', GOOGLE_CALENDAR_SCOPES.join(' '))
+  url.searchParams.set('scope', GOOGLE_OAUTH_SCOPES.join(' '))
   url.searchParams.set('access_type', 'offline')
   url.searchParams.set('include_granted_scopes', 'true')
   url.searchParams.set('prompt', 'consent select_account')
@@ -199,7 +200,8 @@ export async function completeGoogleConnection(pool, config, input) {
     await revokeGoogleToken(previousRefresh, input)
   }
   clearGoogleUserCache(input.userId)
-  return { accountEmail: profile.email, replaced: Boolean(previous) }
+  // tasks.readonly 는 선택 동의일 수 있다. 없으면 연결은 유지하고 Tasks 만 재동의 필요 상태가 된다.
+  return { accountEmail: profile.email, replaced: Boolean(previous), tasksReadable: hasTasksReadScope(tokens.scope) }
 }
 
 /**

@@ -1,35 +1,11 @@
 import { addDaysYmd, zonedDayStartIso } from '../../lib/seoulCalendarDate.js'
 import { normalizeGoogleCalendarEvent } from '../../schedule/scheduleEvents.js'
-import { googleError } from './googleTokenService.js'
+import { googleGetJson as getJson } from './googleApiHttp.js'
 import { googleCacheKey, readGoogleCache, writeGoogleCache } from './googleUserCache.js'
 
 const API_BASE = 'https://www.googleapis.com/calendar/v3'
 const MAX_PAGES = 10
 const PAGE_SIZE = 250
-
-/**
- * @param {typeof fetch} fetchImpl
- * @param {URL} url
- * @param {string} accessToken
- */
-async function getJson(fetchImpl, url, accessToken) {
-  let response
-  try {
-    response = await fetchImpl(url, { headers: { Authorization: `Bearer ${accessToken}` } })
-  } catch {
-    throw googleError('google_unavailable')
-  }
-  if (response.status === 401) {
-    throw googleError('google_unauthorized')
-  }
-  if (response.status === 403) {
-    throw googleError('google_forbidden')
-  }
-  if (!response.ok) {
-    throw googleError('google_unavailable')
-  }
-  return response.json()
-}
 
 /**
  * calendarList item → 화면용. 원본은 넘기지 않는다.
