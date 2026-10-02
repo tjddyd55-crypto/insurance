@@ -1,4 +1,3 @@
-import { systemQuery } from '../utils/dbSafeQuery.js'
 import { loadReminderSourceRows } from '../reminders/reminderQuery.js'
 import { assembleReminderEvents } from '../reminders/reminderEvents.js'
 import { loadGoogleCalendarSchedule } from '../integrations/googleCalendarAdapter.js'
@@ -6,33 +5,14 @@ import {
   eventOverlapsRange,
   filterScheduleBySources,
   mergeScheduleEvents,
-  normalizePersonalTodo,
   normalizeReminderScheduleEvent,
 } from './scheduleEvents.js'
 
-/**
- * @param {import('pg').Pool | import('pg').PoolClient} pool
- * @param {{ userId: string, gaId: number, fromYmd: string, toYmd: string }} scope
- */
-async function loadPersonalTodos(pool, scope) {
-  const result = await systemQuery(
-    pool,
-    `
-    SELECT id, title, description, due_date, due_time, status
-    FROM todos
-    WHERE ga_id = $1
-      AND owner_user_id = $2
-      AND due_date IS NOT NULL
-      AND due_date >= $3::date
-      AND due_date <= $4::date
-      AND status <> 'canceled'
-    `,
-    [scope.gaId, scope.userId, scope.fromYmd, scope.toYmd],
-  )
-  return result.rows.map((row) => normalizePersonalTodo(row)).filter(Boolean)
-}
+const CRM_SOURCES = ['customer_alert', 'car_expiry', 'insurance_age']
 
 /**
+ * 일정 관리 공통 집계. CRM 은 알림 달력과 같은 쿼리(loadReminderSourceRows)·조립(assembleReminderEvents)을 쓰고,
+ * Google 은 현재 사용자 자기 연결로만 읽는다. Google 실패여도 CRM 일정은 그대로 돌려준다.
  * @param {import('pg').Pool | import('pg').PoolClient} pool
  * @param {{
  *   userId: string,
@@ -40,23 +20,25 @@ async function loadPersonalTodos(pool, scope) {
  *   fromYmd: string,
  *   toYmd: string,
  *   sources: string[],
+ *   calendarIds?: string[],
  *   fetchImpl?: typeof fetch,
+ *   loadGoogle?: typeof loadGoogleCalendarSchedule,
  * }} scope
  */
 export async function loadScheduleEvents(pool, scope) {
-  const rows = await loadReminderSourceRows(pool, scope)
-  const reminders = assembleReminderEvents({
-    ...rows,
-    fromYmd: scope.fromYmd,
-    toYmd: scope.toYmd,
-  }).map((event) => normalizeReminderScheduleEvent(event)).filter(Boolean)
-  const personal = scope.sources.includes('personal')
-    ? await loadPersonalTodos(pool, scope)
+  const wantsCrm = scope.sources.some((source) => CRM_SOURCES.includes(source))
+  const reminders = wantsCrm
+    ? assembleReminderEvents({
+      ...(await loadReminderSourceRows(pool, scope)),
+      fromYmd: scope.fromYmd,
+      toYmd: scope.toYmd,
+    }).map((event) => normalizeReminderScheduleEvent(event)).filter(Boolean)
     : []
+  const loadGoogle = scope.loadGoogle ?? loadGoogleCalendarSchedule
   const google = scope.sources.includes('google')
-    ? await loadGoogleCalendarSchedule(pool, scope)
-    : { configured: false, connected: false, status: 'skipped', events: [] }
-  const merged = mergeScheduleEvents([reminders, personal, google.events])
+    ? await loadGoogle(pool, scope)
+    : { configured: false, connected: false, status: 'skipped', calendars: [], events: [] }
+  const merged = mergeScheduleEvents([reminders, google.events])
   const ranged = merged.filter((event) => eventOverlapsRange(event, scope.fromYmd, scope.toYmd))
   const events = filterScheduleBySources(ranged, scope.sources)
   events.sort((left, right) => {
@@ -71,6 +53,7 @@ export async function loadScheduleEvents(pool, scope) {
       configured: google.configured,
       connected: google.connected,
       status: google.status,
+      calendars: google.calendars ?? [],
     },
     events,
   }

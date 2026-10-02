@@ -1,19 +1,24 @@
 import { addDaysYmd, seoulYmd } from '../lib/seoulCalendarDate.js'
 import { asYmd } from '../reminders/reminderEvents.js'
 
+/**
+ * 화면 필터 키. Google 은 source, CRM 은 type 으로 나뉜다.
+ * (전체 = 아래 전부)
+ */
 export const SCHEDULE_SOURCES = [
   'google',
   'customer_alert',
   'car_expiry',
   'insurance_age',
-  'personal',
 ]
 
-const REMINDER_SOURCE = {
+const REMINDER_TYPE = {
   special_date: 'customer_alert',
   car_expiry: 'car_expiry',
   insurance_age_date: 'insurance_age',
 }
+
+const SEOUL_TIMEZONE = 'Asia/Seoul'
 
 const MAX_RANGE_DAYS = 400
 
@@ -59,44 +64,93 @@ export function parseScheduleSources(raw) {
 }
 
 /**
+ * 기존 알림 집계(assembleReminderEvents) 결과를 공통 일정 모델로 바꾼다. 같은 쿼리를 다시 만들지 않는다.
+ * 종일 일정의 endAt 은 Google 과 같이 exclusive(다음 날)다.
  * @param {Record<string, unknown>} reminder
  */
 export function normalizeReminderScheduleEvent(reminder) {
-  const source = REMINDER_SOURCE[reminder.type]
+  const type = REMINDER_TYPE[reminder.type]
   const startDate = asYmd(reminder.startDate)
-  if (!source || !startDate) {
+  if (!type || !startDate) {
     return null
   }
   const sourceId = reminder.sourceId == null || reminder.sourceId === ''
     ? String(reminder.customerId ?? '')
     : String(reminder.sourceId)
   return {
-    id: String(reminder.id),
-    source,
+    id: `crm:${String(reminder.id)}`,
+    source: 'crm',
     sourceId,
-    type: String(reminder.type),
+    calendarId: null,
+    calendarName: '',
+    type,
     title: String(reminder.title ?? ''),
+    description: String(reminder.content ?? ''),
     startAt: startDate,
-    endAt: startDate,
+    endAt: addDaysYmd(startDate, 1),
     allDay: true,
+    timezone: SEOUL_TIMEZONE,
     customerId: Number(reminder.customerId) || null,
     customerName: String(reminder.customerName ?? ''),
-    description: String(reminder.content ?? ''),
+    location: '',
     status: 'confirmed',
+    readOnly: type !== 'customer_alert',
     phone: String(reminder.phone ?? ''),
     htmlLink: null,
-    etag: null,
     sourceDate: asYmd(reminder.sourceDate),
     sourceTitle: reminder.sourceTitle == null ? null : String(reminder.sourceTitle),
   }
 }
 
 /**
- * Google Calendar events.list item. 취소 건과 시작이 없는 건은 제외한다.
- * @param {Record<string, unknown>} item
- * @param {string} [calendarId]
+ * Google 이 준 링크만, https Google Calendar 주소일 때만 남긴다.
+ * @param {unknown} raw
  */
-export function normalizeGoogleCalendarEvent(item, calendarId = 'primary') {
+export function safeGoogleHtmlLink(raw) {
+  const text = String(raw ?? '').trim()
+  if (!text) {
+    return null
+  }
+  try {
+    const url = new URL(text)
+    const calendarHost = url.hostname === 'calendar.google.com'
+    const googleCalendarPath = url.hostname === 'www.google.com' && url.pathname.startsWith('/calendar')
+    if (url.protocol !== 'https:' || url.username || url.password || !(calendarHost || googleCalendarPath)) {
+      return null
+    }
+    return url.toString()
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Google 설명은 HTML 이 섞여 온다. 화면에는 글자만 보낸다.
+ * @param {unknown} raw
+ */
+export function plainGoogleDescription(raw) {
+  return String(raw ?? '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li)>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+/**
+ * Google Calendar events.list item → 공통 모델. 취소 건과 시작이 없는 건은 버린다. 원본은 넘기지 않는다.
+ * 종일: start.date/end.date 달력일 그대로(UTC 자정 변환 없음, end exclusive).
+ * 시간: dateTime(오프셋 포함) 그대로. 화면은 Asia/Seoul formatter 로만 바꾼다.
+ * @param {Record<string, any>} item
+ * @param {{ id: string, name?: string, timezone?: string }} [calendar]
+ */
+export function normalizeGoogleCalendarEvent(item, calendar = { id: 'primary' }) {
   if (!item || item.status === 'cancelled' || !item.id) {
     return null
   }
@@ -104,63 +158,44 @@ export function normalizeGoogleCalendarEvent(item, calendarId = 'primary') {
   const end = item.end && typeof item.end === 'object' ? item.end : {}
   const allDay = Boolean(start.date) && !start.dateTime
   const startAt = allDay ? asYmd(start.date) : String(start.dateTime ?? '').trim()
-  if (!startAt) {
+  if (!startAt || (!allDay && Number.isNaN(new Date(startAt).getTime()))) {
     return null
   }
   const endAt = allDay
-    ? (asYmd(end.date) || startAt)
+    ? (asYmd(end.date) || addDaysYmd(startAt, 1))
     : (String(end.dateTime ?? '').trim() || startAt)
+  const calendarId = String(calendar.id ?? 'primary')
   return {
-    id: `google:${calendarId}:${item.id}`,
+    id: `google:${calendarId}:${String(item.id)}`,
     source: 'google',
     sourceId: String(item.id),
+    calendarId,
+    calendarName: String(calendar.name ?? ''),
     type: 'google_event',
     title: String(item.summary ?? '').trim() || '(제목 없음)',
+    description: plainGoogleDescription(item.description),
     startAt,
     endAt,
     allDay,
+    timezone: String(start.timeZone ?? calendar.timezone ?? '') || SEOUL_TIMEZONE,
     customerId: null,
     customerName: '',
-    description: String(item.description ?? ''),
+    location: String(item.location ?? '').trim(),
     status: String(item.status ?? 'confirmed'),
+    readOnly: true,
     phone: '',
-    htmlLink: item.htmlLink ? String(item.htmlLink) : null,
-    etag: item.etag ? String(item.etag) : null,
+    htmlLink: safeGoogleHtmlLink(item.htmlLink),
     sourceDate: null,
     sourceTitle: null,
   }
 }
 
 /**
- * @param {Record<string, unknown>} row
+ * 필터 키: Google 은 'google', CRM 은 type.
+ * @param {{ source?: unknown, type?: unknown }} event
  */
-export function normalizePersonalTodo(row) {
-  const date = asYmd(row.due_date)
-  if (!date || row.status === 'canceled') {
-    return null
-  }
-  const time = String(row.due_time ?? '').slice(0, 5)
-  const timed = /^\d{2}:\d{2}$/.test(time)
-  const startAt = timed ? `${date}T${time}:00+09:00` : date
-  return {
-    id: `personal:${row.id}`,
-    source: 'personal',
-    sourceId: String(row.id),
-    type: 'personal',
-    title: String(row.title ?? '').trim() || '개인 일정',
-    startAt,
-    endAt: timed ? addHour(date, time) : date,
-    allDay: !timed,
-    customerId: null,
-    customerName: '',
-    description: String(row.description ?? ''),
-    status: String(row.status ?? 'pending'),
-    phone: '',
-    htmlLink: null,
-    etag: null,
-    sourceDate: null,
-    sourceTitle: null,
-  }
+export function scheduleFilterKey(event) {
+  return event.source === 'google' ? 'google' : String(event.type ?? '')
 }
 
 /**
@@ -188,7 +223,7 @@ export function mergeScheduleEvents(groups) {
  */
 export function filterScheduleBySources(events, sources) {
   const allow = new Set(sources)
-  return events.filter((event) => allow.has(event.source))
+  return events.filter((event) => allow.has(scheduleFilterKey(event)))
 }
 
 /**
@@ -237,22 +272,11 @@ export function scheduleEventEndYmd(event) {
     return addDaysYmd(end, -1)
   }
   const parsed = new Date(String(event.endAt || event.startAt || ''))
+  const startMs = new Date(String(event.startAt ?? '')).getTime()
   if (Number.isNaN(parsed.getTime())) {
     return scheduleEventStartYmd(event)
   }
-  return seoulYmd(parsed)
-}
-
-/**
- * @param {string} date
- * @param {string} time HH:mm
- */
-function addHour(date, time) {
-  const [hour, minute] = time.split(':').map(Number)
-  const total = hour * 60 + minute + 60
-  const nextDate = total >= 24 * 60 ? addDaysYmd(date, 1) : date
-  const remain = total % (24 * 60)
-  const nextHour = String(Math.floor(remain / 60)).padStart(2, '0')
-  const nextMinute = String(remain % 60).padStart(2, '0')
-  return `${nextDate}T${nextHour}:${nextMinute}:00+09:00`
+  // 끝이 정확히 자정이면 그 날은 포함하지 않는다(end exclusive).
+  const endMs = parsed.getTime() > startMs ? parsed.getTime() - 1 : parsed.getTime()
+  return seoulYmd(new Date(endMs))
 }
