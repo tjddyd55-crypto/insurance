@@ -115,6 +115,8 @@ export default function ServiceIntegrationCards({
               const unconfigured = provider.status === 'unconfigured'
               const connected = provider.status === 'connected' || provider.status === 'error' || provider.status === 'needs_reauth'
               const isGoogle = provider.key === 'google_calendar'
+              // 검증(Testing) 기간 허용 목록 밖: Google 동의 화면으로 보내지 않는다. 이미 연결된 경우 해제는 그대로.
+              const googleNotReady = isGoogle && provider.connectAllowed === false
               return (
                 <article key={provider.key} className="service-integrations-page__card">
                   <div className="service-integrations-page__card-head">
@@ -182,10 +184,10 @@ export default function ServiceIntegrationCards({
                     <FormButton
                       htmlType="button"
                       variant="primary"
-                      disabled={unconfigured || Boolean(busyKey)}
+                      disabled={unconfigured || googleNotReady || Boolean(busyKey)}
                       onClick={() => onConnect(provider)}
                     >
-                      {connectLabel(provider, connected)}
+                      {googleNotReady ? 'Google 연동 준비 중' : connectLabel(provider, connected)}
                     </FormButton>
                     <FormButton
                       htmlType="button"

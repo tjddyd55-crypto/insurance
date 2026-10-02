@@ -10,6 +10,7 @@ import {
   normalizeReminderScheduleEvent,
 } from './scheduleEvents.js'
 import { normalizeOnefcTodo, selectScheduleTasks, sortScheduleTasks } from './scheduleTasks.js'
+import { isGoogleConnectAllowed } from '../integrations/google/googleOAuthConfig.js'
 
 const CRM_SOURCES = ['customer_alert', 'car_expiry', 'insurance_age']
 
@@ -106,6 +107,7 @@ export async function loadScheduleEvents(pool, scope) {
       configured: google.configured,
       connected: google.connected,
       status: google.status,
+      connectAllowed: isGoogleConnectAllowed(/** @type {any} */ (scope.viewer)),
       calendars: google.calendars ?? [],
       tasks: {
         status: googleTasks.status,

@@ -36,6 +36,13 @@ export function GoogleScheduleNotice({ google, onOpenIntegrations }: Pick<Schedu
       </div>
     )
   }
+  if (google.connectAllowed === false) {
+    return (
+      <div className="schedule-page__google-hint" role="status">
+        <p>Google 연동 준비 중입니다. CRM 일정과 ONE FC 할 일은 계속 표시됩니다.</p>
+      </div>
+    )
+  }
   return (
     <div className="schedule-page__google-hint" role="status">
       <p>Google을 연결하면 Google Calendar 일정과 Google Tasks 할 일을 함께 볼 수 있습니다.</p>

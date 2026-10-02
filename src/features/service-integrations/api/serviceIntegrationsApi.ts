@@ -23,6 +23,8 @@ export type ServiceIntegrationCard = {
   products?: GoogleProductsState
   /** Google 카드만: 저장된 동의에 tasks.readonly 가 없어 다시 연결이 필요 */
   needsReconsent?: boolean
+  /** Google 카드만: false 면 이 사용자는 아직 Google 연결을 시작할 수 없다(검증 기간 허용 목록 밖) */
+  connectAllowed?: boolean
 }
 
 export type GoogleProductStatus = 'available' | 'scope_missing' | 'unconfigured' | 'disconnected' | 'needs_reauth' | 'error'

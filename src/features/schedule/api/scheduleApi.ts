@@ -83,6 +83,8 @@ export type ScheduleGoogleState = {
   configured: boolean
   connected: boolean
   status: ScheduleGoogleStatus
+  /** false 면 이 사용자는 아직 Google 연결을 시작할 수 없다(검증 기간 허용 목록 밖). 없으면 허용 */
+  connectAllowed?: boolean
   calendars: GoogleCalendarSummary[]
   tasks?: ScheduleGoogleTasksState
 }
@@ -166,6 +168,7 @@ export function readScheduleEventsResponse(payload: unknown): ScheduleEventsResp
       configured: Boolean(google.configured),
       connected: Boolean(google.connected),
       status: (google.status ?? 'unconfigured') as ScheduleGoogleStatus,
+      ...(google.connectAllowed === false ? { connectAllowed: false } : {}),
       calendars: Array.isArray(google.calendars) ? google.calendars : [],
       tasks: readGoogleTasksState(google.tasks),
     },

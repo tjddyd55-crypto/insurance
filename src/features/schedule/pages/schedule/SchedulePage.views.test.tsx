@@ -243,6 +243,19 @@ describe('일정 관리 화면 (PC·모바일 웹 공통)', () => {
     expect(html).toContain('schedule-page__chip--customer_alert')
   })
 
+  it('검증 기간 허용 목록 밖: Google 연동 준비 중, 연결 이동 버튼 없음, CRM 일정은 그대로', () => {
+    const html = render(props({
+      google: { configured: true, connected: false, status: 'disconnected', connectAllowed: false, calendars: [] },
+      events: EVENTS.filter((event) => event.source === 'crm'),
+    }))
+    expect(html).toContain('Google 연동 준비 중입니다.')
+    expect(html).not.toContain('서비스 연동으로 이동')
+    expect(html).not.toContain('Google을 연결하면')
+    expect(html).toContain('schedule-page__chip--customer_alert')
+    expect(readScheduleEventsResponse({ events: [], google: { status: 'disconnected', connectAllowed: false } }).google.connectAllowed).toBe(false)
+    expect(readScheduleEventsResponse({ events: [], google: { status: 'disconnected' } }).google).not.toHaveProperty('connectAllowed')
+  })
+
   it('재연결 필요·Google 장애는 Google 만 표시하고 CRM 일정은 계속', () => {
     const reauth = render(props({ google: { configured: true, connected: true, status: 'needs_reauth', calendars: [] } }))
     expect(reauth).toContain('재연결 필요')
