@@ -45,6 +45,11 @@ export default function TermsOfServicePage() {
               {C.operatorLegalName}(이하 &quot;회사&quot;)가 제공하는 {C.serviceName} 서비스(이하 &quot;서비스&quot;)의
               이용과 관련하여 회사와 이용자의 권리·의무 및 책임 사항을 규정합니다.
             </p>
+            <p className="legal-doc__lead">
+              개정 안내: 이번 개정은 {C.lastRevisedDate}에 공지하며 {C.effectiveDate}부터 시행합니다. 시행일 전까지는 종전
+              약관({C.previousEffectiveDate} 시행)이 적용됩니다. 주요 변경 사항은 제4조에 Google Calendar 및 Google Tasks
+              읽기 전용 연동(선택 기능) 안내 추가입니다.
+            </p>
           </header>
 
           <nav className="legal-doc__toc" aria-label="목차">
