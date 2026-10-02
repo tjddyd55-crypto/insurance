@@ -348,6 +348,37 @@ describe('Google Calendar 연동 (USER 소유, 읽기 전용)', () => {
     assert.equal(status.body.data.status, 'disconnected')
   })
 
+  it('disconnect: Google revoke 가 실패해도 자기 credential·캐시는 지우고, 로그에 토큰을 남기지 않는다', async () => {
+    await connect('user-a', 'gA')
+    await connect('user-b', 'gB')
+    await api('user-a', 'GET', '/backend/api/service-integrations/google/events?start=2026-10-01&end=2026-10-31')
+    await api('user-b', 'GET', '/backend/api/service-integrations/google/events?start=2026-10-01&end=2026-10-31')
+    assert.ok(googleCacheKeysForTest().some((key) => key.includes(':user-a:') || key.endsWith(':user-a')))
+    const refreshA = [...google.accounts.get('gA').refresh].at(-1)
+    google.setRevokeFailure(true)
+    const warnings = []
+    const realWarn = console.warn
+    console.warn = (...args) => { warnings.push(JSON.stringify(args)) }
+    let response
+    try {
+      response = await api('user-a', 'POST', '/backend/api/service-integrations/google_calendar/disconnect')
+    } finally {
+      console.warn = realWarn
+      google.setRevokeFailure(false)
+    }
+    assert.equal(response.status, 200)
+    assert.equal(pool.integrations.has('user-a|google'), false)
+    assert.equal(pool.integrations.has('user-b|google'), true)
+    assert.equal(googleCacheKeysForTest().some((key) => key.includes(':user-a:') || key.endsWith(':user-a')), false)
+    assert.ok(googleCacheKeysForTest().some((key) => key.includes(':user-b:') || key.endsWith(':user-b')))
+    assert.equal(warnings.length, 1)
+    assert.match(warnings[0], /token revoke failed/)
+    assert.equal(warnings[0].includes(refreshA), false)
+    assert.equal(/refresh-|access-|token=/.test(warnings[0]), false)
+    const status = await api('user-a', 'GET', '/backend/api/service-integrations/google/status')
+    assert.equal(status.body.data.status, 'disconnected')
+  })
+
   it('access token 만료 시 자동 refresh, refresh 폐기 시 needs_reauth + CRM 일정은 계속', async () => {
     await connect('user-a', 'gA')
     google.expireAccessTokens()
