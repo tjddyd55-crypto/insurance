@@ -21,13 +21,19 @@ describe('service provider registry', () => {
     ])
   })
 
-  it('OAuth 클라이언트 ID가 없으면 미설정이다', () => {
+  it('OAuth 클라이언트 ID·Secret 중 하나라도 없으면 미설정이다', () => {
     const google = SERVICE_PROVIDERS.find((provider) => provider.key === 'google_calendar')
     assert.equal(resolveProviderAvailability(google, {}), 'unconfigured')
     assert.equal(
       resolveProviderAvailability(google, { GOOGLE_OAUTH_CLIENT_ID: 'client' }),
+      'unconfigured',
+    )
+    assert.equal(
+      resolveProviderAvailability(google, { GOOGLE_OAUTH_CLIENT_ID: 'client', GOOGLE_OAUTH_CLIENT_SECRET: 'secret' }),
       'ready',
     )
+    const naver = SERVICE_PROVIDERS.find((provider) => provider.key === 'naver_calendar')
+    assert.equal(resolveProviderAvailability(naver, { NAVER_OAUTH_CLIENT_ID: 'client' }), 'ready')
     assert.equal(
       resolveConnectionStatus('unconfigured', 'connected'),
       'unconfigured',
