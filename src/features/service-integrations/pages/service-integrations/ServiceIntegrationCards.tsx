@@ -27,6 +27,19 @@ function connectLabel(provider: ServiceIntegrationCard, connected: boolean): str
   return connected ? '다시 연동' : '연동'
 }
 
+/** 한 Google 연결로 쓰는 제품. 서버 products 가 없으면(이전 응답) Calendar 만 있는 것으로 본다. */
+function googleProductsInUse(provider: ServiceIntegrationCard): string {
+  const calendar = provider.products ? provider.products.calendar.status === 'available' : provider.status === 'connected'
+  const tasks = provider.products?.tasks.status === 'available'
+  const names = [calendar ? 'Google Calendar' : '', tasks ? 'Google Tasks' : ''].filter(Boolean)
+  return names.length > 0 ? `${names.join(' · ')} (읽기 전용)` : '없음'
+}
+
+function googleTasksNeedReconsent(provider: ServiceIntegrationCard): boolean {
+  return provider.status === 'connected'
+    && Boolean(provider.needsReconsent || provider.products?.tasks.status === 'scope_missing')
+}
+
 function GoogleAccountMeta({ provider }: { provider: ServiceIntegrationCard }) {
   if (provider.status === 'disconnected' || provider.status === 'unconfigured') {
     return null
@@ -42,8 +55,8 @@ function GoogleAccountMeta({ provider }: { provider: ServiceIntegrationCard }) {
         <dd>{formatSyncedAt(provider.connectedAt ?? null)}</dd>
       </div>
       <div>
-        <dt>Calendar</dt>
-        <dd>{provider.status === 'connected' ? '사용 가능 (읽기 전용)' : '다시 연결 필요'}</dd>
+        <dt>사용 중</dt>
+        <dd>{provider.status === 'connected' ? googleProductsInUse(provider) : '다시 연결 필요'}</dd>
       </div>
     </>
   )
@@ -119,6 +132,11 @@ export default function ServiceIntegrationCards({
                   {isGoogle && provider.status === 'needs_reauth' ? (
                     <p className="service-integrations-page__error" role="alert">
                       Google 연결이 만료되었거나 권한이 취소되었습니다. 다시 연결해 주세요.
+                    </p>
+                  ) : null}
+                  {isGoogle && googleTasksNeedReconsent(provider) ? (
+                    <p className="service-integrations-page__notice" role="status">
+                      Google Tasks 읽기 권한이 없습니다. 다시 연결하면 Google 할 일도 일정 관리에서 볼 수 있습니다.
                     </p>
                   ) : null}
                   {isGoogle && provider.status === 'error' ? (

@@ -19,6 +19,17 @@ export type ServiceIntegrationCard = {
   /** Google 처럼 계정을 연결한 시각. 없으면 null */
   connectedAt?: string | null
   settingsPath: string | null
+  /** Google 카드만: 한 연결로 쓰는 제품별 상태(읽기 전용) */
+  products?: GoogleProductsState
+  /** Google 카드만: 저장된 동의에 tasks.readonly 가 없어 다시 연결이 필요 */
+  needsReconsent?: boolean
+}
+
+export type GoogleProductStatus = 'available' | 'scope_missing' | 'unconfigured' | 'disconnected' | 'needs_reauth' | 'error'
+
+export type GoogleProductsState = {
+  calendar: { status: GoogleProductStatus; scopeGranted: boolean; readOnly: boolean }
+  tasks: { status: GoogleProductStatus; scopeGranted: boolean; needsReconsent: boolean; readOnly: boolean }
 }
 
 export const SERVICE_INTEGRATION_STATUS_LABEL: Record<ServiceIntegrationStatus, string> = {

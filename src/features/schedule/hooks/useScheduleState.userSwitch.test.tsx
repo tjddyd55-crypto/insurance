@@ -32,6 +32,7 @@ function Probe() {
       <span data-google>{state.google.status}</span>
       <span data-account>{state.google.calendars.map((calendar) => calendar.name).join(',')}</span>
       <ul>{state.events.map((event) => <li key={event.id}>{event.title}</li>)}</ul>
+      <ol>{state.tasks.map((task) => <li key={task.id}>{task.title}</li>)}</ol>
     </div>
   )
 }
@@ -74,9 +75,16 @@ describe('로그아웃/로그인 사용자 전환', () => {
         from: '2026-09-27', to: '2026-11-07', sources: [],
         google: { configured: true, connected: true, status: 'connected', calendars: [{ id: 'primary', name: 'alice@example.com', primary: true, accessRole: 'owner', timezone: 'Asia/Seoul', selected: true, defaultVisible: true }] },
         events: [googleEvent('A 비밀 일정')],
+        tasks: [{
+          id: 'google_task:L1:t1', source: 'google_task', sourceId: 't1', taskListId: 'L1', taskListName: 'A 목록', title: 'A 비밀 할 일',
+          notes: '', dueDate: '2026-10-03', dueTime: null, status: 'open', completedAt: null, parentId: null, updatedAt: null,
+          customerId: null, customerName: '', readOnly: true,
+        }],
+        sourceStatus: { google: 'connected', google_task: 'connected', onefc_todo: 'ok', crm: 'ok' },
       })
     })
     expect(container.textContent).toContain('A 비밀 일정')
+    expect(container.textContent).toContain('A 비밀 할 일')
     expect(container.querySelector('[data-google]')?.textContent).toBe('connected')
 
     auth.user = { id: 'user-b' }
@@ -85,6 +93,7 @@ describe('로그아웃/로그인 사용자 전환', () => {
       root.render(<MemoryRouter initialEntries={['/schedule?date=2026-10-02']}><Probe /></MemoryRouter>)
     })
     expect(container.textContent).not.toContain('A 비밀 일정')
+    expect(container.textContent).not.toContain('A 비밀 할 일')
     expect(container.textContent).not.toContain('alice@example.com')
     expect(container.querySelector('[data-google]')?.textContent).toBe('unconfigured')
     expect(pending.at(-1)?.token).toBe('token-b')

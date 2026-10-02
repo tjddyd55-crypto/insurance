@@ -38,8 +38,55 @@ export function GoogleScheduleNotice({ google, onOpenIntegrations }: Pick<Schedu
   }
   return (
     <div className="schedule-page__google-hint" role="status">
-      <p>Google Calendar를 연결하면 일정을 함께 볼 수 있습니다.</p>
+      <p>Google을 연결하면 Google Calendar 일정과 Google Tasks 할 일을 함께 볼 수 있습니다.</p>
       <Button type="button" variant="secondary" size="sm" onClick={onOpenIntegrations}>서비스 연동으로 이동</Button>
+    </div>
+  )
+}
+
+/**
+ * Google 할 일만의 안내. Calendar 연결이 정상일 때만 띄운다(미연동·만료는 위 안내가 맡는다).
+ * 다른 출처는 그대로 보인다.
+ */
+export function GoogleTasksNotice({ google, onOpenIntegrations }: Pick<ScheduleViewProps, 'google' | 'onOpenIntegrations'>) {
+  const tasks = google.tasks
+  if (!tasks || google.status !== 'connected') {
+    return null
+  }
+  if (tasks.status === 'scope_missing' || tasks.needsReconsent) {
+    return (
+      <div className="schedule-page__google-hint" role="status">
+        <p>Google 할 일을 보려면 Google을 다시 연결해 Google Tasks 읽기 권한을 허용해 주세요. Google 일정은 계속 표시됩니다.</p>
+        <Button type="button" variant="secondary" size="sm" onClick={onOpenIntegrations}>서비스 연동에서 다시 연결</Button>
+      </div>
+    )
+  }
+  if (tasks.status === 'error' || tasks.status === 'needs_reauth') {
+    return (
+      <div className="schedule-page__google-hint schedule-page__google-hint--warn" role="status">
+        <p>Google 할 일을 불러오지 못했습니다. 다른 일정은 계속 표시됩니다.</p>
+      </div>
+    )
+  }
+  return null
+}
+
+/** CRM·ONE FC 할 일 출처가 실패했을 때. 나머지 출처는 그대로 보인다. */
+function SourceFailureNotice({ sources, sourceStatus }: Pick<ScheduleViewProps, 'sources' | 'sourceStatus'>) {
+  const messages: string[] = []
+  if (sources.includes('onefc_todo') && sourceStatus.onefc_todo === 'error') {
+    messages.push('ONE FC 할 일을 불러오지 못했습니다.')
+  }
+  const crmOn = sources.some((source) => source === 'customer_alert' || source === 'car_expiry' || source === 'insurance_age')
+  if (crmOn && sourceStatus.crm === 'error') {
+    messages.push('알림일·자동차 만기·상령일을 불러오지 못했습니다.')
+  }
+  if (messages.length === 0) {
+    return null
+  }
+  return (
+    <div className="schedule-page__google-hint schedule-page__google-hint--warn" role="status">
+      <p>{messages.join(' ')} 다른 일정은 계속 표시됩니다.</p>
     </div>
   )
 }
@@ -47,6 +94,8 @@ export function GoogleScheduleNotice({ google, onOpenIntegrations }: Pick<Schedu
 export default function ScheduleChrome(props: ScheduleViewProps) {
   const allOn = props.sources.length === SCHEDULE_FILTER_KEYS.length
   const googleOn = props.sources.includes('google')
+  const googleTasksOn = props.sources.includes('google_task')
+  const anyTasksOn = googleTasksOn || props.sources.includes('onefc_todo')
   const activeCalendarIds = props.calendarIds.length > 0
     ? props.calendarIds
     : props.google.calendars.filter((calendar) => calendar.defaultVisible).map((calendar) => calendar.id)
@@ -79,7 +128,8 @@ export default function ScheduleChrome(props: ScheduleViewProps) {
       <div className="schedule-page__chips" role="group" aria-label="일정 출처">
         {CHIPS.map((source) => {
           const active = source === 'all' ? allOn : !allOn && props.sources.includes(source)
-          const reauth = source === 'google' && props.google.status === 'needs_reauth'
+          const reauth = (source === 'google' && props.google.status === 'needs_reauth')
+            || (source === 'google_task' && props.google.status === 'connected' && Boolean(props.google.tasks?.needsReconsent))
           return (
             <Button
               key={source}
@@ -94,6 +144,17 @@ export default function ScheduleChrome(props: ScheduleViewProps) {
             </Button>
           )
         })}
+        {anyTasksOn ? (
+          <Button
+            type="button"
+            size="sm"
+            aria-pressed={props.includeCompleted}
+            variant={props.includeCompleted ? 'primary' : 'secondary'}
+            onClick={props.onToggleCompleted}
+          >
+            완료 포함
+          </Button>
+        ) : null}
       </div>
       {googleOn && props.google.status === 'connected' && props.google.calendars.length > 1 ? (
         <div className="schedule-page__chips schedule-page__calendars" role="group" aria-label="Google 캘린더">
@@ -114,7 +175,9 @@ export default function ScheduleChrome(props: ScheduleViewProps) {
           })}
         </div>
       ) : null}
-      {googleOn ? <GoogleScheduleNotice google={props.google} onOpenIntegrations={props.onOpenIntegrations} /> : null}
+      {googleOn || googleTasksOn ? <GoogleScheduleNotice google={props.google} onOpenIntegrations={props.onOpenIntegrations} /> : null}
+      {googleTasksOn ? <GoogleTasksNotice google={props.google} onOpenIntegrations={props.onOpenIntegrations} /> : null}
+      <SourceFailureNotice sources={props.sources} sourceStatus={props.sourceStatus} />
       {props.loading ? <p className="schedule-page__status" role="status">일정을 불러오는 중…</p> : null}
       {props.error ? <p className="schedule-page__error" role="alert">{props.error}</p> : null}
     </>

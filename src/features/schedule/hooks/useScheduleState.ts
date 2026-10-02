@@ -6,13 +6,17 @@ import { updateCustomerSpecialDate } from '../../customers/api/customerSpecialDa
 import { buildCustomerWorkspacePath, buildExternalCustomerNavigateTarget } from '../../customers/utils/customerRoutePaths'
 import {
   EMPTY_GOOGLE_STATE,
+  EMPTY_SOURCE_STATUS,
   fetchScheduleEvents,
   SCHEDULE_FILTER_KEYS,
   scheduleFilterKeyOf,
   type ScheduleEvent,
   type ScheduleFilterKey,
   type ScheduleGoogleState,
+  type ScheduleSourceStatus,
+  type ScheduleTask,
 } from '../api/scheduleApi'
+import { filterScheduleTasks } from '../domain/scheduleTasks'
 import {
   scheduleViewFromParam,
   seoulToday,
@@ -29,11 +33,16 @@ export type ScheduleViewProps = {
   sources: ScheduleFilterKey[]
   calendarIds: string[]
   events: ScheduleEvent[]
+  /** 출처 필터·완료 포함이 반영된 할 일(Google Tasks · ONE FC 할 일) */
+  tasks: ScheduleTask[]
+  includeCompleted: boolean
   google: ScheduleGoogleState
+  sourceStatus: ScheduleSourceStatus
   loading: boolean
   error: string
   selectedDate: string
   detail: ScheduleEvent | null
+  taskDetail: ScheduleTask | null
   editing: ScheduleEvent | null
   editTitle: string
   editDate: string
@@ -47,6 +56,10 @@ export type ScheduleViewProps = {
   onToggleCalendar: (calendarId: string) => void
   onOpenEvent: (event: ScheduleEvent) => void
   onCloseDetail: () => void
+  onToggleCompleted: () => void
+  onOpenTask: (task: ScheduleTask) => void
+  onCloseTaskDetail: () => void
+  onOpenTodos: () => void
   onOpenCustomer: (event: ScheduleEvent) => void
   onOpenIntegrations: () => void
   onEditTitle: (value: string) => void
@@ -63,12 +76,23 @@ type FetchResult = {
   key: string
   owner: string
   events: ScheduleEvent[]
+  tasks: ScheduleTask[]
   google: ScheduleGoogleState
+  sourceStatus: ScheduleSourceStatus
   error: string
 }
 
 const EMPTY_EVENTS: ScheduleEvent[] = []
-const EMPTY_RESULT: FetchResult = { key: '', owner: '', events: EMPTY_EVENTS, google: EMPTY_GOOGLE_STATE, error: '' }
+const EMPTY_TASKS: ScheduleTask[] = []
+const EMPTY_RESULT: FetchResult = {
+  key: '',
+  owner: '',
+  events: EMPTY_EVENTS,
+  tasks: EMPTY_TASKS,
+  google: EMPTY_GOOGLE_STATE,
+  sourceStatus: EMPTY_SOURCE_STATUS,
+  error: '',
+}
 
 export function parseScheduleSources(raw: string | null): ScheduleFilterKey[] {
   if (!raw || raw === 'all') {
@@ -113,12 +137,14 @@ export function useScheduleState(): ScheduleViewProps {
   const sources = useMemo(() => parseScheduleSources(sourcesKey), [sourcesKey])
   const calendarsKey = searchParams.get('calendars') ?? ''
   const calendarIds = useMemo(() => calendarsKey.split(',').map((id) => id.trim()).filter(Boolean), [calendarsKey])
+  const includeCompleted = searchParams.get('done') === '1'
   const [reloadNonce, setReloadNonce] = useState(0)
   // 조회 결과·열린 상세는 받은 사용자(owner)를 같이 둔다. 로그아웃 → 다른 계정이면 즉시 화면에서 빠진다.
   const [result, setResult] = useState<FetchResult>(EMPTY_RESULT)
   const [actionError, setActionError] = useState('')
   const [selectedDate, setSelectedDate] = useState('')
   const [detailState, setDetailState] = useState<Owned<ScheduleEvent> | null>(null)
+  const [taskDetailState, setTaskDetailState] = useState<Owned<ScheduleTask> | null>(null)
   const [editingState, setEditingState] = useState<Owned<ScheduleEvent> | null>(null)
   const [editTitle, setEditTitle] = useState('')
   const [editDate, setEditDate] = useState('')
@@ -147,10 +173,20 @@ export function useScheduleState(): ScheduleViewProps {
     let cancelled = false
     void fetchScheduleEvents(token, { from: range.start, to: range.end, sources: SCHEDULE_FILTER_KEYS, calendarIds: ids })
       .then((data) => {
-        if (!cancelled) setResult({ key: requestKey, owner: userKey, events: data.events, google: data.google, error: '' })
+        if (!cancelled) {
+          setResult({
+            key: requestKey,
+            owner: userKey,
+            events: data.events ?? EMPTY_EVENTS,
+            tasks: data.tasks ?? EMPTY_TASKS,
+            google: data.google,
+            sourceStatus: data.sourceStatus ?? EMPTY_SOURCE_STATUS,
+            error: '',
+          })
+        }
       })
       .catch((loadError: unknown) => {
-        if (!cancelled) setResult({ key: requestKey, owner: userKey, events: [], google: EMPTY_GOOGLE_STATE, error: messageOf(loadError) })
+        if (!cancelled) setResult({ ...EMPTY_RESULT, key: requestKey, owner: userKey, error: messageOf(loadError) })
       })
     return () => {
       cancelled = true
@@ -159,17 +195,24 @@ export function useScheduleState(): ScheduleViewProps {
 
   const sameOwner = hasToken && result.owner === userKey
   const events = sameOwner ? result.events : EMPTY_EVENTS
+  const tasks = sameOwner ? result.tasks : EMPTY_TASKS
   const google = sameOwner ? result.google : EMPTY_GOOGLE_STATE
+  const sourceStatus = sameOwner ? result.sourceStatus : EMPTY_SOURCE_STATUS
   const loading = hasToken && result.key !== requestKey
   const fetchError = result.key === requestKey ? result.error : ''
   const error = hasToken ? (actionError || fetchError) : '로그인이 필요합니다.'
   const detail = detailState && detailState.owner === userKey ? detailState.value : null
+  const taskDetail = taskDetailState && taskDetailState.owner === userKey ? taskDetailState.value : null
   const editing = editingState && editingState.owner === userKey ? editingState.value : null
 
   // 출처 필터는 받아 둔 기간 데이터에서만 거른다(필터 변경마다 다시 부르지 않음).
   const visibleEvents = useMemo(
     () => events.filter((event) => sources.includes(scheduleFilterKeyOf(event))),
     [events, sources],
+  )
+  const visibleTasks = useMemo(
+    () => filterScheduleTasks(tasks, sources, includeCompleted),
+    [includeCompleted, sources, tasks],
   )
 
   const onOpenCustomer = useCallback((event: ScheduleEvent) => {
@@ -241,11 +284,15 @@ export function useScheduleState(): ScheduleViewProps {
     sources,
     calendarIds,
     events: visibleEvents,
+    tasks: visibleTasks,
+    includeCompleted,
     google,
+    sourceStatus,
     loading,
     error,
     selectedDate,
     detail,
+    taskDetail,
     editing,
     editTitle,
     editDate,
@@ -277,6 +324,14 @@ export function useScheduleState(): ScheduleViewProps {
     },
     onOpenEvent,
     onCloseDetail: () => setDetailState(null),
+    onToggleCompleted: () => replaceQuery({ done: includeCompleted ? '' : '1' }),
+    // 할 일은 일정 화면에서 조회만 한다. Google 할 일은 수정 UI 없음, ONE FC 할 일 수정은 할 일 화면에서.
+    onOpenTask: (task) => setTaskDetailState({ owner: userKey, value: task }),
+    onCloseTaskDetail: () => setTaskDetailState(null),
+    onOpenTodos: () => {
+      setTaskDetailState(null)
+      navigate('/todos')
+    },
     onOpenCustomer,
     onOpenIntegrations: () => navigate('/service-integrations'),
     onEditTitle: setEditTitle,
