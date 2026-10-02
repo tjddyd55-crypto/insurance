@@ -10,17 +10,19 @@ export const SERVICE_PROVIDERS = [
     groupLabel: 'Google',
     name: 'Google Calendar',
     kind: 'oauth',
-    env: ['GOOGLE_OAUTH_CLIENT_ID'],
-    description: '일정을 Google 캘린더와 맞출 준비입니다.',
+    // 클라이언트 ID·Secret 이 모두 있어야 연결을 연다. redirect 는 GOOGLE_OAUTH_REDIRECT_URI 또는 VITE_BASE_URL 기준.
+    env: ['GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET'],
+    envMode: 'all',
+    description: 'Google 캘린더 일정을 일정 관리에서 읽기 전용으로 함께 봅니다.',
   },
   {
     key: 'google_drive',
     group: 'google',
     groupLabel: 'Google',
     name: 'Google Drive',
-    kind: 'oauth',
-    env: ['GOOGLE_OAUTH_CLIENT_ID'],
-    description: '파일을 Google Drive와 맞출 준비입니다.',
+    kind: 'future',
+    env: [],
+    description: 'Google Drive 연동은 아직 열리지 않았습니다.',
   },
   {
     key: 'google_gmail',
@@ -77,7 +79,7 @@ export function findServiceProvider(key) {
 }
 
 /**
- * @param {{ kind: string, env?: string[] }} definition
+ * @param {{ kind: string, env?: string[], envMode?: 'all' | 'any' }} definition
  * @param {Record<string, string | undefined>} env
  * @returns {'ready' | 'unconfigured'}
  */
@@ -86,7 +88,9 @@ export function resolveProviderAvailability(definition, env) {
     return 'unconfigured'
   }
   if (definition.kind === 'oauth') {
-    const configured = (definition.env ?? []).some((name) => String(env[name] ?? '').trim())
+    const names = definition.env ?? []
+    const present = (name) => String(env[name] ?? '').trim().length > 0
+    const configured = names.length > 0 && (definition.envMode === 'all' ? names.every(present) : names.some(present))
     return configured ? 'ready' : 'unconfigured'
   }
   return 'ready'
