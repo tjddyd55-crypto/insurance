@@ -553,6 +553,13 @@
   font-weight: 700;
 }
 
+.intro-landing-solution__note {
+  margin: 16px 0 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
 .intro-landing-solution__items {
   margin: 0;
   padding-left: 1.1em;
