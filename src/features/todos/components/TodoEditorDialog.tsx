@@ -11,6 +11,7 @@ import { createTodo, deleteTodo, patchTodo } from '../api/todosApi'
 import { formatSeoulYmd } from '../utils/formatSeoulYmd'
 import { suggestDueDateFromText } from '../utils/suggestDueDateFromText'
 import { firstLineTodoTitle } from '../utils/todoCopy'
+import { isTodoEditorFormChanged, type TodoEditorForm } from '../utils/todoEditorDirty'
 
 const MIN_SEARCH = 2
 
@@ -75,6 +76,8 @@ export function TodoEditorDialog({
   const [formError, setFormError] = useState('')
   const [busy, setBusy] = useState(false)
   const touchedRef = useRef(false)
+  /** 수정 모드에서 열었을 때의 폼 값. 저장 직전 비교용. */
+  const editInitialFormRef = useRef<TodoEditorForm | null>(null)
 
   const nestedConfirmBlockingRef = useRef(false)
 
@@ -83,10 +86,17 @@ export function TodoEditorDialog({
     mode === 'create' ? String(prefill?.lockedCustomerSummary ?? '').trim() : ''
 
   const resetFromEditing = useCallback((row: TodoDto) => {
-    setDescription(resolveEditorContent(row.description, row.title))
-    setDueDate(row.dueDate ?? '')
-    setRelatedEntityType(row.relatedEntityType ?? '')
-    setRelatedEntityId(row.relatedEntityId ?? '')
+    const initialForm: TodoEditorForm = {
+      description: resolveEditorContent(row.description, row.title),
+      dueDate: row.dueDate ?? '',
+      relatedEntityType: row.relatedEntityType ?? '',
+      relatedEntityId: row.relatedEntityId ?? '',
+    }
+    editInitialFormRef.current = initialForm
+    setDescription(initialForm.description)
+    setDueDate(initialForm.dueDate)
+    setRelatedEntityType(initialForm.relatedEntityType)
+    setRelatedEntityId(initialForm.relatedEntityId)
     setSearchQ('')
     setSearchHits([])
     setFormError('')
@@ -203,6 +213,16 @@ export function TodoEditorDialog({
     setFormError('')
     try {
       if (mode === 'edit' && editingTodo) {
+        const initialForm = editInitialFormRef.current
+        const unchanged =
+          initialForm != null &&
+          !isTodoEditorFormChanged(initialForm, { description, dueDate, relatedEntityType, relatedEntityId })
+        if (unchanged) {
+          // 바뀐 값 없음: 수정 요청을 보내지 않아 수정 시각·목록 순서를 그대로 둔다.
+          onCommitted?.()
+          onClose()
+          return
+        }
         await patchTodo(token, editingTodo.id, {
           title,
           description: content,

@@ -165,6 +165,37 @@ async function enrichCustomerName(poolq, gaId, row) {
 }
 
 /**
+ * jsonb 비교용: 키 순서와 무관하게 같은 값이면 같은 문자열.
+ * @param {unknown} value
+ * @returns {string}
+ */
+function stableJsonForCompare(value) {
+  if (Array.isArray(value)) return `[${value.map(stableJsonForCompare).join(',')}]`
+  if (value && typeof value === 'object') {
+    const keys = Object.keys(value).sort()
+    return `{${keys
+      .map((k) => `${JSON.stringify(k)}:${stableJsonForCompare(/** @type {Record<string, unknown>} */ (value)[k])}`)
+      .join(',')}}`
+  }
+  return JSON.stringify(value ?? null)
+}
+
+/**
+ * 저장된 todos 행의 metadata(jsonb) → 비교용 값
+ * @param {unknown} raw
+ */
+function persistedTodoMetadata(raw) {
+  if (typeof raw === 'string') {
+    try {
+      return JSON.parse(raw)
+    } catch {
+      return null
+    }
+  }
+  return raw ?? null
+}
+
+/**
  * @param {import('express').Router} apiRouter
  * @param {{ pool: import('pg').Pool; requireAuth: import('express').RequestHandler; handleDbError: Function }} ctx
  */
@@ -434,6 +465,8 @@ export function registerTodosApi(apiRouter, ctx) {
       /** @type {unknown[]} */
       const params = []
       let p = 1
+      /** 요청에 들어온 수정 가능 필드 수. 값이 저장값과 같으면 sets에는 넣지 않는다(no-op 저장). */
+      let requestedFieldCount = 0
 
       if (typeof body.title === 'string') {
         const t = body.title.trim()
@@ -441,20 +474,32 @@ export function registerTodosApi(apiRouter, ctx) {
           res.status(400).json({ message: '제목을 비울 수 없습니다.' })
           return
         }
-        sets.push(`title = $${p++}`)
-        params.push(t.slice(0, 500))
+        requestedFieldCount += 1
+        const nextTitle = t.slice(0, 500)
+        if (nextTitle !== (prev.title ?? '')) {
+          sets.push(`title = $${p++}`)
+          params.push(nextTitle)
+        }
       }
       if (typeof body.description === 'string') {
-        sets.push(`description = $${p++}`)
-        params.push(String(body.description).slice(0, 20000))
+        requestedFieldCount += 1
+        const nextDescription = String(body.description).slice(0, 20000)
+        if (nextDescription !== (prev.description ?? '')) {
+          sets.push(`description = $${p++}`)
+          params.push(nextDescription)
+        }
       }
       if ('dueDate' in body || 'due_date' in body) {
+        requestedFieldCount += 1
+        const prevDueDate = coerceDateOnlyString(prev.due_date) || null
         const d = body.dueDate ?? body.due_date
         if (d == null || d === '') {
-          sets.push('due_date = NULL')
+          if (prevDueDate != null) sets.push('due_date = NULL')
         } else if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.trim())) {
-          sets.push(`due_date = $${p++}`)
-          params.push(d.trim())
+          if (d.trim() !== prevDueDate) {
+            sets.push(`due_date = $${p++}`)
+            params.push(d.trim())
+          }
         } else {
           res.status(400).json({ message: '마감일 형식이 올바르지 않습니다.' })
           return
@@ -462,20 +507,26 @@ export function registerTodosApi(apiRouter, ctx) {
       }
 
       if ('dueTime' in body || 'due_time' in body) {
+        requestedFieldCount += 1
+        const prevDueTime = prev.due_time ? String(prev.due_time).slice(0, 5) : null
         const t = body.dueTime ?? body.due_time
         if (t == null || t === '') {
-          sets.push('due_time = NULL')
+          if (prevDueTime != null) sets.push('due_time = NULL')
         } else if (typeof t === 'string' && /^\d{2}:\d{2}(:\d{2})?$/.test(t.trim())) {
-          sets.push(`due_time = $${p++}::time`)
-          params.push(t.trim().slice(0, 5))
+          if (t.trim().slice(0, 5) !== prevDueTime) {
+            sets.push(`due_time = $${p++}::time`)
+            params.push(t.trim().slice(0, 5))
+          }
         } else {
           res.status(400).json({ message: '시간 형식이 올바르지 않습니다.' })
           return
         }
       }
 
-      let nextRelType = prev.related_entity_type ?? null
-      let nextRelId = prev.related_entity_id != null ? String(prev.related_entity_id) : null
+      const prevRelType = prev.related_entity_type ?? null
+      const prevRelId = prev.related_entity_id != null ? String(prev.related_entity_id) : null
+      let nextRelType = prevRelType
+      let nextRelId = prevRelId
       if ('relatedEntityType' in body || 'related_entity_type' in body) {
         const raw = body.relatedEntityType ?? body.related_entity_type
         nextRelType =
@@ -505,16 +556,23 @@ export function registerTodosApi(apiRouter, ctx) {
           res.status(linkCheck.status ?? 400).json({ message: linkCheck.msg ?? '연결 검증 실패' })
           return
         }
-        sets.push(`related_entity_type = $${p++}`)
-        params.push(nextRelType)
-        sets.push(`related_entity_id = $${p++}`)
-        params.push(nextRelId)
+        requestedFieldCount += 1
+        if (nextRelType !== prevRelType || nextRelId !== prevRelId) {
+          sets.push(`related_entity_type = $${p++}`)
+          params.push(nextRelType)
+          sets.push(`related_entity_id = $${p++}`)
+          params.push(nextRelId)
+        }
       }
 
       if ('priority' in body) {
+        requestedFieldCount += 1
         const pr = String(body.priority ?? 'normal').trim().toLowerCase()
-        sets.push(`priority = $${p++}`)
-        params.push(PRIORITIES.has(pr) ? pr : 'normal')
+        const nextPriority = PRIORITIES.has(pr) ? pr : 'normal'
+        if (nextPriority !== (prev.priority ?? 'normal')) {
+          sets.push(`priority = $${p++}`)
+          params.push(nextPriority)
+        }
       }
 
       if ('status' in body) {
@@ -523,27 +581,40 @@ export function registerTodosApi(apiRouter, ctx) {
           res.status(400).json({ message: '상태 값이 올바르지 않습니다.' })
           return
         }
-        sets.push(`status = $${p++}`)
-        params.push(st)
-        if (st === 'completed') {
-          sets.push('completed_at = NOW()')
-          sets.push('canceled_at = NULL')
-        } else if (st === 'canceled') {
-          sets.push('canceled_at = NOW()')
-          sets.push('completed_at = NULL')
-        } else {
-          sets.push('completed_at = NULL')
-          sets.push('canceled_at = NULL')
+        requestedFieldCount += 1
+        if (st !== (prev.status ?? 'pending')) {
+          sets.push(`status = $${p++}`)
+          params.push(st)
+          if (st === 'completed') {
+            sets.push('completed_at = NOW()')
+            sets.push('canceled_at = NULL')
+          } else if (st === 'canceled') {
+            sets.push('canceled_at = NOW()')
+            sets.push('completed_at = NULL')
+          } else {
+            sets.push('completed_at = NULL')
+            sets.push('canceled_at = NULL')
+          }
         }
       }
 
       if ('metadata' in body) {
-        sets.push(`metadata = $${p++}::jsonb`)
-        params.push(JSON.stringify(body.metadata ?? {}))
+        requestedFieldCount += 1
+        const nextMetadata = body.metadata ?? {}
+        if (stableJsonForCompare(nextMetadata) !== stableJsonForCompare(persistedTodoMetadata(prev.metadata))) {
+          sets.push(`metadata = $${p++}::jsonb`)
+          params.push(JSON.stringify(nextMetadata))
+        }
       }
 
-      if (sets.length === 0) {
+      if (requestedFieldCount === 0) {
         res.status(400).json({ message: '변경 내용이 없습니다.' })
+        return
+      }
+      if (sets.length === 0) {
+        // 저장값과 같음: UPDATE 하지 않고 기존 행(updated_at 포함)을 그대로 돌려준다.
+        const unchanged = await enrichCustomerName(pool, gaId, prev)
+        res.json(mapTodoRow(unchanged))
         return
       }
       sets.push('updated_at = NOW()')
