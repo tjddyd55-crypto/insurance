@@ -1,8 +1,10 @@
 import { assertScheduleRange } from '../schedule/scheduleEvents.js'
+import { seoulYmd } from '../lib/seoulCalendarDate.js'
 import {
   disconnectGoogleForUser,
   loadGoogleCalendarsForUser,
   loadGoogleEventsForUser,
+  loadGoogleTasksForUser,
   readGoogleIntegrationStatus,
 } from '../integrations/googleCalendarAdapter.js'
 import { GOOGLE_CALENDAR_CARD_KEY, readGoogleOAuthConfig } from '../integrations/google/googleOAuthConfig.js'
@@ -21,6 +23,7 @@ const GOOGLE_API_ERRORS = {
   unconfigured: { status: 409, message: 'Google 연동 설정이 아직 없습니다. 관리자에게 문의해 주세요.' },
   not_connected: { status: 409, message: 'Google 계정이 연결되어 있지 않습니다.' },
   needs_reauth: { status: 409, message: 'Google 연결이 만료되었습니다. 서비스 연동에서 다시 연결해 주세요.' },
+  scope_missing: { status: 409, message: 'Google Tasks 읽기 권한이 없습니다. 서비스 연동에서 Google 을 다시 연결해 주세요.' },
   google_forbidden: { status: 502, message: 'Google Calendar 접근 권한이 없습니다. 다시 연결해 주세요.' },
   google_unauthorized: { status: 409, message: 'Google 연결이 만료되었습니다. 서비스 연동에서 다시 연결해 주세요.' },
   google_unavailable: { status: 502, message: 'Google Calendar 응답이 없습니다. 잠시 후 다시 시도해 주세요.' },
@@ -69,7 +72,12 @@ function sendGoogleError(res, error, req, handleDbError) {
   const code = String(/** @type {any} */ (error)?.code ?? '')
   const known = GOOGLE_API_ERRORS[code]
   if (known) {
-    res.status(known.status).json({ success: false, code: code === 'google_unauthorized' ? 'needs_reauth' : code, message: known.message })
+    res.status(known.status).json({
+      success: false,
+      code: code === 'google_unauthorized' ? 'needs_reauth' : code,
+      message: known.message,
+      ...(code === 'scope_missing' ? { needsReconsent: true } : {}),
+    })
     return
   }
   if (code === 'invalid_range' || code === 'range_too_wide') {
@@ -164,6 +172,29 @@ export function registerGoogleIntegrationApi(apiRouter, { pool, requireAuth, han
     }
   })
 
+  apiRouter.get('/service-integrations/google/tasks', requireAuth, async (req, res) => {
+    try {
+      const fromYmd = String(req.query.start ?? '').trim()
+      const toYmd = String(req.query.end ?? '').trim()
+      assertScheduleRange(fromYmd, toYmd)
+      const result = await loadGoogleTasksForUser(pool, {
+        userId: currentUserId(req),
+        fromYmd,
+        toYmd,
+        todayYmd: seoulYmd(),
+        fetchImpl,
+      })
+      res.setHeader('Cache-Control', 'no-store')
+      res.json({ success: true, data: { start: fromYmd, end: toYmd, taskLists: result.taskLists, tasks: result.tasks } })
+    } catch (error) {
+      if (String(/** @type {any} */ (error)?.code ?? '') === 'google_forbidden') {
+        res.status(502).json({ success: false, code: 'google_forbidden', message: 'Google Tasks 를 읽지 못했습니다. 잠시 후 다시 시도해 주세요.' })
+        return
+      }
+      sendGoogleError(res, error, req, handleDbError)
+    }
+  })
+
   // Google 이 브라우저를 돌려보내는 주소. Bearer 가 없으므로 state(DB, 1회용) + 바인딩 쿠키로 사용자를 확인한다.
   apiRouter.get('/service-integrations/google/callback', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store')
@@ -197,8 +228,8 @@ export function registerGoogleIntegrationApi(apiRouter, { pool, requireAuth, han
         back('error', 'unconfigured')
         return
       }
-      await completeGoogleConnection(pool, config, { userId: consumed.userId, code, fetchImpl })
-      back('connected')
+      const completed = await completeGoogleConnection(pool, config, { userId: consumed.userId, code, fetchImpl })
+      back('connected', completed.tasksReadable ? '' : 'tasks_scope_missing')
     } catch (error) {
       const code = String(/** @type {any} */ (error)?.code ?? '')
       const known = ['scope_missing', 'refresh_token_missing', 'google_token_failed', 'google_unavailable', 'google_userinfo_failed', 'needs_reauth']

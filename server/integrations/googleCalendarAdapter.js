@@ -2,14 +2,18 @@ import { disconnectUserIntegration, readUserIntegration, touchUserIntegrationFet
 import {
   GOOGLE_ACCOUNT_PROVIDER_KEY,
   hasCalendarReadScope,
+  hasTasksReadScope,
   readGoogleOAuthConfig,
 } from './google/googleOAuthConfig.js'
 import { getGoogleAccessToken, googleError, revokeGoogleToken } from './google/googleTokenService.js'
 import { listGoogleCalendarEvents, listGoogleCalendars } from './google/googleCalendarApi.js'
+import { listGoogleTaskLists, listGoogleTasks } from './google/googleTasksApi.js'
+import { selectScheduleTasks, sortScheduleTasks } from '../schedule/scheduleTasks.js'
 import { clearGoogleUserCache } from './google/googleUserCache.js'
 
 /**
- * Google Calendar 읽기 전용 진입점. 모든 함수는 호출자가 넘긴 현재 로그인 사용자 id 로만 동작한다.
+ * Google Calendar·Tasks 읽기 전용 진입점. 모든 함수는 호출자가 넘긴 현재 로그인 사용자 id 로만 동작한다.
+ * 한 사용자 행(provider_key='google')이 Calendar 와 Tasks 를 같이 쓴다.
  * GA 공용 credential·다른 사용자 fallback·서버 전역 계정은 없다.
  */
 
@@ -33,6 +37,19 @@ export function googleRowStatus(row) {
 }
 
 /**
+ * 제품별 사용 가능 여부. 연결이 정상일 때만 scope 로 갈린다.
+ * @param {boolean} configured
+ * @param {string} rowStatus
+ * @param {boolean} granted
+ * @returns {'available' | 'scope_missing' | 'unconfigured' | 'disconnected' | 'needs_reauth' | 'error'}
+ */
+function productStatus(configured, rowStatus, granted) {
+  if (!configured) return 'unconfigured'
+  if (rowStatus !== 'connected') return /** @type {any} */ (rowStatus)
+  return granted ? 'available' : 'scope_missing'
+}
+
+/**
  * 토큰 없이 상태만. 행이 없으면 미연동.
  * @param {import('pg').Pool | import('pg').PoolClient} pool
  * @param {string} userId
@@ -41,15 +58,25 @@ export function googleRowStatus(row) {
 export async function readGoogleIntegrationStatus(pool, userId, env = process.env) {
   const configured = isGoogleCalendarConfigured(env)
   const row = await readUserIntegration(pool, userId, GOOGLE_ACCOUNT_PROVIDER_KEY)
+  const status = googleRowStatus(row)
+  const calendarReadable = Boolean(row && hasCalendarReadScope(row.credential?.scope))
+  const tasksReadable = Boolean(row && hasTasksReadScope(row.credential?.scope))
+  const needsReconsent = status === 'connected' && !tasksReadable
   return {
     provider: 'google',
     configured,
-    status: googleRowStatus(row),
+    status,
     accountEmail: row?.accountEmail || '',
     displayName: String(row?.publicConfig?.displayName ?? ''),
     connectedAt: row?.connectedAt ?? null,
     lastFetchedAt: row?.lastSyncedAt ?? null,
-    calendarReadable: Boolean(row && hasCalendarReadScope(row.credential?.scope)),
+    calendarReadable,
+    tasksReadable,
+    needsReconsent,
+    products: {
+      calendar: { status: productStatus(configured, status, calendarReadable), scopeGranted: calendarReadable, readOnly: true },
+      tasks: { status: productStatus(configured, status, tasksReadable), scopeGranted: tasksReadable, needsReconsent, readOnly: true },
+    },
   }
 }
 
@@ -144,6 +171,68 @@ export async function loadGoogleCalendarSchedule(pool, scope) {
   } catch (error) {
     const status = error?.code === 'needs_reauth' ? 'needs_reauth' : 'error'
     return { configured: true, connected: true, status, calendars: [], events: [] }
+  }
+}
+
+/**
+ * 현재 사용자 자기 Google Tasks. tasks.readonly 가 저장된 scope 에 없으면 Google 을 부르지 않고 scope_missing.
+ * 모든 목록을 읽고(목록마다 pagination), 화면 기간에 필요한 할 일만 고른다.
+ * @param {import('pg').Pool | import('pg').PoolClient} pool
+ * @param {{ userId: string, fromYmd: string, toYmd: string, todayYmd: string, fetchImpl?: typeof fetch }} scope
+ */
+export async function loadGoogleTasksForUser(pool, scope) {
+  const row = await readUserIntegration(pool, scope.userId, GOOGLE_ACCOUNT_PROVIDER_KEY)
+  if (!row) {
+    throw googleError('not_connected')
+  }
+  if (googleRowStatus(row) === 'connected' && !hasTasksReadScope(row.credential?.scope)) {
+    throw googleError('scope_missing')
+  }
+  const result = await withGoogleAccess(pool, scope, async (accessToken) => {
+    const taskLists = await listGoogleTaskLists({ userId: scope.userId, accessToken, fetchImpl: scope.fetchImpl })
+    const groups = []
+    for (const taskList of taskLists) {
+      groups.push(await listGoogleTasks({ userId: scope.userId, accessToken, taskList, fetchImpl: scope.fetchImpl }))
+    }
+    return { taskLists, tasks: groups.flat() }
+  })
+  await touchUserIntegrationFetchedAt(pool, scope.userId, GOOGLE_ACCOUNT_PROVIDER_KEY).catch(() => undefined)
+  return {
+    taskLists: result.taskLists,
+    tasks: sortScheduleTasks(selectScheduleTasks(result.tasks, scope)),
+  }
+}
+
+/**
+ * 일정 관리 집계용. Tasks 실패는 Calendar·CRM·ONE FC 할 일에 번지지 않는다.
+ * @param {import('pg').Pool | import('pg').PoolClient} pool
+ * @param {{ userId: string, fromYmd: string, toYmd: string, todayYmd: string, fetchImpl?: typeof fetch }} scope
+ */
+export async function loadGoogleTasksSchedule(pool, scope) {
+  const empty = { taskLists: [], tasks: [] }
+  if (!isGoogleCalendarConfigured()) {
+    return { status: 'unconfigured', needsReconsent: false, ...empty }
+  }
+  let row
+  try {
+    row = await readUserIntegration(pool, scope.userId, GOOGLE_ACCOUNT_PROVIDER_KEY)
+  } catch {
+    return { status: 'error', needsReconsent: false, ...empty }
+  }
+  const rowStatus = googleRowStatus(row)
+  if (rowStatus !== 'connected') {
+    return { status: rowStatus === 'error' ? 'error' : rowStatus, needsReconsent: false, ...empty }
+  }
+  if (!hasTasksReadScope(row.credential?.scope)) {
+    return { status: 'scope_missing', needsReconsent: true, ...empty }
+  }
+  try {
+    const result = await loadGoogleTasksForUser(pool, scope)
+    return { status: 'connected', needsReconsent: false, taskLists: result.taskLists, tasks: result.tasks }
+  } catch (error) {
+    const code = String(error?.code ?? '')
+    if (code === 'scope_missing') return { status: 'scope_missing', needsReconsent: true, ...empty }
+    return { status: code === 'needs_reauth' ? 'needs_reauth' : 'error', needsReconsent: false, ...empty }
   }
 }
 

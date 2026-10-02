@@ -8,12 +8,13 @@ export const SERVICE_PROVIDERS = [
     key: 'google_calendar',
     group: 'google',
     groupLabel: 'Google',
-    name: 'Google Calendar',
+    // 카드 키는 호환을 위해 google_calendar 그대로. 한 연결로 Calendar·Tasks 를 읽기 전용으로 쓴다.
+    name: 'Google',
     kind: 'oauth',
     // 클라이언트 ID·Secret 이 모두 있어야 연결을 연다. redirect 는 GOOGLE_OAUTH_REDIRECT_URI 또는 VITE_BASE_URL 기준.
     env: ['GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET'],
     envMode: 'all',
-    description: 'Google 캘린더 일정을 일정 관리에서 읽기 전용으로 함께 봅니다.',
+    description: 'Google Calendar 일정과 Google Tasks 할 일을 일정 관리에서 읽기 전용으로 함께 봅니다.',
   },
   {
     key: 'google_drive',
