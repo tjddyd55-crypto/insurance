@@ -102,6 +102,7 @@ export function createFakeGoogle() {
   const revoked = []
   const calls = []
   let failCalendar = false
+  let failRevoke = false
   let seq = 0
 
   function addAccount(sub, email, calendars) {
@@ -148,6 +149,7 @@ export function createFakeGoogle() {
       return json(400, { error: 'unsupported_grant_type' })
     }
     if (url.href === 'https://oauth2.googleapis.com/revoke') {
+      if (failRevoke) return json(503, { error: 'backend_error' })
       revoked.push(new URLSearchParams(String(init.body)).get('token'))
       return json(200, {})
     }
@@ -186,6 +188,7 @@ export function createFakeGoogle() {
     calls,
     accounts,
     setCalendarFailure(value) { failCalendar = value },
+    setRevokeFailure(value) { failRevoke = value },
     expireAccessTokens() { accessIndex.clear() },
   }
 }

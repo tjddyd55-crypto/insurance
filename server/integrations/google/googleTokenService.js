@@ -145,8 +145,13 @@ export async function revokeGoogleToken(token, options = {}) {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ token }).toString(),
     })
+    if (!response.ok) {
+      // 토큰·응답 본문은 남기지 않는다. 로컬 삭제는 호출자가 계속 진행한다.
+      console.warn('[google-oauth] token revoke failed', { status: response.status })
+    }
     return response.ok
   } catch {
+    console.warn('[google-oauth] token revoke failed', { status: 'network_error' })
     return false
   }
 }
