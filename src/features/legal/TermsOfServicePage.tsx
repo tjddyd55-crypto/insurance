@@ -130,9 +130,9 @@ export default function TermsOfServicePage() {
               변경할 수 있으며, 이용자에게 중대한 영향을 미치는 변경은 사전에 공지합니다.
             </p>
             <p>
-              회사는 이용자의 선택에 따라 Google Calendar 등 외부 서비스와 연동하는 기능을 제공할 수 있습니다. 외부
-              서비스 연동은 이용자가 직접 연결한 경우에만 이루어지는 선택 기능이며, Google Calendar 연동은 일정을 읽기
-              전용으로 표시하는 데 한정됩니다. 이용자는 서비스 연동 화면에서 언제든지 연결을 해제할 수 있으며, 연동
+              회사는 이용자의 선택에 따라 Google Calendar 및 Google Tasks 등 외부 서비스와 연동하는 기능을 제공할 수
+              있습니다. 외부 서비스 연동은 이용자가 직접 연결한 경우에만 이루어지는 선택 기능이며, Google Calendar 및
+              Google Tasks 연동은 일정과 할 일을 읽기 전용으로 표시하는 데 한정됩니다. 이용자는 서비스 연동 화면에서 언제든지 연결을 해제할 수 있으며, 연동
               과정의 개인정보 처리는{' '}
               <LegalInternalLink to="/privacy" className="legal-doc__link">
                 개인정보처리방침

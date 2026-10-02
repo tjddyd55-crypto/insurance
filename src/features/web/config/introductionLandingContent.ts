@@ -215,7 +215,7 @@ export const INTRO_SOLUTION = {
       items: ['PC 프로그램', 'Android 앱', 'iPhone 앱'],
     },
   ] as const,
-  note: '사용자가 선택한 Google Calendar의 일정을 ONE FC 일정 관리 화면에서 함께 확인할 수 있도록 읽기 전용으로 연동합니다.',
+  note: '사용자가 선택한 Google Calendar 및 Google Tasks의 일정과 할 일을 ONE FC 일정 관리 화면에서 함께 확인할 수 있도록 읽기 전용으로 연동합니다.',
 } as const
 
 export const INTRO_SYNC = {
