@@ -236,6 +236,15 @@
   color: var(--text-secondary);
 }
 
+/* 요일 색: 일요일 빨강, 토요일 파랑 — 요일 머리글·날짜 숫자 공통(월/주/일/목록, PC·모바일). 오늘 강조(아래)가 우선. */
+.schedule-page__tone--sun {
+  color: var(--danger, #dc2626);
+}
+
+.schedule-page__tone--sat {
+  color: var(--info, #2563eb);
+}
+
 .schedule-page__week-day--today {
   color: var(--primary);
 }

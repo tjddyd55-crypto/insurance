@@ -301,6 +301,35 @@ describe('일정 관리 화면 (PC·모바일 웹 공통)', () => {
   })
 })
 
+describe('일정 관리: 요일 색 (일요일 빨강 · 토요일 파랑, PC·모바일)', () => {
+  it('월간: 요일 머리글 일/토와 날짜 숫자(10/3 토·10/4 일·10/10 토·10/11 일)에 같은 색 class, 평일 없음', () => {
+    for (const mobile of [false, true]) {
+      const html = render(props({ events: [], tasks: [] }), mobile)
+      expect(html).toMatch(/schedule-page__weekday schedule-page__tone--sun"[^>]*>일</)
+      expect(html).toMatch(/schedule-page__weekday schedule-page__tone--sat"[^>]*>토</)
+      expect(html).toMatch(/schedule-page__weekday"[^>]*>월</)
+      expect(html).toMatch(/schedule-page__date schedule-page__tone--sat"[^>]*aria-label="2026-10-03 [^"]*"[^>]*>3</)
+      expect(html).toMatch(/schedule-page__date schedule-page__tone--sun"[^>]*aria-label="2026-10-04 [^"]*"[^>]*>4</)
+      expect(html).toMatch(/schedule-page__date schedule-page__tone--sat"[^>]*aria-label="2026-10-10 [^"]*"[^>]*>10</)
+      expect(html).toMatch(/schedule-page__date"[^>]*aria-label="2026-10-05 [^"]*"[^>]*>5</)
+    }
+  })
+
+  it('주간·일간·목록: 머리글/날짜에 같은 규칙', () => {
+    for (const mobile of [false, true]) {
+      const week = render(props({ view: 'week', anchor: '2026-10-07' }), mobile)
+      expect(week).toMatch(/schedule-page__week-day schedule-page__tone--sun"[^>]*>일 (<!-- -->)?4</)
+      expect(week).toMatch(/schedule-page__week-day schedule-page__tone--sat"[^>]*>토 (<!-- -->)?10</)
+      const day = render(props({ view: 'day', anchor: '2026-10-04' }), mobile)
+      expect(day).toMatch(/schedule-page__period schedule-page__tone--sun/)
+      const weekday = render(props({ view: 'day', anchor: '2026-10-05' }), mobile)
+      expect(weekday).not.toMatch(/schedule-page__period schedule-page__tone/)
+      const list = render(props({ view: 'list', events: [crm('x1', 'customer_alert', '토요일 일정', '2026-10-10', '2026-10-11')], tasks: [] }), mobile)
+      expect(list).toMatch(/schedule-page__tone--sat">2026-10-10 \(토\)/)
+    }
+  })
+})
+
 describe('일정 관리: 할 일 (Google Tasks · ONE FC 할 일, 읽기 전용)', () => {
   it('월간: 예정일 있는 할 일은 그 날 칸에 ○ 할 일 칩, 날짜 없는 할 일은 칸에 없음', () => {
     for (const mobile of [false, true]) {

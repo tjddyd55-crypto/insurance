@@ -16,6 +16,13 @@ import {
   eventStartDay,
   sortScheduleEvents,
 } from '../domain/scheduleEventTime'
+import { weekendToneClass, weekendToneOf, weekendToneOfIndex } from '../domain/scheduleWeekend'
+
+/** 날짜 앞부분만 요일 색(일 빨강·토 파랑). 시간 등 나머지는 기존 색. */
+function ToneDate({ date, children }: { date: string; children: string }) {
+  const toneClass = weekendToneClass(weekendToneOf(date))
+  return toneClass ? <span className={toneClass}>{children}</span> : <>{children}</>
+}
 
 const WEEKDAY_SUN_FIRST = ['일', '월', '화', '수', '목', '금', '토']
 const HOURS = Array.from({ length: 24 }, (_, index) => index)
@@ -70,8 +77,8 @@ export function ScheduleMonth({ anchor, today, events, tasks, selectedDate, onSe
   return (
     <>
       <div className="schedule-page__month" role="grid" aria-label="월간 일정">
-        {WEEKDAY_SUN_FIRST.map((label) => (
-          <span key={label} className="schedule-page__weekday" role="columnheader">{label}</span>
+        {WEEKDAY_SUN_FIRST.map((label, index) => (
+          <span key={label} className={['schedule-page__weekday', weekendToneClass(weekendToneOfIndex(index))].filter(Boolean).join(' ')} role="columnheader">{label}</span>
         ))}
         {monthCells(anchor).map((cell) => {
           const dayEvents = sorted.filter((event) => eventCoversDate(event, cell.date))
@@ -87,7 +94,7 @@ export function ScheduleMonth({ anchor, today, events, tasks, selectedDate, onSe
             <div key={cell.date} className={classes.join(' ')} role="gridcell">
               <button
                 type="button"
-                className="schedule-page__date"
+                className={['schedule-page__date', weekendToneClass(weekendToneOf(cell.date))].filter(Boolean).join(' ')}
                 aria-label={`${formatDateWithKoreanWeekday(cell.date)} 일정 ${dayEvents.length}건${dayTasks.length > 0 ? `, 할 일 ${dayTasks.length}건` : ''}`}
                 aria-pressed={cell.date === selectedDate}
                 onClick={() => onSelectDate(cell.date)}
@@ -120,7 +127,7 @@ export function ScheduleMonth({ anchor, today, events, tasks, selectedDate, onSe
       {selectedDate ? (
         <section className="schedule-page__day-panel" aria-label={`${formatDateWithKoreanWeekday(selectedDate)} 일정`}>
           <div className="schedule-page__day-panel-head">
-            <strong>{formatDateWithKoreanWeekday(selectedDate)}</strong>
+            <strong className={weekendToneClass(weekendToneOf(selectedDate)) || undefined}>{formatDateWithKoreanWeekday(selectedDate)}</strong>
             <Button type="button" variant="secondary" size="sm" onClick={() => onOpenDay(selectedDate)}>일간 보기</Button>
           </div>
           {selectedTasks.length > 0 ? (
@@ -143,7 +150,10 @@ export function ScheduleWeek({ anchor, today, events, tasks, onOpenEvent, onOpen
         <div className="schedule-page__week-head">
           <span />
           {days.map((date, index) => (
-            <strong key={date} className={date === today ? 'schedule-page__week-day schedule-page__week-day--today' : 'schedule-page__week-day'}>
+            <strong
+              key={date}
+              className={['schedule-page__week-day', weekendToneClass(weekendToneOfIndex(index)), date === today ? 'schedule-page__week-day--today' : ''].filter(Boolean).join(' ')}
+            >
               {WEEKDAY_SUN_FIRST[index]} {Number(date.slice(8))}
             </strong>
           ))}
@@ -208,7 +218,7 @@ export function ScheduleDayList({ events, onOpenEvent, detailed, showDate = true
         <li key={event.id}>
           <button type="button" onClick={() => onOpenEvent(event)}>
             <span className="schedule-page__row-time">
-              {showDate ? `${formatDateWithKoreanWeekday(eventStartDay(event))} ` : ''}{eventClock(event)}
+              {showDate ? <><ToneDate date={eventStartDay(event)}>{formatDateWithKoreanWeekday(eventStartDay(event))}</ToneDate>{' '}</> : null}{eventClock(event)}
             </span>
             <strong className="schedule-page__row-title">{event.title}</strong>
             <ScheduleSourceBadge event={event} />
@@ -248,7 +258,12 @@ export function ScheduleTaskSection({ title, tasks, today, onOpenTask, showDate 
             <li key={task.id} className={taskButtonClass('schedule-page__task-item', task, today)}>
               <button type="button" onClick={() => onOpenTask(task)}>
                 <span className="schedule-page__task-mark" aria-hidden="true">{taskMark(task)}</span>
-                {showDate ? <span className="schedule-page__row-time">{taskDueLabel(task)}</span> : null}
+                {showDate ? (
+                  <span className="schedule-page__row-time">
+                    {task.dueDate ? <ToneDate date={task.dueDate}>{formatDateWithKoreanWeekday(task.dueDate)}</ToneDate> : '날짜 없음'}
+                    {task.dueDate && task.dueTime ? ` ${task.dueTime}` : ''}
+                  </span>
+                ) : null}
                 <strong className="schedule-page__row-title">{task.title}</strong>
                 <ScheduleTaskBadge task={task} />
                 {task.status === 'completed' ? <span className="schedule-page__row-meta">완료</span> : null}

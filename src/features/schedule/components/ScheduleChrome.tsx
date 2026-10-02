@@ -2,6 +2,7 @@ import { Button } from '../../../components/ui'
 import { SCHEDULE_FILTER_KEYS, SCHEDULE_FILTER_LABEL, type ScheduleFilterKey } from '../api/scheduleApi'
 import type { ScheduleViewProps } from '../hooks/useScheduleState'
 import { periodTitle, type ScheduleView } from '../domain/scheduleRange'
+import { weekendToneClass, weekendToneOf } from '../domain/scheduleWeekend'
 
 const VIEWS: Array<{ id: ScheduleView; label: string }> = [
   { id: 'month', label: '월간' },
@@ -116,7 +117,7 @@ export default function ScheduleChrome(props: ScheduleViewProps) {
           <Button type="button" variant="secondary" size="sm" onClick={() => props.onShift(-1)} aria-label="이전 기간">이전</Button>
           <Button type="button" variant="secondary" size="sm" onClick={props.onToday}>오늘</Button>
           <Button type="button" variant="secondary" size="sm" onClick={() => props.onShift(1)} aria-label="다음 기간">다음</Button>
-          <strong className="schedule-page__period">{periodTitle(props.view, props.anchor)}</strong>
+          <strong className={['schedule-page__period', props.view === 'day' ? weekendToneClass(weekendToneOf(props.anchor)) : ''].filter(Boolean).join(' ')}>{periodTitle(props.view, props.anchor)}</strong>
         </div>
       </header>
       <div className="schedule-page__views" role="tablist" aria-label="일정 보기">
