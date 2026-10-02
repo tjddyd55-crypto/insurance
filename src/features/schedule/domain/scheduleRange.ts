@@ -43,11 +43,11 @@ export function monthGridRange(anchor: string): {
   return { start, end: addDaysYmd(start, 41), monthStart, monthEnd, month }
 }
 
+/** 주간은 월간 그리드와 같이 일요일 시작(일~토). */
 export function weekRange(anchor: string): { start: string; end: string } {
   const [year, month, day] = anchor.split('-').map(Number)
-  const sundayBased = new Date(Date.UTC(year, month - 1, day)).getUTCDay()
-  const mondayOffset = sundayBased === 0 ? -6 : 1 - sundayBased
-  const start = addDaysYmd(anchor, mondayOffset)
+  const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay()
+  const start = addDaysYmd(anchor, -weekday)
   return { start, end: addDaysYmd(start, 6) }
 }
 
@@ -100,7 +100,7 @@ function weekdayOf(ymd: string): string {
   return WEEKDAY_KO[new Date(Date.UTC(year, month - 1, day)).getUTCDay()] ?? ''
 }
 
-/** 상단 기간 제목. 월간 `2026년 10월`, 주간 `2026.10.12 – 10.18`, 일간 `2026년 10월 2일 (금)` */
+/** 상단 기간 제목. 월간 `2026년 10월`, 주간 `2026.10.11 – 10.17`, 일간 `2026년 10월 2일 (금)` */
 export function periodTitle(view: ScheduleView, anchor: string): string {
   const [year, month, day] = anchor.split('-').map(Number)
   if (view === 'week') {

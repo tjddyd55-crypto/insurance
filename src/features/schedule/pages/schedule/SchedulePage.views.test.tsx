@@ -150,11 +150,11 @@ describe('일정 관리 화면 (PC·모바일 웹 공통)', () => {
     expect(html).toContain('09:00–10:00')
   })
 
-  it('주간: 월~일 머리글, 종일 영역, 09시 시간 block', () => {
+  it('주간: 일~토 머리글(일요일 시작), 종일 영역, 09시 시간 block', () => {
     const html = render(props({ view: 'week' }))
-    expect(html).toContain('2026.09.28 – 10.04')
-    expect(html).toContain('월 28')
-    expect(html).toContain('일 4')
+    expect(html).toContain('2026.09.27 – 10.03')
+    const heads = [...html.matchAll(/schedule-page__week-day[^"]*">([^<]+)</g)].map((match) => match[1])
+    expect(heads).toEqual(['일 27', '월 28', '화 29', '수 30', '목 1', '금 2', '토 3'])
     expect(html).toContain('종일')
     expect(html).toMatch(/09:00<\/span>.*schedule-page__block--google/s)
     expect(html).toContain('워크숍')
