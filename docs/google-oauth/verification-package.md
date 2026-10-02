@@ -1,6 +1,6 @@
 # ONE FC — Google OAuth 검증 제출 자료 (초안)
 
-> 공식 도메인이 정해지기 전까지 `<OFFICIAL_DOMAIN>` 은 자리표시자다. 실제 도메인으로 바꾼 뒤 제출한다.
+> 공식 도메인: `onefc.platform-assets.com` (Railway prod app 커스텀 도메인, DNS/SSL 적용 중 — 실제로 열리는지 확인한 뒤 제출한다).
 > 비밀값(Client secret, 토큰, 비밀번호, 환경변수 값)은 이 문서와 제출 화면 어디에도 넣지 않는다.
 
 ## 1. 앱 정보
@@ -10,18 +10,26 @@
 | App name | ONE FC |
 | GCP project | ONE FC (`fluted-legacy-510402-f3`) |
 | User type / 상태 | External / Testing → In production 전환 시 검증 필요 |
-| Application homepage | `https://<OFFICIAL_DOMAIN>/introduction` (권장, 아래 참고) |
-| Privacy policy | `https://<OFFICIAL_DOMAIN>/privacy` |
-| Terms of service | `https://<OFFICIAL_DOMAIN>/terms` |
-| Authorized domain | `<OFFICIAL_DOMAIN>` |
-| Redirect URI | `https://<OFFICIAL_DOMAIN>/backend/service-integrations/google/callback` |
+| Application homepage | `https://onefc.platform-assets.com/` |
+| Privacy policy | `https://onefc.platform-assets.com/privacy` |
+| Terms of service | `https://onefc.platform-assets.com/terms` |
+| Authorized domain | `platform-assets.com` |
+| Redirect URI | `https://onefc.platform-assets.com/backend/service-integrations/google/callback` |
 | User support email | tjddyd55@gmail.com |
 | Developer contact | tjddyd55@naver.com |
 
+### Domain ownership (for reviewers)
+
+**English**
+platform-assets.com is the official service domain owned and managed by the operator of ONE FC, 올인원솔루션 (All-in-One Solution; representative: 박성용 / Park Seongyong; Korean business registration number 232-51-00991). ONE FC is served at the `onefc` subdomain (`https://onefc.platform-assets.com`). Ownership of platform-assets.com is verified in Google Search Console as a Domain property.
+
+**한국어**
+platform-assets.com 은 ONE FC 운영자인 올인원솔루션(대표 박성용, 사업자등록번호 232-51-00991)이 소유·관리하는 공식 서비스 도메인입니다. ONE FC 는 `onefc` 서브도메인(`https://onefc.platform-assets.com`)에서 제공됩니다. platform-assets.com 의 소유권은 Google Search Console 에서 도메인 속성(Domain property)으로 인증되어 있습니다.
+
 ### 홈페이지 URL 메모
 - `/` 는 비로그인 시 `/login?required=1` 로 이동한다. 로그인 화면에도 ONE FC 이름, 한 줄 설명, 이용약관·개인정보처리방침 링크, 사업자·연락처(BusinessInfoFooter)가 보인다.
-- 다만 Google 검토는 "로그인 화면만 있는 홈페이지"를 반려하는 경우가 있어, 기능 소개와 Google Calendar 연동 문장이 있는 공개 랜딩 `/introduction` 을 홈페이지로 등록하는 것을 권장한다.
-- 홈페이지, 개인정보처리방침, 약관, Redirect URI 는 모두 같은 `<OFFICIAL_DOMAIN>` 아래에 있어야 한다. `*.up.railway.app` 은 소유 도메인으로 인증할 수 없으므로 공식 도메인이 필요하다.
+- Google 검토에서 "로그인 화면만 있는 홈페이지"로 반려되면, 기능 소개와 Google Calendar 연동 문장이 있는 공개 랜딩 `https://onefc.platform-assets.com/introduction` 으로 홈페이지 URL 을 바꿔 다시 제출한다.
+- 홈페이지, 개인정보처리방침, 약관, Redirect URI 는 모두 `platform-assets.com` 아래에 있어야 한다. `*.up.railway.app` 은 소유 도메인으로 인증할 수 없다.
 
 ## 2. 요청 scope
 
@@ -49,8 +57,8 @@ ONE FC는 보험 설계사용 업무 도구입니다. 사용자가 서비스 연
 - `/introduction` 주요 기능 요약: Google Calendar 읽기 전용 연동 문장.
 
 ## 5. 제출 전 확인
-- [ ] `<OFFICIAL_DOMAIN>` 확정, Search Console 소유 확인, OAuth 동의 화면 Authorized domain 등록
+- [ ] `onefc.platform-assets.com` DNS/SSL 적용 확인, Search Console 에서 `platform-assets.com` Domain property 소유 확인, OAuth 동의 화면 Authorized domain 에 `platform-assets.com` 등록
 - [ ] 홈페이지·개인정보처리방침·약관 URL 이 로그인 없이 열리는지 확인
-- [ ] OAuth client Redirect URI 에 공식 도메인 callback 추가, Railway `GOOGLE_OAUTH_REDIRECT_URI` 갱신
+- [ ] OAuth client Redirect URI 에 `https://onefc.platform-assets.com/backend/service-integrations/google/callback` 추가, prod 에 Google 연동을 열 때 Railway prod `GOOGLE_OAUTH_REDIRECT_URI` 를 같은 값으로 설정
 - [ ] 동의 화면 앱 로고·이름이 실제 서비스와 같은지 확인
 - [ ] 데모 영상(`demo-video-script.md`) 촬영·YouTube(일부 공개) 업로드
