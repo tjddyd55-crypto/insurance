@@ -123,7 +123,7 @@ export default function PrivacyPolicyPage() {
             </li>
             <li>
               <strong>Google 서비스 연동(선택)</strong>: 이용자가 직접 연결한 경우에 한해 Google 계정 이메일, 이름,
-              Google Calendar 캘린더 목록 및 일정 정보 (자세한 내용은 제13조)
+              Google Calendar 캘린더 목록 및 일정 정보, Google Tasks 할 일 목록 및 할 일 정보 (자세한 내용은 제13조)
             </li>
           </ul>
           <h3>도입·이용 문의 수집·이용</h3>
@@ -278,21 +278,23 @@ export default function PrivacyPolicyPage() {
           <ul className="legal-doc__list">
             <li>
               <strong>접근하는 정보</strong>: Google 계정 이메일 주소, 기본 프로필 정보(이름, 프로필 사진), Google
-              Calendar 캘린더 목록 및 일정 정보(제목, 일시, 장소, 설명, 캘린더 이름 등)
+              Calendar 캘린더 목록 및 일정 정보(제목, 일시, 장소, 설명, 캘린더 이름 등), Google Tasks 할 일 목록 및 할 일
+              정보(제목, 메모, 예정일, 완료 여부, 목록 이름 등)
             </li>
             <li>
-              <strong>이용 목적</strong>: 이용자 본인의 Google Calendar 일정을 {C.serviceName} 일정 관리 화면에 읽기
-              전용으로 함께 표시하는 데에만 이용합니다.
+              <strong>이용 목적</strong>: {C.serviceName} 일정/할 일 관리 화면에서 이용자 본인의 Google 일정 및 할 일을
+              읽기 전용으로 함께 표시하는 데에만 이용합니다.
             </li>
             <li>
-              <strong>권한 범위</strong>: Google Calendar 읽기 전용 권한(calendar.readonly)만 요청하며, 회사는 Google
-              Calendar 일정을 생성·수정·삭제하지 않습니다.
+              <strong>권한 범위</strong>: Google Calendar 읽기 전용 권한(calendar.readonly)과 Google Tasks 읽기 전용
+              권한(tasks.readonly)만 요청하며, 회사는 Google Calendar 일정을 생성·수정·삭제하지 않고 Google Tasks 할 일을
+              생성·수정·완료 처리·삭제하지 않습니다.
             </li>
             <li>
               <strong>보관</strong>: Google 연결 인증 정보(OAuth 토큰)는 서버에 암호화하여 저장하며, 브라우저(로컬
               저장소 등)에는 저장하지 않습니다. 연결된 계정을 표시하기 위해 Google 계정 이메일, 이름, 계정 식별자와 연결
-              시각을 보관하며, 프로필 사진은 저장하지 않습니다. Google 일정 정보는 영구 저장하지 않고, 화면 표시를 위해
-              서버 메모리에 약 60초 동안만 임시 보관합니다. 연결 과정에서는 요청 위조 방지를 위한 보안 쿠키를 최대 10분
+              시각을 보관하며, 프로필 사진은 저장하지 않습니다. Google 일정 및 할 일 정보는 영구 저장하지 않고, 화면 표시를
+              위해 서버 메모리에 약 60초 동안만 임시 보관합니다. 연결 과정에서는 요청 위조 방지를 위한 보안 쿠키를 최대 10분
               동안 사용합니다.
             </li>
             <li>
@@ -301,7 +303,7 @@ export default function PrivacyPolicyPage() {
               열람하지 않습니다.
             </li>
             <li>
-              <strong>연결 해제</strong>: 서비스 연동 → Google Calendar → 연결 해제를 누르면 Google 일정 표시가
+              <strong>연결 해제</strong>: 서비스 연동 → Google → 연결 해제를 누르면 Google 일정 및 할 일 표시가
               중단되고 저장된 인증 정보가 삭제되며, 회사는 Google에 해당 토큰의 폐기를 요청합니다. Google 계정 권한
               페이지(
               <a
