@@ -61,12 +61,19 @@ export function assessImportNameQuality(name, options = {}) {
 /**
  * @param {string} address
  */
-export function assessImportAddressQuality(address) {
+export function assessImportAddressQuality(address, options = {}) {
   const normalized = normalizeImportString(address)
   if (!normalized) {
     return { ok: true, canonicalAddress: '' }
   }
+  const source = normalizeImportString(options.unstructuredSourceText ?? '')
   const violations = []
+  if (source && normalized === source) {
+    violations.push('RAW_BLOCK_EQUALS_ADDRESS')
+  }
+  if (source && normalized.length >= 48 && source.includes(normalized) && /주민번호|핸드폰|전화|직업|키\s*\/\s*몸무게|병력/.test(normalized)) {
+    violations.push('NON_ADDRESS_LABEL_IN_ADDRESS')
+  }
   if (RRN_PATTERN.test(normalized)) {
     violations.push('RRN_IN_ADDRESS')
   }
@@ -96,7 +103,7 @@ export function violatesAutoEligibleFieldQuality(mapped, options = {}) {
   if (!nameCheck.ok) {
     issues.push(nameCheck.detail ?? nameCheck.reason)
   }
-  const addressCheck = assessImportAddressQuality(mapped.address ?? '')
+  const addressCheck = assessImportAddressQuality(mapped.address ?? '', options)
   if (!addressCheck.ok) {
     issues.push(...(addressCheck.violations ?? []))
   }

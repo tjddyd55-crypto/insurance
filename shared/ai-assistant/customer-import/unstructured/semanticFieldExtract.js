@@ -42,6 +42,18 @@ const MEMO_LABEL = /(?:메모|비고|특이사항)\s*[:：]\s*([^\n\r]+)/i
 const LEADING_NAME_ON_SAME_LINE = /^([가-힣]{2,8})(?=\s+(?:주민|키\/|핸드|휴대|전화|주소|직업|회사|병력|보험|차))/i
 const FIELD_LABEL_START =
   /^(?:주민번호|핸드폰|휴대|전화|주소|키\s*\/\s*몸무게|키|몸무게|직업|회사|병원|보험|메모|계좌|청구|차번호)/i
+const INLINE_NEXT_FIELD_LABEL =
+  /\s+(?=(?:주민(?:등록)?번호|핸드폰번호|휴대폰번호|전화번호|핸드폰|휴대|전화|H\.?P|연락처|키\s*\/\s*몸무게|키|몸무게|직업|회사|하는일|병력|보험|메모|비고|차번호|번호판|자동차번호|차량번호)\s*[:：])/i
+
+function trimLabeledFieldValue(raw) {
+  const value = String(raw ?? '').trim()
+  if (!value) {
+    return ''
+  }
+  const firstLine = value.split(/\r?\n/)[0] ?? value
+  const inline = firstLine.split(INLINE_NEXT_FIELD_LABEL)[0]?.trim() ?? firstLine.trim()
+  return inline.slice(0, 200)
+}
 
 function normalizePhoneDigits(raw) {
   const digits = String(raw ?? '').replace(/\D/g, '')
@@ -140,7 +152,7 @@ function consumeLine(line, semantic) {
 
   m = ADDRESS_LABEL.exec(trimmed)
   if (m?.[1]) {
-    semantic.address = m[1].trim().slice(0, 200)
+    semantic.address = trimLabeledFieldValue(m[1])
     return true
   }
 
@@ -273,7 +285,10 @@ export function parseUnstructuredBlockToSemantic(text) {
   }
 
   if (ADDRESS_LABEL.test(raw) && !semantic.address) {
-    semantic.address = ADDRESS_LABEL.exec(raw)?.[1]?.trim().slice(0, 200) ?? ''
+    const blockMatch = /(?:주소|거주지|Address)\s*[:：]\s*([\s\S]*?)(?=\n\s*(?:주민|핸드폰|휴대|전화|키\s*\/\s*몸무게|직업|회사|병력|보험|메모|차번호)|$)/i.exec(
+      raw,
+    )
+    semantic.address = trimLabeledFieldValue(blockMatch?.[1] ?? ADDRESS_LABEL.exec(raw)?.[1] ?? '')
   }
 
   if (JOB_LABEL.test(raw) && !semantic.job) {

@@ -1,7 +1,11 @@
 import multer from 'multer'
 
 import { getOpenAiDiagnostics } from '../ai-assistant/openaiConfig.js'
-import { runOpenAiConnectivitySmoke } from '../ai-assistant/openaiClient.js'
+import {
+  formatOpenAiFailureReason,
+  runOpenAiConnectivitySmoke,
+  runOpenAiSemanticSmoke,
+} from '../ai-assistant/openaiClient.js'
 import { applyImportSessionMappingAndPreview, processAiAssistantMessage } from '../ai-assistant/orchestrator.js'
 import { buildMappingRowsForUi } from '../ai-assistant/importPreviewRunner.js'
 import { CUSTOMER_IMPORT_FIELD_KEYS } from '../../shared/ai-assistant/customer-import/fieldDictionary.js'
@@ -67,6 +71,30 @@ export function registerAiAssistantApi(apiRouter, ctx) {
       res.status(Number(error?.status) || 502).json({
         connectivity: 'FAIL',
         code: error?.code ?? 'OPENAI_REQUEST_FAILED',
+        failureReason: error?.failureReason ?? formatOpenAiFailureReason(error, 'responses.create'),
+      })
+    }
+  })
+
+  apiRouter.post('/ai/admin/openai-semantic-smoke', requireAuth, requireSuperAdmin, async (req, res) => {
+    if (isProductionRuntime()) {
+      res.status(403).json({ code: 'FORBIDDEN', message: 'Production에서는 사용할 수 없습니다.' })
+      return
+    }
+    try {
+      const result = await runOpenAiSemanticSmoke()
+      res.json({
+        semantic: result.pass ? 'PASS' : 'FAIL',
+        schemaValid: result.schemaValid,
+        assignmentCount: result.assignmentCount ?? 0,
+        usage: result.usage,
+        reason: result.reason ?? null,
+      })
+    } catch (error) {
+      res.status(Number(error?.status) || 502).json({
+        semantic: 'FAIL',
+        code: error?.code ?? 'OPENAI_REQUEST_FAILED',
+        failureReason: error?.failureReason ?? formatOpenAiFailureReason(error, 'semantic.responses.create'),
       })
     }
   })

@@ -55,7 +55,12 @@ export function mapSemanticToImportFields(semantic) {
 
   const hasStrongIdentity = Boolean(semantic.personName && semantic.phones[0])
   let classification = 'CUSTOMER_CANDIDATE'
-  if (!hasStrongIdentity || semantic.needsSemanticReview || semantic.phones.length > 1) {
+  if (
+    !hasStrongIdentity ||
+    semantic.needsSemanticReview ||
+    semantic.phones.length > 1 ||
+    semantic.unresolvedLines.length > 0
+  ) {
     classification = 'REVIEW_REQUIRED'
   }
 

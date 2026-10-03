@@ -11,8 +11,9 @@ import {
   cloneSemanticRecord,
   mergeSemanticWithGpt,
 } from '../../../../shared/ai-assistant/customer-import/unstructured/mergeSemanticWithGpt.js'
+import { SEMANTIC_GPT_CONFIDENCE } from '../../../../shared/ai-assistant/customer-import/unstructured/semanticVocabulary.js'
 import { getOpenAiConfig } from '../../openaiConfig.js'
-import { callOpenAiResponses } from '../../openaiClient.js'
+import { callOpenAiResponses, formatOpenAiFailureReason } from '../../openaiClient.js'
 import { buildRedactedSemanticGptContext } from './semanticBlockRedact.js'
 
 const SEMANTIC_GPT_SYSTEM = `You are a semantic classification component for ONE FC insurance CRM customer data.
@@ -31,11 +32,27 @@ If multiple people appear with unclear phone/address ownership, set multiPersonH
  */
 export async function enrichSemanticWithGpt(semantic, sourceText, env = process.env) {
   if (!isSemanticGptEligible(semantic)) {
-    return { called: false, semantic, resolvedCount: 0, warnings: [] }
+    return {
+      attempted: false,
+      succeeded: false,
+      called: false,
+      semantic,
+      resolvedCount: 0,
+      warnings: [],
+      lowConfidenceCount: 0,
+    }
   }
   const cfg = getOpenAiConfig(env)
   if (!cfg.enabled) {
-    return { called: false, semantic, resolvedCount: 0, warnings: ['OPENAI_DISABLED'] }
+    return {
+      attempted: false,
+      succeeded: false,
+      called: false,
+      semantic,
+      resolvedCount: 0,
+      warnings: ['OPENAI_DISABLED'],
+      lowConfidenceCount: 0,
+    }
   }
 
   const locks = buildDeterministicSemanticLocks(semantic)
@@ -77,25 +94,46 @@ export async function enrichSemanticWithGpt(semantic, sourceText, env = process.
     try {
       parsed = JSON.parse(outputText)
     } catch {
-      return { called: true, semantic: cloneSemanticRecord(semantic), resolvedCount: 0, warnings: ['OPENAI_INVALID_OUTPUT'], usage }
+      return {
+        attempted: true,
+        succeeded: false,
+        called: true,
+        schemaRejected: true,
+        semantic: cloneSemanticRecord(semantic),
+        resolvedCount: 0,
+        warnings: ['OPENAI_INVALID_OUTPUT', 'REVIEW_REQUIRED'],
+        usage,
+        lowConfidenceCount: 0,
+      }
     }
     const validated = validateSemanticGptResponse(parsed)
+    const lowConfidenceCount = validated.assignments.filter(
+      (item) => item.confidence < SEMANTIC_GPT_CONFIDENCE.REVIEW,
+    ).length
     const merged = mergeSemanticWithGpt(cloneSemanticRecord(semantic), { ...locks }, validated, vault)
     return {
+      attempted: true,
+      succeeded: true,
       called: true,
       semantic: merged.semantic,
       resolvedCount: merged.appliedCount,
       warnings: merged.warnings,
       usage,
       gptUnresolved: validated.unresolvedFragments.length,
+      lowConfidenceCount,
     }
   } catch (error) {
+    const failureReason = error?.failureReason ?? formatOpenAiFailureReason(error, 'semantic.responses.create')
     return {
+      attempted: true,
+      succeeded: false,
       called: false,
+      error: true,
+      timeout: Boolean(error?.timeout),
       semantic: cloneSemanticRecord(semantic),
       resolvedCount: 0,
-      warnings: [error?.code ?? 'OPENAI_REQUEST_FAILED'],
-      error: true,
+      warnings: [failureReason, 'REVIEW_REQUIRED'],
+      lowConfidenceCount: 0,
     }
   }
 }

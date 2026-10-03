@@ -44,7 +44,7 @@ export function validateMappedCustomerRow(mapped, options = {}) {
   }
 
   let address = normalizeImportString(mapped.address)
-  const addressQuality = assessImportAddressQuality(address)
+  const addressQuality = assessImportAddressQuality(address, options)
   if (!addressQuality.ok) {
     reasons.push(CUSTOMER_IMPORT_REASON.UNSUPPORTED_VALUE)
     address = ''

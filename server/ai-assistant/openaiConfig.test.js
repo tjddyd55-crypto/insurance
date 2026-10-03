@@ -23,6 +23,8 @@ describe('openai config', () => {
     })
     assert.equal(diag.OPENAI_API_KEY, 'PRESENT')
     assert.equal(diag.OPENAI_MODEL, 'gpt-6.1-sol')
+    assert.equal(diag.enabledFlagParsed, true)
+    assert.equal(diag.runtimeEnabled, true)
   })
 
   it('disabled on production without explicit allow', () => {

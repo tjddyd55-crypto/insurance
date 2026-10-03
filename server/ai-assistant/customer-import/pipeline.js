@@ -2,6 +2,7 @@ import { CUSTOMER_IMPORT_DUPLICATE_POLICY, CUSTOMER_IMPORT_ROW_STATUS } from '..
 import { classifyCrmDuplicate, findInFileDuplicateFlags } from '../../../shared/ai-assistant/customer-import/duplicate.js'
 import { buildImportPreviewSummary, computePreviewVersionHash } from '../../../shared/ai-assistant/customer-import/preview.js'
 import { mapRawRowToCustomerFields } from '../../../shared/ai-assistant/customer-import/rowMapping.js'
+import { unstructuredRowRequiresReview } from '../../../shared/ai-assistant/customer-import/importReviewGate.js'
 import { violatesAutoEligibleFieldQuality } from '../../../shared/ai-assistant/customer-import/fieldQuality.js'
 import { validateMappedCustomerRow } from '../../../shared/ai-assistant/customer-import/validate.js'
 import { buildAnalyzeResultForMatrix } from '../../../shared/ai-assistant/customer-import/fileAnalyze.js'
@@ -162,12 +163,12 @@ async function runUnstructuredImportPipeline(session, crmIndex, options = {}) {
     const existing =
       row.duplicate?.reason === 'DUPLICATE_EXISTING_CUSTOMER' &&
       duplicatePolicy === CUSTOMER_IMPORT_DUPLICATE_POLICY.SKIP
-    let review = row.reasons.includes('REVIEW_REQUIRED')
+    let review = unstructuredRowRequiresReview(row)
     const fieldIssues = violatesAutoEligibleFieldQuality(row.mapped ?? {}, {
       unstructuredSourceText: row.unstructuredMeta?.sourceCellText ?? '',
     })
     if (fieldIssues.length > 0) {
-      if (!review) {
+      if (!row.reasons.includes('REVIEW_REQUIRED')) {
         row.reasons.push('REVIEW_REQUIRED')
       }
       review = true

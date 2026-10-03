@@ -30,7 +30,7 @@ export const SEMANTIC_GPT_JSON_SCHEMA = {
         items: { type: 'string' },
       },
     },
-    required: ['assignments', 'unresolvedFragments', 'warnings'],
+    required: ['assignments', 'unresolvedFragments', 'multiPersonHint', 'warnings'],
   },
 }
 

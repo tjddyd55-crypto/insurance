@@ -31,11 +31,15 @@ export function getOpenAiConfig(env = process.env) {
 
 export function getOpenAiDiagnostics(env = process.env) {
   const cfg = getOpenAiConfig(env)
+  const enabledFlagParsed = parseEnvBool(env.OPENAI_ENABLED, false)
   return {
+    enabledFlagParsed,
+    runtimeEnabled: cfg.enabled,
     OPENAI_ENABLED: cfg.enabled,
     OPENAI_API_KEY: cfg.apiKeyPresent ? 'PRESENT' : 'MISSING',
     OPENAI_MODEL: cfg.model ?? 'MISSING',
     reasoningEffort: cfg.reasoningEffort,
+    isProductionRuntime: cfg.isProductionRuntime,
   }
 }
 
