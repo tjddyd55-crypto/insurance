@@ -528,7 +528,13 @@ export default function AiSecretaryWorkspace({ variant, onClose }: Props) {
                 issueRows?.map((row) => (
                   <li key={`${row.sourceRowNumber}-${row.identifier}`}>
                     행 {row.sourceRowNumber} · {row.identifier}
-                    {row.phoneMasked ? ` · ${row.phoneMasked}` : ''} — {row.reasons?.join(', ') ?? row.status}
+                    {row.phoneMasked ? ` · ${row.phoneMasked}` : ''}
+                    {row.mappedPreview?.address ? ` · 주소: ${row.mappedPreview.address}` : ''}
+                    {row.mappedPreview?.job ? ` · 직업: ${row.mappedPreview.job}` : ''}
+                    {row.mappedPreview?.carNumber ? ` · 차량: ${row.mappedPreview.carNumber}` : ''}
+                    {row.mappedPreview?.sourceCell ? ` · ${row.mappedPreview.sourceCell}` : ''}
+                    {' — '}
+                    {row.reasons?.join(', ') ?? row.status}
                   </li>
                 ))
               )}

@@ -40,6 +40,10 @@ export async function enrichSemanticWithGpt(semantic, sourceText, env = process.
 
   const locks = buildDeterministicSemanticLocks(semantic)
   const { contextLines, vault, redactionStats } = buildRedactedSemanticGptContext(sourceText)
+  const unresolvedForGpt = semantic.unresolvedLines.map((line) => {
+    const single = buildRedactedSemanticGptContext(line)
+    return single.contextLines.join(' ') || line
+  })
   const lockedFields = Object.entries(locks)
     .filter(([, v]) => v)
     .map(([k]) => k)
@@ -55,8 +59,9 @@ export async function enrichSemanticWithGpt(semantic, sourceText, env = process.
       carNumber: semantic.carNumber || null,
     },
     contextLines,
-    unresolvedLines: semantic.unresolvedLines,
+    unresolvedLines: unresolvedForGpt,
     redactionStats,
+    medicalRawSentToGpt: false,
   })
 
   try {

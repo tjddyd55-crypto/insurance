@@ -31,6 +31,16 @@ export type AiAssistantMessage =
         reasons: string[]
         identifier: string
         phoneMasked?: string | null
+        mappedPreview?: {
+          name?: string | null
+          phoneMasked?: string | null
+          address?: string | null
+          job?: string | null
+          carNumber?: string | null
+          carModel?: string | null
+          sourceCell?: string | null
+          warnings?: string[]
+        }
       }>
       preview: {
         fileName?: string

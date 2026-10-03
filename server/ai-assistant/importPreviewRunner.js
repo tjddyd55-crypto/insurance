@@ -75,6 +75,17 @@ export function buildPreviewIssueRows(rows) {
       identifier: r.mapped?.name ? String(r.mapped.name).slice(0, 40) : `행 ${r.sourceRowNumber}`,
       phoneMasked: r.mapped?.phone ? maskPhone(r.mapped.phone) : null,
       eligibleForCommit: r.eligibleForCommit,
+      mappedPreview: {
+        name: r.mapped?.name ? String(r.mapped.name).slice(0, 32) : null,
+        phoneMasked: r.mapped?.phone ? maskPhone(r.mapped.phone) : null,
+        address: r.mapped?.address ? String(r.mapped.address).slice(0, 48) : null,
+        job: r.mapped?.job ? String(r.mapped.job).slice(0, 32) : null,
+        carNumber: r.mapped?.carNumber ? String(r.mapped.carNumber).slice(0, 16) : null,
+        carModel: r.mapped?.carModel ? String(r.mapped.carModel).slice(0, 24) : null,
+        status: r.status,
+        warnings: (r.reasons ?? []).slice(0, 8),
+        sourceCell: r.unstructuredMeta?.sourceCell ?? null,
+      },
     }))
 }
 
