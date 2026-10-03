@@ -1,4 +1,5 @@
 import { CUSTOMER_IMPORT_DUPLICATE_POLICY } from '../../shared/ai-assistant/customer-import/constants.js'
+import { CUSTOMER_IMPORT_SOURCE_MODE } from '../../shared/ai-assistant/customer-import/importSourceMode.js'
 import { CUSTOMER_IMPORT_FIELD_LABELS_KO } from '../../shared/ai-assistant/customer-import/mappingEdit.js'
 import { runCustomerImportColumnMap } from './column-map/columnMapService.js'
 import { CUSTOMER_IMPORT_TOOL_KEYS, executeCustomerImportTool } from './customer-import/toolExecutor.js'
@@ -92,7 +93,13 @@ export async function runImportPreviewPipeline(pool, req, importSessionId, optio
 
   const stages = []
 
-  if (options.runGptColumnMap !== false) {
+  if (session.importSourceMode === CUSTOMER_IMPORT_SOURCE_MODE.UNSTRUCTURED_CELL_RECORDS) {
+    stages.push({ stage: 'extract', label: '비정형 고객 정보를 분석하고 있어요', status: 'ok' })
+    await executeCustomerImportTool(pool, req, CUSTOMER_IMPORT_TOOL_KEYS.UNSTRUCTURED_EXTRACT, {
+      importSessionId,
+    })
+    session = getCustomerImportSession(importSessionId, userId, gaId)
+  } else if (options.runGptColumnMap !== false) {
     const columnMapGate = isToolCallableByOrchestrator(CUSTOMER_IMPORT_TOOL_KEYS.COLUMN_MAP)
     if (columnMapGate.ok) {
       stages.push({ stage: 'mapping', label: IMPORT_STAGE_USER_LABELS.mapping, status: 'ok' })

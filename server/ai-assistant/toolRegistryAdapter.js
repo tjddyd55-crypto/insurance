@@ -4,6 +4,7 @@ const PHASE_1B_OPENAI_TOOL_ALLOWLIST = new Set([
   'customer.import.file-analyze',
   'customer.import.sheet-select',
   'customer.import.column-map',
+  'customer.import.unstructured-extract',
   'customer.import.normalize',
   'customer.import.duplicate-check',
   'customer.import.validation',

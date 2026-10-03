@@ -1,5 +1,11 @@
 import { CUSTOMER_IMPORT_DUPLICATE_POLICY } from '../../../shared/ai-assistant/customer-import/constants.js'
 import { assertCustomerImportFileMeta, buildAnalyzeResultForMatrix, matrixSheetStats } from '../../../shared/ai-assistant/customer-import/fileAnalyze.js'
+import {
+  CUSTOMER_IMPORT_SOURCE_MODE,
+  detectWorkbookImportSourceMode,
+  summarizeUnstructuredWorkbook,
+} from '../../../shared/ai-assistant/customer-import/importSourceMode.js'
+import { runUnstructuredCellExtract } from './unstructured/unstructuredExtractService.js'
 import { suggestAliasColumnMapping } from '../../../shared/ai-assistant/customer-import/fieldDictionary.js'
 import { buildImportPreviewSummary } from '../../../shared/ai-assistant/customer-import/preview.js'
 import { readWorkbookFromBuffer } from './workbookReader.js'
@@ -20,6 +26,7 @@ export const CUSTOMER_IMPORT_TOOL_KEYS = {
   PREVIEW: 'customer.import.preview',
   COMMIT: 'customer.import.commit',
   FAILURE_REPORT: 'customer.import.failure-report',
+  UNSTRUCTURED_EXTRACT: 'customer.import.unstructured-extract',
 }
 
 /**
@@ -61,6 +68,9 @@ export async function executeCustomerImportTool(pool, req, toolKey, input = {}) 
         break
       case CUSTOMER_IMPORT_TOOL_KEYS.FAILURE_REPORT:
         result = await toolFailureReport(req, input)
+        break
+      case CUSTOMER_IMPORT_TOOL_KEYS.UNSTRUCTURED_EXTRACT:
+        result = await toolUnstructuredExtract(req, input)
         break
       default:
         throw Object.assign(new Error('UNKNOWN_TOOL'), { code: 'UNKNOWN_TOOL', status: 400 })
@@ -108,8 +118,18 @@ async function toolFileAnalyze(req, input) {
     name: s.name,
     ...matrixSheetStats(s.matrix),
   }))
-  const defaultSheet = sheets[0]
-  const analyze = buildAnalyzeResultForMatrix(defaultSheet.matrix, null)
+  const defaultSheet = sheets.find((s) => s.name === '고객정보') ?? sheets[0]
+  const importSourceMode = detectWorkbookImportSourceMode(sheets)
+  const analyze =
+    importSourceMode === CUSTOMER_IMPORT_SOURCE_MODE.UNSTRUCTURED_CELL_RECORDS
+      ? {
+          headerRowIndex: 0,
+          headers: [],
+          headerCandidates: [],
+          sampleRows: [],
+          stats: matrixSheetStats(defaultSheet.matrix),
+        }
+      : buildAnalyzeResultForMatrix(defaultSheet.matrix, null)
   const session = createCustomerImportSession({
     userId,
     gaId,
@@ -128,10 +148,19 @@ async function toolFileAnalyze(req, input) {
     commitStatus: 'idle',
     commitResult: null,
     lastCommitIdempotencyKey: null,
+    importSourceMode,
+    unstructuredWorkbookSummary:
+      importSourceMode === CUSTOMER_IMPORT_SOURCE_MODE.UNSTRUCTURED_CELL_RECORDS
+        ? summarizeUnstructuredWorkbook(sheets, defaultSheet.name)
+        : null,
+    unstructuredExtractDone: false,
+    unstructuredExtractStats: null,
   })
   return {
     toolKey: CUSTOMER_IMPORT_TOOL_KEYS.FILE_ANALYZE,
     importSessionId: session.importSessionId,
+    importSourceMode,
+    unstructuredWorkbookSummary: session.unstructuredWorkbookSummary,
     originalFileName,
     fileType,
     sheets: sheetSummaries,
@@ -142,6 +171,31 @@ async function toolFileAnalyze(req, input) {
     sampleRows: analyze.sampleRows,
     stats: analyze.stats,
     expiresAt: new Date(session.expiresAt).toISOString(),
+  }
+}
+
+async function toolUnstructuredExtract(req, input) {
+  const userId = String(req.user?.id ?? req.user?.userId ?? '')
+  const gaId = Number(req.user?.gaId)
+  const session = getCustomerImportSession(input.importSessionId, userId, gaId)
+  if (session.importSourceMode !== CUSTOMER_IMPORT_SOURCE_MODE.UNSTRUCTURED_CELL_RECORDS) {
+    throw Object.assign(new Error('NOT_UNSTRUCTURED_WORKBOOK'), { code: 'NOT_UNSTRUCTURED_WORKBOOK', status: 400 })
+  }
+  const extracted = runUnstructuredCellExtract(session)
+  updateCustomerImportSession(input.importSessionId, userId, gaId, {
+    rows: extracted.pipelineRows,
+    unstructuredExtractDone: true,
+    unstructuredExtractStats: extracted.stats,
+    previewVersionHash: null,
+    commitStatus: 'idle',
+  })
+  return {
+    toolKey: CUSTOMER_IMPORT_TOOL_KEYS.UNSTRUCTURED_EXTRACT,
+    importSessionId: input.importSessionId,
+    stats: extracted.stats,
+    recordCount: extracted.pipelineRows.length,
+    gptUsed: extracted.gptUsed,
+    openAiCalls: extracted.openAiCalls,
   }
 }
 

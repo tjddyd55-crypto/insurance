@@ -36,9 +36,10 @@ async function main() {
   }
   const existing = await pool.query(`SELECT id FROM users WHERE username = $1`, [username])
   if (existing.rowCount === 0) {
+    const id = randomUUID()
     await pool.query(
-      `INSERT INTO users (id, username, password_hash, role, ga_id, display_name) VALUES ($1, $2, $3, 'USER', $4, 'AI QA User')`,
-      [randomUUID(), username, hash, gaId],
+      `INSERT INTO users (id, username, password_hash, role, ga_id, display_name, invited_by_user_id) VALUES ($1, $2, $3, 'USER', $4, 'AI QA User', $1)`,
+      [id, username, hash, gaId],
     )
     console.log('[bootstrap-ga-qa] created USER', { username, gaId })
   } else {

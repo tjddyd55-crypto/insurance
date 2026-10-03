@@ -176,6 +176,18 @@ export const AI_TOOL_CATALOG_RAW = [
       },
     ],
     [
+      'customer.import.unstructured-extract',
+      '비정형 셀 추출',
+      'multi-line Excel cell에서 고객 후보 추출 (분석 전용)',
+      'READ',
+      'PARTIAL',
+      {
+        implementationStatus: 'IMPLEMENTED',
+        qaStatus: 'PASSED',
+        serviceBinding: 'server/ai-assistant/customer-import/unstructured/',
+      },
+    ],
+    [
       'customer.import.normalize',
       '데이터 정규화',
       '전화번호·날짜 등 정규화',

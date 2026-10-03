@@ -5,7 +5,9 @@ import { mapRawRowToCustomerFields } from '../../../shared/ai-assistant/customer
 import { validateMappedCustomerRow } from '../../../shared/ai-assistant/customer-import/validate.js'
 import { buildAnalyzeResultForMatrix } from '../../../shared/ai-assistant/customer-import/fileAnalyze.js'
 import { suggestAliasColumnMapping } from '../../../shared/ai-assistant/customer-import/fieldDictionary.js'
+import { CUSTOMER_IMPORT_SOURCE_MODE } from '../../../shared/ai-assistant/customer-import/importSourceMode.js'
 import { cellToImportString } from '../../../shared/ai-assistant/customer-import/normalize.js'
+import { runUnstructuredCellExtract } from './unstructured/unstructuredExtractService.js'
 
 /**
  * @typedef {object} ImportPipelineRow
@@ -25,6 +27,9 @@ import { cellToImportString } from '../../../shared/ai-assistant/customer-import
  * @param {{ duplicatePolicy?: string }} [options]
  */
 export function runImportPipeline(session, crmIndex, options = {}) {
+  if (session.importSourceMode === CUSTOMER_IMPORT_SOURCE_MODE.UNSTRUCTURED_CELL_RECORDS) {
+    return runUnstructuredImportPipeline(session, crmIndex, options)
+  }
   const sheet = session.sheets.find((s) => s.name === session.selectedSheetName)
   if (!sheet) {
     throw Object.assign(new Error('SHEET_NOT_SELECTED'), { code: 'SHEET_NOT_SELECTED' })
@@ -90,6 +95,58 @@ export function runImportPipeline(session, crmIndex, options = {}) {
   }
 
   const summary = buildImportPreviewSummary(rows)
+  const previewVersionHash = computePreviewVersionHash(rows, columnMapping, headerRowIndex)
+  return {
+    headers,
+    columnMapping,
+    headerRowIndex,
+    rows,
+    summary,
+    previewVersionHash,
+  }
+}
+
+function runUnstructuredImportPipeline(session, crmIndex, options = {}) {
+  const extracted =
+    Array.isArray(session.rows) && session.rows.length > 0 && session.unstructuredExtractDone
+      ? { pipelineRows: session.rows, stats: session.unstructuredExtractStats ?? {} }
+      : runUnstructuredCellExtract(session)
+  const rows = extracted.pipelineRows.map((row) => ({ ...row }))
+  const inFileDup = findInFileDuplicateFlags(rows)
+  for (const row of rows) {
+    const dup = inFileDup.get(row.rowId)
+    if (dup) {
+      row.reasons.push(dup)
+      if (row.status === CUSTOMER_IMPORT_ROW_STATUS.VALID) {
+        row.status = CUSTOMER_IMPORT_ROW_STATUS.WARNING
+      }
+    }
+    const crmDup = classifyCrmDuplicate(row.mapped, crmIndex)
+    if (crmDup) {
+      row.duplicate = crmDup
+      row.reasons.push(crmDup.reason)
+      if (crmDup.kind === 'STRONG') {
+        row.status = CUSTOMER_IMPORT_ROW_STATUS.WARNING
+      }
+    }
+  }
+  const duplicatePolicy = options.duplicatePolicy ?? CUSTOMER_IMPORT_DUPLICATE_POLICY.SKIP
+  for (const row of rows) {
+    const invalid = row.status === CUSTOMER_IMPORT_ROW_STATUS.INVALID
+    const inFile = row.reasons.includes('DUPLICATE_IN_FILE')
+    const existing =
+      row.duplicate?.reason === 'DUPLICATE_EXISTING_CUSTOMER' &&
+      duplicatePolicy === CUSTOMER_IMPORT_DUPLICATE_POLICY.SKIP
+    const review = row.reasons.includes('REVIEW_REQUIRED')
+    row.eligibleForCommit = !invalid && !inFile && !existing && !review
+  }
+  const columnMapping = { unstructured: 'true' }
+  const headerRowIndex = 0
+  const headers = ['비정형 셀 추출']
+  const summary = {
+    ...buildImportPreviewSummary(rows),
+    unstructured: extracted.stats,
+  }
   const previewVersionHash = computePreviewVersionHash(rows, columnMapping, headerRowIndex)
   return {
     headers,
