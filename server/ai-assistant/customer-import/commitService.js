@@ -48,7 +48,6 @@ export async function commitCustomerImportSession(pool, req, session, options) {
           reasonCode: 'COMMIT_FAILED',
           message: error instanceof Error ? error.message : '등록 실패',
         })
-        throw error
       }
     }
     await client.query('COMMIT')

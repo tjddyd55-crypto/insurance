@@ -90,6 +90,80 @@ describe('customer import tool executor', () => {
     )
   })
 
+  it('supports multi-sheet workbook and explicit sheet-select', async () => {
+    const buffer = buildXlsxBuffer([['이름'], ['A']], 'SheetA')
+    const wb = XLSX.read(buffer, { type: 'buffer' })
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['이름'], ['B']]), 'SheetB')
+    const multi = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
+    const analyzed = await executeCustomerImportTool(mockPool, makeReq(), CUSTOMER_IMPORT_TOOL_KEYS.FILE_ANALYZE, {
+      fileBuffer: multi,
+      originalFileName: 'multi.xlsx',
+    })
+    assert.equal(analyzed.sheets.length, 2)
+    const selected = await executeCustomerImportTool(mockPool, makeReq(), CUSTOMER_IMPORT_TOOL_KEYS.SHEET_SELECT, {
+      importSessionId: analyzed.importSessionId,
+      sheetName: 'SheetB',
+    })
+    assert.equal(selected.selectedSheetName, 'SheetB')
+  })
+
+  it('analyzes UTF-8 CSV', async () => {
+    const csv = Buffer.from('이름,휴대폰번호\n김철수,010-1111-2222\n', 'utf8')
+    const result = await executeCustomerImportTool(mockPool, makeReq(), CUSTOMER_IMPORT_TOOL_KEYS.FILE_ANALYZE, {
+      fileBuffer: csv,
+      originalFileName: 'list.csv',
+      mimeType: 'text/csv',
+    })
+    assert.equal(result.fileType, 'csv')
+    assert.ok(result.headers.some((h) => h.includes('이름')))
+  })
+
+  it('replays commit idempotently after success', async () => {
+    const buffer = buildXlsxBuffer([
+      ['이름', '휴대폰번호'],
+      ['홍길동', '01099998888'],
+    ])
+    const analyzed = await executeCustomerImportTool(mockPool, makeReq(), CUSTOMER_IMPORT_TOOL_KEYS.FILE_ANALYZE, {
+      fileBuffer: buffer,
+      originalFileName: 'customers.xlsx',
+    })
+    const preview = await executeCustomerImportTool(mockPool, makeReq(), CUSTOMER_IMPORT_TOOL_KEYS.PREVIEW, {
+      importSessionId: analyzed.importSessionId,
+    })
+    const committed = await executeCustomerImportTool(mockPool, makeReq(), CUSTOMER_IMPORT_TOOL_KEYS.COMMIT, {
+      importSessionId: analyzed.importSessionId,
+      previewVersionHash: preview.previewVersionHash,
+      confirmed: true,
+      idempotencyKey: 'test-commit-1',
+    })
+    assert.equal(committed.summary.created, 1)
+    const replay = await executeCustomerImportTool(mockPool, makeReq(), CUSTOMER_IMPORT_TOOL_KEYS.COMMIT, {
+      importSessionId: analyzed.importSessionId,
+      confirmed: true,
+      idempotencyKey: 'test-commit-1',
+    })
+    assert.equal(replay.idempotentReplay, true)
+    assert.equal(replay.summary.created, 1)
+  })
+
+  it('blocks cross-GA session access', async () => {
+    const buffer = buildXlsxBuffer([['이름'], ['A']])
+    const analyzed = await executeCustomerImportTool(mockPool, makeReq(), CUSTOMER_IMPORT_TOOL_KEYS.FILE_ANALYZE, {
+      fileBuffer: buffer,
+      originalFileName: 'a.xlsx',
+    })
+    await assert.rejects(
+      () =>
+        executeCustomerImportTool(
+          mockPool,
+          makeReq({ id: 'user-1', userId: 'user-1', gaId: 99, role: 'USER', customerAccess: 'own' }),
+          CUSTOMER_IMPORT_TOOL_KEYS.PREVIEW,
+          { importSessionId: analyzed.importSessionId },
+        ),
+      (e) => e.code === 'SESSION_FORBIDDEN',
+    )
+  })
+
   it('blocks cross-user session access', async () => {
     const buffer = buildXlsxBuffer([['이름'], ['A']])
     const analyzed = await executeCustomerImportTool(mockPool, makeReq(), CUSTOMER_IMPORT_TOOL_KEYS.FILE_ANALYZE, {

@@ -1,5 +1,3 @@
-import { randomUUID } from 'node:crypto'
-
 import { CUSTOMER_IMPORT_DUPLICATE_POLICY, CUSTOMER_IMPORT_ROW_STATUS } from '../../../shared/ai-assistant/customer-import/constants.js'
 import { classifyCrmDuplicate, findInFileDuplicateFlags } from '../../../shared/ai-assistant/customer-import/duplicate.js'
 import { buildImportPreviewSummary, computePreviewVersionHash } from '../../../shared/ai-assistant/customer-import/preview.js'
@@ -51,7 +49,7 @@ export function runImportPipeline(session, crmIndex, options = {}) {
     const mapped = mapRawRowToCustomerFields(rawRow, headers, columnMapping)
     const validated = validateMappedCustomerRow(mapped)
     rows.push({
-      rowId: randomUUID(),
+      rowId: `src-${i + 1}`,
       sourceRowNumber: i + 1,
       sourceSample: headers.map((_, colIndex) => cellToImportString(rawRow[colIndex])).slice(0, 6),
       mapped: validated.mapped,

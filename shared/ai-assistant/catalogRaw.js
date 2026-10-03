@@ -133,6 +133,7 @@ export const AI_TOOL_CATALOG_RAW = [
       {
         implementationStatus: 'IMPLEMENTED',
         qaStatus: 'PASSED',
+        requiresConfirmation: true,
         serviceBinding: 'insertCustomerForImport.js · commitService.js',
       },
     ],

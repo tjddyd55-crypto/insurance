@@ -240,6 +240,9 @@ async function toolCommit(pool, req, input) {
   const userId = String(req.user?.id ?? req.user?.userId ?? '')
   const gaId = Number(req.user?.gaId)
   const session = getCustomerImportSession(input.importSessionId, userId, gaId)
+  if (session.commitStatus === 'committed' && session.commitResult) {
+    return { toolKey: CUSTOMER_IMPORT_TOOL_KEYS.COMMIT, ...session.commitResult, idempotentReplay: true }
+  }
   if (session.commitStatus !== 'preview_ready' || !session.previewVersionHash) {
     throw Object.assign(new Error('PREVIEW_REQUIRED'), { code: 'PREVIEW_REQUIRED', status: 400 })
   }
