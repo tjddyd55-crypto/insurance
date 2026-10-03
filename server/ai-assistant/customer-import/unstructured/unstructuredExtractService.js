@@ -1,6 +1,7 @@
 import { CUSTOMER_IMPORT_ROW_STATUS } from '../../../../shared/ai-assistant/customer-import/constants.js'
+import { violatesAutoEligibleFieldQuality } from '../../../../shared/ai-assistant/customer-import/fieldQuality.js'
 import { validateMappedCustomerRow } from '../../../../shared/ai-assistant/customer-import/validate.js'
-import { cellToImportString } from '../../../../shared/ai-assistant/customer-import/normalize.js'
+import { cellToImportStringPreserveLines } from '../../../../shared/ai-assistant/customer-import/normalize.js'
 import { parseUnstructuredCellDeterministic } from './deterministicCellParse.js'
 
 /**
@@ -31,7 +32,7 @@ export function runUnstructuredCellExtract(session) {
       continue
     }
     for (let c = 0; c < row.length; c += 1) {
-      const text = cellToImportString(row[c])
+      const text = cellToImportStringPreserveLines(row[c])
       if (!text) {
         continue
       }
@@ -54,6 +55,7 @@ export function runUnstructuredCellExtract(session) {
           ...rec,
           sourceBlockIndex: recordSeq,
           rowId: `unstruct-${recordSeq}`,
+          sourceText: rec.sourceText ?? text,
         })
         recordSeq += 1
       }
@@ -71,12 +73,20 @@ export function runUnstructuredCellExtract(session) {
       job: rec.job ?? '',
       memo: rec.memo ?? '',
     }
-    const validated = validateMappedCustomerRow(mapped)
+    const sourceText = rec.sourceText ?? ''
+    const validated = validateMappedCustomerRow(mapped, { unstructuredSourceText: sourceText })
     let status = validated.status
     const reasons = [...validated.reasons, ...(rec.warnings ?? [])]
     if (rec.classification === 'REVIEW_REQUIRED' && status === CUSTOMER_IMPORT_ROW_STATUS.VALID) {
       status = CUSTOMER_IMPORT_ROW_STATUS.WARNING
       reasons.push('REVIEW_REQUIRED')
+    }
+    const fieldIssues = violatesAutoEligibleFieldQuality(validated.mapped, { unstructuredSourceText: sourceText })
+    if (fieldIssues.length > 0) {
+      status = CUSTOMER_IMPORT_ROW_STATUS.WARNING
+      if (!reasons.includes('REVIEW_REQUIRED')) {
+        reasons.push('REVIEW_REQUIRED')
+      }
     }
     return {
       rowId: rec.rowId ?? `unstruct-${index + 1}`,
@@ -93,6 +103,8 @@ export function runUnstructuredCellExtract(session) {
         sourceRecordIndex: rec.sourceRecordIndex,
         confidence: rec.confidence,
         classification: rec.classification,
+        sourceCellText: sourceText.slice(0, 2000),
+        fieldQualityIssues: fieldIssues,
       },
     }
   })

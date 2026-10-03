@@ -1,12 +1,14 @@
 import { CUSTOMER_IMPORT_REASON, CUSTOMER_IMPORT_ROW_STATUS } from './constants.js'
+import { assessImportAddressQuality, assessImportNameQuality } from './fieldQuality.js'
 import { normalizeImportPhone, normalizeImportString } from './normalize.js'
 
 /**
  * @param {Record<string, string>} mapped
+ * @param {{ unstructuredSourceText?: string }} [options]
  */
-export function validateMappedCustomerRow(mapped) {
+export function validateMappedCustomerRow(mapped, options = {}) {
   const reasons = []
-  const name = normalizeImportString(mapped.name)
+  let name = normalizeImportString(mapped.name)
   const phoneResult = normalizeImportPhone(mapped.phone)
   const hasAny =
     name ||
@@ -23,15 +25,42 @@ export function validateMappedCustomerRow(mapped) {
     }
   }
 
-  if (!name) {
-    reasons.push(CUSTOMER_IMPORT_REASON.MISSING_CUSTOMER_NAME)
+  const nameQuality = assessImportNameQuality(name, options)
+  if (!nameQuality.ok) {
+    if (nameQuality.reason === CUSTOMER_IMPORT_REASON.MISSING_CUSTOMER_NAME) {
+      reasons.push(CUSTOMER_IMPORT_REASON.MISSING_CUSTOMER_NAME)
+    } else {
+      reasons.push(CUSTOMER_IMPORT_REASON.INVALID_NAME_SHAPE)
+      name = ''
+    }
+  } else if (nameQuality.canonicalName) {
+    name = nameQuality.canonicalName
   }
+
+  if (!name) {
+    if (!reasons.includes(CUSTOMER_IMPORT_REASON.MISSING_CUSTOMER_NAME)) {
+      reasons.push(CUSTOMER_IMPORT_REASON.MISSING_CUSTOMER_NAME)
+    }
+  }
+
+  let address = normalizeImportString(mapped.address)
+  const addressQuality = assessImportAddressQuality(address)
+  if (!addressQuality.ok) {
+    reasons.push(CUSTOMER_IMPORT_REASON.UNSUPPORTED_VALUE)
+    address = ''
+  } else if (addressQuality.canonicalAddress !== undefined) {
+    address = addressQuality.canonicalAddress
+  }
+
   if (mapped.phone && !phoneResult.valid) {
     reasons.push(CUSTOMER_IMPORT_REASON.INVALID_PHONE)
   }
 
   let status = CUSTOMER_IMPORT_ROW_STATUS.VALID
-  if (reasons.includes(CUSTOMER_IMPORT_REASON.MISSING_CUSTOMER_NAME) || reasons.includes(CUSTOMER_IMPORT_REASON.EMPTY_ROW)) {
+  if (
+    reasons.includes(CUSTOMER_IMPORT_REASON.MISSING_CUSTOMER_NAME) ||
+    reasons.includes(CUSTOMER_IMPORT_REASON.EMPTY_ROW)
+  ) {
     status = CUSTOMER_IMPORT_ROW_STATUS.INVALID
   } else if (reasons.length > 0) {
     status = CUSTOMER_IMPORT_ROW_STATUS.WARNING
@@ -40,6 +69,6 @@ export function validateMappedCustomerRow(mapped) {
   return {
     status,
     reasons,
-    mapped: { ...mapped, name, phone: phoneResult.normalized },
+    mapped: { ...mapped, name, phone: phoneResult.normalized, address },
   }
 }
