@@ -15,6 +15,7 @@ import {
   type StatusFilterKey,
 } from '../labels'
 import type { AiToolDefinition, AiToolRegistryResponse } from '../types'
+import '../ai-assistant-tool-registry-table.css'
 
 function SummaryCard({ label, value }: { label: string; value: number | string }) {
   return (
@@ -258,49 +259,74 @@ export default function AiAssistantToolRegistryPage() {
         </div>
       </div>
 
-      <div className="card" style={{ overflowX: 'auto', padding: 0 }}>
-        <table className="admin-data-table" style={{ fontSize: 13 }}>
-          <thead>
-            <tr>
-              <th>영역</th>
-              <th>기능명</th>
-              <th>Tool Key</th>
-              <th>기존 기능</th>
-              <th>유형</th>
-              <th>확인</th>
-              <th>AI 연결</th>
-              <th>QA</th>
-              <th>운영</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredTools.length === 0 ? (
+      <div className="card" style={{ padding: 0 }}>
+        <div className="admin-data-table-wrap ai-assistant-tool-registry-table-wrap">
+          <table className="admin-data-table ai-assistant-tool-registry-table" style={{ fontSize: 13 }}>
+            <colgroup>
+              <col className="ai-assistant-tool-registry-table__col--category" />
+              <col className="ai-assistant-tool-registry-table__col--name" />
+              <col className="ai-assistant-tool-registry-table__col--key" />
+              <col className="ai-assistant-tool-registry-table__col--base" />
+              <col className="ai-assistant-tool-registry-table__col--action" />
+              <col className="ai-assistant-tool-registry-table__col--confirm" />
+              <col className="ai-assistant-tool-registry-table__col--impl" />
+              <col className="ai-assistant-tool-registry-table__col--qa" />
+              <col className="ai-assistant-tool-registry-table__col--prod" />
+            </colgroup>
+            <thead>
               <tr>
-                <td colSpan={9} style={{ padding: 20, color: 'var(--text-sub)' }}>
-                  {loading ? '불러오는 중…' : '표시할 Tool이 없습니다. 필터를 조정하세요.'}
-                </td>
+                <th className="ai-assistant-tool-registry-table__cell--wrap" scope="col">영역</th>
+                <th className="ai-assistant-tool-registry-table__cell--wrap" scope="col">기능명</th>
+                <th className="ai-assistant-tool-registry-table__cell--key" scope="col">Tool Key</th>
+                <th className="ai-assistant-tool-registry-table__cell--compact" scope="col">기존 기능</th>
+                <th className="ai-assistant-tool-registry-table__cell--compact" scope="col">유형</th>
+                <th className="ai-assistant-tool-registry-table__cell--compact" scope="col">확인</th>
+                <th className="ai-assistant-tool-registry-table__cell--compact" scope="col">AI 연결</th>
+                <th className="ai-assistant-tool-registry-table__cell--compact" scope="col">QA</th>
+                <th className="ai-assistant-tool-registry-table__cell--compact" scope="col">운영</th>
               </tr>
-            ) : (
-              filteredTools.map((tool) => (
-                <tr
-                  key={tool.key}
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => setSelected(tool)}
-                >
-                  <td>{categoryLabel(tool.category)}</td>
-                  <td>{tool.name}</td>
-                  <td style={{ wordBreak: 'break-all' }}>{tool.key}</td>
-                  <td>{baseFeatureLabel(tool.baseFeatureStatus)}</td>
-                  <td>{actionTypeLabel(tool.actionType)}</td>
-                  <td>{confirmationLabel(tool.requiresConfirmation)}</td>
-                  <td>{implementationLabel(tool.implementationStatus)}</td>
-                  <td>{qaLabel(tool.qaStatus)}</td>
-                  <td>{productionLabel(tool.productionEnabled)}</td>
+            </thead>
+            <tbody>
+              {filteredTools.length === 0 ? (
+                <tr>
+                  <td colSpan={9} style={{ padding: 20, color: 'var(--text-sub)' }}>
+                    {loading ? '불러오는 중…' : '표시할 Tool이 없습니다. 필터를 조정하세요.'}
+                  </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                filteredTools.map((tool) => (
+                  <tr
+                    key={tool.key}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => setSelected(tool)}
+                  >
+                    <td className="ai-assistant-tool-registry-table__cell--wrap">
+                      {categoryLabel(tool.category)}
+                    </td>
+                    <td className="ai-assistant-tool-registry-table__cell--wrap">{tool.name}</td>
+                    <td className="ai-assistant-tool-registry-table__cell--key">{tool.key}</td>
+                    <td className="ai-assistant-tool-registry-table__cell--compact">
+                      {baseFeatureLabel(tool.baseFeatureStatus)}
+                    </td>
+                    <td className="ai-assistant-tool-registry-table__cell--compact">
+                      {actionTypeLabel(tool.actionType)}
+                    </td>
+                    <td className="ai-assistant-tool-registry-table__cell--compact">
+                      {confirmationLabel(tool.requiresConfirmation)}
+                    </td>
+                    <td className="ai-assistant-tool-registry-table__cell--compact">
+                      {implementationLabel(tool.implementationStatus)}
+                    </td>
+                    <td className="ai-assistant-tool-registry-table__cell--compact">{qaLabel(tool.qaStatus)}</td>
+                    <td className="ai-assistant-tool-registry-table__cell--compact">
+                      {productionLabel(tool.productionEnabled)}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {selected ? <ToolDetailPanel tool={selected} onClose={() => setSelected(null)} /> : null}
