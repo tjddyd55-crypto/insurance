@@ -32,7 +32,7 @@ Supported `mapped` keys match `CUSTOMER_IMPORT_FIELD_KEYS` only. No new DB colum
 ## Source modes (routing only)
 
 - `TABULAR` — column headers + rows; alias map + optional GPT column-map for ambiguous headers.
-- `UNSTRUCTURED_CELL_RECORDS` — multi-line cells; **semantic field decomposition first** (`semanticFieldExtract.js` → `mapSemanticToImportFields.js`), then shared normalize/validate. No raw-cell → name/address/memo fallbacks. GPT only for unresolved semantic fragments (sanitized), never raw workbook upload.
+- `UNSTRUCTURED_CELL_RECORDS` — semantic decomposition (`semanticFieldExtract.js`) → optional GPT semantic (`semanticGptService.js`, redacted block context only) → merge (`mergeSemanticWithGpt.js`) → `mapSemanticToImportFields.js` → shared pipeline. Deterministic locked fields are never overwritten by GPT. No raw workbook upload to OpenAI.
 
 Modes are **not** user-facing requirements. New patterns get reusable analyzers, not one-off hacks.
 

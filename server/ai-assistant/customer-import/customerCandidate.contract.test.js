@@ -21,10 +21,10 @@ function tabularSession(matrix, headers, headerRowIndex = 0) {
 }
 
 describe('CustomerCandidate contract', () => {
-  it('TABULAR source produces candidates through shared pipeline', () => {
+  it('TABULAR source produces candidates through shared pipeline', async () => {
     const matrix = [['이름', '휴대폰'], ['홍길동', '01012345678']]
     const crmIndex = { byPhone: new Map(), byName: new Map() }
-    const pipeline = runImportPipeline(tabularSession(matrix, ['이름', '휴대폰']), crmIndex)
+    const pipeline = await runImportPipeline(tabularSession(matrix, ['이름', '휴대폰']), crmIndex)
     assert.equal(pipeline.rows.length, 1)
     const view = toCustomerCandidateView(pipeline.rows[0])
     assert.equal(view.mapped.name, '홍길동')

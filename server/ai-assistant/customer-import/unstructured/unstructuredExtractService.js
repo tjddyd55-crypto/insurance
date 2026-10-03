@@ -2,17 +2,36 @@ import { CUSTOMER_IMPORT_ROW_STATUS } from '../../../../shared/ai-assistant/cust
 import { violatesAutoEligibleFieldQuality } from '../../../../shared/ai-assistant/customer-import/fieldQuality.js'
 import { validateMappedCustomerRow } from '../../../../shared/ai-assistant/customer-import/validate.js'
 import { cellToImportStringPreserveLines } from '../../../../shared/ai-assistant/customer-import/normalize.js'
-import { parseUnstructuredCellDeterministic } from './deterministicCellParse.js'
+import { parseUnstructuredBlockToSemantic } from '../../../../shared/ai-assistant/customer-import/unstructured/semanticFieldExtract.js'
+import { isSemanticGptEligible } from '../../../../shared/ai-assistant/customer-import/unstructured/semanticFieldLocks.js'
+import { buildImportRecordsFromSemantic } from './recordsFromSemantic.js'
+import { enrichSemanticWithGpt } from './semanticGptService.js'
+
+function columnIndexToLetters(index) {
+  let n = index + 1
+  let s = ''
+  while (n > 0) {
+    const rem = (n - 1) % 26
+    s = String.fromCharCode(65 + rem) + s
+    n = Math.floor((n - 1) / 26)
+  }
+  return s
+}
 
 /**
  * @param {import('../sessionTypes.js').CustomerImportSession} session
+ * @param {import('node:process')} [env]
  */
-export function runUnstructuredCellExtract(session) {
+export async function runUnstructuredCellExtract(session, env = process.env) {
   const sheetName = session.selectedSheetName ?? session.sheets[0]?.name
   const sheet = session.sheets.find((s) => s.name === sheetName)
   if (!sheet) {
     throw Object.assign(new Error('SHEET_NOT_FOUND'), { code: 'SHEET_NOT_FOUND', status: 404 })
   }
+
+  const maxGptCalls = Number(env.SEMANTIC_GPT_MAX_CALLS_PER_SESSION) > 0
+    ? Number(env.SEMANTIC_GPT_MAX_CALLS_PER_SESSION)
+    : 48
 
   const matrix = sheet.matrix
   const stats = {
@@ -21,10 +40,18 @@ export function runUnstructuredCellExtract(session) {
     multiPersonCells: 0,
     nonCustomerCells: 0,
     reviewRequired: 0,
+    blocksTotal: 0,
+    deterministicOnlyResolved: 0,
+    semanticGptEligible: 0,
+    semanticGptCalls: 0,
+    semanticGptResolved: 0,
+    unresolvedAfterGpt: 0,
   }
   /** @type {Array<object>} */
   const rawRecords = []
   let recordSeq = 0
+  let openAiCalls = 0
+  let gptUsed = false
 
   for (let r = 0; r < matrix.length; r += 1) {
     const row = matrix[r]
@@ -37,15 +64,52 @@ export function runUnstructuredCellExtract(session) {
         continue
       }
       stats.nonEmptyCells += 1
-      const parsed = parseUnstructuredCellDeterministic(sheet.name, r, c, row[c])
-      if (parsed.kind === 'NON_CUSTOMER' || parsed.kind === 'EMPTY') {
+      const cellRef = `${columnIndexToLetters(c)}${r + 1}`
+      const sourceCell = `${sheet.name}!${cellRef}`
+
+      if (/^(경정청구|보험|메모|계좌)/.test(text) && !/01[016789]/.test(text) && !/이름|성명|고객명/.test(text)) {
         stats.nonCustomerCells += 1
         continue
       }
-      if (parsed.kind === 'MULTI_PERSON') {
+
+      stats.blocksTotal += 1
+      let semantic = parseUnstructuredBlockToSemantic(text)
+      let gptWarnings = []
+      let blockGptUsed = false
+
+      if (!isSemanticGptEligible(semantic)) {
+        stats.deterministicOnlyResolved += 1
+      } else {
+        stats.semanticGptEligible += 1
+        if (openAiCalls < maxGptCalls) {
+          const gpt = await enrichSemanticWithGpt(semantic, text, env)
+          gptWarnings = gpt.warnings ?? []
+          if (gpt.called) {
+            gptUsed = true
+            blockGptUsed = true
+            openAiCalls += 1
+            stats.semanticGptCalls += 1
+            stats.semanticGptResolved += gpt.resolvedCount ?? 0
+            semantic = gpt.semantic
+          }
+        } else {
+          gptWarnings = ['SEMANTIC_GPT_CALL_CAP']
+          semantic.needsSemanticReview = true
+        }
+        stats.unresolvedAfterGpt += semantic.unresolvedLines.length
+      }
+
+      const built = buildImportRecordsFromSemantic(semantic, { sourceCell, sourceText: text })
+      if (built.kind === 'MULTI_PERSON') {
         stats.multiPersonCells += 1
       }
-      for (const rec of parsed.records) {
+      if (built.records.length === 0 && built.kind === 'REVIEW_REQUIRED') {
+        stats.reviewRequired += 1
+        continue
+      }
+
+      for (const rec of built.records) {
+        const warnings = [...(rec.warnings ?? []), ...gptWarnings]
         if (rec.classification === 'REVIEW_REQUIRED') {
           stats.reviewRequired += 1
         } else {
@@ -53,14 +117,13 @@ export function runUnstructuredCellExtract(session) {
         }
         rawRecords.push({
           ...rec,
+          warnings,
+          blockGptUsed,
           sourceBlockIndex: recordSeq,
           rowId: `unstruct-${recordSeq}`,
           sourceText: rec.sourceText ?? text,
         })
         recordSeq += 1
-      }
-      if (parsed.records.length === 0 && parsed.kind === 'REVIEW_REQUIRED') {
-        stats.reviewRequired += 1
       }
     }
   }
@@ -75,6 +138,9 @@ export function runUnstructuredCellExtract(session) {
       weight: rec.weight ?? '',
       job: rec.job ?? '',
       carNumber: rec.carNumber ?? '',
+      carModel: rec.carModel ?? '',
+      carYear: rec.carYear ?? '',
+      carType: rec.carType ?? '',
       medical: rec.medical ?? '',
       insuranceHistory: rec.insuranceHistory ?? '',
       memo: rec.memo ?? '',
@@ -112,7 +178,8 @@ export function runUnstructuredCellExtract(session) {
         sourceCellText: sourceText.slice(0, 2000),
         fieldQualityIssues: fieldIssues,
         semanticFields: rec.semanticFields ?? null,
-        semanticGptEligible: (rec.warnings ?? []).includes('UNRESOLVED_SEMANTIC_FRAGMENTS'),
+        semanticGptEligible: isSemanticGptEligible(parseUnstructuredBlockToSemantic(sourceText)),
+        semanticGptUsed: Boolean(rec.blockGptUsed),
       },
     }
   })
@@ -120,7 +187,7 @@ export function runUnstructuredCellExtract(session) {
   return {
     stats,
     pipelineRows,
-    gptUsed: false,
-    openAiCalls: 0,
+    gptUsed,
+    openAiCalls,
   }
 }

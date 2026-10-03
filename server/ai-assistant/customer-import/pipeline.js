@@ -27,9 +27,9 @@ import { runUnstructuredCellExtract } from './unstructured/unstructuredExtractSe
  * @param {object} crmIndex
  * @param {{ duplicatePolicy?: string }} [options]
  */
-export function runImportPipeline(session, crmIndex, options = {}) {
+export async function runImportPipeline(session, crmIndex, options = {}) {
   if (session.importSourceMode === CUSTOMER_IMPORT_SOURCE_MODE.UNSTRUCTURED_CELL_RECORDS) {
-    return runUnstructuredImportPipeline(session, crmIndex, options)
+    return await runUnstructuredImportPipeline(session, crmIndex, options)
   }
   const sheet = session.sheets.find((s) => s.name === session.selectedSheetName)
   if (!sheet) {
@@ -107,7 +107,7 @@ export function runImportPipeline(session, crmIndex, options = {}) {
   }
 }
 
-function runUnstructuredImportPipeline(session, crmIndex, options = {}) {
+async function runUnstructuredImportPipeline(session, crmIndex, options = {}) {
   if (
     options.usePreviewSnapshot &&
     session.previewVersionHash &&
@@ -135,7 +135,7 @@ function runUnstructuredImportPipeline(session, crmIndex, options = {}) {
   const extracted =
     Array.isArray(session.rows) && session.rows.length > 0 && session.unstructuredExtractDone
       ? { pipelineRows: session.rows, stats: session.unstructuredExtractStats ?? {} }
-      : runUnstructuredCellExtract(session)
+      : await runUnstructuredCellExtract(session)
   const rows = extracted.pipelineRows.map((row) => ({ ...row }))
   const inFileDup = findInFileDuplicateFlags(rows)
   for (const row of rows) {

@@ -17,7 +17,7 @@ export async function commitCustomerImportSession(pool, req, session, options) {
   const userId = String(req.user?.id ?? req.user?.userId ?? '')
   const gaId = Number(req.user?.gaId)
   const crmIndex = await loadCrmDuplicateIndex(pool, req, userId, gaId)
-  const pipeline = runImportPipeline(session, crmIndex, {
+  const pipeline = await runImportPipeline(session, crmIndex, {
     duplicatePolicy: options.duplicatePolicy ?? CUSTOMER_IMPORT_DUPLICATE_POLICY.SKIP,
     usePreviewSnapshot: true,
   })

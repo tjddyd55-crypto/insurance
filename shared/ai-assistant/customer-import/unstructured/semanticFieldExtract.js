@@ -3,13 +3,21 @@
  *
  * @typedef {object} UnstructuredSemanticRecord
  * @property {string} personName
+ * @property {string} gender
  * @property {string} residentRegistrationNumber
  * @property {string[]} phones
  * @property {string} address
+ * @property {string} detailAddress
  * @property {string} height
  * @property {string} weight
  * @property {string} job
+ * @property {string} company
+ * @property {string} drivingStatus
+ * @property {string} carType
  * @property {string} carNumber
+ * @property {string} carModel
+ * @property {string} carYear
+ * @property {string} renewalDate
  * @property {string} medical
  * @property {string} insuranceHistory
  * @property {string} memo
@@ -214,13 +222,21 @@ export function parseUnstructuredBlockToSemantic(text) {
   /** @type {UnstructuredSemanticRecord} */
   const semantic = {
     personName: '',
+    gender: '',
     residentRegistrationNumber: '',
     phones: [],
     address: '',
+    detailAddress: '',
     height: '',
     weight: '',
     job: '',
+    company: '',
+    drivingStatus: '',
+    carType: '',
     carNumber: '',
+    carModel: '',
+    carYear: '',
+    renewalDate: '',
     medical: '',
     insuranceHistory: '',
     memo: '',

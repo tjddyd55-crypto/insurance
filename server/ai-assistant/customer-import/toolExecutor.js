@@ -181,7 +181,7 @@ async function toolUnstructuredExtract(req, input) {
   if (session.importSourceMode !== CUSTOMER_IMPORT_SOURCE_MODE.UNSTRUCTURED_CELL_RECORDS) {
     throw Object.assign(new Error('NOT_UNSTRUCTURED_WORKBOOK'), { code: 'NOT_UNSTRUCTURED_WORKBOOK', status: 400 })
   }
-  const extracted = runUnstructuredCellExtract(session)
+  const extracted = await runUnstructuredCellExtract(session)
   updateCustomerImportSession(input.importSessionId, userId, gaId, {
     rows: extracted.pipelineRows,
     unstructuredExtractDone: true,
@@ -268,7 +268,7 @@ async function toolPipelineStep(pool, req, input, step) {
   const gaId = Number(req.user?.gaId)
   const session = getCustomerImportSession(input.importSessionId, userId, gaId)
   const crmIndex = await loadCrmDuplicateIndex(pool, req, userId, gaId)
-  const pipeline = runImportPipeline(session, crmIndex, {
+  const pipeline = await runImportPipeline(session, crmIndex, {
     duplicatePolicy: input.duplicatePolicy ?? CUSTOMER_IMPORT_DUPLICATE_POLICY.SKIP,
   })
   const toolKeyMap = {

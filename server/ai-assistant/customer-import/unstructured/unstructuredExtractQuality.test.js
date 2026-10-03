@@ -10,7 +10,7 @@ const BLOCK = `강지영
 주소: 창원시 마산합포구 교방서1길 39`
 
 describe('unstructured import field quality', () => {
-  it('auto-eligible rows never store raw block in mapped.name', () => {
+  it('auto-eligible rows never store raw block in mapped.name', async () => {
     const session = {
       importSourceMode: CUSTOMER_IMPORT_SOURCE_MODE.UNSTRUCTURED_CELL_RECORDS,
       selectedSheetName: 'S',
@@ -18,7 +18,7 @@ describe('unstructured import field quality', () => {
       rows: [],
       unstructuredExtractDone: false,
     }
-    const pipeline = runImportPipeline(session, { byPhone: new Map(), byName: new Map() })
+    const pipeline = await runImportPipeline(session, { byPhone: new Map(), byName: new Map() })
     const auto = pipeline.rows.filter((r) => r.eligibleForCommit)
     for (const row of auto) {
       assert.ok(row.mapped.name)

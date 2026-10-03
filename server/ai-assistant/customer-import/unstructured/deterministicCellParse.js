@@ -1,24 +1,16 @@
-import {
-  cellToImportString,
-  cellToImportStringPreserveLines,
-} from '../../../../shared/ai-assistant/customer-import/normalize.js'
-import { mapSemanticToImportFields } from '../../../../shared/ai-assistant/customer-import/unstructured/mapSemanticToImportFields.js'
-import {
+import { cellToImportStringPreserveLines } from '../../../../shared/ai-assistant/customer-import/normalize.js'
+import { parseUnstructuredBlockToSemantic } from '../../../../shared/ai-assistant/customer-import/unstructured/semanticFieldExtract.js'
+import { cellToImportString } from '../../../../shared/ai-assistant/customer-import/normalize.js'
+import { redactSensitiveForExternalModel } from './sensitiveRedact.js'
+import { buildImportRecordsFromSemantic } from './recordsFromSemantic.js'
+
+export {
   extractPersonNameFromBlock,
   parseUnstructuredBlockToSemantic,
 } from '../../../../shared/ai-assistant/customer-import/unstructured/semanticFieldExtract.js'
 
-export { extractPersonNameFromBlock, parseUnstructuredBlockToSemantic }
-import { redactSensitiveForExternalModel } from './sensitiveRedact.js'
-
 /**
- * Deterministic unstructured cell parse:
- * raw block → semantic fields → ONE FC import field mapping (no raw-text fallbacks).
- *
- * @param {string} sheetName
- * @param {number} rowIndex
- * @param {number} colIndex
- * @param {unknown} cellValue
+ * Deterministic-only cell parse (no GPT). GPT enrichment runs in unstructuredExtractService.
  */
 export function parseUnstructuredCellDeterministic(sheetName, rowIndex, colIndex, cellValue) {
   const text = cellToImportStringPreserveLines(cellValue)
@@ -33,60 +25,7 @@ export function parseUnstructuredCellDeterministic(sheetName, rowIndex, colIndex
   }
 
   const semantic = parseUnstructuredBlockToSemantic(text)
-
-  if (semantic.phones.length === 0 && !semantic.personName) {
-    return { kind: 'REVIEW_REQUIRED', records: [], sourceCell, sourceText: text, warnings: ['NO_NAME_OR_PHONE'] }
-  }
-
-  if (semantic.phones.length <= 1) {
-    const mappedResult = mapSemanticToImportFields(semantic)
-    return {
-      kind: mappedResult.classification,
-      records: [
-        {
-          sourceCell,
-          sourceRecordIndex: 0,
-          ...mappedResult.mapped,
-          name: mappedResult.mapped.name ?? '',
-          phone: mappedResult.mapped.phone ?? '',
-          confidence: mappedResult.confidence,
-          warnings: mappedResult.warnings,
-          classification: mappedResult.classification,
-          sourceText: text,
-          semanticFields: mappedResult.semanticFields,
-        },
-      ],
-      sourceCell,
-      sourceText: text,
-    }
-  }
-
-  const records = semantic.phones.map((phone, index) => {
-    const slice = {
-      ...semantic,
-      phones: [phone],
-      personName: index === 0 ? semantic.personName : '',
-      address: index === 0 ? semantic.address : '',
-      job: index === 0 ? semantic.job : '',
-      carNumber: index === 0 ? semantic.carNumber : '',
-      needsSemanticReview: true,
-    }
-    const mappedResult = mapSemanticToImportFields(slice)
-    return {
-      sourceCell,
-      sourceRecordIndex: index,
-      ...mappedResult.mapped,
-      name: mappedResult.mapped.name ?? (index === 0 ? semantic.personName : ''),
-      phone,
-      confidence: 0.6,
-      warnings: ['MULTI_PERSON_CELL', ...mappedResult.warnings],
-      classification: 'REVIEW_REQUIRED',
-      sourceText: text,
-      semanticFields: mappedResult.semanticFields,
-    }
-  })
-
-  return { kind: 'MULTI_PERSON', records, sourceCell, sourceText: text }
+  return buildImportRecordsFromSemantic(semantic, { sourceCell, sourceText: text })
 }
 
 export function prepareCellForGpt(sheetName, rowIndex, colIndex, cellValue) {
