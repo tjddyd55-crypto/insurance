@@ -70,7 +70,13 @@ export function runUnstructuredCellExtract(session) {
       name: rec.name ?? '',
       phone: rec.phone ?? '',
       address: rec.address ?? '',
+      ssn: rec.ssn ?? '',
+      height: rec.height ?? '',
+      weight: rec.weight ?? '',
       job: rec.job ?? '',
+      carNumber: rec.carNumber ?? '',
+      medical: rec.medical ?? '',
+      insuranceHistory: rec.insuranceHistory ?? '',
       memo: rec.memo ?? '',
     }
     const sourceText = rec.sourceText ?? ''
@@ -105,6 +111,8 @@ export function runUnstructuredCellExtract(session) {
         classification: rec.classification,
         sourceCellText: sourceText.slice(0, 2000),
         fieldQualityIssues: fieldIssues,
+        semanticFields: rec.semanticFields ?? null,
+        semanticGptEligible: (rec.warnings ?? []).includes('UNRESOLVED_SEMANTIC_FRAGMENTS'),
       },
     }
   })

@@ -9,7 +9,9 @@ The downloadable XLS sample (`customer-upload-sample.xlsx`) is a **legacy conven
 User source (file, paste, chat — future)
   → Source adapter / parser (format-specific)
   → Structure analysis (TABULAR | UNSTRUCTURED_CELL_RECORDS | future modes)
-  → Extraction → CustomerCandidate[]  (SSOT: ImportPipelineRow)
+  → Semantic interpretation (meaning per value: name, RRN, phone, address, …)
+  → ONE FC field mapping (CUSTOMER_IMPORT_FIELD_KEYS only)
+  → CustomerCandidate[]  (SSOT: ImportPipelineRow)
   → Shared pipeline: normalize → duplicate → validation → preview
   → User confirmation (UI gate)
   → insertCustomerForImport (existing service)
@@ -30,7 +32,7 @@ Supported `mapped` keys match `CUSTOMER_IMPORT_FIELD_KEYS` only. No new DB colum
 ## Source modes (routing only)
 
 - `TABULAR` — column headers + rows; alias map + optional GPT column-map for ambiguous headers.
-- `UNSTRUCTURED_CELL_RECORDS` — multi-line cells; deterministic extract first; GPT only for low-confidence slices (sanitized), never raw workbook upload.
+- `UNSTRUCTURED_CELL_RECORDS` — multi-line cells; **semantic field decomposition first** (`semanticFieldExtract.js` → `mapSemanticToImportFields.js`), then shared normalize/validate. No raw-cell → name/address/memo fallbacks. GPT only for unresolved semantic fragments (sanitized), never raw workbook upload.
 
 Modes are **not** user-facing requirements. New patterns get reusable analyzers, not one-off hacks.
 

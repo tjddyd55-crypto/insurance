@@ -1,16 +1,25 @@
 export function mapRowToCustomerBody(mapped) {
-  const notes = mapped.memo
+  const insuranceHistory = String(mapped.insuranceHistory ?? '').trim()
+  const memoText = String(mapped.memo ?? '').trim()
+  const notes = memoText || insuranceHistory
     ? {
-        items: [{ id: 'import', content: mapped.memo, createdAt: new Date().toISOString() }],
-        insuranceHistory: mapped.insuranceHistory ?? '',
+        items: memoText
+          ? [{ id: 'import', content: memoText, createdAt: new Date().toISOString() }]
+          : [],
+        insuranceHistory,
       }
-    : { items: [], insuranceHistory: mapped.insuranceHistory ?? '' }
+    : { items: [], insuranceHistory: '' }
   return {
     name: mapped.name,
     phone: mapped.phone,
     ssn: mapped.ssn,
     address: mapped.address,
     gender: mapped.gender,
+    height: mapped.height,
+    weight: mapped.weight,
+    job: mapped.job,
+    medical: mapped.medical,
+    carNumber: mapped.carNumber,
     notes,
   }
 }
