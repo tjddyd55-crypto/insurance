@@ -1,9 +1,23 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import useIsMobile from '../../../hooks/useIsMobile'
 import { useAuth } from '../../auth/AuthProvider'
+import {
+  isAiAssistantRoute,
+  resolveAiPresentationMode,
+  type AiPresentationMode,
+} from '../aiSecretaryPresentation'
 
 type AiSecretaryContextValue = {
+  presentationMode: AiPresentationMode
   isOpen: boolean
   open: () => void
   close: () => void
@@ -11,6 +25,7 @@ type AiSecretaryContextValue = {
   openFullPage: () => void
   isMobile: boolean
   canUse: boolean
+  isAiAssistantRoute: boolean
 }
 
 const AiSecretaryContext = createContext<AiSecretaryContextValue | null>(null)
@@ -19,10 +34,30 @@ export function AiSecretaryProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const isMobile = useIsMobile()
   const navigate = useNavigate()
-  const [isOpen, setIsOpen] = useState(false)
+  const location = useLocation()
+  const [panelOpen, setPanelOpen] = useState(false)
 
   const canUse =
     user?.role === 'USER' || user?.role === 'GA_ADMIN' || user?.role === 'GA_STAFF'
+
+  const onAiRoute = isAiAssistantRoute(location.pathname)
+
+  useEffect(() => {
+    if (onAiRoute) {
+      setPanelOpen(false)
+    }
+  }, [onAiRoute])
+
+  const presentationMode = useMemo(
+    () =>
+      resolveAiPresentationMode({
+        pathname: location.pathname,
+        isMobile,
+        canUse,
+        panelOpen,
+      }),
+    [canUse, isMobile, location.pathname, panelOpen],
+  )
 
   const open = useCallback(() => {
     if (!canUse) {
@@ -32,29 +67,43 @@ export function AiSecretaryProvider({ children }: { children: ReactNode }) {
       navigate('/ai-assistant')
       return
     }
-    setIsOpen(true)
-  }, [canUse, isMobile, navigate])
+    if (isAiAssistantRoute(location.pathname)) {
+      return
+    }
+    setPanelOpen(true)
+  }, [canUse, isMobile, location.pathname, navigate])
 
-  const close = useCallback(() => setIsOpen(false), [])
+  const close = useCallback(() => setPanelOpen(false), [])
 
   const toggle = useCallback(() => {
-    if (isOpen) {
+    if (presentationMode === 'side_panel') {
       close()
-    } else {
-      open()
+      return
     }
-  }, [close, isOpen, open])
+    open()
+  }, [close, open, presentationMode])
 
   const openFullPage = useCallback(() => {
     if (!canUse) {
       return
     }
+    setPanelOpen(false)
     navigate('/ai-assistant')
   }, [canUse, navigate])
 
   const value = useMemo(
-    () => ({ isOpen, open, close, toggle, openFullPage, isMobile, canUse }),
-    [canUse, close, isMobile, isOpen, open, openFullPage, toggle],
+    () => ({
+      presentationMode,
+      isOpen: presentationMode === 'side_panel',
+      open,
+      close,
+      toggle,
+      openFullPage,
+      isMobile,
+      canUse,
+      isAiAssistantRoute: onAiRoute,
+    }),
+    [canUse, close, isMobile, onAiRoute, open, openFullPage, presentationMode, toggle],
   )
 
   return <AiSecretaryContext.Provider value={value}>{children}</AiSecretaryContext.Provider>

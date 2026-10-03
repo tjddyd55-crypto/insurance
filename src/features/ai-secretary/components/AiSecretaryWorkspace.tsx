@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { FormButton } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
-import { useAiPageContext } from '../context/AiSecretaryContext'
+import { validateAiImportAttachmentFile } from '../aiSecretaryImportFile'
+import { useAiPageContext, useAiSecretary } from '../context/AiSecretaryContext'
 import {
   confirmAiImportCommit,
   fetchImportMapping,
@@ -18,6 +19,12 @@ import './ai-secretary-panel.css'
 
 const SUGGESTIONS = ['고객 엑셀 가져오기', '고객 찾기', '오늘 할 일', '일정 확인']
 const IGNORE_VALUE = '__IGNORE__'
+
+type AttachmentUiState = {
+  name: string
+  status: 'uploading' | 'ready' | 'error'
+  errorMessage?: string
+}
 
 type Props = {
   variant: 'page' | 'panel'
@@ -39,8 +46,12 @@ function mappingStatusLabel(status: ImportMappingRow['status']) {
 
 export default function AiSecretaryWorkspace({ variant, onClose }: Props) {
   const { token, user } = useAuth()
+  const { openFullPage } = useAiSecretary()
   const pageContext = useAiPageContext()
   const fileRef = useRef<HTMLInputElement | null>(null)
+  const dragDepthRef = useRef(0)
+  const [dragActive, setDragActive] = useState(false)
+  const [attachment, setAttachment] = useState<AttachmentUiState | null>(null)
   const [conversationId, setConversationId] = useState<string | undefined>()
   const [importSessionId, setImportSessionId] = useState<string | undefined>()
   const [messages, setMessages] = useState<AiAssistantMessage[]>([])
@@ -107,24 +118,83 @@ export default function AiSecretaryWorkspace({ variant, onClose }: Props) {
     }
   }
 
-  async function handleFileChange(file: File | null) {
-    if (!token || !file) {
+  const attachImportFile = useCallback(
+    async (file: File) => {
+      if (!token) {
+        return
+      }
+      const validationError = validateAiImportAttachmentFile(file)
+      if (validationError) {
+        setAttachment({ name: file.name, status: 'error', errorMessage: validationError })
+        setError(validationError)
+        return
+      }
+      setBusy(true)
+      setError(null)
+      setAttachment({ name: file.name, status: 'uploading' })
+      try {
+        const res = await uploadAiImportFile(token, file, { conversationId })
+        setImportSessionId(res.importSessionId)
+        setAttachment({ name: file.name, status: 'ready' })
+        setMessages((prev) => [
+          ...prev,
+          { role: 'assistant', kind: 'text', text: `파일을 첨부했습니다: ${file.name}` },
+        ])
+      } catch (e) {
+        const message = e instanceof Error ? e.message : '첨부 실패'
+        setAttachment({ name: file.name, status: 'error', errorMessage: message })
+        setError(message)
+      } finally {
+        setBusy(false)
+      }
+    },
+    [conversationId, token],
+  )
+
+  function handleFileInputChange(file: File | null) {
+    if (!file) {
       return
     }
-    setBusy(true)
-    setError(null)
-    try {
-      const res = await uploadAiImportFile(token, file, { conversationId })
-      setImportSessionId(res.importSessionId)
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', kind: 'text', text: `파일을 첨부했습니다: ${file.name}` },
-      ])
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '첨부 실패')
-    } finally {
-      setBusy(false)
+    void attachImportFile(file)
+    if (fileRef.current) {
+      fileRef.current.value = ''
     }
+  }
+
+  function handleDragEnter(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault()
+    if (!event.dataTransfer.types.includes('Files')) {
+      return
+    }
+    dragDepthRef.current += 1
+    setDragActive(true)
+  }
+
+  function handleDragOver(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault()
+  }
+
+  function handleDragLeave(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault()
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1)
+    if (dragDepthRef.current === 0) {
+      setDragActive(false)
+    }
+  }
+
+  function handleDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault()
+    dragDepthRef.current = 0
+    setDragActive(false)
+    const file = event.dataTransfer.files?.[0]
+    if (file) {
+      void attachImportFile(file)
+    }
+  }
+
+  function clearAttachment() {
+    setAttachment(null)
+    setError(null)
   }
 
   async function openMappingDetail(card: Extract<AiAssistantMessage, { kind: 'import_preview_card' }>) {
@@ -217,13 +287,32 @@ export default function AiSecretaryWorkspace({ variant, onClose }: Props) {
     <div className={rootClass}>
       <header className="ai-secretary-page__header">
         <h1>ONE FC AI 비서</h1>
-        {variant === 'panel' && onClose ? (
-          <FormButton htmlType="button" variant="secondary" onClick={onClose}>
-            닫기
-          </FormButton>
+        {variant === 'panel' ? (
+          <div className="ai-secretary-page__header-actions">
+            <FormButton htmlType="button" variant="secondary" onClick={() => openFullPage()}>
+              전체 화면
+            </FormButton>
+            {onClose ? (
+              <FormButton htmlType="button" variant="secondary" onClick={onClose}>
+                닫기
+              </FormButton>
+            ) : null}
+          </div>
         ) : null}
       </header>
-      <div className="ai-secretary-page__messages" aria-live="polite">
+      <div
+        className="ai-secretary-page__conversation"
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {dragActive ? (
+          <div className="ai-secretary-drop-overlay" aria-hidden="true">
+            파일을 여기에 놓아 첨부하세요
+          </div>
+        ) : null}
+        <div className="ai-secretary-page__messages" aria-live="polite">
         {messages.map((msg, index) => {
           if (msg.kind === 'import_preview_card') {
             const s = msg.preview.summary
@@ -302,6 +391,7 @@ export default function AiSecretaryWorkspace({ variant, onClose }: Props) {
         })}
         {busy ? <p className="ai-secretary-status">처리 중…</p> : null}
         {error ? <p className="ai-secretary-error">{error}</p> : null}
+        </div>
       </div>
       <div className="ai-secretary-suggestions">
         {SUGGESTIONS.map((s) => (
@@ -310,6 +400,30 @@ export default function AiSecretaryWorkspace({ variant, onClose }: Props) {
           </button>
         ))}
       </div>
+      {attachment ? (
+        <div
+          className={[
+            'ai-secretary-attachment',
+            attachment.status === 'error' ? 'ai-secretary-attachment--error' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        >
+          <span>
+            {attachment.name}
+            {attachment.status === 'uploading' ? ' (업로드 중…)' : ''}
+            {attachment.status === 'error' && attachment.errorMessage ? ` — ${attachment.errorMessage}` : ''}
+          </span>
+          <button
+            type="button"
+            className="ai-secretary-attachment__remove"
+            aria-label="첨부 제거"
+            onClick={clearAttachment}
+          >
+            ×
+          </button>
+        </div>
+      ) : null}
       <footer className="ai-secretary-composer">
         <button
           type="button"
@@ -324,7 +438,7 @@ export default function AiSecretaryWorkspace({ variant, onClose }: Props) {
           type="file"
           accept=".xlsx,.xls,.csv"
           hidden
-          onChange={(e) => void handleFileChange(e.target.files?.[0] ?? null)}
+          onChange={(e) => handleFileInputChange(e.target.files?.[0] ?? null)}
         />
         <input
           className="ai-secretary-input"
