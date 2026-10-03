@@ -71,6 +71,7 @@ import { registerCustomerRegionApi } from './apis/registerCustomerRegionApi.js'
 import { registerReminderCalendarApi } from './apis/registerReminderCalendarApi.js'
 import { registerAdminAiToolsApi } from './apis/adminAiToolsApi.js'
 import { registerCustomerImportApi } from './ai-assistant/customer-import/registerCustomerImportApi.js'
+import { registerAiAssistantApi } from './apis/aiAssistantApi.js'
 import { registerServiceIntegrationsApi } from './apis/registerServiceIntegrationsApi.js'
 import { resolveCustomerAddressRegion } from './customers/addressRegion.js'
 import { registerPremiumPaymentApi } from './registerPremiumPaymentApi.js'
@@ -1727,6 +1728,14 @@ registerAdminAiToolsApi(apiRouter, { requireAuth, requireSuperAdmin })
 registerCustomerImportApi(apiRouter, {
   pool,
   requireAuth,
+  requireInsuranceFormUserId,
+  parseGaId,
+  handleDbError,
+})
+registerAiAssistantApi(apiRouter, {
+  pool,
+  requireAuth,
+  requireSuperAdmin,
   requireInsuranceFormUserId,
   parseGaId,
   handleDbError,

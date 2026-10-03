@@ -69,6 +69,12 @@ export const COVERAGE_SIMULATION_MENU_ITEM = {
   path: '/coverage-simulator',
 } as const
 
+/** GA 설계사·스태프 공통 AI 비서 진입 (전역 네비) */
+export const AI_SECRETARY_MENU_ITEM = {
+  label: 'AI 비서',
+  path: '/ai-assistant',
+} as const
+
 /**
  * 대시보드·사이드바·드로어 공용 메뉴 엔트리.
  *
@@ -636,7 +642,15 @@ export function buildAppMenuForSession(
   })()
 
   const filtered = subscriptionExpired ? filterMenuForExpired(withTeam) : withTeam
-  return applyEntitlementBadgesForSession(filtered, gaCode, gaName, options)
+  const withAiAssistant =
+    role === 'USER' || role === 'GA_ADMIN' || role === 'GA_STAFF'
+      ? [
+          { type: 'link' as const, label: AI_SECRETARY_MENU_ITEM.label, path: AI_SECRETARY_MENU_ITEM.path },
+          { type: 'divider' as const },
+          ...filtered,
+        ]
+      : filtered
+  return applyEntitlementBadgesForSession(withAiAssistant, gaCode, gaName, options)
 }
 
 function filterMenuForExpired(

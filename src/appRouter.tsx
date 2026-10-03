@@ -14,6 +14,7 @@ import GaCompanyManagePage from './features/admin/pages/GaCompanyManagePage'
 import UserManagementPage from './features/admin/pages/UserManagementPage'
 import AuditLogsPage from './features/admin/pages/AuditLogsPage'
 import AiAssistantToolRegistryPage from './features/ai-assistant/pages/AiAssistantToolRegistryPage'
+import AiSecretaryPage from './features/ai-secretary/pages/AiSecretaryPage'
 import SubscriptionPolicyPage from './features/admin/pages/SubscriptionPolicyPage'
 import AdminBillingManagePage, { AdminBillingLegacyRedirect } from './features/billing/pages/AdminBillingManagePage'
 import AccountBillingPage from './features/billing/pages/AccountBillingPage'
@@ -375,6 +376,7 @@ export const appRouter = createBrowserRouter([
                 element: <RequireInsuranceBillingEntitlement />,
                 children: [
           { path: 'dashboard', element: <DashboardPage /> },
+          { path: 'ai-assistant', element: <AiSecretaryPage /> },
           { path: 'public-account-restricted', element: <PublicAccountRestrictedPage /> },
           { path: 'contacts/manage', element: <Navigate to="/insurance/company-registry" replace /> },
           { path: 'updates', element: <Navigate to="/insurance/history" replace /> },

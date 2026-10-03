@@ -75,7 +75,18 @@ export const AI_TOOL_CATALOG_RAW = [
         serviceBinding: 'executeCustomerImportTool · customer.import.sheet-select',
       },
     ],
-    ['customer.import.column-map', '컬럼 매핑', 'CRM 필드 자동·수동 매핑 (GPT)', 'UPDATE', 'PARTIAL', { serviceBinding: 'alias only — Phase 1B OpenAI' }],
+    [
+      'customer.import.column-map',
+      '컬럼 매핑',
+      'CRM 필드 자동·수동 매핑 (GPT)',
+      'UPDATE',
+      'PARTIAL',
+      {
+        implementationStatus: 'IMPLEMENTED',
+        qaStatus: 'PASSED',
+        serviceBinding: 'columnMapService.js · OpenAI Responses API',
+      },
+    ],
     [
       'customer.import.normalize',
       '데이터 정규화',

@@ -8,10 +8,12 @@ import { runImportPipeline } from './pipeline.js'
 import { loadCrmDuplicateIndex } from './crmDuplicateIndex.js'
 import { commitCustomerImportSession } from './commitService.js'
 import { logCustomerImportToolAudit } from './auditLog.js'
+import { runCustomerImportColumnMap } from '../column-map/columnMapService.js'
 
 export const CUSTOMER_IMPORT_TOOL_KEYS = {
   FILE_ANALYZE: 'customer.import.file-analyze',
   SHEET_SELECT: 'customer.import.sheet-select',
+  COLUMN_MAP: 'customer.import.column-map',
   NORMALIZE: 'customer.import.normalize',
   DUPLICATE_CHECK: 'customer.import.duplicate-check',
   VALIDATION: 'customer.import.validation',
@@ -38,6 +40,9 @@ export async function executeCustomerImportTool(pool, req, toolKey, input = {}) 
         break
       case CUSTOMER_IMPORT_TOOL_KEYS.SHEET_SELECT:
         result = await toolSheetSelect(req, input)
+        break
+      case CUSTOMER_IMPORT_TOOL_KEYS.COLUMN_MAP:
+        result = await toolColumnMap(req, input)
         break
       case CUSTOMER_IMPORT_TOOL_KEYS.NORMALIZE:
         result = await toolPipelineStep(pool, req, input, 'normalize')
@@ -115,6 +120,8 @@ async function toolFileAnalyze(req, input) {
     selectedSheetName: defaultSheet.name,
     headerRowIndex: analyze.headerRowIndex,
     headers: analyze.headers,
+    sampleRows: analyze.sampleRows,
+    headerCandidates: analyze.headerCandidates,
     columnMapping: suggestAliasColumnMapping(analyze.headers),
     rows: [],
     previewVersionHash: null,
@@ -135,6 +142,28 @@ async function toolFileAnalyze(req, input) {
     sampleRows: analyze.sampleRows,
     stats: analyze.stats,
     expiresAt: new Date(session.expiresAt).toISOString(),
+  }
+}
+
+async function toolColumnMap(req, input) {
+  const userId = String(req.user?.id ?? req.user?.userId ?? '')
+  const gaId = Number(req.user?.gaId)
+  const session = getCustomerImportSession(input.importSessionId, userId, gaId)
+  const mapped = await runCustomerImportColumnMap(session, { forceGpt: input.forceGpt === true })
+  updateCustomerImportSession(input.importSessionId, userId, gaId, {
+    columnMapping: mapped.columnMapping,
+    previewVersionHash: null,
+    commitStatus: 'idle',
+    commitResult: null,
+  })
+  return {
+    toolKey: CUSTOMER_IMPORT_TOOL_KEYS.COLUMN_MAP,
+    importSessionId: input.importSessionId,
+    columnMapping: mapped.columnMapping,
+    gptUsed: mapped.gptUsed,
+    mappings: mapped.mappings,
+    ignoredColumns: mapped.ignoredColumns,
+    warnings: mapped.warnings,
   }
 }
 

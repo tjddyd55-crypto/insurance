@@ -242,6 +242,16 @@ export default function PCTopNavigation({
         </div>
 
         <div className="pc-top-navigation__actions" aria-label="PC 상단 액션">
+          {user?.role === 'USER' || user?.role === 'GA_ADMIN' || user?.role === 'GA_STAFF' ? (
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              className="pc-top-navigation__ai"
+              onClick={() => navigate('/ai-assistant')}
+            >
+              AI
+            </FormButton>
+          ) : null}
           <BillingStatusBadge />
           {showNotification ? (
             <NotificationBell variant="workspaceHeader" />
