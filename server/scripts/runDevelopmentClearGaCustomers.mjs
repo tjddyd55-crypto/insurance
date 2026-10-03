@@ -21,16 +21,31 @@ async function main() {
     console.error('[dev-customer-clear] GA not found', gaCode)
     process.exit(1)
   }
-  const before = await pool.query(`SELECT COUNT(*)::int AS c FROM customers WHERE ga_id = $1`, [gaId])
-  const del = await pool.query(`DELETE FROM customers WHERE ga_id = $1`, [gaId])
-  const after = await pool.query(`SELECT COUNT(*)::int AS c FROM customers WHERE ga_id = $1`, [gaId])
-  console.log('[dev-customer-clear] OK', {
-    gaCode,
-    gaId,
-    before: before.rows[0]?.c ?? 0,
-    deleted: del.rowCount ?? 0,
-    after: after.rows[0]?.c ?? 0,
-  })
+  const client = await pool.connect()
+  let deleted = 0
+  try {
+    await client.query('BEGIN')
+    const beforeRes = await client.query(`SELECT COUNT(*)::int AS c FROM customers WHERE ga_id = $1`, [gaId])
+    // folders.customer_id is ON DELETE SET NULL — bulk customer delete can violate uq_folders_user_ga_personal_parent_name
+    await client.query(`DELETE FROM folders WHERE ga_id = $1 AND customer_id IS NOT NULL`, [gaId])
+    await client.query(`DELETE FROM insurance_forms WHERE ga_id = $1`, [gaId])
+    const del = await client.query(`DELETE FROM customers WHERE ga_id = $1`, [gaId])
+    deleted = del.rowCount ?? 0
+    const afterRes = await client.query(`SELECT COUNT(*)::int AS c FROM customers WHERE ga_id = $1`, [gaId])
+    await client.query('COMMIT')
+    console.log('[dev-customer-clear] OK', {
+      gaCode,
+      gaId,
+      before: beforeRes.rows[0]?.c ?? 0,
+      deleted,
+      after: afterRes.rows[0]?.c ?? 0,
+    })
+  } catch (e) {
+    await client.query('ROLLBACK')
+    throw e
+  } finally {
+    client.release()
+  }
   await pool.end()
 }
 

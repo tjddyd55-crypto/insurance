@@ -19,6 +19,7 @@ export async function commitCustomerImportSession(pool, req, session, options) {
   const crmIndex = await loadCrmDuplicateIndex(pool, req, userId, gaId)
   const pipeline = runImportPipeline(session, crmIndex, {
     duplicatePolicy: options.duplicatePolicy ?? CUSTOMER_IMPORT_DUPLICATE_POLICY.SKIP,
+    usePreviewSnapshot: true,
   })
   if (pipeline.previewVersionHash !== session.previewVersionHash) {
     throw Object.assign(new Error('STALE_PREVIEW'), { code: 'STALE_PREVIEW', status: 409 })

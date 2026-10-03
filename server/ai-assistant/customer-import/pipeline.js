@@ -107,6 +107,30 @@ export function runImportPipeline(session, crmIndex, options = {}) {
 }
 
 function runUnstructuredImportPipeline(session, crmIndex, options = {}) {
+  if (
+    options.usePreviewSnapshot &&
+    session.previewVersionHash &&
+    Array.isArray(session.rows) &&
+    session.rows.length > 0
+  ) {
+    const columnMapping = { unstructured: 'true' }
+    const headerRowIndex = 0
+    const headers = ['비정형 셀 추출']
+    const rows = session.rows.map((row) => ({ ...row }))
+    const summary = {
+      ...buildImportPreviewSummary(rows),
+      unstructured: session.unstructuredExtractStats ?? {},
+    }
+    return {
+      headers,
+      columnMapping,
+      headerRowIndex,
+      rows,
+      summary,
+      previewVersionHash: session.previewVersionHash,
+    }
+  }
+
   const extracted =
     Array.isArray(session.rows) && session.rows.length > 0 && session.unstructuredExtractDone
       ? { pipelineRows: session.rows, stats: session.unstructuredExtractStats ?? {} }

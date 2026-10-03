@@ -1,4 +1,5 @@
 import { CUSTOMER_IMPORT_DUPLICATE_POLICY } from '../../shared/ai-assistant/customer-import/constants.js'
+import { CUSTOMER_IMPORT_SOURCE_MODE } from '../../shared/ai-assistant/customer-import/importSourceMode.js'
 import { validateUserColumnMapping } from '../../shared/ai-assistant/customer-import/mappingEdit.js'
 import { createPendingImportCommit, invalidatePendingForImportSession } from './confirmation/confirmationService.js'
 import {
@@ -13,6 +14,7 @@ import {
   applyMappingChangeFromText,
   detectNaturalLanguageCommitIntent,
   parseDuplicatePolicyIntent,
+  parseMappingChangeIntent,
 } from './followUpIntent.js'
 import {
   buildPreviewCardPayload,
@@ -202,6 +204,20 @@ export async function processAiAssistantMessage(pool, req, input) {
         runGptColumnMap: false,
         duplicatePolicy: duplicateIntent,
       })
+    }
+
+    if (
+      session.importSourceMode === CUSTOMER_IMPORT_SOURCE_MODE.UNSTRUCTURED_CELL_RECORDS &&
+      parseMappingChangeIntent(text)
+    ) {
+      const reply = {
+        role: 'assistant',
+        kind: 'text',
+        text:
+          '이 파일은 비정형 셀 형식이라 엑셀 「컬럼」 매핑은 적용되지 않습니다. 셀 안 내용을 자동으로 나눠 분석한 미리보기를 확인해 주세요.',
+      }
+      appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
+      return { conversationId: conversation.conversationId, messages: [reply] }
     }
 
     let mappingChanged = false
