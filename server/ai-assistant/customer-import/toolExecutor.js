@@ -152,6 +152,11 @@ async function toolColumnMap(req, input) {
   const mapped = await runCustomerImportColumnMap(session, { forceGpt: input.forceGpt === true })
   updateCustomerImportSession(input.importSessionId, userId, gaId, {
     columnMapping: mapped.columnMapping,
+    columnMapMeta: {
+      gptUsed: mapped.gptUsed,
+      mappings: mapped.mappings ?? [],
+      warnings: mapped.warnings ?? [],
+    },
     previewVersionHash: null,
     commitStatus: 'idle',
     commitResult: null,

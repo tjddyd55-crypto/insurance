@@ -64,3 +64,12 @@ export function consumePendingImportCommit(confirmationId, userId, gaId, preview
 export function clearPendingConfirmations() {
   pending.clear()
 }
+
+export function invalidatePendingForImportSession(importSessionId) {
+  purgeExpired()
+  for (const [id, record] of pending) {
+    if (record.importSessionId === importSessionId && !record.consumed) {
+      pending.delete(id)
+    }
+  }
+}

@@ -26,6 +26,8 @@ import { isActivePcNavigationPath } from '../components/layout/pcNavigationUtils
 import BillingStatusBadge from '../features/insurance-billing/components/BillingStatusBadge'
 import { AdminNoticePopupModal } from '../features/admin-notices/components/AdminNoticePopupModal'
 import { useAdminNoticePopup } from '../features/admin-notices/hooks/useAdminNoticePopup'
+import { AiSecretaryProvider } from '../features/ai-secretary/context/AiSecretaryContext'
+import AiSecretaryPanel from '../features/ai-secretary/components/AiSecretaryPanel'
 
 /** B안 모드 랜딩에서도 PlatformModeSwitcher 노출 (appRouter 변경 없음). */
 function isPlatformAdminArea(pathname: string): boolean {
@@ -76,10 +78,11 @@ function AdminNoticePopupHost() {
 
 export default function AppWorkspaceLayout() {
   return (
-    <>
+    <AiSecretaryProvider>
       <ResponsiveLayout PC={PCLayout} Mobile={MobileLayout} />
       <AdminNoticePopupHost />
-    </>
+      <AiSecretaryPanel />
+    </AiSecretaryProvider>
   )
 }
 

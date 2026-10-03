@@ -20,6 +20,7 @@ import {
 import { isActivePcNavigationPath } from './pcNavigationUtils'
 import { PcMenuEntitlementBadges } from './PcMenuEntitlementBadges'
 import { resolvePcMenuGroupBadgeLabels } from './pcMenuGroupBadge'
+import { useAiSecretary } from '../../features/ai-secretary/context/AiSecretaryContext'
 import './pc-top-navigation.css'
 
 type LinkEntry = Extract<GaTenantDashboardMenuEntry, { type: 'link' }>
@@ -65,6 +66,7 @@ export default function PCTopNavigation({
   const navigate = useNavigate()
   const location = useLocation()
   const { user, token } = useAuth()
+  const { open: openAiSecretary, canUse: canUseAiSecretary } = useAiSecretary()
   const menuRef = useRef<HTMLElement | null>(null)
   const [teamMenuManageVisible, setTeamMenuManageVisible] = useState(false)
   const [dynamicNewsletterBoards, setDynamicNewsletterBoards] = useState<DynamicNewsletterBoardMenuItem[]>([])
@@ -242,12 +244,12 @@ export default function PCTopNavigation({
         </div>
 
         <div className="pc-top-navigation__actions" aria-label="PC 상단 액션">
-          {user?.role === 'USER' || user?.role === 'GA_ADMIN' || user?.role === 'GA_STAFF' ? (
+          {canUseAiSecretary ? (
             <FormButton
               htmlType="button"
               variant="secondary"
               className="pc-top-navigation__ai"
-              onClick={() => navigate('/ai-assistant')}
+              onClick={() => openAiSecretary()}
             >
               AI
             </FormButton>

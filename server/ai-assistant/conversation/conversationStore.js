@@ -26,6 +26,8 @@ export function createAiConversation(input) {
     userId: input.userId,
     gaId: input.gaId,
     importSessionId: input.importSessionId ?? null,
+    importContext: null,
+    pageContext: null,
     status: 'active',
     messages: [],
     pendingAction: null,

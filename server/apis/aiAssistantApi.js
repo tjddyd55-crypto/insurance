@@ -2,7 +2,12 @@ import multer from 'multer'
 
 import { getOpenAiDiagnostics } from '../ai-assistant/openaiConfig.js'
 import { runOpenAiConnectivitySmoke } from '../ai-assistant/openaiClient.js'
-import { processAiAssistantMessage } from '../ai-assistant/orchestrator.js'
+import { applyImportSessionMappingAndPreview, processAiAssistantMessage } from '../ai-assistant/orchestrator.js'
+import { buildMappingRowsForUi } from '../ai-assistant/importPreviewRunner.js'
+import { CUSTOMER_IMPORT_FIELD_KEYS } from '../../shared/ai-assistant/customer-import/fieldDictionary.js'
+import { CUSTOMER_IMPORT_FIELD_LABELS_KO } from '../../shared/ai-assistant/customer-import/mappingEdit.js'
+import { getCustomerImportSession } from '../ai-assistant/customer-import/sessionStore.js'
+import { updateAiConversation } from '../ai-assistant/conversation/conversationStore.js'
 import { consumePendingImportCommit } from '../ai-assistant/confirmation/confirmationService.js'
 import { getLatestAiConversationForUser } from '../ai-assistant/conversation/conversationStore.js'
 import { CUSTOMER_IMPORT_TOOL_KEYS, executeCustomerImportTool } from '../ai-assistant/customer-import/toolExecutor.js'
@@ -81,7 +86,8 @@ export function registerAiAssistantApi(apiRouter, ctx) {
     upload.single('file'),
     async (req, res) => {
       try {
-        if (!assertGaDesignerContext(req, res)) {
+        const ctxUser = assertGaDesignerContext(req, res)
+        if (!ctxUser) {
           return
         }
         const file = req.file
@@ -94,6 +100,24 @@ export function registerAiAssistantApi(apiRouter, ctx) {
           originalFileName: file.originalname,
           mimeType: file.mimetype,
         })
+        const conversationId = String(req.body?.conversationId ?? req.query?.conversationId ?? '').trim()
+        if (conversationId) {
+          try {
+            updateAiConversation(conversationId, ctxUser.userId, ctxUser.gaId, {
+              importSessionId: analyzed.importSessionId,
+              importContext: {
+                activeImportSessionId: analyzed.importSessionId,
+                selectedSheet: analyzed.suggestedSheetName ?? null,
+                duplicatePolicy: 'SKIP',
+                previewVersionHash: null,
+                mappingVersion: null,
+                pendingActionId: null,
+              },
+            })
+          } catch {
+            /* conversation 없으면 무시 */
+          }
+        }
         res.json({ success: true, importSessionId: analyzed.importSessionId, analyze: analyzed })
       } catch (error) {
         res.status(Number(error?.status) || 400).json({
@@ -114,10 +138,58 @@ export function registerAiAssistantApi(apiRouter, ctx) {
         text: req.body?.text,
         importSessionId: req.body?.importSessionId,
         forceImportPipeline: req.body?.forceImportPipeline === true,
+        pageContext: req.body?.pageContext,
       })
       res.json({ success: true, ...result })
     } catch (error) {
       handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.get('/ai/assistant/import-sessions/:importSessionId/mapping', requireAuth, (req, res) => {
+    const ctxUser = assertGaDesignerContext(req, res)
+    if (!ctxUser) {
+      return
+    }
+    try {
+      const importSessionId = String(req.params.importSessionId ?? '').trim()
+      const session = getCustomerImportSession(importSessionId, ctxUser.userId, ctxUser.gaId)
+      res.json({
+        success: true,
+        importSessionId,
+        mappingRows: buildMappingRowsForUi(session),
+        duplicatePolicy: session.duplicatePolicy ?? 'SKIP',
+        availableFields: CUSTOMER_IMPORT_FIELD_KEYS.map((key) => ({
+          key,
+          label: CUSTOMER_IMPORT_FIELD_LABELS_KO[key] ?? key,
+        })),
+      })
+    } catch (error) {
+      res.status(Number(error?.status) || 400).json({
+        code: error?.code ?? 'MAPPING_READ_FAILED',
+        message: error instanceof Error ? error.message : '조회 실패',
+      })
+    }
+  })
+
+  apiRouter.put('/ai/assistant/import-sessions/:importSessionId/mapping', requireAuth, async (req, res) => {
+    try {
+      const ctxUser = assertGaDesignerContext(req, res)
+      if (!ctxUser) {
+        return
+      }
+      const importSessionId = String(req.params.importSessionId ?? '').trim()
+      const columnMapping = req.body?.columnMapping ?? {}
+      const result = await applyImportSessionMappingAndPreview(pool, req, importSessionId, columnMapping, {
+        conversationId: req.body?.conversationId,
+        duplicatePolicy: req.body?.duplicatePolicy,
+      })
+      res.json({ success: true, ...result })
+    } catch (error) {
+      res.status(Number(error?.status) || 400).json({
+        code: error?.code ?? 'MAPPING_UPDATE_FAILED',
+        message: error instanceof Error ? error.message : '매핑 수정 실패',
+      })
     }
   })
 
@@ -131,14 +203,21 @@ export function registerAiAssistantApi(apiRouter, ctx) {
       const importSessionId = String(req.body?.importSessionId ?? '').trim()
       const previewVersionHash = String(req.body?.previewVersionHash ?? '').trim()
       consumePendingImportCommit(confirmationId, ctxUser.userId, ctxUser.gaId, previewVersionHash)
+      const session = getCustomerImportSession(importSessionId, ctxUser.userId, ctxUser.gaId)
+      const duplicatePolicy =
+        req.body?.duplicatePolicy ?? session.duplicatePolicy ?? 'SKIP'
       const result = await executeCustomerImportTool(pool, req, CUSTOMER_IMPORT_TOOL_KEYS.COMMIT, {
         importSessionId,
         previewVersionHash,
         confirmed: true,
         idempotencyKey: confirmationId,
-        duplicatePolicy: req.body?.duplicatePolicy,
+        duplicatePolicy,
       })
-      res.json({ success: true, ...result })
+      res.json({
+        success: true,
+        ...result,
+        duplicatePolicy,
+      })
     } catch (error) {
       res.status(Number(error?.status) || 400).json({
         code: error?.code ?? 'COMMIT_FAILED',

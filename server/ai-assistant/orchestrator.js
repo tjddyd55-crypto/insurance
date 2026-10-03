@@ -1,19 +1,29 @@
-import { CUSTOMER_IMPORT_TOOL_KEYS, executeCustomerImportTool } from './customer-import/toolExecutor.js'
-import { runCustomerImportColumnMap } from './column-map/columnMapService.js'
-import { createPendingImportCommit } from './confirmation/confirmationService.js'
+import { CUSTOMER_IMPORT_DUPLICATE_POLICY } from '../../shared/ai-assistant/customer-import/constants.js'
+import { validateUserColumnMapping } from '../../shared/ai-assistant/customer-import/mappingEdit.js'
+import { createPendingImportCommit, invalidatePendingForImportSession } from './confirmation/confirmationService.js'
 import {
   appendAiConversationMessage,
   createAiConversation,
   getAiConversation,
+  getLatestAiConversationForUser,
   updateAiConversation,
 } from './conversation/conversationStore.js'
 import { getCustomerImportSession, updateCustomerImportSession } from './customer-import/sessionStore.js'
+import {
+  applyMappingChangeFromText,
+  detectNaturalLanguageCommitIntent,
+  parseDuplicatePolicyIntent,
+} from './followUpIntent.js'
+import {
+  buildPreviewCardPayload,
+  runImportPreviewPipeline,
+} from './importPreviewRunner.js'
 import { isToolCallableByOrchestrator } from './toolRegistryAdapter.js'
 import { loadAiToolRegistry } from '../../shared/ai-assistant/registry.js'
 
 function detectImportIntent(text) {
   const t = String(text ?? '').toLowerCase()
-  return /올려|가져오|import|등록|업로드|엑셀|excel|csv/.test(t)
+  return /올려|가져오|import|등록|업로드|엑셀|excel|csv|고객리스트|명단/.test(t)
 }
 
 function detectUnconnectedToolKey(text) {
@@ -39,10 +49,66 @@ function toolNotConnectedMessage(toolKey) {
   return `「${label}」 기능은 아직 AI 비서에 연결되지 않았습니다.`
 }
 
+function defaultImportContext(importSessionId, session, duplicatePolicy, previewVersionHash) {
+  return {
+    activeImportSessionId: importSessionId,
+    selectedSheet: session?.selectedSheetName ?? null,
+    duplicatePolicy,
+    previewVersionHash: previewVersionHash ?? null,
+    mappingVersion: session?.columnMapping ? JSON.stringify(session.columnMapping) : null,
+    pendingActionId: null,
+  }
+}
+
+async function finalizePreviewConversation(
+  pool,
+  req,
+  conversation,
+  userId,
+  gaId,
+  importSessionId,
+  options = {},
+) {
+  invalidatePendingForImportSession(importSessionId)
+  const { session, preview, stages, mappingRows, issueRows, duplicatePolicy } =
+    await runImportPreviewPipeline(pool, req, importSessionId, options)
+
+  const pending = createPendingImportCommit({
+    userId,
+    gaId,
+    importSessionId,
+    previewVersionHash: preview.previewVersionHash,
+    summary: preview.summary,
+  })
+
+  const importContext = defaultImportContext(importSessionId, session, duplicatePolicy, preview.previewVersionHash)
+  importContext.pendingActionId = pending.confirmationId
+
+  updateAiConversation(conversation.conversationId, userId, gaId, {
+    importSessionId,
+    importContext,
+    pendingAction: {
+      type: 'customer.import.commit',
+      confirmationId: pending.confirmationId,
+      importSessionId,
+      previewVersionHash: preview.previewVersionHash,
+    },
+  })
+
+  const card = {
+    ...buildPreviewCardPayload(session, preview, pending, duplicatePolicy),
+    mappingRows,
+    issueRows,
+    statusLabel: stages[stages.length - 1]?.label ?? '등록 전 내용을 정리했어요',
+  }
+  appendAiConversationMessage(conversation.conversationId, userId, gaId, card)
+  return { conversationId: conversation.conversationId, messages: [card] }
+}
+
 /**
  * @param {import('pg').Pool} pool
  * @param {import('express').Request} req
- * @param {{ conversationId?: string, text: string, importSessionId?: string }} input
+ * @param {{ conversationId?: string, text: string, importSessionId?: string, forceImportPipeline?: boolean, pageContext?: object }} input
  */
 export async function processAiAssistantMessage(pool, req, input) {
   const userId = String(req.user?.id ?? req.user?.userId ?? '')
@@ -54,6 +120,16 @@ export async function processAiAssistantMessage(pool, req, input) {
     conversation = getAiConversation(input.conversationId, userId, gaId)
   } else {
     conversation = createAiConversation({ userId, gaId, importSessionId: input.importSessionId ?? null })
+  }
+
+  if (input.pageContext && typeof input.pageContext === 'object') {
+    conversation = updateAiConversation(conversation.conversationId, userId, gaId, {
+      pageContext: {
+        currentRoute: input.pageContext.currentRoute ?? null,
+        currentEntityType: input.pageContext.currentEntityType ?? null,
+        currentEntityId: input.pageContext.currentEntityId ?? null,
+      },
+    })
   }
 
   if (input.importSessionId) {
@@ -93,81 +169,99 @@ export async function processAiAssistantMessage(pool, req, input) {
     return { conversationId: conversation.conversationId, messages: [reply] }
   }
 
-  if (!detectImportIntent(text) && !input.forceImportPipeline) {
-    const reply = {
-      role: 'assistant',
-      kind: 'text',
-      text: '첨부된 가져오기 파일이 있습니다. 고객 등록을 진행하려면 「고객리스트에 올려줘」처럼 요청해 주세요.',
-    }
-    appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
-    return { conversationId: conversation.conversationId, messages: [reply] }
-  }
-
-  const stages = []
-  const runTool = async (toolKey, toolInput = {}) => {
-    const gate = isToolCallableByOrchestrator(toolKey)
-    if (!gate.ok) {
-      throw Object.assign(new Error(gate.code), { code: gate.code, status: 400 })
-    }
-    stages.push({ toolKey, status: 'running' })
-    const result = await executeCustomerImportTool(pool, req, toolKey, {
-      importSessionId,
-      ...toolInput,
-    })
-    stages[stages.length - 1].status = 'ok'
-    return result
-  }
-
   try {
     const session = getCustomerImportSession(importSessionId, userId, gaId)
-    const columnMapGate = isToolCallableByOrchestrator(CUSTOMER_IMPORT_TOOL_KEYS.COLUMN_MAP)
-    if (columnMapGate.ok) {
-      stages.push({ toolKey: CUSTOMER_IMPORT_TOOL_KEYS.COLUMN_MAP, status: 'running' })
-      const mapped = await runCustomerImportColumnMap(session)
-      updateCustomerImportSession(importSessionId, userId, gaId, {
-        columnMapping: mapped.columnMapping,
-        previewVersionHash: null,
-        commitStatus: 'idle',
+    const duplicatePolicyFromContext =
+      conversation.importContext?.duplicatePolicy ??
+      session.duplicatePolicy ??
+      CUSTOMER_IMPORT_DUPLICATE_POLICY.SKIP
+
+    if (conversation.pendingAction && detectNaturalLanguageCommitIntent(text)) {
+      const reply = {
+        role: 'assistant',
+        kind: 'text',
+        text: '등록은 미리보기 카드의 「등록」 버튼으로만 진행할 수 있습니다. 내용을 확인한 뒤 버튼을 눌러 주세요.',
+      }
+      appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
+      return { conversationId: conversation.conversationId, messages: [reply] }
+    }
+
+    const duplicateIntent = parseDuplicatePolicyIntent(text)
+    if (duplicateIntent) {
+      updateCustomerImportSession(importSessionId, userId, gaId, { duplicatePolicy: duplicateIntent })
+      const reply = {
+        role: 'assistant',
+        kind: 'text',
+        text:
+          duplicateIntent === CUSTOMER_IMPORT_DUPLICATE_POLICY.SKIP
+            ? '중복 고객은 등록에서 제외하도록 설정했어요. 미리보기를 다시 계산합니다.'
+            : '중복 고객도 등록 후보에 포함하도록 설정했어요. 미리보기를 다시 계산합니다.',
+      }
+      appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
+      return finalizePreviewConversation(pool, req, conversation, userId, gaId, importSessionId, {
+        runGptColumnMap: false,
+        duplicatePolicy: duplicateIntent,
       })
-      stages[stages.length - 1].status = 'ok'
     }
 
-    await runTool(CUSTOMER_IMPORT_TOOL_KEYS.NORMALIZE)
-    await runTool(CUSTOMER_IMPORT_TOOL_KEYS.DUPLICATE_CHECK)
-    await runTool(CUSTOMER_IMPORT_TOOL_KEYS.VALIDATION)
-    const preview = await runTool(CUSTOMER_IMPORT_TOOL_KEYS.PREVIEW)
+    let mappingChanged = false
+    try {
+      const nextMapping = applyMappingChangeFromText(text, session.headers ?? [], session.columnMapping ?? {})
+      if (nextMapping) {
+        mappingChanged = true
+        updateCustomerImportSession(importSessionId, userId, gaId, {
+          columnMapping: nextMapping,
+          previewVersionHash: null,
+          commitStatus: 'idle',
+        })
+      }
+    } catch (mappingError) {
+      if (mappingError?.code === 'UNKNOWN_DESTINATION') {
+        const reply = {
+          role: 'assistant',
+          kind: 'text',
+          text: '어느 ONE FC 항목으로 연결할지 이해하지 못했습니다. 예: 「회사 컬럼은 메모로 넣어줘」',
+        }
+        appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
+        return { conversationId: conversation.conversationId, messages: [reply] }
+      }
+      throw mappingError
+    }
 
-    const pending = createPendingImportCommit({
-      userId,
-      gaId,
-      importSessionId,
-      previewVersionHash: preview.previewVersionHash,
-      summary: preview.summary,
-    })
+    if (mappingChanged) {
+      const reply = {
+        role: 'assistant',
+        kind: 'text',
+        text: '컬럼 연결을 수정했어요. 미리보기를 다시 계산합니다.',
+      }
+      appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
+      return finalizePreviewConversation(pool, req, conversation, userId, gaId, importSessionId, {
+        runGptColumnMap: false,
+        duplicatePolicy: duplicatePolicyFromContext,
+      })
+    }
 
-    updateAiConversation(conversation.conversationId, userId, gaId, {
-      pendingAction: {
-        type: 'customer.import.commit',
-        confirmationId: pending.confirmationId,
-        importSessionId,
-        previewVersionHash: preview.previewVersionHash,
-      },
-    })
+    if (!detectImportIntent(text) && !input.forceImportPipeline) {
+      const reply = {
+        role: 'assistant',
+        kind: 'text',
+        text: '첨부된 가져오기 파일이 있습니다. 고객 등록을 진행하려면 「고객리스트에 올려줘」처럼 요청하거나, 컬럼 수정·중복 정책을 말씀해 주세요.',
+      }
+      appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
+      return { conversationId: conversation.conversationId, messages: [reply] }
+    }
 
-    const card = {
+    const progress = {
       role: 'assistant',
-      kind: 'import_preview_card',
-      text: '고객 가져오기 준비가 완료되었습니다.',
-      preview: {
-        fileName: session.originalFileName,
-        summary: preview.summary,
-        previewVersionHash: preview.previewVersionHash,
-        confirmationId: pending.confirmationId,
-      },
-      stages,
+      kind: 'status',
+      text: '파일을 분석하고 있어요…',
     }
-    appendAiConversationMessage(conversation.conversationId, userId, gaId, card)
-    return { conversationId: conversation.conversationId, messages: [card], stages }
+    appendAiConversationMessage(conversation.conversationId, userId, gaId, progress)
+
+    return finalizePreviewConversation(pool, req, conversation, userId, gaId, importSessionId, {
+      runGptColumnMap: true,
+      duplicatePolicy: duplicatePolicyFromContext,
+    })
   } catch (error) {
     const code = error?.code ?? 'AI_TOOL_FAILED'
     const reply = {
@@ -182,4 +276,47 @@ export async function processAiAssistantMessage(pool, req, input) {
     appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
     return { conversationId: conversation.conversationId, messages: [reply], error: code }
   }
+}
+
+/**
+ * @param {import('pg').Pool} pool
+ * @param {import('express').Request} req
+ * @param {string} importSessionId
+ * @param {Record<string, string>} columnMapping
+ * @param {{ conversationId?: string, duplicatePolicy?: string }} [options]
+ */
+export async function applyImportSessionMappingAndPreview(pool, req, importSessionId, columnMapping, options = {}) {
+  const userId = String(req.user?.id ?? req.user?.userId ?? '')
+  const gaId = Number(req.user?.gaId)
+  const session = getCustomerImportSession(importSessionId, userId, gaId)
+  validateUserColumnMapping(columnMapping, session.headers ?? [])
+  updateCustomerImportSession(importSessionId, userId, gaId, {
+    columnMapping,
+    previewVersionHash: null,
+    commitStatus: 'idle',
+  })
+
+  let conversation
+  if (options.conversationId) {
+    conversation = getAiConversation(options.conversationId, userId, gaId)
+  } else {
+    conversation = getLatestOrCreateConversation(userId, gaId, importSessionId)
+  }
+
+  return finalizePreviewConversation(pool, req, conversation, userId, gaId, importSessionId, {
+    runGptColumnMap: false,
+    duplicatePolicy:
+      options.duplicatePolicy ??
+      conversation.importContext?.duplicatePolicy ??
+      session.duplicatePolicy ??
+      CUSTOMER_IMPORT_DUPLICATE_POLICY.SKIP,
+  })
+}
+
+function getLatestOrCreateConversation(userId, gaId, importSessionId) {
+  const latest = getLatestAiConversationForUser(userId, gaId)
+  if (latest) {
+    return latest
+  }
+  return createAiConversation({ userId, gaId, importSessionId })
 }
