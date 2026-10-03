@@ -70,6 +70,7 @@ import { registerCustomerMapApi } from './apis/customerMapApi.js'
 import { registerCustomerRegionApi } from './apis/registerCustomerRegionApi.js'
 import { registerReminderCalendarApi } from './apis/registerReminderCalendarApi.js'
 import { registerAdminAiToolsApi } from './apis/adminAiToolsApi.js'
+import { registerCustomerImportApi } from './ai-assistant/customer-import/registerCustomerImportApi.js'
 import { registerServiceIntegrationsApi } from './apis/registerServiceIntegrationsApi.js'
 import { resolveCustomerAddressRegion } from './customers/addressRegion.js'
 import { registerPremiumPaymentApi } from './registerPremiumPaymentApi.js'
@@ -1723,6 +1724,13 @@ registerCustomerSpecialDatesApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCustomerRegionApi(apiRouter, { pool, requireAuth, handleDbError })
 registerReminderCalendarApi(apiRouter, { pool, requireAuth, handleDbError })
 registerAdminAiToolsApi(apiRouter, { requireAuth, requireSuperAdmin })
+registerCustomerImportApi(apiRouter, {
+  pool,
+  requireAuth,
+  requireInsuranceFormUserId,
+  parseGaId,
+  handleDbError,
+})
 registerServiceIntegrationsApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCustomerCustomFieldsApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCustomerFireInsuranceLocationsApi(apiRouter, { pool, requireAuth, handleDbError })

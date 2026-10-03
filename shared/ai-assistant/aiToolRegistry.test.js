@@ -15,6 +15,8 @@ describe('AI Tool Registry SSOT', () => {
     assert.ok(tools.length >= 100)
     const keys = new Set(tools.map((t) => t.key))
     assert.equal(keys.size, tools.length)
+    const implemented = tools.filter((t) => t.implementationStatus === 'IMPLEMENTED')
+    assert.equal(implemented.length, 8)
   })
 
   it('summary counts match registry', () => {
