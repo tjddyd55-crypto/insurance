@@ -5,6 +5,7 @@
 - **Customer Import Session** (`server/ai-assistant/customer-import/sessionStore.js`)
 - **AI Conversation** (`server/ai-assistant/conversation/conversationStore.js`)
 - **Pending import commit** (`server/ai-assistant/confirmation/confirmationService.js`)
+- **Import analysis job** (`server/ai-assistant/customer-import/importAnalysisJobStore.js`) — unstructured semantic + preview pipeline progress (in-memory, DEV single replica)
 
 These stores are process-local `Map` instances with TTL. They are acceptable on Railway **Development** when the app runs as a **single replica**.
 

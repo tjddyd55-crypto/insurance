@@ -87,6 +87,23 @@ async function executeTool(token, toolKey, input) {
   return api(token, 'POST', '/api/ai/customer-import/tools/execute', { toolKey, input })
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function waitForImportAnalysisJob(token, jobId, { timeoutMs = 900_000 } = {}) {
+  const started = Date.now()
+  let last
+  while (Date.now() - started < timeoutMs) {
+    last = await api(token, 'GET', `/api/ai/assistant/import-analysis-jobs/${jobId}`)
+    if (last.status === 'PREVIEW_READY' || last.status === 'FAILED') {
+      return last
+    }
+    await sleep(2000)
+  }
+  throw new Error(`job timeout jobId=${jobId} last=${last?.status ?? 'unknown'}`)
+}
+
 async function main() {
   const health = await fetch(`${BASE}/api/health`)
   console.log('[e2e] health', health.status)
@@ -102,11 +119,15 @@ async function main() {
   const analyze = await api(token, 'POST', '/api/ai/customer-import/sessions', form)
   const importSessionId = analyze.importSessionId
 
-  const extract = await executeTool(token, 'customer.import.unstructured-extract', { importSessionId })
-  const stats = extract.stats ?? {}
-  await executeTool(token, 'customer.import.normalize', { importSessionId })
-  await executeTool(token, 'customer.import.duplicate-check', { importSessionId })
-  await executeTool(token, 'customer.import.validation', { importSessionId })
+  const jobStartMs = Date.now()
+  const jobStart = await api(token, 'POST', `/api/ai/assistant/import-sessions/${importSessionId}/analyze`, {})
+  console.log('[e2e] job_create_ms', Date.now() - jobStartMs, 'jobId', jobStart.jobId)
+  const job = await waitForImportAnalysisJob(token, jobStart.jobId)
+  console.log('[e2e] job_total_ms', Date.now() - jobStartMs, 'status', job.status)
+  if (job.status === 'FAILED') {
+    throw new Error(`analysis job failed: ${job.error?.code ?? 'unknown'}`)
+  }
+  const stats = job.stats?.unstructured ?? {}
   const preview = await executeTool(token, 'customer.import.preview', { importSessionId })
   const summary = preview.summary ?? {}
   const rows = preview.rows ?? []
@@ -121,6 +142,7 @@ async function main() {
     extractedRecords: rows.length,
     deterministicOnlyResolved: stats.deterministicOnlyResolved,
     semanticGptEligible: stats.semanticGptEligible,
+    semanticGptPlanned: stats.semanticGptPlanned,
     semanticGptAttempts: stats.semanticGptAttempts,
     semanticGptSucceeded: stats.semanticGptSucceeded,
     semanticGptFailed: stats.semanticGptFailed,
@@ -134,8 +156,8 @@ async function main() {
     autoEligible: quality.autoTotal,
     plannedCreate: summary.plannedCreate,
     plannedSkip: summary.plannedSkip,
-    openAiCalls: extract.openAiCalls,
-    gptUsed: extract.gptUsed,
+    jobWarning: job.warning,
+    jobProgress: job.progress,
     fieldQuality: quality,
     commitPerformed: false,
   }

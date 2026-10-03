@@ -7,6 +7,7 @@ import { useAiPageContext, useAiSecretary } from '../context/AiSecretaryContext'
 import {
   confirmAiImportCommit,
   fetchImportMapping,
+  fetchImportAnalysisJob,
   fetchLatestAiConversation,
   sendAiAssistantMessage,
   updateImportMapping,
@@ -65,9 +66,77 @@ export default function AiSecretaryWorkspace({ variant, onClose }: Props) {
   const [issueRows, setIssueRows] = useState<
     Extract<AiAssistantMessage, { kind: 'import_preview_card' }>['issueRows']
   >([])
+  const jobPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const isGaDesigner =
     user?.role === 'USER' || user?.role === 'GA_ADMIN' || user?.role === 'GA_STAFF'
+
+  const stopJobPolling = useCallback(() => {
+    if (jobPollRef.current) {
+      clearInterval(jobPollRef.current)
+      jobPollRef.current = null
+    }
+  }, [])
+
+  const refreshConversation = useCallback(async () => {
+    if (!token) {
+      return
+    }
+    const res = await fetchLatestAiConversation(token)
+    const conv = res.conversation
+    if (!conv) {
+      return
+    }
+    setConversationId(conv.conversationId)
+    if (conv.importSessionId) {
+      setImportSessionId(conv.importSessionId)
+    }
+    if (Array.isArray(conv.messages) && conv.messages.length > 0) {
+      setMessages(conv.messages)
+    }
+  }, [token])
+
+  const startJobPolling = useCallback(
+    (jobId: string) => {
+      if (!token) {
+        return
+      }
+      stopJobPolling()
+      setBusy(true)
+      jobPollRef.current = setInterval(() => {
+        void (async () => {
+          try {
+            const job = await fetchImportAnalysisJob(token, jobId)
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.kind === 'import_analysis_progress' && m.jobId === jobId
+                  ? {
+                      ...m,
+                      status: job.status,
+                      displayPhase: job.displayPhase,
+                      progress: job.progress,
+                    }
+                  : m,
+              ),
+            )
+            if (job.status === 'PREVIEW_READY' || job.status === 'FAILED') {
+              stopJobPolling()
+              await refreshConversation()
+              setBusy(false)
+              if (job.status === 'FAILED') {
+                setError(job.error?.message ?? '고객자료 분석에 실패했습니다.')
+              }
+            }
+          } catch (e) {
+            stopJobPolling()
+            setBusy(false)
+            setError(e instanceof Error ? e.message : '분석 상태 조회 실패')
+          }
+        })()
+      }, 1500)
+    },
+    [refreshConversation, stopJobPolling, token],
+  )
 
   useEffect(() => {
     if (!token || !isGaDesigner) {
@@ -86,9 +155,14 @@ export default function AiSecretaryWorkspace({ variant, onClose }: Props) {
         if (Array.isArray(conv.messages) && conv.messages.length > 0) {
           setMessages(conv.messages)
         }
+        const activeJobId = (conv.importContext as { activeAnalysisJobId?: string } | null)?.activeAnalysisJobId
+        if (activeJobId) {
+          startJobPolling(activeJobId)
+        }
       })
       .catch(() => undefined)
-  }, [token, isGaDesigner])
+    return () => stopJobPolling()
+  }, [token, isGaDesigner, startJobPolling, stopJobPolling])
 
   async function handleSend(forcedText?: string) {
     if (!token || busy) {
@@ -111,6 +185,9 @@ export default function AiSecretaryWorkspace({ variant, onClose }: Props) {
       })
       setConversationId(res.conversationId)
       setMessages((prev) => [...prev, ...res.messages])
+      if (res.analysisJobId) {
+        startJobPolling(res.analysisJobId)
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : '전송 실패')
     } finally {
@@ -374,6 +451,26 @@ export default function AiSecretaryWorkspace({ variant, onClose }: Props) {
                 </dl>
                 {msg.customerListPath ? (
                   <Link className="ai-secretary-link" to={msg.customerListPath}>등록된 고객 보기</Link>
+                ) : null}
+              </div>
+            )
+          }
+          if (msg.kind === 'import_analysis_progress') {
+            const p = msg.progress ?? {}
+            const planned = p.semanticGptPlanned ?? 0
+            const attempts = p.semanticGptAttempts ?? 0
+            const blocks = p.totalBlocks ?? 0
+            return (
+              <div key={index} className="ai-secretary-card ai-secretary-card--progress">
+                <strong>{msg.text}</strong>
+                <p className="ai-secretary-status">{msg.displayPhase ?? '분석 중…'}</p>
+                {blocks > 0 ? (
+                  <p className="ai-secretary-card__meta">✓ {blocks}개 데이터 블록 확인</p>
+                ) : null}
+                {planned > 0 ? (
+                  <p className="ai-secretary-card__meta">
+                    AI 의미 분석 {attempts} / {planned}
+                  </p>
                 ) : null}
               </div>
             )

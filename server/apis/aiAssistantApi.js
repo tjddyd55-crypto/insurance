@@ -10,6 +10,11 @@ import { applyImportSessionMappingAndPreview, processAiAssistantMessage } from '
 import { buildMappingRowsForUi } from '../ai-assistant/importPreviewRunner.js'
 import { CUSTOMER_IMPORT_FIELD_KEYS } from '../../shared/ai-assistant/customer-import/fieldDictionary.js'
 import { CUSTOMER_IMPORT_FIELD_LABELS_KO } from '../../shared/ai-assistant/customer-import/mappingEdit.js'
+import {
+  serializeImportAnalysisJob,
+  startImportAnalysisJob,
+} from '../ai-assistant/customer-import/importAnalysisJobService.js'
+import { getImportAnalysisJob } from '../ai-assistant/customer-import/importAnalysisJobStore.js'
 import { getCustomerImportSession } from '../ai-assistant/customer-import/sessionStore.js'
 import { updateAiConversation } from '../ai-assistant/conversation/conversationStore.js'
 import { consumePendingImportCommit } from '../ai-assistant/confirmation/confirmationService.js'
@@ -155,6 +160,50 @@ export function registerAiAssistantApi(apiRouter, ctx) {
       }
     },
   )
+
+  apiRouter.post('/ai/assistant/import-sessions/:importSessionId/analyze', requireAuth, async (req, res) => {
+    try {
+      const ctxUser = assertGaDesignerContext(req, res)
+      if (!ctxUser) {
+        return
+      }
+      const importSessionId = String(req.params.importSessionId ?? '').trim()
+      const { job, created } = startImportAnalysisJob(pool, req, {
+        importSessionId,
+        conversationId: req.body?.conversationId,
+        duplicatePolicy: req.body?.duplicatePolicy,
+      })
+      res.status(created ? 202 : 200).json({
+        success: true,
+        jobId: job.jobId,
+        importSessionId,
+        status: job.status,
+        ...serializeImportAnalysisJob(job),
+      })
+    } catch (error) {
+      res.status(Number(error?.status) || 400).json({
+        code: error?.code ?? 'IMPORT_ANALYSIS_START_FAILED',
+        message: error instanceof Error ? error.message : '분석 시작 실패',
+      })
+    }
+  })
+
+  apiRouter.get('/ai/assistant/import-analysis-jobs/:jobId', requireAuth, (req, res) => {
+    const ctxUser = assertGaDesignerContext(req, res)
+    if (!ctxUser) {
+      return
+    }
+    try {
+      const jobId = String(req.params.jobId ?? '').trim()
+      const job = getImportAnalysisJob(jobId, ctxUser.userId, ctxUser.gaId)
+      res.json({ success: true, ...serializeImportAnalysisJob(job) })
+    } catch (error) {
+      res.status(Number(error?.status) || 400).json({
+        code: error?.code ?? 'IMPORT_ANALYSIS_JOB_READ_FAILED',
+        message: error instanceof Error ? error.message : '조회 실패',
+      })
+    }
+  })
 
   apiRouter.post('/ai/assistant/messages', requireAuth, async (req, res) => {
     try {

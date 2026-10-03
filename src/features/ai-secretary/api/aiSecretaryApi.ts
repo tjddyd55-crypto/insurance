@@ -10,6 +10,37 @@ export type ImportMappingRow = {
   confidence: number | null
 }
 
+export type ImportAnalysisProgress = {
+  totalBlocks?: number
+  blocksProcessed?: number
+  semanticGptEligible?: number
+  semanticGptPlanned?: number
+  semanticGptAttempts?: number
+  semanticGptSucceeded?: number
+  semanticGptFailed?: number
+  semanticGptResolved?: number
+  semanticGptLowConfidence?: number
+  semanticGptSkippedByLimit?: number
+  semanticGptTimeout?: number
+}
+
+export type ImportAnalysisJobResponse = {
+  jobId: string
+  importSessionId: string
+  status: string
+  displayPhase?: string
+  progress?: ImportAnalysisProgress
+  stats?: Record<string, unknown>
+  warning?: string | null
+  error?: { code?: string; message?: string } | null
+  preview?: {
+    summary?: Record<string, number>
+    previewVersionHash?: string
+    confirmationId?: string
+    duplicatePolicy?: string
+  } | null
+}
+
 export type AiPageContext = {
   currentRoute: string
   currentEntityType: 'customer' | null
@@ -19,6 +50,16 @@ export type AiPageContext = {
 export type AiAssistantMessage =
   | { role: 'user' | 'assistant'; kind: 'text'; text: string }
   | { role: 'assistant'; kind: 'status'; text: string }
+  | {
+      role: 'assistant'
+      kind: 'import_analysis_progress'
+      text: string
+      jobId: string
+      importSessionId: string
+      status: string
+      displayPhase?: string
+      progress?: ImportAnalysisProgress
+    }
   | {
       role: 'assistant'
       kind: 'import_preview_card'
@@ -101,11 +142,33 @@ export async function sendAiAssistantMessage(
     pageContext?: AiPageContext
   },
 ) {
-  return apiRequest<{ conversationId: string; messages: AiAssistantMessage[] }>('/api/ai/assistant/messages', {
-    method: 'POST',
-    token,
-    body: JSON.stringify(body),
-  })
+  return apiRequest<{ conversationId: string; messages: AiAssistantMessage[]; analysisJobId?: string }>(
+    '/api/ai/assistant/messages',
+    {
+      method: 'POST',
+      token,
+      body: JSON.stringify(body),
+    },
+  )
+}
+
+export async function fetchImportAnalysisJob(token: string, jobId: string) {
+  return apiRequest<ImportAnalysisJobResponse>(`/api/ai/assistant/import-analysis-jobs/${jobId}`, { token })
+}
+
+export async function startImportAnalysisJob(
+  token: string,
+  importSessionId: string,
+  body?: { conversationId?: string; duplicatePolicy?: string },
+) {
+  return apiRequest<ImportAnalysisJobResponse>(
+    `/api/ai/assistant/import-sessions/${importSessionId}/analyze`,
+    {
+      method: 'POST',
+      token,
+      body: JSON.stringify(body ?? {}),
+    },
+  )
 }
 
 export async function fetchImportMapping(token: string, importSessionId: string) {

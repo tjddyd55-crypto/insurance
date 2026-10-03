@@ -5,6 +5,7 @@ import { validateMappedCustomerRow } from '../../../../shared/ai-assistant/custo
 import { cellToImportStringPreserveLines } from '../../../../shared/ai-assistant/customer-import/normalize.js'
 import { parseUnstructuredBlockToSemantic } from '../../../../shared/ai-assistant/customer-import/unstructured/semanticFieldExtract.js'
 import { isSemanticGptEligible } from '../../../../shared/ai-assistant/customer-import/unstructured/semanticFieldLocks.js'
+import { runBoundedConcurrency } from '../../../../shared/ai-assistant/customer-import/runBoundedConcurrency.js'
 import { scoreSemanticGptPriority } from '../../../../shared/ai-assistant/customer-import/unstructured/semanticGptPriority.js'
 import { buildImportRecordsFromSemantic } from './recordsFromSemantic.js'
 import { enrichSemanticWithGpt } from './semanticGptService.js'
@@ -23,6 +24,7 @@ function columnIndexToLetters(index) {
 function createEmptyGptStats() {
   return {
     semanticGptEligible: 0,
+    semanticGptPlanned: 0,
     semanticGptAttempts: 0,
     semanticGptSucceeded: 0,
     semanticGptFailed: 0,
@@ -36,6 +38,26 @@ function createEmptyGptStats() {
   }
 }
 
+function emitExtractProgress(onProgress, stats, extra = {}) {
+  if (!onProgress) {
+    return
+  }
+  onProgress({
+    totalBlocks: stats.blocksTotal,
+    blocksProcessed: stats.blocksTotal,
+    semanticGptEligible: stats.semanticGptEligible,
+    semanticGptPlanned: stats.semanticGptPlanned,
+    semanticGptAttempts: stats.semanticGptAttempts,
+    semanticGptSucceeded: stats.semanticGptSucceeded,
+    semanticGptFailed: stats.semanticGptFailed,
+    semanticGptResolved: stats.semanticGptResolved,
+    semanticGptLowConfidence: stats.semanticGptLowConfidence,
+    semanticGptSkippedByLimit: stats.semanticGptSkippedByLimit,
+    semanticGptTimeout: stats.semanticGptTimeout,
+    ...extra,
+  })
+}
+
 function isSkippedNonCustomerCell(text) {
   return /^(경정청구|보험|메모|계좌)/.test(text) && !/01[016789]/.test(text) && !/이름|성명|고객명/.test(text)
 }
@@ -43,8 +65,12 @@ function isSkippedNonCustomerCell(text) {
 /**
  * @param {import('../sessionTypes.js').CustomerImportSession} session
  * @param {import('node:process')} [env]
+ * @param {{ onProgress?: (progress: object) => void }} [options]
  */
-export async function runUnstructuredCellExtract(session, env = process.env) {
+export async function runUnstructuredCellExtract(session, env = process.env, options = {}) {
+  const onProgress = options.onProgress
+  const gptConcurrency =
+    Number(env.SEMANTIC_GPT_CONCURRENCY) > 0 ? Number(env.SEMANTIC_GPT_CONCURRENCY) : 3
   const sheetName = session.selectedSheetName ?? session.sheets[0]?.name
   const sheet = session.sheets.find((s) => s.name === sheetName)
   if (!sheet) {
@@ -107,22 +133,26 @@ export async function runUnstructuredCellExtract(session, env = process.env) {
 
   /** @type {Map<string, { semantic: import('../../../../shared/ai-assistant/customer-import/unstructured/semanticFieldExtract.js').UnstructuredSemanticRecord, gptWarnings: string[], blockGptUsed: boolean }>} */
   const gptByBlockKey = new Map()
-  let gptCallsUsed = 0
   let openAiCalls = 0
   let gptUsed = false
 
-  for (const item of gptOrder) {
-    if (gptCallsUsed >= maxGptCalls) {
-      stats.semanticGptSkippedByLimit += 1
-      item.semantic.needsSemanticReview = true
-      gptByBlockKey.set(item.blockKey, {
-        semantic: item.semantic,
-        gptWarnings: ['SEMANTIC_GPT_CALL_CAP', 'REVIEW_REQUIRED'],
-        blockGptUsed: false,
-      })
-      continue
-    }
+  const gptPlannedItems = gptOrder.slice(0, maxGptCalls)
+  const gptSkippedItems = gptOrder.slice(maxGptCalls)
+  stats.semanticGptPlanned = gptPlannedItems.length
+  stats.semanticGptSkippedByLimit = gptSkippedItems.length
 
+  for (const item of gptSkippedItems) {
+    item.semantic.needsSemanticReview = true
+    gptByBlockKey.set(item.blockKey, {
+      semantic: item.semantic,
+      gptWarnings: ['SEMANTIC_GPT_CALL_CAP', 'REVIEW_REQUIRED'],
+      blockGptUsed: false,
+    })
+  }
+
+  emitExtractProgress(onProgress, stats)
+
+  await runBoundedConcurrency(gptPlannedItems, gptConcurrency, async (item) => {
     stats.semanticGptAttempts += 1
     const gpt = await enrichSemanticWithGpt(item.semantic, item.text, env)
     const gptWarnings = [...(gpt.warnings ?? [])]
@@ -133,7 +163,6 @@ export async function runUnstructuredCellExtract(session, env = process.env) {
       if (gpt.succeeded) {
         gptUsed = true
         blockGptUsed = true
-        gptCallsUsed += 1
         openAiCalls += 1
         stats.semanticGptCalls += 1
         stats.semanticGptSucceeded += 1
@@ -159,7 +188,9 @@ export async function runUnstructuredCellExtract(session, env = process.env) {
     }
 
     gptByBlockKey.set(item.blockKey, { semantic, gptWarnings, blockGptUsed })
-  }
+    emitExtractProgress(onProgress, stats)
+    return null
+  })
 
   /** @type {Array<object>} */
   const rawRecords = []

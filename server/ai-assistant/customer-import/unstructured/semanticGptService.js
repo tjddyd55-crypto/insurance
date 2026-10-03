@@ -65,6 +65,9 @@ export async function enrichSemanticWithGpt(semantic, sourceText, env = process.
     .filter(([, v]) => v)
     .map(([k]) => k)
 
+  const maxRetries =
+    Number(env.SEMANTIC_GPT_OPENAI_MAX_RETRIES) >= 0 ? Number(env.SEMANTIC_GPT_OPENAI_MAX_RETRIES) : 2
+
   const userPayload = JSON.stringify({
     allowedSemanticFields: SEMANTIC_FIELD_KEYS,
     lockedFields,
@@ -82,14 +85,37 @@ export async function enrichSemanticWithGpt(semantic, sourceText, env = process.
   })
 
   try {
-    const { outputText, usage } = await callOpenAiResponses(
-      {
-        developerInstructions: SEMANTIC_GPT_SYSTEM,
-        userInput: userPayload,
-        jsonSchema: SEMANTIC_GPT_JSON_SCHEMA,
-      },
-      env,
-    )
+    let outputText
+    let usage
+    let lastError
+    for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+      try {
+        const response = await callOpenAiResponses(
+          {
+            developerInstructions: SEMANTIC_GPT_SYSTEM,
+            userInput: userPayload,
+            jsonSchema: SEMANTIC_GPT_JSON_SCHEMA,
+          },
+          env,
+        )
+        outputText = response.outputText
+        usage = response.usage
+        lastError = null
+        break
+      } catch (error) {
+        lastError = error
+        const retryable =
+          error?.code === 'OPENAI_RATE_LIMIT' ||
+          (Number(error?.status) >= 500 && Number(error?.status) < 600)
+        if (!retryable || attempt >= maxRetries) {
+          throw error
+        }
+        await new Promise((resolve) => setTimeout(resolve, 450 * (attempt + 1)))
+      }
+    }
+    if (lastError) {
+      throw lastError
+    }
     let parsed
     try {
       parsed = JSON.parse(outputText)

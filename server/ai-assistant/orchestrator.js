@@ -16,10 +16,12 @@ import {
   parseDuplicatePolicyIntent,
   parseMappingChangeIntent,
 } from './followUpIntent.js'
+import { startImportAnalysisJob } from './customer-import/importAnalysisJobService.js'
 import {
   buildPreviewCardPayload,
   runImportPreviewPipeline,
 } from './importPreviewRunner.js'
+import { IMPORT_ANALYSIS_JOB_DISPLAY } from '../../shared/ai-assistant/customer-import/importAnalysisJobConstants.js'
 import { isToolCallableByOrchestrator } from './toolRegistryAdapter.js'
 import { loadAiToolRegistry } from '../../shared/ai-assistant/registry.js'
 
@@ -265,6 +267,26 @@ export async function processAiAssistantMessage(pool, req, input) {
       }
       appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
       return { conversationId: conversation.conversationId, messages: [reply] }
+    }
+
+    if (session.importSourceMode === CUSTOMER_IMPORT_SOURCE_MODE.UNSTRUCTURED_CELL_RECORDS) {
+      const { job } = startImportAnalysisJob(pool, req, {
+        importSessionId,
+        conversationId: conversation.conversationId,
+        duplicatePolicy: duplicatePolicyFromContext,
+      })
+      const progressCard = {
+        role: 'assistant',
+        kind: 'import_analysis_progress',
+        text: '고객자료를 분석하고 있습니다.',
+        jobId: job.jobId,
+        importSessionId,
+        status: job.status,
+        displayPhase: IMPORT_ANALYSIS_JOB_DISPLAY[job.status] ?? job.status,
+        progress: job.progress ?? {},
+      }
+      appendAiConversationMessage(conversation.conversationId, userId, gaId, progressCard)
+      return { conversationId: conversation.conversationId, messages: [progressCard], analysisJobId: job.jobId }
     }
 
     const progress = {

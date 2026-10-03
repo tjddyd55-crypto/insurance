@@ -104,7 +104,10 @@ export async function runImportPreviewPipeline(pool, req, importSessionId, optio
 
   const stages = []
 
-  if (session.importSourceMode === CUSTOMER_IMPORT_SOURCE_MODE.UNSTRUCTURED_CELL_RECORDS) {
+  if (
+    session.importSourceMode === CUSTOMER_IMPORT_SOURCE_MODE.UNSTRUCTURED_CELL_RECORDS &&
+    options.skipUnstructuredExtract !== true
+  ) {
     stages.push({ stage: 'extract', label: '비정형 고객 정보를 분석하고 있어요', status: 'ok' })
     await executeCustomerImportTool(pool, req, CUSTOMER_IMPORT_TOOL_KEYS.UNSTRUCTURED_EXTRACT, {
       importSessionId,
