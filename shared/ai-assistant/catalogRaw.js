@@ -1,0 +1,178 @@
+/**
+ * Master AI Tool catalog (compact tuples).
+ * [key, name, description, actionType, baseFeatureStatus, overrides?]
+ *
+ * overrides: { serviceBinding?, riskLevel?, requiredPermission?, requiresConfirmation?, phase?, priority?, implementationStatus?, qaStatus?, productionEnabled? }
+ */
+
+function section(category, phase, tools) {
+  return tools.map((row) => {
+    const [key, name, description, actionType, baseFeatureStatus, overrides = {}] = row
+    return { category, phase, key, name, description, actionType, baseFeatureStatus, ...overrides }
+  })
+}
+
+/** @type {import('./registry.js').AiToolDefinitionInput[]} */
+export const AI_TOOL_CATALOG_RAW = [
+  ...section('AI_CORE', 0, [
+    ['ai.session', 'AI 세션', '사용자 AI 대화·명령 세션 생성·유지', 'CREATE', 'NOT_AVAILABLE'],
+    ['ai.context.current-screen', '현재 화면 컨텍스트', '현재 ONE FC 화면·선택 엔티티를 AI 컨텍스트로 제공', 'READ', 'NOT_AVAILABLE'],
+    ['ai.command.parse', '명령 파싱', '자연어·음성·파일 명령을 구조화된 intent 로 변환', 'READ', 'NOT_AVAILABLE'],
+    ['ai.tool.execute', 'Tool 실행', '등록된 Tool 을 Orchestrator 경로로 실행', 'EXTERNAL_ACTION', 'NOT_AVAILABLE'],
+    ['ai.multi-step', '다단계 작업', '여러 Tool 을 순서대로 조합 실행', 'EXTERNAL_ACTION', 'NOT_AVAILABLE'],
+    ['ai.result.present', '결과 표시', '업무 실행 결과를 사용자에게 요약·표시', 'READ', 'NOT_AVAILABLE'],
+    ['ai.confirmation', '사용자 확인', '위험 작업 전 명시적 확인 수집', 'READ', 'NOT_AVAILABLE'],
+    ['ai.audit', 'AI 감사 로그', 'Tool 실행·명령을 감사 가능 형태로 기록', 'CREATE', 'PARTIAL', { serviceBinding: 'security_audit_logs (확장 예정)' }],
+    ['ai.error.recovery', '오류 복구', '실패 시 재시도·대안 제안', 'READ', 'NOT_AVAILABLE'],
+  ]),
+  ...section('VOICE', 0, [
+    ['voice.microphone', '마이크 입력', '음성 명령용 마이크 캡처', 'READ', 'NOT_AVAILABLE'],
+    ['voice.stt', '음성 인식', 'STT 로 텍스트 변환', 'READ', 'NOT_AVAILABLE'],
+    ['voice.end-of-speech', '발화 종료 감지', '말하기 종료 시점 감지', 'READ', 'NOT_AVAILABLE'],
+    ['voice.command.execute', '음성 명령 실행', '음성으로 파싱된 명령 실행', 'EXTERNAL_ACTION', 'NOT_AVAILABLE'],
+  ]),
+  ...section('FILE', 0, [
+    ['file.attach', '파일 첨부', 'AI 명령에 파일 첨부', 'CREATE', 'NOT_AVAILABLE'],
+    ['file.inspect', '파일 검사', '첨부 파일 유형·크기 검사', 'READ', 'NOT_AVAILABLE'],
+    ['file.excel.read', 'Excel 읽기', 'Excel 시트·셀 데이터 읽기', 'READ', 'PARTIAL', { serviceBinding: 'server/lib/gaCustomerExcelParse.js' }],
+    ['file.csv.read', 'CSV 읽기', 'CSV 파싱', 'READ', 'NOT_AVAILABLE'],
+    ['file.sheet.list', '시트 목록', 'Excel 워크북 시트 목록', 'READ', 'PARTIAL', { serviceBinding: 'parseGaExcelMatrix (gaCustomerExcel)' }],
+    ['file.preview', '파일 미리보기', '첨부 파일 미리보기', 'READ', 'NOT_AVAILABLE'],
+  ]),
+  ...section('CUSTOMER', 2, [
+    ['customer.search', '고객 검색', '이름·연락처 등으로 고객 검색', 'READ', 'AVAILABLE', { serviceBinding: 'GET /api/customers/search' }],
+    ['customer.get', '고객 상세', '고객 ID 로 상세 조회', 'READ', 'AVAILABLE', { serviceBinding: 'GET /api/customers/:id' }],
+    ['customer.list', '고객 목록', '고객 리스트 조회', 'READ', 'AVAILABLE', { serviceBinding: 'GET /api/customers' }],
+    ['customer.create', '고객 등록', '신규 고객 생성', 'CREATE', 'AVAILABLE', { serviceBinding: 'POST /api/customers' }],
+    ['customer.update', '고객 수정', '고객 정보 수정', 'UPDATE', 'AVAILABLE', { serviceBinding: 'PUT /api/customers/:id' }],
+    ['customer.duplicate-check', '고객 중복 검사', '이름·연락처·주민번호 등 중복 검사', 'READ', 'PARTIAL', { serviceBinding: 'gaCustomerExcelApi / gaCustomerMatchAliases' }],
+    ['customer.label.add', '고객 라벨 추가', '고객 라벨·태그 추가', 'UPDATE', 'PARTIAL'],
+    ['customer.label.remove', '고객 라벨 제거', '고객 라벨·태그 제거', 'UPDATE', 'PARTIAL'],
+    ['customer.filter', '고객 필터', '고급 필터·타겟 조건 조회', 'READ', 'PARTIAL', { serviceBinding: 'shared/customerTargetFilters.js' }],
+  ]),
+  ...section('CUSTOMER_IMPORT', 1, [
+    ['customer.import.file-analyze', '가져오기 파일 분석', 'Excel/CSV 구조·컬럼 분석', 'READ', 'PARTIAL', { serviceBinding: 'gaCustomerExcelApi (parse)' }],
+    ['customer.import.sheet-select', '시트 선택', '가져올 시트 선택', 'READ', 'PARTIAL', { serviceBinding: 'gaCustomerExcelApi' }],
+    ['customer.import.column-map', '컬럼 매핑', 'CRM 필드 자동·수동 매핑', 'UPDATE', 'NOT_AVAILABLE'],
+    ['customer.import.normalize', '데이터 정규화', '전화번호·날짜 등 정규화', 'UPDATE', 'PARTIAL', { serviceBinding: 'gaCustomerExcelApi normalize helpers' }],
+    ['customer.import.duplicate-check', '가져오기 중복 검사', '기존 고객과 중복 검사', 'READ', 'PARTIAL', { serviceBinding: 'gaCustomerMatchAliasesApi' }],
+    ['customer.import.validation', '가져오기 검증', '필수값·형식 검증', 'READ', 'PARTIAL', { serviceBinding: 'gaCustomerExcelApi' }],
+    ['customer.import.preview', '가져오기 미리보기', '등록 전 미리보기', 'READ', 'PARTIAL', { serviceBinding: 'gaCustomerExcelApi' }],
+    ['customer.import.commit', '가져오기 반영', '검증된 고객 일괄 등록', 'CREATE', 'PARTIAL', { serviceBinding: 'gaCustomerExcelApi commit paths' }],
+    ['customer.import.failure-report', '가져오기 실패 보고', '실패 행·사유 리포트', 'READ', 'PARTIAL', { serviceBinding: 'gaCustomerExcelApi' }],
+    ['customer.import.mapping-memory', '매핑 기억', '사용자별 컬럼 매핑 패턴 저장', 'CREATE', 'NOT_AVAILABLE'],
+  ]),
+  ...section('CONSULTATION', 3, [
+    ['consultation.search', '상담 검색', '상담 내용·고객 기준 검색', 'READ', 'AVAILABLE', { serviceBinding: 'GET /api/customers/:id/consultations' }],
+    ['consultation.list', '상담 목록', '고객·기간별 상담 목록', 'READ', 'AVAILABLE', { serviceBinding: 'customerConsultationListQuery' }],
+    ['consultation.get', '상담 상세', '상담 단건 조회', 'READ', 'AVAILABLE'],
+    ['consultation.recent', '최근 상담', '고객 최근 상담 요약', 'READ', 'AVAILABLE'],
+    ['consultation.summarize', '상담 요약', 'AI 상담 요약 (모델 연동 예정)', 'READ', 'NOT_AVAILABLE'],
+    ['consultation.create', '상담 등록', '신규 상담 기록', 'CREATE', 'AVAILABLE'],
+    ['consultation.update', '상담 수정', '상담 내용 수정', 'UPDATE', 'AVAILABLE'],
+  ]),
+  ...section('MEMO', 3, [
+    ['memo.search', '메모 검색', '메모 검색', 'READ', 'PARTIAL'],
+    ['memo.list', '메모 목록', '고객·업무 메모 목록', 'READ', 'PARTIAL'],
+    ['memo.create', '메모 작성', '메모 생성', 'CREATE', 'PARTIAL'],
+    ['memo.update', '메모 수정', '메모 수정', 'UPDATE', 'PARTIAL'],
+  ]),
+  ...section('TASK', 4, [
+    ['task.list', '할일 목록', '할일·Todo 목록', 'READ', 'AVAILABLE', { serviceBinding: 'registerTodosApi' }],
+    ['task.search', '할일 검색', '할일 검색', 'READ', 'AVAILABLE', { serviceBinding: 'registerTodosApi' }],
+    ['task.create', '할일 생성', '신규 할일', 'CREATE', 'AVAILABLE', { serviceBinding: 'registerTodosApi' }],
+    ['task.update', '할일 수정', '할일 수정', 'UPDATE', 'AVAILABLE', { serviceBinding: 'registerTodosApi' }],
+    ['task.complete', '할일 완료', '할일 완료 처리', 'UPDATE', 'AVAILABLE', { serviceBinding: 'registerTodosApi' }],
+    ['task.delete', '할일 삭제', '할일 삭제', 'DELETE', 'AVAILABLE', { serviceBinding: 'registerTodosApi' }],
+  ]),
+  ...section('SCHEDULE', 4, [
+    ['schedule.list', '일정 목록', '일정·캘린더 항목 목록', 'READ', 'AVAILABLE', { serviceBinding: 'GET /api/reminders/calendar' }],
+    ['schedule.search', '일정 검색', '일정 검색', 'READ', 'PARTIAL', { serviceBinding: 'calendar_items schema' }],
+    ['schedule.create', '일정 생성', '신규 일정', 'CREATE', 'PARTIAL', { serviceBinding: 'calendar_items' }],
+    ['schedule.update', '일정 수정', '일정 수정', 'UPDATE', 'PARTIAL'],
+    ['schedule.cancel', '일정 취소', '일정 취소', 'UPDATE', 'PARTIAL'],
+    ['schedule.customer-link', '일정-고객 연결', '일정에 고객 연결', 'UPDATE', 'PARTIAL'],
+  ]),
+  ...section('GOOGLE_CALENDAR', 5, [
+    ['google-calendar.connection.status', 'Google 연동 상태', 'Google Calendar 연동 상태 조회', 'READ', 'PARTIAL', { serviceBinding: 'server/integrations/integrationStore.js' }],
+    ['google-calendar.connect', 'Google 연동', 'OAuth 연동 시작', 'EXTERNAL_ACTION', 'PARTIAL', { serviceBinding: 'service-integrations UI' }],
+    ['google-calendar.disconnect', 'Google 연동 해제', '연동 해제', 'DELETE', 'PARTIAL'],
+    ['google-calendar.events.list', 'Google 일정 목록', 'Google Calendar 이벤트 목록', 'READ', 'NOT_AVAILABLE'],
+    ['google-calendar.event.create', 'Google 일정 생성', 'Google Calendar 이벤트 생성', 'EXTERNAL_ACTION', 'NOT_AVAILABLE'],
+    ['google-calendar.event.update', 'Google 일정 수정', 'Google Calendar 이벤트 수정', 'EXTERNAL_ACTION', 'NOT_AVAILABLE'],
+    ['google-calendar.event.delete', 'Google 일정 삭제', 'Google Calendar 이벤트 삭제', 'DELETE', 'NOT_AVAILABLE'],
+    ['google-calendar.sync', 'Google 동기화', 'ONE FC ↔ Google 동기화', 'EXTERNAL_ACTION', 'NOT_AVAILABLE'],
+  ]),
+  ...section('CLAIM', 6, [
+    ['claim.search', '청구 검색', '청구 건 검색', 'READ', 'PARTIAL'],
+    ['claim.list', '청구 목록', '청구 목록 조회', 'READ', 'PARTIAL'],
+    ['claim.get', '청구 상세', '청구 단건 조회', 'READ', 'PARTIAL'],
+    ['claim.pending', '미결 청구', '진행 중·대기 청구', 'READ', 'PARTIAL'],
+    ['claim.status-filter', '청구 상태 필터', '상태별 청구 필터', 'READ', 'PARTIAL'],
+  ]),
+  ...section('CONTRACT', 6, [
+    ['contract.search', '계약 검색', '계약 검색', 'READ', 'PARTIAL', { serviceBinding: 'registerContractAdminApi / contractUserApi' }],
+    ['contract.list', '계약 목록', '고객·GA 계약 목록', 'READ', 'PARTIAL', { serviceBinding: 'contractUserApi' }],
+    ['contract.get', '계약 상세', '계약 단건', 'READ', 'PARTIAL'],
+    ['contract.by-insurer', '보험사별 계약', '원수사별 계약 조회', 'READ', 'PARTIAL'],
+    ['contract.expiring', '만기 임박 계약', '만기 도래 계약', 'READ', 'PARTIAL'],
+    ['contract.payment-targets', '결제 대상', '이번 달 카드·이체 결제 대상', 'READ', 'PARTIAL', { serviceBinding: 'registerPremiumPaymentApi' }],
+  ]),
+  ...section('COVERAGE', 0, [
+    ['coverage.get', '보장 조회', '보장분석·시뮬레이션 조회', 'READ', 'AVAILABLE', { serviceBinding: 'coverage-simulator APIs' }],
+    ['coverage.scenario.list', '시나리오 목록', '보장 시뮬레이션 시나리오 목록', 'READ', 'AVAILABLE'],
+    ['coverage.analysis.get', '보장 분석', '보장 분석 결과', 'READ', 'AVAILABLE'],
+  ]),
+  ...section('SMS', 7, [
+    ['sms.draft', '문자 초안', '문자 발송 초안 작성', 'CREATE', 'PARTIAL', { serviceBinding: 'server/sms/*' }],
+    ['sms.recipient.select', '수신자 선택', '문자 수신 고객 선택', 'READ', 'PARTIAL', { serviceBinding: 'smsRecipientSearchService' }],
+    ['sms.preview', '문자 미리보기', '발송 전 미리보기', 'READ', 'PARTIAL'],
+    ['sms.send', '문자 발송', '실제 SMS 발송', 'SEND', 'PARTIAL', { riskLevel: 'HIGH', requiresConfirmation: true }],
+    ['sms.schedule', '문자 예약', '예약 발송', 'SEND', 'PARTIAL', { riskLevel: 'HIGH', requiresConfirmation: true }],
+  ]),
+  ...section('ALIMTALK', 7, [
+    ['alimtalk.template.list', '알림톡 템플릿', '알림톡 템플릿 목록', 'READ', 'PARTIAL'],
+    ['alimtalk.preview', '알림톡 미리보기', '발송 전 미리보기', 'READ', 'PARTIAL'],
+    ['alimtalk.send', '알림톡 발송', '알림톡 실제 발송', 'SEND', 'PARTIAL', { riskLevel: 'HIGH', requiresConfirmation: true }],
+  ]),
+  ...section('DOCUMENT', 8, [
+    ['document.search', '문서 검색', '문서·파일 검색', 'READ', 'PARTIAL'],
+    ['document.list', '문서 목록', '문서 목록', 'READ', 'PARTIAL'],
+    ['document.get', '문서 상세', '문서 단건', 'READ', 'PARTIAL'],
+    ['document.classify', '문서 분류', 'AI 문서 분류 (예정)', 'READ', 'NOT_AVAILABLE'],
+  ]),
+  ...section('ESIGN', 8, [
+    ['esign.document.get', '전자서명 문서', '전자서명 문서 조회', 'READ', 'PARTIAL', { serviceBinding: 'contracts/signatures' }],
+    ['esign.request.create', '전자서명 요청', '전자서명 발송 요청', 'CREATE', 'PARTIAL'],
+    ['esign.status.get', '전자서명 상태', '서명 진행 상태', 'READ', 'PARTIAL'],
+  ]),
+  ...section('ACCOUNT_VAULT', 0, [
+    ['account-vault.company.list', '보험사 계정 목록', '등록된 보험사 계정(메타) 목록 — 비밀번호 미노출', 'READ', 'PARTIAL'],
+    ['account-vault.entry.exists', '계정 존재 확인', '특정 보험사 계정 등록 여부', 'READ', 'PARTIAL'],
+  ]),
+  ...section('DAILY_TA', 4, [
+    ['ta.today', '오늘의 TA', '오늘의 TA 목록', 'READ', 'AVAILABLE', { serviceBinding: 'TA call APIs' }],
+    ['ta.search', 'TA 검색', 'TA 검색', 'READ', 'PARTIAL'],
+    ['ta.customer.get', 'TA 고객 상세', 'TA 대상 고객 상세', 'READ', 'PARTIAL'],
+  ]),
+  ...section('REPORT', 0, [
+    ['report.today', '오늘 업무 요약', '오늘 할 일·일정·상담 요약', 'READ', 'NOT_AVAILABLE'],
+    ['report.week', '주간 요약', '주간 업무 요약', 'READ', 'NOT_AVAILABLE'],
+    ['report.customer', '고객 리포트', '고객 관련 요약', 'READ', 'NOT_AVAILABLE'],
+    ['report.consultation', '상담 리포트', '상담 활동 요약', 'READ', 'NOT_AVAILABLE'],
+    ['report.claim', '청구 리포트', '청구 활동 요약', 'READ', 'NOT_AVAILABLE'],
+    ['report.task', '할일 리포트', '할일 완료·미완 요약', 'READ', 'NOT_AVAILABLE'],
+  ]),
+  ...section('AI_MEMORY', 10, [
+    ['ai-memory.preference.get', '선호 조회', '사용자 AI 선호 설정 조회', 'READ', 'NOT_AVAILABLE'],
+    ['ai-memory.preference.save', '선호 저장', '사용자 AI 선호 저장', 'CREATE', 'NOT_AVAILABLE'],
+    ['ai-memory.import-mapping.get', '가져오기 매핑 조회', '저장된 import 매핑 조회', 'READ', 'NOT_AVAILABLE'],
+    ['ai-memory.import-mapping.save', '가져오기 매핑 저장', 'import 컬럼 매핑 저장', 'CREATE', 'NOT_AVAILABLE'],
+    ['ai-memory.correction.save', '수정 패턴 저장', 'AI 결과 사용자 수정 패턴 저장', 'CREATE', 'NOT_AVAILABLE'],
+  ]),
+  ...section('ORGANIZATION', 0, [
+    ['organization.context', '조직 컨텍스트', 'GA·조직 컨텍스트', 'READ', 'AVAILABLE', { serviceBinding: 'req.user gaId / tenant' }],
+    ['ga.context', 'GA 컨텍스트', 'GA 테넌트 컨텍스트', 'READ', 'AVAILABLE', { serviceBinding: 'parseGaId / ga isolation' }],
+    ['permission.check', '권한 검사', 'Tool 실행 전 권한·entitlement 검사', 'READ', 'AVAILABLE', { serviceBinding: 'featureEntitlementPolicy / requireAuth' }],
+  ]),
+]

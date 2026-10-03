@@ -69,6 +69,7 @@ import { normalizeBusinessInfoForDb } from './lib/customerBusinessInfo.js'
 import { registerCustomerMapApi } from './apis/customerMapApi.js'
 import { registerCustomerRegionApi } from './apis/registerCustomerRegionApi.js'
 import { registerReminderCalendarApi } from './apis/registerReminderCalendarApi.js'
+import { registerAdminAiToolsApi } from './apis/adminAiToolsApi.js'
 import { registerServiceIntegrationsApi } from './apis/registerServiceIntegrationsApi.js'
 import { resolveCustomerAddressRegion } from './customers/addressRegion.js'
 import { registerPremiumPaymentApi } from './registerPremiumPaymentApi.js'
@@ -1721,6 +1722,7 @@ registerCustomerCarsApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCustomerSpecialDatesApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCustomerRegionApi(apiRouter, { pool, requireAuth, handleDbError })
 registerReminderCalendarApi(apiRouter, { pool, requireAuth, handleDbError })
+registerAdminAiToolsApi(apiRouter, { requireAuth, requireSuperAdmin })
 registerServiceIntegrationsApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCustomerCustomFieldsApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCustomerFireInsuranceLocationsApi(apiRouter, { pool, requireAuth, handleDbError })

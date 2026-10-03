@@ -140,6 +140,9 @@ export function isActivePcNavigationPath(
   if (menuPathname === '/admin/audit-logs') {
     return pathname === '/admin/audit-logs'
   }
+  if (menuPathname === '/admin/ai-assistant/tools') {
+    return pathname === '/admin/ai-assistant/tools'
+  }
   if (menuPathname === '/insurance/insurer-sites') {
     return pathname === '/insurance/insurer-sites'
   }

@@ -403,6 +403,11 @@ function applyEntitlementBadgesForSession(
 
 const AUDIT_LOG_ENTRY: GaTenantMenuItem = { label: '보안 감사 로그', path: '/admin/audit-logs' }
 
+const AI_ASSISTANT_TOOLS_ENTRY: GaTenantMenuItem = {
+  label: '기능 연결 현황',
+  path: '/admin/ai-assistant/tools',
+}
+
 const CONTRACT_SIGNATURE_USER_SEND: GaTenantMenuItem = {
   label: '전자서명 발송',
   path: '/contracts/signatures/send',
@@ -517,6 +522,13 @@ function buildSuperAdminMenuEntries(): GaTenantDashboardMenuEntry[] {
   }
   entries.push({ type: 'section', label: '전자문서 / 서명 관리' })
   entries.push(...itemsToEntries(documentItems))
+
+  entries.push({ type: 'section', label: 'AI 비서 관리' })
+  entries.push(
+    ...itemsToEntries([
+      { label: AI_ASSISTANT_TOOLS_ENTRY.label, path: AI_ASSISTANT_TOOLS_ENTRY.path },
+    ]),
+  )
 
   entries.push({ type: 'section', label: '보험사 / 시스템 설정' })
   entries.push(

@@ -89,5 +89,11 @@ describe('buildAppMenuForSession — 역할별 메뉴 정책', () => {
     expect(labels).toContain('소식지 관리')
     expect(labels).toContain('결제·구독 관리')
     expect(labels).toContain('보안 감사 로그')
+    expect(labels).toContain('기능 연결 현황')
+  })
+
+  it('GA_ADMIN 에게 AI 비서 관리 메뉴를 노출하지 않는다', () => {
+    const labels = linkLabels(buildAppMenuForSession('GA_ADMIN', 'TEST', 'Test GA'))
+    expect(labels).not.toContain('기능 연결 현황')
   })
 })
