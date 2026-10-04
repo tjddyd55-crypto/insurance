@@ -107,11 +107,24 @@ export function startImportAnalysisJob(pool, req, input) {
     }
   }
 
+  const reqForJob = {
+    ...req,
+    user: {
+      ...(req.user ?? {}),
+      id: userId,
+      userId,
+      gaId,
+    },
+  }
+
   setImmediate(() => {
-    void executeImportAnalysisJob(pool, req, job.jobId).catch((error) => {
+    void executeImportAnalysisJob(pool, reqForJob, job.jobId).catch((error) => {
       updateImportAnalysisJob(job.jobId, {
         status: IMPORT_ANALYSIS_JOB_STATUS.FAILED,
-        error: { code: error?.code ?? 'IMPORT_ANALYSIS_FAILED', message: 'Analysis failed' },
+        error: {
+          code: error?.code ?? 'IMPORT_ANALYSIS_FAILED',
+          message: error instanceof Error ? error.message : 'Analysis failed',
+        },
         completedAt: new Date().toISOString(),
       })
     })
