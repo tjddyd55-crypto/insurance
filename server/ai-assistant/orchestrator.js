@@ -17,36 +17,18 @@ import {
   runImportPreviewPipeline,
 } from './importPreviewRunner.js'
 import { IMPORT_ANALYSIS_JOB_DISPLAY } from '../../shared/ai-assistant/customer-import/importAnalysisJobConstants.js'
-import { IMPORT_ORCHESTRATION_ACTION } from '../../shared/ai-assistant/orchestration/intentSchema.js'
-import { isToolCallableByOrchestrator } from './toolRegistryAdapter.js'
-import { loadAiToolRegistry } from '../../shared/ai-assistant/registry.js'
+import {
+  IMPORT_ORCHESTRATION_ACTION,
+  INTENT_DOMAIN,
+  TOP_LEVEL_ACTION,
+} from '../../shared/ai-assistant/orchestration/intentSchema.js'
+import { buildConversationOnlySnapshot } from './intent/buildConversationOnlySnapshot.js'
 import { buildIntentContextSnapshot } from './intent/buildIntentContextSnapshot.js'
 import { classifyUserIntent } from './intent/classifyUserIntent.js'
+import { generateGeneralChatResponse } from './intent/generateGeneralChatResponse.js'
 import { logIntentDecision } from './intent/logIntentDecision.js'
 import { resolveImportOrchestrationAction } from './intent/resolveImportOrchestrationAction.js'
-
-function detectUnconnectedToolKey(text) {
-  const t = String(text ?? '')
-  if (/찾기|검색/.test(t)) {
-    return 'customer.search'
-  }
-  if (/할\s*일|todo|task/i.test(t)) {
-    return 'task.list'
-  }
-  if (/일정|calendar/i.test(t)) {
-    return 'schedule.list'
-  }
-  if (/문자|sms/i.test(t)) {
-    return 'sms.send'
-  }
-  return null
-}
-
-function toolNotConnectedMessage(toolKey) {
-  const tool = loadAiToolRegistry().find((t) => t.key === toolKey)
-  const label = tool?.name ?? toolKey
-  return `「${label}」 기능은 아직 AI 비서에 연결되지 않았습니다.`
-}
+import { resolveTopLevelOrchestrationAction } from './intent/resolveTopLevelOrchestrationAction.js'
 
 function defaultImportContext(importSessionId, session, duplicatePolicy, previewVersionHash) {
   return {
@@ -144,25 +126,107 @@ export async function processAiAssistantMessage(pool, req, input) {
   })
 
   const importSessionId = conversation.importSessionId
-  if (!importSessionId) {
-    const unconnectedKey = detectUnconnectedToolKey(text)
-    if (unconnectedKey) {
-      const gate = isToolCallableByOrchestrator(unconnectedKey)
-      const reply = {
-        role: 'assistant',
-        kind: 'text',
-        text: gate.ok
-          ? '요청을 이해했지만, 이 Phase에서는 해당 Tool 실행 경로가 아직 연결되지 않았습니다.'
-          : toolNotConnectedMessage(unconnectedKey),
-      }
-      appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
-      return { conversationId: conversation.conversationId, messages: [reply] }
+  const recentTurns = (conversation.messages ?? [])
+    .filter((m) => m.kind === 'text' && m.text)
+    .slice(-8)
+    .map((m) => ({ role: m.role, text: String(m.text).slice(0, 240) }))
+
+  let snapshot = buildConversationOnlySnapshot({ conversation })
+  if (importSessionId) {
+    try {
+      const sessionForSnapshot = getCustomerImportSession(importSessionId, userId, gaId)
+      snapshot = buildIntentContextSnapshot({
+        conversation,
+        session: sessionForSnapshot,
+        userId,
+        gaId,
+      })
+    } catch {
+      snapshot = buildConversationOnlySnapshot({ conversation })
     }
+  }
+
+  const intentStarted = Date.now()
+  let classified = await classifyUserIntent({ text, snapshot, recentTurns })
+  if (input.forceImportPipeline && importSessionId) {
+    classified = {
+      ...classified,
+      domain: INTENT_DOMAIN.CUSTOMER_IMPORT,
+      stage: 'ANALYZE',
+      requestedAction: 'START_IMPORT_ANALYSIS',
+      commitRequested: false,
+      requiresTool: true,
+      source: 'force_import_pipeline',
+    }
+  }
+
+  const topDecision = resolveTopLevelOrchestrationAction(classified, snapshot, text)
+  logIntentDecision({
+    conversationId: conversation.conversationId,
+    classified,
+    decision: topDecision,
+    snapshot,
+    durationMs: Date.now() - intentStarted,
+    requestId: req.headers?.['x-request-id'],
+  })
+
+  if (topDecision.action === TOP_LEVEL_ACTION.GENERAL_CHAT_ANSWER) {
+    const answerStarted = Date.now()
+    const generated = await generateGeneralChatResponse({
+      text,
+      recentTurns,
+      currentRoute: conversation.pageContext?.currentRoute ?? null,
+    })
+    logIntentDecision({
+      conversationId: conversation.conversationId,
+      classified,
+      decision: topDecision,
+      snapshot,
+      durationMs: Date.now() - intentStarted,
+      answerUsage: generated.usage
+        ? { ...generated.usage, latencyMs: Date.now() - answerStarted }
+        : null,
+      requestId: req.headers?.['x-request-id'],
+    })
     const reply = {
       role: 'assistant',
       kind: 'text',
-      text: '파일을 첨부한 뒤 고객 가져오기를 요청해 주세요. (예: 고객리스트에 올려줘)',
-      suggestions: ['고객 엑셀 가져오기', '고객 찾기', '오늘 할 일', '일정 확인'],
+      text: generated.text,
+    }
+    appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
+    return { conversationId: conversation.conversationId, messages: [reply] }
+  }
+
+  if (topDecision.action === TOP_LEVEL_ACTION.UNSUPPORTED_TOOL) {
+    const reply = {
+      role: 'assistant',
+      kind: 'text',
+      text: topDecision.assistantText,
+    }
+    appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
+    return { conversationId: conversation.conversationId, messages: [reply] }
+  }
+
+  if (topDecision.action === TOP_LEVEL_ACTION.CLARIFY) {
+    const reply = {
+      role: 'assistant',
+      kind: 'text',
+      text: topDecision.assistantText,
+    }
+    appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
+    return { conversationId: conversation.conversationId, messages: [reply] }
+  }
+
+  if (topDecision.action !== TOP_LEVEL_ACTION.ROUTE_CUSTOMER_IMPORT || !importSessionId) {
+    const generated = await generateGeneralChatResponse({
+      text,
+      recentTurns,
+      currentRoute: conversation.pageContext?.currentRoute ?? null,
+    })
+    const reply = {
+      role: 'assistant',
+      kind: 'text',
+      text: generated.text,
     }
     appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
     return { conversationId: conversation.conversationId, messages: [reply] }
@@ -175,28 +239,12 @@ export async function processAiAssistantMessage(pool, req, input) {
       session.duplicatePolicy ??
       CUSTOMER_IMPORT_DUPLICATE_POLICY.SKIP
 
-    const snapshot = buildIntentContextSnapshot({ conversation, session, userId, gaId })
-    const recentTurns = (conversation.messages ?? [])
-      .filter((m) => m.kind === 'text' && m.text)
-      .slice(-8)
-      .map((m) => ({ role: m.role, text: String(m.text).slice(0, 240) }))
-
-    const intentStarted = Date.now()
-    let classified = await classifyUserIntent({ text, snapshot, recentTurns })
-    if (input.forceImportPipeline) {
-      classified = {
-        ...classified,
-        stage: 'ANALYZE',
-        requestedAction: 'START_IMPORT_ANALYSIS',
-        commitRequested: false,
-        source: 'force_import_pipeline',
-      }
-    }
+    snapshot = buildIntentContextSnapshot({ conversation, session, userId, gaId })
     const decision = resolveImportOrchestrationAction(classified, snapshot, text)
     logIntentDecision({
       conversationId: conversation.conversationId,
       classified,
-      decision,
+      decision: { ...decision, ...topDecision, action: decision.action },
       snapshot,
       durationMs: Date.now() - intentStarted,
       requestId: req.headers?.['x-request-id'],

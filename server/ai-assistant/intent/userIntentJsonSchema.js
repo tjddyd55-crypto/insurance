@@ -14,6 +14,8 @@ export const USER_INTENT_JSON_SCHEMA = {
       commitRequested: { type: 'boolean' },
       requiresClarification: { type: 'boolean' },
       clarificationQuestion: { type: ['string', 'null'] },
+      requiresTool: { type: 'boolean' },
+      requiredToolKey: { type: ['string', 'null'] },
       confidence: { type: 'number' },
     },
     required: [
@@ -25,6 +27,8 @@ export const USER_INTENT_JSON_SCHEMA = {
       'commitRequested',
       'requiresClarification',
       'clarificationQuestion',
+      'requiresTool',
+      'requiredToolKey',
       'confidence',
     ],
   },

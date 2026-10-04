@@ -1,10 +1,18 @@
 export const INTENT_DOMAIN = Object.freeze({
+  GENERAL_CHAT: 'GENERAL_CHAT',
+  ONE_FC_QUERY: 'ONE_FC_QUERY',
+  ONE_FC_ACTION: 'ONE_FC_ACTION',
+  UNSUPPORTED_ONE_FC_ACTION: 'UNSUPPORTED_ONE_FC_ACTION',
   CUSTOMER_IMPORT: 'CUSTOMER_IMPORT',
+  CLARIFY: 'CLARIFY',
+  /** @deprecated mapped to GENERAL_CHAT at runtime */
   OTHER: 'OTHER',
+  /** @deprecated mapped to GENERAL_CHAT at runtime */
   UNKNOWN: 'UNKNOWN',
 })
 
 export const INTENT_STAGE = Object.freeze({
+  ANSWER: 'ANSWER',
   ANALYZE: 'ANALYZE',
   PREVIEW: 'PREVIEW',
   MODIFY: 'MODIFY',
@@ -12,6 +20,13 @@ export const INTENT_STAGE = Object.freeze({
   QUERY: 'QUERY',
   CLARIFY: 'CLARIFY',
   WAIT: 'WAIT',
+})
+
+export const TOP_LEVEL_ACTION = Object.freeze({
+  GENERAL_CHAT_ANSWER: 'GENERAL_CHAT_ANSWER',
+  UNSUPPORTED_TOOL: 'UNSUPPORTED_TOOL',
+  CLARIFY: 'CLARIFY',
+  ROUTE_CUSTOMER_IMPORT: 'ROUTE_CUSTOMER_IMPORT',
 })
 
 export const IMPORT_ORCHESTRATION_ACTION = Object.freeze({
