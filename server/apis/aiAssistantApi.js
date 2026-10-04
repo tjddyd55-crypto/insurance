@@ -280,7 +280,6 @@ export function registerAiAssistantApi(apiRouter, ctx) {
       const confirmationId = String(req.params.confirmationId ?? '').trim()
       const importSessionId = String(req.body?.importSessionId ?? '').trim()
       const previewVersionHash = String(req.body?.previewVersionHash ?? '').trim()
-      consumePendingImportCommit(confirmationId, ctxUser.userId, ctxUser.gaId, previewVersionHash)
       const session = getCustomerImportSession(importSessionId, ctxUser.userId, ctxUser.gaId)
       const duplicatePolicy =
         req.body?.duplicatePolicy ?? session.duplicatePolicy ?? 'SKIP'
@@ -291,6 +290,7 @@ export function registerAiAssistantApi(apiRouter, ctx) {
         idempotencyKey: confirmationId,
         duplicatePolicy,
       })
+      consumePendingImportCommit(confirmationId, ctxUser.userId, ctxUser.gaId, previewVersionHash)
       res.json({
         success: true,
         ...result,

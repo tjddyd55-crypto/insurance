@@ -73,8 +73,18 @@ export function dedupeImportReasonCodes(reasons) {
  * @param {string[]} reasons
  */
 export function mapImportReasonsForUser(reasons) {
-  return dedupeImportReasonCodes(reasons).map((code) => ({
-    code: code.split(';')[0],
-    message: reasonCodeToUserMessage(code),
-  }))
+  const seenMessages = new Set()
+  const mapped = []
+  for (const code of dedupeImportReasonCodes(reasons)) {
+    const message = reasonCodeToUserMessage(code)
+    if (!message || seenMessages.has(message)) {
+      continue
+    }
+    seenMessages.add(message)
+    mapped.push({
+      code: code.split(';')[0],
+      message,
+    })
+  }
+  return mapped
 }
