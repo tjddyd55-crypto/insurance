@@ -145,8 +145,8 @@ export async function runUnstructuredCellExtract(session, env = process.env, opt
   let openAiCalls = 0
   let gptUsed = false
 
-  const gptPlannedItems = gptOrder.slice(0, maxGptCalls)
-  const gptSkippedItems = gptOrder.slice(maxGptCalls)
+  const gptPlannedItems = gptOrder.slice(0, maxGptRecords)
+  const gptSkippedItems = gptOrder.slice(maxGptRecords)
   stats.semanticGptPlanned = gptPlannedItems.length
   stats.semanticGptSkippedByLimit = gptSkippedItems.length
 
