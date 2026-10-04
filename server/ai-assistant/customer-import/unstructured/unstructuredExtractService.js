@@ -8,7 +8,7 @@ import { isSemanticGptEligible } from '../../../../shared/ai-assistant/customer-
 import { runBoundedConcurrency } from '../../../../shared/ai-assistant/customer-import/runBoundedConcurrency.js'
 import { scoreSemanticGptPriority } from '../../../../shared/ai-assistant/customer-import/unstructured/semanticGptPriority.js'
 import { buildImportRecordsFromSemantic } from './recordsFromSemantic.js'
-import { enrichSemanticWithGpt } from './semanticGptService.js'
+import { enrichSemanticBatchWithGpt } from './semanticGptBatchService.js'
 
 function columnIndexToLetters(index) {
   let n = index + 1
@@ -34,6 +34,13 @@ function createEmptyGptStats() {
     semanticGptSchemaRejected: 0,
     semanticGptTimeout: 0,
     semanticGptSkippedByLimit: 0,
+    semanticGptBatchesPlanned: 0,
+    semanticGptBatchAttempts: 0,
+    semanticGptBatchSucceeded: 0,
+    semanticGptBatchFailed: 0,
+    semanticGptRecordsPlanned: 0,
+    semanticGptRecordsAttempted: 0,
+    semanticGptRecordsSucceeded: 0,
     unresolvedAfterGpt: 0,
   }
 }
@@ -71,15 +78,17 @@ export async function runUnstructuredCellExtract(session, env = process.env, opt
   const onProgress = options.onProgress
   const gptConcurrency =
     Number(env.SEMANTIC_GPT_CONCURRENCY) > 0 ? Number(env.SEMANTIC_GPT_CONCURRENCY) : 3
+  const gptBatchSize = Number(env.SEMANTIC_GPT_BATCH_SIZE) > 0 ? Number(env.SEMANTIC_GPT_BATCH_SIZE) : 6
   const sheetName = session.selectedSheetName ?? session.sheets[0]?.name
   const sheet = session.sheets.find((s) => s.name === sheetName)
   if (!sheet) {
     throw Object.assign(new Error('SHEET_NOT_FOUND'), { code: 'SHEET_NOT_FOUND', status: 404 })
   }
 
-  const maxGptCalls = Number(env.SEMANTIC_GPT_MAX_CALLS_PER_SESSION) > 0
+  const maxGptCallBudget = Number(env.SEMANTIC_GPT_MAX_CALLS_PER_SESSION) > 0
     ? Number(env.SEMANTIC_GPT_MAX_CALLS_PER_SESSION)
     : 48
+  const maxGptRecords = maxGptCallBudget * gptBatchSize
 
   const matrix = sheet.matrix
   const stats = {
@@ -150,44 +159,55 @@ export async function runUnstructuredCellExtract(session, env = process.env, opt
     })
   }
 
+  stats.semanticGptRecordsPlanned = gptPlannedItems.length
+  const gptBatches = []
+  for (let i = 0; i < gptPlannedItems.length; i += gptBatchSize) {
+    gptBatches.push(gptPlannedItems.slice(i, i + gptBatchSize))
+  }
+  stats.semanticGptBatchesPlanned = gptBatches.length
+
   emitExtractProgress(onProgress, stats)
 
-  await runBoundedConcurrency(gptPlannedItems, gptConcurrency, async (item) => {
+  await runBoundedConcurrency(gptBatches, gptConcurrency, async (batch) => {
+    stats.semanticGptBatchAttempts += 1
     stats.semanticGptAttempts += 1
-    const gpt = await enrichSemanticWithGpt(item.semantic, item.text, env)
-    const gptWarnings = [...(gpt.warnings ?? [])]
-    let blockGptUsed = false
-    let semantic = item.semantic
+    const batchPayload = batch.map((item) => ({
+      recordId: item.blockKey,
+      semantic: item.semantic,
+      text: item.text,
+    }))
+    const gpt = await enrichSemanticBatchWithGpt(batchPayload, env)
+    if (gpt.attempted && gpt.succeeded) {
+      stats.semanticGptBatchSucceeded += 1
+      stats.semanticGptCalls += 1
+      openAiCalls += 1
+      gptUsed = true
+    } else if (gpt.attempted) {
+      stats.semanticGptBatchFailed += 1
+      stats.semanticGptFailed += 1
+      if (gpt.timeout) {
+        stats.semanticGptTimeout += 1
+      }
+    }
+    stats.semanticGptRecordsAttempted += batch.length
+    stats.semanticGptRecordsSucceeded += gpt.recordStats?.succeeded ?? 0
+    stats.semanticGptSucceeded += gpt.recordStats?.succeeded ?? 0
+    stats.semanticGptResolved += gpt.recordStats?.resolvedTotal ?? 0
+    stats.semanticGptLowConfidence += gpt.recordStats?.lowConfidence ?? 0
 
-    if (gpt.attempted) {
-      if (gpt.succeeded) {
-        gptUsed = true
-        blockGptUsed = true
-        openAiCalls += 1
-        stats.semanticGptCalls += 1
-        stats.semanticGptSucceeded += 1
-        stats.semanticGptResolved += gpt.resolvedCount ?? 0
-        stats.semanticGptLowConfidence += gpt.lowConfidenceCount ?? 0
-        semantic = gpt.semantic
-      } else {
-        stats.semanticGptFailed += 1
-        if (gpt.schemaRejected) {
-          stats.semanticGptSchemaRejected += 1
-        }
-        if (gpt.timeout) {
-          stats.semanticGptTimeout += 1
-        }
+    for (const item of batch) {
+      const merged = gpt.results?.get(item.blockKey)
+      const gptWarnings = [...(merged?.warnings ?? gpt.batchWarnings ?? [])]
+      let semantic = merged?.semantic ?? item.semantic
+      const blockGptUsed = Boolean(merged?.succeeded)
+      if (!blockGptUsed) {
         semantic.needsSemanticReview = true
         if (!gptWarnings.includes('REVIEW_REQUIRED')) {
           gptWarnings.push('REVIEW_REQUIRED')
         }
       }
-    } else if (gptWarnings.includes('OPENAI_DISABLED')) {
-      semantic.needsSemanticReview = true
-      gptWarnings.push('REVIEW_REQUIRED')
+      gptByBlockKey.set(item.blockKey, { semantic, gptWarnings, blockGptUsed })
     }
-
-    gptByBlockKey.set(item.blockKey, { semantic, gptWarnings, blockGptUsed })
     emitExtractProgress(onProgress, stats)
     return null
   })

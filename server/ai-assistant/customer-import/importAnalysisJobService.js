@@ -164,6 +164,13 @@ export async function executeImportAnalysisJob(pool, req, jobId) {
         semanticGptLowConfidence: extracted.stats.semanticGptLowConfidence,
         semanticGptSkippedByLimit: extracted.stats.semanticGptSkippedByLimit,
         semanticGptTimeout: extracted.stats.semanticGptTimeout,
+        semanticGptBatchesPlanned: extracted.stats.semanticGptBatchesPlanned,
+        semanticGptBatchAttempts: extracted.stats.semanticGptBatchAttempts,
+        semanticGptBatchSucceeded: extracted.stats.semanticGptBatchSucceeded,
+        semanticGptBatchFailed: extracted.stats.semanticGptBatchFailed,
+        semanticGptRecordsPlanned: extracted.stats.semanticGptRecordsPlanned,
+        semanticGptRecordsAttempted: extracted.stats.semanticGptRecordsAttempted,
+        semanticGptRecordsSucceeded: extracted.stats.semanticGptRecordsSucceeded,
       },
       stats: { unstructured: extracted.stats },
       warning:
