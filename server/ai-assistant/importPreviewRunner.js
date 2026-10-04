@@ -1,4 +1,9 @@
 import { CUSTOMER_IMPORT_DUPLICATE_POLICY } from '../../shared/ai-assistant/customer-import/constants.js'
+import {
+  dedupeImportReasonCodes,
+  mapImportReasonsForUser,
+} from '../../shared/ai-assistant/customer-import/importReasonPresentation.js'
+import { classifyPreviewRowFinalStatus } from '../../shared/ai-assistant/customer-import/previewSummarySsot.js'
 import { CUSTOMER_IMPORT_SOURCE_MODE } from '../../shared/ai-assistant/customer-import/importSourceMode.js'
 import { CUSTOMER_IMPORT_FIELD_LABELS_KO } from '../../shared/ai-assistant/customer-import/mappingEdit.js'
 import { runCustomerImportColumnMap } from './column-map/columnMapService.js'
@@ -63,30 +68,38 @@ function maskPhone(phone) {
 /**
  * @param {import('./customer-import/pipeline.js').ImportPipelineRow[]} rows
  */
-export function buildPreviewIssueRows(rows) {
+export function buildPreviewIssueRows(rows, options = {}) {
   return rows
     .filter((r) => !r.eligibleForCommit || r.status !== 'VALID')
     .slice(0, 200)
-    .map((r) => ({
-      rowId: r.rowId,
-      sourceRowNumber: r.sourceRowNumber,
-      status: r.status,
-      reasons: r.reasons,
-      identifier: r.mapped?.name ? String(r.mapped.name).slice(0, 40) : `행 ${r.sourceRowNumber}`,
-      phoneMasked: r.mapped?.phone ? maskPhone(r.mapped.phone) : null,
-      eligibleForCommit: r.eligibleForCommit,
-      mappedPreview: {
-        name: r.mapped?.name ? String(r.mapped.name).slice(0, 32) : null,
-        phoneMasked: r.mapped?.phone ? maskPhone(r.mapped.phone) : null,
-        address: r.mapped?.address ? String(r.mapped.address).slice(0, 48) : null,
-        job: r.mapped?.job ? String(r.mapped.job).slice(0, 32) : null,
-        carNumber: r.mapped?.carNumber ? String(r.mapped.carNumber).slice(0, 16) : null,
-        carModel: r.mapped?.carModel ? String(r.mapped.carModel).slice(0, 24) : null,
+    .map((r) => {
+      const reasonCodes = dedupeImportReasonCodes(r.reasons ?? [])
+      const userReasons = mapImportReasonsForUser(reasonCodes)
+      const finalStatus = classifyPreviewRowFinalStatus(r, options)
+      return {
+        rowId: r.rowId,
+        sourceRowNumber: r.sourceRowNumber,
         status: r.status,
-        warnings: (r.reasons ?? []).slice(0, 8),
-        sourceCell: r.unstructuredMeta?.sourceCell ?? null,
-      },
-    }))
+        finalStatus,
+        reasons: reasonCodes,
+        userReasons,
+        identifier: r.mapped?.name ? String(r.mapped.name).slice(0, 40) : `행 ${r.sourceRowNumber}`,
+        phoneMasked: r.mapped?.phone ? maskPhone(r.mapped.phone) : null,
+        eligibleForCommit: r.eligibleForCommit,
+        mappedPreview: {
+          name: r.mapped?.name ? String(r.mapped.name).slice(0, 32) : null,
+          phoneMasked: r.mapped?.phone ? maskPhone(r.mapped.phone) : null,
+          address: r.mapped?.address ? String(r.mapped.address).slice(0, 48) : null,
+          job: r.mapped?.job ? String(r.mapped.job).slice(0, 32) : null,
+          carNumber: r.mapped?.carNumber ? String(r.mapped.carNumber).slice(0, 16) : null,
+          carModel: r.mapped?.carModel ? String(r.mapped.carModel).slice(0, 24) : null,
+          status: r.status,
+          finalStatus,
+          userReasons,
+          sourceCell: r.unstructuredMeta?.sourceCell ?? null,
+        },
+      }
+    })
 }
 
 /**
@@ -166,30 +179,25 @@ export async function runImportPreviewPipeline(pool, req, importSessionId, optio
     preview,
     stages,
     mappingRows: buildMappingRowsForUi(session),
-    issueRows: buildPreviewIssueRows(preview.rows ?? []),
+    issueRows: buildPreviewIssueRows(preview.rows ?? [], { duplicatePolicy }),
     duplicatePolicy,
   }
 }
 
 export function buildPreviewCardPayload(session, preview, pending, duplicatePolicy) {
   const summary = preview.summary ?? {}
-  const duplicateTotal =
-    (summary.duplicateInFile ?? 0) + (summary.duplicateExisting ?? 0) + (summary.duplicatePossible ?? 0)
-  const needsReview = (summary.warning ?? 0) + (summary.duplicatePossible ?? 0)
   return {
     role: 'assistant',
     kind: 'import_preview_card',
     text: '고객 가져오기 준비가 완료되었습니다.',
     preview: {
       fileName: session.originalFileName,
-      summary: {
-        ...summary,
-        duplicateTotal,
-        needsReview,
-      },
+      importSourceMode: session.importSourceMode ?? null,
+      summary,
       previewVersionHash: preview.previewVersionHash,
       confirmationId: pending.confirmationId,
       duplicatePolicy,
+      importSessionId: session.importSessionId,
     },
   }
 }

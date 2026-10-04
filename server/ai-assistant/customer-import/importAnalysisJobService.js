@@ -7,11 +7,7 @@ import {
   IMPORT_ANALYSIS_SEMANTIC_CONFIG_VERSION,
 } from '../../../shared/ai-assistant/customer-import/importAnalysisJobConstants.js'
 import { CUSTOMER_IMPORT_SOURCE_MODE } from '../../../shared/ai-assistant/customer-import/importSourceMode.js'
-import {
-  appendAiConversationMessage,
-  getAiConversation,
-  updateAiConversation,
-} from '../conversation/conversationStore.js'
+import { getAiConversation, updateAiConversation } from '../conversation/conversationStore.js'
 import { createPendingImportCommit, invalidatePendingForImportSession } from '../confirmation/confirmationService.js'
 import {
   buildPreviewCardPayload,
@@ -204,8 +200,13 @@ export async function executeImportAnalysisJob(pool, req, jobId) {
   }
 
   if (job.conversationId) {
+    const conv = getAiConversation(job.conversationId, userId, gaId)
+    const keptMessages = (conv.messages ?? []).filter(
+      (m) => m.kind !== 'import_preview_card' && m.kind !== 'import_analysis_progress',
+    )
     updateAiConversation(job.conversationId, userId, gaId, {
       importSessionId,
+      messages: [...keptMessages, previewCard],
       importContext: {
         activeImportSessionId: importSessionId,
         selectedSheet: finalSession?.selectedSheetName ?? null,
@@ -222,7 +223,6 @@ export async function executeImportAnalysisJob(pool, req, jobId) {
         previewVersionHash: preview.previewVersionHash,
       },
     })
-    appendAiConversationMessage(job.conversationId, userId, gaId, previewCard)
   }
 
   return updateImportAnalysisJob(jobId, {

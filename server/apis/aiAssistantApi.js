@@ -8,6 +8,7 @@ import {
 } from '../ai-assistant/openaiClient.js'
 import { applyImportSessionMappingAndPreview, processAiAssistantMessage } from '../ai-assistant/orchestrator.js'
 import { buildMappingRowsForUi } from '../ai-assistant/importPreviewRunner.js'
+import { normalizeUploadedFileName } from '../../shared/ai-assistant/customer-import/filenameEncoding.js'
 import { CUSTOMER_IMPORT_FIELD_KEYS } from '../../shared/ai-assistant/customer-import/fieldDictionary.js'
 import { CUSTOMER_IMPORT_FIELD_LABELS_KO } from '../../shared/ai-assistant/customer-import/mappingEdit.js'
 import {
@@ -130,7 +131,7 @@ export function registerAiAssistantApi(apiRouter, ctx) {
         }
         const analyzed = await executeCustomerImportTool(pool, req, CUSTOMER_IMPORT_TOOL_KEYS.FILE_ANALYZE, {
           fileBuffer: file.buffer,
-          originalFileName: file.originalname,
+          originalFileName: normalizeUploadedFileName(file.originalname),
           mimeType: file.mimetype,
         })
         const conversationId = String(req.body?.conversationId ?? req.query?.conversationId ?? '').trim()

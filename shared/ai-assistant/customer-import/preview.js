@@ -1,21 +1,31 @@
 import { createHash } from 'node:crypto'
 
 import { CUSTOMER_IMPORT_ROW_STATUS } from './constants.js'
+import { buildImportPreviewSummarySsot } from './previewSummarySsot.js'
 
 /**
  * @param {Array<{ rowId: string, status: string, reasons: string[], mapped: Record<string, string>, duplicate?: object }>} rows
  */
-export function buildImportPreviewSummary(rows) {
+/**
+ * @param {Array<object>} rows
+ * @param {{ duplicatePolicy?: string }} [options]
+ */
+export function buildImportPreviewSummary(rows, options = {}) {
+  const ssot = buildImportPreviewSummarySsot(rows, options)
   const summary = {
     totalSourceRows: rows.length,
+    totalCandidates: ssot.totalCandidates,
+    autoEligible: ssot.autoEligible,
+    reviewRequired: ssot.reviewRequired,
+    duplicateSkipped: ssot.duplicateSkipped,
+    invalid: ssot.invalid,
     valid: 0,
     warning: 0,
-    invalid: 0,
     duplicateInFile: 0,
     duplicateExisting: 0,
     duplicatePossible: 0,
-    plannedCreate: 0,
-    plannedSkip: 0,
+    plannedCreate: ssot.plannedCreate,
+    plannedSkip: ssot.plannedSkip,
   }
   for (const row of rows) {
     if (row.status === CUSTOMER_IMPORT_ROW_STATUS.VALID) {
@@ -33,11 +43,6 @@ export function buildImportPreviewSummary(rows) {
     }
     if (row.duplicate?.reason === 'DUPLICATE_POSSIBLE_NAME') {
       summary.duplicatePossible += 1
-    }
-    if (row.eligibleForCommit) {
-      summary.plannedCreate += 1
-    } else {
-      summary.plannedSkip += 1
     }
   }
   return summary

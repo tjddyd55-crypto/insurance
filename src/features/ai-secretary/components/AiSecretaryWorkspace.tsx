@@ -20,6 +20,14 @@ import './ai-secretary-panel.css'
 
 const SUGGESTIONS = ['고객 엑셀 가져오기', '고객 찾기', '오늘 할 일', '일정 확인']
 const IGNORE_VALUE = '__IGNORE__'
+const UNSTRUCTURED_SOURCE_MODE = 'UNSTRUCTURED_CELL_RECORDS'
+
+const PREVIEW_FINAL_STATUS_LABEL: Record<string, string> = {
+  AUTO_ELIGIBLE: '등록 예정',
+  REVIEW_REQUIRED: '확인 필요',
+  DUPLICATE_SKIPPED: '중복 제외',
+  INVALID: '오류',
+}
 
 type AttachmentUiState = {
   name: string
@@ -393,20 +401,24 @@ export default function AiSecretaryWorkspace({ variant, onClose }: Props) {
         {messages.map((msg, index) => {
           if (msg.kind === 'import_preview_card') {
             const s = msg.preview.summary
-            const duplicateTotal = s.duplicateTotal ?? (s.duplicateInFile ?? 0) + (s.duplicateExisting ?? 0)
-            const needsReview = s.needsReview ?? (s.warning ?? 0)
+            const total = s.totalCandidates ?? s.totalSourceRows ?? 0
+            const plannedCreate = s.plannedCreate ?? s.autoEligible ?? 0
+            const isUnstructured = msg.preview.importSourceMode === UNSTRUCTURED_SOURCE_MODE
             return (
               <div key={index} className="ai-secretary-card">
                 <strong>{msg.text}</strong>
                 <p className="ai-secretary-card__meta">파일: {msg.preview.fileName ?? '—'}</p>
                 <dl className="ai-secretary-card__stats">
-                  <div><dt>전체 고객 후보</dt><dd>{s.totalSourceRows ?? 0}명</dd></div>
-                  <div><dt>등록 예정</dt><dd>{s.plannedCreate ?? 0}명</dd></div>
-                  <div><dt>중복</dt><dd>{duplicateTotal}명</dd></div>
-                  <div><dt>확인 필요</dt><dd>{needsReview}명</dd></div>
-                  <div><dt>제외</dt><dd>{s.plannedSkip ?? 0}명</dd></div>
+                  <div><dt>전체 고객 후보</dt><dd>{total}명</dd></div>
+                  <div><dt>등록 예정</dt><dd>{plannedCreate}명</dd></div>
+                  <div><dt>확인 필요</dt><dd>{s.reviewRequired ?? 0}명</dd></div>
+                  <div><dt>중복 제외</dt><dd>{s.duplicateSkipped ?? 0}명</dd></div>
+                  <div><dt>오류</dt><dd>{s.invalid ?? 0}명</dd></div>
                 </dl>
                 {msg.statusLabel ? <p className="ai-secretary-status">{msg.statusLabel}</p> : null}
+                {plannedCreate === 0 ? (
+                  <p className="ai-secretary-status">등록 가능한 고객이 없습니다. 세부내역에서 확인이 필요한 항목을 검토해 주세요.</p>
+                ) : null}
                 <div className="ai-secretary-card__actions">
                   <FormButton
                     htmlType="button"
@@ -417,24 +429,28 @@ export default function AiSecretaryWorkspace({ variant, onClose }: Props) {
                       setIssueOpen(true)
                     }}
                   >
-                    세부내역
+                    {isUnstructured ? '인식 결과 보기' : '세부내역'}
                   </FormButton>
-                  <FormButton
-                    htmlType="button"
-                    variant="secondary"
-                    disabled={busy}
-                    onClick={() => void openMappingDetail(msg)}
-                  >
-                    컬럼 연결
-                  </FormButton>
-                  <FormButton
-                    htmlType="button"
-                    variant="primary"
-                    disabled={busy}
-                    onClick={() => void handleConfirm(msg)}
-                  >
-                    {s.plannedCreate ?? 0}명 등록
-                  </FormButton>
+                  {!isUnstructured ? (
+                    <FormButton
+                      htmlType="button"
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => void openMappingDetail(msg)}
+                    >
+                      컬럼 연결
+                    </FormButton>
+                  ) : null}
+                  {plannedCreate > 0 ? (
+                    <FormButton
+                      htmlType="button"
+                      variant="primary"
+                      disabled={busy}
+                      onClick={() => void handleConfirm(msg)}
+                    >
+                      {plannedCreate}명 등록
+                    </FormButton>
+                  ) : null}
                 </div>
               </div>
             )
@@ -617,23 +633,45 @@ export default function AiSecretaryWorkspace({ variant, onClose }: Props) {
       {issueOpen ? (
         <div className="ai-secretary-modal-backdrop" role="presentation" onClick={() => setIssueOpen(false)}>
           <div className="ai-secretary-modal card" onClick={(e) => e.stopPropagation()}>
-            <h2>제외·확인 필요 항목</h2>
+            <h2>확인·제외 항목</h2>
             <ul className="ai-secretary-issue-list">
               {(issueRows ?? []).length === 0 ? (
                 <li>표시할 항목이 없습니다.</li>
               ) : (
-                issueRows?.map((row) => (
-                  <li key={`${row.sourceRowNumber}-${row.identifier}`}>
-                    행 {row.sourceRowNumber} · {row.identifier}
-                    {row.phoneMasked ? ` · ${row.phoneMasked}` : ''}
-                    {row.mappedPreview?.address ? ` · 주소: ${row.mappedPreview.address}` : ''}
-                    {row.mappedPreview?.job ? ` · 직업: ${row.mappedPreview.job}` : ''}
-                    {row.mappedPreview?.carNumber ? ` · 차량: ${row.mappedPreview.carNumber}` : ''}
-                    {row.mappedPreview?.sourceCell ? ` · ${row.mappedPreview.sourceCell}` : ''}
-                    {' — '}
-                    {row.reasons?.join(', ') ?? row.status}
-                  </li>
-                ))
+                issueRows?.map((row) => {
+                  const preview = row.mappedPreview
+                  const statusKey = row.finalStatus ?? preview?.finalStatus ?? 'REVIEW_REQUIRED'
+                  const userReasons = row.userReasons ?? preview?.userReasons ?? []
+                  const displayName = preview?.name ?? row.identifier
+                  return (
+                    <li key={`${row.sourceRowNumber}-${row.identifier}`} className="ai-secretary-issue-item">
+                      <p className="ai-secretary-issue-item__title">
+                        {displayName}
+                        {row.phoneMasked || preview?.phoneMasked ? ` · ${row.phoneMasked ?? preview?.phoneMasked}` : ''}
+                      </p>
+                      <dl className="ai-secretary-issue-item__fields">
+                        {preview?.address ? <div><dt>주소</dt><dd>{preview.address}</dd></div> : null}
+                        {preview?.job ? <div><dt>직업</dt><dd>{preview.job}</dd></div> : null}
+                        {preview?.carNumber ? <div><dt>차량번호</dt><dd>{preview.carNumber}</dd></div> : null}
+                      </dl>
+                      <p className="ai-secretary-issue-item__status">
+                        상태: {PREVIEW_FINAL_STATUS_LABEL[statusKey] ?? '확인 필요'}
+                      </p>
+                      {userReasons.length > 0 ? (
+                        <ul className="ai-secretary-issue-item__reasons">
+                          {userReasons.map((r) => (
+                            <li key={r.code}>{r.message}</li>
+                          ))}
+                        </ul>
+                      ) : null}
+                      {preview?.sourceCell ? (
+                        <p className="ai-secretary-issue-item__source">원본 위치: {preview.sourceCell}</p>
+                      ) : (
+                        <p className="ai-secretary-issue-item__source">원본 행: {row.sourceRowNumber}</p>
+                      )}
+                    </li>
+                  )
+                })
               )}
             </ul>
             <FormButton htmlType="button" variant="secondary" onClick={() => setIssueOpen(false)}>

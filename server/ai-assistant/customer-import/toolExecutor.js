@@ -7,6 +7,7 @@ import {
 } from '../../../shared/ai-assistant/customer-import/importSourceMode.js'
 import { runUnstructuredCellExtract } from './unstructured/unstructuredExtractService.js'
 import { suggestAliasColumnMapping } from '../../../shared/ai-assistant/customer-import/fieldDictionary.js'
+import { normalizeUploadedFileName } from '../../../shared/ai-assistant/customer-import/filenameEncoding.js'
 import { buildImportPreviewSummary } from '../../../shared/ai-assistant/customer-import/preview.js'
 import { readWorkbookFromBuffer } from './workbookReader.js'
 import { createCustomerImportSession, getCustomerImportSession, updateCustomerImportSession } from './sessionStore.js'
@@ -101,7 +102,7 @@ export async function executeCustomerImportTool(pool, req, toolKey, input = {}) 
 
 async function toolFileAnalyze(req, input) {
   const buffer = input.fileBuffer
-  const originalFileName = input.originalFileName
+  const originalFileName = normalizeUploadedFileName(input.originalFileName)
   const mimeType = input.mimeType
   const fileType = assertCustomerImportFileMeta({
     originalFileName,

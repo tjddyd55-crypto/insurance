@@ -96,7 +96,7 @@ export async function runImportPipeline(session, crmIndex, options = {}) {
     row.eligibleForCommit = !invalid && !inFile && !existing
   }
 
-  const summary = buildImportPreviewSummary(rows)
+  const summary = buildImportPreviewSummary(rows, { duplicatePolicy })
   const previewVersionHash = computePreviewVersionHash(rows, columnMapping, headerRowIndex)
   return {
     headers,
@@ -179,7 +179,7 @@ async function runUnstructuredImportPipeline(session, crmIndex, options = {}) {
   const headerRowIndex = 0
   const headers = ['비정형 셀 추출']
   const summary = {
-    ...buildImportPreviewSummary(rows),
+    ...buildImportPreviewSummary(rows, { duplicatePolicy }),
     unstructured: extracted.stats,
   }
   const previewVersionHash = computePreviewVersionHash(rows, columnMapping, headerRowIndex)

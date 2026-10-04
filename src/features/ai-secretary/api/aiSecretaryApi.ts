@@ -69,7 +69,9 @@ export type AiAssistantMessage =
       issueRows?: Array<{
         sourceRowNumber: number
         status: string
-        reasons: string[]
+        finalStatus?: string
+        reasons?: string[]
+        userReasons?: Array<{ code: string; message: string }>
         identifier: string
         phoneMasked?: string | null
         mappedPreview?: {
@@ -80,12 +82,24 @@ export type AiAssistantMessage =
           carNumber?: string | null
           carModel?: string | null
           sourceCell?: string | null
-          warnings?: string[]
+          finalStatus?: string
+          userReasons?: Array<{ code: string; message: string }>
         }
       }>
       preview: {
         fileName?: string
-        summary: Record<string, number> & { duplicateTotal?: number; needsReview?: number }
+        importSourceMode?: string | null
+        importSessionId?: string
+        summary: Record<string, number> & {
+          totalCandidates?: number
+          autoEligible?: number
+          reviewRequired?: number
+          duplicateSkipped?: number
+          invalid?: number
+          plannedCreate?: number
+          plannedSkip?: number
+          totalSourceRows?: number
+        }
         previewVersionHash: string
         confirmationId: string
         duplicatePolicy?: string
