@@ -139,6 +139,7 @@ export function registerAiAssistantApi(apiRouter, ctx) {
           try {
             updateAiConversation(conversationId, ctxUser.userId, ctxUser.gaId, {
               importSessionId: analyzed.importSessionId,
+              pendingAction: null,
               importContext: {
                 activeImportSessionId: analyzed.importSessionId,
                 selectedSheet: analyzed.suggestedSheetName ?? null,
@@ -146,6 +147,7 @@ export function registerAiAssistantApi(apiRouter, ctx) {
                 previewVersionHash: null,
                 mappingVersion: null,
                 pendingActionId: null,
+                activeAnalysisJobId: null,
               },
             })
           } catch {

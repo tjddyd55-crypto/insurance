@@ -10,25 +10,20 @@ import {
   updateAiConversation,
 } from './conversation/conversationStore.js'
 import { getCustomerImportSession, updateCustomerImportSession } from './customer-import/sessionStore.js'
-import {
-  applyMappingChangeFromText,
-  detectNaturalLanguageCommitIntent,
-  parseDuplicatePolicyIntent,
-  parseMappingChangeIntent,
-} from './followUpIntent.js'
+import { applyMappingChangeFromText, parseDuplicatePolicyIntent } from './followUpIntent.js'
 import { startImportAnalysisJob } from './customer-import/importAnalysisJobService.js'
 import {
   buildPreviewCardPayload,
   runImportPreviewPipeline,
 } from './importPreviewRunner.js'
 import { IMPORT_ANALYSIS_JOB_DISPLAY } from '../../shared/ai-assistant/customer-import/importAnalysisJobConstants.js'
+import { IMPORT_ORCHESTRATION_ACTION } from '../../shared/ai-assistant/orchestration/intentSchema.js'
 import { isToolCallableByOrchestrator } from './toolRegistryAdapter.js'
 import { loadAiToolRegistry } from '../../shared/ai-assistant/registry.js'
-
-function detectImportIntent(text) {
-  const t = String(text ?? '').toLowerCase()
-  return /올려|가져오|import|등록|업로드|엑셀|excel|csv|고객리스트|명단/.test(t)
-}
+import { buildIntentContextSnapshot } from './intent/buildIntentContextSnapshot.js'
+import { classifyUserIntent } from './intent/classifyUserIntent.js'
+import { logIntentDecision } from './intent/logIntentDecision.js'
+import { resolveImportOrchestrationAction } from './intent/resolveImportOrchestrationAction.js'
 
 function detectUnconnectedToolKey(text) {
   const t = String(text ?? '')
@@ -180,18 +175,76 @@ export async function processAiAssistantMessage(pool, req, input) {
       session.duplicatePolicy ??
       CUSTOMER_IMPORT_DUPLICATE_POLICY.SKIP
 
-    if (conversation.pendingAction && detectNaturalLanguageCommitIntent(text)) {
+    const snapshot = buildIntentContextSnapshot({ conversation, session, userId, gaId })
+    const recentTurns = (conversation.messages ?? [])
+      .filter((m) => m.kind === 'text' && m.text)
+      .slice(-8)
+      .map((m) => ({ role: m.role, text: String(m.text).slice(0, 240) }))
+
+    const intentStarted = Date.now()
+    let classified = await classifyUserIntent({ text, snapshot, recentTurns })
+    if (input.forceImportPipeline) {
+      classified = {
+        ...classified,
+        stage: 'ANALYZE',
+        requestedAction: 'START_IMPORT_ANALYSIS',
+        commitRequested: false,
+        source: 'force_import_pipeline',
+      }
+    }
+    const decision = resolveImportOrchestrationAction(classified, snapshot, text)
+    logIntentDecision({
+      conversationId: conversation.conversationId,
+      classified,
+      decision,
+      snapshot,
+      durationMs: Date.now() - intentStarted,
+      requestId: req.headers?.['x-request-id'],
+    })
+
+    if (decision.action === IMPORT_ORCHESTRATION_ACTION.COMMIT_BUTTON_GUIDANCE) {
       const reply = {
         role: 'assistant',
         kind: 'text',
-        text: '등록은 미리보기 카드의 「등록」 버튼으로만 진행할 수 있습니다. 내용을 확인한 뒤 버튼을 눌러 주세요.',
+        text: decision.assistantText,
+      }
+      appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
+      return { conversationId: conversation.conversationId, messages: [reply] }
+    }
+
+    if (decision.action === IMPORT_ORCHESTRATION_ACTION.WAIT_IMPORT_ANALYSIS) {
+      const reply = {
+        role: 'assistant',
+        kind: 'text',
+        text: decision.assistantText,
+      }
+      appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
+      return { conversationId: conversation.conversationId, messages: [reply] }
+    }
+
+    if (decision.action === IMPORT_ORCHESTRATION_ACTION.CLARIFY) {
+      const reply = {
+        role: 'assistant',
+        kind: 'text',
+        text: decision.assistantText,
+      }
+      appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
+      return { conversationId: conversation.conversationId, messages: [reply] }
+    }
+
+    if (decision.action === IMPORT_ORCHESTRATION_ACTION.UNSTRUCTURED_MAPPING_INFO) {
+      const reply = {
+        role: 'assistant',
+        kind: 'text',
+        text:
+          '이 파일은 비정형 셀 형식이라 엑셀 「컬럼」 매핑은 적용되지 않습니다. 셀 안 내용을 자동으로 나눠 분석한 미리보기를 확인해 주세요.',
       }
       appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
       return { conversationId: conversation.conversationId, messages: [reply] }
     }
 
     const duplicateIntent = parseDuplicatePolicyIntent(text)
-    if (duplicateIntent) {
+    if (decision.action === IMPORT_ORCHESTRATION_ACTION.MODIFY_DUPLICATE_POLICY && duplicateIntent) {
       updateCustomerImportSession(importSessionId, userId, gaId, { duplicatePolicy: duplicateIntent })
       const reply = {
         role: 'assistant',
@@ -208,42 +261,30 @@ export async function processAiAssistantMessage(pool, req, input) {
       })
     }
 
-    if (
-      session.importSourceMode === CUSTOMER_IMPORT_SOURCE_MODE.UNSTRUCTURED_CELL_RECORDS &&
-      parseMappingChangeIntent(text)
-    ) {
-      const reply = {
-        role: 'assistant',
-        kind: 'text',
-        text:
-          '이 파일은 비정형 셀 형식이라 엑셀 「컬럼」 매핑은 적용되지 않습니다. 셀 안 내용을 자동으로 나눠 분석한 미리보기를 확인해 주세요.',
-      }
-      appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
-      return { conversationId: conversation.conversationId, messages: [reply] }
-    }
-
     let mappingChanged = false
-    try {
-      const nextMapping = applyMappingChangeFromText(text, session.headers ?? [], session.columnMapping ?? {})
-      if (nextMapping) {
-        mappingChanged = true
-        updateCustomerImportSession(importSessionId, userId, gaId, {
-          columnMapping: nextMapping,
-          previewVersionHash: null,
-          commitStatus: 'idle',
-        })
-      }
-    } catch (mappingError) {
-      if (mappingError?.code === 'UNKNOWN_DESTINATION') {
-        const reply = {
-          role: 'assistant',
-          kind: 'text',
-          text: '어느 ONE FC 항목으로 연결할지 이해하지 못했습니다. 예: 「회사 컬럼은 메모로 넣어줘」',
+    if (decision.action === IMPORT_ORCHESTRATION_ACTION.MODIFY_MAPPING) {
+      try {
+        const nextMapping = applyMappingChangeFromText(text, session.headers ?? [], session.columnMapping ?? {})
+        if (nextMapping) {
+          mappingChanged = true
+          updateCustomerImportSession(importSessionId, userId, gaId, {
+            columnMapping: nextMapping,
+            previewVersionHash: null,
+            commitStatus: 'idle',
+          })
         }
-        appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
-        return { conversationId: conversation.conversationId, messages: [reply] }
+      } catch (mappingError) {
+        if (mappingError?.code === 'UNKNOWN_DESTINATION') {
+          const reply = {
+            role: 'assistant',
+            kind: 'text',
+            text: '어느 ONE FC 항목으로 연결할지 이해하지 못했습니다. 예: 「회사 컬럼은 메모로 넣어줘」',
+          }
+          appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
+          return { conversationId: conversation.conversationId, messages: [reply] }
+        }
+        throw mappingError
       }
-      throw mappingError
     }
 
     if (mappingChanged) {
@@ -259,17 +300,22 @@ export async function processAiAssistantMessage(pool, req, input) {
       })
     }
 
-    if (!detectImportIntent(text) && !input.forceImportPipeline) {
+    if (decision.action === IMPORT_ORCHESTRATION_ACTION.IMPORT_SESSION_HELP) {
       const reply = {
         role: 'assistant',
         kind: 'text',
-        text: '첨부된 가져오기 파일이 있습니다. 고객 등록을 진행하려면 「고객리스트에 올려줘」처럼 요청하거나, 컬럼 수정·중복 정책을 말씀해 주세요.',
+        text:
+          decision.assistantText ??
+          '첨부된 가져오기 파일이 있습니다. 고객 등록을 진행하려면 요청해 주시거나, 컬럼 수정·중복 정책을 말씀해 주세요.',
       }
       appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
       return { conversationId: conversation.conversationId, messages: [reply] }
     }
 
-    if (session.importSourceMode === CUSTOMER_IMPORT_SOURCE_MODE.UNSTRUCTURED_CELL_RECORDS) {
+    if (
+      decision.action === IMPORT_ORCHESTRATION_ACTION.START_IMPORT_ANALYSIS &&
+      session.importSourceMode === CUSTOMER_IMPORT_SOURCE_MODE.UNSTRUCTURED_CELL_RECORDS
+    ) {
       const { job } = startImportAnalysisJob(pool, req, {
         importSessionId,
         conversationId: conversation.conversationId,
@@ -289,17 +335,30 @@ export async function processAiAssistantMessage(pool, req, input) {
       return { conversationId: conversation.conversationId, messages: [progressCard], analysisJobId: job.jobId }
     }
 
-    const progress = {
-      role: 'assistant',
-      kind: 'status',
-      text: '파일을 분석하고 있어요…',
-    }
-    appendAiConversationMessage(conversation.conversationId, userId, gaId, progress)
+    if (
+      decision.action === IMPORT_ORCHESTRATION_ACTION.RUN_PREVIEW_PIPELINE ||
+      decision.action === IMPORT_ORCHESTRATION_ACTION.START_IMPORT_ANALYSIS
+    ) {
+      const progress = {
+        role: 'assistant',
+        kind: 'status',
+        text: '파일을 분석하고 있어요…',
+      }
+      appendAiConversationMessage(conversation.conversationId, userId, gaId, progress)
 
-    return finalizePreviewConversation(pool, req, conversation, userId, gaId, importSessionId, {
-      runGptColumnMap: true,
-      duplicatePolicy: duplicatePolicyFromContext,
-    })
+      return finalizePreviewConversation(pool, req, conversation, userId, gaId, importSessionId, {
+        runGptColumnMap: true,
+        duplicatePolicy: duplicatePolicyFromContext,
+      })
+    }
+
+    const reply = {
+      role: 'assistant',
+      kind: 'text',
+      text: '요청을 이해하지 못했습니다. 파일 분석이나 미리보기 관련 요청을 다시 말씀해 주세요.',
+    }
+    appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
+    return { conversationId: conversation.conversationId, messages: [reply] }
   } catch (error) {
     const code = error?.code ?? 'AI_TOOL_FAILED'
     const reply = {
