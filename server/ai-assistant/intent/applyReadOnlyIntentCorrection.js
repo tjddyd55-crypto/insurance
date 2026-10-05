@@ -24,13 +24,23 @@ export function applyReadOnlyIntentCorrection(text, classified, scope) {
   if (!hint) {
     return classified
   }
-  if (classified.domain !== INTENT_DOMAIN.GENERAL_CHAT && classified.requiredToolKey === hint) {
+  if (classified.requiredToolKey === hint) {
+    return classified
+  }
+  if (
+    classified.requiredToolKey &&
+    classified.domain !== INTENT_DOMAIN.GENERAL_CHAT &&
+    classified.domain !== INTENT_DOMAIN.UNKNOWN
+  ) {
+    return classified
+  }
+  if (!hint) {
     return classified
   }
   if (
     classified.domain !== INTENT_DOMAIN.GENERAL_CHAT &&
-    classified.domain !== INTENT_DOMAIN.UNKNOWN &&
-    classified.requiredToolKey
+    classified.domain !== INTENT_DOMAIN.ONE_FC_QUERY &&
+    classified.domain !== 'CUSTOMER'
   ) {
     return classified
   }
