@@ -1,4 +1,8 @@
 import { INTENT_DOMAIN } from '../../../shared/ai-assistant/orchestration/intentSchema.js'
+import {
+  buildCustomerSearchQuery,
+  isCustomerSearchMissingTarget,
+} from './customerSearchQuery.js'
 import { resolveCustomerIdFromContext } from './resolveCustomerReference.js'
 import { isReadToolCallable } from '../read-tools/readToolAllowlist.js'
 
@@ -7,6 +11,7 @@ export const READ_ORCHESTRATION_ACTION = Object.freeze({
   WRITE_BLOCKED: 'WRITE_BLOCKED',
   SCOPE_LIMIT: 'SCOPE_LIMIT',
   NO_READ_INTENT: 'NO_READ_INTENT',
+  CAPABILITIES: 'CAPABILITIES',
 })
 
 const WRITE_INTENTS = new Set(['CREATE', 'UPDATE', 'DELETE', 'SEND', 'COMMIT', 'WRITE'])
@@ -21,6 +26,10 @@ export function resolveReadOrchestrationAction(classified, conversation, text) {
   const domain = classified.domain
   const bizIntent = String(classified.intent ?? classified.requestedAction ?? '').toUpperCase()
   const toolKey = classified.requiredToolKey ?? null
+
+  if (domain === INTENT_DOMAIN.ASSISTANT || bizIntent === 'CAPABILITIES') {
+    return { action: READ_ORCHESTRATION_ACTION.CAPABILITIES, policy: 'ALLOW' }
+  }
 
   if (
     domain === INTENT_DOMAIN.ONE_FC_ACTION ||
@@ -71,9 +80,21 @@ export function resolveReadOrchestrationAction(classified, conversation, text) {
 
   const params = { ...(classified.filters ?? {}) }
   if (toolKey === 'customer.search') {
-    params.query =
-      /AI테스트_/.test(text) ? extractNameHint(text) : target.name ?? classified.filters?.name ?? extractNameHint(text)
+    const built = buildCustomerSearchQuery({ text, target, classified })
+    if (built.reason === 'REFERENCE_ONLY' && !customerId) {
+      return {
+        action: READ_ORCHESTRATION_ACTION.NO_READ_INTENT,
+        policy: 'NEED_CUSTOMER',
+      }
+    }
+    params.query = built.query
     params.limit = classified.limit ?? 10
+    if (isCustomerSearchMissingTarget(params.query, text)) {
+      return {
+        action: READ_ORCHESTRATION_ACTION.NO_READ_INTENT,
+        policy: 'SEARCH_NEED_TARGET',
+      }
+    }
   }
   if (toolKey === 'customer.get') {
     params.customerId = customerId
@@ -122,6 +143,12 @@ export function resolveReadOrchestrationAction(classified, conversation, text) {
   const needsCustomer = new Set(['customer.get', 'consultation.recent', 'customer.files.list'])
   if (needsCustomer.has(toolKey) && !params.customerId) {
     if (target.name) {
+      if (isCustomerSearchMissingTarget(target.name, text)) {
+        return {
+          action: READ_ORCHESTRATION_ACTION.NO_READ_INTENT,
+          policy: 'SEARCH_NEED_TARGET',
+        }
+      }
       return {
         action: READ_ORCHESTRATION_ACTION.EXECUTE_READ_TOOL,
         toolKey: 'customer.search',
@@ -194,12 +221,3 @@ function inferScheduleDay(text) {
   return 'today'
 }
 
-function extractNameHint(text) {
-  const t = String(text ?? '').trim()
-  const qa = t.match(/AI테스트_[^\s]+/)
-  if (qa) {
-    return qa[0]
-  }
-  const m = t.match(/([가-힣]{2,4})\s*(찾|보여|알려|정보|페이지)/)
-  return m?.[1] ?? t.slice(0, 32)
-}

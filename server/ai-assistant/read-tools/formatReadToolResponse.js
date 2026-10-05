@@ -1,4 +1,9 @@
 import { buildCustomerDetailUiAction, sanitizeUiActions } from './navigationActions.js'
+import {
+  formatClaimStatusLabel,
+  formatScheduleEventLine,
+  formatTodoDueSuffix,
+} from './readFormatUtils.js'
 
 /**
  * Grounded assistant payloads from tool results only (no GPT fill-in).
@@ -205,7 +210,7 @@ export function formatReadToolResponse(toolResult, meta = {}) {
       }
     }
     const shown = customers.slice(0, 20)
-    const lines = shown.map((c, i) => `${i + 1}. ${c.name} (휴대폰 끝 ${c.phoneTail})`)
+    const lines = shown.map((c, i) => `${i + 1}. ${c.name} — 휴대폰 끝 ${c.phoneTail}`)
     const more =
       total > shown.length ? `\n… 외 ${total - shown.length}명 (목록은 최대 ${toolResult.limit ?? 20}명까지 표시)` : ''
     return {
@@ -219,18 +224,29 @@ export function formatReadToolResponse(toolResult, meta = {}) {
   }
 
   if (toolKey === 'task.list') {
-    const todos = toolResult.todos ?? []
+    const todos = (toolResult.todos ?? []).filter((t) => String(t.title ?? '').trim())
+    const dueScope = toolResult.due === 'tomorrow' ? 'tomorrow' : toolResult.due === 'week' ? 'week' : 'today'
     const dueLabel =
-      toolResult.due === 'tomorrow' ? '내일' : toolResult.due === 'week' ? '이번 주' : '오늘'
+      dueScope === 'tomorrow' ? '내일' : dueScope === 'week' ? '이번 주' : '오늘'
     if (todos.length === 0) {
+      const emptyText =
+        dueScope === 'today'
+          ? '오늘 등록된 할 일이 없습니다.'
+          : `${dueLabel} 할 일이 없습니다.`
       return {
-        text: `${dueLabel} 할 일이 없습니다.`,
+        text: emptyText,
         kind: 'text',
         resolvedCustomer: null,
         uiActions: [],
       }
     }
-    const body = todos.map((t, i) => `${i + 1}. ${t.title}${t.dueDate ? ` (${t.dueDate})` : ''}`).join('\n')
+    const body = todos
+      .map((t, i) => {
+        const title = String(t.title ?? '').trim() || '제목 없음'
+        const suffix = formatTodoDueSuffix(t.dueDate, dueScope)
+        return `${i + 1}. ${title}${suffix}`
+      })
+      .join('\n')
     return {
       text: `${dueLabel} 할 일 ${todos.length}건입니다.\n${body}`,
       kind: 'task_list_card',
@@ -244,20 +260,18 @@ export function formatReadToolResponse(toolResult, meta = {}) {
     const events = toolResult.events ?? []
     const dayLabel = toolResult.day === 'tomorrow' ? '내일' : '오늘'
     if (events.length === 0) {
+      const emptyText =
+        toolResult.day === 'today' || toolResult.day == null
+          ? '오늘 등록된 일정이 없습니다.'
+          : `${dayLabel} 일정이 없습니다.`
       return {
-        text: `${dayLabel} 일정이 없습니다.`,
+        text: emptyText,
         kind: 'text',
         resolvedCustomer: null,
         uiActions: [],
       }
     }
-    const body = events
-      .map((ev, i) => {
-        const title = ev.title || '일정'
-        const who = ev.customerName ? ` · ${ev.customerName}` : ''
-        return `${i + 1}. ${title}${who}`
-      })
-      .join('\n')
+    const body = events.map((ev, i) => `${i + 1}. ${formatScheduleEventLine(ev)}`).join('\n')
     return {
       text: `${dayLabel} 일정 ${events.length}건입니다.\n${body}`,
       kind: 'schedule_list_card',
@@ -277,14 +291,18 @@ export function formatReadToolResponse(toolResult, meta = {}) {
         uiActions: [],
       }
     }
+    const pending = Boolean(toolResult.pending)
     const body = claims
       .map((c, i) => {
-        const date = c.submittedAt ? String(c.submittedAt).slice(0, 10) : '—'
-        return `${i + 1}. ${c.customerName} · ${c.title} (${c.status}) · ${date}`
+        const statusLabel = formatClaimStatusLabel(c.status)
+        const title = String(c.title ?? '').trim() || '청구'
+        const who = String(c.customerName ?? '').trim() || '고객'
+        return `${i + 1}. ${who} — ${title} — ${statusLabel}`
       })
       .join('\n')
+    const header = pending ? `미처리 청구 ${claims.length}건입니다.` : `청구 ${claims.length}건입니다.`
     return {
-      text: `청구 ${claims.length}건입니다.\n${body}`,
+      text: `${header}\n${body}`,
       kind: 'claim_list_card',
       claims,
       resolvedCustomer: null,

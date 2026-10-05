@@ -38,7 +38,9 @@ READ-ONLY assistant scope:
 - requiredTool examples: customer.search, customer.get, customer.list, customer.files.list, consultation.recent, task.list, schedule.list, claim.list
 - GENERAL_CHAT only for greetings; out-of-scope trivia → GENERAL_CHAT with low confidence.
 - Never keyword-route: interpret full sentence meaning.
-- Write/send/delete/register actions → ONE_FC_ACTION with requiresTool but not customer.import commit from chat.`
+- Write/send/delete/register actions → ONE_FC_ACTION with requiresTool but not customer.import commit from chat.
+- Questions about what the assistant can do (e.g. "여기서 뭘 할 수 있어?") → domain ASSISTANT, intent CAPABILITIES, requiresTool=false, requiredToolKey=null.
+- "고객 찾기" without a person name or phone → intent SEARCH, requiresClarification=true, do not invent target.name from the word 고객 alone.`
 
 export async function classifyUserIntent(input) {
   const scope =

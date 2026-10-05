@@ -5,6 +5,7 @@ import {
   isExplainOrGeneralKnowledgeQuestion,
   isLikelyGeneralConversation,
 } from './detectBusinessToolHint.js'
+import { detectCapabilitiesQuery } from './detectCapabilitiesQuery.js'
 import {
   detectNaturalLanguageCommitIntent,
   parseDuplicatePolicyIntent,
@@ -193,6 +194,23 @@ export function classifyUserIntentHeuristic(text, snapshot, options = {}) {
   }
 
   if (scope.readOnlyBusinessEnabled) {
+    if (detectCapabilitiesQuery(text)) {
+      return {
+        domain: INTENT_DOMAIN.ASSISTANT,
+        stage: INTENT_STAGE.QUERY,
+        goal: 'assistant_capabilities',
+        requestedAction: 'CAPABILITIES',
+        intent: 'CAPABILITIES',
+        targetReference: null,
+        commitRequested: false,
+        requiresClarification: false,
+        clarificationQuestion: null,
+        requiresTool: false,
+        requiredToolKey: null,
+        confidence: 0.82,
+        source: 'heuristic',
+      }
+    }
     if (isLikelyGeneralConversation(text)) {
       return generalChatIntent(0.8)
     }

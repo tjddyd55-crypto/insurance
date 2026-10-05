@@ -4,6 +4,7 @@ import {
   isExplainOrGeneralKnowledgeQuestion,
   isLikelyGeneralConversation,
 } from './detectBusinessToolHint.js'
+import { extractCustomerNameHint, isGenericCustomerNoun } from './customerSearchQuery.js'
 import { normalizeClassifiedIntent } from './normalizeClassifiedIntent.js'
 
 /**
@@ -71,9 +72,9 @@ function buildTargetFromText(text, toolKey) {
     return { reference: 'previous_customer', entityType: 'CUSTOMER' }
   }
   if (toolKey === 'customer.search' || toolKey === 'customer.get') {
-    const m = t.match(/([가-힣]{2,4})/)
-    if (m) {
-      return { name: m[1], entityType: 'CUSTOMER' }
+    const hint = extractCustomerNameHint(t)
+    if (hint && !isGenericCustomerNoun(hint)) {
+      return { name: hint, entityType: 'CUSTOMER' }
     }
   }
   return null

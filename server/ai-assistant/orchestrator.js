@@ -42,6 +42,8 @@ import {
   isOutOfScopeGeneralQuestion,
 } from './scope/assistantScopePolicy.js'
 import { isLikelyGeneralConversation } from './intent/detectBusinessToolHint.js'
+import { detectCapabilitiesQuery } from './intent/detectCapabilitiesQuery.js'
+import { buildAssistantCapabilitiesMessage } from './read-tools/buildAssistantCapabilitiesMessage.js'
 
 function defaultImportContext(importSessionId, session, duplicatePolicy, previewVersionHash) {
   return {
@@ -203,6 +205,31 @@ export async function processAiAssistantMessage(pool, req, input) {
         role: 'assistant',
         kind: 'text',
         text: scopePolicy.writeBlockedMessage,
+      }
+      appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
+      return { conversationId: conversation.conversationId, messages: [reply] }
+    }
+
+    if (
+      readDecision.action === READ_ORCHESTRATION_ACTION.CAPABILITIES ||
+      detectCapabilitiesQuery(text) ||
+      String(classified.intent ?? '').toUpperCase() === 'CAPABILITIES'
+    ) {
+      const cap = buildAssistantCapabilitiesMessage()
+      const reply = {
+        role: 'assistant',
+        kind: 'text',
+        text: cap.text,
+      }
+      appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
+      return { conversationId: conversation.conversationId, messages: [reply] }
+    }
+
+    if (readDecision.policy === 'SEARCH_NEED_TARGET') {
+      const reply = {
+        role: 'assistant',
+        kind: 'text',
+        text: '찾을 고객의 이름이나 전화번호를 말씀해 주세요.',
       }
       appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
       return { conversationId: conversation.conversationId, messages: [reply] }

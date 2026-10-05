@@ -6,6 +6,8 @@ export const INTENT_DOMAIN = Object.freeze({
   UNSUPPORTED_ONE_FC_ACTION: 'UNSUPPORTED_ONE_FC_ACTION',
   CUSTOMER_IMPORT: 'CUSTOMER_IMPORT',
   CLARIFY: 'CLARIFY',
+  /** Capability / assistant meta (no tool execution) */
+  ASSISTANT: 'ASSISTANT',
   /** @deprecated mapped to GENERAL_CHAT at runtime */
   OTHER: 'OTHER',
   /** @deprecated mapped to GENERAL_CHAT at runtime */

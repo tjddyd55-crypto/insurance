@@ -87,6 +87,103 @@ describe('read orchestration', () => {
     assert.equal(d.params.countOnly, true)
   })
 
+  it('customer search without target clarifies', () => {
+    const d = resolveReadOrchestrationAction(
+      {
+        domain: INTENT_DOMAIN.ONE_FC_QUERY,
+        intent: 'SEARCH',
+        requiredToolKey: 'customer.search',
+        requiresTool: true,
+        target: { name: '고객' },
+      },
+      {},
+      '고객 찾기',
+    )
+    assert.equal(d.action, READ_ORCHESTRATION_ACTION.NO_READ_INTENT)
+    assert.equal(d.policy, 'SEARCH_NEED_TARGET')
+  })
+
+  it('customer search with QA name executes', () => {
+    const d = resolveReadOrchestrationAction(
+      {
+        domain: INTENT_DOMAIN.ONE_FC_QUERY,
+        intent: 'SEARCH',
+        requiredToolKey: 'customer.search',
+        requiresTool: true,
+      },
+      {},
+      'AI테스트_홍길동 찾아줘',
+    )
+    assert.equal(d.action, READ_ORCHESTRATION_ACTION.EXECUTE_READ_TOOL)
+    assert.equal(d.params.query, 'AI테스트_홍길동')
+  })
+
+  it('그 고객 찾아줘 without resolved customer needs customer first', () => {
+    const d = resolveReadOrchestrationAction(
+      {
+        domain: INTENT_DOMAIN.ONE_FC_QUERY,
+        intent: 'SEARCH',
+        requiredToolKey: 'customer.search',
+        requiresTool: true,
+        target: { reference: 'previous_customer' },
+      },
+      {},
+      '그 고객 찾아줘',
+    )
+    assert.equal(d.policy, 'NEED_CUSTOMER')
+  })
+
+  it('customer list formats separate lines', () => {
+    const customers = Array.from({ length: 7 }, (_, i) => ({
+      customerId: i + 1,
+      name: `AI테스트_${i}`,
+      phoneTail: `100${i}`,
+    }))
+    const f = formatReadToolResponse({
+      toolKey: 'customer.list',
+      total: 7,
+      customers,
+      limit: 20,
+    })
+    assert.equal(f.text.split('\n').length, 8)
+    assert.match(f.text, /— 휴대폰 끝/)
+  })
+
+  it('task list today omits english date suffix', () => {
+    const f = formatReadToolResponse({
+      toolKey: 'task.list',
+      due: 'today',
+      todos: [
+        { id: '1', title: 'AI테스트_홍길동 전화하기', dueDate: '2026-10-05' },
+        { id: '2', title: 'AI테스트_김철수 서류 확인', dueDate: '2026-10-05' },
+      ],
+    })
+    assert.doesNotMatch(f.text, /Mon|Oct|2026-10-05/)
+    assert.match(f.text, /할 일 2건/)
+  })
+
+  it('schedule list uses separate lines without duplicate customer suffix', () => {
+    const f = formatReadToolResponse({
+      toolKey: 'schedule.list',
+      day: 'today',
+      events: [
+        { title: 'AI테스트_홍길동 · 상령일', customerName: 'AI테스트_홍길동' },
+        { title: 'AI테스트_김철수 · 갱신 확인', customerName: 'AI테스트_김철수' },
+      ],
+    })
+    const lines = f.text.split('\n').slice(1)
+    assert.equal(lines.length, 2)
+    assert.doesNotMatch(lines[0], /AI테스트_홍길동 · AI테스트_홍길동/)
+  })
+
+  it('capabilities message lists implemented read tools only', async () => {
+    const { buildAssistantCapabilitiesMessage } = await import('./buildAssistantCapabilitiesMessage.js')
+    const cap = buildAssistantCapabilitiesMessage()
+    assert.ok(cap.implementedToolCount >= 5)
+    assert.match(cap.text, /말씀해 보세요/)
+    assert.doesNotMatch(cap.text, /customer\.search/)
+  })
+
   it('follow-up consultation uses resolved customer id', () => {
     const d = resolveReadOrchestrationAction(
       {
