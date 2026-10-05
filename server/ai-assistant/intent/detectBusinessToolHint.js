@@ -24,6 +24,15 @@ export function detectBusinessToolKeyHint(text) {
   if (/상담/.test(t) && /(알려|조회|내용|뭐|최근)/.test(t)) {
     return 'consultation.recent'
   }
+  if (/파일|첨부|자료/.test(t) && /(뭐|목록|보여|있)/.test(t)) {
+    return 'customer.files.list'
+  }
+  if (/청구/.test(t) && /(미처리|목록|현황|보여|확인)/.test(t)) {
+    return 'claim.list'
+  }
+  if (/페이지/.test(t) && /(열|보여|이동)/.test(t)) {
+    return 'customer.get'
+  }
   if (/(문자|sms)/i.test(t) && /(보내|발송|전송)/.test(t)) {
     return 'sms.send'
   }

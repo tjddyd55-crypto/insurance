@@ -47,8 +47,52 @@ export type AiPageContext = {
   currentEntityId: string | null
 }
 
+export type AiUiAction = {
+  type: 'navigate.customer.detail'
+  customerId: number
+  path: string
+}
+
+export type AiReadCustomerSummary = {
+  customerId: number
+  name: string
+  phone?: string | null
+  phoneTail?: string | null
+  address?: string | null
+  job?: string | null
+}
+
+export type AiCustomerFileItem = {
+  id: number
+  name: string
+  type?: string | null
+  createdAt?: string | null
+  openTarget?: { type: string; customerId: number; fileId: number }
+}
+
 export type AiAssistantMessage =
   | { role: 'user' | 'assistant'; kind: 'text'; text: string }
+  | {
+      role: 'assistant'
+      kind:
+        | 'customer_summary_card'
+        | 'customer_disambiguation'
+        | 'consultation_list_card'
+        | 'customer_files_card'
+        | 'task_list_card'
+        | 'schedule_list_card'
+        | 'claim_list_card'
+      text: string
+      customer?: AiReadCustomerSummary
+      options?: Array<{ customerId: number; label: string }>
+      consultations?: Array<{ consultationDate?: string | null; bodyPreview?: string }>
+      files?: AiCustomerFileItem[]
+      todos?: Array<{ id: string; title: string; dueDate?: string | null }>
+      events?: Array<{ title?: string; customerName?: string | null }>
+      claims?: Array<{ id: number; customerName: string; title: string; status: string }>
+      uiActions?: AiUiAction[]
+      toolKey?: string
+    }
   | { role: 'assistant'; kind: 'status'; text: string }
   | {
       role: 'assistant'

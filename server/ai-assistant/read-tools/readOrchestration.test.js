@@ -40,6 +40,38 @@ describe('read orchestration', () => {
     assert.match(f.text, /홍길동/)
   })
 
+  it('follow-up files uses resolved customer id', () => {
+    const d = resolveReadOrchestrationAction(
+      {
+        domain: INTENT_DOMAIN.ONE_FC_QUERY,
+        intent: 'LIST',
+        requiredToolKey: 'customer.files.list',
+        requiresTool: true,
+        target: { reference: 'previous_customer' },
+      },
+      { resolvedEntities: { customer: { customerId: 7, name: '홍길동' } } },
+      '그 고객 파일 뭐 있어?',
+    )
+    assert.equal(d.params.customerId, 7)
+  })
+
+  it('navigate with resolved customer uses customer.get', () => {
+    const d = resolveReadOrchestrationAction(
+      {
+        domain: INTENT_DOMAIN.ONE_FC_QUERY,
+        intent: 'NAVIGATE',
+        requiredToolKey: 'customer.get',
+        requiresTool: true,
+        target: { reference: 'previous_customer' },
+      },
+      { resolvedEntities: { customer: { customerId: 9, name: '홍길동' } } },
+      '그 고객 페이지 열어줘',
+    )
+    assert.equal(d.toolKey, 'customer.get')
+    assert.equal(d.navigate, true)
+    assert.equal(d.params.customerId, 9)
+  })
+
   it('follow-up consultation uses resolved customer id', () => {
     const d = resolveReadOrchestrationAction(
       {

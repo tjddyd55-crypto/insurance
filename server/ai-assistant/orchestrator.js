@@ -35,6 +35,7 @@ import {
 } from './intent/resolveReadOrchestrationAction.js'
 import { executeReadTool } from './read-tools/readToolExecutor.js'
 import { formatReadToolResponse } from './read-tools/formatReadToolResponse.js'
+import { sanitizeUiActions } from './read-tools/navigationActions.js'
 import {
   getAssistantScopePolicy,
   isOutOfScopeGeneralQuestion,
@@ -225,6 +226,16 @@ export async function processAiAssistantMessage(pool, req, input) {
       return { conversationId: conversation.conversationId, messages: [reply] }
     }
 
+    if (readDecision.policy === 'NEED_CUSTOMER') {
+      const reply = {
+        role: 'assistant',
+        kind: 'text',
+        text: '먼저 고객을 찾아 주세요. (예: 홍길동 찾아줘)',
+      }
+      appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
+      return { conversationId: conversation.conversationId, messages: [reply] }
+    }
+
     if (readDecision.action === READ_ORCHESTRATION_ACTION.EXECUTE_READ_TOOL) {
       try {
         const toolStarted = Date.now()
@@ -237,9 +248,17 @@ export async function processAiAssistantMessage(pool, req, input) {
           readDecision.toolKey === 'customer.search' &&
           toolResult.customers?.length === 1
         ) {
+          const cid = toolResult.customers[0].customerId
+          const followParams = {
+            customerId: cid,
+            ...(readDecision.followUpParams ?? {}),
+          }
+          if (readDecision.followUpTool === 'consultation.recent' && !followParams.limit) {
+            followParams.limit = 3
+          }
           toolResult = await executeReadTool(pool, req, {
             toolKey: readDecision.followUpTool,
-            params: { customerId: toolResult.customers[0].customerId, limit: 3 },
+            params: followParams,
           })
         } else if (
           readDecision.toolKey === 'customer.search' &&
@@ -256,6 +275,7 @@ export async function processAiAssistantMessage(pool, req, input) {
           navigate: readDecision.navigate,
           query: readDecision.params?.query,
         })
+        const uiActions = sanitizeUiActions(formatted.uiActions ?? [])
         if (formatted.resolvedCustomer) {
           conversation = updateAiConversation(conversation.conversationId, userId, gaId, {
             resolvedEntities: { customer: formatted.resolvedCustomer },
@@ -268,7 +288,7 @@ export async function processAiAssistantMessage(pool, req, input) {
           customer: formatted.customer ?? undefined,
           options: formatted.options ?? undefined,
           consultations: formatted.consultations ?? undefined,
-          uiActions: formatted.uiActions ?? undefined,
+          uiActions: uiActions.length > 0 ? uiActions : undefined,
           toolKey: toolResult.toolKey,
           toolDurationMs: toolResult.durationMs,
           readLatencyMs: Date.now() - toolStarted,

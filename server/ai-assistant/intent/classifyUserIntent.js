@@ -34,7 +34,7 @@ READ-ONLY assistant scope:
 - Prefer ONE_FC_QUERY with requiresTool for customer/consultation/todo/schedule/claim reads.
 - domain CUSTOMER or ONE_FC_QUERY for lookups. Set intent SEARCH|GET|LIST|NAVIGATE.
 - target.name for person names; target.reference previous_customer when user says 그 사람/그 고객.
-- requiredTool examples: customer.search, customer.get, consultation.recent, task.list, schedule.list, claim.list
+- requiredTool examples: customer.search, customer.get, customer.files.list, consultation.recent, task.list, schedule.list, claim.list
 - GENERAL_CHAT only for greetings; out-of-scope trivia → GENERAL_CHAT with low confidence.
 - Never keyword-route: interpret full sentence meaning.
 - Write/send/delete/register actions → ONE_FC_ACTION with requiresTool but not customer.import commit from chat.`

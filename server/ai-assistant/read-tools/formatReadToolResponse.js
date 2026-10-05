@@ -1,3 +1,5 @@
+import { buildCustomerDetailUiAction, sanitizeUiActions } from './navigationActions.js'
+
 /**
  * Grounded assistant payloads from tool results only (no GPT fill-in).
  * @param {object} toolResult
@@ -36,9 +38,7 @@ export function formatReadToolResponse(toolResult, meta = {}) {
     }
     if (customers.length === 1) {
       const c = customers[0]
-      const uiActions = meta.navigate
-        ? [{ type: 'navigate.customer.detail', customerId: c.customerId }]
-        : []
+      const uiActions = meta.navigate ? buildCustomerDetailUiAction(c.customerId) : []
       return {
         text: [
           `${c.name} 고객을 찾았습니다.`,
@@ -76,9 +76,7 @@ export function formatReadToolResponse(toolResult, meta = {}) {
         uiActions: [],
       }
     }
-    const uiActions = meta.navigate
-      ? [{ type: 'navigate.customer.detail', customerId: c.customerId }]
-      : []
+    const uiActions = meta.navigate ? buildCustomerDetailUiAction(c.customerId) : []
     return {
       text: [
         `${c.name} 고객 정보입니다.`,
@@ -132,6 +130,123 @@ export function formatReadToolResponse(toolResult, meta = {}) {
         name: toolResult.customer.name,
         phoneTail: toolResult.customer.phoneTail,
       },
+      uiActions: [],
+    }
+  }
+
+  if (toolKey === 'customer.files.list') {
+    if (!toolResult.customer) {
+      return {
+        text: '먼저 조회할 고객을 지정해 주세요.',
+        kind: 'text',
+        resolvedCustomer: null,
+        uiActions: [],
+      }
+    }
+    const files = toolResult.files ?? []
+    if (files.length === 0) {
+      return {
+        text: `${toolResult.customer.name} 고객에게 등록된 파일이 없습니다.`,
+        kind: 'text',
+        resolvedCustomer: {
+          customerId: toolResult.customer.customerId,
+          name: toolResult.customer.name,
+          phoneTail: toolResult.customer.phoneTail,
+        },
+        uiActions: [],
+      }
+    }
+    const body = files
+      .map((f, i) => {
+        const date = f.createdAt ? String(f.createdAt).slice(0, 10) : '—'
+        const type = f.type ? ` (${f.type})` : ''
+        return `${i + 1}. ${f.name}${type} · ${date}`
+      })
+      .join('\n')
+    return {
+      text: `${toolResult.customer.name} 고객 파일 ${files.length}건입니다.\n${body}`,
+      kind: 'customer_files_card',
+      files,
+      customer: toolResult.customer,
+      resolvedCustomer: {
+        customerId: toolResult.customer.customerId,
+        name: toolResult.customer.name,
+        phoneTail: toolResult.customer.phoneTail,
+      },
+      uiActions: sanitizeUiActions([]),
+    }
+  }
+
+  if (toolKey === 'task.list') {
+    const todos = toolResult.todos ?? []
+    const dueLabel =
+      toolResult.due === 'tomorrow' ? '내일' : toolResult.due === 'week' ? '이번 주' : '오늘'
+    if (todos.length === 0) {
+      return {
+        text: `${dueLabel} 할 일이 없습니다.`,
+        kind: 'text',
+        resolvedCustomer: null,
+        uiActions: [],
+      }
+    }
+    const body = todos.map((t, i) => `${i + 1}. ${t.title}${t.dueDate ? ` (${t.dueDate})` : ''}`).join('\n')
+    return {
+      text: `${dueLabel} 할 일 ${todos.length}건입니다.\n${body}`,
+      kind: 'task_list_card',
+      todos,
+      resolvedCustomer: null,
+      uiActions: [],
+    }
+  }
+
+  if (toolKey === 'schedule.list') {
+    const events = toolResult.events ?? []
+    const dayLabel = toolResult.day === 'tomorrow' ? '내일' : '오늘'
+    if (events.length === 0) {
+      return {
+        text: `${dayLabel} 일정이 없습니다.`,
+        kind: 'text',
+        resolvedCustomer: null,
+        uiActions: [],
+      }
+    }
+    const body = events
+      .map((ev, i) => {
+        const title = ev.title || '일정'
+        const who = ev.customerName ? ` · ${ev.customerName}` : ''
+        return `${i + 1}. ${title}${who}`
+      })
+      .join('\n')
+    return {
+      text: `${dayLabel} 일정 ${events.length}건입니다.\n${body}`,
+      kind: 'schedule_list_card',
+      events,
+      resolvedCustomer: null,
+      uiActions: [],
+    }
+  }
+
+  if (toolKey === 'claim.list') {
+    const claims = toolResult.claims ?? []
+    if (claims.length === 0) {
+      return {
+        text: toolResult.pending ? '미처리 청구가 없습니다.' : '청구 내역이 없습니다.',
+        kind: 'text',
+        resolvedCustomer: null,
+        uiActions: [],
+      }
+    }
+    const body = claims
+      .map((c, i) => {
+        const date = c.submittedAt ? String(c.submittedAt).slice(0, 10) : '—'
+        return `${i + 1}. ${c.customerName} · ${c.title} (${c.status}) · ${date}`
+      })
+      .join('\n')
+    return {
+      text: `청구 ${claims.length}건입니다.\n${body}`,
+      kind: 'claim_list_card',
+      claims,
+      resolvedCustomer: null,
       uiActions: [],
     }
   }

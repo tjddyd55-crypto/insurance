@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { FormButton } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import { validateAiImportAttachmentFile } from '../aiSecretaryImportFile'
@@ -13,6 +13,7 @@ import {
   updateImportMapping,
   uploadAiImportFile,
   type AiAssistantMessage,
+  type AiUiAction,
   type ImportMappingRow,
 } from '../api/aiSecretaryApi'
 import '../pages/ai-secretary-page.css'
@@ -53,7 +54,28 @@ function mappingStatusLabel(status: ImportMappingRow['status']) {
   return '미지정'
 }
 
+function applySafeUiActions(navigate: (path: string) => void, actions?: AiUiAction[]) {
+  if (!actions?.length) {
+    return
+  }
+  for (const action of actions) {
+    if (action.type !== 'navigate.customer.detail') {
+      continue
+    }
+    const path = String(action.path ?? '')
+    const id = Number(action.customerId)
+    if (!path.startsWith('/customers?customerId=') || !Number.isInteger(id) || id < 1) {
+      continue
+    }
+    if (path !== `/customers?customerId=${id}`) {
+      continue
+    }
+    navigate(path)
+  }
+}
+
 export default function AiSecretaryWorkspace({ variant, onClose }: Props) {
+  const navigate = useNavigate()
   const { token, user } = useAuth()
   const { openFullPage } = useAiSecretary()
   const pageContext = useAiPageContext()
@@ -193,6 +215,11 @@ export default function AiSecretaryWorkspace({ variant, onClose }: Props) {
       })
       setConversationId(res.conversationId)
       setMessages((prev) => [...prev, ...res.messages])
+      for (const m of res.messages) {
+        if (m.role === 'assistant' && 'uiActions' in m) {
+          applySafeUiActions(navigate, m.uiActions)
+        }
+      }
       if (res.analysisJobId) {
         startJobPolling(res.analysisJobId)
       }
@@ -494,6 +521,57 @@ export default function AiSecretaryWorkspace({ variant, onClose }: Props) {
           if (msg.kind === 'status') {
             return (
               <p key={index} className="ai-secretary-status">{msg.text}</p>
+            )
+          }
+          if (
+            msg.role === 'assistant' &&
+            (msg.kind === 'customer_summary_card' ||
+              msg.kind === 'consultation_list_card' ||
+              msg.kind === 'customer_files_card' ||
+              msg.kind === 'task_list_card' ||
+              msg.kind === 'schedule_list_card' ||
+              msg.kind === 'claim_list_card' ||
+              msg.kind === 'customer_disambiguation')
+          ) {
+            const customerId = msg.customer?.customerId
+            return (
+              <div key={index} className="ai-secretary-card">
+                <strong className="ai-secretary-bubble ai-secretary-bubble--assistant">{msg.text}</strong>
+                {msg.kind === 'customer_disambiguation' && msg.options?.length ? (
+                  <div className="ai-secretary-card__actions">
+                    {msg.options.map((opt) => (
+                      <FormButton
+                        key={opt.customerId}
+                        htmlType="button"
+                        variant="secondary"
+                        disabled={busy}
+                        onClick={() => void handleSend(`${opt.label} 고객 보여줘`)}
+                      >
+                        {opt.label}
+                      </FormButton>
+                    ))}
+                  </div>
+                ) : null}
+                {msg.kind === 'customer_files_card' && msg.files?.length && customerId ? (
+                  <div className="ai-secretary-card__actions">
+                    <Link className="ai-secretary-link" to={`/customers/${customerId}/files`}>
+                      파일함에서 보기
+                    </Link>
+                  </div>
+                ) : null}
+                {customerId ? (
+                  <div className="ai-secretary-card__actions">
+                    <FormButton
+                      htmlType="button"
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => navigate(`/customers?customerId=${customerId}`)}
+                    >
+                      고객 상세 열기
+                    </FormButton>
+                  </div>
+                ) : null}
+              </div>
             )
           }
           return (

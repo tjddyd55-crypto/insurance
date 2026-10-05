@@ -196,6 +196,16 @@ export function classifyUserIntentHeuristic(text, snapshot, options = {}) {
     if (isLikelyGeneralConversation(text)) {
       return generalChatIntent(0.8)
     }
+    if (isExplainOrGeneralKnowledgeQuestion(text)) {
+      return generalChatIntent(0.75)
+    }
+    const toolKey = detectBusinessToolKeyHint(text)
+    if (toolKey) {
+      const domain = /보내|발송|삭제|등록해|생성/.test(text)
+        ? INTENT_DOMAIN.ONE_FC_ACTION
+        : INTENT_DOMAIN.ONE_FC_QUERY
+      return businessToolIntent(toolKey, domain)
+    }
     return {
       ...generalChatIntent(0.55),
       requiresClarification: true,

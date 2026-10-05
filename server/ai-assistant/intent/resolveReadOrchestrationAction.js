@@ -1,4 +1,5 @@
 import { INTENT_DOMAIN } from '../../../shared/ai-assistant/orchestration/intentSchema.js'
+import { resolveCustomerIdFromContext } from './resolveCustomerReference.js'
 import { isReadToolCallable } from '../read-tools/readToolAllowlist.js'
 
 export const READ_ORCHESTRATION_ACTION = Object.freeze({
@@ -58,13 +59,8 @@ export function resolveReadOrchestrationAction(classified, conversation, text) {
     }
   }
 
-  const resolved = conversation.resolvedEntities?.customer ?? null
   const target = classified.target ?? {}
-  let customerId = target.customerId ?? null
-  const reference = String(target.reference ?? '').toLowerCase()
-  if (!customerId && (reference === 'previous_customer' || reference === 'current_customer' || /그\s*(사람|고객)/.test(text))) {
-    customerId = resolved?.customerId ?? null
-  }
+  const customerId = resolveCustomerIdFromContext(target, conversation, text)
 
   const params = { ...(classified.filters ?? {}) }
   if (toolKey === 'customer.search') {
@@ -76,15 +72,40 @@ export function resolveReadOrchestrationAction(classified, conversation, text) {
   }
   if (toolKey === 'consultation.recent') {
     params.customerId = customerId
-    params.limit = classified.limit ?? 3
+    params.limit = classified.limit ?? extractLimitHint(text) ?? 3
+  }
+  if (toolKey === 'customer.files.list') {
+    params.customerId = customerId
+  }
+  if (toolKey === 'task.list') {
+    params.due = classified.filters?.due ?? inferTodoDue(text)
+  }
+  if (toolKey === 'schedule.list') {
+    params.day = classified.filters?.day ?? inferScheduleDay(text)
+  }
+  if (toolKey === 'claim.list') {
+    params.pending = classified.filters?.pending ?? /미처리|확인할|대기/.test(text)
+    params.customerId = customerId ?? classified.filters?.customerId ?? null
+    params.limit = classified.limit ?? 15
   }
 
   const navigate =
     bizIntent === 'NAVIGATE' ||
     classified.requestedAction === 'NAVIGATE' ||
-    /페이지\s*열|상세\s*페이지|열어줘/.test(text)
+    (/페이지|상세/.test(text) && /열|보여|이동/.test(text))
 
-  if ((toolKey === 'customer.get' || toolKey === 'consultation.recent') && !params.customerId) {
+  if (navigate && customerId && toolKey !== 'customer.search') {
+    return {
+      action: READ_ORCHESTRATION_ACTION.EXECUTE_READ_TOOL,
+      toolKey: 'customer.get',
+      params: { customerId },
+      policy: 'ALLOW',
+      navigate: true,
+    }
+  }
+
+  const needsCustomer = new Set(['customer.get', 'consultation.recent', 'customer.files.list'])
+  if (needsCustomer.has(toolKey) && !params.customerId) {
     if (target.name) {
       return {
         action: READ_ORCHESTRATION_ACTION.EXECUTE_READ_TOOL,
@@ -93,11 +114,31 @@ export function resolveReadOrchestrationAction(classified, conversation, text) {
         policy: 'ALLOW',
         navigate,
         followUpTool: toolKey,
+        followUpParams: { limit: params.limit },
       }
     }
+    if (navigate && customerId == null) {
+      return {
+        action: READ_ORCHESTRATION_ACTION.NO_READ_INTENT,
+        policy: 'NEED_CUSTOMER',
+      }
+    }
+    if (needsCustomer.has(toolKey)) {
+      return {
+        action: READ_ORCHESTRATION_ACTION.NO_READ_INTENT,
+        policy: 'NEED_CUSTOMER',
+      }
+    }
+  }
+
+  if (navigate && toolKey === 'customer.search' && target.name) {
     return {
-      action: READ_ORCHESTRATION_ACTION.NO_READ_INTENT,
-      policy: 'NEED_CUSTOMER',
+      action: READ_ORCHESTRATION_ACTION.EXECUTE_READ_TOOL,
+      toolKey: 'customer.search',
+      params: { query: target.name, limit: 5 },
+      policy: 'ALLOW',
+      navigate: true,
+      followUpTool: 'customer.get',
     }
   }
 
@@ -108,6 +149,34 @@ export function resolveReadOrchestrationAction(classified, conversation, text) {
     policy: 'ALLOW',
     navigate,
   }
+}
+
+function extractLimitHint(text) {
+  const m = String(text ?? '').match(/(\d+)\s*개/)
+  if (!m) {
+    return null
+  }
+  const n = Number(m[1])
+  return Number.isFinite(n) && n > 0 && n <= 20 ? n : null
+}
+
+function inferTodoDue(text) {
+  const t = String(text ?? '')
+  if (/내일/.test(t)) {
+    return 'tomorrow'
+  }
+  if (/이번\s*주|주간/.test(t)) {
+    return 'week'
+  }
+  return 'today'
+}
+
+function inferScheduleDay(text) {
+  const t = String(text ?? '')
+  if (/내일/.test(t)) {
+    return 'tomorrow'
+  }
+  return 'today'
 }
 
 function extractNameHint(text) {

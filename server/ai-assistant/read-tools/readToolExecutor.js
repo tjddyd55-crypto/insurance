@@ -1,5 +1,9 @@
+import { listClaimsForAssistant } from './claimReadService.js'
 import { listRecentConsultationsForAssistant } from './consultationReadService.js'
+import { listCustomerFilesForAssistant } from './customerFilesReadService.js'
 import { getCustomerForAssistant, searchCustomersForAssistant } from './customerReadService.js'
+import { listScheduleForAssistant } from './scheduleReadService.js'
+import { listTodosForAssistant } from './todoReadService.js'
 import { isReadToolCallable } from './readToolAllowlist.js'
 
 /**
@@ -33,9 +37,26 @@ export async function executeReadTool(pool, req, input) {
       })
       return { toolKey: input.toolKey, ...result, durationMs: Date.now() - started }
     }
-    case 'task.list':
-    case 'schedule.list':
-    case 'claim.list':
+    case 'customer.files.list': {
+      const result = await listCustomerFilesForAssistant(pool, req, params.customerId)
+      return { toolKey: input.toolKey, ...result, durationMs: Date.now() - started }
+    }
+    case 'task.list': {
+      const result = await listTodosForAssistant(pool, req, { due: params.due ?? 'today' })
+      return { toolKey: input.toolKey, ...result, durationMs: Date.now() - started }
+    }
+    case 'schedule.list': {
+      const result = await listScheduleForAssistant(pool, req, { day: params.day ?? 'today' })
+      return { toolKey: input.toolKey, ...result, durationMs: Date.now() - started }
+    }
+    case 'claim.list': {
+      const result = await listClaimsForAssistant(pool, req, {
+        pending: params.pending ?? false,
+        customerId: params.customerId,
+        limit: params.limit ?? 15,
+      })
+      return { toolKey: input.toolKey, ...result, durationMs: Date.now() - started }
+    }
     case 'customer.list':
       return {
         toolKey: input.toolKey,

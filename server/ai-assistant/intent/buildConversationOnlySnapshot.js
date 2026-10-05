@@ -25,5 +25,6 @@ export function buildConversationOnlySnapshot({ conversation }) {
       previewExists: false,
       analysisRunning: false,
     },
+    resolvedEntities: conversation.resolvedEntities ?? null,
   }
 }

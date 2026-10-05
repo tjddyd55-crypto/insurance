@@ -152,6 +152,18 @@ export const AI_TOOL_CATALOG_RAW = [
         serviceBinding: 'server/ai-assistant/read-tools/customerReadService.js',
       },
     ],
+    [
+      'customer.files.list',
+      '고객 파일 목록',
+      '고객별 저장 파일 목록',
+      'READ',
+      'AVAILABLE',
+      {
+        implementationStatus: 'IMPLEMENTED',
+        qaStatus: 'NOT_TESTED',
+        serviceBinding: 'server/ai-assistant/read-tools/customerFilesReadService.js · files table',
+      },
+    ],
     ['customer.list', '고객 목록', '고객 리스트 조회', 'READ', 'AVAILABLE', { serviceBinding: 'GET /api/customers' }],
     ['customer.create', '고객 등록', '신규 고객 생성', 'CREATE', 'AVAILABLE', { serviceBinding: 'POST /api/customers' }],
     ['customer.update', '고객 수정', '고객 정보 수정', 'UPDATE', 'AVAILABLE', { serviceBinding: 'PUT /api/customers/:id' }],
@@ -311,7 +323,18 @@ export const AI_TOOL_CATALOG_RAW = [
     ['memo.update', '메모 수정', '메모 수정', 'UPDATE', 'PARTIAL'],
   ]),
   ...section('TASK', 4, [
-    ['task.list', '할일 목록', '할일·Todo 목록', 'READ', 'AVAILABLE', { serviceBinding: 'registerTodosApi' }],
+    [
+      'task.list',
+      '할일 목록',
+      '할일·Todo 목록',
+      'READ',
+      'AVAILABLE',
+      {
+        implementationStatus: 'IMPLEMENTED',
+        qaStatus: 'NOT_TESTED',
+        serviceBinding: 'server/ai-assistant/read-tools/todoReadService.js · GET /api/todos',
+      },
+    ],
     ['task.search', '할일 검색', '할일 검색', 'READ', 'AVAILABLE', { serviceBinding: 'registerTodosApi' }],
     ['task.create', '할일 생성', '신규 할일', 'CREATE', 'AVAILABLE', { serviceBinding: 'registerTodosApi' }],
     ['task.update', '할일 수정', '할일 수정', 'UPDATE', 'AVAILABLE', { serviceBinding: 'registerTodosApi' }],
@@ -319,7 +342,18 @@ export const AI_TOOL_CATALOG_RAW = [
     ['task.delete', '할일 삭제', '할일 삭제', 'DELETE', 'AVAILABLE', { serviceBinding: 'registerTodosApi' }],
   ]),
   ...section('SCHEDULE', 4, [
-    ['schedule.list', '일정 목록', '일정·캘린더 항목 목록', 'READ', 'AVAILABLE', { serviceBinding: 'GET /api/reminders/calendar' }],
+    [
+      'schedule.list',
+      '일정 목록',
+      '일정·캘린더 항목 목록',
+      'READ',
+      'AVAILABLE',
+      {
+        implementationStatus: 'IMPLEMENTED',
+        qaStatus: 'NOT_TESTED',
+        serviceBinding: 'server/ai-assistant/read-tools/scheduleReadService.js · reminderQuery',
+      },
+    ],
     ['schedule.search', '일정 검색', '일정 검색', 'READ', 'PARTIAL', { serviceBinding: 'calendar_items schema' }],
     ['schedule.create', '일정 생성', '신규 일정', 'CREATE', 'PARTIAL', { serviceBinding: 'calendar_items' }],
     ['schedule.update', '일정 수정', '일정 수정', 'UPDATE', 'PARTIAL'],
@@ -338,7 +372,18 @@ export const AI_TOOL_CATALOG_RAW = [
   ]),
   ...section('CLAIM', 6, [
     ['claim.search', '청구 검색', '청구 건 검색', 'READ', 'PARTIAL'],
-    ['claim.list', '청구 목록', '청구 목록 조회', 'READ', 'PARTIAL'],
+    [
+      'claim.list',
+      '청구 목록',
+      '청구 목록 조회',
+      'READ',
+      'PARTIAL',
+      {
+        implementationStatus: 'IMPLEMENTED',
+        qaStatus: 'NOT_TESTED',
+        serviceBinding: 'server/ai-assistant/read-tools/claimReadService.js · customer_claim_requests',
+      },
+    ],
     ['claim.get', '청구 상세', '청구 단건 조회', 'READ', 'PARTIAL'],
     ['claim.pending', '미결 청구', '진행 중·대기 청구', 'READ', 'PARTIAL'],
     ['claim.status-filter', '청구 상태 필터', '상태별 청구 필터', 'READ', 'PARTIAL'],

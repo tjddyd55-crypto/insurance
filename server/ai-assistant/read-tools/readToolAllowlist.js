@@ -5,6 +5,7 @@ export const READ_TOOL_ALLOWLIST = new Set([
   'customer.search',
   'customer.get',
   'customer.list',
+  'customer.files.list',
   'consultation.recent',
   'task.list',
   'schedule.list',
