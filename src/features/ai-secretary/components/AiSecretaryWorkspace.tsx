@@ -226,8 +226,9 @@ export default function AiSecretaryWorkspace({ variant, onClose }: Props) {
         pageContext,
       })
       setConversationId(res.conversationId)
-      setMessages((prev) => [...prev, ...res.messages])
-      for (const m of res.messages) {
+      const nextMessages = Array.isArray(res.messages) ? res.messages : []
+      setMessages((prev) => [...prev, ...nextMessages])
+      for (const m of nextMessages) {
         if (m.role === 'assistant' && 'uiActions' in m) {
           applySafeUiActions(navigate, m.uiActions)
         }
@@ -356,7 +357,8 @@ export default function AiSecretaryWorkspace({ variant, onClose }: Props) {
         conversationId,
       })
       setConversationId(res.conversationId)
-      setMessages((prev) => [...prev, ...res.messages])
+      const nextMessages = Array.isArray(res.messages) ? res.messages : []
+      setMessages((prev) => [...prev, ...nextMessages])
       setMappingOpen(false)
     } catch (e) {
       setError(e instanceof Error ? e.message : '매핑 저장 실패')
