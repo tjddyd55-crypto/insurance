@@ -254,6 +254,20 @@ export async function processAiAssistantMessage(pool, req, input) {
     }
 
     if (readDecision.policy === 'SEARCH_NEED_TARGET') {
+      conversation = updateAiConversation(conversation.conversationId, userId, gaId, {
+        pendingClarification: {
+          type: 'customer_search_target',
+          domain: 'CUSTOMER',
+          intent: 'SEARCH',
+          requiredToolKey: 'customer.search',
+          missing: ['customerTarget'],
+        },
+        lastReadContext: {
+          domain: 'CUSTOMER',
+          intent: 'SEARCH',
+          toolKey: 'customer.search',
+        },
+      })
       const reply = {
         role: 'assistant',
         kind: 'text',
@@ -343,11 +357,19 @@ export async function processAiAssistantMessage(pool, req, input) {
           query: readDecision.params?.query,
         })
         const uiActions = sanitizeUiActions(formatted.uiActions ?? [])
-        if (formatted.resolvedCustomer) {
-          conversation = updateAiConversation(conversation.conversationId, userId, gaId, {
-            resolvedEntities: { customer: formatted.resolvedCustomer },
-          })
+        const readContext = {
+          domain: classified.domain ?? null,
+          intent: classified.intent ?? classified.requestedAction ?? null,
+          toolKey: toolResult.toolKey ?? readDecision.toolKey,
+          queryFields: readDecision.params?.customerQueryAst?.filters?.map((f) => f.field) ?? [],
         }
+        conversation = updateAiConversation(conversation.conversationId, userId, gaId, {
+          pendingClarification: null,
+          lastReadContext: readContext,
+          ...(formatted.resolvedCustomer
+            ? { resolvedEntities: { customer: formatted.resolvedCustomer } }
+            : {}),
+        })
         const reply = {
           role: 'assistant',
           kind: formatted.kind ?? 'text',
