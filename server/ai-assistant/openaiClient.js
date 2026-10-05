@@ -56,6 +56,19 @@ function mapOpenAiError(error, stage = 'responses.create') {
       ...extractOpenAiSafeFailureMeta(error),
     })
   }
+  const type = String(error?.type ?? error?.error?.type ?? '').toLowerCase()
+  if (
+    code.includes('credit_balance_exhausted') ||
+    code.includes('insufficient_quota') ||
+    type.includes('insufficient_quota')
+  ) {
+    return Object.assign(new Error('OPENAI_QUOTA_EXHAUSTED'), {
+      code: 'OPENAI_QUOTA_EXHAUSTED',
+      status: 503,
+      failureReason,
+      ...extractOpenAiSafeFailureMeta(error),
+    })
+  }
   if (status === 429) {
     return Object.assign(new Error('OPENAI_RATE_LIMIT'), {
       code: 'OPENAI_RATE_LIMIT',
