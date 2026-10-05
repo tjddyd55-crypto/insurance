@@ -1,6 +1,7 @@
 import { listClaimsForAssistant } from './claimReadService.js'
 import { listRecentConsultationsForAssistant } from './consultationReadService.js'
 import { listCustomerFilesForAssistant } from './customerFilesReadService.js'
+import { listCustomersForAssistant } from './customerListReadService.js'
 import { getCustomerForAssistant, searchCustomersForAssistant } from './customerReadService.js'
 import { listScheduleForAssistant } from './scheduleReadService.js'
 import { listTodosForAssistant } from './todoReadService.js'
@@ -57,12 +58,13 @@ export async function executeReadTool(pool, req, input) {
       })
       return { toolKey: input.toolKey, ...result, durationMs: Date.now() - started }
     }
-    case 'customer.list':
-      return {
-        toolKey: input.toolKey,
-        notWired: true,
-        durationMs: Date.now() - started,
-      }
+    case 'customer.list': {
+      const result = await listCustomersForAssistant(pool, req, {
+        limit: params.limit ?? 20,
+        countOnly: params.countOnly ?? false,
+      })
+      return { toolKey: input.toolKey, ...result, durationMs: Date.now() - started }
+    }
     default:
       throw Object.assign(new Error('AI_TOOL_NOT_AVAILABLE'), { code: 'AI_TOOL_NOT_AVAILABLE', status: 503 })
   }

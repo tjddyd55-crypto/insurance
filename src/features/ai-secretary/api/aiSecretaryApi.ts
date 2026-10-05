@@ -77,6 +77,7 @@ export type AiAssistantMessage =
       kind:
         | 'customer_summary_card'
         | 'customer_disambiguation'
+        | 'customer_list_card'
         | 'consultation_list_card'
         | 'customer_files_card'
         | 'task_list_card'
@@ -85,6 +86,8 @@ export type AiAssistantMessage =
       text: string
       customer?: AiReadCustomerSummary
       options?: Array<{ customerId: number; label: string }>
+      customers?: Array<{ customerId: number; name: string; phoneTail?: string }>
+      total?: number
       consultations?: Array<{ consultationDate?: string | null; bodyPreview?: string }>
       files?: AiCustomerFileItem[]
       todos?: Array<{ id: string; title: string; dueDate?: string | null }>

@@ -12,6 +12,16 @@ export function detectBusinessToolKeyHint(text) {
   if (!t) {
     return null
   }
+  if (
+    /고객/.test(t) &&
+    /(리스트|목록|나열|몇\s*명|등록된|전체)/.test(t) &&
+    !/(찾|검색)/.test(t)
+  ) {
+    return 'customer.list'
+  }
+  if (/고객들?\s*보여/.test(t) && !/(찾|검색|페이지)/.test(t)) {
+    return 'customer.list'
+  }
   if (/([가-힣]{2,4}).*(찾|검색)/.test(t) || (/고객/.test(t) && /(찾|검색)/.test(t))) {
     return 'customer.search'
   }

@@ -11,10 +11,10 @@ import { consentPutObject } from '../lib/consentStorage.js'
 import pool from '../db.js'
 import { resolveTenantByAuthenticatedLegacyGaId } from '../lib/resolveTenantByAuthenticatedLegacyGaId.js'
 import { assertDevelopmentDatabaseOnly } from './lib/assertDevelopmentDatabase.mjs'
+import { parseTargetUsername } from './lib/parseSeedCliArgs.mjs'
 
 const QA_PREFIX = 'AI테스트_'
-const QA_USERNAME = String(process.env.INSURANCE_GA_QA_BOOTSTRAP_USERNAME ?? 'qa_ai_user').trim()
-const GA_CODE = 'YJASSET'
+const LEGACY_QA_USERNAME = String(process.env.INSURANCE_GA_QA_BOOTSTRAP_USERNAME ?? 'qa_ai_user').trim()
 
 function todayYmd() {
   return getKstDateString(new Date())
@@ -24,18 +24,22 @@ function offsetYmd(days) {
   return addDaysToDateOnly(todayYmd(), days)
 }
 
-async function resolveQaContext(client) {
-  const gaRes = await client.query(`SELECT id, code FROM ga_companies WHERE code = $1 LIMIT 1`, [GA_CODE])
-  const gaId = gaRes.rows[0]?.id
-  const gaCode = gaRes.rows[0]?.code ?? GA_CODE
-  if (!gaId) {
-    throw new Error('YJASSET GA not found')
+async function resolveQaContext(client, targetUsername) {
+  const userRes = await client.query(
+    `
+    SELECT u.id, u.username, u.role, u.ga_id, g.code AS ga_code, g.name AS ga_name
+    FROM users u
+    INNER JOIN ga_companies g ON g.id = u.ga_id
+    WHERE u.username = $1
+    LIMIT 1
+    `,
+    [targetUsername],
+  )
+  const row = userRes.rows[0]
+  if (!row?.id) {
+    throw new Error(`Target user ${targetUsername} not found`)
   }
-  const userRes = await client.query(`SELECT id FROM users WHERE username = $1 LIMIT 1`, [QA_USERNAME])
-  const userId = userRes.rows[0]?.id
-  if (!userId) {
-    throw new Error(`QA user ${QA_USERNAME} not found — run bootstrap-ga-qa first`)
-  }
+  const gaId = Number(row.ga_id)
   const tenantResolved = await resolveTenantByAuthenticatedLegacyGaId(client, {
     legacyGaId: gaId,
     authUser: { gaId },
@@ -43,8 +47,46 @@ async function resolveQaContext(client) {
   if (!tenantResolved.ok) {
     throw new Error(tenantResolved.message)
   }
-  const tenantId = tenantResolved.tenantId
-  return { gaId, gaCode, userId, tenantId }
+  return {
+    gaId,
+    gaCode: String(row.ga_code ?? ''),
+    gaName: String(row.ga_name ?? ''),
+    userId: String(row.id),
+    username: String(row.username),
+    role: String(row.role ?? ''),
+    tenantId: tenantResolved.tenantId,
+  }
+}
+
+async function purgeLegacyQaUserData(client, legacyUsername) {
+  const legacy = await client.query(`SELECT id, ga_id FROM users WHERE username = $1 LIMIT 1`, [legacyUsername])
+  const legacyUserId = legacy.rows[0]?.id
+  const legacyGaId = legacy.rows[0]?.ga_id
+  if (!legacyUserId || legacyGaId == null) {
+    return { removedCustomers: 0 }
+  }
+  await client.query(
+    `DELETE FROM customer_claim_request_files f
+     USING customer_claim_requests r, customers c
+     WHERE f.request_id = r.id AND r.customer_id = c.id
+       AND c.user_id = $1 AND c.ga_id = $2 AND c.name LIKE 'AI테스트_%'`,
+    [legacyUserId, legacyGaId],
+  )
+  await client.query(
+    `DELETE FROM customer_claim_requests r
+     USING customers c
+     WHERE r.customer_id = c.id AND c.user_id = $1 AND c.ga_id = $2 AND c.name LIKE 'AI테스트_%'`,
+    [legacyUserId, legacyGaId],
+  )
+  await client.query(
+    `DELETE FROM todos WHERE ga_id = $1 AND owner_user_id = $2 AND (title LIKE 'AI테스트_%' OR title LIKE 'AI 조회%')`,
+    [legacyGaId, legacyUserId],
+  )
+  const del = await client.query(
+    `DELETE FROM customers WHERE ga_id = $1 AND user_id = $2 AND name LIKE 'AI테스트_%'`,
+    [legacyGaId, legacyUserId],
+  )
+  return { removedCustomers: del.rowCount ?? 0 }
 }
 
 async function purgeExistingQaCustomers(client, gaId, userId) {
@@ -251,8 +293,13 @@ async function main() {
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
-    const ctx = await resolveQaContext(client)
+    const targetUsername = parseTargetUsername()
+    const ctx = await resolveQaContext(client, targetUsername)
     await purgeExistingQaCustomers(client, ctx.gaId, ctx.userId)
+    if (targetUsername !== LEGACY_QA_USERNAME) {
+      const legacy = await purgeLegacyQaUserData(client, LEGACY_QA_USERNAME)
+      console.log('[seed-ai-readonly-qa-dev] legacy qa_ai_user AI테스트 purge', legacy)
+    }
 
     const t0 = todayYmd()
     const t1 = offsetYmd(1)
@@ -373,7 +420,13 @@ async function main() {
 
     const counts = await countVerify(client, ctx.gaId, ctx.userId)
     await client.query('COMMIT')
-    console.log('[seed-ai-readonly-qa-dev] OK', { counts, qaUser: QA_USERNAME })
+    console.log('[seed-ai-readonly-qa-dev] OK', {
+      counts,
+      targetUser: ctx.username,
+      userId: ctx.userId,
+      gaId: ctx.gaId,
+      gaCode: ctx.gaCode,
+    })
   } catch (e) {
     await client.query('ROLLBACK')
     throw e

@@ -183,6 +183,41 @@ export function formatReadToolResponse(toolResult, meta = {}) {
     }
   }
 
+  if (toolKey === 'customer.list') {
+    const total = Number(toolResult.total ?? 0)
+    if (toolResult.countOnly) {
+      return {
+        text: `현재 조회 가능한 고객은 ${total}명입니다.`,
+        kind: 'customer_list_card',
+        total,
+        customers: [],
+        resolvedCustomer: null,
+        uiActions: [],
+      }
+    }
+    const customers = toolResult.customers ?? []
+    if (total === 0) {
+      return {
+        text: '조회 가능한 고객이 없습니다.',
+        kind: 'text',
+        resolvedCustomer: null,
+        uiActions: [],
+      }
+    }
+    const shown = customers.slice(0, 20)
+    const lines = shown.map((c, i) => `${i + 1}. ${c.name} (휴대폰 끝 ${c.phoneTail})`)
+    const more =
+      total > shown.length ? `\n… 외 ${total - shown.length}명 (목록은 최대 ${toolResult.limit ?? 20}명까지 표시)` : ''
+    return {
+      text: `현재 조회 가능한 고객은 ${total}명입니다.\n${lines.join('\n')}${more}`,
+      kind: 'customer_list_card',
+      total,
+      customers: shown,
+      resolvedCustomer: null,
+      uiActions: [],
+    }
+  }
+
   if (toolKey === 'task.list') {
     const todos = toolResult.todos ?? []
     const dueLabel =

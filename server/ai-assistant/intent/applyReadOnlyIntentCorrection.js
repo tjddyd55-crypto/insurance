@@ -47,7 +47,14 @@ export function applyReadOnlyIntentCorrection(text, classified, scope) {
     ...classified,
     domain: INTENT_DOMAIN.ONE_FC_QUERY,
     stage: INTENT_STAGE.QUERY,
-    intent: hint === 'customer.search' ? 'SEARCH' : hint === 'customer.get' ? 'GET' : 'LIST',
+    intent:
+      hint === 'customer.search'
+        ? 'SEARCH'
+        : hint === 'customer.get'
+          ? 'GET'
+          : hint === 'customer.list' && /몇\s*명/.test(text)
+            ? 'COUNT'
+            : 'LIST',
     requestedAction: 'INVOKE_TOOL',
     requiresTool: true,
     requiredToolKey: hint,

@@ -96,6 +96,13 @@ export function resolveReadOrchestrationAction(classified, conversation, text) {
     params.customerId = customerId ?? classified.filters?.customerId ?? null
     params.limit = classified.limit ?? 15
   }
+  if (toolKey === 'customer.list') {
+    params.limit = classified.limit ?? 20
+    params.countOnly =
+      classified.intent === 'COUNT' ||
+      String(classified.requestedAction ?? '').toUpperCase() === 'COUNT' ||
+      /몇\s*명/.test(text)
+  }
 
   const navigate =
     bizIntent === 'NAVIGATE' ||

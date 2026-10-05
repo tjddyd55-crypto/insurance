@@ -531,7 +531,8 @@ export default function AiSecretaryWorkspace({ variant, onClose }: Props) {
               msg.kind === 'task_list_card' ||
               msg.kind === 'schedule_list_card' ||
               msg.kind === 'claim_list_card' ||
-              msg.kind === 'customer_disambiguation')
+              msg.kind === 'customer_disambiguation' ||
+              msg.kind === 'customer_list_card')
           ) {
             const customerId = msg.customer?.customerId
             return (

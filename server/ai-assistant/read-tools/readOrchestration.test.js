@@ -72,6 +72,21 @@ describe('read orchestration', () => {
     assert.equal(d.params.customerId, 9)
   })
 
+  it('customer list count mode', () => {
+    const d = resolveReadOrchestrationAction(
+      {
+        domain: INTENT_DOMAIN.ONE_FC_QUERY,
+        intent: 'COUNT',
+        requiredToolKey: 'customer.list',
+        requiresTool: true,
+      },
+      {},
+      '고객 몇 명 있어?',
+    )
+    assert.equal(d.toolKey, 'customer.list')
+    assert.equal(d.params.countOnly, true)
+  })
+
   it('follow-up consultation uses resolved customer id', () => {
     const d = resolveReadOrchestrationAction(
       {

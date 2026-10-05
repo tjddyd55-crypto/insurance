@@ -7,13 +7,10 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const execute = process.argv.includes('--execute')
+const passthrough = process.argv.slice(2)
 
 function run(script) {
-  const args = ['node', script]
-  if (execute) {
-    args.push('--execute')
-  }
+  const args = ['node', script, ...passthrough]
   const res = spawnSync(args[0], args.slice(1), {
     cwd: root,
     stdio: 'inherit',
@@ -26,4 +23,4 @@ function run(script) {
 
 run('server/scripts/reset-development-ai-qa.mjs')
 run('server/scripts/seed-ai-readonly-qa-dev.mjs')
-console.log('[run-development-ai-qa-reset-and-seed] complete', { execute })
+console.log('[run-development-ai-qa-reset-and-seed] complete', { args: passthrough })
