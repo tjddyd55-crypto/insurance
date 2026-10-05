@@ -18,6 +18,27 @@ export const READ_ORCHESTRATION_ACTION = Object.freeze({
 const WRITE_INTENTS = new Set(['CREATE', 'UPDATE', 'DELETE', 'SEND', 'COMMIT', 'WRITE'])
 const WRITE_ACTIONS = /^(customer\.(create|update|delete)|sms\.|schedule\.(create|update|cancel)|claim\.(create|send))/i
 
+function resolveStructuredReadToolKey(classified, bizIntent) {
+  const domain = classified?.domain
+  const hasCustomerQuery =
+    Boolean(classified?.customerQuery) ||
+    Array.isArray(classified?.filters)
+
+  if (
+    (domain === INTENT_DOMAIN.CUSTOMER || domain === 'CUSTOMER' || domain === INTENT_DOMAIN.ONE_FC_QUERY) &&
+    (hasCustomerQuery || bizIntent === 'LIST' || bizIntent === 'COUNT')
+  ) {
+    return 'customer.list'
+  }
+
+  if (domain === INTENT_DOMAIN.CUSTOMER || domain === 'CUSTOMER') {
+    if (bizIntent === 'SEARCH') return 'customer.search'
+    if (bizIntent === 'GET' || bizIntent === 'NAVIGATE') return 'customer.get'
+  }
+
+  return null
+}
+
 /**
  * @param {object} classified
  * @param {object} conversation
@@ -26,7 +47,9 @@ const WRITE_ACTIONS = /^(customer\.(create|update|delete)|sms\.|schedule\.(creat
 export function resolveReadOrchestrationAction(classified, conversation, text) {
   const domain = classified.domain
   const bizIntent = String(classified.intent ?? classified.requestedAction ?? '').toUpperCase()
-  const toolKey = classified.requiredToolKey ?? null
+  const toolKey =
+    classified.requiredToolKey ??
+    resolveStructuredReadToolKey(classified, bizIntent)
 
   if (domain === INTENT_DOMAIN.ASSISTANT || bizIntent === 'CAPABILITIES') {
     return { action: READ_ORCHESTRATION_ACTION.CAPABILITIES, policy: 'ALLOW' }
