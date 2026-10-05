@@ -203,14 +203,30 @@ export async function sendAiAssistantMessage(
     pageContext?: AiPageContext
   },
 ) {
-  return apiRequest<{ conversationId: string; messages: AiAssistantMessage[]; analysisJobId?: string }>(
-    '/api/ai/assistant/messages',
-    {
-      method: 'POST',
-      token,
-      body: JSON.stringify(body),
-    },
-  )
+  const res = await apiRequest<{
+    conversationId?: string
+    messages?: AiAssistantMessage[]
+    analysisJobId?: string
+    error?: string
+    code?: string
+    message?: string
+  }>('/api/ai/assistant/messages', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(body),
+  })
+
+  if (!res?.conversationId) {
+    throw new Error(res?.message ?? 'AI 응답에 대화 ID가 없습니다.')
+  }
+
+  return {
+    conversationId: res.conversationId,
+    messages: Array.isArray(res.messages) ? res.messages : [],
+    analysisJobId: res.analysisJobId,
+    error: res.error,
+    code: res.code,
+  }
 }
 
 export async function fetchImportAnalysisJob(token: string, jobId: string) {
