@@ -21,6 +21,7 @@ export function logIntentDecision(entry) {
     classifierUsage: entry.classified?.classifierUsage ?? null,
     answerUsage: entry.answerUsage ?? null,
     requestId: entry.requestId ?? null,
+    customerQuery: entry.customerQuery ?? null,
   }
   if (entry.conversationId) {
     lastByConversation.set(entry.conversationId, safe)

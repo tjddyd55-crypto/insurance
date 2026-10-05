@@ -18,3 +18,14 @@ export function detectCapabilitiesQuery(text) {
   }
   return /^(뭘|무엇을)\s*(할\s*수|해)/.test(t)
 }
+
+/**
+ * @param {string} text
+ */
+export function detectCustomerQueryableFieldsHelp(text) {
+  const t = String(text ?? '').trim()
+  if (!t) {
+    return false
+  }
+  return /어떤\s*조건|무엇으로\s*찾|뭘로\s*찾|어떤\s*항목으로/.test(t) && /고객/.test(t)
+}

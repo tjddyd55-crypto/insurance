@@ -6,18 +6,19 @@ import {
 import { resolveCustomerVisibilitySqlForSelect } from '../../lib/customerRowVisibilitySql.js'
 import { parseGaId } from '../../lib/parseGaId.js'
 import { safeQuery } from '../../utils/dbSafeQuery.js'
+import { buildCustomerStructuredFilterSql } from '../../lib/customerStructuredListFilters.js'
 import { phoneTail } from './customerReadService.js'
 
 /**
  * Same visibility/filters as GET /api/customers (minimal assistant fields).
  * @param {import('pg').Pool} pool
  * @param {import('express').Request} req
- * @param {{ limit?: number, countOnly?: boolean }} input
+ * @param {{ limit?: number, countOnly?: boolean, customerQueryAst?: object | null }} input
  */
 export async function listCustomersForAssistant(pool, req, input = {}) {
   const userId = String(req.user?.id ?? req.user?.userId ?? '')
   const gaId = parseGaId(req.user?.gaId)
-  const limit = Math.min(Math.max(Number(input.limit) || 20, 1), 50)
+  const limit = Math.min(Math.max(Number(input.customerQueryAst?.limit ?? input.limit) || 20, 1), 50)
   const countOnly = Boolean(input.countOnly)
 
   if (!userId || gaId == null) {
@@ -41,9 +42,16 @@ export async function listCustomersForAssistant(pool, req, input = {}) {
     gaPlaceholder: lcGaPlace,
     paramStart: plc + 3,
   })
-  const filterClause =
-    filterBuilt.whereFragments.length > 0 ? ` AND ${filterBuilt.whereFragments.join(' AND ')}` : ''
-  const filterParams = filterBuilt.params
+  const structured = input.customerQueryAst?.filters?.length
+    ? buildCustomerStructuredFilterSql(input.customerQueryAst.filters, {
+        userPlaceholder: lcUserPlace,
+        gaPlaceholder: lcGaPlace,
+        paramStart: plc + 3 + filterBuilt.params.length,
+      })
+    : { whereFragments: [], params: [] }
+  const allFragments = [...filterBuilt.whereFragments, ...structured.whereFragments]
+  const filterClause = allFragments.length > 0 ? ` AND ${allFragments.join(' AND ')}` : ''
+  const filterParams = [...filterBuilt.params, ...structured.params]
   const summaryJoin = `${buildCustomerConsultationSummaryJoin(lcUserPlace, lcGaPlace)}${buildCustomerFollowUpSummaryJoin(lcUserPlace, lcGaPlace)}`
   const countParams = [...vis.params, userId, gaId, ...filterParams]
 

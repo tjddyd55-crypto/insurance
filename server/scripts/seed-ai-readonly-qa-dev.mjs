@@ -125,7 +125,7 @@ async function insertCustomer(client, ctx, spec) {
       spec.carrier ?? 'SKT',
       spec.address,
       spec.job ?? '',
-      spec.gender ?? 'M',
+      spec.gender ?? 'male',
       spec.birthDate,
       spec.inflowSource ?? '소개',
       spec.referrerName ?? 'QA소개자',
@@ -311,12 +311,13 @@ async function main() {
       ssn: '900101-1000001',
       phone: '010-9000-1001',
       birthDate: '1990-01-01',
+      gender: 'male',
       address: '서울특별시 강남구 테헤란로 100 QA빌딩 501호',
       job: 'QA테스트회사 대리',
       carNumber: '12가3456',
       carModel: '소나타',
       carYear: '2022',
-      renewalDate: offsetYmd(90),
+      renewalDate: t0,
       carType: '승용',
       isDriver: true,
       business: {
@@ -350,9 +351,10 @@ async function main() {
 
     await insertCustomer(client, ctx, {
       name: `${QA_PREFIX}김철수`,
-      ssn: '850515-2000002',
+      ssn: '850515-1000002',
       phone: '010-9000-1002',
       birthDate: '1985-05-15',
+      gender: 'male',
       address: '부산광역시 해운대구 QA로 2',
       job: '영업',
       customFields: [{ label: '주력보험사', value: 'DB손해보험' }],
@@ -367,7 +369,8 @@ async function main() {
       ssn: '920303-2000003',
       phone: '010-9000-1003',
       birthDate: '1992-03-03',
-      address: '대구광역시 중구 QA길 3',
+      gender: 'female',
+      address: '서울특별시 서초구 QA길 3',
       customFields: [
         { label: 'VIP', value: 'Y' },
         { label: '주력보험사', value: 'KB손해보험' },
@@ -380,6 +383,7 @@ async function main() {
       ssn: '880808-1000004',
       phone: '010-9000-1004',
       birthDate: '1988-08-08',
+      gender: 'male',
       address: '인천광역시 연수구 QA대로 4',
       claims: [
         { status: 'requested', title: 'QA 청구 A', memo: 'pending' },
@@ -392,7 +396,8 @@ async function main() {
       ssn: '950101-2000005',
       phone: '010-9000-1005',
       birthDate: '1995-01-01',
-      address: '광주광역시 서구 QA로 5',
+      gender: 'female',
+      address: '서울특별시 마포구 QA로 5',
     })
 
     await insertCustomer(client, ctx, {
@@ -400,6 +405,7 @@ async function main() {
       ssn: '900202-1000111',
       phone: '010-9000-1111',
       birthDate: '1990-02-02',
+      gender: 'male',
       address: '서울시 마포구 QA동 111',
     })
     await insertCustomer(client, ctx, {
@@ -407,6 +413,7 @@ async function main() {
       ssn: '900202-2000222',
       phone: '010-9000-2222',
       birthDate: '1990-02-02',
+      gender: 'female',
       address: '서울시 마포구 QA동 222',
     })
 

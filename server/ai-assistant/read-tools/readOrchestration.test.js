@@ -72,6 +72,28 @@ describe('read orchestration', () => {
     assert.equal(d.params.customerId, 9)
   })
 
+  it('customer list with structured query ast', () => {
+    const d = resolveReadOrchestrationAction(
+      {
+        domain: INTENT_DOMAIN.ONE_FC_QUERY,
+        intent: 'LIST',
+        requiredToolKey: 'customer.list',
+        requiresTool: true,
+        customerQuery: {
+          logic: 'AND',
+          filters: [{ field: 'gender', operator: 'EQ', value: 'FEMALE', valueTo: null }],
+          sort: [],
+          limit: 20,
+          unsupportedField: null,
+        },
+      },
+      {},
+      '여자 고객 리스트 줘봐',
+    )
+    assert.equal(d.toolKey, 'customer.list')
+    assert.equal(d.params.customerQueryAst.filters[0].value, 'female')
+  })
+
   it('customer list count mode', () => {
     const d = resolveReadOrchestrationAction(
       {

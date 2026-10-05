@@ -4,6 +4,7 @@ import { getAssistantScopePolicy } from '../scope/assistantScopePolicy.js'
 import { classifyUserIntentHeuristic } from './classifyUserIntentHeuristic.js'
 import { applyReadOnlyIntentCorrection } from './applyReadOnlyIntentCorrection.js'
 import { normalizeClassifiedIntent } from './normalizeClassifiedIntent.js'
+import { formatCustomerQuerySchemaForPrompt } from '../../../shared/ai-assistant/customer-query/formatSchemaForPrompt.js'
 import { USER_INTENT_JSON_SCHEMA } from './userIntentJsonSchema.js'
 
 const INTENT_SYSTEM = `You classify ONE FC CRM assistant user intent.
@@ -40,7 +41,9 @@ READ-ONLY assistant scope:
 - Never keyword-route: interpret full sentence meaning.
 - Write/send/delete/register actions → ONE_FC_ACTION with requiresTool but not customer.import commit from chat.
 - Questions about what the assistant can do (e.g. "여기서 뭘 할 수 있어?") → domain ASSISTANT, intent CAPABILITIES, requiresTool=false, requiredToolKey=null.
-- "고객 찾기" without a person name or phone → intent SEARCH, requiresClarification=true, do not invent target.name from the word 고객 alone.`
+- "고객 찾기" without a person name or phone → intent SEARCH, requiresClarification=true, do not invent target.name from the word 고객 alone.
+
+${formatCustomerQuerySchemaForPrompt()}`
 
 export async function classifyUserIntent(input) {
   const scope =

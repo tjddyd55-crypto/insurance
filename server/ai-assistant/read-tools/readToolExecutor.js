@@ -62,6 +62,7 @@ export async function executeReadTool(pool, req, input) {
       const result = await listCustomersForAssistant(pool, req, {
         limit: params.limit ?? 20,
         countOnly: params.countOnly ?? false,
+        customerQueryAst: params.customerQueryAst ?? null,
       })
       return { toolKey: input.toolKey, ...result, durationMs: Date.now() - started }
     }

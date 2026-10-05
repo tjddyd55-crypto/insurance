@@ -98,6 +98,12 @@ export function detectCustomerImportGoal(text) {
   if (!t) {
     return false
   }
+  if (
+    /고객\s*리스트|고객리스트|고객\s*목록|고객\s*보여|고객\s*줘/.test(t) &&
+    !/(등록|가져|넣|import|엑셀|첨부|파일)/i.test(t)
+  ) {
+    return false
+  }
   if (/고객.*(등록|가져|넣어|올려|추가|import)/i.test(t)) {
     return true
   }

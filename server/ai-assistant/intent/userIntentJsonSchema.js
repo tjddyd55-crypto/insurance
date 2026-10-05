@@ -31,6 +31,42 @@ export const USER_INTENT_JSON_SCHEMA = {
       },
       filters: { type: ['object', 'null'] },
       limit: { type: ['number', 'null'] },
+      customerQuery: {
+        type: ['object', 'null'],
+        additionalProperties: false,
+        properties: {
+          logic: { type: 'string' },
+          filters: {
+            type: 'array',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                field: { type: 'string' },
+                operator: { type: 'string' },
+                value: { type: ['string', 'null'] },
+                valueTo: { type: ['string', 'null'] },
+              },
+              required: ['field', 'operator', 'value', 'valueTo'],
+            },
+          },
+          sort: {
+            type: 'array',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                field: { type: 'string' },
+                direction: { type: 'string' },
+              },
+              required: ['field', 'direction'],
+            },
+          },
+          limit: { type: ['number', 'null'] },
+          unsupportedField: { type: ['string', 'null'] },
+        },
+        required: ['logic', 'filters', 'sort', 'limit', 'unsupportedField'],
+      },
     },
     required: [
       'domain',
@@ -48,6 +84,7 @@ export const USER_INTENT_JSON_SCHEMA = {
       'target',
       'filters',
       'limit',
+      'customerQuery',
     ],
   },
 }

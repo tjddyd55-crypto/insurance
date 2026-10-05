@@ -42,7 +42,12 @@ import {
   isOutOfScopeGeneralQuestion,
 } from './scope/assistantScopePolicy.js'
 import { isLikelyGeneralConversation } from './intent/detectBusinessToolHint.js'
-import { detectCapabilitiesQuery } from './intent/detectCapabilitiesQuery.js'
+import {
+  detectCapabilitiesQuery,
+  detectCustomerQueryableFieldsHelp,
+} from './intent/detectCapabilitiesQuery.js'
+import { formatCustomerQueryableFieldsHelp } from '../../shared/ai-assistant/customer-query/formatSchemaForPrompt.js'
+import { summarizeCustomerQueryForLog } from './customer-query/resolveCustomerQueryFromIntent.js'
 import { buildAssistantCapabilitiesMessage } from './read-tools/buildAssistantCapabilitiesMessage.js'
 
 function defaultImportContext(importSessionId, session, duplicatePolicy, previewVersionHash) {
@@ -198,6 +203,9 @@ export async function processAiAssistantMessage(pool, req, input) {
       snapshot,
       durationMs: Date.now() - intentStarted,
       requestId: req.headers?.['x-request-id'],
+      customerQuery: readDecision.params?.customerQueryAst
+        ? summarizeCustomerQueryForLog(readDecision.params.customerQueryAst)
+        : null,
     })
 
     if (readDecision.action === READ_ORCHESTRATION_ACTION.WRITE_BLOCKED) {
@@ -220,6 +228,26 @@ export async function processAiAssistantMessage(pool, req, input) {
         role: 'assistant',
         kind: 'text',
         text: cap.text,
+      }
+      appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
+      return { conversationId: conversation.conversationId, messages: [reply] }
+    }
+
+    if (detectCustomerQueryableFieldsHelp(text)) {
+      const reply = {
+        role: 'assistant',
+        kind: 'text',
+        text: formatCustomerQueryableFieldsHelp(),
+      }
+      appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
+      return { conversationId: conversation.conversationId, messages: [reply] }
+    }
+
+    if (readDecision.policy === 'INVALID_CUSTOMER_QUERY') {
+      const reply = {
+        role: 'assistant',
+        kind: 'text',
+        text: readDecision.queryError?.message ?? '고객 조회 조건을 처리할 수 없습니다.',
       }
       appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
       return { conversationId: conversation.conversationId, messages: [reply] }

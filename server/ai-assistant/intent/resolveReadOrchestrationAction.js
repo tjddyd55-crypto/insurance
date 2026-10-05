@@ -4,6 +4,7 @@ import {
   isCustomerSearchMissingTarget,
 } from './customerSearchQuery.js'
 import { resolveCustomerIdFromContext } from './resolveCustomerReference.js'
+import { extractCustomerQueryFromIntent } from '../customer-query/resolveCustomerQueryFromIntent.js'
 import { isReadToolCallable } from '../read-tools/readToolAllowlist.js'
 
 export const READ_ORCHESTRATION_ACTION = Object.freeze({
@@ -118,7 +119,16 @@ export function resolveReadOrchestrationAction(classified, conversation, text) {
     params.limit = classified.limit ?? 15
   }
   if (toolKey === 'customer.list') {
-    params.limit = classified.limit ?? 20
+    const queryResolved = extractCustomerQueryFromIntent(classified)
+    if (!queryResolved.ok) {
+      return {
+        action: READ_ORCHESTRATION_ACTION.NO_READ_INTENT,
+        policy: 'INVALID_CUSTOMER_QUERY',
+        queryError: queryResolved,
+      }
+    }
+    params.customerQueryAst = queryResolved.ast
+    params.limit = queryResolved.ast.limit ?? classified.limit ?? 20
     params.countOnly =
       classified.intent === 'COUNT' ||
       String(classified.requestedAction ?? '').toUpperCase() === 'COUNT' ||
