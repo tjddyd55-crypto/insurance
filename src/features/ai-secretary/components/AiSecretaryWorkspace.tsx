@@ -536,8 +536,8 @@ export default function AiSecretaryWorkspace({ variant, onClose }: Props) {
           ) {
             const customerId = msg.customer?.customerId
             return (
-              <div key={index} className="ai-secretary-card">
-                <strong className="ai-secretary-bubble ai-secretary-bubble--assistant">{msg.text}</strong>
+              <div key={index} className="ai-secretary-card ai-secretary-card--read-result">
+                <div className="ai-secretary-bubble ai-secretary-bubble--assistant ai-secretary-bubble--read-result">{msg.text}</div>
                 {msg.kind === 'customer_disambiguation' && msg.options?.length ? (
                   <div className="ai-secretary-card__actions">
                     {msg.options.map((opt) => (
