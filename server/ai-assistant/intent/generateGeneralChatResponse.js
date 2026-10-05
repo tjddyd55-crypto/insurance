@@ -31,6 +31,15 @@ function offlineGeneralChatFallback(text) {
  * @param {{ text: string, recentTurns: Array<{role: string, text?: string}>, currentRoute?: string|null, env?: object }} input
  */
 export async function generateGeneralChatResponse(input) {
+  const scope = input.scopePolicy
+  if (scope?.readOnlyBusinessEnabled && !scope.allowFreeGeneralChat) {
+    return {
+      text: scope.scopeLimitMessage,
+      usage: null,
+      callType: 'general_chat_answer',
+      source: 'scope_limit',
+    }
+  }
   const cfg = getOpenAiConfig(input.env ?? process.env)
   if (!cfg.enabled) {
     return {

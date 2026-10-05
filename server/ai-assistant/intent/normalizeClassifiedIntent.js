@@ -24,6 +24,18 @@ export function normalizeClassifiedIntent(classified) {
   if (next.requiredToolKey === undefined) {
     next.requiredToolKey = null
   }
+  if (next.intent === undefined) {
+    next.intent = next.requestedAction ?? 'NONE'
+  }
+  if (next.target === undefined) {
+    next.target = null
+  }
+  if (next.filters === undefined) {
+    next.filters = null
+  }
+  if (next.limit === undefined) {
+    next.limit = null
+  }
 
   return next
 }

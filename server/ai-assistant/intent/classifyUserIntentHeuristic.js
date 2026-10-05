@@ -50,7 +50,8 @@ function businessToolIntent(toolKey, domain, confidence = 0.7) {
  * @param {string} text
  * @param {object} snapshot from buildIntentContextSnapshot
  */
-export function classifyUserIntentHeuristic(text, snapshot) {
+export function classifyUserIntentHeuristic(text, snapshot, options = {}) {
+  const scope = options.scope ?? { readOnlyBusinessEnabled: false, allowFreeGeneralChat: true }
   const ci = snapshot.customerImport ?? {}
   const duplicatePolicy = parseDuplicatePolicyIntent(text)
   const mappingChange = parseMappingChangeIntent(text)
@@ -188,6 +189,17 @@ export function classifyUserIntentHeuristic(text, snapshot) {
       requiredToolKey: null,
       confidence: 0.85,
       source: 'heuristic',
+    }
+  }
+
+  if (scope.readOnlyBusinessEnabled) {
+    if (isLikelyGeneralConversation(text)) {
+      return generalChatIntent(0.8)
+    }
+    return {
+      ...generalChatIntent(0.55),
+      requiresClarification: true,
+      clarificationQuestion: '조회할 고객·일정·할 일을 말씀해 주세요.',
     }
   }
 

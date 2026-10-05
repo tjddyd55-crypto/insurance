@@ -1,5 +1,6 @@
 import { getOpenAiConfig } from '../openaiConfig.js'
 import { callOpenAiResponses } from '../openaiClient.js'
+import { getAssistantScopePolicy } from '../scope/assistantScopePolicy.js'
 import { classifyUserIntentHeuristic } from './classifyUserIntentHeuristic.js'
 import { normalizeClassifiedIntent } from './normalizeClassifiedIntent.js'
 import { USER_INTENT_JSON_SCHEMA } from './userIntentJsonSchema.js'
@@ -27,22 +28,38 @@ Rules:
 /**
  * @param {{ text: string, snapshot: object, recentTurns: Array<{role: string, text?: string}>, env?: object }} input
  */
+const READ_ONLY_INTENT_SYSTEM = `${INTENT_SYSTEM}
+
+READ-ONLY assistant scope:
+- Prefer ONE_FC_QUERY with requiresTool for customer/consultation/todo/schedule/claim reads.
+- domain CUSTOMER or ONE_FC_QUERY for lookups. Set intent SEARCH|GET|LIST|NAVIGATE.
+- target.name for person names; target.reference previous_customer when user says 그 사람/그 고객.
+- requiredTool examples: customer.search, customer.get, consultation.recent, task.list, schedule.list, claim.list
+- GENERAL_CHAT only for greetings; out-of-scope trivia → GENERAL_CHAT with low confidence.
+- Never keyword-route: interpret full sentence meaning.
+- Write/send/delete/register actions → ONE_FC_ACTION with requiresTool but not customer.import commit from chat.`
+
 export async function classifyUserIntent(input) {
-  const heuristic = classifyUserIntentHeuristic(input.text, input.snapshot)
+  const scope =
+    input.scopePolicy ?? getAssistantScopePolicy(input.env ?? process.env)
+  const heuristic = classifyUserIntentHeuristic(input.text, input.snapshot, { scope })
   const cfg = getOpenAiConfig(input.env ?? process.env)
   if (!cfg.enabled) {
     return normalizeClassifiedIntent(heuristic)
   }
+
+  const instructions = scope.readOnlyBusinessEnabled ? READ_ONLY_INTENT_SYSTEM : INTENT_SYSTEM
 
   try {
     const payload = JSON.stringify({
       userMessage: String(input.text ?? '').slice(0, 500),
       recentTurns: (input.recentTurns ?? []).slice(-6),
       appState: input.snapshot,
+      scope: scope.scope,
     })
     const { outputText, usage } = await callOpenAiResponses(
       {
-        developerInstructions: INTENT_SYSTEM,
+        developerInstructions: instructions,
         userInput: payload,
         jsonSchema: USER_INTENT_JSON_SCHEMA,
       },

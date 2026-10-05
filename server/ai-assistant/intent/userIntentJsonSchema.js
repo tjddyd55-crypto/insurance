@@ -17,6 +17,20 @@ export const USER_INTENT_JSON_SCHEMA = {
       requiresTool: { type: 'boolean' },
       requiredToolKey: { type: ['string', 'null'] },
       confidence: { type: 'number' },
+      intent: { type: 'string' },
+      target: {
+        type: ['object', 'null'],
+        additionalProperties: false,
+        properties: {
+          entityType: { type: ['string', 'null'] },
+          name: { type: ['string', 'null'] },
+          customerId: { type: ['number', 'null'] },
+          reference: { type: ['string', 'null'] },
+        },
+        required: ['entityType', 'name', 'customerId', 'reference'],
+      },
+      filters: { type: ['object', 'null'] },
+      limit: { type: ['number', 'null'] },
     },
     required: [
       'domain',
@@ -30,6 +44,10 @@ export const USER_INTENT_JSON_SCHEMA = {
       'requiresTool',
       'requiredToolKey',
       'confidence',
+      'intent',
+      'target',
+      'filters',
+      'limit',
     ],
   },
 }

@@ -29,6 +29,17 @@ import { generateGeneralChatResponse } from './intent/generateGeneralChatRespons
 import { logIntentDecision } from './intent/logIntentDecision.js'
 import { resolveImportOrchestrationAction } from './intent/resolveImportOrchestrationAction.js'
 import { resolveTopLevelOrchestrationAction } from './intent/resolveTopLevelOrchestrationAction.js'
+import {
+  READ_ORCHESTRATION_ACTION,
+  resolveReadOrchestrationAction,
+} from './intent/resolveReadOrchestrationAction.js'
+import { executeReadTool } from './read-tools/readToolExecutor.js'
+import { formatReadToolResponse } from './read-tools/formatReadToolResponse.js'
+import {
+  getAssistantScopePolicy,
+  isOutOfScopeGeneralQuestion,
+} from './scope/assistantScopePolicy.js'
+import { isLikelyGeneralConversation } from './intent/detectBusinessToolHint.js'
 
 function defaultImportContext(importSessionId, session, duplicatePolicy, previewVersionHash) {
   return {
@@ -146,8 +157,9 @@ export async function processAiAssistantMessage(pool, req, input) {
     }
   }
 
+  const scopePolicy = getAssistantScopePolicy()
   const intentStarted = Date.now()
-  let classified = await classifyUserIntent({ text, snapshot, recentTurns })
+  let classified = await classifyUserIntent({ text, snapshot, recentTurns, scopePolicy })
   if (input.forceImportPipeline && importSessionId) {
     classified = {
       ...classified,
@@ -157,6 +169,126 @@ export async function processAiAssistantMessage(pool, req, input) {
       commitRequested: false,
       requiresTool: true,
       source: 'force_import_pipeline',
+    }
+  }
+
+  const routeCustomerImport =
+    Boolean(importSessionId) &&
+    (classified.domain === INTENT_DOMAIN.CUSTOMER_IMPORT || input.forceImportPipeline)
+
+  if (!routeCustomerImport && scopePolicy.readOnlyBusinessEnabled) {
+    const readDecision = resolveReadOrchestrationAction(classified, conversation, text)
+    logIntentDecision({
+      conversationId: conversation.conversationId,
+      classified,
+      decision: readDecision,
+      snapshot,
+      durationMs: Date.now() - intentStarted,
+      requestId: req.headers?.['x-request-id'],
+    })
+
+    if (readDecision.action === READ_ORCHESTRATION_ACTION.WRITE_BLOCKED) {
+      const reply = {
+        role: 'assistant',
+        kind: 'text',
+        text: scopePolicy.writeBlockedMessage,
+      }
+      appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
+      return { conversationId: conversation.conversationId, messages: [reply] }
+    }
+
+    if (
+      readDecision.action === READ_ORCHESTRATION_ACTION.SCOPE_LIMIT ||
+      (classified.domain === INTENT_DOMAIN.GENERAL_CHAT && !readDecision.toolKey)
+    ) {
+      const allowShortSmallTalk =
+        isLikelyGeneralConversation(text) && !isOutOfScopeGeneralQuestion(text)
+      const reply = {
+        role: 'assistant',
+        kind: 'text',
+        text:
+          isOutOfScopeGeneralQuestion(text) ||
+          (!scopePolicy.allowFreeGeneralChat && !allowShortSmallTalk)
+            ? scopePolicy.scopeLimitMessage
+            : (
+                await generateGeneralChatResponse({
+                  text,
+                  recentTurns,
+                  currentRoute: conversation.pageContext?.currentRoute ?? null,
+                  scopePolicy: allowShortSmallTalk
+                    ? { ...scopePolicy, allowFreeGeneralChat: true }
+                    : scopePolicy,
+                })
+              ).text,
+      }
+      appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
+      return { conversationId: conversation.conversationId, messages: [reply] }
+    }
+
+    if (readDecision.action === READ_ORCHESTRATION_ACTION.EXECUTE_READ_TOOL) {
+      try {
+        const toolStarted = Date.now()
+        let toolResult = await executeReadTool(pool, req, {
+          toolKey: readDecision.toolKey,
+          params: readDecision.params,
+        })
+        if (
+          readDecision.followUpTool &&
+          readDecision.toolKey === 'customer.search' &&
+          toolResult.customers?.length === 1
+        ) {
+          toolResult = await executeReadTool(pool, req, {
+            toolKey: readDecision.followUpTool,
+            params: { customerId: toolResult.customers[0].customerId, limit: 3 },
+          })
+        } else if (
+          readDecision.toolKey === 'customer.search' &&
+          toolResult.customers?.length === 1 &&
+          (readDecision.navigate || /정보|보여|알려/.test(text))
+        ) {
+          toolResult = await executeReadTool(pool, req, {
+            toolKey: 'customer.get',
+            params: { customerId: toolResult.customers[0].customerId },
+          })
+        }
+        const formatted = formatReadToolResponse(toolResult, {
+          toolKey: toolResult.toolKey,
+          navigate: readDecision.navigate,
+          query: readDecision.params?.query,
+        })
+        if (formatted.resolvedCustomer) {
+          conversation = updateAiConversation(conversation.conversationId, userId, gaId, {
+            resolvedEntities: { customer: formatted.resolvedCustomer },
+          })
+        }
+        const reply = {
+          role: 'assistant',
+          kind: formatted.kind ?? 'text',
+          text: formatted.text,
+          customer: formatted.customer ?? undefined,
+          options: formatted.options ?? undefined,
+          consultations: formatted.consultations ?? undefined,
+          uiActions: formatted.uiActions ?? undefined,
+          toolKey: toolResult.toolKey,
+          toolDurationMs: toolResult.durationMs,
+          readLatencyMs: Date.now() - toolStarted,
+        }
+        appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
+        return { conversationId: conversation.conversationId, messages: [reply] }
+      } catch (toolError) {
+        const code = toolError?.code ?? 'AI_READ_TOOL_FAILED'
+        const reply = {
+          role: 'assistant',
+          kind: 'error',
+          text:
+            code === 'AI_TOOL_NOT_AVAILABLE'
+              ? '요청한 조회 기능은 아직 AI 비서에 연결되지 않았습니다.'
+              : '조회를 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+          code,
+        }
+        appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
+        return { conversationId: conversation.conversationId, messages: [reply], error: code }
+      }
     }
   }
 
@@ -176,6 +308,7 @@ export async function processAiAssistantMessage(pool, req, input) {
       text,
       recentTurns,
       currentRoute: conversation.pageContext?.currentRoute ?? null,
+      scopePolicy,
     })
     logIntentDecision({
       conversationId: conversation.conversationId,
@@ -217,11 +350,12 @@ export async function processAiAssistantMessage(pool, req, input) {
     return { conversationId: conversation.conversationId, messages: [reply] }
   }
 
-  if (topDecision.action !== TOP_LEVEL_ACTION.ROUTE_CUSTOMER_IMPORT || !importSessionId) {
+  if (!routeCustomerImport) {
     const generated = await generateGeneralChatResponse({
       text,
       recentTurns,
       currentRoute: conversation.pageContext?.currentRoute ?? null,
+      scopePolicy,
     })
     const reply = {
       role: 'assistant',
