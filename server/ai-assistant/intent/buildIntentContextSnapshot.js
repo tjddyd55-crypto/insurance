@@ -66,5 +66,8 @@ export function buildIntentContextSnapshot({ conversation, session, userId, gaId
       previewExists,
       analysisRunning: analysisStatus ? RUNNING_JOB_STATUSES.has(analysisStatus) : false,
     },
+    resolvedEntities: conversation.resolvedEntities ?? null,
+    pendingClarification: conversation.pendingClarification ?? null,
+    lastReadContext: conversation.lastReadContext ?? null,
   }
 }
