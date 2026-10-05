@@ -243,6 +243,27 @@ export async function processAiAssistantMessage(pool, req, input) {
         : null,
     })
 
+    if (
+      classified.interpretationFailed &&
+      (
+        readDecision.action === READ_ORCHESTRATION_ACTION.SCOPE_LIMIT ||
+        readDecision.action === READ_ORCHESTRATION_ACTION.NO_READ_INTENT
+      )
+    ) {
+      const failureCode = classified.classifierFailureCode ?? 'OPENAI_REQUEST_FAILED'
+      const reply = {
+        role: 'assistant',
+        kind: 'error',
+        text:
+          failureCode === 'OPENAI_QUOTA_EXHAUSTED'
+            ? 'AI 해석 엔진의 사용 한도가 소진되어 요청 의미를 해석하지 못했습니다. OpenAI 사용량을 확인한 뒤 다시 시도해 주세요.'
+            : 'AI 해석 엔진 연결에 실패해 요청 의미를 확정하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+        code: failureCode,
+      }
+      appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
+      return { conversationId: conversation.conversationId, messages: [reply], error: failureCode }
+    }
+
     if (readDecision.action === READ_ORCHESTRATION_ACTION.WRITE_BLOCKED) {
       const reply = {
         role: 'assistant',
