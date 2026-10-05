@@ -1,5 +1,5 @@
 import { getOpenAiConfig } from '../openaiConfig.js'
-import { callOpenAiResponses } from '../openaiClient.js'
+import { callOpenAiResponses, formatOpenAiFailureReason } from '../openaiClient.js'
 import { getAssistantScopePolicy } from '../scope/assistantScopePolicy.js'
 import { classifyUserIntentHeuristic } from './classifyUserIntentHeuristic.js'
 import { applyReadOnlyIntentCorrection } from './applyReadOnlyIntentCorrection.js'
@@ -92,10 +92,19 @@ export async function classifyUserIntent(input) {
       }),
       scope,
     )
-  } catch {
+  } catch (error) {
+    const failureReason = formatOpenAiFailureReason(error, 'intent_classifier')
+    console.error('[ai-intent-openai-failed]', {
+      code: error?.code ?? 'OPENAI_REQUEST_FAILED',
+      failureReason,
+    })
     return applyReadOnlyIntentCorrection(
       input.text,
-      normalizeClassifiedIntent({ ...heuristic, source: 'heuristic_gpt_failed' }),
+      normalizeClassifiedIntent({
+        ...heuristic,
+        source: 'heuristic_gpt_failed',
+        classifierFailureReason: failureReason,
+      }),
       scope,
     )
   }
