@@ -34,9 +34,6 @@ export function applyReadOnlyIntentCorrection(text, classified, scope) {
   ) {
     return classified
   }
-  if (!hint) {
-    return classified
-  }
   if (
     classified.domain !== INTENT_DOMAIN.GENERAL_CHAT &&
     classified.domain !== INTENT_DOMAIN.ONE_FC_QUERY &&

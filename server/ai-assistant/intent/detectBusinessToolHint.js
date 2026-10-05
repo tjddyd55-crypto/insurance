@@ -71,7 +71,10 @@ export function isExplainOrGeneralKnowledgeQuestion(text) {
   if (/어떻게|방법|절차|무엇|뭐야|차이|설명|예시/.test(t) && !/(해줘|해 주|보내|삭제|등록해|넣어줘)/.test(t)) {
     return true
   }
-  if (/알려줘|알려 주/.test(t) && !/(보내|삭제|등록|상담)/.test(t)) {
+  if (
+    /알려줘|알려 주/.test(t) &&
+    !/(보내|삭제|등록|상담|할\s*일|일정|청구|고객|파일|찾아)/.test(t)
+  ) {
     return true
   }
   return false
