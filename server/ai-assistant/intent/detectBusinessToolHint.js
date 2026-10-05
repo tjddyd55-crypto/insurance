@@ -12,8 +12,19 @@ export function detectBusinessToolKeyHint(text) {
   if (!t) {
     return null
   }
-  if (/고객/.test(t) && /(찾|검색)/.test(t)) {
+  if (/([가-힣]{2,4}).*(찾|검색)/.test(t) || (/고객/.test(t) && /(찾|검색)/.test(t))) {
     return 'customer.search'
+  }
+  if (/^(그\s*)?(사람|고객)/.test(t) && /(상담|파일|페이지)/.test(t)) {
+    if (/상담/.test(t)) {
+      return 'consultation.recent'
+    }
+    if (/파일|첨부|자료/.test(t)) {
+      return 'customer.files.list'
+    }
+    if (/페이지/.test(t)) {
+      return 'customer.get'
+    }
   }
   if (/할\s*일|todo|task/i.test(t)) {
     return 'task.list'

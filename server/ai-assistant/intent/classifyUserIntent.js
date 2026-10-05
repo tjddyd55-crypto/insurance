@@ -2,6 +2,7 @@ import { getOpenAiConfig } from '../openaiConfig.js'
 import { callOpenAiResponses } from '../openaiClient.js'
 import { getAssistantScopePolicy } from '../scope/assistantScopePolicy.js'
 import { classifyUserIntentHeuristic } from './classifyUserIntentHeuristic.js'
+import { applyReadOnlyIntentCorrection } from './applyReadOnlyIntentCorrection.js'
 import { normalizeClassifiedIntent } from './normalizeClassifiedIntent.js'
 import { USER_INTENT_JSON_SCHEMA } from './userIntentJsonSchema.js'
 
@@ -45,7 +46,11 @@ export async function classifyUserIntent(input) {
   const heuristic = classifyUserIntentHeuristic(input.text, input.snapshot, { scope })
   const cfg = getOpenAiConfig(input.env ?? process.env)
   if (!cfg.enabled) {
-    return normalizeClassifiedIntent(heuristic)
+    return applyReadOnlyIntentCorrection(
+      input.text,
+      normalizeClassifiedIntent(heuristic),
+      scope,
+    )
   }
 
   const instructions = scope.readOnlyBusinessEnabled ? READ_ONLY_INTENT_SYSTEM : INTENT_SYSTEM
@@ -66,15 +71,23 @@ export async function classifyUserIntent(input) {
       input.env ?? process.env,
     )
     const parsed = JSON.parse(outputText)
-    return normalizeClassifiedIntent({
-      ...parsed,
-      targetReference: parsed.targetReference ?? null,
-      clarificationQuestion: parsed.clarificationQuestion ?? null,
-      source: 'gpt',
-      classifierUsage: usage ? { ...usage, callType: 'intent_classifier' } : null,
-      heuristicFallback: heuristic,
-    })
+    return applyReadOnlyIntentCorrection(
+      input.text,
+      normalizeClassifiedIntent({
+        ...parsed,
+        targetReference: parsed.targetReference ?? null,
+        clarificationQuestion: parsed.clarificationQuestion ?? null,
+        source: 'gpt',
+        classifierUsage: usage ? { ...usage, callType: 'intent_classifier' } : null,
+        heuristicFallback: heuristic,
+      }),
+      scope,
+    )
   } catch {
-    return normalizeClassifiedIntent({ ...heuristic, source: 'heuristic_gpt_failed' })
+    return applyReadOnlyIntentCorrection(
+      input.text,
+      normalizeClassifiedIntent({ ...heuristic, source: 'heuristic_gpt_failed' }),
+      scope,
+    )
   }
 }
