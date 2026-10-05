@@ -34,6 +34,7 @@ import {
   resolveReadOrchestrationAction,
 } from './intent/resolveReadOrchestrationAction.js'
 import { applyReadOnlyIntentCorrection } from './intent/applyReadOnlyIntentCorrection.js'
+import { extractCustomerNameHint } from './intent/customerSearchQuery.js'
 import { executeReadTool } from './read-tools/readToolExecutor.js'
 import { formatReadToolResponse } from './read-tools/formatReadToolResponse.js'
 import { sanitizeUiActions } from './read-tools/navigationActions.js'
@@ -169,6 +170,40 @@ export async function processAiAssistantMessage(pool, req, input) {
   const scopePolicy = getAssistantScopePolicy()
   const intentStarted = Date.now()
   let classified = await classifyUserIntent({ text, snapshot, recentTurns, scopePolicy })
+
+  if (conversation.pendingClarification?.type === 'customer_search_target') {
+    const continuationTarget = extractCustomerNameHint(text, { allowBare: true })
+    const canRecoverPendingSearch =
+      continuationTarget &&
+      (
+        classified.requiredToolKey === 'customer.search' ||
+        !classified.requiredToolKey ||
+        classified.domain === INTENT_DOMAIN.GENERAL_CHAT
+      )
+
+    if (canRecoverPendingSearch) {
+      classified = {
+        ...classified,
+        domain: INTENT_DOMAIN.ONE_FC_QUERY,
+        stage: 'QUERY',
+        goal: 'find_customer_from_pending_clarification',
+        requestedAction: 'INVOKE_TOOL',
+        intent: 'SEARCH',
+        requiresTool: true,
+        requiredToolKey: 'customer.search',
+        requiresClarification: false,
+        clarificationQuestion: null,
+        target: {
+          entityType: 'CUSTOMER',
+          name: continuationTarget,
+          customerId: null,
+          reference: null,
+        },
+        source: `${classified.source ?? 'unknown'}+pending_clarification_recovery`,
+      }
+    }
+  }
+
   if (input.forceImportPipeline && importSessionId) {
     classified = {
       ...classified,

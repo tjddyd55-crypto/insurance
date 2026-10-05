@@ -20,20 +20,38 @@ export function isGenericCustomerNoun(value) {
  * @param {string} text
  * @returns {string | null}
  */
-export function extractCustomerNameHint(text) {
+export function extractCustomerNameHint(text, options = {}) {
   const t = String(text ?? '').trim()
   const qa = t.match(/AI테스트_[^\s]+/)
-  if (qa) {
-    return qa[0]
-  }
+  if (qa) return qa[0]
+
   const phone = t.match(/(?:01[016789]|0\d{1,2})[-\s]?\d{3,4}[-\s]?\d{4}/)
-  if (phone) {
-    return phone[0].replace(/\s/g, '')
+  if (phone) return phone[0].replace(/\s/g, '')
+
+  const stripped = t
+    .replace(/\s*(?:찾아(?:줘|주세요)?|찾기|찾아|검색(?:해줘|해주세요)?|검색|보여(?:줘|주세요)?|보여|알려(?:줘|주세요)?|알려)\s*[.!?]?$/i, '')
+    .replace(/\s*(?:고객|회원|사람)\s*$/i, '')
+    .trim()
+
+  if (
+    stripped &&
+    !isGenericCustomerNoun(stripped) &&
+    /^[가-힣A-Za-z0-9_][가-힣A-Za-z0-9_ .-]{1,39}$/.test(stripped)
+  ) {
+    return stripped
   }
-  const m = t.match(/([가-힣A-Za-z0-9_]{2,})\s*(찾|검색|보여|알려)/)
-  if (m && !isGenericCustomerNoun(m[1])) {
-    return m[1]
+
+  if (options.allowBare === true) {
+    const bare = t.replace(/[.!?]/g, '').trim()
+    if (
+      bare &&
+      !isGenericCustomerNoun(bare) &&
+      /^[가-힣A-Za-z0-9_][가-힣A-Za-z0-9_ .-]{1,39}$/.test(bare)
+    ) {
+      return bare
+    }
   }
+
   return null
 }
 
