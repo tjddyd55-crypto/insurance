@@ -31,6 +31,8 @@ export function createAiConversation(input) {
     status: 'active',
     messages: [],
     pendingAction: null,
+    pendingClarification: null,
+    lastReadContext: null,
     createdAt: new Date(now).toISOString(),
     updatedAt: new Date(now).toISOString(),
     expiresAt: now + TTL_MS,
