@@ -103,6 +103,8 @@ export async function classifyUserIntent(input) {
       normalizeClassifiedIntent({
         ...heuristic,
         source: 'heuristic_gpt_failed',
+        interpretationFailed: true,
+        classifierFailureCode: error?.code ?? 'OPENAI_REQUEST_FAILED',
         classifierFailureReason: failureReason,
       }),
       scope,
