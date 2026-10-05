@@ -5,6 +5,20 @@ import { INTENT_DOMAIN } from '../../../shared/ai-assistant/orchestration/intent
 import { applyReadOnlyIntentCorrection } from './applyReadOnlyIntentCorrection.js'
 
 describe('applyReadOnlyIntentCorrection', () => {
+  it('routes today task query to task.list', () => {
+    const out = applyReadOnlyIntentCorrection(
+      '오늘 할 일 알려줘',
+      {
+        domain: INTENT_DOMAIN.GENERAL_CHAT,
+        requiresTool: false,
+        requiredToolKey: null,
+        source: 'gpt',
+      },
+      { readOnlyBusinessEnabled: true },
+    )
+    assert.equal(out.requiredToolKey, 'task.list')
+  })
+
   it('corrects GENERAL_CHAT mislabel to customer.search', () => {
     const out = applyReadOnlyIntentCorrection(
       '홍길동 찾아줘',
