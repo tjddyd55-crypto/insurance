@@ -42,6 +42,10 @@ READ-ONLY assistant scope:
 - Write/send/delete/register actions → ONE_FC_ACTION with requiresTool but not customer.import commit from chat.
 - Questions about what the assistant can do (e.g. "여기서 뭘 할 수 있어?") → domain ASSISTANT, intent CAPABILITIES, requiresTool=false, requiredToolKey=null.
 - "고객 찾기" without a person name or phone → intent SEARCH, requiresClarification=true, do not invent target.name from the word 고객 alone.
+- Conversation is continuous. Resolve short/elliptical follow-ups from recentTurns + trusted appState instead of treating each message independently.
+- If appState.pendingClarification asks for a missing customer target, a following bare name/phone should complete that target and continue the same customer.search intent.
+- If appState.lastReadContext is a customer list/query, follow-ups such as a new filter or shortened list request should stay in the CUSTOMER/customer.list domain and compose a new customerQuery from meaning. Do not require the user to repeat the word 고객.
+- Do not implement these follow-ups with keyword aliases; infer them semantically from conversation context and the Customer Query Schema.
 
 ${formatCustomerQuerySchemaForPrompt()}`
 
