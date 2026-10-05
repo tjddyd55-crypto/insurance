@@ -80,6 +80,7 @@ export default function AiSecretaryWorkspace({ variant, onClose }: Props) {
   const { openFullPage } = useAiSecretary()
   const pageContext = useAiPageContext()
   const fileRef = useRef<HTMLInputElement | null>(null)
+  const messagesRef = useRef<HTMLDivElement | null>(null)
   const dragDepthRef = useRef(0)
   const [dragActive, setDragActive] = useState(false)
   const [attachment, setAttachment] = useState<AttachmentUiState | null>(null)
@@ -193,6 +194,17 @@ export default function AiSecretaryWorkspace({ variant, onClose }: Props) {
       .catch(() => undefined)
     return () => stopJobPolling()
   }, [token, isGaDesigner, startJobPolling, stopJobPolling])
+
+  useEffect(() => {
+    const el = messagesRef.current
+    if (!el) {
+      return
+    }
+    const frame = window.requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [messages, busy, error])
 
   async function handleSend(forcedText?: string) {
     if (!token || busy) {
@@ -424,7 +436,7 @@ export default function AiSecretaryWorkspace({ variant, onClose }: Props) {
             파일을 여기에 놓아 첨부하세요
           </div>
         ) : null}
-        <div className="ai-secretary-page__messages" aria-live="polite">
+        <div ref={messagesRef} className="ai-secretary-page__messages" aria-live="polite">
         {messages.map((msg, index) => {
           if (msg.kind === 'import_preview_card') {
             const s = msg.preview.summary
