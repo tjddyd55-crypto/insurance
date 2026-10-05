@@ -33,6 +33,7 @@ import {
   READ_ORCHESTRATION_ACTION,
   resolveReadOrchestrationAction,
 } from './intent/resolveReadOrchestrationAction.js'
+import { applyReadOnlyIntentCorrection } from './intent/applyReadOnlyIntentCorrection.js'
 import { executeReadTool } from './read-tools/readToolExecutor.js'
 import { formatReadToolResponse } from './read-tools/formatReadToolResponse.js'
 import { sanitizeUiActions } from './read-tools/navigationActions.js'
@@ -178,7 +179,16 @@ export async function processAiAssistantMessage(pool, req, input) {
     (classified.domain === INTENT_DOMAIN.CUSTOMER_IMPORT || input.forceImportPipeline)
 
   if (!routeCustomerImport && scopePolicy.readOnlyBusinessEnabled) {
-    const readDecision = resolveReadOrchestrationAction(classified, conversation, text)
+    let effectiveClassified = classified
+    let readDecision = resolveReadOrchestrationAction(effectiveClassified, conversation, text)
+    if (readDecision.action === READ_ORCHESTRATION_ACTION.SCOPE_LIMIT) {
+      const corrected = applyReadOnlyIntentCorrection(text, effectiveClassified, scopePolicy)
+      if (corrected.requiredToolKey && corrected.requiredToolKey !== effectiveClassified.requiredToolKey) {
+        effectiveClassified = corrected
+        readDecision = resolveReadOrchestrationAction(effectiveClassified, conversation, text)
+      }
+    }
+    classified = effectiveClassified
     logIntentDecision({
       conversationId: conversation.conversationId,
       classified,
