@@ -26,8 +26,11 @@ export function detectBusinessToolKeyHint(text) {
       return 'customer.get'
     }
   }
-  if (/할\s*일|todo|task/i.test(t)) {
+  if (/할\s*일|todo|task/i.test(t) || /오늘\s*할/.test(t)) {
     return 'task.list'
+  }
+  if (/청구/.test(t) && /(미처리|목록|현황|보여|확인)/.test(t)) {
+    return 'claim.list'
   }
   if (/일정|calendar/i.test(t)) {
     return 'schedule.list'

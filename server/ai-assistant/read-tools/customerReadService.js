@@ -7,7 +7,9 @@ import { parseGaId } from '../../lib/parseGaId.js'
 
 const SELECT_LIST = `
   c.id, c.user_id, c.name, c.birth_date, c.phone, c.address, c.job, c.notes,
-  c.is_favorite, c.created_at, c.customer_code, c.gender, c.insurance_age
+  c.is_favorite, c.created_at, c.customer_code, c.gender, c.insurance_age,
+  c.car_number, c.car_model, c.car_year, c.renewal_date,
+  c.business_representative_name, c.business_number, c.business_address, c.business_memo
 `
 
 function requireUserId(req) {
@@ -33,7 +35,38 @@ export function toAiCustomerSummary(row) {
     job: mapped.job ?? null,
     customerCode: mapped.customerCode ?? null,
     lastConsultDate: mapped.lastConsultDate ?? null,
+    carNumber: mapped.carNumber ?? null,
+    carModel: mapped.carModel ?? null,
+    carYear: mapped.carYear ?? null,
+    businessInfo: mapped.businessInfo ?? null,
   }
+}
+
+async function loadCustomerCustomFieldHints(pool, customerId, userId, gaId) {
+  const r = await safeQuery(
+    pool,
+    `
+    SELECT label, value FROM customer_custom_fields
+    WHERE customer_id = $1 AND user_id = $2 AND ga_id = $3 AND deleted_at IS NULL
+      AND label IN ('회사명', '주력보험사', 'VIP')
+    `,
+    [customerId, userId, gaId],
+  )
+  const hints = { companyName: null, primaryInsurer: null, vip: null }
+  for (const row of r.rows) {
+    const label = String(row.label ?? '')
+    const value = String(row.value ?? '').trim()
+    if (label === '회사명') {
+      hints.companyName = value || null
+    }
+    if (label === '주력보험사') {
+      hints.primaryInsurer = value || null
+    }
+    if (label === 'VIP' && value) {
+      hints.vip = value
+    }
+  }
+  return hints
 }
 
 /**
@@ -133,5 +166,7 @@ export async function getCustomerForAssistant(pool, req, customerId) {
   if (!result.rows[0]) {
     return null
   }
-  return toAiCustomerSummary(result.rows[0])
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return { ...summary, ...hints }
 }

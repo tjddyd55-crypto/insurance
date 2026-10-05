@@ -30,10 +30,16 @@ async function main() {
   }
   let conversationId
   const steps = [
-    '홍길동 찾아줘',
+    'AI테스트_홍길동 찾아줘',
     '그 사람 최근 상담 보여줘',
+    '최근 상담 3개 보여줘',
     '그 고객 파일 뭐 있어?',
     '그 고객 페이지 열어줘',
+    '오늘 할 일 알려줘',
+    '오늘 일정 보여줘',
+    '미처리 청구 보여줘',
+    'AI테스트_동명이인 찾아줘',
+    'AI테스트_없는고객 찾아줘',
   ]
   for (const text of steps) {
     const res = await postMessage(conversationId, text)

@@ -1,3 +1,4 @@
+import { parseGaId } from '../../lib/parseGaId.js'
 import { safeQuery } from '../../utils/dbSafeQuery.js'
 
 /**
@@ -8,14 +9,15 @@ import { safeQuery } from '../../utils/dbSafeQuery.js'
  */
 export async function listClaimsForAssistant(pool, req, input = {}) {
   const agentId = String(req.user?.id ?? req.user?.userId ?? '').trim()
-  if (!agentId) {
+  const gaId = parseGaId(req.user?.gaId)
+  if (!agentId || gaId == null) {
     return { claims: [] }
   }
 
   const limit = Math.min(30, Math.max(1, Number(input.limit) || 15))
   const customerId = input.customerId != null ? Number(input.customerId) : null
-  const where = ['r.agent_id = $1']
-  const params = [agentId]
+  const where = ['r.agent_id = $1', 'c.ga_id = $2', 'c.deleted_at IS NULL']
+  const params = [agentId, gaId]
 
   if (Number.isInteger(customerId) && customerId > 0) {
     where.push(`r.customer_id = $${params.length + 1}`)

@@ -60,11 +60,19 @@ export function resolveReadOrchestrationAction(classified, conversation, text) {
   }
 
   const target = classified.target ?? {}
-  const customerId = resolveCustomerIdFromContext(target, conversation, text)
+  let customerId = resolveCustomerIdFromContext(target, conversation, text)
+  if (
+    !customerId &&
+    (toolKey === 'consultation.recent' || toolKey === 'customer.files.list') &&
+    conversation?.resolvedEntities?.customer?.customerId
+  ) {
+    customerId = Number(conversation.resolvedEntities.customer.customerId)
+  }
 
   const params = { ...(classified.filters ?? {}) }
   if (toolKey === 'customer.search') {
-    params.query = target.name ?? classified.filters?.name ?? extractNameHint(text)
+    params.query =
+      /AI테스트_/.test(text) ? extractNameHint(text) : target.name ?? classified.filters?.name ?? extractNameHint(text)
     params.limit = classified.limit ?? 10
   }
   if (toolKey === 'customer.get') {
@@ -181,6 +189,10 @@ function inferScheduleDay(text) {
 
 function extractNameHint(text) {
   const t = String(text ?? '').trim()
+  const qa = t.match(/AI테스트_[^\s]+/)
+  if (qa) {
+    return qa[0]
+  }
   const m = t.match(/([가-힣]{2,4})\s*(찾|보여|알려|정보|페이지)/)
-  return m?.[1] ?? t.slice(0, 24)
+  return m?.[1] ?? t.slice(0, 32)
 }

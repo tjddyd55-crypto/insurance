@@ -204,12 +204,14 @@ export async function processAiAssistantMessage(pool, req, input) {
     ) {
       const allowShortSmallTalk =
         isLikelyGeneralConversation(text) && !isOutOfScopeGeneralQuestion(text)
+      const useScopeLimit =
+        isOutOfScopeGeneralQuestion(text) ||
+        (!scopePolicy.allowFreeGeneralChat && !allowShortSmallTalk && !classified.requiresTool)
       const reply = {
         role: 'assistant',
         kind: 'text',
         text:
-          isOutOfScopeGeneralQuestion(text) ||
-          (!scopePolicy.allowFreeGeneralChat && !allowShortSmallTalk)
+          useScopeLimit
             ? scopePolicy.scopeLimitMessage
             : (
                 await generateGeneralChatResponse({

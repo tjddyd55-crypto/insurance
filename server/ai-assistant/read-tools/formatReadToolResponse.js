@@ -77,12 +77,18 @@ export function formatReadToolResponse(toolResult, meta = {}) {
       }
     }
     const uiActions = meta.navigate ? buildCustomerDetailUiAction(c.customerId) : []
+    const biz = c.businessInfo
     return {
       text: [
         `${c.name} 고객 정보입니다.`,
         c.phone ? `연락처: ${c.phone}` : null,
         c.address ? `주소: ${c.address}` : null,
         c.job ? `직업: ${c.job}` : null,
+        c.companyName ? `회사: ${c.companyName}` : null,
+        c.primaryInsurer ? `주력보험사: ${c.primaryInsurer}` : null,
+        c.carNumber ? `차량번호: ${c.carNumber}` : null,
+        biz?.businessNumber ? `사업자번호: ${biz.businessNumber}` : null,
+        biz?.businessAddress ? `사업장 주소: ${biz.businessAddress}` : null,
       ]
         .filter(Boolean)
         .join('\n'),
