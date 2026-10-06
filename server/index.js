@@ -72,6 +72,7 @@ import { registerReminderCalendarApi } from './apis/registerReminderCalendarApi.
 import { registerAdminAiToolsApi } from './apis/adminAiToolsApi.js'
 import { registerCustomerImportApi } from './ai-assistant/customer-import/registerCustomerImportApi.js'
 import { registerAiAssistantApi } from './apis/aiAssistantApi.js'
+import { runSemanticCatalogStartupAudit } from './ai-assistant/data-catalog/semanticCatalogStartupAudit.js'
 import { registerServiceIntegrationsApi } from './apis/registerServiceIntegrationsApi.js'
 import { resolveCustomerAddressRegion } from './customers/addressRegion.js'
 import { registerPremiumPaymentApi } from './registerPremiumPaymentApi.js'
@@ -6651,6 +6652,11 @@ async function startServer() {
   }
 
   await runInitDbOnStartup()
+  try {
+    await runSemanticCatalogStartupAudit(pool)
+  } catch (error) {
+    console.error('[ai-semantic-catalog-startup-audit-failed]', error?.message ?? error)
+  }
   await seedInsuranceCompanyDirectory()
   await logInsuranceFormsDbDiagnostics('startup')
   await ensureYesterdayAnalyticsAggregated(pool)
