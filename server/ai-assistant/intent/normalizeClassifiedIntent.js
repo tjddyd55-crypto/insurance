@@ -36,6 +36,9 @@ export function normalizeClassifiedIntent(classified) {
   if (next.limit === undefined) {
     next.limit = null
   }
+  if (next.returnFields === undefined || !Array.isArray(next.returnFields)) {
+    next.returnFields = []
+  }
   if (next.customerQuery === undefined) {
     next.customerQuery = null
   }
