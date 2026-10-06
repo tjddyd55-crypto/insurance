@@ -7,13 +7,14 @@ import { resolveCustomerVisibilitySqlForSelect } from '../../lib/customerRowVisi
 import { parseGaId } from '../../lib/parseGaId.js'
 import { safeQuery } from '../../utils/dbSafeQuery.js'
 import { buildGenericCustomerSemanticFilterSql } from '../query-engine/genericCustomerQueryEngine.js'
+import { buildGenericCustomerProjectionSelect, mapCustomerProjectionRow } from '../query-engine/genericCustomerProjectionEngine.js'
 import { phoneTail } from './customerReadService.js'
 
 /**
  * Same visibility/filters as GET /api/customers (minimal assistant fields).
  * @param {import('pg').Pool} pool
  * @param {import('express').Request} req
- * @param {{ limit?: number, countOnly?: boolean, customerQueryAst?: object | null }} input
+ * @param {{ limit?: number, countOnly?: boolean, customerQueryAst?: object | null, returnFields?: string[] }} input
  */
 export async function listCustomersForAssistant(pool, req, input = {}) {
   const userId = String(req.user?.id ?? req.user?.userId ?? '')
@@ -56,6 +57,14 @@ export async function listCustomersForAssistant(pool, req, input = {}) {
   const filterClause = allFragments.length > 0 ? ` AND ${allFragments.join(' AND ')}` : ''
   const filterParams = [...filterBuilt.params, ...structured.params]
   const summaryJoin = `${buildCustomerConsultationSummaryJoin(lcUserPlace, lcGaPlace)}${buildCustomerFollowUpSummaryJoin(lcUserPlace, lcGaPlace)}`
+  const projectionPlan = buildGenericCustomerProjectionSelect(input.returnFields ?? [], {
+    userPlaceholder: lcUserPlace,
+    gaPlaceholder: lcGaPlace,
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
   const countParams = [...vis.params, userId, gaId, ...filterParams]
 
   const countResult = await safeQuery(
@@ -89,7 +98,7 @@ export async function listCustomersForAssistant(pool, req, input = {}) {
   const result = await safeQuery(
     pool,
     `
-    SELECT c.id, c.name, c.phone, c.gender
+    SELECT c.id, c.name, c.phone, c.gender${projectionSql}
     FROM customers c
     ${summaryJoin}
     WHERE (${vis.clause}) AND c.deleted_at IS NULL${filterClause}
@@ -109,6 +118,7 @@ export async function listCustomersForAssistant(pool, req, input = {}) {
         : String(row.gender ?? '').trim().toLowerCase() === 'female'
           ? 'female'
           : null,
+    projection: mapCustomerProjectionRow(row, projectionPlan),
   }))
 
   return {
@@ -119,5 +129,6 @@ export async function listCustomersForAssistant(pool, req, input = {}) {
     filterCount,
     queryEngine: 'SEMANTIC_GENERIC_V1',
     semanticKeys: structured.semanticKeys ?? [],
+    returnFields: projectionPlan.returnFields,
   }
 }
