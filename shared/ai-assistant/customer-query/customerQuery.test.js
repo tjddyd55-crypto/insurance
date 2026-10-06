@@ -99,4 +99,32 @@ describe('customer query engine', () => {
     })
     assert.equal(sql.params[0], "%'; DROP TABLE customers;--%")
   })
+
+
+  it('validates boolean and additional base fields', () => {
+    const result = validateCustomerQueryAst({
+      logic: 'AND',
+      filters: [
+        { field: 'isDriver', operator: 'EQ', value: true, valueTo: null },
+        { field: 'carYear', operator: 'EQ', value: '2022', valueTo: null },
+      ],
+      sort: [],
+      limit: 20,
+      unsupportedField: null,
+    })
+    assert.equal(result.ok, true)
+    assert.equal(result.ast.filters[0].value, true)
+  })
+
+  it('knows sensitive CRM fields but refuses AI query until explicitly enabled', () => {
+    const result = validateCustomerQueryAst({
+      logic: 'AND',
+      filters: [{ field: 'medical', operator: 'CONTAINS', value: '고혈압', valueTo: null }],
+      sort: [],
+      limit: 20,
+      unsupportedField: null,
+    })
+    assert.equal(result.ok, false)
+    assert.equal(result.code, 'UNSUPPORTED_FIELD')
+  })
 })

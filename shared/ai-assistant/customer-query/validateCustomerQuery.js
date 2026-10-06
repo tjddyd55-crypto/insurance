@@ -59,6 +59,14 @@ export function validateCustomerQueryAst(raw) {
         message: '현재 고객정보에는 해당 조건으로 조회할 수 있는 항목이 없습니다.',
       }
     }
+    if (!def.searchable) {
+      return {
+        ok: false,
+        code: 'UNSUPPORTED_FIELD',
+        field: fieldKey,
+        message: `${def.label} 항목은 CRM에 존재하지만 현재 AI 조회에는 연결되어 있지 않습니다.`,
+      }
+    }
     const operator = String(item?.operator ?? '').trim().toUpperCase()
     if (!CUSTOMER_QUERY_OPERATORS.includes(operator) || !def.operators.includes(operator)) {
       return {
@@ -126,6 +134,19 @@ function normalizeFilterValue(def, operator, item) {
       return { ok: false, code: 'INVALID_VALUE', message: '성별 값이 올바르지 않습니다.' }
     }
     return { ok: true, value: g, valueTo: null }
+  }
+
+  if (def.type === 'boolean') {
+    const v =
+      valueRaw === true || String(valueRaw ?? '').trim().toLowerCase() === 'true'
+        ? true
+        : valueRaw === false || String(valueRaw ?? '').trim().toLowerCase() === 'false'
+          ? false
+          : null
+    if (v == null) {
+      return { ok: false, code: 'INVALID_VALUE', message: `${def.label} 값이 올바르지 않습니다.` }
+    }
+    return { ok: true, value: v, valueTo: null }
   }
 
   if (def.type === 'date') {

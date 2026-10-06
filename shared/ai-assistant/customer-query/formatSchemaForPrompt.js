@@ -1,4 +1,7 @@
-import { listSearchableCustomerQueryFields } from './customerQuerySchema.js'
+import {
+  listNonQueryableCustomerQueryFields,
+  listSearchableCustomerQueryFields,
+} from './customerQuerySchema.js'
 import { CUSTOMER_QUERY_OPERATORS, CUSTOMER_QUERY_PERIOD_TOKENS } from './customerQuerySchema.js'
 
 /**
@@ -11,8 +14,12 @@ export function formatCustomerQuerySchemaForPrompt() {
       return `- ${f.key}: ${f.type}${enumPart} ops=${f.operators.join('|')}`
     })
     .join('\n')
+  const knownButNotQueryable = listNonQueryableCustomerQueryFields()
+    .map((f) => `${f.key}(${f.label})`)
+    .join(', ')
   return `CUSTOMER customerQuery (structured filters, AND only):
 ${fields}
+Known CRM fields not queryable by AI yet: ${knownButNotQueryable || 'none'}
 Operators: ${CUSTOMER_QUERY_OPERATORS.join(', ')}
 Date PERIOD tokens: ${CUSTOMER_QUERY_PERIOD_TOKENS.join(', ')}
 Rules:
@@ -21,7 +28,8 @@ Rules:
 - labels INCLUDES = customer tag/label (e.g. VIP), not UI field names.
 - insurer = primary insurer name string.
 - For dates prefer PERIOD token over raw YYYY-MM-DD.
-- If user asks for a concept with no searchable field, set unsupportedField (e.g. bloodType) and empty filters.
+- If user asks for a known-but-not-queryable CRM field, set unsupportedField to that field key and empty filters.
+- If user asks for a concept with no known CRM field, set unsupportedField (e.g. bloodType) and empty filters.
 - LIST with filters → requiredToolKey customer.list; single name/phone lookup → customer.search.
 - Put filters in customerQuery.filters[], not keyword routing.`
 }

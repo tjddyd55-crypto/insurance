@@ -55,8 +55,8 @@ export const USER_INTENT_JSON_SCHEMA = {
               properties: {
                 field: { type: 'string' },
                 operator: { type: 'string' },
-                value: { type: ['string', 'null'] },
-                valueTo: { type: ['string', 'null'] },
+                value: { type: ['string', 'number', 'boolean', 'null'] },
+                valueTo: { type: ['string', 'number', 'null'] },
               },
               required: ['field', 'operator', 'value', 'valueTo'],
             },

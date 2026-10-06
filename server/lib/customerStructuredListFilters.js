@@ -66,8 +66,33 @@ function compileOneFilter(filter, ctx) {
     }
   }
 
-  if (field === 'name' || field === 'job') {
-    const col = field === 'name' ? 'c.name' : 'c.job'
+  if (
+    field === 'name' ||
+    field === 'job' ||
+    field === 'customerCode' ||
+    field === 'drivingText' ||
+    field === 'carType' ||
+    field === 'carYear'
+  ) {
+    const col =
+      field === 'name'
+        ? 'c.name'
+        : field === 'job'
+          ? 'c.job'
+          : field === 'customerCode'
+            ? 'c.customer_code'
+            : field === 'drivingText'
+              ? 'c.driving'
+              : field === 'carType'
+                ? 'c.car_type'
+                : 'c.car_year'
+    if ((field === 'carType') && (op === 'IS_NULL' || op === 'IS_NOT_NULL')) {
+      return frag(
+        op === 'IS_NULL' ? `COALESCE(TRIM(${col}), '') = ''` : `COALESCE(TRIM(${col}), '') <> ''`,
+        [],
+        nextIdx,
+      )
+    }
     return stringColumn(col, op, filter, ph, nextIdx)
   }
 
@@ -137,8 +162,20 @@ function compileOneFilter(filter, ctx) {
     return stringColumn('c.car_model', op, filter, ph, nextIdx)
   }
 
-  if (field === 'renewalDate' || field === 'createdAt') {
-    const col = field === 'renewalDate' ? 'c.renewal_date' : 'c.created_at::date'
+  if (
+    field === 'birthDate' ||
+    field === 'renewalDate' ||
+    field === 'createdAt' ||
+    field === 'nextAgeDate'
+  ) {
+    const col =
+      field === 'birthDate'
+        ? 'c.birth_date'
+        : field === 'renewalDate'
+          ? 'c.renewal_date'
+          : field === 'nextAgeDate'
+            ? 'c.next_age_date'
+            : 'c.created_at::date'
     if (op === 'BETWEEN' || op === 'PERIOD') {
       const p1 = ph()
       const p2 = ph()
@@ -197,6 +234,15 @@ function compileOneFilter(filter, ctx) {
     if (op === 'EXCLUDES') {
       return frag(`NOT ${existsBase} AND cf.label = ${p})`, [tag], nextIdx)
     }
+  }
+
+  if (field === 'isFavorite' || field === 'isDriver') {
+    if (op !== 'EQ') {
+      return frag('', [], nextIdx)
+    }
+    const p = ph()
+    const col = field === 'isFavorite' ? 'c.is_favorite' : 'c.is_driver'
+    return frag(`${col} IS NOT DISTINCT FROM ${p}::boolean`, [Boolean(filter.value)], nextIdx)
   }
 
   if (field === 'insuranceAge') {
