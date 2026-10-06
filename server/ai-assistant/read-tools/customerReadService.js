@@ -154,27 +154,34 @@ export async function getCustomerForAssistant(pool, req, customerId, options = {
   if (vis.blocked) {
     return null
   }
+
   const plc = vis.params.length
   const requestedReturnFields = Array.isArray(options.returnFields) ? options.returnFields : []
   const hasProjection = requestedReturnFields.length > 0
+  const userPlaceholder = '$' + String(plc + 1)
+  const gaPlaceholder = '$' + String(plc + 2)
   const projectionPlan = buildGenericCustomerProjectionSelect(requestedReturnFields, {
-    userPlaceholder: `${plc + 1}`,
-    gaPlaceholder: `${plc + 2}`,
+    userPlaceholder,
+    gaPlaceholder,
   })
   const projectionSql =
     projectionPlan.selectFragments.length > 0
       ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
       : ''
-  const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const cidPlace = hasProjection ? '$' + String(plc + 3) : '$' + String(plc + 1)
+  const projectionScopeClause = hasProjection
+    ? ' AND ' + userPlaceholder + '::text IS NOT NULL AND ' + gaPlaceholder + '::integer IS NOT NULL'
+    : ''
   const queryParams = hasProjection
     ? [...vis.params, userId, gaId, id]
     : [...vis.params, id]
+
   const result = await safeQuery(
     pool,
     `
     SELECT ${SELECT_LIST}${projectionSql}
     FROM customers c
-    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
     LIMIT 1
     `,
     queryParams,
