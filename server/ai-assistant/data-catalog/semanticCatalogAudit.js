@@ -1,8 +1,10 @@
 import {
   AI_SEMANTIC_MANAGED_TABLES,
+  listAiGenericCustomerReadFields,
   listAiSemanticFields,
   summarizeAiSemanticCatalog,
 } from '../../../shared/ai-assistant/semanticDataCatalog.js'
+import { getCustomerGenericRelation } from '../../../shared/ai-assistant/customer-query/customerGenericRelationCatalog.js'
 
 function storageKey(table, column) {
   return `${table}.${column}`
@@ -56,6 +58,17 @@ export function auditSemanticCatalogAgainstDatabaseCatalog(databaseCatalog) {
     }
   }
 
+  const missingGenericRelations = []
+  for (const semantic of listAiGenericCustomerReadFields()) {
+    if (!getCustomerGenericRelation(semantic.storage.table)) {
+      missingGenericRelations.push({
+        code: 'SEMANTIC_RELATION_MISSING',
+        semanticKey: semantic.key,
+        table: semantic.storage.table,
+      })
+    }
+  }
+
   const queryKeySeen = new Map()
   const duplicateQueryKeys = []
   for (const semantic of semanticFields) {
@@ -82,10 +95,17 @@ export function auditSemanticCatalogAgainstDatabaseCatalog(databaseCatalog) {
     missingDefinitionCount: missingDefinitions.length,
     missingStorageCount: missingStorage.length,
     duplicateQueryKeyCount: duplicateQueryKeys.length,
+    missingGenericRelationCount: missingGenericRelations.length,
     ok:
       missingDefinitions.length === 0 &&
       missingStorage.length === 0 &&
-      duplicateQueryKeys.length === 0,
-    issues: [...missingDefinitions, ...missingStorage, ...duplicateQueryKeys],
+      duplicateQueryKeys.length === 0 &&
+      missingGenericRelations.length === 0,
+    issues: [
+      ...missingDefinitions,
+      ...missingStorage,
+      ...duplicateQueryKeys,
+      ...missingGenericRelations,
+    ],
   }
 }
