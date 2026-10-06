@@ -24,11 +24,11 @@ export async function executeReadTool(pool, req, input) {
   switch (input.toolKey) {
     case 'customer.search': {
       const q = String(params.query ?? params.name ?? '').trim()
-      const result = await searchCustomersForAssistant(pool, req, { q, limit: params.limit ?? 10 })
+      const result = await searchCustomersForAssistant(pool, req, { q, limit: params.limit ?? 10, returnFields: params.returnFields ?? [] })
       return { toolKey: input.toolKey, ...result, durationMs: Date.now() - started }
     }
     case 'customer.get': {
-      const customer = await getCustomerForAssistant(pool, req, params.customerId)
+      const customer = await getCustomerForAssistant(pool, req, params.customerId, { returnFields: params.returnFields ?? [] })
       return { toolKey: input.toolKey, customer, durationMs: Date.now() - started }
     }
     case 'consultation.recent': {
@@ -63,6 +63,7 @@ export async function executeReadTool(pool, req, input) {
         limit: params.limit ?? 20,
         countOnly: params.countOnly ?? false,
         customerQueryAst: params.customerQueryAst ?? null,
+        returnFields: params.returnFields ?? [],
       })
       return { toolKey: input.toolKey, ...result, durationMs: Date.now() - started }
     }
