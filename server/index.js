@@ -73,6 +73,7 @@ import { registerAdminAiToolsApi } from './apis/adminAiToolsApi.js'
 import { registerCustomerImportApi } from './ai-assistant/customer-import/registerCustomerImportApi.js'
 import { registerAiAssistantApi } from './apis/aiAssistantApi.js'
 import { runSemanticCatalogStartupAudit } from './ai-assistant/data-catalog/semanticCatalogStartupAudit.js'
+import { auditGenericCustomerQueryCompileCoverage } from './ai-assistant/query-engine/genericCustomerQueryCompileAudit.js'
 import { registerServiceIntegrationsApi } from './apis/registerServiceIntegrationsApi.js'
 import { resolveCustomerAddressRegion } from './customers/addressRegion.js'
 import { registerPremiumPaymentApi } from './registerPremiumPaymentApi.js'
@@ -6654,6 +6655,8 @@ async function startServer() {
   await runInitDbOnStartup()
   try {
     await runSemanticCatalogStartupAudit(pool)
+    const genericQueryAudit = auditGenericCustomerQueryCompileCoverage()
+    console.info('[ai-generic-customer-query-audit]', genericQueryAudit)
   } catch (error) {
     console.error('[ai-semantic-catalog-startup-audit-failed]', error?.message ?? error)
   }
