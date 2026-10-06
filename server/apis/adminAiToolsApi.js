@@ -1,4 +1,6 @@
 import { getDatabaseCatalog } from '../ai-assistant/data-catalog/databaseCatalogService.js'
+import { auditSemanticCatalogAgainstDatabaseCatalog } from '../ai-assistant/data-catalog/semanticCatalogAudit.js'
+import { listAiSemanticFields, summarizeAiSemanticCatalog } from '../../shared/ai-assistant/semanticDataCatalog.js'
 import {
   listAiImprovements,
   updateAiImprovementStatus,
@@ -60,10 +62,32 @@ export function registerAdminAiToolsApi(apiRouter, ctx) {
     }
   })
 
+
+  apiRouter.get('/admin/ai-semantic-catalog', requireAuth, requireSuperAdmin, async (_req, res) => {
+    try {
+      const databaseCatalog = await getDatabaseCatalog(pool)
+      const audit = auditSemanticCatalogAgainstDatabaseCatalog(databaseCatalog)
+      res.json({
+        summary: summarizeAiSemanticCatalog(),
+        fields: listAiSemanticFields(),
+        audit,
+      })
+    } catch (error) {
+      res.status(500).json({
+        code: 'AI_SEMANTIC_CATALOG_FAILED',
+        message: error instanceof Error ? error.message : 'AI 의미 사전 조회 실패',
+      })
+    }
+  })
+
   apiRouter.get('/admin/ai-data-catalog', requireAuth, requireSuperAdmin, async (req, res) => {
     try {
       const catalog = await getDatabaseCatalog(pool, { force: req.query?.refresh === '1' })
-      res.json(catalog)
+      const semanticAudit = auditSemanticCatalogAgainstDatabaseCatalog(catalog)
+      res.json({
+        ...catalog,
+        semanticAudit,
+      })
     } catch (error) {
       res.status(500).json({
         code: 'AI_DATA_CATALOG_FAILED',
