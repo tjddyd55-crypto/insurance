@@ -1,3 +1,5 @@
+import { listAiSemanticFields, summarizeAiSemanticCatalog } from '../../../shared/ai-assistant/semanticDataCatalog.js'
+
 let cache = null
 let cacheAt = 0
 const CACHE_MS = 5 * 60 * 1000
@@ -41,6 +43,13 @@ export async function getDatabaseCatalog(pool, options = {}) {
     `),
   ])
 
+  const semanticByStorage = new Map()
+  for (const semantic of listAiSemanticFields()) {
+    const key = `${semantic.storage.table}.${semantic.storage.column}`
+    if (!semanticByStorage.has(key)) semanticByStorage.set(key, [])
+    semanticByStorage.get(key).push(semantic)
+  }
+
   const foreignKeyByColumn = new Map(
     fkResult.rows.map((row) => [
       `${row.table_name}.${row.column_name}`,
@@ -64,6 +73,17 @@ export async function getDatabaseCatalog(pool, options = {}) {
       nullable: String(row.is_nullable) === 'YES',
       hasDefault: row.column_default != null,
       foreignKey: foreignKeyByColumn.get(`${tableName}.${row.column_name}`) ?? null,
+      semanticDefinitions: (semanticByStorage.get(`${tableName}.${row.column_name}`) ?? []).map((semantic) => ({
+        key: semantic.key,
+        label: semantic.label,
+        description: semantic.description,
+        valueType: semantic.valueType,
+        privacyLevel: semantic.privacyLevel,
+        canonicalValues: semantic.canonicalValues,
+        systemManaged: semantic.systemManaged,
+        capabilities: semantic.capabilities,
+        queryKey: semantic.query?.key ?? null,
+      })),
     })
   }
 
@@ -74,6 +94,11 @@ export async function getDatabaseCatalog(pool, options = {}) {
     tableCount: tables.length,
     columnCount: columnsResult.rows.length,
     foreignKeyCount: fkResult.rows.length,
+    semanticCatalog: summarizeAiSemanticCatalog(),
+    semanticDefinedColumnCount: tables.reduce(
+      (sum, table) => sum + table.columns.filter((column) => column.semanticDefinitions.length > 0).length,
+      0,
+    ),
     tables,
   }
   cacheAt = Date.now()

@@ -11,7 +11,8 @@ export function formatCustomerQuerySchemaForPrompt() {
   const fields = listSearchableCustomerQueryFields()
     .map((f) => {
       const enumPart = f.enumValues?.length ? ` enum(${f.enumValues.join(',')})` : ''
-      return `- ${f.key}: ${f.type}${enumPart} ops=${f.operators.join('|')}`
+      const canonicalPart = f.canonicalValues?.length ? ` canonical(${f.canonicalValues.join(',')})` : ''
+      return `- ${f.key} [${f.label}]: ${f.type}${enumPart}${canonicalPart} ops=${f.operators.join('|')} — ${f.description}`
     })
     .join('\n')
   const knownButNotQueryable = listNonQueryableCustomerQueryFields()
@@ -23,8 +24,9 @@ Known CRM fields not queryable by AI yet: ${knownButNotQueryable || 'none'}
 Operators: ${CUSTOMER_QUERY_OPERATORS.join(', ')}
 Date PERIOD tokens: ${CUSTOMER_QUERY_PERIOD_TOKENS.join(', ')}
 Rules:
-- Map user meaning to field+operator+value. Do not invent fields.
-- gender values: MALE or FEMALE (not Korean words in value).
+- Understand the user's free-form wording semantically, then map the meaning to the most appropriate defined field. Do not use a fixed synonym/keyword table and do not invent fields.
+- Field label/description define business meaning; source/canonical metadata define storage semantics.
+- gender values in customerQuery are MALE or FEMALE; storage canonical values are male/female.
 - labels INCLUDES = customer tag/label (e.g. VIP), not UI field names.
 - insurer = primary insurer name string.
 - For dates prefer PERIOD token over raw YYYY-MM-DD.
