@@ -1,3 +1,5 @@
+import { AI_SEMANTIC_BUSINESS_FIELDS_RAW } from './semanticBusinessDomains.js'
+
 /**
  * ONE FC AI semantic data catalog SSOT.
  *
@@ -41,6 +43,21 @@ export const AI_SEMANTIC_MANAGED_TABLES = C([
   'customer_fire_insurance_locations',
   'customer_special_dates',
   'customer_custom_fields',
+  'customer_consultations',
+  'todos',
+  'calendar_items',
+  'customer_claim_requests',
+  'customer_claim_request_files',
+  'customer_app_profiles',
+  'customer_files',
+  'memo',
+  'user_insurer_accounts',
+  'ta_call_assignments',
+  'customer_relations',
+  'customer_premium_payment_methods',
+  'customer_payment_cards',
+  'customer_card_payment_contracts',
+  'customer_card_payment_completions',
 ])
 
 export const AI_SEMANTIC_FIELDS = C([
@@ -152,6 +169,7 @@ export const AI_SEMANTIC_FIELDS = C([
   field({ key:'customer.company', label:'회사', description:'고객 사용자 정의 필드 중 회사명 의미의 값.', valueType:'relation', storage:{table:'customer_custom_fields',column:'value'}, capabilities:{filter:true}, query:{key:'company',type:'relation',operators:['EQ','CONTAINS']} }),
   field({ key:'customer.primaryInsurer', label:'주력보험사', description:'고객 사용자 정의 필드 중 주력보험사 의미의 값.', valueType:'relation', storage:{table:'customer_custom_fields',column:'value'}, capabilities:{filter:true}, query:{key:'insurer',type:'relation',operators:['EQ','CONTAINS']} }),
   field({ key:'customer.labels', label:'고객 라벨', description:'고객에게 부여된 동적 라벨/태그.', valueType:'relation', storage:{table:'customer_custom_fields',column:'label'}, capabilities:{filter:true}, query:{key:'labels',type:'relation',operators:['INCLUDES','EXCLUDES']} }),
+  ...AI_SEMANTIC_BUSINESS_FIELDS_RAW.map(field),
 ])
 
 const BY_KEY = new Map(AI_SEMANTIC_FIELDS.map((f) => [f.key, f]))
