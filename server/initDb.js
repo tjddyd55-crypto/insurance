@@ -1668,6 +1668,34 @@ export async function initDb() {
     END $;
   `)
 
+  if (process.env.RAILWAY_ENVIRONMENT_NAME === 'development' || process.env.NODE_ENV !== 'production') {
+    const genderAudit = await pool.query(`
+      SELECT
+        CASE
+          WHEN gender = 'male' THEN 'male'
+          WHEN gender = 'female' THEN 'female'
+          WHEN TRIM(COALESCE(gender, '')) = '' THEN 'blank'
+          ELSE 'other'
+        END AS gender_bucket,
+        COUNT(*)::int AS count
+      FROM customers
+      WHERE deleted_at IS NULL
+      GROUP BY 1
+      ORDER BY 1
+    `)
+    const unexpectedGender = await pool.query(`
+      SELECT COUNT(*)::int AS count
+      FROM customers
+      WHERE deleted_at IS NULL
+        AND COALESCE(gender, '') NOT IN ('', 'male', 'female')
+    `)
+    console.info('[customer-gender-audit]', {
+      allowed: ['', 'male', 'female'],
+      counts: genderAudit.rows,
+      unexpectedCount: Number(unexpectedGender.rows[0]?.count ?? 0),
+    })
+  }
+
   await pool.query(`
     ALTER TABLE customers
     ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN NOT NULL DEFAULT FALSE
