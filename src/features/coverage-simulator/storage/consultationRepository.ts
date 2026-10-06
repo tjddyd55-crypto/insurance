@@ -26,6 +26,8 @@ export function listConsultations(userKey: string): SavedScenarioSummary[] {
           id: scenario.id,
           title: scenario.title,
           diseaseType: scenario.diseaseType,
+          templateId: scenario.templateId,
+          templateNameSnapshot: scenario.templateNameSnapshot,
           customerId: scenario.customerId ?? null,
           customerNameSnapshot: resolveCustomerNameSnapshot(scenario),
           customerName: resolveCustomerNameSnapshot(scenario) ?? undefined,
@@ -47,6 +49,28 @@ export function listConsultationsByDisease(
     if (customerId) return row.customerId === customerId
     return true
   })
+}
+
+export function listConsultationsByTemplateId(
+  userKey: string,
+  templateId: string,
+  customerId?: string | null,
+): SavedScenarioSummary[] {
+  return listConsultations(userKey).filter((row) => {
+    if (row.templateId !== templateId) return false
+    if (customerId) return row.customerId === customerId
+    return true
+  })
+}
+
+/** 고객 상세 시뮬레이션 탭 — customerId가 정확히 일치하는 Simulation만 */
+export function listConsultationsByCustomerId(
+  userKey: string,
+  customerId: string,
+): SavedScenarioSummary[] {
+  const normalized = customerId.trim()
+  if (!normalized) return []
+  return listConsultations(userKey).filter((row) => row.customerId === normalized)
 }
 
 export function getConsultationById(userKey: string, id: string): CoverageScenario | null {

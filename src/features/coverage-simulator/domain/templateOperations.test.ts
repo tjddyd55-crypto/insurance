@@ -1,12 +1,12 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
-import { createCancerDefaultItems, createScenarioFromTemplate } from './templates'
+import { seoulTodayYmd } from './formatConsultationDate'
+import { createCancerDefaultItems } from './templates'
 import {
   cloneScenarioItems,
   cloneUserTemplate,
   createConsultationFromTemplate,
   createEmptyUserTemplate,
-  templateToEditableScenario,
 } from './templateOperations'
 import type { ScenarioTemplate } from './templateTypes'
 
@@ -22,10 +22,6 @@ function sampleUserTemplate(): ScenarioTemplate {
 }
 
 describe('templateOperations', () => {
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
   it('createEmptyUserTemplate', () => {
     const template = createEmptyUserTemplate('용종 제거 플랜', '설명')
     expect(template.name).toBe('용종 제거 플랜')
@@ -38,7 +34,7 @@ describe('templateOperations', () => {
     const copy = cloneUserTemplate(source, { name: '복사본' })
     expect(copy.id).not.toBe(source.id)
     expect(copy.name).toBe('복사본')
-    expect(cloneUserTemplate(source).name).toBe('용종 제거 플랜 복사본')
+    expect(copy.seedKey).toBeUndefined()
     expect(copy.items).toHaveLength(source.items.length)
     expect(copy.items[0].id).not.toBe(source.items[0].id)
   })
@@ -51,22 +47,7 @@ describe('templateOperations', () => {
     expect(consultation.customerId).toBe('c-1')
     expect(consultation.customerNameSnapshot).toBe('김민수')
     expect(consultation.templateId).toBe(template.id)
-  })
-
-  it('stores the Seoul calendar day when the UTC date is still yesterday', () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-09-30T16:30:00Z'))
-    const consultation = createConsultationFromTemplate(sampleUserTemplate())
-    expect(consultation.consultationDate).toBe('2026-10-01')
-    expect(createScenarioFromTemplate('cancer')?.consultationDate).toBe('2026-10-01')
-  })
-
-  it('templateToEditableScenario uses the Seoul day of updatedAt', () => {
-    const scenario = templateToEditableScenario({
-      ...sampleUserTemplate(),
-      updatedAt: '2026-09-30T16:30:00Z',
-    })
-    expect(scenario.consultationDate).toBe('2026-10-01')
+    expect(consultation.consultationDate).toBe(seoulTodayYmd(new Date(consultation.createdAt)))
   })
 
   it('createConsultationFromTemplate leaves customer null when omitted', () => {

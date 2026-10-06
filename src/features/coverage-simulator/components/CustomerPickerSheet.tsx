@@ -9,11 +9,8 @@ import type { CoverageSimulatorCustomerListItem } from '../domain/customerContex
 type Props = {
   open: boolean
   onClose: () => void
-  /**
-   * 에디터에서 이 상담의 고객만 바꿀 때 전달한다.
-   * 없으면 세션 draft(다음 상담 시작용)에 기록한다.
-   */
-  onPicked?: (item: CoverageSimulatorCustomerListItem) => void
+  /** simulation row에 직접 연결할 때 session draft 대신 호출 */
+  onSelect?: (row: CoverageSimulatorCustomerListItem) => void
 }
 
 /**
@@ -22,7 +19,7 @@ type Props = {
  * (`customer-relations-modal` + 검색 필드 + 결과 테이블)
  * 패널 폭은 CSS로 고정되어 결과 수와 상관없이 변하지 않고, 상단 앵커라 제목·검색창은 그대로다.
  */
-export function CustomerPickerSheet({ open, onClose, onPicked }: Props) {
+export function CustomerPickerSheet({ open, onClose, onSelect }: Props) {
   const { searchProvider, setCustomer } = useCoverageSimulatorCustomer()
   const [query, setQuery] = useState('')
   const [rows, setRows] = useState<CoverageSimulatorCustomerListItem[]>([])
@@ -91,8 +88,11 @@ export function CustomerPickerSheet({ open, onClose, onPicked }: Props) {
           emptyText={emptyText}
           resolveStatus={() => ({ disabled: false })}
           onSelect={(row) => {
-            if (onPicked) onPicked(row)
-            else setCustomer(row)
+            if (onSelect) {
+              onSelect(row)
+            } else {
+              setCustomer(row)
+            }
             onClose()
           }}
           actionLabel="선택"

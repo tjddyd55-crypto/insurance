@@ -32,6 +32,7 @@ export type CustomerWorkspaceTab =
   | 'claims'
   | 'personal-message'
   | 'signatures'
+  | 'coverage-simulations'
 
 /**
  * URL path → 현재 활성 탭 매핑.
@@ -47,6 +48,9 @@ function resolveWorkspacePathTab(pathname: string): CustomerWorkspaceTab | null 
   }
   if (pathname.includes('/premium-payments')) {
     return 'premium-payments'
+  }
+  if (pathname.includes('/coverage-simulations')) {
+    return 'coverage-simulations'
   }
   if (pathname.includes('/application-documents')) {
     return 'pdf-documents'
@@ -254,6 +258,13 @@ export default function CustomerWorkspaceLayout() {
     moveTo(`/customers/${selectedCustomerId}/premium-payments`)
   }
 
+  const handleClickCoverageSimulations = () => {
+    if (!selectedCustomerId) {
+      return
+    }
+    moveTo(`/customers/${selectedCustomerId}/coverage-simulations`)
+  }
+
   const handleClickCarForm = () => {
     if (!selectedCustomerId) {
       return
@@ -333,6 +344,7 @@ export default function CustomerWorkspaceLayout() {
     onClickPersonalMessage: handleClickPersonalMessage,
     onClickSignatures: handleClickSignatures,
     onClickViewOnMap: handleClickViewOnMap,
+    onClickCoverageSimulations: handleClickCoverageSimulations,
     openRelatedCustomerRef,
   }
 

@@ -50,6 +50,8 @@ export function listLocalConsultations(userKey: string): SavedScenarioSummary[] 
       id: scenario.id,
       title: scenario.title,
       diseaseType: scenario.diseaseType,
+      templateId: scenario.templateId,
+      templateNameSnapshot: scenario.templateNameSnapshot,
       customerId: scenario.customerId ?? null,
       customerNameSnapshot: resolveCustomerNameSnapshot(scenario),
       customerName: resolveCustomerNameSnapshot(scenario) ?? undefined,

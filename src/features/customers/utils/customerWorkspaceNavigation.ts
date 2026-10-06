@@ -11,6 +11,7 @@ export const WORKSPACE_SIDE_DETAIL_TABS = [
   'signatures',
   'claim-requests',
   'premium-payments',
+  'coverage-simulations',
 ] as const
 
 export type CustomerWorkspaceTab = (typeof WORKSPACE_SIDE_DETAIL_TABS)[number]
@@ -56,6 +57,9 @@ export function resolveCustomerWorkspaceTab(pathname: string): CustomerWorkspace
   }
   if (pathname.includes('/premium-payments')) {
     return 'premium-payments'
+  }
+  if (pathname.includes('/coverage-simulations')) {
+    return 'coverage-simulations'
   }
   if (pathname.includes('/signatures')) {
     return 'signatures'

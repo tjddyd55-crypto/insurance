@@ -13,7 +13,8 @@ export async function startConsultationFromUserTemplate(
   customer?: ConsultationCustomerDraft | null,
 ): Promise<CoverageScenario> {
   const consultation = createConsultationFromTemplate(template, {
-    diseaseType: 'custom',
+    diseaseType: template.systemDiseaseType ?? 'custom',
+    description: template.description ?? '',
     customer,
   })
   if (isPreviewUserKey(userKey)) {

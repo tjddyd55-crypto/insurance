@@ -18,8 +18,6 @@ import { buildCoverageTimelineViewModel } from '../../domain/buildCoverageTimeli
 import { CoverageScenarioAlternativeView } from '../alternative-view/CoverageScenarioAlternativeView'
 import { CoverageScenarioViewModeSwitcher } from '../alternative-view/CoverageScenarioViewModeSwitcher'
 import { useCoverageScenarioViewMode } from '../../hooks/useCoverageScenarioViewMode'
-import { ConsultationCustomerBar } from '../ConsultationCustomerBar'
-import { consultationCustomerFromScenario } from '../../domain/customerContext'
 import { CoverageScenarioTimeline, type InlineAmountEditTarget } from './CoverageScenarioTimeline'
 import type { InlineAmountField } from './InlineAmountQuickEdit'
 import { isTemplateEditorMode, type TimelineEditorController } from './TimelineEditorController'
@@ -365,12 +363,6 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
         data-testid="coverage-scenario-editor"
       >
         {!useLatestMobileEditor ? <p className="cs-axis-lead">{blurb}</p> : null}
-        {!isTemplateEditorMode(editor) ? (
-          <ConsultationCustomerBar
-            draft={consultationCustomerFromScenario(scenario)}
-            onChange={editor.setConsultationCustomer}
-          />
-        ) : null}
         {viewModel && viewMode === 'default' ? (
           <CoverageScenarioTimeline
             mode="editable"

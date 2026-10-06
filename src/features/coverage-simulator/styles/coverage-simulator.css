@@ -2,6 +2,7 @@
 @import './overlay-shell.css';
 @import './form-screen.css';
 @import './center-timeline.css';
+@import './coverage-three-pane.css';
 
 .coverage-simulator-public-root {
   min-height: 100dvh;
@@ -1535,13 +1536,6 @@ html.coverage-simulator-overlay-scroll-lock .cs-axis-main {
   cursor: pointer;
 }
 
-.cs-customer-context-bar__text {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .cs-customer-context-bar__placeholder {
   color: var(--cs-color-primary);
   font-weight: 600;
@@ -1802,27 +1796,10 @@ html.coverage-simulator-overlay-scroll-lock .cs-axis-main {
   flex-shrink: 0;
 }
 
-.coverage-simulator-root.coverage-simulator-root--crm .coverage-simulator-content,
-.coverage-simulator-root.coverage-simulator-root--crm .cs-axis-main.coverage-simulator-content,
-.coverage-simulator-root.coverage-simulator-root--crm-editor .cs-axis-main.coverage-simulator-content {
-  flex: 1 1 auto;
+.coverage-simulator-root.coverage-simulator-root--crm .coverage-simulator-content {
   min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: calc(var(--cs-space-4) + var(--cs-mobile-dock-height, 54px));
-}
-
-.coverage-simulator-root--pc-preview .cs-axis-main--pc {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-
-.coverage-simulator-pc-toolbar__actions {
-  flex-wrap: nowrap;
-  align-items: center;
+  overflow: auto;
+  padding-bottom: var(--cs-space-4);
 }
 
 .coverage-simulator-root.coverage-simulator-root--crm .coverage-simulator-pdf-preview-shell {

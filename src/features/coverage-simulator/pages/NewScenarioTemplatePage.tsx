@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom'
 
 import { CoverageSimulatorLayout } from '../components/CoverageSimulatorLayout'
 import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
-import { buildSystemTemplateSnapshot, listSystemTemplateSummaries } from '../domain/systemTemplateCatalog'
-import type { DiseaseType } from '../domain/types'
 import { cloneUserTemplate, createEmptyUserTemplate } from '../domain/templateOperations'
 import type { ScenarioTemplate } from '../domain/templateTypes'
-import { useCoverageSimulatorCrmStorage } from '../context/CoverageSimulatorCrmStorageContext'
-import { getUserTemplateById, listUserTemplates, saveUserTemplateAsync } from '../storage/templateRepository'
+import {
+  getScenarioTemplateById,
+  listScenarioTemplates,
+  saveScenarioTemplate,
+} from '../storage/templateRepository'
 
 export function NewScenarioTemplatePage() {
   const navigate = useNavigate()
@@ -18,18 +19,11 @@ export function NewScenarioTemplatePage() {
   const [description, setDescription] = useState('')
   const [step, setStep] = useState<'choose' | 'copy'>('choose')
 
-  const { version: storageVersion } = useCoverageSimulatorCrmStorage()
-  const userSummaries = listUserTemplates(userKey)
-  void storageVersion
-  const systemTemplates = listSystemTemplateSummaries().filter((row) => row.enabled)
+  const scenarioSummaries = listScenarioTemplates(userKey)
 
-  const finishCreate = async (template: ScenarioTemplate) => {
-    try {
-      const saved = await saveUserTemplateAsync(userKey, template)
-      navigate(`${basePath}/templates/${saved.id}/edit`, { replace: true })
-    } catch {
-      window.alert('시나리오를 저장하지 못했습니다. 다시 시도해 주세요.')
-    }
+  const finishCreate = (template: ScenarioTemplate) => {
+    const saved = saveScenarioTemplate(userKey, template)
+    navigate(`${basePath}/templates/${saved.id}/edit`, { replace: true })
   }
 
   const onEmptyStart = () => {
@@ -40,22 +34,14 @@ export function NewScenarioTemplatePage() {
   const onCopyFromTemplate = (source: ScenarioTemplate) => {
     finishCreate(
       cloneUserTemplate(source, {
-        name: name.trim() || `${source.name} (복사)`,
+        name: name.trim() || `${source.name} 복사본`,
         description: description || source.description,
       }),
     )
   }
 
   const onPickCopySource = (sourceId: string) => {
-    if (sourceId.startsWith('system:')) {
-      const diseaseType = sourceId.replace('system:', '') as DiseaseType
-      const snapshot = buildSystemTemplateSnapshot(diseaseType)
-      if (snapshot) {
-        onCopyFromTemplate({ ...snapshot, sourceType: 'user' })
-      }
-      return
-    }
-    const full = getUserTemplateById(userKey, sourceId)
+    const full = getScenarioTemplateById(userKey, sourceId)
     if (full) onCopyFromTemplate(full)
   }
 
@@ -65,11 +51,11 @@ export function NewScenarioTemplatePage() {
         <button type="button" className="coverage-simulator-icon-btn" onClick={() => navigate(basePath)}>
           ←
         </button>
-        <div className="coverage-simulator-appbar__title">시나리오 추가</div>
+        <div className="coverage-simulator-appbar__title">새 시나리오</div>
         <span />
       </header>
       <main className={`coverage-simulator-content${isPc ? ' coverage-simulator-content--pc-select' : ''}`}>
-        <h1 className="coverage-simulator-page-title">시나리오 추가</h1>
+        <h1 className="coverage-simulator-page-title">새 시나리오 만들기</h1>
         <label className="cs-template-form-field">
           <span>시나리오 이름</span>
           <input
@@ -112,7 +98,7 @@ export function NewScenarioTemplatePage() {
           <div className="cs-template-copy-picker">
             <p className="coverage-simulator-page-desc">복사할 원본을 선택하세요.</p>
             <div className="coverage-simulator-scenario-list">
-              {systemTemplates.map((row) => (
+              {scenarioSummaries.map((row) => (
                 <button
                   key={row.id}
                   type="button"
@@ -120,20 +106,7 @@ export function NewScenarioTemplatePage() {
                   onClick={() => onPickCopySource(row.id)}
                 >
                   <div className="coverage-simulator-scenario-card__title">{row.name}</div>
-                  <div className="coverage-simulator-scenario-card__desc">기본 시나리오 · {row.itemCount}개 항목</div>
-                </button>
-              ))}
-              {userSummaries.map((row) => (
-                <button
-                  key={row.id}
-                  type="button"
-                  className="coverage-simulator-scenario-card"
-                  onClick={() => onPickCopySource(row.id)}
-                >
-                  <div className="coverage-simulator-scenario-card__title">{row.name}</div>
-                  <div className="coverage-simulator-scenario-card__desc">
-                    내 시나리오 · {row.itemCount}개 항목
-                  </div>
+                  <div className="coverage-simulator-scenario-card__desc">{row.itemCount}개 항목</div>
                 </button>
               ))}
             </div>

@@ -10,23 +10,32 @@ function read(rel) {
   return readFileSync(join(root, rel), 'utf8')
 }
 
-describe('customer workspace tab order — premium-payments last', () => {
-  it('puts premium-payments last in WORKSPACE_SIDE_DETAIL_TABS', () => {
+describe('customer workspace tab order — coverage simulations after premium payments', () => {
+  it('orders claim-requests, premium-payments, then coverage-simulations in WORKSPACE_SIDE_DETAIL_TABS', () => {
     const src = read('src/features/customers/utils/customerWorkspaceNavigation.ts')
     const match = src.match(/WORKSPACE_SIDE_DETAIL_TABS = \[([\s\S]*?)\] as const/)
     assert.ok(match)
     const tabs = [...match[1].matchAll(/'([^']+)'/g)].map((m) => m[1])
-    assert.equal(tabs[tabs.length - 1], 'premium-payments')
-    assert.ok(tabs.indexOf('consultations') < tabs.indexOf('premium-payments'))
-    assert.ok(tabs.indexOf('claim-requests') < tabs.indexOf('premium-payments'))
+    const claimsIdx = tabs.indexOf('claim-requests')
+    const paymentsIdx = tabs.indexOf('premium-payments')
+    const simulationIdx = tabs.indexOf('coverage-simulations')
+    assert.ok(claimsIdx >= 0)
+    assert.ok(paymentsIdx >= 0)
+    assert.ok(simulationIdx >= 0)
+    assert.ok(claimsIdx < paymentsIdx)
+    assert.ok(paymentsIdx < simulationIdx)
+    assert.equal(tabs[tabs.length - 1], 'coverage-simulations')
+    assert.ok(tabs.indexOf('consultations') < paymentsIdx)
   })
 
-  it('PC tab bar renders 카드 수납 after 청구관리', () => {
+  it('PC tab bar renders 청구관리 → 카드 수납 → 시뮬레이션', () => {
     const pc = read('src/features/customers/pages/workspace/CustomerWorkspaceLayoutPC.tsx')
     const claimsIdx = pc.lastIndexOf('청구관리')
     const paymentsIdx = pc.lastIndexOf('카드 수납')
+    const simulationIdx = pc.lastIndexOf('시뮬레이션')
     assert.ok(claimsIdx > 0)
     assert.ok(paymentsIdx > claimsIdx)
+    assert.ok(simulationIdx > paymentsIdx)
   })
 
   it('mobile actions render 카드 수납 after 복사', () => {
