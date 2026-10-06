@@ -1,9 +1,5 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import type { CustomerRecord } from '../domain/types'
-import {
-  CUSTOMER_DETAIL_CORE_SECTIONS,
-  type CustomerDetailCoreSectionId,
-} from '../config/customerDetailCoreSectionOrder'
 import { normalizeCustomerNotesBag } from '../domain/types'
 import { getDDay, getDDayBadgeClass } from '../utils/dday'
 import {
@@ -34,13 +30,6 @@ import {
 } from '../utils/governmentCustomerStatusSummary'
 import { CustomerSmsOptOutReadBadge } from './CustomerSmsOptOutReadBadge'
 import GovernmentProgressReadSection from './GovernmentProgressReadSection'
-import { CustomerDetailAccordionSection } from './CustomerDetailAccordionSection'
-import {
-  createDefaultCustomerDetailOpenSections,
-  resetCustomerDetailOpenSectionsForCustomer,
-  toggleCustomerDetailSectionOpen,
-} from '../utils/customerDetailAccordionOpenState'
-import './customer-detail-accordion.css'
 
 export type CustomerDetailInsuranceDisplay = {
   ageText: string
@@ -96,18 +85,6 @@ export default function CustomerDetailReadView({
   crmIsInsuranceLayout,
   crmIndustryTemplate,
 }: CustomerDetailReadViewProps) {
-  const [openSections, setOpenSections] = useState(createDefaultCustomerDetailOpenSections)
-
-  useEffect(() => {
-    setOpenSections(resetCustomerDetailOpenSectionsForCustomer())
-  }, [c.id])
-
-  const setSectionOpen = useCallback((sectionId: CustomerDetailCoreSectionId, expanded: boolean) => {
-    setOpenSections((previous) =>
-      toggleCustomerDetailSectionOpen(previous, sectionId, expanded),
-    )
-  }, [])
-
   if (!crmIsInsuranceLayout) {
     const dynTabs = [...crmIndustryTemplate.detailTabs]
       .filter((t) => t.visibleDefault !== false)
@@ -230,21 +207,9 @@ export default function CustomerDetailReadView({
     )
   }
 
-  const notes = normalizeCustomerNotesBag(c.notes)
-  const inflowDetailMeta = getInflowSourceDetailFieldMeta(c.inflowSource)
-  const inflowDetailName = c.referrerName?.trim()
-
-  const sectionById = {
-    basic: (
-      <div className="customer-detail-read__info-list customer-detail-read__grid">
-        <DetailReadInfoRow>
-          <span className="customer-detail-read__info-label">고객명:</span>{' '}
-          <span className="customer-detail-read__info-value">{c.name || '—'}</span>
-        </DetailReadInfoRow>
-        <DetailReadInfoRow>
-          <span className="customer-detail-read__info-label">연락처:</span>{' '}
-          <span className="customer-detail-read__info-value">{formatCustomerPhoneUi(c.phone) || '—'}</span>
-        </DetailReadInfoRow>
+  return (
+    <div className="customer-detail-read">
+      <div className="customer-detail-read__info-list">
         <DetailReadInfoRow>
           <div className="customer-detail-read__ssn-gender-cluster">
             <span className="customer-detail-read__ssn-gender-cluster__ssn">
@@ -273,6 +238,27 @@ export default function CustomerDetailReadView({
           </div>
         </DetailReadInfoRow>
         <DetailReadInfoRow>
+          <span className="customer-detail-read__info-label">유입 경로:</span>{' '}
+          <span className="customer-detail-read__info-value">
+            {formatCustomerInflowSourceDisplay(c.inflowSource)}
+          </span>
+        </DetailReadInfoRow>
+        {(() => {
+          const detailMeta = getInflowSourceDetailFieldMeta(c.inflowSource)
+          const detailName = c.referrerName?.trim()
+          if (!detailMeta || !detailName) return null
+          return (
+            <DetailReadInfoRow>
+              <span className="customer-detail-read__info-label">{detailMeta.readLabel}:</span>{' '}
+              <span className="customer-detail-read__info-value">{detailName}</span>
+            </DetailReadInfoRow>
+          )
+        })()}
+        <DetailReadInfoRow>
+          <span className="customer-detail-read__info-label">핸드폰번호:</span>{' '}
+          <span className="customer-detail-read__info-value">{formatCustomerPhoneUi(c.phone) || '—'}</span>
+        </DetailReadInfoRow>
+        <DetailReadInfoRow>
           <span className="customer-detail-read__info-label">문자 수신:</span>{' '}
           <CustomerSmsOptOutReadBadge smsOptOut={c.smsOptOut === true} />
         </DetailReadInfoRow>
@@ -282,7 +268,7 @@ export default function CustomerDetailReadView({
             {formatCustomerMobileCarrierDisplay(c.carrier) || '—'}
           </span>
         </DetailReadInfoRow>
-        <DetailReadInfoRow rowClassName="customer-detail-read__grid-span-all">
+        <DetailReadInfoRow>
           <span className="customer-detail-read__info-label">주소:</span>{' '}
           <span className="customer-detail-read__info-value">{c.address || '—'}</span>
         </DetailReadInfoRow>
@@ -309,90 +295,70 @@ export default function CustomerDetailReadView({
           </span>
         </DetailReadInfoRow>
         <DetailReadInfoRow>
-          <span className="customer-detail-read__info-label">유입 경로:</span>{' '}
-          <span className="customer-detail-read__info-value">
-            {formatCustomerInflowSourceDisplay(c.inflowSource)}
-          </span>
+          <span className="customer-detail-read__info-label">차종:</span>{' '}
+          <span className="customer-detail-read__info-value">{c.carType.trim() || '—'}</span>
         </DetailReadInfoRow>
-        {inflowDetailMeta && inflowDetailName ? (
-          <DetailReadInfoRow>
-            <span className="customer-detail-read__info-label">{inflowDetailMeta.readLabel}:</span>{' '}
-            <span className="customer-detail-read__info-value">{inflowDetailName}</span>
-          </DetailReadInfoRow>
-        ) : null}
-        <DetailReadInfoRow rowClassName="customer-detail-read__grid-span-all">
-          <CustomerMedicalHistoryReadSection {...resolveMedicalHistoryFromCustomer(c)} />
-        </DetailReadInfoRow>
-
-        <div className="customer-detail-read__subsection customer-detail-read__grid-span-all">
-          <h5 className="customer-detail-read__subsection-title">보험가입내역</h5>
-          <div className="customer-insurance-history-body">
-            {notes.insuranceHistory?.trim() ? notes.insuranceHistory : '내용 없음'}
-          </div>
-        </div>
-
-        <div className="customer-detail-read__subsection customer-detail-read__grid-span-all">
-          <h5 className="customer-detail-read__subsection-title">계좌번호</h5>
-          <div className="customer-account-number-read">
-            <span className="customer-account-number-read__value">
-              {notes.accountNumber?.trim() || '내용 없음'}
-            </span>
-            {notes.accountNumber?.trim() ? (
-              <CustomerCopyButton text={notes.accountNumber} ariaLabel="계좌번호 복사" />
-            ) : null}
-          </div>
-        </div>
-
-        <div className="customer-detail-read__grid-span-all">
-          <CustomerCustomFieldsReadSection
-            customer={c}
-            token={token}
-            enabled={fetchCarsEnabled}
+        <DetailReadInfoRow>
+          <CustomerMedicalHistoryReadSection
+            {...resolveMedicalHistoryFromCustomer(c)}
           />
-        </div>
+        </DetailReadInfoRow>
       </div>
-    ),
-    vehicle: (
+      <hr className="customer-detail-read__divider" />
       <CustomerCarsReadSection customer={c} token={token} enabled={fetchCarsEnabled} />
-    ),
-    linked: token?.trim() ? (
-      <CustomerRelationsStrip
-        customerId={c.id}
-        customerName={c.name}
-        token={token}
-        focusedCustomerId={expandedId}
-        onOpenCustomer={onOpenRelatedCustomer}
-      />
-    ) : (
-      <p className="customer-detail-read__api-warn">연계 고객을 보려면 로그인이 필요합니다.</p>
-    ),
-    fireInsurance: (
+      <hr className="customer-detail-read__divider" />
+      <CustomerBusinessInfoReadSection businessInfo={c.businessInfo} />
+      <hr className="customer-detail-read__divider" />
       <CustomerFireInsuranceLocationsReadSection
         customer={c}
         token={token}
         enabled={fetchCarsEnabled}
       />
-    ),
-    business: <CustomerBusinessInfoReadSection businessInfo={c.businessInfo} />,
-    alertDates: (
+      <hr className="customer-detail-read__divider" />
       <CustomerSpecialDatesReadSection customer={c} token={token} enabled={fetchCarsEnabled} />
-    ),
-  } satisfies Record<CustomerDetailCoreSectionId, ReactNode>
-
-  return (
-    <div className="customer-detail-read customer-detail-read--accordion">
-      {CUSTOMER_DETAIL_CORE_SECTIONS.map((section) => (
-        <CustomerDetailAccordionSection
-          key={section.id}
-          sectionId={section.id}
-          title={section.title}
-          testId={section.testId}
-          expanded={openSections[section.id]}
-          onExpandedChange={(expanded) => setSectionOpen(section.id, expanded)}
-        >
-          {sectionById[section.id]}
-        </CustomerDetailAccordionSection>
-      ))}
+      <hr className="customer-detail-read__divider" />
+      <section className="customer-detail-read__section" aria-labelledby="customer-insurance-history-heading">
+        <div className="customer-detail-read__section-header">
+          <h4 id="customer-insurance-history-heading" className="customer-detail-read__section-title">
+            보험가입내역
+          </h4>
+        </div>
+        <div className="customer-detail-read__section-body customer-insurance-history-body">
+          {normalizeCustomerNotesBag(c.notes).insuranceHistory?.trim()
+            ? normalizeCustomerNotesBag(c.notes).insuranceHistory
+            : '내용 없음'}
+        </div>
+      </section>
+      <hr className="customer-detail-read__divider" />
+      <section className="customer-detail-read__section" aria-labelledby="customer-account-number-heading">
+        <div className="customer-detail-read__section-header">
+          <h4 id="customer-account-number-heading" className="customer-detail-read__section-title">
+            계좌번호
+          </h4>
+        </div>
+        <div className="customer-detail-read__section-body customer-account-number-read">
+          <span className="customer-account-number-read__value">
+            {normalizeCustomerNotesBag(c.notes).accountNumber?.trim() || '내용 없음'}
+          </span>
+          {normalizeCustomerNotesBag(c.notes).accountNumber?.trim() ? (
+            <CustomerCopyButton
+              text={normalizeCustomerNotesBag(c.notes).accountNumber}
+              ariaLabel="계좌번호 복사"
+            />
+          ) : null}
+        </div>
+      </section>
+      <hr className="customer-detail-read__divider" />
+      <CustomerCustomFieldsReadSection customer={c} token={token} enabled={fetchCarsEnabled} />
+      {token?.trim() ? (
+        <CustomerRelationsStrip
+          customerId={c.id}
+          customerName={c.name}
+          token={token}
+          focusedCustomerId={expandedId}
+          onOpenCustomer={onOpenRelatedCustomer}
+        />
+      ) : null}
     </div>
   )
 }
