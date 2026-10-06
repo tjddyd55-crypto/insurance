@@ -464,6 +464,14 @@ export async function processAiAssistantMessage(pool, req, input) {
           intent: classified.intent ?? classified.requestedAction ?? null,
           toolKey: toolResult.toolKey ?? readDecision.toolKey,
           queryFields: readDecision.params?.customerQueryAst?.filters?.map((f) => f.field) ?? [],
+          customerQueryAst:
+            (toolResult.toolKey ?? readDecision.toolKey) === 'customer.list'
+              ? readDecision.params?.customerQueryAst ?? null
+              : null,
+          limit:
+            (toolResult.toolKey ?? readDecision.toolKey) === 'customer.list'
+              ? readDecision.params?.limit ?? null
+              : null,
           returnFields: readDecision.params?.returnFields ?? [],
           due: readDecision.toolKey === 'task.list' ? readDecision.params?.due ?? null : null,
           day: readDecision.toolKey === 'schedule.list' ? readDecision.params?.day ?? null : null,
