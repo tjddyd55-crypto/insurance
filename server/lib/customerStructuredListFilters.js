@@ -72,7 +72,16 @@ function compileOneFilter(filter, ctx) {
     field === 'customerCode' ||
     field === 'drivingText' ||
     field === 'carType' ||
-    field === 'carYear'
+    field === 'carYear' ||
+    field === 'carrier' ||
+    field === 'referrerName' ||
+    field === 'businessRepresentativeName' ||
+    field === 'businessAddress' ||
+    field === 'businessMemo' ||
+    field === 'height' ||
+    field === 'weight' ||
+    field === 'medical' ||
+    field === 'ssn'
   ) {
     const col =
       field === 'name'
@@ -85,7 +94,25 @@ function compileOneFilter(filter, ctx) {
               ? 'c.driving'
               : field === 'carType'
                 ? 'c.car_type'
-                : 'c.car_year'
+                : field === 'carYear'
+                  ? 'c.car_year'
+                  : field === 'carrier'
+                    ? 'c.carrier'
+                    : field === 'referrerName'
+                      ? 'c.referrer_name'
+                      : field === 'businessRepresentativeName'
+                        ? 'c.business_representative_name'
+                        : field === 'businessAddress'
+                          ? 'c.business_address'
+                          : field === 'businessMemo'
+                            ? 'c.business_memo'
+                            : field === 'height'
+                              ? 'c.height'
+                              : field === 'weight'
+                                ? 'c.weight'
+                                : field === 'medical'
+                                  ? 'c.medical'
+                                  : 'c.ssn'
     if ((field === 'carType') && (op === 'IS_NULL' || op === 'IS_NOT_NULL')) {
       return frag(
         op === 'IS_NULL' ? `COALESCE(TRIM(${col}), '') = ''` : `COALESCE(TRIM(${col}), '') <> ''`,
@@ -96,6 +123,29 @@ function compileOneFilter(filter, ctx) {
     return stringColumn(col, op, filter, ph, nextIdx)
   }
 
+  if (field === 'businessNumber') {
+    if (op === 'ENDS_WITH') {
+      const digits = String(filter.value ?? '').replace(/\D/g, '')
+      const p = ph()
+      return frag(
+        `regexp_replace(COALESCE(c.business_number, ''), '[^0-9]', '', 'g') LIKE ${p} ESCAPE '\\'`,
+        [`%${escapeIlikePattern(digits)}`],
+        nextIdx,
+      )
+    }
+    return stringColumn('c.business_number', op, filter, ph, nextIdx)
+  }
+
+  if (field === 'ssn' && op === 'ENDS_WITH') {
+    const digits = String(filter.value ?? '').replace(/\D/g, '')
+    const p = ph()
+    return frag(
+      `regexp_replace(COALESCE(c.ssn, ''), '[^0-9]', '', 'g') LIKE ${p} ESCAPE '\\'`,
+      [`%${escapeIlikePattern(digits)}`],
+      nextIdx,
+    )
+  }
+
   if (field === 'phone') {
     if (op === 'ENDS_WITH') {
       const digits = String(filter.value ?? '').replace(/\D/g, '')
@@ -103,6 +153,17 @@ function compileOneFilter(filter, ctx) {
       return frag(`regexp_replace(c.phone, '\\D', '', 'g') LIKE ${p} ESCAPE '\\'`, [`%${escapeIlikePattern(digits)}`], nextIdx)
     }
     return stringColumn('c.phone', op, filter, ph, nextIdx)
+  }
+
+  if (field === 'memo') {
+    const p = ph()
+    const raw = String(filter.value ?? '')
+    const pattern = op === 'EQ' ? escapeIlikePattern(raw) : `%${escapeIlikePattern(raw)}%`
+    return frag(`COALESCE(c.notes::text, '') ILIKE ${p} ESCAPE '\\'`, [pattern], nextIdx)
+  }
+
+  if (field === 'inflowSource') {
+    return stringColumn('c.inflow_source', op, filter, ph, nextIdx)
   }
 
   if (field === 'address' && (op === 'CONTAINS' || op === 'EQ')) {
@@ -219,6 +280,43 @@ function compileOneFilter(filter, ctx) {
     }
   }
 
+  if (field === 'fireLocationAddress' || field === 'fireLocationMemo') {
+    const column = field === 'fireLocationAddress' ? 'fl.address' : 'fl.memo'
+    const existsBase = `EXISTS (
+      SELECT 1 FROM customer_fire_insurance_locations fl
+      WHERE fl.customer_id = c.id
+        AND fl.user_id = ${ctx.userPlaceholder}::text
+        AND fl.ga_id = ${ctx.gaPlaceholder}::integer
+        AND fl.deleted_at IS NULL`
+    if (op === 'IS_NULL' && field === 'fireLocationAddress') {
+      return frag(`NOT ${existsBase} AND COALESCE(TRIM(fl.address), '') <> '')`, [], nextIdx)
+    }
+    if (op === 'IS_NOT_NULL' && field === 'fireLocationAddress') {
+      return frag(`${existsBase} AND COALESCE(TRIM(fl.address), '') <> '')`, [], nextIdx)
+    }
+    const p = ph()
+    const raw = String(filter.value ?? '')
+    const pattern = op === 'EQ' ? escapeIlikePattern(raw) : `%${escapeIlikePattern(raw)}%`
+    return frag(`${existsBase} AND ${column} ILIKE ${p} ESCAPE '\\')`, [pattern], nextIdx)
+  }
+
+  if (field === 'carMemo') {
+    const p = ph()
+    const raw = String(filter.value ?? '')
+    const pattern = op === 'EQ' ? escapeIlikePattern(raw) : `%${escapeIlikePattern(raw)}%`
+    return frag(
+      `EXISTS (
+        SELECT 1 FROM customer_cars cc
+        WHERE cc.customer_id = c.id
+          AND cc.user_id = ${ctx.userPlaceholder}::text
+          AND cc.ga_id = ${ctx.gaPlaceholder}::integer
+          AND COALESCE(cc.memo, '') ILIKE ${p} ESCAPE '\\'
+      )`,
+      [pattern],
+      nextIdx,
+    )
+  }
+
   if (field === 'labels') {
     const existsBase = `EXISTS (
       SELECT 1 FROM customer_custom_fields cf
@@ -236,12 +334,17 @@ function compileOneFilter(filter, ctx) {
     }
   }
 
-  if (field === 'isFavorite' || field === 'isDriver') {
+  if (field === 'isFavorite' || field === 'isDriver' || field === 'smsOptOut') {
     if (op !== 'EQ') {
       return frag('', [], nextIdx)
     }
     const p = ph()
-    const col = field === 'isFavorite' ? 'c.is_favorite' : 'c.is_driver'
+    const col =
+      field === 'isFavorite'
+        ? 'c.is_favorite'
+        : field === 'isDriver'
+          ? 'c.is_driver'
+          : 'c.sms_opt_out'
     return frag(`${col} IS NOT DISTINCT FROM ${p}::boolean`, [Boolean(filter.value)], nextIdx)
   }
 
