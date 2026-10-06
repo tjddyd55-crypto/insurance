@@ -180,9 +180,10 @@ function compileScalarPredicate(expr, semantic, op, filter, state) {
   }
 
   if (op === 'IN') {
-    const values = Array.isArray(filter.value) ? filter.value : [filter.value]
+    const values = (Array.isArray(filter.value) ? filter.value : [filter.value])
+      .map((value) => String(value ?? '').toLowerCase())
     const ph = makeParam(state, values)
-    return `LOWER(COALESCE(${expr}::text, '')) = ANY(SELECT LOWER(x) FROM unnest(${ph}::text[]) x)`
+    return `LOWER(COALESCE(${expr}::text, '')) = ANY(${ph}::text[])`
   }
 
   if (op === 'BETWEEN' || op === 'PERIOD') {
@@ -258,6 +259,20 @@ function compileOneSemanticFilter(filter, ctx, state) {
   assertOperatorAllowed(semantic, op)
 
   if (relation.direct) {
+    if (semantic.key === 'customer.address' && (op === 'EQ' || op === 'CONTAINS')) {
+      const raw = String(filter.value ?? '')
+      const pattern = op === 'EQ' ? escapeIlikePattern(raw) : `%${escapeIlikePattern(raw)}%`
+      const p = makeParam(state, pattern)
+      return {
+        fragment: `(
+          c.address ILIKE ${p} ESCAPE '\\'
+          OR c.address_sido ILIKE ${p} ESCAPE '\\'
+          OR c.address_sigungu ILIKE ${p} ESCAPE '\\'
+          OR c.address_eupmyeondong ILIKE ${p} ESCAPE '\\'
+        )`,
+        semanticKey: semantic.key,
+      }
+    }
     const expr = columnExpression(semantic, relation.alias)
     return {
       fragment: compileScalarPredicate(expr, semantic, op, filter, state),
