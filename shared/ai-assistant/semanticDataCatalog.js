@@ -13,9 +13,62 @@ import { AI_SEMANTIC_BUSINESS_FIELDS_RAW } from './semanticBusinessDomains.js'
 
 const C = Object.freeze
 
+export const AI_SEMANTIC_DATA_CLASS = C({
+  USER_BUSINESS: 'USER_BUSINESS',
+  INTERNAL_SYSTEM: 'INTERNAL_SYSTEM',
+  SECRET_SECURITY: 'SECRET_SECURITY',
+})
+
+export const AI_SEMANTIC_DOMAIN = C({
+  CUSTOMER: 'CUSTOMER',
+  USER_WORKSPACE: 'USER_WORKSPACE',
+  SYSTEM: 'SYSTEM',
+})
+
+export const AI_CUSTOMER_RELATED_TABLES = C([
+  'customers',
+  'customer_cars',
+  'customer_fire_insurance_locations',
+  'customer_special_dates',
+  'customer_custom_fields',
+  'customer_consultations',
+  'customer_claim_requests',
+  'customer_claim_request_files',
+  'customer_app_profiles',
+  'customer_files',
+  'ta_call_assignments',
+  'customer_relations',
+  'customer_premium_payment_methods',
+  'customer_payment_cards',
+  'customer_card_payment_contracts',
+  'customer_card_payment_completions',
+])
+
+function inferDataClass(def) {
+  if (def.privacyLevel === 'secret') return AI_SEMANTIC_DATA_CLASS.SECRET_SECURITY
+  if (def.privacyLevel === 'internal') return AI_SEMANTIC_DATA_CLASS.INTERNAL_SYSTEM
+  return AI_SEMANTIC_DATA_CLASS.USER_BUSINESS
+}
+
+function inferDomain(def) {
+  if (AI_CUSTOMER_RELATED_TABLES.includes(def.storage?.table)) return AI_SEMANTIC_DOMAIN.CUSTOMER
+  if (def.storage?.table === 'todos' || def.storage?.table === 'calendar_items' || def.storage?.table === 'memo' || def.storage?.table === 'user_insurer_accounts') {
+    return AI_SEMANTIC_DOMAIN.USER_WORKSPACE
+  }
+  return AI_SEMANTIC_DOMAIN.SYSTEM
+}
+
 function field(def) {
+  const dataClass = def.dataClass ?? inferDataClass(def)
+  const semanticDomain = def.semanticDomain ?? inferDomain(def)
   return C({
     privacyLevel: 'normal',
+    dataClass,
+    semanticDomain,
+    genericReadAllowed:
+      dataClass === AI_SEMANTIC_DATA_CLASS.USER_BUSINESS &&
+      semanticDomain === AI_SEMANTIC_DOMAIN.CUSTOMER &&
+      def.capabilities?.read !== false,
     canonicalValues: null,
     emptyValue: null,
     systemManaged: false,
@@ -35,7 +88,7 @@ function field(def) {
   })
 }
 
-export const AI_SEMANTIC_CATALOG_VERSION = '1.0.0'
+export const AI_SEMANTIC_CATALOG_VERSION = '1.1.0'
 
 export const AI_SEMANTIC_MANAGED_TABLES = C([
   'customers',
@@ -195,6 +248,18 @@ export function listAiInputSemanticFields() {
   return AI_SEMANTIC_FIELDS.filter((f) => f.capabilities.input)
 }
 
+export function listAiGenericCustomerReadFields() {
+  return AI_SEMANTIC_FIELDS.filter((f) => f.genericReadAllowed)
+}
+
+export function listAiSemanticFieldsByDataClass(dataClass) {
+  return AI_SEMANTIC_FIELDS.filter((f) => f.dataClass === dataClass)
+}
+
+export function listAiSemanticFieldsByDomain(semanticDomain) {
+  return AI_SEMANTIC_FIELDS.filter((f) => f.semanticDomain === semanticDomain)
+}
+
 export function listAiSemanticFieldsForTable(tableName) {
   return AI_SEMANTIC_FIELDS.filter((f) => f.storage.table === tableName)
 }
@@ -205,6 +270,17 @@ export function summarizeAiSemanticCatalog() {
     fieldCount: AI_SEMANTIC_FIELDS.length,
     queryableCount: listAiQueryableSemanticFields().length,
     inputCount: listAiInputSemanticFields().length,
+    genericCustomerReadCount: listAiGenericCustomerReadFields().length,
+    dataClassCounts: {
+      USER_BUSINESS: listAiSemanticFieldsByDataClass(AI_SEMANTIC_DATA_CLASS.USER_BUSINESS).length,
+      INTERNAL_SYSTEM: listAiSemanticFieldsByDataClass(AI_SEMANTIC_DATA_CLASS.INTERNAL_SYSTEM).length,
+      SECRET_SECURITY: listAiSemanticFieldsByDataClass(AI_SEMANTIC_DATA_CLASS.SECRET_SECURITY).length,
+    },
+    domainCounts: {
+      CUSTOMER: listAiSemanticFieldsByDomain(AI_SEMANTIC_DOMAIN.CUSTOMER).length,
+      USER_WORKSPACE: listAiSemanticFieldsByDomain(AI_SEMANTIC_DOMAIN.USER_WORKSPACE).length,
+      SYSTEM: listAiSemanticFieldsByDomain(AI_SEMANTIC_DOMAIN.SYSTEM).length,
+    },
     managedTables: [...AI_SEMANTIC_MANAGED_TABLES],
   }
 }

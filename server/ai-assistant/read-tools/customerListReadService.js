@@ -6,7 +6,7 @@ import {
 import { resolveCustomerVisibilitySqlForSelect } from '../../lib/customerRowVisibilitySql.js'
 import { parseGaId } from '../../lib/parseGaId.js'
 import { safeQuery } from '../../utils/dbSafeQuery.js'
-import { buildCustomerStructuredFilterSql } from '../../lib/customerStructuredListFilters.js'
+import { buildGenericCustomerSemanticFilterSql } from '../query-engine/genericCustomerQueryEngine.js'
 import { phoneTail } from './customerReadService.js'
 
 /**
@@ -46,12 +46,12 @@ export async function listCustomersForAssistant(pool, req, input = {}) {
     paramStart: plc + 3,
   })
   const structured = input.customerQueryAst?.filters?.length
-    ? buildCustomerStructuredFilterSql(input.customerQueryAst.filters, {
+    ? buildGenericCustomerSemanticFilterSql(input.customerQueryAst.filters, {
         userPlaceholder: lcUserPlace,
         gaPlaceholder: lcGaPlace,
         paramStart: plc + 3 + filterBuilt.params.length,
       })
-    : { whereFragments: [], params: [] }
+    : { whereFragments: [], params: [], semanticKeys: [] }
   const allFragments = [...filterBuilt.whereFragments, ...structured.whereFragments]
   const filterClause = allFragments.length > 0 ? ` AND ${allFragments.join(' AND ')}` : ''
   const filterParams = [...filterBuilt.params, ...structured.params]
@@ -71,7 +71,15 @@ export async function listCustomersForAssistant(pool, req, input = {}) {
   const total = Number(countResult.rows[0]?.c ?? 0)
 
   if (countOnly) {
-    return { customers: [], total, limit, countOnly: true, filterCount }
+    return {
+      customers: [],
+      total,
+      limit,
+      countOnly: true,
+      filterCount,
+      queryEngine: 'SEMANTIC_GENERIC_V1',
+      semanticKeys: structured.semanticKeys ?? [],
+    }
   }
 
   const limitPlace = `$${plc + 3 + filterParams.length}`
@@ -103,5 +111,13 @@ export async function listCustomersForAssistant(pool, req, input = {}) {
           : null,
   }))
 
-  return { customers, total, limit, countOnly: false, filterCount }
+  return {
+    customers,
+    total,
+    limit,
+    countOnly: false,
+    filterCount,
+    queryEngine: 'SEMANTIC_GENERIC_V1',
+    semanticKeys: structured.semanticKeys ?? [],
+  }
 }

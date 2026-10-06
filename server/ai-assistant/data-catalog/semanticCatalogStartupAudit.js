@@ -13,13 +13,15 @@ export async function runSemanticCatalogStartupAudit(pool) {
     missingDefinitionCount: audit.missingDefinitionCount,
     missingStorageCount: audit.missingStorageCount,
     duplicateQueryKeyCount: audit.duplicateQueryKeyCount,
+    missingGenericRelationCount: audit.missingGenericRelationCount,
   })
 
   for (const issue of audit.issues) {
     console.warn('[ai-semantic-catalog-issue]', issue)
     if (
       issue.code === 'SEMANTIC_DEFINITION_MISSING' ||
-      issue.code === 'SEMANTIC_STORAGE_MISSING'
+      issue.code === 'SEMANTIC_STORAGE_MISSING' ||
+      issue.code === 'SEMANTIC_RELATION_MISSING'
     ) {
       try {
         await recordAiImprovement(pool, {
@@ -32,7 +34,9 @@ export async function runSemanticCatalogStartupAudit(pool) {
           errorMessage:
             issue.code === 'SEMANTIC_DEFINITION_MISSING'
               ? `DB field ${issue.storageKey} has no semantic definition`
-              : `Semantic field ${issue.semanticKey} points to missing DB field ${issue.storageKey}`,
+              : issue.code === 'SEMANTIC_RELATION_MISSING'
+                ? `Semantic field ${issue.semanticKey} has no customer generic relation for table ${issue.table}`
+                : `Semantic field ${issue.semanticKey} points to missing DB field ${issue.storageKey}`,
           metadata: issue,
         })
       } catch (error) {

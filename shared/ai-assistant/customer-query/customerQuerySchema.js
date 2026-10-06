@@ -24,6 +24,10 @@ export const CUSTOMER_QUERY_OPERATORS = Object.freeze([
   'EXCLUDES',
   'STARTS_WITH',
   'ENDS_WITH',
+  'GT',
+  'GTE',
+  'LT',
+  'LTE',
 ])
 
 export const CUSTOMER_QUERY_PERIOD_TOKENS = Object.freeze([
