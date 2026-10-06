@@ -36,6 +36,69 @@ const KNOWN_DB_COLUMNS = {
   customer_custom_fields: [
     'id','customer_id','user_id','ga_id','label','value','sort_order','deleted_at','created_at','updated_at',
   ],
+  customer_consultations: [
+    'id','customer_id','user_id','ga_id','body','consultation_date','created_at','updated_at',
+    'contact_result','follow_up_status','next_contact_date','follow_up_note',
+  ],
+  todos: [
+    'id','tenant_id','ga_id','owner_user_id','assignee_user_id','title','description','due_date','due_time',
+    'status','priority','source_type','source_id','related_entity_type','related_entity_id','metadata',
+    'created_at','updated_at','completed_at','canceled_at',
+  ],
+  calendar_items: [
+    'id','ga_id','owner_type','owner_id','created_by','assigned_to','item_type','title','description',
+    'start_at','end_at','due_date','all_day','status','priority','color','location','visibility',
+    'sort_order','deleted_at','created_at','updated_at',
+  ],
+  customer_claim_requests: [
+    'id','agent_id','customer_id','link_id','device_id','request_type','status','title','memo',
+    'requester_name','requester_birth_date','requester_phone','submitted_at','processed_at',
+    'processed_by_user_id','created_at','updated_at',
+  ],
+  customer_claim_request_files: [
+    'id','request_id','agent_id','customer_id','storage_key','file_name','content_type','file_size',
+    'sort_order','uploaded_at','created_at','updated_at',
+  ],
+  customer_app_profiles: [
+    'id','agent_id','customer_id','device_id','name','birth_date','phone','created_at','updated_at',
+  ],
+  customer_files: [
+    'id','customer_id','user_id','ga_id','content','file_name','object_key','file_url','file_size',
+    'mime_type','created_at','expires_at','deleted_at',
+  ],
+  memo: [
+    'id','user_id','ga_id','content','x','y','width','height','z_index','font_size','created_at','updated_at','font_weight',
+  ],
+  user_insurer_accounts: [
+    'id','owner_user_id','ga_id','category','company_name','login_id','login_password_encrypted','memo',
+    'sort_order','is_custom','is_archived','created_at','updated_at',
+  ],
+  ta_call_assignments: [
+    'id','user_id','customer_id','assignment_date','rotation_round','status','customer_name_snapshot',
+    'customer_phone_snapshot','customer_birth_date_snapshot','customer_gender_snapshot','completed_at',
+    'created_at','updated_at',
+  ],
+  customer_relations: [
+    'id','customer_id','related_customer_id','user_id','ga_id','created_at',
+  ],
+  customer_premium_payment_methods: [
+    'id','ga_id','owner_user_id','customer_id','insurance_company','policy_number','cardholder_name',
+    'card_number_ciphertext','encryption_key_version','card_number_last4','card_brand','card_expiry_month',
+    'card_expiry_year','memo','is_active','created_by','updated_by','created_at','updated_at','deleted_at',
+  ],
+  customer_payment_cards: [
+    'id','ga_id','owner_user_id','customer_id','label','card_owner_name','card_number_ciphertext',
+    'encryption_key_version','card_number_last4','card_expiry_month','card_expiry_year','is_default',
+    'created_by','updated_by','created_at','updated_at','deleted_at',
+  ],
+  customer_card_payment_contracts: [
+    'id','ga_id','owner_user_id','customer_id','payment_card_id','insurance_company','policy_number',
+    'product_name','premium_amount','payment_day','memo','status','last_completed_at','created_by',
+    'updated_by','created_at','updated_at','deleted_at',
+  ],
+  customer_card_payment_completions: [
+    'id','ga_id','contract_id','customer_id','target_month','completed_at','completed_by','memo','created_at',
+  ],
 }
 
 function fakeDbCatalog() {
