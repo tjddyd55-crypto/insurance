@@ -159,6 +159,7 @@ describe('AI semantic data catalog SSOT', () => {
     assert.equal(audit.missingDefinitionCount, 0)
     assert.equal(audit.missingStorageCount, 0)
     assert.equal(audit.duplicateQueryKeyCount, 0)
+    assert.equal(audit.missingGenericRelationCount, 0)
   })
 
   it('detects a new DB column that has no meaning definition', () => {
