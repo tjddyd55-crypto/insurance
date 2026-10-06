@@ -42,6 +42,11 @@ export const USER_INTENT_JSON_SCHEMA = {
         required: ['name', 'due', 'day', 'pending', 'customerId'],
       },
       limit: { type: ['number', 'null'] },
+      returnFields: {
+        type: 'array',
+        items: { type: 'string' },
+        maxItems: 8,
+      },
       customerQuery: {
         type: ['object', 'null'],
         additionalProperties: false,
@@ -95,6 +100,7 @@ export const USER_INTENT_JSON_SCHEMA = {
       'target',
       'filters',
       'limit',
+      'returnFields',
       'customerQuery',
     ],
   },
