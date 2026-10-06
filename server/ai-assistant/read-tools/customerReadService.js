@@ -166,6 +166,9 @@ export async function getCustomerForAssistant(pool, req, customerId, options = {
       ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
       : ''
   const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
   const queryParams = hasProjection
     ? [...vis.params, userId, gaId, id]
     : [...vis.params, id]
@@ -174,7 +177,7 @@ export async function getCustomerForAssistant(pool, req, customerId, options = {
     `
     SELECT ${SELECT_LIST}${projectionSql}
     FROM customers c
-    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
     LIMIT 1
     `,
     queryParams,
