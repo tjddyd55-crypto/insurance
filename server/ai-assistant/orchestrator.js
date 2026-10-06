@@ -261,7 +261,7 @@ export async function processAiAssistantMessage(pool, req, input) {
         code: failureCode,
       }
       appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
-      return { conversationId: conversation.conversationId, messages: [reply], error: failureCode }
+      return { conversationId: conversation.conversationId, messages: [reply], code: failureCode }
     }
 
     if (readDecision.action === READ_ORCHESTRATION_ACTION.WRITE_BLOCKED) {
@@ -452,7 +452,7 @@ export async function processAiAssistantMessage(pool, req, input) {
           code,
         }
         appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
-        return { conversationId: conversation.conversationId, messages: [reply], error: code }
+        return { conversationId: conversation.conversationId, messages: [reply], code: code }
       }
     }
   }
@@ -718,7 +718,7 @@ export async function processAiAssistantMessage(pool, req, input) {
       code,
     }
     appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
-    return { conversationId: conversation.conversationId, messages: [reply], error: code }
+    return { conversationId: conversation.conversationId, messages: [reply], code: code }
   }
 }
 
