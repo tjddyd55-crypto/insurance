@@ -1626,6 +1626,48 @@ export async function initDb() {
     ADD COLUMN IF NOT EXISTS notes JSONB NOT NULL DEFAULT CAST('[]' AS jsonb)
   `)
 
+  // Gender SSOT migration:
+  // 1) normalize legacy/manual variants already saved in gender
+  // 2) only when gender is missing/unknown, infer from resident/foreigner number
+  //    (1/3/5/7/9 male, 2/4/6/8/0 female)
+  await pool.query(`
+    UPDATE customers
+    SET gender = CASE
+      WHEN LOWER(TRIM(COALESCE(gender, ''))) IN ('male', 'm', '남', '남자', '남성') THEN 'male'
+      WHEN LOWER(TRIM(COALESCE(gender, ''))) IN ('female', 'f', '여', '여자', '여성') THEN 'female'
+      ELSE ''
+    END
+  `)
+  await pool.query(`
+    UPDATE customers
+    SET gender = CASE SUBSTRING(regexp_replace(COALESCE(ssn, ''), '[^0-9]', '', 'g') FROM 7 FOR 1)
+      WHEN '1' THEN 'male'
+      WHEN '3' THEN 'male'
+      WHEN '5' THEN 'male'
+      WHEN '7' THEN 'male'
+      WHEN '9' THEN 'male'
+      WHEN '2' THEN 'female'
+      WHEN '4' THEN 'female'
+      WHEN '6' THEN 'female'
+      WHEN '8' THEN 'female'
+      WHEN '0' THEN 'female'
+      ELSE gender
+    END
+    WHERE TRIM(COALESCE(gender, '')) = ''
+  `)
+  await pool.query(`
+    DO $
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'customers_gender_canonical_chk'
+      ) THEN
+        ALTER TABLE customers
+        ADD CONSTRAINT customers_gender_canonical_chk
+        CHECK (gender IN ('', 'male', 'female'));
+      END IF;
+    END $;
+  `)
+
   await pool.query(`
     ALTER TABLE customers
     ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN NOT NULL DEFAULT FALSE

@@ -32,34 +32,22 @@ function compileOneFilter(filter, ctx) {
   }
 
   if (field === 'gender') {
-    const effectiveGender = `COALESCE(
-      CASE SUBSTRING(regexp_replace(COALESCE(c.ssn, ''), '[^0-9]', '', 'g') FROM 7 FOR 1)
-        WHEN '1' THEN 'male'
-        WHEN '3' THEN 'male'
-        WHEN '5' THEN 'male'
-        WHEN '7' THEN 'male'
-        WHEN '9' THEN 'male'
-        WHEN '2' THEN 'female'
-        WHEN '4' THEN 'female'
-        WHEN '6' THEN 'female'
-        WHEN '8' THEN 'female'
-        WHEN '0' THEN 'female'
-        ELSE NULL
-      END,
-      CASE
-        WHEN LOWER(TRIM(COALESCE(c.gender, ''))) IN ('male', 'm', '남', '남자', '남성') THEN 'male'
-        WHEN LOWER(TRIM(COALESCE(c.gender, ''))) IN ('female', 'f', '여', '여자', '여성') THEN 'female'
-        ELSE NULL
-      END
-    )`
+    // Gender query SSOT is customers.gender.
+    // Resident/foreigner number is used only when saving/backfilling a missing gender,
+    // never as a competing query-time source.
+    const storedGender = `CASE
+      WHEN LOWER(TRIM(COALESCE(c.gender, ''))) IN ('male', 'm', '남', '남자', '남성') THEN 'male'
+      WHEN LOWER(TRIM(COALESCE(c.gender, ''))) IN ('female', 'f', '여', '여자', '여성') THEN 'female'
+      ELSE NULL
+    END`
     if (op === 'EQ') {
       const p = ph()
-      return frag(`${effectiveGender} = LOWER(${p}::text)`, [filter.value], nextIdx)
+      return frag(`${storedGender} = LOWER(${p}::text)`, [filter.value], nextIdx)
     }
     if (op === 'IN' && Array.isArray(filter.value)) {
       const p = ph()
       return frag(
-        `${effectiveGender} = ANY(${p}::text[])`,
+        `${storedGender} = ANY(${p}::text[])`,
         [filter.value.map((v) => String(v).toLowerCase())],
         nextIdx,
       )

@@ -37,3 +37,21 @@ test('resolveCustomerGenderForSave: infers when gender empty', () => {
 test('resolveCustomerGenderForSave: no ssn → empty', () => {
   assert.equal(resolveCustomerGenderForSave('', ''), '')
 })
+
+
+test('inferGenderFromResidentNumberDigits: foreigner codes 5/7 male, 6/8 female', () => {
+  assert.equal(inferGenderFromResidentNumberDigits('9001015234567'), 'male')
+  assert.equal(inferGenderFromResidentNumberDigits('9001017234567'), 'male')
+  assert.equal(inferGenderFromResidentNumberDigits('9001016234567'), 'female')
+  assert.equal(inferGenderFromResidentNumberDigits('9001018234567'), 'female')
+})
+
+test('resolveCustomerGenderForSave: explicit selection is SSOT even if resident number disagrees', () => {
+  assert.equal(resolveCustomerGenderForSave('female', '9001011234567'), 'female')
+  assert.equal(resolveCustomerGenderForSave('male', '9001012234567'), 'male')
+})
+
+test('resolveCustomerGenderForSave: Korean labels normalize to canonical values', () => {
+  assert.equal(resolveCustomerGenderForSave('남성', ''), 'male')
+  assert.equal(resolveCustomerGenderForSave('여성', ''), 'female')
+})
