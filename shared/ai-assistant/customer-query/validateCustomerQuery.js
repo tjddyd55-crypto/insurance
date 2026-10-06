@@ -25,7 +25,17 @@ function resolveFieldDefinition(rawField) {
   const key = String(rawField ?? '').trim()
   const legacy = getCustomerQueryField(key)
   if (legacy) {
-    const semantic = getAiSemanticField(legacy.semanticKey) ?? getAiSemanticFieldByQueryKey(legacy.key)
+    const relationPreferred = {
+      carType: 'vehicle.carType',
+      carNumber: 'vehicle.carNumber',
+      carModel: 'vehicle.carModel',
+      carYear: 'vehicle.carYear',
+      renewalDate: 'vehicle.renewalDate',
+    }[legacy.key]
+    const semantic =
+      (relationPreferred ? getAiSemanticField(relationPreferred) : null) ??
+      getAiSemanticField(legacy.semanticKey) ??
+      getAiSemanticFieldByQueryKey(legacy.key)
     return {
       key,
       semanticKey: semantic?.key ?? legacy.semanticKey ?? key,
