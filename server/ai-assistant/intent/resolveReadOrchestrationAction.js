@@ -97,6 +97,15 @@ export function resolveReadOrchestrationAction(classified, conversation, text) {
   let customerId = resolveCustomerIdFromContext(target, conversation, text)
   if (
     !customerId &&
+    Array.isArray(classified.returnFields) &&
+    classified.returnFields.length > 0 &&
+    (bizIntent === 'GET' || toolKey === 'customer.get') &&
+    conversation?.resolvedEntities?.customer?.customerId
+  ) {
+    customerId = Number(conversation.resolvedEntities.customer.customerId)
+  }
+  if (
+    !customerId &&
     (toolKey === 'consultation.recent' || toolKey === 'customer.files.list') &&
     conversation?.resolvedEntities?.customer?.customerId
   ) {
@@ -170,7 +179,29 @@ export function resolveReadOrchestrationAction(classified, conversation, text) {
     params.limit = classified.limit ?? 15
   }
   if (toolKey === 'customer.list') {
-    const queryResolved = extractCustomerQueryFromIntent(classified)
+    let queryResolved = extractCustomerQueryFromIntent(classified)
+    const projectionOnlyFollowUp =
+      Array.isArray(classified.returnFields) &&
+      classified.returnFields.length > 0 &&
+      queryResolved.ok &&
+      (queryResolved.ast?.filters?.length ?? 0) === 0 &&
+      conversation?.lastReadContext?.toolKey === 'customer.list' &&
+      conversation?.lastReadContext?.customerQueryAst
+
+    if (projectionOnlyFollowUp) {
+      queryResolved = {
+        ok: true,
+        ast: {
+          ...conversation.lastReadContext.customerQueryAst,
+          limit:
+            classified.limit ??
+            conversation.lastReadContext.limit ??
+            conversation.lastReadContext.customerQueryAst.limit ??
+            20,
+        },
+      }
+    }
+
     if (!queryResolved.ok) {
       return {
         action: READ_ORCHESTRATION_ACTION.NO_READ_INTENT,
