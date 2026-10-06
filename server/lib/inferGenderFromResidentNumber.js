@@ -28,9 +28,12 @@ export function inferGenderFromResidentNumberDigits(raw) {
  * @returns {'' | 'male' | 'female'}
  */
 export function resolveCustomerGenderForSave(genderRaw, ssn) {
-  const trimmed = String(genderRaw ?? '').trim()
-  if (trimmed === 'male' || trimmed === 'female') {
-    return trimmed
+  const trimmed = String(genderRaw ?? '').trim().toLowerCase()
+  if (['male', 'm', '남', '남자', '남성'].includes(trimmed)) {
+    return 'male'
+  }
+  if (['female', 'f', '여', '여자', '여성'].includes(trimmed)) {
+    return 'female'
   }
   return inferGenderFromResidentNumberDigits(ssn) ?? ''
 }

@@ -34,8 +34,8 @@ function compileOneFilter(filter, ctx) {
   if (field === 'gender') {
     const effectiveGender = `COALESCE(
       CASE
-        WHEN LOWER(TRIM(COALESCE(c.gender, ''))) IN ('male', 'm') THEN 'male'
-        WHEN LOWER(TRIM(COALESCE(c.gender, ''))) IN ('female', 'f') THEN 'female'
+        WHEN LOWER(TRIM(COALESCE(c.gender, ''))) IN ('male', 'm', '남', '남자', '남성') THEN 'male'
+        WHEN LOWER(TRIM(COALESCE(c.gender, ''))) IN ('female', 'f', '여', '여자', '여성') THEN 'female'
         ELSE NULL
       END,
       CASE SUBSTRING(regexp_replace(COALESCE(c.ssn, ''), '[^0-9]', '', 'g') FROM 7 FOR 1)
