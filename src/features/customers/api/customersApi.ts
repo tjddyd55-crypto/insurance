@@ -49,8 +49,12 @@ export function assertCustomerDataRecord(
       500,
     )
   }
-  const id = (c as { id?: unknown }).id
-  if (typeof id !== 'number' || !Number.isFinite(id)) {
+  const idRaw = (c as { id?: unknown }).id
+  const id =
+    typeof idRaw === 'number' && Number.isFinite(idRaw)
+      ? idRaw
+      : Number(idRaw)
+  if (!Number.isInteger(id) || id < 1) {
     console.error('[customersApi] ❌ customer missing id:', label, c)
     throw new ApiError(
       listIndex != null && listIndex >= 0
@@ -60,7 +64,7 @@ export function assertCustomerDataRecord(
     )
   }
   const row = c as Record<string, unknown>
-  const withFlag = c as CustomerRecord & { isFavorite?: unknown }
+  const withFlag = { ...(c as CustomerRecord & { isFavorite?: unknown }), id }
   const phoneFromPrimary = typeof withFlag.phone === 'string' ? withFlag.phone.trim() : ''
   const phoneFromSnake = typeof row.phone_number === 'string' ? row.phone_number.trim() : ''
   const phoneFromCamel = typeof row.phoneNumber === 'string' ? row.phoneNumber.trim() : ''
@@ -121,8 +125,16 @@ export function normalizeCustomerMutationResponse(raw: unknown): unknown {
 export type ListCustomersOptions = {
   limit?: number
   consultationFilter?: '' | 'none' | 'has' | 'no_since'
-  consultationStatus?: 'all' | 'none' | 'has' | 'no_since'
+  consultationStatus?:
+    | 'all'
+    | 'none'
+    | 'has'
+    | 'no_since'
+    | 'has_consultation'
+    | 'no_consultation'
+    | 'no_consultation_since'
   consultationCutoffDate?: string
+  consultationReferenceDate?: string
   noConsultationSince?: string
   consultationKeyword?: string
   consultationFrom?: string
@@ -143,13 +155,20 @@ function appendListCustomersQuery(q: URLSearchParams, opts: ListCustomersOptions
     (opts.consultationFilter === 'none' || opts.consultationFilter === 'has' || opts.consultationFilter === 'no_since'
       ? opts.consultationFilter
       : undefined)
+  const statusParamMap: Record<string, string> = {
+    none: 'no_consultation',
+    has: 'has_consultation',
+    no_since: 'no_consultation_since',
+  }
   if (status === 'none' || status === 'has' || status === 'no_since') {
-    q.set('consultationStatus', status)
+    q.set('consultationStatus', statusParamMap[status] ?? status)
+    q.set('consultationFilter', status)
   } else if (opts.consultationFilter === 'none' || opts.consultationFilter === 'no_since') {
     q.set('consultationFilter', opts.consultationFilter)
   }
-  const cutoff = (opts.noConsultationSince ?? opts.consultationCutoffDate)?.trim()
+  const cutoff = (opts.consultationReferenceDate ?? opts.noConsultationSince ?? opts.consultationCutoffDate)?.trim()
   if (cutoff) {
+    q.set('consultationReferenceDate', cutoff)
     q.set('noConsultationSince', cutoff)
   }
   const keyword = opts.consultationKeyword?.trim()
@@ -232,12 +251,22 @@ export async function listCustomers(
         })
         .filter((c): c is CustomerRecord => c != null)
 
+  const deduped = dedupeCustomersById(customers)
+  if (deduped.length !== customers.length) {
+    logCustomerSearchDedupeDebug({
+      beforeCount: customers.length,
+      afterCount: deduped.length,
+      idDeduped: true,
+      identityDeduped: false,
+    })
+  }
+
   const total =
     totalFromBody != null && Number.isFinite(totalFromBody)
       ? totalFromBody
-      : customers.length
+      : deduped.length
 
-  return { customers, total }
+  return { customers: deduped, total }
 }
 
 export async function listCustomerForms(
@@ -362,7 +391,7 @@ function drivingTextFromIsDriver(isDriver: boolean | null): string {
     return '운전함'
   }
   if (isDriver === false) {
-    return '운전안함'
+    return '운전 안함'
   }
   return ''
 }

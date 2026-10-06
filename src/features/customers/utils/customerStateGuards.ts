@@ -1,5 +1,6 @@
 import { assertCustomerDataRecord } from '../api/customersApi'
 import type { CustomerRecord } from '../domain/types'
+import { dedupeCustomersById } from './customerSearchDedupe'
 
 /**
  * API 이후에도 customers state에 깨진 행·undefined 슬롯이 들어가지 않도록 방어한다.
@@ -13,5 +14,6 @@ export function coerceCustomersStatePayload(rows: unknown): CustomerRecord[] {
     console.error('[CustomersPage] ❌ customers is not an array:', rows)
     throw new Error('Invalid customers response')
   }
-  return rows.map((c, idx) => assertCustomerDataRecord(c, { listIndex: idx }))
+  const parsed = rows.map((c, idx) => assertCustomerDataRecord(c, { listIndex: idx }))
+  return dedupeCustomersById(parsed)
 }
