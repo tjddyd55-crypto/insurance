@@ -158,7 +158,1198 @@ export async function getCustomerForAssistant(pool, req, customerId, options = {
   const requestedReturnFields = Array.isArray(options.returnFields) ? options.returnFields : []
   const hasProjection = requestedReturnFields.length > 0
   const projectionPlan = buildGenericCustomerProjectionSelect(requestedReturnFields, {
-    userPlaceholder: `${plc + 1}`,
+    userPlaceholder: ',
+    gaPlaceholder: ',
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
+  const cidPlace = hasProjection ? '
+  const projectionScopeClause = hasProjection
+    ? ' AND 
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 1),
+    gaPlaceholder: `${plc + 2}`,
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
+  const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 2),
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
+  const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 1),
+    gaPlaceholder: `${plc + 2}`,
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
+  const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 3) : '
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 1),
+    gaPlaceholder: `${plc + 2}`,
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
+  const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 2),
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
+  const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 1),
+    gaPlaceholder: `${plc + 2}`,
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
+  const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 1)
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 1),
+    gaPlaceholder: `${plc + 2}`,
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
+  const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 2),
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
+  const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 1),
+    gaPlaceholder: `${plc + 2}`,
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
+  const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 1) + '::text IS NOT NULL AND 
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 1),
+    gaPlaceholder: `${plc + 2}`,
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
+  const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 2),
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
+  const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 1),
+    gaPlaceholder: `${plc + 2}`,
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
+  const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 3) : '
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 1),
+    gaPlaceholder: `${plc + 2}`,
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
+  const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 2),
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
+  const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 1),
+    gaPlaceholder: `${plc + 2}`,
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
+  const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 1)
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 1),
+    gaPlaceholder: `${plc + 2}`,
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
+  const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 2),
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
+  const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 1),
+    gaPlaceholder: `${plc + 2}`,
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
+  const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 2) + '::integer IS NOT NULL'
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 1),
+    gaPlaceholder: `${plc + 2}`,
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
+  const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 2),
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
+  const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 1),
+    gaPlaceholder: `${plc + 2}`,
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
+  const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 3) : '
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 1),
+    gaPlaceholder: `${plc + 2}`,
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
+  const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 2),
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
+  const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 1),
+    gaPlaceholder: `${plc + 2}`,
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
+  const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 1)
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 1),
+    gaPlaceholder: `${plc + 2}`,
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
+  const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 2),
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
+  const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const projectionScopeClause = hasProjection
+    ? ` AND ${plc + 1}::text IS NOT NULL AND ${plc + 2}::integer IS NOT NULL`
+    : ''
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
+  const result = await safeQuery(
+    pool,
+    `
+    SELECT ${SELECT_LIST}${projectionSql}
+    FROM customers c
+    WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}${projectionScopeClause}
+    LIMIT 1
+    `,
+    queryParams,
+  )
+  if (!result.rows[0]) {
+    return null
+  }
+  const summary = toAiCustomerSummary(result.rows[0])
+  const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
+}
+ + String(plc + 1),
     gaPlaceholder: `${plc + 2}`,
   })
   const projectionSql =
