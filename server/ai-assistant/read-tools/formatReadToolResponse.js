@@ -5,6 +5,12 @@ import {
   formatTodoDueSuffix,
 } from './readFormatUtils.js'
 
+function formatGenderLabel(gender) {
+  if (gender === 'male') return '남성'
+  if (gender === 'female') return '여성'
+  return null
+}
+
 /**
  * Grounded assistant payloads from tool results only (no GPT fill-in).
  * @param {object} toolResult
@@ -48,6 +54,7 @@ export function formatReadToolResponse(toolResult, meta = {}) {
         text: [
           `${c.name} 고객을 찾았습니다.`,
           c.phone ? `연락처: ${c.phone}` : null,
+          formatGenderLabel(c.gender) ? `성별: ${formatGenderLabel(c.gender)}` : null,
           c.address ? `주소: ${c.address}` : null,
         ]
           .filter(Boolean)
@@ -87,6 +94,7 @@ export function formatReadToolResponse(toolResult, meta = {}) {
       text: [
         `${c.name} 고객 정보입니다.`,
         c.phone ? `연락처: ${c.phone}` : null,
+        formatGenderLabel(c.gender) ? `성별: ${formatGenderLabel(c.gender)}` : null,
         c.address ? `주소: ${c.address}` : null,
         c.job ? `직업: ${c.job}` : null,
         c.companyName ? `회사: ${c.companyName}` : null,
@@ -212,7 +220,10 @@ export function formatReadToolResponse(toolResult, meta = {}) {
       }
     }
     const shown = customers.slice(0, 20)
-    const lines = shown.map((c, i) => `${i + 1}. ${c.name} — 휴대폰 끝 ${c.phoneTail}`)
+    const lines = shown.map((c, i) => {
+      const genderLabel = formatGenderLabel(c.gender)
+      return `${i + 1}. ${c.name}${genderLabel ? ` (${genderLabel})` : ''} — 휴대폰 끝 ${c.phoneTail}`
+    })
     const more =
       total > shown.length ? `\n… 외 ${total - shown.length}명 (목록은 최대 ${toolResult.limit ?? 20}명까지 표시)` : ''
     return {

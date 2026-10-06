@@ -34,10 +34,11 @@ describe('read orchestration', () => {
   it('customer search single result resolves entity', () => {
     const f = formatReadToolResponse({
       toolKey: 'customer.search',
-      customers: [{ customerId: 1, name: '홍길동', phone: '010-1234-5678', phoneTail: '5678' }],
+      customers: [{ customerId: 1, name: '홍길동', phone: '010-1234-5678', phoneTail: '5678', gender: 'male' }],
     })
     assert.equal(f.resolvedCustomer.customerId, 1)
     assert.match(f.text, /홍길동/)
+    assert.match(f.text, /성별: 남성/)
   })
 
   it('follow-up files uses resolved customer id', () => {
@@ -160,6 +161,7 @@ describe('read orchestration', () => {
       customerId: i + 1,
       name: `AI테스트_${i}`,
       phoneTail: `100${i}`,
+      gender: i % 2 === 0 ? 'female' : 'male',
     }))
     const f = formatReadToolResponse({
       toolKey: 'customer.list',
@@ -168,7 +170,22 @@ describe('read orchestration', () => {
       limit: 20,
     })
     assert.equal(f.text.split('\n').length, 8)
+    assert.match(f.text, /여성/)
+    assert.match(f.text, /남성/)
     assert.match(f.text, /— 휴대폰 끝/)
+  })
+
+  it('customer get renders canonical female gender as 여성', () => {
+    const f = formatReadToolResponse({
+      toolKey: 'customer.get',
+      customer: {
+        customerId: 2,
+        name: '김영희',
+        phoneTail: '4321',
+        gender: 'female',
+      },
+    })
+    assert.match(f.text, /성별: 여성/)
   })
 
   it('task list today omits english date suffix', () => {

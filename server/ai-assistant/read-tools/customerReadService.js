@@ -33,6 +33,7 @@ export function toAiCustomerSummary(row) {
     phoneTail: phoneTail(mapped.phone),
     address: mapped.address ?? null,
     job: mapped.job ?? null,
+    gender: mapped.gender ?? null,
     customerCode: mapped.customerCode ?? null,
     lastConsultDate: mapped.lastConsultDate ?? null,
     carNumber: mapped.carNumber ?? null,

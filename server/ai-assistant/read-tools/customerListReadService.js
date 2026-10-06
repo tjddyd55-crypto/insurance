@@ -81,7 +81,7 @@ export async function listCustomersForAssistant(pool, req, input = {}) {
   const result = await safeQuery(
     pool,
     `
-    SELECT c.id, c.name, c.phone
+    SELECT c.id, c.name, c.phone, c.gender
     FROM customers c
     ${summaryJoin}
     WHERE (${vis.clause}) AND c.deleted_at IS NULL${filterClause}
@@ -95,6 +95,12 @@ export async function listCustomersForAssistant(pool, req, input = {}) {
     customerId: Number(row.id),
     name: String(row.name ?? ''),
     phoneTail: phoneTail(row.phone),
+    gender:
+      String(row.gender ?? '').trim().toLowerCase() === 'male'
+        ? 'male'
+        : String(row.gender ?? '').trim().toLowerCase() === 'female'
+          ? 'female'
+          : null,
   }))
 
   return { customers, total, limit, countOnly: false, filterCount }
