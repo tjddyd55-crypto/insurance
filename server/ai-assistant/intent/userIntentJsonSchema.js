@@ -29,7 +29,18 @@ export const USER_INTENT_JSON_SCHEMA = {
         },
         required: ['entityType', 'name', 'customerId', 'reference'],
       },
-      filters: { type: ['object', 'null'] },
+      filters: {
+        type: ['object', 'null'],
+        additionalProperties: false,
+        properties: {
+          name: { type: ['string', 'null'] },
+          due: { type: ['string', 'null'] },
+          day: { type: ['string', 'null'] },
+          pending: { type: ['boolean', 'null'] },
+          customerId: { type: ['number', 'null'] },
+        },
+        required: ['name', 'due', 'day', 'pending', 'customerId'],
+      },
       limit: { type: ['number', 'null'] },
       customerQuery: {
         type: ['object', 'null'],
