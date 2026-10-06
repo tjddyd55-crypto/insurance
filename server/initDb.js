@@ -1656,7 +1656,7 @@ export async function initDb() {
     WHERE TRIM(COALESCE(gender, '')) = ''
   `)
   await pool.query(`
-    DO $
+    DO $gender$
     BEGIN
       IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'customers_gender_canonical_chk'
@@ -1665,7 +1665,8 @@ export async function initDb() {
         ADD CONSTRAINT customers_gender_canonical_chk
         CHECK (gender IN ('', 'male', 'female'));
       END IF;
-    END $;
+    END
+    $gender$;
   `)
 
   if (process.env.RAILWAY_ENVIRONMENT_NAME === 'development' || process.env.NODE_ENV !== 'production') {
