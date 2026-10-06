@@ -1,5 +1,6 @@
 import { memo, useCallback } from 'react'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
+import { CUSTOMER_ALERT_DATE_LABEL } from '../../../../shared/customerAlertDateCopy.js'
 import AppDateInput from '../../../components/common/AppDateInput'
 import {
   CUSTOMER_SPECIAL_DATE_PURPOSE_OPTIONS,
@@ -32,9 +33,9 @@ export const CustomerSpecialDateEditCard = memo(function CustomerSpecialDateEdit
   )
 
   return (
-    <section className="customer-special-date-edit-card" aria-label={`기념일 ${n}`}>
+    <section className="customer-special-date-edit-card" aria-label={`${CUSTOMER_ALERT_DATE_LABEL} ${n}`}>
       <div className="customer-special-date-edit-card__header">
-        <h4 className="customer-special-date-edit-card__title">기념일 {n}</h4>
+        <h4 className="customer-special-date-edit-card__title">{CUSTOMER_ALERT_DATE_LABEL} {n}</h4>
         <FormButton
           htmlType="button"
           className="customer-special-date-edit-card__remove"
@@ -60,7 +61,7 @@ export const CustomerSpecialDateEditCard = memo(function CustomerSpecialDateEdit
         />
       </label>
       <label className="field">
-        <span className="field__label">라벨</span>
+        <span className="field__label">이름</span>
         <FormInput
           className="field__control"
           placeholder="예: 결혼기념일, 첫 계약일"

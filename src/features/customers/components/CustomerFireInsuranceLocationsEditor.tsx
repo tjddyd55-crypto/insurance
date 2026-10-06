@@ -42,18 +42,8 @@ export function CustomerFireInsuranceLocationsEditor({
   return (
     <CustomerFormSection
       title="화재보험 정보"
+      sectionId="fire"
       className="customer-form-section--grid-full customer-fire-locations-editor"
-      headerExtra={
-        <FormButton
-          htmlType="button"
-          variant="secondary"
-          size="sm"
-          disabled={disabled}
-          onClick={addItem}
-        >
-          소재지 추가
-        </FormButton>
-      }
     >
       <div className="customer-fire-locations-editor__list">
         {list.map((item, i) => (
@@ -67,6 +57,15 @@ export function CustomerFireInsuranceLocationsEditor({
           />
         ))}
       </div>
+      <FormButton
+        htmlType="button"
+        variant="secondary"
+        className="customer-fire-locations-editor__add"
+        disabled={disabled}
+        onClick={addItem}
+      >
+        + 소재지 추가
+      </FormButton>
     </CustomerFormSection>
   )
 }

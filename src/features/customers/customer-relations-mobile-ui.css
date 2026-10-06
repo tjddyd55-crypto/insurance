@@ -762,6 +762,10 @@
   border-radius: 8px;
 }
 
+.customer-relation-group-card__action--danger {
+  color: var(--danger, #dc2626);
+}
+
 .customer-relation-group-card__members {
   list-style: none;
   margin: 0;
@@ -879,10 +883,22 @@
   border-top: 1px solid var(--border-default);
 }
 
-.customer-relations-legacy-section {
-  margin-top: 14px;
-  padding-top: 12px;
+.customer-relations-strip__subsection-divider {
+  margin: 12px 0;
   border-top: 1px solid var(--border-default);
+}
+
+.customer-relations-subsection__add {
+  margin-top: 8px;
+}
+
+.customer-relations-subsection__add .button {
+  min-height: 32px;
+}
+
+.customer-relations-legacy-section {
+  margin-top: 0;
+  padding-top: 0;
 }
 
 .customer-relations-legacy__title,
