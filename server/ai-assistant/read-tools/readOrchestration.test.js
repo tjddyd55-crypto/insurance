@@ -225,6 +225,35 @@ describe('read orchestration', () => {
     assert.match(f.text, /10월 6일/)
   })
 
+  it('unbounded unfinished task scope clears a previous tomorrow scope', () => {
+    const d = resolveReadOrchestrationAction(
+      {
+        domain: INTENT_DOMAIN.ONE_FC_QUERY,
+        intent: 'LIST',
+        requiredToolKey: 'task.list',
+        requiresTool: true,
+        filters: { due: 'all' },
+      },
+      { lastReadContext: { toolKey: 'task.list', due: 'tomorrow' } },
+      '내일 말고 미완료',
+    )
+    assert.equal(d.params.due, 'all')
+  })
+
+  it('all pending task formatter labels the scope and shows dates', () => {
+    const f = formatReadToolResponse({
+      toolKey: 'task.list',
+      due: 'all',
+      todos: [
+        { id: '1', title: 'A', dueDate: '2026-10-06' },
+        { id: '2', title: 'B', dueDate: '2026-10-07' },
+      ],
+    })
+    assert.match(f.text, /^미완료 할 일 2건입니다\./)
+    assert.match(f.text, /10월 6일/)
+    assert.match(f.text, /10월 7일/)
+  })
+
   it('filtered customer list zero result is described as no matching customers', () => {
     const f = formatReadToolResponse({
       toolKey: 'customer.list',

@@ -33,8 +33,12 @@ function compileOneFilter(filter, ctx) {
 
   if (field === 'gender') {
     const effectiveGender = `COALESCE(
-      NULLIF(LOWER(TRIM(c.gender)), ''),
-      CASE SUBSTRING(regexp_replace(COALESCE(c.ssn, ''), '\\D', '', 'g') FROM 7 FOR 1)
+      CASE
+        WHEN LOWER(TRIM(COALESCE(c.gender, ''))) IN ('male', 'm') THEN 'male'
+        WHEN LOWER(TRIM(COALESCE(c.gender, ''))) IN ('female', 'f') THEN 'female'
+        ELSE NULL
+      END,
+      CASE SUBSTRING(regexp_replace(COALESCE(c.ssn, ''), '[^0-9]', '', 'g') FROM 7 FOR 1)
         WHEN '1' THEN 'male'
         WHEN '3' THEN 'male'
         WHEN '5' THEN 'male'
@@ -54,7 +58,11 @@ function compileOneFilter(filter, ctx) {
     }
     if (op === 'IN' && Array.isArray(filter.value)) {
       const p = ph()
-      return frag(`${effectiveGender} = ANY(${p}::text[])`, [filter.value.map((v) => String(v).toLowerCase())], nextIdx)
+      return frag(
+        `${effectiveGender} = ANY(${p}::text[])`,
+        [filter.value.map((v) => String(v).toLowerCase())],
+        nextIdx,
+      )
     }
   }
 

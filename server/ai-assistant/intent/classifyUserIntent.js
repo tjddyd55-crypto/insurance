@@ -46,6 +46,10 @@ READ-ONLY assistant scope:
 - If appState.pendingClarification asks for a missing customer target, a following bare name/phone should complete that target and continue the same customer.search intent.
 - If appState.lastReadContext is a customer list/query, follow-ups such as a new filter or shortened list request should stay in the CUSTOMER/customer.list domain and compose a new customerQuery from meaning. Do not require the user to repeat the word 고객.
 - Do not implement these follow-ups with keyword aliases; infer them semantically from conversation context and the Customer Query Schema.
+- For task.list, filters.due is the semantic time scope: today | tomorrow | week | all.
+- Use due=all when the user asks for unfinished/pending tasks without a date, or explicitly removes a previous date restriction (for example, "not tomorrow, unfinished tasks").
+- For schedule.list, filters.day is today | tomorrow.
+- Preserve prior time scope only when the follow-up does not replace or remove it.
 
 ${formatCustomerQuerySchemaForPrompt()}`
 

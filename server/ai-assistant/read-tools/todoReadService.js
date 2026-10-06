@@ -17,7 +17,7 @@ function seoulWeekRangeYmd() {
 /**
  * @param {import('pg').Pool} pool
  * @param {import('express').Request} req
- * @param {{ due?: 'today' | 'tomorrow' | 'week' }} input
+ * @param {{ due?: 'today' | 'tomorrow' | 'week' | 'all' }} input
  */
 export async function listTodosForAssistant(pool, req, input = {}) {
   const userId = String(req.user?.id ?? req.user?.userId ?? '')

@@ -227,9 +227,22 @@ export function formatReadToolResponse(toolResult, meta = {}) {
 
   if (toolKey === 'task.list') {
     const todos = (toolResult.todos ?? []).filter((t) => String(t.title ?? '').trim())
-    const dueScope = toolResult.due === 'tomorrow' ? 'tomorrow' : toolResult.due === 'week' ? 'week' : 'today'
+    const dueScope =
+      toolResult.due === 'tomorrow'
+        ? 'tomorrow'
+        : toolResult.due === 'week'
+          ? 'week'
+          : toolResult.due === 'all'
+            ? 'all'
+            : 'today'
     const dueLabel =
-      dueScope === 'tomorrow' ? '내일' : dueScope === 'week' ? '이번 주' : '오늘'
+      dueScope === 'tomorrow'
+        ? '내일'
+        : dueScope === 'week'
+          ? '이번 주'
+          : dueScope === 'all'
+            ? '미완료'
+            : '오늘'
     if (todos.length === 0) {
       const emptyText =
         dueScope === 'today'
@@ -245,7 +258,9 @@ export function formatReadToolResponse(toolResult, meta = {}) {
     const body = todos
       .map((t, i) => {
         const title = String(t.title ?? '').trim() || '제목 없음'
-        const suffix = formatTodoDueSuffix(t.dueDate, dueScope, { force: meta.includeDate === true })
+        const suffix = formatTodoDueSuffix(t.dueDate, dueScope, {
+          force: meta.includeDate === true || dueScope === 'all',
+        })
         return `${i + 1}. ${title}${suffix}`
       })
       .join('\n')

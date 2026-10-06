@@ -132,11 +132,12 @@ export function resolveReadOrchestrationAction(classified, conversation, text) {
   }
   if (toolKey === 'task.list') {
     const explicitDue = inferExplicitTodoDue(text)
+    const classifiedDue = classified.filters?.due ?? null
     const priorDue =
       conversation?.lastReadContext?.toolKey === 'task.list'
         ? conversation.lastReadContext?.due ?? null
         : null
-    params.due = explicitDue ?? classified.filters?.due ?? priorDue ?? 'today'
+    params.due = explicitDue ?? classifiedDue ?? priorDue ?? 'today'
     params.includeDate = wantsDateInResponse(text)
   }
   if (toolKey === 'schedule.list') {
