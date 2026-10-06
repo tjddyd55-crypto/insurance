@@ -8,7 +8,7 @@ import {
 /**
  * Grounded assistant payloads from tool results only (no GPT fill-in).
  * @param {object} toolResult
- * @param {{ toolKey: string, navigate?: boolean }} meta
+ * @param {{ toolKey: string, navigate?: boolean, includeDate?: boolean }} meta
  */
 export function formatReadToolResponse(toolResult, meta = {}) {
   const toolKey = toolResult.toolKey ?? meta.toolKey
@@ -203,7 +203,9 @@ export function formatReadToolResponse(toolResult, meta = {}) {
     const customers = toolResult.customers ?? []
     if (total === 0) {
       return {
-        text: '조회 가능한 고객이 없습니다.',
+        text: Number(toolResult.filterCount ?? 0) > 0
+          ? '조건에 맞는 고객이 없습니다.'
+          : '조회 가능한 고객이 없습니다.',
         kind: 'text',
         resolvedCustomer: null,
         uiActions: [],
@@ -243,7 +245,7 @@ export function formatReadToolResponse(toolResult, meta = {}) {
     const body = todos
       .map((t, i) => {
         const title = String(t.title ?? '').trim() || '제목 없음'
-        const suffix = formatTodoDueSuffix(t.dueDate, dueScope)
+        const suffix = formatTodoDueSuffix(t.dueDate, dueScope, { force: meta.includeDate === true })
         return `${i + 1}. ${title}${suffix}`
       })
       .join('\n')

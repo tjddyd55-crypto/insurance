@@ -131,10 +131,21 @@ export function resolveReadOrchestrationAction(classified, conversation, text) {
     params.customerId = customerId
   }
   if (toolKey === 'task.list') {
-    params.due = classified.filters?.due ?? inferTodoDue(text)
+    const explicitDue = inferExplicitTodoDue(text)
+    const priorDue =
+      conversation?.lastReadContext?.toolKey === 'task.list'
+        ? conversation.lastReadContext?.due ?? null
+        : null
+    params.due = explicitDue ?? classified.filters?.due ?? priorDue ?? 'today'
+    params.includeDate = wantsDateInResponse(text)
   }
   if (toolKey === 'schedule.list') {
-    params.day = classified.filters?.day ?? inferScheduleDay(text)
+    const explicitDay = inferExplicitScheduleDay(text)
+    const priorDay =
+      conversation?.lastReadContext?.toolKey === 'schedule.list'
+        ? conversation.lastReadContext?.day ?? null
+        : null
+    params.day = explicitDay ?? classified.filters?.day ?? priorDay ?? 'today'
   }
   if (toolKey === 'claim.list') {
     params.pending = classified.filters?.pending ?? /미처리|확인할|대기/.test(text)
@@ -235,22 +246,23 @@ function extractLimitHint(text) {
   return Number.isFinite(n) && n > 0 && n <= 20 ? n : null
 }
 
-function inferTodoDue(text) {
+function inferExplicitTodoDue(text) {
   const t = String(text ?? '')
-  if (/내일/.test(t)) {
-    return 'tomorrow'
-  }
-  if (/이번\s*주|주간/.test(t)) {
-    return 'week'
-  }
-  return 'today'
+  if (/내일/.test(t)) return 'tomorrow'
+  if (/이번\s*주|주간/.test(t)) return 'week'
+  if (/오늘/.test(t)) return 'today'
+  return null
 }
 
-function inferScheduleDay(text) {
+function inferExplicitScheduleDay(text) {
   const t = String(text ?? '')
-  if (/내일/.test(t)) {
-    return 'tomorrow'
-  }
-  return 'today'
+  if (/내일/.test(t)) return 'tomorrow'
+  if (/오늘/.test(t)) return 'today'
+  return null
+}
+
+function wantsDateInResponse(text) {
+  const t = String(text ?? '')
+  return /날짜|일자|며칠/.test(t)
 }
 

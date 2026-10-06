@@ -32,13 +32,29 @@ function compileOneFilter(filter, ctx) {
   }
 
   if (field === 'gender') {
+    const effectiveGender = `COALESCE(
+      NULLIF(LOWER(TRIM(c.gender)), ''),
+      CASE SUBSTRING(regexp_replace(COALESCE(c.ssn, ''), '\\D', '', 'g') FROM 7 FOR 1)
+        WHEN '1' THEN 'male'
+        WHEN '3' THEN 'male'
+        WHEN '5' THEN 'male'
+        WHEN '7' THEN 'male'
+        WHEN '9' THEN 'male'
+        WHEN '2' THEN 'female'
+        WHEN '4' THEN 'female'
+        WHEN '6' THEN 'female'
+        WHEN '8' THEN 'female'
+        WHEN '0' THEN 'female'
+        ELSE NULL
+      END
+    )`
     if (op === 'EQ') {
       const p = ph()
-      return frag(`c.gender = ${p}`, [filter.value], nextIdx)
+      return frag(`${effectiveGender} = LOWER(${p}::text)`, [filter.value], nextIdx)
     }
     if (op === 'IN' && Array.isArray(filter.value)) {
       const p = ph()
-      return frag(`c.gender = ANY(${p}::text[])`, [filter.value], nextIdx)
+      return frag(`${effectiveGender} = ANY(${p}::text[])`, [filter.value.map((v) => String(v).toLowerCase())], nextIdx)
     }
   }
 
@@ -90,7 +106,8 @@ function compileOneFilter(filter, ctx) {
       )
     }
     const p = ph()
-    const pattern = `%${escapeIlikePattern(String(filter.value))}%`
+    const raw = String(filter.value)
+    const pattern = op === 'EQ' ? escapeIlikePattern(raw) : `%${escapeIlikePattern(raw)}%`
     return frag(
       `(c.car_number ILIKE ${p} ESCAPE '\\' OR EXISTS (
         SELECT 1 FROM customer_cars cc
@@ -170,7 +187,7 @@ function compileOneFilter(filter, ctx) {
       return frag(`${existsBase} AND cf.label = ${p})`, [tag], nextIdx)
     }
     if (op === 'EXCLUDES') {
-      return frag(`${existsBase} AND cf.label = ${p})`, [tag], nextIdx)
+      return frag(`NOT ${existsBase} AND cf.label = ${p})`, [tag], nextIdx)
     }
   }
 

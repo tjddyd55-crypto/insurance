@@ -34,8 +34,8 @@ export const USER_INTENT_JSON_SCHEMA = {
         additionalProperties: false,
         properties: {
           name: { type: ['string', 'null'] },
-          due: { type: ['string', 'null'] },
-          day: { type: ['string', 'null'] },
+          due: { type: ['string', 'null'], enum: ['today', 'tomorrow', 'week', null] },
+          day: { type: ['string', 'null'], enum: ['today', 'tomorrow', null] },
           pending: { type: ['boolean', 'null'] },
           customerId: { type: ['number', 'null'] },
         },

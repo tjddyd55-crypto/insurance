@@ -411,6 +411,7 @@ export async function processAiAssistantMessage(pool, req, input) {
           toolKey: toolResult.toolKey,
           navigate: readDecision.navigate,
           query: readDecision.params?.query,
+          includeDate: readDecision.params?.includeDate === true,
         })
         const uiActions = sanitizeUiActions(formatted.uiActions ?? [])
         const readContext = {
@@ -418,6 +419,8 @@ export async function processAiAssistantMessage(pool, req, input) {
           intent: classified.intent ?? classified.requestedAction ?? null,
           toolKey: toolResult.toolKey ?? readDecision.toolKey,
           queryFields: readDecision.params?.customerQueryAst?.filters?.map((f) => f.field) ?? [],
+          due: readDecision.toolKey === 'task.list' ? readDecision.params?.due ?? null : null,
+          day: readDecision.toolKey === 'schedule.list' ? readDecision.params?.day ?? null : null,
         }
         conversation = updateAiConversation(conversation.conversationId, userId, gaId, {
           pendingClarification: null,

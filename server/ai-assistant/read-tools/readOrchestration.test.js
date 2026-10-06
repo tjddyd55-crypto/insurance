@@ -184,6 +184,58 @@ describe('read orchestration', () => {
     assert.match(f.text, /할 일 2건/)
   })
 
+  it('explicit tomorrow task scope overrides a conflicting classifier filter', () => {
+    const d = resolveReadOrchestrationAction(
+      {
+        domain: INTENT_DOMAIN.ONE_FC_QUERY,
+        intent: 'LIST',
+        requiredToolKey: 'task.list',
+        requiresTool: true,
+        filters: { due: 'today' },
+      },
+      {},
+      '내일 할일',
+    )
+    assert.equal(d.params.due, 'tomorrow')
+  })
+
+  it('task follow-up inherits previous tomorrow scope and can request date display', () => {
+    const d = resolveReadOrchestrationAction(
+      {
+        domain: INTENT_DOMAIN.ONE_FC_QUERY,
+        intent: 'LIST',
+        requiredToolKey: 'task.list',
+        requiresTool: true,
+        filters: { due: null },
+      },
+      { lastReadContext: { toolKey: 'task.list', due: 'tomorrow' } },
+      '날짜와 같이 알려줘',
+    )
+    assert.equal(d.params.due, 'tomorrow')
+    assert.equal(d.params.includeDate, true)
+
+    const f = formatReadToolResponse(
+      {
+        toolKey: 'task.list',
+        due: 'tomorrow',
+        todos: [{ id: '1', title: 'AI테스트_이영희 상담 준비', dueDate: '2026-10-06' }],
+      },
+      { includeDate: true },
+    )
+    assert.match(f.text, /10월 6일/)
+  })
+
+  it('filtered customer list zero result is described as no matching customers', () => {
+    const f = formatReadToolResponse({
+      toolKey: 'customer.list',
+      total: 0,
+      customers: [],
+      filterCount: 1,
+      limit: 20,
+    })
+    assert.equal(f.text, '조건에 맞는 고객이 없습니다.')
+  })
+
   it('schedule list uses separate lines without duplicate customer suffix', () => {
     const f = formatReadToolResponse({
       toolKey: 'schedule.list',

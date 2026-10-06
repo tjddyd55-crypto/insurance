@@ -20,13 +20,16 @@ export async function listCustomersForAssistant(pool, req, input = {}) {
   const gaId = parseGaId(req.user?.gaId)
   const limit = Math.min(Math.max(Number(input.customerQueryAst?.limit ?? input.limit) || 20, 1), 50)
   const countOnly = Boolean(input.countOnly)
+  const filterCount = Array.isArray(input.customerQueryAst?.filters)
+    ? input.customerQueryAst.filters.length
+    : 0
 
   if (!userId || gaId == null) {
-    return { customers: [], total: 0, limit, countOnly }
+    return { customers: [], total: 0, limit, countOnly, filterCount }
   }
   const accessEarly = req.user?.customerAccess ?? 'own'
   if (accessEarly === 'none') {
-    return { customers: [], total: 0, limit, countOnly }
+    return { customers: [], total: 0, limit, countOnly, filterCount }
   }
 
   const vis = resolveCustomerVisibilitySqlForSelect(req, userId, gaId)
@@ -68,7 +71,7 @@ export async function listCustomersForAssistant(pool, req, input = {}) {
   const total = Number(countResult.rows[0]?.c ?? 0)
 
   if (countOnly) {
-    return { customers: [], total, limit, countOnly: true }
+    return { customers: [], total, limit, countOnly: true, filterCount }
   }
 
   const limitPlace = `$${plc + 3 + filterParams.length}`
@@ -94,5 +97,5 @@ export async function listCustomersForAssistant(pool, req, input = {}) {
     phoneTail: phoneTail(row.phone),
   }))
 
-  return { customers, total, limit, countOnly: false }
+  return { customers, total, limit, countOnly: false, filterCount }
 }

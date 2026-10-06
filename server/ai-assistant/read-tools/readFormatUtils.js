@@ -40,12 +40,13 @@ export function formatKoreanMonthDay(ymd) {
 /**
  * @param {string | null | undefined} dueDateYmd
  * @param {'today' | 'tomorrow' | 'week'} scope
+ * @param {{ force?: boolean }} [options]
  */
-export function formatTodoDueSuffix(dueDateYmd, scope) {
+export function formatTodoDueSuffix(dueDateYmd, scope, options = {}) {
   if (!dueDateYmd) {
     return ''
   }
-  if (scope === 'today' || scope === 'tomorrow') {
+  if (!options.force && (scope === 'today' || scope === 'tomorrow')) {
     return ''
   }
   const today = getKstDateString()
