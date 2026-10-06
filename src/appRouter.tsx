@@ -34,6 +34,7 @@ import CustomerCarPage from './features/customers/pages/CustomerCarPage'
 import CustomerInputPage from './features/customers/pages/CustomerInputPage'
 import CustomerRegisterPage from './features/customers/pages/CustomerRegisterPage'
 import CustomerConsultationsPage from './features/customers/pages/CustomerConsultationsPage'
+import CustomerCoverageSimulationsPage from './features/customers/pages/CustomerCoverageSimulationsPage'
 import CustomerFilesPage from './features/customers/pages/CustomerFilesPage'
 import CustomerGaExcelPage from './features/customers/pages/CustomerGaExcelPage'
 import CustomerMemosPage from './features/customers/pages/CustomerMemosPage'
@@ -140,6 +141,7 @@ import { NewScenarioTemplatePage } from './features/coverage-simulator/pages/New
 import { CoverageSimulatorCrmRouteLayout } from './features/coverage-simulator/pages/CoverageSimulatorCrmRouteLayout'
 import { ScenarioSelectPage } from './features/coverage-simulator/pages/ScenarioSelectPage'
 import { SimulationListPage } from './features/coverage-simulator/pages/SimulationListPage'
+import { TemplateSimulationListPage } from './features/coverage-simulator/pages/TemplateSimulationListPage'
 import { CoverageScenarioTemplateEditorPage } from './features/coverage-simulator/pages/CoverageScenarioTemplateEditorPage'
 import { CoverageSharePublicPage } from './features/coverage-simulator/pages/CoverageSharePublicPage'
 import PublicAccountRestrictedPage from './features/common/PublicAccountRestrictedPage'
@@ -275,6 +277,7 @@ export const appRouter = createBrowserRouter([
         children: [
           { index: true, element: <ScenarioSelectPage /> },
           { path: 'templates/new', element: <NewScenarioTemplatePage /> },
+          { path: 'templates/:templateId/simulations', element: <TemplateSimulationListPage /> },
           { path: 'templates/:templateId/edit', element: <CoverageScenarioTemplateEditorPage /> },
           { path: 'saved', element: <SavedScenariosPage /> },
           { path: 'scenarios/:scenarioId/pdf', element: <PdfPreviewPage /> },
@@ -289,6 +292,7 @@ export const appRouter = createBrowserRouter([
         children: [
           { index: true, element: <ScenarioSelectPage /> },
           { path: 'templates/new', element: <NewScenarioTemplatePage /> },
+          { path: 'templates/:templateId/simulations', element: <TemplateSimulationListPage /> },
           { path: 'templates/:templateId/edit', element: <CoverageScenarioTemplateEditorPage /> },
           { path: 'saved', element: <SavedScenariosPage /> },
           { path: 'scenarios/:scenarioId/pdf', element: <PdfPreviewPage /> },
@@ -469,6 +473,7 @@ export const appRouter = createBrowserRouter([
                   { path: ':customerId/files', element: <CustomerFilesPage /> },
                   { path: ':customerId/consultations', element: <CustomerConsultationsPage /> },
                   { path: ':customerId/premium-payments', element: <CustomerPremiumPaymentsPage /> },
+                  { path: ':customerId/coverage-simulations', element: <CustomerCoverageSimulationsPage /> },
                   { path: ':customerId/ga-excel', element: <CustomerGaExcelPage /> },
                   { path: ':customerId/memos', element: <CustomerMemosPage /> },
                   { path: ':customerId/auto-form', element: <CustomerAutoFormPage /> },
@@ -512,6 +517,7 @@ export const appRouter = createBrowserRouter([
                 children: [
                   { index: true, element: <ScenarioSelectPage /> },
                   { path: 'templates/new', element: <NewScenarioTemplatePage /> },
+                  { path: 'templates/:templateId/simulations', element: <TemplateSimulationListPage /> },
                   { path: 'templates/:templateId/edit', element: <CoverageScenarioTemplateEditorPage /> },
                   { path: 'saved', element: <SavedScenariosPage /> },
                   { path: 'scenarios/:scenarioId/pdf', element: <PdfPreviewPage /> },

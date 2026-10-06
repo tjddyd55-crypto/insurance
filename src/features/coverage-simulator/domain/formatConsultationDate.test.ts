@@ -2,44 +2,40 @@ import { describe, expect, it } from 'vitest'
 
 import {
   formatConsultationListDate,
-  formatCoverageAuthoredDate,
   formatCoveragePrintDate,
-  formatCoverageSeoulDateTimeLabel,
   formatCoverageSeoulYmd,
   formatCoverageShareMetaDate,
   seoulTodayYmd,
 } from './formatConsultationDate'
 
-describe('coverage simulator Seoul dates', () => {
-  it('shows 2026-09-30T16:30:00Z as 2026.10.01', () => {
-    const instant = '2026-09-30T16:30:00Z'
-    expect(formatConsultationListDate(instant)).toBe('2026.10.01')
-    expect(formatCoveragePrintDate(instant)).toBe('2026.10.01')
-    expect(formatCoverageShareMetaDate(instant)).toBe('2026.10.01')
-    expect(formatCoverageSeoulDateTimeLabel(instant)).toBe('2026.10.01 01:30')
-  })
+const CREATED_AT_KST_OCT_1 = '2026-09-30T16:16:00Z'
 
-  it('prefers createdAt over a stored UTC consultation day for list, print, and share', () => {
+describe('coverage simulator authored date', () => {
+  it('shows 2026-09-30T16:16:00Z as 2026.10.01 on list, print, and public share', () => {
     const record = {
-      createdAt: '2026-09-30T16:16:00Z',
+      createdAt: CREATED_AT_KST_OCT_1,
       consultationDate: '2026-09-30',
     }
-    expect(formatConsultationListDate(record.createdAt)).toBe('2026.10.01')
-    expect(formatCoverageAuthoredDate(record, '—')).toBe('2026.10.01')
-    expect(formatCoverageAuthoredDate(record, '')).toBe('2026.10.01')
-    expect(seoulTodayYmd(new Date(record.createdAt))).toBe('2026-10-01')
+    expect(formatConsultationListDate(CREATED_AT_KST_OCT_1)).toBe('2026.10.01')
+    expect(formatCoveragePrintDate(record)).toBe('2026.10.01')
+    expect(formatCoverageShareMetaDate(record)).toBe('2026.10.01')
   })
 
-  it('keeps a date-only consultation day', () => {
+  it('keeps a date-only consultation day when createdAt is absent', () => {
+    const record = { consultationDate: '2026-09-30' }
     expect(formatCoverageSeoulYmd('2026-09-30')).toBe('2026-09-30')
     expect(formatConsultationListDate('2026-09-30')).toBe('2026.09.30')
-    expect(formatCoveragePrintDate('2026-09-30')).toBe('2026.09.30')
-    expect(formatCoverageShareMetaDate('2026-09-30')).toBe('2026.09.30')
+    expect(formatCoveragePrintDate(record)).toBe('2026.09.30')
+    expect(formatCoverageShareMetaDate(record)).toBe('2026.09.30')
+  })
+
+  it('stores a new consultation day as the Seoul calendar date', () => {
+    expect(seoulTodayYmd(new Date(CREATED_AT_KST_OCT_1))).toBe('2026-10-01')
   })
 
   it('uses an em dash for a missing list or print date and an empty share meta', () => {
     expect(formatConsultationListDate(null)).toBe('—')
-    expect(formatCoveragePrintDate('')).toBe('—')
-    expect(formatCoverageShareMetaDate(undefined)).toBe('')
+    expect(formatCoveragePrintDate({})).toBe('—')
+    expect(formatCoverageShareMetaDate({})).toBe('')
   })
 })

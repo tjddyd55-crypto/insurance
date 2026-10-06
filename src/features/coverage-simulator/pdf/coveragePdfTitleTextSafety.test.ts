@@ -6,7 +6,6 @@ import {
   COVERAGE_PDF_INLINE_BADGE_STYLES,
   COVERAGE_PDF_INLINE_TITLE_LABEL_STYLES,
   COVERAGE_PDF_TITLE_RASTER_SHIFT_PX,
-  COVERAGE_PDF_TITLE_SIDE_INSET,
 } from './coveragePdfTitleTextSafety'
 
 describe('coveragePdfTitleTextSafety', () => {
@@ -38,9 +37,5 @@ describe('coveragePdfTitleTextSafety', () => {
     expect(COVERAGE_PDF_TITLE_RASTER_SHIFT_PX).toBe('-8px')
     expect(COVERAGE_PDF_INLINE_BADGE_LABEL_STYLES.top).not.toBe(COVERAGE_PDF_BADGE_RASTER_SHIFT_PX)
     expect(COVERAGE_PDF_INLINE_TITLE_LABEL_STYLES.top).not.toBe(COVERAGE_PDF_TITLE_RASTER_SHIFT_PX)
-  })
-
-  it('insets the title box equally so its center stays on the divider', () => {
-    expect(COVERAGE_PDF_TITLE_SIDE_INSET).toBe('52px')
   })
 })

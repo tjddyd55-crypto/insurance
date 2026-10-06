@@ -14,23 +14,34 @@ import {
 import { scenarioToUserTemplate, templateToEditableScenario } from '../domain/templateOperations'
 import { calculateScenarioTotals } from '../domain/totals'
 import type { CoverageScenario, CoverageScenarioItem } from '../domain/types'
-import { getUserTemplateById, saveUserTemplateAsync } from '../storage/templateRepository'
+import { getScenarioTemplateById, saveScenarioTemplate } from '../storage/templateRepository'
 
-export function useTemplateEditor() {
+export type UseTemplateEditorOptions = {
+  templateIdOverride?: string | null
+  embedded?: boolean
+}
+
+export function useTemplateEditor(options?: UseTemplateEditorOptions) {
   const navigate = useNavigate()
-  const { templateId } = useParams()
+  const params = useParams()
+  const templateId = options?.templateIdOverride ?? params.templateId
+  const embedded = options?.embedded ?? false
   const { basePath, userKey } = useCoverageSimulatorScope()
 
   const [scenario, setScenario] = useState<CoverageScenario | null>(null)
   const [formMode, setFormMode] = useState<CoverageSimulatorFormMode>(null)
 
   useEffect(() => {
+    if (embedded && !templateId) {
+      setScenario(null)
+      return
+    }
     if (!templateId) return
-    const template = getUserTemplateById(userKey, templateId)
+    const template = getScenarioTemplateById(userKey, templateId)
     if (template) {
       setScenario(templateToEditableScenario(template))
     }
-  }, [templateId, userKey])
+  }, [embedded, templateId, userKey])
 
   const totals = useMemo(
     () => (scenario ? calculateScenarioTotals(scenario) : { currentTotal: 0, proposedTotal: 0 }),
@@ -47,14 +58,9 @@ export function useTemplateEditor() {
 
   const persist = (next: CoverageScenario) => {
     if (!templateId) return
-    const existing = getUserTemplateById(userKey, templateId)
-    void saveUserTemplateAsync(userKey, scenarioToUserTemplate(next, existing ?? undefined))
-      .then((saved) => {
-        setScenario(templateToEditableScenario(saved))
-      })
-      .catch(() => {
-        window.alert('저장에 실패했습니다. 다시 시도해 주세요.')
-      })
+    const existing = getScenarioTemplateById(userKey, templateId)
+    const saved = saveScenarioTemplate(userKey, scenarioToUserTemplate(next, existing ?? undefined))
+    setScenario(templateToEditableScenario(saved))
   }
 
   const closeForm = useCallback(() => {
