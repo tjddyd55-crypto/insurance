@@ -30,3 +30,25 @@ export function resolveCustomerCardKeepOpenId(
   }
   return null
 }
+
+export function customerIdsEqual(
+  a: number | string | null | undefined,
+  b: number | string | null | undefined,
+): boolean {
+  if (a == null || b == null) {
+    return false
+  }
+  const na = Number(a)
+  const nb = Number(b)
+  if (Number.isFinite(na) && Number.isFinite(nb)) {
+    return na === nb
+  }
+  return String(a) === String(b)
+}
+
+export function findCustomerByIdInList(
+  customerId: number,
+  customers: readonly CustomerRecord[],
+): CustomerRecord | undefined {
+  return customers.find((row) => customerIdsEqual(row.id, customerId))
+}

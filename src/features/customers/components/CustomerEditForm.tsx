@@ -259,17 +259,17 @@ export default function CustomerEditForm({
           />
           <CustomerBusinessInfoFields
             value={editForm.businessInfo}
-            disabled={saving}
             onChange={(next) =>
               setEditForm((prev) => (prev ? { ...prev, businessInfo: next } : prev))
             }
+            disabled={saving}
           />
           <CustomerFireInsuranceLocationsEditor
             locations={editForm.fireInsuranceLocations}
-            disabled={saving}
             onChange={(next) =>
               setEditForm((prev) => (prev ? { ...prev, fireInsuranceLocations: next } : prev))
             }
+            disabled={saving}
           />
           <CustomerSpecialDatesEditor
             specialDates={editForm.specialDates}

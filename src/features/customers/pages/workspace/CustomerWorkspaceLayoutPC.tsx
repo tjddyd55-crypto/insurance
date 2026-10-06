@@ -1,4 +1,4 @@
-import type { MutableRefObject } from 'react'
+import { useEffect, useRef, type MutableRefObject } from 'react'
 import { Outlet } from 'react-router-dom'
 import { EmptyState } from '../../../../components/feedback'
 import { FormButton } from '../../../../components/form'
@@ -18,6 +18,7 @@ type WorkspaceActiveTab =
   | 'claims'
   | 'personal-message'
   | 'signatures'
+  | 'coverage-simulations'
   | null
 
 export type CustomerWorkspaceLayoutPCProps = {
@@ -42,6 +43,7 @@ export type CustomerWorkspaceLayoutPCProps = {
   onClickPersonalMessage: () => void
   onClickSignatures: () => void
   onClickViewOnMap: () => void
+  onClickCoverageSimulations: () => void
   /** 좌측 `CustomersPage` 가 `handleOpenRelatedCustomer` 를 등록한다. 최근 등록 고객 패널 등에서 재사용. */
   openRelatedCustomerRef: MutableRefObject<
     ((customerId: number, customerName?: string) => void) | null
@@ -74,6 +76,9 @@ function rightTitle(pathname: string): string {
   }
   if (pathname.includes('/premium-payments')) {
     return '카드 수납'
+  }
+  if (pathname.includes('/coverage-simulations')) {
+    return '보장 시뮬레이션'
   }
   if (pathname.includes('/ga-excel')) {
     return 'GA 고객 데이터'
@@ -116,6 +121,7 @@ export default function CustomerWorkspaceLayoutPC({
   onClickPersonalMessage,
   onClickSignatures,
   onClickViewOnMap,
+  onClickCoverageSimulations,
   openRelatedCustomerRef,
 }: CustomerWorkspaceLayoutPCProps) {
   const genderLabel =
@@ -129,6 +135,15 @@ export default function CustomerWorkspaceLayoutPC({
       ? `보험나이 ${selectedCustomer.insuranceAge}세`
       : null
   const isCustomerIndexPath = pathname === '/customers' || pathname === '/customers/'
+  const rightBodyRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const body = rightBodyRef.current
+    if (!body) {
+      return
+    }
+    body.scrollTop = 0
+  }, [selectedCustomerId])
 
   return (
     <section className="customer-workspace-layout__right" aria-label="고객 연동 작업영역">
@@ -291,11 +306,22 @@ export default function CustomerWorkspaceLayoutPC({
             >
               카드 수납
             </FormButton>
+            <FormButton
+              htmlType="button"
+              variant="action"
+              className={`customer-workspace-layout__tab${
+                activeTab === 'coverage-simulations' ? ' customer-workspace-layout__tab--active' : ''
+              }`}
+              disabled={!selectedCustomerId}
+              onClick={onClickCoverageSimulations}
+            >
+              시뮬레이션
+            </FormButton>
           </div>
         </nav>
       </header>
 
-      <div className="customer-workspace-layout__right-body">
+      <div ref={rightBodyRef} className="customer-workspace-layout__right-body">
         {selectedCustomerId || isCustomerIndexPath ? (
           /**
            * 고객 id 를 자식 서브트리 `key` 로 선언(routing-ssot.mdc 7).

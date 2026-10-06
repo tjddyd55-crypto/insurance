@@ -4,15 +4,12 @@ import { CustomerCarReadCard } from './CustomerCarReadCard'
 export type CustomerCarsReadGridProps = {
   cars: CustomerCarFormItem[]
   loading?: boolean
+  embedded?: boolean
 }
 
-export function CustomerCarsReadGrid({ cars, loading = false }: CustomerCarsReadGridProps) {
-  return (
-    <section className="customer-detail-read__section customer-car-read-section">
-      <div className="customer-detail-read__section-header">
-        <h4 className="customer-detail-read__section-title">자동차보험 정보</h4>
-      </div>
-      <div className="customer-detail-read__section-body">
+export function CustomerCarsReadGrid({ cars, loading = false, embedded = false }: CustomerCarsReadGridProps) {
+  const body = (
+    <>
         {loading ? (
           <p className="customer-car-read-section__loading">자동차 정보를 불러오는 중…</p>
         ) : cars.length > 0 ? (
@@ -28,7 +25,19 @@ export function CustomerCarsReadGrid({ cars, loading = false }: CustomerCarsRead
         ) : (
           <p className="customer-car-read-section__empty">등록된 자동차 정보가 없습니다.</p>
         )}
+    </>
+  )
+
+  if (embedded) {
+    return <div className="customer-car-read-section customer-car-read-section--embedded">{body}</div>
+  }
+
+  return (
+    <section className="customer-detail-read__section customer-car-read-section">
+      <div className="customer-detail-read__section-header">
+        <h4 className="customer-detail-read__section-title">자동차 정보</h4>
       </div>
+      <div className="customer-detail-read__section-body">{body}</div>
     </section>
   )
 }

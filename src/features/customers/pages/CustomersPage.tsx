@@ -17,6 +17,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useConfirmDialog } from '../../../components/dialog'
 import { getPublicOrigin } from '../../../lib/publicOrigin'
 import { copyTextToClipboard } from '../../../lib/clipboard'
+import { CUSTOMER_ALERT_DATE_LABEL } from '../../../../shared/customerAlertDateCopy.js'
 import { useAuth } from '../../auth/AuthProvider'
 import { isCarInsuranceFeatureEnabledForGa } from '../../dashboard/gaTenantMenu'
 import { canShowCustomerDetailElectronicSignature } from '../config/customerDetailFeatureFlags'
@@ -98,7 +99,10 @@ import {
   saveCustomerFireInsuranceLocationsForCustomer,
 } from '../utils/customerFireInsuranceLocationsSaveUtils'
 import { ensureCustomerFireInsuranceLocationFormItems } from '../utils/customerFireInsuranceLocationFormUtils'
-import { isCustomerBusinessInfoFormEmpty } from '../domain/customerBusinessInfo'
+import {
+  customerBusinessInfoToForm,
+  isCustomerBusinessInfoFormEmpty,
+} from '../domain/customerBusinessInfo'
 import { getCustomerSpecialDatesValidationError } from '../utils/customerSpecialDateFormUtils'
 import {
   customerCustomFieldRecordToFormItem,
@@ -117,6 +121,8 @@ import {
 import { coerceCustomersStatePayload } from '../utils/customerStateGuards'
 import { dedupeCustomersById } from '../utils/customerSearchDedupe'
 import {
+  customerIdsEqual,
+  findCustomerByIdInList,
   mergeCustomerInList,
   resolveCustomerCardKeepOpenId,
 } from '../utils/customerListOpenState'
@@ -124,9 +130,12 @@ import {
   CUSTOMER_LIST_PATH,
   CUSTOMER_CREATE_MODE_QUERY,
   buildCustomerWorkspacePath,
-  PC_DEFAULT_CUSTOMER_WORKSPACE_TAB,
   buildCustomerListPath,
 } from '../utils/customerRoutePaths'
+import {
+  buildPcCustomerSwitchTarget,
+  prepareCustomerWorkspaceSwitchSideEffects,
+} from '../utils/customerWorkspaceCustomerSwitch'
 import { navigateToCustomerOnMap } from '../utils/customerMapFocusNavigation'
 import { parseMapEntryExpandCustomerId } from '../utils/customerMapDetailNavigation'
 import { parseClaimWorkspaceExpandCustomerId } from '../utils/customerClaimWorkspaceNavigation'
@@ -225,6 +234,8 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   const pendingMapExpandIdRef = useRef<number | null>(null)
   const mapEntryExpandPendingRef = useRef<number | null>(null)
   const pinnedListCustomerIdRef = useRef<number | null>(null)
+  const listRefreshPreserveCustomerIdRef = useRef<number | null>(null)
+  const setExpandedIdRef = useRef<Dispatch<SetStateAction<number | null>>>(rawSetExpandedId)
   const [pinnedWorkspaceCustomer, setPinnedWorkspaceCustomer] = useState<CustomerRecord | null>(null)
   const editingIdRef = useRef<number | null>(null)
   const editFormRef = useRef<CustomerEditFormState | null>(null)
@@ -252,6 +263,32 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       setScrollRequestKey((prev) => prev + 1)
     }
   }, [])
+
+  const mergeCustomerInListState = useCallback((updated: CustomerRecord) => {
+    setCustomers((prev) => mergeCustomerInList(prev, updated))
+    setAdvSearchHits((hits) =>
+      hits == null ? hits : mergeCustomerInList(hits, updated),
+    )
+    setPinnedWorkspaceCustomer((prev) =>
+      prev != null && customerIdsEqual(prev.id, updated.id) ? updated : prev,
+    )
+  }, [])
+
+  const keepCustomerCardOpen = useCallback(
+    (customerId: number, freshRow?: CustomerRecord | null) => {
+      const id = parseSelectedCustomerId(String(customerId))
+      if (id == null) {
+        return
+      }
+      pinnedListCustomerIdRef.current = id
+      pendingMapExpandIdRef.current = id
+      setExpandedIdRef.current(id)
+      if (freshRow != null && customerIdsEqual(freshRow.id, id)) {
+        setPinnedWorkspaceCustomer(freshRow)
+      }
+    },
+    [],
+  )
 
   /**
    * expandedId state 와 `?customerId=` 쿼리를 같은 호출에서 원자적으로 갱신하는 래퍼.
@@ -625,23 +662,10 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     onEnterExcelSelectMode,
   })
 
-  const mergeCustomerInListState = useCallback((updated: CustomerRecord) => {
-    setCustomers((prev) => mergeCustomerInList(prev, updated))
-    setAdvSearchHits((hits) =>
-      hits == null ? hits : mergeCustomerInList(hits, updated),
-    )
-    setPinnedWorkspaceCustomer((prev) => (prev?.id === updated.id ? updated : prev))
-  }, [])
-
-  const keepCustomerCardOpen = useCallback(
-    (customerId: number) => {
-      pinnedListCustomerIdRef.current = customerId
-      applyListCustomerExpand(customerId, false)
-    },
-    [applyListCustomerExpand],
-  )
-
-  const loadCustomers = useCallback(async (options?: { silent?: boolean }) => {
+  const loadCustomers = useCallback(async (options?: {
+    silent?: boolean
+    preserveExpandedCustomerId?: number | null
+  }) => {
     if (!token || user?.role !== 'USER') {
       setIsLoading(false)
       setCustomersTotalCount(0)
@@ -681,6 +705,21 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       const safeData = coerceCustomersStatePayload(rows)
       setCustomers(safeData)
       setCustomersTotalCount(total)
+      const preserveId =
+        options?.preserveExpandedCustomerId ?? listRefreshPreserveCustomerIdRef.current
+      if (!isMobile && preserveId != null) {
+        const parsedId = parseSelectedCustomerId(String(preserveId))
+        if (parsedId != null) {
+          pinnedListCustomerIdRef.current = parsedId
+          pendingMapExpandIdRef.current = parsedId
+          setExpandedIdRef.current(parsedId)
+          const freshRow = findCustomerByIdInList(parsedId, safeData)
+          if (freshRow) {
+            setPinnedWorkspaceCustomer(freshRow)
+          }
+        }
+      }
+      listRefreshPreserveCustomerIdRef.current = null
     } catch (error) {
       setStatusText(error instanceof Error ? error.message : '목록을 불러오지 못했습니다.')
     } finally {
@@ -698,6 +737,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     appliedConsultationTo,
     appliedInflowSource,
     appliedListSort,
+    isMobile,
   ])
 
   const handleToggleFavorite = useCallback(
@@ -753,13 +793,12 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       if (isMobile) {
         return
       }
-      const next = new URLSearchParams(searchParams)
-      next.set('customerId', String(c.id))
+      prepareCustomerWorkspaceSwitchSideEffects(c.id)
       navigate(
-        buildCustomerWorkspacePath({
-          customerId: c.id,
-          tab: PC_DEFAULT_CUSTOMER_WORKSPACE_TAB,
-          query: next,
+        buildPcCustomerSwitchTarget({
+          pathname: location.pathname,
+          nextCustomerId: c.id,
+          searchParams,
         }),
         {
           replace: true,
@@ -767,7 +806,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         },
       )
     },
-    [isMobile, navigate, searchParams],
+    [isMobile, location.pathname, navigate, searchParams],
   )
 
   const handleOpenRelatedCustomer = useCallback(
@@ -793,11 +832,12 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         return
       }
 
+      prepareCustomerWorkspaceSwitchSideEffects(customerId)
       navigate(
-        buildCustomerWorkspacePath({
-          customerId,
-          tab: PC_DEFAULT_CUSTOMER_WORKSPACE_TAB,
-          query: next,
+        buildPcCustomerSwitchTarget({
+          pathname: location.pathname,
+          nextCustomerId: customerId,
+          searchParams: next,
         }),
         {
           replace: true,
@@ -805,7 +845,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         },
       )
     },
-    [isMobile, navigate, searchParams, setExpandedId],
+    [isMobile, location.pathname, navigate, searchParams, setExpandedId],
   )
 
   useEffect(() => {
@@ -879,10 +919,8 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   /** URL path/query 의 고객 id → 좌측 리스트 expandedId 동기화 */
   useEffect(() => {
     if (activeListCustomerId == null) {
-      if (expandedIdRef.current == null) {
-        pinnedListCustomerIdRef.current = null
-        setPinnedWorkspaceCustomer(null)
-      }
+      pinnedListCustomerIdRef.current = null
+      setPinnedWorkspaceCustomer(null)
       return
     }
 
@@ -1169,12 +1207,12 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         cancelEdit()
         mergeCustomerInListState(updatedCustomer)
         if (keepOpenCustomerId != null) {
-          keepCustomerCardOpen(keepOpenCustomerId)
+          keepCustomerCardOpen(keepOpenCustomerId, updatedCustomer)
         }
-        await loadCustomers({ silent: true })
-        if (keepOpenCustomerId != null) {
-          keepCustomerCardOpen(keepOpenCustomerId)
-        }
+        await loadCustomers({
+          silent: true,
+          preserveExpandedCustomerId: keepOpenCustomerId,
+        })
         return
       }
       try {
@@ -1190,7 +1228,14 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           '고객 정보는 수정했습니다. 화재보험 소재지 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.',
         )
         cancelEdit()
-        await loadCustomers()
+        mergeCustomerInListState(updatedCustomer)
+        if (keepOpenCustomerId != null) {
+          keepCustomerCardOpen(keepOpenCustomerId, updatedCustomer)
+        }
+        await loadCustomers({
+          silent: true,
+          preserveExpandedCustomerId: keepOpenCustomerId,
+        })
         return
       }
       try {
@@ -1203,17 +1248,17 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         }
       } catch {
         setStatusText(
-          '고객 정보는 수정했습니다. 기념일 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+          `고객 정보는 수정했습니다. ${CUSTOMER_ALERT_DATE_LABEL} 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.`,
         )
         cancelEdit()
         mergeCustomerInListState(updatedCustomer)
         if (keepOpenCustomerId != null) {
-          keepCustomerCardOpen(keepOpenCustomerId)
+          keepCustomerCardOpen(keepOpenCustomerId, updatedCustomer)
         }
-        await loadCustomers({ silent: true })
-        if (keepOpenCustomerId != null) {
-          keepCustomerCardOpen(keepOpenCustomerId)
-        }
+        await loadCustomers({
+          silent: true,
+          preserveExpandedCustomerId: keepOpenCustomerId,
+        })
         return
       }
       try {
@@ -1243,17 +1288,24 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       cancelEdit()
       mergeCustomerInListState(updatedCustomer)
       if (keepOpenCustomerId != null) {
-        keepCustomerCardOpen(keepOpenCustomerId)
+        keepCustomerCardOpen(keepOpenCustomerId, updatedCustomer)
       }
-      await loadCustomers({ silent: true })
-      if (keepOpenCustomerId != null) {
-        keepCustomerCardOpen(keepOpenCustomerId)
-      }
+      await loadCustomers({
+        silent: true,
+        preserveExpandedCustomerId: keepOpenCustomerId,
+      })
     } catch (error) {
       const msg = error instanceof Error ? error.message : '수정에 실패했습니다.'
       setStatusText(msg)
     }
-  }, [token, user?.role, cancelEdit, loadCustomers, mergeCustomerInListState, keepCustomerCardOpen])
+  }, [
+    token,
+    user?.role,
+    cancelEdit,
+    loadCustomers,
+    mergeCustomerInListState,
+    keepCustomerCardOpen,
+  ])
 
   const handleEditSaveRequest = useCallback(async () => {
     if (editSavingRef.current) {
@@ -1345,11 +1397,11 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         try {
           const [serverCars, serverSpecialDates, serverCustomFields, serverFireLocations] =
             await Promise.all([
-            listCustomerCars(token, cl.id),
-            listCustomerSpecialDates(token, cl.id),
-            listCustomerCustomFields(token, cl.id),
-            listCustomerFireInsuranceLocations(token, cl.id),
-          ])
+              listCustomerCars(token, cl.id),
+              listCustomerSpecialDates(token, cl.id),
+              listCustomerCustomFields(token, cl.id),
+              listCustomerFireInsuranceLocations(token, cl.id),
+            ])
           if (editingIdRef.current !== customerId) {
             return
           }
@@ -1371,7 +1423,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           })
         } catch {
           setStatusText(
-            '자동차·기념일·추가 정보·화재보험 목록을 불러오지 못했습니다. 기본 정보로 편집합니다.',
+            `자동차·${CUSTOMER_ALERT_DATE_LABEL}·추가 정보·화재보험 목록을 불러오지 못했습니다. 기본 정보로 편집합니다.`,
           )
         }
       })()
@@ -1899,6 +1951,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
               onOpenOnMap={handleOpenOnMap}
               mobileCopyFeedback={mobileCopyFeedback}
               onOpenRelatedCustomer={handleOpenRelatedCustomer}
+              onCustomerUpdated={mergeCustomerInListState}
               token={token}
               onToggleFavorite={handleToggleFavorite}
               variant={isMobile ? 'mobile' : 'pc'}
