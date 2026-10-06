@@ -46,7 +46,7 @@ export const AI_CUSTOMER_RELATED_TABLES = C([
 
 function inferDataClass(def) {
   if (def.privacyLevel === 'secret') return AI_SEMANTIC_DATA_CLASS.SECRET_SECURITY
-  if (def.systemManaged || def.privacyLevel === 'internal') return AI_SEMANTIC_DATA_CLASS.INTERNAL_SYSTEM
+  if (def.privacyLevel === 'internal') return AI_SEMANTIC_DATA_CLASS.INTERNAL_SYSTEM
   return AI_SEMANTIC_DATA_CLASS.USER_BUSINESS
 }
 
