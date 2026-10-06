@@ -50,6 +50,9 @@ READ-ONLY assistant scope:
 - Use due=all when the user asks for unfinished/pending tasks without a date, or explicitly removes a previous date restriction (for example, "not tomorrow, unfinished tasks").
 - For schedule.list, filters.day is today | tomorrow.
 - Preserve prior time scope only when the follow-up does not replace or remove it.
+- Use returnFields for requested output/projection. Filters decide WHICH records match; returnFields decide WHICH data fields are shown.
+- If the user asks for only one field ("주소만 알려줘"), do not request a full customer detail response; set returnFields to that semantic key and keep the previously resolved customer/list target.
+- When no specific output field is requested, returnFields=[] and the server may use its normal compact summary.
 
 ${formatCustomerQuerySchemaForPrompt()}`
 
