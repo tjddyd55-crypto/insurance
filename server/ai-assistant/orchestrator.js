@@ -50,6 +50,7 @@ import {
 import { formatCustomerQueryableFieldsHelp } from '../../shared/ai-assistant/customer-query/formatSchemaForPrompt.js'
 import { summarizeCustomerQueryForLog } from './customer-query/resolveCustomerQueryFromIntent.js'
 import { buildAssistantCapabilitiesMessage } from './read-tools/buildAssistantCapabilitiesMessage.js'
+import { recordAiImprovement } from './improvement/improvementService.js'
 
 function defaultImportContext(importSessionId, session, duplicatePolicy, previewVersionHash) {
   return {
@@ -300,6 +301,25 @@ export async function processAiAssistantMessage(pool, req, input) {
     }
 
     if (readDecision.policy === 'INVALID_CUSTOMER_QUERY') {
+      const queryError = readDecision.queryError ?? {}
+      const issueType =
+        queryError.code === 'INVALID_OPERATOR'
+          ? 'QUERY_OPERATOR_NOT_SUPPORTED'
+          : 'DATA_FIELD_NOT_DEFINED'
+      try {
+        await recordAiImprovement(pool, {
+          issueType,
+          domain: classified.domain ?? 'CUSTOMER',
+          fieldKey: queryError.field ?? classified.customerQuery?.unsupportedField ?? null,
+          toolKey: classified.requiredToolKey ?? 'customer.list',
+          requestedAction: classified.requestedAction ?? classified.intent ?? null,
+          requestText: text,
+          errorCode: queryError.code ?? 'INVALID_CUSTOMER_QUERY',
+          errorMessage: queryError.message ?? null,
+        })
+      } catch (improvementError) {
+        console.error('[ai-improvement-record-failed]', improvementError?.message ?? improvementError)
+      }
       const reply = {
         role: 'assistant',
         kind: 'text',
@@ -307,6 +327,28 @@ export async function processAiAssistantMessage(pool, req, input) {
       }
       appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
       return { conversationId: conversation.conversationId, messages: [reply] }
+    }
+
+    if (readDecision.policy === 'TOOL_UNAVAILABLE') {
+      try {
+        await recordAiImprovement(pool, {
+          issueType: 'TOOL_NOT_WIRED',
+          domain: classified.domain ?? 'ONE_FC_QUERY',
+          toolKey: readDecision.toolKey ?? classified.requiredToolKey ?? null,
+          requestedAction: classified.requestedAction ?? classified.intent ?? null,
+          requestText: text,
+          errorCode: 'TOOL_UNAVAILABLE',
+        })
+      } catch (improvementError) {
+        console.error('[ai-improvement-record-failed]', improvementError?.message ?? improvementError)
+      }
+      const reply = {
+        role: 'assistant',
+        kind: 'text',
+        text: '요청 내용은 이해했지만 현재 해당 조회 기능은 아직 연결되어 있지 않습니다.',
+      }
+      appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
+      return { conversationId: conversation.conversationId, messages: [reply], code: 'TOOL_NOT_WIRED' }
     }
 
     if (readDecision.policy === 'SEARCH_NEED_TARGET') {
@@ -445,13 +487,26 @@ export async function processAiAssistantMessage(pool, req, input) {
         return { conversationId: conversation.conversationId, messages: [reply] }
       } catch (toolError) {
         const code = toolError?.code ?? 'AI_READ_TOOL_FAILED'
+        try {
+          await recordAiImprovement(pool, {
+            issueType: code === 'AI_TOOL_NOT_AVAILABLE' ? 'TOOL_NOT_WIRED' : 'EXECUTION_FAILED',
+            domain: classified.domain ?? 'ONE_FC_QUERY',
+            toolKey: readDecision.toolKey ?? classified.requiredToolKey ?? null,
+            requestedAction: classified.requestedAction ?? classified.intent ?? null,
+            requestText: text,
+            errorCode: code,
+            errorMessage: toolError instanceof Error ? toolError.message : String(toolError ?? ''),
+          })
+        } catch (improvementError) {
+          console.error('[ai-improvement-record-failed]', improvementError?.message ?? improvementError)
+        }
         const reply = {
           role: 'assistant',
           kind: 'error',
           text:
             code === 'AI_TOOL_NOT_AVAILABLE'
-              ? '요청한 조회 기능은 아직 AI 비서에 연결되지 않았습니다.'
-              : '조회를 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+              ? '요청 내용은 이해했지만 현재 해당 조회 기능은 아직 연결되어 있지 않습니다.'
+              : '요청 내용은 이해했지만 실행 중 오류가 발생했습니다. 개선 목록에 기록했습니다.',
           code,
         }
         appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
@@ -499,10 +554,22 @@ export async function processAiAssistantMessage(pool, req, input) {
   }
 
   if (topDecision.action === TOP_LEVEL_ACTION.UNSUPPORTED_TOOL) {
+    try {
+      await recordAiImprovement(pool, {
+        issueType: 'TOOL_NOT_WIRED',
+        domain: classified.domain ?? 'UNKNOWN',
+        toolKey: classified.requiredToolKey ?? null,
+        requestedAction: classified.requestedAction ?? classified.intent ?? null,
+        requestText: text,
+        errorCode: 'UNSUPPORTED_TOOL',
+      })
+    } catch (improvementError) {
+      console.error('[ai-improvement-record-failed]', improvementError?.message ?? improvementError)
+    }
     const reply = {
       role: 'assistant',
       kind: 'text',
-      text: topDecision.assistantText,
+      text: topDecision.assistantText ?? '요청 내용은 이해했지만 현재 해당 실행 기능은 아직 연결되어 있지 않습니다.',
     }
     appendAiConversationMessage(conversation.conversationId, userId, gaId, reply)
     return { conversationId: conversation.conversationId, messages: [reply] }

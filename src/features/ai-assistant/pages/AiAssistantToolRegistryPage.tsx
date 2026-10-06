@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { FormButton, FormInput } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
-import { fetchAiToolRegistry } from '../api/aiToolsAdminApi'
+import {
+  fetchAiDatabaseCatalog,
+  fetchAiImprovements,
+  fetchAiToolRegistry,
+  updateAiImprovementStatus,
+} from '../api/aiToolsAdminApi'
 import { filterAiTools } from '../aiToolRegistryFilters'
 import {
   actionTypeLabel,
@@ -14,7 +19,13 @@ import {
   STATUS_FILTER_OPTIONS,
   type StatusFilterKey,
 } from '../labels'
-import type { AiToolDefinition, AiToolRegistryResponse } from '../types'
+import type {
+  AiDatabaseCatalog,
+  AiImprovementItem,
+  AiImprovementStatus,
+  AiToolDefinition,
+  AiToolRegistryResponse,
+} from '../types'
 import '../ai-assistant-tool-registry-table.css'
 
 function SummaryCard({ label, value }: { label: string; value: number | string }) {
@@ -140,6 +151,10 @@ export default function AiAssistantToolRegistryPage() {
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<AiToolDefinition | null>(null)
+  const [improvements, setImprovements] = useState<AiImprovementItem[]>([])
+  const [catalog, setCatalog] = useState<AiDatabaseCatalog | null>(null)
+  const [catalogSearch, setCatalogSearch] = useState('')
+  const [improvementBusyId, setImprovementBusyId] = useState<number | null>(null)
 
   const load = useCallback(async () => {
     if (!token?.trim()) {
@@ -148,8 +163,14 @@ export default function AiAssistantToolRegistryPage() {
     setLoading(true)
     setError('')
     try {
-      const payload = await fetchAiToolRegistry(token)
+      const [payload, improvementRows, dbCatalog] = await Promise.all([
+        fetchAiToolRegistry(token),
+        fetchAiImprovements(token),
+        fetchAiDatabaseCatalog(token),
+      ])
       setData(payload)
+      setImprovements(improvementRows)
+      setCatalog(dbCatalog)
     } catch (e) {
       setError(e instanceof Error ? e.message : '불러오지 못했습니다.')
     } finally {
@@ -173,6 +194,33 @@ export default function AiAssistantToolRegistryPage() {
   }, [data, statusFilter, categoryFilter, search])
 
   const summary = data?.summary
+  const filteredCatalogTables = useMemo(() => {
+    const q = catalogSearch.trim().toLowerCase()
+    if (!catalog?.tables) return []
+    if (!q) return catalog.tables
+    return catalog.tables.filter(
+      (table) =>
+        table.tableName.toLowerCase().includes(q) ||
+        table.columns.some((column) => column.columnName.toLowerCase().includes(q)),
+    )
+  }, [catalog, catalogSearch])
+
+  const changeImprovementStatus = useCallback(
+    async (item: AiImprovementItem, status: AiImprovementStatus) => {
+      if (!token?.trim()) return
+      setImprovementBusyId(item.id)
+      setError('')
+      try {
+        const updated = await updateAiImprovementStatus(token, item.id, status)
+        setImprovements((rows) => rows.map((row) => (row.id === updated.id ? updated : row)))
+      } catch (e) {
+        setError(e instanceof Error ? e.message : '상태 변경에 실패했습니다.')
+      } finally {
+        setImprovementBusyId(null)
+      }
+    },
+    [token],
+  )
 
   return (
     <main className="page page--with-back">
@@ -328,6 +376,118 @@ export default function AiAssistantToolRegistryPage() {
           </table>
         </div>
       </div>
+
+      <section style={{ marginTop: 28 }}>
+        <header className="page-header" style={{ marginBottom: 12 }}>
+          <h2 style={{ margin: 0 }}>AI 개선센터</h2>
+          <p style={{ color: 'var(--text-sub)', margin: '6px 0 0' }}>
+            DB 미정의, Tool 미연결, 연산자 미지원, 실행 오류를 같은 canonical key로 자동 누적합니다.
+          </p>
+        </header>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
+          <SummaryCard label="전체 개선항목" value={improvements.length} />
+          <SummaryCard label="NEW" value={improvements.filter((x) => x.status === 'NEW').length} />
+          <SummaryCard
+            label="누적 발생"
+            value={improvements.reduce((sum, x) => sum + x.occurrenceCount, 0)}
+          />
+        </div>
+        <div className="card" style={{ padding: 0 }}>
+          <div className="admin-data-table-wrap">
+            <table className="admin-data-table" style={{ fontSize: 13 }}>
+              <thead>
+                <tr>
+                  <th>상태</th>
+                  <th>유형</th>
+                  <th>대상</th>
+                  <th>최근 요청</th>
+                  <th>발생</th>
+                  <th>최근 발생</th>
+                </tr>
+              </thead>
+              <tbody>
+                {improvements.length === 0 ? (
+                  <tr><td colSpan={6} style={{ padding: 20, color: 'var(--text-sub)' }}>아직 자동 등록된 개선 항목이 없습니다.</td></tr>
+                ) : improvements.map((item) => (
+                  <tr key={item.id}>
+                    <td>
+                      <select
+                        className="field__control"
+                        value={item.status}
+                        disabled={improvementBusyId === item.id}
+                        onChange={(e) => void changeImprovementStatus(item, e.target.value as AiImprovementStatus)}
+                      >
+                        <option value="NEW">NEW</option>
+                        <option value="IN_PROGRESS">IN_PROGRESS</option>
+                        <option value="RESOLVED">RESOLVED</option>
+                        <option value="IGNORED">IGNORED</option>
+                      </select>
+                    </td>
+                    <td>{item.issueType}</td>
+                    <td style={{ wordBreak: 'break-all' }}>
+                      {item.fieldKey ?? item.toolKey ?? item.requestedAction ?? item.canonicalKey}
+                    </td>
+                    <td style={{ maxWidth: 420, whiteSpace: 'pre-wrap' }}>{item.lastRequestText || '—'}</td>
+                    <td>{item.occurrenceCount}</td>
+                    <td>{item.lastSeenAt ? new Date(item.lastSeenAt).toLocaleString('ko-KR') : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section style={{ marginTop: 28 }}>
+        <header className="page-header" style={{ marginBottom: 12 }}>
+          <h2 style={{ margin: 0 }}>DB 정의 카탈로그</h2>
+          <p style={{ color: 'var(--text-sub)', margin: '6px 0 0' }}>
+            현재 Development DB의 public schema를 직접 읽어 전체 테이블·컬럼·FK를 표시합니다.
+          </p>
+        </header>
+        {catalog ? (
+          <>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
+              <SummaryCard label="테이블" value={catalog.tableCount} />
+              <SummaryCard label="컬럼" value={catalog.columnCount} />
+              <SummaryCard label="FK" value={catalog.foreignKeyCount} />
+            </div>
+            <div className="card" style={{ padding: 16, marginBottom: 12 }}>
+              <label className="field" style={{ margin: 0 }}>
+                <span className="field__label">DB 정의 검색</span>
+                <FormInput
+                  className="field__control"
+                  value={catalogSearch}
+                  onChange={(e) => setCatalogSearch(e.target.value)}
+                  placeholder="테이블명 또는 컬럼명"
+                />
+              </label>
+            </div>
+            <div className="card" style={{ padding: 0 }}>
+              <div className="admin-data-table-wrap" style={{ maxHeight: 520, overflow: 'auto' }}>
+                <table className="admin-data-table" style={{ fontSize: 13 }}>
+                  <thead><tr><th>테이블</th><th>컬럼 정의</th></tr></thead>
+                  <tbody>
+                    {filteredCatalogTables.map((table) => (
+                      <tr key={table.tableName}>
+                        <td style={{ verticalAlign: 'top', fontWeight: 600 }}>{table.tableName}</td>
+                        <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                          {table.columns.map((column) => {
+                            const fk = column.foreignKey
+                              ? ` → ${column.foreignKey.table}.${column.foreignKey.column}`
+                              : ''
+                            return `${column.columnName}:${column.dataType}${column.nullable ? '?' : ''}${fk}`
+                          }).join(' · ')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        ) : null}
+      </section>
 
       {selected ? <ToolDetailPanel tool={selected} onClose={() => setSelected(null)} /> : null}
     </main>

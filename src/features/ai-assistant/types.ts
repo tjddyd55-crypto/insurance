@@ -57,3 +57,55 @@ export interface AiToolRegistryResponse {
   summaryByCategory: AiToolRegistryCategoryRow[]
   tools: AiToolDefinition[]
 }
+
+
+export type AiImprovementIssueType =
+  | 'DATA_FIELD_NOT_DEFINED'
+  | 'TOOL_NOT_WIRED'
+  | 'QUERY_OPERATOR_NOT_SUPPORTED'
+  | 'PERMISSION_BLOCKED'
+  | 'EXECUTION_FAILED'
+
+export type AiImprovementStatus = 'NEW' | 'IN_PROGRESS' | 'RESOLVED' | 'IGNORED'
+
+export interface AiImprovementItem {
+  id: number
+  canonicalKey: string
+  issueType: AiImprovementIssueType
+  domain: string
+  fieldKey: string | null
+  toolKey: string | null
+  requestedAction: string | null
+  sampleRequestText: string
+  lastRequestText: string
+  occurrenceCount: number
+  status: AiImprovementStatus
+  lastErrorCode: string | null
+  lastErrorMessage: string | null
+  firstSeenAt: string
+  lastSeenAt: string
+  resolvedAt: string | null
+}
+
+export interface AiDatabaseCatalogColumn {
+  columnName: string
+  dataType: string
+  udtName: string
+  nullable: boolean
+  hasDefault: boolean
+  foreignKey: { table: string; column: string } | null
+}
+
+export interface AiDatabaseCatalogTable {
+  tableName: string
+  columns: AiDatabaseCatalogColumn[]
+}
+
+export interface AiDatabaseCatalog {
+  schema: string
+  generatedAt: string
+  tableCount: number
+  columnCount: number
+  foreignKeyCount: number
+  tables: AiDatabaseCatalogTable[]
+}

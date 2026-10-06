@@ -1724,7 +1724,7 @@ registerCustomerCarsApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCustomerSpecialDatesApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCustomerRegionApi(apiRouter, { pool, requireAuth, handleDbError })
 registerReminderCalendarApi(apiRouter, { pool, requireAuth, handleDbError })
-registerAdminAiToolsApi(apiRouter, { requireAuth, requireSuperAdmin })
+registerAdminAiToolsApi(apiRouter, { pool, requireAuth, requireSuperAdmin })
 registerCustomerImportApi(apiRouter, {
   pool,
   requireAuth,
