@@ -4,6 +4,7 @@ import { escapeIlikePattern } from '../../lib/customerConsultationListQuery.js'
 import { resolveCustomerVisibilitySqlForSelect } from '../../lib/customerRowVisibilitySql.js'
 import { safeQuery } from '../../utils/dbSafeQuery.js'
 import { parseGaId } from '../../lib/parseGaId.js'
+import { buildGenericCustomerProjectionSelect, mapCustomerProjectionRow } from '../query-engine/genericCustomerProjectionEngine.js'
 
 const SELECT_LIST = `
   c.id, c.user_id, c.name, c.birth_date, c.phone, c.address, c.job, c.notes,
@@ -135,8 +136,9 @@ export async function searchCustomersForAssistant(pool, req, input) {
  * @param {import('pg').Pool} pool
  * @param {import('express').Request} req
  * @param {number} customerId
+ * @param {{ returnFields?: string[] }} options
  */
-export async function getCustomerForAssistant(pool, req, customerId) {
+export async function getCustomerForAssistant(pool, req, customerId, options = {}) {
   const userId = requireUserId(req)
   const gaId = parseGaId(req.user?.gaId)
   const id = Number(customerId)
@@ -153,21 +155,39 @@ export async function getCustomerForAssistant(pool, req, customerId) {
     return null
   }
   const plc = vis.params.length
-  const cidPlace = `$${plc + 1}`
+  const requestedReturnFields = Array.isArray(options.returnFields) ? options.returnFields : []
+  const hasProjection = requestedReturnFields.length > 0
+  const projectionPlan = buildGenericCustomerProjectionSelect(requestedReturnFields, {
+    userPlaceholder: `${plc + 1}`,
+    gaPlaceholder: `${plc + 2}`,
+  })
+  const projectionSql =
+    projectionPlan.selectFragments.length > 0
+      ? `,\n      ${projectionPlan.selectFragments.join(',\n      ')}`
+      : ''
+  const cidPlace = hasProjection ? `${plc + 3}` : `${plc + 1}`
+  const queryParams = hasProjection
+    ? [...vis.params, userId, gaId, id]
+    : [...vis.params, id]
   const result = await safeQuery(
     pool,
     `
-    SELECT ${SELECT_LIST}
+    SELECT ${SELECT_LIST}${projectionSql}
     FROM customers c
     WHERE (${vis.clause}) AND c.deleted_at IS NULL AND c.id = ${cidPlace}
     LIMIT 1
     `,
-    [...vis.params, id],
+    queryParams,
   )
   if (!result.rows[0]) {
     return null
   }
   const summary = toAiCustomerSummary(result.rows[0])
   const hints = await loadCustomerCustomFieldHints(pool, id, userId, gaId)
-  return { ...summary, ...hints }
+  return {
+    ...summary,
+    ...hints,
+    projection: mapCustomerProjectionRow(result.rows[0], projectionPlan),
+    returnFields: projectionPlan.returnFields,
+  }
 }
