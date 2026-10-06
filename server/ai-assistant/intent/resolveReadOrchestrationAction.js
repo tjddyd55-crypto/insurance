@@ -6,6 +6,7 @@ import {
 import { resolveCustomerIdFromContext } from './resolveCustomerReference.js'
 import { extractCustomerQueryFromIntent } from '../customer-query/resolveCustomerQueryFromIntent.js'
 import { isReadToolCallable } from '../read-tools/readToolAllowlist.js'
+import { normalizeCustomerReturnFields } from '../query-engine/genericCustomerProjectionEngine.js'
 
 export const READ_ORCHESTRATION_ACTION = Object.freeze({
   EXECUTE_READ_TOOL: 'EXECUTE_READ_TOOL',
@@ -103,6 +104,21 @@ export function resolveReadOrchestrationAction(classified, conversation, text) {
   }
 
   const params = { ...(classified.filters ?? {}) }
+  if (toolKey.startsWith('customer.')) {
+    try {
+      params.returnFields = normalizeCustomerReturnFields(classified.returnFields ?? [])
+    } catch (error) {
+      return {
+        action: READ_ORCHESTRATION_ACTION.NO_READ_INTENT,
+        policy: 'INVALID_CUSTOMER_QUERY',
+        queryError: {
+          code: error?.code ?? 'INVALID_RETURN_FIELD',
+          field: error?.details?.semanticKey ?? null,
+          message: error instanceof Error ? error.message : '반환 필드를 처리할 수 없습니다.',
+        },
+      }
+    }
+  }
   if (toolKey === 'customer.search') {
     const built = buildCustomerSearchQuery({ text, target, classified })
     if (built.reason === 'REFERENCE_ONLY' && !customerId) {
@@ -179,7 +195,7 @@ export function resolveReadOrchestrationAction(classified, conversation, text) {
     return {
       action: READ_ORCHESTRATION_ACTION.EXECUTE_READ_TOOL,
       toolKey: 'customer.get',
-      params: { customerId },
+      params: { customerId, returnFields: params.returnFields ?? [] },
       policy: 'ALLOW',
       navigate: true,
     }
@@ -197,11 +213,11 @@ export function resolveReadOrchestrationAction(classified, conversation, text) {
       return {
         action: READ_ORCHESTRATION_ACTION.EXECUTE_READ_TOOL,
         toolKey: 'customer.search',
-        params: { query: target.name, limit: 5 },
+        params: { query: target.name, limit: 5, returnFields: params.returnFields ?? [] },
         policy: 'ALLOW',
         navigate,
         followUpTool: toolKey,
-        followUpParams: { limit: params.limit },
+        followUpParams: { limit: params.limit, returnFields: params.returnFields ?? [] },
       }
     }
     if (navigate && customerId == null) {
@@ -222,10 +238,11 @@ export function resolveReadOrchestrationAction(classified, conversation, text) {
     return {
       action: READ_ORCHESTRATION_ACTION.EXECUTE_READ_TOOL,
       toolKey: 'customer.search',
-      params: { query: target.name, limit: 5 },
+      params: { query: target.name, limit: 5, returnFields: params.returnFields ?? [] },
       policy: 'ALLOW',
       navigate: true,
       followUpTool: 'customer.get',
+      followUpParams: { returnFields: params.returnFields ?? [] },
     }
   }
 

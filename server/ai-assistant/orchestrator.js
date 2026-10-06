@@ -446,7 +446,10 @@ export async function processAiAssistantMessage(pool, req, input) {
         ) {
           toolResult = await executeReadTool(pool, req, {
             toolKey: 'customer.get',
-            params: { customerId: toolResult.customers[0].customerId },
+            params: {
+              customerId: toolResult.customers[0].customerId,
+              returnFields: readDecision.params?.returnFields ?? [],
+            },
           })
         }
         const formatted = formatReadToolResponse(toolResult, {
@@ -461,6 +464,7 @@ export async function processAiAssistantMessage(pool, req, input) {
           intent: classified.intent ?? classified.requestedAction ?? null,
           toolKey: toolResult.toolKey ?? readDecision.toolKey,
           queryFields: readDecision.params?.customerQueryAst?.filters?.map((f) => f.field) ?? [],
+          returnFields: readDecision.params?.returnFields ?? [],
           due: readDecision.toolKey === 'task.list' ? readDecision.params?.due ?? null : null,
           day: readDecision.toolKey === 'schedule.list' ? readDecision.params?.day ?? null : null,
         }

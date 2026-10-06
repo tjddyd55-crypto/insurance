@@ -33,6 +33,11 @@ Date PERIOD tokens: ${CUSTOMER_QUERY_PERIOD_TOKENS.join(', ')}
 Rules:
 - Understand the user's free-form wording semantically and choose the canonical semantic field key above. Never route by a fixed synonym/keyword dictionary.
 - Put the canonical semantic key in customerQuery.filters[].field (example: customer.gender, consultation.nextContactDate, paymentContract.insuranceCompany).
+- returnFields is separate from filters: it is the exact business data the user wants shown in the answer.
+- When the user asks "주소 알려줘", "주소만", "전화번호만", "차량번호 보여줘" etc., put the matching canonical semantic keys in returnFields.
+- "7명 고객 모두 주소 알려줘" means customerQuery filters may be empty, limit=7, and returnFields=["customer.address"].
+- A field may appear only in returnFields without being a filter.
+- For follow-ups such as "주소만 알려줘", preserve the prior customer/list target from conversation context and replace the output projection with returnFields=["customer.address"].
 - Do not invent fields, tables, joins or SQL.
 - Only fields listed above are available to the generic customer query engine.
 - INTERNAL_SYSTEM and SECRET_SECURITY fields are intentionally excluded.

@@ -11,6 +11,34 @@ function formatGenderLabel(gender) {
   return null
 }
 
+function formatProjectionValue(item) {
+  const value = item?.value
+  if (Array.isArray(value)) {
+    const values = value.filter((v) => v != null && String(v).trim() !== '')
+    return values.length > 0 ? values.map((v) => String(v)).join(', ') : '등록된 정보 없음'
+  }
+  if (value == null || String(value).trim() === '') return '등록된 정보 없음'
+  if (item?.semanticKey === 'customer.gender') {
+    return formatGenderLabel(String(value).trim().toLowerCase()) ?? String(value)
+  }
+  if (item?.valueType === 'boolean') return value === true ? '예' : '아니오'
+  if (item?.valueType === 'date' || item?.valueType === 'datetime') {
+    return String(value).slice(0, 10)
+  }
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value)
+    } catch {
+      return String(value)
+    }
+  }
+  return String(value)
+}
+
+function formatProjectionLines(projection) {
+  return (projection ?? []).map((item) => `${item.label}: ${formatProjectionValue(item)}`)
+}
+
 /**
  * Grounded assistant payloads from tool results only (no GPT fill-in).
  * @param {object} toolResult
@@ -90,8 +118,11 @@ export function formatReadToolResponse(toolResult, meta = {}) {
     }
     const uiActions = meta.navigate ? buildCustomerDetailUiAction(c.customerId) : []
     const biz = c.businessInfo
+    const projectedLines = formatProjectionLines(c.projection)
     return {
-      text: [
+      text: projectedLines.length > 0
+        ? projectedLines.join('\n')
+        : [
         `${c.name} 고객 정보입니다.`,
         c.phone ? `연락처: ${c.phone}` : null,
         formatGenderLabel(c.gender) ? `성별: ${formatGenderLabel(c.gender)}` : null,
@@ -220,7 +251,12 @@ export function formatReadToolResponse(toolResult, meta = {}) {
       }
     }
     const shown = customers.slice(0, 20)
+    const hasProjection = shown.some((c) => Array.isArray(c.projection) && c.projection.length > 0)
     const lines = shown.map((c, i) => {
+      if (hasProjection) {
+        const projected = formatProjectionLines(c.projection)
+        return `${i + 1}. ${c.name}${projected.length ? ` — ${projected.join(' · ')}` : ''}`
+      }
       const genderLabel = formatGenderLabel(c.gender)
       return `${i + 1}. ${c.name}${genderLabel ? ` (${genderLabel})` : ''} — 휴대폰 끝 ${c.phoneTail}`
     })
