@@ -589,6 +589,9 @@ export interface AdminUserRow {
   referrer_ga_company_name: string | null
   last_login_at: string | null
   subscription_status: string | null
+  /** 서버 계산: free | paid | ended */
+  subscription_effective_category?: 'free' | 'paid' | 'ended'
+  subscription_entitled?: boolean
   subscription_status_label: string
   subscription_until: string | null
   subscription_list_label: string
