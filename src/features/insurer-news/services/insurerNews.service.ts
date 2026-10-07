@@ -466,7 +466,18 @@ export async function uploadNewsletterAttachments(
           body: item.file,
         })
         if (!proxyResp.ok) {
-          const msg = `업로드 실패 (${proxyResp.status})`
+          let msg = `업로드 실패 (${proxyResp.status})`
+          try {
+            const errBody = (await proxyResp.json()) as { message?: string; code?: string }
+            if (errBody?.message?.trim()) {
+              msg = String(errBody.message).trim()
+            }
+            if (errBody?.code?.trim()) {
+              msg = `${msg} (${errBody.code})`
+            }
+          } catch {
+            // non-JSON error body
+          }
           out.push({ ...item, status: 'failed', errorMessage: msg })
           continue
         }

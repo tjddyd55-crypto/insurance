@@ -202,6 +202,14 @@ export async function authenticateBoardWriterCredentials(executor, loginId, pass
     [row.id],
   )
   const allowedBoardIds = await listAllowedBoardIdsForWriter(executor, String(row.id))
+  if (!allowedBoardIds.length) {
+    return {
+      ok: false,
+      status: 403,
+      message: '할당된 소식지가 없습니다. GA 관리자에게 작성자 계정·게시판 권한을 요청해 주세요.',
+      code: 'BOARD_WRITER_NO_BOARD_ACCESS',
+    }
+  }
   return { ok: true, row, allowedBoardIds }
 }
 

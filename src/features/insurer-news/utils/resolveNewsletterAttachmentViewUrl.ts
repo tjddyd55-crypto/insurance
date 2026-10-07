@@ -67,18 +67,26 @@ export const resolveInsurerNewsAttachmentDisplayUrl = resolveNewsletterAttachmen
 
 /** 목록 카드·hero — objectKey 우선, 구형 heroImageUrl fallback */
 export function resolveNewsletterHeroViewUrl(
-  item: Pick<NewsletterItem, 'heroImageObjectKey' | 'heroImageUrl'>,
+  item: Pick<NewsletterItem, 'heroImageObjectKey' | 'heroImageUrl' | 'heroImageOpenUrl'>,
 ): string {
-  return resolveNewsletterAttachmentViewUrl({
+  const viaAttachment = resolveNewsletterAttachmentViewUrl({
     objectKey: item.heroImageObjectKey,
     url: item.heroImageUrl,
   })
+  if (viaAttachment) {
+    return viaAttachment
+  }
+  const openUrl = String(item.heroImageOpenUrl ?? '').trim()
+  if (openUrl) {
+    return resolveAbsoluteApiUrl(openUrl)
+  }
+  return ''
 }
 
 export function newsletterItemHasImageSource(
-  item: Pick<NewsletterItem, 'heroImageObjectKey' | 'heroImageUrl'>,
+  item: Pick<NewsletterItem, 'heroImageObjectKey' | 'heroImageUrl' | 'heroImageOpenUrl'>,
 ): boolean {
-  return Boolean(String(item.heroImageObjectKey ?? '').trim() || String(item.heroImageUrl ?? '').trim())
+  return Boolean(resolveNewsletterHeroViewUrl(item))
 }
 
 /** img src / open 탭용 — 이미 절대 URL이거나 raw object key·legacy path 보정 */

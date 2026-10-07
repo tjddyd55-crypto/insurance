@@ -91,7 +91,10 @@ export function registerPublicBoardWriterApi(apiRouter, ctx) {
       const password = String(body.password ?? '')
       const auth = await authenticateBoardWriterCredentials(pool, loginId, password, bcryptLib)
       if (!auth.ok) {
-        res.status(auth.status).json({ message: auth.message })
+        res.status(auth.status).json({
+          message: auth.message,
+          code: auth.code ?? 'BOARD_WRITER_LOGIN_FAILED',
+        })
         return
       }
       const redirectPath = await resolveBoardWriterLandingPath(pool, String(auth.row.id))

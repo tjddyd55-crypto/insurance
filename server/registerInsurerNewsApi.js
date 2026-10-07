@@ -84,6 +84,7 @@ import {
   normalizeInsuranceGaCode,
 } from './lib/insuranceStorageLayout.js'
 import { assertNewsObjectKeyScoped } from './lib/insurerNewsObjectKeyScope.js'
+import { newsPublisherStorageSlug, slugifyCompanySegment } from './lib/newsPublisherStorage.js'
 import {
   extractLinkPreviewFromBody,
   extractNewsletterLinkPreviewFromPayload,
@@ -159,16 +160,6 @@ function normalizeGaIdForPath(gaId) {
   return String(n)
 }
 
-/** @param {string} name */
-function slugifyCompanySegment(name) {
-  const t = String(name ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-  const stripped = t.replace(/[^\w\u3131-\u318e\uac00-\ud7a3-]/g, '')
-  return stripped.slice(0, 48) || 'insurer'
-}
-
 /** @param {string} label */
 function slugifyNewsletterBoard(label) {
   return normalizeNewsletterBoardSlug(label)
@@ -207,7 +198,7 @@ async function loadInsurerManagerNewsScope(pool, user) {
   }
   const row = r.rows[0]
   const gaIdPath = normalizeGaIdForPath(row.ga_id)
-  const companySlug = slugifyCompanySegment(row.company_name)
+  const companySlug = newsPublisherStorageSlug(row.company_name, 'insurer')
   return {
     gaId: Number(row.ga_id),
     gaCodeRaw: String(row.ga_code ?? '').trim(),
@@ -248,7 +239,7 @@ async function loadLossAdjusterNewsScope(pool, user) {
   const row = r.rows[0]
   const companyNameRaw = String(row.company_name ?? '').trim() || String(row.adjuster_name ?? '').trim()
   const gaIdPath = normalizeGaIdForPath(row.ga_id)
-  const companySlug = slugifyCompanySegment(companyNameRaw)
+  const companySlug = newsPublisherStorageSlug(companyNameRaw, 'loss-adjuster')
   return {
     gaId: Number(row.ga_id),
     gaCodeRaw: String(row.ga_code ?? '').trim(),
@@ -294,7 +285,7 @@ async function loadMasterCompanyNewsScope(pool, gaId, companyMasterId, channel =
     gaIdPath: normalizeGaIdForPath(row.ga_id),
     companyId: Number(row.id),
     companyName: String(row.name ?? '').trim(),
-    companySlug: slugifyCompanySegment(row.name),
+    companySlug: newsPublisherStorageSlug(row.name, 'insurer'),
     companyCodeRaw: String(row.company_code ?? '').trim(),
     newsChannel: normalizeNewsChannel(channel),
     storageCategory: storageCategoryForChannel(normalizeNewsChannel(channel)),
@@ -1061,7 +1052,10 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     }
     const insurerCode = String(body.insurerCode ?? '').trim()
     if (!insurerCode) {
-      throw Object.assign(new Error('insurerCode가 필요합니다.'), { httpStatus: 400 })
+      throw Object.assign(new Error('insurerCode가 필요합니다.'), {
+        httpStatus: 400,
+        code: 'INSURER_CODE_REQUIRED',
+      })
     }
     const r = await safeQuery(
       pool,
@@ -2475,7 +2469,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           contentType,
           userId: req.user?.id ?? null,
         })
-        res.status(400).json({ message: '허용되지 않은 파일 형식입니다.' })
+        res.status(400).json({ message: '허용되지 않은 파일 형식입니다.', code: 'FILE_TYPE_INVALID' })
         return
       }
       const maxB = maxBytesForMime(contentType)
@@ -2489,7 +2483,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           maxBytes: maxB,
           userId: req.user?.id ?? null,
         })
-        res.status(400).json({ message: '파일 크기가 허용 범위를 벗어났습니다.' })
+        res.status(400).json({ message: '파일 크기가 허용 범위를 벗어났습니다.', code: 'FILE_SIZE_EXCEEDED' })
         return
       }
 
@@ -2501,7 +2495,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           reason: 'no-scope',
           userId: req.user?.id ?? null,
         })
-        res.status(403).json({ message: '업로드 범위를 확인할 수 없습니다.' })
+        res.status(403).json({ message: '업로드 범위를 확인할 수 없습니다.', code: 'UPLOAD_SCOPE_DENIED' })
         return
       }
 
@@ -2546,7 +2540,12 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       res.json({ uploadUrl, objectKey, putHeaders })
     } catch (e89) {
       if (e89 && typeof e89 === 'object' && 'httpStatus' in e89 && typeof e89.httpStatus === 'number') {
-        res.status(e89.httpStatus).json({ message: e89 instanceof Error ? e89.message : '요청을 처리할 수 없습니다.' })
+        const code =
+          e89 && typeof e89 === 'object' && 'code' in e89 && typeof e89.code === 'string' ? e89.code : undefined
+        res.status(e89.httpStatus).json({
+          message: e89 instanceof Error ? e89.message : '요청을 처리할 수 없습니다.',
+          ...(code ? { code } : {}),
+        })
         return
       }
       insurerNewsLog.error({
@@ -2573,12 +2572,12 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       const contentTypeRaw = String(req.query.contentType ?? req.headers['content-type'] ?? '').trim()
       const contentType = contentTypeRaw.split(';')[0].trim()
       if (!ALLOWED_UPLOAD_MIME.has(contentType)) {
-        res.status(400).json({ message: '허용되지 않은 파일 형식입니다.' })
+        res.status(400).json({ message: '허용되지 않은 파일 형식입니다.', code: 'FILE_TYPE_INVALID' })
         return
       }
       const objectKey = String(req.query.objectKey ?? req.headers['x-object-key'] ?? '').trim()
       if (!objectKey) {
-        res.status(400).json({ message: 'objectKey가 필요합니다.' })
+        res.status(400).json({ message: 'objectKey가 필요합니다.', code: 'OBJECT_KEY_REQUIRED' })
         return
       }
       const scope = await resolvePresignScope(req, {
@@ -2586,7 +2585,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         insurerCode: String(req.query.insurerCode ?? req.headers['x-insurer-code'] ?? '').trim(),
       })
       if (!scope) {
-        res.status(403).json({ message: '업로드 범위를 확인할 수 없습니다.' })
+        res.status(403).json({ message: '업로드 범위를 확인할 수 없습니다.', code: 'UPLOAD_SCOPE_DENIED' })
         return
       }
       if (
@@ -2595,9 +2594,20 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           gaCodeRaw: scope.gaCodeRaw,
           storageCategory: scope.storageCategory,
           companySlug: scope.companySlug,
+          allowLegacyLossAdjusterCategory: true,
         })
       ) {
-        res.status(400).json({ message: '허용되지 않은 저장 경로입니다.' })
+        insurerNewsLog.error({
+          event: 'upload-fail',
+          stage: 'upload-proxy',
+          reason: 'object-key-out-of-scope',
+          objectKey,
+          companySlug: scope.companySlug,
+          storageCategory: scope.storageCategory,
+          gaCodeRaw: scope.gaCodeRaw,
+          userId: req.user?.id ?? null,
+        })
+        res.status(400).json({ message: '허용되지 않은 저장 경로입니다.', code: 'OBJECT_KEY_OUT_OF_SCOPE' })
         return
       }
       const maxB = maxBytesForMime(contentType)
@@ -2619,8 +2629,13 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       res.status(204).end()
     } catch (eProxy) {
       if (eProxy && typeof eProxy === 'object' && 'httpStatus' in eProxy && typeof eProxy.httpStatus === 'number') {
+        const code =
+          eProxy && typeof eProxy === 'object' && 'code' in eProxy && typeof eProxy.code === 'string'
+            ? eProxy.code
+            : undefined
         res.status(eProxy.httpStatus).json({
           message: eProxy instanceof Error ? eProxy.message : '요청을 처리할 수 없습니다.',
+          ...(code ? { code } : {}),
         })
         return
       }
