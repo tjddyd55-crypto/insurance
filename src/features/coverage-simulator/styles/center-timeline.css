@@ -328,11 +328,7 @@
 
 .coverage-simulator-root--mobile-preview .cs-axis-event__head {
   position: relative;
-  display: grid;
-  grid-template-columns: var(--cs-axis-head-side) minmax(0, 1fr) var(--cs-axis-head-side);
-  align-items: center;
-  justify-content: stretch;
-  gap: 0;
+  display: block;
   min-height: 28px;
   margin-bottom: var(--cs-timeline-title-amount-gap);
   background: var(--cs-color-surface, #ffffff);
@@ -340,12 +336,15 @@
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-event__badge {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   align-items: center;
   justify-content: flex-start;
   min-width: 0;
-  width: auto;
-  flex: none;
+  max-width: var(--cs-axis-head-side);
   overflow: hidden;
   z-index: 2;
 }
@@ -360,12 +359,11 @@
 
 .coverage-simulator-root--mobile-preview .cs-axis-event__title-axis {
   position: relative;
-  left: auto;
-  top: auto;
-  z-index: 3;
+  z-index: 1;
   margin: 0;
-  transform: none;
-  max-width: none;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0 var(--cs-axis-head-side);
   min-width: 0;
   pointer-events: auto;
   text-align: center;
@@ -391,18 +389,15 @@
 }
 
 .coverage-simulator-root--mobile-preview .cs-axis-event__actions {
-  position: relative;
-  top: auto;
-  right: auto;
-  transform: none;
-  flex: none;
-  width: auto;
-  min-width: 0;
-  margin-left: 0;
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 2px;
+  min-width: 0;
   z-index: 2;
 }
 
@@ -826,6 +821,20 @@
   border-bottom: none;
 }
 
+/* Read-only mobile (공유·미리보기): 편집기의 + 리듬 대신 얇은 항목 구분선 */
+.coverage-simulator-root--mobile-preview [data-coverage-timeline-mode='readonly'] .cs-axis-block:has(> .cs-axis-event) {
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e8edf3;
+}
+
+.coverage-simulator-root--mobile-preview [data-coverage-timeline-mode='readonly'] .cs-axis-block:has(> .cs-axis-marker),
+.coverage-simulator-root--mobile-preview [data-coverage-timeline-mode='readonly'] .cs-axis-block--subtotal {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
 .cs-axis-insert {
   position: relative;
   display: flex;
@@ -920,34 +929,46 @@
 
 .cs-axis-event__head {
   position: relative;
-  display: grid;
-  grid-template-columns: var(--cs-axis-head-side) minmax(0, 1fr) var(--cs-axis-head-side);
-  align-items: center;
-  gap: 0;
+  display: block;
   margin-bottom: var(--cs-space-3);
   min-height: 32px;
 }
 
 .cs-axis-event__badge {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   align-items: center;
   justify-content: flex-start;
   min-width: 0;
+  max-width: var(--cs-axis-head-side);
   overflow: hidden;
+  z-index: 2;
 }
 
 .cs-axis-event__title-axis {
   position: relative;
   margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0 var(--cs-axis-head-side);
   min-width: 0;
   text-align: center;
+  z-index: 1;
 }
 
 .cs-axis-event__actions {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   align-items: center;
   justify-content: flex-end;
   min-width: 0;
+  z-index: 2;
 }
 
 .cs-axis-event__title-axis .cs-axis-event__label {

@@ -95,90 +95,15 @@
   overflow-x: clip;
 }
 
-.customer-workspace-layout__tab-row {
-  flex-shrink: 0;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  border-bottom: 1px solid #e5e7eb;
-  background: var(--bg-main);
-  box-sizing: border-box;
-  position: relative;
-  z-index: 2;
+.customer-workspace-layout__right--page-tabs .customer-workspace-page {
+  flex: 1;
+  min-height: 0;
 }
 
-.customer-workspace-layout__tab-bar {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: stretch;
-  gap: 0;
-  width: 100%;
-  min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: thin;
-}
-
-.customer-workspace-layout__tab.button {
-  box-sizing: border-box;
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 34px;
-  height: 34px;
-  margin: 0;
-  padding: 0 12px;
-  border: none;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  background: transparent;
-  color: #111827;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.2;
-  white-space: nowrap;
-  box-shadow: none;
-  transform: none;
-  transition:
-    color 0.15s ease,
-    border-color 0.15s ease,
-    background-color 0.15s ease;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .customer-workspace-layout__tab.button:hover:not(:disabled):not(.customer-workspace-layout__tab--active) {
-    background: #f8fafc;
-    color: #111827;
-  }
-}
-
-.customer-workspace-layout__tab.button:active:not(:disabled) {
-  transform: none;
-  opacity: 1;
-}
-
-.customer-workspace-layout__tab.customer-workspace-layout__tab--active {
-  color: #166534;
-  border-bottom-color: #22c55e;
-  font-weight: 700;
-  background: transparent;
-}
-
-.customer-workspace-layout__tab.customer-workspace-layout__tab--active:focus-visible:not(:disabled) {
-  outline: none;
-  box-shadow: inset 0 -2px 0 #22c55e;
-}
-
-.customer-workspace-layout__tab.button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.customer-workspace-layout__right > .customer-workspace-layout__right-body {
+.customer-workspace-layout__right--page-tabs .customer-workspace-page__body.customer-workspace-layout__right-body {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 8px 12px 10px;
 }
 
 /*

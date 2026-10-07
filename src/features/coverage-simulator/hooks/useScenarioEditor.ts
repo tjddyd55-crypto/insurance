@@ -26,7 +26,7 @@ import { useCoverageSimulatorCrmStorage } from '../context/CoverageSimulatorCrmS
 import { isPreviewUserKey } from '../storage/previewStorageKeys'
 
 export type SaveConsultationResult =
-  | { ok: true; toast: string }
+  | { ok: true; toast?: string }
   | { ok: false; toast: string }
   | { ok: false; needsTitle: true; validationError?: string }
 
@@ -160,7 +160,7 @@ export function useScenarioEditor(options?: UseScenarioEditorOptions) {
           return { ok: false, needsTitle: true, validationError: '제목을 입력해 주세요.' }
         }
       } else if (!isDirty()) {
-        return { ok: true, toast: '변경된 내용이 없습니다.' }
+        return { ok: true }
       }
 
       setIsSaving(true)
@@ -173,7 +173,7 @@ export function useScenarioEditor(options?: UseScenarioEditorOptions) {
           navigate(`${basePath}/scenarios/${saved.id}`, { replace: true })
         }
         onSaved?.(saved)
-        return { ok: true, toast: '저장되었습니다.' }
+        return { ok: true }
       } catch {
         return { ok: false, toast: '저장하지 못했습니다. 다시 시도해 주세요.' }
       } finally {
