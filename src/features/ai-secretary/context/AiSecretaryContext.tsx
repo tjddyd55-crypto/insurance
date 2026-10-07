@@ -15,6 +15,7 @@ import {
   resolveAiPresentationMode,
   type AiPresentationMode,
 } from '../aiSecretaryPresentation'
+import { isAiSecretaryUserUiEnabled } from '../config/aiSecretaryUserUiGate'
 
 type AiSecretaryContextValue = {
   presentationMode: AiPresentationMode
@@ -63,6 +64,10 @@ export function AiSecretaryProvider({ children }: { children: ReactNode }) {
     if (!canUse) {
       return
     }
+    if (!isAiSecretaryUserUiEnabled()) {
+      navigate('/ai-assistant')
+      return
+    }
     if (isMobile) {
       navigate('/ai-assistant')
       return
@@ -76,12 +81,16 @@ export function AiSecretaryProvider({ children }: { children: ReactNode }) {
   const close = useCallback(() => setPanelOpen(false), [])
 
   const toggle = useCallback(() => {
+    if (!isAiSecretaryUserUiEnabled()) {
+      navigate('/ai-assistant')
+      return
+    }
     if (presentationMode === 'side_panel') {
       close()
       return
     }
     open()
-  }, [close, open, presentationMode])
+  }, [close, navigate, open, presentationMode])
 
   const openFullPage = useCallback(() => {
     if (!canUse) {

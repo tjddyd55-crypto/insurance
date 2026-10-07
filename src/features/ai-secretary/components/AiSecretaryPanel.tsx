@@ -1,3 +1,4 @@
+import { isAiSecretaryUserUiEnabled } from '../config/aiSecretaryUserUiGate'
 import { useAiSecretary } from '../context/AiSecretaryContext'
 import AiSecretaryWorkspace from './AiSecretaryWorkspace'
 import './ai-secretary-panel.css'
@@ -5,7 +6,7 @@ import './ai-secretary-panel.css'
 export default function AiSecretaryPanel() {
   const { presentationMode, close, canUse } = useAiSecretary()
 
-  if (!canUse || presentationMode !== 'side_panel') {
+  if (!canUse || !isAiSecretaryUserUiEnabled() || presentationMode !== 'side_panel') {
     return null
   }
 
