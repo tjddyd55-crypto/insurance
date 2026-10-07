@@ -1,3 +1,4 @@
+export { IntroFacebookPromoSection } from './IntroFacebookPromoSection'
 export { IntroLandingHeader } from './IntroLandingHeader'
 export { IntroMobileMenu } from './IntroMobileMenu'
 export { IntroLandingSections } from './IntroLandingSections'

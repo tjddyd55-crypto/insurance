@@ -218,6 +218,7 @@ export const appRouter = createBrowserRouter([
       { path: 'terms', element: <TermsOfServicePage /> },
       { path: 'account-deletion', element: <AccountDeletionPage /> },
       { path: 'introduction', element: <IntroductionPage /> },
+      { path: 'introduction/facebook', element: <IntroductionPage showFacebookPromo /> },
       // 과거 install 전용 페이지는 랜딩 다운로드 섹션으로 통일 (권장 정책 2)
       { path: 'introduction/install', element: <Navigate to="/introduction#download" replace /> },
       // production·외부 공유 URL 오타 호환 — SSOT: introductionPublicRoutes.ts

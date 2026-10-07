@@ -989,6 +989,77 @@
   }
 }
 
+/* Facebook 광고 랜딩 — Hero 직후 프로모션 코드 */
+.intro-landing-promo {
+  padding-top: 48px;
+  padding-bottom: 48px;
+}
+
+.intro-landing-promo__eyebrow {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.intro-landing-promo__title {
+  margin: 0 0 16px;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.intro-landing-promo__code-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.intro-landing-promo__code {
+  display: inline-flex;
+  align-items: center;
+  min-height: 52px;
+  padding: 10px 18px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--intro-landing-radius);
+  background: var(--bg-surface);
+  font-size: clamp(22px, 5vw, 30px);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.intro-landing-promo__copy {
+  flex-shrink: 0;
+}
+
+.intro-landing-promo__hint {
+  margin: 14px 0 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.intro-landing-promo__status {
+  margin: 10px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-primary, #166534);
+}
+
+@media (max-width: 768px) {
+  .intro-landing-promo__code-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .intro-landing-promo__copy {
+    width: 100%;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .intro-landing-header {
     transition: none;

@@ -57,6 +57,8 @@ type IntroSectionProps = {
 type IntroLandingSectionsProps = IntroSectionProps & {
   /** 문의 폼 주입 지점. 미지정 시 기본(클라이언트 전용) 폼을 사용한다. */
   contactForm?: ReactNode
+  /** Hero 직후 삽입 슬롯 (Facebook 프로모션 등). */
+  promoSlot?: ReactNode
 }
 
 function IntroFlowArrow() {
@@ -514,10 +516,11 @@ function ContactSection({ goToSection, contactForm }: IntroLandingSectionsProps)
   )
 }
 
-export function IntroLandingSections({ goToSection, contactForm }: IntroLandingSectionsProps) {
+export function IntroLandingSections({ goToSection, contactForm, promoSlot }: IntroLandingSectionsProps) {
   return (
     <>
       <HeroSection goToSection={goToSection} />
+      {promoSlot}
       <ProblemSection />
       <IntegrationSection />
       <FcSection />

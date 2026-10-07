@@ -2,6 +2,7 @@ import { submitPublicInquiry, toPublicInquiryPayload } from '../api/publicInquir
 import { BusinessInfoFooter } from '../components/BusinessInfoFooter'
 import {
   IntroContactForm,
+  IntroFacebookPromoSection,
   IntroLandingHeader,
   IntroLandingSections,
   IntroMobileMenu,
@@ -18,7 +19,12 @@ import '../introduction-landing.css'
  * - Primary CTA = #download, Secondary CTA = #contact
  * - 뷰포트 브레이크포인트로 헤더/그리드를 전환 (마케팅 페이지 Spec SSOT)
  */
-export function IntroductionPage() {
+type IntroductionPageProps = {
+  /** Facebook 광고 랜딩(`/introduction/facebook`)에서만 프로모션 영역을 노출한다. */
+  showFacebookPromo?: boolean
+}
+
+export function IntroductionPage({ showFacebookPromo = false }: IntroductionPageProps) {
   const state = useIntroductionLandingState()
 
   const handleContactSubmit = async (values: IntroContactFormValues) => {
@@ -33,6 +39,7 @@ export function IntroductionPage() {
         <IntroLandingSections
           goToSection={state.goToSection}
           contactForm={<IntroContactForm onValidSubmit={handleContactSubmit} />}
+          promoSlot={showFacebookPromo ? <IntroFacebookPromoSection /> : null}
         />
       </main>
       <BusinessInfoFooter />
