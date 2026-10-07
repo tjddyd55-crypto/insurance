@@ -1,0 +1,169 @@
+/* PC 고객 workspace — 실제 서류철형 page tab + 한 장의 content surface */
+
+.customer-workspace-page {
+  --ws-page-surface: var(--bg-card, #ffffff);
+  --ws-tray-bg: #e9edf2;
+  --ws-border: #d8dee6;
+  --ws-tab-inactive-bg: #eef2f6;
+  --ws-tab-inactive-hover: #f7f9fb;
+  --ws-tab-text: #475569;
+  --ws-tab-active-text: #14532d;
+  --ws-active-height: 44px;
+  --ws-inactive-height: 40px;
+  --ws-inactive-offset: 3px;
+  --ws-tab-gap: 1px;
+  --ws-tab-radius: 8px;
+
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  margin: 0 8px 8px;
+  box-sizing: border-box;
+  border-left: 1px solid var(--ws-border);
+  border-right: 1px solid var(--ws-border);
+  border-bottom: 1px solid var(--ws-border);
+  border-radius: 0 0 6px 6px;
+  background: var(--ws-page-surface);
+  box-shadow: none;
+}
+
+.customer-workspace-page__tabs {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 3;
+  /* 첫 탭 시작선을 page 왼쪽 외곽선과 정확히 맞춘다. */
+  padding: 6px 0 0;
+  background: var(--ws-tray-bg);
+}
+
+.customer-workspace-page__tab-scroll {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: var(--ws-tab-gap);
+  width: 100%;
+  min-width: 0;
+  min-height: var(--ws-active-height);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, #94a3b8 45%, transparent) transparent;
+}
+
+.customer-workspace-page__tab-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.customer-workspace-page__tab-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in srgb, #94a3b8 45%, transparent);
+}
+
+.customer-workspace-page__tab {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--ws-inactive-height);
+  min-height: var(--ws-inactive-height);
+  margin: 0;
+  padding: 0 16px;
+  border: 1px solid var(--ws-border);
+  /* 탭 아래 선을 없애 body와 한 장의 종이처럼 보이게 한다. */
+  border-bottom: none;
+  border-radius: var(--ws-tab-radius) var(--ws-tab-radius) 0 0;
+  background: var(--ws-tab-inactive-bg);
+  color: var(--ws-tab-text);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: none;
+  transform: translateY(var(--ws-inactive-offset));
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .customer-workspace-page__tab:hover:not(:disabled):not(.customer-workspace-page__tab--active) {
+    background: var(--ws-tab-inactive-hover);
+    border-color: #cbd5e1;
+    color: #334155;
+  }
+}
+
+.customer-workspace-page__tab:focus-visible {
+  outline: 2px solid color-mix(in srgb, #22c55e 55%, transparent);
+  outline-offset: 1px;
+  z-index: 5;
+}
+
+.customer-workspace-page__tab--active {
+  height: var(--ws-active-height);
+  min-height: var(--ws-active-height);
+  padding: 0 18px;
+  border-color: var(--ws-border);
+  border-bottom: none;
+  /* 선택된 인덱스의 상단 양 끝을 자연스럽게 라운드 처리 */
+  border-radius: 10px 10px 0 0;
+  background: var(--ws-page-surface);
+  color: var(--ws-tab-active-text);
+  font-weight: 700;
+  transform: translateY(0);
+  z-index: 4;
+}
+
+/* active tab과 body 사이 hairline을 완전히 덮어 한 장의 종이처럼 연결 */
+.customer-workspace-page__tab--active::after {
+  content: '';
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  bottom: -3px;
+  height: 4px;
+  background: var(--ws-page-surface);
+  pointer-events: none;
+}
+
+.customer-workspace-page__tab:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.customer-workspace-page__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  padding: 16px 20px 20px;
+  border: none;
+  border-top: none;
+  border-radius: 0;
+  background: var(--ws-page-surface);
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+}
+
+.customer-workspace-layout__right--page-tabs > .customer-workspace-layout__right-header {
+  border-bottom: none;
+  padding-bottom: 2px;
+}
+
+
+/* 고객 workspace 안에서만: 고객 파일·카드 수납·시뮬레이션의 회색 page 배경 제거 */
+.customer-workspace-page__body .storage-workspace,
+.customer-workspace-page__body .premium-payments-page,
+.customer-workspace-page__body .premium-payments-page__workspace,
+.customer-workspace-page__body .coverage-simulator-root.customer-coverage-simulations {
+  background: var(--ws-page-surface) !important;
+}

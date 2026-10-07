@@ -77,88 +77,33 @@
   font-size: 11px;
 }
 
-.customer-workspace-layout__tab-row {
-  flex-shrink: 0;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  border-bottom: 1px solid #e5e7eb;
-  background: var(--bg-main);
-  box-sizing: border-box;
+/*
+ * 좌측 고객 패널이 긴 리스트·스크롤 시 hit-test 박스가 우측 탭 영역과 겹치는 경우가 있어
+ * 우측 헤더(탭 바)를 동일 stacking context에서 위에 올린다. z-index 난립 없이 layout scope만 수정.
+ */
+.pc-root .customer-workspace-layout__right {
+  position: relative;
+  z-index: 1;
 }
 
-.customer-workspace-layout__tab-bar {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: stretch;
-  gap: 0;
-  width: 100%;
-  min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: thin;
+.pc-root .customer-workspace-layout__left {
+  position: relative;
+  z-index: 0;
 }
 
-.customer-workspace-layout__tab.button {
-  box-sizing: border-box;
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 34px;
-  height: 34px;
-  margin: 0;
-  padding: 0 12px;
-  border: none;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  background: transparent;
-  color: #111827;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.2;
-  white-space: nowrap;
-  box-shadow: none;
-  transform: none;
-  transition:
-    color 0.15s ease,
-    border-color 0.15s ease,
-    background-color 0.15s ease;
+.pc-root .customer-workspace-layout {
+  overflow-x: clip;
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .customer-workspace-layout__tab.button:hover:not(:disabled):not(.customer-workspace-layout__tab--active) {
-    background: #f8fafc;
-    color: #111827;
-  }
+.customer-workspace-layout__right--page-tabs .customer-workspace-page {
+  flex: 1;
+  min-height: 0;
 }
 
-.customer-workspace-layout__tab.button:active:not(:disabled) {
-  transform: none;
-  opacity: 1;
-}
-
-.customer-workspace-layout__tab.customer-workspace-layout__tab--active {
-  color: #166534;
-  border-bottom-color: #22c55e;
-  font-weight: 700;
-  background: transparent;
-}
-
-.customer-workspace-layout__tab.customer-workspace-layout__tab--active:focus-visible:not(:disabled) {
-  outline: none;
-  box-shadow: inset 0 -2px 0 #22c55e;
-}
-
-.customer-workspace-layout__tab.button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.customer-workspace-layout__right > .customer-workspace-layout__right-body {
+.customer-workspace-layout__right--page-tabs .customer-workspace-page__body.customer-workspace-layout__right-body {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 8px 12px 10px;
 }
 
 /*

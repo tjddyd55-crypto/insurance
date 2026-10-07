@@ -182,7 +182,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
       setTitleDialogOpen(true)
       return
     }
-    showToast(result.ok ? result.toast : result.toast)
+    if (!result.ok && result.toast) showToast(result.toast)
   }
 
   const handleTitleConfirm = async (title: string) => {
@@ -193,7 +193,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
     }
     setTitleDialogOpen(false)
     setTitleValidationError(null)
-    showToast(result.ok ? result.toast : result.toast)
+    if (!result.ok && result.toast) showToast(result.toast)
   }
 
   const editorHeaderTitle = isTemplate ? scenario.title : diseaseTypeTitle(scenario.diseaseType)

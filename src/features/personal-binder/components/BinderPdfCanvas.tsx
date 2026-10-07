@@ -36,6 +36,7 @@ export function BinderPdfPageCanvas({
   const hostRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const taskRef = useRef<RenderTask | null>(null)
+  const renderGenerationRef = useRef(0)
   const [hostWidth, setHostWidth] = useState(0)
 
   useEffect(() => {
@@ -56,6 +57,7 @@ export function BinderPdfPageCanvas({
     const layoutWidth = containerWidth > 0 ? containerWidth : hostWidth
     if (!canvas || layoutWidth <= 0) return undefined
     let cancelled = false
+    const generation = ++renderGenerationRef.current
     void (async () => {
       try {
         taskRef.current?.cancel()
@@ -73,18 +75,31 @@ export function BinderPdfPageCanvas({
         })
         const viewport = page.getViewport({ scale })
         const dpr = Math.min(window.devicePixelRatio || 1, 2)
-        canvas.width = Math.ceil(viewport.width * dpr)
-        canvas.height = Math.ceil(viewport.height * dpr)
-        canvas.style.width = `${viewport.width}px`
-        canvas.style.height = `${viewport.height}px`
-        const context = canvas.getContext('2d')
-        if (!context) throw new Error('canvas unavailable')
-        context.setTransform(dpr, 0, 0, dpr, 0, 0)
-        context.fillStyle = 'white'
-        context.fillRect(0, 0, viewport.width, viewport.height)
-        const task = page.render({ canvas, canvasContext: context, viewport })
+        const pixelWidth = Math.ceil(viewport.width * dpr)
+        const pixelHeight = Math.ceil(viewport.height * dpr)
+
+        const buffer = window.document.createElement('canvas')
+        buffer.width = pixelWidth
+        buffer.height = pixelHeight
+        const bufferContext = buffer.getContext('2d')
+        if (!bufferContext) throw new Error('canvas unavailable')
+        bufferContext.setTransform(dpr, 0, 0, dpr, 0, 0)
+        bufferContext.fillStyle = 'white'
+        bufferContext.fillRect(0, 0, viewport.width, viewport.height)
+
+        const task = page.render({ canvas: buffer, canvasContext: bufferContext, viewport })
         taskRef.current = task
         await task.promise
+        if (cancelled || generation !== renderGenerationRef.current) return
+
+        const context = canvas.getContext('2d')
+        if (!context) throw new Error('canvas unavailable')
+        canvas.width = pixelWidth
+        canvas.height = pixelHeight
+        canvas.style.width = `${viewport.width}px`
+        canvas.style.height = `${viewport.height}px`
+        context.setTransform(1, 0, 0, 1, 0, 0)
+        context.drawImage(buffer, 0, 0)
       } catch (error) {
         if (!cancelled && (error as { name?: string }).name !== 'RenderingCancelledException') {
           onError?.()
