@@ -1,0 +1,35 @@
+{
+  "version": {
+    "buildId": "1790323900101",
+    "version": "1.0.7"
+  },
+  "results": [
+    {
+      "id": "pdf-1p",
+      "checks": {
+        "root": true,
+        "grand": true,
+        "subtotals": 2,
+        "markers": 2,
+        "firstAmount": "5,000 만원",
+        "grandProposed": "1억 2,500 만원"
+      },
+      "pdfPath": "C:\\workspace\\insurance\\store-screenshots\\coverage-simulator\\pdf\\coverage-simulator-qa-1p.pdf",
+      "pageCount": 2
+    },
+    {
+      "id": "pdf-long",
+      "checks": {
+        "root": true,
+        "grand": true,
+        "subtotals": 2,
+        "markers": 2,
+        "firstAmount": "5,000 만원",
+        "grandProposed": "1억 4,966 만원"
+      },
+      "pdfPath": "C:\\workspace\\insurance\\store-screenshots\\coverage-simulator\\pdf\\coverage-simulator-qa-long.pdf",
+      "pageCount": 2
+    }
+  ],
+  "failures": []
+}

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useBlocker } from 'react-router'
 import * as XLSX from 'xlsx'
-import FileUploader from '../../../components/common/FileUploader'
 import { FormButton, FormInput } from '../../../components/form'
 import { StatusMessage } from '../../../components/feedback'
 import { ExitConfirmDialog } from '../../../components/ExitConfirmDialog'
@@ -273,29 +272,32 @@ export function UserGaExcelManagePanel({ token }: Props) {
       <StatusMessage message={info} tone="default" />
 
       <div className="flex flex-wrap items-end gap-2 mb-4">
-        <div className="text-sm text-[var(--text-secondary)] flex-1 min-w-[220px]">
+        <label className="text-sm text-[var(--text-secondary)]">
           {L.fileTypes}
-          <FileUploader
+          <FormInput
             key={`ga-user-excel-file-${fileInputKey}`}
+            type="file"
+            name="gaUserExcel"
             accept=".xlsx,.xls"
-            multiple={false}
-            onFiles={(picked) => {
-              const file = picked[0] ?? null
+            className="block mt-1 text-sm"
+            onChange={(ev) => {
+              const file = ev.target.files?.[0] ?? null
               setSelectedFile(file)
               setLoadErr('')
               setInfo('')
-              if (!file) return
+              if (!file) {
+                setLocalPreview(null)
+                setDraftRowCount(null)
+                return
+              }
               void parseLocalPreview(file).catch(() => {
                 setLocalPreview(null)
                 setDraftRowCount(null)
                 setLoadErr(L.parseFail)
               })
             }}
-            selectedNames={selectedFile ? [selectedFile.name] : []}
-            primaryHint="파일을 드래그하거나 클릭하여 업로드"
-            hintLines={['XLS · XLSX']}
           />
-        </div>
+        </label>
       </div>
 
       {sampleColumns.length > 0 ? (

@@ -10,36 +10,48 @@
 
 | 브랜치 | 역할 | 배포 트리거 |
 |---|---|---|
-| `develop` | **기본 작업 브랜치**. 모든 기능·수정은 먼저 여기로. | 없음(테스트 전용) |
-| `main` | **운영 반영 브랜치**. 푸시되는 순간 실제 배포. | Railway 웹 · GitHub Actions 데스크톱/모바일 OTA |
+| `develop` | **검증 브랜치**. feature에서 승인된 커밋을 선별 반영. | **Railway development** (`develop` push) |
+| `main` | **운영 반영 브랜치**. 푸시되는 순간 production 배포. | Railway prod · GitHub Actions 데스크톱/모바일 OTA |
+| `feat/*` | **기능 작업 브랜치**. 로컬·CI 검증용. | **없음** (Railway에 연결하지 않음) |
+
+상세 흐름·URL·금지 사항: **`docs/ops/railway-deployment.md`**
 
 ## 2. 커밋·푸시 워크플로 (엄격)
 
 ```
-작업 → develop 커밋 → develop 푸시 → [여기서 멈춤]
-                                        ↓
-                        사용자가 "머지" 류 지시를 명시적으로 한 경우에만
-                                        ↓
-                    develop → main 머지(fast-forward) → main 푸시
+feat/* 에서 작업 → npm test · build → feature 커밋
+        ↓
+승인된 커밋만 develop 에 merge/cherry-pick → develop push → Railway dev 검증
+        ↓
+[여기서 멈춤 — 사용자가 production 반영을 명시한 경우에만]
+        ↓
+development 에서 검증된 커밋만 main 에 cherry-pick → main push → Railway prod
 ```
 
 ### 반드시 지킬 것
 
 - `main`은 **사용자의 명시적 지시**가 있을 때만 건드린다.
-  - 해당되는 지시 예: "머지해줘", "main 머지 푸시", "배포해줘", "업데이트 반영해" 등.
-  - 애매하면 먼저 물어본다. 임의로 merge 하지 않는다.
-- 머지는 `--ff-only` 우선. 이력 분기가 발생하면 원인부터 조사한다.
-- `main`에 직접 커밋 금지. 모든 변경은 develop을 경유한다.
+  - 해당되는 지시 예: "머지해줘", "main 반영", "배포해줘", "prod cherry-pick" 등.
+  - 애매하면 먼저 물어본다. 임의로 `main`에 push 하지 않는다.
+- **`develop` 전체를 `main`에 통째로 merge(fast-forward 포함)하지 않는다.** production에는 **검증된 커밋만 cherry-pick**.
+- **feature 브랜치를 Railway Source Branch로 두지 않는다.** development URL은 `develop` HEAD만 본다.
+- `main`에 직접 커밋 금지. production 반영은 develop 검증을 거친 뒤 cherry-pick.
 - `git push --force` 류 명령은 **절대 금지**. 사용자가 명시적으로 요구해도 main/develop에는 force push를 하지 않는다.
 
 ## 3. 배포 파이프라인 (Railway 서비스 ↔ 브랜치)
 
 ### 3-1. 서비스별 Source Branch 매핑 (진실 표)
 
-| 환경 | URL | 관찰해야 할 브랜치 | 역할 |
+| 환경 | URL | Railway Source Branch | 역할 |
 |---|---|---|---|
-| **dev** | `insurance-dev-production.up.railway.app` | **`develop`** | develop 반영 즉시 검증용. 운영 영향 없음 |
-| **prod** | `insurance-production-7bd8.up.railway.app` | **`main`** | 실제 사용자 서비스 |
+| **development** | `https://insurance-dev.up.railway.app` | **`develop`** | `develop` push 시 자동 배포. feature 커밋은 **자동 반영 안 됨** |
+| **production** | `https://insurance-production-7bd8.up.railway.app` | **`main`** | `main` push 시 자동 배포 |
+
+> **feature 브랜치 (`feat/*`)** 는 Railway에 연결하지 않는다. development에서 보려면 해당 커밋을 **`develop`에 선별 반영**한 뒤 `develop` push 한다.
+
+> **레거시 URL 주의:** `insurance-dev-production.up.railway.app` 은 과거 `insurance-dev` 서비스 도메인으로 **현재 404**다. dev 검증은 **`insurance-dev.up.railway.app`** 만 사용한다.
+>
+> **DB mismatch 주의:** dev URL 은 **development Postgres**, 로컬 `server/.env` 가 production public proxy 를 쓰면 count 가 어긋난다. 구분은 `docs/ops/database-environments.md`.
 
 > **중요**: dev 서비스의 source branch가 `main`으로 되어 있으면 develop 검증 자체가 불가능해진다 (develop에 아무리 푸시해도 dev URL이 반응하지 않거나, main 머지 후에야 바뀐다). Railway Dashboard → 해당 서비스 → Settings → Source → Connect Branch가 **반드시 `develop`** 이어야 한다. 이 설정을 바꾸는 사람은 이 문서를 같이 수정한다.
 
@@ -91,9 +103,10 @@ main에 푸시되면 **동시에 3개 채널**이 갱신되므로 머지 타이�
 
 ## 4. 체크리스트 (작업 종료 전)
 
-- [ ] develop에만 푸시했는가? (사용자가 머지를 요구하지 않았다면 여기서 종료)
-- [ ] 머지 요청이 있었다면, develop이 main보다 앞서 있고 분기 없이 선형인가?
-- [ ] 머지 후 main 푸시까지 완료했는가?
+- [ ] feature만 있는 커밋을 development URL에서 확인하려 하지 않았는가? (`develop` 반영 필요)
+- [ ] develop에만 푸시했는가? (사용자가 production 반영을 요구하지 않았다면 여기서 종료)
+- [ ] production 반영 시 **전체 develop merge가 아니라 cherry-pick**만 했는가?
+- [ ] main 푸시 후 prod `/version.json` · `/backend/health` 를 확인했는가?
 - [ ] 사용자에게 "어디에(develop/main) 무엇을 반영했는지" 명확히 보고했는가?
 
 ## 5. 커밋 메시지 규칙
@@ -275,6 +288,13 @@ Windows 환경에서 `core.autocrlf=true`로 인해 `git status`에 수백 개 �
 
 6. **`useIsMobile` 판정식 고정**  
    `src/hooks/useIsMobile.ts`의 미디어 쿼리는 **`(max-width: 768px) and (pointer: coarse)`** 이다. `pointer: coarse`를 제거하거나 width 단독으로 되돌리면 "PC에서 DevTools 열거나 창 좁게 쓰면 우측 패널·PC CSS가 통째로 사라지는" 버그가 재발한다(실제 사례 있음). 정의상 이 hook은 **"레이아웃용 실모바일 기기 여부"** 이지 "뷰포트 폭"이 아니다.
+
+7. **PC 프로그램 반응형 기준 (SSOT)**  
+   PC 프로그램·PC 웹(`.pc-root`)은 창 폭이 줄어도 **모바일 레이아웃으로 강제 전환하지 않는다.** Windows Snap, 좁은 데스크톱 창, Electron 창 축소 상태에서도 **전역 메뉴 접근 수단은 항상 보여야 한다.**
+   - PC 전용 레이아웃/메뉴 노출 여부는 **단순 viewport width가 아니라 `.pc-root` 기준**을 우선한다.
+   - `@media (max-width: 1024px) { .app-sidebar { display: none } }` 처럼 root 없이 width만으로 PC 메뉴를 숨기면 **Snap 반쪽 화면에서 메뉴가 사라지는 회귀**가 난다(실제 사례).
+   - 모바일 전용 메뉴 숨김/드로어 전환 규칙은 **반드시 `.mobile-root`** 또는 `useIsMobile()` 등 명확한 모바일 환경 조건에서만 적용한다.
+   - breakpoint를 낮추는 임시 처리로 PC 메뉴 가시성을 맞추지 말 것. root class 또는 runtime 환경으로 구분한다.
 
 ### 8-3. 신규 페이지 체크리스트
 

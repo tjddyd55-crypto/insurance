@@ -1,0 +1,107 @@
+import { INTENT_DOMAIN, INTENT_STAGE } from '../../../shared/ai-assistant/orchestration/intentSchema.js'
+
+export const USER_INTENT_JSON_SCHEMA = {
+  name: 'onefc_user_intent',
+  schema: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      domain: { type: 'string', enum: [...Object.values(INTENT_DOMAIN)] },
+      stage: { type: 'string', enum: [...Object.values(INTENT_STAGE)] },
+      goal: { type: 'string' },
+      requestedAction: { type: 'string' },
+      targetReference: { type: ['string', 'null'] },
+      commitRequested: { type: 'boolean' },
+      requiresClarification: { type: 'boolean' },
+      clarificationQuestion: { type: ['string', 'null'] },
+      requiresTool: { type: 'boolean' },
+      requiredToolKey: { type: ['string', 'null'] },
+      confidence: { type: 'number' },
+      intent: { type: 'string' },
+      target: {
+        type: ['object', 'null'],
+        additionalProperties: false,
+        properties: {
+          entityType: { type: ['string', 'null'] },
+          name: { type: ['string', 'null'] },
+          customerId: { type: ['number', 'null'] },
+          reference: { type: ['string', 'null'] },
+        },
+        required: ['entityType', 'name', 'customerId', 'reference'],
+      },
+      filters: {
+        type: ['object', 'null'],
+        additionalProperties: false,
+        properties: {
+          name: { type: ['string', 'null'] },
+          due: { type: ['string', 'null'], enum: ['today', 'tomorrow', 'week', 'all', null] },
+          day: { type: ['string', 'null'], enum: ['today', 'tomorrow', null] },
+          pending: { type: ['boolean', 'null'] },
+          customerId: { type: ['number', 'null'] },
+        },
+        required: ['name', 'due', 'day', 'pending', 'customerId'],
+      },
+      limit: { type: ['number', 'null'] },
+      returnFields: {
+        type: 'array',
+        items: { type: 'string' },
+        maxItems: 8,
+      },
+      customerQuery: {
+        type: ['object', 'null'],
+        additionalProperties: false,
+        properties: {
+          logic: { type: 'string' },
+          filters: {
+            type: 'array',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                field: { type: 'string' },
+                operator: { type: 'string' },
+                value: { type: ['string', 'number', 'boolean', 'null'] },
+                valueTo: { type: ['string', 'number', 'null'] },
+              },
+              required: ['field', 'operator', 'value', 'valueTo'],
+            },
+          },
+          sort: {
+            type: 'array',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                field: { type: 'string' },
+                direction: { type: 'string' },
+              },
+              required: ['field', 'direction'],
+            },
+          },
+          limit: { type: ['number', 'null'] },
+          unsupportedField: { type: ['string', 'null'] },
+        },
+        required: ['logic', 'filters', 'sort', 'limit', 'unsupportedField'],
+      },
+    },
+    required: [
+      'domain',
+      'stage',
+      'goal',
+      'requestedAction',
+      'targetReference',
+      'commitRequested',
+      'requiresClarification',
+      'clarificationQuestion',
+      'requiresTool',
+      'requiredToolKey',
+      'confidence',
+      'intent',
+      'target',
+      'filters',
+      'limit',
+      'returnFields',
+      'customerQuery',
+    ],
+  },
+}

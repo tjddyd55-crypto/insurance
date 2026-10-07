@@ -5,6 +5,8 @@ export type ListTodosParams = {
   status?: string
   bucket?: string
   due?: string
+  dueFrom?: string
+  dueTo?: string
   overdue?: string
   hasRelated?: string
   sourceType?: string
@@ -15,6 +17,8 @@ function buildTodosQuery(ps: ListTodosParams): string {
   if (ps.status) q.set('status', ps.status)
   if (ps.bucket) q.set('bucket', ps.bucket)
   if (ps.due) q.set('due', ps.due)
+  if (ps.dueFrom) q.set('dueFrom', ps.dueFrom)
+  if (ps.dueTo) q.set('dueTo', ps.dueTo)
   if (ps.overdue) q.set('overdue', ps.overdue)
   if (ps.hasRelated) q.set('hasRelated', ps.hasRelated)
   if (ps.sourceType) q.set('sourceType', ps.sourceType)

@@ -9,6 +9,7 @@ import {
   consentPutObject,
   isConsentR2Enabled,
 } from './lib/consentStorage.js'
+import { isAllowedConsentResultFileKey } from './lib/consentSignatureFileKeyPolicy.js'
 
 const uploadPdf = multer({
   storage: multer.memoryStorage(),
@@ -486,6 +487,10 @@ export function registerConsentApi(apiRouter, ctx) {
         return
       }
       const { key } = verifyFileJwt(token, JWT_SECRET)
+      if (!isAllowedConsentResultFileKey(key)) {
+        res.status(403).send('허용되지 않은 파일 경로입니다.')
+        return
+      }
       const buf = await consentGetBuffer(key)
       res.setHeader('Content-Type', 'application/pdf')
       res.setHeader('Content-Disposition', 'inline; filename="consent.pdf"')

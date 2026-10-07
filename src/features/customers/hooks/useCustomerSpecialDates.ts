@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import { CUSTOMER_ALERT_DATE_LABEL } from '../../../../shared/customerAlertDateCopy.js'
 import {
   listCustomerSpecialDates,
   type CustomerSpecialDateRecord,
@@ -35,7 +34,7 @@ export function useCustomerSpecialDates(params: {
       setSpecialDates(rows)
     } catch (e) {
       setSpecialDates([])
-      setErrorMessage(e instanceof Error ? e.message : `${CUSTOMER_ALERT_DATE_LABEL} 목록을 불러오지 못했습니다.`)
+      setErrorMessage(e instanceof Error ? e.message : '기념일 목록을 불러오지 못했습니다.')
     } finally {
       setIsLoading(false)
     }

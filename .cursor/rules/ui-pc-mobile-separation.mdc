@@ -90,3 +90,34 @@ View 최상위 `<main>`에 다음 클래스를 부여한다.
 
 - 대량 리팩토링 PR 금지. 기능 작업과 함께 **한 PR에 한 페이지**만 분리·이관한다.
 - 순서: (a) View 분리 → (b) container 분기 → (c) CSS modifier 재작성 → (d) 구 `.pc-root`/`.mobile-root` 규칙 삭제.
+
+## 7. PC 프로그램 반응형 기준 (SSOT)
+
+PC 프로그램·PC 웹(`.pc-root`)은 창 폭이 줄어도 **모바일 레이아웃으로 강제 전환하지 않는다.**
+
+- Windows Snap, 좁은 데스크톱 창, Electron 창 축소 상태에서도 **전역 메뉴 접근 수단은 항상 보여야 한다.**
+- PC 전용 레이아웃/메뉴 노출 여부는 **단순 viewport width가 아니라 `.pc-root` 기준**을 우선한다.
+- 모바일 전용 메뉴 숨김/드로어 전환 규칙은 **반드시 `.mobile-root`** 또는 `useIsMobile()` 등 명확한 모바일 환경 조건에서만 적용한다.
+
+```css
+/* ❌ 금지 — Snap 반쪽 화면(~960px)에서 PC 메뉴가 사라짐 */
+@media (max-width: 1024px) {
+  .app-workspace-chrome-header,
+  .pc-top-navigation {
+    display: none;
+  }
+}
+
+/* ✅ 권장 — PC root 에서는 viewport 와 무관하게 메뉴 유지 */
+.pc-root .app-workspace-chrome-header.header,
+.pc-root .pc-top-navigation {
+  display: flex;
+}
+
+/* ✅ 모바일 전용 숨김/드로어는 mobile-root 에만 */
+.mobile-root .pc-top-navigation {
+  display: none;
+}
+```
+
+- breakpoint 를 낮추는 임시 처리로 PC 메뉴 가시성을 맞추지 말 것. root class 또는 runtime 환경으로 구분한다.

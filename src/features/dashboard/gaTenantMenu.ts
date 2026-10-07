@@ -50,10 +50,12 @@ export type GaTenantMenuItem = { label: string; path: string }
 
 /**
  * USER 「고객 상담」 대분류.
- * 하위는 이미 구현된 라우트만 연결한다.
+ * 하위는 이미 구현된 라우트만 연결한다. 기능 코드를 복제하지 않는다.
  *
- * - 내 바인더: `/personal-binders`
- * - 시뮬레이션: `/coverage-simulator` 시작 화면. 화면 제목은 「보장 시뮬레이션」.
+ * 하위 라벨은 정확히 두 개다.
+ * - 내 바인더: `/personal-binders` (개발 중인 바인더. 업무편의에서 이동, URL 유지)
+ * - 시뮬레이션: `/coverage-simulator` 시나리오 목록(시작 화면).
+ *   화면 안 제목은 기존 「보장 시뮬레이션」을 유지한다. 별도 「보장 분석」 메뉴는 없다.
  */
 export const CUSTOMER_CONSULTING_SECTION_LABEL = '고객 상담'
 
@@ -65,6 +67,12 @@ export const PERSONAL_BINDER_MENU_ITEM = {
 export const COVERAGE_SIMULATION_MENU_ITEM = {
   label: '시뮬레이션',
   path: '/coverage-simulator',
+} as const
+
+/** GA 설계사·스태프 공통 AI 비서 진입 (전역 네비) */
+export const AI_SECRETARY_MENU_ITEM = {
+  label: 'AI 비서',
+  path: '/ai-assistant',
 } as const
 
 /**
@@ -105,13 +113,13 @@ export const GA_TENANT_ESSENTIAL_MENU: GaTenantMenuItem[] = [
   { label: '계정 초기화', path: '/account/reset' },
 ]
 
-/** 원수사 담당자(INSURER_MANAGER) — 소식지 전용. 설계사 업무 메뉴 미포함 */
+/** 원수사 담당자 — 본인 회사 소식지 */
 export const INSURER_MANAGER_MENU: GaTenantMenuItem[] = [
   { label: '원수사 소식지 조회', path: '/insurer/news' },
   { label: '원수사 소식지 업로드', path: '/insurer/news/upload' },
 ]
 
-/** 손해사정사 담당자(LOSS_ADJUSTER) — 소식지 전용. 설계사 업무 메뉴 미포함 */
+/** 손해사정사 담당자 — 본인 회사 뉴스 */
 export const LOSS_ADJUSTER_MENU: GaTenantMenuItem[] = [
   { label: '손해사정사 뉴스 조회', path: '/adjuster/news' },
   { label: '손해사정사 뉴스 업로드', path: '/adjuster/news/upload' },
@@ -135,14 +143,14 @@ export const BASE_GA_MENU: GaTenantMenuItem[] = []
  *
  * ## 구조 — 카테고리 섹션 (USER/GA_ADMIN 공통)
  *
- *   1. 할일 및 알림 · 오늘의 TA · 할일 · 메모 · 알림 · 일정 관리
+ *   1. 할일 및 알림 · 오늘의 TA · 할일 · 메모 · 알림
  *   2. 고객관리 · 고객리스트 · 고객소식지 · 청구관리
- *   3. 고객 상담 · 내 바인더 · 시뮬레이션 (`/coverage-simulator` 시작 화면)
+ *   3. 고객 상담 · 내 바인더 · 시뮬레이션 (`/coverage-simulator` 시작 화면, URL 유지)
  *   4. 소식지 · 원수사소식지 · 손해사정사 소식지 · 세무사 소식지(개발중 플레이스홀더, 요구 목록에 없어서도 기존 연결 유지)
  *   5. 신청서 · 신청서 작성 · 신청서 작성내역 · 렌트(사고대차)(개발중)
  *   6. 전자서명(USER 한정) · 전자서명 발송 · 전자서명 발송내역 — inject via buildGaTenantDashboardMenu 옵션
  *   7. 팀관리 · 팀원리스트 · 팀 게시판 · 팀 자료 · (팀 관리 — 오너만, `/team/files` 뒤 주입)
- *   8. 업무편의 · 원수사 연락처 · 설계사이트
+ *   8. 업무편의 · 문자 발송 · 원수사 연락처 · 설계사이트
  *   9. 내정보 · 내 저장공간 · 내정보관리 · 문의요청
  *   — 레거시 자동차 전용 허브(`/application` 메뉴 노출 등) 규칙 기존대로.
  *
@@ -266,7 +274,8 @@ export function buildGaTenantDashboardMenu(
   const insuranceClaimMenu: GaTenantDashboardMenuEntry[] = includeTopLevelInsuranceClaim
     ? [
         { type: 'section', label: '보험청구' },
-        { type: 'link', label: INSURANCE_CLAIM_USER_MENU.label, path: INSURANCE_CLAIM_USER_MENU.path },
+        { type: 'link', label: INSURANCE_CLAIM_NEW_MENU.label, path: INSURANCE_CLAIM_NEW_MENU.path },
+        { type: 'link', label: INSURANCE_CLAIM_HISTORY_MENU.label, path: INSURANCE_CLAIM_HISTORY_MENU.path },
       ]
     : []
 
@@ -276,7 +285,6 @@ export function buildGaTenantDashboardMenu(
     { type: 'link', label: '할일', path: '/todos' },
     { type: 'link', label: '메모', path: '/memo' },
     { type: 'link', label: '알림', path: '/notifications' },
-    { type: 'link', label: '일정 관리', path: '/schedule' },
 
     { type: 'section', label: '고객관리' },
     ...customerManagementLinks,
@@ -401,6 +409,11 @@ function applyEntitlementBadgesForSession(
 
 const AUDIT_LOG_ENTRY: GaTenantMenuItem = { label: '보안 감사 로그', path: '/admin/audit-logs' }
 
+const AI_ASSISTANT_TOOLS_ENTRY: GaTenantMenuItem = {
+  label: '기능 연결 현황',
+  path: '/admin/ai-assistant/tools',
+}
+
 const CONTRACT_SIGNATURE_USER_SEND: GaTenantMenuItem = {
   label: '전자서명 발송',
   path: '/contracts/signatures/send',
@@ -421,8 +434,13 @@ const PDF_TEMPLATE_ADMIN_MENU: GaTenantMenuItem = {
   path: '/admin/pdf-templates',
 }
 
-const INSURANCE_CLAIM_USER_MENU: GaTenantMenuItem = {
-  label: '보험청구',
+const INSURANCE_CLAIM_NEW_MENU: GaTenantMenuItem = {
+  label: '새청구',
+  path: '/insurance-claim/new',
+}
+
+const INSURANCE_CLAIM_HISTORY_MENU: GaTenantMenuItem = {
+  label: '청구내역',
   path: '/insurance-claim/requests',
 }
 
@@ -486,7 +504,6 @@ function buildSuperAdminMenuEntries(): GaTenantDashboardMenuEntry[] {
       { label: 'GA 관리', path: '/admin/ga' },
       { label: '담당자 관리', path: '/admin/delegates' },
       { label: '유저 관리', path: '/admin/users' },
-      { label: '메뉴 권한 SSOT', path: '/admin/menu-permissions' },
     ]),
   )
 
@@ -511,6 +528,13 @@ function buildSuperAdminMenuEntries(): GaTenantDashboardMenuEntry[] {
   }
   entries.push({ type: 'section', label: '전자문서 / 서명 관리' })
   entries.push(...itemsToEntries(documentItems))
+
+  entries.push({ type: 'section', label: 'AI 비서 관리' })
+  entries.push(
+    ...itemsToEntries([
+      { label: AI_ASSISTANT_TOOLS_ENTRY.label, path: AI_ASSISTANT_TOOLS_ENTRY.path },
+    ]),
+  )
 
   entries.push({ type: 'section', label: '보험사 / 시스템 설정' })
   entries.push(
@@ -618,7 +642,15 @@ export function buildAppMenuForSession(
   })()
 
   const filtered = subscriptionExpired ? filterMenuForExpired(withTeam) : withTeam
-  return applyEntitlementBadgesForSession(filtered, gaCode, gaName, options)
+  const withAiAssistant =
+    role === 'USER' || role === 'GA_ADMIN' || role === 'GA_STAFF'
+      ? [
+          { type: 'link' as const, label: AI_SECRETARY_MENU_ITEM.label, path: AI_SECRETARY_MENU_ITEM.path },
+          { type: 'divider' as const },
+          ...filtered,
+        ]
+      : filtered
+  return applyEntitlementBadgesForSession(withAiAssistant, gaCode, gaName, options)
 }
 
 function filterMenuForExpired(

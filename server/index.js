@@ -70,6 +70,11 @@ import { registerCustomerMapApi } from './apis/customerMapApi.js'
 import { registerCustomerRegionApi } from './apis/registerCustomerRegionApi.js'
 import { registerReminderCalendarApi } from './apis/registerReminderCalendarApi.js'
 import { registerScheduleApi } from './apis/registerScheduleApi.js'
+import { registerAdminAiToolsApi } from './apis/adminAiToolsApi.js'
+import { registerCustomerImportApi } from './ai-assistant/customer-import/registerCustomerImportApi.js'
+import { registerAiAssistantApi } from './apis/aiAssistantApi.js'
+import { runSemanticCatalogStartupAudit } from './ai-assistant/data-catalog/semanticCatalogStartupAudit.js'
+import { auditGenericCustomerQueryCompileCoverage } from './ai-assistant/query-engine/genericCustomerQueryCompileAudit.js'
 import { registerServiceIntegrationsApi } from './apis/registerServiceIntegrationsApi.js'
 import { resolveCustomerAddressRegion } from './customers/addressRegion.js'
 import { registerPremiumPaymentApi } from './registerPremiumPaymentApi.js'
@@ -1759,6 +1764,22 @@ registerCustomerSpecialDatesApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCustomerRegionApi(apiRouter, { pool, requireAuth, handleDbError })
 registerReminderCalendarApi(apiRouter, { pool, requireAuth, handleDbError })
 registerScheduleApi(apiRouter, { pool, requireAuth, handleDbError })
+registerAdminAiToolsApi(apiRouter, { pool, requireAuth, requireSuperAdmin })
+registerCustomerImportApi(apiRouter, {
+  pool,
+  requireAuth,
+  requireInsuranceFormUserId,
+  parseGaId,
+  handleDbError,
+})
+registerAiAssistantApi(apiRouter, {
+  pool,
+  requireAuth,
+  requireSuperAdmin,
+  requireInsuranceFormUserId,
+  parseGaId,
+  handleDbError,
+})
 registerServiceIntegrationsApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCustomerCustomFieldsApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCustomerFireInsuranceLocationsApi(apiRouter, { pool, requireAuth, handleDbError })
@@ -8085,6 +8106,13 @@ async function startServer() {
   }
 
   await runInitDbOnStartup()
+  try {
+    await runSemanticCatalogStartupAudit(pool)
+    const genericQueryAudit = auditGenericCustomerQueryCompileCoverage()
+    console.info('[ai-generic-customer-query-audit]', genericQueryAudit)
+  } catch (error) {
+    console.error('[ai-semantic-catalog-startup-audit-failed]', error?.message ?? error)
+  }
   await seedInsuranceCompanyDirectory()
   await logInsuranceFormsDbDiagnostics('startup')
   await ensureYesterdayAnalyticsAggregated(pool)

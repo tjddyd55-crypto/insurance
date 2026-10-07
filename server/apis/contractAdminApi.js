@@ -23,6 +23,7 @@ import {
   parseConfirmationItemsFromBody,
 } from '../services/contractConfirmationItems.js'
 import { listFields } from '../pdf-engine/repository/pdfTemplateRepo.js'
+import { deleteContractSendSession } from '../contracts/deleteContractSendSessionService.js'
 
 const CT_PREFIX = 'ct_'
 const CTF_PREFIX = 'ctf_'
@@ -2109,6 +2110,26 @@ export function registerContractAdminApi(apiRouter, ctx) {
           }),
         },
       })
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.delete('/admin/contracts/send-sessions/:id', ...chain, async (req, res) => {
+    try {
+      const isSuper = isSuperAdminRole(req.user?.role)
+      const effectiveGa = isSuper ? null : await resolveEffectiveGaId(pool, req)
+      const uid = getAuthUserId(req)
+      const result = await deleteContractSendSession(pool, req.params.id, {
+        userId: uid,
+        gaId: effectiveGa,
+        isSuperAdmin: isSuper,
+      })
+      if (!result.ok) {
+        res.status(result.status).json({ ok: false, message: result.message })
+        return
+      }
+      res.json({ ok: true, success: true, data: result.data, message: result.message })
     } catch (e) {
       handleDbError(e, req, res)
     }

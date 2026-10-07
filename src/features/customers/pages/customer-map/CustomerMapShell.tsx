@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useAuth } from '../../../auth/AuthProvider'
 import { FormButton, FormInput } from '../../../../components/form'
 import CustomerMapCanvas from '../../components/map/CustomerMapCanvas'
@@ -45,6 +45,7 @@ export default function CustomerMapShell({
   focusNotice,
   skipAutoFit,
   onRadiusChange,
+  onCurrentLocation,
   onOpenCustomerDetail,
   onFavoriteOnlyChange,
   onKeywordChange,
@@ -78,33 +79,40 @@ export default function CustomerMapShell({
     .join(' ')
   const hasMarkers = mapCustomers.length > 0
   const [mapInitFailed, setMapInitFailed] = useState(false)
-  const [radiusInput, setRadiusInput] = useState(radiusKm == null ? '' : String(radiusKm))
-
-  useEffect(() => {
-    setRadiusInput(radiusKm == null ? '' : String(radiusKm))
-  }, [radiusKm])
+  const committedRadiusLabel = radiusKm == null ? '' : String(radiusKm)
+  const [radiusDraft, setRadiusDraft] = useState(committedRadiusLabel)
+  const [radiusDirty, setRadiusDirty] = useState(false)
+  const radiusInput = radiusDirty ? radiusDraft : committedRadiusLabel
 
   const handleMapInitFailed = useCallback(() => {
     setMapInitFailed(true)
   }, [])
 
+  const handleRadiusInputChange = useCallback((value: string) => {
+    setRadiusDirty(true)
+    setRadiusDraft(value)
+  }, [])
+
   const applyRadiusInput = useCallback(() => {
     const trimmed = radiusInput.trim()
     if (!trimmed) {
+      setRadiusDirty(false)
       onRadiusChange(null)
       return
     }
     const parsed = Number(trimmed)
     if (!Number.isFinite(parsed) || parsed <= 0) {
-      setRadiusInput(radiusKm == null ? '' : String(radiusKm))
+      setRadiusDirty(false)
       return
     }
     const capped = Math.min(parsed, CUSTOMER_MAP_MAX_RADIUS_KM)
     onRadiusChange(capped)
+    setRadiusDirty(false)
     if (capped !== parsed) {
-      setRadiusInput(String(capped))
+      setRadiusDraft(String(capped))
+      setRadiusDirty(true)
     }
-  }, [radiusInput, radiusKm, onRadiusChange])
+  }, [onRadiusChange, radiusInput])
 
   const handleRadiusInputKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -121,7 +129,7 @@ export default function CustomerMapShell({
       radiusInput={radiusInput}
       radiusKm={radiusKm}
       favoriteOnly={favoriteOnly}
-      onRadiusInputChange={setRadiusInput}
+      onRadiusInputChange={handleRadiusInputChange}
       onRadiusInputBlur={applyRadiusInput}
       onRadiusInputKeyDown={handleRadiusInputKeyDown}
       onRadiusChange={onRadiusChange}
@@ -197,6 +205,9 @@ export default function CustomerMapShell({
             </div>
           ) : null}
           <div className="customers-map-page__toolbar-row customers-map-page__toolbar-row--primary">
+            <FormButton htmlType="button" variant="secondary" onClick={onCurrentLocation}>
+              내 위치 기준 보기
+            </FormButton>
             {radiusFilterControls}
             <FormInput
               type="search"
@@ -259,6 +270,15 @@ export default function CustomerMapShell({
         ) : null}
         {isMobile && !embedInWorkspace ? (
           <div className="customer-map-mobile-toolbar" role="toolbar" aria-label="고객 지도 도구">
+            <FormButton
+              htmlType="button"
+              type="button"
+              variant="secondary"
+              className="customer-map-mobile-toolbar-btn"
+              onClick={onCurrentLocation}
+            >
+              내 위치
+            </FormButton>
             <FormButton
               htmlType="button"
               type="button"

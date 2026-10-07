@@ -91,6 +91,7 @@ export type CustomerMapViewProps = {
   focusNotice: string | null
   skipAutoFit: boolean
   onRadiusChange: (radiusKm: number | null) => void
+  onCurrentLocation: () => void
   onOpenCustomerDetail: (customerId: number) => void
   onFavoriteOnlyChange: (value: boolean) => void
   onKeywordChange: (value: string) => void
@@ -636,6 +637,32 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
     ],
   )
 
+  const onCurrentLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      setError('이 브라우저에서는 현재 위치를 사용할 수 없습니다.')
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude
+        const lng = pos.coords.longitude
+        setCenterLat(lat)
+        setCenterLng(lng)
+        setViewportCenterLat(lat)
+        setViewportCenterLng(lng)
+        setUseExplicitCenter(true)
+        if (radiusKm == null) {
+          setRadiusKm(3)
+        }
+        setError(null)
+      },
+      () => {
+        setError('현재 위치 권한이 거부되었습니다.')
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    )
+  }, [radiusKm])
+
   const onOpenCustomerDetail = useCallback(
     (customerId: number) => {
       if (openDetailInWorkspaceMap) {
@@ -725,6 +752,7 @@ export function useCustomerMapState(options: UseCustomerMapStateOptions = {}): C
         setUseExplicitCenter(false)
       }
     },
+    onCurrentLocation,
     onOpenCustomerDetail,
     onFavoriteOnlyChange: setFavoriteOnly,
     onKeywordChange: setKeyword,

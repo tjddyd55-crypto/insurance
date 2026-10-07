@@ -3,8 +3,16 @@ import { useNavigate } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
 import useIsMobile from '../../../hooks/useIsMobile'
 import { useAuth } from '../../auth/AuthProvider'
+import type { TodoCreatePrefill } from '../components/TodoEditorDialog'
 import type { TodoDto } from '../domain/todoTypes'
 import { completeTodo, listTodos, reopenTodo } from '../api/todosApi'
+import { getCalendarMonthRange, shiftCalendarMonth } from '../domain/todoCalendar'
+import {
+  readTodosViewMode,
+  writeTodosViewMode,
+  type TodosViewMode,
+} from '../storage/todosUiStorage'
+import { formatSeoulYmd } from '../utils/formatSeoulYmd'
 import { buildRelatedEntityHref } from '../utils/relatedEntityNavigate'
 import { sortTodosNewestActivityFirst } from '../utils/sortTodosByRecentActivity'
 
@@ -27,13 +35,27 @@ export function useTodosWorkspaceState() {
   const [quick, setQuick] = useState<TodoQuickFilter>('open')
   const [relatedFilter, setRelatedFilter] = useState<TodoRelatedFilter>('any')
   const [sourceFilter, setSourceFilter] = useState<string>('all')
+  const [viewMode, setViewModeState] = useState<TodosViewMode>('list')
+  const [calendarMonth, setCalendarMonth] = useState(() => formatSeoulYmd(new Date()).slice(0, 7))
 
   const [loading, setLoading] = useState(false)
+  const [calendarLoading, setCalendarLoading] = useState(false)
   const [error, setError] = useState('')
   const [todos, setTodos] = useState<TodoDto[]>([])
+  const [calendarTodos, setCalendarTodos] = useState<TodoDto[]>([])
   const [editorOpen, setEditorOpen] = useState(false)
   const [editorSession, setEditorSession] = useState(0)
   const [editingTodo, setEditingTodo] = useState<TodoDto | null>(null)
+  const [editorPrefill, setEditorPrefill] = useState<TodoCreatePrefill | null>(null)
+
+  useEffect(() => {
+    if (user?.id) setViewModeState(readTodosViewMode(String(user.id)))
+  }, [user?.id])
+
+  const setViewMode = useCallback((mode: TodosViewMode) => {
+    setViewModeState(mode)
+    if (user?.id) writeTodosViewMode(String(user.id), mode)
+  }, [user?.id])
 
   const listParams = useMemo(() => {
     const ps: Parameters<typeof listTodos>[1] = {}
@@ -68,18 +90,57 @@ export function useTodosWorkspaceState() {
     }
   }, [token, listParams])
 
+  const calendarParams = useMemo(() => {
+    const range = getCalendarMonthRange(calendarMonth)
+    const ps: Parameters<typeof listTodos>[1] = {
+      dueFrom: range.from,
+      dueTo: range.to,
+    }
+    if (relatedFilter === 'yes') ps.hasRelated = 'yes'
+    if (relatedFilter === 'no') ps.hasRelated = 'no'
+    if (sourceFilter !== 'all') ps.sourceType = sourceFilter
+    return ps
+  }, [calendarMonth, relatedFilter, sourceFilter])
+
+  const loadCalendar = useCallback(async () => {
+    if (!token?.trim()) {
+      setCalendarTodos([])
+      return
+    }
+    setCalendarLoading(true)
+    setError('')
+    try {
+      setCalendarTodos(await listTodos(token, calendarParams))
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '달력 일정을 불러오지 못했습니다.')
+      setCalendarTodos([])
+    } finally {
+      setCalendarLoading(false)
+    }
+  }, [calendarParams, token])
+
   useEffect(() => {
     void load()
   }, [load])
 
-  const openCreateBlank = () => {
+  useEffect(() => {
+    if (viewMode === 'calendar') void loadCalendar()
+  }, [loadCalendar, viewMode])
+
+  const openCreateBlank = (dueDate?: string) => {
     setEditingTodo(null)
+    setEditorPrefill({
+      sourceType: 'manual',
+      description: '',
+      dueDate: dueDate ?? null,
+    })
     setEditorSession((k) => k + 1)
     setEditorOpen(true)
   }
 
   const openEdit = (row: TodoDto) => {
     setEditingTodo(row)
+    setEditorPrefill(null)
     setEditorSession((k) => k + 1)
     setEditorOpen(true)
   }
@@ -98,6 +159,7 @@ export function useTodosWorkspaceState() {
       }
       setTodos((prev) => sortTodosNewestActivityFirst(prev.map((t) => (t.id === nextRow.id ? nextRow : t))))
       await load()
+      if (viewMode === 'calendar') await loadCalendar()
     } catch (e) {
       const msg =
         e instanceof ApiError ? e.message : e instanceof Error ? e.message : '상태 변경에 실패했습니다.'
@@ -127,7 +189,9 @@ export function useTodosWorkspaceState() {
     token: token ?? '',
     gaId,
     todos,
+    calendarTodos,
     loading,
+    calendarLoading,
     error,
     quickFilter: quick,
     setQuickFilter: setQuick,
@@ -135,11 +199,19 @@ export function useTodosWorkspaceState() {
     setRelatedFilter,
     sourceFilter,
     setSourceFilter,
+    viewMode,
+    setViewMode,
+    calendarMonth,
+    showPreviousMonth: () => setCalendarMonth((month) => shiftCalendarMonth(month, -1)),
+    showNextMonth: () => setCalendarMonth((month) => shiftCalendarMonth(month, 1)),
+    showCurrentMonth: () => setCalendarMonth(formatSeoulYmd(new Date()).slice(0, 7)),
     reload: load,
+    reloadCalendar: loadCalendar,
     editorOpen,
     setEditorOpen,
     editorSession,
     editingTodo,
+    editorPrefill,
     openCreateBlank,
     openEdit,
     toggleDone,

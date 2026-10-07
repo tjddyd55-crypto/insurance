@@ -14,6 +14,8 @@ import GaCompanyManagePage from './features/admin/pages/GaCompanyManagePage'
 import UserManagementPage from './features/admin/pages/UserManagementPage'
 import AuditLogsPage from './features/admin/pages/AuditLogsPage'
 import MenuPermissionMatrixPage from './features/admin/menu-permissions/MenuPermissionMatrixPage'
+import AiAssistantToolRegistryPage from './features/ai-assistant/pages/AiAssistantToolRegistryPage'
+import AiSecretaryPage from './features/ai-secretary/pages/AiSecretaryPage'
 import SubscriptionPolicyPage from './features/admin/pages/SubscriptionPolicyPage'
 import AdminBillingManagePage, { AdminBillingLegacyRedirect } from './features/billing/pages/AdminBillingManagePage'
 import AccountBillingPage from './features/billing/pages/AccountBillingPage'
@@ -162,6 +164,14 @@ import { ContractSignatureUserSendRoute } from './features/contracts/userSend/Co
 import ContractSignatureSendPage from './features/contracts/userSend/ContractSignatureSendPage'
 import ContractSignatureHistoryPage from './features/contracts/userHistory/ContractSignatureHistoryPage'
 import CustomerSignaturesRoutePage from './features/customers/pages/CustomerSignaturesRoutePage'
+import GovernmentLoginPage from './features/government-support/pages/GovernmentLoginPage'
+import GovernmentSignupPage from './features/government-support/pages/GovernmentSignupPage'
+import GovernmentJoinPage from './features/government-support/pages/GovernmentJoinPage'
+import GovernmentWorkspacePage from './features/government-support/pages/GovernmentWorkspacePage'
+import GovernmentAdminHubPage from './features/government-support/pages/admin/GovernmentAdminHubPage'
+import GovernmentAdminAgenciesPage from './features/government-support/pages/admin/GovernmentAdminAgenciesPage'
+import GovernmentPlaceholderPage from './features/government-support/components/GovernmentPlaceholderPage'
+import GovernmentProtectedRoute from './features/government-support/routes/GovernmentProtectedRoute'
 import BillingCheckoutPage from './features/insurance-billing/pages/BillingCheckoutPage'
 import BillingRequiredPage from './features/insurance-billing/pages/BillingRequiredPage'
 import BillingSuccessPage from './features/insurance-billing/pages/BillingSuccessPage'
@@ -213,6 +223,50 @@ export const appRouter = createBrowserRouter([
       { path: 'signup/insurance', element: <RegisterPage signupIndustry="insurance" /> },
       { path: 'signup/gym', element: <RegisterPage signupIndustry="gym" /> },
       { path: 'signup/government', element: <RegisterPage signupIndustry="government" /> },
+      { path: 'government/login', element: <GovernmentLoginPage /> },
+      { path: 'government/signup', element: <GovernmentSignupPage /> },
+      { path: 'government/join', element: <GovernmentJoinPage /> },
+      { path: 'government/join/:agencyCode', element: <GovernmentJoinPage /> },
+      {
+        element: <GovernmentProtectedRoute />,
+        children: [
+          { path: 'government/workspace', element: <GovernmentWorkspacePage /> },
+          { path: 'government/customers', element: <Navigate to="/government/workspace" replace /> },
+          {
+            path: 'government/settings',
+            element: (
+              <GovernmentPlaceholderPage title="설정" description="정부지원 CRM 설정 (준비 중)" />
+            ),
+          },
+        ],
+      },
+      {
+        element: <GovernmentProtectedRoute requireAdmin />,
+        children: [
+          { path: 'government/admin', element: <GovernmentAdminHubPage /> },
+          { path: 'government/admin/agencies', element: <GovernmentAdminAgenciesPage /> },
+          {
+            path: 'government/admin/templates',
+            element: (
+              <GovernmentPlaceholderPage
+                title="고객관리 템플릿"
+                description="government-support는 코드형 CRM입니다. 동적 빌더 템플릿은 보험 플랫폼과 별도입니다."
+                backTo="/government/admin"
+              />
+            ),
+          },
+          {
+            path: 'government/admin/pdf-templates',
+            element: (
+              <GovernmentPlaceholderPage
+                title="PDF 좌표 템플릿"
+                description="기존 PDF 엔진 템플릿을 government 필드 매핑과 함께 사용합니다."
+                backTo="/government/admin"
+              />
+            ),
+          },
+        ],
+      },
       { path: 'privacy', element: <PrivacyPolicyPage /> },
       { path: 'privacy-policy', element: <Navigate to="/privacy" replace /> },
       { path: 'terms', element: <TermsOfServicePage /> },
@@ -334,6 +388,7 @@ export const appRouter = createBrowserRouter([
                 element: <RequireInsuranceBillingEntitlement />,
                 children: [
           { path: 'dashboard', element: <DashboardPage /> },
+          { path: 'ai-assistant', element: <AiSecretaryPage /> },
           { path: 'public-account-restricted', element: <PublicAccountRestrictedPage /> },
           { path: 'contacts/manage', element: <Navigate to="/insurance/company-registry" replace /> },
           { path: 'updates', element: <Navigate to="/insurance/history" replace /> },
@@ -573,6 +628,7 @@ export const appRouter = createBrowserRouter([
                   { path: 'admin/notices/new', element: <AdminNoticeEditorPage /> },
                   { path: 'admin/notices/:id', element: <AdminNoticeEditorPage /> },
                   { path: 'admin/menu-permissions', element: <MenuPermissionMatrixPage /> },
+                  { path: 'admin/ai-assistant/tools', element: <AiAssistantToolRegistryPage /> },
                 ],
               },
               {

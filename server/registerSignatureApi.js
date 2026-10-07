@@ -8,6 +8,7 @@ import {
   isConsentR2Enabled,
   r2DeleteStorageObjectOrThrow,
 } from './lib/consentStorage.js'
+import { isAllowedSignatureFileKey } from './lib/consentSignatureFileKeyPolicy.js'
 
 const MAX_SIGNATURE_BYTES = 2 * 1024 * 1024
 const SIGNATURE_ACTIVE = 'active'
@@ -294,6 +295,26 @@ export function registerSignatureApi(apiRouter, ctx) {
         return
       }
       const { key } = verifySignatureFileJwt(token, JWT_SECRET)
+      if (!isAllowedSignatureFileKey(key)) {
+        res.status(403).send('허용되지 않은 파일 경로입니다.')
+        return
+      }
+      const owned = await safeQuery(
+        pool,
+        `
+        SELECT id
+        FROM signature
+        WHERE file_key = $1
+          AND status = $2
+        LIMIT 1
+        `,
+        [key, SIGNATURE_ACTIVE],
+        { allowUnscoped: true },
+      )
+      if (owned.rowCount === 0) {
+        res.status(404).send('서명 파일을 찾을 수 없습니다.')
+        return
+      }
       const buf = await consentGetBuffer(key)
       res.setHeader('Content-Type', 'image/png')
       res.setHeader('Cache-Control', 'private, max-age=120')

@@ -1,0 +1,81 @@
+/**
+ * AI 비서 관리 > 기능 연결 현황 테이블
+ * header/body 동일 colgroup + table-layout: fixed SSOT
+ */
+.ai-assistant-tool-registry-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ai-assistant-tool-registry-table {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 1080px;
+}
+
+.ai-assistant-tool-registry-table col.ai-assistant-tool-registry-table__col--category {
+  width: 10%;
+}
+
+.ai-assistant-tool-registry-table col.ai-assistant-tool-registry-table__col--name {
+  width: 13%;
+}
+
+.ai-assistant-tool-registry-table col.ai-assistant-tool-registry-table__col--key {
+  width: 30%;
+}
+
+.ai-assistant-tool-registry-table col.ai-assistant-tool-registry-table__col--base {
+  width: 8%;
+}
+
+.ai-assistant-tool-registry-table col.ai-assistant-tool-registry-table__col--action {
+  width: 8%;
+}
+
+.ai-assistant-tool-registry-table col.ai-assistant-tool-registry-table__col--confirm {
+  width: 6%;
+}
+
+.ai-assistant-tool-registry-table col.ai-assistant-tool-registry-table__col--impl {
+  width: 10%;
+}
+
+.ai-assistant-tool-registry-table col.ai-assistant-tool-registry-table__col--qa {
+  width: 8%;
+}
+
+.ai-assistant-tool-registry-table col.ai-assistant-tool-registry-table__col--prod {
+  width: 7%;
+}
+
+.ai-assistant-tool-registry-table th.ai-assistant-tool-registry-table__cell--wrap,
+.ai-assistant-tool-registry-table td.ai-assistant-tool-registry-table__cell--wrap {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  vertical-align: top;
+}
+
+.ai-assistant-tool-registry-table th.ai-assistant-tool-registry-table__cell--key,
+.ai-assistant-tool-registry-table td.ai-assistant-tool-registry-table__cell--key {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  vertical-align: top;
+}
+
+.ai-assistant-tool-registry-table th.ai-assistant-tool-registry-table__cell--compact,
+.ai-assistant-tool-registry-table td.ai-assistant-tool-registry-table__cell--compact {
+  white-space: nowrap;
+  text-align: center;
+}
+
+.ai-assistant-tool-registry-table thead th {
+  vertical-align: middle;
+}
+
+.ai-assistant-tool-registry-table tbody td.ai-assistant-tool-registry-table__cell--compact {
+  vertical-align: middle;
+}

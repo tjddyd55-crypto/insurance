@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import FileUploader from '../../../components/common/FileUploader'
 import { FormButton } from '../../../components/form'
 import { SignatureModal } from '../../consent/components/SignatureModal'
 import '../../consent/consent.css'
@@ -142,19 +141,18 @@ export default function ClaimRequestExtrasSection({
           <p className="insurance-claim-form__hint">청구 초안을 먼저 저장한 뒤 첨부파일을 추가할 수 있습니다.</p>
         ) : (
           <>
-            <div className="insurance-claim-form__upload">
+            <label className="insurance-claim-form__upload">
               <span>파일 추가</span>
-              <FileUploader
-                accept=""
-                multiple={false}
+              <input
+                type="file"
                 disabled={uploadingAttachment}
-                onFiles={(files) => {
-                  const file = files[0]
+                onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  event.target.value = ''
                   if (file) onUploadAttachment(file)
                 }}
-                primaryHint="파일을 드래그하거나 클릭하여 업로드"
               />
-            </div>
+            </label>
             {additionalAttachments.length === 0 ? (
               <p className="insurance-claim-form__hint">추가된 첨부파일이 없습니다.</p>
             ) : (

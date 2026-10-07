@@ -98,9 +98,6 @@ export function isActivePcNavigationPath(
   if (menuPathname === '/notifications') {
     return pathname === '/notifications' || pathname.startsWith('/notifications/')
   }
-  if (menuPathname === '/schedule') {
-    return pathname === '/schedule' || pathname.startsWith('/schedule/')
-  }
   if (menuPathname.startsWith('/internal/')) {
     return pathname === menuPathname || pathname.startsWith(`${menuPathname}/`)
   }
@@ -142,6 +139,12 @@ export function isActivePcNavigationPath(
   }
   if (menuPathname === '/admin/audit-logs') {
     return pathname === '/admin/audit-logs'
+  }
+  if (menuPathname === '/admin/ai-assistant/tools') {
+    return pathname === '/admin/ai-assistant/tools'
+  }
+  if (menuPathname === '/ai-assistant') {
+    return pathname === '/ai-assistant'
   }
   if (menuPathname === '/insurance/insurer-sites') {
     return pathname === '/insurance/insurer-sites'

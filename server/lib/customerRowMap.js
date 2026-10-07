@@ -100,8 +100,13 @@ export function mapCustomerRow(row) {
       ? normalizeExpiryDate(renewalRaw.toISOString().slice(0, 10))
       : normalizeExpiryDate(String(renewalRaw))
 
-  const g = String(row.gender ?? '').trim()
-  const gender = g === 'male' || g === 'female' ? g : null
+  const g = String(row.gender ?? '').trim().toLowerCase()
+  const gender =
+    ['male', 'm', '남', '남자', '남성'].includes(g)
+      ? 'male'
+      : ['female', 'f', '여', '여자', '여성'].includes(g)
+        ? 'female'
+        : null
 
   let isDriver = null
   if (row.is_driver === true) {

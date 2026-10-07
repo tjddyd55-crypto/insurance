@@ -2,6 +2,7 @@ import dotenv from 'dotenv'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import pg from 'pg'
+import { logMaskedDbFingerprint, warnIfLocalDevUsesProductionDb } from './lib/dbEnvironmentGuard.js'
 
 const serverDir = path.dirname(fileURLToPath(import.meta.url))
 
@@ -35,6 +36,9 @@ function connectionNeedsSsl(url) {
 }
 
 const useSsl = connectionNeedsSsl(connectionString)
+
+logMaskedDbFingerprint('[db] connection', connectionString)
+warnIfLocalDevUsesProductionDb(connectionString)
 
 const pool = new Pool({
   connectionString,

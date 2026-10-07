@@ -47,6 +47,19 @@
 - `develop` 전체를 `main`에 통째로 merge (fast-forward 포함)
 - Railway Source Branch 임의 변경 (변경 시 반드시 보고·문서 갱신)
 - production DB·파괴적 스크립트를 development 검증 없이 실행
+- **`environment` 미지정 `railway service source connect` / disconnect** (동일 서비스가 여러 환경에 있으면 전 환경에 영향 가능)
+
+### CLI 환경 명시 (필수)
+
+Railway source·deploy·variable 작업은 **항상 대상 environment를 명시**한다.
+
+| 작업 | 예시 |
+|---|---|
+| development source 연결 | `railway service source connect --repo tjddyd55-crypto/insurance --branch feat/... --service app --environment development` |
+| production source 연결 | `railway service source connect --repo tjddyd55-crypto/insurance --branch main --service app --environment production` |
+| development 재배포 | `railway redeploy --environment development --service app` |
+
+`railway link -e development` 또는 `-e production`으로 링크한 뒤 명령을 실행해도 되지만, **source connect에는 `--environment`를 생략하지 않는다.**
 
 ---
 
@@ -91,15 +104,15 @@ curl -s https://insurance-production-7bd8.up.railway.app/backend/health
 ## 5. 예약문자 Outbox — scheduler + sender-worker
 
 예약문자는 **scheduler(큐 생성)** 와 **sender-worker(실발송)** 로 분리한다.
-웹 서버는 예약 CRUD만 담당하고, gateway 발송은 sender-worker만 수행한다.
+웹 서버는 예약 CRUD만 담당하고, **Aligo direct 발송**은 `sms-sender-worker`만 수행한다.
 
 ### 서비스 구성 (production 최종)
 
 | 서비스 | 유형 | Command | Schedule | 역할 |
 |---|---|---|---|---|
 | **app** | Web | (기존) | — | 예약 CRUD · 발송내역 조회 |
-| **sms-scheduler** | **Cron Job** | `node server/sms/runScheduledSmsScheduler.js` | `*/5 * * * *` (UTC) | due 예약 → `sms_scheduled_runs` + `sms_send_jobs` 생성 (gateway 발송 없음) |
-| **sms-sender-worker** | **Persistent Worker** | `node server/sms/runSmsSendWorker.js` | **Cron 설정 없음** | `sms_send_jobs` claim → gateway 발송 → delivery/history 갱신 |
+| **sms-scheduler** | **Cron Job** | `node server/sms/runScheduledSmsScheduler.js` | `*/5 * * * *` (UTC) | due 예약 → `sms_scheduled_runs` + `sms_send_jobs` 생성 (발송 없음) |
+| **sms-sender-worker** | **Persistent Worker** | `node server/sms/runSmsSendWorker.js` | **Cron 설정 없음** | `sms_send_jobs` claim → **Railway Aligo direct** 발송 → delivery/history 갱신 |
 
 호환 alias: `node server/sms/runScheduledSmsJob.js` → scheduler 실행
 
@@ -153,7 +166,40 @@ public URL·도메인 불필요. worker replica 확장 시에도 `SKIP LOCKED` +
 
 ---
 
-## 6. 관련 문서
+## 6. Static Outbound IP (Messaging)
+
+Production Railway **app** 및 **sms-sender-worker**는 Static Outbound IP를 사용한다.
+Aligo 문자·알림톡 API allowlist와 **반드시 일치**해야 한다.
+
+### Production IP (2026-06 기준)
+
+- `162.220.232.251`
+- `152.55.177.181`
+- `152.55.177.193`
+
+### 메시징 경로 SSOT
+
+| 채널 | 경로 |
+|------|------|
+| Auth SMS | Railway app → Aligo direct |
+| CRM SMS (즉시) | Railway app → Aligo direct |
+| CRM SMS (예약/큐) | Railway `sms-sender-worker` → Aligo direct |
+| 알림톡 | Railway app → Aligo Kakao API direct |
+| EC2 gateway | **rollback only** |
+
+### 재발 방지 체크리스트 (Aligo allowlist ↔ Railway egress mismatch)
+
+1. Railway 서비스(app/worker) Static Outbound IP 변경 시 Aligo allowlist **즉시** 갱신
+2. `SMS_MODULE_OUTBOUND_IP_HINT` env와 UI 표시 IP가 문서·실제 egress와 일치하는지 확인
+3. SMS direct smoke 후 알림톡 smoke (동일 allowlist 공유)
+4. 장애 시 `AUTH_SMS_PROVIDER=gateway` / `SMS_MODULE_PROVIDER=aligo_gateway` / `INSURANCE_ALIMTALK_PROVIDER=gateway` rollback env 유지 여부 확인
+5. EC2 IP를 allowlist에 다시 넣지 않음 (rollback 경로만)
+
+상세: `docs/ops/railway-messaging-direct.md`, `docs/ops/sms-crm-vs-auth-outbound.md`
+
+---
+
+## 7. 관련 문서
 
 - `AGENTS.md` §1–§3 — 에이전트·브랜치·파이프라인 규칙
 - `docs/ops/database-environments.md` — dev/prod DB 분리

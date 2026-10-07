@@ -13,7 +13,6 @@ import {
 import { useInsuranceBillingSummary } from '../features/insurance-billing/hooks/useInsuranceBillingSummary'
 import { formatGaBannerLabel, resolveStoreReviewTenantDisplayName, shouldShowGaTenantChrome } from '../navigation/gaTenantBarShared'
 import { buildAppMenuForSession } from '../features/dashboard/gaTenantMenu'
-import { isSpecialNewsletterAccount } from '../features/auth/roleGuards'
 import { ExpiredBanner } from '../features/subscription/components/ExpiredBanner'
 import PlatformModeSwitcher from '../features/platform/components/PlatformModeSwitcher'
 import { fetchTeamMembers } from '../features/team/api/teamApi'
@@ -27,6 +26,8 @@ import { isActivePcNavigationPath } from '../components/layout/pcNavigationUtils
 import BillingStatusBadge from '../features/insurance-billing/components/BillingStatusBadge'
 import { AdminNoticePopupModal } from '../features/admin-notices/components/AdminNoticePopupModal'
 import { useAdminNoticePopup } from '../features/admin-notices/hooks/useAdminNoticePopup'
+import { AiSecretaryProvider } from '../features/ai-secretary/context/AiSecretaryContext'
+import AiSecretaryPanel from '../features/ai-secretary/components/AiSecretaryPanel'
 
 /** B안 모드 랜딩에서도 PlatformModeSwitcher 노출 (appRouter 변경 없음). */
 function isPlatformAdminArea(pathname: string): boolean {
@@ -77,10 +78,11 @@ function AdminNoticePopupHost() {
 
 export default function AppWorkspaceLayout() {
   return (
-    <>
+    <AiSecretaryProvider>
       <ResponsiveLayout PC={PCLayout} Mobile={MobileLayout} />
       <AdminNoticePopupHost />
-    </>
+      <AiSecretaryPanel />
+    </AiSecretaryProvider>
   )
 }
 
@@ -199,7 +201,7 @@ function AppWorkspaceLayoutMobileShell() {
   }, [token, user?.role])
 
   const tenantChrome = shouldShowGaTenantChrome(isAuthenticated, user?.gaId, location.pathname)
-  const isNewsManager = isSpecialNewsletterAccount(user?.role)
+  const isNewsManager = user?.role === 'INSURER_MANAGER' || user?.role === 'LOSS_ADJUSTER'
   const userShellActive = isUserWorkspacePath(location.pathname)
   const tenantDisplayName =
     resolveStoreReviewTenantDisplayName(user?.username) ?? (user?.gaName ?? '').trim()
@@ -379,7 +381,7 @@ function AppWorkspaceLayoutPCShell() {
   const workspaceChromeHeaderRef = useRef<HTMLElement>(null)
 
   const tenantChrome = shouldShowGaTenantChrome(isAuthenticated, user?.gaId, location.pathname)
-  const isNewsManager = isSpecialNewsletterAccount(user?.role)
+  const isNewsManager = user?.role === 'INSURER_MANAGER' || user?.role === 'LOSS_ADJUSTER'
   const userShellActive = isUserWorkspacePath(location.pathname)
   const showGaUserActions = tenantChrome && !isNewsManager && canUseCrmNotificationChrome(user?.role)
   const workspaceHeaderTitle = tenantChrome

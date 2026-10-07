@@ -1,11 +1,18 @@
 /**
- * EC2 SMS Gateway (repo reference).
- * Live production uses /home/ubuntu/sms-server on EC2:3000.
+ * EC2 SMS Gateway
  *
- * 시스템 인증 SMS: POST /, POST /send-sms
- * 보험 CRM 알림톡: /api/crm-alimtalk/*
+ * 시스템 인증 SMS (기존):
+ *   POST /, POST /send-sms  — JSON { phone, message }
+ *   SMS_HTTP_GATEWAY_URL 로 Railway 메인 앱이 호출
+ *
+ * CRM 문자 (신규, 분리):
+ *   GET  /api/crm-sms/health
+ *   POST /api/crm-sms/send
+ *   POST /api/crm-sms/balance
+ *   Bearer CRM_SMS_GATEWAY_TOKEN (= Railway SMS_MODULE_GATEWAY_TOKEN)
  */
 import express from 'express'
+import { createCrmSmsRouter } from './routes/crmSms.mjs'
 import { createCrmAlimtalkRouter } from './routes/crmAlimtalk.mjs'
 
 const PORT = Number(process.env.PORT ?? 3080)
@@ -36,6 +43,7 @@ const smsHandler = async (req, res) => {
 app.post('/', smsHandler)
 app.post('/send-sms', smsHandler)
 
+app.use('/api/crm-sms', createCrmSmsRouter())
 app.use('/api/crm-alimtalk', createCrmAlimtalkRouter())
 
 app.listen(PORT, () => {

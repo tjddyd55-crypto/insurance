@@ -18,7 +18,6 @@ const USER_WORK_LABELS = [
   '팀원리스트',
   '문자 발송',
   '서비스 연동',
-  '일정 관리',
   '내정보관리',
 ]
 
@@ -78,7 +77,6 @@ describe('buildAppMenuForSession — 역할별 메뉴 정책', () => {
     const labels = linkLabels(buildAppMenuForSession('USER', 'TEST', 'Test GA'))
     expect(labels).toContain('고객리스트')
     expect(labels).toContain('서비스 연동')
-    expect(labels).toContain('일정 관리')
     expect(labels).toContain('원수사소식지')
     expect(labels).not.toContain('GA전용 소식지 관리')
     expect(labels).not.toContain('보험청구 설정')
@@ -91,5 +89,11 @@ describe('buildAppMenuForSession — 역할별 메뉴 정책', () => {
     expect(labels).toContain('소식지 관리')
     expect(labels).toContain('결제·구독 관리')
     expect(labels).toContain('보안 감사 로그')
+    expect(labels).toContain('기능 연결 현황')
+  })
+
+  it('GA_ADMIN 에게 AI 비서 관리 메뉴를 노출하지 않는다', () => {
+    const labels = linkLabels(buildAppMenuForSession('GA_ADMIN', 'TEST', 'Test GA'))
+    expect(labels).not.toContain('기능 연결 현황')
   })
 })

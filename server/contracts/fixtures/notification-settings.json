@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "data": {
+    "appPush": { "enabled": true },
+    "newCustomer": { "enabled": false },
+    "customerAppFile": { "enabled": true },
+    "workAlert": { "enabled": true },
+    "insuranceAge": { "enabled": true, "daysBefore": 30 },
+    "carExpiry": { "enabled": true, "daysBefore": 14 },
+    "specialDate": { "enabled": false, "daysBefore": 7 },
+    "claimRequest": { "enabled": true }
+  }
+}

@@ -16,18 +16,19 @@ UI/CSS 문제가 아니라 **Naver Cloud Application 인증(키·도메인)** �
 
 ## 2. Railway env (development)
 
-feature/dev 검증 시 **development `app` 서비스**에 아래가 있어야 합니다.
+development 검증 시 **development `app` 서비스** (`develop` branch 배포 — `docs/ops/railway-deployment.md`)에 아래가 있어야 합니다.
 
 ```
 MAP_PROVIDER=naver
 MAP_RENDER_MODE=dynamic
 NAVER_MAPS_CLIENT_ID=...
 NAVER_MAPS_CLIENT_SECRET=...
-VITE_NAVER_MAP_CLIENT_ID=...   # Dynamic Map Client ID (ncpKeyId)
+VITE_NAVER_MAP_CLIENT_ID=...   # Dynamic Map Client ID (ncpKeyId) — 프론트 단일 env 이름
 VITE_MAP_PROVIDER=naver        # 선택, 미설정 시 naver 기본
 ```
 
-env 추가·변경 후 **반드시 재배포**해야 Vite 번들에 반영됩니다.
+- `VITE_NAVER_MAP_CLIENT_ID` 가 비어 있으면 Dynamic Map 인증 오류가 날 수 있다. Phase B(`2a06ed1` env bridge) 또는 위 env 명시가 필요하다.
+- env 추가·변경 후 **반드시 재배포**해야 Vite 번들에 반영됩니다.
 
 ## 3. Web 서비스 URL 등록 (가장 흔한 원인)
 

@@ -1,5 +1,23 @@
 import type { CustomerRecord } from '../domain/types'
 
+type CustomerIdCarrier = {
+  id?: unknown
+  customerId?: unknown
+}
+
+/** 목록·검색 dedupe SSOT — number/string 혼합 id를 동일 키로 취급한다. */
+export function normalizeCustomerId(customer: CustomerIdCarrier | null | undefined): string | null {
+  const raw = customer?.id ?? customer?.customerId
+  if (raw === null || raw === undefined || raw === '') {
+    return null
+  }
+  const n = typeof raw === 'number' ? raw : Number(raw)
+  if (!Number.isInteger(n) || n < 1) {
+    return null
+  }
+  return String(n)
+}
+
 export function normalizePhoneForCustomerDedupe(value: string | number | null | undefined): string {
   return String(value ?? '').replace(/\D/g, '')
 }
@@ -58,13 +76,17 @@ export function compareCustomerSearchPreference(a: CustomerRecord, b: CustomerRe
 }
 
 export function dedupeCustomersById(rows: CustomerRecord[]): CustomerRecord[] {
-  const seen = new Set<number>()
+  const seen = new Set<string>()
   const out: CustomerRecord[] = []
   for (const row of rows) {
-    if (seen.has(row.id)) {
+    const idKey = normalizeCustomerId(row)
+    if (idKey == null) {
       continue
     }
-    seen.add(row.id)
+    if (seen.has(idKey)) {
+      continue
+    }
+    seen.add(idKey)
     out.push(row)
   }
   return out

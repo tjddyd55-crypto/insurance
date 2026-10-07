@@ -1,0 +1,22 @@
+{
+  "token": "jwt-token-example",
+  "user": {
+    "id": "agent-uuid-1",
+    "username": "agent01",
+    "role": "USER",
+    "ga_id": 12,
+    "ga_code": "YJASSET",
+    "ga_name": "원에프씨 GA",
+    "display_name": "홍길동",
+    "team_id": "team-uuid-1",
+    "crm_industry_code": "insurance",
+    "tenant_crm": { "industry": "insurance" },
+    "crm_dynamic_industry_template": { "version": 1 },
+    "tenant_db_id": "tenant-db-1",
+    "tenant_industry_code": "insurance",
+    "membership": { "type": "standard" },
+    "membership_customer_access": true,
+    "membership_type": "standard",
+    "tenant_membership_role": "member"
+  }
+}

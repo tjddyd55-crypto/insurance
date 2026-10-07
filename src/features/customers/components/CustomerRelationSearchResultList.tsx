@@ -1,4 +1,5 @@
-import { formatCustomerBirthDateDot, formatCustomerPhoneUi } from '../utils/customerDisplayFormat'
+import type { CustomerRecord } from '../domain/types'
+import { formatCustomerPhoneUi } from '../utils/customerDisplayFormat'
 import { parseBirthDateFromRrn } from '../utils/insuranceAge'
 
 export type CustomerRelationSearchHitStatus = {
@@ -7,32 +8,18 @@ export type CustomerRelationSearchHitStatus = {
   selected?: boolean
 }
 
-/**
- * 검색 결과 행이 공통으로 쓰는 최소 필드.
- * 연계 고객(`CustomerRecord`)과 보장 시뮬레이션 고객 목록이 같이 만족한다.
- * 콜백의 hit 타입은 호출부가 넘긴 배열 원소 타입을 그대로 유지한다.
- */
-export type CustomerSearchResultHit = {
-  id: string | number
-  name: string
-  phone?: string | null
-  birthDate?: string | Date | null
-  ssn?: string | null
-}
-
-export type CustomerRelationSearchResultListProps<T extends CustomerSearchResultHit> = {
-  hits: T[]
+export type CustomerRelationSearchResultListProps = {
+  hits: CustomerRecord[]
   busy?: boolean
   /** 검색어가 비어 있을 때 안내 (null 이면 결과 영역 숨김) */
   idleHint?: string | null
   emptyText?: string
-  resolveStatus: (hit: T) => CustomerRelationSearchHitStatus
-  onSelect: (hit: T) => void
+  resolveStatus: (hit: CustomerRecord) => CustomerRelationSearchHitStatus
+  onSelect: (hit: CustomerRecord) => void
   /** aria-label 접미사 — 예: "선택" / "연결" */
   actionLabel?: string
 }
 
-/** 주민번호 앞 7자리 → YYYY.MM.DD. 파싱 불가면 `-`. */
 export function formatBirthYmdDotFromSsn(ssn: string | null | undefined): string {
   const birthDate = parseBirthDateFromRrn(String(ssn ?? ''))
   if (!birthDate) return '-'
@@ -43,24 +30,11 @@ export function formatBirthYmdDotFromSsn(ssn: string | null | undefined): string
 }
 
 /**
- * 검색 행 생년월일. `birthDate`(customers.birth_date)가 있으면 그걸 쓰고,
- * 없을 때만 주민번호에서 파생한다. 둘 다 없으면 `-`.
- */
-export function formatCustomerSearchBirthLabel(
-  birthDate: string | Date | null | undefined,
-  ssn?: string | null,
-): string {
-  const fromColumn = formatCustomerBirthDateDot(birthDate)
-  if (fromColumn) return fromColumn
-  return formatBirthYmdDotFromSsn(ssn)
-}
-
-/**
  * 연계 고객(1:1 · 가족 그룹) 공통 검색 결과.
  * PC: 이름/생년월일/연락처 테이블 · Mobile: compact 카드 행.
  * 두 마크업을 같이 두고 CSS 로 플랫폼만 전환한다 (portal 에서도 동작).
  */
-export function CustomerRelationSearchResultList<T extends CustomerSearchResultHit>({
+export function CustomerRelationSearchResultList({
   hits,
   busy = false,
   idleHint = null,
@@ -68,7 +42,7 @@ export function CustomerRelationSearchResultList<T extends CustomerSearchResultH
   resolveStatus,
   onSelect,
   actionLabel = '선택',
-}: CustomerRelationSearchResultListProps<T>) {
+}: CustomerRelationSearchResultListProps) {
   if (idleHint) {
     return (
       <div className="customer-relations-modal__results">
@@ -90,7 +64,7 @@ export function CustomerRelationSearchResultList<T extends CustomerSearchResultH
       <ul className="customer-relations-result-list" aria-label="검색 결과">
         {hits.map((h) => {
           const status = resolveStatus(h)
-          const birth = formatCustomerSearchBirthLabel(h.birthDate, h.ssn)
+          const birth = formatBirthYmdDotFromSsn(h.ssn)
           const phone = formatCustomerPhoneUi(h.phone) || '-'
           const disabled = Boolean(status.disabled)
           return (
@@ -144,7 +118,7 @@ export function CustomerRelationSearchResultList<T extends CustomerSearchResultH
         <ul className="related-list__body" role="list">
           {hits.map((h) => {
             const status = resolveStatus(h)
-            const birth = formatCustomerSearchBirthLabel(h.birthDate, h.ssn)
+            const birth = formatBirthYmdDotFromSsn(h.ssn)
             const phone = formatCustomerPhoneUi(h.phone) || '-'
             const disabled = Boolean(status.disabled)
             const trigger = () => {

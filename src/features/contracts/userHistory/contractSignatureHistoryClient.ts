@@ -41,6 +41,7 @@ export type ListUserSendSessionsResult = {
 export async function listUserSendSessions(
   token: string,
   params: {
+    customerId?: number
     q?: string
     filter?: 'all' | 'in_progress' | 'completed' | 'expired' | 'cancelled'
     sort?: 'sent_desc' | 'completed_desc'
@@ -49,6 +50,9 @@ export async function listUserSendSessions(
   },
 ): Promise<ListUserSendSessionsResult> {
   const qs = new URLSearchParams()
+  if (params.customerId != null && Number.isInteger(params.customerId) && params.customerId > 0) {
+    qs.set('customerId', String(params.customerId))
+  }
   if (params.q?.trim()) {
     qs.set('q', params.q.trim())
   }
@@ -112,6 +116,33 @@ export async function cancelUserSendSession(token: string, sendSessionId: string
     throw new ApiError('발송 취소 응답이 올바르지 않습니다.', 500)
   }
   return b
+}
+
+export type DeleteUserSendSessionResult = {
+  ok: true
+  deleted: boolean
+  id: string
+  message?: string
+}
+
+export async function deleteUserSendSession(token: string, sendSessionId: string): Promise<DeleteUserSendSessionResult> {
+  const body = await apiRequest<{ deleted?: boolean; id?: string; message?: string }>(
+    `/api/contracts/send-sessions/${encodeURIComponent(sendSessionId)}`,
+    {
+      method: 'DELETE',
+      token,
+    },
+  )
+  const data = body as { deleted?: boolean; id?: string; message?: string; ok?: boolean }
+  if (!data?.id) {
+    throw new ApiError('발송내역 삭제 응답이 올바르지 않습니다.', 500)
+  }
+  return {
+    ok: true,
+    deleted: data.deleted === true,
+    id: String(data.id),
+    message: data.message,
+  }
 }
 
 /**

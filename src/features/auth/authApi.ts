@@ -136,39 +136,62 @@ export async function fetchInsurerManagersHealth(token: string): Promise<Insurer
 
 export interface SecurityAuditLogRow {
   id: string | number
-  actor_user_id: string
-  actor_role: string
-  action: string
-  target_type: string | null
-  target_id: string | null
-  ga_id: number | null
-  company_id: number | null
-  meta: unknown
+  occurredAt?: string
   created_at: string
+  action: string
+  actionLabel?: string
+  category?: string
+  actorUserId?: string
+  actor_user_id?: string
+  actorUsername?: string | null
+  actorDisplayName?: string
+  role?: string
+  actor_role?: string
+  roleLabel?: string
+  target?: string | null
+  target_type?: string | null
+  target_id?: string | null
+  targetLabel?: string
+  gaId?: number | null
+  ga_id?: number | null
+  company_id?: number | null
+  summary?: string
+  meta: unknown
+  ipAddress?: string | null
+  userAgent?: string | null
 }
 
 export async function fetchSecurityAuditLogs(
   token: string,
-  params?: { limit?: number; action?: string; actor_user_id?: string; since?: string },
+  params?: URLSearchParams | { limit?: number; action?: string; actor_user_id?: string; since?: string },
 ): Promise<SecurityAuditLogRow[]> {
-  const q = new URLSearchParams()
-  if (params?.limit != null) {
-    q.set('limit', String(params.limit))
-  }
-  if (params?.action?.trim()) {
-    q.set('action', params.action.trim())
-  }
-  if (params?.actor_user_id?.trim()) {
-    q.set('actor_user_id', params.actor_user_id.trim())
-  }
-  if (params?.since?.trim()) {
-    q.set('since', params.since.trim())
+  const q = params instanceof URLSearchParams ? params : new URLSearchParams()
+  if (!(params instanceof URLSearchParams) && params) {
+    if (params.limit != null) {
+      q.set('limit', String(params.limit))
+    }
+    if (params.action?.trim()) {
+      q.set('action', params.action.trim())
+    }
+    if (params.actor_user_id?.trim()) {
+      q.set('actor_user_id', params.actor_user_id.trim())
+    }
+    if (params.since?.trim()) {
+      q.set('since', params.since.trim())
+    }
   }
   const qs = q.toString()
-  return apiRequest<SecurityAuditLogRow[]>(`/api/admin/audit-logs${qs ? `?${qs}` : ''}`, {
-    method: 'GET',
-    token,
-  })
+  const body = await apiRequest<{ logs?: SecurityAuditLogRow[] } | SecurityAuditLogRow[]>(
+    `/api/admin/audit-logs${qs ? `?${qs}` : ''}`,
+    {
+      method: 'GET',
+      token,
+    },
+  )
+  if (Array.isArray(body)) {
+    return body
+  }
+  return Array.isArray(body.logs) ? body.logs : []
 }
 
 /** 서버와 동일 규칙(3~30자, 공백 불가) 충족 시 사용 가능 여부 */
@@ -187,10 +210,7 @@ export async function checkUsernameAvailability(username: string): Promise<boole
 /** 회원가입 GA 코드 자동 조회 — GET /api/ga/validate */
 export type ValidateGaSignupResponse = { success: boolean; gaName?: string; isGeneral?: boolean }
 
-export type SignupPhonePolicyResponse = {
-  devBypassEnabled?: boolean
-  signupPhoneVerificationRequired?: boolean
-}
+export type SignupPhonePolicyResponse = { devBypassEnabled?: boolean }
 
 /** develop/test 가입 SMS·중복 완화 여부 — GET /api/auth/signup-phone-policy */
 export async function fetchSignupPhonePolicy(): Promise<SignupPhonePolicyResponse> {
@@ -198,11 +218,11 @@ export async function fetchSignupPhonePolicy(): Promise<SignupPhonePolicyRespons
   try {
     const res = await fetch(url, { method: 'GET' })
     if (!res.ok) {
-      return { devBypassEnabled: false, signupPhoneVerificationRequired: true }
+      return { devBypassEnabled: false }
     }
     return (await res.json()) as SignupPhonePolicyResponse
   } catch {
-    return { devBypassEnabled: false, signupPhoneVerificationRequired: true }
+    return { devBypassEnabled: false }
   }
 }
 

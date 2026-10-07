@@ -14,7 +14,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
-import FileUploader from '../../../components/common/FileUploader'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import { listGaCompanies, type GaCompanyRow } from '../../auth/authApi'
@@ -86,7 +85,7 @@ function CreateTemplateFlow({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const handleFilesSelected = (fileList: FileList | File[] | null) => {
+  const handleFilesSelected = (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) {
       setFiles([])
       return
@@ -192,13 +191,11 @@ function CreateTemplateFlow({
           <span className="pdf-engine-editor__label-hint">
             여러 PDF 파일 선택 가능 · 선택된 순서대로 병합됩니다.
           </span>
-          <FileUploader
+          <FormInput
+            type="file"
             accept="application/pdf,.pdf"
             multiple
-            onFiles={(picked) => handleFilesSelected(picked)}
-            selectedNames={files.map((file) => file.name)}
-            primaryHint="파일을 드래그하거나 클릭하여 업로드"
-            hintLines={['PDF, 선택한 순서대로 병합됩니다.']}
+            onChange={(e) => handleFilesSelected(e.target.files)}
           />
         </label>
         {files.length > 0 ? (

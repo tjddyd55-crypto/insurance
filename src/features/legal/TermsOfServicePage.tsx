@@ -45,11 +45,6 @@ export default function TermsOfServicePage() {
               {C.operatorLegalName}(이하 &quot;회사&quot;)가 제공하는 {C.serviceName} 서비스(이하 &quot;서비스&quot;)의
               이용과 관련하여 회사와 이용자의 권리·의무 및 책임 사항을 규정합니다.
             </p>
-            <p className="legal-doc__lead">
-              개정 안내: 이번 개정은 {C.lastRevisedDate}에 공지하며 {C.effectiveDate}부터 시행합니다. 시행일 전까지는 종전
-              약관({C.previousEffectiveDate} 시행)이 적용됩니다. 주요 변경 사항은 제4조에 Google Calendar 및 Google Tasks
-              읽기 전용 연동(선택 기능) 안내 추가입니다.
-            </p>
           </header>
 
           <nav className="legal-doc__toc" aria-label="목차">
@@ -133,16 +128,6 @@ export default function TermsOfServicePage() {
               회사는 연중무휴 서비스 제공을 원칙으로 하나, 시스템 점검·장애·천재지변 등 불가피한 사유가 있는 경우
               서비스 제공을 일시 중단할 수 있습니다. 회사는 운영상·기술상 필요에 따라 서비스의 전부 또는 일부를
               변경할 수 있으며, 이용자에게 중대한 영향을 미치는 변경은 사전에 공지합니다.
-            </p>
-            <p>
-              회사는 이용자의 선택에 따라 Google Calendar 및 Google Tasks 등 외부 서비스와 연동하는 기능을 제공할 수
-              있습니다. 외부 서비스 연동은 이용자가 직접 연결한 경우에만 이루어지는 선택 기능이며, Google Calendar 및
-              Google Tasks 연동은 일정과 할 일을 읽기 전용으로 표시하는 데 한정됩니다. 이용자는 서비스 연동 화면에서 언제든지 연결을 해제할 수 있으며, 연동
-              과정의 개인정보 처리는{' '}
-              <LegalInternalLink to="/privacy" className="legal-doc__link">
-                개인정보처리방침
-              </LegalInternalLink>
-              에 따릅니다.
             </p>
           </section>
 

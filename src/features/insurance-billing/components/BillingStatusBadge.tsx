@@ -1,20 +1,16 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { isInsuranceBillingEnabledClient } from '../insuranceBillingConfig'
-import { fetchBillingManageSummary, type CheckoutSummary } from '../api/insuranceBillingApi'
+import { fetchBillingManageSummary } from '../api/insuranceBillingApi'
 import { buildBillingStatusBadgeView } from '../billingStatusBadgeUtils'
 import { isSubscriptionSubjectRole } from '../../subscription/policy'
 import { isBillingUiVisibleForUser } from '../../billing/storeReviewBillingAccess'
 import '../billing-status-badge.css'
 
-type LoadState = 'idle' | 'loading' | 'ready' | 'error'
-
 export default function BillingStatusBadge() {
   const { token, user } = useAuth()
   const navigate = useNavigate()
-  const [loadState, setLoadState] = useState<LoadState>('idle')
-  const [summary, setSummary] = useState<CheckoutSummary | null>(null)
 
   const shouldLoad =
     isInsuranceBillingEnabledClient() &&
@@ -22,32 +18,18 @@ export default function BillingStatusBadge() {
     Boolean(token?.trim()) &&
     isSubscriptionSubjectRole(user?.role)
 
-  const load = useCallback(async () => {
-    if (!shouldLoad || !token?.trim()) {
-      setLoadState('idle')
-      setSummary(null)
-      return
-    }
-    setLoadState('loading')
-    try {
-      const data = await fetchBillingManageSummary(token)
-      setSummary(data.summary)
-      setLoadState('ready')
-    } catch {
-      setSummary(null)
-      setLoadState('error')
-    }
-  }, [shouldLoad, token])
-
-  useEffect(() => {
-    void load()
-  }, [load])
+  const query = useQuery({
+    queryKey: ['billing-manage-summary', token],
+    queryFn: () => fetchBillingManageSummary(token!.trim()),
+    enabled: shouldLoad,
+    staleTime: 30_000,
+  })
 
   if (!shouldLoad) {
     return null
   }
 
-  if (loadState === 'loading' || loadState === 'idle') {
+  if (query.isLoading || (query.isFetching && !query.data)) {
     return (
       <span className="billing-status-badge billing-status-badge--loading" aria-live="polite">
         상태 확인 중
@@ -55,11 +37,11 @@ export default function BillingStatusBadge() {
     )
   }
 
-  if (loadState === 'error') {
+  if (query.isError) {
     return null
   }
 
-  const view = buildBillingStatusBadgeView(summary)
+  const view = buildBillingStatusBadgeView(query.data?.summary ?? null)
   if (!view) {
     return null
   }

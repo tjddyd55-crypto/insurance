@@ -38,13 +38,6 @@ export function CustomerExcelGptGuideModal({
 
   useEffect(() => {
     if (!open) {
-      setCopyNotice(null)
-      setCopyBusy(false)
-    }
-  }, [open])
-
-  useEffect(() => {
-    if (!open) {
       return
     }
     // FormButton 은 forwardRef 미지원 → id 로 실제 button 노드를 잡아 focus
@@ -67,6 +60,8 @@ export function CustomerExcelGptGuideModal({
   }
 
   function handleClose() {
+    setCopyNotice(null)
+    setCopyBusy(false)
     onClose()
     window.setTimeout(() => {
       const trigger = triggerRef?.current

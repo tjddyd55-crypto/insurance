@@ -35,6 +35,7 @@ describe('storeReviewBillingAccess wiring', () => {
 
     const landing = read('src/features/insurance-billing/insuranceBillingLanding.ts')
     assert.match(landing, /\/billing\/checkout/)
+
     const entitlement = read('src/features/insurance-billing/insuranceBillingEntitlement.ts')
     assert.match(entitlement, /\/billing\/manage/)
 

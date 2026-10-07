@@ -17,24 +17,7 @@ export type ApplyPromotionResponse = {
   message?: string
 }
 
-const PROMOTION_EXTENSION_SUCCESS_STATUSES = new Set([
-  'trialing',
-  'trial',
-  'active_paid',
-  'active_manual',
-  'legacy_active',
-  'active',
-  'paid',
-  'free',
-])
-
 export function isApplyPromotionTrialingSuccess(response: ApplyPromotionResponse | null | undefined): boolean {
-  return isApplyPromotionExtensionSuccess(response)
-}
-
-export function isApplyPromotionExtensionSuccess(
-  response: ApplyPromotionResponse | null | undefined,
-): boolean {
   if (!response) {
     return false
   }
@@ -44,10 +27,8 @@ export function isApplyPromotionExtensionSuccess(
   const status = String(response.subscription?.status ?? response.status ?? '')
     .trim()
     .toLowerCase()
-  const entitlementEndsAt = String(
-    response.subscription?.trialEndsAt ?? response.trialEndsAt ?? '',
-  ).trim()
-  return PROMOTION_EXTENSION_SUCCESS_STATUSES.has(status) && entitlementEndsAt.length > 0
+  const trialEndsAt = String(response.subscription?.trialEndsAt ?? response.trialEndsAt ?? '').trim()
+  return status === 'trialing' && trialEndsAt.length > 0
 }
 
 export function resolveApplyPromotionTrialEndsAt(response: ApplyPromotionResponse): string | undefined {

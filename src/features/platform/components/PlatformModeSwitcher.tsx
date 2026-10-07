@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 import { FormButton } from '../../../components/form'
@@ -64,6 +64,31 @@ function inferModeFromPathname(
   return null
 }
 
+function resolveActiveMode(
+  summary: NonNullable<ReturnType<typeof usePlatformAccess>['summary']>,
+  pathname: string,
+  userPickedMode: boolean,
+  pickedMode: PlatformAccessMode | null,
+): PlatformAccessMode | null {
+  const modes = summary.availableModes
+  if (modes.length === 0) {
+    return null
+  }
+  const inferred = inferModeFromPathname(pathname, modes)
+  if (inferred != null) {
+    return inferred
+  }
+  if (userPickedMode && pickedMode && modes.includes(pickedMode)) {
+    return pickedMode
+  }
+  if (!userPickedMode) {
+    return summary.defaultMode != null && modes.includes(summary.defaultMode)
+      ? summary.defaultMode
+      : modes[0]!
+  }
+  return pickedMode != null && modes.includes(pickedMode) ? pickedMode : modes[0] ?? null
+}
+
 /**
  * 플랫폼 접근 요약 기반 모드 표시·선택 + 대상 라우트로 navigate (로컬 스토리지·서버 미동기화).
  */
@@ -72,58 +97,18 @@ export default function PlatformModeSwitcher({ token }: Props) {
   const navigate = useNavigate()
   const location = useLocation()
   const { loading, error, summary, reload } = usePlatformAccess(trimmed || null)
-  const [activeMode, setActiveMode] = useState<PlatformAccessMode | null>(null)
+  const [pickedMode, setPickedMode] = useState<PlatformAccessMode | null>(null)
   const [userPickedMode, setUserPickedMode] = useState(false)
-  const [notice, setNotice] = useState<string | null>(null)
+  const [notice, setNotice] = useState<{ path: string; text: string } | null>(null)
 
-  useEffect(() => {
-    setNotice(null)
-  }, [location.pathname])
-
-  useEffect(() => {
-    if (error) {
-      setUserPickedMode(false)
-      setActiveMode(null)
+  const activeMode = useMemo(() => {
+    if (!trimmed || error || !summary) {
+      return null
     }
-  }, [error])
+    return resolveActiveMode(summary, location.pathname, userPickedMode, pickedMode)
+  }, [trimmed, error, summary, location.pathname, userPickedMode, pickedMode])
 
-  useEffect(() => {
-    if (!trimmed) {
-      setActiveMode(null)
-      setUserPickedMode(false)
-      setNotice(null)
-    }
-  }, [trimmed])
-
-  useEffect(() => {
-    if (!summary || error) {
-      return
-    }
-    const modes = summary.availableModes
-    if (modes.length === 0) {
-      setActiveMode(null)
-      return
-    }
-
-    const inferred = inferModeFromPathname(location.pathname, modes)
-    if (inferred != null) {
-      setActiveMode(inferred)
-      return
-    }
-
-    if (!userPickedMode) {
-      const next =
-        summary.defaultMode != null && modes.includes(summary.defaultMode)
-          ? summary.defaultMode
-          : modes[0]!
-      setActiveMode(next)
-      return
-    }
-
-    setActiveMode((prev) =>
-      prev != null && !modes.includes(prev) ? modes[0] ?? null : prev,
-    )
-  }, [summary, userPickedMode, error, location.pathname, trimmed])
+  const visibleNotice = notice?.path === location.pathname ? notice.text : null
 
   if (!trimmed) {
     return null
@@ -201,7 +186,7 @@ export default function PlatformModeSwitcher({ token }: Props) {
 
     if (next === 'platform') {
       setUserPickedMode(true)
-      setActiveMode('platform')
+      setPickedMode('platform')
       navigate('/admin/platform', { replace: true })
       return
     }
@@ -209,11 +194,11 @@ export default function PlatformModeSwitcher({ token }: Props) {
     if (next === 'industry') {
       const id = summary.industryAdminIndustryIds[0]
       if (id == null || String(id).trim() === '') {
-        setNotice('이동 가능한 업종이 없습니다.')
+        setNotice({ path: location.pathname, text: '이동 가능한 업종이 없습니다.' })
         return
       }
       setUserPickedMode(true)
-      setActiveMode('industry')
+      setPickedMode('industry')
       navigate(`/admin/industry/${encodeURIComponent(String(id).trim())}`, { replace: true })
       return
     }
@@ -221,23 +206,23 @@ export default function PlatformModeSwitcher({ token }: Props) {
     if (next === 'tenant') {
       const id = summary.tenantAdminTenantIds[0]
       if (id == null || String(id).trim() === '') {
-        setNotice('이동 가능한 테넌트가 없습니다.')
+        setNotice({ path: location.pathname, text: '이동 가능한 테넌트가 없습니다.' })
         return
       }
       setUserPickedMode(true)
-      setActiveMode('tenant')
+      setPickedMode('tenant')
       navigate(`/admin/tenant/${encodeURIComponent(String(id).trim())}`, { replace: true })
       return
     }
 
     if (next === 'work') {
       setUserPickedMode(true)
-      setActiveMode('work')
+      setPickedMode('work')
       navigate('/dashboard', { replace: true })
       return
     }
 
-    setNotice('모드 이동 대상을 찾지 못했습니다.')
+    setNotice({ path: location.pathname, text: '모드 이동 대상을 찾지 못했습니다.' })
   }
 
   return (
@@ -276,9 +261,9 @@ export default function PlatformModeSwitcher({ token }: Props) {
           ))}
         </select>
       </div>
-      {notice ? (
+      {visibleNotice ? (
         <p className="platform-mode-switcher__notice" role="alert">
-          {notice}
+          {visibleNotice}
         </p>
       ) : null}
     </div>

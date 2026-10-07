@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { FormButton, FormInput } from '../../../components/form'
 import { BaseDialog } from '../../../components/dialog/BaseDialog'
 import {
@@ -49,13 +49,6 @@ function AccountRowEditor({
     loginId: row.loginId,
     loginPassword: row.loginPassword,
   })
-
-  useEffect(() => {
-    setDraft({
-      loginId: row.loginId,
-      loginPassword: row.loginPassword,
-    })
-  }, [row.id, row.loginId, row.loginPassword, row.updatedAt])
 
   const handleSave = () => {
     onSave({
@@ -166,7 +159,7 @@ function AccountSection({
               <div className="account-credential-table__body" role="rowgroup">
                 {rows.map((row) => (
                   <AccountRowEditor
-                    key={row.id}
+                    key={`${row.id}-${row.updatedAt}`}
                     row={row}
                     pending={pendingId === row.id}
                     onSave={(patch) => onSave(row, patch)}

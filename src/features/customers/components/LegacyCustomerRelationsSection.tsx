@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useConfirmDialog } from '../../../components/dialog'
-import { FormButton } from '../../../components/form'
 import Modal from '../../../components/ui/Modal'
 import { useBackButtonClose } from '../../../hooks/useBackButtonClose'
 import { listCustomers, searchCustomers } from '../api/customersApi'
@@ -20,6 +19,9 @@ type Props = {
   token: string
   onOpenCustomer: (id: number, name?: string) => void
   focusedCustomerId: number | null
+  /** 상단 헤더 버튼에서 모달을 열 때 사용 */
+  addOpen: boolean
+  onAddOpenChange: (open: boolean) => void
   onStatus?: (payload: { error?: string; notice?: string }) => void
 }
 
@@ -29,14 +31,15 @@ type Props = {
  */
 export function LegacyCustomerRelationsSection({
   customerId,
-  customerName: _customerName,
+  customerName,
   token,
   onOpenCustomer,
   focusedCustomerId,
+  addOpen,
+  onAddOpenChange,
   onStatus,
 }: Props) {
   const { confirm, confirmDialog } = useConfirmDialog()
-  const [addOpen, setAddOpen] = useState(false)
   const [relations, setRelations] = useState<CustomerRelationRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -79,7 +82,7 @@ export function LegacyCustomerRelationsSection({
   useBackButtonClose(
     addOpen,
     () => {
-      setAddOpen(false)
+      onAddOpenChange(false)
     },
     { layerKind: 'customer-legacy-relation-modal' },
   )
@@ -144,7 +147,7 @@ export function LegacyCustomerRelationsSection({
       // 기존 API 계약: 세 번째 인자는 number (relatedCustomerId)
       await createCustomerRelation(token, customerId, relatedCustomerId)
       setNotice(`${target.name} 고객과 연결했습니다.`)
-      setAddOpen(false)
+      onAddOpenChange(false)
       setSearchQ('')
       await loadRelations()
     } catch (e) {
@@ -175,7 +178,7 @@ export function LegacyCustomerRelationsSection({
   const requestCloseRelationsModal = useCallback(async () => {
     if (linking) return
     if (!searchQ.trim()) {
-      setAddOpen(false)
+      onAddOpenChange(false)
       return
     }
     const ok = await confirm({
@@ -185,8 +188,8 @@ export function LegacyCustomerRelationsSection({
       cancelLabel: '계속',
       tone: 'warning',
     })
-    if (ok) setAddOpen(false)
-  }, [confirm, linking, searchQ])
+    if (ok) onAddOpenChange(false)
+  }, [confirm, linking, searchQ, onAddOpenChange])
 
   return (
     <div className="customer-relations-legacy-section">
@@ -205,10 +208,6 @@ export function LegacyCustomerRelationsSection({
         <p className="customer-relations-strip__status customer-relations-strip__status--notice" role="status">
           {notice}
         </p>
-      ) : null}
-
-      {!loading && relations.length === 0 ? (
-        <p className="customer-relations-strip__empty">등록된 개별 연결 고객이 없습니다.</p>
       ) : null}
 
       <ul className="customer-relations-strip__chip-list">
@@ -251,27 +250,19 @@ export function LegacyCustomerRelationsSection({
           )
         })}
       </ul>
-
-      <div className="customer-relations-subsection__add">
-        <FormButton
-          htmlType="button"
-          variant="secondary"
-          size="sm"
-          disabled={loading || linking}
-          onClick={() => setAddOpen(true)}
-        >
-          + 개별 연결 추가
-        </FormButton>
-      </div>
+      <p className="customer-relations-strip__description">
+        {customerName}님과 연결된 다른 고객입니다. 이름을 누르면 해당 고객 상세로 이동합니다. 칩에
+        마우스를 올리면 전화번호 힌트가 표시됩니다.
+      </p>
 
       <Modal
         open={addOpen}
         onClose={() => void requestCloseRelationsModal()}
         ariaLabel="고객 검색 후 연결"
         panelClassName="customer-relations-modal"
+        verticalAnchor="top"
         closeOnBackdrop={false}
         usePortal
-        verticalAnchor="top"
         onEscapeRequest={() => void requestCloseRelationsModal()}
       >
         <header className="customer-relations-modal__header">

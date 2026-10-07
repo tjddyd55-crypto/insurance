@@ -1,8 +1,3 @@
-import {
-  extractNewsletterBoardSlugFromPath,
-  isKnownGlobalNewsletterBoardSlug,
-} from '../entitlements/featureRoutePolicy'
-
 /**
  * GA 미소속(공용 GENERAL) 사용자가 GA 전용 기능에 접근할 때 표시할 안내 SSOT.
  * 소속 판별은 `isPublicGeneralAccount` 역논리 — 가입 시 코드 입력 여부가 아닌 현재 세션 GA 소속.
@@ -90,10 +85,6 @@ export function resolveGaRestrictedFeatureFromPath(
     return 'insurance-contacts'
   }
   if (normalized.startsWith('/portal/boards/')) {
-    const slug = extractNewsletterBoardSlugFromPath(normalized)
-    if (isKnownGlobalNewsletterBoardSlug(slug)) {
-      return 'generic'
-    }
     return 'loss-adjuster-board'
   }
   return 'generic'

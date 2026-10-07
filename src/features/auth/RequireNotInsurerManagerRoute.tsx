@@ -2,7 +2,7 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from './AuthProvider'
 import { isGaAdminAllowedPath, resolveGaAdminFallbackPath } from './gaAdminPathPolicy'
 import { resolveAuthLandingPath } from './landing'
-import { isGaAdminRole, isSpecialNewsletterAccount } from './roleGuards'
+import { isGaAdminRole } from './roleGuards'
 
 /**
  * 채널 담당자(INSURER_MANAGER / LOSS_ADJUSTER)는 하위 업무 접근 불가.
@@ -15,7 +15,7 @@ export function RequireNotInsurerManagerRoute() {
   if (!isAuthenticated || !user) {
     return <Navigate to="/login?required=1" replace />
   }
-  if (isSpecialNewsletterAccount(user.role)) {
+  if (user.role === 'INSURER_MANAGER' || user.role === 'LOSS_ADJUSTER') {
     return <Navigate to={resolveAuthLandingPath(false, user.role)} replace />
   }
   if (isGaAdminRole(user.role) && !isGaAdminAllowedPath(location.pathname)) {

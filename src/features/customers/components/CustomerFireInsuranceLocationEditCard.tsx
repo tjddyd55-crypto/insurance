@@ -1,11 +1,5 @@
 import { memo, useCallback } from 'react'
-import {
-  AddressSearchField,
-  FormButton,
-  FormTextarea,
-  formatAddressForSave,
-  parseAddressFromSave,
-} from '../../../components/form'
+import { FormButton, FormInput, FormTextarea } from '../../../components/form'
 import type { CustomerFireInsuranceLocationFormItem } from '../types/customerFireInsuranceLocationForm'
 
 export type CustomerFireInsuranceLocationEditCardProps = {
@@ -46,15 +40,15 @@ export const CustomerFireInsuranceLocationEditCard = memo(function CustomerFireI
           삭제
         </FormButton>
       </div>
-      <div className="field field--wide">
+      <label className="field field--wide">
         <span className="field__label">주소</span>
-        <AddressSearchField
-          className="address-search-field"
-          value={parseAddressFromSave(item.address)}
+        <FormInput
+          className="field__control"
+          value={item.address}
           disabled={disabled}
-          onChange={(next) => updateField({ address: formatAddressForSave(next) })}
+          onChange={(e) => updateField({ address: e.target.value })}
         />
-      </div>
+      </label>
       <label className="field field--wide">
         <span className="field__label">메모</span>
         <FormTextarea

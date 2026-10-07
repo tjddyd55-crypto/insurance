@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type TouchEvent } from 'react'
+import { useCallback, useRef, useState, type TouchEvent } from 'react'
 import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock'
 
 type Props = {
@@ -19,18 +19,41 @@ export default function CustomerAppNewsImageFullscreenOverlay({
   altBase = '이미지',
 }: Props) {
   const urls = imageUrls.filter(Boolean)
+  const urlsSignature = urls.join('|')
+
+  if (!open) {
+    return null
+  }
+
+  return (
+    <FullscreenSlides
+      key={`${urlsSignature}-${initialIndex}`}
+      urls={urls}
+      initialIndex={initialIndex}
+      onClose={onClose}
+      altBase={altBase}
+    />
+  )
+}
+
+function FullscreenSlides({
+  urls,
+  initialIndex,
+  onClose,
+  altBase,
+}: {
+  urls: string[]
+  initialIndex: number
+  onClose: () => void
+  altBase: string
+}) {
   const n = urls.length
-  const [index, setIndex] = useState(0)
+  const [index, setIndex] = useState(() =>
+    n <= 0 ? 0 : Math.min(Math.max(0, initialIndex), n - 1),
+  )
   const touchStartX = useRef<number | null>(null)
 
-  useEffect(() => {
-    if (open) {
-      const safe = n <= 0 ? 0 : Math.min(Math.max(0, initialIndex), n - 1)
-      setIndex(safe)
-    }
-  }, [open, initialIndex, n])
-
-  useBodyScrollLock(open)
+  useBodyScrollLock(true)
 
   const go = useCallback(
     (dir: -1 | 1) => {
@@ -72,7 +95,7 @@ export default function CustomerAppNewsImageFullscreenOverlay({
     [go, n],
   )
 
-  if (!open || n === 0) {
+  if (n === 0) {
     return null
   }
 

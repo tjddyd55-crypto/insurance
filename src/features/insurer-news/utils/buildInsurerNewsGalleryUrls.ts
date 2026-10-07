@@ -1,5 +1,5 @@
 import type { NewsletterAttachment } from '../types'
-import { resolveNewsletterAttachmentViewUrl } from './resolveNewsletterAttachmentViewUrl'
+import { resolveInsurerNewsAttachmentDisplayUrl } from './resolveInsurerNewsImageUrl'
 
 function isImageAttachment(row: NewsletterAttachment): boolean {
   if (row.kind === 'image') {
@@ -15,11 +15,11 @@ function resolveHeroGalleryUrl(params: {
 }): string {
   const heroObjectKey = String(params.heroImageObjectKey ?? '').trim()
   if (heroObjectKey) {
-    return resolveNewsletterAttachmentViewUrl({ objectKey: heroObjectKey, url: '' })
+    return resolveInsurerNewsAttachmentDisplayUrl({ objectKey: heroObjectKey, url: '' })
   }
   const heroRaw = String(params.heroImageUrl ?? '').trim()
   if (heroRaw) {
-    return resolveNewsletterAttachmentViewUrl({ url: heroRaw })
+    return resolveInsurerNewsAttachmentDisplayUrl({ url: heroRaw })
   }
   return ''
 }
@@ -37,7 +37,7 @@ export function buildInsurerNewsGalleryUrls(params: {
     .filter(isImageAttachment)
     .sort((a, b) => a.sortOrder - b.sortOrder)
   const fromAttachments = rows
-    .map((row) => resolveNewsletterAttachmentViewUrl(row))
+    .map((row) => resolveInsurerNewsAttachmentDisplayUrl(row))
     .filter(Boolean)
 
   const out: string[] = []

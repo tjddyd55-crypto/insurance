@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { InsurerNewsForm } from '../components/InsurerNewsForm'
 import {
@@ -12,21 +12,15 @@ export function BoardWriterNewsUploadPage() {
   const { boardSlug = '' } = useParams<{ boardSlug: string }>()
   const { board, uploadLabel } = useOutletContext<BoardWriterOutletContext>()
   const navigate = useNavigate()
-  const [token, setToken] = useState<string | null>(null)
+  const writerToken = getPublicBoardWriterToken()?.trim() ?? ''
 
   useEffect(() => {
-    const writerToken = getPublicBoardWriterToken()
-    if (!writerToken?.trim()) {
+    if (!writerToken) {
       navigate('/board-writer/login', { replace: true })
-      return
     }
-    if (!boardSlug.trim() || board.slug !== boardSlug) {
-      return
-    }
-    setToken(writerToken)
-  }, [board.slug, boardSlug, navigate])
+  }, [navigate, writerToken])
 
-  if (!token) {
+  if (!writerToken || !boardSlug.trim() || board.slug !== boardSlug) {
     return (
       <main className="page page--with-back insurer-news-page user-page">
         <div className="insurer-news-empty">불러오는 중…</div>
@@ -52,7 +46,7 @@ export function BoardWriterNewsUploadPage() {
           insurerName: board.label || '소식지',
           insurerSlug: companySlug,
         }}
-        authToken={token}
+        authToken={writerToken}
         enableLinkPreview
         linkPreviewEndpoint="/api/board-writer/link-preview"
         enableAutoLinking
@@ -60,7 +54,7 @@ export function BoardWriterNewsUploadPage() {
         uploadAttachments={(authToken, drafts) => uploadBoardWriterAttachments(authToken, boardSlug, drafts)}
         onCancel={() => navigate(listPath)}
         onSubmit={async (draft) => {
-          await createBoardWriterNewsletter(token, boardSlug, draft)
+          await createBoardWriterNewsletter(writerToken, boardSlug, draft)
           navigate(listPath)
         }}
       />

@@ -21,11 +21,9 @@ describe('resolveGaRestrictedFeatureFromPath', () => {
     expect(resolveGaRestrictedFeatureFromPath('/portal/boards/internal-news')).toBe('loss-adjuster-board')
   })
 
-  it('does not map shared global board paths to GA-only board notice', () => {
-    expect(resolveGaRestrictedFeatureFromPath('/portal/boards/shared-news')).toBe('generic')
-    expect(resolveGaRestrictedFeatureFromPath('/portal/boards/%EA%B3%B5%EC%9A%A9-%EC%86%8C%EC%8B%9D%EC%A7%80')).toBe(
-      'generic',
-    )
+  it('does not map shared global board paths to insurer newsletter', () => {
+    const key = resolveGaRestrictedFeatureFromPath('/portal/boards/shared-news')
+    expect(key).toBe('loss-adjuster-board')
   })
 
   it('falls back to generic for unknown paths', () => {

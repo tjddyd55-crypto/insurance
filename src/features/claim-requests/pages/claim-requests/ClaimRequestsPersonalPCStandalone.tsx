@@ -11,7 +11,7 @@ import {
 } from '../../../customers/components/CustomerWorkspaceActionButtons'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useInsurerNewsForm } from '../../../insurer-news/hooks/useInsurerNewsForm'
-import { validateInsurerNewsFile } from '../../../insurer-news/utils/validateInsurerNewsFile'
+import { validateCustomerNewsMessageFileForUpload } from '../../model/customerNewsMessageAttachmentUpload'
 import {
   createCustomerNews,
   deleteCustomerNews,
@@ -138,8 +138,7 @@ export default function ClaimRequestsPersonalPCStandalone() {
   }, [activeCustomerId, token])
 
   const validateNewsletterFile = useCallback((file: File): string | null => {
-    const validated = validateInsurerNewsFile(file)
-    return validated.ok ? null : validated.message
+    return validateCustomerNewsMessageFileForUpload(file)
   }, [])
 
   const beginEdit = useCallback(() => {
@@ -395,7 +394,7 @@ export default function ClaimRequestsPersonalPCStandalone() {
           {!isEditing ? (
             <>
               <FileUploader
-                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.hwp,.hwpx"
+                accept="image/jpeg,image/png,.pdf,.xls,.xlsx,.csv"
                 validateFile={validateNewsletterFile}
                 onFiles={form.addAttachments}
                 onInvalidBatch={(failures) => setError(failures[0]?.message ?? '첨부할 수 없는 파일이 있습니다.')}
@@ -404,7 +403,7 @@ export default function ClaimRequestsPersonalPCStandalone() {
                 disabled={busy}
                 statusText={uploadBusyText ?? undefined}
                 primaryHint="파일 첨부"
-                hintLines={['사진, PDF, 문서 파일을 첨부할 수 있습니다.']}
+                hintLines={['JPG, PNG, PDF, XLS, XLSX, CSV (파일당 25MB)']}
               />
               {form.attachments.length > 0 ? (
                 <div className="personal-message-draft-files">

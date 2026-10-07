@@ -1,7 +1,7 @@
 import { FormButton } from '../../../../components/form'
 import type { SendSessionHistoryListItem } from '../contractSignatureHistoryClient'
 import { SendSessionStatusBadge } from './SendSessionStatusBadge'
-import { ContractTableDateCell, ContractTableHashCell } from './ContractTableCells'
+import { ContractTableDateCell } from './ContractTableCells'
 
 type Props = {
   rows: SendSessionHistoryListItem[]
@@ -10,6 +10,7 @@ type Props = {
   onCopyLink: (row: SendSessionHistoryListItem) => void
   onOpenLink: (row: SendSessionHistoryListItem) => void
   onCancel: (row: SendSessionHistoryListItem) => void
+  onDelete: (row: SendSessionHistoryListItem) => void
   /** 모바일(768px 이하)에서 테이블 대신 카드 */
   listLayout?: 'table' | 'cards'
 }
@@ -21,6 +22,7 @@ export function SendSessionHistoryList({
   onCopyLink,
   onOpenLink,
   onCancel,
+  onDelete,
   listLayout = 'table',
 }: Props) {
   if (listLayout === 'cards') {
@@ -54,7 +56,7 @@ export function SendSessionHistoryList({
                 <span>{row.maskedPhone || '—'}</span>
               </div>
               <div className="contract-history-mobile-card__row">
-                <span className="contract-history-mobile-card__label">문서</span>
+                <span className="contract-history-mobile-card__label">양식명</span>
                 <span>{tpl}</span>
               </div>
               <div className="contract-history-mobile-card__row">
@@ -80,12 +82,6 @@ export function SendSessionHistoryList({
                 <span className="contract-history-mobile-card__label">완료일</span>
                 <span>
                   <ContractTableDateCell iso={row.completedAt} />
-                </span>
-              </div>
-              <div className="contract-history-mobile-card__row">
-                <span className="contract-history-mobile-card__label">증빙</span>
-                <span>
-                  <ContractTableHashCell prefix={row.evidenceHashPrefix} />
                 </span>
               </div>
               <div className="contract-history-mobile-card__actions">
@@ -120,6 +116,16 @@ export function SendSessionHistoryList({
                 >
                   취소
                 </FormButton>
+                <FormButton
+                  htmlType="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={!row.canDelete || busy}
+                  className="contract-history-mobile-card__actions--full contract-history-actions__delete"
+                  onClick={() => onDelete(row)}
+                >
+                  삭제
+                </FormButton>
               </div>
             </div>
           )
@@ -136,26 +142,24 @@ export function SendSessionHistoryList({
     <div className="contract-signature-console__scroll-x">
       <table className="contract-history-table contract-signature-console__table--striped">
         <colgroup>
-          <col style={{ width: '8.5%' }} />
-          <col style={{ width: '9.5%' }} />
-          <col style={{ width: '17%' }} />
-          <col style={{ width: '7%' }} />
-          <col style={{ width: '7%' }} />
+          <col style={{ width: '12%' }} />
+          <col style={{ width: '12%' }} />
+          <col style={{ width: '24%' }} />
           <col style={{ width: '10%' }} />
           <col style={{ width: '10%' }} />
-          <col style={{ width: '8%' }} />
-          <col style={{ width: '23%' }} />
+          <col style={{ width: '12%' }} />
+          <col style={{ width: '12%' }} />
+          <col style={{ width: '18%' }} />
         </colgroup>
         <thead>
           <tr>
             <th className="contract-table-cell-left">고객</th>
             <th className="contract-table-cell-left">연락처</th>
-            <th className="contract-table-cell-left">문서</th>
+            <th className="contract-table-cell-left">양식명</th>
             <th className="contract-table-cell-center">상태</th>
             <th className="contract-table-cell-center">진행</th>
             <th className="contract-table-cell-center">발송일</th>
             <th className="contract-table-cell-center">완료일</th>
-            <th className="contract-table-cell-center">증빙</th>
             <th className="contract-table-cell-center">액션</th>
           </tr>
         </thead>
@@ -164,10 +168,6 @@ export function SendSessionHistoryList({
             const tpl = row.templateNames.length > 0 ? row.templateNames.join(', ') : ''
             const req = Math.max(0, row.requiredDocumentCount)
             const done = Math.max(0, row.completedDocumentCount)
-            const evidencePrefix =
-              row.evidenceHashPrefix && String(row.evidenceHashPrefix).trim() !== ''
-                ? row.evidenceHashPrefix
-                : null
             return (
               <tr key={row.id}>
                 <td className="contract-table-cell-left">
@@ -221,9 +221,6 @@ export function SendSessionHistoryList({
                   <ContractTableDateCell iso={row.completedAt} />
                 </td>
                 <td className="contract-table-cell-center">
-                  <ContractTableHashCell prefix={evidencePrefix} />
-                </td>
-                <td className="contract-table-cell-center">
                   <div className="history-actions">
                     <FormButton htmlType="button" variant="primary" size="sm" onClick={() => onDetail(row)}>
                       상세
@@ -255,6 +252,18 @@ export function SendSessionHistoryList({
                         onClick={() => onCancel(row)}
                       >
                         취소
+                      </FormButton>
+                    </div>
+                    <div className="history-actions__delete">
+                      <FormButton
+                        htmlType="button"
+                        variant="secondary"
+                        size="sm"
+                        disabled={!row.canDelete || busy}
+                        className="contract-history-actions__delete"
+                        onClick={() => onDelete(row)}
+                      >
+                        삭제
                       </FormButton>
                     </div>
                   </div>

@@ -206,7 +206,6 @@ export function useNotificationLoginModal(token: string | null | undefined) {
 
   useEffect(() => {
     if (!authToken) {
-      setOpen(false)
       return
     }
     let cancelled = false
@@ -235,11 +234,13 @@ export function useNotificationLoginModal(token: string | null | undefined) {
     }
   }, [authToken])
 
+  const visibleOpen = authToken ? open : false
+
   return useMemo(
     () => ({
-      open,
+      open: visibleOpen,
       close: () => setOpen(false),
     }),
-    [open],
+    [visibleOpen],
   )
 }

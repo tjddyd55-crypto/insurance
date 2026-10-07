@@ -1,4 +1,4 @@
-﻿import { FormButton, FormInput } from '../../../../components/form'
+import { FormButton, FormInput } from '../../../../components/form'
 import {
   CUSTOMER_MAP_MAX_RADIUS_KM,
   CUSTOMER_MAP_RADIUS_OPTIONS_KM,

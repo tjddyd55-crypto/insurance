@@ -24,6 +24,6 @@ describe('public legal routes', () => {
 
   it('uses the same operator name as terms config', () => {
     expect(termsSiteConfig.operatorLegalName).toBe('올인원솔루션')
-    expect(termsSiteConfig.lastRevisedDate).toBe('2026년 10월 2일')
+    expect(termsSiteConfig.lastRevisedDate).toBe('2026년 7월 13일')
   })
 })

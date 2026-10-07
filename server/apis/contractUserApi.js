@@ -13,6 +13,7 @@ import {
   generateUniqueLinkCode,
   parseTemplateIdsArray,
 } from './contractAdminApi.js'
+import { deleteContractSendSession } from '../contracts/deleteContractSendSessionService.js'
 import {
   assertSenderFieldValuesFilled,
   insertSenderPrefillDocumentValues,
@@ -311,6 +312,7 @@ function mapSendSessionDetailRow(row, docs, evidenceByDoc) {
         evidence: evidenceOut,
       }
     }),
+    canDelete: true,
   }
 }
 
@@ -352,7 +354,7 @@ function mapSendSessionListRow(row) {
     hasSignedPdfFile: Boolean(row.has_signed_pdf_file),
     hasSignedNotCompleted: Boolean(row.has_signed_not_completed),
     canCancel,
-    canDelete: false,
+    canDelete: true,
     canCopyLink: Boolean(row.link_code),
     canOpenLink: Boolean(row.link_code),
     canResend: false,
@@ -1133,8 +1135,18 @@ export function registerContractUserApi(apiRouter, ctx) {
       const sortRaw = String(req.query.sort ?? 'sent_desc').trim().toLowerCase()
       const limit = Math.min(Math.max(Number(req.query.limit) || 30, 1), 100)
       const offset = Math.max(Number(req.query.offset) || 0, 0)
+      const customerIdRaw = req.query.customerId ?? req.query.customer_id
+      const customerIdFilter =
+        customerIdRaw != null && String(customerIdRaw).trim() !== ''
+          ? Number(customerIdRaw)
+          : NaN
 
       const baseParams = [uid, userGa]
+      let customerIdClause = ''
+      if (Number.isInteger(customerIdFilter) && customerIdFilter > 0) {
+        baseParams.push(customerIdFilter)
+        customerIdClause = ` AND s.customer_id = $${baseParams.length} `
+      }
       let searchClause = ''
       if (qSearch) {
         const pattern = `%${escapeIlikePattern(qSearch)}%`
@@ -1170,7 +1182,7 @@ export function registerContractUserApi(apiRouter, ctx) {
           ? 's.completed_at DESC NULLS LAST, s.created_at DESC'
           : 's.created_at DESC'
 
-      const whereRest = `${searchClause}${filterClause}`
+      const whereRest = `${searchClause}${filterClause}${customerIdClause}`
 
       const countSql = `
         SELECT COUNT(*)::int AS total
@@ -1363,6 +1375,29 @@ export function registerContractUserApi(apiRouter, ctx) {
       handleDbError(e, req, res)
     } finally {
       client.release()
+    }
+  })
+
+  apiRouter.delete('/contracts/send-sessions/:id', ...chain, async (req, res) => {
+    try {
+      const userGa = parseGaId(req.user?.gaId)
+      const uid = getAuthUserId(req)
+      if (!uid) {
+        res.status(401).json({ ok: false, message: '로그인이 필요합니다.' })
+        return
+      }
+      const result = await deleteContractSendSession(pool, req.params.id, {
+        userId: uid,
+        gaId: userGa,
+        isSuperAdmin: false,
+      })
+      if (!result.ok) {
+        res.status(result.status).json({ ok: false, message: result.message })
+        return
+      }
+      res.json({ ok: true, success: true, data: result.data, message: result.message })
+    } catch (e) {
+      handleDbError(e, req, res)
     }
   })
 

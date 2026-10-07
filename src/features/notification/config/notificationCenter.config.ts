@@ -1,4 +1,3 @@
-import { CUSTOMER_ALERT_DATE_LABEL } from '../../../../shared/customerAlertDateCopy.js'
 import type { NotificationListType, UserAlertSettings } from '../api/notificationApi'
 
 export type NotificationSectionConfig = {
@@ -23,13 +22,13 @@ export const NOTIFICATION_SECTIONS: NotificationSectionConfig[] = [
   },
   {
     type: 'special_date',
-    title: CUSTOMER_ALERT_DATE_LABEL,
-    dateColumnLabel: CUSTOMER_ALERT_DATE_LABEL,
+    title: '지정일',
+    dateColumnLabel: '지정일',
     sectionClass: 'special',
   },
   {
     type: 'claim_request_received',
-    title: '청구요청',
+    title: '새로운 보험 청구',
     dateColumnLabel: '접수일',
     sectionClass: 'claim',
   },
