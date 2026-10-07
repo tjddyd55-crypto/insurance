@@ -1,6 +1,19 @@
-/* PC 고객 workspace — 서류철형 page tab + 연결된 content panel */
+/* PC 고객 workspace — 실제 서류철형 page tab + 한 장의 content surface */
 
 .customer-workspace-page {
+  --ws-page-surface: var(--bg-card, #ffffff);
+  --ws-tray-bg: #e9edf2;
+  --ws-border: #d8dee6;
+  --ws-tab-inactive-bg: #eef2f6;
+  --ws-tab-inactive-hover: #f7f9fb;
+  --ws-tab-text: #475569;
+  --ws-tab-active-text: #14532d;
+  --ws-active-height: 44px;
+  --ws-inactive-height: 40px;
+  --ws-inactive-offset: 3px;
+  --ws-tab-gap: 1px;
+  --ws-tab-radius: 5px;
+
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -8,6 +21,12 @@
   min-width: 0;
   margin: 0 8px 8px;
   box-sizing: border-box;
+  border-left: 1px solid var(--ws-border);
+  border-right: 1px solid var(--ws-border);
+  border-bottom: 1px solid var(--ws-border);
+  border-radius: 0 0 6px 6px;
+  background: var(--ws-page-surface);
+  box-shadow: none;
 }
 
 .customer-workspace-page__tabs {
@@ -15,22 +34,21 @@
   position: relative;
   z-index: 3;
   padding: 6px 8px 0;
-  background: color-mix(in srgb, var(--bg-main) 92%, #cbd5e1);
-  border-radius: 10px 10px 0 0;
+  background: var(--ws-tray-bg);
 }
 
 .customer-workspace-page__tab-scroll {
   display: flex;
   flex-wrap: nowrap;
   align-items: flex-end;
-  gap: 0;
+  gap: var(--ws-tab-gap);
   width: 100%;
   min-width: 0;
-  min-height: 36px;
+  min-height: var(--ws-active-height);
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, #94a3b8 55%, transparent) transparent;
+  scrollbar-color: color-mix(in srgb, #94a3b8 45%, transparent) transparent;
 }
 
 .customer-workspace-page__tab-scroll::-webkit-scrollbar {
@@ -39,7 +57,7 @@
 
 .customer-workspace-page__tab-scroll::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  background: color-mix(in srgb, #94a3b8 50%, transparent);
+  background: color-mix(in srgb, #94a3b8 45%, transparent);
 }
 
 .customer-workspace-page__tab {
@@ -49,23 +67,23 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 32px;
-  height: 32px;
-  margin: 0 0 0 -1px;
-  padding: 0 14px;
-  border: 1px solid #d1d5db;
-  border-bottom: 1px solid #d1d5db;
-  border-radius: 8px 8px 0 0;
-  background: #eef2f6;
-  color: #475569;
+  height: var(--ws-inactive-height);
+  min-height: var(--ws-inactive-height);
+  margin: 0;
+  padding: 0 16px;
+  border: 1px solid var(--ws-border);
+  border-bottom: 1px solid var(--ws-border);
+  border-radius: var(--ws-tab-radius) var(--ws-tab-radius) 0 0;
+  background: var(--ws-tab-inactive-bg);
+  color: var(--ws-tab-text);
   font-family: inherit;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   line-height: 1.2;
   white-space: nowrap;
   cursor: pointer;
   box-shadow: none;
-  transform: translateY(2px);
+  transform: translateY(var(--ws-inactive-offset));
   transition:
     background-color 0.15s ease,
     border-color 0.15s ease,
@@ -73,13 +91,9 @@
     transform 0.15s ease;
 }
 
-.customer-workspace-page__tab:first-child {
-  margin-left: 0;
-}
-
 @media (hover: hover) and (pointer: fine) {
   .customer-workspace-page__tab:hover:not(:disabled):not(.customer-workspace-page__tab--active) {
-    background: #f8fafc;
+    background: var(--ws-tab-inactive-hover);
     border-color: #cbd5e1;
     color: #334155;
   }
@@ -88,21 +102,32 @@
 .customer-workspace-page__tab:focus-visible {
   outline: 2px solid color-mix(in srgb, #22c55e 55%, transparent);
   outline-offset: 1px;
-  z-index: 2;
+  z-index: 5;
 }
 
 .customer-workspace-page__tab--active {
-  height: 36px;
-  min-height: 36px;
-  margin-bottom: -1px;
-  padding-bottom: 1px;
-  border-color: #e5e7eb;
-  border-bottom-color: var(--customer-workspace-page-surface, var(--bg-card, #ffffff));
-  background: var(--customer-workspace-page-surface, var(--bg-card, #ffffff));
-  color: #14532d;
+  height: var(--ws-active-height);
+  min-height: var(--ws-active-height);
+  padding: 0 18px;
+  border-color: var(--ws-border);
+  border-bottom: none;
+  background: var(--ws-page-surface);
+  color: var(--ws-tab-active-text);
   font-weight: 700;
   transform: translateY(0);
-  z-index: 2;
+  z-index: 4;
+}
+
+/* active tab과 body 사이 hairline을 완전히 덮어 한 장의 종이처럼 연결 */
+.customer-workspace-page__tab--active::after {
+  content: '';
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  bottom: -2px;
+  height: 3px;
+  background: var(--ws-page-surface);
+  pointer-events: none;
 }
 
 .customer-workspace-page__tab:disabled {
@@ -115,10 +140,11 @@
   min-height: 0;
   min-width: 0;
   overflow: auto;
-  padding: 10px 12px 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 0 10px 10px 10px;
-  background: var(--customer-workspace-page-surface, var(--bg-card, #ffffff));
+  padding: 16px 20px 20px;
+  border: none;
+  border-top: none;
+  border-radius: 0;
+  background: var(--ws-page-surface);
   box-sizing: border-box;
   position: relative;
   z-index: 1;
