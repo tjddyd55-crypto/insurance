@@ -158,3 +158,12 @@
   border-bottom: none;
   padding-bottom: 2px;
 }
+
+
+/* 고객 workspace 안에서만: 고객 파일·카드 수납·시뮬레이션의 회색 page 배경 제거 */
+.customer-workspace-page__body .storage-workspace,
+.customer-workspace-page__body .premium-payments-page,
+.customer-workspace-page__body .premium-payments-page__workspace,
+.customer-workspace-page__body .coverage-simulator-root.customer-coverage-simulations {
+  background: var(--ws-page-surface) !important;
+}
