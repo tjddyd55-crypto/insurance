@@ -10,7 +10,7 @@ import { SaveConsultationTitleDialog } from '../components/SaveConsultationTitle
 import { useCoverageSimulatorCustomer } from '../context/CoverageSimulatorCustomerContext'
 import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
 import { diseaseTypeTitle, isKnownDiseaseType } from '../domain/diseaseTypeLabels'
-import { formatConsultationListDate } from '../domain/formatConsultationDate'
+import { SimulationListPanel } from '../components/SimulationListPanel'
 import type { SavedScenarioSummary } from '../domain/types'
 import { useCoverageSimulatorCrmStorage } from '../context/CoverageSimulatorCrmStorageContext'
 import {
@@ -126,29 +126,13 @@ function SimulationListPageContent() {
           </button>
         </div>
         <h2 className="cs-simulation-list__heading">저장된 시뮬레이션</h2>
-        {rows.length === 0 ? (
-          <p className="coverage-simulator-page-desc">저장된 시뮬레이션이 없습니다.</p>
-        ) : (
-          <div className="cs-simulation-list">
-            {rows.map((row) => (
-              <div key={row.id} className="cs-simulation-list__card">
-                <button type="button" className="cs-simulation-list__card-main" onClick={() => openScenario(row.id)}>
-                  <div className="cs-simulation-list__title">{row.title}</div>
-                  <div className="cs-simulation-list__meta">작성 {formatConsultationListDate(row.createdAt)}</div>
-                  <div className="cs-simulation-list__meta">수정 {formatConsultationListDate(row.updatedAt)}</div>
-                </button>
-                <button
-                  type="button"
-                  className="cs-simulation-list__more"
-                  aria-label={`${row.title} 메뉴`}
-                  onClick={() => setMenuRow(row)}
-                >
-                  ⋯
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+        <SimulationListPanel
+          rows={rows}
+          emptyMessage="저장된 시뮬레이션이 없습니다."
+          onSelect={openScenario}
+          showRowMenu
+          onRowMenu={setMenuRow}
+        />
       </main>
       <SimulationListActionSheet
         open={menuRow != null}

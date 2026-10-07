@@ -16,9 +16,8 @@ import {
   useCoverageSimulatorCrmStorage,
 } from '../../coverage-simulator/context/CoverageSimulatorCrmStorageContext'
 import { CoverageSimulatorCustomerProvider } from '../../coverage-simulator/context/CoverageSimulatorCustomerContext'
-import { formatConsultationListDate } from '../../coverage-simulator/domain/formatConsultationDate'
+import { SimulationListPanel } from '../../coverage-simulator/components/SimulationListPanel'
 import { startConsultationFromUserTemplate } from '../../coverage-simulator/domain/startConsultation'
-import type { SavedScenarioSummary } from '../../coverage-simulator/domain/types'
 import { useScenarioEditor } from '../../coverage-simulator/hooks/useScenarioEditor'
 import { listConsultationsByCustomerId } from '../../coverage-simulator/storage/consultationRepository'
 import {
@@ -26,6 +25,8 @@ import {
   listScenarioTemplates,
 } from '../../coverage-simulator/storage/templateRepository'
 
+import '../../coverage-simulator/styles/tokens.css'
+import '../../coverage-simulator/styles/simulation-list-panel.css'
 import '../../coverage-simulator/styles/coverage-three-pane.css'
 
 type View =
@@ -81,7 +82,9 @@ function CustomerCoverageSimulationsPanel({
 
   if (view.mode === 'detail') {
     return (
-      <div className="customer-coverage-simulations customer-coverage-simulations--detail">
+      <div
+        className="coverage-simulator-root coverage-simulator-root--crm customer-coverage-simulations customer-coverage-simulations--detail"
+      >
         <header className="customer-coverage-simulations__toolbar">
           <button type="button" className="customer-coverage-simulations__back" onClick={() => setView({ mode: 'list' })}>
             ← 목록
@@ -99,29 +102,25 @@ function CustomerCoverageSimulationsPanel({
   const templates = listScenarioTemplates(userKey)
 
   return (
-    <div className="customer-coverage-simulations">
+    <div className="coverage-simulator-root coverage-simulator-root--crm customer-coverage-simulations">
       <header className="customer-coverage-simulations__toolbar">
         <h2 className="customer-coverage-simulations__heading">시뮬레이션</h2>
-        <button type="button" className="customer-coverage-simulations__add" onClick={() => setScenarioPickerOpen(true)}>
+      </header>
+      <div className="cs-simulation-list__actions">
+        <button
+          type="button"
+          className="coverage-simulator-primary-btn customer-coverage-simulations__add-primary"
+          onClick={() => setScenarioPickerOpen(true)}
+        >
           + 시뮬레이션 추가
         </button>
-      </header>
-      {rows.length === 0 ? (
-        <p className="customer-coverage-simulations__empty">연결된 시뮬레이션이 없습니다.</p>
-      ) : (
-        <ul className="customer-coverage-simulations__list">
-          {rows.map((row: SavedScenarioSummary) => (
-            <li key={row.id}>
-              <button type="button" className="customer-coverage-simulations__row" onClick={() => setView({ mode: 'detail', simulationId: row.id })}>
-                <span className="customer-coverage-simulations__row-title">{row.title}</span>
-                <span className="customer-coverage-simulations__row-meta">
-                  {formatConsultationListDate(row.updatedAt)} · 수정 {formatConsultationListDate(row.updatedAt)}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      </div>
+      <h3 className="cs-simulation-list__heading">저장된 시뮬레이션</h3>
+      <SimulationListPanel
+        rows={rows}
+        emptyMessage="연결된 시뮬레이션이 없습니다."
+        onSelect={(id) => setView({ mode: 'detail', simulationId: id })}
+      />
 
       {scenarioPickerOpen ? (
         <div className="coverage-simulator-overlay" role="presentation" onClick={() => setScenarioPickerOpen(false)}>
@@ -165,7 +164,11 @@ function CustomerCoverageSimulationsPageInner() {
   }, [resolved, token])
 
   if (!Number.isInteger(resolved) || resolved <= 0) {
-    return <p className="customer-coverage-simulations__empty">고객을 선택해 주세요.</p>
+    return (
+      <div className="coverage-simulator-root coverage-simulator-root--crm customer-coverage-simulations">
+        <p className="customer-coverage-simulations__empty">고객을 선택해 주세요.</p>
+      </div>
+    )
   }
   return <CustomerCoverageSimulationsPanel customerId={resolved} customerName={customerName} />
 }
