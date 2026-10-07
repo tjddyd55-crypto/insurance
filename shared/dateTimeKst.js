@@ -263,3 +263,23 @@ export function formatTimestampSearchHaystack(value) {
   const parts = [raw, formatKstDate(raw), formatKstDateTime(raw)].filter(Boolean)
   return parts.join('\n').toLowerCase()
 }
+
+/**
+ * @param {string | Date | null | undefined} value
+ * @returns {string} HH:mm (KST) 또는 빈 문자열
+ */
+export function formatKstTime(value) {
+  if (value == null || value === '') {
+    return ''
+  }
+  const date = toDate(value)
+  if (Number.isNaN(date.getTime())) {
+    return ''
+  }
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: KST,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(date)
+}
