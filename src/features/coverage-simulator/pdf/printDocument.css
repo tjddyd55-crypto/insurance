@@ -1,3 +1,5 @@
+@import '../styles/categoryBadgeTheme.css';
+
 @page {
   size: A4 portrait;
   margin: 14mm 12mm 18mm;
@@ -26,7 +28,7 @@
   counter-reset: print-page;
 }
 
-/* --- Badges (print-local, matches feature semantics) --- */
+/* --- Badges (layout print-local; colors from categoryBadgeTheme.css) --- */
 .coverage-simulator-print-root .coverage-simulator-badge {
   display: inline-flex;
   align-items: center;
@@ -38,27 +40,6 @@
   font-weight: 700;
   line-height: 1.1;
   white-space: nowrap;
-}
-
-.coverage-simulator-print-root .coverage-simulator-badge--diagnosis {
-  background: #e0f2fe;
-  color: #0369a1;
-}
-.coverage-simulator-print-root .coverage-simulator-badge--treatment {
-  background: #dcfce7;
-  color: #15803d;
-}
-.coverage-simulator-print-root .coverage-simulator-badge--recovery {
-  background: #fef3c7;
-  color: #b45309;
-}
-.coverage-simulator-print-root .coverage-simulator-badge--support {
-  background: #ede9fe;
-  color: #6d28d9;
-}
-.coverage-simulator-print-root .coverage-simulator-badge--other {
-  background: #f1f5f9;
-  color: #475569;
 }
 
 .cs-print-running-col-header {
@@ -521,6 +502,34 @@
   width: 100%;
   max-width: 100%;
   box-shadow: none;
+}
+
+/* Coverage rows: subtle separators (replaces editor "+ 항목 추가" visual rhythm) */
+.coverage-simulator-print-root .cs-axis-block:has(> .cs-axis-event) {
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--cs-print-border, var(--cs-color-border, #e2e8f0));
+}
+
+.coverage-simulator-print-root .cs-axis-block--subtotal,
+.coverage-simulator-print-root .cs-axis-block:has(> .cs-axis-marker) {
+  margin-top: 8px;
+  padding-top: 0;
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.coverage-simulator-print-root .cs-period-section-wrap + .cs-period-section-wrap {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--cs-print-border, var(--cs-color-border, #e2e8f0));
+}
+
+.coverage-simulator-print-root .cs-axis-summary {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--cs-print-border, var(--cs-color-border, #e2e8f0));
 }
 
 .coverage-simulator-print-root .cs-axis-event__actions--spacer,

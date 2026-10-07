@@ -1,0 +1,28 @@
+/**
+ * Category badge colors — SSOT for editor, PDF export, and on-screen preview.
+ * Requires `.coverage-simulator-root` (or print root with token bridge) for --cs-color-* tokens.
+ */
+.coverage-simulator-badge--diagnosis {
+  background: var(--cs-color-diagnosis-soft);
+  color: var(--cs-color-diagnosis);
+}
+
+.coverage-simulator-badge--treatment {
+  background: var(--cs-color-treatment-soft);
+  color: var(--cs-color-treatment);
+}
+
+.coverage-simulator-badge--recovery {
+  background: var(--cs-color-recovery-soft);
+  color: var(--cs-color-recovery);
+}
+
+.coverage-simulator-badge--support {
+  background: var(--cs-color-support-soft);
+  color: var(--cs-color-support);
+}
+
+.coverage-simulator-badge--other {
+  background: var(--cs-color-other-soft);
+  color: var(--cs-color-other);
+}

@@ -1,8 +1,9 @@
-import { useEffect, useRef, type MutableRefObject } from 'react'
+import { useEffect, useMemo, useRef, type MutableRefObject } from 'react'
 import { Outlet } from 'react-router-dom'
 import { EmptyState } from '../../../../components/feedback'
-import { FormButton } from '../../../../components/form'
 import type { CustomerRecord } from '../../domain/types'
+import { CustomerWorkspacePageShell } from '../../components/workspace/CustomerWorkspacePageShell'
+import type { CustomerWorkspaceTabItem } from '../../components/workspace/CustomerWorkspaceTabs'
 import CustomerHeaderAppLinkCompact from './CustomerHeaderAppLinkCompact'
 import './CustomerWorkspaceLayoutPC.css'
 
@@ -136,6 +137,62 @@ export default function CustomerWorkspaceLayoutPC({
       : null
   const isCustomerIndexPath = pathname === '/customers' || pathname === '/customers/'
   const rightBodyRef = useRef<HTMLDivElement>(null)
+  const customerSelected = Boolean(selectedCustomerId)
+
+  const workspaceTabs = useMemo((): CustomerWorkspaceTabItem[] => {
+    const tab = (
+      id: Exclude<WorkspaceActiveTab, null>,
+      label: string,
+      onSelect: () => void,
+      options?: { hidden?: boolean; title?: string },
+    ): CustomerWorkspaceTabItem => ({
+      id,
+      label,
+      disabled: !customerSelected,
+      title: options?.title ?? (!customerSelected ? '고객을 선택해 주세요.' : undefined),
+      hidden: options?.hidden,
+      onSelect,
+    })
+
+    return [
+      tab('map', '지도에서 보기', onClickViewOnMap),
+      tab('personal-message', '개인메시지', onClickPersonalMessage, {
+        hidden: !showClaimsInWorkspace,
+      }),
+      tab('files', '고객 파일', onClickFiles),
+      tab('consultations', '상담 이력', onClickConsultations),
+      tab('pdf-documents', '신청서', onClickCarForm, { hidden: !showCarInsuranceInWorkspace }),
+      tab('signatures', '전자서명', onClickSignatures, {
+        hidden: !showContractSignaturesInWorkspace,
+      }),
+      tab('ga-excel', 'GA 고객 데이터 보기', onClickGaExcel, {
+        hidden: !showGaExcelEntry,
+        title: gaExcelMenuTitleHint ?? (!customerSelected ? '고객을 선택해 주세요.' : undefined),
+      }),
+      tab('memos', '메모 보기', onClickMemos),
+      tab('claims', '청구관리', onClickClaims, { hidden: !showClaimsInWorkspace }),
+      tab('premium-payments', '카드 수납', onClickPremiumPayments),
+      tab('coverage-simulations', '시뮬레이션', onClickCoverageSimulations),
+    ]
+  }, [
+    customerSelected,
+    gaExcelMenuTitleHint,
+    onClickCarForm,
+    onClickClaims,
+    onClickConsultations,
+    onClickCoverageSimulations,
+    onClickFiles,
+    onClickGaExcel,
+    onClickMemos,
+    onClickPersonalMessage,
+    onClickPremiumPayments,
+    onClickSignatures,
+    onClickViewOnMap,
+    showCarInsuranceInWorkspace,
+    showClaimsInWorkspace,
+    showContractSignaturesInWorkspace,
+    showGaExcelEntry,
+  ])
 
   useEffect(() => {
     const body = rightBodyRef.current
@@ -146,7 +203,10 @@ export default function CustomerWorkspaceLayoutPC({
   }, [selectedCustomerId])
 
   return (
-    <section className="customer-workspace-layout__right" aria-label="고객 연동 작업영역">
+    <section
+      className="customer-workspace-layout__right customer-workspace-layout__right--page-tabs"
+      aria-label="고객 연동 작업영역"
+    >
       <header className="customer-workspace-layout__right-header">
         <div className="customer-workspace-layout__summary-row">
           {selectedCustomerId ? (
@@ -181,147 +241,13 @@ export default function CustomerWorkspaceLayoutPC({
             </p>
           )}
         </div>
-
-        <nav className="customer-workspace-layout__tab-row" aria-label="고객 작업 메뉴">
-          <div className="customer-workspace-layout__tab-bar" role="tablist">
-            <FormButton
-              htmlType="button"
-              variant="action"
-              className={`customer-workspace-layout__tab${
-                activeTab === 'map' ? ' customer-workspace-layout__tab--active' : ''
-              }`}
-              disabled={!selectedCustomerId}
-              onClick={onClickViewOnMap}
-            >
-              지도에서 보기
-            </FormButton>
-            {showClaimsInWorkspace ? (
-              <FormButton
-                htmlType="button"
-                variant="action"
-                className={`customer-workspace-layout__tab${
-                  activeTab === 'personal-message' ? ' customer-workspace-layout__tab--active' : ''
-                }`}
-                disabled={!selectedCustomerId}
-                onClick={onClickPersonalMessage}
-              >
-                개인메시지
-              </FormButton>
-            ) : null}
-            <FormButton
-              htmlType="button"
-              variant="action"
-              className={`customer-workspace-layout__tab${
-                activeTab === 'files' ? ' customer-workspace-layout__tab--active' : ''
-              }`}
-              disabled={!selectedCustomerId}
-              onClick={onClickFiles}
-            >
-              고객 파일
-            </FormButton>
-            <FormButton
-              htmlType="button"
-              variant="action"
-              className={`customer-workspace-layout__tab${
-                activeTab === 'consultations' ? ' customer-workspace-layout__tab--active' : ''
-              }`}
-              disabled={!selectedCustomerId}
-              onClick={onClickConsultations}
-            >
-              상담 이력
-            </FormButton>
-            {showCarInsuranceInWorkspace ? (
-              <FormButton
-                htmlType="button"
-                variant="action"
-                className={`customer-workspace-layout__tab${
-                  activeTab === 'pdf-documents' ? ' customer-workspace-layout__tab--active' : ''
-                }`}
-                disabled={!selectedCustomerId}
-                onClick={onClickCarForm}
-              >
-                신청서
-              </FormButton>
-            ) : null}
-            {showContractSignaturesInWorkspace ? (
-              <FormButton
-                htmlType="button"
-                variant="action"
-                className={`customer-workspace-layout__tab${
-                  activeTab === 'signatures' ? ' customer-workspace-layout__tab--active' : ''
-                }`}
-                disabled={!selectedCustomerId}
-                title={!selectedCustomerId ? '고객을 선택해 주세요.' : undefined}
-                onClick={onClickSignatures}
-              >
-                전자서명
-              </FormButton>
-            ) : null}
-            {showGaExcelEntry ? (
-              <FormButton
-                htmlType="button"
-                variant="action"
-                className={`customer-workspace-layout__tab${
-                  activeTab === 'ga-excel' ? ' customer-workspace-layout__tab--active' : ''
-                }`}
-                disabled={!selectedCustomerId}
-                title={gaExcelMenuTitleHint}
-                onClick={onClickGaExcel}
-              >
-                GA 고객 데이터 보기
-              </FormButton>
-            ) : null}
-            <FormButton
-              htmlType="button"
-              variant="action"
-              className={`customer-workspace-layout__tab${
-                activeTab === 'memos' ? ' customer-workspace-layout__tab--active' : ''
-              }`}
-              disabled={!selectedCustomerId}
-              onClick={onClickMemos}
-            >
-              메모 보기
-            </FormButton>
-            {showClaimsInWorkspace ? (
-              <FormButton
-                htmlType="button"
-                variant="action"
-                className={`customer-workspace-layout__tab${
-                  activeTab === 'claims' ? ' customer-workspace-layout__tab--active' : ''
-                }`}
-                disabled={!selectedCustomerId}
-                onClick={onClickClaims}
-              >
-                청구관리
-              </FormButton>
-            ) : null}
-            <FormButton
-              htmlType="button"
-              variant="action"
-              className={`customer-workspace-layout__tab${
-                activeTab === 'premium-payments' ? ' customer-workspace-layout__tab--active' : ''
-              }`}
-              disabled={!selectedCustomerId}
-              onClick={onClickPremiumPayments}
-            >
-              카드 수납
-            </FormButton>
-            <FormButton
-              htmlType="button"
-              variant="action"
-              className={`customer-workspace-layout__tab${
-                activeTab === 'coverage-simulations' ? ' customer-workspace-layout__tab--active' : ''
-              }`}
-              disabled={!selectedCustomerId}
-              onClick={onClickCoverageSimulations}
-            >
-              시뮬레이션
-            </FormButton>
-          </div>
-        </nav>
       </header>
 
-      <div ref={rightBodyRef} className="customer-workspace-layout__right-body">
+      <CustomerWorkspacePageShell
+        tabs={workspaceTabs}
+        activeTabId={activeTab}
+        bodyRef={rightBodyRef}
+      >
         {selectedCustomerId || isCustomerIndexPath ? (
           /**
            * 고객 id 를 자식 서브트리 `key` 로 선언(routing-ssot.mdc 7).
@@ -337,7 +263,7 @@ export default function CustomerWorkspaceLayoutPC({
         ) : (
           <EmptyState message="고객을 선택해 주세요." />
         )}
-      </div>
+      </CustomerWorkspacePageShell>
     </section>
   )
 }
