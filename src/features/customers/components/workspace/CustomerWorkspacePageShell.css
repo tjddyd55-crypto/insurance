@@ -12,7 +12,7 @@
   --ws-inactive-height: 40px;
   --ws-inactive-offset: 3px;
   --ws-tab-gap: 1px;
-  --ws-tab-radius: 5px;
+  --ws-tab-radius: 8px;
 
   display: flex;
   flex-direction: column;
@@ -33,7 +33,8 @@
   flex-shrink: 0;
   position: relative;
   z-index: 3;
-  padding: 6px 8px 0;
+  /* 첫 탭 시작선을 page 왼쪽 외곽선과 정확히 맞춘다. */
+  padding: 6px 0 0;
   background: var(--ws-tray-bg);
 }
 
@@ -72,7 +73,8 @@
   margin: 0;
   padding: 0 16px;
   border: 1px solid var(--ws-border);
-  border-bottom: 1px solid var(--ws-border);
+  /* 탭 아래 선을 없애 body와 한 장의 종이처럼 보이게 한다. */
+  border-bottom: none;
   border-radius: var(--ws-tab-radius) var(--ws-tab-radius) 0 0;
   background: var(--ws-tab-inactive-bg);
   color: var(--ws-tab-text);
@@ -111,6 +113,8 @@
   padding: 0 18px;
   border-color: var(--ws-border);
   border-bottom: none;
+  /* 선택된 인덱스의 상단 양 끝을 자연스럽게 라운드 처리 */
+  border-radius: 10px 10px 0 0;
   background: var(--ws-page-surface);
   color: var(--ws-tab-active-text);
   font-weight: 700;
@@ -124,8 +128,8 @@
   position: absolute;
   left: -1px;
   right: -1px;
-  bottom: -2px;
-  height: 3px;
+  bottom: -3px;
+  height: 4px;
   background: var(--ws-page-surface);
   pointer-events: none;
 }
