@@ -1,6 +1,15 @@
+import { evaluateActiveBillingEntitlement } from '../insurance-billing/subscriptionEntitlementPolicy.js'
+
 /**
  * billing_subscriptions.status 한글 라벨 — billingManageViewUtils.ts 와 동일 SSOT.
  */
+
+/** @type {Readonly<Record<'free' | 'paid' | 'ended', string>>} */
+export const ADMIN_SUBSCRIPTION_EFFECTIVE_LABEL = Object.freeze({
+  free: '무료 이용 중',
+  paid: '유료 이용 중',
+  ended: '구독 종료',
+})
 
 /** @type {Readonly<Record<string, string>>} */
 export const BILLING_SUBSCRIPTION_STATUS_LABEL = Object.freeze({
@@ -94,24 +103,86 @@ export function resolveSubscriptionUntilIso(status, trialEndsAt, nextBillingAt, 
  * @param {string | null | undefined} nextBillingAt
  * @param {string | null | undefined} currentPeriodEnd
  */
-export function buildAdminUserSubscriptionListLabel(status, trialEndsAt, nextBillingAt, currentPeriodEnd) {
+/**
+ * 관리자 구독 표시 SSOT — evaluateActiveBillingEntitlement 와 동일 기준.
+ *
+ * @param {string | null | undefined} status
+ * @param {string | null | undefined} trialEndsAt
+ * @param {string | null | undefined} nextBillingAt
+ * @param {string | null | undefined} currentPeriodEnd
+ * @param {Date} [now]
+ * @returns {{
+ *   effectiveCategory: 'free' | 'paid' | 'ended'
+ *   entitled: boolean
+ *   displayLabel: string
+ *   listLabel: string
+ * }}
+ */
+export function resolveAdminSubscriptionPresentation(
+  status,
+  trialEndsAt,
+  nextBillingAt,
+  currentPeriodEnd,
+  now = new Date(),
+) {
   const normalized = String(status ?? '').trim().toLowerCase()
   if (!normalized || normalized === 'none') {
-    return BILLING_SUBSCRIPTION_STATUS_LABEL.none
+    return {
+      effectiveCategory: 'ended',
+      entitled: false,
+      displayLabel: ADMIN_SUBSCRIPTION_EFFECTIVE_LABEL.ended,
+      listLabel: ADMIN_SUBSCRIPTION_EFFECTIVE_LABEL.ended,
+    }
   }
-  const label = resolveSubscriptionStatusLabel(status)
+
+  const subscription = {
+    status: normalized,
+    trial_ends_at: trialEndsAt,
+    next_billing_at: nextBillingAt,
+    current_period_end: currentPeriodEnd,
+  }
+  const verdict = evaluateActiveBillingEntitlement(subscription, now)
+
+  let effectiveCategory = 'ended'
+  if (verdict.entitled) {
+    if (verdict.reason === 'trial_active') {
+      effectiveCategory = 'free'
+    } else {
+      effectiveCategory = 'paid'
+    }
+  }
+
+  const displayLabel = ADMIN_SUBSCRIPTION_EFFECTIVE_LABEL[effectiveCategory]
   const untilIso = resolveSubscriptionUntilIso(status, trialEndsAt, nextBillingAt, currentPeriodEnd)
   if (
     untilIso &&
-    (normalized === 'trialing' ||
-      normalized === 'trial' ||
-      normalized === 'active_paid' ||
-      normalized === 'paid')
+    (effectiveCategory === 'free' || effectiveCategory === 'paid')
   ) {
     const dateLabel = formatBillingDotDate(untilIso)
     if (dateLabel) {
-      return `${label} · ${dateLabel}까지`
+      return {
+        effectiveCategory,
+        entitled: verdict.entitled,
+        displayLabel,
+        listLabel: `${displayLabel} · ${dateLabel}까지`,
+      }
     }
   }
-  return label
+
+  return {
+    effectiveCategory,
+    entitled: verdict.entitled,
+    displayLabel,
+    listLabel: displayLabel,
+  }
+}
+
+export function buildAdminUserSubscriptionListLabel(status, trialEndsAt, nextBillingAt, currentPeriodEnd, now) {
+  return resolveAdminSubscriptionPresentation(
+    status,
+    trialEndsAt,
+    nextBillingAt,
+    currentPeriodEnd,
+    now,
+  ).listLabel
 }

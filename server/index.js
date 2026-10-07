@@ -4243,7 +4243,10 @@ apiRouter.get('/admin/users', requireAuth, requireSuperAdmin, async (req, res) =
         ${roleClause}
         ${statusClause}
         ${phoneClause}
-      ORDER BY g.name ASC, u.username ASC
+      ORDER BY
+        COALESCE(u.last_login_at, audit_login.audit_last_login_at) DESC NULLS LAST,
+        u.created_at DESC NULLS LAST,
+        u.username ASC
       `,
       params,
     )

@@ -81,6 +81,23 @@ export function evaluateActiveBillingEntitlement(subscription, now = new Date())
     return { entitled: false, reason: 'status_missing' }
   }
 
+  if (status === 'active_paid' || status === 'paid') {
+    const periodEnd =
+      subscription.next_billing_at ??
+      subscription.nextBillingAt ??
+      subscription.current_period_end ??
+      subscription.currentPeriodEnd ??
+      null
+    if (periodEnd && !isTrialPeriodActiveKst(periodEnd, now)) {
+      return {
+        entitled: false,
+        reason: 'paid_period_expired',
+        periodEnd: periodEnd == null ? null : String(periodEnd),
+      }
+    }
+    return { entitled: true, reason: status }
+  }
+
   if (PAID_STATUSES.includes(status)) {
     return { entitled: true, reason: status }
   }

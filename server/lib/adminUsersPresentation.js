@@ -1,6 +1,5 @@
 import {
-  buildAdminUserSubscriptionListLabel,
-  resolveSubscriptionStatusLabel,
+  resolveAdminSubscriptionPresentation,
   resolveSubscriptionUntilIso,
   toIsoStringOrNull,
 } from './billingSubscriptionPresentation.js'
@@ -87,6 +86,12 @@ export function mapAdminUserListRow(row, toIso) {
     nextBillingAt,
     currentPeriodEnd,
   )
+  const subscriptionPresentation = resolveAdminSubscriptionPresentation(
+    subscriptionStatus,
+    trialEndsAt,
+    nextBillingAt,
+    currentPeriodEnd,
+  )
 
   const phoneRaw = row.phone_number != null ? String(row.phone_number).trim() : ''
   return {
@@ -107,15 +112,10 @@ export function mapAdminUserListRow(row, toIso) {
       row.referrer_ga_company_name != null ? String(row.referrer_ga_company_name) : null,
     last_login_at: lastLoginAt,
     subscription_status: subscriptionStatus,
-    subscription_status_label: subscriptionStatus
-      ? resolveSubscriptionStatusLabel(subscriptionStatus)
-      : resolveSubscriptionStatusLabel('none'),
+    subscription_effective_category: subscriptionPresentation.effectiveCategory,
+    subscription_entitled: subscriptionPresentation.entitled,
+    subscription_status_label: subscriptionPresentation.displayLabel,
     subscription_until: subscriptionUntil ? subscriptionUntil.slice(0, 10) : null,
-    subscription_list_label: buildAdminUserSubscriptionListLabel(
-      subscriptionStatus,
-      trialEndsAt,
-      nextBillingAt,
-      currentPeriodEnd,
-    ),
+    subscription_list_label: subscriptionPresentation.listLabel,
   }
 }
