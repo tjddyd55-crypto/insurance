@@ -1,0 +1,101 @@
+.cs-simulation-list__actions {
+  display: grid;
+  gap: var(--cs-space-2);
+  margin-bottom: var(--cs-space-3);
+}
+
+.cs-simulation-list__heading {
+  margin: var(--cs-space-3) 0 var(--cs-space-2);
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--cs-color-text-muted);
+}
+
+.cs-simulation-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cs-space-2);
+  margin-bottom: var(--cs-space-4);
+}
+
+.cs-simulation-list__card {
+  display: flex;
+  align-items: stretch;
+  gap: var(--cs-space-1);
+  width: 100%;
+  padding: var(--cs-space-3);
+  border: 1px solid var(--cs-color-border);
+  border-radius: 12px;
+  background: var(--cs-color-surface);
+  font: inherit;
+  box-shadow: var(--cs-shadow-card);
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.cs-simulation-list__card:focus-within {
+  border-color: var(--cs-color-primary-border, #bbf7d0);
+  box-shadow: 0 0 0 1px var(--cs-color-primary-border, #bbf7d0);
+}
+
+.cs-simulation-list__card-main {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  border-radius: 8px;
+}
+
+.cs-simulation-list__card-main:hover {
+  background: color-mix(in srgb, var(--cs-color-primary-soft, #dcfce7) 35%, transparent);
+}
+
+.cs-simulation-list__card-main:focus-visible {
+  outline: 2px solid var(--cs-color-primary, #16a34a);
+  outline-offset: 2px;
+}
+
+.cs-simulation-list__more {
+  flex-shrink: 0;
+  width: 40px;
+  min-height: 40px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--cs-color-text-muted);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cs-simulation-list__more:hover {
+  background: #f1f5f9;
+}
+
+.cs-simulation-list__more:focus-visible {
+  outline: 2px solid var(--cs-color-primary, #16a34a);
+  outline-offset: 2px;
+}
+
+.cs-simulation-list__title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--cs-color-text);
+}
+
+.cs-simulation-list__meta {
+  font-size: 0.75rem;
+  color: var(--cs-color-text-muted);
+  line-height: 1.4;
+}
+
+.cs-simulation-list__cta {
+  width: 100%;
+}

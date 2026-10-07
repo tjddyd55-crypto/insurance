@@ -3,6 +3,7 @@
 @import './form-screen.css';
 @import './center-timeline.css';
 @import './coverage-three-pane.css';
+@import './simulation-list-panel.css';
 
 .coverage-simulator-public-root {
   min-height: 100dvh;
@@ -138,82 +139,6 @@ body.coverage-simulator-immersive .pc-workspace-layout > main {
 .coverage-simulator-dialog__actions .coverage-simulator-primary-btn,
 .coverage-simulator-dialog__actions .coverage-simulator-secondary-btn {
   flex: 1;
-}
-
-.cs-simulation-list__actions {
-  display: grid;
-  gap: var(--cs-space-2);
-  margin-bottom: var(--cs-space-3);
-}
-
-.cs-simulation-list__heading {
-  margin: var(--cs-space-3) 0 var(--cs-space-2);
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: var(--cs-color-text-muted);
-}
-
-.cs-simulation-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cs-space-2);
-  margin-bottom: var(--cs-space-4);
-}
-
-.cs-simulation-list__card {
-  display: flex;
-  align-items: stretch;
-  gap: var(--cs-space-1);
-  width: 100%;
-  padding: var(--cs-space-3);
-  border: 1px solid var(--cs-color-border);
-  border-radius: 12px;
-  background: var(--cs-color-surface);
-  font: inherit;
-}
-
-.cs-simulation-list__card-main {
-  flex: 1;
-  min-width: 0;
-  padding: 0;
-  border: none;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-  font: inherit;
-}
-
-.cs-simulation-list__more {
-  flex-shrink: 0;
-  width: 40px;
-  min-height: 40px;
-  border: none;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--cs-color-text-muted);
-  font-size: 1.25rem;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.cs-simulation-list__more:hover {
-  background: #f1f5f9;
-}
-
-.cs-simulation-list__title {
-  font-size: 0.9375rem;
-  font-weight: 700;
-  margin-bottom: 6px;
-}
-
-.cs-simulation-list__meta {
-  font-size: 0.75rem;
-  color: var(--cs-color-text-muted);
-  line-height: 1.4;
-}
-
-.cs-simulation-list__cta {
-  width: 100%;
 }
 
 .coverage-simulator-appbar__title {
