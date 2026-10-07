@@ -37,12 +37,12 @@ const ACCOUNT_STATUS_META: Record<EntityStatus, { label: string; fg: string; bg:
     bg: 'color-mix(in srgb, var(--success) 20%, transparent)',
   },
   blocked: {
-    label: '접근금지',
+    label: '정지',
     fg: 'var(--danger)',
     bg: 'color-mix(in srgb, var(--danger) 20%, transparent)',
   },
   inactive: {
-    label: '비활성',
+    label: '탈퇴',
     fg: 'var(--text-secondary)',
     bg: 'color-mix(in srgb, var(--text-secondary) 18%, transparent)',
   },
@@ -50,8 +50,8 @@ const ACCOUNT_STATUS_META: Record<EntityStatus, { label: string; fg: string; bg:
 
 const ACCOUNT_STATUS_OPTIONS: { value: EntityStatus; label: string }[] = [
   { value: 'active', label: '정상' },
-  { value: 'blocked', label: '접근금지' },
-  { value: 'inactive', label: '비활성' },
+  { value: 'blocked', label: '정지' },
+  { value: 'inactive', label: '탈퇴' },
 ]
 
 const ROLE_FILTER_OPTIONS: { value: string; label: string }[] = [
@@ -116,7 +116,10 @@ function AccountStatusBadge({ status }: { status: EntityStatus }) {
 }
 
 function SubscriptionStatusBadge({ row }: { row: AdminUserRow }) {
-  const badgeClass = resolveAdminUserSubscriptionBadgeClass(row.subscription_status)
+  const badgeClass = resolveAdminUserSubscriptionBadgeClass(
+    row.subscription_status,
+    row.subscription_effective_category,
+  )
   const label = formatAdminUserSubscriptionListLabel(row)
   return <span className={`admin-subscription-badge ${badgeClass}`}>{label}</span>
 }
@@ -668,7 +671,7 @@ export default function UserManagementPage() {
                 <th scope="col">연락처</th>
                 <th scope="col">추천인</th>
                 <th scope="col">역할</th>
-                <th scope="col">상태</th>
+                <th scope="col">계정 상태</th>
                 <th scope="col">구독 상태</th>
                 <th scope="col">최근 접속일</th>
                 <th scope="col" className="admin-table-cell--actions">

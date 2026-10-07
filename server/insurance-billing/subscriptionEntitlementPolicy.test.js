@@ -36,3 +36,16 @@ test('legacy trial status alias is entitled when period active', () => {
     true,
   )
 })
+
+test('active_paid is not entitled after paid period end (KST)', () => {
+  const now = new Date('2026-09-23T12:00:00+09:00')
+  const verdict = evaluateActiveBillingEntitlement(
+    {
+      status: 'active_paid',
+      next_billing_at: '2026-09-22T00:00:00.000Z',
+    },
+    now,
+  )
+  assert.equal(verdict.entitled, false)
+  assert.equal(verdict.reason, 'paid_period_expired')
+})
