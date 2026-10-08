@@ -58,7 +58,6 @@ export function MaterialAddSourceDialog({
   const [teamFiles, setTeamFiles] = useState<TeamFileRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [uploadOpen, setUploadOpen] = useState(false)
   const [linkingId, setLinkingId] = useState('')
 
   useEffect(() => {
@@ -201,7 +200,7 @@ export function MaterialAddSourceDialog({
   return (
     <>
       <BaseDialog
-        open={open && !uploadOpen}
+        open={open}
         onClose={onClose}
         closeOnBackdrop={false}
         usePortal
@@ -209,52 +208,72 @@ export function MaterialAddSourceDialog({
         panelClassName="personal-binder-material-picker-dialog"
         ariaLabel="자료 추가"
       >
-        <header className="personal-binder-page-dialog__header">
-          <div className="personal-binder-page-dialog__header-copy">
-            <h2>자료 추가</h2>
-            <p>보관함, 내 파일, 팀 자료실 또는 새 업로드에서 자료를 고릅니다.</p>
-          </div>
-          <FormButton variant="secondary" size="sm" onClick={onClose}>닫기</FormButton>
-        </header>
-
-        <nav className="personal-binder-source-tabs" aria-label="자료 출처">
-          {tabs.map((entry) => (
-            <FormButton
-              key={entry.id}
-              variant={tab === entry.id ? 'primary' : 'secondary'}
-              size="sm"
-              onClick={() => {
-                if (entry.id === 'upload') {
-                  setUploadOpen(true)
-                  return
-                }
-                setTab(entry.id)
-              }}
-            >
-              {entry.label}
-            </FormButton>
-          ))}
-        </nav>
-
-        {tab !== 'upload' ? (
-          <div className="personal-binder-source-filters">
-            <FormInput
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="파일명 검색"
-              aria-label="파일명 검색"
-            />
-            <div className="personal-binder-source-filters__types">
-              <FormButton variant={filter === 'all' ? 'primary' : 'secondary'} size="sm" onClick={() => setFilter('all')}>전체</FormButton>
-              <FormButton variant={filter === 'pdf' ? 'primary' : 'secondary'} size="sm" onClick={() => setFilter('pdf')}>PDF</FormButton>
-              <FormButton variant={filter === 'image' ? 'primary' : 'secondary'} size="sm" onClick={() => setFilter('image')}>이미지</FormButton>
+        <div className="personal-binder-material-add-modal__shell">
+          <header className="personal-binder-page-dialog__header">
+            <div className="personal-binder-page-dialog__header-copy">
+              <h2>자료 추가</h2>
+              <p>보관함, 내 파일, 팀 자료실 또는 새 업로드에서 자료를 고릅니다.</p>
             </div>
-          </div>
-        ) : null}
+            <FormButton variant="secondary" size="sm" onClick={onClose}>닫기</FormButton>
+          </header>
 
-        {error ? <p className="personal-binder-error">{error}</p> : null}
+          <nav className="personal-binder-source-tabs" aria-label="자료 출처">
+            {tabs.map((entry) => (
+              <FormButton
+                key={entry.id}
+                variant={tab === entry.id ? 'primary' : 'secondary'}
+                size="sm"
+                onClick={() => setTab(entry.id)}
+              >
+                {entry.label}
+              </FormButton>
+            ))}
+          </nav>
 
-        <div className="personal-binder-material-picker__body">
+          {tab !== 'upload' ? (
+            <div className="personal-binder-material-add-modal__controls">
+              <div className="personal-binder-source-filters">
+                <FormInput
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="파일명 검색"
+                  aria-label="파일명 검색"
+                />
+                <div className="personal-binder-source-filters__types">
+                  <FormButton variant={filter === 'all' ? 'primary' : 'secondary'} size="sm" onClick={() => setFilter('all')}>전체</FormButton>
+                  <FormButton variant={filter === 'pdf' ? 'primary' : 'secondary'} size="sm" onClick={() => setFilter('pdf')}>PDF</FormButton>
+                  <FormButton variant={filter === 'image' ? 'primary' : 'secondary'} size="sm" onClick={() => setFilter('image')}>이미지</FormButton>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {error ? <p className="personal-binder-error">{error}</p> : null}
+
+          <div
+            className={[
+              'personal-binder-material-picker__body',
+              tab === 'team' && !loading && teamFileRows.length === 0
+                ? 'personal-binder-material-picker__body--empty-center'
+                : '',
+              tab === 'library' && libraryRows.length === 0
+                ? 'personal-binder-material-picker__body--empty-center'
+                : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
+          {tab === 'upload' ? (
+            <MaterialUploadDialog
+              open={open}
+              embedded
+              token={token}
+              folderId={folderId}
+              onClose={() => setTab('library')}
+              onUploaded={(material) => finish(material)}
+            />
+          ) : null}
+
           {tab === 'library' ? (
             libraryRows.length === 0 ? (
               <p className="personal-binder-material-picker__empty">조건에 맞는 자료가 없습니다.</p>
@@ -332,19 +351,9 @@ export function MaterialAddSourceDialog({
               </ul>
             )
           ) : null}
+          </div>
         </div>
       </BaseDialog>
-
-      <MaterialUploadDialog
-        open={uploadOpen}
-        token={token}
-        folderId={folderId}
-        onClose={() => setUploadOpen(false)}
-        onUploaded={(material) => {
-          setUploadOpen(false)
-          finish(material)
-        }}
-      />
     </>
   )
 }

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { PDFDocumentProxy, RenderTask } from 'pdfjs-dist'
 
-import FormButton from '../../../components/form/FormButton'
 import { setupPdfWorker } from '../../../lib/pdfjs/setupWorker'
 import {
   computeBinderPdfDisplayScale,
@@ -198,8 +197,8 @@ export function BinderPdfThumbnail({
 
   return (
     <div ref={slotRef} className="personal-binder-thumbnail-slot" data-binder-page={pageNumber}>
-      <FormButton
-        variant="action"
+      <button
+        type="button"
         className={[
           'personal-binder-thumbnail',
           selected ? 'personal-binder-thumbnail--selected' : '',
@@ -212,10 +211,12 @@ export function BinderPdfThumbnail({
         aria-current={current ? 'true' : undefined}
         aria-label={`${pageNumber}페이지${selected ? ' 선택됨' : ''}`}
       >
-        <canvas ref={canvasRef} />
-        <span>{pageNumber}</span>
-        {selected ? <strong aria-hidden="true">✓</strong> : null}
-      </FormButton>
+        <span className="personal-binder-thumbnail__media">
+          <canvas ref={canvasRef} />
+        </span>
+        <span className="personal-binder-thumbnail__page">{pageNumber}</span>
+        {selected ? <strong className="personal-binder-thumbnail__check" aria-hidden="true">✓</strong> : null}
+      </button>
     </div>
   )
 }

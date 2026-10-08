@@ -4680,12 +4680,15 @@ button.filter-button:focus-visible{
 }
 
 .address-search-field__dialog{
+  box-sizing: border-box;
   width: min(640px, 94vw);
   max-width: 640px;
+  max-height: min(90dvh, 680px);
   padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+  overflow: hidden;
 }
 
 .address-search-field__dialog-head{
@@ -4698,12 +4701,24 @@ button.filter-button:focus-visible{
 }
 
 .address-search-field__embed{
+  box-sizing: border-box;
+  flex: 1 1 auto;
   width: 100%;
-  height: 420px;
-  max-height: 58vh;
-  min-height: 280px;
+  min-height: 0;
+  height: 500px;
+  max-height: min(72dvh, 560px);
   border: 1px solid var(--border-default, #e5e7eb);
   border-radius: 8px;
+  overflow: hidden;
+}
+
+.address-search-field__embed iframe{
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0;
+  padding: 0;
+  border: 0;
   overflow: hidden;
 }
 
@@ -4715,8 +4730,13 @@ button.filter-button:focus-visible{
 }
 
 @media (max-width: 480px){
+  .address-search-field__dialog{
+    max-height: min(92dvh, 720px);
+  }
+
   .address-search-field__embed {
-    height: 52vh;
+    height: 52dvh;
+    max-height: 52dvh;
     min-height: 260px;
   }
 }

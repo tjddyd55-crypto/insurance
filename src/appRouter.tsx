@@ -514,6 +514,7 @@ export const appRouter = createBrowserRouter([
               { path: 'storage', element: <MyStoragePage /> },
               { path: 'personal-binders', element: <PersonalBinderHomePage /> },
               { path: 'personal-binders/materials', element: <PersonalBinderHomePage /> },
+              { path: 'personal-binders/edit/:binderId', element: <PersonalBinderHomePage /> },
               { path: 'personal-binders/:binderId/edit', element: <PersonalBinderEditorPage /> },
               { path: 'personal-binders/:binderId/view', element: <PersonalBinderViewerPage /> },
               { path: 'todos', element: <TodosWorkspacePage /> },
