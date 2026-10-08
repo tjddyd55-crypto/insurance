@@ -141,12 +141,15 @@ export function MaterialUploadDialog({
   open,
   token,
   folderId = null,
+  embedded = false,
   onClose,
   onUploaded,
 }: {
   open: boolean
   token: string | null
   folderId?: string | null
+  /** 자료 추가 모달 body 안에 표시 */
+  embedded?: boolean
   onClose: () => void
   onUploaded: (material: PersonalBinderMaterial) => void
 }) {
@@ -313,15 +316,9 @@ export function MaterialUploadDialog({
     setBatchOrder(next)
   }
 
-  if (imageBatch && imageBatch.length >= 2) {
-    return (
-      <BaseDialog
-        open={open}
-        onClose={onClose}
-        closeOnBackdrop={false}
-        closeOnEsc={!uploading}
-        ariaLabel="이미지 업로드 방식"
-      >
+  const batchPanel =
+    imageBatch && imageBatch.length >= 2 ? (
+      <div className={embedded ? 'personal-binder-material-picker__upload' : undefined}>
         <h2 className="personal-binder-dialog-title">이미지 {batchOrder.length}장</h2>
         {batchMode === 'choose' ? (
           <>
@@ -371,19 +368,27 @@ export function MaterialUploadDialog({
             </div>
           </>
         )}
+      </div>
+    ) : null
+
+  if (batchPanel) {
+    if (embedded) return batchPanel
+    return (
+      <BaseDialog
+        open={open}
+        onClose={onClose}
+        closeOnBackdrop={false}
+        closeOnEsc={!uploading}
+        ariaLabel="이미지 업로드 방식"
+      >
+        {batchPanel}
       </BaseDialog>
     )
   }
 
-  return (
-    <BaseDialog
-      open={open}
-      onClose={onClose}
-      closeOnBackdrop={false}
-      closeOnEsc={!uploading}
-      ariaLabel="자료 업로드"
-    >
-      <h2 className="personal-binder-dialog-title">자료 업로드</h2>
+  const uploadPanel = (
+    <div className={embedded ? 'personal-binder-material-picker__upload' : undefined}>
+      {embedded ? null : <h2 className="personal-binder-dialog-title">자료 업로드</h2>}
       <div className="personal-binder-upload-slot">
         <FileUploader
           accept={ACCEPT}
@@ -428,6 +433,20 @@ export function MaterialUploadDialog({
           업로드
         </FormButton>
       </div>
+    </div>
+  )
+
+  if (embedded) return uploadPanel
+
+  return (
+    <BaseDialog
+      open={open}
+      onClose={onClose}
+      closeOnBackdrop={false}
+      closeOnEsc={!uploading}
+      ariaLabel="자료 업로드"
+    >
+      {uploadPanel}
     </BaseDialog>
   )
 }
