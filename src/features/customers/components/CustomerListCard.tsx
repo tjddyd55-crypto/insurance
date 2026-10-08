@@ -11,6 +11,9 @@ import type { CustomerEditFormState } from '../types/customerEditForm'
 import CustomerDetailReadView from './CustomerDetailReadView'
 import CustomerEditForm from './CustomerEditForm'
 import { CustomerWorkspaceActions } from './CustomerWorkspaceActions'
+import { CustomerGenderText } from './CustomerGenderText'
+import { CustomerInsuranceAgeDdayInline } from './CustomerInsuranceAgeDdayInline'
+
 function customerInsuranceDisplay(c: CustomerRecord): {
   ageText: string
   dateText: string
@@ -24,16 +27,6 @@ function customerInsuranceDisplay(c: CustomerRecord): {
     maturityYmd: m.maturityYmd,
     insuranceAgeNum: m.insuranceAge,
   }
-}
-
-function genderSummaryLabel(c: CustomerRecord): string {
-  if (c.gender === 'male') {
-    return '남'
-  }
-  if (c.gender === 'female') {
-    return '여'
-  }
-  return '—'
 }
 
 function customerPhoneHref(phone: string | undefined, scheme: 'tel' | 'sms'): string | null {
@@ -354,9 +347,11 @@ const CustomerListCard = memo(function CustomerListCard({
                     ) : null}
                     {c.name}
                   </span>
-                  <span className="text-sm text-[var(--text-secondary)] font-normal">
-                    {genderSummaryLabel(c)}
-                  </span>
+                  <CustomerGenderText
+                    gender={c.gender}
+                    ssn={c.ssn}
+                    className="text-sm font-normal"
+                  />
                   {crmIsInsuranceLayout ? (
                     <span className="text-sm text-[var(--text-secondary)] font-normal">
                       보험나이 {ins.ageText}
@@ -365,7 +360,13 @@ const CustomerListCard = memo(function CustomerListCard({
                 </div>
                 <div className="text-sm text-[var(--text-secondary)] customer-card-summary-meta mt-0.5">
                   {crmIsInsuranceLayout ? (
-                    <>상령일: {ins.dateText}</>
+                    <>
+                      상령일: {ins.dateText}
+                      <CustomerInsuranceAgeDdayInline
+                        nextAgeDate={c.nextAgeDate ?? ins.maturityYmd}
+                        className="customer-list-card__insurance-dday"
+                      />
+                    </>
                   ) : govListSummary != null ? (
                     <div className="gov-customer-list-summary">
                       {govListSummary.badges.length > 0 ? (

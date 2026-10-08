@@ -8,14 +8,14 @@ import {
 } from '../../config/customerInflowSource.config'
 import type { CustomerRecord } from '../../domain/types'
 import { normalizeCustomerNotesBag } from '../../domain/types'
-import { getDDay, getDDayBadgeClass } from '../../utils/dday'
+import { CustomerInsuranceAgeDdayInline } from '../CustomerInsuranceAgeDdayInline'
+import { resolveCustomerGenderPresentationTone } from '../../utils/customerGenderPresentation'
 import {
   formatCustomerGenderReadLabel,
   formatCustomerMobileCarrierDisplay,
   formatCustomerPhoneUi,
   formatCustomerSsnUi,
 } from '../../utils/customerDisplayFormat'
-import { inferGenderFromResidentNumberDigits } from '../../utils/inferGenderFromResidentNumberDigits'
 import {
   type CustomerBasicCoreFormDraft,
   isCustomerBasicCoreDraftDirty,
@@ -45,31 +45,6 @@ export type CustomerBasicInfoSectionProps = {
   onEditingChange?: (editing: boolean) => void
 }
 
-function resolveCustomerGenderTone(
-  gender: CustomerRecord['gender'],
-  ssnRaw: string | null | undefined,
-): 'male' | 'female' | null {
-  if (gender === 'male' || gender === 'female') {
-    return gender
-  }
-  const fromSsn = inferGenderFromResidentNumberDigits(ssnRaw)
-  return fromSsn === 'male' || fromSsn === 'female' ? fromSsn : null
-}
-
-function MaturityDdayBadge({ maturityYmd }: { maturityYmd: string | null }) {
-  if (!maturityYmd) {
-    return null
-  }
-  const dday = getDDay(maturityYmd)
-  if (dday === null) {
-    return null
-  }
-  const hot = dday >= 0 && dday <= 30
-  const label = `D-${dday}`
-  const toneClass = hot ? getDDayBadgeClass(dday) : 'customer-dday'
-  return <span className={`customer-detail-read__dday-inline ${toneClass}`}>({label})</span>
-}
-
 export function CustomerBasicInfoSection({
   customer,
   ins,
@@ -89,7 +64,7 @@ export function CustomerBasicInfoSection({
   const inflowDetailMeta = getInflowSourceDetailFieldMeta(customer.inflowSource)
   const inflowDetailName = customer.referrerName?.trim()
   const genderReadLabel = formatCustomerGenderReadLabel(customer.gender, customer.ssn)
-  const genderTone = resolveCustomerGenderTone(customer.gender, customer.ssn)
+  const genderTone = resolveCustomerGenderPresentationTone(customer.gender, customer.ssn)
 
   useEffect(() => {
     setIsEditing(false)
@@ -239,7 +214,9 @@ export function CustomerBasicInfoSection({
       <DetailReadFieldRow label="상령일">
         <span className="customer-detail-read__inline-value-cluster">
           <span>{ins.dateText}</span>
-          <MaturityDdayBadge maturityYmd={ins.maturityYmd} />
+          <CustomerInsuranceAgeDdayInline
+            nextAgeDate={customer.nextAgeDate ?? ins.maturityYmd}
+          />
         </span>
       </DetailReadFieldRow>
       <DetailReadFieldRow label="보험나이">{ins.ageText}</DetailReadFieldRow>
