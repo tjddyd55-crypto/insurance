@@ -70,11 +70,14 @@ function uploadWithProgress(
 export function MaterialUploadDialog({
   open,
   token,
+  folderId = null,
   onClose,
   onUploaded,
 }: {
   open: boolean
   token: string | null
+  /** 선택된 사용자 폴더. 전체/미분류는 null */
+  folderId?: string | null
   onClose: () => void
   onUploaded: (material: PersonalBinderMaterial) => void
 }) {
@@ -155,6 +158,7 @@ export function MaterialUploadDialog({
       const material = await createPersonalBinderMaterial(token, {
         fileId: saved.id,
         title: title.trim(),
+        folderId,
       })
       setProgress(100)
       onUploaded(material)

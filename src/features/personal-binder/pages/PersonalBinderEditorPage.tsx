@@ -293,7 +293,7 @@ export default function PersonalBinderEditorPage() {
   }
 
   return (
-    <main className="page personal-binder-page personal-binder-editor">
+    <main className="page personal-binder-page personal-binder-page--editor personal-binder-editor">
       <header className="personal-binder-editor-header">
         <FormButton variant="action" onClick={() => navigate('/personal-binders')}>← 목록</FormButton>
         <div>
