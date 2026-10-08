@@ -518,6 +518,119 @@
   font-size: 0.8125rem;
 }
 
+/* 고객 embed: 시나리오·시뮬 한 카드 안에 ⋯ 통합 */
+.cs-three-pane--customer-embedded .cs-three-pane-scenario-row,
+.cs-three-pane--customer-embedded .cs-three-pane-simulation-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  grid-template-rows: auto auto;
+  align-items: center;
+  margin-bottom: 4px;
+  border: 1px solid var(--cs-color-border);
+  border-radius: 8px;
+  background: #ffffff;
+  box-sizing: border-box;
+  min-height: 44px;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane-scenario-row__main,
+.cs-three-pane--customer-embedded .cs-three-pane-simulation-row__main {
+  display: contents;
+  min-height: unset;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane-scenario-row__title,
+.cs-three-pane--customer-embedded .cs-three-pane-simulation-row__customer {
+  grid-column: 1;
+  grid-row: 1;
+  padding: 6px 8px 0;
+  margin: 0;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane-scenario-row__meta,
+.cs-three-pane--customer-embedded .cs-three-pane-simulation-row__date {
+  grid-column: 1;
+  grid-row: 2;
+  padding: 0 8px 6px;
+  margin: 0;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane-scenario-row__menu,
+.cs-three-pane--customer-embedded .cs-three-pane-simulation-row__menu {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  justify-self: center;
+  flex: unset;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 6px;
+  line-height: 1;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane-scenario-row__menu:hover,
+.cs-three-pane--customer-embedded .cs-three-pane-simulation-row__menu:hover {
+  background: color-mix(in srgb, var(--cs-color-border) 35%, transparent);
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane-scenario-row:has(.cs-three-pane-scenario-row__main--active),
+.cs-three-pane--customer-embedded .cs-three-pane-simulation-row:has(.cs-three-pane-simulation-row__main--active) {
+  border-color: var(--cs-color-accent, #2563eb);
+  background: color-mix(in srgb, var(--cs-color-accent, #2563eb) 8%, #ffffff);
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane-scenario-row__main--active,
+.cs-three-pane--customer-embedded .cs-three-pane-simulation-row__main--active {
+  background: transparent;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane-scenario-row__menu-panel {
+  top: calc(100% + 2px);
+  right: 4px;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane__column-header--detail-sync h2 {
+  visibility: hidden;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane__column--content {
+  overflow: hidden;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane__column--content .coverage-editor-panel-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane__column--content .coverage-editor-panel-shell__editor {
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.cs-three-pane--customer-embedded .cs-simulation-customer-field {
+  flex-shrink: 0;
+  padding: 0 12px;
+  margin: 0;
+  min-height: 36px;
+  border-bottom: 1px solid var(--cs-color-border);
+}
+
+.customer-coverage-simulations--workspace .cs-axis-main.coverage-simulator-content {
+  background: #ffffff;
+  padding: 8px 12px 20px;
+}
+
+.customer-coverage-simulations--workspace .cs-axis-sheet {
+  background: #ffffff;
+  box-shadow: none;
+}
+
 @media (max-width: 960px) {
   .cs-three-pane {
     grid-template-columns: 1fr;
