@@ -84,6 +84,13 @@
 .pc-root .customer-workspace-layout__right {
   position: relative;
   z-index: 1;
+  background: var(--bg-main);
+}
+
+.pc-root .customer-workspace-layout__right--page-tabs > .customer-workspace-layout__right-header {
+  padding: 6px 10px 0;
+  background: var(--bg-main);
+  border-bottom: none;
 }
 
 .pc-root .customer-workspace-layout__left {
