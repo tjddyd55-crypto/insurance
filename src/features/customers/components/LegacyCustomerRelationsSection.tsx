@@ -10,6 +10,7 @@ import {
   type CustomerRelationRow,
 } from '../api/customerExtraApi'
 import type { CustomerRecord } from '../domain/types'
+import { FormButton } from '../../../components/form'
 import { CustomerRelationSearchField } from './CustomerRelationSearchField'
 import { CustomerRelationSearchResultList } from './CustomerRelationSearchResultList'
 
@@ -19,9 +20,6 @@ type Props = {
   token: string
   onOpenCustomer: (id: number, name?: string) => void
   focusedCustomerId: number | null
-  /** 상단 헤더 버튼에서 모달을 열 때 사용 */
-  addOpen: boolean
-  onAddOpenChange: (open: boolean) => void
   onStatus?: (payload: { error?: string; notice?: string }) => void
 }
 
@@ -35,11 +33,10 @@ export function LegacyCustomerRelationsSection({
   token,
   onOpenCustomer,
   focusedCustomerId,
-  addOpen,
-  onAddOpenChange,
   onStatus,
 }: Props) {
   const { confirm, confirmDialog } = useConfirmDialog()
+  const [addOpen, setAddOpen] = useState(false)
   const [relations, setRelations] = useState<CustomerRelationRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -82,7 +79,7 @@ export function LegacyCustomerRelationsSection({
   useBackButtonClose(
     addOpen,
     () => {
-      onAddOpenChange(false)
+      setAddOpen(false)
     },
     { layerKind: 'customer-legacy-relation-modal' },
   )
@@ -147,7 +144,7 @@ export function LegacyCustomerRelationsSection({
       // 기존 API 계약: 세 번째 인자는 number (relatedCustomerId)
       await createCustomerRelation(token, customerId, relatedCustomerId)
       setNotice(`${target.name} 고객과 연결했습니다.`)
-      onAddOpenChange(false)
+      setAddOpen(false)
       setSearchQ('')
       await loadRelations()
     } catch (e) {
@@ -178,7 +175,7 @@ export function LegacyCustomerRelationsSection({
   const requestCloseRelationsModal = useCallback(async () => {
     if (linking) return
     if (!searchQ.trim()) {
-      onAddOpenChange(false)
+      setAddOpen(false)
       return
     }
     const ok = await confirm({
@@ -188,12 +185,22 @@ export function LegacyCustomerRelationsSection({
       cancelLabel: '계속',
       tone: 'warning',
     })
-    if (ok) onAddOpenChange(false)
-  }, [confirm, linking, searchQ, onAddOpenChange])
+    if (ok) setAddOpen(false)
+  }, [confirm, linking, searchQ])
 
   return (
     <div className="customer-relations-legacy-section">
-      <h5 className="customer-relations-legacy__title">개별 연결</h5>
+      <div className="customer-relations-legacy__header">
+        <h5 className="customer-relations-legacy__title">개별 연결</h5>
+        <FormButton
+          htmlType="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => setAddOpen(true)}
+        >
+          개별 연결
+        </FormButton>
+      </div>
       {loading ? (
         <p className="customer-relations-strip__status customer-relations-strip__status--loading">
           불러오는 중…
@@ -250,10 +257,19 @@ export function LegacyCustomerRelationsSection({
           )
         })}
       </ul>
-      <p className="customer-relations-strip__description">
-        {customerName}님과 연결된 다른 고객입니다. 이름을 누르면 해당 고객 상세로 이동합니다. 칩에
-        마우스를 올리면 전화번호 힌트가 표시됩니다.
-      </p>
+      {!loading && relations.length === 0 ? (
+        <div className="customer-relations-legacy-section__empty">
+          <p className="customer-relations-strip__empty">등록된 개별 연결 고객이 없습니다.</p>
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setAddOpen(true)}
+          >
+            + 개별 연결 추가
+          </FormButton>
+        </div>
+      ) : null}
 
       <Modal
         open={addOpen}
