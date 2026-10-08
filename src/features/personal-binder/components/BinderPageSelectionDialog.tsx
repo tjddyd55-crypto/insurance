@@ -21,6 +21,10 @@ type Props = {
   open: boolean
   variant: 'desktop' | 'mobile'
   binder: PersonalBinder
+  /** 바인더가 속한 폴더명. 없으면 미분류 */
+  folderLabel: string
+  /** 자료가 추가되는 섹션 */
+  sectionTitle: string
   material: PersonalBinderMaterial | null
   pdfUrl: string | null
   initialSelection: number[] | null
@@ -32,6 +36,8 @@ export function BinderPageSelectionDialog({
   open,
   variant,
   binder,
+  folderLabel,
+  sectionTitle,
   material,
   pdfUrl,
   initialSelection,
@@ -94,9 +100,8 @@ export function BinderPageSelectionDialog({
   ) => {
     setCurrentPage(page)
     if (mode !== 'partial') return
-    const additive = isMobile || event.metaKey || event.ctrlKey
     const next = togglePageSelection(selected, page, {
-      additive,
+      additive: true,
       shiftFrom: !isMobile && event.shiftKey ? lastSelectedRef.current : null,
     })
     if (!event.shiftKey) lastSelectedRef.current = page
@@ -124,6 +129,16 @@ export function BinderPageSelectionDialog({
       return
     }
     setPartialSelection(parsed.pages)
+  }
+  const activatePartialMode = () => {
+    if (mode === 'all') {
+      setPartialSelection(pages)
+    }
+    setMode('partial')
+  }
+  const activateAllMode = () => {
+    setMode('all')
+    setRangeError('')
   }
   const complete = () => {
     if (mode === 'all') {
@@ -254,24 +269,42 @@ export function BinderPageSelectionDialog({
         </div>
       ) : (
         <div className="personal-binder-page-dialog__desktop">
-          <aside className="personal-binder-tree">
-            <h3>{binder.title}</h3>
-            {binder.sections.map((section) => (
-              <div key={section.id}>
-                <strong>{section.title}</strong>
-                {section.items.map((item) => (
-                  <span key={item.id}>
-                    {item.material.title}
-                    {item.pageSelection ? ` · ${formatSelectedPages(item.pageSelection)}p` : ' · 전체'}
-                  </span>
-                ))}
-              </div>
-            ))}
+          <aside className="personal-binder-page-placement" aria-label="저장 위치">
+            <h3 className="personal-binder-page-placement__title">저장 위치</h3>
+            <div className="personal-binder-page-placement-tree">
+              <p className="personal-binder-page-placement-tree__level personal-binder-page-placement-tree__level--0">
+                내 바인더
+              </p>
+              <p className="personal-binder-page-placement-tree__level personal-binder-page-placement-tree__level--1">
+                {folderLabel}
+              </p>
+              <p className="personal-binder-page-placement-tree__level personal-binder-page-placement-tree__level--2">
+                {binder.title}
+              </p>
+              <p
+                className={[
+                  'personal-binder-page-placement-tree__level',
+                  'personal-binder-page-placement-tree__level--3',
+                  'personal-binder-page-placement-tree__level--current',
+                ].join(' ')}
+              >
+                {sectionTitle || '섹션'}
+              </p>
+              <p
+                className={[
+                  'personal-binder-page-placement-tree__level',
+                  'personal-binder-page-placement-tree__level--4',
+                  'personal-binder-page-placement-tree__level--material',
+                ].join(' ')}
+              >
+                {material.title}
+              </p>
+            </div>
           </aside>
           {preview}
           <aside className="personal-binder-page-panel">
-            <h3>페이지 선택</h3>
-            {thumbnailPanel}
+            <h3 className="personal-binder-page-panel__title">페이지 선택</h3>
+            <div className="personal-binder-page-panel__thumbnails">{thumbnailPanel}</div>
           </aside>
         </div>
       )}
@@ -280,13 +313,13 @@ export function BinderPageSelectionDialog({
         <div className="personal-binder-segmented">
           <FormButton
             variant={mode === 'all' ? 'primary' : 'secondary'}
-            onClick={() => setMode('all')}
+            onClick={activateAllMode}
           >
             전체 페이지 사용
           </FormButton>
           <FormButton
             variant={mode === 'partial' ? 'primary' : 'secondary'}
-            onClick={() => setMode('partial')}
+            onClick={activatePartialMode}
           >
             일부 페이지만 사용
           </FormButton>
@@ -308,12 +341,10 @@ export function BinderPageSelectionDialog({
       </section>
 
       <footer className="personal-binder-page-dialog__footer">
-        <span>
+        <span className="personal-binder-page-dialog__footer-summary">
           {mode === 'all'
             ? `${pageCount}페이지 전체`
-            : selected.length <= 6
-              ? `선택: ${selected.join(', ') || '없음'}`
-              : `${selected.length}페이지 선택`}
+            : `선택: ${formatSelectedPages(selected) || '없음'}`}
         </span>
         <FormButton variant="primary" onClick={complete}>선택 완료</FormButton>
       </footer>

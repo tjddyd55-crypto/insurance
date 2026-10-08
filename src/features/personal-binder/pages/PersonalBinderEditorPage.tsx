@@ -22,7 +22,9 @@ import {
   deletePersonalBinderItem,
   deletePersonalBinderSection,
   getPersonalBinder,
+  listPersonalBinderFolders,
   listPersonalBinderMaterials,
+  listPersonalBinders,
   renamePersonalBinderSection,
   reorderPersonalBinderItems,
   reorderPersonalBinderSections,
@@ -92,18 +94,27 @@ export default function PersonalBinderEditorPage({
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [dragSectionId, setDragSectionId] = useState<string | null>(null)
   const [dragItem, setDragItem] = useState<{ sectionId: string; itemId: string } | null>(null)
+  const [binderFolderLabel, setBinderFolderLabel] = useState('미분류')
 
   const load = useCallback(async (signal?: AbortSignal) => {
     if (!token || !binderId) return
     setLoading(true)
     setError('')
     try {
-      const [nextBinder, nextMaterials] = await Promise.all([
+      const [nextBinder, nextMaterials, binderSummaries, binderFolders] = await Promise.all([
         getPersonalBinder(token, binderId, signal),
         listPersonalBinderMaterials(token, signal),
+        listPersonalBinders(token, signal),
+        listPersonalBinderFolders(token, 'binder', signal),
       ])
+      const summary = binderSummaries.find((row) => row.id === binderId)
+      const folderId = summary?.folderId ?? null
+      const folderName = folderId
+        ? binderFolders.find((folder) => folder.id === folderId)?.name ?? '미분류'
+        : '미분류'
       setBinder(nextBinder)
       setMaterials(nextMaterials)
+      setBinderFolderLabel(folderName)
       setTitle(nextBinder.title)
       setDescription(nextBinder.description)
     } catch (reason) {
@@ -558,6 +569,12 @@ export default function PersonalBinderEditorPage({
         open={pageTarget != null}
         variant={isMobile ? 'mobile' : 'desktop'}
         binder={binder}
+        folderLabel={binderFolderLabel}
+        sectionTitle={
+          pageTarget
+            ? binder.sections.find((section) => section.id === pageTarget.sectionId)?.title ?? ''
+            : ''
+        }
         material={pageTarget?.material ?? null}
         pdfUrl={pdfUrl}
         initialSelection={pageTarget?.initialSelection ?? null}
