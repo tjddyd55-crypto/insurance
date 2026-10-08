@@ -9,6 +9,8 @@ export type BillingCheckoutConfig = {
   customerKey: string | null
   hasBillingKey: boolean
   allowDevTestCharge?: boolean
+  mockPaymentAllowed?: boolean
+  paymentMethodLabel?: string | null
   cardCompany?: string | null
   cardNumberMasked?: string | null
 }

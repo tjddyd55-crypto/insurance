@@ -177,9 +177,13 @@ export function CheckoutCouponSection({ props }: { props: BillingCheckoutViewPro
 
 export function CheckoutPaymentMethodSection({ props }: { props: BillingCheckoutViewProps }) {
   const { canUseToss, hasBillingKey, checkoutConfig, onRegisterCard, submitting, isActiveEntitled } = props
-  const cardLabel = hasBillingKey
-    ? [checkoutConfig?.cardCompany, checkoutConfig?.cardNumberMasked].filter(Boolean).join(' ') || '등록됨'
-    : '등록된 결제수단이 없습니다.'
+  const mockPaymentAllowed =
+    checkoutConfig?.provider === 'mock' && Boolean(checkoutConfig.mockPaymentAllowed ?? checkoutConfig.enabled)
+  const cardLabel = mockPaymentAllowed
+    ? checkoutConfig?.paymentMethodLabel ?? 'DEV 가상결제'
+    : hasBillingKey
+      ? [checkoutConfig?.cardCompany, checkoutConfig?.cardNumberMasked].filter(Boolean).join(' ') || '등록됨'
+      : '등록된 결제수단이 없습니다.'
 
   return (
     <section className="insurance-billing-card">
@@ -187,7 +191,7 @@ export function CheckoutPaymentMethodSection({ props }: { props: BillingCheckout
       <dl className="insurance-billing-manage-meta">
         <div className="insurance-billing-manage-meta__row">
           <dt>등록 카드</dt>
-          <dd>{canUseToss ? cardLabel : '—'}</dd>
+          <dd>{canUseToss || mockPaymentAllowed ? cardLabel : '—'}</dd>
         </div>
       </dl>
       {canUseToss ? (
@@ -200,8 +204,11 @@ export function CheckoutPaymentMethodSection({ props }: { props: BillingCheckout
           {hasBillingKey ? '변경' : '카드 등록하기'}
         </button>
       ) : null}
-      {!hasBillingKey && !isActiveEntitled ? (
+      {!hasBillingKey && !isActiveEntitled && !mockPaymentAllowed ? (
         <p className="insurance-billing-plan-note">카드 등록 후 최종 금액을 확인하고 결제합니다.</p>
+      ) : null}
+      {mockPaymentAllowed && !isActiveEntitled ? (
+        <p className="insurance-billing-plan-note">Development 환경에서는 실제 카드 없이 가상 결제로 이용기간이 연장됩니다.</p>
       ) : null}
     </section>
   )
