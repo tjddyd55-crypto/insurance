@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type RefObject } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 
 import { BaseDialog } from '../../../components/dialog/BaseDialog'
@@ -54,8 +54,21 @@ function move<T>(rows: T[], from: number, to: number): T[] {
   return next
 }
 
-export default function PersonalBinderEditorPage() {
-  const { binderId = '' } = useParams()
+export type PersonalBinderEditorPageProps = {
+  layout?: 'page' | 'embedded'
+  binderIdOverride?: string
+  onMetadataDirtyChange?: (dirty: boolean) => void
+  editorScrollRef?: RefObject<HTMLDivElement | null>
+}
+
+export default function PersonalBinderEditorPage({
+  layout = 'page',
+  binderIdOverride,
+  onMetadataDirtyChange,
+  editorScrollRef,
+}: PersonalBinderEditorPageProps = {}) {
+  const { binderId: routeBinderId = '' } = useParams()
+  const binderId = binderIdOverride ?? routeBinderId
   const { token } = useAuth()
   const navigate = useNavigate()
   const isMobile = useIsMobile()
@@ -108,6 +121,20 @@ export default function PersonalBinderEditorPage() {
     return () => controller.abort()
   }, [load])
 
+  useEffect(() => {
+    if (layout !== 'page' || isMobile || !binderId) return
+    navigate(`/personal-binders/edit/${binderId}`, { replace: true })
+  }, [binderId, isMobile, layout, navigate])
+
+  const metadataDirty = useMemo(() => {
+    if (!binder) return false
+    return title !== binder.title || description !== binder.description
+  }, [binder, description, title])
+
+  useEffect(() => {
+    onMetadataDirtyChange?.(metadataDirty)
+  }, [metadataDirty, onMetadataDirtyChange])
+
   const orderedSections = useMemo(
     () => binder?.sections.slice().sort((left, right) => left.sortOrder - right.sortOrder) ?? [],
     [binder],
@@ -117,7 +144,14 @@ export default function PersonalBinderEditorPage() {
     material.mimeType.toLowerCase().startsWith('image/')
 
   if (!token) return <Navigate to="/login" replace />
-  if (loading) return <main className="page personal-binder-status">바인더를 불러오는 중…</main>
+  if (layout === 'page' && !isMobile) {
+    return <main className="page personal-binder-status">바인더 편집 화면으로 이동하는 중…</main>
+  }
+  if (loading) {
+    const loadingClass =
+      layout === 'embedded' ? 'personal-binder-status' : 'page personal-binder-status'
+    return <main className={loadingClass}>바인더를 불러오는 중…</main>
+  }
   if (!binder) {
     return (
       <main className="page personal-binder-status">
@@ -291,6 +325,17 @@ export default function PersonalBinderEditorPage() {
       setExporting(false)
     }
   }
+  const startConsultation = () => {
+    const returnTo =
+      layout === 'embedded'
+        ? `/personal-binders/edit/${binder.id}`
+        : `/personal-binders/${binder.id}/edit`
+    const scrollY = editorScrollRef?.current?.scrollTop ?? 0
+    navigate(`/personal-binders/${binder.id}/view`, {
+      state: { returnTo, scrollY },
+    })
+  }
+
   const removeItem = async (item: PersonalBinderItem) => {
     const accepted = await confirm({
       title: '바인더에서 자료를 뺄까요?',
@@ -304,16 +349,25 @@ export default function PersonalBinderEditorPage() {
     await refresh()
   }
 
+  const rootClass =
+    layout === 'embedded'
+      ? 'personal-binder-editor personal-binder-editor--embedded'
+      : 'page personal-binder-page personal-binder-page--editor personal-binder-editor'
+
   return (
-    <main className="page personal-binder-page personal-binder-page--editor personal-binder-editor">
+    <main className={rootClass}>
       <header className="personal-binder-editor-header">
-        <FormButton variant="action" onClick={() => navigate('/personal-binders')}>← 목록</FormButton>
+        {layout === 'embedded' ? null : (
+          <FormButton variant="action" onClick={() => navigate('/personal-binders')}>
+            ← 목록
+          </FormButton>
+        )}
         <div>
           <h1>바인더 편집</h1>
           <p>섹션과 자료 순서를 상담 흐름에 맞게 구성하세요.</p>
         </div>
         <div>
-          <FormButton variant="secondary" onClick={() => navigate(`/personal-binders/${binder.id}/view`)}>
+          <FormButton variant="secondary" onClick={() => startConsultation()}>
             상담 시작
           </FormButton>
           <FormButton

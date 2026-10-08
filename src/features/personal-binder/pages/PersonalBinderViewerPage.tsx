@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { getDocument, type PDFDocumentProxy } from 'pdfjs-dist'
 
 import { BaseDialog } from '../../../components/dialog/BaseDialog'
@@ -47,6 +47,8 @@ export default function PersonalBinderViewerPage() {
   const { token } = useAuth()
   const isMobile = useIsMobile()
   const navigate = useNavigate()
+  const location = useLocation()
+  const viewerReturn = location.state as { returnTo?: string; scrollY?: number } | null
   const [binder, setBinder] = useState<PersonalBinder | null>(null)
   const [index, setIndex] = useState(0)
   const [frame, setFrame] = useState<{
@@ -237,7 +239,15 @@ export default function PersonalBinderViewerPage() {
     return (
       <main className="personal-binder-viewer-status">
         <p>{error || '상담할 페이지가 없습니다.'}</p>
-        <FormButton variant="secondary" onClick={() => navigate(`/personal-binders/${binderId}/edit`)}>
+        <FormButton
+          variant="secondary"
+          onClick={() => {
+            const returnTo = viewerReturn?.returnTo ?? `/personal-binders/${binderId}/edit`
+            navigate(returnTo, {
+              state: viewerReturn?.scrollY != null ? { restoreScrollY: viewerReturn.scrollY } : undefined,
+            })
+          }}
+        >
           편집으로
         </FormButton>
       </main>
@@ -264,6 +274,13 @@ export default function PersonalBinderViewerPage() {
     if (opened) opened.opener = null
     window.setTimeout(() => opened?.print(), 1000)
   }
+  const exitViewer = () => {
+    const returnTo = viewerReturn?.returnTo ?? `/personal-binders/${binder.id}/edit`
+    navigate(returnTo, {
+      state: viewerReturn?.scrollY != null ? { restoreScrollY: viewerReturn.scrollY } : undefined,
+    })
+  }
+
   const exportBinder = async (mode: 'download' | 'print') => {
     if (!binder || exporting) return
     setExporting(true)
@@ -294,7 +311,7 @@ export default function PersonalBinderViewerPage() {
         <FormButton
           variant="action"
           aria-label="편집으로"
-          onClick={() => navigate(`/personal-binders/${binder.id}/edit`)}
+          onClick={() => exitViewer()}
         >
           ←
         </FormButton>

@@ -24,6 +24,102 @@
 .personal-binder-workspace__main {
   flex: 1 1 auto;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+}
+
+.personal-binder-workspace__body--split .personal-binder-workspace__main {
+  flex-direction: row;
+  align-items: stretch;
+  min-height: 0;
+  gap: var(--space-4, 16px);
+}
+
+.personal-binder-workspace__list-pane {
+  flex: 0 0 min(300px, 32%);
+  min-width: 220px;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+  min-height: 0;
+  max-height: min(78vh, 920px);
+  padding: var(--space-3, 12px);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-card);
+  overflow: hidden;
+}
+
+.personal-binder-workspace__binder-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.personal-binder-workspace__binder-nav-item {
+  margin: 0;
+}
+
+.personal-binder-workspace__binder-nav-button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1, 4px);
+  width: 100%;
+  padding: var(--space-3, 12px);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md, 8px);
+  background: var(--surface-list-row, var(--bg-card));
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.personal-binder-workspace__binder-nav-button strong {
+  font-size: 0.9375rem;
+}
+
+.personal-binder-workspace__binder-nav-button small {
+  color: var(--text-sub);
+  font-size: 0.75rem;
+}
+
+.personal-binder-workspace__binder-nav-item--active .personal-binder-workspace__binder-nav-button {
+  border-color: color-mix(in srgb, var(--brand-primary, #059669) 45%, var(--border-default));
+  background: color-mix(in srgb, var(--brand-primary, #059669) 8%, var(--bg-card));
+}
+
+.personal-binder-workspace__editor-pane {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  max-height: min(78vh, 920px);
+  overflow: auto;
+  scrollbar-gutter: stable;
+  padding: var(--space-4, 16px);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-card);
+}
+
+.personal-binder-editor--embedded {
+  max-width: 1080px;
+  margin: 0;
+  padding: 0;
+}
+
+.personal-binder-editor--embedded .personal-binder-editor-header {
+  gap: var(--space-3, 12px);
+}
+
+.personal-binder-empty--compact {
+  padding: var(--space-6, 24px) var(--space-3, 12px);
 }
 
 .personal-binder-workspace__pane-header {
