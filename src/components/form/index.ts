@@ -13,6 +13,7 @@ export {
 export {
   capturedAddressRegionPayload,
   formatAddressForSave,
+  parseAddressFromStored,
   regionFromPostcodeParts,
   type AddressSearchValue,
 } from './addressSearchUtils'
