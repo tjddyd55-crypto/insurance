@@ -18,6 +18,7 @@ import {
   resolveUsagePeriod,
 } from '../billingManageViewUtils'
 import type { BillingCheckoutConfig, CheckoutSummary } from '../api/insuranceBillingApi'
+import { isPaidPeriodExpiredEntitlement } from '../billingCheckoutViewState'
 
 type Props = {
   summary: CheckoutSummary | null | undefined
@@ -53,13 +54,21 @@ export default function InsuranceBillingManagePanel({
   actionBusy = false,
 }: Props) {
   const status = subscription?.status ?? summary?.status ?? summary?.subscriptionStatus ?? 'pending_payment'
-  const statusLabel = resolveSubscriptionStatusLabel(status)
-  const statusTone = resolveSubscriptionStatusTone(status)
+  const paidPeriodExpired = isPaidPeriodExpiredEntitlement({
+    status,
+    subscriptionStatus: summary?.subscriptionStatus,
+    isEntitled: summary?.isEntitled,
+    entitlementReason: summary?.entitlementReason,
+    currentPeriodEnd: subscription?.currentPeriodEnd ?? summary?.currentPeriodEnd,
+    nextBillingAt: subscription?.nextBillingAt ?? summary?.nextBillingAt,
+  })
+  const statusLabel = paidPeriodExpired ? '이용기간 종료' : resolveSubscriptionStatusLabel(status)
+  const statusTone = paidPeriodExpired ? 'red' : resolveSubscriptionStatusTone(status)
   const planName = resolvePlanDisplayName(subscription, summary)
   const usagePeriod = resolveUsagePeriod(subscription, summary)
   const nextBillingDate = resolveNextBillingDate(subscription, summary)
   const checkoutCtaLabel = resolveManageCheckoutCtaLabel(status)
-  const isActivePaid = String(status).toLowerCase() === 'active_paid'
+  const isActivePaid = String(status).toLowerCase() === 'active_paid' && !paidPeriodExpired
   const billingCycle = subscription?.billingCycle ?? 'monthly'
   const pendingCycle = subscription?.pendingBillingCycle ?? null
   const autoRenewStatus = subscription?.autoRenewStatus ?? 'INACTIVE'
@@ -141,17 +150,19 @@ export default function InsuranceBillingManagePanel({
             <dt>이용기간</dt>
             <dd>{usagePeriod}</dd>
           </div>
-          <div className="insurance-billing-manage-meta__row">
-            <dt>자동결제</dt>
-            <dd>{resolveAutoRenewLabel(autoRenewStatus)}</dd>
-          </div>
-          {autoRenewStatus === 'CANCEL_SCHEDULED' ? (
+          {!paidPeriodExpired ? (
+            <div className="insurance-billing-manage-meta__row">
+              <dt>자동결제</dt>
+              <dd>{resolveAutoRenewLabel(autoRenewStatus)}</dd>
+            </div>
+          ) : null}
+          {!paidPeriodExpired && autoRenewStatus === 'CANCEL_SCHEDULED' ? (
             <div className="insurance-billing-manage-meta__row">
               <dt>이용 종료일</dt>
               <dd>{formatBillingDotDate(cancelScheduledEndDate)}</dd>
             </div>
           ) : null}
-          {autoRenewStatus === 'CANCEL_SCHEDULED' && resumeChargePreview ? (
+          {!paidPeriodExpired && autoRenewStatus === 'CANCEL_SCHEDULED' && resumeChargePreview ? (
             <>
               <div className="insurance-billing-manage-meta__row">
                 <dt>다음 자동결제일</dt>
@@ -169,7 +180,7 @@ export default function InsuranceBillingManagePanel({
               </div>
             </>
           ) : null}
-          {autoRenewStatus === 'AUTO_RENEW_ACTIVE' || pendingCycle ? (
+          {!paidPeriodExpired && (autoRenewStatus === 'AUTO_RENEW_ACTIVE' || pendingCycle) ? (
             <>
               <div className="insurance-billing-manage-meta__row">
                 <dt>다음 자동결제일</dt>
@@ -186,12 +197,12 @@ export default function InsuranceBillingManagePanel({
               ) : null}
             </>
           ) : null}
-          {autoRenewStatus === 'AUTO_RENEW_ACTIVE' ? (
+          {!paidPeriodExpired && autoRenewStatus === 'AUTO_RENEW_ACTIVE' ? (
             <p className="insurance-billing-plan-note">
               다음 결제일에 등록된 카드로 자동결제됩니다.
             </p>
           ) : null}
-          {autoRenewStatus === 'CANCEL_SCHEDULED' ? (
+          {!paidPeriodExpired && autoRenewStatus === 'CANCEL_SCHEDULED' ? (
             <div className="insurance-billing-cancel-scheduled-notice">
               <p>현재 이용기간까지는 정상적으로 이용할 수 있습니다.</p>
               <p>이용 종료일 전까지 자동결제를 다시 시작할 수 있습니다.</p>
@@ -204,6 +215,11 @@ export default function InsuranceBillingManagePanel({
         </dl>
 
         <div className="insurance-billing-manage-actions">
+          {paidPeriodExpired ? (
+            <Link to="/billing/checkout" className="insurance-billing-cta insurance-billing-cta--primary">
+              다시 결제하기
+            </Link>
+          ) : null}
           {showChangeCycle ? (
             <button
               type="button"
@@ -255,7 +271,7 @@ export default function InsuranceBillingManagePanel({
             {hasBillingKey ? '결제수단 변경' : '결제수단 등록'}
           </button>
         ) : null}
-        {showCheckoutLink && !isActivePaid ? (
+        {showCheckoutLink && !isActivePaid && !paidPeriodExpired ? (
           <Link to="/billing/checkout" className="insurance-billing-cta insurance-billing-cta--primary">
             {checkoutCtaLabel}
           </Link>
