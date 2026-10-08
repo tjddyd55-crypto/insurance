@@ -5,6 +5,7 @@ import type { CustomerRecord } from '../../domain/types'
 import { CustomerWorkspacePageShell } from '../../components/workspace/CustomerWorkspacePageShell'
 import type { CustomerWorkspaceTabItem } from '../../components/workspace/CustomerWorkspaceTabs'
 import CustomerHeaderAppLinkCompact from './CustomerHeaderAppLinkCompact'
+import { CustomerGenderText } from '../../components/CustomerGenderText'
 import './CustomerWorkspaceLayoutPC.css'
 
 type WorkspaceActiveTab =
@@ -125,12 +126,7 @@ export default function CustomerWorkspaceLayoutPC({
   onClickCoverageSimulations,
   openRelatedCustomerRef,
 }: CustomerWorkspaceLayoutPCProps) {
-  const genderLabel =
-    selectedCustomer?.gender === 'male'
-      ? '남'
-      : selectedCustomer?.gender === 'female'
-        ? '여'
-        : '미지'
+  const genderUnknown = !selectedCustomer?.gender
   const insuranceAgeLabel =
     selectedCustomer?.insuranceAge != null && Number.isFinite(selectedCustomer.insuranceAge)
       ? `보험나이 ${selectedCustomer.insuranceAge}세`
@@ -218,7 +214,11 @@ export default function CustomerWorkspaceLayoutPC({
                 <span className="customer-workspace-layout__summary-sep" aria-hidden>
                   ·
                 </span>
-                <span>{genderLabel}</span>
+                {genderUnknown ? (
+                  <span>미지</span>
+                ) : (
+                  <CustomerGenderText gender={selectedCustomer?.gender ?? null} ssn={selectedCustomer?.ssn} />
+                )}
                 {insuranceAgeLabel ? (
                   <>
                     <span className="customer-workspace-layout__summary-sep" aria-hidden>

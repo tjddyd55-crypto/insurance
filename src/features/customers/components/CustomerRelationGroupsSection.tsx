@@ -18,7 +18,6 @@ import {
 import type { CustomerRecord } from '../domain/types'
 import {
   formatCustomerPhoneUi,
-  formatRelationGroupMemberMetaLine,
 } from '../utils/customerDisplayFormat'
 import {
   resolveRelationshipLabel,
@@ -27,6 +26,7 @@ import {
 import { CustomerRelationLabelField } from './CustomerRelationLabelField'
 import { CustomerRelationSearchField } from './CustomerRelationSearchField'
 import { CustomerRelationSearchResultList } from './CustomerRelationSearchResultList'
+import { RelationGroupMemberMetaLine } from './RelationGroupMemberMetaLine'
 
 type Props = {
   customerId: number
@@ -553,11 +553,6 @@ export function CustomerRelationGroupsSection({
             </header>
             <ul className="customer-relation-group-card__members">
               {group.members.map((m) => {
-                const meta = formatRelationGroupMemberMetaLine({
-                  relationshipLabel: m.relationshipLabel,
-                  gender: m.gender ?? null,
-                  birthDate: m.birthDate ?? null,
-                })
                 const isFocused =
                   focusedCustomerId != null && focusedCustomerId === m.customerId
                 return (
@@ -582,7 +577,11 @@ export function CustomerRelationGroupsSection({
                           <span className="customer-relation-group-member__current-badge">현재</span>
                         ) : null}
                       </span>
-                      <span className="customer-relation-group-member__meta">{meta}</span>
+                      <RelationGroupMemberMetaLine
+                        relationshipLabel={m.relationshipLabel}
+                        gender={m.gender ?? null}
+                        birthDate={m.birthDate ?? null}
+                      />
                     </button>
                     <div className="customer-relation-group-member__ops">
                       {!m.isCurrentCustomer ? (

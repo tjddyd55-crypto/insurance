@@ -52,6 +52,11 @@
   --success: #16a34a;
   --info: #2563eb;
 
+  /* 고객 UI — Native themes.ts light (info/danger/primary) parity */
+  --customer-gender-male-color: var(--info);
+  --customer-gender-female-color: var(--danger);
+  --customer-insurance-age-dday-color: var(--primary);
+
   /* ── Form ── */
   --input-bg: #ffffff;
   --bg-input: var(--input-bg);
