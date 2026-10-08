@@ -240,26 +240,24 @@ export function CoverageThreePaneWorkspace({
     setAddSimulationOpen(true)
   }
 
-  const onCreateSimulation = (name: string) => {
+  const onCreateSimulation = async (name: string) => {
     if (!selectedTemplate) return
-    void (async () => {
-      try {
-        const customerDraft = customerFilter
-          ? {
-              customerId: customerFilter.customerId,
-              customerNameSnapshot: customerFilter.customerName?.trim() || null,
-            }
-          : emptyCustomerDraft()
-        const saved = await startConsultationFromUserTemplate(userKey, selectedTemplate, customerDraft)
-        const renamed = await renameConsultationAsync(userKey, saved.id, name)
-        setAddSimulationOpen(false)
-        setNewSimulationName('')
-        refreshLists()
-        openSimulation(renamed?.id ?? saved.id)
-      } catch {
-        showToast('시뮬레이션을 만들지 못했습니다.')
-      }
-    })()
+    try {
+      const customerDraft = customerFilter
+        ? {
+            customerId: customerFilter.customerId,
+            customerNameSnapshot: customerFilter.customerName?.trim() || null,
+          }
+        : emptyCustomerDraft()
+      const saved = await startConsultationFromUserTemplate(userKey, selectedTemplate, customerDraft)
+      const renamed = await renameConsultationAsync(userKey, saved.id, name)
+      setAddSimulationOpen(false)
+      setNewSimulationName('')
+      refreshLists()
+      openSimulation(renamed?.id ?? saved.id)
+    } catch {
+      showToast('시뮬레이션을 만들지 못했습니다.')
+    }
   }
 
   const onCreateScenario = (name: string) => {
