@@ -1,6 +1,8 @@
 import { apiRequest } from '../../lib/apiClient'
 import type {
   PersonalBinder,
+  PersonalBinderFolder,
+  PersonalBinderFolderType,
   PersonalBinderMaterial,
   PersonalBinderSection,
   PersonalBinderSummary,
@@ -25,9 +27,50 @@ export function getPersonalBinder(token: string | null, binderId: string, signal
   })
 }
 
+export function listPersonalBinderFolders(
+  token: string | null,
+  type: PersonalBinderFolderType,
+  signal?: AbortSignal,
+) {
+  return apiRequest<PersonalBinderFolder[]>(
+    `/api/personal-binders/folders?type=${encodeURIComponent(type)}`,
+    { token: auth(token), signal },
+  )
+}
+
+export function createPersonalBinderFolder(
+  token: string | null,
+  input: { type: PersonalBinderFolderType; name: string },
+) {
+  return apiRequest<PersonalBinderFolder>('/api/personal-binders/folders', {
+    method: 'POST',
+    token: auth(token),
+    body: JSON.stringify(input),
+  })
+}
+
+export function renamePersonalBinderFolder(
+  token: string | null,
+  folderId: string,
+  name: string,
+) {
+  return apiRequest<PersonalBinderFolder>(`/api/personal-binders/folders/${folderId}`, {
+    method: 'PATCH',
+    token: auth(token),
+    body: JSON.stringify({ name }),
+  })
+}
+
+export function deletePersonalBinderFolder(token: string | null, folderId: string) {
+  return apiRequest<{ ok: boolean }>(`/api/personal-binders/folders/${folderId}`, {
+    method: 'DELETE',
+    token: auth(token),
+  })
+}
+
 export function createPersonalBinder(
   token: string | null,
-  input: { title: string; description?: string },
+  input: { title: string; description?: string; folderId?: string | null },
 ) {
   return apiRequest<PersonalBinderSummary>('/api/personal-binders', {
     method: 'POST',
@@ -87,7 +130,7 @@ export function checkDuplicateBinderMaterial(token: string | null, checksumSha25
 
 export function createPersonalBinderMaterial(
   token: string | null,
-  input: { fileId: number; title: string },
+  input: { fileId: number; title: string; folderId?: string | null },
 ) {
   return apiRequest<PersonalBinderMaterial>('/api/personal-binders/materials', {
     method: 'POST',
