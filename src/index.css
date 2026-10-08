@@ -12916,6 +12916,17 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 .customer-relations-strip--embedded .customer-relations-strip__header{
   justify-content: flex-end;
 }
+@media (max-width: 1100px){
+  .customers-page--pc .customer-detail-read__field-row,
+  .customers-page--pc .customer-detail-read--accordion .customer-quick-crud-card__fields,
+  .customers-page--pc .customer-detail-read--accordion .customer-quick-crud-card__row--wide{
+    grid-template-columns: 120px minmax(0, 1fr);
+  }
+
+  .customer-basic-core-edit-fields--inline .customer-form-compact-grid{
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .customer-detail-read__label,
 .customer-detail-read__info-label,
 .customer-detail-read__field-label{
@@ -12966,6 +12977,35 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 .customer-quick-crud-section__add{
   margin-top: 4px;
 }
+.customer-quick-crud-grid{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+@media (max-width: 960px){
+  .customer-quick-crud-grid{
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.customer-quick-crud-list{
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.customer-quick-crud-card{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-default, #e5e7eb);
+  border-radius: 10px;
+  background: var(--bg-surface);
+}
 .customer-quick-crud-card--row{
   align-items: center;
 }
@@ -13009,6 +13049,22 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 .customer-special-date-row .customer-quick-crud-card__actions .button{
   flex: 0 0 auto;
   white-space: nowrap;
+}
+.customer-quick-crud-card__fields{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(72px, auto) minmax(0, 1fr));
+  gap: 6px 10px;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.customer-quick-crud-card__row{
+  display: contents;
+}
+.customer-quick-crud-card__row--wide{
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 8px 10px;
 }
 .customer-quick-crud-card__label{
   font-size: 12px;

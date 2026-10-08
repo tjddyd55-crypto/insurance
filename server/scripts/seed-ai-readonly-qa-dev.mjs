@@ -332,7 +332,6 @@ async function main() {
       ],
       customFields: [
         { label: 'VIP', value: 'Y' },
-        { label: '주력보험사', value: '현대해상' },
         { label: '회사명', value: 'QA테스트회사' },
       ],
       consultations: [
@@ -357,7 +356,7 @@ async function main() {
       gender: 'male',
       address: '부산광역시 해운대구 QA로 2',
       job: '영업',
-      customFields: [{ label: '주력보험사', value: 'DB손해보험' }],
+      customFields: [],
       consultations: [{ date: t2, body: 'DB손해보험 갱신 문의' }],
       claims: [{ status: 'done', title: 'QA 처리완료 청구', memo: 'done seed' }],
       files: [{ name: `${QA_PREFIX}김철수_첨부.pdf`, mime: 'application/pdf' }],
@@ -371,10 +370,7 @@ async function main() {
       birthDate: '1992-03-03',
       gender: 'female',
       address: '서울특별시 서초구 QA길 3',
-      customFields: [
-        { label: 'VIP', value: 'Y' },
-        { label: '주력보험사', value: 'KB손해보험' },
-      ],
+      customFields: [{ label: 'VIP', value: 'Y' }],
       specialDates: [{ title: `${QA_PREFIX}이영희 전화`, date: t1, memo: '내일 일정' }],
     })
 
