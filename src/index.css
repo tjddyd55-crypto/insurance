@@ -4699,9 +4699,9 @@ button.filter-button:focus-visible{
 
 .address-search-field__embed{
   width: 100%;
-  height: 560px;
-  max-height: 70vh;
-  min-height: 360px;
+  height: 420px;
+  max-height: 58vh;
+  min-height: 280px;
   border: 1px solid var(--border-default, #e5e7eb);
   border-radius: 8px;
   overflow: hidden;
@@ -4716,8 +4716,8 @@ button.filter-button:focus-visible{
 
 @media (max-width: 480px){
   .address-search-field__embed {
-    height: 60vh;
-    min-height: 320px;
+    height: 52vh;
+    min-height: 260px;
   }
 }
 
@@ -8690,8 +8690,23 @@ div.cta-button.customers-page__action-btn[role='button']{
 }
 
 .customer-detail-read__dday-inline{
-  margin-left: 0.35rem;
-  vertical-align: baseline;
+  margin-left: 0;
+  vertical-align: middle;
+}
+
+.customer-detail-read__inline-value-cluster{
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+}
+
+.customer-detail-read__gender-label--male{
+  color: var(--primary);
+}
+
+.customer-detail-read__gender-label--female{
+  color: var(--danger);
 }
 
 .customer-detail-read__divider{
@@ -13391,6 +13406,8 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 
 .customers-page--pc .customer-detail-delete-footer{
   padding-inline: 12px;
+  padding-bottom: 16px;
+  margin-bottom: 4px;
 }
 
 .customer-detail-delete-footer__button{

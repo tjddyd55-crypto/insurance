@@ -15,6 +15,7 @@ import {
   formatCustomerPhoneUi,
   formatCustomerSsnUi,
 } from '../../utils/customerDisplayFormat'
+import { inferGenderFromResidentNumberDigits } from '../../utils/inferGenderFromResidentNumberDigits'
 import {
   type CustomerBasicCoreFormDraft,
   isCustomerBasicCoreDraftDirty,
@@ -42,6 +43,17 @@ export type CustomerBasicInfoSectionProps = {
   fetchCarsEnabled: boolean
   onCustomerUpdated?: (customer: CustomerRecord) => void
   onEditingChange?: (editing: boolean) => void
+}
+
+function resolveCustomerGenderTone(
+  gender: CustomerRecord['gender'],
+  ssnRaw: string | null | undefined,
+): 'male' | 'female' | null {
+  if (gender === 'male' || gender === 'female') {
+    return gender
+  }
+  const fromSsn = inferGenderFromResidentNumberDigits(ssnRaw)
+  return fromSsn === 'male' || fromSsn === 'female' ? fromSsn : null
 }
 
 function MaturityDdayBadge({ maturityYmd }: { maturityYmd: string | null }) {
@@ -76,6 +88,8 @@ export function CustomerBasicInfoSection({
   const notes = normalizeCustomerNotesBag(customer.notes)
   const inflowDetailMeta = getInflowSourceDetailFieldMeta(customer.inflowSource)
   const inflowDetailName = customer.referrerName?.trim()
+  const genderReadLabel = formatCustomerGenderReadLabel(customer.gender, customer.ssn)
+  const genderTone = resolveCustomerGenderTone(customer.gender, customer.ssn)
 
   useEffect(() => {
     setIsEditing(false)
@@ -214,11 +228,19 @@ export function CustomerBasicInfoSection({
       <DetailReadFieldRow label="연락처">{formatCustomerPhoneUi(customer.phone) || '—'}</DetailReadFieldRow>
       <DetailReadFieldRow label="주민번호">{formatCustomerSsnUi(customer.ssn) || '—'}</DetailReadFieldRow>
       <DetailReadFieldRow label="성별">
-        {formatCustomerGenderReadLabel(customer.gender, customer.ssn)}
+        {genderTone && genderReadLabel !== '-' ? (
+          <span className={`customer-detail-read__gender-label customer-detail-read__gender-label--${genderTone}`}>
+            {genderReadLabel}
+          </span>
+        ) : (
+          genderReadLabel
+        )}
       </DetailReadFieldRow>
       <DetailReadFieldRow label="상령일">
-        {ins.dateText}
-        <MaturityDdayBadge maturityYmd={ins.maturityYmd} />
+        <span className="customer-detail-read__inline-value-cluster">
+          <span>{ins.dateText}</span>
+          <MaturityDdayBadge maturityYmd={ins.maturityYmd} />
+        </span>
       </DetailReadFieldRow>
       <DetailReadFieldRow label="보험나이">{ins.ageText}</DetailReadFieldRow>
       <DetailReadFieldRow label="문자 수신">
