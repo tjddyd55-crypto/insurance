@@ -114,6 +114,7 @@ function CustomerCoverageSimulationsWorkspace() {
         customerFilter={customerFilter}
         showAppBar={false}
         paneClassName="cs-three-pane--customer-embedded"
+        simulationMenuMode="popover"
         initialTemplateId={templateId}
         initialSimulationId={simulationId}
         onWorkspaceSelectionChange={onWorkspaceSelectionChange}
