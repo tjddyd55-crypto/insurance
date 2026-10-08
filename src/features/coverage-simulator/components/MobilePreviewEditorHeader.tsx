@@ -6,6 +6,7 @@ type Props = {
   title: string
   headerLeadingActions?: ReactNode
   onBack: () => void
+  showBack?: boolean
   onReset: () => void
   onSave: () => void
   saving?: boolean
@@ -22,6 +23,7 @@ export function MobilePreviewEditorHeader({
   title,
   headerLeadingActions,
   onBack,
+  showBack = true,
   onReset,
   onSave,
   saving = false,
@@ -37,9 +39,13 @@ export function MobilePreviewEditorHeader({
 
   return (
     <header className="cs-mobile-editor-header">
-      <button type="button" className="cs-mobile-editor-header__back" onClick={onBack} aria-label="뒤로">
-        ←
-      </button>
+      {showBack ? (
+        <button type="button" className="cs-mobile-editor-header__back" onClick={onBack} aria-label="뒤로">
+          ←
+        </button>
+      ) : (
+        <span className="cs-mobile-editor-header__back cs-mobile-editor-header__back--placeholder" aria-hidden="true" />
+      )}
       <h1 className="cs-mobile-editor-header__title" title={title}>{displayTitle}</h1>
       <div className="cs-mobile-editor-header__actions">
         {headerLeadingActions}
