@@ -59,7 +59,7 @@ export function CoverageSimulatorNameCreateDialog({
       open={open}
       onClose={onClose}
       ariaLabel={dialogTitle}
-      panelClassName="customer-relations-modal"
+      panelClassName="customer-relations-modal coverage-simulator-name-create-modal"
       closeOnBackdrop={false}
       closeOnEsc={!submitting}
       onEscapeRequest={submitting ? undefined : onClose}

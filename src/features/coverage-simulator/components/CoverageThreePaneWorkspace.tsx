@@ -601,17 +601,7 @@ export function CoverageThreePaneWorkspace({
             </div>
           </aside>
 
-          <section className="cs-three-pane__column cs-three-pane__column--content">
-            {customerFilter ? (
-              <header
-                className="cs-three-pane__column-header cs-three-pane__column-header--detail-sync"
-                aria-hidden="true"
-              >
-                <h2>&#8203;</h2>
-              </header>
-            ) : null}
-            {contentPane}
-          </section>
+          <section className="cs-three-pane__column cs-three-pane__column--content">{contentPane}</section>
         </div>
 
         {effectiveSimulationMenuMode === 'sheet' ? (
