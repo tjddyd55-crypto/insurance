@@ -24,6 +24,12 @@ describe('customerRelationSectionUx', () => {
     expect(stripSource).not.toMatch(/title="개별 연결"/)
   })
 
+  it('hides duplicate 연계 고객 heading inside accordion panel', () => {
+    expect(stripSource).toContain('embedded')
+    expect(stripSource).toContain('customer-relations-strip--accordion-embedded')
+    expect(stripSource).toMatch(/!embedded \? <h4/)
+  })
+
   it('shows create family group only in empty subsection', () => {
     expect(groupsSource).toContain('등록된 가족 그룹이 없습니다.')
     expect(groupsSource).toContain('+ 가족 그룹 만들기')

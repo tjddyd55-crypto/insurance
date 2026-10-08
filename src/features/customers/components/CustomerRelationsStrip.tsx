@@ -7,6 +7,8 @@ type Props = {
   token: string
   onOpenCustomer: (id: number, name?: string) => void
   focusedCustomerId: number | null
+  /** 고객 상세 아코디언 패널 안 — 섹션 제목과 중복되는 내부 heading 제거 */
+  embedded?: boolean
 }
 
 /**
@@ -21,10 +23,15 @@ export function CustomerRelationsStrip({
   token,
   onOpenCustomer,
   focusedCustomerId,
+  embedded = false,
 }: Props) {
   return (
-    <section className="customer-relations-strip customer-relations-strip--in-detail">
-      <h4 className="customer-relations-strip__title">연계 고객</h4>
+    <section
+      className={`customer-relations-strip customer-relations-strip--in-detail${
+        embedded ? ' customer-relations-strip--accordion-embedded' : ''
+      }`}
+    >
+      {!embedded ? <h4 className="customer-relations-strip__title">연계 고객</h4> : null}
 
       <div className="customer-relations-strip__body">
         <CustomerRelationGroupsSection
