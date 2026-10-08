@@ -586,16 +586,73 @@
 
 .personal-binder-material-picker-dialog {
   width: min(560px, calc(100vw - 32px)) !important;
+  min-height: min(640px, calc(100dvh - 48px)) !important;
   max-height: min(720px, calc(100dvh - 32px)) !important;
+}
+
+.personal-binder-material-add-modal__shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.personal-binder-material-add-modal__inset {
+  padding-inline: var(--space-5, 20px);
+}
+
+.personal-binder-material-picker-dialog .personal-binder-page-dialog__header {
+  padding: var(--space-4, 16px) var(--space-5, 20px);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.personal-binder-material-picker-dialog .personal-binder-source-tabs {
+  flex-shrink: 0;
+  margin: 0;
+  padding: var(--space-3, 12px) var(--space-5, 20px) 0;
+  gap: var(--space-2, 8px);
+}
+
+.personal-binder-material-add-modal__controls {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+  padding: var(--space-3, 12px) var(--space-5, 20px) 0;
+}
+
+.personal-binder-material-add-modal__controls .personal-binder-source-filters {
+  margin: 0;
+  gap: var(--space-3, 12px);
+}
+
+.personal-binder-material-picker-dialog .personal-binder-error {
+  flex-shrink: 0;
+  margin: var(--space-2, 8px) var(--space-5, 20px) 0;
 }
 
 .personal-binder-material-picker__body {
   flex: 1 1 auto;
-  min-height: 0;
+  min-height: 280px;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: var(--space-4, 16px);
+  padding: var(--space-3, 12px) var(--space-5, 20px) var(--space-5, 20px);
+  scrollbar-gutter: stable;
   -webkit-overflow-scrolling: touch;
+}
+
+.personal-binder-material-picker__body--empty-center {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.personal-binder-material-picker__upload {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+  min-height: 100%;
 }
 
 .personal-binder-material-picker__list {
@@ -672,14 +729,14 @@
 .personal-binder-source-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: 0 0 1rem;
+  gap: var(--space-2, 8px);
+  margin: 0 0 var(--space-4, 16px);
 }
 
 .personal-binder-source-filters {
   display: grid;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
+  gap: var(--space-3, 12px);
+  margin-bottom: var(--space-4, 16px);
 }
 
 .personal-binder-source-filters__types {
