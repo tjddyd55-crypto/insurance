@@ -32,7 +32,7 @@
   flex-shrink: 0;
   position: relative;
   z-index: 3;
-  padding: 8px 12px 0;
+  padding: 8px 20px 0;
   background: var(--ws-page-surface);
   border-bottom: none;
 }
@@ -113,27 +113,29 @@
   min-height: var(--ws-active-height);
   padding: 0 18px;
   border-color: var(--ws-border);
-  border-bottom: 1px solid transparent;
+  border-bottom: 1px solid var(--ws-page-surface);
   border-radius: 10px 10px 0 0;
   background: var(--ws-page-surface);
   color: var(--ws-tab-active-text);
   font-weight: 700;
   transform: translateY(0);
-  z-index: 5;
-  margin-bottom: -1px;
+  z-index: 6;
+  margin-bottom: 0;
 }
 
-/* active 탭 하단을 본문 면과 이어지게 덮음 (탭 트레이·본문 사이 가로선 제거) */
+/* active 탭 좌·우 세로선이 본문 상단과 끊기지 않도록 하단 면을 본문과 겹침 */
 .customer-workspace-page__tab--active::after {
   content: '';
   position: absolute;
-  left: 0;
-  right: 0;
+  left: -1px;
+  right: -1px;
   bottom: -1px;
   height: 2px;
   background: var(--customer-workspace-page-surface);
+  border-left: 1px solid var(--ws-border);
+  border-right: 1px solid var(--ws-border);
   pointer-events: none;
-  z-index: 1;
+  z-index: 2;
 }
 
 .customer-workspace-page__tab:disabled {
@@ -148,13 +150,13 @@
   overflow: auto;
   padding: 20px 20px 22px;
   border: none;
-  border-top: none;
+  border-top: 1px solid var(--ws-border);
   border-radius: 0;
   background: var(--ws-page-surface);
   box-sizing: border-box;
   position: relative;
-  z-index: 2;
-  margin-top: 0;
+  z-index: 4;
+  margin-top: -1px;
 }
 
 .customer-workspace-layout__right--page-tabs > .customer-workspace-layout__right-header {
@@ -174,7 +176,18 @@
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
+  align-self: stretch;
+  width: 100%;
+  max-width: 100%;
   min-height: min(480px, calc(100vh - 240px));
+  margin: 0;
+  padding: 0;
+}
+
+/* 시뮬레이션 탭: 본문 패딩은 유지하되 3열은 좌측부터 꽉 차게 (다른 탭과 동일 시작선) */
+.customer-workspace-page__body:has(.customer-coverage-simulations--workspace) {
+  display: flex;
+  flex-direction: column;
 }
 
 /* 패널 안 제목/설명 — 별도 회색 카드 없이 본문 흐름 */
