@@ -62,7 +62,7 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
   const navigate = useNavigate()
   const isMobile = useIsMobile()
   const [searchParams] = useSearchParams()
-  const { isAuthenticated, login, user, token } = useAuth()
+  const { isAuthenticated, login, logout, user, token } = useAuth()
   const tenantCodeMode = signupIndustry === 'gym' || signupIndustry === 'government'
   const [gaCode, setGaCode] = useState('')
   const [registrationCode, setRegistrationCode] = useState('')
@@ -501,6 +501,7 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
 
     setIsSubmitting(true)
     try {
+      logout()
       const available = await checkUsernameAvailability(userTrim)
       if (!available) {
         setUsernameCheck('taken')
@@ -534,6 +535,13 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
         })
       }
       const session = await loginApi(userTrim, password)
+      if (session.authKind === 'STANDARD' && session.user.displayName.trim() !== nameTrim) {
+        logout()
+        setErrorMessage(
+          '가입은 완료되었지만 로그인 계정 정보가 일치하지 않습니다. 방금 가입한 아이디로 다시 로그인해 주세요.',
+        )
+        return
+      }
       if (session.authKind === 'BOARD_WRITER') {
         navigate(session.redirectPath || '/board-writer/workspace', { replace: true })
         return
@@ -693,7 +701,7 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
             <FormInput
               value={name}
               onChange={(e) => setName(e.target.value)}
-              autoComplete="name"
+              autoComplete="off"
               placeholder="실명 또는 표시 이름"
               required
             />
