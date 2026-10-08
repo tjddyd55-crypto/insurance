@@ -48,6 +48,8 @@ export type CoverageThreePaneCustomerFilter = {
 export type CoverageThreePaneWorkspaceProps = {
   density?: 'default' | 'compact'
   customerFilter?: CoverageThreePaneCustomerFilter
+  /** PC 고객 workspace — 시나리오와 동일한 row anchored popover */
+  simulationMenuMode?: 'sheet' | 'popover'
   showAppBar?: boolean
   paneClassName?: string
   initialTemplateId?: string | null
@@ -70,6 +72,7 @@ function simulationRowTitleLabel(row: SavedScenarioSummary): string {
 export function CoverageThreePaneWorkspace({
   density = 'default',
   customerFilter,
+  simulationMenuMode = 'sheet',
   showAppBar = true,
   paneClassName = '',
   initialTemplateId = null,
@@ -284,8 +287,17 @@ export function CoverageThreePaneWorkspace({
     }
   }
 
-  const addScenarioLabel = density === 'compact' ? '+ 추가' : '+ 시나리오 추가'
-  const addSimulationLabel = density === 'compact' ? '+ 추가' : '+ 시뮬레이션 추가'
+  const useCustomerAddLabels = Boolean(customerFilter)
+  const addScenarioLabel = useCustomerAddLabels
+    ? '+ 시나리오 추가'
+    : density === 'compact'
+      ? '+ 추가'
+      : '+ 시나리오 추가'
+  const addSimulationLabel = useCustomerAddLabels
+    ? '+ 시뮬레이션 추가'
+    : density === 'compact'
+      ? '+ 추가'
+      : '+ 시뮬레이션 추가'
   const showScenarioMeta = density !== 'compact'
   const useTitlePrimary = Boolean(customerFilter)
 
@@ -490,10 +502,45 @@ export function CoverageThreePaneWorkspace({
                       type="button"
                       className="cs-three-pane-simulation-row__menu"
                       aria-label="시뮬레이션 메뉴"
-                      onClick={() => setSimulationMenuRow(row)}
+                      onClick={() =>
+                        setSimulationMenuRow((current) => (current?.id === row.id ? null : row))
+                      }
                     >
                       ⋯
                     </button>
+                    {simulationMenuMode === 'popover' && simulationMenuRow?.id === row.id ? (
+                      <div className="cs-three-pane-scenario-row__menu-panel" role="menu">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            openSimulation(row.id)
+                            setSimulationMenuRow(null)
+                          }}
+                        >
+                          열기
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRenameValidationError(null)
+                            setRenameRow(row)
+                            setSimulationMenuRow(null)
+                          }}
+                        >
+                          제목 수정
+                        </button>
+                        <button
+                          type="button"
+                          className="cs-axis-row-menu__danger"
+                          onClick={() => {
+                            setSimulationMenuRow(null)
+                            void requestDeleteSimulation(row)
+                          }}
+                        >
+                          삭제
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
                 ))
               )}
@@ -503,24 +550,26 @@ export function CoverageThreePaneWorkspace({
           <section className="cs-three-pane__column cs-three-pane__column--content">{contentPane}</section>
         </div>
 
-        <SimulationListActionSheet
-          open={simulationMenuRow != null}
-          documentTitle={simulationMenuRow?.title ?? ''}
-          onClose={() => setSimulationMenuRow(null)}
-          onOpen={() => {
-            if (!simulationMenuRow) return
-            openSimulation(simulationMenuRow.id)
-          }}
-          onRename={() => {
-            if (!simulationMenuRow) return
-            setRenameValidationError(null)
-            setRenameRow(simulationMenuRow)
-          }}
-          onDelete={() => {
-            if (!simulationMenuRow) return
-            void requestDeleteSimulation(simulationMenuRow)
-          }}
-        />
+        {simulationMenuMode === 'sheet' ? (
+          <SimulationListActionSheet
+            open={simulationMenuRow != null}
+            documentTitle={simulationMenuRow?.title ?? ''}
+            onClose={() => setSimulationMenuRow(null)}
+            onOpen={() => {
+              if (!simulationMenuRow) return
+              openSimulation(simulationMenuRow.id)
+            }}
+            onRename={() => {
+              if (!simulationMenuRow) return
+              setRenameValidationError(null)
+              setRenameRow(simulationMenuRow)
+            }}
+            onDelete={() => {
+              if (!simulationMenuRow) return
+              void requestDeleteSimulation(simulationMenuRow)
+            }}
+          />
+        ) : null}
 
         <SaveConsultationTitleDialog
           open={renameRow != null}

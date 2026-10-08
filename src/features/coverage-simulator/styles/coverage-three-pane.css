@@ -323,8 +323,26 @@
 .customer-coverage-simulations--workspace {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   min-height: 0;
-  padding: 0 var(--cs-space-2) var(--cs-space-3);
+  padding: 0;
+  margin: 0;
+  background: #ffffff;
+}
+
+.customer-coverage-simulations--workspace.coverage-simulator-root {
+  background: #ffffff !important;
+}
+
+.customer-coverage-simulations--workspace .coverage-simulator-root {
+  background: transparent;
+  min-height: 0;
+  height: auto;
+}
+
+.customer-coverage-simulations--workspace .coverage-simulator-shell {
+  min-height: 0;
+  height: auto;
 }
 
 .customer-coverage-simulations--workspace .customer-coverage-simulations__toolbar {
@@ -336,8 +354,12 @@
   flex: 1;
   min-height: 0;
   max-height: none;
-  grid-template-columns: minmax(180px, 200px) minmax(200px, 240px) minmax(0, 1fr);
-  gap: var(--cs-space-2);
+  width: 100%;
+  margin: 0;
+  grid-template-columns: minmax(168px, 188px) minmax(188px, 212px) minmax(0, 1fr);
+  gap: 6px;
+  border-top: none;
+  background: #ffffff;
 }
 
 .cs-three-pane--density-compact .cs-three-pane__column-header {
@@ -385,11 +407,58 @@
 }
 
 .customer-coverage-simulations--workspace .cs-three-pane--customer-embedded {
-  min-height: min(560px, 68vh);
+  min-height: min(520px, calc(100vh - 220px));
 }
 
 .cs-three-pane--customer-embedded .cs-three-pane__column {
   min-width: 0;
+  background: #ffffff;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane__column--content {
+  background: #ffffff;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane__column-header {
+  min-height: 40px;
+  padding: 0 8px;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane__column-header h2 {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  line-height: 1.2;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane__add {
+  flex-shrink: 0;
+  padding: 0;
+  line-height: 1.2;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane__scroll {
+  padding: 4px 0 4px 0;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane-scenario-row__main,
+.cs-three-pane--customer-embedded .cs-three-pane-simulation-row__main {
+  min-height: 44px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: #ffffff;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane-scenario-row__main--active,
+.cs-three-pane--customer-embedded .cs-three-pane-simulation-row__main--active {
+  background: color-mix(in srgb, var(--cs-color-accent, #2563eb) 8%, #ffffff);
 }
 
 .cs-three-pane--customer-embedded .cs-three-pane__column-header h2 {

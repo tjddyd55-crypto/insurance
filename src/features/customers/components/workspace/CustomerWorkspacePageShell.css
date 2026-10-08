@@ -10,7 +10,7 @@
   --ws-tab-active-text: #14532d;
   --ws-active-height: 44px;
   --ws-inactive-height: 40px;
-  --ws-inactive-offset: 3px;
+  --ws-inactive-offset: 0;
   --ws-tab-gap: 4px;
   --ws-tab-radius: 8px;
 
@@ -19,7 +19,7 @@
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
-  margin: 0 10px 10px;
+  margin: 0 8px 8px;
   box-sizing: border-box;
   border: 1px solid var(--ws-border);
   border-radius: 12px;
@@ -32,9 +32,9 @@
   flex-shrink: 0;
   position: relative;
   z-index: 3;
-  padding: 10px 12px 0;
+  padding: 8px 12px 0;
   background: var(--ws-page-surface);
-  border-bottom: 1px solid color-mix(in srgb, var(--ws-border) 70%, transparent);
+  border-bottom: none;
 }
 
 .customer-workspace-page__tab-scroll {
@@ -72,7 +72,6 @@
   margin: 0;
   padding: 0 16px;
   border: 1px solid var(--ws-border);
-  border-bottom: none;
   border-radius: var(--ws-tab-radius) var(--ws-tab-radius) 0 0;
   background: var(--ws-tab-inactive-bg);
   color: var(--ws-tab-text);
@@ -105,30 +104,36 @@
   z-index: 5;
 }
 
+.customer-workspace-page__tab:not(.customer-workspace-page__tab--active) {
+  border-bottom: 1px solid var(--ws-border);
+}
+
 .customer-workspace-page__tab--active {
   height: var(--ws-active-height);
   min-height: var(--ws-active-height);
   padding: 0 18px;
   border-color: var(--ws-border);
-  border-bottom-color: var(--customer-workspace-page-surface);
+  border-bottom: 1px solid transparent;
   border-radius: 10px 10px 0 0;
   background: var(--ws-page-surface);
   color: var(--ws-tab-active-text);
   font-weight: 700;
   transform: translateY(0);
-  z-index: 4;
+  z-index: 5;
+  margin-bottom: -1px;
 }
 
-/* active tab과 body 사이 hairline을 완전히 덮어 한 장의 종이처럼 연결 */
+/* active 탭 하단을 본문 면과 이어지게 덮음 (탭 트레이·본문 사이 가로선 제거) */
 .customer-workspace-page__tab--active::after {
   content: '';
   position: absolute;
-  left: -1px;
-  right: -1px;
-  bottom: -3px;
-  height: 4px;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
   background: var(--customer-workspace-page-surface);
   pointer-events: none;
+  z-index: 1;
 }
 
 .customer-workspace-page__tab:disabled {
@@ -141,14 +146,15 @@
   min-height: 0;
   min-width: 0;
   overflow: auto;
-  padding: 22px 24px 24px;
+  padding: 20px 20px 22px;
   border: none;
   border-top: none;
   border-radius: 0;
   background: var(--ws-page-surface);
   box-sizing: border-box;
   position: relative;
-  z-index: 1;
+  z-index: 2;
+  margin-top: 0;
 }
 
 .customer-workspace-layout__right--page-tabs > .customer-workspace-layout__right-header {
@@ -162,6 +168,13 @@
 .customer-workspace-page__body .premium-payments-page__workspace,
 .customer-workspace-page__body .coverage-simulator-root.customer-coverage-simulations {
   background: var(--ws-page-surface) !important;
+}
+
+.customer-workspace-page__body .customer-coverage-simulations--workspace {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: min(480px, calc(100vh - 240px));
 }
 
 /* 패널 안 제목/설명 — 별도 회색 카드 없이 본문 흐름 */
