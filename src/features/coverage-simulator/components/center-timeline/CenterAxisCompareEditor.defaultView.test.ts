@@ -13,7 +13,7 @@ describe('CenterAxisCompareEditor view modes on the 3-pane editor', () => {
     const src = readFileSync(editorPath, 'utf8')
     expect(src).toMatch(/CoverageScenarioViewModeSwitcher/)
     expect(src).toMatch(/useCoverageScenarioViewMode/)
-    expect(src).toMatch(/viewMode === 'default'/)
+    expect(src).toMatch(/resolvedViewMode === 'default'/)
     expect(src).toMatch(/CoverageScenarioTimeline/)
     expect(src).toMatch(/CoverageScenarioAlternativeView/)
     expect(src).toMatch(/enableInlineAmountEdit/)

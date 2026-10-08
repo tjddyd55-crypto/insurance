@@ -193,6 +193,26 @@
   padding: 0.25rem 0 0.5rem;
 }
 
+/* 아코디언 「연계 고객」 패널 — 내부 제목 없이 그룹 헤더부터 표시 */
+.customer-relations-strip--accordion-embedded {
+  padding: 0;
+  margin: 0;
+}
+
+.customer-relations-strip--accordion-embedded .customer-relations-strip__body {
+  margin: 0;
+  padding: 0;
+}
+
+.customer-relations-strip--accordion-embedded .customer-relation-groups-section {
+  margin-top: 0;
+}
+
+.customer-relations-strip--accordion-embedded .customer-relations-legacy-section {
+  margin-top: 10px;
+  padding-top: 10px;
+}
+
 .customer-relations-strip--in-detail .customer-relations-strip__header {
   display: flex;
   flex-wrap: wrap;
@@ -718,20 +738,18 @@
 
 .customer-relation-group-card__header {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 6px;
-}
-
-.customer-relation-group-card__title-wrap {
-  display: flex;
+  flex-direction: row;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
   flex-wrap: wrap;
+  gap: 8px 10px;
+  margin-bottom: 6px;
 }
 
 .customer-relation-group-card__title {
   margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 0.95rem;
   font-weight: 700;
   color: var(--text-primary);
@@ -783,11 +801,6 @@
   min-height: 0;
 }
 
-.customer-relation-group-member--current {
-  border-color: var(--hint-border, var(--border-default));
-  background: var(--hint-bg, var(--bg-soft));
-}
-
 .customer-relation-group-member--focused {
   outline: 2px solid var(--input-focus-border, #2563eb);
 }
@@ -833,9 +846,9 @@
   flex-shrink: 0;
   padding: 0 6px;
   border-radius: 6px;
-  border: 1px solid var(--hint-border, var(--border-default));
-  background: var(--bg-surface);
-  color: var(--text-secondary);
+  border: 1px solid color-mix(in srgb, var(--brand, #16a34a) 45%, var(--border-default));
+  background: color-mix(in srgb, var(--brand, #16a34a) 14%, var(--bg-base, #fff));
+  color: var(--brand, #15803d);
   font-size: 0.68rem;
   font-weight: 700;
   line-height: 1.5;

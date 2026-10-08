@@ -1,0 +1,36 @@
+/**
+ * 고객 성별·상령일 D-day — Native design-system/themes.ts light semantic 과 동일
+ * male → info (blue600 #2563eb), female → danger (red600 #dc2626), dday → primary (green600 #16a34a)
+ */
+
+.customer-gender-text--male {
+  color: var(--customer-gender-male-color, var(--info));
+}
+
+.customer-gender-text--female {
+  color: var(--customer-gender-female-color, var(--danger));
+}
+
+.customer-detail-read__gender-label--male {
+  color: var(--customer-gender-male-color, var(--info));
+}
+
+.customer-detail-read__gender-label--female {
+  color: var(--customer-gender-female-color, var(--danger));
+}
+
+.customer-insurance-age-dday {
+  flex-shrink: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--customer-insurance-age-dday-color, var(--primary));
+}
+
+.customer-detail-read__inline-value-cluster .customer-insurance-age-dday {
+  font-size: 0.8125rem;
+}
+
+.customer-list-card__insurance-dday {
+  margin-left: 0.35rem;
+  font-size: 0.75rem;
+}

@@ -11,6 +11,9 @@ import type { CustomerEditFormState } from '../types/customerEditForm'
 import CustomerDetailReadView from './CustomerDetailReadView'
 import CustomerEditForm from './CustomerEditForm'
 import { CustomerWorkspaceActions } from './CustomerWorkspaceActions'
+import { CustomerGenderText } from './CustomerGenderText'
+import { CustomerInsuranceAgeDdayInline } from './CustomerInsuranceAgeDdayInline'
+
 function customerInsuranceDisplay(c: CustomerRecord): {
   ageText: string
   dateText: string
@@ -24,16 +27,6 @@ function customerInsuranceDisplay(c: CustomerRecord): {
     maturityYmd: m.maturityYmd,
     insuranceAgeNum: m.insuranceAge,
   }
-}
-
-function genderSummaryLabel(c: CustomerRecord): string {
-  if (c.gender === 'male') {
-    return '남'
-  }
-  if (c.gender === 'female') {
-    return '여'
-  }
-  return '—'
 }
 
 function customerPhoneHref(phone: string | undefined, scheme: 'tel' | 'sms'): string | null {
@@ -88,6 +81,46 @@ function CustomerListTelSvg({
   )
 }
 
+/** PC 고객 헤더 복사 액션 — 전화 SVG와 동일하게 currentColor stroke icon */
+function CustomerListCopySvg() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-5 w-5 shrink-0 text-gray-500 transition-colors"
+      aria-hidden
+    >
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  )
+}
+
+/** PC 고객 상세 하단 삭제 액션 */
+function CustomerListDeleteSvg() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="customer-detail-delete-footer__icon"
+      aria-hidden
+    >
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    </svg>
+  )
+}
+
 export type CustomerSsnDupHighlight = {
   groupLabel: number
   color: string
@@ -132,6 +165,7 @@ export type CustomerListCardProps = {
   /** 모바일 카드 상단 복사 피드백(부모 `CustomersPage` 상태) */
   mobileCopyFeedback: { customerId: number; message: string; tone: 'success' | 'error' } | null
   onOpenRelatedCustomer: (customerId: number, customerName?: string) => void
+  onCustomerUpdated?: (customer: CustomerRecord) => void
   token: string | null
   onToggleFavorite: (c: CustomerRecord) => void | Promise<void>
   /**
@@ -182,6 +216,7 @@ const CustomerListCard = memo(function CustomerListCard({
   onOpenOnMap,
   mobileCopyFeedback,
   onOpenRelatedCustomer,
+  onCustomerUpdated,
   token,
   onToggleFavorite,
   variant,
@@ -189,8 +224,9 @@ const CustomerListCard = memo(function CustomerListCard({
   crmIndustryTemplate,
 }: CustomerListCardProps) {
   const isMobile = variant === 'mobile'
-  /** 확장 헤더 액션: PC는 복사/수정/삭제, 모바일은 수정/삭제를 고객명 오른쪽에 고정한다. */
+  /** 확장 헤더 액션: PC는 헤더 복사 아이콘 + 하단 삭제, 모바일은 수정/삭제를 고객명 오른쪽에 고정한다. */
   const isEditingThisCard = editingId === c.id && Boolean(editForm)
+  const useFullEditForm = isMobile || !crmIsInsuranceLayout
   const [mobileInfoExpanded, setMobileInfoExpanded] = useState(false)
   const validCustomerId =
     c != null &&
@@ -223,6 +259,10 @@ const CustomerListCard = memo(function CustomerListCard({
     console.error('[CustomerListCard] Invalid customer render:', c)
     return null
   }
+
+  const showPcHeaderCopyAction = !isMobile && showExpandedChrome && !isEditingThisCard
+  const showDetailToolbar = isMobile || isEditingThisCard
+  const showPcDeleteFooter = !isMobile && !isEditingThisCard
 
   const ins = customerInsuranceDisplay(c)
   const phone = resolveCustomerListPhone(c)
@@ -307,9 +347,11 @@ const CustomerListCard = memo(function CustomerListCard({
                     ) : null}
                     {c.name}
                   </span>
-                  <span className="text-sm text-[var(--text-secondary)] font-normal">
-                    {genderSummaryLabel(c)}
-                  </span>
+                  <CustomerGenderText
+                    gender={c.gender}
+                    ssn={c.ssn}
+                    className="text-sm font-normal"
+                  />
                   {crmIsInsuranceLayout ? (
                     <span className="text-sm text-[var(--text-secondary)] font-normal">
                       보험나이 {ins.ageText}
@@ -318,7 +360,13 @@ const CustomerListCard = memo(function CustomerListCard({
                 </div>
                 <div className="text-sm text-[var(--text-secondary)] customer-card-summary-meta mt-0.5">
                   {crmIsInsuranceLayout ? (
-                    <>상령일: {ins.dateText}</>
+                    <>
+                      상령일: {ins.dateText}
+                      <CustomerInsuranceAgeDdayInline
+                        nextAgeDate={c.nextAgeDate ?? ins.maturityYmd}
+                        className="customer-list-card__insurance-dday"
+                      />
+                    </>
                   ) : govListSummary != null ? (
                     <div className="gov-customer-list-summary">
                       {govListSummary.badges.length > 0 ? (
@@ -348,6 +396,23 @@ const CustomerListCard = memo(function CustomerListCard({
                   onClick={(e) => e.stopPropagation()}
                   onKeyDown={(e) => e.stopPropagation()}
                 >
+                  {showPcHeaderCopyAction ? (
+                    <div className="icon-box icon-box--copy">
+                      <FormButton
+                        htmlType="button"
+                        variant="action"
+                        className="customer-card__copy-action"
+                        title="카톡 복사 형식으로 복사"
+                        aria-label="고객 정보 복사"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          void onCopyCustomer(c)
+                        }}
+                      >
+                        <CustomerListCopySvg />
+                      </FormButton>
+                    </div>
+                  ) : null}
                   <div className="icon-box">
                     <FormButton
                       htmlType="button"
@@ -471,96 +536,89 @@ const CustomerListCard = memo(function CustomerListCard({
 
             {!isMobile || mobileInfoExpanded ? (
               <>
-                <div
-                  className={`customer-detail-toolbar customer-card-expanded-header${
-                    isMobile ? ' customer-detail-toolbar--mobile-actions' : ''
-                  }`}
-                >
-                  <div className="customer-detail-toolbar__title customer-card-expanded-header__name">
-                    {c.name}
-                  </div>
+                {showDetailToolbar ? (
                   <div
-                    className={`customer-detail-action-bar${
-                      isEditingThisCard
-                        ? isMobile
-                          ? ' customer-detail-action-bar--mobile-save-cancel-row'
-                          : ' customer-detail-action-bar--pc-save-cancel-row'
-                        : isMobile
-                          ? ' customer-detail-action-bar--edit-delete-row'
-                          : ''
+                    className={`customer-detail-toolbar customer-card-expanded-header${
+                      isMobile
+                        ? ' customer-detail-toolbar--mobile-actions'
+                        : ' customer-detail-toolbar--pc-save-cancel'
                     }`}
                   >
-                    {isEditingThisCard ? (
-                      <>
-                        <FormButton
-                          htmlType="button"
-                          variant="primary"
-                          size="sm"
-                          className="customer-detail-action-button customer-detail-action-button--save-inline"
-                          title="변경 저장"
-                          aria-label="저장"
-                          disabled={editSaving}
-                          loading={editSaving}
-                          loadingText="저장 중…"
-                          onClick={() => void onEditSaveRequest()}
-                        >
-                          저장
-                        </FormButton>
-                        <FormButton
-                          htmlType="button"
-                          variant="secondary"
-                          size="sm"
-                          className="customer-detail-action-button customer-detail-action-button--cancel-inline"
-                          title="편집 취소"
-                          aria-label="취소"
-                          disabled={editSaving}
-                          onClick={onCancelEdit}
-                        >
-                          취소
-                        </FormButton>
-                      </>
-                    ) : (
-                      <>
-                        {!isMobile ? (
+                    {isMobile ? (
+                      <div className="customer-detail-toolbar__title customer-card-expanded-header__name">
+                        {c.name}
+                      </div>
+                    ) : null}
+                    <div
+                      className={`customer-detail-action-bar${
+                        isEditingThisCard
+                          ? isMobile
+                            ? ' customer-detail-action-bar--mobile-save-cancel-row'
+                            : ' customer-detail-action-bar--pc-save-cancel-row'
+                          : ' customer-detail-action-bar--edit-delete-row'
+                      }`}
+                    >
+                      {isEditingThisCard ? (
+                        <>
+                          <FormButton
+                            htmlType="button"
+                            variant="primary"
+                            size="sm"
+                            className="customer-detail-action-button customer-detail-action-button--save-inline"
+                            title="변경 저장"
+                            aria-label="저장"
+                            disabled={editSaving}
+                            loading={editSaving}
+                            loadingText="저장 중…"
+                            onClick={() => void onEditSaveRequest()}
+                          >
+                            저장
+                          </FormButton>
                           <FormButton
                             htmlType="button"
                             variant="secondary"
                             size="sm"
-                            className="customer-detail-action-button customer-detail-action-button--copy"
-                            title="카톡 복사 형식으로 복사"
-                            aria-label="복사"
-                            onClick={() => void onCopyCustomer(c)}
+                            className="customer-detail-action-button customer-detail-action-button--cancel-inline"
+                            title="편집 취소"
+                            aria-label="취소"
+                            disabled={editSaving}
+                            onClick={onCancelEdit}
                           >
-                            복사
+                            취소
                           </FormButton>
-                        ) : null}
-                        <FormButton
-                          htmlType="button"
-                          variant="secondary"
-                          size="sm"
-                          className="customer-detail-action-button"
-                          title="고객 정보 수정"
-                          aria-label="수정"
-                          onClick={() => onStartEdit(c)}
-                        >
-                          수정
-                        </FormButton>
-                        <FormButton
-                          htmlType="button"
-                          variant="danger"
-                          size="sm"
-                          className="customer-detail-action-button customer-detail-action-button--danger"
-                          title="고객 삭제"
-                          aria-label="삭제"
-                          onClick={() => void onDeleteCustomer(c)}
-                        >
-                          삭제
-                        </FormButton>
-                      </>
-                    )}
+                        </>
+                      ) : (
+                        <>
+                          {useFullEditForm ? (
+                            <FormButton
+                              htmlType="button"
+                              variant="secondary"
+                              size="sm"
+                              className="customer-detail-action-button"
+                              title="고객 정보 수정"
+                              aria-label="수정"
+                              onClick={() => onStartEdit(c)}
+                            >
+                              수정
+                            </FormButton>
+                          ) : null}
+                          <FormButton
+                            htmlType="button"
+                            variant="danger"
+                            size="sm"
+                            className="customer-detail-action-button customer-detail-action-button--danger"
+                            title="고객 삭제"
+                            aria-label="삭제"
+                            onClick={() => void onDeleteCustomer(c)}
+                          >
+                            삭제
+                          </FormButton>
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
-                {editingId === c.id && editForm ? (
+                ) : null}
+                {useFullEditForm && editingId === c.id && editForm ? (
                   <CustomerEditForm
                     customerId={c.id}
                     editForm={editForm}
@@ -579,12 +637,29 @@ const CustomerListCard = memo(function CustomerListCard({
                     ins={ins}
                     token={token}
                     expandedId={expandedId}
-                    fetchCarsEnabled={expanded && editingId !== c.id}
+                    fetchCarsEnabled={expanded && (!useFullEditForm || editingId !== c.id)}
                     onOpenRelatedCustomer={onOpenRelatedCustomer}
+                    onCustomerUpdated={onCustomerUpdated}
                     crmIsInsuranceLayout={crmIsInsuranceLayout}
                     crmIndustryTemplate={crmIndustryTemplate}
                   />
                 )}
+                {showPcDeleteFooter ? (
+                  <div className="customer-detail-delete-footer">
+                    <FormButton
+                      htmlType="button"
+                      variant="danger"
+                      size="sm"
+                      className="customer-detail-delete-footer__button"
+                      title="고객 삭제"
+                      aria-label="고객 삭제"
+                      onClick={() => void onDeleteCustomer(c)}
+                    >
+                      <CustomerListDeleteSvg />
+                      고객 삭제
+                    </FormButton>
+                  </div>
+                ) : null}
               <div className="customer-expand-section-divider" role="presentation" />
             </>
           ) : null}

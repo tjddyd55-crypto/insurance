@@ -76,8 +76,23 @@ export function useBillingCheckoutState(): BillingCheckoutViewProps & {
   }, [load])
 
   const checkoutMode = useMemo(
-    () => resolveBillingCheckoutMode(summary?.subscriptionStatus),
-    [summary?.subscriptionStatus],
+    () =>
+      resolveBillingCheckoutMode({
+        status: summary?.status,
+        subscriptionStatus: summary?.subscriptionStatus,
+        isEntitled: summary?.isEntitled,
+        entitlementReason: summary?.entitlementReason,
+        currentPeriodEnd: summary?.currentPeriodEnd,
+        nextBillingAt: summary?.nextBillingAt,
+      }),
+    [
+      summary?.status,
+      summary?.subscriptionStatus,
+      summary?.isEntitled,
+      summary?.entitlementReason,
+      summary?.currentPeriodEnd,
+      summary?.nextBillingAt,
+    ],
   )
   const promoAllowed = canApplyPromotionCodeOnCheckout(checkoutMode)
   const checkoutConfig = summary?.checkoutConfig
@@ -89,8 +104,7 @@ export function useBillingCheckoutState(): BillingCheckoutViewProps & {
   const isActiveEntitled =
     checkoutMode === 'legacy_entitled' ||
     checkoutMode === 'active_paid' ||
-    checkoutMode === 'trialing' ||
-    Boolean(summary?.isEntitled)
+    checkoutMode === 'trialing'
   const canRunTestCharge = resolveCanRunTestCharge(checkoutConfig, hasBillingKey)
   const planCode = summary?.plan?.code ?? 'insurance_basic'
 

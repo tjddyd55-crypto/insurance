@@ -35,7 +35,9 @@ import CustomerCarPage from './features/customers/pages/CustomerCarPage'
 import CustomerInputPage from './features/customers/pages/CustomerInputPage'
 import CustomerRegisterPage from './features/customers/pages/CustomerRegisterPage'
 import CustomerConsultationsPage from './features/customers/pages/CustomerConsultationsPage'
-import CustomerCoverageSimulationsPage from './features/customers/pages/CustomerCoverageSimulationsPage'
+import CustomerCoverageSimulationsPage, {
+  CustomerCoverageSimulatorScopeLayout,
+} from './features/customers/pages/CustomerCoverageSimulationsPage'
 import CustomerFilesPage from './features/customers/pages/CustomerFilesPage'
 import CustomerGaExcelPage from './features/customers/pages/CustomerGaExcelPage'
 import CustomerMemosPage from './features/customers/pages/CustomerMemosPage'
@@ -481,7 +483,14 @@ export const appRouter = createBrowserRouter([
                   { path: ':customerId/files', element: <CustomerFilesPage /> },
                   { path: ':customerId/consultations', element: <CustomerConsultationsPage /> },
                   { path: ':customerId/premium-payments', element: <CustomerPremiumPaymentsPage /> },
-                  { path: ':customerId/coverage-simulations', element: <CustomerCoverageSimulationsPage /> },
+                  {
+                    path: ':customerId/coverage-simulations',
+                    element: <CustomerCoverageSimulatorScopeLayout />,
+                    children: [
+                      { index: true, element: <CustomerCoverageSimulationsPage /> },
+                      { path: 'scenarios/:scenarioId/pdf', element: <PdfPreviewPage /> },
+                    ],
+                  },
                   { path: ':customerId/ga-excel', element: <CustomerGaExcelPage /> },
                   { path: ':customerId/memos', element: <CustomerMemosPage /> },
                   { path: ':customerId/auto-form', element: <CustomerAutoFormPage /> },

@@ -131,6 +131,14 @@ body.coverage-simulator-immersive .pc-workspace-layout > main {
   color: #dc2626;
 }
 
+/* 시나리오·시뮬레이션 이름 추가 — 입력 바로 아래 footer 구분선 제거 */
+.customer-ui-modal-panel.customer-relations-modal.coverage-simulator-name-create-modal
+  .customer-relations-modal__footer {
+  margin-top: 20px;
+  padding-top: 0;
+  border-top: none;
+}
+
 .coverage-simulator-dialog__actions {
   display: flex;
   gap: var(--cs-space-2);
@@ -1726,6 +1734,39 @@ html.coverage-simulator-overlay-scroll-lock .cs-axis-main {
   flex: 1 1 auto;
   height: auto;
   min-height: 0;
+}
+
+.coverage-simulator-pdf-preview-shell--customer-embed {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: calc(100dvh - 120px);
+  max-height: none;
+}
+
+.customer-workspace-page__body .coverage-simulator-pdf-preview-shell--customer-embed {
+  height: calc(100dvh - 168px);
+  min-height: min(560px, calc(100dvh - 168px));
+}
+
+.coverage-simulator-pdf-preview-shell--customer-embed .coverage-simulator-pdf-preview.coverage-simulator-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 4px;
+}
+
+.coverage-simulator-pdf-preview-shell--customer-embed .coverage-simulator-pdf-preview__zoom-viewport {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  max-height: none;
+  overflow: auto;
+  overscroll-behavior: auto;
+}
+
+.customer-workspace-layout__right-body > .coverage-simulator-root--crm .coverage-simulator-pdf-preview-shell--customer-embed {
+  height: calc(100dvh - 152px);
 }
 
 .coverage-simulator-root.coverage-simulator-root--crm .coverage-simulator-bottom-bar {

@@ -3,6 +3,41 @@
  * 스코프: .intro-landing 만. 전역 오염 금지.
  */
 
+/*
+ * Public introduction routes must use document scrolling even when an already-signed-in
+ * user opens the landing page. The authenticated app shell locks the viewport on PC,
+ * so explicitly release that lock only while .intro-landing is mounted.
+ */
+html:has(.intro-landing),
+body:has(.intro-landing) {
+  height: auto;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+#root:has(.intro-landing) {
+  height: auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.app-root.app-root--authenticated:has(.intro-landing) {
+  height: auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  max-height: none;
+  overflow: visible;
+}
+
+.app-root.app-root--authenticated:has(.intro-landing) .main-container {
+  display: block;
+  flex: none;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+
 .intro-landing {
   --introduction-header-offset: 96px;
   --intro-landing-header-h: 80px;

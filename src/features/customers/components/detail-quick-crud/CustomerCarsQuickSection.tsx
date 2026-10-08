@@ -196,20 +196,20 @@ export function CustomerCarsQuickSection({
             <article key={car.id != null ? `id-${car.id}` : `i-${index}`} className="customer-quick-crud-card">
               <div className="customer-quick-crud-card__fields">
                 <div className="customer-quick-crud-card__row">
-                  <span className="customer-quick-crud-card__label">차량번호</span>
-                  <span className="customer-quick-crud-card__value">{dashOr(car.carNumber)}</span>
+                  <span className="customer-detail-read__field-label">차량번호</span>
+                  <span className="customer-detail-read__field-value">{dashOr(car.carNumber)}</span>
                 </div>
                 <div className="customer-quick-crud-card__row">
-                  <span className="customer-quick-crud-card__label">차종</span>
-                  <span className="customer-quick-crud-card__value">{dashOr(car.carModel)}</span>
+                  <span className="customer-detail-read__field-label">차종</span>
+                  <span className="customer-detail-read__field-value">{dashOr(car.carModel)}</span>
                 </div>
                 <div className="customer-quick-crud-card__row">
-                  <span className="customer-quick-crud-card__label">연식</span>
-                  <span className="customer-quick-crud-card__value">{dashOr(car.carYear)}</span>
+                  <span className="customer-detail-read__field-label">연식</span>
+                  <span className="customer-detail-read__field-value">{dashOr(car.carYear)}</span>
                 </div>
                 <div className="customer-quick-crud-card__row">
-                  <span className="customer-quick-crud-card__label">갱신 예정일</span>
-                  <span className="customer-quick-crud-card__value">{dashOr(car.renewalDate)}</span>
+                  <span className="customer-detail-read__field-label">갱신 예정일</span>
+                  <span className="customer-detail-read__field-value">{dashOr(car.renewalDate)}</span>
                 </div>
               </div>
               {canMutate && car.id != null ? (

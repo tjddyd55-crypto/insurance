@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 
 import { useConfirmDialog } from '../../../../components/dialog'
 import FormButton from '../../../../components/form/FormButton'
@@ -14,6 +15,7 @@ import { MobilePreviewStickyDock } from '../MobilePreviewStickyDock'
 import { SaveConsultationTitleDialog } from '../SaveConsultationTitleDialog'
 import { diseaseTypeTitle } from '../../domain/diseaseTypeLabels'
 import { useCoverageSimulatorScope } from '../../CoverageSimulatorScope'
+import { useCoverageThreePaneEditorNavigation } from '../../context/CoverageThreePaneEditorNavigation'
 import { buildCoverageTimelineViewModel } from '../../domain/buildCoverageTimelineViewModel'
 import { CoverageScenarioAlternativeView } from '../alternative-view/CoverageScenarioAlternativeView'
 import { CoverageScenarioViewModeSwitcher } from '../alternative-view/CoverageScenarioViewModeSwitcher'
@@ -32,15 +34,21 @@ const SCENARIO_BLURB: Record<string, string> = {
 }
 
 function CenterAxisCompareEditorBody({ editor, variant }: Props) {
-  const { layoutMode, userKey } = useCoverageSimulatorScope()
+  const location = useLocation()
+  const { layoutMode, userKey, hideAlternativeViewSwitcher, simulatorOrigin } = useCoverageSimulatorScope()
+  const { onBackFromEditor, hideEditorBack } = useCoverageThreePaneEditorNavigation()
   const { viewMode, setViewMode } = useCoverageScenarioViewMode({ userKey, layoutMode })
+  const resolvedViewMode = hideAlternativeViewSwitcher ? 'default' : viewMode
   const { confirm, confirmDialog } = useConfirmDialog()
   const { showToast } = useCoverageSimulatorToast()
   // CRM·preview-mobile은 같은 최신 타임라인이다. preview-pc만 넓은 PC 툴바를 유지한다.
   const useLatestMobileEditor = variant === 'mobile'
+  // 고객 workspace PC embed: 타임라인 chrome은 CRM mobile이지만 메뉴·폼은 PC(popover·시트)를 쓴다.
+  const useCustomerPcChrome = simulatorOrigin === 'customer' && useLatestMobileEditor
+  const resolvedItemMenuMode = useLatestMobileEditor && !useCustomerPcChrome ? 'action-sheet' : 'popover'
   // preview-pc 시트는 별 토글이 없다. CRM·모바일 미리보기는 같은 ☆/★ 카탈로그를 쓴다.
   const favoriteUserKey = layoutMode === 'preview-pc' ? null : userKey
-  const useMobileExclusiveForm = variant === 'mobile'
+  const useMobileExclusiveForm = variant === 'mobile' && !useCustomerPcChrome
   const [titleDialogOpen, setTitleDialogOpen] = useState(false)
   const [titleValidationError, setTitleValidationError] = useState<string | null>(null)
   const [inlineAmountEdit, setInlineAmountEdit] = useState<InlineAmountEditTarget>(null)
@@ -175,6 +183,22 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
 
   const backTo = isTemplate ? basePath : `${basePath}/${scenario.diseaseType}`
 
+  const handleEditorBack = () => {
+    if (onBackFromEditor) {
+      onBackFromEditor()
+      return
+    }
+    navigate(backTo)
+  }
+
+  const openPdfPreview = () => {
+    const returnTo =
+      simulatorOrigin === 'customer' ? `${basePath}${location.search}` : undefined
+    navigate(`${basePath}/scenarios/${scenario.id}/pdf`, {
+      state: returnTo ? { returnTo } : undefined,
+    })
+  }
+
   const handleSave = async () => {
     const result = await requestSaveConsultation()
     if ('needsTitle' in result && result.needsTitle) {
@@ -281,17 +305,20 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
         <MobilePreviewEditorHeader
           title={editorHeaderTitle}
           headerLeadingActions={
-            <CoverageScenarioViewModeSwitcher
-              surface="header-select"
-              viewMode={viewMode}
-              onChange={setViewMode}
-            />
+            hideAlternativeViewSwitcher ? null : (
+              <CoverageScenarioViewModeSwitcher
+                surface="header-select"
+                viewMode={viewMode}
+                onChange={setViewMode}
+              />
+            )
           }
-          onBack={() => navigate(backTo)}
+          onBack={handleEditorBack}
+          showBack={!hideEditorBack}
           onReset={requestReset}
           onSave={isTemplate ? () => persist(scenario) : handleSave}
           saving={!isTemplate && isSaving}
-          onPdf={!isTemplate ? () => navigate(`${basePath}/scenarios/${scenario.id}/pdf`) : undefined}
+          onPdf={!isTemplate ? openPdfPreview : undefined}
           onShare={shareFlow.showShareButton ? () => void shareFlow.shareAndCopy() : undefined}
           onShareHistory={shareFlow.showShareButton ? () => void shareFlow.openShareDialog() : undefined}
           shareDisabled={shareFlow.sharing}
@@ -301,15 +328,19 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
         />
       ) : (
         <header className="cs-axis-header cs-axis-header--pc coverage-simulator-pc-toolbar">
-          <FormButton variant="action" className="coverage-simulator-icon-btn" onClick={() => navigate(backTo)}>
-            ← 시나리오 선택
-          </FormButton>
+          {hideEditorBack ? null : (
+            <FormButton variant="action" className="coverage-simulator-icon-btn" onClick={handleEditorBack}>
+              ← 시나리오 선택
+            </FormButton>
+          )}
           <div className="cs-axis-header__titles cs-axis-header__titles--pc">
             <div className="cs-axis-header__product">{isTemplate ? '템플릿 편집' : '보장 시뮬레이션'}</div>
             <h1 className="coverage-simulator-pc-toolbar__title">{scenario.title}</h1>
           </div>
           <div className="coverage-simulator-pc-toolbar__actions">
-            <CoverageScenarioViewModeSwitcher viewMode={viewMode} onChange={setViewMode} />
+            {hideAlternativeViewSwitcher ? null : (
+              <CoverageScenarioViewModeSwitcher viewMode={viewMode} onChange={setViewMode} />
+            )}
             <FormButton variant="secondary" className="coverage-simulator-secondary-btn" onClick={resetToCancerDefaults}>
               초기화
             </FormButton>
@@ -344,7 +375,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
               <FormButton
                 variant="primary"
                 className="coverage-simulator-primary-btn"
-                onClick={() => navigate(`${basePath}/scenarios/${scenario.id}/pdf`)}
+                onClick={openPdfPreview}
               >
                 PDF
               </FormButton>
@@ -363,14 +394,14 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
         data-testid="coverage-scenario-editor"
       >
         {!useLatestMobileEditor ? <p className="cs-axis-lead">{blurb}</p> : null}
-        {viewModel && viewMode === 'default' ? (
+        {viewModel && resolvedViewMode === 'default' ? (
           <CoverageScenarioTimeline
             mode="editable"
             viewModel={viewModel}
             variant={variant}
             showGrandTotal={!useLatestMobileEditor}
             compactInsert={useLatestMobileEditor}
-            itemMenuMode={useLatestMobileEditor ? 'action-sheet' : 'popover'}
+            itemMenuMode={resolvedItemMenuMode}
             onEditItem={openFullAmountEdit}
             onMoveItem={moveItem}
             onRemoveItem={requestRemoveCoverageItem}
@@ -386,13 +417,13 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
             onInlineTitleCommit={handleInlineTitleCommit}
           />
         ) : null}
-        {viewModel && viewMode !== 'default' ? (
+        {viewModel && resolvedViewMode !== 'default' ? (
           <CoverageScenarioAlternativeView
-            viewMode={viewMode}
+            viewMode={resolvedViewMode}
             viewModel={viewModel}
             readOnly={false}
             items={sortedItems}
-            itemMenuMode={useLatestMobileEditor ? 'action-sheet' : 'popover'}
+            itemMenuMode={resolvedItemMenuMode}
             showGrandTotal={!useLatestMobileEditor}
             onEditItem={openFullAmountEdit}
             onMoveItem={moveItem}

@@ -320,6 +320,343 @@
   cursor: pointer;
 }
 
+.customer-coverage-simulations.customer-coverage-simulations--workspace {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0 !important;
+  margin: 0;
+  background: #ffffff;
+  align-items: stretch;
+}
+
+.customer-coverage-simulations--workspace.coverage-simulator-root {
+  background: #ffffff !important;
+}
+
+.customer-coverage-simulations--workspace .coverage-simulator-root {
+  background: transparent;
+  min-height: 0;
+  height: auto;
+}
+
+.customer-coverage-simulations--workspace .coverage-simulator-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+  max-width: 100%;
+  align-items: stretch;
+}
+
+.customer-coverage-simulations--workspace .customer-coverage-simulations__toolbar {
+  padding: var(--cs-space-2) var(--cs-space-1);
+  margin: 0;
+}
+
+.cs-three-pane--customer-embedded {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  justify-content: start;
+  justify-items: stretch;
+  align-items: stretch;
+  grid-template-columns: minmax(168px, 188px) minmax(188px, 212px) minmax(0, 1fr);
+  gap: 0;
+  border-top: none;
+  background: #ffffff;
+}
+
+.cs-three-pane--density-compact .cs-three-pane__column-header {
+  padding: var(--cs-space-2) var(--cs-space-2);
+}
+
+.cs-three-pane--density-compact .cs-three-pane__scroll {
+  padding: var(--cs-space-1);
+}
+
+.cs-three-pane--density-compact .cs-three-pane-scenario-row,
+.cs-three-pane--density-compact .cs-three-pane-simulation-row {
+  margin-bottom: 4px;
+}
+
+.cs-three-pane--density-compact .cs-three-pane-scenario-row__main,
+.cs-three-pane--density-compact .cs-three-pane-simulation-row__main {
+  padding: var(--cs-space-1) var(--cs-space-2);
+  border-radius: 6px;
+}
+
+.cs-three-pane--density-compact .cs-three-pane-scenario-row__title,
+.cs-three-pane--density-compact .cs-three-pane-simulation-row__customer {
+  font-size: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cs-three-pane--density-compact .cs-three-pane-scenario-row__meta,
+.cs-three-pane--density-compact .cs-three-pane-simulation-row__date {
+  margin-top: 1px;
+  font-size: 0.625rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cs-three-pane--density-compact .cs-three-pane__column-header h2 {
+  font-size: 0.75rem;
+}
+
+.cs-three-pane--density-compact .cs-three-pane__add {
+  font-size: 0.6875rem;
+}
+
+.customer-coverage-simulations--workspace .cs-three-pane--customer-embedded {
+  min-height: min(520px, calc(100vh - 220px));
+  height: 100%;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane__column {
+  min-width: 0;
+  height: 100%;
+  background: #ffffff;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane__column--scenario,
+.cs-three-pane--customer-embedded .cs-three-pane__column--simulation {
+  border-right: 1px solid var(--cs-color-border);
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane__column--content {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-right: none;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane__column--content .cs-three-pane-empty,
+.cs-three-pane--customer-embedded .cs-three-pane__column--content .coverage-editor-panel-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+}
+
+.cs-three-pane--customer-embedded .coverage-editor-panel-shell {
+  min-width: 0;
+  max-width: none;
+}
+
+.cs-three-pane--customer-embedded .coverage-editor-panel-shell__editor {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane__column-header {
+  flex-shrink: 0;
+  min-height: 40px;
+  height: 40px;
+  padding: 0 8px;
+  align-items: center;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--cs-color-border);
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane__column-header h2 {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  line-height: 1.2;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane__add {
+  flex-shrink: 0;
+  padding: 0;
+  line-height: 1.2;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 4px 0;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane-scenario-row__main,
+.cs-three-pane--customer-embedded .cs-three-pane-simulation-row__main {
+  min-height: 44px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: #ffffff;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane-scenario-row__main--active,
+.cs-three-pane--customer-embedded .cs-three-pane-simulation-row__main--active {
+  background: color-mix(in srgb, var(--cs-color-accent, #2563eb) 8%, #ffffff);
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane__column-header h2 {
+  font-size: 0.8125rem;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane-scenario-row__title,
+.cs-three-pane--customer-embedded .cs-three-pane-simulation-row__customer {
+  font-size: 0.8125rem;
+}
+
+/* 고객 embed: 시나리오·시뮬 한 카드 안에 ⋯ 통합 */
+.cs-three-pane--customer-embedded .cs-three-pane-scenario-row,
+.cs-three-pane--customer-embedded .cs-three-pane-simulation-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  grid-template-rows: auto auto;
+  align-items: center;
+  margin-bottom: 4px;
+  border: 1px solid var(--cs-color-border);
+  border-radius: 8px;
+  background: #ffffff;
+  box-sizing: border-box;
+  min-height: 44px;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane-scenario-row__main,
+.cs-three-pane--customer-embedded .cs-three-pane-simulation-row__main {
+  display: contents;
+  min-height: unset;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane-scenario-row__title,
+.cs-three-pane--customer-embedded .cs-three-pane-simulation-row__customer {
+  grid-column: 1;
+  grid-row: 1;
+  padding: 6px 8px 0;
+  margin: 0;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane-scenario-row__meta,
+.cs-three-pane--customer-embedded .cs-three-pane-simulation-row__date {
+  grid-column: 1;
+  grid-row: 2;
+  padding: 0 8px 6px;
+  margin: 0;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane-scenario-row__menu,
+.cs-three-pane--customer-embedded .cs-three-pane-simulation-row__menu {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  justify-self: center;
+  flex: unset;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 6px;
+  line-height: 1;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane-scenario-row__menu:hover,
+.cs-three-pane--customer-embedded .cs-three-pane-simulation-row__menu:hover {
+  background: color-mix(in srgb, var(--cs-color-border) 35%, transparent);
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane-scenario-row:has(.cs-three-pane-scenario-row__main--active),
+.cs-three-pane--customer-embedded .cs-three-pane-simulation-row:has(.cs-three-pane-simulation-row__main--active) {
+  border-color: var(--cs-color-accent, #2563eb);
+  background: color-mix(in srgb, var(--cs-color-accent, #2563eb) 8%, #ffffff);
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane-scenario-row__main--active,
+.cs-three-pane--customer-embedded .cs-three-pane-simulation-row__main--active {
+  background: transparent;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane-scenario-row__menu-panel {
+  top: calc(100% + 2px);
+  right: 4px;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane__column--content {
+  overflow: hidden;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane__column--content .coverage-editor-panel-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane__column--content .coverage-editor-panel-shell__editor {
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.cs-three-pane--customer-embedded .cs-simulation-customer-field {
+  flex-shrink: 0;
+  padding: 0 8px;
+  margin: 0;
+  min-height: 40px;
+  height: 40px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--cs-color-border);
+}
+
+.cs-three-pane--customer-embedded .cs-simulation-customer-field--readonly {
+  align-items: center;
+  gap: 6px;
+}
+
+.cs-three-pane--customer-embedded .cs-simulation-customer-field--readonly .cs-simulation-customer-field__label {
+  flex-shrink: 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--cs-color-text-muted);
+}
+
+.cs-three-pane--customer-embedded .cs-simulation-customer-field--readonly .cs-simulation-customer-field__value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.cs-three-pane--customer-embedded .coverage-editor-panel-shell__editor .cs-axis-main.coverage-simulator-content {
+  padding-top: 6px;
+}
+
+.customer-coverage-simulations--workspace .cs-axis-main.coverage-simulator-content {
+  background: #ffffff;
+  padding: 8px 12px 20px;
+}
+
+.customer-coverage-simulations--workspace .cs-axis-sheet {
+  background: #ffffff;
+  box-shadow: none;
+}
+
 @media (max-width: 960px) {
   .cs-three-pane {
     grid-template-columns: 1fr;

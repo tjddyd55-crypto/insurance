@@ -1,5 +1,17 @@
+export type PersonalBinderFolderType = 'material' | 'binder'
+
+export type PersonalBinderFolder = {
+  id: string
+  folderType: PersonalBinderFolderType
+  name: string
+  sortOrder: number
+  createdAt?: string
+  updatedAt?: string
+}
+
 export type PersonalBinderMaterial = {
   id: string
+  folderId?: string | null
   fileId: number
   title: string
   originalFileName: string
@@ -7,7 +19,8 @@ export type PersonalBinderMaterial = {
   fileSize: number
   pageCount: number
   checksumSha256?: string | null
-  sourceType?: 'personal' | 'official'
+  sourceType?: 'personal' | 'official' | 'my_file' | 'team_file'
+  sourceRef?: string | null
   binderCount?: number
   createdAt?: string
   updatedAt?: string
@@ -36,6 +49,7 @@ export type PersonalBinderSection = {
 
 export type PersonalBinderSummary = {
   id: string
+  folderId?: string | null
   title: string
   description: string
   sectionCount: number

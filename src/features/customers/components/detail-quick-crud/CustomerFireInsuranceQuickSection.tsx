@@ -129,7 +129,15 @@ export function CustomerFireInsuranceQuickSection({
     if (!tok || modal.mode === 'closed') {
       return
     }
-    const validationError = getCustomerFireInsuranceQuickCrudValidationError(modal.draft)
+    const address = formatAddressForSave(modal.address).trim()
+    const payload = {
+      address,
+      memo: modal.draft.memo?.trim() ?? '',
+    }
+    const validationError = getCustomerFireInsuranceQuickCrudValidationError({
+      ...modal.draft,
+      address,
+    })
     if (validationError) {
       setFormError(validationError)
       return
@@ -137,10 +145,6 @@ export function CustomerFireInsuranceQuickSection({
     setSaving(true)
     setFormError(null)
     try {
-      const payload = {
-        address: modal.draft.address.trim(),
-        memo: modal.draft.memo?.trim() ?? '',
-      }
       if (modal.mode === 'create') {
         await createCustomerFireInsuranceLocation(tok, customer.id, payload)
       } else {
@@ -210,21 +214,21 @@ export function CustomerFireInsuranceQuickSection({
               <article key={item.id ?? item.address} className="customer-quick-crud-card">
                 <div className="customer-quick-crud-card__fields">
                   <div className="customer-quick-crud-card__row customer-quick-crud-card__row--wide">
-                    <span className="customer-quick-crud-card__label">주소</span>
-                    <span className="customer-quick-crud-card__value">
+                    <span className="customer-detail-read__field-label">주소</span>
+                    <span className="customer-detail-read__field-value">
                       {parsed.baseAddress || item.address || '—'}
                     </span>
                   </div>
                   {parsed.detailAddress.trim() ? (
                     <div className="customer-quick-crud-card__row customer-quick-crud-card__row--wide">
-                      <span className="customer-quick-crud-card__label">상세주소</span>
-                      <span className="customer-quick-crud-card__value">{parsed.detailAddress}</span>
+                      <span className="customer-detail-read__field-label">상세주소</span>
+                      <span className="customer-detail-read__field-value">{parsed.detailAddress}</span>
                     </div>
                   ) : null}
                   {item.memo.trim() ? (
                     <div className="customer-quick-crud-card__row customer-quick-crud-card__row--wide">
-                      <span className="customer-quick-crud-card__label">메모</span>
-                      <span className="customer-quick-crud-card__value">{item.memo}</span>
+                      <span className="customer-detail-read__field-label">메모</span>
+                      <span className="customer-detail-read__field-value">{item.memo}</span>
                     </div>
                   ) : null}
                 </div>

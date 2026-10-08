@@ -18,7 +18,6 @@ import {
 import type { CustomerRecord } from '../domain/types'
 import {
   formatCustomerPhoneUi,
-  formatRelationGroupMemberMetaLine,
 } from '../utils/customerDisplayFormat'
 import {
   resolveRelationshipLabel,
@@ -27,6 +26,7 @@ import {
 import { CustomerRelationLabelField } from './CustomerRelationLabelField'
 import { CustomerRelationSearchField } from './CustomerRelationSearchField'
 import { CustomerRelationSearchResultList } from './CustomerRelationSearchResultList'
+import { RelationGroupMemberMetaLine } from './RelationGroupMemberMetaLine'
 
 type Props = {
   customerId: number
@@ -34,8 +34,6 @@ type Props = {
   token: string
   onOpenCustomer: (id: number, name?: string) => void
   focusedCustomerId: number | null
-  createOpen: boolean
-  onCreateOpenChange: (open: boolean) => void
 }
 
 type PendingMember = {
@@ -43,12 +41,6 @@ type PendingMember = {
   name: string
   phone: string
   relationshipLabel: string
-}
-
-function groupTypeLabel(type: string): string {
-  if (type === 'BUSINESS') return '사업'
-  if (type === 'ETC') return '기타'
-  return '가족'
 }
 
 function familyConflictMessage(err: ApiError): string {
@@ -72,10 +64,9 @@ export function CustomerRelationGroupsSection({
   token,
   onOpenCustomer,
   focusedCustomerId,
-  createOpen,
-  onCreateOpenChange,
 }: Props) {
   const { confirm, confirmDialog } = useConfirmDialog()
+  const [createOpen, setCreateOpen] = useState(false)
   const [groups, setGroups] = useState<CustomerRelationGroup[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -155,7 +146,7 @@ export function CustomerRelationGroupsSection({
   useBackButtonClose(
     searchModalOpen,
     () => {
-      onCreateOpenChange(false)
+      setCreateOpen(false)
       setAddMemberGroupId(null)
       setSelectedCustomer(null)
     },
@@ -286,7 +277,7 @@ export function CustomerRelationGroupsSection({
       // 전체 고객 목록/상세 route 는 건드리지 않고 그룹 목록만 갱신
       await loadGroups()
       setNotice('가족 그룹을 만들었습니다.')
-      onCreateOpenChange(false)
+      setCreateOpen(false)
     } catch (e) {
       if (e instanceof ApiError && e.code === 'already_in_family_group') {
         setError(familyConflictMessage(e))
@@ -476,6 +467,7 @@ export function CustomerRelationGroupsSection({
       <FormButton
         htmlType="button"
         variant="secondary"
+        size="sm"
         disabled={createBusy || linking || !selectedCustomer}
         onClick={() => {
           if (mode === 'create') queuePendingMember()
@@ -491,7 +483,9 @@ export function CustomerRelationGroupsSection({
 
   return (
     <div className="customer-relation-groups-section">
-      <h5 className="customer-relation-groups-section__title">가족 그룹</h5>
+      {groups.length === 0 ? (
+        <h5 className="customer-relation-groups-section__title">가족 그룹</h5>
+      ) : null}
       {loading ? (
         <p className="customer-relations-strip__status customer-relations-strip__status--loading">
           불러오는 중…
@@ -509,19 +503,24 @@ export function CustomerRelationGroupsSection({
       ) : null}
 
       {!loading && groups.length === 0 ? (
-        <p className="customer-relations-strip__empty">가족 그룹이 없습니다.</p>
+        <div className="customer-relation-groups-section__empty">
+          <p className="customer-relations-strip__empty">등록된 가족 그룹이 없습니다.</p>
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setCreateOpen(true)}
+          >
+            + 가족 그룹 만들기
+          </FormButton>
+        </div>
       ) : null}
 
       <div className="customer-relation-groups">
         {groups.map((group) => (
           <article key={group.id} className="customer-relation-group-card">
             <header className="customer-relation-group-card__header">
-              <div className="customer-relation-group-card__title-wrap">
-                <h5 className="customer-relation-group-card__title">{group.name}</h5>
-                <span className="customer-relation-group-card__type">
-                  {groupTypeLabel(String(group.groupType))}
-                </span>
-              </div>
+              <h5 className="customer-relation-group-card__title">{group.name}</h5>
               <div className="customer-relation-group-card__actions">
                 <button
                   type="button"
@@ -554,11 +553,6 @@ export function CustomerRelationGroupsSection({
             </header>
             <ul className="customer-relation-group-card__members">
               {group.members.map((m) => {
-                const meta = formatRelationGroupMemberMetaLine({
-                  relationshipLabel: m.relationshipLabel,
-                  gender: m.gender ?? null,
-                  birthDate: m.birthDate ?? null,
-                })
                 const isFocused =
                   focusedCustomerId != null && focusedCustomerId === m.customerId
                 return (
@@ -583,7 +577,11 @@ export function CustomerRelationGroupsSection({
                           <span className="customer-relation-group-member__current-badge">현재</span>
                         ) : null}
                       </span>
-                      <span className="customer-relation-group-member__meta">{meta}</span>
+                      <RelationGroupMemberMetaLine
+                        relationshipLabel={m.relationshipLabel}
+                        gender={m.gender ?? null}
+                        birthDate={m.birthDate ?? null}
+                      />
                     </button>
                     <div className="customer-relation-group-member__ops">
                       {!m.isCurrentCustomer ? (
@@ -625,14 +623,14 @@ export function CustomerRelationGroupsSection({
       <Modal
         open={createOpen}
         onClose={() => {
-          if (!createBusy) onCreateOpenChange(false)
+          if (!createBusy) setCreateOpen(false)
         }}
         ariaLabel="가족 그룹 만들기"
         panelClassName="customer-relations-modal customer-relation-group-modal"
         closeOnBackdrop={false}
         usePortal
         onEscapeRequest={() => {
-          if (!createBusy) onCreateOpenChange(false)
+          if (!createBusy) setCreateOpen(false)
         }}
       >
         <header className="customer-relations-modal__header">
@@ -707,7 +705,7 @@ export function CustomerRelationGroupsSection({
             htmlType="button"
             variant="secondary"
             disabled={createBusy}
-            onClick={() => onCreateOpenChange(false)}
+            onClick={() => setCreateOpen(false)}
           >
             취소
           </FormButton>

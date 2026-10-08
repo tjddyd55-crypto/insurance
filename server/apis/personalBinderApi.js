@@ -1,12 +1,30 @@
-import { createHash } from 'node:crypto'
-import { PDFDocument } from 'pdf-lib'
-
 import { readStorageFileBufferFromPath } from '../lib/storageFileObjectKey.js'
+import {
+  buildBinderMaterialPdfFromImages,
+  normalizeBinderMaterialMime,
+} from '../personal-binder/binderMaterialUtils.js'
+import {
+  loadOwnedPersonalStorageFile,
+  persistPersonalStoragePdf,
+  readOwnedPersonalStorageFileBuffer,
+  registerBinderMaterialFromStorageFile,
+} from '../personal-binder/binderMaterialRegister.js'
+import {
+  findOrCreatePersonalFileReference,
+  loadAccessibleTeamAttachment,
+  loadUserTeamId,
+} from '../personal-binder/binderTeamAttachment.js'
 import {
   assembleBinderPdf,
   planBinderExport,
 } from '../personal-binder/exportPersonalBinderPdf.js'
 import { safeQuery } from '../utils/dbSafeQuery.js'
+import {
+  getOwnedFolder,
+  mapPersonalBinderFolder,
+  PERSONAL_BINDER_FOLDER_TYPES,
+  resolveFolderIdForWrite,
+} from '../personal-binder/personalBinderFolderHelpers.js'
 
 function requestScope(req, res) {
   const userId = String(req.user?.id ?? '').trim()
@@ -46,6 +64,7 @@ export function normalizePageSelection(value, pageCount) {
 function mapMaterial(row) {
   return {
     id: String(row.id),
+    folderId: row.folder_id != null ? String(row.folder_id) : null,
     fileId: Number(row.file_id),
     title: row.title,
     originalFileName: row.original_file_name,
@@ -54,6 +73,7 @@ function mapMaterial(row) {
     pageCount: Number(row.page_count) || 0,
     checksumSha256: row.checksum_sha256,
     sourceType: row.source_type,
+    sourceRef: row.source_ref ?? null,
     binderCount: Number(row.binder_count) || 0,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -63,6 +83,7 @@ function mapMaterial(row) {
 function mapBinderSummary(row) {
   return {
     id: String(row.id),
+    folderId: row.folder_id != null ? String(row.folder_id) : null,
     title: row.title,
     description: row.description,
     sectionCount: Number(row.section_count) || 0,
@@ -77,7 +98,7 @@ async function getOwnedBinder(executor, binderId, scope) {
   const result = await safeQuery(
     executor,
     `
-    SELECT id, title, description, created_at, updated_at
+    SELECT id, title, description, folder_id, created_at, updated_at
     FROM personal_binders
     WHERE id = $1 AND owner_user_id = $2 AND ga_id = $3 AND deleted_at IS NULL
     LIMIT 1
@@ -223,11 +244,11 @@ function exportFileName(title) {
   return `${base || '내 바인더'}.pdf`
 }
 
-async function readOwnedMaterialPdf(executor, materialId, scope) {
+async function readOwnedMaterialSegment(executor, materialId, scope) {
   const result = await safeQuery(
     executor,
     `
-    SELECT f.file_path
+    SELECT f.file_path, m.mime_type, m.original_file_name
     FROM personal_binder_materials m
     INNER JOIN files f ON f.id = m.file_id
     WHERE m.id = $1
@@ -243,15 +264,17 @@ async function readOwnedMaterialPdf(executor, materialId, scope) {
     `,
     [materialId, scope.userId, scope.gaId],
   )
-  const objectKey = String(result.rows[0]?.file_path ?? '').trim()
+  const row = result.rows[0]
+  const objectKey = String(row?.file_path ?? '').trim()
   if (!objectKey) {
-    throw Object.assign(new Error('원본 PDF를 찾을 수 없습니다.'), { httpStatus: 404 })
+    throw Object.assign(new Error('원본 파일을 찾을 수 없습니다.'), { httpStatus: 404 })
   }
   const buffer = await readStorageFileBufferFromPath(objectKey)
   if (!buffer?.length) {
-    throw Object.assign(new Error('원본 PDF를 찾을 수 없습니다.'), { httpStatus: 404 })
+    throw Object.assign(new Error('원본 파일을 찾을 수 없습니다.'), { httpStatus: 404 })
   }
-  return buffer
+  const mimeType = normalizeBinderMaterialMime(row.mime_type, row.original_file_name)
+  return { buffer, mimeType }
 }
 
 function sendError(error, req, res, handleDbError) {
@@ -329,67 +352,179 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         res.status(400).json({ message: '파일과 자료 제목이 필요합니다.' })
         return
       }
-      const fileResult = await safeQuery(
-        pool,
-        `
-        SELECT id, original_name, display_name, file_path, file_size, mime_type
-        FROM files
-        WHERE id = $1 AND user_id = $2 AND ga_id = $3
-          AND customer_id IS NULL AND status = 'active' AND deleted_at IS NULL
-        LIMIT 1
-        `,
-        [fileId, scope.userId, scope.gaId],
-      )
-      const file = fileResult.rows[0]
+      const file = await loadOwnedPersonalStorageFile(pool, scope, fileId)
       if (!file) {
-        res.status(404).json({ message: '업로드한 PDF 파일을 찾을 수 없습니다.' })
+        res.status(404).json({ message: '업로드한 파일을 찾을 수 없습니다.' })
         return
       }
-      const mimeType = String(file.mime_type ?? '').toLowerCase()
-      const originalName = String(file.original_name ?? file.display_name ?? '')
-      if (mimeType !== 'application/pdf' || !originalName.toLowerCase().endsWith('.pdf')) {
-        res.status(400).json({ message: 'PDF 파일만 자료로 등록할 수 있습니다.' })
-        return
-      }
-      const objectKey = String(file.file_path ?? '').trim()
-      const buffer = await readStorageFileBufferFromPath(objectKey)
-      if (!buffer?.length || buffer.subarray(0, 5).toString() !== '%PDF-') {
-        res.status(400).json({ message: 'PDF 파일 형식이 올바르지 않습니다.' })
-        return
-      }
-      const pdf = await PDFDocument.load(buffer, { ignoreEncryption: false })
-      const pageCount = pdf.getPageCount()
-      const checksum = createHash('sha256').update(buffer).digest('hex')
-      const duplicate = await safeQuery(
-        pool,
-        `
-        SELECT id FROM personal_binder_materials
-        WHERE owner_user_id = $1 AND ga_id = $2 AND checksum_sha256 = $3 AND deleted_at IS NULL
-        LIMIT 1
-        `,
-        [scope.userId, scope.gaId, checksum],
-      )
-      if (duplicate.rowCount > 0) {
-        res.status(409).json({
-          code: 'DUPLICATE_MATERIAL',
-          message: '이미 자료 보관함에 등록된 PDF입니다.',
-          materialId: String(duplicate.rows[0].id),
+      const folderId = await resolveFolderIdForWrite(pool, scope, 'material', req.body?.folderId)
+      try {
+        const row = await registerBinderMaterialFromStorageFile(pool, scope, file, {
+          title,
+          folderId,
+          sourceType: 'personal',
+          sourceRef: null,
         })
+        res.status(201).json(mapMaterial(row))
+      } catch (error) {
+        if (error?.code === 'DUPLICATE_MATERIAL') {
+          res.status(409).json({
+            code: 'DUPLICATE_MATERIAL',
+            message: error.message,
+            materialId: error.materialId,
+          })
+          return
+        }
+        throw error
+      }
+    } catch (error) {
+      sendError(error, req, res, handleDbError)
+    }
+  })
+
+  apiRouter.post('/personal-binders/materials/from-file', requireAuth, async (req, res) => {
+    try {
+      const scope = requestScope(req, res)
+      if (!scope) return
+      const fileId = positiveId(req.body?.fileId)
+      const title = normalizedText(req.body?.title, 200, true)
+      if (!fileId || !title) {
+        res.status(400).json({ message: '파일과 자료 제목이 필요합니다.' })
         return
       }
-      const insert = await safeQuery(
+      const file = await loadOwnedPersonalStorageFile(pool, scope, fileId)
+      if (!file) {
+        res.status(404).json({ message: '내 파일을 찾을 수 없습니다.' })
+        return
+      }
+      const folderId = await resolveFolderIdForWrite(pool, scope, 'material', req.body?.folderId)
+      try {
+        const row = await registerBinderMaterialFromStorageFile(pool, scope, file, {
+          title,
+          folderId,
+          sourceType: 'my_file',
+          sourceRef: String(fileId),
+        })
+        res.status(201).json(mapMaterial(row))
+      } catch (error) {
+        if (error?.code === 'DUPLICATE_MATERIAL') {
+          res.status(409).json({
+            code: 'DUPLICATE_MATERIAL',
+            message: error.message,
+            materialId: error.materialId,
+          })
+          return
+        }
+        throw error
+      }
+    } catch (error) {
+      sendError(error, req, res, handleDbError)
+    }
+  })
+
+  apiRouter.post('/personal-binders/materials/from-team', requireAuth, async (req, res) => {
+    try {
+      const scope = requestScope(req, res)
+      if (!scope) return
+      const attachmentId = positiveId(req.body?.teamAttachmentId ?? req.body?.attachmentId)
+      const title = normalizedText(req.body?.title, 200, true)
+      if (!attachmentId || !title) {
+        res.status(400).json({ message: '팀 자료와 제목이 필요합니다.' })
+        return
+      }
+      const teamId = await loadUserTeamId(pool, scope.userId, scope.gaId)
+      if (!teamId) {
+        res.status(400).json({ message: '팀에 소속되어 있지 않습니다.' })
+        return
+      }
+      const attachment = await loadAccessibleTeamAttachment(pool, { ...scope, teamId }, attachmentId)
+      const fileRow = await findOrCreatePersonalFileReference(
         pool,
-        `
-        INSERT INTO personal_binder_materials (
-          owner_user_id, ga_id, file_id, title, original_file_name,
-          mime_type, file_size, page_count, checksum_sha256
-        )
-        VALUES ($1, $2, $3, $4, $5, 'application/pdf', $6, $7, $8)
-        RETURNING *, 0::int AS binder_count
-        `,
-        [scope.userId, scope.gaId, fileId, title, originalName, Number(file.file_size) || buffer.length, pageCount, checksum],
+        scope,
+        attachment.objectKey,
+        attachment.fileName,
+        attachment.mimeType,
+        attachment.buffer.length,
       )
-      res.status(201).json(mapMaterial(insert.rows[0]))
+      const folderId = await resolveFolderIdForWrite(pool, scope, 'material', req.body?.folderId)
+      try {
+        const row = await registerBinderMaterialFromStorageFile(pool, scope, fileRow, {
+          title,
+          folderId,
+          sourceType: 'team_file',
+          sourceRef: String(attachmentId),
+        })
+        res.status(201).json(mapMaterial(row))
+      } catch (error) {
+        if (error?.code === 'DUPLICATE_MATERIAL') {
+          res.status(409).json({
+            code: 'DUPLICATE_MATERIAL',
+            message: error.message,
+            materialId: error.materialId,
+          })
+          return
+        }
+        throw error
+      }
+    } catch (error) {
+      sendError(error, req, res, handleDbError)
+    }
+  })
+
+  apiRouter.post('/personal-binders/materials/merge-images', requireAuth, async (req, res) => {
+    try {
+      const scope = requestScope(req, res)
+      if (!scope) return
+      const title = normalizedText(req.body?.title, 200, true)
+      const rawIds = Array.isArray(req.body?.fileIds) ? req.body.fileIds : []
+      const fileIds = rawIds.map((value) => positiveId(value)).filter(Boolean)
+      if (!title || fileIds.length < 2) {
+        res.status(400).json({ message: '이미지 2장 이상과 PDF 제목이 필요합니다.' })
+        return
+      }
+      if (fileIds.length > 30) {
+        res.status(400).json({ message: '한 번에 묶을 수 있는 이미지는 30장까지입니다.' })
+        return
+      }
+      /** @type {Array<{ bytes: Buffer, mime: string, fileName: string }>} */
+      const images = []
+      for (const fileId of fileIds) {
+        const { file, buffer, mimeType } = await readOwnedPersonalStorageFileBuffer(pool, scope, fileId)
+        const normalized = normalizeBinderMaterialMime(mimeType, file.original_name ?? file.display_name)
+        if (normalized === 'application/pdf') {
+          res.status(400).json({ message: '이미지 파일만 PDF로 묶을 수 있습니다.' })
+          return
+        }
+        images.push({
+          bytes: buffer,
+          mime: normalized,
+          fileName: String(file.original_name ?? file.display_name ?? 'image'),
+        })
+      }
+      const pdfBuffer = await buildBinderMaterialPdfFromImages(images)
+      const pdfName = title.trim().toLowerCase().endsWith('.pdf') ? title.trim() : `${title.trim()}.pdf`
+      const gaCode = String(req.user?.gaCode ?? scope.gaId)
+      const fileRow = await persistPersonalStoragePdf(pool, scope, gaCode, pdfBuffer, pdfName)
+      const folderId = await resolveFolderIdForWrite(pool, scope, 'material', req.body?.folderId)
+      try {
+        const row = await registerBinderMaterialFromStorageFile(pool, scope, fileRow, {
+          title: title.trim(),
+          folderId,
+          sourceType: 'personal',
+          sourceRef: null,
+        })
+        res.status(201).json(mapMaterial(row))
+      } catch (error) {
+        if (error?.code === 'DUPLICATE_MATERIAL') {
+          res.status(409).json({
+            code: 'DUPLICATE_MATERIAL',
+            message: error.message,
+            materialId: error.materialId,
+          })
+          return
+        }
+        throw error
+      }
     } catch (error) {
       sendError(error, req, res, handleDbError)
     }
@@ -480,6 +615,151 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
     }
   })
 
+  apiRouter.get('/personal-binders/folders', requireAuth, async (req, res) => {
+    try {
+      const scope = requestScope(req, res)
+      if (!scope) return
+      const folderType = String(req.query?.type ?? '').trim()
+      if (!PERSONAL_BINDER_FOLDER_TYPES.has(folderType)) {
+        res.status(400).json({ message: '폴더 유형이 올바르지 않습니다.' })
+        return
+      }
+      const result = await safeQuery(
+        pool,
+        `
+        SELECT id, folder_type, name, sort_order, created_at, updated_at
+        FROM personal_binder_folders
+        WHERE owner_user_id = $1 AND ga_id = $2 AND folder_type = $3 AND deleted_at IS NULL
+        ORDER BY sort_order ASC, id ASC
+        `,
+        [scope.userId, scope.gaId, folderType],
+      )
+      res.json(result.rows.map(mapPersonalBinderFolder))
+    } catch (error) {
+      sendError(error, req, res, handleDbError)
+    }
+  })
+
+  apiRouter.post('/personal-binders/folders', requireAuth, async (req, res) => {
+    try {
+      const scope = requestScope(req, res)
+      if (!scope) return
+      const folderType = String(req.body?.type ?? '').trim()
+      const name = normalizedText(req.body?.name, 80, true)
+      if (!PERSONAL_BINDER_FOLDER_TYPES.has(folderType) || !name) {
+        res.status(400).json({ message: '폴더 이름과 유형이 필요합니다.' })
+        return
+      }
+      const orderResult = await safeQuery(
+        pool,
+        `
+        SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_order
+        FROM personal_binder_folders
+        WHERE owner_user_id = $1 AND ga_id = $2 AND folder_type = $3 AND deleted_at IS NULL
+        `,
+        [scope.userId, scope.gaId, folderType],
+      )
+      const sortOrder = Number(orderResult.rows[0]?.next_order ?? 0)
+      const insert = await safeQuery(
+        pool,
+        `
+        INSERT INTO personal_binder_folders (owner_user_id, ga_id, folder_type, name, sort_order)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id, folder_type, name, sort_order, created_at, updated_at
+        `,
+        [scope.userId, scope.gaId, folderType, name, sortOrder],
+      )
+      res.status(201).json(mapPersonalBinderFolder(insert.rows[0]))
+    } catch (error) {
+      sendError(error, req, res, handleDbError)
+    }
+  })
+
+  apiRouter.patch('/personal-binders/folders/:folderId', requireAuth, async (req, res) => {
+    try {
+      const scope = requestScope(req, res)
+      if (!scope) return
+      const folderId = positiveId(req.params.folderId)
+      const name = normalizedText(req.body?.name, 80, true)
+      if (!folderId || !name) {
+        res.status(400).json({ message: '폴더 이름을 입력해 주세요.' })
+        return
+      }
+      const result = await safeQuery(
+        pool,
+        `
+        UPDATE personal_binder_folders
+        SET name = $1, updated_at = NOW()
+        WHERE id = $2 AND owner_user_id = $3 AND ga_id = $4 AND deleted_at IS NULL
+        RETURNING id, folder_type, name, sort_order, created_at, updated_at
+        `,
+        [name, folderId, scope.userId, scope.gaId],
+      )
+      if (result.rowCount === 0) {
+        res.status(404).json({ message: '폴더를 찾을 수 없습니다.' })
+        return
+      }
+      res.json(mapPersonalBinderFolder(result.rows[0]))
+    } catch (error) {
+      sendError(error, req, res, handleDbError)
+    }
+  })
+
+  apiRouter.delete('/personal-binders/folders/:folderId', requireAuth, async (req, res) => {
+    const client = await pool.connect()
+    try {
+      const scope = requestScope(req, res)
+      if (!scope) return
+      const folderId = positiveId(req.params.folderId)
+      if (!folderId) {
+        res.status(400).json({ message: '잘못된 폴더 ID입니다.' })
+        return
+      }
+      const folderRow = await getOwnedFolder(client, folderId, scope, 'material')
+        ?? await getOwnedFolder(client, folderId, scope, 'binder')
+      if (!folderRow) {
+        res.status(404).json({ message: '폴더를 찾을 수 없습니다.' })
+        return
+      }
+      const folderType = folderRow.folder_type
+      await client.query('BEGIN')
+      if (folderType === 'material') {
+        await client.query(
+          `
+          UPDATE personal_binder_materials
+          SET folder_id = NULL, updated_at = NOW()
+          WHERE folder_id = $1 AND owner_user_id = $2 AND ga_id = $3 AND deleted_at IS NULL
+          `,
+          [folderId, scope.userId, scope.gaId],
+        )
+      } else {
+        await client.query(
+          `
+          UPDATE personal_binders
+          SET folder_id = NULL, updated_at = NOW()
+          WHERE folder_id = $1 AND owner_user_id = $2 AND ga_id = $3 AND deleted_at IS NULL
+          `,
+          [folderId, scope.userId, scope.gaId],
+        )
+      }
+      await client.query(
+        `
+        UPDATE personal_binder_folders
+        SET deleted_at = NOW(), updated_at = NOW()
+        WHERE id = $1 AND owner_user_id = $2 AND ga_id = $3
+        `,
+        [folderId, scope.userId, scope.gaId],
+      )
+      await client.query('COMMIT')
+      res.json({ ok: true })
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {})
+      sendError(error, req, res, handleDbError)
+    } finally {
+      client.release()
+    }
+  })
+
   apiRouter.get('/personal-binders', requireAuth, async (req, res) => {
     try {
       const scope = requestScope(req, res)
@@ -523,14 +803,20 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         res.status(400).json({ message: '바인더 이름을 입력해 주세요.' })
         return
       }
+      const folderId = await resolveFolderIdForWrite(
+        pool,
+        scope,
+        'binder',
+        req.body?.folderId,
+      )
       const result = await safeQuery(
         pool,
         `
-        INSERT INTO personal_binders (owner_user_id, ga_id, title, description)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO personal_binders (owner_user_id, ga_id, folder_id, title, description)
+        VALUES ($1, $2, $3, $4, $5)
         RETURNING *, 0::int AS section_count, 0::int AS material_count, 0::int AS page_count
         `,
-        [scope.userId, scope.gaId, title, description],
+        [scope.userId, scope.gaId, folderId, title, description],
       )
       res.status(201).json(mapBinderSummary(result.rows[0]))
     } catch (error) {
@@ -647,11 +933,17 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
       await client.query('BEGIN')
       const binderInsert = await client.query(
         `
-        INSERT INTO personal_binders (owner_user_id, ga_id, title, description)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO personal_binders (owner_user_id, ga_id, folder_id, title, description)
+        VALUES ($1, $2, $3, $4, $5)
         RETURNING id
         `,
-        [scope.userId, scope.gaId, requestedTitle || `${source.title} 복사본`, source.description],
+        [
+          scope.userId,
+          scope.gaId,
+          source.folder_id ?? null,
+          requestedTitle || `${source.title} 복사본`,
+          source.description,
+        ],
       )
       const newBinderId = binderInsert.rows[0].id
       const sections = await client.query(
@@ -925,12 +1217,16 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
       const buffers = new Map()
       const segments = []
       for (const job of jobs) {
-        let buffer = buffers.get(job.materialId)
-        if (!buffer) {
-          buffer = await readOwnedMaterialPdf(pool, job.materialId, scope)
-          buffers.set(job.materialId, buffer)
+        let segment = buffers.get(job.materialId)
+        if (!segment) {
+          segment = await readOwnedMaterialSegment(pool, job.materialId, scope)
+          buffers.set(job.materialId, segment)
         }
-        segments.push({ buffer, pages: job.pages })
+        segments.push({
+          buffer: segment.buffer,
+          mimeType: segment.mimeType,
+          pages: job.pages,
+        })
       }
       const pdf = await assembleBinderPdf(segments)
       const fileName = exportFileName(detail.title)

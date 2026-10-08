@@ -6,8 +6,41 @@ export type BillingCheckoutMode =
   | 'legacy_entitled'
   | 'payment_required'
 
-export function resolveBillingCheckoutMode(status: string | null | undefined): BillingCheckoutMode {
-  const normalized = String(status ?? '').trim().toLowerCase()
+export type BillingCheckoutModeInput = {
+  status?: string | null
+  subscriptionStatus?: string | null
+  isEntitled?: boolean
+  entitlementReason?: string | null
+  currentPeriodEnd?: string | null
+  nextBillingAt?: string | null
+}
+
+export function isPaidPeriodExpiredEntitlement(input: BillingCheckoutModeInput | null | undefined): boolean {
+  return (
+    input?.isEntitled === false &&
+    String(input?.entitlementReason ?? '').trim() === 'paid_period_expired'
+  )
+}
+
+function normalizeCheckoutModeInput(
+  statusOrInput: string | null | undefined | BillingCheckoutModeInput,
+): BillingCheckoutModeInput {
+  if (statusOrInput != null && typeof statusOrInput === 'object') {
+    return statusOrInput
+  }
+  return { status: statusOrInput, subscriptionStatus: statusOrInput }
+}
+
+export function resolveBillingCheckoutMode(
+  statusOrInput: string | null | undefined | BillingCheckoutModeInput,
+): BillingCheckoutMode {
+  const input = normalizeCheckoutModeInput(statusOrInput)
+
+  if (isPaidPeriodExpiredEntitlement(input)) {
+    return 'payment_required'
+  }
+
+  const normalized = String(input.status ?? input.subscriptionStatus ?? '').trim().toLowerCase()
 
   if (['expired', 'blocked', 'past_due', 'canceled', 'cancelled', 'inactive'].includes(normalized)) {
     return 'payment_required'

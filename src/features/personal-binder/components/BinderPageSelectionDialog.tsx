@@ -40,7 +40,9 @@ export function BinderPageSelectionDialog({
 }: Props) {
   const isMobile = variant === 'mobile'
   const { confirm, confirmDialog } = useConfirmDialog()
-  const pdf = useBinderPdfDocument(open ? pdfUrl : null)
+  const isImageMaterial =
+    material?.mimeType != null && material.mimeType.toLowerCase().startsWith('image/')
+  const pdf = useBinderPdfDocument(open && !isImageMaterial ? pdfUrl : null)
   const [mode, setMode] = useState<'all' | 'partial'>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [selected, setSelected] = useState<number[]>([])
@@ -140,7 +142,15 @@ export function BinderPageSelectionDialog({
     )
   }
 
-  const preview = pdf.status === 'ready' ? (
+  const preview = isImageMaterial && pdfUrl ? (
+    <div className="personal-binder-page-preview">
+      <img
+        className="personal-binder-image-preview"
+        src={pdfUrl}
+        alt={material.title}
+      />
+    </div>
+  ) : pdf.status === 'ready' ? (
     <div
       className="personal-binder-page-preview"
       onPointerDown={(event) => {
@@ -188,7 +198,18 @@ export function BinderPageSelectionDialog({
     </div>
   )
 
-  const thumbnailPanel = pdf.status === 'ready' ? (
+  const thumbnailPanel = isImageMaterial && pdfUrl ? (
+    <div className="personal-binder-thumbnails" aria-label="페이지 선택">
+      <button
+        type="button"
+        className={`personal-binder-thumbnail${mode === 'all' || selected.includes(1) ? ' is-selected' : ''}`}
+        onClick={() => handlePageClick(1, { metaKey: false, ctrlKey: false, shiftKey: false } as React.MouseEvent<HTMLButtonElement>)}
+      >
+        <img src={pdfUrl} alt="" />
+        <span>1</span>
+      </button>
+    </div>
+  ) : pdf.status === 'ready' ? (
     <div className="personal-binder-thumbnails" aria-label="페이지 선택">
       {pages.map((page) => (
         <BinderPdfThumbnail

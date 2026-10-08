@@ -9,8 +9,18 @@ import { requestTossInsurancePayment } from '../insurance-billing/providers/toss
 // ─── checkout mode 분류 — legacy_entitled 정책 ────────────────────────────────
 // frontend billingCheckoutViewState.ts 의 resolveBillingCheckoutMode 로직 미러
 
-function resolveBillingCheckoutMode(status) {
-  const s = String(status ?? '').trim().toLowerCase()
+function resolveBillingCheckoutMode(statusOrInput) {
+  const input =
+    statusOrInput != null && typeof statusOrInput === 'object'
+      ? statusOrInput
+      : { status: statusOrInput, subscriptionStatus: statusOrInput }
+  if (
+    input.isEntitled === false &&
+    String(input.entitlementReason ?? '').trim() === 'paid_period_expired'
+  ) {
+    return 'payment_required'
+  }
+  const s = String(input.status ?? input.subscriptionStatus ?? '').trim().toLowerCase()
   if (['expired', 'blocked', 'past_due', 'canceled', 'cancelled', 'inactive'].includes(s)) return 'payment_required'
   if (['pending_payment', 'pending', 'none', ''].includes(s)) return 'pending_payment'
   if (s === 'trialing' || s === 'trial') return 'trialing'
@@ -33,6 +43,17 @@ test('active_manual → legacy_entitled mode', () => {
 
 test('active_paid → active_paid mode (not legacy)', () => {
   assert.equal(resolveBillingCheckoutMode('active_paid'), 'active_paid')
+})
+
+test('active_paid + paid_period_expired → payment_required', () => {
+  assert.equal(
+    resolveBillingCheckoutMode({
+      status: 'active_paid',
+      isEntitled: false,
+      entitlementReason: 'paid_period_expired',
+    }),
+    'payment_required',
+  )
 })
 
 test('trialing → trialing mode', () => {

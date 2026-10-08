@@ -42,9 +42,11 @@ export function CheckoutStatusBanner({ props }: { props: BillingCheckoutViewProp
   if (checkoutMode === 'payment_required') {
     return (
       <div className="insurance-billing-banner">
-        {summary?.subscriptionStatus === 'expired'
-          ? '무료 이용 기간이 종료되었습니다. 서비스를 계속 이용하려면 결제를 완료해 주세요.'
-          : '서비스 이용을 위해 결제가 필요합니다.'}
+        {summary?.entitlementReason === 'paid_period_expired'
+          ? '이용기간이 종료되었습니다. 서비스를 계속 이용하려면 결제를 완료해 주세요.'
+          : summary?.subscriptionStatus === 'expired'
+            ? '무료 이용 기간이 종료되었습니다. 서비스를 계속 이용하려면 결제를 완료해 주세요.'
+            : '서비스 이용을 위해 결제가 필요합니다.'}
       </div>
     )
   }

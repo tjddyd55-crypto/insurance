@@ -10,6 +10,7 @@ import useIsMobile from '../../../hooks/useIsMobile'
 import { useAuth } from '../../auth/AuthProvider'
 import { createStorageFilePreviewUrl } from '../../storage/api/storageApi'
 import { BinderPageSelectionDialog } from '../components/BinderPageSelectionDialog'
+import { MaterialAddSourceDialog } from '../components/MaterialAddSourceDialog'
 import { formatSelectedPages } from '../domain/pageSelection'
 import {
   downloadPersonalBinderPdf,
@@ -112,10 +113,8 @@ export default function PersonalBinderEditorPage() {
     [binder],
   )
 
-  const pdfMaterials = useMemo(
-    () => materials.filter((material) => material.mimeType === 'application/pdf'),
-    [materials],
-  )
+  const isImageMaterial = (material: PersonalBinderMaterial) =>
+    material.mimeType.toLowerCase().startsWith('image/')
 
   if (!token) return <Navigate to="/login" replace />
   if (loading) return <main className="page personal-binder-status">바인더를 불러오는 중…</main>
@@ -234,13 +233,26 @@ export default function PersonalBinderEditorPage() {
   ) => {
     setError('')
     try {
+      if (isImageMaterial(material) && material.pageCount === 1 && !itemId) {
+        await addPersonalBinderItem(token, sectionId, {
+          materialId: material.id,
+          pageSelection: [1],
+        })
+        setMaterialSectionId(null)
+        await refresh()
+        return
+      }
       const url = await createStorageFilePreviewUrl(token, material.fileId)
       setPdfUrl(url)
       setPageTarget({ sectionId, itemId, material, initialSelection })
       setMaterialSectionId(null)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'PDF 미리보기를 준비하지 못했습니다.')
+      setError(reason instanceof Error ? reason.message : '미리보기를 준비하지 못했습니다.')
     }
+  }
+  const pickMaterialFromSource = (material: PersonalBinderMaterial) => {
+    if (!materialSectionId) return
+    void selectMaterial(materialSectionId, material)
   }
   const completeSelection = async (selection: number[] | null) => {
     if (!pageTarget) return
@@ -293,7 +305,7 @@ export default function PersonalBinderEditorPage() {
   }
 
   return (
-    <main className="page personal-binder-page personal-binder-editor">
+    <main className="page personal-binder-page personal-binder-page--editor personal-binder-editor">
       <header className="personal-binder-editor-header">
         <FormButton variant="action" onClick={() => navigate('/personal-binders')}>← 목록</FormButton>
         <div>
@@ -479,58 +491,14 @@ export default function PersonalBinderEditorPage() {
         </div>
       </BaseDialog>
 
-      <BaseDialog
+      <MaterialAddSourceDialog
         open={materialSectionId != null}
+        token={token}
+        materials={materials}
+        mode="binder"
         onClose={() => setMaterialSectionId(null)}
-        closeOnBackdrop={false}
-        usePortal
-        panelPreset="largeForm"
-        panelClassName="personal-binder-material-picker-dialog"
-        ariaLabel="자료 추가"
-      >
-        <header className="personal-binder-page-dialog__header">
-          <div className="personal-binder-page-dialog__header-copy">
-            <h2>자료 추가</h2>
-            <p>전체 페이지 또는 일부 페이지를 선택할 수 있습니다.</p>
-          </div>
-          <FormButton variant="secondary" size="sm" onClick={() => setMaterialSectionId(null)}>
-            닫기
-          </FormButton>
-        </header>
-        <div className="personal-binder-material-picker__body">
-          {pdfMaterials.length === 0 ? (
-            <p className="personal-binder-material-picker__empty">
-              추가할 수 있는 PDF 자료가 없습니다. 이미지는 자료 업로드에서 PDF로 묶어 주세요.
-            </p>
-          ) : (
-            <ul className="personal-binder-material-picker__list">
-              {pdfMaterials.map((material) => (
-                <li key={material.id}>
-                  <button
-                    type="button"
-                    className="personal-binder-material-picker__row"
-                    onClick={() => {
-                      if (materialSectionId) {
-                        void selectMaterial(materialSectionId, material)
-                      }
-                    }}
-                  >
-                    <span className="personal-binder-material-picker__row-title">{material.title}</span>
-                    <span className="personal-binder-material-picker__row-meta">
-                      <span className="personal-binder-material-picker__row-filename">
-                        {material.originalFileName}
-                      </span>
-                      <span className="personal-binder-material-picker__row-pages">
-                        · {material.pageCount}페이지
-                      </span>
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </BaseDialog>
+        onMaterialReady={pickMaterialFromSource}
+      />
 
       <BinderPageSelectionDialog
         open={pageTarget != null}

@@ -59,6 +59,9 @@ export function EventRowMenu({
 
   useEffect(() => {
     if (menuMode !== 'popover' || !open) return undefined
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
     const onDoc = (event: MouseEvent) => {
       const target = event.target as Node
       if (rootRef.current?.contains(target) || panelRef.current?.contains(target)) return
@@ -71,10 +74,12 @@ export function EventRowMenu({
       }
     }
     document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onKeyDown)
     window.addEventListener('resize', onReflow)
     window.addEventListener('scroll', onReflow, true)
     return () => {
       document.removeEventListener('mousedown', onDoc)
+      document.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('resize', onReflow)
       window.removeEventListener('scroll', onReflow, true)
     }

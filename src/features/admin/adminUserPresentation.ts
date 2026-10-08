@@ -112,7 +112,19 @@ export function resolveAdminUserSubscriptionTone(
   return resolveSubscriptionStatusTone(status)
 }
 
-export function resolveAdminUserSubscriptionBadgeClass(status: string | null | undefined): string {
+export function resolveAdminUserSubscriptionBadgeClass(
+  status: string | null | undefined,
+  effectiveCategory?: 'free' | 'paid' | 'ended' | null,
+): string {
+  if (effectiveCategory === 'ended') {
+    return 'admin-subscription-badge--warning'
+  }
+  if (effectiveCategory === 'paid') {
+    return 'admin-subscription-badge--active-paid'
+  }
+  if (effectiveCategory === 'free') {
+    return 'admin-subscription-badge--trialing'
+  }
   const normalized = String(status ?? '').trim().toLowerCase()
   if (!normalized || normalized === 'none') {
     return 'admin-subscription-badge--none'
