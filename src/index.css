@@ -7685,6 +7685,24 @@ div.cta-button.customers-page__action-btn[role='button']{
   border-radius: 8px;
 }
 
+.customer-relations-legacy__header{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.customer-relation-groups-section__empty,
+.customer-relations-legacy-section__empty{
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 8px;
+}
+
 .customers-page--pc .customer-relations-strip .related-customer-tag{
   border-radius: 6px !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
