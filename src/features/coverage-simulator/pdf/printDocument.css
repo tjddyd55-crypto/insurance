@@ -476,12 +476,14 @@
   .coverage-simulator-pdf-preview__zoom-spacer {
     position: relative;
     margin: 0 auto;
+    pointer-events: none;
   }
 
   .coverage-simulator-pdf-preview__zoom-doc {
     position: absolute;
     top: 0;
     left: 0;
+    pointer-events: none;
   }
 
   .coverage-simulator-pdf-print-source {

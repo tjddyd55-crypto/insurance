@@ -64,7 +64,14 @@ function PdfPreviewPageBody() {
   }
 
   return (
-    <CoverageSimulatorLayout shellClassName="coverage-simulator-pdf-preview-shell">
+    <CoverageSimulatorLayout
+      shellClassName={[
+        'coverage-simulator-pdf-preview-shell',
+        simulatorOrigin === 'customer' ? 'coverage-simulator-pdf-preview-shell--customer-embed' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
       <main className="coverage-simulator-content coverage-simulator-pdf-preview">
         <CoveragePdfPreviewZoomSurface key={scenario.id} documentKey={scenario.id}>
           <CoverageSimulatorPrintDocument scenario={scenario} />

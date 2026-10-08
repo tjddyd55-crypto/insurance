@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -51,6 +52,27 @@ export function CoveragePdfPreviewZoomSurface({ children, documentKey }: Props) 
   )
   useNewsDetailViewerZoomAnchor(viewportRef, zoom, zoomAnchorRef)
   useCoveragePdfPreviewPan(viewportRef, zoom, true)
+
+  useEffect(() => {
+    const viewport = viewportRef.current
+    if (!viewport) return undefined
+
+    const onWheel = (event: WheelEvent) => {
+      const { scrollHeight, clientHeight, scrollTop } = viewport
+      if (scrollHeight <= clientHeight + 1) return
+
+      const delta = event.deltaY
+      const atTop = scrollTop <= 0
+      const atBottom = scrollTop + clientHeight >= scrollHeight - 1
+      if ((delta < 0 && atTop) || (delta > 0 && atBottom)) return
+
+      viewport.scrollTop += delta
+      if (event.cancelable) event.preventDefault()
+    }
+
+    viewport.addEventListener('wheel', onWheel, { passive: false })
+    return () => viewport.removeEventListener('wheel', onWheel)
+  }, [])
 
   useLayoutEffect(() => {
     let cancelled = false
