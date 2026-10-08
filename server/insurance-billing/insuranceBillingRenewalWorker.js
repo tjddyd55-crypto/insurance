@@ -3,7 +3,7 @@
  * import 만으로 시작하지 않는다. startInsuranceBillingRenewalWorker(pool) 필요.
  */
 
-import { getInsuranceBillingProvider } from './config.js'
+import { getInsuranceBillingProvider, isMockPaymentAllowed } from './config.js'
 import {
   getInsuranceBillingRenewalBatchSize,
   getInsuranceBillingRenewalIntervalMs,
@@ -54,10 +54,16 @@ export async function runInsuranceBillingRenewalOnce(pool, options = {}) {
   const now = options.now ?? new Date()
   const limit = options.limit ?? getInsuranceBillingRenewalBatchSize()
 
-  if (getInsuranceBillingProvider() !== 'toss') {
+  const provider = getInsuranceBillingProvider()
+  const renewalProviderReady = provider === 'toss' || (provider === 'mock' && isMockPaymentAllowed())
+  if (!renewalProviderReady) {
     summary.skipped = 1
     diagnostics.lastRunAt = new Date().toISOString()
-    diagnostics.lastSummary = { ...summary, reason: 'provider_not_toss', durationMs: Date.now() - started }
+    diagnostics.lastSummary = {
+      ...summary,
+      reason: provider === 'mock' ? 'mock_renewal_not_allowed' : 'provider_not_toss',
+      durationMs: Date.now() - started,
+    }
     return diagnostics.lastSummary
   }
 

@@ -7,7 +7,8 @@ import { systemQuery } from '../utils/dbSafeQuery.js'
 import { resolvePaymentSettingsInternal } from '../billing/paymentSettingsResolve.js'
 import { getActiveBillingKeyForUser, assertBillingCredentialModeMatch } from './billingPaymentCredential.js'
 import { recordBillingEvent } from './subscriptionLifecycle.js'
-import { getInsuranceBillingProvider } from './config.js'
+import { getInsuranceBillingProvider, isMockPaymentAllowed } from './config.js'
+import { finalizeInsurancePaymentAsPaid } from './subscriptionLifecycle.js'
 import {
   createPendingInsurancePaymentRow,
   executeTossBillingCharge,
@@ -239,6 +240,7 @@ export async function renewInsuranceSubscription(client, params) {
     return { outcome: 'skipped', reason: 'billing_credential_invalid' }
   }
 
+  const workerProvider = getInsuranceBillingProvider()
   const eligibility = evaluateRenewalEligibility({
     status: sub.status,
     nextBillingAt: sub.nextBillingAt,
@@ -247,12 +249,52 @@ export async function renewInsuranceSubscription(client, params) {
     cancelAt: sub.cancelAt,
     canceledAt: sub.canceledAt,
     hasBillingCredential,
-    workerProvider: getInsuranceBillingProvider(),
+    workerProvider,
+    mockRenewalAllowed: isMockPaymentAllowed(),
     now,
     maxRetry: getInsuranceBillingRenewalMaxRetry(),
   })
   if (!eligibility.ok) {
     return { outcome: 'skipped', reason: eligibility.reason }
+  }
+
+  const periodKey = buildRenewalPeriodKey(sub.nextBillingAt)
+  const chargeBillingCycle = resolveEffectiveRenewalBillingCycle(sub)
+
+  if (workerProvider === 'mock' && isMockPaymentAllowed()) {
+    let pending
+    try {
+      pending = await createPendingInsurancePaymentRow(client, {
+        userId: sub.userId,
+        planCode: sub.planCode,
+        billingCycle: chargeBillingCycle,
+        provider: 'mock',
+        paymentSource: 'renewal',
+        renewalPeriodKey: periodKey,
+      })
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        return { outcome: 'skipped', reason: 'already_renewed_or_pending' }
+      }
+      throw error
+    }
+
+    const paid = await finalizeInsurancePaymentAsPaid(client, {
+      paymentId: pending.paymentId,
+      source: 'renewal',
+      periodAnchor: sub.nextBillingAt,
+    })
+    return {
+      outcome: 'paid',
+      reason: 'renewed',
+      paymentId: pending.paymentId,
+      totalAmount: paid.totalAmount,
+      billingCycle: chargeBillingCycle,
+      previousBillingCycle: sub.billingCycle,
+      pendingBillingCycle: sub.pendingBillingCycle,
+      subscriptionStatus: paid.subscriptionStatus,
+      renewalPeriodKey: periodKey,
+    }
   }
 
   const settings = await resolvePaymentSettingsInternal(client)
@@ -269,9 +311,6 @@ export async function renewInsuranceSubscription(client, params) {
   } catch {
     return { outcome: 'skipped', reason: 'billing_credential_environment_mismatch' }
   }
-
-  const periodKey = buildRenewalPeriodKey(sub.nextBillingAt)
-  const chargeBillingCycle = resolveEffectiveRenewalBillingCycle(sub)
 
   let pending
   try {
