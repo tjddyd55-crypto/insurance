@@ -9,6 +9,7 @@ import { CoverageSimulatorLayout } from './CoverageSimulatorLayout'
 import { useCoverageSimulatorToast } from './CoverageSimulatorToast'
 import { SimulationCustomerField } from './SimulationCustomerField'
 import { SimulationListActionSheet } from './SimulationListActionSheet'
+import { CoverageSimulatorNameCreateDialog } from './CoverageSimulatorNameCreateDialog'
 import { SaveConsultationTitleDialog } from './SaveConsultationTitleDialog'
 import { coverageSimulatorExitPath, useCoverageSimulatorScope } from '../CoverageSimulatorScope'
 import { CoverageThreePaneEditorNavigationProvider } from '../context/CoverageThreePaneEditorNavigation'
@@ -105,6 +106,8 @@ export function CoverageThreePaneWorkspace({
   const [renameValidationError, setRenameValidationError] = useState<string | null>(null)
   const [addScenarioOpen, setAddScenarioOpen] = useState(false)
   const [newScenarioName, setNewScenarioName] = useState('')
+  const [addSimulationOpen, setAddSimulationOpen] = useState(false)
+  const [newSimulationName, setNewSimulationName] = useState('')
   const rowMenuDismissEnabled = Boolean(customerFilter) || simulationMenuMode === 'popover'
 
   useEffect(() => {
@@ -127,7 +130,7 @@ export function CoverageThreePaneWorkspace({
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
-      if (addScenarioOpen || renameRow) return
+      if (addScenarioOpen || addSimulationOpen || renameRow) return
       closeRowMenus()
     }
 
@@ -137,7 +140,14 @@ export function CoverageThreePaneWorkspace({
       document.removeEventListener('mousedown', onPointerDown)
       document.removeEventListener('keydown', onKeyDown)
     }
-  }, [addScenarioOpen, renameRow, rowMenuDismissEnabled, simulationMenuRow, templateMenuId])
+  }, [
+    addScenarioOpen,
+    addSimulationOpen,
+    renameRow,
+    rowMenuDismissEnabled,
+    simulationMenuRow,
+    templateMenuId,
+  ])
 
   const notifySelection = useCallback(
     (templateId: string | null, simulationId: string | null) => {
@@ -224,7 +234,13 @@ export function CoverageThreePaneWorkspace({
     notifySelection(selectedTemplateId, null)
   }, [notifySelection, selectedTemplateId])
 
-  const createSimulation = () => {
+  const openAddSimulationModal = () => {
+    if (!selectedTemplate) return
+    setNewSimulationName(selectedTemplate.name)
+    setAddSimulationOpen(true)
+  }
+
+  const onCreateSimulation = (name: string) => {
     if (!selectedTemplate) return
     void (async () => {
       try {
@@ -235,17 +251,18 @@ export function CoverageThreePaneWorkspace({
             }
           : emptyCustomerDraft()
         const saved = await startConsultationFromUserTemplate(userKey, selectedTemplate, customerDraft)
+        const renamed = await renameConsultationAsync(userKey, saved.id, name)
+        setAddSimulationOpen(false)
+        setNewSimulationName('')
         refreshLists()
-        openSimulation(saved.id)
+        openSimulation(renamed?.id ?? saved.id)
       } catch {
         showToast('시뮬레이션을 만들지 못했습니다.')
       }
     })()
   }
 
-  const onCreateScenario = () => {
-    const name = newScenarioName.trim()
-    if (!name) return
+  const onCreateScenario = (name: string) => {
     const saved = saveScenarioTemplate(userKey, createEmptyUserTemplate(name))
     setAddScenarioOpen(false)
     setNewScenarioName('')
@@ -320,21 +337,14 @@ export function CoverageThreePaneWorkspace({
     }
   }
 
-  const addScenarioLabel = customerFilter
-    ? '+ 추가'
-    : density === 'compact'
-      ? '+ 추가'
-      : '+ 시나리오 추가'
-  const addSimulationLabel = customerFilter
-    ? '+ 추가'
-    : density === 'compact'
-      ? '+ 추가'
-      : '+ 시뮬레이션 추가'
+  const addScenarioLabel = '+ 추가'
+  const addSimulationLabel = '+ 추가'
   const showScenarioMeta = density !== 'compact'
   const useTitlePrimary = Boolean(customerFilter)
 
   const paneDensityClass =
     density === 'compact' ? 'cs-three-pane--density-compact' : 'cs-three-pane--density-default'
+  const effectiveSimulationMenuMode = isMobile ? simulationMenuMode : 'popover'
 
   if (isMobile && layoutMode !== 'preview-pc') {
     return null
@@ -507,7 +517,7 @@ export function CoverageThreePaneWorkspace({
                 type="button"
                 className="cs-three-pane__add"
                 disabled={!selectedTemplate}
-                onClick={createSimulation}
+                onClick={openAddSimulationModal}
               >
                 {addSimulationLabel}
               </button>
@@ -554,7 +564,7 @@ export function CoverageThreePaneWorkspace({
                     >
                       ⋯
                     </button>
-                    {simulationMenuMode === 'popover' && simulationMenuRow?.id === row.id ? (
+                    {effectiveSimulationMenuMode === 'popover' && simulationMenuRow?.id === row.id ? (
                       <div className="cs-three-pane-scenario-row__menu-panel" role="menu">
                         <button
                           type="button"
@@ -606,7 +616,7 @@ export function CoverageThreePaneWorkspace({
           </section>
         </div>
 
-        {simulationMenuMode === 'sheet' ? (
+        {effectiveSimulationMenuMode === 'sheet' ? (
           <SimulationListActionSheet
             open={simulationMenuRow != null}
             documentTitle={simulationMenuRow?.title ?? ''}
@@ -640,44 +650,29 @@ export function CoverageThreePaneWorkspace({
           onConfirm={handleRenameConfirm}
         />
 
-        {addScenarioOpen ? (
-          <div className="coverage-simulator-overlay" role="presentation" onClick={() => setAddScenarioOpen(false)}>
-            <div
-              className="coverage-simulator-dialog"
-              role="dialog"
-              aria-modal="true"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <h2 className="coverage-simulator-dialog__title">시나리오 추가</h2>
-              <label className="cs-template-form-field">
-                <span>시나리오 이름</span>
-                <input
-                  className="coverage-simulator-input"
-                  value={newScenarioName}
-                  onChange={(e) => setNewScenarioName(e.target.value)}
-                  autoFocus
-                />
-              </label>
-              <div className="coverage-simulator-dialog__actions">
-                <button
-                  type="button"
-                  className="coverage-simulator-secondary-btn"
-                  onClick={() => setAddScenarioOpen(false)}
-                >
-                  취소
-                </button>
-                <button
-                  type="button"
-                  className="coverage-simulator-primary-btn"
-                  disabled={!newScenarioName.trim()}
-                  onClick={onCreateScenario}
-                >
-                  만들기
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
+        <CoverageSimulatorNameCreateDialog
+          open={addScenarioOpen}
+          dialogTitle="시나리오 추가"
+          fieldLabel="시나리오 이름"
+          initialValue={newScenarioName}
+          onClose={() => {
+            setAddScenarioOpen(false)
+            setNewScenarioName('')
+          }}
+          onConfirm={onCreateScenario}
+        />
+
+        <CoverageSimulatorNameCreateDialog
+          open={addSimulationOpen}
+          dialogTitle="시뮬레이션 추가"
+          fieldLabel="시뮬레이션 이름"
+          initialValue={newSimulationName}
+          onClose={() => {
+            setAddSimulationOpen(false)
+            setNewSimulationName('')
+          }}
+          onConfirm={onCreateSimulation}
+        />
 
         {confirmDialog}
       </CoverageSimulatorLayout>
