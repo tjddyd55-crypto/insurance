@@ -20,7 +20,9 @@ export async function ensurePersonalBinderSchema(executor) {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       deleted_at TIMESTAMPTZ,
       CONSTRAINT personal_binder_material_page_count_check CHECK (page_count > 0),
-      CONSTRAINT personal_binder_material_source_check CHECK (source_type IN ('personal', 'official'))
+      CONSTRAINT personal_binder_material_source_check CHECK (
+        source_type IN ('personal', 'official', 'my_file', 'team_file')
+      )
     )
   `)
   await executor.query(`
@@ -125,6 +127,19 @@ export async function ensurePersonalBinderSchema(executor) {
   await executor.query(`
     ALTER TABLE personal_binders
     ADD COLUMN IF NOT EXISTS folder_id BIGINT REFERENCES personal_binder_folders(id) ON DELETE SET NULL
+  `)
+  await executor.query(`
+    ALTER TABLE personal_binder_materials
+    ADD COLUMN IF NOT EXISTS source_ref TEXT
+  `)
+  await executor.query(`
+    ALTER TABLE personal_binder_materials DROP CONSTRAINT IF EXISTS personal_binder_material_source_check
+  `)
+  await executor.query(`
+    ALTER TABLE personal_binder_materials
+    ADD CONSTRAINT personal_binder_material_source_check CHECK (
+      source_type IN ('personal', 'official', 'my_file', 'team_file')
+    )
   `)
   await executor.query(`
     CREATE INDEX IF NOT EXISTS personal_binder_materials_folder_idx
