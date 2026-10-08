@@ -82,11 +82,7 @@ function MobileNewsCardMedia({
     </div>
   )
 
-  const imageLoadFailedPlaceholder = (
-    <div className="news-card__placeholder news-card__placeholder--load-failed" role="status">
-      <span className="news-card__placeholder-label">이미지를 불러오지 못했습니다.</span>
-    </div>
-  )
+  const showTextAfterImageFailure = imageLoadFailed && hasHeadline
 
   return (
     <>
@@ -97,13 +93,37 @@ function MobileNewsCardMedia({
           onFailed={() => setImageLoadFailed(true)}
         />
       ) : null}
-      {shouldShowTextPreview ? textPreviewPlaceholder : null}
-      {hasImageUrl && imageLoadFailed ? imageLoadFailedPlaceholder : null}
+      {shouldShowTextPreview || showTextAfterImageFailure ? textPreviewPlaceholder : null}
     </>
   )
 }
 
+function DesktopNewsCardImage({
+  imageUrl,
+  onFailed,
+}: {
+  imageUrl: string
+  onFailed: () => void
+}) {
+  const [failed, setFailed] = useState(false)
+  if (failed) {
+    return null
+  }
+  return (
+    <img
+      src={imageUrl}
+      alt=""
+      loading="lazy"
+      onError={() => {
+        setFailed(true)
+        onFailed()
+      }}
+    />
+  )
+}
+
 export function NewsCard({ item, onOpen, onDelete, deleteBusy, variant }: Props) {
+  const [desktopImageFailed, setDesktopImageFailed] = useState(false)
   const isMobile = variant === 'mobile'
   const companyName = resolveNewsletterPostAuthorLabel({
     authorDisplayName: item.authorDisplayName,
@@ -115,9 +135,9 @@ export function NewsCard({ item, onOpen, onDelete, deleteBusy, variant }: Props)
   const dateLabel = formatInsurerNewsDateLabel(item.publishedAt)
   const headline = normalizeInsurerNewsText(item.summary) || normalizeInsurerNewsText(item.title)
   const hasHeadline = headline.length > 0
-  const hasImageUrl = insurerNewsListItemHasImageSource(item)
   const imageUrl = resolveInsurerNewsListCardImageUrl(item)
-  const imageInstanceKey = `${item.id}:${imageUrl ?? ''}`
+  const hasImageUrl = Boolean(imageUrl)
+  const imageInstanceKey = `${item.id}:${imageUrl}`
 
   const textPreviewPlaceholder = (
     <div className="news-card__placeholder news-card__placeholder--content" aria-hidden>
@@ -145,11 +165,10 @@ export function NewsCard({ item, onOpen, onDelete, deleteBusy, variant }: Props)
     />
   ) : (
     <div className="news-card__media">
-      {hasImageUrl ? (
-        <img src={imageUrl} alt="" loading="lazy" />
-      ) : hasHeadline ? (
-        textPreviewPlaceholder
+      {hasImageUrl && !desktopImageFailed ? (
+        <DesktopNewsCardImage imageUrl={imageUrl} onFailed={() => setDesktopImageFailed(true)} />
       ) : null}
+      {(!hasImageUrl || desktopImageFailed) && hasHeadline ? textPreviewPlaceholder : null}
     </div>
   )
 

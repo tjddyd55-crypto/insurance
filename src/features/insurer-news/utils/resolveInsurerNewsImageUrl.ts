@@ -2,7 +2,14 @@ import { resolveAbsoluteApiUrl } from '../../../lib/apiClient'
 import { cdnUrlForObjectKey } from '../lib/insurerNewsCdn'
 import type { NewsletterAttachment, NewsletterItem } from '../types'
 
-const OBJECT_KEY_PREFIXES = ['crm-platform/', 'insurer/', 'insurer-news/', 'files/', 'platform-assets/']
+const OBJECT_KEY_PREFIXES = [
+  'insurance/',
+  'crm-platform/',
+  'insurer/',
+  'insurer-news/',
+  'files/',
+  'platform-assets/',
+]
 
 function looksLikeObjectKey(path: string): boolean {
   if (!path || /^https?:\/\//i.test(path)) {
@@ -48,19 +55,29 @@ export function resolveInsurerNewsAttachmentDisplayUrl(
   return resolveInsurerNewsImageUrl(pickInsurerNewsAttachmentUrl(row))
 }
 
-/** 목록 카드 대표 이미지 — DB object_key 최우선, 구형 heroImageUrl fallback */
+/**
+ * 목록 카드 대표 이미지 — 상세 `buildInsurerNewsGalleryUrls` 와 동일 SSOT.
+ * objectKey는 CDN으로 직접 변환(구 `insurance/` 키를 상대경로로 오인하지 않음).
+ */
 export function resolveInsurerNewsListCardImageUrl(
-  item: Pick<NewsletterItem, 'heroImageObjectKey' | 'heroImageUrl'>,
+  item: Pick<NewsletterItem, 'heroImageObjectKey' | 'heroImageUrl' | 'heroImageOpenUrl'>,
 ): string {
-  const heroObjectKey = String(item.heroImageObjectKey ?? '').trim()
-  if (heroObjectKey) {
-    return resolveInsurerNewsImageUrl(heroObjectKey)
+  const viaAttachment = resolveInsurerNewsAttachmentDisplayUrl({
+    objectKey: item.heroImageObjectKey,
+    url: item.heroImageUrl,
+  })
+  if (viaAttachment) {
+    return viaAttachment
   }
-  return resolveInsurerNewsImageUrl(item.heroImageUrl)
+  const openUrl = String(item.heroImageOpenUrl ?? '').trim()
+  if (openUrl) {
+    return resolveAbsoluteApiUrl(openUrl)
+  }
+  return ''
 }
 
 export function insurerNewsListItemHasImageSource(
-  item: Pick<NewsletterItem, 'heroImageObjectKey' | 'heroImageUrl'>,
+  item: Pick<NewsletterItem, 'heroImageObjectKey' | 'heroImageUrl' | 'heroImageOpenUrl'>,
 ): boolean {
-  return Boolean(String(item.heroImageObjectKey ?? '').trim() || String(item.heroImageUrl ?? '').trim())
+  return Boolean(resolveInsurerNewsListCardImageUrl(item))
 }
