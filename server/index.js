@@ -122,6 +122,7 @@ import {
   shouldRequireSignupPhoneProofForRegister,
 } from './lib/signupPhoneVerificationPolicy.js'
 import { isValidSignupUsername, validateSignupUsername } from './lib/signupUsername.js'
+import { resolveSignupDisplayName } from './auth/signupDisplayName.js'
 import { selectCrmBootstrapExtendedForLegacyGa } from './crm/resolveLegacyGaCrmBootstrap.js'
 import { mapCustomerRow } from './lib/customerRowMap.js'
 import { tryGeocodeCustomerOnSave } from './lib/customerGeocodePersist.js'
@@ -2206,7 +2207,7 @@ async function handleRegister(req, res) {
       referralCode: referralCodeCamel,
     } = body
 
-    const displayName = String(nameRaw ?? displayNameRaw ?? '').trim()
+    const displayName = resolveSignupDisplayName(body)
     if (!displayName) {
       res.status(400).json({ message: '이름을 입력해 주세요.' })
       return
@@ -2558,7 +2559,13 @@ async function handleRegister(req, res) {
       ])
     }
 
-    const payload = { id, username: normalizedUsername, ga_id: gaId, createdAt: createdAtIso }
+    const payload = {
+      id,
+      username: normalizedUsername,
+      ga_id: gaId,
+      display_name: displayName,
+      createdAt: createdAtIso,
+    }
     if (tenantRegSignup && industrySignup) {
       payload.industry_code = industrySignup
     }

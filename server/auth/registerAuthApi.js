@@ -3,6 +3,7 @@ import { safeQuery, systemQuery } from '../utils/dbSafeQuery.js'
 import { bootstrapInsuranceBillingSubscriptionOnSignup } from '../insurance-billing/subscriptionLifecycle.js'
 import { ensureReferralCodeForUser } from '../referrals/referralCode.js'
 import { planSignupCodes, applySignupCodesPlan } from '../signup/processSignupCodes.js'
+import { resolveSignupDisplayName } from './signupDisplayName.js'
 import { readPolicyActive } from '../subscription/appSettings.js'
 import { verifySignupPhoneProof, verifyRegistrationSignupPhoneProof } from '../lib/signupPhoneProof.js'
 import { evaluateTenantMembershipLoginBlock, pickPrimaryTenantMembershipForLogin } from '../lib/tenantMembershipAuth.js'
@@ -84,7 +85,7 @@ async function handleRegister(req, res) {
       referralCode: referralCodeCamel,
     } = body
 
-    const displayName = String(nameRaw ?? displayNameRaw ?? '').trim()
+    const displayName = resolveSignupDisplayName(body)
     if (!displayName) {
       res.status(400).json({ message: '이름을 입력해 주세요.' })
       return
@@ -430,7 +431,13 @@ async function handleRegister(req, res) {
       ])
     }
 
-    const payload = { id, username: normalizedUsername, ga_id: gaId, createdAt: createdAtIso }
+    const payload = {
+      id,
+      username: normalizedUsername,
+      ga_id: gaId,
+      display_name: displayName,
+      createdAt: createdAtIso,
+    }
     if (tenantRegSignup && industrySignup) {
       payload.industry_code = industrySignup
     }

@@ -306,6 +306,16 @@ export function ProfilePage() {
       const row = await fetchMe(token)
       setMe(row)
       setDisplayName(row.display_name)
+      if (user && row.id === user.id && row.display_name.trim() !== user.displayName.trim()) {
+        login({
+          token,
+          user: {
+            ...user,
+            displayName: row.display_name.trim(),
+            teamId: row.team_id?.trim() ? row.team_id.trim() : user.teamId,
+          },
+        })
+      }
       setPhoneInput(row.phone_number)
       setPhoneEditDigits(row.phone_number)
       setPhoneChangeProof(null)
@@ -313,7 +323,7 @@ export function ProfilePage() {
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : '프로필을 불러오지 못했습니다.')
     }
-  }, [token])
+  }, [token, user, login])
 
   const loadReferralSummary = useCallback(async () => {
     if (!token) {
