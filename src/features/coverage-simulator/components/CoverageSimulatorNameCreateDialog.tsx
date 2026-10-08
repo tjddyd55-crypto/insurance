@@ -1,82 +1,108 @@
 import { useEffect, useState } from 'react'
 
-import { BaseDialog } from '../../../components/dialog/BaseDialog'
+import Modal from '../../../components/ui/Modal'
+import { FormButton, FormInput } from '../../../components/form'
 
 type Props = {
   open: boolean
   dialogTitle: string
   fieldLabel: string
-  placeholder?: string
   confirmLabel?: string
   initialValue?: string
+  errorMessage?: string | null
   onClose: () => void
-  onConfirm: (value: string) => void
+  onConfirm: (value: string) => void | Promise<void>
 }
 
-/** 시나리오·시뮬레이션 추가 등 단일 이름 입력 생성 모달 SSOT */
+/** 시나리오·시뮬레이션 추가 등 단일 이름 입력 — ONE FC `customer-relations-modal` SSOT */
 export function CoverageSimulatorNameCreateDialog({
   open,
   dialogTitle,
   fieldLabel,
-  placeholder,
   confirmLabel = '만들기',
   initialValue = '',
+  errorMessage = null,
   onClose,
   onConfirm,
 }: Props) {
   const [value, setValue] = useState(initialValue)
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    if (open) setValue(initialValue)
+    if (open) {
+      setValue(initialValue)
+      setSubmitting(false)
+    }
   }, [open, initialValue])
 
   const submit = () => {
     const trimmed = value.trim()
-    if (!trimmed) return
-    onConfirm(trimmed)
+    if (!trimmed || submitting) return
+    setSubmitting(true)
+    try {
+      const result = onConfirm(trimmed)
+      if (result && typeof result.then === 'function') {
+        void result.finally(() => setSubmitting(false))
+        return
+      }
+    } catch {
+      setSubmitting(false)
+      return
+    }
+    setSubmitting(false)
   }
 
   if (!open) return null
 
   return (
-    <BaseDialog
+    <Modal
       open={open}
       onClose={onClose}
       ariaLabel={dialogTitle}
+      panelClassName="customer-relations-modal"
       closeOnBackdrop={false}
-      closeOnEsc
+      closeOnEsc={!submitting}
+      onEscapeRequest={submitting ? undefined : onClose}
       usePortal
     >
-      <h2 className="coverage-simulator-dialog__title">{dialogTitle}</h2>
-      <label className="cs-template-form-field">
-        <span>{fieldLabel}</span>
-        <input
-          className="coverage-simulator-input"
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
-          placeholder={placeholder}
-          autoFocus
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') {
-              event.preventDefault()
-              submit()
-            }
-          }}
-        />
-      </label>
-      <div className="coverage-simulator-dialog__actions">
-        <button type="button" className="coverage-simulator-secondary-btn" onClick={onClose}>
+      <header className="customer-relations-modal__header">
+        <h3 className="customer-relations-modal__title">{dialogTitle}</h3>
+      </header>
+      <div className="customer-relations-modal__body">
+        {errorMessage ? (
+          <p className="coverage-simulator-dialog__error" role="alert">
+            {errorMessage}
+          </p>
+        ) : null}
+        <div className="customer-relations-modal__search">
+          <span className="customer-relation-group-form__field-label">{fieldLabel}</span>
+          <FormInput
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+            autoFocus
+            disabled={submitting}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                submit()
+              }
+            }}
+          />
+        </div>
+      </div>
+      <footer className="customer-relations-modal__footer">
+        <FormButton htmlType="button" variant="secondary" disabled={submitting} onClick={onClose}>
           취소
-        </button>
-        <button
-          type="button"
-          className="coverage-simulator-primary-btn"
-          disabled={!value.trim()}
+        </FormButton>
+        <FormButton
+          htmlType="button"
+          variant="primary"
+          disabled={submitting || !value.trim()}
           onClick={submit}
         >
-          {confirmLabel}
-        </button>
-      </div>
-    </BaseDialog>
+          {submitting ? '만드는 중…' : confirmLabel}
+        </FormButton>
+      </footer>
+    </Modal>
   )
 }
