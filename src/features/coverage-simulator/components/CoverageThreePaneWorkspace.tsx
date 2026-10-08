@@ -105,6 +105,39 @@ export function CoverageThreePaneWorkspace({
   const [renameValidationError, setRenameValidationError] = useState<string | null>(null)
   const [addScenarioOpen, setAddScenarioOpen] = useState(false)
   const [newScenarioName, setNewScenarioName] = useState('')
+  const rowMenuDismissEnabled = Boolean(customerFilter) || simulationMenuMode === 'popover'
+
+  useEffect(() => {
+    if (!rowMenuDismissEnabled) return
+    if (!templateMenuId && !simulationMenuRow) return
+
+    const closeRowMenus = () => {
+      setTemplateMenuId(null)
+      setSimulationMenuRow(null)
+    }
+
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (target.closest('[data-cs-three-pane-row-menu-root="true"]')) return
+      if (target.closest('.coverage-simulator-overlay')) return
+      if (target.closest('[role="dialog"]')) return
+      closeRowMenus()
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      if (addScenarioOpen || renameRow) return
+      closeRowMenus()
+    }
+
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [addScenarioOpen, renameRow, rowMenuDismissEnabled, simulationMenuRow, templateMenuId])
 
   const notifySelection = useCallback(
     (templateId: string | null, simulationId: string | null) => {
@@ -287,14 +320,13 @@ export function CoverageThreePaneWorkspace({
     }
   }
 
-  const useCustomerAddLabels = Boolean(customerFilter)
-  const addScenarioLabel = useCustomerAddLabels
-    ? '+ 시나리오 추가'
+  const addScenarioLabel = customerFilter
+    ? '+ 추가'
     : density === 'compact'
       ? '+ 추가'
       : '+ 시나리오 추가'
-  const addSimulationLabel = useCustomerAddLabels
-    ? '+ 시뮬레이션 추가'
+  const addSimulationLabel = customerFilter
+    ? '+ 추가'
     : density === 'compact'
       ? '+ 추가'
       : '+ 시뮬레이션 추가'
@@ -391,7 +423,11 @@ export function CoverageThreePaneWorkspace({
             </header>
             <div className="cs-three-pane__scroll">
               {templates.map((template) => (
-                <div key={template.id} className="cs-three-pane-scenario-row">
+                <div
+                key={template.id}
+                className="cs-three-pane-scenario-row"
+                data-cs-three-pane-row-menu-root="true"
+              >
                   <button
                     type="button"
                     className={`cs-three-pane-scenario-row__main${
@@ -410,7 +446,10 @@ export function CoverageThreePaneWorkspace({
                     type="button"
                     className="cs-three-pane-scenario-row__menu"
                     aria-label="시나리오 메뉴"
-                    onClick={() => setTemplateMenuId(templateMenuId === template.id ? null : template.id)}
+                    onClick={() => {
+                      setSimulationMenuRow(null)
+                      setTemplateMenuId(templateMenuId === template.id ? null : template.id)
+                    }}
                   >
                     ⋯
                   </button>
@@ -479,7 +518,11 @@ export function CoverageThreePaneWorkspace({
                 <p className="cs-three-pane__empty-list">저장된 시뮬레이션이 없습니다.</p>
               ) : (
                 simulationRows.map((row) => (
-                  <div key={row.id} className="cs-three-pane-simulation-row">
+                  <div
+                    key={row.id}
+                    className="cs-three-pane-simulation-row"
+                    data-cs-three-pane-row-menu-root="true"
+                  >
                     <button
                       type="button"
                       className={`cs-three-pane-simulation-row__main${
@@ -502,9 +545,10 @@ export function CoverageThreePaneWorkspace({
                       type="button"
                       className="cs-three-pane-simulation-row__menu"
                       aria-label="시뮬레이션 메뉴"
-                      onClick={() =>
+                      onClick={() => {
+                        setTemplateMenuId(null)
                         setSimulationMenuRow((current) => (current?.id === row.id ? null : row))
-                      }
+                      }}
                     >
                       ⋯
                     </button>

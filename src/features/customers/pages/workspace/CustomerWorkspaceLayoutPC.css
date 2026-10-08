@@ -92,9 +92,13 @@
 }
 
 .pc-root .customer-workspace-layout__right--page-tabs > .customer-workspace-layout__right-header {
-  padding: 6px 10px 0;
-  background: var(--bg-main);
+  padding: 0 8px;
+  background: var(--customer-workspace-page-surface, #ffffff);
   border-bottom: none;
+}
+
+.pc-root .customer-workspace-layout__right--page-tabs {
+  background: var(--customer-workspace-page-surface, #ffffff);
 }
 
 .pc-root .customer-workspace-layout__left {

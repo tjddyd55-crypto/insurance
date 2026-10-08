@@ -1,4 +1,4 @@
-/* PC 고객 workspace — 실제 서류철형 page tab + 한 장의 content surface */
+/* PC 고객 workspace — 파일철형 index tab + 본문 한 장 (외곽 카드 없음) */
 
 .customer-workspace-page {
   --customer-workspace-page-surface: #ffffff;
@@ -19,10 +19,10 @@
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
-  margin: 0 8px 8px;
+  margin: 0;
   box-sizing: border-box;
-  border: 1px solid var(--ws-border);
-  border-radius: 12px;
+  border: none;
+  border-radius: 0;
   background: var(--ws-page-surface);
   box-shadow: none;
   overflow: hidden;
@@ -32,7 +32,7 @@
   flex-shrink: 0;
   position: relative;
   z-index: 3;
-  padding: 8px 20px 0;
+  padding: 0 16px;
   background: var(--ws-page-surface);
   border-bottom: none;
 }
@@ -113,7 +113,7 @@
   min-height: var(--ws-active-height);
   padding: 0 18px;
   border-color: var(--ws-border);
-  border-bottom: 1px solid var(--ws-page-surface);
+  border-bottom: none;
   border-radius: 10px 10px 0 0;
   background: var(--ws-page-surface);
   color: var(--ws-tab-active-text);
@@ -123,17 +123,15 @@
   margin-bottom: 0;
 }
 
-/* active 탭 좌·우 세로선이 본문 상단과 끊기지 않도록 하단 면을 본문과 겹침 */
+/* active 탭 하단 가로선 제거 — 본문과 동일 surface로 덮음 */
 .customer-workspace-page__tab--active::after {
   content: '';
   position: absolute;
-  left: -1px;
-  right: -1px;
+  left: 0;
+  right: 0;
   bottom: -1px;
-  height: 2px;
+  height: 3px;
   background: var(--customer-workspace-page-surface);
-  border-left: 1px solid var(--ws-border);
-  border-right: 1px solid var(--ws-border);
   pointer-events: none;
   z-index: 2;
 }
@@ -148,20 +146,20 @@
   min-height: 0;
   min-width: 0;
   overflow: auto;
-  padding: 20px 20px 22px;
+  padding: 16px 16px 20px;
   border: none;
-  border-top: 1px solid var(--ws-border);
+  border-top: none;
   border-radius: 0;
   background: var(--ws-page-surface);
   box-sizing: border-box;
   position: relative;
   z-index: 4;
-  margin-top: -1px;
+  margin-top: 0;
 }
 
 .customer-workspace-layout__right--page-tabs > .customer-workspace-layout__right-header {
   border-bottom: none;
-  padding-bottom: 2px;
+  padding-bottom: 0;
 }
 
 /* 고객 workspace 안에서만: 고객 파일·카드 수납·시뮬레이션의 회색 page 배경 제거 */
