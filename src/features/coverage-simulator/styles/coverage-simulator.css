@@ -131,6 +131,14 @@ body.coverage-simulator-immersive .pc-workspace-layout > main {
   color: #dc2626;
 }
 
+/* 시나리오·시뮬레이션 이름 추가 — 입력 바로 아래 footer 구분선 제거 */
+.customer-ui-modal-panel.customer-relations-modal.coverage-simulator-name-create-modal
+  .customer-relations-modal__footer {
+  margin-top: 20px;
+  padding-top: 0;
+  border-top: none;
+}
+
 .coverage-simulator-dialog__actions {
   display: flex;
   gap: var(--cs-space-2);
