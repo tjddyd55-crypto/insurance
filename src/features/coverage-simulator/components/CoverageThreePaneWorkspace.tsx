@@ -446,7 +446,8 @@ export function CoverageThreePaneWorkspace({
                     type="button"
                     className="cs-three-pane-scenario-row__menu"
                     aria-label="시나리오 메뉴"
-                    onClick={() => {
+                    onClick={(event) => {
+                      event.stopPropagation()
                       setSimulationMenuRow(null)
                       setTemplateMenuId(templateMenuId === template.id ? null : template.id)
                     }}
@@ -545,7 +546,8 @@ export function CoverageThreePaneWorkspace({
                       type="button"
                       className="cs-three-pane-simulation-row__menu"
                       aria-label="시뮬레이션 메뉴"
-                      onClick={() => {
+                      onClick={(event) => {
+                        event.stopPropagation()
                         setTemplateMenuId(null)
                         setSimulationMenuRow((current) => (current?.id === row.id ? null : row))
                       }}
@@ -591,7 +593,17 @@ export function CoverageThreePaneWorkspace({
             </div>
           </aside>
 
-          <section className="cs-three-pane__column cs-three-pane__column--content">{contentPane}</section>
+          <section className="cs-three-pane__column cs-three-pane__column--content">
+            {customerFilter ? (
+              <header
+                className="cs-three-pane__column-header cs-three-pane__column-header--detail-sync"
+                aria-hidden="true"
+              >
+                <h2>&#8203;</h2>
+              </header>
+            ) : null}
+            {contentPane}
+          </section>
         </div>
 
         {simulationMenuMode === 'sheet' ? (

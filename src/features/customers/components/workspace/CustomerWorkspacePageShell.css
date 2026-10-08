@@ -186,6 +186,8 @@
 .customer-workspace-page__body:has(.customer-coverage-simulations--workspace) {
   display: flex;
   flex-direction: column;
+  padding: 0;
+  overflow: hidden;
 }
 
 /* 패널 안 제목/설명 — 별도 회색 카드 없이 본문 흐름 */

@@ -79,6 +79,41 @@
   padding-bottom: var(--cs-space-4);
 }
 
+/* 고객 workspace embed: 중앙 타임라인 선과 ↑↓ 겹침 완화 */
+.customer-coverage-simulations--workspace .cs-axis-event__spine--reorder {
+  position: relative;
+  width: 24px;
+  margin: 0 auto;
+  background: #ffffff;
+  z-index: 2;
+}
+
+.customer-coverage-simulations--workspace .cs-axis-event__spine--reorder .cs-axis-reorder {
+  position: relative;
+  z-index: 2;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.customer-coverage-simulations--workspace .cs-axis-event__spine--reorder .cs-axis-reorder__btn {
+  width: 22px;
+  min-width: 22px;
+  height: 14px;
+  min-height: 14px;
+  font-size: 0.625rem;
+  line-height: 1;
+  background: #ffffff;
+}
+
+.customer-coverage-simulations--workspace .cs-axis-timeline__line {
+  z-index: 0;
+}
+
+.customer-coverage-simulations--workspace .cs-axis-marker__arrow {
+  font-size: 0.875rem;
+  opacity: 0.85;
+}
+
 .cs-mobile-dock--totals-only {
   padding: 0 4px;
   box-sizing: border-box;
