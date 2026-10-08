@@ -12318,6 +12318,10 @@ body:has(.legal-page-shell){
   padding: 0;
 }
 
+.pc-root .customer-workspace-layout__right--page-tabs .customer-workspace-page__body.customer-workspace-layout__right-body {
+  padding: 22px 24px 24px;
+}
+
 .customer-workspace-layout__embedded-car{
   display: flex;
   flex-direction: column;
