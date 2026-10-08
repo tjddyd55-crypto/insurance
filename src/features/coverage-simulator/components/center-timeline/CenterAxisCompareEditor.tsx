@@ -43,9 +43,12 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   const { showToast } = useCoverageSimulatorToast()
   // CRM·preview-mobile은 같은 최신 타임라인이다. preview-pc만 넓은 PC 툴바를 유지한다.
   const useLatestMobileEditor = variant === 'mobile'
+  // 고객 workspace PC embed: 타임라인 chrome은 CRM mobile이지만 메뉴·폼은 PC(popover·시트)를 쓴다.
+  const useCustomerPcChrome = simulatorOrigin === 'customer' && useLatestMobileEditor
+  const resolvedItemMenuMode = useLatestMobileEditor && !useCustomerPcChrome ? 'action-sheet' : 'popover'
   // preview-pc 시트는 별 토글이 없다. CRM·모바일 미리보기는 같은 ☆/★ 카탈로그를 쓴다.
   const favoriteUserKey = layoutMode === 'preview-pc' ? null : userKey
-  const useMobileExclusiveForm = variant === 'mobile'
+  const useMobileExclusiveForm = variant === 'mobile' && !useCustomerPcChrome
   const [titleDialogOpen, setTitleDialogOpen] = useState(false)
   const [titleValidationError, setTitleValidationError] = useState<string | null>(null)
   const [inlineAmountEdit, setInlineAmountEdit] = useState<InlineAmountEditTarget>(null)
@@ -398,7 +401,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
             variant={variant}
             showGrandTotal={!useLatestMobileEditor}
             compactInsert={useLatestMobileEditor}
-            itemMenuMode={useLatestMobileEditor ? 'action-sheet' : 'popover'}
+            itemMenuMode={resolvedItemMenuMode}
             onEditItem={openFullAmountEdit}
             onMoveItem={moveItem}
             onRemoveItem={requestRemoveCoverageItem}
@@ -420,7 +423,7 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
             viewModel={viewModel}
             readOnly={false}
             items={sortedItems}
-            itemMenuMode={useLatestMobileEditor ? 'action-sheet' : 'popover'}
+            itemMenuMode={resolvedItemMenuMode}
             showGrandTotal={!useLatestMobileEditor}
             onEditItem={openFullAmountEdit}
             onMoveItem={moveItem}
