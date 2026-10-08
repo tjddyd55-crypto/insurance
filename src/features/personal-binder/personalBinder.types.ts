@@ -19,7 +19,8 @@ export type PersonalBinderMaterial = {
   fileSize: number
   pageCount: number
   checksumSha256?: string | null
-  sourceType?: 'personal' | 'official'
+  sourceType?: 'personal' | 'official' | 'my_file' | 'team_file'
+  sourceRef?: string | null
   binderCount?: number
   createdAt?: string
   updatedAt?: string

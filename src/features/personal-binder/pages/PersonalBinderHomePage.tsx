@@ -14,7 +14,7 @@ import {
   deleteStorageFile,
 } from '../../storage/api/storageApi'
 import { PersonalBinderFolderSidebar } from '../components/PersonalBinderFolderSidebar'
-import { MaterialUploadDialog } from '../components/MaterialUploadDialog'
+import { MaterialAddSourceDialog } from '../components/MaterialAddSourceDialog'
 import {
   countItemsForUserFolder,
   countItemsInFolderSelection,
@@ -77,7 +77,7 @@ export default function PersonalBinderHomePage() {
   const [binderForm, setBinderForm] = useState<BinderFormState | null>(null)
   const [materialRename, setMaterialRename] = useState<PersonalBinderMaterial | null>(null)
   const [materialTitle, setMaterialTitle] = useState('')
-  const [uploadOpen, setUploadOpen] = useState(false)
+  const [addSourceOpen, setAddSourceOpen] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const activeFolders = materialTab ? materialFolders : binderFolders
@@ -278,8 +278,8 @@ export default function PersonalBinderHomePage() {
   }
 
   const primaryAction = materialTab ? (
-    <FormButton variant="primary" size="sm" onClick={() => setUploadOpen(true)}>
-      PDF 업로드
+    <FormButton variant="primary" size="sm" onClick={() => setAddSourceOpen(true)}>
+      자료 추가
     </FormButton>
   ) : (
     <FormButton
@@ -378,7 +378,7 @@ export default function PersonalBinderHomePage() {
         {!loading && materialTab && visibleMaterials.length === 0 ? (
           <section className="personal-binder-empty">
             <h2>이 폴더에 자료가 없습니다.</h2>
-            <p>PDF를 업로드하면 여러 바인더에서 재사용할 수 있습니다.</p>
+            <p>PDF·이미지를 추가하면 여러 바인더에서 재사용할 수 있습니다.</p>
           </section>
         ) : null}
 
@@ -458,11 +458,13 @@ export default function PersonalBinderHomePage() {
         )
       ) : null}
 
-      <MaterialUploadDialog
-        open={uploadOpen}
+      <MaterialAddSourceDialog
+        open={addSourceOpen}
         token={token}
+        materials={materials}
         folderId={folderIdForUpload(materialFolderSelection)}
-        onClose={() => setUploadOpen(false)}
+        mode="library"
+        onClose={() => setAddSourceOpen(false)}
         onUploaded={(material) => setMaterials((rows) => [material, ...rows])}
       />
 

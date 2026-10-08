@@ -139,6 +139,39 @@ export function createPersonalBinderMaterial(
   })
 }
 
+export function createPersonalBinderMaterialFromFile(
+  token: string | null,
+  input: { fileId: number; title: string; folderId?: string | null },
+) {
+  return apiRequest<PersonalBinderMaterial>('/api/personal-binders/materials/from-file', {
+    method: 'POST',
+    token: auth(token),
+    body: JSON.stringify(input),
+  })
+}
+
+export function createPersonalBinderMaterialFromTeam(
+  token: string | null,
+  input: { teamAttachmentId: string; title: string; folderId?: string | null },
+) {
+  return apiRequest<PersonalBinderMaterial>('/api/personal-binders/materials/from-team', {
+    method: 'POST',
+    token: auth(token),
+    body: JSON.stringify(input),
+  })
+}
+
+export function mergePersonalBinderImagesToPdf(
+  token: string | null,
+  input: { title: string; fileIds: number[]; folderId?: string | null },
+) {
+  return apiRequest<PersonalBinderMaterial>('/api/personal-binders/materials/merge-images', {
+    method: 'POST',
+    token: auth(token),
+    body: JSON.stringify(input),
+  })
+}
+
 export function renamePersonalBinderMaterial(
   token: string | null,
   materialId: string,
