@@ -12,8 +12,12 @@ test('personal binder schema defines folder table and nullable folder_id', async
 })
 
 test('personal binder API exposes folder routes and scoped writes', async () => {
-  const source = await readFile(new URL('../apis/personalBinderApi.js', import.meta.url), 'utf8')
-  assert.match(source, /\/personal-binders\/folders/)
-  assert.match(source, /resolveFolderIdForWrite/)
-  assert.match(source, /INSERT INTO personal_binder_materials[\s\S]*folder_id/)
+  const apiSource = await readFile(new URL('../apis/personalBinderApi.js', import.meta.url), 'utf8')
+  const registerSource = await readFile(
+    new URL('./binderMaterialRegister.js', import.meta.url),
+    'utf8',
+  )
+  assert.match(apiSource, /\/personal-binders\/folders/)
+  assert.match(apiSource, /resolveFolderIdForWrite/)
+  assert.match(registerSource, /INSERT INTO personal_binder_materials[\s\S]*folder_id/)
 })
