@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
+
+type PdfPreviewLocationState = {
+  returnTo?: string
+}
 import { CoveragePdfPreviewZoomSurface } from '../components/CoveragePdfPreviewZoomSurface'
 import { CoverageSimulatorLayout } from '../components/CoverageSimulatorLayout'
 import { CoverageSimulatorToastProvider, useCoverageSimulatorToast } from '../components/CoverageSimulatorToast'
@@ -14,7 +18,9 @@ import { getScenarioById } from '../storage/scenarioRepository'
 function PdfPreviewPageBody() {
   const { scenarioId = '' } = useParams()
   const navigate = useNavigate()
-  const { basePath, userKey } = useCoverageSimulatorScope()
+  const location = useLocation()
+  const { basePath, userKey, simulatorOrigin } = useCoverageSimulatorScope()
+  const returnTo = (location.state as PdfPreviewLocationState | null)?.returnTo
   const printSourceRef = useRef<HTMLDivElement>(null)
   const [busy, setBusy] = useState(false)
   const { showToast } = useCoverageSimulatorToast()
@@ -84,7 +90,17 @@ function PdfPreviewPageBody() {
         <FormButton
           variant="primary"
           className="coverage-simulator-primary-btn"
-          onClick={() => navigate(`${basePath}/scenarios/${scenario.id}`)}
+          onClick={() => {
+            if (returnTo) {
+              navigate(returnTo)
+              return
+            }
+            if (simulatorOrigin === 'customer') {
+              navigate(basePath)
+              return
+            }
+            navigate(`${basePath}/scenarios/${scenario.id}`)
+          }}
         >
           닫기
         </FormButton>

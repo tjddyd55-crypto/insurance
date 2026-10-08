@@ -335,9 +335,57 @@
 .cs-three-pane--customer-embedded {
   flex: 1;
   min-height: 0;
-  max-height: min(520px, 62vh);
-  grid-template-columns: minmax(0, 38%) minmax(0, 1fr);
+  max-height: none;
+  grid-template-columns: minmax(180px, 200px) minmax(200px, 240px) minmax(0, 1fr);
   gap: var(--cs-space-2);
+}
+
+.cs-three-pane--density-compact .cs-three-pane__column-header {
+  padding: var(--cs-space-2) var(--cs-space-2);
+}
+
+.cs-three-pane--density-compact .cs-three-pane__scroll {
+  padding: var(--cs-space-1);
+}
+
+.cs-three-pane--density-compact .cs-three-pane-scenario-row,
+.cs-three-pane--density-compact .cs-three-pane-simulation-row {
+  margin-bottom: 4px;
+}
+
+.cs-three-pane--density-compact .cs-three-pane-scenario-row__main,
+.cs-three-pane--density-compact .cs-three-pane-simulation-row__main {
+  padding: var(--cs-space-1) var(--cs-space-2);
+  border-radius: 6px;
+}
+
+.cs-three-pane--density-compact .cs-three-pane-scenario-row__title,
+.cs-three-pane--density-compact .cs-three-pane-simulation-row__customer {
+  font-size: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cs-three-pane--density-compact .cs-three-pane-scenario-row__meta,
+.cs-three-pane--density-compact .cs-three-pane-simulation-row__date {
+  margin-top: 1px;
+  font-size: 0.625rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cs-three-pane--density-compact .cs-three-pane__column-header h2 {
+  font-size: 0.75rem;
+}
+
+.cs-three-pane--density-compact .cs-three-pane__add {
+  font-size: 0.6875rem;
+}
+
+.customer-coverage-simulations--workspace .cs-three-pane--customer-embedded {
+  min-height: min(560px, 68vh);
 }
 
 .cs-three-pane--customer-embedded .cs-three-pane__column {
