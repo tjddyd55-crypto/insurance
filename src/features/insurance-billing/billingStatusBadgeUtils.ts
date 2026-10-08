@@ -1,4 +1,5 @@
 import type { CheckoutSummary } from './api/insuranceBillingApi'
+import { evaluateActiveBillingEntitlementClient } from './insuranceBillingEntitlement'
 
 export type BillingManageSummary = CheckoutSummary
 
@@ -27,12 +28,48 @@ function formatDotDate(iso: string | null | undefined) {
   return `${y}.${m}.${day}`
 }
 
+function resolveEntitlement(summary: BillingManageSummary) {
+  if (summary.isEntitled === true) {
+    return { entitled: true, reason: summary.entitlementReason ?? 'server_is_entitled' }
+  }
+  if (summary.isEntitled === false) {
+    return { entitled: false, reason: summary.entitlementReason ?? 'server_not_entitled' }
+  }
+  return evaluateActiveBillingEntitlementClient({
+    status: summary.status,
+    subscriptionStatus: summary.subscriptionStatus,
+    trialEndsAt: summary.trialEndsAt,
+    currentPeriodEnd: summary.currentPeriodEnd,
+    nextBillingAt: summary.nextBillingAt,
+    entitlementReason: summary.entitlementReason,
+  })
+}
+
+function expiredPaidBadge(reason: string): BillingStatusBadgeView {
+  if (reason === 'paid_period_expired') {
+    return { label: '이용기간 종료', variant: 'expired', href: '/billing/required' }
+  }
+  return { label: '결제 필요', variant: 'pending', href: '/billing/required' }
+}
+
 export function buildBillingStatusBadgeView(summary: BillingManageSummary | null | undefined): BillingStatusBadgeView | null {
   if (!summary) return null
 
   const status = String(summary.status ?? summary.subscriptionStatus ?? '').trim().toLowerCase()
   const trialEndsAt = summary.trialEndsAt
   const nextBillingAt = summary.nextBillingAt ?? summary.currentPeriodEnd
+  const entitlement = resolveEntitlement(summary)
+
+  if (!entitlement.entitled) {
+    if (status === 'active_paid' || status === 'paid') {
+      return expiredPaidBadge(entitlement.reason)
+    }
+    if (status === 'trialing' || status === 'trial') {
+      if (entitlement.reason === 'trial_expired' || entitlement.reason === 'server_not_entitled') {
+        return { label: '무료기간 종료', variant: 'expired', href: '/billing/required' }
+      }
+    }
+  }
 
   switch (status) {
     case 'pending_payment':
@@ -40,6 +77,9 @@ export function buildBillingStatusBadgeView(summary: BillingManageSummary | null
       return { label: '결제 필요', variant: 'pending', href: '/billing/checkout' }
     case 'trialing':
     case 'trial': {
+      if (!entitlement.entitled) {
+        return { label: '무료기간 종료', variant: 'expired', href: '/billing/required' }
+      }
       const dateLabel = formatDotDate(trialEndsAt)
       return {
         label: dateLabel ? `무료 이용 중 · ${dateLabel}까지` : '무료 이용 중',
@@ -49,6 +89,9 @@ export function buildBillingStatusBadgeView(summary: BillingManageSummary | null
     }
     case 'active_paid':
     case 'paid': {
+      if (!entitlement.entitled) {
+        return expiredPaidBadge(entitlement.reason)
+      }
       const dateLabel = formatDotDate(nextBillingAt)
       return {
         label: dateLabel ? `유료 이용 중 · 다음 결제일 ${dateLabel}` : '유료 이용 중',

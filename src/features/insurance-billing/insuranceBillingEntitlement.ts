@@ -8,7 +8,9 @@ export type BillingEntitlementInput = {
   status?: string | null
   trialEndsAt?: string | null
   currentPeriodEnd?: string | null
+  nextBillingAt?: string | null
   isEntitled?: boolean
+  entitlementReason?: string | null
 }
 
 function formatKstDateKey(iso: string | Date | null | undefined): string | null {
@@ -50,10 +52,10 @@ export function evaluateActiveBillingEntitlementClient(
   now: Date = new Date(),
 ): { entitled: boolean; reason: string } {
   if (input?.isEntitled === true) {
-    return { entitled: true, reason: 'server_is_entitled' }
+    return { entitled: true, reason: input.entitlementReason ?? 'server_is_entitled' }
   }
   if (input?.isEntitled === false) {
-    return { entitled: false, reason: 'server_not_entitled' }
+    return { entitled: false, reason: input.entitlementReason ?? 'server_not_entitled' }
   }
 
   const status = String(input?.subscriptionStatus ?? input?.status ?? '')
@@ -62,6 +64,14 @@ export function evaluateActiveBillingEntitlementClient(
 
   if (!status) {
     return { entitled: false, reason: 'status_missing' }
+  }
+
+  if (status === 'active_paid' || status === 'paid') {
+    const periodEnd = input?.nextBillingAt ?? input?.currentPeriodEnd ?? null
+    if (periodEnd && !isTrialPeriodActiveKstClient(periodEnd, now)) {
+      return { entitled: false, reason: 'paid_period_expired' }
+    }
+    return { entitled: true, reason: status }
   }
 
   if (PAID_STATUSES.has(status)) {
