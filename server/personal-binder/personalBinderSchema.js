@@ -96,4 +96,44 @@ export async function ensurePersonalBinderSchema(executor) {
     ON personal_binder_materials (owner_user_id, ga_id, updated_at DESC)
     WHERE deleted_at IS NULL
   `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS personal_binder_folders (
+      id BIGSERIAL PRIMARY KEY,
+      owner_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id) ON DELETE CASCADE,
+      folder_type TEXT NOT NULL,
+      name TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      deleted_at TIMESTAMPTZ,
+      CONSTRAINT personal_binder_folder_type_check CHECK (folder_type IN ('material', 'binder')),
+      CONSTRAINT personal_binder_folder_order_check CHECK (sort_order >= 0)
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS personal_binder_folders_owner_type_idx
+    ON personal_binder_folders (owner_user_id, ga_id, folder_type, sort_order, id)
+    WHERE deleted_at IS NULL
+  `)
+
+  await executor.query(`
+    ALTER TABLE personal_binder_materials
+    ADD COLUMN IF NOT EXISTS folder_id BIGINT REFERENCES personal_binder_folders(id) ON DELETE SET NULL
+  `)
+  await executor.query(`
+    ALTER TABLE personal_binders
+    ADD COLUMN IF NOT EXISTS folder_id BIGINT REFERENCES personal_binder_folders(id) ON DELETE SET NULL
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS personal_binder_materials_folder_idx
+    ON personal_binder_materials (folder_id)
+    WHERE deleted_at IS NULL
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS personal_binder_binders_folder_idx
+    ON personal_binders (folder_id)
+    WHERE deleted_at IS NULL
+  `)
 }
