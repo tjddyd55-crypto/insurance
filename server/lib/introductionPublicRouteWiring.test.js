@@ -28,3 +28,13 @@ test('AppLayout uses introduction public path SSOT', () => {
   assert.match(layout, /isIntroductionPublicPath/)
   assert.doesNotMatch(layout, /pathname === '\/introduction'/)
 })
+
+
+test('introduction landing releases authenticated PC viewport lock for document scroll', () => {
+  const css = readSrc('src/features/web/introduction-landing.css')
+  assert.match(css, /html:has\(\.intro-landing\)/)
+  assert.match(css, /body:has\(\.intro-landing\)/)
+  assert.match(css, /\.app-root\.app-root--authenticated:has\(\.intro-landing\)/)
+  assert.match(css, /overflow-y:\s*auto/)
+  assert.match(css, /overflow:\s*visible/)
+})
