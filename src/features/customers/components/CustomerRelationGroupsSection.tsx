@@ -43,12 +43,6 @@ type PendingMember = {
   relationshipLabel: string
 }
 
-function groupTypeLabel(type: string): string {
-  if (type === 'BUSINESS') return '사업'
-  if (type === 'ETC') return '기타'
-  return '가족'
-}
-
 function familyConflictMessage(err: ApiError): string {
   const existingName =
     err.data && typeof err.data === 'object' && 'existingGroupName' in err.data
@@ -489,7 +483,9 @@ export function CustomerRelationGroupsSection({
 
   return (
     <div className="customer-relation-groups-section">
-      <h5 className="customer-relation-groups-section__title">가족 그룹</h5>
+      {groups.length === 0 ? (
+        <h5 className="customer-relation-groups-section__title">가족 그룹</h5>
+      ) : null}
       {loading ? (
         <p className="customer-relations-strip__status customer-relations-strip__status--loading">
           불러오는 중…
@@ -524,12 +520,7 @@ export function CustomerRelationGroupsSection({
         {groups.map((group) => (
           <article key={group.id} className="customer-relation-group-card">
             <header className="customer-relation-group-card__header">
-              <div className="customer-relation-group-card__title-wrap">
-                <h5 className="customer-relation-group-card__title">{group.name}</h5>
-                <span className="customer-relation-group-card__type">
-                  {groupTypeLabel(String(group.groupType))}
-                </span>
-              </div>
+              <h5 className="customer-relation-group-card__title">{group.name}</h5>
               <div className="customer-relation-group-card__actions">
                 <button
                   type="button"

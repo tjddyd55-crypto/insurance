@@ -166,11 +166,11 @@ export function CustomerSpecialDatesQuickSection({
             return (
               <li key={item.id ?? item.title} className="customer-quick-crud-card customer-special-date-row">
                 <div className="customer-special-date-row__text">
-                  <span className="customer-special-date-row__title customer-detail-read__field-value">
-                    {item.title || '—'}
-                  </span>
                   <span className="customer-special-date-row__date customer-detail-read__field-value">
                     {item.dateValue || '—'}
+                  </span>
+                  <span className="customer-special-date-row__title customer-detail-read__field-value">
+                    {item.title || '—'}
                   </span>
                 </div>
                 {canMutate && item.id != null ? (

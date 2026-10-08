@@ -718,20 +718,18 @@
 
 .customer-relation-group-card__header {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 6px;
-}
-
-.customer-relation-group-card__title-wrap {
-  display: flex;
+  flex-direction: row;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
   flex-wrap: wrap;
+  gap: 8px 10px;
+  margin-bottom: 6px;
 }
 
 .customer-relation-group-card__title {
   margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 0.95rem;
   font-weight: 700;
   color: var(--text-primary);
