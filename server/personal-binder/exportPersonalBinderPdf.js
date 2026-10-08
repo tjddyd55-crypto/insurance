@@ -1,5 +1,7 @@
 import { PDFDocument } from 'pdf-lib'
 
+import { appendRasterImagePage, isRasterImageMime } from '../pdf-engine/raster/rasterImagePdf.js'
+
 /** 상담 책자 한 권에 합칠 수 있는 최대 페이지. 원본 페이지 복사만 허용한다. */
 export const PERSONAL_BINDER_EXPORT_PAGE_LIMIT = 500
 
@@ -85,25 +87,43 @@ export async function assembleBinderPdf(segments) {
   let expected = 0
   for (const segment of segments) {
     const buffer = segment?.buffer
-    if (!buffer?.length || Buffer.from(buffer.subarray(0, 5)).toString('ascii') !== '%PDF-') {
-      throw Object.assign(new Error('원본 PDF를 읽을 수 없습니다.'), { httpStatus: 409 })
+    const mimeType = String(segment?.mimeType ?? 'application/pdf').toLowerCase().split(';')[0].trim()
+    if (!buffer?.length) {
+      throw Object.assign(new Error('원본 파일을 읽을 수 없습니다.'), { httpStatus: 409 })
     }
-    let source
-    try {
-      source = await PDFDocument.load(buffer, { ignoreEncryption: false })
-    } catch {
-      throw Object.assign(new Error('원본 PDF를 열 수 없습니다.'), { httpStatus: 409 })
-    }
-    const pageCount = source.getPageCount()
-    const indices = segment.pages.map((page) => {
-      if (!Number.isInteger(page) || page < 1 || page > pageCount) {
-        throw Object.assign(new Error('선택한 페이지가 PDF 범위를 벗어났습니다.'), { httpStatus: 409 })
+    if (mimeType === 'application/pdf') {
+      if (Buffer.from(buffer.subarray(0, 5)).toString('ascii') !== '%PDF-') {
+        throw Object.assign(new Error('원본 PDF를 읽을 수 없습니다.'), { httpStatus: 409 })
       }
-      return page - 1
-    })
-    const copied = await merged.copyPages(source, indices)
-    for (const page of copied) merged.addPage(page)
-    expected += copied.length
+      let source
+      try {
+        source = await PDFDocument.load(buffer, { ignoreEncryption: false })
+      } catch {
+        throw Object.assign(new Error('원본 PDF를 열 수 없습니다.'), { httpStatus: 409 })
+      }
+      const pageCount = source.getPageCount()
+      const indices = segment.pages.map((page) => {
+        if (!Number.isInteger(page) || page < 1 || page > pageCount) {
+          throw Object.assign(new Error('선택한 페이지가 PDF 범위를 벗어났습니다.'), { httpStatus: 409 })
+        }
+        return page - 1
+      })
+      const copied = await merged.copyPages(source, indices)
+      for (const page of copied) merged.addPage(page)
+      expected += copied.length
+      continue
+    }
+    if (isRasterImageMime(mimeType) || mimeType === 'image/jpeg') {
+      for (const page of segment.pages) {
+        if (page !== 1) {
+          throw Object.assign(new Error('이미지 자료는 1페이지만 있습니다.'), { httpStatus: 409 })
+        }
+        await appendRasterImagePage(merged, buffer, mimeType)
+        expected += 1
+      }
+      continue
+    }
+    throw Object.assign(new Error('보낼 수 없는 파일 형식입니다.'), { httpStatus: 415 })
   }
   if (expected < 1 || merged.getPageCount() !== expected) {
     throw Object.assign(new Error('바인더 PDF를 만들지 못했습니다.'), { httpStatus: 500 })

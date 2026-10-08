@@ -1,7 +1,19 @@
-import { createHash } from 'node:crypto'
-import { PDFDocument } from 'pdf-lib'
-
 import { readStorageFileBufferFromPath } from '../lib/storageFileObjectKey.js'
+import {
+  buildBinderMaterialPdfFromImages,
+  normalizeBinderMaterialMime,
+} from '../personal-binder/binderMaterialUtils.js'
+import {
+  loadOwnedPersonalStorageFile,
+  persistPersonalStoragePdf,
+  readOwnedPersonalStorageFileBuffer,
+  registerBinderMaterialFromStorageFile,
+} from '../personal-binder/binderMaterialRegister.js'
+import {
+  findOrCreatePersonalFileReference,
+  loadAccessibleTeamAttachment,
+  loadUserTeamId,
+} from '../personal-binder/binderTeamAttachment.js'
 import {
   assembleBinderPdf,
   planBinderExport,
@@ -61,6 +73,7 @@ function mapMaterial(row) {
     pageCount: Number(row.page_count) || 0,
     checksumSha256: row.checksum_sha256,
     sourceType: row.source_type,
+    sourceRef: row.source_ref ?? null,
     binderCount: Number(row.binder_count) || 0,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -231,11 +244,11 @@ function exportFileName(title) {
   return `${base || '내 바인더'}.pdf`
 }
 
-async function readOwnedMaterialPdf(executor, materialId, scope) {
+async function readOwnedMaterialSegment(executor, materialId, scope) {
   const result = await safeQuery(
     executor,
     `
-    SELECT f.file_path
+    SELECT f.file_path, m.mime_type, m.original_file_name
     FROM personal_binder_materials m
     INNER JOIN files f ON f.id = m.file_id
     WHERE m.id = $1
@@ -251,15 +264,17 @@ async function readOwnedMaterialPdf(executor, materialId, scope) {
     `,
     [materialId, scope.userId, scope.gaId],
   )
-  const objectKey = String(result.rows[0]?.file_path ?? '').trim()
+  const row = result.rows[0]
+  const objectKey = String(row?.file_path ?? '').trim()
   if (!objectKey) {
-    throw Object.assign(new Error('원본 PDF를 찾을 수 없습니다.'), { httpStatus: 404 })
+    throw Object.assign(new Error('원본 파일을 찾을 수 없습니다.'), { httpStatus: 404 })
   }
   const buffer = await readStorageFileBufferFromPath(objectKey)
   if (!buffer?.length) {
-    throw Object.assign(new Error('원본 PDF를 찾을 수 없습니다.'), { httpStatus: 404 })
+    throw Object.assign(new Error('원본 파일을 찾을 수 없습니다.'), { httpStatus: 404 })
   }
-  return buffer
+  const mimeType = normalizeBinderMaterialMime(row.mime_type, row.original_file_name)
+  return { buffer, mimeType }
 }
 
 function sendError(error, req, res, handleDbError) {
@@ -337,83 +352,179 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         res.status(400).json({ message: '파일과 자료 제목이 필요합니다.' })
         return
       }
-      const fileResult = await safeQuery(
-        pool,
-        `
-        SELECT id, original_name, display_name, file_path, file_size, mime_type
-        FROM files
-        WHERE id = $1 AND user_id = $2 AND ga_id = $3
-          AND customer_id IS NULL AND status = 'active' AND deleted_at IS NULL
-        LIMIT 1
-        `,
-        [fileId, scope.userId, scope.gaId],
-      )
-      const file = fileResult.rows[0]
+      const file = await loadOwnedPersonalStorageFile(pool, scope, fileId)
       if (!file) {
-        res.status(404).json({ message: '업로드한 PDF 파일을 찾을 수 없습니다.' })
+        res.status(404).json({ message: '업로드한 파일을 찾을 수 없습니다.' })
         return
       }
-      const mimeType = String(file.mime_type ?? '').toLowerCase()
-      const originalName = String(file.original_name ?? file.display_name ?? '')
-      if (mimeType !== 'application/pdf' || !originalName.toLowerCase().endsWith('.pdf')) {
-        res.status(400).json({ message: 'PDF 파일만 자료로 등록할 수 있습니다.' })
-        return
-      }
-      const objectKey = String(file.file_path ?? '').trim()
-      const buffer = await readStorageFileBufferFromPath(objectKey)
-      if (!buffer?.length || buffer.subarray(0, 5).toString() !== '%PDF-') {
-        res.status(400).json({ message: 'PDF 파일 형식이 올바르지 않습니다.' })
-        return
-      }
-      const pdf = await PDFDocument.load(buffer, { ignoreEncryption: false })
-      const pageCount = pdf.getPageCount()
-      const checksum = createHash('sha256').update(buffer).digest('hex')
-      const duplicate = await safeQuery(
-        pool,
-        `
-        SELECT id FROM personal_binder_materials
-        WHERE owner_user_id = $1 AND ga_id = $2 AND checksum_sha256 = $3 AND deleted_at IS NULL
-        LIMIT 1
-        `,
-        [scope.userId, scope.gaId, checksum],
-      )
-      if (duplicate.rowCount > 0) {
-        res.status(409).json({
-          code: 'DUPLICATE_MATERIAL',
-          message: '이미 자료 보관함에 등록된 PDF입니다.',
-          materialId: String(duplicate.rows[0].id),
+      const folderId = await resolveFolderIdForWrite(pool, scope, 'material', req.body?.folderId)
+      try {
+        const row = await registerBinderMaterialFromStorageFile(pool, scope, file, {
+          title,
+          folderId,
+          sourceType: 'personal',
+          sourceRef: null,
         })
+        res.status(201).json(mapMaterial(row))
+      } catch (error) {
+        if (error?.code === 'DUPLICATE_MATERIAL') {
+          res.status(409).json({
+            code: 'DUPLICATE_MATERIAL',
+            message: error.message,
+            materialId: error.materialId,
+          })
+          return
+        }
+        throw error
+      }
+    } catch (error) {
+      sendError(error, req, res, handleDbError)
+    }
+  })
+
+  apiRouter.post('/personal-binders/materials/from-file', requireAuth, async (req, res) => {
+    try {
+      const scope = requestScope(req, res)
+      if (!scope) return
+      const fileId = positiveId(req.body?.fileId)
+      const title = normalizedText(req.body?.title, 200, true)
+      if (!fileId || !title) {
+        res.status(400).json({ message: '파일과 자료 제목이 필요합니다.' })
         return
       }
-      const folderId = await resolveFolderIdForWrite(
+      const file = await loadOwnedPersonalStorageFile(pool, scope, fileId)
+      if (!file) {
+        res.status(404).json({ message: '내 파일을 찾을 수 없습니다.' })
+        return
+      }
+      const folderId = await resolveFolderIdForWrite(pool, scope, 'material', req.body?.folderId)
+      try {
+        const row = await registerBinderMaterialFromStorageFile(pool, scope, file, {
+          title,
+          folderId,
+          sourceType: 'my_file',
+          sourceRef: String(fileId),
+        })
+        res.status(201).json(mapMaterial(row))
+      } catch (error) {
+        if (error?.code === 'DUPLICATE_MATERIAL') {
+          res.status(409).json({
+            code: 'DUPLICATE_MATERIAL',
+            message: error.message,
+            materialId: error.materialId,
+          })
+          return
+        }
+        throw error
+      }
+    } catch (error) {
+      sendError(error, req, res, handleDbError)
+    }
+  })
+
+  apiRouter.post('/personal-binders/materials/from-team', requireAuth, async (req, res) => {
+    try {
+      const scope = requestScope(req, res)
+      if (!scope) return
+      const attachmentId = positiveId(req.body?.teamAttachmentId ?? req.body?.attachmentId)
+      const title = normalizedText(req.body?.title, 200, true)
+      if (!attachmentId || !title) {
+        res.status(400).json({ message: '팀 자료와 제목이 필요합니다.' })
+        return
+      }
+      const teamId = await loadUserTeamId(pool, scope.userId, scope.gaId)
+      if (!teamId) {
+        res.status(400).json({ message: '팀에 소속되어 있지 않습니다.' })
+        return
+      }
+      const attachment = await loadAccessibleTeamAttachment(pool, { ...scope, teamId }, attachmentId)
+      const fileRow = await findOrCreatePersonalFileReference(
         pool,
         scope,
-        'material',
-        req.body?.folderId,
+        attachment.objectKey,
+        attachment.fileName,
+        attachment.mimeType,
+        attachment.buffer.length,
       )
-      const insert = await safeQuery(
-        pool,
-        `
-        INSERT INTO personal_binder_materials (
-          owner_user_id, ga_id, folder_id, file_id, title, original_file_name,
-          mime_type, file_size, page_count, checksum_sha256
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, 'application/pdf', $7, $8, $9)
-        RETURNING *, 0::int AS binder_count
-        `,
-        [
-          scope.userId,
-          scope.gaId,
-          folderId,
-          fileId,
+      const folderId = await resolveFolderIdForWrite(pool, scope, 'material', req.body?.folderId)
+      try {
+        const row = await registerBinderMaterialFromStorageFile(pool, scope, fileRow, {
           title,
-          originalName,
-          Number(file.file_size) || buffer.length,
-          pageCount,
-          checksum,
-        ],
-      )
-      res.status(201).json(mapMaterial(insert.rows[0]))
+          folderId,
+          sourceType: 'team_file',
+          sourceRef: String(attachmentId),
+        })
+        res.status(201).json(mapMaterial(row))
+      } catch (error) {
+        if (error?.code === 'DUPLICATE_MATERIAL') {
+          res.status(409).json({
+            code: 'DUPLICATE_MATERIAL',
+            message: error.message,
+            materialId: error.materialId,
+          })
+          return
+        }
+        throw error
+      }
+    } catch (error) {
+      sendError(error, req, res, handleDbError)
+    }
+  })
+
+  apiRouter.post('/personal-binders/materials/merge-images', requireAuth, async (req, res) => {
+    try {
+      const scope = requestScope(req, res)
+      if (!scope) return
+      const title = normalizedText(req.body?.title, 200, true)
+      const rawIds = Array.isArray(req.body?.fileIds) ? req.body.fileIds : []
+      const fileIds = rawIds.map((value) => positiveId(value)).filter(Boolean)
+      if (!title || fileIds.length < 2) {
+        res.status(400).json({ message: '이미지 2장 이상과 PDF 제목이 필요합니다.' })
+        return
+      }
+      if (fileIds.length > 30) {
+        res.status(400).json({ message: '한 번에 묶을 수 있는 이미지는 30장까지입니다.' })
+        return
+      }
+      /** @type {Array<{ bytes: Buffer, mime: string, fileName: string }>} */
+      const images = []
+      for (const fileId of fileIds) {
+        const { file, buffer, mimeType } = await readOwnedPersonalStorageFileBuffer(pool, scope, fileId)
+        const normalized = normalizeBinderMaterialMime(mimeType, file.original_name ?? file.display_name)
+        if (normalized === 'application/pdf') {
+          res.status(400).json({ message: '이미지 파일만 PDF로 묶을 수 있습니다.' })
+          return
+        }
+        images.push({
+          bytes: buffer,
+          mime: normalized,
+          fileName: String(file.original_name ?? file.display_name ?? 'image'),
+        })
+      }
+      const pdfBuffer = await buildBinderMaterialPdfFromImages(images)
+      const pdfName = title.trim().toLowerCase().endsWith('.pdf') ? title.trim() : `${title.trim()}.pdf`
+      const gaCode = String(req.user?.gaCode ?? scope.gaId)
+      const fileRow = await persistPersonalStoragePdf(pool, scope, gaCode, pdfBuffer, pdfName)
+      const folderId = await resolveFolderIdForWrite(pool, scope, 'material', req.body?.folderId)
+      try {
+        const row = await registerBinderMaterialFromStorageFile(pool, scope, fileRow, {
+          title: title.trim(),
+          folderId,
+          sourceType: 'personal',
+          sourceRef: null,
+        })
+        res.status(201).json(mapMaterial(row))
+      } catch (error) {
+        if (error?.code === 'DUPLICATE_MATERIAL') {
+          res.status(409).json({
+            code: 'DUPLICATE_MATERIAL',
+            message: error.message,
+            materialId: error.materialId,
+          })
+          return
+        }
+        throw error
+      }
     } catch (error) {
       sendError(error, req, res, handleDbError)
     }
@@ -1106,12 +1217,16 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
       const buffers = new Map()
       const segments = []
       for (const job of jobs) {
-        let buffer = buffers.get(job.materialId)
-        if (!buffer) {
-          buffer = await readOwnedMaterialPdf(pool, job.materialId, scope)
-          buffers.set(job.materialId, buffer)
+        let segment = buffers.get(job.materialId)
+        if (!segment) {
+          segment = await readOwnedMaterialSegment(pool, job.materialId, scope)
+          buffers.set(job.materialId, segment)
         }
-        segments.push({ buffer, pages: job.pages })
+        segments.push({
+          buffer: segment.buffer,
+          mimeType: segment.mimeType,
+          pages: job.pages,
+        })
       }
       const pdf = await assembleBinderPdf(segments)
       const fileName = exportFileName(detail.title)
