@@ -7,6 +7,12 @@ import {
   planBinderExport,
 } from '../personal-binder/exportPersonalBinderPdf.js'
 import { safeQuery } from '../utils/dbSafeQuery.js'
+import {
+  getOwnedFolder,
+  mapPersonalBinderFolder,
+  PERSONAL_BINDER_FOLDER_TYPES,
+  resolveFolderIdForWrite,
+} from '../personal-binder/personalBinderFolderHelpers.js'
 
 function requestScope(req, res) {
   const userId = String(req.user?.id ?? '').trim()
@@ -46,6 +52,7 @@ export function normalizePageSelection(value, pageCount) {
 function mapMaterial(row) {
   return {
     id: String(row.id),
+    folderId: row.folder_id != null ? String(row.folder_id) : null,
     fileId: Number(row.file_id),
     title: row.title,
     originalFileName: row.original_file_name,
@@ -63,6 +70,7 @@ function mapMaterial(row) {
 function mapBinderSummary(row) {
   return {
     id: String(row.id),
+    folderId: row.folder_id != null ? String(row.folder_id) : null,
     title: row.title,
     description: row.description,
     sectionCount: Number(row.section_count) || 0,
@@ -77,7 +85,7 @@ async function getOwnedBinder(executor, binderId, scope) {
   const result = await safeQuery(
     executor,
     `
-    SELECT id, title, description, created_at, updated_at
+    SELECT id, title, description, folder_id, created_at, updated_at
     FROM personal_binders
     WHERE id = $1 AND owner_user_id = $2 AND ga_id = $3 AND deleted_at IS NULL
     LIMIT 1
@@ -377,17 +385,33 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         })
         return
       }
+      const folderId = await resolveFolderIdForWrite(
+        pool,
+        scope,
+        'material',
+        req.body?.folderId,
+      )
       const insert = await safeQuery(
         pool,
         `
         INSERT INTO personal_binder_materials (
-          owner_user_id, ga_id, file_id, title, original_file_name,
+          owner_user_id, ga_id, folder_id, file_id, title, original_file_name,
           mime_type, file_size, page_count, checksum_sha256
         )
-        VALUES ($1, $2, $3, $4, $5, 'application/pdf', $6, $7, $8)
+        VALUES ($1, $2, $3, $4, $5, $6, 'application/pdf', $7, $8, $9)
         RETURNING *, 0::int AS binder_count
         `,
-        [scope.userId, scope.gaId, fileId, title, originalName, Number(file.file_size) || buffer.length, pageCount, checksum],
+        [
+          scope.userId,
+          scope.gaId,
+          folderId,
+          fileId,
+          title,
+          originalName,
+          Number(file.file_size) || buffer.length,
+          pageCount,
+          checksum,
+        ],
       )
       res.status(201).json(mapMaterial(insert.rows[0]))
     } catch (error) {
@@ -480,6 +504,151 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
     }
   })
 
+  apiRouter.get('/personal-binders/folders', requireAuth, async (req, res) => {
+    try {
+      const scope = requestScope(req, res)
+      if (!scope) return
+      const folderType = String(req.query?.type ?? '').trim()
+      if (!PERSONAL_BINDER_FOLDER_TYPES.has(folderType)) {
+        res.status(400).json({ message: '폴더 유형이 올바르지 않습니다.' })
+        return
+      }
+      const result = await safeQuery(
+        pool,
+        `
+        SELECT id, folder_type, name, sort_order, created_at, updated_at
+        FROM personal_binder_folders
+        WHERE owner_user_id = $1 AND ga_id = $2 AND folder_type = $3 AND deleted_at IS NULL
+        ORDER BY sort_order ASC, id ASC
+        `,
+        [scope.userId, scope.gaId, folderType],
+      )
+      res.json(result.rows.map(mapPersonalBinderFolder))
+    } catch (error) {
+      sendError(error, req, res, handleDbError)
+    }
+  })
+
+  apiRouter.post('/personal-binders/folders', requireAuth, async (req, res) => {
+    try {
+      const scope = requestScope(req, res)
+      if (!scope) return
+      const folderType = String(req.body?.type ?? '').trim()
+      const name = normalizedText(req.body?.name, 80, true)
+      if (!PERSONAL_BINDER_FOLDER_TYPES.has(folderType) || !name) {
+        res.status(400).json({ message: '폴더 이름과 유형이 필요합니다.' })
+        return
+      }
+      const orderResult = await safeQuery(
+        pool,
+        `
+        SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_order
+        FROM personal_binder_folders
+        WHERE owner_user_id = $1 AND ga_id = $2 AND folder_type = $3 AND deleted_at IS NULL
+        `,
+        [scope.userId, scope.gaId, folderType],
+      )
+      const sortOrder = Number(orderResult.rows[0]?.next_order ?? 0)
+      const insert = await safeQuery(
+        pool,
+        `
+        INSERT INTO personal_binder_folders (owner_user_id, ga_id, folder_type, name, sort_order)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id, folder_type, name, sort_order, created_at, updated_at
+        `,
+        [scope.userId, scope.gaId, folderType, name, sortOrder],
+      )
+      res.status(201).json(mapPersonalBinderFolder(insert.rows[0]))
+    } catch (error) {
+      sendError(error, req, res, handleDbError)
+    }
+  })
+
+  apiRouter.patch('/personal-binders/folders/:folderId', requireAuth, async (req, res) => {
+    try {
+      const scope = requestScope(req, res)
+      if (!scope) return
+      const folderId = positiveId(req.params.folderId)
+      const name = normalizedText(req.body?.name, 80, true)
+      if (!folderId || !name) {
+        res.status(400).json({ message: '폴더 이름을 입력해 주세요.' })
+        return
+      }
+      const result = await safeQuery(
+        pool,
+        `
+        UPDATE personal_binder_folders
+        SET name = $1, updated_at = NOW()
+        WHERE id = $2 AND owner_user_id = $3 AND ga_id = $4 AND deleted_at IS NULL
+        RETURNING id, folder_type, name, sort_order, created_at, updated_at
+        `,
+        [name, folderId, scope.userId, scope.gaId],
+      )
+      if (result.rowCount === 0) {
+        res.status(404).json({ message: '폴더를 찾을 수 없습니다.' })
+        return
+      }
+      res.json(mapPersonalBinderFolder(result.rows[0]))
+    } catch (error) {
+      sendError(error, req, res, handleDbError)
+    }
+  })
+
+  apiRouter.delete('/personal-binders/folders/:folderId', requireAuth, async (req, res) => {
+    const client = await pool.connect()
+    try {
+      const scope = requestScope(req, res)
+      if (!scope) return
+      const folderId = positiveId(req.params.folderId)
+      if (!folderId) {
+        res.status(400).json({ message: '잘못된 폴더 ID입니다.' })
+        return
+      }
+      const folderRow = await getOwnedFolder(client, folderId, scope, 'material')
+        ?? await getOwnedFolder(client, folderId, scope, 'binder')
+      if (!folderRow) {
+        res.status(404).json({ message: '폴더를 찾을 수 없습니다.' })
+        return
+      }
+      const folderType = folderRow.folder_type
+      await client.query('BEGIN')
+      if (folderType === 'material') {
+        await client.query(
+          `
+          UPDATE personal_binder_materials
+          SET folder_id = NULL, updated_at = NOW()
+          WHERE folder_id = $1 AND owner_user_id = $2 AND ga_id = $3 AND deleted_at IS NULL
+          `,
+          [folderId, scope.userId, scope.gaId],
+        )
+      } else {
+        await client.query(
+          `
+          UPDATE personal_binders
+          SET folder_id = NULL, updated_at = NOW()
+          WHERE folder_id = $1 AND owner_user_id = $2 AND ga_id = $3 AND deleted_at IS NULL
+          `,
+          [folderId, scope.userId, scope.gaId],
+        )
+      }
+      await client.query(
+        `
+        UPDATE personal_binder_folders
+        SET deleted_at = NOW(), updated_at = NOW()
+        WHERE id = $1 AND owner_user_id = $2 AND ga_id = $3
+        `,
+        [folderId, scope.userId, scope.gaId],
+      )
+      await client.query('COMMIT')
+      res.json({ ok: true })
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {})
+      sendError(error, req, res, handleDbError)
+    } finally {
+      client.release()
+    }
+  })
+
   apiRouter.get('/personal-binders', requireAuth, async (req, res) => {
     try {
       const scope = requestScope(req, res)
@@ -523,14 +692,20 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         res.status(400).json({ message: '바인더 이름을 입력해 주세요.' })
         return
       }
+      const folderId = await resolveFolderIdForWrite(
+        pool,
+        scope,
+        'binder',
+        req.body?.folderId,
+      )
       const result = await safeQuery(
         pool,
         `
-        INSERT INTO personal_binders (owner_user_id, ga_id, title, description)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO personal_binders (owner_user_id, ga_id, folder_id, title, description)
+        VALUES ($1, $2, $3, $4, $5)
         RETURNING *, 0::int AS section_count, 0::int AS material_count, 0::int AS page_count
         `,
-        [scope.userId, scope.gaId, title, description],
+        [scope.userId, scope.gaId, folderId, title, description],
       )
       res.status(201).json(mapBinderSummary(result.rows[0]))
     } catch (error) {
@@ -647,11 +822,17 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
       await client.query('BEGIN')
       const binderInsert = await client.query(
         `
-        INSERT INTO personal_binders (owner_user_id, ga_id, title, description)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO personal_binders (owner_user_id, ga_id, folder_id, title, description)
+        VALUES ($1, $2, $3, $4, $5)
         RETURNING id
         `,
-        [scope.userId, scope.gaId, requestedTitle || `${source.title} 복사본`, source.description],
+        [
+          scope.userId,
+          scope.gaId,
+          source.folder_id ?? null,
+          requestedTitle || `${source.title} 복사본`,
+          source.description,
+        ],
       )
       const newBinderId = binderInsert.rows[0].id
       const sections = await client.query(
