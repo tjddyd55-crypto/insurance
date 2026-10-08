@@ -320,14 +320,15 @@
   cursor: pointer;
 }
 
-.customer-coverage-simulations--workspace {
+.customer-coverage-simulations.customer-coverage-simulations--workspace {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
-  padding: 0;
+  padding: 0 !important;
   margin: 0;
   background: #ffffff;
+  align-items: stretch;
 }
 
 .customer-coverage-simulations--workspace.coverage-simulator-root {
@@ -341,8 +342,14 @@
 }
 
 .customer-coverage-simulations--workspace .coverage-simulator-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
   min-height: 0;
-  height: auto;
+  height: 100%;
+  width: 100%;
+  max-width: 100%;
+  align-items: stretch;
 }
 
 .customer-coverage-simulations--workspace .customer-coverage-simulations__toolbar {
@@ -351,13 +358,17 @@
 }
 
 .cs-three-pane--customer-embedded {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
   max-height: none;
   width: 100%;
+  max-width: 100%;
   margin: 0;
+  justify-content: start;
+  justify-items: stretch;
+  align-items: stretch;
   grid-template-columns: minmax(168px, 188px) minmax(188px, 212px) minmax(0, 1fr);
-  gap: 6px;
+  gap: 0;
   border-top: none;
   background: #ffffff;
 }
@@ -408,22 +419,57 @@
 
 .customer-coverage-simulations--workspace .cs-three-pane--customer-embedded {
   min-height: min(520px, calc(100vh - 220px));
+  height: 100%;
 }
 
 .cs-three-pane--customer-embedded .cs-three-pane__column {
   min-width: 0;
+  height: 100%;
   background: #ffffff;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane__column--scenario,
+.cs-three-pane--customer-embedded .cs-three-pane__column--simulation {
+  border-right: 1px solid var(--cs-color-border);
 }
 
 .cs-three-pane--customer-embedded .cs-three-pane__column--content {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   background: #ffffff;
+  border-right: none;
+}
+
+.cs-three-pane--customer-embedded .cs-three-pane__column--content .cs-three-pane-empty,
+.cs-three-pane--customer-embedded .cs-three-pane__column--content .coverage-editor-panel-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+}
+
+.cs-three-pane--customer-embedded .coverage-editor-panel-shell {
+  min-width: 0;
+  max-width: none;
+}
+
+.cs-three-pane--customer-embedded .coverage-editor-panel-shell__editor {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
 }
 
 .cs-three-pane--customer-embedded .cs-three-pane__column-header {
+  flex-shrink: 0;
   min-height: 40px;
+  height: 40px;
   padding: 0 8px;
   align-items: center;
   box-sizing: border-box;
+  border-bottom: 1px solid var(--cs-color-border);
 }
 
 .cs-three-pane--customer-embedded .cs-three-pane__column-header h2 {
@@ -443,7 +489,9 @@
 }
 
 .cs-three-pane--customer-embedded .cs-three-pane__scroll {
-  padding: 4px 0 4px 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 4px 0;
 }
 
 .cs-three-pane--customer-embedded .cs-three-pane-scenario-row__main,
