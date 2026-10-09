@@ -90,17 +90,27 @@ function sheetToRows2d(sheet: XLSX.WorkSheet): unknown[][] {
   }) as unknown[][]
 }
 
+function buildSheetLabelToKeyMap(columns: ReadonlyArray<{ key: string; labelKo: string }>): Record<string, string> {
+  const map: Record<string, string> = {}
+  for (const col of columns) {
+    map[col.labelKo] = col.key
+  }
+  map['고객번호'] = 'importKey'
+  return map
+}
+
 function parseKeyedSheet(
   rows2d: unknown[][],
   allowedKeys: readonly string[],
   mapRow: (rec: GenericSheetRow) => unknown | null,
+  labelMap?: Record<string, string>,
 ): unknown[] {
   if (rows2d.length === 0) {
     return []
   }
-  const firstKeys = resolveHeaderKeys(rows2d[0] as unknown[], allowedKeys)
+  const firstKeys = resolveHeaderKeys(rows2d[0] as unknown[], allowedKeys, labelMap)
   const hasImport = firstKeys.includes('importKey')
-  const secondKeys = resolveHeaderKeys(rows2d[1] as unknown[] | undefined, allowedKeys)
+  const secondKeys = resolveHeaderKeys(rows2d[1] as unknown[] | undefined, allowedKeys, labelMap)
   const useSecond = !hasImport && secondKeys.includes('importKey')
   const headerKeys = useSecond ? secondKeys : firstKeys
   const dataStart = useSecond ? 2 : 1
@@ -139,6 +149,7 @@ export function parseRelatedSheetsFromWorkbook(wb: XLSX.WorkBook): CustomerExcel
   const fireSheet = wb.Sheets[CUSTOMER_EXCEL_SHEET_FIRE]
 
   const carKeys = CUSTOMER_EXCEL_CAR_SHEET_COLUMNS.map((c) => c.key)
+  const carLabels = buildSheetLabelToKeyMap(CUSTOMER_EXCEL_CAR_SHEET_COLUMNS)
   const cars = carsSheet
     ? (parseKeyedSheet(sheetToRows2d(carsSheet), carKeys, (rec) => {
         const importKey = rec.importKey.trim()
@@ -158,10 +169,11 @@ export function parseRelatedSheetsFromWorkbook(wb: XLSX.WorkBook): CustomerExcel
         const hasAny =
           row.carNumber || row.carModel || row.carYear || row.renewalDate || row.carType || row.memo
         return hasAny ? row : null
-      }) as CustomerExcelCarRow[])
+      }, carLabels) as CustomerExcelCarRow[])
     : []
 
   const sdKeys = CUSTOMER_EXCEL_SPECIAL_DATE_SHEET_COLUMNS.map((c) => c.key)
+  const sdLabels = buildSheetLabelToKeyMap(CUSTOMER_EXCEL_SPECIAL_DATE_SHEET_COLUMNS)
   const specialDates = sdSheet
     ? (parseKeyedSheet(sheetToRows2d(sdSheet), sdKeys, (rec) => {
         const importKey = rec.importKey.trim()
@@ -180,10 +192,11 @@ export function parseRelatedSheetsFromWorkbook(wb: XLSX.WorkBook): CustomerExcel
           dateValue,
           memo: rec.memo?.trim() ?? '',
         } satisfies CustomerExcelSpecialDateRow
-      }) as CustomerExcelSpecialDateRow[])
+      }, sdLabels) as CustomerExcelSpecialDateRow[])
     : []
 
   const cfKeys = CUSTOMER_EXCEL_CUSTOM_FIELD_SHEET_COLUMNS.map((c) => c.key)
+  const cfLabels = buildSheetLabelToKeyMap(CUSTOMER_EXCEL_CUSTOM_FIELD_SHEET_COLUMNS)
   const customFields = cfSheet
     ? (parseKeyedSheet(sheetToRows2d(cfSheet), cfKeys, (rec) => {
         const importKey = rec.importKey.trim()
@@ -196,10 +209,11 @@ export function parseRelatedSheetsFromWorkbook(wb: XLSX.WorkBook): CustomerExcel
           label,
           value: rec.value?.trim() ?? '',
         } satisfies CustomerExcelCustomFieldRow
-      }) as CustomerExcelCustomFieldRow[])
+      }, cfLabels) as CustomerExcelCustomFieldRow[])
     : []
 
   const fireKeys = CUSTOMER_EXCEL_FIRE_SHEET_COLUMNS.map((c) => c.key)
+  const fireLabels = buildSheetLabelToKeyMap(CUSTOMER_EXCEL_FIRE_SHEET_COLUMNS)
   const fireLocations = fireSheet
     ? (parseKeyedSheet(sheetToRows2d(fireSheet), fireKeys, (rec) => {
         const importKey = rec.importKey.trim()
@@ -212,7 +226,7 @@ export function parseRelatedSheetsFromWorkbook(wb: XLSX.WorkBook): CustomerExcel
           address,
           memo: rec.memo?.trim() ?? '',
         } satisfies CustomerExcelFireLocationRow
-      }) as CustomerExcelFireLocationRow[])
+      }, fireLabels) as CustomerExcelFireLocationRow[])
     : []
 
   return { cars, specialDates, customFields, fireLocations }
