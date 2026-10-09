@@ -24,9 +24,15 @@ type Props = {
   children: ReactNode
   /** scenario id — 변경 시 zoom=1 리셋 */
   documentKey: string
+  /** fit 계산 시 viewport 좌우 inset (embedded pane은 더 넓게) */
+  viewportInsetPx?: number
 }
 
-export function CoveragePdfPreviewZoomSurface({ children, documentKey }: Props) {
+export function CoveragePdfPreviewZoomSurface({
+  children,
+  documentKey,
+  viewportInsetPx = 16,
+}: Props) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const docRef = useRef<HTMLDivElement>(null)
   const [naturalHeight, setNaturalHeight] = useState(1123)
@@ -114,7 +120,7 @@ export function CoveragePdfPreviewZoomSurface({ children, documentKey }: Props) 
           resizeCallbackCountRef.current,
         )
       }
-      const padding = 16
+      const padding = Math.max(0, viewportInsetPx) * 2
       const available = Math.max(1, viewport.clientWidth - padding)
       const next = computePreviewDocumentScale(
         available,
@@ -139,7 +145,7 @@ export function CoveragePdfPreviewZoomSurface({ children, documentKey }: Props) 
       cancelAnimationFrame(orientationFrame)
       window.removeEventListener('orientationchange', onOrientationChange)
     }
-  }, [])
+  }, [viewportInsetPx])
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current
