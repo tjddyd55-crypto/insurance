@@ -11,9 +11,10 @@ import {
 } from './roleGuards'
 
 describe('resolveAuthLandingPath — 역할별 랜딩', () => {
-  it('GA_ADMIN 은 보험청구 설정으로 진입한다', () => {
+  it('GA_ADMIN 은 GA 관리 허브로 진입한다', () => {
     expect(resolveAuthLandingPath(false, 'GA_ADMIN')).toBe(GA_ADMIN_LANDING_PATH)
     expect(resolveAuthLandingPath(true, 'GA_ADMIN')).toBe(GA_ADMIN_LANDING_PATH)
+    expect(GA_ADMIN_LANDING_PATH).toBe('/ga-admin/workspace')
   })
 
   it('USER / GA_STAFF / SUPER_ADMIN 기존 랜딩을 유지한다', () => {
@@ -26,6 +27,8 @@ describe('resolveAuthLandingPath — 역할별 랜딩', () => {
 
 describe('gaAdminPathPolicy', () => {
   it('관리 path 만 허용한다', () => {
+    expect(isGaAdminAllowedPath('/ga-admin/workspace')).toBe(true)
+    expect(isGaAdminAllowedPath('/ga-admin/workspace/accounts/delegates')).toBe(true)
     expect(isGaAdminAllowedPath('/admin/claim/insurance-companies')).toBe(true)
     expect(isGaAdminAllowedPath('/admin/newsletter-boards')).toBe(true)
     expect(isGaAdminAllowedPath('/admin/audit-logs')).toBe(true)

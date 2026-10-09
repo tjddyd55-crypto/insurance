@@ -61,6 +61,10 @@ export async function listAdminNewsletterBoards(token: string): Promise<Newslett
   return apiRequest<NewsletterBoard[]>('/api/admin/newsletter-boards', { token })
 }
 
+export async function listGaAdminNewsletterBoards(token: string): Promise<NewsletterBoard[]> {
+  return apiRequest<NewsletterBoard[]>('/api/ga-admin/newsletter-boards', { token })
+}
+
 export async function createGlobalNewsletterBoard(
   token: string,
   input: { label: string; description?: string | null; sortOrder?: number },

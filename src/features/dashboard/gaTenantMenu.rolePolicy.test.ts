@@ -22,7 +22,9 @@ const USER_WORK_LABELS = [
 ]
 
 const GA_ADMIN_OPS_LABELS = [
+  'GA 관리 허브',
   '보험청구 설정',
+  'PDF 문서 템플릿',
   'GA전용 소식지 관리',
   '보안 감사 로그',
   '계정 설정',
@@ -33,7 +35,8 @@ describe('buildAppMenuForSession — 역할별 메뉴 정책', () => {
     const labels = linkLabels(buildAppMenuForSession('GA_STAFF', 'TEST', 'Test GA'))
     expect(labels).not.toContain('GA전용 소식지 관리')
     expect(labels).not.toContain('소식지 관리')
-    expect(labels).toContain('보험청구 설정')
+    expect(labels).not.toContain('보험청구 설정')
+    expect(labels).not.toContain('PDF 문서 템플릿')
     expect(labels).toContain('원수사 연락처 관리')
     expect(labels).toContain('공유 계정관리')
     for (const label of USER_WORK_LABELS) {
@@ -65,7 +68,9 @@ describe('buildAppMenuForSession — 역할별 메뉴 정책', () => {
     expect(linkPaths(entries)).not.toContain('/customers')
     expect(linkPaths(entries)).toEqual(
       expect.arrayContaining([
+        '/ga-admin/workspace',
         '/admin/claim/insurance-companies',
+        '/admin/pdf-templates',
         '/admin/newsletter-boards',
         '/admin/audit-logs',
         '/profile',

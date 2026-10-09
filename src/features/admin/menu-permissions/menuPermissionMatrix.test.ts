@@ -72,19 +72,20 @@ describe('menuPermissionMatrix — semantic policy snapshots', () => {
     }
   })
 
-  it('GA_STAFF: 보험청구 설정·공유 계정관리, 고객리스트 없음', () => {
+  it('GA_STAFF: 공유 계정관리만, 보험청구 설정·고객리스트 없음', () => {
     const matrix = buildMenuPermissionMatrix({ paidAccessMode: 'active' })
-    expect(
-      matrix.rows.find((r) => r.menuLabel === '보험청구 설정')?.cells.GA_STAFF.status,
-    ).not.toBe('hidden')
+    expect(matrix.rows.find((r) => r.menuLabel === '보험청구 설정')?.cells.GA_STAFF.status).toBe('hidden')
     expect(
       matrix.rows.find((r) => r.primaryPath === '/insurance/account-credentials/shared')?.cells.GA_STAFF.status,
     ).not.toBe('hidden')
     expect(matrix.rows.find((r) => r.primaryPath === '/customers')?.cells.GA_STAFF.status).toBe('hidden')
   })
 
-  it('GA_ADMIN: GA전용 소식지·감사 로그, 고객리스트 없음', () => {
+  it('GA_ADMIN: GA 허브·소식지·감사 로그, 고객리스트 없음', () => {
     const matrix = buildMenuPermissionMatrix({ paidAccessMode: 'active' })
+    expect(
+      matrix.rows.find((r) => r.primaryPath === '/ga-admin/workspace')?.cells.GA_ADMIN.status,
+    ).not.toBe('hidden')
     expect(
       matrix.rows.find((r) => r.primaryPath === '/admin/newsletter-boards')?.cells.GA_ADMIN.status,
     ).not.toBe('hidden')

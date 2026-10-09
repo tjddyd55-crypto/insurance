@@ -407,3 +407,37 @@ export async function patchAdminPublicBoardWriter(
     body: JSON.stringify(body),
   })
 }
+
+export type GaAdminBoardWriterRow = PublicBoardWriterAccount
+
+export async function listGaAdminBoardWriters(token: string) {
+  return apiRequest<GaAdminBoardWriterRow[]>('/api/ga-admin/board-writers', { token })
+}
+
+export async function createGaAdminBoardWriter(
+  token: string,
+  input: { loginId: string; password: string; name: string; allowedBoardIds: string[] },
+) {
+  return apiRequest<GaAdminBoardWriterRow>('/api/ga-admin/board-writers', {
+    method: 'POST',
+    token,
+    body: JSON.stringify({
+      loginId: input.loginId,
+      password: input.password,
+      name: input.name,
+      allowedBoardIds: input.allowedBoardIds,
+    }),
+  })
+}
+
+export async function patchGaAdminBoardWriter(
+  token: string,
+  writerId: string,
+  body: { name?: string; isActive?: boolean; password?: string; allowedBoardIds?: string[] },
+) {
+  return apiRequest<GaAdminBoardWriterRow>(`/api/ga-admin/board-writers/${encodeURIComponent(writerId)}`, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify(body),
+  })
+}

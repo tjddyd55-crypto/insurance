@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from './AuthProvider'
 import { isGaAdminAllowedPath, resolveGaAdminFallbackPath } from './gaAdminPathPolicy'
+import { isGaStaffBlockedAdminPath, resolveGaStaffFallbackPath } from './gaStaffPathPolicy'
 import { resolveAuthLandingPath } from './landing'
 import { isGaAdminRole } from './roleGuards'
 
@@ -21,6 +22,9 @@ export function RequireNotInsurerManagerRoute() {
   if (isGaAdminRole(user.role) && !isGaAdminAllowedPath(location.pathname)) {
     // GA_ADMIN 랜딩은 디바이스와 무관하게 관리 path 고정
     return <Navigate to={resolveGaAdminFallbackPath(false)} replace />
+  }
+  if (user.role === 'GA_STAFF' && isGaStaffBlockedAdminPath(location.pathname)) {
+    return <Navigate to={resolveGaStaffFallbackPath(false)} replace />
   }
   return <Outlet />
 }

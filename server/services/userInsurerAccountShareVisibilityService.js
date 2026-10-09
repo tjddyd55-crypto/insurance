@@ -75,7 +75,7 @@ export async function listSharedAccountUsers(db, safeQueryExec, gaId, excludeUse
       AND p.is_enabled = true
       AND p.owner_user_id <> $2
       AND COALESCE(u.is_deleted, false) = false
-      AND u.role = 'USER'
+      AND u.role IN ('USER', 'GA_ADMIN')
     ORDER BY
       COALESCE(NULLIF(TRIM(u.display_name), ''), NULLIF(TRIM(u.name), ''), u.username) ASC,
       u.id ASC
@@ -106,7 +106,7 @@ export async function listSharedAccountUsersForGa(db, safeQueryExec, gaId) {
     WHERE p.ga_id = $1
       AND p.is_enabled = true
       AND COALESCE(u.is_deleted, false) = false
-      AND u.role = 'USER'
+      AND u.role IN ('USER', 'GA_ADMIN')
     ORDER BY
       COALESCE(NULLIF(TRIM(u.display_name), ''), NULLIF(TRIM(u.name), ''), u.username) ASC,
       u.id ASC

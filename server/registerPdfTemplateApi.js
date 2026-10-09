@@ -3,7 +3,7 @@
  *
  * 아키텍처:
  *   - HTTP 입출력만 담당. 도메인 로직은 server/pdf-engine/* 에 위임한다.
- *   - 관리자 쓰기: 업로드·필드 정의 → SUPER_ADMIN · GA_ADMIN · GA_STAFF (GA 스코프).
+ *   - 관리자 쓰기: 업로드·필드 정의 → SUPER_ADMIN · GA_ADMIN (GA 스코프).
  *   - 사용자 읽기/발급: 본인 GA 또는 공용(ga_id IS NULL) 템플릿만 허용.
  *
  * 라우트 일람:
@@ -142,7 +142,7 @@ function requireSuperAdmin(req, res, isSuperAdminRole) {
 
 function isPdfTemplateAdminRole(role) {
   const r = String(role ?? '')
-  return r === 'SUPER_ADMIN' || r === 'GA_ADMIN' || r === 'GA_STAFF'
+  return r === 'SUPER_ADMIN' || r === 'GA_ADMIN'
 }
 
 function requirePdfTemplateAdmin(req, res) {

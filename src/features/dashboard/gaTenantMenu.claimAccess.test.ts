@@ -37,13 +37,14 @@ describe('buildAppMenuForSession claim access', () => {
     expect(paths.some((path) => path.includes('/claim-requests'))).toBe(false)
   })
 
-  it('exposes admin claim settings for GA_ADMIN and GA_STAFF but not user claim routes', () => {
-    for (const role of ['GA_ADMIN', 'GA_STAFF'] as const) {
-      const paths = linkPaths(buildAppMenuForSession(role, 'TEST', 'Test GA'))
-      expect(paths).toContain('/admin/claim/insurance-companies')
-      expect(paths.some((path) => path.includes('/claim-requests'))).toBe(false)
-      expect(paths.some((path) => path.includes('/insurance-claim'))).toBe(false)
-    }
+  it('exposes admin claim settings for GA_ADMIN in 업무 운영, not for GA_STAFF', () => {
+    const adminPaths = linkPaths(buildAppMenuForSession('GA_ADMIN', 'TEST', 'Test GA'))
+    expect(adminPaths).toContain('/admin/claim/insurance-companies')
+    expect(adminPaths.some((path) => path.includes('/claim-requests'))).toBe(false)
+
+    const staffPaths = linkPaths(buildAppMenuForSession('GA_STAFF', 'TEST', 'Test GA'))
+    expect(staffPaths).not.toContain('/admin/claim/insurance-companies')
+    expect(staffPaths.some((path) => path.includes('/insurance-claim'))).toBe(false)
   })
 
   it('hides top-level signature and insurance-claim menus but keeps customer management claim links for USER', () => {

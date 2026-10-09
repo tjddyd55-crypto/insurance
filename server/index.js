@@ -174,6 +174,7 @@ import { recordSuccessfulUserLoginSession, resolveMinConcurrentSessionCapForUser
 import { registerConsentApi } from './registerConsentApi.js'
 import { registerInsurerNewsApi } from './registerInsurerNewsApi.js'
 import { registerPublicBoardWriterApi } from './registerPublicBoardWriterApi.js'
+import { registerGaAdminManagementApi } from './registerGaAdminManagementApi.js'
 import { registerPublicInquiryApi } from './public-inquiries/registerPublicInquiryApi.js'
 import { registerPublicInquiryAdminApi } from './public-inquiries/registerPublicInquiryAdminApi.js'
 import { registerSignatureApi } from './registerSignatureApi.js'
@@ -1565,6 +1566,20 @@ registerPublicBoardWriterApi(apiRouter, {
   jwtSecret: JWT_SECRET,
   bcrypt,
   withTransaction,
+})
+
+registerGaAdminManagementApi(apiRouter, {
+  pool,
+  requireAuth,
+  handleDbError,
+  systemQuery,
+  safeQuery,
+  bcrypt,
+  validateCredentials,
+  isUsernameTakenGlobally,
+  parseEntityStatus,
+  mapGaDelegateAdminRow,
+  tryCreateGaDelegateFromRequest,
 })
 
 registerPublicInquiryApi(apiRouter, {
@@ -4444,18 +4459,26 @@ apiRouter.delete('/admin/users/:id', requireAuth, requireSuperAdmin, async (req,
  * GA 담당자(GA_ADMIN/GA_STAFF) 계정 생성 공통 검증·삽입.
  * @returns {{ ok: true, id: string, username: string, role: string, ga_id: number, displayName: string } | { ok: false, status: number, message: string }}
  */
-async function tryCreateGaDelegateFromRequest(req) {
+async function tryCreateGaDelegateFromRequest(req, options = {}) {
+  const forGaAdmin = options.forGaAdmin === true
   const isSuper = isSuperAdminRole(req.user?.role)
   const actorGaId = parseGaId(req.user?.gaId)
-  if (!isSuper && actorGaId == null) {
+  if (forGaAdmin) {
+    if (normalizeUserRole(req.user?.role) !== 'GA_ADMIN') {
+      return { ok: false, status: 403, message: 'GA 관리자만 STEP을 생성할 수 있습니다.' }
+    }
+    if (actorGaId == null) {
+      return { ok: false, status: 400, message: 'GA 컨텍스트가 없습니다.' }
+    }
+  } else if (!isSuper && actorGaId == null) {
     return { ok: false, status: 400, message: 'GA 컨텍스트가 없습니다.' }
   }
   const { username, password, name, ga_id: gaRaw, gaId: gaBody, role: roleRaw } = req.body ?? {}
-  const targetGaId = parseGaId(gaRaw ?? gaBody)
+  const targetGaId = forGaAdmin ? actorGaId : parseGaId(gaRaw ?? gaBody)
   if (targetGaId == null) {
     return { ok: false, status: 400, message: 'ga_id가 필요합니다.' }
   }
-  if (!isSuper && targetGaId !== actorGaId) {
+  if (!forGaAdmin && !isSuper && targetGaId !== actorGaId) {
     return { ok: false, status: 403, message: '자신이 속한 GA에만 사용자를 생성할 수 있습니다.' }
   }
   const gaOk = await systemQuery(
@@ -4471,9 +4494,15 @@ async function tryCreateGaDelegateFromRequest(req) {
   }
 
   const roleNorm = typeof roleRaw === 'string' ? roleRaw.trim().toUpperCase() : ''
-  const targetRole = GA_DELEGATE_ROLES.includes(roleNorm) ? roleNorm : null
+  let targetRole = GA_DELEGATE_ROLES.includes(roleNorm) ? roleNorm : null
+  if (forGaAdmin) {
+    targetRole = 'GA_STAFF'
+  }
   if (!targetRole) {
     return { ok: false, status: 400, message: 'role은 GA_ADMIN 또는 GA_STAFF 여야 합니다.' }
+  }
+  if (forGaAdmin && targetRole !== 'GA_STAFF') {
+    return { ok: false, status: 400, message: 'GA_STAFF(STEP)만 생성할 수 있습니다.' }
   }
 
   const validationMessage = validateCredentials(username, password)

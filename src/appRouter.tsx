@@ -115,6 +115,8 @@ import { InsurerManagerOnlyRoute } from './features/auth/InsurerManagerOnlyRoute
 import { RequireNotInsurerManagerRoute } from './features/auth/RequireNotInsurerManagerRoute'
 import { AuditLogReaderRoute } from './features/auth/AuditLogReaderRoute'
 import { NewsletterBoardAdminRoute } from './features/auth/NewsletterBoardAdminRoute'
+import { GaAdminWorkspaceRoute } from './features/auth/GaAdminWorkspaceRoute'
+import GaAdminWorkspacePage from './features/ga-admin/pages/GaAdminWorkspacePage'
 import { InsurerListPage } from './features/insurer-news/pages/InsurerListPage'
 import { InsurerNewsletterListPage } from './features/insurer-news/pages/InsurerNewsletterListPage'
 import { NewsletterDetailPage } from './features/insurer-news/pages/NewsletterDetailPage'
@@ -554,6 +556,10 @@ export const appRouter = createBrowserRouter([
               { path: 'admin/create-ga', element: <Navigate to="/admin/ga" replace /> },
               { path: 'admin/delegates', element: <GaDelegateManagementPage /> },
               { path: 'admin/create-staff', element: <Navigate to="/admin/delegates" replace /> },
+              {
+                element: <GaAdminWorkspaceRoute />,
+                children: [{ path: 'ga-admin/workspace/*', element: <GaAdminWorkspacePage /> }],
+              },
               { path: 'admin/users', element: <UserManagementPage /> },
               {
                 element: <NewsletterBoardAdminRoute />,

@@ -479,9 +479,33 @@ function buildGaTenantAdminMenuEntries(role: string | undefined): GaTenantDashbo
   return entries
 }
 
-/** GA_ADMIN 전용 — 관리 메뉴만 (CRM 업무 섹션 없음) */
+/** GA_ADMIN 전용 — GA 허브 + 업무 운영(청구/PDF) 분리 + 감사/프로필 */
 function buildGaAdminManagementMenuEntries(): GaTenantDashboardMenuEntry[] {
-  const entries = buildGaTenantAdminMenuEntries('GA_ADMIN')
+  const entries: GaTenantDashboardMenuEntry[] = []
+  entries.push({ type: 'section', label: 'GA 관리' })
+  entries.push({ type: 'link', label: 'GA 관리 허브', path: '/ga-admin/workspace' })
+
+  entries.push({ type: 'section', label: '업무 운영' })
+  entries.push({
+    type: 'link',
+    label: INSURANCE_CLAIM_COMPANY_ADMIN_MENU.label,
+    path: INSURANCE_CLAIM_COMPANY_ADMIN_MENU.path,
+  })
+  entries.push({
+    type: 'link',
+    label: PDF_TEMPLATE_ADMIN_MENU.label,
+    path: PDF_TEMPLATE_ADMIN_MENU.path,
+  })
+  const signatureAdmin = contractSignatureAdminMenuIfEnabled('GA_ADMIN')
+  if (signatureAdmin) {
+    entries.push({ type: 'link', label: signatureAdmin.label, path: signatureAdmin.path })
+  }
+
+  if (canUseNewsletterBoardAdminRoutes('GA_ADMIN')) {
+    entries.push({ type: 'section', label: '소식지 운영' })
+    entries.push({ type: 'link', label: 'GA전용 소식지 관리', path: '/admin/newsletter-boards' })
+  }
+
   entries.push(
     { type: 'section', label: '보안 / 감사' },
     { type: 'link', label: AUDIT_LOG_ENTRY.label, path: AUDIT_LOG_ENTRY.path },
@@ -579,23 +603,17 @@ export function buildAppMenuForSession(
       return itemsToEntries(LOSS_ADJUSTER_MENU)
     }
     if (role === 'GA_STAFF') {
-      // 스태프: 보험청구 설정·전자문서 관리 + 원수사 운영 도구.
-      // GA전용 소식지 관리/작성자 관리는 roleGuards 에서 제외되어 adminEntries 에 안 붙는다.
-      const adminEntries = buildGaTenantAdminMenuEntries(role)
+      // STEP: 실무·원수사 운영 메뉴만. GA 설정·청구/PDF 관리·게시판 관리는 route guard 로도 차단.
       const operational = itemsToEntries([
         CONTRACT_SIGNATURE_USER_SEND,
         CONTRACT_SIGNATURE_USER_HISTORY,
         ...GA_STAFF_MENU,
       ])
       const dynamicBoardEntries = buildDynamicNewsletterBoardMenuEntries(dynamicNewsletterBoards, role)
-      const withDynamicBoards =
-        dynamicBoardEntries.length > 0
-          ? [...operational, { type: 'divider' as const }, ...dynamicBoardEntries]
-          : operational
-      if (!adminEntries.length) {
-        return withDynamicBoards
+      if (dynamicBoardEntries.length > 0) {
+        return [...operational, { type: 'divider' as const }, ...dynamicBoardEntries]
       }
-      return [...adminEntries, { type: 'divider' }, ...withDynamicBoards]
+      return operational
     }
     if (role === 'GA_ADMIN') {
       // GA 관리자: buildGaAdminManagementMenuEntries 만 반환.

@@ -177,7 +177,7 @@ function parseSourcePdfMetadataBody(raw) {
 
 function isInsuranceClaimAdminRole(role) {
   const r = String(role ?? '')
-  return r === 'SUPER_ADMIN' || r === 'GA_ADMIN' || r === 'GA_STAFF'
+  return r === 'SUPER_ADMIN' || r === 'GA_ADMIN'
 }
 
 function requireInsuranceClaimAdmin(req, res) {

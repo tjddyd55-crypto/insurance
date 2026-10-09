@@ -7,15 +7,15 @@ export function isInsuranceOpsRole(role: string | undefined): role is UserRole {
   return role != null && (INSURANCE_OPS_ROLES as readonly string[]).includes(role)
 }
 
-/** PDF 좌표 템플릿 관리 — GA 테넌트 관리자·스태프 + 플랫폼 관리자 */
-export const PDF_TEMPLATE_ADMIN_ROLES: UserRole[] = ['SUPER_ADMIN', 'GA_ADMIN', 'GA_STAFF']
+/** PDF 좌표 템플릿 관리 — 플랫폼·GA 관리자 (STEP 제외) */
+export const PDF_TEMPLATE_ADMIN_ROLES: UserRole[] = ['SUPER_ADMIN', 'GA_ADMIN']
 
 export function canUsePdfTemplateAdminRoutes(role: string | undefined): boolean {
   return role != null && (PDF_TEMPLATE_ADMIN_ROLES as readonly string[]).includes(role)
 }
 
-/** 보험청구 보험회사 설정 — PDF 템플릿 관리와 동일 관리자 역할 (서버 API용) */
-export const INSURANCE_CLAIM_ADMIN_ROLES: UserRole[] = ['SUPER_ADMIN', 'GA_ADMIN', 'GA_STAFF']
+/** 보험청구 보험회사 설정 — GA_ADMIN·SUPER_ADMIN (STEP 제외) */
+export const INSURANCE_CLAIM_ADMIN_ROLES: UserRole[] = ['SUPER_ADMIN', 'GA_ADMIN']
 
 export function canUseInsuranceClaimAdminRoutes(role: string | undefined): boolean {
   return role != null && (INSURANCE_CLAIM_ADMIN_ROLES as readonly string[]).includes(role)

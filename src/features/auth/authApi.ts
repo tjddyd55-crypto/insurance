@@ -649,6 +649,80 @@ export async function createGaDelegate(
   }
 }
 
+/** GA_ADMIN — 자기 GA STEP·관리자 목록(비밀번호 미포함) */
+export interface GaAdminDelegateRow {
+  id: string
+  ga_id: number
+  gaCode: string
+  gaName: string
+  username: string
+  role: GaDelegateRole
+  status: EntityStatus
+  statusLabel: string
+  created_at: string
+  updated_at?: string
+  displayName?: string
+}
+
+export async function listGaAdminDelegates(token: string): Promise<GaAdminDelegateRow[]> {
+  return apiRequest<GaAdminDelegateRow[]>('/api/ga-admin/delegates', { method: 'GET', token })
+}
+
+export async function createGaAdminDelegate(
+  token: string,
+  payload: { username: string; password: string; name?: string },
+) {
+  try {
+    return await apiRequest<GaAdminDelegateRow>('/api/ga-admin/delegates', {
+      method: 'POST',
+      token,
+      body: JSON.stringify({
+        username: payload.username,
+        password: payload.password,
+        name: payload.name ?? '',
+      }),
+    })
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 409) {
+      throw new Error('이미 사용 중인 아이디입니다.')
+    }
+    throw error
+  }
+}
+
+export async function patchGaAdminDelegate(
+  token: string,
+  id: string,
+  body: { username?: string; password?: string; status?: EntityStatus; displayName?: string; name?: string },
+) {
+  try {
+    const payload: Record<string, unknown> = {}
+    if (body.username != null) {
+      payload.username = body.username
+    }
+    if (body.password != null && body.password.trim() !== '') {
+      payload.password = body.password
+    }
+    if (body.status != null) {
+      payload.status = body.status
+    }
+    const displayName = body.displayName ?? body.name
+    if (displayName != null) {
+      payload.displayName = displayName
+    }
+    return await apiRequest<GaAdminDelegateRow>(`/api/ga-admin/delegates/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify(payload),
+    })
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 409) {
+      throw new Error('이미 사용 중인 아이디입니다.')
+    }
+    throw error
+  }
+}
+
 export async function patchGaDelegate(
   token: string,
   id: string,

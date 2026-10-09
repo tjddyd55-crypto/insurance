@@ -11,6 +11,7 @@ import {
   patchUserInsurerAccountRecord,
   respondUserInsurerAccountMutationError,
 } from '../services/userInsurerAccountMutationService.js'
+import { setShareVisibility } from '../services/userInsurerAccountShareVisibilityService.js'
 
 function resolveOwnerContext(req, res) {
   const userId = req.user?.id ? String(req.user.id) : ''
@@ -81,6 +82,9 @@ export function registerUserInsurerAccountsApi(apiRouter, ctx) {
         return
       }
       const account = await createUserInsurerAccountRecord(pool, safeQuery, owner, req.body ?? {})
+      if (String(req.user?.role ?? '').trim().toUpperCase() === 'GA_ADMIN') {
+        await setShareVisibility(pool, safeQuery, owner.userId, owner.gaId, true)
+      }
       res.status(201).json({ account })
     } catch (error) {
       if (respondUserInsurerAccountMutationError(error, res)) {
