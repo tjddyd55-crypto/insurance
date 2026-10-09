@@ -10,23 +10,37 @@ function formatInsCompanyCode(id) {
   return `INS${String(Number(id)).padStart(6, '0')}`
 }
 
-async function ensureMasterCompanyCode(client, masterId, gaId) {
+/**
+ * @param {import('pg').Pool | import('pg').PoolClient} executor
+ */
+async function ensureMasterCompanyCode(executor, masterId, gaId) {
   const tenantGa = parseGaId(gaId)
   if (tenantGa == null) {
     throw new Error('GA 컨텍스트가 없습니다.')
   }
   const masterIdNum = Number(masterId)
-  await safeQuery(
-    client,
-    `
-    UPDATE insurance_company_master
-    SET company_code = $1
-    WHERE id = $2
-      AND ga_id = $3
-      AND (company_code IS NULL OR TRIM(company_code) = '')
-    `,
-    [formatInsCompanyCode(masterIdNum), masterIdNum, tenantGa],
-  )
+  if (!Number.isInteger(masterIdNum) || masterIdNum < 1) {
+    return
+  }
+  const code = formatInsCompanyCode(masterIdNum)
+  try {
+    await safeQuery(
+      executor,
+      `
+      UPDATE insurance_company_master
+      SET company_code = $1
+      WHERE id = $2
+        AND ga_id = $3
+        AND (company_code IS NULL OR TRIM(company_code) = '')
+      `,
+      [code, masterIdNum, tenantGa],
+    )
+  } catch (error) {
+    if (error && typeof error === 'object' && error.code === '23505') {
+      return
+    }
+    throw error
+  }
 }
 
 /**
@@ -99,10 +113,43 @@ async function loadPlatformInsurerCompanyCatalog(pool) {
   return fallback
 }
 
-async function ensureGaCompanyMasterRow(client, gaId, category, name) {
+/**
+ * @param {import('pg').Pool | import('pg').PoolClient} executor
+ */
+async function findGaCompanyMasterIdByName(executor, gaId, category, name) {
+  const g = parseGaId(gaId)
+  const byName = await safeQuery(
+    executor,
+    `
+    SELECT id, category
+    FROM insurance_company_master
+    WHERE ga_id = $1 AND TRIM(name) = TRIM($2)
+    ORDER BY id ASC
+    `,
+    [g, name],
+  )
+  if (byName.rowCount === 0) {
+    return null
+  }
+  const preferred = byName.rows.find((row) => {
+    return resolveInsuranceCategoryForApi(row.category, name) === category
+  })
+  if (preferred) {
+    return Number(preferred.id)
+  }
+  if (byName.rowCount === 1) {
+    return Number(byName.rows[0].id)
+  }
+  return null
+}
+
+/**
+ * @param {import('pg').Pool | import('pg').PoolClient} executor
+ */
+async function ensureGaCompanyMasterRow(executor, gaId, category, name) {
   const g = parseGaId(gaId)
   const found = await safeQuery(
-    client,
+    executor,
     `
     SELECT id FROM insurance_company_master
     WHERE ga_id = $1 AND category = $2 AND TRIM(name) = TRIM($3)
@@ -111,19 +158,65 @@ async function ensureGaCompanyMasterRow(client, gaId, category, name) {
     [g, category, name],
   )
   if (found.rowCount > 0) {
-    return Number(found.rows[0].id)
+    const id = Number(found.rows[0].id)
+    await ensureMasterCompanyCode(executor, id, g)
+    return id
   }
-  const ins = await safeQuery(
-    client,
-    `
-    INSERT INTO insurance_company_master (ga_id, category, name, updated_at)
-    VALUES ($1, $2, $3, NOW())
-    RETURNING id
-    `,
-    [g, category, name],
-  )
-  const id = Number(ins.rows[0].id)
-  await ensureMasterCompanyCode(client, id, g)
+
+  const byNameId = await findGaCompanyMasterIdByName(executor, g, category, name)
+  if (byNameId != null) {
+    await safeQuery(
+      executor,
+      `
+      UPDATE insurance_company_master
+      SET category = $1, updated_at = NOW()
+      WHERE id = $2 AND ga_id = $3
+        AND (category IS DISTINCT FROM $1)
+      `,
+      [category, byNameId, g],
+    )
+    await ensureMasterCompanyCode(executor, byNameId, g)
+    return byNameId
+  }
+
+  let id
+  try {
+    const ins = await safeQuery(
+      executor,
+      `
+      INSERT INTO insurance_company_master (ga_id, category, name, updated_at)
+      VALUES ($1, $2, $3, NOW())
+      RETURNING id
+      `,
+      [g, category, name],
+    )
+    id = Number(ins.rows[0].id)
+  } catch (error) {
+    if (error && typeof error === 'object' && error.code === '23505') {
+      const again = await safeQuery(
+        executor,
+        `
+        SELECT id FROM insurance_company_master
+        WHERE ga_id = $1 AND category = $2 AND TRIM(name) = TRIM($3)
+        LIMIT 1
+        `,
+        [g, category, name],
+      )
+      if (again.rowCount > 0) {
+        id = Number(again.rows[0].id)
+      } else {
+        const fallbackId = await findGaCompanyMasterIdByName(executor, g, category, name)
+        if (fallbackId == null) {
+          throw error
+        }
+        id = fallbackId
+      }
+    } else {
+      throw error
+    }
+  }
+
+  await ensureMasterCompanyCode(executor, id, g)
   return id
 }
 
@@ -137,25 +230,11 @@ export async function listInsurerManagerCompanyChoicesForGa(pool, gaId) {
     throw new Error('GA 컨텍스트가 없습니다.')
   }
   const catalog = await loadPlatformInsurerCompanyCatalog(pool)
-  const client = await pool.connect()
-  try {
-    await client.query('BEGIN')
-    const out = []
-    for (const entry of catalog) {
-      const id = await ensureGaCompanyMasterRow(client, g, entry.category, entry.name)
-      out.push({ id, name: entry.name, category: entry.category })
-    }
-    await client.query('COMMIT')
-    out.sort((a, b) => a.name.localeCompare(b.name, 'ko'))
-    return out
-  } catch (e) {
-    try {
-      await client.query('ROLLBACK')
-    } catch {
-      /* ignore */
-    }
-    throw e
-  } finally {
-    client.release()
+  const out = []
+  for (const entry of catalog) {
+    const id = await ensureGaCompanyMasterRow(pool, g, entry.category, entry.name)
+    out.push({ id, name: entry.name, category: entry.category })
   }
+  out.sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+  return out
 }
