@@ -2,6 +2,15 @@
   max-width: none;
   height: calc(100dvh - var(--cs-appbar-offset, 0px));
   min-height: 0;
+  background: #ffffff;
+}
+
+.coverage-simulator-shell--three-pane .cs-three-pane {
+  background: #ffffff;
+}
+
+.coverage-simulator-root:has(.coverage-simulator-shell--three-pane) {
+  background: #ffffff;
 }
 
 .cs-three-pane {
@@ -22,9 +31,17 @@
 
 .cs-three-pane__column--content {
   border-right: none;
-  background: var(--cs-color-bg);
+  background: #ffffff;
   min-width: 0;
   overflow: auto;
+}
+
+.cs-three-pane__column--content-pdf {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
 }
 
 .coverage-editor-panel-shell {
@@ -441,6 +458,104 @@
   flex-direction: column;
   background: #ffffff;
   border-right: none;
+}
+
+.cs-three-pane__column--content .coverage-embedded-pdf-preview {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  background: #ffffff;
+}
+
+.coverage-embedded-pdf-preview__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cs-space-2, 8px);
+  flex-shrink: 0;
+  padding: var(--cs-space-2, 8px) var(--cs-space-3, 12px);
+  border-bottom: 1px solid var(--cs-color-border);
+  background: var(--cs-color-surface, #fff);
+}
+
+.coverage-embedded-pdf-preview__title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.coverage-embedded-pdf-preview__title strong {
+  font-size: 0.875rem;
+}
+
+.coverage-embedded-pdf-preview__title span {
+  font-size: 0.75rem;
+  color: var(--cs-color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.coverage-embedded-pdf-preview__body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.coverage-embedded-pdf-preview__body .coverage-simulator-pdf-preview__zoom-viewport {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  height: auto;
+  max-height: none;
+  overflow-x: auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0;
+  box-sizing: border-box;
+  scrollbar-gutter: stable;
+}
+
+.coverage-embedded-pdf-preview__body .coverage-simulator-pdf-preview__zoom-spacer {
+  margin: 0 auto;
+  max-width: 100%;
+}
+
+/* embedded PDF 종이 — 편집 pane(cs-axis-sheet)과 비슷한 체감 폭 */
+.coverage-embedded-pdf-preview__body .coverage-simulator-pdf-preview__zoom-doc .coverage-simulator-print-root {
+  padding: 8px 12px 16px;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
+}
+
+.cs-three-pane__column--content-pdf .coverage-embedded-pdf-preview__header,
+.cs-three-pane__column--content-pdf .coverage-embedded-pdf-preview__footer {
+  padding-inline: 12px;
+}
+
+.coverage-embedded-pdf-preview__footer {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--cs-space-2, 8px);
+  padding: var(--cs-space-2, 8px) var(--cs-space-3, 12px);
+  border-top: 1px solid var(--cs-color-border);
+  background: var(--cs-color-surface, #fff);
+}
+
+.coverage-embedded-pdf-preview--empty {
+  display: grid;
+  place-content: center;
+  gap: var(--cs-space-3, 12px);
+  padding: var(--cs-space-4, 16px);
+  text-align: center;
 }
 
 .cs-three-pane--customer-embedded .cs-three-pane__column--content .cs-three-pane-empty,

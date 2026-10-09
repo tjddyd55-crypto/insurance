@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
+import useIsMobile from '../../../hooks/useIsMobile'
+import { parseCustomerCoverageSimulationsReturnUrl } from '../../customers/utils/customerCoverageSimulationsNavigation'
+import { CoveragePdfDesktopRedirect } from '../components/CoveragePdfDesktopRedirect'
 import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
-
-type PdfPreviewLocationState = {
-  returnTo?: string
-}
 import { CoveragePdfPreviewZoomSurface } from '../components/CoveragePdfPreviewZoomSurface'
 import { CoverageSimulatorLayout } from '../components/CoverageSimulatorLayout'
 import { CoverageSimulatorToastProvider, useCoverageSimulatorToast } from '../components/CoverageSimulatorToast'
@@ -15,7 +14,11 @@ import { CoverageSimulatorPrintDocument } from '../pdf/CoverageSimulatorPrintDoc
 import { buildCoveragePdfBlobFromPrintRoot, downloadCoveragePdfBlob } from '../pdf/generateCoveragePdf'
 import { getScenarioById } from '../storage/scenarioRepository'
 
-function PdfPreviewPageBody() {
+type PdfPreviewLocationState = {
+  returnTo?: string
+}
+
+function PdfPreviewMobileBody() {
   const { scenarioId = '' } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
@@ -41,6 +44,19 @@ function PdfPreviewPageBody() {
   }
 
   const fileName = buildCoveragePdfFileName(scenario)
+
+  const exitPreview = () => {
+    if (returnTo) {
+      const target = parseCustomerCoverageSimulationsReturnUrl(returnTo)
+      navigate({ pathname: target.pathname, search: target.search }, { replace: true })
+      return
+    }
+    if (simulatorOrigin === 'customer') {
+      navigate({ pathname: basePath, search: '' }, { replace: true })
+      return
+    }
+    navigate(`${basePath}/scenarios/${scenario.id}`)
+  }
 
   const readPrintRoot = () =>
     printSourceRef.current?.querySelector('.coverage-simulator-print-root') as HTMLElement | null
@@ -97,23 +113,26 @@ function PdfPreviewPageBody() {
         <FormButton
           variant="primary"
           className="coverage-simulator-primary-btn"
-          onClick={() => {
-            if (returnTo) {
-              navigate(returnTo)
-              return
-            }
-            if (simulatorOrigin === 'customer') {
-              navigate(basePath)
-              return
-            }
-            navigate(`${basePath}/scenarios/${scenario.id}`)
-          }}
+          onClick={() => exitPreview()}
         >
           닫기
         </FormButton>
       </footer>
     </CoverageSimulatorLayout>
   )
+}
+
+function PdfPreviewPageBody() {
+  const isMobile = useIsMobile()
+  const { layoutMode } = useCoverageSimulatorScope()
+  const useThreePanePdf =
+    !isMobile && (layoutMode === 'crm' || layoutMode === 'preview-pc')
+
+  if (useThreePanePdf) {
+    return <CoveragePdfDesktopRedirect />
+  }
+
+  return <PdfPreviewMobileBody />
 }
 
 export function PdfPreviewPage() {

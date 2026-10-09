@@ -36,7 +36,8 @@ const SCENARIO_BLURB: Record<string, string> = {
 function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   const location = useLocation()
   const { layoutMode, userKey, hideAlternativeViewSwitcher, simulatorOrigin } = useCoverageSimulatorScope()
-  const { onBackFromEditor, hideEditorBack } = useCoverageThreePaneEditorNavigation()
+  const { onBackFromEditor, hideEditorBack, openPdfInPane } =
+    useCoverageThreePaneEditorNavigation()
   const { viewMode, setViewMode } = useCoverageScenarioViewMode({ userKey, layoutMode })
   const resolvedViewMode = hideAlternativeViewSwitcher ? 'default' : viewMode
   const { confirm, confirmDialog } = useConfirmDialog()
@@ -192,6 +193,10 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   }
 
   const openPdfPreview = () => {
+    if (openPdfInPane && scenario) {
+      openPdfInPane(scenario.id)
+      return
+    }
     const returnTo =
       simulatorOrigin === 'customer' ? `${basePath}${location.search}` : undefined
     navigate(`${basePath}/scenarios/${scenario.id}/pdf`, {

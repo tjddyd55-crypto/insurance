@@ -33,12 +33,19 @@ import {
   renameConsultationAsync,
 } from '../storage/scenarioRepository'
 
+import { CoverageEmbeddedPdfPreview } from './CoverageEmbeddedPdfPreview'
+
 import '../styles/coverage-three-pane.css'
 
 type ContentMode =
   | { type: 'empty' }
   | { type: 'simulation'; simulationId: string }
   | { type: 'template-edit'; templateId: string }
+  | { type: 'pdf'; scenarioId: string }
+
+type WorkspaceLocationState = {
+  openPdfScenarioId?: string
+}
 
 export type CoverageThreePaneCustomerFilter = {
   customerId: string
@@ -171,12 +178,29 @@ export function CoverageThreePaneWorkspace({
   }, [initialSimulationId])
 
   useEffect(() => {
+    if (templates.length === 0) return
     if (selectedTemplateId && templates.some((t) => t.id === selectedTemplateId)) return
+
+    if (initialTemplateId && templates.some((t) => t.id === initialTemplateId)) {
+      setSelectedTemplateId(initialTemplateId)
+      if (initialSimulationId) {
+        setContentMode({ type: 'simulation', simulationId: initialSimulationId })
+      }
+      return
+    }
+
     const nextTemplateId = templates[0]?.id ?? null
+    if (nextTemplateId === selectedTemplateId) return
     setSelectedTemplateId(nextTemplateId)
     setContentMode({ type: 'empty' })
     notifySelection(nextTemplateId, null)
-  }, [notifySelection, selectedTemplateId, templates])
+  }, [
+    initialSimulationId,
+    initialTemplateId,
+    notifySelection,
+    selectedTemplateId,
+    templates,
+  ])
 
   const selectedTemplate = selectedTemplateId ? getScenarioTemplateById(userKey, selectedTemplateId) : null
 
@@ -208,7 +232,42 @@ export function CoverageThreePaneWorkspace({
     refreshLists()
   }, [refreshLists])
 
-  const activeSimulationId = contentMode.type === 'simulation' ? contentMode.simulationId : null
+  const activeSimulationId =
+    contentMode.type === 'simulation'
+      ? contentMode.simulationId
+      : contentMode.type === 'pdf'
+        ? contentMode.scenarioId
+        : null
+
+  const isSimulationRowActive = (simulationId: string) => activeSimulationId === simulationId
+
+  const openPdfInPane = useCallback((scenarioId: string) => {
+    setContentMode({ type: 'pdf', scenarioId })
+    notifySelection(selectedTemplateId, scenarioId)
+  }, [notifySelection, selectedTemplateId])
+
+  const closePdfInPane = useCallback(() => {
+    if (contentMode.type === 'pdf') {
+      setContentMode({ type: 'simulation', simulationId: contentMode.scenarioId })
+      notifySelection(selectedTemplateId, contentMode.scenarioId)
+      return
+    }
+    if (activeSimulationId) {
+      setContentMode({ type: 'simulation', simulationId: activeSimulationId })
+    }
+  }, [activeSimulationId, contentMode, notifySelection, selectedTemplateId])
+
+  useEffect(() => {
+    const state = location.state as WorkspaceLocationState | null
+    const scenarioId = state?.openPdfScenarioId?.trim()
+    if (!scenarioId) return
+    setContentMode({ type: 'pdf', scenarioId })
+    notifySelection(selectedTemplateId, scenarioId)
+    navigate(
+      { pathname: location.pathname, search: location.search },
+      { replace: true, state: {} },
+    )
+  }, [location.pathname, location.search, location.state, navigate, notifySelection, selectedTemplateId])
 
   const selectTemplate = (templateId: string) => {
     setSelectedTemplateId(templateId)
@@ -324,7 +383,7 @@ export function CoverageThreePaneWorkspace({
     if (!accepted) return
     try {
       await deleteScenarioAsync(userKey, row.id)
-      if (contentMode.type === 'simulation' && contentMode.simulationId === row.id) {
+      if (isSimulationRowActive(row.id)) {
         setContentMode({ type: 'empty' })
         notifySelection(selectedTemplateId, null)
       }
@@ -348,12 +407,28 @@ export function CoverageThreePaneWorkspace({
     return null
   }
 
+  const contentColumnClassName = [
+    'cs-three-pane__column',
+    'cs-three-pane__column--content',
+    contentMode.type === 'pdf' ? 'cs-three-pane__column--content-pdf' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   const contentPane = (() => {
     if (!selectedTemplateId) {
       return (
         <div className="cs-three-pane-empty">
           <p>시나리오를 선택해 주세요.</p>
         </div>
+      )
+    }
+    if (contentMode.type === 'pdf') {
+      return (
+        <CoverageEmbeddedPdfPreview
+          scenarioId={contentMode.scenarioId}
+          onClose={closePdfInPane}
+        />
       )
     }
     if (contentMode.type === 'simulation') {
@@ -392,10 +467,18 @@ export function CoverageThreePaneWorkspace({
     [clearContentSelection],
   )
 
+  const editorNavValueWithPdf = useMemo(
+    () => ({
+      ...editorNavValue,
+      openPdfInPane,
+    }),
+    [editorNavValue, openPdfInPane],
+  )
+
   const pdfReturnTo = `${basePath}${location.search}`
 
   return (
-    <CoverageThreePaneEditorNavigationProvider value={editorNavValue}>
+    <CoverageThreePaneEditorNavigationProvider value={editorNavValueWithPdf}>
       <CoverageSimulatorLayout shellClassName={showAppBar ? 'coverage-simulator-shell--three-pane' : undefined}>
         {showAppBar ? (
           <header className="coverage-simulator-appbar coverage-simulator-appbar--compact">
@@ -535,7 +618,7 @@ export function CoverageThreePaneWorkspace({
                     <button
                       type="button"
                       className={`cs-three-pane-simulation-row__main${
-                        contentMode.type === 'simulation' && contentMode.simulationId === row.id
+                        isSimulationRowActive(row.id)
                           ? ' cs-three-pane-simulation-row__main--active'
                           : ''
                       }`}
@@ -601,7 +684,7 @@ export function CoverageThreePaneWorkspace({
             </div>
           </aside>
 
-          <section className="cs-three-pane__column cs-three-pane__column--content">{contentPane}</section>
+          <section className={contentColumnClassName}>{contentPane}</section>
         </div>
 
         {effectiveSimulationMenuMode === 'sheet' ? (
