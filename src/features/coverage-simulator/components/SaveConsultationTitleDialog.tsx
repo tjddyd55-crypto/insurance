@@ -1,6 +1,4 @@
-import { useEffect, useState } from 'react'
-
-import { BaseDialog } from '../../../components/dialog/BaseDialog'
+import { CoverageSimulatorNameCreateDialog } from './CoverageSimulatorNameCreateDialog'
 
 type Props = {
   open: boolean
@@ -9,50 +7,30 @@ type Props = {
   validationError?: string | null
   saving?: boolean
   onClose: () => void
-  onConfirm: (title: string) => void
+  onConfirm: (title: string) => void | Promise<void>
 }
 
+/** 시뮬레이션 제목 저장 — `CoverageSimulatorNameCreateDialog` SSOT 래퍼 */
 export function SaveConsultationTitleDialog({
   open,
   initialTitle,
-  dialogTitle = '제목',
+  dialogTitle = '시뮬레이션 제목 수정',
   validationError,
   saving = false,
   onClose,
   onConfirm,
 }: Props) {
-  const [title, setTitle] = useState(initialTitle)
-
-  useEffect(() => {
-    if (open) setTitle(initialTitle)
-  }, [open, initialTitle])
-
-  if (!open) return null
-
   return (
-    <BaseDialog open={open} onClose={onClose} ariaLabel="시뮬레이션 제목">
-      <h2 className="coverage-simulator-dialog__title">{dialogTitle}</h2>
-      <input
-        className="coverage-simulator-dialog__input"
-        value={title}
-        onChange={(event) => setTitle(event.target.value)}
-        placeholder="암 항암치료 플랜"
-        autoFocus
-      />
-      {validationError ? <p className="coverage-simulator-dialog__error">{validationError}</p> : null}
-      <div className="coverage-simulator-dialog__actions">
-        <button type="button" className="coverage-simulator-secondary-btn" onClick={onClose} disabled={saving}>
-          취소
-        </button>
-        <button
-          type="button"
-          className="coverage-simulator-primary-btn"
-          disabled={saving}
-          onClick={() => onConfirm(title)}
-        >
-          {saving ? '저장 중…' : '저장'}
-        </button>
-      </div>
-    </BaseDialog>
+    <CoverageSimulatorNameCreateDialog
+      open={open}
+      dialogTitle={dialogTitle}
+      fieldLabel="제목"
+      confirmLabel="저장"
+      initialValue={initialTitle}
+      errorMessage={validationError}
+      onClose={onClose}
+      submitting={saving}
+      onConfirm={onConfirm}
+    />
   )
 }

@@ -138,7 +138,7 @@ export function ScenarioLibrarySelectView({ layoutMode }: Props) {
                 {menuTemplateId === template.id ? (
                   <div className="cs-template-card__menu-panel" role="menu">
                     <button type="button" onClick={() => openScenarioEdit(template.id)}>
-                      시나리오 편집
+                      기본값 편집
                     </button>
                     <button type="button" onClick={() => onRename(template.id)}>
                       이름 변경

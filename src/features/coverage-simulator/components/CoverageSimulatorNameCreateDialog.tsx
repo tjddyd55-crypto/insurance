@@ -10,6 +10,7 @@ type Props = {
   confirmLabel?: string
   initialValue?: string
   errorMessage?: string | null
+  submitting?: boolean
   onClose: () => void
   onConfirm: (value: string) => void | Promise<void>
 }
@@ -22,34 +23,36 @@ export function CoverageSimulatorNameCreateDialog({
   confirmLabel = '만들기',
   initialValue = '',
   errorMessage = null,
+  submitting: submittingProp = false,
   onClose,
   onConfirm,
 }: Props) {
   const [value, setValue] = useState(initialValue)
-  const [submitting, setSubmitting] = useState(false)
+  const [submittingLocal, setSubmittingLocal] = useState(false)
+  const submitting = submittingProp || submittingLocal
 
   useEffect(() => {
     if (open) {
       setValue(initialValue)
-      setSubmitting(false)
+      setSubmittingLocal(false)
     }
   }, [open, initialValue])
 
   const submit = () => {
     const trimmed = value.trim()
     if (!trimmed || submitting) return
-    setSubmitting(true)
+    setSubmittingLocal(true)
     try {
       const result = onConfirm(trimmed)
       if (result && typeof result.then === 'function') {
-        void result.finally(() => setSubmitting(false))
+        void result.finally(() => setSubmittingLocal(false))
         return
       }
     } catch {
-      setSubmitting(false)
+      setSubmittingLocal(false)
       return
     }
-    setSubmitting(false)
+    setSubmittingLocal(false)
   }
 
   if (!open) return null
