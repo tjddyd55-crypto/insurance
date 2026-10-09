@@ -407,6 +407,14 @@ export function CoverageThreePaneWorkspace({
     return null
   }
 
+  const contentColumnClassName = [
+    'cs-three-pane__column',
+    'cs-three-pane__column--content',
+    contentMode.type === 'pdf' ? 'cs-three-pane__column--content-pdf' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   const contentPane = (() => {
     if (!selectedTemplateId) {
       return (
@@ -676,7 +684,7 @@ export function CoverageThreePaneWorkspace({
             </div>
           </aside>
 
-          <section className="cs-three-pane__column cs-three-pane__column--content">{contentPane}</section>
+          <section className={contentColumnClassName}>{contentPane}</section>
         </div>
 
         {effectiveSimulationMenuMode === 'sheet' ? (

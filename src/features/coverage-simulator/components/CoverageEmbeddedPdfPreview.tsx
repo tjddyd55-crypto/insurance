@@ -75,8 +75,12 @@ export function CoverageEmbeddedPdfPreview({ scenarioId, onClose }: Props) {
         </div>
         <FormButton variant="secondary" size="sm" onClick={onClose}>닫기</FormButton>
       </header>
-      <div className="coverage-embedded-pdf-preview__viewport">
-        <CoveragePdfPreviewZoomSurface key={scenario.id} documentKey={scenario.id}>
+      <div className="coverage-embedded-pdf-preview__body">
+        <CoveragePdfPreviewZoomSurface
+          key={scenario.id}
+          documentKey={scenario.id}
+          viewportInsetPx={6}
+        >
           <CoverageSimulatorPrintDocument scenario={scenario} />
         </CoveragePdfPreviewZoomSurface>
       </div>
