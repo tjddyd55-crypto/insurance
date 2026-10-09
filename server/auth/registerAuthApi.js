@@ -3,6 +3,7 @@ import { safeQuery, systemQuery } from '../utils/dbSafeQuery.js'
 import { bootstrapInsuranceBillingSubscriptionOnSignup } from '../insurance-billing/subscriptionLifecycle.js'
 import { ensureReferralCodeForUser } from '../referrals/referralCode.js'
 import { planSignupCodes, applySignupCodesPlan } from '../signup/processSignupCodes.js'
+import { queueSignupWelcomeSms } from '../signup/signupWelcomeSms.js'
 import { readPolicyActive } from '../subscription/appSettings.js'
 import { verifySignupPhoneProof, verifyRegistrationSignupPhoneProof } from '../lib/signupPhoneProof.js'
 import { evaluateTenantMembershipLoginBlock, pickPrimaryTenantMembershipForLogin } from '../lib/tenantMembershipAuth.js'
@@ -428,6 +429,10 @@ async function handleRegister(req, res) {
       await pool.query(`DELETE FROM sms_verification_codes WHERE purpose = 'SIGNUP' AND phone_number = $1`, [
         phoneNorm,
       ])
+    }
+
+    if (id && phoneNorm) {
+      queueSignupWelcomeSms(pool, { userId: id, phoneNumber: phoneNorm })
     }
 
     const payload = { id, username: normalizedUsername, ga_id: gaId, createdAt: createdAtIso }
