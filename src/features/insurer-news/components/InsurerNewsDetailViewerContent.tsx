@@ -26,6 +26,7 @@ export function InsurerNewsDetailViewerContent({
     ? buildInsurerNewsGalleryUrls({
         heroImageUrl: detail.heroImageUrl,
         heroImageObjectKey: detail.heroImageObjectKey,
+        heroImageOpenUrl: detail.heroImageOpenUrl,
         attachments: detail.attachments,
       })
     : item
@@ -64,6 +65,7 @@ export function buildInsurerNewsDetailHeroDownloadUrl(
       buildInsurerNewsGalleryUrls({
         heroImageUrl: detail.heroImageUrl,
         heroImageObjectKey: detail.heroImageObjectKey,
+        heroImageOpenUrl: detail.heroImageOpenUrl,
         attachments: detail.attachments,
       })[0] ?? ''
     )

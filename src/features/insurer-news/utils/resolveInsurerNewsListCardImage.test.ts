@@ -24,4 +24,14 @@ describe('resolveInsurerNewsListCardImageUrl', () => {
     })
     expect(url).toContain('https://cdn.platform-assets.com/legacy/photo.png')
   })
+
+  it('prefers heroImageOpenUrl over CDN objectKey (DEV bucket vs prod CDN)', () => {
+    const url = resolveInsurerNewsListCardImageUrl({
+      heroImageObjectKey: 'crm-platform/development/insurance/tenants/yjasset/photo.jpg',
+      heroImageUrl: 'https://cdn.platform-assets.com/crm-platform/development/insurance/tenants/yjasset/photo.jpg',
+      heroImageOpenUrl: '/api/insurer-news/n1/attachments/a1/open?accessToken=abc',
+    })
+    expect(url).toContain('/insurer-news/n1/attachments/a1/open')
+    expect(url).not.toContain('cdn.platform-assets.com')
+  })
 })

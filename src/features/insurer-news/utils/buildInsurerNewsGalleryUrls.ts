@@ -12,7 +12,12 @@ function isImageAttachment(row: NewsletterAttachment): boolean {
 function resolveHeroGalleryUrl(params: {
   heroImageObjectKey?: string | null
   heroImageUrl?: string | null
+  heroImageOpenUrl?: string | null
 }): string {
+  const heroOpen = String(params.heroImageOpenUrl ?? '').trim()
+  if (heroOpen) {
+    return resolveInsurerNewsAttachmentDisplayUrl({ openUrl: heroOpen })
+  }
   const heroObjectKey = String(params.heroImageObjectKey ?? '').trim()
   if (heroObjectKey) {
     return resolveInsurerNewsAttachmentDisplayUrl({ objectKey: heroObjectKey, url: '' })
@@ -31,6 +36,7 @@ function resolveHeroGalleryUrl(params: {
 export function buildInsurerNewsGalleryUrls(params: {
   heroImageUrl?: string | null
   heroImageObjectKey?: string | null
+  heroImageOpenUrl?: string | null
   attachments?: NewsletterAttachment[] | null
 }): string[] {
   const rows = [...(params.attachments ?? [])]
