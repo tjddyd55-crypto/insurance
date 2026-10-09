@@ -1,5 +1,6 @@
 import { safeQuery, systemQuery } from '../utils/dbSafeQuery.js'
 import { resolveInsuranceCategoryForApi } from './insuranceCompanyCategoryResolve.js'
+import { normalizeInsuranceCompanyNameKey } from './ensureInsuranceCompanyDirectoryStubs.js'
 import { parseGaId } from './parseGaId.js'
 import { SEED_DATA } from '../seedInsuranceFullData.js'
 
@@ -8,6 +9,15 @@ export const INSURER_MANAGER_REFERENCE_GA_CODE = 'YJASSET'
 
 function formatInsCompanyCode(id) {
   return `INS${String(Number(id)).padStart(6, '0')}`
+}
+
+/** NOT NULL company_code — GA·유형·이름 기반 멱등 코드 (전역 uq_insurance_company_master_company_code) */
+function companyCodeForInsurerManagerGaMaster(gaId, category, name) {
+  const g = parseGaId(gaId)
+  const cat = category === 'LIFE' ? 'L' : 'N'
+  const key =
+    normalizeInsuranceCompanyNameKey(name).replace(/[^a-z0-9]/g, '').slice(0, 12) || 'insurer'
+  return `IM${String(g)}${cat}${key}`.slice(0, 20)
 }
 
 /**
@@ -179,18 +189,31 @@ export async function ensureInsurerManagerCompanyMasterForGa(executor, gaId, cat
     return byNameId
   }
 
+  const companyCode = companyCodeForInsurerManagerGaMaster(g, category, name)
   let id
   try {
     const ins = await safeQuery(
       executor,
       `
-      INSERT INTO insurance_company_master (ga_id, category, name, updated_at)
-      VALUES ($1, $2, $3, NOW())
+      INSERT INTO insurance_company_master (ga_id, category, name, company_code, updated_at)
+      VALUES ($1, $2, $3, $4, NOW())
       RETURNING id
       `,
-      [g, category, name],
+      [g, category, name, companyCode],
     )
-    id = Number(ins.rows[0].id)
+    if (ins.rowCount === 0) {
+      const byCode = await safeQuery(
+        executor,
+        `SELECT id FROM insurance_company_master WHERE company_code = $1 AND ga_id = $2 LIMIT 1`,
+        [companyCode, g],
+      )
+      if (byCode.rowCount === 0) {
+        throw new Error('보험사 마스터를 생성하지 못했습니다.')
+      }
+      id = Number(byCode.rows[0].id)
+    } else {
+      id = Number(ins.rows[0].id)
+    }
   } catch (error) {
     if (error && typeof error === 'object' && error.code === '23505') {
       const again = await safeQuery(
