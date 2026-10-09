@@ -1,3 +1,5 @@
+import { resolveCustomerGenderForSave } from '../../../shared/customerGenderNormalize.js'
+
 export function mapRowToCustomerBody(mapped) {
   const insuranceHistory = String(mapped.insuranceHistory ?? '').trim()
   const memoText = String(mapped.memo ?? '').trim()
@@ -14,7 +16,7 @@ export function mapRowToCustomerBody(mapped) {
     phone: mapped.phone,
     ssn: mapped.ssn,
     address: mapped.address,
-    gender: mapped.gender,
+    gender: resolveCustomerGenderForSave(mapped.gender, mapped.ssn),
     height: mapped.height,
     weight: mapped.weight,
     job: mapped.job,
