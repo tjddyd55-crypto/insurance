@@ -3227,6 +3227,16 @@ apiRouter.post('/insurer-managers', requireAuth, requireGaInsurerManagerMutator,
       res.status(400).json({ message: '보험사 유형을 선택해 주세요.' })
       return
     }
+    const validationMessage = validateCredentials(username, password)
+    if (validationMessage) {
+      res.status(400).json({ message: validationMessage })
+      return
+    }
+    const normalizedUsername = String(username).trim()
+    if (await isUsernameTakenGlobally(pool, normalizedUsername)) {
+      res.status(409).json({ message: '이미 사용 중인 아이디입니다.' })
+      return
+    }
     if (!Number.isInteger(companyMasterId) || companyMasterId <= 0) {
       if (!companyNameForEnsure) {
         res.status(400).json({ message: '보험사(마스터)를 선택해 주세요.' })
@@ -3246,16 +3256,6 @@ apiRouter.post('/insurer-managers', requireAuth, requireGaInsurerManagerMutator,
       return
     }
     const nameNorm = link.master.name
-    const validationMessage = validateCredentials(username, password)
-    if (validationMessage) {
-      res.status(400).json({ message: validationMessage })
-      return
-    }
-    const normalizedUsername = String(username).trim()
-    if (await isUsernameTakenGlobally(pool, normalizedUsername)) {
-      res.status(409).json({ message: '이미 사용 중인 아이디입니다.' })
-      return
-    }
     const dupGaInsurer = await safeQuery(
       pool,
       `
@@ -3303,8 +3303,10 @@ apiRouter.post('/insurer-managers', requireAuth, requireGaInsurerManagerMutator,
       }),
     )
   } catch (error) {
-    if (error?.code === '23505') {
-      res.status(409).json({ message: '이미 사용 중인 아이디이거나 동일 보험사에 계정이 있습니다.' })
+    const { resolveInsurerManagerUniqueConflictMessage } = await import('./lib/insurerManagerDuplicatePolicy.js')
+    const conflictMessage = resolveInsurerManagerUniqueConflictMessage(error)
+    if (conflictMessage) {
+      res.status(409).json({ message: conflictMessage })
       return
     }
     handleDbError(error, req, res)
@@ -3513,8 +3515,10 @@ apiRouter.patch('/insurer-managers/:id', requireAuth, requireGaInsurerManagerMut
       }),
     )
   } catch (error) {
-    if (error?.code === '23505') {
-      res.status(409).json({ message: '이미 사용 중인 아이디이거나 동일 보험사에 계정이 있습니다.' })
+    const { resolveInsurerManagerUniqueConflictMessage } = await import('./lib/insurerManagerDuplicatePolicy.js')
+    const conflictMessage = resolveInsurerManagerUniqueConflictMessage(error)
+    if (conflictMessage) {
+      res.status(409).json({ message: conflictMessage })
       return
     }
     handleDbError(error, req, res)

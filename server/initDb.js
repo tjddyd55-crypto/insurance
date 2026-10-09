@@ -3021,6 +3021,9 @@ export async function initDb() {
     WHERE is_deleted = false
   `)
 
+  const { ensureInsurerManagerDuplicateIndexes } = await import('./lib/insurerManagerDuplicatePolicy.js')
+  await ensureInsurerManagerDuplicateIndexes(pool)
+
   await maybeDebugResetAllUsers()
   await ensureBootstrapAdminUser()
   await seedCrmPlatformUserMemberships(pool)
