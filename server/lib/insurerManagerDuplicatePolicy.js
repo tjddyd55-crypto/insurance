@@ -23,7 +23,11 @@ export async function ensureInsurerManagerDuplicateIndexes(pool) {
   ]
   for (const legacyName of legacyConstraintNames) {
     const safe = legacyName.replace(/"/g, '""')
-    await pool.query(`ALTER TABLE insurer_managers DROP CONSTRAINT IF EXISTS "${safe}"`)
+    try {
+      await pool.query(`ALTER TABLE insurer_managers DROP CONSTRAINT IF EXISTS "${safe}"`)
+    } catch (error) {
+      console.warn('[insurerManagerDuplicatePolicy] legacy constraint drop skipped', legacyName, error)
+    }
   }
 
   const constraintRows = await pool.query(`
@@ -44,12 +48,20 @@ export async function ensureInsurerManagerDuplicateIndexes(pool) {
     const mentionsGa = def.includes('ga_id')
     if (def.includes('username') && !mentionsGa) {
       const safe = name.replace(/"/g, '""')
-      await pool.query(`ALTER TABLE insurer_managers DROP CONSTRAINT IF EXISTS "${safe}"`)
+      try {
+        await pool.query(`ALTER TABLE insurer_managers DROP CONSTRAINT IF EXISTS "${safe}"`)
+      } catch (error) {
+        console.warn('[insurerManagerDuplicatePolicy] constraint drop skipped', name, error)
+      }
       continue
     }
     if ((def.includes('company_id') || def.includes('insurer_name')) && !mentionsGa) {
       const safe = name.replace(/"/g, '""')
-      await pool.query(`ALTER TABLE insurer_managers DROP CONSTRAINT IF EXISTS "${safe}"`)
+      try {
+        await pool.query(`ALTER TABLE insurer_managers DROP CONSTRAINT IF EXISTS "${safe}"`)
+      } catch (error) {
+        console.warn('[insurerManagerDuplicatePolicy] constraint drop skipped', name, error)
+      }
     }
   }
 
