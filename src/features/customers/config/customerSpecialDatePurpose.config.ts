@@ -38,6 +38,26 @@ export const CUSTOMER_SPECIAL_DATE_PURPOSE_OPTIONS: Array<{
   }),
 )
 
+/** Excel 알림유형 열 — 한글 라벨·영문 코드 모두 허용 */
+export function parseCustomerSpecialDatePurposeFromExcel(
+  raw: string | null | undefined,
+): CustomerSpecialDatePurposeType {
+  const t = String(raw ?? '').trim()
+  if (!t) {
+    return DEFAULT_CUSTOMER_SPECIAL_DATE_PURPOSE
+  }
+  const upper = t.toUpperCase()
+  if (PURPOSE_TYPE_SET.has(upper)) {
+    return upper as CustomerSpecialDatePurposeType
+  }
+  for (const key of CUSTOMER_SPECIAL_DATE_PURPOSE_TYPES) {
+    if (CUSTOMER_SPECIAL_DATE_PURPOSE_LABELS[key] === t) {
+      return key
+    }
+  }
+  return DEFAULT_CUSTOMER_SPECIAL_DATE_PURPOSE
+}
+
 export function labelForCustomerSpecialDatePurpose(
   purposeType: CustomerSpecialDatePurposeType | string | null | undefined,
 ): string {

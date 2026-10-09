@@ -16,7 +16,9 @@ import {
 } from './customerExcelUpload'
 
 const { saveCustomerMock } = vi.hoisted(() => ({
-  saveCustomerMock: vi.fn<(_token: string, _payload: SaveCustomerPayload) => Promise<void>>(),
+  saveCustomerMock: vi.fn<
+    (_token: string, _payload: SaveCustomerPayload) => Promise<{ id: number; name: string }>
+  >(),
 }))
 
 vi.mock('../api/customersApi', () => ({
@@ -30,6 +32,7 @@ const panelSource = readFileSync(
 
 function makeParsedRow(overrides: Partial<CustomerExcelParsedRow> = {}): CustomerExcelParsedRow {
   return {
+    importKey: '',
     name: '홍길동',
     phone: '01012345678',
     ssn: '8001011234567',
@@ -45,11 +48,15 @@ function makeParsedRow(overrides: Partial<CustomerExcelParsedRow> = {}): Custome
     businessAddressDetail: '',
     businessMemo: '',
     carrier: '',
+    smsOptOut: null,
     height: '',
     weight: '',
     isDriver: null,
     carType: '',
     medical: '',
+    treatmentHistoryNote: '',
+    medicationHistoryNote: '',
+    accountNumber: '',
     carNumber: '',
     carModel: '',
     carYear: '',
@@ -90,7 +97,7 @@ function makePayload(
 describe('customerExcelUpload import policy', () => {
   beforeEach(() => {
     saveCustomerMock.mockReset()
-    saveCustomerMock.mockResolvedValue(undefined)
+    saveCustomerMock.mockResolvedValue({ id: 1, name: 'mock' })
   })
 
   it('does not export a user-facing max batch constant', async () => {

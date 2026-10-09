@@ -18,7 +18,7 @@ describe('customer excel sample round-trip', () => {
     expect(aoa[1]?.includes('male')).toBe(false)
 
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), '고객데이터')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), '고객기본정보')
     const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
     const parsed = parseCustomerExcelArrayBuffer(buf)
     const payloads = mergeRowsForImport(parsed)
