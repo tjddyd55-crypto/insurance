@@ -79,7 +79,8 @@ export function CoverageEmbeddedPdfPreview({ scenarioId, onClose }: Props) {
         <CoveragePdfPreviewZoomSurface
           key={scenario.id}
           documentKey={scenario.id}
-          viewportInsetPx={6}
+          viewportInsetPx={0}
+          lengthZoomFactor={1}
         >
           <CoverageSimulatorPrintDocument scenario={scenario} />
         </CoveragePdfPreviewZoomSurface>
