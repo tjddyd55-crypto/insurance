@@ -9,10 +9,9 @@
   --ws-tab-inactive-hover: #e9edf1;
   --ws-tab-text: #64748b;
   --ws-tab-active-text: #0f172a;
-  --ws-active-height: 48px;
-  --ws-inactive-height: 40px;
-  /* inactive가 active보다 아래로 내려가 보이는 양 (스케치 ~8px) */
-  --ws-tab-lift: 8px;
+  /* 높이 2종만: BASE(disabled+inactive) / ACTIVE */
+  --ws-tab-height-base: 40px;
+  --ws-tab-height-active: 46px;
   --ws-tab-gap: 4px;
   --ws-tab-radius: 8px;
   --ws-tab-active-radius: 10px;
@@ -48,12 +47,14 @@
   gap: var(--ws-tab-gap);
   width: 100%;
   min-width: 0;
-  min-height: calc(var(--ws-active-height) + 2px);
-  padding-top: 0;
+  height: var(--ws-tab-height-active);
+  min-height: var(--ws-tab-height-active);
+  max-height: var(--ws-tab-height-active);
+  padding: 0;
   position: relative;
   z-index: 2;
   overflow-x: auto;
-  overflow-y: visible;
+  overflow-y: hidden;
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, #94a3b8 45%, transparent) transparent;
 }
@@ -74,12 +75,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: var(--ws-inactive-height);
-  min-height: var(--ws-inactive-height);
+  height: var(--ws-tab-height-base);
+  min-height: var(--ws-tab-height-base);
+  max-height: var(--ws-tab-height-base);
   margin: 0;
   padding: 0 16px;
   border: 1px solid var(--ws-border);
-  border-bottom: 1px solid var(--ws-border);
+  border-bottom: none;
   border-radius: var(--ws-tab-radius) var(--ws-tab-radius) 0 0;
   background: var(--ws-tab-inactive-bg);
   color: var(--ws-tab-text);
@@ -90,13 +92,11 @@
   white-space: nowrap;
   cursor: pointer;
   box-shadow: none;
-  transform: translateY(var(--ws-tab-lift));
+  transform: none;
   transition:
     background-color 0.15s ease,
     border-color 0.15s ease,
-    color 0.15s ease,
-    transform 0.15s ease,
-    height 0.15s ease;
+    color 0.15s ease;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -107,41 +107,58 @@
   }
 }
 
-.customer-workspace-page__tab:focus-visible {
+/* 전역 button:focus-visible primary-soft 링 제거 — workspace 탭 scope만 */
+.customer-workspace-page__tab:focus,
+.customer-workspace-page__tab:focus-visible:not(:disabled) {
+  box-shadow: none;
+}
+
+.customer-workspace-page__tab:focus-visible:not(:disabled):not(.customer-workspace-page__tab--active) {
   outline: 2px solid color-mix(in srgb, #64748b 55%, transparent);
   outline-offset: 1px;
   z-index: 7;
 }
 
+.customer-workspace-page__tab--active:focus,
+.customer-workspace-page__tab--active:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
 .customer-workspace-page__tab--active {
-  height: var(--ws-active-height);
-  min-height: var(--ws-active-height);
-  padding: 0 18px;
+  height: var(--ws-tab-height-active);
+  min-height: var(--ws-tab-height-active);
+  max-height: var(--ws-tab-height-active);
+  padding: 0 16px;
   border-color: var(--ws-border);
   border-bottom: none;
   border-radius: var(--ws-tab-active-radius) var(--ws-tab-active-radius) 0 0;
   background: var(--ws-page-surface);
   color: var(--ws-tab-active-text);
   font-weight: 700;
-  transform: translateY(0);
   z-index: 6;
 }
 
-/* active 아래 가로선·본문 top border 가림 — 좌우 세로선은 본문 외곽으로 이어짐 */
+/* active 폭 아래 본문 top border만 가림 (두꺼운 띠 방지) */
 .customer-workspace-page__tab--active::after {
   content: '';
   position: absolute;
   left: -1px;
   right: -1px;
-  bottom: -1px;
-  height: 3px;
+  bottom: 0;
+  height: 1px;
   background: var(--customer-workspace-page-surface);
   pointer-events: none;
   z-index: 9;
 }
 
 .customer-workspace-page__tab:disabled {
-  opacity: 0.45;
+  height: var(--ws-tab-height-base);
+  min-height: var(--ws-tab-height-base);
+  max-height: var(--ws-tab-height-base);
+  padding: 0 16px;
+  color: color-mix(in srgb, var(--ws-tab-text) 72%, transparent);
+  background: var(--ws-tab-inactive-bg);
   cursor: not-allowed;
 }
 
