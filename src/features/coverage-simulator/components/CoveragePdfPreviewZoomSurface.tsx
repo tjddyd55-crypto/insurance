@@ -16,6 +16,7 @@ import {
 } from '../../../components/news-detail-viewer/useNewsDetailViewerZoomAnchor'
 import { COVERAGE_PDF_CAPTURE_WIDTH_PX } from '../pdf/coveragePdfCapture'
 import {
+  COVERAGE_PDF_PREVIEW_LENGTH_ZOOM,
   computePreviewDocumentScale,
   shouldUpdateFitScale,
 } from '../pdf/coveragePdfPreviewZoomMath'
@@ -26,12 +27,15 @@ type Props = {
   documentKey: string
   /** fit 계산 시 viewport 좌우 inset (embedded pane은 더 넓게) */
   viewportInsetPx?: number
+  /** 1이면 pane 너비에 맞춤; 모바일/풀페이지는 기본 0.82 */
+  lengthZoomFactor?: number
 }
 
 export function CoveragePdfPreviewZoomSurface({
   children,
   documentKey,
   viewportInsetPx = 16,
+  lengthZoomFactor = COVERAGE_PDF_PREVIEW_LENGTH_ZOOM,
 }: Props) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const docRef = useRef<HTMLDivElement>(null)
@@ -125,6 +129,7 @@ export function CoveragePdfPreviewZoomSurface({
       const next = computePreviewDocumentScale(
         available,
         COVERAGE_PDF_CAPTURE_WIDTH_PX,
+        lengthZoomFactor,
       )
       if (!shouldUpdateFitScale(fitScaleRef.current, next)) return
       fitScaleRef.current = next
@@ -145,7 +150,7 @@ export function CoveragePdfPreviewZoomSurface({
       cancelAnimationFrame(orientationFrame)
       window.removeEventListener('orientationchange', onOrientationChange)
     }
-  }, [viewportInsetPx])
+  }, [lengthZoomFactor, viewportInsetPx])
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current
