@@ -28,4 +28,12 @@ describe('insurerManagerDuplicatePolicy', () => {
   it('returns null for non-unique errors', () => {
     assert.equal(resolveInsurerManagerUniqueConflictMessage({ code: '23503' }), null)
   })
+
+  it('maps ambiguous unique to company when username precheck passed', () => {
+    const msg = resolveInsurerManagerUniqueConflictMessage(
+      { code: '23505', constraint: 'insurer_managers_insurer_name_key' },
+      { usernamePrecheckPassed: true },
+    )
+    assert.equal(msg, INSURER_MANAGER_COMPANY_CONFLICT_MESSAGE)
+  })
 })

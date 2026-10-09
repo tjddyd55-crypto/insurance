@@ -93,17 +93,26 @@ export async function ensureInsurerManagerDuplicateIndexes(pool) {
 
 /**
  * @param {unknown} error
+ * @param {{ usernamePrecheckPassed?: boolean }} [options]
  * @returns {string | null}
  */
-export function resolveInsurerManagerUniqueConflictMessage(error) {
+export function resolveInsurerManagerUniqueConflictMessage(error, options = {}) {
   if (!error || typeof error !== 'object' || error.code !== '23505') {
     return null
   }
   const constraint = String(error.constraint ?? '').toLowerCase()
   const detail = String(error.detail ?? '').toLowerCase()
+  const usernamePrecheckPassed = options.usernamePrecheckPassed === true
 
   if (constraint.includes('username') || detail.includes('(username)=')) {
     return INSURER_MANAGER_USERNAME_CONFLICT_MESSAGE
+  }
+  if (
+    usernamePrecheckPassed &&
+    !constraint.includes('username') &&
+    !detail.includes('(username)=')
+  ) {
+    return INSURER_MANAGER_COMPANY_CONFLICT_MESSAGE
   }
   if (
     constraint.includes('ga_company') ||

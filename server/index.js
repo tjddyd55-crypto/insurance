@@ -3304,7 +3304,9 @@ apiRouter.post('/insurer-managers', requireAuth, requireGaInsurerManagerMutator,
     )
   } catch (error) {
     const { resolveInsurerManagerUniqueConflictMessage } = await import('./lib/insurerManagerDuplicatePolicy.js')
-    const conflictMessage = resolveInsurerManagerUniqueConflictMessage(error)
+    const conflictMessage = resolveInsurerManagerUniqueConflictMessage(error, {
+      usernamePrecheckPassed: true,
+    })
     if (conflictMessage) {
       res.status(409).json({ message: conflictMessage })
       return
