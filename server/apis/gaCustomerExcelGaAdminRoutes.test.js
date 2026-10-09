@@ -13,5 +13,6 @@ describe('gaCustomerExcelApi GA_ADMIN routes', () => {
     assert.match(apiSource, /requireGaAdminRole/)
     assert.match(apiSource, /req\.gaAdminScopeGaId/)
     assert.match(apiSource, /persistGaCustomerExcelSettings/)
+    assert.match(apiSource, /parseGaIdFromUser/)
   })
 })

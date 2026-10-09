@@ -170,7 +170,13 @@ function configFor(kind: ManagerChannelKind): ManagerPageConfig {
   }
 }
 
-export default function InsurerManagersPage({ managerKind = 'insurer' }: { managerKind?: ManagerChannelKind }) {
+export type InsurerManagersPageProps = {
+  managerKind?: ManagerChannelKind
+  /** GA 관리 허브 — 개인 vault가 아닌 소식지 운영용 원수사 담당자(insurer_managers) */
+  embedded?: boolean
+}
+
+export default function InsurerManagersPage({ managerKind = 'insurer', embedded = false }: InsurerManagersPageProps = {}) {
   const { user, token } = useAuth()
   const { confirm, confirmDialog } = useConfirmDialog()
   const config = useMemo(() => configFor(managerKind), [managerKind])
@@ -358,7 +364,17 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
     setFormErr('')
   }
 
+  const pageTitle = embedded && managerKind === 'insurer' ? '원수사 계정' : config.pageTitle
+
   if (!gaCode) {
+    if (embedded) {
+      return (
+        <div className="admin-data-card">
+          <h2 className="admin-data-card__title">{pageTitle}</h2>
+          <p className="text-sm text-[var(--text-secondary)]">{config.noSessionMessage}</p>
+        </div>
+      )
+    }
     return (
       <main className="page page--with-back">
         <header className="page-header">
@@ -369,35 +385,35 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
     )
   }
 
-  return (
-    <main className="page page--with-back admin-user-management">
-      <header className="page-header">
-        <h1>{config.pageTitle}</h1>
-        <p style={{ color: 'var(--text-sub)', margin: 0 }}>{config.description}</p>
-      </header>
-
+  const workspaceBody = (
+    <>
       <StatusMessage message={loadErr} tone="error" />
 
-      <section
-        className="admin-toolbar card auth-card"
-        style={{ maxWidth: 'none', margin: 0, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}
-      >
-        <FormButton
-          htmlType="button"
-          variant="primary"
-          className="button button--primary"
-          onClick={() => {
-            setFormErr('')
-            setEditing(null)
-            setForm(emptyForm())
-            setRegisterOpen(true)
-          }}
+      {!embedded ? (
+        <section
+          className="admin-toolbar card auth-card"
+          style={{ maxWidth: 'none', margin: 0, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}
         >
-          등록
-        </FormButton>
-      </section>
+          <FormButton
+            htmlType="button"
+            variant="primary"
+            className="button button--primary"
+            onClick={() => {
+              setFormErr('')
+              setEditing(null)
+              setForm(emptyForm())
+              setRegisterOpen(true)
+            }}
+          >
+            등록
+          </FormButton>
+        </section>
+      ) : null}
 
-      <div className="card" style={{ maxWidth: 'none', margin: '16px 0 0', padding: 0 }}>
+      <div
+        className={embedded ? 'admin-data-table-wrap' : 'card'}
+        style={embedded ? undefined : { maxWidth: 'none', margin: '16px 0 0', padding: 0 }}
+      >
         <div className="table-container table-container--desktop">
           <table className="admin-data-table">
             <thead>
@@ -696,6 +712,44 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
         </FormDialog>
       ) : null}
       {confirmDialog}
+    </>
+  )
+
+  if (embedded) {
+    return (
+      <div className="admin-data-card ga-admin-insurer-managers-embedded">
+        <div className="admin-data-card__head">
+          <div>
+            <h2 className="admin-data-card__title">{pageTitle}</h2>
+            <p className="text-sm text-[var(--text-secondary)] m-0">{config.description}</p>
+          </div>
+          <div className="admin-data-card__actions">
+            <FormButton
+              htmlType="button"
+              variant="primary"
+              onClick={() => {
+                setFormErr('')
+                setEditing(null)
+                setForm(emptyForm())
+                setRegisterOpen(true)
+              }}
+            >
+              등록
+            </FormButton>
+          </div>
+        </div>
+        {workspaceBody}
+      </div>
+    )
+  }
+
+  return (
+    <main className="page page--with-back admin-user-management">
+      <header className="page-header">
+        <h1>{config.pageTitle}</h1>
+        <p style={{ color: 'var(--text-sub)', margin: 0 }}>{config.description}</p>
+      </header>
+      {workspaceBody}
     </main>
   )
 }

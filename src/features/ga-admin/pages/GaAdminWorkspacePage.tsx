@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { LoadingState, StatusMessage } from '../../../components/feedback'
 import GaAdminDelegatesPanel from '../panels/GaAdminDelegatesPanel'
 import GaAdminBoardWritersPanel from '../panels/GaAdminBoardWritersPanel'
-import UserInsurerAccountsPage from '../../user-insurer-accounts/pages/UserInsurerAccountsPage'
+import InsurerManagersPage from '../../insurer-managers/pages/InsurerManagersPage'
 import { NewsletterBoardAdminPage } from '../../insurer-news/pages/NewsletterBoardAdminPage'
 import GaAdminFeaturesSettingsPanel from '../panels/GaAdminFeaturesSettingsPanel'
 import '../ga-admin-workspace.css'
@@ -118,7 +118,7 @@ export default function GaAdminWorkspacePage() {
             <Route path="basic" element={<GaAdminBasicTab />} />
             <Route path="features" element={<GaAdminFeaturesSettingsPanel />} />
             <Route path="accounts/delegates" element={<GaAdminDelegatesPanel />} />
-            <Route path="accounts/insurer" element={<UserInsurerAccountsPage embedded />} />
+            <Route path="accounts/insurer" element={<InsurerManagersPage embedded managerKind="insurer" />} />
             <Route path="accounts/writers" element={<GaAdminBoardWritersPanel />} />
             <Route path="newsletter" element={<NewsletterBoardAdminPage embedded />} />
             <Route path="*" element={<Navigate to="basic" replace state={{ from: location }} />} />

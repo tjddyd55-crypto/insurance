@@ -7,6 +7,7 @@ import {
 } from '../lib/gaCustomerMatchAliases.js'
 import { parseGaExcelMatrix } from '../lib/gaCustomerExcelParse.js'
 import { normalizeRbacRole } from '../lib/rbacScope.js'
+import { parseGaId as parseGaIdFromUser } from '../lib/parseGaId.js'
 
 const uploadExcel = multer({
   storage: multer.memoryStorage(),
@@ -580,7 +581,7 @@ function requireGaAdminRole(req, res, next) {
     res.status(403).json({ message: 'GA 관리자만 이용할 수 있습니다.' })
     return
   }
-  const gaId = parseGaId(req.user?.gaId)
+  const gaId = parseGaIdFromUser(req.user?.gaId ?? req.user?.ga_id)
   if (gaId == null) {
     res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
     return
