@@ -4,10 +4,10 @@
   --customer-workspace-page-surface: #ffffff;
   --ws-page-surface: var(--customer-workspace-page-surface);
   --ws-border: var(--border-default, #d8dee6);
-  --ws-tab-inactive-bg: #f8fafc;
-  --ws-tab-inactive-hover: #f1f5f9;
+  --ws-tab-inactive-bg: #f4f6f8;
+  --ws-tab-inactive-hover: #eceff3;
   --ws-tab-text: #475569;
-  --ws-tab-active-text: #14532d;
+  --ws-tab-active-text: #0f172a;
   --ws-active-height: 44px;
   --ws-inactive-height: 40px;
   --ws-inactive-offset: 0;
@@ -37,6 +37,7 @@
   border-bottom: none;
 }
 
+/* 비활성 탭 구간 baseline — active 탭 폭에서는 본문 top border만 보이게 z-index로 가림 */
 .customer-workspace-page__tabs::after {
   content: '';
   position: absolute;
@@ -46,7 +47,7 @@
   height: 1px;
   background: var(--ws-border);
   pointer-events: none;
-  z-index: 1;
+  z-index: 0;
 }
 
 .customer-workspace-page__tab-scroll {
@@ -56,7 +57,10 @@
   gap: var(--ws-tab-gap);
   width: 100%;
   min-width: 0;
-  min-height: var(--ws-active-height);
+  min-height: calc(var(--ws-active-height) + 4px);
+  padding-top: 4px;
+  position: relative;
+  z-index: 2;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: thin;
@@ -111,7 +115,7 @@
 }
 
 .customer-workspace-page__tab:focus-visible {
-  outline: 2px solid color-mix(in srgb, #22c55e 55%, transparent);
+  outline: 2px solid color-mix(in srgb, #64748b 55%, transparent);
   outline-offset: 1px;
   z-index: 5;
 }
@@ -132,20 +136,20 @@
   font-weight: 700;
   transform: translateY(0);
   z-index: 6;
-  margin-bottom: 0;
+  margin-bottom: -1px;
 }
 
-/* active 탭 하단 가로선 제거 — 본문과 동일 surface로 덮음 */
+/* active 인덱스 하단 가로선 없음 — 본문 top border를 이 폭에서만 덮음 */
 .customer-workspace-page__tab--active::after {
   content: '';
   position: absolute;
-  left: -1px;
-  right: -1px;
+  left: 0;
+  right: 0;
   bottom: -1px;
-  height: 4px;
+  height: 2px;
   background: var(--customer-workspace-page-surface);
   pointer-events: none;
-  z-index: 7;
+  z-index: 8;
 }
 
 .customer-workspace-page__tab:disabled {
