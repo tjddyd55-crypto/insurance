@@ -33,6 +33,7 @@ describe('Customer workspace page tabs shell', () => {
     expect(shellCss).toMatch(/\.customer-workspace-page__tab-scroll[\s\S]*height:\s*var\(--ws-tab-height-active\)/)
     expect(shellCss).toMatch(/\.customer-workspace-page__tab:disabled[\s\S]*--ws-tab-height-base/)
     expect(shellCss).toMatch(/\.customer-workspace-page__body[\s\S]*border:\s*1px solid/)
+    expect(shellCss).toMatch(/\.customer-workspace-page__tab--active:focus-visible[\s\S]*box-shadow:\s*none/)
     expect(shellCss).toContain('.customer-workspace-page__body')
   })
 })

@@ -107,10 +107,22 @@
   }
 }
 
-.customer-workspace-page__tab:focus-visible {
+/* 전역 button:focus-visible primary-soft 링 제거 — workspace 탭 scope만 */
+.customer-workspace-page__tab:focus,
+.customer-workspace-page__tab:focus-visible:not(:disabled) {
+  box-shadow: none;
+}
+
+.customer-workspace-page__tab:focus-visible:not(:disabled):not(.customer-workspace-page__tab--active) {
   outline: 2px solid color-mix(in srgb, #64748b 55%, transparent);
   outline-offset: 1px;
   z-index: 7;
+}
+
+.customer-workspace-page__tab--active:focus,
+.customer-workspace-page__tab--active:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 .customer-workspace-page__tab--active {
