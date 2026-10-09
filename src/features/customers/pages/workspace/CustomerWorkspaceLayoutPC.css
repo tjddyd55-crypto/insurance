@@ -81,10 +81,14 @@
  * 좌측 고객 패널이 긴 리스트·스크롤 시 hit-test 박스가 우측 탭 영역과 겹치는 경우가 있어
  * 우측 헤더(탭 바)를 동일 stacking context에서 위에 올린다. z-index 난립 없이 layout scope만 수정.
  */
+.pc-root .customer-workspace-layout {
+  background: var(--customer-workspace-page-surface, #ffffff);
+}
+
 .pc-root .customer-workspace-layout__right {
   position: relative;
   z-index: 1;
-  background: transparent;
+  background: var(--customer-workspace-page-surface, #ffffff);
 }
 
 .pc-root .customer-workspace-layout__left {
