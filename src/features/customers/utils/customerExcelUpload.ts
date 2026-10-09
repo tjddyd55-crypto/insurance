@@ -1,83 +1,34 @@
 import { saveAs } from 'file-saver'
 import * as XLSX from 'xlsx'
 
-import type { CustomerNote } from '../domain/types'
-import { normalizeCustomerNotesBag } from '../domain/types'
+import { resolveCustomerGenderForImport as resolveCustomerGenderForImportShared } from '@insurance-shared/customerGenderNormalize.js'
+import { formatAddressForSave } from '../../../components/form'
 import type { SaveCustomerPayload } from '../api/customersApi'
 import { saveCustomer } from '../api/customersApi'
+import {
+  CUSTOMER_EXCEL_PRIMARY_COLUMNS,
+  CUSTOMER_EXCEL_SAMPLE_HEADER_LABELS_KO,
+  CUSTOMER_EXCEL_SAMPLE_HEADERS,
+  CUSTOMER_EXCEL_UPLOAD_HEADERS,
+  CUSTOMER_EXCEL_UPLOAD_HEADER_LABELS_KO,
+  buildHeaderLabelToKeyMap,
+  type CustomerExcelColumnKey,
+} from '../config/customerExcelUploadColumnSsot'
+import type { CustomerNote } from '../domain/types'
+import { normalizeCustomerNotesBag } from '../domain/types'
+import { isCustomerBusinessInfoFormEmpty } from '../domain/customerBusinessInfo'
 import {
   normalizeNameForCustomerDedupe,
   normalizePhoneForCustomerDedupe,
 } from './customerSearchDedupe'
-import { inferGenderFromResidentNumberDigits } from './inferGenderFromResidentNumberDigits'
 
-/**
- * 샘플·업로드 공통 헤더 순서 (1행)
- * `CustomerForm` 입력 순서와 맞춤: 이름 → 성별 → 주민번호 → 연락·신체 → 직업 → 운전·차종 → 자동차 정보 → 건강 · 보험가입내역 → 메모
- */
-export const CUSTOMER_EXCEL_UPLOAD_HEADERS = [
-  'name',
-  'gender',
-  'ssn',
-  'phone',
-  'address',
-  'height',
-  'weight',
-  'job',
-  'isDriver',
-  'carType',
-  'carNumber',
-  'carModel',
-  'carYear',
-  'renewalDate',
-  'medical',
-  'insuranceHistory',
-  'memo',
-] as const
-
-const CUSTOMER_EXCEL_UPLOAD_HEADER_LABELS_KO = [
-  '이름',
-  '성별',
-  '주민번호',
-  '휴대폰번호',
-  '주소',
-  '키',
-  '몸무게',
-  '직업',
-  '운전여부',
-  '자동차종류',
-  '차번호',
-  '자동차모델명',
-  '년식',
-  '갱신일',
-  '병력사항',
-  '보험가입내역',
-  '메모',
-] as const
+export { CUSTOMER_EXCEL_UPLOAD_HEADERS } from '../config/customerExcelUploadColumnSsot'
 
 const SHEET_DATA = '고객데이터'
-const SHEET_DESC = '컬럼설명'
+const SHEET_DESC = '입력안내'
 const SAMPLE_FILENAME = 'customer-upload-sample.xlsx'
 
-const HEADER_LABEL_TO_KEY: Record<string, (typeof CUSTOMER_EXCEL_UPLOAD_HEADERS)[number]> = {
-  이름: 'name',
-  성별: 'gender',
-  주민번호: 'ssn',
-  휴대폰번호: 'phone',
-  주소: 'address',
-  키: 'height',
-  몸무게: 'weight',
-  직업: 'job',
-  운전여부: 'isDriver',
-  자동차종류: 'carType',
-  차번호: 'carNumber',
-  자동차모델명: 'carModel',
-  년식: 'carYear',
-  갱신일: 'renewalDate',
-  병력사항: 'medical',
-  보험가입내역: 'insuranceHistory',
-  메모: 'memo',
-}
+const HEADER_LABEL_TO_KEY = buildHeaderLabelToKeyMap()
 
 /** 한국 주민등록번호 본문 13자리 (있을 때만 검증·병합 키로 사용) */
 export const RRN_NORMALIZED_LENGTH = 13
@@ -98,13 +49,22 @@ export function normalizeSsn(ssn: string): string {
 
 export type CustomerExcelParsedRow = {
   name: string
-  ssn: string
-  genderRaw: string
   phone: string
+  ssn: string
+  birthDate: string
+  genderRaw: string
   address: string
+  addressDetail: string
+  job: string
+  memoRaw: string
+  businessRepresentativeName: string
+  businessNumber: string
+  businessAddress: string
+  businessAddressDetail: string
+  businessMemo: string
+  carrier: string
   height: string
   weight: string
-  job: string
   isDriver: boolean | null
   carType: string
   medical: string
@@ -112,9 +72,9 @@ export type CustomerExcelParsedRow = {
   carModel: string
   carYear: string
   renewalDate: string
-  /** 보험가입내역 — notes.insuranceHistory */
   insuranceHistory: string
-  memoRaw: string
+  inflowSource: string
+  referrerName: string
 }
 
 export type CustomerUploadFailure = {
@@ -210,24 +170,51 @@ export function memoToNotes(memoRaw: string, createdAt: string): CustomerNote[] 
   }))
 }
 
-export function parseGender(value: unknown): '' | 'male' | 'female' {
-  const s = cellToString(value).trim().toLowerCase()
-  if (s === 'male' || s === 'female') {
-    return s
-  }
-  return ''
-}
+export type CustomerExcelGenderResolveResult =
+  | { ok: true; gender: '' | 'male' | 'female' }
+  | { ok: false; code: 'invalid_gender' | 'gender_ssn_conflict' }
 
-/** 업로드 row: 명시 성별 우선, 없으면 주민번호 7번째 자리로 추론 */
 export function resolveGenderForCustomerImport(
   genderRaw: unknown,
   ssn: string,
 ): '' | 'male' | 'female' {
-  const parsed = parseGender(genderRaw)
-  if (parsed !== '') {
-    return parsed
+  const res = resolveCustomerGenderForImportShared(genderRaw, ssn)
+  if (!res.ok) {
+    return ''
   }
-  return inferGenderFromResidentNumberDigits(ssn) ?? ''
+  return res.gender
+}
+
+export function resolveGenderForCustomerImportDetailed(
+  genderRaw: unknown,
+  ssn: string,
+): CustomerExcelGenderResolveResult {
+  return resolveCustomerGenderForImportShared(genderRaw, ssn)
+}
+
+export function customerExcelGenderTransformErrorMessage(
+  code: 'invalid_gender' | 'gender_ssn_conflict',
+): string {
+  if (code === 'gender_ssn_conflict') {
+    return '성별과 주민등록번호의 성별 코드가 일치하지 않습니다.'
+  }
+  return '성별 값을 인식할 수 없습니다. 남/여 등으로 입력해 주세요.'
+}
+
+function normalizeBirthDateCell(value: unknown): string {
+  const s = cellToString(value).trim()
+  if (!s) {
+    return ''
+  }
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (iso) {
+    return `${iso[1]}-${iso[2]}-${iso[3]}`
+  }
+  const digits = s.replace(/\D/g, '')
+  if (digits.length === 8) {
+    return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`
+  }
+  return ''
 }
 
 /** 스펙: "TRUE" / "FALSE" 만 인정, 그 외 null. 엑셀 불리언·대소문자 허용. */
@@ -299,15 +286,24 @@ function mergeIsDriver(a: boolean | null, b: boolean | null): boolean | null {
 function parsedRowToExportRecord(row: CustomerExcelParsedRow): Record<string, string> {
   const d =
     row.isDriver === true ? 'TRUE' : row.isDriver === false ? 'FALSE' : ''
-  return {
+  const rec: Record<string, string> = {
     name: row.name,
-    ssn: row.ssn,
-    gender: cellToString(row.genderRaw),
     phone: row.phone,
+    ssn: row.ssn,
+    birthDate: row.birthDate,
+    gender: cellToString(row.genderRaw),
     address: row.address,
+    addressDetail: row.addressDetail,
+    job: row.job,
+    memo: row.memoRaw,
+    businessRepresentativeName: row.businessRepresentativeName,
+    businessNumber: row.businessNumber,
+    businessAddress: row.businessAddress,
+    businessAddressDetail: row.businessAddressDetail,
+    businessMemo: row.businessMemo,
+    carrier: row.carrier,
     height: row.height,
     weight: row.weight,
-    job: row.job,
     isDriver: d,
     carType: row.carType,
     medical: row.medical,
@@ -316,8 +312,10 @@ function parsedRowToExportRecord(row: CustomerExcelParsedRow): Record<string, st
     carYear: row.carYear,
     renewalDate: row.renewalDate,
     insuranceHistory: row.insuranceHistory,
-    memo: row.memoRaw,
+    inflowSource: row.inflowSource,
+    referrerName: row.referrerName,
   }
+  return rec
 }
 
 function payloadToExportRecord(p: SaveCustomerPayload): Record<string, string> {
@@ -325,15 +323,25 @@ function payloadToExportRecord(p: SaveCustomerPayload): Record<string, string> {
   const d =
     p.isDriver === true ? 'TRUE' : p.isDriver === false ? 'FALSE' : ''
   const bag = normalizeCustomerNotesBag(p.notes)
+  const bi = p.businessInfo
   return {
     name: p.name ?? '',
-    ssn: String(p.ssn ?? ''),
-    gender: g,
     phone: p.phone ?? '',
+    ssn: String(p.ssn ?? ''),
+    birthDate: String(p.birthDate ?? ''),
+    gender: g,
     address: p.address ?? '',
+    addressDetail: '',
+    job: p.job ?? '',
+    memo: bag.items.map((n) => n.content).join(' / '),
+    businessRepresentativeName: bi?.representativeName ?? '',
+    businessNumber: bi?.businessNumber ?? '',
+    businessAddress: bi?.businessAddress ?? '',
+    businessAddressDetail: '',
+    businessMemo: bi?.memo ?? '',
+    carrier: p.carrier ?? '',
     height: p.height ?? '',
     weight: p.weight ?? '',
-    job: p.job ?? '',
     isDriver: d,
     carType: p.carType ?? '',
     medical: p.medical ?? '',
@@ -342,7 +350,8 @@ function payloadToExportRecord(p: SaveCustomerPayload): Record<string, string> {
     carYear: p.carYear ?? '',
     renewalDate: p.renewalDate ?? '',
     insuranceHistory: bag.insuranceHistory,
-    memo: bag.items.map((n) => n.content).join(' / '),
+    inflowSource: String(p.inflowSource ?? ''),
+    referrerName: String(p.referrerName ?? ''),
   }
 }
 
@@ -417,31 +426,9 @@ function duplicateMergeMetrics(validRows: CustomerExcelParsedRow[]): {
   return { duplicateMergeGroupCount, mergedAbsorbedRowCount }
 }
 
-export function parseExcel(file: File): Promise<CustomerExcelParsedRow[]> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onerror = () => reject(new Error('파일을 읽지 못했습니다.'))
-    reader.onload = () => {
-      try {
-        const buf = reader.result
-        if (!(buf instanceof ArrayBuffer)) {
-          reject(new Error('파일 형식이 올바르지 않습니다.'))
-          return
-        }
-        const wb = XLSX.read(buf, { type: 'array' })
-        const sheet = wb.Sheets[SHEET_DATA]
-        if (!sheet) {
-          reject(new Error(`「${SHEET_DATA}」시트를 찾을 수 없습니다.`))
-          return
-        }
-        const rows2d = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
-          header: 1,
-          defval: '',
-          raw: false,
-        })
+export function parseCustomerExcelRowsFromSheetRows(rows2d: unknown[][]): CustomerExcelParsedRow[] {
         if (rows2d.length === 0) {
-          resolve([])
-          return
+          return []
         }
 
         const normalizeHeader = (value: unknown): string =>
@@ -457,7 +444,7 @@ export function parseExcel(file: File): Promise<CustomerExcelParsedRow[]> {
               return ''
             }
             const normalized = normalizeHeader(raw)
-            const keyMatch = CUSTOMER_EXCEL_UPLOAD_HEADERS.find(
+            const keyMatch = (CUSTOMER_EXCEL_UPLOAD_HEADERS as readonly string[]).find(
               (k) => normalizeHeader(k) === normalized,
             )
             if (keyMatch) {
@@ -497,13 +484,22 @@ export function parseExcel(file: File): Promise<CustomerExcelParsedRow[]> {
         for (const row of rows) {
           parsed.push({
             name: cellToString(row.name).trim(),
-            ssn: cellToString(row.ssn).trim(),
-            genderRaw: cellToString(row.gender),
             phone: cellToString(row.phone),
+            ssn: cellToString(row.ssn).trim(),
+            birthDate: normalizeBirthDateCell(row.birthDate),
+            genderRaw: cellToString(row.gender),
             address: cellToString(row.address),
+            addressDetail: cellToString(row.addressDetail),
+            job: cellToString(row.job),
+            memoRaw: cellToString(row.memo),
+            businessRepresentativeName: cellToString(row.businessRepresentativeName),
+            businessNumber: cellToString(row.businessNumber),
+            businessAddress: cellToString(row.businessAddress),
+            businessAddressDetail: cellToString(row.businessAddressDetail),
+            businessMemo: cellToString(row.businessMemo),
+            carrier: cellToString(row.carrier),
             height: cellToString(row.height),
             weight: cellToString(row.weight),
-            job: cellToString(row.job),
             isDriver: parseIsDriverCell(row.isDriver),
             carType: cellToString(row.carType),
             medical: cellToString(row.medical),
@@ -512,10 +508,39 @@ export function parseExcel(file: File): Promise<CustomerExcelParsedRow[]> {
             carYear: cellToString(row.carYear),
             renewalDate: cellToString(row.renewalDate),
             insuranceHistory: cellToString(row.insuranceHistory),
-            memoRaw: cellToString(row.memo),
+            inflowSource: cellToString(row.inflowSource),
+            referrerName: cellToString(row.referrerName),
           })
         }
-        resolve(parsed)
+        return parsed
+}
+
+export function parseCustomerExcelArrayBuffer(buf: ArrayBuffer): CustomerExcelParsedRow[] {
+  const wb = XLSX.read(buf, { type: 'array' })
+  const sheet = wb.Sheets[SHEET_DATA]
+  if (!sheet) {
+    throw new Error(`「${SHEET_DATA}」시트를 찾을 수 없습니다.`)
+  }
+  const rows2d = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+    header: 1,
+    defval: '',
+    raw: false,
+  }) as unknown[][]
+  return parseCustomerExcelRowsFromSheetRows(rows2d)
+}
+
+export function parseExcel(file: File): Promise<CustomerExcelParsedRow[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error('파일을 읽지 못했습니다.'))
+    reader.onload = () => {
+      try {
+        const buf = reader.result
+        if (!(buf instanceof ArrayBuffer)) {
+          reject(new Error('파일 형식이 올바르지 않습니다.'))
+          return
+        }
+        resolve(parseCustomerExcelArrayBuffer(buf))
       } catch (e) {
         reject(e instanceof Error ? e : new Error('엑셀 파싱에 실패했습니다.'))
       }
@@ -544,13 +569,22 @@ export function mergeRowsForImport(rows: CustomerExcelParsedRow[]): CustomerExce
     }
     const merged: CustomerExcelParsedRow = {
       name: pickValue(prev.name, rowNorm.name),
-      ssn: pickValue(prev.ssn, rowNorm.ssn),
-      genderRaw: pickValue(prev.genderRaw, rowNorm.genderRaw),
       phone: pickValue(prev.phone, rowNorm.phone),
+      ssn: pickValue(prev.ssn, rowNorm.ssn),
+      birthDate: pickValue(prev.birthDate, rowNorm.birthDate),
+      genderRaw: pickValue(prev.genderRaw, rowNorm.genderRaw),
       address: pickValue(prev.address, rowNorm.address),
+      addressDetail: pickValue(prev.addressDetail, rowNorm.addressDetail),
+      job: pickValue(prev.job, rowNorm.job),
+      memoRaw: mergeMemoPartsUnique(prev.memoRaw, rowNorm.memoRaw),
+      businessRepresentativeName: pickValue(prev.businessRepresentativeName, rowNorm.businessRepresentativeName),
+      businessNumber: pickValue(prev.businessNumber, rowNorm.businessNumber),
+      businessAddress: pickValue(prev.businessAddress, rowNorm.businessAddress),
+      businessAddressDetail: pickValue(prev.businessAddressDetail, rowNorm.businessAddressDetail),
+      businessMemo: pickValue(prev.businessMemo, rowNorm.businessMemo),
+      carrier: pickValue(prev.carrier, rowNorm.carrier),
       height: pickValue(prev.height, rowNorm.height),
       weight: pickValue(prev.weight, rowNorm.weight),
-      job: pickValue(prev.job, rowNorm.job),
       isDriver: mergeIsDriver(prev.isDriver, rowNorm.isDriver),
       carType: pickValue(prev.carType, rowNorm.carType),
       medical: pickValue(prev.medical, rowNorm.medical),
@@ -559,7 +593,8 @@ export function mergeRowsForImport(rows: CustomerExcelParsedRow[]): CustomerExce
       carYear: pickValue(prev.carYear, rowNorm.carYear),
       renewalDate: pickValue(prev.renewalDate, rowNorm.renewalDate),
       insuranceHistory: pickValue(prev.insuranceHistory, rowNorm.insuranceHistory),
-      memoRaw: mergeMemoPartsUnique(prev.memoRaw, rowNorm.memoRaw),
+      inflowSource: pickValue(prev.inflowSource, rowNorm.inflowSource),
+      referrerName: pickValue(prev.referrerName, rowNorm.referrerName),
     }
     map.set(key, merged)
   }
@@ -571,28 +606,59 @@ export function mergeRowsBySsn(rows: CustomerExcelParsedRow[]): CustomerExcelPar
   return mergeRowsForImport(rows)
 }
 
-/** 필수(name + 연락처 또는 주민번호) 미충족 시 null */
-export function transformRow(row: CustomerExcelParsedRow): SaveCustomerPayload | null {
+export function getCustomerExcelRowTransformError(row: CustomerExcelParsedRow): string | null {
   const name = row.name.trim()
   const ssn = normalizeOptionalSsn(row.ssn)
   const hasPhone = hasValidUploadPhone(row.phone)
   const hasResidentNumber = ssn.length === RRN_NORMALIZED_LENGTH
   if (!name || (!hasPhone && !hasResidentNumber)) {
+    return CUSTOMER_EXCEL_UPLOAD_REQUIRED_FIELD_MESSAGE
+  }
+  const genderRes = resolveCustomerGenderForImportShared(row.genderRaw, ssn)
+  if (!genderRes.ok) {
+    return customerExcelGenderTransformErrorMessage(genderRes.code)
+  }
+  return null
+}
+
+/** 필수(name + 연락처 또는 주민번호) 미충족·성별 오류 시 null */
+export function transformRow(row: CustomerExcelParsedRow): SaveCustomerPayload | null {
+  const transformError = getCustomerExcelRowTransformError(row)
+  if (transformError) {
     return null
   }
-  const gender = resolveGenderForCustomerImport(row.genderRaw, ssn)
+  const name = row.name.trim()
+  const ssn = normalizeOptionalSsn(row.ssn)
+  const genderRes = resolveCustomerGenderForImportShared(row.genderRaw, ssn)
+  const gender = genderRes.ok ? genderRes.gender : ''
   const isDriver = row.isDriver
   const createdAt = new Date().toISOString()
   const noteItems = memoToNotes(row.memoRaw, createdAt)
   const carTypeTrim = row.carType.trim()
   const insuranceHistory = row.insuranceHistory.trim()
+  const businessInfo = {
+    representativeName: row.businessRepresentativeName.trim(),
+    businessNumber: row.businessNumber.trim(),
+    businessAddress: formatAddressForSave({
+      zonecode: '',
+      baseAddress: row.businessAddress.trim(),
+      detailAddress: row.businessAddressDetail.trim(),
+    }),
+    memo: row.businessMemo.trim(),
+  }
+  const birthDate = row.birthDate.trim()
   return {
     name,
     ssn,
     gender: gender === '' ? '' : gender,
     phone: row.phone.trim(),
-    carrier: '',
-    address: row.address.trim(),
+    carrier: row.carrier.trim(),
+    address: formatAddressForSave({
+      zonecode: '',
+      baseAddress: row.address.trim(),
+      detailAddress: row.addressDetail.trim(),
+    }),
+    ...(birthDate ? { birthDate } : {}),
     height: row.height.trim(),
     weight: row.weight.trim(),
     job: row.job.trim(),
@@ -604,6 +670,9 @@ export function transformRow(row: CustomerExcelParsedRow): SaveCustomerPayload |
     carYear: row.carYear.trim(),
     renewalDate: row.renewalDate.trim(),
     driving: drivingFromIsDriver(isDriver),
+    inflowSource: row.inflowSource.trim() || null,
+    referrerName: row.referrerName.trim() || null,
+    businessInfo: isCustomerBusinessInfoFormEmpty(businessInfo) ? null : businessInfo,
     notes: {
       items: noteItems,
       insuranceHistory,
@@ -669,10 +738,11 @@ export async function prepareCustomerExcelImport(file: File): Promise<CustomerEx
     if (p) {
       payloads.push(p)
     } else {
+      const reason = getCustomerExcelRowTransformError(m) ?? CUSTOMER_EXCEL_UPLOAD_REQUIRED_FIELD_MESSAGE
       excludedRows.push({
         excelRow: 0,
         category: 'other',
-        reason: CUSTOMER_EXCEL_UPLOAD_REQUIRED_FIELD_MESSAGE,
+        reason,
         values: parsedRowToExportRecord(m),
       })
     }
@@ -695,69 +765,53 @@ export async function prepareCustomerExcelImport(file: File): Promise<CustomerEx
   }
 }
 
+/** 테스트·round-trip용 샘플 시트 AOA (한글 헤더 1행 + 예시 2행) */
+export function buildCustomerExcelSampleSheetAoA(): string[][] {
+  const row1 = CUSTOMER_EXCEL_SAMPLE_HEADERS.map((key) => {
+    const samples: Partial<Record<CustomerExcelColumnKey, string>> = {
+      name: '홍길동',
+      phone: '010-1234-5678',
+      ssn: '800101-1234567',
+      birthDate: '1980-01-01',
+      gender: '남',
+      address: '서울특별시 광진구 능동로 120',
+      addressDetail: '101동 1001호',
+      job: '자영업',
+      memo: '지인 소개 / 상담 예약',
+      businessRepresentativeName: '홍길동',
+      businessNumber: '123-45-67890',
+      businessAddress: '서울특별시 광진구',
+      businessAddressDetail: '카페 1층',
+      businessMemo: '주말 휴무',
+    }
+    return samples[key] ?? ''
+  })
+  const row2 = CUSTOMER_EXCEL_SAMPLE_HEADERS.map((key) => {
+    const samples: Partial<Record<CustomerExcelColumnKey, string>> = {
+      name: '김영희',
+      phone: '01098765432',
+      birthDate: '1990-02-02',
+      gender: '여',
+      job: '회사원',
+      memo: '보험 상담 예약',
+    }
+    return samples[key] ?? ''
+  })
+  return [[...CUSTOMER_EXCEL_SAMPLE_HEADER_LABELS_KO], row1, row2]
+}
+
 export function downloadCustomerUploadSampleXlsx(): void {
-  const headersKo = [...CUSTOMER_EXCEL_UPLOAD_HEADER_LABELS_KO]
-  const headers = [...CUSTOMER_EXCEL_UPLOAD_HEADERS]
-  /** 폼(고객 등록) 필드 순서와 동일: 이름·성별·주민번호·…·자동차 정보·건강고지·보험가입내역·메모 */
-  const row1 = [
-    '홍길동',
-    'male',
-    '8001011234567',
-    '01012341234',
-    '서울 광진구 자양동 12-3',
-    '175',
-    '70',
-    '자영업(카페)',
-    'TRUE',
-    '승용차',
-    '12가3456',
-    '그랜저',
-    '2022',
-    '2026-06-15',
-    '5년 이내 입원·수술 없음',
-    '실손의료비 2018년 가입(갱신형) / 자동차종합보험 다이렉트',
-    '지인 소개 / VIP 우대',
-  ]
-  const row2 = [
-    '김영희',
-    'female',
-    '9002022234567',
-    '01056785678',
-    '서울 강남구 역삼로 10길 5',
-    '160',
-    '52',
-    '회사원',
-    'FALSE',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '특이사항 없음',
-    '암·뇌졸중 진단비 3천만원 (2021) / 변액유니버셜 5년납',
-    '보험 상담 예약',
-  ]
-  const descHeader = ['컬럼명', '설명']
-  const descRows: [string, string][] = [
-    ['name', '필수. 고객 이름 (폼「이름」)'],
-    ['gender', 'male 또는 female (폼「성별」과 동일). 주민번호가 있으면 자동 판단 가능'],
-    ['ssn', `선택. 주민등록번호 숫자 ${RRN_NORMALIZED_LENGTH}자리(하이픈 없음). 이름과 함께 연락처 또는 주민번호 중 하나는 필수`],
-    ['phone', '연락처 (폼「전화번호」). 숫자 10자리 이상. 이름과 함께 연락처 또는 주민번호 중 하나는 필수'],
-    ['address', '주소'],
-    ['height', '키(cm 등 자유)'],
-    ['weight', '몸무게(kg 등 자유)'],
-    ['job', '직업 / 회사명 / 하는 일 / 지역'],
-    ['isDriver', 'TRUE(운전함) / FALSE(운전 안함). 빈 칸은 미입력'],
-    ['carType', '운전함일 때 차종(예: 승용차, SUV). 운전 안함이면 비워도 됨'],
-    ['carNumber', '차량번호'],
-    ['carModel', '차종(차명) 예: 그랜저'],
-    ['carYear', '연식(예: 2022)'],
-    ['renewalDate', '만기(갱신)일 — YYYY-MM-DD 권장(폼 date와 동일)'],
-    ['medical', '병력사항'],
-    ['insuranceHistory', '보험가입내역(긴 텍스트). 폼의「보험가입내역」과 동일하게 저장'],
-    ['memo', '메모(폼「메모」). "/" 로 구분 시 여러 메모 항목으로 나뉨, 중복 문구는 제거'],
-  ]
-  const sheet1 = XLSX.utils.aoa_to_sheet([headersKo, headers, row1, row2])
+  const sheet1 = XLSX.utils.aoa_to_sheet(buildCustomerExcelSampleSheetAoA())
+  const descHeader = ['컬럼', '설명']
+  const descRows: [string, string][] = CUSTOMER_EXCEL_PRIMARY_COLUMNS.map((c) => [c.labelKo, c.description])
+  descRows.push([
+    '라벨(미지원)',
+    '고객 라벨·맞춤 필드는 일괄등록 Excel에서 자동 생성하지 않습니다. 등록 후 화면에서 추가해 주세요.',
+  ])
+  descRows.push([
+    '화재보험 소재지(미지원)',
+    '화재보험 소재지는 등록 후 고객 상세에서 추가합니다.',
+  ])
   const sheet2 = XLSX.utils.aoa_to_sheet([descHeader, ...descRows])
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, sheet1, SHEET_DATA)

@@ -129,18 +129,7 @@ export function resolveCustomerInsuranceMetrics(row, today = new Date()) {
   return { insuranceAge, maturityYmd, birthDateYmd }
 }
 
-export function normalizeCustomerGender(raw) {
-  const g = String(raw ?? '')
-    .trim()
-    .toLowerCase()
-  if (g === 'male' || g === 'm' || g === '남' || g === '남자') {
-    return 'male'
-  }
-  if (g === 'female' || g === 'f' || g === '여' || g === '여자') {
-    return 'female'
-  }
-  return null
-}
+export { normalizeCustomerGender, inferGenderFromResidentNumberDigits } from './customerGenderNormalize.js'
 
 export function formatGenderLabel(gender) {
   if (gender === 'male') {

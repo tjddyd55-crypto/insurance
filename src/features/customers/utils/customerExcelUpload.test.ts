@@ -31,13 +31,22 @@ const panelSource = readFileSync(
 function makeParsedRow(overrides: Partial<CustomerExcelParsedRow> = {}): CustomerExcelParsedRow {
   return {
     name: '홍길동',
-    ssn: '8001011234567',
-    genderRaw: 'male',
     phone: '01012345678',
+    ssn: '8001011234567',
+    birthDate: '',
+    genderRaw: '남',
     address: '',
+    addressDetail: '',
+    job: '',
+    memoRaw: '',
+    businessRepresentativeName: '',
+    businessNumber: '',
+    businessAddress: '',
+    businessAddressDetail: '',
+    businessMemo: '',
+    carrier: '',
     height: '',
     weight: '',
-    job: '',
     isDriver: null,
     carType: '',
     medical: '',
@@ -46,7 +55,8 @@ function makeParsedRow(overrides: Partial<CustomerExcelParsedRow> = {}): Custome
     carYear: '',
     renewalDate: '',
     insuranceHistory: '',
-    memoRaw: '',
+    inflowSource: '',
+    referrerName: '',
     ...overrides,
   }
 }
@@ -124,8 +134,8 @@ describe('customerExcelUpload import policy', () => {
     expect(resolveGenderForCustomerImport('', '9001011234567')).toBe('male')
   })
 
-  it('resolveGenderForCustomerImport keeps explicit gender over ssn', () => {
-    expect(resolveGenderForCustomerImport('female', '9001011234567')).toBe('female')
+  it('resolveGenderForCustomerImport rejects explicit gender that conflicts with ssn', () => {
+    expect(resolveGenderForCustomerImport('female', '9001011234567')).toBe('')
   })
 
   it('resolveGenderForCustomerImport returns empty without ssn', () => {
@@ -138,11 +148,11 @@ describe('customerExcelUpload import policy', () => {
     expect(payload?.gender).toBe('male')
   })
 
-  it('transformRow keeps explicit female when ssn implies male', () => {
+  it('transformRow rejects female when ssn implies male', () => {
     const payload = transformRow(
-      makeParsedRow({ genderRaw: 'female', ssn: '9001011234567' }),
+      makeParsedRow({ genderRaw: '여', ssn: '9001011234567' }),
     )
-    expect(payload?.gender).toBe('female')
+    expect(payload).toBeNull()
   })
 
   it('transformRow rejects name only', () => {
