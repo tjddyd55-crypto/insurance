@@ -20,12 +20,13 @@ describe('Customer workspace page tabs shell', () => {
   it('styles active tab as folder index connected to the body panel', () => {
     expect(shellCss).toContain('.customer-workspace-page__tab--active')
     expect(shellCss).toContain('.customer-workspace-page__tabs')
-    expect(shellCss).toMatch(/\.customer-workspace-page__tabs[\s\S]*border-bottom:\s*none/)
+    expect(shellCss).not.toContain('.customer-workspace-page__tabs::after')
+    expect(shellCss).toContain('--ws-page-gutter')
+    expect(shellCss).toMatch(/\.customer-workspace-page__body::before[\s\S]*--ws-page-gutter/)
     expect(shellCss).toMatch(
       /\.customer-workspace-page__tab--active::after[\s\S]*customer-workspace-page-surface/,
     )
     expect(shellCss).toMatch(/\.customer-workspace-page__tab--active[\s\S]*border-bottom:\s*none/)
-    expect(shellCss).toMatch(/\.customer-workspace-page__tab--active[\s\S]*margin-bottom:\s*-1px/)
     expect(shellCss).toContain('.customer-workspace-page__body')
   })
 })
