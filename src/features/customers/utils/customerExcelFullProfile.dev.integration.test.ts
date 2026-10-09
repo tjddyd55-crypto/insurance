@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   CUSTOMER_EXCEL_SHEET_BASIC,
@@ -8,8 +8,6 @@ import {
   CUSTOMER_EXCEL_SHEET_FIRE,
   CUSTOMER_EXCEL_SHEET_SPECIAL_DATES,
 } from '../config/customerExcelFullProfileSsot'
-import { buildCustomerExcelSampleSheetAoA, prepareCustomerExcelImport, uploadCustomers } from './customerExcelUpload'
-
 const DEV_BASE = String(process.env.DEV_EXCEL_INTEGRATION_BASE ?? 'https://insurance-dev.up.railway.app').replace(
   /\/$/,
   '',
@@ -18,7 +16,8 @@ const DEV_USER = String(process.env.DEV_EXCEL_INTEGRATION_USER ?? '').trim()
 const DEV_PASS = String(process.env.DEV_EXCEL_INTEGRATION_PASSWORD ?? '').trim()
 const enabled = process.env.DEV_EXCEL_INTEGRATION === '1' && DEV_USER && DEV_PASS
 
-function buildDevWorkbookBuffer(suffix: string): ArrayBuffer {
+async function buildDevWorkbookBuffer(suffix: string): Promise<ArrayBuffer> {
+  const { buildCustomerExcelSampleSheetAoA } = await import('./customerExcelUpload')
   const wb = XLSX.utils.book_new()
   const basic = buildCustomerExcelSampleSheetAoA()
   basic[1] = basic[1]!.map((v, i) => {
@@ -88,6 +87,9 @@ describe.skipIf(!enabled)('DEV excel full profile integration', () => {
   it(
     'prepare + uploadCustomers against DEV',
     async () => {
+      vi.stubEnv('VITE_API_URL', DEV_BASE)
+      vi.resetModules()
+      const excelMod = await import('./customerExcelUpload')
       const suffix = String(Date.now()).slice(-6)
       const loginRes = await fetch(`${DEV_BASE}/backend/login`, {
         method: 'POST',
@@ -99,23 +101,27 @@ describe.skipIf(!enabled)('DEV excel full profile integration', () => {
       const token = String(loginJson.token ?? '')
       expect(token.length).toBeGreaterThan(10)
 
-      const buf = buildDevWorkbookBuffer(suffix)
+      const buf = await buildDevWorkbookBuffer(suffix)
       const file = new File([buf], 'dev-full-profile.xlsx', {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       })
-      const prep = await prepareCustomerExcelImport(file)
+      const prep = await excelMod.prepareCustomerExcelImport(file)
       expect(prep.stats.uploadReadyCount).toBe(2)
       expect(prep.stats.relatedCarRows).toBe(2)
       expect(prep.stats.relatedSpecialDateRows).toBe(2)
       expect(prep.stats.relatedCustomFieldRows).toBe(2)
       expect(prep.stats.relatedFireRows).toBe(2)
 
-      const batch = await uploadCustomers(
+      const batch = await excelMod.uploadCustomers(
         token,
         prep.payloads,
         undefined,
         { importBundles: prep.importBundles, relatedSheets: prep.relatedSheets },
       )
+      if (batch.success !== 2) {
+        console.error('upload failures', JSON.stringify(batch.failures, null, 2))
+        console.error('related failures', JSON.stringify(batch.relatedFailures, null, 2))
+      }
       expect(batch.success).toBe(2)
       expect(batch.relatedFailures.length).toBe(0)
     },
