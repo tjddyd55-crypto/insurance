@@ -204,11 +204,7 @@ export function buildGaTenantDashboardMenu(
 
   const { lossAdjuster, dynamicBoards } = partitionNewsletterBoardsForMenu(dynamicNewsletterBoards)
   // 보드 목록 로딩 전([]): 기본 메뉴 유지. 로딩 후 비활성/미포함이면 숨김.
-  const lossAdjusterMenuEntry =
-    buildLossAdjusterPortalMenuEntry(lossAdjuster) ??
-    (dynamicNewsletterBoards.length === 0
-      ? ({ type: 'link', label: '손해사정사 소식지', path: '/portal/adjuster-news' } as const)
-      : null)
+  const lossAdjusterMenuEntry = buildLossAdjusterPortalMenuEntry(lossAdjuster)
 
   const workConvenienceLinks: GaTenantDashboardMenuEntry[] = [
     { type: 'link', label: '문자 발송', path: '/sms/settings' },

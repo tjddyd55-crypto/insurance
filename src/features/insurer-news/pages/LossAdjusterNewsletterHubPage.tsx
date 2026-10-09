@@ -44,7 +44,7 @@ export function LossAdjusterNewsletterHubPage() {
         }
       } catch {
         if (!cancelled) {
-          setIsActive(true)
+          setIsActive(false)
           setLabel('손해사정사 소식지')
         }
       } finally {

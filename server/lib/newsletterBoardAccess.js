@@ -3,6 +3,7 @@ import {
   canUserAccessBoardMenu,
   isGaBoardScope,
   isGlobalBoardScope,
+  isSystemBoardScope,
   normalizeNewsletterBoardSlug,
 } from './newsletterBoardScope.js'
 
@@ -37,8 +38,8 @@ export function pickAccessibleNewsletterBoard(rows, tenantGaId) {
     return null
   }
   accessible.sort((a, b) => {
-    const aRank = isGlobalBoardScope(a) ? 0 : 1
-    const bRank = isGlobalBoardScope(b) ? 0 : 1
+    const aRank = isGlobalBoardScope(a) || isSystemBoardScope(a) ? 0 : 1
+    const bRank = isGlobalBoardScope(b) || isSystemBoardScope(b) ? 0 : 1
     if (aRank !== bRank) {
       return aRank - bRank
     }

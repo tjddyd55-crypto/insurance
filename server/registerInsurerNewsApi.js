@@ -37,7 +37,6 @@ import {
   SUPER_ADMIN_NEWSLETTER_BOARDS_LIST_SQL,
 } from './lib/newsletterBoardAdminSql.js'
 import {
-  ensureLossAdjusterNewsletterBoard,
   isLossAdjusterNewsletterActiveForGa,
   isLossAdjusterSystemBoard,
 } from './lib/lossAdjusterNewsletterBoard.js'
@@ -1604,11 +1603,6 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     try {
       const tenantGaId = effectiveTenantGaId(req)
       const gaId = Number.isInteger(tenantGaId) && tenantGaId > 0 ? tenantGaId : 0
-      if (gaId > 0) {
-        await ensureLossAdjusterNewsletterBoard(pool, gaId, {
-          createdByUserId: String(req.user?.id ?? '') || null,
-        })
-      }
       const r = await safeQuery(pool, NEWSLETTER_BOARDS_VISIBLE_LIST_SQL, [gaId])
       res.json(r.rows.map(mapNewsletterBoard))
     } catch (eBoards) {
@@ -1623,14 +1617,6 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         return
       }
       const isSuperAdmin = isSuperAdminRole(req.user?.role)
-      if (!isSuperAdmin) {
-        const gaId = effectiveTenantGaId(req)
-        if (Number.isInteger(gaId) && gaId > 0) {
-          await ensureLossAdjusterNewsletterBoard(pool, gaId, {
-            createdByUserId: String(req.user?.id ?? '') || null,
-          })
-        }
-      }
       const r = isSuperAdmin
         ? await adminNewsletterBoardQuery(pool, SUPER_ADMIN_NEWSLETTER_BOARDS_LIST_SQL, [])
         : await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARDS_LIST_SQL, [effectiveTenantGaId(req)])
@@ -1647,11 +1633,6 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         return
       }
       const gaId = effectiveTenantGaId(req)
-      if (Number.isInteger(gaId) && gaId > 0) {
-        await ensureLossAdjusterNewsletterBoard(pool, gaId, {
-          createdByUserId: String(req.user?.id ?? '') || null,
-        })
-      }
       const r = await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARDS_LIST_SQL, [gaId])
       res.json(r.rows.map(mapNewsletterBoard))
     } catch (eGaBoards) {

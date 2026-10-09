@@ -6,6 +6,7 @@ import {
   LOSS_ADJUSTER_PORTAL_PATH,
   LOSS_ADJUSTER_SYSTEM_KEY,
   ensureLossAdjusterNewsletterBoard,
+  isLossAdjusterNewsletterActiveForGa,
   isLossAdjusterSystemBoard,
 } from './lossAdjusterNewsletterBoard.js'
 
@@ -54,5 +55,27 @@ describe('lossAdjusterNewsletterBoard', () => {
     assert.equal(first.is_active, false)
     assert.equal(second.id, first.id)
     assert.equal(insertCount, 0)
+  })
+
+  it('isLossAdjusterNewsletterActiveForGa is false when no board row (no auto-provision)', async () => {
+    const pool = {
+      query: async () => ({ rowCount: 0, rows: [] }),
+    }
+    assert.equal(await isLossAdjusterNewsletterActiveForGa(pool, 99), false)
+  })
+
+  it('isLossAdjusterNewsletterActiveForGa reflects existing row without insert', async () => {
+    let insertAttempted = false
+    const pool = {
+      query: async (sql) => {
+        if (String(sql).includes('INSERT')) {
+          insertAttempted = true
+          return { rowCount: 0, rows: [] }
+        }
+        return { rowCount: 1, rows: [{ is_active: true }] }
+      },
+    }
+    assert.equal(await isLossAdjusterNewsletterActiveForGa(pool, 7), true)
+    assert.equal(insertAttempted, false)
   })
 })

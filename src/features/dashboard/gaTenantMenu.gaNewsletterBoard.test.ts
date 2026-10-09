@@ -91,7 +91,7 @@ describe('buildAppMenuForSession — GA전용 소식지 메뉴', () => {
     const userLabels = linkLabels(buildAppMenuForSession('USER', 'TEST', 'Test GA', {}))
     expect(userLabels).toContain('원수사소식지')
     expect(userLabels).toContain('원수사 연락처')
-    expect(userLabels).toContain('손해사정사 소식지')
+    expect(userLabels).not.toContain('손해사정사 소식지')
 
     const insurerLabels = linkLabels(buildAppMenuForSession('INSURER_MANAGER', 'TEST', 'Test GA', {}))
     expect(insurerLabels).toContain('원수사 소식지 조회')
