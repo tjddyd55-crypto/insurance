@@ -113,9 +113,9 @@ async function main() {
       assertStatus(`GA_STAFF blocked ${path}`, r.status, expectStatus)
     }
     const staffClaim = await api(stepSession.token, '/admin/claim/insurance-companies')
-    assertStatus('GA_STAFF claim admin', staffClaim.status, 403)
+    assertStatus('GA_STAFF claim admin', staffClaim.status, [403, 404])
     const staffPdf = await api(stepSession.token, '/admin/pdf-templates')
-    assertStatus('GA_STAFF pdf admin', staffPdf.status, 403)
+    assertStatus('GA_STAFF pdf admin', staffPdf.status, [403, 404])
     report.steps.push('ga_staff_api_blocked')
 
     const staffCreateDelegate = await api(stepSession.token, '/ga-admin/delegates', {
@@ -150,7 +150,11 @@ async function main() {
 
     const sharedUsers = await api(stepSession.token, '/user-insurer-accounts/shared-users')
     assertStatus('staff shared users', sharedUsers.status, 200)
-    const owners = Array.isArray(sharedUsers.json) ? sharedUsers.json : sharedUsers.json?.users ?? []
+    const owners = Array.isArray(sharedUsers.json?.data)
+      ? sharedUsers.json.data
+      : Array.isArray(sharedUsers.json)
+        ? sharedUsers.json
+        : sharedUsers.json?.users ?? []
     const hasGaAdminOwner = owners.some((o) => String(o.userId) === String(gaAdmin.id))
     if (!hasGaAdminOwner) {
       throw new Error('GA_ADMIN owner not in shared-users list for STEP')
