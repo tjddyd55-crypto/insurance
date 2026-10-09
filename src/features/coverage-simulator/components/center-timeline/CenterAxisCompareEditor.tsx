@@ -36,7 +36,7 @@ const SCENARIO_BLURB: Record<string, string> = {
 function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   const location = useLocation()
   const { layoutMode, userKey, hideAlternativeViewSwitcher, simulatorOrigin } = useCoverageSimulatorScope()
-  const { onBackFromEditor, hideEditorBack, customerPdfReturnTo } =
+  const { onBackFromEditor, hideEditorBack, openPdfInPane } =
     useCoverageThreePaneEditorNavigation()
   const { viewMode, setViewMode } = useCoverageScenarioViewMode({ userKey, layoutMode })
   const resolvedViewMode = hideAlternativeViewSwitcher ? 'default' : viewMode
@@ -193,15 +193,15 @@ function CenterAxisCompareEditorBody({ editor, variant }: Props) {
   }
 
   const openPdfPreview = () => {
-    if (simulatorOrigin === 'customer') {
-      const returnTo = customerPdfReturnTo ?? `${basePath}${location.search}`
-      navigate(returnTo, { replace: true })
-      navigate(`${basePath}/scenarios/${scenario.id}/pdf`, {
-        state: { returnTo },
-      })
+    if (openPdfInPane && scenario) {
+      openPdfInPane(scenario.id)
       return
     }
-    navigate(`${basePath}/scenarios/${scenario.id}/pdf`)
+    const returnTo =
+      simulatorOrigin === 'customer' ? `${basePath}${location.search}` : undefined
+    navigate(`${basePath}/scenarios/${scenario.id}/pdf`, {
+      state: returnTo ? { returnTo } : undefined,
+    })
   }
 
   const handleSave = async () => {
