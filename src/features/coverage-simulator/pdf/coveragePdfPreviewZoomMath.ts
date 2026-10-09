@@ -15,8 +15,10 @@ export function computeFitScale(availableWidth: number, documentNaturalWidth: nu
 export function computePreviewDocumentScale(
   availableWidth: number,
   documentNaturalWidth: number,
+  lengthZoom: number = COVERAGE_PDF_PREVIEW_LENGTH_ZOOM,
 ): number {
-  return computeFitScale(availableWidth, documentNaturalWidth) * COVERAGE_PDF_PREVIEW_LENGTH_ZOOM
+  const zoom = Number.isFinite(lengthZoom) && lengthZoom > 0 ? lengthZoom : COVERAGE_PDF_PREVIEW_LENGTH_ZOOM
+  return computeFitScale(availableWidth, documentNaturalWidth) * zoom
 }
 
 export function shouldUpdateFitScale(
