@@ -30,7 +30,12 @@ export async function ensureInsurerManagerDuplicateIndexes(pool) {
     if (!name || !def) {
       continue
     }
+    const isPartialActiveOnly = def.includes('is_deleted')
     if (def.includes('username')) {
+      if (!isPartialActiveOnly) {
+        const safeIndexName = name.replace(/"/g, '""')
+        await pool.query(`DROP INDEX IF EXISTS "${safeIndexName}"`)
+      }
       continue
     }
     const mentionsCompany = def.includes('company_id')
@@ -77,12 +82,14 @@ export function resolveInsurerManagerUniqueConflictMessage(error) {
     constraint.includes('ga_company') ||
     constraint.includes('company_id') ||
     constraint.includes('insurer_name') ||
-    constraint.includes('insurer_manager') ||
     detail.includes('(company_id)=') ||
     detail.includes('(insurer_name)=') ||
     detail.includes('(ga_id, company_id)') ||
     detail.includes('(ga_id, insurer_name)')
   ) {
+    return INSURER_MANAGER_COMPANY_CONFLICT_MESSAGE
+  }
+  if (constraint.includes('insurer_manager') && !constraint.includes('username')) {
     return INSURER_MANAGER_COMPANY_CONFLICT_MESSAGE
   }
   return INSURER_MANAGER_USERNAME_CONFLICT_MESSAGE
