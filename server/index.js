@@ -28,6 +28,7 @@ import {
 import { ensureReferralCodeForUser } from './referrals/referralCode.js'
 import { resolveCustomerInviteRef } from './referrals/resolveCustomerInviteRef.js'
 import { planSignupCodes, applySignupCodesPlan } from './signup/processSignupCodes.js'
+import { queueSignupWelcomeSms } from './signup/signupWelcomeSms.js'
 import { readPolicyActive } from './subscription/appSettings.js'
 import { registerCustomerExtraApi } from './apis/customerExtraApi.js'
 import { registerCustomerRelationGroupsApi } from './apis/registerCustomerRelationGroupsApi.js'
@@ -2555,6 +2556,10 @@ async function handleRegister(req, res) {
       await pool.query(`DELETE FROM sms_verification_codes WHERE purpose = 'SIGNUP' AND phone_number = $1`, [
         phoneNorm,
       ])
+    }
+
+    if (id && phoneNorm) {
+      queueSignupWelcomeSms(pool, { userId: id, phoneNumber: phoneNorm })
     }
 
     const payload = {
