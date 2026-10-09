@@ -22,11 +22,14 @@ describe('Customer workspace page tabs shell', () => {
     expect(shellCss).toContain('.customer-workspace-page__tabs')
     expect(shellCss).not.toContain('.customer-workspace-page__tabs::after')
     expect(shellCss).toContain('--ws-page-gutter')
-    expect(shellCss).toMatch(/\.customer-workspace-page__body::before[\s\S]*--ws-page-gutter/)
+    expect(shellCss).toMatch(/\.customer-workspace-page__body::before[\s\S]*height:\s*1px/)
     expect(shellCss).toMatch(
       /\.customer-workspace-page__tab--active::after[\s\S]*customer-workspace-page-surface/,
     )
     expect(shellCss).toMatch(/\.customer-workspace-page__tab--active[\s\S]*border-bottom:\s*none/)
+    expect(shellCss).toContain('--ws-tab-lift')
+    expect(shellCss).toMatch(/--ws-active-height:\s*48px/)
+    expect(shellCss).toMatch(/\.customer-workspace-page__body[\s\S]*border:\s*1px solid/)
     expect(shellCss).toContain('.customer-workspace-page__body')
   })
 })
