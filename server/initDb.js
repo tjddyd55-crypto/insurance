@@ -1302,6 +1302,17 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS signup_welcome_sms_log (
+      user_id TEXT PRIMARY KEY,
+      phone_number VARCHAR(20) NOT NULL,
+      status VARCHAR(20) NOT NULL DEFAULT 'queued',
+      provider VARCHAR(32) NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await pool.query(`
     ALTER TABLE users
     ADD COLUMN IF NOT EXISTS delegate_password_plaintext TEXT
   `)
