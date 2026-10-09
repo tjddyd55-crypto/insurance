@@ -33,6 +33,8 @@ import {
   renameConsultationAsync,
 } from '../storage/scenarioRepository'
 
+import { buildCustomerCoverageSimulationsReturnUrl } from '../../customers/utils/customerCoverageSimulationsNavigation'
+
 import '../styles/coverage-three-pane.css'
 
 type ContentMode =
@@ -83,7 +85,8 @@ export function CoverageThreePaneWorkspace({
   const navigate = useNavigate()
   const location = useLocation()
   const isMobile = useIsMobile()
-  const { basePath, userKey, layoutMode, isPublicPreview } = useCoverageSimulatorScope()
+  const { basePath, userKey, layoutMode, isPublicPreview, simulatorOrigin } =
+    useCoverageSimulatorScope()
   const { version: storageVersion } = useCoverageSimulatorCrmStorage()
   const { confirm, confirmDialog } = useConfirmDialog()
   const { showToast } = useCoverageSimulatorToast()
@@ -171,12 +174,29 @@ export function CoverageThreePaneWorkspace({
   }, [initialSimulationId])
 
   useEffect(() => {
+    if (templates.length === 0) return
     if (selectedTemplateId && templates.some((t) => t.id === selectedTemplateId)) return
+
+    if (initialTemplateId && templates.some((t) => t.id === initialTemplateId)) {
+      setSelectedTemplateId(initialTemplateId)
+      if (initialSimulationId) {
+        setContentMode({ type: 'simulation', simulationId: initialSimulationId })
+      }
+      return
+    }
+
     const nextTemplateId = templates[0]?.id ?? null
+    if (nextTemplateId === selectedTemplateId) return
     setSelectedTemplateId(nextTemplateId)
     setContentMode({ type: 'empty' })
     notifySelection(nextTemplateId, null)
-  }, [notifySelection, selectedTemplateId, templates])
+  }, [
+    initialSimulationId,
+    initialTemplateId,
+    notifySelection,
+    selectedTemplateId,
+    templates,
+  ])
 
   const selectedTemplate = selectedTemplateId ? getScenarioTemplateById(userKey, selectedTemplateId) : null
 
@@ -392,10 +412,26 @@ export function CoverageThreePaneWorkspace({
     [clearContentSelection],
   )
 
-  const pdfReturnTo = `${basePath}${location.search}`
+  const customerPdfReturnTo = useMemo(() => {
+    if (simulatorOrigin !== 'customer') return null
+    return buildCustomerCoverageSimulationsReturnUrl(basePath, {
+      templateId: selectedTemplateId,
+      simulationId: activeSimulationId,
+    })
+  }, [activeSimulationId, basePath, selectedTemplateId, simulatorOrigin])
+
+  const pdfReturnTo = customerPdfReturnTo ?? `${basePath}${location.search}`
+
+  const editorNavValueWithPdf = useMemo(
+    () => ({
+      ...editorNavValue,
+      customerPdfReturnTo,
+    }),
+    [customerPdfReturnTo, editorNavValue],
+  )
 
   return (
-    <CoverageThreePaneEditorNavigationProvider value={editorNavValue}>
+    <CoverageThreePaneEditorNavigationProvider value={editorNavValueWithPdf}>
       <CoverageSimulatorLayout shellClassName={showAppBar ? 'coverage-simulator-shell--three-pane' : undefined}>
         {showAppBar ? (
           <header className="coverage-simulator-appbar coverage-simulator-appbar--compact">
