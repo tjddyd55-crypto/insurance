@@ -1,6 +1,20 @@
 import { ApiError, apiRequest } from '../../lib/apiClient'
 import type { InsurerManager, InsurerManagerStatus, InsurerManagerType } from './types'
 
+export type InsurerManagerCompanyChoice = {
+  id: number
+  name: string
+  category: 'LIFE' | 'NON_LIFE'
+}
+
+/** 원수사 담당자 등록 — 플랫폼 공통 보험회사 카탈로그(영진 마스터 SSOT) + 자기 GA master id */
+export async function listInsurerManagerCompanyChoicesApi(token: string): Promise<InsurerManagerCompanyChoice[]> {
+  return apiRequest<InsurerManagerCompanyChoice[]>('/api/insurer-managers/company-choices', {
+    method: 'GET',
+    token,
+  })
+}
+
 export async function listInsurerManagersApi(token: string): Promise<InsurerManager[]> {
   return apiRequest<InsurerManager[]>('/api/insurer-managers', { method: 'GET', token })
 }

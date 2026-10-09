@@ -3168,6 +3168,21 @@ apiRouter.get('/admin/audit-logs', requireAuth, requireAuditLogReader, async (re
   }
 })
 
+apiRouter.get('/insurer-managers/company-choices', requireAuth, requireGaInsurerManagerMutator, async (req, res) => {
+  try {
+    const gaId = await resolveTenantGaIdForRequest(pool, req)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
+    const { listInsurerManagerCompanyChoicesForGa } = await import('./lib/insurerManagerCompanyChoices.js')
+    const rows = await listInsurerManagerCompanyChoicesForGa(pool, gaId)
+    res.json(rows)
+  } catch (error) {
+    handleDbError(error, req, res)
+  }
+})
+
 apiRouter.get('/insurer-managers', requireAuth, requireGaInsurerManagerMutator, async (req, res) => {
   try {
     const gaId = await resolveTenantGaIdForRequest(pool, req)

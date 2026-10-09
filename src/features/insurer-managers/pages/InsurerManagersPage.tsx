@@ -3,15 +3,15 @@ import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react
 import { FormDialog, useConfirmDialog } from '../../../components/dialog'
 import { EmptyState, StatusMessage } from '../../../components/feedback'
 import { FieldWrapper, FormButton, FormInput, FormSelect } from '../../../components/form'
-import { listCompanyDirectory } from '../../company-registry/api/companyRegistryApi'
-import type { CompanyDirectoryEntry } from '../../company-registry/domain/types'
 import { canonicalInsuranceCategoryForFilter } from '../../company-registry/domain/categoryUtils'
 import { useAuth } from '../../auth/AuthProvider'
 import {
   createInsurerManagerApi,
   deleteInsurerManagerApi,
+  listInsurerManagerCompanyChoicesApi,
   listInsurerManagersApi,
   patchInsurerManagerApi,
+  type InsurerManagerCompanyChoice,
 } from '../insurerManagerApi'
 import {
   createLossAdjusterApi,
@@ -211,18 +211,18 @@ export default function InsurerManagersPage({ managerKind = 'insurer', embedded 
     void reload()
   }, [reload])
 
-  const { data: companyDirectory = [] } = useQuery<CompanyDirectoryEntry[]>({
-    queryKey: ['company-directory', token, tenantScopeKey],
-    queryFn: () => listCompanyDirectory(token!),
+  const { data: insurerCompanyChoices = [] } = useQuery<InsurerManagerCompanyChoice[]>({
+    queryKey: ['insurer-manager-company-choices', token, tenantScopeKey],
+    queryFn: () => listInsurerManagerCompanyChoicesApi(token!),
     enabled: Boolean(token && hasGaTenant && !isLossAdjusterMode),
   })
 
   const masterChoices = useMemo(() => {
-    return companyDirectory
+    return insurerCompanyChoices
       .filter((c) => canonicalInsuranceCategoryForFilter(c.category, c.name) === form.insurerType)
       .slice()
       .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
-  }, [companyDirectory, form.insurerType])
+  }, [insurerCompanyChoices, form.insurerType])
 
   const submitCreate = async (e: FormEvent) => {
     e.preventDefault()

@@ -9,9 +9,10 @@ const source = readFileSync(
 )
 
 describe('InsurerManagersPage company directory', () => {
-  it('loads directory by gaId tenant SSOT, not gaCode-only gate', () => {
+  it('loads platform insurer catalog API, not GA company directory', () => {
     expect(source).toContain('hasInsurerManagersGaTenant')
-    expect(source).toContain("enabled: Boolean(token && hasGaTenant && !isLossAdjusterMode)")
-    expect(source).not.toMatch(/enabled:\s*Boolean\(token\s*&&\s*gaCode/)
+    expect(source).toContain('listInsurerManagerCompanyChoicesApi')
+    expect(source).toContain("queryKey: ['insurer-manager-company-choices'")
+    expect(source).not.toContain('listCompanyDirectory')
   })
 })
