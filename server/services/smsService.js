@@ -582,14 +582,12 @@ function logAuthGatewayRequestContract(purposeNorm, endpoint, headers, payload) 
 }
 
 /**
- * @param {{ phoneNumber: string, code: string, purpose: string, clientIp?: string }} params
+ * @param {{ phoneNumber: string, messageAligo: string, messageGateway: string, purpose: string, clientIp?: string }} params
  * @returns {Promise<{ success: boolean, ok?: boolean, sent?: boolean, provider?: string, providerMessageId?: string, resultCode?: number, successCount?: number, test?: boolean, testRecipient?: boolean, mocked?: boolean, skipped?: boolean, reason?: string, data?: unknown, error?: unknown, errorCode?: unknown, errorMessage?: string, publicMessage?: string, retryAfterSec?: number }>}
  */
-export async function sendVerificationCode({ phoneNumber, code, purpose, clientIp = '' }) {
+async function dispatchOutboundSms({ phoneNumber, messageAligo, messageGateway, purpose, clientIp = '' }) {
   const receiver = normalizePhoneNumber(phoneNumber)
   const purposeNorm = String(purpose ?? '')
-  const messageGateway = `인증번호는 ${code} 입니다.`
-  const messageAligo = `[인증번호] ${code} (3분 이내 입력해주세요)`
   const ip = String(clientIp ?? '').trim()
 
   const finalizeFail = async (status, channel) => {
@@ -991,4 +989,35 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
       }
     }
   }
+}
+
+/**
+ * @param {{ phoneNumber: string, code: string, purpose: string, clientIp?: string }} params
+ */
+export async function sendVerificationCode({ phoneNumber, code, purpose, clientIp = '' }) {
+  return dispatchOutboundSms({
+    phoneNumber,
+    messageAligo: `[인증번호] ${code} (3분 이내 입력해주세요)`,
+    messageGateway: `인증번호는 ${code} 입니다.`,
+    purpose,
+    clientIp,
+  })
+}
+
+/**
+ * 인증번호 외 안내·환영 등 단발성 SMS (SIGNUP_WELCOME 등 — SERVICE_AUTH_SMS_PURPOSES 와 분리).
+ * @param {{ phoneNumber: string, message: string, purpose: string, clientIp?: string }} params
+ */
+export async function sendTransactionalSms({ phoneNumber, message, purpose, clientIp = '' }) {
+  const text = String(message ?? '').trim()
+  if (!text) {
+    return { success: false, sent: false, errorMessage: 'empty_message' }
+  }
+  return dispatchOutboundSms({
+    phoneNumber,
+    messageAligo: text,
+    messageGateway: text,
+    purpose,
+    clientIp,
+  })
 }

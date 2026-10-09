@@ -95,7 +95,11 @@ export function CoverageThreePaneWorkspace({
   const { confirm, confirmDialog } = useConfirmDialog()
   const { showToast } = useCoverageSimulatorToast()
 
-  const templates = useMemo(() => listScenarioTemplates(userKey), [userKey, storageVersion])
+  const [templateVersion, setTemplateVersion] = useState(0)
+  const templates = useMemo(
+    () => listScenarioTemplates(userKey),
+    [userKey, storageVersion, templateVersion],
+  )
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(
     () => initialTemplateId ?? templates[0]?.id ?? null,
   )
@@ -115,6 +119,8 @@ export function CoverageThreePaneWorkspace({
   const [newScenarioName, setNewScenarioName] = useState('')
   const [addSimulationOpen, setAddSimulationOpen] = useState(false)
   const [newSimulationName, setNewSimulationName] = useState('')
+  const [renameTemplateId, setRenameTemplateId] = useState<string | null>(null)
+  const [renameTemplateError, setRenameTemplateError] = useState<string | null>(null)
   const rowMenuDismissEnabled = Boolean(customerFilter) || simulationMenuMode === 'popover'
 
   useEffect(() => {
@@ -137,7 +143,7 @@ export function CoverageThreePaneWorkspace({
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
-      if (addScenarioOpen || addSimulationOpen || renameRow) return
+      if (addScenarioOpen || addSimulationOpen || renameRow || renameTemplateId) return
       closeRowMenus()
     }
 
@@ -151,6 +157,7 @@ export function CoverageThreePaneWorkspace({
     addScenarioOpen,
     addSimulationOpen,
     renameRow,
+    renameTemplateId,
     rowMenuDismissEnabled,
     simulationMenuRow,
     templateMenuId,
@@ -229,8 +236,8 @@ export function CoverageThreePaneWorkspace({
   })
 
   const bumpTemplateList = useCallback(() => {
-    refreshLists()
-  }, [refreshLists])
+    setTemplateVersion((v) => v + 1)
+  }, [])
 
   const activeSimulationId =
     contentMode.type === 'simulation'
@@ -340,10 +347,36 @@ export function CoverageThreePaneWorkspace({
     setTemplateMenuId(null)
     bumpTemplateList()
     if (selectedTemplateId === templateId) {
-      setSelectedTemplateId(null)
+      const remaining = listScenarioTemplates(userKey)
+      const nextTemplateId = remaining[0]?.id ?? null
+      setSelectedTemplateId(nextTemplateId)
       setContentMode({ type: 'empty' })
-      notifySelection(null, null)
+      notifySelection(nextTemplateId, null)
     }
+  }
+
+  const onRenameTemplateConfirm = (nextName: string) => {
+    if (!renameTemplateId) return
+    const source = getScenarioTemplateById(userKey, renameTemplateId)
+    if (!source) {
+      setRenameTemplateId(null)
+      return
+    }
+    const trimmed = nextName.trim()
+    if (!trimmed) {
+      setRenameTemplateError('시나리오 이름을 입력해 주세요.')
+      return
+    }
+    if (trimmed === source.name.trim()) {
+      setRenameTemplateId(null)
+      setRenameTemplateError(null)
+      return
+    }
+    saveScenarioTemplate(userKey, { ...source, name: trimmed })
+    bumpTemplateList()
+    setRenameTemplateId(null)
+    setRenameTemplateError(null)
+    setTemplateMenuId(null)
   }
 
   const handleRenameConfirm = (nextTitle: string) => {
@@ -548,7 +581,7 @@ export function CoverageThreePaneWorkspace({
                   {templateMenuId === template.id ? (
                     <div className="cs-three-pane-scenario-row__menu-panel" role="menu">
                       <button type="button" onClick={() => openTemplateEdit(template.id)}>
-                        시나리오 편집
+                        기본값 편집
                       </button>
                       <button
                         type="button"
@@ -556,6 +589,7 @@ export function CoverageThreePaneWorkspace({
                           const source = getScenarioTemplateById(userKey, template.id)
                           if (!source) return
                           const copy = saveScenarioTemplate(userKey, cloneUserTemplate(source))
+                          setTemplateMenuId(null)
                           bumpTemplateList()
                           selectTemplate(copy.id)
                           openTemplateEdit(copy.id)
@@ -566,12 +600,8 @@ export function CoverageThreePaneWorkspace({
                       <button
                         type="button"
                         onClick={() => {
-                          const source = getScenarioTemplateById(userKey, template.id)
-                          if (!source) return
-                          const nextName = window.prompt('시나리오 이름', source.name)
-                          if (!nextName?.trim()) return
-                          saveScenarioTemplate(userKey, { ...source, name: nextName.trim() })
-                          bumpTemplateList()
+                          setRenameTemplateError(null)
+                          setRenameTemplateId(template.id)
                           setTemplateMenuId(null)
                         }}
                       >
@@ -710,7 +740,7 @@ export function CoverageThreePaneWorkspace({
 
         <SaveConsultationTitleDialog
           open={renameRow != null}
-          dialogTitle="제목 수정"
+          dialogTitle="시뮬레이션 제목 수정"
           initialTitle={renameRow?.title ?? ''}
           validationError={renameValidationError}
           saving={renameSaving}
@@ -719,6 +749,24 @@ export function CoverageThreePaneWorkspace({
             setRenameValidationError(null)
           }}
           onConfirm={handleRenameConfirm}
+        />
+
+        <CoverageSimulatorNameCreateDialog
+          open={renameTemplateId != null}
+          dialogTitle="시나리오 이름 변경"
+          fieldLabel="시나리오 이름"
+          confirmLabel="저장"
+          initialValue={
+            renameTemplateId
+              ? getScenarioTemplateById(userKey, renameTemplateId)?.name ?? ''
+              : ''
+          }
+          errorMessage={renameTemplateError}
+          onClose={() => {
+            setRenameTemplateId(null)
+            setRenameTemplateError(null)
+          }}
+          onConfirm={onRenameTemplateConfirm}
         />
 
         <CoverageSimulatorNameCreateDialog

@@ -68,6 +68,20 @@ test('resolveSmsSendPolicy: 단체문자 purpose 는 development 에서 allowlis
   restoreEnv()
 })
 
+test('resolveSmsSendPolicy: SIGNUP_WELCOME 은 development 에서 mock (인증 SIGNUP 과 분리)', () => {
+  process.env.APP_ENV = 'development'
+  delete process.env.RAILWAY_ENVIRONMENT_NAME
+  delete process.env.ALLOW_TEST_RECIPIENTS_ONLY
+  delete process.env.DISABLE_REAL_SEND
+
+  const welcome = resolveSmsSendPolicy('01012345678', 'SIGNUP_WELCOME')
+  const signup = resolveSmsSendPolicy('01012345678', 'SIGNUP')
+  assert.deepEqual(welcome, { kind: 'mock', reason: 'allowlist_disabled' })
+  assert.deepEqual(signup, { kind: 'production' })
+
+  restoreEnv()
+})
+
 test('resolveSmsSendPolicy: production 은 purpose 무관 production', () => {
   process.env.APP_ENV = 'production'
   delete process.env.RAILWAY_ENVIRONMENT_NAME
