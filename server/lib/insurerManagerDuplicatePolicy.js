@@ -16,6 +16,16 @@ export const INSURER_MANAGER_COMPANY_CONFLICT_MESSAGE =
 export async function ensureInsurerManagerDuplicateIndexes(pool) {
   await pool.query(`DROP INDEX IF EXISTS uq_insurer_managers_ga_insurer_active`)
 
+  const legacyConstraintNames = [
+    'insurer_managers_username_key',
+    'insurer_managers_insurer_name_key',
+    'insurer_managers_company_id_key',
+  ]
+  for (const legacyName of legacyConstraintNames) {
+    const safe = legacyName.replace(/"/g, '""')
+    await pool.query(`ALTER TABLE insurer_managers DROP CONSTRAINT IF EXISTS "${safe}"`)
+  }
+
   const constraintRows = await pool.query(`
     SELECT c.conname, pg_get_constraintdef(c.oid) AS def
     FROM pg_constraint c
