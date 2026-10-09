@@ -48,7 +48,7 @@ export function registerGaAdminManagementApi(apiRouter, ctx) {
       status: mapped.status,
       statusLabel: mapped.statusLabel,
       created_at: mapped.created_at,
-      updated_at: row.updated_at ? String(row.updated_at) : mapped.created_at,
+      updated_at: mapped.created_at,
       displayName: String(row.display_name ?? '').trim(),
     }
   }
@@ -65,7 +65,6 @@ export function registerGaAdminManagementApi(apiRouter, ctx) {
           u.role,
           u.status,
           u.created_at,
-          u.updated_at,
           u.ga_id,
           u.display_name,
           u.delegate_password_plaintext,
@@ -116,7 +115,6 @@ export function registerGaAdminManagementApi(apiRouter, ctx) {
           u.role,
           u.status,
           u.created_at,
-          u.updated_at,
           u.ga_id,
           u.display_name,
           u.delegate_password_plaintext,
@@ -149,7 +147,7 @@ export function registerGaAdminManagementApi(apiRouter, ctx) {
       const curQ = await systemQuery(
         pool,
         `
-        SELECT id, username, role, status, ga_id, display_name, delegate_password_plaintext, updated_at
+        SELECT id, username, role, status, ga_id, display_name, delegate_password_plaintext
         FROM users
         WHERE id = $1 AND is_deleted = false
         `,
@@ -234,7 +232,6 @@ export function registerGaAdminManagementApi(apiRouter, ctx) {
         vals.push(passwordUpdate)
       }
       if (setParts.length > 0) {
-        setParts.push(`updated_at = NOW()`)
         vals.push(targetId, actorGaId)
         await safeQuery(
           pool,
@@ -258,7 +255,6 @@ export function registerGaAdminManagementApi(apiRouter, ctx) {
           u.role,
           u.status,
           u.created_at,
-          u.updated_at,
           u.ga_id,
           u.display_name,
           u.delegate_password_plaintext,
