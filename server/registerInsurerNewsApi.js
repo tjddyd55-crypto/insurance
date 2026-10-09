@@ -40,6 +40,7 @@ import {
   isLossAdjusterNewsletterActiveForGa,
   isLossAdjusterSystemBoard,
 } from './lib/lossAdjusterNewsletterBoard.js'
+import { filterGaAdminManageableNewsletterBoardRows } from './lib/gaAdminNewsletterBoardListScope.js'
 import { parseBoardMetadataPatch } from './lib/newsletterBoardMetadata.js'
 import { canDeleteNewsletter } from './lib/newsletterDeletePermission.js'
 import { insertDynamicBoardNewsletter } from './lib/dynamicBoardNewsletterWrite.js'
@@ -1620,7 +1621,10 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       const r = isSuperAdmin
         ? await adminNewsletterBoardQuery(pool, SUPER_ADMIN_NEWSLETTER_BOARDS_LIST_SQL, [])
         : await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARDS_LIST_SQL, [effectiveTenantGaId(req)])
-      res.json(r.rows.map(mapNewsletterBoard))
+      const rows = isSuperAdmin
+        ? r.rows
+        : filterGaAdminManageableNewsletterBoardRows(r.rows, effectiveTenantGaId(req))
+      res.json(rows.map(mapNewsletterBoard))
     } catch (eBoardsAdmin) {
       handleDbError(eBoardsAdmin, req, res)
     }
@@ -1634,7 +1638,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       }
       const gaId = effectiveTenantGaId(req)
       const r = await safeQuery(pool, GA_ADMIN_NEWSLETTER_BOARDS_LIST_SQL, [gaId])
-      res.json(r.rows.map(mapNewsletterBoard))
+      res.json(filterGaAdminManageableNewsletterBoardRows(r.rows, gaId).map(mapNewsletterBoard))
     } catch (eGaBoards) {
       handleDbError(eGaBoards, req, res)
     }
