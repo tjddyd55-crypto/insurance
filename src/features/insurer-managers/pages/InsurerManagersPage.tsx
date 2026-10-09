@@ -20,6 +20,7 @@ import {
   patchLossAdjusterApi,
 } from '../../loss-adjusters/lossAdjusterApi'
 import type { InsurerManager, InsurerManagerStatus, InsurerManagerType } from '../types'
+import { hasInsurerManagersGaTenant } from '../insurerManagersTenantContext'
 
 const STATUS_OPTIONS: { value: InsurerManagerStatus; label: string }[] = [
   { value: 'ACTIVE', label: '정상' },
@@ -182,6 +183,8 @@ export default function InsurerManagersPage({ managerKind = 'insurer', embedded 
   const config = useMemo(() => configFor(managerKind), [managerKind])
   const isLossAdjusterMode = managerKind === 'lossAdjuster'
   const gaCode = user?.gaCode?.trim() ?? ''
+  const hasGaTenant = hasInsurerManagersGaTenant(user)
+  const tenantScopeKey = user?.gaId ?? gaCode
   const canDelete = user?.role === 'GA_ADMIN' || user?.role === 'GA_STAFF'
   const [rows, setRows] = useState<InsurerManager[]>([])
   const [loadErr, setLoadErr] = useState('')
@@ -192,7 +195,7 @@ export default function InsurerManagersPage({ managerKind = 'insurer', embedded 
   const [saving, setSaving] = useState(false)
 
   const reload = useCallback(async () => {
-    if (!gaCode || !token) {
+    if (!hasGaTenant || !token) {
       return
     }
     setLoadErr('')
@@ -202,16 +205,16 @@ export default function InsurerManagersPage({ managerKind = 'insurer', embedded 
     } catch {
       setLoadErr('목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
     }
-  }, [config, gaCode, token])
+  }, [config, hasGaTenant, token])
 
   useEffect(() => {
     void reload()
   }, [reload])
 
   const { data: companyDirectory = [] } = useQuery<CompanyDirectoryEntry[]>({
-    queryKey: ['company-directory', token, gaCode],
+    queryKey: ['company-directory', token, tenantScopeKey],
     queryFn: () => listCompanyDirectory(token!),
-    enabled: Boolean(token && gaCode && !isLossAdjusterMode),
+    enabled: Boolean(token && hasGaTenant && !isLossAdjusterMode),
   })
 
   const masterChoices = useMemo(() => {
@@ -366,7 +369,7 @@ export default function InsurerManagersPage({ managerKind = 'insurer', embedded 
 
   const pageTitle = embedded && managerKind === 'insurer' ? '원수사 계정' : config.pageTitle
 
-  if (!gaCode) {
+  if (!hasGaTenant) {
     if (embedded) {
       return (
         <div className="admin-data-card">
