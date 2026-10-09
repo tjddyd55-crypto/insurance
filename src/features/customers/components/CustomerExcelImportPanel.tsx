@@ -83,9 +83,17 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
       setPreviewOpen(false)
       setProgress(null)
       try {
-        const batch = await uploadCustomers(token, prepare.payloads, (done, total) => {
-          setProgress({ done, total })
-        })
+        const batch = await uploadCustomers(
+          token,
+          prepare.payloads,
+          (done, total) => {
+            setProgress({ done, total })
+          },
+          {
+            importBundles: prepare.importBundles,
+            relatedSheets: prepare.relatedSheets,
+          },
+        )
         setResult(batch)
         if (batch.success > 0) {
           await onUploadsFinished()
@@ -206,6 +214,16 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
           <ul className="customers-excel-import-panel__preview-list">
             <li>시트 데이터 총 {prepare.stats.totalSheetRows}행</li>
             <li>업로드 예정 {prepare.stats.uploadReadyCount}건</li>
+            {(prepare.stats.relatedCarRows > 0 ||
+              prepare.stats.relatedSpecialDateRows > 0 ||
+              prepare.stats.relatedCustomFieldRows > 0 ||
+              prepare.stats.relatedFireRows > 0) && (
+              <li>
+                연관 시트: 자동차 {prepare.stats.relatedCarRows}행 · 알림일{' '}
+                {prepare.stats.relatedSpecialDateRows}행 · 추가정보 {prepare.stats.relatedCustomFieldRows}행 · 화재보험{' '}
+                {prepare.stats.relatedFireRows}행
+              </li>
+            )}
             {prepare.stats.mergedAbsorbedRowCount > 0 ? (
               <li>
                 중복 병합: {prepare.stats.mergedAbsorbedRowCount}건 (주민번호 또는 이름+연락처 기준

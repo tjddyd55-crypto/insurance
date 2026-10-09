@@ -10,6 +10,7 @@ import type { CustomerExcelParsedRow } from './customerExcelUpload'
 
 function baseRow(overrides: Partial<CustomerExcelParsedRow> = {}): CustomerExcelParsedRow {
   return {
+    importKey: '',
     name: '홍길동',
     phone: '01012345678',
     ssn: '',
@@ -25,11 +26,15 @@ function baseRow(overrides: Partial<CustomerExcelParsedRow> = {}): CustomerExcel
     businessAddressDetail: '',
     businessMemo: '',
     carrier: '',
+    smsOptOut: null,
     height: '',
     weight: '',
     isDriver: null,
     carType: '',
     medical: '',
+    treatmentHistoryNote: '',
+    medicationHistoryNote: '',
+    accountNumber: '',
     carNumber: '',
     carModel: '',
     carYear: '',
