@@ -11,6 +11,10 @@ import {
   type GaAdminDelegateRow,
 } from '../../auth/authApi'
 import { formatKstDateDisplay } from '../../../utils/displayDateTime'
+import { AdminFormDialogFooter } from '../components/AdminFormDialogFooter'
+
+const CREATE_FORM_ID = 'ga-admin-delegate-create'
+const EDIT_FORM_ID = 'ga-admin-delegate-edit'
 
 const STATUS_SELECT_OPTIONS: { value: EntityStatus; label: string }[] = [
   { value: 'active', label: '정상' },
@@ -69,14 +73,29 @@ export default function GaAdminDelegatesPanel() {
 
   const staffRows = rows.filter((r) => r.role === 'GA_STAFF')
 
+  function closeCreate() {
+    if (createBusy) return
+    setCreateOpen(false)
+    setCreateErr('')
+  }
+
   async function onCreateSubmit(e: FormEvent) {
     e.preventDefault()
     if (!token?.trim()) return
     setCreateErr('')
+    const username = createUsername.trim()
+    if (!username) {
+      setCreateErr('로그인 ID를 입력해 주세요.')
+      return
+    }
+    if (!createPassword.trim()) {
+      setCreateErr('비밀번호를 입력해 주세요.')
+      return
+    }
     setCreateBusy(true)
     try {
       await createGaAdminDelegate(token, {
-        username: createUsername.trim(),
+        username,
         password: createPassword,
         name: createName.trim(),
       })
@@ -99,6 +118,12 @@ export default function GaAdminDelegatesPanel() {
     setEditPassword('')
     setEditStatus(normalizeUserStatus(row.status))
     setEditName(row.displayName ?? '')
+    setEditErr('')
+  }
+
+  function closeEdit() {
+    if (editBusy) return
+    setEditing(null)
     setEditErr('')
   }
 
@@ -128,7 +153,7 @@ export default function GaAdminDelegatesPanel() {
       <div className="admin-data-card__head">
         <h2 className="admin-data-card__title">관리자 · STEP</h2>
         <div className="admin-data-card__actions">
-          <FormButton type="button" onClick={() => setCreateOpen(true)}>
+          <FormButton htmlType="button" variant="primary" onClick={() => setCreateOpen(true)}>
             STEP 추가
           </FormButton>
         </div>
@@ -161,7 +186,7 @@ export default function GaAdminDelegatesPanel() {
                   <td>{formatKstDateDisplay(row.last_login_at ?? '', '—')}</td>
                   <td className="admin-table-cell--actions">
                     <div className="admin-table-actions">
-                      <FormButton type="button" variant="secondary" onClick={() => openEdit(row)}>
+                      <FormButton htmlType="button" variant="secondary" onClick={() => openEdit(row)}>
                         수정
                       </FormButton>
                     </div>
@@ -173,8 +198,21 @@ export default function GaAdminDelegatesPanel() {
         </div>
       )}
 
-      <FormDialog open={createOpen} title="STEP(GA_STAFF) 생성" onClose={() => !createBusy && setCreateOpen(false)}>
-        <form onSubmit={onCreateSubmit}>
+      <FormDialog
+        open={createOpen}
+        title="STEP(GA_STAFF) 생성"
+        onClose={closeCreate}
+        disableClose={createBusy}
+        footer={
+          <AdminFormDialogFooter
+            formId={CREATE_FORM_ID}
+            onCancel={closeCreate}
+            submitLabel="생성"
+            busy={createBusy}
+          />
+        }
+      >
+        <form id={CREATE_FORM_ID} className="form-dialog__form" onSubmit={onCreateSubmit}>
           <FieldWrapper label="이름">
             <FormInput value={createName} onChange={(e) => setCreateName(e.target.value)} autoComplete="name" />
           </FieldWrapper>
@@ -190,15 +228,20 @@ export default function GaAdminDelegatesPanel() {
             />
           </FieldWrapper>
           {createErr ? <StatusMessage tone="error" message={createErr} /> : null}
-          <div className="form-actions">
-            <FormButton type="submit" busy={createBusy}>생성</FormButton>
-          </div>
         </form>
       </FormDialog>
 
-      <FormDialog open={editing != null} title="STEP 수정" onClose={() => !editBusy && setEditing(null)}>
+      <FormDialog
+        open={editing != null}
+        title="STEP 수정"
+        onClose={closeEdit}
+        disableClose={editBusy}
+        footer={
+          <AdminFormDialogFooter formId={EDIT_FORM_ID} onCancel={closeEdit} submitLabel="저장" busy={editBusy} />
+        }
+      >
         {editing ? (
-          <form onSubmit={onEditSubmit}>
+          <form id={EDIT_FORM_ID} className="form-dialog__form" onSubmit={onEditSubmit}>
             <FieldWrapper label="이름">
               <FormInput value={editName} onChange={(e) => setEditName(e.target.value)} />
             </FieldWrapper>
@@ -221,9 +264,6 @@ export default function GaAdminDelegatesPanel() {
               </FormSelect>
             </FieldWrapper>
             {editErr ? <StatusMessage tone="error" message={editErr} /> : null}
-            <div className="form-actions">
-              <FormButton type="submit" busy={editBusy}>저장</FormButton>
-            </div>
           </form>
         ) : null}
       </FormDialog>

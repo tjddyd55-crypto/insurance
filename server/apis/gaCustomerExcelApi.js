@@ -6,6 +6,7 @@ import {
   normalizeGaExactMatchValue,
 } from '../lib/gaCustomerMatchAliases.js'
 import { parseGaExcelMatrix } from '../lib/gaCustomerExcelParse.js'
+import { normalizeRbacRole } from '../lib/rbacScope.js'
 
 const uploadExcel = multer({
   storage: multer.memoryStorage(),
@@ -502,6 +503,100 @@ async function buildUserGaExcelCustomerPayload(pool, { userId, gaId, customerId 
     },
   }
 }
+
+/** GA Excel 설정 저장 SSOT (SUPER_ADMIN 전체 저장 · GA_ADMIN feature ON/OFF 공용). */
+export async function persistGaCustomerExcelSettings(pool, gaId, { featureEnabled, matchRules }) {
+  const client = await pool.connect()
+  try {
+    await ensureSettingsRow(client, gaId)
+    const cur = await safeQuery(client, `SELECT * FROM ga_customer_excel_settings WHERE ga_id = $1`, [gaId])
+    const row = cur.rows[0]
+    const sampleColumns = parseJsonArray(row.sample_columns, [])
+
+    if (sampleColumns.length === 0 && (featureEnabled || matchRules.length > 0)) {
+      const err = new Error('먼저 샘플 엑셀을 업로드해 주세요.')
+      err.statusCode = 400
+      throw err
+    }
+
+    const colIds = columnIdSet(sampleColumns)
+    const cleanedMatch = []
+    for (const m of matchRules) {
+      const columnId = String(m.columnId ?? m.excelColumnId ?? '').trim()
+      const dbField = String(m.dbField ?? '').trim()
+      if (!columnId || !dbField) {
+        continue
+      }
+      if (sampleColumns.length > 0 && (!colIds.has(columnId) || !ALLOWED_MATCH_DB_FIELDS.has(dbField))) {
+        const err = new Error('조회 기준 컬럼 매핑이 올바르지 않습니다.')
+        err.statusCode = 400
+        throw err
+      }
+      cleanedMatch.push({ columnId, dbField })
+    }
+
+    if (featureEnabled && cleanedMatch.length === 0) {
+      const err = new Error('조회 기준 컬럼을 최소 1개 이상 지정해야 합니다.')
+      err.statusCode = 400
+      throw err
+    }
+
+    const configReady = computeConfigReady(sampleColumns, cleanedMatch)
+
+    await client.query('BEGIN')
+    await safeQuery(
+      client,
+      `
+          UPDATE ga_customer_excel_settings
+          SET feature_enabled = $2,
+              match_rules = CAST($3 AS jsonb)::jsonb,
+              display_column_ids = '[]'::jsonb,
+              filter_column_id = NULL,
+              filter_op = NULL,
+              filter_value = NULL,
+              config_ready = $4,
+              settings_version = settings_version + 1,
+              updated_at = NOW()
+          WHERE ga_id = $1
+          `,
+      [gaId, featureEnabled, JSON.stringify(cleanedMatch), configReady],
+    )
+    await client.query('COMMIT')
+    return await loadSettingsOrDefault(pool, gaId)
+  } catch (e) {
+    try {
+      await client.query('ROLLBACK')
+    } catch {
+      /* ignore */
+    }
+    throw e
+  } finally {
+    client.release()
+  }
+}
+
+function requireGaAdminRole(req, res, next) {
+  if (normalizeRbacRole(req.user?.role) !== 'GA_ADMIN') {
+    res.status(403).json({ message: 'GA 관리자만 이용할 수 있습니다.' })
+    return
+  }
+  const gaId = parseGaId(req.user?.gaId)
+  if (gaId == null) {
+    res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+    return
+  }
+  req.gaAdminScopeGaId = gaId
+  next()
+}
+
+function sendPersistSettingsError(e, req, res, handleDbError) {
+  if (e?.statusCode === 400 && e?.message) {
+    res.status(400).json({ message: e.message })
+    return
+  }
+  handleDbError(e, req, res)
+}
+
 export function registerGaCustomerExcelApi(apiRouter, ctx) {
   const { pool, requireAuth, requireSuperAdmin, handleDbError, parseGaId, requireInsuranceFormUserId } = ctx
 
@@ -627,71 +722,41 @@ export function registerGaCustomerExcelApi(apiRouter, ctx) {
       const body = req.body ?? {}
       const featureEnabled = Boolean(body.featureEnabled ?? body.feature_enabled)
       const matchRules = Array.isArray(body.matchRules) ? body.matchRules : []
-
-      const client = await pool.connect()
       try {
-        await ensureSettingsRow(client, gaId)
-        const cur = await safeQuery(client, `SELECT * FROM ga_customer_excel_settings WHERE ga_id = $1`, [gaId])
-        const row = cur.rows[0]
-        const sampleColumns = parseJsonArray(row.sample_columns, [])
-
-        if (sampleColumns.length === 0 && (featureEnabled || matchRules.length > 0)) {
-          res.status(400).json({ message: '먼저 샘플 엑셀을 업로드해 주세요.' })
-          return
-        }
-
-        const colIds = columnIdSet(sampleColumns)
-        const cleanedMatch = []
-        for (const m of matchRules) {
-          const columnId = String(m.columnId ?? m.excelColumnId ?? '').trim()
-          const dbField = String(m.dbField ?? '').trim()
-          if (!columnId || !dbField) {
-            continue
-          }
-          if (sampleColumns.length > 0 && (!colIds.has(columnId) || !ALLOWED_MATCH_DB_FIELDS.has(dbField))) {
-            res.status(400).json({ message: '조회 기준 컬럼 매핑이 올바르지 않습니다.' })
-            return
-          }
-          cleanedMatch.push({ columnId, dbField })
-        }
-
-        if (featureEnabled && cleanedMatch.length === 0) {
-          res.status(400).json({ message: '조회 기준 컬럼을 최소 1개 이상 지정해야 합니다.' })
-          return
-        }
-
-        const configReady = computeConfigReady(sampleColumns, cleanedMatch)
-
-        await client.query('BEGIN')
-        await safeQuery(
-          client,
-          `
-          UPDATE ga_customer_excel_settings
-          SET feature_enabled = $2,
-              match_rules = CAST($3 AS jsonb)::jsonb,
-              display_column_ids = '[]'::jsonb,
-              filter_column_id = NULL,
-              filter_op = NULL,
-              filter_value = NULL,
-              config_ready = $4,
-              settings_version = settings_version + 1,
-              updated_at = NOW()
-          WHERE ga_id = $1
-          `,
-          [gaId, featureEnabled, JSON.stringify(cleanedMatch), configReady],
-        )
-        await client.query('COMMIT')
-        const settings = await loadSettingsOrDefault(pool, gaId)
+        const settings = await persistGaCustomerExcelSettings(pool, gaId, { featureEnabled, matchRules })
         res.json({ ok: true, settings })
       } catch (e) {
-        try {
-          await client.query('ROLLBACK')
-        } catch {
-          /* ignore */
-        }
-        throw e
-      } finally {
-        client.release()
+        sendPersistSettingsError(e, req, res, handleDbError)
+      }
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
+  /** GA 관리자: 자기 GA Excel 설정 조회 (gaId는 세션만 신뢰) */
+  apiRouter.get('/ga-admin/customer-excel/settings', requireAuth, requireGaAdminRole, async (req, res) => {
+    try {
+      const gaId = req.gaAdminScopeGaId
+      const settings = await loadSettingsOrDefault(pool, gaId)
+      res.json(settings)
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
+  /** GA 관리자: 기능 ON/OFF (매핑·샘플은 SUPER_ADMIN 설정 유지) */
+  apiRouter.put('/ga-admin/customer-excel/settings', requireAuth, requireGaAdminRole, async (req, res) => {
+    try {
+      const gaId = req.gaAdminScopeGaId
+      const body = req.body ?? {}
+      const featureEnabled = Boolean(body.featureEnabled ?? body.feature_enabled)
+      const current = await loadSettingsOrDefault(pool, gaId)
+      const matchRules = Array.isArray(body.matchRules) ? body.matchRules : current.matchRules ?? []
+      try {
+        const settings = await persistGaCustomerExcelSettings(pool, gaId, { featureEnabled, matchRules })
+        res.json({ ok: true, settings })
+      } catch (e) {
+        sendPersistSettingsError(e, req, res, handleDbError)
       }
     } catch (e) {
       handleDbError(e, req, res)

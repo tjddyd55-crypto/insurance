@@ -12,6 +12,9 @@ import {
   patchGaAdminBoardWriter,
   type GaAdminBoardWriterRow,
 } from '../../insurer-news/services/publicBoardWriter.service'
+import { AdminFormDialogFooter } from '../components/AdminFormDialogFooter'
+
+const CREATE_FORM_ID = 'ga-admin-board-writer-create'
 
 export default function GaAdminBoardWritersPanel() {
   const { token, user } = useAuth()
@@ -58,16 +61,35 @@ export default function GaAdminBoardWritersPanel() {
     )
   }
 
+  function closeCreate() {
+    if (createBusy) return
+    setCreateOpen(false)
+    setCreateErr('')
+  }
+
   async function onCreate(e: FormEvent) {
     e.preventDefault()
     if (!token?.trim()) return
     setCreateErr('')
+    const id = loginId.trim()
+    if (!id) {
+      setCreateErr('로그인 ID를 입력해 주세요.')
+      return
+    }
+    if (!password.trim()) {
+      setCreateErr('비밀번호를 입력해 주세요.')
+      return
+    }
+    if (selectedBoardIds.length === 0) {
+      setCreateErr('허용할 소식지를 1개 이상 선택해 주세요.')
+      return
+    }
     setCreateBusy(true)
     try {
       await createGaAdminBoardWriter(token, {
-        loginId: loginId.trim(),
+        loginId: id,
         password,
-        name: name.trim() || loginId.trim(),
+        name: name.trim() || id,
         allowedBoardIds: selectedBoardIds,
       })
       setCreateOpen(false)
@@ -98,7 +120,9 @@ export default function GaAdminBoardWritersPanel() {
       <div className="admin-data-card__head">
         <h2 className="admin-data-card__title">소식지 작성자</h2>
         <div className="admin-data-card__actions">
-          <FormButton type="button" onClick={() => setCreateOpen(true)}>작성자 추가</FormButton>
+          <FormButton htmlType="button" variant="primary" onClick={() => setCreateOpen(true)}>
+            작성자 추가
+          </FormButton>
         </div>
       </div>
       {error ? <StatusMessage tone="error" message={error} /> : null}
@@ -127,7 +151,7 @@ export default function GaAdminBoardWritersPanel() {
                 <td>{w.isActive ? '활성' : '비활성'}</td>
                 <td className="admin-table-cell--actions">
                   <div className="admin-table-actions">
-                    <FormButton type="button" variant="secondary" onClick={() => void toggleActive(w)}>
+                    <FormButton htmlType="button" variant="secondary" onClick={() => void toggleActive(w)}>
                       {w.isActive ? '사용 중지' : '재활성화'}
                     </FormButton>
                   </div>
@@ -139,8 +163,16 @@ export default function GaAdminBoardWritersPanel() {
         </div>
       )}
 
-      <FormDialog open={createOpen} title="소식지 작성자 생성" onClose={() => !createBusy && setCreateOpen(false)}>
-        <form onSubmit={onCreate}>
+      <FormDialog
+        open={createOpen}
+        title="소식지 작성자 생성"
+        onClose={closeCreate}
+        disableClose={createBusy}
+        footer={
+          <AdminFormDialogFooter formId={CREATE_FORM_ID} onCancel={closeCreate} submitLabel="생성" busy={createBusy} />
+        }
+      >
+        <form id={CREATE_FORM_ID} className="form-dialog__form" onSubmit={onCreate}>
           <FieldWrapper label="이름">
             <FormInput value={name} onChange={(ev) => setName(ev.target.value)} />
           </FieldWrapper>
@@ -174,11 +206,6 @@ export default function GaAdminBoardWritersPanel() {
             </div>
           </FieldWrapper>
           {createErr ? <StatusMessage tone="error" message={createErr} /> : null}
-          <div className="form-actions">
-            <FormButton type="submit" busy={createBusy} disabled={selectedBoardIds.length === 0}>
-              생성
-            </FormButton>
-          </div>
         </form>
       </FormDialog>
     </div>

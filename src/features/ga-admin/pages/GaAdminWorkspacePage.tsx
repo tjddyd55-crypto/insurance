@@ -6,8 +6,8 @@ import { LoadingState, StatusMessage } from '../../../components/feedback'
 import GaAdminDelegatesPanel from '../panels/GaAdminDelegatesPanel'
 import GaAdminBoardWritersPanel from '../panels/GaAdminBoardWritersPanel'
 import UserInsurerAccountsPage from '../../user-insurer-accounts/pages/UserInsurerAccountsPage'
-import { useGaSettings } from '../../ga-settings/useGaSettings'
 import { NewsletterBoardAdminPage } from '../../insurer-news/pages/NewsletterBoardAdminPage'
+import GaAdminFeaturesSettingsPanel from '../panels/GaAdminFeaturesSettingsPanel'
 import '../ga-admin-workspace.css'
 
 const TAB_LINKS = [
@@ -84,31 +84,6 @@ function GaAdminBasicTab() {
   )
 }
 
-function GaAdminFeaturesTab() {
-  const { gaSettings, loading } = useGaSettings()
-  if (loading) {
-    return (
-      <div className="admin-data-card">
-        <LoadingState message="기능 설정 불러오는 중…" />
-      </div>
-    )
-  }
-  return (
-    <div className="admin-data-card">
-      <h2 className="admin-data-card__title">GA 기능 설정</h2>
-      <ul className="ga-admin-workspace-feature-list">
-        <li>
-          GA Excel 고객 DB: <strong>{gaSettings.use_ga_excel ? 'ON' : 'OFF'}</strong>
-        </li>
-      </ul>
-      <p className="text-sm text-[var(--text-secondary)]">
-        세부 Excel 매핑·샘플 업로드는 SUPER_ADMIN GA 상세 화면에서 설정됩니다. 변경 요청은 기능 요청 또는
-        플랫폼 관리자에게 문의해 주세요.
-      </p>
-    </div>
-  )
-}
-
 export default function GaAdminWorkspacePage() {
   const location = useLocation()
   const base = '/ga-admin/workspace'
@@ -141,7 +116,7 @@ export default function GaAdminWorkspacePage() {
           <Routes>
             <Route index element={<Navigate to="basic" replace />} />
             <Route path="basic" element={<GaAdminBasicTab />} />
-            <Route path="features" element={<GaAdminFeaturesTab />} />
+            <Route path="features" element={<GaAdminFeaturesSettingsPanel />} />
             <Route path="accounts/delegates" element={<GaAdminDelegatesPanel />} />
             <Route path="accounts/insurer" element={<UserInsurerAccountsPage embedded />} />
             <Route path="accounts/writers" element={<GaAdminBoardWritersPanel />} />
