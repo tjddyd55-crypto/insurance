@@ -6,14 +6,44 @@ import { formatAddressForSave } from '../../../components/form'
 import type { SaveCustomerPayload } from '../api/customersApi'
 import { saveCustomer } from '../api/customersApi'
 import {
+  CUSTOMER_EXCEL_CAR_SHEET_COLUMNS,
+  CUSTOMER_EXCEL_CUSTOM_FIELD_SHEET_COLUMNS,
+  CUSTOMER_EXCEL_FIRE_SHEET_COLUMNS,
+  CUSTOMER_EXCEL_SHEET_BASIC,
+  CUSTOMER_EXCEL_SHEET_CARS,
+  CUSTOMER_EXCEL_SHEET_CUSTOM_FIELDS,
+  CUSTOMER_EXCEL_SHEET_FIRE,
+  CUSTOMER_EXCEL_SHEET_SPECIAL_DATES,
+  CUSTOMER_EXCEL_SPECIAL_DATE_SHEET_COLUMNS,
+  type CustomerExcelRelatedSheets,
+} from '../config/customerExcelFullProfileSsot'
+import {
+  CUSTOMER_EXCEL_FULL_BASIC_COLUMNS,
   CUSTOMER_EXCEL_PRIMARY_COLUMNS,
   CUSTOMER_EXCEL_SAMPLE_HEADER_LABELS_KO,
   CUSTOMER_EXCEL_SAMPLE_HEADERS,
   CUSTOMER_EXCEL_UPLOAD_HEADERS,
-  CUSTOMER_EXCEL_UPLOAD_HEADER_LABELS_KO,
   buildHeaderLabelToKeyMap,
   type CustomerExcelColumnKey,
 } from '../config/customerExcelUploadColumnSsot'
+import {
+  customerExcelBirthRrnErrorMessage,
+  resolveBirthDateVsRrnConflict,
+} from './customerExcelBirthRrnValidation'
+import {
+  groupRelatedByImportKey,
+  saveCustomerExcelRelatedEntities,
+  type CustomerExcelRelatedSaveFailure,
+} from './customerExcelFullProfileUpload'
+import {
+  applyWorksheetPresentation,
+  basicColumnWidths,
+  buildGuideSheetAoA,
+  CUSTOMER_EXCEL_SHEET_GUIDE,
+  parseRelatedSheetsFromWorkbook,
+  resolveBasicInfoSheetName,
+} from './customerExcelWorkbookIo'
+import { buildLegacyMedicalColumnValue } from './customerMedicalHistory'
 import type { CustomerNote } from '../domain/types'
 import { normalizeCustomerNotesBag } from '../domain/types'
 import { isCustomerBusinessInfoFormEmpty } from '../domain/customerBusinessInfo'
@@ -24,8 +54,7 @@ import {
 
 export { CUSTOMER_EXCEL_UPLOAD_HEADERS } from '../config/customerExcelUploadColumnSsot'
 
-const SHEET_DATA = '고객데이터'
-const SHEET_DESC = '입력안내'
+const SHEET_DATA = CUSTOMER_EXCEL_SHEET_BASIC
 const SAMPLE_FILENAME = 'customer-upload-sample.xlsx'
 
 const HEADER_LABEL_TO_KEY = buildHeaderLabelToKeyMap()
@@ -48,6 +77,7 @@ export function normalizeSsn(ssn: string): string {
 }
 
 export type CustomerExcelParsedRow = {
+  importKey: string
   name: string
   phone: string
   ssn: string
@@ -63,18 +93,48 @@ export type CustomerExcelParsedRow = {
   businessAddressDetail: string
   businessMemo: string
   carrier: string
+  smsOptOut: boolean | null
   height: string
   weight: string
   isDriver: boolean | null
   carType: string
   medical: string
+  treatmentHistoryNote: string
+  medicationHistoryNote: string
   carNumber: string
   carModel: string
   carYear: string
   renewalDate: string
   insuranceHistory: string
+  accountNumber: string
   inflowSource: string
   referrerName: string
+}
+
+export type CustomerExcelImportBundle = {
+  importKey: string
+  payload: SaveCustomerPayload
+  /** 기본정보 시트에만 있는 단일 차량 (자동차 시트 없을 때) */
+  inlineCar: boolean
+}
+
+export type CustomerExcelPrepareResult = {
+  payloads: SaveCustomerPayload[]
+  importBundles: CustomerExcelImportBundle[]
+  relatedSheets: CustomerExcelRelatedSheets
+  excludedRows: PreparedExcludedRow[]
+  stats: {
+    totalSheetRows: number
+    skippedInvalidSsnCount: number
+    skippedOtherCount: number
+    mergedAbsorbedRowCount: number
+    duplicateMergeGroupCount: number
+    uploadReadyCount: number
+    relatedCarRows: number
+    relatedSpecialDateRows: number
+    relatedCustomFieldRows: number
+    relatedFireRows: number
+  }
 }
 
 export type CustomerUploadFailure = {
@@ -91,6 +151,7 @@ export type CustomerUploadBatchResult = {
   failures: CustomerUploadFailure[]
   /** API 오류 난 요청 본문 — 재업로드·JSON/엑셀 저장용 */
   failedPayloads: SaveCustomerPayload[]
+  relatedFailures: CustomerExcelRelatedSaveFailure[]
 }
 
 /** 업로드에서 제외된 행 */
@@ -100,25 +161,6 @@ export type PreparedExcludedRow = {
   category: 'invalid_ssn' | 'missing_name' | 'missing_phone' | 'other'
   reason: string
   values: Record<string, string>
-}
-
-export type CustomerExcelPrepareResult = {
-  payloads: SaveCustomerPayload[]
-  excludedRows: PreparedExcludedRow[]
-  stats: {
-    /** 시트에서 읽은 데이터 행 수(헤더 제외) */
-    totalSheetRows: number
-    /** 주민번호가 입력됐지만 13자리가 아닌 경우 */
-    skippedInvalidSsnCount: number
-    /** 이름·연락처 누락 등 */
-    skippedOtherCount: number
-    /** 같은 병합 키(주민번호 또는 이름+연락처)로 묶인 추가 행 수 */
-    mergedAbsorbedRowCount: number
-    /** 병합 키가 2행 이상 등장한 고유 그룹 수 */
-    duplicateMergeGroupCount: number
-    /** API 전송 예정 건수 */
-    uploadReadyCount: number
-  }
 }
 
 function cellToString(value: unknown): string {
@@ -218,7 +260,7 @@ function normalizeBirthDateCell(value: unknown): string {
 }
 
 /** 스펙: "TRUE" / "FALSE" 만 인정, 그 외 null. 엑셀 불리언·대소문자 허용. */
-export function parseIsDriverCell(value: unknown): boolean | null {
+export function parseBooleanTriStateCell(value: unknown): boolean | null {
   if (value === true) {
     return true
   }
@@ -226,13 +268,22 @@ export function parseIsDriverCell(value: unknown): boolean | null {
     return false
   }
   const s = cellToString(value).trim().toUpperCase()
-  if (s === 'TRUE') {
+  if (['TRUE', 'Y', 'YES', '예', '1'].includes(s)) {
     return true
   }
-  if (s === 'FALSE') {
+  if (['FALSE', 'N', 'NO', '아니오', '0'].includes(s)) {
     return false
   }
   return null
+}
+
+/** @deprecated parseBooleanTriStateCell */
+export function parseIsDriverCell(value: unknown): boolean | null {
+  return parseBooleanTriStateCell(value)
+}
+
+export function parseSmsOptOutCell(value: unknown): boolean | null {
+  return parseBooleanTriStateCell(value)
 }
 
 function drivingFromIsDriver(isDriver: boolean | null): string {
@@ -287,6 +338,7 @@ function parsedRowToExportRecord(row: CustomerExcelParsedRow): Record<string, st
   const d =
     row.isDriver === true ? 'TRUE' : row.isDriver === false ? 'FALSE' : ''
   const rec: Record<string, string> = {
+    importKey: row.importKey,
     name: row.name,
     phone: row.phone,
     ssn: row.ssn,
@@ -302,11 +354,16 @@ function parsedRowToExportRecord(row: CustomerExcelParsedRow): Record<string, st
     businessAddressDetail: row.businessAddressDetail,
     businessMemo: row.businessMemo,
     carrier: row.carrier,
+    smsOptOut:
+      row.smsOptOut === true ? 'Y' : row.smsOptOut === false ? 'N' : '',
     height: row.height,
     weight: row.weight,
     isDriver: d,
     carType: row.carType,
     medical: row.medical,
+    treatmentHistoryNote: row.treatmentHistoryNote,
+    medicationHistoryNote: row.medicationHistoryNote,
+    accountNumber: row.accountNumber,
     carNumber: row.carNumber,
     carModel: row.carModel,
     carYear: row.carYear,
@@ -387,6 +444,10 @@ export function satisfiesCustomerExcelUploadRequiredFields(row: {
 
 /** 주민번호(우선) 또는 이름+연락처 병합 키. 유효하지 않으면 null */
 export function getCustomerExcelRowMergeKey(row: CustomerExcelParsedRow): string | null {
+  const importKey = row.importKey.trim()
+  if (importKey) {
+    return `import:${importKey}`
+  }
   const ssnNorm = normalizeSsn(row.ssn)
   if (ssnNorm.length === RRN_NORMALIZED_LENGTH) {
     return `ssn:${ssnNorm}`
@@ -483,6 +544,7 @@ export function parseCustomerExcelRowsFromSheetRows(rows2d: unknown[][]): Custom
         const parsed: CustomerExcelParsedRow[] = []
         for (const row of rows) {
           parsed.push({
+            importKey: cellToString(row.importKey).trim(),
             name: cellToString(row.name).trim(),
             phone: cellToString(row.phone),
             ssn: cellToString(row.ssn).trim(),
@@ -498,16 +560,20 @@ export function parseCustomerExcelRowsFromSheetRows(rows2d: unknown[][]): Custom
             businessAddressDetail: cellToString(row.businessAddressDetail),
             businessMemo: cellToString(row.businessMemo),
             carrier: cellToString(row.carrier),
+            smsOptOut: parseSmsOptOutCell(row.smsOptOut),
             height: cellToString(row.height),
             weight: cellToString(row.weight),
             isDriver: parseIsDriverCell(row.isDriver),
             carType: cellToString(row.carType),
             medical: cellToString(row.medical),
+            treatmentHistoryNote: cellToString(row.treatmentHistoryNote),
+            medicationHistoryNote: cellToString(row.medicationHistoryNote),
             carNumber: cellToString(row.carNumber),
             carModel: cellToString(row.carModel),
             carYear: cellToString(row.carYear),
             renewalDate: cellToString(row.renewalDate),
             insuranceHistory: cellToString(row.insuranceHistory),
+            accountNumber: cellToString(row.accountNumber),
             inflowSource: cellToString(row.inflowSource),
             referrerName: cellToString(row.referrerName),
           })
@@ -515,18 +581,40 @@ export function parseCustomerExcelRowsFromSheetRows(rows2d: unknown[][]): Custom
         return parsed
 }
 
-export function parseCustomerExcelArrayBuffer(buf: ArrayBuffer): CustomerExcelParsedRow[] {
+export type CustomerExcelWorkbookParseResult = {
+  basicRows: CustomerExcelParsedRow[]
+  related: CustomerExcelRelatedSheets
+}
+
+export function parseCustomerExcelWorkbook(buf: ArrayBuffer): CustomerExcelWorkbookParseResult {
   const wb = XLSX.read(buf, { type: 'array' })
-  const sheet = wb.Sheets[SHEET_DATA]
-  if (!sheet) {
+  const sheetName = resolveBasicInfoSheetName(wb)
+  if (!sheetName) {
     throw new Error(`「${SHEET_DATA}」시트를 찾을 수 없습니다.`)
+  }
+  const sheet = wb.Sheets[sheetName]
+  if (!sheet) {
+    throw new Error(`「${sheetName}」시트를 찾을 수 없습니다.`)
   }
   const rows2d = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
     header: 1,
     defval: '',
     raw: false,
   }) as unknown[][]
-  return parseCustomerExcelRowsFromSheetRows(rows2d)
+  const basicRows = assignImportKeysToBasicRows(parseCustomerExcelRowsFromSheetRows(rows2d))
+  const related = parseRelatedSheetsFromWorkbook(wb)
+  return { basicRows, related }
+}
+
+function assignImportKeysToBasicRows(rows: CustomerExcelParsedRow[]): CustomerExcelParsedRow[] {
+  return rows.map((row, idx) => {
+    const key = row.importKey.trim() || `C${String(idx + 1).padStart(3, '0')}`
+    return { ...row, importKey: key }
+  })
+}
+
+export function parseCustomerExcelArrayBuffer(buf: ArrayBuffer): CustomerExcelParsedRow[] {
+  return parseCustomerExcelWorkbook(buf).basicRows
 }
 
 export function parseExcel(file: File): Promise<CustomerExcelParsedRow[]> {
@@ -582,12 +670,17 @@ export function mergeRowsForImport(rows: CustomerExcelParsedRow[]): CustomerExce
       businessAddress: pickValue(prev.businessAddress, rowNorm.businessAddress),
       businessAddressDetail: pickValue(prev.businessAddressDetail, rowNorm.businessAddressDetail),
       businessMemo: pickValue(prev.businessMemo, rowNorm.businessMemo),
+      importKey: pickValue(prev.importKey, rowNorm.importKey),
       carrier: pickValue(prev.carrier, rowNorm.carrier),
+      smsOptOut: mergeIsDriver(prev.smsOptOut, rowNorm.smsOptOut),
       height: pickValue(prev.height, rowNorm.height),
       weight: pickValue(prev.weight, rowNorm.weight),
       isDriver: mergeIsDriver(prev.isDriver, rowNorm.isDriver),
       carType: pickValue(prev.carType, rowNorm.carType),
       medical: pickValue(prev.medical, rowNorm.medical),
+      treatmentHistoryNote: pickValue(prev.treatmentHistoryNote, rowNorm.treatmentHistoryNote),
+      medicationHistoryNote: pickValue(prev.medicationHistoryNote, rowNorm.medicationHistoryNote),
+      accountNumber: pickValue(prev.accountNumber, rowNorm.accountNumber),
       carNumber: pickValue(prev.carNumber, rowNorm.carNumber),
       carModel: pickValue(prev.carModel, rowNorm.carModel),
       carYear: pickValue(prev.carYear, rowNorm.carYear),
@@ -618,7 +711,21 @@ export function getCustomerExcelRowTransformError(row: CustomerExcelParsedRow): 
   if (!genderRes.ok) {
     return customerExcelGenderTransformErrorMessage(genderRes.code)
   }
+  const birthConflict = resolveBirthDateVsRrnConflict(row.birthDate, ssn)
+  if (!birthConflict.ok) {
+    return customerExcelBirthRrnErrorMessage(birthConflict.code)
+  }
   return null
+}
+
+function rowHasInlineCarFields(row: CustomerExcelParsedRow): boolean {
+  return Boolean(
+    row.carNumber.trim() ||
+      row.carModel.trim() ||
+      row.carYear.trim() ||
+      row.renewalDate.trim() ||
+      row.carType.trim(),
+  )
 }
 
 /** 필수(name + 연락처 또는 주민번호) 미충족·성별 오류 시 null */
@@ -635,7 +742,12 @@ export function transformRow(row: CustomerExcelParsedRow): SaveCustomerPayload |
   const createdAt = new Date().toISOString()
   const noteItems = memoToNotes(row.memoRaw, createdAt)
   const carTypeTrim = row.carType.trim()
+  const treatment = row.treatmentHistoryNote.trim()
+  const medication = row.medicationHistoryNote.trim()
+  const medicalColumn =
+    row.medical.trim() || buildLegacyMedicalColumnValue(treatment, medication)
   const insuranceHistory = row.insuranceHistory.trim()
+  const accountNumber = row.accountNumber.trim()
   const businessInfo = {
     representativeName: row.businessRepresentativeName.trim(),
     businessNumber: row.businessNumber.trim(),
@@ -653,6 +765,7 @@ export function transformRow(row: CustomerExcelParsedRow): SaveCustomerPayload |
     gender: gender === '' ? '' : gender,
     phone: row.phone.trim(),
     carrier: row.carrier.trim(),
+    ...(row.smsOptOut === true ? { smsOptOut: true } : row.smsOptOut === false ? { smsOptOut: false } : {}),
     address: formatAddressForSave({
       zonecode: '',
       baseAddress: row.address.trim(),
@@ -664,7 +777,7 @@ export function transformRow(row: CustomerExcelParsedRow): SaveCustomerPayload |
     job: row.job.trim(),
     isDriver,
     carType: isDriver === true ? carTypeTrim : '',
-    medical: row.medical.trim(),
+    medical: medicalColumn,
     carNumber: row.carNumber.trim(),
     carModel: row.carModel.trim(),
     carYear: row.carYear.trim(),
@@ -676,7 +789,22 @@ export function transformRow(row: CustomerExcelParsedRow): SaveCustomerPayload |
     notes: {
       items: noteItems,
       insuranceHistory,
+      accountNumber,
+      treatmentHistoryNote: treatment,
+      medicationHistoryNote: medication,
     },
+  }
+}
+
+export function buildImportBundleFromRow(row: CustomerExcelParsedRow): CustomerExcelImportBundle | null {
+  const payload = transformRow(row)
+  if (!payload) {
+    return null
+  }
+  return {
+    importKey: row.importKey.trim(),
+    payload,
+    inlineCar: rowHasInlineCarFields(row),
   }
 }
 
@@ -685,7 +813,8 @@ export function transformRow(row: CustomerExcelParsedRow): SaveCustomerPayload |
  * UI 미리보기·제외/실패 다운로드에 사용한다.
  */
 export async function prepareCustomerExcelImport(file: File): Promise<CustomerExcelPrepareResult> {
-  const parsed = await parseExcel(file)
+  const buf = await file.arrayBuffer()
+  const { basicRows: parsed, related: relatedSheets } = parseCustomerExcelWorkbook(buf)
   const totalSheetRows = parsed.length
   const excludedRows: PreparedExcludedRow[] = []
   const valid: CustomerExcelParsedRow[] = []
@@ -732,11 +861,13 @@ export async function prepareCustomerExcelImport(file: File): Promise<CustomerEx
   const { duplicateMergeGroupCount, mergedAbsorbedRowCount } = duplicateMergeMetrics(valid)
   const merged = mergeRowsForImport(valid)
   const payloads: SaveCustomerPayload[] = []
+  const importBundles: CustomerExcelImportBundle[] = []
 
   for (const m of merged) {
-    const p = transformRow(m)
-    if (p) {
-      payloads.push(p)
+    const bundle = buildImportBundleFromRow(m)
+    if (bundle) {
+      payloads.push(bundle.payload)
+      importBundles.push(bundle)
     } else {
       const reason = getCustomerExcelRowTransformError(m) ?? CUSTOMER_EXCEL_UPLOAD_REQUIRED_FIELD_MESSAGE
       excludedRows.push({
@@ -753,6 +884,8 @@ export async function prepareCustomerExcelImport(file: File): Promise<CustomerEx
 
   return {
     payloads,
+    importBundles,
+    relatedSheets,
     excludedRows,
     stats: {
       totalSheetRows,
@@ -761,6 +894,10 @@ export async function prepareCustomerExcelImport(file: File): Promise<CustomerEx
       mergedAbsorbedRowCount,
       duplicateMergeGroupCount,
       uploadReadyCount: payloads.length,
+      relatedCarRows: relatedSheets.cars.length,
+      relatedSpecialDateRows: relatedSheets.specialDates.length,
+      relatedCustomFieldRows: relatedSheets.customFields.length,
+      relatedFireRows: relatedSheets.fireLocations.length,
     },
   }
 }
@@ -769,6 +906,7 @@ export async function prepareCustomerExcelImport(file: File): Promise<CustomerEx
 export function buildCustomerExcelSampleSheetAoA(): string[][] {
   const row1 = CUSTOMER_EXCEL_SAMPLE_HEADERS.map((key) => {
     const samples: Partial<Record<CustomerExcelColumnKey, string>> = {
+      importKey: 'C001',
       name: '홍길동',
       phone: '010-1234-5678',
       ssn: '800101-1234567',
@@ -777,17 +915,26 @@ export function buildCustomerExcelSampleSheetAoA(): string[][] {
       address: '서울특별시 광진구 능동로 120',
       addressDetail: '101동 1001호',
       job: '자영업',
+      height: '175',
+      weight: '70',
       memo: '지인 소개 / 상담 예약',
+      smsOptOut: 'N',
+      treatmentHistoryNote: '2020년 맹장 수술',
+      medicationHistoryNote: '혈압약 복용 중',
+      insuranceHistory: '실손 가입',
+      accountNumber: '110-123-456789',
       businessRepresentativeName: '홍길동',
       businessNumber: '123-45-67890',
       businessAddress: '서울특별시 광진구',
       businessAddressDetail: '카페 1층',
       businessMemo: '주말 휴무',
+      isDriver: 'Y',
     }
     return samples[key] ?? ''
   })
   const row2 = CUSTOMER_EXCEL_SAMPLE_HEADERS.map((key) => {
     const samples: Partial<Record<CustomerExcelColumnKey, string>> = {
+      importKey: 'C002',
       name: '김영희',
       phone: '01098765432',
       birthDate: '1990-02-02',
@@ -800,22 +947,56 @@ export function buildCustomerExcelSampleSheetAoA(): string[][] {
   return [[...CUSTOMER_EXCEL_SAMPLE_HEADER_LABELS_KO], row1, row2]
 }
 
+function buildRelatedSampleSheets(): Record<string, string[][]> {
+  const carHeader = CUSTOMER_EXCEL_CAR_SHEET_COLUMNS.map((c) => c.labelKo)
+  const carRows = [
+    carHeader,
+    ['C001', '12가3456', '소나타', '2020', '2026-03-01', '승용', '회사용', 'Y'],
+    ['C001', '34나5678', '카니발', '2018', '2025-12-15', '승합', '', 'N'],
+  ]
+  const sdHeader = CUSTOMER_EXCEL_SPECIAL_DATE_SHEET_COLUMNS.map((c) => c.labelKo)
+  const sdRows = [
+    sdHeader,
+    ['C001', '축하', '생일', '1980-01-01', '케이크 챙기기'],
+  ]
+  const cfHeader = CUSTOMER_EXCEL_CUSTOM_FIELD_SHEET_COLUMNS.map((c) => c.labelKo)
+  const cfRows = [
+    cfHeader,
+    ['C001', 'VIP', '우수고객'],
+  ]
+  const fireHeader = CUSTOMER_EXCEL_FIRE_SHEET_COLUMNS.map((c) => c.labelKo)
+  const fireRows = [
+    fireHeader,
+    ['C001', '서울특별시 광진구 능동로 120 101동', '주거 소재지'],
+  ]
+  return {
+    [CUSTOMER_EXCEL_SHEET_CARS]: carRows,
+    [CUSTOMER_EXCEL_SHEET_SPECIAL_DATES]: sdRows,
+    [CUSTOMER_EXCEL_SHEET_CUSTOM_FIELDS]: cfRows,
+    [CUSTOMER_EXCEL_SHEET_FIRE]: fireRows,
+  }
+}
+
 export function downloadCustomerUploadSampleXlsx(): void {
-  const sheet1 = XLSX.utils.aoa_to_sheet(buildCustomerExcelSampleSheetAoA())
-  const descHeader = ['컬럼', '설명']
-  const descRows: [string, string][] = CUSTOMER_EXCEL_PRIMARY_COLUMNS.map((c) => [c.labelKo, c.description])
-  descRows.push([
-    '라벨(미지원)',
-    '고객 라벨·맞춤 필드는 일괄등록 Excel에서 자동 생성하지 않습니다. 등록 후 화면에서 추가해 주세요.',
-  ])
-  descRows.push([
-    '화재보험 소재지(미지원)',
-    '화재보험 소재지는 등록 후 고객 상세에서 추가합니다.',
-  ])
-  const sheet2 = XLSX.utils.aoa_to_sheet([descHeader, ...descRows])
+  const basicAoA = buildCustomerExcelSampleSheetAoA()
+  const basicWs = XLSX.utils.aoa_to_sheet(basicAoA)
+  applyWorksheetPresentation(basicWs, CUSTOMER_EXCEL_SAMPLE_HEADERS, basicAoA.length, basicColumnWidths())
+
   const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, sheet1, SHEET_DATA)
-  XLSX.utils.book_append_sheet(wb, sheet2, SHEET_DESC)
+  XLSX.utils.book_append_sheet(wb, basicWs, SHEET_DATA)
+
+  for (const [name, aoa] of Object.entries(buildRelatedSampleSheets())) {
+    const ws = XLSX.utils.aoa_to_sheet(aoa)
+    const colCount = aoa[0]?.length ?? 1
+    ws['!cols'] = Array.from({ length: colCount }, () => ({ wch: 16 }))
+    ws['!views'] = [{ state: 'frozen', ySplit: 1, activeCell: 'A2', showGridLines: true }]
+    XLSX.utils.book_append_sheet(wb, ws, name)
+  }
+
+  const guideWs = XLSX.utils.aoa_to_sheet(buildGuideSheetAoA())
+  guideWs['!cols'] = [{ wch: 22 }, { wch: 64 }]
+  XLSX.utils.book_append_sheet(wb, guideWs, CUSTOMER_EXCEL_SHEET_GUIDE)
+
   const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array', cellStyles: true })
   saveAs(
     new Blob([out], {
@@ -832,17 +1013,60 @@ export async function uploadCustomers(
   token: string,
   payloads: SaveCustomerPayload[],
   onProgress?: (done: number, total: number) => void,
+  importContext?: {
+    importBundles: CustomerExcelImportBundle[]
+    relatedSheets: CustomerExcelRelatedSheets
+  },
 ): Promise<CustomerUploadBatchResult> {
   const failures: CustomerUploadFailure[] = []
   const failedPayloads: SaveCustomerPayload[] = []
+  const relatedFailures: CustomerExcelRelatedSaveFailure[] = []
+  const relatedByKey = importContext ? groupRelatedByImportKey(importContext.relatedSheets) : new Map()
+  const bundleByIndex = importContext?.importBundles ?? []
   let success = 0
   const total = payloads.length
   let done = 0
 
-  for (const payload of payloads) {
+  for (let i = 0; i < payloads.length; i += 1) {
+    const payload = payloads[i]
+    const bundle = bundleByIndex[i]
     try {
-      await saveCustomer(token, payload)
+      const created = await saveCustomer(token, payload)
       success += 1
+      if (bundle && created.id) {
+        const grouped = relatedByKey.get(bundle.importKey) ?? {
+          cars: [],
+          specialDates: [],
+          customFields: [],
+          fireLocations: [],
+        }
+        if (grouped.cars.length === 0 && bundle.inlineCar) {
+          grouped.cars.push({
+            importKey: bundle.importKey,
+            carNumber: String(payload.carNumber ?? '').trim(),
+            carModel: String(payload.carModel ?? '').trim(),
+            carYear: String(payload.carYear ?? '').trim(),
+            renewalDate: String(payload.renewalDate ?? '').trim(),
+            carType: String(payload.carType ?? '').trim(),
+            memo: '',
+            isPrimary: true,
+          })
+        }
+        const hasRelated =
+          grouped.cars.length > 0 ||
+          grouped.specialDates.length > 0 ||
+          grouped.customFields.length > 0 ||
+          grouped.fireLocations.length > 0
+        if (hasRelated) {
+          const relFails = await saveCustomerExcelRelatedEntities({
+            token,
+            customerId: created.id,
+            importKey: bundle.importKey,
+            related: grouped,
+          })
+          relatedFailures.push(...relFails)
+        }
+      }
     } catch (e: unknown) {
       // 한 건 실패해도 루프는 계속 진행한다.
       const message = e instanceof Error ? e.message : '저장에 실패했습니다.'
@@ -865,6 +1089,7 @@ export async function uploadCustomers(
     failed: failures.length,
     failures,
     failedPayloads,
+    relatedFailures,
   }
 }
 
