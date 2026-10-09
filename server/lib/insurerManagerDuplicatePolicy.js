@@ -16,6 +16,33 @@ export const INSURER_MANAGER_COMPANY_CONFLICT_MESSAGE =
 export async function ensureInsurerManagerDuplicateIndexes(pool) {
   await pool.query(`DROP INDEX IF EXISTS uq_insurer_managers_ga_insurer_active`)
 
+  const constraintRows = await pool.query(`
+    SELECT c.conname, pg_get_constraintdef(c.oid) AS def
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE n.nspname = 'public'
+      AND t.relname = 'insurer_managers'
+      AND c.contype = 'u'
+  `)
+  for (const row of constraintRows.rows) {
+    const name = String(row.conname ?? '')
+    const def = String(row.def ?? '')
+    if (!name || !def) {
+      continue
+    }
+    const mentionsGa = def.includes('ga_id')
+    if (def.includes('username') && !mentionsGa) {
+      const safe = name.replace(/"/g, '""')
+      await pool.query(`ALTER TABLE insurer_managers DROP CONSTRAINT IF EXISTS "${safe}"`)
+      continue
+    }
+    if ((def.includes('company_id') || def.includes('insurer_name')) && !mentionsGa) {
+      const safe = name.replace(/"/g, '""')
+      await pool.query(`ALTER TABLE insurer_managers DROP CONSTRAINT IF EXISTS "${safe}"`)
+    }
+  }
+
   const { rows } = await pool.query(`
     SELECT indexname, indexdef
     FROM pg_indexes
