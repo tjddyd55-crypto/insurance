@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
+import { parseCustomerCoverageSimulationsReturnUrl } from '../../customers/utils/customerCoverageSimulationsNavigation'
 import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
 
 type PdfPreviewLocationState = {
@@ -41,6 +42,19 @@ function PdfPreviewPageBody() {
   }
 
   const fileName = buildCoveragePdfFileName(scenario)
+
+  const exitPreview = () => {
+    if (returnTo) {
+      const target = parseCustomerCoverageSimulationsReturnUrl(returnTo)
+      navigate({ pathname: target.pathname, search: target.search }, { replace: true })
+      return
+    }
+    if (simulatorOrigin === 'customer') {
+      navigate({ pathname: basePath, search: '' }, { replace: true })
+      return
+    }
+    navigate(`${basePath}/scenarios/${scenario.id}`)
+  }
 
   const readPrintRoot = () =>
     printSourceRef.current?.querySelector('.coverage-simulator-print-root') as HTMLElement | null
@@ -97,17 +111,7 @@ function PdfPreviewPageBody() {
         <FormButton
           variant="primary"
           className="coverage-simulator-primary-btn"
-          onClick={() => {
-            if (returnTo) {
-              navigate(returnTo)
-              return
-            }
-            if (simulatorOrigin === 'customer') {
-              navigate(basePath)
-              return
-            }
-            navigate(`${basePath}/scenarios/${scenario.id}`)
-          }}
+          onClick={() => exitPreview()}
         >
           닫기
         </FormButton>

@@ -3,6 +3,8 @@ import { createContext, useContext, type ReactNode } from 'react'
 type CoverageThreePaneEditorNavigationValue = {
   onBackFromEditor?: () => void
   hideEditorBack?: boolean
+  /** 고객 embed PDF 닫기 시 복귀 URL (pathname + search) */
+  customerPdfReturnTo?: string | null
 }
 
 const CoverageThreePaneEditorNavigationContext =
