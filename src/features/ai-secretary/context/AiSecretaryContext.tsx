@@ -38,8 +38,7 @@ export function AiSecretaryProvider({ children }: { children: ReactNode }) {
   const location = useLocation()
   const [panelOpen, setPanelOpen] = useState(false)
 
-  const canUse =
-    user?.role === 'USER' || user?.role === 'GA_ADMIN' || user?.role === 'GA_STAFF'
+  const canUse = user?.role === 'USER'
 
   const onAiRoute = isAiAssistantRoute(location.pathname)
 

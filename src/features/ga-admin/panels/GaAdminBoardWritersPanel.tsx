@@ -5,6 +5,7 @@ import { FieldWrapper, FormButton, FormInput } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import { listGaAdminNewsletterBoards } from '../../insurer-news/services/insurerNews.service'
 import type { NewsletterBoard } from '../../insurer-news/types'
+import { filterGaAdminOwnedNewsletterBoards } from '../../insurer-news/utils/gaAdminOwnedNewsletterBoards'
 import {
   createGaAdminBoardWriter,
   listGaAdminBoardWriters,
@@ -39,7 +40,7 @@ export default function GaAdminBoardWritersPanel() {
         listGaAdminNewsletterBoards(token),
       ])
       setWriters(writerRows)
-      setBoards(boardRows.filter((b) => b.boardScope === 'ga' || b.contentScope === 'ga'))
+      setBoards(filterGaAdminOwnedNewsletterBoards(boardRows))
     } catch (e) {
       setError(e instanceof Error ? e.message : '목록을 불러오지 못했습니다.')
     } finally {
@@ -93,10 +94,12 @@ export default function GaAdminBoardWritersPanel() {
   }
 
   return (
-    <div className="ga-admin-workspace-panel">
-      <div className="ga-admin-workspace-panel__toolbar">
-        <h2 className="ga-admin-workspace-panel__title">소식지 작성자</h2>
-        <FormButton type="button" onClick={() => setCreateOpen(true)}>작성자 생성</FormButton>
+    <div className="admin-data-card">
+      <div className="admin-data-card__head">
+        <h2 className="admin-data-card__title">소식지 작성자</h2>
+        <div className="admin-data-card__actions">
+          <FormButton type="button" onClick={() => setCreateOpen(true)}>작성자 추가</FormButton>
+        </div>
       </div>
       {error ? <StatusMessage tone="error" message={error} /> : null}
       {loading ? (
@@ -104,14 +107,15 @@ export default function GaAdminBoardWritersPanel() {
       ) : writers.length === 0 ? (
         <EmptyState message="등록된 작성자가 없습니다." />
       ) : (
-        <table className="data-table">
+        <div className="admin-data-table-wrap">
+        <table className="admin-data-table">
           <thead>
             <tr>
               <th>이름</th>
-              <th>로그인 ID</th>
-              <th>허용 board</th>
+              <th>작성자 ID</th>
+              <th>허용 게시판</th>
               <th>상태</th>
-              <th>관리</th>
+              <th className="admin-table-cell--actions">관리</th>
             </tr>
           </thead>
           <tbody>
@@ -121,15 +125,18 @@ export default function GaAdminBoardWritersPanel() {
                 <td>{w.loginId}</td>
                 <td>{(w.allowedBoardIds ?? []).join(', ') || '—'}</td>
                 <td>{w.isActive ? '활성' : '비활성'}</td>
-                <td>
-                  <FormButton type="button" variant="secondary" onClick={() => void toggleActive(w)}>
-                    {w.isActive ? '비활성화' : '활성화'}
-                  </FormButton>
+                <td className="admin-table-cell--actions">
+                  <div className="admin-table-actions">
+                    <FormButton type="button" variant="secondary" onClick={() => void toggleActive(w)}>
+                      {w.isActive ? '사용 중지' : '재활성화'}
+                    </FormButton>
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
       )}
 
       <FormDialog open={createOpen} title="소식지 작성자 생성" onClose={() => !createBusy && setCreateOpen(false)}>

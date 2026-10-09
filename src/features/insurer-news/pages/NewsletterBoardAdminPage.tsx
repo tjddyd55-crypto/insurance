@@ -11,9 +11,11 @@ import {
   enableNewsletterBoard,
   fetchNewsletterBoardDeleteImpact,
   listAdminNewsletterBoards,
+  listGaAdminNewsletterBoards,
   updateNewsletterBoard,
 } from '../services/insurerNews.service'
 import type { NewsletterBoard } from '../types'
+import { filterGaAdminOwnedNewsletterBoards } from '../utils/gaAdminOwnedNewsletterBoards'
 import { isLossAdjusterSystemMenuBoard } from '../utils/newsletterBoardMenuLinks'
 import NewsletterBoardAdminMobileView from './NewsletterBoardAdmin/NewsletterBoardAdminMobileView'
 import NewsletterBoardAdminPCView from './NewsletterBoardAdmin/NewsletterBoardAdminPCView'
@@ -23,9 +25,16 @@ import type {
   NewsletterBoardCreateMode,
 } from './NewsletterBoardAdmin/newsletterBoardAdminViewProps'
 
-export function NewsletterBoardAdminPage() {
+export type NewsletterBoardAdminPageProps = {
+  /** GA 관리 허브 탭 등 — 이중 page shell 없이 카드 안에만 렌더 */
+  embedded?: boolean
+}
+
+export function NewsletterBoardAdminPage({ embedded = false }: NewsletterBoardAdminPageProps = {}) {
   const { user, token } = useAuth()
   const role = user?.role ?? ''
+  const isGaAdmin = role === 'GA_ADMIN'
+  const gaAdminOwnedOnly = isGaAdmin
   const [boards, setBoards] = useState<NewsletterBoard[]>([])
   const [label, setLabel] = useState('')
   const [description, setDescription] = useState('')
@@ -53,14 +62,17 @@ export function NewsletterBoardAdminPage() {
     }
     setLoading(true)
     try {
-      setBoards(await listAdminNewsletterBoards(token))
+      const rows = isGaAdmin
+        ? await listGaAdminNewsletterBoards(token)
+        : await listAdminNewsletterBoards(token)
+      setBoards(rows)
       setError('')
     } catch (e) {
       setError(e instanceof Error ? e.message : '소식지 목록을 불러오지 못했습니다.')
     } finally {
       setLoading(false)
     }
-  }, [canManage, token])
+  }, [canManage, isGaAdmin, token])
 
   useEffect(() => {
     void loadBoards()
@@ -70,10 +82,15 @@ export function NewsletterBoardAdminPage() {
     () => boards.filter((b) => b.boardScope === 'global' || b.contentScope === 'global'),
     [boards],
   )
-  const gaBoards = useMemo(
-    () => boards.filter((b) => b.boardScope === 'ga' || (b.boardScope !== 'global' && b.contentScope === 'ga')),
-    [boards],
-  )
+  const gaBoards = useMemo(() => {
+    const raw = boards.filter(
+      (b) => b.boardScope === 'ga' || (b.boardScope !== 'global' && b.contentScope === 'ga'),
+    )
+    if (gaAdminOwnedOnly) {
+      return filterGaAdminOwnedNewsletterBoards(raw)
+    }
+    return raw
+  }, [boards, gaAdminOwnedOnly])
 
   const handleCreate = () => {
     if (!token?.trim() || busy) {
@@ -308,6 +325,8 @@ export function NewsletterBoardAdminPage() {
     onEdit: handleEdit,
     onSelectBoard: setSelectedBoard,
     onWriterBusyChange: setWriterBusy,
+    embedded,
+    gaAdminOwnedOnly,
   }
 
   return (

@@ -662,6 +662,7 @@ export interface GaAdminDelegateRow {
   created_at: string
   updated_at?: string
   displayName?: string
+  last_login_at?: string | null
 }
 
 export async function listGaAdminDelegates(token: string): Promise<GaAdminDelegateRow[]> {

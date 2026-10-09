@@ -50,6 +50,7 @@ export function registerGaAdminManagementApi(apiRouter, ctx) {
       created_at: mapped.created_at,
       updated_at: mapped.created_at,
       displayName: String(row.display_name ?? '').trim(),
+      last_login_at: row.last_login_at ? String(row.last_login_at) : null,
     }
   }
 
@@ -65,6 +66,7 @@ export function registerGaAdminManagementApi(apiRouter, ctx) {
           u.role,
           u.status,
           u.created_at,
+          u.last_login_at,
           u.ga_id,
           u.display_name,
           u.delegate_password_plaintext,
@@ -255,6 +257,7 @@ export function registerGaAdminManagementApi(apiRouter, ctx) {
           u.role,
           u.status,
           u.created_at,
+          u.last_login_at,
           u.ga_id,
           u.display_name,
           u.delegate_password_plaintext,

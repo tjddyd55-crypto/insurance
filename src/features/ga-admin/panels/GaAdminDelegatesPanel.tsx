@@ -124,47 +124,53 @@ export default function GaAdminDelegatesPanel() {
   }
 
   return (
-    <div className="ga-admin-workspace-panel">
-      <div className="ga-admin-workspace-panel__toolbar">
-        <h2 className="ga-admin-workspace-panel__title">관리자·STEP 계정</h2>
-        <FormButton type="button" onClick={() => setCreateOpen(true)}>
-          STEP 생성
-        </FormButton>
+    <div className="admin-data-card">
+      <div className="admin-data-card__head">
+        <h2 className="admin-data-card__title">관리자 · STEP</h2>
+        <div className="admin-data-card__actions">
+          <FormButton type="button" onClick={() => setCreateOpen(true)}>
+            STEP 추가
+          </FormButton>
+        </div>
       </div>
       {loadError ? <StatusMessage tone="error" message={loadError} /> : null}
       {isLoading ? (
         <LoadingState message="불러오는 중…" />
       ) : staffRows.length === 0 ? (
-        <EmptyState message="등록된 STEP이 없습니다. STEP 생성으로 실무 계정을 발급하세요." />
+        <EmptyState message="등록된 STEP이 없습니다. STEP 추가로 실무 계정을 발급하세요." />
       ) : (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>이름</th>
-              <th>로그인 ID</th>
-              <th>역할</th>
-              <th>상태</th>
-              <th>생성일</th>
-              <th>관리</th>
-            </tr>
-          </thead>
-          <tbody>
-            {staffRows.map((row) => (
-              <tr key={row.id}>
-                <td>{row.displayName || '—'}</td>
-                <td>{row.username}</td>
-                <td>{row.role}</td>
-                <td>{row.statusLabel ?? row.status}</td>
-                <td>{formatKstDateDisplay(row.created_at, '—')}</td>
-                <td>
-                  <FormButton type="button" variant="secondary" onClick={() => openEdit(row)}>
-                    수정
-                  </FormButton>
-                </td>
+        <div className="admin-data-table-wrap">
+          <table className="admin-data-table">
+            <thead>
+              <tr>
+                <th>이름</th>
+                <th>아이디</th>
+                <th>역할</th>
+                <th>상태</th>
+                <th>최근 로그인</th>
+                <th className="admin-table-cell--actions">관리</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {staffRows.map((row) => (
+                <tr key={row.id}>
+                  <td>{row.displayName || '—'}</td>
+                  <td>{row.username}</td>
+                  <td>{row.role}</td>
+                  <td>{row.statusLabel ?? row.status}</td>
+                  <td>{formatKstDateDisplay(row.last_login_at ?? '', '—')}</td>
+                  <td className="admin-table-cell--actions">
+                    <div className="admin-table-actions">
+                      <FormButton type="button" variant="secondary" onClick={() => openEdit(row)}>
+                        수정
+                      </FormButton>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       <FormDialog open={createOpen} title="STEP(GA_STAFF) 생성" onClose={() => !createBusy && setCreateOpen(false)}>

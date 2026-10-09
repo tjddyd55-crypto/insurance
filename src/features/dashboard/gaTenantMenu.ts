@@ -69,7 +69,7 @@ export const COVERAGE_SIMULATION_MENU_ITEM = {
   path: '/coverage-simulator',
 } as const
 
-/** GA 설계사·스태프 공통 AI 비서 진입 (전역 네비) */
+/** 일반 설계사(USER) 전역 네비 AI 비서 진입 */
 export const AI_SECRETARY_MENU_ITEM = {
   label: 'AI 비서',
   path: '/ai-assistant',
@@ -656,8 +656,9 @@ export function buildAppMenuForSession(
   })()
 
   const filtered = subscriptionExpired ? filterMenuForExpired(withTeam) : withTeam
+  // AI 비서 메뉴 — 일반 설계사(USER) 전용. GA_ADMIN·GA_STAFF·채널 계정에는 노출하지 않는다.
   const withAiAssistant =
-    role === 'USER' || role === 'GA_ADMIN' || role === 'GA_STAFF'
+    role === 'USER'
       ? [
           { type: 'link' as const, label: AI_SECRETARY_MENU_ITEM.label, path: AI_SECRETARY_MENU_ITEM.path },
           { type: 'divider' as const },

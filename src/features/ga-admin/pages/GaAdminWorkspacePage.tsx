@@ -7,15 +7,25 @@ import GaAdminDelegatesPanel from '../panels/GaAdminDelegatesPanel'
 import GaAdminBoardWritersPanel from '../panels/GaAdminBoardWritersPanel'
 import UserInsurerAccountsPage from '../../user-insurer-accounts/pages/UserInsurerAccountsPage'
 import { useGaSettings } from '../../ga-settings/useGaSettings'
+import { NewsletterBoardAdminPage } from '../../insurer-news/pages/NewsletterBoardAdminPage'
+import '../ga-admin-workspace.css'
 
 const TAB_LINKS = [
   { to: 'basic', label: '기본 설정' },
   { to: 'features', label: '기능 설정' },
-  { to: 'accounts/delegates', label: '관리자·STEP' },
+  { to: 'accounts/delegates', label: '관리자 · STEP' },
   { to: 'accounts/insurer', label: '원수사 계정' },
   { to: 'accounts/writers', label: '소식지 작성자' },
   { to: 'newsletter', label: '소식지 설정' },
 ] as const
+
+function formatGaStatus(status: string): string {
+  const v = String(status ?? '').toLowerCase()
+  if (v === 'active') return '사용 중'
+  if (v === 'inactive') return '비활성'
+  if (v === 'blocked') return '접근 금지'
+  return status || '—'
+}
 
 function GaAdminBasicTab() {
   const { token, user } = useAuth()
@@ -36,14 +46,22 @@ function GaAdminBasicTab() {
     void load()
   }, [load])
   if (err) {
-    return <StatusMessage tone="error" message={err} />
+    return (
+      <div className="admin-data-card">
+        <StatusMessage tone="error" message={err} />
+      </div>
+    )
   }
   if (!row) {
-    return <LoadingState message="GA 정보 불러오는 중…" />
+    return (
+      <div className="admin-data-card">
+        <LoadingState message="GA 정보 불러오는 중…" />
+      </div>
+    )
   }
   return (
-    <div className="ga-admin-workspace-panel">
-      <h2 className="ga-admin-workspace-panel__title">GA 기본정보</h2>
+    <div className="admin-data-card">
+      <h2 className="admin-data-card__title">GA 기본 정보</h2>
       <dl className="ga-admin-workspace-meta">
         <div>
           <dt>GA 이름</dt>
@@ -55,7 +73,7 @@ function GaAdminBasicTab() {
         </div>
         <div>
           <dt>상태</dt>
-          <dd>{row.status}</dd>
+          <dd>{formatGaStatus(row.status)}</dd>
         </div>
       </dl>
       <p className="text-sm text-[var(--text-secondary)]">
@@ -69,11 +87,15 @@ function GaAdminBasicTab() {
 function GaAdminFeaturesTab() {
   const { gaSettings, loading } = useGaSettings()
   if (loading) {
-    return <LoadingState message="기능 설정 불러오는 중…" />
+    return (
+      <div className="admin-data-card">
+        <LoadingState message="기능 설정 불러오는 중…" />
+      </div>
+    )
   }
   return (
-    <div className="ga-admin-workspace-panel">
-      <h2 className="ga-admin-workspace-panel__title">GA 기능 설정</h2>
+    <div className="admin-data-card">
+      <h2 className="admin-data-card__title">GA 기능 설정</h2>
       <ul className="ga-admin-workspace-feature-list">
         <li>
           GA Excel 고객 DB: <strong>{gaSettings.use_ga_excel ? 'ON' : 'OFF'}</strong>
@@ -87,56 +109,46 @@ function GaAdminFeaturesTab() {
   )
 }
 
-function GaAdminNewsletterTab() {
-  return (
-    <div className="ga-admin-workspace-panel">
-      <h2 className="ga-admin-workspace-panel__title">소식지 설정</h2>
-      <p>GA 전용 게시판 생성·비활성화·작성자 연결은 소식지 관리 화면에서 진행합니다.</p>
-      <Link className="button button--primary" to="/admin/newsletter-boards">
-        GA전용 소식지 관리 열기
-      </Link>
-    </div>
-  )
-}
-
 export default function GaAdminWorkspacePage() {
   const location = useLocation()
   const base = '/ga-admin/workspace'
 
   return (
-    <main className="page page--with-back ga-admin-workspace-page">
-      <header className="ga-admin-workspace-header">
-        <h1>GA 관리</h1>
-        <p className="text-sm text-[var(--text-secondary)]">
-          기본·계정·소식지 설정을 한곳에서 관리합니다. 보험청구·PDF 템플릿은 메뉴의 「업무 운영」에서
-          열 수 있습니다.
-        </p>
-      </header>
-      <nav className="ga-admin-workspace-tabs" aria-label="GA 관리 영역">
-        {TAB_LINKS.map((tab) => (
-          <NavLink
-            key={tab.to}
-            to={`${base}/${tab.to}`}
-            className={({ isActive }) =>
-              `ga-admin-workspace-tabs__link${isActive ? ' ga-admin-workspace-tabs__link--active' : ''}`
-            }
-            end={tab.to === 'basic'}
-          >
-            {tab.label}
-          </NavLink>
-        ))}
-      </nav>
-      <div className="ga-admin-workspace-body">
-        <Routes>
-          <Route index element={<Navigate to="basic" replace />} />
-          <Route path="basic" element={<GaAdminBasicTab />} />
-          <Route path="features" element={<GaAdminFeaturesTab />} />
-          <Route path="accounts/delegates" element={<GaAdminDelegatesPanel />} />
-          <Route path="accounts/insurer" element={<UserInsurerAccountsPage />} />
-          <Route path="accounts/writers" element={<GaAdminBoardWritersPanel />} />
-          <Route path="newsletter" element={<GaAdminNewsletterTab />} />
-          <Route path="*" element={<Navigate to="basic" replace state={{ from: location }} />} />
-        </Routes>
+    <main className="page page--with-back admin-page-shell ga-admin-workspace-page">
+      <div className="admin-page-shell__inner">
+        <header className="page-header admin-page-shell__header">
+          <h1>GA 관리</h1>
+          <p>
+            GA 기본정보, STEP, 원수사 계정, 소식지 설정을 관리합니다. 보험청구·PDF 템플릿은 상단 「업무 운영」
+            메뉴에서 열 수 있습니다.
+          </p>
+        </header>
+        <nav className="ga-admin-workspace-tabs" aria-label="GA 관리 영역">
+          {TAB_LINKS.map((tab) => (
+            <NavLink
+              key={tab.to}
+              to={`${base}/${tab.to}`}
+              className={({ isActive }) =>
+                `ga-admin-workspace-tabs__link${isActive ? ' ga-admin-workspace-tabs__link--active' : ''}`
+              }
+              end={tab.to === 'basic'}
+            >
+              {tab.label}
+            </NavLink>
+          ))}
+        </nav>
+        <div className="ga-admin-workspace-body">
+          <Routes>
+            <Route index element={<Navigate to="basic" replace />} />
+            <Route path="basic" element={<GaAdminBasicTab />} />
+            <Route path="features" element={<GaAdminFeaturesTab />} />
+            <Route path="accounts/delegates" element={<GaAdminDelegatesPanel />} />
+            <Route path="accounts/insurer" element={<UserInsurerAccountsPage embedded />} />
+            <Route path="accounts/writers" element={<GaAdminBoardWritersPanel />} />
+            <Route path="newsletter" element={<NewsletterBoardAdminPage embedded />} />
+            <Route path="*" element={<Navigate to="basic" replace state={{ from: location }} />} />
+          </Routes>
+        </div>
       </div>
     </main>
   )
