@@ -24,20 +24,26 @@ export async function createInsurerManagerApi(
   payload: {
     insurerType: InsurerManagerType
     companyId: number
+    companyName?: string
     username: string
     password: string
   },
 ): Promise<InsurerManager> {
   try {
+    const companyName = payload.companyName?.trim()
+    const body: Record<string, unknown> = {
+      insurerType: payload.insurerType,
+      companyId: payload.companyId,
+      username: payload.username.trim(),
+      password: payload.password,
+    }
+    if ((!payload.companyId || payload.companyId <= 0) && companyName) {
+      body.companyName = companyName
+    }
     return await apiRequest<InsurerManager>('/api/insurer-managers', {
       method: 'POST',
       token,
-      body: JSON.stringify({
-        insurerType: payload.insurerType,
-        companyId: payload.companyId,
-        username: payload.username.trim(),
-        password: payload.password,
-      }),
+      body: JSON.stringify(body),
     })
   } catch (error) {
     if (error instanceof ApiError && error.status === 409) {

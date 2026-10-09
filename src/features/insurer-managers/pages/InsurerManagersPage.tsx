@@ -32,6 +32,44 @@ const TYPE_OPTIONS: { value: InsurerManagerType; label: string }[] = [
   { value: 'NON_LIFE', label: '손해보험' },
 ]
 
+function insurerManagerCompanySelectValue(choice: InsurerManagerCompanyChoice): string {
+  if (choice.id > 0) {
+    return String(choice.id)
+  }
+  return `n:${choice.name}`
+}
+
+function insurerManagerCompanySelectValueFromForm(form: {
+  companyId: number
+  companyName: string
+}): string {
+  if (form.companyId > 0) {
+    return String(form.companyId)
+  }
+  if (form.companyName.trim()) {
+    return `n:${form.companyName.trim()}`
+  }
+  return ''
+}
+
+function applyInsurerManagerCompanySelect(
+  raw: string,
+  choices: InsurerManagerCompanyChoice[],
+): { companyId: number; companyName: string } {
+  if (!raw) {
+    return { companyId: 0, companyName: '' }
+  }
+  if (raw.startsWith('n:')) {
+    return { companyId: 0, companyName: raw.slice(2) }
+  }
+  const id = Number(raw)
+  const match = choices.find((c) => c.id === id)
+  return {
+    companyId: Number.isFinite(id) && id > 0 ? id : 0,
+    companyName: match?.name ?? '',
+  }
+}
+
 function StatusBadge({ status }: { status: InsurerManagerStatus }) {
   const active = status === 'ACTIVE'
   return (
@@ -156,6 +194,7 @@ function configFor(kind: ManagerChannelKind): ManagerPageConfig {
       createInsurerManagerApi(token, {
         insurerType: payload.insurerType ?? 'NON_LIFE',
         companyId: Number(payload.companyId ?? 0),
+        companyName: payload.companyName,
         username: payload.username,
         password: payload.password,
       }),
@@ -237,7 +276,7 @@ export default function InsurerManagersPage({ managerKind = 'insurer', embedded 
         setFormErr(config.createRequiredMessage)
         return
       }
-    } else if (!form.companyId || !u || !password) {
+    } else if ((!form.companyId && !form.companyName.trim()) || !u || !password) {
       setFormErr(config.createRequiredMessage)
       return
     }
@@ -254,6 +293,7 @@ export default function InsurerManagersPage({ managerKind = 'insurer', embedded 
         await config.createApi(token, {
           insurerType: form.insurerType,
           companyId: form.companyId,
+          companyName: form.companyName,
           username: u,
           password,
         })
@@ -572,6 +612,7 @@ export default function InsurerManagersPage({ managerKind = 'insurer', embedded 
                         ...f,
                         insurerType: t,
                         companyId: 0,
+                        companyName: '',
                       }))
                     }}
                     options={TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
@@ -581,9 +622,20 @@ export default function InsurerManagersPage({ managerKind = 'insurer', embedded 
                   <FormSelect
                     className="admin-form-input"
                     required
-                    value={form.companyId ? String(form.companyId) : ''}
-                    onChange={(e) => setForm((f) => ({ ...f, companyId: Number(e.target.value) || 0 }))}
-                    options={[{ value: '', label: '선택' }, ...masterChoices.map((c) => ({ value: String(c.id), label: c.name }))]}
+                    value={insurerManagerCompanySelectValueFromForm(form)}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        ...applyInsurerManagerCompanySelect(e.target.value, masterChoices),
+                      }))
+                    }
+                    options={[
+                      { value: '', label: '선택' },
+                      ...masterChoices.map((c) => ({
+                        value: insurerManagerCompanySelectValue(c),
+                        label: c.name,
+                      })),
+                    ]}
                   />
                 </FieldWrapper>
               </>
@@ -668,6 +720,7 @@ export default function InsurerManagersPage({ managerKind = 'insurer', embedded 
                         ...f,
                         insurerType: t,
                         companyId: 0,
+                        companyName: '',
                       }))
                     }}
                     options={TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
@@ -677,9 +730,20 @@ export default function InsurerManagersPage({ managerKind = 'insurer', embedded 
                   <FormSelect
                     className="admin-form-input"
                     required
-                    value={form.companyId ? String(form.companyId) : ''}
-                    onChange={(e) => setForm((f) => ({ ...f, companyId: Number(e.target.value) || 0 }))}
-                    options={[{ value: '', label: '선택' }, ...masterChoices.map((c) => ({ value: String(c.id), label: c.name }))]}
+                    value={insurerManagerCompanySelectValueFromForm(form)}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        ...applyInsurerManagerCompanySelect(e.target.value, masterChoices),
+                      }))
+                    }
+                    options={[
+                      { value: '', label: '선택' },
+                      ...masterChoices.map((c) => ({
+                        value: insurerManagerCompanySelectValue(c),
+                        label: c.name,
+                      })),
+                    ]}
                   />
                 </FieldWrapper>
               </>

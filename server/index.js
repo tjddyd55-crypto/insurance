@@ -3220,11 +3220,25 @@ apiRouter.post('/insurer-managers', requireAuth, requireGaInsurerManagerMutator,
     }
     const typeNorm = parseInsurerManagerType(body.insurer_type ?? body.insurerType)
     const companyIdRaw = body.company_id ?? body.companyId
-    const companyMasterId = Number(companyIdRaw)
+    let companyMasterId = Number(companyIdRaw)
+    const companyNameForEnsure = String(body.company_name ?? body.companyName ?? '').trim()
     const { username, password } = body
     if (!typeNorm) {
       res.status(400).json({ message: '보험사 유형을 선택해 주세요.' })
       return
+    }
+    if (!Number.isInteger(companyMasterId) || companyMasterId <= 0) {
+      if (!companyNameForEnsure) {
+        res.status(400).json({ message: '보험사(마스터)를 선택해 주세요.' })
+        return
+      }
+      const { ensureInsurerManagerCompanyMasterForGa } = await import('./lib/insurerManagerCompanyChoices.js')
+      companyMasterId = await ensureInsurerManagerCompanyMasterForGa(
+        pool,
+        gaId,
+        typeNorm,
+        companyNameForEnsure,
+      )
     }
     const link = await validateInsurerManagerCompanyLink(pool, gaId, companyMasterId, typeNorm)
     if (!link.ok) {

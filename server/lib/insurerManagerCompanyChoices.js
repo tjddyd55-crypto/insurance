@@ -146,7 +146,7 @@ async function findGaCompanyMasterIdByName(executor, gaId, category, name) {
 /**
  * @param {import('pg').Pool | import('pg').PoolClient} executor
  */
-async function ensureGaCompanyMasterRow(executor, gaId, category, name) {
+export async function ensureInsurerManagerCompanyMasterForGa(executor, gaId, category, name) {
   const g = parseGaId(gaId)
   const found = await safeQuery(
     executor,
@@ -221,7 +221,28 @@ async function ensureGaCompanyMasterRow(executor, gaId, category, name) {
 }
 
 /**
- * 플랫폼 카탈로그(영진 마스터) 기준 선택 목록 + 요청 GA에 master 행 보장.
+ * @param {import('pg').Pool | import('pg').PoolClient} executor
+ */
+async function resolveGaCompanyMasterIdForCatalogEntry(executor, gaId, category, name) {
+  const g = parseGaId(gaId)
+  const found = await safeQuery(
+    executor,
+    `
+    SELECT id FROM insurance_company_master
+    WHERE ga_id = $1 AND category = $2 AND TRIM(name) = TRIM($3)
+    LIMIT 1
+    `,
+    [g, category, name],
+  )
+  if (found.rowCount > 0) {
+    return Number(found.rows[0].id)
+  }
+  const byNameId = await findGaCompanyMasterIdByName(executor, g, category, name)
+  return byNameId ?? 0
+}
+
+/**
+ * 플랫폼 카탈로그(영진 마스터) 기준 선택 목록. id=0 이면 해당 GA에 master 행 없음(저장 시 ensure).
  * @returns {Promise<Array<{ id: number, name: string, category: 'LIFE' | 'NON_LIFE' }>>}
  */
 export async function listInsurerManagerCompanyChoicesForGa(pool, gaId) {
@@ -232,7 +253,7 @@ export async function listInsurerManagerCompanyChoicesForGa(pool, gaId) {
   const catalog = await loadPlatformInsurerCompanyCatalog(pool)
   const out = []
   for (const entry of catalog) {
-    const id = await ensureGaCompanyMasterRow(pool, g, entry.category, entry.name)
+    const id = await resolveGaCompanyMasterIdForCatalogEntry(pool, g, entry.category, entry.name)
     out.push({ id, name: entry.name, category: entry.category })
   }
   out.sort((a, b) => a.name.localeCompare(b.name, 'ko'))
