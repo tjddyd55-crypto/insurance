@@ -24,6 +24,8 @@ describe('Customer workspace page tabs shell', () => {
     expect(shellCss).toMatch(
       /\.customer-workspace-page__tab--active::after[\s\S]*customer-workspace-page-surface/,
     )
+    expect(shellCss).toMatch(/\.customer-workspace-page__tab--active[\s\S]*border-bottom:\s*none/)
+    expect(shellCss).toMatch(/\.customer-workspace-page__tab--active[\s\S]*margin-bottom:\s*-1px/)
     expect(shellCss).toContain('.customer-workspace-page__body')
   })
 })
