@@ -745,7 +745,77 @@ export function registerGaCustomerExcelApi(apiRouter, ctx) {
     }
   })
 
-  /** GA 관리자: 기능 ON/OFF (매핑·샘플은 SUPER_ADMIN 설정 유지) */
+  /** GA 관리자: 샘플 업로드 (자기 GA만) */
+  apiRouter.post(
+    '/ga-admin/customer-excel/sample',
+    requireAuth,
+    requireGaAdminRole,
+    uploadExcel.single('file'),
+    async (req, res) => {
+      try {
+        const gaId = req.gaAdminScopeGaId
+        const file = req.file
+        if (!file?.buffer) {
+          res.status(400).json({ message: '엑셀 파일을 선택해 주세요.' })
+          return
+        }
+        const orig = String(file.originalname ?? 'sample.xlsx')
+        const lower = orig.toLowerCase()
+        if (!lower.endsWith('.xlsx') && !lower.endsWith('.xls')) {
+          res.status(400).json({ message: 'xlsx 또는 xls 파일만 업로드할 수 있습니다.' })
+          return
+        }
+        let columns
+        try {
+          ;({ columns } = parseExcelSampleToColumnsAndRows(file.buffer))
+        } catch (err) {
+          const code = err instanceof Error ? err.message : 'PARSE_ERROR'
+          res.status(400).json({ message: '엑셀을 읽을 수 없습니다.', code })
+          return
+        }
+        if (columns.length === 0) {
+          res.status(400).json({ message: '헤더 행을 찾을 수 없습니다.' })
+          return
+        }
+
+        const client = await pool.connect()
+        try {
+          await client.query('BEGIN')
+          await ensureSettingsRow(client, gaId)
+          await safeQuery(
+            client,
+            `
+            UPDATE ga_customer_excel_settings
+            SET sample_original_filename = $2,
+                sample_uploaded_at = NOW(),
+                sample_columns = CAST($3 AS jsonb)::jsonb,
+                config_ready = false,
+                updated_at = NOW()
+            WHERE ga_id = $1
+            `,
+            [gaId, orig, JSON.stringify(columns)],
+          )
+          await client.query('COMMIT')
+        } catch (e) {
+          try {
+            await client.query('ROLLBACK')
+          } catch {
+            /* ignore */
+          }
+          throw e
+        } finally {
+          client.release()
+        }
+
+        const settings = await loadSettingsOrDefault(pool, gaId)
+        res.json({ ok: true, sampleColumns: columns, settings })
+      } catch (e) {
+        handleDbError(e, req, res)
+      }
+    },
+  )
+
+  /** GA 관리자: ON/OFF·매핑 저장 (자기 GA만) */
   apiRouter.put('/ga-admin/customer-excel/settings', requireAuth, requireGaAdminRole, async (req, res) => {
     try {
       const gaId = req.gaAdminScopeGaId
