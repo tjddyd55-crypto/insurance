@@ -7,7 +7,7 @@ import { GaCustomerExcelManagementPanel } from '../components/GaCustomerExcelMan
 import { GaGaAdminAccountsPanel } from '../components/GaGaAdminAccountsPanel'
 import { createSuperAdminGaExcelManagementApi } from '../components/gaCustomerExcelManagementApi'
 
-type TabKey = 'gaAdmins' | 'customerDb' | 'excel'
+type TabKey = 'gaAdmins' | 'dataMapping'
 
 export default function GaCompanyManagePage() {
   const { gaId: gaIdParam } = useParams()
@@ -114,38 +114,20 @@ export default function GaCompanyManagePage() {
           </FormButton>
           <FormButton
             htmlType="button"
-            variant={tab === 'customerDb' ? 'primary' : 'secondary'}
-            className={tab === 'customerDb' ? 'button button--primary' : 'button button--secondary'}
+            variant={tab === 'dataMapping' ? 'primary' : 'secondary'}
+            className={tab === 'dataMapping' ? 'button button--primary' : 'button button--secondary'}
             onClick={(ev) => {
               ev.stopPropagation()
-              setTab('customerDb')
+              setTab('dataMapping')
             }}
           >
-            고객 DB 관리
-          </FormButton>
-          <FormButton
-            htmlType="button"
-            variant={tab === 'excel' ? 'primary' : 'secondary'}
-            className={tab === 'excel' ? 'button button--primary' : 'button button--secondary'}
-            onClick={(ev) => {
-              ev.stopPropagation()
-              setTab('excel')
-            }}
-          >
-            고객 엑셀 관리
+            GA 데이터 매핑
           </FormButton>
         </div>
 
         {tab === 'gaAdmins' ? <GaGaAdminAccountsPanel gaId={gaId} /> : null}
 
-        {tab === 'customerDb' ? (
-          <p className="text-sm text-[var(--text-secondary)]" style={{ lineHeight: 1.6 }}>
-            고객 등록·검색·수정은 설계사 화면의 <strong>고객관리</strong> 메뉴에서 수행합니다. 이 탭은 GA별 안내용으로 두었으며,
-            추후 GA 전용 고객 DB 기능이 생기면 이 영역에 연결할 수 있습니다.
-          </p>
-        ) : null}
-
-        {tab === 'excel' && excelApi ? <GaCustomerExcelManagementPanel api={excelApi} /> : null}
+        {tab === 'dataMapping' && excelApi ? <GaCustomerExcelManagementPanel api={excelApi} /> : null}
       </div>
     </main>
   )

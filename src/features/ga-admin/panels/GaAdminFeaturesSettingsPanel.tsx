@@ -20,7 +20,7 @@ export default function GaAdminFeaturesSettingsPanel() {
 
   return (
     <div className="admin-data-card">
-      <h2 className="admin-data-card__title">GA 기능 설정 · 고객 엑셀 관리</h2>
+      <h2 className="admin-data-card__title">GA 기능 설정 · GA 데이터 매핑</h2>
       <GaCustomerExcelManagementPanel api={api} onSaved={() => void refreshGaCapability()} />
     </div>
   )

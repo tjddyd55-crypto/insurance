@@ -19,7 +19,7 @@ type Props = {
   onSaved?: () => void
 }
 
-/** SUPER_ADMIN GA 상세 · GA_ADMIN 기능 설정 공용 — 고객 엑셀 관리 SSOT UI */
+/** SUPER_ADMIN GA 상세 · GA_ADMIN 기능 설정 공용 — GA 데이터 매핑 SSOT UI */
 export function GaCustomerExcelManagementPanel({ api, onSaved }: Props) {
   const [settings, setSettings] = useState<GaCustomerExcelSettingsDto | null>(null)
   const [loadErr, setLoadErr] = useState('')
@@ -68,7 +68,7 @@ export function GaCustomerExcelManagementPanel({ api, onSaved }: Props) {
     if (!settings) {
       return ''
     }
-    return [`설정 완료: ${settings.configReady ? '예' : '아니오'}`, `DB 매칭: ${settings.matchRuleCount}개`].join(' · ')
+    return [`설정 완료: ${settings.configReady ? '예' : '아니오'}`, `GA 데이터 매핑: ${settings.matchRuleCount}개`].join(' · ')
   }, [settings])
 
   const onSample = async (e: FormEvent<HTMLFormElement>) => {
@@ -135,7 +135,7 @@ export function GaCustomerExcelManagementPanel({ api, onSaved }: Props) {
                 onChange={(ev) => setFeatureEnabled(ev.target.checked)}
                 className="shrink-0"
               />
-              고객 엑셀 기능 사용
+              GA 데이터 사용
             </label>
           </section>
 
@@ -180,7 +180,7 @@ export function GaCustomerExcelManagementPanel({ api, onSaved }: Props) {
                   <thead>
                     <tr>
                       <th>엑셀 컬럼명</th>
-                      <th>고객 DB 매칭</th>
+                      <th>GA 데이터 매핑</th>
                     </tr>
                   </thead>
                   <tbody>
