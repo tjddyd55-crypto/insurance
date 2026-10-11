@@ -1,4 +1,5 @@
 import { sendTransactionalSms } from '../services/smsService.js'
+import { readSignupWelcomeSmsMessage } from '../subscription/appSettings.js'
 
 /** 인증 SMS(SIGNUP)와 분리된 transactional purpose */
 export const SIGNUP_WELCOME_SMS_PURPOSE = 'SIGNUP_WELCOME'
