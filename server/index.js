@@ -53,6 +53,17 @@ import {
   parseAdminUserStatusFilter,
   parseAdminUserSubscriptionFilter,
 } from './lib/adminUsersPresentation.js'
+import {
+  ADMIN_USER_EFFECTIVE_LAST_LOGIN_SQL,
+  ADMIN_USER_LIST_FROM_SQL,
+  buildAdminUserActivityClause,
+  buildAdminUserMonthlyNewClause,
+  buildAdminUserOrderClause,
+  parseAdminUserActivityFilter,
+  parseAdminUserNewMemberFilter,
+  parseAdminUserSort,
+  resolveKstMonthBoundsUtc,
+} from './lib/adminUserListQuery.js'
 import { registerGaCustomerExcelApi } from './apis/gaCustomerExcelApi.js'
 import { registerGaCustomerMatchAliasesApi } from './apis/gaCustomerMatchAliasesApi.js'
 import { registerCustomerClaimAppApi } from './apis/customerClaimAppApi.js'
@@ -4162,6 +4173,44 @@ apiRouter.delete('/admin/ga/:id', requireAuth, requireSuperAdmin, async (req, re
   }
 })
 
+apiRouter.get('/admin/users/summary', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const { start: monthStart, end: monthEnd } = resolveKstMonthBoundsUtc()
+    const r = await safeQuery(
+      pool,
+      `
+      SELECT
+        COUNT(*)::int AS total_users,
+        COUNT(*) FILTER (
+          WHERE u.created_at >= $1 AND u.created_at < $2
+        )::int AS monthly_new_users,
+        COUNT(*) FILTER (
+          WHERE ${ADMIN_USER_EFFECTIVE_LAST_LOGIN_SQL} IS NOT NULL
+            AND ${ADMIN_USER_EFFECTIVE_LAST_LOGIN_SQL} >= (date_trunc('day', (now() AT TIME ZONE 'Asia/Seoul')) AT TIME ZONE 'Asia/Seoul')
+        )::int AS today_active_users,
+        COUNT(*) FILTER (
+          WHERE ${ADMIN_USER_EFFECTIVE_LAST_LOGIN_SQL} IS NOT NULL
+            AND ${ADMIN_USER_EFFECTIVE_LAST_LOGIN_SQL} >= (
+              (date_trunc('day', (now() AT TIME ZONE 'Asia/Seoul')) AT TIME ZONE 'Asia/Seoul') - interval '6 days'
+            )
+        )::int AS recent_7_days_active_users
+      ${ADMIN_USER_LIST_FROM_SQL}
+      WHERE u.is_deleted = false AND g.is_deleted = false
+      `,
+      [monthStart, monthEnd],
+    )
+    const row = r.rows[0] ?? {}
+    res.json({
+      totalUsers: Number(row.total_users ?? 0),
+      monthlyNewUsers: Number(row.monthly_new_users ?? 0),
+      todayActiveUsers: Number(row.today_active_users ?? 0),
+      recent7DaysActiveUsers: Number(row.recent_7_days_active_users ?? 0),
+    })
+  } catch (error) {
+    handleDbError(error, req, res)
+  }
+})
+
 apiRouter.get('/admin/users', requireAuth, requireSuperAdmin, async (req, res) => {
   try {
     const filterGa = parseGaId(req.query.ga_id ?? req.query.gaId)
@@ -4174,6 +4223,13 @@ apiRouter.get('/admin/users', requireAuth, requireSuperAdmin, async (req, res) =
     const hasPhoneFilter = parseAdminUserHasPhoneFilter(
       req.query.has_phone ?? req.query.hasPhone,
     )
+    const newMemberFilter = parseAdminUserNewMemberFilter(
+      req.query.new_member ?? req.query.newMember,
+    )
+    const activityFilter = parseAdminUserActivityFilter(
+      req.query.activity ?? req.query.activity_status,
+    )
+    const sort = parseAdminUserSort(req.query.sort)
     const params = [filterGa]
     let paramIndex = 2
     let subscriptionClause = ''
@@ -4214,6 +4270,22 @@ apiRouter.get('/admin/users', requireAuth, requireSuperAdmin, async (req, res) =
     } else if (hasPhoneFilter === 'no') {
       phoneClause = `AND NULLIF(TRIM(COALESCE(u.phone_number, '')), '') IS NULL`
     }
+    let newMemberClause = ''
+    if (newMemberFilter === 'monthly') {
+      const { start: monthStart, end: monthEnd } = resolveKstMonthBoundsUtc()
+      const built = buildAdminUserMonthlyNewClause(monthStart, monthEnd, paramIndex)
+      newMemberClause = built.clause
+      params.push(...built.params)
+      paramIndex = built.nextIndex
+    }
+    let activityClause = ''
+    if (activityFilter) {
+      const built = buildAdminUserActivityClause(activityFilter, paramIndex)
+      activityClause = built.clause
+      params.push(...built.params)
+      paramIndex = built.nextIndex
+    }
+    const orderClause = buildAdminUserOrderClause(sort)
     const r = await safeQuery(pool,
       `
       SELECT
@@ -4236,18 +4308,7 @@ apiRouter.get('/admin/users', requireAuth, requireSuperAdmin, async (req, res) =
         bs.trial_ends_at,
         bs.next_billing_at,
         bs.current_period_end
-      FROM users u
-      INNER JOIN ga_companies g ON g.id = u.ga_id
-      LEFT JOIN referral_relationships rr ON rr.referred_user_id = u.id
-      LEFT JOIN users ref_u ON ref_u.id = rr.referrer_user_id AND ref_u.is_deleted = false
-      LEFT JOIN ga_companies ref_g ON ref_g.id = ref_u.ga_id AND ref_g.is_deleted = false
-      LEFT JOIN (
-        SELECT actor_user_id, MAX(created_at) AS audit_last_login_at
-        FROM security_audit_logs
-        WHERE action = 'login_success'
-        GROUP BY actor_user_id
-      ) audit_login ON audit_login.actor_user_id = u.id
-      LEFT JOIN billing_subscriptions bs ON bs.user_id = u.id
+      ${ADMIN_USER_LIST_FROM_SQL}
       WHERE u.is_deleted = false AND g.is_deleted = false
         AND ($1::int IS NULL OR u.ga_id = $1::int)
         ${subscriptionClause}
@@ -4255,10 +4316,9 @@ apiRouter.get('/admin/users', requireAuth, requireSuperAdmin, async (req, res) =
         ${roleClause}
         ${statusClause}
         ${phoneClause}
-      ORDER BY
-        COALESCE(u.last_login_at, audit_login.audit_last_login_at) DESC NULLS LAST,
-        u.created_at DESC NULLS LAST,
-        u.username ASC
+        ${newMemberClause}
+        ${activityClause}
+      ORDER BY ${orderClause}
       `,
       params,
     )

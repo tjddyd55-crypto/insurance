@@ -6,14 +6,28 @@ import { formatKrMobileDisplay } from '../../sms/smsDisplayUtils'
 import { useAuth } from '../../auth/AuthProvider'
 import {
   deleteAdminUser,
+  fetchAdminUsersOverviewSummary,
   listAdminUsers,
   listGaCompanies,
   patchAdminUser,
   type AdminUserRow,
+  type AdminUsersOverviewSummary,
   type EntityStatus,
   type GaCompanyRow,
   type UserRole,
 } from '../../auth/authApi'
+import {
+  ADMIN_USER_ACTIVITY_FILTER_OPTIONS,
+  ADMIN_USER_NEW_MEMBER_FILTER_OPTIONS,
+  ADMIN_USER_SORT_OPTIONS,
+  formatAdminUserJoinDate,
+  groupAdminUsersByGa,
+  isAdminUserJoinedThisMonth,
+  type AdminUserActivityFilter,
+  type AdminUserListSort,
+  type AdminUserListViewMode,
+  type AdminUserNewMemberFilter,
+} from '../adminUserOperationOverview'
 import {
   fetchCrmUserBulkSmsRuntime,
   listCrmUserBulkSmsHistory,
@@ -116,6 +130,11 @@ function AccountStatusBadge({ status }: { status: EntityStatus }) {
   )
 }
 
+function NewMemberBadge({ show }: { show: boolean }) {
+  if (!show) return null
+  return <span className="admin-user-new-badge">신규</span>
+}
+
 function SubscriptionStatusBadge({ row }: { row: AdminUserRow }) {
   const badgeClass = resolveAdminUserSubscriptionBadgeClass(
     row.subscription_status,
@@ -151,6 +170,12 @@ export default function UserManagementPage() {
   const [roleFilter, setRoleFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState<EntityStatus | ''>('')
   const [hasPhoneFilter, setHasPhoneFilter] = useState<'' | 'yes' | 'no'>('')
+  const [newMemberFilter, setNewMemberFilter] = useState<AdminUserNewMemberFilter>('')
+  const [activityFilter, setActivityFilter] = useState<AdminUserActivityFilter>('')
+  const [sortOption, setSortOption] = useState<AdminUserListSort>('created_desc')
+  const [viewMode, setViewMode] = useState<AdminUserListViewMode>('flat')
+  const [overview, setOverview] = useState<AdminUsersOverviewSummary | null>(null)
+  const [collapsedGaIds, setCollapsedGaIds] = useState<Set<number>>(() => new Set())
   const [searchQuery, setSearchQuery] = useState('')
   const [rows, setRows] = useState<AdminUserRow[]>([])
   const [loadError, setLoadError] = useState('')
@@ -198,6 +223,9 @@ export default function UserManagementPage() {
         role: roleFilter || undefined,
         status: statusFilter || undefined,
         hasPhone: hasPhoneFilter || undefined,
+        newMember: newMemberFilter || undefined,
+        activity: activityFilter || undefined,
+        sort: sortOption,
       })
       setRows(users.map((u) => ({ ...u, status: normalizeUserStatus(u.status as string) })))
       setSelectedIds(new Set())
@@ -215,11 +243,39 @@ export default function UserManagementPage() {
     roleFilter,
     statusFilter,
     hasPhoneFilter,
+    newMemberFilter,
+    activityFilter,
+    sortOption,
   ])
+
+  const loadOverview = useCallback(async () => {
+    if (!token?.trim() || user?.role !== 'SUPER_ADMIN') return
+    try {
+      const summary = await fetchAdminUsersOverviewSummary(token)
+      setOverview(summary)
+    } catch {
+      setOverview(null)
+    }
+  }, [token, user?.role])
 
   useEffect(() => {
     void loadUsers()
   }, [loadUsers])
+
+  useEffect(() => {
+    void loadOverview()
+  }, [loadOverview])
+
+  const gaGroups = useMemo(() => groupAdminUsersByGa(rows), [rows])
+
+  const toggleGaCollapsed = (gaId: number) => {
+    setCollapsedGaIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(gaId)) next.delete(gaId)
+      else next.add(gaId)
+      return next
+    })
+  }
 
   const loadHistory = useCallback(async () => {
     if (!token?.trim() || user?.role !== 'SUPER_ADMIN') return
@@ -376,7 +432,13 @@ export default function UserManagementPage() {
           />
         </td>
         <td>{r.ga_company_name}</td>
-        <td>{displayName || '—'}</td>
+        <td>
+          <span className="admin-user-table__name-cell">
+            {displayName || '—'}
+            <NewMemberBadge show={isAdminUserJoinedThisMonth(r.created_at)} />
+          </span>
+        </td>
+        <td className="admin-user-table__join-date">{formatAdminUserJoinDate(r.created_at)}</td>
         <td>{r.username}</td>
         <td>{formatPhoneCell(r)}</td>
         <td>{formatReferrer(r)}</td>
@@ -443,7 +505,14 @@ export default function UserManagementPage() {
         </div>
         <div className="admin-user-card__row">
           <span className="admin-user-card__label">이름</span>
-          <span className="admin-user-card__value">{displayName || '—'}</span>
+          <span className="admin-user-card__value">
+            {displayName || '—'}
+            <NewMemberBadge show={isAdminUserJoinedThisMonth(r.created_at)} />
+          </span>
+        </div>
+        <div className="admin-user-card__row">
+          <span className="admin-user-card__label">가입일</span>
+          <span className="admin-user-card__value">{formatAdminUserJoinDate(r.created_at)}</span>
         </div>
         <div className="admin-user-card__row">
           <span className="admin-user-card__label">아이디</span>
@@ -516,12 +585,71 @@ export default function UserManagementPage() {
     <main className="page page--with-back admin-user-management">
       <header className="page-header">
         <h1>유저 관리</h1>
-        <p>{loadError || saveOk || 'GA별로 사용자를 조회하고 안내 문자를 발송합니다.'}</p>
+        <p>
+          {loadError || saveOk || '가입일·신규 가입 흐름을 기준으로 사용자를 조회하고 안내 문자를 발송합니다.'}
+        </p>
       </header>
 
       <StatusMessage message={listActionError} tone="error" className="m-0" />
 
       <SignupWelcomeSmsSettingsPanel />
+
+      <section className="admin-user-management__overview card auth-card" aria-label="사용자 운영 요약">
+        <div className="admin-user-management__overview-grid">
+          <div className="admin-user-management__overview-item admin-user-management__overview-item--primary">
+            <span className="admin-user-management__overview-label">전체 사용자</span>
+            <strong>{overview?.totalUsers ?? '—'}</strong>
+          </div>
+          <div className="admin-user-management__overview-item admin-user-management__overview-item--primary">
+            <span className="admin-user-management__overview-label">이번 달 신규</span>
+            <strong>{overview?.monthlyNewUsers ?? '—'}</strong>
+          </div>
+          <div className="admin-user-management__overview-item">
+            <span className="admin-user-management__overview-label">오늘 접속</span>
+            <strong>{overview?.todayActiveUsers ?? '—'}</strong>
+          </div>
+          <div className="admin-user-management__overview-item">
+            <span className="admin-user-management__overview-label">최근 7일 접속</span>
+            <strong>{overview?.recent7DaysActiveUsers ?? '—'}</strong>
+          </div>
+        </div>
+        <p className="admin-user-management__overview-hint">
+          운영 기준은 <strong>가입일·이번 달 신규</strong>입니다. 최근 접속은 활동 보조 지표입니다.
+        </p>
+      </section>
+
+      <section className="admin-user-management__view-toggle card auth-card">
+        <div className="admin-user-management__view-toggle-buttons">
+          <FormButton
+            htmlType="button"
+            variant={viewMode === 'flat' ? 'primary' : 'secondary'}
+            className={viewMode === 'flat' ? 'button button--primary' : 'button button--secondary'}
+            onClick={() => setViewMode('flat')}
+          >
+            전체 목록
+          </FormButton>
+          <FormButton
+            htmlType="button"
+            variant={viewMode === 'ga_group' ? 'primary' : 'secondary'}
+            className={viewMode === 'ga_group' ? 'button button--primary' : 'button button--secondary'}
+            onClick={() => setViewMode('ga_group')}
+          >
+            GA별 보기
+          </FormButton>
+        </div>
+        <FieldWrapper label="정렬" className="admin-modal-field admin-user-management__sort">
+          <FormSelect
+            className="admin-form-input"
+            value={sortOption}
+            onChange={(e) => {
+              setSaveOk('')
+              setSortOption(e.target.value as AdminUserListSort)
+            }}
+            disabled={isLoading}
+            options={ADMIN_USER_SORT_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
+          />
+        </FieldWrapper>
+      </section>
 
       <section
         className="admin-toolbar admin-user-management__toolbar card auth-card"
@@ -585,6 +713,36 @@ export default function UserManagementPage() {
               { value: 'yes', label: '연락처 있음' },
               { value: 'no', label: '연락처 없음' },
             ]}
+          />
+        </FieldWrapper>
+        <FieldWrapper label="신규 여부" className="admin-modal-field">
+          <FormSelect
+            className="admin-form-input"
+            value={newMemberFilter}
+            onChange={(e) => {
+              setSaveOk('')
+              setNewMemberFilter(e.target.value as AdminUserNewMemberFilter)
+            }}
+            disabled={isLoading}
+            options={ADMIN_USER_NEW_MEMBER_FILTER_OPTIONS.map((opt) => ({
+              value: opt.value,
+              label: opt.label,
+            }))}
+          />
+        </FieldWrapper>
+        <FieldWrapper label="활동 상태" className="admin-modal-field">
+          <FormSelect
+            className="admin-form-input"
+            value={activityFilter}
+            onChange={(e) => {
+              setSaveOk('')
+              setActivityFilter(e.target.value as AdminUserActivityFilter)
+            }}
+            disabled={isLoading}
+            options={ADMIN_USER_ACTIVITY_FILTER_OPTIONS.map((opt) => ({
+              value: opt.value,
+              label: opt.label,
+            }))}
           />
         </FieldWrapper>
         <FieldWrapper label="구독 상태" className="admin-modal-field">
@@ -659,51 +817,111 @@ export default function UserManagementPage() {
         </div>
       </section>
 
-      <div
-        className="card admin-user-management__table-wrap"
-        style={{ maxWidth: 'none', margin: '16px 0 0', padding: 0 }}
-      >
-        <div className="table-container table-container--desktop">
-          <table className="admin-user-table admin-data-table">
-            <thead>
-              <tr>
-                <th scope="col">선택</th>
-                <th scope="col">GA</th>
-                <th scope="col">이름</th>
-                <th scope="col">아이디</th>
-                <th scope="col">연락처</th>
-                <th scope="col">추천인</th>
-                <th scope="col">역할</th>
-                <th scope="col">계정 상태</th>
-                <th scope="col">구독 상태</th>
-                <th scope="col">최근 접속일</th>
-                <th scope="col" className="admin-table-cell--actions">
-                  관리
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 && !isLoading ? (
+      {viewMode === 'flat' ? (
+        <div
+          className="card admin-user-management__table-wrap"
+          style={{ maxWidth: 'none', margin: '16px 0 0', padding: 0 }}
+        >
+          <div className="table-container table-container--desktop">
+            <table className="admin-user-table admin-data-table">
+              <thead>
                 <tr>
-                  <td colSpan={11} style={{ padding: '20px 14px', color: 'var(--text-sub)' }}>
-                    표시할 사용자가 없습니다.
-                  </td>
+                  <th scope="col">선택</th>
+                  <th scope="col">GA</th>
+                  <th scope="col">이름</th>
+                  <th scope="col">가입일</th>
+                  <th scope="col">아이디</th>
+                  <th scope="col">연락처</th>
+                  <th scope="col">추천인</th>
+                  <th scope="col">역할</th>
+                  <th scope="col">계정 상태</th>
+                  <th scope="col">구독 상태</th>
+                  <th scope="col">최근 접속일</th>
+                  <th scope="col" className="admin-table-cell--actions">
+                    관리
+                  </th>
                 </tr>
-              ) : (
-                rows.map((r) => <tr key={r.id}>{renderRowCells(r)}</tr>)
-              )}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {rows.length === 0 && !isLoading ? (
+                  <tr>
+                    <td colSpan={12} style={{ padding: '20px 14px', color: 'var(--text-sub)' }}>
+                      표시할 사용자가 없습니다.
+                    </td>
+                  </tr>
+                ) : (
+                  rows.map((r) => <tr key={r.id}>{renderRowCells(r)}</tr>)
+                )}
+              </tbody>
+            </table>
+          </div>
 
-        <div className="admin-responsive-card-list" style={{ padding: 12 }}>
-          {rows.length === 0 && !isLoading ? (
+          <div className="admin-responsive-card-list" style={{ padding: 12 }}>
+            {rows.length === 0 && !isLoading ? (
+              <EmptyState message="표시할 사용자가 없습니다." className="m-0 px-1 py-2 text-[var(--text-sub)]" />
+            ) : (
+              rows.map((r) => renderUserCard(r))
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="admin-user-management__ga-groups" style={{ marginTop: 16 }}>
+          {gaGroups.length === 0 && !isLoading ? (
             <EmptyState message="표시할 사용자가 없습니다." className="m-0 px-1 py-2 text-[var(--text-sub)]" />
           ) : (
-            rows.map((r) => renderUserCard(r))
+            gaGroups.map((group) => {
+              const collapsed = collapsedGaIds.has(group.gaId)
+              return (
+                <section key={group.gaId} className="card admin-user-management__ga-group">
+                  <button
+                    type="button"
+                    className="admin-user-management__ga-group-header"
+                    onClick={() => toggleGaCollapsed(group.gaId)}
+                    aria-expanded={!collapsed}
+                  >
+                    <span className="admin-user-management__ga-group-title">
+                      {collapsed ? '▶' : '▼'} {group.gaName}
+                    </span>
+                    <span className="admin-user-management__ga-group-stats">
+                      {group.totalUsers}명 · 신규 {group.monthlyNewUsers}명 · 오늘 접속{' '}
+                      {group.todayActiveUsers}명
+                    </span>
+                  </button>
+                  {!collapsed ? (
+                    <ul className="admin-user-management__ga-group-list">
+                      {group.users.map((r) => {
+                        const displayName = String(r.display_name ?? '').trim()
+                        return (
+                          <li key={r.id} className="admin-user-management__ga-group-row">
+                            <div className="admin-user-management__ga-group-row-main">
+                              <strong>
+                                {displayName || r.username}
+                                <NewMemberBadge show={isAdminUserJoinedThisMonth(r.created_at)} />
+                              </strong>
+                              <span>가입일 {formatAdminUserJoinDate(r.created_at)}</span>
+                              <span>최근 접속 {formatAdminUserLastLogin(r.last_login_at, true)}</span>
+                            </div>
+                            <div className="admin-user-management__ga-group-row-actions">
+                              <FormButton
+                                htmlType="button"
+                                variant="secondary"
+                                className="button button--secondary"
+                                onClick={() => openEdit(r)}
+                              >
+                                수정
+                              </FormButton>
+                            </div>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  ) : null}
+                </section>
+              )
+            })
           )}
         </div>
-      </div>
+      )}
 
       <section className="card admin-user-management__history" style={{ maxWidth: 'none', margin: '16px 0 0' }}>
         <header className="admin-user-management__history-header">

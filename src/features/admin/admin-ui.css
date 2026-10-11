@@ -207,6 +207,148 @@
   border-top: 1px solid var(--border-default);
 }
 
+.admin-user-management__overview {
+  margin-top: 12px;
+  padding: 16px;
+}
+
+.admin-user-management__overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.admin-user-management__overview-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-user-management__overview-item strong {
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+
+.admin-user-management__overview-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.admin-user-management__overview-item--primary .admin-user-management__overview-label {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.admin-user-management__overview-hint {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.admin-user-management__view-toggle {
+  margin-top: 12px;
+  padding: 12px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.admin-user-management__view-toggle-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-user-management__sort {
+  min-width: 200px;
+  margin: 0;
+}
+
+.admin-user-new-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 16%, transparent);
+  vertical-align: middle;
+}
+
+.admin-user-table__name-cell {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.admin-user-management__ga-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-user-management__ga-group {
+  padding: 0;
+  overflow: hidden;
+}
+
+.admin-user-management__ga-group-header {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border: none;
+  background: color-mix(in srgb, var(--border-default) 35%, transparent);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.admin-user-management__ga-group-title {
+  font-weight: 700;
+}
+
+.admin-user-management__ga-group-stats {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.admin-user-management__ga-group-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.admin-user-management__ga-group-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-default);
+}
+
+.admin-user-management__ga-group-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.admin-user-management__ga-group-row-main span {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
 .admin-signup-welcome-sms {
   margin-top: 12px;
   padding: 16px;

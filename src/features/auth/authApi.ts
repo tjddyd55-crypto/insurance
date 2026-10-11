@@ -604,6 +604,16 @@ export type AdminUserListFilters = {
   role?: string
   status?: EntityStatus | ''
   hasPhone?: 'yes' | 'no' | ''
+  newMember?: 'monthly_new' | ''
+  activity?: string
+  sort?: string
+}
+
+export type AdminUsersOverviewSummary = {
+  totalUsers: number
+  monthlyNewUsers: number
+  todayActiveUsers: number
+  recent7DaysActiveUsers: number
 }
 
 /** 슈퍼 관리자 — GA 담당자(GA_ADMIN/GA_STAFF) 전용. 비밀번호는 관리 목적 평문(일반 유저와 무관). */
@@ -701,8 +711,23 @@ export async function listAdminUsers(
   if (filters.hasPhone === 'yes' || filters.hasPhone === 'no') {
     params.set('has_phone', filters.hasPhone)
   }
+  if (filters.newMember === 'monthly_new') {
+    params.set('new_member', 'monthly')
+  }
+  if (filters.activity?.trim()) {
+    params.set('activity', filters.activity.trim())
+  }
+  if (filters.sort?.trim()) {
+    params.set('sort', filters.sort.trim())
+  }
   const qs = params.toString()
   return apiRequest<AdminUserRow[]>(`/api/admin/users${qs ? `?${qs}` : ''}`, { method: 'GET', token })
+}
+
+export async function fetchAdminUsersOverviewSummary(
+  token: string,
+): Promise<AdminUsersOverviewSummary> {
+  return apiRequest<AdminUsersOverviewSummary>('/api/admin/users/summary', { method: 'GET', token })
 }
 
 export async function patchAdminUser(
