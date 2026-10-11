@@ -36,11 +36,12 @@ describe('buildAppMenuForSession — 역할별 메뉴 정책', () => {
     expect(labels).not.toContain('소식지 관리')
     expect(labels).not.toContain('보험청구 설정')
     expect(labels).toContain('원수사 연락처 관리')
+    expect(labels).toContain('연락처 조회')
     expect(labels).toContain('공유 계정 관리')
     expect(labels).toContain('문의 / 기능 요청')
     expect(labels).not.toContain('전자서명 발송')
     expect(labels).not.toContain('원수사 담당자 관리')
-    expect(linkLabels(buildAppMenuForSession('GA_STAFF', 'TEST', 'Test GA'))).toHaveLength(3)
+    expect(linkLabels(buildAppMenuForSession('GA_STAFF', 'TEST', 'Test GA'))).toHaveLength(4)
     for (const label of USER_WORK_LABELS) {
       expect(labels).not.toContain(label)
     }

@@ -14,6 +14,19 @@ test('신규 공용 소식지 생성은 기존 global 작성자에게 자동 권
   assert.doesNotMatch(createFn, /grantBoardToAllGlobalWriters/)
 })
 
+test('신규 GA 전용 소식지 생성은 작성자 계정·권한을 자동 부여하지 않는다', () => {
+  const src = fs.readFileSync(path.join(repoRoot, 'server/registerInsurerNewsApi.js'), 'utf8')
+  const createFn = src.slice(
+    src.indexOf('async function createNewsletterBoardRecord'),
+    src.indexOf('async function', src.indexOf('async function createNewsletterBoardRecord') + 1),
+  )
+  assert.match(createFn, /INSERT_GA_NEWSLETTER_BOARD_SQL/)
+  assert.doesNotMatch(createFn, /board_writer_accounts/)
+  assert.doesNotMatch(createFn, /grantWriterBoardPermission/)
+  assert.doesNotMatch(createFn, /grantAllGaBoardsToWriter/)
+  assert.doesNotMatch(createFn, /createWriterAccountForBoard/)
+})
+
 test('레거시 작성자 생성은 boardIds 없이 전체 소식지 자동 부여를 하지 않는다', () => {
   const src = fs.readFileSync(path.join(repoRoot, 'server/registerPublicBoardWriterApi.js'), 'utf8')
   assert.doesNotMatch(src, /grantAllGlobalBoardsToWriter\(/)
@@ -39,6 +52,6 @@ test('작성자 패널은 board.id 변경 시 목록을 비우고 key로 분리�
   )
   assert.match(panel, /setWriters\(\[\]\)/)
   assert.match(panel, /등록된 작성자가 없습니다/)
-  assert.match(panel, /이 소식지에 글을 등록할 작성자 계정을 추가해 주세요/)
+  assert.match(panel, /「등록」을 눌러 이 소식지에 글을 올릴 작성자 계정/)
   assert.match(view, /key=\{selectedBoard\.id\}/)
 })

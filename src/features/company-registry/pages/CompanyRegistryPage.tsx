@@ -5,6 +5,8 @@ import { FieldWrapper, FormButton, FormInput, FormSelect } from '../../../compon
 import { ApiError } from '../../../lib/apiClient'
 import { logger } from '../../../lib/logger'
 import { useAuth } from '../../auth/AuthProvider'
+import { GaStaffOpsNav } from '../../auth/GaStaffOpsNav'
+import '../../auth/ga-staff-ops-shell.css'
 import { canMutateInsuranceDirectory, isInsuranceOpsRole } from '../../auth/roleGuards'
 import { deleteHardCompanyMaster, fullSaveCompanyDirectory, listCompanyDirectory } from '../api/companyRegistryApi'
 import {
@@ -84,8 +86,10 @@ export default function CompanyRegistryPage() {
   const { user, token, isAuthenticated } = useAuth()
   const { confirm, confirmDialog } = useConfirmDialog()
   const isOps = isAuthenticated && !!user && isInsuranceOpsRole(user.role)
+  const isGaStaff = user?.role === 'GA_STAFF'
   const canMutate = isOps && canMutateInsuranceDirectory(user.role)
   const readOnlyUi = isOps && !canMutate
+  const opsShellClass = isOps ? ' admin-page-shell ga-staff-ops-page' : ''
 
   const [list, setList] = useState<CompanyDirectoryEntry[]>([])
   const [statusText, setStatusText] = useState('')
@@ -458,8 +462,10 @@ export default function CompanyRegistryPage() {
   }
 
   return (
-    <main className="page page--with-back company-registry-page registry-form-touch">
-      <nav className="contacts-public-auth" aria-label="이동">
+    <main className={`page page--with-back company-registry-page registry-form-touch${opsShellClass}`}>
+      <div className={isOps ? 'admin-page-shell__inner' : undefined}>
+      {isGaStaff ? <GaStaffOpsNav /> : null}
+      <nav className="contacts-public-auth admin-toolbar" aria-label="이동">
         <Link className="button button--small contacts-public-auth__link" to="/insurance/contacts">
           연락처 조회
         </Link>
@@ -750,6 +756,7 @@ export default function CompanyRegistryPage() {
         </p>
       </section>
       {confirmDialog}
+      </div>
     </main>
   )
 }

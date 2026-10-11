@@ -558,18 +558,14 @@ export const appRouter = createBrowserRouter([
               { path: 'admin/create-ga', element: <Navigate to="/admin/ga" replace /> },
               { path: 'admin/delegates', element: <GaDelegateManagementPage /> },
               { path: 'admin/create-staff', element: <Navigate to="/admin/delegates" replace /> },
-<<<<<<< HEAD
-=======
               {
                 element: <GaAdminWorkspaceRoute />,
                 children: [
-                  { path: 'ga-admin/workspace/*', element: <GaAdminWorkspacePage /> },
                   { path: 'ga-admin/notices', element: <GaAdminNoticeListPage /> },
                   { path: 'ga-admin/notices/new', element: <GaAdminNoticeEditorPage /> },
                   { path: 'ga-admin/notices/:id', element: <GaAdminNoticeEditorPage /> },
                 ],
               },
->>>>>>> 60ea8d51 (feat(ga-admin): GA-scoped notices and drop claim settings menu)
               { path: 'admin/users', element: <UserManagementPage /> },
               {
                 element: <NewsletterBoardAdminRoute />,

@@ -2,7 +2,7 @@
  * GA 테넌트 대시보드 메뉴.
  * - USER: CRM 업무 메뉴
  * - GA_ADMIN: 관리 전용 메뉴 (CRM 미포함)
- * - GA_STAFF: 원수사 연락처 · 공유 계정 · 문의/기능요청 3개만 (gaStaffPathPolicy SSOT)
+ * - GA_STAFF: 원수사 연락처 관리 · 연락처 조회 · 공유 계정 · 문의/기능요청 4개만 (gaStaffPathPolicy SSOT)
  * - INSURER_MANAGER / LOSS_ADJUSTER: 채널 전용 메뉴
  */
 
@@ -128,6 +128,7 @@ export const LOSS_ADJUSTER_MENU: GaTenantMenuItem[] = [
 /** GA_STAFF 전용 — gaStaffPathPolicy.GA_STAFF_ALLOWED_PATH_PREFIXES 와 동일 path */
 export const GA_STAFF_MENU: GaTenantMenuItem[] = [
   { label: '원수사 연락처 관리', path: '/insurance/company-registry' },
+  { label: '연락처 조회', path: '/insurance/contacts' },
   { label: '공유 계정 관리', path: '/insurance/account-credentials/shared' },
   { label: '문의 / 기능 요청', path: '/feature-request' },
 ]

@@ -1,0 +1,23 @@
+@import '../admin/admin-ui.css';
+
+.ga-staff-ops-page.admin-page-shell .admin-page-shell__inner {
+  max-width: 1200px;
+}
+
+.ga-staff-ops-page.company-registry-page {
+  max-width: none;
+}
+
+.ga-staff-ops-page .contacts-public-auth {
+  margin-bottom: 16px;
+}
+
+.ga-staff-ops-page .page-header {
+  margin-bottom: 16px;
+}
+
+.ga-staff-ops-page .card,
+.ga-staff-ops-page .company-registry-directory-card,
+.ga-staff-ops-page .company-registry-form-card {
+  margin-bottom: 16px;
+}

@@ -336,7 +336,7 @@ export function NewsletterBoardWriterPanel({
           <div className="newsletter-board-writer-panel__empty">
             <p className="newsletter-board-writer-panel__empty-title">등록된 작성자가 없습니다.</p>
             <p className="newsletter-board-writer-panel__muted">
-              이 소식지에 글을 등록할 작성자 계정을 추가해 주세요.
+              「등록」을 눌러 이 소식지에 글을 올릴 작성자 계정(아이디·비밀번호)을 추가해 주세요.
             </p>
           </div>
         ) : null}

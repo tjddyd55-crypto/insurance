@@ -69,7 +69,12 @@ describe('buildAppMenuForSession — GA전용 소식지 메뉴', () => {
         dynamicNewsletterBoards: [GA_BOARD],
       }),
     )
-    expect(labels).toEqual(['원수사 연락처 관리', '공유 계정 관리', '문의 / 기능 요청'])
+    expect(labels).toEqual([
+      '원수사 연락처 관리',
+      '연락처 조회',
+      '공유 계정 관리',
+      '문의 / 기능 요청',
+    ])
   })
 
   it('GA_ADMIN 메뉴는 관리 전용이며 동적 사용자 소식지 링크를 붙이지 않는다', () => {
