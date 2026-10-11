@@ -108,3 +108,60 @@ export async function writeTrialDefaultDays(value, updatedByUserId = null) {
   invalidateAppSettingsCache('subscription.trial_default_days')
   return normalized
 }
+
+
+const SIGNUP_WELCOME_SMS_MESSAGE_KEY = 'signup.welcome_sms_message'
+
+/**
+ * 가입 완료 안내문자 사용자 설정.
+ * null = 기본 문구 사용.
+ * @returns {Promise<string|null>}
+ */
+export async function readSignupWelcomeSmsMessage() {
+  try {
+    const raw = await readSetting(SIGNUP_WELCOME_SMS_MESSAGE_KEY)
+    if (typeof raw !== 'string') return null
+    const message = raw.trim()
+    return message ? message : null
+  } catch (error) {
+    console.error('[appSettings] readSignupWelcomeSmsMessage 실패 → 기본 문구 폴백:', error)
+    return null
+  }
+}
+
+/**
+ * SUPER_ADMIN이 가입 완료 안내문자 전체 본문을 저장한다.
+ * null이면 사용자 설정을 삭제하여 기본 문구로 복원한다.
+ *
+ * @param {string|null} value
+ * @param {string|null|undefined} updatedByUserId
+ */
+export async function writeSignupWelcomeSmsMessage(value, updatedByUserId = null) {
+  if (value == null) {
+    await pool.query(`DELETE FROM app_settings WHERE key = $1`, [SIGNUP_WELCOME_SMS_MESSAGE_KEY])
+    invalidateAppSettingsCache(SIGNUP_WELCOME_SMS_MESSAGE_KEY)
+    return null
+  }
+
+  const normalized = String(value).replace(/\r\n/g, '\n').trim()
+  if (!normalized) {
+    throw new Error('가입 안내 문자 내용을 입력해 주세요.')
+  }
+  if (normalized.length > 2000) {
+    throw new Error('가입 안내 문자는 2,000자 이하여야 합니다.')
+  }
+
+  await pool.query(
+    `
+    INSERT INTO app_settings (key, value_json, updated_at, updated_by_user_id)
+    VALUES ($1, $2::jsonb, NOW(), $3)
+    ON CONFLICT (key) DO UPDATE
+      SET value_json = EXCLUDED.value_json,
+          updated_at = NOW(),
+          updated_by_user_id = EXCLUDED.updated_by_user_id
+    `,
+    [SIGNUP_WELCOME_SMS_MESSAGE_KEY, JSON.stringify(normalized), updatedByUserId ?? null],
+  )
+  invalidateAppSettingsCache(SIGNUP_WELCOME_SMS_MESSAGE_KEY)
+  return normalized
+}
