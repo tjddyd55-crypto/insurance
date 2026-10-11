@@ -13,8 +13,10 @@ export default function NewsletterBoardAdminPCView(props: NewsletterBoardAdminVi
     )
   }
   return (
-    <main className="page page--with-back newsletter-board-admin-page newsletter-board-admin-page--pc user-page">
-      <NewsletterBoardAdminView {...props} />
+    <main className="page page--with-back admin-page-shell newsletter-board-admin-page newsletter-board-admin-page--pc user-page">
+      <div className="admin-page-shell__inner">
+        <NewsletterBoardAdminView {...props} />
+      </div>
     </main>
   )
 }

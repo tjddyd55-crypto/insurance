@@ -12,6 +12,8 @@ import {
   type MyFeatureRequestRow,
 } from '../../auth/authApi'
 import { useAuth } from '../../auth/AuthProvider'
+import { GaStaffOpsNav } from '../../auth/GaStaffOpsNav'
+import '../../auth/ga-staff-ops-shell.css'
 import { Button } from '../../../components/ui'
 import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
 import { formatFeatureRequestCommentAuthor } from '../formatFeatureRequestAuthor.js'
@@ -53,7 +55,8 @@ function statusLabel(status: FeatureRequestStatus): string {
 }
 
 export default function FeatureRequestPage() {
-  const { token } = useAuth()
+  const { token, user } = useAuth()
+  const isGaStaff = user?.role === 'GA_STAFF'
   const { confirm, confirmDialog } = useConfirmDialog()
   const [open, setOpen] = useState(false)
   const [rows, setRows] = useState<MyFeatureRequestRow[]>([])
@@ -198,7 +201,11 @@ export default function FeatureRequestPage() {
   }
 
   return (
-    <main className="page--with-back content-wrapper">
+    <main
+      className={`page page--with-back content-wrapper${isGaStaff ? ' admin-page-shell ga-staff-ops-page' : ''}`}
+    >
+      <div className={isGaStaff ? 'admin-page-shell__inner' : undefined}>
+      {isGaStaff ? <GaStaffOpsNav /> : null}
       <div className="flex justify-between items-center mb-3">
         <h1 className="text-lg font-semibold">문의 / 기능 요청</h1>
         <Button type="button" className="shrink-0 px-3 py-1.5 text-xs" onClick={openModal}>
@@ -384,6 +391,7 @@ export default function FeatureRequestPage() {
         </div>
       </FormDialog>
       {confirmDialog}
+      </div>
     </main>
   )
 }

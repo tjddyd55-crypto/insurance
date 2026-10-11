@@ -1,3 +1,9 @@
+@import '../../../admin/admin-ui.css';
+
+.newsletter-board-admin-page.admin-page-shell .admin-page-shell__inner {
+  max-width: 1200px;
+}
+
 .newsletter-board-admin-page--pc .newsletter-board-admin-page__intro,
 .newsletter-board-admin-page--mobile .newsletter-board-admin-page__intro {
   margin-bottom: 16px;

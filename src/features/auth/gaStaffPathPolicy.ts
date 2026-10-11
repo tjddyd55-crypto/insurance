@@ -5,9 +5,10 @@
 
 import { resolveAuthLandingPath } from './landing'
 
-/** GA_STAFF 업무 메뉴 — 3개만 허용 */
+/** GA_STAFF 업무 메뉴 — 4개만 허용 (gaTenantMenu.GA_STAFF_MENU 와 동일) */
 export const GA_STAFF_ALLOWED_PATH_PREFIXES = [
   '/insurance/company-registry',
+  '/insurance/contacts',
   '/insurance/account-credentials/shared',
   '/feature-request',
 ] as const

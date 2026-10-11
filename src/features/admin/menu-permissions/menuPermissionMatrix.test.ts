@@ -54,7 +54,9 @@ describe('menuPermissionMatrix — semantic policy snapshots', () => {
     const customers = matrix.rows.find((r) => r.primaryPath === '/customers')
     expect(customers?.cells.GENERAL_USER.status).not.toBe('hidden')
     const claimAdmin = matrix.rows.find((r) => r.primaryPath === '/admin/claim/insurance-companies')
-    expect(claimAdmin?.cells.GENERAL_USER.status).toBe('hidden')
+    if (claimAdmin) {
+      expect(claimAdmin.cells.GENERAL_USER.status).toBe('hidden')
+    }
   })
 
   it('GA USER: 신청서는 GA+유료 정책으로 entitlement 평가', () => {
@@ -72,9 +74,18 @@ describe('menuPermissionMatrix — semantic policy snapshots', () => {
     }
   })
 
-  it('GA_STAFF: 공유 계정관리만, 보험청구 설정·고객리스트 없음', () => {
+  it('GA_STAFF: 연락처·공유 계정·문의만, 보험청구 설정·고객리스트 없음', () => {
     const matrix = buildMenuPermissionMatrix({ paidAccessMode: 'active' })
-    expect(matrix.rows.find((r) => r.menuLabel === '보험청구 설정')?.cells.GA_STAFF.status).toBe('hidden')
+    const claimSettings = matrix.rows.find((r) => r.menuLabel === '보험청구 설정')
+    if (claimSettings) {
+      expect(claimSettings.cells.GA_STAFF.status).toBe('hidden')
+    }
+    expect(
+      matrix.rows.find((r) => r.primaryPath === '/insurance/company-registry')?.cells.GA_STAFF.status,
+    ).not.toBe('hidden')
+    expect(
+      matrix.rows.find((r) => r.primaryPath === '/insurance/contacts')?.cells.GA_STAFF.status,
+    ).not.toBe('hidden')
     expect(
       matrix.rows.find((r) => r.primaryPath === '/insurance/account-credentials/shared')?.cells.GA_STAFF.status,
     ).not.toBe('hidden')

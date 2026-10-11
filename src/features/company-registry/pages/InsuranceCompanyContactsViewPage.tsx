@@ -2,6 +2,8 @@ import { FormButton, FormInput } from '../../../components/form'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
+import { GaStaffOpsNav } from '../../auth/GaStaffOpsNav'
+import '../../auth/ga-staff-ops-shell.css'
 import { canMutateInsuranceDirectory, isInsuranceOpsRole } from '../../auth/roleGuards'
 import { companyDirectoryRowMatchesSearchAlias } from '../domain/insuranceSearchAliases'
 import { getCompanyRecentUpdates, listCompanyDirectory } from '../api/companyRegistryApi'
@@ -42,6 +44,8 @@ export default function InsuranceCompanyContactsViewPage() {
   const navigate = useNavigate()
   const { user, token, isAuthenticated } = useAuth()
   const isStaff = isAuthenticated && !!user && isInsuranceOpsRole(user.role)
+  const isGaStaff = user?.role === 'GA_STAFF'
+  const opsShellClass = isStaff ? ' admin-page-shell ga-staff-ops-page' : ''
   const canEditFromCard = !!user && canMutateInsuranceDirectory(user.role)
 
   const [activeTab, setActiveTab] = useState<InsuranceCategory>('LIFE')
@@ -151,9 +155,13 @@ export default function InsuranceCompanyContactsViewPage() {
   }
 
   return (
-    <main className="page page--with-back company-registry-page insurance-contacts-view company-directory-read-ui user-page">
-      <nav className="contacts-public-auth contacts-public-auth--compact" aria-label="이동">
-        {isStaff ? (
+    <main
+      className={`page page--with-back company-registry-page insurance-contacts-view company-directory-read-ui user-page${opsShellClass}`}
+    >
+      <div className={isStaff ? 'admin-page-shell__inner' : undefined}>
+      {isGaStaff ? <GaStaffOpsNav /> : null}
+      <nav className="contacts-public-auth contacts-public-auth--compact admin-toolbar" aria-label="이동">
+        {isStaff && !isGaStaff ? (
           <Link
             className="button button--small contacts-public-auth__link touch-nav-btn"
             to="/insurance/company-registry"
@@ -243,6 +251,7 @@ export default function InsuranceCompanyContactsViewPage() {
           </div>
         )}
       </section>
+      </div>
     </main>
   )
 }
