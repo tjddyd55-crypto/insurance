@@ -809,6 +809,8 @@ export async function deleteGaCompany(token: string, id: number): Promise<void> 
 
 export type FeatureRequestStatus = 'pending' | 'reviewed' | 'done'
 
+export type FeatureRequestType = 'error' | 'inquiry' | 'feature' | 'other'
+
 export interface FeatureRequestAdminRow {
   id: number
   ga_id: number
@@ -819,6 +821,7 @@ export interface FeatureRequestAdminRow {
   title: string
   content: string
   status: FeatureRequestStatus
+  request_type: FeatureRequestType
   created_at: string
   comment_count: number
 }
@@ -840,15 +843,17 @@ export interface FeatureRequestComment {
 
 export async function submitFeatureRequest(
   token: string,
-  payload: { content: string; title?: string },
+  payload: { content: string; title?: string; request_type?: FeatureRequestType },
 ) {
   const title = String(payload.title ?? '').trim()
   const content = String(payload.content ?? '').trim()
+  const requestType = payload.request_type ?? 'feature'
   return apiRequest<{ id: number; created_at: string }>('/api/feature-request', {
     method: 'POST',
     token,
     body: JSON.stringify({
       content,
+      request_type: requestType,
       ...(title ? { title } : {}),
     }),
   })
@@ -859,6 +864,7 @@ export interface MyFeatureRequestRow {
   title: string
   content: string
   status: FeatureRequestStatus
+  request_type: FeatureRequestType
   created_at: string
   comment_count: number
 }

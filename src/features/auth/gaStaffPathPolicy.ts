@@ -1,49 +1,37 @@
 /**
- * GA_STAFF(STEP) 가 직접 URL로 접근하면 차단할 관리·설정 path SSOT.
- * 메뉴 숨김과 별도로 route guard 에서 사용한다.
+ * GA_STAFF(STEP) 허용 경로 SSOT.
+ * 메뉴(buildAppMenuForSession)와 route guard(RequireNotInsurerManagerRoute)가 동일 목록을 사용한다.
  */
 
 import { resolveAuthLandingPath } from './landing'
 
-const GA_STAFF_BLOCKED_PREFIXES = [
-  '/admin/claim/',
-  '/admin/pdf-templates',
-  '/admin/contract-signatures',
-  '/admin/newsletter-boards',
-  '/admin/delegates',
-  '/admin/ga',
-  '/admin/users',
-  '/admin/audit-logs',
-  '/admin/billing/',
-  '/admin/notices',
-  '/admin/message-settings',
-  '/admin/analytics',
-  '/internal/admin/',
-  '/ga-admin/',
-]
+/** GA_STAFF 업무 메뉴 — 3개만 허용 */
+export const GA_STAFF_ALLOWED_PATH_PREFIXES = [
+  '/insurance/company-registry',
+  '/insurance/account-credentials/shared',
+  '/feature-request',
+] as const
 
-const GA_STAFF_BLOCKED_EXACT = new Set([
-  '/admin/pdf-templates',
-  '/admin/contract-signatures',
-  '/admin/newsletter-boards',
-  '/admin/delegates',
-  '/admin/ga',
-  '/admin/users',
-  '/admin/audit-logs',
-  '/admin/message-settings',
-])
+export function isGaStaffAllowedPath(pathname: string): boolean {
+  const path = normalizePathname(pathname)
+  if (!path) {
+    return false
+  }
+  return GA_STAFF_ALLOWED_PATH_PREFIXES.some(
+    (prefix) => path === prefix || path.startsWith(`${prefix}/`),
+  )
+}
 
+/**
+ * GA_STAFF 가 앱 워크스페이스에서 접근하면 차단할 path.
+ * allowlist 밖의 모든 경로는 차단(직접 URL 포함).
+ */
 export function isGaStaffBlockedAdminPath(pathname: string): boolean {
   const path = normalizePathname(pathname)
   if (!path) {
     return false
   }
-  if (GA_STAFF_BLOCKED_EXACT.has(path)) {
-    return true
-  }
-  return GA_STAFF_BLOCKED_PREFIXES.some(
-    (prefix) => path === prefix.replace(/\/$/, '') || path.startsWith(prefix),
-  )
+  return !isGaStaffAllowedPath(path)
 }
 
 export function resolveGaStaffFallbackPath(isMobile: boolean): string {

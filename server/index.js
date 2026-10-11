@@ -4794,6 +4794,16 @@ apiRouter.patch('/admin/delegates/:id', requireAuth, requireSuperAdmin, async (r
   }
 })
 
+const FEATURE_REQUEST_TYPES = new Set(['error', 'inquiry', 'feature', 'other'])
+
+function parseFeatureRequestTypeBody(raw) {
+  const value = String(raw ?? '').trim()
+  if (FEATURE_REQUEST_TYPES.has(value)) {
+    return value
+  }
+  return 'feature'
+}
+
 apiRouter.post('/feature-request', requireAuth, async (req, res) => {
   try {
     const gaId = parseGaId(req.user?.gaId)
@@ -4802,6 +4812,7 @@ apiRouter.post('/feature-request', requireAuth, async (req, res) => {
       res.status(400).json({ message: '세션 정보가 올바르지 않습니다.' })
       return
     }
+    const requestType = parseFeatureRequestTypeBody(req.body?.request_type ?? req.body?.type)
     const content = String(req.body?.content ?? '').trim()
     if (!content) {
       res.status(400).json({ message: '내용을 입력해 주세요.' })
@@ -4821,11 +4832,11 @@ apiRouter.post('/feature-request', requireAuth, async (req, res) => {
     }
     const ins = await safeQuery(pool,
       `
-      INSERT INTO feature_requests (ga_id, user_id, title, content)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO feature_requests (ga_id, user_id, title, content, request_type)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING id, created_at
       `,
-      [gaId, userId, title, content],
+      [gaId, userId, title, content, requestType],
     )
     res.status(201).json({
       id: ins.rows[0].id,
@@ -4855,6 +4866,7 @@ apiRouter.get('/feature-requests/my', requireAuth, async (req, res) => {
         fr.title,
         fr.content,
         fr.status,
+        fr.request_type,
         fr.created_at,
         (
           ${FEATURE_REQUEST_COMMENT_COUNT_SUBQUERY_SQL}
@@ -4871,6 +4883,7 @@ apiRouter.get('/feature-requests/my', requireAuth, async (req, res) => {
       title: String(row.title ?? ''),
       content: row.content,
       status: row.status,
+      request_type: parseFeatureRequestTypeBody(row.request_type),
       created_at: toIsoString(row.created_at),
       comment_count: Number(row.comment_count ?? 0),
     }))
@@ -4930,6 +4943,7 @@ apiRouter.get('/admin/feature-requests', requireAuth, requireSuperAdmin, async (
         COALESCE(fr.title, '') AS title,
         fr.content,
         fr.status,
+        fr.request_type,
         fr.created_at,
         (
           ${FEATURE_REQUEST_COMMENT_COUNT_SUBQUERY_SQL}
@@ -4951,6 +4965,7 @@ apiRouter.get('/admin/feature-requests', requireAuth, requireSuperAdmin, async (
       title: String(row.title ?? ''),
       content: row.content,
       status: row.status,
+      request_type: parseFeatureRequestTypeBody(row.request_type),
       created_at: toIsoString(row.created_at),
       comment_count: Number(row.comment_count ?? 0),
     }))

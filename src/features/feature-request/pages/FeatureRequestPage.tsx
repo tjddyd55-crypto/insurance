@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { FormDialog, useConfirmDialog } from '../../../components/dialog'
 import { EmptyState, StatusMessage } from '../../../components/feedback'
-import { FieldWrapper, FormButton, FormInput, FormTextarea } from '../../../components/form'
+import { FieldWrapper, FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
 import {
   deleteMyFeatureRequest,
   listMyFeatureRequestComments,
@@ -15,6 +15,11 @@ import { useAuth } from '../../auth/AuthProvider'
 import { Button } from '../../../components/ui'
 import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
 import { formatFeatureRequestCommentAuthor } from '../formatFeatureRequestAuthor.js'
+import {
+  FEATURE_REQUEST_TYPE_OPTIONS,
+  featureRequestTypeLabel,
+  type FeatureRequestType,
+} from '../featureRequestTypes'
 
 /*
  * 사용자 "문의 / 요청" 페이지.
@@ -53,6 +58,7 @@ export default function FeatureRequestPage() {
   const [open, setOpen] = useState(false)
   const [rows, setRows] = useState<MyFeatureRequestRow[]>([])
   const [listError, setListError] = useState('')
+  const [requestType, setRequestType] = useState<FeatureRequestType>('inquiry')
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [modalError, setModalError] = useState('')
@@ -82,6 +88,7 @@ export default function FeatureRequestPage() {
 
   useEffect(() => {
     if (!open) {
+      setRequestType('inquiry')
       setTitle('')
       setContent('')
       setModalError('')
@@ -169,7 +176,7 @@ export default function FeatureRequestPage() {
     setModalError('')
     setIsSubmitting(true)
     try {
-      await submitFeatureRequest(token, { title: t, content: c })
+      await submitFeatureRequest(token, { title: t, content: c, request_type: requestType })
       setOpen(false)
       setTitle('')
       setContent('')
@@ -193,7 +200,7 @@ export default function FeatureRequestPage() {
   return (
     <main className="page--with-back content-wrapper">
       <div className="flex justify-between items-center mb-3">
-        <h1 className="text-lg font-semibold">추가기능 요청하기</h1>
+        <h1 className="text-lg font-semibold">문의 / 기능 요청</h1>
         <Button type="button" className="shrink-0 px-3 py-1.5 text-xs" onClick={openModal}>
           작성하기
         </Button>
@@ -220,6 +227,12 @@ export default function FeatureRequestPage() {
                 key={item.id}
                 className="p-3 border-b border-[var(--border-default)] last:border-b-0"
               >
+                <div className="flex gap-2 mb-1">
+                  <span className="w-12 shrink-0 text-[var(--text-secondary)] text-sm">유형:</span>
+                  <span className="text-[var(--text-primary)] text-sm">
+                    {featureRequestTypeLabel(item.request_type)}
+                  </span>
+                </div>
                 <div className="flex gap-2 mb-1">
                   <span className="w-12 shrink-0 text-[var(--text-secondary)] text-sm">제목:</span>
                   <span className="text-[var(--text-primary)] text-sm break-words">
@@ -316,7 +329,7 @@ export default function FeatureRequestPage() {
       <FormDialog
         open={open}
         onClose={closeModal}
-        title="추가기능 요청 작성"
+        title="문의 / 기능 요청 작성"
         panelClassName="max-w-xl"
         footer={
           <div className="flex gap-2 flex-wrap">
@@ -341,6 +354,14 @@ export default function FeatureRequestPage() {
         }
       >
         <div className="space-y-3">
+          <FieldWrapper label="유형">
+            <FormSelect
+              className="w-full text-sm"
+              value={requestType}
+              onChange={(e) => setRequestType(e.target.value as FeatureRequestType)}
+              options={FEATURE_REQUEST_TYPE_OPTIONS}
+            />
+          </FieldWrapper>
           <FieldWrapper label="제목">
             <FormInput
               className="w-full text-sm"
