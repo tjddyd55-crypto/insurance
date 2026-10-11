@@ -46,6 +46,24 @@ export function isStoreReviewBillingSubject(input) {
  * PG 심사용 결제 UI 예외 허용. false 로 끄면 review tenant 도 free-launch 숨김을 따른다.
  * @param {NodeJS.ProcessEnv | Record<string, string | undefined>} [env]
  */
+/** 스토어·Google 검토 계정의 CRM 카카오/SMS 실발송 차단 안내 */
+export const STORE_REVIEW_OUTBOUND_BLOCK_MESSAGE =
+  '검토용 계정에서는 실제 메시지가 발송되지 않습니다.'
+
+/**
+ * 검토용 계정의 카카오·SMS 등 운영 발송 차단 (인증 SMS 등 필수 트랜잭션은 별도 경로).
+ * @param {{ username?: string | null, gaCode?: string | null, tenantCode?: string | null }} input
+ */
+export function isStoreReviewOutboundMessagingBlocked(input) {
+  const username = String(input?.username ?? '')
+    .trim()
+    .toLowerCase()
+  if (STORE_REVIEW_USERNAMES.has(username)) {
+    return true
+  }
+  return isStoreReviewBillingSubject(input)
+}
+
 export function isBillingReviewAccessEnabled(env = process.env) {
   const raw = String(env.BILLING_REVIEW_ACCESS_ENABLED ?? 'true').trim().toLowerCase()
   if (raw === '' || raw === 'true' || raw === '1' || raw === 'yes' || raw === 'on') {

@@ -1,4 +1,8 @@
 import {
+  isStoreReviewOutboundMessagingBlocked,
+  STORE_REVIEW_OUTBOUND_BLOCK_MESSAGE,
+} from './lib/storeReviewIdentity.js'
+import {
   cancelSmsCampaign,
   createSmsCampaign,
   getSmsCampaign,
@@ -271,6 +275,10 @@ export function registerSmsModuleApi(apiRouter, ctx) {
 
   apiRouter.post('/sms/senders/:id/test', requireAuth, ensureSmsModuleEnabled, ensureSmsRealSendEnabled, async (req, res) => {
     try {
+      if (isStoreReviewOutboundMessagingBlocked(req.user)) {
+        smsApiError(res, { status: 403, publicMessage: STORE_REVIEW_OUTBOUND_BLOCK_MESSAGE })
+        return
+      }
       const scope = await resolveSmsAuthContext(pool, req)
       const senderId = Number(req.params.id)
       const senders = await listSmsSenders(pool, scope)
@@ -297,6 +305,10 @@ export function registerSmsModuleApi(apiRouter, ctx) {
 
   apiRouter.post('/sms/test-send', requireAuth, ensureSmsModuleEnabled, ensureSmsRealSendEnabled, async (req, res) => {
     try {
+      if (isStoreReviewOutboundMessagingBlocked(req.user)) {
+        smsApiError(res, { status: 403, publicMessage: STORE_REVIEW_OUTBOUND_BLOCK_MESSAGE })
+        return
+      }
       const scope = await resolveSmsAuthContext(pool, req)
       const body = req.body ?? {}
       const result = await testSmsSend(pool, scope, {
@@ -330,6 +342,10 @@ export function registerSmsModuleApi(apiRouter, ctx) {
 
   apiRouter.post('/sms/send', requireAuth, ensureSmsModuleEnabled, ensureSmsRealSendEnabled, async (req, res) => {
     try {
+      if (isStoreReviewOutboundMessagingBlocked(req.user)) {
+        smsApiError(res, { status: 403, publicMessage: STORE_REVIEW_OUTBOUND_BLOCK_MESSAGE })
+        return
+      }
       const scope = await resolveSmsAuthContext(pool, req)
       const body = req.body ?? {}
       const result = await sendSingleSms(pool, scope, {
@@ -440,6 +456,10 @@ export function registerSmsModuleApi(apiRouter, ctx) {
 
   apiRouter.post('/sms/campaigns/:id/send', requireAuth, ensureSmsModuleEnabled, ensureSmsRealSendEnabled, async (req, res) => {
     try {
+      if (isStoreReviewOutboundMessagingBlocked(req.user)) {
+        smsApiError(res, { status: 403, publicMessage: STORE_REVIEW_OUTBOUND_BLOCK_MESSAGE })
+        return
+      }
       const scope = await resolveSmsAuthContext(pool, req)
       const body = req.body ?? {}
       const result = await sendSmsCampaignNow(pool, scope, Number(req.params.id), {

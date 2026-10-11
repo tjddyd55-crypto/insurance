@@ -8,6 +8,10 @@ import {
   resolveCustomerAppSmsAvailability,
   sendCustomerAppSmsViaUserAligo,
 } from './customerAppSmsShare.js'
+import {
+  isStoreReviewOutboundMessagingBlocked,
+  STORE_REVIEW_OUTBOUND_BLOCK_MESSAGE,
+} from '../lib/storeReviewIdentity.js'
 
 function parsePositiveInt(value) {
   const n = Number(value)
@@ -75,6 +79,15 @@ export function registerCustomerAppShareApi(apiRouter, ctx) {
 
   apiRouter.post('/agent/customers/:customerId/customer-app/sms', requireAuth, async (req, res) => {
     try {
+      if (isStoreReviewOutboundMessagingBlocked(req.user)) {
+        res.status(403).json({
+          success: false,
+          message: STORE_REVIEW_OUTBOUND_BLOCK_MESSAGE,
+          error: STORE_REVIEW_OUTBOUND_BLOCK_MESSAGE,
+          data: { status: 'blocked' },
+        })
+        return
+      }
       const customerId = parsePositiveInt(req.params.customerId)
       if (customerId == null) {
         res.status(400).json({ success: false, error: '고객 ID가 올바르지 않습니다.' })

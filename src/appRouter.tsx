@@ -17,6 +17,7 @@ import AuditLogsPage from './features/admin/pages/AuditLogsPage'
 import MenuPermissionMatrixPage from './features/admin/menu-permissions/MenuPermissionMatrixPage'
 import AiAssistantToolRegistryPage from './features/ai-assistant/pages/AiAssistantToolRegistryPage'
 import AiSecretaryPage from './features/ai-secretary/pages/AiSecretaryPage'
+import { RequireAiFeatureRoute } from './features/ai-secretary/components/RequireAiFeatureRoute'
 import SubscriptionPolicyPage from './features/admin/pages/SubscriptionPolicyPage'
 import AdminBillingManagePage, { AdminBillingLegacyRedirect } from './features/billing/pages/AdminBillingManagePage'
 import AccountBillingPage from './features/billing/pages/AccountBillingPage'
@@ -394,7 +395,14 @@ export const appRouter = createBrowserRouter([
                 element: <RequireInsuranceBillingEntitlement />,
                 children: [
           { path: 'dashboard', element: <DashboardPage /> },
-          { path: 'ai-assistant', element: <AiSecretaryPage /> },
+          {
+            path: 'ai-assistant',
+            element: (
+              <RequireAiFeatureRoute>
+                <AiSecretaryPage />
+              </RequireAiFeatureRoute>
+            ),
+          },
           { path: 'public-account-restricted', element: <PublicAccountRestrictedPage /> },
           { path: 'contacts/manage', element: <Navigate to="/insurance/company-registry" replace /> },
           { path: 'updates', element: <Navigate to="/insurance/history" replace /> },
@@ -651,7 +659,14 @@ export const appRouter = createBrowserRouter([
                   { path: 'admin/notices/new', element: <AdminNoticeEditorPage /> },
                   { path: 'admin/notices/:id', element: <AdminNoticeEditorPage /> },
                   { path: 'admin/menu-permissions', element: <MenuPermissionMatrixPage /> },
-                  { path: 'admin/ai-assistant/tools', element: <AiAssistantToolRegistryPage /> },
+                  {
+                    path: 'admin/ai-assistant/tools',
+                    element: (
+                      <RequireAiFeatureRoute fallbackPath="/admin/ga">
+                        <AiAssistantToolRegistryPage />
+                      </RequireAiFeatureRoute>
+                    ),
+                  },
                 ],
               },
               {

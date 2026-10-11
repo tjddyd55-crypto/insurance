@@ -10,6 +10,10 @@ import {
   resolveCustomerRegistrationSmsAvailability,
   sendCustomerRegistrationSmsViaUserAligo,
 } from './customerRegistrationSmsShare.js'
+import {
+  isStoreReviewOutboundMessagingBlocked,
+  STORE_REVIEW_OUTBOUND_BLOCK_MESSAGE,
+} from '../lib/storeReviewIdentity.js'
 
 /**
  * @param {import('pg').Pool} pool
@@ -108,6 +112,15 @@ export function registerCustomerRegistrationShareApi(apiRouter, ctx) {
 
   apiRouter.post('/agent/customer-registration/sms', requireAuth, async (req, res) => {
     try {
+      if (isStoreReviewOutboundMessagingBlocked(req.user)) {
+        res.status(403).json({
+          success: false,
+          message: STORE_REVIEW_OUTBOUND_BLOCK_MESSAGE,
+          error: STORE_REVIEW_OUTBOUND_BLOCK_MESSAGE,
+          data: { status: 'blocked' },
+        })
+        return
+      }
       const phoneDigits = normalizeAlimtalkPhone(req.body?.receiver)
       const phoneErr = validateAlimtalkPhone(phoneDigits)
       if (phoneErr) {
@@ -169,6 +182,15 @@ export function registerCustomerRegistrationShareApi(apiRouter, ctx) {
 
   apiRouter.post('/agent/customer-registration/alimtalk', requireAuth, async (req, res) => {
     try {
+      if (isStoreReviewOutboundMessagingBlocked(req.user)) {
+        res.status(403).json({
+          success: false,
+          message: STORE_REVIEW_OUTBOUND_BLOCK_MESSAGE,
+          error: STORE_REVIEW_OUTBOUND_BLOCK_MESSAGE,
+          data: { status: 'blocked' },
+        })
+        return
+      }
       const agentId = String(req.user?.id ?? '').trim()
       if (!agentId) {
         res.status(401).json({ success: false, error: '로그인이 필요합니다.', message: '로그인이 필요합니다.' })

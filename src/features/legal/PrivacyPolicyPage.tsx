@@ -5,6 +5,8 @@ import LegalInternalLink from './LegalInternalLink'
 import LegalPageShell from './LegalPageShell'
 import { privacySiteConfig as C } from './privacySiteConfig'
 
+const GOOGLE_API_USER_DATA_POLICY_URL = 'https://developers.google.com/terms/api-services-user-data-policy'
+
 function setOrCreateMeta(name: string, content: string) {
   let el = document.querySelector(`meta[name="${name}"]`)
   if (!el) {
@@ -45,6 +47,10 @@ export default function PrivacyPolicyPage() {
             {C.serviceName}
             (이하 &quot;서비스&quot;) 이용과 관련하여 정보주체의 개인정보를 보호하고 권익을 보호하기 위하여 다음과
             같은 처리방침을 둡니다.
+          </p>
+          <p className="legal-doc__note">
+            개정 안내: 이번 개정은 2026년 10월 2일에 공지하며 2026년 10월 9일부터 시행합니다. 시행일 전까지는
+            종전 개인정보처리방침(2026년 7월 13일 개정)이 적용됩니다.
           </p>
         </header>
 
@@ -87,6 +93,9 @@ export default function PrivacyPolicyPage() {
             <li>
               <a href="#s12">개인정보 처리방침의 변경</a>
             </li>
+            <li>
+              <a href="#s13">Google 서비스 연동</a>
+            </li>
           </ol>
         </nav>
 
@@ -117,6 +126,10 @@ export default function PrivacyPolicyPage() {
             <li>
               <strong>도입·이용 문의(소개 페이지)</strong>: 이름, 연락처, 문의 내용 및 선택 입력 항목(소속·GA/지점,
               이메일, 연락 가능 시간 등)
+            </li>
+            <li>
+              <strong>Google 서비스 연동(선택)</strong>: Google Calendar 캘린더 목록 및 일정 정보, Google Tasks 할
+              일 목록 및 할 일 정보 (자세한 내용은 제13조)
             </li>
           </ul>
           <h3>도입·이용 문의 수집·이용</h3>
@@ -259,6 +272,87 @@ export default function PrivacyPolicyPage() {
             이 개인정보 처리방침은 시행일로부터 적용되며, 법령·정책 또는 서비스 변경에 따라 내용의 추가·삭제·수정이
             있을 경우 변경사항 시행 7일 전부터 공지합니다. 다만 정보주체 권리에 중대한 영향을 미치는 경우 최소 30일
             전에 공지할 수 있습니다.
+          </p>
+        </section>
+
+        <section className="legal-doc__section" id="s13">
+          <h2>제13조 Google 서비스 연동</h2>
+          <h3>Google 계정 연동</h3>
+          <p>
+            {C.serviceName}는 이용자가 Google 서비스 연동을 선택한 경우 Google OAuth를 통해 필요한 정보에 접근합니다.
+            Google 연결은 이용자의 ONE FC 계정별로 이루어지며, Google 사용자 데이터는 연결한 이용자 본인에게만
+            표시되고, 관리자를 포함한 다른 ONE FC 이용자에게는 표시되지 않습니다.
+          </p>
+          <h3>접근 범위</h3>
+          <ul className="legal-doc__list">
+            <li>
+              <strong>Google 계정 기본 정보</strong>: 사용자 식별 정보, 이메일, 프로필 정보(openid, email, profile
+              scope)
+            </li>
+            <li>
+              <strong>Google Calendar</strong>: 캘린더 목록, 일정 정보 — 읽기 전용(
+              <code>calendar.readonly</code> scope)
+            </li>
+            <li>
+              <strong>Google Tasks</strong>: Google Tasks 할 일 목록 및 할 일 정보(제목, 메모, 예정일, 완료 여부, 목록
+              이름 등) — 읽기 전용(<code>tasks.readonly</code> scope)
+            </li>
+          </ul>
+          <h3>이용 목적</h3>
+          <p>
+            Google 데이터는 ONE FC 일정 관리 화면에서 Google Calendar 일정 표시, Google Tasks의 할 일 정보 표시,
+            Google 계정 연결 상태 표시, 이용자가 요청한 서비스 연동 기능 제공을 위해 이용합니다. 회사는 일정/할 일
+            관리 화면에서 이용자 본인의 Google 일정 및 할 일을 읽기 전용으로 함께 표시하는 데에만 이용합니다. ONE FC는
+            Google Calendar 일정을 생성·수정·삭제하지 않으며, Google Tasks 할 일을 생성·수정·완료 처리·삭제하지
+            않습니다.
+          </p>
+          <h3>보관·처리</h3>
+          <ul className="legal-doc__list">
+            <li>
+              Google OAuth 인증 토큰은 서비스 연동 유지를 위해 안전하게 저장합니다(암호화 저장). 연결 해제 시 삭제합니다.
+            </li>
+            <li>
+              Calendar·Tasks 데이터는 서비스 제공에 필요한 범위에서 일시적으로 처리합니다. Google 일정 및 할 일 정보는
+              영구 저장하지 않고, 서버에서 약 60초 이내 캐시 후 삭제합니다.
+            </li>
+            <li>일정·할 일 원문을 별도 영구 저장하지 않으며, 브라우저(로컬 저장소 등)에는 저장하지 않습니다.</li>
+          </ul>
+          <h3>제3자 제공·광고</h3>
+          <p>
+            Google 사용자 데이터를 광고 목적으로 이용하지 않습니다. 판매하지 않으며, 서비스 제공 목적 외로 사용하지
+            않습니다. 법령상 의무 또는 이용자 동의 없이 제3자에게 제공하지 않습니다.
+          </p>
+          <h3>연결 해제·삭제</h3>
+          <p>
+            이용자는 서비스 내 <strong>서비스 연동 → Google → 연결 해제</strong>를 통해 언제든 Google 연결을 해제할 수
+            있습니다. 연결 해제 시 저장된 Google 연동 인증 정보가 삭제되고 Google에 토큰 폐기(revoke)를 요청합니다.
+            Google 계정 자체는 삭제되지 않습니다. 필요 시{' '}
+            <a
+              href="https://myaccount.google.com/permissions"
+              className="legal-doc__link"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Google 계정의 제3자 앱 접근 권한
+            </a>
+            에서도 별도로 해제할 수 있습니다.
+          </p>
+          <h3>Google API Limited Use</h3>
+          <p>
+            회사가 Google API로부터 받은 정보를 이용하고 다른 앱으로 전송하는 행위는 제한적 사용(Limited Use) 요건을
+            포함한 Google API Services User Data Policy를 준수합니다.
+          </p>
+          <p className="legal-doc__note" lang="en">
+            ONE FC&apos;s use and transfer of information received from Google APIs to any other app will adhere to{' '}
+            <a
+              href={GOOGLE_API_USER_DATA_POLICY_URL}
+              className="legal-doc__link"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Google API Services User Data Policy
+            </a>
+            , including the Limited Use requirements.
           </p>
         </section>
 

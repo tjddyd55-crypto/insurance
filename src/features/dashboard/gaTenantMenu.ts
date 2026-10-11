@@ -27,6 +27,7 @@ import {
 } from '../insurer-news/utils/newsletterBoardMenuLinks'
 import type { DynamicNewsletterBoardMenuItem } from '../insurer-news/utils/newsletterBoardMenuLinks'
 import { isBillingUiVisibleForUser } from '../billing/storeReviewBillingAccess'
+import { isAiFeatureVisible } from '../ai-secretary/config/aiSecretaryUserUiGate'
 
 export type { DynamicNewsletterBoardMenuItem }
 
@@ -546,12 +547,14 @@ function buildSuperAdminMenuEntries(): GaTenantDashboardMenuEntry[] {
   entries.push({ type: 'section', label: '전자문서 / 서명 관리' })
   entries.push(...itemsToEntries(documentItems))
 
-  entries.push({ type: 'section', label: 'AI 비서 관리' })
-  entries.push(
-    ...itemsToEntries([
-      { label: AI_ASSISTANT_TOOLS_ENTRY.label, path: AI_ASSISTANT_TOOLS_ENTRY.path },
-    ]),
-  )
+  if (isAiFeatureVisible()) {
+    entries.push({ type: 'section', label: 'AI 비서 관리' })
+    entries.push(
+      ...itemsToEntries([
+        { label: AI_ASSISTANT_TOOLS_ENTRY.label, path: AI_ASSISTANT_TOOLS_ENTRY.path },
+      ]),
+    )
+  }
 
   entries.push({ type: 'section', label: '보험사 / 시스템 설정' })
   entries.push(
@@ -645,7 +648,7 @@ export function buildAppMenuForSession(
   const filtered = subscriptionExpired ? filterMenuForExpired(withTeam) : withTeam
   // AI 비서 메뉴는 일반 사용자(USER) 전용. GA_ADMIN·GA_STAFF·채널 계정에는 노출하지 않는다.
   const withAiAssistant =
-    role === 'USER'
+    role === 'USER' && isAiFeatureVisible()
       ? [
           { type: 'link' as const, label: AI_SECRETARY_MENU_ITEM.label, path: AI_SECRETARY_MENU_ITEM.path },
           { type: 'divider' as const },

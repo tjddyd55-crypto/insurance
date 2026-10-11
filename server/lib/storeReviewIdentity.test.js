@@ -3,8 +3,10 @@ import { describe, it } from 'node:test'
 import {
   isBillingReviewAccessEnabled,
   isStoreReviewBillingSubject,
+  isStoreReviewOutboundMessagingBlocked,
   STORE_REVIEW_GA_CODE,
   STORE_REVIEW_TENANT_CODE,
+  STORE_REVIEW_OUTBOUND_BLOCK_MESSAGE,
 } from './storeReviewIdentity.js'
 
 describe('storeReviewIdentity', () => {
@@ -24,6 +26,13 @@ describe('storeReviewIdentity', () => {
   it('does not treat arbitrary usernames as review', () => {
     assert.equal(isStoreReviewBillingSubject({ username: 'admin', gaCode: '' }), false)
     assert.equal(isStoreReviewBillingSubject({}), false)
+  })
+
+  it('blocks outbound messaging for review accounts', () => {
+    assert.equal(isStoreReviewOutboundMessagingBlocked({ username: 'google_review' }), true)
+    assert.equal(isStoreReviewOutboundMessagingBlocked({ gaCode: 'PLAY_REVIEW' }), true)
+    assert.equal(isStoreReviewOutboundMessagingBlocked({ username: 'regular_user', gaCode: 'YJASSET' }), false)
+    assert.match(STORE_REVIEW_OUTBOUND_BLOCK_MESSAGE, /검토용/)
   })
 
   it('review access flag defaults to enabled and can be disabled', () => {
