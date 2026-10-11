@@ -89,6 +89,112 @@ export function invalidateAppSettingsCache(key) {
  * @param {number} value
  * @param {string|null|undefined} updatedByUserId
  */
+export const SIGNUP_WELCOME_SMS_MESSAGE_KEY = 'signup.welcome_sms_message'
+
+const SIGNUP_WELCOME_SMS_MESSAGE_MAX_LEN = 2000
+
+/**
+ * 가입 안내 문자 본문 (관리자 설정). 없거나 유효하지 않으면 null → 발송부에서 기본 문구 fallback.
+ *
+ * @returns {Promise<string | null>}
+ */
+export async function readSignupWelcomeSmsMessage() {
+  try {
+    const raw = await readSetting(SIGNUP_WELCOME_SMS_MESSAGE_KEY)
+    if (typeof raw !== 'string') {
+      return null
+    }
+    const trimmed = raw.trim()
+    if (!trimmed) {
+      return null
+    }
+    if (trimmed.length > SIGNUP_WELCOME_SMS_MESSAGE_MAX_LEN) {
+      return null
+    }
+    return raw
+  } catch (error) {
+    console.error('[appSettings] readSignupWelcomeSmsMessage 실패 → null 로 폴백:', error)
+    return null
+  }
+}
+
+/**
+ * 관리자 UI용 — custom 설정 행 메타.
+ *
+ * @returns {Promise<{ message: string, updatedAt: string, updatedByUserId: string | null } | null>}
+ */
+export async function readSignupWelcomeSmsMessageCustomMeta() {
+  try {
+    const { rows } = await pool.query(
+      `
+      SELECT value_json, updated_at, updated_by_user_id
+      FROM app_settings
+      WHERE key = $1
+      LIMIT 1
+      `,
+      [SIGNUP_WELCOME_SMS_MESSAGE_KEY],
+    )
+    const row = rows[0]
+    if (!row) {
+      return null
+    }
+    const raw = row.value_json
+    if (typeof raw !== 'string') {
+      return null
+    }
+    const trimmed = raw.trim()
+    if (!trimmed) {
+      return null
+    }
+    return {
+      message: raw,
+      updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at),
+      updatedByUserId: row.updated_by_user_id != null ? String(row.updated_by_user_id) : null,
+    }
+  } catch (error) {
+    console.error('[appSettings] readSignupWelcomeSmsMessageCustomMeta 실패:', error)
+    return null
+  }
+}
+
+/**
+ * @param {string | null | undefined} value null이면 key 삭제(기본 문구 복원)
+ * @param {string|null|undefined} updatedByUserId
+ * @returns {Promise<string | null>}
+ */
+export async function writeSignupWelcomeSmsMessage(value, updatedByUserId = null) {
+  if (value === null || value === undefined) {
+    await pool.query(`DELETE FROM app_settings WHERE key = $1`, [SIGNUP_WELCOME_SMS_MESSAGE_KEY])
+    invalidateAppSettingsCache(SIGNUP_WELCOME_SMS_MESSAGE_KEY)
+    return null
+  }
+  if (typeof value !== 'string') {
+    throw Object.assign(new Error('문자 내용은 문자열이어야 합니다.'), { httpStatus: 400 })
+  }
+  const trimmed = value.trim()
+  if (!trimmed) {
+    throw Object.assign(new Error('문자 내용을 입력해 주세요.'), { httpStatus: 400 })
+  }
+  if (value.length > SIGNUP_WELCOME_SMS_MESSAGE_MAX_LEN) {
+    throw Object.assign(new Error(`문자 내용은 ${SIGNUP_WELCOME_SMS_MESSAGE_MAX_LEN}자 이하로 입력해 주세요.`), {
+      httpStatus: 400,
+    })
+  }
+  await pool.query(
+    `
+    INSERT INTO app_settings (key, value_json, updated_at, updated_by_user_id)
+    VALUES ($1, $2::jsonb, NOW(), $3)
+    ON CONFLICT (key) DO UPDATE
+      SET value_json = EXCLUDED.value_json,
+          updated_at = NOW(),
+          updated_by_user_id = EXCLUDED.updated_by_user_id
+    `,
+    [SIGNUP_WELCOME_SMS_MESSAGE_KEY, JSON.stringify(value), updatedByUserId ?? null],
+  )
+  invalidateAppSettingsCache(SIGNUP_WELCOME_SMS_MESSAGE_KEY)
+  return value
+}
+
 export async function writeTrialDefaultDays(value, updatedByUserId = null) {
   const normalized = Math.floor(Number(value))
   if (!Number.isFinite(normalized) || normalized < 1 || normalized > 365) {

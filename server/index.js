@@ -183,6 +183,7 @@ import { registerVersionRoutes } from './routes/version.js'
 import { registerDownloadRoutes } from './routes/downloads.js'
 import { seedInsuranceCompanyDirectory } from './seedInsuranceData.js'
 import { registerSubscriptionAdminApi } from './registerSubscriptionAdminApi.js'
+import { registerSignupWelcomeSmsAdminApi } from './signup/registerSignupWelcomeSmsAdminApi.js'
 import { registerPdfTemplateApi } from './registerPdfTemplateApi.js'
 import { registerInsuranceClaimCompanyApi } from './registerInsuranceClaimCompanyApi.js'
 import { registerInsurerSitesApi } from './registerInsurerSitesApi.js'
@@ -1730,6 +1731,7 @@ registerSuperAdminAnalyticsApi(apiRouter, {
 })
 
 registerSubscriptionAdminApi(apiRouter, { requireAuth, requireSuperAdmin })
+registerSignupWelcomeSmsAdminApi(apiRouter, { requireAuth, requireSuperAdmin })
 
 registerPdfTemplateApi(apiRouter, {
   pool,

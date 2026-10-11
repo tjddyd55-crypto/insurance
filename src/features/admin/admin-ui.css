@@ -207,6 +207,85 @@
   border-top: 1px solid var(--border-default);
 }
 
+.admin-signup-welcome-sms {
+  margin-top: 12px;
+  padding: 16px;
+}
+
+.admin-signup-welcome-sms__header h2 {
+  margin: 0 0 6px;
+  font-size: 1.1rem;
+}
+
+.admin-signup-welcome-sms__desc {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.admin-signup-welcome-sms__readonly {
+  margin: 0;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background: color-mix(in srgb, var(--border-default) 25%, transparent);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.admin-signup-welcome-sms__meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px 16px;
+  margin: 12px 0 0;
+  font-size: 13px;
+}
+
+.admin-signup-welcome-sms__meta dt {
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.admin-signup-welcome-sms__meta dd {
+  margin: 4px 0 0;
+  font-weight: 600;
+}
+
+.admin-signup-welcome-sms__textarea {
+  min-height: 160px;
+  resize: vertical;
+}
+
+.admin-signup-welcome-sms__counter {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.admin-signup-welcome-sms__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.admin-signup-welcome-sms__default-details {
+  margin-top: 16px;
+  font-size: 14px;
+}
+
+.admin-signup-welcome-sms__default-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
 .admin-user-management__toolbar {
   display: grid;
   gap: 12px;

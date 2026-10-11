@@ -1,3 +1,4 @@
+import { readSignupWelcomeSmsMessage } from '../subscription/appSettings.js'
 import { sendTransactionalSms } from '../services/smsService.js'
 
 /** 인증 SMS(SIGNUP)와 분리된 transactional purpose */
@@ -38,6 +39,17 @@ export function buildSignupWelcomeSmsMessage(env = process.env) {
 }
 
 /**
+ * 실제 발송 본문 — 관리자 설정 우선, 없으면 buildSignupWelcomeSmsMessage().
+ *
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {Promise<string>}
+ */
+export async function resolveSignupWelcomeSmsMessageForSend(env = process.env) {
+  const configuredMessage = await readSignupWelcomeSmsMessage()
+  return configuredMessage ?? buildSignupWelcomeSmsMessage(env)
+}
+
+/**
  * 가입 COMMIT 성공 후 호출. SMS 실패는 가입 응답과 결합하지 않는다.
  * @param {import('pg').Pool} pool
  * @param {{ userId: string, phoneNumber: string }} params
@@ -74,7 +86,7 @@ async function sendSignupWelcomeSmsOnce(pool, { userId, phoneNumber }) {
 
   console.info('[signup-welcome-sms] queued', { userId: uid, to: maskPhoneTail(receiver) })
 
-  const message = buildSignupWelcomeSmsMessage()
+  const message = await resolveSignupWelcomeSmsMessageForSend()
   try {
     const result = await sendTransactionalSms({
       phoneNumber: receiver,

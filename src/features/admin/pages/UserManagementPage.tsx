@@ -29,6 +29,7 @@ import {
 } from '../adminUserPresentation'
 import CrmUserBulkSmsComposerDialog from '../components/CrmUserBulkSmsComposerDialog'
 import CrmUserBulkSmsHistoryDetailDialog from '../components/CrmUserBulkSmsHistoryDetailDialog'
+import { SignupWelcomeSmsSettingsPanel } from '../components/SignupWelcomeSmsSettingsPanel'
 
 const ACCOUNT_STATUS_META: Record<EntityStatus, { label: string; fg: string; bg: string }> = {
   active: {
@@ -519,6 +520,8 @@ export default function UserManagementPage() {
       </header>
 
       <StatusMessage message={listActionError} tone="error" className="m-0" />
+
+      <SignupWelcomeSmsSettingsPanel />
 
       <section
         className="admin-toolbar admin-user-management__toolbar card auth-card"
