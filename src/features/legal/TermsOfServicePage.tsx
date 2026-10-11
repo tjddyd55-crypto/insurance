@@ -43,7 +43,11 @@ export default function TermsOfServicePage() {
             <h1 className="legal-doc__title">이용약관</h1>
             <p className="legal-doc__lead">
               {C.operatorLegalName}(이하 &quot;회사&quot;)가 제공하는 {C.serviceName} 서비스(이하 &quot;서비스&quot;)의
-              이용과 관련하여 회사와 이용자의 권리·의무 및 책임 사항을 규정합니다.
+              이용과 관련하여 회사와 이용자의 권리·의무 및               책임 사항을 규정합니다.
+            </p>
+            <p className="legal-doc__note">
+              개정 안내: 이번 개정은 2026년 10월 2일에 공지하며 2026년 10월 9일부터 시행합니다. 시행일 전까지는 종전
+              약관(2026년 7월 13일 시행)이 적용됩니다.
             </p>
           </header>
 
@@ -128,6 +132,18 @@ export default function TermsOfServicePage() {
               회사는 연중무휴 서비스 제공을 원칙으로 하나, 시스템 점검·장애·천재지변 등 불가피한 사유가 있는 경우
               서비스 제공을 일시 중단할 수 있습니다. 회사는 운영상·기술상 필요에 따라 서비스의 전부 또는 일부를
               변경할 수 있으며, 이용자에게 중대한 영향을 미치는 변경은 사전에 공지합니다.
+            </p>
+            <h3>Google Calendar 및 Google Tasks 등 외부 서비스 연동</h3>
+            <p>
+              서비스는 Google Calendar 및 Google Tasks 등 외부 서비스와 연동하는 기능을 선택적으로 제공할 수 있습니다.
+              연동은 이용자가 서비스 연동 화면에서 직접 Google OAuth 동의를 통해 이루어지며, 회사는 이용자가 허용한
+              범위에서만 Google 데이터에 접근합니다. Google Calendar 및 Google Tasks 연동은 일정과 할 일을 읽기
+              전용으로 표시하는 데 한정됩니다. 이용자는 언제든지 연결을 해제할 수 있으며, Google 서비스 장애·정책
+              변경 등으로 연동 기능이 제한·중단될 수 있습니다. Google 연동과 관련한 개인정보 처리는{' '}
+              <LegalInternalLink to="/privacy" className="legal-doc__link">
+                개인정보처리방침
+              </LegalInternalLink>
+              (제13조)에 따릅니다.
             </p>
           </section>
 
@@ -247,7 +263,7 @@ export default function TermsOfServicePage() {
 
           <section className="legal-doc__section" id="t14">
             <h2>부칙 (시행일)</h2>
-            <p>본 약관은 {C.effectiveDate}부터 시행합니다.</p>
+            <p>본 약관은 2026년 10월 9일부터 시행합니다.</p>
             <ul className="legal-doc__list legal-doc__contact">
               <li>
                 <strong>상호</strong> {C.operatorLegalName}

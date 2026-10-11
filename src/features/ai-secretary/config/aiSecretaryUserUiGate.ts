@@ -34,3 +34,8 @@ export function isAiSecretaryUserUiEnabled(): boolean {
     hostname,
   })
 }
+
+/** Production AI 메뉴·라우트·패널 노출 SSOT (`isAiSecretaryUserUiEnabled` 와 동일 정책). */
+export function isAiFeatureVisible(): boolean {
+  return isAiSecretaryUserUiEnabled()
+}

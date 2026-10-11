@@ -15,6 +15,10 @@ import {
   isPlaceholderTplCode,
   TEMPLATE_KEY_CUSTOMER_REGISTRATION_LINK,
 } from './alimtalkTemplates.js'
+import {
+  isStoreReviewOutboundMessagingBlocked,
+  STORE_REVIEW_OUTBOUND_BLOCK_MESSAGE,
+} from '../lib/storeReviewIdentity.js'
 
 /**
  * @param {import('pg').Pool | { query: Function }} pool
@@ -64,6 +68,14 @@ async function loadManagerAndRef(pool, userId) {
  * }} params
  */
 export async function sendCustomerRegistrationLinkAlimtalk(pool, params) {
+  if (isStoreReviewOutboundMessagingBlocked(params.user)) {
+    return {
+      success: false,
+      httpStatus: 403,
+      error: STORE_REVIEW_OUTBOUND_BLOCK_MESSAGE,
+      data: { status: 'blocked', templateKey: TEMPLATE_KEY_CUSTOMER_REGISTRATION_LINK, reason: 'store_review_account' },
+    }
+  }
   const config = params.config ?? loadInsuranceAlimtalkConfig()
   const template = getCustomerRegistrationLinkTemplate(params.templateEnv ?? process.env)
   const sendFn = params.sendFn ?? sendAligoAlimtalk

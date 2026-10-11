@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { ApiError } from '../../../lib/apiClient'
 import { fetchSmsBalance } from '../../sms/api/smsApi'
@@ -30,9 +30,26 @@ function errorMessage(error: unknown): string {
   return '서비스 연동 정보를 불러오지 못했습니다.'
 }
 
+function googleCallbackMessage(google: string | null, reason: string | null): { notice?: string; error?: string } {
+  if (google === 'connected') {
+    if (reason === 'tasks_scope_missing') {
+      return { notice: 'Google 계정이 연결되었습니다. Tasks 읽기 권한이 없어 할 일 일부가 표시되지 않을 수 있습니다.' }
+    }
+    return { notice: 'Google 계정이 연결되었습니다.' }
+  }
+  if (google === 'error') {
+    if (reason === 'access_denied') {
+      return { error: 'Google 동의가 취소되어 연결되지 않았습니다.' }
+    }
+    return { error: 'Google 계정 연결에 실패했습니다.' }
+  }
+  return {}
+}
+
 export function useServiceIntegrationsState(): ServiceIntegrationsViewProps {
   const { token } = useAuth()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [providers, setProviders] = useState<ServiceIntegrationCard[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -48,7 +65,6 @@ export function useServiceIntegrationsState(): ServiceIntegrationsViewProps {
       return
     }
     setLoading(true)
-    setError('')
     try {
       setProviders(await fetchServiceIntegrations(token))
     } catch (loadError) {
@@ -59,8 +75,30 @@ export function useServiceIntegrationsState(): ServiceIntegrationsViewProps {
   }, [token])
 
   useEffect(() => {
+    setProviders([])
+    setNotice('')
     void load()
   }, [load])
+
+  useEffect(() => {
+    const google = searchParams.get('google')
+    if (!google) {
+      return
+    }
+    const reason = searchParams.get('reason')
+    const { notice: oauthNotice, error: oauthError } = googleCallbackMessage(google, reason)
+    if (oauthNotice) {
+      setNotice(oauthNotice)
+      setError('')
+    } else if (oauthError) {
+      setError(oauthError)
+    }
+    const next = new URLSearchParams(searchParams)
+    next.delete('google')
+    next.delete('reason')
+    setSearchParams(next, { replace: true })
+    void load()
+  }, [load, searchParams, setSearchParams])
 
   const onConnect = useCallback((provider: ServiceIntegrationCard) => {
     if (!token?.trim() || busyKey) {
@@ -70,6 +108,10 @@ export function useServiceIntegrationsState(): ServiceIntegrationsViewProps {
     setError('')
     void connectServiceIntegration(token, provider.key)
       .then((result) => {
+        if (result.url) {
+          window.location.assign(result.url)
+          return
+        }
         if (result.path) {
           navigate(result.path)
           return

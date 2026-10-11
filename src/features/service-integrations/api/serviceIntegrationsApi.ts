@@ -54,18 +54,24 @@ export function readServiceIntegrationProviders(payload: unknown): ServiceIntegr
   return []
 }
 
-export function readServiceIntegrationConnectResult(payload: unknown): { path?: string } {
+export function readServiceIntegrationConnectResult(payload: unknown): { path?: string; url?: string } {
   if (!payload || typeof payload !== 'object') {
     return {}
   }
-  const body = payload as { path?: unknown; data?: unknown }
+  const body = payload as { path?: unknown; url?: unknown; data?: unknown }
+  if (typeof body.url === 'string' && body.url.trim()) {
+    return { url: body.url.trim() }
+  }
   if (typeof body.path === 'string' && body.path.trim()) {
-    return { path: body.path }
+    return { path: body.path.trim() }
   }
   if (body.data && typeof body.data === 'object') {
-    const nested = body.data as { path?: unknown }
+    const nested = body.data as { path?: unknown; url?: unknown; action?: unknown }
+    if (typeof nested.url === 'string' && nested.url.trim()) {
+      return { url: nested.url.trim() }
+    }
     if (typeof nested.path === 'string' && nested.path.trim()) {
-      return { path: nested.path }
+      return { path: nested.path.trim() }
     }
   }
   return {}
@@ -76,7 +82,10 @@ export async function fetchServiceIntegrations(token: string): Promise<ServiceIn
   return readServiceIntegrationProviders(raw)
 }
 
-export async function connectServiceIntegration(token: string, providerKey: string): Promise<{ path?: string }> {
+export async function connectServiceIntegration(
+  token: string,
+  providerKey: string,
+): Promise<{ path?: string; url?: string }> {
   const raw = await apiRequest<unknown>(
     `/api/service-integrations/${encodeURIComponent(providerKey)}/connect`,
     { token, method: 'POST', body: JSON.stringify({}) },
