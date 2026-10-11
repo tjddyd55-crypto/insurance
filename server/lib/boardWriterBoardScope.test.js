@@ -51,6 +51,7 @@ test('작성자 패널은 board.id 변경 시 목록을 비우고 key로 분리�
     'utf8',
   )
   assert.match(panel, /setWriters\(\[\]\)/)
+  assert.match(panel, /boardLoadGenerationRef/)
   assert.match(panel, /등록된 작성자가 없습니다/)
   assert.match(panel, /「등록」을 눌러 이 소식지에 글을 올릴 작성자 계정/)
   assert.match(view, /key=\{selectedBoard\.id\}/)

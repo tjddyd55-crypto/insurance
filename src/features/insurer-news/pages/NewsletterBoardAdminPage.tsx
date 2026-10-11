@@ -89,6 +89,7 @@ export function NewsletterBoardAdminPage() {
             ? await createGlobalNewsletterBoard(token, payload)
             : await createGaNewsletterBoard(token, payload)
         setBoards((prev) => [...prev, created])
+        setSelectedBoard(null)
         setLabel('')
         setDescription('')
         setNotice('게시판이 추가되었습니다.')
