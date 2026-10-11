@@ -1,6 +1,7 @@
 import type { Editor } from '@tiptap/core'
 import { NodeSelection } from '@tiptap/pm/state'
 import { fetchAdminNoticeLinkPreview } from '../api/adminNoticesApi'
+import type { AdminNoticeConsoleVariant } from '../adminNoticeConsole'
 
 export type NoticeAlign = 'left' | 'center' | 'right'
 
@@ -47,7 +48,12 @@ function buildUrlLinkParagraph(url: string) {
   }
 }
 
-export async function insertNoticeLinkPreview(editor: Editor, token: string, url: string): Promise<boolean> {
+export async function insertNoticeLinkPreview(
+  editor: Editor,
+  token: string,
+  url: string,
+  variant: AdminNoticeConsoleVariant = 'platform',
+): Promise<boolean> {
   const trimmedUrl = url.trim()
   if (!isStandaloneUrl(trimmedUrl)) {
     return false
@@ -58,7 +64,7 @@ export async function insertNoticeLinkPreview(editor: Editor, token: string, url
     return true
   }
 
-  const preview = await fetchAdminNoticeLinkPreview(token, trimmedUrl)
+  const preview = await fetchAdminNoticeLinkPreview(token, trimmedUrl, variant)
   const content: Array<Record<string, unknown>> = [buildUrlLinkParagraph(trimmedUrl)]
 
   if (preview) {

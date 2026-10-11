@@ -482,7 +482,25 @@ function buildGaTenantAdminMenuEntries(role: string | undefined): GaTenantDashbo
 
 /** GA_ADMIN 전용 — 관리 메뉴만 (CRM 업무 섹션 없음) */
 function buildGaAdminManagementMenuEntries(): GaTenantDashboardMenuEntry[] {
-  const entries = buildGaTenantAdminMenuEntries('GA_ADMIN')
+  const entries: GaTenantDashboardMenuEntry[] = []
+
+  entries.push({ type: 'section', label: '업무 운영' })
+  entries.push({ type: 'link', label: '공지사항', path: '/ga-admin/notices' })
+  entries.push({
+    type: 'link',
+    label: PDF_TEMPLATE_ADMIN_MENU.label,
+    path: PDF_TEMPLATE_ADMIN_MENU.path,
+  })
+  const signatureAdmin = contractSignatureAdminMenuIfEnabled('GA_ADMIN')
+  if (signatureAdmin) {
+    entries.push({ type: 'link', label: signatureAdmin.label, path: signatureAdmin.path })
+  }
+
+  if (canUseNewsletterBoardAdminRoutes('GA_ADMIN')) {
+    entries.push({ type: 'section', label: '소식지 운영' })
+    entries.push({ type: 'link', label: 'GA전용 소식지 관리', path: '/admin/newsletter-boards' })
+  }
+
   entries.push(
     { type: 'section', label: '보안 / 감사' },
     { type: 'link', label: AUDIT_LOG_ENTRY.label, path: AUDIT_LOG_ENTRY.path },

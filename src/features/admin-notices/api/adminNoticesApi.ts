@@ -1,4 +1,6 @@
 import { apiRequest, resolveApiUrl } from '../../../lib/apiClient'
+import type { AdminNoticeConsoleVariant } from '../adminNoticeConsole'
+import { adminNoticeApiRoot } from '../adminNoticeConsole'
 import type { AdminNotice, AdminNoticeFormState } from '../types/adminNotice.types'
 
 export type AdminNoticeImagePresignResult = {
@@ -39,12 +41,14 @@ function assertNotice(notice: AdminNotice | null | undefined, message: string): 
 async function presignNoticeImage(
   token: string,
   file: File,
+  variant: AdminNoticeConsoleVariant,
   noticeId?: number | null,
 ): Promise<AdminNoticeImagePresignResult> {
+  const root = adminNoticeApiRoot(variant)
   const path =
     noticeId != null && Number.isFinite(noticeId) && noticeId > 0
-      ? `/api/admin/notices/${noticeId}/images/presign`
-      : '/api/admin/notices/images/presign'
+      ? `${root}/${noticeId}/images/presign`
+      : `${root}/images/presign`
   const presign = await apiRequest<AdminNoticeImagePresignResult>(path, {
     token,
     method: 'POST',
@@ -60,8 +64,13 @@ async function presignNoticeImage(
   return presign
 }
 
-export async function uploadAdminNoticeImage(token: string, file: File, noticeId?: number | null): Promise<string> {
-  const presign = await presignNoticeImage(token, file, noticeId)
+export async function uploadAdminNoticeImage(
+  token: string,
+  file: File,
+  noticeId?: number | null,
+  variant: AdminNoticeConsoleVariant = 'platform',
+): Promise<string> {
+  const presign = await presignNoticeImage(token, file, variant, noticeId)
   const uploadUrl = /^https?:\/\//i.test(presign.uploadUrl) ? presign.uploadUrl : resolveApiUrl(presign.uploadUrl)
   const uploadRes = await fetch(uploadUrl, {
     method: 'PUT',
@@ -77,21 +86,32 @@ export async function uploadAdminNoticeImage(token: string, file: File, noticeId
   return presign.publicUrl
 }
 
-export async function fetchAdminNotices(token: string): Promise<AdminNotice[]> {
-  const notices = await apiRequest<AdminNotice[]>('/api/admin/notices', { token })
+export async function fetchAdminNotices(
+  token: string,
+  variant: AdminNoticeConsoleVariant = 'platform',
+): Promise<AdminNotice[]> {
+  const notices = await apiRequest<AdminNotice[]>(adminNoticeApiRoot(variant), { token })
   return Array.isArray(notices) ? notices : []
 }
 
-export async function fetchAdminNotice(token: string, id: number): Promise<AdminNotice> {
+export async function fetchAdminNotice(
+  token: string,
+  id: number,
+  variant: AdminNoticeConsoleVariant = 'platform',
+): Promise<AdminNotice> {
   return assertNotice(
-    await apiRequest<AdminNotice>(`/api/admin/notices/${id}`, { token }),
+    await apiRequest<AdminNotice>(`${adminNoticeApiRoot(variant)}/${id}`, { token }),
     '공지를 불러오지 못했습니다.',
   )
 }
 
-export async function createAdminNotice(token: string, form: AdminNoticeFormState): Promise<AdminNotice> {
+export async function createAdminNotice(
+  token: string,
+  form: AdminNoticeFormState,
+  variant: AdminNoticeConsoleVariant = 'platform',
+): Promise<AdminNotice> {
   return assertNotice(
-    await apiRequest<AdminNotice>('/api/admin/notices', {
+    await apiRequest<AdminNotice>(adminNoticeApiRoot(variant), {
       token,
       method: 'POST',
       body: JSON.stringify(serializeNoticeBody(form)),
@@ -100,9 +120,14 @@ export async function createAdminNotice(token: string, form: AdminNoticeFormStat
   )
 }
 
-export async function updateAdminNotice(token: string, id: number, form: AdminNoticeFormState): Promise<AdminNotice> {
+export async function updateAdminNotice(
+  token: string,
+  id: number,
+  form: AdminNoticeFormState,
+  variant: AdminNoticeConsoleVariant = 'platform',
+): Promise<AdminNotice> {
   return assertNotice(
-    await apiRequest<AdminNotice>(`/api/admin/notices/${id}`, {
+    await apiRequest<AdminNotice>(`${adminNoticeApiRoot(variant)}/${id}`, {
       token,
       method: 'PATCH',
       body: JSON.stringify(serializeNoticeBody(form)),
@@ -111,13 +136,21 @@ export async function updateAdminNotice(token: string, id: number, form: AdminNo
   )
 }
 
-export async function deleteAdminNotice(token: string, id: number): Promise<void> {
-  await apiRequest(`/api/admin/notices/${id}`, { token, method: 'DELETE' })
+export async function deleteAdminNotice(
+  token: string,
+  id: number,
+  variant: AdminNoticeConsoleVariant = 'platform',
+): Promise<void> {
+  await apiRequest(`${adminNoticeApiRoot(variant)}/${id}`, { token, method: 'DELETE' })
 }
 
-export async function publishAdminNotice(token: string, id: number): Promise<AdminNotice> {
+export async function publishAdminNotice(
+  token: string,
+  id: number,
+  variant: AdminNoticeConsoleVariant = 'platform',
+): Promise<AdminNotice> {
   return assertNotice(
-    await apiRequest<AdminNotice>(`/api/admin/notices/${id}/publish`, {
+    await apiRequest<AdminNotice>(`${adminNoticeApiRoot(variant)}/${id}/publish`, {
       token,
       method: 'POST',
     }),
@@ -125,9 +158,13 @@ export async function publishAdminNotice(token: string, id: number): Promise<Adm
   )
 }
 
-export async function archiveAdminNotice(token: string, id: number): Promise<AdminNotice> {
+export async function archiveAdminNotice(
+  token: string,
+  id: number,
+  variant: AdminNoticeConsoleVariant = 'platform',
+): Promise<AdminNotice> {
   return assertNotice(
-    await apiRequest<AdminNotice>(`/api/admin/notices/${id}/archive`, {
+    await apiRequest<AdminNotice>(`${adminNoticeApiRoot(variant)}/${id}/archive`, {
       token,
       method: 'POST',
     }),
@@ -135,9 +172,13 @@ export async function archiveAdminNotice(token: string, id: number): Promise<Adm
   )
 }
 
-export async function setAdminNoticePopup(token: string, id: number): Promise<AdminNotice> {
+export async function setAdminNoticePopup(
+  token: string,
+  id: number,
+  variant: AdminNoticeConsoleVariant = 'platform',
+): Promise<AdminNotice> {
   return assertNotice(
-    await apiRequest<AdminNotice>(`/api/admin/notices/${id}/set-popup`, {
+    await apiRequest<AdminNotice>(`${adminNoticeApiRoot(variant)}/${id}/set-popup`, {
       token,
       method: 'POST',
     }),
@@ -148,8 +189,9 @@ export async function setAdminNoticePopup(token: string, id: number): Promise<Ad
 export async function fetchAdminNoticeLinkPreview(
   token: string,
   url: string,
+  variant: AdminNoticeConsoleVariant = 'platform',
 ): Promise<AdminNoticeLinkPreview | null> {
-  const preview = await apiRequest<AdminNoticeLinkPreview | null>('/api/admin/notices/link-preview', {
+  const preview = await apiRequest<AdminNoticeLinkPreview | null>(`${adminNoticeApiRoot(variant)}/link-preview`, {
     token,
     method: 'POST',
     body: JSON.stringify({ url }),

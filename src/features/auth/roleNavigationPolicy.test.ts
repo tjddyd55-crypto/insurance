@@ -11,7 +11,7 @@ import {
 } from './roleGuards'
 
 describe('resolveAuthLandingPath — 역할별 랜딩', () => {
-  it('GA_ADMIN 은 보험청구 설정으로 진입한다', () => {
+  it('GA_ADMIN 은 공지사항으로 진입한다', () => {
     expect(resolveAuthLandingPath(false, 'GA_ADMIN')).toBe(GA_ADMIN_LANDING_PATH)
     expect(resolveAuthLandingPath(true, 'GA_ADMIN')).toBe(GA_ADMIN_LANDING_PATH)
   })
@@ -26,6 +26,7 @@ describe('resolveAuthLandingPath — 역할별 랜딩', () => {
 
 describe('gaAdminPathPolicy', () => {
   it('관리 path 만 허용한다', () => {
+    expect(isGaAdminAllowedPath('/ga-admin/notices')).toBe(true)
     expect(isGaAdminAllowedPath('/admin/claim/insurance-companies')).toBe(true)
     expect(isGaAdminAllowedPath('/admin/newsletter-boards')).toBe(true)
     expect(isGaAdminAllowedPath('/admin/audit-logs')).toBe(true)

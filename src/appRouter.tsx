@@ -84,6 +84,8 @@ import AdminAnalyticsPage from './features/analytics/pages/AdminAnalyticsPage'
 import AdminInsurerSitesPage from './features/insurer-sites/pages/AdminInsurerSitesPage'
 import AdminNoticeListPage from './features/admin-notices/pages/AdminNoticeListPage'
 import AdminNoticeEditorPage from './features/admin-notices/pages/AdminNoticeEditorPage'
+import GaAdminNoticeListPage from './features/admin-notices/pages/GaAdminNoticeListPage'
+import GaAdminNoticeEditorPage from './features/admin-notices/pages/GaAdminNoticeEditorPage'
 import PlatformHubPage from './features/platform/pages/PlatformHubPage'
 import IndustriesListPage from './features/platform/pages/industries/IndustriesListPage'
 import IndustryDetailPage from './features/platform/pages/industries/IndustryDetailPage'
@@ -116,6 +118,7 @@ import { InsurerManagerOnlyRoute } from './features/auth/InsurerManagerOnlyRoute
 import { RequireNotInsurerManagerRoute } from './features/auth/RequireNotInsurerManagerRoute'
 import { AuditLogReaderRoute } from './features/auth/AuditLogReaderRoute'
 import { NewsletterBoardAdminRoute } from './features/auth/NewsletterBoardAdminRoute'
+import { GaAdminWorkspaceRoute } from './features/auth/GaAdminWorkspaceRoute'
 import { InsurerListPage } from './features/insurer-news/pages/InsurerListPage'
 import { InsurerNewsletterListPage } from './features/insurer-news/pages/InsurerNewsletterListPage'
 import { NewsletterDetailPage } from './features/insurer-news/pages/NewsletterDetailPage'
@@ -555,6 +558,18 @@ export const appRouter = createBrowserRouter([
               { path: 'admin/create-ga', element: <Navigate to="/admin/ga" replace /> },
               { path: 'admin/delegates', element: <GaDelegateManagementPage /> },
               { path: 'admin/create-staff', element: <Navigate to="/admin/delegates" replace /> },
+<<<<<<< HEAD
+=======
+              {
+                element: <GaAdminWorkspaceRoute />,
+                children: [
+                  { path: 'ga-admin/workspace/*', element: <GaAdminWorkspacePage /> },
+                  { path: 'ga-admin/notices', element: <GaAdminNoticeListPage /> },
+                  { path: 'ga-admin/notices/new', element: <GaAdminNoticeEditorPage /> },
+                  { path: 'ga-admin/notices/:id', element: <GaAdminNoticeEditorPage /> },
+                ],
+              },
+>>>>>>> 60ea8d51 (feat(ga-admin): GA-scoped notices and drop claim settings menu)
               { path: 'admin/users', element: <UserManagementPage /> },
               {
                 element: <NewsletterBoardAdminRoute />,
