@@ -15,9 +15,16 @@ import {
   emptyAdminNoticeForm,
   type AdminNoticeFormState,
 } from '../types/adminNotice.types'
+import type { AdminNoticeConsoleVariant } from '../adminNoticeConsole'
+import { adminNoticePageRoot } from '../adminNoticeConsole'
 
-export default function AdminNoticeEditorPage() {
+type AdminNoticeEditorPageProps = {
+  variant?: AdminNoticeConsoleVariant
+}
+
+export default function AdminNoticeEditorPage({ variant = 'platform' }: AdminNoticeEditorPageProps) {
   const { token } = useAuth()
+  const pageRoot = adminNoticePageRoot(variant)
   const navigate = useNavigate()
   const params = useParams()
   const noticeId = params.id && params.id !== 'new' ? Number(params.id) : null
@@ -38,7 +45,7 @@ export default function AdminNoticeEditorPage() {
       setLoading(true)
       setError('')
       try {
-        const notice = await fetchAdminNotice(token, noticeId)
+        const notice = await fetchAdminNotice(token, noticeId, variant)
         if (!cancelled) {
           setForm(adminNoticeToForm(notice))
         }
@@ -56,16 +63,16 @@ export default function AdminNoticeEditorPage() {
     return () => {
       cancelled = true
     }
-  }, [isEdit, noticeId, token])
+  }, [isEdit, noticeId, token, variant])
 
   const handleUploadImage = useCallback(
     async (file: File) => {
       if (!token?.trim()) {
         throw new Error('로그인이 필요합니다.')
       }
-      return uploadAdminNoticeImage(token, file, isEdit ? noticeId : null)
+      return uploadAdminNoticeImage(token, file, isEdit ? noticeId : null, variant)
     },
-    [isEdit, noticeId, token],
+    [isEdit, noticeId, token, variant],
   )
 
   const save = async (nextStatus: AdminNoticeFormState['status']) => {
@@ -77,18 +84,18 @@ export default function AdminNoticeEditorPage() {
     try {
       const payload = { ...form, status: nextStatus }
       if (isEdit && noticeId != null) {
-        const saved = await updateAdminNotice(token, noticeId, payload)
+        const saved = await updateAdminNotice(token, noticeId, payload, variant)
         if (!saved?.id) {
           throw new Error('공지 저장 결과에 ID가 없습니다.')
         }
-        navigate('/admin/notices')
+        navigate(pageRoot)
         return
       }
-      const created = await createAdminNotice(token, payload)
+      const created = await createAdminNotice(token, payload, variant)
       if (!created?.id) {
         throw new Error('공지 저장 결과에 ID가 없습니다.')
       }
-      navigate(nextStatus === 'published' ? '/admin/notices' : `/admin/notices/${created.id}`)
+      navigate(nextStatus === 'published' ? pageRoot : `${pageRoot}/${created.id}`)
     } catch (e) {
       console.error('[admin-notices] failed to save notice', e)
       setError('공지사항 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.')
@@ -132,6 +139,7 @@ export default function AdminNoticeEditorPage() {
               disabled={saving}
               onChange={(contentHtml) => setForm((prev) => ({ ...prev, contentHtml }))}
               linkPreviewToken={token}
+              noticeApiVariant={variant}
               onUploadImage={handleUploadImage}
             />
           </div>
@@ -178,7 +186,7 @@ export default function AdminNoticeEditorPage() {
           </section>
 
           <div className="admin-notices-editor__footer">
-            <Link to="/admin/notices">
+            <Link to={pageRoot}>
               <FormButton htmlType="button" variant="secondary" disabled={saving}>
                 목록
               </FormButton>

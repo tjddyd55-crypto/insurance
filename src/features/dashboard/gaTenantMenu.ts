@@ -483,11 +483,7 @@ function buildGaAdminManagementMenuEntries(): GaTenantDashboardMenuEntry[] {
   entries.push({ type: 'link', label: 'GA 관리 허브', path: '/ga-admin/workspace' })
 
   entries.push({ type: 'section', label: '업무 운영' })
-  entries.push({
-    type: 'link',
-    label: INSURANCE_CLAIM_COMPANY_ADMIN_MENU.label,
-    path: INSURANCE_CLAIM_COMPANY_ADMIN_MENU.path,
-  })
+  entries.push({ type: 'link', label: '공지사항', path: '/ga-admin/notices' })
   entries.push({
     type: 'link',
     label: PDF_TEMPLATE_ADMIN_MENU.label,

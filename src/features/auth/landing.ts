@@ -3,7 +3,7 @@
  *
  * 정책 근거:
  *  - SUPER_ADMIN 은 공통 대시보드 `/dashboard` 로 보낸다 (관리자 메뉴 카드).
- *  - GA_ADMIN 은 관리 전용 — 보험청구 설정으로 직행 (일반 CRM `/customers` 금지).
+ *  - GA_ADMIN 은 관리 전용 — GA 관리 허브로 직행 (일반 CRM `/customers` 금지).
  *  - GA_STAFF, INSURER_MANAGER, LOSS_ADJUSTER 등은 각 업무 기본 경로로 보낸다.
  *  - USER:
  *      - PC: `/customers` 직행
@@ -27,7 +27,7 @@ export type AuthLandingRole =
   | undefined
   | null
 
-/** GA_ADMIN 관리 셸 첫 화면 — 메뉴 SSOT 의 「보험청구 설정」과 동일 path */
+/** GA_ADMIN 관리 셸 첫 화면 — 메뉴 SSOT 의 「GA 관리 허브」와 동일 path */
 export const GA_ADMIN_LANDING_PATH = '/ga-admin/workspace'
 
 export function resolveAuthLandingPath(isMobile: boolean, role?: AuthLandingRole): string {

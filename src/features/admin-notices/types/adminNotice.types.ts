@@ -14,6 +14,8 @@ export type AdminNoticeImageBlock = {
 
 export type AdminNoticeContentBlock = AdminNoticeTextBlock | AdminNoticeImageBlock
 
+export type AdminNoticeAudienceScope = 'GLOBAL' | 'GA'
+
 export type AdminNotice = {
   id: number
   title: string
@@ -23,6 +25,8 @@ export type AdminNotice = {
   status: AdminNoticeStatus
   showAsPopup: boolean
   popupPriority: number
+  audienceScope?: AdminNoticeAudienceScope
+  gaId?: number | null
   startsAt?: string | null
   endsAt?: string | null
   createdBy?: string | null

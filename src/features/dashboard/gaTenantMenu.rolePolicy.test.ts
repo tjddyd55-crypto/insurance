@@ -23,7 +23,7 @@ const USER_WORK_LABELS = [
 
 const GA_ADMIN_OPS_LABELS = [
   'GA 관리 허브',
-  '보험청구 설정',
+  '공지사항',
   'PDF 문서 템플릿',
   'GA전용 소식지 관리',
   '보안 감사 로그',
@@ -73,7 +73,7 @@ describe('buildAppMenuForSession — 역할별 메뉴 정책', () => {
     expect(linkPaths(entries)).toEqual(
       expect.arrayContaining([
         '/ga-admin/workspace',
-        '/admin/claim/insurance-companies',
+        '/ga-admin/notices',
         '/admin/pdf-templates',
         '/admin/newsletter-boards',
         '/admin/audit-logs',

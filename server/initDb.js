@@ -3593,6 +3593,51 @@ export async function initDb() {
     ADD COLUMN IF NOT EXISTS content_html TEXT NOT NULL DEFAULT ''
   `)
   await pool.query(`
+    ALTER TABLE admin_notices
+    ADD COLUMN IF NOT EXISTS audience_scope TEXT NOT NULL DEFAULT 'GLOBAL'
+  `)
+  await pool.query(`
+    ALTER TABLE admin_notices
+    ADD COLUMN IF NOT EXISTS ga_id INTEGER REFERENCES ga_companies(id)
+  `)
+  await pool.query(`
+    UPDATE admin_notices
+    SET audience_scope = 'GLOBAL', ga_id = NULL
+    WHERE audience_scope IS NULL OR TRIM(audience_scope) = ''
+  `)
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'admin_notices_audience_scope_check'
+      ) THEN
+        ALTER TABLE admin_notices
+          ADD CONSTRAINT admin_notices_audience_scope_check
+          CHECK (audience_scope IN ('GLOBAL', 'GA'));
+      END IF;
+    END $$;
+  `)
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'admin_notices_ga_scope_check'
+      ) THEN
+        ALTER TABLE admin_notices
+          ADD CONSTRAINT admin_notices_ga_scope_check
+          CHECK (
+            (audience_scope = 'GLOBAL' AND ga_id IS NULL)
+            OR (audience_scope = 'GA' AND ga_id IS NOT NULL)
+          );
+      END IF;
+    END $$;
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_admin_notices_ga_scope
+    ON admin_notices (ga_id, status, updated_at DESC)
+    WHERE audience_scope = 'GA'
+  `)
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS user_notice_dismissals (
       id BIGSERIAL PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

@@ -113,7 +113,10 @@ export function registerAdminNoticesApi(apiRouter, deps) {
   apiRouter.post('/admin/notices', guard, async (req, res) => {
     try {
       const actorUserId = String(req.user?.id ?? '').trim() || null
-      const notice = await createAdminNotice(pool, req.body ?? {}, actorUserId)
+      const notice = await createAdminNotice(pool, req.body ?? {}, actorUserId, {
+        role: req.user?.role,
+        sessionGaId: req.user?.gaId,
+      })
       res.status(201).json({ success: true, data: notice })
     } catch (e) {
       if (mapError(e, res)) return

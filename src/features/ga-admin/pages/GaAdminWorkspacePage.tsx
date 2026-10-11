@@ -94,8 +94,8 @@ export default function GaAdminWorkspacePage() {
         <header className="page-header admin-page-shell__header">
           <h1>GA 관리</h1>
           <p>
-            GA 기본정보, STEP, 원수사 계정, 소식지 설정을 관리합니다. 보험청구·PDF 템플릿은 상단 「업무 운영」
-            메뉴에서 열 수 있습니다.
+            GA 기본정보, STEP, 원수사 계정, 소식지 설정을 관리합니다. 공지·PDF 템플릿은 상단 「업무 운영」 메뉴에서
+            열 수 있습니다.
           </p>
         </header>
         <nav className="ga-admin-workspace-tabs" aria-label="GA 관리 영역">

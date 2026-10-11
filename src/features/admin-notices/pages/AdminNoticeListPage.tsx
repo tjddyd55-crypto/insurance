@@ -10,6 +10,12 @@ import {
   setAdminNoticePopup,
 } from '../api/adminNoticesApi'
 import type { AdminNotice } from '../types/adminNotice.types'
+import type { AdminNoticeConsoleVariant } from '../adminNoticeConsole'
+import { adminNoticePageRoot } from '../adminNoticeConsole'
+
+type AdminNoticeListPageProps = {
+  variant?: AdminNoticeConsoleVariant
+}
 
 const STATUS_LABEL: Record<AdminNotice['status'], string> = {
   draft: '임시저장',
@@ -17,8 +23,14 @@ const STATUS_LABEL: Record<AdminNotice['status'], string> = {
   archived: '보관',
 }
 
-export default function AdminNoticeListPage() {
+export default function AdminNoticeListPage({ variant = 'platform' }: AdminNoticeListPageProps) {
   const { token } = useAuth()
+  const pageRoot = adminNoticePageRoot(variant)
+  const pageTitle = variant === 'ga' ? '공지사항' : '공지사항 관리'
+  const pageDesc =
+    variant === 'ga'
+      ? '소속 GA 사용자에게만 노출되는 공지를 작성합니다.'
+      : '로그인/첫 진입 팝업으로 표시할 관리자 공지를 작성합니다.'
   const [items, setItems] = useState<AdminNotice[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -31,7 +43,7 @@ export default function AdminNoticeListPage() {
     setLoading(true)
     setError('')
     try {
-      setItems(await fetchAdminNotices(token))
+      setItems(await fetchAdminNotices(token, variant))
     } catch (e) {
       console.error('[admin-notices] failed to load notices', e)
       setError('공지사항을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
@@ -39,7 +51,7 @@ export default function AdminNoticeListPage() {
     } finally {
       setLoading(false)
     }
-  }, [token])
+  }, [token, variant])
 
   useEffect(() => {
     void load()
@@ -61,15 +73,15 @@ export default function AdminNoticeListPage() {
   return (
     <main className="page admin-notices-page admin-notices-page--pc page--with-back content-wrapper page-shell">
       <header className="admin-notices-page__header">
-        <h1>공지사항 관리</h1>
-        <p className="admin-notices-page__desc">로그인/첫 진입 팝업으로 표시할 관리자 공지를 작성합니다.</p>
+        <h1>{pageTitle}</h1>
+        <p className="admin-notices-page__desc">{pageDesc}</p>
       </header>
 
       <div className="admin-notices-page__toolbar">
         <FormButton htmlType="button" variant="primary" onClick={() => void load()} disabled={loading}>
           새로고침
         </FormButton>
-        <Link to="/admin/notices/new">
+        <Link to={`${pageRoot}/new`}>
           <FormButton htmlType="button" variant="secondary">
             공지 작성
           </FormButton>
@@ -93,11 +105,14 @@ export default function AdminNoticeListPage() {
               <div className="admin-notices-page__badges">
                 <span>{STATUS_LABEL[item.status]}</span>
                 {item.showAsPopup ? <span className="admin-notices-page__badge--popup">팝업</span> : null}
+                {variant === 'platform' && item.audienceScope === 'GA' ? (
+                  <span>GA 전용</span>
+                ) : null}
               </div>
             </div>
             <p className="admin-notices-page__preview">{item.plainText || '본문 없음'}</p>
             <div className="admin-notices-page__actions">
-              <Link to={`/admin/notices/${item.id}`}>
+              <Link to={`${pageRoot}/${item.id}`}>
                 <FormButton htmlType="button" variant="secondary" size="sm">
                   수정
                 </FormButton>
@@ -108,7 +123,7 @@ export default function AdminNoticeListPage() {
                   variant="primary"
                   size="sm"
                   disabled={pendingId === item.id}
-                  onClick={() => void runAction(item.id, () => publishAdminNotice(token!, item.id))}
+                  onClick={() => void runAction(item.id, () => publishAdminNotice(token!, item.id, variant))}
                 >
                   게시
                 </FormButton>
@@ -119,7 +134,7 @@ export default function AdminNoticeListPage() {
                   variant="secondary"
                   size="sm"
                   disabled={pendingId === item.id}
-                  onClick={() => void runAction(item.id, () => setAdminNoticePopup(token!, item.id))}
+                  onClick={() => void runAction(item.id, () => setAdminNoticePopup(token!, item.id, variant))}
                 >
                   팝업 설정
                 </FormButton>
@@ -130,7 +145,7 @@ export default function AdminNoticeListPage() {
                   variant="secondary"
                   size="sm"
                   disabled={pendingId === item.id}
-                  onClick={() => void runAction(item.id, () => archiveAdminNotice(token!, item.id))}
+                  onClick={() => void runAction(item.id, () => archiveAdminNotice(token!, item.id, variant))}
                 >
                   보관
                 </FormButton>
@@ -140,7 +155,7 @@ export default function AdminNoticeListPage() {
                 variant="secondary"
                 size="sm"
                 disabled={pendingId === item.id}
-                onClick={() => void runAction(item.id, () => deleteAdminNotice(token!, item.id))}
+                onClick={() => void runAction(item.id, () => deleteAdminNotice(token!, item.id, variant))}
               >
                 삭제
               </FormButton>

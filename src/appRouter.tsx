@@ -84,6 +84,8 @@ import AdminAnalyticsPage from './features/analytics/pages/AdminAnalyticsPage'
 import AdminInsurerSitesPage from './features/insurer-sites/pages/AdminInsurerSitesPage'
 import AdminNoticeListPage from './features/admin-notices/pages/AdminNoticeListPage'
 import AdminNoticeEditorPage from './features/admin-notices/pages/AdminNoticeEditorPage'
+import GaAdminNoticeListPage from './features/admin-notices/pages/GaAdminNoticeListPage'
+import GaAdminNoticeEditorPage from './features/admin-notices/pages/GaAdminNoticeEditorPage'
 import PlatformHubPage from './features/platform/pages/PlatformHubPage'
 import IndustriesListPage from './features/platform/pages/industries/IndustriesListPage'
 import IndustryDetailPage from './features/platform/pages/industries/IndustryDetailPage'
@@ -559,7 +561,12 @@ export const appRouter = createBrowserRouter([
               { path: 'admin/create-staff', element: <Navigate to="/admin/delegates" replace /> },
               {
                 element: <GaAdminWorkspaceRoute />,
-                children: [{ path: 'ga-admin/workspace/*', element: <GaAdminWorkspacePage /> }],
+                children: [
+                  { path: 'ga-admin/workspace/*', element: <GaAdminWorkspacePage /> },
+                  { path: 'ga-admin/notices', element: <GaAdminNoticeListPage /> },
+                  { path: 'ga-admin/notices/new', element: <GaAdminNoticeEditorPage /> },
+                  { path: 'ga-admin/notices/:id', element: <GaAdminNoticeEditorPage /> },
+                ],
               },
               { path: 'admin/users', element: <UserManagementPage /> },
               {

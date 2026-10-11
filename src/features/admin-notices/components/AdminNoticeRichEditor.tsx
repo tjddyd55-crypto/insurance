@@ -62,11 +62,14 @@ const FontSize = Extension.create({
 const FONT_SIZES = ['12px', '14px', '16px', '18px', '20px', '24px', '28px']
 const TEXT_COLORS = ['#111827', '#2563EB', '#EF4444', '#16A34A', '#F59E0B', '#7C3AED']
 
+import type { AdminNoticeConsoleVariant } from '../adminNoticeConsole'
+
 type Props = {
   value: string
   onChange: (html: string) => void
   disabled?: boolean
   linkPreviewToken?: string | null
+  noticeApiVariant?: AdminNoticeConsoleVariant
   onUploadImage: (file: File) => Promise<string>
 }
 
@@ -101,12 +104,15 @@ export function AdminNoticeRichEditor({
   onChange,
   disabled = false,
   linkPreviewToken,
+  noticeApiVariant = 'platform',
   onUploadImage,
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const editorRef = useRef<Editor | null>(null)
   const linkPreviewTokenRef = useRef(linkPreviewToken)
   linkPreviewTokenRef.current = linkPreviewToken
+  const noticeApiVariantRef = useRef(noticeApiVariant)
+  noticeApiVariantRef.current = noticeApiVariant
 
   const editor = useEditor({
     extensions: [
@@ -150,7 +156,7 @@ export function AdminNoticeRichEditor({
           return false
         }
         event.preventDefault()
-        void insertNoticeLinkPreview(currentEditor, token, text)
+        void insertNoticeLinkPreview(currentEditor, token, text, noticeApiVariantRef.current)
         return true
       },
     },
@@ -218,7 +224,7 @@ export function AdminNoticeRichEditor({
 
     const token = linkPreviewToken?.trim()
     if (token && isStandaloneUrl(trimmedUrl)) {
-      void insertNoticeLinkPreview(editor, token, trimmedUrl)
+      void insertNoticeLinkPreview(editor, token, trimmedUrl, noticeApiVariant)
       return
     }
 

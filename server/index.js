@@ -34,6 +34,7 @@ import { registerCustomerExtraApi } from './apis/customerExtraApi.js'
 import { registerCustomerRelationGroupsApi } from './apis/registerCustomerRelationGroupsApi.js'
 import { registerTeamApi } from './apis/teamApi.js'
 import { registerAdminNoticesApi } from './registerAdminNoticesApi.js'
+import { registerGaAdminNoticesApi } from './registerGaAdminNoticesApi.js'
 import { registerNoticesApi } from './apis/noticesApi.js'
 import { registerNotificationsApi } from './apis/notificationsApi.js'
 import { registerPushDevicesApi } from './apis/registerPushDevicesApi.js'
@@ -1716,6 +1717,7 @@ registerNotificationsApi(apiRouter, { pool, requireAuth, handleDbError })
 registerPushDevicesApi(apiRouter, { pool, requireAuth, handleDbError })
 registerNoticesApi(apiRouter, { pool, requireAuth, handleDbError })
 registerAdminNoticesApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
+registerGaAdminNoticesApi(apiRouter, { pool, requireAuth, handleDbError })
 registerFeatureRequestsApi(apiRouter, {
   pool,
   safeQuery,

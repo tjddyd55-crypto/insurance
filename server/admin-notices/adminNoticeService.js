@@ -11,6 +11,12 @@ import {
   normalizeContentBlocks,
 } from './adminNoticeLogic.js'
 import { derivePlainTextFromHtml, sanitizeAdminNoticeHtml } from './adminNoticeHtmlSanitize.js'
+import {
+  ADMIN_NOTICE_AUDIENCE_GA,
+  ADMIN_NOTICE_AUDIENCE_GLOBAL,
+  mapNoticeAudienceFields,
+  resolveNoticeAudienceForWrite,
+} from './adminNoticeScope.js'
 
 function escapeHtmlText(text) {
   return String(text ?? '')
@@ -74,13 +80,32 @@ export function mapAdminNoticeRow(row) {
     updatedBy: row.updated_by ?? null,
     createdAt: row.created_at ?? null,
     updatedAt: row.updated_at ?? null,
+    ...mapNoticeAudienceFields(row),
   }
 }
 
 /**
  * @param {import('pg').Pool} pool
  */
-export async function listAdminNotices(pool) {
+/**
+ * @param {import('pg').Pool} pool
+ * @param {{ gaId?: number | null }} [options]
+ */
+export async function listAdminNotices(pool, options = {}) {
+  const gaId = options.gaId != null ? Number(options.gaId) : null
+  if (gaId != null && Number.isFinite(gaId)) {
+    const { rows } = await systemQuery(
+      pool,
+      `
+      SELECT *
+      FROM admin_notices
+      WHERE audience_scope = $1 AND ga_id = $2
+      ORDER BY updated_at DESC, id DESC
+      `,
+      [ADMIN_NOTICE_AUDIENCE_GA, gaId],
+    )
+    return rows.map(mapAdminNoticeRow)
+  }
   const { rows } = await systemQuery(
     pool,
     `
@@ -167,19 +192,47 @@ function parseNoticeInput(body) {
  * @param {boolean} showAsPopup
  * @param {number | null} exceptId
  */
-async function clearOtherPopupFlags(pool, showAsPopup, exceptId = null) {
+/**
+ * @param {import('pg').Pool} pool
+ * @param {boolean} showAsPopup
+ * @param {number | null} exceptId
+ * @param {{ audienceScope: string, gaId: number | null }} audience
+ */
+async function clearOtherPopupFlags(pool, showAsPopup, exceptId = null, audience = {
+  audienceScope: ADMIN_NOTICE_AUDIENCE_GLOBAL,
+  gaId: null,
+}) {
   if (!showAsPopup) {
     return
   }
+  const scope = audience.audienceScope ?? ADMIN_NOTICE_AUDIENCE_GLOBAL
+  const gaId = audience.gaId ?? null
   if (exceptId != null) {
     await systemQuery(
       pool,
-      `UPDATE admin_notices SET show_as_popup = false, updated_at = NOW() WHERE show_as_popup = true AND id <> $1`,
-      [exceptId],
+      `
+      UPDATE admin_notices
+      SET show_as_popup = false, updated_at = NOW()
+      WHERE show_as_popup = true
+        AND id <> $1
+        AND audience_scope = $2
+        AND (($3::int IS NULL AND ga_id IS NULL) OR ga_id = $3)
+      `,
+      [exceptId, scope, gaId],
     )
     return
   }
-  await systemQuery(pool, `UPDATE admin_notices SET show_as_popup = false, updated_at = NOW() WHERE show_as_popup = true`)
+  await systemQuery(
+    pool,
+    `
+    UPDATE admin_notices
+    SET show_as_popup = false, updated_at = NOW()
+    WHERE show_as_popup = true
+      AND audience_scope = $1
+      AND (($2::int IS NULL AND ga_id IS NULL) OR ga_id = $2)
+    `,
+    [scope, gaId],
+  )
 }
 
 /**
@@ -199,17 +252,24 @@ async function clearNoticeDismissals(pool, noticeId) {
  * @param {unknown} body
  * @param {string | null} actorUserId
  */
-export async function createAdminNotice(pool, body, actorUserId) {
+/**
+ * @param {import('pg').Pool} pool
+ * @param {unknown} body
+ * @param {string | null} actorUserId
+ * @param {{ role?: string, sessionGaId?: unknown }} [auth]
+ */
+export async function createAdminNotice(pool, body, actorUserId, auth = {}) {
   const input = parseNoticeInput(body)
-  await clearOtherPopupFlags(pool, input.showAsPopup)
+  const audience = resolveNoticeAudienceForWrite(auth.role, auth.sessionGaId, body)
+  await clearOtherPopupFlags(pool, input.showAsPopup, null, audience)
   const { rows } = await systemQuery(
     pool,
     `
     INSERT INTO admin_notices (
       title, content_json, content_html, plain_text, status, show_as_popup, popup_priority,
-      starts_at, ends_at, created_by, updated_by
+      starts_at, ends_at, created_by, updated_by, audience_scope, ga_id
     )
-    VALUES ($1, $2::jsonb, $3, $4, $5, $6, $7, $8, $9, $10, $10)
+    VALUES ($1, $2::jsonb, $3, $4, $5, $6, $7, $8, $9, $10, $10, $11, $12)
     RETURNING *
     `,
     [
@@ -223,6 +283,8 @@ export async function createAdminNotice(pool, body, actorUserId) {
       input.startsAt,
       input.endsAt,
       actorUserId,
+      audience.audienceScope,
+      audience.gaId,
     ],
   )
   const notice = mapAdminNoticeRow(rows[0])
@@ -243,8 +305,12 @@ export async function updateAdminNotice(pool, id, body, actorUserId) {
   if (!Number.isFinite(noticeId) || noticeId <= 0) {
     throw new Error('notice_not_found')
   }
+  const existing = await getAdminNoticeById(pool, noticeId)
   const input = parseNoticeInput(body)
-  await clearOtherPopupFlags(pool, input.showAsPopup, noticeId)
+  await clearOtherPopupFlags(pool, input.showAsPopup, noticeId, {
+    audienceScope: existing.audienceScope,
+    gaId: existing.gaId,
+  })
   const { rows } = await systemQuery(
     pool,
     `
@@ -365,7 +431,10 @@ export async function setAdminNoticePopup(pool, id, actorUserId) {
   if (existingNotice.status !== 'published') {
     throw new Error('notice_not_published')
   }
-  await clearOtherPopupFlags(pool, true, noticeId)
+  await clearOtherPopupFlags(pool, true, noticeId, {
+    audienceScope: existingNotice.audienceScope,
+    gaId: existingNotice.gaId,
+  })
   const { rows } = await systemQuery(
     pool,
     `
@@ -409,15 +478,20 @@ export async function getActivePopupNoticeForUser(pool, userId) {
            d.dismissed_until,
            d.dismissed_forever
     FROM admin_notices n
+    INNER JOIN users u ON u.id = $1
     LEFT JOIN user_notice_dismissals d
       ON d.user_id = $1 AND d.notice_id = n.id
     WHERE n.status = 'published'
       AND n.show_as_popup = true
       AND (n.starts_at IS NULL OR n.starts_at <= NOW())
       AND (n.ends_at IS NULL OR n.ends_at >= NOW())
+      AND (
+        n.audience_scope = $2
+        OR (n.audience_scope = $3 AND n.ga_id = u.ga_id)
+      )
     ORDER BY n.popup_priority DESC, n.updated_at DESC, n.id DESC
     `,
-    [userId],
+    [userId, ADMIN_NOTICE_AUDIENCE_GLOBAL, ADMIN_NOTICE_AUDIENCE_GA],
   )
 
   const now = new Date()
@@ -455,7 +529,24 @@ export async function dismissAdminNoticeForUser(pool, userId, noticeIdRaw, optio
   if (!Number.isFinite(noticeId) || noticeId <= 0) {
     throw new Error('notice_not_found')
   }
-  await getAdminNoticeById(pool, noticeId)
+  const visible = await systemQuery(
+    pool,
+    `
+    SELECT n.id
+    FROM admin_notices n
+    INNER JOIN users u ON u.id = $1
+    WHERE n.id = $2
+      AND (
+        n.audience_scope = $3
+        OR (n.audience_scope = $4 AND n.ga_id = u.ga_id)
+      )
+    LIMIT 1
+    `,
+    [userId, noticeId, ADMIN_NOTICE_AUDIENCE_GLOBAL, ADMIN_NOTICE_AUDIENCE_GA],
+  )
+  if (!visible.rows[0]) {
+    throw new Error('notice_not_found')
+  }
 
   const dismissedForever = options.forever === true
   const dismissedUntil = options.suppressToday === true ? getKstEndOfDayDate().toISOString() : null
