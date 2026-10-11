@@ -15,7 +15,7 @@ import {
   resolveAiPresentationMode,
   type AiPresentationMode,
 } from '../aiSecretaryPresentation'
-import { isAiSecretaryUserUiEnabled } from '../config/aiSecretaryUserUiGate'
+import { isAiFeatureVisible, isAiSecretaryUserUiEnabled } from '../config/aiSecretaryUserUiGate'
 
 type AiSecretaryContextValue = {
   presentationMode: AiPresentationMode
@@ -39,7 +39,8 @@ export function AiSecretaryProvider({ children }: { children: ReactNode }) {
   const [panelOpen, setPanelOpen] = useState(false)
 
   const canUse =
-    user?.role === 'USER' || user?.role === 'GA_ADMIN' || user?.role === 'GA_STAFF'
+    (user?.role === 'USER' || user?.role === 'GA_ADMIN' || user?.role === 'GA_STAFF') &&
+    isAiFeatureVisible()
 
   const onAiRoute = isAiAssistantRoute(location.pathname)
 
