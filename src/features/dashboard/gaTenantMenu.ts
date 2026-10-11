@@ -2,7 +2,7 @@
  * GA 테넌트 대시보드 메뉴.
  * - USER: CRM 업무 메뉴
  * - GA_ADMIN: 관리 전용 메뉴 (CRM 미포함)
- * - GA_STAFF: 원수사 운영 도구 + 보험청구/문서 설정 (소식지 게시판 관리 제외)
+ * - GA_STAFF: 원수사 연락처 · 공유 계정 · 문의/기능요청 3개만 (gaStaffPathPolicy SSOT)
  * - INSURER_MANAGER / LOSS_ADJUSTER: 채널 전용 메뉴
  */
 
@@ -125,14 +125,11 @@ export const LOSS_ADJUSTER_MENU: GaTenantMenuItem[] = [
   { label: '손해사정사 뉴스 업로드', path: '/adjuster/news/upload' },
 ]
 
-/** GA_STAFF 전용 — 원수사 관리만(다른 GA 메뉴와 merge 금지) */
+/** GA_STAFF 전용 — gaStaffPathPolicy.GA_STAFF_ALLOWED_PATH_PREFIXES 와 동일 path */
 export const GA_STAFF_MENU: GaTenantMenuItem[] = [
   { label: '원수사 연락처 관리', path: '/insurance/company-registry' },
-  { label: '원수사 담당자 관리', path: '/insurer-managers' },
-  { label: '손해사정사 계정 관리', path: '/loss-adjusters' },
-  { label: '보험사 설계사이트', path: '/insurance/insurer-sites' },
-  { label: '공유 계정관리', path: '/insurance/account-credentials/shared' },
-  { label: '추가기능 요청하기', path: '/feature-request' },
+  { label: '공유 계정 관리', path: '/insurance/account-credentials/shared' },
+  { label: '문의 / 기능 요청', path: '/feature-request' },
 ]
 
 /** @deprecated 호환용 */
@@ -537,7 +534,7 @@ function buildSuperAdminMenuEntries(): GaTenantDashboardMenuEntry[] {
       { label: '문자 / 알림 설정', path: '/admin/message-settings' },
       { label: '소식지 관리', path: '/admin/newsletter-boards' },
       { label: '운영 통계', path: '/admin/analytics' },
-      { label: '기능 요청 관리', path: '/internal/admin/feature-requests' },
+      { label: '문의 / 기능 요청 관리', path: '/internal/admin/feature-requests' },
       { label: '프로그램 문의', path: '/internal/admin/program-inquiries' },
     ]),
   )
@@ -604,17 +601,7 @@ export function buildAppMenuForSession(
       return itemsToEntries(LOSS_ADJUSTER_MENU)
     }
     if (role === 'GA_STAFF') {
-      // STEP: 실무·원수사 운영 메뉴만. GA 설정·청구/PDF 관리·게시판 관리는 route guard 로도 차단.
-      const operational = itemsToEntries([
-        CONTRACT_SIGNATURE_USER_SEND,
-        CONTRACT_SIGNATURE_USER_HISTORY,
-        ...GA_STAFF_MENU,
-      ])
-      const dynamicBoardEntries = buildDynamicNewsletterBoardMenuEntries(dynamicNewsletterBoards, role)
-      if (dynamicBoardEntries.length > 0) {
-        return [...operational, { type: 'divider' as const }, ...dynamicBoardEntries]
-      }
-      return operational
+      return itemsToEntries(GA_STAFF_MENU)
     }
     if (role === 'GA_ADMIN') {
       // GA 관리자: buildGaAdminManagementMenuEntries 만 반환.

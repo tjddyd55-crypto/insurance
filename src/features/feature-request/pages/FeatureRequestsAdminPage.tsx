@@ -15,6 +15,7 @@ import {
   formatFeatureRequestAuthor,
   formatFeatureRequestCommentAuthor,
 } from '../formatFeatureRequestAuthor.js'
+import { featureRequestTypeLabel } from '../featureRequestTypes'
 import '../featureRequestAdmin.css'
 
 /*
@@ -257,7 +258,7 @@ export default function FeatureRequestsAdminPage() {
     return (
       <main className="page page--with-back">
         <header className="page-header">
-          <h1>기능 요청 관리</h1>
+          <h1>문의 / 기능 요청 관리</h1>
           <p>전체 관리자만 접근할 수 있습니다.</p>
         </header>
       </main>
@@ -282,7 +283,7 @@ export default function FeatureRequestsAdminPage() {
   return (
     <main className="page page--with-back feature-request-admin">
       <header className="page-header">
-        <h1>기능 요청 관리</h1>
+        <h1>문의 / 기능 요청 관리</h1>
         <p>{error || `총 ${rows.length}건 (최근 500건)`}</p>
       </header>
 
@@ -300,6 +301,8 @@ export default function FeatureRequestsAdminPage() {
               <article key={r.id} className="feature-request-admin__card">
                 <h2 className="feature-request-admin__card-title">{r.title || '(제목 없음)'}</h2>
                 <div className="feature-request-admin__card-meta">
+                  <span>{featureRequestTypeLabel(r.request_type)}</span>
+                  <span>·</span>
                   <span>{authorLabel(r)}</span>
                   <span>·</span>
                   <span>{statusToLabel(r.status)}</span>
@@ -348,6 +351,7 @@ export default function FeatureRequestsAdminPage() {
         <table className="feature-request-admin__table">
           <thead>
             <tr>
+              <th>유형</th>
               <th>GA</th>
               <th>작성자</th>
               <th>제목</th>
@@ -360,7 +364,7 @@ export default function FeatureRequestsAdminPage() {
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={7} className="feature-request-admin__empty-cell">
+                <td colSpan={8} className="feature-request-admin__empty-cell">
                   등록된 요청이 없습니다.
                 </td>
               </tr>
@@ -373,6 +377,9 @@ export default function FeatureRequestsAdminPage() {
                 return (
                   <Fragment key={r.id}>
                     <tr>
+                      <td className="feature-request-admin__nowrap">
+                        {featureRequestTypeLabel(r.request_type)}
+                      </td>
                       <td className="feature-request-admin__nowrap">{r.ga_name}</td>
                       <td className="feature-request-admin__author">{authorLabel(r)}</td>
                       <td className="feature-request-admin__title-cell">{r.title || '—'}</td>
@@ -398,7 +405,7 @@ export default function FeatureRequestsAdminPage() {
                     </tr>
                     {isExpanded ? (
                       <tr>
-                        <td colSpan={7} className="feature-request-admin__expand-cell">
+                        <td colSpan={8} className="feature-request-admin__expand-cell">
                           <CommentPanel
                             requestId={r.id}
                             comments={comments}

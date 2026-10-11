@@ -1373,6 +1373,22 @@ export async function initDb() {
     ADD COLUMN IF NOT EXISTS title TEXT NOT NULL DEFAULT ''
   `)
   await pool.query(`
+    ALTER TABLE feature_requests
+    ADD COLUMN IF NOT EXISTS request_type TEXT NOT NULL DEFAULT 'feature'
+  `)
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'feature_requests_request_type_check'
+      ) THEN
+        ALTER TABLE feature_requests
+          ADD CONSTRAINT feature_requests_request_type_check
+          CHECK (request_type IN ('error', 'inquiry', 'feature', 'other'));
+      END IF;
+    END $$;
+  `)
+  await pool.query(`
     UPDATE feature_requests
     SET title = LEFT(TRIM(content), 120)
     WHERE COALESCE(TRIM(title), '') = ''
