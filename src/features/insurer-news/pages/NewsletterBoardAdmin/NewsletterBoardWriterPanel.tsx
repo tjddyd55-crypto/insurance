@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { FormButton } from '../../../../components/form'
 import { useConfirmDialog } from '../../../../components/dialog'
 import type { NewsletterBoard } from '../../types'
@@ -50,29 +50,44 @@ export function NewsletterBoardWriterPanel({
   const [loginIdAvailability, setLoginIdAvailability] = useState<{ available: boolean } | null>(null)
   const [checkMessage, setCheckMessage] = useState('')
   const { confirm, confirmDialog } = useConfirmDialog()
+  /** board.id 변경·이전 fetch 완료 시 stale 응답이 다른 게시판 목록을 덮어쓰지 않도록 한다 */
+  const boardLoadGenerationRef = useRef(0)
 
-  const loadWriters = useCallback(async () => {
-    if (!token.trim()) {
-      setWriters([])
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    try {
-      setWriters(await listBoardWriterAccountsForBoard(token, role, board.id))
-      setError('')
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '작성자 목록을 불러오지 못했습니다.')
-    } finally {
-      setLoading(false)
-    }
-  }, [board.id, role, token])
+  const loadWriters = useCallback(
+    async (boardId: string) => {
+      const generation = boardLoadGenerationRef.current
+      if (!token.trim()) {
+        if (boardLoadGenerationRef.current === generation) {
+          setWriters([])
+          setLoading(false)
+        }
+        return
+      }
+      setLoading(true)
+      try {
+        const rows = await listBoardWriterAccountsForBoard(token, role, boardId)
+        if (boardLoadGenerationRef.current !== generation) {
+          return
+        }
+        setWriters(rows)
+        setError('')
+      } catch (e) {
+        if (boardLoadGenerationRef.current !== generation) {
+          return
+        }
+        setError(e instanceof Error ? e.message : '작성자 목록을 불러오지 못했습니다.')
+      } finally {
+        if (boardLoadGenerationRef.current === generation) {
+          setLoading(false)
+        }
+      }
+    },
+    [role, token],
+  )
 
   useEffect(() => {
-    void loadWriters()
-  }, [loadWriters])
-
-  useEffect(() => {
+    boardLoadGenerationRef.current += 1
+    const boardId = board.id
     setWriters([])
     setLoading(true)
     setRegisterOpen(false)
@@ -82,7 +97,8 @@ export function NewsletterBoardWriterPanel({
     setLoginIdAvailability(null)
     setCheckMessage('')
     setError('')
-  }, [board.id])
+    void loadWriters(boardId)
+  }, [board.id, loadWriters])
 
   const closeModals = () => {
     if (busy) {
@@ -210,7 +226,7 @@ export function NewsletterBoardWriterPanel({
           isActive: form.isActive,
         })
         closeModals()
-        await loadWriters()
+        await loadWriters(board.id)
       } catch (e) {
         setFormError(e instanceof Error ? e.message : '작성자 계정 등록에 실패했습니다.')
       } finally {
@@ -240,7 +256,7 @@ export function NewsletterBoardWriterPanel({
           isActive: form.isActive,
         })
         closeModals()
-        await loadWriters()
+        await loadWriters(board.id)
       } catch (e) {
         setFormError(e instanceof Error ? e.message : '작성자 계정 수정에 실패했습니다.')
       } finally {
@@ -272,7 +288,7 @@ export function NewsletterBoardWriterPanel({
       setError('')
       try {
         await setBoardWriterAccountStatus(token, role, board.id, writer.id, false)
-        await loadWriters()
+        await loadWriters(board.id)
       } catch (e) {
         setError(e instanceof Error ? e.message : '사용 중지에 실패했습니다.')
       } finally {
@@ -300,7 +316,7 @@ export function NewsletterBoardWriterPanel({
       setError('')
       try {
         await setBoardWriterAccountStatus(token, role, board.id, writer.id, true)
-        await loadWriters()
+        await loadWriters(board.id)
       } catch (e) {
         setError(e instanceof Error ? e.message : '다시 사용에 실패했습니다.')
       } finally {
