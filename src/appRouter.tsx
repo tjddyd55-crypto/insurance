@@ -12,6 +12,7 @@ import LossAdjustersPage from './features/loss-adjusters/pages/LossAdjustersPage
 import GaManagementPage from './features/admin/pages/GaManagementPage'
 import GaCompanyManagePage from './features/admin/pages/GaCompanyManagePage'
 import UserManagementPage from './features/admin/pages/UserManagementPage'
+import AdminMessageSettingsPage from './features/admin/pages/AdminMessageSettingsPage'
 import AuditLogsPage from './features/admin/pages/AuditLogsPage'
 import MenuPermissionMatrixPage from './features/admin/menu-permissions/MenuPermissionMatrixPage'
 import AiAssistantToolRegistryPage from './features/ai-assistant/pages/AiAssistantToolRegistryPage'
@@ -634,6 +635,7 @@ export const appRouter = createBrowserRouter([
                     element: <AdminAnalyticsPage />,
                   },
                   { path: 'admin/insurer-sites', element: <AdminInsurerSitesPage /> },
+                  { path: 'admin/message-settings', element: <AdminMessageSettingsPage /> },
                   { path: 'admin/notices', element: <AdminNoticeListPage /> },
                   { path: 'admin/notices/new', element: <AdminNoticeEditorPage /> },
                   { path: 'admin/notices/:id', element: <AdminNoticeEditorPage /> },

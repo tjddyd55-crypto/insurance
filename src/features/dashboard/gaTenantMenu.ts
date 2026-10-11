@@ -514,6 +514,7 @@ function buildSuperAdminMenuEntries(): GaTenantDashboardMenuEntry[] {
   entries.push(
     ...itemsToEntries([
       { label: '공지사항 관리', path: '/admin/notices' },
+      { label: '문자 / 알림 설정', path: '/admin/message-settings' },
       { label: '소식지 관리', path: '/admin/newsletter-boards' },
       { label: '운영 통계', path: '/admin/analytics' },
       { label: '기능 요청 관리', path: '/internal/admin/feature-requests' },
