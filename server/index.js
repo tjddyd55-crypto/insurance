@@ -29,6 +29,7 @@ import { ensureReferralCodeForUser } from './referrals/referralCode.js'
 import { resolveCustomerInviteRef } from './referrals/resolveCustomerInviteRef.js'
 import { planSignupCodes, applySignupCodesPlan } from './signup/processSignupCodes.js'
 import { queueSignupWelcomeSms } from './signup/signupWelcomeSms.js'
+import { registerSignupWelcomeSmsAdminApi } from './signup/registerSignupWelcomeSmsAdminApi.js'
 import { readPolicyActive } from './subscription/appSettings.js'
 import { registerCustomerExtraApi } from './apis/customerExtraApi.js'
 import { registerCustomerRelationGroupsApi } from './apis/registerCustomerRelationGroupsApi.js'
@@ -1764,6 +1765,7 @@ registerPlatformAdminApi(apiRouter, { pool, requireAuth, requireSuperAdmin, hand
 registerCrmCustomerTemplateAdminApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
 registerSmsModuleApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCrmUserBulkSmsApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
+registerSignupWelcomeSmsAdminApi(apiRouter, { pool, requireAuth, requireSuperAdmin })
 const smsStartup = validateSmsModuleStartupConfig()
 if (!smsStartup.ok) {
   console.error(`[sms-module] startup blocked: ${smsStartup.message}`)
