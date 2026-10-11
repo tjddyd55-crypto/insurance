@@ -16,6 +16,7 @@ const GA_STAFF_BLOCKED_PREFIXES = [
   '/admin/audit-logs',
   '/admin/billing/',
   '/admin/notices',
+  '/admin/message-settings',
   '/admin/analytics',
   '/internal/admin/',
   '/ga-admin/',
@@ -29,6 +30,7 @@ const GA_STAFF_BLOCKED_EXACT = new Set([
   '/admin/ga',
   '/admin/users',
   '/admin/audit-logs',
+  '/admin/message-settings',
 ])
 
 export function isGaStaffBlockedAdminPath(pathname: string): boolean {

@@ -43,7 +43,6 @@ import {
 } from '../adminUserPresentation'
 import CrmUserBulkSmsComposerDialog from '../components/CrmUserBulkSmsComposerDialog'
 import CrmUserBulkSmsHistoryDetailDialog from '../components/CrmUserBulkSmsHistoryDetailDialog'
-import { SignupWelcomeSmsSettingsPanel } from '../components/SignupWelcomeSmsSettingsPanel'
 
 const ACCOUNT_STATUS_META: Record<EntityStatus, { label: string; fg: string; bg: string }> = {
   active: {
@@ -267,6 +266,27 @@ export default function UserManagementPage() {
   }, [loadOverview])
 
   const gaGroups = useMemo(() => groupAdminUsersByGa(rows), [rows])
+
+  const applyOverviewFilter = (kind: 'all' | 'monthly_new' | 'today' | '7d') => {
+    setSaveOk('')
+    if (kind === 'all') {
+      setNewMemberFilter('')
+      setActivityFilter('')
+      return
+    }
+    if (kind === 'monthly_new') {
+      setNewMemberFilter('monthly_new')
+      setActivityFilter('')
+      return
+    }
+    if (kind === 'today') {
+      setNewMemberFilter('')
+      setActivityFilter('today')
+      return
+    }
+    setNewMemberFilter('')
+    setActivityFilter('7d')
+  }
 
   const toggleGaCollapsed = (gaId: number) => {
     setCollapsedGaIds((prev) => {
@@ -592,33 +612,45 @@ export default function UserManagementPage() {
 
       <StatusMessage message={listActionError} tone="error" className="m-0" />
 
-      <SignupWelcomeSmsSettingsPanel />
-
-      <section className="admin-user-management__overview card auth-card" aria-label="사용자 운영 요약">
-        <div className="admin-user-management__overview-grid">
-          <div className="admin-user-management__overview-item admin-user-management__overview-item--primary">
-            <span className="admin-user-management__overview-label">전체 사용자</span>
-            <strong>{overview?.totalUsers ?? '—'}</strong>
-          </div>
-          <div className="admin-user-management__overview-item admin-user-management__overview-item--primary">
-            <span className="admin-user-management__overview-label">이번 달 신규</span>
-            <strong>{overview?.monthlyNewUsers ?? '—'}</strong>
-          </div>
-          <div className="admin-user-management__overview-item">
-            <span className="admin-user-management__overview-label">오늘 접속</span>
-            <strong>{overview?.todayActiveUsers ?? '—'}</strong>
-          </div>
-          <div className="admin-user-management__overview-item">
-            <span className="admin-user-management__overview-label">최근 7일 접속</span>
-            <strong>{overview?.recent7DaysActiveUsers ?? '—'}</strong>
-          </div>
-        </div>
-        <p className="admin-user-management__overview-hint">
-          운영 기준은 <strong>가입일·이번 달 신규</strong>입니다. 최근 접속은 활동 보조 지표입니다.
-        </p>
+      <section className="admin-user-management__overview-bar card auth-card" aria-label="사용자 운영 요약">
+        <button
+          type="button"
+          className={`admin-user-management__stat${newMemberFilter === '' && activityFilter === '' ? ' admin-user-management__stat--active' : ''}`}
+          onClick={() => applyOverviewFilter('all')}
+        >
+          <span className="admin-user-management__stat-label">전체 사용자</span>
+          <strong className="admin-user-management__stat-value">{overview?.totalUsers ?? '—'}</strong>
+        </button>
+        <span className="admin-user-management__stat-divider" aria-hidden="true" />
+        <button
+          type="button"
+          className={`admin-user-management__stat admin-user-management__stat--primary${newMemberFilter === 'monthly_new' ? ' admin-user-management__stat--active' : ''}`}
+          onClick={() => applyOverviewFilter('monthly_new')}
+        >
+          <span className="admin-user-management__stat-label">이번 달 신규</span>
+          <strong className="admin-user-management__stat-value">{overview?.monthlyNewUsers ?? '—'}</strong>
+        </button>
+        <span className="admin-user-management__stat-divider" aria-hidden="true" />
+        <button
+          type="button"
+          className={`admin-user-management__stat${activityFilter === 'today' ? ' admin-user-management__stat--active' : ''}`}
+          onClick={() => applyOverviewFilter('today')}
+        >
+          <span className="admin-user-management__stat-label">오늘 접속</span>
+          <strong className="admin-user-management__stat-value">{overview?.todayActiveUsers ?? '—'}</strong>
+        </button>
+        <span className="admin-user-management__stat-divider" aria-hidden="true" />
+        <button
+          type="button"
+          className={`admin-user-management__stat${activityFilter === '7d' ? ' admin-user-management__stat--active' : ''}`}
+          onClick={() => applyOverviewFilter('7d')}
+        >
+          <span className="admin-user-management__stat-label">최근 7일 접속</span>
+          <strong className="admin-user-management__stat-value">{overview?.recent7DaysActiveUsers ?? '—'}</strong>
+        </button>
       </section>
 
-      <section className="admin-user-management__view-toggle card auth-card">
+      <section className="admin-user-management__view-toolbar card auth-card">
         <div className="admin-user-management__view-toggle-buttons">
           <FormButton
             htmlType="button"
