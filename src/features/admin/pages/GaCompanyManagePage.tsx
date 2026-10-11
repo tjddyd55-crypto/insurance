@@ -4,16 +4,17 @@ import { FormButton } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import { listGaCompanies, type GaCompanyRow } from '../../auth/authApi'
 import { GaCustomerExcelManagementPanel } from '../components/GaCustomerExcelManagementPanel'
+import { GaGaAdminAccountsPanel } from '../components/GaGaAdminAccountsPanel'
 import { createSuperAdminGaExcelManagementApi } from '../components/gaCustomerExcelManagementApi'
 
-type TabKey = 'excel' | 'customerDb'
+type TabKey = 'gaAdmins' | 'customerDb' | 'excel'
 
 export default function GaCompanyManagePage() {
   const { gaId: gaIdParam } = useParams()
   const gaId = Number(gaIdParam)
   const location = useLocation()
   const { token, user } = useAuth()
-  const [tab, setTab] = useState<TabKey>('excel')
+  const [tab, setTab] = useState<TabKey>('gaAdmins')
   const [gaMeta, setGaMeta] = useState<{ name: string; code: string } | null>(null)
   const stateMeta = location.state as { name?: string; code?: string } | undefined
 
@@ -102,6 +103,17 @@ export default function GaCompanyManagePage() {
         >
           <FormButton
             htmlType="button"
+            variant={tab === 'gaAdmins' ? 'primary' : 'secondary'}
+            className={tab === 'gaAdmins' ? 'button button--primary' : 'button button--secondary'}
+            onClick={(ev) => {
+              ev.stopPropagation()
+              setTab('gaAdmins')
+            }}
+          >
+            GA 관리자 계정
+          </FormButton>
+          <FormButton
+            htmlType="button"
             variant={tab === 'customerDb' ? 'primary' : 'secondary'}
             className={tab === 'customerDb' ? 'button button--primary' : 'button button--secondary'}
             onClick={(ev) => {
@@ -123,6 +135,8 @@ export default function GaCompanyManagePage() {
             고객 엑셀 관리
           </FormButton>
         </div>
+
+        {tab === 'gaAdmins' ? <GaGaAdminAccountsPanel gaId={gaId} /> : null}
 
         {tab === 'customerDb' ? (
           <p className="text-sm text-[var(--text-secondary)]" style={{ lineHeight: 1.6 }}>

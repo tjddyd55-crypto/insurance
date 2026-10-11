@@ -187,6 +187,7 @@ import { registerConsentApi } from './registerConsentApi.js'
 import { registerInsurerNewsApi } from './registerInsurerNewsApi.js'
 import { registerPublicBoardWriterApi } from './registerPublicBoardWriterApi.js'
 import { registerGaAdminManagementApi } from './registerGaAdminManagementApi.js'
+import { registerSuperAdminGaAdminAccountsApi } from './registerSuperAdminGaAdminAccountsApi.js'
 import { registerPublicInquiryApi } from './public-inquiries/registerPublicInquiryApi.js'
 import { registerPublicInquiryAdminApi } from './public-inquiries/registerPublicInquiryAdminApi.js'
 import { registerSignatureApi } from './registerSignatureApi.js'
@@ -1593,6 +1594,20 @@ registerGaAdminManagementApi(apiRouter, {
   parseEntityStatus,
   mapGaDelegateAdminRow,
   tryCreateGaDelegateFromRequest,
+})
+
+registerSuperAdminGaAdminAccountsApi(apiRouter, {
+  pool,
+  requireAuth,
+  requireSuperAdmin,
+  handleDbError,
+  systemQuery,
+  bcrypt,
+  validateCredentials,
+  isUsernameTakenGlobally,
+  parseEntityStatus,
+  tryCreateGaDelegateFromRequest,
+  toIsoString,
 })
 
 registerPublicInquiryApi(apiRouter, {
@@ -4616,6 +4631,7 @@ async function tryCreateGaDelegateFromRequest(req, options = {}) {
   }
   const plainPassword = String(password)
   const passwordHash = await bcrypt.hash(plainPassword, 10)
+  const delegatePlaintext = targetRole === 'GA_ADMIN' ? null : plainPassword
   const id = randomUUID()
 
   const invitedBy = String(req.user?.id ?? '').trim()
@@ -4628,7 +4644,7 @@ async function tryCreateGaDelegateFromRequest(req, options = {}) {
     INSERT INTO users (id, username, password_hash, role, display_name, ga_id, delegate_password_plaintext, invited_by_user_id)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     `,
-    [id, normalizedUsername, passwordHash, targetRole, displayName, targetGaId, plainPassword, invitedBy],
+    [id, normalizedUsername, passwordHash, targetRole, displayName, targetGaId, delegatePlaintext, invitedBy],
   )
 
   return { ok: true, id, username: normalizedUsername, role: targetRole, ga_id: targetGaId, displayName }
