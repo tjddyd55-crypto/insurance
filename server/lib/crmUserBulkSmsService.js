@@ -1,14 +1,15 @@
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { resolveMessageType } from '../sms/smsMessageUtils.js'
-import { isValidKoreanMobilePhone, normalizeSenderNumber, normalizeSmsPhone } from '../sms/smsPhone.js'
-import { resolveSmsProvider } from '../sms/smsProviderFactory.js'
+import { isValidKoreanMobilePhone, normalizeSmsPhone } from '../sms/smsPhone.js'
 import {
-  getCrmUserBulkSmsDevAllowlist,
-  getCrmUserBulkSmsDefaultSender,
+  resolveAdminNoticeAligoAccount,
+  sendAdminNoticeSms,
+} from '../services/adminNoticeSmsClient.js'
+import {
   getCrmUserBulkSmsMaxRecipients,
   getCrmUserBulkSmsRuntimeInfo,
   isCrmUserBulkSmsEnabled,
-  isCrmUserBulkSmsRealSendEnabled,
+  resolveCrmUserBulkSmsDispatchMode,
 } from './crmUserBulkSmsConfig.js'
 import { ensureCrmUserBulkSmsSchema } from './crmUserBulkSmsSchema.js'
 
@@ -181,8 +182,11 @@ export function resolveCrmUserBulkSmsRecipients(rows, messageTemplate) {
 
   const eligible = resolved.filter((r) => r.status === 'PENDING')
   const excluded = resolved.filter((r) => r.status === 'EXCLUDED')
-  const sampleMessage = String(eligible[0]?.renderedMessage ?? messageTemplate)
-  const smsType = resolveMessageType(sampleMessage)
+  const messagesForType =
+    eligible.length > 0
+      ? eligible.map((row) => String(row.renderedMessage ?? ''))
+      : [String(messageTemplate ?? '')]
+  const smsType = messagesForType.some((body) => resolveMessageType(body) === 'LMS') ? 'LMS' : 'SMS'
 
   return {
     recipients: resolved,
@@ -217,7 +221,6 @@ function assertFeatureEnabled() {
  *   userIds: string[];
  *   message: string;
  *   title?: string;
- *   senderNumber?: string;
  * }} input
  */
 export async function previewCrmUserBulkSms(pool, input) {
@@ -272,46 +275,13 @@ export async function previewCrmUserBulkSms(pool, input) {
       (summary.exclusionBreakdown.UNAUTHORIZED_SCOPE ?? 0) + 1
   }
 
-  const senderFromInputOrEnv =
-    normalizeSenderNumber(input.senderNumber) ||
-    normalizeSenderNumber(getCrmUserBulkSmsDefaultSender())
-
-  let sender = senderFromInputOrEnv
-  if (!sender && input.actorUserId) {
-    try {
-      const senderRow = await systemQuery(
-        pool,
-        `
-        SELECT COALESCE(
-          NULLIF(regexp_replace(COALESCE(p.default_sender, ''), '[^0-9]', '', 'g'), ''),
-          (
-            SELECT regexp_replace(s.sender_number, '[^0-9]', '', 'g')
-            FROM sms_sender_numbers s
-            WHERE s.user_id = $1
-              AND COALESCE(s.status, '') IN ('approved', 'APPROVED', 'active', 'ACTIVE')
-            ORDER BY s.is_default DESC NULLS LAST, s.id ASC
-            LIMIT 1
-          )
-        ) AS sender
-        FROM users u
-        LEFT JOIN sms_provider_accounts p ON p.user_id = u.id
-        WHERE u.id = $1
-        LIMIT 1
-        `,
-        [String(input.actorUserId)],
-      )
-      sender = normalizeSenderNumber(senderRow.rows[0]?.sender) || null
-    } catch {
-      // 스키마/테이블이 없어도 preview 자체는 계속 진행
-      sender = null
-    }
-  }
+  const approvedAccount = resolveAdminNoticeAligoAccount()
 
   return {
     runtime: getCrmUserBulkSmsRuntimeInfo(),
-    title: String(input.title ?? '').trim() || '사용자 안내',
+    title: String(input.title ?? '').trim(),
     message,
-    senderNumber: sender,
+    senderNumber: approvedAccount.sender || null,
     audienceType: CRM_USER_BULK_SMS_AUDIENCE,
     sourceType: CRM_USER_BULK_SMS_SOURCE,
     messagePurpose: 'service_notice',
@@ -336,7 +306,6 @@ export async function previewCrmUserBulkSms(pool, input) {
  *   userIds: string[];
  *   message: string;
  *   title?: string;
- *   senderNumber?: string;
  *   idempotencyKey?: string;
  *   confirm: boolean;
  * }} input
@@ -361,7 +330,12 @@ export async function sendCrmUserBulkSms(pool, input) {
       [idempotencyKey],
     )
     if (existing.rows[0]) {
-      return { campaign: mapCampaignRow(existing.rows[0]), reused: true }
+      return {
+        campaign: mapCampaignRow(existing.rows[0]),
+        reused: true,
+        dryRun: Boolean(existing.rows[0].dry_run),
+        dryRunCount: 0,
+      }
     }
   }
 
@@ -373,23 +347,12 @@ export async function sendCrmUserBulkSms(pool, input) {
     throw err
   }
 
-  const realSend = isCrmUserBulkSmsRealSendEnabled()
-  const allowlist = getCrmUserBulkSmsDevAllowlist()
-  const production = getCrmUserBulkSmsRuntimeInfo().productionRuntime
-  const dryRun = !realSend
-
-  // dry-run 은 발신번호 없이도 캠페인 기록을 남긴다. 실발송만 필수.
-  let senderNumber = preview.senderNumber
-  if (!senderNumber) {
-    if (dryRun) {
-      senderNumber = '00000000000'
-    } else {
-      const err = new Error('sender_required')
-      err.status = 400
-      err.publicMessage = '발신번호를 설정해 주세요.'
-      throw err
-    }
-  }
+  const dispatchMode = resolveCrmUserBulkSmsDispatchMode()
+  const dryRun = dispatchMode.dryRun
+  const production = dispatchMode.production
+  const allowlist = dispatchMode.allowlist
+  const approvedAccount = resolveAdminNoticeAligoAccount()
+  const senderNumber = approvedAccount.sender || ''
 
   const client = await pool.connect()
   let campaignId
@@ -471,7 +434,12 @@ export async function sendCrmUserBulkSms(pool, input) {
         [idempotencyKey],
       )
       if (existing.rows[0]) {
-        return { campaign: mapCampaignRow(existing.rows[0]), reused: true }
+        return {
+          campaign: mapCampaignRow(existing.rows[0]),
+          reused: true,
+          dryRun: Boolean(existing.rows[0].dry_run),
+          dryRunCount: 0,
+        }
       }
     }
     throw e
@@ -490,105 +458,19 @@ export async function sendCrmUserBulkSms(pool, input) {
 
   let successCount = 0
   let failedCount = 0
-  let provider = null
-  if (!dryRun) {
-    try {
-      provider = resolveSmsProvider()
-    } catch (e) {
-      await systemQuery(
-        pool,
-        `UPDATE crm_user_bulk_sms_campaigns
-         SET status = 'FAILED', failed_count = $2, completed_at = NOW()
-         WHERE id = $1`,
-        [campaignId, pending.rows.length],
-      )
-      const err = new Error('provider_unavailable')
-      err.status = 503
-      err.publicMessage = e?.publicMessage || e?.message || 'SMS provider를 사용할 수 없습니다.'
-      throw err
-    }
-  }
+  let dryRunCount = 0
 
   for (const row of pending.rows) {
-    const phone = String(row.phone_normalized ?? '')
-    const message = String(row.rendered_message ?? '')
-
-    if (!dryRun && !production && allowlist.size > 0 && !allowlist.has(phone)) {
-      await systemQuery(
-        pool,
-        `UPDATE crm_user_bulk_sms_recipients
-         SET status = 'EXCLUDED', exclusion_reason = 'UNAUTHORIZED_SCOPE', sent_at = NOW()
-         WHERE id = $1`,
-        [row.id],
-      )
-      continue
-    }
-
-    if (!dryRun && !production && allowlist.size === 0) {
-      // development 실발송 플래그가 켜져도 allowlist 없으면 dry-run 강제
-      await systemQuery(
-        pool,
-        `UPDATE crm_user_bulk_sms_recipients
-         SET status = 'DRY_RUN', sent_at = NOW()
-         WHERE id = $1`,
-        [row.id],
-      )
-      successCount += 1
-      continue
-    }
-
-    if (dryRun) {
-      await systemQuery(
-        pool,
-        `UPDATE crm_user_bulk_sms_recipients
-         SET status = 'DRY_RUN', provider_message_id = $2, sent_at = NOW()
-         WHERE id = $1`,
-        [row.id, `dry-run-${campaignId}-${row.id}`],
-      )
-      successCount += 1
-      continue
-    }
-
-    try {
-      const sendResult = await provider.send({
-        to: phone,
-        from: senderNumber,
-        message,
-        title: preview.title,
-        messageType: preview.summary.smsType,
-        providerUserId: '',
-        apiKey: '',
-        requestId: `crm-user-bulk:${campaignId}:${row.id}`,
-      })
-      if (sendResult.success) {
-        await systemQuery(
-          pool,
-          `UPDATE crm_user_bulk_sms_recipients
-           SET status = 'SENT', provider_message_id = $2, sent_at = NOW()
-           WHERE id = $1`,
-          [row.id, sendResult.providerMessageId ?? null],
-        )
-        successCount += 1
-      } else {
-        await systemQuery(
-          pool,
-          `UPDATE crm_user_bulk_sms_recipients
-           SET status = 'FAILED', error_code = $2, sent_at = NOW()
-           WHERE id = $1`,
-          [row.id, String(sendResult.errorMessage ?? 'send_failed').slice(0, 200)],
-        )
-        failedCount += 1
-      }
-    } catch (e) {
-      await systemQuery(
-        pool,
-        `UPDATE crm_user_bulk_sms_recipients
-         SET status = 'FAILED', error_code = $2, sent_at = NOW()
-         WHERE id = $1`,
-        [row.id, String(e?.message ?? 'send_exception').slice(0, 200)],
-      )
-      failedCount += 1
-    }
+    const outcome = await dispatchCrmUserBulkSmsRecipient(pool, {
+      row,
+      dryRun,
+      production,
+      allowlist,
+      title: preview.title,
+    })
+    if (outcome === 'sent') successCount += 1
+    if (outcome === 'failed') failedCount += 1
+    if (outcome === 'dry_run') dryRunCount += 1
   }
 
   const excludedRecount = await systemQuery(
@@ -619,7 +501,90 @@ export async function sendCrmUserBulkSms(pool, input) {
     [campaignId],
   )
 
-  return { campaign: mapCampaignRow(campaign.rows[0]), reused: false, dryRun }
+  return {
+    campaign: mapCampaignRow(campaign.rows[0]),
+    reused: false,
+    dryRun,
+    dryRunCount,
+  }
+}
+
+/**
+ * 수신자 1명의 발송 결과를 기록한다. dry-run 은 성공으로 세지 않는다.
+ * 요청에 발신번호가 있어도 여기서는 읽지 않는다.
+ * @param {import('pg').Pool} pool
+ * @param {{
+ *   row: { id: number, phone_normalized?: string | null, rendered_message?: string | null },
+ *   dryRun: boolean,
+ *   production: boolean,
+ *   allowlist: Set<string>,
+ *   title: string,
+ * }} input
+ * @returns {Promise<'sent' | 'failed' | 'dry_run' | 'excluded'>}
+ */
+async function dispatchCrmUserBulkSmsRecipient(pool, input) {
+  const phone = String(input.row.phone_normalized ?? '')
+  const message = String(input.row.rendered_message ?? '')
+  const outsideDevAllowlist =
+    !input.dryRun && !input.production && input.allowlist.size > 0 && !input.allowlist.has(phone)
+
+  if (outsideDevAllowlist) {
+    await systemQuery(
+      pool,
+      `UPDATE crm_user_bulk_sms_recipients
+       SET status = 'EXCLUDED', exclusion_reason = 'UNAUTHORIZED_SCOPE', sent_at = NOW()
+       WHERE id = $1`,
+      [input.row.id],
+    )
+    return 'excluded'
+  }
+
+  if (input.dryRun) {
+    await systemQuery(
+      pool,
+      `UPDATE crm_user_bulk_sms_recipients
+       SET status = 'DRY_RUN', provider_message_id = NULL, sent_at = NOW()
+       WHERE id = $1`,
+      [input.row.id],
+    )
+    return 'dry_run'
+  }
+
+  try {
+    const sendResult = await sendAdminNoticeSms({
+      to: phone,
+      message,
+      title: input.title,
+    })
+    if (sendResult.success) {
+      await systemQuery(
+        pool,
+        `UPDATE crm_user_bulk_sms_recipients
+         SET status = 'SENT', provider_message_id = $2, error_code = NULL, sent_at = NOW()
+         WHERE id = $1`,
+        [input.row.id, sendResult.providerMessageId ?? null],
+      )
+      return 'sent'
+    }
+    await systemQuery(
+      pool,
+      `UPDATE crm_user_bulk_sms_recipients
+       SET status = 'FAILED', error_code = $2, sent_at = NOW()
+       WHERE id = $1`,
+      [input.row.id, String(sendResult.errorMessage ?? sendResult.errorCode ?? 'send_failed').slice(0, 200)],
+    )
+    return 'failed'
+  } catch (error) {
+    const messageText = error instanceof Error ? error.message : 'send_exception'
+    await systemQuery(
+      pool,
+      `UPDATE crm_user_bulk_sms_recipients
+       SET status = 'FAILED', error_code = $2, sent_at = NOW()
+       WHERE id = $1`,
+      [input.row.id, String(messageText).slice(0, 200)],
+    )
+    return 'failed'
+  }
 }
 
 /**

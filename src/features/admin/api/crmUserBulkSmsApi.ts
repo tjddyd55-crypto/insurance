@@ -77,35 +77,48 @@ export async function fetchCrmUserBulkSmsRuntime(token: string) {
   return unwrapData<CrmUserBulkSmsRuntime>(token, '/api/admin/users/bulk-sms/runtime')
 }
 
+export type CrmUserBulkSmsSendInput = {
+  userIds: string[]
+  message: string
+  title?: string
+  idempotencyKey: string
+}
+
+/** 발신번호는 서버의 승인 발신번호를 쓰므로 요청에 넣지 않는다. */
+export function buildCrmUserBulkSmsSendBody(input: CrmUserBulkSmsSendInput) {
+  return {
+    userIds: input.userIds,
+    message: input.message,
+    title: input.title ?? '',
+    idempotencyKey: input.idempotencyKey,
+    confirm: true as const,
+  }
+}
+
 export async function previewCrmUserBulkSms(
   token: string,
-  body: { userIds: string[]; message: string; title?: string; senderNumber?: string },
+  body: { userIds: string[]; message: string; title?: string },
 ) {
   return unwrapData<CrmUserBulkSmsPreview>(token, '/api/admin/users/bulk-sms/preview', {
     method: 'POST',
-    body: JSON.stringify(body),
+    body: JSON.stringify({
+      userIds: body.userIds,
+      message: body.message,
+      title: body.title ?? '',
+    }),
   })
 }
 
-export async function sendCrmUserBulkSms(
-  token: string,
-  body: {
-    userIds: string[]
-    message: string
-    title?: string
-    senderNumber?: string
-    idempotencyKey: string
-    confirm: true
-  },
-) {
-  return unwrapData<{ campaign: CrmUserBulkSmsCampaign; reused: boolean; dryRun?: boolean }>(
-    token,
-    '/api/admin/users/bulk-sms/send',
-    {
-      method: 'POST',
-      body: JSON.stringify(body),
-    },
-  )
+export async function sendCrmUserBulkSms(token: string, input: CrmUserBulkSmsSendInput) {
+  return unwrapData<{
+    campaign: CrmUserBulkSmsCampaign
+    reused: boolean
+    dryRun: boolean
+    dryRunCount: number
+  }>(token, '/api/admin/users/bulk-sms/send', {
+    method: 'POST',
+    body: JSON.stringify(buildCrmUserBulkSmsSendBody(input)),
+  })
 }
 
 export async function listCrmUserBulkSmsHistory(token: string) {
