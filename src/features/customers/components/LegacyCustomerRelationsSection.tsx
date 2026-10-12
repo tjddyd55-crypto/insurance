@@ -275,7 +275,7 @@ export function LegacyCustomerRelationsSection({
         open={addOpen}
         onClose={() => void requestCloseRelationsModal()}
         ariaLabel="고객 검색 후 연결"
-        panelClassName="customer-relations-modal"
+        panelClassName="customer-relations-modal customer-relations-modal--link-search"
         verticalAnchor="top"
         closeOnBackdrop={false}
         usePortal
