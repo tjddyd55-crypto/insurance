@@ -11,6 +11,7 @@ import {
   markStorageUploadFailed,
   openStorageFile,
   presignStorageFile,
+  putStoragePresignedFile,
   renameStorageFile,
   renameStorageFolder,
   revokeStorageStagedUpload,
@@ -583,12 +584,12 @@ export default function StorageWorkspace({
       setUploading(true)
       setError('')
       const uploads = Array.isArray(selectedFiles) ? selectedFiles : Array.from(selectedFiles)
-      let failCount = 0
+      const uploadFailures: { fileName: string; message: string }[] = []
       for (const file of uploads) {
         const normalizedName = normalizeName(file.name, FILE_NAME_MAX_LENGTH)
         const mimeType = guessContentType(file)
         if (!isValidFileName(normalizedName) || !ALLOWED_MIME.has(mimeType) || file.size < 1 || file.size > MAX_UPLOAD_BYTES) {
-          failCount += 1
+          uploadFailures.push({ fileName: normalizedName, message: '형식·용량·이름 규칙에 맞지 않습니다.' })
           continue
         }
         let stagedObjectKey: string | null = null
@@ -602,17 +603,7 @@ export default function StorageWorkspace({
           })
           uploadFileId = presign.fileId
           stagedObjectKey = presign.objectKey
-          const put = await fetch(presign.uploadUrl, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': mimeType,
-              ...(presign.putHeaders ?? {}),
-            },
-            body: file,
-          })
-          if (!put.ok) {
-            throw new Error('업로드 실패')
-          }
+          await putStoragePresignedFile(token, presign, file, mimeType, { customerId })
           await saveStorageFile(token, {
             fileId: presign.fileId,
             fileName: normalizedName,
@@ -626,8 +617,11 @@ export default function StorageWorkspace({
           })
           stagedObjectKey = null
           uploadFileId = null
-        } catch {
-          failCount += 1
+        } catch (reason) {
+          uploadFailures.push({
+            fileName: normalizedName,
+            message: reason instanceof Error ? reason.message : '업로드에 실패했습니다.',
+          })
           if (uploadFileId != null) {
             try {
               await revokeStorageStagedUpload(token, stagedObjectKey ?? '', {
@@ -646,8 +640,11 @@ export default function StorageWorkspace({
       }
       await Promise.all([loadFiles(), loadQuota()])
       setUploading(false)
-      if (failCount > 0) {
-        setError(`${failCount}개 파일 업로드에 실패했습니다.`)
+      if (uploadFailures.length > 0) {
+        const details = uploadFailures
+          .map((entry) => `${entry.fileName}: ${entry.message}`)
+          .join(' · ')
+        setError(`${uploadFailures.length}개 파일 업로드에 실패했습니다. ${details}`)
       }
     },
     [customerId, explorerSelection, isExplorerLayout, loadFiles, loadQuota, selectedFolderId, token, uploading],

@@ -1,4 +1,5 @@
-import { ApiError, apiRequest, resolveAbsoluteApiUrl } from '../../../lib/apiClient'
+import { ApiError, apiRequest, resolveAbsoluteApiUrl, resolveApiUrl } from '../../../lib/apiClient'
+import { putFileToPresignedR2Url } from '../../../lib/presignedR2Put'
 
 export type StorageFolderRow = {
   id: number
@@ -156,16 +157,88 @@ export async function presignStorageFile(
   },
 ): Promise<StorageFilePresignResponse> {
   assertToken(token)
-  return apiRequest<StorageFilePresignResponse>('/api/storage/files/presign', {
+  const customerId = body.customerId ?? null
+  const path =
+    customerId != null && Number.isInteger(customerId)
+      ? `/api/customers/${customerId}/files/presign`
+      : '/api/storage/files/presign'
+  return apiRequest<StorageFilePresignResponse>(path, {
     method: 'POST',
     token,
     body: JSON.stringify({
       fileName: body.fileName,
       contentType: body.contentType,
       size: body.sizeBytes,
-      customerId: body.customerId ?? null,
+      customerId,
     }),
   })
+}
+
+function resolveStorageUploadProxyPath(customerId?: number | null): string {
+  if (customerId != null && Number.isInteger(customerId)) {
+    return `/api/customers/${customerId}/files/upload-proxy`
+  }
+  return '/api/storage/files/upload-proxy'
+}
+
+/** presign 후 R2 직접 PUT, CORS 실패 시 서버 upload-proxy 경유 (save는 호출자가 수행). */
+export async function putStoragePresignedFile(
+  token: string,
+  presign: Pick<StorageFilePresignResponse, 'uploadUrl' | 'objectKey' | 'fileId' | 'putHeaders'>,
+  file: File,
+  contentType: string,
+  scope?: StorageFileScope,
+): Promise<void> {
+  assertToken(token)
+  let directOk = false
+  try {
+    await putFileToPresignedR2Url(presign.uploadUrl, file, contentType, presign.putHeaders)
+    directOk = true
+  } catch {
+    directOk = false
+  }
+  if (directOk) {
+    return
+  }
+
+  const q = new URLSearchParams({
+    uploadFileId: String(presign.fileId),
+    objectKey: presign.objectKey,
+    contentType,
+  })
+  const customerId = scope?.customerId ?? null
+  if (customerId != null) {
+    q.set('customerId', String(customerId))
+  }
+  const proxyPath = resolveStorageUploadProxyPath(customerId)
+  let proxyRes: Response
+  try {
+    proxyRes = await fetch(resolveApiUrl(`${proxyPath}?${q.toString()}`), {
+      method: 'PUT',
+      headers: {
+        'Content-Type': contentType,
+        Authorization: `Bearer ${token.trim()}`,
+      },
+      body: file,
+    })
+  } catch {
+    throw new ApiError(
+      '스토리지로 파일을 전송하지 못했습니다. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.',
+      0,
+    )
+  }
+  if (!proxyRes.ok) {
+    let message = `파일 업로드에 실패했습니다. (${proxyRes.status})`
+    try {
+      const errBody = (await proxyRes.json()) as { message?: string }
+      if (errBody?.message?.trim()) {
+        message = String(errBody.message).trim()
+      }
+    } catch {
+      /* non-JSON */
+    }
+    throw new ApiError(message, proxyRes.status)
+  }
 }
 
 export async function revokeStorageStagedUpload(

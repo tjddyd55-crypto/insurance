@@ -50,7 +50,8 @@ export function MaterialAddSourceDialog({
   const [filter, setFilter] = useState<'all' | 'pdf' | 'image'>('all')
   const [teamFiles, setTeamFiles] = useState<TeamFileRow[]>([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [teamError, setTeamError] = useState('')
+  const [storageLinkError, setStorageLinkError] = useState('')
   const [linkingId, setLinkingId] = useState('')
 
   useEffect(() => {
@@ -59,7 +60,8 @@ export function MaterialAddSourceDialog({
       setTab('storage')
       setQuery('')
       setFilter('all')
-      setError('')
+      setTeamError('')
+      setStorageLinkError('')
       setLinkingId('')
     })
     return () => cancelAnimationFrame(frame)
@@ -69,14 +71,14 @@ export function MaterialAddSourceDialog({
     if (!open || !token?.trim() || tab !== 'team') return
     let cancelled = false
     setLoading(true)
-    setError('')
+    setTeamError('')
     void (async () => {
       try {
         const result = await fetchTeamFiles(token)
         if (!cancelled) setTeamFiles(result.files)
       } catch (reason) {
         if (!cancelled) {
-          setError(reason instanceof Error ? reason.message : '목록을 불러오지 못했습니다.')
+          setTeamError(reason instanceof Error ? reason.message : '목록을 불러오지 못했습니다.')
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -118,7 +120,7 @@ export function MaterialAddSourceDialog({
       if (!token?.trim() || linkingId) return
       const title = String(file.displayName ?? file.originalName ?? '자료').replace(/\.[^.]+$/, '')
       setLinkingId(String(file.id))
-      setError('')
+      setStorageLinkError('')
       try {
         const material = await createPersonalBinderMaterialFromFile(token, {
           fileId: file.id,
@@ -127,7 +129,7 @@ export function MaterialAddSourceDialog({
         })
         finish(material)
       } catch (reason) {
-        setError(reason instanceof Error ? reason.message : '자료를 연결하지 못했습니다.')
+        setStorageLinkError(reason instanceof Error ? reason.message : '자료를 연결하지 못했습니다.')
       } finally {
         setLinkingId('')
       }
@@ -139,7 +141,7 @@ export function MaterialAddSourceDialog({
     if (!token?.trim() || linkingId) return
     const title = file.fileName.replace(/\.[^.]+$/, '') || file.fileName
     setLinkingId(file.id)
-    setError('')
+    setTeamError('')
     try {
       const material = await createPersonalBinderMaterialFromTeam(token, {
         teamAttachmentId: file.id,
@@ -148,7 +150,7 @@ export function MaterialAddSourceDialog({
       })
       finish(material)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : '팀 자료를 연결하지 못했습니다.')
+      setTeamError(reason instanceof Error ? reason.message : '팀 자료를 연결하지 못했습니다.')
     } finally {
       setLinkingId('')
     }
@@ -186,14 +188,30 @@ export function MaterialAddSourceDialog({
               key={entry.id}
               variant={tab === entry.id ? 'primary' : 'secondary'}
               size="sm"
-              onClick={() => setTab(entry.id)}
+              onClick={() => {
+                setTab(entry.id)
+                if (entry.id === 'storage') {
+                  setTeamError('')
+                } else {
+                  setStorageLinkError('')
+                }
+              }}
             >
               {entry.label}
             </FormButton>
           ))}
         </nav>
 
-        {error ? <StatusMessage message={error} tone="error" className="m-0" /> : null}
+        {tab === 'team' && teamError ? (
+          <StatusMessage message={teamError} tone="error" className="m-0 personal-binder-material-add-modal__inset" />
+        ) : null}
+        {tab === 'storage' && storageLinkError ? (
+          <StatusMessage
+            message={storageLinkError}
+            tone="error"
+            className="m-0 personal-binder-material-add-modal__inset"
+          />
+        ) : null}
 
         {tab === 'storage' ? (
           <div className="personal-binder-storage-embed">

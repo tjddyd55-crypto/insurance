@@ -109,10 +109,19 @@ export default function StorageExplorerFilePanel({
   onAddToBinder,
   binderPickBusyFileId = null,
 }: StorageExplorerFilePanelProps) {
+  const binderPickMode = Boolean(onAddToBinder)
   const [openActionMenuFileId, setOpenActionMenuFileId] = useState<number | null>(null)
 
   return (
-    <section className="storage-explorer-files" aria-label="파일 목록">
+    <section
+      className={[
+        'storage-explorer-files',
+        binderPickMode ? 'storage-explorer-files--binder-pick' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      aria-label="파일 목록"
+    >
       <nav
         className="storage-explorer-chrome__breadcrumb-row storage-explorer-files__breadcrumb"
         aria-label="현재 위치"
