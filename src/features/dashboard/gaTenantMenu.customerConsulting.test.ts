@@ -6,6 +6,7 @@ import {
   COVERAGE_SIMULATION_MENU_ITEM,
   CUSTOMER_CONSULTING_SECTION_LABEL,
   PERSONAL_BINDER_MENU_ITEM,
+  SHARED_BINDER_MENU_ITEM,
   type GaTenantDashboardMenuEntry,
 } from './gaTenantMenu'
 
@@ -56,7 +57,7 @@ function linksInSection(
 }
 
 describe('buildAppMenuForSession — 고객 상담', () => {
-  it('USER 메뉴의 고객 상담은 내 바인더와 시뮬레이션만 가진다', () => {
+  it('USER 메뉴의 고객 상담은 내 바인더·공유 바인더·시뮬레이션을 가진다', () => {
     const menu = buildAppMenuForSession('USER', 'TEST', 'Test GA')
     const sections = sectionLabels(menu)
     const customerIndex = sections.indexOf('고객관리')
@@ -67,6 +68,7 @@ describe('buildAppMenuForSession — 고객 상담', () => {
     expect(newsletterIndex).toBe(consultingIndex + 1)
     expect(linksInSection(menu, CUSTOMER_CONSULTING_SECTION_LABEL)).toEqual([
       { label: '내 바인더', path: PERSONAL_BINDER_MENU_ITEM.path },
+      { label: '공유 바인더', path: SHARED_BINDER_MENU_ITEM.path },
       { label: '시뮬레이션', path: COVERAGE_SIMULATION_MENU_ITEM.path },
     ])
     expect(COVERAGE_SIMULATION_MENU_ITEM.path).toBe('/coverage-simulator')

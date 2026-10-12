@@ -270,13 +270,28 @@ export const BinderPageSelectionEditor = forwardRef<
 
   return (
     <div ref={rootRef} className={shellClass}>
-      <header className="personal-binder-page-dialog__header">
+      <header
+        className={[
+          'personal-binder-page-dialog__header',
+          presentation === 'panel' ? 'personal-binder-page-dialog__header--panel' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
         <div className="personal-binder-page-dialog__header-copy">
-          <h2>{material.title}</h2>
-          <p>
-            {material.originalFileName} · 원본 {pageCount}페이지
-            {presentation === 'panel' ? ` · 바인더 사용 ${usedPageCount}페이지` : ` · ${pageCount}페이지`}
-          </p>
+          {presentation === 'panel' ? (
+            <>
+              <h2 className="personal-binder-page-panel-header__title">{material.title}</h2>
+              <p className="personal-binder-page-panel-header__meta">
+                원본 {pageCount}페이지 · 사용 {usedPageCount}페이지
+              </p>
+            </>
+          ) : (
+            <>
+              <h2>{material.title}</h2>
+              <p>{material.originalFileName} · 원본 {pageCount}페이지</p>
+            </>
+          )}
         </div>
         {presentation === 'panel' ? (
           <FormButton variant="action" size="sm" onClick={() => void requestClose()}>닫기</FormButton>

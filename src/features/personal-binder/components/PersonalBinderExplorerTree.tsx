@@ -233,7 +233,7 @@ export function PersonalBinderExplorerTree({
   return (
     <aside className="personal-binder-explorer-tree" aria-label="바인더 탐색">
       <div className="personal-binder-explorer-tree__header">
-        <h2 className="personal-binder-explorer-tree__title">탐색</h2>
+        <h2 className="personal-binder-explorer-tree__title">바인더 폴더</h2>
         <FormButton variant="secondary" size="sm" disabled={disabled || busy} onClick={onCreateBinder}>
           + 바인더
         </FormButton>
@@ -243,7 +243,7 @@ export function PersonalBinderExplorerTree({
         <div className="personal-binder-explorer-tree__group">
           {renderFolderHeader('__all__', '전체 바인더', allCount)}
           {openSection === '__all__' ? (
-            <div className="personal-binder-explorer-tree__children">
+            <div className="personal-binder-explorer-tree__children personal-binder-explorer-tree__children--binders">
               {bindersByFolder.all.length === 0 ? (
                 <p className="personal-binder-explorer-tree__empty">바인더가 없습니다.</p>
               ) : (
@@ -253,16 +253,26 @@ export function PersonalBinderExplorerTree({
           ) : null}
         </div>
 
-        {folders.length > 0 ? (
-          <div className="personal-binder-explorer-tree__section-label">폴더</div>
-        ) : null}
+        <div className="personal-binder-explorer-tree__group">
+          {renderFolderHeader('__uncategorized__', '미분류', uncategorizedCount)}
+          {openSection === '__uncategorized__' ? (
+            <div className="personal-binder-explorer-tree__children personal-binder-explorer-tree__children--binders">
+              {bindersByFolder.uncategorized.length === 0 ? (
+                <p className="personal-binder-explorer-tree__empty">바인더 없음</p>
+              ) : (
+                bindersByFolder.uncategorized.map((binder) => renderBinderRow(binder))
+              )}
+            </div>
+          ) : null}
+        </div>
+
         {folders.map((folder) => {
           const rows = bindersByFolder.map.get(folder.id) ?? []
           return (
             <div key={folder.id} className="personal-binder-explorer-tree__group">
               {renderFolderHeader(folder.id, folder.name, rows.length, { userFolder: folder })}
               {openSection === folder.id ? (
-                <div className="personal-binder-explorer-tree__children">
+                <div className="personal-binder-explorer-tree__children personal-binder-explorer-tree__children--binders">
                   {rows.length === 0 ? (
                     <p className="personal-binder-explorer-tree__empty">바인더 없음</p>
                   ) : (
@@ -273,19 +283,6 @@ export function PersonalBinderExplorerTree({
             </div>
           )
         })}
-
-        <div className="personal-binder-explorer-tree__group">
-          {renderFolderHeader('__uncategorized__', '미분류', uncategorizedCount)}
-          {openSection === '__uncategorized__' ? (
-            <div className="personal-binder-explorer-tree__children">
-              {bindersByFolder.uncategorized.length === 0 ? (
-                <p className="personal-binder-explorer-tree__empty">바인더 없음</p>
-              ) : (
-                bindersByFolder.uncategorized.map((binder) => renderBinderRow(binder))
-              )}
-            </div>
-          ) : null}
-        </div>
       </div>
 
       <FormButton

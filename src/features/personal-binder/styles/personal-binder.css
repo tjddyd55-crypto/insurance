@@ -50,22 +50,72 @@
 .personal-binder-workspace__body--studio {
   display: grid;
   grid-template-columns:
-    minmax(148px, 15fr)
-    minmax(200px, 25fr)
-    minmax(360px, 60fr);
-  gap: var(--space-3, 12px);
+    minmax(132px, 12fr)
+    minmax(168px, 18fr)
+    minmax(400px, 70fr);
+  gap: var(--space-2, 8px);
   align-items: stretch;
   min-height: 0;
   min-width: 0;
 }
 
-.personal-binder-workspace__body--studio.personal-binder-workspace__body--preview-collapsed {
-  grid-template-columns: minmax(148px, 15fr) minmax(0, 85fr);
+.personal-binder-page--compact {
+  padding-top: var(--space-3, 12px);
+  padding-bottom: var(--space-4, 16px);
 }
 
-.personal-binder-workspace__body--studio.personal-binder-workspace__body--preview-collapsed
-  .personal-binder-workspace__preview-pane {
-  display: none;
+.personal-binder-page-header--compact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2, 8px);
+  margin: 0 0 var(--space-2, 8px);
+  min-height: 0;
+  padding: 0;
+}
+
+.personal-binder-page-header--compact h1 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.personal-binder-page--workspace-studio.personal-binder-page--compact {
+  padding-top: var(--space-2, 8px);
+}
+
+.personal-binder-workspace__body--studio .personal-binder-explorer-tree,
+.personal-binder-workspace__body--studio .personal-binder-workspace__editor-pane,
+.personal-binder-workspace__body--studio .personal-binder-workspace__preview-pane {
+  height: min(82vh, 940px);
+  max-height: min(82vh, 940px);
+}
+
+.personal-binder-workspace__preview-placeholder {
+  flex: 1 1 auto;
+  min-height: 120px;
+}
+
+.personal-binder-page-dialog__header--panel {
+  margin-bottom: var(--space-2, 8px);
+  padding-bottom: var(--space-2, 8px);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.personal-binder-page-panel-header__title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.personal-binder-page-panel-header__meta {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  color: var(--text-sub);
 }
 
 .personal-binder-workspace__body--studio .personal-binder-explorer-tree,
@@ -319,8 +369,12 @@
 }
 
 .personal-binder-explorer-tree__binder--active {
-  background: color-mix(in srgb, var(--brand-primary, #059669) 9%, var(--bg-card, #fff));
-  box-shadow: inset 3px 0 0 var(--brand-primary, #059669);
+  background: color-mix(in srgb, var(--brand-primary, #059669) 6%, var(--bg-card, #fff));
+  box-shadow: inset 2px 0 0 var(--brand-primary, #059669);
+}
+
+.personal-binder-explorer-tree__children--binders {
+  padding-left: 28px;
 }
 
 .personal-binder-explorer-tree__binder-icon {
@@ -399,6 +453,92 @@
   background: color-mix(in srgb, var(--brand-primary, #059669) 6%, var(--bg-card));
 }
 
+.personal-binder-editor--toc .personal-binder-section-list {
+  gap: var(--space-3, 12px);
+}
+
+.personal-binder-editor--toc .personal-binder-toc__section {
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.personal-binder-editor--toc .personal-binder-toc__section > header {
+  border: none;
+  padding: 4px 0;
+  min-height: 34px;
+  background: transparent;
+}
+
+.personal-binder-editor--toc .personal-binder-section-card__toggle {
+  gap: 6px;
+  padding: 0;
+  min-height: 34px;
+}
+
+.personal-binder-editor--toc .personal-binder-toc__section-index {
+  flex: 0 0 auto;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--text-sub);
+  min-width: 1.25rem;
+}
+
+.personal-binder-editor--toc .personal-binder-toc__items {
+  padding: 0 0 0 1.25rem;
+  gap: 0;
+}
+
+.personal-binder-editor--toc .personal-binder-toc__item {
+  border: none;
+  border-radius: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-default) 65%, transparent);
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  min-height: 36px;
+  padding: 4px 0;
+  background: transparent;
+}
+
+.personal-binder-editor--toc .personal-binder-toc__item:last-child {
+  border-bottom: none;
+}
+
+.personal-binder-editor--toc .personal-binder-toc__item.personal-binder-item-row--selected {
+  background: color-mix(in srgb, var(--brand-primary, #059669) 5%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--brand-primary, #059669) 25%, var(--border-default));
+}
+
+.personal-binder-editor--toc .personal-binder-toc__bullet {
+  color: var(--text-sub);
+  font-size: 0.875rem;
+  line-height: 1;
+  text-align: center;
+}
+
+.personal-binder-editor--toc .personal-binder-toc__page-meta {
+  font-size: 0.6875rem;
+  color: var(--text-sub);
+}
+
+.personal-binder-editor--toc .personal-binder-item-row__main {
+  flex-direction: row;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.personal-binder-editor--toc .personal-binder-section-card__add-material {
+  margin-top: var(--space-2, 8px);
+  font-size: 0.8125rem;
+}
+
+.personal-binder-settings--compact {
+  gap: var(--space-2, 8px);
+  margin-bottom: var(--space-2, 8px);
+}
+
 .personal-binder-item-row__main {
   display: flex;
   flex-direction: column;
@@ -462,41 +602,38 @@
 @media (max-width: 1366px) {
   .personal-binder-workspace__body--studio {
     grid-template-columns:
-      minmax(132px, 14fr)
-      minmax(180px, 24fr)
-      minmax(300px, 62fr);
+      minmax(120px, 12fr)
+      minmax(160px, 18fr)
+      minmax(320px, 70fr);
   }
 }
 
 @media (max-width: 1200px) {
-  .personal-binder-workspace__body--studio:not(.personal-binder-workspace__body--preview-collapsed) {
-    grid-template-columns: minmax(128px, 15fr) minmax(0, 1fr);
-    grid-template-rows: minmax(240px, 42vh) minmax(280px, 48vh);
+  .personal-binder-workspace__body--studio {
+    grid-template-columns: minmax(120px, 12fr) minmax(0, 1fr);
+    grid-template-rows: minmax(200px, 34vh) minmax(260px, 40vh) minmax(280px, 46vh);
   }
 
-  .personal-binder-workspace__body--studio:not(.personal-binder-workspace__body--preview-collapsed)
-    .personal-binder-explorer-tree {
+  .personal-binder-workspace__body--studio .personal-binder-explorer-tree {
     grid-column: 1;
     grid-row: 1;
     height: auto;
     max-height: none;
   }
 
-  .personal-binder-workspace__body--studio:not(.personal-binder-workspace__body--preview-collapsed)
-    .personal-binder-workspace__editor-pane {
+  .personal-binder-workspace__body--studio .personal-binder-workspace__editor-pane {
     grid-column: 2;
     grid-row: 1 / span 2;
     height: auto;
     max-height: none;
   }
 
-  .personal-binder-workspace__body--studio:not(.personal-binder-workspace__body--preview-collapsed)
-    .personal-binder-workspace__preview-pane {
-    grid-column: 1;
-    grid-row: 2;
+  .personal-binder-workspace__body--studio .personal-binder-workspace__preview-pane {
+    grid-column: 1 / -1;
+    grid-row: 3;
     height: auto;
     max-height: none;
-    min-height: 280px;
+    min-height: 260px;
   }
 }
 

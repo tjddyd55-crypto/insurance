@@ -29,7 +29,6 @@ import {
 } from '../personalBinder.api'
 import type { PersonalBinderFolder, PersonalBinderSummary } from '../personalBinder.types'
 import PersonalBinderEditorPage from './PersonalBinderEditorPage'
-import PersonalBinderSharedPage, { PersonalBinderMainTabs } from './PersonalBinderSharedPage'
 import '../styles/personal-binder.css'
 
 type BinderFormState = {
@@ -46,16 +45,13 @@ export default function PersonalBinderHomePage() {
   const location = useLocation()
   const isMobile = useIsMobile()
   const { confirm, confirmDialog } = useConfirmDialog()
-  const sharedTab = Boolean(useMatch('/personal-binders/shared'))
   const editMatch = useMatch('/personal-binders/edit/:binderId')
-  const workspaceEditBinderId =
-    !isMobile && !sharedTab ? editMatch?.params.binderId : undefined
+  const workspaceEditBinderId = !isMobile ? editMatch?.params.binderId : undefined
   const editorScrollRef = useRef<HTMLDivElement>(null)
   const pageSelectionEditorRef = useRef<BinderPageSelectionEditorHandle>(null)
   const [editorMetadataDirty, setEditorMetadataDirty] = useState(false)
   const [previewItemId, setPreviewItemId] = useState<string | null>(null)
   const [pageSelectionDock, setPageSelectionDock] = useState<PageSelectionDockState | null>(null)
-  const [previewPaneCollapsed, setPreviewPaneCollapsed] = useState(false)
   const [binders, setBinders] = useState<PersonalBinderSummary[]>([])
   const [binderFolders, setBinderFolders] = useState<PersonalBinderFolder[]>([])
   const [loading, setLoading] = useState(true)
@@ -91,7 +87,7 @@ export default function PersonalBinderHomePage() {
   }, [load])
 
   useEffect(() => {
-    if (isMobile || sharedTab || loading) return
+    if (isMobile || loading) return
     if (location.pathname !== '/personal-binders') return
     if (binders.length === 0) return
     const lastId = readLastSelectedBinderId()
@@ -100,7 +96,7 @@ export default function PersonalBinderHomePage() {
     if (target) {
       navigate(`/personal-binders/edit/${target}`, { replace: true })
     }
-  }, [binders, isMobile, sharedTab, loading, location.pathname, navigate])
+  }, [binders, isMobile, loading, location.pathname, navigate])
 
   useEffect(() => {
     const binderId = editMatch?.params.binderId
@@ -214,57 +210,26 @@ export default function PersonalBinderHomePage() {
     })
   }
 
-  const primaryAction = (
-    <FormButton variant="primary" size="sm" onClick={() => openCreateBinder()}>
-      + 바인더 만들기
-    </FormButton>
-  )
-
   const previewPane = (
-    <div
-      className={[
-        'personal-binder-workspace__preview-pane',
-        previewPaneCollapsed ? 'personal-binder-workspace__preview-pane--collapsed' : '',
-      ]
-        .filter(Boolean)
-        .join(' ')}
-    >
-      <div className="personal-binder-workspace__pane-header">
-        <h2 className="personal-binder-workspace__pane-title">자료 미리보기</h2>
-        <div className="personal-binder-workspace__pane-actions">
-          <FormButton
-            variant="action"
-            size="sm"
-            onClick={() => setPreviewPaneCollapsed((value) => !value)}
-            aria-expanded={!previewPaneCollapsed}
-          >
-            {previewPaneCollapsed ? '펼치기' : '접기'}
-          </FormButton>
-        </div>
-      </div>
-      {!previewPaneCollapsed ? (
-        pageSelectionDock ? (
-          <BinderPageSelectionEditor
-            ref={pageSelectionEditorRef}
-            active
-            variant="desktop"
-            presentation="panel"
-            binder={pageSelectionDock.binder}
-            folderLabel={pageSelectionDock.folderLabel}
-            sectionTitle={pageSelectionDock.sectionTitle}
-            material={pageSelectionDock.material}
-            pdfUrl={pageSelectionDock.pdfUrl}
-            initialSelection={pageSelectionDock.initialSelection}
-            onClose={pageSelectionDock.onClose}
-            onComplete={pageSelectionDock.onComplete}
-          />
-        ) : (
-          <section className="personal-binder-empty personal-binder-empty--compact">
-            <h2>자료를 선택하세요</h2>
-            <p>가운데 섹션에서 파일 행을 클릭하면 PDF·이미지 페이지를 편집할 수 있습니다.</p>
-          </section>
-        )
-      ) : null}
+    <div className="personal-binder-workspace__preview-pane">
+      {pageSelectionDock ? (
+        <BinderPageSelectionEditor
+          ref={pageSelectionEditorRef}
+          active
+          variant="desktop"
+          presentation="panel"
+          binder={pageSelectionDock.binder}
+          folderLabel={pageSelectionDock.folderLabel}
+          sectionTitle={pageSelectionDock.sectionTitle}
+          material={pageSelectionDock.material}
+          pdfUrl={pageSelectionDock.pdfUrl}
+          initialSelection={pageSelectionDock.initialSelection}
+          onClose={pageSelectionDock.onClose}
+          onComplete={pageSelectionDock.onComplete}
+        />
+      ) : (
+        <div className="personal-binder-workspace__preview-placeholder" aria-hidden="true" />
+      )}
     </div>
   )
 
@@ -321,8 +286,7 @@ export default function PersonalBinderHomePage() {
           ref={editorScrollRef}
         >
           <section className="personal-binder-empty personal-binder-empty--compact">
-            <h2>바인더를 만들어 보세요</h2>
-            <p>왼쪽 탐색기에서 바인더를 선택하거나 새로 만듭니다.</p>
+            <h2>바인더를 선택하세요</h2>
             <FormButton variant="primary" onClick={() => openCreateBinder()}>
               + 바인더 만들기
             </FormButton>
@@ -336,57 +300,29 @@ export default function PersonalBinderHomePage() {
   return (
     <main
       className={[
-        'page personal-binder-page',
+        'page personal-binder-page personal-binder-page--compact',
         !isMobile ? 'personal-binder-page--workspace personal-binder-page--workspace-studio' : '',
       ]
         .filter(Boolean)
         .join(' ')}
     >
-      <header className="personal-binder-page-header">
-        <div>
-          <h1>내 바인더</h1>
-          <p>상담 자료를 조합해 나만의 디지털 상담 책자를 만드세요.</p>
-        </div>
-        {isMobile && !sharedTab ? primaryAction : null}
+      <header className="personal-binder-page-header personal-binder-page-header--compact">
+        <h1>내 바인더</h1>
+        {isMobile ? (
+          <FormButton variant="primary" size="sm" onClick={() => openCreateBinder()}>
+            + 바인더
+          </FormButton>
+        ) : null}
       </header>
-
-      <PersonalBinderMainTabs
-        active={sharedTab ? 'shared' : 'mine'}
-        onSelectMine={() => {
-          void (async () => {
-            if (sharedTab) {
-              if (!(await confirmLeaveEditor())) return
-              navigate('/personal-binders')
-            }
-          })()
-        }}
-        onSelectShared={() => {
-          void (async () => {
-            if (!sharedTab) {
-              if (!(await confirmLeaveEditor())) return
-              navigate('/personal-binders/shared')
-            }
-          })()
-        }}
-      />
 
       {error ? <p className="personal-binder-error">{error}</p> : null}
       {loading ? <div className="personal-binder-status">불러오는 중…</div> : null}
 
       {!loading ? (
-        sharedTab ? (
-          <PersonalBinderSharedPage />
-        ) : isMobile ? (
+        isMobile ? (
           mineWorkspaceBody
         ) : (
-          <div
-            className={[
-              'personal-binder-workspace__body personal-binder-workspace__body--studio',
-              previewPaneCollapsed ? 'personal-binder-workspace__body--preview-collapsed' : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-          >
+          <div className="personal-binder-workspace__body personal-binder-workspace__body--studio">
             {mineWorkspaceBody}
           </div>
         )
@@ -417,7 +353,7 @@ export default function PersonalBinderHomePage() {
             }
             placeholder="설명 (선택)"
             aria-label="바인더 설명"
-            rows={4}
+            rows={3}
           />
           {binderForm?.mode === 'create' && !isMobile && binderFolders.length > 0 ? (
             <label className="personal-binder-dialog-field">

@@ -1,47 +1,24 @@
-import FormButton from '../../../components/form/FormButton'
+import { Navigate } from 'react-router-dom'
+
+import { useAuth } from '../../auth/AuthProvider'
 import '../styles/personal-binder.css'
 
 export default function PersonalBinderSharedPage() {
-  return (
-    <section className="personal-binder-shared" aria-labelledby="personal-binder-shared-title">
-      <header className="personal-binder-shared__header">
-        <h2 id="personal-binder-shared-title">공유 바인더</h2>
-        <p>같은 지점에서 공유된 상담 바인더를 확인할 수 있습니다.</p>
-      </header>
-      <div className="personal-binder-shared__list-region" aria-label="공유 바인더 목록">
-        <div className="personal-binder-shared__empty">
-          <p>아직 공유된 바인더가 없습니다.</p>
-        </div>
-      </div>
-    </section>
-  )
-}
+  const { token } = useAuth()
+  if (!token) return <Navigate to="/login" replace />
 
-export function PersonalBinderMainTabs({
-  active,
-  onSelectMine,
-  onSelectShared,
-}: {
-  active: 'mine' | 'shared'
-  onSelectMine: () => void
-  onSelectShared: () => void
-}) {
   return (
-    <nav className="personal-binder-main-tabs" aria-label="바인더 메뉴">
-      <FormButton
-        variant={active === 'mine' ? 'primary' : 'secondary'}
-        size="sm"
-        onClick={onSelectMine}
-      >
-        내 바인더
-      </FormButton>
-      <FormButton
-        variant={active === 'shared' ? 'primary' : 'secondary'}
-        size="sm"
-        onClick={onSelectShared}
-      >
-        공유 바인더
-      </FormButton>
-    </nav>
+    <main className="page personal-binder-page personal-binder-page--compact">
+      <header className="personal-binder-page-header personal-binder-page-header--compact">
+        <h1>공유 바인더</h1>
+      </header>
+      <section className="personal-binder-shared" aria-label="공유 바인더">
+        <div className="personal-binder-shared__list-region">
+          <div className="personal-binder-shared__empty">
+            <p>아직 공유된 바인더가 없습니다.</p>
+          </div>
+        </div>
+      </section>
+    </main>
   )
 }
