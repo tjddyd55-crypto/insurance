@@ -60,6 +60,9 @@ export function getCrmUserBulkSmsDevAllowlist() {
   )
 }
 
+/**
+ * 런타임 응답 호환용이다. 실제 발송 발신번호는 ALIGO_SENDER 이며 이 값은 쓰지 않는다.
+ */
 export function getCrmUserBulkSmsDefaultSender() {
   return String(process.env.SUPER_ADMIN_USER_BULK_SMS_DEFAULT_SENDER ?? '')
     .replace(/\D/g, '')
@@ -77,4 +80,28 @@ export function getCrmUserBulkSmsRuntimeInfo() {
     audienceType: 'CRM_USER',
     sourceType: 'SUPER_ADMIN_BULK_NOTICE',
   }
+}
+
+/**
+ * 실발송 여부의 단일 판정.
+ * 비운영에서 allowlist가 비어 있으면 실발송 플래그가 켜져 있어도 dry-run이다.
+ * 이 값이 응답의 dryRun 과 캠페인 dry_run 컬럼에 그대로 기록된다.
+ * @returns {{
+ *   dryRun: boolean,
+ *   reason: 'real_send_disabled' | 'dev_allowlist_empty' | 'real_send',
+ *   production: boolean,
+ *   allowlist: Set<string>,
+ * }}
+ */
+export function resolveCrmUserBulkSmsDispatchMode() {
+  const realSendEnabled = isCrmUserBulkSmsRealSendEnabled()
+  const production = isProductionRuntime()
+  const allowlist = getCrmUserBulkSmsDevAllowlist()
+  if (!realSendEnabled) {
+    return { dryRun: true, reason: 'real_send_disabled', production, allowlist }
+  }
+  if (!production && allowlist.size === 0) {
+    return { dryRun: true, reason: 'dev_allowlist_empty', production, allowlist }
+  }
+  return { dryRun: false, reason: 'real_send', production, allowlist }
 }

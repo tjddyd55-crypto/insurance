@@ -1458,9 +1458,9 @@ export function registerTeamApi(apiRouter, ctx) {
           AND team_id = $3
           AND COALESCE(is_deleted, false) = false
           AND (
-            author_user_id = $4
-            OR ($5 IS NOT NULL AND $4 = $5)
-            OR $6 = true
+            author_user_id = $4::text
+            OR ($5::text IS NOT NULL AND $4::text = $5::text)
+            OR $6::boolean = true
           )
         `,
         [postId, gaId, me.teamId, userId, ownerParam, isElevated],
@@ -1673,9 +1673,9 @@ export function registerTeamApi(apiRouter, ctx) {
           AND team_id = $3
           AND COALESCE(is_deleted, false) = false
           AND (
-            author_user_id = $4
-            OR ($5 IS NOT NULL AND $4 = $5)
-            OR $6 = true
+            author_user_id = $4::text
+            OR ($5::text IS NOT NULL AND $4::text = $5::text)
+            OR $6::boolean = true
           )
         `,
         [commentId, gaId, me.teamId, userId, ownerParam, isElevated],
