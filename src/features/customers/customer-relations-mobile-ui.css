@@ -985,11 +985,6 @@
   min-width: 0;
 }
 
-.customer-relation-group-pending-wrap--scroll .customer-relation-group-pending {
-  max-height: 200px;
-  overflow-y: auto;
-}
-
 .customer-relation-group-pending__title {
   margin: 0;
   font-size: 0.85rem;
@@ -1068,6 +1063,64 @@
   max-height: none;
   overflow-y: auto;
   min-height: 0;
+}
+
+/*
+ * 가족 그룹 만들기만 외곽 높이를 고정한다.
+ * 검색 결과·추가 고객은 가운데 한 스크롤로 흡수하고,
+ * 제목·입력·관계·추가 버튼과 취소/만들기는 그 자리에서 유지한다.
+ * 구성원 추가 모달은 --create 를 쓰지 않는다.
+ */
+.customer-ui-modal-panel.customer-relations-modal.customer-relation-group-modal--create {
+  box-sizing: border-box;
+  height: min(78vh, 760px);
+  max-height: min(80vh, calc(100dvh - 32px));
+  min-height: 0;
+}
+
+.customer-ui-modal-panel.customer-relation-group-modal--create .customer-relations-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.customer-relation-group-modal--create .customer-relation-group-compose,
+.customer-relation-group-modal--create .customer-relations-modal__header,
+.customer-relation-group-modal--create .customer-relations-modal__footer {
+  flex: 0 0 auto;
+}
+
+.customer-relation-group-create__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  scrollbar-gutter: stable;
+}
+
+.customer-ui-modal-panel.customer-relations-modal.customer-relation-group-modal--create
+  .customer-relations-modal__results,
+.customer-ui-modal-panel.customer-relations-modal.customer-relation-group-modal--create
+  .related-list.customer-relations-related-list,
+.customer-ui-modal-panel.customer-relations-modal.customer-relation-group-modal--create
+  .related-list__body,
+.customer-ui-modal-panel.customer-relations-modal.customer-relation-group-modal--create
+  .customer-relations-result-list,
+.customer-relation-group-modal--create .customer-relation-group-pending-wrap,
+.customer-relation-group-modal--create .customer-relation-group-pending {
+  flex: 0 0 auto;
+  max-height: none;
+  overflow: visible;
+}
+
+@media (max-width: 768px) {
+  .customer-ui-modal-panel.customer-relations-modal.customer-relation-group-modal--create {
+    height: calc(100dvh - 32px);
+    max-height: calc(100dvh - 32px);
+  }
 }
 
 @media (min-width: 769px) {

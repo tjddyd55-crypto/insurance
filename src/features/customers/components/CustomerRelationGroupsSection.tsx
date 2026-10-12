@@ -656,49 +656,49 @@ export function CustomerRelationGroupsSection({
                 disabled={createBusy}
               />
             </div>
-            {renderSearchHits('create')}
             {renderSelectedAndRelation('create')}
           </div>
-          {pendingMembers.length > 0 ? (
-            <div
-              className={`customer-relation-group-pending-wrap${
-                pendingMembers.length >= 4
-                  ? ' customer-relation-group-pending-wrap--scroll'
-                  : ''
-              }`}
-            >
-              <h4 className="customer-relation-group-pending__title">
-                추가된 고객 ({pendingMembers.length})
-              </h4>
-              <ul className="customer-relation-group-pending" aria-label="추가된 고객">
-                {pendingMembers.map((m) => (
-                  <li key={m.customerId} className="customer-relation-group-pending__item">
-                    <div className="customer-relation-group-pending__main">
-                      <strong className="customer-relation-group-pending__name">{m.name}</strong>
-                      <span className="customer-relation-group-pending__meta">
-                        {m.relationshipLabel}
-                        {' · '}
-                        {formatCustomerPhoneUi(m.phone) || '-'}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      className="ui-button ui-button--sm ui-button--secondary customer-relation-group-pending__remove"
-                      onClick={() =>
-                        setPendingMembers((prev) => prev.filter((x) => x.customerId !== m.customerId))
-                      }
-                    >
-                      제거
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <p className="customer-relation-group-form__hint">
-              가족 그룹에 추가할 고객을 한 명 이상 선택해 주세요.
-            </p>
-          )}
+          {/*
+            검색 결과와 추가된 고객만 이 영역에서 스크롤한다.
+            위 입력(그룹명·검색·관계·추가)과 아래 버튼은 높이를 유지한다.
+          */}
+          <div className="customer-relation-group-create__scroll">
+            {renderSearchHits('create')}
+            {pendingMembers.length > 0 ? (
+              <div className="customer-relation-group-pending-wrap">
+                <h4 className="customer-relation-group-pending__title">
+                  추가된 고객 ({pendingMembers.length})
+                </h4>
+                <ul className="customer-relation-group-pending" aria-label="추가된 고객">
+                  {pendingMembers.map((m) => (
+                    <li key={m.customerId} className="customer-relation-group-pending__item">
+                      <div className="customer-relation-group-pending__main">
+                        <strong className="customer-relation-group-pending__name">{m.name}</strong>
+                        <span className="customer-relation-group-pending__meta">
+                          {m.relationshipLabel}
+                          {' · '}
+                          {formatCustomerPhoneUi(m.phone) || '-'}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="ui-button ui-button--sm ui-button--secondary customer-relation-group-pending__remove"
+                        onClick={() =>
+                          setPendingMembers((prev) => prev.filter((x) => x.customerId !== m.customerId))
+                        }
+                      >
+                        제거
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <p className="customer-relation-group-form__hint">
+                가족 그룹에 추가할 고객을 한 명 이상 선택해 주세요.
+              </p>
+            )}
+          </div>
         </div>
         <footer className="customer-relations-modal__footer">
           <FormButton
