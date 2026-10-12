@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useState, type RefObject } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type RefObject,
+} from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 
 import { BaseDialog } from '../../../components/dialog/BaseDialog'
@@ -10,6 +16,8 @@ import useIsMobile from '../../../hooks/useIsMobile'
 import { useAuth } from '../../auth/AuthProvider'
 import { createStorageFilePreviewUrl } from '../../storage/api/storageApi'
 import { BinderPageSelectionDialog } from '../components/BinderPageSelectionDialog'
+import type { PageSelectionDockState } from '../components/pageSelectionDock.types'
+import { splitBinderFileDisplayName } from '../utils/binderFileDisplay'
 import { MaterialAddSourceDialog } from '../components/MaterialAddSourceDialog'
 import { formatSelectedPages } from '../domain/pageSelection'
 import {
@@ -61,6 +69,10 @@ export type PersonalBinderEditorPageProps = {
   binderIdOverride?: string
   onMetadataDirtyChange?: (dirty: boolean) => void
   editorScrollRef?: RefObject<HTMLDivElement | null>
+  pageSelectionUi?: 'modal' | 'dock'
+  onPageSelectionDockChange?: (state: PageSelectionDockState | null) => void
+  selectedPreviewItemId?: string | null
+  onPreviewItemChange?: (itemId: string | null) => void
 }
 
 export default function PersonalBinderEditorPage({
@@ -68,6 +80,10 @@ export default function PersonalBinderEditorPage({
   binderIdOverride,
   onMetadataDirtyChange,
   editorScrollRef,
+  pageSelectionUi = 'modal',
+  onPageSelectionDockChange,
+  selectedPreviewItemId,
+  onPreviewItemChange,
 }: PersonalBinderEditorPageProps = {}) {
   const { binderId: routeBinderId = '' } = useParams()
   const binderId = binderIdOverride ?? routeBinderId
@@ -145,6 +161,78 @@ export default function PersonalBinderEditorPage({
   useEffect(() => {
     onMetadataDirtyChange?.(metadataDirty)
   }, [metadataDirty, onMetadataDirtyChange])
+
+  useEffect(() => {
+    setPageTarget(null)
+    setPdfUrl(null)
+    onPreviewItemChange?.(null)
+  }, [binderId, onPreviewItemChange])
+
+  const pageSelectionDock = pageSelectionUi === 'dock' && layout === 'embedded'
+
+  const completeSelection = useCallback(
+    async (selection: number[] | null) => {
+      if (!pageTarget || !token || !binder) return
+      setSaving(true)
+      try {
+        if (pageTarget.itemId) {
+          await updatePersonalBinderItemPages(token, pageTarget.itemId, selection)
+        } else {
+          await addPersonalBinderItem(token, pageTarget.sectionId, {
+            materialId: pageTarget.material.id,
+            pageSelection: selection,
+          })
+        }
+        setPageTarget(null)
+        setPdfUrl(null)
+        onPreviewItemChange?.(null)
+        const next = await getPersonalBinder(token, binder.id)
+        setBinder(next)
+      } catch (reason) {
+        setError(reason instanceof Error ? reason.message : '자료 구성을 저장하지 못했습니다.')
+      } finally {
+        setSaving(false)
+      }
+    },
+    [binder, onPreviewItemChange, pageTarget, token],
+  )
+
+  const closePageSelection = useCallback(() => {
+    setPageTarget(null)
+    setPdfUrl(null)
+    onPreviewItemChange?.(null)
+  }, [onPreviewItemChange])
+
+  useEffect(() => {
+    if (!pageSelectionDock || !onPageSelectionDockChange) return
+    if (!pageTarget || !binder) {
+      onPageSelectionDockChange(null)
+      return
+    }
+    const sectionTitle =
+      binder.sections.find((section) => section.id === pageTarget.sectionId)?.title ?? ''
+    onPageSelectionDockChange({
+      binder,
+      folderLabel: binderFolderLabel,
+      sectionTitle,
+      material: pageTarget.material,
+      pdfUrl,
+      initialSelection: pageTarget.initialSelection,
+      onClose: closePageSelection,
+      onComplete: (selection) => {
+        void completeSelection(selection)
+      },
+    })
+  }, [
+    binder,
+    binderFolderLabel,
+    closePageSelection,
+    completeSelection,
+    onPageSelectionDockChange,
+    pageSelectionDock,
+    pageTarget,
+    pdfUrl,
+  ])
 
   const orderedSections = useMemo(
     () => binder?.sections.slice().sort((left, right) => left.sortOrder - right.sortOrder) ?? [],
@@ -290,6 +378,7 @@ export default function PersonalBinderEditorPage({
       const url = await createStorageFilePreviewUrl(token, material.fileId)
       setPdfUrl(url)
       setPageTarget({ sectionId, itemId, material, initialSelection })
+      onPreviewItemChange?.(itemId ?? null)
       setMaterialSectionId(null)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '미리보기를 준비하지 못했습니다.')
@@ -298,27 +387,6 @@ export default function PersonalBinderEditorPage({
   const pickMaterialFromSource = (material: PersonalBinderMaterial) => {
     if (!materialSectionId) return
     void selectMaterial(materialSectionId, material)
-  }
-  const completeSelection = async (selection: number[] | null) => {
-    if (!pageTarget) return
-    setSaving(true)
-    try {
-      if (pageTarget.itemId) {
-        await updatePersonalBinderItemPages(token, pageTarget.itemId, selection)
-      } else {
-        await addPersonalBinderItem(token, pageTarget.sectionId, {
-          materialId: pageTarget.material.id,
-          pageSelection: selection,
-        })
-      }
-      setPageTarget(null)
-      setPdfUrl(null)
-      await refresh()
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : '자료 구성을 저장하지 못했습니다.')
-    } finally {
-      setSaving(false)
-    }
   }
   const exportBinder = async (mode: 'download' | 'print') => {
     if (exporting) return
@@ -477,35 +545,37 @@ export default function PersonalBinderEditorPage({
               </header>
               {!sectionCollapsed ? (
                 <div className="personal-binder-section-card__body">
-                  {orderedItems.map((item, itemIndex) => (
-                    <div
-                      key={item.id}
-                      className="personal-binder-item-row"
-                      draggable={!isMobile}
-                      onDragStart={() => setDragItem({ sectionId: section.id, itemId: item.id })}
-                      onDragOver={(event) => event.preventDefault()}
-                      onDrop={() => {
-                        if (dragItem?.sectionId === section.id) {
-                          void reorderItems(section, dragItem.itemId, item.id)
-                        }
-                        setDragItem(null)
-                      }}
-                    >
-                      <span className="personal-binder-drag-handle" aria-hidden="true">⋮⋮</span>
-                      <div>
-                        <strong>{item.material.title}</strong>
-                        <small>
-                          {item.pageSelection
-                            ? `${formatSelectedPages(item.pageSelection)}p`
-                            : `전체 ${item.material.pageCount}p`}
-                        </small>
-                      </div>
-                      <div>
-                        <FormButton variant="action" size="sm" disabled={itemIndex === 0} onClick={() => moveItemBy(section, item, -1)}>↑</FormButton>
-                        <FormButton variant="action" size="sm" disabled={itemIndex === orderedItems.length - 1} onClick={() => moveItemBy(section, item, 1)}>↓</FormButton>
-                        <FormButton
-                          variant="secondary"
-                          size="sm"
+                  {orderedItems.map((item, itemIndex) => {
+                    const fileDisplay = splitBinderFileDisplayName(item.material)
+                    const pageLabel = item.pageSelection
+                      ? `${formatSelectedPages(item.pageSelection)}p`
+                      : `전체 ${item.material.pageCount}p`
+                    const previewSelected =
+                      selectedPreviewItemId === item.id ||
+                      (pageTarget?.itemId === item.id && pageSelectionDock)
+                    return (
+                      <div
+                        key={item.id}
+                        className={[
+                          'personal-binder-item-row',
+                          previewSelected ? 'personal-binder-item-row--selected' : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        draggable={!isMobile}
+                        onDragStart={() => setDragItem({ sectionId: section.id, itemId: item.id })}
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={() => {
+                          if (dragItem?.sectionId === section.id) {
+                            void reorderItems(section, dragItem.itemId, item.id)
+                          }
+                          setDragItem(null)
+                        }}
+                      >
+                        <span className="personal-binder-drag-handle" aria-hidden="true">⋮⋮</span>
+                        <button
+                          type="button"
+                          className="personal-binder-item-row__main"
                           onClick={() =>
                             void selectMaterial(
                               section.id,
@@ -515,12 +585,34 @@ export default function PersonalBinderEditorPage({
                             )
                           }
                         >
-                          페이지
-                        </FormButton>
-                        <FormButton variant="danger" size="sm" onClick={() => void removeItem(item)}>빼기</FormButton>
+                          <span className="personal-binder-item-row__name" title={fileDisplay.baseName}>
+                            <span className="personal-binder-item-row__basename">{fileDisplay.baseName}</span>
+                            <span className="personal-binder-item-row__ext">.{fileDisplay.extension}</span>
+                          </span>
+                          <small>{pageLabel}</small>
+                        </button>
+                        <div className="personal-binder-item-row__actions">
+                          <FormButton variant="action" size="sm" disabled={itemIndex === 0} onClick={() => moveItemBy(section, item, -1)}>↑</FormButton>
+                          <FormButton variant="action" size="sm" disabled={itemIndex === orderedItems.length - 1} onClick={() => moveItemBy(section, item, 1)}>↓</FormButton>
+                          <FormButton
+                            variant="secondary"
+                            size="sm"
+                            onClick={() =>
+                              void selectMaterial(
+                                section.id,
+                                item.material,
+                                item.pageSelection,
+                                item.id,
+                              )
+                            }
+                          >
+                            페이지
+                          </FormButton>
+                          <FormButton variant="danger" size="sm" onClick={() => void removeItem(item)}>빼기</FormButton>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                   <FormButton
                     variant="secondary"
                     className="personal-binder-section-card__add-material"
@@ -569,25 +661,24 @@ export default function PersonalBinderEditorPage({
         onMaterialReady={pickMaterialFromSource}
       />
 
-      <BinderPageSelectionDialog
-        open={pageTarget != null}
-        variant={isMobile ? 'mobile' : 'desktop'}
-        binder={binder}
-        folderLabel={binderFolderLabel}
-        sectionTitle={
-          pageTarget
-            ? binder.sections.find((section) => section.id === pageTarget.sectionId)?.title ?? ''
-            : ''
-        }
-        material={pageTarget?.material ?? null}
-        pdfUrl={pdfUrl}
-        initialSelection={pageTarget?.initialSelection ?? null}
-        onClose={() => {
-          setPageTarget(null)
-          setPdfUrl(null)
-        }}
-        onComplete={(selection) => void completeSelection(selection)}
-      />
+      {!pageSelectionDock ? (
+        <BinderPageSelectionDialog
+          open={pageTarget != null}
+          variant={isMobile ? 'mobile' : 'desktop'}
+          binder={binder}
+          folderLabel={binderFolderLabel}
+          sectionTitle={
+            pageTarget
+              ? binder.sections.find((section) => section.id === pageTarget.sectionId)?.title ?? ''
+              : ''
+          }
+          material={pageTarget?.material ?? null}
+          pdfUrl={pdfUrl}
+          initialSelection={pageTarget?.initialSelection ?? null}
+          onClose={closePageSelection}
+          onComplete={(selection) => void completeSelection(selection)}
+        />
+      ) : null}
       {confirmDialog}
     </main>
   )

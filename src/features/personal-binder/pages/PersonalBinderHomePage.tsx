@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Navigate, useLocation, useMatch, useNavigate } from 'react-router-dom'
 
 import { BaseDialog } from '../../../components/dialog/BaseDialog'
@@ -8,15 +8,12 @@ import FormInput from '../../../components/form/FormInput'
 import FormTextarea from '../../../components/form/FormTextarea'
 import useIsMobile from '../../../hooks/useIsMobile'
 import { useAuth } from '../../auth/AuthProvider'
-import { PersonalBinderFolderSidebar } from '../components/PersonalBinderFolderSidebar'
 import {
-  countItemsForUserFolder,
-  countItemsInFolderSelection,
-  filterItemsByFolderSelection,
-  folderIdForBinderCreate,
-  folderSelectionLabel,
-  type PersonalBinderFolderSelection,
-} from '../domain/personalBinderFolderFilter'
+  BinderPageSelectionEditor,
+  type BinderPageSelectionEditorHandle,
+} from '../components/BinderPageSelectionEditor'
+import { PersonalBinderExplorerTree } from '../components/PersonalBinderExplorerTree'
+import type { PageSelectionDockState } from '../components/pageSelectionDock.types'
 import {
   readLastSelectedBinderId,
   writeLastSelectedBinderId,
@@ -54,20 +51,18 @@ export default function PersonalBinderHomePage() {
   const workspaceEditBinderId =
     !isMobile && !sharedTab ? editMatch?.params.binderId : undefined
   const editorScrollRef = useRef<HTMLDivElement>(null)
+  const pageSelectionEditorRef = useRef<BinderPageSelectionEditorHandle>(null)
   const [editorMetadataDirty, setEditorMetadataDirty] = useState(false)
+  const [previewItemId, setPreviewItemId] = useState<string | null>(null)
+  const [pageSelectionDock, setPageSelectionDock] = useState<PageSelectionDockState | null>(null)
+  const [previewPaneCollapsed, setPreviewPaneCollapsed] = useState(false)
   const [binders, setBinders] = useState<PersonalBinderSummary[]>([])
   const [binderFolders, setBinderFolders] = useState<PersonalBinderFolder[]>([])
-  const [binderFolderSelection, setBinderFolderSelection] =
-    useState<PersonalBinderFolderSelection>('all')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [binderForm, setBinderForm] = useState<BinderFormState | null>(null)
   const [saving, setSaving] = useState(false)
-
-  const visibleBinders = useMemo(
-    () => filterItemsByFolderSelection(binders, binderFolderSelection),
-    [binders, binderFolderSelection],
-  )
+  const [createBinderFolderId, setCreateBinderFolderId] = useState<string | undefined>(undefined)
 
   const load = useCallback(async (signal?: AbortSignal) => {
     if (!token) return
@@ -98,15 +93,14 @@ export default function PersonalBinderHomePage() {
   useEffect(() => {
     if (isMobile || sharedTab || loading) return
     if (location.pathname !== '/personal-binders') return
-    if (visibleBinders.length === 0) return
+    if (binders.length === 0) return
     const lastId = readLastSelectedBinderId()
     const target =
-      (lastId && visibleBinders.some((row) => row.id === lastId) ? lastId : null) ??
-      visibleBinders[0]?.id
+      (lastId && binders.some((row) => row.id === lastId) ? lastId : null) ?? binders[0]?.id
     if (target) {
       navigate(`/personal-binders/edit/${target}`, { replace: true })
     }
-  }, [isMobile, sharedTab, loading, location.pathname, navigate, visibleBinders])
+  }, [binders, isMobile, sharedTab, loading, location.pathname, navigate])
 
   useEffect(() => {
     const binderId = editMatch?.params.binderId
@@ -125,26 +119,13 @@ export default function PersonalBinderHomePage() {
     return () => cancelAnimationFrame(frame)
   }, [location.pathname, location.state, navigate, workspaceEditBinderId])
 
-  const openBinderEdit = async (binderId: string) => {
-    if (
-      workspaceEditBinderId &&
-      workspaceEditBinderId !== binderId &&
-      editorMetadataDirty
-    ) {
-      const accepted = await confirm({
-        title: '저장하지 않은 변경이 있습니다',
-        message: '바인더 제목·설명 변경을 저장하지 않았습니다. 다른 바인더로 이동할까요?',
-        confirmLabel: '이동',
-        cancelLabel: '취소',
-        tone: 'danger',
-      })
-      if (!accepted) return
-      setEditorMetadataDirty(false)
-    }
-    navigate(`/personal-binders/edit/${binderId}`)
+  const confirmLeavePageSelection = async (): Promise<boolean> => {
+    if (!pageSelectionDock) return true
+    return pageSelectionEditorRef.current?.requestClose() ?? true
   }
 
   const confirmLeaveEditor = async (): Promise<boolean> => {
+    if (!(await confirmLeavePageSelection())) return false
     if (!workspaceEditBinderId || !editorMetadataDirty) return true
     const accepted = await confirm({
       title: '저장하지 않은 변경이 있습니다',
@@ -157,9 +138,12 @@ export default function PersonalBinderHomePage() {
     return accepted
   }
 
-  const selectBinderFolder = async (selection: PersonalBinderFolderSelection) => {
+  const openBinderEdit = async (binderId: string) => {
+    if (workspaceEditBinderId === binderId) return
     if (!(await confirmLeaveEditor())) return
-    setBinderFolderSelection(selection)
+    setPreviewItemId(null)
+    setPageSelectionDock(null)
+    navigate(`/personal-binders/edit/${binderId}`)
   }
 
   if (!token) return <Navigate to="/login" replace />
@@ -173,7 +157,7 @@ export default function PersonalBinderHomePage() {
         const created = await createPersonalBinder(token, {
           title: binderForm.title,
           description: binderForm.description,
-          folderId: binderForm.folderId ?? folderIdForBinderCreate(binderFolderSelection),
+          folderId: binderForm.folderId ?? createBinderFolderId,
         })
         setBinders((rows) => [created, ...rows])
         setBinderForm(null)
@@ -202,14 +186,6 @@ export default function PersonalBinderHomePage() {
     }
   }
 
-  const allFolderLabel = '전체 바인더'
-  const paneTitle = folderSelectionLabel(binderFolderSelection, binderFolders, allFolderLabel)
-
-  const countForSelection = (selection: PersonalBinderFolderSelection) =>
-    countItemsInFolderSelection(binders, selection)
-
-  const countForFolder = (folderId: string) => countItemsForUserFolder(binders, folderId)
-
   const handleCreateFolder = async (name: string) => {
     const created = await createPersonalBinderFolder(token, { type: 'binder', name })
     setBinderFolders((rows) => [...rows, created])
@@ -228,60 +204,66 @@ export default function PersonalBinderHomePage() {
     )
   }
 
-  const openCreateBinder = () =>
+  const openCreateBinder = (folderId?: string) => {
+    setCreateBinderFolderId(folderId)
     setBinderForm({
       mode: 'create',
       title: '',
       description: '',
-      folderId: folderIdForBinderCreate(binderFolderSelection),
+      folderId,
     })
+  }
 
   const primaryAction = (
-    <FormButton variant="primary" size="sm" onClick={openCreateBinder}>
+    <FormButton variant="primary" size="sm" onClick={() => openCreateBinder()}>
       + 바인더 만들기
     </FormButton>
   )
 
-  const binderListPane = (
-    <div className="personal-binder-workspace__list-pane">
+  const previewPane = (
+    <div
+      className={[
+        'personal-binder-workspace__preview-pane',
+        previewPaneCollapsed ? 'personal-binder-workspace__preview-pane--collapsed' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
       <div className="personal-binder-workspace__pane-header">
-        <h2 className="personal-binder-workspace__pane-title">{paneTitle}</h2>
-        <div className="personal-binder-workspace__pane-actions">{primaryAction}</div>
+        <h2 className="personal-binder-workspace__pane-title">자료 미리보기</h2>
+        <div className="personal-binder-workspace__pane-actions">
+          <FormButton
+            variant="action"
+            size="sm"
+            onClick={() => setPreviewPaneCollapsed((value) => !value)}
+            aria-expanded={!previewPaneCollapsed}
+          >
+            {previewPaneCollapsed ? '펼치기' : '접기'}
+          </FormButton>
+        </div>
       </div>
-      {!loading && visibleBinders.length === 0 ? (
-        <section className="personal-binder-empty personal-binder-empty--compact">
-          <h2>이 폴더에 바인더가 없습니다.</h2>
-          <p>상담 목적에 맞는 바인더를 만들어 보세요.</p>
-        </section>
-      ) : null}
-      {!loading ? (
-        <section className="personal-binder-workspace__binder-nav" aria-label="바인더 목록">
-          {visibleBinders.map((binder) => {
-            const selected = workspaceEditBinderId === binder.id
-            return (
-              <article
-                key={binder.id}
-                className={[
-                  'personal-binder-workspace__binder-nav-item',
-                  selected ? 'personal-binder-workspace__binder-nav-item--active' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-              >
-                <button
-                  type="button"
-                  className="personal-binder-workspace__binder-nav-button"
-                  onClick={() => void openBinderEdit(binder.id)}
-                >
-                  <strong>{binder.title}</strong>
-                  <small>
-                    섹션 {binder.sectionCount} · 자료 {binder.materialCount}
-                  </small>
-                </button>
-              </article>
-            )
-          })}
-        </section>
+      {!previewPaneCollapsed ? (
+        pageSelectionDock ? (
+          <BinderPageSelectionEditor
+            ref={pageSelectionEditorRef}
+            active
+            variant="desktop"
+            presentation="panel"
+            binder={pageSelectionDock.binder}
+            folderLabel={pageSelectionDock.folderLabel}
+            sectionTitle={pageSelectionDock.sectionTitle}
+            material={pageSelectionDock.material}
+            pdfUrl={pageSelectionDock.pdfUrl}
+            initialSelection={pageSelectionDock.initialSelection}
+            onClose={pageSelectionDock.onClose}
+            onComplete={pageSelectionDock.onComplete}
+          />
+        ) : (
+          <section className="personal-binder-empty personal-binder-empty--compact">
+            <h2>자료를 선택하세요</h2>
+            <p>가운데 섹션에서 파일 행을 클릭하면 PDF·이미지 페이지를 편집할 수 있습니다.</p>
+          </section>
+        )
       ) : null}
     </div>
   )
@@ -289,14 +271,12 @@ export default function PersonalBinderHomePage() {
   const mineWorkspaceBody = (
     <>
       {!isMobile ? (
-        <PersonalBinderFolderSidebar
-          heading="바인더 분류"
-          allLabel={allFolderLabel}
+        <PersonalBinderExplorerTree
+          binders={binders}
           folders={binderFolders}
-          selection={binderFolderSelection}
-          onSelect={(selection) => void selectBinderFolder(selection)}
-          countForSelection={countForSelection}
-          countForFolder={countForFolder}
+          selectedBinderId={workspaceEditBinderId}
+          onSelectBinder={openBinderEdit}
+          onCreateBinder={() => openCreateBinder()}
           onCreateFolder={handleCreateFolder}
           onRenameFolder={handleRenameFolder}
           onDeleteFolder={handleDeleteFolder}
@@ -304,12 +284,10 @@ export default function PersonalBinderHomePage() {
         />
       ) : null}
 
-      <div className="personal-binder-workspace__main">
-        {!isMobile ? binderListPane : null}
-
+      <div className="personal-binder-workspace__studio-main">
         {isMobile && !loading ? (
           <section className="personal-binder-workspace__binder-nav personal-binder-workspace__binder-nav--mobile">
-            {visibleBinders.map((binder) => (
+            {binders.map((binder) => (
               <article key={binder.id} className="personal-binder-workspace__binder-nav-item">
                 <button
                   type="button"
@@ -334,6 +312,10 @@ export default function PersonalBinderHomePage() {
                 binderIdOverride={workspaceEditBinderId}
                 editorScrollRef={editorScrollRef}
                 onMetadataDirtyChange={setEditorMetadataDirty}
+                pageSelectionUi="dock"
+                onPageSelectionDockChange={setPageSelectionDock}
+                selectedPreviewItemId={previewItemId}
+                onPreviewItemChange={setPreviewItemId}
               />
             </div>
           ) : (
@@ -343,20 +325,29 @@ export default function PersonalBinderHomePage() {
             >
               <section className="personal-binder-empty personal-binder-empty--compact">
                 <h2>바인더를 만들어 보세요</h2>
-                <p>왼쪽에서 분류를 고르고, 가운데에서 바인더를 선택하거나 새로 만듭니다.</p>
-                <FormButton variant="primary" onClick={openCreateBinder}>
+                <p>왼쪽 탐색기에서 바인더를 선택하거나 새로 만듭니다.</p>
+                <FormButton variant="primary" onClick={() => openCreateBinder()}>
                   + 바인더 만들기
                 </FormButton>
               </section>
             </div>
           )
         ) : null}
+
+        {!isMobile ? previewPane : null}
       </div>
     </>
   )
 
   return (
-    <main className={`page personal-binder-page${!isMobile ? ' personal-binder-page--workspace' : ''}`}>
+    <main
+      className={[
+        'page personal-binder-page',
+        !isMobile ? 'personal-binder-page--workspace personal-binder-page--workspace-studio' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
       <header className="personal-binder-page-header">
         <div>
           <h1>내 바인더</h1>
@@ -394,7 +385,14 @@ export default function PersonalBinderHomePage() {
         ) : isMobile ? (
           mineWorkspaceBody
         ) : (
-          <div className="personal-binder-workspace__body personal-binder-workspace__body--split">
+          <div
+            className={[
+              'personal-binder-workspace__body personal-binder-workspace__body--studio',
+              previewPaneCollapsed ? 'personal-binder-workspace__body--preview-collapsed' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
             {mineWorkspaceBody}
           </div>
         )
