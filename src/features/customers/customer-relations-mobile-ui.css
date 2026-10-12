@@ -985,6 +985,11 @@
   min-width: 0;
 }
 
+.customer-relation-group-pending-wrap--scroll .customer-relation-group-pending {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
 .customer-relation-group-pending__title {
   margin: 0;
   font-size: 0.85rem;
@@ -1065,64 +1070,6 @@
   min-height: 0;
 }
 
-/*
- * 가족 그룹 만들기만 외곽 높이를 고정한다.
- * 검색 결과·추가 고객은 가운데 한 스크롤로 흡수하고,
- * 제목·입력·관계·추가 버튼과 취소/만들기는 그 자리에서 유지한다.
- * 구성원 추가 모달은 --create 를 쓰지 않는다.
- */
-.customer-ui-modal-panel.customer-relations-modal.customer-relation-group-modal--create {
-  box-sizing: border-box;
-  height: min(78vh, 760px);
-  max-height: min(80vh, calc(100dvh - 32px));
-  min-height: 0;
-}
-
-.customer-ui-modal-panel.customer-relation-group-modal--create .customer-relations-modal__body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.customer-relation-group-modal--create .customer-relation-group-compose,
-.customer-relation-group-modal--create .customer-relations-modal__header,
-.customer-relation-group-modal--create .customer-relations-modal__footer {
-  flex: 0 0 auto;
-}
-
-.customer-relation-group-create__scroll {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  scrollbar-gutter: stable;
-}
-
-.customer-ui-modal-panel.customer-relations-modal.customer-relation-group-modal--create
-  .customer-relations-modal__results,
-.customer-ui-modal-panel.customer-relations-modal.customer-relation-group-modal--create
-  .related-list.customer-relations-related-list,
-.customer-ui-modal-panel.customer-relations-modal.customer-relation-group-modal--create
-  .related-list__body,
-.customer-ui-modal-panel.customer-relations-modal.customer-relation-group-modal--create
-  .customer-relations-result-list,
-.customer-relation-group-modal--create .customer-relation-group-pending-wrap,
-.customer-relation-group-modal--create .customer-relation-group-pending {
-  flex: 0 0 auto;
-  max-height: none;
-  overflow: visible;
-}
-
-@media (max-width: 768px) {
-  .customer-ui-modal-panel.customer-relations-modal.customer-relation-group-modal--create {
-    height: calc(100dvh - 32px);
-    max-height: calc(100dvh - 32px);
-  }
-}
-
 @media (min-width: 769px) {
   .customer-relation-group-card__header {
     flex-direction: row;
@@ -1135,3 +1082,191 @@
   }
 }
 
+
+/*
+ * 구성원 추가 모달: 외곽 높이 고정.
+ * 제목·검색 입력·선택/관계 영역·닫기 버튼은 고정하고,
+ * 검색 결과 목록만 가운데에서 내부 스크롤한다 (결과 0/1/5/20명에도 모달이 움직이지 않음).
+ */
+.customer-ui-modal-panel.customer-relations-modal.customer-relation-group-modal--add {
+  box-sizing: border-box;
+  height: min(72vh, 640px);
+  max-height: min(80vh, calc(100dvh - 32px));
+  min-height: 0;
+}
+
+.customer-ui-modal-panel.customer-relation-group-modal--add .customer-relations-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.customer-relation-group-modal--add .customer-relations-modal__header,
+.customer-relation-group-modal--add .customer-relations-modal__search,
+.customer-relation-group-modal--add .customer-relation-group-picker,
+.customer-relation-group-modal--add .customer-relations-modal__footer {
+  flex: 0 0 auto;
+}
+
+.customer-ui-modal-panel.customer-relations-modal.customer-relation-group-modal--add
+  .customer-relations-modal__results {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+@media (max-width: 768px) {
+  .customer-ui-modal-panel.customer-relations-modal.customer-relation-group-modal--add {
+    height: calc(100dvh - 32px);
+    max-height: calc(100dvh - 32px);
+  }
+}
+
+/*
+ * 개별 연결 「고객 검색 후 연결」 모달 (PC): 외곽 높이 고정.
+ * #83 은 구성원 추가(--add) 모달만 고정해 이 모달은 결과 수(0/1/5/20)에 따라
+ * 패널 높이가 302→455px 로 바뀌었다 (기본 .customer-relations-modal__results 가
+ * flex: 0 0 auto + max-height: 240px 라 내용 높이만큼 커짐).
+ * 제목·검색 입력·닫기 버튼은 고정, 결과 목록만 남는 높이 안에서 내부 스크롤.
+ */
+@media (min-width: 769px) {
+  .customer-ui-modal-panel.customer-relations-modal.customer-relations-modal--link-search {
+    box-sizing: border-box;
+    height: min(72vh, 640px);
+    max-height: min(80vh, calc(100dvh - 32px));
+    min-height: 0;
+  }
+
+  .customer-ui-modal-panel.customer-relations-modal--link-search .customer-relations-modal__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .customer-relations-modal--link-search .customer-relations-modal__header,
+  .customer-relations-modal--link-search .customer-relations-modal__search,
+  .customer-relations-modal--link-search .customer-relations-modal__footer {
+    flex: 0 0 auto;
+  }
+
+  .customer-ui-modal-panel.customer-relations-modal.customer-relations-modal--link-search
+    .customer-relations-modal__results {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+}
+
+/*
+ * 가족 그룹 → 「가족 그룹 만들기」 모달의 고객 검색(구성원 추가) (PC): 외곽 높이 고정.
+ * 실제 Development 에서 그룹이 없는 고객은 이 모달에서 「고객 검색 → 그룹에 추가」로
+ * 구성원을 넣는다. #83 은 그룹 카드의 「구성원 추가」(--add) 모달만 고정해, 이 모달은
+ * 결과 0/1/5/20명에 따라 패널 높이 624→620→777px, top 138→140→62px 로 움직였다
+ * (기본 results 가 flex: 0 0 auto + max-height: 240px, compose 도 flex: 0 0 auto).
+ * 제목·그룹명·검색 입력·관계 선택·추가된 고객·취소/만들기 는 고정, 결과 목록만 내부 스크롤.
+ * main #81 의 --create 규칙(78vh + __scroll 래퍼)은 이 블록으로 대체·통합했다 (단일 SSOT).
+ */
+@media (min-width: 769px) {
+  .customer-ui-modal-panel.customer-relations-modal.customer-relation-group-modal--create {
+    box-sizing: border-box;
+    /* 그룹명·안내·관계·추가된 고객 영역이 더 있어 --add(640px)보다 높게 잡아 결과 약 5행 노출 */
+    height: min(84vh, 760px);
+    max-height: calc(100dvh - 32px);
+    min-height: 0;
+  }
+
+  .customer-ui-modal-panel.customer-relation-group-modal--create .customer-relations-modal__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .customer-ui-modal-panel.customer-relation-group-modal--create .customer-relation-group-compose {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .customer-relation-group-modal--create .customer-relations-modal__header,
+  .customer-relation-group-modal--create .customer-relations-modal__search,
+  .customer-relation-group-modal--create .customer-relation-group-picker,
+  .customer-relation-group-modal--create .customer-relation-group-pending-wrap,
+  .customer-relation-group-modal--create .customer-relations-modal__footer {
+    flex: 0 0 auto;
+  }
+
+  .customer-ui-modal-panel.customer-relation-group-modal--create .customer-relation-group-pending {
+    max-height: 120px;
+    overflow-y: auto;
+  }
+
+  .customer-ui-modal-panel.customer-relations-modal.customer-relation-group-modal--create
+    .customer-relations-modal__results {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+}
+
+/*
+ * 가족 그룹 만들기 모달 (모바일 웹, 768px 이하): main #81 의 모바일 안정화 동작 보존.
+ * #81 은 패널을 calc(100dvh - 32px) 로 고정하고 body 는 overflow: hidden, 가운데 영역만
+ * 스크롤했다. __scroll 래퍼는 PC SSOT(#86/#87)에서 제거됐으므로 현재 DOM 기준으로
+ * 결과 목록이 남는 높이를 받아 내부 스크롤한다. PC(769px 이상) 규칙과 겹치지 않는다.
+ */
+@media (max-width: 768px) {
+  .customer-ui-modal-panel.customer-relations-modal.customer-relation-group-modal--create {
+    box-sizing: border-box;
+    height: calc(100dvh - 32px);
+    max-height: calc(100dvh - 32px);
+    min-height: 0;
+  }
+
+  .customer-ui-modal-panel.customer-relation-group-modal--create .customer-relations-modal__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .customer-ui-modal-panel.customer-relation-group-modal--create .customer-relation-group-compose {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .customer-relation-group-modal--create .customer-relations-modal__header,
+  .customer-relation-group-modal--create .customer-relations-modal__search,
+  .customer-relation-group-modal--create .customer-relation-group-picker,
+  .customer-relation-group-modal--create .customer-relation-group-pending-wrap,
+  .customer-relation-group-modal--create .customer-relations-modal__footer {
+    flex: 0 0 auto;
+  }
+
+  .customer-ui-modal-panel.customer-relation-group-modal--create .customer-relation-group-pending {
+    max-height: 120px;
+    overflow-y: auto;
+  }
+
+  .customer-ui-modal-panel.customer-relations-modal.customer-relation-group-modal--create
+    .customer-relations-modal__results {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  /* main #81 모바일 순서 보존: 검색창 → 관계 선택 → 검색 결과 (DOM 은 PC SSOT 순서 유지) */
+  .customer-ui-modal-panel.customer-relation-group-modal--create
+    .customer-relation-group-compose
+    > .customer-relations-modal__results {
+    order: 1;
+  }
+}
