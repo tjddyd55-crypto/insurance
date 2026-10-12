@@ -123,8 +123,11 @@ test('cleanupPersonalBinderRefsForDeletedStorageFile removes items and soft-dele
         return { rows: [{ id: 10 }, { id: 11 }] }
       }
       if (String(sql).includes('DELETE FROM personal_binder_items')) {
-        assert.match(String(sql), /b\.ga_id = \$3/)
-        assert.match(String(sql), /b\.owner_user_id = \$2/)
+        const deleteSql = String(sql)
+        assert.match(deleteSql, /b\.ga_id = \$3/)
+        assert.match(deleteSql, /b\.owner_user_id = \$2/)
+        assert.doesNotMatch(deleteSql, /INNER JOIN personal_binder_sections s ON s\.id = i\.section_id/)
+        assert.match(deleteSql, /i\.section_id = s\.id/)
         return { rowCount: 3 }
       }
       if (String(sql).includes('UPDATE personal_binder_materials')) {

@@ -126,15 +126,16 @@ export async function cleanupPersonalBinderRefsForDeletedStorageFile(client, sco
   const deletedItems = await safeQuery(
     client,
     `
-    DELETE FROM personal_binder_items i
-    USING personal_binder_materials m
-    INNER JOIN personal_binder_sections s ON s.id = i.section_id
-    INNER JOIN personal_binders b
-      ON b.id = s.binder_id
+    DELETE FROM personal_binder_items AS i
+    USING personal_binder_materials AS m,
+      personal_binder_sections AS s,
+      personal_binders AS b
+    WHERE i.material_id = m.id
+      AND i.section_id = s.id
+      AND s.binder_id = b.id
       AND b.deleted_at IS NULL
       AND b.owner_user_id = $2
       AND b.ga_id = $3
-    WHERE i.material_id = m.id
       AND m.id = ANY($1::bigint[])
       AND m.owner_user_id = $2
       AND m.ga_id = $3

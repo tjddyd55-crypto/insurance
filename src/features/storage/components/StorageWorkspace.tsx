@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { ApiError } from '../../../lib/apiClient'
 import {
   createStorageFileDownloadUrl,
   createStorageFolder,
@@ -746,7 +747,19 @@ export default function StorageWorkspace({
       setDeleteDetailLines([])
       setDeleteBinderItemCountAck(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : '삭제에 실패했습니다.')
+      if (e instanceof ApiError) {
+        if (e.code === 'BINDER_IMPACT_CHANGED') {
+          setError('삭제 직전 바인더 사용 범위가 바뀌었습니다. 다시 삭제해 주세요.')
+        } else if (e.status === 409) {
+          setError(e.message || '바인더에서 사용 중이라 삭제할 수 없습니다.')
+        } else if (e.status >= 500 || e.message.includes('DB_ERROR')) {
+          setError('파일을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.')
+        } else {
+          setError(e.message || '삭제에 실패했습니다.')
+        }
+      } else {
+        setError(e instanceof Error ? e.message : '삭제에 실패했습니다.')
+      }
     } finally {
       setSubmitting(false)
     }

@@ -223,8 +223,8 @@
 .personal-binder-explorer-tree__folder-toggle {
   display: flex;
   align-items: center;
-  gap: 6px;
-  min-height: 36px;
+  gap: 8px;
+  min-height: 34px;
   padding: 4px 8px;
   border: none;
   border-radius: var(--radius-sm, 6px);
@@ -246,6 +246,7 @@
   flex: 0 0 10px;
   width: 10px;
   height: 10px;
+  margin-right: 2px;
   border-right: 1.5px solid var(--text-sub);
   border-bottom: 1.5px solid var(--text-sub);
   transform: rotate(-45deg);
@@ -256,29 +257,6 @@
 .personal-binder-explorer-tree__chevron--open {
   transform: rotate(45deg);
   margin-top: 2px;
-}
-
-.personal-binder-explorer-tree__folder-icon {
-  flex: 0 0 14px;
-  width: 14px;
-  height: 12px;
-  border: 1.5px solid color-mix(in srgb, var(--text-sub) 70%, transparent);
-  border-radius: 2px 3px 2px 2px;
-  position: relative;
-  background: color-mix(in srgb, var(--text-sub) 8%, transparent);
-}
-
-.personal-binder-explorer-tree__folder-icon::before {
-  content: '';
-  position: absolute;
-  top: -3px;
-  left: 1px;
-  width: 7px;
-  height: 3px;
-  border: 1.5px solid color-mix(in srgb, var(--text-sub) 70%, transparent);
-  border-bottom: none;
-  border-radius: 2px 2px 0 0;
-  background: color-mix(in srgb, var(--text-sub) 12%, transparent);
 }
 
 .personal-binder-explorer-tree__folder-label {
@@ -293,6 +271,8 @@
 
 .personal-binder-explorer-tree__count {
   flex: 0 0 auto;
+  margin-left: auto;
+  padding-left: 8px;
   font-size: 0.75rem;
   color: var(--text-sub);
 }
@@ -344,14 +324,12 @@
 }
 
 .personal-binder-explorer-tree__binder {
-  display: grid;
-  grid-template-columns: 12px minmax(0, 1fr);
-  grid-template-rows: auto auto;
-  align-items: center;
-  column-gap: 8px;
-  row-gap: 0;
-  min-height: 38px;
-  padding: 5px 8px 5px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  min-height: 36px;
+  padding: 4px 8px;
   border: none;
   border-radius: var(--radius-sm, 6px);
   background: var(--bg-card, #fff);
@@ -377,17 +355,8 @@
   padding-left: 28px;
 }
 
-.personal-binder-explorer-tree__binder-icon {
-  grid-row: 1 / span 2;
-  width: 8px;
-  height: 10px;
-  border: 1.5px solid color-mix(in srgb, var(--text-sub) 55%, transparent);
-  border-radius: 1px;
-  background: transparent;
-}
-
 .personal-binder-explorer-tree__binder-title {
-  grid-column: 2;
+  width: 100%;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -397,7 +366,6 @@
 }
 
 .personal-binder-explorer-tree__binder-meta {
-  grid-column: 2;
   font-size: 0.6875rem;
   font-weight: 400;
   color: var(--text-sub);
