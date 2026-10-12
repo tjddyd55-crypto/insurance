@@ -108,8 +108,84 @@ export async function insertPersonalBinderMaterial(executor, scope, input) {
 /**
  * @param {import('pg').Pool | import('pg').PoolClient} executor
  * @param {{ userId: string, gaId: number }} scope
+ * @param {number} materialId
+ */
+async function loadOwnedBinderMaterialWithBinderCount(executor, scope, materialId) {
+  const result = await safeQuery(
+    executor,
+    `
+    SELECT m.*, COUNT(DISTINCT b.id)::int AS binder_count
+    FROM personal_binder_materials m
+    LEFT JOIN personal_binder_items i ON i.material_id = m.id
+    LEFT JOIN personal_binder_sections s ON s.id = i.section_id
+    LEFT JOIN personal_binders b ON b.id = s.binder_id AND b.deleted_at IS NULL
+    WHERE m.id = $1
+      AND m.owner_user_id = $2
+      AND m.ga_id = $3
+      AND m.deleted_at IS NULL
+    GROUP BY m.id
+    LIMIT 1
+    `,
+    [materialId, scope.userId, scope.gaId],
+  )
+  return result.rows[0] ?? null
+}
+
+/**
+ * 동일 files 원본·동일 체크섬 Material이 있으면 재사용 (다중 바인더 연결용).
+ *
+ * @param {import('pg').Pool | import('pg').PoolClient} executor
+ * @param {{ userId: string, gaId: number }} scope
+ * @param {{ fileId?: number, checksum?: string }} keys
+ */
+export async function findReusableBinderMaterial(executor, scope, keys) {
+  const fileId = Number(keys.fileId)
+  if (Number.isInteger(fileId) && fileId > 0) {
+    const byFile = await safeQuery(
+      executor,
+      `
+      SELECT id
+      FROM personal_binder_materials
+      WHERE file_id = $1
+        AND owner_user_id = $2
+        AND ga_id = $3
+        AND deleted_at IS NULL
+      LIMIT 1
+      `,
+      [fileId, scope.userId, scope.gaId],
+    )
+    if (byFile.rowCount > 0) {
+      return loadOwnedBinderMaterialWithBinderCount(executor, scope, byFile.rows[0].id)
+    }
+  }
+  const checksum = String(keys.checksum ?? '').trim().toLowerCase()
+  if (/^[a-f0-9]{64}$/.test(checksum)) {
+    const byChecksum = await safeQuery(
+      executor,
+      `
+      SELECT id
+      FROM personal_binder_materials
+      WHERE checksum_sha256 = $1
+        AND owner_user_id = $2
+        AND ga_id = $3
+        AND deleted_at IS NULL
+      LIMIT 1
+      `,
+      [checksum, scope.userId, scope.gaId],
+    )
+    if (byChecksum.rowCount > 0) {
+      return loadOwnedBinderMaterialWithBinderCount(executor, scope, byChecksum.rows[0].id)
+    }
+  }
+  return null
+}
+
+/**
+ * @param {import('pg').Pool | import('pg').PoolClient} executor
+ * @param {{ userId: string, gaId: number }} scope
  * @param {object} fileRow files 테이블 행
  * @param {object} options
+ * @returns {Promise<{ row: object, reused: boolean }>}
  */
 export async function registerBinderMaterialFromStorageFile(executor, scope, fileRow, options) {
   const objectKey = String(fileRow.file_path ?? '').trim()
@@ -118,23 +194,13 @@ export async function registerBinderMaterialFromStorageFile(executor, scope, fil
   const mimeType = normalizeBinderMaterialMime(fileRow.mime_type, originalName)
   const pageCount = await resolveBinderMaterialPageCount(buffer, mimeType)
   const checksum = binderMaterialChecksum(buffer)
-  const duplicate = await safeQuery(
-    executor,
-    `
-    SELECT id FROM personal_binder_materials
-    WHERE owner_user_id = $1 AND ga_id = $2 AND checksum_sha256 = $3 AND deleted_at IS NULL
-    LIMIT 1
-    `,
-    [scope.userId, scope.gaId, checksum],
-  )
-  if (duplicate.rowCount > 0) {
-    throw Object.assign(
-      new Error('이미 자료 보관함에 등록된 파일입니다.'),
-      { httpStatus: 409, code: 'DUPLICATE_MATERIAL', materialId: String(duplicate.rows[0].id) },
-    )
+  const fileId = Number(fileRow.id)
+  const existing = await findReusableBinderMaterial(executor, scope, { fileId, checksum })
+  if (existing) {
+    return { row: existing, reused: true }
   }
-  return insertPersonalBinderMaterial(executor, scope, {
-    fileId: Number(fileRow.id),
+  const row = await insertPersonalBinderMaterial(executor, scope, {
+    fileId,
     title: options.title,
     originalFileName: originalName,
     mimeType,
@@ -145,6 +211,7 @@ export async function registerBinderMaterialFromStorageFile(executor, scope, fil
     sourceType: options.sourceType ?? 'personal',
     sourceRef: options.sourceRef ?? null,
   })
+  return { row, reused: false }
 }
 
 /**

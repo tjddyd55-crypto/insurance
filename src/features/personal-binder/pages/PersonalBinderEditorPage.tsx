@@ -521,7 +521,11 @@ export default function PersonalBinderEditorPage({
                       </div>
                     </div>
                   ))}
-                  <FormButton variant="secondary" onClick={() => setMaterialSectionId(section.id)}>
+                  <FormButton
+                    variant="secondary"
+                    className="personal-binder-section-card__add-material"
+                    onClick={() => setMaterialSectionId(section.id)}
+                  >
                     + 자료 추가
                   </FormButton>
                 </div>
