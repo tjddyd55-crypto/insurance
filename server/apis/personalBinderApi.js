@@ -1081,12 +1081,18 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
       const existingItem = await safeQuery(
         pool,
         `
-        SELECT id
-        FROM personal_binder_items
-        WHERE section_id = $1 AND material_id = $2
+        SELECT i.id
+        FROM personal_binder_items i
+        INNER JOIN personal_binder_sections s ON s.id = i.section_id
+        INNER JOIN personal_binders b ON b.id = s.binder_id
+        WHERE i.section_id = $1
+          AND i.material_id = $2
+          AND b.owner_user_id = $3
+          AND b.ga_id = $4
+          AND b.deleted_at IS NULL
         LIMIT 1
         `,
-        [sectionId, materialId],
+        [sectionId, materialId, scope.userId, scope.gaId],
       )
       if (existingItem.rowCount > 0) {
         res.status(200).json({
