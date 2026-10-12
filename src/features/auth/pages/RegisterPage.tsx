@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { searchPublicGaGroupGas, type PublicGaGroupGa } from '../../admin/api/gaGroupApi'
+import { useEffect, useState, type FormEvent } from 'react'
+import type { PublicGaGroupGa } from '../../admin/api/gaGroupApi'
+import { GaGroupBranchCombobox } from '../components/GaGroupBranchCombobox'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
 import { normalizeKrMobile, validateKrMobileDigits } from '../../../lib/phoneNormalize'
@@ -105,9 +106,6 @@ export function RegisterPage({
   const [referralCodeError, setReferralCodeError] = useState('')
   const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(null)
   const [devPhoneBypassEnabled, setDevPhoneBypassEnabled] = useState(false)
-  const [branchQuery, setBranchQuery] = useState('')
-  const [branchOptions, setBranchOptions] = useState<PublicGaGroupGa[]>([])
-  const [branchLoading, setBranchLoading] = useState(false)
   const [selectedBranch, setSelectedBranch] = useState<PublicGaGroupGa | null>(null)
 
   const isGaGroupSignup = Boolean(gaGroupSignup?.slug)
@@ -124,27 +122,6 @@ export function RegisterPage({
       cancelled = true
     }
   }, [])
-
-  useEffect(() => {
-    if (!isGaGroupSignup || !gaGroupSignup?.slug) {
-      return
-    }
-    let cancelled = false
-    const timer = window.setTimeout(() => {
-      void (async () => {
-        setBranchLoading(true)
-        const rows = await searchPublicGaGroupGas(gaGroupSignup.slug, branchQuery)
-        if (!cancelled) {
-          setBranchOptions(rows)
-          setBranchLoading(false)
-        }
-      })()
-    }, 250)
-    return () => {
-      cancelled = true
-      window.clearTimeout(timer)
-    }
-  }, [branchQuery, gaGroupSignup?.slug, isGaGroupSignup])
 
   useEffect(() => {
     if (!isAuthenticated || !token?.trim()) {
@@ -633,69 +610,6 @@ export function RegisterPage({
   const smsRequestDisabled = smsSubmitting || resendLeft > 0 || isVerified
   const smsConfirmDisabled = smsSubmitting || smsCode.trim().length !== 6 || isVerified
 
-  const branchPicker = useMemo(() => {
-    if (!isGaGroupSignup) {
-      return null
-    }
-    return (
-      <label className="field">
-        <span className="field__label">소속 지점</span>
-        <p className="text-xs text-gray-400 mb-2">
-          {gaGroupSignup?.groupName}에 연결된 지점만 검색·선택할 수 있습니다.
-        </p>
-        <FormInput
-          value={branchQuery}
-          onChange={(e) => {
-            setBranchQuery(e.target.value)
-            setSelectedBranch(null)
-            setGaCode('')
-            setIsVerified(false)
-            setSignupPhoneProof(null)
-          }}
-          placeholder="지점명 또는 GA 코드 검색"
-          autoComplete="off"
-        />
-        {branchLoading ? <p className="status">지점 검색 중…</p> : null}
-        {selectedBranch ?
-          <div className="ga-success">
-            선택: {selectedBranch.name} ({selectedBranch.code})
-          </div>
-        : null}
-        {!selectedBranch && branchOptions.length > 0 ?
-          <ul className="ga-group-branch-list">
-            {branchOptions.map((row) => (
-              <li key={row.id}>
-                <button
-                  type="button"
-                  className="ga-group-branch-list__btn"
-                  onClick={() => {
-                    setSelectedBranch(row)
-                    setGaCode(row.code)
-                    setGaInfo(row.name)
-                    setGaError('')
-                    setIsVerified(false)
-                    setSignupPhoneProof(null)
-                  }}
-                >
-                  {row.name} <span className="ga-group-branch-list__code">{row.code}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        : null}
-        {gaError ? <div className="ga-error">{gaError}</div> : null}
-      </label>
-    )
-  }, [
-    branchLoading,
-    branchOptions,
-    branchQuery,
-    gaGroupSignup?.groupName,
-    gaError,
-    isGaGroupSignup,
-    selectedBranch,
-  ])
-
   return (
     <main className={isGaGroupSignup ? 'auth-page auth-page--embedded' : 'auth-page'}>
       <section className="card auth-card">
@@ -731,8 +645,26 @@ export function RegisterPage({
               {gaInfo ? <div className="ga-success">{`사업장: ${gaInfo}`}</div> : null}
               {gaError ? <div className="ga-error">{gaError}</div> : null}
             </label>
-          : isGaGroupSignup ?
-            branchPicker
+          : isGaGroupSignup && gaGroupSignup ?
+            <GaGroupBranchCombobox
+              groupSlug={gaGroupSignup.slug}
+              groupName={gaGroupSignup.groupName}
+              value={selectedBranch}
+              onChange={(row) => {
+                setSelectedBranch(row)
+                if (!row) {
+                  setGaCode('')
+                  setGaInfo(null)
+                }
+                setIsVerified(false)
+                setSignupPhoneProof(null)
+              }}
+              onGaCodeChange={(code, displayName) => {
+                setGaCode(code)
+                setGaInfo(displayName)
+                setGaError('')
+              }}
+            />
           : <label className="field">
               <span className="field__label">GA 코드 (선택)</span>
               <p className="text-xs text-gray-400 mb-2">
