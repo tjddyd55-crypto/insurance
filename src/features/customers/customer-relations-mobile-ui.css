@@ -1082,3 +1082,45 @@
   }
 }
 
+
+/*
+ * 구성원 추가 모달: 외곽 높이 고정.
+ * 제목·검색 입력·선택/관계 영역·닫기 버튼은 고정하고,
+ * 검색 결과 목록만 가운데에서 내부 스크롤한다 (결과 0/1/5/20명에도 모달이 움직이지 않음).
+ */
+.customer-ui-modal-panel.customer-relations-modal.customer-relation-group-modal--add {
+  box-sizing: border-box;
+  height: min(72vh, 640px);
+  max-height: min(80vh, calc(100dvh - 32px));
+  min-height: 0;
+}
+
+.customer-ui-modal-panel.customer-relation-group-modal--add .customer-relations-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.customer-relation-group-modal--add .customer-relations-modal__header,
+.customer-relation-group-modal--add .customer-relations-modal__search,
+.customer-relation-group-modal--add .customer-relation-group-picker,
+.customer-relation-group-modal--add .customer-relations-modal__footer {
+  flex: 0 0 auto;
+}
+
+.customer-ui-modal-panel.customer-relations-modal.customer-relation-group-modal--add
+  .customer-relations-modal__results {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+@media (max-width: 768px) {
+  .customer-ui-modal-panel.customer-relations-modal.customer-relation-group-modal--add {
+    height: calc(100dvh - 32px);
+    max-height: calc(100dvh - 32px);
+  }
+}
