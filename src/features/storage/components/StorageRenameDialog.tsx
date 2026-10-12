@@ -114,6 +114,12 @@ export default function StorageRenameDialog({
         ariaLabel={title}
         panelClassName={folderCreatePanelClass}
         closeOnBackdrop={false}
+        /*
+         * PC 고객 파일은 actionVariant=storage 라 이 경로를 탄다.
+         * 백드롭을 outlet 본문(#customer-workspace-page-panel, z-index 4)에 두면
+         * 형제 탭 바(z-index 5)가 딤 위에 남는다. body portal 이 SSOT.
+         */
+        usePortal
       >
         <header className={headerClass}>
           <h2 className={titleClass}>{title}</h2>
