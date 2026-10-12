@@ -3223,6 +3223,27 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_team_post_comments_post_ga_team_created
     ON team_post_comments (post_id, ga_id, team_id, created_at DESC)
   `)
+  await pool.query(`
+    ALTER TABLE team_post_comments
+    ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT false
+  `)
+  await pool.query(`
+    UPDATE team_post_comments SET is_deleted = false WHERE is_deleted IS NULL
+  `)
+  try {
+    await pool.query(`
+      ALTER TABLE team_post_comments ALTER COLUMN is_deleted SET NOT NULL
+    `)
+    await pool.query(`
+      ALTER TABLE team_post_comments ALTER COLUMN is_deleted SET DEFAULT false
+    `)
+  } catch (e) {
+    console.error('[initDb] team_post_comments.is_deleted NOT NULL 설정 실패:', e instanceof Error ? e.message : e)
+  }
+  await pool.query(`
+    ALTER TABLE team_post_comments
+    ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ
+  `)
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS notifications (
