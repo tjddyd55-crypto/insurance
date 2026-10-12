@@ -11,6 +11,9 @@ import InsurerManagersPage from './features/insurer-managers/pages/InsurerManage
 import LossAdjustersPage from './features/loss-adjusters/pages/LossAdjustersPage'
 import GaManagementPage from './features/admin/pages/GaManagementPage'
 import GaCompanyManagePage from './features/admin/pages/GaCompanyManagePage'
+import GaGroupManagementPage from './features/admin/pages/GaGroupManagementPage'
+import GaGroupLandingPage from './features/web/pages/GaGroupLandingPage'
+import GaGroupSignupPage from './features/web/pages/GaGroupSignupPage'
 import UserManagementPage from './features/admin/pages/UserManagementPage'
 import AdminMessageSettingsPage from './features/admin/pages/AdminMessageSettingsPage'
 import AuditLogsPage from './features/admin/pages/AuditLogsPage'
@@ -278,6 +281,8 @@ export const appRouter = createBrowserRouter([
       { path: 'privacy-policy', element: <Navigate to="/privacy" replace /> },
       { path: 'terms', element: <TermsOfServicePage /> },
       { path: 'account-deletion', element: <AccountDeletionPage /> },
+      { path: 'g/:groupSlug', element: <GaGroupLandingPage /> },
+      { path: 'g/:groupSlug/signup', element: <GaGroupSignupPage /> },
       { path: 'introduction', element: <IntroductionPage /> },
       { path: 'introduction/facebook', element: <IntroductionPage showFacebookPromo /> },
       // 과거 install 전용 페이지는 랜딩 다운로드 섹션으로 통일 (권장 정책 2)
@@ -562,6 +567,7 @@ export const appRouter = createBrowserRouter([
               { path: 'loss-adjusters', element: <LossAdjustersPage /> },
               { path: 'customer-car', element: <CustomerCarPage /> },
               { path: 'admin/ga', element: <GaManagementPage /> },
+              { path: 'admin/ga-groups', element: <GaGroupManagementPage /> },
               { path: 'admin/ga/:gaId', element: <GaCompanyManagePage /> },
               { path: 'admin/create-ga', element: <Navigate to="/admin/ga" replace /> },
               { path: 'admin/delegates', element: <GaDelegateManagementPage /> },

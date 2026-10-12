@@ -1,0 +1,118 @@
+.ga-group-landing {
+  min-height: 100vh;
+  padding: 24px 20px 48px;
+  max-width: 720px;
+  margin: 0 auto;
+  color: var(--text-primary, #111);
+  background: var(--surface-page, #f8fafc);
+}
+
+.ga-group-landing__header {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.ga-group-landing__logo {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid color-mix(in srgb, var(--border, #e2e8f0) 80%, transparent);
+}
+
+.ga-group-landing__eyebrow {
+  font-size: 13px;
+  color: var(--text-secondary, #64748b);
+  margin: 0 0 4px;
+}
+
+.ga-group-landing__title {
+  margin: 0;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+}
+
+.ga-group-landing__section {
+  background: var(--surface-card, #fff);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 20px;
+  border: 1px solid color-mix(in srgb, var(--border, #e2e8f0) 80%, transparent);
+}
+
+.ga-group-landing__section h2 {
+  margin-top: 0;
+  font-size: 1.25rem;
+}
+
+.ga-group-landing__cta {
+  display: inline-block;
+  margin-top: 16px;
+  padding: 12px 20px;
+  border-radius: 10px;
+  background: var(--primary, #2563eb);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.ga-group-landing__downloads {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ga-group-landing__downloads a {
+  color: var(--primary, #2563eb);
+  font-weight: 500;
+}
+
+.ga-group-landing__muted {
+  color: var(--text-secondary, #64748b);
+}
+
+@media (min-width: 640px) {
+  .ga-group-landing {
+    padding: 40px 24px 64px;
+  }
+}
+
+.ga-group-landing--signup .auth-page--embedded {
+  padding: 0;
+  min-height: auto;
+}
+
+.ga-group-branch-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  max-height: 200px;
+  overflow: auto;
+}
+
+.ga-group-branch-list__btn {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+
+.ga-group-branch-list__btn:hover {
+  background: color-mix(in srgb, var(--primary, #2563eb) 8%, transparent);
+}
+
+.ga-group-branch-list__code {
+  color: var(--text-secondary, #64748b);
+  font-size: 12px;
+  margin-left: 6px;
+}

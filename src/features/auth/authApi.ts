@@ -268,6 +268,8 @@ export async function register(payload: {
   signupPhoneProof?: string
   /** 선택 — 추천인 코드 */
   referralCode?: string
+  /** GA 그룹 전용 가입 페이지 슬러그 */
+  gaGroupSlug?: string
 }) {
   try {
     const body: Record<string, string> = {
@@ -307,6 +309,10 @@ export async function register(payload: {
     const referralCode = payload.referralCode?.trim().toUpperCase().replace(/\s+/g, '')
     if (referralCode) {
       body.referral_code = referralCode
+    }
+    const gaGroupSlug = payload.gaGroupSlug?.trim().toLowerCase()
+    if (gaGroupSlug) {
+      body.ga_group_slug = gaGroupSlug
     }
     return await apiRequest<{ id: string; username: string; ga_id: number; createdAt: string }>(
       '/api/auth/register',

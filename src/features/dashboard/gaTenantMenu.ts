@@ -519,6 +519,7 @@ function buildSuperAdminMenuEntries(): GaTenantDashboardMenuEntry[] {
   entries.push(
     ...itemsToEntries([
       { label: 'GA 관리', path: '/admin/ga' },
+      { label: 'GA 그룹 관리', path: '/admin/ga-groups' },
       { label: '담당자 관리', path: '/admin/delegates' },
       { label: '유저 관리', path: '/admin/users' },
     ]),

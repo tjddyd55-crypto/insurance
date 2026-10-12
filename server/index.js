@@ -200,6 +200,7 @@ import { registerPdfTemplateApi } from './registerPdfTemplateApi.js'
 import { registerInsuranceClaimCompanyApi } from './registerInsuranceClaimCompanyApi.js'
 import { registerInsurerSitesApi } from './registerInsurerSitesApi.js'
 import { registerPlatformAdminApi } from './registerPlatformAdminApi.js'
+import { registerGaGroupApi } from './apis/registerGaGroupApi.js'
 import { registerCrmCustomerTemplateAdminApi } from './registerCrmCustomerTemplateAdminApi.js'
 import { registerSmsModuleApi } from './registerSmsModuleApi.js'
 import { registerCrmUserBulkSmsApi } from './registerCrmUserBulkSmsApi.js'
@@ -1762,6 +1763,7 @@ registerInsuranceClaimCompanyApi(apiRouter, {
 
 registerInsurerSitesApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
 registerPlatformAdminApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
+registerGaGroupApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
 registerCrmCustomerTemplateAdminApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
 registerSmsModuleApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCrmUserBulkSmsApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
