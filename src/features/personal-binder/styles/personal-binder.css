@@ -36,6 +36,13 @@
   gap: var(--space-4, 16px);
 }
 
+.personal-binder-workspace__body--split .personal-binder-folder-sidebar,
+.personal-binder-workspace__body--split .personal-binder-workspace__list-pane,
+.personal-binder-workspace__body--split .personal-binder-workspace__editor-pane {
+  height: min(78vh, 920px);
+  max-height: min(78vh, 920px);
+}
+
 .personal-binder-workspace__list-pane {
   flex: 0 0 min(300px, 32%);
   min-width: 220px;
@@ -71,6 +78,7 @@
   align-items: flex-start;
   gap: var(--space-1, 4px);
   width: 100%;
+  min-height: 72px;
   padding: var(--space-3, 12px);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md, 8px);
@@ -79,6 +87,14 @@
   text-align: left;
   cursor: pointer;
   font: inherit;
+  box-sizing: border-box;
+}
+
+.personal-binder-workspace__binder-nav-button strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .personal-binder-workspace__binder-nav-button strong {
@@ -116,6 +132,15 @@
 
 .personal-binder-editor--embedded .personal-binder-editor-header {
   gap: var(--space-3, 12px);
+  margin-bottom: var(--space-2, 8px);
+}
+
+.personal-binder-editor--embedded .personal-binder-editor-header h1 {
+  font-size: 1.125rem;
+}
+
+.personal-binder-editor--embedded .personal-binder-settings {
+  margin-top: 0;
 }
 
 .personal-binder-empty--compact {
@@ -127,13 +152,16 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3, 12px);
-  margin-bottom: var(--space-3, 12px);
+  flex-shrink: 0;
+  min-height: 36px;
+  margin-bottom: 0;
 }
 
 .personal-binder-workspace__pane-title {
   margin: 0;
   font-size: 1.05rem;
   font-weight: 700;
+  line-height: 1.3;
 }
 
 .personal-binder-workspace__pane-actions {
@@ -149,6 +177,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3, 12px);
+  min-height: 0;
   padding: var(--space-3, 12px);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md, 8px);
@@ -157,9 +186,12 @@
 
 .personal-binder-folder-sidebar__title {
   margin: 0;
-  font-size: 0.8125rem;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  font-size: 1.05rem;
   font-weight: 700;
-  color: var(--text-sub);
+  color: var(--text-main);
   text-transform: none;
 }
 
@@ -167,6 +199,10 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .personal-binder-folder-nav__divider {
@@ -502,9 +538,20 @@
   box-sizing: border-box;
 }
 
+.personal-binder-editor__section-toolbar {
+  margin: var(--space-4, 16px) 0 var(--space-3, 12px);
+}
+
+.personal-binder-editor__section-toolbar h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
 .personal-binder-section-list {
   display: grid;
-  gap: 12px;
+  gap: var(--space-4, 16px);
+  padding-bottom: var(--space-4, 16px);
 }
 
 .personal-binder-section-card {
@@ -538,14 +585,26 @@
   text-align: left;
 }
 
+.personal-binder-section-card__toggle strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .personal-binder-section-card__toggle small {
   color: var(--text-muted);
 }
 
 .personal-binder-section-card__body {
   display: grid;
-  gap: 8px;
-  padding: 12px;
+  gap: var(--space-2, 8px);
+  padding: var(--space-3, 12px) var(--space-4, 16px) var(--space-4, 16px);
+}
+
+.personal-binder-section-card__add-material {
+  margin-top: var(--space-1, 4px);
+  margin-bottom: var(--space-2, 8px);
+  align-self: flex-start;
 }
 
 .personal-binder-item-row {
@@ -553,9 +612,21 @@
   grid-template-columns: 24px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
+  min-height: 44px;
   padding: 10px 12px;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md, 8px);
+}
+
+.personal-binder-item-row > div:nth-child(2) {
+  min-width: 0;
+}
+
+.personal-binder-item-row strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .personal-binder-item-row small {
@@ -616,13 +687,60 @@
 }
 
 .personal-binder-storage-embed .storage-explorer {
-  min-height: 360px;
+  flex: 1 1 auto;
+  min-height: 380px;
   min-width: 0;
+  align-items: stretch;
+}
+
+.personal-binder-storage-embed .storage-explorer-tree,
+.personal-binder-storage-embed .storage-explorer-files {
+  min-height: 0;
+  max-height: none;
+}
+
+.personal-binder-storage-embed .storage-explorer-tree__body,
+.personal-binder-storage-embed .storage-explorer-files__list {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .personal-binder-storage-embed .storage-explorer-files {
   min-width: 0;
-  overflow-x: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.personal-binder-material-picker-dialog--storage .storage-explorer-files--binder-pick {
+  --storage-explorer-file-grid-columns:
+    minmax(160px, 1fr) 52px 72px minmax(220px, max-content);
+  --storage-explorer-file-name-min-width: 160px;
+}
+
+.personal-binder-material-picker-dialog--storage
+  .storage-explorer-files--binder-pick
+  .storage-explorer-files__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.personal-binder-material-picker-dialog--storage
+  .storage-explorer-files--binder-pick
+  .storage-explorer-files__actions-inline {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.personal-binder-material-picker-dialog--storage
+  .storage-workspace--explorer
+  .storage-explorer-file-action-button {
+  min-height: 28px;
+  height: 28px;
+  padding: 0 8px;
+  font-size: 12px;
 }
 
 .storage-explorer-file-action-button--primary {

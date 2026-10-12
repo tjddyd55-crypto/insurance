@@ -62,6 +62,11 @@ export function normalizePageSelection(value, pageCount) {
   return pages
 }
 
+function respondMaterialRegister(res, registerResult) {
+  const status = registerResult.reused ? 200 : 201
+  res.status(status).json(mapMaterial(registerResult.row))
+}
+
 function mapMaterial(row) {
   return {
     id: String(row.id),
@@ -365,25 +370,13 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         return
       }
       const folderId = await resolveFolderIdForWrite(pool, scope, 'material', req.body?.folderId)
-      try {
-        const row = await registerBinderMaterialFromStorageFile(pool, scope, file, {
-          title,
-          folderId,
-          sourceType: 'personal',
-          sourceRef: null,
-        })
-        res.status(201).json(mapMaterial(row))
-      } catch (error) {
-        if (error?.code === 'DUPLICATE_MATERIAL') {
-          res.status(409).json({
-            code: 'DUPLICATE_MATERIAL',
-            message: error.message,
-            materialId: error.materialId,
-          })
-          return
-        }
-        throw error
-      }
+      const registerResult = await registerBinderMaterialFromStorageFile(pool, scope, file, {
+        title,
+        folderId,
+        sourceType: 'personal',
+        sourceRef: null,
+      })
+      respondMaterialRegister(res, registerResult)
     } catch (error) {
       sendError(error, req, res, handleDbError)
     }
@@ -405,25 +398,13 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         return
       }
       const folderId = await resolveFolderIdForWrite(pool, scope, 'material', req.body?.folderId)
-      try {
-        const row = await registerBinderMaterialFromStorageFile(pool, scope, file, {
-          title,
-          folderId,
-          sourceType: 'my_file',
-          sourceRef: String(fileId),
-        })
-        res.status(201).json(mapMaterial(row))
-      } catch (error) {
-        if (error?.code === 'DUPLICATE_MATERIAL') {
-          res.status(409).json({
-            code: 'DUPLICATE_MATERIAL',
-            message: error.message,
-            materialId: error.materialId,
-          })
-          return
-        }
-        throw error
-      }
+      const registerResult = await registerBinderMaterialFromStorageFile(pool, scope, file, {
+        title,
+        folderId,
+        sourceType: 'my_file',
+        sourceRef: String(fileId),
+      })
+      respondMaterialRegister(res, registerResult)
     } catch (error) {
       sendError(error, req, res, handleDbError)
     }
@@ -454,25 +435,13 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         attachment.buffer.length,
       )
       const folderId = await resolveFolderIdForWrite(pool, scope, 'material', req.body?.folderId)
-      try {
-        const row = await registerBinderMaterialFromStorageFile(pool, scope, fileRow, {
-          title,
-          folderId,
-          sourceType: 'team_file',
-          sourceRef: String(attachmentId),
-        })
-        res.status(201).json(mapMaterial(row))
-      } catch (error) {
-        if (error?.code === 'DUPLICATE_MATERIAL') {
-          res.status(409).json({
-            code: 'DUPLICATE_MATERIAL',
-            message: error.message,
-            materialId: error.materialId,
-          })
-          return
-        }
-        throw error
-      }
+      const registerResult = await registerBinderMaterialFromStorageFile(pool, scope, fileRow, {
+        title,
+        folderId,
+        sourceType: 'team_file',
+        sourceRef: String(attachmentId),
+      })
+      respondMaterialRegister(res, registerResult)
     } catch (error) {
       sendError(error, req, res, handleDbError)
     }
@@ -513,25 +482,13 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
       const gaCode = String(req.user?.gaCode ?? scope.gaId)
       const fileRow = await persistPersonalStoragePdf(pool, scope, gaCode, pdfBuffer, pdfName)
       const folderId = await resolveFolderIdForWrite(pool, scope, 'material', req.body?.folderId)
-      try {
-        const row = await registerBinderMaterialFromStorageFile(pool, scope, fileRow, {
-          title: title.trim(),
-          folderId,
-          sourceType: 'personal',
-          sourceRef: null,
-        })
-        res.status(201).json(mapMaterial(row))
-      } catch (error) {
-        if (error?.code === 'DUPLICATE_MATERIAL') {
-          res.status(409).json({
-            code: 'DUPLICATE_MATERIAL',
-            message: error.message,
-            materialId: error.materialId,
-          })
-          return
-        }
-        throw error
-      }
+      const registerResult = await registerBinderMaterialFromStorageFile(pool, scope, fileRow, {
+        title: title.trim(),
+        folderId,
+        sourceType: 'personal',
+        sourceRef: null,
+      })
+      respondMaterialRegister(res, registerResult)
     } catch (error) {
       sendError(error, req, res, handleDbError)
     }
@@ -1121,6 +1078,23 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         return
       }
       const selection = normalizePageSelection(req.body?.pageSelection, Number(material.rows[0].page_count))
+      const existingItem = await safeQuery(
+        pool,
+        `
+        SELECT id
+        FROM personal_binder_items
+        WHERE section_id = $1 AND material_id = $2
+        LIMIT 1
+        `,
+        [sectionId, materialId],
+      )
+      if (existingItem.rowCount > 0) {
+        res.status(200).json({
+          id: String(existingItem.rows[0].id),
+          existing: true,
+        })
+        return
+      }
       const result = await pool.query(
         `
         INSERT INTO personal_binder_items (section_id, material_id, sort_order, page_selection)

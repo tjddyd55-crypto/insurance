@@ -193,8 +193,10 @@ export function MaterialUploadDialog({
         const [checksum, pageCount] = await Promise.all([sha256(file), readPdfPageCount(file)])
         if (pageCount < 1) throw new Error('페이지가 없는 PDF입니다.')
         const duplicate = await checkDuplicateBinderMaterial(token, checksum)
-        if (duplicate.duplicate) {
-          throw new Error('이미 자료 보관함에 등록된 파일입니다.')
+        if (duplicate.duplicate && duplicate.material) {
+          onUploaded(duplicate.material)
+          onClose()
+          return
         }
       }
       const fileId = await uploadPersonalFile(token, file, setProgress)
