@@ -64,11 +64,11 @@ describe('customerRelationSectionUx', () => {
     expect(hitsAt).toBeGreaterThan(-1)
     expect(relationAt).toBeGreaterThan(hitsAt)
 
-    // --create 패널 규칙은 한 벌만 존재
+    // --create 패널 규칙은 PC(min-width: 769px) 1벌 + 모바일 웹(max-width: 768px, #81 보존) 1벌
     const panelRules = relationsCss.match(
       /\.customer-ui-modal-panel\.customer-relations-modal\.customer-relation-group-modal--create \{/g,
     )
-    expect(panelRules).toHaveLength(1)
+    expect(panelRules).toHaveLength(2)
     expect(relationsCss).not.toMatch(/height:\s*min\(78vh/)
   })
 
