@@ -115,7 +115,8 @@ test('groups create omits memo UI and payload memo field', () => {
   assert.match(groups, /members:\s*pendingMembers\.map/)
   assert.match(groups, /canCreateGroup/)
   assert.match(groups, /customer-relation-group-compose/)
-  assert.match(groups, /customer-relation-group-pending-wrap--scroll/)
+  assert.match(groups, /customer-relation-group-create__scroll/)
+  assert.match(groups, /customer-relation-group-modal--create/)
 })
 
 test('relation modal search results do not flex-shrink away', () => {
@@ -131,7 +132,15 @@ test('relation modal search results do not flex-shrink away', () => {
   )
   assert.match(
     css,
-    /\.customer-relation-group-pending-wrap--scroll\s+\.customer-relation-group-pending\s*\{[^}]*max-height:\s*200px/s,
+    /\.customer-relation-group-create__scroll\s*\{[^}]*flex:\s*1 1 auto/s,
+  )
+  assert.match(
+    css,
+    /\.customer-relation-group-create__scroll\s*\{[^}]*min-height:\s*0/s,
+  )
+  assert.match(
+    css,
+    /\.customer-relation-group-create__scroll\s*\{[^}]*overflow-y:\s*auto/s,
   )
 })
 
