@@ -727,7 +727,7 @@ export function CustomerRelationGroupsSection({
           if (!linking) setAddMemberGroupId(null)
         }}
         ariaLabel="그룹 구성원 추가"
-        panelClassName="customer-relations-modal customer-relation-group-modal"
+        panelClassName="customer-relations-modal customer-relation-group-modal customer-relation-group-modal--add"
         closeOnBackdrop={false}
         usePortal
         onEscapeRequest={() => {
