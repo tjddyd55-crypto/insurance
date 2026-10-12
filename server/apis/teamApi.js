@@ -1637,7 +1637,7 @@ export function registerTeamApi(apiRouter, ctx) {
         return
       }
       const commentId = String(req.params.commentId ?? '').trim()
-      if (!commentId || !/^\d+$/.test(commentId)) {
+      if (!commentId || !/^\d{1,19}$/.test(commentId)) {
         res.status(400).json({ message: '댓글을 찾을 수 없습니다.' })
         return
       }
@@ -1686,6 +1686,12 @@ export function registerTeamApi(apiRouter, ctx) {
       }
       res.json({ ok: true })
     } catch (error) {
+      console.error('[team] post comment delete failed', {
+        commentId: String(req.params.commentId ?? ''),
+        userId: req.user?.id ?? null,
+        code: error?.code,
+        message: error instanceof Error ? error.message : String(error),
+      })
       handleDbError(error, req, res)
     }
   })

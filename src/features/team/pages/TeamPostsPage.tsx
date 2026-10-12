@@ -2,7 +2,9 @@ import { FormButton } from '../../../components/form'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
-import { fetchTeamPosts, type TeamPostAttachment, type TeamPostRow } from '../api/teamApi'
+import { deleteTeamPost, fetchTeamPosts, type TeamPostAttachment, type TeamPostRow } from '../api/teamApi'
+import { teamContentUserMessage } from '../lib/teamContentMessages'
+import { useConfirmDialog } from '../../../components/dialog'
 import { TeamPostComments } from '../../../components/team/TeamPostComments'
 import { TeamPostFormModal, type TeamPostModalInitialData } from '../components/TeamPostFormModal'
 import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
@@ -36,7 +38,7 @@ function isTeamPostElevatedRole(role: string | undefined): boolean {
   return r === 'SUPER_ADMIN' || r === 'GA_ADMIN'
 }
 
-function canEditTeamPost(
+function canManageTeamPost(
   post: TeamPostRow,
   userId: string | undefined,
   ownerId: string | null,
@@ -57,10 +59,16 @@ function canEditTeamPost(
   return false
 }
 
+const canEditTeamPost = canManageTeamPost
+const canDeleteTeamPost = canManageTeamPost
+
 function PostCard({
   post,
   showEdit,
+  showDelete,
   onEdit,
+  onDelete,
+  deletingPostId,
   expanded,
   onToggleExpand,
   token,
@@ -72,7 +80,10 @@ function PostCard({
 }: {
   post: TeamPostRow
   showEdit: boolean
+  showDelete: boolean
   onEdit: (p: TeamPostRow) => void
+  onDelete: (p: TeamPostRow) => void
+  deletingPostId: string | null
   expanded: boolean
   onToggleExpand: () => void
   token: string
@@ -139,6 +150,16 @@ function PostCard({
             수정
           </FormButton>
         ) : null}
+        {showDelete ? (
+          <FormButton
+            htmlType="button"
+            className="text-xs text-[var(--danger)] underline disabled:opacity-50"
+            disabled={Boolean(deletingPostId)}
+            onClick={() => onDelete(post)}
+          >
+            {deletingPostId === post.id ? '삭제 중…' : '삭제'}
+          </FormButton>
+        ) : null}
       </div>
       {expanded ? (
         <TeamPostComments
@@ -155,6 +176,7 @@ function PostCard({
 
 export default function TeamPostsPage() {
   const { token, user } = useAuth()
+  const { confirm, confirmDialog } = useConfirmDialog()
   const location = useLocation()
   const navigate = useNavigate()
   const [posts, setPosts] = useState<TeamPostRow[]>([])
@@ -169,6 +191,8 @@ export default function TeamPostsPage() {
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({})
   const [highlightPostId, setHighlightPostId] = useState<string | null>(null)
   const [commentScrollNonceByPost, setCommentScrollNonceByPost] = useState<Record<string, number>>({})
+  const [deletingPostId, setDeletingPostId] = useState<string | null>(null)
+  const [actionError, setActionError] = useState('')
   const highlightClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const handleCommentCountChange = useCallback((postId: string, count: number) => {
@@ -253,11 +277,52 @@ export default function TeamPostsPage() {
     setPostModalOpen(false)
   }
 
+  async function handleDeletePost(post: TeamPostRow) {
+    if (!token?.trim() || deletingPostId) {
+      return
+    }
+    const ok = await confirm({
+      title: '게시글 삭제',
+      message: `「${post.title}」글을 삭제하시겠습니까? 첨부 파일도 함께 제거됩니다.`,
+      tone: 'danger',
+      confirmLabel: '삭제',
+    })
+    if (!ok) {
+      return
+    }
+    setActionError('')
+    setDeletingPostId(post.id)
+    try {
+      await deleteTeamPost(token, post.id)
+      if (expandedPostId === post.id) {
+        setExpandedPostId(null)
+      }
+      setCommentCounts((prev) => {
+        const next = { ...prev }
+        delete next[post.id]
+        return next
+      })
+      await load()
+    } catch (e) {
+      setActionError(
+        teamContentUserMessage(e, '게시글을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.'),
+      )
+    } finally {
+      setDeletingPostId(null)
+    }
+  }
+
   return (
     <div className="content-wrapper page-shell">
       <h1 className="text-[var(--text-primary)]" style={{ marginTop: 12 }}>
         팀 게시판
       </h1>
+
+      {actionError ? (
+        <p className="mt-3 text-sm text-[var(--danger)]" role="alert">
+          {actionError}
+        </p>
+      ) : null}
 
       {loadError ? (
         <p className="mt-3 text-sm text-[var(--danger)]" role="alert">
@@ -293,7 +358,10 @@ export default function TeamPostsPage() {
                 key={p.id}
                 post={p}
                 showEdit={canEditTeamPost(p, user?.id, ownerId, user?.role)}
+                showDelete={canDeleteTeamPost(p, user?.id, ownerId, user?.role)}
                 onEdit={openEditModal}
+                onDelete={(post) => void handleDeletePost(post)}
+                deletingPostId={deletingPostId}
                 expanded={expandedPostId === p.id}
                 onToggleExpand={() => setExpandedPostId((cur) => (cur === p.id ? null : p.id))}
                 token={token ?? ''}
@@ -307,6 +375,8 @@ export default function TeamPostsPage() {
           )}
         </div>
       ) : null}
+
+      {confirmDialog}
 
       {token?.trim() ? (
         <TeamPostFormModal

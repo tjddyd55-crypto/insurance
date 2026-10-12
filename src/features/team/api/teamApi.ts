@@ -180,6 +180,20 @@ export async function createTeamPost(
   })
 }
 
+export async function deleteTeamPost(token: string, postId: string): Promise<void> {
+  if (!token?.trim()) {
+    throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  const id = String(postId ?? '').trim()
+  if (!id) {
+    throw new ApiError('게시글을 찾을 수 없습니다.', 400)
+  }
+  await apiRequest(`/api/teams/posts/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    token,
+  })
+}
+
 export async function updateTeamPost(
   token: string,
   postId: string,

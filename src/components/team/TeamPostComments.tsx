@@ -9,6 +9,7 @@ import {
   type TeamPostCommentRow,
 } from '../../features/team/api/teamApi'
 import { dispatchNotificationRefresh } from '../../features/notification/notificationRefreshDispatch'
+import { teamContentUserMessage } from '../../features/team/lib/teamContentMessages'
 
 export type TeamPostCommentsProps = {
   postId: string
@@ -68,7 +69,9 @@ export function TeamPostComments({
     } catch (e) {
       setComments([])
       reportCount(0)
-      setError(e instanceof ApiError ? e.message : e instanceof Error ? e.message : '댓글을 불러오지 못했습니다.')
+      setError(
+        teamContentUserMessage(e, '댓글을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'),
+      )
     } finally {
       setLoading(false)
     }
@@ -140,7 +143,7 @@ export function TeamPostComments({
       reportCount(Math.max(0, comments.length - 1))
       await loadComments()
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : e instanceof Error ? e.message : '삭제에 실패했습니다.')
+      setError(teamContentUserMessage(e, '댓글을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.'))
     } finally {
       setDeletingId(null)
     }
