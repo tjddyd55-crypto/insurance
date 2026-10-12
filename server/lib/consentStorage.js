@@ -292,6 +292,14 @@ export function getR2InsurerAttachmentsCacheControl() {
   return raw || 'public, max-age=31536000'
 }
 
+/** presigned PUT 시 서명에 포함된 Cache-Control 을 클라이언트 PUT 헤더에도 넣어야 합니다. */
+export function buildR2PresignedPutHeaders(cacheControl) {
+  if (!cacheControl) {
+    return {}
+  }
+  return { 'Cache-Control': cacheControl }
+}
+
 /**
  * R2 업로드용 presigned PUT URL (원수사 소식 첨부 등).
  * CacheControl 을 넣으면 클라이언트 PUT 시 동일한 Cache-Control 헤더를 반드시 보내야 합니다.

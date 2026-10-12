@@ -1,5 +1,7 @@
 import multer from 'multer'
 import {
+  buildR2PresignedPutHeaders,
+  consentPutInsurerAttachment,
   getR2InsurerAttachmentsCacheControl,
   getR2PublicCdnBase,
   isConsentR2Enabled,
@@ -25,6 +27,53 @@ const uploadExcel = multer({
 
 const ALLOWED_LOGO_MIME = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif'])
 const MAX_LOGO_BYTES = 2 * 1024 * 1024
+
+/**
+ * @param {import('express').Request} req
+ * @param {number} maxBytes
+ */
+async function readRawBodyBuffer(req, maxBytes) {
+  const chunks = []
+  let total = 0
+  for await (const chunk of req) {
+    const bufferChunk = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+    total += bufferChunk.length
+    if (total > maxBytes) {
+      const error = new Error('이미지 크기가 허용 범위를 벗어났습니다.')
+      error.httpStatus = 413
+      throw error
+    }
+    chunks.push(bufferChunk)
+  }
+  return Buffer.concat(chunks)
+}
+
+function assertGaGroupLogoStorageKey(storageKey, groupId) {
+  const key = String(storageKey ?? '').trim().replace(/^\//, '')
+  const prefix = `insurance/ga-groups/${groupId}/`
+  return key.startsWith(prefix) && !key.includes('..')
+}
+
+function resolveGaGroupLogoContentType(contentType, fileName) {
+  const ct = String(contentType ?? '').trim().toLowerCase()
+  if (ALLOWED_LOGO_MIME.has(ct)) {
+    return ct
+  }
+  const n = String(fileName ?? '').trim().toLowerCase()
+  if (n.endsWith('.png')) {
+    return 'image/png'
+  }
+  if (n.endsWith('.jpg') || n.endsWith('.jpeg')) {
+    return 'image/jpeg'
+  }
+  if (n.endsWith('.webp')) {
+    return 'image/webp'
+  }
+  if (n.endsWith('.gif')) {
+    return 'image/gif'
+  }
+  return ct || 'application/octet-stream'
+}
 
 function parseGroupIdParam(raw) {
   const n = Number(raw)
@@ -437,7 +486,10 @@ export function registerGaGroupApi(apiRouter, ctx) {
       }
       const body = req.body && typeof req.body === 'object' ? req.body : {}
       const fileName = String(body.fileName ?? body.file_name ?? 'logo.png').trim() || 'logo.png'
-      const contentType = String(body.contentType ?? body.content_type ?? 'image/png').trim()
+      const contentType = resolveGaGroupLogoContentType(
+        body.contentType ?? body.content_type ?? 'image/png',
+        fileName,
+      )
       const sizeBytes = Number(body.sizeBytes ?? body.size ?? 0)
       if (!ALLOWED_LOGO_MIME.has(contentType)) {
         res.status(400).json({ message: '허용되지 않은 이미지 형식입니다.' })
@@ -454,13 +506,63 @@ export function registerGaGroupApi(apiRouter, ctx) {
         res.status(503).json({ message: '업로드 URL을 만들 수 없습니다.' })
         return
       }
+      const putHeaders = buildR2PresignedPutHeaders(cacheControl)
       res.json({
         uploadUrl,
         storageKey,
         publicUrl: `${getR2PublicCdnBase()}/${storageKey}`,
         contentType,
+        putHeaders,
       })
     } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
+  /**
+   * 브라우저 → R2 직접 PUT CORS 차단 시 서버 경유 업로드 (원수사 소식 upload-proxy 와 동일 패턴).
+   */
+  apiRouter.put('/admin/ga-groups/:groupId/logo/upload-proxy', guard, async (req, res) => {
+    try {
+      if (!isConsentR2Enabled()) {
+        res.status(503).json({ message: '파일 저장소가 구성되지 않았습니다.' })
+        return
+      }
+      const groupId = parseGroupIdParam(req.params.groupId)
+      if (groupId == null) {
+        res.status(400).json({ message: '잘못된 그룹 ID입니다.' })
+        return
+      }
+      const storageKey = String(req.query.storageKey ?? req.query.storage_key ?? '').trim()
+      const contentTypeRaw = String(req.query.contentType ?? req.query.content_type ?? '').trim()
+      const headerType = String(req.headers['content-type'] ?? '').split(';')[0].trim()
+      const contentType = resolveGaGroupLogoContentType(contentTypeRaw || headerType, 'logo.png')
+      if (!storageKey) {
+        res.status(400).json({ message: 'storageKey가 필요합니다.' })
+        return
+      }
+      if (!assertGaGroupLogoStorageKey(storageKey, groupId)) {
+        res.status(400).json({ message: '허용되지 않은 저장 경로입니다.' })
+        return
+      }
+      if (!ALLOWED_LOGO_MIME.has(contentType)) {
+        res.status(400).json({ message: '허용되지 않은 이미지 형식입니다.' })
+        return
+      }
+      const bodyBuffer = await readRawBodyBuffer(req, MAX_LOGO_BYTES)
+      if (!bodyBuffer.length) {
+        res.status(400).json({ message: '업로드 본문이 비어 있습니다.' })
+        return
+      }
+      await consentPutInsurerAttachment(storageKey, bodyBuffer, contentType)
+      res.status(204).end()
+    } catch (e) {
+      if (e && typeof e === 'object' && 'httpStatus' in e && typeof e.httpStatus === 'number') {
+        res.status(e.httpStatus).json({
+          message: e instanceof Error ? e.message : '요청을 처리할 수 없습니다.',
+        })
+        return
+      }
       handleDbError(e, req, res)
     }
   })

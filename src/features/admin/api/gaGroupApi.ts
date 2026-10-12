@@ -1,4 +1,5 @@
 import { apiRequest, resolveApiUrl } from '../../../lib/apiClient'
+import { inferImageContentType, putFileToPresignedR2Url } from '../../../lib/presignedR2Put'
 
 export type GaGroupRow = {
   id: number
@@ -125,6 +126,7 @@ export type GaGroupLogoPresign = {
   publicUrl: string
   storageKey: string
   contentType: string
+  putHeaders?: Record<string, string>
 }
 
 export async function presignGaGroupLogo(
@@ -132,28 +134,59 @@ export async function presignGaGroupLogo(
   groupId: number,
   file: File,
 ): Promise<GaGroupLogoPresign> {
+  const contentType = inferImageContentType(file)
   return apiRequest<GaGroupLogoPresign>(`/api/admin/ga-groups/${groupId}/logo/presign`, {
     method: 'POST',
     token,
     body: JSON.stringify({
       fileName: file.name,
-      contentType: file.type || 'application/octet-stream',
+      contentType,
       sizeBytes: file.size,
     }),
   })
 }
 
-export async function uploadGaGroupLogoFile(presign: GaGroupLogoPresign, file: File): Promise<void> {
-  const uploadUrl = /^https?:\/\//i.test(presign.uploadUrl)
-    ? presign.uploadUrl
-    : resolveApiUrl(presign.uploadUrl)
-  const res = await fetch(uploadUrl, {
-    method: 'PUT',
-    headers: { 'Content-Type': presign.contentType || file.type },
-    body: file,
+export async function uploadGaGroupLogoFile(
+  presign: GaGroupLogoPresign,
+  file: File,
+  opts: { token: string; groupId: number },
+): Promise<void> {
+  const contentType = presign.contentType || inferImageContentType(file)
+  let directOk = false
+  try {
+    await putFileToPresignedR2Url(presign.uploadUrl, file, contentType, presign.putHeaders)
+    directOk = true
+  } catch {
+    directOk = false
+  }
+  if (directOk) {
+    return
+  }
+
+  const q = new URLSearchParams({
+    storageKey: presign.storageKey,
+    contentType,
   })
-  if (!res.ok) {
-    throw new Error('로고 업로드에 실패했습니다.')
+  let proxyRes: Response
+  try {
+    proxyRes = await fetch(
+      resolveApiUrl(`/api/admin/ga-groups/${opts.groupId}/logo/upload-proxy?${q.toString()}`),
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': contentType,
+          Authorization: `Bearer ${opts.token}`,
+        },
+        body: file,
+      },
+    )
+  } catch {
+    throw new Error(
+      '스토리지로 이미지를 전송하지 못했습니다. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.',
+    )
+  }
+  if (!proxyRes.ok) {
+    throw new Error('이미지 업로드에 실패했습니다. 잠시 후 다시 시도해 주세요.')
   }
 }
 
