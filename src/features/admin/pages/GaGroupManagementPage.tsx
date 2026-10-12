@@ -69,6 +69,8 @@ export default function GaGroupManagementPage() {
   const [editActive, setEditActive] = useState(true)
   const [saveBusy, setSaveBusy] = useState(false)
   const [logoBusy, setLogoBusy] = useState(false)
+  const [logoError, setLogoError] = useState('')
+  const [logoNotice, setLogoNotice] = useState('')
 
   const [members, setMembers] = useState<Awaited<ReturnType<typeof listGaGroupMembers>>>([])
   const [membersLoading, setMembersLoading] = useState(false)
@@ -169,6 +171,8 @@ export default function GaGroupManagementPage() {
     setExcelFile(null)
     setExcelFileHash('')
     setMemberFilter('')
+    setLogoError('')
+    setLogoNotice('')
   }
 
   const submitCreate = async (e: FormEvent) => {
@@ -272,14 +276,17 @@ export default function GaGroupManagementPage() {
     if (!file || !token?.trim() || selectedId == null) {
       return
     }
+    setLogoError('')
+    setLogoNotice('')
     setLogoBusy(true)
     try {
       const presign = await presignGaGroupLogo(token, selectedId, file)
-      await uploadGaGroupLogoFile(presign, file)
+      await uploadGaGroupLogoFile(presign, file, { token, groupId: selectedId })
       const updated = await patchGaGroup(token, selectedId, { logoUrl: presign.publicUrl })
       setRows((prev) => prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)))
+      setLogoNotice('로고가 저장되었습니다. 랜딩 페이지에도 반영됩니다.')
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : '로고 업로드에 실패했습니다.')
+      setLogoError(err instanceof Error ? err.message : '로고 업로드에 실패했습니다.')
     } finally {
       setLogoBusy(false)
     }
@@ -471,6 +478,8 @@ export default function GaGroupManagementPage() {
                       활성화
                     </label>
                     <FieldWrapper label="로고">
+                      <StatusMessage message={logoError} tone="error" className="m-0 mb-2" />
+                      <StatusMessage message={logoNotice} tone="success" className="m-0 mb-2" />
                       <FileUploader
                         accept="image/png,image/jpeg,image/webp,image/gif"
                         multiple={false}
@@ -478,7 +487,7 @@ export default function GaGroupManagementPage() {
                         statusText={logoBusy ? '업로드 중…' : undefined}
                         onFiles={(files) => void onLogoFiles(files)}
                         primaryHint="로고 이미지를 드래그하거나 클릭하여 선택"
-                        hintLines={['PNG · JPEG · WebP · GIF']}
+                        hintLines={['PNG · JPEG · WebP · GIF', '실패 시 기존 로고는 유지됩니다.']}
                       />
                     </FieldWrapper>
                     <FormButton type="button" disabled={saveBusy} onClick={() => void saveGroup()}>
