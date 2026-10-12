@@ -8,6 +8,7 @@ import {
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { buildGaGroupLogoStorageKey } from '../storage/insuranceStorageKeys.js'
 import { normalizeGaGroupSlug, validateGaGroupSlug } from '../lib/gaGroupSlug.js'
+import { parsePublicGaGroupGasPagination } from '../lib/gaGroupPublicGasQuery.js'
 import { findGaGroupMembershipForGa } from '../lib/gaGroupMembership.js'
 import { parseGaId } from '../lib/parseGaId.js'
 import {
@@ -102,12 +103,30 @@ export function registerGaGroupApi(apiRouter, ctx) {
         res.status(404).json({ message: '그룹을 찾을 수 없습니다.' })
         return
       }
+      const { limit, offset } = parsePublicGaGroupGasPagination(req.query)
       const params = [groupId]
       let searchSql = ''
       if (q) {
         params.push(`%${q}%`)
-        searchSql = `AND (g.name ILIKE $2 OR g.code ILIKE $2)`
+        searchSql = `AND (g.name ILIKE $2 OR UPPER(TRIM(g.code)) ILIKE UPPER(TRIM($2)))`
       }
+      const countRes = await systemQuery(
+        pool,
+        `
+        SELECT COUNT(*)::int AS total
+        FROM ga_group_members m
+        INNER JOIN ga_companies g ON g.id = m.ga_id
+        WHERE m.group_id = $1
+          AND g.is_deleted = false
+          AND g.status = 'active'
+          ${searchSql}
+        `,
+        params,
+      )
+      const total = Number(countRes.rows[0]?.total ?? 0)
+      const limitParamIndex = params.length + 1
+      const offsetParamIndex = params.length + 2
+      const listParams = [...params, limit, offset]
       const r = await systemQuery(
         pool,
         `
@@ -119,10 +138,11 @@ export function registerGaGroupApi(apiRouter, ctx) {
           AND g.status = 'active'
           ${searchSql}
         ORDER BY g.name ASC
-        LIMIT 50
+        LIMIT $${limitParamIndex} OFFSET $${offsetParamIndex}
         `,
-        params,
+        listParams,
       )
+      const nextOffset = offset + r.rows.length
       res.json({
         success: true,
         data: r.rows.map((row) => ({
@@ -130,6 +150,11 @@ export function registerGaGroupApi(apiRouter, ctx) {
           name: String(row.name ?? ''),
           code: String(row.code ?? ''),
         })),
+        total,
+        limit,
+        offset,
+        hasMore: nextOffset < total,
+        nextOffset: nextOffset < total ? nextOffset : null,
       })
     } catch (e) {
       handleDbError(e, req, res)
