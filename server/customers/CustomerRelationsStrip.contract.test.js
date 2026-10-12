@@ -115,7 +115,7 @@ test('groups create omits memo UI and payload memo field', () => {
   assert.match(groups, /members:\s*pendingMembers\.map/)
   assert.match(groups, /canCreateGroup/)
   assert.match(groups, /customer-relation-group-compose/)
-  assert.match(groups, /customer-relation-group-create__scroll/)
+  assert.equal(groups.includes('customer-relation-group-create__scroll'), false)
   assert.match(groups, /customer-relation-group-modal--create/)
 })
 
@@ -130,17 +130,11 @@ test('relation modal search results do not flex-shrink away', () => {
     css,
     /\.customer-relations-modal__results\s*\{[^}]*max-height:\s*240px/s,
   )
+  // #86~#89 SSOT: __scroll 래퍼 없음, --create 는 결과 목록만 내부 스크롤
+  assert.equal(css.includes('customer-relation-group-create__scroll'), false)
   assert.match(
     css,
-    /\.customer-relation-group-create__scroll\s*\{[^}]*flex:\s*1 1 auto/s,
-  )
-  assert.match(
-    css,
-    /\.customer-relation-group-create__scroll\s*\{[^}]*min-height:\s*0/s,
-  )
-  assert.match(
-    css,
-    /\.customer-relation-group-create__scroll\s*\{[^}]*overflow-y:\s*auto/s,
+    /customer-relation-group-modal--create\s+\.customer-relations-modal__results\s*\{[^}]*flex:\s*1 1 auto[^}]*min-height:\s*0[^}]*overflow-y:\s*auto/s,
   )
 })
 
