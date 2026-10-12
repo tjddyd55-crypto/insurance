@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { BaseDialog } from '../../../components/dialog/BaseDialog'
 import { useConfirmDialog } from '../../../components/dialog'
@@ -6,6 +6,8 @@ import FormButton from '../../../components/form/FormButton'
 import FormInput from '../../../components/form/FormInput'
 import { countItemsInFolderSelection } from '../domain/personalBinderFolderFilter'
 import type { PersonalBinderFolder, PersonalBinderSummary } from '../personalBinder.types'
+
+type ExplorerSection = '__all__' | '__uncategorized__' | string
 
 type Props = {
   binders: PersonalBinderSummary[]
@@ -35,10 +37,7 @@ export function PersonalBinderExplorerTree({
   disabled = false,
 }: Props) {
   const { confirm, confirmDialog } = useConfirmDialog()
-  const [expanded, setExpanded] = useState<Record<string, boolean>>(() => ({
-    __all__: true,
-    __uncategorized__: true,
-  }))
+  const [openSection, setOpenSection] = useState<ExplorerSection | null>('__all__')
   const [menuFolderId, setMenuFolderId] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const [renameFolder, setRenameFolder] = useState<PersonalBinderFolder | null>(null)
@@ -64,10 +63,21 @@ export function PersonalBinderExplorerTree({
     return { map, uncategorized: sortByTitle(uncategorized), all: sortByTitle(binders) }
   }, [binders, folders])
 
-  const isExpanded = (key: string) => expanded[key] !== false
+  useEffect(() => {
+    if (!selectedBinderId) return
+    const binder = binders.find((row) => row.id === selectedBinderId)
+    if (!binder) return
+    if (!binder.folderId) {
+      setOpenSection('__uncategorized__')
+      return
+    }
+    if (folders.some((folder) => folder.id === binder.folderId)) {
+      setOpenSection(binder.folderId)
+    }
+  }, [binders, folders, selectedBinderId])
 
-  const toggleExpanded = (key: string) => {
-    setExpanded((current) => ({ ...current, [key]: !isExpanded(key) }))
+  const selectSection = (key: ExplorerSection) => {
+    setOpenSection((current) => (current === key ? null : key))
   }
 
   const submitCreate = async () => {
@@ -126,82 +136,92 @@ export function PersonalBinderExplorerTree({
         disabled={disabled}
         onClick={() => void onSelectBinder(binder.id)}
       >
+        <span className="personal-binder-explorer-tree__binder-icon" aria-hidden="true" />
         <span className="personal-binder-explorer-tree__binder-title" title={binder.title}>
           {binder.title}
         </span>
-        <span className="personal-binder-explorer-tree__binder-meta">
-          {binder.sectionCount}섹션 · {binder.materialCount}자료
-        </span>
+        {active ? (
+          <span className="personal-binder-explorer-tree__binder-meta">
+            {binder.sectionCount}섹션 · {binder.materialCount}자료
+          </span>
+        ) : null}
       </button>
     )
   }
 
-  const renderFolderGroup = (folder: PersonalBinderFolder) => {
-    const key = folder.id
-    const rows = bindersByFolder.map.get(folder.id) ?? []
-    const open = isExpanded(key)
+  const renderFolderHeader = (
+    key: ExplorerSection,
+    label: string,
+    count: number,
+    options?: { userFolder?: PersonalBinderFolder },
+  ) => {
+    const open = openSection === key
+    const folder = options?.userFolder
     return (
-      <div key={folder.id} className="personal-binder-explorer-tree__group">
-        <div className="personal-binder-explorer-tree__folder-row">
-          <button
-            type="button"
-            className="personal-binder-explorer-tree__folder-toggle"
-            disabled={disabled}
-            aria-expanded={open}
-            onClick={() => toggleExpanded(key)}
-          >
-            <span className="personal-binder-explorer-tree__chevron" aria-hidden="true">
-              {open ? '▼' : '▶'}
-            </span>
-            <span className="personal-binder-explorer-tree__folder-label" title={folder.name}>
-              {folder.name}
-            </span>
-            <span className="personal-binder-explorer-tree__count">{rows.length}</span>
-          </button>
-          <button
-            type="button"
-            className="personal-binder-explorer-tree__folder-menu"
-            disabled={disabled || busy}
-            aria-label={`${folder.name} 폴더 메뉴`}
-            aria-expanded={menuFolderId === folder.id}
-            onClick={() =>
-              setMenuFolderId((current) => (current === folder.id ? null : folder.id))
-            }
-          >
-            ⋯
-          </button>
-          {menuFolderId === folder.id ? (
-            <div className="personal-binder-explorer-tree__menu-panel" role="menu">
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setMenuFolderId(null)
-                  setRenameFolder(folder)
-                  setDraftName(folder.name)
-                }}
-              >
-                이름 변경
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="personal-binder-explorer-tree__menu-danger"
-                onClick={() => void removeFolder(folder)}
-              >
-                삭제
-              </button>
-            </div>
-          ) : null}
-        </div>
-        {open ? (
-          <div className="personal-binder-explorer-tree__children">
-            {rows.length === 0 ? (
-              <p className="personal-binder-explorer-tree__empty">바인더 없음</p>
-            ) : (
-              rows.map((binder) => renderBinderRow(binder))
-            )}
-          </div>
+      <div className="personal-binder-explorer-tree__folder-row">
+        <button
+          type="button"
+          className={[
+            'personal-binder-explorer-tree__folder-toggle',
+            open ? 'personal-binder-explorer-tree__folder-toggle--open' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          disabled={disabled}
+          aria-expanded={open}
+          onClick={() => selectSection(key)}
+        >
+          <span
+            className={[
+              'personal-binder-explorer-tree__chevron',
+              open ? 'personal-binder-explorer-tree__chevron--open' : '',
+            ].join(' ')}
+            aria-hidden="true"
+          />
+          <span className="personal-binder-explorer-tree__folder-icon" aria-hidden="true" />
+          <span className="personal-binder-explorer-tree__folder-label" title={label}>
+            {label}
+          </span>
+          <span className="personal-binder-explorer-tree__count">{count}</span>
+        </button>
+        {folder ? (
+          <>
+            <button
+              type="button"
+              className="personal-binder-explorer-tree__folder-menu"
+              disabled={disabled || busy}
+              aria-label={`${folder.name} 폴더 메뉴`}
+              aria-expanded={menuFolderId === folder.id}
+              onClick={() =>
+                setMenuFolderId((current) => (current === folder.id ? null : folder.id))
+              }
+            >
+              ⋯
+            </button>
+            {menuFolderId === folder.id ? (
+              <div className="personal-binder-explorer-tree__menu-panel" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuFolderId(null)
+                    setRenameFolder(folder)
+                    setDraftName(folder.name)
+                  }}
+                >
+                  이름 변경
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="personal-binder-explorer-tree__menu-danger"
+                  onClick={() => void removeFolder(folder)}
+                >
+                  삭제
+                </button>
+              </div>
+            ) : null}
+          </>
         ) : null}
       </div>
     )
@@ -209,37 +229,21 @@ export function PersonalBinderExplorerTree({
 
   const allCount = countItemsInFolderSelection(binders, 'all')
   const uncategorizedCount = countItemsInFolderSelection(binders, 'uncategorized')
-  const allOpen = isExpanded('__all__')
-  const uncategorizedOpen = isExpanded('__uncategorized__')
 
   return (
     <aside className="personal-binder-explorer-tree" aria-label="바인더 탐색">
       <div className="personal-binder-explorer-tree__header">
-        <h2 className="personal-binder-explorer-tree__title">내 바인더</h2>
-        <div className="personal-binder-explorer-tree__header-actions">
-          <FormButton variant="secondary" size="sm" disabled={disabled || busy} onClick={onCreateBinder}>
-            + 바인더
-          </FormButton>
-        </div>
+        <h2 className="personal-binder-explorer-tree__title">탐색</h2>
+        <FormButton variant="secondary" size="sm" disabled={disabled || busy} onClick={onCreateBinder}>
+          + 바인더
+        </FormButton>
       </div>
 
       <div className="personal-binder-explorer-tree__body">
         <div className="personal-binder-explorer-tree__group">
-          <button
-            type="button"
-            className="personal-binder-explorer-tree__folder-toggle personal-binder-explorer-tree__folder-toggle--root"
-            disabled={disabled}
-            aria-expanded={allOpen}
-            onClick={() => toggleExpanded('__all__')}
-          >
-            <span className="personal-binder-explorer-tree__chevron" aria-hidden="true">
-              {allOpen ? '▼' : '▶'}
-            </span>
-            <span className="personal-binder-explorer-tree__folder-label">전체 바인더</span>
-            <span className="personal-binder-explorer-tree__count">{allCount}</span>
-          </button>
-          {allOpen ? (
-            <div className="personal-binder-explorer-tree__children personal-binder-explorer-tree__children--flat">
+          {renderFolderHeader('__all__', '전체 바인더', allCount)}
+          {openSection === '__all__' ? (
+            <div className="personal-binder-explorer-tree__children">
               {bindersByFolder.all.length === 0 ? (
                 <p className="personal-binder-explorer-tree__empty">바인더가 없습니다.</p>
               ) : (
@@ -249,23 +253,30 @@ export function PersonalBinderExplorerTree({
           ) : null}
         </div>
 
-        {folders.map((folder) => renderFolderGroup(folder))}
+        {folders.length > 0 ? (
+          <div className="personal-binder-explorer-tree__section-label">폴더</div>
+        ) : null}
+        {folders.map((folder) => {
+          const rows = bindersByFolder.map.get(folder.id) ?? []
+          return (
+            <div key={folder.id} className="personal-binder-explorer-tree__group">
+              {renderFolderHeader(folder.id, folder.name, rows.length, { userFolder: folder })}
+              {openSection === folder.id ? (
+                <div className="personal-binder-explorer-tree__children">
+                  {rows.length === 0 ? (
+                    <p className="personal-binder-explorer-tree__empty">바인더 없음</p>
+                  ) : (
+                    rows.map((binder) => renderBinderRow(binder))
+                  )}
+                </div>
+              ) : null}
+            </div>
+          )
+        })}
 
         <div className="personal-binder-explorer-tree__group">
-          <button
-            type="button"
-            className="personal-binder-explorer-tree__folder-toggle personal-binder-explorer-tree__folder-toggle--root"
-            disabled={disabled}
-            aria-expanded={uncategorizedOpen}
-            onClick={() => toggleExpanded('__uncategorized__')}
-          >
-            <span className="personal-binder-explorer-tree__chevron" aria-hidden="true">
-              {uncategorizedOpen ? '▼' : '▶'}
-            </span>
-            <span className="personal-binder-explorer-tree__folder-label">미분류</span>
-            <span className="personal-binder-explorer-tree__count">{uncategorizedCount}</span>
-          </button>
-          {uncategorizedOpen ? (
+          {renderFolderHeader('__uncategorized__', '미분류', uncategorizedCount)}
+          {openSection === '__uncategorized__' ? (
             <div className="personal-binder-explorer-tree__children">
               {bindersByFolder.uncategorized.length === 0 ? (
                 <p className="personal-binder-explorer-tree__empty">바인더 없음</p>

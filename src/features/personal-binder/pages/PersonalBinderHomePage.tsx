@@ -268,74 +268,68 @@ export default function PersonalBinderHomePage() {
     </div>
   )
 
-  const mineWorkspaceBody = (
+  const mineWorkspaceBody = isMobile ? (
     <>
-      {!isMobile ? (
-        <PersonalBinderExplorerTree
-          binders={binders}
-          folders={binderFolders}
-          selectedBinderId={workspaceEditBinderId}
-          onSelectBinder={openBinderEdit}
-          onCreateBinder={() => openCreateBinder()}
-          onCreateFolder={handleCreateFolder}
-          onRenameFolder={handleRenameFolder}
-          onDeleteFolder={handleDeleteFolder}
-          disabled={loading}
-        />
+      {!loading ? (
+        <section className="personal-binder-workspace__binder-nav personal-binder-workspace__binder-nav--mobile">
+          {binders.map((binder) => (
+            <article key={binder.id} className="personal-binder-workspace__binder-nav-item">
+              <button
+                type="button"
+                className="personal-binder-workspace__binder-nav-button"
+                onClick={() => navigate(`/personal-binders/${binder.id}/edit`)}
+              >
+                <strong>{binder.title}</strong>
+                <small>
+                  섹션 {binder.sectionCount} · 자료 {binder.materialCount}
+                </small>
+              </button>
+            </article>
+          ))}
+        </section>
       ) : null}
-
-      <div className="personal-binder-workspace__studio-main">
-        {isMobile && !loading ? (
-          <section className="personal-binder-workspace__binder-nav personal-binder-workspace__binder-nav--mobile">
-            {binders.map((binder) => (
-              <article key={binder.id} className="personal-binder-workspace__binder-nav-item">
-                <button
-                  type="button"
-                  className="personal-binder-workspace__binder-nav-button"
-                  onClick={() => navigate(`/personal-binders/${binder.id}/edit`)}
-                >
-                  <strong>{binder.title}</strong>
-                  <small>
-                    섹션 {binder.sectionCount} · 자료 {binder.materialCount}
-                  </small>
-                </button>
-              </article>
-            ))}
+    </>
+  ) : (
+    <>
+      <PersonalBinderExplorerTree
+        binders={binders}
+        folders={binderFolders}
+        selectedBinderId={workspaceEditBinderId}
+        onSelectBinder={openBinderEdit}
+        onCreateBinder={() => openCreateBinder()}
+        onCreateFolder={handleCreateFolder}
+        onRenameFolder={handleRenameFolder}
+        onDeleteFolder={handleDeleteFolder}
+        disabled={loading}
+      />
+      {workspaceEditBinderId ? (
+        <div className="personal-binder-workspace__editor-pane" ref={editorScrollRef}>
+          <PersonalBinderEditorPage
+            layout="embedded"
+            binderIdOverride={workspaceEditBinderId}
+            editorScrollRef={editorScrollRef}
+            onMetadataDirtyChange={setEditorMetadataDirty}
+            pageSelectionUi="dock"
+            onPageSelectionDockChange={setPageSelectionDock}
+            selectedPreviewItemId={previewItemId}
+            onPreviewItemChange={setPreviewItemId}
+          />
+        </div>
+      ) : (
+        <div
+          className="personal-binder-workspace__editor-pane personal-binder-workspace__editor-pane--empty"
+          ref={editorScrollRef}
+        >
+          <section className="personal-binder-empty personal-binder-empty--compact">
+            <h2>바인더를 만들어 보세요</h2>
+            <p>왼쪽 탐색기에서 바인더를 선택하거나 새로 만듭니다.</p>
+            <FormButton variant="primary" onClick={() => openCreateBinder()}>
+              + 바인더 만들기
+            </FormButton>
           </section>
-        ) : null}
-
-        {!isMobile ? (
-          workspaceEditBinderId ? (
-            <div className="personal-binder-workspace__editor-pane" ref={editorScrollRef}>
-              <PersonalBinderEditorPage
-                layout="embedded"
-                binderIdOverride={workspaceEditBinderId}
-                editorScrollRef={editorScrollRef}
-                onMetadataDirtyChange={setEditorMetadataDirty}
-                pageSelectionUi="dock"
-                onPageSelectionDockChange={setPageSelectionDock}
-                selectedPreviewItemId={previewItemId}
-                onPreviewItemChange={setPreviewItemId}
-              />
-            </div>
-          ) : (
-            <div
-              className="personal-binder-workspace__editor-pane personal-binder-workspace__editor-pane--empty"
-              ref={editorScrollRef}
-            >
-              <section className="personal-binder-empty personal-binder-empty--compact">
-                <h2>바인더를 만들어 보세요</h2>
-                <p>왼쪽 탐색기에서 바인더를 선택하거나 새로 만듭니다.</p>
-                <FormButton variant="primary" onClick={() => openCreateBinder()}>
-                  + 바인더 만들기
-                </FormButton>
-              </section>
-            </div>
-          )
-        ) : null}
-
-        {!isMobile ? previewPane : null}
-      </div>
+        </div>
+      )}
+      {previewPane}
     </>
   )
 
