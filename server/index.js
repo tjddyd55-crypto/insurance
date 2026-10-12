@@ -7521,9 +7521,11 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
         )
       }
     } else {
-      const pattern = `%${escapeIlikePattern(q)}%`
-      const rawId = /^\d+$/.test(q) ? Number(q) : null
-      const idParam = rawId != null && Number.isInteger(rawId) && rawId > 0 ? rawId : null
+      // 검색 대상: 이름(공백 무시·대소문자 무시 부분일치) + 전화번호(숫자만 비교). 고객코드/id/주소/메모는 검색하지 않음.
+      const pattern = `%${escapeIlikePattern(q.replace(/\s+/g, ''))}%`
+      // 전화번호는 숫자만 비교 (010-1234-5678 ↔ 0101234 / 010-1234 / 5678). 숫자 없는 검색어는 '' → 미사용.
+      const phoneDigits = q.replace(/\D/g, '')
+      const phoneDigitsPattern = phoneDigits ? `%${phoneDigits}%` : ''
       if (isGaWide) {
         result = await safeQuery(
           pool,
@@ -7533,15 +7535,13 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
         FROM customers c
         WHERE c.ga_id = $1 AND c.deleted_at IS NULL
           AND (
-            c.name ILIKE $2 ESCAPE '\\'
-            OR c.phone ILIKE $2 ESCAPE '\\'
-            OR (c.customer_code IS NOT NULL AND c.customer_code ILIKE $2 ESCAPE '\\')
-            OR ($3::int IS NOT NULL AND c.id = $3)
+            regexp_replace(COALESCE(c.name, ''), '\\s', '', 'g') ILIKE $2 ESCAPE '\\'
+            OR ($4::text <> '' AND regexp_replace(COALESCE(c.phone, ''), '\\D', '', 'g') LIKE $4)
           )
         ORDER BY c.created_at DESC
-        LIMIT $4
+        LIMIT $3
         `,
-          [gaId, pattern, idParam, limit],
+          [gaId, pattern, limit, phoneDigitsPattern],
         )
       } else {
         const vis = resolveCustomerVisibilitySqlForSelect(req, userId, gaId)
@@ -7551,8 +7551,8 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
         }
         const p0 = vis.params.length
         const patPh = `$${p0 + 1}`
-        const idPh = `$${p0 + 2}`
-        const limPh = `$${p0 + 3}`
+        const limPh = `$${p0 + 2}`
+        const digitsPh = `$${p0 + 3}`
         result = await safeQuery(
           pool,
           `
@@ -7561,15 +7561,13 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
         FROM customers c
         WHERE (${vis.clause}) AND c.deleted_at IS NULL
           AND (
-            c.name ILIKE ${patPh} ESCAPE '\\'
-            OR c.phone ILIKE ${patPh} ESCAPE '\\'
-            OR (c.customer_code IS NOT NULL AND c.customer_code ILIKE ${patPh} ESCAPE '\\')
-            OR (${idPh}::int IS NOT NULL AND c.id = ${idPh})
+            regexp_replace(COALESCE(c.name, ''), '\\s', '', 'g') ILIKE ${patPh} ESCAPE '\\'
+            OR (${digitsPh}::text <> '' AND regexp_replace(COALESCE(c.phone, ''), '\\D', '', 'g') LIKE ${digitsPh})
           )
         ORDER BY c.created_at DESC
         LIMIT ${limPh}
         `,
-          [...vis.params, pattern, idParam, limit],
+          [...vis.params, pattern, limit, phoneDigitsPattern],
         )
       }
     }
