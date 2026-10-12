@@ -442,28 +442,32 @@ export default function PersonalBinderEditorPage({
           </FormButton>
         )}
         <div>
-          <h1>바인더 편집</h1>
-          <p>섹션과 자료 순서를 상담 흐름에 맞게 구성하세요.</p>
+          <h1>{layout === 'embedded' ? '편집' : '바인더 편집'}</h1>
+          {layout === 'embedded' ? null : (
+            <p>섹션과 자료 순서를 상담 흐름에 맞게 구성하세요.</p>
+          )}
         </div>
-        <div>
-          <FormButton variant="secondary" onClick={() => startConsultation()}>
-            상담 시작
+        <div className="personal-binder-editor-header__actions">
+          <FormButton variant="secondary" size="sm" onClick={() => startConsultation()}>
+            상담
           </FormButton>
           <FormButton
             variant="secondary"
+            size="sm"
             loading={exporting}
             onClick={() => void exportBinder('download')}
           >
-            전체 PDF
+            PDF
           </FormButton>
           <FormButton
             variant="secondary"
+            size="sm"
             loading={exporting}
             onClick={() => void exportBinder('print')}
           >
-            전체 출력
+            출력
           </FormButton>
-          <FormButton variant="primary" loading={saving} onClick={() => void saveBinder()}>
+          <FormButton variant="primary" size="sm" loading={saving} onClick={() => void saveBinder()}>
             저장
           </FormButton>
         </div>
@@ -536,11 +540,11 @@ export default function PersonalBinderEditorPage({
                   <strong>{section.title}</strong>
                   <small>{orderedItems.length}개 자료</small>
                 </FormButton>
-                <div>
-                  <FormButton variant="action" size="sm" disabled={sectionIndex === 0} onClick={() => moveSectionBy(section, -1)}>↑</FormButton>
-                  <FormButton variant="action" size="sm" disabled={sectionIndex === orderedSections.length - 1} onClick={() => moveSectionBy(section, 1)}>↓</FormButton>
-                  <FormButton variant="action" size="sm" onClick={() => setSectionDialog({ mode: 'rename', section, title: section.title })}>이름 변경</FormButton>
-                  <FormButton variant="danger" size="sm" onClick={() => void removeSection(section)}>삭제</FormButton>
+                <div className="personal-binder-section-card__actions">
+                  <FormButton variant="action" size="sm" disabled={sectionIndex === 0} onClick={() => moveSectionBy(section, -1)} aria-label="섹션 위로">↑</FormButton>
+                  <FormButton variant="action" size="sm" disabled={sectionIndex === orderedSections.length - 1} onClick={() => moveSectionBy(section, 1)} aria-label="섹션 아래로">↓</FormButton>
+                  <FormButton variant="action" size="sm" onClick={() => setSectionDialog({ mode: 'rename', section, title: section.title })} aria-label="섹션 이름 변경">이름</FormButton>
+                  <FormButton variant="danger" size="sm" onClick={() => void removeSection(section)} aria-label="섹션 삭제">삭제</FormButton>
                 </div>
               </header>
               {!sectionCollapsed ? (
@@ -592,23 +596,25 @@ export default function PersonalBinderEditorPage({
                           <small>{pageLabel}</small>
                         </button>
                         <div className="personal-binder-item-row__actions">
-                          <FormButton variant="action" size="sm" disabled={itemIndex === 0} onClick={() => moveItemBy(section, item, -1)}>↑</FormButton>
-                          <FormButton variant="action" size="sm" disabled={itemIndex === orderedItems.length - 1} onClick={() => moveItemBy(section, item, 1)}>↓</FormButton>
-                          <FormButton
-                            variant="secondary"
-                            size="sm"
-                            onClick={() =>
-                              void selectMaterial(
-                                section.id,
-                                item.material,
-                                item.pageSelection,
-                                item.id,
-                              )
-                            }
-                          >
-                            페이지
-                          </FormButton>
-                          <FormButton variant="danger" size="sm" onClick={() => void removeItem(item)}>빼기</FormButton>
+                          <FormButton variant="action" size="sm" disabled={itemIndex === 0} onClick={() => moveItemBy(section, item, -1)} aria-label="자료 위로">↑</FormButton>
+                          <FormButton variant="action" size="sm" disabled={itemIndex === orderedItems.length - 1} onClick={() => moveItemBy(section, item, 1)} aria-label="자료 아래로">↓</FormButton>
+                          {!pageSelectionDock ? (
+                            <FormButton
+                              variant="secondary"
+                              size="sm"
+                              onClick={() =>
+                                void selectMaterial(
+                                  section.id,
+                                  item.material,
+                                  item.pageSelection,
+                                  item.id,
+                                )
+                              }
+                            >
+                              페이지
+                            </FormButton>
+                          ) : null}
+                          <FormButton variant="danger" size="sm" onClick={() => void removeItem(item)} aria-label="바인더에서 자료 제거">빼기</FormButton>
                         </div>
                       </div>
                     )
