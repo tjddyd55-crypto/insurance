@@ -430,7 +430,7 @@ export default function PersonalBinderEditorPage({
 
   const rootClass =
     layout === 'embedded'
-      ? 'personal-binder-editor personal-binder-editor--embedded'
+      ? 'personal-binder-editor personal-binder-editor--embedded personal-binder-editor--toc'
       : 'page personal-binder-page personal-binder-page--editor personal-binder-editor'
 
   return (
@@ -475,19 +475,22 @@ export default function PersonalBinderEditorPage({
 
       {error ? <p className="personal-binder-error">{error}</p> : null}
 
-      <section className="personal-binder-settings">
+      <section className="personal-binder-settings personal-binder-settings--compact">
         <FormInput
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           placeholder="바인더 제목"
           aria-label="바인더 제목"
         />
-        <FormTextarea
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
-          placeholder="바인더 설명"
-          aria-label="바인더 설명"
-        />
+        {layout === 'embedded' ? null : (
+          <FormTextarea
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            placeholder="바인더 설명"
+            aria-label="바인더 설명"
+            rows={2}
+          />
+        )}
       </section>
 
       <div className="personal-binder-editor__section-toolbar">
@@ -514,7 +517,12 @@ export default function PersonalBinderEditorPage({
           return (
             <article
               key={section.id}
-              className="personal-binder-section-card"
+              className={[
+                'personal-binder-section-card',
+                layout === 'embedded' ? 'personal-binder-toc__section' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
               draggable={!isMobile}
               onDragStart={() => setDragSectionId(section.id)}
               onDragOver={(event) => event.preventDefault()}
@@ -536,9 +544,11 @@ export default function PersonalBinderEditorPage({
                     })
                   }
                 >
-                  <span aria-hidden="true">{sectionCollapsed ? '▶' : '▼'}</span>
+                  <span className="personal-binder-toc__section-index" aria-hidden="true">
+                    {sectionIndex + 1}.
+                  </span>
                   <strong>{section.title}</strong>
-                  <small>{orderedItems.length}개 자료</small>
+                  {layout !== 'embedded' ? <small>{orderedItems.length}개 자료</small> : null}
                 </FormButton>
                 <div className="personal-binder-section-card__actions">
                   <FormButton variant="action" size="sm" disabled={sectionIndex === 0} onClick={() => moveSectionBy(section, -1)} aria-label="섹션 위로">↑</FormButton>
@@ -548,7 +558,7 @@ export default function PersonalBinderEditorPage({
                 </div>
               </header>
               {!sectionCollapsed ? (
-                <div className="personal-binder-section-card__body">
+                <div className="personal-binder-section-card__body personal-binder-toc__items">
                   {orderedItems.map((item, itemIndex) => {
                     const fileDisplay = splitBinderFileDisplayName(item.material)
                     const pageLabel = item.pageSelection
@@ -562,6 +572,7 @@ export default function PersonalBinderEditorPage({
                         key={item.id}
                         className={[
                           'personal-binder-item-row',
+                          layout === 'embedded' ? 'personal-binder-toc__item' : '',
                           previewSelected ? 'personal-binder-item-row--selected' : '',
                         ]
                           .filter(Boolean)
@@ -576,7 +587,9 @@ export default function PersonalBinderEditorPage({
                           setDragItem(null)
                         }}
                       >
-                        <span className="personal-binder-drag-handle" aria-hidden="true">⋮⋮</span>
+                        <span className="personal-binder-drag-handle personal-binder-toc__bullet" aria-hidden="true">
+                          {layout === 'embedded' ? '–' : '⋮⋮'}
+                        </span>
                         <button
                           type="button"
                           className="personal-binder-item-row__main"
@@ -593,7 +606,7 @@ export default function PersonalBinderEditorPage({
                             <span className="personal-binder-item-row__basename">{fileDisplay.baseName}</span>
                             <span className="personal-binder-item-row__ext">.{fileDisplay.extension}</span>
                           </span>
-                          <small>{pageLabel}</small>
+                          <small className="personal-binder-toc__page-meta">{pageLabel}</small>
                         </button>
                         <div className="personal-binder-item-row__actions">
                           <FormButton variant="action" size="sm" disabled={itemIndex === 0} onClick={() => moveItemBy(section, item, -1)} aria-label="자료 위로">↑</FormButton>
@@ -613,7 +626,23 @@ export default function PersonalBinderEditorPage({
                             >
                               페이지
                             </FormButton>
-                          ) : null}
+                          ) : (
+                            <FormButton
+                              variant="action"
+                              size="sm"
+                              onClick={() =>
+                                void selectMaterial(
+                                  section.id,
+                                  item.material,
+                                  item.pageSelection,
+                                  item.id,
+                                )
+                              }
+                              aria-label="페이지 편집"
+                            >
+                              페이지
+                            </FormButton>
+                          )}
                           <FormButton variant="danger" size="sm" onClick={() => void removeItem(item)} aria-label="바인더에서 자료 제거">빼기</FormButton>
                         </div>
                       </div>

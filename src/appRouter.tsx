@@ -190,6 +190,7 @@ import BillingManagePage from './features/insurance-billing/pages/BillingManageP
 import { RequireInsuranceBillingEntitlement } from './features/insurance-billing/RequireInsuranceBillingEntitlement'
 import FreeLaunchBillingGuard from './features/billing/FreeLaunchBillingGuard'
 import PersonalBinderHomePage from './features/personal-binder/pages/PersonalBinderHomePage'
+import PersonalBinderSharedPage from './features/personal-binder/pages/PersonalBinderSharedPage'
 import PersonalBinderEditorPage from './features/personal-binder/pages/PersonalBinderEditorPage'
 import PersonalBinderViewerPage from './features/personal-binder/pages/PersonalBinderViewerPage'
 import { PdfPreviewPage } from './features/coverage-simulator/pages/PdfPreviewPage'
@@ -534,7 +535,7 @@ export const appRouter = createBrowserRouter([
                 path: 'personal-binders/materials',
                 element: <Navigate to="/personal-binders" replace />,
               },
-              { path: 'personal-binders/shared', element: <PersonalBinderHomePage /> },
+              { path: 'personal-binders/shared', element: <PersonalBinderSharedPage /> },
               { path: 'personal-binders/edit/:binderId', element: <PersonalBinderHomePage /> },
               { path: 'personal-binders/:binderId/edit', element: <PersonalBinderEditorPage /> },
               { path: 'personal-binders/:binderId/view', element: <PersonalBinderViewerPage /> },

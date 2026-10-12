@@ -27,6 +27,7 @@ import StorageFileList, { type StorageActionVariant } from './StorageFileList'
 import StorageFolderTreePanel from './StorageFolderTreePanel'
 import StorageRenameDialog from './StorageRenameDialog'
 import StorageToolbar from './StorageToolbar'
+import { buildStorageBinderDeleteImpactDetailLines } from '../utils/storageBinderDeleteImpactCopy'
 import {
   buildStorageFolderBreadcrumb,
   buildStorageFolderPathLabel,
@@ -702,17 +703,7 @@ export default function StorageWorkspace({
           if (impact.binderItemCount <= 0) {
             return
           }
-          const lines = [
-            `${impact.binderCount}개 바인더 · ${impact.binderItemCount}개 항목에서 사용 중입니다.`,
-            '삭제하면 바인더 구성에서 해당 항목이 제거되고, 연결된 자료 보관함 항목도 함께 정리됩니다.',
-          ]
-          for (const binder of impact.binders.slice(0, 5)) {
-            lines.push(`· ${binder.title} (${binder.itemCount}항목)`)
-          }
-          if (impact.binders.length > 5) {
-            lines.push(`· 외 ${impact.binders.length - 5}개 바인더`)
-          }
-          setDeleteDetailLines(lines)
+          setDeleteDetailLines(buildStorageBinderDeleteImpactDetailLines(impact))
         })
         .catch(() => {
           // 영향 조회 실패 시 기본 삭제 확인만 표시
@@ -853,11 +844,19 @@ export default function StorageWorkspace({
 
       <StorageDeleteDialog
         open={deleteTarget != null}
-        title={deleteTarget?.kind === 'file' ? '파일 삭제' : '폴더 삭제'}
+        title={
+          deleteTarget?.kind === 'file' && deleteDetailLines.length > 0
+            ? '바인더에서 사용 중인 자료'
+            : deleteTarget?.kind === 'file'
+              ? '파일 삭제'
+              : '폴더 삭제'
+        }
         description={
-          deleteTarget?.kind === 'file'
-            ? `"${deleteTarget.file.displayName}" 파일을 삭제합니다.`
-            : `"${deleteTarget?.folder.name}" 폴더를 삭제합니다.`
+          deleteTarget?.kind === 'file' && deleteDetailLines.length > 0
+            ? `"${deleteTarget.file.displayName}"`
+            : deleteTarget?.kind === 'file'
+              ? `"${deleteTarget.file.displayName}" 파일을 삭제합니다.`
+              : `"${deleteTarget?.folder.name}" 폴더를 삭제합니다.`
         }
         detailLines={deleteTarget?.kind === 'file' ? deleteDetailLines : []}
         loading={submitting}

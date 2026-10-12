@@ -65,6 +65,11 @@ export const PERSONAL_BINDER_MENU_ITEM = {
   path: '/personal-binders',
 } as const
 
+export const SHARED_BINDER_MENU_ITEM = {
+  label: '공유 바인더',
+  path: '/personal-binders/shared',
+} as const
+
 export const COVERAGE_SIMULATION_MENU_ITEM = {
   label: '시뮬레이션',
   path: '/coverage-simulator',
@@ -293,6 +298,11 @@ export function buildGaTenantDashboardMenu(
       type: 'link',
       label: PERSONAL_BINDER_MENU_ITEM.label,
       path: PERSONAL_BINDER_MENU_ITEM.path,
+    },
+    {
+      type: 'link',
+      label: SHARED_BINDER_MENU_ITEM.label,
+      path: SHARED_BINDER_MENU_ITEM.path,
     },
     {
       type: 'link',
