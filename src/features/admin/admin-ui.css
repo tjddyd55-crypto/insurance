@@ -878,10 +878,6 @@
     gap: 8px;
   }
 
-  .admin-user-bulk-sms-modal__footer.admin-modal-actions .button:last-child {
-    grid-column: 1 / -1;
-  }
-
   .admin-user-bulk-sms-modal__footer .button,
   .admin-user-bulk-sms-history-modal__footer .button {
     width: 100%;
