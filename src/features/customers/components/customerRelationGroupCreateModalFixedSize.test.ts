@@ -71,6 +71,15 @@ describe('가족 그룹 만들기 모달: PC SSOT + 모바일 웹(#81) 보존', 
     expect(m).not.toMatch(/84vh|78vh/)
   })
 
+  it('모바일 웹(#81) 순서: 관계 선택 → 검색 결과 order 규칙은 max-width: 768px 안에만 있다', () => {
+    expect(mobile[0]).toMatch(
+      /\.customer-relation-group-compose\s*>\s*\.customer-relations-modal__results \{[^}]*order: 1;/,
+    )
+    expect(pc[0]).not.toMatch(/order:/)
+    const outside = css.replace(/@media \(max-width: 768px\) \{[\s\S]*?\n\}/g, '')
+    expect(outside).not.toMatch(/customer-relation-group-compose\s*>\s*\.customer-relations-modal__results/)
+  })
+
   it('--create 규칙은 미디어쿼리 밖에 없고 __scroll 래퍼는 부활하지 않는다', () => {
     const outside = css
       .replace(/@media \(min-width: 769px\) \{[\s\S]*?\n\}/g, '')
