@@ -17,6 +17,7 @@ import { useAuth } from '../../auth/AuthProvider'
 import { createStorageFilePreviewUrl } from '../../storage/api/storageApi'
 import { BinderPageSelectionDialog } from '../components/BinderPageSelectionDialog'
 import type { PageSelectionDockState } from '../components/pageSelectionDock.types'
+import { PersonalBinderOverflowMenu } from '../components/PersonalBinderOverflowMenu'
 import { splitBinderFileDisplayName } from '../utils/binderFileDisplay'
 import { MaterialAddSourceDialog } from '../components/MaterialAddSourceDialog'
 import { formatSelectedPages } from '../domain/pageSelection'
@@ -52,6 +53,21 @@ type PageSelectionTarget = {
   itemId?: string
   material: PersonalBinderMaterial
   initialSelection: number[] | null
+}
+
+function formatBinderItemPageLabel(item: PersonalBinderItem): string {
+  const total = item.material.pageCount
+  if (!item.pageSelection) {
+    return total === 1 ? '1페이지' : `전체 ${total}페이지`
+  }
+  const selected = item.pageSelection
+  if (selected.length === total) {
+    return total === 1 ? '1페이지' : `전체 ${total}페이지`
+  }
+  if (selected.length === 1) {
+    return `${selected[0]}페이지`
+  }
+  return `${formatSelectedPages(selected)} · ${selected.length}페이지`
 }
 
 function move<T>(rows: T[], from: number, to: number): T[] {
@@ -550,20 +566,42 @@ export default function PersonalBinderEditorPage({
                   <strong>{section.title}</strong>
                   {layout !== 'embedded' ? <small>{orderedItems.length}개 자료</small> : null}
                 </FormButton>
-                <div className="personal-binder-section-card__actions">
-                  <FormButton variant="action" size="sm" disabled={sectionIndex === 0} onClick={() => moveSectionBy(section, -1)} aria-label="섹션 위로">↑</FormButton>
-                  <FormButton variant="action" size="sm" disabled={sectionIndex === orderedSections.length - 1} onClick={() => moveSectionBy(section, 1)} aria-label="섹션 아래로">↓</FormButton>
-                  <FormButton variant="action" size="sm" onClick={() => setSectionDialog({ mode: 'rename', section, title: section.title })} aria-label="섹션 이름 변경">이름</FormButton>
-                  <FormButton variant="danger" size="sm" onClick={() => void removeSection(section)} aria-label="섹션 삭제">삭제</FormButton>
-                </div>
+                <PersonalBinderOverflowMenu
+                  ariaLabel={`${section.title} 섹션 메뉴`}
+                  items={[
+                    {
+                      id: 'up',
+                      label: '위로 이동',
+                      disabled: sectionIndex === 0,
+                      onSelect: () => moveSectionBy(section, -1),
+                    },
+                    {
+                      id: 'down',
+                      label: '아래로 이동',
+                      disabled: sectionIndex === orderedSections.length - 1,
+                      onSelect: () => moveSectionBy(section, 1),
+                    },
+                    {
+                      id: 'rename',
+                      label: '이름 변경',
+                      onSelect: () =>
+                        setSectionDialog({ mode: 'rename', section, title: section.title }),
+                    },
+                    {
+                      id: 'delete',
+                      label: '섹션 삭제',
+                      tone: 'danger',
+                      onSelect: () => void removeSection(section),
+                    },
+                  ]}
+                />
               </header>
               {!sectionCollapsed ? (
                 <div className="personal-binder-section-card__body personal-binder-toc__items">
                   {orderedItems.map((item, itemIndex) => {
                     const fileDisplay = splitBinderFileDisplayName(item.material)
-                    const pageLabel = item.pageSelection
-                      ? `${formatSelectedPages(item.pageSelection)}p`
-                      : `전체 ${item.material.pageCount}p`
+                    const pageLabel = formatBinderItemPageLabel(item)
+                    const fileTitle = `${fileDisplay.baseName}.${fileDisplay.extension.toLowerCase()}`
                     const previewSelected =
                       selectedPreviewItemId === item.id ||
                       (pageTarget?.itemId === item.id && pageSelectionDock)
@@ -587,9 +625,11 @@ export default function PersonalBinderEditorPage({
                           setDragItem(null)
                         }}
                       >
-                        <span className="personal-binder-drag-handle personal-binder-toc__bullet" aria-hidden="true">
-                          {layout === 'embedded' ? '–' : '⋮⋮'}
-                        </span>
+                        {layout !== 'embedded' ? (
+                          <span className="personal-binder-drag-handle" aria-hidden="true">
+                            ⋮⋮
+                          </span>
+                        ) : null}
                         <button
                           type="button"
                           className="personal-binder-item-row__main"
@@ -602,49 +642,46 @@ export default function PersonalBinderEditorPage({
                             )
                           }
                         >
-                          <span className="personal-binder-item-row__name" title={fileDisplay.baseName}>
+                          <span className="personal-binder-item-row__name" title={fileTitle}>
                             <span className="personal-binder-item-row__basename">{fileDisplay.baseName}</span>
-                            <span className="personal-binder-item-row__ext">.{fileDisplay.extension}</span>
+                            <span className="personal-binder-item-row__ext">.{fileDisplay.extension.toLowerCase()}</span>
                           </span>
                           <small className="personal-binder-toc__page-meta">{pageLabel}</small>
                         </button>
-                        <div className="personal-binder-item-row__actions">
-                          <FormButton variant="action" size="sm" disabled={itemIndex === 0} onClick={() => moveItemBy(section, item, -1)} aria-label="자료 위로">↑</FormButton>
-                          <FormButton variant="action" size="sm" disabled={itemIndex === orderedItems.length - 1} onClick={() => moveItemBy(section, item, 1)} aria-label="자료 아래로">↓</FormButton>
-                          {!pageSelectionDock ? (
-                            <FormButton
-                              variant="secondary"
-                              size="sm"
-                              onClick={() =>
+                        <PersonalBinderOverflowMenu
+                          ariaLabel={`${fileTitle} 자료 메뉴`}
+                          items={[
+                            {
+                              id: 'up',
+                              label: '위로 이동',
+                              disabled: itemIndex === 0,
+                              onSelect: () => moveItemBy(section, item, -1),
+                            },
+                            {
+                              id: 'down',
+                              label: '아래로 이동',
+                              disabled: itemIndex === orderedItems.length - 1,
+                              onSelect: () => moveItemBy(section, item, 1),
+                            },
+                            {
+                              id: 'pages',
+                              label: '페이지 편집',
+                              onSelect: () =>
                                 void selectMaterial(
                                   section.id,
                                   item.material,
                                   item.pageSelection,
                                   item.id,
-                                )
-                              }
-                            >
-                              페이지
-                            </FormButton>
-                          ) : (
-                            <FormButton
-                              variant="action"
-                              size="sm"
-                              onClick={() =>
-                                void selectMaterial(
-                                  section.id,
-                                  item.material,
-                                  item.pageSelection,
-                                  item.id,
-                                )
-                              }
-                              aria-label="페이지 편집"
-                            >
-                              페이지
-                            </FormButton>
-                          )}
-                          <FormButton variant="danger" size="sm" onClick={() => void removeItem(item)} aria-label="바인더에서 자료 제거">빼기</FormButton>
-                        </div>
+                                ),
+                            },
+                            {
+                              id: 'remove',
+                              label: '바인더에서 빼기',
+                              tone: 'danger',
+                              onSelect: () => void removeItem(item),
+                            },
+                          ]}
+                        />
                       </div>
                     )
                   })}
