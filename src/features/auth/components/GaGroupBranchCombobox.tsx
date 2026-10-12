@@ -5,6 +5,8 @@ import {
   type PublicGaGroupGa,
 } from '../../admin/api/gaGroupApi'
 
+const PAGE_SIZE = 30
+
 type Props = {
   groupSlug: string
   groupName: string
@@ -29,7 +31,30 @@ export function GaGroupBranchCombobox({
   const [query, setQuery] = useState('')
   const [options, setOptions] = useState<PublicGaGroupGa[]>([])
   const [loading, setLoading] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
+  const [nextOffset, setNextOffset] = useState(0)
+  const [total, setTotal] = useState(0)
   const [highlight, setHighlight] = useState(0)
+  const listRef = useRef<HTMLUListElement>(null)
+
+  const loadPage = useCallback(
+    async (searchQuery: string, offset: number, append: boolean) => {
+      const result = await searchPublicGaGroupGas(groupSlug, searchQuery, {
+        limit: PAGE_SIZE,
+        offset,
+      })
+      setOptions((prev) => (append ? [...prev, ...result.data] : result.data))
+      setHasMore(result.hasMore)
+      setNextOffset(result.nextOffset ?? offset + result.data.length)
+      setTotal(result.total)
+      if (!append) {
+        setHighlight(0)
+      }
+      return result
+    },
+    [groupSlug],
+  )
 
   useEffect(() => {
     if (!open || !groupSlug) {
@@ -39,11 +64,12 @@ export function GaGroupBranchCombobox({
     const timer = window.setTimeout(() => {
       void (async () => {
         setLoading(true)
-        const rows = await searchPublicGaGroupGas(groupSlug, query)
-        if (!cancelled) {
-          setOptions(rows)
-          setHighlight(0)
-          setLoading(false)
+        try {
+          await loadPage(query, 0, false)
+        } finally {
+          if (!cancelled) {
+            setLoading(false)
+          }
         }
       })()
     }, 200)
@@ -51,7 +77,19 @@ export function GaGroupBranchCombobox({
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [groupSlug, open, query])
+  }, [groupSlug, loadPage, open, query])
+
+  const loadMore = useCallback(async () => {
+    if (!hasMore || loadingMore || loading) {
+      return
+    }
+    setLoadingMore(true)
+    try {
+      await loadPage(query, nextOffset, true)
+    } finally {
+      setLoadingMore(false)
+    }
+  }, [hasMore, loadPage, loading, loadingMore, nextOffset, query])
 
   useEffect(() => {
     const onDocPointer = (e: MouseEvent | TouchEvent) => {
@@ -156,7 +194,18 @@ export function GaGroupBranchCombobox({
           onKeyDown={onInputKeyDown}
         />
         {open ?
-          <ul id={listId} className="ga-group-combobox__list" role="listbox">
+          <ul
+            id={listId}
+            ref={listRef}
+            className="ga-group-combobox__list"
+            role="listbox"
+            onScroll={(e) => {
+              const el = e.currentTarget
+              if (el.scrollTop + el.clientHeight >= el.scrollHeight - 32) {
+                void loadMore()
+              }
+            }}
+          >
             {loading ?
               <li className="ga-group-combobox__empty">검색 중…</li>
             : options.length === 0 ?
@@ -178,6 +227,15 @@ export function GaGroupBranchCombobox({
                 </li>
               ))
             }
+            {!loading && options.length > 0 ?
+              <li className="ga-group-combobox__empty ga-group-combobox__meta">
+                {hasMore ?
+                  loadingMore ?
+                    '더 불러오는 중…'
+                  : `총 ${total}건 · 아래로 스크롤하면 더 보기`
+                : `총 ${total}건`}
+              </li>
+            : null}
           </ul>
         : null}
       </div>

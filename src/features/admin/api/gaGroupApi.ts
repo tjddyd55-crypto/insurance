@@ -222,10 +222,37 @@ export async function fetchPublicGaGroup(slug: string): Promise<PublicGaGroupInf
   }
 }
 
-export async function searchPublicGaGroupGas(slug: string, q: string): Promise<PublicGaGroupGa[]> {
+export type PublicGaGroupGasSearchResult = {
+  data: PublicGaGroupGa[]
+  total: number
+  limit: number
+  offset: number
+  hasMore: boolean
+  nextOffset: number | null
+}
+
+export async function searchPublicGaGroupGas(
+  slug: string,
+  q: string,
+  options?: { limit?: number; offset?: number },
+): Promise<PublicGaGroupGasSearchResult> {
   const params = new URLSearchParams()
   if (q.trim()) {
     params.set('q', q.trim())
+  }
+  if (options?.limit != null) {
+    params.set('limit', String(options.limit))
+  }
+  if (options?.offset != null) {
+    params.set('offset', String(options.offset))
+  }
+  const empty: PublicGaGroupGasSearchResult = {
+    data: [],
+    total: 0,
+    limit: options?.limit ?? 30,
+    offset: options?.offset ?? 0,
+    hasMore: false,
+    nextOffset: null,
   }
   const url = resolveApiUrl(
     `/api/public/ga-groups/${encodeURIComponent(slug)}/gas?${params.toString()}`,
@@ -233,12 +260,21 @@ export async function searchPublicGaGroupGas(slug: string, q: string): Promise<P
   try {
     const res = await fetch(url)
     if (!res.ok) {
-      return []
+      return empty
     }
-    const body = (await res.json()) as { data?: PublicGaGroupGa[] }
-    return body.data ?? []
+    const body = (await res.json()) as Partial<PublicGaGroupGasSearchResult> & {
+      data?: PublicGaGroupGa[]
+    }
+    const data = body.data ?? []
+    const total = Number(body.total ?? data.length)
+    const limit = Number(body.limit ?? options?.limit ?? 30)
+    const offset = Number(body.offset ?? options?.offset ?? 0)
+    const hasMore = Boolean(body.hasMore ?? offset + data.length < total)
+    const nextOffset =
+      body.nextOffset != null ? Number(body.nextOffset) : hasMore ? offset + data.length : null
+    return { data, total, limit, offset, hasMore, nextOffset }
   } catch {
-    return []
+    return empty
   }
 }
 
