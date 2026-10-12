@@ -7597,6 +7597,9 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
       }
     } else {
       const pattern = `%${escapeIlikePattern(q)}%`
+      // 전화번호는 숫자만 비교 (010-1234-5678 ↔ 0101234 / 010-1234 / 5678). 숫자 없는 검색어는 '' → 미사용.
+      const phoneDigits = q.replace(/\D/g, '')
+      const phoneDigitsPattern = phoneDigits ? `%${phoneDigits}%` : ''
       const rawId = /^\d+$/.test(q) ? Number(q) : null
       const idParam = rawId != null && Number.isInteger(rawId) && rawId > 0 ? rawId : null
       if (isGaWide) {
@@ -7610,13 +7613,14 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
           AND (
             c.name ILIKE $2 ESCAPE '\\'
             OR c.phone ILIKE $2 ESCAPE '\\'
+            OR ($5::text <> '' AND regexp_replace(COALESCE(c.phone, ''), '\\D', '', 'g') LIKE $5)
             OR (c.customer_code IS NOT NULL AND c.customer_code ILIKE $2 ESCAPE '\\')
             OR ($3::int IS NOT NULL AND c.id = $3)
           )
         ORDER BY c.created_at DESC
         LIMIT $4
         `,
-          [gaId, pattern, idParam, limit],
+          [gaId, pattern, idParam, limit, phoneDigitsPattern],
         )
       } else {
         const vis = resolveCustomerVisibilitySqlForSelect(req, userId, gaId)
@@ -7628,6 +7632,7 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
         const patPh = `$${p0 + 1}`
         const idPh = `$${p0 + 2}`
         const limPh = `$${p0 + 3}`
+        const digitsPh = `$${p0 + 4}`
         result = await safeQuery(
           pool,
           `
@@ -7638,13 +7643,14 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
           AND (
             c.name ILIKE ${patPh} ESCAPE '\\'
             OR c.phone ILIKE ${patPh} ESCAPE '\\'
+            OR (${digitsPh}::text <> '' AND regexp_replace(COALESCE(c.phone, ''), '\\D', '', 'g') LIKE ${digitsPh})
             OR (c.customer_code IS NOT NULL AND c.customer_code ILIKE ${patPh} ESCAPE '\\')
             OR (${idPh}::int IS NOT NULL AND c.id = ${idPh})
           )
         ORDER BY c.created_at DESC
         LIMIT ${limPh}
         `,
-          [...vis.params, pattern, idParam, limit],
+          [...vis.params, pattern, idParam, limit, phoneDigitsPattern],
         )
       }
     }
