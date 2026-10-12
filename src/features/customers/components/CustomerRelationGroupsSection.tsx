@@ -626,7 +626,7 @@ export function CustomerRelationGroupsSection({
           if (!createBusy) setCreateOpen(false)
         }}
         ariaLabel="가족 그룹 만들기"
-        panelClassName="customer-relations-modal customer-relation-group-modal"
+        panelClassName="customer-relations-modal customer-relation-group-modal customer-relation-group-modal--create"
         closeOnBackdrop={false}
         usePortal
         onEscapeRequest={() => {
