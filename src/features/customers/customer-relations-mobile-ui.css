@@ -1170,6 +1170,7 @@
  * 결과 0/1/5/20명에 따라 패널 높이 624→620→777px, top 138→140→62px 로 움직였다
  * (기본 results 가 flex: 0 0 auto + max-height: 240px, compose 도 flex: 0 0 auto).
  * 제목·그룹명·검색 입력·관계 선택·추가된 고객·취소/만들기 는 고정, 결과 목록만 내부 스크롤.
+ * main #81 의 --create 규칙(78vh + __scroll 래퍼)은 이 블록으로 대체·통합했다 (단일 SSOT).
  */
 @media (min-width: 769px) {
   .customer-ui-modal-panel.customer-relations-modal.customer-relation-group-modal--create {

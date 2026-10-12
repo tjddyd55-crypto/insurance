@@ -16,6 +16,10 @@ const legacySource = readFileSync(
   join(root, 'features/customers/components/LegacyCustomerRelationsSection.tsx'),
   'utf8',
 )
+const relationsCss = readFileSync(
+  join(root, 'features/customers/customer-relations-mobile-ui.css'),
+  'utf8',
+)
 
 describe('customerRelationSectionUx', () => {
   it('removes top-level family group and legacy link mode buttons', () => {
@@ -42,6 +46,30 @@ describe('customerRelationSectionUx', () => {
     expect(groupsSource).toContain('이름 수정')
     expect(groupsSource).toContain('그룹 삭제')
     expect(groupsSource).toContain('customer-relation-group-member__current-badge')
+  })
+
+  it('keeps the create-family-group modal height stable; only search results scroll (#81+#86 SSOT)', () => {
+    const createStart = groupsSource.indexOf('ariaLabel="가족 그룹 만들기"')
+    const addStart = groupsSource.indexOf('ariaLabel="그룹 구성원 추가"')
+    const createBlock = groupsSource.slice(createStart, addStart)
+
+    expect(createBlock).toContain('customer-relation-group-modal--create')
+    // 단일 구현: #81 의 __scroll 래퍼는 쓰지 않는다 (결과 목록 자체가 스크롤 영역).
+    expect(groupsSource).not.toContain('customer-relation-group-create__scroll')
+    expect(relationsCss).not.toContain('customer-relation-group-create__scroll')
+
+    // 검색 → 결과 → 관계 선택 순서 유지
+    const hitsAt = createBlock.indexOf("renderSearchHits('create')")
+    const relationAt = createBlock.indexOf("renderSelectedAndRelation('create')")
+    expect(hitsAt).toBeGreaterThan(-1)
+    expect(relationAt).toBeGreaterThan(hitsAt)
+
+    // --create 패널 규칙은 한 벌만 존재
+    const panelRules = relationsCss.match(
+      /\.customer-ui-modal-panel\.customer-relations-modal\.customer-relation-group-modal--create \{/g,
+    )
+    expect(panelRules).toHaveLength(1)
+    expect(relationsCss).not.toMatch(/height:\s*min\(78vh/)
   })
 
   it('moves individual link add action to subsection footer', () => {
