@@ -1,8 +1,11 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import FileUploader from '../../../components/common/FileUploader'
 import { FormDialog, useConfirmDialog } from '../../../components/dialog'
 import { EmptyState, LoadingState, StatusMessage } from '../../../components/feedback'
 import { FieldWrapper, FormButton, FormInput } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
+import { GaGroupLinkGaModal } from '../components/ga-groups/GaGroupLinkGaModal'
+import { downloadGaGroupExcelSample } from '../components/ga-groups/downloadGaGroupExcelSample'
 import {
   buildGaGroupLandingPath,
   buildGaGroupSignupPath,
@@ -19,18 +22,42 @@ import {
   uploadGaGroupLogoFile,
   type GaGroupExcelPreviewRow,
   type GaGroupRow,
-  type GaGroupSearchGaRow,
 } from '../api/gaGroupApi'
+import '../ga-group-admin.css'
+
+const DETAIL_TABS = [
+  { id: 'settings', label: '기본 설정' },
+  { id: 'members', label: '연결 GA' },
+  { id: 'excel', label: '엑셀 등록' },
+] as const
+
+type DetailTabId = (typeof DETAIL_TABS)[number]['id']
+
+const MEMBERS_PAGE_SIZE = 10
 
 function copyText(text: string) {
   void navigator.clipboard?.writeText(text)
+}
+
+function summarizeExcelPreview(preview: GaGroupExcelPreviewRow[]) {
+  return {
+    createNew: preview.filter((r) => r.status === 'create_new').length,
+    linkExisting: preview.filter((r) => r.status === 'link_existing').length,
+    alreadyLinked: preview.filter((r) => r.status === 'already_linked').length,
+    needsConfirm: preview.filter(
+      (r) => r.status === 'needs_move_confirm' || Boolean(r.needsNameConfirm),
+    ).length,
+    errors: preview.filter((r) => r.status === 'error' || r.status === 'duplicate_name').length,
+  }
 }
 
 export default function GaGroupManagementPage() {
   const { user, token } = useAuth()
   const { confirm, confirmDialog } = useConfirmDialog()
   const [rows, setRows] = useState<GaGroupRow[]>([])
+  const [listQuery, setListQuery] = useState('')
   const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [detailTab, setDetailTab] = useState<DetailTabId>('settings')
   const [loadError, setLoadError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
@@ -43,14 +70,16 @@ export default function GaGroupManagementPage() {
   const [editSlug, setEditSlug] = useState('')
   const [editActive, setEditActive] = useState(true)
   const [saveBusy, setSaveBusy] = useState(false)
+  const [logoBusy, setLogoBusy] = useState(false)
 
   const [members, setMembers] = useState<Awaited<ReturnType<typeof listGaGroupMembers>>>([])
   const [membersLoading, setMembersLoading] = useState(false)
+  const [memberFilter, setMemberFilter] = useState('')
+  const [memberPage, setMemberPage] = useState(0)
+  const [linkModalOpen, setLinkModalOpen] = useState(false)
+  const [linkBusy, setLinkBusy] = useState(false)
 
-  const [gaSearchQ, setGaSearchQ] = useState('')
-  const [gaSearchRows, setGaSearchRows] = useState<GaGroupSearchGaRow[]>([])
-  const [gaSearchBusy, setGaSearchBusy] = useState(false)
-
+  const [excelFile, setExcelFile] = useState<File | null>(null)
   const [excelPreview, setExcelPreview] = useState<GaGroupExcelPreviewRow[] | null>(null)
   const [excelFileHash, setExcelFileHash] = useState('')
   const [excelDuplicate, setExcelDuplicate] = useState(false)
@@ -60,6 +89,16 @@ export default function GaGroupManagementPage() {
     () => rows.find((r) => r.id === selectedId) ?? null,
     [rows, selectedId],
   )
+
+  const filteredRows = useMemo(() => {
+    const q = listQuery.trim().toLowerCase()
+    if (!q) {
+      return rows
+    }
+    return rows.filter(
+      (r) => r.name.toLowerCase().includes(q) || r.slug.toLowerCase().includes(q),
+    )
+  }, [listQuery, rows])
 
   const loadList = useCallback(async () => {
     if (!token?.trim() || user?.role !== 'SUPER_ADMIN') {
@@ -88,6 +127,7 @@ export default function GaGroupManagementPage() {
     try {
       const list = await listGaGroupMembers(token, selectedId)
       setMembers(list)
+      setMemberPage(0)
     } catch {
       setMembers([])
     } finally {
@@ -108,12 +148,29 @@ export default function GaGroupManagementPage() {
     }
   }, [loadMembers, selected])
 
+  const filteredMembers = useMemo(() => {
+    const q = memberFilter.trim().toLowerCase()
+    if (!q) {
+      return members
+    }
+    return members.filter(
+      (m) => m.name.toLowerCase().includes(q) || m.code.toLowerCase().includes(q),
+    )
+  }, [memberFilter, members])
+
+  const memberPageCount = Math.max(1, Math.ceil(filteredMembers.length / MEMBERS_PAGE_SIZE))
+  const memberPageRows = useMemo(() => {
+    const start = memberPage * MEMBERS_PAGE_SIZE
+    return filteredMembers.slice(start, start + MEMBERS_PAGE_SIZE)
+  }, [filteredMembers, memberPage])
+
   const selectGroup = (row: GaGroupRow) => {
     setSelectedId(row.id)
+    setDetailTab('settings')
     setExcelPreview(null)
+    setExcelFile(null)
     setExcelFileHash('')
-    setGaSearchRows([])
-    setGaSearchQ('')
+    setMemberFilter('')
   }
 
   const submitCreate = async (e: FormEvent) => {
@@ -155,50 +212,42 @@ export default function GaGroupManagementPage() {
     }
   }
 
-  const runGaSearch = async () => {
-    if (!token?.trim() || selectedId == null) {
-      return
-    }
-    setGaSearchBusy(true)
-    try {
-      const list = await searchGasForGaGroup(token, gaSearchQ, selectedId)
-      setGaSearchRows(list)
-    } finally {
-      setGaSearchBusy(false)
-    }
-  }
+  const searchGas = useCallback(
+    async (q: string) => {
+      if (!token?.trim() || selectedId == null) {
+        return []
+      }
+      return searchGasForGaGroup(token, q, selectedId)
+    },
+    [selectedId, token],
+  )
 
-  const linkGa = async (row: GaGroupSearchGaRow) => {
-    if (!token?.trim() || selectedId == null) {
-      return
+  const linkGasBulk = async (gaIds: number[], confirmMove: boolean): Promise<boolean> => {
+    if (!token?.trim() || selectedId == null || gaIds.length === 0) {
+      return false
     }
-    if (row.inOtherGroup && row.groupName) {
+    if (confirmMove) {
       const ok = await confirm({
         title: '다른 그룹 GA 이동',
-        message: `「${row.name}」은 현재 「${row.groupName}」 그룹에 연결되어 있습니다. 이 그룹으로 이동할까요?`,
-        confirmLabel: '이동',
+        message: '선택한 GA 중 다른 그룹에 속한 항목이 있습니다. 이 그룹으로 이동할까요?',
+        confirmLabel: '이동 후 연결',
         tone: 'danger',
       })
       if (!ok) {
-        return
+        return false
       }
-      try {
-        await linkGasToGaGroup(token, selectedId, [row.id], true)
-        await loadMembers()
-        await loadList()
-        await runGaSearch()
-      } catch (err) {
-        window.alert(err instanceof Error ? err.message : '연결에 실패했습니다.')
-      }
-      return
     }
+    setLinkBusy(true)
     try {
-      await linkGasToGaGroup(token, selectedId, [row.id], false)
+      await linkGasToGaGroup(token, selectedId, gaIds, confirmMove)
       await loadMembers()
       await loadList()
-      await runGaSearch()
+      return true
     } catch (err) {
       window.alert(err instanceof Error ? err.message : '연결에 실패했습니다.')
+      return false
+    } finally {
+      setLinkBusy(false)
     }
   }
 
@@ -220,10 +269,12 @@ export default function GaGroupManagementPage() {
     await loadList()
   }
 
-  const onLogoFile = async (file: File | null) => {
+  const onLogoFiles = async (files: File[]) => {
+    const file = files[0]
     if (!file || !token?.trim() || selectedId == null) {
       return
     }
+    setLogoBusy(true)
     try {
       const presign = await presignGaGroupLogo(token, selectedId, file)
       await uploadGaGroupLogoFile(presign, file)
@@ -231,11 +282,13 @@ export default function GaGroupManagementPage() {
       setRows((prev) => prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)))
     } catch (err) {
       window.alert(err instanceof Error ? err.message : '로고 업로드에 실패했습니다.')
+    } finally {
+      setLogoBusy(false)
     }
   }
 
-  const onExcelPick = async (file: File | null) => {
-    if (!file || !token?.trim() || selectedId == null) {
+  const runExcelPreview = async (file: File) => {
+    if (!token?.trim() || selectedId == null) {
       return
     }
     setExcelBusy(true)
@@ -246,6 +299,7 @@ export default function GaGroupManagementPage() {
       setExcelDuplicate(result.duplicateFile)
     } catch (err) {
       window.alert(err instanceof Error ? err.message : '엑셀 검증에 실패했습니다.')
+      setExcelPreview(null)
     } finally {
       setExcelBusy(false)
     }
@@ -303,6 +357,7 @@ export default function GaGroupManagementPage() {
         `등록 완료 — 신규 ${result.summary.created ?? 0}, 연결 ${result.summary.linked ?? 0}, 건너뜀 ${result.summary.skipped ?? 0}, 오류 ${result.summary.errors ?? 0}`,
       )
       setExcelPreview(null)
+      setExcelFile(null)
       await loadMembers()
       await loadList()
     } catch (err) {
@@ -316,189 +371,287 @@ export default function GaGroupManagementPage() {
     return <StatusMessage tone="error">슈퍼관리자만 접근할 수 있습니다.</StatusMessage>
   }
 
-  const landingUrl = selected ? buildGaGroupLandingPath(selected.slug) : ''
-  const signupUrl = selected ? buildGaGroupSignupPath(selected.slug) : ''
+  const landingPath = selected ? buildGaGroupLandingPath(selected.slug) : ''
+  const signupPath = selected ? buildGaGroupSignupPath(selected.slug) : ''
+  const landingUrl = selected ? `${window.location.origin}${landingPath}` : ''
+  const signupUrl = selected ? `${window.location.origin}${signupPath}` : ''
+  const excelSummary = excelPreview ? summarizeExcelPreview(excelPreview) : null
 
   return (
-    <div className="admin-page" style={{ display: 'grid', gap: 16 }}>
+    <main className="page page--with-back admin-page-shell ga-group-admin">
       {confirmDialog}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-        <h1 style={{ margin: 0 }}>GA 그룹 관리</h1>
-        <FormButton type="button" onClick={() => setCreateOpen(true)}>그룹 생성</FormButton>
-      </header>
+      <div className="admin-page-shell__inner">
+        <header className="page-header admin-page-shell__header">
+          <h1>GA 그룹 관리</h1>
+          <p>그룹별 랜딩·전용 가입 페이지와 GA 연결을 관리합니다.</p>
+        </header>
 
-      {loadError ? <StatusMessage tone="error">{loadError}</StatusMessage> : null}
-      {isLoading ? <LoadingState label="목록 불러오는 중…" /> : null}
+        {loadError ? <StatusMessage tone="error">{loadError}</StatusMessage> : null}
+        {isLoading ? <LoadingState message="목록 불러오는 중…" /> : null}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1fr) minmax(0, 2fr)', gap: 16 }}>
-        <section className="card" style={{ padding: 12 }}>
-          <h2 style={{ marginTop: 0, fontSize: 16 }}>그룹 목록</h2>
-          {rows.length === 0 && !isLoading ?
-            <EmptyState title="그룹 없음" description="새 그룹을 생성하세요." />
-          : null}
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-            {rows.map((row) => (
-              <li key={row.id}>
-                <button
-                  type="button"
-                  onClick={() => selectGroup(row)}
-                  style={{
-                    width: '100%',
-                    textAlign: 'left',
-                    padding: '10px 8px',
-                    border: 'none',
-                    borderRadius: 8,
-                    background: selectedId === row.id ? 'color-mix(in srgb, var(--primary) 12%, transparent)' : 'transparent',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <strong>{row.name}</strong>
-                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                    /g/{row.slug} · GA {row.gaCount ?? 0}
-                    {!row.isActive ? ' · 비활성' : ''}
-                  </div>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section className="card" style={{ padding: 16 }}>
-          {!selected ?
-            <EmptyState title="그룹 선택" description="왼쪽에서 그룹을 선택하세요." />
-          : <>
-              <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16 }}>
-                {selected.logoUrl ?
-                  <img src={selected.logoUrl} alt="" style={{ width: 56, height: 56, objectFit: 'contain' }} />
-                : null}
-                <div>
-                  <h2 style={{ margin: 0 }}>{selected.name}</h2>
-                  <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>
-                    랜딩 {landingUrl} · 가입 {signupUrl}
-                  </p>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-                <FormButton type="button" variant="secondary" onClick={() => copyText(landingUrl)}>
-                  랜딩 링크 복사
-                </FormButton>
-                <FormButton type="button" variant="secondary" onClick={() => copyText(signupUrl)}>
-                  가입 링크 복사
-                </FormButton>
-                <FormButton type="button" variant="secondary" onClick={() => window.open(landingUrl, '_blank')}>
-                  랜딩 미리보기
-                </FormButton>
-              </div>
-
-              <div style={{ display: 'grid', gap: 12, marginBottom: 20 }}>
-                <FieldWrapper label="그룹명">
-                  <FormInput value={editName} onChange={(e) => setEditName(e.target.value)} />
-                </FieldWrapper>
-                <FieldWrapper label="URL 슬러그">
-                  <FormInput value={editSlug} onChange={(e) => setEditSlug(e.target.value)} />
-                </FieldWrapper>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <input
-                    type="checkbox"
-                    checked={editActive}
-                    onChange={(e) => setEditActive(e.target.checked)}
-                  />
-                  활성화
-                </label>
-                <FieldWrapper label="로고">
-                  <input type="file" accept="image/*" onChange={(e) => void onLogoFile(e.target.files?.[0] ?? null)} />
-                </FieldWrapper>
-                <FormButton type="button" disabled={saveBusy} onClick={() => void saveGroup()}>
-                  저장
-                </FormButton>
-              </div>
-
-              <h3>연결 GA</h3>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+        <div className="ga-group-admin__layout">
+          <aside className="ga-group-admin__sidebar">
+            <div className="ga-group-admin__sidebar-head">
+              <FieldWrapper label="그룹 검색">
                 <FormInput
-                  value={gaSearchQ}
-                  onChange={(e) => setGaSearchQ(e.target.value)}
-                  placeholder="GA 이름·코드 검색"
+                  value={listQuery}
+                  onChange={(e) => setListQuery(e.target.value)}
+                  placeholder="그룹명·슬러그"
                 />
-                <FormButton type="button" disabled={gaSearchBusy} onClick={() => void runGaSearch()}>
-                  검색
-                </FormButton>
-              </div>
-              {gaSearchRows.length > 0 ?
-                <ul style={{ fontSize: 14, marginBottom: 16 }}>
-                  {gaSearchRows.map((g) => (
-                    <li key={g.id} style={{ marginBottom: 6 }}>
-                      {g.name} ({g.code})
-                      {g.groupName ? ` — ${g.groupName}` : ''}
-                      <FormButton
-                        type="button"
-                        variant="secondary"
-                        style={{ marginLeft: 8 }}
-                        onClick={() => void linkGa(g)}
-                      >
-                        연결
-                      </FormButton>
-                    </li>
-                  ))}
-                </ul>
-              : null}
+              </FieldWrapper>
+              <FormButton type="button" onClick={() => setCreateOpen(true)}>그룹 생성</FormButton>
+            </div>
+            {filteredRows.length === 0 && !isLoading ?
+              <EmptyState title="그룹 없음" description="검색 결과가 없거나 그룹이 없습니다." />
+            : null}
+            <ul className="ga-group-admin__list">
+              {filteredRows.map((row) => (
+                <li key={row.id}>
+                  <button
+                    type="button"
+                    className={`ga-group-admin__list-btn${selectedId === row.id ? ' ga-group-admin__list-btn--active' : ''}`}
+                    onClick={() => selectGroup(row)}
+                  >
+                    <strong>{row.name}</strong>
+                    <div className="ga-group-admin__list-meta">
+                      /g/{row.slug} · GA {row.gaCount ?? 0}
+                      {!row.isActive ? ' · 비활성' : ''}
+                    </div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </aside>
 
-              {membersLoading ?
-                <LoadingState label="연결 GA 불러오는 중…" />
-              : <ul style={{ fontSize: 14 }}>
-                  {members.map((m) => (
-                    <li key={m.id} style={{ marginBottom: 6 }}>
-                      {m.name} ({m.code})
-                      <FormButton
-                        type="button"
-                        variant="secondary"
-                        style={{ marginLeft: 8 }}
-                        onClick={() => void unlinkMember(m.id)}
-                      >
-                        연결 해제
-                      </FormButton>
-                    </li>
-                  ))}
-                </ul>
-              }
-
-              <h3>엑셀 대량 등록</h3>
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                열: 지점명, GA 코드(선택). 공란 시 신규 GA 생성·자동 코드 발급.
-              </p>
-              <input
-                type="file"
-                accept=".xlsx,.xls"
-                disabled={excelBusy}
-                onChange={(e) => void onExcelPick(e.target.files?.[0] ?? null)}
-              />
-              {excelPreview ?
-                <>
-                  <p style={{ fontSize: 13 }}>미리보기 {excelPreview.length}행</p>
-                  <div style={{ maxHeight: 200, overflow: 'auto', fontSize: 12, marginBottom: 8 }}>
-                    {excelPreview.map((row) => (
-                      <div key={row.rowNumber}>
-                        {row.rowNumber}. {row.branchName} — {row.status}: {row.message}
-                      </div>
-                    ))}
+          <section className="ga-group-admin__detail">
+            {!selected ?
+              <EmptyState title="그룹 선택" description="왼쪽 목록에서 그룹을 선택하세요." />
+            : <>
+                <div className="ga-group-admin__detail-head">
+                  {selected.logoUrl ?
+                    <img src={selected.logoUrl} alt="" className="ga-group-admin__logo" />
+                  : null}
+                  <div>
+                    <h2 style={{ margin: 0 }}>{selected.name}</h2>
+                    <p className="ga-group-admin__list-meta" style={{ margin: '4px 0 0' }}>
+                      /g/{selected.slug}
+                    </p>
                   </div>
-                  <FormButton type="button" disabled={excelBusy} onClick={() => void commitExcel()}>
-                    등록 실행
-                  </FormButton>
-                </>
-              : null}
-            </>
-          }
-        </section>
+                </div>
+
+                <nav className="billing-admin-tabs admin-page-shell__tabs" aria-label="그룹 상세 탭">
+                  {DETAIL_TABS.map((tab) => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      className={`billing-admin-tabs__btn${detailTab === tab.id ? ' billing-admin-tabs__btn--active' : ''}`}
+                      onClick={() => setDetailTab(tab.id)}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </nav>
+
+                {detailTab === 'settings' ?
+                  <div className="ga-group-admin__form">
+                    <div className="ga-group-admin__actions">
+                      <FormButton type="button" variant="secondary" onClick={() => copyText(landingUrl)}>
+                        랜딩 링크 복사
+                      </FormButton>
+                      <FormButton type="button" variant="secondary" onClick={() => copyText(signupUrl)}>
+                        가입 링크 복사
+                      </FormButton>
+                      <FormButton
+                        type="button"
+                        variant="secondary"
+                        onClick={() => window.open(landingPath, '_blank')}
+                      >
+                        랜딩 미리보기
+                      </FormButton>
+                    </div>
+                    <FieldWrapper label="그룹명">
+                      <FormInput value={editName} onChange={(e) => setEditName(e.target.value)} />
+                    </FieldWrapper>
+                    <FieldWrapper label="URL 슬러그">
+                      <FormInput value={editSlug} onChange={(e) => setEditSlug(e.target.value)} />
+                    </FieldWrapper>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <FormInput
+                        type="checkbox"
+                        checked={editActive}
+                        onChange={(e) => setEditActive(e.target.checked)}
+                        className="shrink-0"
+                      />
+                      활성화
+                    </label>
+                    <FieldWrapper label="로고">
+                      <FileUploader
+                        accept="image/png,image/jpeg,image/webp,image/gif"
+                        multiple={false}
+                        disabled={logoBusy}
+                        statusText={logoBusy ? '업로드 중…' : undefined}
+                        onFiles={(files) => void onLogoFiles(files)}
+                        primaryHint="로고 이미지를 드래그하거나 클릭하여 선택"
+                        hintLines={['PNG · JPEG · WebP · GIF']}
+                      />
+                    </FieldWrapper>
+                    <FormButton type="button" disabled={saveBusy} onClick={() => void saveGroup()}>
+                      저장
+                    </FormButton>
+                  </div>
+                : null}
+
+                {detailTab === 'members' ?
+                  <>
+                    <div className="ga-group-admin__members-toolbar">
+                      <FormInput
+                        className="ga-group-admin__members-search admin-form-input"
+                        value={memberFilter}
+                        onChange={(e) => {
+                          setMemberFilter(e.target.value)
+                          setMemberPage(0)
+                        }}
+                        placeholder="연결 GA 검색"
+                      />
+                      <FormButton type="button" onClick={() => setLinkModalOpen(true)}>GA 연결</FormButton>
+                    </div>
+                    {membersLoading ?
+                      <LoadingState message="연결 GA 불러오는 중…" />
+                    : filteredMembers.length === 0 ?
+                      <EmptyState title="연결된 GA 없음" description="GA 연결 버튼으로 지점을 추가하세요." />
+                    : <>
+                        <div className="admin-data-table-wrap">
+                          <table className="admin-data-table" style={{ minWidth: 480 }}>
+                            <thead>
+                              <tr>
+                                <th>지점명</th>
+                                <th>GA 코드</th>
+                                <th className="admin-table-cell--actions">관리</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {memberPageRows.map((m) => (
+                                <tr key={m.id}>
+                                  <td>{m.name}</td>
+                                  <td>{m.code}</td>
+                                  <td className="admin-table-cell--actions">
+                                    <FormButton
+                                      type="button"
+                                      variant="secondary"
+                                      onClick={() => void unlinkMember(m.id)}
+                                    >
+                                      연결 해제
+                                    </FormButton>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        {filteredMembers.length > MEMBERS_PAGE_SIZE ?
+                          <div className="ga-group-admin__pager">
+                            <FormButton
+                              type="button"
+                              variant="secondary"
+                              disabled={memberPage <= 0}
+                              onClick={() => setMemberPage((p) => Math.max(0, p - 1))}
+                            >
+                              이전
+                            </FormButton>
+                            <span>
+                              {memberPage + 1} / {memberPageCount} ({filteredMembers.length}건)
+                            </span>
+                            <FormButton
+                              type="button"
+                              variant="secondary"
+                              disabled={memberPage >= memberPageCount - 1}
+                              onClick={() => setMemberPage((p) => Math.min(memberPageCount - 1, p + 1))}
+                            >
+                              다음
+                            </FormButton>
+                          </div>
+                        : null}
+                      </>
+                    }
+                  </>
+                : null}
+
+                {detailTab === 'excel' ?
+                  <div className="admin-tab-panel admin-tab-panel--card">
+                    <p className="ga-group-admin__list-meta" style={{ marginTop: 0 }}>
+                      열: 지점명(필수), GA 코드(선택). 코드가 비어 있으면 신규 GA를 생성합니다.
+                    </p>
+                    <div className="ga-group-admin__actions">
+                      <FormButton type="button" variant="secondary" onClick={() => downloadGaGroupExcelSample()}>
+                        샘플 다운로드
+                      </FormButton>
+                    </div>
+                    <FieldWrapper label="엑셀 파일 (.xlsx / .xls)">
+                      <FileUploader
+                        accept=".xlsx,.xls"
+                        multiple={false}
+                        disabled={excelBusy}
+                        statusText={excelBusy ? '검증 중…' : undefined}
+                        selectedNames={excelFile ? [excelFile.name] : []}
+                        onFiles={(files) => {
+                          const file = files[0]
+                          if (!file) {
+                            return
+                          }
+                          setExcelFile(file)
+                          void runExcelPreview(file)
+                        }}
+                        primaryHint="엑셀 파일을 드래그하거나 클릭하여 선택"
+                        hintLines={['업로드 후 자동으로 사전 검증 미리보기가 표시됩니다.']}
+                      />
+                    </FieldWrapper>
+                    {excelSummary ?
+                      <>
+                        <div className="ga-group-admin__excel-summary">
+                          <span>신규 생성 {excelSummary.createNew}</span>
+                          <span>기존 연결 {excelSummary.linkExisting}</span>
+                          <span>중복 {excelSummary.alreadyLinked}</span>
+                          <span>확인 필요 {excelSummary.needsConfirm}</span>
+                          <span>오류 {excelSummary.errors}</span>
+                        </div>
+                        <div className="ga-group-admin__excel-preview">
+                          {excelPreview?.map((row) => (
+                            <div key={row.rowNumber}>
+                              {row.rowNumber}. {row.branchName} — {row.status}: {row.message}
+                            </div>
+                          ))}
+                        </div>
+                        <FormButton type="button" disabled={excelBusy} onClick={() => void commitExcel()}>
+                          등록 실행
+                        </FormButton>
+                      </>
+                    : null}
+                  </div>
+                : null}
+              </>
+            }
+          </section>
+        </div>
       </div>
+
+      {selected ?
+        <GaGroupLinkGaModal
+          open={linkModalOpen}
+          groupId={selected.id}
+          groupName={selected.name}
+          busy={linkBusy}
+          onClose={() => setLinkModalOpen(false)}
+          onSearch={searchGas}
+          onLink={linkGasBulk}
+        />
+      : null}
 
       <FormDialog
         open={createOpen}
         title="GA 그룹 생성"
         onClose={() => !createBusy && setCreateOpen(false)}
       >
-        <form onSubmit={(e) => void submitCreate(e)}>
+        <form onSubmit={(e) => void submitCreate(e)} className="ga-group-admin__form">
           <FieldWrapper label="그룹명">
             <FormInput value={createName} onChange={(e) => setCreateName(e.target.value)} required />
           </FieldWrapper>
@@ -508,6 +661,6 @@ export default function GaGroupManagementPage() {
           <FormButton htmlType="submit" disabled={createBusy}>생성</FormButton>
         </form>
       </FormDialog>
-    </div>
+    </main>
   )
 }
