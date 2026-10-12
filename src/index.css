@@ -15829,6 +15829,25 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   }
 }
 
+/* 바인더 자료 피커: 좁은 파일 패널에서도 파일명·유형·크기와 「바인더에 추가」 유지 */
+.storage-explorer-files--binder-pick {
+  --storage-explorer-file-grid-columns:
+    minmax(0, 1fr) 48px 64px minmax(0, max-content);
+}
+
+.storage-explorer-files--binder-pick .storage-explorer-files__head > :nth-child(4),
+.storage-explorer-files--binder-pick .storage-explorer-files__date {
+  display: none;
+}
+
+.storage-explorer-files--binder-pick .storage-explorer-files__actions-inline {
+  display: flex !important;
+}
+
+.storage-explorer-files--binder-pick .storage-explorer-files__actions-menu {
+  display: none !important;
+}
+
 @media (max-width: 1100px){
   .storage-explorer-toolbar {
     grid-template-columns: 1fr 1fr;

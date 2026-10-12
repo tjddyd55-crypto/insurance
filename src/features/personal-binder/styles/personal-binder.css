@@ -617,6 +617,12 @@
 
 .personal-binder-storage-embed .storage-explorer {
   min-height: 360px;
+  min-width: 0;
+}
+
+.personal-binder-storage-embed .storage-explorer-files {
+  min-width: 0;
+  overflow-x: auto;
 }
 
 .storage-explorer-file-action-button--primary {
