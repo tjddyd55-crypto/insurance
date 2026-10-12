@@ -493,10 +493,8 @@ export function registerGaGroupApi(apiRouter, ctx) {
             createNew: preview.filter((r) => r.status === 'create_new').length,
             linkExisting: preview.filter((r) => r.status === 'link_existing').length,
             alreadyLinked: preview.filter((r) => r.status === 'already_linked').length,
-            needsConfirm: preview.filter(
-              (r) => r.status === 'needs_move_confirm' || r.needsNameConfirm,
-            ).length,
-            errors: preview.filter((r) => r.status === 'error' || r.status === 'duplicate_name').length,
+            needsConfirm: preview.filter((r) => r.status === 'needs_move_confirm').length,
+            errors: preview.filter((r) => r.status === 'error').length,
           },
         })
       } catch (e) {
@@ -511,7 +509,6 @@ export function registerGaGroupApi(apiRouter, ctx) {
       const preview = Array.isArray(req.body?.preview) ? req.body.preview : null
       const fileHash = String(req.body?.fileHash ?? req.body?.file_hash ?? '').trim()
       const allowMove = Boolean(req.body?.allowMoveFromOtherGroup ?? req.body?.allow_move)
-      const confirmNames = Boolean(req.body?.confirmSimilarNames ?? req.body?.confirm_similar_names)
       const forceDuplicate = Boolean(req.body?.forceDuplicateFile ?? req.body?.force_duplicate_file)
       if (groupId == null || !preview) {
         res.status(400).json({ message: '미리보기 데이터가 필요합니다.' })
@@ -532,7 +529,6 @@ export function registerGaGroupApi(apiRouter, ctx) {
         groupId,
         previewRows: preview,
         allowMoveFromOtherGroup: allowMove,
-        confirmSimilarNames: confirmNames,
       })
       if (fileHash) {
         await systemQuery(

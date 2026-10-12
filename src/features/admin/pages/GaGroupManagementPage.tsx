@@ -44,10 +44,8 @@ function summarizeExcelPreview(preview: GaGroupExcelPreviewRow[]) {
     createNew: preview.filter((r) => r.status === 'create_new').length,
     linkExisting: preview.filter((r) => r.status === 'link_existing').length,
     alreadyLinked: preview.filter((r) => r.status === 'already_linked').length,
-    needsConfirm: preview.filter(
-      (r) => r.status === 'needs_move_confirm' || Boolean(r.needsNameConfirm),
-    ).length,
-    errors: preview.filter((r) => r.status === 'error' || r.status === 'duplicate_name').length,
+    needsConfirm: preview.filter((r) => r.status === 'needs_move_confirm').length,
+    errors: preview.filter((r) => r.status === 'error').length,
   }
 }
 
@@ -322,7 +320,6 @@ export default function GaGroupManagementPage() {
       forceDuplicateFile = true
     }
     const needsMove = excelPreview.some((r) => r.status === 'needs_move_confirm')
-    const needsName = excelPreview.some((r) => r.needsNameConfirm)
     if (needsMove) {
       const ok = await confirm({
         title: '다른 그룹 GA 이동',
@@ -334,23 +331,12 @@ export default function GaGroupManagementPage() {
         return
       }
     }
-    if (needsName) {
-      const ok = await confirm({
-        title: '지점명 확인',
-        message: '유사·동일 지점명이 있는 행이 있습니다. 확인 후 등록합니다.',
-        confirmLabel: '등록',
-      })
-      if (!ok) {
-        return
-      }
-    }
     setExcelBusy(true)
     try {
       const result = await commitGaGroupExcel(token, selectedId, {
         preview: excelPreview,
         fileHash: excelFileHash,
         allowMoveFromOtherGroup: needsMove,
-        confirmSimilarNames: needsName,
         forceDuplicateFile,
       })
       window.alert(

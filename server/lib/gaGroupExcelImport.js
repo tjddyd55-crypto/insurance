@@ -83,7 +83,6 @@ export function hashExcelBuffer(buffer) {
  */
 export async function previewGaGroupExcelImport(pool, p) {
   const results = []
-  const nameSeen = new Map()
 
   for (const row of p.rows) {
     const branchName = String(row.branchName ?? '').trim()
@@ -97,29 +96,6 @@ export async function previewGaGroupExcelImport(pool, p) {
       })
       continue
     }
-
-    const nameKey = branchName.toLowerCase()
-    if (nameSeen.has(nameKey)) {
-      results.push({
-        ...row,
-        status: 'duplicate_name',
-        message: '동일 파일 내 동일 지점명',
-      })
-      continue
-    }
-    nameSeen.set(nameKey, true)
-
-    const similar = await systemQuery(
-      pool,
-      `
-      SELECT id, name, code
-      FROM ga_companies
-      WHERE is_deleted = false AND LOWER(TRIM(name)) = LOWER(TRIM($1))
-      LIMIT 1
-      `,
-      [branchName],
-    )
-    const similarRow = similar.rows[0]
 
     if (gaCode) {
       const existing = await findGaCompanyByNormalizedCode(pool, gaCode)
@@ -148,7 +124,7 @@ export async function previewGaGroupExcelImport(pool, p) {
           gaCode: existing.code,
           currentGroupName: gRow?.name ?? '',
           currentGroupSlug: gRow?.slug ?? '',
-          message: '다른 그룹에 연결된 GA',
+          message: '다른 그룹에 연결된 GA (코드 일치)',
         })
         continue
       }
@@ -169,53 +145,7 @@ export async function previewGaGroupExcelImport(pool, p) {
         gaId: existing.id,
         gaName: existing.name,
         gaCode: existing.code,
-        message: similarRow ? '기존 GA 연결 (지점명 일치)' : '기존 GA 연결',
-        needsNameConfirm: Boolean(similarRow && String(similarRow.name).trim() !== branchName),
-      })
-      continue
-    }
-
-    if (similarRow) {
-      const membership = await systemQuery(
-        pool,
-        `SELECT group_id FROM ga_group_members WHERE ga_id = $1`,
-        [similarRow.id],
-      )
-      const otherGroupId = membership.rows[0]?.group_id
-      if (otherGroupId != null && Number(otherGroupId) !== p.groupId) {
-        const g = await systemQuery(pool, `SELECT name, slug FROM ga_groups WHERE id = $1`, [otherGroupId])
-        const gRow = g.rows[0]
-        results.push({
-          ...row,
-          status: 'needs_move_confirm',
-          gaId: Number(similarRow.id),
-          gaName: similarRow.name,
-          gaCode: similarRow.code,
-          currentGroupName: gRow?.name ?? '',
-          currentGroupSlug: gRow?.slug ?? '',
-          message: '동일 지점명 GA가 다른 그룹에 있음',
-        })
-        continue
-      }
-      if (otherGroupId != null && Number(otherGroupId) === p.groupId) {
-        results.push({
-          ...row,
-          status: 'already_linked',
-          gaId: Number(similarRow.id),
-          gaName: similarRow.name,
-          gaCode: similarRow.code,
-          message: '이미 이 그룹에 연결됨',
-        })
-        continue
-      }
-      results.push({
-        ...row,
-        status: 'link_existing',
-        gaId: Number(similarRow.id),
-        gaName: similarRow.name,
-        gaCode: similarRow.code,
-        message: '동일 지점명으로 기존 GA 연결 제안',
-        needsNameConfirm: true,
+        message: '기존 GA 연결 (코드 일치)',
       })
       continue
     }
@@ -225,7 +155,7 @@ export async function previewGaGroupExcelImport(pool, p) {
       ...row,
       status: 'create_new',
       proposedCode,
-      message: '신규 GA 생성 예정',
+      message: '신규 GA 생성',
     })
   }
 
@@ -234,7 +164,7 @@ export async function previewGaGroupExcelImport(pool, p) {
 
 /**
  * @param {import('pg').Pool} pool
- * @param {{ groupId: number; previewRows: Array<Record<string, unknown>>; allowMoveFromOtherGroup?: boolean; confirmSimilarNames?: boolean }} p
+ * @param {{ groupId: number; previewRows: Array<Record<string, unknown>>; allowMoveFromOtherGroup?: boolean }} p
  */
 export async function commitGaGroupExcelImport(pool, p) {
   const summary = {
@@ -248,7 +178,7 @@ export async function commitGaGroupExcelImport(pool, p) {
     await client.query('BEGIN')
     for (const row of p.previewRows) {
       const status = String(row.status ?? '')
-      if (status === 'error' || status === 'duplicate_name') {
+      if (status === 'error') {
         summary.errors += 1
         continue
       }
@@ -262,11 +192,6 @@ export async function commitGaGroupExcelImport(pool, p) {
           continue
         }
       }
-      if (row.needsNameConfirm && !p.confirmSimilarNames) {
-        summary.errors += 1
-        continue
-      }
-
       let gaId = parseGaId(row.gaId)
       if (status === 'create_new') {
         const code = String(row.proposedCode ?? '').trim()
