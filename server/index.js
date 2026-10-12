@@ -203,6 +203,11 @@ import { registerInsuranceClaimCompanyApi } from './registerInsuranceClaimCompan
 import { registerInsurerSitesApi } from './registerInsurerSitesApi.js'
 import { registerPlatformAdminApi } from './registerPlatformAdminApi.js'
 import { registerGaGroupApi } from './apis/registerGaGroupApi.js'
+import {
+  buildGaCompaniesAdminListQueries,
+  mapGaCompaniesAdminListRow,
+  parseGaCompaniesAdminListParams,
+} from './lib/gaCompaniesAdminListQuery.js'
 import { registerCrmCustomerTemplateAdminApi } from './registerCrmCustomerTemplateAdminApi.js'
 import { registerSmsModuleApi } from './registerSmsModuleApi.js'
 import { registerCrmUserBulkSmsApi } from './registerCrmUserBulkSmsApi.js'
@@ -3894,9 +3899,42 @@ apiRouter.delete('/loss-adjusters/:id', requireAuth, requireGaStaffOrAdminOnly, 
   }
 })
 
+function wantsPaginatedGaAdminList(query) {
+  if (query == null || typeof query !== 'object') {
+    return false
+  }
+  return (
+    query.page != null ||
+    query.pageSize != null ||
+    query.limit != null ||
+    (query.q != null && String(query.q).trim() !== '') ||
+    query.groupId != null ||
+    query.group_id != null ||
+    query.groupFilter != null ||
+    query.group_filter != null ||
+    query.ungrouped != null
+  )
+}
+
 apiRouter.get('/admin/ga', requireAuth, async (req, res) => {
   try {
     if (isSuperAdminRole(req.user.role)) {
+      if (wantsPaginatedGaAdminList(req.query)) {
+        const filters = parseGaCompaniesAdminListParams(req.query)
+        const { listSql, countSql, listParams, countParams } = buildGaCompaniesAdminListQueries(filters)
+        const [listRes, countRes] = await Promise.all([
+          systemQuery(pool, listSql, listParams),
+          systemQuery(pool, countSql, countParams),
+        ])
+        const total = Number(countRes.rows[0]?.total ?? 0)
+        res.json({
+          rows: listRes.rows.map(mapGaCompaniesAdminListRow),
+          total,
+          page: filters.page,
+          pageSize: filters.pageSize,
+        })
+        return
+      }
       const r = await systemQuery(
         pool,
         `
