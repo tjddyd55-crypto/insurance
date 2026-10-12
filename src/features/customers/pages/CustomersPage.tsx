@@ -32,6 +32,7 @@ import {
 import type { CustomerSortType } from '../types/customerListSort'
 import { customerNoteItems } from '../domain/types'
 import { buildKakaoCustomerCopyText } from '../utils/customerText'
+import { customerMatchesNamePhoneKeyword } from '../lib/customerKeywordMatch'
 import { exportCustomersExcel } from '../utils/exportCustomersExcel'
 import { buildLegacyMedicalColumnValue } from '../utils/customerMedicalHistory'
 import { normalizeCustomerCarrierForSave } from '../config/customerMobileCarrier.config'
@@ -406,7 +407,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       return dedupeCustomersById(customers)
     }
     return dedupeCustomersById(
-      customers.filter((c) => c.name.includes(q) || (c.phone ?? '').includes(q)),
+      customers.filter((c) => customerMatchesNamePhoneKeyword(c, q)),
     )
   }, [customers, keyword, advSearchHits])
 
