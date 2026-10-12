@@ -1162,3 +1162,55 @@
     scrollbar-gutter: stable;
   }
 }
+
+/*
+ * 가족 그룹 → 「가족 그룹 만들기」 모달의 고객 검색(구성원 추가) (PC): 외곽 높이 고정.
+ * 실제 Development 에서 그룹이 없는 고객은 이 모달에서 「고객 검색 → 그룹에 추가」로
+ * 구성원을 넣는다. #83 은 그룹 카드의 「구성원 추가」(--add) 모달만 고정해, 이 모달은
+ * 결과 0/1/5/20명에 따라 패널 높이 624→620→777px, top 138→140→62px 로 움직였다
+ * (기본 results 가 flex: 0 0 auto + max-height: 240px, compose 도 flex: 0 0 auto).
+ * 제목·그룹명·검색 입력·관계 선택·추가된 고객·취소/만들기 는 고정, 결과 목록만 내부 스크롤.
+ */
+@media (min-width: 769px) {
+  .customer-ui-modal-panel.customer-relations-modal.customer-relation-group-modal--create {
+    box-sizing: border-box;
+    /* 그룹명·안내·관계·추가된 고객 영역이 더 있어 --add(640px)보다 높게 잡아 결과 약 5행 노출 */
+    height: min(84vh, 760px);
+    max-height: calc(100dvh - 32px);
+    min-height: 0;
+  }
+
+  .customer-ui-modal-panel.customer-relation-group-modal--create .customer-relations-modal__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .customer-ui-modal-panel.customer-relation-group-modal--create .customer-relation-group-compose {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .customer-relation-group-modal--create .customer-relations-modal__header,
+  .customer-relation-group-modal--create .customer-relations-modal__search,
+  .customer-relation-group-modal--create .customer-relation-group-picker,
+  .customer-relation-group-modal--create .customer-relation-group-pending-wrap,
+  .customer-relation-group-modal--create .customer-relations-modal__footer {
+    flex: 0 0 auto;
+  }
+
+  .customer-ui-modal-panel.customer-relation-group-modal--create .customer-relation-group-pending {
+    max-height: 120px;
+    overflow-y: auto;
+  }
+
+  .customer-ui-modal-panel.customer-relations-modal.customer-relation-group-modal--create
+    .customer-relations-modal__results {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+}
