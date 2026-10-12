@@ -7,7 +7,7 @@ import FormInput from '../../../components/form/FormInput'
 import { countItemsInFolderSelection } from '../domain/personalBinderFolderFilter'
 import type { PersonalBinderFolder, PersonalBinderSummary } from '../personalBinder.types'
 
-type ExplorerSection = '__all__' | '__uncategorized__' | string
+type ExplorerSection = '__uncategorized__' | string
 
 type Props = {
   binders: PersonalBinderSummary[]
@@ -37,7 +37,7 @@ export function PersonalBinderExplorerTree({
   disabled = false,
 }: Props) {
   const { confirm, confirmDialog } = useConfirmDialog()
-  const [openSection, setOpenSection] = useState<ExplorerSection | null>('__all__')
+  const [openSection, setOpenSection] = useState<ExplorerSection | null>('__uncategorized__')
   const [menuFolderId, setMenuFolderId] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const [renameFolder, setRenameFolder] = useState<PersonalBinderFolder | null>(null)
@@ -60,7 +60,7 @@ export function PersonalBinderExplorerTree({
     for (const [key, rows] of map) {
       map.set(key, sortByTitle(rows))
     }
-    return { map, uncategorized: sortByTitle(uncategorized), all: sortByTitle(binders) }
+    return { map, uncategorized: sortByTitle(uncategorized) }
   }, [binders, folders])
 
   useEffect(() => {
@@ -136,7 +136,6 @@ export function PersonalBinderExplorerTree({
         disabled={disabled}
         onClick={() => void onSelectBinder(binder.id)}
       >
-        <span className="personal-binder-explorer-tree__binder-icon" aria-hidden="true" />
         <span className="personal-binder-explorer-tree__binder-title" title={binder.title}>
           {binder.title}
         </span>
@@ -178,7 +177,6 @@ export function PersonalBinderExplorerTree({
             ].join(' ')}
             aria-hidden="true"
           />
-          <span className="personal-binder-explorer-tree__folder-icon" aria-hidden="true" />
           <span className="personal-binder-explorer-tree__folder-label" title={label}>
             {label}
           </span>
@@ -227,7 +225,6 @@ export function PersonalBinderExplorerTree({
     )
   }
 
-  const allCount = countItemsInFolderSelection(binders, 'all')
   const uncategorizedCount = countItemsInFolderSelection(binders, 'uncategorized')
 
   return (
@@ -240,19 +237,6 @@ export function PersonalBinderExplorerTree({
       </div>
 
       <div className="personal-binder-explorer-tree__body">
-        <div className="personal-binder-explorer-tree__group">
-          {renderFolderHeader('__all__', '전체 바인더', allCount)}
-          {openSection === '__all__' ? (
-            <div className="personal-binder-explorer-tree__children personal-binder-explorer-tree__children--binders">
-              {bindersByFolder.all.length === 0 ? (
-                <p className="personal-binder-explorer-tree__empty">바인더가 없습니다.</p>
-              ) : (
-                bindersByFolder.all.map((binder) => renderBinderRow(binder))
-              )}
-            </div>
-          ) : null}
-        </div>
-
         <div className="personal-binder-explorer-tree__group">
           {renderFolderHeader('__uncategorized__', '미분류', uncategorizedCount)}
           {openSection === '__uncategorized__' ? (
