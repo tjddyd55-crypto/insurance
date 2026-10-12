@@ -32,6 +32,22 @@ type StorageExplorerFilePanelProps = {
   onRename: (file: StorageFileRow) => void
   onDelete: (file: StorageFileRow) => void
   onSelectBreadcrumbFolder: (index: number) => void
+  onAddToBinder?: (file: StorageFileRow) => void
+  binderPickBusyFileId?: number | null
+}
+
+function isBinderPickCompatibleFile(file: StorageFileRow): boolean {
+  const mime = String(file.mimeType ?? '').toLowerCase().split(';')[0].trim()
+  if (mime === 'application/pdf' || mime === 'image/jpeg' || mime === 'image/png') {
+    return true
+  }
+  const lower = String(file.displayName ?? file.fileName ?? '').toLowerCase()
+  return (
+    lower.endsWith('.pdf') ||
+    lower.endsWith('.jpg') ||
+    lower.endsWith('.jpeg') ||
+    lower.endsWith('.png')
+  )
 }
 
 function renderFileIcon(file: StorageFileRow): string {
@@ -90,6 +106,8 @@ export default function StorageExplorerFilePanel({
   onRename,
   onDelete,
   onSelectBreadcrumbFolder,
+  onAddToBinder,
+  binderPickBusyFileId = null,
 }: StorageExplorerFilePanelProps) {
   const [openActionMenuFileId, setOpenActionMenuFileId] = useState<number | null>(null)
 
@@ -237,6 +255,19 @@ export default function StorageExplorerFilePanel({
                 ) : (
                   <div className="storage-explorer-files__actions">
                     <div className="storage-explorer-files__actions-inline">
+                      {onAddToBinder && isBinderPickCompatibleFile(file) ? (
+                        <button
+                          type="button"
+                          className={`${EXPLORER_FILE_ACTION_BUTTON_CLASS} storage-explorer-file-action-button--primary`}
+                          disabled={binderPickBusyFileId === file.id}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            onAddToBinder(file)
+                          }}
+                        >
+                          {binderPickBusyFileId === file.id ? '추가 중…' : '바인더에 추가'}
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         className={EXPLORER_FILE_ACTION_BUTTON_CLASS}

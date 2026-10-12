@@ -25,6 +25,7 @@ import {
   PERSONAL_BINDER_FOLDER_TYPES,
   resolveFolderIdForWrite,
 } from '../personal-binder/personalBinderFolderHelpers.js'
+import { softDeleteOrphanPersonalBinderMaterials } from '../personal-binder/personalBinderStorageFileSync.js'
 
 function requestScope(req, res) {
   const userId = String(req.user?.id ?? '').trim()
@@ -292,11 +293,17 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
     try {
       const scope = requestScope(req, res)
       if (!scope) return
+      await softDeleteOrphanPersonalBinderMaterials(pool, scope)
       const result = await safeQuery(
         pool,
         `
         SELECT m.*, COUNT(DISTINCT b.id)::int AS binder_count
         FROM personal_binder_materials m
+        INNER JOIN files f ON f.id = m.file_id
+          AND f.user_id = m.owner_user_id
+          AND f.ga_id = m.ga_id
+          AND f.deleted_at IS NULL
+          AND f.status = 'active'
         LEFT JOIN personal_binder_items i ON i.material_id = m.id
         LEFT JOIN personal_binder_sections s ON s.id = i.section_id
         LEFT JOIN personal_binders b ON b.id = s.binder_id AND b.deleted_at IS NULL
@@ -589,7 +596,7 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         [materialId, scope.userId, scope.gaId],
       )
       if (material.rowCount === 0) {
-        res.status(404).json({ message: '자료를 찾을 수 없습니다.' })
+        res.json({ ok: true, alreadyRemoved: true })
         return
       }
       const row = material.rows[0]

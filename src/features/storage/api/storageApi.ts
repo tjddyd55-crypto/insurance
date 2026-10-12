@@ -257,11 +257,36 @@ export async function renameStorageFile(
   })
 }
 
-export async function deleteStorageFile(token: string, fileId: number): Promise<{ ok: boolean }> {
+export type StorageFileBinderDeleteImpact = {
+  materialCount: number
+  binderCount: number
+  binderItemCount: number
+  binders: { id: string; title: string; itemCount: number }[]
+  materials: { id: string; title: string }[]
+}
+
+export async function fetchStorageFileBinderDeleteImpact(
+  token: string,
+  fileId: number,
+): Promise<StorageFileBinderDeleteImpact> {
   assertToken(token)
-  return apiRequest<{ ok: boolean }>(`/api/storage/files/${fileId}`, {
+  return apiRequest<StorageFileBinderDeleteImpact>(
+    `/api/storage/files/${fileId}/binder-delete-impact`,
+    { method: 'GET', token },
+  )
+}
+
+export async function deleteStorageFile(
+  token: string,
+  fileId: number,
+  options?: { confirmBinderCleanup?: boolean },
+): Promise<{ ok: boolean }> {
+  assertToken(token)
+  const q = options?.confirmBinderCleanup ? '?confirmBinderCleanup=true' : ''
+  return apiRequest<{ ok: boolean }>(`/api/storage/files/${fileId}${q}`, {
     method: 'DELETE',
     token,
+    body: options?.confirmBinderCleanup ? JSON.stringify({ confirmBinderCleanup: true }) : undefined,
   })
 }
 

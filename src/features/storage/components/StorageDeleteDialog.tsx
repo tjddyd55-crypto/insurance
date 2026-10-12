@@ -8,6 +8,7 @@ type StorageDeleteDialogProps = {
   open: boolean
   title: string
   description: string
+  detailLines?: string[]
   loading?: boolean
   onClose: () => void
   onConfirm: () => void
@@ -19,6 +20,7 @@ export default function StorageDeleteDialog({
   open,
   title,
   description,
+  detailLines = [],
   loading = false,
   onClose,
   onConfirm,
@@ -48,6 +50,13 @@ export default function StorageDeleteDialog({
       >
         <div className="text-lg font-semibold mb-2 text-[var(--text-primary)]">{title}</div>
         <p className="text-sm text-[var(--text-secondary)]">{description}</p>
+        {detailLines.length > 0 ? (
+          <ul className="mt-2 text-sm text-[var(--text-secondary)] list-disc pl-5 space-y-1">
+            {detailLines.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        ) : null}
         <CustomerWorkspaceFormModalFooter
           onCancel={onClose}
           onSave={onConfirm}
@@ -64,6 +73,13 @@ export default function StorageDeleteDialog({
     <Modal open={open} onClose={onClose} ariaLabel={title} panelClassName="max-w-md" closeOnBackdrop={false}>
       <div className="text-lg font-semibold mb-2 text-[var(--text-primary)]">{title}</div>
       <p className="text-sm text-[var(--text-secondary)]">{description}</p>
+      {detailLines.length > 0 ? (
+        <ul className="mt-2 text-sm text-[var(--text-secondary)] list-disc pl-5 space-y-1">
+          {detailLines.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      ) : null}
       {storageFooter}
     </Modal>
   )

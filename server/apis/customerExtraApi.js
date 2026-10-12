@@ -23,6 +23,10 @@ import {
 } from '../lib/r2KeyPolicy.js'
 import { runStorageUploadOrphanCleanup } from '../lib/storageOrphanCleanup.js'
 import {
+  cleanupPersonalBinderRefsForDeletedStorageFile,
+  getPersonalStorageFileBinderDeleteImpact,
+} from '../personal-binder/personalBinderStorageFileSync.js'
+import {
   readStorageFileBufferFromPath,
   STORAGE_FILE_READ_USER_MESSAGE,
 } from '../lib/storageFileObjectKey.js'
@@ -2165,6 +2169,21 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       return
     }
     const peekRow = peek.rows[0]
+    const isPersonalStorage = peekRow.customer_id == null && peekRow.team_id == null
+    const confirmBinderCleanup =
+      (req.body && typeof req.body === 'object' && req.body.confirmBinderCleanup === true) ||
+      String(req.query?.confirmBinderCleanup ?? '').toLowerCase() === 'true'
+    if (isPersonalStorage) {
+      const impact = await getPersonalStorageFileBinderDeleteImpact(pool, { userId, gaId }, fileId)
+      if (impact.binderItemCount > 0 && !confirmBinderCleanup) {
+        res.status(409).json({
+          code: 'BINDER_FILE_IN_USE',
+          message: `이 파일은 ${impact.binderCount}개 바인더의 ${impact.binderItemCount}개 항목에서 사용 중입니다.`,
+          ...impact,
+        })
+        return
+      }
+    }
     if (peekRow.customer_id != null) {
       const ok = await assertCustomerFileAccess(pool, req, Number(peekRow.customer_id), res)
       if (!ok) {
@@ -2233,6 +2252,9 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
           `,
           [sz, userId, gaId],
         )
+      }
+      if (isPersonalStorage) {
+        await cleanupPersonalBinderRefsForDeletedStorageFile(client, { userId, gaId }, fileId)
       }
       await client.query('COMMIT')
       res.json({ ok: true })
@@ -3235,6 +3257,57 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       res.setHeader('Content-Disposition', buildAttachmentContentDisposition(downloadName))
       res.setHeader('Content-Length', String(buffer.length))
       res.end(buffer)
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.get('/storage/files/:fileId/binder-delete-impact', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaIdFromUser(req, res)
+      if (gaId == null) {
+        return
+      }
+      const fileId = Number(req.params.fileId)
+      if (!Number.isInteger(fileId) || fileId < 1) {
+        res.status(400).json({ message: '잘못된 파일 ID입니다.' })
+        return
+      }
+      const peek = await safeQuery(
+        pool,
+        `
+        SELECT id, customer_id, team_id
+        FROM files
+        WHERE id = $1
+          AND user_id = $2
+          AND ga_id = $3
+          AND deleted_at IS NULL
+        LIMIT 1
+        `,
+        [fileId, userId, gaId],
+      )
+      if (peek.rowCount === 0) {
+        res.status(404).json({ message: '파일을 찾을 수 없습니다.' })
+        return
+      }
+      const row = peek.rows[0]
+      if (row.customer_id != null || row.team_id != null) {
+        res.json({
+          materialCount: 0,
+          binderCount: 0,
+          binderItemCount: 0,
+          binders: [],
+          materials: [],
+        })
+        return
+      }
+      const impact = await getPersonalStorageFileBinderDeleteImpact(pool, { userId, gaId }, fileId)
+      res.json(impact)
     } catch (error) {
       handleDbError(error, req, res)
     }
