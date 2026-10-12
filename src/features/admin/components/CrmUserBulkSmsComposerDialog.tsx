@@ -3,12 +3,8 @@ import { FormDialog, useConfirmDialog } from '../../../components/dialog'
 import { StatusMessage } from '../../../components/feedback'
 import { FieldWrapper, FormButton, FormInput, FormTextarea } from '../../../components/form'
 import { estimateSmsByteLength } from '../../sms/utils/smsMessageMeta'
-import {
-  previewCrmUserBulkSms,
-  sendCrmUserBulkSms,
-  type CrmUserBulkSmsPreview,
-  type CrmUserBulkSmsRuntime,
-} from '../api/crmUserBulkSmsApi'
+import { sendCrmUserBulkSms, type CrmUserBulkSmsRuntime } from '../api/crmUserBulkSmsApi'
+import { formatCrmUserBulkSmsResultMessage } from '../crmUserBulkSmsResultMessage'
 
 type Props = {
   open: boolean
@@ -23,6 +19,16 @@ function resolveLocalSmsType(message: string): 'SMS' | 'LMS' {
   return estimateSmsByteLength(message) <= 90 ? 'SMS' : 'LMS'
 }
 
+function resolveResultTitle(result: {
+  dryRun?: boolean
+  campaign: { dryRun: boolean; successCount: number; failedCount: number }
+}): string {
+  if (result.dryRun || result.campaign.dryRun) return '테스트 모드'
+  if (result.campaign.successCount > 0 && result.campaign.failedCount === 0) return '발송 요청'
+  if (result.campaign.successCount > 0 && result.campaign.failedCount > 0) return '일부 발송'
+  return '발송 실패'
+}
+
 export default function CrmUserBulkSmsComposerDialog({
   open,
   token,
@@ -34,8 +40,6 @@ export default function CrmUserBulkSmsComposerDialog({
   const { confirm, confirmDialog } = useConfirmDialog()
   const [title, setTitle] = useState('서비스 안내')
   const [message, setMessage] = useState('')
-  const [senderNumber, setSenderNumber] = useState('')
-  const [preview, setPreview] = useState<CrmUserBulkSmsPreview | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -43,45 +47,38 @@ export default function CrmUserBulkSmsComposerDialog({
     if (!open) return
     setTitle('서비스 안내')
     setMessage('')
-    setSenderNumber(runtime?.defaultSender ?? '')
-    setPreview(null)
     setError('')
-  }, [open, runtime?.defaultSender])
+  }, [open])
 
   const localType = useMemo(() => resolveLocalSmsType(message), [message])
   const byteCount = useMemo(() => estimateSmsByteLength(message), [message])
+  const audienceCount = selectedUserIds.length
+  const dirty = title !== '서비스 안내' || message.trim() !== ''
 
-  const runPreview = async () => {
-    setError('')
-    setBusy(true)
-    try {
-      const data = await previewCrmUserBulkSms(token, {
-        userIds: selectedUserIds,
-        message,
-        title,
-        senderNumber: senderNumber || undefined,
+  const requestClose = async () => {
+    if (busy) return
+    if (dirty) {
+      const discard = await confirm({
+        title: '작성 중인 내용이 있습니다',
+        message: '변경사항이 저장되지 않았습니다. 닫으시겠습니까?',
+        tone: 'danger',
+        confirmLabel: '닫기',
       })
-      setPreview(data)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '미리보기에 실패했습니다.')
-    } finally {
-      setBusy(false)
+      if (!discard) return
     }
+    onClose()
   }
 
   const runSend = async () => {
-    if (!preview || preview.summary.eligibleCount < 1) {
-      setError('미리보기 후 발송 가능 대상이 있어야 합니다.')
+    if (!message.trim() || audienceCount < 1) {
+      setError('내용과 발송 대상이 있어야 합니다.')
       return
     }
-    const dryHint = preview.runtime.realSendEnabled
-      ? '실발송이 활성화되어 있습니다.'
-      : '현재는 dry-run(실제 발송 없음)입니다.'
     const confirmed = await confirm({
-      title: `사용자 ${preview.summary.eligibleCount}명에게 문자를 보낼까요?`,
-      message: `선택한 CRM 사용자 ${preview.summary.eligibleCount}명에게 안내 문자를 즉시 발송합니다. 발송 후에는 취소할 수 없습니다. ${dryHint}`,
+      title: `사용자 ${audienceCount}명에게 문자를 보낼까요?`,
+      message: `선택한 사용자 ${audienceCount}명에게 같은 제목과 내용을 발송합니다. 발송 후에는 취소할 수 없습니다.`,
       tone: 'danger',
-      confirmLabel: '발송',
+      confirmLabel: '보내기',
     })
     if (!confirmed) return
 
@@ -92,21 +89,18 @@ export default function CrmUserBulkSmsComposerDialog({
         userIds: selectedUserIds,
         message,
         title,
-        senderNumber: senderNumber || undefined,
         idempotencyKey: crypto.randomUUID(),
-        confirm: true,
       })
-      const mode = result.dryRun || result.campaign.dryRun ? 'dry-run' : '실발송'
       await confirm({
-        title: '발송 요청 완료',
-        message: `캠페인 #${result.campaign.id} (${mode}) · 성공 ${result.campaign.successCount} · 실패 ${result.campaign.failedCount} · 제외 ${result.campaign.excludedCount}`,
+        title: resolveResultTitle(result),
+        message: formatCrmUserBulkSmsResultMessage(result),
         tone: 'default',
         confirmLabel: '확인',
       })
       onSent()
       onClose()
     } catch (e) {
-      setError(e instanceof Error ? e.message : '발송에 실패했습니다.')
+      setError(e instanceof Error ? e.message : '문자 발송에 실패했습니다.')
     } finally {
       setBusy(false)
     }
@@ -117,7 +111,7 @@ export default function CrmUserBulkSmsComposerDialog({
       <FormDialog
         open={open}
         onClose={() => {
-          if (!busy) onClose()
+          void requestClose()
         }}
         title="사용자 단체문자 보내기"
         panelClassName="admin-modal-panel admin-user-bulk-sms-modal"
@@ -130,37 +124,23 @@ export default function CrmUserBulkSmsComposerDialog({
               htmlType="button"
               variant="secondary"
               className="button button--secondary"
-              onClick={onClose}
+              onClick={() => {
+                void requestClose()
+              }}
               disabled={busy}
             >
               취소
             </FormButton>
             <FormButton
               htmlType="button"
-              variant="secondary"
-              className="button button--secondary"
-              onClick={() => void runPreview()}
-              disabled={busy || !message.trim() || selectedUserIds.length === 0}
-              loading={busy && !preview}
-              loadingText="미리보기…"
-            >
-              미리보기
-            </FormButton>
-            <FormButton
-              htmlType="button"
               variant="primary"
               className="button button--primary"
               onClick={() => void runSend()}
-              disabled={
-                busy ||
-                !preview ||
-                preview.summary.eligibleCount < 1 ||
-                (Boolean(preview.runtime.realSendEnabled) && !preview.senderNumber)
-              }
-              loading={busy && Boolean(preview)}
-              loadingText="발송 중…"
+              disabled={busy || !message.trim() || audienceCount < 1}
+              loading={busy}
+              loadingText="보내는 중…"
             >
-              발송
+              보내기
             </FormButton>
           </div>
         }
@@ -170,31 +150,26 @@ export default function CrmUserBulkSmsComposerDialog({
             선택한 CRM 사용자에게 안내 문자를 발송합니다. 광고·홍보성 문자는 이 기능으로 발송할 수
             없습니다.
           </p>
+          {runtime && !runtime.realSendEnabled ? (
+            <p className="admin-user-bulk-sms-modal__hint">
+              테스트 모드입니다. 실제 문자는 발송되지 않습니다.
+            </p>
+          ) : null}
           <StatusMessage message={error} tone="error" className="m-0" />
 
-          <FieldWrapper label="발송명 (관리자용)" className="admin-modal-field">
+          <FieldWrapper label="제목" className="admin-modal-field">
             <FormInput
               className="admin-form-input"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               disabled={busy}
-              placeholder="예: 7월 업데이트 안내"
-            />
-          </FieldWrapper>
-
-          <FieldWrapper label="발신번호" className="admin-modal-field">
-            <FormInput
-              className="admin-form-input"
-              value={senderNumber}
-              onChange={(e) => setSenderNumber(e.target.value)}
-              disabled={busy}
-              placeholder="숫자만 입력"
+              placeholder="예: 서비스 안내"
             />
           </FieldWrapper>
 
           <div className="admin-modal-field admin-user-bulk-sms-modal__message-field">
             <div className="admin-user-bulk-sms-modal__message-label-row">
-              <span className="field__label">문자 내용</span>
+              <span className="field__label">내용</span>
               <span className="admin-user-bulk-sms-modal__message-meta">
                 {byteCount}byte · 예상 {localType}
               </span>
@@ -212,29 +187,12 @@ export default function CrmUserBulkSmsComposerDialog({
             </p>
           </div>
 
-          {preview ? (
-            <div className="admin-user-bulk-sms-modal__preview">
-              <p>
-                선택 {preview.summary.targetCount}명 · 발송 가능 {preview.summary.eligibleCount}명 ·
-                제외 {preview.summary.excludedCount}명 · {preview.summary.smsType}
-                {preview.runtime.realSendEnabled ? '' : ' · dry-run'}
-              </p>
-              {!preview.senderNumber && !preview.runtime.realSendEnabled ? (
-                <p>발신번호 미설정 — dry-run 기록만 남깁니다. 실발송 전 발신번호를 설정하세요.</p>
-              ) : null}
-              {!preview.senderNumber && preview.runtime.realSendEnabled ? (
-                <p>발신번호가 없어 실발송할 수 없습니다.</p>
-              ) : null}
-              <ul className="admin-user-bulk-sms-modal__preview-list">
-                {preview.recipients.slice(0, 12).map((r) => (
-                  <li key={r.userId}>
-                    {r.displayName || r.username || r.userId} · {r.phoneMasked}
-                    {r.status === 'EXCLUDED' ? ` · 제외(${r.exclusionReason})` : ''}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
+          <div className="admin-modal-field admin-user-bulk-sms-modal__audience">
+            <span className="field__label">발송 대상</span>
+            <p className="admin-user-bulk-sms-modal__hint">
+              선택한 사용자 {audienceCount}명 · 같은 제목과 내용을 보냅니다.
+            </p>
+          </div>
         </div>
       </FormDialog>
       {confirmDialog}
