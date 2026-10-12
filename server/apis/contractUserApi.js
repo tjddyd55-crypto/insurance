@@ -561,16 +561,14 @@ export function registerContractUserApi(apiRouter, ctx) {
        * 휴대폰 없음/짧은 값은 행마다 고유 dedupe_key 로 합치지 않는다.
        */
       const params = [userGa, uid]
-      const pattern = `%${escapeIlikePattern(q)}%`
-      const rawId = /^\d+$/.test(q) ? Number(q) : null
-      const idParam = rawId != null && Number.isInteger(rawId) && rawId > 0 ? rawId : null
-      params.push(pattern, idParam)
+      // 검색 대상: 이름(공백 무시 부분일치) + 전화번호(숫자만 비교). 고객코드/id는 검색하지 않음.
+      const pattern = `%${escapeIlikePattern(q.replace(/\s+/g, ''))}%`
+      const phoneDigits = q.replace(/\D/g, '')
+      params.push(pattern, phoneDigits ? `%${phoneDigits}%` : '')
       const searchClause = `
           AND (
-            c.name ILIKE $3 ESCAPE '\\'
-            OR c.phone ILIKE $3 ESCAPE '\\'
-            OR (c.customer_code IS NOT NULL AND c.customer_code ILIKE $3 ESCAPE '\\')
-            OR ($4::int IS NOT NULL AND c.id = $4)
+            regexp_replace(COALESCE(c.name, ''), '\\s', '', 'g') ILIKE $3 ESCAPE '\\'
+            OR ($4::text <> '' AND regexp_replace(COALESCE(c.phone, ''), '\\D', '', 'g') LIKE $4)
           )
         `
       params.push(limit)
