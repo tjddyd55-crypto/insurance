@@ -353,12 +353,14 @@ export default function StorageUsageManager({ token, compact = false, onStorageC
         return
       }
       let confirmBinderCleanup = false
+      let acknowledgedBinderItemCount: number | undefined
       let message = `"${item.fileName}" 파일을 삭제할까요?`
       if (item.source === 'personal-storage') {
         try {
           const impact = await fetchStorageFileBinderDeleteImpact(token, item.storageFileId)
           if (hasStorageBinderDeleteImpact(impact)) {
             confirmBinderCleanup = true
+            acknowledgedBinderItemCount = impact.binderItemCount
             message = buildStorageBinderDeleteImpactConfirmMessage(impact, item.fileName)
           }
         } catch {
@@ -380,6 +382,7 @@ export default function StorageUsageManager({ token, compact = false, onStorageC
       try {
         await deleteStorageFile(token, item.storageFileId, {
           confirmBinderCleanup,
+          acknowledgedBinderItemCount,
         })
         setBreakdown((prev) => {
           const items = prev.items.filter((row) => row.id !== item.id)

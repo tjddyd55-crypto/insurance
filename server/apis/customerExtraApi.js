@@ -25,6 +25,7 @@ import { runStorageUploadOrphanCleanup } from '../lib/storageOrphanCleanup.js'
 import {
   cleanupPersonalBinderRefsForDeletedStorageFile,
   getPersonalStorageFileBinderDeleteImpact,
+  validatePersonalStorageFileBinderDelete,
 } from '../personal-binder/personalBinderStorageFileSync.js'
 import {
   readStorageFileBufferFromPath,
@@ -2044,6 +2045,28 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
     res.json(rows.rows.map(mapCustomerFileRow))
   }
 
+  function parseAcknowledgedBinderItemCount(req) {
+    const raw = req.body?.acknowledgedBinderItemCount ?? req.query?.acknowledgedBinderItemCount
+    if (raw == null || raw === '') {
+      return null
+    }
+    const parsed = Number(raw)
+    return Number.isInteger(parsed) && parsed >= 0 ? parsed : null
+  }
+
+  function sendBinderDeleteBlocked(res, validation) {
+    const { impact, code } = validation
+    const message =
+      code === 'BINDER_IMPACT_CHANGED'
+        ? '삭제 직전 바인더 사용 범위가 변경되었습니다. 다시 확인해 주세요.'
+        : `이 파일은 ${impact.binderCount}개 바인더의 ${impact.binderItemCount}개 항목에서 사용 중입니다.`
+    res.status(409).json({
+      code,
+      message,
+      ...impact,
+    })
+  }
+
   async function handleStorageDelete(req, res) {
     const userId = req.user?.id ? String(req.user.id) : ''
     if (!userId) {
@@ -2087,14 +2110,16 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
     const confirmBinderCleanup =
       (req.body && typeof req.body === 'object' && req.body.confirmBinderCleanup === true) ||
       String(req.query?.confirmBinderCleanup ?? '').toLowerCase() === 'true'
+    const acknowledgedBinderItemCount = parseAcknowledgedBinderItemCount(req)
     if (isPersonalStorage) {
-      const impact = await getPersonalStorageFileBinderDeleteImpact(pool, { userId, gaId }, fileId)
-      if (impact.binderItemCount > 0 && !confirmBinderCleanup) {
-        res.status(409).json({
-          code: 'BINDER_FILE_IN_USE',
-          message: `이 파일은 ${impact.binderCount}개 바인더의 ${impact.binderItemCount}개 항목에서 사용 중입니다.`,
-          ...impact,
-        })
+      const validation = await validatePersonalStorageFileBinderDelete(
+        pool,
+        { userId, gaId },
+        fileId,
+        { confirmBinderCleanup, acknowledgedBinderItemCount },
+      )
+      if (!validation.allowed) {
+        sendBinderDeleteBlocked(res, validation)
         return
       }
     }
@@ -2168,6 +2193,17 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         )
       }
       if (isPersonalStorage) {
+        const validationBeforeCleanup = await validatePersonalStorageFileBinderDelete(
+          client,
+          { userId, gaId },
+          fileId,
+          { confirmBinderCleanup, acknowledgedBinderItemCount },
+        )
+        if (!validationBeforeCleanup.allowed) {
+          await client.query('ROLLBACK')
+          sendBinderDeleteBlocked(res, validationBeforeCleanup)
+          return
+        }
         await cleanupPersonalBinderRefsForDeletedStorageFile(client, { userId, gaId }, fileId)
       }
       await client.query('COMMIT')

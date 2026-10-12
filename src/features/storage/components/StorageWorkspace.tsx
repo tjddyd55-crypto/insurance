@@ -220,6 +220,7 @@ export default function StorageWorkspace({
   const [renameTarget, setRenameTarget] = useState<RenameTarget | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
   const [deleteDetailLines, setDeleteDetailLines] = useState<string[]>([])
+  const [deleteBinderItemCountAck, setDeleteBinderItemCountAck] = useState<number | null>(null)
   const [quota, setQuota] = useState<{
     usedBytes: number
     limitBytes: number
@@ -695,6 +696,7 @@ export default function StorageWorkspace({
     (file: StorageFileRow) => {
       setDeleteTarget({ kind: 'file', file })
       setDeleteDetailLines([])
+      setDeleteBinderItemCountAck(null)
       if (!token?.trim() || customerId != null) {
         return
       }
@@ -703,6 +705,7 @@ export default function StorageWorkspace({
           if (impact.binderItemCount <= 0) {
             return
           }
+          setDeleteBinderItemCountAck(impact.binderItemCount)
           setDeleteDetailLines(buildStorageBinderDeleteImpactDetailLines(impact))
         })
         .catch(() => {
@@ -722,6 +725,7 @@ export default function StorageWorkspace({
       if (deleteTarget.kind === 'file') {
         await deleteStorageFile(token, deleteTarget.file.id, {
           confirmBinderCleanup: deleteDetailLines.length > 0,
+          acknowledgedBinderItemCount: deleteBinderItemCountAck ?? undefined,
         })
         setFiles((prev) => prev.filter((file) => file.id !== deleteTarget.file.id))
         await loadQuota()
@@ -740,12 +744,14 @@ export default function StorageWorkspace({
       }
       setDeleteTarget(null)
       setDeleteDetailLines([])
+      setDeleteBinderItemCountAck(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : '삭제에 실패했습니다.')
     } finally {
       setSubmitting(false)
     }
   }, [
+    deleteBinderItemCountAck,
     deleteDetailLines.length,
     deleteTarget,
     explorerSelection,
@@ -864,6 +870,7 @@ export default function StorageWorkspace({
         onClose={() => {
           setDeleteTarget(null)
           setDeleteDetailLines([])
+          setDeleteBinderItemCountAck(null)
         }}
         onConfirm={() => {
           void submitDelete()

@@ -352,14 +352,23 @@ export async function fetchStorageFileBinderDeleteImpact(
 export async function deleteStorageFile(
   token: string,
   fileId: number,
-  options?: { confirmBinderCleanup?: boolean },
+  options?: { confirmBinderCleanup?: boolean; acknowledgedBinderItemCount?: number },
 ): Promise<{ ok: boolean }> {
   assertToken(token)
   const q = options?.confirmBinderCleanup ? '?confirmBinderCleanup=true' : ''
+  const body =
+    options?.confirmBinderCleanup || options?.acknowledgedBinderItemCount != null
+      ? JSON.stringify({
+          confirmBinderCleanup: options?.confirmBinderCleanup === true,
+          ...(options?.acknowledgedBinderItemCount != null
+            ? { acknowledgedBinderItemCount: options.acknowledgedBinderItemCount }
+            : {}),
+        })
+      : undefined
   return apiRequest<{ ok: boolean }>(`/api/storage/files/${fileId}${q}`, {
     method: 'DELETE',
     token,
-    body: options?.confirmBinderCleanup ? JSON.stringify({ confirmBinderCleanup: true }) : undefined,
+    body,
   })
 }
 

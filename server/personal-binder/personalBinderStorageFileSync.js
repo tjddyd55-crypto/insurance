@@ -1,8 +1,12 @@
 import { safeQuery } from '../utils/dbSafeQuery.js'
 
 /**
+ * @typedef {{ userId: string, gaId: number }} PersonalBinderStorageScope
+ */
+
+/**
  * @param {import('pg').Pool | import('pg').PoolClient} executor
- * @param {{ userId: string, gaId: number }} scope
+ * @param {PersonalBinderStorageScope} scope
  * @param {number} fileId
  */
 export async function getPersonalStorageFileBinderDeleteImpact(executor, scope, fileId) {
@@ -31,15 +35,24 @@ export async function getPersonalStorageFileBinderDeleteImpact(executor, scope, 
   const usage = await safeQuery(
     executor,
     `
-    SELECT DISTINCT b.id, b.title, COUNT(i.id)::int AS item_count
+    SELECT b.id, b.title, COUNT(i.id)::int AS item_count
     FROM personal_binder_items i
+    INNER JOIN personal_binder_materials m
+      ON m.id = i.material_id
+      AND m.deleted_at IS NULL
+      AND m.owner_user_id = $2
+      AND m.ga_id = $3
     INNER JOIN personal_binder_sections s ON s.id = i.section_id
-    INNER JOIN personal_binders b ON b.id = s.binder_id AND b.deleted_at IS NULL
+    INNER JOIN personal_binders b
+      ON b.id = s.binder_id
+      AND b.deleted_at IS NULL
+      AND b.owner_user_id = $2
+      AND b.ga_id = $3
     WHERE i.material_id = ANY($1::bigint[])
     GROUP BY b.id, b.title
     ORDER BY b.title ASC
     `,
-    [materialIds],
+    [materialIds, scope.userId, scope.gaId],
   )
   const itemCount = usage.rows.reduce((sum, row) => sum + Number(row.item_count ?? 0), 0)
   return {
@@ -59,8 +72,39 @@ export async function getPersonalStorageFileBinderDeleteImpact(executor, scope, 
 }
 
 /**
+ * 파일 삭제 전 바인더 영향·확인 플래그 검증 (영향 조회 API·삭제 API 공통).
+ *
+ * @param {import('pg').Pool | import('pg').PoolClient} executor
+ * @param {PersonalBinderStorageScope} scope
+ * @param {number} fileId
+ * @param {{ confirmBinderCleanup?: boolean, acknowledgedBinderItemCount?: number | null }} options
+ * @returns {Promise<{ allowed: boolean, impact: Awaited<ReturnType<typeof getPersonalStorageFileBinderDeleteImpact>>, code?: string }>}
+ */
+export async function validatePersonalStorageFileBinderDelete(executor, scope, fileId, options = {}) {
+  const impact = await getPersonalStorageFileBinderDeleteImpact(executor, scope, fileId)
+  const confirmBinderCleanup = options.confirmBinderCleanup === true
+  const acknowledged = options.acknowledgedBinderItemCount
+
+  if (impact.binderItemCount > 0 && !confirmBinderCleanup) {
+    return { allowed: false, impact, code: 'BINDER_FILE_IN_USE' }
+  }
+
+  if (
+    confirmBinderCleanup &&
+    acknowledged != null &&
+    Number.isInteger(acknowledged) &&
+    acknowledged >= 0 &&
+    impact.binderItemCount > acknowledged
+  ) {
+    return { allowed: false, impact, code: 'BINDER_IMPACT_CHANGED' }
+  }
+
+  return { allowed: true, impact }
+}
+
+/**
  * @param {import('pg').PoolClient} client
- * @param {{ userId: string, gaId: number }} scope
+ * @param {PersonalBinderStorageScope} scope
  * @param {number} fileId
  */
 export async function cleanupPersonalBinderRefsForDeletedStorageFile(client, scope, fileId) {
@@ -84,6 +128,12 @@ export async function cleanupPersonalBinderRefsForDeletedStorageFile(client, sco
     `
     DELETE FROM personal_binder_items i
     USING personal_binder_materials m
+    INNER JOIN personal_binder_sections s ON s.id = i.section_id
+    INNER JOIN personal_binders b
+      ON b.id = s.binder_id
+      AND b.deleted_at IS NULL
+      AND b.owner_user_id = $2
+      AND b.ga_id = $3
     WHERE i.material_id = m.id
       AND m.id = ANY($1::bigint[])
       AND m.owner_user_id = $2
