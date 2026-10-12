@@ -100,7 +100,19 @@ export interface GaCompanyRow {
   code: string
   status: EntityStatus
   created_at: string
+  /** 슈퍼관리자 목록(페이지네이션) 조회 시만 채워짐 */
+  groupId?: number | null
+  groupName?: string | null
 }
+
+export interface GaCompanyAdminListResult {
+  rows: GaCompanyRow[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+export type GaCompanyGroupFilter = 'all' | 'ungrouped' | number
 
 export interface GaHistoryRow {
   id: number
@@ -115,6 +127,36 @@ export interface GaHistoryRow {
 
 export async function listGaCompanies(token: string): Promise<GaCompanyRow[]> {
   return apiRequest<GaCompanyRow[]>('/api/admin/ga', { method: 'GET', token })
+}
+
+export async function listGaCompaniesAdmin(
+  token: string,
+  params: {
+    page: number
+    pageSize: number
+    q?: string
+    groupFilter?: GaCompanyGroupFilter
+  },
+): Promise<GaCompanyAdminListResult> {
+  const search = new URLSearchParams()
+  search.set('page', String(params.page))
+  search.set('pageSize', String(params.pageSize))
+  const q = String(params.q ?? '').trim()
+  if (q) {
+    search.set('q', q)
+  }
+  const gf = params.groupFilter ?? 'all'
+  if (gf === 'ungrouped') {
+    search.set('groupFilter', 'ungrouped')
+  } else if (typeof gf === 'number') {
+    search.set('groupFilter', String(gf))
+  } else {
+    search.set('groupFilter', 'all')
+  }
+  return apiRequest<GaCompanyAdminListResult>(`/api/admin/ga?${search.toString()}`, {
+    method: 'GET',
+    token,
+  })
 }
 
 /** 원수사 담당자 ↔ 보험사 마스터 정합성(감시용). SUPER_ADMIN 은 전체, 그 외는 소속 GA 만 */
