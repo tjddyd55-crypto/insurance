@@ -9,12 +9,18 @@ import {
   ScheduleWeek,
 } from '../../components/ScheduleBoards'
 import type { ScheduleViewProps } from '../../hooks/useScheduleState'
+import ScheduleHolidaySetting, { useScheduleHolidayMode } from '../../components/ScheduleHolidaySetting'
 
 /** PC·모바일 웹 공통 본문. 차이는 CSS(.schedule-page--pc / --mobile)만. */
-export default function ScheduleBody(props: ScheduleViewProps) {
+export default function ScheduleBody(props: ScheduleViewProps & { calendarDecor?: boolean }) {
+  const [holidayMode, setHolidayMode] = useScheduleHolidayMode(props.userKey)
+  const decorMode = props.calendarDecor ? holidayMode : undefined
   return (
     <>
       <ScheduleChrome {...props} />
+      {props.calendarDecor && (props.view === 'month' || props.view === 'week') ? (
+        <ScheduleHolidaySetting mode={holidayMode} onChange={setHolidayMode} />
+      ) : null}
       {props.view === 'month' ? (
         <ScheduleMonth
           anchor={props.anchor}
@@ -26,6 +32,7 @@ export default function ScheduleBody(props: ScheduleViewProps) {
           onOpenDay={props.onOpenDay}
           onOpenEvent={props.onOpenEvent}
           onOpenTask={props.onOpenTask}
+          holidayMode={decorMode}
         />
       ) : null}
       {props.view === 'week' ? (
@@ -36,6 +43,7 @@ export default function ScheduleBody(props: ScheduleViewProps) {
           tasks={props.tasks}
           onOpenEvent={props.onOpenEvent}
           onOpenTask={props.onOpenTask}
+          holidayMode={decorMode}
         />
       ) : null}
       {props.view === 'day' ? (

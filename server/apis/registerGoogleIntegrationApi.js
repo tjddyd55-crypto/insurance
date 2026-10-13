@@ -26,7 +26,9 @@ const GOOGLE_API_ERRORS = {
   scope_missing: { status: 409, message: 'Google Tasks 읽기 권한이 없습니다. 서비스 연동에서 Google 을 다시 연결해 주세요.' },
   google_forbidden: { status: 502, message: 'Google Calendar 접근 권한이 없습니다. 다시 연결해 주세요.' },
   google_unauthorized: { status: 409, message: 'Google 연결이 만료되었습니다. 서비스 연동에서 다시 연결해 주세요.' },
-  google_unavailable: { status: 502, message: 'Google Calendar 응답이 없습니다. 잠시 후 다시 시도해 주세요.' },
+  google_unavailable: { status: 502, message: 'Google 응답이 없습니다. 잠시 후 다시 시도해 주세요.' },
+  google_api_disabled: { status: 503, message: 'Google 연동 서버 설정을 확인 중입니다. 관리자에게 문의해 주세요.' },
+  google_rate_limited: { status: 503, message: 'Google 요청이 많아 잠시 조회할 수 없습니다. 잠시 후 다시 시도해 주세요.' },
   google_token_failed: { status: 502, message: 'Google 인증 서버 응답을 처리하지 못했습니다.' },
 }
 
