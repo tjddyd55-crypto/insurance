@@ -7,6 +7,7 @@ import { formatDateWithKoreanWeekday } from '../../../utils/formatDateWithKorean
 import { SCHEDULE_FILTER_LABEL, scheduleFilterKeyOf, type ScheduleEvent, type ScheduleTask } from '../api/scheduleApi'
 import type { ScheduleViewProps } from '../hooks/useScheduleState'
 import { monthCells, viewQueryRange, weekDays } from '../domain/scheduleRange'
+import { koreanHolidayName, scheduleDayTone, type ScheduleHolidayMode } from '../domain/koreanHolidays'
 import { groupListTasks, isOverdueTask, sortScheduleTasks, tasksOnDate } from '../domain/scheduleTasks'
 import {
   eventClock,
@@ -59,9 +60,14 @@ function TaskChip({ task, base, today, onOpenTask }: { task: ScheduleTask; base:
   )
 }
 
-type MonthProps = Pick<ScheduleViewProps, 'anchor' | 'today' | 'events' | 'tasks' | 'selectedDate' | 'onSelectDate' | 'onOpenDay' | 'onOpenEvent' | 'onOpenTask'>
+type MonthProps = Pick<ScheduleViewProps, 'anchor' | 'today' | 'events' | 'tasks' | 'selectedDate' | 'onSelectDate' | 'onOpenDay' | 'onOpenEvent' | 'onOpenTask'> & {
+  /** PC 전용: 일/공휴일 빨강·토 파랑. 없으면(모바일) 기존 표시 그대로. */
+  holidayMode?: ScheduleHolidayMode
+}
 
-export function ScheduleMonth({ anchor, today, events, tasks, selectedDate, onSelectDate, onOpenDay, onOpenEvent, onOpenTask }: MonthProps) {
+const WEEKDAY_TONE = ['sun', '', '', '', '', '', 'sat']
+
+export function ScheduleMonth({ anchor, today, events, tasks, selectedDate, onSelectDate, onOpenDay, onOpenEvent, onOpenTask, holidayMode }: MonthProps) {
   const sorted = sortScheduleEvents(events)
   // 예정일 없는 할 일은 월간 칸에 올리지 않는다(목록 화면 "날짜 없음"에서 보인다).
   const datedTasks = sortScheduleTasks(tasks.filter((task) => task.dueDate))
@@ -70,8 +76,14 @@ export function ScheduleMonth({ anchor, today, events, tasks, selectedDate, onSe
   return (
     <>
       <div className="schedule-page__month" role="grid" aria-label="월간 일정">
-        {WEEKDAY_SUN_FIRST.map((label) => (
-          <span key={label} className="schedule-page__weekday" role="columnheader">{label}</span>
+        {WEEKDAY_SUN_FIRST.map((label, index) => (
+          <span
+            key={label}
+            className={holidayMode && WEEKDAY_TONE[index] ? `schedule-page__weekday schedule-page__weekday--${WEEKDAY_TONE[index]}` : 'schedule-page__weekday'}
+            role="columnheader"
+          >
+            {label}
+          </span>
         ))}
         {monthCells(anchor).map((cell) => {
           const dayEvents = sorted.filter((event) => eventCoversDate(event, cell.date))
@@ -83,17 +95,21 @@ export function ScheduleMonth({ anchor, today, events, tasks, selectedDate, onSe
           if (!cell.inMonth) classes.push('schedule-page__cell--muted')
           if (cell.date === today) classes.push('schedule-page__cell--today')
           if (cell.date === selectedDate) classes.push('schedule-page__cell--selected')
+          const tone = holidayMode ? scheduleDayTone(cell.date, holidayMode) : ''
+          const holidayName = holidayMode ? koreanHolidayName(cell.date, holidayMode) : ''
+          if (tone) classes.push(`schedule-page__cell--${tone}`)
           return (
             <div key={cell.date} className={classes.join(' ')} role="gridcell">
               <button
                 type="button"
                 className="schedule-page__date"
-                aria-label={`${formatDateWithKoreanWeekday(cell.date)} 일정 ${dayEvents.length}건${dayTasks.length > 0 ? `, 할 일 ${dayTasks.length}건` : ''}`}
+                aria-label={`${formatDateWithKoreanWeekday(cell.date)}${holidayName ? ` ${holidayName}` : ''} 일정 ${dayEvents.length}건${dayTasks.length > 0 ? `, 할 일 ${dayTasks.length}건` : ''}`}
                 aria-pressed={cell.date === selectedDate}
                 onClick={() => onSelectDate(cell.date)}
               >
                 {Number(cell.date.slice(8))}
               </button>
+              {holidayName ? <span className="schedule-page__holiday-name">{holidayName}</span> : null}
               {visible.map((event) => (
                 <button
                   key={event.id}
@@ -133,7 +149,7 @@ export function ScheduleMonth({ anchor, today, events, tasks, selectedDate, onSe
   )
 }
 
-export function ScheduleWeek({ anchor, today, events, tasks, onOpenEvent, onOpenTask }: Pick<ScheduleViewProps, 'anchor' | 'today' | 'events' | 'tasks' | 'onOpenEvent' | 'onOpenTask'>) {
+export function ScheduleWeek({ anchor, today, events, tasks, onOpenEvent, onOpenTask, holidayMode }: Pick<ScheduleViewProps, 'anchor' | 'today' | 'events' | 'tasks' | 'onOpenEvent' | 'onOpenTask'> & { holidayMode?: ScheduleHolidayMode }) {
   const days = weekDays(anchor)
   const sorted = sortScheduleEvents(events)
   const sortedTasks = sortScheduleTasks(tasks)
@@ -143,8 +159,16 @@ export function ScheduleWeek({ anchor, today, events, tasks, onOpenEvent, onOpen
         <div className="schedule-page__week-head">
           <span />
           {days.map((date, index) => (
-            <strong key={date} className={date === today ? 'schedule-page__week-day schedule-page__week-day--today' : 'schedule-page__week-day'}>
+            <strong
+              key={date}
+              className={[
+                'schedule-page__week-day',
+                date === today ? 'schedule-page__week-day--today' : '',
+                holidayMode && scheduleDayTone(date, holidayMode) ? `schedule-page__week-day--${scheduleDayTone(date, holidayMode)}` : '',
+              ].filter(Boolean).join(' ')}
+            >
               {WEEKDAY_SUN_FIRST[index]} {Number(date.slice(8))}
+              {holidayMode && koreanHolidayName(date, holidayMode) ? <span className="schedule-page__holiday-name"> {koreanHolidayName(date, holidayMode)}</span> : null}
             </strong>
           ))}
         </div>
