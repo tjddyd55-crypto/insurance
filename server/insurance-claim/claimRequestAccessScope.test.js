@@ -19,8 +19,8 @@ test('buildClaimRequestScopeWhere: personal scope includes owned customer and or
   const scope = buildClaimRequestScopeWhere(mockReq())
   assert.match(scope.clause, /r\.customer_id IS NOT NULL/)
   assert.match(scope.clause, /COALESCE\(cust\.owner_user_id, cust\.user_id\)/)
-  assert.match(scope.clause, /r\.customer_id IS NULL AND r\.created_by/)
-  assert.deepEqual(scope.params, [3, '101', 101])
+  assert.match(scope.clause, /r\.customer_id IS NULL AND r\.created_by IS NOT NULL AND r\.created_by::text = \$2/)
+  assert.deepEqual(scope.params, [3, '101'])
 })
 
 test('buildClaimRequestScopeWhere: none access blocks all rows', () => {
@@ -35,13 +35,25 @@ test('buildClaimRequestScopeWhere: tenant customerAccess still uses personal cla
   )
   assert.doesNotMatch(scope.clause, /r\.customer_id IS NULL OR/)
   assert.match(scope.clause, /COALESCE\(cust\.owner_user_id, cust\.user_id\)/)
-  assert.match(scope.clause, /r\.customer_id IS NULL AND r\.created_by/)
-  assert.deepEqual(scope.params, [3, '101', 101])
+  assert.match(scope.clause, /r\.customer_id IS NULL AND r\.created_by IS NOT NULL AND r\.created_by::text = \$2/)
+  assert.deepEqual(scope.params, [3, '101'])
 })
 
-test('buildClaimRequestScopeWhere: non-numeric user id skips orphan created_by branch', () => {
+test('buildClaimRequestScopeWhere: UUID user id matches own orphan claims by string id', () => {
+  const uuid = '3f2b9c1e-1111-4a2b-9c3d-abcdefabcdef'
+  const scope = buildClaimRequestScopeWhere(mockReq({ user: { id: uuid } }))
+  assert.match(scope.clause, /r\.customer_id IS NULL AND r\.created_by IS NOT NULL AND r\.created_by::text = \$2/)
+  assert.deepEqual(scope.params, [3, uuid])
+})
+
+test('buildClaimRequestScopeWhere: NULL created_by never matches (explicit IS NOT NULL guard)', () => {
   const scope = buildClaimRequestScopeWhere(mockReq({ user: { id: 'uuid-user-a' } }))
-  assert.match(scope.clause, /r\.customer_id IS NOT NULL/)
-  assert.doesNotMatch(scope.clause, /created_by/)
-  assert.deepEqual(scope.params, [3, 'uuid-user-a'])
+  assert.match(scope.clause, /r\.created_by IS NOT NULL/)
+  assert.doesNotMatch(scope.clause, /created_by IS NULL/)
+  assert.doesNotMatch(scope.clause, /COALESCE\(r\.created_by/)
+})
+
+test('buildClaimRequestScopeWhere: missing gaId or user id blocks all rows', () => {
+  assert.equal(buildClaimRequestScopeWhere(mockReq({ user: { gaId: null } })).clause, '(FALSE)')
+  assert.equal(buildClaimRequestScopeWhere(mockReq({ user: { id: '' } })).clause, '(FALSE)')
 })

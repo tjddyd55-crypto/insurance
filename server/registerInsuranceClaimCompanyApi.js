@@ -118,6 +118,14 @@ function parsePositiveInt(raw) {
   return n
 }
 
+/** 청구 생성자·삭제자 기록용 로그인 유저 id(users.id text/UUID 그대로). 없으면 null. */
+export function resolveClaimActorUserId(req) {
+  const raw = req.user?.id
+  if (raw == null) return null
+  const id = String(raw).trim()
+  return id ? id : null
+}
+
 function resolveClaimStorageUserId(req, request) {
   const fromUser = req.user?.id
   if (fromUser != null && String(fromUser).trim()) {
@@ -266,7 +274,7 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
       const request = await createDraft(pool, {
         ...input,
         gaId: req.insuranceClaimGaId,
-        createdBy: parsePositiveInt(req.user?.id),
+        createdBy: resolveClaimActorUserId(req),
       })
       res.status(201).json({ request })
     } catch (error) {
@@ -320,7 +328,7 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
         pool,
         req.insuranceClaimGaId,
         parsePositiveInt(req.params.id),
-        parsePositiveInt(req.user?.id),
+        resolveClaimActorUserId(req),
         claimScopeForRequest(req),
       )
       if (!request) return res.status(404).json({ message: '청구 내역을 찾을 수 없습니다.' })
@@ -346,7 +354,7 @@ export function registerInsuranceClaimCompanyApi(apiRouter, { pool, requireAuth,
         pool,
         req.insuranceClaimGaId,
         id,
-        parsePositiveInt(req.user?.id),
+        resolveClaimActorUserId(req),
         claimScopeForRequest(req),
       )
       if (!deleted) {
