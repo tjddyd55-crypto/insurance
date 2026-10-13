@@ -27,6 +27,8 @@ import {
 
 export type ScheduleViewProps = {
   token: string
+  /** 로그인 사용자 id (개인 표시 설정 키). */
+  userKey?: string
   view: ScheduleView
   anchor: string
   today: string
@@ -277,6 +279,7 @@ export function useScheduleState(): ScheduleViewProps {
   }, [navigate, searchParams])
 
   return {
+    userKey,
     token: token ?? '',
     view,
     anchor,

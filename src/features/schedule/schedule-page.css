@@ -462,3 +462,25 @@
 .schedule-page__row-overdue {
   color: var(--danger-text);
 }
+
+/* t270 — PC 달력: 일·공휴일 빨강, 토 파랑 (PC 뷰에서만 클래스가 붙는다) */
+.schedule-page--pc .schedule-page__weekday--sun,
+.schedule-page--pc .schedule-page__cell--sun > .schedule-page__date,
+.schedule-page--pc .schedule-page__cell--holiday > .schedule-page__date,
+.schedule-page--pc .schedule-page__week-day--sun,
+.schedule-page--pc .schedule-page__week-day--holiday { color: #d93025; }
+.schedule-page--pc .schedule-page__weekday--sat,
+.schedule-page--pc .schedule-page__cell--sat > .schedule-page__date,
+.schedule-page--pc .schedule-page__week-day--sat { color: #1a73e8; }
+.schedule-page--pc .schedule-page__cell--muted.schedule-page__cell--sun > .schedule-page__date,
+.schedule-page--pc .schedule-page__cell--muted.schedule-page__cell--holiday > .schedule-page__date,
+.schedule-page--pc .schedule-page__cell--muted.schedule-page__cell--sat > .schedule-page__date { opacity: 0.55; }
+.schedule-page--pc .schedule-page__holiday-name { display: block; font-size: 11px; line-height: 1.2; color: #d93025; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.schedule-page--pc .schedule-page__week-day .schedule-page__holiday-name { display: inline; }
+.schedule-page--pc .schedule-page__holiday-setting { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin: 0 0 6px; font-size: 13px; color: var(--text-secondary); }
+.schedule-page--pc .schedule-page__holiday-label { white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+.schedule-page--pc .schedule-page__holiday-select { min-height: 30px; height: 30px; padding: 0 8px; font-size: 13px; }
+.schedule-page--pc .schedule-page__holiday-legend { display: inline-flex; gap: 8px; }
+.schedule-page--pc .schedule-page__legend::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; background: currentColor; }
+.schedule-page--pc .schedule-page__legend--sun { color: #d93025; }
+.schedule-page--pc .schedule-page__legend--sat { color: #1a73e8; }
