@@ -75,6 +75,7 @@ function formatPromotionStatsDateTime(value: string | null): string {
 
 function formatPromotionBenefitStatus(status: string | undefined): string {
   if (status === 'active') return '혜택 중'
+  if (status === 'scheduled') return '예약(대기)'
   if (status === 'ended') return '종료'
   return '—'
 }

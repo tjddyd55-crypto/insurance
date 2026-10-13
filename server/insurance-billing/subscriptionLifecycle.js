@@ -728,7 +728,7 @@ export async function applyFreeMonthsPromotion(client, params) {
     client,
     `
     SELECT id, tenant_id, status, trial_started_at, trial_ends_at,
-           current_period_start, current_period_end, next_billing_at
+           current_period_start, current_period_end, next_billing_at, promotion_code_id
     FROM billing_subscriptions
     WHERE user_id = $1
     LIMIT 1
@@ -811,6 +811,9 @@ export async function applyFreeMonthsPromotion(client, params) {
         freeMonths,
         code: promo.code,
         extensionBaseAt: extensionBaseIso,
+        // 구독에만 남아 있던 이전 쿠폰 흔적을 덮어쓰기 전에 보존 → 같은 쿠폰 재등록 차단에 사용
+        previousSubscriptionPromotionCodeId:
+          sub.promotion_code_id != null ? String(sub.promotion_code_id) : null,
       }),
     ],
   )
