@@ -43,16 +43,16 @@ async function loadShareForImport(client, shareId, scope) {
   return row
 }
 
-async function loadShareSnapshotInTransaction(client, shareId) {
+async function loadShareSnapshotInTransaction(client, shareId, gaId) {
   const sections = await safeQuery(
     client,
     `
     SELECT id, title, sort_order
     FROM personal_binder_ga_share_sections
-    WHERE share_id = $1
+    WHERE share_id = $1 AND ga_id = $2
     ORDER BY sort_order ASC, id ASC
     `,
-    [shareId],
+    [shareId, gaId],
   )
   const items = await safeQuery(
     client,
@@ -69,21 +69,22 @@ async function loadShareSnapshotInTransaction(client, shareId) {
       f.file_size,
       f.page_count
     FROM personal_binder_ga_share_items i
-    INNER JOIN personal_binder_ga_share_files f ON f.id = i.share_file_id
-    WHERE f.share_id = $1
+    INNER JOIN personal_binder_ga_share_files f
+      ON f.id = i.share_file_id AND f.ga_id = i.ga_id
+    WHERE f.share_id = $1 AND f.ga_id = $2
     ORDER BY i.share_section_id, i.sort_order ASC, i.id ASC
     `,
-    [shareId],
+    [shareId, gaId],
   )
   const shareFiles = await safeQuery(
     client,
     `
     SELECT id, object_key, material_title, original_file_name, mime_type, file_size, page_count, checksum_sha256
     FROM personal_binder_ga_share_files
-    WHERE share_id = $1
+    WHERE share_id = $1 AND ga_id = $2
     ORDER BY id ASC
     `,
-    [shareId],
+    [shareId, gaId],
   )
   const bySection = new Map()
   for (const item of items.rows) {
@@ -228,6 +229,7 @@ export async function importSharedPersonalBinder(pool, scope, gaCode, shareId, i
         reason: 'import_retry_cleanup',
         importJobId: Number(existingJob.id),
         userId: scope.userId,
+        gaId: scope.gaId,
       })
     }
     await safeQuery(
@@ -241,9 +243,9 @@ export async function importSharedPersonalBinder(pool, scope, gaCode, shareId, i
           staged_object_keys = '[]'::jsonb,
           reserved_bytes = 0,
           copied_share_files = '{}'::jsonb
-      WHERE id = $1
+      WHERE id = $1 AND ga_id = $2
       `,
-      [existingJob.id],
+      [existingJob.id, scope.gaId],
     )
   }
 
@@ -254,7 +256,7 @@ export async function importSharedPersonalBinder(pool, scope, gaCode, shareId, i
   try {
     await client.query('BEGIN')
     const shareRow = await loadShareForImport(client, shareId, scope)
-    const snapshot = await loadShareSnapshotInTransaction(client, shareId)
+    const snapshot = await loadShareSnapshotInTransaction(client, shareId, scope.gaId)
     snapshot.title = shareRow.title
     snapshot.description = shareRow.description
 
@@ -306,9 +308,9 @@ export async function importSharedPersonalBinder(pool, scope, gaCode, shareId, i
         `
         UPDATE personal_binder_ga_share_import_jobs
         SET staged_object_keys = $1::jsonb, updated_at = NOW()
-        WHERE id = $2
+        WHERE id = $2 AND ga_id = $3
         `,
-        [JSON.stringify(stagedObjectKeys), jobId],
+        [JSON.stringify(stagedObjectKeys), jobId, scope.gaId],
       )
 
       const buffer = await consentGetBuffer(destKey)
@@ -398,9 +400,9 @@ export async function importSharedPersonalBinder(pool, scope, gaCode, shareId, i
           completed_at = NOW(),
           updated_at = NOW(),
           staged_object_keys = '[]'::jsonb
-      WHERE id = $2
+      WHERE id = $2 AND ga_id = $3
       `,
-      [newBinderId, jobId],
+      [newBinderId, jobId, scope.gaId],
     )
 
     await client.query('COMMIT')
@@ -414,6 +416,7 @@ export async function importSharedPersonalBinder(pool, scope, gaCode, shareId, i
       shareId,
       importJobId: jobId,
       userId: scope.userId,
+      gaId: scope.gaId,
     })
     await safeQuery(
       pool,
