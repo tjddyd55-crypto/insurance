@@ -37,3 +37,14 @@ test('active_paid user — extends from current period end', () => {
   assert.equal(formatKstDate(endAt), '2027-01-21')
   assert.equal(resolvePromotionApplyTargetStatus('active_paid'), 'active_paid')
 })
+
+test('chains after an already-registered (reserved) coupon benefit end', async () => {
+  const { resolvePromotionExtensionBaseDate } = await import('./promotionPeriodExtension.js')
+  const now = new Date('2026-10-13T00:00:00Z')
+  const sub = {
+    trial_ends_at: '2026-12-01T00:00:00Z',
+    current_period_end: null,
+    promotion_benefit_ends_at: new Date('2027-03-01T00:00:00Z'),
+  }
+  assert.equal(resolvePromotionExtensionBaseDate(sub, now).toISOString(), '2027-03-01T00:00:00.000Z')
+})

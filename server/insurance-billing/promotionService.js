@@ -88,12 +88,12 @@ export async function validateInsurancePromotionCode(executor, params) {
 
   if (params.userId) {
     try {
-      await assertUserBillingPromotionNotAlreadyUsed(executor, params.userId)
+      await assertUserBillingPromotionNotAlreadyUsed(executor, params.userId, row.id)
     } catch {
       return {
         valid: false,
         code: row.code,
-        message: '이미 프로모션 코드를 사용한 계정입니다.',
+        message: '이미 사용한 쿠폰입니다. 같은 쿠폰은 한 번만 등록할 수 있습니다.',
         errorCode: PROMOTION_ALREADY_USED_ERROR_CODE,
       }
     }

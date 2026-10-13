@@ -427,7 +427,24 @@ describe('insurance billing manage service', () => {
 })
 
 describe('insurance billing promotion redemption policy', () => {
-  it('rejects when user already redeemed any billing promotion', async () => {
+  it('allows a different coupon even if another coupon was redeemed', async () => {
+    const { assertUserBillingPromotionNotAlreadyUsed } = await import('./billingPromotionRedemptionPolicy.js')
+    const seen = []
+    const executor = {
+      query: async (sql, params) => {
+        seen.push(params)
+        const usedCodeId = '9'
+        if (String(sql).includes('billing_promotion_redemptions') || String(sql).includes('billing_subscriptions')) {
+          return params?.[1] === usedCodeId ? { rows: [{}], rowCount: 1 } : { rows: [], rowCount: 0 }
+        }
+        return { rows: [], rowCount: 0 }
+      },
+    }
+    await assertUserBillingPromotionNotAlreadyUsed(executor, 'user-1', 10)
+    await assert.rejects(() => assertUserBillingPromotionNotAlreadyUsed(executor, 'user-1', 9), /promotion_already_used/)
+  })
+
+  it('rejects when user already redeemed the same billing promotion', async () => {
     const { assertUserBillingPromotionNotAlreadyUsed } = await import('./billingPromotionRedemptionPolicy.js')
     const executor = {
       query: async (sql) => {
@@ -438,17 +455,17 @@ describe('insurance billing promotion redemption policy', () => {
       },
     }
     await assert.rejects(
-      () => assertUserBillingPromotionNotAlreadyUsed(executor, 'user-1'),
+      () => assertUserBillingPromotionNotAlreadyUsed(executor, 'user-1', 9),
       /promotion_already_used/,
     )
   })
 
-  it('rejects when subscription already has promotion_code_id', async () => {
+  it('rejects when subscription already has the same promotion_code_id', async () => {
     const { assertUserBillingPromotionNotAlreadyUsed } = await import('./billingPromotionRedemptionPolicy.js')
     const executor = {
       query: async (sql) => {
         if (String(sql).includes('billing_promotion_redemptions')) {
-          return { rows: [{ count: 0 }], rowCount: 1 }
+          return { rows: [], rowCount: 0 }
         }
         if (String(sql).includes('billing_subscriptions')) {
           return { rows: [{ promotion_code_id: 9 }], rowCount: 1 }
@@ -457,12 +474,12 @@ describe('insurance billing promotion redemption policy', () => {
       },
     }
     await assert.rejects(
-      () => assertUserBillingPromotionNotAlreadyUsed(executor, 'user-1'),
+      () => assertUserBillingPromotionNotAlreadyUsed(executor, 'user-1', 9),
       /promotion_already_used/,
     )
   })
 
-  it('validateInsurancePromotionCode returns PROMOTION_ALREADY_USED for repeat attempt', async () => {
+  it('validateInsurancePromotionCode returns PROMOTION_ALREADY_USED for repeat of the same coupon', async () => {
     const { validateInsurancePromotionCode } = await import('./promotionService.js')
     const { PROMOTION_ALREADY_USED_ERROR_CODE } = await import('./billingPromotionRedemptionPolicy.js')
     const promoRow = {
@@ -508,7 +525,7 @@ describe('insurance billing promotion redemption policy', () => {
     }
 
     const result = await validateInsurancePromotionCode(executor, {
-      code: 'OTHER-CODE',
+      code: 'UGGXAMJL',
       userId: 'user-with-uggxamjl',
     })
     assert.equal(result.valid, false)
@@ -537,7 +554,7 @@ describe('insurance billing promotion redemption policy', () => {
           return { rows: [promoRow], rowCount: 1 }
         }
         if (String(sql).includes('billing_promotion_redemptions')) {
-          return { rows: [{ count: 0 }], rowCount: 1 }
+          return { rows: [], rowCount: 0 }
         }
         if (String(sql).includes('billing_subscriptions')) {
           return { rows: [], rowCount: 0 }
@@ -597,7 +614,7 @@ describe('insurance billing referral discount count', () => {
     const executor = {
       query: async (sql) => {
         if (String(sql).includes('FROM billing_referrals') && String(sql).includes('active_paid')) {
-          return { rows: [{ count: 0 }], rowCount: 1 }
+          return { rows: [], rowCount: 0 }
         }
         return { rows: [], rowCount: 0 }
       },

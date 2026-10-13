@@ -47,8 +47,13 @@ export type BillingPromotionCodeStatsResponse = {
   recentRedemptions: Array<{
     id: number
     userId: string
+    username?: string | null
+    displayName?: string | null
     redeemedAt: string | null
+    freeStartsAt?: string | null
     freeEndsAt: string | null
+    benefitStatus?: 'active' | 'scheduled' | 'ended' | 'unknown'
+    subscriptionStatus?: string | null
   }>
 }
 

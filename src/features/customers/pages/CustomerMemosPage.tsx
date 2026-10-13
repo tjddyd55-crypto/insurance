@@ -67,7 +67,7 @@ export default function CustomerMemosPage() {
     [customer?.name, customerId],
   )
 
-  const memoSectionClassName = `customer-workspace-home${isMobile ? ' customer-memos-page--mobile' : ''}`
+  const memoSectionClassName = `customer-workspace-home${isMobile ? ' customer-memos-page--mobile' : ' customer-memos-page--pc'}`
 
   if (!customerId || customerId < 1) {
     const inner = (

@@ -1,6 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import { INSURANCE_BASIC_PLAN_CODE, isInsuranceBillingEnabled } from './config.js'
-import { assertUserBillingPromotionNotAlreadyUsed } from './billingPromotionRedemptionPolicy.js'
+import {
+  assertUserBillingPromotionNotAlreadyUsed,
+  loadLatestBillingPromotionBenefitEnd,
+  lockUserBillingPromotionScope,
+  reserveBillingPromotionUsage,
+} from './billingPromotionRedemptionPolicy.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { resolveTenantByGaId } from '../lib/crmPlatformMeta.js'
 import { assertNoActivePendingInsurancePayment } from './pendingPaymentPolicy.js'
@@ -705,9 +710,10 @@ export async function requestInsurancePayment(client, params) {
  */
 export async function applyFreeMonthsPromotion(client, params) {
   const userId = String(params.userId ?? '').trim()
-  await assertUserBillingPromotionNotAlreadyUsed(client, userId)
-
   const promo = params.promotionRow
+  // 동시 요청 직렬화 → 같은 쿠폰 재등록 검사 (잠금 이후라 중복 적용 불가)
+  await lockUserBillingPromotionScope(client, userId)
+  await assertUserBillingPromotionNotAlreadyUsed(client, userId, promo?.id)
   const freeMonthsRaw = Number(promo.free_months ?? 0) || 0
   const freeMonths = Math.min(12, Math.max(1, Math.floor(freeMonthsRaw)))
   if (freeMonthsRaw < 1) {
@@ -722,7 +728,7 @@ export async function applyFreeMonthsPromotion(client, params) {
     client,
     `
     SELECT id, tenant_id, status, trial_started_at, trial_ends_at,
-           current_period_start, current_period_end, next_billing_at
+           current_period_start, current_period_end, next_billing_at, promotion_code_id
     FROM billing_subscriptions
     WHERE user_id = $1
     LIMIT 1
@@ -745,8 +751,11 @@ export async function applyFreeMonthsPromotion(client, params) {
     sub = ins.rows[0]
   }
 
-  const extensionBaseDate = resolvePromotionExtensionBaseDate(sub, now)
-  const entitlementEndsAt = computeFreeMonthsPromotionEndAt(sub, freeMonths, now)
+  // 이미 등록된 쿠폰 혜택(예약 포함)의 종료 시점도 이어 붙이기 기준에 포함한다.
+  const latestBenefitEnd = await loadLatestBillingPromotionBenefitEnd(client, userId)
+  const chainSub = { ...sub, promotion_benefit_ends_at: latestBenefitEnd }
+  const extensionBaseDate = resolvePromotionExtensionBaseDate(chainSub, now)
+  const entitlementEndsAt = computeFreeMonthsPromotionEndAt(chainSub, freeMonths, now)
   const nextStatus = resolvePromotionApplyTargetStatus(sub.status)
   const entitlementEndsAtIso = entitlementEndsAt.toISOString()
   const extensionBaseIso = extensionBaseDate.toISOString()
@@ -802,15 +811,14 @@ export async function applyFreeMonthsPromotion(client, params) {
         freeMonths,
         code: promo.code,
         extensionBaseAt: extensionBaseIso,
+        // 구독에만 남아 있던 이전 쿠폰 흔적을 덮어쓰기 전에 보존 → 같은 쿠폰 재등록 차단에 사용
+        previousSubscriptionPromotionCodeId:
+          sub.promotion_code_id != null ? String(sub.promotion_code_id) : null,
       }),
     ],
   )
 
-  await systemQuery(
-    client,
-    `UPDATE billing_promotion_codes SET used_count = used_count + 1, updated_at = NOW() WHERE id = $1`,
-    [promo.id],
-  )
+  await reserveBillingPromotionUsage(client, promo.id)
 
   await recordBillingEvent(client, {
     tenantId: sub.tenant_id,

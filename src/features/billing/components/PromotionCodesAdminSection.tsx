@@ -49,6 +49,37 @@ function statusLabel(row: BillingPromotionCodeAdminRow) {
   return row.isActive ? '활성' : '비활성'
 }
 
+/** 유저 관리 화면과 같은 표기: 이름 (아이디). 사용자 정보가 없을 때만 id를 보조로 노출한다. */
+function formatPromotionRedemptionUser(item: { userId: string; username?: string | null; displayName?: string | null }): string {
+  const name = String(item.displayName ?? '').trim()
+  const username = String(item.username ?? '').trim()
+  if (name && username) return `${name} (${username})`
+  if (name || username) return name || username
+  return item.userId ? `알 수 없는 사용자 (${item.userId.slice(0, 8)}…)` : '—'
+}
+
+function formatPromotionStatsDateTime(value: string | null): string {
+  if (!value) return '—'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleString('ko-KR', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+}
+
+function formatPromotionBenefitStatus(status: string | undefined): string {
+  if (status === 'active') return '혜택 중'
+  if (status === 'scheduled') return '예약(대기)'
+  if (status === 'ended') return '종료'
+  return '—'
+}
+
 export default function PromotionCodesAdminSection({ token, busy, setBusy, onInfo, onError }: Props) {
   const [filter, setFilter] = useState<BillingPromotionListFilter>('all')
   const [rows, setRows] = useState<BillingPromotionCodeAdminRow[]>([])
@@ -325,14 +356,30 @@ export default function PromotionCodesAdminSection({ token, busy, setBusy, onInf
             <dd>{formatBillingPromotionBenefitLabel(statsTarget.promotion)}</dd>
           </dl>
           {statsTarget.recentRedemptions.length > 0 ? (
-            <ul className="billing-page__policy-list">
-              {statsTarget.recentRedemptions.map((item) => (
-                <li key={item.id}>
-                  {item.userId} · {item.redeemedAt ?? ''}
-                  {item.freeEndsAt ? ` · 무료 종료 ${item.freeEndsAt}` : ''}
-                </li>
-              ))}
-            </ul>
+            <div className="admin-data-table-wrap">
+              <table className="admin-data-table">
+                <thead>
+                  <tr>
+                    <th scope="col">사용자</th>
+                    <th scope="col">사용일</th>
+                    <th scope="col">혜택 시작</th>
+                    <th scope="col">혜택 종료</th>
+                    <th scope="col">상태</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {statsTarget.recentRedemptions.map((item) => (
+                    <tr key={item.id}>
+                      <td>{formatPromotionRedemptionUser(item)}</td>
+                      <td>{formatPromotionStatsDateTime(item.redeemedAt)}</td>
+                      <td>{formatPromotionStatsDateTime(item.freeStartsAt ?? null)}</td>
+                      <td>{formatPromotionStatsDateTime(item.freeEndsAt)}</td>
+                      <td>{formatPromotionBenefitStatus(item.benefitStatus)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : (
             <p className="status text-sm">사용 내역이 없습니다.</p>
           )}
