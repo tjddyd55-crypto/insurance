@@ -116,10 +116,16 @@ export default function CustomerMemosPage() {
 
   const mainSection = (
     <section className={memoSectionClassName}>
-      <h3 className="customer-workspace-home__title">고객 메모</h3>
-      <p className="customer-workspace-home__desc">
-        고객 #{customer.id} · {customer.name}
-      </p>
+      {isMobile ? (
+        <>
+          <h3 className="customer-workspace-home__title">고객 메모</h3>
+          <p className="customer-workspace-home__desc">
+            고객 #{customer.id} · {customer.name}
+          </p>
+        </>
+      ) : (
+        <h3 className="customer-workspace-home__title customer-memos-page__pc-title">메모</h3>
+      )}
       <CustomerInlineNotesSection
         key={customer.id}
         customer={customer}
