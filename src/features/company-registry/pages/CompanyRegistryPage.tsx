@@ -5,6 +5,14 @@ import { FieldWrapper, FormButton, FormInput, FormSelect } from '../../../compon
 import { ApiError } from '../../../lib/apiClient'
 import { logger } from '../../../lib/logger'
 import { useAuth } from '../../auth/AuthProvider'
+import { getInsuranceContacts } from '../../contacts/api/contactsApi'
+import { personalContactsForCompany } from '../../contacts/utils/personalContactsDirectoryView'
+import {
+  personalContactsToDrafts,
+  savePersonalRegistryContacts,
+  type PersonalRegistryContactDraft,
+} from '../../contacts/utils/savePersonalRegistryContacts'
+import { isGaMemberUser } from '../../entitlements/featureEntitlementPolicy'
 import { GaStaffOpsNav } from '../../auth/GaStaffOpsNav'
 import '../../auth/ga-staff-ops-shell.css'
 import { canMutateInsuranceDirectory, isInsuranceOpsRole } from '../../auth/roleGuards'
@@ -87,8 +95,11 @@ export default function CompanyRegistryPage() {
   const { confirm, confirmDialog } = useConfirmDialog()
   const isOps = isAuthenticated && !!user && isInsuranceOpsRole(user.role)
   const isGaStaff = user?.role === 'GA_STAFF'
-  const canMutate = isOps && canMutateInsuranceDirectory(user.role)
-  const readOnlyUi = isOps && !canMutate
+  const personalOwnership = isAuthenticated && !!user && !isGaMemberUser(user)
+  const canMutate = personalOwnership
+    ? user?.role === 'USER'
+    : isOps && canMutateInsuranceDirectory(user.role)
+  const readOnlyUi = personalOwnership ? !canMutate : isOps && !canMutate
   const opsShellClass = isOps ? ' admin-page-shell ga-staff-ops-page' : ''
 
   const [list, setList] = useState<CompanyDirectoryEntry[]>([])
@@ -107,7 +118,8 @@ export default function CompanyRegistryPage() {
     name: '',
     ...EMPTY_COMPANY_FIELDS,
   })
-  const [contacts, setContacts] = useState<InsuranceCompanyContactDraft[]>([{ ...EMPTY_CONTACT }])
+  const [contacts, setContacts] = useState<PersonalRegistryContactDraft[]>([{ ...EMPTY_CONTACT }])
+  const [personalContacts, setPersonalContacts] = useState<Awaited<ReturnType<typeof getInsuranceContacts>>['contacts']>([])
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   /** 목록만 갱신됐을 때 사용자가 이미 칸을 수정 중이면 폼을 덮어쓰지 않음 */
@@ -245,6 +257,19 @@ export default function CompanyRegistryPage() {
     return findSavedEntryForSelection(list, selectedType, selectedCompanyCode) != null
   }, [list, selectedType, selectedCompanyCode])
 
+  const loadPersonalContacts = useCallback(async () => {
+    if (!token || !personalOwnership) {
+      setPersonalContacts([])
+      return
+    }
+    try {
+      const response = await getInsuranceContacts(token)
+      setPersonalContacts(response.contacts)
+    } catch {
+      setPersonalContacts([])
+    }
+  }, [personalOwnership, token])
+
   const loadList = useCallback(async () => {
     if (!token) {
       return
@@ -252,10 +277,13 @@ export default function CompanyRegistryPage() {
     try {
       const rows = await listCompanyDirectory(token)
       setList(rows)
+      if (personalOwnership) {
+        await loadPersonalContacts()
+      }
     } catch (error) {
       showInlineStatus(error instanceof Error ? error.message : '목록을 불러오지 못했습니다.', 'error')
     }
-  }, [token, showInlineStatus])
+  }, [loadPersonalContacts, personalOwnership, token, showInlineStatus])
 
   useEffect(() => {
     void loadList()
@@ -308,6 +336,14 @@ export default function CompanyRegistryPage() {
     }
   }, [list, selectedType, selectedCompanyCode])
 
+  useEffect(() => {
+    if (!personalOwnership || !isInsuranceCategory(company.category) || !company.name.trim()) {
+      return
+    }
+    const rows = personalContactsForCompany(personalContacts, company.category, company.name)
+    setContacts(personalContactsToDrafts(rows))
+  }, [company.category, company.name, personalContacts, personalOwnership, selectedCompanyCode])
+
   /**
    * 등록 목록 클릭: 분류 확정 시에는 드롭다운과 같이 선택값만 바꾸고,
    * 폼/연락처 반영은 loadCompanyData 동기화 useEffect 한 경로에서 처리합니다.
@@ -358,7 +394,10 @@ export default function CompanyRegistryPage() {
 
   const handleSave = async () => {
     if (!canMutate || !token) {
-      showInlineStatus('연락처 저장은 GA 스태프 이상만 가능합니다.', 'error')
+      showInlineStatus(
+        personalOwnership ? '로그인 후 저장할 수 있습니다.' : '연락처 저장은 GA 스태프 이상만 가능합니다.',
+        'error',
+      )
       return
     }
     if (!isInsuranceCategory(company.category)) {
@@ -378,6 +417,19 @@ export default function CompanyRegistryPage() {
     setSaveFeedbackKind(null)
     setSaveFeedbackText('')
     try {
+      if (personalOwnership) {
+        await savePersonalRegistryContacts(
+          token,
+          company.category,
+          company.name.trim(),
+          contacts,
+          personalContacts,
+        )
+        pendingLocalEditRef.current = false
+        await loadPersonalContacts()
+        showSaveFeedback(`${company.name.trim()} 연락처를 저장했습니다.`, 'success', SAVE_SUCCESS_CLEAR_MS)
+        return
+      }
       const body = {
         company: {
           ...(company.id != null ? { id: company.id } : {}),
@@ -417,6 +469,9 @@ export default function CompanyRegistryPage() {
   }
 
   const handleHardDelete = async () => {
+    if (personalOwnership) {
+      return
+    }
     if (!canMutate || !token || company.id == null) {
       showInlineStatus('삭제는 GA 스태프 이상만 가능하며, 이미 등록된 보험사만 삭제할 수 있습니다.', 'error')
       return
@@ -493,7 +548,7 @@ export default function CompanyRegistryPage() {
         </p>
       </header>
 
-      {isOps ? (
+      {isOps || personalOwnership ? (
         <section className="card company-registry-directory-card">
           <h2 className="dashboard-section-title">등록된 보험사</h2>
           <p className="company-registry-field-hint" style={{ marginTop: 0 }}>
@@ -524,10 +579,14 @@ export default function CompanyRegistryPage() {
         </section>
       ) : null}
 
-      {isOps ? (
+      {isOps || personalOwnership ? (
         <section className="card company-registry-form-card" aria-busy={isSaving || isDeleting}>
           <h2 className="dashboard-section-title">
-            {readOnlyUi ? '조회 (읽기 전용)' : '입력 · 수정 (GA_ADMIN / GA_STAFF / SUPER_ADMIN)'}
+            {personalOwnership
+              ? '내 원수사 연락처 등록'
+              : readOnlyUi
+                ? '조회 (읽기 전용)'
+                : '입력 · 수정 (GA_ADMIN / GA_STAFF / SUPER_ADMIN)'}
           </h2>
           {readOnlyUi ? (
             <p className="company-registry-field-hint" style={{ marginTop: 0 }}>
@@ -588,22 +647,28 @@ export default function CompanyRegistryPage() {
                   return next
                 })
               }}
-              placeholder="목록에서 선택하거나 신규명을 직접 입력"
-              disabled={readOnlyUi || !selectedType}
+              placeholder={personalOwnership ? '보험사 목록에서 선택' : '목록에서 선택하거나 신규명을 직접 입력'}
+              disabled={readOnlyUi || !selectedType || personalOwnership}
               autoComplete="organization"
             />
           </FieldWrapper>
 
-          {hasDirectoryEntryForSelection ? (
+          {!personalOwnership && hasDirectoryEntryForSelection ? (
             <p className="company-registry-field-hint" style={{ margin: '0 0 10px' }}>
               ✓ 저장된 동일 보험사 데이터를 불러왔습니다. 수정 후 저장하면 갱신됩니다.
             </p>
-          ) : selectedType && selectedCompanyCode.trim() ? (
+          ) : !personalOwnership && selectedType && selectedCompanyCode.trim() ? (
             <p className="company-registry-field-hint" style={{ margin: '0 0 10px' }}>
               ℹ 등록된 데이터가 없습니다. 공통정보·담당자는 비어 있는 상태에서 입력할 수 있습니다.
             </p>
+          ) : personalOwnership ? (
+            <p className="company-registry-field-hint" style={{ margin: '0 0 10px' }}>
+              보험회사를 선택한 뒤 담당자 정보를 입력하고 저장하세요. 등록한 연락처는 본인만 조회·수정할 수 있습니다.
+            </p>
           ) : null}
 
+          {!personalOwnership ? (
+            <>
           <h3 className="company-registry-subtitle">공통정보</h3>
           <div className="field-grid-customers">
             <label className="field">
@@ -657,6 +722,8 @@ export default function CompanyRegistryPage() {
               />
             </label>
           </div>
+            </>
+          ) : null}
 
           <h3 className="company-registry-subtitle">담당자</h3>
           <ul className="company-registry-contact-editor-list">
@@ -726,7 +793,7 @@ export default function CompanyRegistryPage() {
             </p>
           ) : null}
 
-          {!readOnlyUi && company.id != null ? (
+          {!readOnlyUi && !personalOwnership && company.id != null ? (
             <FormButton
               className="button button--full"
               style={{ marginTop: 12, borderColor: 'var(--danger, #b42318)', color: 'var(--danger, #b42318)' }}
