@@ -153,12 +153,26 @@ function resolveCrmAuthGatewayToken(env = process.env) {
   )
 }
 
+/**
+ * 회원가입·휴대폰 인증 SMS가 쓰는 Aligo 계정과 승인 발신번호.
+ * ALIGO_USER_ID / ALIGO_API_KEY / ALIGO_SENDER 를 호출 시점에 읽는다.
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {{ userId: string, apiKey: string, sender: string, ready: boolean }}
+ */
+export function resolveApprovedAligoCredentials(env = process.env) {
+  const userId = String(env.ALIGO_USER_ID ?? '').trim()
+  const apiKey = String(env.ALIGO_API_KEY ?? '').trim()
+  const sender = String(env.ALIGO_SENDER ?? '').trim()
+  return {
+    userId,
+    apiKey,
+    sender,
+    ready: Boolean(userId && apiKey && sender),
+  }
+}
+
 function isAligoCredentialsConfigured(env = process.env) {
-  return Boolean(
-    String(env.ALIGO_API_KEY ?? '').trim() &&
-      String(env.ALIGO_USER_ID ?? '').trim() &&
-      String(env.ALIGO_SENDER ?? '').trim(),
-  )
+  return resolveApprovedAligoCredentials(env).ready
 }
 
 function isCrmAuthGatewayConfigured(env = process.env) {
