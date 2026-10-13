@@ -1,3 +1,4 @@
+import { loadLatestBillingPromotionBenefitEnd } from './billingPromotionRedemptionPolicy.js'
 /**
  * Checkout quote SSOT — 화면 표시 금액과 Toss 청구액을 같은 계산으로 맞춤.
  * 쿠폰 엔진(validateInsurancePromotionCode) 재사용. 신규 coupon system 금지.
@@ -154,12 +155,15 @@ export async function buildCheckoutQuote(executor, params) {
   if (isFreeMonths && coupon?.freeMonths) {
     benefitKind = 'free_months'
     todayChargeAmount = 0
-    const entitlementEnd = computeFreeMonthsPromotionEndAt(subscription, coupon.freeMonths, now)
+    // 실제 적용(applyFreeMonthsPromotion)과 같은 기준: 등록된 쿠폰 혜택(예약 포함) 종료 시점도 이어 붙인다.
+    const latestBenefitEnd = userId ? await loadLatestBillingPromotionBenefitEnd(executor, userId) : null
+    const chainSub = subscription || latestBenefitEnd ? { ...(subscription ?? {}), promotion_benefit_ends_at: latestBenefitEnd } : null
+    const entitlementEnd = computeFreeMonthsPromotionEndAt(chainSub, coupon.freeMonths, now)
     nextBillingAt = entitlementEnd.toISOString()
     nextChargeAmount = resolvePlanPaymentAmounts(plan, billingCycle).totalAmount
     const hasFutureEntitlement =
-      Boolean(subscription) &&
-      resolvePromotionExtensionBaseDate(subscription, now).getTime() > now.getTime()
+      Boolean(chainSub) &&
+      resolvePromotionExtensionBaseDate(chainSub, now).getTime() > now.getTime()
     summaryMessage = hasFutureEntitlement
       ? `쿠폰 적용 시 현재 이용기간 종료 후 ${coupon.freeMonths}개월이 추가되어 ${entitlementEnd.toLocaleDateString('ko-KR')}까지 이용할 수 있습니다.`
       : `오늘 결제는 없고 ${coupon.freeMonths}개월 무료 이용 후 ${nextChargeAmount.toLocaleString('ko-KR')}원이 자동결제됩니다.`

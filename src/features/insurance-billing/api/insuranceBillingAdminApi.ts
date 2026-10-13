@@ -52,7 +52,7 @@ export type BillingPromotionCodeStatsResponse = {
     redeemedAt: string | null
     freeStartsAt?: string | null
     freeEndsAt: string | null
-    benefitStatus?: 'active' | 'ended' | 'unknown'
+    benefitStatus?: 'active' | 'scheduled' | 'ended' | 'unknown'
     subscriptionStatus?: string | null
   }>
 }

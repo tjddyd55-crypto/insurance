@@ -26,7 +26,11 @@ export async function assertUserBillingPromotionNotAlreadyUsed(executor, userId,
     `
     SELECT 1
     FROM billing_promotion_redemptions
-    WHERE user_id = $1 AND promotion_code_id = $2::bigint
+    WHERE user_id = $1
+      AND (
+        promotion_code_id = $2::bigint
+        OR discount_snapshot_json->>'previousSubscriptionPromotionCodeId' = $2::text
+      )
     LIMIT 1
     `,
     [uid, codeId],

@@ -487,7 +487,15 @@ export async function getBillingPromotionCodeStatsAdmin(executor, codeId) {
  */
 export function mapBillingPromotionRedemptionRow(item, nowMs = Date.now()) {
   const endsAt = item.free_ends_at ? new Date(item.free_ends_at) : null
-  const benefitStatus = endsAt == null ? 'unknown' : endsAt.getTime() > nowMs ? 'active' : 'ended'
+  const startsAt = item.free_starts_at ? new Date(item.free_starts_at) : null
+  const benefitStatus =
+    endsAt == null
+      ? 'unknown'
+      : endsAt.getTime() <= nowMs
+        ? 'ended'
+        : startsAt && startsAt.getTime() > nowMs
+          ? 'scheduled'
+          : 'active'
   return {
     id: Number(item.id),
     userId: item.user_id,
