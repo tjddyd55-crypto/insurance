@@ -229,12 +229,12 @@ export function PersonalBinderExplorerTree({
 
   return (
     <aside className="personal-binder-explorer-tree" aria-label="바인더 탐색">
-      <div className="personal-binder-explorer-tree__header">
-        <h2 className="personal-binder-explorer-tree__title">바인더 폴더</h2>
+      <header className="personal-binder-studio-pane__header personal-binder-explorer-tree__header">
+        <h2 className="personal-binder-studio-pane__title">바인더 폴더</h2>
         <FormButton variant="secondary" size="sm" disabled={disabled || busy} onClick={onCreateBinder}>
           + 바인더
         </FormButton>
-      </div>
+      </header>
 
       <div className="personal-binder-explorer-tree__body">
         <div className="personal-binder-explorer-tree__group">

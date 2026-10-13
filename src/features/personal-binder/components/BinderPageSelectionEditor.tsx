@@ -18,6 +18,7 @@ import {
 } from '../domain/pageSelection'
 import { useBinderPdfDocument } from '../hooks/useBinderPdfDocument'
 import type { PersonalBinder, PersonalBinderMaterial } from '../personalBinder.types'
+import { splitBinderFileDisplayName } from '../utils/binderFileDisplay'
 import { BinderPdfPageCanvas, BinderPdfThumbnail } from './BinderPdfCanvas'
 
 export type BinderPageSelectionEditorHandle = {
@@ -268,18 +269,70 @@ export const BinderPageSelectionEditor = forwardRef<
     presentation === 'panel' ? 'personal-binder-page-editor--panel' : 'personal-binder-page-editor--modal',
   ].join(' ')
 
+  const fileDisplay = splitBinderFileDisplayName(material)
+  const fileLabel = `${fileDisplay.baseName}.${fileDisplay.extension.toLowerCase()}`
+  const panelMode = presentation === 'panel' && !isMobile
+
+  const selectionSummary =
+    mode === 'all'
+      ? `${pageCount}페이지 전체`
+      : `선택 ${formatSelectedPages(selected) || '없음'}`
+
+  const panelToolbar = panelMode ? (
+    <section className="personal-binder-page-toolbar personal-binder-page-toolbar--panel" aria-label="페이지 선택">
+      <FormButton
+        size="sm"
+        variant={mode === 'all' ? 'primary' : 'secondary'}
+        onClick={activateAllMode}
+      >
+        전체 페이지
+      </FormButton>
+      <FormButton
+        size="sm"
+        variant={mode === 'partial' ? 'primary' : 'secondary'}
+        onClick={activatePartialMode}
+      >
+        일부 페이지
+      </FormButton>
+      {mode === 'partial' ? (
+        <>
+          <FormInput
+            className="personal-binder-page-toolbar__range"
+            value={rangeInput}
+            onChange={(event) => setRangeInput(event.target.value)}
+            placeholder="예: 3-6, 9"
+            aria-label="페이지 범위"
+          />
+          <FormButton size="sm" variant="secondary" onClick={applyRange}>범위 적용</FormButton>
+          <FormButton size="sm" variant="action" onClick={() => setPartialSelection(pages)}>전체 선택</FormButton>
+          <FormButton size="sm" variant="action" onClick={() => setPartialSelection([])}>전체 해제</FormButton>
+        </>
+      ) : null}
+      <span className="personal-binder-page-toolbar__summary">{selectionSummary}</span>
+      <FormButton size="sm" variant="primary" onClick={complete}>적용</FormButton>
+    </section>
+  ) : null
+
   return (
     <div ref={rootRef} className={shellClass}>
       <header
         className={[
           'personal-binder-page-dialog__header',
           presentation === 'panel' ? 'personal-binder-page-dialog__header--panel' : '',
+          panelMode ? 'personal-binder-studio-pane__header' : '',
         ]
           .filter(Boolean)
           .join(' ')}
       >
         <div className="personal-binder-page-dialog__header-copy">
-          {presentation === 'panel' ? (
+          {panelMode ? (
+            <>
+              <h2 className="personal-binder-studio-pane__title">미리보기</h2>
+              <p className="personal-binder-studio-pane__meta" title={fileLabel}>
+                {fileLabel} · 원본 {pageCount}페이지 · 사용 {usedPageCount}페이지
+              </p>
+            </>
+          ) : presentation === 'panel' ? (
             <>
               <h2 className="personal-binder-page-panel-header__title">{material.title}</h2>
               <p className="personal-binder-page-panel-header__meta">
@@ -294,7 +347,7 @@ export const BinderPageSelectionEditor = forwardRef<
           )}
         </div>
         {presentation === 'panel' ? (
-          <FormButton variant="action" size="sm" onClick={() => void requestClose()}>닫기</FormButton>
+          <FormButton variant="secondary" size="sm" onClick={() => void requestClose()}>닫기</FormButton>
         ) : null}
       </header>
 
@@ -353,41 +406,45 @@ export const BinderPageSelectionEditor = forwardRef<
         </div>
       )}
 
-      <section className="personal-binder-page-options">
-        <div className="personal-binder-segmented">
-          <FormButton variant={mode === 'all' ? 'primary' : 'secondary'} onClick={activateAllMode}>
-            전체 페이지 사용
-          </FormButton>
-          <FormButton variant={mode === 'partial' ? 'primary' : 'secondary'} onClick={activatePartialMode}>
-            일부 페이지만 사용
-          </FormButton>
-        </div>
-        {mode === 'partial' ? (
-          <div className="personal-binder-range-row">
-            <FormInput
-              value={rangeInput}
-              onChange={(event) => setRangeInput(event.target.value)}
-              placeholder="예: 3-6, 9, 12-15"
-              aria-label="페이지 범위"
-            />
-            <FormButton variant="secondary" onClick={applyRange}>범위 적용</FormButton>
-            <FormButton variant="action" onClick={() => setPartialSelection(pages)}>전체 선택</FormButton>
-            <FormButton variant="action" onClick={() => setPartialSelection([])}>전체 해제</FormButton>
-          </div>
-        ) : null}
-        {rangeError ? <p className="personal-binder-error">{rangeError}</p> : null}
-      </section>
+      {panelToolbar}
 
-      <footer className="personal-binder-page-dialog__footer">
-        <span className="personal-binder-page-dialog__footer-summary">
-          {mode === 'all'
-            ? `${pageCount}페이지 전체`
-            : `선택: ${formatSelectedPages(selected) || '없음'}`}
-        </span>
-        <FormButton variant="primary" onClick={complete}>
-          {presentation === 'panel' ? '적용' : '선택 완료'}
-        </FormButton>
-      </footer>
+      {!panelMode ? (
+        <>
+          <section className="personal-binder-page-options">
+            <div className="personal-binder-segmented">
+              <FormButton variant={mode === 'all' ? 'primary' : 'secondary'} onClick={activateAllMode}>
+                전체 페이지 사용
+              </FormButton>
+              <FormButton variant={mode === 'partial' ? 'primary' : 'secondary'} onClick={activatePartialMode}>
+                일부 페이지만 사용
+              </FormButton>
+            </div>
+            {mode === 'partial' ? (
+              <div className="personal-binder-range-row">
+                <FormInput
+                  value={rangeInput}
+                  onChange={(event) => setRangeInput(event.target.value)}
+                  placeholder="예: 3-6, 9, 12-15"
+                  aria-label="페이지 범위"
+                />
+                <FormButton variant="secondary" onClick={applyRange}>범위 적용</FormButton>
+                <FormButton variant="action" onClick={() => setPartialSelection(pages)}>전체 선택</FormButton>
+                <FormButton variant="action" onClick={() => setPartialSelection([])}>전체 해제</FormButton>
+              </div>
+            ) : null}
+            {rangeError ? <p className="personal-binder-error">{rangeError}</p> : null}
+          </section>
+
+          <footer className="personal-binder-page-dialog__footer">
+            <span className="personal-binder-page-dialog__footer-summary">{selectionSummary}</span>
+            <FormButton variant="primary" onClick={complete}>
+              {presentation === 'panel' ? '적용' : '선택 완료'}
+            </FormButton>
+          </footer>
+        </>
+      ) : (
+        rangeError ? <p className="personal-binder-error personal-binder-page-toolbar__error">{rangeError}</p> : null
+      )}
       {confirmDialog}
     </div>
   )
