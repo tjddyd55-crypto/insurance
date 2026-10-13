@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   applyNewCardCategoryChange,
   directoryEntryToCardDraft,
+  personalContactsToCardDrafts,
   findDuplicateCard,
   cardDraftMatchesSearch,
   emptyContactRow,
@@ -44,6 +45,24 @@ describe('directoryEntryToCardDraft', () => {
       general: null,
     }
     expect(directoryEntryToCardDraft(entry).category).toBe('NON_LIFE')
+  })
+})
+
+describe('personalContactsToCardDrafts', () => {
+  it('동일 보험회사 담당자 4명은 편집 카드 1개로 묶는다', () => {
+    const contacts = [1, 2, 3, 4].map((n) => ({
+      id: `pc-${n}`,
+      category: 'LIFE' as const,
+      companyName: '한화생명',
+      managerName: `담당${n}`,
+      position: '매니저',
+      phoneNumber: `0101234${n}678`,
+      createdAt: '',
+      updatedAt: '',
+    }))
+    const drafts = personalContactsToCardDrafts(contacts, 'LIFE')
+    expect(drafts).toHaveLength(1)
+    expect(drafts[0].contacts).toHaveLength(4)
   })
 })
 

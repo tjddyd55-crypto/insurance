@@ -84,8 +84,9 @@ export function personalContactsToCardDrafts(
     const first = rows[0]
     const category = first.category as InsuranceCategory
     if (!isInsuranceCategory(category)) continue
+    const companyKey = first.companyName.trim().normalize('NFKC')
     drafts.push({
-      cardKey: `personal-${category}-${first.companyName}`,
+      cardKey: `personal-${category}-${companyKey}`,
       category,
       companyCode: buildStaticCompanyCode(category, first.companyName),
       companyId: null,

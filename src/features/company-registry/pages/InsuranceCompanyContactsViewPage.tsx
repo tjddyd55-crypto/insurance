@@ -28,6 +28,7 @@ import { CompanyContactEditableCard } from '../components/CompanyContactEditable
 import type { CompanyDirectoryEntry } from '../domain/types'
 import { fetchActiveInsurerSites, type InsurerSite } from '../../insurer-sites/api/insurerSitesApi'
 import { filterInsurerCatalogForCategory } from '../domain/insuranceCompanyCatalogOptions'
+import { groupCompanyDirectoryEntriesByMasterId } from '../utils/companyDirectoryViewGrouping'
 import {
   directoryEntryToCardDraft,
   filterVisibleEditDrafts,
@@ -101,6 +102,7 @@ export default function InsuranceCompanyContactsViewPage({
   const [activeTab, setActiveTab] = useState<InsuranceCategory>('LIFE')
   const [keyword, setKeyword] = useState('')
   const [list, setList] = useState<CompanyDirectoryEntry[]>([])
+  const directoryList = useMemo(() => groupCompanyDirectoryEntriesByMasterId(list), [list])
   const [personalContacts, setPersonalContacts] = useState<Awaited<ReturnType<typeof getInsuranceContacts>>['contacts']>([])
   const [changeSummaries, setChangeSummaries] = useState<Map<string, CompanyDirectoryChangeSummary>>(
     () => new Map(),
@@ -198,7 +200,7 @@ export default function InsuranceCompanyContactsViewPage({
   }, [loadInsurerCatalog])
 
   const directoryForTab = useMemo(() => {
-    const byTab = list
+    const byTab = directoryList
       .filter((item) => {
         const tab = resolveTabCategory(item.category, item.name)
         if (tab) {
@@ -212,7 +214,7 @@ export default function InsuranceCompanyContactsViewPage({
       return byTab
     }
     return buildPersonalContactsDirectoryView(byTab, personalContacts, activeTab)
-  }, [activeTab, isPersonalMode, list, personalContacts])
+  }, [activeTab, isPersonalMode, directoryList, personalContacts])
 
   const filteredList = useMemo(() => {
     const q = keyword.trim().toLowerCase()
@@ -269,7 +271,7 @@ export default function InsuranceCompanyContactsViewPage({
     (insurerCatalogError !== '' || filterInsurerCatalogForCategory(insurerCatalog, activeTab).length === 0)
 
   const enterWorkspaceEdit = () => {
-    const initial = buildInitialCardDrafts(isPersonalMode, list, personalContacts)
+    const initial = buildInitialCardDrafts(isPersonalMode, directoryList, personalContacts)
     setBaselineDrafts(cloneDrafts(initial))
     setCardDrafts(cloneDrafts(initial))
     setPinnedEditCardKeys(new Set())
@@ -285,7 +287,7 @@ export default function InsuranceCompanyContactsViewPage({
   }
 
   const addCompanyCard = () => {
-    const entry = list.find(
+    const entry = directoryList.find(
       (row) => resolveTabCategory(row.category, row.name) === activeTab,
     )
     const cardKey = newCardKey()
@@ -532,7 +534,7 @@ export default function InsuranceCompanyContactsViewPage({
                 key={draft.cardKey}
                 draft={draft}
                 editingTab={activeTab}
-                directory={list}
+                directory={directoryList}
                 insurerCatalog={insurerCatalog}
                 allowExistingCompanyEdit={isPersonalMode}
                 onChange={(next) => updateDraft(draft.cardKey, next)}

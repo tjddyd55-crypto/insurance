@@ -8,6 +8,28 @@ function normalizeCompanyName(value: string): string {
   return String(value ?? '').trim().normalize('NFKC')
 }
 
+export function personalContactCompanyGroupKey(contact: InsuranceContact): string {
+  return `${contact.category}\0${normalizeCompanyName(contact.companyName)}`
+}
+
+/** 동일 보험 종류·보험회사명의 개인 담당자 레코드를 한 묶음으로 만든다. */
+export function groupPersonalContactsByCompany(
+  contacts: InsuranceContact[],
+  tab: InsuranceCategory,
+): InsuranceContact[][] {
+  const groups = new Map<string, InsuranceContact[]>()
+  for (const contact of contacts) {
+    if (!contactCategoryMatchesTab(contact, tab)) {
+      continue
+    }
+    const key = personalContactCompanyGroupKey(contact)
+    const bucket = groups.get(key) ?? []
+    bucket.push(contact)
+    groups.set(key, bucket)
+  }
+  return Array.from(groups.values())
+}
+
 function contactCategoryMatchesTab(
   contact: InsuranceContact,
   tab: InsuranceCategory,
@@ -67,26 +89,25 @@ export function buildPersonalContactsDirectoryView(
     (contact) => contactCategoryMatchesTab(contact, activeTab) && !matchedContactIds.has(contact.id),
   )
   let syntheticId = -1
-  for (const contact of unmatched) {
-    const category = contact.category as InsuranceCategory
+  for (const rows of groupPersonalContactsByCompany(unmatched, activeTab)) {
+    const first = rows[0]
+    const category = first.category as InsuranceCategory
     merged.push({
       id: syntheticId,
-      companyCode: buildStaticCompanyCode(category, contact.companyName),
-      category: contact.category,
-      name: contact.companyName,
+      companyCode: buildStaticCompanyCode(category, first.companyName),
+      category: first.category,
+      name: first.companyName,
       customerCenter: '',
       systemPhone: '',
       incallNumber: '',
       visitInfo: '',
-      contacts: [
-        {
-          id: 1,
-          companyId: 0,
-          name: contact.managerName,
-          position: contact.position,
-          phone: contact.phoneNumber,
-        },
-      ],
+      contacts: rows.map((contact, index) => ({
+        id: index + 1,
+        companyId: 0,
+        name: contact.managerName,
+        position: contact.position,
+        phone: contact.phoneNumber,
+      })),
       general: null,
     })
     syntheticId -= 1
