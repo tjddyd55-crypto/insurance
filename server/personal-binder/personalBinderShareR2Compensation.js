@@ -39,6 +39,7 @@ export async function assertR2ObjectsExist(objectKeys) {
  * @param {number | null} [input.shareId]
  * @param {number | null} [input.importJobId]
  * @param {string | null} [input.userId]
+ * @param {number | null} [input.gaId]
  */
 export async function recordR2OrphanCleanupQueue(executor, input) {
   if (!executor) return
@@ -49,9 +50,9 @@ export async function recordR2OrphanCleanupQueue(executor, input) {
       executor,
       `
       INSERT INTO personal_binder_ga_r2_cleanup_queue (
-        object_key, reason, share_id, import_job_id, user_id
+        object_key, reason, share_id, import_job_id, user_id, ga_id
       )
-      VALUES ($1, $2, $3, $4, $5)
+      VALUES ($1, $2, $3, $4, $5, $6)
       ON CONFLICT (object_key) DO UPDATE SET
         reason = EXCLUDED.reason,
         share_id = COALESCE(EXCLUDED.share_id, personal_binder_ga_r2_cleanup_queue.share_id),
@@ -66,6 +67,7 @@ export async function recordR2OrphanCleanupQueue(executor, input) {
         input.shareId ?? null,
         input.importJobId ?? null,
         input.userId ?? null,
+        input.gaId ?? null,
       ],
     )
   }
@@ -80,6 +82,7 @@ export async function recordR2OrphanCleanupQueue(executor, input) {
  * @param {number} [context.shareId]
  * @param {number} [context.importJobId]
  * @param {string} [context.userId]
+ * @param {number} [context.gaId]
  */
 export async function compensateR2ObjectKeys(objectKeys, context = {}) {
   const keys = normalizeObjectKeyList(objectKeys)
@@ -101,6 +104,7 @@ export async function compensateR2ObjectKeys(objectKeys, context = {}) {
         shareId: context.shareId ?? null,
         importJobId: context.importJobId ?? null,
         userId: context.userId ?? null,
+        gaId: context.gaId ?? null,
       }).catch(() => {})
     }
   }

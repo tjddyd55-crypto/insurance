@@ -118,10 +118,10 @@ export async function loadSharedBinderDetail(pool, scope, shareId) {
     `
     SELECT id, title, sort_order
     FROM personal_binder_ga_share_sections
-    WHERE share_id = $1
+    WHERE share_id = $1 AND ga_id = $2
     ORDER BY sort_order ASC, id ASC
     `,
-    [shareId],
+    [shareId, scope.gaId],
   )
   const items = await safeQuery(
     pool,
@@ -138,11 +138,12 @@ export async function loadSharedBinderDetail(pool, scope, shareId) {
       f.file_size,
       f.page_count
     FROM personal_binder_ga_share_items i
-    INNER JOIN personal_binder_ga_share_files f ON f.id = i.share_file_id
-    WHERE f.share_id = $1
+    INNER JOIN personal_binder_ga_share_files f
+      ON f.id = i.share_file_id AND f.ga_id = i.ga_id
+    WHERE f.share_id = $1 AND f.ga_id = $2
     ORDER BY i.share_section_id, i.sort_order ASC, i.id ASC
     `,
-    [shareId],
+    [shareId, scope.gaId],
   )
   const bySection = new Map()
   for (const item of items.rows) {
@@ -336,15 +337,16 @@ export async function createPersonalBinderGaShare(pool, scope, gaCode, binderId)
         client,
         `
         INSERT INTO personal_binder_ga_share_files (
-          share_id, object_key, material_title, original_file_name,
+          share_id, ga_id, object_key, material_title, original_file_name,
           mime_type, file_size, page_count, checksum_sha256,
           source_material_id, source_file_id
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         RETURNING id
         `,
         [
           shareId,
+          scope.gaId,
           destKey,
           material.material_title,
           material.original_file_name,
@@ -363,11 +365,11 @@ export async function createPersonalBinderGaShare(pool, scope, gaCode, binderId)
       const sectionInsert = await safeQuery(
         client,
         `
-        INSERT INTO personal_binder_ga_share_sections (share_id, title, sort_order)
-        VALUES ($1, $2, $3)
+        INSERT INTO personal_binder_ga_share_sections (share_id, ga_id, title, sort_order)
+        VALUES ($1, $2, $3, $4)
         RETURNING id
         `,
-        [shareId, section.title, section.sortOrder],
+        [shareId, scope.gaId, section.title, section.sortOrder],
       )
       const shareSectionId = Number(sectionInsert.rows[0].id)
       for (const item of section.items) {
@@ -382,11 +384,17 @@ export async function createPersonalBinderGaShare(pool, scope, gaCode, binderId)
           client,
           `
           INSERT INTO personal_binder_ga_share_items (
-            share_section_id, share_file_id, sort_order, page_selection
+            share_section_id, share_file_id, ga_id, sort_order, page_selection
           )
-          VALUES ($1, $2, $3, $4::jsonb)
+          VALUES ($1, $2, $3, $4, $5::jsonb)
           `,
-          [shareSectionId, shareFileId, item.sortOrder, JSON.stringify(item.pageSelection)],
+          [
+            shareSectionId,
+            shareFileId,
+            scope.gaId,
+            item.sortOrder,
+            JSON.stringify(item.pageSelection),
+          ],
         )
       }
     }
@@ -401,9 +409,9 @@ export async function createPersonalBinderGaShare(pool, scope, gaCode, binderId)
           file_count = $2,
           section_count = $3,
           status = 'active'
-      WHERE id = $4
+      WHERE id = $4 AND ga_id = $5
       `,
-      [totalBytes, materialToShareFile.size, detail.sections.length, shareId],
+      [totalBytes, materialToShareFile.size, detail.sections.length, shareId, scope.gaId],
     )
 
     await client.query('COMMIT')
@@ -415,6 +423,7 @@ export async function createPersonalBinderGaShare(pool, scope, gaCode, binderId)
       reason: 'share_create_failed',
       shareId,
       userId: scope.userId,
+      gaId: scope.gaId,
     })
     throw error
   } finally {
@@ -429,10 +438,10 @@ export async function readSharedBinderFileBuffer(pool, scope, shareId, shareFile
     `
     SELECT object_key, mime_type, original_file_name
     FROM personal_binder_ga_share_files
-    WHERE id = $1 AND share_id = $2
+    WHERE id = $1 AND share_id = $2 AND ga_id = $3
     LIMIT 1
     `,
-    [shareFileId, shareId],
+    [shareFileId, shareId, scope.gaId],
   )
   const row = result.rows[0]
   if (!row) {
