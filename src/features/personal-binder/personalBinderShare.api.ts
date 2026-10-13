@@ -1,4 +1,4 @@
-import { apiRequest } from '../../lib/apiClient'
+import { apiRequest, resolveApiUrl } from '../../lib/apiClient'
 import type { PersonalBinder } from './personalBinder.types'
 
 export type SharedPersonalBinderSummary = {
@@ -113,4 +113,20 @@ export function importSharedPersonalBinder(
 
 export function sharedBinderFileDownloadUrl(shareId: string, shareFileId: string) {
   return `/api/personal-binders/shared/${encodeURIComponent(shareId)}/files/${encodeURIComponent(shareFileId)}/download`
+}
+
+export async function fetchSharedBinderFileBlob(
+  token: string,
+  shareId: string,
+  shareFileId: string,
+): Promise<Blob> {
+  const url = resolveApiUrl(sharedBinderFileDownloadUrl(shareId, shareFileId))
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${token.trim()}` },
+    credentials: 'include',
+  })
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`)
+  }
+  return response.blob()
 }

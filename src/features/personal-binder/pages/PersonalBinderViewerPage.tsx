@@ -31,7 +31,15 @@ import {
   isBinderImageMaterial,
   resolveBinderMaterialRenderKind,
 } from '../utils/binderFileDisplay'
+import {
+  mapSharedDetailToPersonalBinder,
+  resolveSharedBinderShareFileId,
+} from '../domain/mapSharedDetailToPersonalBinder'
 import { getPersonalBinder } from '../personalBinder.api'
+import {
+  fetchSharedBinderFileBlob,
+  getSharedPersonalBinder,
+} from '../personalBinderShare.api'
 import {
   downloadPersonalBinderPdf,
   printPersonalBinderPdf,
@@ -67,7 +75,9 @@ type PageLoadError = {
 }
 
 export default function PersonalBinderViewerPage() {
-  const { binderId = '' } = useParams()
+  const { binderId = '', shareId = '' } = useParams()
+  const isSharedView = Boolean(shareId)
+  const activeShareId = shareId
   const { token } = useAuth()
   const isMobile = useIsMobile()
   const navigate = useNavigate()
@@ -90,6 +100,7 @@ export default function PersonalBinderViewerPage() {
   const zoomAnchorRef = useRef<NewsDetailViewerZoomAnchor>(null)
   const cacheRef = useRef<Map<string, Promise<CachedMaterial>>>(new Map())
   const loadedRef = useRef<Map<string, CachedMaterial>>(new Map())
+  const objectUrlRef = useRef<Set<string>>(new Set())
 
   const pages = useMemo(
     () => binder ? buildBinderViewerPages(binder) : [],
@@ -130,22 +141,34 @@ export default function PersonalBinderViewerPage() {
   useNewsDetailViewerPan(viewportRef, zoom, true)
 
   useEffect(() => {
-    if (!token || !binderId) return
+    if (!token) return
+    if (!isSharedView && !binderId) return
+    if (isSharedView && !activeShareId) return
     const controller = new AbortController()
     void (async () => {
       try {
-        const next = await getPersonalBinder(token, binderId, controller.signal)
+        const next = isSharedView
+          ? mapSharedDetailToPersonalBinder(
+            await getSharedPersonalBinder(token, activeShareId, controller.signal),
+          )
+          : await getPersonalBinder(token, binderId, controller.signal)
         setBinder(next)
         setLoading(false)
       } catch (reason) {
         if (!(reason instanceof DOMException && reason.name === 'AbortError')) {
-          setError(reason instanceof Error ? reason.message : '바인더를 불러오지 못했습니다.')
+          setError(
+            reason instanceof Error
+              ? reason.message
+              : isSharedView
+                ? '공유 바인더를 불러오지 못했습니다.'
+                : '바인더를 불러오지 못했습니다.',
+          )
           setLoading(false)
         }
       }
     })()
     return () => controller.abort()
-  }, [binderId, token])
+  }, [activeShareId, binderId, isSharedView, token])
 
   const pageLoadErrorMessage = useCallback((material: PersonalBinderMaterial, reason: unknown) => {
     const kind = resolveBinderMaterialRenderKind(material)
@@ -159,6 +182,12 @@ export default function PersonalBinderViewerPage() {
       : 'PDF 페이지를 불러오지 못했습니다.'
   }, [])
 
+  const trackObjectUrl = useCallback((url: string) => {
+    if (url.startsWith('blob:')) {
+      objectUrlRef.current.add(url)
+    }
+  }, [])
+
   const loadMaterial = useCallback(async (
     material: PersonalBinderMaterial,
   ): Promise<CachedMaterial> => {
@@ -166,16 +195,26 @@ export default function PersonalBinderViewerPage() {
     if (cached) return cached
     if (!token) throw new Error('로그인이 필요합니다.')
     const promise = (async () => {
-      const url = await createStorageFilePreviewUrl(token, material.fileId)
       const kind = resolveBinderMaterialRenderKind(material)
+      let url: string
+      let bytes: Uint8Array
+      if (isSharedView) {
+        const shareFileId = resolveSharedBinderShareFileId(material)
+        const blob = await fetchSharedBinderFileBlob(token, activeShareId, shareFileId)
+        url = URL.createObjectURL(blob)
+        trackObjectUrl(url)
+        bytes = new Uint8Array(await blob.arrayBuffer())
+      } else {
+        url = await createStorageFilePreviewUrl(token, material.fileId)
+        const response = await fetch(url, { credentials: 'include' })
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        bytes = new Uint8Array(await response.arrayBuffer())
+      }
       if (kind === 'image') {
         const entry: CachedMaterial = { kind: 'image', url }
         loadedRef.current.set(material.id, entry)
         return entry
       }
-      const response = await fetch(url, { credentials: 'include' })
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      const bytes = new Uint8Array(await response.arrayBuffer())
       const resources = getPdfJsCmapAndStandardFontUrls()
       const document = await getDocument({
         data: bytes,
@@ -190,11 +229,15 @@ export default function PersonalBinderViewerPage() {
     })()
     cacheRef.current.set(material.id, promise)
     return promise
-  }, [token])
+  }, [activeShareId, isSharedView, token, trackObjectUrl])
 
   const invalidateMaterialCache = useCallback((materialId: string) => {
     const loaded = loadedRef.current.get(materialId)
     if (loaded?.kind === 'pdf') void loaded.document.destroy()
+    if (loaded?.url?.startsWith('blob:')) {
+      URL.revokeObjectURL(loaded.url)
+      objectUrlRef.current.delete(loaded.url)
+    }
     loadedRef.current.delete(materialId)
     cacheRef.current.delete(materialId)
   }, [])
@@ -297,7 +340,14 @@ export default function PersonalBinderViewerPage() {
   useEffect(() => () => {
     for (const entry of loadedRef.current.values()) {
       if (entry.kind === 'pdf') void entry.document.destroy()
+      if (entry.url?.startsWith('blob:')) {
+        URL.revokeObjectURL(entry.url)
+      }
     }
+    for (const url of objectUrlRef.current) {
+      URL.revokeObjectURL(url)
+    }
+    objectUrlRef.current.clear()
     loadedRef.current.clear()
     cacheRef.current.clear()
   }, [])
@@ -322,7 +372,9 @@ export default function PersonalBinderViewerPage() {
         <FormButton
           variant="secondary"
           onClick={() => {
-            const returnTo = viewerReturn?.returnTo ?? `/personal-binders/${binderId}/edit`
+            const returnTo = viewerReturn?.returnTo ?? (
+              isSharedView ? '/personal-binders/shared' : `/personal-binders/${binderId}/edit`
+            )
             navigate(returnTo, {
               state: viewerReturn?.scrollY != null ? { restoreScrollY: viewerReturn.scrollY } : undefined,
             })
@@ -343,7 +395,19 @@ export default function PersonalBinderViewerPage() {
     setTocOpen(false)
   }
   const downloadCurrent = async () => {
-    if (!current) return
+    if (!current || !token) return
+    if (isSharedView) {
+      const shareFileId = resolveSharedBinderShareFileId(current.material)
+      const blob = await fetchSharedBinderFileBlob(token, activeShareId, shareFileId)
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = current.material.originalFileName || 'download'
+      anchor.rel = 'noopener'
+      anchor.click()
+      URL.revokeObjectURL(url)
+      return
+    }
     const url = await createStorageFileDownloadUrl(token, current.material.fileId)
     window.location.assign(url)
   }
@@ -388,7 +452,9 @@ export default function PersonalBinderViewerPage() {
       })
   }
   const exitViewer = () => {
-    const returnTo = viewerReturn?.returnTo ?? `/personal-binders/${binder.id}/edit`
+    const returnTo = viewerReturn?.returnTo ?? (
+      isSharedView ? '/personal-binders/shared' : `/personal-binders/${binder.id}/edit`
+    )
     navigate(returnTo, {
       state: viewerReturn?.scrollY != null ? { restoreScrollY: viewerReturn.scrollY } : undefined,
     })
@@ -423,7 +489,7 @@ export default function PersonalBinderViewerPage() {
       <header className="personal-binder-viewer__header">
         <FormButton
           variant="action"
-          aria-label="편집으로"
+          aria-label={isSharedView ? '공유 목록으로' : '편집으로'}
           onClick={() => exitViewer()}
         >
           ←
@@ -536,8 +602,12 @@ export default function PersonalBinderViewerPage() {
         ) : null}
         <FormButton variant="secondary" onClick={() => void downloadCurrent()}>원본 다운로드</FormButton>
         <FormButton variant="secondary" onClick={() => void printCurrent()}>자료 출력</FormButton>
-        <FormButton variant="secondary" loading={exporting} onClick={() => void exportBinder('download')}>전체 PDF</FormButton>
-        <FormButton variant="secondary" loading={exporting} onClick={() => void exportBinder('print')}>전체 출력</FormButton>
+        {!isSharedView ? (
+          <>
+            <FormButton variant="secondary" loading={exporting} onClick={() => void exportBinder('download')}>전체 PDF</FormButton>
+            <FormButton variant="secondary" loading={exporting} onClick={() => void exportBinder('print')}>전체 출력</FormButton>
+          </>
+        ) : null}
       </footer>
 
       <BaseDialog

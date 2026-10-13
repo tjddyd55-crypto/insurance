@@ -15,6 +15,15 @@ const SHARE_CHILD_INSERTS = [
   ) VALUES ($1, $2, $3, $4, $5::jsonb)`,
   `UPDATE personal_binder_ga_shares SET status = 'active' WHERE id = $4 AND ga_id = $5`,
   `SELECT object_key FROM personal_binder_ga_share_files WHERE id = $1 AND share_id = $2 AND ga_id = $3`,
+  `INSERT INTO personal_binder_sections (binder_id, title, sort_order)
+        SELECT $1, $2, $3
+        FROM personal_binders b
+        WHERE b.id = $1 AND b.owner_user_id = $4 AND b.ga_id = $5`,
+  `INSERT INTO personal_binder_items (section_id, material_id, sort_order, page_selection)
+          SELECT $1, $2, $3, $4::jsonb
+          FROM personal_binder_sections s
+          INNER JOIN personal_binders b ON b.id = s.binder_id
+          WHERE s.id = $1 AND b.owner_user_id = $5 AND b.ga_id = $6`,
 ]
 
 test('공유 하위 DML SQL은 ga_id 테넌트 필터를 포함한다', () => {

@@ -24,6 +24,7 @@ import { normalizeKrMobile, validateKrMobileDigits } from './lib/phoneNormalize.
 import { logSmsVerifyFailure, maskPhoneForLog } from './services/smsStructuredLog.js'
 import { SMS_PUBLIC_DELAY_MESSAGE } from './services/smsPublicMessages.js'
 import { buildSubscriptionResponseForUser } from './subscription/applyToResponseUser.js'
+import { findGaGroupMembershipForGa } from './lib/gaGroupMembership.js'
 import {
   GENERAL_GA_DISPLAY_NAME,
   isGeneralGaCompanyCode,
@@ -582,6 +583,12 @@ export function registerUserProfileApi(apiRouter, ctx) {
         subscription_started_at: row.subscription_started_at ?? null,
         subscription_expires_at: row.subscription_expires_at ?? null,
       })
+      const gaCode = row.ga_code != null ? String(row.ga_code).trim() : ''
+      const gaName = row.ga_name != null ? String(row.ga_name).trim() : ''
+      const groupMembership =
+        row.ga_id != null && !isGeneralGaCompanyCode(gaCode)
+          ? await findGaGroupMembershipForGa(pool, row.ga_id)
+          : null
       res.json({
         id: String(row.id),
         username: String(row.username ?? ''),
@@ -589,8 +596,11 @@ export function registerUserProfileApi(apiRouter, ctx) {
         phone_number: normalizeKrMobile(row.phone_number ?? ''),
         role: String(row.role ?? ''),
         ga_id: row.ga_id,
-        ga_code: row.ga_code != null ? String(row.ga_code).trim() : '',
-        ga_name: row.ga_name != null ? String(row.ga_name).trim() : '',
+        ga_code: gaCode,
+        ga_name: gaName,
+        ga_group_name: groupMembership?.groupName
+          ? String(groupMembership.groupName).trim()
+          : null,
         status: String(row.status ?? 'active').toLowerCase(),
         team_id: row.team_id != null ? String(row.team_id) : null,
         subscription,

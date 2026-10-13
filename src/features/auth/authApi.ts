@@ -460,6 +460,9 @@ export interface MeResponse {
   phone_number: string
   role: string
   ga_id: number | null
+  ga_code?: string
+  ga_name?: string
+  ga_group_name?: string | null
   status: string
   team_id: string | null
   subscription?: SubscriptionResponsePayload | null
