@@ -467,10 +467,6 @@
 }
 
 .personal-binder-overflow-menu__panel {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  z-index: 6;
   display: grid;
   gap: 2px;
   min-width: 148px;
@@ -479,6 +475,15 @@
   border-radius: var(--radius-md, 8px);
   background: var(--bg-card);
   box-shadow: var(--shadow-md, 0 8px 24px rgba(0, 0, 0, 0.12));
+}
+
+.personal-binder-overflow-menu__panel--floating {
+  position: fixed;
+  z-index: 850;
+  margin: 0;
+  top: 0;
+  left: 0;
+  right: auto;
 }
 
 .personal-binder-overflow-menu__item {
