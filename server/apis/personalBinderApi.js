@@ -25,7 +25,11 @@ import {
   PERSONAL_BINDER_FOLDER_TYPES,
   resolveFolderIdForWrite,
 } from '../personal-binder/personalBinderFolderHelpers.js'
+import { loadBinderDetail } from '../personal-binder/personalBinderDetail.js'
 import { softDeleteOrphanPersonalBinderMaterials } from '../personal-binder/personalBinderStorageFileSync.js'
+import { registerPersonalBinderShareApi } from './personalBinderShareApi.js'
+
+export { loadBinderDetail }
 
 function requestScope(req, res) {
   const userId = String(req.user?.id ?? '').trim()
@@ -132,84 +136,6 @@ async function getOwnedSection(executor, sectionId, scope) {
   return result.rows[0] ?? null
 }
 
-export async function loadBinderDetail(executor, binderId, scope) {
-  const binder = await getOwnedBinder(executor, binderId, scope)
-  if (!binder) return null
-  const sections = await executor.query(
-    `
-    SELECT id, title, sort_order, created_at, updated_at
-    FROM personal_binder_sections
-    WHERE binder_id = $1
-    ORDER BY sort_order ASC, id ASC
-    `,
-    [binderId],
-  )
-  const items = await executor.query(
-    `
-    SELECT
-      i.id,
-      i.section_id,
-      i.material_id,
-      i.sort_order,
-      i.page_selection,
-      i.created_at,
-      i.updated_at,
-      m.file_id,
-      m.title AS material_title,
-      m.original_file_name,
-      m.mime_type,
-      m.file_size,
-      m.page_count
-    FROM personal_binder_items i
-    INNER JOIN personal_binder_sections s ON s.id = i.section_id
-    INNER JOIN personal_binder_materials m ON m.id = i.material_id
-    WHERE s.binder_id = $1 AND m.deleted_at IS NULL
-    ORDER BY s.sort_order ASC, i.sort_order ASC, i.id ASC
-    `,
-    [binderId],
-  )
-  const bySection = new Map()
-  for (const item of items.rows) {
-    const key = String(item.section_id)
-    const rows = bySection.get(key) ?? []
-    rows.push({
-      id: String(item.id),
-      sectionId: key,
-      materialId: String(item.material_id),
-      sortOrder: Number(item.sort_order),
-      pageSelection: item.page_selection,
-      createdAt: item.created_at,
-      updatedAt: item.updated_at,
-      material: {
-        id: String(item.material_id),
-        fileId: Number(item.file_id),
-        title: item.material_title,
-        originalFileName: item.original_file_name,
-        mimeType: item.mime_type,
-        fileSize: Number(item.file_size) || 0,
-        pageCount: Number(item.page_count) || 0,
-      },
-    })
-    bySection.set(key, rows)
-  }
-  return {
-    id: String(binder.id),
-    title: binder.title,
-    description: binder.description,
-    createdAt: binder.created_at,
-    updatedAt: binder.updated_at,
-    sections: sections.rows.map((section) => ({
-      id: String(section.id),
-      binderId: String(binder.id),
-      title: section.title,
-      sortOrder: Number(section.sort_order),
-      createdAt: section.created_at,
-      updatedAt: section.updated_at,
-      items: bySection.get(String(section.id)) ?? [],
-    })),
-  }
-}
-
 export async function normalizeOrder(client, table, parentColumn, parentId, ids) {
   const allowed = table === 'personal_binder_sections'
     ? { idColumn: 'id' }
@@ -293,6 +219,7 @@ function sendError(error, req, res, handleDbError) {
 
 export function registerPersonalBinderApi(apiRouter, ctx) {
   const { pool, requireAuth, handleDbError } = ctx
+  registerPersonalBinderShareApi(apiRouter, ctx)
 
   apiRouter.get('/personal-binders/materials', requireAuth, async (req, res) => {
     try {
