@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import type { ContactCompanyCardDraft } from '../domain/contactCardWorkspaceModel'
 import {
   applySuccessfulCardSaves,
+  isGaExistingCardMetadataChangeBlocked,
   saveContactCardWorkspace,
 } from './saveContactCardWorkspace'
 
@@ -53,6 +54,43 @@ describe('saveContactCardWorkspace', () => {
     expect(fullSaveCompanyDirectory).not.toHaveBeenCalled()
   })
 
+  it('GA 기존 카드의 보험회사·종류 변경은 저장하지 않는다', async () => {
+    const base = draft({ companyCode: 'INS1', companyName: '테스트생명' })
+    const changedCompany = draft({ companyCode: 'INS9', companyName: '다른생명' })
+    const results = await saveContactCardWorkspace({
+      token: 't',
+      mode: 'ga',
+      drafts: [changedCompany],
+      baseline: [base],
+      personalContacts: [],
+    })
+    expect(results).toHaveLength(1)
+    expect(results[0].ok).toBe(false)
+    expect(fullSaveCompanyDirectory).not.toHaveBeenCalled()
+  })
+
+  it('STATIC 코드 카드에는 companyId를 API에 보내지 않는다', async () => {
+    const base = draft({
+      isNew: true,
+      companyCode: 'STATIC:NON_LIFE:농협손해보험',
+      companyName: '농협손해보험',
+      companyId: 99,
+    })
+    await saveContactCardWorkspace({
+      token: 't',
+      mode: 'ga',
+      drafts: [base],
+      baseline: [],
+      personalContacts: [],
+    })
+    expect(fullSaveCompanyDirectory).toHaveBeenCalledWith(
+      expect.objectContaining({
+        company: expect.not.objectContaining({ id: expect.anything() }),
+      }),
+      't',
+    )
+  })
+
   it('변경된 카드만 저장한다', async () => {
     const unchanged = draft({
       cardKey: 'c2',
@@ -71,6 +109,22 @@ describe('saveContactCardWorkspace', () => {
       personalContacts: [],
     })
     expect(fullSaveCompanyDirectory).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('isGaExistingCardMetadataChangeBlocked', () => {
+  it('담당자만 바뀌면 false', () => {
+    const base = draft()
+    const edited = draft({
+      contacts: [{ rowKey: 'r1', name: '변경', position: '', phone: '010-1111-2222' }],
+    })
+    expect(isGaExistingCardMetadataChangeBlocked(base, edited)).toBe(false)
+  })
+
+  it('회사명이 바뀌면 true', () => {
+    const base = draft()
+    const edited = draft({ companyName: '다른생명' })
+    expect(isGaExistingCardMetadataChangeBlocked(base, edited)).toBe(true)
   })
 })
 

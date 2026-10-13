@@ -82,7 +82,7 @@ function buildInitialCardDrafts(
   if (isPersonalMode) {
     return INSURANCE_TYPE_ORDER.flatMap((tab) => personalContactsToCardDrafts(personalContacts, tab))
   }
-  return list.map((entry) => directoryEntryToCardDraft(entry, categoryForCompanyRow(entry, 'LIFE')))
+  return list.map((entry) => directoryEntryToCardDraft(entry))
 }
 
 export default function InsuranceCompanyContactsViewPage({
@@ -311,7 +311,13 @@ export default function InsuranceCompanyContactsViewPage({
 
   const updateDraft = (cardKey: string, next: ContactCompanyCardDraft) => {
     if (next.isNew && next.companyCode.trim()) {
-      const duplicate = findDuplicateCard(cardDrafts, next.category, next.companyCode, cardKey)
+      const duplicate = findDuplicateCard(
+        cardDrafts,
+        next.category,
+        next.companyCode,
+        cardKey,
+        next.companyName,
+      )
       if (duplicate) {
         setErrorText(`「${duplicate.companyName}」 카드가 이미 있습니다. 해당 카드에서 담당자를 추가하세요.`)
         return
@@ -355,7 +361,10 @@ export default function InsuranceCompanyContactsViewPage({
       const message = formatSaveResultsMessage(results)
       const failed = results.some((row) => !row.ok)
       if (results.length === 0) {
-        setCopyStatus(message)
+        showCopyFeedback(message)
+        setPinnedEditCardKeys(new Set())
+        setWorkspaceEdit(false)
+        await loadList()
         return
       }
       if (failed) {
@@ -525,6 +534,7 @@ export default function InsuranceCompanyContactsViewPage({
                 editingTab={activeTab}
                 directory={list}
                 insurerCatalog={insurerCatalog}
+                allowExistingCompanyEdit={isPersonalMode}
                 onChange={(next) => updateDraft(draft.cardKey, next)}
                 onRemoveCard={() => markCardRemoved(draft.cardKey)}
               />

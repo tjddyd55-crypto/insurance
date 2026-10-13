@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { InsurerSite } from '../../insurer-sites/api/insurerSitesApi'
 import type { CompanyDirectoryEntry } from './types'
-import { buildInsuranceCompanyPickerOptions } from './insuranceCompanyCatalogOptions'
+import {
+  buildInsuranceCompanyPickerOptions,
+  resolveCatalogSiteDirectoryBinding,
+} from './insuranceCompanyCatalogOptions'
 
 function site(name: string, category: 'life' | 'non_life'): InsurerSite {
   return {
@@ -46,6 +49,24 @@ describe('buildInsuranceCompanyPickerOptions', () => {
     expect(fubon?.tel).toBe('1588-0000')
     const samsung = options.find((row) => row.name === '삼성생명')
     expect(samsung?.companyCode.startsWith('STATIC:')).toBe(true)
+  })
+
+  it('동일 이름 마스터가 2건이면 STATIC 코드로 신규 저장 경로를 쓴다', () => {
+    const directory = [
+      { ...dirEntry('하나손해보험', 'INS_A'), id: 1, category: 'NON_LIFE' as const },
+      { ...dirEntry('하나손해보험', 'INS_B'), id: 100, category: 'NON_LIFE' as const },
+    ]
+    const binding = resolveCatalogSiteDirectoryBinding(directory, 'NON_LIFE', '하나손해보험')
+    expect(binding.ambiguousDirectoryMatches).toBe(2)
+    expect(binding.companyCode.startsWith('STATIC:')).toBe(true)
+    expect(binding.companyId).toBeNull()
+  })
+
+  it('이름·종류가 일치하는 마스터가 1건이면 persisted companyCode를 쓴다', () => {
+    const directory = [{ ...dirEntry('농협손해보험', 'INS_NH'), id: 5, category: 'NON_LIFE' }]
+    const binding = resolveCatalogSiteDirectoryBinding(directory, 'NON_LIFE', '농협손해보험')
+    expect(binding.companyCode).toBe('INS_NH')
+    expect(binding.companyId).toBe(5)
   })
 
   it('GENERAL은 디렉터리 목록만 사용한다', () => {

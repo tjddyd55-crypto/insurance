@@ -1,7 +1,8 @@
 import type { InsurerSite, InsurerSiteCategory } from '../../insurer-sites/api/insurerSitesApi'
 import { canonicalInsuranceCategoryForFilter } from './categoryUtils'
 import type { InsuranceCategory } from './insuranceConstants'
-import { buildStaticCompanyCode, findSavedEntryForSelection } from './loadCompanyData'
+import { buildStaticCompanyCode, isPersistedDirectoryCompanyCode } from './companyCode'
+import type { ContactCompanyCardDraft } from './contactCardWorkspaceModel'
 import type { CompanyDirectoryEntry, InsuranceCompanyOption } from './types'
 import { buildCompanyOptions } from './contactCardWorkspaceModel'
 
@@ -19,10 +20,55 @@ function insuranceCategoryToInsurerSite(category: InsuranceCategory): InsurerSit
   return null
 }
 
+export type CatalogSiteDirectoryBinding = {
+  companyCode: string
+  companyName: string
+  companyId: number | null
+  customerCenter: string
+  ambiguousDirectoryMatches: number
+}
+
+/** 카탈로그 보험사명과 디렉터리 마스터를 1:1로만 연결한다. 동일 이름 중복 마스터는 STATIC으로 신규 저장한다. */
+export function resolveCatalogSiteDirectoryBinding(
+  directory: CompanyDirectoryEntry[],
+  category: InsuranceCategory,
+  siteName: string,
+): CatalogSiteDirectoryBinding {
+  const staticCode = buildStaticCompanyCode(category, siteName)
+  const filterKey = canonicalInsuranceCategoryForFilter(category)
+  const nameKey = normalizeCompanyName(siteName)
+  const matches =
+    filterKey == null
+      ? []
+      : directory.filter(
+          (entry) =>
+            canonicalInsuranceCategoryForFilter(entry.category, entry.name ?? '') === filterKey &&
+            normalizeCompanyName(entry.name) === nameKey,
+        )
+
+  if (matches.length === 1) {
+    const entry = matches[0]
+    return {
+      companyCode: entry.companyCode,
+      companyName: entry.name,
+      companyId: entry.id > 0 ? entry.id : null,
+      customerCenter: entry.customerCenter?.trim() || '',
+      ambiguousDirectoryMatches: 0,
+    }
+  }
+
+  return {
+    companyCode: staticCode,
+    companyName: siteName,
+    companyId: null,
+    customerCenter: '',
+    ambiguousDirectoryMatches: matches.length,
+  }
+}
+
 /**
  * 신규 카드 보험회사 선택 SSOT: 전역 설계사이트 카탈로그(`/api/insurer-sites`).
- * GA 디렉터리에 이미 있는 회사는 동일 companyCode·고객센터로 매칭한다.
- * GENERAL은 설계사이트에 없으므로 GA 디렉터리 목록만 사용한다.
+ * GA 디렉터리는 **이름·종류가 정확히 일치하는 단일 마스터**만 companyCode에 반영한다.
  */
 export function buildInsuranceCompanyPickerOptions(
   directory: CompanyDirectoryEntry[],
@@ -35,7 +81,7 @@ export function buildInsuranceCompanyPickerOptions(
   }
 
   const options: InsuranceCompanyOption[] = []
-  const seenNames = new Set<string>()
+  const seenCatalogNames = new Set<string>()
 
   const activeSites = insurerCatalog
     .filter((row) => row.isActive && row.category === siteCategory)
@@ -46,15 +92,14 @@ export function buildInsuranceCompanyPickerOptions(
     })
 
   for (const site of activeSites) {
-    const staticCode = buildStaticCompanyCode(category, site.name)
-    const entry = findSavedEntryForSelection(directory, category, staticCode)
-    const nameKey = normalizeCompanyName(entry?.name ?? site.name)
-    if (seenNames.has(nameKey)) continue
-    seenNames.add(nameKey)
+    const binding = resolveCatalogSiteDirectoryBinding(directory, category, site.name)
+    const nameKey = normalizeCompanyName(binding.companyName)
+    if (seenCatalogNames.has(nameKey)) continue
+    seenCatalogNames.add(nameKey)
     options.push({
-      companyCode: entry?.companyCode ?? staticCode,
-      name: entry?.name ?? site.name,
-      tel: entry?.customerCenter?.trim() || '',
+      companyCode: binding.companyCode,
+      name: binding.companyName,
+      tel: binding.customerCenter,
     })
   }
 
@@ -65,8 +110,8 @@ export function buildInsuranceCompanyPickerOptions(
         continue
       }
       const nameKey = normalizeCompanyName(entry.name)
-      if (seenNames.has(nameKey)) continue
-      seenNames.add(nameKey)
+      if (seenCatalogNames.has(nameKey)) continue
+      seenCatalogNames.add(nameKey)
       options.push({
         companyCode: entry.companyCode,
         name: entry.name,
@@ -76,6 +121,33 @@ export function buildInsuranceCompanyPickerOptions(
   }
 
   return options.sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+}
+
+export function applyPickerCompanySelection(
+  draft: ContactCompanyCardDraft,
+  companyCode: string,
+  options: InsuranceCompanyOption[],
+  directory: CompanyDirectoryEntry[],
+): ContactCompanyCardDraft {
+  const code = companyCode.trim()
+  const option = options.find((row) => row.companyCode === code)
+  if (!option) {
+    return { ...draft, companyCode: code, companyName: '', companyId: null }
+  }
+
+  const binding = resolveCatalogSiteDirectoryBinding(directory, draft.category, option.name)
+  let companyId: number | null = null
+  if (binding.companyId != null && isPersistedDirectoryCompanyCode(binding.companyCode)) {
+    companyId = binding.companyId
+  }
+
+  return {
+    ...draft,
+    companyCode: binding.companyCode,
+    companyName: binding.companyName,
+    customerCenter: binding.customerCenter || option.tel || '',
+    companyId,
+  }
 }
 
 export function filterInsurerCatalogForCategory(

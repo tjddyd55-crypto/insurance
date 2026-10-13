@@ -40,7 +40,8 @@ export function emptyContactRow(): ContactPersonDraft {
   return { rowKey: newRowKey(), name: '', position: '', phone: '' }
 }
 
-export function directoryEntryToCardDraft(entry: CompanyDirectoryEntry, category: InsuranceCategory): ContactCompanyCardDraft {
+export function directoryEntryToCardDraft(entry: CompanyDirectoryEntry): ContactCompanyCardDraft {
+  const category = resolveCardCategory(entry, 'LIFE')
   const contacts =
     entry.contacts?.length
       ? entry.contacts.map((person) => ({
@@ -162,12 +163,13 @@ export function prunePinnedEditCardKeys(
   return next
 }
 
-/** 신규 카드만 보험 종류 변경 가능. 회사 선택만 초기화하고 담당자 입력은 유지한다. */
-export function applyNewCardCategoryChange(
+/** 회사 선택만 초기화하고 담당자 입력은 유지한다. */
+export function applyCardCategoryChange(
   draft: ContactCompanyCardDraft,
   category: InsuranceCategory,
+  options?: { allowExisting?: boolean },
 ): ContactCompanyCardDraft {
-  if (!draft.isNew) {
+  if (!draft.isNew && !options?.allowExisting) {
     return draft
   }
   return {
@@ -176,7 +178,16 @@ export function applyNewCardCategoryChange(
     companyCode: '',
     companyName: '',
     customerCenter: '',
+    companyId: null,
   }
+}
+
+/** @deprecated use applyCardCategoryChange */
+export function applyNewCardCategoryChange(
+  draft: ContactCompanyCardDraft,
+  category: InsuranceCategory,
+): ContactCompanyCardDraft {
+  return applyCardCategoryChange(draft, category, { allowExisting: false })
 }
 
 export function cardDraftMatchesSearch(draft: ContactCompanyCardDraft, keyword: string): boolean {
@@ -191,20 +202,31 @@ export function cardDraftMatchesSearch(draft: ContactCompanyCardDraft, keyword: 
   )
 }
 
+function normalizeCompanyName(value: string): string {
+  return String(value ?? '').trim().normalize('NFKC')
+}
+
 export function findDuplicateCard(
   drafts: ContactCompanyCardDraft[],
   category: InsuranceCategory,
   companyCode: string,
   excludeCardKey?: string,
+  companyName?: string,
 ): ContactCompanyCardDraft | undefined {
   const code = companyCode.trim()
-  return drafts.find(
-    (draft) =>
-      draft.cardKey !== excludeCardKey &&
-      !draft.markedForDeletion &&
-      draft.category === category &&
-      draft.companyCode === code,
-  )
+  const nameKey = companyName != null ? normalizeCompanyName(companyName) : ''
+  return drafts.find((draft) => {
+    if (draft.cardKey === excludeCardKey || draft.markedForDeletion || draft.category !== category) {
+      return false
+    }
+    if (code && draft.companyCode.trim() === code) {
+      return true
+    }
+    if (nameKey && normalizeCompanyName(draft.companyName) === nameKey) {
+      return true
+    }
+    return false
+  })
 }
 
 export function categoryFromInsuranceContactCategory(category: InsuranceContactCategory): InsuranceCategory {
