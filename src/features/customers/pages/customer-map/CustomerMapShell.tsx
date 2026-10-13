@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../../../auth/AuthProvider'
 import { FormButton, FormInput } from '../../../../components/form'
 import CustomerMapCanvas from '../../components/map/CustomerMapCanvas'
@@ -124,6 +124,13 @@ export default function CustomerMapShell({
     [applyRadiusInput],
   )
 
+  // PC 툴바에서는 반경/즐겨찾기 필터를 노출하지 않으므로 복원된 값이 남아 있으면 해제한다.
+  useEffect(() => {
+    if (isMobile || embedInWorkspace) return
+    if (radiusKm != null) onRadiusChange(null)
+    if (favoriteOnly) onFavoriteOnlyChange(false)
+  }, [isMobile, embedInWorkspace, radiusKm, favoriteOnly, onRadiusChange, onFavoriteOnlyChange])
+
   const radiusFilterControls = (
     <CustomerMapRadiusFilterControls
       radiusInput={radiusInput}
@@ -189,26 +196,22 @@ export default function CustomerMapShell({
       {!embedInWorkspace ? <CustomerMapModeTabs /> : null}
       {!isMobile && !embedInWorkspace ? (
         <div className="customers-map-page__toolbar">
-          {stats ? (
-            <div className="customers-map-page__toolbar-row customers-map-page__toolbar-row--summary">
-              <p className="customers-map-page__summary">
-                지도 표시 고객 {mappedCount}명 · 지도 미표시 {unmappedCount}명
-              </p>
-              <FormButton
-                htmlType="button"
-                type="button"
-                variant={showUnmappedList ? 'primary' : 'secondary'}
-                onClick={onToggleUnmappedList}
-              >
-                {showUnmappedList ? '지도 미표시 고객 닫기' : '지도 미표시 고객 보기'}
-              </FormButton>
-            </div>
-          ) : null}
-          <div className="customers-map-page__toolbar-row customers-map-page__toolbar-row--primary">
-            <FormButton htmlType="button" variant="secondary" onClick={onCurrentLocation}>
-              내 위치 기준 보기
-            </FormButton>
-            {radiusFilterControls}
+          <div className="customers-map-page__toolbar-row customers-map-page__toolbar-row--pc-single">
+            {stats ? (
+              <>
+                <p className="customers-map-page__summary">
+                  지도 표시 고객 {mappedCount}명 · 지도 미표시 {unmappedCount}명
+                </p>
+                <FormButton
+                  htmlType="button"
+                  type="button"
+                  variant={showUnmappedList ? 'primary' : 'secondary'}
+                  onClick={onToggleUnmappedList}
+                >
+                  {showUnmappedList ? '지도 미표시 고객 닫기' : '지도 미표시 고객 보기'}
+                </FormButton>
+              </>
+            ) : null}
             <FormInput
               type="search"
               value={keyword}

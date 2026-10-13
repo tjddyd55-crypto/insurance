@@ -1,0 +1,321 @@
+/*
+ * PC UI 정리 (t264) — PC(≥769px) 전용. 모바일/네이티브 레이아웃은 건드리지 않는다.
+ * 기존 규칙 재사용:
+ *   - 페이지 헤더/툴바 액션 버튼: 36px · 13px (button--small, filter-button 과 동일)
+ *   - 카드 내부 보조 버튼: 32px · 12px (PC button--small)
+ *   - 단일행 입력/선택: var(--control-height-md) 40px, 툴바 내 짝 맞춤은 버튼 높이에 맞춘다
+ */
+
+/* A. 원수사 연락처 출력 — 인쇄 시 앱 상단 크롬 제거, 한 장(A4)에 맞춤, 기준일 겹침 해소 */
+@media print {
+  body:has(.insurance-print-page) .web-program-top-bar,
+  body:has(.insurance-print-page) .app-workspace-chrome-header,
+  body:has(.insurance-print-page) .pc-workspace-header {
+    display: none !important;
+  }
+
+  html:has(.insurance-print-page),
+  body:has(.insurance-print-page),
+  body:has(.insurance-print-page) div:has(.insurance-print-page),
+  body:has(.insurance-print-page) .insurance-print-page {
+    background: #ffffff !important;
+    min-height: 0 !important;
+    height: auto !important;
+    box-shadow: none !important;
+    transition: none !important;
+  }
+
+  .insurance-print-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 0;
+    margin-bottom: 8px;
+  }
+
+  .insurance-print-header h1 {
+    flex: 1 1 auto;
+    font-size: 20px;
+    text-align: left;
+  }
+
+  .insurance-print-header p {
+    position: static;
+    flex: 0 0 auto;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .insurance-print-top-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .insurance-print-section {
+    break-inside: avoid;
+    margin-top: 8px;
+  }
+
+  .insurance-print-section h2 {
+    font-size: 14px;
+    padding: 4px;
+    margin-bottom: 4px;
+  }
+
+  .insurance-print-table th,
+  .insurance-print-table td {
+    font-size: 11px;
+    height: 22px;
+    padding: 3px 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+@media (min-width: 769px) {
+  /* A. 출력 미리보기(화면): 기준일이 제목과 겹치지 않게 */
+  .insurance-print-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .insurance-print-header h1 {
+    flex: 1 1 auto;
+    font-size: 24px;
+    text-align: left;
+  }
+
+  .insurance-print-header p {
+    position: static;
+    white-space: nowrap;
+    font-size: 14px;
+  }
+
+  .insurance-print-table td {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* C. 할 일 — 헤더 액션(목록/달력 보기 · 할 일 추가) 높이·정렬 통일, 출처 선택 높이를 칩 줄에 맞춤 */
+  .todos-page--pc > header {
+    align-items: center;
+  }
+
+  .todos-page--pc .todos-page__header-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .todos-page--pc .todos-page__header-actions > .todos-view-switcher {
+    margin-bottom: 0;
+  }
+
+  .todos-page--pc .todos-page__header-actions .todos-view-switcher__button {
+    min-height: 30px;
+    height: 30px;
+    padding: 0 12px;
+  }
+
+  .todos-page--pc .todos-page__header-actions > .filter-button {
+    min-height: 38px;
+    height: 38px;
+  }
+
+  .todos-page--pc .todos-page__source-filter select {
+    height: 32px;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  /* D. 청구 상태 선택 · 상태 저장 버튼 같은 높이 */
+  .claim-status-control-row {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .claim-status-control-row .claim-requests-page__status-select,
+  .claim-status-control-row select,
+  .claim-status-control-row .button,
+  .claim-request-detail-surface .claim-status-control-row .claim-requests-page__status-select,
+  .claim-request-detail-surface .claim-status-control-row select,
+  .claim-request-detail-surface .claim-status-control-row .button {
+    height: var(--control-height-md);
+    min-height: var(--control-height-md);
+    box-sizing: border-box;
+  }
+
+  .claim-status-control-row .button,
+  .claim-request-detail-surface .claim-status-control-row .button {
+    align-self: center;
+    flex: 0 0 auto;
+    padding-top: 0;
+    padding-bottom: 0;
+    white-space: nowrap;
+  }
+
+  /* I. 고객 상세 청구관리 카드 헤더 높이 통일 (버튼 유무와 무관) */
+  .claim-requests-page__panel-head {
+    height: 56px;
+    min-height: 56px;
+    padding-top: 0;
+    padding-bottom: 0;
+    box-sizing: border-box;
+  }
+
+  .claim-requests-page__panel-head .button {
+    min-height: 32px;
+    height: 32px;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  /* F. 알림 — 상위 탭을 PC 세그먼트 규격(36px · 13px)으로, 하위 버튼 32px · 12px 유지 */
+  .notification-hub__tab {
+    min-height: 36px;
+    height: 36px;
+    padding: 0 14px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  /* G. 알림 설정 모달 — 숫자 입력 폭 축소, 단위 한 줄, 하단 버튼 PC 규격 */
+  .notification-settings-modal__days {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .notification-settings-modal__days .form-input {
+    width: 96px;
+    flex: 0 0 96px;
+    text-align: right;
+  }
+
+  .notification-settings-modal__days > span {
+    white-space: nowrap;
+  }
+
+  .notification-settings-modal__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .notification-settings-modal__footer .button {
+    min-height: 36px;
+    height: 36px;
+    min-width: 72px;
+    padding: 0 16px;
+    font-size: 13px;
+  }
+
+  /* J. 고객 메모 — 페이지 제목(고객 메모)과 섹션 제목([메모]) 중복 제거 */
+  .customer-memos-page--pc .customer-inline-notes {
+    margin-top: 12px;
+  }
+
+  .customer-memos-page--pc .customer-inline-notes > div:first-child {
+    justify-content: flex-end;
+  }
+
+  .customer-memos-page--pc .customer-inline-notes > div:first-child > .customer-section-title {
+    display: none;
+  }
+}
+
+/* H. 파일 목록 — PC 좁은 패널(고객 파일 탭 등)에서도 크기·등록일(날짜+시간) 유지, 파일명 말줄임.
+ * .storage-explorer-files 자신이 container 이므로 컬럼은 자식(head/row)에 직접 지정한다. */
+@media (min-width: 769px) {
+  .storage-explorer-files:not(.storage-explorer-files--binder-pick) .storage-explorer-files__head,
+  .storage-explorer-files:not(.storage-explorer-files--binder-pick) .storage-explorer-files__row {
+    grid-template-columns: minmax(0, 1fr) 56px 72px 140px minmax(0, max-content);
+  }
+
+  @container storage-explorer-files (max-width: 899px) {
+    .storage-explorer-files:not(.storage-explorer-files--binder-pick) .storage-explorer-files__head,
+    .storage-explorer-files:not(.storage-explorer-files--binder-pick) .storage-explorer-files__row {
+      grid-template-columns: minmax(0, 1fr) 44px 56px 136px minmax(0, max-content);
+    }
+
+    .storage-explorer-files:not(.storage-explorer-files--binder-pick) .storage-explorer-files__name-cell {
+      min-width: 0;
+    }
+
+    .storage-explorer-files:not(.storage-explorer-files--binder-pick) .storage-explorer-files__head > :nth-child(4),
+    .storage-explorer-files:not(.storage-explorer-files--binder-pick) .storage-explorer-files__date {
+      display: block;
+    }
+  }
+
+  @container storage-explorer-files (max-width: 680px) {
+    .storage-explorer-files:not(.storage-explorer-files--binder-pick) .storage-explorer-files__head,
+    .storage-explorer-files:not(.storage-explorer-files--binder-pick) .storage-explorer-files__row {
+      grid-template-columns: minmax(0, 1fr) 40px 52px 132px minmax(0, max-content);
+    }
+
+    .storage-explorer-files:not(.storage-explorer-files--binder-pick) .storage-explorer-files__head > :nth-child(3),
+    .storage-explorer-files:not(.storage-explorer-files--binder-pick) .storage-explorer-files__size {
+      display: block;
+    }
+  }
+}
+
+@media (min-width: 769px) {
+  /* E. 청구 목록 카드 — 상태 배지 컴팩트(목록 규격), 제목/메타 한 줄 말줄임, 본문 2줄 */
+  .claim-request-list-card__header {
+    align-items: center;
+    gap: 8px;
+  }
+
+  .claim-request-list-card__title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    overflow-wrap: normal;
+  }
+
+  .claim-request-list-card__header .claim-request-status-badge {
+    min-height: 22px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .claim-request-list-card__meta {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .claim-request-list-card__body {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (min-width: 769px) {
+  /* K. 고객 상세 시뮬레이션 — 3단 패널을 카드로 감싸 좌우 여백 대칭, 목록 컬럼 폭 확보 */
+  .customer-workspace-layout .cs-three-pane--customer-embedded {
+    grid-template-columns: minmax(180px, 200px) minmax(220px, 240px) minmax(0, 1fr);
+    border: 1px solid var(--cs-color-border, var(--border-subtle));
+    border-radius: 12px;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  .customer-workspace-layout .cs-three-pane--customer-embedded .cs-three-pane__column--content {
+    align-items: stretch;
+    justify-content: flex-start;
+  }
+}

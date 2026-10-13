@@ -999,3 +999,29 @@
   background: var(--primary);
   border-color: var(--primary);
 }
+
+/* PC: 요약 · 미표시 고객 보기 · 검색을 한 줄로 */
+@media (min-width: 769px) {
+  .customers-map-page--pc .customers-map-page__toolbar-row--pc-single {
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+
+  .customers-map-page--pc .customers-map-page__toolbar-row--pc-single .customers-map-page__summary {
+    white-space: nowrap;
+  }
+
+  .customers-map-page--pc .customers-map-page__toolbar-row--pc-single .customers-map-page__keyword {
+    margin-left: auto;
+    flex: 0 1 280px;
+    min-width: 200px;
+    max-width: 280px;
+  }
+}
+
+@media (min-width: 769px) {
+  .customers-map-page--pc .customers-map-page__toolbar-row--pc-single .customers-map-page__keyword {
+    height: 36px;
+    min-height: 36px;
+  }
+}
