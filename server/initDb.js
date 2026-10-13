@@ -16,7 +16,7 @@ import {
   logMaskedDbFingerprint,
 } from './lib/dbEnvironmentGuard.js'
 import { buildBillingSubscriptionStatusCheckConstraintSql } from './insurance-billing/subscriptionStatusPolicy.js'
-import { ensureOptionalUserForeignKey } from './lib/dbFkTypeGuard.js'
+import { ensureOptionalUserForeignKey, ensureUserIdColumnIsText } from './lib/dbFkTypeGuard.js'
 
 /**
  * ⚠️ 디버그 전용: insurance_forms 등 user_id FK는 ON DELETE CASCADE 로 함께 정리됨.
@@ -6685,7 +6685,7 @@ export async function ensureInsuranceClaimCompanySchema(executor) {
       additional_attachment_metadata JSONB NOT NULL DEFAULT '[]'::jsonb,
       generated_document_metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
       source_claim_request_id INTEGER NULL REFERENCES insurance_claim_requests(id) ON DELETE SET NULL,
-      created_by INTEGER NULL,
+      created_by TEXT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
@@ -6704,9 +6704,9 @@ export async function ensureInsuranceClaimCompanySchema(executor) {
   await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS additional_attachment_metadata JSONB NOT NULL DEFAULT '[]'::jsonb`)
   await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS generated_document_metadata JSONB NOT NULL DEFAULT '{}'::jsonb`)
   await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS source_claim_request_id INTEGER NULL`)
-  await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS created_by INTEGER NULL`)
+  await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS created_by TEXT NULL`)
   await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL`)
-  await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS deleted_by INTEGER NULL`)
+  await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS deleted_by TEXT NULL`)
   await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`)
   await executor.query(`ALTER TABLE insurance_claim_requests ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`)
   await executor.query(`ALTER TABLE insurance_claim_requests DROP CONSTRAINT IF EXISTS insurance_claim_requests_status_check`)
@@ -6718,15 +6718,22 @@ export async function ensureInsuranceClaimCompanySchema(executor) {
   await executor.query(`CREATE INDEX IF NOT EXISTS insurance_claim_requests_customer_created_idx ON insurance_claim_requests (customer_id, created_at DESC)`)
   await executor.query(`CREATE INDEX IF NOT EXISTS insurance_claim_requests_source_idx ON insurance_claim_requests (source_claim_request_id)`)
 
+  await ensureUserIdColumnIsText(executor, {
+    tableName: 'insurance_claim_requests',
+    columnNames: ['created_by', 'deleted_by'],
+  })
+
   await ensureOptionalUserForeignKey(executor, {
     tableName: 'insurance_claim_requests',
     columnName: 'created_by',
     constraintName: 'insurance_claim_requests_created_by_fkey',
+    validateSeparately: true,
   })
   await ensureOptionalUserForeignKey(executor, {
     tableName: 'insurance_claim_requests',
     columnName: 'deleted_by',
     constraintName: 'insurance_claim_requests_deleted_by_fkey',
+    validateSeparately: true,
   })
 }
 

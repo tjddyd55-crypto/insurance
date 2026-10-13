@@ -36,14 +36,9 @@ export function buildClaimRequestScopeWhere(req) {
       AND COALESCE(cust.owner_user_id, cust.user_id) = ${userPh}
   ))`
 
-  const userIdNum = Number(userId)
-  const createdBy = Number.isInteger(userIdNum) && userIdNum >= 1 ? userIdNum : null
-  if (createdBy == null) {
-    return { clause: customerLinked, params }
-  }
-
-  const createdPh = '$3'
-  params.push(createdBy)
-  const orphanOwn = `(r.customer_id IS NULL AND r.created_by = ${createdPh})`
+  // created_by는 users.id(text, UUID)와 같은 문자열 id를 저장한다.
+  // NULL created_by(레거시 행)는 `=` 비교에서 절대 매칭되지 않으므로 누구에게도 추가 노출되지 않는다.
+  // ::text 캐스트로 마이그레이션 전(INTEGER) 스키마에서도 쿼리가 실패하지 않는다.
+  const orphanOwn = `(r.customer_id IS NULL AND r.created_by IS NOT NULL AND r.created_by::text = ${userPh})`
   return { clause: `(${customerLinked} OR ${orphanOwn})`, params }
 }
