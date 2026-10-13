@@ -3,7 +3,7 @@ import { FormButton, FormInput, FormSelect } from '../../../components/form'
 import type { InsurerSite } from '../../insurer-sites/api/insurerSitesApi'
 import { formatPhoneNumber } from '../../contacts/utils/phone'
 import type { ContactCompanyCardDraft, ContactPersonDraft } from '../domain/contactCardWorkspaceModel'
-import { emptyContactRow } from '../domain/contactCardWorkspaceModel'
+import { applyNewCardCategoryChange, emptyContactRow } from '../domain/contactCardWorkspaceModel'
 import { buildInsuranceCompanyPickerOptions } from '../domain/insuranceCompanyCatalogOptions'
 import type { CompanyDirectoryEntry } from '../domain/types'
 import { INSURANCE_TYPE_LABELS, INSURANCE_TYPE_ORDER, type InsuranceCategory } from '../domain/insuranceConstants'
@@ -11,6 +11,7 @@ type CompanyContactEditableCardProps = {
   draft: ContactCompanyCardDraft
   directory: CompanyDirectoryEntry[]
   insurerCatalog: InsurerSite[]
+  editingTab: InsuranceCategory
   onChange: (next: ContactCompanyCardDraft) => void
   onRemoveCard: () => void
 }
@@ -19,9 +20,11 @@ export function CompanyContactEditableCard({
   draft,
   directory,
   insurerCatalog,
+  editingTab,
   onChange,
   onRemoveCard,
 }: CompanyContactEditableCardProps) {
+  const crossTabEdit = draft.category !== editingTab
   const companyOptions = useMemo(
     () => buildInsuranceCompanyPickerOptions(directory, insurerCatalog, draft.category),
     [directory, draft.category, insurerCatalog],
@@ -61,22 +64,24 @@ export function CompanyContactEditableCard({
   }
 
   return (
-    <article className="company-card company-card--editing">
+    <article
+      className={`company-card company-card--editing${crossTabEdit ? ' company-card--edit-cross-tab' : ''}`}
+    >
       <div className="company-card__header">
         {draft.isNew ? (
           <div className="company-card__new-meta">
+            {crossTabEdit ? (
+              <p className="company-card__cross-tab-hint" role="status">
+                {INSURANCE_TYPE_LABELS[draft.category]} 카드 — 저장 후 「{INSURANCE_TYPE_LABELS[draft.category]}」 탭에서
+                조회됩니다.
+              </p>
+            ) : null}
             <FormSelect
               className="field__control company-card__category-select"
               value={draft.category}
               onChange={(event) => {
                 const category = event.target.value as InsuranceCategory
-                onChange({
-                  ...draft,
-                  category,
-                  companyCode: '',
-                  companyName: '',
-                  contacts: [emptyContactRow()],
-                })
+                onChange(applyNewCardCategoryChange(draft, category))
               }}
               options={INSURANCE_TYPE_ORDER.map((value) => ({
                 value,

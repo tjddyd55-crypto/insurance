@@ -10842,6 +10842,17 @@ div.cta-button.customers-page__action-btn[role='button']{
   margin-top: 12px;
 }
 
+.insurance-contacts-view .company-card--edit-cross-tab{
+  border-color: #fcd34d;
+}
+
+.insurance-contacts-view .company-card__cross-tab-hint{
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: #92400e;
+  line-height: 1.4;
+}
+
 @media (max-width: 640px){
   .insurance-contacts-view .contact-row--editing{
     grid-template-columns: 1fr 1fr;

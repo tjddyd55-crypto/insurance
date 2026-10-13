@@ -129,6 +129,56 @@ export function resolveCardCategory(entry: CompanyDirectoryEntry, fallbackTab: I
   return fallbackTab
 }
 
+/**
+ * 편집 모드 표시: 현재 탭과 일치하거나, 종류 변경 등으로 탭과 어긋난 채 편집 중인 카드(pinned)를 포함한다.
+ * cardDrafts 전체는 저장 SSOT이며, 여기서 제외된 카드는 화면에서만 숨긴다.
+ */
+export function filterVisibleEditDrafts(
+  drafts: ContactCompanyCardDraft[],
+  activeTab: InsuranceCategory,
+  keyword: string,
+  pinnedCardKeys: ReadonlySet<string>,
+): ContactCompanyCardDraft[] {
+  return drafts.filter(
+    (draft) =>
+      (draft.category === activeTab || pinnedCardKeys.has(draft.cardKey)) &&
+      cardDraftMatchesSearch(draft, keyword),
+  )
+}
+
+/** 탭 전환 시: 새 탭과 종류가 맞는 카드는 pin 해제, 아직 다른 종류로 편집 중인 카드만 pin 유지 */
+export function prunePinnedEditCardKeys(
+  pinnedCardKeys: ReadonlySet<string>,
+  drafts: ContactCompanyCardDraft[],
+  activeTab: InsuranceCategory,
+): Set<string> {
+  const next = new Set<string>()
+  for (const cardKey of pinnedCardKeys) {
+    const draft = drafts.find((row) => row.cardKey === cardKey)
+    if (draft && draft.category !== activeTab) {
+      next.add(cardKey)
+    }
+  }
+  return next
+}
+
+/** 신규 카드만 보험 종류 변경 가능. 회사 선택만 초기화하고 담당자 입력은 유지한다. */
+export function applyNewCardCategoryChange(
+  draft: ContactCompanyCardDraft,
+  category: InsuranceCategory,
+): ContactCompanyCardDraft {
+  if (!draft.isNew) {
+    return draft
+  }
+  return {
+    ...draft,
+    category,
+    companyCode: '',
+    companyName: '',
+    customerCenter: '',
+  }
+}
+
 export function cardDraftMatchesSearch(draft: ContactCompanyCardDraft, keyword: string): boolean {
   const q = keyword.trim().toLowerCase()
   if (!q) return true
