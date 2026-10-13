@@ -12,7 +12,7 @@ describe('newsletterBoardScope', () => {
 
   it('detects ga-only boards', () => {
     expect(isGaOnlyNewsletterBoard({ boardScope: 'ga', contentScope: 'ga' })).toBe(true)
-    expect(isGaOnlyNewsletterBoard({ boardScope: 'system', contentScope: 'ga' })).toBe(true)
+    expect(isGaOnlyNewsletterBoard({ boardScope: 'system', contentScope: 'ga' })).toBe(false)
     expect(isGaOnlyNewsletterBoard({ boardScope: 'global', contentScope: 'global' })).toBe(false)
   })
 })
