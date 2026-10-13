@@ -36,11 +36,17 @@ export function splitBinderFileDisplayName(material: PersonalBinderMaterial): {
   baseName: string
   extension: string
 } {
-  const candidates = [material.originalFileName, material.displayName, material.title]
-    .map((value) => String(value ?? '').trim())
-    .filter(Boolean)
+  const displayName = String(material.displayName ?? '').trim()
+  const originalFileName = String(material.originalFileName ?? '').trim()
+  const title = String(material.title ?? '').trim()
   const raw =
-    candidates.find((name) => name.includes('.')) ?? candidates[0] ?? '자료'
+    (displayName.includes('.') ? displayName : '') ||
+    (originalFileName.includes('.') ? originalFileName : '') ||
+    (title.includes('.') ? title : '') ||
+    displayName ||
+    originalFileName ||
+    title ||
+    '자료'
   const dot = raw.lastIndexOf('.')
   if (dot > 0 && dot < raw.length - 1) {
     return {
