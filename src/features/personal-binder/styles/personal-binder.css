@@ -1381,11 +1381,11 @@
 
 .personal-binder-item-row {
   display: grid;
-  grid-template-columns: 24px minmax(0, 1fr) auto;
+  grid-template-columns: 24px minmax(0, 1fr) 28px;
   align-items: center;
-  gap: 10px;
-  min-height: 44px;
-  padding: 10px 12px;
+  gap: 8px;
+  min-height: 46px;
+  padding: 8px 10px;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md, 8px);
 }
