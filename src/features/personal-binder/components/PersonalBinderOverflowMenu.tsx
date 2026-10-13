@@ -14,6 +14,8 @@ import {
   type FloatingMenuPosition,
 } from '../../storage/utils/storageExplorerFileActionsMenuPosition'
 
+import { usePersonalBinderOverflowMenu } from './PersonalBinderOverflowMenuContext'
+
 export type PersonalBinderOverflowMenuItem = {
   id: string
   label: string
@@ -23,6 +25,7 @@ export type PersonalBinderOverflowMenuItem = {
 }
 
 type Props = {
+  menuKey: string
   ariaLabel: string
   items: PersonalBinderOverflowMenuItem[]
   disabled?: boolean
@@ -30,12 +33,15 @@ type Props = {
 }
 
 export function PersonalBinderOverflowMenu({
+  menuKey,
   ariaLabel,
   items,
   disabled = false,
   className = '',
 }: Props) {
-  const [open, setOpen] = useState(false)
+  const menuContext = usePersonalBinderOverflowMenu()
+  const [localOpen, setLocalOpen] = useState(false)
+  const open = menuContext ? menuContext.isMenuOpen(menuKey) : localOpen
   const [position, setPosition] = useState<FloatingMenuPosition | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -43,9 +49,13 @@ export function PersonalBinderOverflowMenu({
   const menuId = useId()
 
   const closeMenu = useCallback(() => {
-    setOpen(false)
+    if (menuContext) {
+      menuContext.closeMenu()
+    } else {
+      setLocalOpen(false)
+    }
     setPosition(null)
-  }, [])
+  }, [menuContext])
 
   const updatePosition = useCallback(() => {
     const trigger = triggerRef.current
@@ -174,7 +184,11 @@ export function PersonalBinderOverflowMenu({
         aria-controls={open ? menuId : undefined}
         onClick={(event: ReactMouseEvent) => {
           event.stopPropagation()
-          setOpen((value) => !value)
+          if (menuContext) {
+            menuContext.toggleMenu(menuKey)
+          } else {
+            setLocalOpen((value) => !value)
+          }
         }}
         onMouseDown={(event) => {
           event.stopPropagation()

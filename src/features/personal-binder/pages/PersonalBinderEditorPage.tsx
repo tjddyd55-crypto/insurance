@@ -18,6 +18,12 @@ import { createStorageFilePreviewUrl } from '../../storage/api/storageApi'
 import { BinderPageSelectionDialog } from '../components/BinderPageSelectionDialog'
 import type { PageSelectionDockState } from '../components/pageSelectionDock.types'
 import { PersonalBinderOverflowMenu } from '../components/PersonalBinderOverflowMenu'
+import { PersonalBinderOverflowMenuProvider } from '../components/PersonalBinderOverflowMenuContext'
+import { PersonalBinderShareDialog } from '../components/PersonalBinderShareDialog'
+import {
+  getPersonalBinderShareStatus,
+  type BinderShareStatus,
+} from '../personalBinderShare.api'
 import { splitBinderFileDisplayName } from '../utils/binderFileDisplay'
 import { MaterialAddSourceDialog } from '../components/MaterialAddSourceDialog'
 import { formatSelectedPages } from '../domain/pageSelection'
@@ -132,6 +138,8 @@ export default function PersonalBinderEditorPage({
   const [dragSectionId, setDragSectionId] = useState<string | null>(null)
   const [dragItem, setDragItem] = useState<{ sectionId: string; itemId: string } | null>(null)
   const [binderFolderLabel, setBinderFolderLabel] = useState('미분류')
+  const [shareDialogOpen, setShareDialogOpen] = useState(false)
+  const [shareStatus, setShareStatus] = useState<BinderShareStatus | null>(null)
 
   const load = useCallback(async (signal?: AbortSignal) => {
     if (!token || !binderId) return
@@ -154,6 +162,11 @@ export default function PersonalBinderEditorPage({
       setBinderFolderLabel(folderName)
       setTitle(nextBinder.title)
       setDescription(nextBinder.description)
+      try {
+        setShareStatus(await getPersonalBinderShareStatus(token, binderId, signal))
+      } catch {
+        setShareStatus(null)
+      }
     } catch (reason) {
       if (!(reason instanceof DOMException && reason.name === 'AbortError')) {
         setError(reason instanceof Error ? reason.message : '바인더를 불러오지 못했습니다.')
@@ -478,6 +491,11 @@ export default function PersonalBinderEditorPage({
           </>
         )}
         <div className="personal-binder-editor-header__actions">
+          {binder ? (
+            <FormButton variant="secondary" size="sm" onClick={() => setShareDialogOpen(true)}>
+              {shareStatus?.active ? '공유 중' : '지점에 공유하기'}
+            </FormButton>
+          ) : null}
           <FormButton variant="secondary" size="sm" onClick={() => startConsultation()}>
             상담
           </FormButton>
@@ -540,6 +558,7 @@ export default function PersonalBinderEditorPage({
         </section>
       ) : null}
 
+      <PersonalBinderOverflowMenuProvider>
       <section className="personal-binder-section-list">
         {orderedSections.map((section, sectionIndex) => {
           const sectionCollapsed = collapsed.has(section.id)
@@ -581,6 +600,7 @@ export default function PersonalBinderEditorPage({
                   {layout !== 'embedded' ? <small>{orderedItems.length}개 자료</small> : null}
                 </FormButton>
                 <PersonalBinderOverflowMenu
+                  menuKey={`section:${section.id}`}
                   className="personal-binder-overflow-menu--toc"
                   ariaLabel={`${section.title} 섹션 메뉴`}
                   items={[
@@ -681,6 +701,7 @@ export default function PersonalBinderEditorPage({
                           <small className="personal-binder-toc__page-meta">{pageLabel}</small>
                         </button>
                         <PersonalBinderOverflowMenu
+                          menuKey={`item:${item.id}`}
                           className={
                             layout === 'embedded' ? 'personal-binder-overflow-menu--toc' : ''
                           }
@@ -734,6 +755,7 @@ export default function PersonalBinderEditorPage({
           )
         })}
       </section>
+      </PersonalBinderOverflowMenuProvider>
 
       <BaseDialog
         open={sectionDialog != null}
@@ -785,6 +807,16 @@ export default function PersonalBinderEditorPage({
           initialSelection={pageTarget?.initialSelection ?? null}
           onClose={closePageSelection}
           onComplete={(selection) => void completeSelection(selection)}
+        />
+      ) : null}
+      {binder && token ? (
+        <PersonalBinderShareDialog
+          open={shareDialogOpen}
+          onClose={() => setShareDialogOpen(false)}
+          token={token}
+          binder={binder}
+          shareStatus={shareStatus}
+          onChanged={() => void load()}
         />
       ) : null}
       {confirmDialog}
