@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
+import useIsMobile from '../../../hooks/useIsMobile'
 import { FormDialog, useConfirmDialog } from '../../../components/dialog'
 import { EmptyState, StatusMessage } from '../../../components/feedback'
 import { FieldWrapper, FormButton, FormInput, FormSelect } from '../../../components/form'
@@ -163,6 +164,7 @@ const EDIT_ROLE_OPTIONS: { value: UserRole; label: string }[] = [
 export default function UserManagementPage() {
   const { user, token } = useAuth()
   const { confirm, confirmDialog } = useConfirmDialog()
+  const isMobile = useIsMobile()
   const [gaList, setGaList] = useState<GaCompanyRow[]>([])
   const [gaFilter, setGaFilter] = useState<number | 'all'>('all')
   const [subscriptionFilter, setSubscriptionFilter] = useState<AdminUserSubscriptionFilter>('')
@@ -597,6 +599,420 @@ export default function UserManagementPage() {
           <h1>유저 관리</h1>
           <p>전체 관리자만 접근할 수 있습니다.</p>
         </header>
+      </main>
+    )
+  }
+
+  if (!isMobile) {
+    const pcSelect = (
+      label: string,
+      value: string,
+      onChange: (v: string) => void,
+      options: { value: string; label: string }[],
+      extraClass = '',
+    ) => (
+      <FieldWrapper label={label} className={`admin-modal-field admin-user-pc__field${extraClass ? ` ${extraClass}` : ''}`}>
+        <FormSelect
+          className="admin-form-input"
+          value={value}
+          onChange={(e) => {
+            setSaveOk('')
+            onChange(e.target.value)
+          }}
+          disabled={isLoading}
+          aria-busy={isLoading}
+          options={options}
+        />
+      </FieldWrapper>
+    )
+    const pcStat = (
+      kind: 'all' | 'monthly_new' | 'today' | '7d',
+      label: string,
+      value: number | undefined,
+      active: boolean,
+      primary = false,
+    ) => (
+      <button
+        type="button"
+        className={`admin-user-management__stat admin-user-pc__stat${primary ? ' admin-user-management__stat--primary' : ''}${active ? ' admin-user-management__stat--active' : ''}`}
+        onClick={() => applyOverviewFilter(kind)}
+      >
+        <span className="admin-user-management__stat-label">{label}</span>
+        <strong className="admin-user-management__stat-value">{value ?? '—'}</strong>
+      </button>
+    )
+    const pcGroups = [...gaGroups].sort((a, b) => {
+      const ag = a.gaName === '공용' ? 1 : 0
+      const bg = b.gaName === '공용' ? 1 : 0
+      return ag - bg
+    })
+    const openSmsPc = () => {
+      setListActionError('')
+      if (selectedSendableCount < 1) {
+        setListActionError('문자를 보낼 사용자를 먼저 선택해 주세요. (발송 가능 대상 0명)')
+        return
+      }
+      setComposerOpen(true)
+    }
+    return (
+      <main className="page page--with-back admin-user-management admin-user-pc">
+        <header className="page-header admin-user-pc__header">
+          <h1>유저 관리</h1>
+          <p>{loadError || saveOk || '가입일·신규 가입 흐름을 기준으로 사용자를 조회하고 안내 문자를 발송합니다.'}</p>
+        </header>
+
+        <section className="card admin-user-pc__top" aria-label="사용자 조회 조건">
+          <div className="admin-user-pc__row admin-user-pc__row--summary">
+            <div className="admin-user-pc__stats" aria-label="사용자 운영 요약">
+              {pcStat('all', '전체 사용자', overview?.totalUsers, newMemberFilter === '' && activityFilter === '')}
+              {pcStat('monthly_new', '이번 달 신규', overview?.monthlyNewUsers, newMemberFilter === 'monthly_new', true)}
+              {pcStat('today', '오늘 접속', overview?.todayActiveUsers, activityFilter === 'today')}
+              {pcStat('7d', '최근 7일 접속', overview?.recent7DaysActiveUsers, activityFilter === '7d')}
+            </div>
+            <div className="admin-user-pc__view-toggle" role="group" aria-label="보기 방식">
+              <FormButton
+                htmlType="button"
+                variant={viewMode === 'flat' ? 'primary' : 'secondary'}
+                className={viewMode === 'flat' ? 'button button--primary' : 'button button--secondary'}
+                onClick={() => setViewMode('flat')}
+                aria-pressed={viewMode === 'flat'}
+              >
+                전체 목록
+              </FormButton>
+              <FormButton
+                htmlType="button"
+                variant={viewMode === 'ga_group' ? 'primary' : 'secondary'}
+                className={viewMode === 'ga_group' ? 'button button--primary' : 'button button--secondary'}
+                onClick={() => setViewMode('ga_group')}
+                aria-pressed={viewMode === 'ga_group'}
+              >
+                GA별 보기
+              </FormButton>
+            </div>
+            {pcSelect(
+              'GA 선택',
+              gaFilter === 'all' ? '' : String(gaFilter),
+              (v) => setGaFilter(v === '' ? 'all' : Number(v)),
+              [{ value: '', label: '전체' }, ...gaList.map((g) => ({ value: String(g.id), label: g.name }))],
+              'admin-user-pc__field--ga',
+            )}
+          </div>
+
+          <div className="admin-user-pc__row admin-user-pc__filters">
+            {pcSelect('역할', roleFilter, setRoleFilter, ROLE_FILTER_OPTIONS)}
+            {pcSelect('계정 상태', statusFilter, (v) => setStatusFilter(v as EntityStatus | ''), [
+              { value: '', label: '전체' },
+              ...ACCOUNT_STATUS_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label })),
+            ])}
+            {pcSelect('연락처', hasPhoneFilter, (v) => setHasPhoneFilter(v as '' | 'yes' | 'no'), [
+              { value: '', label: '전체' },
+              { value: 'yes', label: '연락처 있음' },
+              { value: 'no', label: '연락처 없음' },
+            ])}
+            {pcSelect(
+              '신규 여부',
+              newMemberFilter,
+              (v) => setNewMemberFilter(v as AdminUserNewMemberFilter),
+              ADMIN_USER_NEW_MEMBER_FILTER_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label })),
+            )}
+            {pcSelect(
+              '활동 상태',
+              activityFilter,
+              (v) => setActivityFilter(v as AdminUserActivityFilter),
+              ADMIN_USER_ACTIVITY_FILTER_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label })),
+            )}
+            {pcSelect(
+              '구독 상태',
+              subscriptionFilter,
+              (v) => setSubscriptionFilter(v as AdminUserSubscriptionFilter),
+              ADMIN_USER_SUBSCRIPTION_FILTER_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label })),
+            )}
+            <FieldWrapper label="이름 / 아이디 / 연락처 검색" className="admin-modal-field admin-user-pc__field admin-user-pc__field--search">
+              <FormInput
+                className="admin-form-input"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSaveOk('')
+                  setSearchQuery(e.target.value)
+                }}
+                placeholder="이름, 아이디, 연락처"
+                disabled={isLoading}
+              />
+            </FieldWrapper>
+            {pcSelect(
+              '정렬',
+              sortOption,
+              (v) => setSortOption(v as AdminUserListSort),
+              ADMIN_USER_SORT_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label })),
+            )}
+          </div>
+
+          <div className="admin-user-pc__row admin-user-pc__bulk">
+            <p className="admin-user-pc__bulk-summary">
+              {selectedIds.size}명 선택 · 발송 가능 {estimatedUniqueSendCount}명
+              {selectedNoPhoneCount > 0 ? ` · 연락처 없음 ${selectedNoPhoneCount}명` : ''}
+              {selectedDuplicatePhoneCount > 0 ? ` · 중복 연락처 ${selectedDuplicatePhoneCount}명 제외` : ''}
+            </p>
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              className="button button--secondary admin-user-pc__btn-sm"
+              onClick={selectCurrentPageSendable}
+              disabled={isLoading || selectableRows.length === 0}
+            >
+              현재 목록 전체 선택
+            </FormButton>
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              className="button button--secondary admin-user-pc__btn-sm"
+              onClick={clearSelection}
+              disabled={selectedIds.size === 0}
+            >
+              선택 해제
+            </FormButton>
+            <span className="admin-user-pc__spacer" aria-hidden="true" />
+            <FormButton
+              htmlType="button"
+              variant="primary"
+              className="button button--primary admin-user-pc__sms-button"
+              onClick={openSmsPc}
+              disabled={isLoading}
+            >
+              문자 보내기
+            </FormButton>
+          </div>
+          <StatusMessage message={listActionError} tone="error" className="m-0 admin-user-pc__warn" />
+        </section>
+
+        <div className="card admin-user-management__table-wrap admin-user-pc__table-wrap">
+          <div className="table-container table-container--desktop">
+            <table className="admin-user-table admin-data-table" data-view={viewMode}>
+              <thead>
+                <tr>
+                  <th scope="col">선택</th>
+                  <th scope="col">GA</th>
+                  <th scope="col">이름</th>
+                  <th scope="col">가입일</th>
+                  <th scope="col">아이디</th>
+                  <th scope="col">연락처</th>
+                  <th scope="col">추천인</th>
+                  <th scope="col">역할</th>
+                  <th scope="col">계정 상태</th>
+                  <th scope="col">구독 상태</th>
+                  <th scope="col">최근 접속일</th>
+                  <th scope="col" className="admin-table-cell--actions">
+                    관리
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.length === 0 && !isLoading ? (
+                  <tr>
+                    <td colSpan={12} style={{ padding: '20px 14px', color: 'var(--text-sub)' }}>
+                      표시할 사용자가 없습니다.
+                    </td>
+                  </tr>
+                ) : viewMode === 'ga_group' ? (
+                  pcGroups.map((group) => {
+                    const collapsed = collapsedGaIds.has(group.gaId)
+                    return (
+                      <Fragment key={group.gaId}>
+                        <tr className="admin-user-pc__group-row">
+                          <th scope="colgroup" colSpan={12}>
+                            <button
+                              type="button"
+                              className="admin-user-pc__group-toggle"
+                              onClick={() => toggleGaCollapsed(group.gaId)}
+                              aria-expanded={!collapsed}
+                            >
+                              <span aria-hidden="true">{collapsed ? '▶' : '▼'}</span>
+                              <strong>
+                                [{group.gaName} — 사용자 {group.totalUsers}명]
+                              </strong>
+                              <span className="admin-user-pc__group-stats">
+                                신규 {group.monthlyNewUsers}명 · 오늘 접속 {group.todayActiveUsers}명
+                              </span>
+                            </button>
+                          </th>
+                        </tr>
+                        {!collapsed ? group.users.map((r) => <tr key={r.id}>{renderRowCells(r)}</tr>) : null}
+                      </Fragment>
+                    )
+                  })
+                ) : (
+                  rows.map((r) => <tr key={r.id}>{renderRowCells(r)}</tr>)
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="admin-responsive-card-list" style={{ padding: 12 }}>
+            {rows.length === 0 && !isLoading ? (
+              <EmptyState message="표시할 사용자가 없습니다." className="m-0 px-1 py-2 text-[var(--text-sub)]" />
+            ) : (
+              rows.map((r) => renderUserCard(r))
+            )}
+          </div>
+        </div>
+
+        <section className="card admin-user-management__history" style={{ maxWidth: 'none', margin: '16px 0 0' }}>
+          <header className="admin-user-management__history-header">
+            <h2>문자 발송 이력</h2>
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              className="button button--secondary"
+              onClick={() => void loadHistory()}
+            >
+              새로고침
+            </FormButton>
+          </header>
+          <StatusMessage message={historyError} tone="error" className="m-0" />
+          {history.length === 0 ? (
+            <EmptyState message="발송 이력이 없습니다." className="m-0 px-1 py-2 text-[var(--text-sub)]" />
+          ) : (
+            <ul className="admin-user-management__history-list">
+              {history.map((c) => (
+                <li key={c.id}>
+                  <div className="admin-user-management__history-row">
+                    <div className="admin-user-management__history-main">
+                      <strong>{c.title}</strong>
+                      <span>
+                        #{c.id} · {c.status}
+                        {c.dryRun ? ' · dry-run' : ''} · {c.smsType} · 대상 {c.targetCount} · 성공{' '}
+                        {c.successCount} · 실패 {c.failedCount} · 제외 {c.excludedCount}
+                      </span>
+                      <span className="admin-user-management__history-meta">
+                        {c.requestedByDisplayName || c.requestedByUsername || c.requestedBy || '—'} ·{' '}
+                        {c.createdAt ? String(c.createdAt).slice(0, 19).replace('T', ' ') : '—'}
+                      </span>
+                    </div>
+                    <FormButton
+                      htmlType="button"
+                      variant="secondary"
+                      className="button button--secondary"
+                      onClick={() => setHistoryDetailId(c.id)}
+                    >
+                      상세보기
+                    </FormButton>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+      {editing ? (
+        <FormDialog
+          open={Boolean(editing)}
+          onClose={closeEdit}
+          title="유저 수정"
+          panelClassName="admin-modal-panel"
+          overlayClassName="admin-modal-backdrop"
+          closeOnBackdrop={!isSaving}
+          closeOnEsc={!isSaving}
+        >
+          <div className="admin-modal-content">
+            <p style={{ margin: 0, wordBreak: 'break-all', fontSize: 14 }}>
+              <strong>{editing.username}</strong>
+            </p>
+            <StatusMessage message={saveError} tone="error" className="m-0" />
+            <FieldWrapper label="GA 회사" className="admin-modal-field">
+              <FormSelect
+                className="admin-form-input"
+                value={String(editGaId)}
+                onChange={(e) => setEditGaId(Number(e.target.value))}
+                disabled={isSaving}
+                options={gaList.map((g) => ({ value: String(g.id), label: g.name }))}
+              />
+            </FieldWrapper>
+            <FieldWrapper label="역할" className="admin-modal-field">
+              <FormSelect
+                className="admin-form-input"
+                value={editRole}
+                onChange={(e) => setEditRole(e.target.value as UserRole)}
+                disabled={isSaving}
+                options={EDIT_ROLE_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
+              />
+            </FieldWrapper>
+            <FieldWrapper label="계정 상태" className="admin-modal-field">
+              <FormSelect
+                className="admin-form-input"
+                value={editStatus}
+                onChange={(e) => setEditStatus(e.target.value as EntityStatus)}
+                disabled={isSaving}
+                options={ACCOUNT_STATUS_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
+              />
+            </FieldWrapper>
+            <div className="admin-modal-field">
+              <span className="admin-user-card__label">연락처</span>
+              <div style={{ marginTop: 6, color: 'var(--text-primary)' }}>{formatPhoneCell(editing)}</div>
+            </div>
+            <div className="admin-modal-field">
+              <span className="admin-user-card__label">현재 구독 상태</span>
+              <div style={{ marginTop: 6 }}>
+                <SubscriptionStatusBadge row={editing} />
+              </div>
+            </div>
+            <div className="admin-modal-field">
+              <span className="admin-user-card__label">최근 접속일</span>
+              <div style={{ marginTop: 6, color: 'var(--text-primary)' }}>
+                {formatAdminUserLastLogin(editing.last_login_at)}
+              </div>
+            </div>
+            <div className="admin-modal-field">
+              <span className="admin-user-card__label">계정 상태 표시</span>
+              <div style={{ marginTop: 6 }}>
+                <AccountStatusBadge status={editStatus} />
+              </div>
+            </div>
+          </div>
+          <div className="admin-modal-actions">
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              className="button button--secondary"
+              onClick={closeEdit}
+              disabled={isSaving}
+            >
+              취소
+            </FormButton>
+            <FormButton
+              htmlType="button"
+              variant="primary"
+              className="button button--primary"
+              loading={isSaving}
+              loadingText="저장 중…"
+              onClick={() => void submitEdit()}
+            >
+              저장
+            </FormButton>
+          </div>
+        </FormDialog>
+      ) : null}
+
+      {token ? (
+        <CrmUserBulkSmsComposerDialog
+          open={composerOpen}
+          token={token}
+          selectedUserIds={selectedSendableUserIds}
+          runtime={runtime}
+          onClose={() => setComposerOpen(false)}
+          onSent={() => {
+            clearSelection()
+            void loadHistory()
+          }}
+        />
+      ) : null}
+      {token ? (
+        <CrmUserBulkSmsHistoryDetailDialog
+          open={historyDetailId != null}
+          token={token}
+          campaignId={historyDetailId}
+          onClose={() => setHistoryDetailId(null)}
+        />
+      ) : null}
+      {confirmDialog}
       </main>
     )
   }
