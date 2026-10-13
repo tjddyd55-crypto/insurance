@@ -36,4 +36,53 @@ describe('buildPersonalContactsDirectoryView', () => {
     expect(rows[0].contacts).toHaveLength(1)
     expect(rows[0].contacts[0].name).toBe('홍길동')
   })
+
+  it('디렉터리에 없는 동일 보험회사 담당자 N명은 조회 카드 1개로 묶는다', () => {
+    const fourManagers: InsuranceContact[] = [
+      {
+        id: 'pc-1',
+        category: 'NON_LIFE',
+        companyName: '농협손해보험',
+        managerName: '담당1',
+        position: '팀장',
+        phoneNumber: '01011111111',
+        createdAt: '',
+        updatedAt: '',
+      },
+      {
+        id: 'pc-2',
+        category: 'NON_LIFE',
+        companyName: '농협손해보험',
+        managerName: '담당2',
+        position: '매니저',
+        phoneNumber: '01022222222',
+        createdAt: '',
+        updatedAt: '',
+      },
+      {
+        id: 'pc-3',
+        category: 'NON_LIFE',
+        companyName: '농협손해보험',
+        managerName: '담당3',
+        position: '매니저',
+        phoneNumber: '01033333333',
+        createdAt: '',
+        updatedAt: '',
+      },
+      {
+        id: 'pc-4',
+        category: 'NON_LIFE',
+        companyName: '농협손해보험',
+        managerName: '담당4',
+        position: '매니저',
+        phoneNumber: '01044444444',
+        createdAt: '',
+        updatedAt: '',
+      },
+    ]
+    const rows = buildPersonalContactsDirectoryView([], fourManagers, 'NON_LIFE')
+    expect(rows).toHaveLength(1)
+    expect(rows[0].name).toBe('농협손해보험')
+    expect(rows[0].contacts).toHaveLength(4)
+  })
 })
