@@ -126,5 +126,20 @@ describe('isActivePcNavigationPath — 보장 시뮬레이션', () => {
       isActivePcNavigationPath('/personal-binders/binder-1/edit', PERSONAL_BINDER_MENU_ITEM.path),
     ).toBe(true)
     expect(isActivePcNavigationPath('/customers', PERSONAL_BINDER_MENU_ITEM.path)).toBe(false)
+    expect(isActivePcNavigationPath('/personal-binders/shared', PERSONAL_BINDER_MENU_ITEM.path)).toBe(false)
+    expect(
+      isActivePcNavigationPath('/personal-binders/shared/9/view', PERSONAL_BINDER_MENU_ITEM.path),
+    ).toBe(false)
+  })
+
+  it('공유 바인더 경로는 공유 바인더 메뉴만 활성화한다', () => {
+    expect(isActivePcNavigationPath('/personal-binders/shared', SHARED_BINDER_MENU_ITEM.path)).toBe(true)
+    expect(
+      isActivePcNavigationPath('/personal-binders/shared/12/view', SHARED_BINDER_MENU_ITEM.path),
+    ).toBe(true)
+    expect(isActivePcNavigationPath('/personal-binders', SHARED_BINDER_MENU_ITEM.path)).toBe(false)
+    expect(
+      isActivePcNavigationPath('/personal-binders/edit/1', SHARED_BINDER_MENU_ITEM.path),
+    ).toBe(false)
   })
 })

@@ -346,7 +346,7 @@ export const BinderPageSelectionEditor = forwardRef<
             </>
           )}
         </div>
-        {presentation === 'panel' ? (
+        {presentation === 'modal' || (presentation === 'panel' && isMobile) ? (
           <FormButton variant="secondary" size="sm" onClick={() => void requestClose()}>닫기</FormButton>
         ) : null}
       </header>

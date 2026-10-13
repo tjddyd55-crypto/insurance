@@ -1,6 +1,12 @@
 import { FormButton, FormInput } from '../../../components/form'
+import { PageToolbar } from '../../../components/layout'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { getInsuranceContacts } from '../../contacts/api/contactsApi'
+import {
+  buildPersonalContactsDirectoryView,
+  filterDirectoryRowsForPersonalView,
+} from '../../contacts/utils/personalContactsDirectoryView'
 import { useAuth } from '../../auth/AuthProvider'
 import { GaStaffOpsNav } from '../../auth/GaStaffOpsNav'
 import '../../auth/ga-staff-ops-shell.css'
@@ -32,6 +38,12 @@ const TAB_TITLE: Record<InsuranceCategory, string> = {
   GENERAL: '일반보험',
 }
 
+export type InsuranceContactsOwnershipMode = 'ga' | 'personal'
+
+type InsuranceCompanyContactsViewPageProps = {
+  ownershipMode?: InsuranceContactsOwnershipMode
+}
+
 function categoryForCompanyRow(row: CompanyDirectoryEntry, fallbackTab: InsuranceCategory): InsuranceCategory {
   const n = resolveTabCategory(row.category, row.name)
   if (n && isInsuranceCategory(n)) {
@@ -40,17 +52,23 @@ function categoryForCompanyRow(row: CompanyDirectoryEntry, fallbackTab: Insuranc
   return fallbackTab
 }
 
-export default function InsuranceCompanyContactsViewPage() {
+export default function InsuranceCompanyContactsViewPage({
+  ownershipMode = 'ga',
+}: InsuranceCompanyContactsViewPageProps) {
   const navigate = useNavigate()
   const { user, token, isAuthenticated } = useAuth()
+  const isPersonalMode = ownershipMode === 'personal'
   const isStaff = isAuthenticated && !!user && isInsuranceOpsRole(user.role)
   const isGaStaff = user?.role === 'GA_STAFF'
   const opsShellClass = isStaff ? ' admin-page-shell ga-staff-ops-page' : ''
-  const canEditFromCard = !!user && canMutateInsuranceDirectory(user.role)
+  const canEditFromCard = isPersonalMode
+    ? isAuthenticated && user?.role === 'USER'
+    : !!user && canMutateInsuranceDirectory(user.role)
 
   const [activeTab, setActiveTab] = useState<InsuranceCategory>('LIFE')
   const [keyword, setKeyword] = useState('')
   const [list, setList] = useState<CompanyDirectoryEntry[]>([])
+  const [personalContacts, setPersonalContacts] = useState<Awaited<ReturnType<typeof getInsuranceContacts>>['contacts']>([])
   const [changeSummaries, setChangeSummaries] = useState<Map<string, CompanyDirectoryChangeSummary>>(
     () => new Map(),
   )
@@ -87,26 +105,29 @@ export default function InsuranceCompanyContactsViewPage() {
     try {
       // 연락처 목록과 최근 변경 이력을 함께 로드한다.
       // 이력 조회는 배지/강조용 부가 데이터이므로 실패해도 목록 표시는 막지 않는다.
-      const [rows, history] = await Promise.all([
+      const [rows, history, personal] = await Promise.all([
         listCompanyDirectory(token),
-        getCompanyRecentUpdates(token).catch(() => []),
+        isPersonalMode ? Promise.resolve([]) : getCompanyRecentUpdates(token).catch(() => []),
+        isPersonalMode ? getInsuranceContacts(token).catch(() => ({ contacts: [], lastUpdatedAt: '' })) : Promise.resolve(null),
       ])
       setList(rows)
-      setChangeSummaries(buildCompanyChangeSummaries(history))
+      if (isPersonalMode && personal) {
+        setPersonalContacts(personal.contacts)
+      }
+      setChangeSummaries(isPersonalMode ? new Map() : buildCompanyChangeSummaries(history))
       setErrorText('')
     } catch (error) {
       setErrorText(error instanceof Error ? error.message : '목록을 불러오지 못했습니다.')
     } finally {
       setIsLoading(false)
     }
-  }, [token])
+  }, [isPersonalMode, token])
 
   useEffect(() => {
     void loadList()
   }, [loadList])
 
-  const filteredList = useMemo(() => {
-    const q = keyword.trim().toLowerCase()
+  const directoryForTab = useMemo(() => {
     const byTab = list
       .filter((item) => {
         const tab = resolveTabCategory(item.category, item.name)
@@ -118,6 +139,19 @@ export default function InsuranceCompanyContactsViewPage() {
       })
       .slice()
       .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+    if (!isPersonalMode) {
+      return byTab
+    }
+    return buildPersonalContactsDirectoryView(byTab, personalContacts, activeTab)
+  }, [activeTab, isPersonalMode, list, personalContacts])
+
+  const filteredList = useMemo(() => {
+    const q = keyword.trim().toLowerCase()
+    const byTab = directoryForTab
+
+    if (isPersonalMode) {
+      return filterDirectoryRowsForPersonalView(byTab, keyword)
+    }
 
     if (!q) {
       return byTab
@@ -145,7 +179,7 @@ export default function InsuranceCompanyContactsViewPage() {
         ) ?? false
       )
     })
-  }, [list, activeTab, keyword])
+  }, [activeTab, directoryForTab, isPersonalMode, keyword])
 
   const openCompanyRegistryEdit = (row: CompanyDirectoryEntry) => {
     const cat = categoryForCompanyRow(row, activeTab)
@@ -161,7 +195,15 @@ export default function InsuranceCompanyContactsViewPage() {
       <div className={isStaff ? 'admin-page-shell__inner' : undefined}>
       {isGaStaff ? <GaStaffOpsNav /> : null}
       <nav className="contacts-public-auth contacts-public-auth--compact admin-toolbar" aria-label="이동">
-        {isStaff && !isGaStaff ? (
+        {isPersonalMode && isAuthenticated ? (
+          <Link
+            className="button button--small button--primary contacts-public-auth__link touch-nav-btn"
+            to="/insurance/company-registry"
+          >
+            연락처 등록
+          </Link>
+        ) : null}
+        {isStaff && !isGaStaff && !isPersonalMode ? (
           <Link
             className="button button--small contacts-public-auth__link touch-nav-btn"
             to="/insurance/company-registry"
@@ -208,17 +250,31 @@ export default function InsuranceCompanyContactsViewPage() {
         ))}
       </div>
 
-      <label className="insurance-contacts-search">
-        <span className="visually-hidden">검색</span>
-        <FormInput
-          className="insurance-contacts-search__input user-form-control"
-          type="search"
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          placeholder="보험사 또는 담당자 검색 (선택)"
-          enterKeyHint="search"
-        />
-      </label>
+      <PageToolbar
+        search={
+          <label className="insurance-contacts-search">
+            <span className="visually-hidden">검색</span>
+            <FormInput
+              className="insurance-contacts-search__input user-form-control"
+              type="search"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              placeholder="보험사 또는 담당자 검색 (선택)"
+              enterKeyHint="search"
+            />
+          </label>
+        }
+        actions={
+          <>
+            <FormButton className="button" htmlType="button" variant="action" onClick={() => navigate('/insurance/history')}>
+              업데이트 현황
+            </FormButton>
+            <FormButton className="button" htmlType="button" variant="action" onClick={() => navigate('/insurance/print')}>
+              출력
+            </FormButton>
+          </>
+        }
+      />
 
       <section className="insurance-contacts-list-wrap" aria-live="polite">
         {isLoading ? (
@@ -227,6 +283,12 @@ export default function InsuranceCompanyContactsViewPage() {
           <div className="empty-box insurance-contacts-empty" role="status">
             {keyword.trim() ? (
               '검색 결과가 없습니다.'
+            ) : isPersonalMode ? (
+              <>
+                📭 등록한 연락처가 없습니다.
+                <br />
+                상단 「연락처 등록」에서 보험회사를 선택해 추가하세요.
+              </>
             ) : (
               <>
                 📭 이 분류에 등록된 보험사가 없습니다.
@@ -239,13 +301,13 @@ export default function InsuranceCompanyContactsViewPage() {
           <div className="insurance-contacts-cards">
             {filteredList.map((c) => (
               <CompanyCard
-                key={c.id}
+                key={`${c.companyCode}:${c.id}`}
                 variant="directory"
                 entry={c}
                 showEditButton={canEditFromCard}
                 onEdit={openCompanyRegistryEdit}
                 onCopyFeedback={showCopyFeedback}
-                changeSummary={changeSummaries.get(String(c.id))}
+                changeSummary={isPersonalMode ? undefined : changeSummaries.get(String(c.id))}
               />
             ))}
           </div>
