@@ -10756,6 +10756,119 @@ div.cta-button.customers-page__action-btn[role='button']{
   }
 }
 
+.insurance-contacts-view .contact-header__row{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 12px;
+}
+
+.insurance-contacts-view .insurance-contacts-workspace-actions{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.insurance-contacts-view .company-card--editing{
+  border-color: #c7d2fe;
+  box-shadow: 0 1px 3px rgb(79 70 229 / 0.08);
+}
+
+.insurance-contacts-view .company-card--marked-delete{
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.insurance-contacts-view .company-card__delete-badge{
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.insurance-contacts-view .company-card__delete-hint{
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--text-sub);
+}
+
+.insurance-contacts-view .company-card__new-meta{
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.insurance-contacts-view .company-card__remove{
+  flex-shrink: 0;
+}
+
+.insurance-contacts-view .company-card__add-contact{
+  margin-top: 10px;
+}
+
+.insurance-contacts-view .company-contacts-block--editing{
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.insurance-contacts-view .contact-row--editing{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr) minmax(0, 1.1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 0;
+}
+
+.insurance-contacts-view .contact-row--editing .contact-row__input{
+  min-width: 0;
+  font-size: 14px;
+}
+
+.insurance-contacts-view .contact-row__remove{
+  min-width: 36px;
+  padding-inline: 8px;
+}
+
+.insurance-contacts-view .insurance-contacts-add-company{
+  margin-top: 12px;
+}
+
+@media (max-width: 640px){
+  .insurance-contacts-view .contact-row--editing{
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      'name name'
+      'position phone'
+      'remove remove';
+  }
+
+  .insurance-contacts-view .contact-row--editing .contact-row__input:nth-child(1){
+    grid-area: name;
+  }
+
+  .insurance-contacts-view .contact-row--editing .contact-row__input:nth-child(2){
+    grid-area: position;
+  }
+
+  .insurance-contacts-view .contact-row--editing .contact-row__input:nth-child(3){
+    grid-area: phone;
+  }
+
+  .insurance-contacts-view .contact-row--editing .contact-row__remove{
+    grid-area: remove;
+    justify-self: end;
+  }
+}
+
 .insurance-contacts-view .company-card__header{
   display: flex;
   align-items: flex-start;
