@@ -5429,11 +5429,16 @@ apiRouter.post('/company/full-save', requireAuth, requireGaTenantAdmin, async (r
         try {
           inserted = await safeQuery(client,
             `
-            INSERT INTO insurance_company_master (
-              ga_id, category, name, customer_center, system_phone, incall_number, visit_info,
-              updated_at, updated_by_username
+            WITH nid AS (
+              SELECT nextval(pg_get_serial_sequence('insurance_company_master', 'id')) AS id
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8)
+            INSERT INTO insurance_company_master (
+              id, ga_id, category, name, customer_center, system_phone, incall_number, visit_info,
+              updated_at, updated_by_username, company_code
+            )
+            -- company_code NOT NULL(initDb) 대응: formatInsCompanyCode(id)와 동일한 INS{id 6자리}를 INSERT 시점에 채운다.
+            SELECT nid.id, $1, $2, $3, $4, $5, $6, $7, NOW(), $8, 'INS' || LPAD(CAST(nid.id AS text), 6, '0')
+            FROM nid
             RETURNING id
             `,
             [tenantGa, category, name, customerCenter, systemPhone, incallNumber, visitInfo, editor],
