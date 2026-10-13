@@ -139,11 +139,6 @@ export function PersonalBinderExplorerTree({
         <span className="personal-binder-explorer-tree__binder-title" title={binder.title}>
           {binder.title}
         </span>
-        {active ? (
-          <span className="personal-binder-explorer-tree__binder-meta">
-            {binder.sectionCount}섹션 · {binder.materialCount}자료
-          </span>
-        ) : null}
       </button>
     )
   }
@@ -170,6 +165,10 @@ export function PersonalBinderExplorerTree({
           aria-expanded={open}
           onClick={() => selectSection(key)}
         >
+          <span className="personal-binder-explorer-tree__folder-label" title={label}>
+            {label}
+          </span>
+          <span className="personal-binder-explorer-tree__count">{count}</span>
           <span
             className={[
               'personal-binder-explorer-tree__chevron',
@@ -177,10 +176,6 @@ export function PersonalBinderExplorerTree({
             ].join(' ')}
             aria-hidden="true"
           />
-          <span className="personal-binder-explorer-tree__folder-label" title={label}>
-            {label}
-          </span>
-          <span className="personal-binder-explorer-tree__count">{count}</span>
         </button>
         {folder ? (
           <>
