@@ -68,3 +68,19 @@ describe('resolveBinderMaterialRenderKind', () => {
     expect(resolveBinderMaterialRenderKind({ ...base, mimeType: 'application/pdf' })).toBe('pdf')
   })
 })
+
+describe('splitBinderFileDisplayName — original file name', () => {
+  it('prefers originalFileName when title has no extension', () => {
+    const result = splitBinderFileDisplayName({
+      id: '1',
+      title: '촬영 자료',
+      originalFileName: '1758065437402.jpg',
+      mimeType: 'image/jpeg',
+      pageCount: 1,
+      fileId: 1,
+      fileSize: 1,
+    })
+    expect(result.baseName).toBe('1758065437402')
+    expect(result.extension).toBe('JPG')
+  })
+})
