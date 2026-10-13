@@ -30,16 +30,16 @@ export async function applySignupAutoPromotionOnSignup(executor, params) {
     return { applied: false, reason: 'billing_disabled' }
   }
 
-  try {
-    await assertUserBillingPromotionNotAlreadyUsed(executor, userId)
-  } catch {
-    return { applied: false, reason: 'already_used' }
-  }
-
   const row = await loadPromotionCodeRow(executor, { code })
   if (!row) {
     console.warn('[signupAutoPromotion] promotion row not found — skip')
     return { applied: false, reason: 'promo_not_found' }
+  }
+
+  try {
+    await assertUserBillingPromotionNotAlreadyUsed(executor, userId, row.id)
+  } catch {
+    return { applied: false, reason: 'already_used' }
   }
 
   const valid = validatePromotionCodeRow(row, {})

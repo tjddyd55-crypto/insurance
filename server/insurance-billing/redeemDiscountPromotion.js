@@ -5,7 +5,10 @@
 
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { loadPromotionCodeRow } from './promotionService.js'
-import { assertUserBillingPromotionNotAlreadyUsed } from './billingPromotionRedemptionPolicy.js'
+import {
+  assertUserBillingPromotionNotAlreadyUsed,
+  lockUserBillingPromotionScope,
+} from './billingPromotionRedemptionPolicy.js'
 import { recordBillingEvent } from './subscriptionLifecycle.js'
 
 /**
@@ -40,7 +43,8 @@ export async function redeemDiscountPromotionOnPaidPayment(client, params) {
 
   // 이미 소진된 사용자면 결제 성공 트랜잭션을 깨지 않도록 skip (이중 소진 방지)
   try {
-    await assertUserBillingPromotionNotAlreadyUsed(client, userId)
+    await lockUserBillingPromotionScope(client, userId)
+    await assertUserBillingPromotionNotAlreadyUsed(client, userId, row.id)
   } catch {
     return { redeemed: false, reason: 'already_used' }
   }

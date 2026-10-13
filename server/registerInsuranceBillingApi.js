@@ -253,12 +253,19 @@ export function registerInsuranceBillingApi(apiRouter, ctx) {
       } catch {
         /* */
       }
-      if (e?.message === 'promotion_already_used') {
+      if (
+        e?.message === 'promotion_already_used' ||
+        (e?.code === '23505' && String(e?.constraint ?? '') === 'uq_billing_promotion_redemptions_user_code')
+      ) {
         res.status(409).json({
           valid: false,
-          message: '이미 프로모션 코드를 사용한 계정입니다.',
+          message: '이미 사용한 쿠폰입니다. 같은 쿠폰은 한 번만 등록할 수 있습니다.',
           errorCode: PROMOTION_ALREADY_USED_ERROR_CODE,
         })
+        return
+      }
+      if (e?.message === 'promotion_max_redemptions') {
+        res.status(409).json({ valid: false, message: '사용 횟수가 모두 소진된 코드입니다.' })
         return
       }
       handleDbError(e, req, res)

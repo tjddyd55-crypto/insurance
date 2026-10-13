@@ -5355,6 +5355,26 @@ async function ensureInsuranceBillingPhase1Schema(executor) {
     ON billing_promotion_redemptions (user_id, redeemed_at DESC)
   `)
 
+  // 같은 쿠폰 계정당 1회 — 기존 중복 데이터가 있으면 인덱스를 만들지 않고 경고만 남긴다(데이터 무변경).
+  await executor.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_indexes WHERE indexname = 'uq_billing_promotion_redemptions_user_code'
+      ) THEN
+        IF EXISTS (
+          SELECT 1 FROM billing_promotion_redemptions
+          GROUP BY user_id, promotion_code_id HAVING COUNT(*) > 1
+        ) THEN
+          RAISE WARNING 'billing_promotion_redemptions has duplicate (user_id, promotion_code_id); unique index skipped';
+        ELSE
+          CREATE UNIQUE INDEX uq_billing_promotion_redemptions_user_code
+          ON billing_promotion_redemptions (user_id, promotion_code_id);
+        END IF;
+      END IF;
+    END $$;
+  `)
+
   await executor.query(`
     CREATE TABLE IF NOT EXISTS billing_payments (
       id BIGSERIAL PRIMARY KEY,
