@@ -217,11 +217,27 @@
   }
 
   /* J. 고객 메모 — 페이지 제목(고객 메모)과 섹션 제목([메모]) 중복 제거 */
+  /* 제목 행(메모)과 메모 추가 버튼을 한 줄로, 불필요한 여백 축소 */
+  .customer-memos-page--pc {
+    position: relative;
+  }
+
+  .customer-memos-page--pc > .customer-memos-page__pc-title {
+    margin: 0;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+  }
+
   .customer-memos-page--pc .customer-inline-notes {
-    margin-top: 12px;
+    margin-top: 8px;
   }
 
   .customer-memos-page--pc .customer-inline-notes > div:first-child {
+    position: absolute;
+    top: var(--customer-memos-pc-pad-top, 16px);
+    right: var(--customer-memos-pc-pad-right, 16px);
+    margin: 0;
     justify-content: flex-end;
   }
 
