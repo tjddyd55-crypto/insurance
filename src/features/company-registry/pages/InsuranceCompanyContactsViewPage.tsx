@@ -26,8 +26,9 @@ import {
 import { CompanyCard } from '../components/CompanyCard'
 import { CompanyContactEditableCard } from '../components/CompanyContactEditableCard'
 import type { CompanyDirectoryEntry } from '../domain/types'
+import { fetchActiveInsurerSites, type InsurerSite } from '../../insurer-sites/api/insurerSitesApi'
+import { filterInsurerCatalogForCategory } from '../domain/insuranceCompanyCatalogOptions'
 import {
-  buildCompanyOptions,
   cardDraftMatchesSearch,
   directoryEntryToCardDraft,
   findDuplicateCard,
@@ -110,6 +111,9 @@ export default function InsuranceCompanyContactsViewPage({
   const [cardDrafts, setCardDrafts] = useState<ContactCompanyCardDraft[]>([])
   const [baselineDrafts, setBaselineDrafts] = useState<ContactCompanyCardDraft[]>([])
   const [saveBusy, setSaveBusy] = useState(false)
+  const [insurerCatalog, setInsurerCatalog] = useState<InsurerSite[]>([])
+  const [insurerCatalogError, setInsurerCatalogError] = useState('')
+  const [insurerCatalogLoading, setInsurerCatalogLoading] = useState(false)
   const copyNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const showCopyFeedback = useCallback((message: string) => {
@@ -159,6 +163,37 @@ export default function InsuranceCompanyContactsViewPage({
   useEffect(() => {
     void loadList()
   }, [loadList])
+
+  const loadInsurerCatalog = useCallback(async () => {
+    if (!token || !canManageCards) {
+      setInsurerCatalog([])
+      setInsurerCatalogError('')
+      return
+    }
+    setInsurerCatalogLoading(true)
+    try {
+      const response = await fetchActiveInsurerSites(token)
+      const items = Array.isArray(response.items) ? response.items : []
+      if (items.length === 0) {
+        setInsurerCatalog([])
+        setInsurerCatalogError('보험회사 카탈로그를 불러오지 못했습니다. 잠시 후 다시 시도하세요.')
+        return
+      }
+      setInsurerCatalog(items)
+      setInsurerCatalogError('')
+    } catch (error) {
+      setInsurerCatalog([])
+      setInsurerCatalogError(
+        error instanceof Error ? error.message : '보험회사 카탈로그를 불러오지 못했습니다.',
+      )
+    } finally {
+      setInsurerCatalogLoading(false)
+    }
+  }, [canManageCards, token])
+
+  useEffect(() => {
+    void loadInsurerCatalog()
+  }, [loadInsurerCatalog])
 
   const directoryForTab = useMemo(() => {
     const byTab = list
@@ -219,10 +254,12 @@ export default function InsuranceCompanyContactsViewPage({
     )
   }, [activeTab, cardDrafts, keyword])
 
-  const companyOptions = useMemo(
-    () => buildCompanyOptions(list, activeTab),
-    [activeTab, list],
-  )
+  const catalogRequiredForTab = activeTab === 'LIFE' || activeTab === 'NON_LIFE'
+  const catalogUnavailable =
+    workspaceEdit &&
+    catalogRequiredForTab &&
+    !insurerCatalogLoading &&
+    (insurerCatalogError !== '' || filterInsurerCatalogForCategory(insurerCatalog, activeTab).length === 0)
 
   const enterWorkspaceEdit = () => {
     const initial = buildInitialCardDrafts(isPersonalMode, list, personalContacts)
@@ -369,6 +406,11 @@ export default function InsuranceCompanyContactsViewPage({
             {errorText}
           </p>
         ) : null}
+        {catalogUnavailable ? (
+          <p className="insurance-contacts-status insurance-contacts-status--error" role="alert">
+            {insurerCatalogError || '보험회사 카탈로그를 사용할 수 없습니다. 페이지를 새로고침하거나 관리자에게 문의하세요.'}
+          </p>
+        ) : null}
         {copyStatus ? (
           <p className="insurance-contacts-status" role="status" aria-live="polite">
             {copyStatus}
@@ -459,7 +501,8 @@ export default function InsuranceCompanyContactsViewPage({
               <CompanyContactEditableCard
                 key={draft.cardKey}
                 draft={draft}
-                companyOptions={companyOptions}
+                directory={list}
+                insurerCatalog={insurerCatalog}
                 onChange={(next) => updateDraft(draft.cardKey, next)}
                 onRemoveCard={() => markCardRemoved(draft.cardKey)}
               />

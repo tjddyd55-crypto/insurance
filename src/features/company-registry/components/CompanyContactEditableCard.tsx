@@ -1,22 +1,31 @@
+import { useMemo } from 'react'
 import { FormButton, FormInput, FormSelect } from '../../../components/form'
+import type { InsurerSite } from '../../insurer-sites/api/insurerSitesApi'
 import { formatPhoneNumber } from '../../contacts/utils/phone'
 import type { ContactCompanyCardDraft, ContactPersonDraft } from '../domain/contactCardWorkspaceModel'
 import { emptyContactRow } from '../domain/contactCardWorkspaceModel'
-import type { InsuranceCompanyOption } from '../domain/types'
+import { buildInsuranceCompanyPickerOptions } from '../domain/insuranceCompanyCatalogOptions'
+import type { CompanyDirectoryEntry } from '../domain/types'
 import { INSURANCE_TYPE_LABELS, INSURANCE_TYPE_ORDER, type InsuranceCategory } from '../domain/insuranceConstants'
 type CompanyContactEditableCardProps = {
   draft: ContactCompanyCardDraft
-  companyOptions: InsuranceCompanyOption[]
+  directory: CompanyDirectoryEntry[]
+  insurerCatalog: InsurerSite[]
   onChange: (next: ContactCompanyCardDraft) => void
   onRemoveCard: () => void
 }
 
 export function CompanyContactEditableCard({
   draft,
-  companyOptions,
+  directory,
+  insurerCatalog,
   onChange,
   onRemoveCard,
 }: CompanyContactEditableCardProps) {
+  const companyOptions = useMemo(
+    () => buildInsuranceCompanyPickerOptions(directory, insurerCatalog, draft.category),
+    [directory, draft.category, insurerCatalog],
+  )
   if (draft.markedForDeletion) {
     return (
       <article className="company-card company-card--editing company-card--marked-delete">
