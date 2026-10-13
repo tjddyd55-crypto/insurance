@@ -453,25 +453,51 @@ export async function getBillingPromotionCodeStatsAdmin(executor, codeId) {
   const recentR = await systemQuery(
     executor,
     `
-    SELECT id, user_id, redeemed_at, free_ends_at
-    FROM billing_promotion_redemptions
-    WHERE promotion_code_id = $1
-    ORDER BY redeemed_at DESC
+    SELECT
+      r.id,
+      r.user_id,
+      r.redeemed_at,
+      r.free_starts_at,
+      r.free_ends_at,
+      u.username,
+      u.display_name,
+      bs.status AS subscription_status
+    FROM billing_promotion_redemptions r
+    LEFT JOIN users u ON u.id = r.user_id
+    LEFT JOIN billing_subscriptions bs ON bs.user_id = r.user_id
+    WHERE r.promotion_code_id = $1
+    ORDER BY r.redeemed_at DESC
     LIMIT 10
     `,
     [Number(codeId)],
   )
 
+  const nowMs = Date.now()
   return {
     promotion,
     redemptionCount: Number(statsR.rows[0]?.redemption_count ?? 0),
     accountCount: Number(statsR.rows[0]?.account_count ?? 0),
-    recentRedemptions: recentR.rows.map((item) => ({
-      id: Number(item.id),
-      userId: item.user_id,
-      redeemedAt: item.redeemed_at,
-      freeEndsAt: item.free_ends_at,
-    })),
+    recentRedemptions: recentR.rows.map((item) => mapBillingPromotionRedemptionRow(item, nowMs)),
+  }
+}
+
+/**
+ * 쿠폰 사용 내역 1건: 유저 관리와 같은 "이름 (아이디)" 표기용 필드 + 혜택 기간/상태.
+ * free_starts_at은 혜택 기산일(체험/기존 이용 종료일 이후로 연장될 수 있음)이라 사용일(redeemed_at)과 다를 수 있다.
+ */
+export function mapBillingPromotionRedemptionRow(item, nowMs = Date.now()) {
+  const endsAt = item.free_ends_at ? new Date(item.free_ends_at) : null
+  const benefitStatus = endsAt == null ? 'unknown' : endsAt.getTime() > nowMs ? 'active' : 'ended'
+  return {
+    id: Number(item.id),
+    userId: item.user_id,
+    username: item.username ?? null,
+    displayName: String(item.display_name ?? '').trim() || null,
+    redeemedAt: item.redeemed_at,
+    freeStartsAt: item.free_starts_at ?? null,
+    freeEndsAt: item.free_ends_at,
+    benefitStatus,
+    subscriptionStatus: item.subscription_status ?? null,
   }
 }
 
