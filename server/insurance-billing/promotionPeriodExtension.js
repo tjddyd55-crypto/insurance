@@ -40,6 +40,7 @@ export function resolvePromotionExtensionBaseDate(subscription, now = new Date()
     subscription?.currentPeriodEnd,
     subscription?.next_billing_at,
     subscription?.nextBillingAt,
+    subscription?.promotion_benefit_ends_at,
   ]
     .map((value) => toDate(value))
     .filter((date) => date && date.getTime() > nowMs)

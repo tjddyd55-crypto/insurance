@@ -69,6 +69,20 @@ async function assertActiveShareAccess(executor, shareId, scope) {
 /**
  * @param {import('pg').Pool | import('pg').PoolClient} executor
  */
+/** page_selection 직렬화: null/undefined → SQL NULL, 배열 → JSON 배열, JSON 문자열 배열도 허용. 그 외는 NULL(전체). */
+export function serializeSharePageSelection(value) {
+  let v = value
+  if (typeof v === 'string') {
+    try {
+      v = JSON.parse(v)
+    } catch {
+      return null
+    }
+  }
+  if (!Array.isArray(v)) return null
+  return JSON.stringify(v)
+}
+
 export async function getActiveShareForBinder(executor, scope, binderId) {
   const result = await safeQuery(
     executor,
@@ -393,7 +407,9 @@ export async function createPersonalBinderGaShare(pool, scope, gaCode, binderId)
             shareFileId,
             scope.gaId,
             item.sortOrder,
-            JSON.stringify(item.pageSelection),
+            // NULL(전체 페이지)은 SQL NULL로 저장해야 한다. JSON.stringify(null) = jsonb 'null'은
+            // personal_binder_ga_share_item_pages_check(NULL 또는 array)를 위반한다(23514).
+            serializeSharePageSelection(item.pageSelection),
           ],
         )
       }
