@@ -24,7 +24,23 @@ import {
   type InsuranceCategory,
 } from '../domain/insuranceConstants'
 import { CompanyCard } from '../components/CompanyCard'
+import { CompanyContactEditableCard } from '../components/CompanyContactEditableCard'
 import type { CompanyDirectoryEntry } from '../domain/types'
+import {
+  buildCompanyOptions,
+  cardDraftMatchesSearch,
+  directoryEntryToCardDraft,
+  findDuplicateCard,
+  emptyContactRow,
+  newCardKey,
+  personalContactsToCardDrafts,
+  type ContactCompanyCardDraft,
+} from '../domain/contactCardWorkspaceModel'
+import {
+  applySuccessfulCardSaves,
+  formatSaveResultsMessage,
+  saveContactCardWorkspace,
+} from '../utils/saveContactCardWorkspace'
 
 const TAB_SHORT_LABEL: Record<InsuranceCategory, string> = {
   LIFE: '생명',
@@ -52,6 +68,21 @@ function categoryForCompanyRow(row: CompanyDirectoryEntry, fallbackTab: Insuranc
   return fallbackTab
 }
 
+function cloneDrafts(cards: ContactCompanyCardDraft[]): ContactCompanyCardDraft[] {
+  return JSON.parse(JSON.stringify(cards)) as ContactCompanyCardDraft[]
+}
+
+function buildInitialCardDrafts(
+  isPersonalMode: boolean,
+  list: CompanyDirectoryEntry[],
+  personalContacts: Awaited<ReturnType<typeof getInsuranceContacts>>['contacts'],
+): ContactCompanyCardDraft[] {
+  if (isPersonalMode) {
+    return INSURANCE_TYPE_ORDER.flatMap((tab) => personalContactsToCardDrafts(personalContacts, tab))
+  }
+  return list.map((entry) => directoryEntryToCardDraft(entry, categoryForCompanyRow(entry, 'LIFE')))
+}
+
 export default function InsuranceCompanyContactsViewPage({
   ownershipMode = 'ga',
 }: InsuranceCompanyContactsViewPageProps) {
@@ -61,7 +92,7 @@ export default function InsuranceCompanyContactsViewPage({
   const isStaff = isAuthenticated && !!user && isInsuranceOpsRole(user.role)
   const isGaStaff = user?.role === 'GA_STAFF'
   const opsShellClass = isStaff ? ' admin-page-shell ga-staff-ops-page' : ''
-  const canEditFromCard = isPersonalMode
+  const canManageCards = isPersonalMode
     ? isAuthenticated && user?.role === 'USER'
     : !!user && canMutateInsuranceDirectory(user.role)
 
@@ -75,6 +106,10 @@ export default function InsuranceCompanyContactsViewPage({
   const [isLoading, setIsLoading] = useState(true)
   const [errorText, setErrorText] = useState('')
   const [copyStatus, setCopyStatus] = useState('')
+  const [workspaceEdit, setWorkspaceEdit] = useState(false)
+  const [cardDrafts, setCardDrafts] = useState<ContactCompanyCardDraft[]>([])
+  const [baselineDrafts, setBaselineDrafts] = useState<ContactCompanyCardDraft[]>([])
+  const [saveBusy, setSaveBusy] = useState(false)
   const copyNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const showCopyFeedback = useCallback((message: string) => {
@@ -103,8 +138,6 @@ export default function InsuranceCompanyContactsViewPage({
     }
     setIsLoading(true)
     try {
-      // 연락처 목록과 최근 변경 이력을 함께 로드한다.
-      // 이력 조회는 배지/강조용 부가 데이터이므로 실패해도 목록 표시는 막지 않는다.
       const [rows, history, personal] = await Promise.all([
         listCompanyDirectory(token),
         isPersonalMode ? Promise.resolve([]) : getCompanyRecentUpdates(token).catch(() => []),
@@ -134,7 +167,6 @@ export default function InsuranceCompanyContactsViewPage({
         if (tab) {
           return tab === activeTab
         }
-        // DB 분류 없음·맵에도 없음 → 생명 탭에만 표시(누락 방지). 관리 화면에서 종류 지정 권장.
         return activeTab === 'LIFE'
       })
       .slice()
@@ -179,36 +211,131 @@ export default function InsuranceCompanyContactsViewPage({
         ) ?? false
       )
     })
-  }, [activeTab, directoryForTab, isPersonalMode, keyword])
+  }, [directoryForTab, isPersonalMode, keyword])
 
-  const openCompanyRegistryEdit = (row: CompanyDirectoryEntry) => {
-    const cat = categoryForCompanyRow(row, activeTab)
-    navigate(
-      `/insurance/company-registry?type=${encodeURIComponent(cat)}&code=${encodeURIComponent(row.companyCode)}`,
+  const visibleEditDrafts = useMemo(() => {
+    return cardDrafts.filter(
+      (draft) => draft.category === activeTab && cardDraftMatchesSearch(draft, keyword),
+    )
+  }, [activeTab, cardDrafts, keyword])
+
+  const companyOptions = useMemo(
+    () => buildCompanyOptions(list, activeTab),
+    [activeTab, list],
+  )
+
+  const enterWorkspaceEdit = () => {
+    const initial = buildInitialCardDrafts(isPersonalMode, list, personalContacts)
+    setBaselineDrafts(cloneDrafts(initial))
+    setCardDrafts(cloneDrafts(initial))
+    setWorkspaceEdit(true)
+    setErrorText('')
+  }
+
+  const cancelWorkspaceEdit = () => {
+    setCardDrafts(cloneDrafts(baselineDrafts))
+    setWorkspaceEdit(false)
+    setErrorText('')
+  }
+
+  const addCompanyCard = () => {
+    const entry = list.find(
+      (row) => resolveTabCategory(row.category, row.name) === activeTab,
+    )
+    setCardDrafts((rows) => [
+      ...rows,
+      {
+        cardKey: newCardKey(),
+        category: activeTab,
+        companyCode: '',
+        companyId: null,
+        companyName: '',
+        customerCenter: entry?.customerCenter ?? '',
+        systemPhone: entry?.systemPhone ?? '',
+        incallNumber: entry?.incallNumber ?? '',
+        visitInfo: entry?.visitInfo ?? '',
+        contacts: [emptyContactRow()],
+        isNew: true,
+        markedForDeletion: false,
+      },
+    ])
+  }
+
+  const updateDraft = (cardKey: string, next: ContactCompanyCardDraft) => {
+    if (next.isNew && next.companyCode.trim()) {
+      const duplicate = findDuplicateCard(cardDrafts, next.category, next.companyCode, cardKey)
+      if (duplicate) {
+        setErrorText(`「${duplicate.companyName}」 카드가 이미 있습니다. 해당 카드에서 담당자를 추가하세요.`)
+        return
+      }
+    }
+    setCardDrafts((rows) => rows.map((row) => (row.cardKey === cardKey ? next : row)))
+    setErrorText('')
+  }
+
+  const markCardRemoved = (cardKey: string) => {
+    setCardDrafts((rows) =>
+      rows.map((row) => {
+        if (row.cardKey !== cardKey) return row
+        if (row.isNew) return null
+        return { ...row, markedForDeletion: true }
+      }).filter((row): row is ContactCompanyCardDraft => row != null),
     )
   }
 
+  const saveWorkspace = async () => {
+    if (!token || !canManageCards) return
+    setSaveBusy(true)
+    setErrorText('')
+    try {
+      const results = await saveContactCardWorkspace({
+        token,
+        mode: isPersonalMode ? 'personal' : 'ga',
+        drafts: cardDrafts,
+        baseline: baselineDrafts,
+        personalContacts,
+      })
+      const message = formatSaveResultsMessage(results)
+      const failed = results.some((row) => !row.ok)
+      if (results.length === 0) {
+        setCopyStatus(message)
+        return
+      }
+      if (failed) {
+        setErrorText(message)
+        const merged = applySuccessfulCardSaves(baselineDrafts, cardDrafts, results)
+        setBaselineDrafts(merged.baseline)
+        setCardDrafts(merged.drafts)
+        if (results.some((row) => row.ok)) {
+          await loadList()
+        }
+      } else {
+        setCopyStatus(message)
+        setWorkspaceEdit(false)
+        await loadList()
+      }
+    } catch (reason) {
+      setErrorText(reason instanceof Error ? reason.message : '저장에 실패했습니다.')
+    } finally {
+      setSaveBusy(false)
+    }
+  }
+
+  const showEmpty = !isLoading && (workspaceEdit ? visibleEditDrafts.length === 0 : filteredList.length === 0)
+
   return (
     <main
-      className={`page page--with-back company-registry-page insurance-contacts-view company-directory-read-ui user-page${opsShellClass}`}
+      className={`page page--with-back company-registry-page insurance-contacts-view company-directory-read-ui user-page${opsShellClass}${workspaceEdit ? ' insurance-contacts-view--editing' : ''}`}
     >
       <div className={isStaff ? 'admin-page-shell__inner' : undefined}>
       {isGaStaff ? <GaStaffOpsNav /> : null}
       <nav className="contacts-public-auth contacts-public-auth--compact admin-toolbar" aria-label="이동">
-        {isPersonalMode && isAuthenticated ? (
-          <Link
-            className="button button--small button--primary contacts-public-auth__link touch-nav-btn"
-            to="/insurance/company-registry"
-          >
-            연락처 등록
-          </Link>
-        ) : null}
-        {isStaff && !isGaStaff && !isPersonalMode ? (
+        {isStaff && !isGaStaff && !isPersonalMode && !workspaceEdit ? (
           <Link
             className="button button--small contacts-public-auth__link touch-nav-btn"
             to="/insurance/company-registry"
           >
-            관리
+            관리 (전체 폼)
           </Link>
         ) : null}
         {!isAuthenticated ? (
@@ -221,6 +348,21 @@ export default function InsuranceCompanyContactsViewPage({
       <header className="page-header insurance-contacts-header contact-header">
         <div className="contact-header__row">
           <h1>원수사 연락처</h1>
+          {canManageCards && !workspaceEdit ? (
+            <FormButton variant="primary" size="sm" onClick={enterWorkspaceEdit}>
+              편집
+            </FormButton>
+          ) : null}
+          {workspaceEdit ? (
+            <div className="insurance-contacts-workspace-actions">
+              <FormButton variant="secondary" size="sm" disabled={saveBusy} onClick={cancelWorkspaceEdit}>
+                취소
+              </FormButton>
+              <FormButton variant="primary" size="sm" loading={saveBusy} onClick={() => void saveWorkspace()}>
+                변경사항 저장
+              </FormButton>
+            </div>
+          ) : null}
         </div>
         {errorText ? (
           <p className="insurance-contacts-status insurance-contacts-status--error" role="alert">
@@ -266,12 +408,20 @@ export default function InsuranceCompanyContactsViewPage({
         }
         actions={
           <>
-            <FormButton className="button" htmlType="button" variant="action" onClick={() => navigate('/insurance/history')}>
-              업데이트 현황
-            </FormButton>
-            <FormButton className="button" htmlType="button" variant="action" onClick={() => navigate('/insurance/print')}>
-              출력
-            </FormButton>
+            {!workspaceEdit ? (
+              <>
+                <FormButton className="button" htmlType="button" variant="action" onClick={() => navigate('/insurance/history')}>
+                  업데이트 현황
+                </FormButton>
+                <FormButton className="button" htmlType="button" variant="action" onClick={() => navigate('/insurance/print')}>
+                  출력
+                </FormButton>
+              </>
+            ) : (
+              <FormButton className="button" htmlType="button" variant="secondary" onClick={addCompanyCard}>
+                + 보험회사 추가
+              </FormButton>
+            )}
           </>
         }
       />
@@ -279,15 +429,21 @@ export default function InsuranceCompanyContactsViewPage({
       <section className="insurance-contacts-list-wrap" aria-live="polite">
         {isLoading ? (
           <p className="insurance-contacts-loading">불러오는 중…</p>
-        ) : filteredList.length === 0 ? (
+        ) : showEmpty ? (
           <div className="empty-box insurance-contacts-empty" role="status">
             {keyword.trim() ? (
               '검색 결과가 없습니다.'
+            ) : workspaceEdit ? (
+              <>
+                📭 이 분류에 편집할 카드가 없습니다.
+                <br />
+                「+ 보험회사 추가」로 카드를 만든 뒤 담당자를 입력하세요.
+              </>
             ) : isPersonalMode ? (
               <>
                 📭 등록한 연락처가 없습니다.
                 <br />
-                상단 「연락처 등록」에서 보험회사를 선택해 추가하세요.
+                「편집」에서 보험회사 카드를 추가하세요.
               </>
             ) : (
               <>
@@ -297,6 +453,18 @@ export default function InsuranceCompanyContactsViewPage({
               </>
             )}
           </div>
+        ) : workspaceEdit ? (
+          <div className="insurance-contacts-cards">
+            {visibleEditDrafts.map((draft) => (
+              <CompanyContactEditableCard
+                key={draft.cardKey}
+                draft={draft}
+                companyOptions={companyOptions}
+                onChange={(next) => updateDraft(draft.cardKey, next)}
+                onRemoveCard={() => markCardRemoved(draft.cardKey)}
+              />
+            ))}
+          </div>
         ) : (
           <div className="insurance-contacts-cards">
             {filteredList.map((c) => (
@@ -304,8 +472,7 @@ export default function InsuranceCompanyContactsViewPage({
                 key={`${c.companyCode}:${c.id}`}
                 variant="directory"
                 entry={c}
-                showEditButton={canEditFromCard}
-                onEdit={openCompanyRegistryEdit}
+                showEditButton={false}
                 onCopyFeedback={showCopyFeedback}
                 changeSummary={isPersonalMode ? undefined : changeSummaries.get(String(c.id))}
               />
