@@ -119,8 +119,7 @@ export default function TodosWorkspacePCView({
               {label}
             </button>
           ))}
-          <label className="ml-auto flex flex-col items-end gap-1 text-right min-w-[11rem]">
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-secondary">출처</span>
+          <label className="todos-page__source-filter ml-auto flex items-center min-w-[11rem]">
             <select
               aria-label="할 일 출처 필터"
               className={`w-full rounded-lg border text-xs py-1.5 px-2 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
