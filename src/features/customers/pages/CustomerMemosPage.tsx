@@ -72,7 +72,7 @@ export default function CustomerMemosPage() {
   if (!customerId || customerId < 1) {
     const inner = (
       <section className={memoSectionClassName}>
-        <h3 className="customer-workspace-home__title">고객 메모</h3>
+        <h3 className="customer-workspace-home__title">{isMobile ? '고객 메모' : '메모'}</h3>
         <p className="customer-workspace-home__desc">고객을 먼저 선택해 주세요.</p>
       </section>
     )
@@ -86,7 +86,7 @@ export default function CustomerMemosPage() {
   if (loading) {
     const inner = (
       <section className={memoSectionClassName}>
-        <h3 className="customer-workspace-home__title">고객 메모</h3>
+        <h3 className="customer-workspace-home__title">{isMobile ? '고객 메모' : '메모'}</h3>
         <p className="customer-workspace-home__desc">불러오는 중...</p>
       </section>
     )
@@ -100,7 +100,7 @@ export default function CustomerMemosPage() {
   if (!customer || !token?.trim()) {
     const inner = (
       <section className={memoSectionClassName}>
-        <h3 className="customer-workspace-home__title">고객 메모</h3>
+        <h3 className="customer-workspace-home__title">{isMobile ? '고객 메모' : '메모'}</h3>
         <p className="customer-workspace-home__desc">{statusText || '고객 정보를 불러오지 못했습니다.'}</p>
         <FormButton htmlType="button" variant="action" className="filter-button" onClick={() => void loadCustomer()}>
           다시 시도

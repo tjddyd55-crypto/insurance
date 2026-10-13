@@ -88,7 +88,7 @@ function rightTitle(pathname: string): string {
     return 'GA 고객 데이터'
   }
   if (pathname.includes('/memos')) {
-    return '고객 메모'
+    return '메모'
   }
   if (pathname.includes('/claim-requests')) {
     return '청구 관리'
