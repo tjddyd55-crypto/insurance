@@ -125,6 +125,8 @@ import {
 import { resolveTenantByAuthenticatedLegacyGaId } from './lib/resolveTenantByAuthenticatedLegacyGaId.js'
 import { ensureInsuranceTenantForLegacyGa } from './lib/ensureInsuranceTenantForLegacyGa.js'
 import { isGeneralGaCompanyCode, resolveSignupGaCompany } from './lib/generalGa.js'
+import { assertGaBelongsToActiveGaGroup } from './lib/gaGroupMembership.js'
+import { normalizeGaGroupSlug } from './lib/gaGroupSlug.js'
 import {
   isDevSignupPhoneBypassEnabled,
   resolveDevSignupPhoneForStorage,
@@ -200,6 +202,12 @@ import { registerPdfTemplateApi } from './registerPdfTemplateApi.js'
 import { registerInsuranceClaimCompanyApi } from './registerInsuranceClaimCompanyApi.js'
 import { registerInsurerSitesApi } from './registerInsurerSitesApi.js'
 import { registerPlatformAdminApi } from './registerPlatformAdminApi.js'
+import { registerGaGroupApi } from './apis/registerGaGroupApi.js'
+import {
+  buildGaCompaniesAdminListQueries,
+  mapGaCompaniesAdminListRow,
+  parseGaCompaniesAdminListParams,
+} from './lib/gaCompaniesAdminListQuery.js'
 import { registerCrmCustomerTemplateAdminApi } from './registerCrmCustomerTemplateAdminApi.js'
 import { registerSmsModuleApi } from './registerSmsModuleApi.js'
 import { registerCrmUserBulkSmsApi } from './registerCrmUserBulkSmsApi.js'
@@ -1762,6 +1770,7 @@ registerInsuranceClaimCompanyApi(apiRouter, {
 
 registerInsurerSitesApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
 registerPlatformAdminApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
+registerGaGroupApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
 registerCrmCustomerTemplateAdminApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
 registerSmsModuleApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCrmUserBulkSmsApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
@@ -2338,6 +2347,18 @@ async function handleRegister(req, res) {
       }
       gaLegacyInviteCodeNormalized = resolvedSignupGa.codeNormalized
       gaId = resolvedSignupGa.id
+
+      const groupSlugForSignup = normalizeGaGroupSlug(body.ga_group_slug ?? body.gaGroupSlug ?? '')
+      if (groupSlugForSignup) {
+        const groupCheck = await assertGaBelongsToActiveGaGroup(pool, {
+          slug: groupSlugForSignup,
+          gaId,
+        })
+        if (!groupCheck.ok) {
+          res.status(403).json({ message: groupCheck.message })
+          return
+        }
+      }
 
       const refUserId = String(refUserSnake ?? refUserCamel ?? '').trim()
       /** 담당자 초대 링크(명시 GA + ref) — 추천인 코드만 있는 가입과 분리 */
@@ -3878,9 +3899,42 @@ apiRouter.delete('/loss-adjusters/:id', requireAuth, requireGaStaffOrAdminOnly, 
   }
 })
 
+function wantsPaginatedGaAdminList(query) {
+  if (query == null || typeof query !== 'object') {
+    return false
+  }
+  return (
+    query.page != null ||
+    query.pageSize != null ||
+    query.limit != null ||
+    (query.q != null && String(query.q).trim() !== '') ||
+    query.groupId != null ||
+    query.group_id != null ||
+    query.groupFilter != null ||
+    query.group_filter != null ||
+    query.ungrouped != null
+  )
+}
+
 apiRouter.get('/admin/ga', requireAuth, async (req, res) => {
   try {
     if (isSuperAdminRole(req.user.role)) {
+      if (wantsPaginatedGaAdminList(req.query)) {
+        const filters = parseGaCompaniesAdminListParams(req.query)
+        const { listSql, countSql, listParams, countParams } = buildGaCompaniesAdminListQueries(filters)
+        const [listRes, countRes] = await Promise.all([
+          systemQuery(pool, listSql, listParams),
+          systemQuery(pool, countSql, countParams),
+        ])
+        const total = Number(countRes.rows[0]?.total ?? 0)
+        res.json({
+          rows: listRes.rows.map(mapGaCompaniesAdminListRow),
+          total,
+          page: filters.page,
+          pageSize: filters.pageSize,
+        })
+        return
+      }
       const r = await systemQuery(
         pool,
         `
@@ -5375,11 +5429,16 @@ apiRouter.post('/company/full-save', requireAuth, requireGaTenantAdmin, async (r
         try {
           inserted = await safeQuery(client,
             `
-            INSERT INTO insurance_company_master (
-              ga_id, category, name, customer_center, system_phone, incall_number, visit_info,
-              updated_at, updated_by_username
+            WITH nid AS (
+              SELECT nextval(pg_get_serial_sequence('insurance_company_master', 'id')) AS id
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8)
+            INSERT INTO insurance_company_master (
+              id, ga_id, category, name, customer_center, system_phone, incall_number, visit_info,
+              updated_at, updated_by_username, company_code
+            )
+            -- company_code NOT NULL(initDb) 대응: formatInsCompanyCode(id)와 동일한 INS{id 6자리}를 INSERT 시점에 채운다.
+            SELECT nid.id, $1, $2, $3, $4, $5, $6, $7, NOW(), $8, 'INS' || LPAD(CAST(nid.id AS text), 6, '0')
+            FROM nid
             RETURNING id
             `,
             [tenantGa, category, name, customerCenter, systemPhone, incallNumber, visitInfo, editor],

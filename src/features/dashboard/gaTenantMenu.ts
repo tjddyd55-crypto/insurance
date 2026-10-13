@@ -65,6 +65,11 @@ export const PERSONAL_BINDER_MENU_ITEM = {
   path: '/personal-binders',
 } as const
 
+export const SHARED_BINDER_MENU_ITEM = {
+  label: '공유 바인더',
+  path: '/personal-binders/shared',
+} as const
+
 export const COVERAGE_SIMULATION_MENU_ITEM = {
   label: '시뮬레이션',
   path: '/coverage-simulator',
@@ -296,6 +301,11 @@ export function buildGaTenantDashboardMenu(
     },
     {
       type: 'link',
+      label: SHARED_BINDER_MENU_ITEM.label,
+      path: SHARED_BINDER_MENU_ITEM.path,
+    },
+    {
+      type: 'link',
       label: COVERAGE_SIMULATION_MENU_ITEM.label,
       path: COVERAGE_SIMULATION_MENU_ITEM.path,
     },
@@ -519,6 +529,7 @@ function buildSuperAdminMenuEntries(): GaTenantDashboardMenuEntry[] {
   entries.push(
     ...itemsToEntries([
       { label: 'GA 관리', path: '/admin/ga' },
+      { label: 'GA 그룹 관리', path: '/admin/ga-groups' },
       { label: '담당자 관리', path: '/admin/delegates' },
       { label: '유저 관리', path: '/admin/users' },
     ]),

@@ -241,6 +241,19 @@ export function buildInsuranceAdminNoticeImageKey({ noticeId, userId, fileName }
 }
 
 /**
+ * GA 그룹 로고 (슈퍼관리자).
+ *
+ * @param {object} params
+ * @param {string | number | null | undefined} params.groupId
+ * @param {string} params.fileName
+ */
+export function buildGaGroupLogoStorageKey({ groupId, fileName }) {
+  const groupSeg = sanitizeInsurancePathSegment(groupId ?? 'new')
+  const safeName = `${randomUUID()}-${sanitizeInsuranceStorageFileName(fileName)}`
+  return [INSURANCE_STORAGE_PREFIX, 'ga-groups', groupSeg, safeName].join('/')
+}
+
+/**
  * @param {string | null | undefined} storageKey
  */
 export function isLegacyInsuranceClaimGeneratedKey(storageKey) {

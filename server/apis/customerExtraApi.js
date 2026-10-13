@@ -23,6 +23,11 @@ import {
 } from '../lib/r2KeyPolicy.js'
 import { runStorageUploadOrphanCleanup } from '../lib/storageOrphanCleanup.js'
 import {
+  cleanupPersonalBinderRefsForDeletedStorageFile,
+  getPersonalStorageFileBinderDeleteImpact,
+  validatePersonalStorageFileBinderDelete,
+} from '../personal-binder/personalBinderStorageFileSync.js'
+import {
   readStorageFileBufferFromPath,
   STORAGE_FILE_READ_USER_MESSAGE,
 } from '../lib/storageFileObjectKey.js'
@@ -1584,92 +1589,6 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       return
     }
     await consentPutInsurerAttachment(objectKey, bodyBuffer, contentType)
-
-    const proxyClient = await pool.connect()
-    try {
-      await proxyClient.query('BEGIN')
-      const lockF = await safeQuery(
-        proxyClient,
-        `
-        SELECT id
-        FROM files
-        WHERE id = $1
-          AND user_id = $2
-          AND ga_id = $3
-          AND status = 'uploading'
-          AND deleted_at IS NULL
-        FOR UPDATE
-        `,
-        [uploadFileId, userId, gaId],
-      )
-      if (lockF.rowCount === 0) {
-        await proxyClient.query('ROLLBACK')
-        res.status(409).json({ message: '업로드 상태를 확정할 수 없습니다.' })
-        return
-      }
-      const qrow = await safeQuery(
-        proxyClient,
-        `
-        SELECT storage_used, storage_limit
-        FROM users
-        WHERE id = $1
-          AND ga_id = $2
-        FOR UPDATE
-        `,
-        [userId, gaId],
-      )
-      if (qrow.rowCount === 0) {
-        await proxyClient.query('ROLLBACK')
-        res.status(400).json({ message: '사용자 정보를 확인할 수 없습니다.' })
-        return
-      }
-      const used = Number(qrow.rows[0].storage_used)
-      const limit = Number(qrow.rows[0].storage_limit)
-      if (!Number.isFinite(used) || !Number.isFinite(limit) || used + fileSize > limit) {
-        await proxyClient.query('ROLLBACK')
-        res.status(400).json({ message: '저장 공간 한도를 초과했습니다.' })
-        return
-      }
-      const act = await safeQuery(
-        proxyClient,
-        `
-        UPDATE files
-        SET is_confirmed = true,
-            status = 'active'
-        WHERE id = $1
-          AND user_id = $2
-          AND ga_id = $3
-          AND status = 'uploading'
-        `,
-        [uploadFileId, userId, gaId],
-      )
-      if (act.rowCount === 0) {
-        await proxyClient.query('ROLLBACK')
-        res.status(409).json({ message: '업로드 상태를 확정할 수 없습니다.' })
-        return
-      }
-      await safeQuery(
-        proxyClient,
-        `
-        UPDATE users
-        SET storage_used = storage_used + $1
-        WHERE id = $2
-          AND ga_id = $3
-        `,
-        [fileSize, userId, gaId],
-      )
-      await proxyClient.query('COMMIT')
-    } catch (error) {
-      try {
-        await proxyClient.query('ROLLBACK')
-      } catch {
-        /* ignore */
-      }
-      handleDbError(error, req, res)
-      return
-    } finally {
-      proxyClient.release()
-    }
     res.status(204).end()
   }
 
@@ -2126,6 +2045,28 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
     res.json(rows.rows.map(mapCustomerFileRow))
   }
 
+  function parseAcknowledgedBinderItemCount(req) {
+    const raw = req.body?.acknowledgedBinderItemCount ?? req.query?.acknowledgedBinderItemCount
+    if (raw == null || raw === '') {
+      return null
+    }
+    const parsed = Number(raw)
+    return Number.isInteger(parsed) && parsed >= 0 ? parsed : null
+  }
+
+  function sendBinderDeleteBlocked(res, validation) {
+    const { impact, code } = validation
+    const message =
+      code === 'BINDER_IMPACT_CHANGED'
+        ? '삭제 직전 바인더 사용 범위가 변경되었습니다. 다시 확인해 주세요.'
+        : `이 파일은 ${impact.binderCount}개 바인더의 ${impact.binderItemCount}개 항목에서 사용 중입니다.`
+    res.status(409).json({
+      code,
+      message,
+      ...impact,
+    })
+  }
+
   async function handleStorageDelete(req, res) {
     const userId = req.user?.id ? String(req.user.id) : ''
     if (!userId) {
@@ -2165,6 +2106,23 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       return
     }
     const peekRow = peek.rows[0]
+    const isPersonalStorage = peekRow.customer_id == null && peekRow.team_id == null
+    const confirmBinderCleanup =
+      (req.body && typeof req.body === 'object' && req.body.confirmBinderCleanup === true) ||
+      String(req.query?.confirmBinderCleanup ?? '').toLowerCase() === 'true'
+    const acknowledgedBinderItemCount = parseAcknowledgedBinderItemCount(req)
+    if (isPersonalStorage) {
+      const validation = await validatePersonalStorageFileBinderDelete(
+        pool,
+        { userId, gaId },
+        fileId,
+        { confirmBinderCleanup, acknowledgedBinderItemCount },
+      )
+      if (!validation.allowed) {
+        sendBinderDeleteBlocked(res, validation)
+        return
+      }
+    }
     if (peekRow.customer_id != null) {
       const ok = await assertCustomerFileAccess(pool, req, Number(peekRow.customer_id), res)
       if (!ok) {
@@ -2233,6 +2191,20 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
           `,
           [sz, userId, gaId],
         )
+      }
+      if (isPersonalStorage) {
+        const validationBeforeCleanup = await validatePersonalStorageFileBinderDelete(
+          client,
+          { userId, gaId },
+          fileId,
+          { confirmBinderCleanup, acknowledgedBinderItemCount },
+        )
+        if (!validationBeforeCleanup.allowed) {
+          await client.query('ROLLBACK')
+          sendBinderDeleteBlocked(res, validationBeforeCleanup)
+          return
+        }
+        await cleanupPersonalBinderRefsForDeletedStorageFile(client, { userId, gaId }, fileId)
       }
       await client.query('COMMIT')
       res.json({ ok: true })
@@ -3235,6 +3207,57 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       res.setHeader('Content-Disposition', buildAttachmentContentDisposition(downloadName))
       res.setHeader('Content-Length', String(buffer.length))
       res.end(buffer)
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.get('/storage/files/:fileId/binder-delete-impact', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaIdFromUser(req, res)
+      if (gaId == null) {
+        return
+      }
+      const fileId = Number(req.params.fileId)
+      if (!Number.isInteger(fileId) || fileId < 1) {
+        res.status(400).json({ message: '잘못된 파일 ID입니다.' })
+        return
+      }
+      const peek = await safeQuery(
+        pool,
+        `
+        SELECT id, customer_id, team_id
+        FROM files
+        WHERE id = $1
+          AND user_id = $2
+          AND ga_id = $3
+          AND deleted_at IS NULL
+        LIMIT 1
+        `,
+        [fileId, userId, gaId],
+      )
+      if (peek.rowCount === 0) {
+        res.status(404).json({ message: '파일을 찾을 수 없습니다.' })
+        return
+      }
+      const row = peek.rows[0]
+      if (row.customer_id != null || row.team_id != null) {
+        res.json({
+          materialCount: 0,
+          binderCount: 0,
+          binderItemCount: 0,
+          binders: [],
+          materials: [],
+        })
+        return
+      }
+      const impact = await getPersonalStorageFileBinderDeleteImpact(pool, { userId, gaId }, fileId)
+      res.json(impact)
     } catch (error) {
       handleDbError(error, req, res)
     }

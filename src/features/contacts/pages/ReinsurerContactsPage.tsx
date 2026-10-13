@@ -227,7 +227,16 @@ export function ReinsurerContactsPage({ mode = 'default' }: ReinsurerContactsPag
   }
 
   return (
-    <main className="page page--with-back contacts-page">
+    <main
+      className={[
+        'page',
+        'page--with-back',
+        'contacts-page',
+        isPersonalMode ? 'contacts-page--personal-workspace' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
       <nav className="contacts-public-auth" aria-label="계정">
         <Link className="button button--small contacts-public-auth__link" to="/insurance/contacts">
           보험사 연락처 조회
@@ -237,9 +246,9 @@ export function ReinsurerContactsPage({ mode = 'default' }: ReinsurerContactsPag
             연락처 입력/관리
           </Link>
         ) : null}
-        {isAuthenticated ? (
+        {isAuthenticated && !isPersonalMode ? (
           <span className="contacts-public-auth__user">{user?.username}</span>
-        ) : (
+        ) : isAuthenticated ? null : (
           <>
             <Link className="button button--small button--primary contacts-public-auth__link" to="/login">
               로그인

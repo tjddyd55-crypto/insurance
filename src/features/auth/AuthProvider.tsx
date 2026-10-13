@@ -14,6 +14,7 @@ import {
   type SubscriptionSnapshot,
 } from '../subscription/policy'
 import type { TenantCrmConfig } from '../customer-templates/customerTemplate.types'
+import { clearCustomerWorkspaceClientState } from '../customers/utils/customerWorkspaceAuthReset'
 
 interface AuthSession {
   token: string
@@ -175,6 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     setSession(null)
     window.localStorage.removeItem(AUTH_STORAGE_KEY)
+    clearCustomerWorkspaceClientState()
   }, [])
 
   const login = useCallback(
@@ -212,6 +214,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           : String(nextSession.user.username ?? '').trim()
       const teamId = parseTeamIdField(nextSession.user.teamId)
       const subscription = normalizeSubscriptionFromApi(nextSession.user.subscription)
+
+      clearCustomerWorkspaceClientState()
 
       const normalized: AuthSession = {
         token: nextSession.token,

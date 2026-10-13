@@ -100,7 +100,19 @@ export interface GaCompanyRow {
   code: string
   status: EntityStatus
   created_at: string
+  /** 슈퍼관리자 목록(페이지네이션) 조회 시만 채워짐 */
+  groupId?: number | null
+  groupName?: string | null
 }
+
+export interface GaCompanyAdminListResult {
+  rows: GaCompanyRow[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+export type GaCompanyGroupFilter = 'all' | 'ungrouped' | number
 
 export interface GaHistoryRow {
   id: number
@@ -115,6 +127,36 @@ export interface GaHistoryRow {
 
 export async function listGaCompanies(token: string): Promise<GaCompanyRow[]> {
   return apiRequest<GaCompanyRow[]>('/api/admin/ga', { method: 'GET', token })
+}
+
+export async function listGaCompaniesAdmin(
+  token: string,
+  params: {
+    page: number
+    pageSize: number
+    q?: string
+    groupFilter?: GaCompanyGroupFilter
+  },
+): Promise<GaCompanyAdminListResult> {
+  const search = new URLSearchParams()
+  search.set('page', String(params.page))
+  search.set('pageSize', String(params.pageSize))
+  const q = String(params.q ?? '').trim()
+  if (q) {
+    search.set('q', q)
+  }
+  const gf = params.groupFilter ?? 'all'
+  if (gf === 'ungrouped') {
+    search.set('groupFilter', 'ungrouped')
+  } else if (typeof gf === 'number') {
+    search.set('groupFilter', String(gf))
+  } else {
+    search.set('groupFilter', 'all')
+  }
+  return apiRequest<GaCompanyAdminListResult>(`/api/admin/ga?${search.toString()}`, {
+    method: 'GET',
+    token,
+  })
 }
 
 /** 원수사 담당자 ↔ 보험사 마스터 정합성(감시용). SUPER_ADMIN 은 전체, 그 외는 소속 GA 만 */
@@ -268,6 +310,8 @@ export async function register(payload: {
   signupPhoneProof?: string
   /** 선택 — 추천인 코드 */
   referralCode?: string
+  /** GA 그룹 전용 가입 페이지 슬러그 */
+  gaGroupSlug?: string
 }) {
   try {
     const body: Record<string, string> = {
@@ -307,6 +351,10 @@ export async function register(payload: {
     const referralCode = payload.referralCode?.trim().toUpperCase().replace(/\s+/g, '')
     if (referralCode) {
       body.referral_code = referralCode
+    }
+    const gaGroupSlug = payload.gaGroupSlug?.trim().toLowerCase()
+    if (gaGroupSlug) {
+      body.ga_group_slug = gaGroupSlug
     }
     return await apiRequest<{ id: string; username: string; ga_id: number; createdAt: string }>(
       '/api/auth/register',
@@ -412,6 +460,9 @@ export interface MeResponse {
   phone_number: string
   role: string
   ga_id: number | null
+  ga_code?: string
+  ga_name?: string
+  ga_group_name?: string | null
   status: string
   team_id: string | null
   subscription?: SubscriptionResponsePayload | null
