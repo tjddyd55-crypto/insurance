@@ -278,6 +278,13 @@ export default function PersonalBinderHomePage() {
             onPageSelectionDockChange={setPageSelectionDock}
             selectedPreviewItemId={previewItemId}
             onPreviewItemChange={setPreviewItemId}
+            onBinderMetadataSaved={(summary) => {
+              setBinders((rows) =>
+                rows.map((row) =>
+                  row.id === summary.id ? { ...row, title: summary.title } : row,
+                ),
+              )
+            }}
           />
         </div>
       ) : (

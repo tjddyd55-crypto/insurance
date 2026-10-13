@@ -549,6 +549,33 @@ export function ProfilePage() {
                 <FormInput value={me.username} readOnly />
               </label>
 
+              <div className="profile-page__affiliation" aria-label="소속 정보">
+                <span className="field__label">소속</span>
+                {isGaMemberUser({
+                  gaCode: me.ga_code ?? user?.gaCode,
+                  gaName: me.ga_name ?? user?.gaName,
+                }) ? (
+                  <dl className="profile-page__affiliation-list">
+                    <div>
+                      <dt>GA명</dt>
+                      <dd>{me.ga_name?.trim() || user?.gaName || '—'}</dd>
+                    </div>
+                    <div>
+                      <dt>GA 코드</dt>
+                      <dd>{me.ga_code?.trim() || user?.gaCode || '—'}</dd>
+                    </div>
+                    {me.ga_group_name?.trim() ? (
+                      <div>
+                        <dt>GA 그룹</dt>
+                        <dd>{me.ga_group_name.trim()}</dd>
+                      </div>
+                    ) : null}
+                  </dl>
+                ) : (
+                  <p className="profile-page__affiliation-general">공용 (GA 미소속)</p>
+                )}
+              </div>
+
               <label className="field">
                 <span className="field__label">휴대폰번호</span>
                 <FormInput

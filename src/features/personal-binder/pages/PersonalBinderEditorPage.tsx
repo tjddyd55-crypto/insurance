@@ -100,6 +100,11 @@ export type PersonalBinderEditorPageProps = {
   onPageSelectionDockChange?: (state: PageSelectionDockState | null) => void
   selectedPreviewItemId?: string | null
   onPreviewItemChange?: (itemId: string | null) => void
+  onBinderMetadataSaved?: (summary: {
+    id: string
+    title: string
+    description: string
+  }) => void
 }
 
 export default function PersonalBinderEditorPage({
@@ -111,6 +116,7 @@ export default function PersonalBinderEditorPage({
   onPageSelectionDockChange,
   selectedPreviewItemId,
   onPreviewItemChange,
+  onBinderMetadataSaved,
 }: PersonalBinderEditorPageProps = {}) {
   const { binderId: routeBinderId = '' } = useParams()
   const binderId = binderIdOverride ?? routeBinderId
@@ -308,6 +314,11 @@ export default function PersonalBinderEditorPage({
         description,
       })
       setBinder(next)
+      onBinderMetadataSaved?.({
+        id: next.id,
+        title: next.title,
+        description: next.description,
+      })
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '바인더를 저장하지 못했습니다.')
     } finally {

@@ -362,10 +362,12 @@ export async function importSharedPersonalBinder(pool, scope, gaCode, shareId, i
         client,
         `
         INSERT INTO personal_binder_sections (binder_id, title, sort_order)
-        VALUES ($1, $2, $3)
+        SELECT $1, $2, $3
+        FROM personal_binders b
+        WHERE b.id = $1 AND b.owner_user_id = $4 AND b.ga_id = $5
         RETURNING id
         `,
-        [newBinderId, section.title, section.sortOrder],
+        [newBinderId, section.title, section.sortOrder, scope.userId, scope.gaId],
       )
       const sectionId = Number(sectionInsert.rows[0].id)
       for (const item of section.items) {
@@ -377,13 +379,19 @@ export async function importSharedPersonalBinder(pool, scope, gaCode, shareId, i
           client,
           `
           INSERT INTO personal_binder_items (section_id, material_id, sort_order, page_selection)
-          VALUES ($1, $2, $3, $4::jsonb)
+          SELECT $1, $2, $3, $4::jsonb
+          FROM personal_binder_sections s
+          INNER JOIN personal_binders b ON b.id = s.binder_id
+          WHERE s.id = $1 AND b.owner_user_id = $5 AND b.ga_id = $6
+          RETURNING id
           `,
           [
             sectionId,
             materialId,
             item.sortOrder,
             item.pageSelection != null ? JSON.stringify(item.pageSelection) : null,
+            scope.userId,
+            scope.gaId,
           ],
         )
       }

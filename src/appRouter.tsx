@@ -536,6 +536,10 @@ export const appRouter = createBrowserRouter([
                 element: <Navigate to="/personal-binders" replace />,
               },
               { path: 'personal-binders/shared', element: <PersonalBinderSharedPage /> },
+              {
+                path: 'personal-binders/shared/:shareId/view',
+                element: <PersonalBinderViewerPage />,
+              },
               { path: 'personal-binders/edit/:binderId', element: <PersonalBinderHomePage /> },
               { path: 'personal-binders/:binderId/edit', element: <PersonalBinderEditorPage /> },
               { path: 'personal-binders/:binderId/view', element: <PersonalBinderViewerPage /> },

@@ -5,10 +5,8 @@ import { BaseDialog } from '../../../components/dialog/BaseDialog'
 import FormButton from '../../../components/form/FormButton'
 import { useAuth } from '../../auth/AuthProvider'
 import {
-  getSharedPersonalBinder,
   importSharedPersonalBinder,
   listSharedPersonalBinders,
-  type SharedPersonalBinderDetail,
   type SharedPersonalBinderSummary,
 } from '../personalBinderShare.api'
 import '../styles/personal-binder.css'
@@ -31,7 +29,6 @@ export default function PersonalBinderSharedPage() {
   const [rows, setRows] = useState<SharedPersonalBinderSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [preview, setPreview] = useState<SharedPersonalBinderDetail | null>(null)
   const [importTarget, setImportTarget] = useState<SharedPersonalBinderSummary | null>(null)
   const [importBusy, setImportBusy] = useState(false)
 
@@ -55,15 +52,6 @@ export default function PersonalBinderSharedPage() {
     void load(controller.signal)
     return () => controller.abort()
   }, [load])
-
-  const openPreview = async (shareId: string) => {
-    if (!token) return
-    try {
-      setPreview(await getSharedPersonalBinder(token, shareId))
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : '미리보기를 불러오지 못했습니다.')
-    }
-  }
 
   const runImport = async () => {
     if (!token || !importTarget) return
@@ -111,7 +99,11 @@ export default function PersonalBinderSharedPage() {
                     </p>
                   </div>
                   <div className="personal-binder-shared__card-actions">
-                    <FormButton variant="secondary" size="sm" onClick={() => void openPreview(row.id)}>
+                    <FormButton
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => navigate(`/personal-binders/shared/${row.id}/view`)}
+                    >
                       미리보기
                     </FormButton>
                     <FormButton variant="primary" size="sm" onClick={() => setImportTarget(row)}>
@@ -124,33 +116,6 @@ export default function PersonalBinderSharedPage() {
           ) : null}
         </div>
       </section>
-
-      <BaseDialog
-        open={preview != null}
-        onClose={() => setPreview(null)}
-        ariaLabel="공유 바인더 미리보기"
-      >
-        {preview ? (
-          <>
-            <h2 className="personal-binder-dialog-title">{preview.title}</h2>
-            <p className="personal-binder-dialog-lead">
-              {preview.ownerName ?? preview.ownerUserId} · {formatDate(preview.createdAt)}
-            </p>
-            <ul className="personal-binder-share-dialog__files">
-              {preview.sections.map((section) => (
-                <li key={section.id}>
-                  <strong>{section.title}</strong>
-                  <ul>
-                    {section.items.map((item) => (
-                      <li key={item.id}>{item.material.originalFileName}</li>
-                    ))}
-                  </ul>
-                </li>
-              ))}
-            </ul>
-          </>
-        ) : null}
-      </BaseDialog>
 
       <BaseDialog
         open={importTarget != null}
