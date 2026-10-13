@@ -647,18 +647,6 @@ export function ProfilePage() {
 
       {showUserCrmProfileSections ? (
         <>
-          {!isGaMemberUser(user) ? (
-            <section className="profile-page__section">
-              <h2 className="profile-page__section-title">원수사 연락처 관리</h2>
-              <p className="profile-page__status profile-page__status--muted">
-                개인 원수사 연락처를 등록·수정·삭제할 수 있습니다.
-              </p>
-              <Link to="/insurance/contacts" className="profile-page__btn button button--outline button--full">
-                원수사 연락처 관리
-              </Link>
-            </section>
-          ) : null}
-
           <section className="profile-page__section">
             <h2 className="profile-page__section-title">팀 관리</h2>
             <div className="profile-page__team-row">
