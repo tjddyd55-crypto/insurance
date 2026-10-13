@@ -41,12 +41,14 @@ test('dynamic board post filter — global vs ga owner', () => {
 
 test('canUserAccessBoardMenu — ga owner match', () => {
   assert.equal(canUserAccessBoardMenu({ board_scope: 'global' }, 3), true)
+  assert.equal(canUserAccessBoardMenu({ board_scope: 'system' }, 3), true)
   assert.equal(canUserAccessBoardMenu({ board_scope: 'ga', owner_ga_id: 3 }, 3), true)
   assert.equal(canUserAccessBoardMenu({ board_scope: 'ga', owner_ga_id: 3 }, 4), false)
   assert.equal(canUserAccessBoardMenu({ board_scope: 'ga', owner_ga_id: null }, 4), false)
 })
 
-test('visible list SQL — strict ga owner, no NULL owner', () => {
+test('visible list SQL — system/global + strict ga owner, no NULL owner', () => {
+  assert.match(NEWSLETTER_BOARDS_VISIBLE_LIST_SQL, /board_scope\s+IN\s*\(\s*'system',\s*'global',\s*'ga'\s*\)/i)
   assert.match(NEWSLETTER_BOARDS_VISIBLE_LIST_SQL, /owner_ga_id\s*=\s*\$1/i)
   assert.doesNotMatch(NEWSLETTER_BOARDS_VISIBLE_LIST_SQL, /owner_ga_id\s+IS\s+NULL/i)
 })

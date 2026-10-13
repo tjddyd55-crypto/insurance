@@ -30,19 +30,27 @@ export function NewsletterBoardAdminView({
   onEdit,
   onSelectBoard,
   onWriterBusyChange,
+  embedded = false,
+  gaAdminOwnedOnly = false,
 }: NewsletterBoardAdminViewProps) {
   const isSuperAdmin = role === 'SUPER_ADMIN'
   const canManageGaBoards = role === 'GA_ADMIN'
   const canManageWriters = canManageGaBoardWriters(role)
 
+  const gaEmptyMessage = gaAdminOwnedOnly
+    ? '등록된 GA 게시판이 없습니다.'
+    : '현재 사용 중인 GA 소식지가 없습니다.'
+
   return (
     <>
       <section className="newsletter-board-admin-page__intro">
-        <h1>{isSuperAdmin ? '소식지 관리' : 'GA 게시판 관리'}</h1>
+        <h1>{embedded ? (isSuperAdmin ? '소식지 관리' : 'GA 소식지 설정') : isSuperAdmin ? '소식지 관리' : 'GA 게시판 관리'}</h1>
         <p>
           {isSuperAdmin
             ? '원수사 소식지는 기존 고정 메뉴를 유지합니다. 공용 게시판과 GA 게시판(손해사정사 기본 포함)은 같은 관리·작성자 화면을 사용합니다.'
-            : '일반 GA 게시판과 손해사정사 기본 게시판을 같은 방식으로 관리합니다. 작성자 계정으로 글을 등록합니다.'}
+            : gaAdminOwnedOnly
+              ? '이 GA가 직접 관리하는 게시판만 표시됩니다. 손해사정사 기본·타 GA·공용 게시판은 포함되지 않습니다.'
+              : 'GA 전용 게시판을 생성·관리합니다. 작성자 계정은 「소식지 작성자」 탭에서 연결할 수 있습니다.'}
         </p>
         {isSuperAdmin ? (
           <div className="newsletter-board-admin-page__toolbar" style={{ marginTop: 14 }}>
@@ -52,7 +60,7 @@ export function NewsletterBoardAdminView({
               </FormButton>
             </Link>
           </div>
-        ) : canManageGaBoards ? (
+        ) : canManageGaBoards && !embedded ? (
           <div className="newsletter-board-admin-page__toolbar" style={{ marginTop: 14 }}>
             <Link to="/board-writer/login">
               <FormButton htmlType="button" variant="secondary">
@@ -60,7 +68,7 @@ export function NewsletterBoardAdminView({
               </FormButton>
             </Link>
             <p className="newsletter-board-admin-page__help" style={{ margin: '8px 0 0' }}>
-              글 업로드는 작성자 전용 계정으로 로그인한 뒤 진행합니다. 손해사정사 기본 게시판도 동일합니다.
+              글 업로드는 작성자 전용 계정으로 로그인한 뒤 진행합니다.
             </p>
           </div>
         ) : null}
@@ -150,7 +158,8 @@ export function NewsletterBoardAdminView({
           boards={gaBoards}
           loading={loading}
           busy={busy}
-          canManageWriters={canManageWriters}
+          canManageWriters={embedded ? false : canManageWriters}
+          emptyMessage={gaEmptyMessage}
           selectedBoardId={selectedBoard?.id ?? null}
           onDelete={onDelete}
           onDisable={onDisable}
@@ -158,6 +167,7 @@ export function NewsletterBoardAdminView({
           onEdit={onEdit}
           onSelectBoard={onSelectBoard}
           writerPanel={
+            !embedded &&
             selectedBoard &&
             token.trim() &&
             gaBoards.some((board) => board.id === selectedBoard.id) ? (
@@ -184,6 +194,7 @@ function BoardTable({
   loading,
   busy,
   canManageWriters = false,
+  emptyMessage = '현재 사용 중인 GA 소식지가 없습니다.',
   selectedBoardId,
   onDelete,
   onDisable,
@@ -198,6 +209,7 @@ function BoardTable({
   loading: boolean
   busy: boolean
   canManageWriters?: boolean
+  emptyMessage?: string
   selectedBoardId: string | null
   onDelete: (board: NewsletterBoard) => void
   onDisable: (board: NewsletterBoard) => void
@@ -211,7 +223,7 @@ function BoardTable({
       <h2 className="newsletter-board-admin-page__panel-title">{title}</h2>
       {loading ? <div className="insurer-news-empty">불러오는 중...</div> : null}
       {!loading && boards.length === 0 ? (
-        <div className="insurer-news-empty">현재 사용 중인 GA 소식지가 없습니다.</div>
+        <div className="insurer-news-empty">{emptyMessage}</div>
       ) : null}
       {!loading && boards.length > 0 ? (
         <div className="newsletter-board-admin-page__table-wrap">

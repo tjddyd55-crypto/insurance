@@ -1,0 +1,339 @@
+import { useEffect, useMemo, useState } from 'react'
+
+import { BaseDialog } from '../../../components/dialog/BaseDialog'
+import { useConfirmDialog } from '../../../components/dialog'
+import FormButton from '../../../components/form/FormButton'
+import FormInput from '../../../components/form/FormInput'
+import { countItemsInFolderSelection } from '../domain/personalBinderFolderFilter'
+import type { PersonalBinderFolder, PersonalBinderSummary } from '../personalBinder.types'
+
+type ExplorerSection = '__uncategorized__' | string
+
+type Props = {
+  binders: PersonalBinderSummary[]
+  folders: PersonalBinderFolder[]
+  selectedBinderId?: string
+  onSelectBinder: (binderId: string) => void | Promise<void>
+  onCreateBinder: () => void
+  onCreateFolder: (name: string) => Promise<void>
+  onRenameFolder: (folderId: string, name: string) => Promise<void>
+  onDeleteFolder: (folderId: string) => Promise<void>
+  disabled?: boolean
+}
+
+function sortByTitle<T extends { title: string }>(rows: T[]): T[] {
+  return rows.slice().sort((left, right) => left.title.localeCompare(right.title, 'ko'))
+}
+
+export function PersonalBinderExplorerTree({
+  binders,
+  folders,
+  selectedBinderId,
+  onSelectBinder,
+  onCreateBinder,
+  onCreateFolder,
+  onRenameFolder,
+  onDeleteFolder,
+  disabled = false,
+}: Props) {
+  const { confirm, confirmDialog } = useConfirmDialog()
+  const [openSection, setOpenSection] = useState<ExplorerSection | null>('__uncategorized__')
+  const [menuFolderId, setMenuFolderId] = useState<string | null>(null)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [renameFolder, setRenameFolder] = useState<PersonalBinderFolder | null>(null)
+  const [draftName, setDraftName] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const bindersByFolder = useMemo(() => {
+    const map = new Map<string, PersonalBinderSummary[]>()
+    for (const folder of folders) {
+      map.set(folder.id, [])
+    }
+    const uncategorized: PersonalBinderSummary[] = []
+    for (const binder of binders) {
+      if (binder.folderId && map.has(binder.folderId)) {
+        map.get(binder.folderId)?.push(binder)
+      } else if (!binder.folderId) {
+        uncategorized.push(binder)
+      }
+    }
+    for (const [key, rows] of map) {
+      map.set(key, sortByTitle(rows))
+    }
+    return { map, uncategorized: sortByTitle(uncategorized) }
+  }, [binders, folders])
+
+  useEffect(() => {
+    if (!selectedBinderId) return
+    const binder = binders.find((row) => row.id === selectedBinderId)
+    if (!binder) return
+    if (!binder.folderId) {
+      setOpenSection('__uncategorized__')
+      return
+    }
+    if (folders.some((folder) => folder.id === binder.folderId)) {
+      setOpenSection(binder.folderId)
+    }
+  }, [binders, folders, selectedBinderId])
+
+  const selectSection = (key: ExplorerSection) => {
+    setOpenSection((current) => (current === key ? null : key))
+  }
+
+  const submitCreate = async () => {
+    const name = draftName.trim()
+    if (!name || busy) return
+    setBusy(true)
+    try {
+      await onCreateFolder(name)
+      setCreateOpen(false)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const submitRename = async () => {
+    if (!renameFolder || !draftName.trim() || busy) return
+    setBusy(true)
+    try {
+      await onRenameFolder(renameFolder.id, draftName.trim())
+      setRenameFolder(null)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const removeFolder = async (folder: PersonalBinderFolder) => {
+    setMenuFolderId(null)
+    const accepted = await confirm({
+      title: '폴더를 삭제할까요?',
+      message: `“${folder.name}” 폴더만 삭제됩니다. 안의 바인더는 미분류로 이동합니다.`,
+      confirmLabel: '삭제',
+      cancelLabel: '취소',
+      tone: 'danger',
+    })
+    if (!accepted) return
+    setBusy(true)
+    try {
+      await onDeleteFolder(folder.id)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const renderBinderRow = (binder: PersonalBinderSummary) => {
+    const active = selectedBinderId === binder.id
+    return (
+      <button
+        key={binder.id}
+        type="button"
+        className={[
+          'personal-binder-explorer-tree__binder',
+          active ? 'personal-binder-explorer-tree__binder--active' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        disabled={disabled}
+        onClick={() => void onSelectBinder(binder.id)}
+      >
+        <span className="personal-binder-explorer-tree__binder-title" title={binder.title}>
+          {binder.title}
+        </span>
+      </button>
+    )
+  }
+
+  const renderFolderHeader = (
+    key: ExplorerSection,
+    label: string,
+    count: number,
+    options?: { userFolder?: PersonalBinderFolder },
+  ) => {
+    const open = openSection === key
+    const folder = options?.userFolder
+    return (
+      <div className="personal-binder-explorer-tree__folder-row">
+        <button
+          type="button"
+          className={[
+            'personal-binder-explorer-tree__folder-toggle',
+            open ? 'personal-binder-explorer-tree__folder-toggle--open' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          disabled={disabled}
+          aria-expanded={open}
+          onClick={() => selectSection(key)}
+        >
+          <span className="personal-binder-explorer-tree__folder-label" title={label}>
+            {label}
+          </span>
+          <span className="personal-binder-explorer-tree__count">{count}</span>
+          <span
+            className={[
+              'personal-binder-explorer-tree__chevron',
+              open ? 'personal-binder-explorer-tree__chevron--open' : '',
+            ].join(' ')}
+            aria-hidden="true"
+          />
+        </button>
+        {folder ? (
+          <>
+            <button
+              type="button"
+              className="personal-binder-explorer-tree__folder-menu"
+              disabled={disabled || busy}
+              aria-label={`${folder.name} 폴더 메뉴`}
+              aria-expanded={menuFolderId === folder.id}
+              onClick={() =>
+                setMenuFolderId((current) => (current === folder.id ? null : folder.id))
+              }
+            >
+              ⋯
+            </button>
+            {menuFolderId === folder.id ? (
+              <div className="personal-binder-explorer-tree__menu-panel" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuFolderId(null)
+                    setRenameFolder(folder)
+                    setDraftName(folder.name)
+                  }}
+                >
+                  이름 변경
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="personal-binder-explorer-tree__menu-danger"
+                  onClick={() => void removeFolder(folder)}
+                >
+                  삭제
+                </button>
+              </div>
+            ) : null}
+          </>
+        ) : null}
+      </div>
+    )
+  }
+
+  const uncategorizedCount = countItemsInFolderSelection(binders, 'uncategorized')
+
+  return (
+    <aside className="personal-binder-explorer-tree" aria-label="바인더 탐색">
+      <header className="personal-binder-studio-pane__header personal-binder-explorer-tree__header">
+        <h2 className="personal-binder-studio-pane__title">바인더 폴더</h2>
+        <FormButton variant="secondary" size="sm" disabled={disabled || busy} onClick={onCreateBinder}>
+          + 바인더
+        </FormButton>
+      </header>
+
+      <div className="personal-binder-explorer-tree__body">
+        <div className="personal-binder-explorer-tree__group">
+          {renderFolderHeader('__uncategorized__', '미분류', uncategorizedCount)}
+          {openSection === '__uncategorized__' ? (
+            <div className="personal-binder-explorer-tree__children personal-binder-explorer-tree__children--binders">
+              {bindersByFolder.uncategorized.length === 0 ? (
+                <p className="personal-binder-explorer-tree__empty">바인더 없음</p>
+              ) : (
+                bindersByFolder.uncategorized.map((binder) => renderBinderRow(binder))
+              )}
+            </div>
+          ) : null}
+        </div>
+
+        {folders.map((folder) => {
+          const rows = bindersByFolder.map.get(folder.id) ?? []
+          return (
+            <div key={folder.id} className="personal-binder-explorer-tree__group">
+              {renderFolderHeader(folder.id, folder.name, rows.length, { userFolder: folder })}
+              {openSection === folder.id ? (
+                <div className="personal-binder-explorer-tree__children personal-binder-explorer-tree__children--binders">
+                  {rows.length === 0 ? (
+                    <p className="personal-binder-explorer-tree__empty">바인더 없음</p>
+                  ) : (
+                    rows.map((binder) => renderBinderRow(binder))
+                  )}
+                </div>
+              ) : null}
+            </div>
+          )
+        })}
+      </div>
+
+      <FormButton
+        variant="secondary"
+        size="sm"
+        fullWidth
+        disabled={disabled || busy}
+        onClick={() => {
+          setDraftName('')
+          setCreateOpen(true)
+        }}
+      >
+        + 폴더 만들기
+      </FormButton>
+
+      <BaseDialog
+        open={createOpen}
+        onClose={() => !busy && setCreateOpen(false)}
+        closeOnBackdrop={false}
+        ariaLabel="폴더 만들기"
+      >
+        <h3 className="personal-binder-dialog-title">폴더 만들기</h3>
+        <FormInput
+          value={draftName}
+          disabled={busy}
+          onChange={(event) => setDraftName(event.target.value)}
+          placeholder="폴더 이름"
+          aria-label="폴더 이름"
+        />
+        <div className="personal-binder-dialog-actions">
+          <FormButton variant="secondary" disabled={busy} onClick={() => setCreateOpen(false)}>
+            취소
+          </FormButton>
+          <FormButton
+            variant="primary"
+            loading={busy}
+            disabled={!draftName.trim()}
+            onClick={() => void submitCreate()}
+          >
+            만들기
+          </FormButton>
+        </div>
+      </BaseDialog>
+
+      <BaseDialog
+        open={renameFolder != null}
+        onClose={() => !busy && setRenameFolder(null)}
+        closeOnBackdrop={false}
+        ariaLabel="폴더 이름 변경"
+      >
+        <h3 className="personal-binder-dialog-title">폴더 이름 변경</h3>
+        <FormInput
+          value={draftName}
+          disabled={busy}
+          onChange={(event) => setDraftName(event.target.value)}
+          aria-label="폴더 이름"
+        />
+        <div className="personal-binder-dialog-actions">
+          <FormButton variant="secondary" disabled={busy} onClick={() => setRenameFolder(null)}>
+            취소
+          </FormButton>
+          <FormButton
+            variant="primary"
+            loading={busy}
+            disabled={!draftName.trim()}
+            onClick={() => void submitRename()}
+          >
+            저장
+          </FormButton>
+        </div>
+      </BaseDialog>
+      {confirmDialog}
+    </aside>
+  )
+}

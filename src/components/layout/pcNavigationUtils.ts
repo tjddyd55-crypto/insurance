@@ -168,7 +168,19 @@ export function isActivePcNavigationPath(
   if (menuPathname === '/memo') {
     return pathname === '/memo' || pathname.startsWith('/memo/')
   }
+  if (menuPathname === '/personal-binders/shared') {
+    return (
+      pathname === '/personal-binders/shared' ||
+      pathname.startsWith('/personal-binders/shared/')
+    )
+  }
   if (menuPathname === '/personal-binders') {
+    if (
+      pathname === '/personal-binders/shared' ||
+      pathname.startsWith('/personal-binders/shared/')
+    ) {
+      return false
+    }
     return pathname === '/personal-binders' || pathname.startsWith('/personal-binders/')
   }
   if (menuPathname === '/coverage-simulator') {

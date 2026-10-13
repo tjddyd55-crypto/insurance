@@ -306,16 +306,6 @@ export function ProfilePage() {
       const row = await fetchMe(token)
       setMe(row)
       setDisplayName(row.display_name)
-      if (user && row.id === user.id && row.display_name.trim() !== user.displayName.trim()) {
-        login({
-          token,
-          user: {
-            ...user,
-            displayName: row.display_name.trim(),
-            teamId: row.team_id?.trim() ? row.team_id.trim() : user.teamId,
-          },
-        })
-      }
       setPhoneInput(row.phone_number)
       setPhoneEditDigits(row.phone_number)
       setPhoneChangeProof(null)
@@ -323,7 +313,7 @@ export function ProfilePage() {
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : '프로필을 불러오지 못했습니다.')
     }
-  }, [token, user, login])
+  }, [token])
 
   const loadReferralSummary = useCallback(async () => {
     if (!token) {
@@ -549,6 +539,33 @@ export function ProfilePage() {
                 <FormInput value={me.username} readOnly />
               </label>
 
+              <div className="profile-page__affiliation" aria-label="소속 정보">
+                <span className="field__label">소속</span>
+                {isGaMemberUser({
+                  gaCode: me.ga_code ?? user?.gaCode,
+                  gaName: me.ga_name ?? user?.gaName,
+                }) ? (
+                  <dl className="profile-page__affiliation-list">
+                    <div>
+                      <dt>GA명</dt>
+                      <dd>{me.ga_name?.trim() || user?.gaName || '—'}</dd>
+                    </div>
+                    <div>
+                      <dt>GA 코드</dt>
+                      <dd>{me.ga_code?.trim() || user?.gaCode || '—'}</dd>
+                    </div>
+                    {me.ga_group_name?.trim() ? (
+                      <div>
+                        <dt>GA 그룹</dt>
+                        <dd>{me.ga_group_name.trim()}</dd>
+                      </div>
+                    ) : null}
+                  </dl>
+                ) : (
+                  <p className="profile-page__affiliation-general">공용 (GA 미소속)</p>
+                )}
+              </div>
+
               <label className="field">
                 <span className="field__label">휴대폰번호</span>
                 <FormInput
@@ -630,18 +647,6 @@ export function ProfilePage() {
 
       {showUserCrmProfileSections ? (
         <>
-          {!isGaMemberUser(user) ? (
-            <section className="profile-page__section">
-              <h2 className="profile-page__section-title">원수사 연락처 관리</h2>
-              <p className="profile-page__status profile-page__status--muted">
-                개인 원수사 연락처를 등록·수정·삭제할 수 있습니다.
-              </p>
-              <Link to="/insurance/contacts" className="profile-page__btn button button--outline button--full">
-                원수사 연락처 관리
-              </Link>
-            </section>
-          ) : null}
-
           <section className="profile-page__section">
             <h2 className="profile-page__section-title">팀 관리</h2>
             <div className="profile-page__team-row">

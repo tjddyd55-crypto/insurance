@@ -6,6 +6,7 @@ import useIsMobile from '../../../hooks/useIsMobile'
 import { ApiError } from '../../../lib/apiClient'
 import {
   applyBillingPromotionCode,
+  completeMockBillingPayment,
   fetchCheckoutQuote,
   fetchCheckoutSummary,
   requestBillingPayment,
@@ -100,6 +101,9 @@ export function useBillingCheckoutState(): BillingCheckoutViewProps & {
     checkoutConfig?.provider === 'toss' &&
     Boolean(checkoutConfig.enabled) &&
     Boolean(checkoutConfig.clientKey)
+  const canUseMockPayment =
+    checkoutConfig?.provider === 'mock' && Boolean(checkoutConfig.mockPaymentAllowed ?? checkoutConfig.enabled)
+  const canSubmitPayment = canUseToss || canUseMockPayment
   const hasBillingKey = Boolean(checkoutConfig?.hasBillingKey)
   const isActiveEntitled =
     checkoutMode === 'legacy_entitled' ||
@@ -160,7 +164,7 @@ export function useBillingCheckoutState(): BillingCheckoutViewProps & {
       (quoteLoading ||
         !quote ||
         !quote.valid ||
-        (quote.benefitKind !== 'free_months' && !canUseToss)))
+        (quote.benefitKind !== 'free_months' && !canSubmitPayment)))
 
   const onSelectCycle = (cycle: 'monthly' | 'yearly') => {
     setBillingCycle(cycle)
@@ -181,6 +185,7 @@ export function useBillingCheckoutState(): BillingCheckoutViewProps & {
       if (!next.valid) {
         setAppliedPromoCode(null)
         setPromoMessage(next.message ?? '사용할 수 없는 쿠폰입니다.')
+        void refreshQuote(billingCycle, null)
         return
       }
       setAppliedPromoCode(String(next.coupon?.code ?? promoCode.trim()).toUpperCase())
@@ -251,6 +256,22 @@ export function useBillingCheckoutState(): BillingCheckoutViewProps & {
             quote,
           },
         })
+        return
+      }
+
+      if (canUseMockPayment) {
+        const mockPaid = await completeMockBillingPayment(token, {
+          planCode,
+          billingCycle,
+        })
+        if (mockPaid.subscriptionStatus === 'active_paid' || mockPaid.ok) {
+          navigate('/billing/success', {
+            replace: true,
+            state: { mode: 'paid', quote },
+          })
+          return
+        }
+        setError('가상 결제가 완료되지 않았습니다.')
         return
       }
 

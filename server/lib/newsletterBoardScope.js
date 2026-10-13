@@ -100,7 +100,9 @@ export function canUserAccessBoardMenu(board, tenantGaId) {
 export function mapNewsletterBoardDto(row) {
   const boardScope = boardScopeFromBoard(row)
   const contentScope =
-    boardScope === BOARD_SCOPE_GLOBAL ? CONTENT_SCOPE_GLOBAL : CONTENT_SCOPE_GA
+    boardScope === BOARD_SCOPE_GLOBAL || boardScope === BOARD_SCOPE_SYSTEM
+      ? CONTENT_SCOPE_GLOBAL
+      : CONTENT_SCOPE_GA
   const ownerGaId = row.owner_ga_id == null ? null : Number(row.owner_ga_id)
   return {
     id: String(row.id),
@@ -164,7 +166,7 @@ export function resolveBoardPostGaId(board, tenantGaId) {
  * @param {number} paramIndex
  */
 export function buildDynamicBoardPostGaFilter(board, tenantGaId, paramIndex) {
-  if (isGlobalBoardScope(board)) {
+  if (isGlobalBoardScope(board) || isSystemBoardScope(board)) {
     return { sql: 'AND n.ga_id IS NULL', params: [] }
   }
   const gaId = resolveBoardPostGaId(board, tenantGaId)

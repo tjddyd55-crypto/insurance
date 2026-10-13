@@ -23,6 +23,8 @@ import {
 import { mapBoardWriterRow } from '../lib/boardWriterService.js'
 import { parseGaId } from '../lib/parseGaId.js'
 import { resolveSignupGaCompany } from '../lib/generalGa.js'
+import { assertGaBelongsToActiveGaGroup } from '../lib/gaGroupMembership.js'
+import { normalizeGaGroupSlug } from '../lib/gaGroupSlug.js'
 import {
   isDevSignupPhoneBypassEnabled,
   resolveDevSignupPhoneForStorage,
@@ -196,6 +198,18 @@ async function handleRegister(req, res) {
       }
       gaLegacyInviteCodeNormalized = resolvedSignupGa.codeNormalized
       gaId = resolvedSignupGa.id
+
+      const groupSlugForSignup = normalizeGaGroupSlug(body.ga_group_slug ?? body.gaGroupSlug ?? '')
+      if (groupSlugForSignup) {
+        const groupCheck = await assertGaBelongsToActiveGaGroup(pool, {
+          slug: groupSlugForSignup,
+          gaId,
+        })
+        if (!groupCheck.ok) {
+          res.status(403).json({ message: groupCheck.message })
+          return
+        }
+      }
 
       const refUserId = String(refUserSnake ?? refUserCamel ?? '').trim()
       /** 담당자 초대 링크(명시 GA + ref) — 추천인 코드만 있는 가입과 분리 */

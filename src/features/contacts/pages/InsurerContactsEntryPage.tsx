@@ -1,19 +1,15 @@
 import { useAuth } from '../../auth/AuthProvider'
 import { isGaMemberUser } from '../../entitlements/featureEntitlementPolicy'
 import InsuranceCompanyContactsViewPage from '../../company-registry/pages/InsuranceCompanyContactsViewPage'
-import { ReinsurerContactsPage } from './ReinsurerContactsPage'
 
 /**
- * 원수사 연락처 진입점 — affiliation 에 따라 source 를 전환한다.
- * GA MEMBER: GA 공용 company directory
- * GENERAL: 개인 insurance_contacts (CRUD)
+ * 원수사 연락처 진입점 — GA·공용 모두 동일 조회 UI(company directory 카드).
+ * 데이터 소유·등록 API는 ownershipMode 로 서버에서 분리한다.
  */
 export function InsurerContactsEntryPage() {
   const { user } = useAuth()
-  if (isGaMemberUser(user)) {
-    return <InsuranceCompanyContactsViewPage />
-  }
-  return <ReinsurerContactsPage mode="personal" />
+  const ownershipMode = isGaMemberUser(user) ? 'ga' : 'personal'
+  return <InsuranceCompanyContactsViewPage ownershipMode={ownershipMode} />
 }
 
 export default InsurerContactsEntryPage

@@ -32,6 +32,7 @@ export function registerCrmUserBulkSmsApi(apiRouter, deps) {
       'too_many_recipients',
       'confirm_required',
       'no_eligible_recipients',
+      'sender_required',
       'provider_unavailable',
       'invalid_campaign',
       'campaign_not_found',
@@ -64,6 +65,7 @@ export function registerCrmUserBulkSmsApi(apiRouter, deps) {
         userIds,
         message: body.message,
         title: body.title,
+        senderNumber: body.senderNumber,
       })
       res.json({ success: true, data })
     } catch (error) {
@@ -80,6 +82,7 @@ export function registerCrmUserBulkSmsApi(apiRouter, deps) {
         userIds,
         message: body.message,
         title: body.title,
+        senderNumber: body.senderNumber,
         idempotencyKey: body.idempotencyKey,
         confirm: body.confirm === true,
       })

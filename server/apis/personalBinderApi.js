@@ -25,6 +25,11 @@ import {
   PERSONAL_BINDER_FOLDER_TYPES,
   resolveFolderIdForWrite,
 } from '../personal-binder/personalBinderFolderHelpers.js'
+import { loadBinderDetail } from '../personal-binder/personalBinderDetail.js'
+import { softDeleteOrphanPersonalBinderMaterials } from '../personal-binder/personalBinderStorageFileSync.js'
+import { registerPersonalBinderShareApi } from './personalBinderShareApi.js'
+
+export { loadBinderDetail }
 
 function requestScope(req, res) {
   const userId = String(req.user?.id ?? '').trim()
@@ -59,6 +64,11 @@ export function normalizePageSelection(value, pageCount) {
     throw Object.assign(new Error('선택 페이지를 확인해 주세요.'), { httpStatus: 400 })
   }
   return pages
+}
+
+function respondMaterialRegister(res, registerResult) {
+  const status = registerResult.reused ? 200 : 201
+  res.status(status).json(mapMaterial(registerResult.row))
 }
 
 function mapMaterial(row) {
@@ -124,84 +134,6 @@ async function getOwnedSection(executor, sectionId, scope) {
     [sectionId, scope.userId, scope.gaId],
   )
   return result.rows[0] ?? null
-}
-
-export async function loadBinderDetail(executor, binderId, scope) {
-  const binder = await getOwnedBinder(executor, binderId, scope)
-  if (!binder) return null
-  const sections = await executor.query(
-    `
-    SELECT id, title, sort_order, created_at, updated_at
-    FROM personal_binder_sections
-    WHERE binder_id = $1
-    ORDER BY sort_order ASC, id ASC
-    `,
-    [binderId],
-  )
-  const items = await executor.query(
-    `
-    SELECT
-      i.id,
-      i.section_id,
-      i.material_id,
-      i.sort_order,
-      i.page_selection,
-      i.created_at,
-      i.updated_at,
-      m.file_id,
-      m.title AS material_title,
-      m.original_file_name,
-      m.mime_type,
-      m.file_size,
-      m.page_count
-    FROM personal_binder_items i
-    INNER JOIN personal_binder_sections s ON s.id = i.section_id
-    INNER JOIN personal_binder_materials m ON m.id = i.material_id
-    WHERE s.binder_id = $1 AND m.deleted_at IS NULL
-    ORDER BY s.sort_order ASC, i.sort_order ASC, i.id ASC
-    `,
-    [binderId],
-  )
-  const bySection = new Map()
-  for (const item of items.rows) {
-    const key = String(item.section_id)
-    const rows = bySection.get(key) ?? []
-    rows.push({
-      id: String(item.id),
-      sectionId: key,
-      materialId: String(item.material_id),
-      sortOrder: Number(item.sort_order),
-      pageSelection: item.page_selection,
-      createdAt: item.created_at,
-      updatedAt: item.updated_at,
-      material: {
-        id: String(item.material_id),
-        fileId: Number(item.file_id),
-        title: item.material_title,
-        originalFileName: item.original_file_name,
-        mimeType: item.mime_type,
-        fileSize: Number(item.file_size) || 0,
-        pageCount: Number(item.page_count) || 0,
-      },
-    })
-    bySection.set(key, rows)
-  }
-  return {
-    id: String(binder.id),
-    title: binder.title,
-    description: binder.description,
-    createdAt: binder.created_at,
-    updatedAt: binder.updated_at,
-    sections: sections.rows.map((section) => ({
-      id: String(section.id),
-      binderId: String(binder.id),
-      title: section.title,
-      sortOrder: Number(section.sort_order),
-      createdAt: section.created_at,
-      updatedAt: section.updated_at,
-      items: bySection.get(String(section.id)) ?? [],
-    })),
-  }
 }
 
 export async function normalizeOrder(client, table, parentColumn, parentId, ids) {
@@ -287,16 +219,23 @@ function sendError(error, req, res, handleDbError) {
 
 export function registerPersonalBinderApi(apiRouter, ctx) {
   const { pool, requireAuth, handleDbError } = ctx
+  registerPersonalBinderShareApi(apiRouter, ctx)
 
   apiRouter.get('/personal-binders/materials', requireAuth, async (req, res) => {
     try {
       const scope = requestScope(req, res)
       if (!scope) return
+      await softDeleteOrphanPersonalBinderMaterials(pool, scope)
       const result = await safeQuery(
         pool,
         `
         SELECT m.*, COUNT(DISTINCT b.id)::int AS binder_count
         FROM personal_binder_materials m
+        INNER JOIN files f ON f.id = m.file_id
+          AND f.user_id = m.owner_user_id
+          AND f.ga_id = m.ga_id
+          AND f.deleted_at IS NULL
+          AND f.status = 'active'
         LEFT JOIN personal_binder_items i ON i.material_id = m.id
         LEFT JOIN personal_binder_sections s ON s.id = i.section_id
         LEFT JOIN personal_binders b ON b.id = s.binder_id AND b.deleted_at IS NULL
@@ -358,25 +297,13 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         return
       }
       const folderId = await resolveFolderIdForWrite(pool, scope, 'material', req.body?.folderId)
-      try {
-        const row = await registerBinderMaterialFromStorageFile(pool, scope, file, {
-          title,
-          folderId,
-          sourceType: 'personal',
-          sourceRef: null,
-        })
-        res.status(201).json(mapMaterial(row))
-      } catch (error) {
-        if (error?.code === 'DUPLICATE_MATERIAL') {
-          res.status(409).json({
-            code: 'DUPLICATE_MATERIAL',
-            message: error.message,
-            materialId: error.materialId,
-          })
-          return
-        }
-        throw error
-      }
+      const registerResult = await registerBinderMaterialFromStorageFile(pool, scope, file, {
+        title,
+        folderId,
+        sourceType: 'personal',
+        sourceRef: null,
+      })
+      respondMaterialRegister(res, registerResult)
     } catch (error) {
       sendError(error, req, res, handleDbError)
     }
@@ -398,25 +325,13 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         return
       }
       const folderId = await resolveFolderIdForWrite(pool, scope, 'material', req.body?.folderId)
-      try {
-        const row = await registerBinderMaterialFromStorageFile(pool, scope, file, {
-          title,
-          folderId,
-          sourceType: 'my_file',
-          sourceRef: String(fileId),
-        })
-        res.status(201).json(mapMaterial(row))
-      } catch (error) {
-        if (error?.code === 'DUPLICATE_MATERIAL') {
-          res.status(409).json({
-            code: 'DUPLICATE_MATERIAL',
-            message: error.message,
-            materialId: error.materialId,
-          })
-          return
-        }
-        throw error
-      }
+      const registerResult = await registerBinderMaterialFromStorageFile(pool, scope, file, {
+        title,
+        folderId,
+        sourceType: 'my_file',
+        sourceRef: String(fileId),
+      })
+      respondMaterialRegister(res, registerResult)
     } catch (error) {
       sendError(error, req, res, handleDbError)
     }
@@ -447,25 +362,13 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         attachment.buffer.length,
       )
       const folderId = await resolveFolderIdForWrite(pool, scope, 'material', req.body?.folderId)
-      try {
-        const row = await registerBinderMaterialFromStorageFile(pool, scope, fileRow, {
-          title,
-          folderId,
-          sourceType: 'team_file',
-          sourceRef: String(attachmentId),
-        })
-        res.status(201).json(mapMaterial(row))
-      } catch (error) {
-        if (error?.code === 'DUPLICATE_MATERIAL') {
-          res.status(409).json({
-            code: 'DUPLICATE_MATERIAL',
-            message: error.message,
-            materialId: error.materialId,
-          })
-          return
-        }
-        throw error
-      }
+      const registerResult = await registerBinderMaterialFromStorageFile(pool, scope, fileRow, {
+        title,
+        folderId,
+        sourceType: 'team_file',
+        sourceRef: String(attachmentId),
+      })
+      respondMaterialRegister(res, registerResult)
     } catch (error) {
       sendError(error, req, res, handleDbError)
     }
@@ -506,25 +409,13 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
       const gaCode = String(req.user?.gaCode ?? scope.gaId)
       const fileRow = await persistPersonalStoragePdf(pool, scope, gaCode, pdfBuffer, pdfName)
       const folderId = await resolveFolderIdForWrite(pool, scope, 'material', req.body?.folderId)
-      try {
-        const row = await registerBinderMaterialFromStorageFile(pool, scope, fileRow, {
-          title: title.trim(),
-          folderId,
-          sourceType: 'personal',
-          sourceRef: null,
-        })
-        res.status(201).json(mapMaterial(row))
-      } catch (error) {
-        if (error?.code === 'DUPLICATE_MATERIAL') {
-          res.status(409).json({
-            code: 'DUPLICATE_MATERIAL',
-            message: error.message,
-            materialId: error.materialId,
-          })
-          return
-        }
-        throw error
-      }
+      const registerResult = await registerBinderMaterialFromStorageFile(pool, scope, fileRow, {
+        title: title.trim(),
+        folderId,
+        sourceType: 'personal',
+        sourceRef: null,
+      })
+      respondMaterialRegister(res, registerResult)
     } catch (error) {
       sendError(error, req, res, handleDbError)
     }
@@ -589,7 +480,7 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         [materialId, scope.userId, scope.gaId],
       )
       if (material.rowCount === 0) {
-        res.status(404).json({ message: '자료를 찾을 수 없습니다.' })
+        res.json({ ok: true, alreadyRemoved: true })
         return
       }
       const row = material.rows[0]
@@ -1114,6 +1005,29 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         return
       }
       const selection = normalizePageSelection(req.body?.pageSelection, Number(material.rows[0].page_count))
+      const existingItem = await safeQuery(
+        pool,
+        `
+        SELECT i.id
+        FROM personal_binder_items i
+        INNER JOIN personal_binder_sections s ON s.id = i.section_id
+        INNER JOIN personal_binders b ON b.id = s.binder_id
+        WHERE i.section_id = $1
+          AND i.material_id = $2
+          AND b.owner_user_id = $3
+          AND b.ga_id = $4
+          AND b.deleted_at IS NULL
+        LIMIT 1
+        `,
+        [sectionId, materialId, scope.userId, scope.gaId],
+      )
+      if (existingItem.rowCount > 0) {
+        res.status(200).json({
+          id: String(existingItem.rows[0].id),
+          existing: true,
+        })
+        return
+      }
       const result = await pool.query(
         `
         INSERT INTO personal_binder_items (section_id, material_id, sort_order, page_selection)

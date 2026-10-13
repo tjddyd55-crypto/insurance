@@ -14,9 +14,15 @@ export type UserInsurerAccountsPageViewProps = {
   adapter: AccountVaultAdapter | null
   shareLink: AccountVaultShareLinkViewProps
   shareVisibility: AccountShareVisibilityViewProps
+  embedded?: boolean
 }
 
-export default function UserInsurerAccountsPage() {
+type UserInsurerAccountsPageProps = {
+  /** GA 관리 허브 — outer page shell 없이 vault만 표시 */
+  embedded?: boolean
+}
+
+export default function UserInsurerAccountsPage({ embedded = false }: UserInsurerAccountsPageProps = {}) {
   const { token } = useAuth()
   const authToken = token?.trim() ?? ''
   const adapter = useMemo(() => createInternalAccountVaultAdapter(authToken), [authToken])
@@ -27,7 +33,7 @@ export default function UserInsurerAccountsPage() {
     <ResponsiveLayout<UserInsurerAccountsPageViewProps>
       PC={UserInsurerAccountsPCView}
       Mobile={UserInsurerAccountsMobileView}
-      viewProps={{ adapter, shareLink, shareVisibility }}
+      viewProps={{ adapter, shareLink, shareVisibility, embedded }}
     />
   )
 }

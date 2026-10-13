@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import {
+  buildCustomerWorkspaceAuthKey,
+  clearCustomerWorkspaceClientState,
+  customerWorkspacePathHasCustomerSelection,
+  shouldResetCustomerWorkspaceAuth,
+} from '../utils/customerWorkspaceAuthReset'
 import { parseWorkspaceCustomerIdFromPath } from '../utils/customerWorkspaceNavigation'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
 import { useAuth } from '../../auth/AuthProvider'
@@ -102,6 +108,8 @@ export default function CustomerWorkspaceLayout() {
   const isMobile = useIsMobile()
   const [searchParams] = useSearchParams()
   const openRelatedCustomerRef = useRef<((customerId: number, customerName?: string) => void) | null>(null)
+  const workspaceAuthKeyRef = useRef<string | null>(null)
+  const workspaceSessionKey = user?.id ?? 'anonymous'
   const currentPathTab = useMemo(
     () => resolveWorkspacePathTab(location.pathname),
     [location.pathname],
@@ -126,6 +134,22 @@ export default function CustomerWorkspaceLayout() {
   }, [location.pathname, searchParams])
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRecord | null>(null)
   const [excelCap, setExcelCap] = useState<GaCustomerExcelCapability | null>(null)
+  useEffect(() => {
+    const nextKey = buildCustomerWorkspaceAuthKey(user?.id, token)
+    const prevKey = workspaceAuthKeyRef.current
+    workspaceAuthKeyRef.current = nextKey
+    if (!shouldResetCustomerWorkspaceAuth(prevKey, nextKey)) {
+      return
+    }
+    clearCustomerWorkspaceClientState()
+    setSelectedCustomer(null)
+    const hasPathCustomer = customerWorkspacePathHasCustomerSelection(location.pathname)
+    const hasQueryCustomer = parseSelectedCustomerId(searchParams.get('customerId')) != null
+    if (hasPathCustomer || hasQueryCustomer) {
+      navigate('/customers', { replace: true })
+    }
+  }, [location.pathname, navigate, searchParams, token, user?.id])
+
   const selectedCustomerLabel = useMemo(() => {
     if (selectedCustomer?.name?.trim()) {
       return selectedCustomer.name.trim()
@@ -156,13 +180,16 @@ export default function CustomerWorkspaceLayout() {
       .catch(() => {
         if (!cancelled) {
           setSelectedCustomer(null)
+          if (customerWorkspacePathHasCustomerSelection(location.pathname)) {
+            navigate('/customers', { replace: true })
+          }
         }
       })
 
     return () => {
       cancelled = true
     }
-  }, [isMobile, selectedCustomerId, token])
+  }, [isMobile, location.pathname, navigate, selectedCustomerId, token])
 
   useEffect(() => {
     if (isMobile) {
@@ -346,12 +373,16 @@ export default function CustomerWorkspaceLayout() {
     onClickViewOnMap: handleClickViewOnMap,
     onClickCoverageSimulations: handleClickCoverageSimulations,
     openRelatedCustomerRef,
+    workspaceSessionKey,
   }
 
   return (
     <div className="customer-workspace-layout user-page user-page--full-bleed">
       <aside className="customer-workspace-layout__left" aria-label="고객 작업공간">
-        <CustomersPageContainer openRelatedCustomerRef={openRelatedCustomerRef} />
+        <CustomersPageContainer
+          key={workspaceSessionKey}
+          openRelatedCustomerRef={openRelatedCustomerRef}
+        />
       </aside>
 
       {/**

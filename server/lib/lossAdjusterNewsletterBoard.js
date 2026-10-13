@@ -1,5 +1,7 @@
 /**
- * GA별 손해사정사 소식지(LOSS_ADJUSTER) 기본 보드 설정.
+ * GA별 손해사정사 소식지(LOSS_ADJUSTER) 보드.
+ * 신규 GA 자동 생성(provisioning)은 하지 않는다 — 기존 GA에 row가 있을 때만 노출·관리.
+ * ensureLossAdjusterNewsletterBoard 는 명시적 마이그레이션·운영 도구용으로만 호출한다.
  * 게시글 payload.newsChannel 과 메뉴 path 는 변경하지 않는다.
  * 원수사(INSURER) 채널은 다루지 않는다.
  */
@@ -102,9 +104,8 @@ export async function ensureLossAdjusterNewsletterBoard(pool, gaId, options = {}
 export async function isLossAdjusterNewsletterActiveForGa(pool, gaId) {
   const ownerGaId = Number(gaId)
   if (!Number.isInteger(ownerGaId) || ownerGaId < 1) {
-    return true
+    return false
   }
-  await ensureLossAdjusterNewsletterBoard(pool, ownerGaId)
   const r = await pool.query(
     `
     SELECT COALESCE(is_active, true) AS is_active
@@ -117,7 +118,7 @@ export async function isLossAdjusterNewsletterActiveForGa(pool, gaId) {
     [ownerGaId, LOSS_ADJUSTER_SYSTEM_KEY],
   )
   if (r.rowCount === 0) {
-    return true
+    return false
   }
   return Boolean(r.rows[0].is_active)
 }
@@ -131,7 +132,6 @@ export async function getLossAdjusterNewsletterLabelForGa(pool, gaId) {
   if (!Number.isInteger(ownerGaId) || ownerGaId < 1) {
     return LOSS_ADJUSTER_DEFAULT_LABEL
   }
-  await ensureLossAdjusterNewsletterBoard(pool, ownerGaId)
   const r = await pool.query(
     `
     SELECT label

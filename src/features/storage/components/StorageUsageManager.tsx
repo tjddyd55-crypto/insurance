@@ -2,7 +2,17 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useNavigate } from 'react-router-dom'
 import { FormButton } from '../../../components/form'
 import Modal from '../../../components/ui/Modal'
-import { createStorageFileDownloadUrl, deleteStorageFile, openStorageFile } from '../api/storageApi'
+import { useConfirmDialog } from '../../../components/dialog'
+import {
+  createStorageFileDownloadUrl,
+  deleteStorageFile,
+  fetchStorageFileBinderDeleteImpact,
+  openStorageFile,
+} from '../api/storageApi'
+import {
+  buildStorageBinderDeleteImpactConfirmMessage,
+  hasStorageBinderDeleteImpact,
+} from '../utils/storageBinderDeleteImpactCopy'
 import {
   getStorageUsageBreakdown,
   type StorageUsageBreakdown,
@@ -234,6 +244,7 @@ function UsageBreakdownBody({
 
 export default function StorageUsageManager({ token, compact = false, onStorageChanged }: StorageUsageManagerProps) {
   const navigate = useNavigate()
+  const { confirm, confirmDialog } = useConfirmDialog()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -341,14 +352,38 @@ export default function StorageUsageManager({ token, compact = false, onStorageC
       if (!token?.trim() || !item.storageFileId || !item.canDeleteDirectly) {
         return
       }
-      const ok = window.confirm(`"${item.fileName}" 파일을 삭제할까요?`)
-      if (!ok) {
+      let confirmBinderCleanup = false
+      let acknowledgedBinderItemCount: number | undefined
+      let message = `"${item.fileName}" 파일을 삭제할까요?`
+      if (item.source === 'personal-storage') {
+        try {
+          const impact = await fetchStorageFileBinderDeleteImpact(token, item.storageFileId)
+          if (hasStorageBinderDeleteImpact(impact)) {
+            confirmBinderCleanup = true
+            acknowledgedBinderItemCount = impact.binderItemCount
+            message = buildStorageBinderDeleteImpactConfirmMessage(impact, item.fileName)
+          }
+        } catch {
+          // 영향 조회 실패 시 기본 확인만
+        }
+      }
+      const accepted = await confirm({
+        title: confirmBinderCleanup ? '바인더에서 사용 중인 자료' : '파일 삭제',
+        message,
+        confirmLabel: '삭제',
+        cancelLabel: '취소',
+        tone: 'danger',
+      })
+      if (!accepted) {
         return
       }
       setDeletingId(item.id)
       setError('')
       try {
-        await deleteStorageFile(token, item.storageFileId)
+        await deleteStorageFile(token, item.storageFileId, {
+          confirmBinderCleanup,
+          acknowledgedBinderItemCount,
+        })
         setBreakdown((prev) => {
           const items = prev.items.filter((row) => row.id !== item.id)
           const totalSize = items.reduce((sum, row) => sum + (Number(row.size) || 0), 0)
@@ -369,7 +404,7 @@ export default function StorageUsageManager({ token, compact = false, onStorageC
         setDeletingId(null)
       }
     },
-    [onStorageChanged, token],
+    [confirm, onStorageChanged, token],
   )
 
   const handleOpenStorageFile = useCallback(
@@ -501,6 +536,7 @@ export default function StorageUsageManager({ token, compact = false, onStorageC
       <>
         <div className="storage-usage-manager storage-usage-manager--compact">{actionButtons}</div>
         {modalShell(<UsageBreakdownBody {...breakdownBodyProps} />)}
+        {confirmDialog}
       </>
     )
   }
@@ -516,6 +552,7 @@ export default function StorageUsageManager({ token, compact = false, onStorageC
       </div>
 
       {open ? <UsageBreakdownBody {...breakdownBodyProps} /> : null}
+      {confirmDialog}
     </section>
   )
 }

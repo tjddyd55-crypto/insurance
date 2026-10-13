@@ -1,6 +1,20 @@
 import { ApiError, apiRequest } from '../../lib/apiClient'
 import type { InsurerManager, InsurerManagerStatus, InsurerManagerType } from './types'
 
+export type InsurerManagerCompanyChoice = {
+  id: number
+  name: string
+  category: 'LIFE' | 'NON_LIFE'
+}
+
+/** 원수사 담당자 등록 — 플랫폼 공통 보험회사 카탈로그(영진 마스터 SSOT) + 자기 GA master id */
+export async function listInsurerManagerCompanyChoicesApi(token: string): Promise<InsurerManagerCompanyChoice[]> {
+  return apiRequest<InsurerManagerCompanyChoice[]>('/api/insurer-managers/company-choices', {
+    method: 'GET',
+    token,
+  })
+}
+
 export async function listInsurerManagersApi(token: string): Promise<InsurerManager[]> {
   return apiRequest<InsurerManager[]>('/api/insurer-managers', { method: 'GET', token })
 }
@@ -10,20 +24,26 @@ export async function createInsurerManagerApi(
   payload: {
     insurerType: InsurerManagerType
     companyId: number
+    companyName?: string
     username: string
     password: string
   },
 ): Promise<InsurerManager> {
   try {
+    const companyName = payload.companyName?.trim()
+    const body: Record<string, unknown> = {
+      insurerType: payload.insurerType,
+      companyId: payload.companyId,
+      username: payload.username.trim(),
+      password: payload.password,
+    }
+    if ((!payload.companyId || payload.companyId <= 0) && companyName) {
+      body.companyName = companyName
+    }
     return await apiRequest<InsurerManager>('/api/insurer-managers', {
       method: 'POST',
       token,
-      body: JSON.stringify({
-        insurerType: payload.insurerType,
-        companyId: payload.companyId,
-        username: payload.username.trim(),
-        password: payload.password,
-      }),
+      body: JSON.stringify(body),
     })
   } catch (error) {
     if (error instanceof ApiError && error.status === 409) {

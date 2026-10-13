@@ -26,4 +26,6 @@ export type NewsletterBoardAdminViewProps = {
   onEdit: (board: NewsletterBoard) => void
   onSelectBoard: (board: NewsletterBoard | null) => void
   onWriterBusyChange: (busy: boolean) => void
+  embedded?: boolean
+  gaAdminOwnedOnly?: boolean
 }

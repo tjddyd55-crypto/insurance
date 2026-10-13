@@ -1,4 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import type { PublicGaGroupGa } from '../../admin/api/gaGroupApi'
+import { GaGroupBranchCombobox } from '../components/GaGroupBranchCombobox'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
 import { normalizeKrMobile, validateKrMobileDigits } from '../../../lib/phoneNormalize'
@@ -58,11 +60,23 @@ type VerifySignupResponseLike = {
 
 export type SignupIndustry = 'insurance' | 'gym' | 'government'
 
-export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?: SignupIndustry }) {
+export type GaGroupSignupContext = {
+  slug: string
+  groupName: string
+  logoUrl: string | null
+}
+
+export function RegisterPage({
+  signupIndustry = 'insurance',
+  gaGroupSignup,
+}: {
+  signupIndustry?: SignupIndustry
+  gaGroupSignup?: GaGroupSignupContext
+}) {
   const navigate = useNavigate()
   const isMobile = useIsMobile()
   const [searchParams] = useSearchParams()
-  const { isAuthenticated, login, logout, user, token } = useAuth()
+  const { isAuthenticated, login, user, token } = useAuth()
   const tenantCodeMode = signupIndustry === 'gym' || signupIndustry === 'government'
   const [gaCode, setGaCode] = useState('')
   const [registrationCode, setRegistrationCode] = useState('')
@@ -92,6 +106,9 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
   const [referralCodeError, setReferralCodeError] = useState('')
   const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(null)
   const [devPhoneBypassEnabled, setDevPhoneBypassEnabled] = useState(false)
+  const [selectedBranch, setSelectedBranch] = useState<PublicGaGroupGa | null>(null)
+
+  const isGaGroupSignup = Boolean(gaGroupSignup?.slug)
 
   useEffect(() => {
     let cancelled = false
@@ -466,6 +483,10 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
         return
       }
     }
+    if (isGaGroupSignup && !gaCodeTrim) {
+      setErrorMessage('소속 지점을 선택하세요.')
+      return
+    }
     if (!userTrim) {
       setErrorMessage('아이디를 입력하세요.')
       return
@@ -501,7 +522,6 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
 
     setIsSubmitting(true)
     try {
-      logout()
       const available = await checkUsernameAvailability(userTrim)
       if (!available) {
         setUsernameCheck('taken')
@@ -532,16 +552,10 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
           phoneNumber: phoneDigits || undefined,
           signupPhoneProof: signupPhoneProof ?? undefined,
           referralCode: referralCodeNorm || undefined,
+          gaGroupSlug: gaGroupSignup?.slug,
         })
       }
       const session = await loginApi(userTrim, password)
-      if (session.authKind === 'STANDARD' && session.user.displayName.trim() !== nameTrim) {
-        logout()
-        setErrorMessage(
-          '가입은 완료되었지만 로그인 계정 정보가 일치하지 않습니다. 방금 가입한 아이디로 다시 로그인해 주세요.',
-        )
-        return
-      }
       if (session.authKind === 'BOARD_WRITER') {
         navigate(session.redirectPath || '/board-writer/workspace', { replace: true })
         return
@@ -589,10 +603,12 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
   const smsConfirmDisabled = smsSubmitting || smsCode.trim().length !== 6 || isVerified
 
   return (
-    <main className="auth-page">
+    <main className={isGaGroupSignup ? 'auth-page auth-page--embedded' : 'auth-page'}>
       <section className="card auth-card">
         <h1>
-          {tenantCodeMode ?
+          {isGaGroupSignup ?
+            `${gaGroupSignup?.groupName ?? ''} 회원가입`
+          : tenantCodeMode ?
             signupIndustry === 'gym' ?
               '회원가입 · 체육관'
             : '회원가입 · 공공기관'
@@ -621,6 +637,26 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
               {gaInfo ? <div className="ga-success">{`사업장: ${gaInfo}`}</div> : null}
               {gaError ? <div className="ga-error">{gaError}</div> : null}
             </label>
+          : isGaGroupSignup && gaGroupSignup ?
+            <GaGroupBranchCombobox
+              groupSlug={gaGroupSignup.slug}
+              groupName={gaGroupSignup.groupName}
+              value={selectedBranch}
+              onChange={(row) => {
+                setSelectedBranch(row)
+                if (!row) {
+                  setGaCode('')
+                  setGaInfo(null)
+                }
+                setIsVerified(false)
+                setSignupPhoneProof(null)
+              }}
+              onGaCodeChange={(code, displayName) => {
+                setGaCode(code)
+                setGaInfo(displayName)
+                setGaError('')
+              }}
+            />
           : <label className="field">
               <span className="field__label">GA 코드 (선택)</span>
               <p className="text-xs text-gray-400 mb-2">
@@ -701,7 +737,7 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
             <FormInput
               value={name}
               onChange={(e) => setName(e.target.value)}
-              autoComplete="off"
+              autoComplete="name"
               placeholder="실명 또는 표시 이름"
               required
             />

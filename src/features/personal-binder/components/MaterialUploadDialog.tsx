@@ -8,6 +8,7 @@ import FormInput from '../../../components/form/FormInput'
 import {
   markStorageUploadFailed,
   presignStorageFile,
+  putStoragePresignedFile,
   revokeStorageStagedUpload,
   saveStorageFile,
 } from '../../storage/api/storageApi'
@@ -60,34 +61,6 @@ async function readPdfPageCount(file: File): Promise<number> {
   }
 }
 
-function uploadWithProgress(
-  url: string,
-  file: File,
-  contentType: string,
-  headers: Record<string, string>,
-  onProgress: (progress: number) => void,
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const request = new XMLHttpRequest()
-    request.open('PUT', url)
-    request.setRequestHeader('Content-Type', contentType)
-    for (const [key, value] of Object.entries(headers)) {
-      request.setRequestHeader(key, value)
-    }
-    request.upload.onprogress = (event) => {
-      if (event.lengthComputable) {
-        onProgress(Math.round((event.loaded / event.total) * 100))
-      }
-    }
-    request.onload = () => {
-      if (request.status >= 200 && request.status < 300) resolve()
-      else reject(new Error('파일 업로드에 실패했습니다.'))
-    }
-    request.onerror = () => reject(new Error('파일 업로드에 실패했습니다.'))
-    request.send(file)
-  })
-}
-
 async function uploadPersonalFile(
   token: string,
   file: File,
@@ -102,13 +75,9 @@ async function uploadPersonalFile(
   let stagedKey = presign.objectKey
   let fileId: number | null = presign.fileId
   try {
-    await uploadWithProgress(
-      presign.uploadUrl,
-      file,
-      contentType,
-      presign.putHeaders ?? {},
-      onProgress,
-    )
+    onProgress(10)
+    await putStoragePresignedFile(token, presign, file, contentType)
+    onProgress(90)
     const saved = await saveStorageFile(token, {
       fileId: presign.fileId,
       fileName: file.name,
@@ -224,8 +193,10 @@ export function MaterialUploadDialog({
         const [checksum, pageCount] = await Promise.all([sha256(file), readPdfPageCount(file)])
         if (pageCount < 1) throw new Error('페이지가 없는 PDF입니다.')
         const duplicate = await checkDuplicateBinderMaterial(token, checksum)
-        if (duplicate.duplicate) {
-          throw new Error('이미 자료 보관함에 등록된 파일입니다.')
+        if (duplicate.duplicate && duplicate.material) {
+          onUploaded(duplicate.material)
+          onClose()
+          return
         }
       }
       const fileId = await uploadPersonalFile(token, file, setProgress)

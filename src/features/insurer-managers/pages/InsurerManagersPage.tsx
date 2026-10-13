@@ -3,15 +3,15 @@ import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react
 import { FormDialog, useConfirmDialog } from '../../../components/dialog'
 import { EmptyState, StatusMessage } from '../../../components/feedback'
 import { FieldWrapper, FormButton, FormInput, FormSelect } from '../../../components/form'
-import { listCompanyDirectory } from '../../company-registry/api/companyRegistryApi'
-import type { CompanyDirectoryEntry } from '../../company-registry/domain/types'
 import { canonicalInsuranceCategoryForFilter } from '../../company-registry/domain/categoryUtils'
 import { useAuth } from '../../auth/AuthProvider'
 import {
   createInsurerManagerApi,
   deleteInsurerManagerApi,
+  listInsurerManagerCompanyChoicesApi,
   listInsurerManagersApi,
   patchInsurerManagerApi,
+  type InsurerManagerCompanyChoice,
 } from '../insurerManagerApi'
 import {
   createLossAdjusterApi,
@@ -20,6 +20,7 @@ import {
   patchLossAdjusterApi,
 } from '../../loss-adjusters/lossAdjusterApi'
 import type { InsurerManager, InsurerManagerStatus, InsurerManagerType } from '../types'
+import { hasInsurerManagersGaTenant } from '../insurerManagersTenantContext'
 
 const STATUS_OPTIONS: { value: InsurerManagerStatus; label: string }[] = [
   { value: 'ACTIVE', label: '정상' },
@@ -30,6 +31,44 @@ const TYPE_OPTIONS: { value: InsurerManagerType; label: string }[] = [
   { value: 'LIFE', label: '생명보험' },
   { value: 'NON_LIFE', label: '손해보험' },
 ]
+
+function insurerManagerCompanySelectValue(choice: InsurerManagerCompanyChoice): string {
+  if (choice.id > 0) {
+    return String(choice.id)
+  }
+  return `n:${choice.name}`
+}
+
+function insurerManagerCompanySelectValueFromForm(form: {
+  companyId: number
+  companyName: string
+}): string {
+  if (form.companyId > 0) {
+    return String(form.companyId)
+  }
+  if (form.companyName.trim()) {
+    return `n:${form.companyName.trim()}`
+  }
+  return ''
+}
+
+function applyInsurerManagerCompanySelect(
+  raw: string,
+  choices: InsurerManagerCompanyChoice[],
+): { companyId: number; companyName: string } {
+  if (!raw) {
+    return { companyId: 0, companyName: '' }
+  }
+  if (raw.startsWith('n:')) {
+    return { companyId: 0, companyName: raw.slice(2) }
+  }
+  const id = Number(raw)
+  const match = choices.find((c) => c.id === id)
+  return {
+    companyId: Number.isFinite(id) && id > 0 ? id : 0,
+    companyName: match?.name ?? '',
+  }
+}
 
 function StatusBadge({ status }: { status: InsurerManagerStatus }) {
   const active = status === 'ACTIVE'
@@ -155,6 +194,7 @@ function configFor(kind: ManagerChannelKind): ManagerPageConfig {
       createInsurerManagerApi(token, {
         insurerType: payload.insurerType ?? 'NON_LIFE',
         companyId: Number(payload.companyId ?? 0),
+        companyName: payload.companyName,
         username: payload.username,
         password: payload.password,
       }),
@@ -170,12 +210,20 @@ function configFor(kind: ManagerChannelKind): ManagerPageConfig {
   }
 }
 
-export default function InsurerManagersPage({ managerKind = 'insurer' }: { managerKind?: ManagerChannelKind }) {
+export type InsurerManagersPageProps = {
+  managerKind?: ManagerChannelKind
+  /** GA 관리 허브 — 개인 vault가 아닌 소식지 운영용 원수사 담당자(insurer_managers) */
+  embedded?: boolean
+}
+
+export default function InsurerManagersPage({ managerKind = 'insurer', embedded = false }: InsurerManagersPageProps = {}) {
   const { user, token } = useAuth()
   const { confirm, confirmDialog } = useConfirmDialog()
   const config = useMemo(() => configFor(managerKind), [managerKind])
   const isLossAdjusterMode = managerKind === 'lossAdjuster'
   const gaCode = user?.gaCode?.trim() ?? ''
+  const hasGaTenant = hasInsurerManagersGaTenant(user)
+  const tenantScopeKey = user?.gaId ?? gaCode
   const canDelete = user?.role === 'GA_ADMIN' || user?.role === 'GA_STAFF'
   const [rows, setRows] = useState<InsurerManager[]>([])
   const [loadErr, setLoadErr] = useState('')
@@ -186,7 +234,7 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
   const [saving, setSaving] = useState(false)
 
   const reload = useCallback(async () => {
-    if (!gaCode || !token) {
+    if (!hasGaTenant || !token) {
       return
     }
     setLoadErr('')
@@ -196,24 +244,24 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
     } catch {
       setLoadErr('목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
     }
-  }, [config, gaCode, token])
+  }, [config, hasGaTenant, token])
 
   useEffect(() => {
     void reload()
   }, [reload])
 
-  const { data: companyDirectory = [] } = useQuery<CompanyDirectoryEntry[]>({
-    queryKey: ['company-directory', token, gaCode],
-    queryFn: () => listCompanyDirectory(token!),
-    enabled: Boolean(token && gaCode && !isLossAdjusterMode),
+  const { data: insurerCompanyChoices = [] } = useQuery<InsurerManagerCompanyChoice[]>({
+    queryKey: ['insurer-manager-company-choices', token, tenantScopeKey],
+    queryFn: () => listInsurerManagerCompanyChoicesApi(token!),
+    enabled: Boolean(token && hasGaTenant && !isLossAdjusterMode),
   })
 
   const masterChoices = useMemo(() => {
-    return companyDirectory
+    return insurerCompanyChoices
       .filter((c) => canonicalInsuranceCategoryForFilter(c.category, c.name) === form.insurerType)
       .slice()
       .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
-  }, [companyDirectory, form.insurerType])
+  }, [insurerCompanyChoices, form.insurerType])
 
   const submitCreate = async (e: FormEvent) => {
     e.preventDefault()
@@ -228,7 +276,7 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
         setFormErr(config.createRequiredMessage)
         return
       }
-    } else if (!form.companyId || !u || !password) {
+    } else if ((!form.companyId && !form.companyName.trim()) || !u || !password) {
       setFormErr(config.createRequiredMessage)
       return
     }
@@ -245,6 +293,7 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
         await config.createApi(token, {
           insurerType: form.insurerType,
           companyId: form.companyId,
+          companyName: form.companyName,
           username: u,
           password,
         })
@@ -358,7 +407,17 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
     setFormErr('')
   }
 
-  if (!gaCode) {
+  const pageTitle = embedded && managerKind === 'insurer' ? '원수사 계정' : config.pageTitle
+
+  if (!hasGaTenant) {
+    if (embedded) {
+      return (
+        <div className="admin-data-card">
+          <h2 className="admin-data-card__title">{pageTitle}</h2>
+          <p className="text-sm text-[var(--text-secondary)]">{config.noSessionMessage}</p>
+        </div>
+      )
+    }
     return (
       <main className="page page--with-back">
         <header className="page-header">
@@ -369,35 +428,35 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
     )
   }
 
-  return (
-    <main className="page page--with-back admin-user-management">
-      <header className="page-header">
-        <h1>{config.pageTitle}</h1>
-        <p style={{ color: 'var(--text-sub)', margin: 0 }}>{config.description}</p>
-      </header>
-
+  const workspaceBody = (
+    <>
       <StatusMessage message={loadErr} tone="error" />
 
-      <section
-        className="admin-toolbar card auth-card"
-        style={{ maxWidth: 'none', margin: 0, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}
-      >
-        <FormButton
-          htmlType="button"
-          variant="primary"
-          className="button button--primary"
-          onClick={() => {
-            setFormErr('')
-            setEditing(null)
-            setForm(emptyForm())
-            setRegisterOpen(true)
-          }}
+      {!embedded ? (
+        <section
+          className="admin-toolbar card auth-card"
+          style={{ maxWidth: 'none', margin: 0, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}
         >
-          등록
-        </FormButton>
-      </section>
+          <FormButton
+            htmlType="button"
+            variant="primary"
+            className="button button--primary"
+            onClick={() => {
+              setFormErr('')
+              setEditing(null)
+              setForm(emptyForm())
+              setRegisterOpen(true)
+            }}
+          >
+            등록
+          </FormButton>
+        </section>
+      ) : null}
 
-      <div className="card" style={{ maxWidth: 'none', margin: '16px 0 0', padding: 0 }}>
+      <div
+        className={embedded ? 'admin-data-table-wrap' : 'card'}
+        style={embedded ? undefined : { maxWidth: 'none', margin: '16px 0 0', padding: 0 }}
+      >
         <div className="table-container table-container--desktop">
           <table className="admin-data-table">
             <thead>
@@ -553,6 +612,7 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
                         ...f,
                         insurerType: t,
                         companyId: 0,
+                        companyName: '',
                       }))
                     }}
                     options={TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
@@ -562,9 +622,20 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
                   <FormSelect
                     className="admin-form-input"
                     required
-                    value={form.companyId ? String(form.companyId) : ''}
-                    onChange={(e) => setForm((f) => ({ ...f, companyId: Number(e.target.value) || 0 }))}
-                    options={[{ value: '', label: '선택' }, ...masterChoices.map((c) => ({ value: String(c.id), label: c.name }))]}
+                    value={insurerManagerCompanySelectValueFromForm(form)}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        ...applyInsurerManagerCompanySelect(e.target.value, masterChoices),
+                      }))
+                    }
+                    options={[
+                      { value: '', label: '선택' },
+                      ...masterChoices.map((c) => ({
+                        value: insurerManagerCompanySelectValue(c),
+                        label: c.name,
+                      })),
+                    ]}
                   />
                 </FieldWrapper>
               </>
@@ -649,6 +720,7 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
                         ...f,
                         insurerType: t,
                         companyId: 0,
+                        companyName: '',
                       }))
                     }}
                     options={TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
@@ -658,9 +730,20 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
                   <FormSelect
                     className="admin-form-input"
                     required
-                    value={form.companyId ? String(form.companyId) : ''}
-                    onChange={(e) => setForm((f) => ({ ...f, companyId: Number(e.target.value) || 0 }))}
-                    options={[{ value: '', label: '선택' }, ...masterChoices.map((c) => ({ value: String(c.id), label: c.name }))]}
+                    value={insurerManagerCompanySelectValueFromForm(form)}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        ...applyInsurerManagerCompanySelect(e.target.value, masterChoices),
+                      }))
+                    }
+                    options={[
+                      { value: '', label: '선택' },
+                      ...masterChoices.map((c) => ({
+                        value: insurerManagerCompanySelectValue(c),
+                        label: c.name,
+                      })),
+                    ]}
                   />
                 </FieldWrapper>
               </>
@@ -696,6 +779,44 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
         </FormDialog>
       ) : null}
       {confirmDialog}
+    </>
+  )
+
+  if (embedded) {
+    return (
+      <div className="admin-data-card ga-admin-insurer-managers-embedded">
+        <div className="admin-data-card__head">
+          <div>
+            <h2 className="admin-data-card__title">{pageTitle}</h2>
+            <p className="text-sm text-[var(--text-secondary)] m-0">{config.description}</p>
+          </div>
+          <div className="admin-data-card__actions">
+            <FormButton
+              htmlType="button"
+              variant="primary"
+              onClick={() => {
+                setFormErr('')
+                setEditing(null)
+                setForm(emptyForm())
+                setRegisterOpen(true)
+              }}
+            >
+              등록
+            </FormButton>
+          </div>
+        </div>
+        {workspaceBody}
+      </div>
+    )
+  }
+
+  return (
+    <main className="page page--with-back admin-user-management">
+      <header className="page-header">
+        <h1>{config.pageTitle}</h1>
+        <p style={{ color: 'var(--text-sub)', margin: 0 }}>{config.description}</p>
+      </header>
+      {workspaceBody}
     </main>
   )
 }

@@ -7,7 +7,7 @@ const baseDialogMock = vi.fn((_props: Record<string, unknown>) => null)
 vi.mock('./BaseDialog', () => ({
   BaseDialog: (props: Record<string, unknown>) => {
     baseDialogMock(props)
-    return null
+    return props.children ?? null
   },
 }))
 
@@ -37,5 +37,22 @@ describe('FormDialog', () => {
         closeOnEsc: false,
       }),
     )
+  })
+
+  it('renders explicit close control in header', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        FormDialog,
+        {
+          open: true,
+          title: '입력',
+          onClose: vi.fn(),
+        },
+        '본문',
+      ),
+    )
+
+    expect(html).toContain('form-dialog__close')
+    expect(html).toContain('aria-label="닫기"')
   })
 })

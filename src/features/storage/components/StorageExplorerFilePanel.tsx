@@ -32,6 +32,22 @@ type StorageExplorerFilePanelProps = {
   onRename: (file: StorageFileRow) => void
   onDelete: (file: StorageFileRow) => void
   onSelectBreadcrumbFolder: (index: number) => void
+  onAddToBinder?: (file: StorageFileRow) => void
+  binderPickBusyFileId?: number | null
+}
+
+function isBinderPickCompatibleFile(file: StorageFileRow): boolean {
+  const mime = String(file.mimeType ?? '').toLowerCase().split(';')[0].trim()
+  if (mime === 'application/pdf' || mime === 'image/jpeg' || mime === 'image/png') {
+    return true
+  }
+  const lower = String(file.displayName ?? file.fileName ?? '').toLowerCase()
+  return (
+    lower.endsWith('.pdf') ||
+    lower.endsWith('.jpg') ||
+    lower.endsWith('.jpeg') ||
+    lower.endsWith('.png')
+  )
 }
 
 function renderFileIcon(file: StorageFileRow): string {
@@ -90,11 +106,22 @@ export default function StorageExplorerFilePanel({
   onRename,
   onDelete,
   onSelectBreadcrumbFolder,
+  onAddToBinder,
+  binderPickBusyFileId = null,
 }: StorageExplorerFilePanelProps) {
+  const binderPickMode = Boolean(onAddToBinder)
   const [openActionMenuFileId, setOpenActionMenuFileId] = useState<number | null>(null)
 
   return (
-    <section className="storage-explorer-files" aria-label="파일 목록">
+    <section
+      className={[
+        'storage-explorer-files',
+        binderPickMode ? 'storage-explorer-files--binder-pick' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      aria-label="파일 목록"
+    >
       <nav
         className="storage-explorer-chrome__breadcrumb-row storage-explorer-files__breadcrumb"
         aria-label="현재 위치"
@@ -237,6 +264,19 @@ export default function StorageExplorerFilePanel({
                 ) : (
                   <div className="storage-explorer-files__actions">
                     <div className="storage-explorer-files__actions-inline">
+                      {onAddToBinder && isBinderPickCompatibleFile(file) ? (
+                        <button
+                          type="button"
+                          className={`${EXPLORER_FILE_ACTION_BUTTON_CLASS} storage-explorer-file-action-button--primary`}
+                          disabled={binderPickBusyFileId === file.id}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            onAddToBinder(file)
+                          }}
+                        >
+                          {binderPickBusyFileId === file.id ? '추가 중…' : '바인더에 추가'}
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         className={EXPLORER_FILE_ACTION_BUTTON_CLASS}

@@ -50,6 +50,8 @@ export type CustomerWorkspaceLayoutPCProps = {
   openRelatedCustomerRef: MutableRefObject<
     ((customerId: number, customerName?: string) => void) | null
   >
+  /** 로그인 사용자가 바뀌면 Outlet·자식 페이지 state를 분리한다. */
+  workspaceSessionKey: string
 }
 
 /**
@@ -125,6 +127,7 @@ export default function CustomerWorkspaceLayoutPC({
   onClickViewOnMap,
   onClickCoverageSimulations,
   openRelatedCustomerRef,
+  workspaceSessionKey,
 }: CustomerWorkspaceLayoutPCProps) {
   const genderUnknown = !selectedCustomer?.gender
   const insuranceAgeLabel =
@@ -257,7 +260,7 @@ export default function CustomerWorkspaceLayoutPC({
            * 고객 미선택 index(`/customers`) 에서는 Outlet 을 렌더해 최근 등록 고객 패널을 보여준다.
            */
           <Outlet
-            key={selectedCustomerId ?? 'customer-index'}
+            key={`${workspaceSessionKey}:${selectedCustomerId ?? 'customer-index'}`}
             context={{ selectedCustomerId, openRelatedCustomerRef }}
           />
         ) : (

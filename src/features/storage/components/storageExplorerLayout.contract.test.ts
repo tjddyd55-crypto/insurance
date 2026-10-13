@@ -9,6 +9,7 @@ const css = readFileSync(join(repoRoot, 'src/index.css'), 'utf8')
 
 test('storage explorer grid prioritizes filename over action width', () => {
   assert.match(css, /--storage-explorer-file-grid-columns/)
+  assert.match(css, /\.storage-explorer-files--binder-pick/)
   assert.match(css, /minmax\(0,\s*1fr\)/)
   assert.match(css, /--storage-explorer-file-name-min-width:\s*160px/)
   assert.match(css, /minmax\(0,\s*max-content\)/)

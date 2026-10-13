@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { ApiError } from '../../../lib/apiClient'
 import {
   createStorageFileDownloadUrl,
   createStorageFolder,
   deleteStorageFile,
   deleteStorageFolder,
+  fetchStorageFileBinderDeleteImpact,
   getPersonalStorageQuota,
   listStorageFiles,
   listStorageFolders,
   markStorageUploadFailed,
   openStorageFile,
   presignStorageFile,
+  putStoragePresignedFile,
   renameStorageFile,
   renameStorageFolder,
   revokeStorageStagedUpload,
@@ -25,6 +28,7 @@ import StorageFileList, { type StorageActionVariant } from './StorageFileList'
 import StorageFolderTreePanel from './StorageFolderTreePanel'
 import StorageRenameDialog from './StorageRenameDialog'
 import StorageToolbar from './StorageToolbar'
+import { buildStorageBinderDeleteImpactDetailLines } from '../utils/storageBinderDeleteImpactCopy'
 import {
   buildStorageFolderBreadcrumb,
   buildStorageFolderPathLabel,
@@ -89,6 +93,12 @@ type StorageWorkspaceProps = {
   actionVariant?: StorageActionVariant
   /** PC 고객 파일 등 — 좌측 폴더 트리 + 우측 파일 목록 탐색기 레이아웃 */
   layout?: 'legacy' | 'explorer'
+  /** 바인더 자료 추가 등 — 동일 저장공간 UI + 파일을 바인더에 연결 */
+  binderPickMode?: boolean
+  onAddFileToBinder?: (file: StorageFileRow) => void
+  binderPickBusyFileId?: number | null
+  /** 모달 내장 시 페이지 제목·여백 축소 */
+  embedMode?: boolean
 }
 
 function normalizeName(raw: string, maxLength: number): string {
@@ -176,6 +186,10 @@ export default function StorageWorkspace({
   variant,
   actionVariant = 'storage',
   layout = 'legacy',
+  binderPickMode = false,
+  onAddFileToBinder,
+  binderPickBusyFileId = null,
+  embedMode = false,
 }: StorageWorkspaceProps) {
   const isMobile = variant === 'mobile'
   const isExplorerLayout = layout === 'explorer' && !isMobile
@@ -206,6 +220,8 @@ export default function StorageWorkspace({
   const [createFolderName, setCreateFolderName] = useState('')
   const [renameTarget, setRenameTarget] = useState<RenameTarget | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
+  const [deleteDetailLines, setDeleteDetailLines] = useState<string[]>([])
+  const [deleteBinderItemCountAck, setDeleteBinderItemCountAck] = useState<number | null>(null)
   const [quota, setQuota] = useState<{
     usedBytes: number
     limitBytes: number
@@ -571,12 +587,12 @@ export default function StorageWorkspace({
       setUploading(true)
       setError('')
       const uploads = Array.isArray(selectedFiles) ? selectedFiles : Array.from(selectedFiles)
-      let failCount = 0
+      const uploadFailures: { fileName: string; message: string }[] = []
       for (const file of uploads) {
         const normalizedName = normalizeName(file.name, FILE_NAME_MAX_LENGTH)
         const mimeType = guessContentType(file)
         if (!isValidFileName(normalizedName) || !ALLOWED_MIME.has(mimeType) || file.size < 1 || file.size > MAX_UPLOAD_BYTES) {
-          failCount += 1
+          uploadFailures.push({ fileName: normalizedName, message: '형식·용량·이름 규칙에 맞지 않습니다.' })
           continue
         }
         let stagedObjectKey: string | null = null
@@ -590,17 +606,7 @@ export default function StorageWorkspace({
           })
           uploadFileId = presign.fileId
           stagedObjectKey = presign.objectKey
-          const put = await fetch(presign.uploadUrl, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': mimeType,
-              ...(presign.putHeaders ?? {}),
-            },
-            body: file,
-          })
-          if (!put.ok) {
-            throw new Error('업로드 실패')
-          }
+          await putStoragePresignedFile(token, presign, file, mimeType, { customerId })
           await saveStorageFile(token, {
             fileId: presign.fileId,
             fileName: normalizedName,
@@ -614,8 +620,11 @@ export default function StorageWorkspace({
           })
           stagedObjectKey = null
           uploadFileId = null
-        } catch {
-          failCount += 1
+        } catch (reason) {
+          uploadFailures.push({
+            fileName: normalizedName,
+            message: reason instanceof Error ? reason.message : '업로드에 실패했습니다.',
+          })
           if (uploadFileId != null) {
             try {
               await revokeStorageStagedUpload(token, stagedObjectKey ?? '', {
@@ -634,8 +643,11 @@ export default function StorageWorkspace({
       }
       await Promise.all([loadFiles(), loadQuota()])
       setUploading(false)
-      if (failCount > 0) {
-        setError(`${failCount}개 파일 업로드에 실패했습니다.`)
+      if (uploadFailures.length > 0) {
+        const details = uploadFailures
+          .map((entry) => `${entry.fileName}: ${entry.message}`)
+          .join(' · ')
+        setError(`${uploadFailures.length}개 파일 업로드에 실패했습니다. ${details}`)
       }
     },
     [customerId, explorerSelection, isExplorerLayout, loadFiles, loadQuota, selectedFolderId, token, uploading],
@@ -681,6 +693,29 @@ export default function StorageWorkspace({
     }
   }, [loadFolders, renameTarget, submitting, token])
 
+  const openDeleteFileDialog = useCallback(
+    (file: StorageFileRow) => {
+      setDeleteTarget({ kind: 'file', file })
+      setDeleteDetailLines([])
+      setDeleteBinderItemCountAck(null)
+      if (!token?.trim() || customerId != null) {
+        return
+      }
+      void fetchStorageFileBinderDeleteImpact(token, file.id)
+        .then((impact) => {
+          if (impact.binderItemCount <= 0) {
+            return
+          }
+          setDeleteBinderItemCountAck(impact.binderItemCount)
+          setDeleteDetailLines(buildStorageBinderDeleteImpactDetailLines(impact))
+        })
+        .catch(() => {
+          // 영향 조회 실패 시 기본 삭제 확인만 표시
+        })
+    },
+    [customerId, token],
+  )
+
   const submitDelete = useCallback(async () => {
     if (!token?.trim() || !deleteTarget || submitting) {
       return
@@ -689,7 +724,10 @@ export default function StorageWorkspace({
     setError('')
     try {
       if (deleteTarget.kind === 'file') {
-        await deleteStorageFile(token, deleteTarget.file.id)
+        await deleteStorageFile(token, deleteTarget.file.id, {
+          confirmBinderCleanup: deleteDetailLines.length > 0,
+          acknowledgedBinderItemCount: deleteBinderItemCountAck ?? undefined,
+        })
         setFiles((prev) => prev.filter((file) => file.id !== deleteTarget.file.id))
         await loadQuota()
       } else {
@@ -706,12 +744,37 @@ export default function StorageWorkspace({
         await loadFolders()
       }
       setDeleteTarget(null)
+      setDeleteDetailLines([])
+      setDeleteBinderItemCountAck(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : '삭제에 실패했습니다.')
+      if (e instanceof ApiError) {
+        if (e.code === 'BINDER_IMPACT_CHANGED') {
+          setError('삭제 직전 바인더 사용 범위가 바뀌었습니다. 다시 삭제해 주세요.')
+        } else if (e.status === 409) {
+          setError(e.message || '바인더에서 사용 중이라 삭제할 수 없습니다.')
+        } else if (e.status >= 500 || e.message.includes('DB_ERROR')) {
+          setError('파일을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.')
+        } else {
+          setError(e.message || '삭제에 실패했습니다.')
+        }
+      } else {
+        setError(e instanceof Error ? e.message : '삭제에 실패했습니다.')
+      }
     } finally {
       setSubmitting(false)
     }
-  }, [deleteTarget, explorerSelection, isExplorerLayout, loadFolders, loadQuota, selectedFolderId, submitting, token])
+  }, [
+    deleteBinderItemCountAck,
+    deleteDetailLines.length,
+    deleteTarget,
+    explorerSelection,
+    isExplorerLayout,
+    loadFolders,
+    loadQuota,
+    selectedFolderId,
+    submitting,
+    token,
+  ])
 
   const openFile = useCallback(
     async (file: StorageFileRow) => {
@@ -800,15 +863,28 @@ export default function StorageWorkspace({
 
       <StorageDeleteDialog
         open={deleteTarget != null}
-        title={deleteTarget?.kind === 'file' ? '파일 삭제' : '폴더 삭제'}
-        description={
-          deleteTarget?.kind === 'file'
-            ? `"${deleteTarget.file.displayName}" 파일을 삭제합니다.`
-            : `"${deleteTarget?.folder.name}" 폴더를 삭제합니다.`
+        title={
+          deleteTarget?.kind === 'file' && deleteDetailLines.length > 0
+            ? '바인더에서 사용 중인 자료'
+            : deleteTarget?.kind === 'file'
+              ? '파일 삭제'
+              : '폴더 삭제'
         }
+        description={
+          deleteTarget?.kind === 'file' && deleteDetailLines.length > 0
+            ? `"${deleteTarget.file.displayName}"`
+            : deleteTarget?.kind === 'file'
+              ? `"${deleteTarget.file.displayName}" 파일을 삭제합니다.`
+              : `"${deleteTarget?.folder.name}" 폴더를 삭제합니다.`
+        }
+        detailLines={deleteTarget?.kind === 'file' ? deleteDetailLines : []}
         loading={submitting}
         footerVariant={actionVariant}
-        onClose={() => setDeleteTarget(null)}
+        onClose={() => {
+          setDeleteTarget(null)
+          setDeleteDetailLines([])
+          setDeleteBinderItemCountAck(null)
+        }}
         onConfirm={() => {
           void submitDelete()
         }}
@@ -821,6 +897,7 @@ export default function StorageWorkspace({
       className={[
         'storage-workspace page-shell user-page',
         isExplorerLayout ? 'storage-workspace--explorer' : '',
+        embedMode ? 'storage-workspace--embed' : '',
       ]
         .filter(Boolean)
         .join(' ')}
@@ -835,7 +912,10 @@ export default function StorageWorkspace({
           .join(' ')}
       >
         <div className="storage-workspace__header-main">
-          {title?.trim() ? <h1 className="storage-workspace__title">{title}</h1> : null}
+          {title?.trim() && !embedMode ? <h1 className="storage-workspace__title">{title}</h1> : null}
+          {title?.trim() && embedMode ? (
+            <p className="storage-workspace__subtitle storage-workspace__subtitle--embed">{title}</p>
+          ) : null}
           {subtitle ? <p className="storage-workspace__subtitle">{subtitle}</p> : null}
           <p className="storage-workspace__quota" role="status">
             {quotaLoading ? (
@@ -931,7 +1011,9 @@ export default function StorageWorkspace({
                 void openFile(file)
               }}
               onRename={openRenameFileDialog}
-              onDelete={(file) => setDeleteTarget({ kind: 'file', file })}
+              onDelete={openDeleteFileDialog}
+              onAddToBinder={binderPickMode ? onAddFileToBinder : undefined}
+              binderPickBusyFileId={binderPickBusyFileId}
               onSelectBreadcrumbFolder={handleSelectBreadcrumbFolder}
             />
           </div>
@@ -1034,7 +1116,7 @@ export default function StorageWorkspace({
             downloadLinksByFileId={fileDownloadLinks}
             downloadLinkFailedIds={fileDownloadFailedIds}
             onRename={openRenameFileDialog}
-            onDelete={(file) => setDeleteTarget({ kind: 'file', file })}
+            onDelete={openDeleteFileDialog}
             onRenameFolder={openRenameFolderDialog}
             onDeleteFolder={(folder) => setDeleteTarget({ kind: 'folder', folder })}
           />

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildAppMenuForSession } from './gaTenantMenu'
+import { AI_SECRETARY_MENU_ITEM, buildAppMenuForSession } from './gaTenantMenu'
 
 function linkLabels(entries: ReturnType<typeof buildAppMenuForSession>): string[] {
   return entries.filter((e) => e.type === 'link').map((e) => (e.type === 'link' ? e.label : ''))
@@ -22,6 +22,7 @@ const USER_WORK_LABELS = [
 ]
 
 const GA_ADMIN_OPS_LABELS = [
+  'GA 관리 허브',
   '공지사항',
   'PDF 문서 템플릿',
   'GA전용 소식지 관리',
@@ -35,6 +36,7 @@ describe('buildAppMenuForSession — 역할별 메뉴 정책', () => {
     expect(labels).not.toContain('GA전용 소식지 관리')
     expect(labels).not.toContain('소식지 관리')
     expect(labels).not.toContain('보험청구 설정')
+    expect(labels).not.toContain('PDF 문서 템플릿')
     expect(labels).toContain('원수사 연락처 관리')
     expect(labels).toContain('연락처 조회')
     expect(labels).toContain('공유 계정 관리')
@@ -71,6 +73,7 @@ describe('buildAppMenuForSession — 역할별 메뉴 정책', () => {
     expect(linkPaths(entries)).not.toContain('/customers')
     expect(linkPaths(entries)).toEqual(
       expect.arrayContaining([
+        '/ga-admin/workspace',
         '/ga-admin/notices',
         '/admin/pdf-templates',
         '/admin/newsletter-boards',
@@ -102,5 +105,16 @@ describe('buildAppMenuForSession — 역할별 메뉴 정책', () => {
   it('GA_ADMIN 에게 AI 비서 관리 메뉴를 노출하지 않는다', () => {
     const labels = linkLabels(buildAppMenuForSession('GA_ADMIN', 'TEST', 'Test GA'))
     expect(labels).not.toContain('기능 연결 현황')
+  })
+
+  it('USER 에만 AI 비서 메뉴를 노출한다', () => {
+    const userLabels = linkLabels(buildAppMenuForSession('USER', 'TEST', 'Test GA'))
+    expect(userLabels).toContain(AI_SECRETARY_MENU_ITEM.label)
+
+    const gaAdminLabels = linkLabels(buildAppMenuForSession('GA_ADMIN', 'TEST', 'Test GA'))
+    expect(gaAdminLabels).not.toContain(AI_SECRETARY_MENU_ITEM.label)
+
+    const staffLabels = linkLabels(buildAppMenuForSession('GA_STAFF', 'TEST', 'Test GA'))
+    expect(staffLabels).not.toContain(AI_SECRETARY_MENU_ITEM.label)
   })
 })

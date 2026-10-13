@@ -2,6 +2,13 @@
  * newsletter_boards 관리 API용 SQL — board_scope SSOT.
  */
 
+import { LOSS_ADJUSTER_SYSTEM_KEY } from './lossAdjusterNewsletterBoard.js'
+
+/** GA_ADMIN 관리 목록·단건 — 손해사정사 시스템 보드 제외 (SUPER_ADMIN 전역 SQL에는 적용하지 않음) */
+const GA_ADMIN_EXCLUDE_LOSS_ADJUSTER_SYSTEM_BOARD_SQL = `
+    AND COALESCE(UPPER(TRIM(b.system_key)), '') <> '${LOSS_ADJUSTER_SYSTEM_KEY}'
+`
+
 /** global 게시판 slug 중복 */
 export const GLOBAL_NEWSLETTER_BOARD_DUPLICATE_SLUG_SQL = `
   SELECT id
@@ -34,7 +41,7 @@ export const NEWSLETTER_BOARDS_VISIBLE_LIST_SQL = `
   FROM newsletter_boards b
   LEFT JOIN ga_companies gc ON gc.id = b.owner_ga_id
   WHERE b.is_deleted = false
-    AND b.board_scope IN ('global', 'ga')
+    AND b.board_scope IN ('system', 'global', 'ga')
     AND (
       COALESCE(b.is_active, true) = true
       OR (
@@ -43,14 +50,14 @@ export const NEWSLETTER_BOARDS_VISIBLE_LIST_SQL = `
       )
     )
     AND (
-      b.board_scope = 'global'
+      b.board_scope IN ('system', 'global')
       OR (
         b.board_scope = 'ga'
         AND b.owner_ga_id = $1
       )
     )
   ORDER BY
-    CASE WHEN b.board_scope = 'global' THEN 0 ELSE 1 END,
+    CASE WHEN b.board_scope IN ('system', 'global') THEN 0 ELSE 1 END,
     COALESCE(b.sort_order, 0) ASC,
     b.created_at ASC,
     b.label ASC
@@ -64,16 +71,16 @@ export const NEWSLETTER_BOARD_BY_SLUG_TENANT_SQL = `
   WHERE b.slug = $1
     AND b.is_deleted = false
     AND COALESCE(b.is_active, true) = true
-    AND b.board_scope IN ('global', 'ga')
+    AND b.board_scope IN ('system', 'global', 'ga')
     AND (
-      b.board_scope = 'global'
+      b.board_scope IN ('system', 'global')
       OR (
         b.board_scope = 'ga'
         AND b.owner_ga_id = $2
       )
     )
   ORDER BY
-    CASE WHEN b.board_scope = 'global' THEN 0 ELSE 1 END,
+    CASE WHEN b.board_scope IN ('system', 'global') THEN 0 ELSE 1 END,
     b.created_at ASC
 `
 
@@ -85,9 +92,9 @@ export const NEWSLETTER_BOARD_BY_SLUG_ADMIN_SQL = `
   WHERE b.slug = $1
     AND b.is_deleted = false
     AND COALESCE(b.is_active, true) = true
-    AND b.board_scope IN ('global', 'ga')
+    AND b.board_scope IN ('system', 'global', 'ga')
   ORDER BY
-    CASE WHEN b.board_scope = 'global' THEN 0 ELSE 1 END,
+    CASE WHEN b.board_scope IN ('system', 'global') THEN 0 ELSE 1 END,
     b.created_at ASC
 `
 
@@ -103,15 +110,15 @@ export const SUPER_ADMIN_NEWSLETTER_BOARDS_LIST_SQL = `
   FROM newsletter_boards b
   LEFT JOIN ga_companies gc ON gc.id = b.owner_ga_id
   WHERE b.is_deleted = false
-    AND b.board_scope IN ('global', 'ga')
+    AND b.board_scope IN ('system', 'global', 'ga')
   ORDER BY
-    CASE b.board_scope WHEN 'global' THEN 0 WHEN 'ga' THEN 1 ELSE 2 END,
+    CASE b.board_scope WHEN 'system' THEN 0 WHEN 'global' THEN 1 WHEN 'ga' THEN 2 ELSE 3 END,
     COALESCE(b.sort_order, 0) ASC,
     b.created_at ASC,
     b.label ASC
 `
 
-/** GA_ADMIN: 자기 GA ga 보드만 */
+/** GA_ADMIN: 자기 GA가 관리 가능한 ga 보드만 (손해사정사 시스템 기본 보드 제외) */
 export const GA_ADMIN_NEWSLETTER_BOARDS_LIST_SQL = `
   SELECT b.*, gc.code AS ga_code, gc.name AS ga_name
   FROM newsletter_boards b
@@ -119,6 +126,7 @@ export const GA_ADMIN_NEWSLETTER_BOARDS_LIST_SQL = `
   WHERE b.is_deleted = false
     AND b.board_scope = 'ga'
     AND b.owner_ga_id = $1
+    ${GA_ADMIN_EXCLUDE_LOSS_ADJUSTER_SYSTEM_BOARD_SQL}
   ORDER BY COALESCE(b.sort_order, 0) ASC, b.created_at ASC, b.label ASC
 `
 
@@ -128,7 +136,7 @@ export const SUPER_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL = `
   LEFT JOIN ga_companies gc ON gc.id = b.owner_ga_id
   WHERE b.id = $1
     AND b.is_deleted = false
-    AND b.board_scope IN ('global', 'ga')
+    AND b.board_scope IN ('system', 'global', 'ga')
   LIMIT 1
 `
 
@@ -140,6 +148,7 @@ export const GA_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL = `
     AND b.is_deleted = false
     AND b.board_scope = 'ga'
     AND b.owner_ga_id = $2
+    ${GA_ADMIN_EXCLUDE_LOSS_ADJUSTER_SYSTEM_BOARD_SQL}
   LIMIT 1
 `
 
@@ -151,7 +160,7 @@ export const SUPER_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL = `
       is_active = false
   WHERE id = $1
     AND is_deleted = false
-    AND board_scope IN ('global', 'ga')
+    AND board_scope IN ('system', 'global', 'ga')
   RETURNING *
 `
 
@@ -165,6 +174,7 @@ export const GA_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL = `
     AND is_deleted = false
     AND board_scope = 'ga'
     AND owner_ga_id = $2
+    AND COALESCE(UPPER(TRIM(system_key)), '') <> '${LOSS_ADJUSTER_SYSTEM_KEY}'
   RETURNING *
 `
 
@@ -174,7 +184,7 @@ export const SUPER_ADMIN_NEWSLETTER_BOARD_BY_ID_ANY_SQL = `
   FROM newsletter_boards b
   LEFT JOIN ga_companies gc ON gc.id = b.owner_ga_id
   WHERE b.id = $1
-    AND b.board_scope IN ('global', 'ga')
+    AND b.board_scope IN ('system', 'global', 'ga')
   LIMIT 1
 `
 
@@ -185,6 +195,7 @@ export const GA_ADMIN_NEWSLETTER_BOARD_BY_ID_ANY_SQL = `
   WHERE b.id = $1
     AND b.board_scope = 'ga'
     AND b.owner_ga_id = $2
+    ${GA_ADMIN_EXCLUDE_LOSS_ADJUSTER_SYSTEM_BOARD_SQL}
   LIMIT 1
 `
 

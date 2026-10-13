@@ -125,6 +125,8 @@ import {
 import { resolveTenantByAuthenticatedLegacyGaId } from './lib/resolveTenantByAuthenticatedLegacyGaId.js'
 import { ensureInsuranceTenantForLegacyGa } from './lib/ensureInsuranceTenantForLegacyGa.js'
 import { isGeneralGaCompanyCode, resolveSignupGaCompany } from './lib/generalGa.js'
+import { assertGaBelongsToActiveGaGroup } from './lib/gaGroupMembership.js'
+import { normalizeGaGroupSlug } from './lib/gaGroupSlug.js'
 import {
   isDevSignupPhoneBypassEnabled,
   resolveDevSignupPhoneForStorage,
@@ -135,7 +137,6 @@ import {
   shouldRequireSignupPhoneProofForRegister,
 } from './lib/signupPhoneVerificationPolicy.js'
 import { isValidSignupUsername, validateSignupUsername } from './lib/signupUsername.js'
-import { resolveSignupDisplayName } from './auth/signupDisplayName.js'
 import { selectCrmBootstrapExtendedForLegacyGa } from './crm/resolveLegacyGaCrmBootstrap.js'
 import { mapCustomerRow } from './lib/customerRowMap.js'
 import { tryGeocodeCustomerOnSave } from './lib/customerGeocodePersist.js'
@@ -187,6 +188,8 @@ import { recordSuccessfulUserLoginSession, resolveMinConcurrentSessionCapForUser
 import { registerConsentApi } from './registerConsentApi.js'
 import { registerInsurerNewsApi } from './registerInsurerNewsApi.js'
 import { registerPublicBoardWriterApi } from './registerPublicBoardWriterApi.js'
+import { registerGaAdminManagementApi } from './registerGaAdminManagementApi.js'
+import { registerSuperAdminGaAdminAccountsApi } from './registerSuperAdminGaAdminAccountsApi.js'
 import { registerPublicInquiryApi } from './public-inquiries/registerPublicInquiryApi.js'
 import { registerPublicInquiryAdminApi } from './public-inquiries/registerPublicInquiryAdminApi.js'
 import { registerSignatureApi } from './registerSignatureApi.js'
@@ -200,6 +203,12 @@ import { registerPdfTemplateApi } from './registerPdfTemplateApi.js'
 import { registerInsuranceClaimCompanyApi } from './registerInsuranceClaimCompanyApi.js'
 import { registerInsurerSitesApi } from './registerInsurerSitesApi.js'
 import { registerPlatformAdminApi } from './registerPlatformAdminApi.js'
+import { registerGaGroupApi } from './apis/registerGaGroupApi.js'
+import {
+  buildGaCompaniesAdminListQueries,
+  mapGaCompaniesAdminListRow,
+  parseGaCompaniesAdminListParams,
+} from './lib/gaCompaniesAdminListQuery.js'
 import { registerCrmCustomerTemplateAdminApi } from './registerCrmCustomerTemplateAdminApi.js'
 import { registerSmsModuleApi } from './registerSmsModuleApi.js'
 import { registerCrmUserBulkSmsApi } from './registerCrmUserBulkSmsApi.js'
@@ -1581,6 +1590,34 @@ registerPublicBoardWriterApi(apiRouter, {
   withTransaction,
 })
 
+registerGaAdminManagementApi(apiRouter, {
+  pool,
+  requireAuth,
+  handleDbError,
+  systemQuery,
+  safeQuery,
+  bcrypt,
+  validateCredentials,
+  isUsernameTakenGlobally,
+  parseEntityStatus,
+  mapGaDelegateAdminRow,
+  tryCreateGaDelegateFromRequest,
+})
+
+registerSuperAdminGaAdminAccountsApi(apiRouter, {
+  pool,
+  requireAuth,
+  requireSuperAdmin,
+  handleDbError,
+  systemQuery,
+  bcrypt,
+  validateCredentials,
+  isUsernameTakenGlobally,
+  parseEntityStatus,
+  tryCreateGaDelegateFromRequest,
+  toIsoString,
+})
+
 registerPublicInquiryApi(apiRouter, {
   pool,
   handleDbError,
@@ -1762,6 +1799,7 @@ registerInsuranceClaimCompanyApi(apiRouter, {
 
 registerInsurerSitesApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
 registerPlatformAdminApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
+registerGaGroupApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
 registerCrmCustomerTemplateAdminApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
 registerSmsModuleApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCrmUserBulkSmsApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
@@ -2207,6 +2245,8 @@ async function handleRegister(req, res) {
       inviteCode: inviteAlt,
       ref_user_id: refUserSnake,
       refUserId: refUserCamel,
+      name: nameRaw,
+      display_name: displayNameRaw,
       phone_number: phoneSnake,
       phoneNumber: phoneCamel,
       signup_phone_proof: signupProofSnake,
@@ -2221,7 +2261,7 @@ async function handleRegister(req, res) {
       referralCode: referralCodeCamel,
     } = body
 
-    const displayName = resolveSignupDisplayName(body)
+    const displayName = String(nameRaw ?? displayNameRaw ?? '').trim()
     if (!displayName) {
       res.status(400).json({ message: '이름을 입력해 주세요.' })
       return
@@ -2338,6 +2378,18 @@ async function handleRegister(req, res) {
       }
       gaLegacyInviteCodeNormalized = resolvedSignupGa.codeNormalized
       gaId = resolvedSignupGa.id
+
+      const groupSlugForSignup = normalizeGaGroupSlug(body.ga_group_slug ?? body.gaGroupSlug ?? '')
+      if (groupSlugForSignup) {
+        const groupCheck = await assertGaBelongsToActiveGaGroup(pool, {
+          slug: groupSlugForSignup,
+          gaId,
+        })
+        if (!groupCheck.ok) {
+          res.status(403).json({ message: groupCheck.message })
+          return
+        }
+      }
 
       const refUserId = String(refUserSnake ?? refUserCamel ?? '').trim()
       /** 담당자 초대 링크(명시 GA + ref) — 추천인 코드만 있는 가입과 분리 */
@@ -2577,13 +2629,7 @@ async function handleRegister(req, res) {
       queueSignupWelcomeSms(pool, { userId: id, phoneNumber: phoneNorm })
     }
 
-    const payload = {
-      id,
-      username: normalizedUsername,
-      ga_id: gaId,
-      display_name: displayName,
-      createdAt: createdAtIso,
-    }
+    const payload = { id, username: normalizedUsername, ga_id: gaId, createdAt: createdAtIso }
     if (tenantRegSignup && industrySignup) {
       payload.industry_code = industrySignup
     }
@@ -3173,6 +3219,21 @@ apiRouter.get('/admin/audit-logs', requireAuth, requireAuditLogReader, async (re
   }
 })
 
+apiRouter.get('/insurer-managers/company-choices', requireAuth, requireGaInsurerManagerMutator, async (req, res) => {
+  try {
+    const gaId = await resolveTenantGaIdForRequest(pool, req)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
+    const { listInsurerManagerCompanyChoicesForGa } = await import('./lib/insurerManagerCompanyChoices.js')
+    const rows = await listInsurerManagerCompanyChoicesForGa(pool, gaId)
+    res.json(rows)
+  } catch (error) {
+    handleDbError(error, req, res)
+  }
+})
+
 apiRouter.get('/insurer-managers', requireAuth, requireGaInsurerManagerMutator, async (req, res) => {
   try {
     const gaId = await resolveTenantGaIdForRequest(pool, req)
@@ -3210,18 +3271,13 @@ apiRouter.post('/insurer-managers', requireAuth, requireGaInsurerManagerMutator,
     }
     const typeNorm = parseInsurerManagerType(body.insurer_type ?? body.insurerType)
     const companyIdRaw = body.company_id ?? body.companyId
-    const companyMasterId = Number(companyIdRaw)
+    let companyMasterId = Number(companyIdRaw)
+    const companyNameForEnsure = String(body.company_name ?? body.companyName ?? '').trim()
     const { username, password } = body
     if (!typeNorm) {
       res.status(400).json({ message: '보험사 유형을 선택해 주세요.' })
       return
     }
-    const link = await validateInsurerManagerCompanyLink(pool, gaId, companyMasterId, typeNorm)
-    if (!link.ok) {
-      res.status(400).json({ message: link.message })
-      return
-    }
-    const nameNorm = link.master.name
     const validationMessage = validateCredentials(username, password)
     if (validationMessage) {
       res.status(400).json({ message: validationMessage })
@@ -3232,6 +3288,25 @@ apiRouter.post('/insurer-managers', requireAuth, requireGaInsurerManagerMutator,
       res.status(409).json({ message: '이미 사용 중인 아이디입니다.' })
       return
     }
+    if (!Number.isInteger(companyMasterId) || companyMasterId <= 0) {
+      if (!companyNameForEnsure) {
+        res.status(400).json({ message: '보험사(마스터)를 선택해 주세요.' })
+        return
+      }
+      const { ensureInsurerManagerCompanyMasterForGa } = await import('./lib/insurerManagerCompanyChoices.js')
+      companyMasterId = await ensureInsurerManagerCompanyMasterForGa(
+        pool,
+        gaId,
+        typeNorm,
+        companyNameForEnsure,
+      )
+    }
+    const link = await validateInsurerManagerCompanyLink(pool, gaId, companyMasterId, typeNorm)
+    if (!link.ok) {
+      res.status(400).json({ message: link.message })
+      return
+    }
+    const nameNorm = link.master.name
     const dupGaInsurer = await safeQuery(
       pool,
       `
@@ -3279,8 +3354,12 @@ apiRouter.post('/insurer-managers', requireAuth, requireGaInsurerManagerMutator,
       }),
     )
   } catch (error) {
-    if (error?.code === '23505') {
-      res.status(409).json({ message: '이미 사용 중인 아이디이거나 동일 보험사에 계정이 있습니다.' })
+    const { resolveInsurerManagerUniqueConflictMessage } = await import('./lib/insurerManagerDuplicatePolicy.js')
+    const conflictMessage = resolveInsurerManagerUniqueConflictMessage(error, {
+      usernamePrecheckPassed: true,
+    })
+    if (conflictMessage) {
+      res.status(409).json({ message: conflictMessage })
       return
     }
     handleDbError(error, req, res)
@@ -3489,8 +3568,10 @@ apiRouter.patch('/insurer-managers/:id', requireAuth, requireGaInsurerManagerMut
       }),
     )
   } catch (error) {
-    if (error?.code === '23505') {
-      res.status(409).json({ message: '이미 사용 중인 아이디이거나 동일 보험사에 계정이 있습니다.' })
+    const { resolveInsurerManagerUniqueConflictMessage } = await import('./lib/insurerManagerDuplicatePolicy.js')
+    const conflictMessage = resolveInsurerManagerUniqueConflictMessage(error)
+    if (conflictMessage) {
+      res.status(409).json({ message: conflictMessage })
       return
     }
     handleDbError(error, req, res)
@@ -3878,9 +3959,42 @@ apiRouter.delete('/loss-adjusters/:id', requireAuth, requireGaStaffOrAdminOnly, 
   }
 })
 
+function wantsPaginatedGaAdminList(query) {
+  if (query == null || typeof query !== 'object') {
+    return false
+  }
+  return (
+    query.page != null ||
+    query.pageSize != null ||
+    query.limit != null ||
+    (query.q != null && String(query.q).trim() !== '') ||
+    query.groupId != null ||
+    query.group_id != null ||
+    query.groupFilter != null ||
+    query.group_filter != null ||
+    query.ungrouped != null
+  )
+}
+
 apiRouter.get('/admin/ga', requireAuth, async (req, res) => {
   try {
     if (isSuperAdminRole(req.user.role)) {
+      if (wantsPaginatedGaAdminList(req.query)) {
+        const filters = parseGaCompaniesAdminListParams(req.query)
+        const { listSql, countSql, listParams, countParams } = buildGaCompaniesAdminListQueries(filters)
+        const [listRes, countRes] = await Promise.all([
+          systemQuery(pool, listSql, listParams),
+          systemQuery(pool, countSql, countParams),
+        ])
+        const total = Number(countRes.rows[0]?.total ?? 0)
+        res.json({
+          rows: listRes.rows.map(mapGaCompaniesAdminListRow),
+          total,
+          page: filters.page,
+          pageSize: filters.pageSize,
+        })
+        return
+      }
       const r = await systemQuery(
         pool,
         `
@@ -4513,18 +4627,26 @@ apiRouter.delete('/admin/users/:id', requireAuth, requireSuperAdmin, async (req,
  * GA 담당자(GA_ADMIN/GA_STAFF) 계정 생성 공통 검증·삽입.
  * @returns {{ ok: true, id: string, username: string, role: string, ga_id: number, displayName: string } | { ok: false, status: number, message: string }}
  */
-async function tryCreateGaDelegateFromRequest(req) {
+async function tryCreateGaDelegateFromRequest(req, options = {}) {
+  const forGaAdmin = options.forGaAdmin === true
   const isSuper = isSuperAdminRole(req.user?.role)
   const actorGaId = parseGaId(req.user?.gaId)
-  if (!isSuper && actorGaId == null) {
+  if (forGaAdmin) {
+    if (normalizeUserRole(req.user?.role) !== 'GA_ADMIN') {
+      return { ok: false, status: 403, message: 'GA 관리자만 STEP을 생성할 수 있습니다.' }
+    }
+    if (actorGaId == null) {
+      return { ok: false, status: 400, message: 'GA 컨텍스트가 없습니다.' }
+    }
+  } else if (!isSuper && actorGaId == null) {
     return { ok: false, status: 400, message: 'GA 컨텍스트가 없습니다.' }
   }
   const { username, password, name, ga_id: gaRaw, gaId: gaBody, role: roleRaw } = req.body ?? {}
-  const targetGaId = parseGaId(gaRaw ?? gaBody)
+  const targetGaId = forGaAdmin ? actorGaId : parseGaId(gaRaw ?? gaBody)
   if (targetGaId == null) {
     return { ok: false, status: 400, message: 'ga_id가 필요합니다.' }
   }
-  if (!isSuper && targetGaId !== actorGaId) {
+  if (!forGaAdmin && !isSuper && targetGaId !== actorGaId) {
     return { ok: false, status: 403, message: '자신이 속한 GA에만 사용자를 생성할 수 있습니다.' }
   }
   const gaOk = await systemQuery(
@@ -4540,9 +4662,15 @@ async function tryCreateGaDelegateFromRequest(req) {
   }
 
   const roleNorm = typeof roleRaw === 'string' ? roleRaw.trim().toUpperCase() : ''
-  const targetRole = GA_DELEGATE_ROLES.includes(roleNorm) ? roleNorm : null
+  let targetRole = GA_DELEGATE_ROLES.includes(roleNorm) ? roleNorm : null
+  if (forGaAdmin) {
+    targetRole = 'GA_STAFF'
+  }
   if (!targetRole) {
     return { ok: false, status: 400, message: 'role은 GA_ADMIN 또는 GA_STAFF 여야 합니다.' }
+  }
+  if (forGaAdmin && targetRole !== 'GA_STAFF') {
+    return { ok: false, status: 400, message: 'GA_STAFF(STEP)만 생성할 수 있습니다.' }
   }
 
   const validationMessage = validateCredentials(username, password)
@@ -4557,6 +4685,7 @@ async function tryCreateGaDelegateFromRequest(req) {
   }
   const plainPassword = String(password)
   const passwordHash = await bcrypt.hash(plainPassword, 10)
+  const delegatePlaintext = targetRole === 'GA_ADMIN' ? null : plainPassword
   const id = randomUUID()
 
   const invitedBy = String(req.user?.id ?? '').trim()
@@ -4569,7 +4698,7 @@ async function tryCreateGaDelegateFromRequest(req) {
     INSERT INTO users (id, username, password_hash, role, display_name, ga_id, delegate_password_plaintext, invited_by_user_id)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     `,
-    [id, normalizedUsername, passwordHash, targetRole, displayName, targetGaId, plainPassword, invitedBy],
+    [id, normalizedUsername, passwordHash, targetRole, displayName, targetGaId, delegatePlaintext, invitedBy],
   )
 
   return { ok: true, id, username: normalizedUsername, role: targetRole, ga_id: targetGaId, displayName }
@@ -8183,6 +8312,8 @@ async function runInitDbOnStartup() {
   const t0 = Date.now()
   console.log('[server] initDb 시작…')
   await initDb()
+  const { ensureInsurerManagerDuplicateIndexes } = await import('./lib/insurerManagerDuplicatePolicy.js')
+  await ensureInsurerManagerDuplicateIndexes(pool)
   console.log(`[server] initDb 완료 (${Date.now() - t0}ms)`)
 }
 

@@ -106,8 +106,13 @@ export function evaluateRenewalEligibility(input) {
   const maxRetry = Number(input?.maxRetry ?? DEFAULT_RENEWAL_MAX_RETRY)
   const nextRetryAt = input?.nextRetryAt ? new Date(input.nextRetryAt) : null
 
-  if (input?.workerProvider && input.workerProvider !== 'toss') {
-    return { ok: false, reason: 'provider_not_toss' }
+  const workerProvider = String(input?.workerProvider ?? '').trim().toLowerCase()
+  if (workerProvider && workerProvider !== 'toss') {
+    if (workerProvider === 'mock' && input?.mockRenewalAllowed === true) {
+      // DEV mock provider — same eligibility gates as Toss renewal.
+    } else {
+      return { ok: false, reason: 'provider_not_toss' }
+    }
   }
   if (input?.canceledAt) {
     return { ok: false, reason: 'canceled' }

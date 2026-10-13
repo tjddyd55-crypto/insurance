@@ -50,8 +50,12 @@ export function resolveInsurerNewsImageUrl(raw?: string | null): string {
 }
 
 export function resolveInsurerNewsAttachmentDisplayUrl(
-  row: Pick<NewsletterAttachment, 'url' | 'objectKey'>,
+  row: Pick<NewsletterAttachment, 'url' | 'objectKey' | 'openUrl'>,
 ): string {
+  const openUrl = String(row.openUrl ?? '').trim()
+  if (openUrl) {
+    return resolveAbsoluteApiUrl(openUrl)
+  }
   return resolveInsurerNewsImageUrl(pickInsurerNewsAttachmentUrl(row))
 }
 
@@ -62,18 +66,11 @@ export function resolveInsurerNewsAttachmentDisplayUrl(
 export function resolveInsurerNewsListCardImageUrl(
   item: Pick<NewsletterItem, 'heroImageObjectKey' | 'heroImageUrl' | 'heroImageOpenUrl'>,
 ): string {
-  const viaAttachment = resolveInsurerNewsAttachmentDisplayUrl({
+  return resolveInsurerNewsAttachmentDisplayUrl({
     objectKey: item.heroImageObjectKey,
     url: item.heroImageUrl,
+    openUrl: item.heroImageOpenUrl,
   })
-  if (viaAttachment) {
-    return viaAttachment
-  }
-  const openUrl = String(item.heroImageOpenUrl ?? '').trim()
-  if (openUrl) {
-    return resolveAbsoluteApiUrl(openUrl)
-  }
-  return ''
 }
 
 export function insurerNewsListItemHasImageSource(

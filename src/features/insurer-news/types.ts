@@ -48,6 +48,8 @@ export interface NewsletterAttachment {
   id: string
   kind: 'image' | 'file'
   url: string
+  /** 인증 API open route — DEV R2·CDN 불일치 시 표시 SSOT */
+  openUrl?: string
   fileName: string
   sortOrder: number
   objectKey?: string

@@ -1168,6 +1168,38 @@ export async function initDb() {
     ON ga_history (ga_id)
   `)
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ga_groups (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      slug TEXT NOT NULL UNIQUE,
+      logo_url TEXT,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ga_group_members (
+      ga_id INTEGER PRIMARY KEY REFERENCES ga_companies(id) ON DELETE CASCADE,
+      group_id INTEGER NOT NULL REFERENCES ga_groups(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_ga_group_members_group_id
+    ON ga_group_members (group_id)
+  `)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ga_group_excel_upload_batches (
+      id SERIAL PRIMARY KEY,
+      group_id INTEGER NOT NULL REFERENCES ga_groups(id) ON DELETE CASCADE,
+      file_hash TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (group_id, file_hash)
+    )
+  `)
+
   await pool.query(
     `
     INSERT INTO ga_companies (name, code)
@@ -3037,6 +3069,9 @@ export async function initDb() {
     WHERE is_deleted = false
   `)
 
+  const { ensureInsurerManagerDuplicateIndexes } = await import('./lib/insurerManagerDuplicatePolicy.js')
+  await ensureInsurerManagerDuplicateIndexes(pool)
+
   await maybeDebugResetAllUsers()
   await ensureBootstrapAdminUser()
   await seedCrmPlatformUserMemberships(pool)
@@ -4546,6 +4581,14 @@ export async function initDb() {
     './personal-binder/personalBinderSchema.js'
   )
   await ensurePersonalBinderSchema(pool)
+  const { ensurePersonalBinderShareSchema } = await import(
+    './personal-binder/personalBinderShareSchema.js'
+  )
+  await ensurePersonalBinderShareSchema(pool)
+  const { ensurePersonalBinderShareGaScopeColumns } = await import(
+    './personal-binder/personalBinderShareSchemaGa.js'
+  )
+  await ensurePersonalBinderShareGaScopeColumns(pool)
   await ensureReferralSchema(pool)
   await ensureBillingSchema(pool)
   await ensureInsuranceBillingPhase1Schema(pool)

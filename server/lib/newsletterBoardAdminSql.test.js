@@ -3,7 +3,14 @@ import assert from 'node:assert/strict'
 import {
   GA_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL,
   GA_ADMIN_NEWSLETTER_BOARD_SOFT_DELETE_SQL,
+  GA_ADMIN_NEWSLETTER_BOARDS_LIST_SQL,
 } from './newsletterBoardAdminSql.js'
+
+test('GA admin list SQL excludes LOSS_ADJUSTER system board', () => {
+  assert.match(GA_ADMIN_NEWSLETTER_BOARDS_LIST_SQL, /owner_ga_id\s*=\s*\$1/i)
+  assert.match(GA_ADMIN_NEWSLETTER_BOARDS_LIST_SQL, /LOSS_ADJUSTER/i)
+  assert.match(GA_ADMIN_NEWSLETTER_BOARDS_LIST_SQL, /system_key/i)
+})
 
 test('GA admin delete SQL scopes to board_scope=ga and owner_ga_id', () => {
   assert.match(GA_ADMIN_NEWSLETTER_BOARD_BY_ID_SQL, /board_scope\s*=\s*'ga'/i)

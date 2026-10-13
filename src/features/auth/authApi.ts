@@ -100,7 +100,19 @@ export interface GaCompanyRow {
   code: string
   status: EntityStatus
   created_at: string
+  /** 슈퍼관리자 목록(페이지네이션) 조회 시만 채워짐 */
+  groupId?: number | null
+  groupName?: string | null
 }
+
+export interface GaCompanyAdminListResult {
+  rows: GaCompanyRow[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+export type GaCompanyGroupFilter = 'all' | 'ungrouped' | number
 
 export interface GaHistoryRow {
   id: number
@@ -115,6 +127,36 @@ export interface GaHistoryRow {
 
 export async function listGaCompanies(token: string): Promise<GaCompanyRow[]> {
   return apiRequest<GaCompanyRow[]>('/api/admin/ga', { method: 'GET', token })
+}
+
+export async function listGaCompaniesAdmin(
+  token: string,
+  params: {
+    page: number
+    pageSize: number
+    q?: string
+    groupFilter?: GaCompanyGroupFilter
+  },
+): Promise<GaCompanyAdminListResult> {
+  const search = new URLSearchParams()
+  search.set('page', String(params.page))
+  search.set('pageSize', String(params.pageSize))
+  const q = String(params.q ?? '').trim()
+  if (q) {
+    search.set('q', q)
+  }
+  const gf = params.groupFilter ?? 'all'
+  if (gf === 'ungrouped') {
+    search.set('groupFilter', 'ungrouped')
+  } else if (typeof gf === 'number') {
+    search.set('groupFilter', String(gf))
+  } else {
+    search.set('groupFilter', 'all')
+  }
+  return apiRequest<GaCompanyAdminListResult>(`/api/admin/ga?${search.toString()}`, {
+    method: 'GET',
+    token,
+  })
 }
 
 /** 원수사 담당자 ↔ 보험사 마스터 정합성(감시용). SUPER_ADMIN 은 전체, 그 외는 소속 GA 만 */
@@ -268,6 +310,8 @@ export async function register(payload: {
   signupPhoneProof?: string
   /** 선택 — 추천인 코드 */
   referralCode?: string
+  /** GA 그룹 전용 가입 페이지 슬러그 */
+  gaGroupSlug?: string
 }) {
   try {
     const body: Record<string, string> = {
@@ -307,6 +351,10 @@ export async function register(payload: {
     const referralCode = payload.referralCode?.trim().toUpperCase().replace(/\s+/g, '')
     if (referralCode) {
       body.referral_code = referralCode
+    }
+    const gaGroupSlug = payload.gaGroupSlug?.trim().toLowerCase()
+    if (gaGroupSlug) {
+      body.ga_group_slug = gaGroupSlug
     }
     return await apiRequest<{ id: string; username: string; ga_id: number; createdAt: string }>(
       '/api/auth/register',
@@ -412,6 +460,9 @@ export interface MeResponse {
   phone_number: string
   role: string
   ga_id: number | null
+  ga_code?: string
+  ga_name?: string
+  ga_group_name?: string | null
   status: string
   team_id: string | null
   subscription?: SubscriptionResponsePayload | null
@@ -651,6 +702,173 @@ export async function createGaDelegate(
         role: payload.role,
       }),
     })
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 409) {
+      throw new Error('이미 사용 중인 아이디입니다.')
+    }
+    throw error
+  }
+}
+
+/** GA_ADMIN — 자기 GA STEP·관리자 목록(비밀번호 미포함) */
+export interface GaAdminDelegateRow {
+  id: string
+  ga_id: number
+  gaCode: string
+  gaName: string
+  username: string
+  role: GaDelegateRole
+  status: EntityStatus
+  statusLabel: string
+  created_at: string
+  updated_at?: string
+  displayName?: string
+  last_login_at?: string | null
+}
+
+export async function listGaAdminDelegates(token: string): Promise<GaAdminDelegateRow[]> {
+  return apiRequest<GaAdminDelegateRow[]>('/api/ga-admin/delegates', { method: 'GET', token })
+}
+
+export async function createGaAdminDelegate(
+  token: string,
+  payload: { username: string; password: string; name?: string },
+) {
+  try {
+    return await apiRequest<GaAdminDelegateRow>('/api/ga-admin/delegates', {
+      method: 'POST',
+      token,
+      body: JSON.stringify({
+        username: payload.username,
+        password: payload.password,
+        name: payload.name ?? '',
+      }),
+    })
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 409) {
+      throw new Error('이미 사용 중인 아이디입니다.')
+    }
+    throw error
+  }
+}
+
+export async function patchGaAdminDelegate(
+  token: string,
+  id: string,
+  body: { username?: string; password?: string; status?: EntityStatus; displayName?: string; name?: string },
+) {
+  try {
+    const payload: Record<string, unknown> = {}
+    if (body.username != null) {
+      payload.username = body.username
+    }
+    if (body.password != null && body.password.trim() !== '') {
+      payload.password = body.password
+    }
+    if (body.status != null) {
+      payload.status = body.status
+    }
+    const displayName = body.displayName ?? body.name
+    if (displayName != null) {
+      payload.displayName = displayName
+    }
+    return await apiRequest<GaAdminDelegateRow>(`/api/ga-admin/delegates/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify(payload),
+    })
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 409) {
+      throw new Error('이미 사용 중인 아이디입니다.')
+    }
+    throw error
+  }
+}
+
+/** SUPER_ADMIN — GA 상세의 GA_ADMIN 계정 (비밀번호 미노출) */
+export interface SuperAdminGaAdminAccountRow {
+  id: string
+  ga_id: number
+  username: string
+  displayName: string
+  phone_number: string | null
+  role: 'GA_ADMIN'
+  status: EntityStatus
+  statusLabel: string
+  created_at: string
+  last_login_at: string | null
+}
+
+export async function listSuperAdminGaAdminAccounts(
+  token: string,
+  gaId: number,
+): Promise<SuperAdminGaAdminAccountRow[]> {
+  return apiRequest<SuperAdminGaAdminAccountRow[]>(`/api/admin/ga/${gaId}/ga-admins`, { method: 'GET', token })
+}
+
+export async function createSuperAdminGaAdminAccount(
+  token: string,
+  gaId: number,
+  payload: { username: string; password: string; name?: string; phoneNumber?: string },
+) {
+  try {
+    return await apiRequest<SuperAdminGaAdminAccountRow>(`/api/admin/ga/${gaId}/ga-admins`, {
+      method: 'POST',
+      token,
+      body: JSON.stringify({
+        username: payload.username,
+        password: payload.password,
+        name: payload.name ?? '',
+        phone_number: payload.phoneNumber ?? '',
+      }),
+    })
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 409) {
+      throw new Error('이미 사용 중인 아이디입니다.')
+    }
+    throw error
+  }
+}
+
+export async function patchSuperAdminGaAdminAccount(
+  token: string,
+  gaId: number,
+  userId: string,
+  body: {
+    username?: string
+    password?: string
+    status?: EntityStatus
+    displayName?: string
+    name?: string
+    phoneNumber?: string
+  },
+) {
+  try {
+    const payload: Record<string, unknown> = {}
+    if (body.username != null) {
+      payload.username = body.username
+    }
+    if (body.password != null && body.password.trim() !== '') {
+      payload.password = body.password
+    }
+    if (body.status != null) {
+      payload.status = body.status
+    }
+    const displayName = body.displayName ?? body.name
+    if (displayName != null) {
+      payload.displayName = displayName
+    }
+    if (body.phoneNumber != null) {
+      payload.phone_number = body.phoneNumber
+    }
+    return await apiRequest<SuperAdminGaAdminAccountRow>(
+      `/api/admin/ga/${gaId}/ga-admins/${encodeURIComponent(userId)}`,
+      {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify(payload),
+      },
+    )
   } catch (error) {
     if (error instanceof ApiError && error.status === 409) {
       throw new Error('이미 사용 중인 아이디입니다.')

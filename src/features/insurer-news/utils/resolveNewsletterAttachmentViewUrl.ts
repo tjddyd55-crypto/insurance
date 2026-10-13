@@ -14,7 +14,7 @@ const OBJECT_KEY_PREFIXES = [
 
 export type NewsletterAttachmentViewSource = Pick<
   NewsletterAttachment,
-  'url' | 'objectKey'
+  'url' | 'objectKey' | 'openUrl'
 > & {
   fileUrl?: string | null
   file_url?: string | null
@@ -44,6 +44,11 @@ function absoluteCdnUrlForObjectKey(objectKey: string): string {
 export function resolveNewsletterAttachmentViewUrl(
   source: NewsletterAttachmentViewSource,
 ): string {
+  const openUrl = String(source.openUrl ?? '').trim()
+  if (openUrl) {
+    return resolveAbsoluteApiUrl(openUrl)
+  }
+
   const objectKey = String(source.objectKey ?? '').trim()
   if (objectKey) {
     return absoluteCdnUrlForObjectKey(objectKey)
@@ -69,18 +74,11 @@ export const resolveInsurerNewsAttachmentDisplayUrl = resolveNewsletterAttachmen
 export function resolveNewsletterHeroViewUrl(
   item: Pick<NewsletterItem, 'heroImageObjectKey' | 'heroImageUrl' | 'heroImageOpenUrl'>,
 ): string {
-  const viaAttachment = resolveNewsletterAttachmentViewUrl({
+  return resolveNewsletterAttachmentViewUrl({
     objectKey: item.heroImageObjectKey,
     url: item.heroImageUrl,
+    openUrl: item.heroImageOpenUrl,
   })
-  if (viaAttachment) {
-    return viaAttachment
-  }
-  const openUrl = String(item.heroImageOpenUrl ?? '').trim()
-  if (openUrl) {
-    return resolveAbsoluteApiUrl(openUrl)
-  }
-  return ''
 }
 
 export function newsletterItemHasImageSource(

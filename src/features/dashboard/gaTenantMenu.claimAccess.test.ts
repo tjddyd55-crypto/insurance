@@ -37,7 +37,7 @@ describe('buildAppMenuForSession claim access', () => {
     expect(paths.some((path) => path.includes('/claim-requests'))).toBe(false)
   })
 
-  it('does not expose admin claim settings for GA_ADMIN or GA_STAFF', () => {
+  it('exposes admin claim settings for GA_ADMIN in 업무 운영, not for GA_STAFF', () => {
     const adminPaths = linkPaths(buildAppMenuForSession('GA_ADMIN', 'TEST', 'Test GA'))
     expect(adminPaths).not.toContain('/admin/claim/insurance-companies')
     expect(adminPaths.some((path) => path.includes('/claim-requests'))).toBe(false)

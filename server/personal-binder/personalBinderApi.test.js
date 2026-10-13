@@ -29,6 +29,7 @@ test('personal binder API source enforces owner and GA scope', async () => {
   assert.match(source, /personal-binders\/:binderId\/export/)
   assert.match(source, /readOwnedMaterialSegment/)
   assert.match(source, /materials\/from-file/)
+  assert.match(source, /section_id = \$1[\s\S]*material_id = \$2[\s\S]*b\.ga_id = \$4/)
   assert.match(source, /materials\/from-team/)
   assert.match(source, /materials\/merge-images/)
   assert.match(source, /buildBinderMaterialPdfFromImages/)

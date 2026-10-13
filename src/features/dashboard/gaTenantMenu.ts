@@ -65,12 +65,17 @@ export const PERSONAL_BINDER_MENU_ITEM = {
   path: '/personal-binders',
 } as const
 
+export const SHARED_BINDER_MENU_ITEM = {
+  label: '공유 바인더',
+  path: '/personal-binders/shared',
+} as const
+
 export const COVERAGE_SIMULATION_MENU_ITEM = {
   label: '시뮬레이션',
   path: '/coverage-simulator',
 } as const
 
-/** GA 설계사·스태프 공통 AI 비서 진입 (전역 네비) */
+/** 일반 설계사(USER) 전역 네비 AI 비서 진입 */
 export const AI_SECRETARY_MENU_ITEM = {
   label: 'AI 비서',
   path: '/ai-assistant',
@@ -203,11 +208,7 @@ export function buildGaTenantDashboardMenu(
 
   const { lossAdjuster, dynamicBoards } = partitionNewsletterBoardsForMenu(dynamicNewsletterBoards)
   // 보드 목록 로딩 전([]): 기본 메뉴 유지. 로딩 후 비활성/미포함이면 숨김.
-  const lossAdjusterMenuEntry =
-    buildLossAdjusterPortalMenuEntry(lossAdjuster) ??
-    (dynamicNewsletterBoards.length === 0
-      ? ({ type: 'link', label: '손해사정사 소식지', path: '/portal/adjuster-news' } as const)
-      : null)
+  const lossAdjusterMenuEntry = buildLossAdjusterPortalMenuEntry(lossAdjuster)
 
   const workConvenienceLinks: GaTenantDashboardMenuEntry[] = [
     { type: 'link', label: '문자 발송', path: '/sms/settings' },
@@ -293,6 +294,11 @@ export function buildGaTenantDashboardMenu(
       type: 'link',
       label: PERSONAL_BINDER_MENU_ITEM.label,
       path: PERSONAL_BINDER_MENU_ITEM.path,
+    },
+    {
+      type: 'link',
+      label: SHARED_BINDER_MENU_ITEM.label,
+      path: SHARED_BINDER_MENU_ITEM.path,
     },
     {
       type: 'link',
@@ -482,9 +488,11 @@ function buildGaTenantAdminMenuEntries(role: string | undefined): GaTenantDashbo
   return entries
 }
 
-/** GA_ADMIN 전용 — 관리 메뉴만 (CRM 업무 섹션 없음) */
+/** GA_ADMIN 전용 — GA 허브 + 업무 운영(청구/PDF) 분리 + 감사/프로필 */
 function buildGaAdminManagementMenuEntries(): GaTenantDashboardMenuEntry[] {
   const entries: GaTenantDashboardMenuEntry[] = []
+  entries.push({ type: 'section', label: 'GA 관리' })
+  entries.push({ type: 'link', label: 'GA 관리 허브', path: '/ga-admin/workspace' })
 
   entries.push({ type: 'section', label: '업무 운영' })
   entries.push({ type: 'link', label: '공지사항', path: '/ga-admin/notices' })
@@ -519,6 +527,7 @@ function buildSuperAdminMenuEntries(): GaTenantDashboardMenuEntry[] {
   entries.push(
     ...itemsToEntries([
       { label: 'GA 관리', path: '/admin/ga' },
+      { label: 'GA 그룹 관리', path: '/admin/ga-groups' },
       { label: '담당자 관리', path: '/admin/delegates' },
       { label: '유저 관리', path: '/admin/users' },
     ]),
@@ -646,7 +655,7 @@ export function buildAppMenuForSession(
   })()
 
   const filtered = subscriptionExpired ? filterMenuForExpired(withTeam) : withTeam
-  // AI 비서 메뉴는 일반 사용자(USER) 전용. GA_ADMIN·GA_STAFF·채널 계정에는 노출하지 않는다.
+  // AI 비서 메뉴 — 일반 설계사(USER) 전용. GA_ADMIN·GA_STAFF·채널 계정에는 노출하지 않는다.
   const withAiAssistant =
     role === 'USER' && isAiFeatureVisible()
       ? [

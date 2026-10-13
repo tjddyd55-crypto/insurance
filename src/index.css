@@ -3468,6 +3468,43 @@ body.electron-only .memo-fullscreen-exit-electron:hover{
   color: var(--text-secondary);
 }
 
+.profile-page__affiliation{
+  display: grid;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.profile-page__affiliation-list{
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.profile-page__affiliation-list div{
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.profile-page__affiliation-list dt{
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.profile-page__affiliation-list dd{
+  margin: 0;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.profile-page__affiliation-general{
+  margin: 0;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
 .profile-page__section-desc--spaced{
   margin-top: 12px;
 }
@@ -10719,6 +10756,130 @@ div.cta-button.customers-page__action-btn[role='button']{
   }
 }
 
+.insurance-contacts-view .contact-header__row{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 12px;
+}
+
+.insurance-contacts-view .insurance-contacts-workspace-actions{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.insurance-contacts-view .company-card--editing{
+  border-color: #c7d2fe;
+  box-shadow: 0 1px 3px rgb(79 70 229 / 0.08);
+}
+
+.insurance-contacts-view .company-card--marked-delete{
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.insurance-contacts-view .company-card__delete-badge{
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.insurance-contacts-view .company-card__delete-hint{
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--text-sub);
+}
+
+.insurance-contacts-view .company-card__new-meta{
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.insurance-contacts-view .company-card__remove{
+  flex-shrink: 0;
+}
+
+.insurance-contacts-view .company-card__add-contact{
+  margin-top: 10px;
+}
+
+.insurance-contacts-view .company-contacts-block--editing{
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.insurance-contacts-view .contact-row--editing{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr) minmax(0, 1.1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 0;
+}
+
+.insurance-contacts-view .contact-row--editing .contact-row__input{
+  min-width: 0;
+  font-size: 14px;
+}
+
+.insurance-contacts-view .contact-row__remove{
+  min-width: 36px;
+  padding-inline: 8px;
+}
+
+.insurance-contacts-view .insurance-contacts-add-company{
+  margin-top: 12px;
+}
+
+.insurance-contacts-view .company-card--edit-cross-tab{
+  border-color: #fcd34d;
+}
+
+.insurance-contacts-view .company-card__cross-tab-hint{
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: #92400e;
+  line-height: 1.4;
+}
+
+@media (max-width: 640px){
+  .insurance-contacts-view .contact-row--editing{
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      'name name'
+      'position phone'
+      'remove remove';
+  }
+
+  .insurance-contacts-view .contact-row--editing .contact-row__input:nth-child(1){
+    grid-area: name;
+  }
+
+  .insurance-contacts-view .contact-row--editing .contact-row__input:nth-child(2){
+    grid-area: position;
+  }
+
+  .insurance-contacts-view .contact-row--editing .contact-row__input:nth-child(3){
+    grid-area: phone;
+  }
+
+  .insurance-contacts-view .contact-row--editing .contact-row__remove{
+    grid-area: remove;
+    justify-self: end;
+  }
+}
+
 .insurance-contacts-view .company-card__header{
   display: flex;
   align-items: flex-start;
@@ -11703,8 +11864,20 @@ a.contacts-public-auth__link{
 }
 
 .contacts-page{
-  max-width: 1080px;
+  max-width: 1120px;
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: var(--space-4, 16px);
+  box-sizing: border-box;
   font-size: 18px;
+}
+
+.contacts-page--personal-workspace .contacts-toolbar,
+.contacts-page--personal-workspace .contacts-admin-form,
+.contacts-page--personal-workspace .contacts-header {
+  max-width: 960px;
+  margin-inline: auto;
+  width: 100%;
 }
 
 .contacts-page .card{
@@ -15827,6 +16000,25 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
     padding: 0 6px;
     font-size: 12px;
   }
+}
+
+/* 바인더 자료 피커: 좁은 파일 패널에서도 파일명·유형·크기와 「바인더에 추가」 유지 */
+.storage-explorer-files--binder-pick {
+  --storage-explorer-file-grid-columns:
+    minmax(0, 1fr) 48px 64px minmax(0, max-content);
+}
+
+.storage-explorer-files--binder-pick .storage-explorer-files__head > :nth-child(4),
+.storage-explorer-files--binder-pick .storage-explorer-files__date {
+  display: none;
+}
+
+.storage-explorer-files--binder-pick .storage-explorer-files__actions-inline {
+  display: flex !important;
+}
+
+.storage-explorer-files--binder-pick .storage-explorer-files__actions-menu {
+  display: none !important;
 }
 
 @media (max-width: 1100px){

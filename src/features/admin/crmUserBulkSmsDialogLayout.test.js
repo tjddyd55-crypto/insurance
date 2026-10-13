@@ -46,10 +46,9 @@ describe('crm user bulk sms dialog layout', () => {
     assert.match(composer, /closeOnBackdrop=\{false\}/)
     assert.match(composer, /footer=\{/)
     const cancel = composer.indexOf('>\n              취소\n            </FormButton>')
-    const send = composer.indexOf('>\n              보내기\n            </FormButton>')
-    assert.ok(cancel >= 0 && send > cancel)
-    assert.equal(composer.includes('발신번호'), false)
-    assert.equal(composer.includes('senderNumber'), false)
+    const preview = composer.indexOf('>\n              미리보기\n            </FormButton>')
+    const send = composer.indexOf('>\n              발송\n            </FormButton>')
+    assert.ok(cancel >= 0 && preview > cancel && send > preview)
   })
 
   it('keeps history detail on the same dialog shell', () => {

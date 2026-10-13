@@ -1,4 +1,8 @@
-import { getInsuranceBillingProvider, isInsuranceBillingProductionRuntime } from './config.js'
+import {
+  getInsuranceBillingProvider,
+  isInsuranceBillingProductionRuntime,
+  isMockPaymentAllowed,
+} from './config.js'
 import { resolvePaymentSettingsInternal } from '../billing/paymentSettingsResolve.js'
 import {
   ensureBillingProviderCustomerKey,
@@ -16,14 +20,17 @@ export async function buildBillingCheckoutConfig(executor, userId, _userContext 
   const credential = await getActiveBillingKeyForUser(executor, userId)
 
   if (provider !== 'toss') {
+    const mockPaymentAllowed = isMockPaymentAllowed()
     return {
       provider,
       mode: 'virtual',
       clientKey: null,
-      enabled: false,
-      customerKey: null,
-      hasBillingKey: false,
+      enabled: mockPaymentAllowed,
+      customerKey: customerKey || null,
+      hasBillingKey: Boolean(credential?.billingKey),
       allowDevTestCharge: false,
+      mockPaymentAllowed,
+      paymentMethodLabel: mockPaymentAllowed ? 'DEV 가상결제' : null,
     }
   }
 

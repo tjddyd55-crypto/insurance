@@ -82,10 +82,18 @@ test('review account follows the same renewal eligibility as regular USER', () =
   assert.equal(result.reason, 'due')
 })
 
-test('provider mock skip', () => {
-  const result = evaluateRenewalEligibility(eligibleBase({ workerProvider: 'mock' }))
+test('provider mock skip when mock renewal not allowed', () => {
+  const result = evaluateRenewalEligibility(eligibleBase({ workerProvider: 'mock', mockRenewalAllowed: false }))
   assert.equal(result.ok, false)
   assert.equal(result.reason, 'provider_not_toss')
+})
+
+test('provider mock eligible when mock renewal allowed', () => {
+  const result = evaluateRenewalEligibility(
+    eligibleBase({ workerProvider: 'mock', mockRenewalAllowed: true }),
+  )
+  assert.equal(result.ok, true)
+  assert.equal(result.reason, 'due')
 })
 
 test('worker disabled default false', () => {

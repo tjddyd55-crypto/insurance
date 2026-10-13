@@ -27,8 +27,8 @@ export type AuthLandingRole =
   | undefined
   | null
 
-/** GA_ADMIN 관리 셸 첫 화면 — 메뉴 SSOT 의 「공지사항」과 동일 path */
-export const GA_ADMIN_LANDING_PATH = '/ga-admin/notices'
+/** GA_ADMIN 관리 셸 첫 화면 — 메뉴 SSOT 의 「GA 관리 허브」와 동일 path */
+export const GA_ADMIN_LANDING_PATH = '/ga-admin/workspace'
 
 export function resolveAuthLandingPath(isMobile: boolean, role?: AuthLandingRole): string {
   const normalizedRole = String(role ?? '').trim().toUpperCase()

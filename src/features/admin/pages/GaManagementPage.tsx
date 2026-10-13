@@ -1,20 +1,25 @@
-import { type FormEvent, useCallback, useEffect, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { FormDialog, useConfirmDialog } from '../../../components/dialog'
 import { EmptyState, LoadingState, StatusMessage } from '../../../components/feedback'
 import { FieldWrapper, FormButton, FormInput, FormSelect } from '../../../components/form'
+import { useDebounce } from '../../../hooks/useDebounce'
 import { useAuth } from '../../auth/AuthProvider'
 import {
   createGaCompany,
   deleteGaCompany,
   listGaCompanyHistory,
-  listGaCompanies,
+  listGaCompaniesAdmin,
   patchGaCompany,
   type EntityStatus,
+  type GaCompanyGroupFilter,
   type GaCompanyRow,
   type GaHistoryRow,
 } from '../../auth/authApi'
+import { listGaGroups, type GaGroupRow } from '../api/gaGroupApi'
 import { formatKstDateDisplay, formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
+
+const PAGE_SIZE = 20
 
 const STATUS_META: Record<EntityStatus, { label: string; fg: string; bg: string }> = {
   active: {
@@ -85,10 +90,22 @@ function formatChangePair(before: string, after: string): string {
   return `${prev || '—'} -> ${next || '—'}`
 }
 
+function formatGaGroupLabel(r: GaCompanyRow): string {
+  const name = String(r.groupName ?? '').trim()
+  return name || '미지정'
+}
+
 export default function GaManagementPage() {
   const { user, token } = useAuth()
   const { confirm, confirmDialog } = useConfirmDialog()
   const [rows, setRows] = useState<GaCompanyRow[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
+  const [groupFilter, setGroupFilter] = useState<GaCompanyGroupFilter>('all')
+  const [searchInput, setSearchInput] = useState('')
+  const searchQuery = useDebounce(searchInput, 200)
+  const [gaGroups, setGaGroups] = useState<GaGroupRow[]>([])
+  const [groupListError, setGroupListError] = useState('')
   const [loadError, setLoadError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
@@ -108,6 +125,30 @@ export default function GaManagementPage() {
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historyError, setHistoryError] = useState('')
 
+  const listParams = useMemo(
+    () => ({
+      page,
+      pageSize: PAGE_SIZE,
+      q: searchQuery.trim(),
+      groupFilter,
+    }),
+    [page, searchQuery, groupFilter],
+  )
+
+  const loadGroups = useCallback(async () => {
+    if (!token?.trim() || user?.role !== 'SUPER_ADMIN') {
+      return
+    }
+    setGroupListError('')
+    try {
+      const list = await listGaGroups(token)
+      setGaGroups(list)
+    } catch (e) {
+      setGaGroups([])
+      setGroupListError(e instanceof Error ? e.message : 'GA 그룹 목록을 불러오지 못했습니다.')
+    }
+  }, [token, user?.role])
+
   const load = useCallback(async () => {
     if (!token?.trim() || user?.role !== 'SUPER_ADMIN') {
       return
@@ -115,18 +156,41 @@ export default function GaManagementPage() {
     setLoadError('')
     setIsLoading(true)
     try {
-      const list = await listGaCompanies(token)
-      setRows(list.map((r) => ({ ...r, status: normalizeStatus(r.status as string) })))
+      const res = await listGaCompaniesAdmin(token, listParams)
+      setRows(res.rows.map((r) => ({ ...r, status: normalizeStatus(r.status as string) })))
+      setTotal(res.total)
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : '목록을 불러오지 못했습니다.')
     } finally {
       setIsLoading(false)
     }
-  }, [token, user?.role])
+  }, [token, user?.role, listParams])
+
+  useEffect(() => {
+    void loadGroups()
+  }, [loadGroups])
 
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    setPage(1)
+  }, [searchQuery, groupFilter])
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+
+  const groupFilterOptions = useMemo(() => {
+    const opts: { value: string; label: string }[] = [
+      { value: 'all', label: '전체 GA' },
+      ...gaGroups.map((g) => ({ value: String(g.id), label: g.name })),
+      { value: 'ungrouped', label: '그룹 미지정' },
+    ]
+    return opts
+  }, [gaGroups])
+
+  const groupFilterSelectValue =
+    groupFilter === 'all' ? 'all' : groupFilter === 'ungrouped' ? 'ungrouped' : String(groupFilter)
 
   const submitCreate = async (e: FormEvent) => {
     e.preventDefault()
@@ -244,6 +308,7 @@ export default function GaManagementPage() {
       <tr key={r.id}>
         <td>{r.name}</td>
         <td>{r.code}</td>
+        <td>{formatGaGroupLabel(r)}</td>
         <td>
           <StatusBadge status={st} />
         </td>
@@ -293,6 +358,10 @@ export default function GaManagementPage() {
         <div className="admin-ga-card__row">
           <span className="admin-ga-card__label">GA 코드</span>
           <span className="admin-ga-card__value">{r.code}</span>
+        </div>
+        <div className="admin-ga-card__row">
+          <span className="admin-ga-card__label">GA 그룹</span>
+          <span className="admin-ga-card__value">{formatGaGroupLabel(r)}</span>
         </div>
         <div className="admin-ga-card__row">
           <span className="admin-ga-card__label">상태</span>
@@ -354,6 +423,49 @@ export default function GaManagementPage() {
         <p>{loadError || 'GA 회사를 등록·상태·삭제(소프트)할 수 있습니다.'}</p>
       </header>
 
+      {groupListError ? (
+        <StatusMessage message={groupListError} tone="error" className="m-0 mb-3" />
+      ) : null}
+
+      <section
+        className="card auth-card"
+        style={{
+          maxWidth: 'none',
+          margin: '0 0 12px',
+          padding: 12,
+          display: 'grid',
+          gap: 12,
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        }}
+      >
+        <FieldWrapper label="GA 그룹">
+          <FormSelect
+            className="admin-form-input"
+            value={groupFilterSelectValue}
+            onChange={(e) => {
+              const v = e.target.value
+              if (v === 'all') {
+                setGroupFilter('all')
+              } else if (v === 'ungrouped') {
+                setGroupFilter('ungrouped')
+              } else {
+                setGroupFilter(Number(v))
+              }
+            }}
+            options={groupFilterOptions}
+          />
+        </FieldWrapper>
+        <FieldWrapper label="검색 (GA 이름·코드)">
+          <FormInput
+            className="admin-form-input"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="지점명 또는 GA 코드"
+            disabled={isLoading}
+          />
+        </FieldWrapper>
+      </section>
+
       <section
         className="admin-toolbar admin-ga-management__toolbar card auth-card"
         style={{ maxWidth: 'none', margin: 0, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}
@@ -371,6 +483,9 @@ export default function GaManagementPage() {
           GA 등록
         </FormButton>
         {isLoading ? <LoadingState message="불러오는 중…" className="m-0 text-sm text-[var(--text-sub)]" /> : null}
+        <span style={{ marginLeft: 'auto', fontSize: 14, color: 'var(--text-sub)' }}>
+          총 {total}건 · {page}/{totalPages}페이지
+        </span>
       </section>
 
       <div className="card admin-ga-management__table-wrap" style={{ maxWidth: 'none', margin: '16px 0 0', padding: 0 }}>
@@ -380,6 +495,7 @@ export default function GaManagementPage() {
               <tr>
                 <th>GA 이름</th>
                 <th>GA 코드</th>
+                <th>GA 그룹</th>
                 <th>상태</th>
                 <th>생성일</th>
                 <th className="admin-table-cell--actions">관리</th>
@@ -388,8 +504,10 @@ export default function GaManagementPage() {
             <tbody>
               {rows.length === 0 && !isLoading ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: '20px 14px', color: 'var(--text-sub)' }}>
-                    등록된 GA가 없습니다.
+                  <td colSpan={6} style={{ padding: '20px 14px', color: 'var(--text-sub)' }}>
+                    {searchQuery.trim() || groupFilter !== 'all'
+                      ? '조건에 맞는 GA가 없습니다.'
+                      : '등록된 GA가 없습니다.'}
                   </td>
                 </tr>
               ) : (
@@ -407,6 +525,32 @@ export default function GaManagementPage() {
           )}
         </div>
       </div>
+
+      {totalPages > 1 ? (
+        <div
+          className="admin-toolbar"
+          style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 16, flexWrap: 'wrap' }}
+        >
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            className="button button--secondary"
+            disabled={isLoading || page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            이전
+          </FormButton>
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            className="button button--secondary"
+            disabled={isLoading || page >= totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          >
+            다음
+          </FormButton>
+        </div>
+      ) : null}
 
       {createOpen ? (
         <FormDialog

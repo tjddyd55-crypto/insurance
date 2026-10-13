@@ -92,8 +92,11 @@ describe('menuPermissionMatrix — semantic policy snapshots', () => {
     expect(matrix.rows.find((r) => r.primaryPath === '/customers')?.cells.GA_STAFF.status).toBe('hidden')
   })
 
-  it('GA_ADMIN: GA전용 소식지·감사 로그, 고객리스트 없음', () => {
+  it('GA_ADMIN: GA 허브·소식지·감사 로그, 고객리스트 없음', () => {
     const matrix = buildMenuPermissionMatrix({ paidAccessMode: 'active' })
+    expect(
+      matrix.rows.find((r) => r.primaryPath === '/ga-admin/workspace')?.cells.GA_ADMIN.status,
+    ).not.toBe('hidden')
     expect(
       matrix.rows.find((r) => r.primaryPath === '/admin/newsletter-boards')?.cells.GA_ADMIN.status,
     ).not.toBe('hidden')

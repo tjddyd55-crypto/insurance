@@ -53,7 +53,7 @@ export function sqlHasUserOwnershipScope(sql) {
  * @param {string} sql
  * @returns {boolean}
  */
-function sqlHasTenantGaFilter(sql) {
+export function sqlHasTenantGaFilter(sql) {
   if (/\bga_id\b/i.test(sql)) {
     return true
   }

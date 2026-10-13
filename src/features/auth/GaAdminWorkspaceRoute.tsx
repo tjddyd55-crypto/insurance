@@ -3,7 +3,7 @@ import { useAuth } from './AuthProvider'
 import { resolveAuthLandingPath } from './landing'
 import { canAccessGaAdminManagementShell } from './roleGuards'
 
-/** GA_ADMIN 전용 관리 라우트 (공지 등) */
+/** GA 관리 허브 — GA_ADMIN 전용 */
 export function GaAdminWorkspaceRoute() {
   const { user, isAuthenticated } = useAuth()
 

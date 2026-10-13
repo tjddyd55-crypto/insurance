@@ -1,5 +1,9 @@
 @import '../admin/admin-ui.css';
 
+.ga-admin-workspace-page.admin-page-shell .admin-page-shell__inner {
+  max-width: 1200px;
+}
+
 .ga-admin-workspace-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -29,4 +33,126 @@
   border-color: var(--brand-primary, #2563eb);
   background: color-mix(in srgb, var(--brand-primary, #2563eb) 12%, transparent);
   color: var(--brand-primary, #2563eb);
+}
+
+.ga-admin-workspace-body {
+  min-width: 0;
+}
+
+.ga-admin-workspace-meta {
+  display: grid;
+  gap: 12px 24px;
+  margin: 0 0 16px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.ga-admin-workspace-meta > div {
+  display: grid;
+  gap: 4px;
+}
+
+.ga-admin-workspace-meta dt {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-sub);
+}
+
+.ga-admin-workspace-meta dd {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ga-admin-workspace-feature-list {
+  margin: 0 0 12px;
+  padding-left: 20px;
+}
+
+.ga-admin-writer-board-picks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-dialog__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.form-dialog__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text-primary);
+}
+
+.form-dialog__close {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  margin: -4px -4px 0 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.form-dialog__close:hover:not(:disabled) {
+  background: var(--bg-muted, rgba(0, 0, 0, 0.06));
+  color: var(--text-primary);
+}
+
+.form-dialog__close:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.form-dialog__form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-dialog__footer {
+  margin-top: 4px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-default);
+}
+
+.ga-admin-form-dialog__actions {
+  margin-top: 0;
+}
+
+.ga-admin-writer-board-picks__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.ga-admin-workspace-panel--embedded .newsletter-board-admin-page__intro h1 {
+  font-size: 16px;
+  margin: 0 0 8px;
+}
+
+@media (max-width: 768px) {
+  .ga-admin-workspace-tabs {
+    gap: 6px;
+  }
+
+  .ga-admin-workspace-tabs__link {
+    flex: 1 1 calc(50% - 6px);
+    min-width: 0;
+    padding: 0 10px;
+    font-size: 13px;
+  }
 }
