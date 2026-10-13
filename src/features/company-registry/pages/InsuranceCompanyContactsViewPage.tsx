@@ -29,8 +29,9 @@ import type { CompanyDirectoryEntry } from '../domain/types'
 import { fetchActiveInsurerSites, type InsurerSite } from '../../insurer-sites/api/insurerSitesApi'
 import { filterInsurerCatalogForCategory } from '../domain/insuranceCompanyCatalogOptions'
 import {
-  cardDraftMatchesSearch,
   directoryEntryToCardDraft,
+  filterVisibleEditDrafts,
+  prunePinnedEditCardKeys,
   findDuplicateCard,
   emptyContactRow,
   newCardKey,
@@ -114,6 +115,7 @@ export default function InsuranceCompanyContactsViewPage({
   const [insurerCatalog, setInsurerCatalog] = useState<InsurerSite[]>([])
   const [insurerCatalogError, setInsurerCatalogError] = useState('')
   const [insurerCatalogLoading, setInsurerCatalogLoading] = useState(false)
+  const [pinnedEditCardKeys, setPinnedEditCardKeys] = useState<Set<string>>(() => new Set())
   const copyNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const showCopyFeedback = useCallback((message: string) => {
@@ -249,10 +251,15 @@ export default function InsuranceCompanyContactsViewPage({
   }, [directoryForTab, isPersonalMode, keyword])
 
   const visibleEditDrafts = useMemo(() => {
-    return cardDrafts.filter(
-      (draft) => draft.category === activeTab && cardDraftMatchesSearch(draft, keyword),
-    )
-  }, [activeTab, cardDrafts, keyword])
+    return filterVisibleEditDrafts(cardDrafts, activeTab, keyword, pinnedEditCardKeys)
+  }, [activeTab, cardDrafts, keyword, pinnedEditCardKeys])
+
+  useEffect(() => {
+    if (!workspaceEdit) {
+      return
+    }
+    setPinnedEditCardKeys((prev) => prunePinnedEditCardKeys(prev, cardDrafts, activeTab))
+  }, [activeTab, cardDrafts, workspaceEdit])
 
   const catalogRequiredForTab = activeTab === 'LIFE' || activeTab === 'NON_LIFE'
   const catalogUnavailable =
@@ -265,12 +272,14 @@ export default function InsuranceCompanyContactsViewPage({
     const initial = buildInitialCardDrafts(isPersonalMode, list, personalContacts)
     setBaselineDrafts(cloneDrafts(initial))
     setCardDrafts(cloneDrafts(initial))
+    setPinnedEditCardKeys(new Set())
     setWorkspaceEdit(true)
     setErrorText('')
   }
 
   const cancelWorkspaceEdit = () => {
     setCardDrafts(cloneDrafts(baselineDrafts))
+    setPinnedEditCardKeys(new Set())
     setWorkspaceEdit(false)
     setErrorText('')
   }
@@ -279,10 +288,12 @@ export default function InsuranceCompanyContactsViewPage({
     const entry = list.find(
       (row) => resolveTabCategory(row.category, row.name) === activeTab,
     )
+    const cardKey = newCardKey()
+    setPinnedEditCardKeys((prev) => new Set(prev).add(cardKey))
     setCardDrafts((rows) => [
       ...rows,
       {
-        cardKey: newCardKey(),
+        cardKey,
         category: activeTab,
         companyCode: '',
         companyId: null,
@@ -306,11 +317,20 @@ export default function InsuranceCompanyContactsViewPage({
         return
       }
     }
+    const prev = cardDrafts.find((row) => row.cardKey === cardKey)
+    if (prev && prev.category !== next.category) {
+      setPinnedEditCardKeys((keys) => new Set(keys).add(cardKey))
+    }
     setCardDrafts((rows) => rows.map((row) => (row.cardKey === cardKey ? next : row)))
     setErrorText('')
   }
 
   const markCardRemoved = (cardKey: string) => {
+    setPinnedEditCardKeys((prev) => {
+      const next = new Set(prev)
+      next.delete(cardKey)
+      return next
+    })
     setCardDrafts((rows) =>
       rows.map((row) => {
         if (row.cardKey !== cardKey) return row
@@ -348,6 +368,7 @@ export default function InsuranceCompanyContactsViewPage({
         }
       } else {
         setCopyStatus(message)
+        setPinnedEditCardKeys(new Set())
         setWorkspaceEdit(false)
         await loadList()
       }
@@ -501,6 +522,7 @@ export default function InsuranceCompanyContactsViewPage({
               <CompanyContactEditableCard
                 key={draft.cardKey}
                 draft={draft}
+                editingTab={activeTab}
                 directory={list}
                 insurerCatalog={insurerCatalog}
                 onChange={(next) => updateDraft(draft.cardKey, next)}
