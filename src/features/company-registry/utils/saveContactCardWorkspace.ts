@@ -5,7 +5,30 @@ import {
 } from '../../contacts/utils/savePersonalRegistryContacts'
 import type { InsuranceContact } from '../../contacts/domain/types'
 import type { ContactCompanyCardDraft } from '../domain/contactCardWorkspaceModel'
+import { isPersistedDirectoryCompanyCode } from '../domain/companyCode'
 import { normalizePhoneNumber } from '../../contacts/utils/phone'
+
+function normalizeCompanyName(value: string): string {
+  return String(value ?? '').trim().normalize('NFKC')
+}
+
+/** GA 기존 카드: full-save는 동일 마스터를 덮어쓰므로 종류·회사 변경은 차단한다. */
+export function isGaExistingCardMetadataChangeBlocked(
+  baseline: ContactCompanyCardDraft | undefined,
+  draft: ContactCompanyCardDraft,
+): boolean {
+  if (draft.isNew || draft.markedForDeletion) {
+    return false
+  }
+  if (!baseline) {
+    return false
+  }
+  return (
+    baseline.category !== draft.category ||
+    baseline.companyCode.trim() !== draft.companyCode.trim() ||
+    normalizeCompanyName(baseline.companyName) !== normalizeCompanyName(draft.companyName)
+  )
+}
 
 export type CardSaveResult = {
   cardKey: string
@@ -51,11 +74,15 @@ export async function saveGaContactCardDraft(
           phone: normalizePhoneNumber(row.phone),
         }))
 
+  const companyCode = draft.companyCode.trim()
+  const companyId =
+    draft.companyId != null && isPersistedDirectoryCompanyCode(companyCode) ? draft.companyId : undefined
+
   await fullSaveCompanyDirectory(
     {
       company: {
-        ...(draft.companyId != null ? { id: draft.companyId } : {}),
-        companyCode: draft.companyCode.trim(),
+        ...(companyId != null ? { id: companyId } : {}),
+        companyCode,
         category: draft.category,
         name: draft.companyName.trim(),
         customerCenter: draft.customerCenter.trim(),
@@ -114,6 +141,17 @@ export async function saveContactCardWorkspace(params: {
     const serialized = JSON.stringify(draft)
     const baseSerialized = base ? JSON.stringify(base) : ''
     if (!draft.isNew && !draft.markedForDeletion && serialized === baseSerialized) {
+      continue
+    }
+
+    if (mode === 'ga' && isGaExistingCardMetadataChangeBlocked(base, draft)) {
+      results.push({
+        cardKey: draft.cardKey,
+        companyName: draft.companyName,
+        ok: false,
+        message:
+          `${draft.companyName}: 기존 GA 보험회사 카드의 보험 종류·보험회사는 이 화면에서 변경할 수 없습니다. 담당자만 수정하세요.`,
+      })
       continue
     }
 

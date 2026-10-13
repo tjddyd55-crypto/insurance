@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyNewCardCategoryChange,
+  directoryEntryToCardDraft,
   findDuplicateCard,
   cardDraftMatchesSearch,
   emptyContactRow,
@@ -8,6 +9,7 @@ import {
   prunePinnedEditCardKeys,
   type ContactCompanyCardDraft,
 } from './contactCardWorkspaceModel'
+import type { CompanyDirectoryEntry } from './types'
 
 function sampleDraft(overrides: Partial<ContactCompanyCardDraft> = {}): ContactCompanyCardDraft {
   return {
@@ -26,6 +28,24 @@ function sampleDraft(overrides: Partial<ContactCompanyCardDraft> = {}): ContactC
     ...overrides,
   }
 }
+
+describe('directoryEntryToCardDraft', () => {
+  it('디렉터리 행의 종류를 resolveCardCategory로 반영한다', () => {
+    const entry: CompanyDirectoryEntry = {
+      id: 7,
+      companyCode: 'INS_NH',
+      category: 'NON_LIFE',
+      name: '농협손해보험',
+      customerCenter: '',
+      systemPhone: '',
+      incallNumber: '',
+      visitInfo: '',
+      contacts: [],
+      general: null,
+    }
+    expect(directoryEntryToCardDraft(entry).category).toBe('NON_LIFE')
+  })
+})
 
 describe('findDuplicateCard', () => {
   it('같은 종류·코드의 카드를 찾는다', () => {

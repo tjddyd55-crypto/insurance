@@ -3,15 +3,20 @@ import { FormButton, FormInput, FormSelect } from '../../../components/form'
 import type { InsurerSite } from '../../insurer-sites/api/insurerSitesApi'
 import { formatPhoneNumber } from '../../contacts/utils/phone'
 import type { ContactCompanyCardDraft, ContactPersonDraft } from '../domain/contactCardWorkspaceModel'
-import { applyNewCardCategoryChange, emptyContactRow } from '../domain/contactCardWorkspaceModel'
-import { buildInsuranceCompanyPickerOptions } from '../domain/insuranceCompanyCatalogOptions'
+import { applyCardCategoryChange, emptyContactRow } from '../domain/contactCardWorkspaceModel'
+import {
+  applyPickerCompanySelection,
+  buildInsuranceCompanyPickerOptions,
+} from '../domain/insuranceCompanyCatalogOptions'
 import type { CompanyDirectoryEntry } from '../domain/types'
 import { INSURANCE_TYPE_LABELS, INSURANCE_TYPE_ORDER, type InsuranceCategory } from '../domain/insuranceConstants'
+
 type CompanyContactEditableCardProps = {
   draft: ContactCompanyCardDraft
   directory: CompanyDirectoryEntry[]
   insurerCatalog: InsurerSite[]
   editingTab: InsuranceCategory
+  allowExistingCompanyEdit: boolean
   onChange: (next: ContactCompanyCardDraft) => void
   onRemoveCard: () => void
 }
@@ -21,10 +26,12 @@ export function CompanyContactEditableCard({
   directory,
   insurerCatalog,
   editingTab,
+  allowExistingCompanyEdit,
   onChange,
   onRemoveCard,
 }: CompanyContactEditableCardProps) {
   const crossTabEdit = draft.category !== editingTab
+  const showCompanyMetadata = draft.isNew || allowExistingCompanyEdit
   const companyOptions = useMemo(
     () => buildInsuranceCompanyPickerOptions(directory, insurerCatalog, draft.category),
     [directory, draft.category, insurerCatalog],
@@ -68,20 +75,18 @@ export function CompanyContactEditableCard({
       className={`company-card company-card--editing${crossTabEdit ? ' company-card--edit-cross-tab' : ''}`}
     >
       <div className="company-card__header">
-        {draft.isNew ? (
+        {showCompanyMetadata ? (
           <div className="company-card__new-meta">
-            {crossTabEdit ? (
-              <p className="company-card__cross-tab-hint" role="status">
-                {INSURANCE_TYPE_LABELS[draft.category]} 카드 — 저장 후 「{INSURANCE_TYPE_LABELS[draft.category]}」 탭에서
-                조회됩니다.
-              </p>
-            ) : null}
             <FormSelect
               className="field__control company-card__category-select"
               value={draft.category}
               onChange={(event) => {
                 const category = event.target.value as InsuranceCategory
-                onChange(applyNewCardCategoryChange(draft, category))
+                onChange(
+                  applyCardCategoryChange(draft, category, {
+                    allowExisting: allowExistingCompanyEdit,
+                  }),
+                )
               }}
               options={INSURANCE_TYPE_ORDER.map((value) => ({
                 value,
@@ -93,13 +98,7 @@ export function CompanyContactEditableCard({
               value={draft.companyCode}
               onChange={(event) => {
                 const companyCode = String(event.target.value ?? '')
-                const option = companyOptions.find((row) => row.companyCode === companyCode)
-                onChange({
-                  ...draft,
-                  companyCode,
-                  companyName: option?.name ?? '',
-                  customerCenter: option?.tel ?? draft.customerCenter,
-                })
+                onChange(applyPickerCompanySelection(draft, companyCode, companyOptions, directory))
               }}
               options={[
                 { value: '', label: '보험회사 선택' },
