@@ -451,18 +451,27 @@ export default function PersonalBinderEditorPage({
 
   return (
     <main className={rootClass}>
-      <header className="personal-binder-editor-header">
-        {layout === 'embedded' ? null : (
-          <FormButton variant="action" onClick={() => navigate('/personal-binders')}>
-            ← 목록
-          </FormButton>
+      <header
+        className={[
+          'personal-binder-editor-header',
+          layout === 'embedded' ? 'personal-binder-studio-pane__header' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
+        {layout === 'embedded' ? (
+          <h2 className="personal-binder-studio-pane__title">편집</h2>
+        ) : (
+          <>
+            <FormButton variant="action" onClick={() => navigate('/personal-binders')}>
+              ← 목록
+            </FormButton>
+            <div>
+              <h1>바인더 편집</h1>
+              <p>섹션과 자료 순서를 상담 흐름에 맞게 구성하세요.</p>
+            </div>
+          </>
         )}
-        <div>
-          <h1>{layout === 'embedded' ? '편집' : '바인더 편집'}</h1>
-          {layout === 'embedded' ? null : (
-            <p>섹션과 자료 순서를 상담 흐름에 맞게 구성하세요.</p>
-          )}
-        </div>
         <div className="personal-binder-editor-header__actions">
           <FormButton variant="secondary" size="sm" onClick={() => startConsultation()}>
             상담
