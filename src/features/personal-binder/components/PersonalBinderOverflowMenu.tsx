@@ -12,9 +12,15 @@ type Props = {
   ariaLabel: string
   items: PersonalBinderOverflowMenuItem[]
   disabled?: boolean
+  className?: string
 }
 
-export function PersonalBinderOverflowMenu({ ariaLabel, items, disabled = false }: Props) {
+export function PersonalBinderOverflowMenu({
+  ariaLabel,
+  items,
+  disabled = false,
+  className = '',
+}: Props) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const menuId = useId()
@@ -31,7 +37,7 @@ export function PersonalBinderOverflowMenu({ ariaLabel, items, disabled = false 
   }, [open])
 
   return (
-    <div className="personal-binder-overflow-menu" ref={rootRef}>
+    <div className={['personal-binder-overflow-menu', className].filter(Boolean).join(' ')} ref={rootRef}>
       <button
         type="button"
         className="personal-binder-overflow-menu__trigger"

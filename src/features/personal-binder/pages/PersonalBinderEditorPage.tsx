@@ -55,6 +55,11 @@ type PageSelectionTarget = {
   initialSelection: number[] | null
 }
 
+function formatBinderSectionIndex(sectionIndex: number, embedded: boolean): string {
+  const n = sectionIndex + 1
+  return embedded ? String(n).padStart(2, '0') : `${n}.`
+}
+
 function formatBinderItemPageLabel(item: PersonalBinderItem): string {
   const total = item.material.pageCount
   if (!item.pageSelection) {
@@ -570,12 +575,13 @@ export default function PersonalBinderEditorPage({
                   }
                 >
                   <span className="personal-binder-toc__section-index" aria-hidden="true">
-                    {sectionIndex + 1}.
+                    {formatBinderSectionIndex(sectionIndex, layout === 'embedded')}
                   </span>
-                  <strong>{section.title}</strong>
+                  <strong className="personal-binder-toc__section-title">{section.title}</strong>
                   {layout !== 'embedded' ? <small>{orderedItems.length}개 자료</small> : null}
                 </FormButton>
                 <PersonalBinderOverflowMenu
+                  className="personal-binder-overflow-menu--toc"
                   ariaLabel={`${section.title} 섹션 메뉴`}
                   items={[
                     {
@@ -639,6 +645,9 @@ export default function PersonalBinderEditorPage({
                             ⋮⋮
                           </span>
                         ) : null}
+                        {layout === 'embedded' ? (
+                          <span className="personal-binder-toc__bullet" aria-hidden="true">•</span>
+                        ) : null}
                         <button
                           type="button"
                           className="personal-binder-item-row__main"
@@ -651,13 +660,30 @@ export default function PersonalBinderEditorPage({
                             )
                           }
                         >
-                          <span className="personal-binder-item-row__name" title={fileTitle}>
-                            <span className="personal-binder-item-row__basename">{fileDisplay.baseName}</span>
-                            <span className="personal-binder-item-row__ext">.{fileDisplay.extension.toLowerCase()}</span>
+                          <span
+                            className={[
+                              'personal-binder-item-row__name',
+                              layout === 'embedded' ? 'personal-binder-toc__file-label' : '',
+                            ]
+                              .filter(Boolean)
+                              .join(' ')}
+                            title={fileTitle}
+                          >
+                            {layout === 'embedded' ? (
+                              fileTitle
+                            ) : (
+                              <>
+                                <span className="personal-binder-item-row__basename">{fileDisplay.baseName}</span>
+                                <span className="personal-binder-item-row__ext">.{fileDisplay.extension.toLowerCase()}</span>
+                              </>
+                            )}
                           </span>
                           <small className="personal-binder-toc__page-meta">{pageLabel}</small>
                         </button>
                         <PersonalBinderOverflowMenu
+                          className={
+                            layout === 'embedded' ? 'personal-binder-overflow-menu--toc' : ''
+                          }
                           ariaLabel={`${fileTitle} 자료 메뉴`}
                           items={[
                             {
@@ -695,7 +721,8 @@ export default function PersonalBinderEditorPage({
                     )
                   })}
                   <FormButton
-                    variant="secondary"
+                    variant="action"
+                    size="sm"
                     className="personal-binder-section-card__add-material"
                     onClick={() => setMaterialSectionId(section.id)}
                   >
