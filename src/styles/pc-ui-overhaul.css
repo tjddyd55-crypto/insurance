@@ -335,3 +335,52 @@
     justify-content: flex-start;
   }
 }
+
+/* t270 — 관리자 유저 관리 PC: 상단 통합 조회 영역 + 동일 테이블(전체/GA별) */
+@media (min-width: 769px) {
+  .admin-user-pc { gap: 10px; }
+  .admin-user-pc > .admin-user-pc__header { margin-bottom: 0; }
+  .admin-user-pc > .admin-user-pc__header h1 { margin: 0; }
+  .admin-user-pc > .admin-user-pc__header p { margin: 2px 0 0; }
+  .admin-user-pc .admin-user-pc__top { max-width: none; margin: 0; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+  .admin-user-pc .admin-user-pc__row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 10px; }
+  .admin-user-pc .admin-user-pc__row--summary { align-items: center; }
+  .admin-user-pc .admin-user-pc__stats { display: flex; gap: 4px; border: 1px solid var(--border-default); border-radius: 10px; padding: 2px; }
+  .admin-user-pc .admin-user-pc__stat { flex: 0 0 auto; min-width: 0; flex-direction: row; align-items: baseline; gap: 6px; padding: 4px 10px; border-radius: 8px; }
+  .admin-user-pc .admin-user-pc__stat .admin-user-management__stat-value { font-size: 16px; }
+  .admin-user-pc .admin-user-pc__view-toggle { display: flex; gap: 4px; }
+  .admin-user-pc .admin-user-pc__view-toggle .button,
+  .admin-user-pc .admin-user-pc__btn-sm,
+  .admin-user-pc .admin-user-pc__sms-button { min-height: 34px; padding: 0 12px; }
+  .admin-user-pc .admin-user-pc__field { margin: 0; flex: 0 1 140px; min-width: 120px; }
+  .admin-user-pc .admin-user-pc__row--summary .admin-user-pc__field--ga { flex: 0 1 220px; margin-left: auto; display: flex; flex-direction: row; align-items: center; gap: 6px; }
+  .admin-user-pc .admin-user-pc__field--ga > * { margin: 0; white-space: nowrap; }
+  .admin-user-pc .admin-user-pc__field--search { flex: 0 1 260px; min-width: 200px; }
+  .admin-user-pc .admin-user-pc__field .admin-form-input { min-height: 34px; height: 34px; padding-top: 0; padding-bottom: 0; }
+  .admin-user-pc .admin-user-pc__field label,
+  .admin-user-pc .admin-user-pc__field .field__label { font-size: 12px; margin-bottom: 2px; }
+  .admin-user-pc .admin-user-pc__bulk { align-items: center; border-top: 1px solid var(--border-default); padding-top: 8px; }
+  .admin-user-pc .admin-user-pc__bulk-summary { margin: 0; font-size: 13px; color: var(--text-secondary); }
+  .admin-user-pc .admin-user-pc__spacer { flex: 1 1 auto; }
+  .admin-user-pc .admin-user-pc__warn:empty { display: none; }
+  .admin-user-pc .admin-user-pc__table-wrap { max-width: none; margin: 0; padding: 0; }
+  .admin-user-pc .admin-user-pc__group-row > th { padding: 0; background: color-mix(in srgb, var(--border-default) 35%, transparent); text-align: left; }
+  .admin-user-pc .admin-user-pc__group-toggle { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 12px; border: 0; background: transparent; font: inherit; color: var(--text-primary); cursor: pointer; text-align: left; }
+  .admin-user-pc .admin-user-pc__group-stats { font-size: 12px; font-weight: 400; color: var(--text-secondary); }
+  .admin-user-pc .admin-user-table th,
+  .admin-user-pc .admin-user-table td { padding: 6px 8px; font-size: 13px; vertical-align: middle; }
+  .admin-user-pc .admin-user-table td.admin-table-cell--actions { white-space: nowrap; }
+  .admin-user-pc .admin-user-table .admin-table-actions { flex-wrap: nowrap; gap: 4px; }
+  .admin-user-pc .admin-user-table .admin-table-actions .button { min-height: 30px; padding: 4px 10px; font-size: 13px; border-radius: 8px; }
+  .admin-user-pc .admin-user-table .admin-user-table__name-cell { flex-wrap: wrap; }
+  .admin-user-pc .admin-user-table td { white-space: normal; word-break: keep-all; overflow-wrap: anywhere; }
+  .admin-user-pc .admin-user-table td:nth-child(7) { max-width: 180px; }
+  .admin-user-pc .admin-user-table td:nth-child(10) { max-width: 170px; }
+  .admin-user-pc .admin-user-table td:nth-child(10) * { white-space: normal; max-width: 100%; }
+  .admin-user-pc .admin-user-table td:nth-child(6) { white-space: nowrap; }
+  .admin-user-pc .admin-user-table td:nth-child(7) { max-width: 140px; }
+  .admin-user-pc .admin-user-table td:nth-child(5) { max-width: 170px; }
+  .admin-user-pc .admin-user-table td.admin-user-table__join-date,
+  .admin-user-pc .admin-user-table td.admin-user-table__last-login { white-space: nowrap; }
+  .admin-user-pc .admin-user-management__history { margin: 0 !important; }
+}
