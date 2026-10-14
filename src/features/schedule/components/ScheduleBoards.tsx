@@ -47,7 +47,10 @@ function taskButtonClass(base: string, task: ScheduleTask, today?: string): stri
   return classes.join(' ')
 }
 
-function TaskChip({ task, base, today, onOpenTask }: { task: ScheduleTask; base: string; today?: string; onOpenTask: (task: ScheduleTask) => void }) {
+/** PC 달력 칸 전용: 할 일 출처 표시(작은 글자). Google 할 일 "G", ONE FC 할 일 "FC". */
+const TASK_SOURCE_TAG: Record<ScheduleTask['source'], string> = { google_task: 'G', onefc_todo: 'FC' }
+
+function TaskChip({ task, base, today, onOpenTask, sourceTag = false }: { task: ScheduleTask; base: string; today?: string; onOpenTask: (task: ScheduleTask) => void; sourceTag?: boolean }) {
   return (
     <button
       type="button"
@@ -55,6 +58,11 @@ function TaskChip({ task, base, today, onOpenTask }: { task: ScheduleTask; base:
       title={`${SCHEDULE_FILTER_LABEL[task.source]} · 할 일 · ${task.title}${task.status === 'completed' ? ' (완료)' : ''}`}
       onClick={() => onOpenTask(task)}
     >
+      {sourceTag ? (
+        <span className={`schedule-page__src-tag schedule-page__src-tag--${task.source}`} aria-label={SCHEDULE_FILTER_LABEL[task.source]}>
+          {TASK_SOURCE_TAG[task.source]}
+        </span>
+      ) : null}
       <span className="schedule-page__task-mark" aria-hidden="true">{taskMark(task)}</span> {task.title}
     </button>
   )
@@ -63,11 +71,13 @@ function TaskChip({ task, base, today, onOpenTask }: { task: ScheduleTask; base:
 type MonthProps = Pick<ScheduleViewProps, 'anchor' | 'today' | 'events' | 'tasks' | 'selectedDate' | 'onSelectDate' | 'onOpenDay' | 'onOpenEvent' | 'onOpenTask'> & {
   /** PC 전용: 일/공휴일 빨강·토 파랑. 없으면(모바일) 기존 표시 그대로. */
   holidayMode?: ScheduleHolidayMode
+  /** PC 전용: 칸 빈 곳 클릭으로 날짜 선택, 할 일 출처 표시. 없으면(모바일) 기존 그대로. */
+  pcCell?: boolean
 }
 
 const WEEKDAY_TONE = ['sun', '', '', '', '', '', 'sat']
 
-export function ScheduleMonth({ anchor, today, events, tasks, selectedDate, onSelectDate, onOpenDay, onOpenEvent, onOpenTask, holidayMode }: MonthProps) {
+export function ScheduleMonth({ anchor, today, events, tasks, selectedDate, onSelectDate, onOpenDay, onOpenEvent, onOpenTask, holidayMode, pcCell = false }: MonthProps) {
   const sorted = sortScheduleEvents(events)
   // 예정일 없는 할 일은 월간 칸에 올리지 않는다(목록 화면 "날짜 없음"에서 보인다).
   const datedTasks = sortScheduleTasks(tasks.filter((task) => task.dueDate))
@@ -99,7 +109,16 @@ export function ScheduleMonth({ anchor, today, events, tasks, selectedDate, onSe
           const holidayName = holidayMode ? koreanHolidayName(cell.date, holidayMode) : ''
           if (tone) classes.push(`schedule-page__cell--${tone}`)
           return (
-            <div key={cell.date} className={classes.join(' ')} role="gridcell">
+            <div
+              key={cell.date}
+              className={classes.join(' ')}
+              role="gridcell"
+              // PC: 칸의 빈 곳을 눌러도 그 날짜를 고른다. 일정·할 일·+N·날짜 버튼은 각자 동작만 한다(중복 처리 없음).
+              onClick={pcCell ? (clickEvent) => {
+                if ((clickEvent.target as HTMLElement).closest('button')) return
+                if (cell.date !== selectedDate) onSelectDate(cell.date)
+              } : undefined}
+            >
               <button
                 type="button"
                 className="schedule-page__date"
@@ -122,7 +141,7 @@ export function ScheduleMonth({ anchor, today, events, tasks, selectedDate, onSe
                 </button>
               ))}
               {visibleTasks.map((task) => (
-                <TaskChip key={task.id} task={task} base="schedule-page__chip" today={today} onOpenTask={onOpenTask} />
+                <TaskChip key={task.id} task={task} base="schedule-page__chip" today={today} onOpenTask={onOpenTask} sourceTag={pcCell} />
               ))}
               {overflow > 0 ? (
                 <button type="button" className="schedule-page__more" onClick={() => onSelectDate(cell.date)}>
@@ -149,7 +168,7 @@ export function ScheduleMonth({ anchor, today, events, tasks, selectedDate, onSe
   )
 }
 
-export function ScheduleWeek({ anchor, today, events, tasks, onOpenEvent, onOpenTask, holidayMode }: Pick<ScheduleViewProps, 'anchor' | 'today' | 'events' | 'tasks' | 'onOpenEvent' | 'onOpenTask'> & { holidayMode?: ScheduleHolidayMode }) {
+export function ScheduleWeek({ anchor, today, events, tasks, onOpenEvent, onOpenTask, holidayMode, pcCell = false }: Pick<ScheduleViewProps, 'anchor' | 'today' | 'events' | 'tasks' | 'onOpenEvent' | 'onOpenTask'> & { holidayMode?: ScheduleHolidayMode; pcCell?: boolean }) {
   const days = weekDays(anchor)
   const sorted = sortScheduleEvents(events)
   const sortedTasks = sortScheduleTasks(tasks)
@@ -190,7 +209,7 @@ export function ScheduleWeek({ anchor, today, events, tasks, onOpenEvent, onOpen
           {days.map((date) => (
             <div key={date} className="schedule-page__slot">
               {tasksOnDate(sortedTasks, date).map((task) => (
-                <TaskChip key={task.id} task={task} base="schedule-page__block" today={today} onOpenTask={onOpenTask} />
+                <TaskChip key={task.id} task={task} base="schedule-page__block" today={today} onOpenTask={onOpenTask} sourceTag={pcCell} />
               ))}
             </div>
           ))}

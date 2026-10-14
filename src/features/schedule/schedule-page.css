@@ -579,11 +579,23 @@
   }
   /* 달력이 남은 높이를 채운다. 요일 머리줄은 내용 높이, 주(週) 줄은 균등. */
   .schedule-page--compact .schedule-page__month {
-    flex: 1 1 auto;
-    min-height: 0;
+    /* 남는 높이를 채운다. 주 줄은 최소 80px 이라 아래 날짜 목록이 있어도 칸이 지나치게 줄지 않는다. */
+    flex: 1 1 0;
+    /* auto 면 칸 내용 높이가 최소가 되어 달력이 화면 밖으로 늘어난다. 최소는 6주 × 80px + 요일 줄. */
+    min-height: calc(6 * 80px + 32px + 6 * 4px);
     margin-top: 8px;
-    grid-template-rows: auto;
-    grid-auto-rows: minmax(64px, 1fr);
+    grid-template-rows: 32px;
+    grid-auto-rows: minmax(80px, 1fr);
+  }
+  /* 선택한 날짜 목록: 달력 아래 고정 영역, 길면 안에서 스크롤 */
+  .schedule-page--compact .schedule-page__day-panel {
+    flex: 0 1 auto;
+    min-height: 96px;
+    max-height: 36%;
+    overflow: auto;
+  }
+  .schedule-page--compact .schedule-page__month .schedule-page__weekday {
+    min-height: 0;
   }
   .schedule-page--compact .schedule-page__month .schedule-page__cell {
     min-height: 0;
@@ -597,4 +609,82 @@
     margin-top: 8px;
     overflow: auto;
   }
+}
+
+/* ── PC 달력: 할 일 출처 표시 · 칸 빈 곳 선택 · 고객 상세 팝업 (PC 전용 class 만 사용) ── */
+.schedule-page--pc .schedule-page__src-tag {
+  display: inline-block;
+  min-width: 1.5em;
+  margin-right: 3px;
+  padding: 0 3px;
+  border-radius: 3px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  vertical-align: baseline;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+}
+.schedule-page--pc .schedule-page__src-tag--google_task {
+  color: var(--info-text, #1d4ed8);
+  border-color: var(--info-border, #bfdbfe);
+}
+.schedule-page--pc .schedule-page__src-tag--onefc_todo {
+  color: var(--primary, #15803d);
+  border-color: var(--primary-border, #bbf7d0);
+}
+.schedule-page--pc .schedule-page__month .schedule-page__cell {
+  cursor: pointer;
+}
+.schedule-customer-modal.schedule-customer-modal {
+  /* BaseDialog 기본(좁은 알림형) 크기를 이 팝업에서만 넓힌다(유틸리티 layer 보다 우선). */
+  width: min(1480px, 96vw);
+  max-width: none;
+  height: 92vh;
+  max-height: 92vh;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.schedule-customer-modal__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+.schedule-customer-modal__title {
+  font-size: 1rem;
+  white-space: nowrap;
+}
+.schedule-customer-modal__sub {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+.schedule-customer-modal__close {
+  margin-left: auto;
+}
+.schedule-customer-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+}
+.schedule-customer-modal__frame {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.schedule-customer-modal__message {
+  margin: auto;
+  padding: 24px;
+  color: var(--text-secondary);
 }
