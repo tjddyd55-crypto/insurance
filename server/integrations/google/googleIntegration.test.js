@@ -5,7 +5,7 @@ import { registerServiceIntegrationsApi } from '../../apis/registerServiceIntegr
 import { loadScheduleEvents } from '../../schedule/scheduleQuery.js'
 import { loadGoogleCalendarSchedule } from '../googleCalendarAdapter.js'
 import { createFakeGoogle, createFakeIntegrationPool } from './googleIntegrationTestKit.js'
-import { consumeOAuthState, createOAuthState, hashOAuthToken } from './googleOAuthStateStore.js'
+import { consumeOAuthState, createOAuthState, DESKTOP_BINDING_MARKER, hashOAuthToken } from './googleOAuthStateStore.js'
 import { GOOGLE_CALENDAR_SCOPES } from './googleOAuthConfig.js'
 import { googleCacheKey, googleCacheKeysForTest, resetGoogleCacheForTest } from './googleUserCache.js'
 import { googleTimeWindow } from './googleCalendarApi.js'
@@ -115,12 +115,12 @@ describe('Google Calendar 연동 (USER 소유, 읽기 전용)', () => {
     if (server) server.close()
   })
 
-  async function api(user, method, path, { cookie, role } = {}) {
+  async function api(user, method, path, { cookie, role, body: requestBody } = {}) {
     const headers = { 'content-type': 'application/json' }
     if (user) headers['x-test-user'] = user
     if (role) headers['x-test-role'] = role
     if (cookie) headers.cookie = cookie
-    const response = await realFetch(`${base}${path}`, { method, headers, body: method === 'POST' ? '{}' : undefined, redirect: 'manual' })
+    const response = await realFetch(`${base}${path}`, { method, headers, body: method === 'POST' ? JSON.stringify(requestBody ?? {}) : undefined, redirect: 'manual' })
     const text = await response.text()
     let body = null
     try { body = JSON.parse(text) } catch { body = text }
@@ -191,7 +191,7 @@ describe('Google Calendar 연동 (USER 소유, 읽기 전용)', () => {
 
     const created = await createOAuthState(pool, { userId: 'user-a', providerKey: 'google_calendar', now: Date.now() - 11 * 60 * 1000 })
     const expired = await consumeOAuthState(pool, { state: created.state, binding: created.binding, providerKey: 'google_calendar' })
-    assert.deepEqual(expired, { ok: false, reason: 'state_expired' })
+    assert.deepEqual(expired, { ok: false, client: 'web', reason: 'state_expired' })
 
     const other = await createOAuthState(pool, { userId: 'user-a', providerKey: 'naver_calendar' })
     const wrongProvider = await consumeOAuthState(pool, { state: other.state, binding: other.binding, providerKey: 'google_calendar' })
@@ -200,6 +200,104 @@ describe('Google Calendar 연동 (USER 소유, 읽기 전용)', () => {
     const stored = [...pool.states.values()]
     assert.ok(stored.every((row) => row.state_hash !== created.state && row.binding_hash !== created.binding))
     assert.equal(hashOAuthToken('x').length > 20, true)
+  })
+
+  describe('데스크톱 앱(client=desktop): 시스템 브라우저 동의, 쿠키 없이 서버 바인딩 state', () => {
+    async function desktopStart(user) {
+      const started = await api(user, 'POST', '/backend/api/service-integrations/google_calendar/connect', { body: { client: 'desktop' } })
+      assert.equal(started.status, 200)
+      return { started, state: new URL(started.body.data.url).searchParams.get('state') }
+    }
+    const callbackPath = (state, code) => `/backend/service-integrations/google/callback?state=${encodeURIComponent(state)}&code=${code}`
+
+    it('connect: open_external, 바인딩 쿠키 없음, DB 에는 state 해시와 desktop 표식만', async () => {
+      const { started, state } = await desktopStart('user-a')
+      assert.equal(started.body.data.action, 'open_external')
+      assert.equal(started.body.data.client, 'desktop')
+      assert.equal(started.body.data.expiresInSeconds, 600)
+      assert.equal(started.headers.get('set-cookie'), null)
+      const rows = [...pool.states.values()]
+      assert.equal(rows.length, 1)
+      assert.equal(rows[0].state_hash, hashOAuthToken(state))
+      assert.equal(rows[0].binding_hash, DESKTOP_BINDING_MARKER)
+      assert.equal(rows[0].user_id, 'user-a')
+      assert.ok(new Date(rows[0].expires_at).getTime() - Date.now() <= 10 * 60 * 1000)
+    })
+
+    it('UA 만 Electron 이어도 client 플래그가 없으면 웹 흐름(쿠키 필요)', async () => {
+      const started = await api('user-a', 'POST', '/backend/api/service-integrations/google_calendar/connect', { body: { client: 'Desktop' } })
+      assert.equal(started.body.data.action, 'redirect')
+      assert.match(started.headers.get('set-cookie') ?? '', /onefc_google_oauth_bind=/)
+      const state = new URL(started.body.data.url).searchParams.get('state')
+      const cb = await api(null, 'GET', callbackPath(state, google.issueCode('gA')))
+      assert.match(cb.headers.get('location'), /reason=session_mismatch/)
+      assert.equal(pool.integrations.size, 0)
+    })
+
+    it('callback: 쿠키 없이 바인딩된 사용자에게만 저장, 완료 페이지에 마스킹 계정, 앱으로 redirect 하지 않음', async () => {
+      const { state } = await desktopStart('user-a')
+      const cb = await api(null, 'GET', callbackPath(state, google.issueCode('gA')))
+      assert.equal(cb.status, 200)
+      assert.equal(cb.headers.get('location'), null)
+      assert.match(cb.headers.get('content-type'), /text\/html/)
+      assert.match(cb.headers.get('content-security-policy'), /default-src 'none'/)
+      assert.match(cb.text, /연동 완료\. ONE FC 앱으로 돌아가세요/)
+      assert.match(cb.text, /us\*{4}/)
+      assert.doesNotMatch(cb.text, /user-a/)
+      assert.equal(pool.integrations.get('user-a|google')?.owner_scope, 'USER')
+      assert.equal(pool.integrations.size, 1)
+      assert.equal(pool.states.size, 0)
+      const status = await api('user-a', 'GET', '/backend/api/service-integrations/google/status')
+      assert.equal(status.status, 200)
+      const statusB = await api('user-b', 'GET', '/backend/api/service-integrations/google/status')
+      assert.notDeepEqual(statusB.body, status.body)
+    })
+
+    it('1회용: 같은 state 재사용은 거부되고 추가 저장 없음', async () => {
+      const { state } = await desktopStart('user-a')
+      await api(null, 'GET', callbackPath(state, google.issueCode('gA')))
+      const again = await api(null, 'GET', callbackPath(state, google.issueCode('gB')))
+      assert.match(again.headers.get('location'), /reason=state_invalid/)
+      assert.equal(pool.integrations.get('user-a|google').provider_account_email, 'alice@example.com')
+    })
+
+    it('만료(10분 초과)·위조·다른 provider state 는 저장하지 않는다', async () => {
+      const old = await createOAuthState(pool, { userId: 'user-a', providerKey: 'google_calendar', client: 'desktop', now: Date.now() - 11 * 60 * 1000 })
+      assert.equal(old.binding, null)
+      const expired = await api(null, 'GET', callbackPath(old.state, google.issueCode('gA')))
+      assert.equal(expired.status, 400)
+      assert.match(expired.text, /시간이 지났습니다/)
+      const forged = await api(null, 'GET', callbackPath('forged-desktop', google.issueCode('gA')))
+      assert.match(forged.headers.get('location'), /reason=state_invalid/)
+      const other = await createOAuthState(pool, { userId: 'user-a', providerKey: 'naver_calendar', client: 'desktop' })
+      assert.deepEqual(await consumeOAuthState(pool, { state: other.state, binding: '', providerKey: 'google_calendar' }), { ok: false, reason: 'state_invalid' })
+      assert.equal(pool.integrations.size, 0)
+    })
+
+    it('바인딩된 사용자가 삭제(비활성)되었으면 저장하지 않는다', async () => {
+      const { state } = await desktopStart('user-b')
+      pool.deleted.push('user-b')
+      const cb = await api(null, 'GET', callbackPath(state, google.issueCode('gB')))
+      assert.equal(cb.status, 400)
+      assert.match(cb.text, /계정을 찾을 수 없습니다/)
+      assert.equal(pool.integrations.size, 0)
+    })
+
+    it('Google 동의 거부는 결과 페이지로 실패 안내', async () => {
+      const { state } = await desktopStart('user-a')
+      const cb = await api(null, 'GET', `/backend/service-integrations/google/callback?state=${encodeURIComponent(state)}&error=access_denied`)
+      assert.equal(cb.status, 400)
+      assert.match(cb.text, /동의가 취소/)
+      assert.equal(pool.integrations.size, 0)
+    })
+
+    it('웹 state 는 desktop 플래그 없이 여전히 쿠키가 있어야 완료된다', async () => {
+      const ok = await connect('user-a', 'gA')
+      assert.match(ok.callback.headers.get('location'), /google=connected/)
+      const noCookie = await connect('user-b', 'gB', { useCookie: false })
+      assert.match(noCookie.callback.headers.get('location'), /reason=session_mismatch/)
+      assert.equal(pool.integrations.has('user-b|google'), false)
+    })
   })
 
   it('다른 사용자에게 연결되는 것 차단: B 가 시작한 state 를 A 브라우저가 완료해도 저장 안 됨', async () => {
