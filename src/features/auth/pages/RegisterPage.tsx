@@ -21,6 +21,7 @@ import { resolvePostAuthNavigationPath } from '../../insurance-billing/postAuthN
 import {
   validateReferralCodeForSignup,
 } from '../../referrals/referralApi'
+import { searchPartnerGas, type PartnerGaOption } from '../../ga-approval/gaApprovalApi'
 import {
   getSignupUsernameValidationError,
   SIGNUP_USERNAME_RULE_MESSAGE,
@@ -98,6 +99,12 @@ export function RegisterPage({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [smsSubmitting, setSmsSubmitting] = useState(false)
   const [usernameCheck, setUsernameCheck] = useState<UsernameCheck>('idle')
+  /** t291: A) 개인 회원(공용) / B) 제휴 GA 소속 회원(승인 대기) */
+  const [signupType, setSignupType] = useState<'public' | 'ga_partner'>('public')
+  const [partnerQuery, setPartnerQuery] = useState('')
+  const [partnerOptions, setPartnerOptions] = useState<PartnerGaOption[]>([])
+  const [partnerGa, setPartnerGa] = useState<PartnerGaOption | null>(null)
+  const [partnerLoadError, setPartnerLoadError] = useState('')
   const [secondsLeft, setSecondsLeft] = useState(0)
   const [resendLeft, setResendLeft] = useState(0)
   const [debugCodeHint, setDebugCodeHint] = useState('')
@@ -155,6 +162,33 @@ export function RegisterPage({
     const ts = searchParams.get('ts')?.trim()
     setInviteTs(ts ?? '')
   }, [searchParams])
+
+  /** 공식 GA 링크(?ga=) 는 기존 자동 소속 정책 — 가입 유형 선택 숨김 */
+  const officialGaLink = Boolean(searchParams.get('ga')?.trim())
+  const showSignupTypeChooser = !tenantCodeMode && !gaGroupSignup && !officialGaLink
+
+  useEffect(() => {
+    if (!showSignupTypeChooser || signupType !== 'ga_partner') {
+      return
+    }
+    let cancelled = false
+    const t = window.setTimeout(() => {
+      searchPartnerGas(partnerQuery)
+        .then((items) => {
+          if (!cancelled) {
+            setPartnerOptions(items)
+            setPartnerLoadError('')
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setPartnerLoadError('제휴 GA 목록을 불러오지 못했습니다.')
+        })
+    }, 250)
+    return () => {
+      cancelled = true
+      window.clearTimeout(t)
+    }
+  }, [showSignupTypeChooser, signupType, partnerQuery])
 
   useEffect(() => {
     if (signupIndustry !== 'government') {
@@ -520,6 +554,12 @@ export function RegisterPage({
       return
     }
 
+    const isPartnerSignup = showSignupTypeChooser && signupType === 'ga_partner'
+    if (isPartnerSignup && !partnerGa) {
+      setErrorMessage('가입 신청할 제휴 GA를 선택해 주세요.')
+      return
+    }
+
     setIsSubmitting(true)
     try {
       logout()
@@ -554,6 +594,7 @@ export function RegisterPage({
           signupPhoneProof: signupPhoneProof ?? undefined,
           referralCode: referralCodeNorm || undefined,
           gaGroupSlug: gaGroupSignup?.slug,
+          ...(isPartnerSignup && partnerGa ? { signupType: 'ga_partner' as const, partnerGaId: partnerGa.id } : {}),
         })
       }
       const session = await loginApi(userTrim, password)
@@ -627,6 +668,41 @@ export function RegisterPage({
           <FormInput type="hidden" name="invite_ref_user_id" value={inviteRefUserId} aria-hidden />
           <FormInput type="hidden" name="invite_sig" value={inviteSig} aria-hidden />
           <FormInput type="hidden" name="invite_ts" value={inviteTs} aria-hidden />
+          {showSignupTypeChooser ?
+            <div className="field register-signup-type" role="radiogroup" aria-label="가입 유형">
+              <span className="field__label">가입 유형</span>
+              <FormButton
+                htmlType="button"
+                variant="action"
+                role="radio"
+                aria-checked={signupType === 'public'}
+                className={`register-signup-type__opt${signupType === 'public' ? ' is-selected' : ''}`}
+                onClick={() => {
+                  setSignupType('public')
+                  setPartnerGa(null)
+                }}
+              >
+                <strong>개인 회원 (공용)</strong>
+                <span>GA 소속 여부와 관계없이 개인적으로 ONE FC를 이용하는 회원</span>
+              </FormButton>
+              <FormButton
+                htmlType="button"
+                variant="action"
+                role="radio"
+                aria-checked={signupType === 'ga_partner'}
+                className={`register-signup-type__opt${signupType === 'ga_partner' ? ' is-selected' : ''}`}
+                onClick={() => {
+                  setSignupType('ga_partner')
+                  setGaCode('')
+                  setIsVerified(false)
+                  setSignupPhoneProof(null)
+                }}
+              >
+                <strong>ONE FC 제휴 GA 소속 회원</strong>
+                <span>ONE FC와 제휴된 GA의 전용 서비스를 이용하려는 회원 · GA 승인 후 소속</span>
+              </FormButton>
+            </div>
+          : null}
           {tenantCodeMode ?
             <label className="field">
               <span className="field__label">가입 코드</span>
@@ -665,6 +741,35 @@ export function RegisterPage({
                 setGaError('')
               }}
             />
+          : showSignupTypeChooser && signupType === 'ga_partner' ?
+            <div className="field">
+              <span className="field__label">제휴 GA 선택</span>
+              <FormInput
+                value={partnerQuery}
+                onChange={(e) => setPartnerQuery(e.target.value)}
+                autoComplete="off"
+                placeholder="GA 이름 검색"
+              />
+              <div className="register-partner-ga-list" role="listbox" aria-label="제휴 GA 목록">
+                {partnerOptions.length === 0 ?
+                  <p className="text-xs text-gray-400">검색 결과가 없습니다.</p>
+                : partnerOptions.map((g) => (
+                    <FormButton
+                      key={g.id}
+                      type="button"
+                      role="option"
+                      aria-selected={partnerGa?.id === g.id}
+                      className={`register-partner-ga-item${partnerGa?.id === g.id ? ' is-selected' : ''}`}
+                      onClick={() => setPartnerGa(g)}
+                    >
+                      {g.name}
+                    </FormButton>
+                  ))
+                }
+              </div>
+              {partnerGa ? <div className="ga-success">{`선택: ${partnerGa.name} · 가입 후 GA 승인 대기`}</div> : null}
+              {partnerLoadError ? <div className="ga-error">{partnerLoadError}</div> : null}
+            </div>
           : <label className="field">
               <span className="field__label">GA 코드 (선택)</span>
               <p className="text-xs text-gray-400 mb-2">
