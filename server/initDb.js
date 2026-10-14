@@ -4586,6 +4586,10 @@ export async function initDb() {
     './personal-binder/personalBinderShareSchemaGa.js'
   )
   await ensurePersonalBinderShareGaScopeColumns(pool)
+  const { ensureNewsletterCollectionsSchema } = await import(
+    './newsletter-collections/newsletterCollectionsSchema.js'
+  )
+  await ensureNewsletterCollectionsSchema(pool)
   await ensureReferralSchema(pool)
   await ensureBillingSchema(pool)
   await ensureInsuranceBillingPhase1Schema(pool)
