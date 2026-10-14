@@ -22,6 +22,8 @@ import { CustomerExcelImportPanel } from '../../customers/components/CustomerExc
 import PCOnlySection from '../../../components/PCOnlySection'
 import { SubscriptionStatusCard } from '../../subscription/components/SubscriptionStatusCard'
 import { fetchReferralSummary, type ReferralSummaryResponse } from '../../referrals/referralApi'
+import { fetchMyGaApproval, type MyGaApprovalRequest } from '../../ga-approval/gaApprovalApi'
+import { isPublicGeneralAccount } from '../generalGa'
 import { requestAccountDeletion } from '../../account/services/accountDeleteApi'
 import { BaseDialog } from '../../../components/dialog/BaseDialog'
 import { DialogActions } from '../../../components/dialog/DialogActions'
@@ -39,7 +41,7 @@ function isAccountDeletePhraseValid(value: string): boolean {
 
 export function ProfilePage() {
   const navigate = useNavigate()
-  const { token, user, login, logout, isAuthenticated } = useAuth()
+  const { token, user, login, logout, isAuthenticated, refreshAccountState } = useAuth()
   const pageTitle = '내 정보 관리'
   const [me, setMe] = useState<MeResponse | null>(null)
   const [loadError, setLoadError] = useState('')
@@ -73,6 +75,10 @@ export function ProfilePage() {
   const [referralCodeCopied, setReferralCodeCopied] = useState(false)
   const [referralCopyNotice, setReferralCopyNotice] = useState('')
   const referralCopyFeedbackTimerRef = useRef<number | null>(null)
+  const [referralShareOpen, setReferralShareOpen] = useState(false)
+  const [referralLinkCopied, setReferralLinkCopied] = useState(false)
+  const [gaApproval, setGaApproval] = useState<MyGaApprovalRequest | null>(null)
+  const [gaApprovalRefreshing, setGaApprovalRefreshing] = useState(false)
 
   const [accountDeleteOpen, setAccountDeleteOpen] = useState(false)
   const [accountDeletePhrase, setAccountDeletePhrase] = useState('')
@@ -156,6 +162,50 @@ export function ProfilePage() {
     } catch {
       scheduleTeamCopyNotice('복사에 실패했습니다.', 2000)
     }
+  }
+
+  const personalReferralCode = (referralSummary?.referralCode ?? user?.username ?? '').trim()
+  const personalReferralLink =
+    typeof window !== 'undefined' && personalReferralCode
+      ? `${window.location.origin}/register?ref=${encodeURIComponent(personalReferralCode)}`
+      : ''
+
+  const openReferralShare = () => {
+    setReferralLinkCopied(false)
+    setReferralShareOpen(true)
+  }
+
+  const copyReferralLink = async () => {
+    clearReferralCopyFeedbackTimer()
+    setReferralCopyNotice('')
+    if (!personalReferralLink) {
+      scheduleReferralCopyNotice('추천 링크를 만들 수 없습니다.', 2000)
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(personalReferralLink)
+      setReferralLinkCopied(true)
+      scheduleReferralCopyNotice('추천 링크를 복사했습니다.', 2000)
+    } catch {
+      scheduleReferralCopyNotice('복사에 실패했습니다.', 2000)
+    }
+  }
+
+  const shareReferralLink = async () => {
+    if (!personalReferralLink) return
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      try {
+        await navigator.share({
+          title: 'ONE FC 추천 가입',
+          text: `ONE FC 가입 추천 코드: ${personalReferralCode}`,
+          url: personalReferralLink,
+        })
+        return
+      } catch {
+        /* 취소·미지원 → 복사 */
+      }
+    }
+    await copyReferralLink()
   }
 
   const copyReferralCode = async () => {
@@ -342,6 +392,38 @@ export function ProfilePage() {
     void loadReferralSummary()
   }, [user?.role, loadReferralSummary])
 
+  /** t291: 공용(GENERAL) 회원의 제휴 GA 가입 승인 상태 */
+  useEffect(() => {
+    if (!token || !isPublicGeneralAccount(user)) {
+      setGaApproval(null)
+      return
+    }
+    let cancelled = false
+    fetchMyGaApproval(token)
+      .then((row) => {
+        if (cancelled) return
+        setGaApproval(row)
+        // 승인됐는데 세션이 아직 공용이면 재로그인 없이 세션 갱신
+        if (row?.status === 'APPROVED') void refreshAccountState()
+      })
+      .catch(() => {
+        if (!cancelled) setGaApproval(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [token, user, refreshAccountState])
+
+  const refreshGaApprovalStatus = async () => {
+    if (!token) return
+    setGaApprovalRefreshing(true)
+    try {
+      await refreshAccountState()
+    } finally {
+      setGaApprovalRefreshing(false)
+    }
+  }
+
   useEffect(() => {
     if (!token || !user || !me) {
       return
@@ -519,6 +601,32 @@ export function ProfilePage() {
     <main className="page page--with-back profile-page">
       <h1 className="profile-page__title">{pageTitle}</h1>
       <SubscriptionStatusCard subscription={user?.subscription ?? null} />
+      {gaApproval ? (
+        <section className="profile-page__section" aria-live="polite">
+          <h2 className="profile-page__section-title">제휴 GA 가입 승인</h2>
+          <p className="profile-page__status">
+            {gaApproval.status === 'PENDING'
+              ? `${gaApproval.gaName} · 승인 대기 중`
+              : gaApproval.status === 'APPROVED'
+                ? `${gaApproval.gaName} · 승인 완료`
+                : `${gaApproval.gaName} · 거절됨`}
+          </p>
+          {gaApproval.status === 'REJECTED' && gaApproval.rejectReason ? (
+            <p className="profile-page__status profile-page__status--muted">사유: {gaApproval.rejectReason}</p>
+          ) : null}
+          {gaApproval.status !== 'REJECTED' ? (
+            <FormButton
+              htmlType="button"
+              variant="action"
+              className="profile-page__btn button--outline"
+              disabled={gaApprovalRefreshing}
+              onClick={() => void refreshGaApprovalStatus()}
+            >
+              {gaApprovalRefreshing ? '확인 중…' : '상태 새로고침'}
+            </FormButton>
+          ) : null}
+        </section>
+      ) : null}
       <DesktopUpdateSection />
 
       <section className="profile-page__section">
@@ -727,6 +835,14 @@ export function ProfilePage() {
               >
                 {referralCodeCopied ? '복사됨 ✓' : '복사'}
               </FormButton>
+              <FormButton
+                htmlType="button"
+                variant="action"
+                className="profile-page__btn profile-page__team-btn"
+                onClick={openReferralShare}
+              >
+                추천하기
+              </FormButton>
             </div>
             {referralCopyNotice ? (
               <p className="profile-page__status profile-page__status--muted" role="status">
@@ -916,6 +1032,33 @@ export function ProfilePage() {
           </div>
         </form>
       </Modal>
+
+      <BaseDialog
+        open={referralShareOpen}
+        onClose={() => setReferralShareOpen(false)}
+        ariaLabel="추천하기"
+        panelClassName="max-w-md"
+        usePortal
+      >
+        <h3 className="text-lg font-semibold text-[var(--text-main)]">추천하기</h3>
+        <div className="mt-3 space-y-2 text-sm text-[var(--text-secondary)]">
+          <p>
+            추천 코드 <strong className="text-[var(--text-main)]">{personalReferralCode || '—'}</strong>
+          </p>
+          <p className="break-all rounded-md border border-[var(--border)] px-2 py-1.5 text-[var(--text-main)]">
+            {personalReferralLink || '—'}
+          </p>
+          <p className="text-xs">링크로 가입하면 추천인이 자동 입력됩니다. 소속 GA와는 무관합니다.</p>
+        </div>
+        <DialogActions className="user-modal-actions">
+          <Button type="button" variant="secondary" onClick={() => void copyReferralLink()}>
+            {referralLinkCopied ? '복사됨 ✓' : '링크 복사'}
+          </Button>
+          <Button type="button" variant="primary" onClick={() => void shareReferralLink()}>
+            공유
+          </Button>
+        </DialogActions>
+      </BaseDialog>
 
       <BaseDialog
         open={accountDeleteOpen}

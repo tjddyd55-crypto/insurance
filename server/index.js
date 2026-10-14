@@ -12,6 +12,8 @@ import { registerAuthAccountSmsApi } from './registerAuthAccountSmsApi.js'
 import { formatKstDate } from '../shared/dateTimeKst.js'
 import { registerUserProfileApi } from './registerUserProfileApi.js'
 import { registerReferralApi } from './registerReferralApi.js'
+import { registerGaApprovalApi } from './ga-approval/registerGaApprovalApi.js'
+import { createPendingApprovalRequest, findPartnerSignupGa } from './ga-approval/gaApprovalService.js'
 import { registerPromotionCodesApi } from './registerPromotionCodesApi.js'
 import { registerAdminPromotionCodesApi } from './registerAdminPromotionCodesApi.js'
 import { registerBillingApi } from './registerBillingApi.js'
@@ -1693,6 +1695,15 @@ registerReferralApi(apiRouter, {
   handleDbError,
 })
 
+registerGaApprovalApi(apiRouter, {
+  pool,
+  requireAuth,
+  handleDbError,
+  normalizeUserRole,
+  parseGaId,
+  attachTenantMembershipSignup,
+})
+
 registerPromotionCodesApi(apiRouter, {
   pool,
   requireAuth,
@@ -2301,6 +2312,10 @@ async function handleRegister(req, res) {
     }
 
     let invitedByUserId = null
+    /** t291: B) 제휴 GA 소속 가입 — 공용(GENERAL)으로 생성 + 승인 대기 요청. 소속은 승인 후에만. */
+    const signupTypeRaw = String(body.signup_type ?? body.signupType ?? '').trim().toLowerCase()
+    /** @type {{ id: number; name: string } | null} */
+    let partnerGaForApproval = null
 
     if (tenantRegSignup) {
       const refEarly = String(refUserSnake ?? refUserCamel ?? '').trim()
@@ -2367,6 +2382,18 @@ async function handleRegister(req, res) {
       }
     } else {
       const explicitInviteInput = String(inviteRaw ?? inviteAlt ?? '').trim()
+      if (signupTypeRaw === 'ga_partner') {
+        if (explicitInviteInput) {
+          res.status(400).json({ message: 'GA 공식 가입 링크와 제휴 GA 승인 가입을 함께 사용할 수 없습니다.' })
+          return
+        }
+        const partnerGaId = parseGaId(body.partner_ga_id ?? body.partnerGaId)
+        partnerGaForApproval = partnerGaId != null ? await findPartnerSignupGa(pool, partnerGaId) : null
+        if (!partnerGaForApproval) {
+          res.status(400).json({ message: '가입 신청할 수 있는 제휴 GA를 선택해 주세요.' })
+          return
+        }
+      }
       let resolvedSignupGa
       try {
         resolvedSignupGa = await resolveSignupGaCompany(pool, explicitInviteInput)
@@ -2604,6 +2631,19 @@ async function handleRegister(req, res) {
         throw referralErr
       }
 
+      if (partnerGaForApproval) {
+        const refRel = await systemQuery(
+          client,
+          `SELECT referrer_user_id FROM referral_relationships WHERE referred_user_id = $1 LIMIT 1`,
+          [id],
+        )
+        await createPendingApprovalRequest(client, {
+          applicantUserId: id,
+          gaId: partnerGaForApproval.id,
+          referrerUserId: refRel.rows[0]?.referrer_user_id ?? null,
+        })
+      }
+
       const isInsuranceCrmSignup = !tenantRegSignup || industrySignup === 'insurance'
       if (isInsuranceCrmSignup) {
         await bootstrapInsuranceBillingSubscriptionOnSignup(client, { userId: id, gaId })
@@ -2632,6 +2672,9 @@ async function handleRegister(req, res) {
     }
 
     const payload = { id, username: normalizedUsername, ga_id: gaId, createdAt: createdAtIso }
+    if (partnerGaForApproval) {
+      payload.ga_approval = { status: 'PENDING', ga_name: partnerGaForApproval.name }
+    }
     if (tenantRegSignup && industrySignup) {
       payload.industry_code = industrySignup
     }
@@ -2659,6 +2702,214 @@ async function auditLoginFailure(pool, username, reason) {
   } catch (e) {
     console.error('[security_audit LOGIN_FAILED]', e)
   }
+}
+
+/**
+ * 로그인 응답(토큰 + user) 생성 SSOT. 로그인과 세션 갱신(/auth/session/refresh)이 공유한다.
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {Record<string, any>} user users 행 (is_deleted=false, status=active 검증 완료)
+ * @param {{ recordLogin?: boolean }} [options]
+ */
+async function respondWithUserSession(req, res, user, options = {}) {
+    const uid = String(user.id)
+    const role = normalizeUserRole(user.role)
+    const gaId = parseGaId(user.ga_id)
+    if (role !== 'SUPER_ADMIN' && gaId == null) {
+      res.status(500).json({ message: '계정에 GA가 연결되지 않았습니다. 관리자에게 문의하세요.' })
+      return
+    }
+
+    let gaCode = ''
+    let gaName = ''
+    if (gaId != null) {
+      const gRow = await systemQuery(
+        pool,
+        `SELECT code, name, status, is_deleted FROM ga_companies WHERE id = $1`,
+        [gaId],
+      )
+      const g0 = gRow.rows[0]
+      if (!g0 || g0.is_deleted === true) {
+        res.status(401).json({ message: '해당 GA는 현재 사용이 제한되었습니다' })
+        return
+      }
+      if (String(g0.status ?? '').toLowerCase() !== 'active') {
+        res.status(401).json({ message: '해당 GA는 현재 사용이 제한되었습니다' })
+        return
+      }
+      const rawCode = g0?.code
+      gaCode = typeof rawCode === 'string' ? rawCode.trim().toUpperCase() : ''
+      gaName = typeof g0?.name === 'string' ? g0.name.trim() : ''
+    }
+
+    const userDisplayName = String(user.display_name ?? user.username ?? '').trim()
+    const userTeamId = user.team_id != null ? String(user.team_id) : null
+    const gaIdIntPre = gaId != null && Number.isInteger(gaId) ? gaId : null
+
+    let userCrmBoot = {
+      industryCode: null,
+      tenantCrm: null,
+      crmDynamicIndustryTemplate: null,
+      tenantDbId: null,
+    }
+    if (gaIdIntPre != null) {
+      userCrmBoot = await selectCrmBootstrapExtendedForLegacyGa(pool, gaIdIntPre)
+    }
+
+    if (role !== 'SUPER_ADMIN' && gaIdIntPre != null) {
+      const blk = await evaluateTenantMembershipLoginBlock(pool, uid, gaIdIntPre)
+      if (blk.blocked) {
+        res.status(403).json({ message: '소속 테넌트 접근이 제한되어 로그인할 수 없습니다.' })
+        return
+      }
+    }
+
+    /** @type {number | null} */
+    let tenantDbJwt = userCrmBoot.tenantDbId
+    /** @type {string | null} */
+    let tenantIndustryJwt =
+      typeof userCrmBoot.industryCode === 'string' && userCrmBoot.industryCode.trim()
+        ? userCrmBoot.industryCode.trim().toLowerCase()
+        : null
+    /** @type {Record<string, unknown> | null} */
+    let membershipPayload = null
+    let tenantMembershipRoleJwt = ''
+    let membershipTypeJwt = ''
+    const roleNormJwt = normalizeUserRole(role)
+    let customerAccessJwt = 'own'
+    if (roleNormJwt === 'USER') {
+      membershipTypeJwt = 'agent'
+      customerAccessJwt = 'own'
+    } else if (roleNormJwt === 'GA_STAFF') {
+      membershipTypeJwt = 'staff'
+      customerAccessJwt = 'tenant'
+    } else if (roleNormJwt === 'GA_ADMIN') {
+      membershipTypeJwt = 'admin'
+      customerAccessJwt = 'tenant'
+    } else if (roleNormJwt === 'SUPER_ADMIN') {
+      membershipTypeJwt = 'owner'
+      customerAccessJwt = 'tenant'
+    } else {
+      membershipTypeJwt = 'staff'
+      customerAccessJwt = 'tenant'
+    }
+
+    if (gaIdIntPre != null) {
+      const pick = await pickPrimaryTenantMembershipForLogin(pool, uid, gaIdIntPre)
+      if (pick != null && pick.tenant_id != null) {
+        tenantDbJwt = typeof pick.tenant_id === 'number' ? pick.tenant_id : Number(pick.tenant_id)
+        const tic = pick.tenant_industry_code != null ? String(pick.tenant_industry_code).trim() : ''
+        if (tic) {
+          tenantIndustryJwt = tic.toLowerCase()
+        }
+        const caJwt = String(pick.customer_access ?? '').trim().toLowerCase()
+        if (caJwt === 'none' || caJwt === 'own' || caJwt === 'tenant' || caJwt === 'assigned') {
+          customerAccessJwt = caJwt
+        }
+        const mtJwt = String(pick.membership_type ?? '').trim().toLowerCase()
+        if (mtJwt === 'agent' || mtJwt === 'staff' || mtJwt === 'admin' || mtJwt === 'owner') {
+          membershipTypeJwt = mtJwt
+        }
+        tenantMembershipRoleJwt = String(pick.membership_rbac_role ?? '').trim()
+
+        membershipPayload = {
+          id: pick.membership_id != null ? String(pick.membership_id) : '',
+          tenantId:
+            pick.tenant_id != null
+              ? String(pick.tenant_id)
+              : tenantDbJwt != null
+                ? String(tenantDbJwt)
+                : '',
+          industryCode:
+            tenantIndustryJwt != null && tenantIndustryJwt !== '' ? tenantIndustryJwt : '',
+          tenantCode: pick.tenant_code != null ? String(pick.tenant_code) : '',
+          rbacRole:
+            tenantMembershipRoleJwt || String(pick.membership_rbac_role ?? '').trim(),
+          membershipType: membershipTypeJwt || String(pick.membership_type ?? '').trim(),
+          customerAccess:
+            ['none', 'own', 'tenant', 'assigned'].includes(customerAccessJwt) ?
+              customerAccessJwt
+            : 'own',
+          crm_customer_template_id:
+            pick.crm_customer_template_id != null ?
+              typeof pick.crm_customer_template_id === 'number'
+                ? pick.crm_customer_template_id
+                : Number(pick.crm_customer_template_id)
+            : null,
+        }
+      }
+    }
+
+    const token = jwt.sign(
+      {
+        userId: user.id,
+        sub: user.id,
+        username: user.username,
+        role,
+        gaId,
+        gaCode,
+        gaName,
+        displayName: userDisplayName,
+        teamId: userTeamId,
+        tenantDbId: tenantDbJwt,
+        tenant_db_id: tenantDbJwt,
+        tenantIndustryCode: tenantIndustryJwt,
+        tenant_industry_code: tenantIndustryJwt,
+        customerAccess: customerAccessJwt,
+        customer_access: customerAccessJwt,
+        tenantMembershipRole: tenantMembershipRoleJwt,
+        tenant_membership_role: tenantMembershipRoleJwt,
+        membershipType: membershipTypeJwt,
+        membership_type: membershipTypeJwt,
+      },
+      JWT_SECRET,
+      { expiresIn: '7d' },
+    )
+
+    const gaIdInt = gaIdIntPre
+    if (options.recordLogin !== false) {
+    void logSecurityEvent(pool, {
+      actorUserId: uid,
+      actorRole: role,
+      action: 'login_success',
+      targetType: 'auth',
+      targetId: uid,
+      gaId: gaIdInt,
+      companyId: null,
+      meta: { username: user.username },
+    })
+    void recordAnalyticsEvent(pool, { userId: uid, gaId: gaIdInt, eventType: 'login' })
+
+    try {
+      const cap = await resolveMinConcurrentSessionCapForUser(pool, uid)
+      await recordSuccessfulUserLoginSession(pool, uid, req, cap)
+    } catch (e) {
+      console.error('[authSessions] login session audit failed', e)
+    }
+    }
+
+    res.json({
+      token,
+      user: {
+        id: uid,
+        username: user.username,
+        role,
+        ga_id: gaId,
+        ga_code: gaCode,
+        ga_name: gaName,
+        display_name: userDisplayName,
+        team_id: userTeamId,
+        crm_industry_code: userCrmBoot.industryCode,
+        tenant_crm: userCrmBoot.tenantCrm,
+        crm_dynamic_industry_template: userCrmBoot.crmDynamicIndustryTemplate,
+        tenant_db_id: tenantDbJwt,
+        tenant_industry_code: tenantIndustryJwt,
+        membership: membershipPayload,
+        membership_customer_access: customerAccessJwt,
+        membership_type: membershipTypeJwt,
+        tenant_membership_role: tenantMembershipRoleJwt,
+      },
+    })
 }
 
 async function handleLogin(req, res) {
@@ -2873,206 +3124,35 @@ async function handleLogin(req, res) {
       return
     }
 
-    const uid = String(user.id)
-    const role = normalizeUserRole(user.role)
-    const gaId = parseGaId(user.ga_id)
-    if (role !== 'SUPER_ADMIN' && gaId == null) {
-      res.status(500).json({ message: '계정에 GA가 연결되지 않았습니다. 관리자에게 문의하세요.' })
-      return
-    }
-
-    let gaCode = ''
-    let gaName = ''
-    if (gaId != null) {
-      const gRow = await systemQuery(
-        pool,
-        `SELECT code, name, status, is_deleted FROM ga_companies WHERE id = $1`,
-        [gaId],
-      )
-      const g0 = gRow.rows[0]
-      if (!g0 || g0.is_deleted === true) {
-        res.status(401).json({ message: '해당 GA는 현재 사용이 제한되었습니다' })
-        return
-      }
-      if (String(g0.status ?? '').toLowerCase() !== 'active') {
-        res.status(401).json({ message: '해당 GA는 현재 사용이 제한되었습니다' })
-        return
-      }
-      const rawCode = g0?.code
-      gaCode = typeof rawCode === 'string' ? rawCode.trim().toUpperCase() : ''
-      gaName = typeof g0?.name === 'string' ? g0.name.trim() : ''
-    }
-
-    const userDisplayName = String(user.display_name ?? user.username ?? '').trim()
-    const userTeamId = user.team_id != null ? String(user.team_id) : null
-    const gaIdIntPre = gaId != null && Number.isInteger(gaId) ? gaId : null
-
-    let userCrmBoot = {
-      industryCode: null,
-      tenantCrm: null,
-      crmDynamicIndustryTemplate: null,
-      tenantDbId: null,
-    }
-    if (gaIdIntPre != null) {
-      userCrmBoot = await selectCrmBootstrapExtendedForLegacyGa(pool, gaIdIntPre)
-    }
-
-    if (role !== 'SUPER_ADMIN' && gaIdIntPre != null) {
-      const blk = await evaluateTenantMembershipLoginBlock(pool, uid, gaIdIntPre)
-      if (blk.blocked) {
-        res.status(403).json({ message: '소속 테넌트 접근이 제한되어 로그인할 수 없습니다.' })
-        return
-      }
-    }
-
-    /** @type {number | null} */
-    let tenantDbJwt = userCrmBoot.tenantDbId
-    /** @type {string | null} */
-    let tenantIndustryJwt =
-      typeof userCrmBoot.industryCode === 'string' && userCrmBoot.industryCode.trim()
-        ? userCrmBoot.industryCode.trim().toLowerCase()
-        : null
-    /** @type {Record<string, unknown> | null} */
-    let membershipPayload = null
-    let tenantMembershipRoleJwt = ''
-    let membershipTypeJwt = ''
-    const roleNormJwt = normalizeUserRole(role)
-    let customerAccessJwt = 'own'
-    if (roleNormJwt === 'USER') {
-      membershipTypeJwt = 'agent'
-      customerAccessJwt = 'own'
-    } else if (roleNormJwt === 'GA_STAFF') {
-      membershipTypeJwt = 'staff'
-      customerAccessJwt = 'tenant'
-    } else if (roleNormJwt === 'GA_ADMIN') {
-      membershipTypeJwt = 'admin'
-      customerAccessJwt = 'tenant'
-    } else if (roleNormJwt === 'SUPER_ADMIN') {
-      membershipTypeJwt = 'owner'
-      customerAccessJwt = 'tenant'
-    } else {
-      membershipTypeJwt = 'staff'
-      customerAccessJwt = 'tenant'
-    }
-
-    if (gaIdIntPre != null) {
-      const pick = await pickPrimaryTenantMembershipForLogin(pool, uid, gaIdIntPre)
-      if (pick != null && pick.tenant_id != null) {
-        tenantDbJwt = typeof pick.tenant_id === 'number' ? pick.tenant_id : Number(pick.tenant_id)
-        const tic = pick.tenant_industry_code != null ? String(pick.tenant_industry_code).trim() : ''
-        if (tic) {
-          tenantIndustryJwt = tic.toLowerCase()
-        }
-        const caJwt = String(pick.customer_access ?? '').trim().toLowerCase()
-        if (caJwt === 'none' || caJwt === 'own' || caJwt === 'tenant' || caJwt === 'assigned') {
-          customerAccessJwt = caJwt
-        }
-        const mtJwt = String(pick.membership_type ?? '').trim().toLowerCase()
-        if (mtJwt === 'agent' || mtJwt === 'staff' || mtJwt === 'admin' || mtJwt === 'owner') {
-          membershipTypeJwt = mtJwt
-        }
-        tenantMembershipRoleJwt = String(pick.membership_rbac_role ?? '').trim()
-
-        membershipPayload = {
-          id: pick.membership_id != null ? String(pick.membership_id) : '',
-          tenantId:
-            pick.tenant_id != null
-              ? String(pick.tenant_id)
-              : tenantDbJwt != null
-                ? String(tenantDbJwt)
-                : '',
-          industryCode:
-            tenantIndustryJwt != null && tenantIndustryJwt !== '' ? tenantIndustryJwt : '',
-          tenantCode: pick.tenant_code != null ? String(pick.tenant_code) : '',
-          rbacRole:
-            tenantMembershipRoleJwt || String(pick.membership_rbac_role ?? '').trim(),
-          membershipType: membershipTypeJwt || String(pick.membership_type ?? '').trim(),
-          customerAccess:
-            ['none', 'own', 'tenant', 'assigned'].includes(customerAccessJwt) ?
-              customerAccessJwt
-            : 'own',
-          crm_customer_template_id:
-            pick.crm_customer_template_id != null ?
-              typeof pick.crm_customer_template_id === 'number'
-                ? pick.crm_customer_template_id
-                : Number(pick.crm_customer_template_id)
-            : null,
-        }
-      }
-    }
-
-    const token = jwt.sign(
-      {
-        userId: user.id,
-        sub: user.id,
-        username: user.username,
-        role,
-        gaId,
-        gaCode,
-        gaName,
-        displayName: userDisplayName,
-        teamId: userTeamId,
-        tenantDbId: tenantDbJwt,
-        tenant_db_id: tenantDbJwt,
-        tenantIndustryCode: tenantIndustryJwt,
-        tenant_industry_code: tenantIndustryJwt,
-        customerAccess: customerAccessJwt,
-        customer_access: customerAccessJwt,
-        tenantMembershipRole: tenantMembershipRoleJwt,
-        tenant_membership_role: tenantMembershipRoleJwt,
-        membershipType: membershipTypeJwt,
-        membership_type: membershipTypeJwt,
-      },
-      JWT_SECRET,
-      { expiresIn: '7d' },
-    )
-
-    const gaIdInt = gaIdIntPre
-    void logSecurityEvent(pool, {
-      actorUserId: uid,
-      actorRole: role,
-      action: 'login_success',
-      targetType: 'auth',
-      targetId: uid,
-      gaId: gaIdInt,
-      companyId: null,
-      meta: { username: user.username },
-    })
-    void recordAnalyticsEvent(pool, { userId: uid, gaId: gaIdInt, eventType: 'login' })
-
-    try {
-      const cap = await resolveMinConcurrentSessionCapForUser(pool, uid)
-      await recordSuccessfulUserLoginSession(pool, uid, req, cap)
-    } catch (e) {
-      console.error('[authSessions] login session audit failed', e)
-    }
-
-    res.json({
-      token,
-      user: {
-        id: uid,
-        username: user.username,
-        role,
-        ga_id: gaId,
-        ga_code: gaCode,
-        ga_name: gaName,
-        display_name: userDisplayName,
-        team_id: userTeamId,
-        crm_industry_code: userCrmBoot.industryCode,
-        tenant_crm: userCrmBoot.tenantCrm,
-        crm_dynamic_industry_template: userCrmBoot.crmDynamicIndustryTemplate,
-        tenant_db_id: tenantDbJwt,
-        tenant_industry_code: tenantIndustryJwt,
-        membership: membershipPayload,
-        membership_customer_access: customerAccessJwt,
-        membership_type: membershipTypeJwt,
-        tenant_membership_role: tenantMembershipRoleJwt,
-      },
-    })
+    await respondWithUserSession(req, res, user, { recordLogin: true })
   } catch (error) {
     handleDbError(error, req, res)
   }
 }
+
+/** t291: DB 기준으로 JWT·user 재발급(재로그인 없이 GA 승인 반영). 로그인 기록은 남기지 않음. */
+apiRouter.post('/auth/session/refresh', requireAuth, async (req, res) => {
+  try {
+    const uid = String(req.user?.id ?? '').trim()
+    const r = await systemQuery(
+      pool,
+      `
+      SELECT * FROM users
+      WHERE id = $1 AND is_deleted = false
+        AND LOWER(TRIM(COALESCE(status::text, 'active'))) = 'active'
+      `,
+      [uid],
+    )
+    const user = r.rows[0]
+    if (!user) {
+      res.status(401).json({ message: '세션을 갱신할 수 없습니다. 다시 로그인해 주세요.' })
+      return
+    }
+    await respondWithUserSession(req, res, user, { recordLogin: false })
+  } catch (error) {
+    handleDbError(error, req, res)
+  }
+})
 
 apiRouter.post('/register', handleRegister)
 apiRouter.post('/auth/register', handleRegister)
@@ -4329,9 +4409,33 @@ apiRouter.get('/admin/users/summary', requireAuth, requireSuperAdmin, async (req
   }
 })
 
-apiRouter.get('/admin/users', requireAuth, requireSuperAdmin, async (req, res) => {
+/** t291: GA_ADMIN 은 본인 GA 회원만(서버 강제). SUPER_ADMIN 은 기존과 동일. */
+function requireSuperAdminOrScopedGaAdmin(req, res, next) {
+  const r = normalizeUserRole(req.user?.role)
+  if (r === 'SUPER_ADMIN') {
+    req.adminUsersForcedGaId = null
+    next()
+    return
+  }
+  if (r === 'GA_ADMIN') {
+    const g = parseGaId(req.user?.gaId)
+    if (g == null) {
+      forbiddenResponse(req, res, '권한이 없습니다.', { guard: 'requireSuperAdminOrScopedGaAdmin' })
+      return
+    }
+    req.adminUsersForcedGaId = g
+    next()
+    return
+  }
+  forbiddenResponse(req, res, '관리자 권한이 필요합니다.', { guard: 'requireSuperAdminOrScopedGaAdmin' })
+}
+
+apiRouter.get('/admin/users', requireAuth, requireSuperAdminOrScopedGaAdmin, async (req, res) => {
   try {
-    const filterGa = parseGaId(req.query.ga_id ?? req.query.gaId)
+    const filterGa =
+      req.adminUsersForcedGaId != null
+        ? req.adminUsersForcedGaId
+        : parseGaId(req.query.ga_id ?? req.query.gaId)
     const subscriptionFilter = parseAdminUserSubscriptionFilter(
       req.query.subscription_status ?? req.query.subscriptionStatus,
     )
