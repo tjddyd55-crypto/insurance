@@ -32,7 +32,7 @@ function formatKrw(amount: number) {
 export function useBillingCheckoutState(): BillingCheckoutViewProps & {
   crmPath: string
 } {
-  const { token, user, isAuthenticated } = useAuth()
+  const { token, user, isAuthenticated, refreshAccountState } = useAuth()
   const navigate = useNavigate()
   const isMobile = useIsMobile()
   const [summary, setSummary] = useState<CheckoutSummary | null>(null)
@@ -248,6 +248,7 @@ export function useBillingCheckoutState(): BillingCheckoutViewProps & {
           setError(applied.message ?? '무료 이용권 적용이 완료되지 않았습니다.')
           return
         }
+        await refreshAccountState()
         navigate('/billing/success', {
           replace: true,
           state: {
@@ -265,6 +266,7 @@ export function useBillingCheckoutState(): BillingCheckoutViewProps & {
           billingCycle,
         })
         if (mockPaid.subscriptionStatus === 'active_paid' || mockPaid.ok) {
+          await refreshAccountState()
           navigate('/billing/success', {
             replace: true,
             state: { mode: 'paid', quote },
@@ -292,6 +294,7 @@ export function useBillingCheckoutState(): BillingCheckoutViewProps & {
         registerOnly: false,
       })
       if (result.status === 'paid' || result.subscriptionStatus === 'active_paid') {
+        await refreshAccountState()
         navigate('/billing/success', {
           replace: true,
           state: { mode: 'paid', quote },

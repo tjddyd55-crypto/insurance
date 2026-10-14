@@ -13,7 +13,7 @@ export default function BillingSuccessPage() {
   const location = useLocation()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const { token, user } = useAuth()
+  const { token, user, refreshAccountState } = useAuth()
   const isMobile = useIsMobile()
   const state = (location.state ?? {}) as {
     mode?: string
@@ -45,6 +45,13 @@ export default function BillingSuccessPage() {
   })
   // confirm이 이미 실행됐는지 추적 — 새로고침 후 authKey가 없으면 재실행하지 않음
   const confirmedRef = useRef(false)
+  // 결제/이용권 확정 직후 세션·구독·메뉴 가드를 재로그인 없이 갱신 (1회)
+  const accountRefreshedRef = useRef(false)
+  useEffect(() => {
+    if (verifyState !== 'verified' || accountRefreshedRef.current) return
+    accountRefreshedRef.current = true
+    void refreshAccountState()
+  }, [verifyState, refreshAccountState])
 
   useEffect(() => {
     if (!token?.trim()) {

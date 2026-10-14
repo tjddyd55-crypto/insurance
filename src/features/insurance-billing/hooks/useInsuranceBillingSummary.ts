@@ -8,7 +8,7 @@ export function useInsuranceBillingSummary(): {
   checked: boolean
   fetchFailed: boolean
 } {
-  const { token, user } = useAuth()
+  const { token, user, billingStateVersion } = useAuth()
   const [summary, setSummary] = useState<CheckoutSummary | null>(null)
   const [fetchFailed, setFetchFailed] = useState(false)
   const [checked, setChecked] = useState(!isInsuranceBillingEnabledClient())
@@ -44,7 +44,7 @@ export function useInsuranceBillingSummary(): {
     return () => {
       cancelled = true
     }
-  }, [token, user?.role])
+  }, [token, user?.role, billingStateVersion])
 
   return { summary, checked, fetchFailed }
 }
