@@ -25,6 +25,7 @@ export function NewsletterHubPage({
       emptyMessage={emptyMessage}
       fetchScope="ga"
       noSessionMessage={noSessionMessage}
+      enableCollections={channel === 'INSURER'}
     />
   )
 }

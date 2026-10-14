@@ -234,6 +234,7 @@ import { registerCoverageSimulatorShareApi } from './apis/coverageSimulatorShare
 import { registerCoverageSimulatorStorageApi } from './apis/coverageSimulatorStorageApi.js'
 import { registerCoverageSimulatorPreviewShareApi } from './apis/coverageSimulatorPreviewShareApi.js'
 import { registerPersonalBinderApi } from './apis/personalBinderApi.js'
+import { registerNewsletterCollectionsApi } from './apis/newsletterCollectionsApi.js'
 import { registerPersonalBinderPageImageApi } from './personal-binder/registerPersonalBinderPageImageApi.js'
 import { registerContractAdminApi } from './apis/contractAdminApi.js'
 import { registerContractUserApi } from './apis/contractUserApi.js'
@@ -1653,6 +1654,7 @@ registerCoverageSimulatorShareApi(apiRouter, { pool, requireAuth, handleDbError 
 registerCoverageSimulatorStorageApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCoverageSimulatorPreviewShareApi(apiRouter, { pool, handleDbError })
 registerPersonalBinderApi(apiRouter, { pool, requireAuth, handleDbError })
+registerNewsletterCollectionsApi(apiRouter, { pool, requireAuth, handleDbError })
 registerPersonalBinderPageImageApi(apiRouter, {
   pool,
   requireAuth,

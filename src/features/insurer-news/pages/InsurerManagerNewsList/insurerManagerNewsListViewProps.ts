@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { NewsChannel, NewsletterItem } from '../../types'
 
 /**
@@ -42,4 +43,10 @@ export type InsurerManagerNewsListViewProps = {
   deleteBusyId?: string | null
   /** 삭제 성공/실패 인라인 안내 문구. */
   deleteNotice?: string
+  /** 개인 폴더·즐겨찾기 분류 바 (NewsletterHubPage opt-in 일 때만). */
+  collectionsNav?: ReactNode
+  /** 상세 모달 헤더 앞쪽 동작 (★ / 내 폴더에 담기 / 내 바인더에 담기). */
+  renderDetailCollectionActions?: (item: NewsletterItem, closeDetail: () => void) => ReactNode
+  /** 폴더/즐겨찾기 보기에서 비었을 때 문구. */
+  collectionEmptyMessage?: string
 }
