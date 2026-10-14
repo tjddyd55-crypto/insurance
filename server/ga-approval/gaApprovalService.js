@@ -316,3 +316,34 @@ export async function processApprovalRequest(pool, input) {
     client.release()
   }
 }
+
+/**
+ * GA 승인 직후, 공용(GENERAL) gaId 를 담은 기존 JWT 로 세션을 재발급할 수 있는지 판정.
+ * requireAuth 는 JWT gaId ≠ DB ga_id 이면 401 이므로, 세션 재발급 전용으로만 사용한다.
+ * 허용 조건: 토큰 gaId 가 GENERAL GA 이고, DB ga_id 로 APPROVED 된 요청이 존재(USER 한정).
+ * @param {import('pg').Pool} executor
+ * @param {{ userId: string; tokenGaId: number | null; tokenRole: string }} input
+ * @returns {Promise<boolean>}
+ */
+export async function isApprovedGaTransitionToken(executor, input) {
+  if (String(input.tokenRole ?? '').toUpperCase() !== 'USER') return false
+  if (input.tokenGaId == null) return false
+  const r = await systemQuery(
+    executor,
+    `
+    SELECT 1
+    FROM users u
+    INNER JOIN ga_companies tg ON tg.id = $2
+    INNER JOIN ga_membership_approval_requests ar
+      ON ar.applicant_user_id = u.id AND ar.ga_id = u.ga_id AND ar.status = 'APPROVED'
+    WHERE u.id = $1
+      AND u.is_deleted = false
+      AND UPPER(TRIM(u.role)) = 'USER'
+      AND u.ga_id <> $2
+      AND UPPER(TRIM(tg.code)) = $3
+    LIMIT 1
+    `,
+    [String(input.userId), input.tokenGaId, GENERAL_GA_CODE_CANONICAL],
+  )
+  return r.rowCount > 0
+}
