@@ -12,13 +12,18 @@ import type { ScheduleViewProps } from '../../hooks/useScheduleState'
 import ScheduleHolidaySetting, { useScheduleHolidayMode } from '../../components/ScheduleHolidaySetting'
 
 /** PC·모바일 웹 공통 본문. 차이는 CSS(.schedule-page--pc / --mobile)만. */
-export default function ScheduleBody(props: ScheduleViewProps & { calendarDecor?: boolean }) {
+export default function ScheduleBody(props: ScheduleViewProps & { calendarDecor?: boolean; compact?: boolean }) {
   const [holidayMode, setHolidayMode] = useScheduleHolidayMode(props.userKey)
   const decorMode = props.calendarDecor ? holidayMode : undefined
   return (
     <>
-      <ScheduleChrome {...props} />
-      {props.calendarDecor && (props.view === 'month' || props.view === 'week') ? (
+      <ScheduleChrome
+        {...props}
+        toolbarExtra={props.compact && props.calendarDecor && (props.view === 'month' || props.view === 'week')
+          ? <ScheduleHolidaySetting mode={holidayMode} onChange={setHolidayMode} />
+          : undefined}
+      />
+      {!props.compact && props.calendarDecor && (props.view === 'month' || props.view === 'week') ? (
         <ScheduleHolidaySetting mode={holidayMode} onChange={setHolidayMode} />
       ) : null}
       {props.view === 'month' ? (
