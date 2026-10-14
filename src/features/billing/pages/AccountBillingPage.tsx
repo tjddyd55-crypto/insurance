@@ -31,7 +31,7 @@ import {
 import { BILLING_PLANS, formatPricingBreakdown } from '../pricingPolicy'
 
 export default function AccountBillingPage() {
-  const { token } = useAuth()
+  const { token, refreshAccountState } = useAuth()
   const [me, setMe] = useState<BillingMeResponse | null>(null)
   const [invoices, setInvoices] = useState<BillingInvoice[]>([])
   const [insuranceManage, setInsuranceManage] = useState<BillingManageSummaryResponse | null>(null)
@@ -130,7 +130,7 @@ export default function AccountBillingPage() {
       setActionInfo(result.benefitSummary ?? result.message ?? '코드가 적용되었습니다.')
       setCodeInput('')
       setCodeHint('')
-      await load()
+      await Promise.all([load(), refreshAccountState()])
     } catch (e) {
       setCodeError(e instanceof Error ? e.message : '코드 적용에 실패했습니다.')
     } finally {
@@ -164,7 +164,7 @@ export default function AccountBillingPage() {
     try {
       await mockPayBillingInvoice(token, invoiceId)
       setActionInfo('가상 결제가 완료되었습니다.')
-      await load()
+      await Promise.all([load(), refreshAccountState()])
     } catch (e) {
       setActionError(e instanceof Error ? e.message : '가상 결제 처리에 실패했습니다.')
     } finally {
