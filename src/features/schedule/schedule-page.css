@@ -581,7 +581,8 @@
   .schedule-page--compact .schedule-page__month {
     /* 남는 높이를 채운다. 주 줄은 최소 80px 이라 아래 날짜 목록이 있어도 칸이 지나치게 줄지 않는다. */
     flex: 1 1 0;
-    min-height: auto;
+    /* auto 면 칸 내용 높이가 최소가 되어 달력이 화면 밖으로 늘어난다. 최소는 주 줄 80px 이 맡는다. */
+    min-height: 0;
     margin-top: 8px;
     grid-template-rows: auto;
     grid-auto-rows: minmax(80px, 1fr);
