@@ -506,3 +506,95 @@
 .schedule-page--pc .schedule-page__legend::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; background: currentColor; }
 .schedule-page--pc .schedule-page__legend--sun { color: #d93025; }
 .schedule-page--pc .schedule-page__legend--sat { color: #1a73e8; }
+
+/* ── PC 압축 상단(≥769px 전용, .schedule-page--compact 는 SchedulePCView 에만 붙는다). 모바일 웹은 영향 없음. ── */
+@media (min-width: 769px) {
+  .schedule-page--pc.schedule-page--compact {
+    display: flex;
+    flex-direction: column;
+    height: calc(100dvh - var(--schedule-pc-top, 88px));
+    min-height: 520px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    box-sizing: border-box;
+  }
+  .schedule-page--compact .schedule-page__toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 0 0 auto;
+  }
+  .schedule-page--compact .schedule-page__toolbar-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+  }
+  .schedule-page--compact .schedule-page__toolbar-title {
+    margin: 0;
+    font-size: 1.125rem;
+    line-height: 32px;
+    white-space: nowrap;
+    color: var(--text-main);
+  }
+  .schedule-page--compact .schedule-page__toolbar-group {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .schedule-page--compact .schedule-page__toolbar-end {
+    margin-left: auto;
+  }
+  .schedule-page--compact .schedule-page__period {
+    margin-left: 4px;
+    white-space: nowrap;
+  }
+  .schedule-page--compact .schedule-page__refreshed,
+  .schedule-page--compact .schedule-page__status,
+  .schedule-page--compact .schedule-page__refresh-message,
+  .schedule-page--compact .schedule-page__error {
+    font-size: 0.875rem;
+    white-space: nowrap;
+  }
+  .schedule-page--compact .schedule-page__status-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 0 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+    white-space: nowrap;
+  }
+  .schedule-page--compact .schedule-page__status-chip--error {
+    border-color: var(--danger-border);
+    background: var(--danger-bg);
+    color: var(--danger-text);
+  }
+  .schedule-page--compact .schedule-page__holiday-setting {
+    margin: 0;
+  }
+  /* 달력이 남은 높이를 채운다. 요일 머리줄은 내용 높이, 주(週) 줄은 균등. */
+  .schedule-page--compact .schedule-page__month {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin-top: 8px;
+    grid-template-rows: auto;
+    grid-auto-rows: minmax(64px, 1fr);
+  }
+  .schedule-page--compact .schedule-page__month .schedule-page__cell {
+    min-height: 0;
+    overflow: hidden;
+  }
+  .schedule-page--compact .schedule-page__week,
+  .schedule-page--compact .schedule-page__day,
+  .schedule-page--compact .schedule-page__list {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin-top: 8px;
+    overflow: auto;
+  }
+}
