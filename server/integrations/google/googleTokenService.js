@@ -158,6 +158,20 @@ export async function revokeGoogleToken(token, options = {}) {
 }
 
 /**
+ * 이전 연결과 같은 Google 계정인가(sub 우선, sub 가 없던 이전 행은 email).
+ * @param {any} previous
+ * @param {{ sub?: string, email?: string }} profile
+ */
+export function isSameGoogleAccount(previous, profile) {
+  const prevSub = String(previous?.credential?.sub ?? '').trim()
+  const nextSub = String(profile?.sub ?? '').trim()
+  if (prevSub && nextSub) return prevSub === nextSub
+  const prevEmail = String(previous?.accountEmail ?? previous?.provider_account_email ?? '').trim().toLowerCase()
+  const nextEmail = String(profile?.email ?? '').trim().toLowerCase()
+  return Boolean(prevEmail && nextEmail && prevEmail === nextEmail)
+}
+
+/**
  * callback 이 검증한 userId 행에만 저장. 같은 사용자의 기존 연결은 교체하고, 이전 refresh token 은 폐기 시도.
  * @param {import('pg').Pool | import('pg').PoolClient} pool
  * @param {{ clientId: string, clientSecret: string, redirectUri: string }} config
@@ -196,7 +210,10 @@ export async function completeGoogleConnection(pool, config, input) {
       scopes: grantedScopeList(tokens.scope),
     },
   })
-  if (previousRefresh && previousRefresh !== refreshToken) {
+  // 같은 Google 계정 재연결이면 이전 refresh token 을 폐기하지 않는다.
+  // Google revoke 는 같은 client·사용자의 grant 전체를 취소해 방금 받은 새 토큰까지 무효(needs_reauth)가 된다.
+  // 다른 Google 계정으로 바꾼 경우에만 이전 계정의 grant 를 폐기한다.
+  if (previousRefresh && previousRefresh !== refreshToken && !isSameGoogleAccount(previous, profile)) {
     await revokeGoogleToken(previousRefresh, input)
   }
   clearGoogleUserCache(input.userId)

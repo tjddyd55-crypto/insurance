@@ -111,6 +111,8 @@ export function createFakeGoogle() {
   const codes = new Map()
   const accessIndex = new Map()
   const revoked = []
+  /** @type {Set<string>} revoke 로 grant 가 취소된 계정 sub (이후 새로 받은 code 교환 시 해제) */
+  const grantRevokedSubs = new Set()
   const calls = []
   let failCalendar = false
   let failTasks = false
@@ -167,6 +169,7 @@ export function createFakeGoogle() {
         codes.delete(form.get('code'))
         if (!entry) return json(400, { error: 'invalid_grant' })
         seq += 1
+        grantRevokedSubs.delete(entry.sub)
         const refresh = `refresh-${entry.sub}-${seq}`
         accounts.get(entry.sub).refresh.add(refresh)
         refreshScopes.set(refresh, entry.scope)
@@ -175,7 +178,7 @@ export function createFakeGoogle() {
       if (form.get('grant_type') === 'refresh_token') {
         const refresh = form.get('refresh_token')
         const account = [...accounts.values()].find((item) => item.refresh.has(refresh))
-        if (!account || revoked.includes(refresh)) return json(400, { error: 'invalid_grant' })
+        if (!account || revoked.includes(refresh) || grantRevokedSubs.has(account.sub)) return json(400, { error: 'invalid_grant' })
         const scope = refreshScopes.get(refresh)
         return json(200, { ...issueAccess(account.sub, scope), scope })
       }
@@ -183,7 +186,11 @@ export function createFakeGoogle() {
     }
     if (url.href === 'https://oauth2.googleapis.com/revoke') {
       if (failRevoke) return json(503, { error: 'backend_error' })
-      revoked.push(new URLSearchParams(String(init.body)).get('token'))
+      const token = new URLSearchParams(String(init.body)).get('token')
+      revoked.push(token)
+      // 실제 Google 처럼 grant 전체 취소: 같은 계정(같은 client)의 모든 refresh token 이 무효가 된다.
+      const owner = [...accounts.values()].find((item) => item.refresh.has(token))
+      if (owner) grantRevokedSubs.add(owner.sub)
       return json(200, {})
     }
     const sub = accessIndex.get(bearer)
