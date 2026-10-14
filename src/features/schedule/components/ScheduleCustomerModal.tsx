@@ -72,7 +72,6 @@ export default function ScheduleCustomerModal({ token, target, onClose }: {
       ariaLabel={heading}
       closeOnBackdrop={false}
       closeOnEsc
-      panelPreset="largeForm"
       panelClassName="schedule-customer-modal"
     >
       <header className="schedule-customer-modal__head">
