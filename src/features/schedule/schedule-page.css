@@ -579,7 +579,9 @@
   }
   /* 달력이 남은 높이를 채운다. 요일 머리줄은 내용 높이, 주(週) 줄은 균등. */
   .schedule-page--compact .schedule-page__month {
-    flex: 1 0 auto;
+    /* basis 0: 남는 높이만 채우고(최소는 주 줄 92px), 아래 날짜 목록을 화면 밖으로 밀지 않는다. */
+    flex: 1 0 0;
+    min-height: auto;
     margin-top: 8px;
     grid-template-rows: auto;
     grid-auto-rows: minmax(92px, 1fr);
