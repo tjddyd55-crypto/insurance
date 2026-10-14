@@ -7,6 +7,7 @@ import { loadGoogleCalendarSchedule } from '../googleCalendarAdapter.js'
 import { createFakeGoogle, createFakeIntegrationPool } from './googleIntegrationTestKit.js'
 import { consumeOAuthState, createOAuthState, DESKTOP_BINDING_MARKER, hashOAuthToken } from './googleOAuthStateStore.js'
 import { GOOGLE_CALENDAR_SCOPES } from './googleOAuthConfig.js'
+import { isSameGoogleAccount } from './googleTokenService.js'
 import { googleCacheKey, googleCacheKeysForTest, resetGoogleCacheForTest } from './googleUserCache.js'
 import { googleTimeWindow } from './googleCalendarApi.js'
 
@@ -420,6 +421,28 @@ describe('Google Calendar 연동 (USER 소유, 읽기 전용)', () => {
     assert.equal(left.some((key) => key.includes(':user-b')), true)
   })
 
+  it('같은 Google 계정 재연결은 이전 refresh token 을 revoke 하지 않고, 새 토큰으로 refresh 가 계속 된다', async () => {
+    await connect('user-a', 'gA')
+    const before = google.revoked.length
+    const { callback } = await connect('user-a', 'gA')
+    assert.match(callback.headers.get('location'), /google=connected/)
+    assert.equal(google.revoked.length, before)
+    resetGoogleCacheForTest()
+    google.expireAccessTokens()
+    const after = await api('user-a', 'GET', '/backend/api/service-integrations/google/calendars')
+    assert.equal(after.status, 200)
+    const status = await api('user-a', 'GET', '/backend/api/service-integrations/google/status')
+    assert.notEqual(status.body.data.status, 'needs_reauth')
+  })
+
+  it('isSameGoogleAccount: sub 우선, sub 가 없던 이전 행은 email 비교', () => {
+    assert.equal(isSameGoogleAccount({ credential: { sub: 's1' }, accountEmail: 'a@x.com' }, { sub: 's1', email: 'b@x.com' }), true)
+    assert.equal(isSameGoogleAccount({ credential: { sub: 's1' }, accountEmail: 'a@x.com' }, { sub: 's2', email: 'a@x.com' }), false)
+    assert.equal(isSameGoogleAccount({ credential: {}, accountEmail: 'A@x.com' }, { sub: 's2', email: 'a@x.com' }), true)
+    assert.equal(isSameGoogleAccount({ credential: {}, accountEmail: '' }, { sub: 's2', email: 'a@x.com' }), false)
+    assert.equal(isSameGoogleAccount(null, { sub: 's2', email: 'a@x.com' }), false)
+  })
+
   it('같은 사용자 재연결(계정 교체)은 자기 행만 교체하고 이전 refresh token 을 revoke 한다', async () => {
     await connect('user-a', 'gA')
     await connect('user-b', 'gB')
@@ -434,6 +457,10 @@ describe('Google Calendar 연동 (USER 소유, 읽기 전용)', () => {
     assert.equal(google.revoked.length, before + 1)
     assert.match(google.revoked.at(-1), /^refresh-gA-/)
     assert.deepEqual(pool.integrations.get('user-b|google'), bRowBefore)
+    resetGoogleCacheForTest()
+    google.expireAccessTokens()
+    const afterSwitch = await api('user-a', 'GET', '/backend/api/service-integrations/google/calendars')
+    assert.equal(afterSwitch.status, 200)
   })
 
   it('disconnect: revoke 후 자기 credential 삭제, 이후 미연동', async () => {
