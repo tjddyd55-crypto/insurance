@@ -19752,3 +19752,6 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 .auth-page .auth-form--register .register-partner-ga-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;max-height:160px;overflow-y:auto}
 .auth-page .auth-form--register .register-partner-ga-item{padding:6px 10px;border:1px solid var(--border,#d1d5db);border-radius:999px;background:var(--surface,#fff);color:inherit;font-size:13px;cursor:pointer;white-space:nowrap}
 .auth-page .auth-form--register .register-partner-ga-item.is-selected{border-color:var(--primary,#2563eb);background:color-mix(in srgb,var(--primary,#2563eb) 12%,transparent);font-weight:600}
+.auth-page .auth-form--register .register-signup-type__opt.button{height:auto;min-height:0;white-space:normal;justify-content:flex-start;line-height:1.35;font-weight:400}
+.auth-page .auth-form--register .register-signup-type__opt.button strong{font-weight:700;font-size:14px}
+.auth-page .auth-form--register .register-partner-ga-item.button{height:auto;min-height:30px;font-weight:500}
