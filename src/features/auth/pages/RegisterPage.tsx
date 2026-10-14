@@ -748,7 +748,8 @@ export function RegisterPage({
                 : partnerOptions.map((g) => (
                     <FormButton
                       key={g.id}
-                      type="button"
+                      htmlType="button"
+                      variant="action"
                       role="option"
                       aria-selected={partnerGa?.id === g.id}
                       className={`register-partner-ga-item${partnerGa?.id === g.id ? ' is-selected' : ''}`}
