@@ -1,3 +1,5 @@
+import { Button } from '../../../../components/ui/Button'
+import { FieldWrapper, FormInput } from '../../../../components/form'
 import { formatBillingDotDate, formatBillingKoreanDate, formatKrw } from '../../billingManageViewUtils'
 import type { BillingCheckoutViewProps } from './billingCheckoutViewProps'
 
@@ -139,34 +141,34 @@ export function CheckoutCouponSection({ props }: { props: BillingCheckoutViewPro
               </>
             ) : null}
           </p>
-          <button
-            type="button"
-            className="insurance-billing-cta insurance-billing-cta--secondary"
-            disabled={submitting}
-            onClick={onClearPromo}
-          >
-            적용 취소
-          </button>
+          <div className="insurance-billing-coupon-actions">
+            <Button variant="secondary" disabled={submitting} onClick={onClearPromo}>
+              적용 취소
+            </Button>
+          </div>
         </div>
       ) : (
         <>
-          <div className="insurance-billing-coupon-row">
-            <input
-              id="billing-promo-code"
-              value={promoCode}
-              onChange={(e) => onPromoCodeChange(e.target.value)}
-              placeholder="쿠폰 코드를 입력하세요"
-              autoComplete="off"
-            />
-            <button
-              type="button"
-              className="insurance-billing-cta insurance-billing-cta--secondary"
-              disabled={submitting || !promoCode.trim()}
-              onClick={onApplyPromo}
-            >
-              적용
-            </button>
-          </div>
+          <FieldWrapper label="쿠폰 코드" className="insurance-billing-coupon-field">
+            <div className="insurance-billing-coupon-row">
+              <FormInput
+                id="billing-promo-code"
+                value={promoCode}
+                onChange={(e) => onPromoCodeChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && promoCode.trim() && !submitting) {
+                    e.preventDefault()
+                    onApplyPromo()
+                  }
+                }}
+                placeholder="쿠폰 코드를 입력하세요"
+                autoComplete="off"
+              />
+              <Button variant="secondary" disabled={submitting || !promoCode.trim()} onClick={onApplyPromo}>
+                쿠폰 적용
+              </Button>
+            </div>
+          </FieldWrapper>
           <p className="insurance-billing-plan-note">쿠폰이 있다면 입력해 주세요.</p>
         </>
       )}

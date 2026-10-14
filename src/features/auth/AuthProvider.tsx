@@ -5,10 +5,12 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
-import type { AuthUser, UserRole } from './authApi'
+import { useQueryClient } from '@tanstack/react-query'
+import { fetchMe, type AuthUser, type UserRole } from './authApi'
 import {
   normalizeSubscriptionFromApi,
   type SubscriptionSnapshot,
@@ -27,6 +29,14 @@ interface AuthContextValue {
   isAuthenticated: boolean
   login: (session: AuthSession) => void
   logout: () => void
+  /**
+   * 쿠폰 적용·결제 완료 등 구독/이용권 상태가 서버에서 바뀐 직후 호출.
+   * /api/me 로 user.subscription 을 갱신(localStorage 포함)하고, billingStateVersion 을 올려
+   * 레이아웃/가드의 결제 요약(useInsuranceBillingSummary)을 다시 불러오게 하며 react-query 캐시를 무효화한다.
+   * → 재로그인 없이 "새로 로그인한 것처럼" 반영.
+   */
+  refreshAccountState: () => Promise<void>
+  billingStateVersion: number
 }
 
 const AUTH_STORAGE_KEY = 'insurance.auth.session'
@@ -172,6 +182,10 @@ function readStoredSession(): AuthSession | null {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthSession | null>(() => readStoredSession())
+  const [billingStateVersion, setBillingStateVersion] = useState(0)
+  const queryClient = useQueryClient()
+  const sessionRef = useRef(session)
+  sessionRef.current = session
 
   const logout = useCallback(() => {
     setSession(null)
@@ -260,6 +274,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [session, logout])
 
+  const refreshAccountState = useCallback(async () => {
+    const token = sessionRef.current?.token
+    if (!token) return
+    try {
+      const me = await fetchMe(token)
+      const current = sessionRef.current
+      if (current && current.token === token && me && 'subscription' in me) {
+        const next: AuthSession = {
+          ...current,
+          user: { ...current.user, subscription: normalizeSubscriptionFromApi(me.subscription) },
+        }
+        setSession(next)
+        window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(next))
+      }
+    } catch (e) {
+      console.warn('[auth] refreshAccountState /api/me failed', e)
+    } finally {
+      setBillingStateVersion((v) => v + 1)
+      void queryClient.invalidateQueries()
+    }
+  }, [queryClient])
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user: session?.user ?? null,
@@ -267,8 +303,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: Boolean(session?.token),
       login,
       logout,
+      refreshAccountState,
+      billingStateVersion,
     }),
-    [session, login, logout],
+    [session, login, logout, refreshAccountState, billingStateVersion],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
