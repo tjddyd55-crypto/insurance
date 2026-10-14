@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import './newsletterCollections.css'
 import { FormButton } from '../../../../components/form'
 import { NewsletterAddToBinderDialog } from './NewsletterAddToBinderDialog'
 import { NewsletterAddToFolderDialog } from './NewsletterAddToFolderDialog'
@@ -51,8 +52,26 @@ export function NewsletterCollectionDetailActions({
       >
         {favorite ? '★' : '☆'}
       </FormButton>
-      <FormButton variant="secondary" size="sm" onClick={() => setFolderOpen(true)}>내 폴더에 담기</FormButton>
-      <FormButton variant="secondary" size="sm" onClick={() => setBinderOpen(true)}>내 바인더에 담기</FormButton>
+      <FormButton
+        variant="secondary"
+        size="sm"
+        className="newsletter-collection-action"
+        aria-label="내 폴더에 담기"
+        onClick={() => setFolderOpen(true)}
+      >
+        <span className="newsletter-collection-action__long">내 폴더에 담기</span>
+        <span className="newsletter-collection-action__short" aria-hidden="true">폴더</span>
+      </FormButton>
+      <FormButton
+        variant="secondary"
+        size="sm"
+        className="newsletter-collection-action"
+        aria-label="내 바인더에 담기"
+        onClick={() => setBinderOpen(true)}
+      >
+        <span className="newsletter-collection-action__long">내 바인더에 담기</span>
+        <span className="newsletter-collection-action__short" aria-hidden="true">바인더</span>
+      </FormButton>
       {onRemoveFromFolder ? (
         <FormButton variant="secondary" size="sm" onClick={onRemoveFromFolder}>
           {removeFromFolderLabel ?? '폴더에서 빼기'}

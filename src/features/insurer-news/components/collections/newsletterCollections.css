@@ -218,3 +218,20 @@
   display: flex;
   justify-content: flex-end;
 }
+
+.newsletter-collection-action,
+.newsletter-star-button {
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+.newsletter-collection-action__short {
+  display: none;
+}
+@media (max-width: 768px) {
+  .newsletter-collection-action__long {
+    display: none;
+  }
+  .newsletter-collection-action__short {
+    display: inline;
+  }
+}
