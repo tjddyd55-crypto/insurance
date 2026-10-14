@@ -18,6 +18,9 @@ import { deleteManagerNewsletter, getNewsletterDetail, getNewsletterDetailForIns
 import { canDeleteNewsletter } from '../utils/newsletterDeletePermission'
 import type { NewsChannel, NewsletterDetail } from '../types'
 
+import { NewsletterCollectionDetailActions } from '../components/collections/NewsletterCollectionDetailActions'
+import { useNewsletterCollections } from '../components/collections/useNewsletterCollections'
+
 const ZOOM_STEP = NEWS_DETAIL_VIEWER_ZOOM_STEP
 
 export function InsurerManagerNewsDetailPage({
@@ -46,6 +49,9 @@ export function InsurerManagerNewsDetailPage({
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   const [zoom, setZoom] = useState(1)
+  const collectionsEnabled = detailScope === 'ga' && channel === 'INSURER' && !isPublicAccount
+  const collections = useNewsletterCollections(token, collectionsEnabled)
+  const [collectionNotice, setCollectionNotice] = useState('')
 
   useEffect(() => {
     if (!canFetch) {
@@ -146,9 +152,24 @@ export function InsurerManagerNewsDetailPage({
             canDelete={canDelete}
             onDelete={handleDelete}
             deleteBusy={deleteBusy}
+            leadingActions={
+              collectionsEnabled && detail && newsletterId ? (
+                <NewsletterCollectionDetailActions
+                  token={token}
+                  newsletterId={newsletterId}
+                  collections={collections}
+                  onNotice={setCollectionNotice}
+                />
+              ) : null
+            }
           />
         }
       >
+        {collectionNotice ? (
+          <p className="insurer-news-inline-notice newsletter-collections-notice" role="status">
+            {collectionNotice}
+          </p>
+        ) : null}
         {detail ? <InsurerNewsDetailViewerContent zoom={zoom} detail={detail} item={null} /> : null}
       </NewsDetailViewerModal>
       {confirmDialog}
