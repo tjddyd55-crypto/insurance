@@ -13,6 +13,14 @@ import {
 import type { NewsChannel, NewsletterItem } from '../types'
 import { canDeleteNewsletter } from '../utils/newsletterDeletePermission'
 import InsurerManagerNewsListMobileView from './InsurerManagerNewsList/InsurerManagerNewsListMobileView'
+import {
+  NewsletterCollectionsNav,
+  type NewsletterCollectionView,
+} from '../components/collections/NewsletterCollectionsNav'
+import { NewsletterCollectionDetailActions } from '../components/collections/NewsletterCollectionDetailActions'
+import { NewsletterFolderAddItemsDialog } from '../components/collections/NewsletterFolderAddItemsDialog'
+import { useNewsletterCollections } from '../components/collections/useNewsletterCollections'
+import { removeNewsletterFromFolder } from '../services/newsletterCollections.service'
 import InsurerManagerNewsListPCView from './InsurerManagerNewsList/InsurerManagerNewsListPCView'
 import type { InsurerManagerNewsListViewProps } from './InsurerManagerNewsList/insurerManagerNewsListViewProps'
 
@@ -24,6 +32,8 @@ type InsurerManagerNewsListPageProps = {
   emptyMessage?: string
   fetchScope?: 'manager' | 'ga'
   noSessionMessage?: string
+  /** 개인 폴더·즐겨찾기·내 바인더 담기 (GA 원수사 소식지 허브 전용 opt-in). */
+  enableCollections?: boolean
 }
 
 /**
@@ -53,6 +63,7 @@ export function InsurerManagerNewsListPage({
   emptyMessage = '등록된 소식지가 없습니다.',
   fetchScope = 'manager',
   noSessionMessage = '원수사 담당자 계정(소속 회사 정보 포함)으로 로그인한 후 이용할 수 있습니다.',
+  enableCollections = false,
 }: InsurerManagerNewsListPageProps) {
   const { user, token } = useAuth()
   const { confirm, confirmDialog } = useConfirmDialog()
@@ -71,6 +82,12 @@ export function InsurerManagerNewsListPage({
   const [searchQuery, setSearchQuery] = useState('')
   const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null)
   const [deleteNotice, setDeleteNotice] = useState('')
+  const collectionsEnabled =
+    enableCollections && fetchScope === 'ga' && channel === 'INSURER' && !isPublicAccount
+  const collections = useNewsletterCollections(token, collectionsEnabled)
+  const [collectionView, setCollectionView] = useState<NewsletterCollectionView>({ kind: 'all' })
+  const [collectionNotice, setCollectionNotice] = useState('')
+  const [folderAddOpen, setFolderAddOpen] = useState(false)
 
   const canDeleteItem = useCallback(
     (item: NewsletterItem) => canDeleteNewsletter(item, user),
@@ -135,12 +152,24 @@ export function InsurerManagerNewsListPage({
     }
   }, [fetchScope, channel, token, gaCode, companyId, requiresCompanyScope, isPublicAccount])
 
+  const collectionScopedItems = useMemo(() => {
+    if (!collectionsEnabled || collectionView.kind === 'all') {
+      return items
+    }
+    const ids =
+      collectionView.kind === 'favorites'
+        ? collections.data.favoriteNewsletterIds
+        : collections.data.folders.find((folder) => folder.id === collectionView.folderId)?.newsletterIds ?? []
+    const allowed = new Set(ids)
+    return items.filter((item) => allowed.has(item.id))
+  }, [collectionsEnabled, collectionView, collections.data, items])
+
   const filteredItems = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
     if (!q) {
-      return items
+      return collectionScopedItems
     }
-    return items.filter((item) => {
+    return collectionScopedItems.filter((item) => {
       const haystack = [
         item.insurerName,
         item.title,
@@ -152,7 +181,7 @@ export function InsurerManagerNewsListPage({
         .join('\n')
       return haystack.includes(q)
     })
-  }, [items, searchQuery])
+  }, [collectionScopedItems, searchQuery])
 
   if (isPublicAccount) {
     return (
@@ -190,12 +219,77 @@ export function InsurerManagerNewsListPage({
     onDeleteItem: handleDeleteItem,
     canDeleteItem,
     deleteBusyId,
-    deleteNotice,
+    deleteNotice: deleteNotice || collectionNotice,
+  }
+
+  const activeFolder =
+    collectionView.kind === 'folder'
+      ? collections.data.folders.find((folder) => folder.id === collectionView.folderId) ?? null
+      : null
+
+  if (collectionsEnabled) {
+    viewProps.collectionsNav = (
+      <NewsletterCollectionsNav
+        token={token}
+        collections={collections}
+        view={collectionView}
+        onViewChange={(next) => {
+          setCollectionView(next)
+          setCollectionNotice('')
+        }}
+        totalCount={items.length}
+        onAddItems={() => setFolderAddOpen(true)}
+        onNotice={setCollectionNotice}
+      />
+    )
+    if (collectionView.kind === 'favorites') {
+      viewProps.collectionEmptyMessage = '즐겨찾기한 소식지가 없습니다. 소식지 상세에서 ☆ 를 눌러 추가하세요.'
+    } else if (activeFolder) {
+      viewProps.collectionEmptyMessage = '폴더가 비어 있습니다. [소식지 추가] 로 담아 보세요.'
+    }
+    viewProps.renderDetailCollectionActions = (item, closeDetail) => (
+      <NewsletterCollectionDetailActions
+        token={token}
+        newsletterId={item.id}
+        collections={collections}
+        onNotice={setCollectionNotice}
+        onRemoveFromFolder={
+          activeFolder
+            ? () => {
+                void (async () => {
+                  try {
+                    await removeNewsletterFromFolder(token, activeFolder.id, item.id)
+                    setCollectionNotice(`'${activeFolder.name}'에서 뺐습니다. 원본 소식지는 그대로 남아 있습니다.`)
+                    closeDetail()
+                    await collections.refresh()
+                  } catch (e) {
+                    setCollectionNotice(e instanceof Error ? e.message : '폴더에서 빼지 못했습니다.')
+                  }
+                })()
+              }
+            : undefined
+        }
+      />
+    )
   }
 
   return (
     <>
       {confirmDialog}
+      {collectionsEnabled ? (
+        <NewsletterFolderAddItemsDialog
+          open={folderAddOpen}
+          token={token}
+          folder={activeFolder}
+          items={items}
+          collections={collections.data}
+          onClose={() => setFolderAddOpen(false)}
+          onAdded={(message) => {
+            setCollectionNotice(message)
+            void collections.refresh()
+          }}
+        />
+      ) : null}
       <ResponsiveLayout<InsurerManagerNewsListViewProps>
         PC={InsurerManagerNewsListPCView}
         Mobile={InsurerManagerNewsListMobileView}

@@ -12,8 +12,9 @@ import {
   createPersonalBinderMaterialFromTeam,
 } from '../personalBinder.api'
 import type { PersonalBinderMaterial } from '../personalBinder.types'
+import { NewsletterBinderSourcePanel } from './NewsletterBinderSourcePanel'
 
-type SourceTab = 'storage' | 'team'
+type SourceTab = 'storage' | 'team' | 'newsletter'
 
 function isBinderCompatibleFile(mimeType: string, fileName: string): boolean {
   const mime = String(mimeType ?? '').toLowerCase().split(';')[0].trim()
@@ -35,6 +36,9 @@ export function MaterialAddSourceDialog({
   onClose,
   onMaterialReady,
   onUploaded,
+  targetSectionId = null,
+  targetSectionTitle = '',
+  onNewslettersImported,
 }: {
   open: boolean
   token: string | null
@@ -44,6 +48,10 @@ export function MaterialAddSourceDialog({
   onClose: () => void
   onMaterialReady?: (material: PersonalBinderMaterial) => void
   onUploaded?: (material: PersonalBinderMaterial) => void
+  /** 바인더 섹션에 추가할 때만: 소식지 출처 탭을 노출한다. */
+  targetSectionId?: string | null
+  targetSectionTitle?: string
+  onNewslettersImported?: (message: string) => void
 }) {
   const [tab, setTab] = useState<SourceTab>('storage')
   const [query, setQuery] = useState('')
@@ -158,9 +166,11 @@ export function MaterialAddSourceDialog({
 
   if (!open) return null
 
+  const showNewsletterTab = mode === 'binder' && targetSectionId != null && onNewslettersImported != null
   const tabs: { id: SourceTab; label: string }[] = [
     { id: 'storage', label: '내 저장 공간' },
     { id: 'team', label: '팀 자료실' },
+    ...(showNewsletterTab ? [{ id: 'newsletter' as const, label: '소식지' }] : []),
   ]
 
   return (
@@ -195,6 +205,9 @@ export function MaterialAddSourceDialog({
                 } else {
                   setStorageLinkError('')
                 }
+                if (entry.id === 'newsletter') {
+                  setTeamError('')
+                }
               }}
             >
               {entry.label}
@@ -225,6 +238,19 @@ export function MaterialAddSourceDialog({
               binderPickMode
               binderPickBusyFileId={linkingId ? Number(linkingId) : null}
               onAddFileToBinder={(file) => void linkStorageFile(file)}
+            />
+          </div>
+        ) : null}
+
+        {tab === 'newsletter' && showNewsletterTab && targetSectionId ? (
+          <div className="personal-binder-material-add-modal__inset">
+            <NewsletterBinderSourcePanel
+              sectionId={targetSectionId}
+              sectionTitle={targetSectionTitle}
+              onImported={(message) => {
+                onNewslettersImported?.(message)
+                onClose()
+              }}
             />
           </div>
         ) : null}

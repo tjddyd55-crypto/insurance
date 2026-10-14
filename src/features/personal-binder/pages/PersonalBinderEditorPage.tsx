@@ -139,6 +139,7 @@ export default function PersonalBinderEditorPage({
     title: string
   } | null>(null)
   const [materialSectionId, setMaterialSectionId] = useState<string | null>(null)
+  const [newsletterImportNotice, setNewsletterImportNotice] = useState('')
   const [pageTarget, setPageTarget] = useState<PageSelectionTarget | null>(null)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [dragSectionId, setDragSectionId] = useState<string | null>(null)
@@ -533,6 +534,9 @@ export default function PersonalBinderEditorPage({
       </header>
 
       {error ? <p className="personal-binder-error">{error}</p> : null}
+      {newsletterImportNotice ? (
+        <p className="personal-binder-newsletter-notice" role="status">{newsletterImportNotice}</p>
+      ) : null}
 
       <section className="personal-binder-settings personal-binder-settings--compact">
         <FormInput
@@ -800,6 +804,16 @@ export default function PersonalBinderEditorPage({
         mode="binder"
         onClose={() => setMaterialSectionId(null)}
         onMaterialReady={pickMaterialFromSource}
+        targetSectionId={materialSectionId}
+        targetSectionTitle={
+          materialSectionId
+            ? binder.sections.find((section) => section.id === materialSectionId)?.title ?? ''
+            : ''
+        }
+        onNewslettersImported={(message) => {
+          setNewsletterImportNotice(message)
+          void refresh()
+        }}
       />
 
       {!pageSelectionDock ? (

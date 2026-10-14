@@ -25,6 +25,8 @@ export default function InsurerManagerNewsListMobileView({
   onSearchQueryChange,
   noSearchResults,
   deleteNotice,
+  collectionsNav,
+  collectionEmptyMessage,
 }: InsurerManagerNewsListViewProps) {
   const navigate = useNavigate()
 
@@ -47,6 +49,7 @@ export default function InsurerManagerNewsListMobileView({
           />
         </label>
       </div>
+      {collectionsNav}
       {error ? <div className="insurer-news-empty">{error}</div> : null}
       {deleteNotice ? (
         <div className="insurer-news-inline-notice" role="status">
@@ -55,7 +58,7 @@ export default function InsurerManagerNewsListMobileView({
       ) : null}
       <NewsletterList
         items={items}
-        emptyMessage={emptyMessage}
+        emptyMessage={collectionEmptyMessage ?? emptyMessage}
         variant="mobile"
         onOpenItem={(id) => navigate(`${openPathPrefix}/${id}`)}
         noSearchResults={noSearchResults}

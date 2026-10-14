@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { FormButton } from '../../../components/form'
 
 type Props = {
@@ -9,6 +10,8 @@ type Props = {
   onDelete?: () => void
   deleteBusy?: boolean
   deleteLabel?: string
+  /** 즐겨찾기·내 폴더/바인더 담기 등 앞쪽에 붙는 추가 동작 (opt-in). */
+  leadingActions?: ReactNode
 }
 
 /**
@@ -24,16 +27,18 @@ export function NewsletterViewerHeaderActions({
   onDelete,
   deleteBusy = false,
   deleteLabel = '삭제',
+  leadingActions = null,
 }: Props) {
   const showEdit = canEdit && onEdit != null
   const showDelete = canDelete && onDelete != null
 
-  if (!heroDownloadUrl && !showEdit && !showDelete) {
+  if (!leadingActions && !heroDownloadUrl && !showEdit && !showDelete) {
     return null
   }
 
   return (
     <>
+      {leadingActions}
       {heroDownloadUrl ? (
         <a
           href={heroDownloadUrl}
