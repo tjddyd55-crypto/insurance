@@ -299,19 +299,35 @@
 }
 
 .insurance-billing-coupon-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
   gap: 8px;
+  align-items: center;
 }
 
-.insurance-billing-coupon-row input {
-  width: 100%;
-  min-height: 44px;
-  padding: 0 12px;
-  border: 1px solid var(--input-border, var(--border-default));
-  border-radius: 10px;
-  background: var(--input-bg, var(--bg-surface));
-  color: var(--text-primary);
+.insurance-billing-coupon-row .form-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.insurance-billing-coupon-row .button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.insurance-billing-coupon-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 768px) {
+  .insurance-billing-coupon-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .insurance-billing-coupon-row .button {
+    width: 100%;
+  }
 }
 
 .insurance-billing-coupon-applied {
