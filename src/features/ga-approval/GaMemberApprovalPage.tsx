@@ -138,7 +138,8 @@ export default function GaMemberApprovalPage() {
         {TABS.map((t) => (
           <FormButton
             key={t.key}
-            type="button"
+            htmlType="button"
+            variant="action"
             role="tab"
             aria-selected={tab === t.key}
             className={`ga-approval__tab${tab === t.key ? ' is-active' : ''}`}

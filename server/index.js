@@ -13,7 +13,11 @@ import { formatKstDate } from '../shared/dateTimeKst.js'
 import { registerUserProfileApi } from './registerUserProfileApi.js'
 import { registerReferralApi } from './registerReferralApi.js'
 import { registerGaApprovalApi } from './ga-approval/registerGaApprovalApi.js'
-import { createPendingApprovalRequest, findPartnerSignupGa } from './ga-approval/gaApprovalService.js'
+import {
+  createPendingApprovalRequest,
+  findPartnerSignupGa,
+  isApprovedGaTransitionToken,
+} from './ga-approval/gaApprovalService.js'
 import { registerPromotionCodesApi } from './registerPromotionCodesApi.js'
 import { registerAdminPromotionCodesApi } from './registerAdminPromotionCodesApi.js'
 import { registerBillingApi } from './registerBillingApi.js'
@@ -3105,8 +3109,39 @@ async function handleLogin(req, res) {
   }
 }
 
+/**
+ * t291: 세션 재발급 전용 인증 — "승인으로 인한 GA 변경"(공용 → 승인된 GA) 토큰만 예외 허용,
+ * 그 외는 표준 requireAuth.
+ */
+async function requireAuthOrApprovedGaTransition(req, res, next) {
+  const authHeader = String(req.headers.authorization ?? '')
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : ''
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET)
+      const userId = String(decoded.userId || decoded.sub || '').trim()
+      const tokenGaId = parseGaId(decoded.gaId ?? decoded.ga_id)
+      if (
+        userId &&
+        (await isApprovedGaTransitionToken(pool, {
+          userId,
+          tokenGaId,
+          tokenRole: normalizeUserRole(decoded.role),
+        }))
+      ) {
+        req.user = { id: userId, role: 'USER', gaId: tokenGaId }
+        next()
+        return
+      }
+    } catch {
+      /* 아래 requireAuth 가 표준 응답 */
+    }
+  }
+  return requireAuth(req, res, next)
+}
+
 /** t291: DB 기준으로 JWT·user 재발급(재로그인 없이 GA 승인 반영). 로그인 기록은 남기지 않음. */
-apiRouter.post('/auth/session/refresh', requireAuth, async (req, res) => {
+apiRouter.post('/auth/session/refresh', requireAuthOrApprovedGaTransition, async (req, res) => {
   try {
     const uid = String(req.user?.id ?? '').trim()
     const r = await systemQuery(
