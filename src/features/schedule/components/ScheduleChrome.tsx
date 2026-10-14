@@ -208,6 +208,11 @@ function ScheduleCompactChrome(props: ScheduleViewProps & { toolbarExtra?: React
               완료 포함
             </Button>
           ) : null}
+          {anyTasksOn && props.view === 'list' ? (
+            <Button type="button" size="sm" aria-pressed={props.includeOverdue} variant={props.includeOverdue ? 'primary' : 'secondary'} onClick={props.onToggleOverdue}>
+              지난 할 일 전체
+            </Button>
+          ) : null}
         </div>
         {googleOn && props.google.status === 'connected' && props.google.calendars.length > 1 ? (
           <div className="schedule-page__toolbar-group" role="group" aria-label="Google 캘린더">

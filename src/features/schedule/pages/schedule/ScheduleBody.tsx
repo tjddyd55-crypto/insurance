@@ -112,6 +112,8 @@ export default function ScheduleBody(props: ScheduleViewProps & { calendarDecor?
           tasks={props.tasks}
           onOpenEvent={onOpenEvent}
           onOpenTask={onOpenTask}
+          monthOnly={pc}
+          includeOverdue={pc && props.includeOverdue}
         />
       ) : null}
       <ScheduleGoogleDetailDialog detail={props.detail} onCloseDetail={props.onCloseDetail} />
