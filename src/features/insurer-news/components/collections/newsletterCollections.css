@@ -338,7 +338,8 @@
   flex: 0 0 auto;
 }
 .newsletter-collections-toolbar__folders {
-  min-width: 0;
+  min-width: 180px;
+  max-width: 260px;
 }
 .newsletter-collections-toolbar__search {
   flex: 1 1 160px;

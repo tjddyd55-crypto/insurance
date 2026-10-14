@@ -190,6 +190,20 @@ export function NewsletterPickerPanel({
     }
   }, [])
 
+  // 미리보기가 떠 있을 때 Esc 는 미리보기만 닫는다(아래 폴더/바인더 선택 모달은 유지).
+  const previewOpen = previewItem != null
+  useEffect(() => {
+    if (!previewOpen) return undefined
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      closePreview()
+    }
+    window.addEventListener('keydown', onKeyDown, true)
+    return () => window.removeEventListener('keydown', onKeyDown, true)
+  }, [previewOpen])
+
   return (
     <div className="newsletter-picker">
       <div className={`newsletter-picker__controls${showSourceFilter ? '' : ' newsletter-picker__controls--no-source'}`}>
