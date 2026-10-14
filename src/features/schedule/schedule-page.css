@@ -627,9 +627,15 @@
   cursor: pointer;
 }
 .schedule-customer-modal.schedule-customer-modal {
-  width: min(1480px, 96vw) !important;
-  height: 92vh !important;
-  max-height: 92vh !important;
+  /* BaseDialog 기본(좁은 알림형) 크기를 이 팝업에서만 넓힌다(유틸리티 layer 보다 우선). */
+  width: min(1480px, 96vw);
+  max-width: none;
+  height: 92vh;
+  max-height: 92vh;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 .schedule-customer-modal__head {
   display: flex;
