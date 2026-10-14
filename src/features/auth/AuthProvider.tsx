@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { fetchMe, type AuthUser, type UserRole } from './authApi'
+import { fetchMe, refreshUserSession, type AuthUser, type UserRole } from './authApi'
 import {
   normalizeSubscriptionFromApi,
   type SubscriptionSnapshot,
@@ -278,9 +278,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const token = sessionRef.current?.token
     if (!token) return
     try {
-      const me = await fetchMe(token)
+      /**
+       * t291: 일반 회원은 DB 기준 세션 재발급 — GA 가입 승인 시 재로그인 없이 소속 반영.
+       * 소속(gaId)이 바뀐 경우에만 세션 교체(로그인 정규화·작업 상태 초기화 재사용).
+       */
+      if (sessionRef.current?.user?.role === 'USER') {
+        try {
+          const refreshed = await refreshUserSession(token)
+          const cur = sessionRef.current
+          if (
+            refreshed.authKind === 'STANDARD' &&
+            cur &&
+            cur.token === token &&
+            parseGaId(refreshed.user.gaId) !== parseGaId(cur.user.gaId)
+          ) {
+            login({ token: refreshed.token, user: { ...refreshed.user, subscription: cur.user.subscription } })
+          }
+        } catch (e) {
+          console.warn('[auth] session refresh failed', e)
+        }
+      }
+      const activeToken = sessionRef.current?.token ?? token
+      const me = await fetchMe(activeToken)
       const current = sessionRef.current
-      if (current && current.token === token && me && 'subscription' in me) {
+      if (current && current.token === activeToken && me && 'subscription' in me) {
         const next: AuthSession = {
           ...current,
           user: { ...current.user, subscription: normalizeSubscriptionFromApi(me.subscription) },
@@ -294,7 +315,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setBillingStateVersion((v) => v + 1)
       void queryClient.invalidateQueries()
     }
-  }, [queryClient])
+  }, [queryClient, login])
 
   const value = useMemo<AuthContextValue>(
     () => ({

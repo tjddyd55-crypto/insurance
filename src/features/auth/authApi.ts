@@ -312,6 +312,9 @@ export async function register(payload: {
   referralCode?: string
   /** GA 그룹 전용 가입 페이지 슬러그 */
   gaGroupSlug?: string
+  /** t291: 'ga_partner' 이면 제휴 GA 승인 가입(공용으로 생성 + 승인 대기) */
+  signupType?: 'public' | 'ga_partner'
+  partnerGaId?: number
 }) {
   try {
     const body: Record<string, string> = {
@@ -356,7 +359,17 @@ export async function register(payload: {
     if (gaGroupSlug) {
       body.ga_group_slug = gaGroupSlug
     }
-    return await apiRequest<{ id: string; username: string; ga_id: number; createdAt: string }>(
+    if (payload.signupType === 'ga_partner' && payload.partnerGaId != null) {
+      body.signup_type = 'ga_partner'
+      body.partner_ga_id = String(payload.partnerGaId)
+    }
+    return await apiRequest<{
+      id: string
+      username: string
+      ga_id: number
+      createdAt: string
+      ga_approval?: { status: string; ga_name: string }
+    }>(
       '/api/auth/register',
       {
         method: 'POST',
@@ -527,6 +540,25 @@ export async function login(username: string, password: string): Promise<LoginSe
       redirectPath: String(raw.redirectPath ?? '/board-writer/workspace'),
     }
   }
+  if (!raw.user) {
+    throw new Error('로그인 응답이 올바르지 않습니다.')
+  }
+  return mapStandardLoginResponse(raw)
+}
+
+/**
+ * t291: DB 기준 JWT·user 재발급(GA 가입 승인 반영 — 재로그인 불필요).
+ * 일반 users 계정 전용. 로그인 이력은 남기지 않는다.
+ */
+export async function refreshUserSession(token: string): Promise<LoginSessionResult> {
+  const raw = await apiRequest<LoginResponse>('/api/auth/session/refresh', { method: 'POST', token })
+  if (!raw.user) {
+    throw new Error('세션 갱신 응답이 올바르지 않습니다.')
+  }
+  return mapStandardLoginResponse(raw)
+}
+
+function mapStandardLoginResponse(raw: LoginResponse): LoginSessionResult {
   if (!raw.user) {
     throw new Error('로그인 응답이 올바르지 않습니다.')
   }

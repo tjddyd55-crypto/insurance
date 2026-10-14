@@ -4594,6 +4594,8 @@ export async function initDb() {
   )
   await ensureNewsletterCollectionsSchema(pool)
   await ensureReferralSchema(pool)
+  const { ensureGaApprovalSchema } = await import('./ga-approval/gaApprovalService.js')
+  await ensureGaApprovalSchema(pool)
   await ensureBillingSchema(pool)
   await ensureInsuranceBillingPhase1Schema(pool)
   await ensurePromotionCodeSchema(pool)
