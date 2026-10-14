@@ -16,8 +16,36 @@ export const GA_APPROVAL_STATUSES = /** @type {const} */ (['PENDING', 'APPROVED'
 export async function ensureGaApprovalSchema(executor) {
   await executor.query(`
     ALTER TABLE ga_companies
-    ADD COLUMN IF NOT EXISTS accepts_partner_signup BOOLEAN NOT NULL DEFAULT true
+    ADD COLUMN IF NOT EXISTS accepts_partner_signup BOOLEAN NOT NULL DEFAULT false
   `)
+  /** t291b: 기본 OFF — 이후 생성 GA 기본값 false */
+  await executor.query(`ALTER TABLE ga_companies ALTER COLUMN accepts_partner_signup SET DEFAULT false`)
+  /**
+   * t291b 1회성 마이그레이션(사용자 지시): 기존 GA 전부 '가입 신청 허용' OFF.
+   * 마커 테이블로 단 한 번만 실행 — 이후 관리자가 켠 값을 재부팅 시 덮어쓰지 않는다.
+   * 소속·신청·이력 데이터는 건드리지 않음.
+   */
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS ga_approval_one_time_migrations (
+      key TEXT PRIMARY KEY,
+      applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      affected_rows INTEGER
+    )
+  `)
+  const marker = await executor.query(
+    `INSERT INTO ga_approval_one_time_migrations (key) VALUES ('t291b_partner_signup_default_off')
+     ON CONFLICT (key) DO NOTHING RETURNING key`,
+  )
+  if (marker.rowCount > 0) {
+    const upd = await executor.query(
+      `UPDATE ga_companies SET accepts_partner_signup = false WHERE accepts_partner_signup = true`,
+    )
+    await executor.query(
+      `UPDATE ga_approval_one_time_migrations SET affected_rows = $1 WHERE key = 't291b_partner_signup_default_off'`,
+      [upd.rowCount],
+    )
+    console.log(`[initDb] t291b accepts_partner_signup → false (${upd.rowCount} GA)`)
+  }
   await executor.query(`
     CREATE TABLE IF NOT EXISTS ga_membership_approval_requests (
       id BIGSERIAL PRIMARY KEY,

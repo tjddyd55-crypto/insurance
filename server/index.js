@@ -4055,7 +4055,7 @@ apiRouter.get('/admin/ga', requireAuth, async (req, res) => {
       const r = await systemQuery(
         pool,
         `
-        SELECT id, name, code, status, created_at
+        SELECT id, name, code, status, created_at, accepts_partner_signup
         FROM ga_companies
         WHERE is_deleted = false
         ORDER BY id ASC
@@ -4072,7 +4072,7 @@ apiRouter.get('/admin/ga', requireAuth, async (req, res) => {
     const r = await systemQuery(
       pool,
       `
-      SELECT id, name, code, status, created_at
+      SELECT id, name, code, status, created_at, accepts_partner_signup
       FROM ga_companies
       WHERE id = $1 AND is_deleted = false
       `,
@@ -4217,6 +4217,26 @@ apiRouter.patch('/admin/ga/:id', requireAuth, requireSuperAdmin, async (req, res
       vals.push(st)
     }
 
+    /** t291b: '가입 신청 허용'(제휴 GA 승인 가입) — SUPER_ADMIN 전용(라우트 가드), 활성 상태와 별개 */
+    const partnerKey = Object.prototype.hasOwnProperty.call(body, 'accepts_partner_signup')
+      ? 'accepts_partner_signup'
+      : Object.prototype.hasOwnProperty.call(body, 'acceptsPartnerSignup')
+        ? 'acceptsPartnerSignup'
+        : null
+    if (partnerKey) {
+      const v = body[partnerKey]
+      if (typeof v !== 'boolean') {
+        res.status(400).json({ message: 'accepts_partner_signup 은 true/false 여야 합니다.' })
+        return
+      }
+      if (v === true && isGeneralGaCompanyCode(beforeCode)) {
+        res.status(400).json({ message: '공용 GA는 가입 신청 대상이 아닙니다.' })
+        return
+      }
+      parts.push(`accepts_partner_signup = $${n++}`)
+      vals.push(v)
+    }
+
     if (parts.length === 0) {
       res.status(400).json({ message: '수정할 필드가 없습니다.' })
       return
@@ -4256,7 +4276,7 @@ apiRouter.patch('/admin/ga/:id', requireAuth, requireSuperAdmin, async (req, res
         UPDATE ga_companies
         SET ${parts.join(', ')}
         WHERE id = $${n} AND is_deleted = false
-        RETURNING id, name, code, status, created_at
+        RETURNING id, name, code, status, created_at, accepts_partner_signup
         `,
         vals,
       )
@@ -4346,7 +4366,7 @@ apiRouter.delete('/admin/ga/:id', requireAuth, requireSuperAdmin, async (req, re
   }
 })
 
-apiRouter.get('/admin/users/summary', requireAuth, requireSuperAdmin, async (req, res) => {
+apiRouter.get('/admin/users/summary', requireAuth, requireSuperAdminOrScopedGaAdmin, async (req, res) => {
   try {
     const { start: monthStart, end: monthEnd } = resolveKstMonthBoundsUtc()
     const r = await safeQuery(
@@ -4369,8 +4389,9 @@ apiRouter.get('/admin/users/summary', requireAuth, requireSuperAdmin, async (req
         )::int AS recent_7_days_active_users
       ${ADMIN_USER_LIST_FROM_SQL}
       WHERE u.is_deleted = false AND g.is_deleted = false
+        AND ($3::int IS NULL OR u.ga_id = $3::int)
       `,
-      [monthStart, monthEnd],
+      [monthStart, monthEnd, req.adminUsersForcedGaId ?? null],
     )
     const row = r.rows[0] ?? {}
     res.json({

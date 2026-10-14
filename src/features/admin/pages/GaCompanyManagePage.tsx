@@ -10,7 +10,7 @@ import {
   uploadGaCustomerExcelSample,
   type GaCustomerExcelSettingsDto,
 } from '../api/gaCustomerExcelAdminApi'
-import { listGaCompanies, type GaCompanyRow } from '../../auth/authApi'
+import { listGaCompanies, patchGaCompany, type GaCompanyRow } from '../../auth/authApi'
 import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
 
 type TabKey = 'excel' | 'customerDb'
@@ -39,13 +39,13 @@ export default function GaCompanyManagePage() {
   const [status, setStatus] = useState('')
 
   const stateMeta = location.state as { name?: string; code?: string } | undefined
+  const [acceptsSignup, setAcceptsSignup] = useState<boolean | null>(null)
+  const [isGeneralGa, setIsGeneralGa] = useState(false)
+  const [signupSaving, setSignupSaving] = useState(false)
+  const [signupMsg, setSignupMsg] = useState('')
 
   const loadGaMeta = useCallback(async () => {
     if (!token?.trim() || !Number.isFinite(gaId) || gaId < 1) {
-      return
-    }
-    if (stateMeta?.name && stateMeta?.code) {
-      setGaMeta({ name: stateMeta.name, code: stateMeta.code })
       return
     }
     try {
@@ -53,6 +53,10 @@ export default function GaCompanyManagePage() {
       const row = list.find((r: GaCompanyRow) => Number(r.id) === gaId)
       if (row) {
         setGaMeta({ name: row.name, code: row.code })
+        setAcceptsSignup(row.accepts_partner_signup === true)
+        setIsGeneralGa(String(row.code ?? '').toUpperCase() === 'GENERAL')
+      } else if (stateMeta?.name && stateMeta?.code) {
+        setGaMeta({ name: stateMeta.name, code: stateMeta.code })
       }
     } catch {
       /* ignore */
@@ -79,6 +83,21 @@ export default function GaCompanyManagePage() {
   useEffect(() => {
     void loadGaMeta()
   }, [loadGaMeta])
+
+  const toggleAcceptsSignup = async () => {
+    if (!token || acceptsSignup == null) return
+    setSignupSaving(true)
+    setSignupMsg('')
+    try {
+      const updated = await patchGaCompany(token, gaId, { accepts_partner_signup: !acceptsSignup })
+      setAcceptsSignup(updated.accepts_partner_signup === true)
+      setSignupMsg(updated.accepts_partner_signup ? '가입 신청을 허용했습니다.' : '가입 신청을 막았습니다.')
+    } catch (e) {
+      setSignupMsg(e instanceof Error ? e.message : '변경에 실패했습니다.')
+    } finally {
+      setSignupSaving(false)
+    }
+  }
 
   useEffect(() => {
     if (user?.role !== 'SUPER_ADMIN') {
@@ -202,6 +221,34 @@ export default function GaCompanyManagePage() {
           )}
         </p>
       </header>
+
+      {!isGeneralGa && acceptsSignup != null ? (
+        <section
+          className="card auth-card"
+          style={{ maxWidth: 'none', margin: '0 0 12px', padding: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}
+          aria-label="가입 신청 허용"
+        >
+          <div style={{ flex: '1 1 240px' }}>
+            <strong>가입 신청 허용</strong>{' '}
+            <span className={acceptsSignup ? 'status' : 'text-[var(--text-sub)]'}>{acceptsSignup ? 'ON' : 'OFF'}</span>
+            <p className="text-xs text-[var(--text-sub)]" style={{ margin: '4px 0 0' }}>
+              ON이면 회원가입의 제휴 GA 검색에 노출되고 승인 가입 신청을 받습니다. GA 활성 상태·공식 가입 링크와는 별개입니다.
+            </p>
+            {signupMsg ? <p className="text-xs" style={{ margin: '4px 0 0' }}>{signupMsg}</p> : null}
+          </div>
+          <FormButton
+            htmlType="button"
+            variant={acceptsSignup ? 'secondary' : 'primary'}
+            className={acceptsSignup ? 'button button--secondary' : 'button button--primary'}
+            disabled={signupSaving}
+            onClick={() => void toggleAcceptsSignup()}
+            role="switch"
+            aria-checked={acceptsSignup}
+          >
+            {acceptsSignup ? '허용 끄기' : '허용 켜기'}
+          </FormButton>
+        </section>
+      ) : null}
 
       <div className="card auth-card" style={{ maxWidth: 'none', margin: 0, padding: 12 }}>
         <div

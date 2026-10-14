@@ -99,6 +99,8 @@ export interface GaCompanyRow {
   name: string
   code: string
   status: EntityStatus
+  /** t291b: 제휴 GA '가입 신청 허용' (기본 false) */
+  accepts_partner_signup?: boolean
   created_at: string
   /** 슈퍼관리자 목록(페이지네이션) 조회 시만 채워짐 */
   groupId?: number | null
@@ -860,7 +862,7 @@ export async function createGaCompany(token: string, payload: { name: string; co
 export async function patchGaCompany(
   token: string,
   id: number,
-  body: { name?: string; code?: string; status?: EntityStatus },
+  body: { name?: string; code?: string; status?: EntityStatus; accepts_partner_signup?: boolean },
 ) {
   try {
     return await apiRequest<GaCompanyRow>(`/api/admin/ga/${id}`, {

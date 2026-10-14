@@ -44,6 +44,10 @@ import {
 } from '../adminUserPresentation'
 import CrmUserBulkSmsComposerDialog from '../components/CrmUserBulkSmsComposerDialog'
 import CrmUserBulkSmsHistoryDetailDialog from '../components/CrmUserBulkSmsHistoryDetailDialog'
+import { useSearchParams } from 'react-router-dom'
+import { GaApprovalPanel } from '../../ga-approval/GaApprovalPanel'
+import type { GaApprovalStatus } from '../../ga-approval/gaApprovalApi'
+import '../../ga-approval/gaMemberApproval.css'
 
 const ACCOUNT_STATUS_META: Record<EntityStatus, { label: string; fg: string; bg: string }> = {
   active: {
@@ -161,8 +165,11 @@ const EDIT_ROLE_OPTIONS: { value: UserRole; label: string }[] = [
   { value: 'SUPER_ADMIN', label: 'SUPER_ADMIN (전체 관리자)' },
 ]
 
-export default function UserManagementPage() {
+function UserManagementTable() {
   const { user, token } = useAuth()
+  /** t291b: GA_ADMIN 은 같은 화면을 본인 GA 범위(서버 강제)로 사용 — 수정·삭제·문자 발송·GA 필터 없음 */
+  const isSuper = user?.role === 'SUPER_ADMIN'
+  const canView = isSuper || user?.role === 'GA_ADMIN'
   const { confirm, confirmDialog } = useConfirmDialog()
   const isMobile = useIsMobile()
   const [gaList, setGaList] = useState<GaCompanyRow[]>([])
@@ -213,7 +220,7 @@ export default function UserManagementPage() {
   }, [user?.role, token])
 
   const loadUsers = useCallback(async () => {
-    if (!token?.trim() || user?.role !== 'SUPER_ADMIN') return
+    if (!token?.trim() || !canView) return
     setLoadError('')
     setIsLoading(true)
     try {
@@ -237,7 +244,7 @@ export default function UserManagementPage() {
     }
   }, [
     token,
-    user?.role,
+    canView,
     gaFilter,
     subscriptionFilter,
     searchQuery,
@@ -250,14 +257,14 @@ export default function UserManagementPage() {
   ])
 
   const loadOverview = useCallback(async () => {
-    if (!token?.trim() || user?.role !== 'SUPER_ADMIN') return
+    if (!token?.trim() || !canView) return
     try {
       const summary = await fetchAdminUsersOverviewSummary(token)
       setOverview(summary)
     } catch {
       setOverview(null)
     }
-  }, [token, user?.role])
+  }, [token, canView])
 
   useEffect(() => {
     void loadUsers()
@@ -318,7 +325,10 @@ export default function UserManagementPage() {
     void loadHistory()
   }, [loadHistory])
 
-  const selectableRows = useMemo(() => rows.filter((r) => isBulkSmsSelectableUser(r)), [rows])
+  const selectableRows = useMemo(
+    () => (isSuper ? rows.filter((r) => isBulkSmsSelectableUser(r)) : []),
+    [rows, isSuper],
+  )
   const selectedSendableCount = useMemo(
     () => rows.filter((r) => selectedIds.has(r.id) && isBulkSmsSelectableUser(r)).length,
     [rows, selectedIds],
@@ -439,7 +449,7 @@ export default function UserManagementPage() {
 
   const renderRowCells = (r: AdminUserRow) => {
     const displayName = String(r.display_name ?? '').trim()
-    const canSms = isBulkSmsSelectableUser(r)
+    const canSms = isSuper && isBulkSmsSelectableUser(r)
     const disabledReason = bulkSmsDisabledReason(r)
     return (
       <>
@@ -478,6 +488,7 @@ export default function UserManagementPage() {
           </span>
         </td>
         <td className="admin-table-cell--actions">
+          {isSuper ? (
           <div className="admin-table-actions">
             <FormButton
               htmlType="button"
@@ -498,6 +509,9 @@ export default function UserManagementPage() {
               삭제
             </FormButton>
           </div>
+          ) : (
+            <span className="text-[var(--text-sub)]">—</span>
+          )}
         </td>
       </>
     )
@@ -505,7 +519,7 @@ export default function UserManagementPage() {
 
   const renderUserCard = (r: AdminUserRow) => {
     const displayName = String(r.display_name ?? '').trim()
-    const canSms = isBulkSmsSelectableUser(r)
+    const canSms = isSuper && isBulkSmsSelectableUser(r)
     const disabledReason = bulkSmsDisabledReason(r)
     return (
       <article key={r.id} className="admin-user-card">
@@ -568,6 +582,7 @@ export default function UserManagementPage() {
           <span className="admin-user-card__label">최근 접속일</span>
           <span className="admin-user-card__value">{formatAdminUserLastLogin(r.last_login_at, true)}</span>
         </div>
+        {isSuper ? (
         <div className="admin-user-card__actions">
           <FormButton
             htmlType="button"
@@ -588,16 +603,17 @@ export default function UserManagementPage() {
             삭제
           </FormButton>
         </div>
+        ) : null}
       </article>
     )
   }
 
-  if (user?.role !== 'SUPER_ADMIN') {
+  if (!canView) {
     return (
       <main className="page page--with-back">
         <header className="page-header">
           <h1>유저 관리</h1>
-          <p>전체 관리자만 접근할 수 있습니다.</p>
+          <p>관리자만 접근할 수 있습니다.</p>
         </header>
       </main>
     )
@@ -655,7 +671,10 @@ export default function UserManagementPage() {
       setComposerOpen(true)
     }
     return (
-      <main className="page page--with-back admin-user-management admin-user-pc">
+      <main
+        className="page page--with-back admin-user-management admin-user-pc"
+        data-scope={isSuper ? 'all' : 'ga'}
+      >
         <header className="page-header admin-user-pc__header">
           <h1>유저 관리</h1>
           <p>{loadError || saveOk || '가입일·신규 가입 흐름을 기준으로 사용자를 조회하고 안내 문자를 발송합니다.'}</p>
@@ -1018,7 +1037,7 @@ export default function UserManagementPage() {
   }
 
   return (
-    <main className="page page--with-back admin-user-management">
+    <main className="page page--with-back admin-user-management" data-scope={isSuper ? 'all' : 'ga'}>
       <header className="page-header">
         <h1>유저 관리</h1>
         <p>
@@ -1103,7 +1122,7 @@ export default function UserManagementPage() {
         className="admin-toolbar admin-user-management__toolbar card auth-card"
         style={{ maxWidth: 'none', margin: 0 }}
       >
-        <FieldWrapper label="GA 선택" className="admin-modal-field">
+        <FieldWrapper label="GA 선택" className="admin-modal-field admin-user-pc__field--ga">
           <FormSelect
             className="admin-form-input"
             value={gaFilter === 'all' ? '' : String(gaFilter)}
@@ -1530,5 +1549,78 @@ export default function UserManagementPage() {
       ) : null}
       {confirmDialog}
     </main>
+  )
+}
+
+type UserMgmtTab = 'members' | GaApprovalStatus
+
+const USER_MGMT_TABS: { key: UserMgmtTab; label: string }[] = [
+  { key: 'members', label: '전체 소속' },
+  { key: 'PENDING', label: '승인 대기' },
+  { key: 'APPROVED', label: '승인 완료 이력' },
+  { key: 'REJECTED', label: '거절 이력' },
+]
+
+/**
+ * t291b — SUPER_ADMIN 12열 유저 관리 화면을 GA_ADMIN 과 공용.
+ * 전체 소속 탭 = 기존 표/검색/정렬/필터(서버가 GA_ADMIN 을 본인 GA 로 강제),
+ * 가입 신청 탭 = 승인 대기 · 승인 완료 이력 · 거절 이력.
+ */
+export default function UserManagementPage() {
+  const { user, token } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const raw = String(searchParams.get('tab') ?? '').toUpperCase()
+  const tab: UserMgmtTab = raw === 'PENDING' || raw === 'APPROVED' || raw === 'REJECTED' ? raw : 'members'
+  const [pendingCount, setPendingCount] = useState(0)
+  const canView = user?.role === 'SUPER_ADMIN' || user?.role === 'GA_ADMIN'
+
+  useEffect(() => {
+    if (!token || !canView) return
+    let cancelled = false
+    import('../../ga-approval/gaApprovalApi')
+      .then(({ listGaApprovals }) => listGaApprovals(token, 'PENDING'))
+      .then((r) => {
+        if (!cancelled) setPendingCount(r.pendingCount)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [token, canView, tab])
+
+  const onPendingCount = useCallback((n: number) => setPendingCount(n), [])
+
+  if (!canView) {
+    return <UserManagementTable />
+  }
+  return (
+    <>
+      <nav className="admin-user-mgmt-tabs page--with-back" role="tablist" aria-label="유저 관리 보기">
+        {USER_MGMT_TABS.map((t) => (
+          <FormButton
+            key={t.key}
+            htmlType="button"
+            variant="action"
+            role="tab"
+            aria-selected={tab === t.key}
+            className={`ga-approval__tab${tab === t.key ? ' is-active' : ''}`}
+            onClick={() => setSearchParams(t.key === 'members' ? {} : { tab: t.key }, { replace: true })}
+          >
+            {t.label}
+            {t.key === 'PENDING' && pendingCount > 0 ? <span className="ga-approval__badge">{pendingCount}</span> : null}
+          </FormButton>
+        ))}
+      </nav>
+      {tab === 'members' ? (
+        <UserManagementTable />
+      ) : (
+        <main className="page page--with-back admin-user-management">
+          <header className="page-header">
+            <h1>유저 관리 · 가입 신청</h1>
+          </header>
+          <GaApprovalPanel status={tab} onPendingCount={onPendingCount} />
+        </main>
+      )}
+    </>
   )
 }

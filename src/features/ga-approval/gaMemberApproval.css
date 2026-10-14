@@ -11,3 +11,13 @@
 .ga-approval__meta { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--text-sub, #6b7280); flex: 2 1 220px; }
 .ga-approval__actions { display: flex; gap: 6px; margin-left: auto; }
 .ga-approval__btn { min-height: 32px; padding: 4px 14px; white-space: nowrap; }
+.admin-user-mgmt-tabs { display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid var(--border, #ddd); margin: 0 0 10px; }
+.ga-approval__table td, .ga-approval__table th { white-space: nowrap; }
+.admin-user-management[data-scope='ga'] .admin-user-pc__sms-button,
+.admin-user-management[data-scope='ga'] .admin-user-management__bulk-bar,
+.admin-user-management[data-scope='ga'] .admin-user-management__history,
+.admin-user-management[data-scope='ga'] .admin-user-pc__field--ga { display: none !important; }
+.ga-approval .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.ga-approval__table { min-width: 760px; }
+.ga-approval__table td { vertical-align: middle; height: auto; padding-top: 8px; padding-bottom: 8px; }
+.ga-approval__table .admin-table-actions { flex-direction: row; flex-wrap: nowrap; gap: 6px; }
