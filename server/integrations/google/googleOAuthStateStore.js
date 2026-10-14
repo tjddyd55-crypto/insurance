@@ -3,6 +3,11 @@ import { systemQuery } from '../../utils/dbSafeQuery.js'
 
 export const OAUTH_STATE_TTL_MS = 10 * 60 * 1000
 export const OAUTH_BINDING_COOKIE = 'onefc_google_oauth_bind'
+/**
+ * 데스크톱 앱 state 표식. 동의는 시스템 브라우저에서 하므로 앱 쿠키가 없다.
+ * 실제 binding 해시(sha256 base64url, 43자, ':' 없음)와 절대 같을 수 없다.
+ */
+export const DESKTOP_BINDING_MARKER = 'client:desktop'
 
 /**
  * @param {string} value
@@ -18,7 +23,9 @@ export function randomOAuthToken() {
 /**
  * state 는 URL 로, binding 은 HttpOnly 쿠키로 나간다. DB 에는 둘 다 해시만 남긴다.
  * @param {import('pg').Pool | import('pg').PoolClient} pool
- * @param {{ userId: string, providerKey: string, now?: number }} input
+ * desktop: 쿠키 없이 state 만으로 확인(로그인된 데스크톱 세션만 만든다, TTL 10분, 1회용).
+ * @param {{ userId: string, providerKey: string, client?: 'web' | 'desktop', now?: number }} input
+ * @returns {Promise<{ state: string, binding: string | null, client: 'web' | 'desktop', expiresAt: number }>}
  */
 export async function createOAuthState(pool, input) {
   const userId = String(input.userId ?? '').trim()
@@ -29,7 +36,8 @@ export async function createOAuthState(pool, input) {
   }
   const now = input.now ?? Date.now()
   const state = randomOAuthToken()
-  const binding = randomOAuthToken()
+  const client = input.client === 'desktop' ? 'desktop' : 'web'
+  const binding = client === 'desktop' ? null : randomOAuthToken()
   await systemQuery(pool, `DELETE FROM service_integration_oauth_states WHERE expires_at < NOW()`)
   await systemQuery(
     pool,
@@ -37,9 +45,9 @@ export async function createOAuthState(pool, input) {
     INSERT INTO service_integration_oauth_states (state_hash, binding_hash, user_id, provider_key, expires_at)
     VALUES ($1, $2, $3, $4, $5)
     `,
-    [hashOAuthToken(state), hashOAuthToken(binding), userId, input.providerKey, new Date(now + OAUTH_STATE_TTL_MS)],
+    [hashOAuthToken(state), binding ? hashOAuthToken(binding) : DESKTOP_BINDING_MARKER, userId, input.providerKey, new Date(now + OAUTH_STATE_TTL_MS)],
   )
-  return { state, binding, expiresAt: now + OAUTH_STATE_TTL_MS }
+  return { state, binding, client, expiresAt: now + OAUTH_STATE_TTL_MS }
 }
 
 /**
@@ -56,7 +64,7 @@ function sameHash(left, right) {
  * 한 번만 쓴다(DELETE … RETURNING). 결과가 ok 일 때만 userId 를 믿는다.
  * @param {import('pg').Pool | import('pg').PoolClient} pool
  * @param {{ state: string, binding: string, providerKey: string, now?: number }} input
- * @returns {Promise<{ ok: true, userId: string } | { ok: false, reason: 'state_invalid' | 'state_expired' | 'session_mismatch' }>}
+ * @returns {Promise<{ ok: true, userId: string, client: 'web' | 'desktop' } | { ok: false, client?: 'web' | 'desktop', reason: 'state_invalid' | 'state_expired' | 'session_mismatch' }>}
  */
 export async function consumeOAuthState(pool, input) {
   const state = String(input.state ?? '').trim()
@@ -76,15 +84,19 @@ export async function consumeOAuthState(pool, input) {
   if (!row || row.provider_key !== input.providerKey || !String(row.user_id ?? '').trim()) {
     return { ok: false, reason: 'state_invalid' }
   }
+  const client = row.binding_hash === DESKTOP_BINDING_MARKER ? 'desktop' : 'web'
   const now = input.now ?? Date.now()
   if (new Date(row.expires_at).getTime() < now) {
-    return { ok: false, reason: 'state_expired' }
+    return { ok: false, client, reason: 'state_expired' }
+  }
+  if (client === 'desktop') {
+    return { ok: true, userId: String(row.user_id), client }
   }
   const binding = String(input.binding ?? '').trim()
   if (!binding || !sameHash(hashOAuthToken(binding), row.binding_hash)) {
-    return { ok: false, reason: 'session_mismatch' }
+    return { ok: false, client, reason: 'session_mismatch' }
   }
-  return { ok: true, userId: String(row.user_id) }
+  return { ok: true, userId: String(row.user_id), client }
 }
 
 /**
