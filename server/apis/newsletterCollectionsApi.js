@@ -282,10 +282,19 @@ async function compensateStoredFile(pool, scope, fileRow) {
 async function addSectionItem(pool, section, materialId, scope) {
   const existing = await safeQuery(
     pool,
-    `SELECT id FROM personal_binder_items WHERE section_id = $1 AND material_id = $2 LIMIT 1`,
-    [section.id, materialId],
+    `
+    SELECT i.id
+    FROM personal_binder_items i
+    INNER JOIN personal_binder_sections s ON s.id = i.section_id
+    INNER JOIN personal_binders b ON b.id = s.binder_id
+    WHERE i.section_id = $1 AND i.material_id = $2
+      AND b.owner_user_id = $3 AND b.ga_id = $4 AND b.deleted_at IS NULL
+    LIMIT 1
+    `,
+    [section.id, materialId, scope.userId, scope.gaId],
   )
   if (existing.rowCount > 0) return { id: String(existing.rows[0].id), existing: true }
+  // personalBinderApi 와 동일하게 pool.query 사용 (items 테이블에 ga_id 컬럼 없음).
   const result = await pool.query(
     `
     INSERT INTO personal_binder_items (section_id, material_id, sort_order, page_selection)
@@ -295,10 +304,10 @@ async function addSectionItem(pool, section, materialId, scope) {
     `,
     [section.id, materialId],
   )
-  await pool.query(`UPDATE personal_binders SET updated_at = NOW() WHERE id = $1 AND owner_user_id = $2`, [
-    section.binder_id,
-    scope.userId,
-  ])
+  await pool.query(
+    `UPDATE personal_binders SET updated_at = NOW() WHERE id = $1 AND owner_user_id = $2 AND ga_id = $3`,
+    [section.binder_id, scope.userId, scope.gaId],
+  )
   return { id: String(result.rows[0].id), existing: false }
 }
 
@@ -506,15 +515,18 @@ export function registerNewsletterCollectionsApi(apiRouter, ctx) {
             pool,
             `
             INSERT INTO newsletter_user_folder_items (folder_id, newsletter_id)
-            SELECT $1, x FROM unnest($2::text[]) AS x
+            SELECT f.id, x
+            FROM newsletter_user_folders f
+            CROSS JOIN unnest($3::text[]) AS x
+            WHERE f.id = $1 AND f.user_id = $2 AND f.ga_id = $4
             ON CONFLICT (folder_id, newsletter_id) DO NOTHING
             RETURNING newsletter_id
             `,
-            [folderId, allowed],
+            [folderId, scope.userId, allowed, scope.gaId],
           )
         : { rows: [] }
       const addedSet = new Set(inserted.rows.map((row) => String(row.newsletter_id)))
-      await safeQuery(pool, `UPDATE newsletter_user_folders SET updated_at = NOW() WHERE id = $1`, [folderId])
+      await safeQuery(pool, `UPDATE newsletter_user_folders SET updated_at = NOW() WHERE id = $1 AND user_id = $2 AND ga_id = $3`, [folderId, scope.userId, scope.gaId])
       res.json({
         added: [...addedSet],
         duplicates: allowed.filter((id) => !addedSet.has(id)),
@@ -537,8 +549,14 @@ export function registerNewsletterCollectionsApi(apiRouter, ctx) {
       }
       await safeQuery(
         pool,
-        `DELETE FROM newsletter_user_folder_items WHERE folder_id = $1 AND newsletter_id = $2`,
-        [folderId, String(req.params.newsletterId ?? '')],
+        `
+        DELETE FROM newsletter_user_folder_items i
+        USING newsletter_user_folders f
+        WHERE i.folder_id = f.id
+          AND f.id = $1 AND f.user_id = $2 AND f.ga_id = $3
+          AND i.newsletter_id = $4
+        `,
+        [folderId, scope.userId, scope.gaId, String(req.params.newsletterId ?? '')],
       )
       res.json({ ok: true })
     } catch (error) {
