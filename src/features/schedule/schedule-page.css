@@ -512,8 +512,8 @@
   .schedule-page--pc.schedule-page--compact {
     display: flex;
     flex-direction: column;
-    /* 최소 화면 높이를 채우고, 아래 날짜 목록이 있으면 페이지가 늘어난다(달력 칸이 지나치게 줄지 않도록). */
-    min-height: max(520px, calc(100dvh - var(--schedule-pc-top, 88px)));
+    height: calc(100dvh - var(--schedule-pc-top, 88px));
+    min-height: 520px;
     padding-top: 8px;
     padding-bottom: 8px;
     box-sizing: border-box;
@@ -579,12 +579,19 @@
   }
   /* 달력이 남은 높이를 채운다. 요일 머리줄은 내용 높이, 주(週) 줄은 균등. */
   .schedule-page--compact .schedule-page__month {
-    /* basis 0: 남는 높이만 채우고(최소는 주 줄 92px), 아래 날짜 목록을 화면 밖으로 밀지 않는다. */
-    flex: 1 0 0;
+    /* 남는 높이를 채운다. 주 줄은 최소 80px 이라 아래 날짜 목록이 있어도 칸이 지나치게 줄지 않는다. */
+    flex: 1 1 0;
     min-height: auto;
     margin-top: 8px;
     grid-template-rows: auto;
-    grid-auto-rows: minmax(92px, 1fr);
+    grid-auto-rows: minmax(80px, 1fr);
+  }
+  /* 선택한 날짜 목록: 달력 아래 고정 영역, 길면 안에서 스크롤 */
+  .schedule-page--compact .schedule-page__day-panel {
+    flex: 0 1 auto;
+    min-height: 96px;
+    max-height: 36%;
+    overflow: auto;
   }
   .schedule-page--compact .schedule-page__month .schedule-page__cell {
     min-height: 0;
