@@ -10,6 +10,8 @@ import type { TodoDto, TodoSourceType } from '../domain/todoTypes'
 import { createTodo, deleteTodo, patchTodo } from '../api/todosApi'
 import { formatSeoulYmd } from '../utils/formatSeoulYmd'
 import { suggestDueDateFromText } from '../utils/suggestDueDateFromText'
+import { initialCreateDueDate } from '../utils/defaultTodoDueDate'
+import useIsMobile from '../../../hooks/useIsMobile'
 import { firstLineTodoTitle } from '../utils/todoCopy'
 import { isTodoEditorFormChanged, type TodoEditorForm } from '../utils/todoEditorDirty'
 
@@ -80,6 +82,11 @@ export function TodoEditorDialog({
   const editInitialFormRef = useRef<TodoEditorForm | null>(null)
 
   const nestedConfirmBlockingRef = useRef(false)
+  /** PC: 새 할 일 마감일 기본값 오늘(KST). 모바일 웹은 기존 그대로(빈 값). */
+  const isMobile = useIsMobile()
+  const todayDefault = !isMobile
+  /** 자동으로 채운 마감일. 사용자가 손대지 않았으면 본문 제안이 덮어쓸 수 있다. */
+  const autoDueRef = useRef('')
 
   const lockRelated = mode === 'create' ? Boolean(prefill?.lockRelated) : false
   const lockedCustomerSummary =
@@ -104,12 +111,12 @@ export function TodoEditorDialog({
 
   const resetFromPrefill = useCallback((pf: TodoCreatePrefill) => {
     const content = resolveEditorContent(pf.description, pf.title)
-    const suggested =
-      pf.dueDate && /^\d{4}-\d{2}-\d{2}$/.test(pf.dueDate)
-        ? pf.dueDate
-        : suggestDueDateFromText(content)
+    const explicit = pf.dueDate && /^\d{4}-\d{2}-\d{2}$/.test(pf.dueDate) ? pf.dueDate : null
+    const suggested = explicit ?? suggestDueDateFromText(content)
+    const initialDue = initialCreateDueDate({ explicit, suggested, todayDefault })
+    autoDueRef.current = suggested ? '' : initialDue
     setDescription(content)
-    setDueDate(suggested ?? '')
+    setDueDate(initialDue)
     if (pf.lockRelated && pf.relatedEntityType === 'customer' && pf.relatedEntityId) {
       setRelatedEntityType('customer')
       setRelatedEntityId(pf.relatedEntityId)
@@ -120,7 +127,7 @@ export function TodoEditorDialog({
     setSearchQ('')
     setSearchHits([])
     setFormError('')
-  }, [])
+  }, [todayDefault])
 
   useEffect(() => {
     if (!open) {
@@ -132,8 +139,10 @@ export function TodoEditorDialog({
     } else if (prefill) {
       resetFromPrefill(prefill)
     } else {
+      const initialDue = initialCreateDueDate({ todayDefault })
+      autoDueRef.current = initialDue
       setDescription('')
-      setDueDate('')
+      setDueDate(initialDue)
       setRelatedEntityType('')
       setRelatedEntityId('')
       setSearchQ('')
@@ -177,7 +186,8 @@ export function TodoEditorDialog({
   const suggestFromDescription = () => {
     touchedRef.current = true
     const s = suggestDueDateFromText(description)
-    if (s && !dueDate) {
+    if (s && (!dueDate || (autoDueRef.current && dueDate === autoDueRef.current))) {
+      autoDueRef.current = ''
       setDueDate(s)
     }
   }
@@ -331,6 +341,7 @@ export function TodoEditorDialog({
                 value={dueDate}
                 onChange={(value) => {
                   touchedRef.current = true
+                  autoDueRef.current = ''
                   setDueDate(value)
                 }}
                 disabled={busy}

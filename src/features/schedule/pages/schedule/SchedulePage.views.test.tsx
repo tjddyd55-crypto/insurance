@@ -500,3 +500,13 @@ describe('일정 관리 PC 압축 상단', () => {
     expect(html).not.toContain('schedule-page__toolbar')
   })
 })
+
+describe('일정 관리 PC: 출처 표시 · 고객 연결', () => {
+  it('PC 달력 칸 할 일에 출처 표시(G/FC), 모바일 웹은 없음', () => {
+    const pcHtml = render(props({}))
+    expect(pcHtml).toContain('schedule-page__src-tag--google_task')
+    expect(pcHtml).toContain('schedule-page__src-tag--onefc_todo')
+    const mobileHtml = render(props({}), true)
+    expect(mobileHtml).not.toContain('schedule-page__src-tag')
+  })
+})
