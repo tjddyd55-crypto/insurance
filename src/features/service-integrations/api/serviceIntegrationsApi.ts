@@ -85,10 +85,11 @@ export async function fetchServiceIntegrations(token: string): Promise<ServiceIn
 export async function connectServiceIntegration(
   token: string,
   providerKey: string,
+  options: { client?: 'desktop' } = {},
 ): Promise<{ path?: string; url?: string }> {
   const raw = await apiRequest<unknown>(
     `/api/service-integrations/${encodeURIComponent(providerKey)}/connect`,
-    { token, method: 'POST', body: JSON.stringify({}) },
+    { token, method: 'POST', body: JSON.stringify(options.client === 'desktop' ? { client: 'desktop' } : {}) },
   )
   return readServiceIntegrationConnectResult(raw)
 }

@@ -4,7 +4,6 @@ const path = require('path')
 const semver = require('semver')
 const { autoUpdater } = require('electron-updater')
 const { formatReleaseNotes } = require('../shared/formatReleaseNotes.js')
-const { isGoogleOAuthStartUrl, openGoogleOAuthPopup } = require('./googleOAuthPopup.cjs')
 
 const APP_USER_MODEL_ID = 'com.insurance.app'
 
@@ -337,33 +336,6 @@ function attachExternalBrowseGuards(browserWindow) {
   })
 
   wc.on('will-navigate', (event, navigatedUrl) => {
-    /* Google 연동 동의는 같은 session 의 앱 팝업에서 연다(바인딩 쿠키 유지). 끝나면 메인 창을 결과 화면으로. */
-    if (isGoogleOAuthStartUrl(navigatedUrl)) {
-      event.preventDefault()
-      let appOrigin = ''
-      try {
-        appOrigin = new URL(wc.getURL()).origin
-      } catch {
-        appOrigin = ''
-      }
-      if (!appOrigin || appOrigin === 'null') {
-        void shell.openExternal(navigatedUrl)
-        return
-      }
-      openGoogleOAuthPopup({
-        BrowserWindow,
-        shell,
-        parent: browserWindow,
-        startUrl: navigatedUrl,
-        appOrigin,
-        onDone: (returnUrl) => {
-          if (browserWindow.isDestroyed()) return
-          if (returnUrl) void browserWindow.loadURL(returnUrl)
-          else wc.reload()
-        },
-      })
-      return
-    }
     if (!isTopLevelExternalHttpNavigation(wc.getURL(), navigatedUrl)) return
     event.preventDefault()
     void shell.openExternal(navigatedUrl)
