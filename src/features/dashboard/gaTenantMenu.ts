@@ -287,6 +287,7 @@ export function buildGaTenantDashboardMenu(
     { type: 'section', label: '할일 및 알림' },
     { type: 'link', label: '오늘의 TA', path: '/ta-call' },
     { type: 'link', label: '할일', path: '/todos' },
+    { type: 'link', label: '일정 관리', path: '/schedule' },
     { type: 'link', label: '메모', path: '/memo' },
     { type: 'link', label: '알림', path: '/notifications' },
 
