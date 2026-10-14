@@ -8,7 +8,7 @@ import { SCHEDULE_FILTER_LABEL, scheduleFilterKeyOf, type ScheduleEvent, type Sc
 import type { ScheduleViewProps } from '../hooks/useScheduleState'
 import { monthCells, viewQueryRange, weekDays } from '../domain/scheduleRange'
 import { koreanHolidayName, scheduleDayTone, type ScheduleHolidayMode } from '../domain/koreanHolidays'
-import { groupListTasks, isOverdueTask, sortScheduleTasks, tasksOnDate } from '../domain/scheduleTasks'
+import { groupListTasks, groupMonthTasks, isOverdueTask, sortScheduleTasks, tasksOnDate } from '../domain/scheduleTasks'
 import {
   eventClock,
   eventCoversDate,
@@ -83,8 +83,7 @@ export function ScheduleMonth({ anchor, today, events, tasks, selectedDate, onSe
   const datedTasks = sortScheduleTasks(tasks.filter((task) => task.dueDate))
   const selectedEvents = selectedDate ? sorted.filter((event) => eventCoversDate(event, selectedDate)) : []
   const selectedTasks = selectedDate ? tasksOnDate(datedTasks, selectedDate) : []
-  return (
-    <>
+  const grid = (
       <div className="schedule-page__month" role="grid" aria-label="월간 일정">
         {WEEKDAY_SUN_FIRST.map((label, index) => (
           <span
@@ -98,8 +97,11 @@ export function ScheduleMonth({ anchor, today, events, tasks, selectedDate, onSe
         {monthCells(anchor).map((cell) => {
           const dayEvents = sorted.filter((event) => eventCoversDate(event, cell.date))
           const dayTasks = tasksOnDate(datedTasks, cell.date)
-          const visible = dayEvents.slice(0, MONTH_CELL_LIMIT)
-          const visibleTasks = dayTasks.slice(0, Math.max(0, MONTH_CELL_LIMIT - visible.length))
+          // PC: 3건을 넘으면 2건 + "+N" 으로 칸 높이를 고정한다(달력을 늘리지 않음).
+          const total = dayEvents.length + dayTasks.length
+          const limit = pcCell && total > MONTH_CELL_LIMIT ? MONTH_CELL_LIMIT - 1 : MONTH_CELL_LIMIT
+          const visible = dayEvents.slice(0, limit)
+          const visibleTasks = dayTasks.slice(0, Math.max(0, limit - visible.length))
           const overflow = dayEvents.length + dayTasks.length - visible.length - visibleTasks.length
           const classes = ['schedule-page__cell']
           if (!cell.inMonth) classes.push('schedule-page__cell--muted')
@@ -144,14 +146,51 @@ export function ScheduleMonth({ anchor, today, events, tasks, selectedDate, onSe
                 <TaskChip key={task.id} task={task} base="schedule-page__chip" today={today} onOpenTask={onOpenTask} sourceTag={pcCell} />
               ))}
               {overflow > 0 ? (
-                <button type="button" className="schedule-page__more" onClick={() => onSelectDate(cell.date)}>
-                  +{overflow}
+                <button
+                  type="button"
+                  className="schedule-page__more"
+                  aria-label={pcCell ? `${formatDateWithKoreanWeekday(cell.date)} 항목 ${overflow}건 더 보기` : undefined}
+                  onClick={() => {
+                    // PC: 이미 선택된 날이면 선택을 풀지 않는다(오른쪽 목록에서 전체 확인).
+                    if (pcCell && cell.date === selectedDate) return
+                    onSelectDate(cell.date)
+                  }}
+                >
+                  {pcCell ? `+${overflow}건` : `+${overflow}`}
                 </button>
               ) : null}
             </div>
           )
         })}
       </div>
+  )
+  if (pcCell) {
+    // PC: 왼쪽 달력 · 오른쪽 선택 날짜 세로 목록. 날짜를 골라도 달력 높이는 그대로다.
+    return (
+      <div className="schedule-page__month-split">
+        {grid}
+        <section className="schedule-page__day-panel schedule-page__day-side" aria-label={selectedDate ? `${formatDateWithKoreanWeekday(selectedDate)} 일정` : '선택한 날짜 일정'}>
+          {selectedDate ? (
+            <>
+              <div className="schedule-page__day-panel-head">
+                <strong>{formatDateWithKoreanWeekday(selectedDate)}</strong>
+                <Button type="button" variant="secondary" size="sm" onClick={() => onOpenDay(selectedDate)}>일간 보기</Button>
+              </div>
+              <div className="schedule-page__day-side-body">
+                {selectedTasks.length > 0 ? (
+                  <ScheduleTaskSection title="할 일" tasks={selectedTasks} today={today} onOpenTask={onOpenTask} showDate={false} compactRows />
+                ) : null}
+                <ScheduleDayList events={selectedEvents} onOpenEvent={onOpenEvent} detailed={false} showDate={false} />
+              </div>
+            </>
+          ) : <p className="schedule-page__empty">날짜를 선택하면 일정이 여기에 표시됩니다.</p>}
+        </section>
+      </div>
+    )
+  }
+  return (
+    <>
+      {grid}
       {selectedDate ? (
         <section className="schedule-page__day-panel" aria-label={`${formatDateWithKoreanWeekday(selectedDate)} 일정`}>
           <div className="schedule-page__day-panel-head">
@@ -271,7 +310,9 @@ function taskDueLabel(task: ScheduleTask): string {
 }
 
 /** 할 일 묶음(일간·목록·월간 날짜 패널). 조회만 하고 순서·상태를 바꾸지 않는다. */
-export function ScheduleTaskSection({ title, tasks, today, onOpenTask, showDate = true, emptyText }: {
+export function ScheduleTaskSection({ title, tasks, today, onOpenTask, showDate = true, emptyText, compactRows = false }: {
+  /** PC: 출처는 배지 한 번만(목록 이름은 상세에서), 제목과 같은 메모는 숨김. */
+  compactRows?: boolean
   title: string
   tasks: ScheduleTask[]
   today: string
@@ -296,9 +337,9 @@ export function ScheduleTaskSection({ title, tasks, today, onOpenTask, showDate 
                 <ScheduleTaskBadge task={task} />
                 {task.status === 'completed' ? <span className="schedule-page__row-meta">완료</span> : null}
                 {isOverdueTask(task, today) ? <span className="schedule-page__row-meta schedule-page__row-overdue">지남</span> : null}
-                {task.taskListName ? <span className="schedule-page__row-meta">{task.taskListName}</span> : null}
+                {!compactRows && task.taskListName ? <span className="schedule-page__row-meta">{task.taskListName}</span> : null}
                 {task.customerName ? <span className="schedule-page__row-meta">{task.customerName}</span> : null}
-                {task.notes ? <span className="schedule-page__row-desc">{task.notes}</span> : null}
+                {task.notes && !(compactRows && task.notes.trim() === task.title.trim()) ? <span className="schedule-page__row-desc">{task.notes}</span> : null}
               </button>
             </li>
           ))}
@@ -318,9 +359,26 @@ export function ScheduleDay({ anchor, today, events, tasks, onOpenEvent, onOpenT
   )
 }
 
-/** 목록: 지난 할 일 → 일정 → 기간 안 할 일 → 날짜 없음. */
-export function ScheduleList({ anchor, today, events, tasks, onOpenEvent, onOpenTask }: Pick<ScheduleViewProps, 'anchor' | 'today' | 'events' | 'tasks' | 'onOpenEvent' | 'onOpenTask'>) {
-  const groups = groupListTasks(tasks, viewQueryRange('list', anchor), today)
+/** 목록: 지난 할 일 → 일정 → 기간 안 할 일 → 날짜 없음.
+ * PC(monthOnly): 기본은 조회 월에 마감되는 할 일만. 다른 달의 지난 할 일은 "지난 할 일 전체" 필터를 켰을 때만. */
+export function ScheduleList({ anchor, today, events, tasks, onOpenEvent, onOpenTask, monthOnly = false, includeOverdue = false }: Pick<ScheduleViewProps, 'anchor' | 'today' | 'events' | 'tasks' | 'onOpenEvent' | 'onOpenTask'> & { monthOnly?: boolean; includeOverdue?: boolean }) {
+  const range = viewQueryRange('list', anchor)
+  if (monthOnly) {
+    const monthTasks = groupMonthTasks(tasks, range)
+    const [year, month] = anchor.split('-').map(Number)
+    const overdueOther = includeOverdue ? groupListTasks(tasks, range, today).overdue.filter((task) => !monthTasks.includes(task)) : []
+    return (
+      <>
+        {includeOverdue ? (
+          <ScheduleTaskSection title="다른 달의 지난 할 일 (미완료)" tasks={overdueOther} today={today} onOpenTask={onOpenTask} compactRows emptyText="다른 달의 지난 할 일이 없습니다." />
+        ) : null}
+        <ScheduleDayList events={events} onOpenEvent={onOpenEvent} detailed showDate />
+        <ScheduleTaskSection title={`${year}년 ${month}월 마감 할 일`} tasks={monthTasks} today={today} onOpenTask={onOpenTask} compactRows emptyText="이 달에 마감되는 할 일이 없습니다." />
+        <ScheduleTaskSection title="날짜 없음" tasks={groupListTasks(tasks, range, today).undated} today={today} onOpenTask={onOpenTask} compactRows />
+      </>
+    )
+  }
+  const groups = groupListTasks(tasks, range, today)
   return (
     <>
       <ScheduleTaskSection title="지난 할 일" tasks={groups.overdue} today={today} onOpenTask={onOpenTask} />
