@@ -129,6 +129,10 @@ function props(overrides: Partial<ScheduleViewProps> = {}): ScheduleViewProps {
     sourceStatus: { google: 'connected', google_task: 'connected', onefc_todo: 'ok', crm: 'ok' },
     loading: false,
     error: '',
+    lastRefreshedAt: '',
+    refreshing: false,
+    refreshMessage: null,
+    onRefresh: noop,
     selectedDate: '',
     detail: null,
     taskDetail: null,
@@ -165,6 +169,19 @@ function render(view: ScheduleViewProps, mobile = false) {
 }
 
 describe('일정 관리 화면 (PC·모바일 웹 공통)', () => {
+  it('마지막 갱신(KST)·일정 새로고침 버튼(공용 Button), 진행 중·결과 안내', () => {
+    for (const mobile of [false, true]) {
+      const idle = render(props({ lastRefreshedAt: '2026-10-02T02:58:00.000Z' }), mobile)
+      expect(idle).toMatch(/마지막 갱신 (\d{1,2}\/\d{1,2} )?11:58/)
+      expect(idle).toMatch(/<button[^>]*class="button button--secondary button--small"[^>]*>일정 새로고침<\/button>/)
+      const busy = render(props({ refreshing: true }), mobile)
+      expect(busy).toContain('마지막 갱신 -')
+      expect(busy).toMatch(/<button[^>]*disabled=""[^>]*>새로고침 중…<\/button>/)
+      expect(render(props({ refreshMessage: { kind: 'success', text: '일정을 새로 불러왔습니다.' } }), mobile)).toContain('role="status">일정을 새로 불러왔습니다.')
+      expect(render(props({ refreshMessage: { kind: 'error', text: '일정 새로고침은 잠시 후 다시 시도해 주세요. (7초)' } }), mobile)).toContain('role="alert">일정 새로고침은 잠시 후 다시 시도해 주세요. (7초)')
+    }
+  })
+
   it('월간: 기간 제목, 출처 badge, +N, 필터 칩(전체/Google 일정/Google 할 일/ONE FC 할 일/알림일/자동차 만기/상령일)', () => {
     for (const mobile of [false, true]) {
       const html = render(props({ tasks: [] }), mobile)
