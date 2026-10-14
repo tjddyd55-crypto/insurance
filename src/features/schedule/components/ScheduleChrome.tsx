@@ -1,5 +1,5 @@
 import { Button } from '../../../components/ui'
-import { SCHEDULE_FILTER_KEYS, SCHEDULE_FILTER_LABEL, type ScheduleFilterKey } from '../api/scheduleApi'
+import { formatScheduleRefreshedAt, SCHEDULE_FILTER_KEYS, SCHEDULE_FILTER_LABEL, type ScheduleFilterKey } from '../api/scheduleApi'
 import type { ScheduleViewProps } from '../hooks/useScheduleState'
 import { periodTitle, type ScheduleView } from '../domain/scheduleRange'
 
@@ -117,6 +117,22 @@ export default function ScheduleChrome(props: ScheduleViewProps) {
           <strong className="schedule-page__period">{periodTitle(props.view, props.anchor)}</strong>
         </div>
       </header>
+      <div className="schedule-page__refresh">
+        <span className="schedule-page__refreshed" aria-live="polite">
+          {props.lastRefreshedAt ? `마지막 갱신 ${formatScheduleRefreshedAt(props.lastRefreshedAt)}` : '마지막 갱신 -'}
+        </span>
+        <Button type="button" variant="secondary" size="sm" loading={props.refreshing} loadingText="새로고침 중…" onClick={props.onRefresh}>
+          일정 새로고침
+        </Button>
+        {props.refreshMessage ? (
+          <span
+            className={props.refreshMessage.kind === 'error' ? 'schedule-page__refresh-message schedule-page__refresh-message--error' : 'schedule-page__refresh-message'}
+            role={props.refreshMessage.kind === 'error' ? 'alert' : 'status'}
+          >
+            {props.refreshMessage.text}
+          </span>
+        ) : null}
+      </div>
       <div className="schedule-page__views" role="tablist" aria-label="일정 보기">
         {VIEWS.map((item) => (
           <Button
