@@ -122,6 +122,8 @@ function props(overrides: Partial<ScheduleViewProps> = {}): ScheduleViewProps {
     today: '2026-10-02',
     sources: ['google', 'google_task', 'onefc_todo', 'customer_alert', 'car_expiry', 'insurance_age'],
     calendarIds: [],
+    includeOverdue: false,
+    onToggleOverdue: noop,
     events: EVENTS,
     tasks: OPEN_TASKS,
     includeCompleted: false,
@@ -196,7 +198,9 @@ describe('일정 관리 화면 (PC·모바일 웹 공통)', () => {
       expect(html).not.toContain('개인 일정')
       expect(html).toContain('schedule-page__chip--google')
       expect(html).toContain('schedule-page__chip--car_expiry')
-      expect(html).toContain('+2')
+      // 모바일: 기존 +N. PC: 3건 초과면 2건 + "+N건"(칸 높이 고정), 오른쪽 날짜 목록.
+      expect(html).toContain(mobile ? '+2' : '+3건')
+      expect(html.includes('schedule-page__month-split')).toBe(!mobile)
       expect(html).toContain(mobile ? 'schedule-page--mobile' : 'schedule-page--pc')
     }
   })
@@ -344,7 +348,7 @@ describe('일정 관리: 할 일 (Google Tasks · ONE FC 할 일, 읽기 전용)
   })
 
   it('목록: 지난 할 일, 할 일, 날짜 없음 묶음과 출처 badge·목록 이름·메모', () => {
-    for (const mobile of [false, true]) {
+    for (const mobile of [true]) {
       const html = render(props({ view: 'list', tasks: TASKS, includeCompleted: true }), mobile)
       expect(html).toContain('aria-label="지난 할 일"')
       expect(html).toContain('aria-label="날짜 없음"')
@@ -359,6 +363,30 @@ describe('일정 관리: 할 일 (Google Tasks · ONE FC 할 일, 읽기 전용)
       expect(html).toContain('완료')
       expect(html).toContain('지남')
     }
+  })
+
+  it('PC 목록: 조회 월 마감 할 일만(다른 달 지난 할 일 기본 숨김), 출처 한 번·목록 이름은 상세에서, 같은 메모 숨김', () => {
+    const extra = [
+      task('x1', 'google_task', '내년 할 일', '2027-05-10'),
+      task('x2', 'onefc_todo', '같은 메모', '2026-10-20', { notes: '같은 메모' }),
+    ]
+    const html = render(props({ view: 'list', tasks: [...TASKS, ...extra], includeCompleted: true }))
+    expect(html).toContain('2026년 10월 마감 할 일')
+    expect(html).not.toContain('aria-label="지난 할 일"')
+    expect(html).not.toContain('지난 일')
+    expect(html).not.toContain('내년 할 일')
+    expect(html).not.toContain('업무 목록')
+    expect(html).toContain('원본 서류 지참')
+    expect(html.split('같은 메모').length - 1).toBe(1)
+    expect(html).toContain('지난 할 일 전체')
+    const all = render(props({ view: 'list', tasks: TASKS, includeOverdue: true }))
+    expect(all).toContain('다른 달의 지난 할 일')
+    expect(all).toContain('지난 일')
+    const may = render(props({ view: 'list', anchor: '2027-05-01', tasks: [...TASKS, ...extra] }))
+    expect(may).toContain('2027년 5월 마감 할 일')
+    expect(may).toContain('내년 할 일')
+    expect(may).not.toContain('서류 제출')
+    expect(may).not.toContain('지난 일')
   })
 
   it('Google 할 일 상세: 제목·목록·예정일·메모·상태·Google 출처, 편집 UI 없음', () => {
