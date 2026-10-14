@@ -89,7 +89,6 @@ import AdminInsurerSitesPage from './features/insurer-sites/pages/AdminInsurerSi
 import AdminNoticeListPage from './features/admin-notices/pages/AdminNoticeListPage'
 import AdminNoticeEditorPage from './features/admin-notices/pages/AdminNoticeEditorPage'
 import GaAdminNoticeListPage from './features/admin-notices/pages/GaAdminNoticeListPage'
-import GaMemberApprovalPage from './features/ga-approval/GaMemberApprovalPage'
 import GaAdminNoticeEditorPage from './features/admin-notices/pages/GaAdminNoticeEditorPage'
 import PlatformHubPage from './features/platform/pages/PlatformHubPage'
 import IndustriesListPage from './features/platform/pages/industries/IndustriesListPage'
@@ -588,7 +587,7 @@ export const appRouter = createBrowserRouter([
                 children: [
                   { path: 'ga-admin/workspace/*', element: <GaAdminWorkspacePage /> },
                   { path: 'ga-admin/notices', element: <GaAdminNoticeListPage /> },
-                  { path: 'ga-admin/members', element: <GaMemberApprovalPage /> },
+                  { path: 'ga-admin/members', element: <Navigate to="/admin/users?tab=PENDING" replace /> },
                   { path: 'ga-admin/notices/new', element: <GaAdminNoticeEditorPage /> },
                   { path: 'ga-admin/notices/:id', element: <GaAdminNoticeEditorPage /> },
                 ],
@@ -603,7 +602,7 @@ export const appRouter = createBrowserRouter([
                 element: <SuperAdminRoute />,
                 children: [
                   { path: 'admin/billing/manage', element: <AdminBillingManagePage /> },
-                  { path: 'admin/ga-approvals', element: <GaMemberApprovalPage /> },
+                  { path: 'admin/ga-approvals', element: <Navigate to="/admin/users?tab=PENDING" replace /> },
                   { path: 'admin/subscription/policy', element: <SubscriptionPolicyPage /> },
                   { path: 'admin/subscription/users', element: <AdminBillingLegacyRedirect tab="users" /> },
                   { path: 'admin/subscription/settings', element: <AdminBillingLegacyRedirect tab="payment" /> },
