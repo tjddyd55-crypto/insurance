@@ -13,6 +13,8 @@ export function createFakeIntegrationPool(options = {}) {
     integrations,
     states,
     queries,
+    /** @type {string[]} 삭제된(is_deleted) 사용자 id */
+    deleted: [...(options.deletedUsers ?? [])],
     async query(text, params = []) {
       const sql = String(text).replace(/\s+/g, ' ').trim()
       queries.push({ sql, params })
@@ -72,6 +74,11 @@ export function createFakeIntegrationPool(options = {}) {
         const [userId, providerKey] = params
         const existed = integrations.delete(`${userId}|${providerKey}`)
         return { rows: [], rowCount: existed ? 1 : 0 }
+      }
+      if (sql.startsWith('SELECT username FROM users WHERE id = $1 AND is_deleted = false')) {
+        const id = String(params[0])
+        if (pool.deleted.includes(id)) return { rows: [], rowCount: 0 }
+        return { rows: [{ username: options.usernames?.[id] ?? id }], rowCount: 1 }
       }
       if (options.crmAgeRows && sql.includes('c.next_age_date IS NOT NULL')) {
         return { rows: options.crmAgeRows.filter((row) => row.owner === params[1]), rowCount: 1 }
