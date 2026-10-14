@@ -53,6 +53,7 @@ export default function InsurerManagerNewsListPCView({
   deleteBusyId,
   deleteNotice,
   collectionsNav,
+  renderPcCollectionsToolbar,
   renderDetailCollectionActions,
   collectionEmptyMessage,
 }: InsurerManagerNewsListViewProps) {
@@ -138,19 +139,33 @@ export default function InsurerManagerNewsListPCView({
           <h1>{title}</h1>
         </div>
       </header>
-      <div className="insurer-news-filters insurer-news-list-searchbar">
-        <label className="insurer-news-search insurer-news-searchbar">
-          <span className="sr-only">소식지 검색</span>
+      {renderPcCollectionsToolbar ? (
+        renderPcCollectionsToolbar(
           <FormInput
             type="search"
             value={searchQuery}
             onChange={(e) => onSearchQueryChange(e.target.value)}
             placeholder="제목, 내용, 회사명, 날짜 검색"
             aria-label="소식지 검색"
-          />
-        </label>
-      </div>
-      {collectionsNav}
+          />,
+        )
+      ) : (
+        <>
+          <div className="insurer-news-filters insurer-news-list-searchbar">
+            <label className="insurer-news-search insurer-news-searchbar">
+              <span className="sr-only">소식지 검색</span>
+              <FormInput
+                type="search"
+                value={searchQuery}
+                onChange={(e) => onSearchQueryChange(e.target.value)}
+                placeholder="제목, 내용, 회사명, 날짜 검색"
+                aria-label="소식지 검색"
+              />
+            </label>
+          </div>
+          {collectionsNav}
+        </>
+      )}
       {error ? <div className="insurer-news-empty">{error}</div> : null}
       {deleteNotice ? (
         <div className="insurer-news-inline-notice" role="status">

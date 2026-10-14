@@ -242,6 +242,22 @@ export function InsurerManagerNewsListPage({
         onNotice={setCollectionNotice}
       />
     )
+    viewProps.renderPcCollectionsToolbar = (search) => (
+      <NewsletterCollectionsNav
+        token={token}
+        collections={collections}
+        view={collectionView}
+        onViewChange={(next) => {
+          setCollectionView(next)
+          setCollectionNotice('')
+        }}
+        totalCount={items.length}
+        onAddItems={() => setFolderAddOpen(true)}
+        onNotice={setCollectionNotice}
+        layout="pc-row"
+        search={search}
+      />
+    )
     if (collectionView.kind === 'favorites') {
       viewProps.collectionEmptyMessage = '즐겨찾기한 소식지가 없습니다. 소식지 상세에서 ☆ 를 눌러 추가하세요.'
     } else if (activeFolder) {
