@@ -235,3 +235,126 @@
     display: inline;
   }
 }
+
+/* t296: 공통 소식지 선택기 — 원수사 목록과 같은 썸네일 카드 그리드 */
+.newsletter-picker__controls--no-source {
+  grid-template-columns: minmax(120px, 200px) 1fr;
+}
+.newsletter-picker__bar-right {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.newsletter-picker__show-added {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.newsletter-picker__grid.news-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+  padding: 2px;
+}
+.newsletter-picker-card {
+  position: relative;
+  border-radius: 12px;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  cursor: default;
+}
+.newsletter-picker-card.is-selected {
+  outline-color: var(--primary);
+}
+.newsletter-picker-card.is-disabled .newsletter-picker-card__media {
+  opacity: 0.55;
+}
+.newsletter-picker-card__check {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.2);
+}
+.newsletter-picker-card__check input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  cursor: pointer;
+}
+.newsletter-picker-card__badge {
+  position: absolute;
+  top: 10px;
+  right: 8px;
+  z-index: 2;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--text-sub);
+  color: #fff;
+  font-size: 12px;
+}
+.newsletter-picker-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.newsletter-picker-card__meta {
+  padding: 6px 2px 0;
+}
+.newsletter-picker-card__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.newsletter-picker-preview-layer {
+  position: relative;
+  z-index: 10001;
+}
+.newsletter-picker-preview-layer .news-detail-viewer-backdrop {
+  z-index: 10001;
+}
+
+/* t296: PC 소식지 상단 한 줄 툴바 */
+.newsletter-collections-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 var(--space-2);
+  min-width: 0;
+}
+.newsletter-collections-toolbar > * {
+  flex: 0 0 auto;
+}
+.newsletter-collections-toolbar__folders {
+  min-width: 0;
+}
+.newsletter-collections-toolbar__search {
+  flex: 1 1 160px;
+  min-width: 160px;
+}
+.newsletter-collections-toolbar__search input {
+  width: 100%;
+}
+.newsletter-collections-toolbar__folder-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 var(--space-2);
+}
+.newsletter-collections-toolbar__folder-name {
+  font-weight: 600;
+  font-size: 14px;
+  margin-right: 4px;
+}

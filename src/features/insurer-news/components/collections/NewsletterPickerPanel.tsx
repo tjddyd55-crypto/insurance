@@ -1,21 +1,65 @@
 import './newsletterCollections.css'
-import { useMemo, useState } from 'react'
-import { FormInput, FormSelect } from '../../../../components/form'
+import '../../insurer-news.css'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import NewsDetailViewerModal from '../../../../components/news-detail-viewer/NewsDetailViewerModal'
+import {
+  NEWS_DETAIL_VIEWER_ZOOM_STEP,
+  clampNewsDetailViewerZoom,
+} from '../../../../components/news-detail-viewer/newsDetailViewerZoom'
+import { FormButton, FormInput, FormSelect } from '../../../../components/form'
 import { formatTimestampSearchHaystack } from '../../../../utils/displayDateTime'
-import type { NewsletterItem } from '../../types'
+import { useAuth } from '../../../auth/AuthProvider'
+import type { NewsletterDetail, NewsletterItem } from '../../types'
 import type { NewsletterCollections } from '../../services/newsletterCollections.service'
+import { getNewsletterDetail } from '../../services/insurerNews.service'
+import {
+  InsurerNewsDetailViewerContent,
+} from '../InsurerNewsDetailViewerContent'
+import { formatInsurerNewsDateLabel } from '../../utils/formatInsurerNewsDate'
+import {
+  resolveInsurerNewsListCardImageUrl,
+} from '../../utils/resolveInsurerNewsImageUrl'
+import { normalizeInsurerNewsText } from '../../utils/insurerNewsText'
 import { newsletterItemLabel } from './newsletterItemLabel'
 
+const ZOOM_STEP = NEWS_DETAIL_VIEWER_ZOOM_STEP
 
-function formatDate(value: string) {
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' })
+function PickerCardImage({ imageUrl, headline }: { imageUrl: string | null; headline: string }) {
+  const [failed, setFailed] = useState(false)
+  const hasImage = Boolean(imageUrl) && !failed
+  const hasHeadline = headline.length > 0
+
+  return (
+    <div className="news-card__media newsletter-picker-card__media">
+      {hasImage ? (
+        <img
+          src={imageUrl!}
+          alt=""
+          loading="lazy"
+          onError={() => setFailed(true)}
+        />
+      ) : null}
+      {(!hasImage && hasHeadline) ? (
+        <div className="news-card__placeholder news-card__placeholder--content" aria-hidden>
+          <span className="news-card__placeholder-label news-card__placeholder-label--headline">
+            {headline}
+          </span>
+        </div>
+      ) : null}
+      {!hasImage && !hasHeadline ? (
+        <div className="news-card__placeholder news-card__placeholder--content" aria-hidden>
+          <span className="news-card__placeholder-label">이미지 없음</span>
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 /**
  * 소식지 다중 선택 패널 — 검색 + 원수사 필터 + (전체/즐겨찾기/내 폴더) 출처.
  * 폴더의 [소식지 추가], 바인더의 [소식지] 출처 탭에서 공용으로 쓴다.
+ * 원수사 목록과 같은 썸네일 카드 그리드 + 체크박스 + 미리보기.
  */
 export function NewsletterPickerPanel({
   items,
@@ -23,8 +67,9 @@ export function NewsletterPickerPanel({
   selectedIds,
   onSelectedIdsChange,
   disabledIds,
-  disabledLabel = '이미 담김',
+  disabledLabel = '추가됨',
   showSourceFilter = true,
+  hideDisabledByDefault = false,
 }: {
   items: NewsletterItem[]
   collections: NewsletterCollections
@@ -33,10 +78,21 @@ export function NewsletterPickerPanel({
   disabledIds?: Set<string>
   disabledLabel?: string
   showSourceFilter?: boolean
+  /** true 이면 이미 담긴(disabled) 항목을 기본 숨기고, 토글로 전체 표시 */
+  hideDisabledByDefault?: boolean
 }) {
+  const { user, token } = useAuth()
+  const gaCode = user?.gaCode ?? ''
   const [query, setQuery] = useState('')
   const [insurer, setInsurer] = useState('')
   const [source, setSource] = useState('all')
+  const [showAlreadyAdded, setShowAlreadyAdded] = useState(!hideDisabledByDefault)
+  const [previewItem, setPreviewItem] = useState<NewsletterItem | null>(null)
+  const [previewDetail, setPreviewDetail] = useState<NewsletterDetail | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewError, setPreviewError] = useState('')
+  const [zoom, setZoom] = useState(1)
+  const previewRequestIdRef = useRef(0)
 
   const insurerOptions = useMemo(() => {
     const names = [...new Set(items.map((item) => item.insurerName).filter(Boolean))].sort((a, b) =>
@@ -49,7 +105,10 @@ export function NewsletterPickerPanel({
     () => [
       { value: 'all', label: '전체 소식지' },
       { value: 'favorites', label: `즐겨찾기 (${collections.favoriteNewsletterIds.length})` },
-      ...collections.folders.map((folder) => ({ value: `folder:${folder.id}`, label: `📁 ${folder.name} (${folder.count})` })),
+      ...collections.folders.map((folder) => ({
+        value: `folder:${folder.id}`,
+        label: `📁 ${folder.name} (${folder.count})`,
+      })),
     ],
     [collections],
   )
@@ -65,17 +124,19 @@ export function NewsletterPickerPanel({
     return items.filter((item) => {
       if (allowed && !allowed.has(item.id)) return false
       if (insurer && item.insurerName !== insurer) return false
+      if (hideDisabledByDefault && !showAlreadyAdded && disabledIds?.has(item.id)) return false
       if (!q) return true
       return [item.insurerName, item.title, item.summary, formatTimestampSearchHaystack(item.publishedAt)]
         .map((v) => String(v ?? '').toLowerCase())
         .join('\n')
         .includes(q)
     })
-  }, [collections, insurer, items, query, source])
+  }, [collections, disabledIds, hideDisabledByDefault, insurer, items, query, showAlreadyAdded, source])
 
   const selected = new Set(selectedIds)
   const selectable = rows.filter((row) => !disabledIds?.has(row.id))
   const allChecked = selectable.length > 0 && selectable.every((row) => selected.has(row.id))
+  const alreadyCount = disabledIds ? [...disabledIds].filter((id) => items.some((item) => item.id === id)).length : 0
 
   const toggle = (id: string) => {
     if (disabledIds?.has(id)) return
@@ -91,9 +152,47 @@ export function NewsletterPickerPanel({
     }
   }
 
+  const closePreview = () => {
+    previewRequestIdRef.current += 1
+    setPreviewItem(null)
+    setPreviewDetail(null)
+    setPreviewLoading(false)
+    setPreviewError('')
+    setZoom(1)
+  }
+
+  const openPreview = (item: NewsletterItem) => {
+    setPreviewItem(item)
+    setPreviewDetail(null)
+    setPreviewLoading(true)
+    setPreviewError('')
+    setZoom(1)
+    const requestId = previewRequestIdRef.current + 1
+    previewRequestIdRef.current = requestId
+    void (async () => {
+      try {
+        const detail = await getNewsletterDetail(gaCode, item.id, token, { channel: 'INSURER' })
+        if (previewRequestIdRef.current !== requestId) return
+        setPreviewDetail(detail)
+        if (!detail) setPreviewError('소식지 상세를 불러오지 못했습니다.')
+      } catch (e) {
+        if (previewRequestIdRef.current !== requestId) return
+        setPreviewError(e instanceof Error ? e.message : '소식지 상세를 불러오지 못했습니다.')
+      } finally {
+        if (previewRequestIdRef.current === requestId) setPreviewLoading(false)
+      }
+    })()
+  }
+
+  useEffect(() => {
+    return () => {
+      previewRequestIdRef.current += 1
+    }
+  }, [])
+
   return (
     <div className="newsletter-picker">
-      <div className="newsletter-picker__controls">
+      <div className={`newsletter-picker__controls${showSourceFilter ? '' : ' newsletter-picker__controls--no-source'}`}>
         {showSourceFilter ? (
           <FormSelect
             value={source}
@@ -121,32 +220,112 @@ export function NewsletterPickerPanel({
           <FormInput type="checkbox" checked={allChecked} onChange={toggleAll} disabled={selectable.length === 0} />
           <span>보이는 항목 전체 선택</span>
         </label>
-        <span className="newsletter-picker__count">{selectedIds.length}개 선택</span>
+        <div className="newsletter-picker__bar-right">
+          {hideDisabledByDefault && alreadyCount > 0 ? (
+            <label className="newsletter-picker__show-added">
+              <FormInput
+                type="checkbox"
+                checked={showAlreadyAdded}
+                onChange={(e) => setShowAlreadyAdded(e.target.checked)}
+              />
+              <span>이미 추가된 소식지 보기 ({alreadyCount})</span>
+            </label>
+          ) : null}
+          <span className="newsletter-picker__count">{selectedIds.length}개 선택</span>
+        </div>
       </div>
-      <ul className="newsletter-picker__list" aria-label="소식지 목록">
-        {rows.length === 0 ? <li className="newsletter-picker__empty">표시할 소식지가 없습니다.</li> : null}
-        {rows.map((item) => {
-          const disabled = disabledIds?.has(item.id) ?? false
-          return (
-            <li key={item.id}>
-              <label className={`newsletter-picker__row${disabled ? ' is-disabled' : ''}`}>
-                <FormInput
-                  type="checkbox"
-                  checked={disabled || selected.has(item.id)}
-                  disabled={disabled}
-                  onChange={() => toggle(item.id)}
-                  aria-label={newsletterItemLabel(item)}
-                />
-                <span className="newsletter-picker__row-title">{newsletterItemLabel(item)}</span>
-                <span className="newsletter-picker__row-meta">
-                  {item.insurerName} · {formatDate(item.publishedAt)}
-                  {disabled ? ` · ${disabledLabel}` : ''}
-                </span>
-              </label>
-            </li>
-          )
-        })}
-      </ul>
+      {rows.length === 0 ? (
+        <div className="newsletter-picker__empty" role="status">
+          표시할 소식지가 없습니다.
+        </div>
+      ) : (
+        <div className="news-grid newsletter-picker__grid" aria-label="소식지 목록">
+          {rows.map((item) => {
+            const disabled = disabledIds?.has(item.id) ?? false
+            const checked = disabled || selected.has(item.id)
+            const title = newsletterItemLabel(item)
+            const headline = normalizeInsurerNewsText(item.summary) || normalizeInsurerNewsText(item.title)
+            const imageUrl = resolveInsurerNewsListCardImageUrl(item) || null
+            const dateLabel = formatInsurerNewsDateLabel(item.publishedAt)
+
+            return (
+              <article
+                key={item.id}
+                className={`news-card assessor-news-card newsletter-picker-card${disabled ? ' is-disabled' : ''}${checked && !disabled ? ' is-selected' : ''}`}
+                aria-label={title}
+              >
+                <div className="newsletter-picker-card__check">
+                  <FormInput
+                    type="checkbox"
+                    checked={checked}
+                    disabled={disabled}
+                    onChange={() => toggle(item.id)}
+                    aria-label={`${title} 선택`}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+                {disabled ? (
+                  <span className="newsletter-picker-card__badge">{disabledLabel}</span>
+                ) : null}
+                <div
+                  className="card-content card-content--clickable newsletter-picker-card__body"
+                  onClick={() => openPreview(item)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      openPreview(item)
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${title} 미리보기`}
+                >
+                  <PickerCardImage imageUrl={imageUrl} headline={headline} />
+                  <div className="newsletter-picker-card__meta">
+                    <div className="newsletter-picker-card__title">{title}</div>
+                    <div className="news-card__meta">
+                      <div className="news-card__meta-name">{item.insurerName}</div>
+                      <div className="news-card__meta-date">{dateLabel}</div>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            )
+          })}
+        </div>
+      )}
+
+      {previewItem != null && typeof document !== 'undefined' ? createPortal(
+      <div className="newsletter-picker-preview-layer">
+      <NewsDetailViewerModal
+        open={previewItem != null}
+        onClose={closePreview}
+        zoom={zoom}
+        onZoomChange={(next) => setZoom(clampNewsDetailViewerZoom(next))}
+        onZoomIn={() => setZoom((v) => clampNewsDetailViewerZoom(v + ZOOM_STEP))}
+        onZoomOut={() => setZoom((v) => clampNewsDetailViewerZoom(v - ZOOM_STEP))}
+        zoomControlVariant="symbols"
+        closeLabel="✕"
+        loading={previewLoading}
+        error={previewError || null}
+        ariaLabel={previewItem?.title ? `소식지 미리보기 · ${previewItem.title}` : '소식지 미리보기'}
+        headerActions={
+          previewItem && !disabledIds?.has(previewItem.id) ? (
+            <FormButton
+              variant={selected.has(previewItem.id) ? 'secondary' : 'primary'}
+              size="sm"
+              onClick={() => toggle(previewItem.id)}
+            >
+              {selected.has(previewItem.id) ? '선택 해제' : '선택'}
+            </FormButton>
+          ) : null
+        }
+      >
+        <InsurerNewsDetailViewerContent zoom={zoom} detail={previewDetail} item={previewItem} />
+      </NewsDetailViewerModal>
+      </div>,
+      document.body,
+      ) : null}
     </div>
   )
 }

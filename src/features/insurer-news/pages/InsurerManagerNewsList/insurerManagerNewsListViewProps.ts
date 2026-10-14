@@ -45,6 +45,8 @@ export type InsurerManagerNewsListViewProps = {
   deleteNotice?: string
   /** 개인 폴더·즐겨찾기 분류 바 (NewsletterHubPage opt-in 일 때만). */
   collectionsNav?: ReactNode
+  /** PC 전용: 검색 입력을 받아 한 줄 툴바(분류+검색)를 그린다. 있으면 PC 는 별도 검색줄을 그리지 않는다. */
+  renderPcCollectionsToolbar?: (search: ReactNode) => ReactNode
   /** 상세 모달 헤더 앞쪽 동작 (★ / 내 폴더에 담기 / 내 바인더에 담기). */
   renderDetailCollectionActions?: (item: NewsletterItem, closeDetail: () => void) => ReactNode
   /** 폴더/즐겨찾기 보기에서 비었을 때 문구. */
