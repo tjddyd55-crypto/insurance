@@ -494,7 +494,7 @@ function buildGaAdminManagementMenuEntries(): GaTenantDashboardMenuEntry[] {
   const entries: GaTenantDashboardMenuEntry[] = []
   entries.push({ type: 'section', label: 'GA 관리' })
   entries.push({ type: 'link', label: 'GA 관리 허브', path: '/ga-admin/workspace' })
-  entries.push({ type: 'link', label: '소속 회원 · 가입 승인', path: '/ga-admin/members' })
+  entries.push({ type: 'link', label: '유저 관리 · 가입 승인', path: '/admin/users' })
 
   entries.push({ type: 'section', label: '업무 운영' })
   entries.push({ type: 'link', label: '공지사항', path: '/ga-admin/notices' })
@@ -532,7 +532,6 @@ function buildSuperAdminMenuEntries(): GaTenantDashboardMenuEntry[] {
       { label: 'GA 그룹 관리', path: '/admin/ga-groups' },
       { label: '담당자 관리', path: '/admin/delegates' },
       { label: '유저 관리', path: '/admin/users' },
-      { label: 'GA 가입 승인', path: '/admin/ga-approvals' },
     ]),
   )
 

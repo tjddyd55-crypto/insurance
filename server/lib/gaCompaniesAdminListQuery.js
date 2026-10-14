@@ -83,6 +83,7 @@ export function buildGaCompaniesAdminListQueries(filters) {
       g.name,
       g.code,
       g.status,
+      g.accepts_partner_signup,
       g.created_at,
       m.group_id,
       gg.name AS group_name
@@ -110,6 +111,7 @@ export function mapGaCompaniesAdminListRow(row) {
     name: String(row.name ?? ''),
     code: String(row.code ?? ''),
     status: String(row.status ?? 'active'),
+    accepts_partner_signup: row.accepts_partner_signup === true,
     created_at: row.created_at,
     groupId: row.group_id != null ? Number(row.group_id) : null,
     groupName: row.group_name ? String(row.group_name) : null,
