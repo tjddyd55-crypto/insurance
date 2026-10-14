@@ -81,7 +81,9 @@ export function NewsletterFolderAddItemsDialog({
             selectedIds={selected}
             onSelectedIdsChange={setSelected}
             disabledIds={already}
+            disabledLabel="추가됨"
             showSourceFilter={false}
+            hideDisabledByDefault
           />
         </div>
         {error ? <p className="newsletter-collections-dialog__error" role="alert">{error}</p> : null}
