@@ -1,0 +1,17 @@
+/* 일정 관리 고객 상세 팝업(iframe) 안에서만 적용. html.onefc-embed-customer 는 iframe + embed=customer 일 때만 붙는다. */
+html.onefc-embed-customer .web-program-top-bar,
+html.onefc-embed-customer .app-workspace-chrome-header,
+html.onefc-embed-customer .platform-mode-switcher-host,
+html.onefc-embed-customer .ai-secretary-panel,
+html.onefc-embed-customer .customer-ui-modal-backdrop:has(.admin-notice-popup-modal),
+html.onefc-embed-customer .customers-page__header,
+html.onefc-embed-customer .customers-page__result-count,
+html.onefc-embed-customer .customer-list-scroll-top-button,
+html.onefc-embed-customer .customer-list:has(> .customer-expand-card--focal) > li:not(.customer-expand-card--focal) {
+  display: none !important;
+}
+html.onefc-embed-customer .main-container,
+html.onefc-embed-customer .workspace-root--app-pc {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
