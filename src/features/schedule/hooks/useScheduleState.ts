@@ -38,6 +38,9 @@ export type ScheduleViewProps = {
   /** 출처 필터·완료 포함이 반영된 할 일(Google Tasks · ONE FC 할 일) */
   tasks: ScheduleTask[]
   includeCompleted: boolean
+  /** PC 목록 보기: 다른 달의 지난(미완료) 할 일 전체도 보기. 기본은 조회 월만. */
+  includeOverdue: boolean
+  onToggleOverdue: () => void
   google: ScheduleGoogleState
   sourceStatus: ScheduleSourceStatus
   loading: boolean
@@ -150,6 +153,7 @@ export function useScheduleState(): ScheduleViewProps {
   const calendarsKey = searchParams.get('calendars') ?? ''
   const calendarIds = useMemo(() => calendarsKey.split(',').map((id) => id.trim()).filter(Boolean), [calendarsKey])
   const includeCompleted = searchParams.get('done') === '1'
+  const includeOverdue = searchParams.get('overdue') === '1'
   const [reloadNonce, setReloadNonce] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
   const [refreshMessage, setRefreshMessage] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
@@ -350,6 +354,8 @@ export function useScheduleState(): ScheduleViewProps {
     events: visibleEvents,
     tasks: visibleTasks,
     includeCompleted,
+    includeOverdue,
+    onToggleOverdue: () => replaceQuery({ overdue: includeOverdue ? '' : '1' }),
     google,
     sourceStatus,
     loading,

@@ -38,3 +38,8 @@ export function groupListTasks(tasks: ScheduleTask[], range: { start: string; en
   const undated = sorted.filter((task) => !task.dueDate)
   return { overdue, dated, undated }
 }
+
+/** PC 목록(월): 조회 기간(range, 서버 요청 from~to 와 같은 값) 안에 마감되는 할 일만. 지난 여부와 무관. */
+export function groupMonthTasks(tasks: ScheduleTask[], range: { start: string; end: string }): ScheduleTask[] {
+  return sortScheduleTasks(tasks).filter((task) => Boolean(task.dueDate) && String(task.dueDate) >= range.start && String(task.dueDate) <= range.end)
+}

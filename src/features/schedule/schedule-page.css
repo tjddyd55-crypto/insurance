@@ -688,3 +688,55 @@
   padding: 24px;
   color: var(--text-secondary);
 }
+
+/* ── PC 월간: 왼쪽 달력 · 오른쪽 선택 날짜 목록(≥769px, SchedulePCView 전용). 날짜 선택과 무관하게 달력 높이 고정. ── */
+@media (min-width: 769px) {
+  .schedule-page--compact .schedule-page__month-split {
+    flex: 1 1 0;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(240px, 1fr);
+    gap: 10px;
+    margin-top: 8px;
+  }
+  .schedule-page--compact .schedule-page__month-split > .schedule-page__month {
+    margin-top: 0;
+    height: 100%;
+  }
+  .schedule-page--compact .schedule-page__month-split > .schedule-page__day-side {
+    margin-top: 0;
+    max-height: none;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 10px;
+  }
+  .schedule-page--compact .schedule-page__day-side-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    margin-top: 6px;
+  }
+  .schedule-page--compact .schedule-page__day-side .schedule-page__day-list button {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 6px;
+    align-items: baseline;
+  }
+  .schedule-page--compact .schedule-page__day-side .schedule-page__row-title {
+    flex: 1 1 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .schedule-page--compact .schedule-page__month .schedule-page__more {
+    font-weight: 600;
+    color: var(--primary);
+  }
+}
+@media (min-width: 769px) and (max-width: 1199px) {
+  /* 좁은 PC: 달력 가독성 우선 */
+  .schedule-page--compact .schedule-page__month-split {
+    grid-template-columns: minmax(0, 4fr) minmax(200px, 1fr);
+  }
+}
