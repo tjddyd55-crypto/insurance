@@ -250,21 +250,21 @@ describe('일정 관리 화면 (PC·모바일 웹 공통)', () => {
     expect(html).toContain('고객 상세')
   })
 
-  it('미연동이면 연결 안내와 서비스 연동 이동, CRM 일정은 그대로', () => {
+  it('(모바일 웹 배너 유지) 미연동이면 연결 안내와 서비스 연동 이동, CRM 일정은 그대로', () => {
     const html = render(props({
       google: { configured: true, connected: false, status: 'disconnected', calendars: [] },
       events: EVENTS.filter((event) => event.source === 'crm'),
-    }))
+    }), true)
     expect(html).toContain('Google을 연결하면 Google Calendar 일정과 Google Tasks 할 일을 함께 볼 수 있습니다.')
     expect(html).toContain('서비스 연동으로 이동')
     expect(html).toContain('schedule-page__chip--customer_alert')
   })
 
-  it('검증 기간 허용 목록 밖: Google 연동 준비 중, 연결 이동 버튼 없음, CRM 일정은 그대로', () => {
+  it('(모바일 웹 배너 유지) 검증 기간 허용 목록 밖: Google 연동 준비 중, 연결 이동 버튼 없음, CRM 일정은 그대로', () => {
     const html = render(props({
       google: { configured: true, connected: false, status: 'disconnected', connectAllowed: false, calendars: [] },
       events: EVENTS.filter((event) => event.source === 'crm'),
-    }))
+    }), true)
     expect(html).toContain('Google 연동 준비 중입니다.')
     expect(html).not.toContain('서비스 연동으로 이동')
     expect(html).not.toContain('Google을 연결하면')
@@ -273,11 +273,11 @@ describe('일정 관리 화면 (PC·모바일 웹 공통)', () => {
     expect(readScheduleEventsResponse({ events: [], google: { status: 'disconnected' } }).google).not.toHaveProperty('connectAllowed')
   })
 
-  it('재연결 필요·Google 장애는 Google 만 표시하고 CRM 일정은 계속', () => {
-    const reauth = render(props({ google: { configured: true, connected: true, status: 'needs_reauth', calendars: [] } }))
+  it('(모바일 웹 배너 유지) 재연결 필요·Google 장애는 Google 만 표시하고 CRM 일정은 계속', () => {
+    const reauth = render(props({ google: { configured: true, connected: true, status: 'needs_reauth', calendars: [] } }), true)
     expect(reauth).toContain('재연결 필요')
     expect(reauth).toContain('서비스 연동에서 다시 연결')
-    const failed = render(props({ view: 'day', google: { configured: true, connected: true, status: 'error', calendars: [] } }))
+    const failed = render(props({ view: 'day', google: { configured: true, connected: true, status: 'error', calendars: [] } }), true)
     expect(failed).toContain('Google 일정을 지금 불러오지 못했습니다. CRM 일정은 계속 표시됩니다.')
     expect(failed).toContain('홍길동 상령일')
   })
@@ -382,12 +382,12 @@ describe('일정 관리: 할 일 (Google Tasks · ONE FC 할 일, 읽기 전용)
     expect(html).not.toContain('Google 출처')
   })
 
-  it('Tasks 권한 없음: 다시 연결 안내, Google 일정·CRM 은 계속', () => {
+  it('(모바일 웹 배너 유지) Tasks 권한 없음: 다시 연결 안내, Google 일정·CRM 은 계속', () => {
     const html = render(props({
       tasks: OPEN_TASKS.filter((item) => item.source === 'onefc_todo'),
       google: { configured: true, connected: true, status: 'connected', calendars: [], tasks: { status: 'scope_missing', needsReconsent: true, taskLists: [] } },
       sourceStatus: { google: 'connected', google_task: 'scope_missing', onefc_todo: 'ok', crm: 'ok' },
-    }))
+    }), true)
     expect(html).toContain('Google 할 일을 보려면 Google을 다시 연결해 Google Tasks 읽기 권한을 허용해 주세요.')
     expect(html).toContain('재연결 필요')
     expect(html).toContain('schedule-page__chip--google')
@@ -395,20 +395,20 @@ describe('일정 관리: 할 일 (Google Tasks · ONE FC 할 일, 읽기 전용)
     expect(html).toContain('schedule-page__chip--onefc_todo')
   })
 
-  it('Google 할 일 실패·ONE FC 할 일 실패는 해당 출처만 안내하고 다른 출처는 그대로', () => {
+  it('(모바일 웹 배너 유지) Google 할 일 실패·ONE FC 할 일 실패는 해당 출처만 안내하고 다른 출처는 그대로', () => {
     const html = render(props({
       view: 'list',
       tasks: OPEN_TASKS.filter((item) => item.source === 'onefc_todo'),
       google: { configured: true, connected: true, status: 'connected', calendars: [], tasks: { status: 'error', needsReconsent: false, taskLists: [] } },
       sourceStatus: { google: 'connected', google_task: 'error', onefc_todo: 'ok', crm: 'ok' },
-    }))
+    }), true)
     expect(html).toContain('Google 할 일을 불러오지 못했습니다.')
     expect(html).toContain('본사 미팅')
     expect(html).toContain('고객 전화')
     const todoFail = render(props({
       tasks: OPEN_TASKS.filter((item) => item.source === 'google_task'),
       sourceStatus: { google: 'connected', google_task: 'connected', onefc_todo: 'error', crm: 'ok' },
-    }))
+    }), true)
     expect(todoFail).toContain('ONE FC 할 일을 불러오지 못했습니다.')
     expect(todoFail).toContain('schedule-page__chip--google_task')
   })
@@ -467,5 +467,36 @@ describe('일정 필터·날짜 규칙', () => {
     expect(groups.overdue.map((item) => item.sourceId)).toEqual(['t4'])
     expect(groups.dated.map((item) => item.sourceId)).toEqual(['o1', 't1', 't2'])
     expect(groups.undated.map((item) => item.sourceId).sort()).toEqual(['o2', 't3'])
+  })
+})
+
+describe('일정 관리 PC 압축 상단', () => {
+  it('PC 는 안내 배너 없이 짧은 상태 chip 만, 모든 컨트롤 유지', () => {
+    const off = render(props({ google: { configured: true, connected: false, status: 'disconnected', calendars: [] }, events: EVENTS.filter((event) => event.source === 'crm') }))
+    expect(off).toContain('schedule-page--compact')
+    expect(off).toContain('Google 미연동')
+    expect(off).not.toContain('Google을 연결하면')
+    expect(off).not.toContain('schedule-page__google-hint')
+    for (const label of ['이전', '오늘', '다음', '월간', '주간', '일간', '목록', '일정 새로고침', '마지막 갱신', '전체', 'Google 일정', 'Google 할 일', 'ONE FC 할 일', '알림일', '자동차 만기', '상령일', '완료 포함', '공휴일 표시']) {
+      expect(off).toContain(label)
+    }
+    expect(off).toContain('schedule-page__chip--customer_alert')
+    const pending = render(props({ google: { configured: true, connected: false, status: 'disconnected', connectAllowed: false, calendars: [] } }))
+    expect(pending).toContain('Google 준비 중')
+    expect(pending).not.toContain('Google 미연동')
+    const reauth = render(props({ google: { configured: true, connected: true, status: 'needs_reauth', calendars: [] } }))
+    expect(reauth).toContain('Google 재연결 필요')
+    const failed = render(props({ google: { configured: true, connected: true, status: 'error', calendars: [] } }))
+    expect(failed).toContain('Google 불러오기 실패')
+    const scope = render(props({ google: { configured: true, connected: true, status: 'connected', calendars: [], tasks: { status: 'scope_missing', needsReconsent: true, taskLists: [] } }, sourceStatus: { google: 'connected', google_task: 'scope_missing', onefc_todo: 'ok', crm: 'ok' } }))
+    expect(scope).toContain('Google 할 일 권한 필요')
+    const todoFail = render(props({ sourceStatus: { google: 'connected', google_task: 'connected', onefc_todo: 'error', crm: 'ok' } }))
+    expect(todoFail).toContain('ONE FC 할 일 불러오기 실패')
+  })
+
+  it('모바일 웹은 압축 마크업을 쓰지 않는다', () => {
+    const html = render(props({}), true)
+    expect(html).not.toContain('schedule-page--compact')
+    expect(html).not.toContain('schedule-page__toolbar')
   })
 })
