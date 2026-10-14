@@ -169,7 +169,8 @@ function ScheduleCompactChrome(props: ScheduleViewProps & { toolbarExtra?: React
             </Button>
           ))}
         </div>
-        <div className="schedule-page__toolbar-group schedule-page__toolbar-end">
+        {props.toolbarExtra ? <div className="schedule-page__toolbar-group schedule-page__toolbar-end">{props.toolbarExtra}</div> : null}
+        <div className={props.toolbarExtra ? 'schedule-page__toolbar-group' : 'schedule-page__toolbar-group schedule-page__toolbar-end'}>
           <ScheduleCompactStatus google={props.google} sources={props.sources} sourceStatus={props.sourceStatus} onOpenIntegrations={props.onOpenIntegrations} />
           {props.loading ? <span className="schedule-page__status" role="status">불러오는 중…</span> : null}
           {props.error ? <span className="schedule-page__error" role="alert">{props.error}</span> : null}
@@ -220,7 +221,6 @@ function ScheduleCompactChrome(props: ScheduleViewProps & { toolbarExtra?: React
             })}
           </div>
         ) : null}
-        {props.toolbarExtra ? <div className="schedule-page__toolbar-group schedule-page__toolbar-end">{props.toolbarExtra}</div> : null}
       </div>
     </div>
   )
