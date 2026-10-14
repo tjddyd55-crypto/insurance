@@ -105,6 +105,10 @@ export type ScheduleEventsResponse = {
   sourceStatus: ScheduleSourceStatus
   events: ScheduleEvent[]
   tasks: ScheduleTask[]
+  /** 서버가 응답을 만든 시각(ISO). 없으면 빈 문자열. */
+  fetchedAt: string
+  /** refresh=1 로 Google 캐시를 건너뛰었는가 */
+  cacheBypassed: boolean
 }
 
 export const SCHEDULE_FILTER_KEYS: ScheduleFilterKey[] = ['google', 'google_task', 'onefc_todo', 'customer_alert', 'car_expiry', 'insurance_age']
@@ -175,12 +179,14 @@ export function readScheduleEventsResponse(payload: unknown): ScheduleEventsResp
     sourceStatus: readSourceStatus(data.sourceStatus),
     events: Array.isArray(data.events) ? data.events : [],
     tasks: Array.isArray(data.tasks) ? data.tasks : [],
+    fetchedAt: typeof data.fetchedAt === 'string' ? data.fetchedAt : '',
+    cacheBypassed: data.cacheBypassed === true,
   }
 }
 
 export async function fetchScheduleEvents(
   token: string,
-  query: { from: string; to: string; sources: ScheduleFilterKey[]; calendarIds?: string[] },
+  query: { from: string; to: string; sources: ScheduleFilterKey[]; calendarIds?: string[]; refresh?: boolean },
 ): Promise<ScheduleEventsResponse> {
   const params = new URLSearchParams()
   params.set('from', query.from)
@@ -189,6 +195,20 @@ export async function fetchScheduleEvents(
   if (query.calendarIds && query.calendarIds.length > 0) {
     params.set('calendarIds', query.calendarIds.join(','))
   }
+  if (query.refresh) {
+    params.set('refresh', '1')
+  }
   const raw = await apiRequest<unknown>(`/api/schedule/events?${params.toString()}`, { token })
   return readScheduleEventsResponse(raw)
+}
+
+/** 마지막 갱신 표시(KST). 오늘이면 HH:mm, 아니면 M/D HH:mm. */
+export function formatScheduleRefreshedAt(iso: string, now: Date = new Date()): string {
+  const at = new Date(iso)
+  if (!iso || Number.isNaN(at.getTime())) return ''
+  const ymd = (date: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date)
+  const hm = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(at)
+  if (ymd(at) === ymd(now)) return hm
+  const [, month, day] = ymd(at).split('-')
+  return `${Number(month)}/${Number(day)} ${hm}`
 }

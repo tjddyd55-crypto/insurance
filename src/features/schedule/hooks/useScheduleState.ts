@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { ApiError } from '../../../lib/apiClient'
@@ -42,6 +42,12 @@ export type ScheduleViewProps = {
   sourceStatus: ScheduleSourceStatus
   loading: boolean
   error: string
+  /** 마지막 갱신 시각(ISO). 자동·수동 조회 모두 갱신 */
+  lastRefreshedAt: string
+  /** 수동 새로고침 진행 중 */
+  refreshing: boolean
+  refreshMessage: { kind: 'success' | 'error'; text: string } | null
+  onRefresh: () => void
   selectedDate: string
   detail: ScheduleEvent | null
   taskDetail: ScheduleTask | null
@@ -71,12 +77,16 @@ export type ScheduleViewProps = {
 }
 
 const YMD = /^\d{4}-\d{2}-\d{2}$/
+/** focus·visibility 자동 재조회 최소 간격 */
+export const AUTO_REFETCH_MIN_MS = 15 * 1000
 
 type Owned<T> = { owner: string; value: T }
 
 type FetchResult = {
   key: string
   owner: string
+  /** 마지막으로 성공한 조회 시각(ISO). 실패해도 이전 값을 유지한다. */
+  fetchedAt: string
   events: ScheduleEvent[]
   tasks: ScheduleTask[]
   google: ScheduleGoogleState
@@ -86,7 +96,7 @@ type FetchResult = {
 
 const EMPTY_EVENTS: ScheduleEvent[] = []
 const EMPTY_TASKS: ScheduleTask[] = []
-const EMPTY_RESULT: FetchResult = {
+const EMPTY_RESULT: FetchResult = { fetchedAt: '',
   key: '',
   owner: '',
   events: EMPTY_EVENTS,
@@ -141,6 +151,10 @@ export function useScheduleState(): ScheduleViewProps {
   const calendarIds = useMemo(() => calendarsKey.split(',').map((id) => id.trim()).filter(Boolean), [calendarsKey])
   const includeCompleted = searchParams.get('done') === '1'
   const [reloadNonce, setReloadNonce] = useState(0)
+  const [refreshing, setRefreshing] = useState(false)
+  const [refreshMessage, setRefreshMessage] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
+  const manualRefreshRef = useRef(false)
+  const lastFetchAtRef = useRef(0)
   // 조회 결과·열린 상세는 받은 사용자(owner)를 같이 둔다. 로그아웃 → 다른 계정이면 즉시 화면에서 빠진다.
   const [result, setResult] = useState<FetchResult>(EMPTY_RESULT)
   const [actionError, setActionError] = useState('')
@@ -173,12 +187,20 @@ export function useScheduleState(): ScheduleViewProps {
     const range = viewQueryRange(view, anchor)
     const ids = calendarsKey.split(',').map((id) => id.trim()).filter(Boolean)
     let cancelled = false
-    void fetchScheduleEvents(token, { from: range.start, to: range.end, sources: SCHEDULE_FILTER_KEYS, calendarIds: ids })
+    const manual = manualRefreshRef.current
+    manualRefreshRef.current = false
+    void fetchScheduleEvents(token, { from: range.start, to: range.end, sources: SCHEDULE_FILTER_KEYS, calendarIds: ids, refresh: manual })
       .then((data) => {
         if (!cancelled) {
+          lastFetchAtRef.current = Date.now()
+          if (manual) {
+            setRefreshing(false)
+            setRefreshMessage({ kind: 'success', text: '일정을 새로 불러왔습니다.' })
+          }
           setResult({
             key: requestKey,
             owner: userKey,
+            fetchedAt: data.fetchedAt || new Date().toISOString(),
             events: data.events ?? EMPTY_EVENTS,
             tasks: data.tasks ?? EMPTY_TASKS,
             google: data.google,
@@ -188,12 +210,51 @@ export function useScheduleState(): ScheduleViewProps {
         }
       })
       .catch((loadError: unknown) => {
-        if (!cancelled) setResult({ ...EMPTY_RESULT, key: requestKey, owner: userKey, error: messageOf(loadError) })
+        if (cancelled) return
+        if (manual) {
+          // 수동 새로고침 실패(예: 10초 제한)는 보던 일정을 그대로 두고 안내만 한다.
+          setRefreshing(false)
+          setRefreshMessage({ kind: 'error', text: messageOf(loadError) })
+          setResult((previous) => (previous.owner === userKey ? { ...previous, key: requestKey, error: '' } : { ...EMPTY_RESULT, key: requestKey, owner: userKey, error: messageOf(loadError) }))
+          return
+        }
+        setResult((previous) => ({ ...EMPTY_RESULT, fetchedAt: previous.owner === userKey ? previous.fetchedAt : '', key: requestKey, owner: userKey, error: messageOf(loadError) }))
       })
     return () => {
       cancelled = true
+      if (manual) setRefreshing(false)
     }
   }, [anchor, calendarsKey, requestKey, token, userKey, view])
+
+  // 창 focus·탭 다시 보임(데스크톱 앱 포함) 때 자동 재조회. 15초 안에 받은 결과가 있으면 건너뛴다(서버 캐시 60초).
+  useEffect(() => {
+    if (!hasToken) return
+    const refetch = () => {
+      if (document.visibilityState === 'hidden') return
+      if (Date.now() - lastFetchAtRef.current < AUTO_REFETCH_MIN_MS) return
+      setReloadNonce((current) => current + 1)
+    }
+    window.addEventListener('focus', refetch)
+    document.addEventListener('visibilitychange', refetch)
+    return () => {
+      window.removeEventListener('focus', refetch)
+      document.removeEventListener('visibilitychange', refetch)
+    }
+  }, [hasToken])
+
+  useEffect(() => {
+    if (!refreshMessage) return
+    const timer = window.setTimeout(() => setRefreshMessage(null), 4000)
+    return () => window.clearTimeout(timer)
+  }, [refreshMessage])
+
+  const onRefresh = useCallback(() => {
+    if (!hasToken || refreshing) return
+    manualRefreshRef.current = true
+    setRefreshing(true)
+    setRefreshMessage(null)
+    setReloadNonce((current) => current + 1)
+  }, [hasToken, refreshing])
 
   const sameOwner = hasToken && result.owner === userKey
   const events = sameOwner ? result.events : EMPTY_EVENTS
@@ -293,6 +354,10 @@ export function useScheduleState(): ScheduleViewProps {
     sourceStatus,
     loading,
     error,
+    lastRefreshedAt: sameOwner ? result.fetchedAt : '',
+    refreshing,
+    refreshMessage,
+    onRefresh,
     selectedDate,
     detail,
     taskDetail,

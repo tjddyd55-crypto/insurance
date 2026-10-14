@@ -1,6 +1,32 @@
 import { parseGaId } from '../lib/parseGaId.js'
 import { loadScheduleEvents } from '../schedule/scheduleQuery.js'
 import { assertScheduleRange, parseScheduleSources } from '../schedule/scheduleEvents.js'
+import { clearGoogleUserCache } from '../integrations/google/googleUserCache.js'
+
+/** 수동 새로고침(refresh=1) 최소 간격. Google quota 보호, 사용자별. */
+export const SCHEDULE_REFRESH_MIN_INTERVAL_MS = 10 * 1000
+/** @type {Map<string, number>} userId → 마지막 수동 새로고침 시각 */
+const lastManualRefreshAt = new Map()
+
+export function resetScheduleRefreshLimitForTest() {
+  lastManualRefreshAt.clear()
+}
+
+/**
+ * 허용이면 시각을 기록하고 0, 아니면 남은 초.
+ * @param {string} userId
+ * @param {number} now
+ */
+export function takeScheduleRefreshSlot(userId, now = Date.now()) {
+  const last = lastManualRefreshAt.get(userId)
+  const waitMs = last === undefined ? 0 : last + SCHEDULE_REFRESH_MIN_INTERVAL_MS - now
+  if (waitMs > 0) return Math.ceil(waitMs / 1000)
+  if (lastManualRefreshAt.size > 5000) {
+    for (const [key, at] of lastManualRefreshAt) if (at + SCHEDULE_REFRESH_MIN_INTERVAL_MS < now) lastManualRefreshAt.delete(key)
+  }
+  lastManualRefreshAt.set(userId, now)
+  return 0
+}
 
 /**
  * @param {import('express').Request} req
@@ -36,9 +62,27 @@ export function registerScheduleApi(apiRouter, { pool, requireAuth, handleDbErro
       assertScheduleRange(fromYmd, toYmd)
       const sources = parseScheduleSources(req.query.sources)
       const calendarIds = [...new Set(String(req.query.calendarIds ?? '').split(',').map((id) => id.trim()).filter(Boolean))].slice(0, 30)
+      const manualRefresh = String(req.query.refresh ?? '') === '1'
+      if (manualRefresh) {
+        const retryAfterSec = takeScheduleRefreshSlot(scope.userId)
+        if (retryAfterSec > 0) {
+          res.setHeader('Retry-After', String(retryAfterSec))
+          res.setHeader('Cache-Control', 'no-store')
+          res.status(429).json({
+            success: false,
+            code: 'refresh_rate_limited',
+            message: `일정 새로고침은 잠시 후 다시 시도해 주세요. (${retryAfterSec}초)`,
+            retryAfterSec,
+          })
+          return
+        }
+        // 그 사용자 Google 캐시만 비운다(키는 항상 사용자 id 로 시작). 다른 사용자 캐시는 그대로.
+        clearGoogleUserCache(scope.userId)
+        console.info('[schedule] manual refresh', { cacheBypassed: true })
+      }
       const data = await loadScheduleEvents(pool, { ...scope, fromYmd, toYmd, sources, calendarIds, viewer: req.user })
       res.setHeader('Cache-Control', 'no-store')
-      res.json({ success: true, data })
+      res.json({ success: true, data: { ...data, fetchedAt: new Date().toISOString(), cacheBypassed: manualRefresh } })
     } catch (error) {
       if (error?.code === 'invalid_range' || error?.code === 'range_too_wide' || error?.code === 'invalid_source') {
         res.status(400).json({

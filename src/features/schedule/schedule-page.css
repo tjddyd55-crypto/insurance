@@ -67,6 +67,28 @@
   color: var(--danger-text);
 }
 
+.schedule-page__refresh {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: var(--space-2);
+}
+
+.schedule-page__refreshed {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.schedule-page__refresh-message {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.schedule-page__refresh-message--error {
+  color: var(--danger);
+}
+
 .schedule-page__status {
   color: var(--text-secondary);
 }
