@@ -1,4 +1,5 @@
 /* eslint-disable no-restricted-syntax -- 달력 칸·일정 칩·목록 행은 버튼 모양이 아닌 목록 항목이라 native button 을 쓴다(알림 달력과 같은 방식). 툴바 버튼은 공용 Button. */
+import type { ReactNode } from 'react'
 import { FormButton, FormInput } from '../../../components/form'
 import { FormDialog } from '../../../components/dialog'
 import { Button } from '../../../components/ui'
@@ -390,7 +391,7 @@ export function ScheduleList({ anchor, today, events, tasks, onOpenEvent, onOpen
 }
 
 /** 할 일 읽기 전용 상세. 편집 UI 없음. ONE FC 할 일은 할 일 화면으로만 이동한다. */
-export function ScheduleTaskDetailDialog({ taskDetail, today, onCloseTaskDetail, onOpenTodos }: Pick<ScheduleViewProps, 'taskDetail' | 'today' | 'onCloseTaskDetail' | 'onOpenTodos'>) {
+export function ScheduleTaskDetailDialog({ taskDetail, today, onCloseTaskDetail, onOpenTodos, actions, writable }: Pick<ScheduleViewProps, 'taskDetail' | 'today' | 'onCloseTaskDetail' | 'onOpenTodos'> & { actions?: ReactNode; writable?: boolean }) {
   if (!taskDetail) {
     return null
   }
@@ -407,6 +408,7 @@ export function ScheduleTaskDetailDialog({ taskDetail, today, onCloseTaskDetail,
           {!isGoogle ? (
             <FormButton htmlType="button" variant="secondary" onClick={onOpenTodos}>할 일 화면에서 보기</FormButton>
           ) : null}
+          {actions}
           <FormButton htmlType="button" variant="secondary" onClick={onCloseTaskDetail}>닫기</FormButton>
         </div>
       )}
@@ -419,7 +421,7 @@ export function ScheduleTaskDetailDialog({ taskDetail, today, onCloseTaskDetail,
         {taskDetail.notes ? <div><dt>메모</dt><dd className="schedule-page__detail-desc">{taskDetail.notes}</dd></div> : null}
         <div>
           <dt>출처</dt>
-          <dd><ScheduleTaskBadge task={taskDetail} /> {isGoogle ? 'Google 출처 · 읽기 전용' : 'ONE FC 할 일'}</dd>
+          <dd><ScheduleTaskBadge task={taskDetail} /> {isGoogle ? (writable ? 'Google 할 일' : 'Google 출처 · 읽기 전용') : 'ONE FC 할 일'}</dd>
         </div>
       </dl>
     </FormDialog>
@@ -436,7 +438,7 @@ function detailWhen(event: ScheduleEvent): string {
 }
 
 /** Google 일정 읽기 전용 상세. 조회 전용이라 바깥 클릭·ESC 로 닫을 수 있다. */
-export function ScheduleGoogleDetailDialog({ detail, onCloseDetail }: Pick<ScheduleViewProps, 'detail' | 'onCloseDetail'>) {
+export function ScheduleGoogleDetailDialog({ detail, onCloseDetail, actions }: Pick<ScheduleViewProps, 'detail' | 'onCloseDetail'> & { actions?: ReactNode }) {
   if (!detail) {
     return null
   }
@@ -454,6 +456,7 @@ export function ScheduleGoogleDetailDialog({ detail, onCloseDetail }: Pick<Sched
               Google Calendar에서 열기
             </a>
           ) : null}
+          {actions}
           <FormButton htmlType="button" variant="secondary" onClick={onCloseDetail}>닫기</FormButton>
         </div>
       )}
@@ -463,7 +466,7 @@ export function ScheduleGoogleDetailDialog({ detail, onCloseDetail }: Pick<Sched
         <div><dt>캘린더</dt><dd>{detail.calendarName || '기본 캘린더'}</dd></div>
         {detail.location ? <div><dt>위치</dt><dd>{detail.location}</dd></div> : null}
         {detail.description ? <div><dt>설명</dt><dd className="schedule-page__detail-desc">{detail.description}</dd></div> : null}
-        <div><dt>출처</dt><dd><ScheduleSourceBadge event={detail} /> 읽기 전용</dd></div>
+        <div><dt>출처</dt><dd><ScheduleSourceBadge event={detail} /> {actions && detail.writable ? '' : '읽기 전용'}</dd></div>
       </dl>
     </FormDialog>
   )

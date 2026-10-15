@@ -109,6 +109,7 @@ export async function loadScheduleEvents(pool, scope) {
       status: google.status,
       connectAllowed: isGoogleConnectAllowed(/** @type {any} */ (scope.viewer)),
       calendars: google.calendars ?? [],
+      write: google.write ?? { enabled: false, calendarWritable: false, tasksWritable: false, needsWriteConsent: false },
       tasks: {
         status: googleTasks.status,
         needsReconsent: Boolean(googleTasks.needsReconsent),

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
 import useIsMobile from '../../../hooks/useIsMobile'
 import { useAuth } from '../../auth/AuthProvider'
@@ -137,6 +137,20 @@ export function useTodosWorkspaceState() {
     setEditorSession((k) => k + 1)
     setEditorOpen(true)
   }
+
+  // 일정 관리 '새 항목 추가 → ONE FC 할 일' 진입: /todos?new=1&due=YYYY-MM-DD → 기존 작성 창을 그대로 연다(한 번만).
+  const [searchParams, setSearchParams] = useSearchParams()
+  const newParam = searchParams.get('new')
+  const dueParam = searchParams.get('due') ?? ''
+  useEffect(() => {
+    if (newParam !== '1') return
+    openCreateBlank(/^\d{4}-\d{2}-\d{2}$/.test(dueParam) ? dueParam : undefined)
+    const next = new URLSearchParams(searchParams)
+    next.delete('new')
+    next.delete('due')
+    setSearchParams(next, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newParam])
 
   const openEdit = (row: TodoDto) => {
     setEditingTodo(row)

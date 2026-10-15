@@ -148,6 +148,31 @@ export function plainGoogleDescription(raw) {
     .trim()
 }
 
+const WRITABLE_ROLES = ['owner', 'writer']
+
+/**
+ * t307: ONE FC 에서 안전하게 수정·삭제할 수 있는 Google 일정인가. 아니면 사유(화면 안내용 코드).
+ * 반복·참석자·회의 링크·특수 유형(생일·근무 위치 등)·남이 주최한 일정은 읽기 전용으로 둔다.
+ * @param {Record<string, any>} item Google events 원본
+ * @param {{ accessRole?: string }} [calendar]
+ * @returns {{ writable: boolean, readOnlyReason: string }}
+ */
+export function googleEventEditability(item, calendar = {}) {
+  if (!WRITABLE_ROLES.includes(String(calendar?.accessRole ?? ''))) return { writable: false, readOnlyReason: 'calendar_read_only' }
+  if (item?.recurringEventId || (Array.isArray(item?.recurrence) && item.recurrence.length > 0)) {
+    return { writable: false, readOnlyReason: 'recurring' }
+  }
+  if (item?.eventType && item.eventType !== 'default') return { writable: false, readOnlyReason: 'special_type' }
+  const others = Array.isArray(item?.attendees) ? item.attendees.filter((attendee) => attendee && attendee.self !== true) : []
+  if (others.length > 0) return { writable: false, readOnlyReason: 'attendees' }
+  if (item?.hangoutLink || item?.conferenceData) return { writable: false, readOnlyReason: 'conference' }
+  if (item?.organizer && item.organizer.self !== true && item?.guestsCanModify !== true && item?.creator?.self !== true) {
+    return { writable: false, readOnlyReason: 'not_organizer' }
+  }
+  if (item?.locked === true || item?.privateCopy === true) return { writable: false, readOnlyReason: 'locked' }
+  return { writable: true, readOnlyReason: '' }
+}
+
 /**
  * Google Calendar events.list item → 공통 모델. 취소 건과 시작이 없는 건은 버린다. 원본은 넘기지 않는다.
  * 종일: start.date/end.date 달력일 그대로(UTC 자정 변환 없음, end exclusive).
@@ -170,6 +195,7 @@ export function normalizeGoogleCalendarEvent(item, calendar = { id: 'primary' })
     ? (asYmd(end.date) || addDaysYmd(startAt, 1))
     : (String(end.dateTime ?? '').trim() || startAt)
   const calendarId = String(calendar.id ?? 'primary')
+  const editability = googleEventEditability(item, calendar)
   return {
     id: `google:${calendarId}:${String(item.id)}`,
     source: 'google',
@@ -192,6 +218,9 @@ export function normalizeGoogleCalendarEvent(item, calendar = { id: 'primary' })
     htmlLink: safeGoogleHtmlLink(item.htmlLink),
     sourceDate: null,
     sourceTitle: null,
+    // readOnly 는 기존 의미(읽기 연동) 그대로 두고, 쓰기 가능 여부는 따로 둔다. 실제 쓰기는 서버가 매번 다시 확인한다.
+    writable: editability.writable,
+    readOnlyReason: editability.readOnlyReason,
   }
 }
 

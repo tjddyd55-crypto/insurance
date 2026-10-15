@@ -7,7 +7,26 @@ import {
   loadGoogleTasksForUser,
   readGoogleIntegrationStatus,
 } from '../integrations/googleCalendarAdapter.js'
-import { GOOGLE_CALENDAR_CARD_KEY, isGoogleConnectAllowed, readGoogleOAuthConfig } from '../integrations/google/googleOAuthConfig.js'
+import {
+  GOOGLE_ACCOUNT_PROVIDER_KEY,
+  GOOGLE_CALENDAR_CARD_KEY,
+  GOOGLE_WRITE_STATE_KEY,
+  isGoogleConnectAllowed,
+  isGoogleWriteEnabled,
+  readGoogleOAuthConfig,
+} from '../integrations/google/googleOAuthConfig.js'
+import { readUserIntegration } from '../integrations/integrationStore.js'
+import { withGoogleAccess } from '../integrations/googleCalendarAdapter.js'
+import {
+  assertGoogleWriteReady,
+  createGoogleCalendarEvent,
+  createGoogleTask,
+  deleteGoogleCalendarEvent,
+  deleteGoogleTask,
+  listGoogleWriteTargets,
+  updateGoogleCalendarEvent,
+  updateGoogleTask,
+} from '../integrations/google/googleWriteService.js'
 import {
   consumeOAuthState,
   createOAuthState,
@@ -19,6 +38,7 @@ import { systemQuery } from '../utils/dbSafeQuery.js'
 import { buildGoogleAuthorizationUrl, completeGoogleConnection } from '../integrations/google/googleTokenService.js'
 
 const RETURN_PATH = '/service-integrations'
+const WRITE_RETURN_PATH = '/schedule'
 
 const GOOGLE_API_ERRORS = {
   unconfigured: { status: 409, message: 'Google 연동 설정이 아직 없습니다. 관리자에게 문의해 주세요.' },
@@ -31,6 +51,19 @@ const GOOGLE_API_ERRORS = {
   google_api_disabled: { status: 503, message: 'Google 연동 서버 설정을 확인 중입니다. 관리자에게 문의해 주세요.' },
   google_rate_limited: { status: 503, message: 'Google 요청이 많아 잠시 조회할 수 없습니다. 잠시 후 다시 시도해 주세요.' },
   google_token_failed: { status: 502, message: 'Google 인증 서버 응답을 처리하지 못했습니다.' },
+  write_disabled: { status: 403, message: 'Google 쓰기 기능은 아직 준비 중입니다.' },
+  write_scope_missing: { status: 409, message: 'Google 일정·할 일 쓰기 권한이 필요합니다. 권한을 추가로 허용해 주세요.' },
+  invalid_input: { status: 400, message: '입력값을 확인해 주세요.' },
+  calendar_not_writable: { status: 403, message: '이 캘린더에는 일정을 저장할 권한이 없습니다.' },
+  tasklist_not_found: { status: 404, message: '할 일 목록을 찾을 수 없습니다.' },
+  event_read_only: { status: 409, message: '이 일정은 ONE FC 에서 수정·삭제할 수 없습니다. Google Calendar 에서 변경해 주세요.' },
+  google_not_found: { status: 404, message: 'Google 에서 항목을 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.' },
+  google_not_found_or_unavailable: { status: 502, message: 'Google 응답이 없습니다. 잠시 후 다시 시도해 주세요.' },
+  google_conflict: { status: 409, message: '다른 곳에서 먼저 변경되었습니다. 새로고침 후 다시 시도해 주세요.' },
+  google_precondition_failed: { status: 409, message: '다른 곳에서 먼저 변경되었습니다. 새로고침 후 다시 시도해 주세요.' },
+  google_result_unknown: { status: 504, message: 'Google 저장 결과를 확인하지 못했습니다. 새로고침해서 저장 여부를 확인해 주세요.' },
+  google_timeout: { status: 504, message: 'Google 저장 결과를 확인하지 못했습니다. 새로고침해서 저장 여부를 확인해 주세요.' },
+  google_bad_request: { status: 400, message: 'Google 이 요청을 거절했습니다. 입력값을 확인해 주세요.' },
 }
 
 /**
@@ -80,6 +113,9 @@ function sendGoogleError(res, error, req, handleDbError) {
       code: code === 'google_unauthorized' ? 'needs_reauth' : code,
       message: known.message,
       ...(code === 'scope_missing' ? { needsReconsent: true } : {}),
+      ...(code === 'write_scope_missing' ? { needsWriteConsent: true } : {}),
+      ...(code === 'event_read_only' && /** @type {any} */ (error)?.reason ? { reason: String(/** @type {any} */ (error).reason) } : {}),
+      ...(code === 'invalid_input' && /** @type {any} */ (error)?.field ? { field: String(/** @type {any} */ (error).field) } : {}),
     })
     return
   }
@@ -132,6 +168,7 @@ const DESKTOP_ERROR_TEXT = {
   state_expired: '연동 요청 시간이 지났습니다. ONE FC 앱에서 다시 연동해 주세요.',
   state_invalid: '연동 요청이 올바르지 않거나 이미 사용되었습니다. ONE FC 앱에서 다시 연동해 주세요.',
   user_inactive: '연동할 ONE FC 계정을 찾을 수 없습니다.',
+  account_mismatch: '연결된 Google 계정과 다른 계정으로 동의했습니다. 기존 연결은 그대로 유지됩니다. 같은 계정으로 다시 시도해 주세요.',
 }
 
 /**
@@ -171,7 +208,8 @@ async function readActiveAccount(pool, userId) {
  * @param {import('express').Request} req
  * @param {import('express').Response} res
  */
-export async function startGoogleConnect(pool, req, res) {
+export async function startGoogleConnect(pool, req, res, options = {}) {
+  const purpose = options.purpose === 'write' ? 'write' : 'connect'
   const userId = currentUserId(req)
   if (!userId) {
     res.status(401).json({ success: false, code: 'unauthorized', message: '로그인이 필요합니다.' })
@@ -190,8 +228,25 @@ export async function startGoogleConnect(pool, req, res) {
     })
     return
   }
+  let loginHint = ''
+  if (purpose === 'write') {
+    if (!isGoogleWriteEnabled()) {
+      res.status(403).json({ success: false, code: 'write_disabled', message: GOOGLE_API_ERRORS.write_disabled.message })
+      return
+    }
+    const row = await readUserIntegration(pool, userId, GOOGLE_ACCOUNT_PROVIDER_KEY)
+    if (!row || row.status !== 'connected') {
+      res.status(409).json({ success: false, code: 'not_connected', message: GOOGLE_API_ERRORS.not_connected.message })
+      return
+    }
+    loginHint = String(row.accountEmail ?? '')
+  }
   const client = requestedOAuthClient(req)
-  const created = await createOAuthState(pool, { userId, providerKey: GOOGLE_CALENDAR_CARD_KEY, client })
+  const created = await createOAuthState(pool, {
+    userId,
+    providerKey: purpose === 'write' ? GOOGLE_WRITE_STATE_KEY : GOOGLE_CALENDAR_CARD_KEY,
+    client,
+  })
   if (created.binding) {
     res.setHeader('Set-Cookie', bindingCookie(req, created.binding, Math.floor(OAUTH_STATE_TTL_MS / 1000)))
   }
@@ -200,7 +255,7 @@ export async function startGoogleConnect(pool, req, res) {
     success: true,
     data: {
       action: client === 'desktop' ? 'open_external' : 'redirect',
-      url: buildGoogleAuthorizationUrl(config, created.state),
+      url: buildGoogleAuthorizationUrl(config, created.state, { purpose, loginHint }),
       ...(client === 'desktop' ? { client, expiresInSeconds: Math.floor(OAUTH_STATE_TTL_MS / 1000) } : {}),
     },
   })
@@ -273,6 +328,53 @@ export function registerGoogleIntegrationApi(apiRouter, { pool, requireAuth, han
     }
   })
 
+  // ---- t307 쓰기 (기능 플래그 + 저장 scope 를 매 요청 서버에서 확인) ----
+  const writeRoute = (product, handler) => async (req, res) => {
+    try {
+      const userId = currentUserId(req)
+      await assertGoogleWriteReady(pool, userId, product)
+      const data = await withGoogleAccess(pool, { userId, fetchImpl }, (accessToken) => handler({ userId, accessToken, fetchImpl }, req))
+      res.setHeader('Cache-Control', 'no-store')
+      res.json({ success: true, data })
+    } catch (error) {
+      const code = String(/** @type {any} */ (error)?.code ?? '')
+      if (code && !GOOGLE_API_ERRORS[code]) console.warn('[google-write] 실패', { code })
+      sendGoogleError(res, error, req, handleDbError)
+    }
+  }
+  const body = (req) => (req.body && typeof req.body === 'object' ? req.body : {})
+
+  apiRouter.post('/service-integrations/google/write/connect', requireAuth, async (req, res) => {
+    try {
+      await startGoogleConnect(pool, req, res, { purpose: 'write' })
+    } catch (error) {
+      sendGoogleError(res, error, req, handleDbError)
+    }
+  })
+
+  apiRouter.get('/service-integrations/google/write/targets', requireAuth, async (req, res) => {
+    try {
+      const userId = currentUserId(req)
+      if (!isGoogleWriteEnabled()) throw Object.assign(new Error('write_disabled'), { code: 'write_disabled' })
+      const status = await readGoogleIntegrationStatus(pool, userId)
+      const products = { calendar: status.write.calendarWritable, tasks: status.write.tasksWritable }
+      const targets = products.calendar || products.tasks
+        ? await withGoogleAccess(pool, { userId, fetchImpl }, (accessToken) => listGoogleWriteTargets({ userId, accessToken, fetchImpl }, products))
+        : { calendars: [], taskLists: [] }
+      res.setHeader('Cache-Control', 'no-store')
+      res.json({ success: true, data: { ...status.write, accountEmail: status.accountEmail, ...targets } })
+    } catch (error) {
+      sendGoogleError(res, error, req, handleDbError)
+    }
+  })
+
+  apiRouter.post('/service-integrations/google/write/events', requireAuth, writeRoute('calendar', (access, req) => createGoogleCalendarEvent(access, body(req))))
+  apiRouter.patch('/service-integrations/google/write/events', requireAuth, writeRoute('calendar', (access, req) => updateGoogleCalendarEvent(access, body(req).calendarId, body(req).eventId, body(req))))
+  apiRouter.delete('/service-integrations/google/write/events', requireAuth, writeRoute('calendar', (access, req) => deleteGoogleCalendarEvent(access, body(req).calendarId ?? req.query.calendarId, body(req).eventId ?? req.query.eventId)))
+  apiRouter.post('/service-integrations/google/write/tasks', requireAuth, writeRoute('tasks', (access, req) => createGoogleTask(access, body(req))))
+  apiRouter.patch('/service-integrations/google/write/tasks', requireAuth, writeRoute('tasks', (access, req) => updateGoogleTask(access, body(req).taskListId, body(req).taskId, body(req))))
+  apiRouter.delete('/service-integrations/google/write/tasks', requireAuth, writeRoute('tasks', (access, req) => deleteGoogleTask(access, body(req).taskListId ?? req.query.taskListId, body(req).taskId ?? req.query.taskId)))
+
   // Google 이 브라우저를 돌려보내는 주소. Bearer 가 없으므로 state(DB, 1회용) + 바인딩 쿠키로 사용자를 확인한다.
   // 데스크톱 state(로그인된 데스크톱 앱이 만든 것)만 쿠키 확인을 건너뛰고, 결과는 단순 페이지로 보여 준다.
   apiRouter.get('/service-integrations/google/callback', async (req, res) => {
@@ -281,6 +383,7 @@ export function registerGoogleIntegrationApi(apiRouter, { pool, requireAuth, han
     /** @type {'web' | 'desktop' | ''} */
     let client = ''
     let accountMasked = ''
+    let purpose = 'connect'
     const back = (result, reason) => {
       // 데스크톱 state 는 앱 세션으로 보내지 않고 결과 페이지를 보여 준다. 웹·알 수 없는 state 는 기존대로 redirect.
       if (client === 'desktop') {
@@ -291,17 +394,19 @@ export function registerGoogleIntegrationApi(apiRouter, { pool, requireAuth, han
         )
         return
       }
-      const params = new URLSearchParams({ google: result })
+      const params = new URLSearchParams({ google: purpose === 'write' ? `write_${result}` : result })
       if (reason) params.set('reason', reason)
-      res.redirect(302, `${RETURN_PATH}?${params.toString()}`)
+      res.redirect(302, `${purpose === 'write' ? WRITE_RETURN_PATH : RETURN_PATH}?${params.toString()}`)
     }
     try {
       const consumed = await consumeOAuthState(pool, {
         state: String(req.query.state ?? ''),
         binding: readCookie(req.headers.cookie, OAUTH_BINDING_COOKIE),
         providerKey: GOOGLE_CALENDAR_CARD_KEY,
+        providerKeys: [GOOGLE_CALENDAR_CARD_KEY, GOOGLE_WRITE_STATE_KEY],
       })
       client = consumed.client ?? ''
+      if (consumed.ok && consumed.providerKey === GOOGLE_WRITE_STATE_KEY) purpose = 'write'
       if (!consumed.ok) {
         back('error', consumed.reason)
         return
@@ -315,6 +420,7 @@ export function registerGoogleIntegrationApi(apiRouter, { pool, requireAuth, han
         accountMasked = account.accountMasked
       }
       if (req.query.error) {
+        // 쓰기 동의 거절: 기존 읽기 연결은 그대로다(토큰을 건드리지 않는다).
         back('error', String(req.query.error) === 'access_denied' ? 'access_denied' : 'google_error')
         return
       }
@@ -328,11 +434,15 @@ export function registerGoogleIntegrationApi(apiRouter, { pool, requireAuth, han
         back('error', 'unconfigured')
         return
       }
-      const completed = await completeGoogleConnection(pool, config, { userId: consumed.userId, code, fetchImpl })
+      const completed = await completeGoogleConnection(pool, config, { userId: consumed.userId, code, purpose, fetchImpl })
+      if (purpose === 'write') {
+        back('connected', completed.calendarWritable && completed.tasksWritable ? '' : 'write_scope_partial')
+        return
+      }
       back('connected', completed.tasksReadable ? '' : 'tasks_scope_missing')
     } catch (error) {
       const code = String(/** @type {any} */ (error)?.code ?? '')
-      const known = ['scope_missing', 'refresh_token_missing', 'google_token_failed', 'google_unavailable', 'google_userinfo_failed', 'needs_reauth']
+      const known = ['account_mismatch', 'scope_missing', 'refresh_token_missing', 'google_token_failed', 'google_unavailable', 'google_userinfo_failed', 'needs_reauth']
       if (!known.includes(code)) {
         console.error('[google-oauth] callback 실패', { code: code || 'server_error' })
       }
