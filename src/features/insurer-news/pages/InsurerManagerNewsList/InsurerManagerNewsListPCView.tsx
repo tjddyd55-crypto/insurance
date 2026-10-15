@@ -16,6 +16,7 @@ import {
   getNewsletterDetail,
   getNewsletterDetailForInsurerManager,
 } from '../../services/insurerNews.service'
+import { loadNewsletterSourceDetail } from '../../services/newsletterCollections.service'
 import type { NewsletterDetail, NewsletterItem } from '../../types'
 import type { InsurerManagerNewsListViewProps } from './insurerManagerNewsListViewProps'
 
@@ -92,7 +93,9 @@ export default function InsurerManagerNewsListPCView({
     void (async () => {
       try {
         const detail =
-          fetchScope === 'ga'
+          fetchScope === 'ga' && picked.boardSlug && (picked.sourceKind === 'GA' || picked.sourceKind === 'PUBLIC')
+            ? await loadNewsletterSourceDetail(picked, gaCode, token)
+            : fetchScope === 'ga'
             ? await getNewsletterDetail(gaCode, id, token, { channel })
             : await getNewsletterDetailForInsurerManager(token ?? '', gaCode, companyId ?? 0, id, { channel })
         if (openRequestIdRef.current !== requestId) {

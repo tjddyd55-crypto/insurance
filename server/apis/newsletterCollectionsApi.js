@@ -1,7 +1,10 @@
 import { r2DeleteObject } from '../lib/consentStorage.js'
 import { readStorageFileBufferFromPath } from '../lib/storageFileObjectKey.js'
 import { resolveNewsletterDetailLinkPreview } from '../lib/newsletterLinkPreview.js'
-import { sqlFeedChannelExtraGuards } from '../lib/newsletterFeedChannelSql.js'
+import {
+  READABLE_NEWSLETTER_BOARD_JOIN,
+  readableNewsletterWhere,
+} from '../newsletter-collections/newsletterReadableSources.js'
 import { isInsurerManagerRole, isLossAdjusterRole } from '../lib/rbacScope.js'
 import {
   buildNewsletterA4Pdf,
@@ -29,18 +32,12 @@ const BULK_MAX = 50
 const IMPORT_MAX = 20
 const ATTACHMENT_TOTAL_MAX_BYTES = 60 * 1024 * 1024
 
-/** 피드와 동일한 노출 조건 (alias n). $gaParam = GA id 파라미터 자리. */
+/**
+ * 열람 가능 조건 (alias n). t299: 원수사 + 공용 + 자기 GA 소식지 — newsletterReadableSources SSOT.
+ * 사용처는 반드시 FROM 의 n 뒤에 READABLE_NEWSLETTER_BOARD_JOIN 을 붙인다.
+ */
 function visibleNewsletterWhere(gaParam) {
-  return `
-    n.ga_id = ${gaParam}
-    AND n.status = 'PUBLISHED'
-    AND n.deleted_at IS NULL
-    AND COALESCE(NULLIF(TRIM(n.payload->>'newsChannel'), ''), 'INSURER') = 'INSURER'
-    ${sqlFeedChannelExtraGuards('INSURER', 'n')}
-    AND COALESCE((n.payload->>'customerVisible')::boolean, false) = false
-    AND COALESCE(NULLIF(TRIM(n.payload->>'insurerSlug'), ''), '') <> 'customer-news'
-    AND UPPER(COALESCE(NULLIF(TRIM(n.payload->>'insurerCode'), ''), '')) <> 'CUSTOMER_NEWS'
-  `
+  return readableNewsletterWhere(gaParam)
 }
 
 function httpError(status, message) {
@@ -89,7 +86,7 @@ async function filterVisibleNewsletterIds(executor, scope, ids) {
   if (ids.length === 0) return new Set()
   const r = await safeQuery(
     executor,
-    `SELECT n.id FROM insurance_company_newsletters n WHERE n.id = ANY($2::text[]) AND ${visibleNewsletterWhere('$1')}`,
+    `SELECT n.id FROM insurance_company_newsletters n ${READABLE_NEWSLETTER_BOARD_JOIN} WHERE n.id = ANY($2::text[]) AND ${visibleNewsletterWhere('$1')}`,
     [scope.gaId, ids],
   )
   return new Set(r.rows.map((row) => String(row.id)))
@@ -133,6 +130,7 @@ async function loadCollections(executor, scope) {
     FROM newsletter_user_folder_items i
     INNER JOIN newsletter_user_folders f ON f.id = i.folder_id AND f.user_id = $1 AND f.ga_id = $2
     INNER JOIN insurance_company_newsletters n ON n.id = i.newsletter_id
+    ${READABLE_NEWSLETTER_BOARD_JOIN}
     WHERE ${visibleNewsletterWhere('$2')}
     ORDER BY i.created_at DESC
     `,
@@ -144,6 +142,7 @@ async function loadCollections(executor, scope) {
     SELECT fav.newsletter_id
     FROM newsletter_user_favorites fav
     INNER JOIN insurance_company_newsletters n ON n.id = fav.newsletter_id
+    ${READABLE_NEWSLETTER_BOARD_JOIN}
     WHERE fav.user_id = $1 AND fav.ga_id = $2 AND ${visibleNewsletterWhere('$2')}
     ORDER BY fav.created_at DESC
     `,
@@ -181,7 +180,7 @@ async function getOwnedSection(executor, sectionId, scope) {
 async function loadVisibleNewsletterForImport(executor, scope, newsletterId) {
   const n = await safeQuery(
     executor,
-    `SELECT n.* FROM insurance_company_newsletters n WHERE n.id = $2 AND ${visibleNewsletterWhere('$1')} LIMIT 1`,
+    `SELECT n.* FROM insurance_company_newsletters n ${READABLE_NEWSLETTER_BOARD_JOIN} WHERE n.id = $2 AND ${visibleNewsletterWhere('$1')} LIMIT 1`,
     [scope.gaId, newsletterId],
   )
   if (n.rowCount === 0) return null
@@ -190,10 +189,12 @@ async function loadVisibleNewsletterForImport(executor, scope, newsletterId) {
     `
     SELECT a.*
     FROM insurance_company_newsletter_attachments a
-    INNER JOIN insurance_company_newsletters n ON n.id = a.newsletter_id AND n.ga_id = $2
+    INNER JOIN insurance_company_newsletters n
+      ON n.id = a.newsletter_id AND (n.ga_id = $2 OR n.ga_id IS NULL)
     WHERE a.newsletter_id = $1
-    ORDER BY a.sort_order ASC
+    ORDER BY a.sort_order ASC, a.created_at ASC
     `,
+    // 원본 열람 권한은 바로 위 readableNewsletterWhere 로 이미 확인됨 (공용 글은 ga_id NULL).
     [newsletterId, scope.gaId],
   )
   return { row: n.rows[0], attachments: att.rows }

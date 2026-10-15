@@ -10,9 +10,13 @@ import {
 import { FormButton, FormInput, FormSelect } from '../../../../components/form'
 import { formatTimestampSearchHaystack } from '../../../../utils/displayDateTime'
 import { useAuth } from '../../../auth/AuthProvider'
-import type { NewsletterDetail, NewsletterItem } from '../../types'
+import type { NewsletterDetail, NewsletterItem, NewsletterSourceKind } from '../../types'
 import type { NewsletterCollections } from '../../services/newsletterCollections.service'
-import { getNewsletterDetail } from '../../services/insurerNews.service'
+import {
+  NEWSLETTER_SOURCE_KIND_LABEL,
+  loadNewsletterSourceDetail,
+} from '../../services/newsletterCollections.service'
+import { useNewsletterPickerSources } from './useNewsletterPickerSources'
 import {
   InsurerNewsDetailViewerContent,
 } from '../InsurerNewsDetailViewerContent'
@@ -57,12 +61,13 @@ function PickerCardImage({ imageUrl, headline }: { imageUrl: string | null; head
 }
 
 /**
- * 소식지 다중 선택 패널 — 검색 + 원수사 필터 + (전체/즐겨찾기/내 폴더) 출처.
+ * 소식지 다중 선택 패널 — 종류(전체/원수사/GA/공용) + 원수사 필터(원수사 종류에서만) + 검색
+ * + (전체/즐겨찾기/내 폴더) 출처. 목록은 서버 공통 소스(picker-sources)에서 읽는다 (t299).
  * 폴더의 [소식지 추가], 바인더의 [소식지] 출처 탭에서 공용으로 쓴다.
  * 원수사 목록과 같은 썸네일 카드 그리드 + 체크박스 + 미리보기.
  */
 export function NewsletterPickerPanel({
-  items,
+  items: itemsOverride,
   collections,
   selectedIds,
   onSelectedIdsChange,
@@ -71,7 +76,8 @@ export function NewsletterPickerPanel({
   showSourceFilter = true,
   hideDisabledByDefault = false,
 }: {
-  items: NewsletterItem[]
+  /** 생략하면 서버 공통 소스(원수사·GA·공용 열람 가능분)를 읽는다. */
+  items?: NewsletterItem[]
   collections: NewsletterCollections
   selectedIds: string[]
   onSelectedIdsChange: (ids: string[]) => void
@@ -83,6 +89,9 @@ export function NewsletterPickerPanel({
 }) {
   const { user, token } = useAuth()
   const gaCode = user?.gaCode ?? ''
+  const sources = useNewsletterPickerSources(token, itemsOverride == null)
+  const items = itemsOverride ?? sources.items
+  const [kind, setKind] = useState<'' | NewsletterSourceKind>('')
   const [query, setQuery] = useState('')
   const [insurer, setInsurer] = useState('')
   const [source, setSource] = useState('all')
@@ -94,8 +103,20 @@ export function NewsletterPickerPanel({
   const [zoom, setZoom] = useState(1)
   const previewRequestIdRef = useRef(0)
 
+  const kindOf = (item: NewsletterItem): NewsletterSourceKind => item.sourceKind ?? 'INSURER'
+  const kindCounts = useMemo(() => {
+    const counts: Record<NewsletterSourceKind, number> = { INSURER: 0, GA: 0, PUBLIC: 0 }
+    for (const item of items) counts[kindOf(item)] += 1
+    return counts
+  }, [items])
+  const kindOptions = [
+    { value: '', label: `전체 소식지 (${items.length})` },
+    { value: 'INSURER', label: `원수사 (${kindCounts.INSURER})` },
+    { value: 'GA', label: `GA (${kindCounts.GA})` },
+    { value: 'PUBLIC', label: `공용 (${kindCounts.PUBLIC})` },
+  ]
   const insurerOptions = useMemo(() => {
-    const names = [...new Set(items.map((item) => item.insurerName).filter(Boolean))].sort((a, b) =>
+    const names = [...new Set(items.filter((item) => kindOf(item) === 'INSURER').map((item) => item.insurerName).filter(Boolean))].sort((a, b) =>
       a.localeCompare(b, 'ko'),
     )
     return [{ value: '', label: '전체 원수사' }, ...names.map((name) => ({ value: name, label: name }))]
@@ -103,7 +124,7 @@ export function NewsletterPickerPanel({
 
   const sourceOptions = useMemo(
     () => [
-      { value: 'all', label: '전체 소식지' },
+      { value: 'all', label: '전체 (폴더 구분 없음)' },
       { value: 'favorites', label: `즐겨찾기 (${collections.favoriteNewsletterIds.length})` },
       ...collections.folders.map((folder) => ({
         value: `folder:${folder.id}`,
@@ -123,15 +144,17 @@ export function NewsletterPickerPanel({
     const q = query.trim().toLowerCase()
     return items.filter((item) => {
       if (allowed && !allowed.has(item.id)) return false
-      if (insurer && item.insurerName !== insurer) return false
+      if (kind && kindOf(item) !== kind) return false
+      // 원수사 선택은 원수사 종류에서만 적용한다 (GA/공용에는 원수사 조건 미적용).
+      if (kind === 'INSURER' && insurer && item.insurerName !== insurer) return false
       if (hideDisabledByDefault && !showAlreadyAdded && disabledIds?.has(item.id)) return false
       if (!q) return true
-      return [item.insurerName, item.title, item.summary, formatTimestampSearchHaystack(item.publishedAt)]
+      return [item.insurerName, item.boardLabel, item.title, item.summary, formatTimestampSearchHaystack(item.publishedAt)]
         .map((v) => String(v ?? '').toLowerCase())
         .join('\n')
         .includes(q)
     })
-  }, [collections, disabledIds, hideDisabledByDefault, insurer, items, query, showAlreadyAdded, source])
+  }, [collections, disabledIds, hideDisabledByDefault, insurer, items, kind, query, showAlreadyAdded, source])
 
   const selected = new Set(selectedIds)
   const selectable = rows.filter((row) => !disabledIds?.has(row.id))
@@ -171,7 +194,7 @@ export function NewsletterPickerPanel({
     previewRequestIdRef.current = requestId
     void (async () => {
       try {
-        const detail = await getNewsletterDetail(gaCode, item.id, token, { channel: 'INSURER' })
+        const detail = await loadNewsletterSourceDetail(item, gaCode, token)
         if (previewRequestIdRef.current !== requestId) return
         setPreviewDetail(detail)
         if (!detail) setPreviewError('소식지 상세를 불러오지 못했습니다.')
@@ -216,11 +239,19 @@ export function NewsletterPickerPanel({
           />
         ) : null}
         <FormSelect
-          value={insurer}
-          onChange={(e) => setInsurer(e.target.value)}
-          options={insurerOptions}
-          aria-label="원수사"
+          value={kind}
+          onChange={(e) => setKind(e.target.value as '' | NewsletterSourceKind)}
+          options={kindOptions}
+          aria-label="소식지 종류"
         />
+        {kind === 'INSURER' ? (
+          <FormSelect
+            value={insurer}
+            onChange={(e) => setInsurer(e.target.value)}
+            options={insurerOptions}
+            aria-label="원수사"
+          />
+        ) : null}
         <FormInput
           type="search"
           value={query}
@@ -248,7 +279,11 @@ export function NewsletterPickerPanel({
           <span className="newsletter-picker__count">{selectedIds.length}개 선택</span>
         </div>
       </div>
-      {rows.length === 0 ? (
+      {itemsOverride == null && sources.loading ? (
+        <div className="newsletter-picker__empty" role="status">소식지를 불러오는 중…</div>
+      ) : itemsOverride == null && sources.error ? (
+        <div className="newsletter-picker__empty" role="alert">{sources.error}</div>
+      ) : rows.length === 0 ? (
         <div className="newsletter-picker__empty" role="status">
           표시할 소식지가 없습니다.
         </div>
@@ -298,7 +333,12 @@ export function NewsletterPickerPanel({
                   <div className="newsletter-picker-card__meta">
                     <div className="newsletter-picker-card__title">{title}</div>
                     <div className="news-card__meta">
-                      <div className="news-card__meta-name">{item.insurerName}</div>
+                      <div className="news-card__meta-name">
+                        <span className={`newsletter-picker-card__kind newsletter-picker-card__kind--${kindOf(item).toLowerCase()}`}>
+                          {NEWSLETTER_SOURCE_KIND_LABEL[kindOf(item)]}
+                        </span>{' '}
+                        {kindOf(item) === 'INSURER' ? item.insurerName : item.boardLabel || item.insurerName}
+                      </div>
                       <div className="news-card__meta-date">{dateLabel}</div>
                     </div>
                   </div>

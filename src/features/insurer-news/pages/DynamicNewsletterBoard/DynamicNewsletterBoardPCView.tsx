@@ -11,6 +11,7 @@ import {
   InsurerNewsDetailViewerContent,
 } from '../../components/InsurerNewsDetailViewerContent'
 import { NewsletterList } from '../../components/NewsletterList'
+import { NewsletterSourceCollectionActions } from '../../components/collections/NewsletterSourceCollectionActions'
 import { NewsletterViewerHeaderActions } from '../../components/NewsletterViewerHeaderActions'
 import { getDynamicNewsletterBoardDetail } from '../../services/insurerNews.service'
 import type { NewsletterDetail, NewsletterItem } from '../../types'
@@ -130,7 +131,16 @@ export default function DynamicNewsletterBoardPCView({
         loading={detailLoading}
         error={detailError || null}
         ariaLabel={selectedItem?.title ? `소식지 · ${selectedItem.title}` : '소식지 상세'}
-        headerActions={<NewsletterViewerHeaderActions heroDownloadUrl={heroDownloadUrl} />}
+        headerActions={
+          <NewsletterViewerHeaderActions
+            heroDownloadUrl={heroDownloadUrl}
+            leadingActions={
+              selectedItem && selectedDetail && board?.boardScope !== 'system' ? (
+                <NewsletterSourceCollectionActions newsletterId={selectedItem.id} />
+              ) : null
+            }
+          />
+        }
       >
         <InsurerNewsDetailViewerContent zoom={zoom} detail={selectedDetail} item={selectedItem} />
       </NewsDetailViewerModal>
