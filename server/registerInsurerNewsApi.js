@@ -796,9 +796,23 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     return pickAccessibleNewsletterBoard(rows, tenantGaId)
   }
 
-  async function requireVisibleNewsletterBoard(req, res, boardSlug) {
+  async function requireVisibleNewsletterBoard(req, res, boardSlug, preferredBoardId = null) {
     const tenantGaId = effectiveTenantGaId(req)
     const rows = await listNewsletterBoardsBySlug(pool, safeQuery, boardSlug, tenantGaId)
+    const wantedId = String(preferredBoardId ?? '').trim()
+    if (wantedId) {
+      // t299: slug 가 공용·GA 게시판에서 겹칠 때 선택기가 준 board id 로 정확히 고른다.
+      // 같은 slug 후보 중 이 사용자에게 열람 가능한 보드만 대상(GA 권한 검사 그대로).
+      const exact = pickAccessibleNewsletterBoard(
+        rows.filter((row) => String(row.id ?? '') === wantedId),
+        tenantGaId,
+      )
+      if (!exact) {
+        res.status(404).json({ message: '소식지 메뉴를 찾을 수 없습니다.' })
+        return null
+      }
+      return exact
+    }
     const denial = classifyNewsletterBoardAccess(rows, tenantGaId)
     if (denial === 'not_found') {
       res.status(404).json({ message: '소식지 메뉴를 찾을 수 없습니다.' })
@@ -2242,7 +2256,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
 
   apiRouter.get('/insurer-news/boards/:boardSlug/newsletters/:newsletterId', requireAuth, forbidInsurerOnFeed, async (req, res) => {
     try {
-      const board = await requireVisibleNewsletterBoard(req, res, req.params.boardSlug)
+      const board = await requireVisibleNewsletterBoard(req, res, req.params.boardSlug, req.query.boardId)
       if (!board) {
         return
       }
@@ -2324,6 +2338,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         `
         SELECT n.*, g.code AS ga_code_join,
           ${READABLE_NEWSLETTER_KIND_SQL} AS source_kind,
+          nb.id AS source_board_id,
           nb.slug AS source_board_slug,
           nb.label AS source_board_label,
           w.name AS writer_name,
@@ -2367,6 +2382,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           ...mapped,
           sourceKind: kind,
           boardSlug: row.source_board_slug ? String(row.source_board_slug) : undefined,
+          boardId: row.source_board_id ? String(row.source_board_id) : undefined,
           boardLabel: mapped.boardLabel || (row.source_board_label ? String(row.source_board_label) : undefined),
         }
       })
