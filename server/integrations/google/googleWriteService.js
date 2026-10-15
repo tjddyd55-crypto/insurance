@@ -14,7 +14,7 @@ import {
   GOOGLE_ACCOUNT_PROVIDER_KEY,
   hasCalendarWriteScope,
   hasTasksWriteScope,
-  isGoogleWriteEnabled,
+  isGoogleWriteEnabledFor,
 } from './googleOAuthConfig.js'
 import { googleError } from './googleTokenService.js'
 import { clearGoogleUserCache } from './googleUserCache.js'
@@ -69,7 +69,7 @@ function invalid(field) {
  * @param {Record<string, string | undefined>} [env]
  */
 export async function assertGoogleWriteReady(pool, userId, product, env = process.env) {
-  if (!isGoogleWriteEnabled(env)) throw googleError('write_disabled')
+  if (!isGoogleWriteEnabledFor(userId, env)) throw googleError('write_disabled')
   const row = await readUserIntegration(pool, userId, GOOGLE_ACCOUNT_PROVIDER_KEY)
   if (!row) throw googleError('not_connected')
   if (row.status === 'error' && row.lastError === 'needs_reauth') throw googleError('needs_reauth')

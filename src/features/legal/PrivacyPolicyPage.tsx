@@ -49,8 +49,10 @@ export default function PrivacyPolicyPage() {
             같은 처리방침을 둡니다.
           </p>
           <p className="legal-doc__note">
-            개정 안내: 이번 개정은 2026년 10월 2일에 공지하며 2026년 10월 9일부터 시행합니다. 시행일 전까지는
-            종전 개인정보처리방침(2026년 7월 13일 개정)이 적용됩니다.
+            개정 안내: 이번 개정(제2조·제13조 Google 서비스 연동 — Google Calendar·Tasks 일정 추가·수정·삭제 및
+            Google Drive 파일 가져오기·보내기 추가)은 2026년 10월 16일에 공지하며 2026년 10월 23일부터 시행합니다.
+            시행일 전까지는 종전 개인정보처리방침(2026년 10월 2일 개정)이 적용되며, 해당 기능은 시행일 전에는 일반
+            이용자에게 제공하지 않습니다.
           </p>
         </header>
 
@@ -129,7 +131,7 @@ export default function PrivacyPolicyPage() {
             </li>
             <li>
               <strong>Google 서비스 연동(선택)</strong>: Google Calendar 캘린더 목록 및 일정 정보, Google Tasks 할
-              일 목록 및 할 일 정보 (자세한 내용은 제13조)
+              일 목록 및 할 일 정보, 이용자가 Google Drive 에서 직접 고른 파일 (자세한 내용은 제13조)
             </li>
           </ul>
           <h3>도입·이용 문의 수집·이용</h3>
@@ -290,22 +292,42 @@ export default function PrivacyPolicyPage() {
               scope)
             </li>
             <li>
-              <strong>Google Calendar</strong>: 캘린더 목록, 일정 정보 — 읽기 전용(
-              <code>calendar.readonly</code> scope)
+              <strong>Google Calendar 읽기</strong>: 캘린더 목록, 일정 정보(<code>calendar.readonly</code> scope)
             </li>
             <li>
-              <strong>Google Tasks</strong>: Google Tasks 할 일 목록 및 할 일 정보(제목, 메모, 예정일, 완료 여부, 목록
-              이름 등) — 읽기 전용(<code>tasks.readonly</code> scope)
+              <strong>Google Tasks 읽기</strong>: 할 일 목록 및 할 일 정보(제목, 메모, 예정일, 완료 여부, 목록 이름
+              등)(<code>tasks.readonly</code> scope)
+            </li>
+            <li>
+              <strong>Google Calendar 일정 추가·수정·삭제(선택)</strong>: 이용자가 ONE FC 일정 관리 화면에서 직접
+              요청한 경우에만 이용자 본인 캘린더(소유자·편집 권한)에 일정을 만들거나, 수정·삭제합니다(
+              <code>calendar.events</code> scope).
+            </li>
+            <li>
+              <strong>Google Tasks 할 일 추가·수정·완료·삭제(선택)</strong>: 이용자가 직접 요청한 경우에만 이용자
+              본인 할 일 목록에서 할 일을 만들거나, 수정·완료 처리·삭제합니다(<code>tasks</code> scope).
+            </li>
+            <li>
+              <strong>Google Drive 파일(선택)</strong>: 이용자가 Google 파일 선택 창(Picker)에서 직접 고른 파일·폴더와
+              ONE FC 가 만든 파일에만 접근합니다(<code>drive.file</code> scope). Drive 의 다른 파일은 볼 수 없습니다.
             </li>
           </ul>
           <h3>이용 목적</h3>
-          <p>
-            Google 데이터는 ONE FC 일정 관리 화면에서 Google Calendar 일정 표시, Google Tasks의 할 일 정보 표시,
-            Google 계정 연결 상태 표시, 이용자가 요청한 서비스 연동 기능 제공을 위해 이용합니다. 회사는 일정/할 일
-            관리 화면에서 이용자 본인의 Google 일정 및 할 일을 읽기 전용으로 함께 표시하는 데에만 이용합니다. ONE FC는
-            Google Calendar 일정을 생성·수정·삭제하지 않으며, Google Tasks 할 일을 생성·수정·완료 처리·삭제하지
-            않습니다.
-          </p>
+          <ul className="legal-doc__list">
+            <li>
+              일정 관리 화면에서 이용자 본인의 Google 일정·할 일을 ONE FC 일정과 함께 표시하고, 연결 상태를 표시합니다.
+            </li>
+            <li>
+              이용자가 ONE FC 화면에서 <strong>직접 누른 동작</strong>(새 항목 추가, 수정, 완료, 삭제)만 Google Calendar·Tasks
+              에 반영합니다. 자동 동기화·일괄 변경은 하지 않으며, 반복 일정·참석자가 있는 일정·다른 사람이 주최한 일정 등은
+              변경하지 않습니다.
+            </li>
+            <li>
+              이용자가 고른 Google Drive 파일(PDF·JPG·PNG)을 ONE FC 내 저장공간·고객 파일·바인더로 복사해 오고, 이용자가
+              고른 ONE FC 파일의 사본을 이용자가 고른 Drive 폴더에 새로 만듭니다. Drive 에 원래 있던 파일은 수정·삭제하지
+              않습니다.
+            </li>
+          </ul>
           <h3>보관·처리</h3>
           <ul className="legal-doc__list">
             <li>
@@ -313,14 +335,21 @@ export default function PrivacyPolicyPage() {
             </li>
             <li>
               Calendar·Tasks 데이터는 서비스 제공에 필요한 범위에서 일시적으로 처리합니다. Google 일정 및 할 일 정보는
-              영구 저장하지 않고, 서버에서 약 60초 이내 캐시 후 삭제합니다.
+              영구 저장하지 않고, 서버에서 약 60초 이내 캐시 후 삭제합니다. 일정·할 일 원문을 별도 영구 저장하지 않으며,
+              브라우저(로컬 저장소 등)에는 저장하지 않습니다.
             </li>
-            <li>일정·할 일 원문을 별도 영구 저장하지 않으며, 브라우저(로컬 저장소 등)에는 저장하지 않습니다.</li>
+            <li>
+              이용자가 Google Drive 에서 가져온 파일은 이용자 요청에 따라 ONE FC 저장공간에 이용자 파일로 저장되며,
+              이용자가 삭제하거나 회원 탈퇴 시 다른 저장 파일과 같은 기준으로 파기합니다. Drive 로 보낸 사본은 이용자의
+              Google Drive 에 저장되며 ONE FC 는 보관하지 않습니다.
+            </li>
           </ul>
           <h3>제3자 제공·광고</h3>
           <p>
             Google 사용자 데이터를 광고 목적으로 이용하지 않습니다. 판매하지 않으며, 서비스 제공 목적 외로 사용하지
-            않습니다. 법령상 의무 또는 이용자 동의 없이 제3자에게 제공하지 않습니다.
+            않습니다. 법령상 의무 또는 이용자 동의 없이 제3자에게 제공하지 않습니다. Google 사용자 데이터를 AI·머신러닝
+            모델 학습에 이용하지 않으며, 보안 목적·법령 준수 또는 이용자의 명시적 동의가 있는 경우를 제외하고 사람이
+            열람하지 않습니다.
           </p>
           <h3>연결 해제·삭제</h3>
           <p>
@@ -353,6 +382,18 @@ export default function PrivacyPolicyPage() {
               Google API Services User Data Policy
             </a>
             , including the Limited Use requirements.
+          </p>
+          <p className="legal-doc__note" lang="en">
+            Summary (English): With the user&apos;s consent, ONE FC reads the user&apos;s Google Calendar events and Google
+            Tasks to show them in the ONE FC schedule; creates, edits and deletes Google Calendar events
+            (calendar.events) and creates, edits, completes and deletes Google Tasks (tasks) only when the user performs
+            that action in ONE FC, on the user&apos;s own calendars and task lists; and accesses only the Google Drive
+            files and folders the user picks in the Google Picker or that ONE FC created (drive.file), to copy picked
+            files into ONE FC storage or save a copy of a ONE FC file to a Drive folder the user picked. ONE FC never
+            modifies or deletes existing Drive files. Google user data is not sold, not used for advertising, not used to
+            train AI/ML models, and not read by humans except with the user&apos;s consent, for security, or to comply
+            with law. Users can disconnect at any time in 서비스 연동 (Service Integrations), which deletes stored tokens and
+            revokes access.
           </p>
         </section>
 
