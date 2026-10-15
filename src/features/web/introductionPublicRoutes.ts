@@ -9,12 +9,16 @@ export const INTRODUCTION_CANONICAL_PATH = '/introduction' as const
 /** Facebook 광고 유입 전용 공개 랜딩 */
 export const INTRODUCTION_FACEBOOK_PATH = '/introduction/facebook' as const
 
+/** 현직 FC 메시지형 Facebook 유입 랜딩 (`/introduction/facebook` 와 분리) */
+export const FACEBOOK_FOUNDER_LANDING_PATH = '/facebook' as const
+
 /** 과거 production·외부 링크에서 사용된 오타 경로 (호환용, 제거 금지) */
 export const INTRODUCTION_LEGACY_TYPO_PATH = '/intodution' as const
 
 export const INTRODUCTION_PUBLIC_PATHS = [
   INTRODUCTION_CANONICAL_PATH,
   INTRODUCTION_FACEBOOK_PATH,
+  FACEBOOK_FOUNDER_LANDING_PATH,
   `${INTRODUCTION_CANONICAL_PATH}/install`,
   INTRODUCTION_LEGACY_TYPO_PATH,
   `${INTRODUCTION_LEGACY_TYPO_PATH}/install`,

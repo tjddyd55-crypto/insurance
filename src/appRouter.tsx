@@ -80,6 +80,7 @@ import PdfDocumentDetailPage from './features/pdf-engine/pages/PdfDocumentDetail
 import PdfIssuanceHistoryPage from './features/pdf-engine/pages/PdfIssuanceHistoryPage'
 import { ConsentFormPage } from './features/consent/pages/ConsentFormPage'
 import { DashboardPage } from './features/dashboard/pages/DashboardPage'
+import { FacebookFounderLandingPage } from './features/web/pages/FacebookFounderLandingPage'
 import { IntroductionPage } from './features/web/pages/IntroductionPage'
 import FeatureRequestPage from './features/feature-request/pages/FeatureRequestPage'
 import FeatureRequestsAdminPage from './features/feature-request/pages/FeatureRequestsAdminPage'
@@ -286,6 +287,7 @@ export const appRouter = createBrowserRouter([
       { path: 'g/:groupSlug/signup', element: <GaGroupSignupPage /> },
       { path: 'introduction', element: <IntroductionPage /> },
       { path: 'introduction/facebook', element: <IntroductionPage showFacebookPromo /> },
+      { path: 'facebook', element: <FacebookFounderLandingPage /> },
       // 과거 install 전용 페이지는 랜딩 다운로드 섹션으로 통일 (권장 정책 2)
       { path: 'introduction/install', element: <Navigate to="/introduction#download" replace /> },
       // production·외부 공유 URL 오타 호환 — SSOT: introductionPublicRoutes.ts
