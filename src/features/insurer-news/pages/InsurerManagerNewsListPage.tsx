@@ -20,6 +20,7 @@ import {
 import { NewsletterCollectionDetailActions } from '../components/collections/NewsletterCollectionDetailActions'
 import { NewsletterFolderAddItemsDialog } from '../components/collections/NewsletterFolderAddItemsDialog'
 import { useNewsletterCollections } from '../components/collections/useNewsletterCollections'
+import { useNewsletterPickerSources } from '../components/collections/useNewsletterPickerSources'
 import { removeNewsletterFromFolder } from '../services/newsletterCollections.service'
 import InsurerManagerNewsListPCView from './InsurerManagerNewsList/InsurerManagerNewsListPCView'
 import type { InsurerManagerNewsListViewProps } from './InsurerManagerNewsList/insurerManagerNewsListViewProps'
@@ -85,6 +86,8 @@ export function InsurerManagerNewsListPage({
   const collectionsEnabled =
     enableCollections && fetchScope === 'ga' && channel === 'INSURER' && !isPublicAccount
   const collections = useNewsletterCollections(token, collectionsEnabled)
+  /** t299: 즐겨찾기·내 폴더 보기는 원수사·GA·공용을 함께 보여 준다 (열람 가능분만). */
+  const crossSources = useNewsletterPickerSources(token, collectionsEnabled)
   const [collectionView, setCollectionView] = useState<NewsletterCollectionView>({ kind: 'all' })
   const [collectionNotice, setCollectionNotice] = useState('')
   const [folderAddOpen, setFolderAddOpen] = useState(false)
@@ -161,8 +164,9 @@ export function InsurerManagerNewsListPage({
         ? collections.data.favoriteNewsletterIds
         : collections.data.folders.find((folder) => folder.id === collectionView.folderId)?.newsletterIds ?? []
     const allowed = new Set(ids)
-    return items.filter((item) => allowed.has(item.id))
-  }, [collectionsEnabled, collectionView, collections.data, items])
+    const pool = crossSources.items.length > 0 ? crossSources.items : items
+    return pool.filter((item) => allowed.has(item.id))
+  }, [collectionsEnabled, collectionView, collections.data, crossSources.items, items])
 
   const filteredItems = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
@@ -172,6 +176,7 @@ export function InsurerManagerNewsListPage({
     return collectionScopedItems.filter((item) => {
       const haystack = [
         item.insurerName,
+        item.boardLabel,
         item.title,
         item.summary,
         item.publishedAt,

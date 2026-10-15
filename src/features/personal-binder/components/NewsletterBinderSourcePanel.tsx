@@ -1,5 +1,5 @@
 import '../../insurer-news/components/collections/newsletterCollections.css'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { FormButton } from '../../../components/form'
 import { StatusMessage } from '../../../components/feedback'
 import { useAuth } from '../../auth/AuthProvider'
@@ -7,9 +7,7 @@ import { isPublicGeneralAccount } from '../../auth/generalGa'
 import { NewsletterPickerPanel } from '../../insurer-news/components/collections/NewsletterPickerPanel'
 import { summarizeNewsletterImport } from '../../insurer-news/components/collections/newsletterImportSummary'
 import { useNewsletterCollections } from '../../insurer-news/components/collections/useNewsletterCollections'
-import { getAllPublishedForGa } from '../../insurer-news/services/insurerNews.service'
 import { importNewslettersToBinder } from '../../insurer-news/services/newsletterCollections.service'
-import type { NewsletterItem } from '../../insurer-news/types'
 
 /**
  * 바인더 [자료 추가] 의 세 번째 출처 '소식지'.
@@ -25,35 +23,11 @@ export function NewsletterBinderSourcePanel({
   onImported: (message: string) => void
 }) {
   const { user, token } = useAuth()
-  const gaCode = user?.gaCode ?? ''
   const blocked = isPublicGeneralAccount(user)
   const collections = useNewsletterCollections(token, !blocked)
-  const [items, setItems] = useState<NewsletterItem[]>([])
-  const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    if (blocked || !token?.trim() || !gaCode) {
-      setLoading(false)
-      return
-    }
-    let cancelled = false
-    void (async () => {
-      try {
-        const rows = await getAllPublishedForGa(gaCode, token, { channel: 'INSURER' })
-        if (!cancelled) setItems(rows)
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : '소식지를 불러오지 못했습니다.')
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [blocked, gaCode, token])
 
   const submit = async () => {
     if (busy || selected.length === 0) return
@@ -84,16 +58,11 @@ export function NewsletterBinderSourcePanel({
         담을 위치: <strong>{sectionTitle || '선택한 섹션'}</strong> · A4 PDF로 변환해 담습니다
       </div>
       {error ? <StatusMessage message={error} tone="error" className="m-0 newsletter-binder-source__error" /> : null}
-      {loading ? (
-        <p className="personal-binder-material-picker__empty">소식지를 불러오는 중…</p>
-      ) : (
-        <NewsletterPickerPanel
-          items={items}
-          collections={collections.data}
-          selectedIds={selected}
-          onSelectedIdsChange={setSelected}
-        />
-      )}
+      <NewsletterPickerPanel
+        collections={collections.data}
+        selectedIds={selected}
+        onSelectedIdsChange={setSelected}
+      />
       <div className="newsletter-binder-source__footer">
         <FormButton
           variant="primary"

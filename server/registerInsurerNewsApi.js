@@ -93,6 +93,11 @@ import {
   resolveNewsletterDetailLinkPreview,
 } from './lib/newsletterLinkPreview.js'
 import { scheduleNewsletterPublishedNotifications } from './lib/notifications/newsletterPublishedWiring.js'
+import {
+  READABLE_NEWSLETTER_BOARD_JOIN,
+  READABLE_NEWSLETTER_KIND_SQL,
+  readableNewsletterWhere,
+} from './newsletter-collections/newsletterReadableSources.js'
 
 function voidScheduleNewsletterPublished(pool, input) {
   void scheduleNewsletterPublishedNotifications(pool, input).catch((err) => {
@@ -800,9 +805,23 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     return pickAccessibleNewsletterBoard(rows, tenantGaId)
   }
 
-  async function requireVisibleNewsletterBoard(req, res, boardSlug) {
+  async function requireVisibleNewsletterBoard(req, res, boardSlug, preferredBoardId = null) {
     const tenantGaId = effectiveTenantGaId(req)
     const rows = await listNewsletterBoardsBySlug(pool, safeQuery, boardSlug, tenantGaId)
+    const wantedId = String(preferredBoardId ?? '').trim()
+    if (wantedId) {
+      // t299: slug 가 공용·GA 게시판에서 겹칠 때 선택기가 준 board id 로 정확히 고른다.
+      // 같은 slug 후보 중 이 사용자에게 열람 가능한 보드만 대상(GA 권한 검사 그대로).
+      const exact = pickAccessibleNewsletterBoard(
+        rows.filter((row) => String(row.id ?? '') === wantedId),
+        tenantGaId,
+      )
+      if (!exact) {
+        res.status(404).json({ message: '소식지 메뉴를 찾을 수 없습니다.' })
+        return null
+      }
+      return exact
+    }
     const denial = classifyNewsletterBoardAccess(rows, tenantGaId)
     if (denial === 'not_found') {
       res.status(404).json({ message: '소식지 메뉴를 찾을 수 없습니다.' })
@@ -1391,6 +1410,27 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
    * @param {object} newsletterRow
    * @param {string|null} expectedChannel
    */
+  /**
+   * t299 — 공용(global) 게시판 글(ga_id NULL) 첨부 열람: 로그인 사용자 누구나(공용 열람 규칙과 동일),
+   * 게시·미삭제·고객용 아님만 확인. GA 글은 기존 assertCanOpenInsurerNewsAttachment 그대로.
+   * @param {object} row
+   */
+  function assertCanOpenGlobalBoardAttachment(row) {
+    const rowPayload = row.payload && typeof row.payload === 'object' ? row.payload : {}
+    const insurerSlug = String(rowPayload.insurerSlug ?? '').trim().toLowerCase()
+    const insurerCode = String(rowPayload.insurerCode ?? '').trim().toUpperCase()
+    if (
+      row.ga_id != null ||
+      String(row.status ?? '') !== 'PUBLISHED' ||
+      row.deleted_at != null ||
+      Boolean(rowPayload.customerVisible) ||
+      insurerSlug === 'customer-news' ||
+      insurerCode === 'CUSTOMER_NEWS'
+    ) {
+      throw Object.assign(new Error('접근할 수 없습니다.'), { httpStatus: 403 })
+    }
+  }
+
   async function assertCanOpenInsurerNewsAttachment(req, newsletterRow, expectedChannel = null) {
     if (!newsletterRow) {
       throw Object.assign(new Error('소식을 찾을 수 없습니다.'), { httpStatus: 404 })
@@ -1544,13 +1584,27 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           a.object_key,
           a.file_name,
           a.mime_type,
-          a.url AS att_url
+          a.url AS att_url,
+          (n.ga_id IS NULL AND gb.id IS NOT NULL) AS is_global_board_post
         FROM insurance_company_newsletters n
         INNER JOIN insurance_company_newsletter_attachments a
           ON a.newsletter_id = n.id
+        LEFT JOIN newsletter_boards gb
+          ON gb.id = NULLIF(TRIM(n.payload->>'newsletterBoardId'), '')
+         AND gb.board_scope = 'global'
+         AND gb.is_deleted = false
+         AND COALESCE(gb.is_active, true) = true
         WHERE n.id = $1
           AND a.id = $2
-          AND n.ga_id = $3
+          AND (
+            n.ga_id = $3
+            OR (
+              -- t299: 공용(global) 게시판 글은 ga_id NULL. 활성 공용 게시판 글만 허용.
+              n.ga_id IS NULL
+              AND gb.id IS NOT NULL
+              AND UPPER(COALESCE(NULLIF(TRIM(n.payload->>'newsChannel'), ''), '')) IN ('BOARD', 'DYNAMIC_BOARD', 'NEWSLETTER_BOARD')
+            )
+          )
         LIMIT 1
         `,
         [newsletterId, attachmentId, access.gaId],
@@ -1564,7 +1618,11 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       const rowPayload = row.payload && typeof row.payload === 'object' ? row.payload : {}
       const channel = normalizeNewsChannel(rowPayload.newsChannel)
       try {
-        await assertCanOpenInsurerNewsAttachment(req, row, channel)
+        if (row.is_global_board_post === true) {
+          assertCanOpenGlobalBoardAttachment(row)
+        } else {
+          await assertCanOpenInsurerNewsAttachment(req, row, channel)
+        }
       } catch (authErr) {
         const status =
           authErr && typeof authErr === 'object' && 'httpStatus' in authErr && typeof authErr.httpStatus === 'number'
@@ -2219,7 +2277,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
 
   apiRouter.get('/insurer-news/boards/:boardSlug/newsletters/:newsletterId', requireAuth, forbidInsurerOnFeed, async (req, res) => {
     try {
-      const board = await requireVisibleNewsletterBoard(req, res, req.params.boardSlug)
+      const board = await requireVisibleNewsletterBoard(req, res, req.params.boardSlug, req.query.boardId)
       if (!board) {
         return
       }
@@ -2277,6 +2335,81 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       res.json(mapNewsletterDetail(row, attRes.rows, req, buildAttachmentAccessContext(req, attGaId)))
     } catch (eBoardDetail) {
       handleDbError(eBoardDetail, req, res)
+    }
+  })
+
+  /**
+   * t299 — 소식지 선택기 공통 목록 (원수사 · GA · 공용 중 로그인 사용자가 열람 가능한 것만).
+   * 바인더 자료 추가 / 개인 폴더 소식지 추가 / 상세 담기 다이얼로그가 모두 이 목록을 쓴다.
+   * GA 범위는 세션 gaId 로만 정한다 (쿼리스트링 GA 무시 → 타 GA 직접 호출 차단).
+   */
+  apiRouter.get('/insurer-news/picker-sources', requireAuth, forbidInsurerOnFeed, async (req, res) => {
+    try {
+      if (isLossAdjusterRole(req.user?.role)) {
+        res.status(403).json({ message: '채널 담당자 계정은 이용할 수 없습니다.' })
+        return
+      }
+      const gaId = effectiveTenantGaId(req)
+      if (!Number.isInteger(gaId) || gaId < 1) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const nRes = await safeQuery(
+        pool,
+        `
+        SELECT n.*, g.code AS ga_code_join,
+          ${READABLE_NEWSLETTER_KIND_SQL} AS source_kind,
+          nb.id AS source_board_id,
+          nb.slug AS source_board_slug,
+          nb.label AS source_board_label,
+          w.name AS writer_name,
+          w.organization_name AS writer_organization_name,
+          w.login_id AS writer_login_id,
+          (SELECT COUNT(*) FROM insurance_company_newsletter_attachments a
+            WHERE a.newsletter_id = n.id AND a.mime_type <> 'application/pdf') AS img_cnt,
+          (SELECT COUNT(*) FROM insurance_company_newsletter_attachments a
+            WHERE a.newsletter_id = n.id AND a.mime_type = 'application/pdf') AS pdf_cnt,
+          (SELECT a.url FROM insurance_company_newsletter_attachments a
+            WHERE a.newsletter_id = n.id AND a.mime_type <> 'application/pdf'
+            ORDER BY a.sort_order ASC LIMIT 1) AS hero_url,
+          (SELECT a.object_key FROM insurance_company_newsletter_attachments a
+            WHERE a.newsletter_id = n.id AND a.mime_type <> 'application/pdf'
+            ORDER BY a.sort_order ASC LIMIT 1) AS hero_object_key,
+          (SELECT a.id FROM insurance_company_newsletter_attachments a
+            WHERE a.newsletter_id = n.id AND a.mime_type <> 'application/pdf'
+            ORDER BY a.sort_order ASC LIMIT 1) AS hero_attachment_id
+        FROM insurance_company_newsletters n
+        ${READABLE_NEWSLETTER_BOARD_JOIN}
+        LEFT JOIN ga_companies g ON g.id = n.ga_id
+        LEFT JOIN board_writer_accounts w
+          ON w.id = NULLIF(TRIM(COALESCE(n.payload->>'authorAccountId', n.payload->>'publisherId', '')), '')
+        WHERE ${readableNewsletterWhere('$1')}
+        ORDER BY n.created_at DESC, n.id DESC
+        LIMIT 1500
+        `,
+        [gaId],
+      )
+      const gaCodeUpper = String(req.user?.gaCode ?? '').trim().toUpperCase()
+      const newsletters = nRes.rows.map((row) => {
+        const kind = String(row.source_kind ?? 'INSURER')
+        const mapped = mapNewsletterListRow(
+          row,
+          String(row.ga_code_join ?? '').trim().toUpperCase() || (kind === 'PUBLIC' ? 'GLOBAL' : gaCodeUpper),
+          req,
+          // 공용 글은 ga_id 가 NULL — 첨부 열람 토큰은 열람자 GA 로 서명 (기존 공용 보드 피드와 동일).
+          buildAttachmentAccessContext(req, row.ga_id == null ? gaId : Number(row.ga_id)),
+        )
+        return {
+          ...mapped,
+          sourceKind: kind,
+          boardSlug: row.source_board_slug ? String(row.source_board_slug) : undefined,
+          boardId: row.source_board_id ? String(row.source_board_id) : undefined,
+          boardLabel: mapped.boardLabel || (row.source_board_label ? String(row.source_board_label) : undefined),
+        }
+      })
+      res.json({ newsletters })
+    } catch (ePicker) {
+      handleDbError(ePicker, req, res)
     }
   })
 

@@ -9,12 +9,11 @@ import {
 } from '../../services/newsletterCollections.service'
 import { NewsletterPickerPanel } from './NewsletterPickerPanel'
 
-/** 폴더 안 [소식지 추가] — 기존 검색·원수사 구분을 재사용한 다중 선택 일괄 추가. */
+/** 폴더 안 [소식지 추가] — 공통 선택기(원수사·GA·공용) 다중 선택 일괄 추가. */
 export function NewsletterFolderAddItemsDialog({
   open,
   token,
   folder,
-  items,
   collections,
   onClose,
   onAdded,
@@ -22,7 +21,8 @@ export function NewsletterFolderAddItemsDialog({
   open: boolean
   token: string | null | undefined
   folder: NewsletterUserFolder | null
-  items: NewsletterItem[]
+  /** @deprecated t299: 선택기가 서버 공통 소스를 직접 읽는다 */
+  items?: NewsletterItem[]
   collections: NewsletterCollections
   onClose: () => void
   onAdded: (message: string) => void
@@ -76,7 +76,6 @@ export function NewsletterFolderAddItemsDialog({
         </header>
         <div className="newsletter-collections-large-dialog__body">
           <NewsletterPickerPanel
-            items={items}
             collections={collections}
             selectedIds={selected}
             onSelectedIdsChange={setSelected}

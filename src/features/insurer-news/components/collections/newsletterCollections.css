@@ -359,3 +359,50 @@
   font-size: 14px;
   margin-right: 4px;
 }
+
+/* t299: 종류(전체/원수사/GA/공용) + 원수사(원수사 종류에서만) — 컨트롤 개수가 바뀌어도 한 줄 유지 */
+.newsletter-picker__controls,
+.newsletter-picker__controls:has(> :nth-child(2):last-child),
+.newsletter-picker__controls--no-source {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.newsletter-picker__controls > * {
+  flex: 0 1 180px;
+  min-width: 120px;
+}
+.newsletter-picker__controls > :last-child {
+  flex: 1 1 220px;
+}
+@media (max-width: 640px) {
+  .newsletter-picker__controls > * {
+    flex: 1 1 100%;
+  }
+}
+.newsletter-picker-card__kind {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 18px;
+  font-weight: 600;
+  background: var(--surface-muted, #eef2f7);
+  color: var(--text-sub, #475569);
+}
+.newsletter-picker-card__kind--ga {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+.newsletter-picker-card__kind--public {
+  background: #ecfdf5;
+  color: #047857;
+}
+.newsletter-collections-header-notice {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--text-sub, #475569);
+}

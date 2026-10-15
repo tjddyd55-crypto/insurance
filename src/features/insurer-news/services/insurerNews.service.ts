@@ -334,13 +334,15 @@ export async function getDynamicNewsletterBoardDetail(
   boardSlug: string,
   newsletterId: string,
   token?: string | null,
+  boardId?: string | null,
 ): Promise<NewsletterDetail | null> {
   if (!token?.trim() || !boardSlug.trim() || !newsletterId.trim()) {
     return null
   }
+  const boardQuery = boardId?.trim() ? `?boardId=${encodeURIComponent(boardId.trim())}` : ''
   try {
     return await apiRequest<NewsletterDetail>(
-      `/api/insurer-news/boards/${encodeURIComponent(boardSlug.trim())}/newsletters/${encodeURIComponent(newsletterId.trim())}`,
+      `/api/insurer-news/boards/${encodeURIComponent(boardSlug.trim())}/newsletters/${encodeURIComponent(newsletterId.trim())}${boardQuery}`,
       { token },
     )
   } catch (e) {

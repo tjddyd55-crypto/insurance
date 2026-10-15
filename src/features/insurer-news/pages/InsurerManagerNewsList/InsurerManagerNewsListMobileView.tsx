@@ -60,7 +60,15 @@ export default function InsurerManagerNewsListMobileView({
         items={items}
         emptyMessage={collectionEmptyMessage ?? emptyMessage}
         variant="mobile"
-        onOpenItem={(id) => navigate(`${openPathPrefix}/${id}`)}
+        onOpenItem={(id) => {
+          // t299: 폴더·즐겨찾기 속 GA/공용 게시판 글은 해당 게시판 상세 경로로 연다.
+          const picked = items.find((item) => item.id === id)
+          if (picked?.boardSlug && (picked.sourceKind === 'GA' || picked.sourceKind === 'PUBLIC')) {
+            navigate(`/portal/boards/${encodeURIComponent(picked.boardSlug)}/${encodeURIComponent(id)}`)
+            return
+          }
+          navigate(`${openPathPrefix}/${id}`)
+        }}
         noSearchResults={noSearchResults}
       />
     </main>

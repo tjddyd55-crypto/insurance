@@ -1,4 +1,6 @@
 import { apiRequest } from '../../../lib/apiClient'
+import type { NewsletterDetail, NewsletterItem, NewsletterSourceKind } from '../types'
+import { getDynamicNewsletterBoardDetail, getNewsletterDetail } from './insurerNews.service'
 
 export type NewsletterUserFolder = {
   id: string
@@ -111,4 +113,30 @@ export function importNewslettersToBinder(
     token: auth(token),
     body: json({ sectionId, newsletterIds }),
   })
+}
+
+/* ───────── t299: 소식지 선택기 공통 소스 (원수사 · GA · 공용) ───────── */
+
+export function fetchNewsletterPickerSources(token: string | null | undefined) {
+  return apiRequest<{ newsletters: NewsletterItem[] }>('/api/insurer-news/picker-sources', {
+    token: auth(token),
+  }).then((r) => r.newsletters ?? [])
+}
+
+/** 유형에 맞는 서버 상세 경로로 읽는다 (각 경로가 원본 열람 권한을 다시 확인). */
+export async function loadNewsletterSourceDetail(
+  item: Pick<NewsletterItem, 'id' | 'sourceKind' | 'boardSlug' | 'boardId'>,
+  gaCode: string,
+  token: string | null | undefined,
+): Promise<NewsletterDetail | null> {
+  if ((item.sourceKind === 'GA' || item.sourceKind === 'PUBLIC') && item.boardSlug) {
+    return getDynamicNewsletterBoardDetail(item.boardSlug, item.id, token, item.boardId)
+  }
+  return getNewsletterDetail(gaCode, item.id, token, { channel: 'INSURER' })
+}
+
+export const NEWSLETTER_SOURCE_KIND_LABEL: Record<NewsletterSourceKind, string> = {
+  INSURER: '원수사',
+  GA: 'GA',
+  PUBLIC: '공용',
 }
