@@ -40,6 +40,28 @@ export function isGoogleWriteEnabled(env = process.env) {
   return String(env[GOOGLE_WRITE_ENABLED_ENV] ?? '').trim().toLowerCase() === 'true'
 }
 
+/** t313: 쓰기 기능을 특정 사용자(심사 데모 계정 등)로만 열 때. 비어 있으면 제한 없음. 쉼표 구분 ONE FC user id. */
+export const GOOGLE_WRITE_ALLOWED_USER_IDS_ENV = 'GOOGLE_WRITE_ALLOWED_USER_IDS'
+
+/** @param {Record<string, string | undefined>} [env] */
+export function readGoogleWriteAllowlist(env = process.env) {
+  return String(env[GOOGLE_WRITE_ALLOWED_USER_IDS_ENV] ?? '').split(',').map((v) => v.trim()).filter(Boolean)
+}
+
+/**
+ * 이 사용자에게 쓰기 기능이 열려 있는가. 플래그 OFF 면 항상 false.
+ * 허용 목록이 있으면 목록에 있는 사용자만(목록 밖 사용자는 플래그 OFF 와 똑같이 동작).
+ * @param {unknown} userId
+ * @param {Record<string, string | undefined>} [env]
+ */
+export function isGoogleWriteEnabledFor(userId, env = process.env) {
+  if (!isGoogleWriteEnabled(env)) return false
+  const allow = readGoogleWriteAllowlist(env)
+  if (allow.length === 0) return true
+  const id = String(userId ?? '').trim()
+  return id !== '' && allow.includes(id)
+}
+
 /** @param {unknown} scopeText */
 export function hasCalendarWriteScope(scopeText) {
   const scopes = grantedScopeList(scopeText)
