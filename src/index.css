@@ -15420,6 +15420,10 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
     width: 100%;
     padding-top: 0;
   }
+  .storage-workspace__header-actions > .storage-usage-manager--compact{
+    margin: 0;
+    padding: 0;
+  }
 }
 
 .storage-workspace--explorer .storage-workspace__quota{
