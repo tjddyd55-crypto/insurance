@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import ScheduleChrome from '../../components/ScheduleChrome'
 import ScheduleCustomerModal from '../../components/ScheduleCustomerModal'
+import { useScheduleGoogleWrite } from '../../components/ScheduleGoogleWrite'
 import { customerTargetOfEvent, customerTargetOfTask, type ScheduleCustomerTarget } from '../../domain/scheduleCustomerTarget'
 import type { ScheduleEvent, ScheduleTask } from '../../api/scheduleApi'
 import {
@@ -45,6 +46,7 @@ export default function ScheduleBody(props: ScheduleViewProps & { calendarDecor?
     if (view === 'month' && !selectedDate && sameMonth(anchor, today)) onSelectDate(today)
   }, [anchor, onSelectDate, pc, selectedDate, today, view])
 
+  const googleWrite = useScheduleGoogleWrite(props)
   const { onOpenEvent: baseOpenEvent, onOpenTask: baseOpenTask } = props
   const onOpenEvent = useCallback((event: ScheduleEvent) => {
     const target = pc ? customerTargetOfEvent(event) : null
@@ -60,8 +62,16 @@ export default function ScheduleBody(props: ScheduleViewProps & { calendarDecor?
     <>
       <ScheduleChrome
         {...props}
-        toolbarExtra={props.compact && props.calendarDecor && (props.view === 'month' || props.view === 'week')
-          ? <ScheduleHolidaySetting mode={holidayMode} onChange={setHolidayMode} />
+        toolbarExtra={(props.compact && props.calendarDecor && (props.view === 'month' || props.view === 'week')) || googleWrite.enabled
+          ? (
+            <>
+              {googleWrite.noticeNode}
+              {googleWrite.toolbarButton}
+              {props.compact && props.calendarDecor && (props.view === 'month' || props.view === 'week')
+                ? <ScheduleHolidaySetting mode={holidayMode} onChange={setHolidayMode} />
+                : null}
+            </>
+          )
           : undefined}
       />
       {!props.compact && props.calendarDecor && (props.view === 'month' || props.view === 'week') ? (
@@ -116,13 +126,20 @@ export default function ScheduleBody(props: ScheduleViewProps & { calendarDecor?
           includeOverdue={pc && props.includeOverdue}
         />
       ) : null}
-      <ScheduleGoogleDetailDialog detail={props.detail} onCloseDetail={props.onCloseDetail} />
+      <ScheduleGoogleDetailDialog
+        detail={props.detail}
+        onCloseDetail={props.onCloseDetail}
+        actions={props.detail ? googleWrite.eventActions(props.detail, props.onCloseDetail) : undefined}
+      />
       <ScheduleTaskDetailDialog
         taskDetail={props.taskDetail}
         today={props.today}
         onCloseTaskDetail={props.onCloseTaskDetail}
         onOpenTodos={props.onOpenTodos}
+        actions={props.taskDetail ? googleWrite.taskActions(props.taskDetail, props.onCloseTaskDetail) : undefined}
+        writable={googleWrite.enabled && Boolean(props.google.write?.tasksWritable)}
       />
+      {googleWrite.dialogs}
       <ScheduleEventDialog {...props} />
       {pc ? <ScheduleCustomerModal token={props.token} target={customerTarget} onClose={() => setCustomerTarget(null)} /> : null}
     </>

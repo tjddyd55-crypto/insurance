@@ -32,6 +32,9 @@ export type ScheduleEvent = {
   htmlLink: string | null
   sourceDate: string | null
   sourceTitle: string | null
+  /** t307: ONE FC 에서 수정·삭제 가능한 Google 일정(쓰기 권한·기능 플래그는 google.write 로 따로 본다) */
+  writable?: boolean
+  readOnlyReason?: string
 }
 
 /**
@@ -87,6 +90,27 @@ export type ScheduleGoogleState = {
   connectAllowed?: boolean
   calendars: GoogleCalendarSummary[]
   tasks?: ScheduleGoogleTasksState
+  /** t307 쓰기 상태. enabled=false 면 쓰기 UI 를 숨긴다. */
+  write?: ScheduleGoogleWriteState
+}
+
+export type ScheduleGoogleWriteState = {
+  enabled: boolean
+  calendarWritable: boolean
+  tasksWritable: boolean
+  needsWriteConsent: boolean
+}
+
+export const EMPTY_GOOGLE_WRITE_STATE: ScheduleGoogleWriteState = { enabled: false, calendarWritable: false, tasksWritable: false, needsWriteConsent: false }
+
+function readGoogleWriteState(raw: unknown): ScheduleGoogleWriteState {
+  const body = raw && typeof raw === 'object' ? (raw as Partial<ScheduleGoogleWriteState>) : {}
+  return {
+    enabled: body.enabled === true,
+    calendarWritable: body.calendarWritable === true,
+    tasksWritable: body.tasksWritable === true,
+    needsWriteConsent: body.needsWriteConsent === true,
+  }
 }
 
 /** 출처별 조회 결과. 한 출처가 실패해도 나머지는 그대로 온다. */
@@ -175,6 +199,7 @@ export function readScheduleEventsResponse(payload: unknown): ScheduleEventsResp
       ...(google.connectAllowed === false ? { connectAllowed: false } : {}),
       calendars: Array.isArray(google.calendars) ? google.calendars : [],
       tasks: readGoogleTasksState(google.tasks),
+      write: readGoogleWriteState((google as { write?: unknown }).write),
     },
     sourceStatus: readSourceStatus(data.sourceStatus),
     events: Array.isArray(data.events) ? data.events : [],
@@ -211,4 +236,97 @@ export function formatScheduleRefreshedAt(iso: string, now: Date = new Date()): 
   if (ymd(at) === ymd(now)) return hm
   const [, month, day] = ymd(at).split('-')
   return `${Number(month)}/${Number(day)} ${hm}`
+}
+
+// ---------------- t307 Google 쓰기 ----------------
+
+const WRITE_BASE = '/api/service-integrations/google/write'
+
+/** 중복 클릭·재시도용 요청 id(32 hex). 같은 저장 시도에는 같은 값을 다시 쓴다. */
+export function newGoogleRequestId(): string {
+  const bytes = new Uint8Array(16)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+export type GoogleWriteTargets = ScheduleGoogleWriteState & {
+  accountEmail: string
+  calendars: GoogleCalendarSummary[]
+  taskLists: Array<{ id: string; name: string }>
+}
+
+function unwrap<T>(raw: unknown): T {
+  const body = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+  return ('data' in body && body.data && typeof body.data === 'object' ? body.data : body) as T
+}
+
+export async function fetchGoogleWriteTargets(token: string): Promise<GoogleWriteTargets> {
+  const data = unwrap<Partial<GoogleWriteTargets>>(await apiRequest<unknown>(`${WRITE_BASE}/targets`, { token }))
+  return {
+    ...readGoogleWriteState(data),
+    accountEmail: String(data.accountEmail ?? ''),
+    calendars: Array.isArray(data.calendars) ? data.calendars : [],
+    taskLists: Array.isArray(data.taskLists) ? data.taskLists : [],
+  }
+}
+
+/** 쓰기 권한 증분 동의 시작. 웹은 같은 창 이동, 데스크톱 앱은 시스템 브라우저. */
+export async function startGoogleWriteConsent(token: string, desktop: boolean): Promise<{ url: string; action: string }> {
+  const data = unwrap<{ url?: string; action?: string }>(await apiRequest<unknown>(`${WRITE_BASE}/connect`, {
+    token,
+    method: 'POST',
+    body: JSON.stringify(desktop ? { client: 'desktop' } : {}),
+  }))
+  return { url: String(data.url ?? ''), action: String(data.action ?? 'redirect') }
+}
+
+export type GoogleEventInput = {
+  calendarId: string
+  title: string
+  description: string
+  date: string
+  endDate: string
+  allDay: boolean
+  startTime: string
+  endTime: string
+}
+
+export async function createGoogleEvent(token: string, input: GoogleEventInput & { requestId: string }) {
+  return unwrap<{ event: ScheduleEvent; duplicate?: boolean }>(await apiRequest<unknown>(`${WRITE_BASE}/events`, { token, method: 'POST', body: JSON.stringify(input) }))
+}
+
+export async function updateGoogleEvent(token: string, input: GoogleEventInput & { eventId: string }) {
+  return unwrap<{ event: ScheduleEvent }>(await apiRequest<unknown>(`${WRITE_BASE}/events`, { token, method: 'PATCH', body: JSON.stringify(input) }))
+}
+
+export async function deleteGoogleEvent(token: string, calendarId: string, eventId: string) {
+  return unwrap<{ deleted: boolean }>(await apiRequest<unknown>(`${WRITE_BASE}/events`, { token, method: 'DELETE', body: JSON.stringify({ calendarId, eventId }) }))
+}
+
+export type GoogleTaskInput = { taskListId: string; title: string; notes: string; dueDate: string | null }
+
+export async function createGoogleTask(token: string, input: GoogleTaskInput & { requestId: string }) {
+  return unwrap<{ task: ScheduleTask }>(await apiRequest<unknown>(`${WRITE_BASE}/tasks`, { token, method: 'POST', body: JSON.stringify(input) }))
+}
+
+export async function updateGoogleTask(
+  token: string,
+  input: { taskListId: string; taskId: string; title?: string; notes?: string; dueDate?: string | null; completed?: boolean },
+) {
+  return unwrap<{ task: ScheduleTask }>(await apiRequest<unknown>(`${WRITE_BASE}/tasks`, { token, method: 'PATCH', body: JSON.stringify(input) }))
+}
+
+export async function deleteGoogleTask(token: string, taskListId: string, taskId: string) {
+  return unwrap<{ deleted: boolean }>(await apiRequest<unknown>(`${WRITE_BASE}/tasks`, { token, method: 'DELETE', body: JSON.stringify({ taskListId, taskId }) }))
+}
+
+/** Google 일정이 읽기 전용인 이유(화면 안내). */
+export const GOOGLE_READ_ONLY_REASON: Record<string, string> = {
+  calendar_read_only: '이 캘린더는 읽기 전용입니다.',
+  recurring: '반복 일정은 Google Calendar에서 수정해 주세요.',
+  attendees: '참석자가 있는 일정은 Google Calendar에서 수정해 주세요.',
+  conference: '화상 회의가 연결된 일정은 Google Calendar에서 수정해 주세요.',
+  not_organizer: '다른 사람이 만든 일정은 수정할 수 없습니다.',
+  special_type: '이 유형의 일정은 Google Calendar에서 수정해 주세요.',
+  locked: '잠긴 일정은 수정할 수 없습니다.',
 }

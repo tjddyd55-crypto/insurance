@@ -51,6 +51,8 @@ export type ScheduleViewProps = {
   refreshing: boolean
   refreshMessage: { kind: 'success' | 'error'; text: string } | null
   onRefresh: () => void
+  /** 저장 후 재조회(서버가 그 사용자 Google 캐시를 이미 지웠다). 수동 새로고침 제한과 무관. */
+  onReload: () => void
   selectedDate: string
   detail: ScheduleEvent | null
   taskDetail: ScheduleTask | null
@@ -364,6 +366,7 @@ export function useScheduleState(): ScheduleViewProps {
     refreshing,
     refreshMessage,
     onRefresh,
+    onReload: () => setReloadNonce((current) => current + 1),
     selectedDate,
     detail,
     taskDetail,
