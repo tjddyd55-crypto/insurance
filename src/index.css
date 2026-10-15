@@ -15601,6 +15601,119 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   max-height: var(--storage-explorer-column-header-row-height);
 }
 
+.storage-explorer__side{
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  min-width: 0;
+}
+
+.storage-explorer__side > .storage-explorer-tree{
+  flex: 1 1 auto;
+}
+
+/* t308: 폴더 영역 아래 Google Drive 섹션 */
+.storage-drive-panel{
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  margin-bottom: 12px;
+}
+
+.storage-explorer__side > .storage-drive-panel{
+  margin-bottom: 0;
+}
+
+.storage-drive-panel__head{
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.storage-drive-panel__title{
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.storage-drive-panel__account{
+  font-size: 0.75rem;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.storage-drive-panel__field{
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.storage-drive-panel__actions{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.storage-drive-panel__hint{
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.storage-drive-panel__target{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.storage-drive-panel__files{
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.storage-drive-panel__file{
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.storage-drive-panel__empty{
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.storage-drive-panel__result{
+  margin: 12px 0 0;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
 .storage-explorer-tree{
   display: flex;
   flex-direction: column;
