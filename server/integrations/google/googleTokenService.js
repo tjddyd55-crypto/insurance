@@ -42,7 +42,9 @@ export function buildGoogleAuthorizationUrl(config, state, options = {}) {
   const url = new URL(AUTH_URL)
   // 증분 동의(쓰기·Drive)는 같은 계정으로만. 연결(connect)만 계정 선택 화면을 보인다.
   const write = options.purpose === 'write' || options.purpose === 'drive'
-  const extra = options.purpose === 'write' ? GOOGLE_WRITE_SCOPES : options.purpose === 'drive' ? [GOOGLE_DRIVE_FILE_SCOPE] : []
+  const base = options.purpose === 'write' ? GOOGLE_WRITE_SCOPES : options.purpose === 'drive' ? [GOOGLE_DRIVE_FILE_SCOPE] : []
+  // t311: 서비스 연동 화면 연결은 그 기능에 필요한 scope 를 한 번에 묻는다(플래그 ON 일 때만 호출부가 넣는다).
+  const extra = [...new Set([...base, ...(Array.isArray(options.extraScopes) ? options.extraScopes : [])])]
   url.searchParams.set('client_id', config.clientId)
   url.searchParams.set('redirect_uri', config.redirectUri)
   url.searchParams.set('response_type', 'code')
