@@ -88,6 +88,8 @@ export interface NewsletterItem {
   sourceKind?: NewsletterSourceKind
   /** GA/공용 게시판 글의 보드 slug (상세는 /insurer-news/boards/:slug 경로) */
   boardSlug?: string
+  /** t299: 선택기 상세 — slug 충돌 시 정확한 게시판 id */
+  boardId?: string
 }
 
 export type NewsletterSourceKind = 'INSURER' | 'GA' | 'PUBLIC'

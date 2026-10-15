@@ -125,12 +125,12 @@ export function fetchNewsletterPickerSources(token: string | null | undefined) {
 
 /** 유형에 맞는 서버 상세 경로로 읽는다 (각 경로가 원본 열람 권한을 다시 확인). */
 export async function loadNewsletterSourceDetail(
-  item: Pick<NewsletterItem, 'id' | 'sourceKind' | 'boardSlug'>,
+  item: Pick<NewsletterItem, 'id' | 'sourceKind' | 'boardSlug' | 'boardId'>,
   gaCode: string,
   token: string | null | undefined,
 ): Promise<NewsletterDetail | null> {
   if ((item.sourceKind === 'GA' || item.sourceKind === 'PUBLIC') && item.boardSlug) {
-    return getDynamicNewsletterBoardDetail(item.boardSlug, item.id, token)
+    return getDynamicNewsletterBoardDetail(item.boardSlug, item.id, token, item.boardId)
   }
   return getNewsletterDetail(gaCode, item.id, token, { channel: 'INSURER' })
 }
