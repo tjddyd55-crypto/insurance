@@ -7,6 +7,8 @@ import {
   hasTasksWriteScope,
   isGoogleWriteEnabled,
   readGoogleOAuthConfig,
+  isGoogleDriveEnabled,
+  hasDriveFileScope,
 } from './google/googleOAuthConfig.js'
 import { getGoogleAccessToken, googleError, revokeGoogleToken } from './google/googleTokenService.js'
 import { listGoogleCalendarEvents, listGoogleCalendars } from './google/googleCalendarApi.js'
@@ -66,8 +68,11 @@ export async function readGoogleIntegrationStatus(pool, userId, env = process.en
   const tasksReadable = Boolean(row && hasTasksReadScope(row.credential?.scope))
   const needsReconsent = status === 'connected' && !tasksReadable
   const write = googleWriteState(row, status, env)
+  // t311: Drive(drive.file) 허용 여부 — 플래그가 꺼져 있으면 항상 false.
+  const drive = { enabled: isGoogleDriveEnabled(env), granted: Boolean(isGoogleDriveEnabled(env) && status === 'connected' && hasDriveFileScope(row?.credential?.scope)) }
   return {
     write,
+    drive,
     provider: 'google',
     configured,
     status,

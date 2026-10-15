@@ -9,7 +9,9 @@ import {
 } from '../integrations/providerRegistry.js'
 import { disconnectUserIntegration, listUserIntegrationRows, SECRET_MASK } from '../integrations/integrationStore.js'
 import { readGoogleIntegrationStatus } from '../integrations/googleCalendarAdapter.js'
-import { GOOGLE_CALENDAR_CARD_KEY, isGoogleConnectAllowed } from '../integrations/google/googleOAuthConfig.js'
+import { GOOGLE_CALENDAR_CARD_KEY, isGoogleConnectAllowed, isGoogleDriveEnabled } from '../integrations/google/googleOAuthConfig.js'
+
+const GOOGLE_DRIVE_CARD_KEY = 'google_drive'
 import { disconnectGoogleForUser, registerGoogleIntegrationApi, startGoogleConnect } from './registerGoogleIntegrationApi.js'
 
 const SECRET_BODY_KEYS = ['apiKey', 'api_key', 'secret', 'accessToken', 'refreshToken', 'password']
@@ -39,6 +41,19 @@ function bodyHasSecret(body) {
  * @param {Awaited<ReturnType<typeof readGoogleIntegrationStatus>>} google
  * @returns {'connected' | 'disconnected' | 'error' | 'needs_reauth' | 'unconfigured'}
  */
+/** t311: 서비스 연동 화면에 보여 줄 기능별 권한. */
+function googleGrants(google) {
+  return {
+    calendarRead: Boolean(google.calendarReadable),
+    tasksRead: Boolean(google.tasksReadable),
+    writeEnabled: Boolean(google.write?.enabled),
+    calendarWrite: Boolean(google.write?.calendarWritable),
+    tasksWrite: Boolean(google.write?.tasksWritable),
+    driveEnabled: Boolean(google.drive?.enabled),
+    drive: Boolean(google.drive?.granted),
+  }
+}
+
 function googleCardStatus(google) {
   if (!google.configured) {
     return 'unconfigured'
@@ -97,6 +112,30 @@ export function registerServiceIntegrationsApi(apiRouter, { pool, requireAuth, h
             products: google.products,
             needsReconsent: google.needsReconsent,
             connectAllowed: isGoogleConnectAllowed(req.user),
+            // t311: 기능별 권한 상태(쓰기·Drive 는 플래그 ON 일 때만 의미가 있다)
+            grants: googleGrants(google),
+          }
+        }
+        if (provider.key === GOOGLE_DRIVE_CARD_KEY && isGoogleDriveEnabled()) {
+          const connected = google.status === 'connected'
+          return {
+            key: provider.key,
+            group: provider.group,
+            groupLabel: provider.groupLabel,
+            name: provider.name,
+            description: 'Google Drive 에서 파일을 가져오고, 내 저장공간 파일 사본을 Drive 로 보냅니다(앱에서 고른 파일·폴더만 접근).',
+            kind: 'oauth',
+            availability: google.configured ? 'ready' : 'unconfigured',
+            status: !google.configured ? 'unconfigured' : connected ? (google.drive.granted ? 'connected' : 'disconnected') : googleCardStatus(google),
+            lastSyncedAt: null,
+            lastError: null,
+            secretMasked: null,
+            sender: '',
+            accountLabel: connected ? google.accountEmail : '',
+            connectedAt: google.drive.granted ? google.connectedAt : null,
+            settingsPath: null,
+            connectAllowed: isGoogleConnectAllowed(req.user),
+            grants: googleGrants(google),
           }
         }
         const availability = resolveProviderAvailability(provider, process.env)
@@ -148,9 +187,19 @@ export function registerServiceIntegrationsApi(apiRouter, { pool, requireAuth, h
       res.json({ success: true, data: { action: 'open_settings', path: '/sms/settings' } })
       return
     }
-    if (provider.key === GOOGLE_CALENDAR_CARD_KEY) {
+    if (provider.key === GOOGLE_CALENDAR_CARD_KEY || (provider.key === GOOGLE_DRIVE_CARD_KEY && isGoogleDriveEnabled())) {
       try {
-        await startGoogleConnect(pool, req, res)
+        // t311: 서비스 연동 화면이 유일한 연결 지점. 그 기능에 필요한 scope 를 한 번에 묻는다.
+        const feature = provider.key === GOOGLE_DRIVE_CARD_KEY ? 'drive' : 'calendar'
+        const google = await readGoogleIntegrationStatus(pool, String(req.user?.id ?? ''))
+        const connected = google.status === 'connected'
+        if (connected && feature === 'drive') {
+          await startGoogleConnect(pool, req, res, { purpose: 'drive', returnTo: 'settings' })
+        } else if (connected && feature === 'calendar' && google.write.enabled && google.write.needsWriteConsent && !google.needsReconsent) {
+          await startGoogleConnect(pool, req, res, { purpose: 'write', returnTo: 'settings' })
+        } else {
+          await startGoogleConnect(pool, req, res, { feature })
+        }
       } catch (error) {
         if (error?.status) {
           sendKnownError(res, error)
@@ -186,6 +235,10 @@ export function registerServiceIntegrationsApi(apiRouter, { pool, requireAuth, h
       const scope = await resolveSmsAuthContext(pool, req)
       if (provider.kind === 'aligo') {
         await deleteAligoSmsSettings(pool, scope)
+      } else if (provider.key === GOOGLE_DRIVE_CARD_KEY && isGoogleDriveEnabled()) {
+        // drive.file 만 따로 철회하는 Google API 는 없다. Google 연결 해제로 안내한다.
+        res.status(409).json({ success: false, code: 'drive_disconnect_via_google', message: 'Drive 권한만 따로 해제할 수 없습니다. Google 연결 해제를 이용해 주세요.' })
+        return
       } else if (provider.key === GOOGLE_CALENDAR_CARD_KEY) {
         await disconnectGoogleForUser(pool, { userId: scope.userId })
       } else {

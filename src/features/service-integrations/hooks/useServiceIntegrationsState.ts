@@ -37,6 +37,19 @@ function googleCallbackMessage(google: string | null, reason: string | null): { 
     }
     return { notice: 'Google 계정이 연결되었습니다.' }
   }
+  // t311: 서비스 연동 화면에서 연 쓰기·Drive 추가 동의 결과
+  if (google === 'write_connected') {
+    return reason === 'write_scope_partial'
+      ? { notice: 'Google 쓰기 권한 일부만 허용되었습니다. Calendar·Tasks 를 모두 체크해 다시 허용해 주세요.' }
+      : { notice: 'Google Calendar·Tasks 쓰기 권한이 허용되었습니다.' }
+  }
+  if (google === 'drive_connected') return { notice: 'Google Drive 연동이 완료되었습니다.' }
+  if (google === 'write_error' || google === 'drive_error') {
+    if (reason === 'access_denied') return { error: 'Google 동의가 취소되었습니다. 기존 연결은 그대로입니다.' }
+    if (reason === 'account_mismatch') return { error: '연결된 Google 계정과 다른 계정으로 동의했습니다. 같은 계정으로 다시 시도해 주세요.' }
+    if (reason === 'drive_scope_missing') return { error: 'Google Drive 권한이 체크되지 않았습니다. 다시 시도해 주세요.' }
+    return { error: 'Google 권한 추가에 실패했습니다.' }
+  }
   if (google === 'error') {
     if (reason === 'access_denied') {
       return { error: 'Google 동의가 취소되어 연결되지 않았습니다.' }
@@ -47,6 +60,7 @@ function googleCallbackMessage(google: string | null, reason: string | null): { 
 }
 
 export const GOOGLE_CARD_KEY = 'google_calendar'
+export const GOOGLE_DRIVE_CARD_KEY = 'google_drive'
 /** 데스크톱 앱 Google 연동: 시스템 브라우저 동의 후 상태를 다시 읽는 간격·최대 시간(서버 state TTL 10분). */
 export const DESKTOP_OAUTH_POLL_MS = 4000
 export const DESKTOP_OAUTH_WATCH_MS = 10 * 60 * 1000
@@ -167,7 +181,7 @@ export function useServiceIntegrationsState(): ServiceIntegrationsViewProps {
     }
     setBusyKey(provider.key)
     setError('')
-    const desktopGoogle = provider.key === GOOGLE_CARD_KEY && isDesktopAppRuntime()
+    const desktopGoogle = (provider.key === GOOGLE_CARD_KEY || provider.key === GOOGLE_DRIVE_CARD_KEY) && isDesktopAppRuntime()
     void connectServiceIntegration(token, provider.key, desktopGoogle ? { client: 'desktop' } : {})
       .then((result) => {
         if (result.url && desktopGoogle) {
