@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '../../components/ui'
-import { ApiError } from '../../lib/apiClient'
 import { isDesktopAppRuntime } from '../service-integrations/hooks/useServiceIntegrationsState'
 import type { StorageFileRow } from '../storage/api/storageApi'
+import { loadPicker, messageOf, openPicker } from './googleDrivePicker'
 import {
   fetchGoogleDrivePicker,
   importGoogleDriveFile,
@@ -10,71 +10,6 @@ import {
   type GoogleDrivePickerState,
 } from './googleDriveApi'
 
-const PICKER_MIME = 'application/pdf,image/jpeg,image/png'
-const MAX_PICK = 10
-
-type PickedDoc = { id: string; name: string }
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyWindow = Window & { gapi?: any; google?: any }
-
-let gapiLoading: Promise<void> | null = null
-
-/** Google Picker 스크립트(apis.google.com/js/api.js)를 한 번만 불러온다. */
-function loadPicker(): Promise<void> {
-  const w = window as AnyWindow
-  if (w.google?.picker) return Promise.resolve()
-  if (!gapiLoading) {
-    gapiLoading = new Promise<void>((resolve, reject) => {
-      const done = () => w.gapi.load('picker', { callback: () => resolve(), onerror: () => reject(new Error('picker_load_failed')) })
-      if (w.gapi) {
-        done()
-        return
-      }
-      const script = document.createElement('script')
-      script.src = 'https://apis.google.com/js/api.js'
-      script.async = true
-      script.onload = done
-      script.onerror = () => {
-        gapiLoading = null
-        reject(new Error('picker_load_failed'))
-      }
-      document.head.appendChild(script)
-    })
-  }
-  return gapiLoading
-}
-
-function openPicker(state: GoogleDrivePickerState, multiple: boolean): Promise<PickedDoc[]> {
-  const w = window as AnyWindow
-  return new Promise((resolve) => {
-    const gp = w.google.picker
-    const view = new gp.DocsView(gp.ViewId.DOCS).setMimeTypes(PICKER_MIME).setIncludeFolders(true).setSelectFolderEnabled(false)
-    let builder = new gp.PickerBuilder()
-      .addView(view)
-      .setOAuthToken(state.accessToken)
-      .setDeveloperKey(state.apiKey)
-      .setAppId(state.appId)
-      .setLocale('ko')
-      .setCallback((data: Record<string, unknown>) => {
-        const action = data[gp.Response.ACTION]
-        if (action === gp.Action.PICKED) {
-          const docs = (data[gp.Response.DOCUMENTS] as Array<Record<string, unknown>>) ?? []
-          resolve(docs.slice(0, MAX_PICK).map((doc) => ({ id: String(doc[gp.Document.ID]), name: String(doc[gp.Document.NAME] ?? '') })))
-        } else if (action === gp.Action.CANCEL) {
-          resolve([])
-        }
-      })
-    if (multiple) builder = builder.enableFeature(gp.Feature.MULTISELECT_ENABLED)
-    builder.build().setVisible(true)
-  })
-}
-
-function messageOf(error: unknown): string {
-  if (error instanceof ApiError) return error.message
-  if (error instanceof Error && error.message === 'picker_load_failed') return 'Google Drive 선택 창을 불러오지 못했습니다.'
-  return 'Google Drive 에서 가져오지 못했습니다.'
-}
 
 /**
  * t307 PR-B: Google Drive 에서 PDF·JPG·PNG 를 골라 ONE FC 로 복사해 온다(원본은 그대로).
@@ -150,7 +85,7 @@ export default function GoogleDriveImportButton({
         return
       }
       await loadPicker()
-      const docs = await openPicker(fresh, multiple)
+      const docs = await openPicker(fresh, { mode: 'files', multiple })
       if (docs.length === 0) return
       const imported: StorageFileRow[] = []
       const failures: string[] = []
