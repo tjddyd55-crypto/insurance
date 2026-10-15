@@ -94,6 +94,7 @@ export function NewsletterPickerPanel({
   const [kind, setKind] = useState<'' | NewsletterSourceKind>('')
   const [query, setQuery] = useState('')
   const [insurer, setInsurer] = useState('')
+  const [board, setBoard] = useState('')
   const [source, setSource] = useState('all')
   const [showAlreadyAdded, setShowAlreadyAdded] = useState(!hideDisabledByDefault)
   const [previewItem, setPreviewItem] = useState<NewsletterItem | null>(null)
@@ -122,6 +123,30 @@ export function NewsletterPickerPanel({
     return [{ value: '', label: '전체 원수사' }, ...names.map((name) => ({ value: name, label: name }))]
   }, [items])
 
+  // t306: 게시판 선택 — 서버가 준 board id 기준 (이름·하드코딩 분류 없음). 원수사 글은 '원수사 소식' 하나로 묶는다.
+  const boardKeyOf = (item: NewsletterItem): string => (item.boardId ? `board:${item.boardId}` : 'insurer')
+  const boardOptions = useMemo(() => {
+    const map = new Map<string, { label: string; count: number }>()
+    for (const item of items) {
+      if (kind && kindOf(item) !== kind) continue
+      const key = boardKeyOf(item)
+      const label = item.boardId ? item.boardName || item.boardLabel || '게시판' : '원수사 소식'
+      const cur = map.get(key)
+      if (cur) cur.count += 1
+      else map.set(key, { label, count: 1 })
+    }
+    const entries = [...map.entries()].sort((a, b) =>
+      a[0] === 'insurer' ? -1 : b[0] === 'insurer' ? 1 : a[1].label.localeCompare(b[1].label, 'ko'),
+    )
+    return [
+      { value: '', label: '전체 게시판' },
+      ...entries.map(([value, v]) => ({ value, label: `${v.label} (${v.count})` })),
+    ]
+  }, [items, kind])
+  useEffect(() => {
+    if (board && !boardOptions.some((o) => o.value === board)) setBoard('')
+  }, [board, boardOptions])
+
   const sourceOptions = useMemo(
     () => [
       { value: 'all', label: '모든 폴더' },
@@ -145,6 +170,7 @@ export function NewsletterPickerPanel({
     return items.filter((item) => {
       if (allowed && !allowed.has(item.id)) return false
       if (kind && kindOf(item) !== kind) return false
+      if (board && boardKeyOf(item) !== board) return false
       // 원수사 선택은 원수사 종류에서만 적용한다 (GA/공용에는 원수사 조건 미적용).
       if (kind === 'INSURER' && insurer && item.insurerName !== insurer) return false
       if (hideDisabledByDefault && !showAlreadyAdded && disabledIds?.has(item.id)) return false
@@ -154,7 +180,7 @@ export function NewsletterPickerPanel({
         .join('\n')
         .includes(q)
     })
-  }, [collections, disabledIds, hideDisabledByDefault, insurer, items, kind, query, showAlreadyAdded, source])
+  }, [collections, disabledIds, hideDisabledByDefault, insurer, items, kind, board, query, showAlreadyAdded, source])
 
   const selected = new Set(selectedIds)
   const selectable = rows.filter((row) => !disabledIds?.has(row.id))
@@ -243,6 +269,12 @@ export function NewsletterPickerPanel({
           onChange={(e) => setKind(e.target.value as '' | NewsletterSourceKind)}
           options={kindOptions}
           aria-label="소식지 종류"
+        />
+        <FormSelect
+          value={board}
+          onChange={(e) => setBoard(e.target.value)}
+          options={boardOptions}
+          aria-label="게시판"
         />
         {kind === 'INSURER' ? (
           <FormSelect

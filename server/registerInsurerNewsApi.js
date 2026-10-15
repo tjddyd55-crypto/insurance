@@ -2339,7 +2339,8 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
   })
 
   /**
-   * t299 — 소식지 선택기 공통 목록 (원수사 · GA · 공용 중 로그인 사용자가 열람 가능한 것만).
+   * t299/t306 — 소식지 선택기 공통 목록. 소식지 메인(원수사 피드 + 메뉴 보드 피드)과 같은 규칙으로
+   * 로그인 사용자가 열람 가능한 모든 게시판 글 (손해사정사 채널·기관/업체·GA 게시판 포함).
    * 바인더 자료 추가 / 개인 폴더 소식지 추가 / 상세 담기 다이얼로그가 모두 이 목록을 쓴다.
    * GA 범위는 세션 gaId 로만 정한다 (쿼리스트링 GA 무시 → 타 GA 직접 호출 차단).
    */
@@ -2404,6 +2405,8 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           sourceKind: kind,
           boardSlug: row.source_board_slug ? String(row.source_board_slug) : undefined,
           boardId: row.source_board_id ? String(row.source_board_id) : undefined,
+          // t306: 게시판 선택기용 — 보드 테이블의 정식 이름 (원수사 글은 없음)
+          boardName: row.source_board_label ? String(row.source_board_label) : undefined,
           boardLabel: mapped.boardLabel || (row.source_board_label ? String(row.source_board_label) : undefined),
         }
       })
