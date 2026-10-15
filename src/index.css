@@ -15403,6 +15403,24 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   padding-top: 0;
 }
 
+@media (max-width: 767.98px){
+  .storage-workspace__header--with-actions,
+  .storage-workspace--explorer .storage-workspace__header--with-actions{
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .storage-workspace__header-main{
+    flex: 0 0 auto;
+    width: 100%;
+  }
+  .storage-workspace__header-actions{
+    flex-wrap: wrap;
+    width: 100%;
+    padding-top: 0;
+  }
+}
+
 .storage-workspace--explorer .storage-workspace__quota{
   color: #64748b;
 }
