@@ -1390,6 +1390,27 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
    * @param {object} newsletterRow
    * @param {string|null} expectedChannel
    */
+  /**
+   * t299 — 공용(global) 게시판 글(ga_id NULL) 첨부 열람: 로그인 사용자 누구나(공용 열람 규칙과 동일),
+   * 게시·미삭제·고객용 아님만 확인. GA 글은 기존 assertCanOpenInsurerNewsAttachment 그대로.
+   * @param {object} row
+   */
+  function assertCanOpenGlobalBoardAttachment(row) {
+    const rowPayload = row.payload && typeof row.payload === 'object' ? row.payload : {}
+    const insurerSlug = String(rowPayload.insurerSlug ?? '').trim().toLowerCase()
+    const insurerCode = String(rowPayload.insurerCode ?? '').trim().toUpperCase()
+    if (
+      row.ga_id != null ||
+      String(row.status ?? '') !== 'PUBLISHED' ||
+      row.deleted_at != null ||
+      Boolean(rowPayload.customerVisible) ||
+      insurerSlug === 'customer-news' ||
+      insurerCode === 'CUSTOMER_NEWS'
+    ) {
+      throw Object.assign(new Error('접근할 수 없습니다.'), { httpStatus: 403 })
+    }
+  }
+
   async function assertCanOpenInsurerNewsAttachment(req, newsletterRow, expectedChannel = null) {
     if (!newsletterRow) {
       throw Object.assign(new Error('소식을 찾을 수 없습니다.'), { httpStatus: 404 })
@@ -1543,13 +1564,27 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           a.object_key,
           a.file_name,
           a.mime_type,
-          a.url AS att_url
+          a.url AS att_url,
+          (n.ga_id IS NULL AND gb.id IS NOT NULL) AS is_global_board_post
         FROM insurance_company_newsletters n
         INNER JOIN insurance_company_newsletter_attachments a
           ON a.newsletter_id = n.id
+        LEFT JOIN newsletter_boards gb
+          ON gb.id = NULLIF(TRIM(n.payload->>'newsletterBoardId'), '')
+         AND gb.board_scope = 'global'
+         AND gb.is_deleted = false
+         AND COALESCE(gb.is_active, true) = true
         WHERE n.id = $1
           AND a.id = $2
-          AND n.ga_id = $3
+          AND (
+            n.ga_id = $3
+            OR (
+              -- t299: 공용(global) 게시판 글은 ga_id NULL. 활성 공용 게시판 글만 허용.
+              n.ga_id IS NULL
+              AND gb.id IS NOT NULL
+              AND UPPER(COALESCE(NULLIF(TRIM(n.payload->>'newsChannel'), ''), '')) IN ('BOARD', 'DYNAMIC_BOARD', 'NEWSLETTER_BOARD')
+            )
+          )
         LIMIT 1
         `,
         [newsletterId, attachmentId, access.gaId],
@@ -1563,7 +1598,11 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       const rowPayload = row.payload && typeof row.payload === 'object' ? row.payload : {}
       const channel = normalizeNewsChannel(rowPayload.newsChannel)
       try {
-        await assertCanOpenInsurerNewsAttachment(req, row, channel)
+        if (row.is_global_board_post === true) {
+          assertCanOpenGlobalBoardAttachment(row)
+        } else {
+          await assertCanOpenInsurerNewsAttachment(req, row, channel)
+        }
       } catch (authErr) {
         const status =
           authErr && typeof authErr === 'object' && 'httpStatus' in authErr && typeof authErr.httpStatus === 'number'
