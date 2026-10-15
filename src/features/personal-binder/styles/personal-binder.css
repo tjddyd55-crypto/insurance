@@ -1817,6 +1817,20 @@
   padding-inline: var(--space-5, 20px);
 }
 
+.personal-binder-material-picker__drive {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3, 12px);
+  padding-block: var(--space-4, 16px);
+}
+
+.personal-binder-material-picker__drive p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
 .personal-binder-material-picker-dialog .personal-binder-page-dialog__header {
   padding: var(--space-4, 16px) var(--space-5, 20px);
   border-bottom: 1px solid var(--border-default);

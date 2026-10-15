@@ -270,7 +270,7 @@ export function MaterialAddSourceDialog({
         ) : null}
 
         {tab === 'drive' ? (
-          <div className="personal-binder-material-picker__drive">
+          <div className="personal-binder-material-add-modal__inset personal-binder-material-picker__drive">
             <p>Google Drive 에서 PDF·JPG·PNG 를 골라 내 저장 공간에 복사한 뒤 자료로 추가합니다. Drive 원본은 바뀌지 않습니다.</p>
             {driveError ? <StatusMessage message={driveError} tone="error" className="m-0" /> : null}
             <GoogleDriveImportButton
