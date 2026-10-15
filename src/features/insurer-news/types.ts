@@ -86,7 +86,13 @@ export interface NewsletterItem {
   /** 고객 소식지(claim-requests) 전용 — 삭제 시 대상 고객 검증용 */
   customerNewsScope?: 'all' | 'personal'
   targetCustomerId?: number | null
+  /** t299 소식지 선택기 — 원수사(INSURER) · GA 게시판(GA) · 공용 게시판(PUBLIC) */
+  sourceKind?: NewsletterSourceKind
+  /** GA/공용 게시판 글의 보드 slug (상세는 /insurer-news/boards/:slug 경로) */
+  boardSlug?: string
 }
+
+export type NewsletterSourceKind = 'INSURER' | 'GA' | 'PUBLIC'
 
 /** 본문 대표 링크 미리보기 (optional — 기존 글은 null) */
 export interface NewsletterLinkPreview {

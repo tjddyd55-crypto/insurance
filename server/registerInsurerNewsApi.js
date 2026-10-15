@@ -94,6 +94,11 @@ import {
   resolveNewsletterDetailLinkPreview,
 } from './lib/newsletterLinkPreview.js'
 import { scheduleNewsletterPublishedNotifications } from './lib/notifications/newsletterPublishedWiring.js'
+import {
+  READABLE_NEWSLETTER_BOARD_JOIN,
+  READABLE_NEWSLETTER_KIND_SQL,
+  readableNewsletterWhere,
+} from './newsletter-collections/newsletterReadableSources.js'
 
 function voidScheduleNewsletterPublished(pool, input) {
   void scheduleNewsletterPublishedNotifications(pool, input).catch((err) => {
@@ -2256,6 +2261,79 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       res.json(mapNewsletterDetail(row, attRes.rows, req, buildAttachmentAccessContext(req, attGaId)))
     } catch (eBoardDetail) {
       handleDbError(eBoardDetail, req, res)
+    }
+  })
+
+  /**
+   * t299 — 소식지 선택기 공통 목록 (원수사 · GA · 공용 중 로그인 사용자가 열람 가능한 것만).
+   * 바인더 자료 추가 / 개인 폴더 소식지 추가 / 상세 담기 다이얼로그가 모두 이 목록을 쓴다.
+   * GA 범위는 세션 gaId 로만 정한다 (쿼리스트링 GA 무시 → 타 GA 직접 호출 차단).
+   */
+  apiRouter.get('/insurer-news/picker-sources', requireAuth, forbidInsurerOnFeed, async (req, res) => {
+    try {
+      if (isLossAdjusterRole(req.user?.role)) {
+        res.status(403).json({ message: '채널 담당자 계정은 이용할 수 없습니다.' })
+        return
+      }
+      const gaId = effectiveTenantGaId(req)
+      if (!Number.isInteger(gaId) || gaId < 1) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const nRes = await safeQuery(
+        pool,
+        `
+        SELECT n.*, g.code AS ga_code_join,
+          ${READABLE_NEWSLETTER_KIND_SQL} AS source_kind,
+          nb.slug AS source_board_slug,
+          nb.label AS source_board_label,
+          w.name AS writer_name,
+          w.organization_name AS writer_organization_name,
+          w.login_id AS writer_login_id,
+          (SELECT COUNT(*) FROM insurance_company_newsletter_attachments a
+            WHERE a.newsletter_id = n.id AND a.mime_type <> 'application/pdf') AS img_cnt,
+          (SELECT COUNT(*) FROM insurance_company_newsletter_attachments a
+            WHERE a.newsletter_id = n.id AND a.mime_type = 'application/pdf') AS pdf_cnt,
+          (SELECT a.url FROM insurance_company_newsletter_attachments a
+            WHERE a.newsletter_id = n.id AND a.mime_type <> 'application/pdf'
+            ORDER BY a.sort_order ASC LIMIT 1) AS hero_url,
+          (SELECT a.object_key FROM insurance_company_newsletter_attachments a
+            WHERE a.newsletter_id = n.id AND a.mime_type <> 'application/pdf'
+            ORDER BY a.sort_order ASC LIMIT 1) AS hero_object_key,
+          (SELECT a.id FROM insurance_company_newsletter_attachments a
+            WHERE a.newsletter_id = n.id AND a.mime_type <> 'application/pdf'
+            ORDER BY a.sort_order ASC LIMIT 1) AS hero_attachment_id
+        FROM insurance_company_newsletters n
+        ${READABLE_NEWSLETTER_BOARD_JOIN}
+        LEFT JOIN ga_companies g ON g.id = n.ga_id
+        LEFT JOIN board_writer_accounts w
+          ON w.id = NULLIF(TRIM(COALESCE(n.payload->>'authorAccountId', n.payload->>'publisherId', '')), '')
+        WHERE ${readableNewsletterWhere('$1')}
+        ORDER BY n.created_at DESC, n.id DESC
+        LIMIT 1500
+        `,
+        [gaId],
+      )
+      const gaCodeUpper = String(req.user?.gaCode ?? '').trim().toUpperCase()
+      const newsletters = nRes.rows.map((row) => {
+        const kind = String(row.source_kind ?? 'INSURER')
+        const mapped = mapNewsletterListRow(
+          row,
+          String(row.ga_code_join ?? '').trim().toUpperCase() || (kind === 'PUBLIC' ? 'GLOBAL' : gaCodeUpper),
+          req,
+          // 공용 글은 ga_id 가 NULL — 첨부 열람 토큰은 열람자 GA 로 서명 (기존 공용 보드 피드와 동일).
+          buildAttachmentAccessContext(req, row.ga_id == null ? gaId : Number(row.ga_id)),
+        )
+        return {
+          ...mapped,
+          sourceKind: kind,
+          boardSlug: row.source_board_slug ? String(row.source_board_slug) : undefined,
+          boardLabel: mapped.boardLabel || (row.source_board_label ? String(row.source_board_label) : undefined),
+        }
+      })
+      res.json({ newsletters })
+    } catch (ePicker) {
+      handleDbError(ePicker, req, res)
     }
   })
 
