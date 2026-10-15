@@ -1,0 +1,390 @@
+/**
+ * 현직 FC 메시지형 Facebook 랜딩 — `.intro-landing--facebook-founder` 스코프
+ */
+
+.intro-landing--facebook-founder {
+  --introduction-header-offset: 72px;
+}
+
+.intro-landing--facebook-founder .ff-main {
+  padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+}
+
+.ff-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle, #e5e7eb);
+}
+
+.ff-header__inner {
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.ff-header__logo {
+  font-weight: 800;
+  font-size: 1.1rem;
+  letter-spacing: 0.04em;
+  color: var(--primary, #0d7a4a);
+}
+
+.ff-hero__eyebrow {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--primary, #0d7a4a);
+  margin: 0 0 12px;
+}
+
+.ff-title {
+  font-size: clamp(1.5rem, 4.2vw, 2.25rem);
+  font-weight: 800;
+  line-height: 1.35;
+  margin: 0 0 20px;
+}
+
+.ff-subtitle {
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  margin: 0 0 24px;
+}
+
+.ff-prose {
+  max-width: 720px;
+}
+
+.ff-prose p {
+  margin: 0 0 14px;
+  line-height: 1.75;
+  font-size: 1.05rem;
+  color: var(--text-primary);
+}
+
+.ff-prose--hero p {
+  color: var(--text-secondary);
+}
+
+.ff-emphasis {
+  margin: 20px 0 0;
+  padding: 16px 18px;
+  border-left: 4px solid var(--primary, #0d7a4a);
+  background: var(--bg-soft);
+  font-weight: 700;
+  line-height: 1.6;
+  font-size: 1.05rem;
+}
+
+.ff-hero__update {
+  margin: 16px 0 0;
+  max-width: 720px;
+  line-height: 1.75;
+  font-size: 1.05rem;
+  color: var(--text-secondary);
+}
+
+.ff-hero__promo {
+  margin: 24px 0 8px;
+  font-weight: 700;
+  color: var(--primary, #0d7a4a);
+}
+
+.ff-continuous__line {
+  margin: 0;
+  max-width: 720px;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ff-promo-block__badge {
+  margin: 24px 0 12px;
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: var(--primary, #0d7a4a);
+}
+
+.ff-hero__code code,
+.ff-final__code code {
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--bg-soft);
+  border: 1px dashed var(--primary, #0d7a4a);
+}
+
+.ff-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.ff-cta--hero .intro-landing-btn,
+.ff-cta--footer .intro-landing-btn {
+  min-width: min(100%, 240px);
+}
+
+.ff-hero__trial {
+  margin-top: 12px;
+}
+
+.ff-feature-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .ff-feature-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 960px) {
+  .ff-feature-list {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.ff-feature-list__item {
+  padding: 16px 18px;
+  border: 1px solid var(--border-subtle, #e5e7eb);
+  border-radius: var(--intro-landing-radius);
+  background: var(--bg-surface);
+}
+
+.ff-feature-list__title {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.ff-feature-list__desc {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.ff-together__tagline {
+  margin: 24px 0 4px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.ff-together__brand {
+  margin: 0;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  font-weight: 800;
+  text-align: center;
+  color: var(--primary, #0d7a4a);
+}
+
+.ff-screenshots__grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .ff-screenshots__grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+}
+
+.ff-shot-card {
+  border: 1px solid var(--border-subtle, #e5e7eb);
+  border-radius: var(--intro-landing-radius);
+  overflow: hidden;
+  background: var(--bg-surface);
+}
+
+.ff-shot-card__img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.ff-shot-card__title {
+  margin: 14px 16px 4px;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.ff-shot-card__desc {
+  margin: 0 16px 14px;
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+}
+
+.ff-screenshots__note {
+  margin-top: 16px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.ff-mobile-shot__frame {
+  max-width: min(100%, 390px);
+  margin: 0 auto;
+  border: 1px solid var(--border-subtle, #e5e7eb);
+  border-radius: var(--intro-landing-radius);
+  overflow: hidden;
+  background: var(--bg-surface);
+}
+
+.ff-mobile-shot__img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.ff-confidence,
+.ff-callout,
+.ff-promo-section {
+  text-align: center;
+}
+
+.ff-callout .ff-title {
+  font-size: clamp(1.65rem, 5vw, 2.35rem);
+}
+
+.ff-promo-block {
+  max-width: 560px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.ff-promo-block__lead {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.ff-promo-block__code-label {
+  margin: 20px 0 8px;
+  font-weight: 700;
+}
+
+.ff-promo-block__code {
+  display: block;
+  font-size: clamp(1.5rem, 5vw, 2rem);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  margin-bottom: 16px;
+}
+
+.ff-promo-block__hint {
+  margin-top: 12px;
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+}
+
+.ff-promo-block__status {
+  margin-top: 8px;
+  font-weight: 600;
+  color: var(--color-success, #0d7a3e);
+}
+
+.ff-phone-cta {
+  margin-top: 24px;
+  text-align: center;
+}
+
+.ff-phone-cta__btn {
+  min-width: min(100%, 280px);
+}
+
+.ff-phone-cta__number {
+  margin: 12px 0 4px;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.ff-phone-cta__number a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.ff-phone-cta__hint {
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+}
+
+.ff-promise .ff-prose {
+  max-width: 680px;
+}
+
+.ff-final {
+  text-align: center;
+}
+
+.ff-final .ff-cta {
+  justify-content: center;
+}
+
+.ff-sticky {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .intro-landing--facebook-founder .intro-landing-section {
+    padding: 56px 20px;
+  }
+
+  .ff-sticky {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: rgba(255, 255, 255, 0.96);
+    border-top: 1px solid var(--border-subtle, #e5e7eb);
+    backdrop-filter: blur(8px);
+  }
+
+  .ff-sticky__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  .ff-sticky__label {
+    font-weight: 700;
+    color: var(--primary, #0d7a4a);
+    white-space: nowrap;
+  }
+
+  .ff-sticky__install {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 20px;
+    border-radius: 10px;
+    background: var(--primary, #0d7a4a);
+    color: #fff;
+    font-weight: 700;
+    text-decoration: none;
+    font-size: 0.95rem;
+  }
+}

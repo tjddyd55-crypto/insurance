@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  FACEBOOK_FOUNDER_LANDING_PATH,
   INTRODUCTION_CANONICAL_PATH,
   INTRODUCTION_LEGACY_TYPO_PATH,
   INTRODUCTION_PUBLIC_PATHS,
@@ -32,6 +33,7 @@ describe('introductionPublicRoutes', () => {
     expect(isIntroductionPublicPath('/customers')).toBe(false)
     expect(isIntroductionPublicPath('/dashboard')).toBe(false)
     expect(isIntroductionPublicPath('/login')).toBe(false)
+    expect(isIntroductionPublicPath(FACEBOOK_FOUNDER_LANDING_PATH)).toBe(true)
   })
 
   it('redirects install subpaths to download hash on matching base', () => {
