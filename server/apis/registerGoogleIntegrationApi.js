@@ -12,6 +12,10 @@ import {
   GOOGLE_CALENDAR_CARD_KEY,
   GOOGLE_WRITE_STATE_KEY,
   GOOGLE_DRIVE_STATE_KEY,
+  GOOGLE_WRITE_SETTINGS_STATE_KEY,
+  GOOGLE_DRIVE_SETTINGS_STATE_KEY,
+  GOOGLE_WRITE_SCOPES,
+  GOOGLE_DRIVE_FILE_SCOPE,
   hasDriveFileScope,
   isGoogleDriveEnabled,
   readGooglePickerConfig,
@@ -214,6 +218,16 @@ async function readActiveAccount(pool, userId) {
  * @param {import('express').Request} req
  * @param {import('express').Response} res
  */
+/**
+ * t311: 서비스 연동 화면의 첫 연결이 묻는 추가 scope. 플래그가 꺼져 있으면 빈 배열(= 기존과 같은 동의 화면).
+ * @param {{ feature?: 'calendar' | 'drive' }} options
+ */
+export function connectExtraScopes(options = {}, env = process.env) {
+  if (options.feature === 'drive') return isGoogleDriveEnabled(env) ? [GOOGLE_DRIVE_FILE_SCOPE] : []
+  if (options.feature === 'calendar') return isGoogleWriteEnabled(env) ? [...GOOGLE_WRITE_SCOPES] : []
+  return []
+}
+
 export async function startGoogleConnect(pool, req, res, options = {}) {
   const purpose = options.purpose === 'write' || options.purpose === 'drive' ? options.purpose : 'connect'
   const userId = currentUserId(req)
@@ -249,9 +263,14 @@ export async function startGoogleConnect(pool, req, res, options = {}) {
     loginHint = String(row.accountEmail ?? '')
   }
   const client = requestedOAuthClient(req)
+  const fromSettings = options.returnTo === 'settings'
   const created = await createOAuthState(pool, {
     userId,
-    providerKey: purpose === 'write' ? GOOGLE_WRITE_STATE_KEY : purpose === 'drive' ? GOOGLE_DRIVE_STATE_KEY : GOOGLE_CALENDAR_CARD_KEY,
+    providerKey: purpose === 'write'
+      ? (fromSettings ? GOOGLE_WRITE_SETTINGS_STATE_KEY : GOOGLE_WRITE_STATE_KEY)
+      : purpose === 'drive'
+        ? (fromSettings ? GOOGLE_DRIVE_SETTINGS_STATE_KEY : GOOGLE_DRIVE_STATE_KEY)
+        : GOOGLE_CALENDAR_CARD_KEY,
     client,
   })
   if (created.binding) {
@@ -262,7 +281,7 @@ export async function startGoogleConnect(pool, req, res, options = {}) {
     success: true,
     data: {
       action: client === 'desktop' ? 'open_external' : 'redirect',
-      url: buildGoogleAuthorizationUrl(config, created.state, { purpose, loginHint }),
+      url: buildGoogleAuthorizationUrl(config, created.state, { purpose, loginHint, extraScopes: purpose === 'connect' ? connectExtraScopes(options) : [] }),
       ...(client === 'desktop' ? { client, expiresInSeconds: Math.floor(OAUTH_STATE_TTL_MS / 1000) } : {}),
     },
   })
@@ -429,6 +448,7 @@ export function registerGoogleIntegrationApi(apiRouter, { pool, requireAuth, han
     let client = ''
     let accountMasked = ''
     let purpose = 'connect'
+    let fromSettings = false
     const back = (result, reason) => {
       // 데스크톱 state 는 앱 세션으로 보내지 않고 결과 페이지를 보여 준다. 웹·알 수 없는 state 는 기존대로 redirect.
       if (client === 'desktop') {
@@ -441,7 +461,7 @@ export function registerGoogleIntegrationApi(apiRouter, { pool, requireAuth, han
       }
       const params = new URLSearchParams({ google: purpose === 'connect' ? result : `${purpose}_${result}` })
       if (reason) params.set('reason', reason)
-      const path = purpose === 'write' ? WRITE_RETURN_PATH : purpose === 'drive' ? DRIVE_RETURN_PATH : RETURN_PATH
+      const path = fromSettings ? RETURN_PATH : purpose === 'write' ? WRITE_RETURN_PATH : purpose === 'drive' ? DRIVE_RETURN_PATH : RETURN_PATH
       res.redirect(302, `${path}?${params.toString()}`)
     }
     try {
@@ -449,11 +469,12 @@ export function registerGoogleIntegrationApi(apiRouter, { pool, requireAuth, han
         state: String(req.query.state ?? ''),
         binding: readCookie(req.headers.cookie, OAUTH_BINDING_COOKIE),
         providerKey: GOOGLE_CALENDAR_CARD_KEY,
-        providerKeys: [GOOGLE_CALENDAR_CARD_KEY, GOOGLE_WRITE_STATE_KEY, GOOGLE_DRIVE_STATE_KEY],
+        providerKeys: [GOOGLE_CALENDAR_CARD_KEY, GOOGLE_WRITE_STATE_KEY, GOOGLE_DRIVE_STATE_KEY, GOOGLE_WRITE_SETTINGS_STATE_KEY, GOOGLE_DRIVE_SETTINGS_STATE_KEY],
       })
       client = consumed.client ?? ''
-      if (consumed.ok && consumed.providerKey === GOOGLE_WRITE_STATE_KEY) purpose = 'write'
-      if (consumed.ok && consumed.providerKey === GOOGLE_DRIVE_STATE_KEY) purpose = 'drive'
+      if (consumed.ok && (consumed.providerKey === GOOGLE_WRITE_STATE_KEY || consumed.providerKey === GOOGLE_WRITE_SETTINGS_STATE_KEY)) purpose = 'write'
+      if (consumed.ok && (consumed.providerKey === GOOGLE_DRIVE_STATE_KEY || consumed.providerKey === GOOGLE_DRIVE_SETTINGS_STATE_KEY)) purpose = 'drive'
+      if (consumed.ok && (consumed.providerKey === GOOGLE_WRITE_SETTINGS_STATE_KEY || consumed.providerKey === GOOGLE_DRIVE_SETTINGS_STATE_KEY)) fromSettings = true
       if (!consumed.ok) {
         back('error', consumed.reason)
         return

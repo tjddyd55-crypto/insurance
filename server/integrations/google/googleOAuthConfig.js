@@ -56,6 +56,9 @@ export function hasTasksWriteScope(scopeText) {
  */
 export const GOOGLE_DRIVE_FILE_SCOPE = 'https://www.googleapis.com/auth/drive.file'
 export const GOOGLE_DRIVE_STATE_KEY = 'google_drive'
+/** t311: 서비스 연동 화면에서 시작한 증분 동의(완료 후 서비스 연동 화면으로 돌아간다). */
+export const GOOGLE_WRITE_SETTINGS_STATE_KEY = 'google_write_settings'
+export const GOOGLE_DRIVE_SETTINGS_STATE_KEY = 'google_drive_settings'
 export const GOOGLE_DRIVE_ENABLED_ENV = 'GOOGLE_DRIVE_ENABLED'
 export const GOOGLE_PICKER_API_KEY_ENV = 'GOOGLE_PICKER_API_KEY'
 export const GOOGLE_PICKER_APP_ID_ENV = 'GOOGLE_PICKER_APP_ID'
