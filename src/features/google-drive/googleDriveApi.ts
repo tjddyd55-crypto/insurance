@@ -54,3 +54,32 @@ export async function importGoogleDriveFile(
     body: JSON.stringify({ driveFileId: input.driveFileId, folderId: input.folderId ?? null }),
   })
 }
+
+export type GoogleDriveExportResult = {
+  fileId: number
+  name: string
+  ok: boolean
+  code?: string
+  message?: string
+  driveFileId?: string
+  webViewLink?: string
+}
+
+export type GoogleDriveExportResponse = {
+  folder: { id: string; name: string }
+  results: GoogleDriveExportResult[]
+  okCount: number
+  failCount: number
+}
+
+/** t308: 내 저장 공간 파일 사본을 Google Drive 폴더(없으면 내 드라이브)에 새로 올린다. */
+export async function exportToGoogleDrive(
+  token: string,
+  input: { fileIds: number[]; driveFolderId: string | null },
+): Promise<GoogleDriveExportResponse> {
+  return unwrap<GoogleDriveExportResponse>(await apiRequest<unknown>('/api/storage/files/export-google-drive', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({ fileIds: input.fileIds, driveFolderId: input.driveFolderId }),
+  }))
+}

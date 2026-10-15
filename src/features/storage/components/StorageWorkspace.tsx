@@ -23,6 +23,7 @@ import {
 } from '../api/storageApi'
 import StorageDeleteDialog from './StorageDeleteDialog'
 import GoogleDriveImportButton from '../../google-drive/GoogleDriveImportButton'
+import GoogleDriveStoragePanel from '../../google-drive/GoogleDriveStoragePanel'
 import StorageExplorerFilePanel from './StorageExplorerFilePanel'
 import StorageExplorerToolbar from './StorageExplorerToolbar'
 import StorageFileList, { type StorageActionVariant } from './StorageFileList'
@@ -893,6 +894,20 @@ export default function StorageWorkspace({
     </>
   )
 
+  const driveSection = customerId == null ? (
+    <GoogleDriveStoragePanel
+      token={token}
+      folders={folders}
+      files={files}
+      currentFolderId={isExplorerLayout ? getStorageExplorerUploadFolderId(explorerSelection) : selectedFolderId}
+      onImported={() => {
+        void loadFiles()
+        void loadQuota()
+      }}
+      onError={(message) => setError(message)}
+    />
+  ) : null
+
   return (
     <div
       className={[
@@ -940,8 +955,8 @@ export default function StorageWorkspace({
         </div>
         <div className="storage-workspace__header-actions">
           {headerActionsSlot}
-          {/* t307 PR-B: GOOGLE_DRIVE_ENABLED 일 때만 보인다. 서버가 기존 저장 경로로 가져온다. */}
-          <GoogleDriveImportButton
+          {/* t307 PR-B: 고객 파일 헤더. 내 저장 공간은 t308 폴더 영역 아래 Google Drive 섹션을 쓴다. */}
+          {customerId != null ? <GoogleDriveImportButton
             token={token}
             customerId={customerId}
             folderId={isExplorerLayout ? getStorageExplorerUploadFolderId(explorerSelection) : selectedFolderId}
@@ -952,7 +967,7 @@ export default function StorageWorkspace({
               }
             }}
             onError={(message) => setError(message)}
-          />
+          /> : null}
         </div>
       </div>
 
@@ -988,6 +1003,7 @@ export default function StorageWorkspace({
           {error ? <p className="storage-workspace__error">{error}</p> : null}
 
           <div className="storage-explorer">
+            <div className="storage-explorer__side">
             <StorageFolderTreePanel
               folders={folders}
               files={files}
@@ -1008,6 +1024,8 @@ export default function StorageWorkspace({
               onRenameFolder={openRenameFolderDialog}
               onDeleteFolder={(folder) => setDeleteTarget({ kind: 'folder', folder })}
             />
+            {driveSection}
+            </div>
             <StorageExplorerFilePanel
               breadcrumb={explorerBreadcrumb}
               folders={folders}
@@ -1055,6 +1073,8 @@ export default function StorageWorkspace({
             }}
             uploading={uploading}
           />
+
+          {driveSection}
 
           <div className="storage-workspace__filters" role="search">
             <input
