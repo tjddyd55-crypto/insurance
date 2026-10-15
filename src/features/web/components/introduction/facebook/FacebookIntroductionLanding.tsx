@@ -96,12 +96,10 @@ export function FacebookIntroductionLanding({ state }: FacebookIntroductionLandi
         </div>
         <div className="fb-intro-hero__copy">
           <p className="fb-intro-hero__brand">{FB_HERO.brand}</p>
-          <h1 className="fb-intro-hero__headline">
-            고객관리 아직도 <span className="fb-intro-hero__accent">여러 곳에서 하시나요?</span>
-          </h1>
-          <p className="fb-intro-hero__subline">{FB_HERO.subline}</p>
-          <p className="fb-intro-hero__trust">{FB_HERO.trustLine}</p>
-          <p className="fb-intro-hero__promo-badge">{FB_HERO.promoBadge}</p>
+          <h1 className="visually-hidden">{FB_HERO.headline}</h1>
+          <p className="visually-hidden">{FB_HERO.subline}</p>
+          <p className="visually-hidden">{FB_HERO.trustLine}</p>
+          <p className="visually-hidden">{FB_HERO.promoBadge}</p>
           <p className="fb-intro-hero__lead">{FB_HERO.belowAdLead}</p>
           <FacebookCtaGroup layout="hero" onFreeStart={scrollToDownload} onViewPromo={scrollToPromo} showViewPromo />
         </div>
