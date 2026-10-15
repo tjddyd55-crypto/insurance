@@ -15416,6 +15416,7 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   }
   .storage-workspace__header-actions{
     flex-wrap: wrap;
+    align-items: center;
     width: 100%;
     padding-top: 0;
   }
