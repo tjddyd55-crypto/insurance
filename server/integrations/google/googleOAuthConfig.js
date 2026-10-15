@@ -51,6 +51,36 @@ export function hasTasksWriteScope(scopeText) {
   return grantedScopeList(scopeText).includes(GOOGLE_TASKS_WRITE_SCOPE)
 }
 
+/**
+ * t307 PR-B Drive. drive.file(비민감): 사용자가 Picker 로 고른 파일(또는 이 앱이 만든 파일)만 접근. 넓은 Drive scope 는 쓰지 않는다.
+ */
+export const GOOGLE_DRIVE_FILE_SCOPE = 'https://www.googleapis.com/auth/drive.file'
+export const GOOGLE_DRIVE_STATE_KEY = 'google_drive'
+export const GOOGLE_DRIVE_ENABLED_ENV = 'GOOGLE_DRIVE_ENABLED'
+export const GOOGLE_PICKER_API_KEY_ENV = 'GOOGLE_PICKER_API_KEY'
+export const GOOGLE_PICKER_APP_ID_ENV = 'GOOGLE_PICKER_APP_ID'
+
+/** @param {Record<string, string | undefined>} [env] */
+export function isGoogleDriveEnabled(env = process.env) {
+  return String(env[GOOGLE_DRIVE_ENABLED_ENV] ?? '').trim().toLowerCase() === 'true'
+}
+
+/**
+ * Picker 설정. API 키·App ID(프로젝트 번호)가 없으면 configured=false 로 두고 화면은 안내만 한다.
+ * API 키는 브라우저용(HTTP referrer·Picker API 로 제한)이라 화면에 내려가는 값이다.
+ * @param {Record<string, string | undefined>} [env]
+ */
+export function readGooglePickerConfig(env = process.env) {
+  const apiKey = String(env[GOOGLE_PICKER_API_KEY_ENV] ?? '').trim()
+  const appId = String(env[GOOGLE_PICKER_APP_ID_ENV] ?? '').trim()
+  return { configured: Boolean(apiKey && /^\d{6,20}$/.test(appId)), apiKey, appId }
+}
+
+/** @param {unknown} scopeText */
+export function hasDriveFileScope(scopeText) {
+  return grantedScopeList(scopeText).includes(GOOGLE_DRIVE_FILE_SCOPE)
+}
+
 /** @deprecated 이름 호환용. GOOGLE_OAUTH_SCOPES 와 같다. */
 export const GOOGLE_CALENDAR_SCOPES = GOOGLE_OAUTH_SCOPES
 

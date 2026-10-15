@@ -1,4 +1,6 @@
 import { safeQuery } from '../utils/dbSafeQuery.js'
+import { createDriveImport } from '../integrations/google/googleDriveImport.js'
+import { withGoogleAccess } from '../integrations/googleCalendarAdapter.js'
 import { buildCustomerRowVisibilityWhere } from '../lib/customerAccessScope.js'
 import { assertCustomerRowAccessibleByVisibility } from '../lib/customerRowVisibilitySql.js'
 import { parseGaId } from '../lib/parseGaId.js'
@@ -2939,6 +2941,31 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       handleDbError(error, req, res)
     }
   })
+
+  // t307 PR-B: Google Drive → 내 저장 공간 / 고객 파일. 기존 presign·R2·save 경로를 그대로 쓴다(GOOGLE_DRIVE_ENABLED).
+  const importDriveFile = createDriveImport({
+    pool,
+    handlers: { presign: handleStoragePresign, save: handleStorageSave, revoke: handleStorageRevokeStaged },
+    putObject: (objectKey, buffer, contentType) => consentPutInsurerAttachment(objectKey, buffer, contentType),
+    withAccess: (userId, run) => withGoogleAccess(pool, { userId }, run),
+  })
+  const driveImportRoute = (forced) => async (req, res) => {
+    try {
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      const out = await importDriveFile(req, {
+        driveFileId: body.driveFileId,
+        folderId: body.folderId ?? null,
+        customerId: body.customerId ?? null,
+        forcedCustomerId: forced ? req.params.id : null,
+      })
+      res.setHeader('Cache-Control', 'no-store')
+      res.status(out.status).json(out.body)
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  }
+  apiRouter.post('/storage/files/import-google-drive', requireAuth, driveImportRoute(false))
+  apiRouter.post('/customers/:id/files/import-google-drive', requireAuth, driveImportRoute(true))
 
   apiRouter.post('/storage/files', requireAuth, async (req, res) => {
     try {

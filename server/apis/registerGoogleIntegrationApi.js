@@ -11,6 +11,10 @@ import {
   GOOGLE_ACCOUNT_PROVIDER_KEY,
   GOOGLE_CALENDAR_CARD_KEY,
   GOOGLE_WRITE_STATE_KEY,
+  GOOGLE_DRIVE_STATE_KEY,
+  hasDriveFileScope,
+  isGoogleDriveEnabled,
+  readGooglePickerConfig,
   isGoogleConnectAllowed,
   isGoogleWriteEnabled,
   readGoogleOAuthConfig,
@@ -35,10 +39,11 @@ import {
   readCookie,
 } from '../integrations/google/googleOAuthStateStore.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
-import { buildGoogleAuthorizationUrl, completeGoogleConnection } from '../integrations/google/googleTokenService.js'
+import { buildGoogleAuthorizationUrl, completeGoogleConnection, getGoogleAccessToken } from '../integrations/google/googleTokenService.js'
 
 const RETURN_PATH = '/service-integrations'
 const WRITE_RETURN_PATH = '/schedule'
+const DRIVE_RETURN_PATH = '/storage'
 
 const GOOGLE_API_ERRORS = {
   unconfigured: { status: 409, message: 'Google 연동 설정이 아직 없습니다. 관리자에게 문의해 주세요.' },
@@ -51,6 +56,7 @@ const GOOGLE_API_ERRORS = {
   google_api_disabled: { status: 503, message: 'Google 연동 서버 설정을 확인 중입니다. 관리자에게 문의해 주세요.' },
   google_rate_limited: { status: 503, message: 'Google 요청이 많아 잠시 조회할 수 없습니다. 잠시 후 다시 시도해 주세요.' },
   google_token_failed: { status: 502, message: 'Google 인증 서버 응답을 처리하지 못했습니다.' },
+  drive_disabled: { status: 403, message: 'Google Drive 가져오기는 아직 준비 중입니다.' },
   write_disabled: { status: 403, message: 'Google 쓰기 기능은 아직 준비 중입니다.' },
   write_scope_missing: { status: 409, message: 'Google 일정·할 일 쓰기 권한이 필요합니다. 권한을 추가로 허용해 주세요.' },
   invalid_input: { status: 400, message: '입력값을 확인해 주세요.' },
@@ -209,7 +215,7 @@ async function readActiveAccount(pool, userId) {
  * @param {import('express').Response} res
  */
 export async function startGoogleConnect(pool, req, res, options = {}) {
-  const purpose = options.purpose === 'write' ? 'write' : 'connect'
+  const purpose = options.purpose === 'write' || options.purpose === 'drive' ? options.purpose : 'connect'
   const userId = currentUserId(req)
   if (!userId) {
     res.status(401).json({ success: false, code: 'unauthorized', message: '로그인이 필요합니다.' })
@@ -229,9 +235,10 @@ export async function startGoogleConnect(pool, req, res, options = {}) {
     return
   }
   let loginHint = ''
-  if (purpose === 'write') {
-    if (!isGoogleWriteEnabled()) {
-      res.status(403).json({ success: false, code: 'write_disabled', message: GOOGLE_API_ERRORS.write_disabled.message })
+  if (purpose !== 'connect') {
+    if (purpose === 'write' ? !isGoogleWriteEnabled() : !isGoogleDriveEnabled()) {
+      const code = purpose === 'write' ? 'write_disabled' : 'drive_disabled'
+      res.status(403).json({ success: false, code, message: GOOGLE_API_ERRORS[code].message })
       return
     }
     const row = await readUserIntegration(pool, userId, GOOGLE_ACCOUNT_PROVIDER_KEY)
@@ -244,7 +251,7 @@ export async function startGoogleConnect(pool, req, res, options = {}) {
   const client = requestedOAuthClient(req)
   const created = await createOAuthState(pool, {
     userId,
-    providerKey: purpose === 'write' ? GOOGLE_WRITE_STATE_KEY : GOOGLE_CALENDAR_CARD_KEY,
+    providerKey: purpose === 'write' ? GOOGLE_WRITE_STATE_KEY : purpose === 'drive' ? GOOGLE_DRIVE_STATE_KEY : GOOGLE_CALENDAR_CARD_KEY,
     client,
   })
   if (created.binding) {
@@ -375,6 +382,44 @@ export function registerGoogleIntegrationApi(apiRouter, { pool, requireAuth, han
   apiRouter.patch('/service-integrations/google/write/tasks', requireAuth, writeRoute('tasks', (access, req) => updateGoogleTask(access, body(req).taskListId, body(req).taskId, body(req))))
   apiRouter.delete('/service-integrations/google/write/tasks', requireAuth, writeRoute('tasks', (access, req) => deleteGoogleTask(access, body(req).taskListId ?? req.query.taskListId, body(req).taskId ?? req.query.taskId)))
 
+  // ---- t307 PR-B Drive: 증분 동의 + Picker 설정 ----
+  apiRouter.post('/service-integrations/google/drive/connect', requireAuth, async (req, res) => {
+    try {
+      await startGoogleConnect(pool, req, res, { purpose: 'drive' })
+    } catch (error) {
+      sendGoogleError(res, error, req, handleDbError)
+    }
+  })
+
+  // Picker 는 브라우저에서 OAuth access token 이 필요하다. 본인 토큰(drive.file 이 있을 때만)만, 캐시 금지로 내려준다.
+  apiRouter.get('/service-integrations/google/drive/picker', requireAuth, async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store')
+    try {
+      const userId = currentUserId(req)
+      const picker = readGooglePickerConfig()
+      const enabled = isGoogleDriveEnabled()
+      const row = await readUserIntegration(pool, userId, GOOGLE_ACCOUNT_PROVIDER_KEY)
+      const connected = Boolean(row && row.status === 'connected')
+      const granted = Boolean(connected && hasDriveFileScope(row?.credential?.scope))
+      const base = {
+        enabled,
+        pickerConfigured: picker.configured,
+        connected,
+        driveGranted: granted,
+        accountEmail: String(row?.accountEmail ?? ''),
+      }
+      if (!enabled || !picker.configured || !granted) {
+        res.json({ success: true, data: base })
+        return
+      }
+      const config = readGoogleOAuthConfig()
+      const token = await getGoogleAccessToken(pool, config, { userId, fetchImpl })
+      res.json({ success: true, data: { ...base, apiKey: picker.apiKey, appId: picker.appId, accessToken: token.accessToken } })
+    } catch (error) {
+      sendGoogleError(res, error, req, handleDbError)
+    }
+  })
+
   // Google 이 브라우저를 돌려보내는 주소. Bearer 가 없으므로 state(DB, 1회용) + 바인딩 쿠키로 사용자를 확인한다.
   // 데스크톱 state(로그인된 데스크톱 앱이 만든 것)만 쿠키 확인을 건너뛰고, 결과는 단순 페이지로 보여 준다.
   apiRouter.get('/service-integrations/google/callback', async (req, res) => {
@@ -394,19 +439,21 @@ export function registerGoogleIntegrationApi(apiRouter, { pool, requireAuth, han
         )
         return
       }
-      const params = new URLSearchParams({ google: purpose === 'write' ? `write_${result}` : result })
+      const params = new URLSearchParams({ google: purpose === 'connect' ? result : `${purpose}_${result}` })
       if (reason) params.set('reason', reason)
-      res.redirect(302, `${purpose === 'write' ? WRITE_RETURN_PATH : RETURN_PATH}?${params.toString()}`)
+      const path = purpose === 'write' ? WRITE_RETURN_PATH : purpose === 'drive' ? DRIVE_RETURN_PATH : RETURN_PATH
+      res.redirect(302, `${path}?${params.toString()}`)
     }
     try {
       const consumed = await consumeOAuthState(pool, {
         state: String(req.query.state ?? ''),
         binding: readCookie(req.headers.cookie, OAUTH_BINDING_COOKIE),
         providerKey: GOOGLE_CALENDAR_CARD_KEY,
-        providerKeys: [GOOGLE_CALENDAR_CARD_KEY, GOOGLE_WRITE_STATE_KEY],
+        providerKeys: [GOOGLE_CALENDAR_CARD_KEY, GOOGLE_WRITE_STATE_KEY, GOOGLE_DRIVE_STATE_KEY],
       })
       client = consumed.client ?? ''
       if (consumed.ok && consumed.providerKey === GOOGLE_WRITE_STATE_KEY) purpose = 'write'
+      if (consumed.ok && consumed.providerKey === GOOGLE_DRIVE_STATE_KEY) purpose = 'drive'
       if (!consumed.ok) {
         back('error', consumed.reason)
         return
@@ -435,6 +482,10 @@ export function registerGoogleIntegrationApi(apiRouter, { pool, requireAuth, han
         return
       }
       const completed = await completeGoogleConnection(pool, config, { userId: consumed.userId, code, purpose, fetchImpl })
+      if (purpose === 'drive') {
+        back(completed.driveFileGranted ? 'connected' : 'error', completed.driveFileGranted ? '' : 'drive_scope_missing')
+        return
+      }
       if (purpose === 'write') {
         back('connected', completed.calendarWritable && completed.tasksWritable ? '' : 'write_scope_partial')
         return

@@ -22,6 +22,7 @@ import {
   type StorageFolderRow,
 } from '../api/storageApi'
 import StorageDeleteDialog from './StorageDeleteDialog'
+import GoogleDriveImportButton from '../../google-drive/GoogleDriveImportButton'
 import StorageExplorerFilePanel from './StorageExplorerFilePanel'
 import StorageExplorerToolbar from './StorageExplorerToolbar'
 import StorageFileList, { type StorageActionVariant } from './StorageFileList'
@@ -937,9 +938,22 @@ export default function StorageWorkspace({
             )}
           </p>
         </div>
-        {headerActionsSlot ? (
-          <div className="storage-workspace__header-actions">{headerActionsSlot}</div>
-        ) : null}
+        <div className="storage-workspace__header-actions">
+          {headerActionsSlot}
+          {/* t307 PR-B: GOOGLE_DRIVE_ENABLED 일 때만 보인다. 서버가 기존 저장 경로로 가져온다. */}
+          <GoogleDriveImportButton
+            token={token}
+            customerId={customerId}
+            folderId={isExplorerLayout ? getStorageExplorerUploadFolderId(explorerSelection) : selectedFolderId}
+            onImported={(files) => {
+              if (files.length) {
+                void loadFiles()
+                void loadQuota()
+              }
+            }}
+            onError={(message) => setError(message)}
+          />
+        </div>
       </div>
 
       {isExplorerLayout ? (
