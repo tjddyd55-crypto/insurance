@@ -20,7 +20,7 @@ import {
   isGoogleDriveEnabled,
   readGooglePickerConfig,
   isGoogleConnectAllowed,
-  isGoogleWriteEnabled,
+  isGoogleWriteEnabledFor,
   readGoogleOAuthConfig,
 } from '../integrations/google/googleOAuthConfig.js'
 import { readUserIntegration } from '../integrations/integrationStore.js'
@@ -224,7 +224,7 @@ async function readActiveAccount(pool, userId) {
  */
 export function connectExtraScopes(options = {}, env = process.env) {
   if (options.feature === 'drive') return isGoogleDriveEnabled(env) ? [GOOGLE_DRIVE_FILE_SCOPE] : []
-  if (options.feature === 'calendar') return isGoogleWriteEnabled(env) ? [...GOOGLE_WRITE_SCOPES] : []
+  if (options.feature === 'calendar') return isGoogleWriteEnabledFor(options.userId, env) ? [...GOOGLE_WRITE_SCOPES] : []
   return []
 }
 
@@ -250,7 +250,7 @@ export async function startGoogleConnect(pool, req, res, options = {}) {
   }
   let loginHint = ''
   if (purpose !== 'connect') {
-    if (purpose === 'write' ? !isGoogleWriteEnabled() : !isGoogleDriveEnabled()) {
+    if (purpose === 'write' ? !isGoogleWriteEnabledFor(userId) : !isGoogleDriveEnabled()) {
       const code = purpose === 'write' ? 'write_disabled' : 'drive_disabled'
       res.status(403).json({ success: false, code, message: GOOGLE_API_ERRORS[code].message })
       return
@@ -281,7 +281,7 @@ export async function startGoogleConnect(pool, req, res, options = {}) {
     success: true,
     data: {
       action: client === 'desktop' ? 'open_external' : 'redirect',
-      url: buildGoogleAuthorizationUrl(config, created.state, { purpose, loginHint, extraScopes: purpose === 'connect' ? connectExtraScopes(options) : [] }),
+      url: buildGoogleAuthorizationUrl(config, created.state, { purpose, loginHint, extraScopes: purpose === 'connect' ? connectExtraScopes({ ...options, userId }) : [] }),
       ...(client === 'desktop' ? { client, expiresInSeconds: Math.floor(OAUTH_STATE_TTL_MS / 1000) } : {}),
     },
   })
@@ -381,7 +381,7 @@ export function registerGoogleIntegrationApi(apiRouter, { pool, requireAuth, han
   apiRouter.get('/service-integrations/google/write/targets', requireAuth, async (req, res) => {
     try {
       const userId = currentUserId(req)
-      if (!isGoogleWriteEnabled()) throw Object.assign(new Error('write_disabled'), { code: 'write_disabled' })
+      if (!isGoogleWriteEnabledFor(userId)) throw Object.assign(new Error('write_disabled'), { code: 'write_disabled' })
       const status = await readGoogleIntegrationStatus(pool, userId)
       const products = { calendar: status.write.calendarWritable, tasks: status.write.tasksWritable }
       const targets = products.calendar || products.tasks

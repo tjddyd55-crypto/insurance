@@ -30,7 +30,7 @@ export const privacySiteConfig = {
   /** 문의 전화 (선택) */
   privacyPhone: businessInfo.privacyOfficerPhone,
   /** 방침 시행일 */
-  effectiveDate: '2026년 10월 9일',
+  effectiveDate: '2026년 10월 23일',
   /** 최종 개정일 (시행일과 같을 수 있음) */
-  lastRevisedDate: '2026년 10월 2일',
+  lastRevisedDate: '2026년 10월 16일',
 } as const

@@ -7,6 +7,6 @@ export const termsSiteConfig = {
   metaRobots: 'index, follow',
   serviceName: 'ONE FC',
   operatorLegalName: businessInfo.businessName,
-  effectiveDate: '2026년 10월 9일',
-  lastRevisedDate: '2026년 10월 2일',
+  effectiveDate: '2026년 10월 23일',
+  lastRevisedDate: '2026년 10월 16일',
 } as const
