@@ -92,6 +92,8 @@ export interface NewsletterItem {
   boardSlug?: string
   /** t299: 선택기 상세 — slug 충돌 시 정확한 게시판 id */
   boardId?: string
+  /** t306: 선택기 게시판 필터용 보드 정식 이름 (picker-sources) */
+  boardName?: string
 }
 
 export type NewsletterSourceKind = 'INSURER' | 'GA' | 'PUBLIC'
