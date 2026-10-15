@@ -5,6 +5,8 @@ type FormDialogProps = Omit<BaseDialogProps, 'children'> & {
   title: string
   children: ReactNode
   footer?: ReactNode
+  /** develop 의 FormDialog 와 호환(이 버전은 X 버튼이 없어 동작 차이 없음, DOM 으로 넘기지 않는다). */
+  disableClose?: boolean
 }
 
 export function FormDialog({
@@ -13,6 +15,8 @@ export function FormDialog({
   footer,
   closeOnBackdrop = false,
   closeOnEsc = false,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  disableClose: _disableClose = false,
   ...dialogProps
 }: FormDialogProps) {
   return (

@@ -2,8 +2,13 @@ import { disconnectUserIntegration, readUserIntegration, touchUserIntegrationFet
 import {
   GOOGLE_ACCOUNT_PROVIDER_KEY,
   hasCalendarReadScope,
+  hasCalendarWriteScope,
   hasTasksReadScope,
+  hasTasksWriteScope,
+  isGoogleWriteEnabled,
   readGoogleOAuthConfig,
+  isGoogleDriveEnabled,
+  hasDriveFileScope,
 } from './google/googleOAuthConfig.js'
 import { getGoogleAccessToken, googleError, revokeGoogleToken } from './google/googleTokenService.js'
 import { listGoogleCalendarEvents, listGoogleCalendars } from './google/googleCalendarApi.js'
@@ -62,7 +67,12 @@ export async function readGoogleIntegrationStatus(pool, userId, env = process.en
   const calendarReadable = Boolean(row && hasCalendarReadScope(row.credential?.scope))
   const tasksReadable = Boolean(row && hasTasksReadScope(row.credential?.scope))
   const needsReconsent = status === 'connected' && !tasksReadable
+  const write = googleWriteState(row, status, env)
+  // t311: Drive(drive.file) 허용 여부 — 플래그가 꺼져 있으면 항상 false.
+  const drive = { enabled: isGoogleDriveEnabled(env), granted: Boolean(isGoogleDriveEnabled(env) && status === 'connected' && hasDriveFileScope(row?.credential?.scope)) }
   return {
+    write,
+    drive,
     provider: 'google',
     configured,
     status,
@@ -81,13 +91,27 @@ export async function readGoogleIntegrationStatus(pool, userId, env = process.en
 }
 
 /**
+ * t307 쓰기 상태. 플래그가 꺼져 있으면 scope 와 상관없이 쓰기 불가.
+ * @param {any} row
+ * @param {string} status googleRowStatus
+ * @param {Record<string, string | undefined>} [env]
+ */
+export function googleWriteState(row, status, env = process.env) {
+  const enabled = isGoogleWriteEnabled(env)
+  const connected = status === 'connected'
+  const calendarWritable = Boolean(enabled && connected && hasCalendarWriteScope(row?.credential?.scope))
+  const tasksWritable = Boolean(enabled && connected && hasTasksWriteScope(row?.credential?.scope))
+  return { enabled, calendarWritable, tasksWritable, needsWriteConsent: Boolean(enabled && connected && (!calendarWritable || !tasksWritable)) }
+}
+
+/**
  * 401 이면 한 번만 강제 refresh 후 다시 시도한다.
  * @template T
  * @param {import('pg').Pool | import('pg').PoolClient} pool
  * @param {{ userId: string, fetchImpl?: typeof fetch, now?: number }} scope
  * @param {(accessToken: string) => Promise<T>} run
  */
-async function withGoogleAccess(pool, scope, run) {
+export async function withGoogleAccess(pool, scope, run) {
   const config = readGoogleOAuthConfig()
   if (!config.configured) {
     throw googleError('unconfigured')
@@ -167,7 +191,7 @@ export async function loadGoogleCalendarSchedule(pool, scope) {
   }
   try {
     const result = await loadGoogleEventsForUser(pool, scope)
-    return { configured: true, connected: true, status: 'connected', calendars: result.calendars, events: result.events }
+    return { configured: true, connected: true, status: 'connected', write: googleWriteState(row, 'connected'), calendars: result.calendars, events: result.events }
   } catch (error) {
     const status = error?.code === 'needs_reauth' ? 'needs_reauth' : 'error'
     return { configured: true, connected: true, status, calendars: [], events: [] }

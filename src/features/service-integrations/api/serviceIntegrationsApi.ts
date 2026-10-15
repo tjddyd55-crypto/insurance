@@ -17,6 +17,16 @@ export type ServiceIntegrationCard = {
   sender: string
   accountLabel: string
   settingsPath: string | null
+  /** t311: Google 카드 기능별 권한(쓰기·Drive 는 서버 플래그 ON 일 때만 enabled). */
+  grants?: {
+    calendarRead: boolean
+    tasksRead: boolean
+    writeEnabled: boolean
+    calendarWrite: boolean
+    tasksWrite: boolean
+    driveEnabled: boolean
+    drive: boolean
+  }
 }
 
 export const SERVICE_INTEGRATION_STATUS_LABEL: Record<ServiceIntegrationStatus, string> = {

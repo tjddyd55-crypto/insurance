@@ -135,6 +135,7 @@ function props(overrides: Partial<ScheduleViewProps> = {}): ScheduleViewProps {
     refreshing: false,
     refreshMessage: null,
     onRefresh: noop,
+    onReload: noop,
     selectedDate: '',
     detail: null,
     taskDetail: null,

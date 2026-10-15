@@ -13,8 +13,10 @@ import {
 } from '../personalBinder.api'
 import type { PersonalBinderMaterial } from '../personalBinder.types'
 import { NewsletterBinderSourcePanel } from './NewsletterBinderSourcePanel'
+import GoogleDriveImportButton from '../../google-drive/GoogleDriveImportButton'
+import { fetchGoogleDrivePicker } from '../../google-drive/googleDriveApi'
 
-type SourceTab = 'storage' | 'team' | 'newsletter'
+type SourceTab = 'storage' | 'team' | 'newsletter' | 'drive'
 
 function isBinderCompatibleFile(mimeType: string, fileName: string): boolean {
   const mime = String(mimeType ?? '').toLowerCase().split(';')[0].trim()
@@ -61,6 +63,17 @@ export function MaterialAddSourceDialog({
   const [teamError, setTeamError] = useState('')
   const [storageLinkError, setStorageLinkError] = useState('')
   const [linkingId, setLinkingId] = useState('')
+  // t307 PR-B: 4번째 출처 Google Drive (GOOGLE_DRIVE_ENABLED + 연결된 계정일 때만 탭 노출)
+  const [driveAvailable, setDriveAvailable] = useState(false)
+  const [driveError, setDriveError] = useState('')
+  useEffect(() => {
+    if (!open || !token?.trim()) return
+    let cancelled = false
+    void fetchGoogleDrivePicker(token)
+      .then((state) => { if (!cancelled) setDriveAvailable(state.enabled && state.connected) })
+      .catch(() => { if (!cancelled) setDriveAvailable(false) })
+    return () => { cancelled = true }
+  }, [open, token])
 
   useEffect(() => {
     if (!open) return
@@ -171,6 +184,7 @@ export function MaterialAddSourceDialog({
     { id: 'storage', label: '내 저장 공간' },
     { id: 'team', label: '팀 자료실' },
     ...(showNewsletterTab ? [{ id: 'newsletter' as const, label: '소식지' }] : []),
+    ...(driveAvailable ? [{ id: 'drive' as const, label: 'Google Drive' }] : []),
   ]
 
   return (
@@ -255,6 +269,21 @@ export function MaterialAddSourceDialog({
           </div>
         ) : null}
 
+        {tab === 'drive' ? (
+          <div className="personal-binder-material-add-modal__inset personal-binder-material-picker__drive">
+            <p>Google Drive 에서 PDF·JPG·PNG 를 골라 내 저장 공간에 복사한 뒤 자료로 추가합니다. Drive 원본은 바뀌지 않습니다.</p>
+            {driveError ? <StatusMessage message={driveError} tone="error" className="m-0" /> : null}
+            <GoogleDriveImportButton
+              token={token}
+              multiple={false}
+              onError={setDriveError}
+              onImported={(files) => {
+                const file = files[0]
+                if (file) void linkStorageFile(file)
+              }}
+            />
+          </div>
+        ) : null}
         {tab === 'team' ? (
           <>
             <div className="personal-binder-material-add-modal__controls">

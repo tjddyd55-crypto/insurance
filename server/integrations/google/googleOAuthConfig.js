@@ -22,6 +22,68 @@ export const GOOGLE_OAUTH_SCOPES = Object.freeze([
   GOOGLE_TASKS_READONLY_SCOPE,
 ])
 
+/**
+ * t307 쓰기(증분 동의). 읽기 연결은 그대로 두고, 쓰기 동작을 처음 쓸 때만 아래 두 scope 를 추가로 요청한다.
+ * - calendar.events: 사용자가 접근 가능한 캘린더의 일정 보기·수정(캘린더 자체 설정·공유는 못 바꿈) — 일정 CRUD 최소 scope
+ * - tasks: Google Tasks 생성·수정·삭제(Tasks 에는 더 좁은 쓰기 scope 가 없다)
+ */
+export const GOOGLE_CALENDAR_EVENTS_SCOPE = 'https://www.googleapis.com/auth/calendar.events'
+export const GOOGLE_TASKS_WRITE_SCOPE = 'https://www.googleapis.com/auth/tasks'
+export const GOOGLE_WRITE_SCOPES = Object.freeze([GOOGLE_CALENDAR_EVENTS_SCOPE, GOOGLE_TASKS_WRITE_SCOPE])
+/** 쓰기 증분 동의 state 의 provider_key (DB 스키마 변경 없이 목적을 구분한다) */
+export const GOOGLE_WRITE_STATE_KEY = 'google_calendar_write'
+/** 서버 기능 플래그. 'true' 일 때만 쓰기 API·동의 요청이 열린다(Prod 는 Google 검증 승인 전까지 OFF). */
+export const GOOGLE_WRITE_ENABLED_ENV = 'GOOGLE_WRITE_ENABLED'
+
+/** @param {Record<string, string | undefined>} [env] */
+export function isGoogleWriteEnabled(env = process.env) {
+  return String(env[GOOGLE_WRITE_ENABLED_ENV] ?? '').trim().toLowerCase() === 'true'
+}
+
+/** @param {unknown} scopeText */
+export function hasCalendarWriteScope(scopeText) {
+  const scopes = grantedScopeList(scopeText)
+  return scopes.includes(GOOGLE_CALENDAR_EVENTS_SCOPE) || scopes.includes('https://www.googleapis.com/auth/calendar')
+}
+
+/** @param {unknown} scopeText */
+export function hasTasksWriteScope(scopeText) {
+  return grantedScopeList(scopeText).includes(GOOGLE_TASKS_WRITE_SCOPE)
+}
+
+/**
+ * t307 PR-B Drive. drive.file(비민감): 사용자가 Picker 로 고른 파일(또는 이 앱이 만든 파일)만 접근. 넓은 Drive scope 는 쓰지 않는다.
+ */
+export const GOOGLE_DRIVE_FILE_SCOPE = 'https://www.googleapis.com/auth/drive.file'
+export const GOOGLE_DRIVE_STATE_KEY = 'google_drive'
+/** t311: 서비스 연동 화면에서 시작한 증분 동의(완료 후 서비스 연동 화면으로 돌아간다). */
+export const GOOGLE_WRITE_SETTINGS_STATE_KEY = 'google_write_settings'
+export const GOOGLE_DRIVE_SETTINGS_STATE_KEY = 'google_drive_settings'
+export const GOOGLE_DRIVE_ENABLED_ENV = 'GOOGLE_DRIVE_ENABLED'
+export const GOOGLE_PICKER_API_KEY_ENV = 'GOOGLE_PICKER_API_KEY'
+export const GOOGLE_PICKER_APP_ID_ENV = 'GOOGLE_PICKER_APP_ID'
+
+/** @param {Record<string, string | undefined>} [env] */
+export function isGoogleDriveEnabled(env = process.env) {
+  return String(env[GOOGLE_DRIVE_ENABLED_ENV] ?? '').trim().toLowerCase() === 'true'
+}
+
+/**
+ * Picker 설정. API 키·App ID(프로젝트 번호)가 없으면 configured=false 로 두고 화면은 안내만 한다.
+ * API 키는 브라우저용(HTTP referrer·Picker API 로 제한)이라 화면에 내려가는 값이다.
+ * @param {Record<string, string | undefined>} [env]
+ */
+export function readGooglePickerConfig(env = process.env) {
+  const apiKey = String(env[GOOGLE_PICKER_API_KEY_ENV] ?? '').trim()
+  const appId = String(env[GOOGLE_PICKER_APP_ID_ENV] ?? '').trim()
+  return { configured: Boolean(apiKey && /^\d{6,20}$/.test(appId)), apiKey, appId }
+}
+
+/** @param {unknown} scopeText */
+export function hasDriveFileScope(scopeText) {
+  return grantedScopeList(scopeText).includes(GOOGLE_DRIVE_FILE_SCOPE)
+}
+
 /** @deprecated 이름 호환용. GOOGLE_OAUTH_SCOPES 와 같다. */
 export const GOOGLE_CALENDAR_SCOPES = GOOGLE_OAUTH_SCOPES
 

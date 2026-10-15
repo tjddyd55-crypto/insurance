@@ -1,4 +1,7 @@
 import { safeQuery } from '../utils/dbSafeQuery.js'
+import { createDriveImport } from '../integrations/google/googleDriveImport.js'
+import { createDriveExport } from '../integrations/google/googleDriveExport.js'
+import { withGoogleAccess } from '../integrations/googleCalendarAdapter.js'
 import { buildCustomerRowVisibilityWhere } from '../lib/customerAccessScope.js'
 import { assertCustomerRowAccessibleByVisibility } from '../lib/customerRowVisibilitySql.js'
 import { parseGaId } from '../lib/parseGaId.js'
@@ -2935,6 +2938,55 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         return
       }
       res.json({ ok: true, fileId })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  // t307 PR-B: Google Drive → 내 저장 공간 / 고객 파일. 기존 presign·R2·save 경로를 그대로 쓴다(GOOGLE_DRIVE_ENABLED).
+  const importDriveFile = createDriveImport({
+    pool,
+    handlers: { presign: handleStoragePresign, save: handleStorageSave, revoke: handleStorageRevokeStaged },
+    putObject: (objectKey, buffer, contentType) => consentPutInsurerAttachment(objectKey, buffer, contentType),
+    withAccess: (userId, run) => withGoogleAccess(pool, { userId }, run),
+  })
+  const driveImportRoute = (forced) => async (req, res) => {
+    try {
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      const out = await importDriveFile(req, {
+        driveFileId: body.driveFileId,
+        folderId: body.folderId ?? null,
+        customerId: body.customerId ?? null,
+        forcedCustomerId: forced ? req.params.id : null,
+      })
+      res.setHeader('Cache-Control', 'no-store')
+      res.status(out.status).json(out.body)
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  }
+  apiRouter.post('/storage/files/import-google-drive', requireAuth, driveImportRoute(false))
+  apiRouter.post('/customers/:id/files/import-google-drive', requireAuth, driveImportRoute(true))
+
+  // t308: 내 저장 공간 파일 → Google Drive 사본 올리기(drive.file, 새 파일 생성만). GOOGLE_DRIVE_ENABLED.
+  const exportToDrive = createDriveExport({
+    pool,
+    getOwnedFile: (fileId, userId, gaId) => getOwnedStorageFile(pool, fileId, userId, gaId),
+    readBuffer: (filePath) => readStorageFileBufferFromPath(filePath),
+    withAccess: (userId, run) => withGoogleAccess(pool, { userId }, run),
+  })
+  apiRouter.post('/storage/files/export-google-drive', requireAuth, async (req, res) => {
+    try {
+      if (!isConsentR2Enabled()) {
+        res.status(503).json({ message: '파일 저장소가 구성되지 않았습니다.' })
+        return
+      }
+      const gaId = requireGaIdFromUser(req, res)
+      if (gaId == null) return
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      const out = await exportToDrive(req, { fileIds: body.fileIds, driveFolderId: body.driveFolderId ?? null, gaId })
+      res.setHeader('Cache-Control', 'no-store')
+      res.status(out.status).json(out.body)
     } catch (error) {
       handleDbError(error, req, res)
     }

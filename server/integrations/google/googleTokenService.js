@@ -7,7 +7,11 @@ import {
 import {
   GOOGLE_ACCOUNT_PROVIDER_KEY,
   GOOGLE_OAUTH_SCOPES,
+  GOOGLE_WRITE_SCOPES,
+  GOOGLE_DRIVE_FILE_SCOPE,
   grantedScopeList,
+  hasCalendarWriteScope,
+  hasTasksWriteScope,
   hasCalendarReadScope,
   hasTasksReadScope,
 } from './googleOAuthConfig.js'
@@ -32,16 +36,25 @@ export function googleError(code) {
 /**
  * @param {{ clientId: string, redirectUri: string }} config
  * @param {string} state
+ * @param {{ purpose?: 'connect' | 'write' | 'drive', loginHint?: string }} [options]
  */
-export function buildGoogleAuthorizationUrl(config, state) {
+export function buildGoogleAuthorizationUrl(config, state, options = {}) {
   const url = new URL(AUTH_URL)
+  // 증분 동의(쓰기·Drive)는 같은 계정으로만. 연결(connect)만 계정 선택 화면을 보인다.
+  const write = options.purpose === 'write' || options.purpose === 'drive'
+  const base = options.purpose === 'write' ? GOOGLE_WRITE_SCOPES : options.purpose === 'drive' ? [GOOGLE_DRIVE_FILE_SCOPE] : []
+  // t311: 서비스 연동 화면 연결은 그 기능에 필요한 scope 를 한 번에 묻는다(플래그 ON 일 때만 호출부가 넣는다).
+  const extra = [...new Set([...base, ...(Array.isArray(options.extraScopes) ? options.extraScopes : [])])]
   url.searchParams.set('client_id', config.clientId)
   url.searchParams.set('redirect_uri', config.redirectUri)
   url.searchParams.set('response_type', 'code')
-  url.searchParams.set('scope', GOOGLE_OAUTH_SCOPES.join(' '))
+  // 쓰기: 증분 동의. 이미 받은 읽기 scope 는 include_granted_scopes 로 유지되고 쓰기 scope 만 새로 묻는다.
+  url.searchParams.set('scope', [...GOOGLE_OAUTH_SCOPES, ...extra].join(' '))
   url.searchParams.set('access_type', 'offline')
   url.searchParams.set('include_granted_scopes', 'true')
-  url.searchParams.set('prompt', 'consent select_account')
+  // 쓰기 동의는 연결된 같은 계정으로만(계정 선택 화면 대신 login_hint).
+  url.searchParams.set('prompt', write ? 'consent' : 'consent select_account')
+  if (write && options.loginHint) url.searchParams.set('login_hint', String(options.loginHint))
   url.searchParams.set('state', state)
   return url.toString()
 }
@@ -175,7 +188,7 @@ export function isSameGoogleAccount(previous, profile) {
  * callback 이 검증한 userId 행에만 저장. 같은 사용자의 기존 연결은 교체하고, 이전 refresh token 은 폐기 시도.
  * @param {import('pg').Pool | import('pg').PoolClient} pool
  * @param {{ clientId: string, clientSecret: string, redirectUri: string }} config
- * @param {{ userId: string, code: string, fetchImpl?: typeof fetch, now?: number }} input
+ * @param {{ userId: string, code: string, purpose?: 'connect' | 'write' | 'drive', fetchImpl?: typeof fetch, now?: number }} input
  */
 export async function completeGoogleConnection(pool, config, input) {
   const tokens = await exchangeGoogleCode(config, input.code, input)
@@ -189,6 +202,11 @@ export async function completeGoogleConnection(pool, config, input) {
   const profile = await fetchGoogleUserInfo(tokens.accessToken, input)
   const previous = await readUserIntegration(pool, input.userId, GOOGLE_ACCOUNT_PROVIDER_KEY)
   const previousRefresh = String(previous?.credential?.refreshToken ?? '')
+  // 쓰기 증분 동의는 이미 연결된 같은 Google 계정에만 붙인다. 다른 계정이면 새 토큰만 폐기하고 기존 연결은 그대로 둔다.
+  if ((input.purpose === 'write' || input.purpose === 'drive') && (!previous || !isSameGoogleAccount(previous, profile))) {
+    await revokeGoogleToken(tokens.refreshToken || tokens.accessToken, input)
+    throw googleError('account_mismatch')
+  }
   const sameAccount = Boolean(previous?.credential?.sub) && previous.credential.sub === profile.sub
   const refreshToken = tokens.refreshToken || (sameAccount ? previousRefresh : '')
   if (!refreshToken) {
@@ -218,7 +236,14 @@ export async function completeGoogleConnection(pool, config, input) {
   }
   clearGoogleUserCache(input.userId)
   // tasks.readonly 는 선택 동의일 수 있다. 없으면 연결은 유지하고 Tasks 만 재동의 필요 상태가 된다.
-  return { accountEmail: profile.email, replaced: Boolean(previous), tasksReadable: hasTasksReadScope(tokens.scope) }
+  return {
+    accountEmail: profile.email,
+    replaced: Boolean(previous),
+    tasksReadable: hasTasksReadScope(tokens.scope),
+    calendarWritable: hasCalendarWriteScope(tokens.scope),
+    tasksWritable: hasTasksWriteScope(tokens.scope),
+    driveFileGranted: grantedScopeList(tokens.scope).includes(GOOGLE_DRIVE_FILE_SCOPE),
+  }
 }
 
 /**
