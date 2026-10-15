@@ -22,6 +22,35 @@ export const GOOGLE_OAUTH_SCOPES = Object.freeze([
   GOOGLE_TASKS_READONLY_SCOPE,
 ])
 
+/**
+ * t307 쓰기(증분 동의). 읽기 연결은 그대로 두고, 쓰기 동작을 처음 쓸 때만 아래 두 scope 를 추가로 요청한다.
+ * - calendar.events: 사용자가 접근 가능한 캘린더의 일정 보기·수정(캘린더 자체 설정·공유는 못 바꿈) — 일정 CRUD 최소 scope
+ * - tasks: Google Tasks 생성·수정·삭제(Tasks 에는 더 좁은 쓰기 scope 가 없다)
+ */
+export const GOOGLE_CALENDAR_EVENTS_SCOPE = 'https://www.googleapis.com/auth/calendar.events'
+export const GOOGLE_TASKS_WRITE_SCOPE = 'https://www.googleapis.com/auth/tasks'
+export const GOOGLE_WRITE_SCOPES = Object.freeze([GOOGLE_CALENDAR_EVENTS_SCOPE, GOOGLE_TASKS_WRITE_SCOPE])
+/** 쓰기 증분 동의 state 의 provider_key (DB 스키마 변경 없이 목적을 구분한다) */
+export const GOOGLE_WRITE_STATE_KEY = 'google_calendar_write'
+/** 서버 기능 플래그. 'true' 일 때만 쓰기 API·동의 요청이 열린다(Prod 는 Google 검증 승인 전까지 OFF). */
+export const GOOGLE_WRITE_ENABLED_ENV = 'GOOGLE_WRITE_ENABLED'
+
+/** @param {Record<string, string | undefined>} [env] */
+export function isGoogleWriteEnabled(env = process.env) {
+  return String(env[GOOGLE_WRITE_ENABLED_ENV] ?? '').trim().toLowerCase() === 'true'
+}
+
+/** @param {unknown} scopeText */
+export function hasCalendarWriteScope(scopeText) {
+  const scopes = grantedScopeList(scopeText)
+  return scopes.includes(GOOGLE_CALENDAR_EVENTS_SCOPE) || scopes.includes('https://www.googleapis.com/auth/calendar')
+}
+
+/** @param {unknown} scopeText */
+export function hasTasksWriteScope(scopeText) {
+  return grantedScopeList(scopeText).includes(GOOGLE_TASKS_WRITE_SCOPE)
+}
+
 /** @deprecated 이름 호환용. GOOGLE_OAUTH_SCOPES 와 같다. */
 export const GOOGLE_CALENDAR_SCOPES = GOOGLE_OAUTH_SCOPES
 

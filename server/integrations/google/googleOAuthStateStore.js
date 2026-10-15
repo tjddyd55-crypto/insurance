@@ -63,7 +63,8 @@ function sameHash(left, right) {
 /**
  * 한 번만 쓴다(DELETE … RETURNING). 결과가 ok 일 때만 userId 를 믿는다.
  * @param {import('pg').Pool | import('pg').PoolClient} pool
- * @param {{ state: string, binding: string, providerKey: string, now?: number }} input
+ * providerKeys 가 있으면 그 중 하나(예: 연결·쓰기 동의)를 허용하고, 결과에 providerKey 를 돌려준다.
+ * @param {{ state: string, binding: string, providerKey: string, providerKeys?: string[], now?: number }} input
  * @returns {Promise<{ ok: true, userId: string, client: 'web' | 'desktop' } | { ok: false, client?: 'web' | 'desktop', reason: 'state_invalid' | 'state_expired' | 'session_mismatch' }>}
  */
 export async function consumeOAuthState(pool, input) {
@@ -81,7 +82,8 @@ export async function consumeOAuthState(pool, input) {
     [hashOAuthToken(state)],
   )
   const row = result.rows[0]
-  if (!row || row.provider_key !== input.providerKey || !String(row.user_id ?? '').trim()) {
+  const allowed = Array.isArray(input.providerKeys) && input.providerKeys.length > 0 ? input.providerKeys : [input.providerKey]
+  if (!row || !allowed.includes(row.provider_key) || !String(row.user_id ?? '').trim()) {
     return { ok: false, reason: 'state_invalid' }
   }
   const client = row.binding_hash === DESKTOP_BINDING_MARKER ? 'desktop' : 'web'
@@ -89,14 +91,15 @@ export async function consumeOAuthState(pool, input) {
   if (new Date(row.expires_at).getTime() < now) {
     return { ok: false, client, reason: 'state_expired' }
   }
+  const providerKey = String(row.provider_key)
   if (client === 'desktop') {
-    return { ok: true, userId: String(row.user_id), client }
+    return { ok: true, userId: String(row.user_id), client, providerKey }
   }
   const binding = String(input.binding ?? '').trim()
   if (!binding || !sameHash(hashOAuthToken(binding), row.binding_hash)) {
     return { ok: false, client, reason: 'session_mismatch' }
   }
-  return { ok: true, userId: String(row.user_id), client }
+  return { ok: true, userId: String(row.user_id), client, providerKey }
 }
 
 /**
