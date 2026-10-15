@@ -124,7 +124,7 @@ export function NewsletterPickerPanel({
 
   const sourceOptions = useMemo(
     () => [
-      { value: 'all', label: '전체 (폴더 구분 없음)' },
+      { value: 'all', label: '모든 폴더' },
       { value: 'favorites', label: `즐겨찾기 (${collections.favoriteNewsletterIds.length})` },
       ...collections.folders.map((folder) => ({
         value: `folder:${folder.id}`,
