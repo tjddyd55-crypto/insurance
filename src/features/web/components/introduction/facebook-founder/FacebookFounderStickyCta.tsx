@@ -1,5 +1,5 @@
-import { FF_CTA_LINKS, FF_STICKY } from '../../../config/facebookFounderLandingContent'
-import { trackFacebookLandingEvent } from '../../../utils/facebookLandingAnalytics'
+import { FF_INSTALL_SECTION_ID, FF_STICKY } from '../../../config/facebookFounderLandingContent'
+import { scrollToFacebookInstallSection } from '../../../utils/facebookInstallScroll'
 
 export function FacebookFounderStickyCta() {
   return (
@@ -8,9 +8,8 @@ export function FacebookFounderStickyCta() {
         <span className="ff-sticky__label">{FF_STICKY.label}</span>
         <a
           className="ff-sticky__install"
-          href={FF_CTA_LINKS.pc}
-          download
-          onClick={() => trackFacebookLandingEvent('facebook_pc_start_click')}
+          href={`#${FF_INSTALL_SECTION_ID}`}
+          onClick={scrollToFacebookInstallSection}
         >
           {FF_STICKY.install}
         </a>

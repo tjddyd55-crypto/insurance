@@ -147,3 +147,6 @@ export const FF_STICKY = {
   label: '3개월 무료',
   install: '설치하기',
 } as const
+
+/** 하단 PC·Android·iPhone 설치 선택 영역 (Hero·스티키 CTA 스크롤 대상) */
+export const FF_INSTALL_SECTION_ID = 'ff-install' as const
