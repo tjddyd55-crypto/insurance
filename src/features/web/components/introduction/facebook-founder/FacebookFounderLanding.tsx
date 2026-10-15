@@ -7,6 +7,7 @@ import {
   FF_CTA_LINKS,
   FF_FINAL,
   FF_HERO,
+  FF_INSTALL_SECTION_ID,
   FF_MADE,
   FF_MOBILE,
   FF_MOBILE_SCREENSHOT,
@@ -24,6 +25,7 @@ import {
 } from '../../../config/facebookIntroductionPromo'
 import { INTRO_BRAND_NAME, type IntroSectionTone } from '../landing/introLandingConstants'
 import { trackFacebookLandingEvent } from '../../../utils/facebookLandingAnalytics'
+import { scrollToFacebookInstallSection } from '../../../utils/facebookInstallScroll'
 
 const PC_SHOTS = FACEBOOK_LANDING_SCREENSHOTS.filter((s) => s.platform !== 'mobile')
 
@@ -115,40 +117,51 @@ function FounderPromoBlock() {
   )
 }
 
+const INSTALL_BTN_CLASS = 'intro-landing-btn intro-landing-btn--secondary ff-install-btn'
+
 function InstallCtas({ layout }: { layout: 'hero' | 'footer' }) {
-  const wrapClass = layout === 'hero' ? 'ff-cta ff-cta--hero' : 'ff-cta ff-cta--footer'
+  if (layout === 'hero') {
+    return (
+      <div className="ff-cta ff-cta--hero">
+        <a
+          className="intro-landing-btn intro-landing-btn--primary"
+          href={`#${FF_INSTALL_SECTION_ID}`}
+          onClick={scrollToFacebookInstallSection}
+        >
+          {FF_HERO.installCta}
+        </a>
+      </div>
+    )
+  }
+
   return (
-    <div className={wrapClass}>
+    <div id={FF_INSTALL_SECTION_ID} className="ff-cta ff-cta--footer ff-cta--install">
       <a
-        className="intro-landing-btn intro-landing-btn--primary"
+        className={INSTALL_BTN_CLASS}
         href={FF_CTA_LINKS.pc}
         download
         onClick={() => trackFacebookLandingEvent('facebook_pc_start_click')}
       >
-        {layout === 'hero' ? FF_HERO.installCta : FF_FINAL.pcCta}
+        {FF_FINAL.pcCta}
       </a>
-      {layout === 'footer' ? (
-        <>
-          <a
-            className="intro-landing-btn intro-landing-btn--secondary"
-            href={FF_CTA_LINKS.android}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => trackFacebookLandingEvent('facebook_android_download_click')}
-          >
-            {FF_FINAL.androidCta}
-          </a>
-          <a
-            className="intro-landing-btn intro-landing-btn--secondary"
-            href={FF_CTA_LINKS.iphone}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => trackFacebookLandingEvent('facebook_ios_download_click')}
-          >
-            {FF_FINAL.iphoneCta}
-          </a>
-        </>
-      ) : null}
+      <a
+        className={INSTALL_BTN_CLASS}
+        href={FF_CTA_LINKS.android}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={() => trackFacebookLandingEvent('facebook_android_download_click')}
+      >
+        {FF_FINAL.androidCta}
+      </a>
+      <a
+        className={INSTALL_BTN_CLASS}
+        href={FF_CTA_LINKS.iphone}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={() => trackFacebookLandingEvent('facebook_ios_download_click')}
+      >
+        {FF_FINAL.iphoneCta}
+      </a>
     </div>
   )
 }

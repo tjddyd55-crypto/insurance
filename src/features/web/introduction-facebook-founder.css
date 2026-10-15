@@ -132,6 +132,41 @@
   min-width: min(100%, 240px);
 }
 
+#ff-install {
+  scroll-margin-top: calc(var(--introduction-header-offset, 72px) + 16px);
+}
+
+.ff-cta--install {
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  max-width: 360px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.ff-cta--install .ff-install-btn {
+  width: 100%;
+  min-width: 0;
+  box-shadow: none;
+}
+
+@media (min-width: 769px) {
+  .ff-cta--install {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: stretch;
+    max-width: none;
+  }
+
+  .ff-cta--install .ff-install-btn {
+    flex: 1 1 200px;
+    max-width: 260px;
+    width: auto;
+  }
+}
+
 .ff-hero__trial {
   margin-top: 12px;
 }
