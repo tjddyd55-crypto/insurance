@@ -5,7 +5,7 @@ import {
   hasCalendarWriteScope,
   hasTasksReadScope,
   hasTasksWriteScope,
-  isGoogleWriteEnabled,
+  isGoogleWriteEnabledFor,
   readGoogleOAuthConfig,
   isGoogleDriveEnabled,
   hasDriveFileScope,
@@ -67,7 +67,7 @@ export async function readGoogleIntegrationStatus(pool, userId, env = process.en
   const calendarReadable = Boolean(row && hasCalendarReadScope(row.credential?.scope))
   const tasksReadable = Boolean(row && hasTasksReadScope(row.credential?.scope))
   const needsReconsent = status === 'connected' && !tasksReadable
-  const write = googleWriteState(row, status, env)
+  const write = googleWriteState(row, status, env, userId)
   // t311: Drive(drive.file) 허용 여부 — 플래그가 꺼져 있으면 항상 false.
   const drive = { enabled: isGoogleDriveEnabled(env), granted: Boolean(isGoogleDriveEnabled(env) && status === 'connected' && hasDriveFileScope(row?.credential?.scope)) }
   return {
@@ -96,8 +96,8 @@ export async function readGoogleIntegrationStatus(pool, userId, env = process.en
  * @param {string} status googleRowStatus
  * @param {Record<string, string | undefined>} [env]
  */
-export function googleWriteState(row, status, env = process.env) {
-  const enabled = isGoogleWriteEnabled(env)
+export function googleWriteState(row, status, env = process.env, userId = row?.userId) {
+  const enabled = isGoogleWriteEnabledFor(userId, env)
   const connected = status === 'connected'
   const calendarWritable = Boolean(enabled && connected && hasCalendarWriteScope(row?.credential?.scope))
   const tasksWritable = Boolean(enabled && connected && hasTasksWriteScope(row?.credential?.scope))
@@ -191,7 +191,7 @@ export async function loadGoogleCalendarSchedule(pool, scope) {
   }
   try {
     const result = await loadGoogleEventsForUser(pool, scope)
-    return { configured: true, connected: true, status: 'connected', write: googleWriteState(row, 'connected'), calendars: result.calendars, events: result.events }
+    return { configured: true, connected: true, status: 'connected', write: googleWriteState(row, 'connected', process.env, scope.userId), calendars: result.calendars, events: result.events }
   } catch (error) {
     const status = error?.code === 'needs_reauth' ? 'needs_reauth' : 'error'
     return { configured: true, connected: true, status, calendars: [], events: [] }

@@ -33,3 +33,22 @@ test('incremental purposes keep same-account prompt and no duplicate scopes', ()
   assert.equal(new URL(url).searchParams.get('login_hint'), 'a@b.c')
   assert.equal(new URL(url).searchParams.get('prompt'), 'consent')
 })
+
+test('t313 allowlist: GOOGLE_WRITE_ALLOWED_USER_IDS limits write to listed users only', async () => {
+  const { isGoogleWriteEnabledFor } = await import('./googleOAuthConfig.js')
+  const { googleWriteState } = await import('../googleCalendarAdapter.js')
+  const on = { GOOGLE_WRITE_ENABLED: 'true' }
+  const limited = { ...on, GOOGLE_WRITE_ALLOWED_USER_IDS: ' 42, 7 ' }
+  assert.equal(isGoogleWriteEnabledFor('1', {}), false)
+  assert.equal(isGoogleWriteEnabledFor('1', on), true)
+  assert.equal(isGoogleWriteEnabledFor('42', limited), true)
+  assert.equal(isGoogleWriteEnabledFor(7, limited), true)
+  assert.equal(isGoogleWriteEnabledFor('1', limited), false)
+  assert.equal(isGoogleWriteEnabledFor('', limited), false)
+  assert.equal(isGoogleWriteEnabledFor('42', { GOOGLE_WRITE_ALLOWED_USER_IDS: '42' }), false)
+  assert.deepEqual(connectExtraScopes({ feature: 'calendar', userId: '1' }, limited), [])
+  assert.deepEqual(connectExtraScopes({ feature: 'calendar', userId: '42' }, limited), [...GOOGLE_WRITE_SCOPES])
+  const row = { credential: { scope: GOOGLE_WRITE_SCOPES.join(' ') } }
+  assert.equal(googleWriteState(row, 'connected', limited, '1').enabled, false)
+  assert.equal(googleWriteState(row, 'connected', limited, '42').calendarWritable, true)
+})

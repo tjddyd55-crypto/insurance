@@ -46,8 +46,9 @@ export default function TermsOfServicePage() {
               이용과 관련하여 회사와 이용자의 권리·의무 및               책임 사항을 규정합니다.
             </p>
             <p className="legal-doc__note">
-              개정 안내: 이번 개정은 2026년 10월 2일에 공지하며 2026년 10월 9일부터 시행합니다. 시행일 전까지는 종전
-              약관(2026년 7월 13일 시행)이 적용됩니다.
+              개정 안내: 이번 개정(제4조 외부 서비스 연동 — Google Calendar·Tasks 추가·수정·삭제, Google Drive 연동)은
+              2026년 10월 16일에 공지하며 2026년 10월 23일부터 시행합니다. 시행일 전까지는 종전 약관(2026년 10월 9일
+              시행)이 적용됩니다.
             </p>
           </header>
 
@@ -133,12 +134,14 @@ export default function TermsOfServicePage() {
               서비스 제공을 일시 중단할 수 있습니다. 회사는 운영상·기술상 필요에 따라 서비스의 전부 또는 일부를
               변경할 수 있으며, 이용자에게 중대한 영향을 미치는 변경은 사전에 공지합니다.
             </p>
-            <h3>Google Calendar 및 Google Tasks 등 외부 서비스 연동</h3>
+            <h3>Google Calendar·Google Tasks·Google Drive 등 외부 서비스 연동</h3>
             <p>
-              서비스는 Google Calendar 및 Google Tasks 등 외부 서비스와 연동하는 기능을 선택적으로 제공할 수 있습니다.
+              서비스는 Google Calendar, Google Tasks, Google Drive 등 외부 서비스와 연동하는 기능을 선택적으로 제공할 수 있습니다.
               연동은 이용자가 서비스 연동 화면에서 직접 Google OAuth 동의를 통해 이루어지며, 회사는 이용자가 허용한
-              범위에서만 Google 데이터에 접근합니다. Google Calendar 및 Google Tasks 연동은 일정과 할 일을 읽기
-              전용으로 표시하는 데 한정됩니다. 이용자는 언제든지 연결을 해제할 수 있으며, Google 서비스 장애·정책
+              범위에서만 Google 데이터에 접근합니다. Google Calendar 및 Google Tasks 연동은 일정과 할 일을 함께 표시하고,
+              이용자가 허용한 경우 이용자가 직접 요청한 일정·할 일의 추가·수정·완료·삭제만 반영합니다. Google Drive 연동은
+              이용자가 고른 파일을 서비스로 가져오거나 이용자가 고른 폴더에 사본을 만드는 데 한정되며, Drive 의 기존 파일을
+              수정·삭제하지 않습니다. 이용자는 언제든지 연결을 해제할 수 있으며, Google 서비스 장애·정책
               변경 등으로 연동 기능이 제한·중단될 수 있습니다. Google 연동과 관련한 개인정보 처리는{' '}
               <LegalInternalLink to="/privacy" className="legal-doc__link">
                 개인정보처리방침
@@ -263,7 +266,7 @@ export default function TermsOfServicePage() {
 
           <section className="legal-doc__section" id="t14">
             <h2>부칙 (시행일)</h2>
-            <p>본 약관은 2026년 10월 9일부터 시행합니다.</p>
+            <p>본 약관은 2026년 10월 23일부터 시행합니다.</p>
             <ul className="legal-doc__list legal-doc__contact">
               <li>
                 <strong>상호</strong> {C.operatorLegalName}
