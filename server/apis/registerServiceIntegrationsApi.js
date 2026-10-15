@@ -98,7 +98,9 @@ export function registerServiceIntegrationsApi(apiRouter, { pool, requireAuth, h
             group: provider.group,
             groupLabel: provider.groupLabel,
             name: provider.name,
-            description: provider.description,
+            description: google.write?.enabled
+              ? 'Google Calendar 일정과 Google Tasks 할 일을 일정 관리에서 함께 보고, 추가·수정·완료·삭제할 수 있습니다.'
+              : provider.description,
             kind: provider.kind,
             availability: google.configured ? 'ready' : 'unconfigured',
             status: googleCardStatus(google),
