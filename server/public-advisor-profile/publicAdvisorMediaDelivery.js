@@ -2,6 +2,19 @@ import { consentGetBuffer } from '../lib/consentStorage.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { normalizeAdvisorPublicObjectKeyForCdn } from './publicAdvisorMedia.js'
 
+function advisorMediaKeyVariants(objectKey) {
+  const raw = String(objectKey ?? '').trim().replace(/^\//, '')
+  if (!raw) return []
+  const normalized = normalizeAdvisorPublicObjectKeyForCdn(raw)
+  const legacy =
+    normalized.startsWith('insurance/advisor-public/')
+      ? normalized.slice('insurance/'.length)
+      : raw.startsWith('advisor-public/')
+        ? raw
+        : ''
+  return [...new Set([raw, normalized, legacy].filter(Boolean))]
+}
+
 /**
  * @param {string | null | undefined} objectKey
  */
@@ -28,8 +41,8 @@ export function advisorPublicMediaUrl(objectKey, origin) {
  * @param {string} objectKey
  */
 export async function assertAdvisorPublicMediaIsPublished(pool, objectKey) {
-  const key = normalizeAdvisorPublicObjectKeyForCdn(objectKey)
-  if (!key) return false
+  const variants = advisorMediaKeyVariants(objectKey)
+  if (variants.length === 0) return false
 
   const profile = await systemQuery(
     pool,
@@ -41,13 +54,10 @@ export async function assertAdvisorPublicMediaIsPublished(pool, objectKey) {
       AND u.is_deleted = false
       AND u.role = 'USER'
       AND u.status = 'active'
-      AND (
-        p.profile_photo_object_key = $1
-        OR p.profile_photo_object_key = $2
-      )
+      AND p.profile_photo_object_key = ANY($1::text[])
     LIMIT 1
     `,
-    [key, objectKey],
+    [variants],
   )
   if (profile.rowCount > 0) return true
 
@@ -58,14 +68,14 @@ export async function assertAdvisorPublicMediaIsPublished(pool, objectKey) {
     FROM advisor_public_profile_gallery g
     INNER JOIN advisor_public_profiles p ON p.user_id = g.user_id
     INNER JOIN users u ON u.id = p.user_id
-    WHERE (g.object_key = $1 OR g.object_key = $2)
+    WHERE g.object_key = ANY($1::text[])
       AND p.is_published = true
       AND u.is_deleted = false
       AND u.role = 'USER'
       AND u.status = 'active'
     LIMIT 1
     `,
-    [key],
+    [variants],
   )
   return gallery.rowCount > 0
 }
