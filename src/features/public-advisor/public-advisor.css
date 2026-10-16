@@ -529,6 +529,14 @@
   border: 1px solid #e5e7eb;
 }
 
+.pap-section--contact-copy-only {
+  padding-bottom: 16px;
+}
+
+.pap-section--contact-copy-only .pap-contact-lead {
+  margin-bottom: 0;
+}
+
 .pap-btn--block {
   width: 100%;
   margin-top: 4px;

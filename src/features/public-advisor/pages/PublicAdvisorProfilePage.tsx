@@ -233,12 +233,9 @@ export function PublicAdvisorProfilePage() {
           ) : null}
 
           {data.allowConsultation ? (
-            <section className="pap-section pap-section--contact pap-section--contact-inline">
+            <section className="pap-section pap-section--contact pap-section--contact-inline pap-section--contact-copy-only">
               <h2>상담 문의</h2>
               <p className="pap-contact-lead">궁금한 점이 있으면 편하게 문의해주세요.</p>
-              <button type="button" className="pap-btn pap-btn--primary pap-btn--block" onClick={openConsult}>
-                상담하기
-              </button>
             </section>
           ) : null}
 
