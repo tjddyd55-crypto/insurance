@@ -21,6 +21,7 @@ const browser = await chromium.launch({ headless: true })
 for (const [label, width, height] of [
   ['390', 390, 844],
   ['360', 360, 800],
+  ['430', 430, 932],
 ]) {
   const ctx = await browser.newContext({
     viewport: { width, height },
@@ -48,8 +49,11 @@ for (const [label, width, height] of [
       await capture(page, '390-lightbox.png')
       await page.getByRole('button', { name: '닫기' }).click()
     }
-  } else {
+  } else if (label === '360') {
     await capture(page, '360-full.png', true)
+  } else {
+    await capture(page, '430-billboard.png')
+    await capture(page, '430-full.png', true)
   }
   await ctx.close()
 }

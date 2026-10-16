@@ -1,3 +1,4 @@
+/** 모바일 명함 하단 액션. 향후 QR·채팅·ONE FC 연결 등 슬롯 확장 가능. */
 type ActionBarProps = {
   phoneNumber: string
   kakaoLink: string

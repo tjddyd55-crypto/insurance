@@ -137,7 +137,7 @@
 .pap-hero-photo-wrap {
   width: 100%;
   aspect-ratio: 4 / 5;
-  max-height: min(70vh, 480px);
+  max-height: min(52vh, 400px);
   background: #e5e7eb;
   overflow: hidden;
 }
@@ -263,9 +263,15 @@
   line-height: 1.2;
 }
 
+@media (min-width: 390px) and (max-width: 430px) {
+  .pap-hero-photo-wrap {
+    max-height: min(50vh, 380px);
+  }
+}
+
 @media (min-width: 431px) {
   .pap-hero-photo-wrap {
-    max-height: min(65vh, 520px);
+    max-height: min(58vh, 440px);
   }
 }
 
