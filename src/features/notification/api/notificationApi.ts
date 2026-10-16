@@ -215,23 +215,33 @@ export type GoogleAutoSyncState = {
 }
 
 export async function fetchGoogleAutoSync(token: string): Promise<GoogleAutoSyncState> {
-  const res = await apiRequest<{ success: boolean; data: GoogleAutoSyncState }>(
-    '/api/service-integrations/google/calendar-autosync',
-    { token },
-  )
-  return res.data
+  const res = await apiRequest<unknown>('/api/service-integrations/google/calendar-autosync', { token })
+  return asGoogleAutoSyncState(res)
+}
+
+/** apiRequest 는 { success, data } 를 data 로 풀어 줄 수 있으므로 두 모양을 모두 받는다. 모양이 틀리면 실패로 본다. */
+function asGoogleAutoSyncState(raw: unknown): GoogleAutoSyncState {
+  const obj = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : null
+  const inner = obj && obj.data && typeof obj.data === 'object' ? (obj.data as Record<string, unknown>) : obj
+  if (!inner || typeof inner.enabled !== 'boolean' || !inner.kinds || typeof inner.kinds !== 'object') {
+    throw new ApiError('Google 캘린더 자동 연동 상태를 확인하지 못했습니다.', 500)
+  }
+  return inner as unknown as GoogleAutoSyncState
 }
 
 export async function saveGoogleAutoSync(
   token: string,
   body: { enabled: boolean; kinds: Record<GoogleAutoSyncKind, boolean> },
 ): Promise<GoogleAutoSyncState> {
-  const res = await apiRequest<{ success: boolean; data: GoogleAutoSyncState }>(
-    '/api/service-integrations/google/calendar-autosync',
-    { method: 'PUT', token, body: JSON.stringify(body) },
-  )
-  if (!res?.success) {
+  const res = await apiRequest<unknown>('/api/service-integrations/google/calendar-autosync', {
+    method: 'PUT',
+    token,
+    body: JSON.stringify(body),
+  })
+  const saved = asGoogleAutoSyncState(res)
+  // 서버에 실제로 저장된 값이 요청과 다르면 성공으로 보지 않는다.
+  if (saved.enabled !== body.enabled) {
     throw new ApiError('Google 캘린더 자동 연동 설정을 저장하지 못했습니다.', 500)
   }
-  return res.data
+  return saved
 }
